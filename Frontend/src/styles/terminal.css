@@ -1,0 +1,68 @@
+/* terminal.css */
+.terminal-container {
+  background-color: #050505;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.terminal-header {
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.terminal-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.terminal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.terminal-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.log-entry {
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.log-timestamp {
+  color: var(--text-muted);
+  margin-right: 12px;
+  user-select: none;
+}
+
+.log-level {
+  width: 70px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.log-level.INFO { color: var(--info); }
+.log-level.WARN { color: var(--warning); }
+.log-level.ERROR { color: var(--danger); }
+.log-level.SUCCESS { color: var(--success); }
+
+.log-message {
+  color: var(--text-primary);
+  word-break: break-all;
+}
