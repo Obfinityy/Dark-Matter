@@ -38,6 +38,11 @@ export function createAuthController(authService, config) {
     updateProfile: asyncHandler(async (request, response) => {
       response.json({ user: await authService.updateProfile(request.user.id, request.body) });
     }),
+    changePassword: asyncHandler(async (request, response) => {
+      const { currentPassword, newPassword } = request.body || {};
+      await authService.changePassword(request.user.id, currentPassword, newPassword);
+      response.json({ message: 'Password changed successfully' });
+    }),
     logout: asyncHandler(async (request, response) => {
       await authService.logout(request.sessionToken);
       clearSessionCookie(response, config.nodeEnv === 'production');

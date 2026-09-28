@@ -32,7 +32,10 @@ export class MongoDatabase {
       this.collection('tool_executions').createIndex({ assessmentId: 1, startedAt: -1 }),
       this.collection('tool_executions').createIndex({ assessmentId: 1, fingerprint: 1 }),
       this.collection('findings').createIndex({ assessmentId: 1, createdAt: -1 }),
-      this.collection('findings').createIndex({ userId: 1, createdAt: -1 })
+      this.collection('findings').createIndex({ userId: 1, createdAt: -1 }),
+      // Report indexes
+      this.collection('reports').createIndex({ assessmentId: 1, version: -1 }),
+      this.collection('reports').createIndex({ userId: 1, createdAt: -1 })
     ]);
   }
 
@@ -118,6 +121,18 @@ class MemoryCollection {
     if (index === -1 && !options.upsert) return { matchedCount: 0, modifiedCount: 0 };
     const current = index === -1 ? { ...query } : this.documents[index];
     const next = { ...current, ...(update.$setOnInsert && index === -1 ? update.$setOnInsert : {}), ...(update.$set || {}) };
+    if (update.$push) {
+      for (const [key, value] of Object.entries(update.$push)) {
+        if (!next[key]) next[key] = [];
+        if (value && value.$each) next[key].push(...value.$each);
+        else next[key].push(value);
+      }
+    }
+    if (update.$inc) {
+      for (const [key, value] of Object.entries(update.$inc)) {
+        next[key] = (next[key] || 0) + value;
+      }
+    }
     if (index === -1) this.documents.push(clone(next));
     else this.documents[index] = clone(next);
     return { matchedCount: index === -1 ? 0 : 1, modifiedCount: 1, upsertedCount: index === -1 ? 1 : 0 };

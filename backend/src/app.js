@@ -14,11 +14,13 @@ import { AssessmentModel } from './models/assessmentModel.js';
 import { AgentStateModel } from './models/agentStateModel.js';
 import { ToolExecutionModel } from './models/toolExecutionModel.js';
 import { FindingModel } from './models/findingModel.js';
+import { ReportModel } from './models/reportModel.js';
 import { EventService } from './services/eventService.js';
 import { ScanService } from './services/scanService.js';
 import { SubdomainService } from './services/subdomainService.js';
 import { AuthService } from './services/authService.js';
 import { AssessmentService } from './services/assessmentService.js';
+import { ReportService } from './services/reportService.js';
 import { StateManager } from './agent/stateManager.js';
 import { Planner } from './agent/planner.js';
 import { AgentBrain } from './agent/brain.js';
@@ -34,6 +36,7 @@ import { createSettingsController } from './controllers/settingsController.js';
 import { createTargetController } from './controllers/targetController.js';
 import { createAssessmentController } from './controllers/assessmentController.js';
 import { listTools } from './controllers/toolController.js';
+import { createReportController } from './controllers/reportController.js';
 import { createRoutes } from './routes/index.js';
 
 export async function createApp({ database = new MongoDatabase(config) } = {}) {
@@ -51,6 +54,7 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
   const agentStateModel = new AgentStateModel(database);
   const toolExecutionModel = new ToolExecutionModel(database);
   const findingModel = new FindingModel(database);
+  const reportModel = new ReportModel(database);
 
   // ─── Existing Services ────────────────────────────────────────────
   const authService = new AuthService({ userModel, sessionModel, sessionDays: config.sessionDays });
@@ -64,7 +68,7 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
   const defaultScopeEngine = new ScopeEngine({ included: [], excluded: [] }, 'localhost');
 
   const stateManager = new StateManager({ agentStateModel, assessmentModel, eventService });
-  const planner = new Planner();
+  const planner = new Planner({ providerModel });
   const toolExecutor = new ToolExecutor({ toolExecutionModel, eventService, scopeEngine: defaultScopeEngine });
 
   const agentBrain = new AgentBrain({
@@ -82,6 +86,17 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     targetModel,
     agentBrain,
     stateManager,
+    eventService,
+    planner,
+    providerModel
+  });
+
+  const reportService = new ReportService({
+    reportModel,
+    assessmentModel,
+    findingModel,
+    toolExecutionModel,
+    agentStateModel,
     eventService
   });
 
@@ -103,7 +118,8 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
   app.locals.services = {
     database, providerModel, targetModel, scanModel, eventService, scanService,
     subdomainService, authService, assessmentModel, agentStateModel,
-    toolExecutionModel, findingModel, assessmentService, agentBrain
+    toolExecutionModel, findingModel, reportModel, assessmentService,
+    reportService, agentBrain
   };
   app.locals.shutdown = async () => {
     // Stop all running assessments on shutdown
@@ -122,7 +138,8 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
       targets: createTargetController(targetModel),
       scans: createScanController(scanService, eventService),
       agent: createAgentController(scanService),
-      assessments: createAssessmentController(assessmentService, eventService)
+      assessments: createAssessmentController(assessmentService, eventService),
+      reports: createReportController(reportService, assessmentService)
     }
   }));
   app.use(notFoundHandler);

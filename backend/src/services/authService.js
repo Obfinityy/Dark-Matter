@@ -78,4 +78,15 @@ export class AuthService {
   async updateProfile(userId, input) {
     return this.userModel.updateProfile(userId, input);
   }
+
+  async changePassword(userId, currentPassword, newPassword) {
+    assert(typeof currentPassword === 'string' && currentPassword.length >= 1, 400, 'Current password is required', 'MISSING_PASSWORD');
+    assert(typeof newPassword === 'string' && newPassword.length >= 8, 400, 'New password must be at least 8 characters', 'WEAK_PASSWORD');
+    const user = await this.userModel.findById(userId);
+    assert(user, 404, 'User not found', 'USER_NOT_FOUND');
+    const valid = await verifyPassword(currentPassword, user.passwordHash);
+    if (!valid) throw new AppError(401, 'Current password is incorrect', 'INVALID_CURRENT_PASSWORD');
+    const newHash = await hashPassword(newPassword);
+    await this.userModel.changePassword(userId, newHash);
+  }
 }

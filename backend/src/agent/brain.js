@@ -134,7 +134,7 @@ export class AgentBrain {
       // 2. Ask planner for next decision
       let decision;
       try {
-        decision = await this.planner.decide(context, lastAiSummary);
+        decision = await this.planner.decide(context, lastAiSummary, userId);
       } catch (error) {
         console.error('Planner failed:', error.message);
         await this.eventService.publish(assessmentId, {

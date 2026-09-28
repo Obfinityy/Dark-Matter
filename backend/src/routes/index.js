@@ -10,6 +10,7 @@ export function createRoutes({ controllers }) {
   router.use(requireAuth);
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
+  router.put('/auth/password', controllers.auth.changePassword);
   router.post('/auth/logout', controllers.auth.logout);
   router.get('/agent', controllers.health.agentInfo);
   router.get('/settings/providers', controllers.settings.listProviders);
@@ -37,6 +38,12 @@ export function createRoutes({ controllers }) {
   router.get('/assessments/:id/tool-executions', controllers.assessments.toolExecutions);
   router.post('/assessments/:id/chat', controllers.assessments.chat);
   router.get('/assessments/:id/events', controllers.assessments.events);
+
+  // ─── Report System ──────────────────────────────────────────────
+  router.post('/assessments/:id/report', controllers.reports.generate);
+  router.get('/assessments/:id/report', controllers.reports.getLatest);
+  router.get('/assessments/:id/reports', controllers.reports.listVersions);
+  router.get('/reports', controllers.reports.listAll);
 
   return router;
 }

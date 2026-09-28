@@ -1,12 +1,6 @@
 @import './variables.css';
-@import './layout.css';
-@import './components.css';
-@import './forms.css';
-@import './tables.css';
-@import './terminal.css';
-@import './animations.css';
 @import './auth.css';
-@import './responsive.css';
+@import './infinity.css';
 
 * {
   box-sizing: border-box;
@@ -25,7 +19,7 @@ body {
 }
 
 ::selection {
-  background: rgba(57, 216, 255, 0.24);
+  background: rgba(139, 92, 246, 0.24);
   color: var(--text-primary);
 }
 

@@ -44,4 +44,8 @@ export class UserModel {
     assert(user, 404, 'User not found', 'USER_NOT_FOUND');
     return publicUser(user);
   }
+
+  async changePassword(userId, newPasswordHash) {
+    await this.collection.updateOne({ id: userId }, { $set: { passwordHash: newPasswordHash, updatedAt: now() } });
+  }
 }

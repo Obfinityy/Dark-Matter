@@ -8,12 +8,14 @@ import { ScopeEngine } from '../agent/scopeEngine.js';
  * Creates assessments, validates scope, initializes the agent, handles pause/resume/stop.
  */
 export class AssessmentService {
-  constructor({ assessmentModel, targetModel, agentBrain, stateManager, eventService }) {
+  constructor({ assessmentModel, targetModel, agentBrain, stateManager, eventService, planner, providerModel }) {
     this.assessmentModel = assessmentModel;
     this.targetModel = targetModel;
     this.agentBrain = agentBrain;
     this.stateManager = stateManager;
     this.eventService = eventService;
+    this.planner = planner;
+    this.providerModel = providerModel;
   }
 
   /** List all assessments for a user. */
@@ -161,9 +163,67 @@ export class AssessmentService {
       return { message: response, status: assessment.status };
     }
 
-    // Default response
-    const response = `Message received. Assessment is ${assessment.status}. Current phase: ${assessment.phase}.`;
-    await this.assessmentModel.addMessage(assessmentId, 'assistant', response);
-    return { message: response, status: assessment.status };
+    // Smart LLM response using current assessment context
+    let responseText = null;
+    try {
+      const context = await this.stateManager.getContext(assessmentId);
+      if (context && this.planner) {
+        const prompt = `User question during security assessment: "${message}"\nTarget: ${context.target}\nCurrent Phase: ${context.phase}\nIteration: ${context.iterationCount}\nSubdomains found: ${context.subdomainCount}\nEndpoints: ${context.endpointCount}\nTechnologies: ${(context.technologies || []).join(', ') || 'none'}\nOpen Ports: ${(context.openPorts || []).join(', ') || 'none'}\nRecent tools: ${(context.completedToolNames || []).slice(-5).join(', ')}\n\nAnswer the user directly and professionally as an autonomous security AI agent. Be concise, technical, and accurate.`;
+        
+        // Try user providers first
+        if (userId && this.providerModel) {
+          const providers = await this.providerModel.getActiveProviders(userId);
+          for (const provider of providers) {
+            try {
+              if (provider.id === 'gemini') {
+                const res = await fetch(`${provider.baseUrl}/models/${provider.model}:generateContent?key=${provider.apiKey}`, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  signal: AbortSignal.timeout(15_000),
+                  body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                  if (responseText) break;
+                }
+              } else if (provider.id === 'anthropic') {
+                const res = await fetch(`${provider.baseUrl}/v1/messages`, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json', 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01' },
+                  signal: AbortSignal.timeout(15_000),
+                  body: JSON.stringify({ model: provider.model, max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  responseText = data?.content?.[0]?.text;
+                  if (responseText) break;
+                }
+              } else {
+                const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json', 'authorization': `Bearer ${provider.apiKey}` },
+                  signal: AbortSignal.timeout(15_000),
+                  body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: prompt }] })
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  responseText = data?.choices?.[0]?.message?.content;
+                  if (responseText) break;
+                }
+              }
+            } catch (err) {
+              console.warn(`Chat provider ${provider.id} error:`, err.message);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Smart chat generation failed:', e.message);
+    }
+
+    const finalResponse = responseText || `Message received. Assessment on ${assessment.targetHostname || 'target'} is ${assessment.status} in phase "${assessment.phase}". Assets found: ${assessment.assetsDiscovered || 0}, findings: ${assessment.findingsCount || 0}.`;
+    await this.assessmentModel.addMessage(assessmentId, 'assistant', finalResponse);
+    return { message: finalResponse, status: assessment.status };
   }
 }

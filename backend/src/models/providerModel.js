@@ -58,4 +58,28 @@ export class ProviderModel {
     assert(providerCatalog[providerId], 404, 'Unsupported AI provider', 'UNSUPPORTED_PROVIDER');
     await this.collection.deleteOne({ userId, providerId });
   }
+
+  /** Get all enabled providers with decrypted keys, sorted by priority (lowest first = highest priority). */
+  async getActiveProviders(userId) {
+    const providers = await this.collection.find({ userId, enabled: true }).toArray();
+    const result = [];
+    for (const p of providers) {
+      if (!p.apiKeyCiphertext) continue;
+      const catalog = providerCatalog[p.providerId];
+      if (!catalog) continue;
+      try {
+        result.push({
+          id: p.providerId,
+          name: catalog.name,
+          apiKey: this.secretBox.decrypt(p.apiKeyCiphertext),
+          model: p.model || catalog.defaultModel,
+          baseUrl: p.baseUrl || catalog.baseUrl,
+          priority: p.priority ?? 100
+        });
+      } catch {
+        // Skip providers with corrupt keys
+      }
+    }
+    return result.sort((a, b) => a.priority - b.priority);
+  }
 }

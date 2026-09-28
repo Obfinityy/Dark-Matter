@@ -3,16 +3,23 @@ import { ToolRegistry } from '../tools/registry.js';
 import { DECISION_SCHEMA_PROMPT } from './decisionSchema.js';
 
 /**
- * Planner — the AI reasoning engine.
+ * Planner — the AI reasoning engine with multi-provider fallback.
  *
  * Takes the current agent context (compressed state summary) and asks the LLM
  * to produce a structured decision about what to do next.
  *
- * If no LLM API key is configured, falls back to a deterministic planner
- * that follows a standard recon sequence.
+ * Provider resolution order:
+ *   1. User's saved providers from database (sorted by priority)
+ *   2. Environment variable LLM_API_KEY (fallback)
+ *   3. Deterministic planner (ultimate fallback)
+ *
+ * If a provider hits rate limits or errors, the planner automatically
+ * tries the next provider. Memory is preserved across provider switches
+ * because state lives in MongoDB, not in LLM context.
  */
 export class Planner {
-  constructor() {
+  constructor({ providerModel } = {}) {
+    this.providerModel = providerModel || null;
     this.systemPrompt = this.buildSystemPrompt();
   }
 
@@ -50,61 +57,159 @@ ${DECISION_SCHEMA_PROMPT}`;
 
   /**
    * Ask the LLM to decide the next action.
-   * @param {object} context — compressed agent state summary
-   * @param {string} lastResult — AI summary of last tool execution
-   * @returns {object} Structured decision
+   * Tries each provider in order; falls back to deterministic if all fail.
    */
-  async decide(context, lastResult = null) {
-    // If LLM is configured, use it
-    if (config.llmApiKey) {
-      return this.decideLLM(context, lastResult);
+  async decide(context, lastResult = null, userId = null) {
+    // 1. Try user's saved providers (from DB)
+    if (userId && this.providerModel) {
+      try {
+        const providers = await this.providerModel.getActiveProviders(userId);
+        for (const provider of providers) {
+          try {
+            const decision = await this.callProvider(provider, context, lastResult);
+            if (decision) return decision;
+          } catch (error) {
+            console.warn(`Provider ${provider.name} (${provider.id}) failed: ${error.message} — trying next`);
+            continue;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load user providers:', error.message);
+      }
     }
 
-    // Fallback: deterministic planner
+    // 2. Try env-level LLM_API_KEY
+    if (config.llmApiKey) {
+      try {
+        return await this.callGemini(config.llmApiKey, config.llmModel, config.llmBaseUrl, context, lastResult);
+      } catch (error) {
+        console.warn(`Env LLM fallback failed: ${error.message}`);
+      }
+    }
+
+    // 3. Ultimate fallback: deterministic planner
     return this.decideDeterministic(context);
   }
 
-  /** LLM-powered decision making via Gemini API. */
-  async decideLLM(context, lastResult) {
-    const userMessage = this.buildUserMessage(context, lastResult);
-
-    try {
-      const url = `${config.llmBaseUrl}/models/${config.llmModel}:generateContent?key=${config.llmApiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            { role: 'user', parts: [{ text: `${this.systemPrompt}\n\n${userMessage}` }] }
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 2000,
-            responseMimeType: 'application/json'
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        console.error(`LLM API error: ${response.status} ${errText.slice(0, 200)}`);
-        return this.decideDeterministic(context);
-      }
-
-      const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) return this.decideDeterministic(context);
-
-      // Parse JSON from LLM response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return this.decideDeterministic(context);
-
-      const decision = JSON.parse(jsonMatch[0]);
-      return decision;
-    } catch (error) {
-      console.error('LLM decision failed:', error.message);
-      return this.decideDeterministic(context);
+  /** Route to the correct API format based on provider type. */
+  async callProvider(provider, context, lastResult) {
+    if (provider.id === 'gemini') {
+      return this.callGemini(provider.apiKey, provider.model, provider.baseUrl, context, lastResult);
     }
+    if (provider.id === 'anthropic') {
+      return this.callAnthropic(provider.apiKey, provider.model, provider.baseUrl, context, lastResult);
+    }
+    // OpenAI-compatible: openai, grok, deepseek, openrouter
+    return this.callOpenAICompatible(provider.apiKey, provider.model, provider.baseUrl, context, lastResult);
+  }
+
+  /** Gemini API call. */
+  async callGemini(apiKey, model, baseUrl, context, lastResult) {
+    const userMessage = this.buildUserMessage(context, lastResult);
+    const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(45_000),
+      body: JSON.stringify({
+        contents: [
+          { role: 'user', parts: [{ text: `${this.systemPrompt}\n\n${userMessage}` }] }
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 2000,
+          responseMimeType: 'application/json'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Gemini ${response.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Empty Gemini response');
+
+    return this.parseJsonDecision(text);
+  }
+
+  /** OpenAI-compatible API call (works for OpenAI, Grok, DeepSeek, OpenRouter). */
+  async callOpenAICompatible(apiKey, model, baseUrl, context, lastResult) {
+    const userMessage = this.buildUserMessage(context, lastResult);
+    const url = `${baseUrl}/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'authorization': `Bearer ${apiKey}`
+      },
+      signal: AbortSignal.timeout(45_000),
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: this.systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`OpenAI-compatible ${response.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content;
+    if (!text) throw new Error('Empty OpenAI response');
+
+    return this.parseJsonDecision(text);
+  }
+
+  /** Anthropic API call. */
+  async callAnthropic(apiKey, model, baseUrl, context, lastResult) {
+    const userMessage = this.buildUserMessage(context, lastResult);
+    const url = `${baseUrl}/v1/messages`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      signal: AbortSignal.timeout(45_000),
+      body: JSON.stringify({
+        model,
+        max_tokens: 2000,
+        system: this.systemPrompt,
+        messages: [
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.3
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Anthropic ${response.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const text = data?.content?.[0]?.text;
+    if (!text) throw new Error('Empty Anthropic response');
+
+    return this.parseJsonDecision(text);
+  }
+
+  /** Parse JSON decision from LLM text response. */
+  parseJsonDecision(text) {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in LLM response');
+    return JSON.parse(jsonMatch[0]);
   }
 
   buildUserMessage(context, lastResult) {
