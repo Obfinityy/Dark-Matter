@@ -24,7 +24,15 @@ export class MongoDatabase {
       this.collection('providers').createIndex({ userId: 1, providerId: 1 }, { unique: true }),
       this.collection('targets').createIndex({ userId: 1, url: 1 }, { unique: true }),
       this.collection('scans').createIndex({ userId: 1, createdAt: -1 }),
-      this.collection('events').createIndex({ scanId: 1, timestamp: 1 })
+      this.collection('events').createIndex({ scanId: 1, timestamp: 1 }),
+      // Assessment system indexes
+      this.collection('assessments').createIndex({ userId: 1, createdAt: -1 }),
+      this.collection('assessments').createIndex({ id: 1 }, { unique: true }),
+      this.collection('agent_states').createIndex({ assessmentId: 1 }, { unique: true }),
+      this.collection('tool_executions').createIndex({ assessmentId: 1, startedAt: -1 }),
+      this.collection('tool_executions').createIndex({ assessmentId: 1, fingerprint: 1 }),
+      this.collection('findings').createIndex({ assessmentId: 1, createdAt: -1 }),
+      this.collection('findings').createIndex({ userId: 1, createdAt: -1 })
     ]);
   }
 

@@ -1,22 +1,24 @@
 import React from 'react';
-import { Card, CardHeader, CardContent } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { Badge, Button } from '../../components/ui/Basic';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { FileText, Plus } from 'lucide-react';
 import { mockReports } from '../../mock/reports';
 
 export const Reports = () => {
   return (
     <div className="animate-fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Reports</h1>
           <p className="page-description">Professional security assessment reports.</p>
         </div>
-        <Button variant="primary">+ New Report</Button>
+        <Button variant="primary"><Plus size={16} /> New Report</Button>
       </div>
 
       <Card>
         <CardContent>
-          <div className="table-container">
+          {mockReports.length === 0 ? <EmptyState title="No reports yet" description="Generate a report after an investigation produces validated evidence." icon={FileText} /> : <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
@@ -48,7 +50,7 @@ export const Reports = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>}
         </CardContent>
       </Card>
     </div>

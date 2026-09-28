@@ -1,20 +1,22 @@
 import React from 'react';
-import { Card, CardHeader, CardContent, CardValue } from '../../components/ui/Card';
-import { Badge, Button } from '../../components/ui/Basic';
+import { Card, CardHeader, CardContent } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Basic';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { FolderGit2, Plus } from 'lucide-react';
 import { mockProjects } from '../../mock/projects';
 
 export const Projects = () => {
   return (
     <div className="animate-fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Projects</h1>
           <p className="page-description">Manage your security research projects.</p>
         </div>
-        <Button variant="primary">+ New Project</Button>
+        <Button variant="primary"><Plus size={16} /> New Project</Button>
       </div>
 
-      <div className="grid grid-cols-3">
+      {mockProjects.length === 0 ? <EmptyState title="No projects yet" description="Create a workspace project when project management is connected." icon={FolderGit2} /> : <div className="grid grid-cols-3">
         {mockProjects.map(project => (
           <Card key={project.id}>
             <CardHeader title={project.name}>
@@ -40,7 +42,7 @@ export const Projects = () => {
             </CardContent>
           </Card>
         ))}
-      </div>
+      </div>}
     </div>
   );
 };

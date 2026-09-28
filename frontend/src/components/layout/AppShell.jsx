@@ -10,6 +10,7 @@ export const AppShell = () => {
 
   return (
     <div className="app-container">
+      <button className={`sidebar-backdrop ${sidebarOpen ? '' : 'hidden'}`} aria-label="Sidebar backdrop" />
       <Sidebar isOpen={sidebarOpen} />
       <div className="main-content">
         <Topbar toggleSidebar={toggleSidebar} />

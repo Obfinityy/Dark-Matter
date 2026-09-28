@@ -4,7 +4,7 @@
 
 [![Status](https://img.shields.io/badge/Status-In%20Development-orange)](#)
 [![Frontend](https://img.shields.io/badge/Frontend-React-blue)](#)
-[![Backend](https://img.shields.io/badge/Backend-Go-00ADD8)](#)
+[![Backend](https://img.shields.io/badge/Backend-Node.js-339933)](#)
 [![Database](https://img.shields.io/badge/Database-MongoDB-47A248)](#)
 [![Execution](https://img.shields.io/badge/Execution-Isolated%20Containers-2496ED)](#)
 [![AI](https://img.shields.io/badge/AI-Multi--Provider-purple)](#)
@@ -543,7 +543,7 @@ Production credentials must be supplied through secure configuration and secret-
                                     │ HTTPS
                                     ▼
                          ┌──────────────────────┐
-                         │      Go API Layer    │
+                         │   Node.js API Layer  │
                          └──────────┬───────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
@@ -594,7 +594,7 @@ Production credentials must be supplied through secure configuration and secret-
 |---|---|
 | Frontend | React |
 | Language | JavaScript / TypeScript |
-| Backend | Go |
+| Backend | Node.js |
 | Database | MongoDB |
 | Execution | Docker / Isolated Containers |
 | Real-Time | WebSocket / SSE |
@@ -668,7 +668,7 @@ A production deployment can evolve toward:
                           │
             ┌─────────────┼─────────────┐
             ▼             ▼             ▼
-         Go API         Go API        Go API
+      Node.js API    Node.js API   Node.js API
             │             │             │
             └─────────────┼─────────────┘
                           ▼
@@ -787,7 +787,7 @@ Development is intended to support:
 ```text
 React Development
         +
-Go Development
+Node.js Development
         +
 MongoDB
         +
@@ -815,7 +815,7 @@ Development and production credentials/infrastructure must remain separated.
 - [ ] Authorization & scope
 - [ ] MongoDB integration
 - [ ] React dashboard
-- [ ] Go API
+- [ ] Node.js API
 
 ## Phase 2 — AI Research Engine
 

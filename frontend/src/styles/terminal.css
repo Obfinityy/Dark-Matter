@@ -34,6 +34,7 @@
 
 .terminal-body {
   flex: 1;
+  min-height: 0;
   padding: 16px;
   overflow-y: auto;
   font-size: 0.85rem;
@@ -41,14 +42,17 @@
 }
 
 .log-entry {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 70px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 12px;
   margin-bottom: 4px;
 }
 
 .log-timestamp {
   color: var(--text-muted);
-  margin-right: 12px;
   user-select: none;
+  white-space: nowrap;
 }
 
 .log-level {
@@ -65,4 +69,51 @@
 .log-message {
   color: var(--text-primary);
   word-break: break-all;
+  min-width: 0;
+}
+
+.log-data {
+  grid-column: 3;
+  color: var(--text-muted);
+  word-break: break-all;
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.subdomain-results {
+  margin: 2px 0 8px 82px;
+  color: var(--success);
+}
+
+.subdomain-result {
+  display: flex;
+  gap: 8px;
+  line-height: 1.55;
+}
+
+.subdomain-marker {
+  color: var(--accent);
+  user-select: none;
+}
+
+@media (max-width: 700px) {
+  .log-entry {
+    grid-template-columns: auto 1fr;
+    column-gap: 8px;
+  }
+
+  .log-level,
+  .log-message,
+  .log-data {
+    grid-column: 2;
+  }
+
+  .log-timestamp {
+    grid-column: 1 / -1;
+    margin-bottom: 2px;
+  }
+
+  .subdomain-results {
+    margin-left: 8px;
+  }
 }

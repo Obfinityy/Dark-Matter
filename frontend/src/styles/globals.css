@@ -5,6 +5,8 @@
 @import './tables.css';
 @import './terminal.css';
 @import './animations.css';
+@import './auth.css';
+@import './responsive.css';
 
 * {
   box-sizing: border-box;
@@ -13,12 +15,18 @@
 }
 
 body {
-  background-color: var(--bg-primary);
+  min-width: 320px;
+  background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(57, 216, 255, 0.24);
+  color: var(--text-primary);
 }
 
 a {
@@ -31,10 +39,31 @@ a:hover {
   color: var(--accent-hover);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
+  font-family: var(--font-heading);
   font-weight: 600;
   line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 ul, ol {

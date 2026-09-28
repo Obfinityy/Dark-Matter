@@ -1,50 +1,136 @@
-import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { 
-  MessageSquare, Plus, PanelLeftClose, PanelLeft, 
-  Settings, CreditCard, Box, User, MoreHorizontal, Sparkles
+import React, { useEffect, useState } from 'react';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import {
+  AlertCircle,
+  Box,
+  CreditCard,
+  Loader2,
+  MoreHorizontal,
+  PanelLeft,
+  PanelLeftClose,
+  Plus,
+  Settings,
+  Sparkles,
+  User
 } from 'lucide-react';
 import { SubscriptionModal } from '../modals/SubscriptionModal';
 import { PluginsModal } from '../modals/PluginsModal';
+import { apiClient, extractTargetUrl } from '../../services/api';
+import { useAuth } from '../../auth/AuthContext';
+
+function formatHistoryDate(value) {
+  if (!value) return 'Earlier';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Earlier';
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysAgo = Math.round((startOfToday - startOfDate) / 86_400_000);
+  if (daysAgo === 0) return 'Today';
+  if (daysAgo <= 7) return 'Previous 7 days';
+  return 'Earlier';
+}
+
+function formatHistoryLabel(scan) {
+  if (scan?.targetUrl) return scan.targetUrl;
+  const message = scan?.messages?.[0]?.content || '';
+  const url = extractTargetUrl(message);
+  if (url) return url;
+  if (scan?.targetId) return scan.targetId;
+  return scan?.toolId || 'Investigation';
+}
 
 export const ChatLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => !window.matchMedia?.('(max-width: 768px)').matches);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
   const [showPlugins, setShowPlugins] = useState(false);
+  const [scans, setScans] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState('');
+  const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const history = [
-    { title: 'Today', items: [{ id: '1', label: 'Analyze api.acmecorp.com scope' }, { id: '2', label: 'Review Nginx vulnerability' }] },
-    { title: 'Previous 7 Days', items: [{ id: '3', label: 'Setup Stark Ind project' }, { id: '4', label: 'Recon on Wayne Ent' }] }
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError('');
+    apiClient.getScans()
+      .then((response) => {
+        if (!cancelled) setScans(Array.isArray(response?.scans) ? response.scans : []);
+      })
+      .catch((error) => {
+        if (!cancelled) setHistoryError(error.message || 'History is unavailable.');
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname]);
+
+  const historyGroups = scans.reduce((groups, scan) => {
+    const title = formatHistoryDate(scan.createdAt);
+    const group = groups.find((item) => item.title === title);
+    const historyItem = { ...scan, label: formatHistoryLabel(scan) };
+    if (group) group.items.push(historyItem);
+    else groups.push({ title, items: [historyItem] });
+    return groups;
+  }, []);
+
+  const handleNewChat = () => {
+    setShowUserMenu(false);
+    navigate('/', { state: { newChat: Date.now() } });
+  };
+
+  const handleLogout = async () => {
+    setShowUserMenu(false);
+    try {
+      await logout();
+    } finally {
+      navigate('/login', { replace: true });
+    }
+  };
 
   return (
     <div className="app-container">
-      {/* Sidebar */}
+      <button className={`sidebar-backdrop ${sidebarOpen ? '' : 'hidden'}`} aria-label="Sidebar backdrop" />
       <aside className={`chat-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
+        <div className="sidebar-brand">
+          <span className="sidebar-brand-mark"><Sparkles size={16} /></span>
+          <span>DARK<span>MATTER</span></span>
+          <span className="sidebar-brand-version">OPS</span>
+        </div>
         <div className="sidebar-new-chat">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button 
-              className="btn" 
-              style={{ flex: 1, justifyContent: 'flex-start', padding: '10px 12px', backgroundColor: 'var(--surface)', borderRadius: 'var(--radius-md)' }}
-              onClick={() => navigate('/')}
-            >
+          <div className="sidebar-new-chat-row">
+            <button className="btn sidebar-new-chat-button" onClick={handleNewChat}>
               <Plus size={18} />
-              <span style={{ fontWeight: 500 }}>New Chat</span>
+              <span>New Chat</span>
             </button>
-            <button className="btn" style={{ padding: 10, marginLeft: 8 }} onClick={() => setSidebarOpen(false)}>
+            <button className="btn sidebar-icon-button" onClick={() => setSidebarOpen(false)} aria-label="Collapse sidebar" title="Collapse sidebar">
               <PanelLeftClose size={20} color="var(--text-secondary)" />
             </button>
           </div>
         </div>
 
         <div className="sidebar-history">
-          {history.map((group, i) => (
-            <div key={i}>
+          {historyLoading && (
+            <div className="sidebar-empty"><Loader2 size={15} className="animate-spin" /> Loading history</div>
+          )}
+          {!historyLoading && historyError && (
+            <div className="sidebar-empty sidebar-error"><AlertCircle size={15} /> {historyError}</div>
+          )}
+          {!historyLoading && !historyError && historyGroups.length === 0 && (
+            <div className="sidebar-empty">No investigations yet.</div>
+          )}
+          {!historyLoading && !historyError && historyGroups.map((group) => (
+            <div key={group.title}>
               <div className="history-group-title">{group.title}</div>
-              {group.items.map(item => (
-                <NavLink key={item.id} to={`/c/${item.id}`} className={({ isActive }) => `history-item ${isActive ? 'active' : ''}`}>
+              {group.items.map((item) => (
+                <NavLink key={item.id} to={`/c/${item.id}`} className={({ isActive }) => `history-item ${isActive ? 'active' : ''}`} title={item.label}>
                   {item.label}
                 </NavLink>
               ))}
@@ -53,66 +139,49 @@ export const ChatLayout = () => {
         </div>
 
         <div className="sidebar-footer">
-          <button className="btn" style={{ justifyContent: 'flex-start', padding: '10px 12px', color: 'var(--warning)' }} onClick={() => setShowSubscription(true)}>
+          <button className="btn sidebar-action-button upgrade-action" onClick={() => setShowSubscription(true)}>
             <Sparkles size={18} />
             Upgrade to Pro
           </button>
-          <button className="btn" style={{ justifyContent: 'flex-start', padding: '10px 12px', color: 'var(--text-secondary)' }} onClick={() => setShowPlugins(true)}>
+          <button className="btn sidebar-action-button" onClick={() => setShowPlugins(true)}>
             <Box size={18} />
             Plugins
           </button>
-          
-          <div style={{ position: 'relative', marginTop: 8 }}>
-            <button 
-              className="btn" 
-              style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px', color: 'var(--text-primary)', backgroundColor: showUserMenu ? 'var(--surface)' : 'transparent' }}
-              onClick={() => setShowUserMenu(!showUserMenu)}
-            >
-              <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <User size={14} />
-              </div>
-              <span style={{ flex: 1, textAlign: 'left' }}>Researcher</span>
+
+          <div className="sidebar-user-menu">
+            <button className="btn sidebar-user-button" onClick={() => setShowUserMenu(!showUserMenu)}>
+              <span className="sidebar-user-avatar">{user?.name?.slice(0, 1).toUpperCase() || <User size={14} />}</span>
+              <span className="sidebar-user-name">{user?.name || 'Researcher'}</span>
               <MoreHorizontal size={16} color="var(--text-secondary)" />
             </button>
 
             {showUserMenu && (
-              <div style={{ 
-                position: 'absolute', bottom: '100%', left: 0, width: '100%', 
-                backgroundColor: 'var(--surface)', border: '1px solid var(--border)', 
-                borderRadius: 'var(--radius-md)', padding: 8, marginBottom: 8, zIndex: 100 
-              }}>
-                <button className="btn" style={{ width: '100%', justifyContent: 'flex-start', padding: '8px 12px' }}>
-                  <Settings size={16} style={{ marginRight: 12 }} /> Settings
+              <div className="sidebar-popover">
+                <button className="btn sidebar-popover-button" onClick={() => { setShowUserMenu(false); navigate('/settings'); }}>
+                  <Settings size={16} /> Settings
                 </button>
-                <button className="btn" style={{ width: '100%', justifyContent: 'flex-start', padding: '8px 12px' }}>
-                  <CreditCard size={16} style={{ marginRight: 12 }} /> Billing
+                <button className="btn sidebar-popover-button" onClick={() => { setShowUserMenu(false); navigate('/billing'); }}>
+                  <CreditCard size={16} /> Billing
                 </button>
-                <div style={{ height: 1, backgroundColor: 'var(--border)', margin: '4px 0' }}></div>
-                <button className="btn" style={{ width: '100%', justifyContent: 'flex-start', padding: '8px 12px', color: 'var(--danger)' }}>
-                  Log out
-                </button>
+                <div className="sidebar-popover-divider" />
+                <button className="btn sidebar-popover-button logout-button" onClick={handleLogout}>Log out</button>
               </div>
             )}
           </div>
         </div>
       </aside>
 
-      {/* Main Area */}
       <main className="chat-main">
         <header className="chat-header">
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="chat-header-brand">
             {!sidebarOpen && (
-              <button className="btn" style={{ padding: '8px', marginRight: 12 }} onClick={() => setSidebarOpen(true)}>
+              <button className="btn sidebar-icon-button" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar" title="Open sidebar">
                 <PanelLeft size={20} color="var(--text-secondary)" />
               </button>
             )}
-            <button className="btn" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: '1.1rem' }}>
-              DarkMatter <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 400 }}>▼</span>
-            </button>
+            <button className="btn chat-brand-button">DarkMatter <span>/ Recon Console</span></button>
           </div>
-          <button className="btn" style={{ padding: '6px 12px', backgroundColor: 'var(--surface)', borderRadius: 'var(--radius-full)', fontSize: '0.85rem' }}>
-            Share
-          </button>
+          <div className="chat-header-status"><span className="status-pulse" /> Workspace online <span className="header-divider" /> <span className="header-mode">SUBDOMAIN TOOL</span></div>
         </header>
 
         <Outlet />

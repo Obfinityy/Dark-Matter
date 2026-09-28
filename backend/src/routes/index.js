@@ -23,5 +23,20 @@ export function createRoutes({ controllers }) {
   router.get('/scans/:scanId', controllers.scans.get);
   router.get('/scans/:scanId/events', controllers.scans.events);
   router.post('/agent/messages', controllers.agent.message);
+
+  // ─── Assessment System ───────────────────────────────────────────
+  router.post('/assessments', controllers.assessments.create);
+  router.get('/assessments', controllers.assessments.list);
+  router.get('/assessments/:id', controllers.assessments.get);
+  router.post('/assessments/:id/start', controllers.assessments.start);
+  router.post('/assessments/:id/pause', controllers.assessments.pause);
+  router.post('/assessments/:id/resume', controllers.assessments.resume);
+  router.post('/assessments/:id/stop', controllers.assessments.stop);
+  router.get('/assessments/:id/timeline', controllers.assessments.timeline);
+  router.get('/assessments/:id/findings', controllers.assessments.findings);
+  router.get('/assessments/:id/tool-executions', controllers.assessments.toolExecutions);
+  router.post('/assessments/:id/chat', controllers.assessments.chat);
+  router.get('/assessments/:id/events', controllers.assessments.events);
+
   return router;
 }

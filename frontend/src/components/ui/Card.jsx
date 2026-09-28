@@ -6,15 +6,15 @@ export const Card = ({ children, className = '', ...props }) => (
   </div>
 );
 
-export const CardHeader = ({ title, children }) => (
-  <div className="card-header">
+export const CardHeader = ({ title, children, className = '', ...props }) => (
+  <div className={`card-header ${className}`} {...props}>
     {title && <div className="card-title">{title}</div>}
     {children}
   </div>
 );
 
-export const CardContent = ({ children }) => (
-  <div className="card-content">
+export const CardContent = ({ children, className = '', ...props }) => (
+  <div className={`card-content ${className}`} {...props}>
     {children}
   </div>
 );

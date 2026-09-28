@@ -1,6 +1,8 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardValue } from '../../components/ui/Card';
 import { Badge, Button } from '../../components/ui/Basic';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Activity, Plus, WalletCards } from 'lucide-react';
 import { mockScans } from '../../mock/scans';
 import { mockFindings } from '../../mock/findings';
 
@@ -12,9 +14,9 @@ export const Dashboard = () => {
           <h1 className="page-title">Command Center</h1>
           <p className="page-description">Overview of your autonomous security operations.</p>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Button variant="secondary">Add Funds</Button>
-          <Button variant="primary">+ New Scan</Button>
+        <div className="page-header-actions">
+          <Button variant="secondary"><WalletCards size={16} /> Add Funds</Button>
+          <Button variant="primary"><Plus size={16} /> New Scan</Button>
         </div>
       </div>
 
@@ -22,29 +24,29 @@ export const Dashboard = () => {
         <Card>
           <CardHeader title="Wallet Balance" />
           <CardContent>
-            <CardValue value="$150.00" />
-            <div style={{ color: 'var(--success)', fontSize: '0.85rem', marginTop: 8 }}>+$50.00 this month</div>
+            <CardValue value="--" />
+            <div className="metric-note">Balance data will appear after billing is connected.</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader title="Active Scans" />
           <CardContent>
-            <CardValue value="1" />
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 8 }}>Across 3 projects</div>
+            <CardValue value="--" />
+            <div className="metric-note">No active investigations yet.</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader title="Total Findings" />
           <CardContent>
-            <CardValue value="16" />
-            <div style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: 8 }}>3 High severity</div>
+            <CardValue value="--" />
+            <div className="metric-note">Findings will appear after a scan completes.</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader title="Usage" />
           <CardContent>
-            <CardValue value="$12.40" />
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 8 }}>Estimated this month</div>
+            <CardValue value="--" />
+            <div className="metric-note">Usage is not available yet.</div>
           </CardContent>
         </Card>
       </div>
@@ -54,7 +56,7 @@ export const Dashboard = () => {
           <Card style={{ height: '100%' }}>
             <CardHeader title="Recent Scans" />
             <CardContent>
-              <div className="table-container">
+              {mockScans.length === 0 ? <EmptyState title="No investigations yet" description="Start an authorized reconnaissance run to see live activity here." icon={Activity} /> : <div className="table-container">
                 <table className="table">
                   <thead>
                     <tr>
@@ -79,7 +81,7 @@ export const Dashboard = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </div>}
             </CardContent>
           </Card>
         </div>
@@ -87,19 +89,19 @@ export const Dashboard = () => {
           <Card style={{ height: '100%' }}>
             <CardHeader title="Recent Findings" />
             <CardContent>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {mockFindings.length === 0 ? <EmptyState title="No findings yet" description="Completed investigations will surface validated findings here." icon={Activity} /> : <div className="finding-list">
                 {mockFindings.slice(0, 3).map(finding => (
-                  <div key={finding.id} style={{ padding: 12, backgroundColor: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>{finding.title}</span>
+                  <div key={finding.id} className="finding-preview">
+                    <div className="finding-preview-head">
+                      <span>{finding.title}</span>
                       <Badge variant={finding.severity === 'High' ? 'danger' : finding.severity === 'Medium' ? 'warning' : 'info'}>{finding.severity}</Badge>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <div className="finding-preview-meta">
                       {finding.asset} • {finding.discovered}
                     </div>
                   </div>
                 ))}
-              </div>
+              </div>}
             </CardContent>
           </Card>
         </div>

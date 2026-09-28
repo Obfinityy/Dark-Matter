@@ -1,25 +1,27 @@
 import React from 'react';
-import { Card, CardHeader, CardContent } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { Badge, Button } from '../../components/ui/Basic';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { FileSearch, FileText, ShieldAlert } from 'lucide-react';
 import { mockFindings } from '../../mock/findings';
 
 export const Findings = () => {
   return (
     <div className="animate-fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Findings</h1>
           <p className="page-description">Review and manage discovered security issues.</p>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Button variant="secondary">Export CSV</Button>
-          <Button variant="primary">Generate Report</Button>
+        <div className="page-header-actions">
+          <Button variant="secondary"><FileText size={16} /> Export CSV</Button>
+          <Button variant="primary"><FileSearch size={16} /> Generate Report</Button>
         </div>
       </div>
 
       <Card>
         <CardContent>
-          <div className="table-container">
+          {mockFindings.length === 0 ? <EmptyState title="No findings yet" description="Validated findings from completed investigations will appear here." icon={ShieldAlert} /> : <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
@@ -52,7 +54,7 @@ export const Findings = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>}
         </CardContent>
       </Card>
     </div>

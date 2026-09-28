@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, User, Menu } from 'lucide-react';
+import { Bell, User, Menu } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 export const Topbar = ({ toggleSidebar }) => {
@@ -20,14 +20,10 @@ export const Topbar = ({ toggleSidebar }) => {
         </div>
       </div>
       <div className="topbar-right">
-        <button className="btn btn-secondary" style={{ padding: '8px' }}>
-          <Search size={18} />
-          <span style={{ fontSize: '0.8rem', marginLeft: 8, color: 'var(--text-muted)' }}>Ctrl+K</span>
-        </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>
           <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Wallet Balance</span>
-            <span style={{ fontSize: '0.9rem', color: 'var(--accent)', fontWeight: 600 }}>$150.00</span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>--</span>
           </div>
           <button className="btn" style={{ position: 'relative' }}>
             <Bell size={20} color="var(--text-secondary)" />

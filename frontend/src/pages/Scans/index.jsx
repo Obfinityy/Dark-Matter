@@ -1,25 +1,27 @@
 import React from 'react';
-import { Card, CardHeader, CardContent } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { Badge, Button } from '../../components/ui/Basic';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Activity, Plus } from 'lucide-react';
 import { mockScans } from '../../mock/scans';
 import { NavLink } from 'react-router-dom';
 
 export const Scans = () => {
   return (
     <div className="animate-fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Investigations</h1>
           <p className="page-description">Monitor and manage autonomous security research.</p>
         </div>
         <NavLink to="/scans/new">
-          <Button variant="primary">+ New Scan</Button>
+          <Button variant="primary"><Plus size={16} /> New Scan</Button>
         </NavLink>
       </div>
 
       <Card>
         <CardContent>
-          <div className="table-container">
+          {mockScans.length === 0 ? <EmptyState title="No investigations yet" description="Start an authorized scan to see progress and live events here." icon={Activity} /> : <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
@@ -56,7 +58,7 @@ export const Scans = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>}
         </CardContent>
       </Card>
     </div>

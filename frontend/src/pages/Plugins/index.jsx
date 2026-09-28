@@ -1,19 +1,21 @@
 import React from 'react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Badge, Button } from '../../components/ui/Basic';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Plug, Settings2 } from 'lucide-react';
 import { mockPlugins } from '../../mock/plugins';
 
 export const Plugins = () => {
   return (
     <div className="animate-fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Tool Catalog</h1>
           <p className="page-description">Manage security tools and execution plugins available to the AI.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-3">
+      {mockPlugins.length === 0 ? <EmptyState title="No plugins available" description="The backend tool catalog will populate this workspace when plugins are connected." icon={Plug} /> : <div className="grid grid-cols-3">
         {mockPlugins.map(plugin => (
           <Card key={plugin.id}>
             <CardHeader title={plugin.name}>
@@ -28,14 +30,15 @@ export const Plugins = () => {
               </p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{plugin.category}</span>
-                <Button variant="secondary" style={{ padding: '4px 8px', fontSize: '0.8rem' }} disabled={plugin.status !== 'Available'}>
+                <Button variant="secondary" className="compact-button" disabled={plugin.status !== 'Available'}>
+                  <Settings2 size={14} />
                   {plugin.status === 'Available' ? 'Configure' : 'Locked'}
                 </Button>
               </div>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </div>}
     </div>
   );
 };

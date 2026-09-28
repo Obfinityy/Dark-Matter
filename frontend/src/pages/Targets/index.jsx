@@ -1,20 +1,22 @@
 import React from 'react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Badge, Button } from '../../components/ui/Basic';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Plus, Target as TargetIcon } from 'lucide-react';
 import { mockTargets } from '../../mock/targets';
 
 export const Targets = () => {
   return (
     <div className="animate-fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Targets</h1>
           <p className="page-description">Manage authorized targets for security research.</p>
         </div>
-        <Button variant="primary">+ Add Target</Button>
+        <Button variant="primary"><Plus size={16} /> Add Target</Button>
       </div>
 
-      <div className="grid grid-cols-2">
+      {mockTargets.length === 0 ? <EmptyState title="No authorized targets" description="Add an authorized target to begin a scoped reconnaissance workflow." icon={TargetIcon} /> : <div className="grid grid-cols-2">
         {mockTargets.map(target => (
           <Card key={target.id}>
             <CardHeader title={target.name}>
@@ -41,7 +43,7 @@ export const Targets = () => {
             </CardContent>
           </Card>
         ))}
-      </div>
+      </div>}
     </div>
   );
 };
