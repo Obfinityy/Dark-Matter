@@ -9,8 +9,8 @@ export class AgentStateModel {
     this.collection = database.collection('agent_states');
   }
 
-  async get(assessmentId) {
-    return this.collection.findOne({ assessmentId });
+  async get(assessmentId, userId) {
+    return this.collection.findOne({ assessmentId, ...(userId ? {userId} : {}) });
   }
 
   async initialize(assessmentId, userId, target, scope) {
@@ -169,8 +169,8 @@ export class AgentStateModel {
   }
 
   /** Build a compressed context summary for the LLM — never send the entire raw state. */
-  async getContextSummary(assessmentId) {
-    const state = await this.get(assessmentId);
+  async getContextSummary(assessmentId, userId) {
+    const state = await this.get(assessmentId, userId);
     if (!state) return null;
     return {
       target: state.target,

@@ -125,7 +125,7 @@ export class AgentBrain {
       });
 
       // 1. Load compressed context
-      const context = await this.stateManager.getContext(assessmentId);
+      const context = await this.stateManager.getContext(assessmentId, userId);
       if (!context) {
         await this.fail(assessmentId, 'Agent state not found');
         return;

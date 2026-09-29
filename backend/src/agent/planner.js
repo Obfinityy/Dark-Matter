@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { DECISION_SCHEMA_PROMPT } from './decisionSchema.js';
+import { PhoneLocalProvider } from './providers/phoneLocalProvider.js';
 
 /**
  * Planner — the AI reasoning engine with multi-provider fallback.
@@ -21,6 +22,7 @@ export class Planner {
   constructor({ providerModel } = {}) {
     this.providerModel = providerModel || null;
     this.systemPrompt = this.buildSystemPrompt();
+    this.phoneAi = new PhoneLocalProvider(config);
   }
 
   buildSystemPrompt() {
@@ -60,32 +62,25 @@ ${DECISION_SCHEMA_PROMPT}`;
    * Tries each provider in order; falls back to deterministic if all fail.
    */
   async decide(context, lastResult = null, userId = null) {
-    // 1. Try user's saved providers (from DB)
-    if (userId && this.providerModel) {
+    // 0. Try Local Phone Gemma (Highest priority)
+    if (this.phoneAi.enabled && this.phoneAi.host) {
       try {
-        const providers = await this.providerModel.getActiveProviders(userId);
-        for (const provider of providers) {
-          try {
-            const decision = await this.callProvider(provider, context, lastResult);
-            if (decision) return decision;
-          } catch (error) {
-            console.warn(`Provider ${provider.name} (${provider.id}) failed: ${error.message} — trying next`);
-            continue;
-          }
+        const health = await this.phoneAi.healthCheck();
+        if (health.status === 'online') {
+          const userMessage = this.buildUserMessage(context, lastResult);
+          const messages = [
+            { role: 'system', content: this.systemPrompt },
+            { role: 'user', content: userMessage }
+          ];
+          const decision = await this.phoneAi.generateStructured(messages, null, { temperature: 0.3 });
+          if (decision) return decision;
         }
       } catch (error) {
-        console.warn('Failed to load user providers:', error.message);
+        console.warn(`Local Phone Gemma failed: ${error.message} — trying next`);
       }
     }
 
-    // 2. Try env-level LLM_API_KEY
-    if (config.llmApiKey) {
-      try {
-        return await this.callGemini(config.llmApiKey, config.llmModel, config.llmBaseUrl, context, lastResult);
-      } catch (error) {
-        console.warn(`Env LLM fallback failed: ${error.message}`);
-      }
-    }
+    // Cloud provider fallbacks removed as per user request to only use local AI.
 
     // 3. Ultimate fallback: deterministic planner
     return this.decideDeterministic(context);

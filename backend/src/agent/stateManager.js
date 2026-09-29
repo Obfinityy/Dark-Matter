@@ -28,8 +28,8 @@ export class StateManager {
   }
 
   /** Get compressed context for the LLM (never the full raw state). */
-  async getContext(assessmentId) {
-    return this.agentStateModel.getContextSummary(assessmentId);
+  async getContext(assessmentId, userId) {
+    return this.agentStateModel.getContextSummary(assessmentId, userId);
   }
 
   /** Update state after a tool result — dispatch to appropriate state update method. */

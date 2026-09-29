@@ -93,6 +93,73 @@ export function getProviders() {
   return request('/settings/providers');
 }
 
+export function getLocalAiHealth() {
+  return request('/health/local-ai');
+}
+
+export function sendDirectChat(message, conversationId, truncateIndex = undefined) {
+  return request('/infinite/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, conversationId, truncateIndex })
+  });
+}
+
+export function getInfiniteHistory(conversationId) {
+  return request(`/infinite/chat/${conversationId}`);
+}
+
+// ─── Infinity Long-Context Engine ───────────────────────────────────
+
+export function ingestDocument(conversationId, content, { title, kind, summarize } = {}) {
+  return request('/infinite/ingest', {
+    method: 'POST',
+    body: JSON.stringify({ conversationId, content, title, kind, summarize })
+  });
+}
+
+export function getIngestion(conversationId, inputId) {
+  return request(`/infinite/ingest/${conversationId}/${inputId}`);
+}
+
+export function searchChunks(conversationId, query) {
+  return request(`/infinite/search/${conversationId}`, {
+    method: 'POST',
+    body: JSON.stringify({ query })
+  });
+}
+
+export function getExactChunk(conversationId, inputId, chunkRef) {
+  return request(`/infinite/chunk/${conversationId}/${inputId}/${chunkRef}`);
+}
+
+export function summarizeDocument(conversationId, inputId) {
+  return request(`/infinite/summarize/${conversationId}/${inputId}`, { method: 'POST' });
+}
+
+export function startGeneration(conversationId, genRequest, artifactHint) {
+  return request('/infinite/generations', {
+    method: 'POST',
+    body: JSON.stringify({ conversationId, request: genRequest, artifactHint })
+  });
+}
+
+export function getGeneration(generationId) {
+  return request(`/infinite/generations/${generationId}`);
+}
+
+export function cancelGeneration(generationId) {
+  return request(`/infinite/generations/${generationId}/cancel`, { method: 'POST' });
+}
+
+export function resumeGeneration(generationId) {
+  return request(`/infinite/generations/${generationId}/resume`, { method: 'POST' });
+}
+
+export function listGenerations(conversationId) {
+  const q = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
+  return request(`/infinite/generations${q}`);
+}
+
 export function updateProviders(providers) {
   return request('/settings/providers', {
     method: 'PUT',
@@ -278,6 +345,8 @@ export const apiClient = {
   logoutAccount,
   updateProfile,
   getProviders,
+  getLocalAiHealth,
+  sendDirectChat,
   updateProviders,
   sendAgentMessage,
   getScans,
@@ -301,5 +370,16 @@ export const apiClient = {
   getLatestReport,
   listReportVersions,
   listAllReports,
-  subscribeToAssessmentEvents
+  subscribeToAssessmentEvents,
+  // Infinity Long-Context Engine
+  ingestDocument,
+  getIngestion,
+  searchChunks,
+  getExactChunk,
+  summarizeDocument,
+  startGeneration,
+  getGeneration,
+  cancelGeneration,
+  resumeGeneration,
+  listGenerations
 };

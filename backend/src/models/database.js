@@ -35,7 +35,9 @@ export class MongoDatabase {
       this.collection('findings').createIndex({ userId: 1, createdAt: -1 }),
       // Report indexes
       this.collection('reports').createIndex({ assessmentId: 1, version: -1 }),
-      this.collection('reports').createIndex({ userId: 1, createdAt: -1 })
+      this.collection('reports').createIndex({ userId: 1, createdAt: -1 }),
+      // Infinite Chat
+      this.collection('infinite_chats').createIndex({ userId: 1, updatedAt: -1 })
     ]);
   }
 

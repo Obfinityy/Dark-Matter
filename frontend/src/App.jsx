@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { AuthProvider, ProtectedRoute, PublicRoute, useAuth } from './auth/AuthContext';
 import { Login } from './pages/Auth/Login';
 
@@ -8,16 +11,51 @@ import {
   User, MoreHorizontal, Globe, Paperclip, Search, 
   Send, Target, TerminalSquare, CheckCircle2, Download, Sun, Moon,
   Key, ChevronDown, Check, ArrowLeft, Play, Pause, Square, AlertTriangle,
-  RefreshCw, Shield, Bug, Cpu, Lock, LogOut, Eye, FileText
+  Shield, Bug, Cpu, Lock, LogOut, Eye, FileText, Copy, Edit2, RotateCcw
 } from 'lucide-react';
 import { 
   getProviders, updateProviders, updateProfile, changePassword, logoutAccount,
   createAssessment, startAssessment, pauseAssessment, resumeAssessment, stopAssessment,
   getAssessmentFindings, sendAssessmentChat, generateReport, getLatestReport,
-  subscribeToAssessmentEvents, listAssessments
+  subscribeToAssessmentEvents, listAssessments, sendDirectChat, getInfiniteHistory
 } from './services/api';
 import './styles/globals.css';
 import './styles/infinity.css';
+
+const CodeBlock = ({ node, inline, className, children, ...props }) => {
+  const match = /language-(\w+)/.exec(className || '');
+  const codeString = String(children).replace(/\n$/, '');
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = () => {
+    navigator.clipboard.writeText(codeString);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return !inline && match ? (
+    <div style={{ position: 'relative', marginTop: '12px', marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ background: '#1e1e1e', padding: '6px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#888', borderBottom: '1px solid #333' }}>
+        <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{match[1]}</span>
+        <button onClick={handleCopy} style={{ background: 'none', border: 'none', color: copied ? '#10b981' : '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: 'color 0.2s' }} onMouseOver={(e) => {if(!copied) e.target.style.color='#fff'}} onMouseOut={(e) => {if(!copied) e.target.style.color='#888'}}>
+          {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? 'Copied!' : 'Copy code'}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        {...props}
+        children={codeString}
+        style={vscDarkPlus}
+        language={match[1]}
+        PreTag="div"
+        customStyle={{ margin: 0, borderRadius: '0 0 8px 8px', background: '#1e1e1e', fontSize: '0.9rem' }}
+      />
+    </div>
+  ) : (
+    <code {...props} className={className} style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', fontFamily: 'monospace', color: '#e2e8f0' }}>
+      {children}
+    </code>
+  );
+};
 
 // Custom Logo Component
 const Logo = ({ theme }) => (
@@ -27,191 +65,6 @@ const Logo = ({ theme }) => (
   </div>
 );
 
-// --- Settings Page (Real Database Provider Management) ---
-const SettingsPage = () => {
-  const navigate = useNavigate();
-  const [providers, setProviders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
-  const [inputs, setInputs] = useState({});
-
-  useEffect(() => {
-    loadProviders();
-  }, []);
-
-  const loadProviders = async () => {
-    try {
-      setLoading(true);
-      const res = await getProviders();
-      const list = res?.providers || [];
-      setProviders(list);
-      const initialInputs = {};
-      list.forEach(p => {
-        initialInputs[p.id] = {
-          apiKey: '',
-          enabled: p.enabled ?? false,
-          model: p.model || '',
-          priority: p.priority ?? 100
-        };
-      });
-      setInputs(initialInputs);
-    } catch (err) {
-      setStatusMsg({ text: err.message || 'Failed to load providers.', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (id, field, value) => {
-    setInputs(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setStatusMsg({ text: '', type: '' });
-
-    try {
-      const payload = providers.map(p => {
-        const input = inputs[p.id] || {};
-        return {
-          id: p.id,
-          enabled: Boolean(input.enabled),
-          model: input.model || p.model,
-          priority: Number(input.priority) || 100,
-          apiKey: input.apiKey ? input.apiKey.trim() : undefined
-        };
-      });
-
-      const res = await updateProviders(payload);
-      setProviders(res?.providers || []);
-      setStatusMsg({ text: 'Settings & AI Brain keys saved successfully in your database!', type: 'success' });
-      // clear the raw key inputs
-      setInputs(prev => {
-        const updated = { ...prev };
-        Object.keys(updated).forEach(k => {
-          updated[k].apiKey = '';
-        });
-        return updated;
-      });
-    } catch (err) {
-      setStatusMsg({ text: err.message || 'Failed to save settings.', type: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="dedicated-page">
-      <div className="page-header">
-        <button className="icon-button" onClick={() => navigate('/')}><ArrowLeft size={20} /></button>
-        <h2>Settings & AI Brain Providers</h2>
-      </div>
-      <div className="page-content animated-border-box opaque-bg">
-        <p className="settings-desc">
-          Configure your AI reasoning brains. DarkMatter stores keys securely in your persistent database account and automatically switches providers if rate limits or errors occur.
-        </p>
-
-        {statusMsg.text && (
-          <div style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginBottom: '16px',
-            fontSize: '0.9rem',
-            background: statusMsg.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${statusMsg.type === 'success' ? '#10b981' : '#ef4444'}`,
-            color: statusMsg.type === 'success' ? '#10b981' : '#f87171'
-          }}>
-            {statusMsg.text}
-          </div>
-        )}
-
-        {loading ? (
-          <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <RefreshCw size={24} className="animate-spin" style={{ display: 'inline-block', marginBottom: '8px' }} />
-            <p>Loading AI brain configurations...</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSave}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
-              {providers.map((p) => {
-                const current = inputs[p.id] || {};
-                return (
-                  <div key={p.id} style={{
-                    padding: '16px',
-                    borderRadius: '8px',
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border-light)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Cpu size={16} className="text-cyan" />
-                        <strong style={{ fontSize: '1rem' }}>{p.name}</strong>
-                        {p.hasApiKey && <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>Active Key: {p.maskedApiKey}</span>}
-                      </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={current.enabled ?? false} 
-                          onChange={(e) => handleInputChange(p.id, 'enabled', e.target.checked)} 
-                        />
-                        <span>Enabled</span>
-                      </label>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
-                      <div className="api-key-group" style={{ margin: 0 }}>
-                        <label><Key size={12} /> {p.hasApiKey ? 'Update API Key' : 'API Key'}</label>
-                        <input 
-                          type="password" 
-                          placeholder={p.hasApiKey ? 'Enter new key to replace' : 'Enter API key...'} 
-                          value={current.apiKey || ''} 
-                          onChange={(e) => handleInputChange(p.id, 'apiKey', e.target.value)}
-                          className="modal-input" 
-                        />
-                      </div>
-                      <div className="api-key-group" style={{ margin: 0 }}>
-                        <label>Model</label>
-                        <input 
-                          type="text" 
-                          value={current.model || ''} 
-                          placeholder={p.model}
-                          onChange={(e) => handleInputChange(p.id, 'model', e.target.value)}
-                          className="modal-input" 
-                        />
-                      </div>
-                      <div className="api-key-group" style={{ margin: 0 }}>
-                        <label>Priority (1=High)</label>
-                        <input 
-                          type="number" 
-                          value={current.priority ?? 100} 
-                          onChange={(e) => handleInputChange(p.id, 'priority', e.target.value)}
-                          className="modal-input" 
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button type="submit" className="primary-cta modal-save-btn" disabled={saving}>
-              {saving ? 'Saving to Database...' : 'Save Settings'}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-};
-
 // --- Billing Page ---
 const BillingPage = () => {
   const navigate = useNavigate();
@@ -220,7 +73,7 @@ const BillingPage = () => {
     { name: "Intermediate", price: "$49/mo", desc: "Advanced scanning and reporting." },
     { name: "Medium", price: "$99/mo", desc: "Priority support and more targets." },
     { name: "High", price: "$299/mo", desc: "Enterprise API limits and workflows." },
-    { name: "Infinity", price: "Custom", desc: "Limitless potential. Contact sales." }
+    { name: "Infinity", price: "$499/mo", desc: "Limitless potential. Contact sales." }
   ];
 
   return (
@@ -422,15 +275,67 @@ const ProfilePage = () => {
   );
 };
 
+const INFINITE_SESSIONS_KEY = 'infinite_chat_sessions';
+const INFINITE_ACTIVE_KEY = 'infinite_chat_active_id';
+const INFINITE_CHAT_EVENT = 'infinite-chat-updated';
+const NEW_CHAT_PULL_THRESHOLD = 110;
+
+const createInfiniteChatId = () => 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+const readInfiniteSessions = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(INFINITE_SESSIONS_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const emitInfiniteChatUpdate = (activeId) => {
+  window.dispatchEvent(new CustomEvent(INFINITE_CHAT_EVENT, { detail: { activeId } }));
+};
+
+const setActiveInfiniteChat = (id) => {
+  localStorage.setItem(INFINITE_ACTIVE_KEY, id);
+  emitInfiniteChatUpdate(id);
+};
+
+const upsertInfiniteSession = (id, title) => {
+  if (!id) return;
+  const sessions = readInfiniteSessions();
+  const existing = sessions.find((s) => s.id === id);
+  const keepTitle = existing?.title && existing.title !== 'New chat';
+  const nextTitle = keepTitle ? existing.title : (title || 'New chat').trim().slice(0, 72);
+  const next = [
+    { id, title: nextTitle || 'New chat', updatedAt: Date.now() },
+    ...sessions.filter((s) => s.id !== id),
+  ];
+  localStorage.setItem(INFINITE_SESSIONS_KEY, JSON.stringify(next));
+  emitInfiniteChatUpdate(id);
+};
+
 // --- Sidebar ---
-const Sidebar = ({ toggleTheme, theme, onNewAssessment }) => {
+const Sidebar = ({ toggleTheme, theme }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleNewChat = () => {
-    if (onNewAssessment) onNewAssessment();
-    navigate('/');
+  const isInfinite = location.pathname === '/infinite';
+  const [chatSessions, setChatSessions] = useState(() => readInfiniteSessions());
+  const [activeChatId, setActiveChatId] = useState(() => localStorage.getItem(INFINITE_ACTIVE_KEY));
+
+  useEffect(() => {
+    const sync = () => {
+      setChatSessions(readInfiniteSessions());
+      setActiveChatId(localStorage.getItem(INFINITE_ACTIVE_KEY));
+    };
+    window.addEventListener(INFINITE_CHAT_EVENT, sync);
+    return () => window.removeEventListener(INFINITE_CHAT_EVENT, sync);
+  }, []);
+
+  const openChatSession = (id) => {
+    setActiveInfiniteChat(id);
+    if (!isInfinite) navigate('/infinite');
   };
   
   return (
@@ -440,25 +345,58 @@ const Sidebar = ({ toggleTheme, theme, onNewAssessment }) => {
       </div>
       
       <div className="sidebar-content">
-        <button className="new-chat-btn" onClick={handleNewChat}>
-          <MessageSquare size={16} />
-          <span>New Assessment</span>
-          <span className="shortcut">Ctrl + N</span>
-        </button>
-
         <nav className="nav-menu">
-          <button className={`nav-item ${location.pathname === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>
+          <button className={`nav-item ${!isInfinite ? 'active' : ''}`} onClick={() => navigate('/')}>
             <Home size={18} />
             <span>Autonomous Recon</span>
           </button>
+
+          <button className={`nav-item ${isInfinite ? 'active' : ''}`} onClick={() => navigate('/infinite')}>
+            <MessageSquare size={18} />
+            <span>Chat</span>
+          </button>
+
+          <div style={{ marginTop: '24px', marginBottom: '8px', paddingLeft: '12px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            System
+          </div>
+          
+          <button className="nav-item">
+            <Cpu size={18} />
+            <span>Plugins</span>
+          </button>
+          
+          <button className="nav-item">
+            <FileText size={18} />
+            <span>Libraries</span>
+          </button>
+
+          <div style={{ marginTop: '24px', marginBottom: '8px', paddingLeft: '12px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            History
+          </div>
+          
+          {chatSessions.length === 0 ? (
+            <div style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              <span style={{ opacity: 0.7 }}>No previous chats found.</span>
+            </div>
+          ) : (
+            <div className="infinite-history-list">
+              {chatSessions.map((session) => (
+                <button
+                  key={session.id}
+                  type="button"
+                  className={`history-item infinite-history-item ${session.id === activeChatId ? 'active' : ''}`}
+                  onClick={() => openChatSession(session.id)}
+                  title={session.title}
+                >
+                  {session.title}
+                </button>
+              ))}
+            </div>
+          )}
         </nav>
       </div>
 
       <div className="sidebar-footer">
-        <button className={`nav-item ${location.pathname === '/settings' ? 'active' : ''}`} onClick={() => navigate('/settings')}>
-          <Settings size={18} />
-          <span>AI Brain Settings</span>
-        </button>
         <button className={`nav-item ${location.pathname === '/billing' ? 'active' : ''}`} onClick={() => navigate('/billing')}>
           <CreditCard size={18} />
           <span>Billing</span>
@@ -479,14 +417,12 @@ const Sidebar = ({ toggleTheme, theme, onNewAssessment }) => {
 };
 
 const TopNav = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   return (
     <header className="top-nav">
       <div className="nav-links">
-        <a href="#" className="active">INTELLIGENCE</a>
-        <span className="separator">/</span>
-        <a href="#">AUTONOMOUS BRAIN</a>
-        <span className="separator">/</span>
-        <a href="#">REPORTING</a>
+        <a onClick={() => navigate('/')} className={location.pathname === '/' ? 'active' : ''} style={{cursor: 'pointer'}}>AUTONOMOUS BRAIN</a>
       </div>
     </header>
   );
@@ -990,6 +926,390 @@ const ChatView = ({ assessmentId, target, mode, onRestart }) => {
   );
 };
 
+const Typewriter = ({ text, delay = 15 }) => {
+  const [currentText, setCurrentText] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    // When text completely changes (new message), reset
+    if (!text.startsWith(currentText)) {
+      setCurrentText('');
+      setCurrentIndex(0);
+    }
+  }, [text]);
+
+  useEffect(() => {
+    if (currentIndex < text.length) {
+      const timeout = setTimeout(() => {
+        setCurrentText(prevText => prevText + text[currentIndex]);
+        setCurrentIndex(prevIndex => prevIndex + 1);
+      }, delay);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [currentIndex, delay, text]);
+
+  return (
+    <div className="markdown-body" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+      <ReactMarkdown components={{ code: CodeBlock }}>{currentText}</ReactMarkdown>
+    </div>
+  );
+};
+
+const InfiniteChat = () => {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [pullHint, setPullHint] = useState(0);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const scrollRef = useRef(null);
+  const conversationIdRef = useRef(null);
+  const pullRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [longOp, setLongOp] = useState({ active: false, label: '', detail: '' });
+  const [editValue, setEditValue] = useState('');
+
+  const handleCopy = (text, index) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const handleEdit = (text, index) => {
+    setEditValue(text);
+    setEditingIndex(index);
+  };
+
+  const handleRetry = (index) => {
+    let lastUserMsg = '';
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserMsg = messages[i].content;
+        break;
+      }
+    }
+    if (lastUserMsg) {
+      handleSend(null, lastUserMsg);
+    }
+  };
+
+  // Global Auto-focus
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (document.activeElement === inputRef.current || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const loadConversation = async (activeId) => {
+    conversationIdRef.current = activeId;
+    setConversationId(activeId);
+    setMessages([]);
+    setPullHint(0);
+    pullRef.current = 0;
+    try {
+      const res = await getInfiniteHistory(activeId);
+      if (conversationIdRef.current !== activeId) return;
+      if (res?.chat?.messages) {
+        const mapped = res.chat.messages.map(m => ({ ...m, isHistory: true }));
+        setMessages(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to load chat history", err);
+    }
+  };
+
+  const handleNewChat = () => {
+    const activeId = createInfiniteChatId();
+    conversationIdRef.current = activeId;
+    setActiveInfiniteChat(activeId);
+    setConversationId(activeId);
+    setMessages([]);
+    setInput('');
+    setEditingIndex(null);
+    setPullHint(0);
+    pullRef.current = 0;
+  };
+
+  // Initialize or load conversation
+  useEffect(() => {
+    let activeId = localStorage.getItem(INFINITE_ACTIVE_KEY);
+    if (!activeId) {
+      activeId = createInfiniteChatId();
+      setActiveInfiniteChat(activeId);
+    }
+    loadConversation(activeId);
+
+    const onChatUpdate = (event) => {
+      const nextId = event.detail?.activeId || localStorage.getItem(INFINITE_ACTIVE_KEY);
+      if (!nextId || nextId === conversationIdRef.current) return;
+      loadConversation(nextId);
+    };
+    window.addEventListener(INFINITE_CHAT_EVENT, onChatUpdate);
+    return () => window.removeEventListener(INFINITE_CHAT_EVENT, onChatUpdate);
+  }, []);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (pullHint > 0) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading, pullHint]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const applyPull = (delta) => {
+      pullRef.current = Math.min(180, Math.max(0, pullRef.current + delta));
+      setPullHint(pullRef.current);
+      if (pullRef.current >= NEW_CHAT_PULL_THRESHOLD) {
+        pullRef.current = 0;
+        setPullHint(0);
+        handleNewChat();
+        return true;
+      }
+      return false;
+    };
+
+    const onWheel = (e) => {
+      if (messages.length === 0 || loading) return;
+      if (el.scrollTop <= 0 && e.deltaY < 0) {
+        e.preventDefault();
+        applyPull(Math.abs(e.deltaY) * 0.35);
+      } else if (e.deltaY > 0 && pullRef.current > 0) {
+        applyPull(-e.deltaY);
+      }
+    };
+
+    const onTouchStart = (e) => {
+      touchStartYRef.current = e.touches[0]?.clientY || 0;
+    };
+
+    const onTouchMove = (e) => {
+      if (messages.length === 0 || loading) return;
+      const y = e.touches[0]?.clientY || 0;
+      const dy = y - touchStartYRef.current;
+      if (el.scrollTop <= 0 && dy > 0) {
+        e.preventDefault();
+        applyPull(dy * 0.25);
+        touchStartYRef.current = y;
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (pullRef.current < NEW_CHAT_PULL_THRESHOLD) {
+        pullRef.current = 0;
+        setPullHint(0);
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [messages.length, loading]);
+
+  const handleSend = async (e, overrideMsg = null, truncateIndex = undefined) => {
+    e?.preventDefault();
+    if (loading) return;
+    const msgToSend = overrideMsg || input.trim();
+    if (!msgToSend || !conversationId) return;
+    upsertInfiniteSession(conversationId, msgToSend);
+    
+    if (truncateIndex !== undefined) {
+      setMessages(prev => [...prev.slice(0, truncateIndex), { role: 'user', content: msgToSend }]);
+      setEditingIndex(null);
+    } else {
+      setMessages(prev => [...prev, { role: 'user', content: msgToSend }]);
+    }
+
+    if (!overrideMsg) setInput('');
+    setLoading(true);
+
+    // Long-context progress: large inputs show a processing status instead of a frozen UI.
+    const isLarge = msgToSend.length > 8000;
+    if (isLarge) {
+      setLongOp({ active: true, label: 'Processing large context…', detail: 'Chunking and indexing your input' });
+      const ticker = setInterval(() => {
+        setLongOp(prev => prev.active ? { ...prev, detail: prev.detail === 'Chunking and indexing your input' ? 'Building hierarchical summary' : prev.detail === 'Building hierarchical summary' ? 'Preparing retrieval index' : prev.detail } : prev);
+      }, 2500);
+      window.__lcTicker = ticker;
+    }
+
+    try {
+      const res = await sendDirectChat(msgToSend, conversationId, truncateIndex);
+      if (res?.chat?.messages) {
+        const mapped = res.chat.messages.map(m => ({ ...m, isHistory: true }));
+        setMessages(mapped);
+      } else if (res?.reply) {
+        setMessages(prev => [...prev, { role: 'assistant', content: res.reply }]);
+      }
+      // Surface long-context metadata quietly under the reply.
+      if (res?.longContext?.ingested) {
+        const { inputId, chunkCount } = res.longContext.ingested;
+        setMessages(prev => [...prev, { role: 'assistant', content: `📦 Large input stored: **${chunkCount} chunks** indexed as \\'${inputId}\\'. You can ask things like "summarize this", "find every occurrence of X", or "show exact chunk 3".`, isHistory: false, isMeta: true }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: err.message || 'An unknown error occurred.', isError: true }]);
+    } finally {
+      if (window.__lcTicker) { clearInterval(window.__lcTicker); window.__lcTicker = null; }
+      setLongOp({ active: false, label: '', detail: '' });
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (loading) return;
+      handleSend();
+    }
+  };
+
+  return (
+    <div className="main-content" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', background: 'var(--bg-primary)', borderRadius: '12px', overflow: 'hidden' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', overscrollBehavior: 'contain' }}>
+        <div className={`infinite-pull-hint ${pullHint > 24 ? 'visible' : ''}`}>
+          New chat
+        </div>
+        {messages.length === 0 ? (
+          <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <div style={{ padding: '24px', background: 'var(--surface-color)', borderRadius: '50%', border: '1px solid var(--border-color)' }}>
+              <MessageSquare size={48} className="text-cyan" />
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 500, margin: 0, color: 'var(--text-primary)' }}>Welcome to Infinite</h2>
+            <p style={{ fontSize: '0.95rem', maxWidth: '300px', lineHeight: '1.5' }}>Start typing and let the AI assist you instantly.</p>
+          </div>
+        ) : (
+          messages.map((m, i) => {
+            if (m.role === 'system') return null; // Hide system message from UI
+            const isUser = m.role === 'user';
+            return (
+              <div key={i} style={{
+                alignSelf: isUser ? 'flex-end' : 'flex-start',
+                maxWidth: '80%',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <div style={{ 
+                  background: isUser ? 'var(--accent)' : m.isError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isUser ? '#fff' : m.isError ? '#ef4444' : 'var(--text-primary)',
+                  padding: '14px 18px',
+                  borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  border: isUser ? 'none' : m.isError ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
+                  lineHeight: '1.6',
+                  fontSize: '0.95rem'
+                }}>
+                  {isUser ? (
+                    editingIndex === i ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '300px' }}>
+                        <textarea 
+                          value={editValue} 
+                          onChange={e => setEditValue(e.target.value)} 
+                          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '12px', borderRadius: '8px', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical' }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                          <button onClick={() => setEditingIndex(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>Cancel</button>
+                          <button onClick={() => handleSend(null, editValue, i)} style={{ background: '#fff', border: 'none', color: 'var(--accent)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>Save & Submit</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                    )
+                  ) : (
+                    <div className="markdown-body" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                      {(!m.isHistory && i === messages.length - 1) ? <Typewriter text={m.content} delay={10} /> : <ReactMarkdown components={{ code: CodeBlock }}>{m.content}</ReactMarkdown>}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Action Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  alignSelf: isUser ? 'flex-end' : 'flex-start',
+                  padding: '0 4px',
+                  opacity: 0.7
+                }}>
+                  {copiedIndex === i ? (
+                    <button style={{ background: 'none', border: 'none', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
+                      <Check size={12} /> Copied
+                    </button>
+                  ) : (
+                    <button onClick={() => handleCopy(m.content, i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color='var(--text-primary)'} onMouseOut={(e) => e.target.style.color='var(--text-muted)'} title="Copy">
+                      <Copy size={12} /> Copy
+                    </button>
+                  )}
+                  
+                  {isUser ? (
+                    <button onClick={() => handleEdit(m.content, i)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color='var(--text-primary)'} onMouseOut={(e) => e.target.style.color='var(--text-muted)'} title="Edit">
+                      <Edit2 size={12} /> Edit
+                    </button>
+                  ) : (
+                    <button onClick={() => handleRetry(i)} disabled={loading} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', opacity: loading ? 0.5 : 1, transition: 'color 0.2s' }} onMouseOver={(e) => {if(!loading) e.target.style.color='var(--text-primary)'}} onMouseOut={(e) => e.target.style.color='var(--text-muted)'} title="Retry">
+                      <RotateCcw size={12} /> Retry
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+        {loading && (
+          <div style={{ alignSelf: 'flex-start', background: 'rgba(255, 255, 255, 0.05)', padding: '12px 20px', borderRadius: '16px 16px 16px 4px', color: 'var(--text-muted)', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                {longOp.active ? longOp.label : 'AI is thinking'}
+              </span>
+              <div className="typing-dot" style={{ animationDelay: '0s' }}>.</div>
+              <div className="typing-dot" style={{ animationDelay: '0.2s' }}>.</div>
+              <div className="typing-dot" style={{ animationDelay: '0.4s' }}>.</div>
+            </div>
+            {longOp.active && longOp.detail && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {longOp.detail} — input is safely chunked & indexed, not sent whole to the model
+              </span>
+            )}
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      <div style={{ padding: '20px 24px', background: 'var(--surface-color)', borderTop: '1px solid var(--border-color)' }}>
+        <form onSubmit={handleSend} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+          <textarea 
+            ref={inputRef}
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message..." 
+            style={{ flex: 1, minHeight: '50px', maxHeight: '150px', padding: '14px 18px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.2)', background: 'rgba(0, 0, 0, 0.2)', color: 'var(--text-primary)', resize: 'none', fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: '1.5', outline: 'none', transition: 'all 0.2s' }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--accent)'; e.target.style.background = 'rgba(0,0,0,0.3)'; }}
+            onBlur={(e) => { e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'; e.target.style.background = 'rgba(0,0,0,0.2)'; }}
+          />
+          <button type="submit" className="primary-cta" disabled={loading || !input.trim()} style={{ height: '50px', width: '50px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', background: 'var(--accent)', border: 'none', cursor: (!input.trim() || loading) ? 'not-allowed' : 'pointer', opacity: (!input.trim() || loading) ? 0.5 : 1 }}>
+            <Send size={18} style={{ color: '#fff', marginLeft: '2px' }} />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // Main Chat Route Component
 const MainChat = () => {
   const [assessmentState, setAssessmentState] = useState('IDLE'); // IDLE, RUNNING
@@ -997,6 +1317,15 @@ const MainChat = () => {
   const [target, setTarget] = useState('');
   const [mode, setMode] = useState('Medium');
   const [errorMsg, setErrorMsg] = useState('');
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.reset) {
+      setAssessmentState('IDLE');
+      setAssessmentId(null);
+      setTarget('');
+    }
+  }, [location.state?.reset]);
 
   const handleStart = async (targetUrl, chosenMode) => {
     setErrorMsg('');
@@ -1061,17 +1390,6 @@ const AppLayout = ({ children, theme, toggleTheme }) => {
         
         {children}
         
-        <div className="bottom-bar">
-          <div className="system-status">
-            <div className="status-dot"></div>
-            <span>DarkMatter Autonomous Engine Online</span>
-          </div>
-          <div className="nav-links-small">
-            <span>REASON</span> <span className="separator">/</span>
-            <span>EXECUTE</span> <span className="separator">/</span>
-            <span>DISCOVER</span>
-          </div>
-        </div>
       </main>
       
       <div className="bg-graphic"></div>
@@ -1102,7 +1420,7 @@ export default function App() {
               <AppLayout theme={theme} toggleTheme={toggleTheme}>
                 <Routes>
                   <Route path="/" element={<MainChat />} />
-                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/infinite" element={<InfiniteChat />} />
                   <Route path="/billing" element={<BillingPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Routes>

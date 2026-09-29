@@ -1,0 +1,1362 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Infinity Security — Autonomous AI Cybersecurity Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg-void: #020409;
+        --bg-surface: rgba(8, 14, 28, 0.94);
+        --bg-glass: rgba(13, 22, 42, 0.75);
+        --cyan: #00f0ff;
+        --cyan-glow: rgba(0, 240, 255, 0.6);
+        --violet: #a855f7;
+        --violet-glow: rgba(168, 85, 247, 0.5);
+        --emerald: #10b981;
+        --emerald-glow: rgba(16, 185, 129, 0.45);
+        --amber: #f59e0b;
+        --crimson: #f43f5e;
+        --crimson-glow: rgba(244, 63, 94, 0.65);
+        --border-cyan: rgba(0, 240, 255, 0.38);
+        --border-subtle: rgba(255, 255, 255, 0.1);
+        --border-card: rgba(255, 255, 255, 0.14);
+        --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg-void);
+        color: #f8fafc;
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        perspective: 1600px;
+        transform-style: preserve-3d;
+      }
+
+      /* 10-Layer Atmospheric Background System */
+      #bg-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        z-index: 1;
+        opacity: 0.85;
+      }
+
+      .cyber-grid-floor {
+        position: absolute;
+        bottom: -320px;
+        left: -50%;
+        width: 200%;
+        height: 900px;
+        background-image: 
+          linear-gradient(to right, rgba(0, 240, 255, 0.14) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(0, 240, 255, 0.14) 1px, transparent 1px);
+        background-size: 60px 60px;
+        transform: rotateX(82deg);
+        transform-origin: top center;
+        mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 80%);
+        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 80%);
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .ambient-pulse {
+        position: absolute;
+        width: 1200px;
+        height: 1200px;
+        border-radius: 50%;
+        filter: blur(190px);
+        pointer-events: none;
+        z-index: 2;
+        opacity: 0.28;
+      }
+      .pulse-cyan { top: -380px; left: -320px; background: radial-gradient(circle, var(--cyan) 0%, transparent 70%); }
+      .pulse-violet { bottom: -380px; right: -320px; background: radial-gradient(circle, var(--violet) 0%, transparent 70%); }
+      .pulse-crimson { top: 25%; left: 30%; background: radial-gradient(circle, var(--crimson) 0%, transparent 60%); opacity: 0; }
+
+      .cinematic-vignette {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        background: radial-gradient(circle at 50% 50%, transparent 58%, rgba(1, 3, 8, 0.8) 100%);
+        pointer-events: none;
+        z-index: 99;
+      }
+
+      .scene-stage {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transform-style: preserve-3d;
+      }
+
+      /* Human Cursor SVG */
+      #human-cursor {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        pointer-events: none;
+        z-index: 9999;
+        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 10px rgba(0, 240, 255, 0.8));
+        opacity: 0;
+      }
+
+      /* =========================================================================
+         BEAT 1: HOOK / SHOCK OPENING (00.0 - 03.5s)
+         ========================================================================= */
+      #beat-1 {
+        flex-direction: column;
+        gap: 22px;
+        text-align: center;
+      }
+
+      .shock-infinity-logo {
+        width: 180px;
+        height: 90px;
+        filter: drop-shadow(0 0 40px var(--cyan-glow));
+      }
+      .shock-infinity-svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+        stroke: url(#cyan-laser-grad);
+        stroke-width: 7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .shock-title-box {
+        position: relative;
+        height: 130px;
+        width: 1400px;
+      }
+      .shock-sub-badge {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.25em;
+        color: var(--cyan);
+        text-transform: uppercase;
+        margin-bottom: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: 9999px;
+        background: rgba(0, 240, 255, 0.08);
+        border: 1px solid rgba(0, 240, 255, 0.25);
+      }
+      .shock-text-1 {
+        position: absolute;
+        top: 44px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 54px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        color: #ffffff;
+        text-transform: uppercase;
+        white-space: nowrap;
+        text-shadow: 0 0 35px rgba(255, 255, 255, 0.3);
+      }
+      .shock-text-2 {
+        position: absolute;
+        top: 44px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 56px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        background: linear-gradient(135deg, #00f0ff 0%, #c084fc 60%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 45px rgba(0, 240, 255, 0.6));
+        white-space: nowrap;
+        opacity: 0;
+      }
+
+      /* =========================================================================
+         BEAT 2: REAL DARKMATTER UI & HUMAN CURSOR CLICK (03.5 - 08.8s)
+         ========================================================================= */
+      #beat-2 {
+        padding: 30px 60px;
+      }
+
+      .darkmatter-window {
+        width: 1580px;
+        height: 880px;
+        border-radius: 20px;
+        background: rgba(7, 12, 24, 0.96);
+        border: 1.5px solid var(--border-cyan);
+        box-shadow: 0 25px 90px rgba(0, 0, 0, 0.95), 0 0 50px rgba(0, 240, 255, 0.18);
+        display: flex;
+        overflow: hidden;
+        backdrop-filter: blur(40px);
+        transform-style: preserve-3d;
+      }
+
+      .dm-sidebar {
+        width: 270px;
+        background: rgba(4, 8, 16, 0.98);
+        border-right: 1px solid var(--border-subtle);
+        padding: 24px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .dm-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+      .dm-logo-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--cyan) 0%, var(--violet) 100%);
+        color: #020409;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 18px;
+      }
+      .dm-new-btn {
+        padding: 11px 16px;
+        border-radius: 10px;
+        background: rgba(0, 240, 255, 0.12);
+        border: 1px solid var(--border-cyan);
+        color: var(--cyan);
+        font-weight: 700;
+        font-size: 13.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dm-nav-item {
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .dm-nav-item.active {
+        background: rgba(255, 255, 255, 0.07);
+        color: #fff;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .dm-main-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: radial-gradient(circle at 50% 15%, rgba(20, 30, 55, 0.4) 0%, rgba(7, 12, 24, 0.98) 70%);
+      }
+      .dm-topbar {
+        height: 60px;
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 0 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .dm-breadcrumbs {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        color: var(--cyan);
+      }
+
+      .dm-body-hero {
+        flex: 1;
+        padding: 30px 60px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        text-align: center;
+      }
+      .dm-greeting {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        color: var(--cyan);
+        text-transform: uppercase;
+      }
+      .dm-headline {
+        font-size: 46px;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: -0.015em;
+      }
+
+      .dm-input-container {
+        position: relative;
+        width: 860px;
+        padding: 16px 24px;
+        border-radius: 16px;
+        background: rgba(10, 16, 32, 0.98);
+        border: 1.8px solid var(--cyan);
+        box-shadow: 0 0 45px rgba(0, 240, 255, 0.35);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .dm-url-typing {
+        flex: 1;
+        font-family: var(--font-mono);
+        font-size: 21px;
+        font-weight: 600;
+        text-align: left;
+        color: #fff;
+        display: flex;
+        align-items: center;
+      }
+      .dm-cursor-caret {
+        display: inline-block;
+        width: 3px;
+        height: 26px;
+        background: var(--cyan);
+        margin-left: 3px;
+        box-shadow: 0 0 10px var(--cyan);
+      }
+      .dm-mode-pill {
+        padding: 8px 16px;
+        border-radius: 10px;
+        background: rgba(168, 85, 247, 0.2);
+        border: 1.2px solid var(--violet);
+        color: #c084fc;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .dm-action-btn {
+        position: relative;
+        padding: 11px 26px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--cyan) 0%, #3b82f6 100%);
+        color: #020409;
+        font-weight: 800;
+        font-size: 14.5px;
+        box-shadow: 0 0 30px rgba(0, 240, 255, 0.55);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        transform-origin: center center;
+        cursor: pointer;
+      }
+      .btn-ripple {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(0, 240, 255, 0.85);
+        transform: translate(-50%, -50%) scale(0);
+        pointer-events: none;
+      }
+
+      /* =========================================================================
+         BEAT 3: AUTONOMOUS AI BRAIN & 360° RADAR (08.8 - 14.5s)
+         ========================================================================= */
+      #beat-3 {
+        width: 1920px;
+        height: 1080px;
+      }
+
+      .matrix-hub-radar {
+        position: relative;
+        width: 900px;
+        height: 900px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .radar-sweep-beam {
+        position: absolute;
+        width: 860px;
+        height: 860px;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, rgba(0, 240, 255, 0.4) 0deg, transparent 65deg);
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      .radar-circle {
+        position: absolute;
+        border-radius: 50%;
+        border: 1.2px dashed rgba(0, 240, 255, 0.3);
+      }
+      .rc-1 { width: 380px; height: 380px; }
+      .rc-2 { width: 640px; height: 640px; border-color: rgba(168, 85, 247, 0.32); }
+      .rc-3 { width: 880px; height: 880px; border-color: rgba(0, 240, 255, 0.2); }
+
+      .brain-power-core {
+        position: absolute;
+        width: 270px;
+        height: 270px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(0, 240, 255, 0.3) 0%, rgba(10, 16, 32, 0.98) 75%);
+        border: 2px solid var(--cyan);
+        box-shadow: 0 0 80px rgba(0, 240, 255, 0.55);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 25;
+      }
+      .brain-core-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--cyan);
+        letter-spacing: 0.12em;
+        margin-top: 6px;
+      }
+      .provider-overclock-bar {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .prov-tag {
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
+      }
+      .prov-tag.active {
+        background: var(--cyan);
+        color: #020409;
+        box-shadow: 0 0 12px var(--cyan);
+      }
+
+      .matrix-node {
+        position: absolute;
+        padding: 13px 20px;
+        border-radius: 12px;
+        background: rgba(9, 15, 30, 0.95);
+        border: 1.5px solid var(--border-cyan);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .mn-1 { top: 50px; left: 160px; color: var(--cyan); border-color: var(--cyan); }
+      .mn-2 { top: 50px; right: 160px; color: var(--violet); border-color: var(--violet); }
+      .mn-3 { bottom: 90px; right: 130px; color: #38bdf8; border-color: #38bdf8; }
+      .mn-4 { bottom: 90px; left: 130px; color: var(--emerald); border-color: var(--emerald); }
+      .mn-5 { top: 430px; right: -40px; color: #fbbf24; border-color: #fbbf24; }
+      .mn-6 { top: 430px; left: -40px; color: var(--crimson); border-color: var(--crimson); }
+
+      .telemetry-overclock-banner {
+        position: absolute;
+        bottom: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 13px 38px;
+        border-radius: 9999px;
+        background: rgba(9, 15, 30, 0.98);
+        border: 1.8px solid var(--cyan);
+        box-shadow: 0 0 45px rgba(0, 240, 255, 0.35);
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #fff;
+      }
+
+      /* =========================================================================
+         BEAT 4: INTELLIGENT TOOL ARSENAL & COMBAT TERMINAL (14.5 - 20.2s)
+         ========================================================================= */
+      #beat-4 {
+        padding: 40px 80px;
+        display: grid;
+        grid-template-columns: 1fr 1.25fr;
+        gap: 36px;
+        align-items: center;
+      }
+
+      .arsenal-box {
+        padding: 30px;
+        border-radius: 20px;
+        background: rgba(9, 15, 30, 0.95);
+        border: 1.5px solid var(--border-cyan);
+        backdrop-filter: blur(25px);
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .arsenal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: 12px;
+      }
+      .arsenal-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #fff;
+      }
+      .arsenal-status {
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: rgba(0, 240, 255, 0.18);
+        color: var(--cyan);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .tool-row {
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: rgba(18, 28, 50, 0.7);
+        border: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .tool-row.firing {
+        border-color: var(--cyan);
+        background: rgba(0, 240, 255, 0.1);
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+      }
+      .tool-tag {
+        font-family: var(--font-mono);
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .tool-desc {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 2px;
+      }
+      .tool-metric {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 5px;
+        background: rgba(16, 185, 129, 0.18);
+        color: #34d399;
+      }
+
+      .combat-terminal {
+        height: 520px;
+        border-radius: 20px;
+        background: #010307;
+        border: 1.5px solid rgba(255, 255, 255, 0.14);
+        padding: 24px;
+        font-family: var(--font-mono);
+        font-size: 13.5px;
+        line-height: 1.7;
+        color: #94a3b8;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.95), 0 20px 60px rgba(0, 0, 0, 0.85);
+        overflow: hidden;
+      }
+
+      /* =========================================================================
+         BEAT 5: CRITICAL ZERO-DAY DETONATION (20.2 - 24.8s)
+         ========================================================================= */
+      #beat-5 {
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .zero-day-card {
+        width: 960px;
+        padding: 38px 46px;
+        border-radius: 26px;
+        background: rgba(11, 16, 32, 0.98);
+        border: 2.5px solid var(--crimson);
+        box-shadow: 0 0 90px rgba(244, 63, 94, 0.4), 0 35px 90px rgba(0, 0, 0, 0.95);
+        backdrop-filter: blur(30px);
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      .zero-day-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .zero-day-badge {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--crimson);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .cvss-extreme {
+        padding: 7px 18px;
+        border-radius: 8px;
+        background: var(--crimson);
+        color: #fff;
+        font-size: 14.5px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        box-shadow: 0 0 30px rgba(244, 63, 94, 0.7);
+      }
+
+      .zero-day-headline {
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.015em;
+        color: #fff;
+        line-height: 1.25;
+      }
+
+      .cryptographic-chain {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border-subtle);
+      }
+      .crypto-pill {
+        padding: 10px 16px;
+        border-radius: 10px;
+        background: rgba(24, 34, 52, 0.9);
+        border: 1.2px solid var(--border-subtle);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 600;
+        color: #cbd5e1;
+      }
+      .crypto-pill.confirmed {
+        border-color: var(--emerald);
+        color: #34d399;
+        background: rgba(16, 185, 129, 0.18);
+        box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
+      }
+
+      /* =========================================================================
+         BEAT 6: EXECUTIVE DOSSIER REPORT (24.8 - 27.5s)
+         ========================================================================= */
+      #beat-6 {
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      .dossier-card {
+        width: 860px;
+        padding: 36px 42px;
+        border-radius: 24px;
+        background: #0d1527;
+        border: 2px solid var(--cyan);
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.95), 0 0 45px rgba(0, 240, 255, 0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .dossier-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1.5px solid var(--border-subtle);
+        padding-bottom: 14px;
+      }
+      .dossier-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--cyan);
+      }
+      .dossier-seal {
+        padding: 5px 14px;
+        border-radius: 6px;
+        border: 1.2px solid var(--emerald);
+        color: #34d399;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .dossier-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .dossier-box {
+        padding: 14px 18px;
+        border-radius: 12px;
+        background: rgba(24, 34, 54, 0.55);
+        border: 1px solid var(--border-subtle);
+      }
+      .dossier-box h5 {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        color: #94a3b8;
+        margin-bottom: 5px;
+      }
+      .dossier-box p {
+        font-size: 14.5px;
+        font-weight: 600;
+        color: #f8fafc;
+      }
+
+      /* =========================================================================
+         BEAT 7: HERO FINALE & BRAND LOCKUP (27.5 - 30.0s)
+         ========================================================================= */
+      #beat-7 {
+        flex-direction: column;
+        gap: 18px;
+        text-align: center;
+      }
+
+      .finale-infinity-flare {
+        width: 200px;
+        height: 100px;
+        filter: drop-shadow(0 0 50px var(--cyan-glow));
+      }
+
+      .finale-brand-header {
+        font-size: 64px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        background: linear-gradient(135deg, #ffffff 0%, #00f0ff 60%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 45px rgba(0, 240, 255, 0.6));
+      }
+
+      .finale-tag-1 {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: #f8fafc;
+      }
+      .finale-tag-2 {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: var(--cyan);
+        filter: drop-shadow(0 0 25px var(--cyan));
+      }
+
+      .finale-cert-sub {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="30"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- 10-Layer Atmospheric Backdrop -->
+      <canvas id="bg-canvas" width="1920" height="1080"></canvas>
+      <div class="cyber-grid-floor"></div>
+      <div class="ambient-pulse pulse-cyan"></div>
+      <div class="ambient-pulse pulse-violet"></div>
+      <div class="ambient-pulse pulse-crimson" id="pulse-red"></div>
+      <div class="cinematic-vignette"></div>
+
+      <!-- SVG Gradients -->
+      <svg width="0" height="0" style="position: absolute;">
+        <defs>
+          <linearGradient id="cyan-laser-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00f0ff" />
+            <stop offset="50%" stop-color="#a855f7" />
+            <stop offset="100%" stop-color="#ec4899" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <!-- =====================================================================
+           BEAT 1: HOOK / SHOCK OPENING (00.0 - 03.5s)
+           ===================================================================== -->
+      <div id="beat-1" class="scene-stage">
+        <div class="shock-infinity-logo" id="b1-logo">
+          <svg viewBox="0 0 200 100" class="shock-infinity-svg">
+            <path d="M 50,50 C 20,20 0,35 0,50 C 0,65 20,80 50,50 C 80,20 120,20 150,50 C 180,80 200,65 200,50 C 200,35 180,20 150,50 C 120,80 80,80 50,50 Z" />
+          </svg>
+        </div>
+        <div class="shock-title-box">
+          <div class="shock-sub-badge" id="b1-badge">⚡ AUTONOMOUS AI SECURITY SYSTEM</div>
+          <div class="shock-text-1" id="b1-t1">MANUAL PENTESTING IS OBSOLETE.</div>
+          <div class="shock-text-2" id="b1-t2">AUTONOMOUS CYBER AI HAS ARRIVED.</div>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           BEAT 2: REAL DARKMATTER UI & HUMAN CURSOR CLICK (03.5 - 08.8s)
+           ===================================================================== -->
+      <div id="beat-2" class="scene-stage" style="opacity: 0;">
+        <div class="darkmatter-window" id="b2-window">
+          <!-- Sidebar -->
+          <div class="dm-sidebar">
+            <div class="dm-logo">
+              <div class="dm-logo-badge">∞</div>
+              <span>DARKMATTER</span>
+            </div>
+            <div class="dm-new-btn">+ New Target Assessment</div>
+            <div class="dm-nav-item active">⚡ Autonomous Recon</div>
+            <div class="dm-nav-item">🧠 Tri-Brain Overclock</div>
+            <div class="dm-nav-item">🛡️ Tool Registry Matrix</div>
+            <div class="dm-nav-item">📄 Executive Reports</div>
+          </div>
+
+          <!-- Main Stage -->
+          <div class="dm-main-area">
+            <div class="dm-topbar">
+              <div class="dm-breadcrumbs">INTELLIGENCE // AUTONOMOUS AGENT // ACTIVE</div>
+              <div style="font-size: 12px; color: var(--emerald); font-weight: 700;">● KALI ENGINE CONNECTED</div>
+            </div>
+
+            <div class="dm-body-hero">
+              <div class="dm-greeting" id="b2-greet">GOOD EVENING, SECURITY RESEARCHER</div>
+              <h1 class="dm-headline" id="b2-head">
+                Autonomous AI Bug Bounty &<br/>
+                <span style="background: linear-gradient(135deg, #00f0ff, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Offensive Security Intelligence</span>
+              </h1>
+
+              <!-- Input bar -->
+              <div class="dm-input-container" id="b2-input">
+                <div class="dm-url-typing">
+                  <span id="b2-url-text"></span>
+                  <span class="dm-cursor-caret" id="b2-caret"></span>
+                </div>
+                <div class="dm-mode-pill" id="b2-mode">⚡ INFINITY MODE</div>
+                
+                <!-- Action Button with Pixel-Accurate Internal Cursor -->
+                <div class="dm-action-btn" id="b2-btn">
+                  <span>Investigate</span>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                  <div class="btn-ripple" id="b2-ripple"></div>
+
+                  <!-- Human Cursor Docked Directly On Button Target Position -->
+                  <div id="human-cursor" style="top: 14px; left: 42px;">
+                    <svg viewBox="0 0 24 24" width="30" height="30" fill="none">
+                      <path d="M4 2L20 12L12 14L9 22L4 2Z" fill="#00f0ff" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           BEAT 3: AUTONOMOUS AI BRAIN & 360° RADAR (08.8 - 14.5s)
+           ===================================================================== -->
+      <div id="beat-3" class="scene-stage" style="opacity: 0;">
+        <div class="matrix-hub-radar" id="b3-radar">
+          <div class="radar-sweep-beam"></div>
+          <div class="radar-circle rc-1"></div>
+          <div class="radar-circle rc-2"></div>
+          <div class="radar-circle rc-3"></div>
+
+          <div class="brain-power-core" id="b3-core">
+            <svg viewBox="0 0 200 100" width="120" height="60">
+              <path class="shock-infinity-svg" d="M 50,50 C 20,20 0,35 0,50 C 0,65 20,80 50,50 C 80,20 120,20 150,50 C 180,80 200,65 200,50 C 200,35 180,20 150,50 C 120,80 80,80 50,50 Z" />
+            </svg>
+            <div class="brain-core-title">TRI-BRAIN REASONING</div>
+            <div class="provider-overclock-bar">
+              <span class="prov-tag active">GEMINI 2.0</span>
+              <span class="prov-tag">GPT-4O</span>
+              <span class="prov-tag">CLAUDE 3.5</span>
+            </div>
+          </div>
+
+          <div class="matrix-node mn-1" id="b3-n1">🎯 TARGET SCOPE ENGINE</div>
+          <div class="matrix-node mn-2" id="b3-n2">🛡️ ADAPTIVE POLICY</div>
+          <div class="matrix-node mn-3" id="b3-n3">🌐 RADAR (+148 ASSETS)</div>
+          <div class="matrix-node mn-4" id="b3-n4">⚡ ENDPOINTS (+342)</div>
+          <div class="matrix-node mn-5" id="b3-n5">👁️ HYPOTHESIS ENGINE</div>
+          <div class="matrix-node mn-6" id="b3-n6">🔒 EVIDENCE PROOF</div>
+        </div>
+
+        <div class="telemetry-overclock-banner" id="b3-banner">MAPPING ATTACK SURFACE & REASONING</div>
+      </div>
+
+      <!-- =====================================================================
+           BEAT 4: INTELLIGENT TOOL ARSENAL & COMBAT TERMINAL (14.5 - 20.2s)
+           ===================================================================== -->
+      <div id="beat-4" class="scene-stage" style="opacity: 0;">
+        <div class="arsenal-box" id="b4-left">
+          <div class="arsenal-head">
+            <div class="arsenal-title">⚡ Autonomous Pipeline</div>
+            <div class="arsenal-status">ORCHESTRATING</div>
+          </div>
+
+          <div class="tool-row firing" id="b4-t1">
+            <div>
+              <div class="tool-tag">crtsh & subfinder</div>
+              <div class="tool-desc">Passive Reconnaissance</div>
+            </div>
+            <div class="tool-metric">+42 ASSETS</div>
+          </div>
+
+          <div class="tool-row firing" id="b4-t2">
+            <div>
+              <div class="tool-tag">httpx & dnsx</div>
+              <div class="tool-desc">Live Probing & DNS Resolution</div>
+            </div>
+            <div class="tool-metric">18 LIVE HOSTS</div>
+          </div>
+
+          <div class="tool-row firing" id="b4-t3">
+            <div>
+              <div class="tool-tag">whatweb & wafw00f</div>
+              <div class="tool-desc">Fingerprinting & WAF Detection</div>
+            </div>
+            <div class="tool-metric">STACK DETECTED</div>
+          </div>
+
+          <div class="tool-row firing" id="b4-t4">
+            <div>
+              <div class="tool-tag">nuclei & nikto</div>
+              <div class="tool-desc">Autonomous Vulnerability Discovery</div>
+            </div>
+            <div class="tool-metric" style="background: rgba(244,63,94,0.2); color: #f43f5e;">VALIDATING PoC</div>
+          </div>
+        </div>
+
+        <div class="combat-terminal" id="b4-right">
+          <div><span style="color: #38bdf8; font-weight: 700;">[+] SCOPE_VALIDATED</span>: target: https://app.fintech-core.io (In-Scope)</div>
+          <div><span style="color: #34d399; font-weight: 700;">[+] AGENT_STARTED</span>: multi-provider AI reasoning brain initialized</div>
+          <div><span style="color: #38bdf8; font-weight: 700;">[+] crtsh & subfinder</span>: discovered 148 subdomains across CT logs</div>
+          <div><span style="color: #34d399; font-weight: 700;">[+] httpx</span>: probing live endpoints, status 200/301/401 resolved</div>
+          <div><span style="color: #c084fc; font-weight: 700;">[+] whatweb</span>: Node.js, Express, Next.js, Cloudflare WAF detected</div>
+          <div><span style="color: #fde047; font-weight: 700;">[!] HYPOTHESIS</span>: potential auth bypass on /api/v1/auth/session</div>
+          <div><span style="color: #38bdf8; font-weight: 700;">[+] nuclei</span>: executing targeted validation template auth-bypass.yaml</div>
+          <div><span style="color: #f43f5e; font-weight: 700;">[✓] CRITICAL_VULNERABILITY</span>: session collision confirmed via exploit chain</div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+         BEAT 5: CRITICAL ZERO-DAY DETONATION (20.2 - 24.8s)
+         ========================================================================= -->
+      <div id="beat-5" class="scene-stage" style="opacity: 0;">
+        <div class="zero-day-card" id="b5-card">
+          <div class="zero-day-top">
+            <span class="zero-day-badge">🚨 DEMO SCENARIO • VERIFIED FINDING</span>
+            <span class="cvss-extreme">CRITICAL • CVSS 9.8</span>
+          </div>
+
+          <h2 class="zero-day-headline">Authentication Bypass via Session State Collision</h2>
+
+          <div class="cryptographic-chain">
+            <div class="crypto-pill confirmed">✓ Raw HTTP Request</div>
+            <div class="crypto-pill confirmed">✓ Anomalous 200 Response</div>
+            <div class="crypto-pill confirmed">✓ State Differential Confirmed</div>
+            <div class="crypto-pill confirmed">✓ Exploit Proof Validated</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+         BEAT 6: EXECUTIVE DOSSIER REPORT (24.8 - 27.5s)
+         ========================================================================= */
+      #beat-6 {
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      .dossier-card {
+        width: 860px;
+        padding: 36px 42px;
+        border-radius: 24px;
+        background: #0d1527;
+        border: 2px solid var(--cyan);
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.95), 0 0 45px rgba(0, 240, 255, 0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .dossier-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1.5px solid var(--border-subtle);
+        padding-bottom: 14px;
+      }
+      .dossier-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--cyan);
+      }
+      .dossier-seal {
+        padding: 5px 14px;
+        border-radius: 6px;
+        border: 1.2px solid var(--emerald);
+        color: #34d399;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .dossier-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .dossier-box {
+        padding: 14px 18px;
+        border-radius: 12px;
+        background: rgba(24, 34, 54, 0.55);
+        border: 1px solid var(--border-subtle);
+      }
+      .dossier-box h5 {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        color: #94a3b8;
+        margin-bottom: 5px;
+      }
+      .dossier-box p {
+        font-size: 14.5px;
+        font-weight: 600;
+        color: #f8fafc;
+      }
+
+      /* =========================================================================
+         BEAT 7: HERO FINALE & BRAND LOCKUP (27.5 - 30.0s)
+         ========================================================================= */
+      #beat-7 {
+        flex-direction: column;
+        gap: 18px;
+        text-align: center;
+      }
+
+      .finale-infinity-flare {
+        width: 200px;
+        height: 100px;
+        filter: drop-shadow(0 0 50px var(--cyan-glow));
+      }
+
+      .finale-brand-header {
+        font-size: 64px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        background: linear-gradient(135deg, #ffffff 0%, #00f0ff 60%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 45px rgba(0, 240, 255, 0.6));
+      }
+
+      .finale-tag-1 {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: #f8fafc;
+      }
+      .finale-tag-2 {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: var(--cyan);
+        filter: drop-shadow(0 0 25px var(--cyan));
+      }
+
+      .finale-cert-sub {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="30"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- 10-Layer Atmospheric Backdrop -->
+      <canvas id="bg-canvas" width="1920" height="1080"></canvas>
+      <div class="cyber-grid-floor"></div>
+      <div class="ambient-pulse pulse-cyan"></div>
+      <div class="ambient-pulse pulse-violet"></div>
+      <div class="ambient-pulse pulse-crimson" id="pulse-red"></div>
+      <div class="cinematic-vignette"></div>
+
+      <!-- Clean, Sleek Electronic Audio Bed & High-End Sound Effects (NO METALLIC CLANG/BELLS) -->
+      <audio
+        id="bg-music"
+        data-start="0"
+        data-duration="30"
+        data-track-index="10"
+        data-volume="0.45"
+        src="assets/audio/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"
+      ></audio>
+
+      <!-- Sleek Digital Impact & Sub-Bass SFX -->
+      <audio id="sfx-sub1" data-start="0.1" data-duration="1.4" data-track-index="11" data-volume="0.9" src="assets/audio/impact/impactPunch_heavy_000.ogg"></audio>
+      <audio id="sfx-drop1" data-start="1.4" data-duration="1.2" data-track-index="12" data-volume="0.8" src="assets/audio/interface/drop_001.ogg"></audio>
+      <audio id="sfx-type1" data-start="4.5" data-duration="0.2" data-track-index="13" data-volume="0.65" src="assets/audio/keyboard/keypress-001.wav"></audio>
+      <audio id="sfx-type2" data-start="4.9" data-duration="0.2" data-track-index="14" data-volume="0.65" src="assets/audio/keyboard/keypress-008.wav"></audio>
+      <audio id="sfx-type3" data-start="5.3" data-duration="0.2" data-track-index="15" data-volume="0.65" src="assets/audio/keyboard/keypress-015.wav"></audio>
+      
+      <!-- USER'S EXACT MOUSE CLICK SOUND SYNCED TO THE INVESTIGATE BUTTON IMPACT -->
+      <audio id="sfx-user-click" data-start="7.4" data-duration="0.8" data-track-index="16" data-volume="1.0" src="assets/audio/soundreality-mouse-click-003-610187.mp3"></audio>
+      
+      <audio id="sfx-switch" data-start="8.8" data-duration="0.6" data-track-index="17" data-volume="0.85" src="assets/audio/interface/switch_001.ogg"></audio>
+      <audio id="sfx-radar-drop" data-start="14.6" data-duration="1.2" data-track-index="18" data-volume="0.85" src="assets/audio/interface/drop_002.ogg"></audio>
+      <audio id="sfx-cyber-glitch" data-start="20.3" data-duration="1.2" data-track-index="19" data-volume="0.9" src="assets/audio/interface/glitch_002.ogg"></audio>
+      <audio id="sfx-dossier" data-start="24.9" data-duration="0.8" data-track-index="20" data-volume="0.85" src="assets/audio/interface/drop_003.ogg"></audio>
+      <audio id="sfx-sub-resolve" data-start="27.6" data-duration="1.5" data-track-index="21" data-volume="0.95" src="assets/audio/impact/impactPunch_heavy_000.ogg"></audio>
+    </div>
+
+    <!-- Seeded Deterministic Starfield Simulation -->
+    <script>
+      function mulberry32(a) {
+        return function() {
+          let t = a += 0x6D2B79F5;
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      const rng = mulberry32(8888);
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+      const particles = [];
+      const numParticles = 90;
+
+      for (let i = 0; i < numParticles; i++) {
+        particles.push({
+          baseX: rng() * 1920,
+          baseY: rng() * 1080,
+          vx: (rng() - 0.5) * 55,
+          vy: (rng() - 0.5) * 55,
+          radius: rng() * 2.2 + 0.8,
+          color: rng() > 0.5 ? '#00f0ff' : '#a855f7'
+        });
+      }
+
+      function renderFrameAtTime(t) {
+        ctx.clearRect(0, 0, 1920, 1080);
+        ctx.lineWidth = 0.5;
+
+        const currentPos = particles.map(p => {
+          let x = (p.baseX + p.vx * t) % 1920;
+          let y = (p.baseY + p.vy * t) % 1080;
+          if (x < 0) x += 1920;
+          if (y < 0) y += 1080;
+          return { x, y, radius: p.radius, color: p.color };
+        });
+
+        for (let i = 0; i < numParticles; i++) {
+          const p = currentPos[i];
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.fill();
+
+          for (let j = i + 1; j < numParticles; j++) {
+            const p2 = currentPos[j];
+            const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+            if (dist < 125) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(0, 240, 255, ${0.1 * (1 - dist / 125)})`;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      renderFrameAtTime(0);
+    </script>
+
+    <!-- Master 30.0-Second High-Adrenaline Timeline -->
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({
+        paused: true,
+        onUpdate: function() {
+          renderFrameAtTime(tl.time());
+        }
+      });
+
+      // =======================================================================
+      // BEAT 1: SHOCK OPENING (00.0 - 03.5s)
+      // =======================================================================
+      tl.fromTo("#b1-logo", { scale: 0.35, opacity: 0, rotateY: 100 }, { scale: 1.15, opacity: 1, rotateY: 0, duration: 1.0, ease: "power4.out" }, 0.1);
+      tl.fromTo("#b1-badge", { opacity: 0, y: -12 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.3);
+      tl.fromTo("#b1-t1", { opacity: 0, scale: 0.9, y: 25 }, { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "back.out(1.8)" }, 0.45);
+      tl.to("#b1-t1", { opacity: 0, scale: 1.1, duration: 0.28, ease: "power2.in" }, 1.4);
+      tl.fromTo("#b1-t2", { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1.05, duration: 0.5, ease: "back.out(2)" }, 1.55);
+      tl.to("#beat-1", { opacity: 0, scale: 1.8, filter: "blur(12px)", duration: 0.45, ease: "power3.in" }, 3.1);
+
+      // =======================================================================
+      // BEAT 2: REAL DARKMATTER UI & HUMAN CURSOR CLICK (03.5 - 08.8s)
+      // =======================================================================
+      tl.fromTo("#beat-2", { opacity: 0, scale: 0.8, rotateX: 16 }, { opacity: 1, scale: 1, rotateX: 0, duration: 0.65, ease: "power4.out" }, 3.5);
+      tl.fromTo("#b2-window", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 3.6);
+      tl.fromTo("#b2-greet", { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.3 }, 3.8);
+      tl.fromTo("#b2-head", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35 }, 3.9);
+      tl.fromTo("#b2-input", { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.35 }, 4.1);
+
+      // Keystroke typing sequence
+      const urlString = "https://app.fintech-core.io";
+      const typedTarget = document.getElementById("b2-url-text");
+      for (let i = 1; i <= urlString.length; i++) {
+        const chunk = urlString.slice(0, i);
+        tl.call(() => { typedTarget.textContent = chunk; }, null, 4.3 + (i * 0.065));
+      }
+
+      // Mathematical Pixel-Perfect Human Cursor Flight directly onto the Investigate Button
+      tl.fromTo("#human-cursor", 
+        { opacity: 0, x: 220, y: 160 }, 
+        { opacity: 1, x: 220, y: 160, duration: 0.2 }, 
+        5.8
+      );
+      tl.to("#human-cursor", {
+        x: 0,
+        y: 0,
+        duration: 1.3,
+        ease: "power3.inOut"
+      }, 6.0);
+
+      // Mode switch pulse
+      tl.fromTo("#b2-mode", { scale: 0.85 }, { scale: 1.15, background: "rgba(0, 240, 255, 0.35)", color: "#00f0ff", duration: 0.22, yoyo: true, repeat: 1 }, 6.8);
+
+      // Exact Click at 7.4s with Button Depression & Ripple (Pixel-Accurate on Button!)
+      tl.to("#b2-btn", { scale: 0.93, duration: 0.1, yoyo: true, repeat: 1, ease: "power1.inOut" }, 7.4);
+      tl.fromTo("#b2-ripple", { scale: 0, opacity: 1 }, { scale: 24, opacity: 0, duration: 0.5, ease: "power2.out" }, 7.4);
+
+      tl.to("#human-cursor", { x: 50, y: 40, opacity: 0, duration: 0.45 }, 7.8);
+      tl.to("#beat-2", { opacity: 0, scale: 1.2, duration: 0.45, ease: "power2.in" }, 8.4);
+
+      // =======================================================================
+      // BEAT 3: AUTONOMOUS AI BRAIN & 360° RADAR (08.8 - 14.5s)
+      // =======================================================================
+      tl.fromTo("#beat-3", { opacity: 0, scale: 0.75, rotateZ: -12 }, { opacity: 1, scale: 1, rotateZ: 0, duration: 0.6, ease: "power4.out" }, 8.8);
+      tl.fromTo("#b3-core", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2)" }, 8.9);
+
+      const radarNodes = ["#b3-n1", "#b3-n2", "#b3-n3", "#b3-n4", "#b3-n5", "#b3-n6"];
+      radarNodes.forEach((nd, i) => {
+        tl.fromTo(nd, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.32, ease: "back.out(1.8)" }, 9.5 + i * 0.2);
+      });
+      tl.fromTo("#b3-banner", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35 }, 11.2);
+      tl.to("#beat-3", { opacity: 0, scale: 1.15, duration: 0.45, ease: "power2.in" }, 14.0);
+
+      // =======================================================================
+      // BEAT 4: INTELLIGENT TOOL ARSENAL & COMBAT TERMINAL (14.5 - 20.2s)
+      // =======================================================================
+      tl.fromTo("#beat-4", { opacity: 0, x: 70 }, { opacity: 1, x: 0, duration: 0.55, ease: "power4.out" }, 14.5);
+      tl.fromTo("#b4-left", { opacity: 0, y: 25 }, { opacity: 1, y: 0, duration: 0.35 }, 14.6);
+      tl.fromTo("#b4-right", { opacity: 0, y: 25 }, { opacity: 1, y: 0, duration: 0.35 }, 14.7);
+
+      const toolItems = ["#b4-t1", "#b4-t2", "#b4-t3", "#b4-t4"];
+      toolItems.forEach((ti, idx) => {
+        tl.fromTo(ti, { x: -25, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3 }, 15.3 + idx * 0.9);
+      });
+      tl.to("#beat-4", { opacity: 0, scale: 0.94, duration: 0.4 }, 19.8);
+
+      // =======================================================================
+      // BEAT 5: CRITICAL ZERO-DAY DETONATION (20.2 - 24.8s)
+      // =======================================================================
+      tl.fromTo("#pulse-red", { opacity: 0 }, { opacity: 0.55, duration: 0.28, yoyo: true, repeat: 3 }, 20.2);
+      tl.fromTo("#beat-5", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2)" }, 20.2);
+      tl.fromTo("#b5-card", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power4.out" }, 20.3);
+      tl.fromTo(".crypto-pill", { opacity: 0, y: 12 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.28 }, 20.8);
+      tl.to("#beat-5", { opacity: 0, scale: 1.15, duration: 0.4 }, 24.3);
+
+      // =======================================================================
+      // BEAT 6: EXECUTIVE DOSSIER REPORT (24.8 - 27.5s)
+      // =======================================================================
+      tl.fromTo("#beat-6", { opacity: 0, y: 40, scale: 0.88 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "power3.out" }, 24.8);
+      tl.fromTo("#b6-card", { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35 }, 24.9);
+      tl.fromTo(".dossier-box", { opacity: 0, y: 8 }, { opacity: 1, y: 0, stagger: 0.08, duration: 0.25 }, 25.2);
+      tl.to("#beat-6", { opacity: 0, scale: 0.92, duration: 0.3 }, 27.2);
+
+      // =======================================================================
+      // BEAT 7: HERO FINALE & BRAND LOCKUP (27.5 - 30.0s)
+      // =======================================================================
+      tl.fromTo("#beat-7", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power4.out" }, 27.5);
+      tl.fromTo("#b7-logo", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2)" }, 27.6);
+      tl.fromTo("#b7-name", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3 }, 27.8);
+      tl.fromTo("#b7-t1", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.22 }, 28.2);
+      tl.fromTo("#b7-t2", { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.22 }, 28.4);
+      tl.fromTo("#b7-cert", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.22 }, 28.7);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

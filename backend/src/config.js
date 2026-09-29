@@ -36,5 +36,28 @@ export const config = {
   kaliWorkerUrl: process.env.KALI_WORKER_URL || '',
 
   // --- Report ---
-  reportStoragePath: process.env.REPORT_STORAGE_PATH || './data/reports'
+  reportStoragePath: process.env.REPORT_STORAGE_PATH || './data/reports',
+
+  // --- Phone AI ---
+  phoneAiHost: process.env.PHONE_AI_HOST || '',
+  phoneAiPort: Number(process.env.PHONE_AI_PORT || 4891),
+  phoneAiBaseUrl: process.env.PHONE_AI_BASE_URL || `http://${process.env.PHONE_AI_HOST || '127.0.0.1'}:4891/v1`,
+  phoneAiEnabled: process.env.PHONE_AI_ENABLED === 'true',
+  phoneAiModel: process.env.PHONE_AI_MODEL || 'local',
+  phoneAiApiKey: process.env.PHONE_AI_API_KEY || '',
+
+  // --- Infinity Long-Context Engine ---
+  longContext: {
+    // Model-side capacity (tokens) — the model stays FINITE; the engine
+    // virtualizes around it. See services/longContext/.
+    modelContextTokens: Number(process.env.PHONE_AI_CONTEXT_TOKENS || 4096),
+    outputReserveTokens: Number(process.env.LONG_CONTEXT_OUTPUT_RESERVE || 768),
+    inputThresholdChars: Number(process.env.LONG_CONTEXT_INPUT_THRESHOLD || 8000),
+    chunkTargetChars: Number(process.env.LONG_CONTEXT_CHUNK_TARGET || 6000),
+    chunkOverlapTokens: Number(process.env.LONG_CONTEXT_CHUNK_OVERLAP || 200),
+    summaryGroupSize: Number(process.env.LONG_CONTEXT_SUMMARY_GROUP || 4),
+    partMaxTokens: Number(process.env.LONG_CONTEXT_PART_MAX_TOKENS || 700),
+    maxParts: Number(process.env.LONG_CONTEXT_MAX_PARTS || 120),
+    repairLoops: Number(process.env.LONG_CONTEXT_REPAIR_LOOPS || 2)
+  }
 };

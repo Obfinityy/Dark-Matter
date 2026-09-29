@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import { config } from './config.js';
 import { SecretBox } from './core/crypto.js';
 import { MongoDatabase } from './models/database.js';
@@ -30,14 +29,23 @@ import { attachAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createAgentController } from './controllers/agentController.js';
 import { createAuthController } from './controllers/authController.js';
-import { agentInfo, health } from './controllers/healthController.js';
+import { agentInfo, health, localAiHealth, directChat } from './controllers/healthController.js';
 import { createScanController } from './controllers/scanController.js';
 import { createSettingsController } from './controllers/settingsController.js';
 import { createTargetController } from './controllers/targetController.js';
 import { createAssessmentController } from './controllers/assessmentController.js';
+import { createInfiniteChatController } from './controllers/infiniteChatController.js';
 import { listTools } from './controllers/toolController.js';
 import { createReportController } from './controllers/reportController.js';
 import { createRoutes } from './routes/index.js';
+import { InfiniteChatModel } from './models/infiniteChatModel.js';
+import {
+  LongContextStore,
+  LongContextEngine,
+  LongGenerationStore,
+  LongGenerationEngine,
+  PhoneModelAdapter
+} from './services/longContext/index.js';
 
 export async function createApp({ database = new MongoDatabase(config) } = {}) {
   await database.init();
@@ -48,6 +56,7 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
   const scanModel = new ScanModel(database);
   const userModel = new UserModel(database);
   const sessionModel = new SessionModel(database);
+  const infiniteChatModel = new InfiniteChatModel(database);
 
   // ─── New Assessment Models ────────────────────────────────────────
   const assessmentModel = new AssessmentModel(database);
@@ -100,6 +109,15 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     eventService
   });
 
+  // ─── Infinity Long-Context Engine ─────────────────────────────────
+  // Application-level context virtualization over the finite local model.
+  const phoneModel = new PhoneModelAdapter();
+  const longContextStore = new LongContextStore(database);
+  const longContextEngine = new LongContextEngine({ store: longContextStore, model: phoneModel });
+  longContextEngine.chatModel = infiniteChatModel; // conversation history stays in infinite_chats
+  const longGenerationStore = new LongGenerationStore(database);
+  const longGenerationEngine = new LongGenerationEngine({ store: longGenerationStore, model: phoneModel });
+
   // ─── Express App ──────────────────────────────────────────────────
   const app = express();
   app.disable('x-powered-by');
@@ -111,15 +129,15 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     },
     credentials: true
   }));
-  app.use(rateLimit({ windowMs: 60_000, max: config.rateLimitMax, standardHeaders: true, legacyHeaders: false }));
-  app.use(express.json({ limit: '64kb' }));
+  app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '10mb' }));
 
   // Store services for access in controllers
   app.locals.services = {
     database, providerModel, targetModel, scanModel, eventService, scanService,
     subdomainService, authService, assessmentModel, agentStateModel,
     toolExecutionModel, findingModel, reportModel, assessmentService,
-    reportService, agentBrain
+    reportService, agentBrain,
+    longContextEngine, longGenerationEngine
   };
   app.locals.shutdown = async () => {
     // Stop all running assessments on shutdown
@@ -131,7 +149,7 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
 
   app.use('/api/v1', createRoutes({
     controllers: {
-      health: { health, agentInfo },
+      health: { health, agentInfo, localAiHealth, directChat },
       auth: { ...createAuthController(authService, config), attach: attachAuth(authService) },
       settings: createSettingsController(providerModel),
       tools: { listTools },
@@ -139,7 +157,8 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
       scans: createScanController(scanService, eventService),
       agent: createAgentController(scanService),
       assessments: createAssessmentController(assessmentService, eventService),
-      reports: createReportController(reportService, assessmentService)
+      reports: createReportController(reportService, assessmentService),
+      infiniteChat: createInfiniteChatController({ longContextEngine, longGenerationEngine })
     }
   }));
   app.use(notFoundHandler);

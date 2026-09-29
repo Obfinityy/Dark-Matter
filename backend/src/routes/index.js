@@ -4,10 +4,32 @@ import { requireAuth } from '../middleware/auth.js';
 export function createRoutes({ controllers }) {
   const router = Router();
   router.get('/health', controllers.health.health);
+  router.get('/health/local-ai', controllers.health.localAiHealth);
   router.post('/auth/register', controllers.auth.register);
   router.post('/auth/login', controllers.auth.login);
   router.use(controllers.auth.attach);
+
   router.use(requireAuth);
+  
+  // Authenticated routes below
+  router.post('/infinite/chat', controllers.infiniteChat.chat);
+  router.get('/infinite/chat/:conversationId', controllers.infiniteChat.getHistory);
+
+  // ─── Infinity Long-Context Engine ─────────────────────────────────
+  router.post('/infinite/ingest', controllers.infiniteChat.ingest);
+  router.get('/infinite/ingest/:conversationId/:inputId', controllers.infiniteChat.getIngestion);
+  router.post('/infinite/ingest/:conversationId/:inputId/resume', controllers.infiniteChat.resumeIngestion);
+  router.post('/infinite/search/:conversationId', controllers.infiniteChat.searchChunks);
+  router.get('/infinite/chunk/:conversationId/:inputId/:chunkRef', controllers.infiniteChat.getChunk);
+  router.post('/infinite/summarize/:conversationId/:inputId', controllers.infiniteChat.summarizeDocument);
+
+  // ─── Long Generation Engine ───────────────────────────────────────
+  router.post('/infinite/generations', controllers.infiniteChat.startGeneration);
+  router.get('/infinite/generations', controllers.infiniteChat.listGenerations);
+  router.get('/infinite/generations/:generationId', controllers.infiniteChat.getGeneration);
+  router.post('/infinite/generations/:generationId/cancel', controllers.infiniteChat.cancelGeneration);
+  router.post('/infinite/generations/:generationId/resume', controllers.infiniteChat.resumeGeneration);
+  
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
   router.put('/auth/password', controllers.auth.changePassword);
