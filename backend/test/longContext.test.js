@@ -22,6 +22,7 @@ class FakePhoneModel {
     this.enabled = true;
     this.calls = [];
     this.script = [];        // list of handlers: (messages, opts) => ({ text, finishReason })
+    this.fallback = null;    // persistent handler used when the script is exhausted
     this.failNext = null;    // inject error
   }
   async complete(messages, options = {}) {
@@ -33,7 +34,9 @@ class FakePhoneModel {
       this.failNext = null;
       throw err;
     }
-    const handler = this.script.shift() || (() => ({ text: 'Generic scripted reply.', finishReason: 'stop' }));
+    const handler = this.script.shift()
+      || this.fallback
+      || (() => ({ text: 'Generic scripted reply.', finishReason: 'stop' }));
     return handler(messages, options);
   }
   async completeJson(messages, options = {}) {
@@ -66,7 +69,7 @@ function makeLargeDocument(sections = 40) {
     }
     out += `    return [value_${11} for l in range(12)]\n`;
     out += '```\n';
-    out += `The MAGIC_MARKER_${((i % 7) + 1)} appears in section ${i}.\n`;
+    out += `The MAGIC_MARKER_${(((i - 1) % 7) + 1)} appears in section ${i}.\n`;
   }
   return out;
 }
@@ -163,11 +166,25 @@ test('TEST D: ContextBudgetManager compacts retrieved blocks and recent messages
   assert.ok(usage.droppedRetrieved > 0 || usage.droppedRecent > 0);
 });
 
-test('TEST D2: request alone larger than window throws CONTEXT_WINDOW_EXCEEDED (engine will ingest it instead)', () => {
-  const tiny = new ContextBudgetManager({ capacity: 200, outputReserve: 50 });
-  assert.throws(
-    () => tiny.compose({ system: 'sys', retrievedBlocks: [], recentMessages: [], userRequest: 'y'.repeat(2000) }),
-    (err) => err.code === 'CONTEXT_WINDOW_EXCEEDED'
+test('TEST D2: oversized request is auto-compacted inside the budget — never dropped, never a hard crash', () => {
+  const tiny = new ContextBudgetManager({ capacity: 1200, outputReserve: 400 });
+  const big = 'y'.repeat(4000);
+  const { messages, usage } = tiny.compose({
+    system: 'sys', retrievedBlocks: [], recentMessages: [], userRequest: big
+  });
+
+  // The engine compacts instead of throwing: the request still reaches the model.
+  assert.equal(usage.compactedRequest, true);
+  const request = messages[messages.length - 1];
+  assert.equal(request.role, 'user');
+  assert.ok(request.content.length < big.length, 'compacted request is smaller');
+  assert.ok(request.content.startsWith('y'), 'head of the original request is preserved');
+  assert.ok(request.content.includes('auto-compacted'), 'compaction is disclosed to the model, not silent');
+
+  // And the composed prompt fits the declared window.
+  assert.ok(
+    usage.total + usage.outputReserve <= usage.capacity + 40,
+    `bounded: total ${usage.total} + reserve ${usage.outputReserve} <= capacity ${usage.capacity}`
   );
 });
 
@@ -232,12 +249,14 @@ test('TEST F: multi-file project generation with plan, parts, validation and ass
     finishReason: 'stop'
   }));
   const codeFor = (path, seg) => `# ${path} segment ${seg}\ndef helper_${seg}(x):\n    return x * ${seg}\n`;
-  genEngine.model.script.push((messages) => {
-    const m = messages[1].content;
-    const path = m.match(/segment \d+ of "([^"]+)"/)[1];
-    const seg = parseInt(m.match(/segment (\d+)/)[1], 10);
-    return { text: codeFor(path, seg), finishReason: 'stop' };
-  });
+  // Persistent handler: every part/segment call is answered (not just the first).
+  genEngine.model.fallback = (messages) => {
+    const m = messages.map((msg) => msg.content).join('\n');
+    const pathMatch = m.match(/segment \d+ of "([^"]+)"/);
+    const segMatch = m.match(/segment (\d+)/);
+    if (!pathMatch || !segMatch) return { text: 'pass', finishReason: 'stop' };
+    return { text: codeFor(pathMatch[1], parseInt(segMatch[1], 10)), finishReason: 'stop' };
+  };
 
   const record = await genEngine.startGeneration({
     userId: 'u1', conversationId: 'cF', request: 'Generate a python game using pygame with keyboard controls'

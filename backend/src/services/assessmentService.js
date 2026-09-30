@@ -98,7 +98,16 @@ export class AssessmentService {
       data: { assessmentId: assessment.id, target: hostname }
     });
 
-    // 6. Start the agent brain (runs asynchronously)
+    // 6. Start the agent brain (runs asynchronously) — unless the caller owns
+    //    the lifecycle itself (the autonomous worker does: see JobManager).
+    if (input.deferStart === true) {
+      return {
+        status: 'assessment_created',
+        assessmentId: assessment.id,
+        assessment
+      };
+    }
+
     await this.agentBrain.start(assessment.id, userId);
 
     return {

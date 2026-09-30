@@ -1,13 +1,8 @@
 DarkMatter Express API listening at http://127.0.0.1:4000
-[DirectChat 258bb568-6543-4c05-bb05-e567c1b02dd0] START
-[DirectChat 258bb568-6543-4c05-bb05-e567c1b02dd0] Provider selected: PhoneLocalProvider
-[DirectChat 258bb568-6543-4c05-bb05-e567c1b02dd0] Sending request to http://10.92.240.248:4891/v1/chat/completions
-[DirectChat fe558cdc-93e8-4116-856f-f341443956cd] START
-[DirectChat fe558cdc-93e8-4116-856f-f341443956cd] Provider selected: PhoneLocalProvider
-[DirectChat 258bb568-6543-4c05-bb05-e567c1b02dd0] Upstream status: 200
-[DirectChat 258bb568-6543-4c05-bb05-e567c1b02dd0] Response received
-[DirectChat fe558cdc-93e8-4116-856f-f341443956cd] Sending request to http://10.92.240.248:4891/v1/chat/completions
-[DirectChat 258bb568-6543-4c05-bb05-e567c1b02dd0] END
-[DirectChat fe558cdc-93e8-4116-856f-f341443956cd] Upstream status: 200
-[DirectChat fe558cdc-93e8-4116-856f-f341443956cd] Response received
-[DirectChat fe558cdc-93e8-4116-856f-f341443956cd] END
+[job-manager] recovery: 2 job(s) resumed, 0 left paused
+[InfiniteChat] model error: Local AI busy (429) after 6 attempts.
+[InfiniteChat] model error: fetch failed
+[InfiniteChat] model error: fetch failed
+[InfiniteChat] model error: fetch failed
+[InfiniteChat] model error: fetch failed
+[agent-worker] job job_8077426f-0ac8-44e1-a36c-026eab9e8eb2 crashed: read ECONNRESET

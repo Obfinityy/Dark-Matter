@@ -61,6 +61,37 @@ export function createRoutes({ controllers }) {
   router.post('/assessments/:id/chat', controllers.assessments.chat);
   router.get('/assessments/:id/events', controllers.assessments.events);
 
+  // ─── Autonomous Bug Bounty Agent (persistent jobs) ───────────────
+  router.post('/jobs', controllers.jobs.create);
+  router.get('/jobs', controllers.jobs.list);
+  router.get('/jobs/:id', controllers.jobs.get);
+  router.get('/jobs/:id/activity', controllers.jobs.activity);
+  router.get('/jobs/:id/events', controllers.jobs.events);
+  router.get('/jobs/:id/events/history', controllers.jobs.eventHistory);
+  router.post('/jobs/:id/pause', controllers.jobs.pause);
+  router.post('/jobs/:id/continue', controllers.jobs.continue);
+  router.post('/jobs/:id/resume', controllers.jobs.resume);
+  router.post('/jobs/:id/cancel', controllers.jobs.cancel);
+  router.post('/jobs/:id/ask', controllers.jobs.ask);
+
+  // ─── Computer Control (Open-Interface adapter) ──────────────────
+  router.get('/computer', controllers.computer.status);
+  router.get('/computer/capabilities', controllers.computer.capabilities);
+  router.get('/computer/active-window', controllers.computer.activeWindow);
+  router.get('/computer/browser-state', controllers.computer.browserState);
+  router.post('/computer/screenshot', controllers.computer.screenshot);
+  router.post('/computer/action', controllers.computer.action);
+
+  // ─── InfiniteChat Computer Tasks (natural-language desktop control) ──
+  router.post('/computer-tasks', controllers.computerTasks.create);
+  router.get('/computer-tasks', controllers.computerTasks.list);
+  router.get('/computer-tasks/:id', controllers.computerTasks.get);
+  router.get('/computer-tasks/:id/activity', controllers.computerTasks.activity);
+  router.get('/computer-tasks/:id/events', controllers.computerTasks.events);
+  router.get('/computer-tasks/:id/events/history', controllers.computerTasks.eventHistory);
+  router.post('/computer-tasks/:id/answer', controllers.computerTasks.answer);
+  router.post('/computer-tasks/:id/cancel', controllers.computerTasks.cancel);
+
   // ─── Report System ──────────────────────────────────────────────
   router.post('/assessments/:id/report', controllers.reports.generate);
   router.get('/assessments/:id/report', controllers.reports.getLatest);

@@ -37,7 +37,27 @@ export class MongoDatabase {
       this.collection('reports').createIndex({ assessmentId: 1, version: -1 }),
       this.collection('reports').createIndex({ userId: 1, createdAt: -1 }),
       // Infinite Chat
-      this.collection('infinite_chats').createIndex({ userId: 1, updatedAt: -1 })
+      this.collection('infinite_chats').createIndex({ userId: 1, updatedAt: -1 }),
+      // Autonomous Bug Bounty Agent (persistent jobs)
+      this.collection('agent_jobs').createIndex({ id: 1 }, { unique: true }),
+      this.collection('agent_jobs').createIndex({ userId: 1, createdAt: -1 }),
+      this.collection('agent_jobs').createIndex({ assessmentId: 1 }),
+      this.collection('agent_jobs').createIndex({ status: 1, updatedAt: -1 }),
+      // Persistent agent memory (the local AI's only memory)
+      this.collection('agent_memory').createIndex({ assessmentId: 1, type: 1, createdAt: 1 }),
+      this.collection('agent_memory').createIndex({ assessmentId: 1, dedupeKey: 1 }, { unique: true }),
+      this.collection('agent_memory').createIndex({ userId: 1, updatedAt: -1 }),
+      // Evidence store
+      this.collection('evidence').createIndex({ assessmentId: 1, createdAt: 1 }),
+      this.collection('evidence').createIndex({ jobId: 1, createdAt: 1 }),
+      this.collection('evidence').createIndex({ findingId: 1 }),
+      this.collection('evidence').createIndex({ assessmentId: 1, fingerprint: 1 }),
+      // Job-scoped events (the autonomous terminal + replay)
+      this.collection('events').createIndex({ scanId: 1, timestamp: -1 }),
+      // InfiniteChat computer tasks
+      this.collection('computer_tasks').createIndex({ id: 1 }, { unique: true }),
+      this.collection('computer_tasks').createIndex({ userId: 1, conversationId: 1, createdAt: -1 }),
+      this.collection('computer_tasks').createIndex({ status: 1, updatedAt: -1 })
     ]);
   }
 
@@ -133,6 +153,15 @@ class MemoryCollection {
     if (update.$inc) {
       for (const [key, value] of Object.entries(update.$inc)) {
         next[key] = (next[key] || 0) + value;
+      }
+    }
+    if (update.$addToSet) {
+      for (const [key, value] of Object.entries(update.$addToSet)) {
+        if (!Array.isArray(next[key])) next[key] = [];
+        const values = value && value.$each ? value.$each : [value];
+        for (const item of values) {
+          if (!next[key].some((existing) => equal(existing, item))) next[key].push(item);
+        }
       }
     }
     if (index === -1) this.documents.push(clone(next));

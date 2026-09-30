@@ -35,13 +35,14 @@ export async function directChat(request, response) {
     ];
     
     const requestId = crypto.randomUUID();
+    const activeModel = await phoneAi.resolveModel();
     
     const reply = await localAIQueue.enqueue(async () => {
       const fetchOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: phoneAi.model || 'local',
+          model: activeModel,
           messages: messages
         }),
         signal: AbortSignal.timeout(60000)

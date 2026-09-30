@@ -1,0 +1,139 @@
+TAP version 13
+# Subtest: UNIT app-resolution: every NL phrasing of Word/Notepad/Calculator resolves
+ok 1 - UNIT app-resolution: every NL phrasing of Word/Notepad/Calculator resolves
+  ---
+  duration_ms: 5.9557
+  ...
+# Subtest: UNIT app-resolution: non-apps do NOT resolve (keyboard ≠ word, notebook ≠ notepad)
+ok 2 - UNIT app-resolution: non-apps do NOT resolve (keyboard ≠ word, notebook ≠ notepad)
+  ---
+  duration_ms: 0.5848
+  ...
+# Subtest: UNIT policy: dangerous applications are blocked, productivity apps are not
+ok 3 - UNIT policy: dangerous applications are blocked, productivity apps are not
+  ---
+  duration_ms: 3.8162
+  ...
+# Subtest: UNIT schema: valid decision shapes pass and normalize
+ok 4 - UNIT schema: valid decision shapes pass and normalize
+  ---
+  duration_ms: 1.0788
+  ...
+# Subtest: UNIT schema: invalid decisions are rejected BEFORE execution
+ok 5 - UNIT schema: invalid decisions are rejected BEFORE execution
+  ---
+  duration_ms: 0.6213
+  ...
+# Subtest: UNIT router: desktop commands route to computer tasks, prose does not
+ok 6 - UNIT router: desktop commands route to computer tasks, prose does not
+  ---
+  duration_ms: 3.7441
+  ...
+# Subtest: INTEGRATION task-lifecycle: scripted Notepad flow executes real bridge commands and completes
+not ok 7 - INTEGRATION task-lifecycle: scripted Notepad flow executes real bridge commands and completes
+  ---
+  duration_ms: 499.4183
+  location: 'C:\\Users\\bhave\\OneDrive\\Desktop\\XYZ\\backend\\test\\computerTask.test.js:389:1'
+  failureType: 'testCodeFailure'
+  error: 'observation ran after every action (0)'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/bhave/OneDrive/Desktop/XYZ/backend/test/computerTask.test.js:424:10)
+    async Test.run (node:internal/test_runner/test:932:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# [computer-task-brain] rejected malformed decision (attempt 1): action params: press_key received unsupported key(s): not_a_real_key
+# Subtest: INTEGRATION policy: the brain CANNOT open a blocked application even if it tries
+ok 8 - INTEGRATION policy: the brain CANNOT open a blocked application even if it tries
+  ---
+  duration_ms: 28.3644
+  ...
+# Subtest: INTEGRATION schema-gate: a malformed-brain action is rejected and never executed
+not ok 9 - INTEGRATION schema-gate: a malformed-brain action is rejected and never executed
+  ---
+  duration_ms: 387.23
+  location: 'C:\\Users\\bhave\\OneDrive\\Desktop\\XYZ\\backend\\test\\computerTask.test.js:482:1'
+  failureType: 'testCodeFailure'
+  error: 'schema rejection recorded'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/bhave/OneDrive/Desktop/XYZ/backend/test/computerTask.test.js:497:10)
+    async Test.run (node:internal/test_runner/test:932:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: INTEGRATION self-correction: a bridge-level failure is observed, completion is refused, and the brain adapts
+ok 10 - INTEGRATION self-correction: a bridge-level failure is observed, completion is refused, and the brain adapts
+  ---
+  duration_ms: 496.5806
+  ...
+# Subtest: INTEGRATION waiting_ai: busy phone parks the task and auto-resumes (no cloud fallback)
+ok 11 - INTEGRATION waiting_ai: busy phone parks the task and auto-resumes (no cloud fallback)
+  ---
+  duration_ms: 505.149
+  ...
+# Subtest: INTEGRATION ask_user: brain parks for a human answer and resumes with it
+ok 12 - INTEGRATION ask_user: brain parks for a human answer and resumes with it
+  ---
+  duration_ms: 46.8277
+  ...
+# Subtest: INTEGRATION cancel: Stop Task halts between actions and persists CANCELLED
+ok 13 - INTEGRATION cancel: Stop Task halts between actions and persists CANCELLED
+  ---
+  duration_ms: 608.7387
+  ...
+# Subtest: INTEGRATION no-progress: a spinning identical loop fails honestly instead of running forever
+ok 14 - INTEGRATION no-progress: a spinning identical loop fails honestly instead of running forever
+  ---
+  duration_ms: 638.7167
+  ...
+# Subtest: INTEGRATION follow-up: prior task content reaches the brain for "make it more formal"
+ok 15 - INTEGRATION follow-up: prior task content reaches the brain for "make it more formal"
+  ---
+  duration_ms: 526.0831
+  ...
+# [computer-task-manager] recovery: 1 task(s) resumed
+# Subtest: INTEGRATION recovery: backend restart picks non-terminal tasks back up
+ok 16 - INTEGRATION recovery: backend restart picks non-terminal tasks back up
+  ---
+  duration_ms: 62.588
+  ...
+# [computer-task-worker] task ctask_0d7110b7-a64c-4e2b-8541-cbf011f4b846 crashed: FakeTaskPhoneModel: no scripted decision left
+# Subtest: INTEGRATION computer-runtime-down: computer unavailable parks the task in waiting_computer
+not ok 17 - INTEGRATION computer-runtime-down: computer unavailable parks the task in waiting_computer
+  ---
+  duration_ms: 192.3707
+  location: 'C:\\Users\\bhave\\OneDrive\\Desktop\\XYZ\\backend\\test\\computerTask.test.js:722:1'
+  failureType: 'testCodeFailure'
+  error: 'honest waiting state, got: failed'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/bhave/OneDrive/Desktop/XYZ/backend/test/computerTask.test.js:738:10)
+    async Test.run (node:internal/test_runner/test:932:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: REAL BRIDGE: python bridge probe reports true capabilities (never faked)
+ok 18 - REAL BRIDGE: python bridge probe reports true capabilities (never faked)
+  ---
+  duration_ms: 896.1546
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 15
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 120822.8968

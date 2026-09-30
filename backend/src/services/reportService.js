@@ -1,46 +1,55 @@
-import { config } from '../config.js';
-
 /**
- * ReportService — generates structured security assessment reports from evidence.
+ * ReportService — professional, evidence-backed bug-bounty reports.
  *
- * Separation of concerns: the Security Agent investigates and produces structured findings.
- * The Report Service takes those structured findings and generates a professional report.
- * It does NOT invent evidence — every claim must reference stored data.
+ * Rules that matter:
+ *   • Every claim comes from stored data: findings, evidence, tool executions,
+ *     agent state and the persisted event timeline. Nothing is invented (#26).
+ *   • Report generation happens in the backend and is persisted, so it survives
+ *     a frontend disconnect (#29). Reports are versioned (#55).
+ *   • No external LLM participates. Optional narrative polish goes through the
+ *     LOCAL phone model only; without it the report is fully deterministic.
  */
+
 export class ReportService {
-  constructor({ reportModel, assessmentModel, findingModel, toolExecutionModel, agentStateModel, eventService }) {
+  constructor({
+    reportModel,
+    assessmentModel,
+    findingModel,
+    toolExecutionModel,
+    agentStateModel,
+    eventService,
+    evidenceModel = null,
+    localModel = null
+  }) {
     this.reportModel = reportModel;
     this.assessmentModel = assessmentModel;
     this.findingModel = findingModel;
     this.toolExecutionModel = toolExecutionModel;
     this.agentStateModel = agentStateModel;
     this.eventService = eventService;
+    this.evidenceModel = evidenceModel;
+    this.localModel = localModel;
   }
 
-  /** List reports for an assessment. */
   async list(assessmentId) {
     return this.reportModel.list(assessmentId);
   }
 
-  /** List all reports for a user. */
   async listByUser(userId) {
     return this.reportModel.listByUser(userId);
   }
 
-  /** Get a specific report. */
   async get(reportId) {
     return this.reportModel.get(reportId);
   }
 
-  /** Get the latest report for an assessment. */
   async getLatest(assessmentId) {
     return this.reportModel.getLatest(assessmentId);
   }
 
   /**
    * Generate a new report version for an assessment.
-   * Collects all findings, tool executions, timeline events, and agent state
-   * to produce a comprehensive, evidence-backed security report.
+   * Versioning is automatic: each call appends a new immutable version.
    */
   async generate(userId, assessmentId) {
     const assessment = await this.assessmentModel.get(userId, assessmentId);
@@ -48,6 +57,7 @@ export class ReportService {
     const toolExecutions = await this.toolExecutionModel.list(assessmentId);
     const agentState = await this.agentStateModel.get(assessmentId);
     const events = await this.eventService.list(assessmentId);
+    const evidence = this.evidenceModel ? await this.evidenceModel.list(assessmentId) : [];
 
     await this.eventService.publish(assessmentId, {
       type: 'REPORT_GENERATION_STARTED',
@@ -55,110 +65,144 @@ export class ReportService {
       message: 'Report generation started'
     });
 
-    // Build severity counts
     const severityCounts = { critical: 0, high: 0, medium: 0, low: 0, informational: 0 };
     for (const finding of findings) {
-      if (severityCounts[finding.severity] !== undefined) {
-        severityCounts[finding.severity]++;
-      }
+      if (severityCounts[finding.severity] !== undefined) severityCounts[finding.severity] += 1;
     }
 
-    // Build testing timeline from events
-    const testingTimeline = this.buildTestingTimeline(events);
+    const evidenceById = new Map(evidence.map((item) => [item.id, item]));
+    const evidenceByFinding = new Map();
+    for (const item of evidence) {
+      if (!item.findingId) continue;
+      if (!evidenceByFinding.has(item.findingId)) evidenceByFinding.set(item.findingId, []);
+      evidenceByFinding.get(item.findingId).push(item);
+    }
 
-    // Build assets tested
-    const assetsTested = agentState
-      ? [...new Set([
-          assessment.targetHostname,
-          ...(agentState.subdomains || []).slice(0, 100)
-        ])]
-      : [assessment.targetHostname];
+    // ── Mandated report sections ─────────────────────────────────────────
+    const validatedFindings = findings.filter((finding) => finding.status === 'validated' && (evidenceByFinding.get(finding.id)?.length || finding.evidence?.length));
+    const unverifiedObservations = findings.filter((finding) => finding.status !== 'validated');
 
-    // Build attack surface summary
+    const detailedFindings = validatedFindings.map((finding) => {
+      const linked = (evidenceByFinding.get(finding.id) || []).map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        asset: item.asset,
+        endpoint: item.endpoint,
+        request: item.request,
+        response: item.response ? String(item.response).slice(0, 6000) : null,
+        summary: item.summary,
+        artifactPath: item.artifactPath,
+        sha256: item.sha256,
+        capturedAt: item.capturedAt
+      }));
+      return {
+        id: finding.id,
+        title: finding.title,
+        severity: finding.severity,
+        confidence: finding.confidence,
+        status: finding.status,
+        category: finding.category,
+        affectedAsset: finding.affectedAsset,
+        affectedEndpoint: finding.affectedEndpoint,
+        parameter: finding.parameter,
+        description: finding.description,
+        impact: finding.impact,
+        reproductionSteps: finding.reproductionSteps,
+        expectedBehavior: finding.expectedBehavior,
+        observedBehavior: finding.observedBehavior,
+        technicalRootCause: finding.category,
+        remediation: finding.remediation,
+        references: finding.references,
+        evidence: linked,
+        evidenceIds: linked.map((item) => item.id),
+        toolExecutionIds: finding.toolExecutionIds,
+        hypothesisId: finding.hypothesisId,
+        createdAt: finding.createdAt,
+        validatedAt: finding.validatedAt
+      };
+    });
+
     const attackSurface = {
       subdomains: agentState?.subdomains?.length || 0,
       endpoints: agentState?.endpoints?.length || 0,
       technologies: agentState?.technologies || [],
       openPorts: agentState?.openPorts || [],
-      topSubdomains: (agentState?.subdomains || []).slice(0, 20),
-      topEndpoints: (agentState?.endpoints || []).slice(0, 20)
+      topSubdomains: (agentState?.subdomains || []).slice(0, 50),
+      topEndpoints: (agentState?.endpoints || []).slice(0, 50)
     };
 
-    // Build tooling summary
+    const assetsTested = [...new Set([
+      assessment.targetHostname,
+      ...(agentState?.subdomains || []).slice(0, 200)
+    ].filter(Boolean))];
+
+    const testingTimeline = this.buildTestingTimeline(events);
     const toolingSummary = this.buildToolingSummary(toolExecutions);
+    const testingCoverage = this.buildTestingCoverage(toolExecutions, agentState);
 
-    // Build detailed findings with evidence chains
-    const detailedFindings = findings.map(finding => ({
-      id: finding.id,
-      title: finding.title,
-      severity: finding.severity,
-      confidence: finding.confidence,
-      status: finding.status,
-      category: finding.category,
-      affectedAsset: finding.affectedAsset,
-      affectedEndpoint: finding.affectedEndpoint,
-      parameter: finding.parameter,
-      description: finding.description,
-      impact: finding.impact,
-      reproductionSteps: finding.reproductionSteps,
-      expectedBehavior: finding.expectedBehavior,
-      observedBehavior: finding.observedBehavior,
-      remediation: finding.remediation,
-      references: finding.references,
-      evidence: finding.evidence,
-      toolExecutionIds: finding.toolExecutionIds,
-      observationIds: finding.observationIds,
-      createdAt: finding.createdAt,
-      validatedAt: finding.validatedAt
-    }));
-
-    // Build findings summary
     const findingsSummary = {
       total: findings.length,
       ...severityCounts,
-      validated: findings.filter(f => f.status === 'validated').length,
-      potential: findings.filter(f => f.status === 'potential').length,
-      falsePositive: findings.filter(f => f.status === 'false_positive').length
+      validated: validatedFindings.length,
+      potential: findings.filter((finding) => finding.status === 'potential').length,
+      falsePositive: findings.filter((finding) => finding.status === 'false_positive').length,
+      evidenceRecords: evidence.length
     };
 
-    // Generate executive summary
     const executiveSummary = this.generateExecutiveSummary(assessment, findingsSummary, attackSurface);
 
-    // Build report
-    let report;
-    if (config.llmApiKey) {
-      report = await this.generateWithLLM(assessment, {
-        executiveSummary,
-        findingsSummary,
-        detailedFindings,
-        attackSurface,
-        assetsTested,
-        testingTimeline,
-        toolingSummary,
-        severityCounts
-      });
-    } else {
-      report = {
-        title: `Security Assessment Report — ${assessment.targetHostname}`,
-        executiveSummary,
-        scope: assessment.scope,
-        methodology: this.getMethodology(),
-        testingTimeline,
-        assetsTested,
-        attackSurface,
-        findingsSummary,
-        detailedFindings,
-        riskContext: this.getRiskContext(findingsSummary),
-        limitations: this.getLimitations(assessment),
-        toolingSummary,
-        appendix: [],
-        targetHostname: assessment.targetHostname,
-        totalFindings: findings.length,
-        ...severityCounts
-      };
+    const base = {
+      title: `Bug Bounty Assessment Report — ${assessment.targetHostname}`,
+      executiveSummary,
+      scope: {
+        included: assessment.scope?.included || [assessment.targetHostname],
+        excluded: assessment.scope?.excluded || [],
+        authorization: 'Explicitly authorized by the target owner (confirmed at assessment creation).'
+      },
+      methodology: this.getMethodology(),
+      testingTimeline,
+      assetsTested,
+      attackSurface,
+      findingsSummary,
+      detailedFindings,
+      testingCoverage,
+      unverifiedObservations: unverifiedObservations.map((finding) => ({
+        id: finding.id,
+        title: finding.title,
+        status: finding.status,
+        severity: finding.severity,
+        description: finding.description,
+        note: 'Recorded as an observation/hypothesis only — NOT a confirmed vulnerability.'
+      })),
+      riskContext: this.getRiskContext(findingsSummary),
+      limitations: this.getLimitations(assessment, findingsSummary),
+      toolingSummary,
+      conclusion: this.getConclusion(assessment, findingsSummary),
+      evidenceIndex: evidence.map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        asset: item.asset,
+        endpoint: item.endpoint,
+        summary: item.summary,
+        findingId: item.findingId,
+        sha256: item.sha256,
+        artifactPath: item.artifactPath,
+        capturedAt: item.capturedAt
+      })),
+      appendix: [],
+      targetHostname: assessment.targetHostname,
+      totalFindings: findings.length,
+      ...severityCounts
+    };
+
+    // Optional narrative polish via the LOCAL model only. If it is unavailable
+    // the deterministic report is used as-is — never a cloud fallback.
+    let report = base;
+    if (this.localModel) {
+      const polished = await this.polishWithLocalModel(base);
+      if (polished) report = { ...base, ...polished };
     }
 
-    // Append count fields
     report.totalFindings = findings.length;
     report.criticalCount = severityCounts.critical;
     report.highCount = severityCounts.high;
@@ -166,179 +210,169 @@ export class ReportService {
     report.lowCount = severityCounts.low;
     report.informationalCount = severityCounts.informational;
     report.targetHostname = assessment.targetHostname;
+    report.evidenceCount = evidence.length;
+    report.validatedCount = validatedFindings.length;
 
     const saved = await this.reportModel.create(assessmentId, userId, report);
 
     await this.eventService.publish(assessmentId, {
       type: 'REPORT_GENERATED',
       level: 'INFO',
-      message: `Report v${saved.version} generated — ${findings.length} finding(s)`,
+      message: `Report v${saved.version} generated — ${validatedFindings.length} confirmed finding(s), ${evidence.length} evidence record(s)`,
       data: { reportId: saved.id, version: saved.version }
     });
 
     return saved;
   }
 
-  /** Generate executive summary from data — no fabrication. */
+  /** Executive summary — deterministic, no fabrication. */
   generateExecutiveSummary(assessment, findingsSummary, attackSurface) {
     const parts = [];
-    parts.push(`A security assessment was conducted against ${assessment.targetHostname} with explicit authorization.`);
-    parts.push(`The assessment discovered ${attackSurface.subdomains} subdomain(s) and ${attackSurface.endpoints} endpoint(s).`);
+    parts.push(`An authorized security assessment was conducted against ${assessment.targetHostname}.`);
+    parts.push(`The assessment enumerated ${attackSurface.subdomains} subdomain(s) and ${attackSurface.endpoints} endpoint(s), backed by ${findingsSummary.evidenceRecords} stored evidence record(s).`);
 
-    if (findingsSummary.total === 0) {
-      parts.push('No security vulnerabilities were identified during this assessment.');
+    if (findingsSummary.validated === 0) {
+      parts.push('No vulnerabilities were confirmed with evidence during this assessment.');
     } else {
-      parts.push(`A total of ${findingsSummary.total} finding(s) were identified:`);
+      parts.push(`${findingsSummary.validated} finding(s) were confirmed with supporting evidence:`);
       if (findingsSummary.critical > 0) parts.push(`  • ${findingsSummary.critical} Critical`);
       if (findingsSummary.high > 0) parts.push(`  • ${findingsSummary.high} High`);
       if (findingsSummary.medium > 0) parts.push(`  • ${findingsSummary.medium} Medium`);
       if (findingsSummary.low > 0) parts.push(`  • ${findingsSummary.low} Low`);
       if (findingsSummary.informational > 0) parts.push(`  • ${findingsSummary.informational} Informational`);
-      parts.push(`Of these, ${findingsSummary.validated} have been validated with supporting evidence.`);
     }
-
+    if (findingsSummary.potential > 0) {
+      parts.push(`${findingsSummary.potential} further observation(s) remain unverified and are listed separately — they are NOT reported as vulnerabilities.`);
+    }
     if (attackSurface.technologies.length > 0) {
-      parts.push(`Technologies detected: ${attackSurface.technologies.slice(0, 10).join(', ')}.`);
+      parts.push(`Technologies detected: ${attackSurface.technologies.slice(0, 15).join(', ')}.`);
     }
-
     return parts.join('\n');
   }
 
-  /** Build testing timeline from events. */
   buildTestingTimeline(events) {
     const phases = new Map();
     for (const event of events) {
-      if (event.type === 'PHASE_CHANGED' && event.data?.phase) {
+      if (event.type === 'job.phase_changed' && event.data?.phase) {
         phases.set(event.data.phase, { phase: event.data.phase, startedAt: event.timestamp });
       }
     }
     return [...phases.values()];
   }
 
-  /** Build tooling summary from tool executions. */
   buildToolingSummary(executions) {
     const tools = new Map();
-    for (const exec of executions) {
-      if (!tools.has(exec.tool)) {
-        tools.set(exec.tool, {
-          tool: exec.tool,
-          category: exec.category,
-          executions: 0,
-          completed: 0,
-          failed: 0,
-          totalDuration: 0
-        });
+    for (const execution of executions) {
+      if (!tools.has(execution.tool)) {
+        tools.set(execution.tool, { tool: execution.tool, category: execution.category, executions: 0, completed: 0, failed: 0, totalDuration: 0 });
       }
-      const entry = tools.get(exec.tool);
-      entry.executions++;
-      if (exec.status === 'completed') {
-        entry.completed++;
-        entry.totalDuration += exec.duration || 0;
-      } else if (exec.status === 'failed') {
-        entry.failed++;
+      const entry = tools.get(execution.tool);
+      entry.executions += 1;
+      if (execution.status === 'completed') {
+        entry.completed += 1;
+        entry.totalDuration += execution.duration || 0;
+      } else if (execution.status === 'failed') {
+        entry.failed += 1;
       }
     }
     return [...tools.values()];
   }
 
-  /** Standard methodology description. */
-  getMethodology() {
-    return `The assessment followed a structured methodology:
-1. Passive Reconnaissance — Certificate transparency, DNS records, web archives
-2. Active Enumeration — Subdomain enumeration, HTTP probing, port scanning
-3. Technology Detection — Web technology fingerprinting, WAF detection
-4. Endpoint Discovery — Web crawling, JavaScript analysis, parameter mining
-5. Vulnerability Detection — Template-based scanning, configuration analysis
-6. Finding Validation — Safe verification of potential vulnerabilities
-7. Evidence Collection — Capturing proof for each validated finding
-
-All testing was conducted within the authorized scope using controlled tool execution with policy validation.`;
+  /** Testing coverage — what was actually exercised, from real executions. */
+  buildTestingCoverage(executions, agentState) {
+    const phasesCovered = new Set(executions.map((execution) => execution.category).filter(Boolean));
+    const failed = executions.filter((execution) => execution.status === 'failed');
+    return {
+      toolsExecuted: executions.length,
+      successful: executions.filter((execution) => execution.status === 'completed').length,
+      failed: failed.length,
+      phasesCovered: [...phasesCovered],
+      assetsEnumerated: (agentState?.subdomains || []).length,
+      endpointsEnumerated: (agentState?.endpoints || []).length,
+      parametersEnumerated: (agentState?.parameters || []).length,
+      gaps: [
+        'Automated, non-destructive testing only — manual exploitation was not performed.',
+        failed.length ? `${failed.length} tool execution(s) failed and are listed as coverage gaps.` : null
+      ].filter(Boolean)
+    };
   }
 
-  /** Risk context based on findings. */
+  getMethodology() {
+    return `The assessment followed a structured, evidence-driven methodology executed by DARKMATTER's
+autonomous agent under an explicitly authorized scope:
+
+1. Target intake and authorization — the owner confirmed authorization; the scope was persisted.
+2. Passive reconnaissance — DNS/certificate intelligence and historical URL sources.
+3. Asset enumeration — subdomain discovery, resolution and filtering against the scope.
+4. Live service discovery — HTTP probing, port scanning, technology fingerprinting.
+5. Attack-surface mapping — endpoint, parameter and behaviour discovery.
+6. Hypothesis generation — the local AI proposes testable hypotheses from real observations.
+7. Validation — each hypothesis must be supported by stored evidence before it becomes a finding.
+8. Evidence collection — requests, responses, tool output and screenshots are stored immutably.
+9. Reporting — this report is generated from the stored evidence, never from model memory.
+
+Every action passed DARKMATTER's scope engine and policy validator before execution.`;
+  }
+
   getRiskContext(findingsSummary) {
+    if (findingsSummary.validated === 0) {
+      return 'No evidence-backed vulnerabilities were identified. Unverified observations are listed separately and should not be treated as confirmed issues.';
+    }
     if (findingsSummary.critical > 0 || findingsSummary.high > 0) {
-      return 'Critical and/or high-severity vulnerabilities were identified that could allow unauthorized access, data exposure, or service disruption. Immediate remediation is recommended.';
+      return 'Critical and/or high-severity vulnerabilities were confirmed. These could allow unauthorized access, data exposure or service disruption. Immediate remediation is recommended.';
     }
     if (findingsSummary.medium > 0) {
-      return 'Medium-severity issues were identified that could be leveraged as part of a larger attack chain. Remediation is recommended within a reasonable timeframe.';
+      return 'Medium-severity issues were confirmed. These could be chained into a larger attack. Remediation is recommended within a reasonable timeframe.';
     }
-    if (findingsSummary.low > 0 || findingsSummary.informational > 0) {
-      return 'Only low-severity or informational findings were identified. These represent best-practice improvements rather than exploitable vulnerabilities.';
-    }
-    return 'No vulnerabilities were identified during this assessment. The application appears to follow security best practices within the tested scope.';
+    return 'Only low-severity or informational issues were confirmed. These represent hardening opportunities rather than immediate exploitable risks.';
   }
 
-  /** Assessment limitations. */
-  getLimitations(assessment) {
-    return `This assessment was limited to the authorized scope: ${(assessment.scope?.included || []).join(', ') || assessment.targetHostname}. ` +
-      `Testing was non-destructive and automated. Manual exploitation was not performed. ` +
-      `Findings are based on automated tool output and AI analysis. False positives may exist.`;
+  getLimitations(assessment, findingsSummary = {}) {
+    return `Testing was restricted to the authorized scope: ${(assessment.scope?.included || [assessment.targetHostname]).join(', ')}.
+Testing was automated and non-destructive; no data was modified or exfiltrated beyond what was needed to demonstrate an issue.
+Tool failures and unverified observations are disclosed elsewhere in this report rather than omitted.
+${findingsSummary.evidenceRecords ? `Every confirmed finding references ${findingsSummary.evidenceRecords} stored evidence record(s).` : 'No evidence-bearing findings were produced.'}
+The local language model assisted with hypothesis generation and triage; all confirmations are evidence-based.`;
   }
 
-  /** LLM-enhanced report generation — improves executive summary and risk context. */
-  async generateWithLLM(assessment, data) {
+  getConclusion(assessment, findingsSummary) {
+    if (findingsSummary.validated === 0) {
+      return `The assessment of ${assessment.targetHostname} found no evidence-backed vulnerabilities within the authorized scope. The enumerated attack surface and unverified observations are documented above for follow-up testing.`;
+    }
+    return `The assessment of ${assessment.targetHostname} confirmed ${findingsSummary.validated} vulnerability/vulnerabilities with supporting evidence. Each item above includes the affected asset, endpoint, impact, reproduction context and remediation guidance.`;
+  }
+
+  /**
+   * Optional narrative polish through the LOCAL phone model only.
+   * Returns null when the model is unavailable — the caller keeps the
+   * deterministic report. Never calls a cloud provider.
+   */
+  async polishWithLocalModel(base) {
     try {
-      const url = `${config.llmBaseUrl}/models/${config.llmModel}:generateContent?key=${config.llmApiKey}`;
-      const prompt = `You are a professional security report writer. Generate a polished security assessment report based on this data.
-Target: ${assessment.targetHostname}
-Findings Summary: ${JSON.stringify(data.findingsSummary)}
-Attack Surface: ${JSON.stringify({ subdomains: data.attackSurface.subdomains, endpoints: data.attackSurface.endpoints, technologies: data.attackSurface.technologies })}
-Tool Executions: ${data.toolingSummary.length} tools used
-Detailed Findings: ${JSON.stringify(data.detailedFindings.slice(0, 10).map(f => ({ title: f.title, severity: f.severity, description: f.description?.slice(0, 200) })))}
+      const prompt = [
+        'You are a professional security report writer.',
+        'Rewrite the executive summary and risk context below so they read clearly.',
+        'Use ONLY the facts provided. Do not add findings, evidence or numbers that are not present.',
+        'Reply with a JSON object: {"executiveSummary": "...", "riskContext": "...", "conclusion": "..."}',
+        '',
+        `Target: ${base.targetHostname}`,
+        `Findings summary: ${JSON.stringify(base.findingsSummary)}`,
+        `Executive summary draft: ${base.executiveSummary}`,
+        `Risk context draft: ${base.riskContext}`,
+        `Conclusion draft: ${base.conclusion}`
+      ].join('\n');
 
-Return a JSON object with these fields: executiveSummary (string), riskContext (string), limitations (string).
-Do NOT invent findings or evidence. Only describe what was actually found.`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 2000, responseMimeType: 'application/json' }
-        })
-      });
-
-      if (!response.ok) throw new Error('LLM API error');
-      const result = await response.json();
-      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error('No LLM response');
-
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const enhanced = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-
+      const text = await this.localModel.complete([{ role: 'user', content: prompt }], { maxTokens: 900, maxAttempts: 1 });
+      const match = String(text?.text || '').match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      const parsed = JSON.parse(match[0]);
       return {
-        title: `Security Assessment Report — ${assessment.targetHostname}`,
-        executiveSummary: enhanced.executiveSummary || data.executiveSummary,
-        scope: assessment.scope,
-        methodology: this.getMethodology(),
-        testingTimeline: data.testingTimeline,
-        assetsTested: data.assetsTested,
-        attackSurface: data.attackSurface,
-        findingsSummary: data.findingsSummary,
-        detailedFindings: data.detailedFindings,
-        riskContext: enhanced.riskContext || this.getRiskContext(data.findingsSummary),
-        limitations: enhanced.limitations || this.getLimitations(assessment),
-        toolingSummary: data.toolingSummary,
-        appendix: []
+        executiveSummary: typeof parsed.executiveSummary === 'string' ? parsed.executiveSummary.slice(0, 4000) : base.executiveSummary,
+        riskContext: typeof parsed.riskContext === 'string' ? parsed.riskContext.slice(0, 2000) : base.riskContext,
+        conclusion: typeof parsed.conclusion === 'string' ? parsed.conclusion.slice(0, 4000) : base.conclusion
       };
     } catch {
-      // Fallback to deterministic report
-      return {
-        title: `Security Assessment Report — ${assessment.targetHostname}`,
-        executiveSummary: data.executiveSummary,
-        scope: assessment.scope,
-        methodology: this.getMethodology(),
-        testingTimeline: data.testingTimeline,
-        assetsTested: data.assetsTested,
-        attackSurface: data.attackSurface,
-        findingsSummary: data.findingsSummary,
-        detailedFindings: data.detailedFindings,
-        riskContext: this.getRiskContext(data.findingsSummary),
-        limitations: this.getLimitations(assessment),
-        toolingSummary: data.toolingSummary,
-        appendix: []
-      };
+      return null;
     }
   }
 }

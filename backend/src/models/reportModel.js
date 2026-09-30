@@ -58,6 +58,14 @@ export class ReportModel {
       toolingSummary: input.toolingSummary || [],
       appendix: input.appendix || [],
 
+      // Evidence-backed sections (autonomous bug-bounty report)
+      testingCoverage: input.testingCoverage || {},
+      unverifiedObservations: input.unverifiedObservations || [],
+      conclusion: input.conclusion || '',
+      evidenceIndex: input.evidenceIndex || [],
+      evidenceCount: input.evidenceCount || 0,
+      validatedCount: input.validatedCount || 0,
+
       // Metadata
       targetHostname: input.targetHostname || '',
       totalFindings: input.totalFindings || 0,

@@ -104,6 +104,69 @@ export function sendDirectChat(message, conversationId, truncateIndex = undefine
   });
 }
 
+export async function streamDirectChat(message, conversationId, truncateIndex, handlers = {}) {
+  const { onState, onToken, onDone, onError } = handlers;
+  try {
+    const res = await fetch(`${API_BASE}/infinite/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream'
+      },
+      credentials: 'include',
+      body: JSON.stringify({ message, conversationId, truncateIndex, stream: true })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let parsed = {};
+      try { parsed = JSON.parse(errText); } catch(e) {}
+      throw new Error(parsed?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        if (buffer.trim().startsWith('data: ')) {
+          try {
+            const data = JSON.parse(buffer.trim().slice(6));
+            if (data.type === 'done' && onDone) onDone(data);
+          } catch (e) {}
+        }
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(trimmed.slice(6));
+            if (data.type === 'state' && onState) {
+              onState(data);
+            } else if (data.type === 'token' && onToken) {
+              onToken(data.delta, data.content);
+            } else if (data.type === 'done' && onDone) {
+              onDone(data);
+            } else if (data.type === 'error' && onError) {
+              onError(new Error(data.message));
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (err) {
+    if (onError) onError(err);
+    else throw err;
+  }
+}
+
 export function getInfiniteHistory(conversationId) {
   return request(`/infinite/chat/${conversationId}`);
 }
@@ -336,6 +399,182 @@ export function subscribeToAssessmentEvents(assessmentId, { onOpen, onEvent, onE
   };
 }
 
+// ─── Autonomous Bug Bounty Agent (persistent jobs) ────────────────
+
+/** Create an autonomous assessment job. Returns as soon as the job is queued. */
+export function createJob(payload) {
+  return request('/jobs', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+/** List this user's autonomous jobs. */
+export function listJobs() {
+  return request('/jobs');
+}
+
+/** Full job state snapshot — the rehydration call after a refresh or reopen. */
+export function getJobState(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}`);
+}
+
+/** The job's live activity feed (the terminal). */
+export function getJobActivity(jobId, limit = 300) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/activity?limit=${limit}`);
+}
+
+/** Replayable event history — used to backfill anything missed while closed. */
+export function getJobEventHistory(jobId, { after, limit = 500 } = {}) {
+  const query = new URLSearchParams();
+  if (after) query.set('after', after);
+  query.set('limit', String(limit));
+  return request(`/jobs/${encodeURIComponent(jobId)}/events/history?${query.toString()}`);
+}
+
+/** Pause: stop after the current safe atomic operation and persist state. */
+export function pauseJob(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/pause`, { method: 'POST' });
+}
+
+/** Continue a paused job from its persisted checkpoint. */
+export function continueJob(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/continue`, { method: 'POST' });
+}
+
+/** Resume an interrupted/waiting job (restart, phone outage, reconnect). */
+export function resumeJob(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/resume`, { method: 'POST' });
+}
+
+/** Cancel permanently. Assessment history is preserved. */
+export function cancelJob(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+}
+
+/** Ask the running agent about its own assessment. */
+export function askJob(jobId, message) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/ask`, {
+    method: 'POST',
+    body: JSON.stringify({ message })
+  });
+}
+
+/** Computer-control runtime status (the "hands" layer). */
+export function getComputerStatus() {
+  return request('/computer');
+}
+
+// ─── InfiniteChat Computer Tasks (natural-language desktop control) ──
+
+export function createComputerTask(instruction, conversationId, followUpHint = null) {
+  return request('/computer-tasks', {
+    method: 'POST',
+    body: JSON.stringify({ instruction, conversationId, followUpHint })
+  });
+}
+
+export function listComputerTasks(conversationId = null) {
+  const q = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
+  return request(`/computer-tasks${q}`);
+}
+
+export function getComputerTask(taskId) {
+  return request(`/computer-tasks/${encodeURIComponent(taskId)}`);
+}
+
+export function getComputerTaskActivity(taskId) {
+  return request(`/computer-tasks/${encodeURIComponent(taskId)}/activity`);
+}
+
+export function answerComputerTask(taskId, message) {
+  return request(`/computer-tasks/${encodeURIComponent(taskId)}/answer`, {
+    method: 'POST',
+    body: JSON.stringify({ message })
+  });
+}
+
+export function cancelComputerTask(taskId) {
+  return request(`/computer-tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
+}
+
+/** Subscribe to live computer-task events via SSE (replayed on reconnect). */
+export function subscribeToComputerTaskEvents(taskId, { onOpen, onEvent, onError } = {}) {
+  const url = `${API_BASE}/computer-tasks/${encodeURIComponent(taskId)}/events`;
+  const source = new EventSource(url, { withCredentials: true });
+
+  const handleEvent = (event) => {
+    try {
+      onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
+    } catch {
+      onError?.(new ApiError('Received an invalid computer-task event.', 0, 'INVALID_EVENT'));
+    }
+  };
+
+  const eventTypes = [
+    'task.created', 'task.started', 'task.decision', 'task.action_started',
+    'task.observation', 'task.action_failed', 'task.brain_decision',
+    'task.waiting_ai', 'task.waiting_computer', 'task.resumed',
+    'task.ask_user', 'task.completed', 'task.failed', 'task.cancelled',
+    'computer.probe', 'computer.state', 'computer.action', 'computer.observation', 'computer.error'
+  ];
+  eventTypes.forEach((type) => source.addEventListener(type, handleEvent));
+  source.onmessage = handleEvent;
+  source.onopen = () => onOpen?.();
+  source.onerror = () => onError?.(new ApiError('Computer task event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+
+  return () => {
+    eventTypes.forEach((type) => source.removeEventListener(type, handleEvent));
+    source.close();
+  };
+}
+
+/** Computer-control capability probe result. */
+export function getComputerCapabilities() {
+  return request('/computer/capabilities');
+}
+
+/** Current browser/active-window state from the computer layer. */
+export function getBrowserState() {
+  return request('/computer/browser-state');
+}
+
+/** Subscribe to live job events via SSE, replaying from the last seen event. */
+export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEventId } = {}) {
+  // EventSource cannot set headers, so replay is driven explicitly through
+  // getJobEventHistory() by the caller; Last-Event-ID is only honoured when the
+  // browser reconnects on its own.
+  const url = `${API_BASE}/jobs/${encodeURIComponent(jobId)}/events`;
+  const source = lastEventId ? new EventSource(`${url}?lastEventId=${encodeURIComponent(lastEventId)}`, { withCredentials: true }) : new EventSource(url, { withCredentials: true });
+
+  const handleEvent = (event) => {
+    try {
+      onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
+    } catch {
+      onError?.(new ApiError('Received an invalid job event.', 0, 'INVALID_EVENT'));
+    }
+  };
+
+  const eventTypes = [
+    'job.created', 'job.started', 'job.phase_changed', 'job.plan_updated',
+    'job.paused', 'job.resumed', 'job.completed', 'job.failed', 'job.cancelled',
+    'brain.thinking', 'brain.decision', 'brain.unavailable',
+    'tool.started', 'tool.output', 'tool.failed',
+    'browser.action', 'browser.observation',
+    'computer.probe', 'computer.state', 'computer.action', 'computer.observation', 'computer.error',
+    'finding.created', 'finding.updated', 'finding.rejected', 'observation.recorded',
+    'hypothesis.created', 'hypothesis.updated',
+    'report.started', 'report.progress', 'agent.chat'
+  ];
+
+  eventTypes.forEach((type) => source.addEventListener(type, handleEvent));
+  source.onmessage = handleEvent;
+  source.onopen = () => onOpen?.();
+  source.onerror = () => onError?.(new ApiError('Job event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+
+  return () => {
+    eventTypes.forEach((type) => source.removeEventListener(type, handleEvent));
+    source.close();
+  };
+}
+
 // ─── Combined API Client ──────────────────────────────────────────
 
 export const apiClient = {
@@ -381,5 +620,29 @@ export const apiClient = {
   getGeneration,
   cancelGeneration,
   resumeGeneration,
-  listGenerations
+  listGenerations,
+  // Autonomous Bug Bounty Agent
+  createJob,
+  listJobs,
+  getJobState,
+  getJobActivity,
+  getJobEventHistory,
+  pauseJob,
+  continueJob,
+  resumeJob,
+  cancelJob,
+  askJob,
+  subscribeToJobEvents,
+  // Computer control (Open-Interface adapter)
+  getComputerStatus,
+  getComputerCapabilities,
+  getBrowserState,
+  // InfiniteChat computer tasks
+  createComputerTask,
+  listComputerTasks,
+  getComputerTask,
+  getComputerTaskActivity,
+  answerComputerTask,
+  cancelComputerTask,
+  subscribeToComputerTaskEvents
 };

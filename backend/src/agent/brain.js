@@ -113,15 +113,21 @@ export class AgentBrain {
     let lastAiSummary = null;
     let iteration = 0;
 
-    while (!signal.aborted && iteration < config.agentMaxIterations) {
+    // No artificial step ceiling: the loop ends on `complete`, on a real
+    // failure, or when the job is stopped. AGENT_MAX_ITERATIONS=0 means
+    // unlimited; a positive value is an operator-chosen cap, not a quota.
+    const maxIterations = config.agentMaxIterations > 0 ? config.agentMaxIterations : Number.POSITIVE_INFINITY;
+    const budgetLabel = Number.isFinite(maxIterations) ? String(maxIterations) : '∞';
+
+    while (!signal.aborted && iteration < maxIterations) {
       iteration++;
       await this.stateManager.incrementIteration(assessmentId);
 
       await this.eventService.publish(assessmentId, {
         type: 'AGENT_DECISION',
         level: 'INFO',
-        message: `Agent iteration ${iteration}/${config.agentMaxIterations} — analyzing state...`,
-        data: { iteration, maxIterations: config.agentMaxIterations }
+        message: `Agent iteration ${iteration}/${budgetLabel} — analyzing state...`,
+        data: { iteration, maxIterations: budgetLabel }
       });
 
       // 1. Load compressed context
@@ -221,9 +227,9 @@ export class AgentBrain {
       await this.delay(signal);
     }
 
-    // Loop ended — max iterations reached
+    // Loop ended because an operator-set iteration cap was reached.
     if (!signal.aborted) {
-      await this.complete(assessmentId, 'Maximum iterations reached');
+      await this.complete(assessmentId, 'Iteration cap reached (AGENT_MAX_ITERATIONS)');
     }
   }
 

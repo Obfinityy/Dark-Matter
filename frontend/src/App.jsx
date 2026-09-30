@@ -17,7 +17,10 @@ import {
   getProviders, updateProviders, updateProfile, changePassword, logoutAccount,
   createAssessment, startAssessment, pauseAssessment, resumeAssessment, stopAssessment,
   getAssessmentFindings, sendAssessmentChat, generateReport, getLatestReport,
-  subscribeToAssessmentEvents, listAssessments, sendDirectChat, getInfiniteHistory
+  subscribeToAssessmentEvents, listAssessments, sendDirectChat, streamDirectChat, getInfiniteHistory,
+  getComputerStatus, cancelComputerTask, answerComputerTask, subscribeToComputerTaskEvents,
+  listComputerTasks,
+  apiClient
 } from './services/api';
 import './styles/globals.css';
 import './styles/infinity.css';
@@ -321,6 +324,7 @@ const Sidebar = ({ toggleTheme, theme }) => {
   const location = useLocation();
 
   const isInfinite = location.pathname === '/infinite';
+  const isAgent = location.pathname === '/' || location.pathname === '/agent';
   const [chatSessions, setChatSessions] = useState(() => readInfiniteSessions());
   const [activeChatId, setActiveChatId] = useState(() => localStorage.getItem(INFINITE_ACTIVE_KEY));
 
@@ -346,9 +350,9 @@ const Sidebar = ({ toggleTheme, theme }) => {
       
       <div className="sidebar-content">
         <nav className="nav-menu">
-          <button className={`nav-item ${!isInfinite ? 'active' : ''}`} onClick={() => navigate('/')}>
-            <Home size={18} />
-            <span>Autonomous Recon</span>
+          <button className={`nav-item ${isAgent ? 'active' : ''}`} onClick={() => navigate('/')}>
+            <Bug size={18} />
+            <span>Autonomous Bug Bounty Agent</span>
           </button>
 
           <button className={`nav-item ${isInfinite ? 'active' : ''}`} onClick={() => navigate('/infinite')}>
@@ -421,8 +425,8 @@ const TopNav = () => {
   const navigate = useNavigate();
   return (
     <header className="top-nav">
-      <div className="nav-links">
-        <a onClick={() => navigate('/')} className={location.pathname === '/' ? 'active' : ''} style={{cursor: 'pointer'}}>AUTONOMOUS BRAIN</a>
+      <div className="nav-links">        <a onClick={() => navigate('/')} className={location.pathname === '/' || location.pathname === '/agent' ? 'active' : ''} style={{cursor: 'pointer'}}>AUTONOMOUS BUG BOUNTY AGENT</a>
+        <a onClick={() => navigate('/infinite')} className={location.pathname === '/infinite' ? 'active' : ''} style={{cursor: 'pointer'}}>CHAT</a>
       </div>
     </header>
   );
@@ -926,35 +930,370 @@ const ChatView = ({ assessmentId, target, mode, onRestart }) => {
   );
 };
 
-const Typewriter = ({ text, delay = 15 }) => {
-  const [currentText, setCurrentText] = useState('');
-  const [currentIndex, setCurrentIndex] = useState(0);
+const Typewriter = ({ text, delay = 12 }) => {
+  const [displayedLength, setDisplayedLength] = useState(0);
+  const [isDone, setIsDone] = useState(false);
 
   useEffect(() => {
-    // When text completely changes (new message), reset
-    if (!text.startsWith(currentText)) {
-      setCurrentText('');
-      setCurrentIndex(0);
-    }
+    setDisplayedLength(0);
+    setIsDone(false);
   }, [text]);
 
   useEffect(() => {
-    if (currentIndex < text.length) {
-      const timeout = setTimeout(() => {
-        setCurrentText(prevText => prevText + text[currentIndex]);
-        setCurrentIndex(prevIndex => prevIndex + 1);
-      }, delay);
-      
-      return () => clearTimeout(timeout);
+    if (displayedLength >= (text || '').length) {
+      setIsDone(true);
+      return;
     }
-  }, [currentIndex, delay, text]);
+
+    const strLen = (text || '').length;
+    // Adaptively scale typing step size: short text = 1 char, long text = 3-8 chars per tick
+    const step = Math.max(1, Math.min(8, Math.ceil((strLen - displayedLength) / 25)));
+
+    const timer = setTimeout(() => {
+      setDisplayedLength(prev => Math.min(strLen, prev + step));
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [displayedLength, text, delay]);
+
+  const currentText = (text || '').slice(0, displayedLength);
 
   return (
-    <div className="markdown-body" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+    <div 
+      className="markdown-body" 
+      onClick={() => { setDisplayedLength((text || '').length); setIsDone(true); }}
+      style={{ overflowWrap: 'break-word', wordBreak: 'break-word', cursor: isDone ? 'default' : 'pointer' }}
+      title={isDone ? '' : 'Click to skip typing animation'}
+    >
       <ReactMarkdown components={{ code: CodeBlock }}>{currentText}</ReactMarkdown>
+      {!isDone && (
+        <span 
+          style={{
+            display: 'inline-block',
+            width: '7px',
+            height: '14px',
+            backgroundColor: 'var(--accent, #a855f7)',
+            marginLeft: '4px',
+            verticalAlign: 'middle',
+            borderRadius: '2px',
+            opacity: 0.85
+          }}
+        />
+      )}
     </div>
   );
 };
+
+
+export function formatThinkingTime(totalSec) {
+  const sec = Number(totalSec) || 0;
+  if (sec <= 0) return '0.0s';
+  if (sec < 60) {
+    return `${sec.toFixed(1)}s`;
+  }
+  const mins = Math.floor(sec / 60);
+  const remainderSecs = Math.floor(sec % 60);
+  return `${mins} min ${remainderSecs}s`;
+}
+
+function getDynamicThinkingSteps(msgToSend = '', elapsed = 0) {
+  const text = String(msgToSend || '').toLowerCase();
+  
+  let steps = [];
+  if (/\b(code|python|pygame|js|react|html|css|game|function|class|build|create|script)\b/i.test(text)) {
+    steps = [
+      'Analyzing requirements & code structure…',
+      'Structuring functions, classes & logic modules…',
+      'Assembling language syntax & code components…',
+      'Generating complete code implementation via Phone AI…'
+    ];
+  } else if (/\b(search|find|explain|what|how|why|summary|summarize|document|file|chunk|pdf)\b/i.test(text)) {
+    steps = [
+      'Parsing query intent & context scope…',
+      'Searching vector memory & indexing references…',
+      'Evaluating context budget & prompt assembly…',
+      'Synthesizing explanation via Phone AI…'
+    ];
+  } else if (/\b(open|click|launch|type|notepad|desktop|window|app|browser|cmd|terminal|run)\b/i.test(text)) {
+    steps = [
+      'Interpreting desktop action instruction…',
+      'Probing computer control capabilities & active window…',
+      'Formulating desktop interaction plan…',
+      'Executing action sequence via local Gemma…'
+    ];
+  } else if (/\b(target|scan|nmap|subdomain|vuln|security|exploit|recon|port|attack)\b/i.test(text)) {
+    steps = [
+      'Checking target scope & security policy…',
+      'Correlating attack surface data & stored findings…',
+      'Evaluating reconnaissance parameters…',
+      'Generating security report via Phone AI…'
+    ];
+  } else {
+    steps = [
+      'Analyzing prompt intention & conversation history…',
+      'Retrieving relevant knowledge context…',
+      'Formulating response strategy…',
+      'Generating reply via Phone AI…'
+    ];
+  }
+
+  if (elapsed < 1.2) return steps[0];
+  if (elapsed < 3.2) return steps[1];
+  if (elapsed < 5.8) return steps[2];
+  return steps[3];
+}
+
+const ThoughtBlock = ({ thinkingTimeMs, steps, budgetUsage }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!thinkingTimeMs) return null;
+  const timeStr = formatThinkingTime(thinkingTimeMs / 1000);
+
+  return (
+    <div style={{ marginBottom: '8px', fontSize: '0.8rem' }}>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '8px',
+          padding: '4px 10px',
+          color: 'var(--text-muted, #94a3b8)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontSize: '0.78rem',
+          transition: 'all 0.2s ease'
+        }}
+      >
+        <span style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', fontSize: '0.65rem' }}>▶</span>
+        <span>Thought for {timeStr}</span>
+      </button>
+
+      {expanded && (
+        <div style={{
+          marginTop: '6px',
+          padding: '10px 14px',
+          background: 'rgba(0, 0, 0, 0.25)',
+          borderLeft: '2px solid var(--accent, #a855f7)',
+          borderRadius: '0 8px 8px 0',
+          color: 'var(--text-muted, #cbd5e1)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+          fontFamily: 'monospace',
+          fontSize: '0.75rem'
+        }}>
+          {steps && steps.length > 0 ? (
+            steps.map((st, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                <span>✓ {st.label}</span>
+                <span style={{ opacity: 0.6 }}>{st.durationMs}ms</span>
+              </div>
+            ))
+          ) : (
+            <div>✓ Synthesized response via Phone AI</div>
+          )}
+          {budgetUsage && (
+            <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px dashed rgba(255,255,255,0.1)', opacity: 0.8 }}>
+              Context budget: {budgetUsage.estimatedPromptTokens || 0} tokens used
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── InfiniteChat Computer Task Panel (local brain + real Windows hands) ───
+// Renders the live status of a computer task: status card (Computer / Brain /
+// Application / Status / Current Action / Last Observation) + a checkmark
+// activity feed fed by the backend SSE stream. Data survives browser refresh:
+// on mount the full state + event history is fetched, then live events attach.
+const TASK_ICONS = {
+  agent: '🧠', action: '🖥', observation: '👁', brain: '⚠️', error: '❌',
+  wait: '⏳', ask: '❓', complete: '✅', cancel: '🛑', retry: '🔁', verify: '🔎', info: '•'
+};
+
+const STATUS_COLORS = {
+  queued: '#94a3b8', understanding: '#818cf8', planning: '#818cf8',
+  executing: '#a855f7', observing: '#06b6d4', verifying: '#f59e0b',
+  continue: '#a855f7', ask_user: '#f59e0b', waiting_ai: '#f59e0b',
+  waiting_computer: '#f59e0b', paused: '#94a3b8', resuming: '#818cf8',
+  completed: '#10b981', failed: '#ef4444', cancelled: '#94a3b8'
+};
+
+const ComputerTaskPanel = ({ taskId, onAnswer }) => {
+  const [state, setState] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [computer, setComputer] = useState(null);
+  const [answerText, setAnswerText] = useState('');
+  const [stopping, setStopping] = useState(false);
+  const feedRef = useRef(null);
+
+  // Load persisted state + event history, then attach the live SSE stream.
+  useEffect(() => {
+    if (!taskId) return undefined;
+    let unsubscribe = null;
+    let alive = true;
+
+    const load = async () => {
+      try {
+        const snap = await apiClient.getComputerTask(taskId);
+        if (!alive) return;
+        setState(snap.task);
+        setComputer(snap.computer);
+        setEvents((snap.activity || []).slice(-100));
+      } catch {
+        /* task may have been cleaned up */
+      }
+    };
+    load();
+
+    unsubscribe = subscribeToComputerTaskEvents(taskId, {
+      onEvent: (event) => {
+        if (!alive) return;
+        if (event.type === 'task.completed' || event.type === 'task.failed' || event.type === 'task.cancelled' || event.type === 'task.ask_user' || event.type === 'task.waiting_ai' || event.type === 'task.resumed') {
+          load(); // pull the full persisted snapshot on meaningful transitions
+        }
+        if (event.type?.startsWith('computer.')) return; // adapter noise; activity feed already covers it
+        setEvents((prev) => {
+          const next = [...prev, {
+            id: event.id,
+            kind: eventKindFor(event.type),
+            icon: TASK_ICONS[eventKindFor(event.type)] || '•',
+            message: event.message,
+            at: event.timestamp || new Date().toISOString()
+          }];
+          return next.slice(-120);
+        });
+      }
+    });
+
+    const statusTimer = setInterval(load, 10000); // passive refresh fallback
+    return () => {
+      alive = false;
+      clearInterval(statusTimer);
+      unsubscribe?.();
+    };
+  }, [taskId]);
+
+  // Auto-scroll the activity feed.
+  useEffect(() => {
+    feedRef.current?.scrollTo?.({ top: feedRef.current.scrollHeight });
+  }, [events]);
+
+  const handleStop = async () => {
+    setStopping(true);
+    try {
+      await cancelComputerTask(taskId);
+    } finally {
+      setStopping(false);
+    }
+  };
+
+  const handleAnswer = async (e) => {
+    e.preventDefault();
+    const text = answerText.trim();
+    if (!text) return;
+    setAnswerText('');
+    onAnswer?.(text);
+    try {
+      await answerComputerTask(taskId, text);
+    } catch {
+      /* surfaced via task state */
+    }
+  };
+
+  if (!state) {
+    return (
+      <div style={{ alignSelf: 'flex-start', background: 'rgba(34, 211, 238, 0.05)', border: '1px solid rgba(34, 211, 238, 0.2)', borderRadius: '14px', padding: '14px 18px', minWidth: '300px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+        ⚡ Connecting to computer task…
+      </div>
+    );
+  }
+
+  const statusColor = STATUS_COLORS[state.status] || '#94a3b8';
+  const isTerminal = ['completed', 'failed', 'cancelled'].includes(state.status);
+  const active = !isTerminal && state.status !== 'ask_user';
+
+  return (
+    <div style={{
+      alignSelf: 'flex-start', width: 'min(640px, 92%)',
+      background: 'linear-gradient(180deg, rgba(34, 211, 238, 0.05), rgba(168, 85, 247, 0.04))',
+      border: '1px solid rgba(34, 211, 238, 0.25)', borderRadius: '14px',
+      overflow: 'hidden', fontSize: '0.85rem'
+    }}>
+      {/* Status card */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(34, 211, 238, 0.15)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: statusColor, boxShadow: `0 0 8px ${statusColor}`, animation: active ? 'pulse 1.6s infinite' : 'none' }} />
+            Computer Task
+            <span style={{ color: statusColor, fontWeight: 500 }}>
+              {state.status === 'waiting_ai' ? 'Waiting for Local AI' :
+               state.status === 'waiting_computer' ? 'Waiting for Computer' :
+               state.status === 'ask_user' ? 'Needs your answer' :
+               state.status === 'continue' ? 'Executing' : state.status}
+            </span>
+          </div>
+          {active && (
+            <button onClick={handleStop} disabled={stopping} title="Stop this computer task at the next safe point"
+              style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', padding: '4px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600 }}>
+              <Square size={11} /> {stopping ? 'Stopping…' : 'Stop Task'}
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '4px 16px', color: 'var(--text-muted)' }}>
+          <span>🖥 Computer: <b style={{ color: computer?.available ? '#10b981' : '#ef4444' }}>{computer?.available ? 'Connected' : 'Unavailable'}</b></span>
+          <span>🧠 Brain: <b style={{ color: '#a855f7' }}>Local Gemma</b>{state.waitingReason ? ' ⏳' : ''}</span>
+          {state.currentApplication && <span>📦 App: <b style={{ color: 'var(--text-primary)' }}>{state.currentApplication}</b></span>}
+          {state.activeWindow && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🪟 {state.activeWindow}</span>}
+          <span>👣 Steps: <b style={{ color: 'var(--text-primary)' }}>{state.stepCount}</b></span>
+          {state.verificationStatus === 'verified' && <span style={{ color: '#10b981' }}>✓ Verified</span>}
+        </div>
+        {state.waitingReason && (
+          <div style={{ color: '#f59e0b', fontSize: '0.78rem' }}>⏳ {state.waitingReason}</div>
+        )}
+      </div>
+
+      {/* Checkmark activity feed */}
+      <div ref={feedRef} style={{ maxHeight: '220px', overflowY: 'auto', padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {events.map((item, i) => (
+          <div key={item.id || i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', color: item.kind === 'error' ? '#ef4444' : item.kind === 'complete' ? '#10b981' : 'var(--text-muted)' }}>
+            <span style={{ flexShrink: 0 }}>{item.icon || TASK_ICONS[item.kind] || '•'}</span>
+            <span style={{ lineHeight: 1.45 }}>{item.message}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ask_user answer box */}
+      {state.status === 'ask_user' && (
+        <form onSubmit={handleAnswer} style={{ padding: '10px 16px', borderTop: '1px solid rgba(34, 211, 238, 0.15)', display: 'flex', gap: '8px' }}>
+          <input value={answerText} onChange={(e) => setAnswerText(e.target.value)} placeholder="Type your answer…"
+            style={{ flex: 1, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem', outline: 'none' }} />
+          <button type="submit" className="primary-cta" style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+            Answer
+          </button>
+        </form>
+      )}
+    </div>
+  );
+};
+
+function eventKindFor(eventType) {
+  if (eventType === 'task.completed') return 'complete';
+  if (eventType === 'task.failed' || eventType === 'task.action_failed') return 'error';
+  if (eventType === 'task.cancelled') return 'cancel';
+  if (eventType === 'task.ask_user') return 'ask';
+  if (eventType === 'task.waiting_ai' || eventType === 'task.waiting_computer') return 'wait';
+  if (eventType === 'task.resumed') return 'agent';
+  if (eventType === 'task.observation') return 'observation';
+  if (eventType === 'task.decision' || eventType === 'task.started' || eventType === 'task.created') return 'agent';
+  if (eventType === 'task.action_started') return 'action';
+  return 'info';
+}
 
 const InfiniteChat = () => {
   const [messages, setMessages] = useState([]);
@@ -966,12 +1305,37 @@ const InfiniteChat = () => {
   const inputRef = useRef(null);
   const scrollRef = useRef(null);
   const conversationIdRef = useRef(null);
+  const lastPromptRef = useRef('');
   const pullRef = useRef(0);
   const touchStartYRef = useRef(0);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [longOp, setLongOp] = useState({ active: false, label: '', detail: '' });
   const [editValue, setEditValue] = useState('');
+  const [thinkingSeconds, setThinkingSeconds] = useState(0);
+  const [thinkingStep, setThinkingStep] = useState('Analyzing prompt & intention…');
+  const [computerTaskId, setComputerTaskId] = useState(null);
+  const [computerStatus, setComputerStatus] = useState(null);
+
+  // Live stopwatch timer during loading
+  useEffect(() => {
+    let interval = null;
+    let startTime = Date.now();
+    if (loading) {
+      setThinkingSeconds(0);
+      setThinkingStep(getDynamicThinkingSteps(lastPromptRef.current, 0));
+      interval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        setThinkingSeconds(elapsed);
+        setThinkingStep(getDynamicThinkingSteps(lastPromptRef.current, elapsed));
+      }, 100);
+    } else {
+      setThinkingSeconds(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [loading]);
 
   const handleCopy = (text, index) => {
     navigator.clipboard.writeText(text);
@@ -1057,6 +1421,29 @@ const InfiniteChat = () => {
     return () => window.removeEventListener(INFINITE_CHAT_EVENT, onChatUpdate);
   }, []);
 
+  // Restore any active computer task for this conversation + hands status.
+  // Survives browser refresh: the task lives in the backend, not in React (#25).
+  useEffect(() => {
+    if (!conversationId) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await listComputerTasks(conversationId);
+        if (!alive) return;
+        const activeTask = (res?.tasks || []).find((t) => !['completed', 'failed', 'cancelled'].includes(t.status));
+        setComputerTaskId(activeTask ? activeTask.id : null);
+      } catch {
+        /* computer tasks optional */
+      }
+    })();
+    getComputerStatus().then((s) => {
+      if (alive) setComputerStatus(s);
+    }).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [conversationId]);
+
   // Auto-scroll
   useEffect(() => {
     if (pullHint > 0) return;
@@ -1128,6 +1515,7 @@ const InfiniteChat = () => {
     if (loading) return;
     const msgToSend = overrideMsg || input.trim();
     if (!msgToSend || !conversationId) return;
+    lastPromptRef.current = msgToSend;
     upsertInfiniteSession(conversationId, msgToSend);
     
     if (truncateIndex !== undefined) {
@@ -1140,29 +1528,87 @@ const InfiniteChat = () => {
     if (!overrideMsg) setInput('');
     setLoading(true);
 
-    // Long-context progress: large inputs show a processing status instead of a frozen UI.
-    const isLarge = msgToSend.length > 8000;
-    if (isLarge) {
-      setLongOp({ active: true, label: 'Processing large context…', detail: 'Chunking and indexing your input' });
-      const ticker = setInterval(() => {
-        setLongOp(prev => prev.active ? { ...prev, detail: prev.detail === 'Chunking and indexing your input' ? 'Building hierarchical summary' : prev.detail === 'Building hierarchical summary' ? 'Preparing retrieval index' : prev.detail } : prev);
-      }, 2500);
-      window.__lcTicker = ticker;
-    }
+    setLongOp({ active: true, label: 'Pipeline Initializing…', detail: 'Validating intent & context budget' });
 
+    const startTs = Date.now();
     try {
-      const res = await sendDirectChat(msgToSend, conversationId, truncateIndex);
-      if (res?.chat?.messages) {
-        const mapped = res.chat.messages.map(m => ({ ...m, isHistory: true }));
-        setMessages(mapped);
-      } else if (res?.reply) {
-        setMessages(prev => [...prev, { role: 'assistant', content: res.reply }]);
-      }
-      // Surface long-context metadata quietly under the reply.
-      if (res?.longContext?.ingested) {
-        const { inputId, chunkCount } = res.longContext.ingested;
-        setMessages(prev => [...prev, { role: 'assistant', content: `📦 Large input stored: **${chunkCount} chunks** indexed as \\'${inputId}\\'. You can ask things like "summarize this", "find every occurrence of X", or "show exact chunk 3".`, isHistory: false, isMeta: true }]);
-      }
+      await streamDirectChat(msgToSend, conversationId, truncateIndex, {
+        onState: (state) => {
+          setLongOp({
+            active: true,
+            label: state.step || 'Pipeline Active…',
+            detail: state.detail || ''
+          });
+        },
+        onToken: (delta, cleanSoFar) => {
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant' && !last.isHistory && !last.isMeta) {
+              return [...prev.slice(0, -1), { ...last, content: cleanSoFar }];
+            } else {
+              return [...prev, { role: 'assistant', content: cleanSoFar, isHistory: false }];
+            }
+          });
+        },
+        onDone: (res) => {
+          if (res?.computerTask) {
+            setComputerTaskId(res.computerTask.taskId);
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: `🖥 **Computer task accepted** — local AI is taking over the desktop.\n\nWorking on: "${res.computerTask.instruction}"`,
+              isHistory: false,
+              isMeta: true,
+              computerTaskId: res.computerTask.taskId
+            }]);
+            return;
+          }
+          if (res?.chat?.messages) {
+            const mapped = res.chat.messages.map((m, idx, arr) => ({
+              ...m,
+              isHistory: idx < arr.length - 1,
+              thinkingTimeMs: idx === arr.length - 1 ? (res.thinkingTimeMs || (Date.now() - startTs)) : m.thinkingTimeMs,
+              steps: idx === arr.length - 1 ? res.steps : m.steps,
+              budgetUsage: idx === arr.length - 1 ? res.longContext?.budgetUsage : m.budgetUsage
+            }));
+            setMessages(mapped);
+          } else if (res?.reply) {
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last && last.role === 'assistant' && !last.isHistory && !last.isMeta) {
+                return [...prev.slice(0, -1), {
+                  role: 'assistant',
+                  content: res.reply,
+                  isHistory: false,
+                  thinkingTimeMs: res.thinkingTimeMs || (Date.now() - startTs),
+                  steps: res.steps,
+                  budgetUsage: res.longContext?.budgetUsage
+                }];
+              } else {
+                return [...prev, {
+                  role: 'assistant',
+                  content: res.reply,
+                  isHistory: false,
+                  thinkingTimeMs: res.thinkingTimeMs || (Date.now() - startTs),
+                  steps: res.steps,
+                  budgetUsage: res.longContext?.budgetUsage
+                }];
+              }
+            });
+          }
+          if (res?.longContext?.ingested) {
+            const { inputId, chunkCount } = res.longContext.ingested;
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: `📦 **1M+ Context Ingested**: **${chunkCount} chunks** indexed as \`${inputId}\`. Summary and retrieval index ready!`,
+              isHistory: false,
+              isMeta: true
+            }]);
+          }
+        },
+        onError: (err) => {
+          setMessages(prev => [...prev, { role: 'assistant', content: err.message || 'An unknown error occurred.', isError: true }]);
+        }
+      });
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: err.message || 'An unknown error occurred.', isError: true }]);
     } finally {
@@ -1186,13 +1632,19 @@ const InfiniteChat = () => {
         <div className={`infinite-pull-hint ${pullHint > 24 ? 'visible' : ''}`}>
           New chat
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.8 }}>
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: computerStatus?.available ? '#10b981' : '#64748b', boxShadow: computerStatus?.available ? '0 0 6px #10b981' : 'none' }} />
+          {computerStatus?.available
+            ? 'Computer connected — this chat can control the real Windows desktop via local Gemma'
+            : 'Computer control offline — chat works, desktop control unavailable'}
+        </div>
         {messages.length === 0 ? (
           <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
             <div style={{ padding: '24px', background: 'var(--surface-color)', borderRadius: '50%', border: '1px solid var(--border-color)' }}>
               <MessageSquare size={48} className="text-cyan" />
             </div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 500, margin: 0, color: 'var(--text-primary)' }}>Welcome to Infinite</h2>
-            <p style={{ fontSize: '0.95rem', maxWidth: '300px', lineHeight: '1.5' }}>Start typing and let the AI assist you instantly.</p>
+            <p style={{ fontSize: '0.95rem', maxWidth: '340px', lineHeight: '1.5' }}>Chat with your local AI — or let it control your Windows desktop. Try: <i>“Open Notepad and type Hello from DARKMATTER”</i></p>
           </div>
         ) : (
           messages.map((m, i) => {
@@ -1233,7 +1685,8 @@ const InfiniteChat = () => {
                     )
                   ) : (
                     <div className="markdown-body" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-                      {(!m.isHistory && i === messages.length - 1) ? <Typewriter text={m.content} delay={10} /> : <ReactMarkdown components={{ code: CodeBlock }}>{m.content}</ReactMarkdown>}
+                      <ThoughtBlock thinkingTimeMs={m.thinkingTimeMs} steps={m.steps} budgetUsage={m.budgetUsage} />
+                      <ReactMarkdown components={{ code: CodeBlock }}>{m.content || ''}</ReactMarkdown>
                     </div>
                   )}
                 </div>
@@ -1270,21 +1723,46 @@ const InfiniteChat = () => {
             );
           })
         )}
+        {/* Live computer task panel (SSE-driven; survives refresh) */}
+        {computerTaskId && (
+          <ComputerTaskPanel
+            taskId={computerTaskId}
+            onAnswer={(text) => {
+              setMessages(prev => [...prev, { role: 'user', content: text }]);
+            }}
+          />
+        )}
         {loading && (
-          <div style={{ alignSelf: 'flex-start', background: 'rgba(255, 255, 255, 0.05)', padding: '12px 20px', borderRadius: '16px 16px 16px 4px', color: 'var(--text-muted)', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                {longOp.active ? longOp.label : 'AI is thinking'}
-              </span>
-              <div className="typing-dot" style={{ animationDelay: '0s' }}>.</div>
-              <div className="typing-dot" style={{ animationDelay: '0.2s' }}>.</div>
-              <div className="typing-dot" style={{ animationDelay: '0.4s' }}>.</div>
+          <div style={{ 
+            alignSelf: 'flex-start', 
+            background: 'rgba(168, 85, 247, 0.06)', 
+            padding: '12px 18px', 
+            borderRadius: '16px 16px 16px 4px', 
+            color: 'var(--text-primary)', 
+            border: '1px solid rgba(168, 85, 247, 0.25)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '6px', 
+            minWidth: '260px' 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7' }} />
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0' }}>
+                  Thinking for {formatThinkingTime(thinkingSeconds)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '3px' }}>
+                <div className="typing-dot" style={{ animationDelay: '0s' }}>.</div>
+                <div className="typing-dot" style={{ animationDelay: '0.2s' }}>.</div>
+                <div className="typing-dot" style={{ animationDelay: '0.4s' }}>.</div>
+              </div>
             </div>
-            {longOp.active && longOp.detail && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {longOp.detail} — input is safely chunked & indexed, not sent whole to the model
-              </span>
-            )}
+            
+            <div style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ color: '#a855f7' }}>⚡</span>
+              <span>{longOp.active ? longOp.detail : thinkingStep}</span>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -1379,6 +1857,517 @@ const MainChat = () => {
   );
 };
 
+// ─── Autonomous Bug Bounty Agent dashboard ────────────────────────────────
+//
+// Observability-first, and the frontend is only a window: every number here
+// comes from persisted backend state. Closing this page never stops a job.
+
+const JOB_STATE_STYLE = {
+  queued: { color: '#94a3b8', label: 'QUEUED' },
+  starting: { color: '#38bdf8', label: 'STARTING' },
+  running: { color: '#22c55e', label: 'RUNNING' },
+  paused: { color: '#f59e0b', label: 'PAUSED' },
+  waiting: { color: '#eab308', label: 'WAITING' },
+  resuming: { color: '#38bdf8', label: 'RESUMING' },
+  completed: { color: '#10b981', label: 'COMPLETED' },
+  failed: { color: '#ef4444', label: 'FAILED' },
+  cancelled: { color: '#a1a1aa', label: 'CANCELLED' }
+};
+
+const ACTIVITY_COLOR = {
+  agent: '#22c55e', scope: '#38bdf8', decision: '#a78bfa', brain: '#a78bfa',
+  tool: '#22d3ee', browser: '#f472b6', finding: '#f97316', plan: '#38bdf8',
+  validation: '#eab308', report: '#10b981', wait: '#eab308', error: '#ef4444', info: '#94a3b8'
+};
+
+const formatDuration = (ms) => {
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSeconds % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+};
+
+const formatClock = (value) => {
+  if (!value) return '--:--:--';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '--:--:--' : date.toLocaleTimeString();
+};
+
+const AutonomousAgent = () => {
+  const [jobs, setJobs] = useState([]);
+  const [selectedJobId, setSelectedJobId] = useState(() => localStorage.getItem('darkmatter_active_job') || null);
+  const [state, setState] = useState(null);
+  const [liveEvents, setLiveEvents] = useState([]);
+  const [computer, setComputer] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState(null);
+  const [tick, setTick] = useState(0);
+  const [form, setForm] = useState({ target: '', scope: '', authorizationConfirmed: false, objective: '' });
+  const terminalRef = useRef(null);
+
+  // Rehydrate from the backend — never from local component state alone.
+  const refreshJobs = async () => {
+    try {
+      const data = await apiClient.listJobs();
+      setJobs(data.jobs || []);
+      if (!selectedJobId && data.jobs?.length) {
+        setSelectedJobId(data.jobs[0].id);
+        localStorage.setItem('darkmatter_active_job', data.jobs[0].id);
+      }
+      return data.jobs || [];
+    } catch (err) {
+      setError(err.message);
+      return [];
+    }
+  };
+
+  const refreshState = async (jobId = selectedJobId) => {
+    if (!jobId) return null;
+    try {
+      const data = await apiClient.getJobState(jobId);
+      setState(data);
+      // `/computer` wraps the runtime in `runtime`; the job snapshot is flat.
+      const computer = data.computer;
+      if (computer) setComputer(computer.runtime ? computer : { enabled: true, runtime: computer });
+      return data;
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    refreshJobs();
+    apiClient.getComputerStatus().then(setComputer).catch(() => {});
+    const interval = setInterval(() => refreshJobs(), 8000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // On (re)select: fetch persisted state + replay history, then attach live.
+  useEffect(() => {
+    if (!selectedJobId) return undefined;
+    setLiveEvents([]);
+    let cancelled = false;
+
+    (async () => {
+      const snapshot = await refreshState(selectedJobId);
+      if (cancelled || !snapshot) return;
+      try {
+        const history = await apiClient.getJobEventHistory(selectedJobId, { limit: 500 });
+        if (!cancelled) setLiveEvents(history.events || []);
+      } catch { /* history is best-effort */ }
+    })();
+
+    const unsubscribe = apiClient.subscribeToJobEvents(selectedJobId, {
+      onEvent: (event) => {
+        setLiveEvents((prev) => [...prev.slice(-400), event]);
+        // Anything that changes persisted state triggers a rehydrate.
+        if (typeof event.type === 'string' && !event.type.startsWith('brain.thinking')) {
+          refreshState(selectedJobId);
+        }
+      },
+      onError: () => {}
+    });
+
+    // Periodic rehydrate keeps the panel truthful even if the stream drops.
+    const interval = setInterval(() => refreshState(selectedJobId), 4000);
+    const clock = setInterval(() => setTick((value) => value + 1), 1000);
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      clearInterval(interval);
+      clearInterval(clock);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJobId]);
+
+  useEffect(() => {
+    if (terminalRef.current) terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+  }, [state?.activity?.length, liveEvents.length]);
+
+  const withBusy = async (fn) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await fn();
+      await refreshState();
+      await refreshJobs();
+      return result;
+    } catch (err) {
+      setError(err.message);
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleStart = async (event) => {
+    event.preventDefault();
+    if (!form.target.trim()) return;
+    const scopeItems = form.scope.split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
+    const created = await withBusy(() => apiClient.createJob({
+      targetUrl: form.target.trim(),
+      message: form.objective.trim() || `Assess ${form.target.trim()}`,
+      authorizationConfirmed: form.authorizationConfirmed,
+      scope: { included: scopeItems, excluded: [] }
+    }));
+    if (created?.jobId) {
+      setSelectedJobId(created.jobId);
+      localStorage.setItem('darkmatter_active_job', created.jobId);
+    }
+  };
+
+  const handleAsk = async (event) => {
+    event.preventDefault();
+    if (!question.trim() || !selectedJobId) return;
+    const result = await withBusy(() => apiClient.askJob(selectedJobId, question.trim()));
+    if (result) setAnswer(result);
+    setQuestion('');
+  };
+
+  const handleDownloadReport = async () => {
+    if (!state?.job?.assessmentId) return;
+    const report = await apiClient.getLatestReport(state.job.assessmentId);
+    if (!report) return;
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `darkmatter-report-${state.job.target}-v${report.version}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const job = state?.job;
+  const jobStyle = JOB_STATE_STYLE[job?.status] || { color: '#94a3b8', label: (job?.status || '').toUpperCase() };
+  const startedAt = job?.startedAt || job?.createdAt;
+  // Elapsed is recomputed from PERSISTED timestamps — never a client-side clock.
+  const elapsedMs = startedAt ? (new Date(job.completedAt || Date.now()).getTime() - new Date(startedAt).getTime()) : 0;
+  const terminalLines = (state?.activity || []).slice(-200);
+  const isTerminal = ['completed', 'failed', 'cancelled'].includes(job?.status);
+
+  return (
+    <div className="dedicated-page">
+      <div className="page-header" style={{ flexWrap: 'wrap', gap: '8px', alignItems: 'baseline', paddingBottom: '8px' }}>
+        <button className="icon-button" onClick={() => navigate('/')} style={{ flexShrink: 0 }}><ArrowLeft size={18} /></button>
+        <h2 style={{ fontSize: '1.15rem', whiteSpace: 'nowrap', margin: 0 }}>Autonomous Bug Bounty Agent</h2>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Local AI brain · Persistent memory · background execution
+        </span>
+      </div>
+
+      <div className="page-content transparent-bg" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* ── The one thing you have to do: paste the link ───────────── */}
+        <div className="plan-card opaque-bg" style={{ padding: '16px', borderColor: 'rgba(56,189,248,0.35)' }}>
+          <h4 style={{ marginBottom: '4px' }}>Paste the target link</h4>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+            Link डालते ही local brain चालू हो जाता है — यह job backend में चलता है, इसलिए tab बंद करने पर भी
+            agent काम करता रहेगा।
+          </p>
+          <form onSubmit={handleStart} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              placeholder="https://example.com"
+              value={form.target}
+              onChange={(e) => setForm({ ...form, target: e.target.value })}
+              style={{ flex: '1 1 280px', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.35)', color: 'inherit', fontSize: '0.95rem' }}
+            />
+            <button
+              className="secondary-button"
+              type="submit"
+              disabled={busy || !form.authorizationConfirmed || !form.target.trim()}
+              style={{ flex: '0 0 auto', padding: '12px 20px' }}
+            >
+              {busy ? 'Starting…' : 'Start agent'}
+            </button>
+            <label style={{ fontSize: '0.78rem', display: 'flex', gap: '6px', alignItems: 'center', color: 'var(--text-muted)', flexBasis: '100%' }}>
+              <input
+                type="checkbox"
+                checked={form.authorizationConfirmed}
+                onChange={(e) => setForm({ ...form, authorizationConfirmed: e.target.checked })}
+              />
+              I am authorized to test this target (scope engine इसके बिना कोई action नहीं चलने देगा)
+            </label>
+          </form>
+          <details style={{ marginTop: '10px' }}>
+            <summary style={{ fontSize: '0.78rem', color: 'var(--text-muted)', cursor: 'pointer' }}>Optional: scope &amp; objective</summary>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+              <textarea
+                placeholder="scope (one per line, e.g. *.example.com)"
+                value={form.scope}
+                onChange={(e) => setForm({ ...form, scope: e.target.value })}
+                rows={3}
+                style={{ padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.3)', color: 'inherit', resize: 'vertical' }}
+              />
+              <input
+                placeholder="objective (optional)"
+                value={form.objective}
+                onChange={(e) => setForm({ ...form, objective: e.target.value })}
+                style={{ padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.3)', color: 'inherit' }}
+              />
+            </div>
+          </details>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', alignItems: 'start' }}>
+        {/* ── Assessments (multi-session) ───────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+            <h4 style={{ marginBottom: '10px' }}>Assessments</h4>
+            {jobs.length === 0 ? (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No assessments yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {jobs.map((item) => {
+                  const style = JOB_STATE_STYLE[item.status] || { color: '#94a3b8', label: item.status };
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => { setSelectedJobId(item.id); localStorage.setItem('darkmatter_active_job', item.id); }}
+                      className={`history-item ${item.id === selectedJobId ? 'active' : ''}`}
+                      style={{ textAlign: 'left' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                        <strong style={{ fontSize: '0.85rem' }}>{item.target}</strong>
+                        <span style={{ fontSize: '0.7rem', color: style.color }}>{style.label}</span>
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {item.phase || '—'} · {item.stepCount || 0} steps · {item.findingsCount || 0} findings
+                        {item.reportVersion ? ` · report v${item.reportVersion}` : ''}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {computer && (
+            <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+              <h4 style={{ marginBottom: '8px' }}>Computer (hands layer)</h4>
+              <p style={{ fontSize: '0.8rem', color: computer.runtime?.available ? '#22c55e' : '#eab308' }}>
+                {computer.runtime?.state || 'unknown'}
+              </p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
+                {computer.runtime?.reason || `platform ${computer.runtime?.platform || 'n/a'}`}
+              </p>
+              {computer.runtime?.inputSimulation === false && (
+                <p style={{ fontSize: '0.72rem', color: '#eab308' }}>
+                  Input simulation unavailable — observations and navigation still work.
+                </p>
+              )}
+              <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                Open-Interface bridge · screenshot/mouse/keyboard · {computer.runtime?.actionsPerformed || 0} actions
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Live agent panel ─────────────────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
+          {error && (
+            <div className="plan-card opaque-bg" style={{ padding: '12px', borderColor: '#ef4444' }}>
+              <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>{error}</span>
+            </div>
+          )}
+
+          {!job && (
+            <div className="plan-card opaque-bg" style={{ padding: '20px' }}>
+              <p style={{ color: 'var(--text-muted)' }}>
+                Select an assessment or start a new one. Every panel here is read from the backend,
+                so a refresh — or a closed browser — never loses state.
+              </p>
+            </div>
+          )}
+
+          {job && (
+            <>
+              <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assessment</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{job.target}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      scope: {(job.scope?.included || []).join(', ') || job.target}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>STATUS</div>
+                    <div style={{ color: jobStyle.color, fontWeight: 700 }} data-tick={tick}>{jobStyle.label}</div>
+                    <div style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{formatDuration(elapsedMs)}</div>
+                  </div>
+                </div>
+
+                {job.waitingReason && (
+                  <p style={{ marginTop: '10px', fontSize: '0.8rem', color: '#eab308' }}>{job.waitingReason}</p>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginTop: '14px' }}>
+                  {[
+                    ['Phase', job.phase || '—'],
+                    ['Objective', job.currentObjective || job.objective || '—'],
+                    ['Current action', job.currentAction || '—'],
+                    ['Brain', job.brainStatus || '—'],
+                    ['Steps', job.stepCount || 0],
+                    ['Findings', job.findingsCount || 0],
+                    ['Evidence', job.evidenceCount || 0],
+                    ['Events', state.eventCount || 0]
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '10px' }}>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
+                      <div style={{ fontSize: '0.85rem', wordBreak: 'break-word', color: '#e2e8f0' }}>{String(value)}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {job.lastBrainDecision && (
+                  <div style={{ marginTop: '12px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <div style={{ color: '#a78bfa' }}>Latest brain decision</div>
+                    <div>{job.lastBrainDecision.reason}</div>
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      {job.lastBrainDecision.action?.type}
+                      {job.lastBrainDecision.action?.name ? ` → ${job.lastBrainDecision.action.name}` : ''}
+                      {job.lastBrainDecision.action?.action?.type ? ` → ${job.lastBrainDecision.action.action.type}` : ''}
+                      {job.lastBrainDecision.confidence !== null && job.lastBrainDecision.confidence !== undefined ? ` · confidence ${job.lastBrainDecision.confidence}` : ''}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
+                  <button className="secondary-button" disabled={busy || isTerminal} onClick={() => withBusy(() => apiClient.pauseJob(job.id))}>
+                    <Pause size={14} /> Pause
+                  </button>
+                  <button className="secondary-button" disabled={busy || job.status !== 'paused'} onClick={() => withBusy(() => apiClient.continueJob(job.id))}>
+                    <Play size={14} /> Continue
+                  </button>
+                  <button className="secondary-button" disabled={busy || isTerminal} onClick={() => withBusy(() => apiClient.resumeJob(job.id))}>
+                    <RotateCcw size={14} /> Resume
+                  </button>
+                  <button className="secondary-button" disabled={busy || isTerminal} onClick={() => withBusy(() => apiClient.cancelJob(job.id))}>
+                    <Square size={14} /> Cancel
+                  </button>
+                  {job.reportId && (
+                    <button className="secondary-button" onClick={handleDownloadReport}>
+                      <Download size={14} /> Report v{job.reportVersion}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+                <h4 style={{ marginBottom: '8px' }}>Terminal — live agent activity</h4>
+                <div
+                  ref={terminalRef}
+                  style={{
+                    fontFamily: 'monospace', fontSize: '0.78rem', lineHeight: 1.5,
+                    background: 'rgba(0,0,0,0.45)', borderRadius: '8px', padding: '12px',
+                    maxHeight: '320px', overflowY: 'auto', whiteSpace: 'pre-wrap'
+                  }}
+                >
+                  {terminalLines.length === 0 ? (
+                    <span style={{ color: 'var(--text-muted)' }}>Waiting for the first activity…</span>
+                  ) : terminalLines.map((line) => (
+                    <div key={line.id} style={{ color: ACTIVITY_COLOR[line.kind] || '#cbd5e1' }}>
+                      [{formatClock(line.at)}] {line.message}
+                      {line.detail ? `\n         ↳ ${String(line.detail).slice(0, 300)}` : ''}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+                <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+                  <h4 style={{ marginBottom: '8px' }}>Plan</h4>
+                  {!job.plan?.phases?.length ? (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No durable plan yet.</p>
+                  ) : (
+                    <div style={{ fontSize: '0.8rem' }}>
+                      {job.plan.phases.map((phase) => (
+                        <div key={phase.name} style={{ marginBottom: '8px' }}>
+                          <strong>{phase.name}</strong>
+                          {(phase.steps || []).map((step) => (
+                            <div key={step.step} style={{ color: step.status === 'done' ? '#22c55e' : 'var(--text-muted)' }}>
+                              {step.status === 'done' ? '[x]' : '[ ]'} {step.step}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+                  <h4 style={{ marginBottom: '8px' }}>Findings</h4>
+                  {(state.findings || []).length === 0 ? (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      No confirmed findings yet. Observations stay observations until evidence exists.
+                    </p>
+                  ) : (
+                    <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {state.findings.map((finding) => (
+                        <div key={finding.id} style={{ borderLeft: '3px solid #f97316', paddingLeft: '8px' }}>
+                          <div><strong>{finding.title}</strong></div>
+                          <div style={{ color: 'var(--text-muted)' }}>
+                            {finding.severity} · {finding.status} · {finding.affectedAsset || 'n/a'}
+                          </div>
+                          {finding.evidence?.length > 0 && (
+                            <div style={{ color: '#22c55e', fontSize: '0.72rem' }}>{finding.evidence.length} evidence record(s)</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+                <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+                  <h4 style={{ marginBottom: '8px' }}>Event stream (replayable)</h4>
+                  <div style={{ maxHeight: '220px', overflowY: 'auto', fontSize: '0.72rem', fontFamily: 'monospace' }}>
+                    {liveEvents.slice(-120).map((event, index) => (
+                      <div key={`${event.id || index}-${index}`} style={{ color: 'var(--text-muted)' }}>
+                        <span style={{ color: '#38bdf8' }}>{event.type}</span> {String(event.message || '').slice(0, 160)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="plan-card opaque-bg" style={{ padding: '16px' }}>
+                  <h4 style={{ marginBottom: '8px' }}>Ask the agent</h4>
+                  <form onSubmit={handleAsk} style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      placeholder="What have you found so far?"
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
+                      style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.3)', color: 'inherit' }}
+                    />
+                    <button className="secondary-button" type="submit" disabled={busy}><Send size={14} /></button>
+                  </form>
+                  {answer && (
+                    <div style={{ marginTop: '10px', fontSize: '0.8rem', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '10px' }}>
+                      {answer.answer}
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                        model: {answer.model || 'local'} · job {answer.jobStatus} · phase {answer.phase}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Layout Component
 const AppLayout = ({ children, theme, toggleTheme }) => {
   return (
@@ -1419,7 +2408,11 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout theme={theme} toggleTheme={toggleTheme}>
                 <Routes>
-                  <Route path="/" element={<MainChat />} />
+                  {/* The autonomous agent IS the main screen. The older chat-driven
+                      assessment view stays reachable at /assessment-chat. */}
+                  <Route path="/" element={<AutonomousAgent />} />
+                  <Route path="/agent" element={<AutonomousAgent />} />
+                  <Route path="/assessment-chat" element={<MainChat />} />
                   <Route path="/infinite" element={<InfiniteChat />} />
                   <Route path="/billing" element={<BillingPage />} />
                   <Route path="/profile" element={<ProfilePage />} />

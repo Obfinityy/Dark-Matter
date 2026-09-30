@@ -82,19 +82,21 @@ export class ContextBudgetManager {
       messages.push(systemMsg);
     }
 
-    // ── 2. Current user request (PROTECTED) ───────────────────────────
-    // The current request is never silently truncated. If it alone cannot fit
-    // with the minimum viable prompt, we fail loudly with ContextWindowError —
-    // the engine then ingests it as chunks and references it instead.
-    const requestMsg = { role: 'user', content: userRequest };
+    // ── 2. Current user request (AUTO-COMPACTED IF OVERSIZED) ─────────
+    let safeUserRequest = userRequest;
+    let requestMsg = { role: 'user', content: safeUserRequest };
     usage.request = estimateMessageTokens(requestMsg);
 
     const minimumOverhead = usage.system + 16 /* task header etc */;
-    if (usage.request + minimumOverhead + outputReserve > this.capacity) {
-      const err = new Error('Current request alone exceeds the model context window');
-      err.code = 'CONTEXT_WINDOW_EXCEEDED';
-      err.detail = { requestTokens: usage.request, capacity: this.capacity, outputReserve };
-      throw err;
+    const maxAllowedForRequest = Math.max(500, available - minimumOverhead);
+
+    if (usage.request > maxAllowedForRequest) {
+      const targetChars = Math.floor(maxAllowedForRequest * 3.2); // ~3.2 chars per token
+      const half = Math.max(200, Math.floor(targetChars / 2));
+      safeUserRequest = safeUserRequest.slice(0, half) + `\n\n[... Prompt auto-compacted (${userRequest.length} chars) to fit model context window ...]\n\n` + safeUserRequest.slice(-half);
+      requestMsg = { role: 'user', content: safeUserRequest };
+      usage.request = estimateMessageTokens(requestMsg);
+      usage.compactedRequest = true;
     }
 
     // ── 3. Task state (critical facts; compacted if pathologically large) ──

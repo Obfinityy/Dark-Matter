@@ -1,2 +1,7 @@
 .agents
 brag-output-infinity-ad
+
+# Runtime artifacts (computer screenshots, generated reports/data)
+data/
+# Project-local virtualenv for the computer bridge (keeps pyautogui out of system Python)
+.venv/

@@ -1,5 +1,5 @@
 import { config } from '../../config.js';
-import { PhoneLocalProvider } from '../../agent/providers/phoneLocalProvider.js';
+import { PhoneLocalProvider, normalizeMessagesForPhone, stripThinkingTags } from '../../agent/providers/phoneLocalProvider.js';
 import { localAIQueue } from '../../agent/providers/localAiQueue.js';
 
 /**
@@ -76,6 +76,8 @@ class PhoneModelAdapter {
       // single call we only handle transient retries.
       let lastError = null;
 
+      const activeModel = await this.provider.resolveModel();
+      const safeMessages = normalizeMessagesForPhone(messages);
       while (attempt < maxAttempts) {
         attempt += 1;
         try {
@@ -83,8 +85,8 @@ class PhoneModelAdapter {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model: this.provider.model || 'local',
-              messages,
+              model: activeModel,
+              messages: safeMessages,
               max_tokens: maxTokens
             }),
             signal: AbortSignal.timeout(timeoutMs)
@@ -98,8 +100,9 @@ class PhoneModelAdapter {
           if (res.ok) {
             const data = await res.json();
             const choice = data?.choices?.[0];
+            const rawText = choice?.message?.content || '';
             return {
-              text: choice?.message?.content || '',
+              text: stripThinkingTags(rawText),
               finishReason: choice?.finish_reason || null,
               raw: data
             };
@@ -108,6 +111,36 @@ class PhoneModelAdapter {
           const errorBody = await res.text();
 
           if (isContextOverflow(res.status, errorBody)) {
+            // Adaptive prompt reduction retry if phone LLM context overflows
+            if (safeMessages.length > 0) {
+              const lastMsg = safeMessages[safeMessages.length - 1];
+              const trimmedContent = typeof lastMsg.content === 'string'
+                ? lastMsg.content.slice(0, 1200) + '\n\n[... Prompt trimmed to fit phone memory ...]'
+                : lastMsg.content;
+              const fallbackMessages = [{ role: 'user', content: trimmedContent }];
+              
+              try {
+                const fallbackOptions = {
+                  ...fetchOptions,
+                  body: JSON.stringify({
+                    model: activeModel,
+                    messages: fallbackMessages,
+                    max_tokens: Math.min(maxTokens, 512)
+                  })
+                };
+                const fallbackRes = await fetch(`${this.provider.baseUrl}/chat/completions`, fallbackOptions);
+                if (fallbackRes.ok) {
+                  const data = await fallbackRes.json();
+                  const choice = data?.choices?.[0];
+                  return {
+                    text: choice?.message?.content || '',
+                    finishReason: choice?.finish_reason || null,
+                    raw: data
+                  };
+                }
+              } catch (e) {}
+            }
+
             throw new ContextWindowError(
               'Prompt exceeded the local model context window',
               { upstreamStatus: res.status, body: errorBody.slice(0, 300) }
@@ -173,6 +206,85 @@ class PhoneModelAdapter {
       err.rawText = text.slice(0, 400);
       throw err;
     }
+  }
+
+  /**
+   * Stream completion tokens in real-time.
+   */
+  async streamComplete(messages, options = {}) {
+    const { onToken, onState = () => {}, maxTokens = 2500 } = options;
+    const timeoutMs = options.timeoutMs || 3600000;
+
+    return this.queue.enqueue(async () => {
+      onState({ step: 'Connecting to Local Phone AI', detail: 'Acquiring queue lock & resolving model...' });
+      const activeModel = await this.provider.resolveModel();
+      const safeMessages = normalizeMessagesForPhone(messages);
+
+      const fetchOptions = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: activeModel,
+          messages: safeMessages,
+          max_tokens: maxTokens,
+          stream: true
+        }),
+        signal: AbortSignal.timeout(timeoutMs)
+      };
+      if (this.provider.apiKey && this.provider.apiKey !== 'no-key-required') {
+        fetchOptions.headers['Authorization'] = `Bearer ${this.provider.apiKey}`;
+      }
+
+      let res;
+      try {
+        res = await fetch(`${this.provider.baseUrl}/chat/completions`, fetchOptions);
+      } catch (err) {
+        // Fallback to non-streaming complete if stream connection fails
+        return this.complete(messages, options);
+      }
+
+      if (!res.ok || !res.body) {
+        return this.complete(messages, options);
+      }
+
+      onState({ step: 'Streaming Live Response', detail: 'Receiving tokens from phone AI...' });
+
+      let fullText = '';
+      let buffer = '';
+      const decoder = new TextDecoder();
+
+      for await (const chunk of res.body) {
+        buffer += decoder.decode(chunk, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith(':')) continue;
+          if (trimmed === 'data: [DONE]') break;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              const delta = data?.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                fullText += delta;
+                const cleanTextSoFar = stripThinkingTags(fullText);
+                if (onToken) {
+                  onToken(delta, cleanTextSoFar);
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      const finalCleanText = stripThinkingTags(fullText);
+      return {
+        text: finalCleanText || fullText,
+        finishReason: 'stop',
+        raw: { text: fullText }
+      };
+    });
   }
 }
 

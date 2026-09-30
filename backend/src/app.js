@@ -35,6 +35,25 @@ import { createSettingsController } from './controllers/settingsController.js';
 import { createTargetController } from './controllers/targetController.js';
 import { createAssessmentController } from './controllers/assessmentController.js';
 import { createInfiniteChatController } from './controllers/infiniteChatController.js';
+import { createJobController } from './controllers/jobController.js';
+import { createComputerController } from './controllers/computerController.js';
+import { createComputerTaskController } from './controllers/computerTaskController.js';
+import { AgentJobModel } from './models/agentJobModel.js';
+import { ComputerTaskModel } from './models/computerTaskModel.js';
+import { ComputerTaskBrain } from './agent/computerTaskBrain.js';
+import { ComputerTaskWorker } from './jobs/computerTaskWorker.js';
+import { ComputerTaskManager } from './services/computerTaskManager.js';
+import { AgentMemoryModel } from './models/agentMemoryModel.js';
+import { EvidenceModel } from './models/evidenceModel.js';
+import { AgentMemory } from './agent/memory/agentMemory.js';
+import { AutonomousBrain } from './agent/autonomousBrain.js';
+import { ContextBudgetManager } from './services/longContext/contextBudgetManager.js';
+import { ComputerState } from './computer/computerState.js';
+import { ComputerEvents } from './computer/computerEvents.js';
+import { OpenInterfaceAdapter } from './computer/openInterfaceAdapter.js';
+import { FindingLifecycleService } from './services/findingLifecycleService.js';
+import { AgentWorker } from './jobs/agentWorker.js';
+import { JobManager } from './jobs/jobManager.js';
 import { listTools } from './controllers/toolController.js';
 import { createReportController } from './controllers/reportController.js';
 import { createRoutes } from './routes/index.js';
@@ -64,6 +83,9 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
   const toolExecutionModel = new ToolExecutionModel(database);
   const findingModel = new FindingModel(database);
   const reportModel = new ReportModel(database);
+  const agentJobModel = new AgentJobModel(database);
+  const agentMemoryModel = new AgentMemoryModel(database);
+  const evidenceModel = new EvidenceModel(database);
 
   // ─── Existing Services ────────────────────────────────────────────
   const authService = new AuthService({ userModel, sessionModel, sessionDays: config.sessionDays });
@@ -106,7 +128,96 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     findingModel,
     toolExecutionModel,
     agentStateModel,
+    eventService,
+    evidenceModel
+  });
+
+  // ─── Computer Control (Open-Interface "hands") ───────────────────
+  // The adapter owns the Python bridge process. It never calls an LLM: the
+  // local phone Gemma remains the only brain.
+  const computerState = new ComputerState();
+  const computerEvents = new ComputerEvents({ eventService, state: computerState });
+  const computerAdapter = new OpenInterfaceAdapter({
+    config: config.computer,
+    state: computerState,
+    events: computerEvents
+  });
+  computerState.setCapabilities(null, {
+    available: false,
+    reason: config.computer.enabled ? 'not probed yet' : 'computer control is disabled (COMPUTER_CONTROL_ENABLED=false)'
+  });
+
+  // ─── Persistent Agent Memory (MongoDB as the brain's memory) ─────
+  const agentMemory = new AgentMemory({
+    memoryModel: agentMemoryModel,
+    contextBudgetManager: new ContextBudgetManager({
+      capacity: config.longContext.modelContextTokens,
+      outputReserve: config.longContext.outputReserveTokens
+    })
+  });
+
+  const findingLifecycle = new FindingLifecycleService({
+    findingModel,
+    evidenceModel,
+    memory: agentMemory,
+    eventService,
+    agentStateModel
+  });
+
+  // ─── Autonomous Brain (local phone Gemma ONLY) ────────────────────
+  const autonomousBrain = new AutonomousBrain({
+    memory: agentMemory,
+    eventService,
+    computer: computerAdapter
+  });
+
+  // ─── Persistent Job Worker ────────────────────────────────────────
+  const agentWorker = new AgentWorker({
+    jobModel: agentJobModel,
+    assessmentModel,
+    brain: autonomousBrain,
+    memory: agentMemory,
+    toolExecutor,
+    toolExecutionModel,
+    computer: computerAdapter,
+    computerState,
+    computerEvents,
+    findingLifecycle,
+    evidenceModel,
+    stateManager,
+    eventService,
+    reportService,
+    findingModel
+  });
+
+  const jobManager = new JobManager({
+    jobModel: agentJobModel,
+    assessmentModel,
+    worker: agentWorker,
+    eventService,
+    config: config.agentWorker
+  });
+
+  // ─── InfiniteChat Computer Tasks (local brain + shared hands) ──────
+  // Logically separated from the bug-bounty agent (own model/worker/manager/
+  // endpoints) but reusing the SAME computer layer and LocalAIQueue — never a
+  // second bridge, never a second action protocol (#29, #30).
+  const computerTaskModel = new ComputerTaskModel(database);
+  const computerTaskBrain = new ComputerTaskBrain({});
+  const computerTaskWorker = new ComputerTaskWorker({
+    taskModel: computerTaskModel,
+    chatModel: infiniteChatModel,
+    brain: computerTaskBrain,
+    computer: computerAdapter,
+    computerState,
+    computerEvents,
     eventService
+  });
+  const computerTaskManager = new ComputerTaskManager({
+    taskModel: computerTaskModel,
+    worker: computerTaskWorker,
+    eventService,
+    config: { recoverOnBoot: config.agentWorker.recoverOnBoot }
   });
 
   // ─── Infinity Long-Context Engine ─────────────────────────────────
@@ -137,13 +248,21 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     subdomainService, authService, assessmentModel, agentStateModel,
     toolExecutionModel, findingModel, reportModel, assessmentService,
     reportService, agentBrain,
-    longContextEngine, longGenerationEngine
+    longContextEngine, longGenerationEngine,
+    agentJobModel, agentMemoryModel, evidenceModel, agentMemory,
+    computerState, computerEvents, computerAdapter, autonomousBrain,
+    findingLifecycle, agentWorker, jobManager,
+    computerTaskModel, computerTaskBrain, computerTaskWorker, computerTaskManager
   };
   app.locals.shutdown = async () => {
     // Stop all running assessments on shutdown
     for (const [id] of agentBrain.runningAssessments) {
       agentBrain.stop(id);
     }
+    // Stop the autonomous worker and the computer bridge, then close Mongo.
+    await agentWorker.stopAll();
+    await computerTaskManager.stopAll();
+    computerAdapter.stop();
     await database.close();
   };
 
@@ -158,10 +277,31 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
       agent: createAgentController(scanService),
       assessments: createAssessmentController(assessmentService, eventService),
       reports: createReportController(reportService, assessmentService),
-      infiniteChat: createInfiniteChatController({ longContextEngine, longGenerationEngine })
+      infiniteChat: createInfiniteChatController({ longContextEngine, longGenerationEngine, computerTaskManager }),
+      jobs: createJobController({ jobManager, assessmentService, eventService, computerAdapter }),
+      computer: createComputerController({ computerAdapter, assessmentModel }),
+      computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter })
     }
   }));
   app.use(notFoundHandler);
   app.use(errorHandler);
+
+  // ─── Boot recovery: pick up jobs left over from a restart ──────────
+  // Runs after the app is built so an operator can observe it, and never
+  // blocks startup. A restart must not lose a 50-hour assessment (#70).
+  if (config.agentWorker.recoverOnBoot && config.agentWorker.autoStartWorker) {
+    setImmediate(() => {
+      jobManager.recoverIncompleteJobs().catch((error) => {
+        console.error('[job-manager] boot recovery failed:', error.message);
+      });
+      computerTaskManager.recoverIncompleteTasks().catch((error) => {
+        console.error('[computer-task-manager] boot recovery failed:', error.message);
+      });
+    });
+  }
+
+  // Expose the boot-recovery hooks so server.js / tests can drive them explicitly.
+  app.locals.jobManager = jobManager;
+  app.locals.computerTaskManager = computerTaskManager;
   return app;
 }
