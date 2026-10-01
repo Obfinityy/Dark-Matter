@@ -26,11 +26,12 @@ import {
   runRunnerModel, stopRunnerModel,
   getRemoteModelStatus, testRemoteModel, connectRemoteModel, disconnectRemoteModel
 } from '../../services/api';
+import './ModelLibrary.css';
 
 function ProgressBar({ value }) {
   return (
-    <div className="dm-progress">
-      <div className="dm-progress-fill" style={{ width: `${Math.round(value * 100)}%` }} />
+    <div className="sg-progress">
+      <div className="sg-progress-fill" style={{ width: `${Math.round(value * 100)}%` }} />
     </div>
   );
 }
@@ -47,7 +48,7 @@ function VerdictBadge({ compatibility }) {
   const meta = VERDICT_META[compatibility.verdict] || VERDICT_META.blocked;
   const Icon = meta.icon;
   return (
-    <span className={`dm-verdict ${meta.cls}`} title={(compatibility.reasons || []).join(' ')}>
+    <span className={`sg-verdict ${meta.cls}`} title={(compatibility.reasons || []).join(' ')}>
       <Icon size={12} /> {meta.label}
     </span>
   );
@@ -284,22 +285,22 @@ export function ModelLibrary() {
     : 'No GPU detected';
 
   return (
-    <div className="dm-models-page">
-      <div className="dm-page-head">
+    <div className="sg-models-page">
+      <div className="sg-page-head">
         <div>
           <h2><Zap size={20} /> Run Locally</h2>
-          <p className="dm-page-sub">
+          <p className="sg-body">
             No Ollama, no setup. Pick a model, press <b>Download</b>, then <b>Run</b> —
             it starts on localhost and becomes the brain for Hunt and Infinity AI.
           </p>
         </div>
       </div>
 
-      {error && <div className="dm-alert dm-alert-error">{error}</div>}
+      {error && <div className="sg-alert sg-auth-error">{error}</div>}
 
       {/* ── Remote GPU: Kaggle / Colab ─────────────────────────── */}
-      <div className="dm-remote-card">
-        <div className="dm-remote-head">
+      <div className="sg-card sg-card-pad">
+        <div className="sg-remote-head">
           <Cloud size={18} />
           <div>
             <strong>Remote GPU — Kaggle / Colab</strong>
@@ -310,63 +311,63 @@ export function ModelLibrary() {
             </p>
           </div>
           {remote?.connected && (
-            <span className="dm-model-active"><span className="dm-pulse" /> Connected</span>
+            <span className="sg-pill sg-pill-go"><span className="sg-pulse-dot" /> Connected</span>
           )}
         </div>
 
         {remote?.connected ? (
-          <div className="dm-remote-connected">
-            <div className="dm-remote-info">
+          <div className="sg-remote-connected">
+            <div className="sg-small">
               <Wifi size={15} />
               <div>
                 <strong>{remote.name || 'Remote GPU'}</strong>
-                <span className="dm-remote-sub">{remote.gradioUrl}</span>
+                <span className="sg-small">{remote.gradioUrl}</span>
                 {remote.health?.latencyMs != null && (
-                  <span className="dm-remote-sub">Link latency {remote.health.latencyMs} ms</span>
+                  <span className="sg-small">Link latency {remote.health.latencyMs} ms</span>
                 )}
               </div>
             </div>
-            <button className="dm-btn-secondary" onClick={doRemoteDisconnect} disabled={remoteBusy === 'disconnect'}>
-              {remoteBusy === 'disconnect' ? <Loader2 size={15} className="dm-spin" /> : <Unplug size={15} />}
+            <button className="sg-btn sg-btn-ghost" onClick={doRemoteDisconnect} disabled={remoteBusy === 'disconnect'}>
+              {remoteBusy === 'disconnect' ? <Loader2 size={15} className="sg-spin" /> : <Unplug size={15} />}
               Disconnect
             </button>
           </div>
         ) : (
-          <div className="dm-remote-form">
-            <div className="dm-form-row">
+          <div className="sg-remote-form">
+            <div className="sg-form-row">
               <input
-                className="dm-input"
+                className="sg-input"
                 placeholder="Paste the Gradio share link — https://xxxx.gradio.live"
                 value={remoteUrl}
                 onChange={(e) => setRemoteUrl(e.target.value)}
                 disabled={!!remoteBusy}
               />
             </div>
-            <div className="dm-form-row">
+            <div className="sg-form-row">
               <input
-                className="dm-input"
+                className="sg-input"
                 placeholder="Name it (optional) — e.g. Kaggle Qwen3-8B"
                 value={remoteName}
                 onChange={(e) => setRemoteName(e.target.value)}
                 disabled={!!remoteBusy}
               />
             </div>
-            <div className="dm-remote-actions">
-              <button className="dm-btn-secondary" onClick={doRemoteTest} disabled={!remoteUrl.trim() || !!remoteBusy}>
-                {remoteBusy === 'test' ? <Loader2 size={15} className="dm-spin" /> : <Link2 size={15} />}
+            <div className="sg-row">
+              <button className="sg-btn sg-btn-ghost" onClick={doRemoteTest} disabled={!remoteUrl.trim() || !!remoteBusy}>
+                {remoteBusy === 'test' ? <Loader2 size={15} className="sg-spin" /> : <Link2 size={15} />}
                 Test link
               </button>
-              <button className="dm-btn-primary" onClick={doRemoteConnect} disabled={!remoteUrl.trim() || !!remoteBusy}>
-                {remoteBusy === 'connect' ? <Loader2 size={15} className="dm-spin" /> : <Zap size={15} />}
+              <button className="sg-btn sg-btn-primary" onClick={doRemoteConnect} disabled={!remoteUrl.trim() || !!remoteBusy}>
+                {remoteBusy === 'connect' ? <Loader2 size={15} className="sg-spin" /> : <Zap size={15} />}
                 Connect
               </button>
             </div>
             {remoteMsg && (
-              <div className={`dm-alert ${remoteMsg.ok ? 'dm-alert-success' : 'dm-alert-error'}`}>
+              <div className={`sg-alert ${remoteMsg.ok ? 'sg-alert-success' : 'sg-auth-error'}`}>
                 {remoteMsg.text}
               </div>
             )}
-            <p className="dm-remote-hint">
+            <p className="sg-tiny">
               How to get a link: on Kaggle/Colab run a Gradio ChatInterface with your model
               and <b>share=True</b> — copy the public <b>.gradio.live</b> URL it prints.
             </p>
@@ -376,45 +377,45 @@ export function ModelLibrary() {
 
       {/* Currently running model */}
       {running && (
-        <div className="dm-running-banner">
-          <div className="dm-running-info">
-            <span className="dm-pulse" />
+        <div className="sg-card sg-card-pad sg-running-banner">
+          <div className="sg-running-info">
+            <span className="sg-pulse-dot" />
             <div>
               <strong>{running.name || running.modelId}</strong>
-              <span className="dm-running-sub">
+              <span className="sg-small">
                 Running on localhost{running.port ? ` :${running.port}` : ''} — thinking for Hunt and Infinity AI
               </span>
             </div>
           </div>
-          <button className="dm-btn-secondary" onClick={stop} disabled={busyModel === '__stop'}>
-            {busyModel === '__stop' ? <Loader2 size={15} className="dm-spin" /> : <Square size={15} />}
+          <button className="sg-btn sg-btn-ghost" onClick={stop} disabled={busyModel === '__stop'}>
+            {busyModel === '__stop' ? <Loader2 size={15} className="sg-spin" /> : <Square size={15} />}
             Stop
           </button>
         </div>
       )}
 
       {/* Device summary */}
-      <div className="dm-device-card">
-        <div className="dm-device-head">
+      <div className="sg-card sg-card-pad">
+        <div className="sg-device-head">
           <MonitorCog size={17} />
           <strong>Your device</strong>
-          {device && <span className="dm-device-os">{device.os} · {device.arch}</span>}
+          {device && <span className="sg-device-os">{device.os} · {device.arch}</span>}
         </div>
-        <div className="dm-device-specs">
-          <div className="dm-device-spec">
+        <div className="sg-device-specs">
+          <div className="sg-device-spec">
             <MemoryStick size={15} />
             <span>{device ? formatGB(device.totalRamGB) + ' RAM' : '—'}</span>
           </div>
-          <div className="dm-device-spec">
+          <div className="sg-device-spec">
             <Cpu size={15} />
             <span>{device ? `${device.cpuCount || '?'} CPU cores` : '—'}</span>
           </div>
-          <div className="dm-device-spec">
+          <div className="sg-device-spec">
             <HardDrive size={15} />
             <span>{gpuLabel}</span>
           </div>
         </div>
-        <p className="dm-device-note">
+        <p className="sg-small">
           Models below are ranked for <b>this</b> device. Green means ready, amber means it fits
           but will feel heavy, red means it may crash this machine.
         </p>
@@ -422,8 +423,8 @@ export function ModelLibrary() {
 
       {/* Engine one-time setup */}
       {!engineReady && (
-        <div className="dm-engine-card">
-          <div className="dm-engine-info">
+        <div className="sg-card sg-card-pad">
+          <div className="sg-small">
             <Server size={17} />
             <div>
               <strong>Step 0 — one-time engine download</strong>
@@ -434,7 +435,7 @@ export function ModelLibrary() {
             </div>
           </div>
           {engineDl && engineDl.status !== 'idle' ? (
-            <div className="dm-pull-progress">
+            <div className="sg-pull-progress">
               <ProgressBar value={engineDl.progress || 0} />
               <span>
                 {engineDl.status === 'error'
@@ -443,8 +444,8 @@ export function ModelLibrary() {
               </span>
             </div>
           ) : (
-            <button className="dm-btn-primary" onClick={startEngineDownload} disabled={busyEngine}>
-              {busyEngine ? <Loader2 size={15} className="dm-spin" /> : <Download size={15} />}
+            <button className="sg-btn sg-btn-primary" onClick={startEngineDownload} disabled={busyEngine}>
+              {busyEngine ? <Loader2 size={15} className="sg-spin" /> : <Download size={15} />}
               Download engine
             </button>
           )}
@@ -452,40 +453,40 @@ export function ModelLibrary() {
       )}
 
       {/* Model cards */}
-      <div className="dm-section-title">Models</div>
+      <div className="sg-h2">Models</div>
       {loading ? (
-        <div className="dm-loading"><Loader2 className="dm-spin" size={22} /> Loading models…</div>
+        <div className="sg-loading-box"><Loader2 className="sg-spin" size={22} /> Loading models…</div>
       ) : (
-        <div className="dm-model-grid">
+        <div className="sg-model-grid">
           {library.map((model) => {
             const isDownloading = download && download.modelId === model.id && download.status !== 'idle';
             const dlFailed = download && download.modelId === model.id && download.status === 'error';
             const compat = model.compatibility || {};
             const req = model.requirements || {};
             return (
-              <div key={model.id} className={`dm-model-card ${model.running ? 'active' : ''}`}>
-                <div className="dm-model-top">
+              <div key={model.id} className={`sg-card sg-card-pad sg-model-card ${model.running ? 'active' : ''}`}>
+                <div className="sg-model-top">
                   <h3>{model.name}</h3>
                   <VerdictBadge compatibility={compat} />
                   {model.running && (
-                    <span className="dm-model-active"><span className="dm-pulse" /> Running</span>
+                    <span className="sg-pill sg-pill-go"><span className="sg-pulse-dot" /> Running</span>
                   )}
                 </div>
-                <p className="dm-model-desc">{model.description}</p>
-                <div className="dm-model-meta">
+                <p className="sg-small">{model.description}</p>
+                <div className="sg-model-meta">
                   <span>{model.sizeGB ? `~${model.sizeGB} GB download` : 'Custom'}</span>
                   {req.ramGB ? <span>Needs {req.ramGB} GB RAM</span> : null}
                   <span>{req.gpuRequired ? 'GPU required' : (req.vramGB ? 'GPU optional' : 'CPU OK')}</span>
                   {model.quant ? <span>{model.quant}</span> : null}
                 </div>
                 {(compat.reasons || []).length > 0 && (
-                  <ul className="dm-verdict-reasons">
+                  <ul className="sg-verdict-reasons">
                     {compat.reasons.map((r, i) => <li key={i}>{r}</li>)}
                   </ul>
                 )}
-                <div className="dm-model-actions">
+                <div className="sg-row">
                   {isDownloading ? (
-                    <div className="dm-pull-progress" style={{ width: '100%' }}>
+                    <div className="sg-pull-progress" style={{ width: '100%' }}>
                       <ProgressBar value={download.progress || 0} />
                       <span>
                         {dlFailed
@@ -494,7 +495,7 @@ export function ModelLibrary() {
                       </span>
                       {!dlFailed && (
                         <button
-                          className="dm-btn-secondary dm-btn-sm"
+                          className="sg-btn sg-btn-ghost sg-btn-sm"
                           onClick={() => cancelRunnerDownload().then(refresh).catch(() => {})}
                         >
                           <X size={13} /> Cancel
@@ -504,27 +505,27 @@ export function ModelLibrary() {
                   ) : model.downloaded ? (
                     <>
                       {model.running ? (
-                        <button className="dm-btn-secondary" onClick={stop} disabled={busyModel === '__stop'}>
-                          {busyModel === '__stop' ? <Loader2 size={15} className="dm-spin" /> : <Square size={15} />}
+                        <button className="sg-btn sg-btn-ghost" onClick={stop} disabled={busyModel === '__stop'}>
+                          {busyModel === '__stop' ? <Loader2 size={15} className="sg-spin" /> : <Square size={15} />}
                           Stop
                         </button>
                       ) : (
                         <button
-                          className="dm-btn-primary"
+                          className="sg-btn sg-btn-primary"
                           onClick={() => run(model.id)}
                           disabled={busyModel === model.id || !engineReady || compat.verdict === 'blocked'}
                           title={!engineReady ? 'Download the engine first' : undefined}
                         >
-                          {busyModel === model.id ? <Loader2 size={15} className="dm-spin" /> : <Play size={15} />}
+                          {busyModel === model.id ? <Loader2 size={15} className="sg-spin" /> : <Play size={15} />}
                           Run
                         </button>
                       )}
-                      <button className="dm-btn-secondary" onClick={() => remove(model.id)} title="Delete the downloaded file">
+                      <button className="sg-btn sg-btn-ghost" onClick={() => remove(model.id)} title="Delete the downloaded file">
                         <Trash2 size={15} />
                       </button>
                     </>
                   ) : (
-                    <button className="dm-btn-primary" onClick={() => startDownload(model.id)}>
+                    <button className="sg-btn sg-btn-primary" onClick={() => startDownload(model.id)}>
                       <Download size={15} /> Download
                     </button>
                   )}
@@ -536,18 +537,18 @@ export function ModelLibrary() {
       )}
 
       {/* Custom model */}
-      <div className="dm-section-title" style={{ marginTop: 26 }}>Your own model</div>
-      <form className="dm-custom-form" onSubmit={addCustom}>
+      <div className="sg-h2" style={{ marginTop: 26 }}>Your own model</div>
+      <form className="sg-custom-form" onSubmit={addCustom}>
         <h4><Plus size={15} /> Add any public Hugging Face GGUF</h4>
-        <div className="dm-form-row">
+        <div className="sg-form-row">
           <input
-            className="dm-input"
+            className="sg-input"
             placeholder="Name (e.g. My 14B coder)"
             value={customForm.name}
             onChange={(e) => setCustomForm({ ...customForm, name: e.target.value })}
           />
           <input
-            className="dm-input"
+            className="sg-input"
             placeholder="RAM needed (GB, optional)"
             type="number"
             min="1"
@@ -555,24 +556,24 @@ export function ModelLibrary() {
             onChange={(e) => setCustomForm({ ...customForm, ramGB: e.target.value })}
           />
         </div>
-        <div className="dm-form-row">
+        <div className="sg-form-row">
           <input
-            className="dm-input"
+            className="sg-input"
             placeholder="Hugging Face repo (e.g. bartowski/Qwen3-8B-GGUF)"
             value={customForm.repo}
             onChange={(e) => setCustomForm({ ...customForm, repo: e.target.value })}
           />
         </div>
-        <div className="dm-form-row">
+        <div className="sg-form-row">
           <input
-            className="dm-input"
+            className="sg-input"
             placeholder="GGUF file name (e.g. Qwen3-8B-Q4_K_M.gguf)"
             value={customForm.file}
             onChange={(e) => setCustomForm({ ...customForm, file: e.target.value })}
           />
         </div>
-        <button className="dm-btn-secondary" type="submit" disabled={customBusy}>
-          {customBusy ? <Loader2 size={15} className="dm-spin" /> : <Plus size={15} />} Add model
+        <button className="sg-btn sg-btn-ghost" type="submit" disabled={customBusy}>
+          {customBusy ? <Loader2 size={15} className="sg-spin" /> : <Plus size={15} />} Add model
         </button>
       </form>
     </div>

@@ -9,6 +9,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, FileWarning, ShieldAlert } from 'lucide-react';
 import { getHuntRecord, downloadHuntRecordMarkdown } from '../../services/api';
 import { ReportExport } from '../../components/agent/ReportExport';
+import './ReportReader.css';
 
 export function ReportReader() {
   const { id } = useParams();
@@ -37,34 +38,34 @@ export function ReportReader() {
     return () => { cancelled = true; };
   }, [id]);
 
-  if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Loading report…</div>;
+  if (loading) return <div className="sg-loading-box"><Loader2 size={18} className="sg-spin" /> Loading report…</div>;
 
   if (error || !record) {
     return (
-      <div className="dm-report-reader">
-        <Link to="/agent/reports" className="dm-back"><ArrowLeft size={14} /> Past reports</Link>
-        <div className="dm-page-error"><ShieldAlert size={18} /> {error || 'Report not found.'}</div>
+      <div className="sg-report-reader">
+        <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} /> Past reports</Link>
+        <div className="sg-page-error"><ShieldAlert size={18} /> {error || 'Report not found.'}</div>
       </div>
     );
   }
 
   return (
-    <div className="dm-report-reader">
-      <Link to="/agent/reports" className="dm-back"><ArrowLeft size={14} /> Past reports</Link>
+    <div className="sg-report-reader">
+      <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} /> Past reports</Link>
 
-      <div className="dm-reader-top">
+      <div className="sg-reader-top">
         <ReportExport huntId={record.jobId || record.id} recordId={record.id} markdown={markdown} />
       </div>
 
-      <header className="dm-reader-head">
+      <header className="sg-reader-head">
         <code>{record.target}</code>
-        <div className="dm-reader-meta">
-          <span className="dm-record-version">v{record.version || 1}</span>
+        <div className="sg-reader-meta">
+          <span className="sg-pill">v{record.version || 1}</span>
           {record.completedAt && <span>Hunted {new Date(record.completedAt).toLocaleString()}</span>}
           {record.severitySummary && (
-            <span className="dm-sev-chips">
+            <span className="sg-row" style={{ gap: 8 }}>
               {Object.entries(record.severitySummary).map(([sev, count]) => (
-                count > 0 && <span key={sev} className={`dm-sev-chip sev-${sev}`}>{sev} {count}</span>
+                count > 0 && <span key={sev} className={`sg-pill ${sev === 'critical' ? 'sg-pill-danger' : sev === 'high' ? 'sg-pill-warn' : ''}`}>{sev} {count}</span>
               ))}
             </span>
           )}
@@ -72,7 +73,7 @@ export function ReportReader() {
       </header>
 
       {markdown ? (
-        <article className="dm-markdown-body">
+        <article className="sg-markdown-body">
           {markdown.split('\n').map((line, i) => (
             <React.Fragment key={i}>
               {line.startsWith('# ') ? <h1>{line.slice(2)}</h1>
@@ -86,7 +87,7 @@ export function ReportReader() {
           ))}
         </article>
       ) : (
-        <div className="dm-empty-state">
+        <div className="sg-empty-state">
           <FileWarning size={28} />
           <p>No Markdown report was archived for this hunt — its findings summary above is the record.</p>
         </div>

@@ -1,0 +1,54 @@
+/**
+ * ModelLibrary page styles.
+ */
+
+.sg-models-page { padding-bottom: 24px; max-width: 960px; }
+
+.sg-model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 20px 0 32px; }
+.sg-model-card { transition: border-color var(--sg-fast), transform var(--sg-fast); }
+.sg-model-card:hover { border-color: rgba(129, 140, 248, 0.3); transform: translateY(-2px); }
+.sg-model-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.sg-model-top strong { font-size: 1rem; letter-spacing: -0.01em; }
+.sg-model-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+
+.sg-remote-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.sg-remote-head h3 { margin: 0; font-size: 1.15rem; letter-spacing: -0.02em; }
+.sg-remote-form { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.sg-remote-form .sg-form-row { flex: 1 1 240px; min-width: 0; }
+.sg-remote-form .sg-row { flex: 1 1 100%; }
+.sg-remote-form .sg-input { flex: 1; min-width: 0; }
+.sg-remote-connected {
+  display: flex; align-items: center; gap: 10px; margin-top: 16px;
+  padding: 14px 16px; border-radius: var(--sg-r-md);
+  background: var(--sg-go-dim); border: 1px solid rgba(52, 211, 153, 0.3);
+  font-size: 0.9rem;
+}
+
+.sg-running-banner { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-color: rgba(52, 211, 153, 0.25); }
+.sg-running-info { flex: 1; }
+.sg-pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sg-go); box-shadow: 0 0 12px var(--sg-go); animation: sg-pulse 1.6s infinite; flex-shrink: 0; }
+
+.sg-device-specs { display: flex; gap: 22px; flex-wrap: wrap; margin: 4px 0 12px; }
+.sg-device-spec { display: flex; align-items: center; gap: 8px; font-family: var(--sg-mono); font-size: 0.8rem; color: var(--sg-text-3); }
+.sg-device-spec svg { color: var(--sg-text-2); flex-shrink: 0; }
+.sg-device-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sg-device-head .sg-device-os { margin-left: auto; color: var(--sg-text-2); font-size: 0.85rem; }
+.sg-device-os { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+
+.sg-custom-form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.sg-form-row { display: flex; gap: 10px; }
+.sg-form-row .sg-input { flex: 1; }
+
+.sg-progress { height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); overflow: hidden; margin-top: 12px; }
+.sg-progress-fill { height: 100%; background: var(--sg-gradient); border-radius: 99px; transition: width 0.3s; }
+.sg-pull-progress { margin-top: 12px; font-size: 0.82rem; color: var(--sg-text-2); }
+
+.sg-verdict { padding: 14px 16px; border-radius: var(--sg-r-md); margin-top: 16px; font-size: 0.9rem; }
+.sg-verdict-reasons { margin: 8px 0 0; padding-left: 18px; font-size: 0.85rem; color: var(--sg-text-2); }
+
+.sg-alert { padding: 14px 16px; border-radius: var(--sg-r-md); margin: 16px 0; font-size: 0.9rem; background: var(--sg-info-dim); border: 1px solid rgba(96, 165, 250, 0.3); }
+
+@media (max-width: 560px) {
+  .sg-remote-form, .sg-form-row { flex-direction: column; }
+  .sg-remote-form .sg-form-row { flex: 1 1 auto; }
+}

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { sendDirectChat, getProviders, listJobs, getComputerStatus } from '../../services/api';
 import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
+import './InfinityAI.css';
 
 const MODES = [
   { id: 'chat', label: 'Chat', icon: MessageCircle, hint: 'Ask anything' },
@@ -40,6 +41,11 @@ const WELCOME = {
 
 function ChatPane({ mode }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
+  // One conversation per mode tab — the backend creates it on first message.
+  const convRef = useRef(null);
+  if (!convRef.current) {
+    convRef.current = `${mode}-${(crypto.randomUUID ? crypto.randomUUID() : String(Date.now()))}`;
+  }
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
@@ -60,13 +66,13 @@ function ChatPane({ mode }) {
     setSending(true);
     try {
       const prompt = `[${mode.toUpperCase()} MODE] ${MODE_SYSTEM_PROMPT[mode]}\n\nUser: ${text}`;
-      const res = await sendDirectChat(prompt);
+      const res = await sendDirectChat(prompt, convRef.current);
       const reply = res?.reply || res?.message || res?.text || 'Hmm, empty reply. Try again?';
       setMessages((m) => [...m, { role: 'assistant', text: reply }]);
     } catch (err) {
       setMessages((m) => [...m, {
         role: 'assistant',
-        text: `Couldn't reach the brain: ${err.message || 'connection failed'}. Check Models in Settings.`
+        text: `Couldn't reach the brain: ${(err.message || 'connection failed').replace(/\.+$/, '')}. Check Models in Settings.`
       }]);
     } finally {
       setSending(false);
@@ -75,26 +81,26 @@ function ChatPane({ mode }) {
 
   return (
     <>
-      <div className="dm-inf-messages">
+      <div className="sg-chat-messages">
         {messages.map((m, i) => (
-          <div key={i} className={`dm-inf-msg ${m.role}`}>
-            <span className="dm-inf-avatar">
+          <div key={i} className={`sg-chat-msg ${m.role}`}>
+            <span className="sg-chat-avatar">
               {m.role === 'assistant' ? <Bot size={15} /> : <User size={15} />}
             </span>
-            <div className="dm-inf-bubble">{m.text}</div>
+            <div className="sg-chat-bubble">{m.text}</div>
           </div>
         ))}
         {sending && (
-          <div className="dm-inf-msg assistant">
-            <span className="dm-inf-avatar"><Bot size={15} /></span>
-            <div className="dm-inf-bubble dm-typing">
+          <div className="sg-chat-msg assistant">
+            <span className="sg-chat-avatar"><Bot size={15} /></span>
+            <div className="sg-chat-bubble sg-typing">
               <span /><span /><span />
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
-      <div className="dm-inf-input">
+      <div className="sg-chat-input">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -107,7 +113,7 @@ function ChatPane({ mode }) {
           disabled={sending}
         />
         <button onClick={send} disabled={sending || !input.trim()} aria-label="Send">
-          {sending ? <Loader2 size={17} className="dm-spin" /> : <Send size={17} />}
+          {sending ? <Loader2 size={17} className="sg-spin" /> : <Send size={17} />}
         </button>
       </div>
     </>
@@ -178,34 +184,34 @@ function ControlPane() {
   ];
 
   return (
-    <div className="dm-control">
-      <div className="dm-control-head">
+    <div className="sg-control">
+      <div className="sg-control-head">
         <h3>🎛️ Infinity Control</h3>
         <p>Everything, one glance. The whole system, under your command.</p>
-        <button className="dm-test-btn" onClick={refresh} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'dm-spin' : ''} /> Refresh
+        <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={refresh} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'sg-spin' : ''} /> Refresh
         </button>
       </div>
       {loading ? (
-        <div className="dm-control-loading"><Loader2 size={20} className="dm-spin" /> Reading system…</div>
+        <div className="sg-loading-box"><Loader2 size={20} className="sg-spin" /> Reading system…</div>
       ) : (
-        <div className="dm-control-grid">
+        <div className="sg-grid-2">
           {rows.map((r, i) => (
-            <div key={i} className="dm-control-card">
-              <span className="dm-control-icon"><r.icon size={20} /></span>
-              <div className="dm-control-body">
-                <span className="dm-control-label">{r.label}</span>
-                <span className="dm-control-value">
-                  {r.ok ? <CheckCircle2 size={14} className="dm-ok" /> : <XCircle size={14} className="dm-bad" />}
+            <div key={i} className="sg-card sg-card-pad sg-control-card">
+              <span className="sg-control-icon"><r.icon size={20} /></span>
+              <div className="sg-control-body">
+                <span className="sg-control-label">{r.label}</span>
+                <span className="sg-control-value">
+                  {r.ok ? <CheckCircle2 size={14} className="sg-ok" /> : <XCircle size={14} className="sg-bad" />}
                   {r.value}
                 </span>
-                <span className="dm-control-detail">{r.detail}</span>
+                <span className="sg-small">{r.detail}</span>
               </div>
             </div>
           ))}
         </div>
       )}
-      <div className="dm-control-links">
+      <div className="sg-control-links">
         <a href="/agent/models">🧠 Models</a>
         <a href="/agent/reports">📄 Reports</a>
         <a href="/agent/settings">⚙️ Settings</a>
@@ -220,12 +226,12 @@ export function InfinityAI() {
   const active = MODES.find((m) => m.id === mode);
 
   return (
-    <div className="dm-inf">
-      <div className="dm-inf-tabs">
+    <div className="sg-inf">
+      <div className="sg-mode-tabs">
         {MODES.map((m) => (
           <button
             key={m.id}
-            className={`dm-inf-tab${mode === m.id ? ' active' : ''}`}
+            className={`sg-mode-tab${mode === m.id ? ' sg-active' : ''}`}
             onClick={() => setMode(m.id)}
             title={m.hint}
           >
@@ -235,15 +241,15 @@ export function InfinityAI() {
         ))}
       </div>
 
-      <div className="dm-inf-sub">
+      <div className="sg-mode-sub">
         <active.icon size={13} /> {active.hint}
       </div>
 
-      <div className="dm-inf-body">
-        {mode === 'control' ? <ControlPane /> : <ChatPane mode={mode} />}
+      <div className="sg-inf-body">
+        {mode === 'control' ? <ControlPane /> : <ChatPane key={mode} mode={mode} />}
       </div>
 
-      <div className="dm-inf-foot">
+      <div className="sg-inf-foot">
         <FileText size={12} />
         <span>Powered by your brain — the same one behind Hunt. Change it in Models.</span>
       </div>

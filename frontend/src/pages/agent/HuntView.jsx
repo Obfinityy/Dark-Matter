@@ -34,6 +34,7 @@ import { FingerprintCard } from '../../components/agent/FingerprintCard';
 import { ReportExport } from '../../components/agent/ReportExport';
 import { AgentChat } from '../../components/agent/AgentChat';
 import { StatusPill } from '../../components/agent/AgentShell';
+import './HuntView.css';
 
 const ACTIVE_STATUSES = ['running', 'resuming', 'waiting', 'created'];
 
@@ -138,19 +139,19 @@ export function HuntView() {
 
   if (loading) {
     return (
-      <div className="dm-huntview">
-        <div className="dm-loading-box"><Loader2 size={18} className="dm-spin" /> Loading hunt…</div>
+      <div className="sg-huntview">
+        <div className="sg-loading-box"><Loader2 size={18} className="sg-spin" /> Loading hunt…</div>
       </div>
     );
   }
 
   if (error && !job) {
     return (
-      <div className="dm-huntview dm-huntview-error">
+      <div className="sg-huntview sg-huntview-error">
         <h2>Couldn't open this hunt</h2>
         <p>{error}</p>
-        <div className="dm-huntview-actions">
-          <Link to="/agent" className="dm-btn-secondary"><ChevronLeft size={15} /> Back to home</Link>
+        <div className="sg-row">
+          <Link to="/agent" className="sg-btn sg-btn-ghost"><ChevronLeft size={15} /> Back to home</Link>
         </div>
       </div>
     );
@@ -161,32 +162,32 @@ export function HuntView() {
   const thinking = active && /think|plan|reason|analy/i.test(String(job?.phase || job?.currentPhase || ''));
 
   return (
-    <div className="dm-huntview">
-      <header className="dm-hunt-head">
-        <div className="dm-hunt-head-main">
-          <div className="dm-hunt-title-row">
-            <Link to="/agent" className="dm-btn-ghost" aria-label="Back to home">
+    <div className="sg-huntview">
+      <header className="sg-hunt-head">
+        <div className="sg-hunt-head-main">
+          <div className="sg-hunt-title-row">
+            <Link to="/agent" className="sg-btn sg-btn-quiet" aria-label="Back to home">
               <ChevronLeft size={15} />
             </Link>
             <h1>Live hunt</h1>
             <StatusPill status={status} thinking={thinking} />
           </div>
-          <span className="dm-target-line">{job?.target || job?.targetHostname || jobId}</span>
-          {job?.currentObjective && <p className="dm-hunt-sub">{job.currentObjective}</p>}
+          <span className="sg-target-line">{job?.target || job?.targetHostname || jobId}</span>
+          {job?.currentObjective && <p className="sg-hunt-sub">{job.currentObjective}</p>}
         </div>
-        <div className="dm-hunt-actions">
+        <div className="sg-hunt-actions">
           {status === 'paused' ? (
-            <button className="dm-icon-btn" disabled={busy} onClick={() => doAction('resume', () => continueJob(jobId))}>
-              {busy === 'resume' ? <Loader2 size={15} className="dm-spin" /> : <Play size={15} />} Resume
+            <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => doAction('resume', () => continueJob(jobId))}>
+              {busy === 'resume' ? <Loader2 size={15} className="sg-spin" /> : <Play size={15} />} Resume
             </button>
           ) : active ? (
-            <button className="dm-icon-btn" disabled={busy} onClick={() => doAction('pause', () => pauseJob(jobId))}>
-              {busy === 'pause' ? <Loader2 size={15} className="dm-spin" /> : <Pause size={15} />} Pause
+            <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => doAction('pause', () => pauseJob(jobId))}>
+              {busy === 'pause' ? <Loader2 size={15} className="sg-spin" /> : <Pause size={15} />} Pause
             </button>
           ) : null}
           {active && (
             <button
-              className="dm-icon-btn dm-danger"
+              className="sg-btn sg-btn-ghost sg-btn-sm sg-btn-danger"
               disabled={busy}
               onClick={() => {
                 if (window.confirm('Cancel this hunt permanently? History is preserved.')) {
@@ -201,10 +202,10 @@ export function HuntView() {
         </div>
       </header>
 
-      {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {error && <div className="sg-auth-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
 
-      <div className="dm-hunt-grid">
-        <div className="dm-hunt-main-col">
+      <div className="sg-hunt-grid">
+        <div className="sg-hunt-main-col">
           <FingerprintCard job={job} surface={surface} />
 
           <HackerTerminal jobId={jobId} />
@@ -212,7 +213,7 @@ export function HuntView() {
           <LiveScreenViewer assessmentId={job?.assessmentId} />
 
           <section>
-            <div className="dm-hunt-tabs" role="tablist">
+            <div className="sg-tabs" role="tablist">
               {[
                 { id: 'findings', label: 'Findings', icon: Bug, count: findings.length },
                 { id: 'diary', label: 'Diary', icon: BookOpen },
@@ -222,22 +223,22 @@ export function HuntView() {
                   key={id}
                   role="tab"
                   aria-selected={tab === id}
-                  className={`dm-tab${tab === id ? ' active' : ''}`}
+                  className={`sg-tab${tab === id ? ' sg-active' : ''}`}
                   onClick={() => setTab(id)}
                 >
                   <Icon size={14} /> {label}
-                  {count != null && count > 0 && <span className="dm-tab-badge">{count}</span>}
+                  {count != null && count > 0 && <span className="sg-tab-badge">{count}</span>}
                 </button>
               ))}
               <span style={{ flex: 1 }} />
               <button
-                className={`dm-btn-ghost${explainer ? ' active' : ''}`}
+                className={`sg-btn sg-btn-quiet${explainer ? ' active' : ''}`}
                 onClick={() => setExplainer((v) => !v)}
                 title="Plain-language explanations for every finding"
               >
                 <Sparkles size={14} /> Plain language
               </button>
-              <button className="dm-btn-ghost" onClick={refreshDetail} title="Refresh panels" aria-label="Refresh panels">
+              <button className="sg-btn sg-btn-quiet" onClick={refreshDetail} title="Refresh panels" aria-label="Refresh panels">
                 <RefreshCw size={14} />
               </button>
             </div>
@@ -249,7 +250,7 @@ export function HuntView() {
           </section>
         </div>
 
-        <aside className="dm-hunt-side">
+        <aside className="sg-hunt-side">
           <AgentChat jobId={jobId} huntRunning={active} />
         </aside>
       </div>
