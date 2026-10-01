@@ -119,6 +119,8 @@ export function createRoutes({ controllers }) {
   router.post('/computer/action', controllers.computer.action);
   router.get('/computer/setup', controllers.computer.setup);
   router.post('/computer/repair', controllers.computer.repair);
+  router.post('/computer/pause', controllers.computer.pause);
+  router.post('/computer/resume', controllers.computer.resume);
 
   // ─── Local uncensored model library ("Run Locally", issue #3) ─────────
   router.get('/local-models/library', controllers.localModels.library);
@@ -133,6 +135,26 @@ export function createRoutes({ controllers }) {
   router.post('/local-models/custom', controllers.localModels.addCustom);
   router.delete('/local-models/custom/:id', controllers.localModels.removeCustom);
 
+  // ─── Local GGUF model runner (no Ollama: Download → Run → localhost) ─
+  router.get('/model-runner/status', controllers.modelRunner.status);
+  router.get('/model-runner/library', controllers.modelRunner.library);
+  router.get('/model-runner/device', controllers.modelRunner.device);
+  router.post('/model-runner/engine', controllers.modelRunner.ensureEngine);
+  router.get('/model-runner/engine/stream', controllers.modelRunner.engineStream);
+  router.post('/model-runner/download', controllers.modelRunner.download);
+  router.post('/model-runner/download/cancel', controllers.modelRunner.cancelDownload);
+  router.get('/model-runner/download/stream', controllers.modelRunner.downloadStream);
+  router.delete('/model-runner/models/:modelId', controllers.modelRunner.deleteModel);
+  router.post('/model-runner/custom', controllers.modelRunner.addCustom);
+  router.post('/model-runner/run', controllers.modelRunner.run);
+  router.post('/model-runner/stop', controllers.modelRunner.stop);
+
+  // ─── Remote GPU brain (Kaggle/Colab Gradio share link) ─────────────
+  router.get('/remote-model', controllers.remoteModel.status);
+  router.post('/remote-model/test', controllers.remoteModel.test);
+  router.post('/remote-model/connect', controllers.remoteModel.connect);
+  router.post('/remote-model/disconnect', controllers.remoteModel.disconnect);
+
   // ─── InfiniteChat Computer Tasks (natural-language desktop control) ──
   router.post('/computer-tasks', controllers.computerTasks.create);
   router.get('/computer-tasks', controllers.computerTasks.list);
@@ -146,6 +168,7 @@ export function createRoutes({ controllers }) {
   // ─── Report System ──────────────────────────────────────────────
   router.post('/assessments/:id/report', controllers.reports.generate);
   router.get('/assessments/:id/report', controllers.reports.getLatest);
+  router.get('/assessments/:id/report.md', controllers.reports.markdown);
   router.get('/assessments/:id/reports', controllers.reports.listVersions);
   router.get('/reports', controllers.reports.listAll);
 

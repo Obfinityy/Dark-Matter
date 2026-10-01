@@ -100,6 +100,12 @@ function userFacingDoing(job) {
 /** Plain-language description of what a waiting job is waiting for. */
 function waitingText(job) {
   const reason = String(job.waitingReason || '');
+  // The brain is online but its decisions were unusable — different from
+  // the brain being offline. Say so plainly instead of "waiting for the
+  // brain to come online".
+  if (/no usable decision|unusable decision|violates the schema|malformed decision/i.test(reason)) {
+    return 'local AI brain ke sahi decision de paane';
+  }
   if (/PHONE_AI|LOCAL AI/i.test(reason)) return 'local AI brain ke online aane';
   if (reason && !INTERNAL_JARGON.test(reason)) return `"${reason.slice(0, 120)}"`;
   return 'zaroori cheez ke milne';

@@ -432,6 +432,75 @@ AGENT: ${String(answer.reply).slice(0, 1500)}`
     return answer;
   }
 
+  /**
+   * Brain-powered ask: when the user's question is NOT a simple status query,
+   * the AI agent itself understands and answers — no hardcoded intent rules.
+   * "jo zyada bounty de sake wo bugs dikha" → the agent reasons over findings
+   * and answers intelligently. "har vulnerability ka alag report bana" →
+   * the agent generates them.
+   *
+   * Falls back to the rule-based reply if the brain is unavailable.
+   */
+  async askBrain(userId, jobId, question) {
+    const job = await this.requireJob(userId, jobId);
+    const findings = await this.readFindings(job.assessmentId);
+
+    // Simple status questions still use the fast rule-based path.
+    const simplePatterns = /^(kya kar rahe ho|what are you doing|status|progress|kitna hua|kya mila|findings?|report tayyar|ho gaya)/i;
+    if (simplePatterns.test(question.trim())) {
+      return this.ask(userId, jobId, question);
+    }
+
+    // Complex request → let the brain handle it.
+    try {
+      const jobRecord = await this.worker.jobModel.get(jobId).catch(() => null);
+      const brain = this.worker.getBrainForJob ? await this.worker.getBrainForJob(jobRecord) : this.worker.brain;
+      if (!brain || !brain.provider) throw new Error('brain unavailable');
+
+      const findingsText = findings.slice(0, 20).map((f, i) =>
+        `${i + 1}. [${f.severity}] ${f.title} — ${String(f.description || '').slice(0, 200)}`
+      ).join('\n') || '(no findings yet)';
+
+      const prompt = `You are the Dark-Matter bug bounty agent. The user asks you directly:
+
+"${question}"
+
+Job context:
+- Target: ${job.target}
+- Status: ${job.status}, Phase: ${job.phase}, Steps: ${job.stepCount}
+- Findings so far:
+${findingsText}
+
+Answer in the user's language (Hindi/Hinglish if they wrote in Hindi, English if English).
+Be concrete and helpful. If they want a filtered view of findings (e.g. "only high severity",
+"which bugs give most bounty"), analyze the findings above and give exactly that.
+If they want reports, describe what you'd generate. Never invent findings that aren't listed.
+Keep it focused — no fluff.`;
+
+      const reply = await brain.provider.generate(
+        [{ role: 'user', content: prompt }],
+        { maxTokens: 1200, timeout: 180000 }
+      );
+      const cleanReply = String(reply || '').trim() || 'Samajh nahi aaya — thoda aur detail me pucho.';
+
+      // Remember the conversation
+      try {
+        await this.worker.memory.rememberConversation({
+          userId,
+          assessmentId: job.assessmentId,
+          jobId,
+          conversationId: job.conversationId,
+          content: `USER: ${String(question).slice(0, 500)}\nAGENT: ${cleanReply.slice(0, 1500)}`
+        });
+      } catch (_) {}
+
+      return { intent: 'brain', reply: cleanReply, reaction: '🧠', suggestions: [], jobStatus: job.status, phase: job.phase };
+    } catch (error) {
+      // Brain unavailable → fall back to rules, honestly
+      return this.ask(userId, jobId, question);
+    }
+  }
+
   // ── Crash / restart recovery (requirement #13 phase, #70) ─────────────
   /**
    * Called once at boot. Jobs left in a non-terminal state and jobs whose

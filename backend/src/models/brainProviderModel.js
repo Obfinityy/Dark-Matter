@@ -6,12 +6,16 @@ import { BRAIN_PROVIDERS } from '../agent/providers/brainProviderFactory.js';
  * agent inference (issue #3), and WHERE that provider lives.
  *
  * Multi-tenancy: one document per user —
- *   { userId, provider: 'phone'|'ollama', modelId, ollamaTag, endpointUrl, updatedAt }
+ *   { userId, provider: 'phone'|'ollama'|'local'|'gradio', modelId, ollamaTag, endpointUrl, updatedAt }
  *
  * `endpointUrl` is how a hosted backend reaches the user's OWN machine: with
  * "Run Locally" the model runs on the user's hardware via Ollama, and the
  * backend is pure orchestration. Each user's brain is their own endpoint —
  * there is deliberately no shared inference bottleneck to throttle.
+ *
+ * For 'gradio', endpointUrl is the public Gradio share URL of a ChatInterface
+ * (e.g. https://xxxx.gradio.live) running on Kaggle/Colab — the remote GPU
+ * becomes the agent's brain. No download, no local RAM needed.
  *
  * A user with no selection gets the phone default.
  */
@@ -74,9 +78,9 @@ export class BrainProviderModel {
     const record = {
       userId,
       provider,
-      modelId: provider === 'ollama' ? modelId : null,
+      modelId: provider === 'ollama' || provider === 'local' ? modelId : null,
       ollamaTag: provider === 'ollama' ? ollamaTag : null,
-      endpointUrl: provider === 'ollama' ? validateEndpointUrl(endpointUrl) : null,
+      endpointUrl: provider === 'ollama' || provider === 'gradio' ? validateEndpointUrl(endpointUrl) : null,
       updatedAt: now()
     };
     await this.collection.updateOne({ userId }, { $set: record }, { upsert: true });
