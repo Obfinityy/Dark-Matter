@@ -803,32 +803,65 @@
 }
 
 
-/* Clean SaaS Border Box */
+/* Animated Border Magic */
 .animated-border-box {
   position: relative;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  background: var(--bg-primary);
-  transition: box-shadow var(--transition), border-color var(--transition);
+  z-index: 1;
 }
 
-.animated-border-box:hover {
-  border-color: var(--border-light);
-  box-shadow: var(--shadow-md);
+.animated-border-box::before {
+  content: "";
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  border-radius: inherit;
+  z-index: -1;
+  background: var(--border-light); /* Default fallback */
 }
 
-.animated-border-box::before,
-.animated-border-box::after {
-  display: none;
-}
-
+/* 
+ * CRITICAL FIX: To prevent the gradient from showing through the background of the box in light mode,
+ * we MUST use an opaque background color instead of a transparent rgba() surface color.
+ */
 .opaque-bg {
-  background: var(--bg-primary);
+  background: var(--bg-primary); /* ensure totally opaque so border doesn't leak inside */
+}
+[data-theme="light"] .opaque-bg {
+  background: #ffffff; /* solid white */
 }
 
-[data-theme="light"] .opaque-bg {
-  background: #ffffff;
+[data-theme="light"] .animated-border-box::before {
+  background: conic-gradient(
+    from var(--angle), 
+    transparent 0deg, 
+    var(--accent) 90deg, 
+    transparent 180deg, 
+    var(--accent-secondary) 270deg, 
+    transparent 360deg
+  );
+  animation: rotateBorder 4s linear infinite;
+  opacity: 1;
+}
+
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotateBorder {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/* Inner overlay ensures the center is clipped out and only the border remains */
+.animated-border-box::after {
+  content: "";
+  position: absolute;
+  top: 0px; left: 0px; right: 0px; bottom: 0px;
+  background: inherit; /* Copies the solid background of the box */
+  border-radius: inherit;
+  z-index: -1;
 }
 
 /* Responsive Overrides */
