@@ -294,11 +294,10 @@ async function waitForStatus(jobManager, jobId, statuses, timeoutMs = 8000) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// TEST 1 — Local AI chat
+// TEST 1 — Ask the agent ("agent se baat karo")
 // ══════════════════════════════════════════════════════════════════════════
-test('TEST 1: local AI chat — the brain answers through the local provider only', async () => {
+test('TEST 1: ask the agent — deterministic live-state answer, no LLM needed', async () => {
   const stack = buildStack();
-  stack.phoneModel.answers.push('The target resolves to a cloud CDN and exposes /api/v1.');
 
   const assessment = await makeAssessment(stack);
   const job = await stack.models.agentJobModel.create({
@@ -306,9 +305,14 @@ test('TEST 1: local AI chat — the brain answers through the local provider onl
     scope: assessment.scope, objective: 'Assess example.com'
   });
 
-  const answer = await stack.jobManager.ask('u1', job.id, 'What have you found so far?');
-  assert.match(answer.answer, /\/api\/v1/);
-  assert.equal(stack.phoneModel.calls.at(-1).kind, 'text');
+  // Hinglish question, answered ONLY from live persisted job state.
+  const answer = await stack.jobManager.ask('u1', job.id, 'kya kar raha hai?');
+  assert.equal(answer.intent, 'doing');
+  assert.ok(typeof answer.reply === 'string' && answer.reply.length > 20, 'warm plain-language reply');
+  assert.match(answer.reply, /example\.com/);
+  assert.ok(typeof answer.reaction === 'string' && answer.reaction.length > 0, 'emoji reaction');
+  assert.ok(Array.isArray(answer.suggestions) && answer.suggestions.length === 3, '3 follow-up chips');
+  assert.equal(answer.jobStatus, job.status);
   // The conversation turn is stored as memory.
   const conversation = await stack.models.agentMemoryModel.listByType(assessment.id, 'conversation', 10);
   assert.ok(conversation.length >= 1);
