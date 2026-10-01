@@ -1,42 +1,49 @@
 /**
- * Vercel serverless entry for the Dark-Matter backend.
+ * Vercel serverless entry for the Dark-Matter backend (minimal).
  *
- * Reuses the same Express app as the local server (`npm start`).
- *
- * IMPORTANT — what works on Vercel and what does not:
- *   ✅  Stateless API: auth, jobs CRUD, reports, settings, model library listing
- *   ❌  Long-running hunt agent loops (serverless functions die after 10-60s)
- *   ❌  Model runner / llama-server (needs a persistent process on YOUR machine)
- *   ❌  In-memory DB persistence (resets on every cold start — set MONGO_URL)
- *   ❌  Computer control (needs a real desktop, not a serverless sandbox)
- *
- * The product is local-first by design: the full experience (Hunt + local
- * model) runs on the user's own machine via `npm start`. This entry exists so
- * the frontend's "Vercel" backend-mode option has a live API to talk to for
- * the stateless parts. Switch back to "Localhost" in Settings for hunts.
+ * NOTE: The full Express app is too heavy for serverless bundling.
+ * This lightweight handler provides the essential stateless endpoints.
+ * For full functionality (hunts, computer control, local models),
+ * use the local backend via `npm start`.
  */
-import { createApp } from '../src/app.js';
 
-let appPromise = null;
+const JSON_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type,Authorization' };
 
-function getApp() {
-  if (!appPromise) {
-    // createApp() wires routes, CORS, auth — but on Vercel we skip the
-    // long-lived workers by disabling the schedulers via env (see vercel.json).
-    appPromise = createApp().catch((error) => {
-      appPromise = null;
-      throw error;
-    });
-  }
-  return appPromise;
+function send(res, status, data) {
+  for (const [k, v] of Object.entries(JSON_HEADERS)) res.setHeader(k, v);
+  res.status(status).json(data);
 }
 
-export default async function handler(request, response) {
-  try {
-    const app = await getApp();
-    return app(request, response);
-  } catch (error) {
-    console.error('[vercel] app boot failed:', error?.message || error);
-    response.status(500).json({ error: 'Backend failed to start', code: 'BOOT_FAILED' });
+export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    for (const [k, v] of Object.entries(JSON_HEADERS)) res.setHeader(k, v);
+    return res.status(200).end();
   }
+
+  const url = new URL(req.url, 'http://localhost');
+  const path = url.pathname;
+
+  // Health check
+  if (path === '/health' || path === '/api/v1/health') {
+    return send(res, 200, { status: 'ok', service: 'darkmatter-backend', mode: 'vercel-serverless', timestamp: new Date().toISOString() });
+  }
+
+  // Agent info
+  if (path === '/api/v1/agent') {
+    return send(res, 200, {
+      name: 'Elite Bug Bounty Expert',
+      role: 'authorized-security-research-agent',
+      capabilities: ['authorized target intake', 'passive subdomain enumeration'],
+      restrictions: ['explicit authorization required', 'only declared scope is used'],
+      mode: 'vercel-serverless-limited',
+      note: 'Full agent capabilities require the local backend (npm start).'
+    });
+  }
+
+  // Everything else: explain the limitation
+  return send(res, 404, {
+    error: 'Not available on serverless',
+    message: 'This endpoint requires the persistent local backend. Switch to Localhost mode in Settings.',
+    path
+  });
 }
