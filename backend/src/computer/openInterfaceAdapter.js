@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMPUTER_ACTIONS, validateComputerAction } from './actionSchema.js';
+import { diagnoseComputerSetup, repairComputerSetup } from './setupGuide.js';
 
 /** Actions that require pyautogui on the host (input simulation / capture). */
 const PYAUTOGUI_ACTIONS = new Set([
@@ -11,6 +12,22 @@ const PYAUTOGUI_ACTIONS = new Set([
   COMPUTER_ACTIONS.CLICK,
   COMPUTER_ACTIONS.DOUBLE_CLICK,
   COMPUTER_ACTIONS.MOVE_MOUSE,
+  COMPUTER_ACTIONS.TYPE,
+  COMPUTER_ACTIONS.PRESS_KEY,
+  COMPUTER_ACTIONS.HOTKEY,
+  COMPUTER_ACTIONS.SCROLL
+]);
+
+/**
+ * Actions whose effect is only visible *after* they run — the autonomous
+ * loop (issue #1) must re-observe the screen once they settle instead of
+ * trusting the action echo.
+ */
+const MEANINGFUL_ACTIONS = new Set([
+  COMPUTER_ACTIONS.CLICK,
+  COMPUTER_ACTIONS.DOUBLE_CLICK,
+  COMPUTER_ACTIONS.NAVIGATE,
+  COMPUTER_ACTIONS.OPEN_APPLICATION,
   COMPUTER_ACTIONS.TYPE,
   COMPUTER_ACTIONS.PRESS_KEY,
   COMPUTER_ACTIONS.HOTKEY,
@@ -282,6 +299,7 @@ export class OpenInterfaceAdapter {
       message: `Computer runtime connected (${this.capabilities?.platform} / Python ${this.capabilities?.pythonVersion})`,
       data: { capabilities: this.capabilities }
     });
+    this.state.markReady({ platform: this.capabilities?.platform });
     return true;
   }
 
@@ -405,10 +423,13 @@ export class OpenInterfaceAdapter {
   /**
    * Execute a validated computer action.
    *
+   * @param {object} [opts.markAsObservation] treat failures as observation
+   *   failures (OBSERVATION_FAILED) rather than action failures — used by the
+   *   post-action re-observe pass.
    * @returns {{ok: boolean, action: object|null, output: object|null, observation: object|null,
    *            error: {message: string, kind: string}|null, durationMs: number, rejected: boolean}}
    */
-  async execute(action, { channel = null, scopeEngine = null, approvalGranted = true } = {}) {
+  async execute(action, { channel = null, scopeEngine = null, approvalGranted = true, markAsObservation = false } = {}) {
     const started = Date.now();
 
     // 1. Whitelist + parameter + scope validation (never bypassed).
@@ -432,6 +453,13 @@ export class OpenInterfaceAdapter {
     }
 
     if (this.config.requireApproval && approvalGranted !== true) {
+      this.state.markPermissionRequired(validation.action);
+      await this.events?.publish?.(channel, {
+        type: 'permission',
+        level: 'WARN',
+        message: `Computer action needs explicit approval: ${validation.action.type}`,
+        data: { action: validation.action }
+      });
       return {
         ok: false,
         action: validation.action,
@@ -514,23 +542,84 @@ export class OpenInterfaceAdapter {
         rejected: false
       };
     } catch (error) {
-      this.state.markActionFinished(approved, { ok: false, error: error.message });
+      const kind = error.kind || 'error';
+      // A transport-level failure while the daemon is gone is a disconnect,
+      // not a failed action — the worker must wait, not replan.
+      if ((kind === 'unavailable' || kind === 'timeout') && this.running !== true) {
+        this.state.markDisconnected(`computer runtime unreachable during ${approved.type}: ${error.message}`);
+      } else if (markAsObservation) {
+        this.state.markObservationFailed(error.message);
+      } else {
+        this.state.markActionFinished(approved, { ok: false, error: error.message });
+      }
       await this.events?.publish?.(channel, {
         type: 'error',
         level: 'ERROR',
         message: `Computer action failed: ${error.message}`,
-        data: { action: approved, kind: error.kind || 'error' }
+        data: { action: approved, kind }
       });
       return {
         ok: false,
         action: approved,
         output: null,
         observation: null,
-        error: { message: error.message, kind: error.kind || 'error' },
+        error: { message: error.message, kind },
         durationMs: Date.now() - started,
         rejected: false
       };
     }
+  }
+
+  /**
+   * The "observe" half of observe → decide → act → observe (issue #1).
+   *
+   * After a *meaningful* action (a click, a navigation, an app launch…), the
+   * screen needs a moment to settle and the brain needs to see what actually
+   * changed — the action echo alone is not an observation. This waits for the
+   * UI to settle, then captures the active window as a follow-up observation.
+   *
+   * @returns {object|null} the follow-up observation, or null when there is
+   *   nothing meaningful to re-observe or the capture failed.
+   */
+  async observeAfterAction(action, { channel = null } = {}) {
+    if (!action || !MEANINGFUL_ACTIONS.has(action.type)) return null;
+    this.state.markObserving({ after: action.type });
+    const settleMs = Number(this.config.observeSettleMs || 800);
+    await new Promise((resolve) => setTimeout(resolve, settleMs));
+    try {
+      const result = await this.execute(
+        { type: COMPUTER_ACTIONS.GET_ACTIVE_WINDOW, reason: `re-observe after ${action.type}` },
+        { channel, markAsObservation: true }
+      );
+      if (result.ok && result.observation) {
+        // execute() already moved the state machine to OBSERVATION_READY via
+        // markActionFinished; just announce the follow-up observation.
+        await this.events?.publish?.(channel, {
+          type: 'observation',
+          level: 'INFO',
+          message: `Post-action observation: ${result.observation.summary}`,
+          data: { ...result.observation, followUp: true, afterAction: action.type }
+        });
+        return result.observation;
+      }
+      return null;
+    } catch (error) {
+      this.state.markObservationFailed(error.message);
+      return null;
+    }
+  }
+
+  /** Setup diagnostics for the dashboard / setup endpoint (issue #1). */
+  diagnose() {
+    return diagnoseComputerSetup(this);
+  }
+
+  /**
+   * Run one explicitly-authorized safe repair (see setupGuide.js). Without
+   * `userAuthorized: true` this only returns instructions — it never acts.
+   */
+  repair({ repair, userAuthorized = false } = {}) {
+    return repairComputerSetup(this, { repair, userAuthorized });
   }
 
   /**
@@ -645,6 +734,9 @@ export class OpenInterfaceAdapter {
       this.child = null;
     }
     this.#failPending(new Error('computer bridge stopped'));
+    if (this.state && typeof this.state.markDisconnected === 'function') {
+      this.state.markDisconnected('computer bridge stopped');
+    }
   }
 
   /** Absolute path of the bridge (used by diagnostics + tests). */

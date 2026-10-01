@@ -45,6 +45,10 @@ export const config = {
     .map((origin) => origin.trim())
     .filter(Boolean),
   sessionDays: Number(process.env.SESSION_DAYS || 30),
+  // JWT auth: HS256 signing secret + token lifetime. The service warns loudly
+  // and uses an ephemeral key when unset (dev only — JWTs die on restart).
+  jwtSecret: process.env.JWT_SECRET || null,
+  jwtDays: Number(process.env.JWT_DAYS || 7),
   toolRequestTimeoutMs: Number(process.env.TOOL_REQUEST_TIMEOUT_MS || process.env.AI_REQUEST_TIMEOUT_MS || 20_000),
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120),
 
@@ -74,6 +78,25 @@ export const config = {
   phoneAiModel: process.env.PHONE_AI_MODEL || 'local',
   phoneAiApiKey: process.env.PHONE_AI_API_KEY || '',
 
+  // --- Brain provider selection (issue #3: "Run Locally" model library) ---
+  // 'phone'  → the phone-hosted Gemma (default)
+  // 'ollama' → a local uncensored model on the user's own machine via Ollama.
+  // The model picker persists the choice in the brain_provider collection and
+  // switches the live brain at runtime; the env default only applies on a
+  // fresh database.
+  brainProvider: process.env.BRAIN_PROVIDER || 'phone',
+
+  // --- Ollama (local model library) ---
+  ollama: {
+    host: process.env.OLLAMA_HOST || '127.0.0.1',
+    port: Number(process.env.OLLAMA_PORT || 11434),
+    baseUrl: (process.env.OLLAMA_BASE_URL || '').trim() ||
+      `http://${(process.env.OLLAMA_HOST || '127.0.0.1').trim()}:${Number(process.env.OLLAMA_PORT || 11434)}/v1`,
+    apiBaseUrl: (process.env.OLLAMA_API_BASE_URL || '').trim() ||
+      `http://${(process.env.OLLAMA_HOST || '127.0.0.1').trim()}:${Number(process.env.OLLAMA_PORT || 11434)}/api`,
+    model: process.env.OLLAMA_MODEL || 'huihui_ai/qwen3-abliterated:30b'
+  },
+
   // --- Autonomous Job Worker ---
   // NOTE: there is deliberately NO step/time/token quota here. The only limits
   // are real environment limits (phone offline, computer unavailable, tool crash).
@@ -84,7 +107,12 @@ export const config = {
     phoneUnavailableRetryMs: Number(process.env.AGENT_PHONE_RETRY_MS || 15_000),
     computerUnavailableRetryMs: Number(process.env.AGENT_COMPUTER_RETRY_MS || 10_000),
     recoverOnBoot: process.env.AGENT_WORKER_RECOVER_ON_BOOT !== 'false',
-    autoStartWorker: process.env.AGENT_WORKER_AUTOSTART !== 'false'
+    autoStartWorker: process.env.AGENT_WORKER_AUTOSTART !== 'false',
+    // Worker pool (multi-tenancy): hard caps so 1000+ users share the process
+    // fairly. maxConcurrent = simultaneous hunts process-wide; maxPerUser =
+    // simultaneous hunts per user. Overflow waits in a fair round-robin queue.
+    maxConcurrent: Number(process.env.HUNT_MAX_CONCURRENT || 4),
+    maxPerUser: Number(process.env.HUNT_MAX_PER_USER || 2)
   },
 
   // --- Computer Control (Open-Interface adapter) ---
