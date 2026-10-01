@@ -7,11 +7,9 @@
  * Markdown/PDF export. Re-download any past report at any time.
  */
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { History, ChevronLeft, Loader2, FileText, CalendarDays } from 'lucide-react';
-import { listHuntRecords, getHuntRecord, downloadHuntRecordMarkdown } from '../../services/api';
-import { ReportExport } from '../../components/agent/ReportExport';
-import ReactMarkdown from 'react-markdown';
+import { Link } from 'react-router-dom';
+import { History, Loader2, FileText, CalendarDays } from 'lucide-react';
+import { listHuntRecords } from '../../services/api';
 
 export function Reports() {
   const [records, setRecords] = useState([]);
@@ -70,46 +68,3 @@ export function Reports() {
   );
 }
 
-export function ReportReader() {
-  const { recordId } = useParams();
-  const navigate = useNavigate();
-  const [record, setRecord] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getHuntRecord(recordId)
-      .then((body) => setRecord(body?.huntRecord || body?.record || null))
-      .catch(() => setRecord(null))
-      .finally(() => setLoading(false));
-  }, [recordId]);
-
-  if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Opening report…</div>;
-  if (!record) return <div className="dm-page-error">Report not found.</div>;
-
-  const summary = record.summary || {};
-
-  return (
-    <div className="dm-report-reader">
-      <div className="dm-reader-top">
-        <button className="dm-back" onClick={() => navigate('/agent/reports')}>
-          <ChevronLeft size={14} /> Past reports
-        </button>
-        <ReportExport recordId={record.id} target={record.target} />
-      </div>
-
-      <header className="dm-reader-head">
-        <code>{record.target}</code>
-        <div className="dm-reader-meta">
-          <span className="dm-record-version">v{record.version}</span>
-          {record.completedAt && <span>{new Date(record.completedAt).toLocaleString()}</span>}
-          {summary.totalFindings != null && <span>{summary.totalFindings} findings</span>}
-          {summary.critical > 0 && <span className="dm-sev-chip sev-critical">{summary.critical} critical</span>}
-        </div>
-      </header>
-
-      <article className="dm-markdown-body">
-        <ReactMarkdown>{record.reportMarkdown || '*Report body unavailable.*'}</ReactMarkdown>
-      </article>
-    </div>
-  );
-}

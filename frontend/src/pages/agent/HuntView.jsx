@@ -1,16 +1,14 @@
 /**
  * HuntView — the live hunt screen.
  *
- * Layout (infinity-level, never a generic chatbot):
- *   ┌────────────────────────────────────────────────────────┐
- *   │ Fingerprint card (target, phase, steps, scope)          │
- *   ├──────────────────────────────┬─────────────────────────┤
- *   │ Hacker terminal (live)       │ Tabs: Findings │ Diary  │
- *   │                              │       │ Attack surface   │
- *   ├──────────────────────────────┴─────────────────────────┤
- *   │ Controls: pause / resume / cancel · ask the agent ·     │
- *   │           report export (Markdown + PDF)                │
- *   └────────────────────────────────────────────────────────┘
+ * Layout:
+ *   ┌─────────────────────────────────────────────────┬──────────────┐
+ *   │ Header: target + plain-language status + actions │              │
+ *   ├─────────────────────────────────────────────────┤  AgentChat   │
+ *   │ Fingerprint card                                │  ("agent se  │
+ *   │ Live terminal                                   │   baat karo")│
+ *   │ Tabs: Findings | Diary | Attack surface          │              │
+ *   └─────────────────────────────────────────────────┴──────────────┘
  *
  * State rehydrates from GET /jobs/:id on mount (refresh-safe); live updates
  * arrive over SSE. Pause persists the exact checkpoint — resume continues
@@ -19,11 +17,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  Pause, Play, Square, Send, Loader2, AlertTriangle,
-  Bug, BookOpen, Map as MapIcon, FileDown, ChevronLeft, Sparkles
+  Pause, Play, Square, Loader2, AlertTriangle,
+  Bug, BookOpen, Map as MapIcon, ChevronLeft, Sparkles, RefreshCw
 } from 'lucide-react';
 import {
-  getJobState, pauseJob, continueJob, cancelJob, askJob,
+  getJobState, pauseJob, continueJob, cancelJob,
   getJobFindings, getJobDiary, getJobAttackSurface, getJobVulnerabilityReport,
   subscribeToJobEvents
 } from '../../services/api';
@@ -33,8 +31,10 @@ import { HuntDiary } from '../../components/agent/HuntDiary';
 import { AttackSurfaceMap } from '../../components/agent/AttackSurfaceMap';
 import { FingerprintCard } from '../../components/agent/FingerprintCard';
 import { ReportExport } from '../../components/agent/ReportExport';
+import { AgentChat } from '../../components/agent/AgentChat';
+import { StatusPill } from '../../components/agent/AgentShell';
 
-const TERMINAL_STATUSES = ['running', 'resuming', 'waiting'];
+const ACTIVE_STATUSES = ['running', 'resuming', 'waiting', 'created'];
 
 export function HuntView() {
   const { jobId } = useParams();
@@ -49,9 +49,6 @@ export function HuntView() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
-  const [askText, setAskText] = useState('');
-  const [askAnswer, setAskAnswer] = useState('');
-  const [askBusy, setAskBusy] = useState(false);
 
   const refreshDetail = useCallback(async () => {
     try {
@@ -71,8 +68,6 @@ export function HuntView() {
       const body = await getJobVulnerabilityReport(jobId);
       if (body?.report) {
         setReport(body.report);
-        // The archived hunt record id arrives via the report.archived event;
-        // fall back to matching by job when the event was missed.
         if (body.report.huntRecordId) setRecordId(body.report.huntRecordId);
       }
     } catch { /* 404 until the hunt completes — expected */ }
@@ -140,100 +135,120 @@ export function HuntView() {
     }
   };
 
-  const ask = async (e) => {
-    e?.preventDefault();
-    if (!askText.trim() || askBusy) return;
-    setAskBusy(true);
-    try {
-      const body = await askJob(jobId, askText.trim());
-      setAskAnswer(body?.answer || body?.reply || 'The agent did not answer.');
-      setAskText('');
-    } catch (err) {
-      setAskAnswer(`Couldn't reach the agent: ${err.message}`);
-    } finally {
-      setAskBusy(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="dm-huntview">
+        <div className="dm-loading-box"><Loader2 size={18} className="dm-spin" /> Loading hunt…</div>
+      </div>
+    );
+  }
 
-  if (loading) return <div className="dm-page-loading">Loading hunt…</div>;
-  if (error && !job) return <div className="dm-page-error"><AlertTriangle size={18} /> {error}</div>;
+  if (error && !job) {
+    return (
+      <div className="dm-huntview dm-huntview-error">
+        <h2>Couldn't open this hunt</h2>
+        <p>{error}</p>
+        <div className="dm-huntview-actions">
+          <Link to="/agent" className="dm-btn-secondary"><ChevronLeft size={15} /> Back to home</Link>
+        </div>
+      </div>
+    );
+  }
 
-  const status = job?.status || 'unknown';
-  const running = TERMINAL_STATUSES.includes(status) || status === 'created';
+  const status = String(job?.status || 'unknown').toLowerCase();
+  const active = ACTIVE_STATUSES.includes(status);
+  const thinking = active && /think|plan|reason|analy/i.test(String(job?.phase || job?.currentPhase || ''));
 
   return (
-    <div className="dm-hunt-view">
-      <Link to="/agent" className="dm-back"><ChevronLeft size={14} /> Command center</Link>
-
-      <FingerprintCard job={job} surface={surface} />
-
-      <div className="dm-hunt-controls">
-        {status === 'paused' ? (
-          <button className="dm-btn-primary" disabled={busy} onClick={() => doAction('resume', () => continueJob(jobId))}>
-            {busy === 'resume' ? <Loader2 size={15} className="dm-spin" /> : <Play size={15} />} Resume from checkpoint
-          </button>
-        ) : running ? (
-          <button className="dm-btn-secondary" disabled={busy} onClick={() => doAction('pause', () => pauseJob(jobId))}>
-            {busy === 'pause' ? <Loader2 size={15} className="dm-spin" /> : <Pause size={15} />} Pause
-          </button>
-        ) : null}
-        {running && (
-          <button className="dm-btn-danger-ghost" disabled={busy} onClick={() => {
-            if (window.confirm('Cancel this hunt permanently? History is preserved.')) doAction('cancel', () => cancelJob(jobId));
-          }}>
-            <Square size={14} /> Cancel
-          </button>
-        )}
-        <span className="dm-hunt-spacer" />
-        <ReportExport jobId={jobId} recordId={recordId} report={report} target={job?.target} />
-      </div>
+    <div className="dm-huntview">
+      <header className="dm-hunt-head">
+        <div className="dm-hunt-head-main">
+          <div className="dm-hunt-title-row">
+            <Link to="/agent" className="dm-btn-ghost" aria-label="Back to home">
+              <ChevronLeft size={15} />
+            </Link>
+            <h1>Live hunt</h1>
+            <StatusPill status={status} thinking={thinking} />
+          </div>
+          <span className="dm-target-line">{job?.target || job?.targetHostname || jobId}</span>
+          {job?.currentObjective && <p className="dm-hunt-sub">{job.currentObjective}</p>}
+        </div>
+        <div className="dm-hunt-actions">
+          {status === 'paused' ? (
+            <button className="dm-icon-btn" disabled={busy} onClick={() => doAction('resume', () => continueJob(jobId))}>
+              {busy === 'resume' ? <Loader2 size={15} className="dm-spin" /> : <Play size={15} />} Resume
+            </button>
+          ) : active ? (
+            <button className="dm-icon-btn" disabled={busy} onClick={() => doAction('pause', () => pauseJob(jobId))}>
+              {busy === 'pause' ? <Loader2 size={15} className="dm-spin" /> : <Pause size={15} />} Pause
+            </button>
+          ) : null}
+          {active && (
+            <button
+              className="dm-icon-btn dm-danger"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm('Cancel this hunt permanently? History is preserved.')) {
+                  doAction('cancel', () => cancelJob(jobId));
+                }
+              }}
+            >
+              <Square size={14} /> Cancel
+            </button>
+          )}
+          <ReportExport jobId={jobId} recordId={recordId} report={report} target={job?.target} />
+        </div>
+      </header>
 
       {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
 
       <div className="dm-hunt-grid">
-        <div className="dm-hunt-left">
+        <div className="dm-hunt-main-col">
+          <FingerprintCard job={job} surface={surface} />
+
           <HackerTerminal jobId={jobId} />
-          <form className="dm-ask-bar" onSubmit={ask}>
-            <input
-              value={askText}
-              onChange={(e) => setAskText(e.target.value)}
-              placeholder="Ask the agent about its hunt — e.g. what are you testing right now?"
-            />
-            <button type="submit" disabled={askBusy || !askText.trim()}>
-              {askBusy ? <Loader2 size={15} className="dm-spin" /> : <Send size={15} />}
-            </button>
-          </form>
-          {askAnswer && <div className="dm-ask-answer"><strong>Agent:</strong> {askAnswer}</div>}
+
+          <section>
+            <div className="dm-hunt-tabs" role="tablist">
+              {[
+                { id: 'findings', label: 'Findings', icon: Bug, count: findings.length },
+                { id: 'diary', label: 'Diary', icon: BookOpen },
+                { id: 'surface', label: 'Attack surface', icon: MapIcon }
+              ].map(({ id, label, icon: Icon, count }) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={tab === id}
+                  className={`dm-tab${tab === id ? ' active' : ''}`}
+                  onClick={() => setTab(id)}
+                >
+                  <Icon size={14} /> {label}
+                  {count != null && count > 0 && <span className="dm-tab-badge">{count}</span>}
+                </button>
+              ))}
+              <span style={{ flex: 1 }} />
+              <button
+                className={`dm-btn-ghost${explainer ? ' active' : ''}`}
+                onClick={() => setExplainer((v) => !v)}
+                title="Plain-language explanations for every finding"
+              >
+                <Sparkles size={14} /> Plain language
+              </button>
+              <button className="dm-btn-ghost" onClick={refreshDetail} title="Refresh panels" aria-label="Refresh panels">
+                <RefreshCw size={14} />
+              </button>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              {tab === 'findings' && <FindingsBoard findings={findings} explainer={explainer} />}
+              {tab === 'diary' && <HuntDiary entries={diary} />}
+              {tab === 'surface' && <AttackSurfaceMap surface={surface} />}
+            </div>
+          </section>
         </div>
 
-        <div className="dm-hunt-right">
-          <div className="dm-tabs">
-            {[
-              { id: 'findings', label: 'Findings', icon: Bug, count: findings.length },
-              { id: 'diary', label: 'Diary', icon: BookOpen },
-              { id: 'surface', label: 'Attack surface', icon: MapIcon }
-            ].map(({ id, label, icon: Icon, count }) => (
-              <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
-                <Icon size={14} /> {label} {count != null && count > 0 && <span className="dm-tab-count">{count}</span>}
-              </button>
-            ))}
-            <button
-              className={`dm-explainer-toggle ${explainer ? 'active' : ''}`}
-              onClick={() => setExplainer((v) => !v)}
-              title="Plain-language mode"
-            >
-              <Sparkles size={14} /> Plain language
-            </button>
-            <button className="dm-tab-refresh" onClick={refreshDetail} title="Refresh panels">
-              <FileDown size={14} />
-            </button>
-          </div>
-          <div className="dm-tab-body">
-            {tab === 'findings' && <FindingsBoard findings={findings} explainer={explainer} />}
-            {tab === 'diary' && <HuntDiary entries={diary} />}
-            {tab === 'surface' && <AttackSurfaceMap surface={surface} />}
-          </div>
-        </div>
+        <aside className="dm-hunt-side">
+          <AgentChat jobId={jobId} huntRunning={active} />
+        </aside>
       </div>
     </div>
   );

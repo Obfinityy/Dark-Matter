@@ -1,203 +1,218 @@
 /**
- * AgentHome — the hunt launcher and mission control.
+ * AgentHome — the agent console home: "point me at a target".
  *
- *   - Paste a target URL → the agent hunts it. If the target was hunted
- *     before, the dedup banner offers the cached report instantly instead
- *     of re-running (explicit "Start new hunt" bypasses with forceNew).
- *   - Authorization checkbox is required before any hunt starts.
- *   - Multi-target queue: paste several targets, they hunt one after another.
- *   - Recent hunts list with status, plus links to past reports.
+ * A single paste box starts a hunt. If the target was hunted before, the
+ * dedup banner offers the cached report instantly instead of re-running.
+ * Below: live stats, recent hunts, queues and alerts at a glance.
  */
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  Crosshair, Play, ShieldCheck, ListPlus, History, Bell, CalendarClock,
-  Layers, AlertTriangle, Loader2, ChevronRight
+  Crosshair, Loader2, AlertTriangle, Bell, Layers, ChevronRight,
+  Radar, FileCheck2
 } from 'lucide-react';
-import {
-  createJob, listJobs, listHuntRecords, listAlerts,
-  extractTargetUrl
-} from '../../services/api';
+import { createJob, listJobs, listQueues, listAlerts } from '../../services/api';
 import { DedupBanner } from '../../components/agent/DedupBanner';
+import { StatusPill } from '../../components/agent/AgentShell';
 
 export function AgentHome() {
   const navigate = useNavigate();
   const [target, setTarget] = useState('');
-  const [objective, setObjective] = useState('');
-  const [authorized, setAuthorized] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [authConfirmed, setAuthConfirmed] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
-  const [deduped, setDeduped] = useState(null);
+  const [dedup, setDedup] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [unreadAlerts, setUnreadAlerts] = useState(0);
-  const [queueTargets, setQueueTargets] = useState('');
+  const [queues, setQueues] = useState([]);
+  const [alerts, setAlerts] = useState([]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
-      const [jobsBody, recordsBody, alertsBody] = await Promise.all([
-        listJobs().catch(() => null),
-        listHuntRecords().catch(() => null),
+      const [jobsBody, queuesBody, alertsBody] = await Promise.all([
+        listJobs({ limit: 8 }).catch(() => null),
+        listQueues().catch(() => null),
         listAlerts(true).catch(() => null)
       ]);
-      if (jobsBody?.jobs) setJobs(jobsBody.jobs.slice(0, 8));
-      if (recordsBody?.records) setRecords(recordsBody.records.slice(0, 6));
-      if (alertsBody?.alerts) setUnreadAlerts(alertsBody.alerts.length);
-    } catch { /* dashboard degrades gracefully */ }
-  };
+      if (jobsBody?.jobs) setJobs(jobsBody.jobs);
+      if (queuesBody?.queues) setQueues(queuesBody.queues);
+      if (alertsBody?.alerts) setAlerts(alertsBody.alerts);
+    } catch { /* home degrades to the hunt box rather than crashing */ }
+  }, []);
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  const startHunt = async (forceNew = false) => {
-    const pasted = target.trim();
-    if (!pasted) { setError('Paste a target URL to start hunting.'); return; }
-    if (!authorized) { setError('Confirm you are authorized to test this target first.'); return; }
-    setBusy(true);
+  const launch = async ({ forceNew = false } = {}) => {
+    const clean = target.trim();
+    if (!clean) { setError('Paste a target first — a domain, URL, or IP.'); return; }
+    if (!authConfirmed) {
+      setError('Please confirm you are authorized to test this target.');
+      return;
+    }
+    setStarting(true);
     setError('');
-    setDeduped(null);
+    setDedup(null);
     try {
-      const body = await createJob({
-        targetUrl: extractTargetUrl(pasted) || pasted,
-        message: objective.trim() || undefined,
-        authorizationConfirmed: true,
-        forceNew
-      });
-      if (body?.deduped) {
-        // Cached report — show it instantly, don't run the agent.
-        setDeduped(body);
-      } else if (body?.jobId) {
-        navigate(`/agent/hunt/${body.jobId}`);
-      } else {
-        setError('The hunt did not start. Try again.');
+      const res = await createJob({ target: clean, authorizationConfirmed: true, ...(forceNew ? { forceNew: true } : {}) });
+      if (res?.deduped) {
+        setDedup(res);
+        refresh();
+        return;
       }
+      const job = res?.job || res;
+      if (job?.id) navigate(`/agent/hunt/${job.id}`);
+      else setError('The hunt was created but no hunt id came back.');
     } catch (err) {
-      setError(err.code === 'AUTHORIZATION_REQUIRED'
-        ? 'Confirm authorization before starting a hunt.'
-        : (err.message || 'Could not start the hunt.'));
+      setError(err.message || 'Could not start the hunt.');
     } finally {
-      setBusy(false);
+      setStarting(false);
     }
   };
 
-  const startQueue = async () => {
-    const targets = queueTargets.split('\n').map((t) => t.trim()).filter(Boolean);
-    if (!targets.length) { setError('Add at least one target to the queue.'); return; }
-    if (!authorized) { setError('Confirm you are authorized to test these targets first.'); return; }
-    setBusy(true);
-    setError('');
-    try {
-      // Fire hunts sequentially through the fair queue — the backend admits
-      // them within per-user caps; the rest wait their turn.
-      let firstJobId = null;
-      for (const t of targets) {
-        const body = await createJob({
-          targetUrl: extractTargetUrl(t) || t,
-          authorizationConfirmed: true,
-          origin: { kind: 'queue', name: 'Quick queue' }
-        });
-        if (body?.jobId && !firstJobId) firstJobId = body.jobId;
-      }
-      navigate(firstJobId ? `/agent/hunt/${firstJobId}` : '/agent');
-      refresh();
-    } catch (err) {
-      setError(err.message || 'Could not start the queue.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const startHunt = (e) => { e.preventDefault(); launch(); };
+
+  const runningCount = jobs.filter((j) => String(j.status).toLowerCase() === 'running').length;
+  const doneCount = jobs.filter((j) => String(j.status).toLowerCase() === 'completed').length;
+  const unreadCount = alerts.filter((a) => !a.read).length;
 
   return (
     <div className="dm-agent-home">
-      <header className="dm-page-head">
-        <div>
-          <h1><Crosshair size={22} /> Agent Command Center</h1>
-          <p>Paste a target. The agent hunts it like an elite human expert — non-stop until the report is submission-ready.</p>
-        </div>
-        <div className="dm-head-links">
-          <Link to="/agent/alerts" className="dm-head-link">
-            <Bell size={15} /> {unreadAlerts > 0 && <span className="dm-badge">{unreadAlerts}</span>} Alerts
-          </Link>
-          <Link to="/agent/schedules" className="dm-head-link"><CalendarClock size={15} /> Schedules</Link>
-          <Link to="/agent/reports" className="dm-head-link"><History size={15} /> Past reports</Link>
-        </div>
-      </header>
+      <section className="dm-hero">
+        <span className="dm-hero-eyebrow"><Radar size={13} /> Autonomous bug bounty</span>
+        <h1>Point me at a target.<br /><span className="dm-hero-accent">I'll hunt it down.</span></h1>
+        <p className="dm-hero-sub">
+          The agent maps the attack surface, tries real payloads, and writes you a
+          submission-ready report — while you watch it think, live.
+        </p>
 
-      {deduped && (
-        <DedupBanner
-          result={deduped}
-          onView={() => navigate(`/agent/reports/${deduped.huntRecord.id}`)}
-          onNewHunt={() => startHunt(true)}
-          onDismiss={() => setDeduped(null)}
-        />
-      )}
+        <form className="dm-hunt-form" onSubmit={startHunt}>
+          <label className="dm-hunt-label" htmlFor="dm-target">Target</label>
+          <div className="dm-input-row">
+            <input
+              id="dm-target"
+              type="text"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              placeholder="https://target.com"
+              spellCheck={false}
+              autoComplete="off"
+            />
+            <button type="submit" className="dm-btn-primary" disabled={starting}>
+              {starting ? <Loader2 size={16} className="dm-spin" /> : <Crosshair size={16} />}
+              {starting ? 'Starting…' : 'Start hunt'}
+            </button>
+          </div>
+          <label className="dm-auth-check">
+            <input
+              type="checkbox"
+              checked={authConfirmed}
+              onChange={(e) => setAuthConfirmed(e.target.checked)}
+            />
+            <span>I confirm I am authorized to security-test this target (I own it or have written permission).</span>
+          </label>
+        </form>
 
-      <section className="dm-launch-card">
-        <h2>Start a hunt</h2>
-        <div className="dm-launch-row">
-          <input
-            className="dm-target-input"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            placeholder="https://target.com  — paste any URL"
-            spellCheck={false}
-            onKeyDown={(e) => { if (e.key === 'Enter') startHunt(false); }}
+        {error && <div className="dm-form-error" role="alert" style={{ marginTop: 16 }}><AlertTriangle size={14} /> {error}</div>}
+
+        {dedup && (
+          <DedupBanner
+            result={dedup}
+            onView={() => dedup?.huntRecord?.id && navigate(`/agent/reports/${dedup.huntRecord.id}`)}
+            onNewHunt={() => launch({ forceNew: true })}
+            onDismiss={() => setDedup(null)}
           />
-          <button className="dm-btn-primary dm-btn-big" onClick={() => startHunt(false)} disabled={busy}>
-            {busy ? <Loader2 size={17} className="dm-spin" /> : <Play size={17} />}
-            Hunt
-          </button>
-        </div>
-        <input
-          className="dm-objective-input"
-          value={objective}
-          onChange={(e) => setObjective(e.target.value)}
-          placeholder="Objective (optional) — e.g. focus on the checkout flow and API"
-        />
-        <label className="dm-auth-check">
-          <input type="checkbox" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)} />
-          <ShieldCheck size={15} />
-          <span>I confirm I am authorized to security-test this target (I own it or have written permission / a bounty program covers it).</span>
-        </label>
-        {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+        )}
       </section>
 
-      <div className="dm-home-grid">
-        <section className="dm-card">
-          <h3><ListPlus size={16} /> Multi-target queue</h3>
-          <p className="dm-card-hint">One target per line — they hunt in order, fairly.</p>
-          <textarea
-            className="dm-queue-input"
-            value={queueTargets}
-            onChange={(e) => setQueueTargets(e.target.value)}
-            placeholder={'https://target-one.com\nhttps://target-two.com/app'}
-            rows={4}
-            spellCheck={false}
-          />
-          <button className="dm-btn-secondary" onClick={startQueue} disabled={busy}>
-            <Layers size={14} /> Queue {queueTargets.split('\n').filter((t) => t.trim()).length || ''} targets
-          </button>
-        </section>
-
-        <section className="dm-card">
-          <h3><Crosshair size={16} /> Recent hunts</h3>
-          {jobs.length === 0 ? (
-            <p className="dm-card-hint">No hunts yet — your hunts will appear here.</p>
-          ) : (
-            <ul className="dm-job-list">
-              {jobs.map((job) => (
-                <li key={job.id}>
-                  <Link to={`/agent/hunt/${job.id}`}>
-                    <code>{job.target}</code>
-                    <span className={`dm-job-status st-${job.status}`}>{job.status}</span>
-                    <ChevronRight size={14} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link to="/agent/reports" className="dm-card-link">Browse all past reports →</Link>
-        </section>
+      <div className="dm-stat-row">
+        <div className="dm-stat"><strong>{runningCount}</strong><span>hunts live right now</span></div>
+        <div className="dm-stat"><strong>{doneCount}</strong><span>hunts completed</span></div>
+        <div className="dm-stat"><strong>{queues.length}</strong><span>target queues</span></div>
+        <div className="dm-stat"><strong>{unreadCount}</strong><span>unread alerts</span></div>
       </div>
+
+      <div className="dm-home-grid">
+        <div className="dm-home-col">
+          <section className="dm-panel">
+            <h3><Crosshair size={15} /> Recent hunts</h3>
+            {jobs.length === 0 ? (
+              <p className="dm-empty-note">No hunts yet — your first one is one paste away.</p>
+            ) : (
+              <ul className="dm-hunt-list">
+                {jobs.slice(0, 6).map((job) => (
+                  <li key={job.id}>
+                    <Link to={`/agent/hunt/${job.id}`} className="dm-hunt-row">
+                      <div className="dm-hunt-main">
+                        <span className="dm-hunt-target">{job.target || job.targetHostname || job.id}</span>
+                        <span className="dm-hunt-meta">
+                          {job.createdAt ? new Date(job.createdAt).toLocaleString() : ''}
+                          {job.findingsCount != null && ` · ${job.findingsCount} findings`}
+                        </span>
+                      </div>
+                      <StatusPill status={job.status} />
+                      <ChevronRight size={16} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <div className="dm-home-col">
+          <section className="dm-panel">
+            <h3><Bell size={15} /> Alerts</h3>
+            {alerts.length === 0 ? (
+              <p className="dm-empty-note">All quiet. Critical findings will land here.</p>
+            ) : (
+              alerts.slice(0, 3).map((alert) => (
+                <Link
+                  key={alert.id}
+                  to={alert.jobId ? `/agent/hunt/${alert.jobId}` : '/agent/alerts'}
+                  className={`dm-alert-peek${alert.read ? '' : ' unread'}`}
+                >
+                  <Bell size={14} />
+                  <span><strong>{alert.title}</strong></span>
+                </Link>
+              ))
+            )}
+            <Link to="/agent/alerts" className="dm-card-link" style={{ marginTop: 12 }}>
+              Open inbox <ChevronRight size={13} />
+            </Link>
+          </section>
+
+          <section className="dm-panel">
+            <h3><Layers size={15} /> Queues</h3>
+            {queues.length === 0 ? (
+              <p className="dm-empty-note">No queues. Line up targets to hunt in order.</p>
+            ) : (
+              queues.slice(0, 3).map((queue) => (
+                <Link key={queue.id} to="/agent/queues" className="dm-queue-peek">
+                  <Layers size={14} />
+                  <span><strong>{queue.name || 'Untitled queue'}</strong> · {(queue.targets || []).length} targets</span>
+                </Link>
+              ))
+            )}
+            <Link to="/agent/queues" className="dm-card-link" style={{ marginTop: 12 }}>
+              Manage queues <ChevronRight size={13} />
+            </Link>
+          </section>
+
+          <section className="dm-panel">
+            <h3><FileCheck2 size={15} /> Past reports</h3>
+            <p className="dm-card-hint">Every completed hunt is archived with a submission-ready report.</p>
+            <Link to="/agent/reports" className="dm-card-link" style={{ marginTop: 10 }}>
+              Browse reports <ChevronRight size={13} />
+            </Link>
+          </section>
+        </div>
+      </div>
+
+      <footer className="dm-home-foot">
+        <p className="dm-home-hint">
+          Tip: re-pasting a target you've already hunted returns its saved report instantly —
+          no need to burn another hunt. Use “Start new hunt” only when you want a fresh look.
+        </p>
+      </footer>
     </div>
   );
 }

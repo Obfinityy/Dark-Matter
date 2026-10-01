@@ -41,8 +41,11 @@ function eventToLine(event) {
   const kind = classifyEvent(event);
   const ts = event.at || event.timestamp || new Date().toISOString();
   const text = event.message || event.data?.message || event.summary || JSON.stringify(event.data || event).slice(0, 200);
+  // Stable fallback id: the same event fetched twice (activity backfill vs SSE
+  // history replay) must map to the same id so duplicates can be dropped.
+  const fallbackId = `evt-${event.__sseType || event.type || '?'}-${ts}-${text.slice(0, 48)}`;
   return {
-    id: event.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: event.id || fallbackId,
     at: ts,
     kind,
     type: event.__sseType || event.type || 'event',
@@ -74,11 +77,22 @@ export function HackerTerminal({
   const lastEventIdRef = useRef(null);
   const autoScrollRef = useRef(true);
   autoScrollRef.current = autoScroll;
+  // Ids already rendered — the activity backfill and the SSE history replay
+  // overlap, so without this the terminal shows every early event twice.
+  const seenIdsRef = useRef(new Set());
 
   const pushLines = useCallback((newLines) => {
+    const fresh = [];
+    for (const line of newLines) {
+      if (seenIdsRef.current.has(line.id)) continue;
+      seenIdsRef.current.add(line.id);
+      fresh.push(line);
+    }
+    if (!fresh.length) return;
     setLines((prev) => {
-      const merged = [...prev, ...newLines];
-      // Cap the DOM — the full history stays on the backend (event history API).
+      const merged = [...prev, ...fresh];
+      // Keep chronological — history replays can arrive after live lines.
+      merged.sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
       return merged.length > 2000 ? merged.slice(merged.length - 2000) : merged;
     });
   }, []);
@@ -87,6 +101,8 @@ export function HackerTerminal({
   useEffect(() => {
     let cancelled = false;
     setLines([]);
+    seenIdsRef.current = new Set();
+    lastEventIdRef.current = null;
     fetchActivity(jobId, 300)
       .then((body) => {
         if (cancelled) return;
