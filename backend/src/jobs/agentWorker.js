@@ -1,7 +1,16 @@
 import crypto from 'node:crypto';
 import { ScopeEngine } from '../agent/scopeEngine.js';
-import { LocalAiUnavailableError } from '../agent/autonomousBrain.js';
+import { LocalAiUnavailableError, AutonomousBrain } from '../agent/autonomousBrain.js';
 import { VALID_PHASES } from '../models/assessmentModel.js';
+import { checkOutcome } from '../computer/outcomeCheck.js';
+import { stageForPhase, describeHuntState, techniquesForStage } from '../agent/methodology.js';
+import { suggestRecovery, formatRecoveryAdvice } from '../computer/recoveryAdvisor.js';
+import { VulnerabilityReportBuilder, renderHuntReportMarkdown } from '../services/vulnerabilityReportBuilder.js';
+import { fingerprintTargetLenient } from '../services/targetFingerprint.js';
+import { buildBrainChain, suggestChains } from '../services/chainService.js';
+import { initialHuntState, safeTransition } from '../agent/huntStateMachine.js';
+import { createBrainProvider } from '../agent/providers/brainProviderFactory.js';
+import { LocalAIQueue, localAIQueue } from '../agent/providers/localAiQueue.js';
 
 /**
  * AgentWorker — the autonomous bug-bounty loop. THE HEART OF DARKMATTER.
@@ -37,12 +46,21 @@ export class AgentWorker {
     computer = null,
     computerState = null,
     computerEvents = null,
+    computerActionModel = null,
+    reasoningCycleModel = null,
     findingLifecycle,
     evidenceModel,
     stateManager,
     eventService,
     reportService = null,
     findingModel = null,
+    alertService = null,
+    targetQueueService = null,
+    payloadLibraryModel = null,
+    brainProviderModel = null,
+    huntContextManager = null,
+    appConfig = null,
+    huntRecordModel = null, // persistent artifact store (hybrid storage: DB side)
     logger = console
   }) {
     this.jobModel = jobModel;
@@ -54,12 +72,30 @@ export class AgentWorker {
     this.computer = computer;
     this.computerState = computerState;
     this.computerEvents = computerEvents;
-    this.findingLifecycle = findingLifecycle;
+    this.computerActionModel = computerActionModel;
+    this.reasoningCycleModel = reasoningCycleModel;
+    // Stash for the current step's verification verdict (set by the action
+    // runners, consumed by the reasoning-cycle bookkeeping in stepReason).
+    this.lastStepVerification = null;    this.findingLifecycle = findingLifecycle;
     this.evidenceModel = evidenceModel;
     this.stateManager = stateManager;
     this.eventService = eventService;
     this.reportService = reportService;
     this.findingModel = findingModel;
+    this.alertService = alertService;
+    this.targetQueueService = targetQueueService;
+    this.payloadLibraryModel = payloadLibraryModel;
+    this.brainProviderModel = brainProviderModel;
+    this.huntContextManager = huntContextManager;
+    this.appConfig = appConfig;
+    this.huntRecordModel = huntRecordModel;
+    // Per-user brain instances (multi-tenancy): userId → AutonomousBrain.
+    // Each brain has its OWN provider (their model, their endpoint) and its
+    // OWN inference queue — no shared mutable state between users, and one
+    // user's reasoning never waits behind another's. this.brain remains as
+    // the fallback/default (conversational mode, tests without a provider
+    // model).
+    this.brains = new Map();
     this.logger = logger;
     this.config = {
       idleDelayMs: Number(process.env.AGENT_WORKER_IDLE_MS || 500),
@@ -71,9 +107,87 @@ export class AgentWorker {
 
     /** jobId → { abort, wake } so pause/cancel/shutdown act immediately. */
     this.running = new Map();
+    // Per-user running sets (multi-tenancy): userId → Set(jobId). Lets the
+    // JobManager enforce HUNT_MAX_PER_USER without scanning job docs.
+    // Each user's hunts are isolated here — no shared mutable state.
+    this.runningByUser = new Map();
     this.noProgress = new Map();
     this.brainErrors = new Map();
     this.stopped = false;
+    /**
+     * jobId → computer_actions record id of the most recent computer action,
+     * so the brain's *next* decision can be linked back to the action whose
+     * outcome it was based on (issue #1 "Persistence").
+     */
+    this.pendingComputerAction = new Map();
+  }
+
+  // ── Per-user brains (multi-tenancy) ────────────────────────────────────
+  /**
+   * Resolve the brain for a job's user. Each user gets their OWN
+   * AutonomousBrain: their selected provider (phone Gemma or their Ollama
+   * model), their own endpoint URL, their own inference queue. Brains are
+   * cached per user and rebuilt when the user switches models.
+   *
+   * Falls back to the shared default brain when no provider model is wired
+   * (tests, single-user embedded use).
+   */
+  async getBrainForJob(job) {
+    if (!this.brainProviderModel || !job?.userId) return this.brain;
+    if (this.brains.has(job.userId)) return this.brains.get(job.userId);
+
+    const selection = await this.brainProviderModel.getSelection(job.userId);
+    const provider = createBrainProvider(selection.provider, this.appConfig || {}, {
+      model: selection.ollamaTag || selection.modelId || null,
+      baseUrl: selection.endpointUrl || null,
+    });
+    // The phone is ONE piece of hardware: its brains share the hardware
+    // queue. Every Ollama brain gets a PRIVATE queue — the agent's
+    // thinking loop is never throttled by another user's inference.
+    const queue = selection.provider === 'phone'
+      ? localAIQueue
+      : new LocalAIQueue({ maxConcurrency: 2 });
+    const brain = new AutonomousBrain({
+      memory: this.memory,
+      eventService: this.eventService,
+      computer: this.computer,
+      provider,
+      queue,
+    });
+    this.brains.set(job.userId, brain);
+    return brain;
+  }
+
+  /**
+   * Drop a user's cached brain so the next reasoning step rebuilds it from
+   * their current model selection. Called when the user switches models.
+   */
+  refreshBrainForUser(userId) {
+    if (userId) this.brains.delete(userId);
+  }
+
+  // ── Hunt state awareness ─────────────────────────────────────────────
+  /**
+   * Persist the agent's explicit self-state ("I just did X → next I do Y").
+   * Every reasoning cycle reads this FIRST — it is what makes the system an
+   * agent instead of a script. Transitions go through the state machine so
+   * illegal moves are caught (and logged, never fatal).
+   *
+   * @param {string} jobId
+   * @param {object} patch - { status?, stage?, lastAction?, lastOutcome?,
+   *                           lastHypothesis?, nextIntent? }
+   * @returns the refreshed job (with the new huntState), or null
+   */
+  async updateHuntState(jobId, patch = {}) {
+    const job = await this.jobModel.get(jobId);
+    if (!job) return null;
+    const current = job.huntState || initialHuntState();
+    const next = safeTransition(current, patch.status || current.status, {
+      ...patch,
+      stepsTaken: job.stepCount || 0,
+    }, this.logger);
+    await this.jobModel.update(jobId, { huntState: next });
+    return { ...job, huntState: next };
   }
 
   isRunning(jobId) {
@@ -82,6 +196,16 @@ export class AgentWorker {
 
   get runningJobIds() {
     return [...this.running.keys()];
+  }
+
+  /** Total hunts currently executing in this process. */
+  get runningCount() {
+    return this.running.size;
+  }
+
+  /** Hunts currently executing for one user (per-user isolation accounting). */
+  runningCountForUser(userId) {
+    return this.runningByUser.get(userId)?.size || 0;
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────
@@ -97,6 +221,14 @@ export class AgentWorker {
 
     const control = { abort: false, wake: null };
     this.running.set(jobId, control);
+    if (job.userId) {
+      let userSet = this.runningByUser.get(job.userId);
+      if (!userSet) {
+        userSet = new Set();
+        this.runningByUser.set(job.userId, userSet);
+      }
+      userSet.add(jobId);
+    }
 
     try {
       await this.jobModel.claim(jobId, {
@@ -133,6 +265,13 @@ export class AgentWorker {
       return { status: 'failed', error: error.message };
     } finally {
       this.running.delete(jobId);
+      if (job.userId) {
+        const userSet = this.runningByUser.get(job.userId);
+        if (userSet) {
+          userSet.delete(jobId);
+          if (userSet.size === 0) this.runningByUser.delete(job.userId);
+        }
+      }
       await this.jobModel.release(jobId).catch?.(() => {});
     }
   }
@@ -204,66 +343,237 @@ export class AgentWorker {
     const jobId = job.id;
     const scopeEngine = new ScopeEngine(job.scope, job.target);
 
-    const [memoryContext, findings, activity, toolResults] = await Promise.all([
+    // ── State awareness: the agent reads its own state FIRST ──────────
+    // Every reasoning cycle begins from an explicit, persisted hunt state:
+    // "nothing has started yet" → "I just did X" → "so next I should do Y".
+    if (!job.huntState) {
+      const initialized = await this.updateHuntState(jobId, { status: 'idle' });
+      if (initialized) job = initialized;
+    }
+
+    const brain = await this.getBrainForJob(job);
+
+    // ── Hierarchical context assembly (finite window, guaranteed fit) ──
+    // HOT (sliding window over recent activity) + WARM (rolling hunt summary)
+    // + COLD (file memory + payload library), all token-budgeted by the
+    // HuntContextManager. Decision-critical facts (target, scope, objective)
+    // live in the brain's fixed message sections and are never dropped.
+    const [memoryContext, findings, toolResults, recentCycles] = await Promise.all([
       this.memory.buildBrainContext({
         userId: job.userId,
         assessmentId: job.assessmentId,
+        jobId: job.id,
         query: `${job.currentObjective || job.objective} ${job.target}`,
         maxTokens: 1100
       }),
       this.findingModel ? this.findingModel.list(job.assessmentId) : Promise.resolve([]),
-      Promise.resolve(job.activity || []),
-      this.toolExecutionModel.list(job.assessmentId)
+      this.toolExecutionModel.list(job.assessmentId),
+      // The persisted thinking loop: the brain always knows the full flow
+      // state, even after a restart (issue #1 "the brain must always know").
+      this.reasoningCycleModel
+        ? this.reasoningCycleModel.recentSummaries(jobId, { limit: 6 })
+        : Promise.resolve([])
     ]);
+
+    // Periodic summarization: every K steps the hunt's aging history is
+    // compressed into the warm rolling summary (brain-written, with a
+    // deterministic extractive fallback). The brain never loses track of
+    // what was tried, what was found, and what's pending — at step 500
+    // exactly as at step 5.
+    if (this.huntContextManager) {
+      try {
+        await this.huntContextManager.maybeRefreshSummary({ job, brain });
+        const refreshed = await this.jobModel.get(jobId);
+        if (refreshed) job = refreshed;
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] summary refresh failed: ${error.message}`);
+      }
+    }
 
     const computerStatus = this.computerState ? this.computerState.snapshot() : null;
 
-    let decision;
+    // ── Hunt state: where the methodology stands ───────────────────────
+    // The brain must always know which techniques were already tried so the
+    // hunt keeps moving to new angles instead of repeating or stopping.
+    const methodologyStage = stageForPhase(job.phase);
+    const techniquesTried = Array.isArray(job.techniquesTried) ? job.techniquesTried : [];
+    const huntContext = describeHuntState({
+      stage: methodologyStage,
+      tried: techniquesTried,
+      findingsCount: job.findingsCount || 0
+    });
+
+    // ── The agent hunts with everything it has learned ───────────────
+    // Payloads that worked before (self-learning library) and chain
+    // candidates between confirmed findings are injected into the hunt
+    // context, so the brain reasons over them every cycle.
+    let learnedHints = '';
     try {
-      ({ decision } = await this.brain.decide({
+      if (this.payloadLibraryModel) {
+        const stageTechniques = techniquesForStage(methodologyStage).map((t) => t.id);
+        const hints = [];
+        for (const techId of stageTechniques.slice(0, 5)) {
+          const suggested = await this.payloadLibraryModel.suggest({ technique: techId, limit: 2 });
+          hints.push(...suggested);
+        }
+        const proven = hints.filter((h) => h.successes > 0).slice(0, 5);
+        if (proven.length) {
+          learnedHints += '\nPROVEN PAYLOADS (worked in past hunts — prefer these for the matching technique):\n' +
+            proven.map((h) => `- [${h.technique}] "${h.payload.slice(0, 120)}" (${h.successes}× success)`).join('\n');
+        }
+      }
+      if (Array.isArray(findings) && findings.length >= 2) {
+        const existingChains = findings.filter((f) => f.category === 'vulnerability-chain');
+        const chains = suggestChains(findings, existingChains).slice(0, 3);
+        if (chains.length) {
+          learnedHints += '\nCHAIN CANDIDATES (confirmed findings that combine into bigger attacks — file them with category "vulnerability-chain"): \n' +
+            chains.map((c) => `- ${c.title} → severity ${c.severity.toUpperCase()}: ${c.description.slice(0, 160)}…`).join('\n');
+        }
+      }
+    } catch (error) {
+      this.logger.warn?.(`[agent-worker] learned-context enrichment failed: ${error.message}`);
+    }
+
+    // Token-budgeted variable context for this step (falls back to the
+    // legacy inline assembly when no context manager is wired, e.g. tests).
+    let stepContext = null;
+    if (this.huntContextManager) {
+      try {
+        stepContext = await this.huntContextManager.buildStepContext(job, {
+          findings,
+          recentCycles,
+          learnedHints,
+        });
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] context assembly failed, using fallback: ${error.message}`);
+      }
+    }
+
+    const budgetedToolResults = (toolResults || []).slice(0, 6).map((execution) => ({
+      tool: execution.tool,
+      target: execution.target,
+      summary: String(execution.aiSummary || execution.error || execution.status || '').slice(0, 600)
+    }));
+
+    const fallbackObservations = (job.activity || []).slice(-12).map((item) => ({
+      kind: item.kind,
+      summary: String(item.message || item.text || '').slice(0, 400)
+    }));
+
+    // The warm summary rides along with the hunt context — compressed
+    // experience the brain must treat as ground truth about this hunt.
+    const composeHuntContext = (ctx) => {
+      const warm = ctx && ctx.warmSummary
+        ? `WARM MEMORY — rolling hunt summary (compressed experience, trust it):\n${ctx.warmSummary}\n\n`
+        : '';
+      return `${warm}${huntContext}${learnedHints}`;
+    };
+
+    const reasonOnce = async (ctx) => {
+      const { decision } = await brain.decide({
         job,
         memoryContext: memoryContext.text,
-        // The job's persisted activity feed IS the real observation stream.
-        recentObservations: (activity || []).map((item) => ({
-          kind: item.kind,
-          summary: item.message
-        })),
-        toolResults: (toolResults || []).map((execution) => ({
-          tool: execution.tool,
-          target: execution.target,
-          summary: execution.aiSummary || execution.error || execution.status
-        })),
-        findings,
-        computerStatus
-      }));
-    } catch (error) {
-      if (error instanceof LocalAiUnavailableError) throw error; // outer loop handles
-      await this.jobModel.recordError(jobId, { message: error.message, kind: error.code || 'brain_error' });
-      await this.publish(jobId, {
-        type: 'brain.decision',
-        level: 'WARN',
-        message: `Local AI produced an unusable decision: ${error.message}`,
-        data: { raw: String(error.raw || '').slice(0, 1000) }
+        // The job's persisted activity feed IS the real observation stream —
+        // windowed by the context manager so the prompt always fits.
+        recentObservations: ctx ? ctx.hotObservations : fallbackObservations,
+        toolResults: budgetedToolResults,
+        findings: ctx ? ctx.findings : findings,
+        computerStatus,
+        recentCycles: ctx ? ctx.recentCycles : recentCycles,
+        huntContext: composeHuntContext(ctx)
       });
-      await this.recordActivity(jobId, { kind: 'brain', message: `Rejected malformed decision: ${error.message}` });
+      return decision;
+    };
 
-      // A model that keeps emitting unusable JSON is a real (recoverable)
-      // condition, not a reason to spin. Back off, then park the job in
-      // `waiting` so an operator can see it instead of burning CPU.
-      const streak = (this.brainErrors.get(jobId) || 0) + 1;
-      this.brainErrors.set(jobId, streak);
-      if (streak >= 5) {
-        this.brainErrors.delete(jobId);
-        await this.enterWaiting(job, {
-          reason: `local AI produced no usable decision after ${streak} attempts: ${error.message}`,
-          event: 'brain.decision',
-          message: `Local AI cannot produce a valid decision (${error.message}) — pausing reasoning until it recovers`
+    let decision;
+    try {
+      decision = await reasonOnce(stepContext);
+    } catch (error) {
+      // Recovery: on a context-window failure, auto-compact (force a summary
+      // refresh, shrink the hot window) and retry ONCE on a strictly smaller
+      // prompt — instead of dying or parking blindly.
+      if (error instanceof LocalAiUnavailableError && error.kind === 'context_window' && this.huntContextManager && !job.__compactRetried) {
+        try {
+          const { job: compactedJob, tightenedBudgets } = await this.huntContextManager.emergencyCompact({ job, brain });
+          if (compactedJob) job = compactedJob;
+          job.__compactRetried = true;
+          stepContext = await this.huntContextManager.buildStepContext(job, {
+            findings,
+            recentCycles,
+            learnedHints,
+            variableBudgetTokens: tightenedBudgets.variableBudgetTokens,
+            hotBudgetTokens: tightenedBudgets.hotBudgetTokens,
+          });
+          await this.publish(jobId, {
+            type: 'brain.thinking',
+            level: 'WARN',
+            message: 'Local model context overflowed — auto-compacted hunt history and retrying with a smaller prompt'
+          });
+          decision = await reasonOnce(stepContext);
+        } catch (retryError) {
+          throw retryError; // outer loop handles: waiting state + slow retry
+        }
+      } else if (error instanceof LocalAiUnavailableError) {
+        throw error; // outer loop handles
+      } else {
+        await this.jobModel.recordError(jobId, { message: error.message, kind: error.code || 'brain_error' });
+        await this.publish(jobId, {
+          type: 'brain.decision',
+          level: 'WARN',
+          message: `Local AI produced an unusable decision: ${error.message}`,
+          data: { raw: String(error.raw || '').slice(0, 1000) }
         });
+        await this.recordActivity(jobId, { kind: 'brain', message: `Rejected malformed decision: ${error.message}` });
+
+        // A model that keeps emitting unusable JSON is a real (recoverable)
+        // condition, not a reason to spin. Back off, then park the job in
+        // `waiting` so an operator can see it instead of burning CPU.
+        const streak = (this.brainErrors.get(jobId) || 0) + 1;
+        this.brainErrors.set(jobId, streak);
+        if (streak >= 5) {
+          this.brainErrors.delete(jobId);
+          await this.enterWaiting(job, {
+            reason: `local AI produced no usable decision after ${streak} attempts: ${error.message}`,
+            event: 'brain.decision',
+            message: `Local AI cannot produce a valid decision (${error.message}) — pausing reasoning until it recovers`
+          });
+          return this.jobModel.get(jobId);
+        }
+        await this.sleepInterruptible(jobId, Math.min(400 * streak, 3000));
         return this.jobModel.get(jobId);
       }
-      await this.sleepInterruptible(jobId, Math.min(400 * streak, 3000));
-      return this.jobModel.get(jobId);
-    }      // ── Persist the decision *before* acting on it (#71) ────────────────
+    }
+    // ── State awareness: "I just decided X → so next I do Y" ─────────
+    // The decision is recorded into the explicit hunt state BEFORE it runs,
+    // so the next cycle (even after a crash/restart) knows exactly where
+    // the hunt stands.
+    {
+      const nextAction = decision.nextAction || {};
+      const decidedStage = nextAction.type === 'validate' ? 'verifying'
+        : (decision.methodologyStage || methodologyStage);
+      const firstHypothesis = Array.isArray(decision.hypotheses) && decision.hypotheses[0]
+        ? decision.hypotheses[0].hypothesis
+        : null;
+      const updated = await this.updateHuntState(jobId, {
+        status: decidedStage,
+        stage: methodologyStage,
+        lastAction: this.describeAction(nextAction),
+        lastHypothesis: firstHypothesis || nextAction.hypothesis || job.huntState?.lastHypothesis || null,
+        nextIntent: decision.expectedOutcome || decision.reason,
+      });
+      if (updated) job = updated;
+      // The agent's file memory gets the same note — a human-readable trace
+      // of what was decided and why.
+      if (this.memory && typeof this.memory.appendJournal === 'function') {
+        await this.memory.appendJournal({
+          userId: job.userId,
+          jobId: job.id,
+          text: `Decided: ${this.describeAction(nextAction)}. Reason: ${decision.reason || '—'}`,
+        }).catch(() => {});
+      }
+    }
+
+      // ── Persist the decision *before* acting on it (#71) ────────────────
     if (job.status === 'waiting') {
       // Reasoning works again: leave the waiting state exactly once.
       await this.jobModel.transition(jobId, 'running', { waitingReason: null, brainStatus: 'reasoning' });
@@ -329,7 +639,117 @@ export class AgentWorker {
       });
     }
 
+    // ── Reasoning cycle: persist the thinking loop ─────────────────────
+    // observation → thought → plan → action → expected outcome is recorded
+    // now; the verification half lands after the action runs below, and the
+    // adaptation half when the NEXT decision arrives (its reasoning IS the
+    // adaptation to this cycle's verification).
+    let cycle = null;
+    if (this.reasoningCycleModel) {
+      try {
+        const previous = await this.reasoningCycleModel.getOpenCycle(jobId);
+        cycle = await this.reasoningCycleModel.openCycle({
+          userId: job.userId,
+          assessmentId: job.assessmentId,
+          jobId,
+          stepNumber: (job.stepCount || 0) + 1,
+          decision,
+          plan: job.plan || null
+        });
+        if (previous && previous.id !== cycle.id) {
+          await this.reasoningCycleModel.recordAdaptation(previous.id, {
+            nextCycleId: cycle.id,
+            nextObjective: decision.objective,
+            nextReason: decision.reason
+          });
+        }
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] reasoning cycle open failed: ${error.message}`);
+      }
+    }
+
+    this.lastStepVerification = null;
     await this.executeDecision(job, decision, scopeEngine);
+
+    // The verification half of the thinking loop: what the action's outcome
+    // check actually concluded (matched / mismatched / error / skipped).
+    if (cycle && this.reasoningCycleModel) {
+      try {
+        const verification = this.lastStepVerification || {
+          outcome: 'skipped',
+          reason: 'this action type carries no expected-outcome check'
+        };
+        await this.reasoningCycleModel.recordVerification(cycle.id, verification);
+        // ── State awareness: "I just did X (outcome Y)" ───────────────
+        // The verified outcome lands in the explicit hunt state, so the next
+        // cycle reasons from what ACTUALLY happened — not what was planned.
+        {
+          const outcomeText = `${verification.outcome || 'unknown'}${verification.reason ? ` — ${verification.reason}` : ''}`;
+          const updated = await this.updateHuntState(jobId, { lastOutcome: outcomeText });
+          if (updated) job = updated;
+        }
+        // The LEARN half: persist the lesson so the next cycle is smarter.
+        if (verification.outcome === 'mismatched' || verification.outcome === 'error') {
+          await this.reasoningCycleModel.recordLearning(cycle.id, {
+            lesson: `Step ${cycle.stepNumber} (${cycle.technique || 'unknown technique'}): expected "${cycle.expectedOutcome || '?'}" but got "${verification.reason || '?'}" — do not repeat this exact approach; adapt the hypothesis.`
+          });
+        }
+        // Track the tried technique on the job so the hunt never repeats an
+        // angle and the UI can show real progress (non-stop hunting).
+        if (cycle.technique) {
+          const tried = Array.isArray(job.techniquesTried) ? job.techniquesTried : [];
+          if (!tried.some((t) => (t.techniqueId || t) === cycle.technique)) {
+            await this.jobModel.update(jobId, {
+              techniquesTried: [...tried, {
+                techniqueId: cycle.technique,
+                stage: cycle.methodologyStage || methodologyStage,
+                stepNumber: cycle.stepNumber,
+                verification: verification.outcome,
+                at: new Date().toISOString()
+              }].slice(-200)
+            });
+          }
+        }
+        // ── Self-learning payload library ────────────────────────────
+        // What the agent tried, and whether it worked, is remembered across
+        // hunts. A payload that confirmed a finding once is suggested first
+        // the next time the same technique is used — this is the agent
+        // genuinely getting better with experience.
+        if (this.payloadLibraryModel) {
+          try {
+            const attempt = this.extractPayloadAttempt(decision, cycle);
+            if (attempt) {
+              const outcome = verification.outcome === 'matched' ? 'success'
+                : (verification.outcome === 'mismatched' || verification.outcome === 'error') ? 'failure'
+                : 'neutral';
+              await this.payloadLibraryModel.recordOutcome(attempt, outcome);
+            }
+          } catch (error) {
+            this.logger.warn?.(`[agent-worker] payload learning failed: ${error.message}`);
+          }
+        }
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] reasoning cycle verification failed: ${error.message}`);
+      }
+    }
+    this.lastStepVerification = null;
+
+    // ── Attack surface: merge the brain's discoveries ──────────────────
+    // Dedupe by kind+value; keep first-seen and refresh last-seen. This is
+    // the live map the frontend draws, and the fingerprint card reads the
+    // 'technology' entries.
+    if (Array.isArray(decision.discoveredAssets) && decision.discoveredAssets.length) {
+      try {
+        await this.mergeDiscoveredAssets(jobId, job.assets, decision.discoveredAssets, cycle?.stepNumber || 0);
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] asset merge failed: ${error.message}`);
+      }
+    }
+
+    // The brain has now decided *after* seeing the last computer action's
+    // outcome — link the decision back to that action's ledger record so the
+    // observe → decide edge is persisted (issue #1 "Persistence").
+    await this.linkComputerActionDecision(jobId, decision);
 
     // ── Progress bookkeeping + liveness guard ──────────────────────────
     this.brainErrors.delete(jobId);
@@ -377,7 +797,7 @@ export class AgentWorker {
       case 'tool':
         return this.runToolAction(job, action);
       case 'computer_action':
-        return this.runComputerAction(job, action, scopeEngine);
+        return this.runComputerAction(job, action, scopeEngine, decision);
       case 'observation':
         return this.findingLifecycle.recordObservation({
           userId: job.userId,
@@ -519,7 +939,18 @@ export class AgentWorker {
     }
   }
 
-  async runComputerAction(job, action, scopeEngine) {
+  /**
+   * Run one computer ("hands") action inside the autonomous loop.
+   *
+   * Implements the issue #1 observe → decide → act → observe cycle:
+   *   1. the action is persisted *before* it runs (ComputerActionModel),
+   *   2. after a meaningful action the screen is re-observed once it settles,
+   *   3. the brain's `expectedOutcome` is compared against the real
+   *      observation(s) and the verdict is published + persisted,
+   *   4. failures produce concrete recovery strategies (recoveryAdvisor),
+   *   5. the brain's next decision is linked back to this action's record.
+   */
+  async runComputerAction(job, action, scopeEngine, decision = null) {
     const jobId = job.id;
     if (!this.computer) {
       await this.publish(jobId, {
@@ -529,6 +960,27 @@ export class AgentWorker {
         data: { action: action.action }
       });
       return null;
+    }
+
+    // Persist the action BEFORE it runs — an interrupted action must still be
+    // on the ledger (issue #1 "Persistence").
+    let actionRecord = null;
+    if (this.computerActionModel) {
+      try {
+        actionRecord = await this.computerActionModel.record({
+          jobId,
+          assessmentId: job.assessmentId,
+          userId: job.userId,
+          action: action.action?.type,
+          params: action.action?.params || {},
+          expectedOutcome: action.action?.expectedOutcome || null,
+          decision: decision
+            ? { objective: decision.objective, reason: decision.reason, expectedOutcome: decision.expectedOutcome }
+            : null
+        });
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] computer action ledger unavailable: ${error.message}`);
+      }
     }
 
     const result = await this.computer.execute(action.action, {
@@ -542,8 +994,64 @@ export class AgentWorker {
       computerRuntime: result.ok ? 'available' : (result.error?.kind || 'unknown')
     });
 
+    const finishRecord = async (fields) => {
+      if (actionRecord && this.computerActionModel) {
+        try {
+          await this.computerActionModel.markFinished(actionRecord.id, fields);
+        } catch (error) {
+          this.logger.warn?.(`[agent-worker] computer action ledger write failed: ${error.message}`);
+        }
+      }
+      // The next decision the brain makes belongs to this action's outcome.
+      if (actionRecord) this.pendingComputerAction.set(jobId, actionRecord.id);
+    };
+
     if (result.ok) {
       const observation = result.observation;
+
+      // The "observe" half of the loop: meaningful actions get a second,
+      // post-settle look at the real screen (issue #1).
+      let followUpObservation = null;
+      if (typeof this.computer.observeAfterAction === 'function') {
+        try {
+          followUpObservation = await this.computer.observeAfterAction(result.action, { channel: jobId });
+        } catch (error) {
+          this.logger.warn?.(`[agent-worker] post-action re-observe failed: ${error.message}`);
+        }
+      }
+
+      // Expected-vs-actual: an explicit verdict, not a raw observation the
+      // brain might misread.
+      const outcomeCheck = checkOutcome({
+        expectedOutcome: action.action?.expectedOutcome,
+        observation,
+        followUpObservation
+      });
+      await this.publish(jobId, {
+        type: 'browser.outcome',
+        level: outcomeCheck.matched === false ? 'WARN' : 'INFO',
+        message: outcomeCheck.matched === false
+          ? `Outcome MISMATCH — expected "${action.action?.expectedOutcome}", observed "${observation.summary}${followUpObservation ? ` / ${followUpObservation.summary}` : ''}"`
+          : `Outcome check: ${outcomeCheck.reason}`,
+        data: {
+          expected: action.action?.expectedOutcome || null,
+          actual: observation.summary,
+          followUp: followUpObservation?.summary || null,
+          matched: outcomeCheck.matched,
+          reason: outcomeCheck.reason
+        }
+      });
+      if (outcomeCheck.matched === false) {
+        await this.memory.rememberEpisodic({
+          userId: job.userId,
+          assessmentId: job.assessmentId,
+          jobId,
+          key: 'computer-outcome-mismatch',
+          content: `COMPUTER OUTCOME MISMATCH: expected "${action.action?.expectedOutcome}" but observed "${observation.summary}". Do not assume the action worked — verify before building on it.`,
+          importance: 0.85
+        });
+      }
+
       await this.evidenceModel.store({
         userId: job.userId,
         assessmentId: job.assessmentId,
@@ -563,28 +1071,68 @@ export class AgentWorker {
         assessmentId: job.assessmentId,
         jobId,
         key: 'computer',
-        content: `COMPUTER: ${observation.summary}`,
+        content: `COMPUTER: ${observation.summary}${followUpObservation ? ` | After settling: ${followUpObservation.summary}` : ''}`,
         refs: { url: observation.url || null }
       });
       await this.jobModel.update(jobId, {
-        lastObservation: { kind: observation.kind, summary: observation.summary, at: observation.at }
+        lastObservation: {
+          kind: observation.kind,
+          summary: observation.summary,
+          followUp: followUpObservation?.summary || null,
+          at: observation.at
+        }
       });
-      await this.recordActivity(jobId, { kind: 'browser', message: observation.summary });
+      await this.recordActivity(jobId, {
+        kind: 'browser',
+        message: observation.summary,
+        detail: followUpObservation ? `After settling: ${followUpObservation.summary}` : undefined
+      });
       await this.publish(jobId, {
         type: 'browser.action',
         level: 'INFO',
         message: `${result.action.type}: ${observation.summary}`,
-        data: { action: result.action, observation }
+        data: { action: result.action, observation, followUpObservation, outcomeCheck }
       });
+
+      await finishRecord({
+        ok: true,
+        output: result.output,
+        observation,
+        followUpObservation,
+        outcomeCheck,
+        durationMs: result.durationMs
+      });
+      // The verification verdict for this step's reasoning cycle.
+      this.lastStepVerification = {
+        outcome: outcomeCheck.matched === true ? 'matched' : outcomeCheck.matched === false ? 'mismatched' : 'skipped',
+        reason: outcomeCheck.reason
+      };
       return result;
     }
 
     // Failure triage:
     //   • the whole runtime is gone      → wait for it to come back (#34)
-    //   • this one action is impossible  → remember it and let the brain adapt
-    //   • the action was rejected        → remember it and let the brain adapt
+    //   • this one action is impossible  → recovery strategies + brain adapts
+    //   • the action was rejected        → recovery strategies + brain adapts
     const runtimeGone = (result.error?.kind === 'unavailable' || result.error?.kind === 'timeout')
       && this.computer.running !== true;
+    // Concrete recovery strategies (issue #1 "Recoverable failures") — the
+    // brain gets options, not just an error string.
+    const recoveryAdvice = suggestRecovery({
+      action: result.action,
+      error: result.error,
+      observation: null
+    });
+    await finishRecord({
+      ok: false,
+      output: null,
+      observation: null,
+      followUpObservation: null,
+      outcomeCheck: null,
+      error: result.error,
+      durationMs: result.durationMs,
+      recoveryAdvice
+    });
 
     if (runtimeGone) {
       await this.enterWaiting(job, {
@@ -598,18 +1146,42 @@ export class AgentWorker {
         assessmentId: job.assessmentId,
         jobId,
         key: 'computer-rejected',
-        content: `COMPUTER ACTION ${result.rejected ? 'REJECTED' : 'UNAVAILABLE'} (${result.error?.kind}): ${result.error?.message} — choose a different approach`,
+        content: `COMPUTER ACTION ${result.rejected ? 'REJECTED' : 'UNAVAILABLE'} (${result.error?.kind}): ${result.error?.message} — recovery options:\n${formatRecoveryAdvice(recoveryAdvice)}`,
         importance: 0.8
       });
-      await this.recordActivity(jobId, { kind: 'error', message: `Computer action ${result.rejected ? 'rejected' : 'unavailable'}: ${result.error?.message}` });
+      await this.recordActivity(jobId, {
+        kind: 'error',
+        message: `Computer action ${result.rejected ? 'rejected' : 'unavailable'}: ${result.error?.message}`,
+        detail: formatRecoveryAdvice(recoveryAdvice)
+      });
       await this.publish(jobId, {
         type: 'browser.observation',
         level: 'WARN',
         message: `Computer action could not run: ${result.error?.message}`,
-        data: { action: result.action, kind: result.error?.kind }
+        data: { action: result.action, kind: result.error?.kind, recoveryAdvice }
       });
     }
+    // The verification verdict for this step's reasoning cycle.
+    this.lastStepVerification = {
+      outcome: 'error',
+      reason: result.error?.message || 'computer action failed'
+    };
     return null;
+  }
+
+  /**
+   * Link the brain's next decision back to the computer action whose outcome
+   * it was based on, closing the persistence loop (issue #1).
+   */
+  async linkComputerActionDecision(jobId, decision) {
+    const recordId = this.pendingComputerAction.get(jobId);
+    if (!recordId || !this.computerActionModel || !decision) return;
+    this.pendingComputerAction.delete(jobId);
+    try {
+      await this.computerActionModel.linkNextDecision(recordId, decision);
+    } catch (error) {
+      this.logger.warn?.(`[agent-worker] linking next decision failed: ${error.message}`);
+    }
   }
 
   async runValidation(job, action) {
@@ -681,16 +1253,39 @@ export class AgentWorker {
       remediation: action.remediation || '',
       confidence: action.confidence ?? 0.6,
       evidenceIds,
-      hypothesisId: action.hypothesisId || null
+      hypothesisId: action.hypothesisId || null,
+      cvssMetrics: action.cvssMetrics || null
     });
 
     if (result.created) {
       await this.jobModel.incrementCounters(job.id, { findingsCount: 1 });
+      // Auto evidence capture (P1): every finding auto-attaches a fresh
+      // screenshot + the recent command log + timestamps.
+      await this.captureFindingEvidence(job, result.finding);
       await this.assessmentModel.incrementCounters(job.assessmentId, { findingsCount: 1 });
       await this.recordActivity(job.id, {
         kind: 'finding',
         message: `Finding confirmed: ${result.finding.title} (${result.finding.severity})`
       });
+
+      // Critical-finding alert (P1): the user asked to be told the moment a
+      // critical lands — never silently. Best-effort; never fails the hunt.
+      if (result.finding.severity === 'critical' && this.alertService) {
+        try {
+          await this.alertService.notifyCriticalFinding({ userId: job.userId, job, finding: result.finding });
+        } catch (error) {
+          this.logger.warn?.(`[agent-worker] critical-finding alert failed: ${error.message}`);
+        }
+      }
+
+      // Vulnerability chaining (P1): the brain may propose that this finding
+      // chains with earlier ones (action.chain = { findingIds, title, ... }).
+      // buildBrainChain VALIDATES the proposal — every referenced finding must
+      // exist, belong to this hunt, and be confirmed — and escalates severity.
+      // A rejected proposal is recorded as activity, never silently dropped.
+      if (action.chain && Array.isArray(action.chain.findingIds) && action.chain.findingIds.length >= 2) {
+        await this.recordBrainChain(job, action.chain, result.finding);
+      }
     } else if (result.reason === 'no_evidence') {
       await this.recordActivity(job.id, {
         kind: 'finding',
@@ -698,6 +1293,197 @@ export class AgentWorker {
       });
     }
     return result;
+  }
+
+  /**
+   * Validate + record a brain-proposed vulnerability chain.
+   *
+   * The brain proposes chains ("XSS → session hijack → account takeover") as
+   * action.chain. buildBrainChain() enforces the trust rules: every linked
+   * finding must be real, belong to THIS hunt, and be confirmed. The validated
+   * chain is filed as its own finding (category 'vulnerability-chain') with
+   * escalated severity, so it shows up in the report and the findings board.
+   */
+  async recordBrainChain(job, chainProposal, triggerFinding) {
+    try {
+      const jobFindings = this.findingModel
+        ? await this.findingModel.list(job.assessmentId)
+        : [];
+      // Include the just-created finding — the brain usually chains it.
+      const allFindings = [...jobFindings];
+      if (triggerFinding && !allFindings.some((f) => f.id === triggerFinding.id)) {
+        allFindings.push(triggerFinding);
+      }
+      const chain = buildBrainChain(chainProposal, allFindings, job.id);
+      // A chain's evidence IS its components' evidence — collect it, because
+      // createFinding() rejects evidence-less findings (anti-fabrication rule).
+      const componentById = new Map(allFindings.map((f) => [f.id, f]));
+      const chainEvidenceIds = [];
+      for (const componentId of chain.metadata?.chainOf || []) {
+        const component = componentById.get(componentId);
+        const ids = component?.evidence || component?.evidenceIds || [];
+        for (const evidenceId of ids) {
+          if (evidenceId && !chainEvidenceIds.includes(evidenceId)) chainEvidenceIds.push(evidenceId);
+        }
+      }
+      const created = await this.findingLifecycle.createFinding({
+        userId: job.userId,
+        assessmentId: job.assessmentId,
+        jobId: job.id,
+        title: chain.title,
+        severity: chain.severity,
+        category: chain.category,
+        asset: chain.target || job.target,
+        endpoint: chain.endpoint || null,
+        rootCause: `Chained: ${(chain.metadata?.chainOf || []).join(' → ')}`,
+        description: chain.description,
+        impact: chain.impact,
+        reproductionSteps: chain.reproductionSteps || [],
+        remediation: chain.remediation,
+        confidence: 0.7,
+        evidenceIds: chainEvidenceIds
+      });
+      if (created.created) {
+        await this.jobModel.incrementCounters(job.id, { findingsCount: 1, chainsCount: 1 });
+        await this.recordActivity(job.id, {
+          kind: 'chain',
+          message: `Vulnerability chain confirmed: ${chain.title} (escalated to ${chain.severity})`
+        });
+        await this.publish(job.id, {
+          type: 'chain.confirmed',
+          level: 'WARN',
+          message: `Chained vulnerability: ${chain.title}`,
+          data: { title: chain.title, severity: chain.severity, chainOf: chain.metadata.chainOf }
+        });
+      }
+    } catch (error) {
+      // Validation failed (unknown finding, cross-hunt reference, unconfirmed
+      // link) — recorded visibly so the brain learns, never silently dropped.
+      await this.recordActivity(job.id, {
+        kind: 'chain',
+        message: `Chain proposal rejected: ${error.message}`
+      });
+    }
+  }
+
+  /**
+   * Merge brain-reported discoveries into the job's live attack-surface map.
+   * Dedupes on kind+value (case-insensitive); refreshes lastSeen on repeat
+   * sightings. Bounded at 500 assets.
+   */
+  async mergeDiscoveredAssets(jobId, existing, discovered, stepNumber) {
+    const assets = Array.isArray(existing) ? [...existing] : [];
+    const keyOf = (kind, value) => `${kind}::${String(value).toLowerCase()}`;
+    const seen = new Set(assets.map((a) => keyOf(a.kind, a.value)));
+    const at = new Date().toISOString();
+    let changed = false;
+    for (const item of discovered) {
+      const key = keyOf(item.kind, item.value);
+      const known = assets.find((a) => keyOf(a.kind, a.value) === key);
+      if (known) {
+        known.lastSeen = at;
+        known.lastStep = stepNumber;
+        changed = true;
+      } else if (!seen.has(key)) {
+        seen.add(key);
+        assets.push({
+          kind: item.kind,
+          value: item.value,
+          detail: item.detail || null,
+          firstSeen: at,
+          lastSeen: at,
+          firstStep: stepNumber,
+          lastStep: stepNumber
+        });
+        changed = true;
+      }
+    }
+    if (changed) {
+      await this.jobModel.update(jobId, { assets: assets.slice(-500) });
+    }
+    return assets;
+  }
+
+  /**
+   * Auto evidence capture (P1): the moment a finding is confirmed, attach a
+   * fresh screenshot of the current state plus the recent command log, each
+   * timestamped. The finding's report then carries real proof, not just the
+   * brain's word.
+   */
+  async captureFindingEvidence(job, finding) {
+    const jobId = job.id;
+    const capturedIds = [];
+    const at = new Date().toISOString();
+
+    // 1. Fresh screenshot of whatever the agent is looking at.
+    if (this.computer) {
+      try {
+        const scopeEngine = new ScopeEngine(job.scope, job.target);
+        const result = await this.computer.execute(
+          { type: 'screenshot', params: {} },
+          { channel: jobId, scopeEngine, approvalGranted: true }
+        );
+        if (result?.ok && result.observation) {
+          const stored = await this.evidenceModel.store({
+            userId: job.userId,
+            assessmentId: job.assessmentId,
+            jobId,
+            findingId: finding.id,
+            kind: 'screenshot',
+            asset: job.target,
+            endpoint: finding.affectedEndpoint || null,
+            summary: `Auto-captured at finding confirmation: ${result.observation.summary}`,
+            sha256: result.observation.sha256 || null,
+            artifactPath: result.observation.path || null,
+            metadata: { autoCaptured: true, at }
+          });
+          capturedIds.push(stored.evidence.id);
+        }
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] auto screenshot failed: ${error.message}`);
+      }
+    }
+
+    // 2. The recent command log: what the agent actually ran (terminal +
+    // GUI actions with outputs), so the report's reproduction section is
+    // grounded in the real hunt.
+    if (this.computerActionModel) {
+      try {
+        const recent = await this.computerActionModel.listByJob(jobId, 15);
+        if (recent.length) {
+          const log = recent.map((action) => {
+            const cmd = action.action === 'run_command' && action.params?.command
+              ? `$ ${action.params.command}`
+              : `${action.action} ${JSON.stringify(action.params || {}).slice(0, 200)}`;
+            const rawOut = action.output?.stdout || action.output?.outputPreview || action.observation?.summary || action.error?.message || '';
+            const out = String(rawOut).slice(0, 400);
+            return `[${action.startedAt || '?'}] ${cmd}${out ? `\n    → ${out}` : ''}`;
+          }).join('\n');
+          const stored = await this.evidenceModel.store({
+            userId: job.userId,
+            assessmentId: job.assessmentId,
+            jobId,
+            findingId: finding.id,
+            kind: 'terminal_output',
+            asset: job.target,
+            endpoint: finding.affectedEndpoint || null,
+            summary: `Auto-captured command log (${recent.length} recent actions) at finding confirmation`,
+            metadata: { autoCaptured: true, at, log: log.slice(0, 8000) }
+          });
+          capturedIds.push(stored.evidence.id);
+        }
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] auto command-log capture failed: ${error.message}`);
+      }
+    }
+
+    if (capturedIds.length) {
+      await this.evidenceModel.linkToFinding(finding.id, capturedIds);
+      await this.recordActivity(jobId, {
+        kind: 'evidence',
+        message: `Auto-attached ${capturedIds.length} evidence item(s) to finding "${finding.title}"`
+      });
+    }
   }
 
   async runPlanUpdate(job, action) {
@@ -758,20 +1544,118 @@ export class AgentWorker {
       }
     }
 
+    // ── Hybrid storage: archive the completed hunt as a persistent artifact ──
+    // Working memory lived in files while the hunt ran; the finished product
+    // (final report Markdown + finding summary) is archived in the DATABASE,
+    // which is the source of truth for "what have we already hunted" and what
+    // target dedup checks before ever running the agent again. A repeat hunt
+    // of the same target saves a NEW version — history is never overwritten.
+    // Archival failures must NEVER fail the hunt completion itself.
+    let huntRecord = null;
+    if (report && this.huntRecordModel) {
+      try {
+        huntRecord = await this.archiveHuntRecord(job, report);
+        await this.publish(job.id, {
+          type: 'report.archived',
+          level: 'INFO',
+          message: `Report archived as hunt record v${huntRecord.version}`,
+          data: { huntRecordId: huntRecord.id, version: huntRecord.version }
+        });
+        await this.recordActivity(job.id, { kind: 'report', message: `Report archived (hunt record v${huntRecord.version})` });
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] hunt record archival failed for job ${job.id}: ${error.message}`);
+        await this.recordActivity(job.id, { kind: 'report', message: `Report archival failed: ${error.message}` });
+      }
+    }
+
     await this.assessmentModel.setStatus(job.assessmentId, 'completed').catch?.(() => {});
     await this.jobModel.transition(job.id, 'completed', { brainStatus: 'idle', waitingReason: null });
     await this.publish(job.id, {
       type: 'job.completed',
       level: 'INFO',
       message: `Assessment completed — ${reason}`,
-      data: { reason, reportId: report?.id || null, reportVersion: report?.version || null }
+      data: { reason, reportId: report?.id || null, reportVersion: report?.version || null, huntRecordId: huntRecord?.id || null }
     });
     await this.recordActivity(job.id, { kind: 'agent', message: `Assessment completed — ${reason}` });
-    return { completed: true, report };
+
+    // Hunt-complete alert + multi-target queue advance. Best-effort: neither
+    // may fail a completion that already happened.
+    if (this.alertService) {
+      try {
+        const summary = report?.findingsSummary || {};
+        await this.alertService.notifyHuntComplete({
+          userId: job.userId,
+          job,
+          stats: {
+            total: summary.total ?? 0,
+            critical: summary.critical ?? 0,
+            high: summary.high ?? 0
+          }
+        });
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] hunt_complete alert failed: ${error.message}`);
+      }
+    }
+    if (this.targetQueueService) {
+      try {
+        await this.targetQueueService.onJobComplete(job);
+      } catch (error) {
+        this.logger.warn?.(`[agent-worker] queue advance failed: ${error.message}`);
+      }
+    }
+    return { completed: true, report, huntRecord };
+  }
+
+  /**
+   * Archive a completed hunt's final report into the database (hunt_records).
+   *
+   * Fingerprints the target URL leniently (job.target is a bare hostname, the
+   * assessment carries the full normalized URL) and renders the report object
+   * to Markdown — the persistent, re-downloadable artifact.
+   */
+  async archiveHuntRecord(job, report) {
+    const assessment = await this.assessmentModel.get(job.userId, job.assessmentId).catch(() => null);
+    const targetUrl = assessment?.targetUrl || job.target;
+    const fingerprint = fingerprintTargetLenient(targetUrl);
+    const startedAt = job.startedAt || job.createdAt;
+    const durationMs = startedAt ? Date.now() - new Date(startedAt).getTime() : 0;
+    const summary = report.findingsSummary || {};
+    return this.huntRecordModel.create({
+      userId: job.userId,
+      target: targetUrl,
+      targetCanonical: fingerprint?.canonical || String(targetUrl || ''),
+      // Unparseable targets still get a stable (non-dedupable) key — archival
+      // must never throw on a weird target string.
+      targetHash: fingerprint?.hash || `unparseable:${String(targetUrl || '').toLowerCase()}`,
+      jobId: job.id,
+      assessmentId: job.assessmentId,
+      reportMarkdown: report.markdown || renderHuntReportMarkdown(report),
+      summary: {
+        totalFindings: summary.total ?? report.totalFindings ?? 0,
+        critical: summary.critical ?? 0,
+        high: summary.high ?? 0,
+        medium: summary.medium ?? 0,
+        low: summary.low ?? 0,
+        info: summary.informational ?? 0,
+        steps: job.stepCount ?? 0,
+        durationMs: Number.isFinite(durationMs) && durationMs >= 0 ? Math.round(durationMs) : 0
+      },
+      findings: (report.detailedFindings || []).map((finding) => ({
+        id: finding.id,
+        title: finding.title,
+        severity: finding.severity,
+        category: finding.category,
+        affectedAsset: finding.affectedAsset,
+        affectedEndpoint: finding.affectedEndpoint,
+        confidence: finding.confidence,
+        status: finding.status
+      }))
+    });
   }
 
   async pauseJob(job) {
     await this.jobModel.transition(job.id, 'paused', { brainStatus: 'paused' });
+    await this.updateHuntState(job.id, { status: 'paused' });
     await this.assessmentModel.setStatus(job.assessmentId, 'paused').catch?.(() => {});
     await this.jobModel.checkpoint(job.id, {
       lastCommittedAction: job.lastCommittedAction,
@@ -806,6 +1690,7 @@ export class AgentWorker {
   async enterWaiting(job, { reason, event, message }) {
     if (job.status !== 'waiting' || job.waitingReason !== reason) {
       await this.jobModel.transition(job.id, 'waiting', { waitingReason: reason, brainStatus: 'waiting' });
+      await this.updateHuntState(job.id, { status: 'waiting', lastOutcome: `waiting — ${reason}` });
       await this.publish(job.id, {
         type: event || 'job.waiting',
         level: 'WARN',
@@ -852,6 +1737,51 @@ export class AgentWorker {
       case 'complete': return 'Complete assessment';
       default: return action.type;
     }
+  }
+
+  /**
+   * Extract the "payload" the agent tried from a decision, for the
+   * self-learning payload library. The interesting payloads are the probe
+   * strings: commands run, text typed into the target, URLs opened.
+   * Returns null when the decision carried no learnable payload.
+   */
+  extractPayloadAttempt(decision, cycle) {
+    const next = decision && decision.nextAction;
+    if (!next) return null;
+
+    let payload = null;
+    let description = null;
+
+    if (next.type === 'computer_action' && next.action && typeof next.action === 'object') {
+      const params = next.action.params || {};
+      if (next.action.type === 'run_command' && params.command) {
+        payload = String(params.command);
+        description = 'shell command';
+      } else if (next.action.type === 'type' && params.text) {
+        payload = String(params.text);
+        description = 'typed input';
+      } else if (next.action.type === 'open_url' && params.url) {
+        payload = String(params.url);
+        description = 'opened URL';
+      }
+    } else if (next.type === 'tool' && next.args && typeof next.args === 'object') {
+      // Tool executions with string args (e.g. a probe string) are learnable.
+      const probeArg = Object.values(next.args).find((v) => typeof v === 'string' && v.length > 0 && v.length <= 2000);
+      if (probeArg) {
+        payload = String(probeArg);
+        description = `tool ${next.name || 'execution'} argument`;
+      }
+    }
+
+    if (!payload || payload.length > 2000) return null;
+
+    return {
+      technique: (cycle && cycle.technique) || null,
+      category: next.category || null,
+      payload,
+      description,
+      context: (decision.reason || '').slice(0, 300),
+    };
   }
 
   async recordActivity(jobId, entry) {
