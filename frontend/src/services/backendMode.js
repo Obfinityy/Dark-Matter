@@ -14,19 +14,36 @@
 const MODE_KEY = 'dm_backend_mode';
 const VERCEL_URL_KEY = 'dm_vercel_backend_url';
 
+/**
+ * Build-time default for the Vercel backend URL.
+ * Set VITE_DEFAULT_VERCEL_URL in .env (or Vercel dashboard → Environment
+ * Variables) so the deployed frontend talks to your cloud backend out of
+ * the box. The user can still override it anytime in Settings — localStorage
+ * always wins over this default.
+ */
+const DEFAULT_VERCEL_URL = (import.meta.env.VITE_DEFAULT_VERCEL_URL || '').trim().replace(/\/$/, '');
+
 export const BACKEND_MODES = {
   LOCALHOST: 'localhost',
   VERCEL: 'vercel'
 };
 
-const LOCALHOST_BASE = 'http://localhost:4000/api/v1';
+/** Build-time default backend mode on a fresh device: 'localhost' | 'vercel'. */
+const DEFAULT_MODE = import.meta.env.VITE_DEFAULT_BACKEND_MODE === 'vercel'
+  ? BACKEND_MODES.VERCEL
+  : BACKEND_MODES.LOCALHOST;
+
+/** Build-time override for the localhost API base (default http://localhost:4000/api/v1). */
+const LOCALHOST_BASE = (import.meta.env.VITE_LOCALHOST_API_URL || 'http://localhost:4000/api/v1').trim().replace(/\/$/, '');
 
 export function getBackendMode() {
   try {
     const mode = localStorage.getItem(MODE_KEY);
-    return mode === BACKEND_MODES.VERCEL ? BACKEND_MODES.VERCEL : BACKEND_MODES.LOCALHOST;
+    if (mode === BACKEND_MODES.VERCEL) return BACKEND_MODES.VERCEL;
+    if (mode === BACKEND_MODES.LOCALHOST) return BACKEND_MODES.LOCALHOST;
+    return DEFAULT_MODE;
   } catch {
-    return BACKEND_MODES.LOCALHOST;
+    return DEFAULT_MODE;
   }
 }
 
@@ -44,9 +61,11 @@ export function setBackendMode(mode) {
 
 export function getVercelBackendUrl() {
   try {
-    return (localStorage.getItem(VERCEL_URL_KEY) || '').trim().replace(/\/$/, '');
+    const stored = (localStorage.getItem(VERCEL_URL_KEY) || '').trim().replace(/\/$/, '');
+    // localStorage (user's Settings choice) wins; otherwise the build-time default.
+    return stored || DEFAULT_VERCEL_URL;
   } catch {
-    return '';
+    return DEFAULT_VERCEL_URL;
   }
 }
 

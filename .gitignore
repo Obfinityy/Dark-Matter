@@ -9,6 +9,11 @@ data/
 # Dependencies
 node_modules/
 
+# Local env files (never commit real values; .env.example is the template)
+.env
+.env.local
+.env.*.local
+
 # Python cache
 __pycache__/
 *.pyc
