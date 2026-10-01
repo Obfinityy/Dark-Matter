@@ -1,5 +1,23 @@
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
 
+/**
+ * JWT storage. The backend accepts BOTH the stateless JWT (Authorization
+ * header) and the stateful session cookie — the header is preferred because
+ * it also authenticates EventSource streams and cross-tab requests.
+ */
+const JWT_KEY = 'dm_jwt';
+
+export function getStoredJwt() {
+  try { return localStorage.getItem(JWT_KEY); } catch { return null; }
+}
+
+export function storeJwt(jwt) {
+  try {
+    if (jwt) localStorage.setItem(JWT_KEY, jwt);
+    else localStorage.removeItem(JWT_KEY);
+  } catch { /* storage unavailable — cookie auth still works */ }
+}
+
 export class ApiError extends Error {
   constructor(message, status = 0, code = 'REQUEST_FAILED') {
     super(message);
@@ -10,9 +28,11 @@ export class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
+  const jwt = getStoredJwt();
   const headers = {
     Accept: 'application/json',
     ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     ...(options.headers || {})
   };
 
@@ -67,16 +87,32 @@ export function getCurrentUser() {
   return request('/auth/me');
 }
 
-export function registerAccount(payload) {
-  return request('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
+/**
+ * Register. Payload: { email, password, name?, username? }.
+ * The backend returns { user, token, jwt, jwtExpiresAt } — the JWT is stored
+ * for the Authorization header; the session cookie is set by the response.
+ */
+export async function registerAccount(payload) {
+  const body = await request('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
+  if (body?.jwt) storeJwt(body.jwt);
+  return body;
 }
 
-export function loginAccount(payload) {
-  return request('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
+/**
+ * Login with username OR email + password. Payload: { login, password }.
+ */
+export async function loginAccount(payload) {
+  const body = await request('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
+  if (body?.jwt) storeJwt(body.jwt);
+  return body;
 }
 
-export function logoutAccount() {
-  return request('/auth/logout', { method: 'POST' });
+export async function logoutAccount() {
+  try {
+    await request('/auth/logout', { method: 'POST' });
+  } finally {
+    storeJwt(null);
+  }
 }
 
 export function updateProfile(payload) {
@@ -575,6 +611,199 @@ export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEven
   };
 }
 
+// ─── Autonomous Agent: hunt detail ──────────────────────────────────
+
+/** Findings board data — already sorted critical-first by the backend. */
+export function getJobFindings(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/findings`);
+}
+
+/** Latest persisted final vulnerability report (404 until the hunt completes). */
+export function getJobVulnerabilityReport(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/vulnerability-report`);
+}
+
+/** Live attack-surface map from the agent's state. */
+export function getJobAttackSurface(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/attack-surface`);
+}
+
+/** Plain-language hunt diary entries. */
+export function getJobDiary(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/diary`);
+}
+
+// ─── Hunt records: past reports (target dedup + history) ────────────
+
+/** Browse completed hunt reports, newest first. */
+export function listHuntRecords() {
+  return request('/hunt-records');
+}
+
+/** Full hunt record including the archived report markdown. */
+export function getHuntRecord(recordId) {
+  return request(`/hunt-records/${encodeURIComponent(recordId)}`);
+}
+
+/** Download the archived report as Markdown (returns raw text). */
+export async function downloadHuntRecordMarkdown(recordId) {
+  const jwt = getStoredJwt();
+  const response = await fetch(
+    `${API_BASE}/hunt-records/${encodeURIComponent(recordId)}/report.md`,
+    {
+      headers: { Accept: 'text/markdown', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
+      credentials: 'include'
+    }
+  );
+  if (!response.ok) throw new ApiError('Could not download the report.', response.status, 'DOWNLOAD_FAILED');
+  return response.text();
+}
+
+// ─── Alerts inbox ───────────────────────────────────────────────────
+
+export function listAlerts(unreadOnly = false) {
+  return request(`/alerts${unreadOnly ? '?unreadOnly=true' : ''}`);
+}
+
+export function markAlertRead(alertId) {
+  return request(`/alerts/${encodeURIComponent(alertId)}/read`, { method: 'POST' });
+}
+
+export function markAllAlertsRead() {
+  return request('/alerts/read-all', { method: 'POST' });
+}
+
+// ─── Multi-target queues ────────────────────────────────────────────
+
+export function createQueue(payload) {
+  // { name?, targets: string[], scope?, objective?, authorizationConfirmed: true }
+  return request('/queues', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function listQueues() {
+  return request('/queues');
+}
+
+export function getQueue(queueId) {
+  return request(`/queues/${encodeURIComponent(queueId)}`);
+}
+
+export function pauseQueue(queueId) {
+  return request(`/queues/${encodeURIComponent(queueId)}/pause`, { method: 'POST' });
+}
+
+export function resumeQueue(queueId) {
+  return request(`/queues/${encodeURIComponent(queueId)}/resume`, { method: 'POST' });
+}
+
+export function deleteQueue(queueId) {
+  return request(`/queues/${encodeURIComponent(queueId)}`, { method: 'DELETE' });
+}
+
+// ─── Scheduled hunts ──────────────────────────────────────────────
+
+export function createSchedule(payload) {
+  // { name?, target, scope?, objective?, cadence: 'once'|'daily'|'weekly', nextRunAt? }
+  return request('/schedules', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function listSchedules() {
+  return request('/schedules');
+}
+
+export function updateSchedule(scheduleId, payload) {
+  return request(`/schedules/${encodeURIComponent(scheduleId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteSchedule(scheduleId) {
+  return request(`/schedules/${encodeURIComponent(scheduleId)}`, { method: 'DELETE' });
+}
+
+// ─── Payload library (self-learning) ──────────────────────────────
+
+export function listPayloads({ technique = null, category = null, limit = 20 } = {}) {
+  const query = new URLSearchParams();
+  if (technique) query.set('technique', technique);
+  if (category) query.set('category', category);
+  query.set('limit', String(limit));
+  return request(`/payload-library?${query.toString()}`);
+}
+
+export function getPayloadLibraryStats() {
+  return request('/payload-library/stats');
+}
+
+// ─── Local models: Run Locally (Ollama) + curated library ──────────
+
+/** The curated uncensored model catalog. */
+export function getModelLibrary() {
+  return request('/local-models/library');
+}
+
+/** Catalog + installed/ready + active brain + in-progress pull. */
+export function getLocalModelStatus() {
+  return request('/local-models/status');
+}
+
+/** Human setup guide for installing Ollama. */
+export function getModelInstallGuide() {
+  return request('/local-models/install-guide');
+}
+
+/** Start a one-time model download. Payload: { modelId }. */
+export function pullModel(modelId) {
+  return request('/local-models/pull', { method: 'POST', body: JSON.stringify({ modelId }) });
+}
+
+export function cancelPull() {
+  return request('/local-models/pull/cancel', { method: 'POST' });
+}
+
+/** Live download progress via SSE. Events: pull.progress / pull.done / pull.error */
+export function subscribeToPullStream({ onEvent, onError, onOpen } = {}) {
+  // EventSource cannot set headers, so this stream authenticates with the
+  // session cookie (withCredentials). The JWT is deliberately NOT placed in
+  // the URL — query strings end up in server logs.
+  const source = new EventSource(`${API_BASE}/local-models/pull/stream`, { withCredentials: true });
+  const handleEvent = (event) => {
+    try {
+      onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
+    } catch {
+      onError?.(new ApiError('Received an invalid pull event.', 0, 'INVALID_EVENT'));
+    }
+  };
+  ['pull.progress', 'pull.done', 'pull.error'].forEach((type) => source.addEventListener(type, handleEvent));
+  source.onmessage = handleEvent;
+  source.onopen = () => onOpen?.();
+  source.onerror = () => onError?.(new ApiError('Model download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  return () => source.close();
+}
+
+export function removeLocalModel(modelId) {
+  return request(`/local-models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+}
+
+/** Activate a brain for the agent. Payload: { modelId } | { provider: 'phone' } | { provider: 'custom', ... } */
+export function activateModel(payload) {
+  return request('/local-models/activate', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function deactivateModel() {
+  return request('/local-models/deactivate', { method: 'POST' });
+}
+
+/** Add a custom model entry. Payload: { name, ollamaTag?, endpointUrl?, contextTokens? } */
+export function addCustomModel(payload) {
+  return request('/local-models/custom', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function removeCustomModel(customId) {
+  return request(`/local-models/custom/${encodeURIComponent(customId)}`, { method: 'DELETE' });
+}
+
 // ─── Combined API Client ──────────────────────────────────────────
 
 export const apiClient = {
@@ -633,6 +862,47 @@ export const apiClient = {
   cancelJob,
   askJob,
   subscribeToJobEvents,
+  // Hunt detail
+  getJobFindings,
+  getJobVulnerabilityReport,
+  getJobAttackSurface,
+  getJobDiary,
+  // Hunt records (past reports + dedup)
+  listHuntRecords,
+  getHuntRecord,
+  downloadHuntRecordMarkdown,
+  // Alerts
+  listAlerts,
+  markAlertRead,
+  markAllAlertsRead,
+  // Queues & schedules
+  createQueue,
+  listQueues,
+  getQueue,
+  pauseQueue,
+  resumeQueue,
+  deleteQueue,
+  createSchedule,
+  listSchedules,
+  updateSchedule,
+  deleteSchedule,
+  // Payload library
+  listPayloads,
+  getPayloadLibraryStats,
+  // Local models (Run Locally)
+  getStoredJwt,
+  storeJwt,
+  getModelLibrary,
+  getLocalModelStatus,
+  getModelInstallGuide,
+  pullModel,
+  cancelPull,
+  subscribeToPullStream,
+  removeLocalModel,
+  activateModel,
+  deactivateModel,
+  addCustomModel,
+  removeCustomModel,
   // Computer control (Open-Interface adapter)
   getComputerStatus,
   getComputerCapabilities,
