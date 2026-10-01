@@ -1,31 +1,24 @@
 :root {
-  /* Dark Theme (Default) - Clean Minimal Professional SaaS */
-  --bg-primary: #09090b;
-  --bg-secondary: #18181b;
-  --bg-tertiary: #27272a;
-  --bg-sidebar: #09090b;
+  /* Dark Theme (Default) */
+  --bg-primary: #0a0a0c;
+  --bg-secondary: #121216;
+  --bg-tertiary: #18181d;
+  --bg-sidebar: #0f1115;
   
-  --surface: #18181b;
-  --surface-hover: #27272a;
-  --surface-active: #3f3f46;
-  --backdrop-filter: blur(8px);
+  --surface: rgba(18, 18, 22, 0.6);
+  --surface-hover: rgba(24, 24, 29, 0.8);
+  --surface-active: rgba(30, 30, 36, 0.9);
   
-  --border: #27272a;
-  --border-light: #18181b;
-  --border-glow: transparent;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.04);
   
-  --text-primary: #fafafa;
+  --text-primary: #f8f9fa;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
 
-  --accent: #2563eb;
-  --accent-hover: #3b82f6;
-  --accent-secondary: #4f46e5;
-  --accent-purple: #7c3aed;
-  
-  --accent-gradient: #2563eb;
-  --accent-gradient-hover: #3b82f6;
-  --glass-gradient: transparent;
+  --accent: #ff2a5f;
+  --accent-secondary: #00e5ff;
+  --accent-gradient: linear-gradient(90deg, #ff2a5f, #00e5ff);
 
   --danger: #ef4444;
   --warning: #f59e0b;
@@ -33,61 +26,48 @@
   --success: #10b981;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-heading: 'Outfit', 'Inter', system-ui, sans-serif;
   
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
   
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-glow: none;
-  --shadow-cyan-glow: none;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 25px rgba(255, 42, 95, 0.15);
   
   --transition-fast: 0.15s ease;
-  --transition: 0.2s ease;
+  --transition: 0.3s ease;
   
-  --logo-url: url('/dark-logo.png');
+  --logo-url: url('/dark-logo.png'); /* Placeholder for dark logo */
 }
 
 [data-theme="light"] {
-  /* Light Theme - Clean Minimal Professional SaaS */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f4f4f5;
-  --bg-tertiary: #e4e4e7;
-  --bg-sidebar: #f8fafc;
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f3f5;
+  --bg-sidebar: #f8f9fa;
   
-  --surface: #ffffff;
-  --surface-hover: #f4f4f5;
-  --surface-active: #e4e4e7;
-  --backdrop-filter: blur(8px);
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-hover: rgba(241, 243, 245, 0.8);
+  --surface-active: rgba(233, 236, 239, 0.9);
   
-  --border: #e4e4e7;
-  --border-light: #f4f4f5;
-  --border-glow: transparent;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-light: rgba(0, 0, 0, 0.05);
   
-  --text-primary: #09090b;
-  --text-secondary: #71717a;
-  --text-muted: #a1a1aa;
+  --text-primary: #121216;
+  --text-secondary: #495057;
+  --text-muted: #868e96;
 
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-secondary: #4338ca;
-  --accent-purple: #6d28d9;
-  
-  --accent-gradient: #2563eb;
-  --accent-gradient-hover: #1d4ed8;
-  --glass-gradient: transparent;
+  --accent: #e91e63;
+  --accent-secondary: #00b0ff;
+  --accent-gradient: linear-gradient(90deg, #e91e63, #00b0ff);
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-glow: none;
-  --shadow-cyan-glow: none;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 25px rgba(233, 30, 99, 0.15);
   
-  --logo-url: url('/light-logo.png');
+  --logo-url: url('/light-logo.png'); /* Placeholder for light logo */
 }
