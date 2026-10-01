@@ -597,11 +597,10 @@ export function getBrowserState() {
 
 /** Subscribe to live job events via SSE, replaying from the last seen event. */
 export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEventId } = {}) {
-  // EventSource cannot set headers, so replay is driven explicitly through
-  // getJobEventHistory() by the caller; Last-Event-ID is only honoured when the
-  // browser reconnects on its own.
-  const url = `${apiBase()}/jobs/${encodeURIComponent(jobId)}/events`;
-  const source = lastEventId ? new EventSource(`${url}?lastEventId=${encodeURIComponent(lastEventId)}`, { withCredentials: true }) : new EventSource(url, { withCredentials: true });
+  // EventSource cannot set headers, so the JWT rides as a query param —
+  // the backend's getSessionToken() accepts ?accessToken= (see requestContext.js).
+  const url = sseUrl(`/jobs/${encodeURIComponent(jobId)}/events`, lastEventId ? { lastEventId } : null);
+  const source = new EventSource(url, { withCredentials: true });
 
   const handleEvent = (event) => {
     try {
@@ -786,9 +785,18 @@ export function downloadRunnerEngine() {
   return request('/model-runner/engine', { method: 'POST' });
 }
 
+/** EventSource cannot set headers — the JWT rides as ?accessToken= (see requestContext.js). */
+function sseUrl(path, extraParams = null) {
+  const params = new URLSearchParams(extraParams || {});
+  const jwt = getStoredJwt();
+  if (jwt) params.set('accessToken', jwt);
+  const qs = params.toString();
+  return `${apiBase()}${path}${qs ? `?${qs}` : ''}`;
+}
+
 /** Live engine download progress via SSE. Events: engine.progress / engine.done / engine.error */
 export function subscribeToEngineStream({ onEvent, onError, onOpen } = {}) {
-  const source = new EventSource(`${apiBase()}/model-runner/engine/stream`, { withCredentials: true });
+  const source = new EventSource(sseUrl('/model-runner/engine/stream'), { withCredentials: true });
   const handleEvent = (event) => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
@@ -814,7 +822,7 @@ export function cancelRunnerDownload() {
 
 /** Live model download progress via SSE. Events: download.progress / download.done / download.error */
 export function subscribeToDownloadStream({ onEvent, onError, onOpen } = {}) {
-  const source = new EventSource(`${apiBase()}/model-runner/download/stream`, { withCredentials: true });
+  const source = new EventSource(sseUrl('/model-runner/download/stream'), { withCredentials: true });
   const handleEvent = (event) => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });

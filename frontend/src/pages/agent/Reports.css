@@ -1,0 +1,31 @@
+/**
+ * Reports page styles.
+ */
+
+.sg-reports { padding-bottom: 24px; max-width: 860px; }
+
+.sg-page-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+  margin-bottom: 28px; flex-wrap: wrap;
+}
+
+.sg-empty-state {
+  text-align: center; padding: 80px 20px; color: var(--sg-text-3);
+  border: 1px dashed var(--sg-line); border-radius: var(--sg-r-lg);
+}
+.sg-empty-state svg { margin-bottom: 16px; opacity: 0.5; }
+.sg-empty-state p { margin: 0; font-size: 0.95rem; }
+
+.sg-record-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.sg-record-card {
+  display: block; text-decoration: none; color: inherit;
+  transition: border-color var(--sg-fast), transform var(--sg-fast);
+}
+.sg-record-card:hover { border-color: rgba(129, 140, 248, 0.3); transform: translateY(-2px); }
+.sg-record-main { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.sg-record-target {
+  font-family: var(--sg-mono); font-size: 0.95rem; color: var(--sg-cyan);
+  word-break: break-all;
+}
+.sg-record-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.82rem; color: var(--sg-text-2); }
+.sg-record-meta span { display: inline-flex; align-items: center; gap: 5px; }

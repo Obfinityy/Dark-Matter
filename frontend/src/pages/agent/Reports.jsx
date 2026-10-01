@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { History, Loader2, FileText, CalendarDays } from 'lucide-react';
 import { listHuntRecords } from '../../services/api';
+import './Reports.css';
 
 export function Reports() {
   const [records, setRecords] = useState([]);
@@ -22,41 +23,41 @@ export function Reports() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Loading past reports…</div>;
+  if (loading) return <div className="sg-loading-box"><Loader2 size={18} className="sg-spin" /> Loading past reports…</div>;
 
   return (
-    <div className="dm-reports">
-      <header className="dm-page-head">
+    <div className="sg-reports">
+      <header className="sg-page-head">
         <div>
-          <h1><History size={22} /> Past reports</h1>
-          <p>Every completed hunt, archived. Re-open or re-download any report — pasting the same target later returns these instantly.</p>
+          <h1 className="sg-h1" style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 8px" }}><History size={24} /> Past reports</h1>
+          <p className="sg-body">Every completed hunt, archived. Re-open or re-download any report — pasting the same target later returns these instantly.</p>
         </div>
-        <Link to="/agent" className="dm-btn-secondary">New hunt</Link>
+        <Link to="/agent" className="sg-btn sg-btn-primary">New hunt</Link>
       </header>
 
       {records.length === 0 ? (
-        <div className="dm-empty-state">
+        <div className="sg-empty-state">
           <FileText size={28} />
           <p>No completed hunts yet. Your reports will live here.</p>
         </div>
       ) : (
-        <ul className="dm-record-list">
+        <ul className="sg-record-list">
           {records.map((record) => {
             const summary = record.summary || {};
             return (
               <li key={record.id}>
-                <Link to={`/agent/reports/${record.id}`} className="dm-record-card">
-                  <div className="dm-record-main">
-                    <code className="dm-record-target">{record.target}</code>
-                    <span className="dm-record-version">v{record.version}</span>
+                <Link to={`/agent/reports/${record.id}`} className="sg-card sg-card-pad sg-record-card">
+                  <div className="sg-record-main">
+                    <code className="sg-record-target">{record.target}</code>
+                    <span className="sg-pill">v{record.version}</span>
                   </div>
-                  <div className="dm-record-meta">
+                  <div className="sg-record-meta">
                     {record.completedAt && (
                       <span><CalendarDays size={12} /> {new Date(record.completedAt).toLocaleDateString()}</span>
                     )}
                     {summary.totalFindings != null && <span>{summary.totalFindings} findings</span>}
-                    {summary.critical > 0 && <span className="dm-sev-chip sev-critical">{summary.critical} critical</span>}
-                    {summary.high > 0 && <span className="dm-sev-chip sev-high">{summary.high} high</span>}
+                    {summary.critical > 0 && <span className="sg-pill sg-pill-danger">{summary.critical} critical</span>}
+                    {summary.high > 0 && <span className="sg-pill sg-pill-warn">{summary.high} high</span>}
                   </div>
                 </Link>
               </li>

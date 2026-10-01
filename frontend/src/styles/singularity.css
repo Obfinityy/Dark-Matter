@@ -1,0 +1,219 @@
+/**
+ * singularity.css — DarkMatter "Singularity" design system v3.
+ *
+ * Design language: dark-luxe mission control. Deep ink canvas (never pure
+ * black), monochrome UI with ONE brand gradient (cyan → violet) reserved for
+ * brand moments: logo, primary CTAs, active states. Semantic colors stay
+ * restrained: emerald = success/go, amber = warning, red = danger.
+ *
+ * Principles (from 2026 premium SaaS research):
+ *  - Generous whitespace, 80px section rhythm on desktop
+ *  - One primary action per screen
+ *  - Tight headline tracking (-0.03em), comfortable 16-18px body
+ *  - Hairline borders, restrained glass, purposeful motion only
+ *  - Status in plain language, never raw enums
+ */
+
+:root {
+  /* ── Canvas ── */
+  --sg-ink-0: #06080d;          /* deepest */
+  --sg-ink-1: #0a0d14;          /* page base */
+  --sg-ink-2: #0e1219;          /* raised */
+  --sg-ink-3: #131824;          /* cards */
+
+  /* ── Text ── */
+  --sg-text: #f2f5fa;
+  --sg-text-2: #a7b0c2;
+  --sg-text-3: #646e82;
+
+  /* ── Lines ── */
+  --sg-line: rgba(255, 255, 255, 0.08);
+  --sg-line-soft: rgba(255, 255, 255, 0.045);
+
+  /* ── Brand gradient (use sparingly) ── */
+  --sg-cyan: #22d3ee;
+  --sg-violet: #c084fc;
+  --sg-indigo: #818cf8;
+  --sg-gradient: linear-gradient(135deg, #22d3ee 0%, #818cf8 55%, #c084fc 100%);
+
+  /* ── Semantic ── */
+  --sg-go: #34d399;
+  --sg-go-dim: rgba(52, 211, 153, 0.12);
+  --sg-warn: #fbbf24;
+  --sg-warn-dim: rgba(251, 191, 36, 0.12);
+  --sg-danger: #f87171;
+  --sg-danger-dim: rgba(248, 113, 113, 0.12);
+  --sg-info: #60a5fa;
+  --sg-info-dim: rgba(96, 165, 250, 0.12);
+
+  /* ── Shape ── */
+  --sg-r-lg: 18px;
+  --sg-r-md: 12px;
+  --sg-r-sm: 8px;
+
+  /* ── Type ── */
+  --sg-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --sg-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* ── Motion ── */
+  --sg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sg-fast: 160ms var(--sg-ease);
+  --sg-med: 320ms var(--sg-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── Base ── */
+.sg-app {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(129, 140, 248, 0.06), transparent 60%),
+    radial-gradient(1000px 600px at -10% 110%, rgba(34, 211, 238, 0.04), transparent 60%),
+    var(--sg-ink-1);
+  color: var(--sg-text);
+  font-family: var(--sg-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Typography ── */
+.sg-display {
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+.sg-h1 { font-size: clamp(1.7rem, 3vw, 2.4rem); font-weight: 750; letter-spacing: -0.028em; line-height: 1.12; }
+.sg-h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+.sg-h3 { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.012em; }
+.sg-body { font-size: 1rem; line-height: 1.65; color: var(--sg-text-2); }
+.sg-small { font-size: 0.85rem; line-height: 1.55; color: var(--sg-text-2); }
+.sg-tiny { font-size: 0.75rem; line-height: 1.5; color: var(--sg-text-3); }
+.sg-gradient-text {
+  background: var(--sg-gradient);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ── Buttons ── */
+.sg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--sg-sans); font-weight: 600; font-size: 0.92rem;
+  padding: 12px 22px; border-radius: 12px; border: 1px solid transparent;
+  cursor: pointer; transition: transform var(--sg-fast), box-shadow var(--sg-fast), background var(--sg-fast);
+  white-space: nowrap; text-decoration: none;
+}
+.sg-btn:active { transform: scale(0.98); }
+.sg-btn-primary {
+  background: var(--sg-gradient); color: #06080d;
+  box-shadow: 0 8px 28px -8px rgba(129, 140, 248, 0.55);
+}
+.sg-btn-primary:hover { box-shadow: 0 12px 36px -8px rgba(129, 140, 248, 0.7); transform: translateY(-1px); }
+.sg-btn-ghost {
+  background: rgba(255, 255, 255, 0.05); color: var(--sg-text);
+  border-color: var(--sg-line);
+}
+.sg-btn-ghost:hover { background: rgba(255, 255, 255, 0.09); }
+.sg-btn-quiet { background: transparent; color: var(--sg-text-2); padding: 10px 14px; }
+.sg-btn-quiet:hover { color: var(--sg-text); background: rgba(255, 255, 255, 0.05); }
+.sg-btn-lg { padding: 15px 30px; font-size: 1rem; border-radius: 14px; }
+.sg-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* ── Cards ── */
+.sg-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018));
+  border: 1px solid var(--sg-line-soft);
+  border-radius: var(--sg-r-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 20px 50px -30px rgba(0, 0, 0, 0.7);
+}
+.sg-card-pad { padding: 28px; }
+.sg-card-hover { transition: border-color var(--sg-fast), transform var(--sg-fast); }
+.sg-card-hover:hover { border-color: rgba(129, 140, 248, 0.3); transform: translateY(-2px); }
+
+/* ── Inputs ── */
+.sg-input, .sg-textarea, .sg-select {
+  width: 100%; font-family: var(--sg-sans); font-size: 0.95rem; color: var(--sg-text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--sg-line); border-radius: var(--sg-r-md);
+  padding: 13px 16px; outline: none;
+  transition: border-color var(--sg-fast), box-shadow var(--sg-fast), background var(--sg-fast);
+}
+.sg-input::placeholder, .sg-textarea::placeholder { color: var(--sg-text-3); }
+.sg-input:focus, .sg-textarea:focus, .sg-select:focus {
+  border-color: rgba(129, 140, 248, 0.55);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.14);
+  background: rgba(255, 255, 255, 0.055);
+}
+.sg-label { display: block; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sg-text-3); margin-bottom: 8px; }
+
+/* ── Pills / badges ── */
+.sg-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--sg-line); background: rgba(255, 255, 255, 0.04);
+  color: var(--sg-text-2); white-space: nowrap;
+}
+.sg-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sg-pill-go { color: var(--sg-go); border-color: rgba(52, 211, 153, 0.3); background: var(--sg-go-dim); }
+.sg-pill-go .dot { box-shadow: 0 0 8px var(--sg-go); animation: sg-pulse 2s infinite; }
+.sg-pill-warn { color: var(--sg-warn); border-color: rgba(251, 191, 36, 0.3); background: var(--sg-warn-dim); }
+.sg-pill-danger { color: var(--sg-danger); border-color: rgba(248, 113, 113, 0.3); background: var(--sg-danger-dim); }
+.sg-pill-info { color: var(--sg-info); border-color: rgba(96, 165, 250, 0.3); background: var(--sg-info-dim); }
+.sg-pill-brand { color: var(--sg-cyan); border-color: rgba(129, 140, 248, 0.35); background: rgba(129, 140, 248, 0.1); }
+
+@keyframes sg-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── Layout helpers ── */
+.sg-container { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+.sg-section { padding: 80px 0; }
+.sg-stack > * + * { margin-top: 16px; }
+.sg-row { display: flex; align-items: center; gap: 12px; }
+.sg-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.sg-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 860px) {
+  .sg-grid-2, .sg-grid-3 { grid-template-columns: 1fr; }
+  .sg-section { padding: 52px 0; }
+  .sg-container { padding: 0 20px; }
+}
+
+/* ── Dividers ── */
+.sg-hr { border: none; border-top: 1px solid var(--sg-line-soft); margin: 0; }
+
+/* ── Animations ── */
+@keyframes sg-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.sg-fade-up { animation: sg-fade-up 0.6s var(--sg-ease) both; }
+.sg-fade-up-1 { animation-delay: 0.06s; } .sg-fade-up-2 { animation-delay: 0.12s; }
+.sg-fade-up-3 { animation-delay: 0.18s; } .sg-fade-up-4 { animation-delay: 0.24s; }
+
+@keyframes sg-spin { to { transform: rotate(360deg); } }
+.sg-spin { animation: sg-spin 0.9s linear infinite; }
+
+/* ── Scrollbar ── */
+.sg-app ::-webkit-scrollbar { width: 10px; height: 10px; }
+.sg-app ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 8px; border: 2px solid var(--sg-ink-1); }
+.sg-app ::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Legacy bridge: old dm-* tokens → sg-* (for inner components still on agent.css) ── */
+.sg-app, .sg-auth {
+  --dm-bg: var(--sg-ink-1);
+  --dm-bg-2: var(--sg-ink-2);
+  --dm-card: rgba(255, 255, 255, 0.032);
+  --dm-card-2: rgba(255, 255, 255, 0.055);
+  --dm-border: var(--sg-line);
+  --dm-border-soft: var(--sg-line-soft);
+  --dm-text: var(--sg-text);
+  --dm-muted: var(--sg-text-2);
+  --dm-faint: var(--sg-text-3);
+  --dm-accent: var(--sg-cyan);
+  --dm-accent-bright: var(--sg-cyan);
+  --dm-accent-dim: rgba(34, 211, 238, 0.12);
+  --dm-danger: var(--sg-danger);
+  --dm-warn: var(--sg-warn);
+  --dm-info: var(--sg-info);
+  --dm-radius: var(--sg-r-lg);
+  --dm-radius-sm: var(--sg-r-md);
+  --dm-sans: var(--sg-sans);
+  --dm-mono: var(--sg-mono);
+}
