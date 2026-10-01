@@ -1,17 +1,17 @@
 /**
- * AgentHome — the agent console home: "point me at a target".
+ * AgentHome — "point me at a target".
  *
- * A single paste box starts a hunt. If the target was hunted before, the
+ * One paste box starts a hunt. If the target was hunted before, the
  * dedup banner offers the cached report instantly instead of re-running.
- * Below: live stats, recent hunts, queues and alerts at a glance.
+ * Below: live stats and recent hunts. Simple.
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Crosshair, Loader2, AlertTriangle, Bell, Layers, ChevronRight,
-  Radar, FileCheck2
+  Crosshair, Loader2, AlertTriangle, ChevronRight,
+  Radar, FileCheck2, Target
 } from 'lucide-react';
-import { createJob, listJobs, listQueues, listAlerts } from '../../services/api';
+import { createJob, listJobs } from '../../services/api';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 
@@ -23,19 +23,11 @@ export function AgentHome() {
   const [error, setError] = useState('');
   const [dedup, setDedup] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [queues, setQueues] = useState([]);
-  const [alerts, setAlerts] = useState([]);
 
   const refresh = useCallback(async () => {
     try {
-      const [jobsBody, queuesBody, alertsBody] = await Promise.all([
-        listJobs({ limit: 8 }).catch(() => null),
-        listQueues().catch(() => null),
-        listAlerts(true).catch(() => null)
-      ]);
+      const jobsBody = await listJobs({ limit: 8 }).catch(() => null);
       if (jobsBody?.jobs) setJobs(jobsBody.jobs);
-      if (queuesBody?.queues) setQueues(queuesBody.queues);
-      if (alertsBody?.alerts) setAlerts(alertsBody.alerts);
     } catch { /* home degrades to the hunt box rather than crashing */ }
   }, []);
 
@@ -72,7 +64,7 @@ export function AgentHome() {
 
   const runningCount = jobs.filter((j) => String(j.status).toLowerCase() === 'running').length;
   const doneCount = jobs.filter((j) => String(j.status).toLowerCase() === 'completed').length;
-  const unreadCount = alerts.filter((a) => !a.read).length;
+  const totalFindings = jobs.reduce((n, j) => n + (j.findingsCount || 0), 0);
 
   return (
     <div className="dm-agent-home">
@@ -126,14 +118,13 @@ export function AgentHome() {
       <div className="dm-stat-row">
         <div className="dm-stat"><strong>{runningCount}</strong><span>hunts live right now</span></div>
         <div className="dm-stat"><strong>{doneCount}</strong><span>hunts completed</span></div>
-        <div className="dm-stat"><strong>{queues.length}</strong><span>target queues</span></div>
-        <div className="dm-stat"><strong>{unreadCount}</strong><span>unread alerts</span></div>
+        <div className="dm-stat"><strong>{totalFindings}</strong><span>findings so far</span></div>
       </div>
 
       <div className="dm-home-grid">
         <div className="dm-home-col">
           <section className="dm-panel">
-            <h3><Crosshair size={15} /> Recent hunts</h3>
+            <h3><Target size={15} /> Recent hunts</h3>
             {jobs.length === 0 ? (
               <p className="dm-empty-note">No hunts yet — your first one is one paste away.</p>
             ) : (
@@ -160,49 +151,21 @@ export function AgentHome() {
 
         <div className="dm-home-col">
           <section className="dm-panel">
-            <h3><Bell size={15} /> Alerts</h3>
-            {alerts.length === 0 ? (
-              <p className="dm-empty-note">All quiet. Critical findings will land here.</p>
-            ) : (
-              alerts.slice(0, 3).map((alert) => (
-                <Link
-                  key={alert.id}
-                  to={alert.jobId ? `/agent/hunt/${alert.jobId}` : '/agent/alerts'}
-                  className={`dm-alert-peek${alert.read ? '' : ' unread'}`}
-                >
-                  <Bell size={14} />
-                  <span><strong>{alert.title}</strong></span>
-                </Link>
-              ))
-            )}
-            <Link to="/agent/alerts" className="dm-card-link" style={{ marginTop: 12 }}>
-              Open inbox <ChevronRight size={13} />
-            </Link>
-          </section>
-
-          <section className="dm-panel">
-            <h3><Layers size={15} /> Queues</h3>
-            {queues.length === 0 ? (
-              <p className="dm-empty-note">No queues. Line up targets to hunt in order.</p>
-            ) : (
-              queues.slice(0, 3).map((queue) => (
-                <Link key={queue.id} to="/agent/queues" className="dm-queue-peek">
-                  <Layers size={14} />
-                  <span><strong>{queue.name || 'Untitled queue'}</strong> · {(queue.targets || []).length} targets</span>
-                </Link>
-              ))
-            )}
-            <Link to="/agent/queues" className="dm-card-link" style={{ marginTop: 12 }}>
-              Manage queues <ChevronRight size={13} />
-            </Link>
-          </section>
-
-          <section className="dm-panel">
             <h3><FileCheck2 size={15} /> Past reports</h3>
             <p className="dm-card-hint">Every completed hunt is archived with a submission-ready report.</p>
             <Link to="/agent/reports" className="dm-card-link" style={{ marginTop: 10 }}>
               Browse reports <ChevronRight size={13} />
             </Link>
+          </section>
+
+          <section className="dm-panel">
+            <h3><Crosshair size={15} /> How it works</h3>
+            <ol className="dm-how-list">
+              <li>Paste a URL you own</li>
+              <li>Agent maps the attack surface</li>
+              <li>Tests hypotheses, safely</li>
+              <li>You get a PDF report</li>
+            </ol>
           </section>
         </div>
       </div>
@@ -210,7 +173,7 @@ export function AgentHome() {
       <footer className="dm-home-foot">
         <p className="dm-home-hint">
           Tip: re-pasting a target you've already hunted returns its saved report instantly —
-          no need to burn another hunt. Use “Start new hunt” only when you want a fresh look.
+          no need to burn another hunt. Use "Start new hunt" only when you want a fresh look.
         </p>
       </footer>
     </div>

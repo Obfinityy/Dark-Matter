@@ -1,24 +1,30 @@
 /**
- * ModelLibrary — "Run Locally": the uncensored local model library (issue #3).
+ * ModelLibrary — "Run Locally": the no-Ollama local model runner UI.
  *
- * One library, two sections:
- *   1. Curated catalog — the approved uncensored models (30B default, 8B/70B
- *      tiers), each with a one-click download showing LIVE progress.
- *   2. Custom models — the user's own Ollama tags or endpoints.
+ * The flow is deliberately dead simple:
+ *   1. Pick a model (each card shows RAM / GPU needs and whether YOUR
+ *      device can handle it — ranked automatically for this machine).
+ *   2. Press Download — the .gguf file lands in the app-data folder with
+ *      live progress. Nothing downloads by itself.
+ *   3. Press Run — a bundled llama-server starts on localhost and the
+ *      model becomes the shared brain for Hunt and Infinity AI.
+ *   4. Press Stop — the model unloads and RAM/VRAM is freed.
  *
- * The "Plugins" sidebar entry lands here (library home); activating a model
- * switches the agent's brain for future reasoning steps.
+ * Users can also register any public Hugging Face GGUF of their own.
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Cpu, Download, Check, X, Loader2, Plus, Trash2, Zap, AlertTriangle,
-  Server, BookOpen
+  Cpu, Download, X, Loader2, Plus, Trash2, Zap, AlertTriangle,
+  Server, Play, Square, CheckCircle2, MonitorCog, HardDrive, MemoryStick,
+  Cloud, Link2, Unplug, Wifi
 } from 'lucide-react';
 import {
-  getModelLibrary, getLocalModelStatus, getModelInstallGuide,
-  pullModel, cancelPull, subscribeToPullStream,
-  removeLocalModel, activateModel, deactivateModel,
-  addCustomModel, removeCustomModel
+  getRunnerStatus, getRunnerLibrary,
+  downloadRunnerEngine, subscribeToEngineStream,
+  downloadRunnerModel, cancelRunnerDownload, subscribeToDownloadStream,
+  removeRunnerModel, addRunnerCustomModel,
+  runRunnerModel, stopRunnerModel,
+  getRemoteModelStatus, testRemoteModel, connectRemoteModel, disconnectRemoteModel
 } from '../../services/api';
 
 function ProgressBar({ value }) {
@@ -29,30 +35,121 @@ function ProgressBar({ value }) {
   );
 }
 
+const VERDICT_META = {
+  ready: { label: 'Ready', cls: 'verdict-ready', icon: CheckCircle2 },
+  tight: { label: 'Tight fit', cls: 'verdict-tight', icon: AlertTriangle },
+  risky: { label: 'Risky', cls: 'verdict-risky', icon: AlertTriangle },
+  blocked: { label: "Won't run", cls: 'verdict-blocked', icon: X }
+};
+
+function VerdictBadge({ compatibility }) {
+  if (!compatibility) return null;
+  const meta = VERDICT_META[compatibility.verdict] || VERDICT_META.blocked;
+  const Icon = meta.icon;
+  return (
+    <span className={`dm-verdict ${meta.cls}`} title={(compatibility.reasons || []).join(' ')}>
+      <Icon size={12} /> {meta.label}
+    </span>
+  );
+}
+
+function formatGB(gb) {
+  return `${Math.round(gb * 10) / 10} GB`;
+}
+
 export function ModelLibrary() {
   const [library, setLibrary] = useState([]);
   const [status, setStatus] = useState(null);
-  const [guide, setGuide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [pull, setPull] = useState(null); // { modelId, progress, status }
-  const [customForm, setCustomForm] = useState({ name: '', ollamaTag: '', endpointUrl: '' });
+  const [download, setDownload] = useState(null); // { modelId, progress, status }
+  const [engineDl, setEngineDl] = useState(null); // { progress, status }
+  const [busyModel, setBusyModel] = useState(null);
+  const [busyEngine, setBusyEngine] = useState(false);
+  const [customForm, setCustomForm] = useState({ name: '', repo: '', file: '', ramGB: '' });
   const [customBusy, setCustomBusy] = useState(false);
+
+  // ── Remote GPU (Kaggle/Colab Gradio share link) ──────────────────
+  const [remote, setRemote] = useState(null); // { connected, gradioUrl, name, health }
+  const [remoteUrl, setRemoteUrl] = useState('');
+  const [remoteName, setRemoteName] = useState('');
+  const [remoteBusy, setRemoteBusy] = useState(null); // 'test' | 'connect' | 'disconnect' | null
+  const [remoteMsg, setRemoteMsg] = useState(null); // { ok, text }
+
+  const refreshRemote = useCallback(async () => {
+    try {
+      const st = await getRemoteModelStatus();
+      setRemote(st);
+      if (st?.connected && st?.gradioUrl) setRemoteUrl(st.gradioUrl);
+    } catch {
+      /* remote brain unavailable — non-fatal */
+    }
+  }, []);
+
+  useEffect(() => { refreshRemote(); }, [refreshRemote]);
+
+  const doRemoteTest = async () => {
+    if (!remoteUrl.trim()) return;
+    setRemoteBusy('test');
+    setRemoteMsg(null);
+    try {
+      const res = await testRemoteModel(remoteUrl.trim());
+      setRemoteMsg({ ok: true, text: `Link OK — model replied "${res.probe || 'ok'}" in the live test.` });
+    } catch (err) {
+      setRemoteMsg({ ok: false, text: err.message || 'Could not reach that link.' });
+    } finally {
+      setRemoteBusy(null);
+    }
+  };
+
+  const doRemoteConnect = async () => {
+    if (!remoteUrl.trim()) return;
+    setRemoteBusy('connect');
+    setRemoteMsg(null);
+    try {
+      await connectRemoteModel(remoteUrl.trim(), remoteName.trim() || undefined);
+      setRemoteMsg({ ok: true, text: 'Connected — Hunt and Infinity AI now think on your remote GPU.' });
+      await refreshRemote();
+      refresh();
+    } catch (err) {
+      setRemoteMsg({ ok: false, text: err.message || 'Could not connect.' });
+    } finally {
+      setRemoteBusy(null);
+    }
+  };
+
+  const doRemoteDisconnect = async () => {
+    setRemoteBusy('disconnect');
+    setRemoteMsg(null);
+    try {
+      await disconnectRemoteModel();
+      setRemoteMsg({ ok: true, text: 'Disconnected — brain is back to the default.' });
+      await refreshRemote();
+      refresh();
+    } catch (err) {
+      setRemoteMsg({ ok: false, text: err.message || 'Could not disconnect.' });
+    } finally {
+      setRemoteBusy(null);
+    }
+  };
 
   const refresh = useCallback(async () => {
     try {
       const [lib, st] = await Promise.all([
-        getModelLibrary().catch(() => null),
-        getLocalModelStatus().catch(() => null)
+        getRunnerLibrary().catch(() => null),
+        getRunnerStatus().catch(() => null)
       ]);
       if (lib?.models) setLibrary(lib.models);
       else if (Array.isArray(lib)) setLibrary(lib);
       if (st) {
         setStatus(st);
-        if (st.pull) setPull(st.pull);
+        const dl = st.download;
+        if (dl && dl.status !== 'idle') setDownload(dl);
+        const edl = st.engineDownload;
+        if (edl && edl.status !== 'idle') setEngineDl(edl);
       }
     } catch (err) {
-      setError(err.message || 'Could not load the model library.');
+      setError(err.message || 'Could not load the model runner.');
     } finally {
       setLoading(false);
     }
@@ -60,53 +157,117 @@ export function ModelLibrary() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Live pull progress.
+  // Live model download progress.
   useEffect(() => {
-    const unsubscribe = subscribeToPullStream({
+    const unsubscribe = subscribeToDownloadStream({
       onEvent: (event) => {
         const type = event.__sseType;
-        if (type === 'pull.progress') setPull((prev) => ({ ...(prev || {}), ...event.data, status: 'pulling' }));
-        if (type === 'pull.done') { setPull(null); refresh(); }
-        if (type === 'pull.error') { setPull((prev) => ({ ...(prev || {}), status: 'error', error: event.data?.error })); }
+        const data = event.data ?? event;
+        if (type === 'download.progress' || type === 'progress') {
+          setDownload((prev) => ({ ...(prev || {}), ...data, status: 'downloading' }));
+        }
+        if (type === 'download.done') { setDownload(null); refresh(); }
+        if (type === 'download.error') {
+          setDownload((prev) => ({ ...(prev || {}), status: 'error', error: data?.error }));
+        }
       },
       onError: () => {}
     });
     return () => unsubscribe?.();
   }, [refresh]);
 
-  const startPull = async (modelId) => {
+  // Live engine download progress.
+  useEffect(() => {
+    const unsubscribe = subscribeToEngineStream({
+      onEvent: (event) => {
+        const type = event.__sseType;
+        const data = event.data ?? event;
+        if (type === 'engine.progress' || type === 'progress') {
+          setEngineDl((prev) => ({ ...(prev || {}), ...data, status: 'downloading' }));
+        }
+        if (type === 'engine.done') { setEngineDl(null); setBusyEngine(false); refresh(); }
+        if (type === 'engine.error') {
+          setEngineDl((prev) => ({ ...(prev || {}), status: 'error', error: data?.error }));
+          setBusyEngine(false);
+        }
+      },
+      onError: () => {}
+    });
+    return () => unsubscribe?.();
+  }, [refresh]);
+
+  const startEngineDownload = async () => {
     setError('');
+    setBusyEngine(true);
     try {
-      const body = await pullModel(modelId);
-      setPull({ modelId, progress: 0, status: 'starting', ...(body?.pull || {}) });
+      await downloadRunnerEngine();
+      setEngineDl({ progress: 0, status: 'starting' });
     } catch (err) {
-      setError(err.code === 'OLLAMA_NOT_RUNNING'
-        ? 'Ollama is not running on this machine. See the setup guide below.'
-        : (err.message || 'Could not start the download.'));
+      setError(err.message || 'Could not start the engine download.');
+      setBusyEngine(false);
     }
   };
 
-  const activate = async (payload) => {
+  const startDownload = async (modelId) => {
     setError('');
     try {
-      await activateModel(payload);
+      await downloadRunnerModel(modelId);
+      setDownload({ modelId, progress: 0, status: 'starting' });
+    } catch (err) {
+      setError(err.message || 'Could not start the download.');
+    }
+  };
+
+  const run = async (modelId) => {
+    setError('');
+    setBusyModel(modelId);
+    try {
+      await runRunnerModel(modelId);
       refresh();
     } catch (err) {
-      setError(err.message || 'Could not activate the model.');
+      setError(err.message || 'Could not start the model. Is the engine downloaded?');
+    } finally {
+      setBusyModel(null);
+    }
+  };
+
+  const stop = async () => {
+    setError('');
+    setBusyModel('__stop');
+    try {
+      await stopRunnerModel();
+      refresh();
+    } catch (err) {
+      setError(err.message || 'Could not stop the model.');
+    } finally {
+      setBusyModel(null);
+    }
+  };
+
+  const remove = async (modelId) => {
+    if (!window.confirm('Delete this downloaded model file?')) return;
+    setError('');
+    try {
+      await removeRunnerModel(modelId);
+      refresh();
+    } catch (err) {
+      setError(err.message || 'Could not delete the model.');
     }
   };
 
   const addCustom = async (e) => {
     e.preventDefault();
-    if (!customForm.name.trim()) return;
+    if (!customForm.name.trim() || !customForm.repo.trim() || !customForm.file.trim()) return;
     setCustomBusy(true);
+    setError('');
     try {
-      await addCustomModel({
+      await addRunnerCustomModel({
         name: customForm.name.trim(),
-        ollamaTag: customForm.ollamaTag.trim() || undefined,
-        endpointUrl: customForm.endpointUrl.trim() || undefined
+        repo: customForm.repo.trim(),
+        file: customForm.file.trim(),
+        ramGB: customForm.ramGB ? Number(customForm.ramGB) : undefined
       });
-      setCustomForm({ name: '', ollamaTag: '', endpointUrl: '' });
+      setCustomForm({ name: '', repo: '', file: '', ramGB: '' });
       refresh();
     } catch (err) {
       setError(err.message || 'Could not add the custom model.');
@@ -115,144 +276,305 @@ export function ModelLibrary() {
     }
   };
 
-  const showGuide = async () => {
-    if (guide) { setGuide(null); return; }
-    try {
-      const body = await getModelInstallGuide();
-      setGuide(body?.guide || body);
-    } catch {
-      setGuide({ steps: ['Install Ollama from https://ollama.com', 'Run `ollama serve`', 'Return here and download a model.'] });
-    }
-  };
-
-  if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Loading model library…</div>;
-
-  const installed = new Set(status?.installed || []);
-  const active = status?.active || null;
-  const isActive = (modelId) => active?.modelId === modelId;
+  const device = status?.device;
+  const running = status?.running;
+  const engineReady = !!status?.engineReady;
+  const gpuLabel = device?.gpus?.length
+    ? device.gpus.map((g) => g.name || g.vendor).join(', ')
+    : 'No GPU detected';
 
   return (
-    <div className="dm-models">
-      <header className="dm-page-head">
+    <div className="dm-models-page">
+      <div className="dm-page-head">
         <div>
-          <h1><Cpu size={22} /> Model Library</h1>
-          <p>Run the agent's brain on <strong>your</strong> machine via Ollama — uncensored, private, no rate limits on the reasoning loop.</p>
+          <h2><Zap size={20} /> Run Locally</h2>
+          <p className="dm-page-sub">
+            No Ollama, no setup. Pick a model, press <b>Download</b>, then <b>Run</b> —
+            it starts on localhost and becomes the brain for Hunt and Infinity AI.
+          </p>
         </div>
-        <button className="dm-btn-secondary" onClick={showGuide}>
-          <BookOpen size={14} /> {guide ? 'Hide setup guide' : 'Ollama setup guide'}
-        </button>
-      </header>
-
-      {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
-
-      {status && !status.ollamaRunning && (
-        <div className="dm-warn-banner">
-          <Server size={16} />
-          <span>Ollama isn't reachable. Install it and run <code>ollama serve</code>, then download a model below.</span>
-        </div>
-      )}
-
-      {guide && (
-        <div className="dm-guide-card">
-          <h3>Run Ollama locally</h3>
-          <ol>{(guide.steps || []).map((step, i) => <li key={i}>{step}</li>)}</ol>
-        </div>
-      )}
-
-      <h2 className="dm-section-title">Curated uncensored models</h2>
-      <div className="dm-model-grid">
-        {library.map((model) => {
-          const id = model.id || model.modelId;
-          const ready = installed.has(id) || model.installed;
-          const pulling = pull && pull.modelId === id && pull.status !== 'error';
-          return (
-            <div key={id} className={`dm-model-card ${isActive(id) ? 'active' : ''} ${model.default ? 'default' : ''}`}>
-              <div className="dm-model-top">
-                <h3>{model.name || id}</h3>
-                {model.default && <span className="dm-model-default">default</span>}
-                {isActive(id) && <span className="dm-model-active"><Zap size={12} /> active brain</span>}
-              </div>
-              <p className="dm-model-desc">{model.description || model.ollamaTag || ''}</p>
-              <div className="dm-model-meta">
-                {model.parameters && <span>{model.parameters} params</span>}
-                {model.size && <span>{model.size}</span>}
-                {model.tier && <span>tier: {model.tier}</span>}
-              </div>
-
-              {pulling ? (
-                <div className="dm-pull-progress">
-                  <ProgressBar value={pull.progress || 0} />
-                  <span>{Math.round((pull.progress || 0) * 100)}% — downloading…</span>
-                  <button className="dm-btn-ghost" onClick={cancelPull}><X size={13} /> Cancel</button>
-                </div>
-              ) : pull?.status === 'error' && pull.modelId === id ? (
-                <div className="dm-form-error"><AlertTriangle size={13} /> {pull.error || 'Download failed.'}</div>
-              ) : ready ? (
-                <div className="dm-model-actions">
-                  {isActive(id) ? (
-                    <button className="dm-btn-ghost" onClick={deactivateModel}><Check size={14} /> Active</button>
-                  ) : (
-                    <button className="dm-btn-primary" onClick={() => activate({ modelId: id })}>
-                      <Zap size={14} /> Use as brain
-                    </button>
-                  )}
-                  <button className="dm-btn-ghost" onClick={() => { if (window.confirm(`Remove ${id}?`)) removeLocalModel(id).then(refresh); }} title="Remove downloaded model">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ) : (
-                <button className="dm-btn-secondary" onClick={() => startPull(id)}>
-                  <Download size={14} /> Download
-                </button>
-              )}
-            </div>
-          );
-        })}
       </div>
 
-      <h2 className="dm-section-title">Custom models</h2>
-      <div className="dm-custom-models">
-        {(status?.customModels || []).map((custom) => (
-          <div key={custom.id} className="dm-custom-row">
-            <div>
-              <strong>{custom.name}</strong>
-              <span className="dm-custom-sub">{custom.ollamaTag || custom.endpointUrl}</span>
+      {error && <div className="dm-alert dm-alert-error">{error}</div>}
+
+      {/* ── Remote GPU: Kaggle / Colab ─────────────────────────── */}
+      <div className="dm-remote-card">
+        <div className="dm-remote-head">
+          <Cloud size={18} />
+          <div>
+            <strong>Remote GPU — Kaggle / Colab</strong>
+            <p>
+              Run the model on a free cloud GPU, paste the public Gradio link here,
+              press <b>Connect</b> — it becomes the brain for Hunt and Infinity AI.
+              No download, no local RAM needed.
+            </p>
+          </div>
+          {remote?.connected && (
+            <span className="dm-model-active"><span className="dm-pulse" /> Connected</span>
+          )}
+        </div>
+
+        {remote?.connected ? (
+          <div className="dm-remote-connected">
+            <div className="dm-remote-info">
+              <Wifi size={15} />
+              <div>
+                <strong>{remote.name || 'Remote GPU'}</strong>
+                <span className="dm-remote-sub">{remote.gradioUrl}</span>
+                {remote.health?.latencyMs != null && (
+                  <span className="dm-remote-sub">Link latency {remote.health.latencyMs} ms</span>
+                )}
+              </div>
             </div>
-            <div className="dm-model-actions">
-              <button className="dm-btn-ghost" onClick={() => activate({ provider: 'custom', customId: custom.id })}>
-                <Zap size={13} /> Use as brain
+            <button className="dm-btn-secondary" onClick={doRemoteDisconnect} disabled={remoteBusy === 'disconnect'}>
+              {remoteBusy === 'disconnect' ? <Loader2 size={15} className="dm-spin" /> : <Unplug size={15} />}
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <div className="dm-remote-form">
+            <div className="dm-form-row">
+              <input
+                className="dm-input"
+                placeholder="Paste the Gradio share link — https://xxxx.gradio.live"
+                value={remoteUrl}
+                onChange={(e) => setRemoteUrl(e.target.value)}
+                disabled={!!remoteBusy}
+              />
+            </div>
+            <div className="dm-form-row">
+              <input
+                className="dm-input"
+                placeholder="Name it (optional) — e.g. Kaggle Qwen3-8B"
+                value={remoteName}
+                onChange={(e) => setRemoteName(e.target.value)}
+                disabled={!!remoteBusy}
+              />
+            </div>
+            <div className="dm-remote-actions">
+              <button className="dm-btn-secondary" onClick={doRemoteTest} disabled={!remoteUrl.trim() || !!remoteBusy}>
+                {remoteBusy === 'test' ? <Loader2 size={15} className="dm-spin" /> : <Link2 size={15} />}
+                Test link
               </button>
-              <button className="dm-btn-ghost" onClick={() => { if (window.confirm(`Remove ${custom.name}?`)) removeCustomModel(custom.id).then(refresh); }}>
-                <Trash2 size={13} />
+              <button className="dm-btn-primary" onClick={doRemoteConnect} disabled={!remoteUrl.trim() || !!remoteBusy}>
+                {remoteBusy === 'connect' ? <Loader2 size={15} className="dm-spin" /> : <Zap size={15} />}
+                Connect
               </button>
+            </div>
+            {remoteMsg && (
+              <div className={`dm-alert ${remoteMsg.ok ? 'dm-alert-success' : 'dm-alert-error'}`}>
+                {remoteMsg.text}
+              </div>
+            )}
+            <p className="dm-remote-hint">
+              How to get a link: on Kaggle/Colab run a Gradio ChatInterface with your model
+              and <b>share=True</b> — copy the public <b>.gradio.live</b> URL it prints.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Currently running model */}
+      {running && (
+        <div className="dm-running-banner">
+          <div className="dm-running-info">
+            <span className="dm-pulse" />
+            <div>
+              <strong>{running.name || running.modelId}</strong>
+              <span className="dm-running-sub">
+                Running on localhost{running.port ? ` :${running.port}` : ''} — thinking for Hunt and Infinity AI
+              </span>
             </div>
           </div>
-        ))}
-        <form className="dm-custom-form" onSubmit={addCustom}>
-          <h4><Plus size={14} /> Add a custom model</h4>
+          <button className="dm-btn-secondary" onClick={stop} disabled={busyModel === '__stop'}>
+            {busyModel === '__stop' ? <Loader2 size={15} className="dm-spin" /> : <Square size={15} />}
+            Stop
+          </button>
+        </div>
+      )}
+
+      {/* Device summary */}
+      <div className="dm-device-card">
+        <div className="dm-device-head">
+          <MonitorCog size={17} />
+          <strong>Your device</strong>
+          {device && <span className="dm-device-os">{device.os} · {device.arch}</span>}
+        </div>
+        <div className="dm-device-specs">
+          <div className="dm-device-spec">
+            <MemoryStick size={15} />
+            <span>{device ? formatGB(device.totalRamGB) + ' RAM' : '—'}</span>
+          </div>
+          <div className="dm-device-spec">
+            <Cpu size={15} />
+            <span>{device ? `${device.cpuCount || '?'} CPU cores` : '—'}</span>
+          </div>
+          <div className="dm-device-spec">
+            <HardDrive size={15} />
+            <span>{gpuLabel}</span>
+          </div>
+        </div>
+        <p className="dm-device-note">
+          Models below are ranked for <b>this</b> device. Green means ready, amber means it fits
+          but will feel heavy, red means it may crash this machine.
+        </p>
+      </div>
+
+      {/* Engine one-time setup */}
+      {!engineReady && (
+        <div className="dm-engine-card">
+          <div className="dm-engine-info">
+            <Server size={17} />
+            <div>
+              <strong>Step 0 — one-time engine download</strong>
+              <p>
+                Dark-Matter ships its own tiny inference engine (llama-server). It downloads
+                once for your OS — after that, models run directly, no Ollama needed.
+              </p>
+            </div>
+          </div>
+          {engineDl && engineDl.status !== 'idle' ? (
+            <div className="dm-pull-progress">
+              <ProgressBar value={engineDl.progress || 0} />
+              <span>
+                {engineDl.status === 'error'
+                  ? `Failed: ${engineDl.error || 'unknown error'}`
+                  : `Downloading engine… ${Math.round((engineDl.progress || 0) * 100)}%`}
+              </span>
+            </div>
+          ) : (
+            <button className="dm-btn-primary" onClick={startEngineDownload} disabled={busyEngine}>
+              {busyEngine ? <Loader2 size={15} className="dm-spin" /> : <Download size={15} />}
+              Download engine
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Model cards */}
+      <div className="dm-section-title">Models</div>
+      {loading ? (
+        <div className="dm-loading"><Loader2 className="dm-spin" size={22} /> Loading models…</div>
+      ) : (
+        <div className="dm-model-grid">
+          {library.map((model) => {
+            const isDownloading = download && download.modelId === model.id && download.status !== 'idle';
+            const dlFailed = download && download.modelId === model.id && download.status === 'error';
+            const compat = model.compatibility || {};
+            const req = model.requirements || {};
+            return (
+              <div key={model.id} className={`dm-model-card ${model.running ? 'active' : ''}`}>
+                <div className="dm-model-top">
+                  <h3>{model.name}</h3>
+                  <VerdictBadge compatibility={compat} />
+                  {model.running && (
+                    <span className="dm-model-active"><span className="dm-pulse" /> Running</span>
+                  )}
+                </div>
+                <p className="dm-model-desc">{model.description}</p>
+                <div className="dm-model-meta">
+                  <span>{model.sizeGB ? `~${model.sizeGB} GB download` : 'Custom'}</span>
+                  {req.ramGB ? <span>Needs {req.ramGB} GB RAM</span> : null}
+                  <span>{req.gpuRequired ? 'GPU required' : (req.vramGB ? 'GPU optional' : 'CPU OK')}</span>
+                  {model.quant ? <span>{model.quant}</span> : null}
+                </div>
+                {(compat.reasons || []).length > 0 && (
+                  <ul className="dm-verdict-reasons">
+                    {compat.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                )}
+                <div className="dm-model-actions">
+                  {isDownloading ? (
+                    <div className="dm-pull-progress" style={{ width: '100%' }}>
+                      <ProgressBar value={download.progress || 0} />
+                      <span>
+                        {dlFailed
+                          ? `Failed: ${download.error || 'unknown error'}`
+                          : `Downloading… ${Math.round((download.progress || 0) * 100)}%`}
+                      </span>
+                      {!dlFailed && (
+                        <button
+                          className="dm-btn-secondary dm-btn-sm"
+                          onClick={() => cancelRunnerDownload().then(refresh).catch(() => {})}
+                        >
+                          <X size={13} /> Cancel
+                        </button>
+                      )}
+                    </div>
+                  ) : model.downloaded ? (
+                    <>
+                      {model.running ? (
+                        <button className="dm-btn-secondary" onClick={stop} disabled={busyModel === '__stop'}>
+                          {busyModel === '__stop' ? <Loader2 size={15} className="dm-spin" /> : <Square size={15} />}
+                          Stop
+                        </button>
+                      ) : (
+                        <button
+                          className="dm-btn-primary"
+                          onClick={() => run(model.id)}
+                          disabled={busyModel === model.id || !engineReady || compat.verdict === 'blocked'}
+                          title={!engineReady ? 'Download the engine first' : undefined}
+                        >
+                          {busyModel === model.id ? <Loader2 size={15} className="dm-spin" /> : <Play size={15} />}
+                          Run
+                        </button>
+                      )}
+                      <button className="dm-btn-secondary" onClick={() => remove(model.id)} title="Delete the downloaded file">
+                        <Trash2 size={15} />
+                      </button>
+                    </>
+                  ) : (
+                    <button className="dm-btn-primary" onClick={() => startDownload(model.id)}>
+                      <Download size={15} /> Download
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Custom model */}
+      <div className="dm-section-title" style={{ marginTop: 26 }}>Your own model</div>
+      <form className="dm-custom-form" onSubmit={addCustom}>
+        <h4><Plus size={15} /> Add any public Hugging Face GGUF</h4>
+        <div className="dm-form-row">
           <input
+            className="dm-input"
+            placeholder="Name (e.g. My 14B coder)"
             value={customForm.name}
             onChange={(e) => setCustomForm({ ...customForm, name: e.target.value })}
-            placeholder="Display name — e.g. My fine-tuned hunter"
-            required
           />
           <input
-            value={customForm.ollamaTag}
-            onChange={(e) => setCustomForm({ ...customForm, ollamaTag: e.target.value })}
-            placeholder="Ollama tag — e.g. my-hunter:latest"
-            spellCheck={false}
+            className="dm-input"
+            placeholder="RAM needed (GB, optional)"
+            type="number"
+            min="1"
+            value={customForm.ramGB}
+            onChange={(e) => setCustomForm({ ...customForm, ramGB: e.target.value })}
           />
+        </div>
+        <div className="dm-form-row">
           <input
-            value={customForm.endpointUrl}
-            onChange={(e) => setCustomForm({ ...customForm, endpointUrl: e.target.value })}
-            placeholder="…or an OpenAI-compatible endpoint URL"
-            spellCheck={false}
+            className="dm-input"
+            placeholder="Hugging Face repo (e.g. bartowski/Qwen3-8B-GGUF)"
+            value={customForm.repo}
+            onChange={(e) => setCustomForm({ ...customForm, repo: e.target.value })}
           />
-          <button type="submit" className="dm-btn-secondary" disabled={customBusy}>
-            {customBusy ? <Loader2 size={14} className="dm-spin" /> : <Plus size={14} />} Add model
-          </button>
-        </form>
-      </div>
+        </div>
+        <div className="dm-form-row">
+          <input
+            className="dm-input"
+            placeholder="GGUF file name (e.g. Qwen3-8B-Q4_K_M.gguf)"
+            value={customForm.file}
+            onChange={(e) => setCustomForm({ ...customForm, file: e.target.value })}
+          />
+        </div>
+        <button className="dm-btn-secondary" type="submit" disabled={customBusy}>
+          {customBusy ? <Loader2 size={15} className="dm-spin" /> : <Plus size={15} />} Add model
+        </button>
+      </form>
     </div>
   );
 }

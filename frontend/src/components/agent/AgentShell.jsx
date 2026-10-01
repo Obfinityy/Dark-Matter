@@ -12,20 +12,22 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import {
-  Crosshair, FileText, Cpu, Layers, CalendarClock, Bell, LibraryBig,
-  Shield, LogOut
+  Crosshair, Sparkles, Settings, LogOut
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
-import { listJobs, listAlerts } from '../../services/api';
+import { listJobs } from '../../services/api';
 
+/**
+ * v2 SIMPLIFIED NAVIGATION — only TWO main tabs:
+ *   Hunt        — autonomous bug bounty agent
+ *   Infinity AI — autonomous coding agent + chat
+ *
+ * Everything else (Models, Backend settings, Reports) lives under
+ * the Settings gear or inside the Hunt view. Simple. Clean.
+ */
 const NAV = [
   { to: '/agent', label: 'Hunt', icon: Crosshair, end: true },
-  { to: '/agent/reports', label: 'Reports', icon: FileText },
-  { to: '/agent/models', label: 'Models', icon: Cpu },
-  { to: '/agent/queues', label: 'Queues', icon: Layers },
-  { to: '/agent/schedules', label: 'Schedules', icon: CalendarClock },
-  { to: '/agent/alerts', label: 'Alerts', icon: Bell },
-  { to: '/agent/libraries', label: 'Payloads', icon: LibraryBig }
+  { to: '/agent/infinity', label: 'Infinity AI', icon: Sparkles }
 ];
 
 /** Plain-language status pill. `thinking` overrides a running job's label. */
@@ -45,20 +47,15 @@ export function StatusPill({ status, thinking = false }) {
 
 function useLiveStats() {
   const [running, setRunning] = useState(0);
-  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
       try {
-        const [jobsBody, alertsBody] = await Promise.all([
-          listJobs({ status: 'running', limit: 50 }).catch(() => null),
-          listAlerts(true).catch(() => null)
-        ]);
+        const jobsBody = await listJobs({ status: 'running', limit: 50 }).catch(() => null);
         if (cancelled) return;
         const jobs = jobsBody?.jobs || [];
         setRunning(jobs.filter((j) => String(j.status).toLowerCase() === 'running').length);
-        setUnread((alertsBody?.alerts || []).filter((a) => !a.read).length);
       } catch { /* top bar degrades silently — never blocks the page */ }
     };
     poll();
@@ -66,19 +63,19 @@ function useLiveStats() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  return { running, unread };
+  return { running };
 }
 
 export function AgentShell({ children }) {
   const { user, logout } = useAuth();
-  const { running, unread } = useLiveStats();
+  const { running } = useLiveStats();
   const initial = user?.username || user?.name || user?.email || '?';
 
   return (
     <div className="dm-shell">
       <aside className="dm-sidebar" aria-label="Agent console navigation">
         <Link to="/agent" className="dm-brand">
-          <span className="dm-brand-mark"><Shield size={19} /></span>
+          <span className="dm-brand-mark"><Crosshair size={19} /></span>
           <span>
             <span className="dm-brand-name">DARKMATTER</span>
             <span className="dm-brand-sub">bug bounty agent</span>
@@ -86,25 +83,14 @@ export function AgentShell({ children }) {
         </Link>
 
         <nav className="dm-nav">
-          <div className="dm-nav-label">Console</div>
-          {NAV.slice(0, 1).map(({ to, label, icon: Icon, end }) => (
+          {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={({ isActive }) => `dm-nav-item${isActive ? ' active' : ''}`}>
               <Icon size={17} /> {label}
             </NavLink>
           ))}
-          <div className="dm-nav-label">Manage</div>
-          {NAV.slice(1).map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => `dm-nav-item${isActive ? ' active' : ''}`}
-            >
-              <Icon size={17} /> {label}
-              {to === '/agent/alerts' && unread > 0 && (
-                <span className="dm-nav-badge">{unread > 99 ? '99+' : unread}</span>
-              )}
-            </NavLink>
-          ))}
+          <NavLink to="/agent/settings" className={({ isActive }) => `dm-nav-item${isActive ? ' active' : ''}`}>
+            <Settings size={17} /> Settings
+          </NavLink>
         </nav>
 
         <div className="dm-side-foot">
@@ -123,11 +109,6 @@ export function AgentShell({ children }) {
             <span className="dm-live-dot" />
             {running > 0 ? `${running} hunt${running === 1 ? '' : 's'} live` : 'Agent idle'}
           </span>
-          <span className="dm-topbar-spacer" />
-          <Link to="/agent/alerts" className="dm-topbar-bell" title="Alerts" aria-label={`Alerts${unread ? `, ${unread} unread` : ''}`}>
-            <Bell size={17} />
-            {unread > 0 && <span className="dm-nav-badge">{unread > 99 ? '99+' : unread}</span>}
-          </Link>
         </header>
 
         <nav className="dm-mobile-nav" aria-label="Agent console navigation">
@@ -136,6 +117,9 @@ export function AgentShell({ children }) {
               <Icon size={14} /> {label}
             </NavLink>
           ))}
+          <NavLink to="/agent/settings" className={({ isActive }) => (isActive ? 'active' : '')}>
+            <Settings size={14} /> Settings
+          </NavLink>
         </nav>
 
         {children}

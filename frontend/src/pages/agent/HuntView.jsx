@@ -26,6 +26,7 @@ import {
   subscribeToJobEvents
 } from '../../services/api';
 import { HackerTerminal } from '../../components/agent/HackerTerminal';
+import { LiveScreenViewer } from '../../components/agent/LiveScreenViewer';
 import { FindingsBoard } from '../../components/agent/FindingsBoard';
 import { HuntDiary } from '../../components/agent/HuntDiary';
 import { AttackSurfaceMap } from '../../components/agent/AttackSurfaceMap';
@@ -207,6 +208,8 @@ export function HuntView() {
           <FingerprintCard job={job} surface={surface} />
 
           <HackerTerminal jobId={jobId} />
+
+          <LiveScreenViewer assessmentId={job?.assessmentId} />
 
           <section>
             <div className="dm-hunt-tabs" role="tablist">

@@ -20,13 +20,11 @@ import { AgentShell } from '../../components/agent/AgentShell';
 import { Login } from '../Auth/Login';
 import { AgentHome } from './AgentHome';
 import { HuntView } from './HuntView';
+import { InfinityAI } from './InfinityAI';
+import { Settings } from './Settings';
 import { Reports } from './Reports';
 import { ReportReader } from './ReportReader';
 import { ModelLibrary } from './ModelLibrary';
-import { Queues } from './Queues';
-import { Schedules } from './Schedules';
-import { Alerts } from './Alerts';
-import { PayloadLibrary } from './PayloadLibrary';
 import { Loader2 } from 'lucide-react';
 
 function Gate({ children }) {
@@ -54,13 +52,11 @@ export function AgentConsole() {
           <Routes>
             <Route index element={<Page><AgentHome /></Page>} />
             <Route path="hunt/:jobId" element={<Page><HuntView /></Page>} />
+            <Route path="infinity" element={<Page><InfinityAI /></Page>} />
+            <Route path="settings" element={<Page><Settings /></Page>} />
             <Route path="reports" element={<Page><Reports /></Page>} />
             <Route path="reports/:id" element={<Page><ReportReader /></Page>} />
             <Route path="models" element={<Page><ModelLibrary /></Page>} />
-            <Route path="queues" element={<Page><Queues /></Page>} />
-            <Route path="schedules" element={<Page><Schedules /></Page>} />
-            <Route path="alerts" element={<Page><Alerts /></Page>} />
-            <Route path="libraries" element={<Page><PayloadLibrary /></Page>} />
             <Route path="*" element={<Navigate to="/agent" replace />} />
           </Routes>
         </AgentShell>
