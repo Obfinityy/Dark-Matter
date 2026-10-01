@@ -48,7 +48,9 @@ const METHODOLOGY_STATES = new Set([
 
 // Allowed moves. Anything not listed here is a bug in the caller.
 const TRANSITIONS = {
-  idle: ['recon', 'paused', 'complete'],
+  // idle → waiting is legal: a fresh hunt parks in "waiting" when the brain
+  // is unavailable before the first reasoning cycle ever runs.
+  idle: ['recon', 'waiting', 'paused', 'complete'],
   recon: ['recon', 'enumeration', 'probing', 'verifying', 'waiting', 'paused', 'complete'],
   enumeration: ['recon', 'enumeration', 'probing', 'verifying', 'waiting', 'paused', 'complete'],
   probing: ['enumeration', 'probing', 'exploitation', 'verifying', 'waiting', 'paused', 'complete'],
@@ -76,6 +78,7 @@ export function initialHuntState() {
 
 export function isValidTransition(from, to) {
   if (!HUNT_STATES.includes(from) || !HUNT_STATES.includes(to)) return false;
+  if (from === to) return true; // idempotent refresh, e.g. idle → idle
   return (TRANSITIONS[from] || []).includes(to);
 }
 
