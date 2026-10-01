@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-class LocalAIQueue {
+export class LocalAIQueue {
   constructor() {
     this.queue = [];
     this.isProcessing = false;

@@ -12,6 +12,10 @@ import { SessionModel } from './models/sessionModel.js';
 import { AssessmentModel } from './models/assessmentModel.js';
 import { AgentStateModel } from './models/agentStateModel.js';
 import { ToolExecutionModel } from './models/toolExecutionModel.js';
+import { ComputerActionModel } from './models/computerActionModel.js';
+import { ReasoningCycleModel } from './models/reasoningCycleModel.js';
+import { BrainProviderModel } from './models/brainProviderModel.js';
+import { CustomModelModel } from './models/customModelModel.js';
 import { FindingModel } from './models/findingModel.js';
 import { ReportModel } from './models/reportModel.js';
 import { EventService } from './services/eventService.js';
@@ -36,6 +40,7 @@ import { createTargetController } from './controllers/targetController.js';
 import { createAssessmentController } from './controllers/assessmentController.js';
 import { createInfiniteChatController } from './controllers/infiniteChatController.js';
 import { createJobController } from './controllers/jobController.js';
+import { createLocalModelController } from './controllers/localModelController.js';
 import { createComputerController } from './controllers/computerController.js';
 import { createComputerTaskController } from './controllers/computerTaskController.js';
 import { AgentJobModel } from './models/agentJobModel.js';
@@ -47,6 +52,7 @@ import { AgentMemoryModel } from './models/agentMemoryModel.js';
 import { EvidenceModel } from './models/evidenceModel.js';
 import { AgentMemory } from './agent/memory/agentMemory.js';
 import { AutonomousBrain } from './agent/autonomousBrain.js';
+import { LocalModelService } from './services/localModel/localModelService.js';
 import { ContextBudgetManager } from './services/longContext/contextBudgetManager.js';
 import { ComputerState } from './computer/computerState.js';
 import { ComputerEvents } from './computer/computerEvents.js';
@@ -54,6 +60,21 @@ import { OpenInterfaceAdapter } from './computer/openInterfaceAdapter.js';
 import { FindingLifecycleService } from './services/findingLifecycleService.js';
 import { AgentWorker } from './jobs/agentWorker.js';
 import { JobManager } from './jobs/jobManager.js';
+import { AlertModel } from './models/alertModel.js';
+import { PayloadLibraryModel } from './models/payloadLibraryModel.js';
+import { HuntScheduleModel } from './models/huntScheduleModel.js';
+import { TargetQueueModel } from './models/targetQueueModel.js';
+import { HuntRecordModel } from './models/huntRecordModel.js';
+import { AlertService } from './services/alertService.js';
+import { TargetQueueService } from './services/targetQueueService.js';
+import { HuntScheduler } from './services/huntScheduler.js';
+import { FileMemory } from './agent/memory/fileMemory.js';
+import { HuntContextManager } from './agent/huntContextManager.js';
+import { createHuntRecordController } from './controllers/huntRecordController.js';
+import { createAlertController } from './controllers/alertController.js';
+import { createQueueController } from './controllers/queueController.js';
+import { createScheduleController } from './controllers/scheduleController.js';
+import { createPayloadLibraryController } from './controllers/payloadLibraryController.js';
 import { listTools } from './controllers/toolController.js';
 import { createReportController } from './controllers/reportController.js';
 import { createRoutes } from './routes/index.js';
@@ -81,17 +102,38 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
   const assessmentModel = new AssessmentModel(database);
   const agentStateModel = new AgentStateModel(database);
   const toolExecutionModel = new ToolExecutionModel(database);
+  const computerActionModel = new ComputerActionModel(database);
+  const reasoningCycleModel = new ReasoningCycleModel(database);
+  const brainProviderModel = new BrainProviderModel(database);
+  const customModelModel = new CustomModelModel(database);
   const findingModel = new FindingModel(database);
   const reportModel = new ReportModel(database);
   const agentJobModel = new AgentJobModel(database);
   const agentMemoryModel = new AgentMemoryModel(database);
   const evidenceModel = new EvidenceModel(database);
+  // ─── Hunt-support models (alerts, payload learning, schedules, queues) ──
+  const alertModel = new AlertModel(database);
+  const payloadLibraryModel = new PayloadLibraryModel(database);
+  const huntScheduleModel = new HuntScheduleModel(database);
+  const targetQueueModel = new TargetQueueModel(database);
+  // ─── Hunt records: the DB side of hybrid storage ──────────────────────
+  // Completed hunts' final reports live here — the source of truth for
+  // "what have we already hunted" (target dedup + report history).
+  const huntRecordModel = new HuntRecordModel(database);
 
   // ─── Existing Services ────────────────────────────────────────────
-  const authService = new AuthService({ userModel, sessionModel, sessionDays: config.sessionDays });
+  const authService = new AuthService({
+    userModel,
+    sessionModel,
+    sessionDays: config.sessionDays,
+    jwtSecret: config.jwtSecret,
+    jwtDays: config.jwtDays
+  });
   const eventService = new EventService(database);
   const subdomainService = new SubdomainService({ scanModel, targetModel, eventService });
   const scanService = new ScanService({ targetModel, scanModel, eventService, subdomainService });
+  // Alerts: critical findings, hunt completion, queue/schedule events.
+  const alertService = new AlertService({ alertModel, eventService, logger: console });
 
   // ─── Agent System ─────────────────────────────────────────────────
   // Note: ScopeEngine is created per-assessment in AssessmentService.
@@ -164,15 +206,47 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     agentStateModel
   });
 
-  // ─── Autonomous Brain (local phone Gemma ONLY) ────────────────────
+  // ─── Autonomous Brain (local phone Gemma by default) ─────────────────
   const autonomousBrain = new AutonomousBrain({
     memory: agentMemory,
     eventService,
     computer: computerAdapter
   });
 
+  // ─── Brain provider switching (issue #3: "Run Locally" model library) ──
+  // Per-user brains: the model picker persists EACH USER's selection in the
+  // brain-provider model; the worker builds that user's brain lazily on the
+  // next reasoning step. There is deliberately NO global brain and NO boot
+  // swap — one user's model choice must never affect another user's hunts.
+  // onActivate simply drops the user's cached brain so it rebuilds.
+  let agentWorker = null; // assigned below; the hook below closes over it
+  const localModelService = new LocalModelService({
+    config,
+    brainProviderModel,
+    customModelModel,
+    onActivate: (userId) => agentWorker?.refreshBrainForUser(userId)
+  });
+
+  // ─── Hybrid memory: files for working memory, DB for artifacts ──────
+  // The agent's working memory (journal, learnings, plan, per-hunt summary)
+  // lives in LOCAL FILES under the app-data dir — the agent reads/writes them
+  // itself with run_command. The database keeps only persistent ARTIFACTS
+  // (completed hunt records + final reports via huntRecordModel above).
+  const fileMemory = new FileMemory({ dataDir: process.env.DARKMATTER_DATA_DIR || null });
+  // HuntContextManager assembles the token-budgeted brain context each cycle:
+  // hot sliding window → warm rolling summary → cold file memory. The warm
+  // summary is ALSO persisted to the hunt's summary.md (see its
+  // maybeRefreshSummary), so long hunts survive restarts with memory intact.
+  const huntContextManager = new HuntContextManager({
+    jobModel: agentJobModel,
+    memory: fileMemory,
+    findingModel,
+    reasoningCycleModel,
+    payloadLibraryModel
+  });
+
   // ─── Persistent Job Worker ────────────────────────────────────────
-  const agentWorker = new AgentWorker({
+  agentWorker = new AgentWorker({
     jobModel: agentJobModel,
     assessmentModel,
     brain: autonomousBrain,
@@ -182,12 +256,21 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     computer: computerAdapter,
     computerState,
     computerEvents,
+    computerActionModel,
+    reasoningCycleModel,
     findingLifecycle,
     evidenceModel,
     stateManager,
     eventService,
     reportService,
-    findingModel
+    findingModel,
+    alertService,
+    targetQueueService: null, // assigned after the queue service is built below
+    payloadLibraryModel,
+    brainProviderModel,
+    huntContextManager,
+    appConfig: config,
+    huntRecordModel
   });
 
   const jobManager = new JobManager({
@@ -197,6 +280,45 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     eventService,
     config: config.agentWorker
   });
+
+  // ─── Scheduled hunts + multi-target queues ──────────────────────────
+  // Both fire through the SAME assessment-creation path as POST /jobs, so
+  // scheduled/queued hunts get authorization checks, target dedup, and the
+  // fair worker pool like any other hunt. createJob receives the scheduler's
+  // { userId, target, scope, objective } and the queue's { userId, url }.
+  const createHuntFromTarget = async ({ userId, target, targetUrl, scope, objective }) => {
+    const url = targetUrl || target;
+    const created = await assessmentService.createFromTarget(userId, {
+      targetUrl: url,
+      authorizationConfirmed: true, // the user authorized the schedule/queue itself
+      message: objective || `Assess ${url}`,
+      deferStart: true
+    });
+    if (created.status !== 'assessment_created') {
+      throw new Error(created.message || `Could not create assessment for ${url}`);
+    }
+    return jobManager.createJob({
+      userId,
+      assessmentId: created.assessmentId,
+      target: created.assessment.targetHostname,
+      scope: scope || created.assessment.scope,
+      objective: objective || `Assess ${created.assessment.targetHostname}`
+    });
+  };
+  const targetQueueService = new TargetQueueService({
+    queueModel: targetQueueModel,
+    // Queue advance passes { userId, target, scope, objective, origin }.
+    createJob: ({ userId, target, scope, objective }) => createHuntFromTarget({ userId, target, scope, objective }),
+    alertService
+  });
+  const huntScheduler = new HuntScheduler({
+    // Scheduler tick passes { userId, target, scope, objective, origin }.
+    scheduleModel: huntScheduleModel,
+    createJob: createHuntFromTarget,
+    alertService
+  });
+  // The worker advances the queue when a hunt completes (best-effort).
+  agentWorker.targetQueueService = targetQueueService;
 
   // ─── InfiniteChat Computer Tasks (local brain + shared hands) ──────
   // Logically separated from the bug-bounty agent (own model/worker/manager/
@@ -252,7 +374,8 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     agentJobModel, agentMemoryModel, evidenceModel, agentMemory,
     computerState, computerEvents, computerAdapter, autonomousBrain,
     findingLifecycle, agentWorker, jobManager,
-    computerTaskModel, computerTaskBrain, computerTaskWorker, computerTaskManager
+    computerTaskModel, computerTaskBrain, computerTaskWorker, computerTaskManager,
+    reasoningCycleModel, brainProviderModel, localModelService, customModelModel
   };
   app.locals.shutdown = async () => {
     // Stop all running assessments on shutdown
@@ -278,7 +401,25 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
       assessments: createAssessmentController(assessmentService, eventService),
       reports: createReportController(reportService, assessmentService),
       infiniteChat: createInfiniteChatController({ longContextEngine, longGenerationEngine, computerTaskManager }),
-      jobs: createJobController({ jobManager, assessmentService, eventService, computerAdapter }),
+      jobs: createJobController({
+        jobManager,
+        assessmentService,
+        eventService,
+        computerAdapter,
+        computerActionModel,
+        reasoningCycleModel,
+        huntRecordModel,
+        reportService,
+        findingModel,
+        agentStateModel,
+        evidenceModel
+      }),
+      huntRecords: createHuntRecordController({ huntRecordModel }),
+      alerts: createAlertController({ alertService }),
+      queues: createQueueController({ targetQueueService, targetQueueModel }),
+      schedules: createScheduleController({ huntScheduler, huntScheduleModel }),
+      payloadLibrary: createPayloadLibraryController({ payloadLibraryModel }),
+      localModels: createLocalModelController({ localModelService, agentWorker }),
       computer: createComputerController({ computerAdapter, assessmentModel }),
       computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter })
     }
@@ -300,8 +441,26 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     });
   }
 
+  // ─── Scheduled hunts: fire due schedules on an interval ────────────
+  // HuntScheduler.tick() is idempotent (advances nextRunAt BEFORE firing),
+  // so a slow tick can never double-fire a schedule. Disabled in tests via
+  // HUNT_SCHEDULER_ENABLED=false. The timer is unref'd so it never holds
+  // the process open on its own.
+  if (process.env.HUNT_SCHEDULER_ENABLED !== 'false') {
+    const schedulerTickMs = Number(process.env.HUNT_SCHEDULER_TICK_MS || 60_000);
+    const schedulerTimer = setInterval(() => {
+      huntScheduler.tick().catch((error) => {
+        console.error('[hunt-scheduler] tick failed:', error.message);
+      });
+    }, schedulerTickMs);
+    schedulerTimer.unref?.();
+  }
+
   // Expose the boot-recovery hooks so server.js / tests can drive them explicitly.
   app.locals.jobManager = jobManager;
   app.locals.computerTaskManager = computerTaskManager;
+  app.locals.huntScheduler = huntScheduler;
+  app.locals.targetQueueService = targetQueueService;
+  app.locals.alertService = alertService;
   return app;
 }
