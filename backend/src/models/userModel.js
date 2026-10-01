@@ -2,7 +2,20 @@ import { AppError, assert } from '../core/errors.js';
 import { id, now } from '../core/utils.js';
 
 function publicUser(user) {
-  return { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt };
+  return { id: user.id, email: user.email, username: user.username || null, name: user.name, createdAt: user.createdAt };
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+export function normalizeUsername(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+export function validUsername(username) {
+  // 3-30 chars: letters, digits, underscore, dash. Stable for login + display.
+  return /^[a-z0-9_-]{3,30}$/.test(username);
 }
 
 export class UserModel {
@@ -10,7 +23,7 @@ export class UserModel {
     this.collection = database.collection('users');
   }
 
-  async create({ email, name, passwordHash }) {
+  async create({ email, name, passwordHash, username = null }) {
     const user = {
       id: id('user'),
       email,
@@ -19,10 +32,16 @@ export class UserModel {
       createdAt: now(),
       updatedAt: now()
     };
+    if (username) user.username = username;
     try {
       await this.collection.insertOne(user);
     } catch (error) {
-      if (error?.code === 11000) throw new AppError(409, 'An account with this email already exists', 'EMAIL_IN_USE');
+      if (error?.code === 11000) {
+        // Keep the 409 human-readable; the sparse unique index fires on either field.
+        const existing = await this.findByEmail(email);
+        if (existing) throw new AppError(409, 'An account with this email already exists', 'EMAIL_IN_USE');
+        throw new AppError(409, 'That username is already taken', 'USERNAME_IN_USE');
+      }
       throw error;
     }
     return publicUser(user);
@@ -30,6 +49,18 @@ export class UserModel {
 
   async findByEmail(email) {
     return this.collection.findOne({ email });
+  }
+
+  async findByUsername(username) {
+    return this.collection.findOne({ username: normalizeUsername(username) });
+  }
+
+  // Login entry point: one identifier field accepts either a username or an email.
+  async findByLogin(login) {
+    const value = String(login || '').trim();
+    if (!value) return null;
+    if (value.includes('@')) return this.findByEmail(normalizeEmail(value));
+    return this.findByUsername(value);
   }
 
   async findById(userId) {

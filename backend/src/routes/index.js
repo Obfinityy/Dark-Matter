@@ -73,6 +73,42 @@ export function createRoutes({ controllers }) {
   router.post('/jobs/:id/resume', controllers.jobs.resume);
   router.post('/jobs/:id/cancel', controllers.jobs.cancel);
   router.post('/jobs/:id/ask', controllers.jobs.ask);
+  router.get('/jobs/:id/computer-actions', controllers.jobs.computerActions);
+  router.get('/jobs/:id/reasoning-cycles', controllers.jobs.reasoningCycles);
+  router.get('/jobs/:id/findings', controllers.jobs.findings);
+  router.get('/jobs/:id/vulnerability-report', controllers.jobs.vulnerabilityReport);
+  router.get('/jobs/:id/attack-surface', controllers.jobs.attackSurface);
+  router.get('/jobs/:id/diary', controllers.jobs.diary);
+
+  // ─── Hunt records — report history (hybrid storage: DB artifacts) ──
+  // Completed hunts' final reports, versioned per target. Powers target
+  // dedup (POST /jobs returns these instantly) + the past-reports browser.
+  router.get('/hunt-records', controllers.huntRecords.list);
+  router.get('/hunt-records/:id', controllers.huntRecords.get);
+  router.get('/hunt-records/:id/report.md', controllers.huntRecords.downloadMarkdown);
+
+  // ─── Alerts — the notification center ─────────────────────────────
+  router.get('/alerts', controllers.alerts.list);
+  router.post('/alerts/:id/read', controllers.alerts.markRead);
+  router.post('/alerts/read-all', controllers.alerts.markAllRead);
+
+  // ─── Target queues — multi-target hunts ───────────────────────────
+  router.post('/queues', controllers.queues.create);
+  router.get('/queues', controllers.queues.list);
+  router.get('/queues/:id', controllers.queues.get);
+  router.post('/queues/:id/pause', controllers.queues.pause);
+  router.post('/queues/:id/resume', controllers.queues.resume);
+  router.delete('/queues/:id', controllers.queues.remove);
+
+  // ─── Schedules — scheduled hunts with alerts ──────────────────────
+  router.post('/schedules', controllers.schedules.create);
+  router.get('/schedules', controllers.schedules.list);
+  router.patch('/schedules/:id', controllers.schedules.update);
+  router.delete('/schedules/:id', controllers.schedules.remove);
+
+  // ─── Payload library — self-learning payloads ─────────────────────
+  router.get('/payload-library', controllers.payloadLibrary.list);
+  router.get('/payload-library/stats', controllers.payloadLibrary.stats);
 
   // ─── Computer Control (Open-Interface adapter) ──────────────────
   router.get('/computer', controllers.computer.status);
@@ -81,6 +117,21 @@ export function createRoutes({ controllers }) {
   router.get('/computer/browser-state', controllers.computer.browserState);
   router.post('/computer/screenshot', controllers.computer.screenshot);
   router.post('/computer/action', controllers.computer.action);
+  router.get('/computer/setup', controllers.computer.setup);
+  router.post('/computer/repair', controllers.computer.repair);
+
+  // ─── Local uncensored model library ("Run Locally", issue #3) ─────────
+  router.get('/local-models/library', controllers.localModels.library);
+  router.get('/local-models/status', controllers.localModels.status);
+  router.get('/local-models/install-guide', controllers.localModels.installGuide);
+  router.post('/local-models/pull', controllers.localModels.pull);
+  router.post('/local-models/pull/cancel', controllers.localModels.cancelPull);
+  router.get('/local-models/pull/stream', controllers.localModels.pullStream);
+  router.delete('/local-models/:modelId', controllers.localModels.remove);
+  router.post('/local-models/activate', controllers.localModels.activate);
+  router.post('/local-models/deactivate', controllers.localModels.deactivate);
+  router.post('/local-models/custom', controllers.localModels.addCustom);
+  router.delete('/local-models/custom/:id', controllers.localModels.removeCustom);
 
   // ─── InfiniteChat Computer Tasks (natural-language desktop control) ──
   router.post('/computer-tasks', controllers.computerTasks.create);

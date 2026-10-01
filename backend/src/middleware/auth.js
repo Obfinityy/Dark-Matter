@@ -11,7 +11,8 @@ export function attachAuth(authService) {
   return async (request, response, next) => {
     try {
       request.sessionToken = getSessionToken(request);
-      request.user = await authService.resolve(request.sessionToken);
+      // Accepts the stateless JWT or the existing session token — one middleware, both credentials.
+      request.user = await authService.resolveAny(request.sessionToken);
       next();
     } catch (error) {
       next(error);
