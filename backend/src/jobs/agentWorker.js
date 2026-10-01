@@ -61,6 +61,7 @@ export class AgentWorker {
     huntContextManager = null,
     appConfig = null,
     huntRecordModel = null, // persistent artifact store (hybrid storage: DB side)
+    modelRunnerService = null, // local GGUF runner (no-Ollama "Download → Run")
     logger = console
   }) {
     this.jobModel = jobModel;
@@ -89,6 +90,7 @@ export class AgentWorker {
     this.huntContextManager = huntContextManager;
     this.appConfig = appConfig;
     this.huntRecordModel = huntRecordModel;
+    this.modelRunnerService = modelRunnerService;
     // Per-user brain instances (multi-tenancy): userId → AutonomousBrain.
     // Each brain has its OWN provider (their model, their endpoint) and its
     // OWN inference queue — no shared mutable state between users, and one
@@ -140,6 +142,7 @@ export class AgentWorker {
     const provider = createBrainProvider(selection.provider, this.appConfig || {}, {
       model: selection.ollamaTag || selection.modelId || null,
       baseUrl: selection.endpointUrl || null,
+      runner: this.modelRunnerService,
     });
     // The phone is ONE piece of hardware: its brains share the hardware
     // queue. Every Ollama brain gets a PRIVATE queue — the agent's
@@ -299,8 +302,11 @@ export class AgentWorker {
       await this.jobModel.heartbeat(jobId, { lease: job.lease });
       await this.assessmentModel.setStatus(job.assessmentId, 'running').catch?.(() => {});
 
-      // ── Brain availability: the phone is the only reasoning engine ─────
-      const health = await this.brain.health();
+      // ── Brain availability: resolve the JOB's brain (per-user provider) ──
+      // this.brain is only the boot-time fallback; the user may have
+      // switched to the local runner (or any other provider) since.
+      const loopBrain = await this.getBrainForJob(job);
+      const health = await loopBrain.health();
       if (!health.available) {
         // health.reason already starts with "LOCAL AI UNAVAILABLE — …"; strip it
         // here so the terminal message doesn't repeat the prefix.
@@ -425,6 +431,33 @@ export class AgentWorker {
             proven.map((h) => `- [${h.technique}] "${h.payload.slice(0, 120)}" (${h.successes}× success)`).join('\n');
         }
       }
+      // --- Cross-hunt memory (idea #2): what did past hunts on THIS or
+      // similar targets find? Surface patterns so the agent checks them first.
+      if (this.findingModel && job.userId && job.target) {
+        const targetHost = String(job.target).toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+        const pastFindings = await this.findingModel.listByUser(job.userId).catch(() => []);
+        const relevant = pastFindings
+          .filter((f) => {
+            const asset = String(f.affectedAsset || f.target || '').toLowerCase();
+            return asset.includes(targetHost) || targetHost.includes(asset.split('/')[0]);
+          })
+          .slice(0, 5);
+        if (relevant.length) {
+          learnedHints += '\nPAST HUNTS ON THIS TARGET (patterns found before — check these FIRST):\n' +
+            relevant.map((f) => `- [${f.severity}] ${f.title} (${f.category || 'vuln'})`).join('\n');
+        }
+        // Pattern learning (idea #5): most successful vuln categories across ALL past hunts
+        const byCategory = {};
+        for (const f of pastFindings.slice(0, 50)) {
+          const cat = f.category || 'general';
+          byCategory[cat] = (byCategory[cat] || 0) + 1;
+        }
+        const topCats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        if (topCats.length) {
+          learnedHints += '\nYOUR STRONGEST PATTERNS (vuln types you find most — prioritize these):\n' +
+            topCats.map(([cat, n]) => `- ${cat} (${n}× found)`).join('\n');
+        }
+      }
       if (Array.isArray(findings) && findings.length >= 2) {
         const existingChains = findings.filter((f) => f.category === 'vulnerability-chain');
         const chains = suggestChains(findings, existingChains).slice(0, 3);
@@ -462,6 +495,28 @@ export class AgentWorker {
       kind: item.kind,
       summary: String(item.message || item.text || '').slice(0, 400)
     }));
+
+    // --- Hypothesis Engine: load active hypotheses so the brain can track
+    // competing theories across steps (idea #1: human-expert thinking) ---
+    try {
+      if (this.stateManager && job.assessmentId) {
+        const state = await this.stateManager.getState?.(job.assessmentId)
+          || await this.stateManager.agentStateModel?.get(job.assessmentId);
+        const hyps = state?.hypotheses || state?.state?.hypotheses || [];
+        job.hypotheses = hyps
+          .filter((h) => !['killed', 'confirmed', 'disproven'].includes(h.status))
+          .slice(0, 8)
+          .map((h) => ({
+            text: h.hypothesis || h.text,
+            status: h.status || 'open',
+            confidence: h.confidence,
+            evidence: h.evidence,
+            nextTest: h.nextTest
+          }));
+      }
+    } catch (error) {
+      this.logger.warn?.(`[agent-worker] hypothesis load failed: ${error.message}`);
+    }
 
     // The warm summary rides along with the hunt context — compressed
     // experience the brain must treat as ground truth about this hunt.
@@ -799,6 +854,8 @@ export class AgentWorker {
     switch (action.type) {
       case 'tool':
         return this.runToolAction(job, action);
+      case 'parallel_tools':
+        return this.runParallelToolsAction(job, action);
       case 'computer_action':
         return this.runComputerAction(job, action, scopeEngine, decision);
       case 'observation':
@@ -940,6 +997,69 @@ export class AgentWorker {
       });
       return null;
     }
+  }
+
+  /**
+   * Run multiple independent tools in parallel (idea #3).
+   * Each tool's result is stored as evidence + memory, same as a single run.
+   */
+  async runParallelToolsAction(job, action) {
+    const jobId = job.id;
+    const tools = (action.tools || action.parallelTools || []).slice(0, 6);
+    const names = tools.map((t) => t.name).join(', ');
+    await this.jobModel.update(jobId, {
+      currentAction: `parallel:[${names}] → ${job.target}`,
+    });
+    await this.recordActivity(jobId, { kind: 'tool', message: `Parallel tools: ${names}` });
+
+    const requests = tools.map((t) => ({
+      tool: t.name,
+      target: t.target || action.target || job.target,
+      arguments: t.arguments || {},
+      timeout: t.timeout
+    }));
+
+    const results = await this.toolExecutor.executeParallel(job.assessmentId, job.userId, requests);
+    const succeeded = results.filter((r) => r.ok);
+    const failed = results.filter((r) => !r.ok);
+
+    // Store each successful result as evidence + memory.
+    for (const r of succeeded) {
+      const res = r.result;
+      try {
+        await this.memory.rememberTool({
+          userId: job.userId,
+          assessmentId: job.assessmentId,
+          jobId,
+          key: `tool:${r.request.tool}`,
+          content: `${r.request.tool} @ ${r.request.target} → ${String(res.aiSummary || '').slice(0, 1500)}`,
+          refs: { toolExecutionId: res.execution?.id || null, url: r.request.target },
+        });
+        await this.stateManager.applyToolResult(job.assessmentId, r.request.tool, res.parsed);
+      } catch { /* non-fatal */ }
+    }
+    for (const r of failed) {
+      await this.recordActivity(jobId, { kind: 'error', message: `${r.request.tool} failed: ${r.error}` });
+    }
+
+    await this.recordActivity(jobId, {
+      kind: 'tool',
+      message: `Parallel batch done: ${succeeded.length} ok, ${failed.length} failed`
+    });
+    await this.publish(jobId, {
+      type: 'tool.output',
+      level: 'INFO',
+      message: `Parallel recon: ${succeeded.map((r) => r.request.tool).join(', ')} completed`,
+      data: { tools: succeeded.map((r) => r.request.tool), failed: failed.map((r) => r.request.tool) }
+    });
+    await this.jobModel.update(jobId, {
+      lastObservation: {
+        kind: 'parallel_tool_output',
+        summary: succeeded.map((r) => `${r.request.tool}: ${String(r.result.aiSummary || '').slice(0, 300)}`).join('\n').slice(0, 1000),
+        at: new Date().toISOString()
+      }
+    });
+    return { succeeded: succeeded.length, failed: failed.length, results };
   }
 
   /**
@@ -1115,9 +1235,13 @@ export class AgentWorker {
 
     // Failure triage:
     //   • the whole runtime is gone      → wait for it to come back (#34)
+    //   • computer disabled by config    → NEVER wait: it will not come back.
+    //     Record it and let the brain adapt to network-only tools.
     //   • this one action is impossible  → recovery strategies + brain adapts
     //   • the action was rejected        → recovery strategies + brain adapts
-    const runtimeGone = (result.error?.kind === 'unavailable' || result.error?.kind === 'timeout')
+    const computerDisabledByConfig = this.computer?.enabled === false;
+    const runtimeGone = !computerDisabledByConfig
+      && (result.error?.kind === 'unavailable' || result.error?.kind === 'timeout')
       && this.computer.running !== true;
     // Concrete recovery strategies (issue #1 "Recoverable failures") — the
     // brain gets options, not just an error string.
