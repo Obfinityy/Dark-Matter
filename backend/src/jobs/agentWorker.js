@@ -302,10 +302,13 @@ export class AgentWorker {
       // ── Brain availability: the phone is the only reasoning engine ─────
       const health = await this.brain.health();
       if (!health.available) {
+        // health.reason already starts with "LOCAL AI UNAVAILABLE — …"; strip it
+        // here so the terminal message doesn't repeat the prefix.
+        const waitReason = String(health.reason || 'phone model unreachable').replace(/^LOCAL AI UNAVAILABLE — /i, '');
         await this.enterWaiting(job, {
           reason: health.reason || 'LOCAL AI UNAVAILABLE',
           event: 'brain.unavailable',
-          message: `LOCAL AI UNAVAILABLE — ${health.reason || 'phone model unreachable'}. Waiting to recover; no cloud fallback will be used.`
+          message: `LOCAL AI UNAVAILABLE — ${waitReason}. Waiting to recover; no cloud fallback will be used.`
         });
         await this.sleepInterruptible(jobId, this.config.phoneRetryMs);
         continue;
