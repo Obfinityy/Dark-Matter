@@ -1,4 +1,9 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
+import { getApiBase } from './backendMode.js';
+
+/** API base URL — resolved at request time so Settings mode-switches apply instantly. */
+function apiBase() {
+  return getApiBase();
+}
 
 /**
  * JWT storage. The backend accepts BOTH the stateless JWT (Authorization
@@ -38,7 +43,7 @@ async function request(path, options = {}) {
 
   let response;
   try {
-    response = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
+    response = await fetch(`${apiBase()}${path}`, { ...options, headers, credentials: 'include' });
   } catch {
     throw new ApiError('DarkMatter backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
   }
@@ -143,7 +148,7 @@ export function sendDirectChat(message, conversationId, truncateIndex = undefine
 export async function streamDirectChat(message, conversationId, truncateIndex, handlers = {}) {
   const { onState, onToken, onDone, onError } = handlers;
   try {
-    const res = await fetch(`${API_BASE}/infinite/chat`, {
+    const res = await fetch(`${apiBase()}/infinite/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -288,7 +293,7 @@ export function getScan(scanId) {
 }
 
 export function subscribeToScanEvents(scanId, { onOpen, onEvent, onError } = {}) {
-  const source = new EventSource(`${API_BASE}/scans/${encodeURIComponent(scanId)}/events`, { withCredentials: true });
+  const source = new EventSource(`${apiBase()}/scans/${encodeURIComponent(scanId)}/events`, { withCredentials: true });
   const eventTypes = [
     'scan.created', 'scan.phase', 'agent.plan', 'tool.requested',
     'tool.started', 'tool.completed', 'tool.failed', 'scan.failed', 'scan.cancelled'
@@ -399,7 +404,7 @@ export function listAllReports() {
 /** Subscribe to live assessment events via SSE. */
 export function subscribeToAssessmentEvents(assessmentId, { onOpen, onEvent, onError } = {}) {
   const source = new EventSource(
-    `${API_BASE}/assessments/${encodeURIComponent(assessmentId)}/events`,
+    `${apiBase()}/assessments/${encodeURIComponent(assessmentId)}/events`,
     { withCredentials: true }
   );
 
@@ -498,6 +503,24 @@ export function getComputerStatus() {
   return request('/computer');
 }
 
+/** Take a live screenshot (read-only — for the screen viewer). */
+export function takeComputerScreenshot({ includeBase64 = true } = {}) {
+  return request('/computer/screenshot', {
+    method: 'POST',
+    body: JSON.stringify({ includeBase64 })
+  });
+}
+
+/** Pause computer control from the website (agent stops clicking/typing). */
+export function pauseComputer() {
+  return request('/computer/pause', { method: 'POST' });
+}
+
+/** Resume computer control from the website. */
+export function resumeComputer() {
+  return request('/computer/resume', { method: 'POST' });
+}
+
 // ─── InfiniteChat Computer Tasks (natural-language desktop control) ──
 
 export function createComputerTask(instruction, conversationId, followUpHint = null) {
@@ -533,7 +556,7 @@ export function cancelComputerTask(taskId) {
 
 /** Subscribe to live computer-task events via SSE (replayed on reconnect). */
 export function subscribeToComputerTaskEvents(taskId, { onOpen, onEvent, onError } = {}) {
-  const url = `${API_BASE}/computer-tasks/${encodeURIComponent(taskId)}/events`;
+  const url = `${apiBase()}/computer-tasks/${encodeURIComponent(taskId)}/events`;
   const source = new EventSource(url, { withCredentials: true });
 
   const handleEvent = (event) => {
@@ -577,7 +600,7 @@ export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEven
   // EventSource cannot set headers, so replay is driven explicitly through
   // getJobEventHistory() by the caller; Last-Event-ID is only honoured when the
   // browser reconnects on its own.
-  const url = `${API_BASE}/jobs/${encodeURIComponent(jobId)}/events`;
+  const url = `${apiBase()}/jobs/${encodeURIComponent(jobId)}/events`;
   const source = lastEventId ? new EventSource(`${url}?lastEventId=${encodeURIComponent(lastEventId)}`, { withCredentials: true }) : new EventSource(url, { withCredentials: true });
 
   const handleEvent = (event) => {
@@ -649,7 +672,7 @@ export function getHuntRecord(recordId) {
 export async function downloadHuntRecordMarkdown(recordId) {
   const jwt = getStoredJwt();
   const response = await fetch(
-    `${API_BASE}/hunt-records/${encodeURIComponent(recordId)}/report.md`,
+    `${apiBase()}/hunt-records/${encodeURIComponent(recordId)}/report.md`,
     {
       headers: { Accept: 'text/markdown', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
       credentials: 'include'
@@ -738,70 +761,113 @@ export function getPayloadLibraryStats() {
 
 // ─── Local models: Run Locally (Ollama) + curated library ──────────
 
-/** The curated uncensored model catalog. */
-export function getModelLibrary() {
-  return request('/local-models/library');
+/* ─── Local model runner (no Ollama): Download → Run on localhost ───
+ * These back the new "Run Locally" flow: the backend downloads a GGUF from
+ * Hugging Face, then spawns a bundled llama-server on 127.0.0.1 which
+ * becomes the shared brain for Hunt and Infinity AI. */
+
+/** Combined status: engine, downloads, running model, brain provider. */
+export function getRunnerStatus() {
+  return request('/model-runner/status');
 }
 
-/** Catalog + installed/ready + active brain + in-progress pull. */
-export function getLocalModelStatus() {
-  return request('/local-models/status');
+/** Curated catalog merged with device compatibility verdicts. */
+export function getRunnerLibrary() {
+  return request('/model-runner/library');
 }
 
-/** Human setup guide for installing Ollama. */
-export function getModelInstallGuide() {
-  return request('/local-models/install-guide');
+/** Detected device: RAM, CPU, GPU, OS/arch. */
+export function getRunnerDevice() {
+  return request('/model-runner/device');
 }
 
-/** Start a one-time model download. Payload: { modelId }. */
-export function pullModel(modelId) {
-  return request('/local-models/pull', { method: 'POST', body: JSON.stringify({ modelId }) });
+/** Start downloading the llama-server engine binary (one-time setup). */
+export function downloadRunnerEngine() {
+  return request('/model-runner/engine', { method: 'POST' });
 }
 
-export function cancelPull() {
-  return request('/local-models/pull/cancel', { method: 'POST' });
-}
-
-/** Live download progress via SSE. Events: pull.progress / pull.done / pull.error */
-export function subscribeToPullStream({ onEvent, onError, onOpen } = {}) {
-  // EventSource cannot set headers, so this stream authenticates with the
-  // session cookie (withCredentials). The JWT is deliberately NOT placed in
-  // the URL — query strings end up in server logs.
-  const source = new EventSource(`${API_BASE}/local-models/pull/stream`, { withCredentials: true });
+/** Live engine download progress via SSE. Events: engine.progress / engine.done / engine.error */
+export function subscribeToEngineStream({ onEvent, onError, onOpen } = {}) {
+  const source = new EventSource(`${apiBase()}/model-runner/engine/stream`, { withCredentials: true });
   const handleEvent = (event) => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
     } catch {
-      onError?.(new ApiError('Received an invalid pull event.', 0, 'INVALID_EVENT'));
+      onError?.(new ApiError('Received an invalid engine event.', 0, 'INVALID_EVENT'));
     }
   };
-  ['pull.progress', 'pull.done', 'pull.error'].forEach((type) => source.addEventListener(type, handleEvent));
+  ['engine.progress', 'engine.done', 'engine.error'].forEach((type) => source.addEventListener(type, handleEvent));
+  source.onmessage = handleEvent;
+  source.onopen = () => onOpen?.();
+  source.onerror = () => onError?.(new ApiError('Engine download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  return () => source.close();
+}
+
+/** Start downloading a model file. Payload: { modelId }. */
+export function downloadRunnerModel(modelId) {
+  return request('/model-runner/download', { method: 'POST', body: JSON.stringify({ modelId }) });
+}
+
+export function cancelRunnerDownload() {
+  return request('/model-runner/download/cancel', { method: 'POST' });
+}
+
+/** Live model download progress via SSE. Events: download.progress / download.done / download.error */
+export function subscribeToDownloadStream({ onEvent, onError, onOpen } = {}) {
+  const source = new EventSource(`${apiBase()}/model-runner/download/stream`, { withCredentials: true });
+  const handleEvent = (event) => {
+    try {
+      onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
+    } catch {
+      onError?.(new ApiError('Received an invalid download event.', 0, 'INVALID_EVENT'));
+    }
+  };
+  ['download.progress', 'download.done', 'download.error'].forEach((type) => source.addEventListener(type, handleEvent));
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
   source.onerror = () => onError?.(new ApiError('Model download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
   return () => source.close();
 }
 
-export function removeLocalModel(modelId) {
-  return request(`/local-models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+export function removeRunnerModel(modelId) {
+  return request(`/model-runner/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
 }
 
-/** Activate a brain for the agent. Payload: { modelId } | { provider: 'phone' } | { provider: 'custom', ... } */
-export function activateModel(payload) {
-  return request('/local-models/activate', { method: 'POST', body: JSON.stringify(payload) });
+/** Register a custom public Hugging Face GGUF. Payload: { name, repo, file, ... } */
+export function addRunnerCustomModel(payload) {
+  return request('/model-runner/custom', { method: 'POST', body: JSON.stringify(payload) });
 }
 
-export function deactivateModel() {
-  return request('/local-models/deactivate', { method: 'POST' });
+/** Start the downloaded model on localhost. Payload: { modelId }. */
+export function runRunnerModel(modelId) {
+  return request('/model-runner/run', { method: 'POST', body: JSON.stringify({ modelId }) });
 }
 
-/** Add a custom model entry. Payload: { name, ollamaTag?, endpointUrl?, contextTokens? } */
-export function addCustomModel(payload) {
-  return request('/local-models/custom', { method: 'POST', body: JSON.stringify(payload) });
+/** Stop the running model and free RAM/VRAM. */
+export function stopRunnerModel() {
+  return request('/model-runner/stop', { method: 'POST' });
 }
 
-export function removeCustomModel(customId) {
-  return request(`/local-models/custom/${encodeURIComponent(customId)}`, { method: 'DELETE' });
+// ─── Remote GPU brain (Kaggle/Colab Gradio share link) ─────────────
+
+/** Current remote-brain connection status for this user. */
+export function getRemoteModelStatus() {
+  return request('/remote-model');
+}
+
+/** Test a Gradio share URL without saving it. */
+export function testRemoteModel(gradioUrl) {
+  return request('/remote-model/test', { method: 'POST', body: JSON.stringify({ gradioUrl }) });
+}
+
+/** Connect a Gradio share URL and make it this user's brain. */
+export function connectRemoteModel(gradioUrl, name) {
+  return request('/remote-model/connect', { method: 'POST', body: JSON.stringify({ gradioUrl, name }) });
+}
+
+/** Disconnect the remote brain (back to the phone default). */
+export function disconnectRemoteModel() {
+  return request('/remote-model/disconnect', { method: 'POST' });
 }
 
 // ─── Combined API Client ──────────────────────────────────────────
@@ -892,17 +958,19 @@ export const apiClient = {
   // Local models (Run Locally)
   getStoredJwt,
   storeJwt,
-  getModelLibrary,
-  getLocalModelStatus,
-  getModelInstallGuide,
-  pullModel,
-  cancelPull,
-  subscribeToPullStream,
-  removeLocalModel,
-  activateModel,
-  deactivateModel,
-  addCustomModel,
-  removeCustomModel,
+  // Local model runner (no Ollama): Download → Run on localhost
+  getRunnerStatus,
+  getRunnerLibrary,
+  getRunnerDevice,
+  downloadRunnerEngine,
+  subscribeToEngineStream,
+  downloadRunnerModel,
+  cancelRunnerDownload,
+  subscribeToDownloadStream,
+  removeRunnerModel,
+  addRunnerCustomModel,
+  runRunnerModel,
+  stopRunnerModel,
   // Computer control (Open-Interface adapter)
   getComputerStatus,
   getComputerCapabilities,
