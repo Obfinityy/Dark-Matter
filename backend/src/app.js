@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config.js';
 import { SecretBox } from './core/crypto.js';
-import { MongoDatabase } from './models/database.js';
+import { MongoDatabase, MemoryDatabase } from './models/database.js';
 import { ProviderModel } from './models/providerModel.js';
 import { ScanModel } from './models/scanModel.js';
 import { TargetModel } from './models/targetModel.js';
@@ -87,7 +87,24 @@ import {
   PhoneModelAdapter
 } from './services/longContext/index.js';
 
-export async function createApp({ database = new MongoDatabase(config) } = {}) {
+function resolveDatabase(explicit) {
+  if (explicit) return explicit;
+  if (config.mongoUrl) return new MongoDatabase(config);
+  if (config.nodeEnv === 'production') {
+    throw new Error('MONGO_URL is required for the backend database connection (production)');
+  }
+  // Dev/test convenience: boot without Mongo so `npm start` works out of the
+  // box. Data lives only in memory and is lost on restart — set MONGO_URL
+  // for anything persistent.
+  console.warn(
+    '[dark-matter] WARNING: MONGO_URL is not set — using an IN-MEMORY database. ' +
+    'All data will be lost on restart. Set MONGO_URL for persistence.'
+  );
+  return new MemoryDatabase();
+}
+
+export async function createApp({ database } = {}) {
+  database = resolveDatabase(database);
   await database.init();
 
   // ─── Existing Models ──────────────────────────────────────────────
@@ -375,7 +392,8 @@ export async function createApp({ database = new MongoDatabase(config) } = {}) {
     computerState, computerEvents, computerAdapter, autonomousBrain,
     findingLifecycle, agentWorker, jobManager,
     computerTaskModel, computerTaskBrain, computerTaskWorker, computerTaskManager,
-    reasoningCycleModel, brainProviderModel, localModelService, customModelModel
+    reasoningCycleModel, brainProviderModel, localModelService, customModelModel,
+    huntRecordModel, alertModel, payloadLibraryModel, huntScheduleModel, targetQueueModel
   };
   app.locals.shutdown = async () => {
     // Stop all running assessments on shutdown
