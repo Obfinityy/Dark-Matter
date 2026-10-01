@@ -9,6 +9,52 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeUsername(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function validUsername(username) {
+  return /^[a-z0-9_-]{3,30}$/.test(username);
+}
+
+// --- Minimal HS256 JWT helpers (node:crypto only; no new dependency) ---
+function base64urlEncode(input) {
+  return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64urlDecode(input) {
+  const text = String(input).replace(/-/g, '+').replace(/_/g, '/');
+  return Buffer.from(text + '='.repeat((4 - (text.length % 4)) % 4), 'base64');
+}
+
+function signJwt(payload, secret) {
+  const header = base64urlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = base64urlEncode(JSON.stringify(payload));
+  const signature = crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest();
+  return `${header}.${body}.${base64urlEncode(signature)}`;
+}
+
+function verifyJwtSignature(token, secret) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3) return null;
+  const [header, body, signature] = parts;
+  const expected = crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest();
+  let actual;
+  try {
+    actual = base64urlDecode(signature);
+  } catch {
+    return null;
+  }
+  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null;
+  try {
+    const payload = JSON.parse(base64urlDecode(body).toString('utf8'));
+    if (payload.exp && Date.now() / 1000 > payload.exp) return null; // expired
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 function validEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -28,32 +74,78 @@ async function verifyPassword(password, encoded) {
 }
 
 export class AuthService {
-  constructor({ userModel, sessionModel, sessionDays }) {
+  // jwtSecret signs stateless JWTs; jwtDays controls their lifetime. The existing
+  // session-cookie flow is untouched — JWT is an additional credential the
+  // middleware accepts, not a replacement auth system.
+  constructor({ userModel, sessionModel, sessionDays, jwtSecret = null, jwtDays = 7 }) {
     this.userModel = userModel;
     this.sessionModel = sessionModel;
     this.sessionDays = sessionDays;
+    this.jwtSecret = jwtSecret || AuthService.ephemeralSecret();
+    this.jwtDays = Number(jwtDays) || 7;
+  }
+
+  static ephemeralSecret() {
+    // Dev fallback only: JWTs die with the process. Set JWT_SECRET in production.
+    console.warn('[auth] JWT_SECRET is not set — using an ephemeral signing key (JWTs will not survive restarts).');
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  // --- JWT (HS256, implemented with node:crypto — no extra dependency) ---
+  issueJwt(user) {
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const expiresAt = new Date((issuedAt + this.jwtDays * 86_400) * 1000);
+    const token = signJwt({ sub: user.id, iat: issuedAt, exp: issuedAt + this.jwtDays * 86_400 }, this.jwtSecret);
+    return { token, expiresAt };
+  }
+
+  async verifyJwt(token) {
+    const payload = verifyJwtSignature(String(token || ''), this.jwtSecret);
+    if (!payload || !payload.sub) return null;
+    const user = await this.userModel.findById(payload.sub);
+    return user ? { id: user.id, email: user.email, username: user.username || null, name: user.name, createdAt: user.createdAt } : null;
+  }
+
+  // Accepts EITHER a JWT (stateless) or the existing session token (stateful).
+  async resolveAny(token) {
+    if (!token) return null;
+    const viaJwt = await this.verifyJwt(token);
+    if (viaJwt) return viaJwt;
+    return this.resolve(token);
   }
 
   async register(input = {}) {
     const email = normalizeEmail(input.email);
     const password = String(input.password || '');
     const name = String(input.name || '').trim().slice(0, 120);
+    const username = normalizeUsername(String(input.username || ''));
     assert(validEmail(email), 400, 'Enter a valid email address', 'INVALID_EMAIL');
     assert(password.length >= 8, 400, 'Password must be at least 8 characters', 'WEAK_PASSWORD');
     assert(name.length >= 2, 400, 'Name must be at least 2 characters', 'INVALID_NAME');
+    if (username) {
+      assert(validUsername(username), 400, 'Username must be 3-30 lowercase letters, digits, _ or -', 'INVALID_USERNAME');
+      assert(!(await this.userModel.findByUsername(username)), 409, 'That username is already taken', 'USERNAME_IN_USE');
+    }
     assert(!(await this.userModel.findByEmail(email)), 409, 'An account with this email already exists', 'EMAIL_IN_USE');
-    const user = await this.userModel.create({ email, name, passwordHash: await hashPassword(password) });
-    return { user, token: await this.createSession(user.id) };
+    const user = await this.userModel.create({ email, name, passwordHash: await hashPassword(password), username: username || null });
+    const session = await this.createSession(user.id);
+    const jwt = this.issueJwt(user);
+    return { user, token: session, jwt: jwt.token, jwtExpiresAt: jwt.expiresAt };
   }
 
   async login(input = {}) {
-    const email = normalizeEmail(input.email);
+    // `login` accepts a username OR an email — one identifier field for the user.
+    const login = String(input.login || input.email || input.username || '');
     const password = String(input.password || '');
-    const user = await this.userModel.findByEmail(email);
+    const user = login.includes('@')
+      ? await this.userModel.findByEmail(normalizeEmail(login))
+      : await this.userModel.findByLogin(login);
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
-      throw new AppError(401, 'Email or password is incorrect', 'INVALID_CREDENTIALS');
+      throw new AppError(401, 'Username/email or password is incorrect', 'INVALID_CREDENTIALS');
     }
-    return { user: { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt }, token: await this.createSession(user.id) };
+    const publicUser = { id: user.id, email: user.email, username: user.username || null, name: user.name, createdAt: user.createdAt };
+    const jwt = this.issueJwt(publicUser);
+    return { user: publicUser, token: await this.createSession(user.id), jwt: jwt.token, jwtExpiresAt: jwt.expiresAt };
   }
 
   async createSession(userId) {
@@ -68,7 +160,7 @@ export class AuthService {
     const session = await this.sessionModel.findActive(hashToken(token));
     if (!session) return null;
     const user = await this.userModel.findById(session.userId);
-    return user ? { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt } : null;
+    return user ? { id: user.id, email: user.email, username: user.username || null, name: user.name, createdAt: user.createdAt } : null;
   }
 
   async logout(token) {

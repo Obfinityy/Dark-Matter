@@ -29,10 +29,24 @@ export class JobManager {
     this.logger = logger;
     this.config = {
       leaseMs: Number(config.leaseMs || process.env.AGENT_WORKER_LEASE_MS || 60_000),
-      recoverOnBoot: config.recoverOnBoot !== false
+      recoverOnBoot: config.recoverOnBoot !== false,
+      // Worker pool caps (multi-tenancy). maxConcurrent bounds simultaneous
+      // hunts process-wide; maxPerUser bounds them per user. Jobs beyond the
+      // caps wait in a fair round-robin queue instead of starving anyone.
+      maxConcurrent: Number(config.maxConcurrent || process.env.HUNT_MAX_CONCURRENT || 4),
+      maxPerUser: Number(config.maxPerUser || process.env.HUNT_MAX_PER_USER || 2)
     };
     /** In-flight dispatch promises, so tests and shutdown can await them. */
     this.dispatches = new Map();
+    /**
+     * Fair wait queue: [{ jobId, userId, enqueuedAt }] in FIFO order.
+     * Served round-robin across users whenever a worker slot frees.
+     */
+    this.waitQueue = [];
+    /** Slots reserved by pumpQueue but not yet counted in worker.running. */
+    this.reservedSlots = 0;
+    /** Last user served — round-robin rotates past them. */
+    this.lastServedUserId = null;
   }
 
   // ── Creation ──────────────────────────────────────────────────────────
@@ -65,22 +79,140 @@ export class JobManager {
   /**
    * Hand a job to the worker without blocking the caller.
    * A job already running in this process is not dispatched twice (#70).
+   *
+   * Admission-controlled: when the worker pool is full (HUNT_MAX_CONCURRENT)
+   * or the user is at their cap (HUNT_MAX_PER_USER), the job waits in a fair
+   * round-robin queue instead of being dropped or starving other users.
    */
   dispatch(jobId) {
     if (this.worker.isRunning(jobId)) return this.dispatches.get(jobId) || null;
+    if (this.dispatches.has(jobId)) return this.dispatches.get(jobId);
 
+    // Admission needs the job's owner (fairness), so it is async — but the
+    // admission promise is tracked immediately so waitFor() works for queued
+    // jobs too.
+    const admission = this.admit(jobId).catch((error) => {
+      this.logger.error?.(`[job-manager] dispatch ${jobId} failed: ${error.message}`);
+      return { status: 'failed', error: error.message };
+    });
+    this.dispatches.set(jobId, admission);
+    admission.finally(() => {
+      if (this.dispatches.get(jobId) === admission) this.dispatches.delete(jobId);
+    });
+    return admission;
+  }
+
+  /** Decide: run now, or join the fair wait queue. */
+  async admit(jobId) {
+    const job = await this.jobModel.get(jobId);
+    if (!job) return { status: 'not_found' };
+    if (this.canRunNow(job)) {
+      return this.startRun(job);
+    }
+    this.enqueue(job);
+    const position = this.waitQueue.findIndex((entry) => entry.jobId === jobId) + 1;
+    await this.publish(job.id, {
+      type: 'job.queued',
+      level: 'INFO',
+      message: `Hunt queued at position ${position} — a worker slot will pick it up fairly`,
+      data: { position, queueLength: this.waitQueue.length }
+    });
+    return { status: 'queued', position };
+  }
+
+  canRunNow(job) {
+    if (this.worker.runningCount >= this.config.maxConcurrent) return false;
+    if (job.userId && this.worker.runningCountForUser(job.userId) >= this.config.maxPerUser) return false;
+    return true;
+  }
+
+  /** Start the worker run and pump the queue when a slot frees. */
+  startRun(jobRef) {
+    // admit() passes the job doc ({ id }), pumpQueue() passes the queue entry
+    // ({ jobId }) — normalize once here.
+    const id = jobRef.id || jobRef.jobId;
+    // Any start counts as serving the user — this is what makes the queue
+    // rotate fairly even when the first hunts were admitted directly.
+    if (jobRef.userId) this.lastServedUserId = jobRef.userId;
     const promise = (async () => {
       try {
-        return await this.worker.run(jobId);
+        return await this.worker.run(id);
       } catch (error) {
-        this.logger.error?.(`[job-manager] dispatch ${jobId} failed: ${error.message}`);
+        this.logger.error?.(`[job-manager] dispatch ${id} failed: ${error.message}`);
         return { status: 'failed', error: error.message };
       } finally {
-        this.dispatches.delete(jobId);
+        this.dispatches.delete(id);
+        // A slot freed — serve the fair queue on the next tick so state settles.
+        setImmediate(() => this.pumpQueue().catch((error) =>
+          this.logger.error?.(`[job-manager] pumpQueue failed: ${error.message}`)
+        ));
       }
     })();
-    this.dispatches.set(jobId, promise);
+    this.dispatches.set(id, promise);
     return promise;
+  }
+
+  enqueue(job) {
+    if (!this.waitQueue.some((entry) => entry.jobId === job.id)) {
+      this.waitQueue.push({ jobId: job.id, userId: job.userId, enqueuedAt: Date.now() });
+    }
+  }
+
+  /**
+   * Serve the wait queue fairly: round-robin across users, each user's
+   * earliest-queued job first, always respecting both pool caps. Slots are
+   * reserved synchronously so concurrent pumps can never over-admit.
+   */
+  async pumpQueue() {
+    while (this.waitQueue.length > 0) {
+      if (this.worker.runningCount + this.reservedSlots >= this.config.maxConcurrent) break;
+      const next = this.pickNextFair();
+      if (!next) break;
+      this.waitQueue = this.waitQueue.filter((entry) => entry.jobId !== next.jobId);
+      this.lastServedUserId = next.userId;
+      this.reservedSlots += 1;
+      try {
+        await this.publish(next.jobId, {
+          type: 'job.dequeued',
+          level: 'INFO',
+          message: 'Worker slot freed — starting your queued hunt'
+        });
+        this.startRun(next).finally(() => {
+          this.reservedSlots = Math.max(0, this.reservedSlots - 1);
+        });
+      } catch (error) {
+        this.reservedSlots = Math.max(0, this.reservedSlots - 1);
+        this.logger.error?.(`[job-manager] failed to start queued job ${next.jobId}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Fair pick: users ordered round-robin (the last-served user goes last,
+   * everyone else by longest-waiting job); the first user under their
+   * per-user cap wins, with their earliest-queued job.
+   */
+  pickNextFair() {
+    const byUser = new Map();
+    for (const entry of this.waitQueue) {
+      if (!byUser.has(entry.userId)) byUser.set(entry.userId, []);
+      byUser.get(entry.userId).push(entry);
+    }
+    const users = [...byUser.keys()].sort((a, b) => {
+      if (a === this.lastServedUserId) return 1;
+      if (b === this.lastServedUserId) return -1;
+      return byUser.get(a)[0].enqueuedAt - byUser.get(b)[0].enqueuedAt;
+    });
+    for (const userId of users) {
+      if (userId && this.worker.runningCountForUser(userId) >= this.config.maxPerUser) continue;
+      return byUser.get(userId)[0];
+    }
+    return null;
+  }
+
+  /** Queue depth, for health/monitoring. */
+  get queueDepth() {
+    return this.waitQueue.length;
   }
 
   /** Await a job's current dispatch (used by tests and graceful shutdown). */
@@ -175,6 +307,9 @@ export class JobManager {
       level: 'WARN',
       message: 'Cancel requested — the agent will stop at the next safe point. History is preserved.'
     });
+    // A queued (not yet running) job is simply dequeued — no worker to wake.
+    this.waitQueue = this.waitQueue.filter((entry) => entry.jobId !== jobId);
+    this.dispatches.delete(jobId);
     this.worker.wake(jobId);
     if (!this.worker.isRunning(jobId)) {
       await this.jobModel.transition(jobId, 'cancelled', { brainStatus: 'cancelled' });

@@ -6,20 +6,80 @@
  * not (requirement #34). Nothing here is faked: the states are only entered
  * from a real capability probe or a real action result.
  *
- * States:
+ * States (issue #1 — the full observe → decide → act → observe lifecycle):
  *   computer_unavailable          no runtime answered the capability probe
- *   computer_connected           bridge verified and idle
- *   computer_busy                bridge is processing an action
- *   computer_action_running      an approved action is in flight
- *   computer_observation_ready   a new observation (screenshot/result) is stored
+ *   computer_connected            bridge verified and idle (legacy name kept)
+ *   computer_ready                runtime probed AND daemon announced readiness
+ *   computer_busy                 bridge is processing an action
+ *   computer_action_running       an approved action is in flight
+ *   computer_observing            a fresh observation is being captured
+ *   computer_observation_ready    a new observation (screenshot/result) is stored
+ *   computer_observation_failed   the observation capture itself failed
+ *   computer_action_failed        the action failed but the runtime is alive
+ *   computer_disconnected         the bridge process exited or errored
+ *   computer_permission_required  an action needs explicit user approval
  */
 
 export const COMPUTER_STATES = Object.freeze({
   UNAVAILABLE: 'computer_unavailable',
   CONNECTED: 'computer_connected',
+  READY: 'computer_ready',
   BUSY: 'computer_busy',
   ACTION_RUNNING: 'computer_action_running',
-  OBSERVATION_READY: 'computer_observation_ready'
+  OBSERVING: 'computer_observing',
+  OBSERVATION_READY: 'computer_observation_ready',
+  OBSERVATION_FAILED: 'computer_observation_failed',
+  ACTION_FAILED: 'computer_action_failed',
+  DISCONNECTED: 'computer_disconnected',
+  PERMISSION_REQUIRED: 'computer_permission_required'
+});
+
+/**
+ * Explicit transition map: every state change in the computer lifecycle must
+ * be one of these edges. `transition()` still performs unknown edges (never
+ * crash the agent loop) but records the violation in the emitted event so it
+ * is visible in tests and logs.
+ */
+const ALLOWED_TRANSITIONS = Object.freeze({
+  computer_unavailable: ['computer_connected', 'computer_ready', 'computer_disconnected'],
+  computer_connected: [
+    'computer_ready', 'computer_busy', 'computer_action_running',
+    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+  ],
+  computer_ready: [
+    'computer_busy', 'computer_action_running', 'computer_observing',
+    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+  ],
+  computer_busy: [
+    'computer_action_running', 'computer_observing', 'computer_ready',
+    'computer_unavailable', 'computer_disconnected'
+  ],
+  computer_action_running: [
+    'computer_observing', 'computer_observation_ready', 'computer_observation_failed',
+    'computer_action_failed', 'computer_busy', 'computer_ready',
+    'computer_unavailable', 'computer_disconnected'
+  ],
+  computer_observing: [
+    'computer_action_running', 'computer_observation_ready', 'computer_observation_failed',
+    'computer_ready', 'computer_unavailable', 'computer_disconnected'
+  ],
+  computer_observation_ready: [
+    'computer_action_running', 'computer_observing', 'computer_busy', 'computer_ready',
+    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+  ],
+  computer_observation_failed: [
+    'computer_observing', 'computer_ready', 'computer_connected', 'computer_action_running',
+    'computer_unavailable', 'computer_disconnected'
+  ],
+  computer_action_failed: [
+    'computer_observing', 'computer_action_running', 'computer_ready', 'computer_connected',
+    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+  ],
+  computer_disconnected: ['computer_connected', 'computer_ready', 'computer_unavailable'],
+  computer_permission_required: [
+    'computer_ready', 'computer_action_running',
+    'computer_unavailable', 'computer_disconnected'
+  ]
 });
 
 export class ComputerState {
@@ -65,6 +125,13 @@ export class ComputerState {
     return this.snapshot();
   }
 
+  /** The daemon announced readiness after a successful probe. */
+  markReady(detail = {}) {
+    this.consecutiveFailures = 0;
+    this.reason = null;
+    this.transition(COMPUTER_STATES.READY, detail);
+  }
+
   /** Called right before an action is handed to the bridge. */
   markActionStarted(action) {
     this.transition(COMPUTER_STATES.ACTION_RUNNING, { action });
@@ -93,32 +160,66 @@ export class ComputerState {
         this.reason = `computer control unavailable after ${this.consecutiveFailures} consecutive failures: ${error}`;
         this.transition(COMPUTER_STATES.UNAVAILABLE, { reason: this.reason });
       } else {
-        this.transition(COMPUTER_STATES.CONNECTED, { error });
+        // The runtime is alive — only this action failed. The brain gets a
+        // distinct state so it can recover instead of replanning blind.
+        this.transition(COMPUTER_STATES.ACTION_FAILED, { action, error });
       }
     }
     return this.snapshot();
   }
 
+  /** A fresh observation capture is starting (the "observe" in observe→decide→act→observe). */
+  markObserving(detail = {}) {
+    this.transition(COMPUTER_STATES.OBSERVING, detail);
+  }
+
+  /** A fresh observation was captured. */
+  markObservationReady(observation) {
+    this.lastObservation = observation;
+    this.lastObservationAt = new Date().toISOString();
+    this.consecutiveFailures = 0;
+    this.transition(COMPUTER_STATES.OBSERVATION_READY, { observation });
+  }
+
+  /** The observation capture itself failed — the screen state is unknown. */
+  markObservationFailed(reason) {
+    this.consecutiveFailures += 1;
+    this.transition(COMPUTER_STATES.OBSERVATION_FAILED, { reason });
+  }
+
+  /** An action needs explicit user approval before it may run. */
+  markPermissionRequired(action, reason = 'computer action requires explicit approval') {
+    this.transition(COMPUTER_STATES.PERMISSION_REQUIRED, { action, reason });
+  }
+
   markDisconnected(reason) {
     this.reason = reason || 'computer runtime disconnected';
     this.consecutiveFailures += 1;
-    this.transition(COMPUTER_STATES.UNAVAILABLE, { reason: this.reason });
+    this.transition(COMPUTER_STATES.DISCONNECTED, { reason: this.reason });
   }
 
   transition(next, detail = {}) {
     const previous = this.state;
+    const allowed = ALLOWED_TRANSITIONS[previous] || [];
+    // Fault-handling edges are always explicit: any state may degrade to
+    // disconnected/unavailable when the runtime actually fails.
+    const explicit = allowed.includes(next)
+      || next === COMPUTER_STATES.DISCONNECTED
+      || next === COMPUTER_STATES.UNAVAILABLE;
     this.state = next;
     this.emit({
       type: 'computer-state',
       previous,
       state: next,
-      detail,
+      explicit,
+      detail: explicit ? detail : { ...detail, warning: `unexpected computer state transition ${previous} → ${next}` },
       at: new Date().toISOString()
     });
   }
 
   isAvailable() {
-    return this.state !== COMPUTER_STATES.UNAVAILABLE;
+    return this.state !== COMPUTER_STATES.UNAVAILABLE
+      && this.state !== COMPUTER_STATES.DISCONNECTED;
   }
 
   get unavailableReason() {
@@ -133,6 +234,7 @@ export class ComputerState {
       reason: this.reason,
       platform: this.platform,
       actionsPerformed: this.actionsPerformed,
+      consecutiveFailures: this.consecutiveFailures,
       lastAction: this.lastAction,
       lastActionAt: this.lastActionAt,
       lastObservation: this.lastObservation,

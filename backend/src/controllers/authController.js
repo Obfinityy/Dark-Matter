@@ -25,12 +25,12 @@ export function createAuthController(authService, config) {
     register: asyncHandler(async (request, response) => {
       const result = await authService.register(request.body);
       setSessionCookie(response, result.token, config.sessionDays, config.nodeEnv === 'production');
-      response.status(201).json({ user: result.user });
+      response.status(201).json({ user: result.user, jwt: result.jwt, jwtExpiresAt: result.jwtExpiresAt });
     }),
     login: asyncHandler(async (request, response) => {
       const result = await authService.login(request.body);
       setSessionCookie(response, result.token, config.sessionDays, config.nodeEnv === 'production');
-      response.json({ user: result.user });
+      response.json({ user: result.user, jwt: result.jwt, jwtExpiresAt: result.jwtExpiresAt });
     }),
     me: asyncHandler(async (request, response) => {
       response.json({ user: request.user });

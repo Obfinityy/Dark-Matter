@@ -5,3 +5,6 @@ brag-output-infinity-ad
 data/
 # Project-local virtualenv for the computer bridge (keeps pyautogui out of system Python)
 .venv/
+
+# Dependencies
+node_modules/

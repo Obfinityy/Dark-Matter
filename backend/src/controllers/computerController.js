@@ -100,6 +100,34 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
 
       const status = result.ok ? 200 : (result.rejected ? 403 : (result.error?.kind === 'unavailable' ? 503 : 502));
       return response.status(status).json(result);
+    }),
+
+    /**
+     * GET /api/v1/computer/setup — setup diagnostics (issue #1).
+     *
+     * Inspects every layer the computer runtime needs (bridge file, Python,
+     * local venv, pyautogui, display) and returns an honest report. Failing
+     * checks carry concrete fix steps; nothing here installs anything.
+     */
+    setup: asyncHandler(async (request, response) => {
+      const report = computerAdapter.diagnose();
+      response.status(report.ok ? 200 : 503).json(report);
+    }),
+
+    /**
+     * POST /api/v1/computer/repair — one explicitly-authorized safe repair.
+     * Body: { repair: 'create_venv' | 'install_pyautogui', userAuthorized: true }
+     *
+     * Without `userAuthorized: true` this only returns instructions — it never
+     * acts. The only automated repairs are the safe, project-local ones
+     * (venv + pip install pyautogui into it); the system Python is never
+     * touched (issue #1 "Setup path").
+     */
+    repair: asyncHandler(async (request, response) => {
+      const { repair, userAuthorized = false } = request.body || {};
+      const result = computerAdapter.repair({ repair, userAuthorized });
+      const status = result.repaired ? 200 : (result.requiresAuthorization ? 403 : 422);
+      response.status(status).json(result);
     })
   };
 }

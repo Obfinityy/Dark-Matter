@@ -19,6 +19,8 @@ export class MongoDatabase {
     this.db = this.client.db(this.mongoDbName);
     await Promise.all([
       this.collection('users').createIndex({ email: 1 }, { unique: true }),
+      // Username login: unique + sparse so pre-username accounts (email-only) keep working.
+      this.collection('users').createIndex({ username: 1 }, { unique: true, sparse: true }),
       this.collection('sessions').createIndex({ tokenHash: 1 }, { unique: true }),
       this.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
       this.collection('providers').createIndex({ userId: 1, providerId: 1 }, { unique: true }),
@@ -33,6 +35,11 @@ export class MongoDatabase {
       this.collection('tool_executions').createIndex({ assessmentId: 1, fingerprint: 1 }),
       this.collection('findings').createIndex({ assessmentId: 1, createdAt: -1 }),
       this.collection('findings').createIndex({ userId: 1, createdAt: -1 }),
+      // Hunt records: the persistent artifact store ("what have we already hunted").
+      // Dedup looks up (userId, targetHash); browsing lists by (userId, completedAt).
+      this.collection('hunt_records').createIndex({ userId: 1, targetHash: 1, completedAt: -1 }),
+      this.collection('hunt_records').createIndex({ userId: 1, completedAt: -1 }),
+      this.collection('hunt_records').createIndex({ id: 1 }, { unique: true }),
       // Report indexes
       this.collection('reports').createIndex({ assessmentId: 1, version: -1 }),
       this.collection('reports').createIndex({ userId: 1, createdAt: -1 }),
@@ -57,7 +64,20 @@ export class MongoDatabase {
       // InfiniteChat computer tasks
       this.collection('computer_tasks').createIndex({ id: 1 }, { unique: true }),
       this.collection('computer_tasks').createIndex({ userId: 1, conversationId: 1, createdAt: -1 }),
-      this.collection('computer_tasks').createIndex({ status: 1, updatedAt: -1 })
+      this.collection('computer_tasks').createIndex({ status: 1, updatedAt: -1 }),
+      // Autonomous computer-control action ledger (issue #1)
+      this.collection('computer_actions').createIndex({ id: 1 }, { unique: true }),
+      this.collection('computer_actions').createIndex({ jobId: 1, startedAt: 1 }),
+      this.collection('computer_actions').createIndex({ assessmentId: 1, startedAt: 1 }),
+      // Reasoning-cycle ledger — the brain's first-class thinking loop (issue #1)
+      this.collection('reasoning_cycles').createIndex({ id: 1 }, { unique: true }),
+      this.collection('reasoning_cycles').createIndex({ jobId: 1, stepNumber: 1 }),
+      this.collection('reasoning_cycles').createIndex({ assessmentId: 1, createdAt: -1 }),
+      // Persisted brain-provider selection — the model picker (issue #3)
+      this.collection('brain_provider').createIndex({ id: 1 }, { unique: true }),
+      // User-added custom models (issue #3)
+      this.collection('custom_models').createIndex({ id: 1 }, { unique: true }),
+      this.collection('custom_models').createIndex({ tag: 1 }, { unique: true })
     ]);
   }
 
@@ -131,6 +151,10 @@ class MemoryCollection {
 
   async findOne(query = {}) {
     return clone(this.documents.find((document) => matches(document, query)) || null);
+  }
+
+  async countDocuments(query = {}) {
+    return this.documents.filter((document) => matches(document, query)).length;
   }
 
   async insertOne(document) {
