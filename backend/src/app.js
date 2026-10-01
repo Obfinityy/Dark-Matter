@@ -41,6 +41,8 @@ import { createAssessmentController } from './controllers/assessmentController.j
 import { createInfiniteChatController } from './controllers/infiniteChatController.js';
 import { createJobController } from './controllers/jobController.js';
 import { createLocalModelController } from './controllers/localModelController.js';
+import { createModelRunnerController } from './controllers/modelRunnerController.js';
+import { createRemoteModelController } from './controllers/remoteModelController.js';
 import { createComputerController } from './controllers/computerController.js';
 import { createComputerTaskController } from './controllers/computerTaskController.js';
 import { AgentJobModel } from './models/agentJobModel.js';
@@ -53,6 +55,7 @@ import { EvidenceModel } from './models/evidenceModel.js';
 import { AgentMemory } from './agent/memory/agentMemory.js';
 import { AutonomousBrain } from './agent/autonomousBrain.js';
 import { LocalModelService } from './services/localModel/localModelService.js';
+import { ModelRunnerService } from './services/modelRunner/modelRunnerService.js';
 import { ContextBudgetManager } from './services/longContext/contextBudgetManager.js';
 import { ComputerState } from './computer/computerState.js';
 import { ComputerEvents } from './computer/computerEvents.js';
@@ -244,6 +247,16 @@ export async function createApp({ database } = {}) {
     onActivate: (userId) => agentWorker?.refreshBrainForUser(userId)
   });
 
+  // ─── Local GGUF model runner (no Ollama) ──────────────────────────
+  // Download → Run → localhost: the user picks a GGUF from the library (or
+  // adds any Hugging Face GGUF), the backend downloads it once, and Run
+  // spawns llama-server on 127.0.0.1. The running model becomes the brain
+  // for Hunt + Infinity AI via the 'local' brain provider.
+  const modelRunnerService = new ModelRunnerService({
+    dataDir: process.env.DARKMATTER_DATA_DIR || null,
+    logger: console
+  });
+
   // ─── Hybrid memory: files for working memory, DB for artifacts ──────
   // The agent's working memory (journal, learnings, plan, per-hunt summary)
   // lives in LOCAL FILES under the app-data dir — the agent reads/writes them
@@ -287,7 +300,8 @@ export async function createApp({ database } = {}) {
     brainProviderModel,
     huntContextManager,
     appConfig: config,
-    huntRecordModel
+    huntRecordModel,
+    modelRunnerService
   });
 
   const jobManager = new JobManager({
@@ -393,6 +407,7 @@ export async function createApp({ database } = {}) {
     findingLifecycle, agentWorker, jobManager,
     computerTaskModel, computerTaskBrain, computerTaskWorker, computerTaskManager,
     reasoningCycleModel, brainProviderModel, localModelService, customModelModel,
+    modelRunnerService,
     huntRecordModel, alertModel, payloadLibraryModel, huntScheduleModel, targetQueueModel
   };
   app.locals.shutdown = async () => {
@@ -402,6 +417,7 @@ export async function createApp({ database } = {}) {
     }
     // Stop the autonomous worker and the computer bridge, then close Mongo.
     await agentWorker.stopAll();
+    await modelRunnerService.stop().catch(() => {});
     await computerTaskManager.stopAll();
     computerAdapter.stop();
     await database.close();
@@ -438,6 +454,8 @@ export async function createApp({ database } = {}) {
       schedules: createScheduleController({ huntScheduler, huntScheduleModel }),
       payloadLibrary: createPayloadLibraryController({ payloadLibraryModel }),
       localModels: createLocalModelController({ localModelService, agentWorker }),
+      modelRunner: createModelRunnerController({ modelRunnerService, brainProviderModel, agentWorker }),
+      remoteModel: createRemoteModelController({ brainProviderModel, agentWorker }),
       computer: createComputerController({ computerAdapter, assessmentModel }),
       computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter })
     }

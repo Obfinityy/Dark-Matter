@@ -33,14 +33,19 @@ const TECHNIQUES = {
     { id: 'tech-fingerprint', name: 'Technology fingerprinting', description: 'Identify frameworks, CMS, servers and third-party services from headers and page markers.' },
     { id: 'dns-history', name: 'DNS history & passive recon', description: 'Historical DNS, WHOIS and archived snapshots for forgotten assets.' },
     { id: 'js-discovery', name: 'JavaScript discovery', description: 'Harvest JS bundles for hidden endpoints, API keys and internal routes.' },
-    { id: 'cloud-enum', name: 'Cloud asset enumeration', description: 'Look for exposed S3 buckets, storage and cloud metadata tied to the target.' }
+    { id: 'js-deep-analysis', name: 'JavaScript deep analysis', description: 'DEEP: extract secrets, API keys, hidden endpoints, client-side logic flaws, source maps from JS. Use jsAnalyzer.' },
+    { id: 'cloud-enum', name: 'Cloud asset enumeration', description: 'Look for exposed S3 buckets, storage and cloud metadata tied to the target.' },
+    { id: 'cloud-misconfig', name: 'Cloud misconfiguration testing', description: 'Test S3/Azure/GCP/Firebase for public access. Use cloudEngine.' },
+    { id: 'takeover-check', name: 'Subdomain takeover check', description: 'Detect dangling CNAMEs to 30+ takeover-prone services. Use takeoverEngine.' }
   ],
   enumeration: [
     { id: 'port-scan', name: 'Port scanning', description: 'SYN scan the target for open services beyond HTTP/HTTPS.' },
     { id: 'dir-fuzz', name: 'Directory fuzzing', description: 'Brute-force hidden paths, admin panels and backup files.' },
     { id: 'param-discovery', name: 'Parameter discovery', description: 'Find hidden GET/POST parameters, headers and API arguments.' },
     { id: 'api-enum', name: 'API enumeration', description: 'Map REST/GraphQL endpoints, versions and undocumented operations.' },
-    { id: 'vhost-fuzz', name: 'Virtual-host fuzzing', description: 'Probe Host-header variants for hidden vhosts and dev instances.' }
+    { id: 'api-deep-test', name: 'Deep API security testing', description: 'BOLA, mass assignment, JWT flaws, excessive data, GraphQL introspection. Use apiSecurityEngine.' },
+    { id: 'vhost-fuzz', name: 'Virtual-host fuzzing', description: 'Probe Host-header variants for hidden vhosts and dev instances.' },
+    { id: 'waf-detect', name: 'WAF detection', description: 'Detect WAF/protection and adapt. Use stealthEngine before aggressive tests.' }
   ],
   probing: [
     { id: 'xss-probe', name: 'XSS probing', description: 'Test reflections, contexts and filters for cross-site scripting.' },
@@ -48,13 +53,17 @@ const TECHNIQUES = {
     { id: 'ssrf-probe', name: 'SSRF probing', description: 'Coax the server into requesting attacker-controlled URLs.' },
     { id: 'idor-probe', name: 'IDOR probing', description: 'Swap object references across users to find broken access control.' },
     { id: 'auth-bypass-probe', name: 'Auth bypass probing', description: 'Logic flaws in login, OTP, password reset and session handling.' },
-    { id: 'file-upload-probe', name: 'File upload probing', description: 'Test upload handlers for type confusion and path traversal.' }
+    { id: 'file-upload-probe', name: 'File upload probing', description: 'Test upload handlers for type confusion and path traversal.' },
+    { id: 'business-logic', name: 'Business logic testing', description: 'ELITE: price manipulation, workflow bypass, race conditions, mass assignment, coupon abuse. Use businessLogicEngine. This is where big bounties live.' },
+    { id: 'stealth-probe', name: 'Stealth probing', description: 'WAF-aware probing with bypass techniques, rate-limit respect, randomized requests. Use stealthEngine.' }
   ],
   exploitation: [
     { id: 'xss-exploit', name: 'XSS confirmation', description: 'Turn a probe into a safe proof-of-concept with full context capture.' },
     { id: 'sqli-exploit', name: 'SQLi confirmation', description: 'Confirm injection impact without exfiltrating data beyond proof.' },
     { id: 'rce-probe', name: 'RCE probing', description: 'Template injection, deserialization and command-injection probes with harmless canaries.' },
-    { id: 'privesc-probe', name: 'Privilege escalation probing', description: 'Role confusion, JWT tampering and vertical access tests.' }
+    { id: 'privesc-probe', name: 'Privilege escalation probing', description: 'Role confusion, JWT tampering and vertical access tests.' },
+    { id: 'poc-generate', name: 'PoC generation', description: 'Generate working proof-of-concept for confirmed findings. Use exploitEngine.' },
+    { id: 'visual-proof', name: 'Visual proof capture', description: 'Screenshot the vulnerability in action for the report. Use visualProof.' }
   ],
   chaining: [
     { id: 'chain-combine', name: 'Vulnerability chaining', description: 'Combine confirmed low/medium findings into higher-impact attack chains.' },

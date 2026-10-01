@@ -116,15 +116,22 @@ export const config = {
   },
 
   // --- Computer Control (Open-Interface adapter) ---
+  // Enabled by default: the agent controls the machine's GUI (screenshot,
+  // click, type, open apps) to perform autonomous bug bounty hunting.
+  // Set COMPUTER_CONTROL_ENABLED=false to disable. The user can also
+  // pause/resume it live from the website's screen viewer.
   computer: {
-    enabled: process.env.COMPUTER_CONTROL_ENABLED === 'true',
+    enabled: process.env.COMPUTER_CONTROL_ENABLED !== 'false',
     pythonBin: process.env.COMPUTER_PYTHON_BIN || '',
     bridgePath: process.env.COMPUTER_BRIDGE_PATH || '',
     // No artificial short timeouts: a screenshot on a loaded desktop can take seconds.
     actionTimeoutMs: Number(process.env.COMPUTER_ACTION_TIMEOUT_MS || 60_000),
     probeTimeoutMs: Number(process.env.COMPUTER_PROBE_TIMEOUT_MS || 20_000),
     idleShutdownMs: Number(process.env.COMPUTER_IDLE_SHUTDOWN_MS || 300_000),
-    requireApproval: process.env.COMPUTER_REQUIRE_APPROVAL !== 'false',
+    // Autonomous by default: the agent acts on its own reasoning. The user
+    // can pause/resume computer control live from the website's screen viewer.
+    // Set COMPUTER_REQUIRE_APPROVAL=true to require per-action approval.
+    requireApproval: process.env.COMPUTER_REQUIRE_APPROVAL === 'true',
     maxScreenshotBytes: Number(process.env.COMPUTER_MAX_SCREENSHOT_BYTES || 4_000_000)
   },
 

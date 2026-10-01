@@ -20,6 +20,79 @@ export function stripThinkingTags(text = '') {
   return cleaned.trim();
 }
 
+/**
+ * parseLenientJson — parse model output that is *almost* JSON.
+ *
+ * Small local models frequently emit slightly malformed JSON (trailing
+ * commas, an unclosed object when max_tokens cuts the generation, stray
+ * prose around the object). Strict JSON.parse would turn every one of
+ * those into a dead reasoning step. This helper applies a series of
+ * safe, mechanical repairs and returns the parsed value, or throws the
+ * original syntax error if nothing worked.
+ */
+export function parseLenientJson(text = '') {
+  const str = String(text);
+  let raw = null;
+  const match = str.match(/\{[\s\S]*\}/);
+  if (match) {
+    raw = match[0];
+  } else {
+    // Possibly truncated before any closing brace: take from the first
+    // opening brace to the end and let the truncation repair close it.
+    const openIdx = str.indexOf('{');
+    if (openIdx === -1) throw new Error('No JSON found in model response');
+    raw = str.slice(openIdx);
+  }
+
+  const attempts = [
+    raw,
+    // 1. Trailing commas before } or ]
+    raw.replace(/,(\s*[}\]])/g, '$1'),
+    // 2. Trailing commas + unescaped control characters inside strings
+    raw.replace(/,(\s*[}\]])/g, '$1').replace(/[\x00-\x1f]/g, ' '),
+  ];
+
+  // 3. Truncated output: close any open braces/brackets/strings.
+  const truncated = closeTruncatedJson(raw.replace(/,(\s*[}\]])/g, '$1'));
+  if (truncated) attempts.push(truncated);
+
+  let lastError = null;
+  for (const candidate of attempts) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+/** Best-effort: close open strings, arrays and objects of truncated JSON. */
+function closeTruncatedJson(raw) {
+  let out = '';
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of raw) {
+    out += ch;
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  if (inString) out += '"';
+  // Drop a trailing dangling comma or partial token after the last value.
+  out = out.replace(/,\s*$/, '');
+  while (stack.length) out += stack.pop();
+  return out;
+}
+
 export function normalizeMessagesForPhone(messages) {
   if (!Array.isArray(messages)) return [];
   const result = [];
@@ -151,7 +224,7 @@ export class PhoneLocalProvider {
         'content-type': 'application/json',
         'authorization': `Bearer ${this.apiKey}`
       },
-      signal: AbortSignal.timeout(options.timeout || 45000),
+      signal: AbortSignal.timeout(options.timeout || 180000),
       body: JSON.stringify({
         model: activeModel,
         messages: safeMessages,
@@ -166,7 +239,15 @@ export class PhoneLocalProvider {
     }
 
     const data = await response.json();
-    const text = data?.choices?.[0]?.message?.content;
+    const msg = data?.choices?.[0]?.message || {};
+    // Qwen3 reasoning models: reasoning goes to reasoning_content, answer to content.
+    // If content is empty but reasoning exists, the model ran out of tokens during thinking.
+    let text = msg.content;
+    if (!text && msg.reasoning_content) {
+      // Model thought but didn't produce an answer — this is a token budget issue,
+      // not a model failure. Return empty so caller can retry with more tokens.
+      throw new Error('Phone AI produced reasoning but no final answer (increase maxTokens)');
+    }
     if (!text) throw new Error('Empty Phone AI response');
 
     return stripThinkingTags(text);
@@ -182,7 +263,7 @@ export class PhoneLocalProvider {
         'content-type': 'application/json',
         'authorization': `Bearer ${this.apiKey}`
       },
-      signal: AbortSignal.timeout(options.timeout || 45000),
+      signal: AbortSignal.timeout(options.timeout || 180000),
       body: JSON.stringify({
         model: activeModel,
         messages: safeMessages,
@@ -203,7 +284,7 @@ export class PhoneLocalProvider {
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found in Phone AI response');
-    return JSON.parse(jsonMatch[0]);
+    return parseLenientJson(jsonMatch[0]);
   }
 
   async stream(messages, options = {}) {
@@ -216,7 +297,7 @@ export class PhoneLocalProvider {
         'content-type': 'application/json',
         'authorization': `Bearer ${this.apiKey}`
       },
-      signal: AbortSignal.timeout(options.timeout || 45000),
+      signal: AbortSignal.timeout(options.timeout || 180000),
       body: JSON.stringify({
         model: activeModel,
         messages: safeMessages,

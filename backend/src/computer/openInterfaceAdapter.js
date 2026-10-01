@@ -97,6 +97,24 @@ export class OpenInterfaceAdapter {
     this.starting = null;
     this.onceReady = null;
     this.enabled = config.enabled !== false;
+    // User-paused from the website's live screen viewer. When paused, the
+    // agent cannot click/type/open apps — it asks the user to resume, in the
+    // user's own language. Read-only screenshots still work so the user can
+    // keep watching.
+    this.paused = false;
+  }
+
+  /** Pause computer control (user pressed "pause" on the website). */
+  setPaused(paused) {
+    this.paused = paused === true;
+    if (this.paused) {
+      this.state.markDisconnected('computer control paused by user from the website');
+    }
+  }
+
+  /** True when the user paused computer control from the website. */
+  isPaused() {
+    return this.paused === true;
   }
 
   // ── Runtime discovery ─────────────────────────────────────────────────
@@ -431,6 +449,29 @@ export class OpenInterfaceAdapter {
    */
   async execute(action, { channel = null, scopeEngine = null, approvalGranted = true, markAsObservation = false } = {}) {
     const started = Date.now();
+
+    // 0. User-paused from the website — refuse GUI actions, but let the
+    //    agent know it should ask the user to resume (in their language).
+    //    Screenshots stay allowed so the live viewer keeps working.
+    if (this.isPaused() && action?.type !== 'screenshot') {
+      const msg = 'Computer control is paused by the user — ask them to resume it from the website screen viewer';
+      await this.events?.publish?.(channel, {
+        type: 'computer.paused_block',
+        level: 'WARN',
+        message: msg,
+        data: { action, paused: true }
+      });
+      return {
+        ok: false,
+        action: action || null,
+        output: null,
+        observation: null,
+        error: { message: msg, kind: 'paused' },
+        durationMs: Date.now() - started,
+        rejected: true,
+        paused: true
+      };
+    }
 
     // 1. Whitelist + parameter + scope validation (never bypassed).
     const validation = validateComputerAction(action, { scopeEngine });
