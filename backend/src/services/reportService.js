@@ -375,4 +375,160 @@ The local language model assisted with hypothesis generation and triage; all con
       return null;
     }
   }
+
+  /**
+   * Generate a HackerOne-style industry markdown report (idea #4).
+   * This is the report the user submits to a bug bounty platform to claim
+   * a bounty: summary, severity, CVSS, steps to reproduce, impact, remediation.
+   * Every claim is backed by stored evidence — no fabricated findings.
+   *
+   * Flexible output (user asked: "jaise main maangu vaise report"):
+   * @param {object} [options]
+   * @param {string[]} [options.severities] — only include these severities
+   *   (e.g. ['high','critical'] for "sirf high wali report do")
+   * @param {boolean} [options.perFinding] — return one markdown per finding
+   *   instead of a single combined report ("ek-ek vulnerability alag-alag")
+   * @param {string} [options.findingId] — report for a single finding only
+   */
+  async generateMarkdown(userId, assessmentId, options = {}) {
+    const base = await this.generate(userId, assessmentId);
+    let findings = base.detailedFindings || [];
+
+    // Severity filter: "sirf high/critical wali do"
+    if (options.severities?.length) {
+      const wanted = new Set(options.severities.map((s) => String(s).toLowerCase()));
+      findings = findings.filter((f) => wanted.has(String(f.severity).toLowerCase()));
+    }
+    // Single finding: "is wali ka alag report do"
+    if (options.findingId) {
+      findings = findings.filter((f) => f.id === options.findingId);
+    }
+
+    // Per-finding mode: one standalone report per vulnerability
+    if (options.perFinding) {
+      return {
+        perFinding: true,
+        reports: findings.map((f) => ({
+          findingId: f.id,
+          title: f.title,
+          severity: f.severity,
+          markdown: this.renderFindingReport(f, base, true)
+        }))
+      };
+    }
+
+    return {
+      markdown: this.renderFullReport(findings, base),
+      findingCount: findings.length,
+      severityCounts: base.severityCounts
+    };
+  }
+
+  /** Render one finding as a standalone bounty-submission report. */
+  renderFindingReport(f, base, standalone = false) {
+    const lines = [];
+    if (standalone) {
+      lines.push(`# ${f.title}`);
+      lines.push(``);
+      lines.push(`**Target:** ${base.target || 'n/a'} | **Date:** ${new Date().toISOString().slice(0, 10)}`);
+      lines.push(``);
+    } else {
+      lines.push(`### ${f.title}`);
+      lines.push(``);
+    }
+    lines.push(`**Severity:** ${f.severity}${f.cvss ? ` (CVSS ${f.cvss})` : ''} | **Confidence:** ${f.confidence || 'n/a'} | **Status:** ${f.status}`);
+    lines.push(`**Affected asset:** ${f.affectedAsset || 'n/a'}`);
+    if (f.affectedEndpoint) lines.push(`**Endpoint:** ${f.affectedEndpoint}`);
+    if (f.parameter) lines.push(`**Parameter:** ${f.parameter}`);
+    lines.push(``);
+    lines.push(`#### Description`);
+    lines.push(``);
+    lines.push(f.description || 'No description recorded.');
+    lines.push(``);
+    if (f.impact) {
+      lines.push(`#### Impact`);
+      lines.push(``);
+      lines.push(f.impact);
+      lines.push(``);
+    }
+    if (f.reproductionSteps?.length) {
+      lines.push(`#### Steps to Reproduce`);
+      lines.push(``);
+      f.reproductionSteps.forEach((step, j) => lines.push(`${j + 1}. ${step}`));
+      lines.push(``);
+    }
+    if (f.expectedBehavior || f.observedBehavior) {
+      lines.push(`#### Expected vs Observed`);
+      lines.push(``);
+      if (f.expectedBehavior) lines.push(`- **Expected:** ${f.expectedBehavior}`);
+      if (f.observedBehavior) lines.push(`- **Observed:** ${f.observedBehavior}`);
+      lines.push(``);
+    }
+    if (f.remediation) {
+      lines.push(`#### Remediation`);
+      lines.push(``);
+      lines.push(f.remediation);
+      lines.push(``);
+    }
+    const ev = f.evidence || [];
+    if (ev.length) {
+      lines.push(`#### Evidence (${ev.length})`);
+      lines.push(``);
+      for (const e of ev.slice(0, 5)) {
+        lines.push(`- [${e.kind}] ${e.summary || e.id}${e.sha256 ? ` (sha256: ${String(e.sha256).slice(0, 16)}…)` : ''}`);
+      }
+      lines.push(``);
+    }
+    return lines.join('\n');
+  }
+
+  /** Render the full combined report. */
+  renderFullReport(findings, base) {
+    const lines = [];
+
+    lines.push(`# Security Assessment Report`);
+    lines.push(``);
+    lines.push(`**Target:** ${base.target || 'n/a'}`);
+    lines.push(`**Assessment ID:** ${base.assessmentId || 'n/a'}`);
+    lines.push(`**Generated:** ${new Date().toISOString()}`);
+    lines.push(`**Methodology:** Autonomous assessment (Dark-Matter agent)`);
+    lines.push(``);
+    lines.push(`## Executive Summary`);
+    lines.push(``);
+    lines.push(base.executiveSummary || 'No summary available.');
+    lines.push(``);
+    lines.push(`## Severity Breakdown`);
+    lines.push(``);
+    lines.push(`| Severity | Count |`);
+    lines.push(`|----------|-------|`);
+    for (const [sev, count] of Object.entries(base.severityCounts || {})) {
+      lines.push(`| ${sev} | ${count} |`);
+    }
+    lines.push(``);
+
+    if (!findings.length) {
+      lines.push(`## Findings`);
+      lines.push(``);
+      lines.push(`No validated vulnerabilities were confirmed during this assessment.`);
+      lines.push(``);
+    } else {
+      lines.push(`## Findings (${findings.length})`);
+      lines.push(``);
+      findings.forEach((f) => {
+        lines.push(this.renderFindingReport(f, base, false));
+        lines.push(`---`);
+        lines.push(``);
+      });
+    }
+
+    lines.push(`## Methodology Notes`);
+    lines.push(``);
+    lines.push(`- Assessment performed by an autonomous agent under explicit user authorization.`);
+    lines.push(`- Scope: ${(base.scope?.included || []).join(', ') || base.target || 'n/a'}`);
+    lines.push(`- All findings are backed by stored evidence; unvalidated observations are excluded.`);
+    lines.push(``);
+    lines.push(`*Generated by Dark-Matter autonomous bug-bounty agent.*`);
+
+    return lines.join('\n');
+  }
 }

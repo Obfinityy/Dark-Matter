@@ -2,6 +2,13 @@
  * Tool Registry — configurable metadata for every available security tool.
  * The AI agent selects tools from this registry rather than hardcoding sequences.
  * Tools can be added/removed without changing agent logic.
+ *
+ * OS SUPPORT:
+ * - Kali Linux: all tools natively available — the primary/recommended OS.
+ * - Windows / macOS: most binary tools (nmap, nuclei, etc.) are NOT installed.
+ *   The agent falls back to `python` (custom scripts), Docker-pulled tool
+ *   images, and pure-Python recon. TODO (future): auto-detect OS at startup
+ *   and mark unavailable tools so the brain plans around them.
  */
 
 const TOOL_DEFINITIONS = [
@@ -385,6 +392,24 @@ const TOOL_DEFINITIONS = [
     timeout: 600_000,
     command: 'sqlmap',
     defaultArgs: ['--batch', '--level=1', '--risk=1', '--random-agent'],
+    parser: 'generic'
+  },
+  // --- Custom Scripting (the agent's own hands) ---
+  // The agent writes Python to do what no pre-built tool can: custom payload
+  // generation, response analysis, chaining observations into new hypotheses.
+  // Runs on the USER's own machine (their backend, their terminal) — this is
+  // local-first by design, not a sandbox. Scope policy still applies: the
+  // script's network targets must be inside the authorized hunt scope.
+  {
+    name: 'python',
+    category: 'custom_scripting',
+    description: 'Run a custom Python 3 script on the user machine. Use for: custom payload crafting, response parsing, data correlation, proof-of-concept validation, anything no pre-built tool covers. Input is Python code; stdout/stderr are returned. Network access in the script must stay inside the authorized target scope.',
+    inputType: 'code',
+    outputFormat: 'text',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 120_000,
     parser: 'generic'
   }
 ];

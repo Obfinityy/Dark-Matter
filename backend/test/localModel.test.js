@@ -294,7 +294,7 @@ test('OllamaProvider.healthCheck: reports honestly when the daemon is down', asy
 // ── Factory ──────────────────────────────────────────────────────────────
 
 test('createBrainProvider: phone → PhoneLocalProvider, ollama → OllamaProvider', () => {
-  assert.deepEqual([...BRAIN_PROVIDERS], ['phone', 'ollama']);
+  assert.deepEqual([...BRAIN_PROVIDERS], ['phone', 'ollama', 'local', 'gradio']);
   const phone = createBrainProvider('phone', {});
   assert.ok(phone instanceof PhoneLocalProvider);
   const ollama = createBrainProvider('ollama', { ollama: { model: 'dolphin-llama3:8b' } }, { model: 'dolphin-llama3:8b' });
