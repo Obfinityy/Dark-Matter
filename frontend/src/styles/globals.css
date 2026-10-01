@@ -1,6 +1,16 @@
 @import './variables.css';
+@import './animations.css';
+@import './layout.css';
+@import './components.css';
+@import './forms.css';
+@import './tables.css';
+@import './terminal.css';
 @import './auth.css';
+@import './agent.css';
+@import './assessment.css';
 @import './infinity.css';
+@import './responsive.css';
+
 
 * {
   box-sizing: border-box;

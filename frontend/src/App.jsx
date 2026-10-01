@@ -62,11 +62,22 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 
 // Custom Logo Component
 const Logo = ({ theme }) => (
-  <div className="logo-container">
-    <img src={theme === 'dark' ? '/dark-logo.png' : '/light-logo.png'} className="logo-icon" alt="" onError={(e) => { e.target.style.display = 'none'; }} />
-    <span className="logo-text">DARKMATTER</span>
+  <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '12px', userSelect: 'none' }}>
+    <div className="logo-icon-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent)', borderRadius: '8px', width: '32px', height: '32px' }}>
+      <Target size={18} color="#ffffff" strokeWidth={2.5} />
+    </div>
+    <span className="logo-text" style={{
+      fontFamily: "var(--font-heading, 'Inter', sans-serif)",
+      fontWeight: 700,
+      fontSize: '1.1rem',
+      letterSpacing: '0.5px',
+      color: 'var(--text-primary)'
+    }}>
+      DarkMatter
+    </span>
   </div>
 );
+
 
 // --- Billing Page ---
 const BillingPage = () => {
@@ -2386,6 +2397,81 @@ const AppLayout = ({ children, theme, toggleTheme }) => {
   );
 };
 
+// --- Landing Page ---
+const LandingPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  return (
+    <div className="auth-shell" style={{ minHeight: '100dvh', background: 'var(--bg-primary)', color: 'var(--text-primary)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div className="auth-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0 }}></div>
+      <div className="auth-signal auth-signal-one" style={{ zIndex: 0 }}></div>
+      <div className="auth-signal auth-signal-two" style={{ zIndex: 0 }}></div>
+      
+      <nav style={{ position: 'relative', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px clamp(24px, 5vw, 64px)' }}>
+        <div className="brand-lockup">
+          <div className="brand-mark"><Shield size={24} /></div>
+          <span style={{ fontSize: '1.2rem' }}>DARK<span className="brand-accent">MATTER</span></span>
+        </div>
+        <div>
+          {user ? (
+            <button className="auth-submit" style={{ minHeight: '40px', padding: '0 24px', margin: 0 }} onClick={() => navigate('/agent')}>Go to Console</button>
+          ) : (
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <button className="auth-text-button" style={{ fontSize: '0.9rem', fontWeight: 600 }} onClick={() => navigate('/login')}>Sign In</button>
+              <button className="auth-submit" style={{ minHeight: '40px', padding: '0 24px', margin: 0 }} onClick={() => navigate('/register')}>Get Started</button>
+            </div>
+          )}
+        </div>
+      </nav>
+
+      <main style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '0 24px', textAlign: 'center' }}>
+        <div className="eyebrow" style={{ marginBottom: '24px' }}><CheckCircle2 size={16} /> NEXT-GEN CYBER OPERATIONS</div>
+        <h1 style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.1, maxWidth: '1000px', margin: '0 0 24px 0', background: 'linear-gradient(180deg, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          Autonomous security,<br/>powered by <span style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', paddingRight: '8px' }}>AI</span>.
+        </h1>
+        <p style={{ fontSize: 'clamp(1.1rem, 2vw, 1.4rem)', color: 'var(--text-secondary)', maxWidth: '640px', margin: '0 auto 48px', lineHeight: 1.6 }}>
+          DarkMatter runs continuous, intelligent bug bounty reconnaissance and exploitation loops 24/7. Sleep while your agent hunts.
+        </p>
+        
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {user ? (
+            <button className="auth-submit" style={{ fontSize: '1.1rem', padding: '0 44px', minHeight: '56px', margin: 0 }} onClick={() => navigate('/agent')}>Enter Console</button>
+          ) : (
+            <>
+              <button className="auth-submit" style={{ fontSize: '1.1rem', padding: '0 44px', minHeight: '56px', margin: 0 }} onClick={() => navigate('/register')}>Start Hunting</button>
+              <button 
+                className="btn-secondary" 
+                style={{ fontSize: '1.1rem', padding: '0 44px', minHeight: '56px', margin: 0, borderRadius: '9px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} 
+                onClick={() => navigate('/login')}
+              >
+                View Demo
+              </button>
+            </>
+          )}
+        </div>
+
+        <div style={{ marginTop: '80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1000px', width: '100%', marginBottom: '60px' }}>
+          {[
+            { icon: <Target size={26} className="brand-accent"/>, title: 'Smart Reconnaissance', desc: 'Continuous subdomain discovery and active port scanning powered by intelligent heuristics.' },
+            { icon: <Bug size={26} className="brand-accent"/>, title: 'Auto Exploitation', desc: 'Automatically identifies and safely validates common vulnerabilities instantly upon discovery.' },
+            { icon: <FileText size={26} className="brand-accent"/>, title: 'Actionable Reports', desc: 'Generates detailed, boardroom-ready vulnerability reports backed with concrete evidence.' }
+          ].map((feat, i) => (
+            <div key={i} style={{ padding: '36px 32px', background: 'rgba(15, 21, 32, 0.65)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(16px)', textAlign: 'left', transition: 'transform 0.3s ease, box-shadow 0.3s ease', cursor: 'default' }} 
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'rgba(0,229,255,0.4)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.6)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <div style={{ marginBottom: '20px', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(57, 216, 255, 0.08)', borderRadius: '12px', border: '1px solid rgba(57, 216, 255, 0.3)' }}>{feat.icon}</div>
+              <h3 style={{ fontSize: '1.25rem', marginBottom: '12px', color: '#fff' }}>{feat.title}</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.6 }}>{feat.desc}</p>
+            </div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+};
+
 export default function App() {
   const [theme, setTheme] = useState('dark');
 
@@ -2401,6 +2487,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<PublicRoute><Login initialMode="signin" /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Login initialMode="signup" /></PublicRoute>} />
           
@@ -2408,14 +2495,12 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout theme={theme} toggleTheme={toggleTheme}>
                 <Routes>
-                  {/* The autonomous agent IS the main screen. The older chat-driven
-                      assessment view stays reachable at /assessment-chat. */}
-                  <Route path="/" element={<AutonomousAgent />} />
                   <Route path="/agent" element={<AutonomousAgent />} />
                   <Route path="/assessment-chat" element={<MainChat />} />
                   <Route path="/infinite" element={<InfiniteChat />} />
                   <Route path="/billing" element={<BillingPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="*" element={<Navigate to="/agent" replace />} />
                 </Routes>
               </AppLayout>
             </ProtectedRoute>
