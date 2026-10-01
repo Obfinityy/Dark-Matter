@@ -9,6 +9,13 @@
  *
  * Stored in localStorage so the choice survives reloads. The API layer reads
  * this at request time, so switching takes effect immediately — no rebuild.
+ *
+ * Default rule (fresh device, no saved choice): the frontend talks to the
+ * backend that matches where IT is served from — localhost dev server →
+ * localhost backend; any hosted domain (e.g. *.vercel.app) → the hosted
+ * Vercel backend. So on the live site, login/signup always hit the real
+ * cloud backend; switching to localhost is a deliberate post-login action
+ * in Settings.
  */
 
 const MODE_KEY = 'dm_backend_mode';
@@ -28,10 +35,39 @@ export const BACKEND_MODES = {
   VERCEL: 'vercel'
 };
 
-/** Build-time default backend mode on a fresh device: 'localhost' | 'vercel'. */
-const DEFAULT_MODE = import.meta.env.VITE_DEFAULT_BACKEND_MODE === 'vercel'
-  ? BACKEND_MODES.VERCEL
-  : BACKEND_MODES.LOCALHOST;
+/** Build-time default backend mode on a fresh device: 'localhost' | 'vercel'.
+ *
+ * Resolution order (first match wins):
+ *   1. Explicit build-time override: VITE_DEFAULT_BACKEND_MODE=vercel|localhost
+ *   2. Hostname heuristic — the product rule:
+ *        • served from localhost / 127.0.0.1 (npm run dev) → 'localhost'
+ *        • served from any hosted domain (*.vercel.app, custom domain) → 'vercel'
+ *      On the live site the login screen therefore always talks to the real
+ *      hosted backend; localhost is only reachable via the manual Settings
+ *      switch after login.
+ *   3. Safe fallback: 'localhost'.
+ */
+const ENV_DEFAULT_MODE = (() => {
+  const raw = (import.meta.env.VITE_DEFAULT_BACKEND_MODE || '').trim().toLowerCase();
+  if (raw === BACKEND_MODES.VERCEL) return BACKEND_MODES.VERCEL;
+  if (raw === BACKEND_MODES.LOCALHOST) return BACKEND_MODES.LOCALHOST;
+  return null;
+})();
+
+function isLocalHostname(hostname) {
+  const h = String(hostname || '').toLowerCase();
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '';
+}
+
+const DEFAULT_MODE = (() => {
+  if (ENV_DEFAULT_MODE) return ENV_DEFAULT_MODE;
+  try {
+    if (typeof window !== 'undefined' && window.location) {
+      return isLocalHostname(window.location.hostname) ? BACKEND_MODES.LOCALHOST : BACKEND_MODES.VERCEL;
+    }
+  } catch { /* non-browser context — fall through */ }
+  return BACKEND_MODES.LOCALHOST;
+})();
 
 /** Build-time override for the localhost API base (default http://localhost:4000/api/v1). */
 const LOCALHOST_BASE = (import.meta.env.VITE_LOCALHOST_API_URL || 'http://localhost:4000/api/v1').trim().replace(/\/$/, '');
