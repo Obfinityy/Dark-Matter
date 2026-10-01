@@ -9,6 +9,15 @@ export function errorHandler(error, request, response, next) {
   if (error instanceof AppError) {
     return response.status(error.statusCode).json({ error: { code: error.code, message: error.message, details: error.details } });
   }
+  // Some services throw plain Errors with an HTTP status attached
+  // (e.g. jobManager.requireJob sets error.status = 404 for cross-user
+  // access). Honor that instead of masking everything as a 500.
+  const plainStatus = Number(error?.status || error?.statusCode);
+  if (Number.isInteger(plainStatus) && plainStatus >= 400 && plainStatus < 600) {
+    return response.status(plainStatus).json({
+      error: { code: error.code || 'REQUEST_FAILED', message: error.message || 'Request failed' }
+    });
+  }
   request.log?.error?.(error);
   return response.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } });
 }

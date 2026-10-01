@@ -1,4 +1,5 @@
 import { AgentJobModel, TERMINAL_JOB_STATES } from '../models/agentJobModel.js';
+import { buildAskReply } from '../services/askAgentService.js';
 
 /**
  * JobManager — the control plane for autonomous jobs.
@@ -386,36 +387,49 @@ export class JobManager {
   }
 
   /**
-   * Agent → Chat (requirement #60): the user asks the running assessment a
-   * question. The local brain answers from CURRENT persisted memory, findings
-   * and state. If it is not in memory, the answer is "unknown" — never invented
-   * (requirement #62).
+   * "Agent se baat karo" — the user chats with the hunting agent mid-hunt.
+   *
+   * Deterministic by design: the answer is built ONLY from live persisted
+   * state (job doc, findings, reasoning-cycle ledger, activity feed) via
+   * buildAskReply — no LLM call, so it works on a plain local machine with
+   * zero config. Numbers and "what I'm doing" are never invented; missing
+   * data is reported honestly. Per-user isolation via requireJob (404 for
+   * other users' jobs).
    */
   async ask(userId, jobId, question) {
     const job = await this.requireJob(userId, jobId);
-    const memoryContext = await this.worker.memory.buildBrainContext({
-      userId,
-      assessmentId: job.assessmentId,
-      query: question,
-      maxTokens: 1400
-    });
     const findings = await this.readFindings(job.assessmentId);
-    const answer = await this.worker.brain.answerQuestion({ job, question, memoryContext: memoryContext.text, findings });
+    let recentCycles = [];
+    try {
+      if (this.worker.reasoningCycleModel) {
+        recentCycles = await this.worker.reasoningCycleModel.recentSummaries(jobId, { limit: 3 });
+      }
+    } catch (_) {
+      recentCycles = []; // ledger unavailable — answer without it, honestly
+    }
 
-    await this.worker.memory.rememberConversation({
-      userId,
-      assessmentId: job.assessmentId,
-      jobId,
-      conversationId: job.conversationId,
-      content: `USER: ${String(question).slice(0, 500)}\nAGENT: ${String(answer.text || '').slice(0, 1500)}`
-    });
-    await this.publish(jobId, {
-      type: 'agent.chat',
-      level: 'INFO',
-      message: `Agent answered a user question`,
-      data: { question: String(question).slice(0, 300) }
-    });
-    return { answer: answer.text, model: answer.model, jobStatus: job.status, phase: job.phase };
+    const answer = buildAskReply({ job, findings, recentCycles, question });
+
+    // Best-effort: keep the conversation in the agent's memory + terminal feed.
+    try {
+      await this.worker.memory.rememberConversation({
+        userId,
+        assessmentId: job.assessmentId,
+        jobId,
+        conversationId: job.conversationId,
+        content: `USER: ${String(question).slice(0, 500)}
+AGENT: ${String(answer.reply).slice(0, 1500)}`
+      });
+    } catch (_) {}
+    try {
+      await this.publish(jobId, {
+        type: 'agent.chat',
+        level: 'INFO',
+        message: `User asked the agent: ${String(question).slice(0, 120)}`,
+        data: { question: String(question).slice(0, 300), intent: answer.intent }
+      });
+    } catch (_) {}
+    return answer;
   }
 
   // ── Crash / restart recovery (requirement #13 phase, #70) ─────────────
