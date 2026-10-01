@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="dm-core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0b0b14"/>
+      <stop offset="70%" stop-color="#0b0b14"/>
+      <stop offset="100%" stop-color="#1a1033"/>
+    </radialGradient>
+    <linearGradient id="dm-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="dm-sweep" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <!-- outer orbit -->
+  <ellipse cx="32" cy="32" rx="29" ry="11" fill="none" stroke="url(#dm-ring)" stroke-width="2" opacity="0.35" transform="rotate(-24 32 32)"/>
+  <!-- black hole core -->
+  <circle cx="32" cy="32" r="14" fill="url(#dm-core)" stroke="url(#dm-ring)" stroke-width="2.5"/>
+  <!-- accretion glow -->
+  <circle cx="32" cy="32" r="14" fill="none" stroke="#22d3ee" stroke-width="1" opacity="0.5"/>
+  <!-- radar sweep -->
+  <path d="M32 32 L32 20 A12 12 0 0 1 40.5 25.5 Z" fill="url(#dm-sweep)" opacity="0.85"/>
+  <!-- center pupil -->
+  <circle cx="32" cy="32" r="4.5" fill="#22d3ee"/>
+  <circle cx="32" cy="32" r="4.5" fill="white" opacity="0.25"/>
+  <!-- orbit satellite -->
+  <circle cx="54" cy="20" r="2.6" fill="#c084fc"/>
+  <circle cx="54" cy="20" r="4.2" fill="none" stroke="#c084fc" stroke-width="1" opacity="0.5"/>
+</svg>

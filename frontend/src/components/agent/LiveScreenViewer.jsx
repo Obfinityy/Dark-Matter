@@ -96,19 +96,27 @@ export function LiveScreenViewer({
     );
   }
 
+  const failCount = useRef(0);
+
   const fetchScreenshot = useCallback(async () => {
     if (!assessmentId || paused) return;
+    // Back off: after 3 consecutive failures the endpoint is down — stop
+    // hammering it and show the unavailable state until the user retries.
+    if (failCount.current >= 3) return;
     setLoading(true);
     try {
       const result = await takeComputerScreenshot({ includeBase64: true });
       if (result.ok && result.base64) {
         setScreenshot(`data:image/png;base64,${result.base64}`);
         setError(null);
+        failCount.current = 0;
       } else if (result.error) {
-        setError(result.error.message || 'Screenshot unavailable');
+        failCount.current += 1;
+        setError(failCount.current >= 3 ? 'unavailable' : (result.error.message || 'Screenshot unavailable'));
       }
     } catch (e) {
-      setError('Could not reach computer control');
+      failCount.current += 1;
+      setError(failCount.current >= 3 ? 'unavailable' : 'Could not reach computer control');
     } finally {
       setLoading(false);
     }
@@ -197,7 +205,25 @@ export function LiveScreenViewer({
           />
         ) : (
           <div className="dm-screen-empty">
-            {error || (paused ? 'Paused — resume to keep watching' : 'Waiting for screen…')}
+            {error === 'unavailable' ? (
+              <>
+                🖥️ Computer control isn't running on this machine.
+                <br />
+                <span style={{ fontSize: 12, color: '#64748b' }}>
+                  Start the local backend with computer control enabled, then{' '}
+                </span>
+                <button
+                  type="button"
+                  className="sg-btn sg-btn-ghost sg-btn-sm"
+                  style={{ marginTop: 8 }}
+                  onClick={() => { failCount.current = 0; setError(null); fetchScreenshot(); }}
+                >
+                  Retry
+                </button>
+              </>
+            ) : (
+              error || (paused ? 'Paused — resume to keep watching' : 'Waiting for screen…')
+            )}
           </div>
         )}
         {paused && <div className="dm-screen-paused-overlay">⏸ computer control paused</div>}
