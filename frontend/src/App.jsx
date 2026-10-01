@@ -22,6 +22,7 @@ import {
   listComputerTasks,
   apiClient
 } from './services/api';
+import { getBackendMode, setBackendMode, getVercelBackendUrl, setVercelBackendUrl, testBackendConnection, BACKEND_MODES } from './services/backendMode';
 import './styles/globals.css';
 import './styles/infinity.css';
 import './styles/agent.css';
@@ -280,6 +281,117 @@ const ProfilePage = () => {
   );
 };
 
+// --- Settings Page: backend connection mode (Localhost vs Vercel) ---
+const SettingsPage = () => {
+  const navigate = useNavigate();
+  const [mode, setMode] = useState(getBackendMode());
+  const [vercelUrl, setVercelUrl] = useState(getVercelBackendUrl());
+  const [testState, setTestState] = useState({ status: 'idle', message: '' });
+
+  const pickMode = (next) => {
+    const applied = setBackendMode(next);
+    setMode(applied);
+    setTestState({ status: 'idle', message: '' });
+  };
+
+  const saveVercelUrl = () => {
+    const clean = setVercelBackendUrl(vercelUrl);
+    setVercelUrl(clean);
+    setTestState({ status: 'idle', message: clean ? 'Vercel backend URL saved.' : 'Vercel backend URL cleared.' });
+  };
+
+  const runTest = async () => {
+    setTestState({ status: 'testing', message: 'Checking connection…' });
+    const result = await testBackendConnection();
+    setTestState({ status: result.ok ? 'ok' : 'error', message: result.message });
+  };
+
+  const isVercel = mode === BACKEND_MODES.VERCEL;
+
+  return (
+    <div className="dedicated-page">
+      <div className="page-header">
+        <button className="icon-button" onClick={() => navigate('/')}><ArrowLeft size={20} /></button>
+        <h2>Settings</h2>
+      </div>
+      <div className="page-content transparent-bg" style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '640px' }}>
+        <div className="animated-border-box opaque-bg" style={{ padding: '20px', borderRadius: '12px' }}>
+          <h3 style={{ margin: '0 0 6px' }}>Backend Connection</h3>
+          <p style={{ margin: '0 0 16px', opacity: 0.7, fontSize: '14px' }}>
+            Choose where the app talks to. Switch anytime — it applies instantly, no reload needed.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button
+              onClick={() => pickMode(BACKEND_MODES.LOCALHOST)}
+              className={`secondary-button ${!isVercel ? 'active' : ''}`}
+              style={{ textAlign: 'left', padding: '14px 16px', border: !isVercel ? '2px solid var(--accent, #7c3aed)' : undefined }}
+            >
+              <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>{!isVercel ? '🔘' : '⚪'}</span> Localhost
+                {!isVercel && <span className="pro-badge" style={{ marginLeft: 'auto' }}>ACTIVE</span>}
+              </div>
+              <div style={{ fontSize: '13px', opacity: 0.7, marginTop: '4px' }}>
+                Backend on your own machine (http://localhost:4000). Full power: autonomous hunts, local model runner, computer control.
+              </div>
+            </button>
+
+            <button
+              onClick={() => pickMode(BACKEND_MODES.VERCEL)}
+              className={`secondary-button ${isVercel ? 'active' : ''}`}
+              style={{ textAlign: 'left', padding: '14px 16px', border: isVercel ? '2px solid var(--accent, #7c3aed)' : undefined }}
+            >
+              <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>{isVercel ? '🔘' : '⚪'}</span> Vercel
+                {isVercel && <span className="pro-badge" style={{ marginLeft: 'auto' }}>ACTIVE</span>}
+              </div>
+              <div style={{ fontSize: '13px', opacity: 0.7, marginTop: '4px' }}>
+                Backend deployed on Vercel. Works for the stateless API — long hunts and the local model always need Localhost mode.
+              </div>
+            </button>
+          </div>
+
+          {isVercel && (
+            <div style={{ marginTop: '16px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                Vercel backend URL
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="url"
+                  value={vercelUrl}
+                  onChange={(e) => setVercelUrl(e.target.value)}
+                  placeholder="https://your-backend.vercel.app"
+                  className="text-input"
+                  style={{ flex: 1 }}
+                />
+                <button className="secondary-button" onClick={saveVercelUrl}>Save</button>
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.6, marginTop: '6px' }}>
+                The public URL of your deployed backend (without /api/v1 at the end).
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button className="secondary-button" onClick={runTest} disabled={testState.status === 'testing'}>
+              {testState.status === 'testing' ? 'Testing…' : 'Test Connection'}
+            </button>
+            {testState.message && (
+              <span style={{
+                fontSize: '13px',
+                color: testState.status === 'ok' ? 'var(--success, #22c55e)' : testState.status === 'error' ? 'var(--danger, #ef4444)' : 'inherit'
+              }}>
+                {testState.status === 'ok' ? '✅ ' : testState.status === 'error' ? '❌ ' : ''}{testState.message}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const INFINITE_SESSIONS_KEY = 'infinite_chat_sessions';
 const INFINITE_ACTIVE_KEY = 'infinite_chat_active_id';
 const INFINITE_CHAT_EVENT = 'infinite-chat-updated';
@@ -406,6 +518,10 @@ const Sidebar = ({ toggleTheme, theme }) => {
         <button className={`nav-item ${location.pathname === '/billing' ? 'active' : ''}`} onClick={() => navigate('/billing')}>
           <CreditCard size={18} />
           <span>Billing</span>
+        </button>
+        <button className={`nav-item ${location.pathname === '/settings' ? 'active' : ''}`} onClick={() => navigate('/settings')}>
+          <Settings size={18} />
+          <span>Settings</span>
         </button>
         <button className={`nav-item profile-item ${location.pathname === '/profile' ? 'active' : ''}`} onClick={() => navigate('/profile')}>
           <User size={18} />
@@ -2405,25 +2521,10 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<PublicRoute><Login initialMode="signin" /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Login initialMode="signup" /></PublicRoute>} />
-          {/* Agent console: standalone shell with its own auth gate + sidebar.
-              Kept OUTSIDE the legacy AppLayout so the two shells never nest. */}
+          {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
           <Route path="/agent/*" element={<AgentConsole />} />
-
-          <Route path="/*" element={
-            <ProtectedRoute>
-              <AppLayout theme={theme} toggleTheme={toggleTheme}>
-                <Routes>
-                  {/* The autonomous agent IS the main screen. The older chat-driven
-                      assessment view stays reachable at /assessment-chat. */}
-                  <Route path="/" element={<AutonomousAgent />} />
-                  <Route path="/assessment-chat" element={<MainChat />} />
-                  <Route path="/infinite" element={<InfiniteChat />} />
-                  <Route path="/billing" element={<BillingPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                </Routes>
-              </AppLayout>
-            </ProtectedRoute>
-          } />
+          {/* Everything else redirects to the agent console. */}
+          <Route path="/*" element={<Navigate to="/agent" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
