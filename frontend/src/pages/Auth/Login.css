@@ -1,0 +1,77 @@
+/**
+ * Login page styles — split brand/form layout.
+ */
+
+.sg-auth { display: flex; min-height: 100vh; }
+
+/* ── Brand panel ── */
+.sg-auth-brand {
+  flex: 1.15; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid var(--sg-line-soft);
+  background:
+    radial-gradient(700px 420px at 30% 20%, rgba(129, 140, 248, 0.1), transparent 65%),
+    radial-gradient(560px 380px at 70% 80%, rgba(34, 211, 238, 0.07), transparent 65%),
+    var(--sg-ink-0);
+}
+.sg-auth-brand-inner { position: relative; z-index: 2; max-width: 560px; padding: 64px; }
+.sg-auth-brand-inner .sg-display { margin: 34px 0 18px; }
+.sg-auth-proofs { display: flex; flex-direction: column; gap: 20px; margin-top: 44px; }
+.sg-auth-proof { display: flex; gap: 14px; align-items: flex-start; }
+.sg-auth-proof-icon {
+  flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.22);
+  color: var(--sg-cyan);
+}
+.sg-auth-fineprint { margin-top: 48px; }
+.sg-auth-glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: conic-gradient(from 200deg at 60% 40%, transparent 0deg, rgba(129,140,248,0.05) 40deg, transparent 90deg);
+}
+
+/* ── Form panel ── */
+.sg-auth-form-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 48px 32px;
+}
+.sg-auth-card { width: 100%; max-width: 430px; padding: 36px; }
+.sg-auth-mobile-brand { display: none; margin-bottom: 26px; }
+
+.sg-auth-tabs {
+  display: flex; background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--sg-line-soft); border-radius: 12px; padding: 4px;
+  margin-bottom: 28px;
+}
+.sg-auth-tabs button {
+  flex: 1; border: none; background: transparent; color: var(--sg-text-2);
+  font-family: var(--sg-sans); font-weight: 600; font-size: 0.9rem;
+  padding: 10px; border-radius: 9px; cursor: pointer;
+  transition: background var(--sg-fast), color var(--sg-fast);
+}
+.sg-auth-tabs button.active { background: rgba(255, 255, 255, 0.09); color: var(--sg-text); }
+
+/* icon inside input */
+.sg-field { position: relative; }
+.sg-field-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--sg-text-3); pointer-events: none; }
+.sg-field-input { padding-left: 42px !important; }
+
+.sg-auth-error {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--sg-danger-dim); border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--sg-danger); font-size: 0.87rem; font-weight: 500;
+  padding: 12px 14px; border-radius: var(--sg-r-md);
+}
+.sg-auth-switch { text-align: center; margin: 22px 0 0; }
+.sg-auth-switch button {
+  background: none; border: none; cursor: pointer;
+  color: var(--sg-cyan); font: inherit; font-weight: 600; padding: 0;
+}
+.sg-auth-switch button:hover { text-decoration: underline; }
+
+@media (max-width: 900px) {
+  .sg-auth-brand { display: none; }
+  .sg-auth-form-wrap { padding: 32px 20px; }
+  .sg-auth-card { padding: 28px 22px; }
+  .sg-auth-mobile-brand { display: block; }
+}

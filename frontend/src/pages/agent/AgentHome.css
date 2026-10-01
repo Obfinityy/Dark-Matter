@@ -1,0 +1,106 @@
+/**
+ * AgentHome (Hunt landing) styles.
+ */
+
+.sg-hunt-home { padding-bottom: 24px; }
+
+.sg-hero { padding: 40px 0 8px; max-width: 720px; }
+
+.sg-hunt-form { margin-top: 34px; max-width: 640px; }
+.sg-hunt-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--sg-line);
+  border-radius: 16px; padding: 8px 8px 8px 18px;
+  transition: border-color var(--sg-fast), box-shadow var(--sg-fast);
+}
+.sg-hunt-bar:focus-within {
+  border-color: rgba(129, 140, 248, 0.55);
+  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.12), 0 18px 44px -18px rgba(129, 140, 248, 0.35);
+}
+.sg-hunt-bar-icon { color: var(--sg-text-3); flex-shrink: 0; }
+.sg-hunt-bar input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  font-family: var(--sg-sans); font-size: 1rem; color: var(--sg-text);
+  padding: 12px 4px;
+}
+.sg-hunt-bar input::placeholder { color: var(--sg-text-3); }
+.sg-hunt-bar .sg-btn { border-radius: 11px; padding: 12px 20px; flex-shrink: 0; }
+
+.sg-authz {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-top: 16px; cursor: pointer;
+  font-size: 0.82rem; color: var(--sg-text-2); line-height: 1.55;
+}
+.sg-authz input { margin-top: 3px; accent-color: var(--sg-indigo); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+.sg-authz svg { vertical-align: -2px; margin-right: 2px; color: var(--sg-go); }
+
+/* ── Stats ── */
+.sg-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  margin: 40px 0;
+}
+.sg-stat {
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+  border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-lg);
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.sg-stat strong { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; display: flex; align-items: center; gap: 10px; }
+.sg-stat span { font-size: 0.83rem; color: var(--sg-text-2); }
+.sg-live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sg-go); box-shadow: 0 0 10px var(--sg-go); animation: sg-pulse 1.6s infinite; }
+
+/* ── Hunt list ── */
+.sg-h-icon { color: var(--sg-cyan); }
+.sg-hunt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sg-hunt-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: var(--sg-r-md);
+  border: 1px solid transparent; text-decoration: none;
+  transition: background var(--sg-fast), border-color var(--sg-fast);
+}
+.sg-hunt-row:hover { background: rgba(255, 255, 255, 0.035); border-color: var(--sg-line-soft); }
+.sg-hunt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sg-hunt-target {
+  font-weight: 600; font-size: 0.93rem; color: var(--sg-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sg-hunt-chevron { color: var(--sg-text-3); flex-shrink: 0; }
+.sg-hunt-row:hover .sg-hunt-chevron { color: var(--sg-text); }
+
+/* ── Steps ── */
+.sg-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sg-steps li {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 0 12px 28px; position: relative;
+  border-bottom: 1px solid var(--sg-line-soft);
+}
+.sg-steps li:last-child { border-bottom: none; padding-bottom: 0; }
+.sg-steps li::before {
+  content: ''; position: absolute; left: 6px; top: 19px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--sg-gradient);
+}
+.sg-steps li::after {
+  content: ''; position: absolute; left: 9px; top: 32px; bottom: -4px; width: 1px;
+  background: var(--sg-line-soft);
+}
+.sg-steps li:last-child::after { display: none; }
+.sg-steps strong { font-size: 0.92rem; font-weight: 650; }
+.sg-steps span { font-size: 0.83rem; color: var(--sg-text-2); }
+
+.sg-card-link {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+  color: var(--sg-cyan); font-weight: 600; font-size: 0.9rem; text-decoration: none;
+}
+.sg-card-link:hover { text-decoration: underline; }
+
+@media (max-width: 760px) {
+  .sg-hero { padding: 20px 0 4px; }
+  .sg-hunt-bar { flex-wrap: wrap; padding: 8px; }
+  .sg-hunt-bar input { flex: 1 1 100%; padding: 12px; }
+  .sg-hunt-bar .sg-btn { flex: 1; }
+  .sg-stats { grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 28px 0; }
+  .sg-stat { padding: 16px; }
+  .sg-stat strong { font-size: 1.5rem; }
+}
