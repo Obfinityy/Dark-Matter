@@ -1,8 +1,0 @@
-DarkMatter Express API listening at http://127.0.0.1:4000
-[job-manager] recovery: 2 job(s) resumed, 0 left paused
-[InfiniteChat] model error: Local AI busy (429) after 6 attempts.
-[InfiniteChat] model error: fetch failed
-[InfiniteChat] model error: fetch failed
-[InfiniteChat] model error: fetch failed
-[InfiniteChat] model error: fetch failed
-[agent-worker] job job_8077426f-0ac8-44e1-a36c-026eab9e8eb2 crashed: read ECONNRESET
