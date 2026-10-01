@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","buildCommand":"npm run build 2>/dev/null || true","env":{"COMPUTER_CONTROL_ENABLED":"false","HUNT_SCHEDULER_ENABLED":"false"},"functions":{"api/index.js":{"maxDuration":60}},"outputDirectory":"public","rewrites":[{"destination":"/api/index.js","source":"/api/v1/:path*"},{"destination":"/api/index.js","source":"/health"}]}
