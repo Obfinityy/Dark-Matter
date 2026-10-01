@@ -14,6 +14,7 @@ import { ACTION_TYPES } from '../computer/actionSchema.js';
 
 export const AUTONOMOUS_ACTION_TYPES = Object.freeze([
   'tool',             // run a registry tool
+  'parallel_tools',   // run multiple INDEPENDENT tools at once (parallel recon)
   'computer_action',  // drive the computer layer
   'observation',      // record information into memory without acting
   'hypothesis',       // raise a testable hypothesis
@@ -31,8 +32,12 @@ export const CONFIDENCE_MAX = 1;
  * Validate a parsed brain decision.
  * @returns {{valid:boolean, errors:string[], decision:object|null}}
  */
-export function validateAutonomousDecision(decision) {
+export function validateAutonomousDecision(decision, options = {}) {
   const errors = [];
+  // When the computer layer is disabled by configuration, computer_action
+  // decisions are rejected at validation time so the brain's retry loop is
+  // forced to choose a registry tool instead of looping on a dead layer.
+  const computerActionAllowed = options.computerActionAllowed !== false;
 
   if (!decision || typeof decision !== 'object' || Array.isArray(decision)) {
     return { valid: false, errors: ['Decision must be a JSON object'], decision: null };
@@ -48,6 +53,8 @@ export function validateAutonomousDecision(decision) {
   const action = decision.nextAction;
   if (!action || typeof action !== 'object') {
     errors.push('Missing nextAction object');
+  } else if (action.type === 'computer_action' && !computerActionAllowed) {
+    errors.push('computer_action is not available in this environment (computer control is disabled) — choose a registry "tool" action instead');
   } else if (!AUTONOMOUS_ACTION_TYPES.includes(action.type)) {
     errors.push(`Invalid nextAction.type "${action.type}". Allowed: ${AUTONOMOUS_ACTION_TYPES.join(', ')}`);
   } else {
@@ -72,6 +79,23 @@ export function validateAutonomousDecision(decision) {
           errors.push('hypothesis action requires a "hypothesis" string');
         }
         break;
+      case 'parallel_tools': {
+        // Multiple independent tools in one step. Each entry: {name, target, arguments}.
+        const tools = action.tools || action.parallelTools;
+        if (!Array.isArray(tools) || !tools.length) {
+          errors.push('parallel_tools action requires a "tools" array');
+        } else if (tools.length > 6) {
+          errors.push('parallel_tools supports at most 6 tools per step');
+        } else {
+          for (const t of tools) {
+            if (!t || typeof t.name !== 'string' || !t.name.trim()) {
+              errors.push('each parallel_tools entry requires a "name"');
+              break;
+            }
+          }
+        }
+        break;
+      }
       case 'validate':
       case 'finding':
         if (typeof action.hypothesisId !== 'string' && typeof action.hypothesis !== 'string') {

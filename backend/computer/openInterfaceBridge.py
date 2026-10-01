@@ -95,9 +95,32 @@ SCREENSHOT_DIR = os.environ.get("COMPUTER_SCREENSHOT_DIR") or os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "computer"
 )
 MAX_SCREENSHOT_BYTES = int(os.environ.get("COMPUTER_MAX_SCREENSHOT_BYTES", "4000000"))
+# Retention: keep only the most recent N screenshots. The brain reasons from
+# textual observations, not the PNGs — old screenshots are dead weight.
+# Once the agent has observed and moved on, the files are deleted to free disk.
+SCREENSHOT_RETAIN = int(os.environ.get("COMPUTER_SCREENSHOT_RETAIN", "20"))
 IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
+
+
+def _prune_old_screenshots():
+    """Delete screenshots beyond the retention limit (oldest first)."""
+    try:
+        files = [
+            os.path.join(SCREENSHOT_DIR, f)
+            for f in os.listdir(SCREENSHOT_DIR)
+            if f.startswith("screenshot-") and f.endswith(".png")
+        ]
+        files.sort(key=lambda p: os.path.getmtime(p))
+        while len(files) > SCREENSHOT_RETAIN:
+            old = files.pop(0)
+            try:
+                os.unlink(old)
+            except OSError:
+                pass
+    except OSError:
+        pass
 
 
 class BridgeError(Exception):
@@ -114,6 +137,28 @@ def screen_size():
     return int(width), int(height)
 
 
+def _take_screenshot():
+    """Screenshot with fallback: pyautogui first, mss on headless Linux.
+
+    pyautogui.screenshot() needs gnome-screenshot/scrot on Linux, which is
+    often missing on headless boxes. mss talks X11 directly and works with
+    Xvfb. Both return a PIL Image.
+    """
+    if pyautogui is not None:
+        try:
+            return pyautogui.screenshot()
+        except Exception:
+            pass  # fall through to mss
+    try:
+        from mss import mss as mss_factory
+        from PIL import Image
+        with mss_factory() as grabber:
+            shot = grabber.grab(grabber.monitors[1])
+            return Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+    except Exception as exc:
+        raise BridgeError(f"screenshot failed (pyautogui + mss): {exc}", "unavailable")
+
+
 def capture_screenshot():
     """pyautogui.screenshot() -> PNG bytes (the same call Open-Interface makes).
 
@@ -124,7 +169,7 @@ def capture_screenshot():
     if pyautogui is None:
         raise BridgeError("pyautogui is not installed", "unavailable")
 
-    image = pyautogui.screenshot()  # ~100ms, same as Open-Interface
+    image = _take_screenshot()  # ~100ms, same as Open-Interface
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     payload = buffer.getvalue()
@@ -149,6 +194,8 @@ def capture_screenshot():
         result["base64"] = base64.b64encode(payload).decode("ascii")
     else:
         result["base64Omitted"] = True
+    # Free disk: the observation is recorded as text; old PNGs are pruned.
+    _prune_old_screenshots()
     return result
 
 
