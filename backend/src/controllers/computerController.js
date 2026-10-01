@@ -40,7 +40,16 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
       });
     }),
 
-    /** POST /api/v1/computer/screenshot */
+    /**
+     * POST /api/v1/computer/screenshot
+     *
+     * TODO (future): Remote screen viewing — when the backend runs on a
+     * remote server (not localhost), screenshots come from the SERVER's
+     * display, which is meaningless to the user. Later: implement a local
+     * agent on the user's machine that streams its screen to the hosted
+     * backend, or a paired local viewer. The frontend LiveScreenViewer
+     * already gates itself to localhost mode until then.
+     */
     screenshot: asyncHandler(async (request, response) => {
       const result = await computerAdapter.getScreen(request.body?.channel || null);
       if (!result.ok) {
@@ -128,6 +137,34 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
       const result = computerAdapter.repair({ repair, userAuthorized });
       const status = result.repaired ? 200 : (result.requiresAuthorization ? 403 : 422);
       response.status(status).json(result);
+    }),
+
+    /**
+     * POST /api/v1/computer/pause — user pauses computer control from the website.
+     * The agent stops taking GUI actions and asks the user to re-enable,
+     * in the user's own language. Read-only screenshots still work.
+     */
+    pause: asyncHandler(async (request, response) => {
+      computerAdapter.setPaused(true);
+      await computerAdapter.events?.publish?.(null, {
+        type: 'computer.paused',
+        level: 'WARN',
+        message: 'Computer control paused by user — agent will not click/type until resumed'
+      });
+      response.json({ ok: true, paused: true });
+    }),
+
+    /**
+     * POST /api/v1/computer/resume — user resumes computer control from the website.
+     */
+    resume: asyncHandler(async (request, response) => {
+      computerAdapter.setPaused(false);
+      await computerAdapter.events?.publish?.(null, {
+        type: 'computer.resumed',
+        level: 'INFO',
+        message: 'Computer control resumed by user — agent can click/type again'
+      });
+      response.json({ ok: true, paused: false });
     })
   };
 }

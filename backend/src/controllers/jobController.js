@@ -205,13 +205,15 @@ export function createJobController({ jobManager, assessmentService, eventServic
       response.json(await jobManager.cancel(request.user.id, request.params.id));
     }),
 
-    /** POST /api/v1/jobs/:id/ask — talk to the agent about the running job */
+    /** POST /api/v1/jobs/:id/ask — talk to the agent about the running job.
+     * Uses the brain-powered path: simple status questions get fast rule-based
+     * answers, everything else is understood and answered by the AI agent itself. */
     ask: asyncHandler(async (request, response) => {
       const question = request.body?.message;
       if (!question) {
         return response.status(400).json({ error: { code: 'MISSING_MESSAGE', message: 'Message is required' } });
       }
-      const answer = await jobManager.ask(request.user.id, request.params.id, question);
+      const answer = await jobManager.askBrain(request.user.id, request.params.id, question);
       response.json(answer);
     }),
 
