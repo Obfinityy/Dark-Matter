@@ -618,7 +618,9 @@ export function cancelComputerTask(taskId) {
 
 /** Subscribe to live computer-task events via SSE (replayed on reconnect). */
 export function subscribeToComputerTaskEvents(taskId, { onOpen, onEvent, onError } = {}) {
-  const url = `${apiBase()}/computer-tasks/${encodeURIComponent(taskId)}/events`;
+  // EventSource cannot set headers — the JWT rides as ?accessToken= like the
+  // other SSE streams (without it the stream 401s and the feed stays empty).
+  const url = sseUrl(`/computer-tasks/${encodeURIComponent(taskId)}/events`);
   const source = new EventSource(url, { withCredentials: true });
 
   const handleEvent = (event) => {

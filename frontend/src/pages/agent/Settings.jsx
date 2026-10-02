@@ -10,7 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Cloud, Monitor, Check, Loader2, Cpu, ShieldCheck } from 'lucide-react';
 import {
-  getBackendMode, setBackendMode, getVercelBackendUrl, setVercelBackendUrl,
+  getBackendMode, setBackendMode, getVercelBackendUrl,
   testBackendConnection, testBackendConnectionFor, BACKEND_MODES
 } from '../../services/backendMode';
 import {
@@ -24,7 +24,6 @@ import './Settings.css';
 
 export function Settings() {
   const [mode, setMode] = useState(getBackendMode());
-  const [vercelUrl, setVercelUrl] = useState(getVercelBackendUrl() || '');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [checkingLocal, setCheckingLocal] = useState(false);
@@ -113,11 +112,6 @@ export function Settings() {
     navigate('/login');
   };
 
-  const saveVercelUrl = () => {
-    setVercelBackendUrl(vercelUrl.trim());
-    setTestResult(null);
-  };
-
   const testNow = async () => {
     setTesting(true);
     setTestResult(null);
@@ -167,17 +161,10 @@ export function Settings() {
         )}
 
         {mode === BACKEND_MODES.VERCEL && (
-          <div className="sg-vercel-url">
-            <label>Cloud backend URL</label>
-            <div className="sg-vercel-row">
-              <input className="sg-input"
-                value={vercelUrl}
-                onChange={(e) => setVercelUrl(e.target.value)}
-                placeholder="https://your-backend.vercel.app"
-              />
-              <button className="sg-btn sg-btn-primary" onClick={saveVercelUrl}>Save</button>
-            </div>
-          </div>
+          <p className="sg-small" style={{ marginTop: 10 }}>
+            ☁️ Cloud backend se directly connected: <code>{getVercelBackendUrl()}</code>
+            <br />URL dalne ki zaroorat nahi — ye built-in hai.
+          </p>
         )}
 
         {mode === BACKEND_MODES.LOCALHOST && (
