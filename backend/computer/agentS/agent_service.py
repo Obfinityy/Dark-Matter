@@ -48,10 +48,12 @@ def _env(name, default=""):
 VISION_URL = _env("DM_VISION_URL")
 VISION_MODEL = _env("DM_VISION_MODEL", "Qwen2.5-VL-7B-Instruct")
 VISION_API_KEY = _env("DM_VISION_API_KEY", "not-needed")
-# Grounding runs LOCALLY via Ollama (free) — user installs once:
-#   ollama pull hf.co/Mungert/UI-TARS-1.5-7B-GGUF:Q6_K_M
-GROUND_URL = _env("DM_GROUND_URL", "http://localhost:11434/v1")
-GROUND_MODEL = _env("DM_GROUND_MODEL", "hf.co/Mungert/UI-TARS-1.5-7B-GGUF:Q6_K_M")
+# Grounding runs LOCALLY via llama.cpp (free, no Ollama needed) — user
+# downloads once from Models → Plugins:
+#   UI-TARS 1.5 7B (Grounding) → Download → Run
+# Served at http://localhost:8080/v1 by llama-server.
+GROUND_URL = _env("DM_GROUND_URL", "http://localhost:8080/v1")
+GROUND_MODEL = _env("DM_GROUND_MODEL", "uitars-grounding-7b")
 
 PLATFORM = _env("DM_PLATFORM") or {
     "win32": "windows", "linux": "linux", "darwin": "darwin",
