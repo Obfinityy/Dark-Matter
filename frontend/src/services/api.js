@@ -997,6 +997,25 @@ export function getBrainChain() {
 }
 
 /**
+ * Brain slots: three independent slots (vision/grounding/hacker).
+ * Each slot has alternatives; user picks one model per slot.
+ */
+export function getBrainSlots() {
+  return request('/model-runner/brain-slots');
+}
+
+export function getSlotAssignments() {
+  return request('/model-runner/brain-slots/assignments');
+}
+
+export function assignBrainSlot(slot, modelId) {
+  return request('/model-runner/brain-slots/assign', {
+    method: 'POST',
+    body: JSON.stringify({ slot, modelId })
+  });
+}
+
+/**
  * Live per-model download progress via SSE.
  * Events: progress { modelId, status, receivedBytes, totalBytes, percent }.
  * Terminal states: status 'done' (percent 100 — the row flips to Run),
