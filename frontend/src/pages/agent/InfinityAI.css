@@ -244,3 +244,38 @@
   .sg-plan-step, .sg-control-step { padding: 13px 14px; gap: 12px; }
   .sg-control-runbar { justify-content: center; }
 }
+
+/* ── Control mode: live agent feed ─────────────────────────────────── */
+.sg-control-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--sg-border, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.sg-feed-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--sg-text-2);
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.sg-feed-row:nth-child(odd) { background: rgba(255, 255, 255, 0.025); }
+.sg-feed-row.ok { color: #4ade80; }
+.sg-feed-row.bad { color: #f87171; }
+.sg-feed-ico { flex-shrink: 0; margin-top: 1px; opacity: 0.85; }
+.sg-feed-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sg-control-ask {
+  padding: 14px;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 12px;
+  background: rgba(129, 140, 248, 0.06);
+}
+.sg-control-ask p { margin: 0 0 10px; font-size: 0.9rem; }
