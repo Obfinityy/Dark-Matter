@@ -972,6 +972,13 @@ test('TEST 20 + 21: the report is generated from evidence, persists, and survive
 // TEST 22 — Local AI is the only reasoning provider
 // ══════════════════════════════════════════════════════════════════════════
 test('TEST 22: the local phone AI is the only reasoning provider (no external LLM, no silent fallback)', async () => {
+  // This test proves the no-fallback waiting behavior, so the deterministic
+  // fallback brain (default ON for real hunts) must be off here — same as
+  // tests/huntCrashRecovery.test.js. The autonomous loop with the fallback
+  // ON is proven separately by backend/scripts/e2e-hunt-proof.mjs.
+  const prevFallback = process.env.AGENT_DETERMINISTIC_FALLBACK;
+  process.env.AGENT_DETERMINISTIC_FALLBACK = '0';
+  try {
   const stack = buildStack();
   const assessment = await makeAssessment(stack);
 
@@ -1010,6 +1017,10 @@ test('TEST 22: the local phone AI is the only reasoning provider (no external LL
     assert.ok(!source.includes(vendor), `autonomous brain must not reference ${vendor}`);
   }
   assert.match(source, /LOCAL AI UNAVAILABLE/);
+  } finally {
+    if (prevFallback === undefined) delete process.env.AGENT_DETERMINISTIC_FALLBACK;
+    else process.env.AGENT_DETERMINISTIC_FALLBACK = prevFallback;
+  }
 });
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1227,7 +1238,7 @@ test('CRITICAL: start assessment → close the frontend → wait → reopen the 
   const reopened = await session2.jobManager.getState('u1', started.id);
   assert.equal(reopened.job.id, started.id);
   assert.equal(reopened.job.assessmentId, assessment.id);
-  assert.equal(reopened.job.target, 'example.com');
+  assert.equal(reopened.job.target, 'https://example.com');
   assert.ok(reopened.job.status === 'running' || reopened.job.status === 'resuming' || reopened.job.status === 'completed');
   assert.ok(reopened.activity.length > 0, 'terminal history is visible');
   assert.ok(reopened.job.phase, 'current phase is visible');
