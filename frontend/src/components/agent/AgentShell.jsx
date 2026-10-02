@@ -25,6 +25,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { listJobs, listAlerts } from '../../services/api';
 import { listConversations, CONVERSATIONS_CHANGED_EVENT } from '../../services/chatHistory';
 import Logo from '../brand/Logo';
+import { DarkVeil } from '../fx/DarkVeil';
 import './AgentShell.css';
 
 const TOP_TABS = [
@@ -370,6 +371,7 @@ export function AgentShell({ children }) {
       </aside>
 
         <main className="sg-main">
+        <DarkVeil intensity={0.45} />
         {/* Top navbar — ONLY the two primary destinations. */}
         <header className="sg-topbar">
           <div className="sg-topbar-left">
