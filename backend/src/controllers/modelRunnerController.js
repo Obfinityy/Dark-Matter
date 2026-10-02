@@ -150,7 +150,68 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       }
       const { brainProviderModel } = request.app.locals;
       const selection = await brainProviderModel.setSlotAssignment(userId, slot, modelId);
-      response.json({ assignments: selection.slotAssignments || {} });
+      response.json({ assignments: selection.slotAssignments || {}, slotSources: selection.slotSources || {} });
+    }),
+
+    /**
+     * GET /api/v1/model-runner/brain-slots/sources
+     * Returns the user's per-slot source: local model or Kaggle link.
+     */
+    getSlotSources: asyncHandler(async (request, response) => {
+      const userId = request.user?.id;
+      if (!userId) {
+        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+      }
+      const { brainProviderModel } = request.app.locals;
+      const selection = await brainProviderModel.getSelection(userId);
+      response.json({ slotSources: selection.slotSources || {} });
+    }),
+
+    /**
+     * POST /api/v1/model-runner/brain-slots/kaggle { slot, url, name? }
+     * Connect a Kaggle/Colab Gradio link as the source for a brain slot.
+     */
+    connectSlotKaggle: asyncHandler(async (request, response) => {
+      const userId = request.user?.id;
+      if (!userId) {
+        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+      }
+      const { slot, url, name } = request.body || {};
+      if (!slot || !url) {
+        return response.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'slot and url are required' }
+        });
+      }
+      const { brainProviderModel } = request.app.locals;
+      try {
+        const selection = await brainProviderModel.setSlotKaggle(userId, slot, url, name);
+        response.json({ slotSources: selection.slotSources || {} });
+      } catch (err) {
+        response.status(400).json({
+          error: { code: 'INVALID_SLOT_SOURCE', message: err.message }
+        });
+      }
+    }),
+
+    /**
+     * DELETE /api/v1/model-runner/brain-slots/kaggle/:slot
+     * Disconnect the Kaggle link for a slot — falls back to local model.
+     */
+    disconnectSlotKaggle: asyncHandler(async (request, response) => {
+      const userId = request.user?.id;
+      if (!userId) {
+        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+      }
+      const { slot } = request.params;
+      const { brainProviderModel } = request.app.locals;
+      try {
+        const selection = await brainProviderModel.clearSlotKaggle(userId, slot);
+        response.json({ slotSources: selection.slotSources || {} });
+      } catch (err) {
+        response.status(400).json({
+          error: { code: 'INVALID_SLOT_SOURCE', message: err.message }
+        });
+      }
     }),
 
     /** GET /api/v1/model-runner/device */

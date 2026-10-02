@@ -73,6 +73,9 @@ export class BrainProviderModel {
       // Per-slot brain assignments: { vision: modelId, grounding: modelId, hacker: modelId }
       // Each slot is independent — the user picks one model per slot.
       slotAssignments: doc.slotAssignments || {},
+      // Per-slot source: { vision: { source: 'local'|'kaggle', modelId?, kaggleUrl?, kaggleName? }, ... }
+      // A slot runs on Kaggle remote GPU or a local model — user's choice per slot.
+      slotSources: doc.slotSources || {},
       updatedAt: doc.updatedAt || null
     };
   }
@@ -88,9 +91,62 @@ export class BrainProviderModel {
     }
     const doc = await this.collection.findOne({ userId });
     const slotAssignments = { ...(doc?.slotAssignments || {}), [slot]: modelId };
+    const slotSources = { ...(doc?.slotSources || {}) };
+    slotSources[slot] = { source: 'local', modelId, updatedAt: now() };
     await this.collection.updateOne(
       { userId },
-      { $set: { slotAssignments, updatedAt: now() } },
+      { $set: { slotAssignments, slotSources, updatedAt: now() } },
+      { upsert: true }
+    );
+    return this.getSelection(userId);
+  }
+
+  /**
+   * Connect a Kaggle/Colab Gradio link as the source for a brain slot.
+   * The slot then runs on the remote GPU instead of a local model.
+   */
+  async setSlotKaggle(userId, slot, url, name = null) {
+    if (!userId) throw new Error('setSlotKaggle requires a userId');
+    if (!['vision', 'grounding', 'hacker'].includes(slot)) {
+      throw new Error(`Unknown brain slot "${slot}" — must be vision, grounding, or hacker`);
+    }
+    const validatedUrl = validateEndpointUrl(url);
+    if (!validatedUrl) throw new Error('A valid Kaggle/Gradio URL is required');
+    const doc = await this.collection.findOne({ userId });
+    const slotSources = { ...(doc?.slotSources || {}) };
+    slotSources[slot] = {
+      source: 'kaggle',
+      kaggleUrl: validatedUrl,
+      kaggleName: name || 'Kaggle GPU',
+      updatedAt: now()
+    };
+    await this.collection.updateOne(
+      { userId },
+      { $set: { slotSources, updatedAt: now() } },
+      { upsert: true }
+    );
+    return this.getSelection(userId);
+  }
+
+  /**
+   * Disconnect the Kaggle link for a slot — falls back to the local model assignment.
+   */
+  async clearSlotKaggle(userId, slot) {
+    if (!userId) throw new Error('clearSlotKaggle requires a userId');
+    if (!['vision', 'grounding', 'hacker'].includes(slot)) {
+      throw new Error(`Unknown brain slot "${slot}" — must be vision, grounding, or hacker`);
+    }
+    const doc = await this.collection.findOne({ userId });
+    const slotSources = { ...(doc?.slotSources || {}) };
+    const prev = slotSources[slot] || {};
+    slotSources[slot] = {
+      source: 'local',
+      modelId: prev.modelId || doc?.slotAssignments?.[slot] || null,
+      updatedAt: now()
+    };
+    await this.collection.updateOne(
+      { userId },
+      { $set: { slotSources, updatedAt: now() } },
       { upsert: true }
     );
     return this.getSelection(userId);

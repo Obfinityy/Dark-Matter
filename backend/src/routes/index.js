@@ -161,6 +161,10 @@ export function createRoutes({ controllers }) {
   router.get('/model-runner/brain-slots', controllers.modelRunner.brainSlots);
   router.get('/model-runner/brain-slots/assignments', controllers.modelRunner.getSlotAssignments);
   router.post('/model-runner/brain-slots/assign', controllers.modelRunner.assignSlot);
+  // Per-slot source: local model or Kaggle/Colab link per slot.
+  router.get('/model-runner/brain-slots/sources', controllers.modelRunner.getSlotSources);
+  router.post('/model-runner/brain-slots/kaggle', controllers.modelRunner.connectSlotKaggle);
+  router.delete('/model-runner/brain-slots/kaggle/:slot', controllers.modelRunner.disconnectSlotKaggle);
 
   // ─── Local memory (infinite, on user's disk) + ZIP transfer ─────────
   router.get('/memory/stats', controllers.memory.stats);
