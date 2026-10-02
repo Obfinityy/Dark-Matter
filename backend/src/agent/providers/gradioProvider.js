@@ -94,18 +94,29 @@ export class GradioProvider {
   }
 
   /**
-   * Send a message to the Gradio chat endpoint with retries.
+   * Send a message to the Gradio endpoint with retries.
+   * Supports both old (/gradio_api/api/chat) and new (/gradio_api/call/predict)
+   * Gradio APIs. Newer notebooks use predict with MultimodalData format.
    * Gradio share links occasionally drop a connection; retry 3 times.
    */
   async chatOnce(prompt, { timeoutMs, maxTokens } = {}) {
-    const url = `${this.baseUrl}/gradio_api/api/chat`;
+    const timeout = timeoutMs || this.timeoutMs;
     let lastErr = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        // Try new Gradio 6.x API first: /gradio_api/call/predict
+        try {
+          return await this._callPredict(prompt, timeout);
+        } catch (predictErr) {
+          // Fall back to old API
+          if (process.env.DM_DEBUG_GRADIO) console.log('[gradio] predict failed, trying legacy chat:', predictErr.message.slice(0, 100));
+        }
+        // Legacy API: /gradio_api/api/chat
+        const url = `${this.baseUrl}/gradio_api/api/chat`;
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json', connection: 'close' },
-          signal: AbortSignal.timeout(timeoutMs || this.timeoutMs),
+          signal: AbortSignal.timeout(timeout),
           body: JSON.stringify({ data: [prompt, []] }),
         });
         if (!res.ok) {
@@ -124,6 +135,52 @@ export class GradioProvider {
       }
     }
     throw new Error(`Remote model failed after 3 attempts: ${lastErr?.message || lastErr}`);
+  }
+
+  /**
+   * New Gradio 6.x API: POST /gradio_api/call/predict with MultimodalData,
+   * then poll for the result via event_id.
+   */
+  async _callPredict(prompt, timeoutMs) {
+    const callUrl = `${this.baseUrl}/gradio_api/call/predict`;
+    const res = await fetch(callUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', connection: 'close' },
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({ data: [{ text: prompt, files: [] }, null] }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Gradio predict HTTP ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const { event_id } = await res.json();
+    if (!event_id) throw new Error('No event_id from Gradio predict');
+
+    // Poll for result
+    const resultUrl = `${this.baseUrl}/gradio_api/call/predict/${event_id}`;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const pollRes = await fetch(resultUrl, {
+        headers: { connection: 'close' },
+        signal: AbortSignal.timeout(30000),
+      });
+      const text = await pollRes.text();
+      // SSE format: "event: complete\ndata: [...]"
+      if (text.includes('event: complete')) {
+        const dataMatch = text.match(/data: (.*)/);
+        if (dataMatch) {
+          const data = JSON.parse(dataMatch[1]);
+          const reply = Array.isArray(data) ? data[0] : data;
+          if (typeof reply === 'string' && reply.trim()) return reply;
+          throw new Error('Empty reply from Gradio predict');
+        }
+      }
+      if (text.includes('event: error')) {
+        throw new Error(`Gradio predict error: ${text.slice(0, 200)}`);
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    throw new Error('Gradio predict timed out waiting for result');
   }
 
   async generate(messages, options = {}) {
