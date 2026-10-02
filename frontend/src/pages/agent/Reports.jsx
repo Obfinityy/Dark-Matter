@@ -5,11 +5,18 @@
  * (hybrid storage). This page lists them newest-first; each record opens a
  * reader with the full Markdown report, severity summary, and one-click
  * Markdown/PDF export. Re-download any past report at any time.
+ *
+ * Dedup: pasting a target that was already hunted returns the saved report
+ * instantly — the notice below says so, and each card shows its OWASP
+ * coverage meter and CVSS-scored severity pills.
  */
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { History, Loader2, FileText, CalendarDays } from 'lucide-react';
+import { History, Loader2, FileText, CalendarDays, ShieldCheck } from 'lucide-react';
 import { listHuntRecords } from '../../services/api';
+import { owaspCoverage } from '../../utils/owaspCoverage';
+import { CoverageMeter } from '../../components/agent/CoverageMeter';
+import { CvssBadge } from '../../components/agent/CvssBadge';
 import './Reports.css';
 
 export function Reports() {
@@ -18,7 +25,8 @@ export function Reports() {
 
   useEffect(() => {
     listHuntRecords()
-      .then((body) => setRecords(body?.records || []))
+      // The backend wraps the list as { huntRecords }; tolerate either shape.
+      .then((body) => setRecords(body?.records || body?.huntRecords || []))
       .catch(() => setRecords([]))
       .finally(() => setLoading(false));
   }, []);
@@ -35,6 +43,11 @@ export function Reports() {
         <Link to="/agent" className="sg-btn sg-btn-primary">New hunt</Link>
       </header>
 
+      <div className="sg-notice">
+        <ShieldCheck size={16} />
+        <span><strong>Report already exists for a target?</strong> Pasting the same target again shows the saved report instantly — no re-hunt, no duplicate work. Use “Start new hunt” on the Hunt page only when you want a fresh run.</span>
+      </div>
+
       {records.length === 0 ? (
         <div className="sg-empty-state">
           <FileText size={28} />
@@ -44,6 +57,11 @@ export function Reports() {
         <ul className="sg-record-list">
           {records.map((record) => {
             const summary = record.summary || {};
+            const findings = Array.isArray(record.findings) ? record.findings : [];
+            const coverage = owaspCoverage(findings);
+            const top = [...findings]
+              .sort((a, b) => sevRank(b.severity) - sevRank(a.severity))
+              .slice(0, 3);
             return (
               <li key={record.id}>
                 <Link to={`/agent/reports/${record.id}`} className="sg-card sg-card-pad sg-record-card">
@@ -56,9 +74,11 @@ export function Reports() {
                       <span><CalendarDays size={12} /> {new Date(record.completedAt).toLocaleDateString()}</span>
                     )}
                     {summary.totalFindings != null && <span>{summary.totalFindings} findings</span>}
-                    {summary.critical > 0 && <span className="sg-pill sg-pill-danger">{summary.critical} critical</span>}
-                    {summary.high > 0 && <span className="sg-pill sg-pill-warn">{summary.high} high</span>}
+                    {top.map((f) => (
+                      <CvssBadge key={f.id || f.title} finding={f} />
+                    ))}
                   </div>
+                  {findings.length > 0 && <CoverageMeter coverage={coverage} />}
                 </Link>
               </li>
             );
@@ -69,3 +89,6 @@ export function Reports() {
   );
 }
 
+function sevRank(sev) {
+  return { critical: 4, high: 3, medium: 2, low: 1, informational: 0 }[String(sev || '').toLowerCase()] ?? 0;
+}

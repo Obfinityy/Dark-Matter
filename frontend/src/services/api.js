@@ -212,6 +212,17 @@ export function getInfiniteHistory(conversationId) {
   return request(`/infinite/chat/${conversationId}`);
 }
 
+/** Agent permission mode prefs — backend contract for services/permissions.js. */
+export function getPermissionModePrefs() {
+  return request('/users/me/permissions');
+}
+export function setPermissionModePrefs(permissionMode) {
+  return request('/users/me/permissions', {
+    method: 'PUT',
+    body: JSON.stringify({ permissionMode })
+  });
+}
+
 // ─── Infinity Long-Context Engine ───────────────────────────────────
 
 export function ingestDocument(conversationId, content, { title, kind, summarize } = {}) {
@@ -262,6 +273,52 @@ export function resumeGeneration(generationId) {
 export function listGenerations(conversationId) {
   const q = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
   return request(`/infinite/generations${q}`);
+}
+
+// ─── Infinity AI modes (plan / build / control) ──────────────────────────
+
+/** Plan mode: NL idea → numbered step-by-step plan (planning only, never executes). */
+export function planWithInfinity(instruction, conversationId) {
+  return request('/infinite/plan', {
+    method: 'POST',
+    body: JSON.stringify({ instruction, conversationId })
+  });
+}
+
+/** Build mode: generate a real project from a brief inside the agent workspace sandbox. */
+export function buildWithInfinity(brief, conversationId) {
+  return request('/infinite/build', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'create', brief, conversationId })
+  });
+}
+
+/** Build mode: list files in the sandboxed agent workspace. */
+export function listWorkspaceFiles(subdir = '') {
+  return request('/infinite/build', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'list', subdir })
+  });
+}
+
+/** Build mode: read one file from the sandboxed agent workspace. */
+export function readWorkspaceFile(path) {
+  return request('/infinite/build', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'read', path })
+  });
+}
+
+/**
+ * Control mode: NL desktop command → validated GUI plan → executed.
+ * @param {boolean} dryRun    validate + return the plan, execute nothing.
+ * @param {boolean} simulate  run through the mock adapter (safe anywhere).
+ */
+export function controlComputer(instruction, conversationId, { dryRun = false, simulate = true } = {}) {
+  return request('/infinite/control', {
+    method: 'POST',
+    body: JSON.stringify({ instruction, conversationId, dryRun, simulate })
+  });
 }
 
 export function updateProviders(providers) {
@@ -462,6 +519,11 @@ export function getJobActivity(jobId, limit = 300) {
   return request(`/jobs/${encodeURIComponent(jobId)}/activity?limit=${limit}`);
 }
 
+/** Posture score for the hunt's target, computed from real findings. */
+export function getJobPosture(jobId) {
+  return request(`/jobs/${encodeURIComponent(jobId)}/posture`);
+}
+
 /** Replayable event history — used to backfill anything missed while closed. */
 export function getJobEventHistory(jobId, { after, limit = 500 } = {}) {
   const query = new URLSearchParams();
@@ -613,7 +675,7 @@ export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEven
   const eventTypes = [
     'job.created', 'job.started', 'job.phase_changed', 'job.plan_updated',
     'job.paused', 'job.resumed', 'job.completed', 'job.failed', 'job.cancelled',
-    'brain.thinking', 'brain.decision', 'brain.unavailable',
+    'brain.thinking', 'brain.decision', 'brain.unavailable', 'brain.deterministic',
     'tool.started', 'tool.output', 'tool.failed',
     'browser.action', 'browser.observation',
     'computer.probe', 'computer.state', 'computer.action', 'computer.observation', 'computer.error',
@@ -678,6 +740,32 @@ export async function downloadHuntRecordMarkdown(recordId) {
     }
   );
   if (!response.ok) throw new ApiError('Could not download the report.', response.status, 'DOWNLOAD_FAILED');
+  return response.text();
+}
+
+/**
+ * Download a proof-only PoC artifact for one archived finding.
+ * kind: 'poc' (default) or 'repro'; format for repro: 'curl' | 'python'.
+ * Returns the file text; the caller triggers the browser download.
+ */
+export async function downloadFindingPoc(recordId, findingId, { kind = 'poc', format = 'curl' } = {}) {
+  const jwt = getStoredJwt();
+  const params = new URLSearchParams({ kind, format });
+  const response = await fetch(
+    `${apiBase()}/hunt-records/${encodeURIComponent(recordId)}/findings/${encodeURIComponent(findingId)}/poc?${params}`,
+    {
+      headers: { Accept: 'text/plain', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
+      credentials: 'include'
+    }
+  );
+  if (!response.ok) {
+    let message = 'Could not download the PoC.';
+    try {
+      const body = await response.json();
+      if (body?.error?.message) message = body.error.message;
+    } catch { /* keep default */ }
+    throw new ApiError(message, response.status, 'POC_DOWNLOAD_FAILED');
+  }
   return response.text();
 }
 
@@ -856,6 +944,67 @@ export function stopRunnerModel() {
   return request('/model-runner/stop', { method: 'POST' });
 }
 
+/* ─── Per-model Download → Run (the Models page flow) ───────────────
+ * These are the task-specified endpoints:
+ *   POST /models/:id/download — starts a REAL streaming download
+ *   GET  /models/:id/progress  — SSE with real 0% → 100% byte progress
+ *   POST /models/:id/run       — Run + set as the ACTIVE localhost brain
+ */
+
+/** Start downloading a model's GGUF file (real streaming download). */
+/**
+ * Download a model file. `quant` picks the quantization for models that
+ * offer several (Q4_K_M default — smallest; Q5_K_M / Q8_0 = smarter, bigger).
+ */
+export function downloadModelFile(modelId, { quant } = {}) {
+  return request(`/models/${encodeURIComponent(modelId)}/download`, {
+    method: 'POST',
+    body: JSON.stringify({ ...(quant ? { quant } : {}) })
+  });
+}
+
+/**
+ * Run a downloaded model on localhost and make it the active brain.
+ * `quant` picks which downloaded quantization to run; `contextSize` sets
+ * the context window (clamped to the model's maximum).
+ */
+export function runModelFile(modelId, { quant, contextSize } = {}) {
+  return request(`/models/${encodeURIComponent(modelId)}/run`, {
+    method: 'POST',
+    body: JSON.stringify({
+      ...(quant ? { quant } : {}),
+      ...(contextSize ? { contextSize } : {})
+    })
+  });
+}
+
+/** The caller's brain fallback chain (describe-only — nothing is started). */
+export function getBrainChain() {
+  return request('/model-runner/brain-chain');
+}
+
+/**
+ * Live per-model download progress via SSE.
+ * Events: progress { modelId, status, receivedBytes, totalBytes, percent }.
+ * Terminal states: status 'done' (percent 100 — the row flips to Run),
+ * 'error' or 'cancelled'.
+ */
+export function subscribeToModelProgress(modelId, { onEvent, onError, onOpen } = {}) {
+  const source = new EventSource(sseUrl(`/models/${encodeURIComponent(modelId)}/progress`), { withCredentials: true });
+  const handleEvent = (event) => {
+    try {
+      onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
+    } catch {
+      onError?.(new ApiError('Received an invalid model progress event.', 0, 'INVALID_EVENT'));
+    }
+  };
+  source.addEventListener('progress', handleEvent);
+  source.onmessage = handleEvent;
+  source.onopen = () => onOpen?.();
+  source.onerror = () => onError?.(new ApiError('Model download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  return () => source.close();
+}
+
 // ─── Remote GPU brain (Kaggle/Colab Gradio share link) ─────────────
 
 /** Current remote-brain connection status for this user. */
@@ -924,11 +1073,17 @@ export const apiClient = {
   cancelGeneration,
   resumeGeneration,
   listGenerations,
+  planWithInfinity,
+  buildWithInfinity,
+  listWorkspaceFiles,
+  readWorkspaceFile,
+  controlComputer,
   // Autonomous Bug Bounty Agent
   createJob,
   listJobs,
   getJobState,
   getJobActivity,
+  getJobPosture,
   getJobEventHistory,
   pauseJob,
   continueJob,
@@ -945,6 +1100,7 @@ export const apiClient = {
   listHuntRecords,
   getHuntRecord,
   downloadHuntRecordMarkdown,
+  downloadFindingPoc,
   // Alerts
   listAlerts,
   markAlertRead,

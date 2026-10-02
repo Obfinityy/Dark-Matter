@@ -7,12 +7,19 @@
  * That's it. No clutter.
  */
 import React, { useState, useEffect } from 'react';
-import { Cloud, Monitor, Check, Loader2, Cpu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Cloud, Monitor, Check, Loader2, Cpu, ShieldCheck } from 'lucide-react';
 import {
   getBackendMode, setBackendMode, getVercelBackendUrl, setVercelBackendUrl,
-  testBackendConnection, BACKEND_MODES
+  testBackendConnection, testBackendConnectionFor, BACKEND_MODES
 } from '../../services/backendMode';
-import { getProviders } from '../../services/api';
+import {
+  getPermissionMode, setPermissionMode,
+  syncPermissionModeToServer, loadPermissionModeFromServer,
+  PERMISSION_MODES, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS,
+} from '../../services/permissions';
+import { getProviders, getCurrentUser } from '../../services/api';
+import { useAuth } from '../../auth/AuthContext';
 import './Settings.css';
 
 export function Settings() {
@@ -20,17 +27,78 @@ export function Settings() {
   const [vercelUrl, setVercelUrl] = useState(getVercelBackendUrl() || '');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [checkingLocal, setCheckingLocal] = useState(false);
   const [providers, setProviders] = useState(null);
+  const [permissionMode, setPermissionModeState] = useState(getPermissionMode());
+  const [syncingPerms, setSyncingPerms] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const refreshProviders = () => {
+    getProviders().then(setProviders).catch(() => {});
+  };
 
   useEffect(() => {
-    getProviders().then(setProviders).catch(() => {});
+    refreshProviders();
+    // Pull the server-side mode (if any) into localStorage on load.
+    loadPermissionModeFromServer().then((mode) => setPermissionModeState(mode)).catch(() => {});
   }, []);
 
+  const choosePermissionMode = async (newMode) => {
+    if (newMode === permissionMode || syncingPerms) return;
+    setPermissionMode(newMode); // localStorage — the UI source of truth
+    setPermissionModeState(newMode);
+    setSyncingPerms(true);
+    try {
+      await syncPermissionModeToServer(); // best-effort backend sync
+    } finally {
+      setSyncingPerms(false);
+    }
+  };
+
   const switchMode = async (newMode) => {
+    if (newMode === mode || testing) return;
+    setTestResult(null);
+
+    // ── Localhost: probe port 4000 FIRST, switch only if it's alive.
+    // The app must never get stuck pointing at a backend that isn't running.
+    if (newMode === BACKEND_MODES.LOCALHOST) {
+      setTesting(true);
+      setCheckingLocal(true);
+      try {
+        const probe = await testBackendConnectionFor(BACKEND_MODES.LOCALHOST, 4000);
+        if (!probe.ok) {
+          setTestResult({
+            ok: false,
+            message: 'Localhost backend nahi mil raha — port 4000 par kuch nahi chal raha. Pehle terminal me backend/ folder me `npm start` chalao, phir dobara try karo.'
+          });
+          return;
+        }
+        setBackendMode(BACKEND_MODES.LOCALHOST);
+        setMode(BACKEND_MODES.LOCALHOST);
+        refreshProviders();
+        // The cloud JWT is only valid on localhost if both backends share
+        // the same JWT_SECRET — verify the session actually works there.
+        try {
+          await getCurrentUser();
+          setTestResult({ ok: true, message: 'Localhost backend connected — sab ready hai.' });
+        } catch {
+          setTestResult({
+            ok: false,
+            sessionMismatch: true,
+            message: 'Backend mil gaya, par tumhara login is backend par valid nahi hai (JWT secret alag hai).'
+          });
+        }
+      } finally {
+        setTesting(false);
+        setCheckingLocal(false);
+      }
+      return;
+    }
+
+    // ── Cloud is always on — switch, then confirm.
     setBackendMode(newMode);
     setMode(newMode);
-    setTestResult(null);
-    // Auto-test the new backend
     setTesting(true);
     try {
       const r = await testBackendConnection();
@@ -38,6 +106,11 @@ export function Settings() {
     } finally {
       setTesting(false);
     }
+  };
+
+  const handleRelogin = async () => {
+    await logout();
+    navigate('/login');
   };
 
   const saveVercelUrl = () => {
@@ -79,13 +152,19 @@ export function Settings() {
           <button
             className={`sg-backend-opt${mode === BACKEND_MODES.LOCALHOST ? ' sg-active' : ''}`}
             onClick={() => switchMode(BACKEND_MODES.LOCALHOST)}
+            disabled={testing}
           >
             <Monitor size={22} />
             <span>Localhost</span>
             <small>Full power, your machine</small>
-            {mode === BACKEND_MODES.LOCALHOST && <Check size={16} className="sg-check" />}
+            {checkingLocal
+              ? <Loader2 size={16} className="sg-spin sg-check" />
+              : mode === BACKEND_MODES.LOCALHOST && <Check size={16} className="sg-check" />}
           </button>
         </div>
+        {checkingLocal && (
+          <p className="sg-small">🔍 Localhost backend check ho raha hai (port 4000)…</p>
+        )}
 
         {mode === BACKEND_MODES.VERCEL && (
           <div className="sg-vercel-url">
@@ -111,10 +190,24 @@ export function Settings() {
           {testing ? <Loader2 size={15} className="sg-spin" /> : null}
           Test connection
         </button>
-        {testResult && (
+        {testResult && !testResult.sessionMismatch && (
           <p className={`sg-test-result ${testResult.ok ? 'ok' : 'fail'}`}>
             {testResult.ok ? '✅' : '❌'} {testResult.message}
           </p>
+        )}
+        {testResult?.sessionMismatch && (
+          <div className="sg-test-result fail">
+            <p>⚠️ {testResult.message}</p>
+            <p className="sg-small" style={{ marginTop: 8 }}>
+              Seamless switch ke liye: Vercel dashboard → backend project →
+              Environment Variables me se <code>JWT_SECRET</code> copy karke apne{' '}
+              <code>backend/.env</code> me daalo aur backend restart karo.
+              Ya phir neeche se dobara login karo:
+            </p>
+            <button className="sg-btn sg-btn-primary" onClick={handleRelogin} style={{ marginTop: 8 }}>
+              Logout karke dobara login karo
+            </button>
+          </div>
         )}
       </section>
 
@@ -135,6 +228,35 @@ export function Settings() {
           <p className="sg-small">Loading brain info…</p>
         )}
         <a href="/agent/models" className="sg-btn sg-btn-ghost">Open Models →</a>
+      </section>
+
+      {/* ── Agent permissions ── */}
+      <section className="sg-card sg-card-pad">
+        <h3 className="sg-h2" style={{ margin: "0 0 10px", display: "flex", alignItems: "center", gap: 10 }}>
+          <ShieldCheck size={18} /> Agent permissions
+        </h3>
+        <p className="sg-body">
+          How much freedom does the agent get? This is honored by every worker —
+          hunt engine, computer control, and tool runners.
+        </p>
+        <div className="sg-backend-switch">
+          {[PERMISSION_MODES.ASK, PERMISSION_MODES.FULL].map((m) => (
+            <button
+              key={m}
+              className={`sg-backend-opt${permissionMode === m ? ' sg-active' : ''}`}
+              onClick={() => choosePermissionMode(m)}
+              disabled={syncingPerms}
+            >
+              <ShieldCheck size={22} />
+              <span>{PERMISSION_LABELS[m]}</span>
+              <small>{PERMISSION_DESCRIPTIONS[m]}</small>
+              {permissionMode === m && <Check size={16} className="sg-check" />}
+            </button>
+          ))}
+        </div>
+        {syncingPerms && (
+          <p className="sg-small">🔄 Syncing with backend…</p>
+        )}
       </section>
     </div>
   );
