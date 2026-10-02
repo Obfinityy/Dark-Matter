@@ -155,6 +155,11 @@ export function createRoutes({ controllers }) {
   router.post('/model-runner/download', controllers.modelRunner.download);
   router.post('/model-runner/download/cancel', controllers.modelRunner.cancelDownload);
   router.get('/model-runner/download/stream', controllers.modelRunner.downloadStream);
+
+  // ─── Local memory (infinite, on user's disk) + ZIP transfer ─────────
+  router.get('/memory/stats', controllers.memory.stats);
+  router.get('/memory/export', controllers.memory.exportZip);
+  router.post('/memory/import', controllers.memory.importZip);
   router.delete('/model-runner/models/:modelId', controllers.modelRunner.deleteModel);
   router.post('/model-runner/custom', controllers.modelRunner.addCustom);
   router.post('/model-runner/run', controllers.modelRunner.run);
