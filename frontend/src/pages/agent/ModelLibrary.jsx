@@ -31,7 +31,7 @@ import {
   stopRunnerModel,
   downloadModelFile, runModelFile, subscribeToModelProgress,
   getRemoteModelStatus, testRemoteModel, connectRemoteModel, disconnectRemoteModel,
-  getBrainChain
+  getBrainChain, getBrainSlots, getSlotAssignments, assignBrainSlot
 } from '../../services/api';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
@@ -225,6 +225,9 @@ export function ModelLibrary() {
   const [customForm, setCustomForm] = useState({ name: '', repo: '', file: '', ramGB: '' });
   const [customBusy, setCustomBusy] = useState(false);
   const [brainChain, setBrainChain] = useState(null); // { provider, modelId, remoteGpu, chain[] }
+  const [brainSlots, setBrainSlots] = useState(null); // { vision: {...}, grounding: {...}, hacker: {...} }
+  const [slotAssignments, setSlotAssignments] = useState({}); // { vision: modelId, grounding: modelId, hacker: modelId }
+  const [slotBusy, setSlotBusy] = useState(null);
   const progressUnsub = useRef(null);
 
   // ── Device: detected in the BROWSER ONLY ────────────────────────────
@@ -303,14 +306,18 @@ export function ModelLibrary() {
 
   const refresh = useCallback(async () => {
     try {
-      const [lib, st, chain] = await Promise.all([
+      const [lib, st, chain, slots, assignments] = await Promise.all([
         getRunnerLibrary().catch(() => null),
         getRunnerStatus().catch(() => null),
-        getBrainChain().catch(() => null)
+        getBrainChain().catch(() => null),
+        getBrainSlots().catch(() => null),
+        getSlotAssignments().catch(() => null)
       ]);
       if (lib?.models) setLibrary(lib.models);
       else if (Array.isArray(lib)) setLibrary(lib);
       if (chain?.chain) setBrainChain(chain);
+      if (slots?.slots) setBrainSlots(slots.slots);
+      if (assignments?.assignments) setSlotAssignments(assignments.assignments);
       if (st) {
         setStatus(st);
         const dl = st.download;
@@ -333,6 +340,19 @@ export function ModelLibrary() {
       setLoading(false);
     }
   }, []);
+
+  // Assign a model to a brain slot (vision | grounding | hacker)
+  const assignToSlot = async (slot, modelId) => {
+    setSlotBusy(slot);
+    try {
+      const data = await assignBrainSlot(slot, modelId);
+      if (data?.assignments) setSlotAssignments(data.assignments);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSlotBusy(null);
+    }
+  };
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -499,6 +519,73 @@ export function ModelLibrary() {
       </div>
 
       {error && <div className="sg-alert sg-auth-error">{error}</div>}
+
+      {/* ── Brain Slots: three independent brains ──────────────────── */}
+      <div className="sg-card sg-card-pad" style={{ marginBottom: 18 }}>
+        <div className="sg-remote-head">
+          <Zap size={18} />
+          <div>
+            <strong>Brain Slots — pick one model per slot</strong>
+            <p>
+              Three separate brains, each with its own alternatives. Hunt uses all three;
+              Infinity Chat uses only the Vision Brain; Control uses Vision + Grounding.
+            </p>
+          </div>
+        </div>
+        {brainSlots ? (
+          <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+            {Object.entries(brainSlots).map(([slotId, slot]) => {
+              const assigned = slotAssignments[slotId];
+              return (
+                <div key={slotId} className="sg-card" style={{ padding: 12, background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 20 }}>{slot.icon}</span>
+                    <div>
+                      <strong>{slot.label}</strong>
+                      <div className="sg-small" style={{ opacity: 0.7 }}>
+                        {slot.description}
+                      </div>
+                      <div className="sg-small" style={{ opacity: 0.5, marginTop: 2 }}>
+                        Used by: {slot.usedBy.join(', ')}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {slot.models.map((m) => {
+                      const isActive = assigned === m.id;
+                      const isBusy = slotBusy === slotId;
+                      return (
+                        <button
+                          key={m.id}
+                          className={`sg-btn ${isActive ? 'sg-btn-primary' : 'sg-btn-ghost'}`}
+                          disabled={isBusy}
+                          onClick={() => assignToSlot(slotId, m.id)}
+                          title={m.description}
+                          style={{ opacity: isActive ? 1 : 0.8 }}
+                        >
+                          {isActive ? '✓ ' : ''}{m.name}
+                          <span className="sg-small" style={{ marginLeft: 6, opacity: 0.6 }}>
+                            {m.params} · {m.sizeGB}GB
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {assigned && (
+                    <div className="sg-small" style={{ marginTop: 8, color: 'var(--sg-accent)' }}>
+                      Active: {slot.models.find(m => m.id === assigned)?.name || assigned}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="sg-small" style={{ marginTop: 8, opacity: 0.6 }}>
+            Loading brain slots…
+          </div>
+        )}
+      </div>
 
       {/* ── Remote GPU: Kaggle / Colab ─────────────────────────── */}
       <div className="sg-card sg-card-pad">
