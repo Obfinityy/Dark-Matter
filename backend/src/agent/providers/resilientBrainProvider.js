@@ -124,6 +124,9 @@ export class ResilientBrainProvider {
   async _ensureActive() {
     if (this.activeProvider) return this.activeProvider;
     const link = this.chain[this.activeIndex];
+    if (!link) {
+      throw new Error('Brain chain exhausted — no more fallbacks');
+    }
     if (link.provider) {
       this.activeProvider = link.provider;
     } else if (typeof link.activate === 'function') {
@@ -156,6 +159,12 @@ export class ResilientBrainProvider {
    */
   async _withFailover(fn, opName) {
     let lastError = null;
+    // Reset to the primary link for each new operation. The provider is
+    // cached per user and stateful — without this, a previous operation
+    // that exhausted the chain leaves activeIndex out of bounds, and the
+    // next call crashes with "Cannot read properties of undefined".
+    this.activeIndex = 0;
+    this.activeProvider = null;
     // Ensure the primary is activated (lazy links may throw here too).
     while (true) {
       let provider;
