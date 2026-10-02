@@ -70,8 +70,38 @@ export class BrainProviderModel {
       // The last connected Kaggle/Colab Gradio URL survives provider switches
       // so the brain fallback chain can still reach the remote GPU.
       lastGradioUrl: doc.lastGradioUrl || doc.endpointUrl || null,
+      // Per-slot brain assignments: { vision: modelId, grounding: modelId, hacker: modelId }
+      // Each slot is independent — the user picks one model per slot.
+      slotAssignments: doc.slotAssignments || {},
       updatedAt: doc.updatedAt || null
     };
+  }
+
+  /**
+   * Set the model for a brain slot ('vision' | 'grounding' | 'hacker').
+   * Each slot is independent with its own alternatives.
+   */
+  async setSlotAssignment(userId, slot, modelId) {
+    if (!userId) throw new Error('setSlotAssignment requires a userId');
+    if (!['vision', 'grounding', 'hacker'].includes(slot)) {
+      throw new Error(`Unknown brain slot "${slot}" — must be vision, grounding, or hacker`);
+    }
+    const doc = await this.collection.findOne({ userId });
+    const slotAssignments = { ...(doc?.slotAssignments || {}), [slot]: modelId };
+    await this.collection.updateOne(
+      { userId },
+      { $set: { slotAssignments, updatedAt: now() } },
+      { upsert: true }
+    );
+    return this.getSelection(userId);
+  }
+
+  /**
+   * Get the assigned model for a slot, or null if none assigned.
+   */
+  async getSlotAssignment(userId, slot) {
+    const selection = await this.getSelection(userId);
+    return selection.slotAssignments?.[slot] || null;
   }
 
   async setSelection(userId, { provider, modelId = null, ollamaTag = null, endpointUrl = null }) {

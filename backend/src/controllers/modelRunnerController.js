@@ -84,6 +84,75 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       response.json({ models: await modelRunnerService.library() });
     }),
 
+    /**
+     * GET /api/v1/model-runner/brain-slots
+     * Returns the three brain slots with their models (alternatives per slot).
+     * - vision: Hunt + Chat + Control (Kaggle remote or local)
+     * - grounding: Hunt + Control (local coordinates)
+     * - hacker: Hunt only (local uncensored)
+     */
+    brainSlots: asyncHandler(async (request, response) => {
+      const { BRAIN_SLOTS, getModelsBySlot } = await import('../services/modelRunner/modelLibrary.js');
+      const slots = {};
+      for (const [slotId, slotInfo] of Object.entries(BRAIN_SLOTS)) {
+        slots[slotId] = {
+          ...slotInfo,
+          models: getModelsBySlot(slotId),
+        };
+      }
+      response.json({ slots });
+    }),
+
+    /**
+     * GET /api/v1/model-runner/brain-slots/assignments
+     * Returns the user's current model assignment per slot.
+     */
+    getSlotAssignments: asyncHandler(async (request, response) => {
+      const userId = request.user?.id;
+      if (!userId) {
+        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+      }
+      const { brainProviderModel } = request.app.locals;
+      const selection = await brainProviderModel.getSelection(userId);
+      response.json({ assignments: selection.slotAssignments || {} });
+    }),
+
+    /**
+     * POST /api/v1/model-runner/brain-slots/assign { slot, modelId }
+     * Assigns a model to a brain slot (vision | grounding | hacker).
+     */
+    assignSlot: asyncHandler(async (request, response) => {
+      const userId = request.user?.id;
+      if (!userId) {
+        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+      }
+      const { slot, modelId } = request.body || {};
+      if (!slot || !modelId) {
+        return response.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'slot and modelId are required' }
+        });
+      }
+      // Validate the model exists and belongs to the slot
+      const { getLibraryEntry, getModelsBySlot } = await import('../services/modelRunner/modelLibrary.js');
+      const entry = getLibraryEntry(modelId);
+      if (!entry) {
+        return response.status(404).json({
+          error: { code: 'UNKNOWN_MODEL', message: `Model "${modelId}" not found` }
+        });
+      }
+      if (entry.brainSlot !== slot) {
+        return response.status(400).json({
+          error: {
+            code: 'SLOT_MISMATCH',
+            message: `"${entry.name}" belongs to slot "${entry.brainSlot}", not "${slot}"`
+          }
+        });
+      }
+      const { brainProviderModel } = request.app.locals;
+      const selection = await brainProviderModel.setSlotAssignment(userId, slot, modelId);
+      response.json({ assignments: selection.slotAssignments || {} });
+    }),
+
     /** GET /api/v1/model-runner/device */
     device: asyncHandler(async (request, response) => {
       response.json({ device: await modelRunnerService.getDevice() });

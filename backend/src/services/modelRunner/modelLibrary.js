@@ -290,6 +290,7 @@ export const MODEL_LIBRARY = Object.freeze([
   // UI-TARS locates buttons, search bars, and UI elements on screen and
   // returns x,y coordinates. Small enough to run on CPU — even on phones.
   // Downloaded once from Models → Plugins, then Control mode just works.
+  // BRAIN SLOT: 'grounding' — local coordinates provider for Hunt + Control.
   {
     id: 'uitars-grounding-7b',
     name: 'UI-TARS 1.5 7B (Grounding)',
@@ -297,6 +298,8 @@ export const MODEL_LIBRARY = Object.freeze([
     quant: 'Q4_K_M',
     tier: 'plugin',
     tierLabel: 'Plugin · Control Mode',
+    brainSlot: 'grounding',
+    brainSlotLabel: 'Grounding (Coordinates)',
     hfRepo: 'Mungert/UI-TARS-1.5-7B-GGUF',
     hfFile: 'UI-TARS-1.5-7B-Q4_K_M.gguf',
     sizeGB: 4.4,
@@ -311,6 +314,7 @@ export const MODEL_LIBRARY = Object.freeze([
   // ── Infinity Agent · Vision brains (uncensored) ────────────────────────
   // Vision models SEE screenshots. Run locally via llama.cpp or connect
   // the same weights on Kaggle — your choice, same brain either way.
+  // BRAIN SLOT: 'vision' — the main reasoning brain (Kaggle remote or local).
   {
     id: 'qwen25-vl-7b',
     name: 'Qwen2.5-VL 7B',
@@ -318,6 +322,8 @@ export const MODEL_LIBRARY = Object.freeze([
     quant: 'Q4_K_M',
     tier: 'vision',
     tierLabel: 'Vision',
+    brainSlot: 'vision',
+    brainSlotLabel: 'Vision Brain',
     hfRepo: 'Qwen/Qwen2.5-VL-7B-Instruct-GGUF',
     hfFile: 'Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf',
     sizeGB: 4.9,
@@ -327,6 +333,46 @@ export const MODEL_LIBRARY = Object.freeze([
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
       'Vision brain for Infinity Agent — sees screenshots and reasons about them. Runs on CPU, or the same model on Kaggle for GPU speed.'
+  },
+  // ── Hacking brains (uncensored, local) ────────────────────────────────
+  // The hacking brain strategizes attacks: what to test, which payloads,
+  // how to chain vulnerabilities. Uncensored Qwen/Gemma-class models.
+  // BRAIN SLOT: 'hacker' — used ONLY by Hunt mode for security strategy.
+  {
+    id: 'qwen3-8b-abliterated',
+    name: 'Qwen3 8B (Abliterated)',
+    params: '8B',
+    quant: 'Q4_K_M',
+    tier: 'hacker',
+    tierLabel: 'Hacking Brain',
+    brainSlot: 'hacker',
+    brainSlotLabel: 'Hacking Brain',
+    hfRepo: 'huihui-ai/Qwen3-8B-abliterated-GGUF',
+    hfFile: 'Qwen3-8B-abliterated-Q4_K_M.gguf',
+    sizeGB: 4.9,
+    contextWindow: 8192,
+    uncensored: true,
+    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
+    description:
+      'Uncensored hacking strategist — plans attacks, chooses payloads, chains vulnerabilities. Used only by Hunt mode.'
+  },
+  {
+    id: 'gemma3-12b-abliterated',
+    name: 'Gemma3 12B (Abliterated)',
+    params: '12B',
+    quant: 'Q4_K_M',
+    tier: 'hacker',
+    tierLabel: 'Hacking Brain',
+    brainSlot: 'hacker',
+    brainSlotLabel: 'Hacking Brain',
+    hfRepo: 'huihui-ai/Gemma3-12B-abliterated-GGUF',
+    hfFile: 'Gemma3-12B-abliterated-Q4_K_M.gguf',
+    sizeGB: 7.3,
+    contextWindow: 8192,
+    uncensored: true,
+    requirements: { ramGB: 12, vramGB: 0, gpuRequired: false },
+    description:
+      'Larger uncensored hacking brain — deeper strategy for complex targets. Used only by Hunt mode.'
   }
 ]);
 
@@ -339,6 +385,42 @@ export function getLibraryEntry(modelId) {
 export function getDefaultEntry() {
   return MODEL_LIBRARY.find((m) => m.default) || MODEL_LIBRARY[0];
 }
+
+/**
+ * Get all models for a brain slot: 'vision' | 'grounding' | 'hacker'.
+ * Each slot has alternatives — the user picks one per slot.
+ */
+export function getModelsBySlot(slot) {
+  if (!slot || typeof slot !== 'string') return [];
+  return MODEL_LIBRARY.filter((m) => m.brainSlot === slot);
+}
+
+/**
+ * The three brain slots and which features use them.
+ * - vision: Hunt + Infinity Chat + Control (Kaggle remote or local)
+ * - grounding: Hunt + Control (local coordinates, e.g. UI-TARS)
+ * - hacker: Hunt only (local uncensored strategy brain)
+ */
+export const BRAIN_SLOTS = {
+  vision: {
+    label: 'Vision Brain',
+    icon: '🧠',
+    description: 'Main reasoning brain — sees and thinks. Used by Hunt, Infinity Chat, and Control.',
+    usedBy: ['hunt', 'chat', 'control'],
+  },
+  grounding: {
+    label: 'Grounding (Coordinates)',
+    icon: '🎯',
+    description: 'Finds UI elements and returns x,y coordinates. Used by Hunt and Control.',
+    usedBy: ['hunt', 'control'],
+  },
+  hacker: {
+    label: 'Hacking Brain',
+    icon: '💀',
+    description: 'Uncensored security strategist — plans attacks, chooses payloads. Used only by Hunt.',
+    usedBy: ['hunt'],
+  },
+};
 
 /**
  * Resolve a Hugging Face download URL.

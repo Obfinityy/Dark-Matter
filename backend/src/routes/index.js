@@ -155,6 +155,12 @@ export function createRoutes({ controllers }) {
   router.post('/model-runner/download', controllers.modelRunner.download);
   router.post('/model-runner/download/cancel', controllers.modelRunner.cancelDownload);
   router.get('/model-runner/download/stream', controllers.modelRunner.downloadStream);
+  // ── Brain slots: three independent slots (vision/grounding/hacker) ──
+  // Each slot has alternatives; user picks one model per slot.
+  // Hunt uses all 3; Infinity Chat uses vision only; Control uses vision+grounding.
+  router.get('/model-runner/brain-slots', controllers.modelRunner.brainSlots);
+  router.get('/model-runner/brain-slots/assignments', controllers.modelRunner.getSlotAssignments);
+  router.post('/model-runner/brain-slots/assign', controllers.modelRunner.assignSlot);
 
   // ─── Local memory (infinite, on user's disk) + ZIP transfer ─────────
   router.get('/memory/stats', controllers.memory.stats);
