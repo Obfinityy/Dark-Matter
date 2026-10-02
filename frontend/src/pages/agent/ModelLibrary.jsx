@@ -350,13 +350,19 @@ export function ModelLibrary() {
       onEvent: (event) => {
         const type = event.__sseType;
         const data = event.data ?? event;
-        if (type === 'engine.progress' || type === 'progress') {
-          setEngineDl((prev) => ({ ...(prev || {}), ...data, status: 'downloading' }));
-        }
-        if (type === 'engine.done') { setEngineDl(null); setBusyEngine(false); refresh(); }
-        if (type === 'engine.error') {
-          setEngineDl((prev) => ({ ...(prev || {}), status: 'error', error: data?.error }));
+        // The backend sends one `progress` event; the true state lives in
+        // data.status ('downloading' | 'done' | 'error'). The old code forced
+        // status to 'downloading', so a failed or finished download looked
+        // stuck at 0% forever with no error shown.
+        const st = type === 'engine.done' ? 'done'
+          : type === 'engine.error' ? 'error'
+          : (data?.status || 'downloading');
+        if (st === 'done') { setEngineDl(null); setBusyEngine(false); refresh(); }
+        else if (st === 'error') {
+          setEngineDl((prev) => ({ ...(prev || {}), ...data, status: 'error' }));
           setBusyEngine(false);
+        } else {
+          setEngineDl((prev) => ({ ...(prev || {}), ...data, status: st }));
         }
       },
       onError: () => {}

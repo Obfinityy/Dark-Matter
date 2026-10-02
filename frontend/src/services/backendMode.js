@@ -23,12 +23,15 @@ const VERCEL_URL_KEY = 'dm_vercel_backend_url';
 
 /**
  * Build-time default for the Vercel backend URL.
- * Set VITE_DEFAULT_VERCEL_URL in .env (or Vercel dashboard → Environment
- * Variables) so the deployed frontend talks to your cloud backend out of
- * the box. The user can still override it anytime in Settings — localStorage
- * always wins over this default.
+ * The production cloud backend is BAKED IN so the app connects out of the
+ * box — no .env file, no Settings URL entry needed. VITE_DEFAULT_VERCEL_URL
+ * still overrides it at build time when set; a localStorage override (if a
+ * developer ever sets one) wins over both.
  */
-const DEFAULT_VERCEL_URL = (import.meta.env.VITE_DEFAULT_VERCEL_URL || '').trim().replace(/\/$/, '');
+const BUILT_IN_VERCEL_URL = 'https://dark-matter-backend-infinity-a371.vercel.app';
+
+const DEFAULT_VERCEL_URL = (import.meta.env.VITE_DEFAULT_VERCEL_URL || '').trim().replace(/\/$/, '')
+  || BUILT_IN_VERCEL_URL;
 
 export const BACKEND_MODES = {
   LOCALHOST: 'localhost',
@@ -98,7 +101,7 @@ export function setBackendMode(mode) {
 export function getVercelBackendUrl() {
   try {
     const stored = (localStorage.getItem(VERCEL_URL_KEY) || '').trim().replace(/\/$/, '');
-    // localStorage (user's Settings choice) wins; otherwise the build-time default.
+    // A developer-set localStorage override wins; otherwise the baked-in default.
     return stored || DEFAULT_VERCEL_URL;
   } catch {
     return DEFAULT_VERCEL_URL;
@@ -120,11 +123,9 @@ export function setVercelBackendUrl(url) {
  */
 export function getApiBase() {
   if (getBackendMode() === BACKEND_MODES.VERCEL) {
-    const url = getVercelBackendUrl();
-    if (url) return `${url}/api/v1`;
-    // No Vercel URL configured yet — fall back to localhost rather than
-    // sending requests nowhere.
-    return LOCALHOST_BASE;
+    // getVercelBackendUrl() always resolves to the baked-in cloud URL —
+    // Cloud mode never silently falls back to localhost.
+    return `${getVercelBackendUrl()}/api/v1`;
   }
   return LOCALHOST_BASE;
 }
@@ -147,8 +148,10 @@ export function getLocalhostApiBase() {
  * milliseconds when it's up.
  */
 export async function testBackendConnectionFor(mode, timeoutMs = 10000) {
+  // NOTE: getVercelBackendUrl() always returns the baked-in cloud URL now,
+  // so Cloud mode really tests the cloud — never silently localhost.
   const base = mode === BACKEND_MODES.VERCEL
-    ? (getVercelBackendUrl() ? `${getVercelBackendUrl()}/api/v1` : LOCALHOST_BASE)
+    ? `${getVercelBackendUrl()}/api/v1`
     : LOCALHOST_BASE;
   const label = mode === BACKEND_MODES.VERCEL ? 'Vercel' : 'Localhost';
   const controller = new AbortController();

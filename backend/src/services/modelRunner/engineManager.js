@@ -137,7 +137,14 @@ export class EngineManager {
   }
 
   describeDownload() {
-    return this.downloadState ? { ...this.downloadState } : { status: 'idle' };
+    if (!this.downloadState) return { status: 'idle', progress: 0 };
+    const { receivedBytes = 0, totalBytes = null } = this.downloadState;
+    // The UI's progress bar reads `progress` (0–1). receivedBytes/totalBytes
+    // alone left it stuck at 0% forever.
+    const progress = totalBytes && totalBytes > 0
+      ? Math.min(1, receivedBytes / totalBytes)
+      : 0;
+    return { ...this.downloadState, progress };
   }
 
   /** Absolute path of the engine binary, or null when not installed. */

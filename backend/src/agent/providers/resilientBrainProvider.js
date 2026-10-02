@@ -254,9 +254,17 @@ export class ResilientBrainProvider {
         ...(reason ? { reason } : {})
       });
     }
+    // Top-level reachable: the ACTIVE link answers. Callers like
+    // ComputerTaskBrain.health() check `health.reachable` — without this
+    // field they see `undefined` and wrongly report BRAIN UNAVAILABLE.
+    const activeLink = links[this.activeIndex];
+    const reachable = activeLink ? activeLink.reachable !== false : false;
+    const reason = activeLink?.reason || null;
     return {
       provider: 'ResilientBrainProvider',
       active: this.activeName,
+      reachable,
+      ...(reason ? { reason } : {}),
       degraded: this.failoverLog.length > 0,
       links,
       failoverLog: this.failoverLog

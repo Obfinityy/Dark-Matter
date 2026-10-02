@@ -115,7 +115,7 @@ function classifyTask(instruction) {
  * reachable, it may refine step wording; refinement never changes the shape
  * and its failure never breaks planning.
  */
-export async function planInstruction(instruction, { brainModel = null } = {}) {
+export async function planInstruction(instruction, { brainModel = null, userId = null } = {}) {
   const clean = String(instruction || '').trim();
   if (!clean) throw new Error('instruction is required');
 
@@ -138,7 +138,7 @@ export async function planInstruction(instruction, { brainModel = null } = {}) {
           content: 'You are a planning assistant. The user will receive a numbered plan. Reply with the same steps, slightly reworded to fit their specific request, keeping the same count and order. Format: one line per step as "N. Title — detail (Tools: a, b)".'
         },
         { role: 'user', content: `Request: ${clean}\n\nSteps:\n${steps.map((s) => `${s.n}. ${s.title} — ${s.detail}`).join('\n')}` }
-      ], { maxTokens: 1200 });
+      ], { maxTokens: 1200, userId });
       const text = String(res?.text || '').trim();
       if (text) {
         const parsed = parseNumberedPlan(text, steps.length);
@@ -184,6 +184,82 @@ function parseNumberedPlan(text, expectedCount) {
 }
 
 // ── Build mode: sandboxed workspace ──────────────────────────────────────
+
+// ── Build mode: sandboxed workspace ──────────────────────────────────────
+// Brain-driven builder: when the user's ACTIVE brain is reachable, it writes
+// real project files from the brief (+ attached file context). The template
+// portfolio below is only the fallback when no brain is available.
+
+/**
+ * Parse the brain's file-manifest reply into [{path, content}].
+ * Accepts a raw JSON array, possibly wrapped in markdown fences or with
+ * leading/trailing prose. Returns null when nothing usable is found.
+ */
+export function parseFileManifest(text) {
+  const raw = String(text || '');
+  if (!raw.trim()) return null;
+  // Strip markdown fences if the brain wrapped the JSON in them.
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = (fenceMatch ? fenceMatch[1] : raw).trim();
+  const start = candidate.indexOf('[');
+  const end = candidate.lastIndexOf(']');
+  if (start === -1 || end === -1 || end <= start) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(candidate.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || !parsed.length) return null;
+  const files = [];
+  for (const entry of parsed.slice(0, 12)) {
+    const relPath = String(entry?.path || '').replace(/\\/g, '/').trim();
+    const content = String(entry?.content ?? '');
+    if (!relPath || relPath.startsWith('/') || relPath.includes('..')) continue;
+    if (!content.trim()) continue;
+    files.push({ path: relPath, content: content.slice(0, 60_000) });
+  }
+  return files.length ? files : null;
+}
+
+const BUILD_SYSTEM_PROMPT = `You are an expert software builder. The user describes what to build.
+Reply with ONLY a JSON array of files — no prose, no markdown fences:
+[{"path": "index.html", "content": "<complete file content>"}, ...]
+Rules:
+- 2 to 8 files. Paths are relative (e.g. "index.html", "src/app.js"). No absolute paths, no "..".
+- Every file must be COMPLETE and working — real code, no placeholders, no TODOs, no lorem ipsum.
+- Web projects: an index.html at the root that loads the other files.
+- Keep each file under ~15000 characters.
+- If attached file context is provided, extend or improve that code rather than ignoring it.`;
+
+/**
+ * Ask the active brain to generate a whole project from the brief.
+ * Returns [{path, content}] or throws when the brain can't produce one.
+ */
+export async function generateProjectWithBrain(brief, { brainModel, attachments = [], userId = null } = {}) {
+  if (!brainModel || typeof brainModel.complete !== 'function') {
+    throw new Error('No brain model available');
+  }
+  const contextParts = [];
+  for (const att of (attachments || []).slice(0, 8)) {
+    const body = String(att?.content || '').slice(0, 8000);
+    if (!body.trim()) continue;
+    contextParts.push(`--- Attached file: ${att.name || att.path} ---\n${body}`);
+  }
+  const userContent = `Build this:\n${brief}\n\n${contextParts.join('\n\n')}`.trim();
+  const res = await brainModel.complete(
+    [
+      { role: 'system', content: BUILD_SYSTEM_PROMPT },
+      { role: 'user', content: userContent }
+    ],
+    // userId is how the brain adapter resolves the user's ACTIVE brain
+    // (Kaggle/Colab/local) — without it, every build would use the default.
+    { maxTokens: 6000, temperature: 0.3, userId }
+  );
+  const files = parseFileManifest(res?.text);
+  if (!files) throw new Error('The brain did not return a usable file manifest.');
+  return files;
+}
 
 export function createWorkspace(root = defaultWorkspaceRoot()) {
   const ROOT = path.resolve(root);
@@ -264,7 +340,7 @@ function slugify(text) {
  * a polished portfolio site (index.html + styles.css + app.js). Returns the
  * file list — the caller (and the tests) can read every file back.
  */
-export function buildProject(brief, { conversationId = null, workspace = null } = {}) {
+export async function buildProject(brief, { conversationId = null, workspace = null, brainModel = null, attachments = [], userId = null } = {}) {
   const clean = String(brief || '').trim();
   if (!clean) throw new Error('brief is required');
 
@@ -273,6 +349,26 @@ export function buildProject(brief, { conversationId = null, workspace = null } 
 
   const name = extractName(clean);
   const projectDir = `build-${slugify(clean.slice(0, 24))}-${(conversationId || crypto.randomUUID()).toString().slice(0, 8)}`;
+
+  // ── Brain-first: the active brain writes real project files from the brief.
+  // Attached files (uploaded via BuildPane) ride along as context.
+  if (brainModel && typeof brainModel.complete === 'function') {
+    try {
+      const manifest = await generateProjectWithBrain(clean, { brainModel, attachments, userId });
+      const files = manifest.map((f) => ws.writeFile(`${projectDir}/${f.path}`, f.content));
+      return {
+        brief: clean,
+        projectDir,
+        files,
+        brainBuilt: true,
+        note: `Built by your active brain from the brief${attachments?.length ? ` (+${attachments.length} attached file${attachments.length > 1 ? 's' : ''})` : ''}. Open index.html in a browser to view it.`
+      };
+    } catch (err) {
+      // Brain failed or unreachable — fall through to the template builder.
+    }
+  }
+
+  // ── Template fallback (no brain available): portfolio starter.
 
   const tagline = 'I design and build software that ships.';
   const indexHtml = `<!DOCTYPE html>
@@ -448,22 +544,11 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 // ── Control mode: NL → GUI action plan ────────────────────────────────────
-
-const WORD_LEAVE_HINTS = /(leave application|leave letter|application for leave|chhutti|cuti|leave request)/i;
-
-function buildLeaveApplicationText() {
-  return [
-    'Subject: Application for Leave',
-    '',
-    'Respected Sir/Madam,',
-    '',
-    'I am writing to respectfully request leave from work. I would be grateful if you could grant me leave for the requested period. I will ensure that all my pending tasks are completed or properly handed over before I proceed on leave.',
-    '',
-    'Thank you for your understanding and support.',
-    '',
-    'Yours sincerely,'
-  ].join('\n');
-}
+// NOTE: there is deliberately NO canned content here. Document text (leave
+// applications, letters, …) is composed by the user's ACTIVE brain inside the
+// computer-task agent loop — never from a template. Hardcoded letters were
+// removed: the brain reasons, opens the app, observes, and types what IT
+// wrote, one verified step at a time.
 
 /**
  * Decompose a natural-language desktop instruction into an ordered plan of
@@ -481,22 +566,10 @@ export function decomposeInstruction(instruction) {
   const app = resolveApplication(text);
   const gui = (type, params, reason) => ({ kind: 'gui', type, params, reason });
 
-  // ── Word document authoring (e.g. "MS Word me leave application likho") ──
-  if (app && /word/i.test(app.canonical) && WORD_LEAVE_HINTS.test(text)) {
-    const body = buildLeaveApplicationText();
-    const steps = [
-      gui('open_application', { name: app.launch }, `Open ${app.canonical}`),
-      gui('sleep', { seconds: 2 }, 'Wait for Word to finish launching'),
-      gui('get_active_window', {}, 'Verify Word is the active window before typing'),
-      gui('hotkey', { keys: ['ctrl', 'n'] }, 'New blank document'),
-      gui('type', { text: body }, 'Type the leave application'),
-      gui('hotkey', { keys: ['ctrl', 'home'] }, 'Jump to the top of the document'),
-      gui('hotkey', { keys: ['shift', 'down'] }, 'Select the subject line'),
-      gui('hotkey', { keys: ['ctrl', 'b'] }, 'Bold the subject heading'),
-      gui('hotkey', { keys: ['ctrl', 's'] }, 'Save — Word asks for the file name')
-    ];
-    return { ok: true, kind: 'word_document', application: app.canonical, launch: app.launch, steps };
-  }
+  // NOTE: no canned document flows. Anything beyond "open/focus this app" is
+  // handled by the computer-task agent loop, where the user's ACTIVE brain
+  // reasons step-by-step (open → observe → act → verify). Template letters
+  // were removed — the brain composes content itself.
 
   // ── Generic application launch/focus ("open calculator", "notepad kholo", "focus Word") ──
   if (app && /\b(open|launch|start|focus|switch|bring|kholo|khol)\b/i.test(text)) {
@@ -799,7 +872,7 @@ export function decomposeControlRequest(instruction) {
 
   return {
     ok: false,
-    reason: `I could not turn "${text.slice(0, 80)}" into steps. Try: "open Word", "MS Word me leave application likho", "focus calculator", 'copy "hello" to clipboard', 'write "notes" to notes.txt', "read file notes.txt", "list workspace files", or "run python: print(2+2)".`
+    reason: `I could not turn "${text.slice(0, 80)}" into steps. Try: "open Word", "focus calculator", 'copy "hello" to clipboard', 'write "notes" to notes.txt', "read file notes.txt", "list workspace files", or "run python: print(2+2)". For full desktop control, use the Control tab's agent mode.`
   };
 }
 
@@ -929,8 +1002,8 @@ export function createInfinityModes({ brainModel = null, brainModelFor = null, w
   const brainFor = (userId) => (typeof brainModelFor === 'function' ? brainModelFor(userId) : null) || brainModel;
   return {
     workspace,
-    plan: (instruction, opts = {}) => planInstruction(instruction, { brainModel: brainFor(opts?.userId) }),
-    build: (brief, opts = {}) => buildProject(brief, { ...opts, workspace }),
+    plan: (instruction, opts = {}) => planInstruction(instruction, { brainModel: brainFor(opts?.userId), userId: opts?.userId }),
+    build: (brief, opts = {}) => buildProject(brief, { ...opts, workspace, brainModel: brainFor(opts?.userId) }),
     decompose: decomposeInstruction,
     decomposeDeep: decomposeControlRequest,
     validateSteps: validatePlanSteps,
