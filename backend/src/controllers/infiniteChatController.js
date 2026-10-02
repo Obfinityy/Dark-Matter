@@ -29,6 +29,64 @@ export function createInfiniteChatController({ longContextEngine, longGeneration
     }
   }
 
+  /**
+   * Save base64-encoded file uploads into the sandboxed workspace under
+   * uploads/<conversationId>/. Returns [{ path, name, size }].
+   * Filenames are sanitized; the workspace's safePath refuses traversal.
+   */
+  async function saveBuildUploads(ws, conversationId, files) {
+    const list = Array.isArray(files) ? files : [];
+    if (!list.length) throw Object.assign(new Error('files is required'), { status: 400 });
+    if (list.length > 20) throw Object.assign(new Error('Too many files (max 20).'), { status: 400 });
+    const convId = String(conversationId || 'default').replace(/[^a-zA-Z0-9-_]/g, '').slice(0, 64) || 'default';
+    const uploaded = [];
+    for (const f of list) {
+      const rawName = String(f?.name || '').replace(/\\/g, '/').split('/').pop().trim();
+      if (!rawName) continue;
+      const safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+      const b64 = String(f?.content || '');
+      // ~2 MB per file cap (base64 inflates ~33%).
+      if (b64.length > 2_800_000) {
+        throw Object.assign(new Error(`File too large: ${safeName} (max ~2 MB)`), { status: 400 });
+      }
+      let buffer;
+      try {
+        buffer = Buffer.from(b64, 'base64');
+      } catch {
+        throw Object.assign(new Error(`Bad file encoding: ${safeName}`), { status: 400 });
+      }
+      if (!buffer.length) continue;
+      const relPath = `uploads/${convId}/${safeName}`;
+      const written = ws.writeFile(relPath, buffer.toString('utf8'));
+      uploaded.push({ path: written.path, name: safeName, size: written.size });
+    }
+    if (!uploaded.length) throw Object.assign(new Error('No valid files uploaded.'), { status: 400 });
+    return uploaded;
+  }
+
+  /**
+   * Read previously uploaded attachment files as brain context.
+   * `paths` must be workspace-relative paths under uploads/<conversationId>/.
+   */
+  async function loadBuildAttachments(ws, conversationId, paths) {
+    const list = Array.isArray(paths) ? paths : [];
+    if (!list.length) return [];
+    const convId = String(conversationId || 'default').replace(/[^a-zA-Z0-9-_]/g, '').slice(0, 64) || 'default';
+    const prefix = `uploads/${convId}/`;
+    const out = [];
+    for (const p of list.slice(0, 8)) {
+      const rel = String(p || '');
+      if (!rel.startsWith(prefix)) continue; // never read outside this conversation's uploads
+      try {
+        const content = ws.readFile(rel, { maxChars: 12_000 });
+        out.push({ path: rel, name: rel.split('/').pop(), content });
+      } catch {
+        /* skip unreadable files — the build proceeds without them */
+      }
+    }
+    return out;
+  }
+
   return {
     // ── History ─────────────────────────────────────────────────────────
     getHistory: asyncHandler(async (request, response) => {
@@ -598,7 +656,10 @@ function generateDynamicSteps(message = '', durationMs = 100) {
         if (!brief || !String(brief).trim()) {
           return response.status(400).json({ error: { message: 'brief is required for build' } });
         }
-        const result = infinityModes.build(String(brief), { conversationId });
+        // attachments: workspace-relative paths of uploaded files (uploads/<convId>/…)
+        // that the brain should use as context. buildProject is async (brain-first).
+        const attachments = await loadBuildAttachments(ws, conversationId, request.body?.attachments);
+        const result = await infinityModes.build(String(brief), { conversationId, userId, attachments });
         await rememberTurn(
           userId,
           conversationId,
@@ -606,6 +667,17 @@ function generateDynamicSteps(message = '', durationMs = 100) {
           `Built "${result.projectDir}": ${result.files.map((f) => f.path).join(', ')}. ${result.note}`
         );
         return response.status(201).json({ build: result });
+      }
+
+      if (action === 'upload') {
+        // Base64 JSON upload (no multipart dep): { files: [{ name, content, type }] }
+        // Saved under uploads/<conversationId>/ in the sandboxed workspace.
+        try {
+          const uploaded = await saveBuildUploads(ws, conversationId, request.body?.files);
+          return response.status(201).json({ uploaded });
+        } catch (err) {
+          return response.status(err.status || 500).json({ error: { message: err.message } });
+        }
       }
 
       if (action === 'list') {

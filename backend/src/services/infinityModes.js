@@ -185,6 +185,82 @@ function parseNumberedPlan(text, expectedCount) {
 
 // ── Build mode: sandboxed workspace ──────────────────────────────────────
 
+// ── Build mode: sandboxed workspace ──────────────────────────────────────
+// Brain-driven builder: when the user's ACTIVE brain is reachable, it writes
+// real project files from the brief (+ attached file context). The template
+// portfolio below is only the fallback when no brain is available.
+
+/**
+ * Parse the brain's file-manifest reply into [{path, content}].
+ * Accepts a raw JSON array, possibly wrapped in markdown fences or with
+ * leading/trailing prose. Returns null when nothing usable is found.
+ */
+export function parseFileManifest(text) {
+  const raw = String(text || '');
+  if (!raw.trim()) return null;
+  // Strip markdown fences if the brain wrapped the JSON in them.
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = (fenceMatch ? fenceMatch[1] : raw).trim();
+  const start = candidate.indexOf('[');
+  const end = candidate.lastIndexOf(']');
+  if (start === -1 || end === -1 || end <= start) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(candidate.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || !parsed.length) return null;
+  const files = [];
+  for (const entry of parsed.slice(0, 12)) {
+    const relPath = String(entry?.path || '').replace(/\\/g, '/').trim();
+    const content = String(entry?.content ?? '');
+    if (!relPath || relPath.startsWith('/') || relPath.includes('..')) continue;
+    if (!content.trim()) continue;
+    files.push({ path: relPath, content: content.slice(0, 60_000) });
+  }
+  return files.length ? files : null;
+}
+
+const BUILD_SYSTEM_PROMPT = `You are an expert software builder. The user describes what to build.
+Reply with ONLY a JSON array of files — no prose, no markdown fences:
+[{"path": "index.html", "content": "<complete file content>"}, ...]
+Rules:
+- 2 to 8 files. Paths are relative (e.g. "index.html", "src/app.js"). No absolute paths, no "..".
+- Every file must be COMPLETE and working — real code, no placeholders, no TODOs, no lorem ipsum.
+- Web projects: an index.html at the root that loads the other files.
+- Keep each file under ~15000 characters.
+- If attached file context is provided, extend or improve that code rather than ignoring it.`;
+
+/**
+ * Ask the active brain to generate a whole project from the brief.
+ * Returns [{path, content}] or throws when the brain can't produce one.
+ */
+export async function generateProjectWithBrain(brief, { brainModel, attachments = [], userId = null } = {}) {
+  if (!brainModel || typeof brainModel.complete !== 'function') {
+    throw new Error('No brain model available');
+  }
+  const contextParts = [];
+  for (const att of (attachments || []).slice(0, 8)) {
+    const body = String(att?.content || '').slice(0, 8000);
+    if (!body.trim()) continue;
+    contextParts.push(`--- Attached file: ${att.name || att.path} ---\n${body}`);
+  }
+  const userContent = `Build this:\n${brief}\n\n${contextParts.join('\n\n')}`.trim();
+  const res = await brainModel.complete(
+    [
+      { role: 'system', content: BUILD_SYSTEM_PROMPT },
+      { role: 'user', content: userContent }
+    ],
+    // userId is how the brain adapter resolves the user's ACTIVE brain
+    // (Kaggle/Colab/local) — without it, every build would use the default.
+    { maxTokens: 6000, temperature: 0.3, userId }
+  );
+  const files = parseFileManifest(res?.text);
+  if (!files) throw new Error('The brain did not return a usable file manifest.');
+  return files;
+}
+
 export function createWorkspace(root = defaultWorkspaceRoot()) {
   const ROOT = path.resolve(root);
 
@@ -264,7 +340,7 @@ function slugify(text) {
  * a polished portfolio site (index.html + styles.css + app.js). Returns the
  * file list — the caller (and the tests) can read every file back.
  */
-export function buildProject(brief, { conversationId = null, workspace = null } = {}) {
+export async function buildProject(brief, { conversationId = null, workspace = null, brainModel = null, attachments = [], userId = null } = {}) {
   const clean = String(brief || '').trim();
   if (!clean) throw new Error('brief is required');
 
@@ -273,6 +349,26 @@ export function buildProject(brief, { conversationId = null, workspace = null } 
 
   const name = extractName(clean);
   const projectDir = `build-${slugify(clean.slice(0, 24))}-${(conversationId || crypto.randomUUID()).toString().slice(0, 8)}`;
+
+  // ── Brain-first: the active brain writes real project files from the brief.
+  // Attached files (uploaded via BuildPane) ride along as context.
+  if (brainModel && typeof brainModel.complete === 'function') {
+    try {
+      const manifest = await generateProjectWithBrain(clean, { brainModel, attachments, userId });
+      const files = manifest.map((f) => ws.writeFile(`${projectDir}/${f.path}`, f.content));
+      return {
+        brief: clean,
+        projectDir,
+        files,
+        brainBuilt: true,
+        note: `Built by your active brain from the brief${attachments?.length ? ` (+${attachments.length} attached file${attachments.length > 1 ? 's' : ''})` : ''}. Open index.html in a browser to view it.`
+      };
+    } catch (err) {
+      // Brain failed or unreachable — fall through to the template builder.
+    }
+  }
+
+  // ── Template fallback (no brain available): portfolio starter.
 
   const tagline = 'I design and build software that ships.';
   const indexHtml = `<!DOCTYPE html>
@@ -907,7 +1003,7 @@ export function createInfinityModes({ brainModel = null, brainModelFor = null, w
   return {
     workspace,
     plan: (instruction, opts = {}) => planInstruction(instruction, { brainModel: brainFor(opts?.userId) }),
-    build: (brief, opts = {}) => buildProject(brief, { ...opts, workspace }),
+    build: (brief, opts = {}) => buildProject(brief, { ...opts, workspace, brainModel: brainFor(opts?.userId) }),
     decompose: decomposeInstruction,
     decomposeDeep: decomposeControlRequest,
     validateSteps: validatePlanSteps,
