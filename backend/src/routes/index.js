@@ -174,6 +174,10 @@ export function createRoutes({ controllers }) {
   router.post('/model-runner/custom', controllers.modelRunner.addCustom);
   router.post('/model-runner/run', controllers.modelRunner.run);
   router.post('/model-runner/stop', controllers.modelRunner.stop);
+  // Per-slot servers: each brain slot runs on its own localhost port.
+  router.get('/model-runner/slots/servers', controllers.modelRunner.getSlotServers);
+  router.post('/model-runner/slots/:slot/run', controllers.modelRunner.runSlot);
+  router.post('/model-runner/slots/:slot/stop', controllers.modelRunner.stopSlot);
   router.get('/model-runner/brain-chain', controllers.modelRunner.brainChain);
 
   // ─── Per-model download → Run aliases (Models page flow) ──────────

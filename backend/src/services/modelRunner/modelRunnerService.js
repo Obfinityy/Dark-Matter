@@ -85,8 +85,135 @@ export class ModelRunnerService {
     this._loadCustomModels();
 
     // Running server: { modelId, name, pid, port, baseUrl, startedAt } | null
+    // (legacy single-model slot — kept for backward compatibility)
     this.running = null;
+    // Per-brain-slot servers: { vision: {...}, grounding: {...}, hacker: {...} }
+    // Each brain slot runs on its OWN localhost port simultaneously.
+    this.slotServers = {};
     this.runListeners = new Set();
+  }
+
+  /**
+   * Run a downloaded model for a specific brain slot on its own localhost port.
+   * Each slot (vision | grounding | hacker) gets its own llama-server process
+   * and port, so all three brains can run simultaneously.
+   * @param {string} slot — 'vision' | 'grounding' | 'hacker'
+   * @param {string} modelId
+   * @param {object} [options] — { quant, contextSize }
+   */
+  async runForSlot(slot, modelId, options = {}) {
+    if (!['vision', 'grounding', 'hacker'].includes(slot)) {
+      const error = new Error(`Unknown brain slot "${slot}"`);
+      error.code = 'UNKNOWN_SLOT';
+      throw error;
+    }
+    const model = this.findModel(modelId);
+    if (!model) {
+      const error = new Error(`Unknown model "${modelId}"`);
+      error.code = 'UNKNOWN_MODEL';
+      throw error;
+    }
+    const quant = this.preferredQuant(model, options.quant);
+    if (!quant) {
+      const error = new Error(`"${model.name}" is not downloaded yet — download it first`);
+      error.code = 'NOT_DOWNLOADED';
+      throw error;
+    }
+    // If this slot already runs this model, return it.
+    const existing = this.slotServers[slot];
+    if (existing && existing.modelId === modelId) {
+      // Verify it's still alive
+      try {
+        const res = await fetch(`${existing.baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) return { alreadyRunning: true, slot, ...existing };
+      } catch { /* dead — restart below */ }
+    }
+    // Stop any existing server for this slot first.
+    if (existing) await this.stopSlot(slot);
+
+    const device = await this.getDevice();
+    const { path: binaryPath } = await this.engine.ensureEngine(device);
+    const port = await findFreePort();
+    const ggufPath = this.modelFilePath(model, quant);
+
+    const maxCtx = Number(model.contextWindow) > 0 ? Number(model.contextWindow) : 32768;
+    const contextSize = Math.min(
+      Math.max(Math.floor(options.contextSize || 8192), 1024),
+      maxCtx
+    );
+
+    const args = [
+      '-m', ggufPath,
+      '--port', String(port),
+      '--host', '127.0.0.1',
+      '-c', String(contextSize),
+      '-ngl', '99'
+    ];
+    this.logger.info?.(`[model-runner] starting ${model.name} for slot "${slot}" on 127.0.0.1:${port}`);
+
+    const child = spawn(binaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const serverInfo = {
+      slot, modelId: model.id, name: model.name, quant, pid: child.pid, port, baseUrl,
+      contextSize, startedAt: new Date().toISOString()
+    };
+    this.slotServers[slot] = serverInfo;
+    this.emitRun();
+
+    let stderrTail = '';
+    child.stderr.on('data', (d) => { stderrTail = `${stderrTail}${d}`.slice(-2000); });
+    const earlyExit = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+    const exited = await Promise.race([
+      earlyExit.then((code) => ({ exited: true, code })),
+      waitForHealth(baseUrl).then((healthy) => ({ exited: false, healthy }))
+    ]);
+
+    if (exited.exited || exited.healthy === false) {
+      const reason = exited.exited
+        ? `llama-server exited immediately (code ${exited.code}): ${stderrTail.slice(-300)}`
+        : 'llama-server did not become healthy in time';
+      delete this.slotServers[slot];
+      this.emitRun();
+      try { child.kill(); } catch { /* ignore */ }
+      const error = new Error(reason);
+      error.code = 'RUN_FAILED';
+      throw error;
+    }
+
+    this.logger.info?.(`[model-runner] ${model.name} (slot ${slot}) healthy at ${baseUrl}`);
+    return { started: true, slot, ...serverInfo };
+  }
+
+  /** Stop the server running for a specific brain slot. */
+  async stopSlot(slot) {
+    const server = this.slotServers[slot];
+    if (!server) return { stopped: false, slot };
+    const { modelId, pid } = server;
+    delete this.slotServers[slot];
+    this.emitRun();
+    try {
+      if (pid) process.kill(pid, 'SIGTERM');
+    } catch { /* already gone */ }
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      if (pid) process.kill(pid, 'SIGKILL');
+    } catch { /* gone */ }
+    this.logger.info?.(`[model-runner] stopped slot "${slot}" model ${modelId}`);
+    return { stopped: true, slot, modelId };
+  }
+
+  /** Get the running server info for a slot (null when not running). */
+  getSlotServer(slot) {
+    return this.slotServers[slot] || null;
+  }
+
+  /** All running slot servers: { vision: {...}|null, grounding: {...}|null, hacker: {...}|null } */
+  describeSlotServers() {
+    const out = {};
+    for (const slot of ['vision', 'grounding', 'hacker']) {
+      out[slot] = this.slotServers[slot] ? { ...this.slotServers[slot] } : null;
+    }
+    return out;
   }
 
   /** Path of the JSON file that persists user-added custom models. */
@@ -239,6 +366,8 @@ export class ModelRunnerService {
       engineDownload: this.engine.describeDownload(),
       download: this.downloadState ? { ...this.downloadState } : { status: 'idle' },
       running: this.running ? { ...this.running } : null,
+      // Per-slot servers: each brain slot on its own localhost port.
+      slotServers: this.describeSlotServers(),
       models: (await this.library()).map((m) => ({
         id: m.id, name: m.name, params: m.params, tier: m.tier, sizeGB: m.sizeGB,
         downloaded: m.downloaded, running: m.running, compatibility: m.compatibility

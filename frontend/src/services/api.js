@@ -1036,6 +1036,26 @@ export function disconnectSlotKaggle(slot) {
 }
 
 /**
+ * Per-slot servers: each brain slot runs on its own localhost port.
+ */
+export function getSlotServers() {
+  return request('/model-runner/slots/servers');
+}
+
+export function runSlotServer(slot, modelId, opts = {}) {
+  return request(`/model-runner/slots/${slot}/run`, {
+    method: 'POST',
+    body: JSON.stringify({ modelId, ...opts })
+  });
+}
+
+export function stopSlotServer(slot) {
+  return request(`/model-runner/slots/${slot}/stop`, {
+    method: 'POST'
+  });
+}
+
+/**
  * Live per-model download progress via SSE.
  * Events: progress { modelId, status, receivedBytes, totalBytes, percent }.
  * Terminal states: status 'done' (percent 100 — the row flips to Run),

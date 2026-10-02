@@ -96,8 +96,8 @@ export const MODEL_LIBRARY = Object.freeze([
     quant: 'Q4_K_M',
     tier: 'balanced',
     tierLabel: 'Balanced',
-    hfRepo: 'bartowski/cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-GGUF',
-    hfFile: 'cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-Q4_K_M.gguf',
+    hfRepo: 'bartowski/huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-GGUF',
+    hfFile: 'huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-Q4_K_M.gguf',
     sizeGB: 14.5,
     contextWindow: 32768,
     uncensored: true,
@@ -301,7 +301,7 @@ export const MODEL_LIBRARY = Object.freeze([
     brainSlot: 'grounding',
     brainSlotLabel: 'Grounding (Coordinates)',
     hfRepo: 'Mungert/UI-TARS-1.5-7B-GGUF',
-    hfFile: 'UI-TARS-1.5-7B-Q4_K_M.gguf',
+    hfFile: 'UI-TARS-1.5-7B-q4_k_m.gguf',
     sizeGB: 4.4,
     contextWindow: 4096,
     uncensored: true,
@@ -320,8 +320,8 @@ export const MODEL_LIBRARY = Object.freeze([
     tierLabel: 'Plugin · Control Mode',
     brainSlot: 'grounding',
     brainSlotLabel: 'Grounding (Coordinates)',
-    hfRepo: 'OpenGVLab/OS-Atlas-Base-7B-GGUF',
-    hfFile: 'OS-Atlas-Base-7B-Q4_K_M.gguf',
+    hfRepo: 'mradermacher/OS-Atlas-Base-7B-GGUF',
+    hfFile: 'OS-Atlas-Base-7B.Q4_K_M.gguf',
     sizeGB: 4.5,
     contextWindow: 4096,
     uncensored: true,
@@ -333,6 +333,27 @@ export const MODEL_LIBRARY = Object.freeze([
   // Vision models SEE screenshots. Run locally via llama.cpp or connect
   // the same weights on Kaggle — your choice, same brain either way.
   // BRAIN SLOT: 'vision' — the main reasoning brain (Kaggle remote or local).
+  // NOTE: repos/files verified live against the Hugging Face API (2026-10-03) —
+  // all ungated, filenames copied verbatim (HF URLs are case-sensitive).
+  {
+    id: 'qwen25-vl-7b-abliterated',
+    name: 'Qwen2.5-VL 7B (Abliterated)',
+    params: '7B',
+    quant: 'Q4_K_M',
+    tier: 'vision',
+    tierLabel: 'Vision',
+    brainSlot: 'vision',
+    brainSlotLabel: 'Vision Brain',
+    hfRepo: 'mradermacher/Qwen2.5-VL-7B-Instruct-abliterated-GGUF',
+    hfFile: 'Qwen2.5-VL-7B-Instruct-abliterated.Q4_K_M.gguf',
+    sizeGB: 4.9,
+    contextWindow: 8192,
+    uncensored: true,
+    vision: true,
+    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
+    description:
+      'Uncensored vision brain — sees screenshots and reasons about them. Runs on CPU, or the same model on Kaggle for GPU speed.'
+  },
   {
     id: 'qwen25-vl-7b',
     name: 'Qwen2.5-VL 7B',
@@ -342,34 +363,15 @@ export const MODEL_LIBRARY = Object.freeze([
     tierLabel: 'Vision',
     brainSlot: 'vision',
     brainSlotLabel: 'Vision Brain',
-    hfRepo: 'Qwen/Qwen2.5-VL-7B-Instruct-GGUF',
+    hfRepo: 'unsloth/Qwen2.5-VL-7B-Instruct-GGUF',
     hfFile: 'Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf',
     sizeGB: 4.9,
     contextWindow: 8192,
-    uncensored: true,
+    uncensored: false,
     vision: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Vision brain for Infinity Agent — sees screenshots and reasons about them. Runs on CPU, or the same model on Kaggle for GPU speed.'
-  },
-  {
-    id: 'qwen2-vl-7b',
-    name: 'Qwen2-VL 7B',
-    params: '7B',
-    quant: 'Q4_K_M',
-    tier: 'vision',
-    tierLabel: 'Vision',
-    brainSlot: 'vision',
-    brainSlotLabel: 'Vision Brain',
-    hfRepo: 'Qwen/Qwen2-VL-7B-Instruct-GGUF',
-    hfFile: 'Qwen2-VL-7B-Instruct-Q4_K_M.gguf',
-    sizeGB: 4.8,
-    contextWindow: 8192,
-    uncensored: true,
-    vision: true,
-    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
-    description:
-      'Previous-gen Qwen vision model — solid screenshot understanding, lighter on RAM than 2.5-VL.'
+      'Standard Qwen2.5-VL vision model — solid screenshot understanding, ungated repo.'
   },
   {
     id: 'minicpm-v-26-8b',
@@ -380,7 +382,7 @@ export const MODEL_LIBRARY = Object.freeze([
     tierLabel: 'Vision',
     brainSlot: 'vision',
     brainSlotLabel: 'Vision Brain',
-    hfRepo: 'openbmb/MiniCPM-V-2_6-GGUF',
+    hfRepo: 'lmstudio-community/MiniCPM-V-2_6-GGUF',
     hfFile: 'MiniCPM-V-2_6-Q4_K_M.gguf',
     sizeGB: 5.2,
     contextWindow: 8192,
@@ -394,6 +396,7 @@ export const MODEL_LIBRARY = Object.freeze([
   // The hacking brain strategizes attacks: what to test, which payloads,
   // how to chain vulnerabilities. Uncensored Qwen/Gemma-class models.
   // BRAIN SLOT: 'hacker' — used ONLY by Hunt mode for security strategy.
+  // NOTE: repos/files verified live against the Hugging Face API (2026-10-03).
   {
     id: 'qwen3-8b-abliterated',
     name: 'Qwen3 8B (Abliterated)',
@@ -403,10 +406,10 @@ export const MODEL_LIBRARY = Object.freeze([
     tierLabel: 'Hacking Brain',
     brainSlot: 'hacker',
     brainSlotLabel: 'Hacking Brain',
-    hfRepo: 'huihui-ai/Qwen3-8B-abliterated-GGUF',
-    hfFile: 'Qwen3-8B-abliterated-Q4_K_M.gguf',
-    sizeGB: 4.9,
-    contextWindow: 8192,
+    hfRepo: 'bartowski/mlabonne_Qwen3-8B-abliterated-GGUF',
+    hfFile: 'mlabonne_Qwen3-8B-abliterated-Q4_K_M.gguf',
+    sizeGB: 4.7,
+    contextWindow: 32768,
     uncensored: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
@@ -421,8 +424,8 @@ export const MODEL_LIBRARY = Object.freeze([
     tierLabel: 'Hacking Brain',
     brainSlot: 'hacker',
     brainSlotLabel: 'Hacking Brain',
-    hfRepo: 'huihui-ai/Gemma3-12B-abliterated-GGUF',
-    hfFile: 'Gemma3-12B-abliterated-Q4_K_M.gguf',
+    hfRepo: 'mlabonne/gemma-3-12b-it-abliterated-GGUF',
+    hfFile: 'gemma-3-12b-it-abliterated.q4_k_m.gguf',
     sizeGB: 7.3,
     contextWindow: 8192,
     uncensored: true,
@@ -439,8 +442,8 @@ export const MODEL_LIBRARY = Object.freeze([
     tierLabel: 'Hacking Brain',
     brainSlot: 'hacker',
     brainSlotLabel: 'Hacking Brain',
-    hfRepo: 'bartowski/cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-GGUF',
-    hfFile: 'cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-Q4_K_M.gguf',
+    hfRepo: 'bartowski/huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-GGUF',
+    hfFile: 'huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-Q4_K_M.gguf',
     sizeGB: 14.5,
     contextWindow: 32768,
     uncensored: true,

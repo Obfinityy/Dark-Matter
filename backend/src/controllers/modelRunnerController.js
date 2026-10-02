@@ -112,7 +112,6 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       if (!userId) {
         return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
-      const { brainProviderModel } = request.app.locals;
       const selection = await brainProviderModel.getSelection(userId);
       response.json({ assignments: selection.slotAssignments || {} });
     }),
@@ -148,7 +147,6 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
           }
         });
       }
-      const { brainProviderModel } = request.app.locals;
       const selection = await brainProviderModel.setSlotAssignment(userId, slot, modelId);
       response.json({ assignments: selection.slotAssignments || {}, slotSources: selection.slotSources || {} });
     }),
@@ -162,7 +160,6 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       if (!userId) {
         return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
-      const { brainProviderModel } = request.app.locals;
       const selection = await brainProviderModel.getSelection(userId);
       response.json({ slotSources: selection.slotSources || {} });
     }),
@@ -182,7 +179,6 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
           error: { code: 'BAD_REQUEST', message: 'slot and url are required' }
         });
       }
-      const { brainProviderModel } = request.app.locals;
       try {
         const selection = await brainProviderModel.setSlotKaggle(userId, slot, url, name);
         response.json({ slotSources: selection.slotSources || {} });
@@ -203,7 +199,6 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
       const { slot } = request.params;
-      const { brainProviderModel } = request.app.locals;
       try {
         const selection = await brainProviderModel.clearSlotKaggle(userId, slot);
         response.json({ slotSources: selection.slotSources || {} });
@@ -402,6 +397,57 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         refreshBrain(userId);
       }
       response.json(result);
+    }),
+
+    /**
+     * POST /api/v1/model-runner/slots/:slot/run { modelId, quant?, contextSize? }
+     * Run a model for a specific brain slot on its OWN localhost port.
+     * Each slot (vision | grounding | hacker) gets its own llama-server,
+     * so all three brains run simultaneously on different ports.
+     */
+    runSlot: asyncHandler(async (request, response) => {
+      const { slot } = request.params;
+      const { modelId, quant, contextSize } = request.body || {};
+      if (!modelId) {
+        return response.status(400).json({
+          error: { code: 'BAD_REQUEST', message: 'modelId is required' }
+        });
+      }
+      try {
+        const result = await modelRunnerService.runForSlot(slot, modelId, {
+          ...(quant ? { quant } : {}),
+          ...(Number.isFinite(Number(contextSize)) && Number(contextSize) > 0
+            ? { contextSize: Math.floor(Number(contextSize)) } : {})
+        });
+        // Also record the slot assignment so Hunt/Control/Chat resolve it.
+        const userId = request.user?.id || null;
+        if (userId && brainProviderModel) {
+          try { await brainProviderModel.setSlotAssignment(userId, slot, modelId); } catch { /* non-fatal */ }
+        }
+        response.json(result);
+      } catch (error) {
+        response.status(downloadErrorStatus(error)).json({
+          error: { code: error.code || 'RUN_FAILED', message: error.message }
+        });
+      }
+    }),
+
+    /**
+     * POST /api/v1/model-runner/slots/:slot/stop
+     * Stop the server running for a specific brain slot.
+     */
+    stopSlot: asyncHandler(async (request, response) => {
+      const { slot } = request.params;
+      const result = await modelRunnerService.stopSlot(slot);
+      response.json(result);
+    }),
+
+    /**
+     * GET /api/v1/model-runner/slots/servers
+     * Returns the running server per brain slot (each on its own port).
+     */
+    getSlotServers: asyncHandler(async (request, response) => {
+      response.json({ slotServers: modelRunnerService.describeSlotServers() });
     }),
     /**
      * GET /api/v1/model-runner/brain-chain

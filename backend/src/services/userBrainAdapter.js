@@ -28,6 +28,7 @@
  */
 
 import { buildBrainChain, ResilientBrainProvider } from '../agent/providers/resilientBrainProvider.js';
+import { createSlotBrainProvider } from '../agent/providers/brainProviderFactory.js';
 import { LocalAIQueue } from '../agent/providers/localAiQueue.js';
 import { stripThinkingTags } from '../agent/providers/phoneLocalProvider.js';
 
@@ -90,14 +91,36 @@ export class UserBrainAdapter {
   /** The ResilientBrainProvider for this user's selection (cached, auto-rebuilt on change). */
   async _providerFor(userId) {    const selection = await this._selectionFor(userId);
     const cacheId = userId || 'anon';
+    // Include the vision slot source in the cache key — Infinity Chat thinks
+    // with the VISION brain slot (local model on its own port, or its Kaggle link).
+    const visionSource = selection.slotSources?.vision || null;
     const key = JSON.stringify({
       provider: selection.provider,
       modelId: selection.modelId || null,
       endpointUrl: selection.endpointUrl || null,
-      lastGradioUrl: selection.lastGradioUrl || null
+      lastGradioUrl: selection.lastGradioUrl || null,
+      visionSlot: visionSource ? { source: visionSource.source, modelId: visionSource.modelId || null, kaggleUrl: visionSource.kaggleUrl || null } : null,
+      visionAssignment: selection.slotAssignments?.vision || null
     });
     const cached = this.chainCache.get(cacheId);
     if (cached && cached.key === key) return cached.provider;
+
+    // Vision slot configured? Chat thinks with the vision brain.
+    const hasVisionSlot = visionSource || selection.slotAssignments?.vision;
+    if (hasVisionSlot && !isPhoneDefault(selection)) {
+      try {
+        const visionBrain = createSlotBrainProvider('vision', selection, {
+          appConfig: this.appConfig,
+          runner: this.modelRunnerService
+        });
+        // Wrap in a resilient provider so a dead vision brain falls back gracefully.
+        const provider = new ResilientBrainProvider([
+          { name: `vision:${visionSource?.kaggleUrl ? 'kaggle' : (visionSource?.modelId || selection.slotAssignments?.vision || 'local')}`, provider: visionBrain }
+        ]);
+        this.chainCache.set(cacheId, { key, provider });
+        return provider;
+      } catch { /* fall through to legacy chain */ }
+    }
 
     let downloaded = null;
     if (selection.provider === 'local' && this.modelRunnerService?.library) {

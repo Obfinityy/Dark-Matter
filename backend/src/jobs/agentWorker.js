@@ -11,6 +11,7 @@ import { buildBrainChain as buildExploitChain, suggestChains } from '../services
 import { initialHuntState, safeTransition } from '../agent/huntStateMachine.js';
 import { DeterministicBrain } from '../agent/deterministicBrain.js';
 import { buildBrainChain, ResilientBrainProvider } from '../agent/providers/resilientBrainProvider.js';
+import { createSlotBrainProvider, createFeatureBrains, FEATURE_SLOTS } from '../agent/providers/brainProviderFactory.js';
 import { LocalAIQueue, localAIQueue } from '../agent/providers/localAiQueue.js';
 
 /**
@@ -190,6 +191,30 @@ export class AgentWorker {
     });
     this.brains.set(job.userId, brain);
     return brain;
+  }
+
+  /**
+   * Resolve the three brain-slot providers for a hunt's user.
+   * Hunt uses all three brains:
+   *   - vision: sees screenshots, main reasoning
+   *   - grounding: returns x,y coordinates for UI elements
+   *   - hacker: uncensored security strategy
+   * Each slot resolves to its local model (own localhost port) or its Kaggle link.
+   * @returns {Promise<{ vision, grounding, hacker }>} providers (null for unconfigured slots)
+   */
+  async getSlotBrainsForJob(job) {
+    if (!this.brainProviderModel || !job?.userId) return { vision: null, grounding: null, hacker: null };
+    const selection = await this.brainProviderModel.getSelection(job.userId);
+    const deps = { appConfig: this.appConfig || {}, runner: this.modelRunnerService };
+    const brains = {};
+    for (const slot of FEATURE_SLOTS.hunt) {
+      try {
+        brains[slot] = createSlotBrainProvider(slot, selection, deps);
+      } catch {
+        brains[slot] = null;
+      }
+    }
+    return brains;
   }
 
   /**

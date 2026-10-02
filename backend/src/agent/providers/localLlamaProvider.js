@@ -18,20 +18,33 @@ export class LocalLlamaProvider {
   /**
    * @param {object} options
    * @param {import('../../services/modelRunner/modelRunnerService.js').ModelRunnerService} options.runner
+   * @param {string} [options.slot] — brain slot ('vision'|'grounding'|'hacker'); when set,
+   *   the provider talks to THAT slot's server on its own port instead of the
+   *   legacy single `running` server.
    * @param {number} [options.timeout] default per-request timeout ms
    */
-  constructor({ runner, timeout = 180000 } = {}) {
+  constructor({ runner, slot = null, timeout = 180000 } = {}) {
     if (!runner) throw new Error('LocalLlamaProvider requires a ModelRunnerService');
     this.runner = runner;
+    this.slot = slot;
     this.timeout = timeout;
     this.enabled = true;
   }
 
   baseUrl() {
+    // Slot-aware: prefer the slot's own server; fall back to legacy single server.
+    if (this.slot) {
+      const server = this.runner.getSlotServer?.(this.slot);
+      if (server?.baseUrl) return server.baseUrl;
+    }
     return this.runner.endpoint(); // null when nothing is running
   }
 
   async resolveModel() {
+    if (this.slot) {
+      const server = this.runner.getSlotServer?.(this.slot);
+      if (server?.modelId) return server.modelId;
+    }
     return this.runner.running?.modelId || 'local-llama';
   }
 

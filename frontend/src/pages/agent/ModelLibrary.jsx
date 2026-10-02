@@ -32,7 +32,7 @@ import {
   downloadModelFile, runModelFile, subscribeToModelProgress,
   getBrainChain, getBrainSlots, getSlotAssignments, assignBrainSlot,
   getSlotSources, connectSlotKaggle, disconnectSlotKaggle,
-  testRemoteModel
+  testRemoteModel, getSlotServers, runSlotServer, stopSlotServer
 } from '../../services/api';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
@@ -226,15 +226,16 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
  * - Hacker: Hunt only
  */
 function BrainSlotCard({
-  slotId, slot, assignments, sources,
+  slotId, slot, assignments, sources, slotServers,
   download, busyModel, engineReady, slotBusy, kaggleBusy, kaggleMsg,
-  onAssign, onDownload, onCancelDownload,
+  onAssign, onDownload, onCancelDownload, onRunSlot, onStopSlot,
   onKaggleConnect, onKaggleDisconnect, onKaggleTest,
   kaggleUrl, setKaggleUrl, kaggleName, setKaggleName
 }) {
   const source = sources[slotId]?.source || 'local';
   const kaggle = sources[slotId]?.source === 'kaggle' ? sources[slotId] : null;
   const assignedModelId = assignments[slotId];
+  const server = slotServers?.[slotId] || null; // running server for this slot
   const [tab, setTab] = useState(source); // 'local' | 'kaggle'
 
   // Keep tab in sync when source changes from elsewhere
@@ -328,16 +329,52 @@ function BrainSlotCard({
                   {isDl ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="sg-small" style={{ color: 'var(--sg-accent)', fontWeight: 600 }}>
-                        {dlFailed ? 'Failed' : `${Math.round(pct)}%`}
+                        {dlFailed ? `Failed: ${download.error || ''}` : `${Math.round(pct)}%`}
                       </span>
                       {!dlFailed && (
                         <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={onCancelDownload}>
                           <X size={13} /> Cancel
                         </button>
                       )}
+                      {dlFailed && (
+                        <button
+                          className="sg-btn sg-btn-ghost sg-btn-sm"
+                          onClick={() => onDownload(m.id, 'Q4_K_M')}
+                          title="Retry download"
+                        >
+                          Retry
+                        </button>
+                      )}
+                    </div>
+                  ) : server && server.modelId === m.id ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="sg-pill sg-pill-go" title={server.baseUrl}>
+                        <span className="sg-pulse-dot" /> Running :{server.port}
+                      </span>
+                      <button
+                        className="sg-btn sg-btn-ghost sg-btn-sm"
+                        onClick={() => onStopSlot(slotId)}
+                        disabled={slotBusy === `${slotId}-stop`}
+                      >
+                        {slotBusy === `${slotId}-stop` ? <Loader2 size={14} className="sg-spin" /> : <Square size={14} />}
+                        Stop
+                      </button>
                     </div>
                   ) : isActive ? (
-                    <span className="sg-pill sg-pill-go"><CheckCircle2 size={13} /> Active brain</span>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span className="sg-pill"><CheckCircle2 size={13} /> Selected</span>
+                      {isDownloaded && (
+                        <button
+                          className="sg-btn sg-btn-primary sg-btn-sm"
+                          onClick={() => onRunSlot(slotId, m.id)}
+                          disabled={slotBusy === `${slotId}-run` || !engineReady}
+                          title={`Run ${m.name} on localhost for ${slot.label} (own port)`}
+                        >
+                          {slotBusy === `${slotId}-run` ? <Loader2 size={14} className="sg-spin" /> : <Play size={14} />}
+                          Run
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <div style={{ display: 'flex', gap: 8 }}>
                       {!isDownloaded && (
@@ -350,15 +387,26 @@ function BrainSlotCard({
                           <Download size={14} /> Download
                         </button>
                       )}
-                      <button
-                        className="sg-btn sg-btn-primary sg-btn-sm"
-                        onClick={() => onAssign(slotId, m.id)}
-                        disabled={isBusy || (!isDownloaded && source !== 'local')}
-                        title={isDownloaded ? `Make ${m.name} the ${slot.label}` : 'Downloads first, then becomes selectable'}
-                      >
-                        {isBusy ? <Loader2 size={14} className="sg-spin" /> : null}
-                        {isDownloaded ? 'Select' : 'Download & Select'}
-                      </button>
+                      {isDownloaded ? (
+                        <button
+                          className="sg-btn sg-btn-primary sg-btn-sm"
+                          onClick={() => onRunSlot(slotId, m.id)}
+                          disabled={slotBusy === `${slotId}-run` || !engineReady}
+                          title={`Run ${m.name} on localhost for ${slot.label} (own port)`}
+                        >
+                          {slotBusy === `${slotId}-run` ? <Loader2 size={14} className="sg-spin" /> : <Play size={14} />}
+                          Run
+                        </button>
+                      ) : (
+                        <button
+                          className="sg-btn sg-btn-ghost sg-btn-sm"
+                          onClick={() => onAssign(slotId, m.id)}
+                          disabled={isBusy}
+                          title={`Select ${m.name} for ${slot.label} (downloads first)`}
+                        >
+                          Select
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -465,6 +513,7 @@ export function ModelLibrary() {
   const [brainSlots, setBrainSlots] = useState(null); // { vision: {...}, grounding: {...}, hacker: {...} }
   const [slotAssignments, setSlotAssignments] = useState({}); // { vision: modelId, grounding: modelId, hacker: modelId }
   const [slotSources, setSlotSources] = useState({}); // { vision: { source: 'local'|'kaggle', ... }, ... }
+  const [slotServers, setSlotServers] = useState({}); // { vision: {port, baseUrl, ...}|null, ... }
   const [slotBusy, setSlotBusy] = useState(null);
   // Per-slot Kaggle link inputs
   const [kaggleUrls, setKaggleUrls] = useState({}); // { vision: 'https://...', ... }
@@ -488,13 +537,14 @@ export function ModelLibrary() {
 
   const refresh = useCallback(async () => {
     try {
-      const [lib, st, chain, slots, assignments, sources] = await Promise.all([
+      const [lib, st, chain, slots, assignments, sources, servers] = await Promise.all([
         getRunnerLibrary().catch(() => null),
         getRunnerStatus().catch(() => null),
         getBrainChain().catch(() => null),
         getBrainSlots().catch(() => null),
         getSlotAssignments().catch(() => null),
-        getSlotSources().catch(() => null)
+        getSlotSources().catch(() => null),
+        getSlotServers().catch(() => null)
       ]);
       if (lib?.models) setLibrary(lib.models);
       else if (Array.isArray(lib)) setLibrary(lib);
@@ -502,6 +552,7 @@ export function ModelLibrary() {
       if (slots?.slots) setBrainSlots(slots.slots);
       if (assignments?.assignments) setSlotAssignments(assignments.assignments);
       if (sources?.slotSources) setSlotSources(sources.slotSources);
+      if (servers?.slotServers) setSlotServers(servers.slotServers);
       if (st) {
         setStatus(st);
         const dl = st.download;
@@ -580,6 +631,41 @@ export function ModelLibrary() {
       setError(err.message);
     } finally {
       setKaggleBusy(null);
+    }
+  };
+
+  // Run a slot's model on its own localhost port
+  const runSlotHandler = async (slot, modelId) => {
+    setSlotBusy(`${slot}-run`);
+    setError('');
+    try {
+      const data = await runSlotServer(slot, modelId);
+      // Refresh servers + assignments
+      const servers = await getSlotServers().catch(() => null);
+      if (servers?.slotServers) setSlotServers(servers.slotServers);
+      if (data?.slot) {
+        setSlotAssignments((a) => ({ ...a, [slot]: modelId }));
+      }
+      refresh();
+    } catch (err) {
+      setError(err.message || `Could not run model for ${slot} slot.`);
+    } finally {
+      setSlotBusy(null);
+    }
+  };
+
+  // Stop a slot's server
+  const stopSlotHandler = async (slot) => {
+    setSlotBusy(`${slot}-stop`);
+    try {
+      await stopSlotServer(slot);
+      const servers = await getSlotServers().catch(() => null);
+      if (servers?.slotServers) setSlotServers(servers.slotServers);
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSlotBusy(null);
     }
   };
 
@@ -771,6 +857,7 @@ export function ModelLibrary() {
                 slot={slot}
                 assignments={slotAssignments}
                 sources={slotSources}
+                slotServers={slotServers}
                 download={download}
                 busyModel={busyModel}
                 engineReady={engineReady}
@@ -780,6 +867,8 @@ export function ModelLibrary() {
                 onAssign={assignToSlot}
                 onDownload={startDownload}
                 onCancelDownload={cancelDownload}
+                onRunSlot={runSlotHandler}
+                onStopSlot={stopSlotHandler}
                 onKaggleConnect={connectSlotKaggleHandler}
                 onKaggleDisconnect={disconnectSlotKaggleHandler}
                 onKaggleTest={testSlotKaggle}
