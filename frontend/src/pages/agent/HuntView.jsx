@@ -36,6 +36,11 @@ import { AgentCharacter } from './AgentCharacter';
 import { AgentChat } from '../../components/agent/AgentChat';
 import { HuntStatusPanel } from '../../components/agent/HuntStatusPanel';
 import { StatusPill } from '../../components/agent/AgentShell';
+import { DarkVeil } from '../../components/fx/DarkVeil';
+import { SpotlightCard } from '../../components/fx/SpotlightCard';
+import { DecryptedText } from '../../components/fx/DecryptedText';
+import { ElectricBorder } from '../../components/fx/ElectricBorder';
+import './HuntViewNew.css';
 import './HuntView.css';
 
 const ACTIVE_STATUSES = ['running', 'resuming', 'waiting', 'created'];
@@ -164,15 +169,22 @@ export function HuntView() {
   const thinking = active && /think|plan|reason|analy/i.test(String(job?.phase || job?.currentPhase || ''));
 
   return (
-    <div className="sg-huntview">
+    <div className="sg-huntview hunt-new">
+      <DarkVeil intensity={0.5} />
       <header className="sg-hunt-head">
         <div className="sg-hunt-head-main">
           <div className="sg-hunt-title-row">
             <Link to="/agent" className="sg-btn sg-btn-quiet" aria-label="Back to home">
               <ChevronLeft size={15} />
             </Link>
-            <h1>Live hunt</h1>
-            <StatusPill status={status} thinking={thinking} />
+            <DecryptedText text="Live hunt" as="h1" className="hunt-title" />
+            {active ? (
+              <ElectricBorder active={true}>
+                <StatusPill status={status} thinking={thinking} />
+              </ElectricBorder>
+            ) : (
+              <StatusPill status={status} thinking={thinking} />
+            )}
           </div>
           <span className="sg-target-line">{job?.target || job?.targetHostname || jobId}</span>
           {job?.currentObjective && <p className="sg-hunt-sub">{job.currentObjective}</p>}

@@ -14,7 +14,11 @@ import { createJob, listJobs } from '../../services/api';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
+import { DarkVeil } from '../../components/fx/DarkVeil';
+import { DecryptedText } from '../../components/fx/DecryptedText';
+import { BentoGrid, BentoTile } from '../../components/fx/BentoGrid';
 import './AgentHome.css';
+import './AgentHomeNew.css';
 
 export function AgentHome() {
   const navigate = useNavigate();
@@ -70,13 +74,16 @@ export function AgentHome() {
   const totalFindings = jobs.reduce((n, j) => n + (j.findingsCount || 0), 0);
 
   return (
-    <div className="sg-hunt-home">
+    <div className="sg-hunt-home home-new">
+      <DarkVeil intensity={0.7} />
       {/* ── Hero ── */}
       <section className="sg-hero sg-fade-up">
         <span className="sg-pill sg-pill-brand"><Radar size={13} /> Autonomous bug bounty</span>
-        <h1 className="sg-display" style={{ margin: '22px 0 16px' }}>
-          Point me at a target.<br /><span className="sg-gradient-text">I'll hunt it down.</span>
-        </h1>
+        <DecryptedText
+          text="Point me at a target. I'll hunt it down."
+          as="h1"
+          className="sg-display home-hero-title"
+        />
         <p className="sg-body" style={{ maxWidth: 560, fontSize: '1.08rem' }}>
           The agent maps the attack surface, tests real hypotheses, and hands you a
           submission-ready report — while you watch it think, live.

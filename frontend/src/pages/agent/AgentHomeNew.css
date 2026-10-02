@@ -1,0 +1,19 @@
+/**
+ * AgentHome new styles.
+ */
+
+.home-new {
+  position: relative;
+}
+
+.home-new .home-hero-title {
+  margin: 22px 0 16px;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #fff 20%, #c4b5fd 60%, #e879f9 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
