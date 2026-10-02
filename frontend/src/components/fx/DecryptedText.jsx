@@ -15,18 +15,18 @@ export function DecryptedText({
   as: Tag = 'span',
 }) {
   const [display, setDisplay] = useState('');
-  const frameRef = useRef(0);
   const doneRef = useRef(false);
 
   useEffect(() => {
     doneRef.current = false;
     let iteration = 0;
     const total = text.length;
+    let timeoutId = null;
 
     const tick = () => {
       if (doneRef.current) return;
-      iteration += 1 / 3;
-      const resolved = Math.floor(iteration);
+      iteration += 1;
+      const resolved = Math.floor(iteration / 2);
 
       if (resolved >= total) {
         setDisplay(text);
@@ -45,13 +45,13 @@ export function DecryptedText({
         }
       }
       setDisplay(out);
-      frameRef.current = requestAnimationFrame(() => setTimeout(tick, speed));
+      timeoutId = setTimeout(tick, speed);
     };
 
-    frameRef.current = requestAnimationFrame(() => setTimeout(tick, speed));
+    timeoutId = setTimeout(tick, speed);
     return () => {
       doneRef.current = true;
-      cancelAnimationFrame(frameRef.current);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [text, speed]);
 
