@@ -84,7 +84,7 @@ test('ask: "kya kar raha hai" describes the live phase and current step', () => 
   const answer = buildAskReply({ job: makeJob(), findings: [], question: 'kya kar raha hai?' });
   assert.equal(answer.intent, 'doing');
   assert.match(answer.reply, /recon/);
-  assert.match(answer.reply, /Subdomain enumeration/);
+  assert.match(answer.reply, /subfinder found 14 subdomains/);
   assert.match(answer.reply, /example\.com/);
   assert.equal(answer.reaction, '🔍');
 });

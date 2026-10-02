@@ -3,6 +3,43 @@ import { AppError } from '../core/errors.js';
 import { ToolRegistry } from './registry.js';
 import { PolicyValidator } from './policyValidator.js';
 import { parseToolOutput, summarizeForAI } from './parsers/index.js';
+import { WafAdaptiveState, parseWafw00f } from '../recon/wafAdaptive.js';
+import { HTTP_PROBES } from './builtin/httpProbes.js';
+import { ADV_PROBES } from './builtin/advProbes.js';
+import { permissionService as defaultPermissionService } from '../services/permissionService.js';
+
+/**
+ * Fallback tool map for bad-tool-output recovery (G33): when a tool errors
+ * or returns garbage, the brain retries with a DIFFERENT approach instead of
+ * dying. Order matters — cheapest/safest alternative first.
+ */
+export const FALLBACK_TOOLS = Object.freeze({
+  nuclei: [{ tool: 'nikto', note: 'nuclei failed → nikto misconfiguration sweep as fallback' }],
+  nikto: [{ tool: 'nuclei', note: 'nikto failed → nuclei broad sweep as fallback' }],
+  katana: [
+    { tool: 'gau', note: 'katana failed → gau archive URLs as fallback' },
+    { tool: 'waybackurls', note: 'gau failed → waybackurls as fallback' }
+  ],
+  nmap: [{ tool: 'naabu', note: 'nmap failed → naabu fast port sweep as fallback', args: ['-silent', '-json', '-top-ports', '1000'] }],
+  naabu: [{ tool: 'nmap', note: 'naabu failed → nmap fast scan as fallback', args: ['-F', '-T4', '-oX', '-'] }],
+  dnsx: [{ tool: 'crtsh', note: 'dnsx failed → crt.sh passive lookup as fallback' }],
+  whatweb: [{ tool: 'httpx', note: 'whatweb failed → httpx tech-detect as fallback', args: ['-silent', '-json', '-tech-detect'] }],
+  ffuf: [{ tool: 'gobuster', note: 'ffuf failed → gobuster as fallback' }],
+  dalfox: [{ tool: 'nuclei', note: 'dalfox failed → nuclei XSS-tagged templates as fallback', args: ['-silent', '-json', '-tags', 'xss'] }],
+  arjun: [{ tool: 'paramspider', note: 'arjun failed → paramspider archive mining as fallback' }]
+});
+
+/** Heuristics for "the tool ran but the output is garbage". */
+export function isGarbageResult(parseResult, rawOutput) {
+  const raw = typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput || '');
+  if (parseResult && parseResult.success === false) return true;
+  if (/command not found|not recognized as an internal/i.test(raw)) return true;
+  if (raw.includes('"status":"kali_required"') || raw.includes('"status": "kali_required"')) return true;
+  if (!raw.trim()) return true;
+  return false;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * ToolExecutor — controlled execution layer between the AI brain and actual tools.
@@ -15,22 +52,63 @@ import { parseToolOutput, summarizeForAI } from './parsers/index.js';
  *   2. Kali Worker (sends structured requests to a Kali Linux worker)
  */
 export class ToolExecutor {
-  constructor({ toolExecutionModel, eventService, scopeEngine }) {
+  constructor({ toolExecutionModel, eventService, scopeEngine, permissionService = null } = {}) {
     this.toolExecutionModel = toolExecutionModel;
     this.eventService = eventService;
     this.scopeEngine = scopeEngine;
+    this.permissionService = permissionService || defaultPermissionService;
+    // G34: per-assessment WAF state — wafw00f detection ENFORCES stealth.
+    this.wafState = new WafAdaptiveState();
+  }
+
+  /**
+   * Feed a wafw00f result into the adaptive state. When a WAF is detected,
+   * all later tool executions for this assessment are stealth-enforced.
+   * Accepts raw wafw00f output or an already-parsed {detected, waf} object.
+   */
+  applyWafDetection(assessmentId, wafw00fRawOrParsed) {
+    const parsed = typeof wafw00fRawOrParsed === 'string' || wafw00fRawOrParsed?.firewall
+      ? parseWafw00f(typeof wafw00fRawOrParsed === 'string' ? wafw00fRawOrParsed : JSON.stringify(wafw00fRawOrParsed))
+      : wafw00fRawOrParsed;
+    return this.wafState.applyWafDetection(assessmentId, parsed);
+  }
+
+  /** True when this assessment is under enforced stealth. */
+  isStealthEnforced(assessmentId) {
+    return this.wafState.isEnforced(assessmentId);
   }
 
   /**
    * Execute a tool with full policy validation, dedup, and result parsing.
    * @returns {{ execution, parsed, aiSummary }}
    */
-  async execute(assessmentId, userId, request) {
+  async execute(assessmentId, userId, request, opts = {}) {
     const tool = ToolRegistry.get(request.tool);
     if (!tool) throw new AppError(400, `Unknown tool: ${request.tool}`, 'UNKNOWN_TOOL');
 
-    // 1. Policy validation
-    const policy = PolicyValidator.validate(request, this.scopeEngine);
+    // 0. G34 WAF-adaptive enforcement: rewrite the request through the
+    //    enforced stealth profile BEFORE policy validation.
+    const { request: effectiveRequest, enforced, changes } = this.wafState.enforce(assessmentId, request);
+    if (enforced) {
+      await this.eventService.publish(assessmentId, {
+        type: 'STEALTH_ENFORCED',
+        level: 'INFO',
+        message: `WAF-adaptive stealth enforced on ${request.tool}: ${changes.join('; ')}`,
+        data: { tool: request.tool, changes }
+      });
+      // Pre-request jitter: timing randomization against WAF rate analysis.
+      const jitter = effectiveRequest.meta?.preRequestJitterMs;
+      if (jitter) await sleep(Math.round(jitter * (0.5 + Math.random())));
+    }
+    request = effectiveRequest;
+
+    // 1. Policy validation (H41: permissionMode-aware). A per-call scopeEngine
+    //    (the hunt's own authorized scope) overrides the executor's boot-time
+    //    default — without it every in-scope tool would fail validation.
+    const policy = PolicyValidator.validate(request, opts.scopeEngine || this.scopeEngine, {
+      permissionService: this.permissionService,
+      userId
+    });
     if (!policy.allowed) {
       await this.eventService.publish(assessmentId, {
         type: 'TOOL_BLOCKED',
@@ -38,7 +116,12 @@ export class ToolExecutor {
         message: `Policy blocked ${request.tool}: ${policy.reason}`,
         data: { tool: request.tool, reason: policy.reason }
       });
-      throw new AppError(403, policy.reason, 'POLICY_VIOLATION');
+      // Attach the approval record (if the validator created one) so callers
+      // — e.g. the detection scan loops — can surface the pending approval
+      // to the user instead of just a bare denial.
+      const blocked = new AppError(403, policy.reason, 'POLICY_VIOLATION');
+      if (policy.approval) blocked.approval = policy.approval;
+      throw blocked;
     }
 
     // 2. Deduplication check
@@ -59,7 +142,9 @@ export class ToolExecutor {
         execution: existing,
         parsed: cachedParsed,
         aiSummary: existing.aiSummary || summarizeForAI(request.tool, cachedParsed),
-        deduplicated: true
+        deduplicated: true,
+        parseOk: true,
+        rawOutput: typeof existing.rawOutput === 'string' ? existing.rawOutput : ''
       };
     }
 
@@ -96,6 +181,22 @@ export class ToolExecutor {
         hostname: request.target,
         target: request.target
       });
+
+      // G34: a wafw00f run automatically arms stealth for the rest of the hunt.
+      if (request.tool === 'wafw00f' && parseResult.success) {
+        try {
+          const state = this.applyWafDetection(assessmentId, rawOutput);
+          if (state.detected) {
+            await this.eventService.publish(assessmentId, {
+              type: 'WAF_DETECTED',
+              level: 'WARN',
+              message: `WAF detected (${state.waf}) — stealth profile ENFORCED for remaining tools`,
+              data: { waf: state.waf, method: state.method }
+            });
+          }
+        } catch { /* detection parsing must never break the hunt */ }
+      }
+
       const parsed = parseResult.result;
       const aiSummary = summarizeForAI(request.tool, parsed);
 
@@ -114,7 +215,7 @@ export class ToolExecutor {
         data: { tool: request.tool, executionId: execution.id, summary: aiSummary.slice(0, 500) }
       });
 
-      return { execution, parsed, aiSummary, deduplicated: false };
+      return { execution, parsed, aiSummary, deduplicated: false, parseOk: parseResult.success, rawOutput: typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput) };
 
     } catch (error) {
       await this.toolExecutionModel.markFailed(execution.id, error.message);
@@ -128,13 +229,109 @@ export class ToolExecutor {
     }
   }
 
-  /** Built-in tool execution (no Kali required). Currently: crt.sh. */
+  /**
+   * G33 — resilient execution: when a tool errors or returns garbage, retry
+   * with a DIFFERENT approach (max attempts) instead of dying.
+   *
+   * Attempt plan:
+   *   1. The requested tool as-is.
+   *   2. Same tool, simplified: drop custom args, keep registry defaults
+   *      (a bad custom flag is the most common cause of garbage output).
+   *   3+. Fallback tools from FALLBACK_TOOLS (different tool, same objective).
+   *
+   * Policy violations are NEVER retried — retrying a blocked action would be
+   * a safety bypass. Returns { execution, parsed, aiSummary, recovery } where
+   * recovery describes the attempts. Throws the last error when exhausted.
+   */
+  async executeResilient(assessmentId, userId, request, { maxAttempts = 3 } = {}) {
+    const attempts = [];
+    const tryOnce = async (req, approach) => {
+      try {
+        const result = await this.execute(assessmentId, userId, req);
+        const garbage = isGarbageResult({ success: result.parseOk !== false }, result.rawOutput || '');
+        return { ok: !garbage, result, garbage, approach };
+      } catch (error) {
+        return { ok: false, error, approach, policyBlocked: error?.code === 'POLICY_VIOLATION' };
+      }
+    };
+
+    // Attempt 1: as requested
+    let outcome = await tryOnce(request, 'requested');
+    attempts.push(outcome);
+    if (outcome.ok) return { ...outcome.result, recovery: { recovered: false, attempts: attempts.map((a) => a.approach) } };
+    if (outcome.policyBlocked) throw outcome.error; // never retry a safety block
+
+    // Attempt 2: same tool, simplified args (drop everything but registry defaults)
+    if (maxAttempts >= 2) {
+      const simplified = { ...request, arguments: {} };
+      outcome = await tryOnce(simplified, 'simplified-args');
+      attempts.push(outcome);
+      await this.eventService.publish(assessmentId, {
+        type: outcome.ok ? 'TOOL_RECOVERED' : 'TOOL_RETRY_FAILED',
+        level: outcome.ok ? 'INFO' : 'WARN',
+        message: outcome.ok
+          ? `${request.tool} recovered with simplified arguments`
+          : `${request.tool} retry with simplified arguments failed: ${outcome.garbage ? 'garbage output' : outcome.error?.message}`,
+        data: { tool: request.tool, approach: 'simplified-args' }
+      }).catch(() => {});
+      if (outcome.ok) return { ...outcome.result, recovery: { recovered: true, attempts: attempts.map((a) => a.approach) } };
+      if (outcome.policyBlocked) throw outcome.error;
+    }
+
+    // Attempts 3+: fallback tools, each a different approach to the same objective
+    const fallbacks = FALLBACK_TOOLS[request.tool] || [];
+    for (const fb of fallbacks.slice(0, Math.max(0, maxAttempts - 2))) {
+      const fbRequest = {
+        tool: fb.tool,
+        target: request.target,
+        arguments: { args: fb.args || [] },
+        description: fb.note
+      };
+      outcome = await tryOnce(fbRequest, `fallback:${fb.tool}`);
+      attempts.push(outcome);
+      await this.eventService.publish(assessmentId, {
+        type: outcome.ok ? 'TOOL_RECOVERED' : 'TOOL_RETRY_FAILED',
+        level: outcome.ok ? 'INFO' : 'WARN',
+        message: outcome.ok
+          ? `${request.tool} objective recovered via fallback ${fb.tool}`
+          : `Fallback ${fb.tool} failed: ${outcome.garbage ? 'garbage output' : outcome.error?.message}`,
+        data: { tool: request.tool, fallback: fb.tool }
+      }).catch(() => {});
+      if (outcome.ok) return { ...outcome.result, recovery: { recovered: true, attempts: attempts.map((a) => a.approach) } };
+      if (outcome.policyBlocked) throw outcome.error;
+    }
+
+    const last = attempts[attempts.length - 1];
+    const err = last.error instanceof Error ? last.error
+      : new Error(`${request.tool} produced unusable output after ${attempts.length} approach(es)`);
+    err.recoveryAttempts = attempts.map((a) => a.approach);
+    throw err;
+  }
+
+  /** Built-in tool execution (no Kali required). Currently: crt.sh, python, HTTP probes. */
   async executeBuiltIn(tool, request) {
     if (tool.name === 'crtsh') {
       return this.executeCrtsh(request.target);
     }
     if (tool.name === 'python') {
       return this.executePython(request.arguments);
+    }
+    // Built-in HTTP detection probes (src/tools/builtin/httpProbes.js and
+    // advProbes.js): real HTTP against the authorized target, normalized
+    // finding candidates out.
+    const probe = HTTP_PROBES[tool.name] || ADV_PROBES[tool.name];
+    if (probe) {
+      const args = request.arguments || {};
+      // Probes share baseUrl/webProbe/timeoutMs; any other argument keys are
+      // probe-specific (token, endpoint, expectation, ...) and pass through.
+      const { baseUrl: _b, webProbe: _w, timeoutMs: _t, ...extra } = args;
+      const result = await probe({
+        baseUrl: args.baseUrl || request.target,
+        webProbe: args.webProbe || null,
+        timeoutMs: Math.min(request.timeout || tool.timeout, config.toolDefaultTimeoutMs),
+        ...extra
+      });
+      return JSON.stringify(result);
     }
     throw new AppError(501, `Built-in execution not implemented for ${tool.name}`, 'NOT_IMPLEMENTED');
   }
@@ -267,12 +464,12 @@ export class ToolExecutor {
    * @param {Array<{tool, target, arguments}>} requests
    * @returns {Array<{request, ok, result|error}>}
    */
-  async executeParallel(assessmentId, userId, requests = []) {
+  async executeParallel(assessmentId, userId, requests = [], opts = {}) {
     if (!Array.isArray(requests) || !requests.length) return [];
     // Cap parallelism to avoid overwhelming the target or the machine.
     const batch = requests.slice(0, 6);
     const settled = await Promise.allSettled(
-      batch.map((req) => this.execute(assessmentId, userId, req))
+      batch.map((req) => this.execute(assessmentId, userId, req, opts))
     );
     return batch.map((request, i) => {
       const s = settled[i];
