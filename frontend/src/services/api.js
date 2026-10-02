@@ -1016,6 +1016,26 @@ export function assignBrainSlot(slot, modelId) {
 }
 
 /**
+ * Per-slot source: each brain slot runs on a local model OR a Kaggle link.
+ */
+export function getSlotSources() {
+  return request('/model-runner/brain-slots/sources');
+}
+
+export function connectSlotKaggle(slot, url, name) {
+  return request('/model-runner/brain-slots/kaggle', {
+    method: 'POST',
+    body: JSON.stringify({ slot, url, name })
+  });
+}
+
+export function disconnectSlotKaggle(slot) {
+  return request(`/model-runner/brain-slots/kaggle/${slot}`, {
+    method: 'DELETE'
+  });
+}
+
+/**
  * Live per-model download progress via SSE.
  * Events: progress { modelId, status, receivedBytes, totalBytes, percent }.
  * Terminal states: status 'done' (percent 100 — the row flips to Run),
