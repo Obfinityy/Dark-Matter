@@ -1,0 +1,4 @@
+{"host":"www.target.local","a":["93.184.216.34"]}
+{"host":"mail.target.local","a":["93.184.216.35"],"mx":["mail.target.local"]}
+not-json
+{"nohost":true}

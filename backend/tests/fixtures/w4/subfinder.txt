@@ -1,0 +1,8 @@
+www.target.local
+api.target.local
+WWW.TARGET.LOCAL
+mail.target.local
+not a host!!
+staging.target.local.
+other.com
+api.target.local

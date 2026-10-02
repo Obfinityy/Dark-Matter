@@ -1,0 +1,6 @@
+{"url":"http://127.0.0.1:4562/search?q=test","method":"GET","status-code":200}
+{"url":"http://127.0.0.1:4562/about","method":"GET","status-code":200}
+{"url":"http://127.0.0.1:4562/static/app.js","method":"GET","status-code":200}
+{"url":"http://127.0.0.1:4562/api/users?page=2","method":"GET","status-code":200}
+not json
+{"method":"GET"}
