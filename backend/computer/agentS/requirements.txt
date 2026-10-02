@@ -1,0 +1,7 @@
+# Dark-Matter Agent S computer-control driver.
+# Install on the machine that will be controlled (Windows/Linux):
+#   pip install -r requirements.txt
+
+gui-agents>=0.3.0
+pyautogui>=0.9.54
+pillow>=10.0.0
