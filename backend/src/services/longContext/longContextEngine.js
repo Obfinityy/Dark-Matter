@@ -271,7 +271,7 @@ class LongContextEngine {
    * extraction heuristics); the rolling summary is only re-condensed when it
    * grows beyond a threshold, to avoid unnecessary model calls (#41).
    */
-  async updateMemoryAfterTurn({ conversationId, userMessage, assistantReply, existingSummary }) {
+  async updateMemoryAfterTurn({ userId = null, conversationId, userMessage, assistantReply, existingSummary }) {
     const state = await this.getTaskState(conversationId);
 
     // Rolling summary: append a compact turn digest (deterministic, no model call).
@@ -300,7 +300,7 @@ class LongContextEngine {
             { role: 'system', content: 'Condense the following conversation digest into a tight factual summary under 250 words. Keep names, decisions, requirements. No preamble.' },
             { role: 'user', content: state.conversationSummary }
           ],
-          { maxTokens: 320, maxAttempts: 2 }
+          { maxTokens: 320, maxAttempts: 2, userId }
         );
         state.conversationSummary = text.trim();
         await this.store.saveTaskState(conversationId, state);

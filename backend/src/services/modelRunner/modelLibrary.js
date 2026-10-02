@@ -1,10 +1,21 @@
 /**
  * modelLibrary.js — curated GGUF model library for the no-Ollama local runner.
  *
- * Every entry is an UNCESORED (abliterated / dolphin) instruct model, verified
- * against the Hugging Face API (repo + exact GGUF filename). Nothing is
- * downloaded by default — the user picks a model, the backend downloads the
- * single .gguf file into the models dir, and the local llama-server runs it.
+ * EVERY entry is an UNCENSORED instruct model (abliterated / Dolphin):
+ * refusals were surgically removed from the weights, so the agent's brain
+ * never stonewalls a legitimate security-testing question with a lecture.
+ *
+ * Repos + exact filenames verified live against the Hugging Face API on
+ * 2026-10-02 (HEAD on every resolve URL; non-gated repos only — a 401-gated
+ * repo was replaced, split-file quants removed since the downloader is
+ * single-file). Single source of truth: the `siblings` arrays from
+ * https://huggingface.co/api/models/<repo> — filenames are copied verbatim.
+ *   - bartowski/*-GGUF tables (e.g. huihui-ai_Qwen3-14B-abliterated-Q4_K_M.gguf)
+ *   - mradermacher/Llama-3.1-70B-Instruct-abliterated-GGUF quant table
+ *   - Sowkwndms/Huihui-Qwen3-30B-A3B-Instruct-2507-abliterated-Q4_K_M-GGUF card
+ *   - bartowski/huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-GGUF
+ *   - dphn/Dolphin3.0-Llama3.1-8B-GGUF (in use since the Singularity QA)
+ *   - failspy/Meta-Llama-3-70B-Instruct-abliterated-v3.5-GGUF (q4 legacy file)
  *
  * requirements:
  *   ramGB       — minimum system RAM (GB) for the model to load comfortably
@@ -13,10 +24,13 @@
  *
  * The device-compatibility ranking lives in deviceInfo.js; it compares these
  * numbers against the detected hardware and produces ready / tight / risky /
- * blocked verdicts with human-readable reasons.
+ * blocked verdicts with human-readable reasons. The Models page ALSO ranks
+ * with the browser-detected specs (see frontend/src/services/deviceDetect.js)
+ * — browser detection is the source of truth for what fits YOUR machine.
  */
 
 export const MODEL_LIBRARY = Object.freeze([
+  // ── 8B · Lightweight ──────────────────────────────────────────────
   {
     id: 'dolphin-llama31-8b',
     name: 'Dolphin 3.0 Llama 3.1 8B',
@@ -38,8 +52,8 @@ export const MODEL_LIBRARY = Object.freeze([
     name: 'Qwen3 8B Abliterated',
     params: '8B',
     quant: 'Q4_K_M',
-    tier: 'balanced',
-    tierLabel: 'Balanced',
+    tier: 'lightweight',
+    tierLabel: 'Lightweight',
     hfRepo: 'bartowski/mlabonne_Qwen3-8B-abliterated-GGUF',
     hfFile: 'mlabonne_Qwen3-8B-abliterated-Q4_K_M.gguf',
     sizeGB: 4.7,
@@ -50,6 +64,81 @@ export const MODEL_LIBRARY = Object.freeze([
     description:
       'Uncensored (abliterated) Qwen3 8B — strong reasoning for its size, 32k context, runs on CPU.'
   },
+
+  // ── 14B · Balanced ─────────────────────────────────────────────────
+  {
+    id: 'qwen3-14b-abliterated',
+    name: 'Qwen3 14B Abliterated',
+    params: '14B',
+    quant: 'Q4_K_M',
+    tier: 'balanced',
+    tierLabel: 'Balanced',
+    hfRepo: 'bartowski/huihui-ai_Qwen3-14B-abliterated-GGUF',
+    hfFile: 'huihui-ai_Qwen3-14B-abliterated-Q4_K_M.gguf',
+    sizeGB: 9.0,
+    quants: {
+      Q4_K_M: { file: 'huihui-ai_Qwen3-14B-abliterated-Q4_K_M.gguf', sizeGB: 9.0 },
+      Q5_K_M: { file: 'huihui-ai_Qwen3-14B-abliterated-Q5_K_M.gguf', sizeGB: 10.51 },
+      Q8_0: { file: 'huihui-ai_Qwen3-14B-abliterated-Q8_0.gguf', sizeGB: 15.7 }
+    },
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 12, vramGB: 0, gpuRequired: false },
+    description:
+      'Uncensored Qwen3 14B — the sweet spot: noticeably smarter than 8B, still happy on a 16GB laptop CPU.'
+  },
+
+  // ── 24B · Balanced ─────────────────────────────────────────────────
+  {
+    id: 'dolphin-mistral-24b-venice',
+    name: 'Dolphin Mistral 24B Venice',
+    params: '24B',
+    quant: 'Q4_K_M',
+    tier: 'balanced',
+    tierLabel: 'Balanced',
+    hfRepo: 'bartowski/cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-GGUF',
+    hfFile: 'cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-Q4_K_M.gguf',
+    sizeGB: 14.5,
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
+    description:
+      'Uncensored Dolphin on Mistral Small 24B — excellent instruction following, the Venice uncensored edition.'
+  },
+  {
+    id: 'dolphin3-r1-mistral-24b',
+    name: 'Dolphin 3.0 R1 Mistral 24B',
+    params: '24B',
+    quant: 'Q4_K_M',
+    tier: 'balanced',
+    tierLabel: 'Balanced',
+    hfRepo: 'bartowski/cognitivecomputations_Dolphin3.0-R1-Mistral-24B-GGUF',
+    hfFile: 'cognitivecomputations_Dolphin3.0-R1-Mistral-24B-Q4_K_M.gguf',
+    sizeGB: 14.9,
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
+    description:
+      'Uncensored Dolphin 3.0 reasoning model on Mistral 24B — first-principles analysis, great for hunt planning.'
+  },
+  {
+    id: 'mistral-small-24b-abliterated',
+    name: 'Mistral Small 24B Abliterated',
+    params: '24B',
+    quant: 'Q4_K_M',
+    tier: 'balanced',
+    tierLabel: 'Balanced',
+    hfRepo: 'bartowski/huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-GGUF',
+    hfFile: 'huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-Q4_K_M.gguf',
+    sizeGB: 14.5,
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
+    description:
+      'Uncensored (abliterated) Mistral Small 24B 2501 — crisp instruction following with refusals removed.'
+  },
+
+  // ── 27B–32B · Powerful ─────────────────────────────────────────────
   {
     id: 'qwen3-27b-abliterated',
     name: 'Qwen3 27B Abliterated',
@@ -65,6 +154,137 @@ export const MODEL_LIBRARY = Object.freeze([
     requirements: { ramGB: 24, vramGB: 16, gpuRequired: false },
     description:
       'Uncensored Qwen3 27B — near-frontier reasoning for agentic hunts. Needs a strong machine: 24GB+ RAM or a 16GB+ GPU.'
+  },
+  {
+    id: 'qwen3-30b-a3b-abliterated',
+    name: 'Qwen3 30B A3B Abliterated',
+    params: '30B',
+    quant: 'Q4_K_M',
+    tier: 'powerful',
+    tierLabel: 'Powerful',
+    hfRepo: 'Sowkwndms/Huihui-Qwen3-30B-A3B-Instruct-2507-abliterated-Q4_K_M-GGUF',
+    hfFile: 'huihui-qwen3-30b-a3b-instruct-2507-abliterated-q4_k_m.gguf',
+    sizeGB: 18.5,
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 24, vramGB: 16, gpuRequired: false },
+    description:
+      'Uncensored Qwen3 30B mixture-of-experts (only 3B active per token) — 30B smarts at 8B speed.'
+  },
+  {
+    id: 'deepseek-r1-distill-qwen-32b',
+    name: 'DeepSeek R1 Distill Qwen 32B',
+    params: '32B',
+    quant: 'Q4_K_M',
+    tier: 'powerful',
+    tierLabel: 'Powerful',
+    hfRepo: 'bartowski/DeepSeek-R1-Distill-Qwen-32B-abliterated-GGUF',
+    hfFile: 'DeepSeek-R1-Distill-Qwen-32B-abliterated-Q4_K_M.gguf',
+    sizeGB: 19.5,
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 32, vramGB: 20, gpuRequired: false },
+    description:
+      'Uncensored DeepSeek-R1 reasoning distilled into Qwen 32B — chain-of-thought depth for hard targets.'
+  },
+
+  // ── 70B · Frontier ─────────────────────────────────────────────────
+  {
+    id: 'llama33-70b-ablated',
+    name: 'Llama 3.3 70B Ablated',
+    params: '70B',
+    quant: 'Q4_K_M',
+    tier: 'frontier',
+    tierLabel: 'Frontier',
+    hfRepo: 'bartowski/Llama-3.3-70B-Instruct-ablated-GGUF',
+    hfFile: 'Llama-3.3-70B-Instruct-ablated-Q4_K_M.gguf',
+    sizeGB: 42.5,
+    // NOTE: Q5_K_M / Q8_0 exist here only as 2-part splits — the downloader
+    // is single-file, so only Q4_K_M is offered.
+    contextWindow: 131072,
+    uncensored: true,
+    requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
+    description:
+      'Uncensored Llama 3.3 70B — flagship-class reasoning, 128k context. For workstations and big GPUs.'
+  },
+  {
+    id: 'llama31-nemotron-70b',
+    name: 'Llama 3.1 Nemotron 70B',
+    params: '70B',
+    quant: 'Q4_K_M',
+    tier: 'frontier',
+    tierLabel: 'Frontier',
+    hfRepo: 'bartowski/Llama-3.1-Nemotron-70B-Instruct-HF-abliterated-GGUF',
+    hfFile: 'Llama-3.1-Nemotron-70B-Instruct-HF-abliterated-Q4_K_M.gguf',
+    sizeGB: 42.5,
+    // NOTE: Q5_K_M / Q8_0 exist here only as 2-part splits — the downloader
+    // is single-file, so only Q4_K_M is offered.
+    contextWindow: 131072,
+    uncensored: true,
+    requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
+    description:
+      "Uncensored NVIDIA Nemotron-tuned Llama 3.1 70B — NVIDIA's alignment-tuned 70B with refusals removed."
+  },
+  {
+    id: 'llama31-70b-abliterated',
+    name: 'Llama 3.1 70B Abliterated',
+    params: '70B',
+    quant: 'Q4_K_M',
+    tier: 'frontier',
+    tierLabel: 'Frontier',
+    hfRepo: 'mradermacher/Llama-3.1-70B-Instruct-abliterated-GGUF',
+    hfFile: 'Llama-3.1-70B-Instruct-abliterated.Q4_K_M.gguf',
+    sizeGB: 42.6,
+    quants: {
+      Q4_K_M: { file: 'Llama-3.1-70B-Instruct-abliterated.Q4_K_M.gguf', sizeGB: 42.6 },
+      Q5_K_M: { file: 'Llama-3.1-70B-Instruct-abliterated.Q5_K_M.gguf', sizeGB: 50.0 }
+      // NOTE: no Q8_0 single file in this repo — Q5_K_M is the largest offered.
+    },
+    contextWindow: 131072,
+    uncensored: true,
+    requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
+    description:
+      'Uncensored Llama 3.1 70B (static quant) — the classic open 70B workhorse, refusal-free.'
+  },
+  {
+    id: 'deepseek-r1-distill-llama-70b',
+    name: 'DeepSeek R1 Distill Llama 70B',
+    params: '70B',
+    quant: 'Q4_K_M',
+    tier: 'frontier',
+    tierLabel: 'Frontier',
+    hfRepo: 'bartowski/huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-GGUF',
+    hfFile: 'huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-Q4_K_M.gguf',
+    sizeGB: 42.5,
+    quants: {
+      // NOTE: only single-file quants — Q8_0 exists here only as 2 split
+      // parts, which the downloader does not support.
+      Q4_K_M: { file: 'huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-Q4_K_M.gguf', sizeGB: 42.52 },
+      Q5_K_S: { file: 'huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-Q5_K_S.gguf', sizeGB: 46.6 }
+    },
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
+    description:
+      'Uncensored DeepSeek-R1 reasoning distilled into Llama 70B — the deepest thinker in the library.'
+  },
+  {
+    id: 'llama3-70b-abliterated-v35',
+    name: 'Llama 3 70B Abliterated v3.5',
+    params: '70B',
+    quant: 'Q4_K_M',
+    tier: 'frontier',
+    tierLabel: 'Frontier',
+    hfRepo: 'failspy/Meta-Llama-3-70B-Instruct-abliterated-v3.5-GGUF',
+    // NOTE: this repo ships legacy quant files (no Q4_K_M) — q4 is the
+    // single-file ~40 GB quant; q6/q8 exist only as splits.
+    hfFile: 'Meta-Llama-3-70B-Instruct-abliterated-v3.5_q4.gguf',
+    sizeGB: 40.0,
+    contextWindow: 8192,
+    uncensored: true,
+    requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
+    description:
+      'failspy v3.5 abliteration of Llama 3 70B — single-layer orthogonalization, minimal behavior change beyond refusals.'
   }
 ]);
 

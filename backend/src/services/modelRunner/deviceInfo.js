@@ -117,6 +117,37 @@ export async function detectDevice() {
 }
 
 /**
+ * Estimate how much of the model can live on the GPU (partial offload).
+ * llama.cpp offloads layer-by-layer, so a VRAM shortfall is gradual, not
+ * binary: X% of layers on GPU + the rest on CPU.
+ *
+ * @param {object} model — catalog entry (requirements.vramGB = full offload)
+ * @param {number|null} gpuVramGB — detected VRAM (null/0 = CPU only)
+ * @returns { mode: 'full'|'partial'|'cpu', offloadPct, estVramGB, fullNeedGB }
+ */
+export function estimateVramFit(model, gpuVramGB) {
+  const req = model.requirements || {};
+  const fullNeedGB = Number(req.vramGB) || 0;
+  if (fullNeedGB <= 0 || !gpuVramGB || gpuVramGB <= 0) {
+    return { mode: 'cpu', offloadPct: 0, estVramGB: 0, fullNeedGB };
+  }
+  if (gpuVramGB >= fullNeedGB) {
+    return { mode: 'full', offloadPct: 100, estVramGB: fullNeedGB, fullNeedGB };
+  }
+  // Partial offload: keep ~0.5GB headroom on the GPU for KV cache / context,
+  // then fit as many layers as possible. Never report below 5% — even a
+  // small GPU takes the embedding + output layers.
+  const usable = Math.max(gpuVramGB - 0.5, 0);
+  const offloadPct = Math.max(5, Math.floor((usable / fullNeedGB) * 100));
+  return {
+    mode: 'partial',
+    offloadPct,
+    estVramGB: Math.round(usable * 10) / 10,
+    fullNeedGB
+  };
+}
+
+/**
  * Rank ONE model against the device.
  * Returns { verdict, reasons[] } where verdict ∈ ready|tight|risky|blocked.
  *
@@ -159,12 +190,19 @@ export function rankModelForDevice(model, device) {
   }
 
   // VRAM check when the model wants GPU offload and we know the VRAM size.
+  // A shortfall is a SPEED problem (CPU fallback), not a crash risk —
+  // verdict 'tight', never 'risky'. The estimator says HOW partial the
+  // offload will be instead of a binary fits/doesn't-fit. Matches the
+  // browser ranker.
   const gpuVram = usableGpu?.vramGB || null;
+  const vramFit = estimateVramFit(model, gpuVram);
   if (vramGB > 0 && gpuVram && vramGB > gpuVram) {
     reasons.push(
-      `Full GPU offload needs ${vramGB}GB VRAM, but the GPU has ${gpuVram}GB — it will fall back to CPU (slower) and use more system RAM.`
+      `Full GPU offload wants ${vramGB}GB VRAM, but the GPU has ${gpuVram}GB — ` +
+      `about ${vramFit.offloadPct}% of layers will stay on the GPU and the rest ` +
+      `run on CPU (slower, and needs more system RAM).`
     );
-    return { verdict: 'risky', reasons };
+    return { verdict: 'tight', reasons, vramFit };
   }
 
   if (ramRatio > 0.6) {
@@ -178,8 +216,10 @@ export function rankModelForDevice(model, device) {
     reasons.push('A GPU was detected (VRAM size unconfirmed) — the model should run fine.');
   } else if (vramGB === 0) {
     reasons.push('Runs comfortably on CPU — no GPU required.');
+  } else if (vramFit.mode === 'full') {
+    reasons.push(`Fits fully in the GPU's ${gpuVram}GB VRAM — maximum speed.`);
   }
-  return { verdict: 'ready', reasons };
+  return { verdict: 'ready', reasons, vramFit };
 }
 
 /** Rank every library model for the device (for the library endpoint). */
