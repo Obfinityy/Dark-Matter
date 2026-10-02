@@ -286,10 +286,21 @@ export function planWithInfinity(instruction, conversationId) {
 }
 
 /** Build mode: generate a real project from a brief inside the agent workspace sandbox. */
-export function buildWithInfinity(brief, conversationId) {
+export function buildWithInfinity(brief, conversationId, { attachments = [] } = {}) {
   return request('/infinite/build', {
     method: 'POST',
-    body: JSON.stringify({ action: 'create', brief, conversationId })
+    body: JSON.stringify({ action: 'create', brief, conversationId, attachments })
+  });
+}
+
+/**
+ * Build mode: upload local files as brain context (base64 JSON, no multipart).
+ * `files`: [{ name, content (base64), type }]. Saved under uploads/<conversationId>/.
+ */
+export function uploadBuildFiles(conversationId, files) {
+  return request('/infinite/build', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'upload', conversationId, files })
   });
 }
 
@@ -1077,6 +1088,7 @@ export const apiClient = {
   listGenerations,
   planWithInfinity,
   buildWithInfinity,
+  uploadBuildFiles,
   listWorkspaceFiles,
   readWorkspaceFile,
   controlComputer,

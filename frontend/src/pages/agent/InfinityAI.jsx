@@ -23,10 +23,10 @@ import {
   Send, Loader2, Bot, User, MessageCircle, ClipboardList,
   Hammer, SlidersHorizontal, Cpu, FileText, CheckCircle2, XCircle,
   FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
-  ShieldCheck, Play
+  ShieldCheck, Play, Paperclip, FolderOpen, X
 } from 'lucide-react';
 import { sendDirectChat, getProviders, listJobs, getComputerStatus, getInfiniteHistory } from '../../services/api';
-import { planWithInfinity, buildWithInfinity, readWorkspaceFile } from '../../services/api';
+import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
 import {
   createComputerTask, cancelComputerTask, answerComputerTask,
   subscribeToComputerTaskEvents, getBrainChain
@@ -249,16 +249,75 @@ function BuildPane() {
   const [error, setError] = useState('');
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  // Attached local files → uploaded to the workspace as brain context.
+  const [attached, setAttached] = useState([]); // [{ path, name, size }]
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
+
+  const MAX_FILE_BYTES = 2 * 1024 * 1024;
+
+  const readAsBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const comma = dataUrl.indexOf(',');
+      resolve(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
+    };
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+
+  const handlePickedFiles = async (fileList) => {
+    const picked = Array.from(fileList || []).filter((f) => f.size > 0);
+    if (!picked.length) return;
+    const tooBig = picked.find((f) => f.size > MAX_FILE_BYTES);
+    if (tooBig) {
+      setError(`"${tooBig.name}" is too big — max 2 MB per file.`);
+      return;
+    }
+    if (attached.length + picked.length > 20) {
+      setError('Max 20 attached files per build.');
+      return;
+    }
+    setUploading(true);
+    setError('');
+    try {
+      const payload = [];
+      for (const f of picked) {
+        payload.push({ name: f.name, type: f.type || '', content: await readAsBase64(f) });
+      }
+      const res = await uploadBuildFiles(conversationId, payload);
+      const newly = (res?.uploaded || []).map((u) => ({ path: u.path, name: u.name, size: u.size }));
+      // De-dupe by path (re-attaching the same file replaces it).
+      setAttached((prev) => {
+        const paths = new Set(newly.map((n) => n.path));
+        return [...prev.filter((p) => !paths.has(p.path)), ...newly];
+      });
+    } catch (err) {
+      setError(err.message || 'Upload failed.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (folderInputRef.current) folderInputRef.current.value = '';
+    }
+  };
+
+  const removeAttached = (path) => {
+    setAttached((prev) => prev.filter((a) => a.path !== path));
+  };
 
   const run = async () => {
     const brief = input.trim();
-    if (!brief || loading) return;
+    if (!brief || loading || uploading) return;
     setLoading(true);
     setError('');
     setBuild(null);
     setPreview(null);
     try {
-      const res = await buildWithInfinity(brief, conversationId);
+      const res = await buildWithInfinity(brief, conversationId, {
+        attachments: attached.map((a) => a.path)
+      });
       if (!res?.build?.files?.length) throw new Error('The builder created no files.');
       setBuild(res.build);
     } catch (err) {
@@ -290,12 +349,73 @@ function BuildPane() {
           placeholder="What should I build?… e.g. “a portfolio page for Rahul Sharma”"
           disabled={loading}
         />
-        <button onClick={run} disabled={loading || !input.trim()} aria-label="Build">
+        <button onClick={run} disabled={loading || uploading || !input.trim()} aria-label="Build">
           {loading ? <Loader2 size={17} className="sg-spin" /> : <Hammer size={17} />}
         </button>
       </div>
+
+      {/* ── Attach local files / folders as brain context ── */}
+      <div className="sg-attach-row" style={{ maxWidth: 760, margin: '10px auto 0' }}>
+        <button
+          className="sg-btn sg-btn-ghost sg-btn-sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || loading}
+          title="Attach files from your machine"
+        >
+          {uploading ? <Loader2 size={14} className="sg-spin" /> : <Paperclip size={14} />}
+          <span>Attach files</span>
+        </button>
+        <button
+          className="sg-btn sg-btn-ghost sg-btn-sm"
+          onClick={() => folderInputRef.current?.click()}
+          disabled={uploading || loading}
+          title="Attach a whole folder from your machine"
+        >
+          <FolderOpen size={14} />
+          <span>Attach folder</span>
+        </button>
+        <span className="sg-tiny" style={{ alignSelf: 'center' }}>
+          The brain reads these as context while building.
+        </span>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => handlePickedFiles(e.target.files)}
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          hidden
+          // Non-standard but supported by Chrome/Edge: picks a whole folder.
+          {...{ webkitdirectory: '' }}
+          onChange={(e) => handlePickedFiles(e.target.files)}
+        />
+      </div>
+
+      {attached.length > 0 && (
+        <div className="sg-attach-chips" style={{ maxWidth: 760, margin: '8px auto 0' }}>
+          {attached.map((a) => (
+            <span key={a.path} className="sg-chip">
+              <FileCode2 size={13} />
+              <span className="sg-chip-name" title={a.path}>{a.name}</span>
+              <span className="sg-tiny">{(a.size / 1024).toFixed(1)} KB</span>
+              <button
+                className="sg-chip-x"
+                onClick={() => removeAttached(a.path)}
+                aria-label={`Remove ${a.name}`}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <p className="sg-small" style={{ textAlign: 'center' }}>
         <ShieldCheck size={12} style={{ verticalAlign: -1 }} /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
+        {build?.brainBuilt && <span className="sg-pill sg-pill-brand" style={{ marginLeft: 8 }}>Built by your active brain</span>}
       </p>
 
       {error && <div className="sg-auth-error" role="alert" style={{ maxWidth: 760, margin: '0 auto' }}>{error}</div>}
