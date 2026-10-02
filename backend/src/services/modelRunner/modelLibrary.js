@@ -285,6 +285,48 @@ export const MODEL_LIBRARY = Object.freeze([
     requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
     description:
       'failspy v3.5 abliteration of Llama 3 70B — single-layer orthogonalization, minimal behavior change beyond refusals.'
+  },
+  // ── Infinity Agent · Grounding (MANDATORY for Control mode) ──────────
+  // UI-TARS locates buttons, search bars, and UI elements on screen and
+  // returns x,y coordinates. Small enough to run on CPU — even on phones.
+  // Downloaded once from Models → Plugins, then Control mode just works.
+  {
+    id: 'uitars-grounding-7b',
+    name: 'UI-TARS 1.5 7B (Grounding)',
+    params: '7B',
+    quant: 'Q4_K_M',
+    tier: 'plugin',
+    tierLabel: 'Plugin · Control Mode',
+    hfRepo: 'Mungert/UI-TARS-1.5-7B-GGUF',
+    hfFile: 'UI-TARS-1.5-7B-Q4_K_M.gguf',
+    sizeGB: 4.4,
+    contextWindow: 4096,
+    uncensored: true,
+    mandatory: true,
+    mandatoryFor: 'control',
+    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
+    description:
+      'Screen grounding for Infinity Agent — finds UI elements and returns coordinates. Tiny, runs on CPU/phone. Required for Control mode.'
+  },
+  // ── Infinity Agent · Vision brains (uncensored) ────────────────────────
+  // Vision models SEE screenshots. Run locally via llama.cpp or connect
+  // the same weights on Kaggle — your choice, same brain either way.
+  {
+    id: 'qwen25-vl-7b',
+    name: 'Qwen2.5-VL 7B',
+    params: '7B',
+    quant: 'Q4_K_M',
+    tier: 'vision',
+    tierLabel: 'Vision',
+    hfRepo: 'Qwen/Qwen2.5-VL-7B-Instruct-GGUF',
+    hfFile: 'Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf',
+    sizeGB: 4.9,
+    contextWindow: 8192,
+    uncensored: true,
+    vision: true,
+    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
+    description:
+      'Vision brain for Infinity Agent — sees screenshots and reasons about them. Runs on CPU, or the same model on Kaggle for GPU speed.'
   }
 ]);
 
