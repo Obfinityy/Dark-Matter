@@ -1,5 +1,6 @@
 import { AgentJobModel, TERMINAL_JOB_STATES } from '../models/agentJobModel.js';
 import { buildAskReply } from '../services/askAgentService.js';
+import { normalizeTargetUrl } from '../models/targetModel.js';
 
 /**
  * JobManager — the control plane for autonomous jobs.
@@ -56,11 +57,21 @@ export class JobManager {
    * picks it up on the next tick.
    */
   async createJob({ userId, assessmentId, target, scope, objective, conversationId = null }) {
+    // Hunt-start intake: accept a bare "target.com" and normalize it to a
+    // full URL once, here, so every hunt origin (manual, queue, schedule)
+    // stores the same canonical target. Invalid values keep the raw input —
+    // downstream validation reports the problem.
+    let normalizedTarget = target;
+    try {
+      normalizedTarget = normalizeTargetUrl(target);
+    } catch {
+      normalizedTarget = target;
+    }
     const job = await this.jobModel.create({
       userId,
       assessmentId,
       conversationId,
-      target,
+      target: normalizedTarget,
       scope,
       objective
     });

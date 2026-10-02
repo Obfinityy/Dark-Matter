@@ -1,5 +1,6 @@
 import { AppError, assert } from '../core/errors.js';
 import { id, normalizeUrlCandidate, now } from '../core/utils.js';
+import { scopeEntryCovers } from '../agent/scopeEngine.js';
 
 export function normalizeTargetUrl(value) {
   let parsed;
@@ -19,13 +20,16 @@ function normalizeDomain(value) {
 }
 
 export function normalizeScope(url, scope = {}) {
-  const hostname = normalizeDomain(new URL(url).hostname);
+  // host (not hostname): the port is part of the authorized scope, so the
+  // default grant covers exactly the target's host:port (127.0.0.1:4555).
+  const hostport = normalizeDomain(new URL(url).host);
   const included = Array.isArray(scope.included) && scope.included.length
     ? scope.included.map(normalizeDomain).filter(Boolean)
-    : [hostname];
+    : [hostport];
   const excluded = Array.isArray(scope.excluded) ? scope.excluded.map(normalizeDomain).filter(Boolean) : [];
-  assert(included.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`)), 400, 'Target is outside the declared scope', 'TARGET_OUT_OF_SCOPE');
-  assert(!excluded.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`)), 400, 'Target is excluded by scope', 'TARGET_EXCLUDED');
+  // A portless entry covers the host on any port; a ported entry pins the port.
+  assert(included.some((domain) => scopeEntryCovers(domain, hostport)), 400, 'Target is outside the declared scope', 'TARGET_OUT_OF_SCOPE');
+  assert(!excluded.some((domain) => scopeEntryCovers(domain, hostport)), 400, 'Target is excluded by scope', 'TARGET_EXCLUDED');
   return { included, excluded };
 }
 
