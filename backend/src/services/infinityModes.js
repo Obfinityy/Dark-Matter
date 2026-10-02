@@ -115,7 +115,7 @@ function classifyTask(instruction) {
  * reachable, it may refine step wording; refinement never changes the shape
  * and its failure never breaks planning.
  */
-export async function planInstruction(instruction, { brainModel = null } = {}) {
+export async function planInstruction(instruction, { brainModel = null, userId = null } = {}) {
   const clean = String(instruction || '').trim();
   if (!clean) throw new Error('instruction is required');
 
@@ -138,7 +138,7 @@ export async function planInstruction(instruction, { brainModel = null } = {}) {
           content: 'You are a planning assistant. The user will receive a numbered plan. Reply with the same steps, slightly reworded to fit their specific request, keeping the same count and order. Format: one line per step as "N. Title — detail (Tools: a, b)".'
         },
         { role: 'user', content: `Request: ${clean}\n\nSteps:\n${steps.map((s) => `${s.n}. ${s.title} — ${s.detail}`).join('\n')}` }
-      ], { maxTokens: 1200 });
+      ], { maxTokens: 1200, userId });
       const text = String(res?.text || '').trim();
       if (text) {
         const parsed = parseNumberedPlan(text, steps.length);
@@ -1002,7 +1002,7 @@ export function createInfinityModes({ brainModel = null, brainModelFor = null, w
   const brainFor = (userId) => (typeof brainModelFor === 'function' ? brainModelFor(userId) : null) || brainModel;
   return {
     workspace,
-    plan: (instruction, opts = {}) => planInstruction(instruction, { brainModel: brainFor(opts?.userId) }),
+    plan: (instruction, opts = {}) => planInstruction(instruction, { brainModel: brainFor(opts?.userId), userId: opts?.userId }),
     build: (brief, opts = {}) => buildProject(brief, { ...opts, workspace, brainModel: brainFor(opts?.userId) }),
     decompose: decomposeInstruction,
     decomposeDeep: decomposeControlRequest,
