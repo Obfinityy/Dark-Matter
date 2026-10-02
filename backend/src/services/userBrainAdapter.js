@@ -88,8 +88,7 @@ export class UserBrainAdapter {
   }
 
   /** The ResilientBrainProvider for this user's selection (cached, auto-rebuilt on change). */
-  async _providerFor(userId) {
-    const selection = await this._selectionFor(userId);
+  async _providerFor(userId) {    const selection = await this._selectionFor(userId);
     const cacheId = userId || 'anon';
     const key = JSON.stringify({
       provider: selection.provider,
@@ -115,6 +114,16 @@ export class UserBrainAdapter {
     const provider = new ResilientBrainProvider(chain);
     this.chainCache.set(cacheId, { key, provider });
     return provider;
+  }
+
+  /**
+   * Public: the raw ResilientBrainProvider for a user's ACTIVE brain
+   * (local → Kaggle/Colab → phone chain, cached per user).
+   * Used by ComputerTaskBrain so desktop control thinks with the same brain
+   * the user selected on the Models page — never a hard-wired model.
+   */
+  providerFor(userId) {
+    return this._providerFor(userId);
   }
 
   /**

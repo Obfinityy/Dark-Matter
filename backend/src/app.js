@@ -375,28 +375,6 @@ export async function createApp({ database } = {}) {
   // The worker advances the queue when a hunt completes (best-effort).
   agentWorker.targetQueueService = targetQueueService;
 
-  // ─── InfiniteChat Computer Tasks (local brain + shared hands) ──────
-  // Logically separated from the bug-bounty agent (own model/worker/manager/
-  // endpoints) but reusing the SAME computer layer and LocalAIQueue — never a
-  // second bridge, never a second action protocol (#29, #30).
-  const computerTaskModel = new ComputerTaskModel(database);
-  const computerTaskBrain = new ComputerTaskBrain({});
-  const computerTaskWorker = new ComputerTaskWorker({
-    taskModel: computerTaskModel,
-    chatModel: infiniteChatModel,
-    brain: computerTaskBrain,
-    computer: computerAdapter,
-    computerState,
-    computerEvents,
-    eventService
-  });
-  const computerTaskManager = new ComputerTaskManager({
-    taskModel: computerTaskModel,
-    worker: computerTaskWorker,
-    eventService,
-    config: { recoverOnBoot: config.agentWorker.recoverOnBoot }
-  });
-
   // ─── Infinity Long-Context Engine ─────────────────────────────────
   // Application-level context virtualization over the finite local model.
   const phoneModel = new PhoneModelAdapter();
@@ -414,6 +392,33 @@ export async function createApp({ database } = {}) {
   longContextEngine.chatModel = infiniteChatModel; // conversation history stays in infinite_chats
   const longGenerationStore = new LongGenerationStore(database);
   const longGenerationEngine = new LongGenerationEngine({ store: longGenerationStore, model: userBrain });
+
+  // ─── InfiniteChat Computer Tasks (active brain + shared hands) ──────
+  // Logically separated from the bug-bounty agent (own model/worker/manager/
+  // endpoints) but reusing the SAME computer layer and LocalAIQueue — never a
+  // second bridge, never a second action protocol (#29, #30).
+  // The brain is the user's ACTIVE brain via userBrain.providerFor: whatever
+  // is selected on the Models page (local Run / Kaggle-Connect / phone
+  // default) does the thinking — no hard-wired model, no canned plans.
+  const computerTaskModel = new ComputerTaskModel(database);
+  const computerTaskBrain = new ComputerTaskBrain({
+    providerFor: (userId) => userBrain.providerFor(userId)
+  });
+  const computerTaskWorker = new ComputerTaskWorker({
+    taskModel: computerTaskModel,
+    chatModel: infiniteChatModel,
+    brain: computerTaskBrain,
+    computer: computerAdapter,
+    computerState,
+    computerEvents,
+    eventService
+  });
+  const computerTaskManager = new ComputerTaskManager({
+    taskModel: computerTaskModel,
+    worker: computerTaskWorker,
+    eventService,
+    config: { recoverOnBoot: config.agentWorker.recoverOnBoot }
+  });
 
   // ─── Express App ──────────────────────────────────────────────────
   const app = express();

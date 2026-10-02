@@ -206,16 +206,17 @@ test('runControlDeep: dry run validates every kind, executes nothing', async () 
   assert.equal(adapter.actionLog.length, 0);
 });
 
-test('runControlDeep: Word pipeline still flows through the deep runner', async () => {
+test('runControlDeep: Word document requests are NOT template-planned (brain composes via the agent loop)', async () => {
   const modes = makeModes();
   const adapter = new MockComputerAdapter();
   const result = await modes.runControl('MS Word me leave application likho', { adapter });
-  assert.equal(result.ok, true);
-  assert.equal(result.executed.length, 9);
-  assert.ok(result.executed.every((e) => e.kind === 'gui'));
-  assert.ok(result.executed.every((e) => e.ok));
-  const typed = result.executed.find((e) => e.type === 'type');
-  assert.ok(typed && typed.observation.includes('Typed ') && typed.observation.includes('character(s)'));
+  // No canned letter, no 9-step template: the regex planner honestly refuses,
+  // and the Control tab's computer-task agent loop lets the ACTIVE brain
+  // reason it out step by step instead.
+  assert.equal(result.ok, false);
+  assert.equal(result.executed.length, 0);
+  assert.ok(result.reason.includes('could not turn'));
+  assert.equal(adapter.actionLog.length, 0);
 });
 
 test('MockToolRunner: returns simulated envelope, logs calls', async () => {

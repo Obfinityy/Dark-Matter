@@ -448,22 +448,11 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 // ── Control mode: NL → GUI action plan ────────────────────────────────────
-
-const WORD_LEAVE_HINTS = /(leave application|leave letter|application for leave|chhutti|cuti|leave request)/i;
-
-function buildLeaveApplicationText() {
-  return [
-    'Subject: Application for Leave',
-    '',
-    'Respected Sir/Madam,',
-    '',
-    'I am writing to respectfully request leave from work. I would be grateful if you could grant me leave for the requested period. I will ensure that all my pending tasks are completed or properly handed over before I proceed on leave.',
-    '',
-    'Thank you for your understanding and support.',
-    '',
-    'Yours sincerely,'
-  ].join('\n');
-}
+// NOTE: there is deliberately NO canned content here. Document text (leave
+// applications, letters, …) is composed by the user's ACTIVE brain inside the
+// computer-task agent loop — never from a template. Hardcoded letters were
+// removed: the brain reasons, opens the app, observes, and types what IT
+// wrote, one verified step at a time.
 
 /**
  * Decompose a natural-language desktop instruction into an ordered plan of
@@ -481,22 +470,10 @@ export function decomposeInstruction(instruction) {
   const app = resolveApplication(text);
   const gui = (type, params, reason) => ({ kind: 'gui', type, params, reason });
 
-  // ── Word document authoring (e.g. "MS Word me leave application likho") ──
-  if (app && /word/i.test(app.canonical) && WORD_LEAVE_HINTS.test(text)) {
-    const body = buildLeaveApplicationText();
-    const steps = [
-      gui('open_application', { name: app.launch }, `Open ${app.canonical}`),
-      gui('sleep', { seconds: 2 }, 'Wait for Word to finish launching'),
-      gui('get_active_window', {}, 'Verify Word is the active window before typing'),
-      gui('hotkey', { keys: ['ctrl', 'n'] }, 'New blank document'),
-      gui('type', { text: body }, 'Type the leave application'),
-      gui('hotkey', { keys: ['ctrl', 'home'] }, 'Jump to the top of the document'),
-      gui('hotkey', { keys: ['shift', 'down'] }, 'Select the subject line'),
-      gui('hotkey', { keys: ['ctrl', 'b'] }, 'Bold the subject heading'),
-      gui('hotkey', { keys: ['ctrl', 's'] }, 'Save — Word asks for the file name')
-    ];
-    return { ok: true, kind: 'word_document', application: app.canonical, launch: app.launch, steps };
-  }
+  // NOTE: no canned document flows. Anything beyond "open/focus this app" is
+  // handled by the computer-task agent loop, where the user's ACTIVE brain
+  // reasons step-by-step (open → observe → act → verify). Template letters
+  // were removed — the brain composes content itself.
 
   // ── Generic application launch/focus ("open calculator", "notepad kholo", "focus Word") ──
   if (app && /\b(open|launch|start|focus|switch|bring|kholo|khol)\b/i.test(text)) {
@@ -799,7 +776,7 @@ export function decomposeControlRequest(instruction) {
 
   return {
     ok: false,
-    reason: `I could not turn "${text.slice(0, 80)}" into steps. Try: "open Word", "MS Word me leave application likho", "focus calculator", 'copy "hello" to clipboard', 'write "notes" to notes.txt', "read file notes.txt", "list workspace files", or "run python: print(2+2)".`
+    reason: `I could not turn "${text.slice(0, 80)}" into steps. Try: "open Word", "focus calculator", 'copy "hello" to clipboard', 'write "notes" to notes.txt', "read file notes.txt", "list workspace files", or "run python: print(2+2)". For full desktop control, use the Control tab's agent mode.`
   };
 }
 

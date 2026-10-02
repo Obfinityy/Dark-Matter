@@ -18,11 +18,16 @@ import {
 import { APPLICATION_ALIASES, BLOCKED_REASON_TEXT } from '../computer/applicationResolver.js';
 
 /**
- * ComputerTaskBrain — the local phone Gemma as the ONLY brain for InfiniteChat
- * computer control. Mirrors AutonomousBrain's provider policy:
+ * ComputerTaskBrain — the ACTIVE brain for InfiniteChat computer control.
  *
- *   • Local model only. No cloud fallback of any kind. Unreachable/busy phone
- *     → LocalAiUnavailableError → the task parks in waiting_ai and retries.
+ * The brain is NOT hard-wired to any single model. The caller injects
+ * `providerFor(userId)`, which resolves the user's currently selected brain
+ * (Models → Run / Kaggle-Connect / phone default) through the same
+ * local → remote-GPU → phone fallback chain hunts use. Every reasoning step
+ * therefore thinks with the brain the user actually chose — never a template,
+ * never a regex, never a canned plan.
+ *
+ * Mirrors AutonomousBrain's provider policy:
  *   • All inference flows through the shared LocalAIQueue (hardware scheduler,
  *     never a user quota — requirement #34, #42).
  *   • Context is finite and enforced: system + user + outputReserve
@@ -32,12 +37,16 @@ import { APPLICATION_ALIASES, BLOCKED_REASON_TEXT } from '../computer/applicatio
 export class ComputerTaskBrain {
   constructor({
     provider = null,
+    providerFor = null,
     queue = localAIQueue,
     configOverride = {},
     logger = console,
     onDecisionRejection = null
   } = {}) {
     this.provider = provider || new PhoneLocalProvider(config);
+    // providerFor(userId) → provider — when set, the brain is resolved per
+    // task from the user's ACTIVE brain selection (local / Kaggle / phone).
+    this.providerFor = typeof providerFor === 'function' ? providerFor : null;
     this.queue = queue;
     this.logger = logger;
     // Observability hook: schema rejections inside the transparent retry loop
@@ -59,14 +68,25 @@ export class ComputerTaskBrain {
     return Math.max(256, this.capacity - Math.max(this.outputReserve, this.settings.maxTokens));
   }
 
-  /** Whether the local brain is configured and reachable. */
-  async health() {
-    if (!this.provider.enabled) {
-      return { available: false, reason: 'LOCAL AI UNAVAILABLE — PHONE_AI_ENABLED is not true' };
+  /** Resolve the brain for this decision: the user's ACTIVE brain when a
+   *  providerFor is wired, otherwise the injected/fallback provider. */
+  async resolveProvider(userId) {
+    if (this.providerFor) {
+      const resolved = await this.providerFor(userId);
+      if (resolved) return resolved;
     }
-    const health = await this.provider.healthCheck();
+    return this.provider;
+  }
+
+  /** Whether the resolved brain is configured and reachable. */
+  async health(userId = null) {
+    const provider = await this.resolveProvider(userId);
+    if (!provider?.enabled) {
+      return { available: false, reason: 'BRAIN UNAVAILABLE — no active brain is configured' };
+    }
+    const health = await provider.healthCheck();
     if (!health.reachable) {
-      return { available: false, reason: `LOCAL AI UNAVAILABLE — ${health.reason || 'phone model unreachable'}` };
+      return { available: false, reason: `BRAIN UNAVAILABLE — ${health.reason || 'active brain unreachable'}` };
     }
     return { available: true, reason: null, model: health.model };
   }
@@ -230,13 +250,14 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
   }
 
   /**
-   * Ask the local brain for the next decision.
+   * Ask the user's ACTIVE brain for the next decision.
    *
-   * @throws {LocalAiUnavailableError} phone busy/unreachable → task goes waiting_ai
+   * @throws {LocalAiUnavailableError} brain busy/unreachable → task goes waiting_ai
    * @throws {BrainDecisionError} unusable model output → retried/backed off
    */
   async decide(context) {
-    const health = await this.health();
+    const provider = await this.resolveProvider(context.task?.userId);
+    const health = await this.health(context.task?.userId);
     if (!health.available) {
       throw new LocalAiUnavailableError(health.reason, { kind: 'unreachable' });
     }
@@ -252,7 +273,7 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
       let raw = null;
       try {
         raw = await this.queue.enqueue(
-          () => this.provider.generateStructured(
+          () => provider.generateStructured(
             [{ role: 'system', content: system }, { role: 'user', content: user }],
             null,
             { temperature: this.settings.temperature, maxTokens: this.settings.maxTokens }
@@ -271,8 +292,8 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
           const busy = isBusyError(error);
           throw new LocalAiUnavailableError(
             busy
-              ? `LOCAL AI BUSY — the phone is serialising generations: ${error.message}`
-              : `LOCAL AI UNAVAILABLE — ${error.message}`,
+              ? `BRAIN BUSY — serialising generations: ${error.message}`
+              : `BRAIN UNAVAILABLE — ${error.message}`,
             { kind: busy ? 'busy' : 'inference_failed' }
           );
         }
