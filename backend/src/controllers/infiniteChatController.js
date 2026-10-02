@@ -15,7 +15,20 @@ import { stripThinkingTags } from '../agent/providers/phoneLocalProvider.js';
  *
  * The controller only wires HTTP to those services and shapes responses.
  */
-export function createInfiniteChatController({ longContextEngine, longGenerationEngine, computerTaskManager = null }) {
+export function createInfiniteChatController({ longContextEngine, longGenerationEngine, computerTaskManager = null, infinityModes = null, computerAdapter = null }) {
+  /** Append a turn to the infinite-chat history (best effort — never breaks the mode result). */
+  async function rememberTurn(userId, conversationId, userText, assistantText) {
+    try {
+      if (!conversationId || !longContextEngine?.chatModel?.appendMessages) return;
+      await longContextEngine.chatModel.appendMessages(userId, conversationId, [
+        { role: 'user', content: userText },
+        { role: 'assistant', content: assistantText }
+      ]);
+    } catch (err) {
+      console.warn('[InfiniteChat] history append skipped:', err.message);
+    }
+  }
+
   return {
     // ── History ─────────────────────────────────────────────────────────
     getHistory: asyncHandler(async (request, response) => {
@@ -33,7 +46,14 @@ export function createInfiniteChatController({ longContextEngine, longGeneration
       if (!message || !conversationId) {
         return response.status(400).json({ error: { message: 'Message and conversationId are required' } });
       }
-      if (!longContextEngine.model.enabled) {
+      // Per-user brain gate: users with a non-phone brain selection (Models →
+      // Run, Kaggle/Colab connect) have a servable brain even when the phone
+      // provider is disabled in this environment.
+      const brainModel = longContextEngine.model;
+      const brainEnabled = typeof brainModel?.isEnabledFor === 'function'
+        ? await brainModel.isEnabledFor(userId)
+        : brainModel?.enabled;
+      if (!brainEnabled) {
         return response.status(400).json({ error: { message: 'Local AI is disabled in environment.' } });
       }
 
@@ -187,6 +207,7 @@ function stitchContinuation(original, continuation) {
         try {
           if (typeof engine.model.streamComplete === 'function') {
             const streamRes = await engine.model.streamComplete(composed.messages, {
+              userId,
               maxTokens: targetMaxTokens,
               onState: (state) => sendEvent('state', state),
               onToken: (delta, cleanSoFar) => {
@@ -197,7 +218,7 @@ function stitchContinuation(original, continuation) {
             fullReply = streamRes.text || fullReply;
           } else {
             sendEvent('state', { step: 'Phone AI Pipeline', detail: 'Generating response via local phone AI...' });
-            const completeRes = await engine.model.complete(composed.messages, { maxTokens: targetMaxTokens });
+            const completeRes = await engine.model.complete(composed.messages, { userId, maxTokens: targetMaxTokens });
             fullReply = stripThinkingTags(completeRes.text || '');
             sendEvent('token', { delta: fullReply, content: fullReply });
           }
@@ -212,6 +233,7 @@ function stitchContinuation(original, continuation) {
 
           if (!isShortGreeting) {
             await engine.updateMemoryAfterTurn({
+              userId,
               conversationId,
               userMessage: message,
               assistantReply: fullReply
@@ -237,6 +259,7 @@ function stitchContinuation(original, continuation) {
       const startedAt = Date.now();
       try {
         let { text: rawReply, finishReason } = await engine.model.complete(composed.messages, {
+          userId,
           maxTokens: targetMaxTokens,
           maxAttempts: 6
         });
@@ -260,6 +283,7 @@ function stitchContinuation(original, continuation) {
 
           try {
             const contResult = await engine.model.complete(continuationMessages, {
+              userId,
               maxTokens: 1500,
               maxAttempts: 6
             });
@@ -322,6 +346,7 @@ function generateDynamicSteps(message = '', durationMs = 100) {
 
         if (!isShortGreeting) {
           await engine.updateMemoryAfterTurn({
+            userId,
             conversationId,
             userMessage: message,
             assistantReply: reply
@@ -349,7 +374,7 @@ function generateDynamicSteps(message = '', durationMs = 100) {
             const fallbackPrompt = message.slice(0, 1000) + '\n\n[Note: generate python dragon game code concise and clean]';
             const fallbackRes = await engine.model.complete([
               { role: 'user', content: fallbackPrompt }
-            ], { maxTokens: 500 });
+            ], { userId, maxTokens: 500 });
 
             const updatedChat = await chatModel.appendMessages(userId, conversationId, [
               { role: 'assistant', content: fallbackRes.text }
@@ -525,6 +550,152 @@ function generateDynamicSteps(message = '', durationMs = 100) {
           createdAt: r.createdAt
         }))
       });
+    }),
+
+    // ── Infinity AI modes ────────────────────────────────────────────────
+    // plan / build / control sit beside the chat engine: same auth, same
+    // conversation history, but mode-specific backends instead of free chat.
+
+    /** POST /api/v1/infinite/plan — NL idea → numbered step-by-step plan. Planning only: never executes. */
+    plan: asyncHandler(async (request, response) => {
+      const userId = request.user.id;
+      const { instruction, conversationId } = request.body || {};
+      if (!instruction || !String(instruction).trim()) {
+        return response.status(400).json({ error: { message: 'instruction is required' } });
+      }
+      if (!infinityModes) {
+        return response.status(503).json({ error: { message: 'Infinity modes are not configured on this backend.' } });
+      }
+      const plan = await infinityModes.plan(String(instruction), { userId });
+      await rememberTurn(
+        userId,
+        conversationId,
+        `[PLAN MODE] ${instruction}`,
+        `Plan for "${plan.task}" (${plan.taskType}):\n${plan.steps.map((s) => `${s.n}. ${s.title} — ${s.detail}`).join('\n')}`
+      );
+      response.json({ plan });
+    }),
+
+    /**
+     * POST /api/v1/infinite/build — the agent works with REAL files, but only
+     * inside the sandboxed agent workspace (backend/data/agent-workspace/).
+     *
+     * Body actions:
+     *   { action: 'create', brief, conversationId }  → generate a project from a brief
+     *   { action: 'list', subdir }                   → list workspace files
+     *   { action: 'read', path }                     → read one workspace file
+     *   { action: 'write', path, content }           → write one workspace file
+     */
+    build: asyncHandler(async (request, response) => {
+      const userId = request.user.id;
+      const { action = 'create', brief, conversationId, path: relPath, content, subdir } = request.body || {};
+      if (!infinityModes) {
+        return response.status(503).json({ error: { message: 'Infinity modes are not configured on this backend.' } });
+      }
+      const ws = infinityModes.workspace;
+
+      if (action === 'create') {
+        if (!brief || !String(brief).trim()) {
+          return response.status(400).json({ error: { message: 'brief is required for build' } });
+        }
+        const result = infinityModes.build(String(brief), { conversationId });
+        await rememberTurn(
+          userId,
+          conversationId,
+          `[BUILD MODE] ${brief}`,
+          `Built "${result.projectDir}": ${result.files.map((f) => f.path).join(', ')}. ${result.note}`
+        );
+        return response.status(201).json({ build: result });
+      }
+
+      if (action === 'list') {
+        return response.json({ files: ws.listFiles(String(subdir || '')), root: ws.root });
+      }
+
+      if (action === 'read') {
+        if (!relPath) return response.status(400).json({ error: { message: 'path is required' } });
+        try {
+          return response.json({ path: relPath, content: ws.readFile(String(relPath)) });
+        } catch (err) {
+          const status = err.code === 'PATH_TRAVERSAL' ? 403 : 404;
+          return response.status(status).json({ error: { message: err.message } });
+        }
+      }
+
+      if (action === 'write') {
+        if (!relPath) return response.status(400).json({ error: { message: 'path is required' } });
+        try {
+          const written = ws.writeFile(String(relPath), String(content ?? ''));
+          await rememberTurn(userId, conversationId, `[BUILD MODE] write ${relPath}`, `Wrote ${written.path} (${written.size} bytes) in the agent workspace.`);
+          return response.status(201).json({ written });
+        } catch (err) {
+          const status = err.code === 'PATH_TRAVERSAL' ? 403 : 500;
+          return response.status(status).json({ error: { message: err.message } });
+        }
+      }
+
+      return response.status(400).json({ error: { message: `Unknown build action "${action}". Use create, list, read or write.` } });
+    }),
+
+    /**
+     * POST /api/v1/infinite/control — NL command → mixed-kind plan (gui / file /
+     * tool) → per-kind schema validation → execution.
+     *
+     * Body: { instruction, conversationId, dryRun, simulate }
+     *   dryRun=true   → return the validated plan only, execute nothing.
+     *   simulate=true → GUI steps run through the MOCK adapter (safe anywhere,
+     *                   including headless CI). Default false → the real computer
+     *                   stack; when unavailable the response is 503 with the
+     *                   validated plan attached so the UI can show what WOULD
+     *                   run on the user's machine.
+     *
+     * Step kinds:
+     *   gui  — closed computer-action schema → the chosen adapter.
+     *   file — sandbox file rules → the agent workspace ONLY (never leaves it).
+     *   tool — tool-registry schema → ALWAYS simulated here: the mock runner
+     *          validates and logs the step but never executes code. Real Python
+     *          execution lives only behind the hunt's authorized tool pipeline.
+     */
+    control: asyncHandler(async (request, response) => {
+      const userId = request.user.id;
+      const { instruction, conversationId, dryRun = false, simulate = false } = request.body || {};
+      if (!instruction || !String(instruction).trim()) {
+        return response.status(400).json({ error: { message: 'instruction is required' } });
+      }
+      if (!infinityModes) {
+        return response.status(503).json({ error: { message: 'Infinity modes are not configured on this backend.' } });
+      }
+
+      if (dryRun === true) {
+        const preview = await infinityModes.runControl(String(instruction), { dryRun: true });
+        if (!preview.ok) return response.status(422).json({ control: preview });
+        return response.json({ control: preview });
+      }
+
+      let adapter = null;
+      let simulated = Boolean(simulate);
+      if (simulated) {
+        const { MockComputerAdapter } = await import('../computer/mockComputerAdapter.js');
+        adapter = new MockComputerAdapter();
+      } else if (computerAdapter) {
+        adapter = computerAdapter;
+      } else {
+        return response.status(503).json({
+          error: { message: 'No computer adapter is configured. Retry with simulate:true for a safe mock run.' }
+        });
+      }
+
+      const result = await infinityModes.runControl(String(instruction), { adapter });
+      const status = result.ok ? 200 : (result.reason && !result.steps.length ? 422 : 502);
+      await rememberTurn(
+        userId,
+        conversationId,
+        `[CONTROL MODE] ${instruction}${simulated ? ' (simulated)' : ''}`,
+        result.ok
+          ? `Control run ${simulated ? '(simulated)' : ''} completed: ${result.executed.length} actions on ${result.application}.`
+          : `Control run failed: ${result.reason || 'an action failed mid-run.'}`
+      );
+      response.status(status).json({ control: { ...result, simulated } });
     })
   };
 }
