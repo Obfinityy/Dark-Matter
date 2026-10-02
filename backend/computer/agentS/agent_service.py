@@ -20,11 +20,13 @@ Protocol (newline-delimited JSON on stdin/stdout — same as openInterfaceBridge
 
 Config via environment:
   DM_VISION_URL      OpenAI-compatible endpoint for the vision brain
-                     (e.g. https://xxx.gradio.live/v1)
+                     (e.g. https://xxx.gradio.live/v1) — runs on Kaggle
   DM_VISION_MODEL    Model name (e.g. Qwen2.5-VL-7B-Instruct)
   DM_VISION_API_KEY  API key if needed (default: empty)
-  DM_GROUND_URL      UI-TARS grounding endpoint (e.g. https://yyy.gradio.live)
-  DM_GROUND_MODEL    Grounding model name (default: ui-tars-1.5-7b)
+  DM_GROUND_URL      Grounding endpoint — LOCAL Ollama by default:
+                     http://localhost:11434/v1  (ollama pull hf.co/Mungert/UI-TARS-1.5-7B-GGUF:Q6_K_M)
+                     Falls back to Kaggle if DM_GROUND_URL points there.
+  DM_GROUND_MODEL    Grounding model name (default: hf.co/Mungert/UI-TARS-1.5-7B-GGUF:Q6_K_M)
   DM_PLATFORM        windows | linux | darwin (auto-detected if empty)
 
 Requires: pip install gui-agents pyautogui pillow
@@ -46,8 +48,10 @@ def _env(name, default=""):
 VISION_URL = _env("DM_VISION_URL")
 VISION_MODEL = _env("DM_VISION_MODEL", "Qwen2.5-VL-7B-Instruct")
 VISION_API_KEY = _env("DM_VISION_API_KEY", "not-needed")
-GROUND_URL = _env("DM_GROUND_URL")
-GROUND_MODEL = _env("DM_GROUND_MODEL", "ui-tars-1.5-7b")
+# Grounding runs LOCALLY via Ollama (free) — user installs once:
+#   ollama pull hf.co/Mungert/UI-TARS-1.5-7B-GGUF:Q6_K_M
+GROUND_URL = _env("DM_GROUND_URL", "http://localhost:11434/v1")
+GROUND_MODEL = _env("DM_GROUND_MODEL", "hf.co/Mungert/UI-TARS-1.5-7B-GGUF:Q6_K_M")
 
 PLATFORM = _env("DM_PLATFORM") or {
     "win32": "windows", "linux": "linux", "darwin": "darwin",
@@ -86,11 +90,11 @@ def _get_agent():
         if _agent is not None:
             return _agent
         try:
-            from gui_agents.s2_5.agents.agent_s import AgentS2_5
-            from gui_agents.s2_5.agents.grounding import OSWorldGroundingAgent
+            from infinity_agents.s3.agents.infinity_agent import InfinityAgent3
+            from infinity_agents.s3.agents.grounding import OSWorldGroundingAgent
         except ImportError as e:
             raise RuntimeError(
-                "gui-agents not installed. Run: pip install gui-agents"
+                "infinity-agents not installed. Run: pip install -e /path/to/infinity-agent"
             ) from e
 
         if not VISION_URL:
@@ -115,7 +119,7 @@ def _get_agent():
             grounding_height=1080,
         )
 
-        _agent = AgentS2_5(
+        _agent = InfinityAgent3(
             engine_params,
             grounding_agent,
             platform=PLATFORM,

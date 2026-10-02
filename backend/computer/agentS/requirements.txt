@@ -1,7 +1,10 @@
-# Dark-Matter Agent S computer-control driver.
+# Dark-Matter Infinity Agent computer-control driver.
 # Install on the machine that will be controlled (Windows/Linux):
 #   pip install -r requirements.txt
+# Then install the Infinity Agent framework:
+#   pip install -e /path/to/infinity-agent
 
-gui-agents>=0.3.0
 pyautogui>=0.9.54
 pillow>=10.0.0
+# Infinity Agent framework (renamed from Agent S):
+# pip install -e ../infinity-agent
