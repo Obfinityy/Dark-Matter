@@ -311,6 +311,24 @@ export const MODEL_LIBRARY = Object.freeze([
     description:
       'Screen grounding for Infinity Agent — finds UI elements and returns coordinates. Tiny, runs on CPU/phone. Required for Control mode.'
   },
+  {
+    id: 'os-atlas-7b',
+    name: 'OS-Atlas 7B (Grounding)',
+    params: '7B',
+    quant: 'Q4_K_M',
+    tier: 'plugin',
+    tierLabel: 'Plugin · Control Mode',
+    brainSlot: 'grounding',
+    brainSlotLabel: 'Grounding (Coordinates)',
+    hfRepo: 'OpenGVLab/OS-Atlas-Base-7B-GGUF',
+    hfFile: 'OS-Atlas-Base-7B-Q4_K_M.gguf',
+    sizeGB: 4.5,
+    contextWindow: 4096,
+    uncensored: true,
+    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
+    description:
+      'Alternative screen grounding model — locates buttons, icons, and text fields with x,y coordinates. CPU-friendly.'
+  },
   // ── Infinity Agent · Vision brains (uncensored) ────────────────────────
   // Vision models SEE screenshots. Run locally via llama.cpp or connect
   // the same weights on Kaggle — your choice, same brain either way.
@@ -333,6 +351,44 @@ export const MODEL_LIBRARY = Object.freeze([
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
       'Vision brain for Infinity Agent — sees screenshots and reasons about them. Runs on CPU, or the same model on Kaggle for GPU speed.'
+  },
+  {
+    id: 'qwen2-vl-7b',
+    name: 'Qwen2-VL 7B',
+    params: '7B',
+    quant: 'Q4_K_M',
+    tier: 'vision',
+    tierLabel: 'Vision',
+    brainSlot: 'vision',
+    brainSlotLabel: 'Vision Brain',
+    hfRepo: 'Qwen/Qwen2-VL-7B-Instruct-GGUF',
+    hfFile: 'Qwen2-VL-7B-Instruct-Q4_K_M.gguf',
+    sizeGB: 4.8,
+    contextWindow: 8192,
+    uncensored: true,
+    vision: true,
+    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
+    description:
+      'Previous-gen Qwen vision model — solid screenshot understanding, lighter on RAM than 2.5-VL.'
+  },
+  {
+    id: 'minicpm-v-26-8b',
+    name: 'MiniCPM-V 2.6 8B',
+    params: '8B',
+    quant: 'Q4_K_M',
+    tier: 'vision',
+    tierLabel: 'Vision',
+    brainSlot: 'vision',
+    brainSlotLabel: 'Vision Brain',
+    hfRepo: 'openbmb/MiniCPM-V-2_6-GGUF',
+    hfFile: 'MiniCPM-V-2_6-Q4_K_M.gguf',
+    sizeGB: 5.2,
+    contextWindow: 8192,
+    uncensored: true,
+    vision: true,
+    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
+    description:
+      'Compact vision-language model — strong OCR and UI element reading, great for screen-heavy tasks.'
   },
   // ── Hacking brains (uncensored, local) ────────────────────────────────
   // The hacking brain strategizes attacks: what to test, which payloads,
@@ -373,6 +429,24 @@ export const MODEL_LIBRARY = Object.freeze([
     requirements: { ramGB: 12, vramGB: 0, gpuRequired: false },
     description:
       'Larger uncensored hacking brain — deeper strategy for complex targets. Used only by Hunt mode.'
+  },
+  {
+    id: 'dolphin-mistral-24b-hacker',
+    name: 'Dolphin Mistral 24B (Hacker)',
+    params: '24B',
+    quant: 'Q4_K_M',
+    tier: 'hacker',
+    tierLabel: 'Hacking Brain',
+    brainSlot: 'hacker',
+    brainSlotLabel: 'Hacking Brain',
+    hfRepo: 'bartowski/cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-GGUF',
+    hfFile: 'cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-Q4_K_M.gguf',
+    sizeGB: 14.5,
+    contextWindow: 32768,
+    uncensored: true,
+    requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
+    description:
+      'Heavy-duty uncensored hacking brain — 24B Venice edition for the hardest targets. Used only by Hunt mode.'
   }
 ]);
 
