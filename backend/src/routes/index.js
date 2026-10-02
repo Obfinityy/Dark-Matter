@@ -29,11 +29,20 @@ export function createRoutes({ controllers }) {
   router.get('/infinite/generations/:generationId', controllers.infiniteChat.getGeneration);
   router.post('/infinite/generations/:generationId/cancel', controllers.infiniteChat.cancelGeneration);
   router.post('/infinite/generations/:generationId/resume', controllers.infiniteChat.resumeGeneration);
+
+  // ─── Infinity AI modes (plan / build / control) ──────────────────────
+  router.post('/infinite/plan', controllers.infiniteChat.plan);
+  router.post('/infinite/build', controllers.infiniteChat.build);
+  router.post('/infinite/control', controllers.infiniteChat.control);
   
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
   router.put('/auth/password', controllers.auth.changePassword);
   router.post('/auth/logout', controllers.auth.logout);
+
+  // ─── Agent permission mode (ask-every-time vs full control) ─────────
+  router.get('/users/me/permissions', controllers.permissions.get);
+  router.put('/users/me/permissions', controllers.permissions.update);
   router.get('/agent', controllers.health.agentInfo);
   router.get('/settings/providers', controllers.settings.listProviders);
   router.put('/settings/providers', controllers.settings.updateProviders);
@@ -78,6 +87,7 @@ export function createRoutes({ controllers }) {
   router.get('/jobs/:id/findings', controllers.jobs.findings);
   router.get('/jobs/:id/vulnerability-report', controllers.jobs.vulnerabilityReport);
   router.get('/jobs/:id/attack-surface', controllers.jobs.attackSurface);
+  router.get('/jobs/:id/posture', controllers.jobs.posture);
   router.get('/jobs/:id/diary', controllers.jobs.diary);
 
   // ─── Hunt records — report history (hybrid storage: DB artifacts) ──
@@ -86,6 +96,7 @@ export function createRoutes({ controllers }) {
   router.get('/hunt-records', controllers.huntRecords.list);
   router.get('/hunt-records/:id', controllers.huntRecords.get);
   router.get('/hunt-records/:id/report.md', controllers.huntRecords.downloadMarkdown);
+  router.get('/hunt-records/:id/findings/:findingId/poc', controllers.huntRecords.downloadPoc);
 
   // ─── Alerts — the notification center ─────────────────────────────
   router.get('/alerts', controllers.alerts.list);
@@ -148,6 +159,12 @@ export function createRoutes({ controllers }) {
   router.post('/model-runner/custom', controllers.modelRunner.addCustom);
   router.post('/model-runner/run', controllers.modelRunner.run);
   router.post('/model-runner/stop', controllers.modelRunner.stop);
+  router.get('/model-runner/brain-chain', controllers.modelRunner.brainChain);
+
+  // ─── Per-model download → Run aliases (Models page flow) ──────────
+  router.post('/models/:modelId/download', controllers.modelRunner.downloadById);
+  router.get('/models/:modelId/progress', controllers.modelRunner.progressById);
+  router.post('/models/:modelId/run', controllers.modelRunner.run);
 
   // ─── Remote GPU brain (Kaggle/Colab Gradio share link) ─────────────
   router.get('/remote-model', controllers.remoteModel.status);

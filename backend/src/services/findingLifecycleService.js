@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { applyCvss } from '../agent/cvss.js';
 
 /**
  * FindingLifecycleService — observation → hypothesis → validation → evidence →
@@ -166,7 +167,8 @@ export class FindingLifecycleService {
     remediation = '',
     confidence = 0.5,
     evidenceIds = [],
-    hypothesisId = null
+    hypothesisId = null,
+    cvssMetrics = null
   }) {
     // Only evidence the caller actually named may support a finding. We never
     // fall back to "all evidence in the assessment" — that would let an
@@ -206,6 +208,11 @@ export class FindingLifecycleService {
       return { created: false, reason: 'duplicate', finding: duplicate, deduplicated: true };
     }
 
+    // CVSS auto-scoring: every persisted finding carries a computed
+    // {score, rating, vector, source} — brain metrics when the brain supplies
+    // them, conservative type defaults otherwise. Never hardcoded.
+    const cvss = applyCvss({ severity, category, type: category, cvssMetrics });
+
     const finding = await this.findingModel.create(assessmentId, userId, {
       title,
       severity,
@@ -220,7 +227,9 @@ export class FindingLifecycleService {
       confidence,
       observationIds: [],
       toolExecutionIds: evidence.map((item) => item.toolExecutionId).filter(Boolean),
-      hypothesisId
+      hypothesisId,
+      cvss,
+      cvssMetrics: cvssMetrics || null
     });
 
     // Findings are validated only when they carry evidence, and we link it.

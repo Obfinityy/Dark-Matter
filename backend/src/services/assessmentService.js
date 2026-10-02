@@ -235,4 +235,61 @@ export class AssessmentService {
     await this.assessmentModel.addMessage(assessmentId, 'assistant', finalResponse);
     return { message: finalResponse, status: assessment.status };
   }
+
+  /**
+   * Posture score for a target, computed from its confirmed findings.
+   * Pure + deterministic: 100 starts clean, each finding deducts a
+   * severity-weighted amount, floored at 0. Grades: A ≥90, B ≥75, C ≥60,
+   * D ≥40, F below. Used by GET /api/v1/jobs/:id/posture and the
+   * HuntStatusPanel / Reports UI.
+   */
+  postureFromFindings(findings = []) {
+    return computePostureScore(findings);
+  }
+}
+
+// ── Posture scoring (pure) ───────────────────────────────────────────────
+
+const POSTURE_WEIGHTS = { critical: 25, high: 10, medium: 4, low: 1, informational: 0, info: 0 };
+
+function normalizeSeverity(severity) {
+  const s = String(severity || 'informational').toLowerCase();
+  if (s === 'info') return 'informational';
+  return POSTURE_WEIGHTS[s] !== undefined ? s : 'informational';
+}
+
+function gradeForScore(score) {
+  if (score >= 90) return 'A';
+  if (score >= 75) return 'B';
+  if (score >= 60) return 'C';
+  if (score >= 40) return 'D';
+  return 'F';
+}
+
+/**
+ * Compute a 0–100 posture score from a finding list.
+ * Returns { score, grade, counts, total, topRisks } — topRisks are the 3
+ * most severe findings ({ id, title, severity }).
+ */
+export function computePostureScore(findings = []) {
+  const counts = { critical: 0, high: 0, medium: 0, low: 0, informational: 0 };
+  let deduction = 0;
+  for (const finding of findings || []) {
+    const severity = normalizeSeverity(finding.severity);
+    counts[severity] += 1;
+    deduction += POSTURE_WEIGHTS[severity];
+  }
+  const score = Math.max(0, 100 - deduction);
+  const rank = { critical: 0, high: 1, medium: 2, low: 3, informational: 4 };
+  const topRisks = [...(findings || [])]
+    .sort((a, b) => (rank[normalizeSeverity(a.severity)] ?? 4) - (rank[normalizeSeverity(b.severity)] ?? 4))
+    .slice(0, 3)
+    .map((f) => ({ id: f.id, title: f.title, severity: normalizeSeverity(f.severity) }));
+  return {
+    score,
+    grade: gradeForScore(score),
+    counts,
+    total: (findings || []).length,
+    topRisks,
+  };
 }

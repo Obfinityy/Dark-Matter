@@ -85,7 +85,7 @@ class AlertService {
       title: `Critical vulnerability found: ${finding.title || finding.category}`,
       body:
         `The agent confirmed a CRITICAL finding on ${job.target || 'the target'} ` +
-        `(${(finding.cvssMetrics && finding.cvssMetrics.baseScore) || 'CVSS pending'}). ` +
+        `(${(finding.cvss && finding.cvss.score) || (finding.cvssMetrics && finding.cvssMetrics.baseScore) || 'CVSS pending'}). ` +
         `Review it in the findings board.`,
       jobId: job.id,
       metadata: { findingId: finding.id, severity: finding.severity },
