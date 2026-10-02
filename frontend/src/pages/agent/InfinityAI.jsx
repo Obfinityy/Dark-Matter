@@ -23,9 +23,9 @@ import {
   Send, Loader2, Bot, User, MessageCircle, ClipboardList,
   Hammer, SlidersHorizontal, Cpu, FileText, CheckCircle2, XCircle,
   FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
-  ShieldCheck, Play, Paperclip, FolderOpen, X
+  ShieldCheck, Play, Paperclip, FolderOpen, X, Plus, Sparkles
 } from 'lucide-react';
-import { sendDirectChat, getProviders, listJobs, getComputerStatus, getInfiniteHistory } from '../../services/api';
+import { sendDirectChat, parseActionIntent, getProviders, listJobs, getComputerStatus, getInfiniteHistory } from '../../services/api';
 import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
 import {
   createComputerTask, cancelComputerTask, answerComputerTask,
@@ -33,7 +33,11 @@ import {
 } from '../../services/api';
 import { recordConversation } from '../../services/chatHistory';
 import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
+import { Avatar } from '../../components/fx/Avatar';
+import { DecryptedText } from '../../components/fx/DecryptedText';
+import { DarkVeil } from '../../components/fx/DarkVeil';
 import './InfinityAI.css';
+import './InfinityAINew.css';
 
 const MODES = [
   { id: 'chat', label: 'Chat', icon: MessageCircle, hint: 'Ask anything' },
@@ -58,7 +62,7 @@ function useConversationId(mode) {
   return ref.current;
 }
 
-function ChatPane({ mode, initialConversationId }) {
+function ChatPane({ mode, initialConversationId, onAvatarState }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   // One conversation per pane — the backend creates it on first message.
@@ -104,15 +108,44 @@ function ChatPane({ mode, initialConversationId }) {
       title: text.length > 48 ? `${text.slice(0, 48)}…` : text,
     });
     setSending(true);
+    onAvatarState?.('thinking');
     try {
+      // First: check if this is an ACTION command ("khol de") vs chat.
+      let intent = null;
+      try { intent = await parseActionIntent(text); } catch { /* fall through to chat */ }
+
+      if (intent?.type === 'action') {
+        // Safe action — tell the user we're doing it, then route to Control.
+        const doingMsg = intent.message || 'Kar raha hoon…';
+        setMessages((m) => [...m, { role: 'assistant', text: doingMsg }]);
+        onAvatarState?.('speaking');
+        setTimeout(() => onAvatarState?.('idle'), 2500);
+        // Note: full Control-mode execution happens when the user switches
+        // to the Control tab; here we acknowledge the intent.
+        return;
+      }
+      if (intent?.type === 'action_blocked') {
+        const blockedMsg = intent.message || 'Ye action main nahi kar sakta.';
+        setMessages((m) => [...m, { role: 'assistant', text: blockedMsg }]);
+        onAvatarState?.('speaking');
+        setTimeout(() => onAvatarState?.('idle'), 2500);
+        return;
+      }
+
+      // Chat intent — normal brain response.
       const res = await sendDirectChat(text, convRef.current);
       const reply = res?.reply || res?.message || res?.text || 'Hmm, empty reply. Try again?';
       setMessages((m) => [...m, { role: 'assistant', text: reply }]);
+      // Avatar "speaks" the reply, then settles back to idle.
+      onAvatarState?.('speaking');
+      const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
+      setTimeout(() => onAvatarState?.('idle'), speakMs);
     } catch (err) {
       setMessages((m) => [...m, {
         role: 'assistant',
         text: `Couldn't reach the brain: ${(err.message || 'connection failed').replace(/\.+$/, '')}. Check Models in Settings.`
       }]);
+      onAvatarState?.('idle');
     } finally {
       setSending(false);
     }
@@ -717,37 +750,86 @@ export function InfinityAI() {
   // location.key changes on every sidebar navigation (resume / new chat),
   // so the pane remounts with a fresh or resumed conversation.
   const paneKey = `${mode}|${location.key}`;
+  const backendMode = getBackendMode();
+
+  // Avatar state: idle | thinking | speaking | listening
+  const [avatarState, setAvatarState] = useState('idle');
+  const [avatarGender, setAvatarGender] = useState('female');
+  const [speakAmp, setSpeakAmp] = useState(0);
+
+  // Simulate lip-sync amplitude while the assistant is "speaking"
+  useEffect(() => {
+    if (avatarState !== 'speaking') { setSpeakAmp(0); return; }
+    const iv = setInterval(() => setSpeakAmp(0.2 + Math.random() * 0.8), 120);
+    return () => clearInterval(iv);
+  }, [avatarState]);
 
   return (
-    <div className="sg-inf">
-      <div className="sg-mode-tabs">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            className={`sg-mode-tab${mode === m.id ? ' sg-active' : ''}`}
-            onClick={() => setMode(m.id)}
-            title={m.hint}
-          >
-            <m.icon size={16} />
-            <span>{m.label}</span>
-          </button>
-        ))}
+    <div className="inf-new">
+      <DarkVeil intensity={0.7} />
+
+      {/* Avatar header */}
+      <div className="inf-avatar-head">
+        <Avatar
+          gender={avatarGender}
+          state={avatarState}
+          speakAmplitude={speakAmp}
+          size={110}
+        />
+        <div className="inf-avatar-info">
+          <DecryptedText text="Infinity AI" className="inf-title" as="h2" />
+          <p className="inf-subtitle">{active.hint}</p>
+          <div className="inf-gender-toggle" role="group" aria-label="Avatar appearance">
+            {['female', 'male'].map((g) => (
+              <button
+                key={g}
+                className={`inf-gender-btn${avatarGender === g ? ' inf-active' : ''}`}
+                onClick={() => setAvatarGender(g)}
+              >
+                {g === 'female' ? '👩' : '👨'} {g}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="inf-backend-badge">
+          <Cpu size={12} /> {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
+        </div>
       </div>
 
-      <div className="sg-mode-sub">
-        <active.icon size={13} /> {active.hint}
-      </div>
-
-      <div className="sg-inf-body">
+      {/* Mode content */}
+      <div className="inf-body">
         {mode === 'control' ? <ControlPane key="control" />
           : mode === 'plan' ? <PlanPane key="plan" />
           : mode === 'build' ? <BuildPane key="build" />
-          : <ChatPane key={paneKey} mode={mode} initialConversationId={navState.conversationId} />}
+          : <ChatPane key={paneKey} mode={mode} initialConversationId={navState.conversationId}
+              onAvatarState={setAvatarState} />}
       </div>
 
-      <div className="sg-inf-foot">
-        <FileText size={12} />
-        <span>Powered by your brain — the same one behind Hunt. Change it in Models.</span>
+      {/* Bottom dock: [+] [mode pills] */}
+      <div className="inf-dock">
+        <button className="inf-dock-plus" title="Attach image or file" aria-label="Attach">
+          <Plus size={18} />
+        </button>
+        <div className="inf-dock-modes" role="tablist" aria-label="Infinity AI modes">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              role="tab"
+              aria-selected={mode === m.id}
+              className={`inf-dock-mode${mode === m.id ? ' inf-active' : ''}`}
+              onClick={() => setMode(m.id)}
+              title={m.hint}
+            >
+              <m.icon size={15} />
+              <span>{m.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="inf-foot">
+        <Sparkles size={12} />
+        <span>Powered by your vision brain — change it in Models.</span>
       </div>
     </div>
   );

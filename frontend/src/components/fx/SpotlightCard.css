@@ -1,0 +1,47 @@
+.sl-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color 0.3s ease, transform 0.3s ease;
+  --sl-x: 50%;
+  --sl-y: 50%;
+  --sl-opacity: 0;
+}
+
+.sl-card:hover {
+  border-color: rgba(139, 92, 246, 0.28);
+}
+
+.sl-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--sl-opacity);
+  transition: opacity 0.4s ease;
+  background: radial-gradient(
+    var(--sl-size, 320px) circle at var(--sl-x) var(--sl-y),
+    rgba(var(--sl-color, 139, 92, 246), 0.16),
+    transparent 65%
+  );
+}
+
+.sl-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Touch devices: gentle static glow instead of cursor tracking */
+@media (hover: none) {
+  .sl-glow {
+    opacity: 0.5;
+    background: radial-gradient(
+      480px circle at 50% 0%,
+      rgba(var(--sl-color, 139, 92, 246), 0.1),
+      transparent 65%
+    );
+  }
+}

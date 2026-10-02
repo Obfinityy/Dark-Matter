@@ -37,7 +37,12 @@ import {
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
 } from '../../services/deviceDetect';
+import { DarkVeil } from '../../components/fx/DarkVeil';
+import { SpotlightCard } from '../../components/fx/SpotlightCard';
+import { DecryptedText } from '../../components/fx/DecryptedText';
+import { ElectricBorder } from '../../components/fx/ElectricBorder';
 import './ModelLibrary.css';
+import './ModelLibraryNew.css';
 
 function ProgressBar({ value }) {
   return (
@@ -245,7 +250,7 @@ function BrainSlotCard({
   const isBusy = slotBusy === slotId;
 
   return (
-    <div className="sg-card sg-brain-slot" style={{ padding: 16 }}>
+    <SpotlightCard className="ml-slot" glowColor={server ? '34, 211, 238' : '139, 92, 246'}>
       {/* Slot header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <span style={{ fontSize: 28 }}>{slot.icon}</span>
@@ -494,7 +499,7 @@ function BrainSlotCard({
           )}
         </div>
       )}
-    </div>
+    </SpotlightCard>
   );
 }
 
@@ -822,15 +827,14 @@ export function ModelLibrary() {
   };
 
   return (
-    <div className="sg-models-page">
-      <div className="sg-page-head">
-        <div>
-          <h2><Zap size={20} /> Models — the brain library</h2>
-          <p className="sg-body">
-            Every model here is <b>uncensored</b>. Pick one, press <b>Download</b>, then <b>Run</b> —
-            it starts on localhost and becomes the active brain for Hunt and Infinity AI.
-          </p>
-        </div>
+    <div className="ml-new">
+      <DarkVeil intensity={0.6} />
+      <div className="ml-head">
+        <DecryptedText text="Models — the brain library" className="ml-title" as="h2" />
+        <p className="ml-sub">
+          Every model here is <b>uncensored</b>. Pick one, press <b>Download</b>, then <b>Run</b> —
+          it starts on localhost and becomes the active brain for Hunt and Infinity AI.
+        </p>
       </div>
 
       {error && <div className="sg-alert sg-auth-error">{error}</div>}

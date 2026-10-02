@@ -1,0 +1,96 @@
+.avatar {
+  position: relative;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.avatar-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+/* Gentle breathing */
+.avatar-head {
+  transform-origin: 100px 110px;
+  animation: avatar-breathe 4s ease-in-out infinite;
+}
+
+@keyframes avatar-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.008); }
+}
+
+/* Thinking: eyes drift, head tilts slightly */
+.avatar-thinking .avatar-head {
+  animation: avatar-think 3s ease-in-out infinite;
+}
+
+.avatar-thinking .avatar-pupil {
+  animation: avatar-look 2.4s ease-in-out infinite;
+}
+
+@keyframes avatar-think {
+  0%, 100% { transform: rotate(-2deg) translateY(0); }
+  50% { transform: rotate(2deg) translateY(-3px); }
+}
+
+@keyframes avatar-look {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* Speaking: subtle bounce */
+.avatar-speaking .avatar-head {
+  animation: avatar-speak-bounce 0.5s ease-in-out infinite;
+}
+
+@keyframes avatar-speak-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+/* Listening: lean in */
+.avatar-listening .avatar-head {
+  animation: avatar-listen 2s ease-in-out infinite;
+}
+
+@keyframes avatar-listen {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+/* Aura pulse */
+.avatar-aura {
+  transform-origin: 100px 100px;
+  animation: avatar-aura 3s ease-in-out infinite;
+}
+
+@keyframes avatar-aura {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+/* State ring */
+.avatar-state-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  pointer-events: none;
+  transition: border-color 0.4s ease;
+}
+
+.avatar-state-speaking { border-color: rgba(34, 211, 238, 0.6); }
+.avatar-state-thinking { border-color: rgba(139, 92, 246, 0.6); animation: avatar-ring-spin 4s linear infinite; }
+.avatar-state-listening { border-color: rgba(52, 211, 153, 0.5); }
+
+@keyframes avatar-ring-spin {
+  to { transform: rotate(360deg); border-top-color: rgba(217, 70, 239, 0.8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-head, .avatar-aura, .avatar-pupil { animation: none; }
+}

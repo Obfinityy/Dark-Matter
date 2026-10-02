@@ -768,6 +768,60 @@ function generateDynamicSteps(message = '', durationMs = 100) {
           : `Control run failed: ${result.reason || 'an action failed mid-run.'}`
       );
       response.status(status).json({ control: { ...result, simulated } });
+    }),
+
+    /**
+     * POST /api/v1/infinite/action { message, conversationId }
+     * Infinity AI avatar: parse "do X" vs "tell me X" intents.
+     * - chat intent → returns { type: 'chat' } (frontend sends to brain)
+     * - action intent → scope-checked; safe actions return instructions for
+     *   the frontend to route through Control mode, unsafe ones ask for confirm.
+     */
+    action: asyncHandler(async (request, response) => {
+      const { parseIntent, checkActionScope } = await import('../services/actionIntent.js');
+      const userId = request.user?.id;
+      const { message } = request.body || {};
+
+      const intent = parseIntent(message);
+
+      if (intent.type === 'chat') {
+        return response.json({ type: 'chat', message });
+      }
+
+      // Action intent — scope check first.
+      const scope = checkActionScope(intent, userId);
+      if (!scope.allowed) {
+        return response.json({
+          type: 'action_blocked',
+          action: intent.action,
+          reason: scope.reason,
+          message: scope.message || 'Ye action allowed nahi hai.'
+        });
+      }
+
+      // Safe action — convert to a Control-mode instruction.
+      const controlInstructions = {
+        open_app: `Open the ${intent.params.app} application`,
+        open_url: `Open the browser and navigate to ${intent.params.url}`,
+      };
+      const instruction = controlInstructions[intent.action];
+
+      if (!instruction) {
+        return response.json({
+          type: 'action_blocked',
+          action: intent.action,
+          reason: 'UNKNOWN_ACTION',
+          message: 'Ye action main abhi nahi kar sakta.'
+        });
+      }
+
+      return response.json({
+        type: 'action',
+        action: intent.action,
+        instruction,
+        params: intent.params,
+        message: `Kar raha hoon: ${instruction}`
+      });
     })
   };
 }

@@ -145,6 +145,18 @@ export function sendDirectChat(message, conversationId, truncateIndex = undefine
   });
 }
 
+/**
+ * Parse "do X" vs "tell me X" intent for the avatar.
+ * Returns { type: 'chat' } or { type: 'action', instruction, ... }
+ * or { type: 'action_blocked', reason, message }.
+ */
+export function parseActionIntent(message) {
+  return request('/infinite/action', {
+    method: 'POST',
+    body: JSON.stringify({ message })
+  });
+}
+
 export async function streamDirectChat(message, conversationId, truncateIndex, handlers = {}) {
   const { onState, onToken, onDone, onError } = handlers;
   try {

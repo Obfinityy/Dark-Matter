@@ -34,6 +34,7 @@ export function createRoutes({ controllers }) {
   router.post('/infinite/plan', controllers.infiniteChat.plan);
   router.post('/infinite/build', controllers.infiniteChat.build);
   router.post('/infinite/control', controllers.infiniteChat.control);
+  router.post('/infinite/action', controllers.infiniteChat.action);
   
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
