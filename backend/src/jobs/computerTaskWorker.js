@@ -448,8 +448,9 @@ export class ComputerTaskWorker {
     }
 
     if (kind === 'unavailable' || kind === 'timeout') {
-      await this.activity(taskId, { kind: 'error', icon: '🔌', message: `Computer layer unavailable: ${truncate(message, 140)}` });
-      throw new LocalAiUnavailableError(message, { kind: 'computer_unavailable' });
+      const helpMsg = `${truncate(message, 140)} — Start the desktop bridge: open a terminal, cd to backend/computer, run: python openInterfaceBridge.py`;
+      await this.activity(taskId, { kind: 'error', icon: '🔌', message: `Computer layer unavailable: ${helpMsg}` });
+      throw new LocalAiUnavailableError(helpMsg, { kind: 'computer_unavailable' });
     }
 
     // Real bridge/Windows error → let the brain see it and retry/adjust.
