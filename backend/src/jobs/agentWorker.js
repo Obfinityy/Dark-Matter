@@ -7,9 +7,10 @@ import { stageForPhase, describeHuntState, techniquesForStage } from '../agent/m
 import { suggestRecovery, formatRecoveryAdvice } from '../computer/recoveryAdvisor.js';
 import { VulnerabilityReportBuilder, renderHuntReportMarkdown } from '../services/vulnerabilityReportBuilder.js';
 import { fingerprintTargetLenient } from '../services/targetFingerprint.js';
-import { buildBrainChain, suggestChains } from '../services/chainService.js';
+import { buildBrainChain as buildExploitChain, suggestChains } from '../services/chainService.js';
 import { initialHuntState, safeTransition } from '../agent/huntStateMachine.js';
-import { createBrainProvider } from '../agent/providers/brainProviderFactory.js';
+import { DeterministicBrain } from '../agent/deterministicBrain.js';
+import { buildBrainChain, ResilientBrainProvider } from '../agent/providers/resilientBrainProvider.js';
 import { LocalAIQueue, localAIQueue } from '../agent/providers/localAiQueue.js';
 
 /**
@@ -102,13 +103,24 @@ export class AgentWorker {
     this.config = {
       idleDelayMs: Number(process.env.AGENT_WORKER_IDLE_MS || 500),
       phoneRetryMs: Number(process.env.AGENT_PHONE_RETRY_MS || 15_000),
-      contextRetryMs: Number(process.env.AGENT_CONTEXT_RETRY_MS || 60_000)
+      contextRetryMs: Number(process.env.AGENT_CONTEXT_RETRY_MS || 60_000),
+      // When no LLM brain is reachable, fall back to the deterministic
+      // rule-based strategy instead of parking the hunt in `waiting`.
+      // Disable with AGENT_DETERMINISTIC_FALLBACK=0.
+      deterministicFallback: process.env.AGENT_DETERMINISTIC_FALLBACK !== '0'
     };
     this.noProgress = new Map();
     this.brainErrors = new Map();
 
     /** jobId → { abort, wake } so pause/cancel/shutdown act immediately. */
     this.running = new Map();
+    /**
+     * jobId → DeterministicBrain override, set when a job's LLM brain is
+     * unreachable and the deterministic fallback engages. The job keeps
+     * hunting autonomously (rule-based strategy) instead of parking in
+     * `waiting`. Checked first by getBrainForJob().
+     */
+    this.brainOverrides = new Map();
     // Per-user running sets (multi-tenancy): userId → Set(jobId). Lets the
     // JobManager enforce HUNT_MAX_PER_USER without scanning job docs.
     // Each user's hunts are isolated here — no shared mutable state.
@@ -135,15 +147,34 @@ export class AgentWorker {
    * (tests, single-user embedded use).
    */
   async getBrainForJob(job) {
+    // Deterministic fallback engaged for this job (LLM unreachable) — the
+    // override always wins so the hunt keeps driving itself.
+    if (job?.id && this.brainOverrides.has(job.id)) return this.brainOverrides.get(job.id);
     if (!this.brainProviderModel || !job?.userId) return this.brain;
     if (this.brains.has(job.userId)) return this.brains.get(job.userId);
 
     const selection = await this.brainProviderModel.getSelection(job.userId);
-    const provider = createBrainProvider(selection.provider, this.appConfig || {}, {
-      model: selection.ollamaTag || selection.modelId || null,
-      baseUrl: selection.endpointUrl || null,
+    // Brain fallback chain (local → next downloaded model → Kaggle remote →
+    // phone API): if the user's chosen brain dies mid-hunt, the hunt keeps
+    // thinking on the next available brain instead of dying with it.
+    let downloaded = null;
+    if (selection.provider === 'local' && this.modelRunnerService?.library) {
+      try {
+        downloaded = await this.modelRunnerService.library();
+      } catch (err) {
+        this.logger?.warn?.(`[agentWorker] model library unavailable for fallback chain: ${err?.message}`);
+      }
+    }
+    const chain = buildBrainChain({
+      selection,
+      appConfig: this.appConfig || {},
       runner: this.modelRunnerService,
+      downloaded
     });
+    const provider = new ResilientBrainProvider(chain);
+    this.logger?.info?.(
+      `[agentWorker] brain chain for user ${job.userId}: ${chain.map((l) => l.name).join(' → ')}`
+    );
     // The phone is ONE piece of hardware: its brains share the hardware
     // queue. Every Ollama brain gets a PRIVATE queue — the agent's
     // thinking loop is never throttled by another user's inference.
@@ -199,6 +230,22 @@ export class AgentWorker {
 
   get runningJobIds() {
     return [...this.running.keys()];
+  }
+
+  /**
+   * Build the deterministic fallback brain for a job whose LLM is
+   * unreachable. Returns null when the fallback is disabled (or the worker
+   * lacks the models the strategy needs) — the loop then parks in `waiting`
+   * as before.
+   */
+  deterministicFallbackFor(job) {
+    if (!this.config.deterministicFallback) return null;
+    if (!this.toolExecutionModel || !this.evidenceModel) return null;
+    return new DeterministicBrain({
+      toolExecutionModel: this.toolExecutionModel,
+      evidenceModel: this.evidenceModel,
+      logger: this.logger
+    });
   }
 
   /** Total hunts currently executing in this process. */
@@ -308,6 +355,26 @@ export class AgentWorker {
       const loopBrain = await this.getBrainForJob(job);
       const health = await loopBrain.health();
       if (!health.available) {
+        // No LLM reachable. Instead of parking the hunt in `waiting`, engage
+        // the deterministic rule-based strategy: the same loop, the same
+        // tools, the same evidence gates — decided by expert-authored rules
+        // instead of a model. Published honestly as brain.deterministic.
+        const fallback = this.deterministicFallbackFor(job);
+        if (fallback) {
+          this.brainOverrides.set(job.id, fallback);
+          await this.jobModel.update(jobId, { brainStatus: 'deterministic' });
+          await this.publish(jobId, {
+            type: 'brain.deterministic',
+            level: 'WARN',
+            message: `No local AI reachable (${health.reason || health.provider || 'provider down'}) — running the deterministic rule-based hunt strategy. Every action still passes policy, scope, and evidence gates.`,
+            data: { reason: health.reason, provider: health.provider, strategy: 'deterministicBrain' }
+          });
+          await this.recordActivity(jobId, {
+            kind: 'brain',
+            message: 'Deterministic rule-based strategy engaged (local AI unreachable) — the hunt drives itself'
+          });
+          continue;
+        }
         // health.reason already starts with "LOCAL AI UNAVAILABLE — …"; strip it
         // here so the terminal message doesn't repeat the prefix.
         const waitReason = String(health.reason || 'phone model unreachable').replace(/^LOCAL AI UNAVAILABLE — /i, '');
@@ -346,6 +413,72 @@ export class AgentWorker {
       if (!job) return;
       if (TERMINAL.has(job.status)) return;
     }
+  }
+
+  /**
+   * Build the "learned hints" injected into the brain context each cycle:
+   * proven payloads, cross-hunt patterns, and — the autonomy hop — chain
+   * candidates computed from THIS hunt's confirmed findings, so a new
+   * finding reshapes the attack plan mid-hunt.
+   */
+  async buildLearnedHints({ job, methodologyStage, findings }) {
+    // Payloads that worked before (self-learning library) and chain
+    // candidates between confirmed findings are injected into the hunt
+    // context, so the brain reasons over them every cycle.
+    let learnedHints = '';
+    try {
+      if (this.payloadLibraryModel) {
+        const stageTechniques = techniquesForStage(methodologyStage).map((t) => t.id);
+        const hints = [];
+        for (const techId of stageTechniques.slice(0, 5)) {
+          const suggested = await this.payloadLibraryModel.suggest({ technique: techId, limit: 2 });
+          hints.push(...suggested);
+        }
+        const proven = hints.filter((h) => h.successes > 0).slice(0, 5);
+        if (proven.length) {
+          learnedHints += '\nPROVEN PAYLOADS (worked in past hunts — prefer these for the matching technique):\n' +
+            proven.map((h) => `- [${h.technique}] "${h.payload.slice(0, 120)}" (${h.successes}× success)`).join('\n');
+        }
+      }
+        // --- Cross-hunt memory (idea #2): what did past hunts on THIS or
+        // similar targets find? Surface patterns so the agent checks them first.
+        if (this.findingModel && job.userId && job.target) {
+          const targetHost = String(job.target).toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+          const pastFindings = await this.findingModel.listByUser(job.userId).catch(() => []);
+          const relevant = pastFindings
+            .filter((f) => {
+              const asset = String(f.affectedAsset || f.target || '').toLowerCase();
+              return asset.includes(targetHost) || targetHost.includes(asset.split('/')[0]);
+            })
+            .slice(0, 5);
+          if (relevant.length) {
+            learnedHints += '\nPAST HUNTS ON THIS TARGET (patterns found before — check these FIRST):\n' +
+              relevant.map((f) => `- [${f.severity}] ${f.title} (${f.category || 'vuln'})`).join('\n');
+          }
+          // Pattern learning (idea #5): most successful vuln categories across ALL past hunts
+          const byCategory = {};
+          for (const f of pastFindings.slice(0, 50)) {
+            const cat = f.category || 'general';
+            byCategory[cat] = (byCategory[cat] || 0) + 1;
+          }
+          const topCats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 3);
+          if (topCats.length) {
+            learnedHints += '\nYOUR STRONGEST PATTERNS (vuln types you find most — prioritize these):\n' +
+              topCats.map(([cat, n]) => `- ${cat} (${n}× found)`).join('\n');
+          }
+        }
+        if (Array.isArray(findings) && findings.length >= 2) {
+          const existingChains = findings.filter((f) => f.category === 'vulnerability-chain');
+          const chains = suggestChains(findings, existingChains).slice(0, 3);
+          if (chains.length) {
+            learnedHints += '\nCHAIN CANDIDATES (confirmed findings that combine into bigger attacks — file them with category "vulnerability-chain"): \n' +
+              chains.map((c) => `- ${c.title} → severity ${c.severity.toUpperCase()}: ${c.description.slice(0, 160)}…`).join('\n');
+          }
+        }
+    } catch (error) {
+      this.logger.warn?.(`[agent-worker] learned-context enrichment failed: ${error.message}`);
+    }
+    return learnedHints;
   }
 
   async stepReason(job) {
@@ -413,62 +546,8 @@ export class AgentWorker {
     });
 
     // ── The agent hunts with everything it has learned ───────────────
-    // Payloads that worked before (self-learning library) and chain
-    // candidates between confirmed findings are injected into the hunt
-    // context, so the brain reasons over them every cycle.
-    let learnedHints = '';
-    try {
-      if (this.payloadLibraryModel) {
-        const stageTechniques = techniquesForStage(methodologyStage).map((t) => t.id);
-        const hints = [];
-        for (const techId of stageTechniques.slice(0, 5)) {
-          const suggested = await this.payloadLibraryModel.suggest({ technique: techId, limit: 2 });
-          hints.push(...suggested);
-        }
-        const proven = hints.filter((h) => h.successes > 0).slice(0, 5);
-        if (proven.length) {
-          learnedHints += '\nPROVEN PAYLOADS (worked in past hunts — prefer these for the matching technique):\n' +
-            proven.map((h) => `- [${h.technique}] "${h.payload.slice(0, 120)}" (${h.successes}× success)`).join('\n');
-        }
-      }
-      // --- Cross-hunt memory (idea #2): what did past hunts on THIS or
-      // similar targets find? Surface patterns so the agent checks them first.
-      if (this.findingModel && job.userId && job.target) {
-        const targetHost = String(job.target).toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
-        const pastFindings = await this.findingModel.listByUser(job.userId).catch(() => []);
-        const relevant = pastFindings
-          .filter((f) => {
-            const asset = String(f.affectedAsset || f.target || '').toLowerCase();
-            return asset.includes(targetHost) || targetHost.includes(asset.split('/')[0]);
-          })
-          .slice(0, 5);
-        if (relevant.length) {
-          learnedHints += '\nPAST HUNTS ON THIS TARGET (patterns found before — check these FIRST):\n' +
-            relevant.map((f) => `- [${f.severity}] ${f.title} (${f.category || 'vuln'})`).join('\n');
-        }
-        // Pattern learning (idea #5): most successful vuln categories across ALL past hunts
-        const byCategory = {};
-        for (const f of pastFindings.slice(0, 50)) {
-          const cat = f.category || 'general';
-          byCategory[cat] = (byCategory[cat] || 0) + 1;
-        }
-        const topCats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 3);
-        if (topCats.length) {
-          learnedHints += '\nYOUR STRONGEST PATTERNS (vuln types you find most — prioritize these):\n' +
-            topCats.map(([cat, n]) => `- ${cat} (${n}× found)`).join('\n');
-        }
-      }
-      if (Array.isArray(findings) && findings.length >= 2) {
-        const existingChains = findings.filter((f) => f.category === 'vulnerability-chain');
-        const chains = suggestChains(findings, existingChains).slice(0, 3);
-        if (chains.length) {
-          learnedHints += '\nCHAIN CANDIDATES (confirmed findings that combine into bigger attacks — file them with category "vulnerability-chain"): \n' +
-            chains.map((c) => `- ${c.title} → severity ${c.severity.toUpperCase()}: ${c.description.slice(0, 160)}…`).join('\n');
-        }
-      }
-    } catch (error) {
-      this.logger.warn?.(`[agent-worker] learned-context enrichment failed: ${error.message}`);
-    }
+    // (assembled by buildLearnedHints so the chain-injection is unit-testable)
+    const learnedHints = await this.buildLearnedHints({ job, methodologyStage, findings });
 
     // Token-budgeted variable context for this step (falls back to the
     // legacy inline assembly when no context manager is wired, e.g. tests).
@@ -666,7 +745,7 @@ export class AgentWorker {
         action: decision.nextAction,
         confidence: decision.confidence,
         expectedOutcome: decision.expectedOutcome,
-        summaryLabel: this.brain.constructor.statusLabel(decision)
+        summaryLabel: brain.constructor.statusLabel(decision)
       }
     });
     await this.recordActivity(jobId, {
@@ -853,9 +932,9 @@ export class AgentWorker {
     const action = decision.nextAction;
     switch (action.type) {
       case 'tool':
-        return this.runToolAction(job, action);
+        return this.runToolAction(job, action, scopeEngine);
       case 'parallel_tools':
-        return this.runParallelToolsAction(job, action);
+        return this.runParallelToolsAction(job, action, scopeEngine);
       case 'computer_action':
         return this.runComputerAction(job, action, scopeEngine, decision);
       case 'observation':
@@ -893,7 +972,7 @@ export class AgentWorker {
     }
   }
 
-  async runToolAction(job, action) {
+  async runToolAction(job, action, scopeEngine = null) {
     const jobId = job.id;
     await this.jobModel.update(jobId, {
       currentAction: `tool:${action.name} → ${action.target}`,
@@ -907,7 +986,7 @@ export class AgentWorker {
         target: action.target,
         arguments: action.arguments || {},
         timeout: action.timeout
-      });
+      }, { scopeEngine });
 
       // Real evidence, from the real execution record.
       const { evidence } = await this.evidenceModel.store({
@@ -1003,7 +1082,7 @@ export class AgentWorker {
    * Run multiple independent tools in parallel (idea #3).
    * Each tool's result is stored as evidence + memory, same as a single run.
    */
-  async runParallelToolsAction(job, action) {
+  async runParallelToolsAction(job, action, scopeEngine = null) {
     const jobId = job.id;
     const tools = (action.tools || action.parallelTools || []).slice(0, 6);
     const names = tools.map((t) => t.name).join(', ');
@@ -1019,7 +1098,7 @@ export class AgentWorker {
       timeout: t.timeout
     }));
 
-    const results = await this.toolExecutor.executeParallel(job.assessmentId, job.userId, requests);
+    const results = await this.toolExecutor.executeParallel(job.assessmentId, job.userId, requests, { scopeEngine });
     const succeeded = results.filter((r) => r.ok);
     const failed = results.filter((r) => !r.ok);
 
@@ -1441,7 +1520,7 @@ export class AgentWorker {
       if (triggerFinding && !allFindings.some((f) => f.id === triggerFinding.id)) {
         allFindings.push(triggerFinding);
       }
-      const chain = buildBrainChain(chainProposal, allFindings, job.id);
+      const chain = buildExploitChain(chainProposal, allFindings, job.id);
       // A chain's evidence IS its components' evidence — collect it, because
       // createFinding() rejects evidence-less findings (anti-fabrication rule).
       const componentById = new Map(allFindings.map((f) => [f.id, f]));
