@@ -14,10 +14,10 @@
     radial-gradient(560px 380px at 70% 80%, rgba(34, 211, 238, 0.07), transparent 65%),
     var(--sg-ink-0);
 }
-.sg-auth-brand-inner { position: relative; z-index: 2; max-width: 560px; padding: 64px; }
-.sg-auth-brand-inner .sg-display { margin: 34px 0 18px; }
-.sg-auth-proofs { display: flex; flex-direction: column; gap: 20px; margin-top: 44px; }
-.sg-auth-proof { display: flex; gap: 14px; align-items: flex-start; }
+.sg-auth-brand-inner { position: relative; z-index: 2; max-width: 600px; padding: 100px; }
+.sg-auth-brand-inner .sg-display { margin: 40px 0 24px; font-size: 3.2rem; line-height: 1.1; }
+.sg-auth-proofs { display: flex; flex-direction: column; gap: 32px; margin-top: 64px; }
+.sg-auth-proof { display: flex; gap: 20px; align-items: flex-start; }
 .sg-auth-proof-icon {
   flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
@@ -33,9 +33,9 @@
 /* ── Form panel ── */
 .sg-auth-form-wrap {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 48px 32px;
+  padding: 80px 48px;
 }
-.sg-auth-card { width: 100%; max-width: 430px; padding: 36px; }
+.sg-auth-card { width: 100%; max-width: 480px; padding: 48px; }
 .sg-auth-mobile-brand { display: none; margin-bottom: 26px; }
 
 .sg-auth-tabs {

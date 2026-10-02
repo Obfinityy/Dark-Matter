@@ -122,7 +122,7 @@ function HuntHistory({ onNavigate, refreshKey }) {
     return <div className="sg-side-empty">Loading hunts…</div>;
   }
   if (jobs.length === 0) {
-    return <div className="sg-side-empty">No hunts yet — start your first one above.</div>;
+    return <div className="sg-side-empty">No hunts yet - start your first one above.</div>;
   }
   return (
     <ul className="sg-side-list">
@@ -161,7 +161,7 @@ function ChatHistory({ onNavigate, refreshKey }) {
   }, [refreshKey]);
 
   if (convs.length === 0) {
-    return <div className="sg-side-empty">No chats yet — say hello above.</div>;
+    return <div className="sg-side-empty">No chats yet - say hello above.</div>;
   }
   return (
     <ul className="sg-side-list">
@@ -223,6 +223,7 @@ export function AgentShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarClosed, setSidebarClosed] = useState(false);
   const [histTick, setHistTick] = useState(0);
 
   const isInfinity = location.pathname === '/agent/infinity' ||
@@ -357,25 +358,33 @@ export function AgentShell({ children }) {
   );
 
   return (
-    <div className="sg-app sg-shell">
+    <div className={`sg-app sg-shell ${sidebarClosed ? 'sidebar-closed' : ''}`}>
       {/* Mobile drawer */}
       <div
         className={`sg-drawer-scrim${drawerOpen ? ' open' : ''}`}
         onClick={closeDrawer}
         aria-hidden="true"
       />
-      <aside className={`sg-sidebar${drawerOpen ? ' open' : ''}`} aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt menu'}>
+      <aside className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`} aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt menu'}>
         {sidebar}
       </aside>
 
-      <div className="sg-main">
+        <main className="sg-main">
         {/* Top navbar — ONLY the two primary destinations. */}
         <header className="sg-topbar">
           <div className="sg-topbar-left">
             <button
               className="sg-hamburger"
               onClick={() => setDrawerOpen(true)}
-              aria-label="Open menu"
+              aria-label="Open mobile menu"
+            >
+              <Menu size={20} />
+            </button>
+            <button
+              className="sg-sidebar-toggle"
+              onClick={() => setSidebarClosed(!sidebarClosed)}
+              aria-label="Toggle sidebar"
+              title="Toggle sidebar"
             >
               <Menu size={20} />
             </button>

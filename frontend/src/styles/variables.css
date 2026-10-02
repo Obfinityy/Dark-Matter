@@ -16,23 +16,23 @@
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
 
-  --accent: #ff2a5f;
-  --accent-secondary: #00e5ff;
-  --accent-gradient: linear-gradient(90deg, #ff2a5f, #00e5ff);
+  --accent: #22d3ee;
+  --accent-secondary: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #22d3ee, #3b82f6);
 
   --danger: #ef4444;
   --warning: #f59e0b;
   --info: #3b82f6;
   --success: #10b981;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Outfit', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
   
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-full: 9999px;
+  --radius-xl: 12px;
+  --radius-full: 8px;
   
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.4);
@@ -61,9 +61,9 @@
   --text-secondary: #495057;
   --text-muted: #868e96;
 
-  --accent: #e91e63;
-  --accent-secondary: #00b0ff;
-  --accent-gradient: linear-gradient(90deg, #e91e63, #00b0ff);
+  --accent: #0ea5e9;
+  --accent-secondary: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #0ea5e9, #3b82f6);
 
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.1);

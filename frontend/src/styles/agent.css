@@ -957,7 +957,7 @@
 }
 .dm-term-text { color: #9aa3b8; }
 .dm-term-line.dm-term-brain .dm-term-text { color: #c4b5fd; }
-.dm-term-line.dm-term-brain .dm-term-tag { color: #8b5cf6; }
+.dm-term-line.dm-term-brain .dm-term-tag { color: #3b82f6; }
 .dm-term-line.dm-term-finding .dm-term-text { color: #fca5a5; font-weight: 600; }
 .dm-term-line.dm-term-finding .dm-term-tag { color: var(--dm-danger); }
 .dm-term-line.dm-term-tool .dm-term-text { color: #6ee7b7; }
@@ -1389,9 +1389,9 @@
 .dm-model-actions .dm-btn-primary, .dm-model-actions .dm-btn-secondary { flex: 1; }
 .dm-pull-progress { display: flex; flex-direction: column; gap: 9px; margin-top: auto; padding-top: 6px; }
 .dm-pull-progress span { font-size: 12.5px; color: var(--dm-muted); font-family: var(--dm-mono); }
-.dm-progress { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.07); overflow: hidden; }
+.dm-progress { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.07); overflow: hidden; }
 .dm-progress-fill {
-  height: 100%; border-radius: 99px;
+  height: 100%; border-radius: 4px;
   background: linear-gradient(90deg, var(--dm-accent), var(--dm-accent-bright));
   box-shadow: 0 0 12px rgba(16,185,129,0.5);
   transition: width 0.3s ease;
@@ -1708,7 +1708,7 @@
 /* ── Remote GPU card (Kaggle/Colab Gradio link) ───────────────────── */
 .dm-remote-card {
   border: 1px solid rgba(96,165,250,0.35);
-  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.06));
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(14,165,233,0.06));
   border-radius: 14px;
   padding: 18px 20px;
   display: flex;
@@ -1966,7 +1966,7 @@
 .dm-infinity-bubble { background: #1e293b; padding: 12px 16px; border-radius: 16px; max-width: 70%; white-space: pre-wrap; line-height: 1.5; }
 .dm-infinity-msg.user .dm-infinity-bubble { background: #3b82f6; color: #fff; }
 .dm-infinity-input { display: flex; gap: 8px; padding: 12px 0; }
-.dm-infinity-input input { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 1rem; }
+.dm-infinity-input input { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 1rem; }
 .dm-infinity-input input:focus { outline: none; border-color: #3b82f6; }
 .dm-infinity-input button { width: 48px; height: 48px; border-radius: 50%; border: none; background: #3b82f6; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .dm-infinity-input button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -2003,7 +2003,7 @@
 /* ── Infinity AI (ChatGPT-style) ───────────────────────────────── */
 .dm-inf { display: flex; flex-direction: column; height: calc(100vh - 110px); max-width: 860px; margin: 0 auto; }
 .dm-inf-tabs { display: flex; gap: 8px; padding: 12px 0; }
-.dm-inf-tab { display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 24px; border: 1px solid #1e293b; background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.92rem; font-weight: 500; transition: all 0.2s; }
+.dm-inf-tab { display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 6px; border: 1px solid #1e293b; background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.92rem; font-weight: 500; transition: all 0.2s; }
 .dm-inf-tab:hover { border-color: #3b82f6; color: #e2e8f0; }
 .dm-inf-tab.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
 .dm-inf-sub { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 0.82rem; padding: 0 4px 10px; }
@@ -2021,7 +2021,7 @@
 .dm-typing span:nth-child(3) { animation-delay: 0.3s; }
 @keyframes dm-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 .dm-inf-input { display: flex; gap: 8px; padding: 12px 0 4px; }
-.dm-inf-input input { flex: 1; padding: 13px 18px; border-radius: 24px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 0.95rem; }
+.dm-inf-input input { flex: 1; padding: 13px 18px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 0.95rem; }
 .dm-inf-input input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
 .dm-inf-input button { width: 48px; height: 48px; border-radius: 50%; border: none; background: #3b82f6; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .dm-inf-input button:disabled { opacity: 0.4; cursor: not-allowed; }

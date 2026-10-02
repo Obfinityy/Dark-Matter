@@ -14,6 +14,15 @@
   backdrop-filter: blur(12px);
   z-index: 60;
   display: flex; flex-direction: column;
+  transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+}
+.sg-sidebar.closed-desktop {
+  width: 0;
+  flex: 0 0 0;
+  opacity: 0;
+  padding: 0;
+  overflow: hidden;
+  border: none;
 }
 .sg-side-inner {
   display: flex; flex-direction: column;
@@ -163,10 +172,17 @@
 
 .sg-hamburger {
   display: none;
-  background: transparent; border: 1px solid var(--sg-line-soft); border-radius: 10px;
+  background: transparent; border: 1px solid var(--sg-line-soft); border-radius: 8px;
   color: var(--sg-text); padding: 7px; cursor: pointer;
   align-items: center; justify-content: center;
 }
+.sg-sidebar-toggle {
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--sg-line-soft); border-radius: 8px;
+  color: var(--sg-text); padding: 7px; cursor: pointer;
+  transition: background var(--sg-fast), color var(--sg-fast);
+}
+.sg-sidebar-toggle:hover { background: rgba(255, 255, 255, 0.08); }
 
 .sg-topbar-right { display: flex; align-items: center; gap: 12px; }
 .sg-bell {

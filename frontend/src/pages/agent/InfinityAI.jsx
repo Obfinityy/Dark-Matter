@@ -188,22 +188,6 @@ function PlanPane() {
 
   return (
     <div className="sg-plan">
-      <div className="sg-plan-input">
-        <div className="sg-chat-input">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && run()}
-            placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
-            disabled={loading}
-          />
-          <button onClick={run} disabled={loading || !input.trim()} aria-label="Make plan">
-            {loading ? <Loader2 size={17} className="sg-spin" /> : <ClipboardList size={17} />}
-          </button>
-        </div>
-        <p className="sg-small" style={{ textAlign: 'center' }}>Planning only — nothing is executed. Switch to Build to make it real.</p>
-      </div>
-
       {error && <div className="sg-auth-error" role="alert">{error}</div>}
 
       {loading && (
@@ -235,6 +219,22 @@ function PlanPane() {
           {plan.refinedByBrain && <p className="sg-small">Refined by your local brain.</p>}
         </div>
       )}
+
+      <div className="sg-plan-input" style={{ marginTop: 'auto' }}>
+        <div className="sg-chat-input">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && run()}
+            placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
+            disabled={loading}
+          />
+          <button onClick={run} disabled={loading || !input.trim()} aria-label="Make plan">
+            {loading ? <Loader2 size={17} className="sg-spin" /> : <ClipboardList size={17} />}
+          </button>
+        </div>
+        <p className="sg-small" style={{ textAlign: 'center', marginTop: '12px' }}>Planning only — nothing is executed. Switch to Build to make it real.</p>
+      </div>
     </div>
   );
 }
@@ -341,121 +341,87 @@ function BuildPane() {
 
   return (
     <div className="sg-build">
-      <div className="sg-chat-input" style={{ maxWidth: 760 }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && run()}
-          placeholder="What should I build?… e.g. “a portfolio page for Rahul Sharma”"
-          disabled={loading}
-        />
-        <button onClick={run} disabled={loading || uploading || !input.trim()} aria-label="Build">
-          {loading ? <Loader2 size={17} className="sg-spin" /> : <Hammer size={17} />}
-        </button>
-      </div>
-
-      {/* ── Attach local files / folders as brain context ── */}
-      <div className="sg-attach-row" style={{ maxWidth: 760, margin: '10px auto 0' }}>
-        <button
-          className="sg-btn sg-btn-ghost sg-btn-sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || loading}
-          title="Attach files from your machine"
-        >
-          {uploading ? <Loader2 size={14} className="sg-spin" /> : <Paperclip size={14} />}
-          <span>Attach files</span>
-        </button>
-        <button
-          className="sg-btn sg-btn-ghost sg-btn-sm"
-          onClick={() => folderInputRef.current?.click()}
-          disabled={uploading || loading}
-          title="Attach a whole folder from your machine"
-        >
-          <FolderOpen size={14} />
-          <span>Attach folder</span>
-        </button>
-        <span className="sg-tiny" style={{ alignSelf: 'center' }}>
-          The brain reads these as context while building.
-        </span>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          hidden
-          onChange={(e) => handlePickedFiles(e.target.files)}
-        />
-        <input
-          ref={folderInputRef}
-          type="file"
-          hidden
-          // Non-standard but supported by Chrome/Edge: picks a whole folder.
-          {...{ webkitdirectory: '' }}
-          onChange={(e) => handlePickedFiles(e.target.files)}
-        />
-      </div>
-
-      {attached.length > 0 && (
-        <div className="sg-attach-chips" style={{ maxWidth: 760, margin: '8px auto 0' }}>
-          {attached.map((a) => (
-            <span key={a.path} className="sg-chip">
-              <FileCode2 size={13} />
-              <span className="sg-chip-name" title={a.path}>{a.name}</span>
-              <span className="sg-tiny">{(a.size / 1024).toFixed(1)} KB</span>
-              <button
-                className="sg-chip-x"
-                onClick={() => removeAttached(a.path)}
-                aria-label={`Remove ${a.name}`}
-              >
-                <X size={12} />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <p className="sg-small" style={{ textAlign: 'center' }}>
-        <ShieldCheck size={12} style={{ verticalAlign: -1 }} /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
-        {build?.brainBuilt && <span className="sg-pill sg-pill-brand" style={{ marginLeft: 8 }}>Built by your active brain</span>}
-      </p>
-
-      {error && <div className="sg-auth-error" role="alert" style={{ maxWidth: 760, margin: '0 auto' }}>{error}</div>}
-
-      {loading && (
-        <div className="sg-loading-box"><Loader2 size={20} className="sg-spin" /> Agent is writing files…</div>
-      )}
-
-      {build && !loading && (
-        <div className="sg-build-result">
-          <div className="sg-plan-head">
-            <h3>{build.projectDir}</h3>
-            <span className="sg-pill sg-pill-brand">{build.files.length} files</span>
-          </div>
-          <p className="sg-small">{build.note}</p>
-          <ul className="sg-file-list">
-            {build.files.map((f) => (
-              <li key={f.path}>
-                <button className="sg-file-row" onClick={() => openPreview(f.path)}>
-                  <FileCode2 size={16} />
-                  <span className="sg-file-path">{f.path}</span>
-                  <span className="sg-tiny">{(f.size / 1024).toFixed(1)} KB</span>
-                  <Eye size={14} className="sg-file-eye" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          {(preview || previewLoading) && (
-            <div className="sg-file-preview">
-              <div className="sg-file-preview-head">
-                <FileCode2 size={14} />
-                <span>{preview?.path || 'Loading…'}</span>
-              </div>
-              {previewLoading
-                ? <div className="sg-loading-box"><Loader2 size={16} className="sg-spin" /></div>
-                : <pre className="sg-file-preview-body">{preview?.content}</pre>}
-            </div>
           )}
         </div>
       )}
+
+      <div className="sg-build-input-wrapper" style={{ marginTop: 'auto' }}>
+        <div className="sg-chat-input" style={{ maxWidth: 760 }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && run()}
+            placeholder="What should I build?… e.g. “a portfolio page for Rahul Sharma”"
+            disabled={loading}
+          />
+          <button onClick={run} disabled={loading || uploading || !input.trim()} aria-label="Build">
+            {loading ? <Loader2 size={17} className="sg-spin" /> : <Hammer size={17} />}
+          </button>
+        </div>
+
+        {/* ── Attach local files / folders as brain context ── */}
+        <div className="sg-attach-row" style={{ maxWidth: 760, margin: '10px auto 0' }}>
+          <button
+            className="sg-btn sg-btn-ghost sg-btn-sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || loading}
+            title="Attach files from your machine"
+          >
+            {uploading ? <Loader2 size={14} className="sg-spin" /> : <Paperclip size={14} />}
+            <span>Attach files</span>
+          </button>
+          <button
+            className="sg-btn sg-btn-ghost sg-btn-sm"
+            onClick={() => folderInputRef.current?.click()}
+            disabled={uploading || loading}
+            title="Attach a whole folder from your machine"
+          >
+            <FolderOpen size={14} />
+            <span>Attach folder</span>
+          </button>
+          <span className="sg-tiny" style={{ alignSelf: 'center' }}>
+            The brain reads these as context while building.
+          </span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => handlePickedFiles(e.target.files)}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            hidden
+            {...{ webkitdirectory: '' }}
+            onChange={(e) => handlePickedFiles(e.target.files)}
+          />
+        </div>
+
+        {attached.length > 0 && (
+          <div className="sg-attach-chips" style={{ maxWidth: 760, margin: '8px auto 0' }}>
+            {attached.map((a) => (
+              <span key={a.path} className="sg-chip">
+                <FileCode2 size={13} />
+                <span className="sg-chip-name" title={a.path}>{a.name}</span>
+                <span className="sg-tiny">{(a.size / 1024).toFixed(1)} KB</span>
+                <button
+                  className="sg-chip-x"
+                  onClick={() => removeAttached(a.path)}
+                  aria-label={`Remove ${a.name}`}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <p className="sg-small" style={{ textAlign: 'center', marginTop: '12px' }}>
+          <ShieldCheck size={12} style={{ verticalAlign: -1 }} /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
+          {build?.brainBuilt && <span className="sg-pill sg-pill-brand" style={{ marginLeft: 8 }}>Built by your active brain</span>}
+        </p>
+      </div>
     </div>
   );
 }
@@ -580,87 +546,93 @@ function ControlPane() {
 
   return (
     <div className="sg-control-nl">
-      <div className="sg-control-statusline">
-        <span className="sg-chip">
-          <Cpu size={12} /> Backend: {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
-        </span>
-        <span className="sg-chip">
-          <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
-        </span>
-        {brainName && (
-          <span className="sg-chip" title="The brain thinking for Control mode — same as Hunt and Infinity AI">
-            <Bot size={12} /> Brain: {brainName}
-          </span>
-        )}
-      </div>
-
-      <h3 className="sg-control-title">Tell me what to do on the computer</h3>
-      <p className="sg-small" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 18px' }}>
-        For example: “MS Word me leave application likho”. Your active brain reasons it out
-        step by step — opening the app, observing the screen, acting, and verifying —
-        and you watch it think live below. Nothing is canned: the brain composes every word itself.
-      </p>
-
-      <div className="sg-chat-input" style={{ maxWidth: 760 }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && start()}
-          placeholder="Command the computer… e.g. “MS Word me leave application likho”"
-          disabled={running}
-        />
-        {running ? (
-          <button onClick={stop} aria-label="Stop the agent" title="Stop the agent">
-            <XCircle size={17} />
-          </button>
-        ) : (
-          <button onClick={start} disabled={!input.trim()} aria-label="Start">
-            <Play size={17} />
-          </button>
-        )}
-      </div>
-
-      {taskId && (
-        <div className="sg-control-toggles">
+      <div className="sg-control-content" style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+        <div className="sg-control-statusline">
           <span className="sg-chip">
-            {taskStatus === 'completed' ? <CheckCircle2 size={12} /> : taskStatus === 'failed' ? <XCircle size={12} /> : <Loader2 size={12} className="sg-spin" />}
-            {taskStatus === 'waiting_ai' ? 'Waiting for the brain…' : taskStatus || 'running'}
+            <Cpu size={12} /> Backend: {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
           </span>
-          {!running && (
-            <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={reset}>New command</button>
+          <span className="sg-chip">
+            <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
+          </span>
+          {brainName && (
+            <span className="sg-chip" title="The brain thinking for Control mode — same as Hunt and Infinity AI">
+              <Bot size={12} /> Brain: {brainName}
+            </span>
           )}
         </div>
-      )}
 
-      {error && <div className="sg-auth-error" role="alert" style={{ maxWidth: 760, margin: '14px auto 0' }}>{error}</div>}
-
-      {askQ && running && (
-        <div className="sg-control-ask" style={{ maxWidth: 760, margin: '14px auto 0' }}>
-          <p><strong>❓ The agent asks:</strong> {askQ}</p>
-          <div className="sg-chat-input">
-            <input
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendAnswer()}
-              placeholder="Your answer…"
-            />
-            <button onClick={sendAnswer} disabled={!answer.trim()} aria-label="Send answer"><Send size={16} /></button>
+        {feed.length > 0 && (
+          <div className="sg-control-feed" style={{ maxWidth: 760, margin: '14px auto 0' }}>
+            {feed.map((ev, i) => (
+              <FeedRow key={i} ev={ev} />
+            ))}
+            <div ref={feedEndRef} />
           </div>
-        </div>
-      )}
+        )}
 
-      {feed.length > 0 && (
-        <div className="sg-control-feed" style={{ maxWidth: 760, margin: '14px auto 0' }}>
-          {feed.map((ev, i) => (
-            <FeedRow key={i} ev={ev} />
-          ))}
-          <div ref={feedEndRef} />
-        </div>
-      )}
+        {askQ && running && (
+          <div className="sg-control-ask" style={{ maxWidth: 760, margin: '14px auto 0' }}>
+            <p><strong>❓ The agent asks:</strong> {askQ}</p>
+            <div className="sg-chat-input">
+              <input
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendAnswer()}
+                placeholder="Your answer…"
+              />
+              <button onClick={sendAnswer} disabled={!answer.trim()} aria-label="Send answer"><Send size={16} /></button>
+            </div>
+          </div>
+        )}
 
-      {!taskId && (
-        <div className="sg-control-examples">
-          <span className="sg-small">Try:</span>
+        {error && <div className="sg-auth-error" role="alert" style={{ maxWidth: 760, margin: '14px auto 0' }}>{error}</div>}
+      </div>
+
+      <div className="sg-control-input-wrapper" style={{ marginTop: 'auto' }}>
+        {!running && !feed.length && (
+          <>
+            <h3 className="sg-control-title">Tell me what to do on the computer</h3>
+            <p className="sg-small" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 24px' }}>
+              For example: “MS Word me leave application likho”. Your active brain reasons it out
+              step by step — opening the app, observing the screen, acting, and verifying.
+            </p>
+          </>
+        )}
+
+        <div className="sg-chat-input" style={{ maxWidth: 760, margin: '0 auto' }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && start()}
+            placeholder="Command the computer… e.g. “MS Word me leave application likho”"
+            disabled={running}
+          />
+          {running ? (
+            <button onClick={stop} aria-label="Stop the agent" title="Stop the agent">
+              <XCircle size={17} />
+            </button>
+          ) : (
+            <button onClick={start} disabled={!input.trim()} aria-label="Start">
+              <Play size={17} />
+            </button>
+          )}
+        </div>
+
+        {taskId && (
+          <div className="sg-control-toggles" style={{ justifyContent: 'center', marginTop: '12px' }}>
+            <span className="sg-chip">
+              {taskStatus === 'completed' ? <CheckCircle2 size={12} /> : taskStatus === 'failed' ? <XCircle size={12} /> : <Loader2 size={12} className="sg-spin" />}
+              {taskStatus === 'waiting_ai' ? 'Waiting for the brain…' : taskStatus || 'running'}
+            </span>
+            {!running && (
+              <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={reset}>New command</button>
+            )}
+          </div>
+        )}
+        
+        {!taskId && (
+          <div className="sg-control-examples" style={{ justifyContent: 'center', marginTop: '16px' }}>
+            <span className="sg-small">Try:</span>
           {[
             'MS Word me leave application likho',
             'Open calculator',

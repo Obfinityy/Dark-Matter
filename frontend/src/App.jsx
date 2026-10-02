@@ -1103,7 +1103,7 @@ const Typewriter = ({ text, delay = 12 }) => {
 };
 
 
-export function formatThinkingTime(totalSec) {
+function formatThinkingTime(totalSec) {
   const sec = Number(totalSec) || 0;
   if (sec <= 0) return '0.0s';
   if (sec < 60) {
@@ -2504,6 +2504,40 @@ const AppLayout = ({ children, theme, toggleTheme }) => {
   );
 };
 
+const PrivacyPolicyPage = () => (
+  <div className="sg-app" style={{ padding: '40px 20px', maxWidth: '800px', margin: '0 auto' }}>
+    <h1 className="sg-h1" style={{ marginBottom: '20px' }}>Privacy Policy</h1>
+    <p className="sg-body">Last updated: October 2026</p>
+    <div className="sg-card sg-card-pad" style={{ marginTop: '20px' }}>
+      <h2 className="sg-h2" style={{ marginBottom: '10px' }}>1. Data Collection</h2>
+      <p className="sg-body" style={{ marginBottom: '20px' }}>We collect minimal data necessary for autonomous security assessments. This includes target definitions and findings.</p>
+      
+      <h2 className="sg-h2" style={{ marginBottom: '10px' }}>2. Data Usage</h2>
+      <p className="sg-body" style={{ marginBottom: '20px' }}>Data is used strictly to provide the security agent service. We do not sell your data.</p>
+      
+      <h2 className="sg-h2" style={{ marginBottom: '10px' }}>3. Data Security</h2>
+      <p className="sg-body">All findings are encrypted at rest and in transit. Reports are generated dynamically and purged based on your data retention settings.</p>
+    </div>
+  </div>
+);
+
+const TermsConditionsPage = () => (
+  <div className="sg-app" style={{ padding: '40px 20px', maxWidth: '800px', margin: '0 auto' }}>
+    <h1 className="sg-h1" style={{ marginBottom: '20px' }}>Terms & Conditions</h1>
+    <p className="sg-body">Last updated: October 2026</p>
+    <div className="sg-card sg-card-pad" style={{ marginTop: '20px' }}>
+      <h2 className="sg-h2" style={{ marginBottom: '10px' }}>1. Acceptable Use</h2>
+      <p className="sg-body" style={{ marginBottom: '20px' }}>You must only test systems you own or are explicitly authorized to assess. Unauthorized use of this autonomous agent is strictly prohibited.</p>
+      
+      <h2 className="sg-h2" style={{ marginBottom: '10px' }}>2. Liability</h2>
+      <p className="sg-body" style={{ marginBottom: '20px' }}>DarkMatter is provided "as is". We are not responsible for any damage caused by automated actions on misconfigured targets.</p>
+      
+      <h2 className="sg-h2" style={{ marginBottom: '10px' }}>3. Account Termination</h2>
+      <p className="sg-body">We reserve the right to terminate accounts that violate our acceptable use policy immediately.</p>
+    </div>
+  </div>
+);
+
 export default function App() {
   const [theme, setTheme] = useState('dark');
 
@@ -2521,6 +2555,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<PublicRoute><Login initialMode="signin" /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Login initialMode="signup" /></PublicRoute>} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsConditionsPage />} />
           {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
           <Route path="/agent/*" element={<AgentConsole />} />
           {/* Everything else redirects to the agent console. */}

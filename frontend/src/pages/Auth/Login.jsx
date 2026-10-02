@@ -59,7 +59,7 @@ export function Login() {
           </h1>
           <p className="sg-body sg-fade-up sg-fade-up-1" style={{ maxWidth: 440 }}>
             DarkMatter is an autonomous security agent. Point it at a target and it
-            hunts — recon, analysis, proof — while you watch it think.
+            hunts: recon, analysis, proof - while you watch it think.
           </p>
           <div className="sg-auth-proofs">
             {PROOFS.map(({ icon: Icon, title, text }, i) => (
@@ -74,6 +74,10 @@ export function Login() {
           </div>
           <p className="sg-tiny sg-auth-fineprint">
             Only test systems you own or are authorized to assess.
+            <br />
+            <br />
+            <a href="/privacy-policy" style={{ color: 'inherit', textDecoration: 'underline', marginRight: '10px' }}>Privacy Policy</a>
+            <a href="/terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms & Conditions</a>
           </p>
         </div>
         <div className="sg-auth-glow" aria-hidden />
