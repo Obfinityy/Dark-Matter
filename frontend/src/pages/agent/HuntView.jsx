@@ -3,11 +3,11 @@
  *
  * Layout:
  *   ┌─────────────────────────────────────────────────┬──────────────┐
- *   │ Header: target + plain-language status + actions │              │
- *   ├─────────────────────────────────────────────────┤  AgentChat   │
- *   │ Fingerprint card                                │  ("agent se  │
- *   │ Live terminal                                   │   baat karo")│
- *   │ Tabs: Findings | Diary | Attack surface          │              │
+ *   │ Header: target + plain-language status + actions │  Character   │
+ *   ├─────────────────────────────────────────────────┤  HuntChat    │
+ *   │ Fingerprint card                                │  Panel       │
+ *   │ Live terminal                                   │  ("agent se  │
+ *   │ Tabs: Findings | Diary | Attack surface          │   baat karo")│
  *   └─────────────────────────────────────────────────┴──────────────┘
  *
  * State rehydrates from GET /jobs/:id on mount (refresh-safe); live updates
@@ -25,14 +25,16 @@ import {
   getJobFindings, getJobDiary, getJobAttackSurface, getJobVulnerabilityReport,
   subscribeToJobEvents
 } from '../../services/api';
-import { HackerTerminal } from '../../components/agent/HackerTerminal';
 import { LiveScreenViewer } from '../../components/agent/LiveScreenViewer';
 import { FindingsBoard } from '../../components/agent/FindingsBoard';
 import { HuntDiary } from '../../components/agent/HuntDiary';
 import { AttackSurfaceMap } from '../../components/agent/AttackSurfaceMap';
 import { FingerprintCard } from '../../components/agent/FingerprintCard';
 import { ReportExport } from '../../components/agent/ReportExport';
+import { HuntTerminal } from './HuntTerminal';
+import { AgentCharacter } from './AgentCharacter';
 import { AgentChat } from '../../components/agent/AgentChat';
+import { HuntStatusPanel } from '../../components/agent/HuntStatusPanel';
 import { StatusPill } from '../../components/agent/AgentShell';
 import './HuntView.css';
 
@@ -204,11 +206,13 @@ export function HuntView() {
 
       {error && <div className="sg-auth-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
 
+      <HuntStatusPanel job={job} jobId={jobId} onJobChanged={(j) => { if (j) setJob(j); }} />
+
       <div className="sg-hunt-grid">
         <div className="sg-hunt-main-col">
           <FingerprintCard job={job} surface={surface} />
 
-          <HackerTerminal jobId={jobId} />
+          <HuntTerminal jobId={jobId} />
 
           <LiveScreenViewer assessmentId={job?.assessmentId} />
 
@@ -251,6 +255,10 @@ export function HuntView() {
         </div>
 
         <aside className="sg-hunt-side">
+          <AgentCharacter
+            active={active}
+            status={active ? 'Hunting' : status === 'completed' ? 'Done' : status === 'paused' ? 'Paused' : 'Idle'}
+          />
           <AgentChat jobId={jobId} huntRunning={active} />
         </aside>
       </div>

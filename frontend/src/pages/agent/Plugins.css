@@ -1,0 +1,28 @@
+/**
+ * Plugins page styles — Singularity dark-luxe.
+ */
+.sg-plugins-head { margin-bottom: 28px; }
+.sg-plugins-head .sg-h1 { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; }
+
+.sg-plugins-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.sg-plugin-card { display: flex; flex-direction: column; gap: 6px; }
+.sg-plugin-icon {
+  width: 46px; height: 46px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(129, 140, 248, 0.12); color: var(--sg-cyan);
+  margin-bottom: 8px;
+}
+.sg-plugin-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sg-plugin-top .sg-h2 { margin: 0; }
+.sg-plugin-tagline { font-weight: 650; color: var(--sg-text); margin: 2px 0 0; }
+.sg-plugin-card .sg-small { flex: 1; }
+.sg-plugin-cta { margin-top: 14px; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; }
+
+@media (max-width: 900px) {
+  .sg-plugins-grid { grid-template-columns: 1fr; }
+}
