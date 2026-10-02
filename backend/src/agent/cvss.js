@@ -131,3 +131,80 @@ const SEVERITY_RATING = {
 export function severityToRating(severity) {
   return SEVERITY_RATING[String(severity || '').toLowerCase().trim()] || 'Informational';
 }
+
+/**
+ * Default CVSS v3.1 base metrics per vulnerability class. Used when the brain
+ * files a finding WITHOUT explicit cvssMetrics — every finding still gets a
+ * real, deterministic vector + score + severity instead of a blank line.
+ *
+ * The metrics are conservative, standard estimates for the class (network
+ * attack vector unless the class is inherently local). They are labeled as
+ * defaults so a human analyst can refine them in the report.
+ */
+const DEFAULT_METRICS_BY_TYPE = {
+  xss_reflected:  { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  xss:            { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  xss_stored:     { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  xss_dom:        { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  sqli:           { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  sql_injection:  { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  ssrf:           { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'C', C: 'H', I: 'L', A: 'L' },
+  idor:           { AV: 'N', AC: 'L', PR: 'L', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'N' },
+  broken_access_control: { AV: 'N', AC: 'L', PR: 'L', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'N' },
+  lfi:            { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' },
+  path_traversal: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' },
+  'path-traversal': { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' },
+  command_injection: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  rce:            { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  csrf:           { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'U', C: 'L', I: 'L', A: 'N' },
+  open_redirect:  { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'U', C: 'L', I: 'L', A: 'N' },
+  xxe:            { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'L', A: 'L' },
+  ssti:           { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  template_injection: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' }
+};
+
+/**
+ * Apply CVSS scoring to a finding automatically. Priority:
+ *   1. finding.cvssMetrics (brain-supplied) → cvssBaseScore()
+ *   2. finding.type mapped to DEFAULT_METRICS_BY_TYPE → deterministic vector
+ *   3. severity label fallback → rating only, no score
+ *
+ * Never throws: always returns { score, rating, vector, source } where
+ * source is 'brain' | 'default' | 'severity'.
+ */
+export function applyCvss(finding = {}) {
+  // 1. Brain-supplied metrics win.
+  if (finding.cvssMetrics) {
+    try {
+      const scored = cvssBaseScore(finding.cvssMetrics);
+      return { ...scored, source: 'brain' };
+    } catch {
+      // fall through to defaults
+    }
+  }
+  // 2. Type-based defaults.
+  const type = String(finding.type || finding.vulnType || '').toLowerCase().trim();
+  for (const [key, metrics] of Object.entries(DEFAULT_METRICS_BY_TYPE)) {
+    if (type === key || type.includes(key)) {
+      const scored = cvssBaseScore(metrics);
+      return { ...scored, source: 'default' };
+    }
+  }
+  // 3. Severity fallback — a rating, honestly labeled as score-less.
+  return {
+    score: null,
+    rating: severityToRating(finding.severity),
+    vector: null,
+    metrics: null,
+    source: 'severity',
+    note: 'No CVSS metrics for this finding type — rating derived from the severity label.'
+  };
+}
+
+/**
+ * Enrich every finding in a list with its CVSS line (mutates a copy).
+ * @returns {Array} findings with .cvss = { score, rating, vector, source }
+ */
+export function applyCvssToAll(findings = []) {
+  return findings.map((finding) => ({ ...finding, cvss: applyCvss(finding) }));
+}
