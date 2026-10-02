@@ -1,0 +1,30 @@
+Testing SSL server 127.0.0.1 on port 443 using SNI name 127.0.0.1
+
+  SSL/TLS Protocols:
+SSLv2     disabled
+SSLv3     disabled
+TLSv1.0   enabled
+TLSv1.1   disabled
+TLSv1.2   enabled
+TLSv1.3   enabled
+
+  TLS Fallback SCSV:
+Server supports TLS Fallback SCSV
+
+  TLS renegotiation:
+Secure renegotiation supported
+
+  TLS Compression:
+Compression disabled
+
+  Heartbleed:
+TLSv1.2 not vulnerable to heartbleed
+
+  Supported Server Cipher(s):
+Preferred TLSv1.2  128 bits  ECDHE-RSA-AES128-GCM-SHA256
+Accepted  TLSv1.0  112 bits  DES-CBC3-SHA
+Accepted  TLSv1.2  128 bits  ECDHE-RSA-AES128-GCM-SHA256
+
+  Server Certificate:
+Signature Algorithm: sha256WithRSAEncryption
+Certificate is self signed

@@ -39,7 +39,9 @@ import { createSettingsController } from './controllers/settingsController.js';
 import { createTargetController } from './controllers/targetController.js';
 import { createAssessmentController } from './controllers/assessmentController.js';
 import { createInfiniteChatController } from './controllers/infiniteChatController.js';
+import { createInfinityModes } from './services/infinityModes.js';
 import { createJobController } from './controllers/jobController.js';
+import { createPermissionsController } from './controllers/permissionsController.js';
 import { createLocalModelController } from './controllers/localModelController.js';
 import { createModelRunnerController } from './controllers/modelRunnerController.js';
 import { createRemoteModelController } from './controllers/remoteModelController.js';
@@ -89,6 +91,7 @@ import {
   LongGenerationEngine,
   PhoneModelAdapter
 } from './services/longContext/index.js';
+import { UserBrainAdapter } from './services/userBrainAdapter.js';
 
 function resolveDatabase(explicit) {
   if (explicit) return explicit;
@@ -108,7 +111,27 @@ function resolveDatabase(explicit) {
 
 export async function createApp({ database } = {}) {
   database = resolveDatabase(database);
-  await database.init();
+  try {
+    await database.init();
+  } catch (err) {
+    // MONGO_URL was set but the cluster is unreachable (offline dev box,
+    // sandbox with no TLS route to Atlas, …). In non-production this
+    // degrades to the in-memory database instead of killing the boot —
+    // `npm start` must always just work locally. Production still dies
+    // loudly (data loss there is not acceptable).
+    const isMongo = database instanceof MongoDatabase;
+    if (isMongo && config.nodeEnv !== 'production') {
+      console.warn(
+        `[dark-matter] WARNING: MongoDB unreachable (${err?.message || err}) — ` +
+        'falling back to an IN-MEMORY database for this session. ' +
+        'Data will be lost on restart. Check backend/.env MONGO_URL when you are back online.'
+      );
+      database = new MemoryDatabase();
+      await database.init();
+    } else {
+      throw err;
+    }
+  }
 
   // ─── Existing Models ──────────────────────────────────────────────
   const providerModel = new ProviderModel(database, new SecretBox(config.encryptionKey));
@@ -331,7 +354,8 @@ export async function createApp({ database } = {}) {
     return jobManager.createJob({
       userId,
       assessmentId: created.assessmentId,
-      target: created.assessment.targetHostname,
+      // Full normalized URL — keeps the port; ScopeEngine accepts full URLs.
+      target: created.assessment.targetUrl || created.assessment.targetHostname,
       scope: scope || created.assessment.scope,
       objective: objective || `Assess ${created.assessment.targetHostname}`
     });
@@ -376,19 +400,34 @@ export async function createApp({ database } = {}) {
   // ─── Infinity Long-Context Engine ─────────────────────────────────
   // Application-level context virtualization over the finite local model.
   const phoneModel = new PhoneModelAdapter();
+  // Infinity AI thinks with the user's ACTIVE brain (Models → Run / Kaggle
+  // connect), not hard-wired phone: phone-default users delegate back to
+  // phoneModel untouched, so default behavior is byte-for-byte identical.
+  const userBrain = new UserBrainAdapter({
+    brainProviderModel,
+    modelRunnerService,
+    appConfig: config,
+    defaultModel: phoneModel
+  });
   const longContextStore = new LongContextStore(database);
-  const longContextEngine = new LongContextEngine({ store: longContextStore, model: phoneModel });
+  const longContextEngine = new LongContextEngine({ store: longContextStore, model: userBrain });
   longContextEngine.chatModel = infiniteChatModel; // conversation history stays in infinite_chats
   const longGenerationStore = new LongGenerationStore(database);
-  const longGenerationEngine = new LongGenerationEngine({ store: longGenerationStore, model: phoneModel });
+  const longGenerationEngine = new LongGenerationEngine({ store: longGenerationStore, model: userBrain });
 
   // ─── Express App ──────────────────────────────────────────────────
   const app = express();
   app.disable('x-powered-by');
+  // Honest DB reporting for /health: "mongodb" when Atlas is wired, "memory" for the zero-config fallback.
+  app.locals.databaseKind = database instanceof MongoDatabase ? 'mongodb' : 'memory';
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({
     origin: (origin, callback) => {
+      // Zero-config local dev: the vite dev server may land on any port
+      // (5173, 5174, …) when several instances run. Same-machine origins
+      // are always trusted — CORS is not a localhost security boundary.
       if (!origin || config.frontendOrigins.includes(origin)) return callback(null, true);
+      if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin)) return callback(null, true);
       return callback(new Error('Origin is not allowed by CORS'));
     },
     credentials: true
@@ -434,7 +473,13 @@ export async function createApp({ database } = {}) {
       agent: createAgentController(scanService),
       assessments: createAssessmentController(assessmentService, eventService),
       reports: createReportController(reportService, assessmentService),
-      infiniteChat: createInfiniteChatController({ longContextEngine, longGenerationEngine, computerTaskManager }),
+      infiniteChat: createInfiniteChatController({
+        longContextEngine,
+        longGenerationEngine,
+        computerTaskManager,
+        infinityModes: createInfinityModes({ brainModelFor: () => userBrain }),
+        computerAdapter
+      }),
       jobs: createJobController({
         jobManager,
         assessmentService,
@@ -457,7 +502,8 @@ export async function createApp({ database } = {}) {
       modelRunner: createModelRunnerController({ modelRunnerService, brainProviderModel, agentWorker }),
       remoteModel: createRemoteModelController({ brainProviderModel, agentWorker }),
       computer: createComputerController({ computerAdapter, assessmentModel }),
-      computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter })
+      computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter }),
+      permissions: createPermissionsController()
     }
   }));
   app.use(notFoundHandler);

@@ -141,20 +141,47 @@ export class ModelRunnerService {
     return this.allModels().find((m) => m.id === modelId) || null;
   }
 
-  modelFilePath(model) {
+  modelFilePath(model, quant = 'Q4_K_M') {
     const safeId = String(model.id).replace(/[^a-zA-Z0-9._-]/g, '_');
-    return path.join(modelsDir(this.dataDir), safeId, `${safeId}.gguf`);
+    // Q4_K_M keeps the legacy path (existing downloads keep working);
+    // other quants get a suffix so several can coexist per model.
+    const suffix = quant && quant !== 'Q4_K_M' ? `-${quant}` : '';
+    return path.join(modelsDir(this.dataDir), safeId, `${safeId}${suffix}.gguf`);
+  }
+
+  /**
+   * Validate a quantization choice for a model.
+   * @returns { quant, file, sizeGB } — the concrete file to download.
+   */
+  resolveQuant(model, quant) {
+    const q = quant || 'Q4_K_M';
+    const entry = model.quants?.[q]
+      || (q === 'Q4_K_M' ? { file: model.hfFile || model.file || `${model.id || 'model'}.gguf`, sizeGB: model.sizeGB } : null);
+    if (!entry?.file) {
+      const available = model.quants ? Object.keys(model.quants).join(', ') : 'Q4_K_M';
+      const error = new Error(`Quantization "${q}" is not available for "${model.name}" (available: ${available})`);
+      error.code = 'UNKNOWN_QUANT';
+      throw error;
+    }
+    return { quant: q, file: entry.file, sizeGB: entry.sizeGB ?? model.sizeGB };
+  }
+
+  /** Expected on-disk byte size for a model+quant (custom models carry sizeBytes). */
+  expectedBytes(model, quant = 'Q4_K_M') {
+    if (model.sizeBytes) return model.sizeBytes;
+    const { sizeGB } = this.resolveQuant(model, quant);
+    return sizeGB ? sizeGB * 1024 ** 3 : 0;
   }
 
   /** Is the GGUF fully on disk? (size sanity check when known) */
-  isDownloaded(model) {
+  isDownloaded(model, quant = 'Q4_K_M') {
     try {
-      const stat = fs.statSync(this.modelFilePath(model));
+      const stat = fs.statSync(this.modelFilePath(model, quant));
       if (stat.size <= 0) return false;
       // Prefer the exact byte size captured at registration (custom models);
       // the rounded sizeGB can over-estimate (e.g. 0.4576GB → 0.5GB) and a
       // fully-downloaded file would then wrongly read as incomplete.
-      const expected = model.sizeBytes || (model.sizeGB ? model.sizeGB * 1024 ** 3 : 0);
+      const expected = this.expectedBytes(model, quant);
       if (expected > 0 && stat.size < expected * 0.99) return false;
       return true;
     } catch {
@@ -162,12 +189,32 @@ export class ModelRunnerService {
     }
   }
 
-  downloadedBytes(model) {
+  downloadedBytes(model, quant = 'Q4_K_M') {
     try {
-      return fs.statSync(this.modelFilePath(model)).size;
+      return fs.statSync(this.modelFilePath(model, quant)).size;
     } catch {
       return 0;
     }
+  }
+
+  /** Quants of this model that are fully on disk. */
+  downloadedQuants(model) {
+    const available = model.quants ? Object.keys(model.quants) : ['Q4_K_M'];
+    return available.filter((q) => this.isDownloaded(model, q));
+  }
+
+  /** Quant to run: explicit choice wins, else Q4_K_M, else any downloaded quant. */
+  preferredQuant(model, quant) {
+    if (quant) {
+      if (!this.isDownloaded(model, quant)) {
+        const error = new Error(`"${model.name}" ${quant} is not downloaded yet — download it first`);
+        error.code = 'NOT_DOWNLOADED';
+        throw error;
+      }
+      return this.resolveQuant(model, quant).quant;
+    }
+    const dq = this.downloadedQuants(model);
+    return dq.includes('Q4_K_M') ? 'Q4_K_M' : dq[0] || null;
   }
 
   async library() {
@@ -175,6 +222,7 @@ export class ModelRunnerService {
     return this.allModels().map((model) => ({
       ...model,
       downloaded: this.isDownloaded(model),
+      downloadedQuants: this.downloadedQuants(model),
       downloadedBytes: this.downloadedBytes(model),
       running: this.running?.modelId === model.id,
       compatibility: rankModelForDevice(model, device)
@@ -217,34 +265,46 @@ export class ModelRunnerService {
   }
 
   /**
+   * Resolve the download URL for a model (+quant).
+   * Extracted as a method (instead of inlining hfDownloadUrl) so tests can
+   * point it at a local fixture server without touching production code paths.
+   */
+  resolveDownloadUrl(model, quant) {
+    const { file } = this.resolveQuant(model, quant);
+    const repo = sanitizeHfPart(model.hfRepo || model.repo, 'repo');
+    return hfDownloadUrl(repo, sanitizeHfPart(file, 'file'));
+  }
+
+  /**
    * Start downloading a model's GGUF. Returns immediately; progress flows
    * through onDownloadProgress / describeDownload. Only one at a time.
+   * @param {string} modelId
+   * @param {object} [options] — { quant } e.g. 'Q4_K_M' | 'Q5_K_M' | 'Q8_0'
    */
-  async startDownload(modelId) {
+  async startDownload(modelId, { quant } = {}) {
     const model = this.findModel(modelId);
     if (!model) {
       const error = new Error(`Unknown model "${modelId}"`);
       error.code = 'UNKNOWN_MODEL';
       throw error;
     }
-    if (this.isDownloaded(model)) return { alreadyDownloaded: true, modelId };
+    const { quant: q, sizeGB } = this.resolveQuant(model, quant);
+    if (this.isDownloaded(model, q)) return { alreadyDownloaded: true, modelId, quant: q };
     if (this.downloadState?.status === 'downloading') {
       const error = new Error('Another download is already in progress');
       error.code = 'DOWNLOAD_BUSY';
       throw error;
     }
 
-    const repo = sanitizeHfPart(model.hfRepo || model.repo, 'repo');
-    const file = sanitizeHfPart(model.hfFile || model.file, 'file');
-    const url = hfDownloadUrl(repo, file);
-    const destPath = this.modelFilePath(model);
+    const url = this.resolveDownloadUrl(model, q);
+    const destPath = this.modelFilePath(model, q);
     fs.mkdirSync(path.dirname(destPath), { recursive: true });
 
     const controller = new AbortController();
     this.downloadAbort = controller;
     this.downloadState = {
-      status: 'downloading', modelId: model.id, name: model.name, url,
-      receivedBytes: this.downloadedBytes(model), totalBytes: null, error: null
+      status: 'downloading', modelId: model.id, quant: q, sizeGB, name: model.name, url,
+      receivedBytes: this.downloadedBytes(model, q), totalBytes: null, error: null
     };
     this.emitDownload();
 
@@ -259,7 +319,7 @@ export class ModelRunnerService {
       }
     }).then(
       ({ bytes }) => {
-        this.downloadState = { status: 'done', modelId: model.id, name: model.name, url, receivedBytes: bytes, totalBytes: bytes, error: null };
+        this.downloadState = { status: 'done', modelId: model.id, quant: q, sizeGB, name: model.name, url, receivedBytes: bytes, totalBytes: bytes, error: null };
         this.downloadAbort = null;
         this.emitDownload();
       },
@@ -267,8 +327,8 @@ export class ModelRunnerService {
         const cancelled = controller.signal.aborted;
         this.downloadState = {
           status: cancelled ? 'cancelled' : 'error',
-          modelId: model.id, name: model.name, url,
-          receivedBytes: this.downloadedBytes(model), totalBytes: null,
+          modelId: model.id, quant: q, sizeGB, name: model.name, url,
+          receivedBytes: this.downloadedBytes(model, q), totalBytes: null,
           error: cancelled ? 'Cancelled by user' : error.message
         };
         this.downloadAbort = null;
@@ -276,7 +336,7 @@ export class ModelRunnerService {
       }
     );
 
-    return { started: true, modelId: model.id };
+    return { started: true, modelId: model.id, quant: q, sizeGB };
   }
 
   cancelDownload() {
@@ -447,7 +507,10 @@ export class ModelRunnerService {
       error.code = 'UNKNOWN_MODEL';
       throw error;
     }
-    if (!this.isDownloaded(model)) {
+    // Quant choice: explicit wins; otherwise Q4_K_M; otherwise any downloaded
+    // quant. Throws NOT_DOWNLOADED when nothing usable is on disk.
+    const quant = this.preferredQuant(model, options.quant);
+    if (!quant) {
       const error = new Error(`"${model.name}" is not downloaded yet — download it first`);
       error.code = 'NOT_DOWNLOADED';
       throw error;
@@ -462,21 +525,31 @@ export class ModelRunnerService {
     const device = await this.getDevice();
     const { path: binaryPath } = await this.engine.ensureEngine(device);
     const port = await findFreePort();
-    const ggufPath = this.modelFilePath(model);
+    const ggufPath = this.modelFilePath(model, quant);
+
+    // Context window: user's choice clamped to the model's supported maximum
+    // (and a sane floor). Bigger context = more KV-cache RAM — the UI shows
+    // the model's max so the user can decide.
+    const maxCtx = Number(model.contextWindow) > 0 ? Number(model.contextWindow) : 32768;
+    const contextSize = Math.min(
+      Math.max(Math.floor(options.contextSize || 8192), 1024),
+      maxCtx
+    );
 
     const args = [
       '-m', ggufPath,
       '--port', String(port),
       '--host', '127.0.0.1',
-      '-c', String(options.contextSize || 8192),
+      '-c', String(contextSize),
       '-ngl', '99' // offload as many layers to GPU as possible; ignored on CPU builds
     ];
-    this.logger.info?.(`[model-runner] starting ${model.name} on 127.0.0.1:${port}`);
+    this.logger.info?.(`[model-runner] starting ${model.name} on 127.0.0.1:${port} (context ${contextSize})`);
 
     const child = spawn(binaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const baseUrl = `http://127.0.0.1:${port}`;
     this.running = {
-      modelId: model.id, name: model.name, pid: child.pid, port, baseUrl,
+      modelId: model.id, name: model.name, quant, pid: child.pid, port, baseUrl,
+      contextSize,
       startedAt: new Date().toISOString()
     };
     this.emitRun();
@@ -505,6 +578,60 @@ export class ModelRunnerService {
     this.logger.info?.(`[model-runner] ${model.name} healthy at ${baseUrl}`);
     this._writeRunState();
     return { started: true, ...this.running };
+  }
+
+  /** Path of the JSON file recording which model is the ACTIVE localhost brain. */
+  activeBrainPath() {
+    return path.join(this.dataDir, 'model-runner', 'active-brain.json');
+  }
+
+  /**
+   * Make a downloaded model the ACTIVE localhost brain for a user.
+   * Persists in two places so a restart can never lose it:
+   *   1. brainProviderModel (DB / in-memory fallback) — per-user selection
+   *      the brain factory reads when building the inference provider.
+   *   2. active-brain.json on disk — machine-level record of which model
+   *      file backs the running llama-server.
+   *
+   * This is the exact method the POST /models/:id/run controller calls after
+   * the model is healthy, so the unit test exercises the real activation path.
+   */
+  async activateBrainForUser({ userId, modelId, brainProviderModel, onBrainSwitched = null }) {
+    const model = this.findModel(modelId);
+    if (!model) {
+      const error = new Error(`Unknown model "${modelId}"`);
+      error.code = 'UNKNOWN_MODEL';
+      throw error;
+    }
+    const record = {
+      modelId: model.id,
+      name: model.name,
+      endpoint: this.endpoint(),
+      activatedAt: new Date().toISOString(),
+      userId: userId || null
+    };
+    try {
+      const file = this.activeBrainPath();
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify(record, null, 2));
+    } catch (error) {
+      this.logger?.warn?.(`[model-runner] could not persist active brain: ${error.message}`);
+    }
+    let selection = null;
+    if (brainProviderModel && userId) {
+      selection = await brainProviderModel.setSelection(userId, { provider: 'local', modelId: model.id });
+    }
+    try { await onBrainSwitched?.(userId); } catch { /* best effort */ }
+    return { active: true, record, selection };
+  }
+
+  /** Read back the persisted active-brain record (null when never set). */
+  readActiveBrain() {
+    try {
+      return JSON.parse(fs.readFileSync(this.activeBrainPath(), 'utf8'));
+    } catch {
+      return null;
+    }
   }
 
   /** Stop the running model and free RAM/VRAM. */

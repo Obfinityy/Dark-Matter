@@ -19,10 +19,43 @@ import { PhoneLocalProvider } from './providers/phoneLocalProvider.js';
  * because state lives in MongoDB, not in LLM context.
  */
 export class Planner {
-  constructor({ providerModel } = {}) {
+  constructor({ providerModel, learningEngine = null } = {}) {
     this.providerModel = providerModel || null;
+    this.learningEngine = learningEngine || null;
     this.systemPrompt = this.buildSystemPrompt();
     this.phoneAi = new PhoneLocalProvider(config);
+  }
+
+  /** Attach (or replace) the learning engine after construction. */
+  setLearningEngine(engine) {
+    this.learningEngine = engine;
+  }
+
+  /**
+   * Past-hunt learning, as a prompt section. Returns '' when there is no
+   * learning engine or no data for this tech stack.
+   */
+  learningSection(context) {
+    if (!this.learningEngine) return '';
+    const stack = (context.technologies || []).join('+') || 'unknown';
+    const insights = this.learningEngine.getInsights(stack);
+    if (!insights) return '';
+    return `\n## Learning from past hunts\n${insights}\nBias your tool choice toward techniques that worked on this stack before.\n`;
+  }
+
+  /**
+   * Tool priority bias from past hunts: tools whose techniques succeeded on
+   * this tech stack move to the front of the deterministic sequence.
+   * Returns the (possibly reordered) sequence.
+   */
+  prioritizeWithLearning(sequence, context) {
+    if (!this.learningEngine) return sequence;
+    const stack = (context.technologies || []).join('+') || 'unknown';
+    const suggested = new Set(this.learningEngine.suggestTechniques(stack, 10));
+    if (!suggested.size) return sequence;
+    const score = (step) =>
+      [...suggested].some((t) => t === step.tool || t.endsWith(`::${step.tool}`)) ? 0 : 1;
+    return [...sequence].sort((a, b) => score(a) - score(b));
   }
 
   buildSystemPrompt() {
@@ -245,6 +278,9 @@ ${DECISION_SCHEMA_PROMPT}`;
       parts.push(`\n## Latest Tool Result\n${lastResult}`);
     }
 
+    const learning = this.learningSection(context);
+    if (learning) parts.push(learning);
+
     parts.push('\n## Your Task\nAnalyze the current state and decide the next safe, in-scope action. Respond with the JSON decision object.');
     return parts.join('\n');
   }
@@ -276,7 +312,11 @@ ${DECISION_SCHEMA_PROMPT}`;
       { tool: 'nikto', phase: 'vulnerability_detection', reason: 'Web server misconfiguration scanning' }
     ];
 
-    for (const step of sequence) {
+    // Past hunts' confirmed findings bias future tool priority (I50).
+    const ordered = this.prioritizeWithLearning(sequence, context);
+    const learningNote = this.learningSection(context);
+
+    for (const step of ordered) {
       if (!completed.has(step.tool) && !failed.has(step.tool)) {
         return {
           objective: `Run ${step.tool} for ${step.phase}`,
@@ -290,7 +330,9 @@ ${DECISION_SCHEMA_PROMPT}`;
             arguments: {},
             description: step.reason
           },
-          reason: step.reason,
+          reason: learningNote
+            ? `${step.reason} (prioritized: past hunts on this stack succeeded with related techniques)`
+            : step.reason,
           expected_information_gain: `New ${step.phase} data`,
           scope_check: true,
           risk_check: true,

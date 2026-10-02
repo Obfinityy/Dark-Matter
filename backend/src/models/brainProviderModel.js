@@ -25,6 +25,7 @@ const DEFAULT_SELECTION = Object.freeze({
   modelId: null,
   ollamaTag: null,
   endpointUrl: null,
+  lastGradioUrl: null,
   updatedAt: null
 });
 
@@ -66,6 +67,9 @@ export class BrainProviderModel {
       modelId: doc.modelId || null,
       ollamaTag: doc.ollamaTag || null,
       endpointUrl: doc.endpointUrl || null,
+      // The last connected Kaggle/Colab Gradio URL survives provider switches
+      // so the brain fallback chain can still reach the remote GPU.
+      lastGradioUrl: doc.lastGradioUrl || doc.endpointUrl || null,
       updatedAt: doc.updatedAt || null
     };
   }
@@ -75,12 +79,21 @@ export class BrainProviderModel {
     if (!BRAIN_PROVIDERS.includes(provider)) {
       throw new Error(`Unknown brain provider "${provider}"`);
     }
+    const validatedUrl = provider === 'ollama' || provider === 'gradio' ? validateEndpointUrl(endpointUrl) : null;
+    // Preserve a previously connected Gradio URL across switches (local/API/…).
+    let lastGradioUrl = null;
+    try {
+      const prev = await this.collection.findOne({ userId });
+      lastGradioUrl = prev?.lastGradioUrl || prev?.endpointUrl || null;
+    } catch { /* first selection — nothing to preserve */ }
+    if (provider === 'gradio' && validatedUrl) lastGradioUrl = validatedUrl;
     const record = {
       userId,
       provider,
       modelId: provider === 'ollama' || provider === 'local' ? modelId : null,
       ollamaTag: provider === 'ollama' ? ollamaTag : null,
-      endpointUrl: provider === 'ollama' || provider === 'gradio' ? validateEndpointUrl(endpointUrl) : null,
+      endpointUrl: validatedUrl,
+      lastGradioUrl,
       updatedAt: now()
     };
     await this.collection.updateOne({ userId }, { $set: record }, { upsert: true });

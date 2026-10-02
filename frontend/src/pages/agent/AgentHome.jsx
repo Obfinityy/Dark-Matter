@@ -11,6 +11,7 @@ import {
   Radar, FileCheck2, Target, ShieldCheck
 } from 'lucide-react';
 import { createJob, listJobs } from '../../services/api';
+import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 import './AgentHome.css';
@@ -34,7 +35,8 @@ export function AgentHome() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const launch = async ({ forceNew = false } = {}) => {
-    const clean = target.trim();
+    // "target.com" → "https://target.com" (scheme-less input gets https://).
+    const clean = normalizeTargetUrl(target);
     if (!clean) { setError('Paste a target first — a domain, URL, or IP.'); return; }
     if (!authConfirmed) {
       setError('Please confirm you are authorized to test this target.');

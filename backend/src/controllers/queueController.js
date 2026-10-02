@@ -10,6 +10,18 @@ import { assert } from '../core/errors.js';
  * queue inherits it when its hunts fire.
  */
 export function createQueueController({ targetQueueService, targetQueueModel }) {
+  // Derived presentation fields the UI renders (computed, never stored).
+  const enrichQueue = (queue) => {
+    if (!queue) return queue;
+    const targets = Array.isArray(queue.targets) ? queue.targets : [];
+    const active = targets.find((t) => t.status === 'active');
+    return {
+      ...queue,
+      completedCount: targets.filter((t) => t.status === 'done').length,
+      currentTarget: active ? active.url : null,
+      currentJobId: active ? active.jobId : null,
+    };
+  };
   return {
     /** POST /api/v1/queues { name, targets: [url...], authorizationConfirmed } */
     create: asyncHandler(async (request, response) => {
@@ -27,7 +39,8 @@ export function createQueueController({ targetQueueService, targetQueueModel }) 
 
     /** GET /api/v1/queues — the caller's queues, newest first */
     list: asyncHandler(async (request, response) => {
-      response.json({ queues: await targetQueueModel.list(request.user.id) });
+      const queues = await targetQueueModel.list(request.user.id);
+      response.json({ queues: queues.map(enrichQueue) });
     }),
 
     /** GET /api/v1/queues/:id — one queue with per-target status */
@@ -38,7 +51,7 @@ export function createQueueController({ targetQueueService, targetQueueModel }) 
           error: { code: 'QUEUE_NOT_FOUND', message: 'No queue with that id.' }
         });
       }
-      response.json({ queue });
+      response.json({ queue: enrichQueue(queue) });
     }),
 
     /** POST /api/v1/queues/:id/pause */

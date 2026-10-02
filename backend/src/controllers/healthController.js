@@ -4,7 +4,13 @@ import { localAIQueue } from '../agent/providers/localAiQueue.js';
 import crypto from 'crypto';
 
 export function health(request, response) {
-  response.json({ status: 'ok', service: 'darkmatter-backend', framework: 'express', timestamp: new Date().toISOString() });
+  response.json({
+    status: 'ok',
+    service: 'darkmatter-backend',
+    framework: 'express',
+    database: request.app?.locals?.databaseKind || 'unknown',
+    timestamp: new Date().toISOString()
+  });
 }
 
 export function agentInfo(request, response) {

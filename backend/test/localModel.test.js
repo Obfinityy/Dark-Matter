@@ -233,14 +233,14 @@ test('BrainProviderModel: selection persists and round-trips', async () => {
   const database = new MemoryDatabase();
   const model = new BrainProviderModel(database);
   const USER = 'user_bp_1';
-  assert.deepEqual(await model.getSelection(USER), { provider: 'phone', modelId: null, ollamaTag: null, endpointUrl: null, updatedAt: null });
+  assert.deepEqual(await model.getSelection(USER), { provider: 'phone', modelId: null, ollamaTag: null, endpointUrl: null, lastGradioUrl: null, updatedAt: null });
   await model.setSelection(USER, { provider: 'ollama', modelId: 'qwen3-abliterated-30b', ollamaTag: 'huihui_ai/qwen3-abliterated:30b' });
   const selection = await model.getSelection(USER);
   assert.equal(selection.provider, 'ollama');
   assert.equal(selection.modelId, 'qwen3-abliterated-30b');
   assert.ok(selection.updatedAt);
   // Per-user isolation: another user still sees the default.
-  assert.deepEqual(await model.getSelection('user_bp_2'), { provider: 'phone', modelId: null, ollamaTag: null, endpointUrl: null, updatedAt: null });
+  assert.deepEqual(await model.getSelection('user_bp_2'), { provider: 'phone', modelId: null, ollamaTag: null, endpointUrl: null, lastGradioUrl: null, updatedAt: null });
   await assert.rejects(() => model.setSelection(USER, { provider: 'openai' }), /Unknown brain provider/);
 });
 

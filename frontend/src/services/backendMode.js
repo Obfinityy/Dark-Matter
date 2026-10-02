@@ -134,33 +134,42 @@ export function getBackendModeLabel() {
   return getBackendMode() === BACKEND_MODES.VERCEL ? 'Vercel' : 'Localhost';
 }
 
-/** Quick connectivity check against the selected backend.
+/** The API base URL for the localhost backend (build-time overridable). */
+export function getLocalhostApiBase() {
+  return LOCALHOST_BASE;
+}
+
+/** Quick connectivity check against a SPECIFIC backend mode.
  *
- * TODO (future): One-click backend start — when the localhost backend is
- * unreachable, offer a "Start backend" button that launches it automatically.
- * Browsers cannot spawn local processes, so this needs one of:
- *   (a) Electron/Tauri desktop wrapper (recommended) — the app ships with the
- *       backend bundled; one click starts everything, no terminal needed.
- *   (b) A tiny local launcher service the user installs once.
- * Until then, the user runs `npm start` in backend/ manually.
+ * Used before switching modes: the Settings page probes the localhost
+ * backend first, so the app never gets stuck pointing at a backend that
+ * isn't running. `timeoutMs` is short on purpose — localhost answers in
+ * milliseconds when it's up.
  */
-export async function testBackendConnection() {
-  const base = getApiBase();
+export async function testBackendConnectionFor(mode, timeoutMs = 10000) {
+  const base = mode === BACKEND_MODES.VERCEL
+    ? (getVercelBackendUrl() ? `${getVercelBackendUrl()}/api/v1` : LOCALHOST_BASE)
+    : LOCALHOST_BASE;
+  const label = mode === BACKEND_MODES.VERCEL ? 'Vercel' : 'Localhost';
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${base}/health`, { signal: controller.signal });
     clearTimeout(timer);
     if (!response.ok) return { ok: false, message: `Backend responded with HTTP ${response.status}` };
-    return { ok: true, message: `Connected to ${getBackendModeLabel()} backend` };
+    return { ok: true, message: `Connected to ${label} backend` };
   } catch (error) {
     clearTimeout(timer);
-    const mode = getBackendModeLabel();
     return {
       ok: false,
-      message: mode === 'Vercel'
+      message: label === 'Vercel'
         ? 'Vercel backend is unreachable. Check the URL in Settings.'
         : 'Localhost backend is unreachable. Run `npm start` in backend/ and try again.'
     };
   }
+}
+
+/** Quick connectivity check against the SELECTED backend. */
+export function testBackendConnection() {
+  return testBackendConnectionFor(getBackendMode());
 }

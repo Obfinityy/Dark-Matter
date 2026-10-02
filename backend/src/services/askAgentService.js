@@ -56,6 +56,35 @@ export function detectIntent(message) {
 
 // ── Plain-language labels ────────────────────────────────────────────────
 
+// Methodology stages owned by huntStateMachine.js — the single source of
+// truth for "where the hunt stands". The ask path reads the persisted
+// job.huntState FIRST so mid-hunt chat reports the REAL current stage;
+// job.phase is only a fallback for jobs created before huntState existed.
+const METHODOLOGY_STAGES = new Set([
+  'recon', 'enumeration', 'probing', 'exploitation', 'chaining', 'reporting', 'verifying',
+]);
+
+/** The hunt's real current stage: state machine first, job.phase as fallback. */
+export function currentStageOf(job) {
+  const hs = job && job.huntState;
+  if (hs) {
+    const status = String(hs.status || '').toLowerCase();
+    if (METHODOLOGY_STAGES.has(status)) return status;
+    const stage = String(hs.stage || '').toLowerCase();
+    if (METHODOLOGY_STAGES.has(stage)) return stage;
+  }
+  return String((job && job.phase) || 'idle').toLowerCase();
+}
+
+/** The most recent real action, preferring the state machine's record. */
+function lastRealAction(job) {
+  const hs = job && job.huntState;
+  const stateAction = hs && (hs.lastAction || hs.lastOutcome)
+    ? [hs.lastAction, hs.lastOutcome].filter(Boolean).join(' — ')
+    : null;
+  return stateAction || lastActivityText(job);
+}
+
 const PHASE_LABELS = {
   idle: 'taiyaari kar raha',
   initializing: 'taiyaari kar raha',
@@ -89,7 +118,7 @@ const INTERNAL_JARGON = /PHONE_AI_ENABLED|UNAVAILABLE|Waiting to recover|no clou
 
 /** Pick a user-facing "what I'm doing" line, skipping internal jargon. */
 function userFacingDoing(job) {
-  const candidates = [job.currentStep, job.currentAction, lastActivityText(job)];
+  const candidates = [lastRealAction(job), job.currentStep, job.currentAction];
   for (const candidate of candidates) {
     const text = String(candidate || '').trim();
     if (text && !INTERNAL_JARGON.test(text)) return text.slice(0, 220);
@@ -175,7 +204,7 @@ function replyDoing(job, findingsInfo) {
     return `Main ruk gaya hun — aakhri step mein error aaya tha${error ? `: "${error.message}"` : ''}. Ise dekh kar theek karke dobara shuru kar sakte hain.`;
   }
   const doing = userFacingDoing(job);
-  let text = `Abhi main ${target} par ${phaseLabel(job.phase)} hun.`;
+  let text = `Abhi main ${target} par ${phaseLabel(currentStageOf(job))} hun.`;
   if (doing) text += ` Filhaal ye chal raha hai: "${doing}".`;
   else text += ` Ab tak ${job.stepCount || 0} steps ho chuke hain.`;
   if (findingsInfo.total > 0) {
@@ -204,7 +233,7 @@ function replyProgress(job) {
   let text = `Hunt ${statusLabel(job.status)} — ${elapsedText(job)} ho gaye hain, ${job.stepCount || 0} steps complete.`;
   if (done || pending) text += ` Plan mein ${done} steps ho gaye, ${pending} baaki hain.`;
   const phases = plan.phases || [];
-  if (phases.length) text += ` Abhi phase: ${phaseLabel(job.phase)}.`;
+  if (phases.length) text += ` Abhi phase: ${phaseLabel(currentStageOf(job))}.`;
   return text;
 }
 
@@ -250,7 +279,7 @@ function replyStop(job) {
 
 function replyStatus(job, findingsInfo) {
   let text = `${job.target || 'Is target'} ka hunt ${statusLabel(job.status)}.`;
-  if (job.status === 'running') text += ` Abhi phase: ${phaseLabel(job.phase)}.`;
+  if (job.status === 'running') text += ` Abhi phase: ${phaseLabel(currentStageOf(job))}.`;
   if (findingsInfo.total > 0) {
     const { critical, high } = findingsInfo.counts;
     text += ` Ab tak ${findingsInfo.total} findings (${critical} critical, ${high} high).`;
@@ -310,6 +339,6 @@ export function buildAskReply({ job, findings = [], recentCycles = [], question 
     reaction: pickReaction(job, findingsInfo),
     suggestions: SUGGESTIONS[intent] || SUGGESTIONS.status,
     jobStatus: job.status,
-    phase: job.phase,
+    phase: currentStageOf(job),
   };
 }

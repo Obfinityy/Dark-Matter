@@ -1,0 +1,5 @@
+{"url":"https://target.local","input":"target.local","status_code":200,"title":"Target Home","webserver":"nginx/1.24.0","tech":["nginx","WordPress","PHP"],"content_length":48210,"final_url":"https://target.local/"}
+{"url":"https://api.target.local/health","input":"api.target.local","status_code":200,"title":"","webserver":"Express","tech":["Express","Node.js"],"content_length":15}
+not-json-garbage-line
+{"input":"dead.target.local","failed":true}
+{"url":"http://old.target.local","input":"old.target.local","status_code":301,"title":"301 Moved","webserver":"GitHub.com","tech":[],"content_length":0,"final_url":"https://old-pages.github.io/"}

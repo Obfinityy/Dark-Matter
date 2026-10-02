@@ -411,6 +411,158 @@ const TOOL_DEFINITIONS = [
     requiresKali: false,
     timeout: 120_000,
     parser: 'generic'
+  },
+  // --- Built-in HTTP probes (no binaries, no Kali) ---
+  // Real detection tools implemented in src/tools/builtin/httpProbes.js. They
+  // run real HTTP against the authorized target and return normalized finding
+  // candidates. The deterministic strategy brain uses them when no LLM is
+  // reachable; LLM brains can also select them on hosts without Kali tooling.
+  {
+    name: 'web_probe',
+    category: 'http_discovery',
+    description: 'Fetch the target homepage: status, headers, tech hints, forms, links, query params, endpoints. Passive-ish recon that maps the attack surface.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'low',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 30_000,
+    parser: 'json'
+  },
+  {
+    name: 'xss_probe',
+    category: 'vulnerability_detection',
+    description: 'Reflected XSS detection: injects unique script markers into discovered query params/forms and verifies unescaped reflection. Real HTTP, safe markers.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
+  },
+  {
+    name: 'sqli_probe',
+    category: 'vulnerability_detection',
+    description: 'SQL injection detection: login auth-bypass (\' OR \'1\'=\'1), error-based quote probe, and boolean-blind probes on discovered id params. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
+  },
+  {
+    name: 'stored_xss_probe',
+    category: 'vulnerability_detection',
+    description: 'Stored XSS detection: persists a unique script marker via comment/guestbook endpoints and verifies it renders unescaped for later visitors. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
+  },
+  {
+    name: 'idor_probe',
+    category: 'vulnerability_detection',
+    description: 'IDOR detection: requests /resource/:id style endpoints for multiple ids without auth and diffs sensitive-field disclosure. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
+  },
+  // --- Advanced vulnerability-class probes (src/tools/builtin/advProbes.js) ---
+  // Same honesty contract as the probes above: real HTTP against the
+  // authorized target, findings only on observed exploitable behavior.
+  {
+    name: 'jwt_attack_probe',
+    category: 'vulnerability_detection',
+    description: 'JWT attack detection: none-alg acceptance, weak HMAC secret brute-force (privilege-escalated re-sign), kid path-traversal error proof, jku header injection with callback proof. Needs a token (auto-acquired from the login endpoint or caller-supplied). Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 120_000,
+    parser: 'json'
+  },
+  {
+    name: 'ssti_probe',
+    category: 'vulnerability_detection',
+    description: 'SSTI detection: math-evaluation payloads (Jinja2/Twig {{ }}, FreeMarker ${ }/#{}, ERB <%= %>, Thymeleaf, Smarty) into discovered params/forms; finding only when the computed value returns without the raw payload. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
+  },
+  {
+    name: 'xxe_probe',
+    category: 'vulnerability_detection',
+    description: 'XXE detection: posts XML with external entities to XML endpoints; finding only on observed callback fetch (server resolved the entity), file:/// content disclosure, or explicit file-read errors. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 90_000,
+    parser: 'json'
+  },
+  {
+    name: 'graphql_probe',
+    category: 'vulnerability_detection',
+    description: 'GraphQL probing: endpoint detection, introspection query, field-suggestion schema leak, query batching, GET-based queries. Findings grounded in actual GraphQL response shapes. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
+  },
+  {
+    name: 'websocket_probe',
+    category: 'vulnerability_detection',
+    description: 'WebSocket security: raw-socket upgrade handshakes testing missing Origin validation (CSWSH), forged cross-site Origin acceptance, and unauthenticated upgrades (when authToken supplied). Finding only on an actual 101. Real sockets.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'medium',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
+  },
+  {
+    name: 'race_condition_probe',
+    category: 'vulnerability_detection',
+    description: 'Race condition detection: fires N parallel state-changing requests (coupon/transfer endpoints) and checks the outcome against a caller-supplied expectation (maxSuccess/maxTotalDelta + optional stateCheck). Finding only when the limit is observably exceeded. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'high',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 120_000,
+    parser: 'json'
+  },
+  {
+    name: 'secrets_in_js_probe',
+    category: 'vulnerability_detection',
+    description: 'Secrets-in-JS: fetches same-origin JS bundles, scans for high-confidence secret patterns (AWS/Stripe/GitHub/Slack/Google keys, private key blocks, high-entropy key=value). Evidence is redacted. Real HTTP.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'low',
+    requiresAuthorization: true,
+    requiresKali: false,
+    timeout: 60_000,
+    parser: 'json'
   }
 ];
 

@@ -25,6 +25,12 @@ import { Settings } from './Settings';
 import { Reports } from './Reports';
 import { ReportReader } from './ReportReader';
 import { ModelLibrary } from './ModelLibrary';
+import { PayloadLibrary } from './PayloadLibrary';
+import { Plugins } from './Plugins';
+import { Premium } from './Premium';
+import { Account } from './Account';
+import { Queues } from './Queues';
+import { Schedules } from './Schedules';
 import { Loader2 } from 'lucide-react';
 
 function Gate({ children }) {
@@ -57,6 +63,12 @@ export function AgentConsole() {
             <Route path="reports" element={<Page><Reports /></Page>} />
             <Route path="reports/:id" element={<Page><ReportReader /></Page>} />
             <Route path="models" element={<Page><ModelLibrary /></Page>} />
+            <Route path="library" element={<Page><PayloadLibrary /></Page>} />
+            <Route path="plugins" element={<Page><Plugins /></Page>} />
+            <Route path="premium" element={<Page><Premium /></Page>} />
+            <Route path="account" element={<Page><Account /></Page>} />
+            <Route path="queues" element={<Page><Queues /></Page>} />
+            <Route path="schedules" element={<Page><Schedules /></Page>} />
             <Route path="*" element={<Navigate to="/agent" replace />} />
           </Routes>
         </AgentShell>

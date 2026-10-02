@@ -39,7 +39,8 @@ export const COMPUTER_ACTIONS = Object.freeze({
   OPEN_APPLICATION: 'open_application',
   NAVIGATE: 'navigate',
   GET_ACTIVE_WINDOW: 'get_active_window',
-  GET_BROWSER_STATE: 'get_browser_state'
+  GET_BROWSER_STATE: 'get_browser_state',
+  CLIPBOARD_SET: 'clipboard_set'
 });
 
 export const ACTION_TYPES = Object.freeze(Object.values(COMPUTER_ACTIONS));
@@ -140,6 +141,19 @@ export function validateComputerAction(action, context = {}) {
       if (typeof text !== 'string' || text.length === 0) errors.push('type requires non-empty text');
       else if (text.length > MAX_TYPE_CHARS) errors.push(`type text exceeds ${MAX_TYPE_CHARS} characters`);
       else if (!TYPEABLE.test(text)) errors.push('type text contains characters that require press_key/hotkey');
+      break;
+    }
+
+    case COMPUTER_ACTIONS.CLIPBOARD_SET: {
+      // Write text to the OS clipboard (paste follows with hotkey ctrl+v).
+      // Same character discipline as `type`: no control sequences, bounded size.
+      // NOTE: the Python bridge allowlist must gain clipboard_set before the
+      // real adapter can execute this — until then it validates but the bridge
+      // reports unsupported (mock covers it in tests/simulation).
+      const clipText = params.text ?? params.string;
+      if (typeof clipText !== 'string' || clipText.length === 0) errors.push('clipboard_set requires non-empty text');
+      else if (clipText.length > MAX_TYPE_CHARS) errors.push(`clipboard_set text exceeds ${MAX_TYPE_CHARS} characters`);
+      else if (!TYPEABLE.test(clipText)) errors.push('clipboard_set text contains unsupported characters');
       break;
     }
 
@@ -259,7 +273,7 @@ export const COMPUTER_ACTION_PROMPT = `COMPUTER ACTIONS (the "hands" layer — y
 {
   "type": "screenshot" | "click" | "double_click" | "move_mouse" | "type" | "press_key"
         | "hotkey" | "scroll" | "sleep" | "open_application" | "navigate"
-        | "get_active_window" | "get_browser_state",
+        | "get_active_window" | "get_browser_state" | "clipboard_set",
   "params": { ...action specific... },
   "reason": "why this action",
   "expectedOutcome": "what the observation should show"

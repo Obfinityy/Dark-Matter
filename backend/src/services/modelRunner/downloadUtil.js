@@ -33,7 +33,34 @@ export async function downloadFile(url, destPath, options = {}) {
   const requestHeaders = { ...headers };
   if (startByte > 0) requestHeaders.Range = `bytes=${startByte}-`;
 
-  const response = await fetch(url, { headers: requestHeaders, signal: signal || undefined });
+  // Connect/head timeout: node's fetch has no default timeout, so a hung
+  // TLS handshake or stalled response headers would block forever BEFORE the
+  // stall watchdog (below) can engage — it only wraps the body stream.
+  const headController = new AbortController();
+  const headTimeout = setTimeout(
+    () => headController.abort(new Error('Download timed out waiting for response headers (60s)')),
+    60000
+  );
+  headTimeout.unref?.();
+  const onUserAbort = () => headController.abort(signal.reason);
+  if (signal) {
+    if (signal.aborted) onUserAbort();
+    else signal.addEventListener('abort', onUserAbort, { once: true });
+  }
+  let response;
+  try {
+    response = await fetch(url, { headers: requestHeaders, signal: headController.signal });
+  } catch (error) {
+    // Surface our connect-timeout message instead of a bare AbortError.
+    if (headController.signal.aborted && !signal?.aborted) {
+      const reason = headController.signal.reason;
+      throw new Error(reason?.message || 'Download timed out waiting for response headers');
+    }
+    throw error;
+  } finally {
+    clearTimeout(headTimeout);
+    signal?.removeEventListener?.('abort', onUserAbort);
+  }
   if (startByte > 0 && response.status === 416) {
     // Already complete.
     const stat = fs.statSync(destPath);

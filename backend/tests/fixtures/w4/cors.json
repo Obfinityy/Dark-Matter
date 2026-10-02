@@ -1,0 +1,1 @@
+[{"access_control_allow_credentials":"true","access_control_allow_origin":"https://evil.local","origin":"https://evil.local","url":"https://target.local/api/me"},{"access_control_allow_credentials":"false","access_control_allow_origin":"*","origin":"https://evil.local","url":"https://target.local/public"}]

@@ -1,0 +1,8 @@
+https://target.local/search?q=test&page=2
+https://target.local/search?q=test&page=2
+https://target.local/product?id=99&debug=true
+https://target.local/assets/app.js?v=1
+https://target.local/images/logo.png?w=100
+https://target.local/admin?token=
+https://target.local/old.php?file=../../etc/passwd
+http://target.local/search?q=other

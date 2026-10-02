@@ -1,0 +1,1 @@
+{"logs":[{"message":"[V] Found XSS via POST parameter (stored)","param":"comment","payload":"<dmxss>alert(1)</dmxss>","poc":"http://127.0.0.1:4562/guestbook","type":"P","url":"http://127.0.0.1:4562/guestbook"},{"message":"[I] Start XSS scan","type":"I"}]}

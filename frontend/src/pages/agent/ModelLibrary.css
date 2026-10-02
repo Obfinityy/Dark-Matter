@@ -5,10 +5,18 @@
 .sg-models-page { padding-bottom: 24px; max-width: 960px; }
 
 .sg-model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 20px 0 32px; }
+.sg-model-grid-heavy { opacity: 0.92; }
 .sg-model-card { transition: border-color var(--sg-fast), transform var(--sg-fast); }
 .sg-model-card:hover { border-color: rgba(129, 140, 248, 0.3); transform: translateY(-2px); }
+.sg-model-card.active { border-color: rgba(52, 211, 153, 0.35); }
 .sg-model-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .sg-model-top strong { font-size: 1rem; letter-spacing: -0.01em; }
+.sg-model-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.sg-pill-uncensored {
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  background: rgba(192, 132, 252, 0.12);
+  color: #d8b4fe;
+}
 .sg-model-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
 
 .sg-remote-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
@@ -34,6 +42,16 @@
 .sg-device-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .sg-device-head .sg-device-os { margin-left: auto; color: var(--sg-text-2); font-size: 0.85rem; }
 .sg-device-os { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.sg-device-verdict {
+  margin: 4px 0 10px;
+  font-size: 0.92rem;
+  color: var(--sg-text);
+  padding: 10px 14px;
+  border-radius: var(--sg-r-md);
+  background: rgba(129, 140, 248, 0.08);
+  border: 1px solid rgba(129, 140, 248, 0.22);
+}
+.sg-tiny { font-size: 0.78rem; color: var(--sg-text-3); margin: 8px 0 0; }
 
 .sg-custom-form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .sg-form-row { display: flex; gap: 10px; }
@@ -52,3 +70,29 @@
   .sg-remote-form, .sg-form-row { flex-direction: column; }
   .sg-remote-form .sg-form-row { flex: 1 1 auto; }
 }
+
+/* ── Brain fallback chain strip ─────────────────────────────── */
+.sg-chain-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sg-chain-links { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sg-chain-link { display: inline-flex; align-items: center; gap: 6px; }
+.sg-chain-link code {
+  font-size: 0.78rem; padding: 3px 8px; border-radius: 99px;
+  background: rgba(255, 255, 255, 0.06); color: var(--sg-text-2);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.sg-chain-link code.sg-chain-active {
+  color: #a7f3d0; border-color: rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.08);
+}
+.sg-chain-arrow { color: var(--sg-text-3); font-size: 0.8rem; }
+
+/* ── Quant / context pickers on model cards ─────────────────── */
+.sg-model-actions { align-items: center; flex-wrap: wrap; gap: 8px; }
+.sg-quant-pick select, .sg-ctx-pick select {
+  background: rgba(255, 255, 255, 0.06); color: var(--sg-text-1);
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px;
+  padding: 7px 8px; font-size: 0.82rem; max-width: 100%;
+}
+.sg-quant-pick select option, .sg-ctx-pick select option { color: #111; }
+.sg-ctx-pick { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.sg-quant-pick { margin: 0; }

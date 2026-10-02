@@ -1,0 +1,6 @@
+# linkfinder CLI output (canned)
+/api/v1/users
+/api/v1/admin?debug=true&token=abc
+/assets/logo.png
+https://other.local/evil.js
+//127.0.0.1:4562/api/v1/orders?user=1

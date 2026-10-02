@@ -1,6 +1,7 @@
 import { assert } from '../core/errors.js';
 import { extractUrl } from '../core/utils.js';
 import { normalizeTargetUrl } from '../models/targetModel.js';
+import { chainNaabuToNmap, parseNmapXml } from '../recon/portChain.js';
 
 export class ScanService {
   constructor({ targetModel, scanModel, eventService, subdomainService }) {
@@ -54,5 +55,36 @@ export class ScanService {
     await this.eventService.publish(scan.id, { type: 'scan.created', level: 'INFO', message: 'Investigation queued', data: { toolId: scan.toolId, target: target.hostname } });
     this.subdomainService.start(scan.id).catch(() => undefined);
     return { status: 'started', scanId: scan.id, scan };
+  }
+
+  /**
+   * naabu → nmap chaining (Worker 4): a fast naabu sweep's open ports feed a
+   * TARGETED nmap service scan — never a full-range scan. Pure logic lives in
+   * src/recon/portChain.js; this method wires it into the scan lifecycle and
+   * publishes the chain decision as an event.
+   *
+   * @param {string} scanId
+   * @param {string} naabuRawOutput — raw stdout of the naabu run
+   * @param {object} opts — { timing, maxPorts }
+   * @returns {{ chained, request|null, reason, ports, hosts }} — hand request to the ToolExecutor
+   */
+  async planPortChain(scanId, naabuRawOutput, opts = {}) {
+    const scan = await this.scanModel.getInternal(scanId).catch(() => null);
+    const target = scan ? await this.targetModel.getInternal(scan.targetId).catch(() => null) : null;
+    const chain = chainNaabuToNmap(naabuRawOutput, { target: target?.hostname || scanId, ...opts });
+    await this.eventService.publish(scanId, {
+      type: chain.chained ? 'recon.port_chain.planned' : 'recon.port_chain.skipped',
+      level: chain.chained ? 'INFO' : 'WARN',
+      message: chain.chained
+        ? `Port chain: targeted nmap over ${chain.ports.length} naabu-confirmed open port(s)`
+        : `Port chain skipped: ${chain.reason}`,
+      data: { ports: chain.ports, hosts: chain.hosts, reason: chain.reason }
+    }).catch(() => {});
+    return chain;
+  }
+
+  /** Parse nmap -oX XML into service records (used after a chained run). */
+  parseChainedNmap(nmapXml) {
+    return parseNmapXml(nmapXml);
   }
 }

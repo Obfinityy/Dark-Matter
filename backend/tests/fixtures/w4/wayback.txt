@@ -1,0 +1,2 @@
+https://target.local/legacy/export?format=csv&email=a@b.c
+https://target.local/product?id=100&debug=false

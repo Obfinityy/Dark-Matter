@@ -1,0 +1,1 @@
+{"dependencies":{"express":"^4.19.0"},"description":"Deliberately vulnerable LOCAL test fixture for Dark-Matter hunt-loop tests. LOCAL ONLY - never deploy.","main":"index.js","name":"dm-vuln-fixture","private":true,"scripts":{"start":"node index.js"},"type":"module","version":"1.0.0"}

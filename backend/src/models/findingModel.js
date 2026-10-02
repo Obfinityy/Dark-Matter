@@ -48,6 +48,8 @@ export class FindingModel {
       observationIds: input.observationIds || [],
       toolExecutionIds: input.toolExecutionIds || [],
       hypothesisId: input.hypothesisId || null,
+      cvss: input.cvss || null,               // auto-scored {score,rating,vector,source} — never hardcoded
+      cvssMetrics: input.cvssMetrics || null, // brain-supplied metrics (or null when defaults were used)
       createdAt: now(),
       updatedAt: now(),
       validatedAt: null

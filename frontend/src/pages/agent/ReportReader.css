@@ -34,3 +34,33 @@
 @media (max-width: 760px) {
   .sg-markdown-body { padding: 22px 18px; }
 }
+
+/* ── W5 proof-report additions ─────────────────────────────────────────── */
+.sg-notice {
+  display: flex; gap: 12px; align-items: flex-start;
+  border: 1px solid var(--sg-line-soft); border-left: 3px solid var(--sg-indigo);
+  border-radius: var(--sg-r-md); padding: 14px 16px; margin: 18px 0 24px;
+  background: rgba(129, 140, 248, 0.06); color: var(--sg-text-2); font-size: 0.88rem; line-height: 1.6;
+}
+.sg-notice svg { flex-shrink: 0; margin-top: 2px; color: var(--sg-indigo); }
+
+.sg-reader-section { margin-bottom: 28px; }
+.sg-h2 { font-size: 1.25rem; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.02em; }
+.sg-finding-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.sg-finding-card {
+  border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md);
+  padding: 16px 18px; background: rgba(255,255,255,0.02);
+}
+.sg-finding-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.sg-cvss-vector { display: inline-block; font-family: var(--sg-mono); font-size: 0.75rem; color: var(--sg-text-3); margin-bottom: 8px; word-break: break-all; }
+.sg-finding-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.sg-finding-error { color: #f87171; font-size: 0.82rem; margin: 8px 0 0; }
+.sg-poc-note { font-size: 0.76rem; color: var(--sg-text-3); margin: 10px 0 0; }
+.sg-coverage { margin: 12px 0 4px; padding: 14px 16px; border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md); background: rgba(255,255,255,0.02); }
+.sg-coverage-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.sg-coverage-label { font-size: 0.78rem; color: var(--sg-text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.sg-coverage-pct { font-size: 1.05rem; color: var(--sg-cyan); }
+.sg-coverage-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.sg-coverage-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--sg-indigo), var(--sg-cyan)); transition: width 0.4s ease; }
+.sg-coverage-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.sg-pill-info { background: rgba(129,140,248,0.14); color: var(--sg-indigo); border: 1px solid rgba(129,140,248,0.35); }

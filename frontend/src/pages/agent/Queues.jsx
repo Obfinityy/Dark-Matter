@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Pause, Play, Trash2, Plus, Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Layers, Pause, Play, Trash2, Plus, Loader2, AlertTriangle, ChevronRight, CalendarClock } from 'lucide-react';
 import { listQueues, createQueue, pauseQueue, resumeQueue, deleteQueue } from '../../services/api';
 
 export function Queues() {
@@ -60,6 +60,7 @@ export function Queues() {
           <h1><Layers size={22} /> Target queues</h1>
           <p>Line up targets — the agent works through them in order, sharing the pool fairly with your other hunts.</p>
         </div>
+        <Link to="/agent/schedules" className="dm-btn-ghost"><CalendarClock size={13} /> Scheduled hunts</Link>
       </header>
 
       {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
@@ -93,7 +94,7 @@ export function Queues() {
             </p>
             <ul className="dm-queue-targets">
               {(queue.targets || []).slice(0, 6).map((t, i) => (
-                <li key={i}><code>{typeof t === 'string' ? t : t.target}</code> <span>{t.status || ''}</span></li>
+                <li key={i}><code>{typeof t === 'string' ? t : (t.url || t.target)}</code> <span>{t.status || ''}</span></li>
               ))}
               {(queue.targets || []).length > 6 && <li>+{(queue.targets || []).length - 6} more</li>}
             </ul>

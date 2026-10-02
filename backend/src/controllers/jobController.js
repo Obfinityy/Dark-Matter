@@ -64,7 +64,11 @@ export function createJobController({ jobManager, assessmentService, eventServic
         userId,
         assessmentId: created.assessmentId,
         conversationId: input.conversationId || null,
-        target: created.assessment.targetHostname,
+        // Full normalized URL (keeps the port: 127.0.0.1:4555 ≠ 127.0.0.1).
+        // ScopeEngine and all job.target consumers accept full URLs.
+        // The brain builds probe URLs from job.target; a bare hostname would
+        // point every probe at the wrong port.
+        target: created.assessment.targetUrl || created.assessment.targetHostname,
         scope: created.assessment.scope,
         objective: input.message || `Assess ${created.assessment.targetHostname}`
       });
@@ -101,6 +105,7 @@ export function createJobController({ jobManager, assessmentService, eventServic
           reportId: job.reportId,
           reportVersion: job.reportVersion,
           startedAt: job.startedAt || job.createdAt,
+          createdAt: job.createdAt,
           updatedAt: job.updatedAt,
           completedAt: job.completedAt
         }))
@@ -270,6 +275,26 @@ export function createJobController({ jobManager, assessmentService, eventServic
         job.id
       );
       response.json({ diary: entries });
+    }),
+
+    /** GET /api/v1/jobs/:id/posture — posture score for the hunt's target, from real findings */
+    posture: asyncHandler(async (request, response) => {
+      const job = await jobManager.requireJob(request.user.id, request.params.id);
+      const findings = findingModel ? await findingModel.list(job.assessmentId) : [];
+      const posture = assessmentService.postureFromFindings(findings);
+      // Prefer the assessment's full normalized target URL; fall back to the job's target.
+      const assessment = job.assessmentId
+        ? await assessmentService.get(request.user.id, job.assessmentId).catch(() => null)
+        : null;
+      response.json({
+        posture: {
+          ...posture,
+          target: assessment?.targetUrl || job.target,
+          assessmentId: job.assessmentId,
+          jobId: job.id,
+          jobStatus: job.status,
+        }
+      });
     })
   };
 }

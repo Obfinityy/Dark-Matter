@@ -1,0 +1,1 @@
+{"logs":[{"message":"[V] Found XSS via GET parameter","param":"q","payload":"<dmxss>alert(1)</dmxss>","poc":"http://127.0.0.1:4562/search?q=%3Cdmxss%3Ealert(1)%3C%2Fdmxss%3E","type":"G","url":"http://127.0.0.1:4562/search"},{"message":"[I] Start XSS scan","type":"I"},{"message":"[I] Testing parameter: page - not vulnerable","type":"G"}]}
