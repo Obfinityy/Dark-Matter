@@ -94,6 +94,7 @@ def _get_agent():
         try:
             from infinity_agents.s3.agents.infinity_agent import InfinityAgent3
             from infinity_agents.s3.agents.grounding import OSWorldGroundingAgent
+            from gradio_engine import GradioEngine
         except ImportError as e:
             raise RuntimeError(
                 "infinity-agents not installed. Run: pip install -e /path/to/infinity-agent"
@@ -104,12 +105,20 @@ def _get_agent():
         if not GROUND_URL:
             raise RuntimeError("DM_GROUND_URL is not set — no grounding model configured.")
 
-        # Vision brain via OpenAI-compatible endpoint (vLLM / Gradio).
+        # Vision brain via Kaggle Gradio (custom engine, not OpenAI-compatible).
+        # The GradioEngine talks /gradio_api/call/predict with MultimodalData.
+        vision_engine = GradioEngine(
+            base_url=VISION_URL.rstrip("/"),
+            model=VISION_MODEL,
+            timeout=300,
+        )
+        # Infinity Agent expects engine_params dict; we pass our engine directly
+        # via a wrapper that the worker will use.
         engine_params = {
-            "engine_type": "openai",
+            "engine_type": "gradio",
             "model": VISION_MODEL,
             "base_url": VISION_URL.rstrip("/"),
-            "api_key": VISION_API_KEY,
+            "engine": vision_engine,  # direct reference for our custom path
         }
 
         # UI-TARS grounding: turns "the search bar" into x,y coordinates.

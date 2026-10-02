@@ -66,7 +66,7 @@ export class GradioProvider {
       });
       const latencyMs = Date.now() - start;
       if (!res.ok) {
-        return { provider: 'GradioProvider', enabled: true, reachable: false, latencyMs, reason: `HTTP ${res.status}` };
+        return { provider: 'GradioProvider', enabled: true, reachable: false, latencyMs, reason: `HTTP ${res.status} — Gradio link may have expired. Restart your Kaggle notebook for a fresh link.` };
       }
       let mode = '';
       try {
@@ -81,6 +81,7 @@ export class GradioProvider {
         model: this.model,
         baseUrl: this.baseUrl,
         mode: mode || 'unknown',
+        note: 'Link is alive. If tasks fail, the model may still be loading — wait 2-3 minutes after starting the notebook.',
       };
     } catch (err) {
       return {
@@ -88,7 +89,7 @@ export class GradioProvider {
         enabled: true,
         reachable: false,
         latencyMs: Date.now() - start,
-        reason: err?.message || String(err),
+        reason: `Cannot reach Gradio link: ${err?.message || String(err)}. The share link may have expired — restart your Kaggle notebook.`,
       };
     }
   }

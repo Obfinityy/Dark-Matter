@@ -80,6 +80,7 @@ import { createAlertController } from './controllers/alertController.js';
 import { createQueueController } from './controllers/queueController.js';
 import { createScheduleController } from './controllers/scheduleController.js';
 import { createPayloadLibraryController } from './controllers/payloadLibraryController.js';
+import { memoryController } from './controllers/memoryController.js';
 import { listTools } from './controllers/toolController.js';
 import { createReportController } from './controllers/reportController.js';
 import { createRoutes } from './routes/index.js';
@@ -508,7 +509,8 @@ export async function createApp({ database } = {}) {
       remoteModel: createRemoteModelController({ brainProviderModel, agentWorker }),
       computer: createComputerController({ computerAdapter, assessmentModel }),
       computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter }),
-      permissions: createPermissionsController()
+      permissions: createPermissionsController(),
+      memory: memoryController,
     }
   }));
   app.use(notFoundHandler);
