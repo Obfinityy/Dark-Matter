@@ -26,6 +26,7 @@ import { getBackendMode, setBackendMode, getVercelBackendUrl, setVercelBackendUr
 import './styles/globals.css';
 import './styles/infinity.css';
 import './styles/agent.css';
+import './styles/polish-pass-payloads-queues-schedules.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
