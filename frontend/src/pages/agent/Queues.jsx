@@ -67,57 +67,101 @@ export function Queues() {
 
       <form className="dm-card dm-queue-form" onSubmit={create}>
         <h3><Plus size={15} /> New queue</h3>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Queue name (optional)" />
-        <textarea
-          value={targets}
-          onChange={(e) => setTargets(e.target.value)}
-          placeholder={'https://one.com\nhttps://two.com/app'}
-          rows={4}
-          spellCheck={false}
-          required
-        />
+        <label className="dm-form-label">
+          Queue name
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional — e.g. staging sweep" />
+        </label>
+        <label className="dm-form-label">
+          Targets
+          <textarea
+            value={targets}
+            onChange={(e) => setTargets(e.target.value)}
+            placeholder={'https://one.com\nhttps://two.com/app'}
+            rows={4}
+            spellCheck={false}
+            required
+          />
+          <span className="dm-form-hint">One target per line — the agent works through them top to bottom.</span>
+        </label>
         <button type="submit" className="dm-btn-primary" disabled={busy}>
           {busy ? <Loader2 size={15} className="dm-spin" /> : <Plus size={15} />} Create queue
         </button>
       </form>
 
       <div className="dm-queue-list">
-        {queues.map((queue) => (
-          <div key={queue.id} className="dm-card dm-queue-card">
-            <div className="dm-queue-head">
-              <h3>{queue.name || 'Untitled queue'}</h3>
-              <span className={`dm-job-status st-${queue.status}`}>{queue.status}</span>
-            </div>
-            <p className="dm-card-hint">
-              {(queue.targets || []).length} targets · {queue.completedCount || 0} done
-              {queue.currentTarget && <> · hunting <code>{queue.currentTarget}</code></>}
-            </p>
-            <ul className="dm-queue-targets">
-              {(queue.targets || []).slice(0, 6).map((t, i) => (
-                <li key={i}><code>{typeof t === 'string' ? t : (t.url || t.target)}</code> <span>{t.status || ''}</span></li>
-              ))}
-              {(queue.targets || []).length > 6 && <li>+{(queue.targets || []).length - 6} more</li>}
-            </ul>
-            <div className="dm-queue-actions">
-              {queue.status === 'paused' ? (
-                <button className="dm-btn-ghost" onClick={() => act(() => resumeQueue(queue.id))}><Play size={13} /> Resume</button>
-              ) : (
-                <button className="dm-btn-ghost" onClick={() => act(() => pauseQueue(queue.id))}><Pause size={13} /> Pause</button>
+        {queues.map((queue, i) => {
+          const queueName = queue.name || 'Untitled queue';
+          const total = (queue.targets || []).length;
+          const done = queue.completedCount || 0;
+          const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+          const paused = queue.status === 'paused';
+          return (
+            <div key={queue.id} className="dm-card dm-queue-card dm-list-in" style={{ animationDelay: `${Math.min(i, 10) * 60}ms` }}>
+              <div className="dm-queue-head">
+                <h3>{queueName}</h3>
+                <span className={`dm-job-status st-${queue.status}`}>{queue.status}</span>
+              </div>
+              <p className="dm-card-hint">
+                {total} targets · {done} done
+                {queue.currentTarget && <> · hunting <code>{queue.currentTarget}</code></>}
+              </p>
+              {total > 0 && (
+                <div
+                  className="dm-queue-progress"
+                  role="progressbar"
+                  aria-valuenow={done}
+                  aria-valuemin={0}
+                  aria-valuemax={total}
+                  aria-label={`Progress of queue ${queueName}`}
+                >
+                  <span style={{ width: `${pct}%` }} />
+                </div>
               )}
-              <button className="dm-btn-ghost dm-danger" onClick={() => {
-                if (window.confirm('Delete this queue? Completed hunt history is kept.')) act(() => deleteQueue(queue.id));
-              }}>
-                <Trash2 size={13} /> Delete
-              </button>
-              {queue.currentJobId && (
-                <Link to={`/agent/hunt/${queue.currentJobId}`} className="dm-card-link">
-                  Watch live hunt <ChevronRight size={13} />
-                </Link>
-              )}
+              <ul className="dm-queue-targets">
+                {(queue.targets || []).slice(0, 6).map((t, j) => (
+                  <li key={j}><code>{typeof t === 'string' ? t : (t.url || t.target)}</code> <span>{t.status || ''}</span></li>
+                ))}
+                {(queue.targets || []).length > 6 && <li>+{(queue.targets || []).length - 6} more</li>}
+              </ul>
+              <div className="dm-queue-actions">
+                {paused ? (
+                  <button
+                    className="dm-btn-ghost"
+                    onClick={() => act(() => resumeQueue(queue.id))}
+                    aria-label={`Resume queue ${queueName}`}
+                  ><Play size={13} /> Resume</button>
+                ) : (
+                  <button
+                    className="dm-btn-ghost"
+                    onClick={() => act(() => pauseQueue(queue.id))}
+                    aria-label={`Pause queue ${queueName}`}
+                  ><Pause size={13} /> Pause</button>
+                )}
+                <button
+                  className="dm-btn-ghost dm-danger"
+                  aria-label={`Delete queue ${queueName}`}
+                  onClick={() => {
+                    if (window.confirm('Delete this queue? Completed hunt history is kept.')) act(() => deleteQueue(queue.id));
+                  }}
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+                {queue.currentJobId && (
+                  <Link to={`/agent/hunt/${queue.currentJobId}`} className="dm-card-link">
+                    Watch live hunt <ChevronRight size={13} />
+                  </Link>
+                )}
+              </div>
             </div>
+          );
+        })}
+        {queues.length === 0 && (
+          <div className="dm-empty-state">
+            <Layers size={28} aria-hidden="true" />
+            <strong>No queues yet</strong>
+            <p>Create a queue above to line up targets — the agent works through them in order, sharing the pool fairly with your other hunts.</p>
           </div>
-        ))}
-        {queues.length === 0 && <p className="dm-card-hint">No queues yet.</p>}
+        )}
       </div>
     </div>
   );
