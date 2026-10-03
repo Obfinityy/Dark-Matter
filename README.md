@@ -80,9 +80,13 @@ Every reply in Infinity AI is **spoken aloud** by a natural, human-like voice â€
 
 ```bash
 cd backend/voice
-python3 -m venv .venv
-.venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
-.venv/bin/pip install -r requirements.txt
+python -m venv .venv
+# Windows:
+.venv\Scripts\pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv\Scripts\pip install -r requirements.txt
+# Linux/macOS (use python3 instead of python):
+# .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+# .venv/bin/pip install -r requirements.txt
 ```
 
 The backend starts the voice engine automatically on first use (~300MB model downloads once, then cached). Toggle voice with the ðŸ”Š button in the avatar header.
