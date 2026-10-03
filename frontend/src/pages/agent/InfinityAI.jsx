@@ -42,6 +42,7 @@ import {
 import { recordConversation } from '../../services/chatHistory';
 import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
 import { Avatar } from '../../components/fx/Avatar';
+import { CrewPanel } from '../../components/agent/CrewPanel';
 import { DecryptedText } from '../../components/fx/DecryptedText';
 import { DarkVeil } from '../../components/fx/DarkVeil';
 import { speak, isVoiceReady } from '../../services/voice';
@@ -879,7 +880,11 @@ function ControlPane({ mode, setMode }) {
   };
 
   return (
-    <div className="sg-control-nl">
+    <>
+      {/* Infinity Crew: persistent AI coworkers with their own computers.
+          Rendered above the one-shot task panel — that flow is untouched. */}
+      <CrewPanel />
+      <div className="sg-control-nl">
       <div className="sg-control-statusline">
         <span className="sg-chip">
           <Cpu size={12} /> Backend: {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
@@ -974,7 +979,8 @@ function ControlPane({ mode, setMode }) {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

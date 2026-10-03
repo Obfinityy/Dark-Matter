@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../core/utils.js';
 
 export function createRoutes({ controllers }) {
   const router = Router();
@@ -212,6 +213,16 @@ export function createRoutes({ controllers }) {
   router.get('/computer-tasks/:id/events/history', controllers.computerTasks.eventHistory);
   router.post('/computer-tasks/:id/answer', controllers.computerTasks.answer);
   router.post('/computer-tasks/:id/cancel', controllers.computerTasks.cancel);
+
+  // ─── Infinity Crew (persistent AI coworkers) ─────────────────────
+  router.post('/crew', controllers.crew.create);
+  router.get('/crew', controllers.crew.list);
+  router.get('/crew/:id', controllers.crew.get);
+  router.patch('/crew/:id', controllers.crew.update);
+  router.delete('/crew/:id', controllers.crew.remove);
+  router.post('/crew/:id/chat', controllers.crew.chat);
+  router.get('/crew/:id/events', controllers.crew.events);
+  router.post('/crew/:id/stop', controllers.crew.stop);
 
   // ─── Report System ──────────────────────────────────────────────
   router.post('/assessments/:id/report', controllers.reports.generate);

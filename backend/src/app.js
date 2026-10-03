@@ -47,6 +47,9 @@ import { createModelRunnerController } from './controllers/modelRunnerController
 import { createRemoteModelController } from './controllers/remoteModelController.js';
 import { createComputerController } from './controllers/computerController.js';
 import { createComputerTaskController } from './controllers/computerTaskController.js';
+import { createCrewController } from './controllers/crewController.js';
+import { CrewService } from './services/crewService.js';
+import { CrewWorker } from './jobs/crewWorker.js';
 import { createVoiceController } from './controllers/voiceController.js';
 import { VoiceManager } from './services/voiceManager.js';
 import { AgentJobModel } from './models/agentJobModel.js';
@@ -426,6 +429,18 @@ export async function createApp({ database } = {}) {
     config: { recoverOnBoot: config.agentWorker.recoverOnBoot }
   });
 
+  // ─── Infinity Crew (persistent AI coworkers with their own computers) ─
+  // Each crew member is a long-lived coworker the user chats with from
+  // inside Infinity AI Control mode. Reuses the same computer layer and the
+  // user's active brain — no second bridge, no second action protocol.
+  const crewService = new CrewService({});
+  const crewWorker = new CrewWorker({
+    crewService,
+    providerFor: (userId) => userBrain.providerFor(userId),
+    computerAdapter,
+    logger: console
+  });
+
   // ─── Express App ──────────────────────────────────────────────────
   const app = express();
   app.disable('x-powered-by');
@@ -456,6 +471,7 @@ export async function createApp({ database } = {}) {
     computerState, computerEvents, computerAdapter, autonomousBrain,
     findingLifecycle, agentWorker, jobManager,
     computerTaskModel, computerTaskBrain, computerTaskWorker, computerTaskManager,
+    crewService, crewWorker,
     reasoningCycleModel, brainProviderModel, localModelService, customModelModel,
     modelRunnerService,
     huntRecordModel, alertModel, payloadLibraryModel, huntScheduleModel, targetQueueModel
@@ -515,6 +531,7 @@ export async function createApp({ database } = {}) {
       remoteModel: createRemoteModelController({ brainProviderModel, agentWorker }),
       computer: createComputerController({ computerAdapter, assessmentModel }),
       computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter }),
+      crew: createCrewController({ crewService, crewWorker }),
       permissions: createPermissionsController(),
       memory: memoryController,
     }
