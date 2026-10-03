@@ -206,6 +206,15 @@
 /* ── Dividers ── */
 .sg-hr { border: none; border-top: 1px solid var(--sg-line-soft); margin: 0; }
 
+/* ── Alert banners (shared; used by Hunt, Models, Infinity AI, Auth) ── */
+.sg-auth-error {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--sg-danger-dim); border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--sg-danger); border-radius: var(--sg-r-md);
+  padding: 12px 16px; font-size: 0.88rem; font-weight: 500; line-height: 1.5;
+}
+.sg-auth-error svg { flex-shrink: 0; }
+
 /* ── Animations ── */
 @keyframes sg-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .sg-fade-up { animation: sg-fade-up 0.6s var(--sg-ease) both; }

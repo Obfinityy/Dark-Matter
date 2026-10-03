@@ -128,13 +128,13 @@ export function AgentHome() {
       </section>
 
       {/* ── Stats ── */}
-      <section className="sg-stats sg-fade-up sg-fade-up-2" aria-label="Hunt statistics">
+      <section className="sg-stats" aria-label="Hunt statistics">
         {[
           { n: runningCount, label: 'hunts live right now', live: runningCount > 0 },
           { n: doneCount, label: 'hunts completed' },
           { n: totalFindings, label: 'findings so far' },
-        ].map(({ n, label, live }) => (
-          <div key={label} className="sg-stat">
+        ].map(({ n, label, live }, i) => (
+          <div key={label} className={`sg-stat sg-fade-up sg-fade-up-${i + 1}`}>
             <strong>{n}{live && <span className="sg-live-dot" />}</strong>
             <span>{label}</span>
           </div>

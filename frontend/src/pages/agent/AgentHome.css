@@ -99,8 +99,15 @@
   .sg-hero { padding: 20px 0 4px; }
   .sg-hunt-bar { flex-wrap: wrap; padding: 8px; }
   .sg-hunt-bar input { flex: 1 1 100%; padding: 12px; }
-  .sg-hunt-bar .sg-btn { flex: 1; }
+  .sg-hunt-bar .sg-btn { flex: 1; min-height: 44px; }
   .sg-stats { grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 28px 0; }
   .sg-stat { padding: 16px; }
   .sg-stat strong { font-size: 1.5rem; }
+}
+
+@media (max-width: 420px) {
+  /* Very small phones: stats stack 1-up so numbers stay readable. */
+  .sg-stats { grid-template-columns: 1fr; gap: 8px; }
+  .sg-stat { flex-direction: row; align-items: baseline; gap: 10px; padding: 14px 16px; }
+  .sg-stat strong { font-size: 1.35rem; }
 }

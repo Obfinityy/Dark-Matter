@@ -491,7 +491,7 @@ function PlanPane({ mode, setMode }) {
         <p className="sg-small" style={{ textAlign: 'center' }}>Planning only — nothing is executed. Switch to Build to make it real.</p>
       </div>
 
-      {error && <div className="sg-auth-error" role="alert">{error}</div>}
+      {error && <div className="sg-auth-error" role="alert" style={{ margin: '14px 0' }}>{error}</div>}
 
       {loading && (
         <div className="sg-loading-box"><Loader2 size={20} className="sg-spin" /> Turning your idea into a plan…</div>
