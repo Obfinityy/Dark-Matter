@@ -20,6 +20,7 @@
   --sg-ink-1: #0a0d14;          /* page base */
   --sg-ink-2: #0e1219;          /* raised */
   --sg-ink-3: #131824;          /* cards */
+  --sg-panel: rgba(255, 255, 255, 0.028);  /* subtle panel wash */
 
   /* ── Text ── */
   --sg-text: #f2f5fa;

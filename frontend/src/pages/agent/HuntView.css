@@ -51,10 +51,12 @@
   font-family: var(--sg-sans); font-size: 0.9rem; font-weight: 600;
   color: var(--sg-text-3); padding: 12px 14px; white-space: nowrap;
   border-bottom: 2px solid transparent; margin-bottom: -1px;
-  transition: color var(--sg-fast);
+  border-radius: 8px 8px 0 0; min-height: 44px;
+  transition: color var(--sg-fast), background var(--sg-fast);
 }
-.sg-tab:hover { color: var(--sg-text); }
+.sg-tab:hover { color: var(--sg-text); background: rgba(255, 255, 255, 0.03); }
 .sg-tab.sg-active { color: var(--sg-text); border-bottom-color: var(--sg-cyan); }
+.sg-tab.sg-active:hover { background: rgba(255, 255, 255, 0.045); }
 .sg-tab-badge {
   background: rgba(129, 140, 248, 0.16); color: var(--sg-cyan);
   font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
@@ -67,6 +69,9 @@
 @media (max-width: 760px) {
   .sg-hunt-head { padding: 4px 0 18px; }
   .sg-hunt-actions { width: 100%; }
+  /* 44px touch targets for the tab-row icon buttons. */
+  .sg-tabs .sg-btn-quiet { min-width: 44px; min-height: 44px; justify-content: center; }
+  .sg-hunt-actions .sg-btn { min-height: 44px; }
 }
 
 /* ── AgentCharacter: the visible presence of the hunting agent ── */
