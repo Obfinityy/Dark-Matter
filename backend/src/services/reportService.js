@@ -151,6 +151,23 @@ export class ReportService {
 
     const executiveSummary = this.generateExecutiveSummary(assessment, findingsSummary, attackSurface);
 
+    // ── Vulnerability chaining: combine small findings into big impact ──
+    // Elite hunters don't report single lows — they chain them. This runs
+    // automatically on every report: XSS+CSRF=ATO, SSRF+Redis=RCE, etc.
+    let vulnerabilityChains = [];
+    try {
+      const { findChains } = await import('../engines/chainBuilder.js');
+      vulnerabilityChains = findChains(findings);
+      if (vulnerabilityChains.length > 0) {
+        await this.eventService.publish(assessmentId, {
+          type: 'CHAIN_DETECTED',
+          level: 'WARN',
+          message: `${vulnerabilityChains.length} vulnerability chain(s) detected — small findings combine into ${vulnerabilityChains.filter((c) => c.severity === 'Critical').length} critical impact(s)`,
+          data: { chains: vulnerabilityChains.map((c) => ({ name: c.name, severity: c.severity })) },
+        });
+      }
+    } catch { /* chaining must never break report generation */ }
+
     const base = {
       title: `Bug Bounty Assessment Report — ${assessment.targetHostname}`,
       executiveSummary,
@@ -165,6 +182,7 @@ export class ReportService {
       attackSurface,
       findingsSummary,
       detailedFindings,
+      vulnerabilityChains,
       testingCoverage,
       unverifiedObservations: unverifiedObservations.map((finding) => ({
         id: finding.id,
@@ -516,6 +534,25 @@ The local language model assisted with hypothesis generation and triage; all con
       lines.push(``);
       findings.forEach((f) => {
         lines.push(this.renderFindingReport(f, base, false));
+        lines.push(`---`);
+        lines.push(``);
+      });
+    }
+
+    // ── Vulnerability chains: small bugs → big impact ──
+    const chains = base.vulnerabilityChains || [];
+    if (chains.length > 0) {
+      lines.push(`## Vulnerability Chains (${chains.length})`);
+      lines.push(``);
+      lines.push(`> Individual findings below were automatically chained into higher-impact attack scenarios — this is how elite hunters turn multiple lows into a critical report.`);
+      lines.push(``);
+      chains.forEach((c) => {
+        lines.push(`### ⛓️ ${c.name} [${c.severity}]`);
+        lines.push(``);
+        lines.push(`**Impact:** ${c.impact}`);
+        lines.push(``);
+        lines.push(`**Chained findings:** ${c.evidence}`);
+        lines.push(``);
         lines.push(`---`);
         lines.push(``);
       });
