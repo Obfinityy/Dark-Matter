@@ -33,6 +33,7 @@
 
   /* ── Brand gradient (use sparingly) ── */
   --sg-cyan: #22d3ee;
+  --sg-accent: #22d3ee;         /* alias of --sg-cyan (used by model cards) */
   --sg-violet: #c084fc;
   --sg-indigo: #818cf8;
   --sg-gradient: linear-gradient(135deg, #22d3ee 0%, #3b82f6 55%, #0ea5e9 100%);
