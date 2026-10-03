@@ -72,9 +72,21 @@ Paste URL → Agent thinks → Recon → Attack surface → Hypotheses
 | 🔨 **Build** | The agent reads/edits real workspace files and builds for you |
 | 🎛️ **Infinity Control** | Command center — system status, brain, backend, hunts, models, all in one place |
 
-### 🎙️ Infinity Voice — the avatar speaks
+The mode switcher lives **inside the input box** as a dropdown (▼) — no tab bar. Every mode's input row: `[mode ▼] [+] [type…] [🎤] [send]`.
+
+| Input control | What it does |
+|---------------|--------------|
+| ▼ mode | Switch Chat / Plan / Build / Control without leaving the input |
+| **+** | Attach files (chips above the input; names appended to the message) |
+| 🎤 | Voice input — speak, it transcribes (browser Speech API, free) |
+
+### 🎙️ Infinity Voice — the avatar speaks (and listens)
 
 Every reply in Infinity AI is **spoken aloud** by a natural, human-like voice — with real lip-sync driven by the actual audio. Four voices (Aria, Aria Soft, Kai, Kai Deep), auto-matched to the avatar's gender. Fully offline, zero API cost.
+
+**Voice input:** tap the 🎤 mic button in any mode's input box and speak — your words are transcribed into the input. The avatar shows a *listening* state while you talk. Browser-native speech recognition, no server needed.
+
+**Avatar panel:** the avatar lives in a collapsible side panel (like a proper AI assistant). Toggle it from the top bar. Gender switch changes both appearance and voice.
 
 **One-time setup:**
 
