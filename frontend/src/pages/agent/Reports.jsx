@@ -31,13 +31,21 @@ export function Reports() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="sg-loading-box"><Loader2 size={18} className="sg-spin" /> Loading past reports…</div>;
+  if (loading) {
+    return (
+      <div className="sg-reports">
+        <div className="sg-reports-loading" role="status" aria-live="polite">
+          <Loader2 size={18} className="sg-spin" /> Loading past reports…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sg-reports">
-      <header className="sg-page-head">
+      <header className="sg-reports-head">
         <div>
-          <h1 className="sg-h1" style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 8px" }}><History size={24} /> Past reports</h1>
+          <h1 className="sg-h1 sg-reports-title"><History size={24} aria-hidden="true" /> Past reports</h1>
           <p className="sg-body">Every completed hunt, archived. Re-open or re-download any report — pasting the same target later returns these instantly.</p>
         </div>
         <Link to="/agent" className="sg-btn sg-btn-primary">New hunt</Link>
@@ -50,11 +58,12 @@ export function Reports() {
 
       {records.length === 0 ? (
         <div className="sg-empty-state">
-          <FileText size={28} />
+          <FileText size={28} aria-hidden="true" />
           <p>No completed hunts yet. Your reports will live here.</p>
+          <Link to="/agent" className="sg-btn sg-btn-primary">Start your first hunt</Link>
         </div>
       ) : (
-        <ul className="sg-record-list">
+        <ul className="sg-record-list" aria-label="Past hunt reports">
           {records.map((record) => {
             const summary = record.summary || {};
             const findings = Array.isArray(record.findings) ? record.findings : [];
