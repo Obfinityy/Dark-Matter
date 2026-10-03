@@ -35,6 +35,11 @@ export function createRoutes({ controllers }) {
   router.post('/infinite/build', controllers.infiniteChat.build);
   router.post('/infinite/control', controllers.infiniteChat.control);
   router.post('/infinite/action', controllers.infiniteChat.action);
+
+  // ─── Infinity Voice: built-in neural TTS ─────────────────────────
+  router.get('/voice/health', controllers.voice.health);
+  router.get('/voice/voices', controllers.voice.voices);
+  router.post('/voice/speak', controllers.voice.speak);
   
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);

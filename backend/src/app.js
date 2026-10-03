@@ -47,6 +47,8 @@ import { createModelRunnerController } from './controllers/modelRunnerController
 import { createRemoteModelController } from './controllers/remoteModelController.js';
 import { createComputerController } from './controllers/computerController.js';
 import { createComputerTaskController } from './controllers/computerTaskController.js';
+import { createVoiceController } from './controllers/voiceController.js';
+import { VoiceManager } from './services/voiceManager.js';
 import { AgentJobModel } from './models/agentJobModel.js';
 import { ComputerTaskModel } from './models/computerTaskModel.js';
 import { ComputerTaskBrain } from './agent/computerTaskBrain.js';
@@ -281,6 +283,9 @@ export async function createApp({ database } = {}) {
     logger: console
   });
 
+  // ─── Infinity Voice: built-in neural TTS (lazy — spawns on first /speak)
+  const voiceManager = new VoiceManager({ logger: console });
+
   // ─── Hybrid memory: files for working memory, DB for artifacts ──────
   // The agent's working memory (journal, learnings, plan, per-hunt summary)
   // lives in LOCAL FILES under the app-data dir — the agent reads/writes them
@@ -486,6 +491,7 @@ export async function createApp({ database } = {}) {
         infinityModes: createInfinityModes({ brainModelFor: () => userBrain }),
         computerAdapter
       }),
+      voice: createVoiceController({ voiceManager }),
       jobs: createJobController({
         jobManager,
         assessmentService,

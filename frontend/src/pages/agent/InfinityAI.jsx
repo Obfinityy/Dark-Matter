@@ -36,6 +36,7 @@ import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
 import { Avatar } from '../../components/fx/Avatar';
 import { DecryptedText } from '../../components/fx/DecryptedText';
 import { DarkVeil } from '../../components/fx/DarkVeil';
+import { speak, isVoiceReady } from '../../services/voice';
 import './InfinityAI.css';
 import './InfinityAINew.css';
 
@@ -62,7 +63,7 @@ function useConversationId(mode) {
   return ref.current;
 }
 
-function ChatPane({ mode, initialConversationId, onAvatarState }) {
+function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onSpeakAmplitude }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   // One conversation per pane — the backend creates it on first message.
@@ -136,10 +137,25 @@ function ChatPane({ mode, initialConversationId, onAvatarState }) {
       const res = await sendDirectChat(text, convRef.current);
       const reply = res?.reply || res?.message || res?.text || 'Hmm, empty reply. Try again?';
       setMessages((m) => [...m, { role: 'assistant', text: reply }]);
-      // Avatar "speaks" the reply, then settles back to idle.
+      // Avatar SPEAKS the reply with a real voice + lip-sync, then idles.
       onAvatarState?.('speaking');
-      const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
-      setTimeout(() => onAvatarState?.('idle'), speakMs);
+      if (avatarVoice) {
+        try {
+          await speak(reply, {
+            voice: avatarVoice,
+            onAmplitude: (amp) => onSpeakAmplitude?.(amp),
+          });
+        } catch {
+          // Voice failed — fall back to timed speaking animation.
+          const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
+          await new Promise((r) => setTimeout(r, speakMs));
+        }
+      } else {
+        // Voice muted — just animate.
+        const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
+        await new Promise((r) => setTimeout(r, speakMs));
+      }
+      onAvatarState?.('idle');
     } catch (err) {
       setMessages((m) => [...m, {
         role: 'assistant',
@@ -756,13 +772,17 @@ export function InfinityAI() {
   const [avatarState, setAvatarState] = useState('idle');
   const [avatarGender, setAvatarGender] = useState('female');
   const [speakAmp, setSpeakAmp] = useState(0);
+  const [voiceOn, setVoiceOn] = useState(true);
+  // Voice follows gender: female → aria, male → kai
+  const avatarVoice = avatarGender === 'female' ? 'aria' : 'kai';
 
-  // Simulate lip-sync amplitude while the assistant is "speaking"
+  // Real lip-sync comes from the audio amplitude via onSpeakAmplitude.
+  // When voice is muted, fall back to a gentle simulated mouth motion.
   useEffect(() => {
-    if (avatarState !== 'speaking') { setSpeakAmp(0); return; }
+    if (avatarState !== 'speaking' || voiceOn) return;
     const iv = setInterval(() => setSpeakAmp(0.2 + Math.random() * 0.8), 120);
     return () => clearInterval(iv);
-  }, [avatarState]);
+  }, [avatarState, voiceOn]);
 
   return (
     <div className="inf-new">
@@ -789,6 +809,13 @@ export function InfinityAI() {
                 {g === 'female' ? '👩' : '👨'} {g}
               </button>
             ))}
+            <button
+              className={`inf-gender-btn${voiceOn ? ' inf-active' : ''}`}
+              onClick={() => setVoiceOn((v) => !v)}
+              title={voiceOn ? 'Mute voice' : 'Unmute voice'}
+            >
+              {voiceOn ? '🔊' : '🔇'} voice
+            </button>
           </div>
         </div>
         <div className="inf-backend-badge">
@@ -802,7 +829,8 @@ export function InfinityAI() {
           : mode === 'plan' ? <PlanPane key="plan" />
           : mode === 'build' ? <BuildPane key="build" />
           : <ChatPane key={paneKey} mode={mode} initialConversationId={navState.conversationId}
-              onAvatarState={setAvatarState} />}
+              onAvatarState={setAvatarState} avatarVoice={voiceOn ? avatarVoice : null}
+              onSpeakAmplitude={setSpeakAmp} />}
       </div>
 
       {/* Bottom dock: [+] [mode pills] */}

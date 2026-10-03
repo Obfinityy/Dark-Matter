@@ -1,0 +1,11 @@
+# Infinity Voice — neural TTS engine dependencies.
+#
+# Install (CPU-only PyTorch, ~2GB):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+#
+# First run downloads the ~300MB voice model automatically.
+
+kokoro>=0.9.2
+soundfile
+numpy
