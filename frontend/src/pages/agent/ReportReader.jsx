@@ -35,6 +35,118 @@ function downloadText(filename, text) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Inline markdown formatting — **bold** and `code` only, rendered as
+ * React text nodes so report content can never inject HTML.
+ */
+function Inline({ text }) {
+  const parts = String(text).split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.length > 2 && part.startsWith('`') && part.endsWith('`')) {
+          return <code key={i}>{part.slice(1, -1)}</code>;
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
+/**
+ * Block-level Markdown rendering for archived reports: headings, ordered
+ * and unordered lists, blockquotes, horizontal rules, fenced code blocks,
+ * and paragraphs. No raw HTML is ever interpreted.
+ */
+function MarkdownBody({ markdown }) {
+  const blocks = [];
+  const lines = String(markdown).split('\n');
+  let i = 0;
+  let key = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Fenced code block.
+    if (line.startsWith('```')) {
+      const buf = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) { buf.push(lines[i]); i++; }
+      i++; // consume the closing fence (or EOF)
+      blocks.push(<pre key={key++}><code>{buf.join('\n')}</code></pre>);
+      continue;
+    }
+
+    // ATX headings.
+    const heading = line.match(/^(#{1,3})\s+(.*)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const Tag = `h${level}`;
+      blocks.push(<Tag key={key++}><Inline text={heading[2]} /></Tag>);
+      i++;
+      continue;
+    }
+
+    // List groups — consecutive items share one <ul> or <ol>.
+    const firstItem = line.match(/^\s*([-*+]|\d+[.)])\s+(.*)$/);
+    if (firstItem) {
+      const ordered = /^\d/.test(firstItem[1]);
+      const items = [];
+      while (i < lines.length) {
+        const m = lines[i].match(/^\s*([-*+]|\d+[.)])\s+(.*)$/);
+        if (!m || (/^\d/.test(m[1]) !== ordered)) break;
+        items.push(m[2]);
+        i++;
+      }
+      const ListTag = ordered ? 'ol' : 'ul';
+      blocks.push(
+        <ListTag key={key++}>
+          {items.map((item, j) => <li key={j}><Inline text={item} /></li>)}
+        </ListTag>
+      );
+      continue;
+    }
+
+    // Blockquote.
+    if (line.startsWith('> ')) {
+      blocks.push(<blockquote key={key++}><Inline text={line.slice(2)} /></blockquote>);
+      i++;
+      continue;
+    }
+
+    // Horizontal rule.
+    if (/^---+$/.test(line.trim())) {
+      blocks.push(<hr key={key++} />);
+      i++;
+      continue;
+    }
+
+    // Blank line — skip (paragraph spacing comes from CSS).
+    if (line.trim() === '') { i++; continue; }
+
+    // Paragraph — gather until a blank line or another block starts.
+    const para = [];
+    while (
+      i < lines.length &&
+      lines[i].trim() !== '' &&
+      !lines[i].startsWith('```') &&
+      !/^(#{1,3})\s+/.test(lines[i]) &&
+      !/^\s*([-*+]|\d+[.)])\s+/.test(lines[i]) &&
+      !lines[i].startsWith('> ') &&
+      !/^---+$/.test(lines[i].trim())
+    ) {
+      para.push(lines[i]);
+      i++;
+    }
+    blocks.push(<p key={key++}><Inline text={para.join(' ')} /></p>);
+  }
+
+  return <article className="sg-markdown-body">{blocks}</article>;
+}
+
 function FindingCard({ recordId, finding }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
@@ -63,16 +175,16 @@ function FindingCard({ recordId, finding }) {
       {finding.description && <p className="sg-body">{finding.description}</p>}
       <div className="sg-finding-actions">
         <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => grab('poc', 'curl', 'poc')}>
-          {busy === 'poc' ? <Loader2 size={13} className="sg-spin" /> : <FlaskConical size={13} />} PoC
+          {busy === 'poc' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <FlaskConical size={13} aria-hidden="true" />} PoC
         </button>
         <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => grab('repro', 'curl', 'curl')}>
-          {busy === 'curl' ? <Loader2 size={13} className="sg-spin" /> : <Download size={13} />} repro.sh
+          {busy === 'curl' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <Download size={13} aria-hidden="true" />} repro.sh
         </button>
         <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => grab('repro', 'python', 'py')}>
-          {busy === 'py' ? <Loader2 size={13} className="sg-spin" /> : <Download size={13} />} repro.py
+          {busy === 'py' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <Download size={13} aria-hidden="true" />} repro.py
         </button>
       </div>
-      {error && <p className="sg-finding-error">{error}</p>}
+      {error && <p className="sg-finding-error" role="alert">{error}</p>}
       <p className="sg-poc-note">Proof-only artifacts — they demonstrate the flaw without exfiltration or state changes.</p>
     </div>
   );
@@ -106,13 +218,13 @@ export function ReportReader() {
     return () => { cancelled = true; };
   }, [id]);
 
-  if (loading) return <div className="sg-loading-box"><Loader2 size={18} className="sg-spin" /> Loading report…</div>;
+  if (loading) return <div className="sg-loading-box" role="status"><Loader2 size={18} className="sg-spin" aria-hidden="true" /> Loading report…</div>;
 
   if (error || !record) {
     return (
       <div className="sg-report-reader">
-        <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} /> Past reports</Link>
-        <div className="sg-page-error"><ShieldAlert size={18} /> {error || 'Report not found.'}</div>
+        <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} aria-hidden="true" /> Past reports</Link>
+        <div className="sg-page-error" role="alert"><ShieldAlert size={18} aria-hidden="true" /> {error || 'Report not found.'}</div>
       </div>
     );
   }
@@ -122,10 +234,10 @@ export function ReportReader() {
 
   return (
     <div className="sg-report-reader">
-      <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} /> Past reports</Link>
+      <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} aria-hidden="true" /> Past reports</Link>
 
       <div className="sg-notice">
-        <ShieldCheck size={16} />
+        <ShieldCheck size={16} aria-hidden="true" />
         <span><strong>Report already exists for this target — showing the saved report</strong> (v{record.version || 1}). Pasting this target again returns this same report instantly. Start a new hunt from the Hunt page for a fresh run.</span>
       </div>
 
@@ -134,12 +246,12 @@ export function ReportReader() {
       </div>
 
       <header className="sg-reader-head">
-        <code>{record.target}</code>
+        <h1>{record.target}</h1>
         <div className="sg-reader-meta">
           <span className="sg-pill">v{record.version || 1}</span>
           {record.completedAt && <span>Hunted {new Date(record.completedAt).toLocaleString()}</span>}
           {record.severitySummary && (
-            <span className="sg-row" style={{ gap: 8 }}>
+            <span className="sg-reader-sevs">
               {Object.entries(record.severitySummary).map(([sev, count]) => (
                 count > 0 && <span key={sev} className={`sg-pill ${sev === 'critical' ? 'sg-pill-danger' : sev === 'high' ? 'sg-pill-warn' : ''}`}>{sev} {count}</span>
               ))}
@@ -149,8 +261,8 @@ export function ReportReader() {
       </header>
 
       {findings.length > 0 && (
-        <section className="sg-reader-section">
-          <h2 className="sg-h2">Findings ({findings.length})</h2>
+        <section className="sg-reader-section" aria-labelledby="sg-findings-heading">
+          <h2 className="sg-h2" id="sg-findings-heading">Findings ({findings.length})</h2>
           <CoverageMeter coverage={coverage} />
           <div className="sg-finding-list">
             {findings.map((f) => (
@@ -161,22 +273,10 @@ export function ReportReader() {
       )}
 
       {markdown ? (
-        <article className="sg-markdown-body">
-          {markdown.split('\n').map((line, i) => (
-            <React.Fragment key={i}>
-              {line.startsWith('# ') ? <h1>{line.slice(2)}</h1>
-              : line.startsWith('## ') ? <h2>{line.slice(3)}</h2>
-              : line.startsWith('### ') ? <h3>{line.slice(4)}</h3>
-              : line.startsWith('- ') ? <li>{line.slice(2)}</li>
-              : line.startsWith('> ') ? <blockquote>{line.slice(2)}</blockquote>
-              : line.trim() === '' ? <br />
-              : <p>{line}</p>}
-            </React.Fragment>
-          ))}
-        </article>
+        <MarkdownBody markdown={markdown} />
       ) : (
-        <div className="sg-empty-state">
-          <FileWarning size={28} />
+        <div className="sg-empty-state" role="status">
+          <FileWarning size={28} aria-hidden="true" />
           <p>No Markdown report was archived for this hunt — its findings summary above is the record.</p>
         </div>
       )}
