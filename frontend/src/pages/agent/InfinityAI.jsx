@@ -478,6 +478,7 @@ function PlanPane({ mode, setMode }) {
             placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
             disabled={loading}
           />
+          <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={loading} />
           <button onClick={run} disabled={loading || (!input.trim() && !files.length)} aria-label="Make plan">
             {loading ? <Loader2 size={17} className="sg-spin" /> : <ClipboardList size={17} />}
           </button>
@@ -660,6 +661,7 @@ function BuildPane({ mode, setMode }) {
           placeholder="What should I build?… e.g. “a portfolio page for Rahul Sharma”"
           disabled={loading}
         />
+        <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={loading} />
         <button onClick={run} disabled={loading || uploading || !input.trim()} aria-label="Build">
           {loading ? <Loader2 size={17} className="sg-spin" /> : <Hammer size={17} />}
         </button>
@@ -906,6 +908,7 @@ function ControlPane({ mode, setMode }) {
           placeholder="Command the computer… e.g. “MS Word me leave application likho”"
           disabled={running}
         />
+        <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={running} />
         {running ? (
           <button onClick={stop} aria-label="Stop the agent" title="Stop the agent">
             <XCircle size={17} />
