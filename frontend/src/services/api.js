@@ -672,6 +672,84 @@ export function subscribeToComputerTaskEvents(taskId, { onOpen, onEvent, onError
   };
 }
 
+// ─── Infinity Crew (persistent AI coworkers inside Control mode) ───
+// Each crew member has its own computer + brain, chatting in Control mode.
+// Backend contract: /api/v1/crew (Workers 1-2).
+
+/** List all crew members. */
+export function listCrews() {
+  return request('/crew');
+}
+
+/** Get one crew member. */
+export function getCrew(crewId) {
+  return request(`/crew/${encodeURIComponent(crewId)}`);
+}
+
+/** Create a crew member: { name, role, instructions?, toolsAllowed? }. */
+export function createCrew({ name, role, instructions = '', toolsAllowed = ['computer', 'shell', 'files'] }) {
+  return request('/crew', {
+    method: 'POST',
+    body: JSON.stringify({ name, role, instructions, toolsAllowed })
+  });
+}
+
+/** Update a crew member (name / role / instructions / toolsAllowed). */
+export function updateCrew(crewId, patch) {
+  return request(`/crew/${encodeURIComponent(crewId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch)
+  });
+}
+
+/** Delete a crew member. */
+export function deleteCrew(crewId) {
+  return request(`/crew/${encodeURIComponent(crewId)}`, { method: 'DELETE' });
+}
+
+/** Chat with a crew member — starts (or continues) its run. Returns { runId, status }. */
+export function chatWithCrew(crewId, message) {
+  return request(`/crew/${encodeURIComponent(crewId)}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ message })
+  });
+}
+
+/** Stop a crew member's active run. */
+export function stopCrewRun(crewId) {
+  return request(`/crew/${encodeURIComponent(crewId)}/stop`, { method: 'POST' });
+}
+
+/** Subscribe to live crew run events via SSE (replayed on reconnect). */
+export function subscribeToCrewEvents(crewId, { onOpen, onEvent, onError } = {}) {
+  // EventSource cannot set headers — the JWT rides as ?accessToken= like the
+  // other SSE streams (without it the stream 401s and the feed stays empty).
+  const url = sseUrl(`/crew/${encodeURIComponent(crewId)}/events`);
+  const source = new EventSource(url, { withCredentials: true });
+
+  const handleEvent = (event) => {
+    try {
+      onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
+    } catch {
+      onError?.(new ApiError('Received an invalid crew event.', 0, 'INVALID_EVENT'));
+    }
+  };
+
+  const eventTypes = [
+    'thinking', 'action', 'observation', 'reply',
+    'waiting', 'done', 'error', 'stopped'
+  ];
+  eventTypes.forEach((type) => source.addEventListener(type, handleEvent));
+  source.onmessage = handleEvent;
+  source.onopen = () => onOpen?.();
+  source.onerror = () => onError?.(new ApiError('Crew event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+
+  return () => {
+    eventTypes.forEach((type) => source.removeEventListener(type, handleEvent));
+    source.close();
+  };
+}
+
 /** Computer-control capability probe result. */
 export function getComputerCapabilities() {
   return request('/computer/capabilities');
@@ -1231,5 +1309,14 @@ export const apiClient = {
   getComputerTaskActivity,
   answerComputerTask,
   cancelComputerTask,
-  subscribeToComputerTaskEvents
+  subscribeToComputerTaskEvents,
+  // Infinity Crew (persistent AI coworkers)
+  listCrews,
+  getCrew,
+  createCrew,
+  updateCrew,
+  deleteCrew,
+  chatWithCrew,
+  stopCrewRun,
+  subscribeToCrewEvents
 };
