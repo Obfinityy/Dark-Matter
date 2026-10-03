@@ -23,7 +23,6 @@ const TOOL_DEFINITIONS = [
     requiresAuthorization: false,
     requiresKali: false,
     timeout: 30_000,
-    rateLimit: { maxPerMinute: 5 },
     parser: 'crtsh'
   },
   {
