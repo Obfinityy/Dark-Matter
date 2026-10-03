@@ -418,7 +418,11 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
           placeholder="Message Infinity AI…"
           disabled={sending}
         />
-        <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={sending} />
+        <MicButton
+          onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+          disabled={sending}
+          onListeningChange={(listening) => onAvatarState?.(listening ? 'listening' : 'idle')}
+        />
         <button onClick={send} disabled={sending || (!input.trim() && !files.length)} aria-label="Send">
           {sending ? <Loader2 size={17} className="sg-spin" /> : <Send size={17} />}
         </button>
