@@ -1,8 +1,21 @@
 .dt-text {
   font-variant-ligatures: none;
   letter-spacing: 0.01em;
+  /* Keep the scrambling glyphs from shifting layout: render in a
+     monospace-ish way during the animation, then relax when done. */
+  display: inline-block;
+  min-width: 1ch;
+}
+
+.dt-scrambling {
+  /* Slight glow while decrypting for the terminal feel */
+  text-shadow: 0 0 18px rgba(168, 85, 247, 0.35);
+}
+
+.dt-done {
+  text-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dt-text { /* renders final text instantly via effect cleanup */ }
+  .dt-text { text-shadow: none; }
 }

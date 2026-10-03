@@ -15,7 +15,13 @@
  *              On the user's own machine with the bridge installed, the
  *              simulation can be switched off for real desktop control.
  *
- * Same brain powers Hunt and Infinity AI. Switch modes with one tap.
+ * Same brain powers Hunt and Infinity AI.
+ *
+ * Layout:
+ *   - Top bar: title, current-mode hint, backend badge, avatar-panel toggle.
+ *   - Right side: collapsible avatar panel (gender + voice toggles, live state).
+ *   - Every mode's input row has the mode-switcher dropdown + [+] attach
+ *     INSIDE it — no bottom dock.
  */
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -23,7 +29,8 @@ import {
   Send, Loader2, Bot, User, MessageCircle, ClipboardList,
   Hammer, SlidersHorizontal, Cpu, FileText, CheckCircle2, XCircle,
   FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
-  ShieldCheck, Play, Paperclip, FolderOpen, X, Plus, Sparkles
+  ShieldCheck, Play, Paperclip, FolderOpen, X, Plus,
+  ChevronDown, Check, PanelRightOpen, PanelRightClose, ChevronsLeft
 } from 'lucide-react';
 import { sendDirectChat, parseActionIntent, getProviders, listJobs, getComputerStatus, getInfiniteHistory } from '../../services/api';
 import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
@@ -63,7 +70,137 @@ function useConversationId(mode) {
   return ref.current;
 }
 
-function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onSpeakAmplitude }) {
+/* ── Shared: mode-switcher dropdown that lives INSIDE each input row ───── */
+
+function ModeDropdown({ mode, setMode }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  const active = MODES.find((m) => m.id === mode) || MODES[0];
+
+  // Close on outside click / Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open ]);
+
+  const ActiveIcon = active.icon;
+  return (
+    <div className="inf-mode-dd" ref={wrapRef}>
+      <button
+        type="button"
+        className="inf-mode-dd-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title="Switch mode"
+      >
+        <ActiveIcon size={15} />
+        <span className="inf-mode-dd-label">{active.label}</span>
+        <ChevronDown size={14} className={open ? 'inf-caret-up' : ''} />
+      </button>
+      {open && (
+        <div className="inf-mode-dd-menu" role="listbox" aria-label="Switch mode">
+          {MODES.map((m) => {
+            const Icon = m.icon;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                role="option"
+                aria-selected={m.id === mode}
+                className={`inf-mode-dd-item${m.id === mode ? ' inf-active' : ''}`}
+                onClick={() => { setMode(m.id); setOpen(false); }}
+              >
+                <Icon size={15} />
+                <span className="inf-mode-dd-item-text">
+                  <strong>{m.label}</strong>
+                  <small>{m.hint}</small>
+                </span>
+                {m.id === mode && <Check size={14} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Shared: [+] attach button + removable file chips ──────────────────── */
+/* MVP: files are stored in pane state and their names are appended to the
+   outgoing message as "[Attached: a.png, b.pdf]". Real content upload comes
+   later — except Build mode, which already uploads for real. */
+
+function fileSuffix(files) {
+  if (!files || !files.length) return '';
+  return `\n[Attached: ${files.map((f) => f.name).join(', ')}]`;
+}
+
+function AttachButton({ onPick, title = 'Attach files', disabled = false, children }) {
+  const inputRef = useRef(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="inf-attach-btn"
+        onClick={() => inputRef.current?.click()}
+        title={title}
+        aria-label={title}
+        disabled={disabled}
+      >
+        {children || <Plus size={17} />}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => {
+          if (e.target.files?.length) onPick(e.target.files);
+          e.target.value = '';
+        }}
+      />
+    </>
+  );
+}
+
+function AttachChips({ files, onRemove }) {
+  if (!files?.length) return null;
+  return (
+    <div className="inf-attach-chips" aria-label="Attached files">
+      {files.map((f, i) => (
+        <span key={`${f.name}-${i}`} className="sg-chip">
+          <Paperclip size={12} />
+          <span className="sg-chip-name" title={f.name}>{f.name}</span>
+          {typeof f.size === 'number' && (
+            <span className="sg-tiny">{(f.size / 1024).toFixed(1)} KB</span>
+          )}
+          <button
+            type="button"
+            className="sg-chip-x"
+            onClick={() => onRemove(i)}
+            aria-label={`Remove ${f.name}`}
+          >
+            <X size={12} />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarVoice, onSpeakAmplitude }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   // One conversation per pane — the backend creates it on first message.
@@ -73,7 +210,15 @@ function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onS
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [files, setFiles] = useState([]); // MVP attachments (names appended to the message)
   const bottomRef = useRef(null);
+
+  const addFiles = (fileList) => {
+    const picked = Array.from(fileList || []).filter((f) => f.size >= 0);
+    if (!picked.length) return;
+    setFiles((prev) => [...prev, ...picked].slice(0, 10));
+  };
+  const removeFile = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
   // Resumed conversation: backfill messages from the backend.
   useEffect(() => {
@@ -99,21 +244,25 @@ function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onS
 
   const send = async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    const suffix = fileSuffix(files);
+    if ((!text && !files.length) || sending) return;
+    const fullText = text + suffix;
     setInput('');
-    setMessages((m) => [...m, { role: 'user', text }]);
+    setFiles([]);
+    setMessages((m) => [...m, { role: 'user', text: fullText }]);
     // Index this conversation for the sidebar chat history.
+    const titleBase = text || `${files.length} file(s) attached`;
     recordConversation({
       id: convRef.current,
       mode,
-      title: text.length > 48 ? `${text.slice(0, 48)}…` : text,
+      title: titleBase.length > 48 ? `${titleBase.slice(0, 48)}…` : titleBase,
     });
     setSending(true);
     onAvatarState?.('thinking');
     try {
       // First: check if this is an ACTION command ("khol de") vs chat.
       let intent = null;
-      try { intent = await parseActionIntent(text); } catch { /* fall through to chat */ }
+      try { intent = await parseActionIntent(fullText); } catch { /* fall through to chat */ }
 
       if (intent?.type === 'action') {
         // Safe action — tell the user we're doing it, then route to Control.
@@ -134,7 +283,7 @@ function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onS
       }
 
       // Chat intent — normal brain response.
-      const res = await sendDirectChat(text, convRef.current);
+      const res = await sendDirectChat(fullText, convRef.current);
       const reply = res?.reply || res?.message || res?.text || 'Hmm, empty reply. Try again?';
       setMessages((m) => [...m, { role: 'assistant', text: reply }]);
       // Avatar SPEAKS the reply with a real voice + lip-sync, then idles.
@@ -193,7 +342,10 @@ function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onS
         )}
         <div ref={bottomRef} />
       </div>
-      <div className="sg-chat-input">
+      <AttachChips files={files} onRemove={removeFile} />
+      <div className="sg-chat-input inf-input-row">
+        <ModeDropdown mode={mode} setMode={setMode} />
+        <AttachButton onPick={addFiles} />
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -201,7 +353,7 @@ function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onS
           placeholder="Message Infinity AI…"
           disabled={sending}
         />
-        <button onClick={send} disabled={sending || !input.trim()} aria-label="Send">
+        <button onClick={send} disabled={sending || (!input.trim() && !files.length)} aria-label="Send">
           {sending ? <Loader2 size={17} className="sg-spin" /> : <Send size={17} />}
         </button>
       </div>
@@ -211,22 +363,33 @@ function ChatPane({ mode, initialConversationId, onAvatarState, avatarVoice, onS
 
 /* ── Plan mode ─────────────────────────────────────────────────────────── */
 
-function PlanPane() {
+function PlanPane({ mode, setMode }) {
   const conversationId = useConversationId('plan');
   const [input, setInput] = useState('');
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [files, setFiles] = useState([]); // MVP attachments (names appended to the instruction)
+
+  const addFiles = (fileList) => {
+    const picked = Array.from(fileList || []).filter((f) => f.size >= 0);
+    if (!picked.length) return;
+    setFiles((prev) => [...prev, ...picked].slice(0, 10));
+  };
+  const removeFile = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
   const run = async () => {
     const instruction = input.trim();
-    if (!instruction || loading) return;
+    const suffix = fileSuffix(files);
+    if ((!instruction && !files.length) || loading) return;
+    const full = instruction + suffix;
     setLoading(true);
     setError('');
     try {
-      const res = await planWithInfinity(instruction, conversationId);
+      const res = await planWithInfinity(full, conversationId);
       if (!res?.plan?.steps?.length) throw new Error('The planner returned no steps.');
       setPlan(res.plan);
+      setFiles([]);
     } catch (err) {
       setError(err.message || 'Planning failed.');
       setPlan(null);
@@ -238,7 +401,10 @@ function PlanPane() {
   return (
     <div className="sg-plan">
       <div className="sg-plan-input">
-        <div className="sg-chat-input">
+        <AttachChips files={files} onRemove={removeFile} />
+        <div className="sg-chat-input inf-input-row">
+          <ModeDropdown mode={mode} setMode={setMode} />
+          <AttachButton onPick={addFiles} />
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -246,7 +412,7 @@ function PlanPane() {
             placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
             disabled={loading}
           />
-          <button onClick={run} disabled={loading || !input.trim()} aria-label="Make plan">
+          <button onClick={run} disabled={loading || (!input.trim() && !files.length)} aria-label="Make plan">
             {loading ? <Loader2 size={17} className="sg-spin" /> : <ClipboardList size={17} />}
           </button>
         </div>
@@ -290,7 +456,7 @@ function PlanPane() {
 
 /* ── Build mode ────────────────────────────────────────────────────────── */
 
-function BuildPane() {
+function BuildPane({ mode, setMode }) {
   const conversationId = useConversationId('build');
   const [input, setInput] = useState('');
   const [build, setBuild] = useState(null);
@@ -390,7 +556,37 @@ function BuildPane() {
 
   return (
     <div className="sg-build">
-      <div className="sg-chat-input" style={{ maxWidth: 760 }}>
+      {attached.length > 0 && (
+        <div className="sg-attach-chips" style={{ maxWidth: 760, margin: '0 auto 8px' }}>
+          {attached.map((a) => (
+            <span key={a.path} className="sg-chip">
+              <FileCode2 size={13} />
+              <span className="sg-chip-name" title={a.path}>{a.name}</span>
+              <span className="sg-tiny">{(a.size / 1024).toFixed(1)} KB</span>
+              <button
+                className="sg-chip-x"
+                onClick={() => removeAttached(a.path)}
+                aria-label={`Remove ${a.name}`}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="sg-chat-input inf-input-row" style={{ maxWidth: 760 }}>
+        <ModeDropdown mode={mode} setMode={setMode} />
+        <button
+          type="button"
+          className="inf-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || loading}
+          title="Attach files from your machine"
+          aria-label="Attach files"
+        >
+          {uploading ? <Loader2 size={15} className="sg-spin" /> : <Plus size={17} />}
+        </button>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -403,17 +599,8 @@ function BuildPane() {
         </button>
       </div>
 
-      {/* ── Attach local files / folders as brain context ── */}
+      {/* ── Attach a whole folder as brain context ── */}
       <div className="sg-attach-row" style={{ maxWidth: 760, margin: '10px auto 0' }}>
-        <button
-          className="sg-btn sg-btn-ghost sg-btn-sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || loading}
-          title="Attach files from your machine"
-        >
-          {uploading ? <Loader2 size={14} className="sg-spin" /> : <Paperclip size={14} />}
-          <span>Attach files</span>
-        </button>
         <button
           className="sg-btn sg-btn-ghost sg-btn-sm"
           onClick={() => folderInputRef.current?.click()}
@@ -442,25 +629,6 @@ function BuildPane() {
           onChange={(e) => handlePickedFiles(e.target.files)}
         />
       </div>
-
-      {attached.length > 0 && (
-        <div className="sg-attach-chips" style={{ maxWidth: 760, margin: '8px auto 0' }}>
-          {attached.map((a) => (
-            <span key={a.path} className="sg-chip">
-              <FileCode2 size={13} />
-              <span className="sg-chip-name" title={a.path}>{a.name}</span>
-              <span className="sg-tiny">{(a.size / 1024).toFixed(1)} KB</span>
-              <button
-                className="sg-chip-x"
-                onClick={() => removeAttached(a.path)}
-                aria-label={`Remove ${a.name}`}
-              >
-                <X size={12} />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
 
       <p className="sg-small" style={{ textAlign: 'center' }}>
         <ShieldCheck size={12} style={{ verticalAlign: -1 }} /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
@@ -513,7 +681,7 @@ function BuildPane() {
 /* The agent loop lives server-side (POST /computer-tasks + SSE). The brain
    reasons one verified step at a time — no canned plans, no templates. */
 
-function ControlPane() {
+function ControlPane({ mode, setMode }) {
   const conversationId = useConversationId('control');
   const backendMode = getBackendMode();
   const [computer, setComputer] = useState(null);
@@ -532,8 +700,16 @@ function ControlPane() {
   const [askQ, setAskQ] = useState(null);
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState('');
+  const [files, setFiles] = useState([]); // MVP attachments (names appended to the command)
   const unsubRef = useRef(null);
   const feedEndRef = useRef(null);
+
+  const addFiles = (fileList) => {
+    const picked = Array.from(fileList || []).filter((f) => f.size >= 0);
+    if (!picked.length) return;
+    setFiles((prev) => [...prev, ...picked].slice(0, 10));
+  };
+  const removeFile = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
   const running = Boolean(taskId) && !['completed', 'failed', 'cancelled'].includes(taskStatus);
 
@@ -578,16 +754,19 @@ function ControlPane() {
 
   const start = async () => {
     const instruction = input.trim();
-    if (!instruction || running) return;
+    const suffix = fileSuffix(files);
+    if ((!instruction && !files.length) || running) return;
+    const full = instruction + suffix;
     setError('');
     setFeed([]);
     setAskQ(null);
     setAnswer('');
     unsubRef.current?.(); unsubRef.current = null;
     try {
-      const res = await createComputerTask(instruction, conversationId);
+      const res = await createComputerTask(full, conversationId);
       setTaskId(res.taskId);
       setTaskStatus(res.taskStatus || 'running');
+      setFiles([]);
       pushFeed({ __sseType: 'task.created', level: 'INFO', message: `Task accepted — the brain is thinking…` });
       unsubRef.current = subscribeToComputerTaskEvents(res.taskId, {
         onEvent: handleEvent,
@@ -650,7 +829,10 @@ function ControlPane() {
         and you watch it think live below. Nothing is canned: the brain composes every word itself.
       </p>
 
-      <div className="sg-chat-input" style={{ maxWidth: 760 }}>
+      <AttachChips files={files} onRemove={removeFile} />
+      <div className="sg-chat-input inf-input-row" style={{ maxWidth: 760 }}>
+        <ModeDropdown mode={mode} setMode={setMode} />
+        <AttachButton onPick={addFiles} />
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -663,7 +845,7 @@ function ControlPane() {
             <XCircle size={17} />
           </button>
         ) : (
-          <button onClick={start} disabled={!input.trim()} aria-label="Start">
+          <button onClick={start} disabled={!input.trim() && !files.length} aria-label="Start">
             <Play size={17} />
           </button>
         )}
@@ -775,6 +957,14 @@ export function InfinityAI() {
   const [voiceOn, setVoiceOn] = useState(true);
   // Voice follows gender: female → aria, male → kai
   const avatarVoice = avatarGender === 'female' ? 'aria' : 'kai';
+  // Avatar side panel: open by default on desktop, closed on small screens.
+  const [panelOpen, setPanelOpen] = useState(
+    () => (typeof window !== 'undefined' ? window.innerWidth > 900 : true)
+  );
+
+  const avatarStatusLabel = {
+    idle: 'Idle', thinking: 'Thinking…', speaking: 'Speaking…', listening: 'Listening…',
+  }[avatarState] || 'Idle';
 
   // Real lip-sync comes from the audio amplitude via onSpeakAmplitude.
   // When voice is muted, fall back to a gentle simulated mouth motion.
@@ -788,77 +978,132 @@ export function InfinityAI() {
     <div className="inf-new">
       <DarkVeil intensity={0.7} />
 
-      {/* Avatar header */}
-      <div className="inf-avatar-head">
-        <Avatar
-          gender={avatarGender}
-          state={avatarState}
-          speakAmplitude={speakAmp}
-          size={110}
-        />
-        <div className="inf-avatar-info">
+      {/* Top bar: title + backend badge + panel toggle */}
+      <div className="inf-topbar">
+        <div className="inf-topbar-main">
           <DecryptedText text="Infinity AI" className="inf-title" as="h2" />
           <p className="inf-subtitle">{active.hint}</p>
-          <div className="inf-gender-toggle" role="group" aria-label="Avatar appearance">
-            {['female', 'male'].map((g) => (
-              <button
-                key={g}
-                className={`inf-gender-btn${avatarGender === g ? ' inf-active' : ''}`}
-                onClick={() => setAvatarGender(g)}
-              >
-                {g === 'female' ? '👩' : '👨'} {g}
-              </button>
-            ))}
-            <button
-              className={`inf-gender-btn${voiceOn ? ' inf-active' : ''}`}
-              onClick={() => setVoiceOn((v) => !v)}
-              title={voiceOn ? 'Mute voice' : 'Unmute voice'}
-            >
-              {voiceOn ? '🔊' : '🔇'} voice
-            </button>
+        </div>
+        <div className="inf-topbar-actions">
+          <div className="inf-backend-badge">
+            <Cpu size={12} /> {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
           </div>
-        </div>
-        <div className="inf-backend-badge">
-          <Cpu size={12} /> {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
+          <button
+            className="inf-panel-toggle"
+            onClick={() => setPanelOpen((o) => !o)}
+            title={panelOpen ? 'Hide avatar panel' : 'Show avatar panel'}
+            aria-label="Toggle avatar panel"
+            aria-expanded={panelOpen}
+          >
+            {panelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
+          </button>
         </div>
       </div>
 
-      {/* Mode content */}
-      <div className="inf-body">
-        {mode === 'control' ? <ControlPane key="control" />
-          : mode === 'plan' ? <PlanPane key="plan" />
-          : mode === 'build' ? <BuildPane key="build" />
-          : <ChatPane key={paneKey} mode={mode} initialConversationId={navState.conversationId}
-              onAvatarState={setAvatarState} avatarVoice={voiceOn ? avatarVoice : null}
-              onSpeakAmplitude={setSpeakAmp} />}
+      <div className="inf-layout">
+        {/* Mode content */}
+        <div className="inf-body">
+          {mode === 'control' ? <ControlPane key="control" mode={mode} setMode={setMode} />
+            : mode === 'plan' ? <PlanPane key="plan" mode={mode} setMode={setMode} />
+            : mode === 'build' ? <BuildPane key="build" mode={mode} setMode={setMode} />
+            : <ChatPane key={paneKey} mode={mode} setMode={setMode} initialConversationId={navState.conversationId}
+                onAvatarState={setAvatarState} avatarVoice={voiceOn ? avatarVoice : null}
+                onSpeakAmplitude={setSpeakAmp} />}
+        </div>
+
+        {/* Collapsible avatar side panel */}
+        <aside
+          className={`inf-sidepanel${panelOpen ? '' : ' inf-closed'}`}
+          aria-label="Avatar panel"
+          aria-hidden={!panelOpen}
+        >
+          {panelOpen ? (
+            <div className="inf-side-full">
+              <div className="inf-side-avatar">
+                <Avatar
+                  gender={avatarGender}
+                  state={avatarState}
+                  speakAmplitude={speakAmp}
+                  size={110}
+                />
+                <span className={`inf-side-state inf-state-${avatarState}`}>
+                  <span className="inf-state-dot" />
+                  {avatarStatusLabel}
+                </span>
+              </div>
+              <div className="inf-gender-toggle" role="group" aria-label="Avatar appearance">
+                {['female', 'male'].map((g) => (
+                  <button
+                    key={g}
+                    className={`inf-gender-btn${avatarGender === g ? ' inf-active' : ''}`}
+                    onClick={() => setAvatarGender(g)}
+                  >
+                    {g === 'female' ? '👩' : '👨'} {g}
+                  </button>
+                ))}
+                <button
+                  className={`inf-gender-btn${voiceOn ? ' inf-active' : ''}`}
+                  onClick={() => setVoiceOn((v) => !v)}
+                  title={voiceOn ? 'Mute voice' : 'Unmute voice'}
+                >
+                  {voiceOn ? '🔊' : '🔇'} voice
+                </button>
+              </div>
+              <p className="inf-side-hint">
+                Your AI companion — it speaks every reply aloud, with live lip-sync.
+              </p>
+            </div>
+          ) : (
+            <div className="inf-side-rail">
+              <button
+                className="inf-rail-avatar"
+                onClick={() => setPanelOpen(true)}
+                title="Show avatar panel"
+                aria-label="Show avatar panel"
+              >
+                <Avatar
+                  gender={avatarGender}
+                  state={avatarState}
+                  speakAmplitude={speakAmp}
+                  size={40}
+                />
+              </button>
+              <button
+                className="inf-rail-expand"
+                onClick={() => setPanelOpen(true)}
+                title="Expand panel"
+                aria-label="Expand avatar panel"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+            </div>
+          )}
+        </aside>
       </div>
 
-      {/* Bottom dock: [+] [mode pills] */}
-      <div className="inf-dock">
-        <button className="inf-dock-plus" title="Attach image or file" aria-label="Attach">
-          <Plus size={18} />
+      {/* Mobile: backdrop + floating reopen button when the drawer is closed */}
+      {panelOpen && (
+        <div
+          className="inf-side-backdrop"
+          onClick={() => setPanelOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      {!panelOpen && (
+        <button
+          className="inf-float-avatar"
+          onClick={() => setPanelOpen(true)}
+          title="Show avatar panel"
+          aria-label="Show avatar panel"
+        >
+          <Avatar
+            gender={avatarGender}
+            state={avatarState}
+            speakAmplitude={speakAmp}
+            size={40}
+          />
         </button>
-        <div className="inf-dock-modes" role="tablist" aria-label="Infinity AI modes">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              role="tab"
-              aria-selected={mode === m.id}
-              className={`inf-dock-mode${mode === m.id ? ' inf-active' : ''}`}
-              onClick={() => setMode(m.id)}
-              title={m.hint}
-            >
-              <m.icon size={15} />
-              <span>{m.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="inf-foot">
-        <Sparkles size={12} />
-        <span>Powered by your vision brain — change it in Models.</span>
-      </div>
+      )}
     </div>
   );
 }
