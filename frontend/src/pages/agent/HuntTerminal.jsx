@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { TerminalSquare } from 'lucide-react';
+import { TerminalSquare, ArrowDown } from 'lucide-react';
 import { getJobActivity, subscribeToJobEvents } from '../../services/api';
+import './HuntTerminal.css';
 
 function lineText(ev) {
   if (typeof ev === 'string') return ev;
@@ -14,10 +15,17 @@ function lineText(ev) {
 /**
  * HuntTerminal — live terminal view of what the agent is doing.
  * Backfills from the job activity log, then streams live SSE events.
+ * Auto-scroll sticks to the bottom only while the user is already there;
+ * a "Latest" jump button appears when they scroll up to inspect output.
  */
 export function HuntTerminal({ jobId }) {
   const [lines, setLines] = useState([]);
+  const [follow, setFollow] = useState(true);
+  const bodyRef = useRef(null);
   const bottomRef = useRef(null);
+  const [reducedMotion] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
 
   const push = useCallback((incoming) => {
     setLines((prev) => {
@@ -43,17 +51,43 @@ export function HuntTerminal({ jobId }) {
     return () => { cancelled = true; unsubscribe?.(); };
   }, [jobId, push]);
 
+  const checkFollow = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    setFollow(el.scrollHeight - el.scrollTop - el.clientHeight < 40);
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [lines]);
+    if (follow) {
+      bottomRef.current?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'end' });
+    }
+  }, [lines, follow, reducedMotion]);
 
   return (
     <section className="sg-terminal" aria-label="Hunt terminal">
       <div className="sg-terminal-head">
-        <TerminalSquare size={13} />
+        <TerminalSquare size={13} aria-hidden="true" />
         <span>Live terminal</span>
+        {!follow && lines.length > 0 && (
+          <button
+            type="button"
+            className="sg-terminal-jump"
+            onClick={() => setFollow(true)}
+            aria-label="Jump to latest terminal output"
+          >
+            <ArrowDown size={13} aria-hidden="true" /> Latest
+          </button>
+        )}
       </div>
-      <div className="sg-terminal-body">
+      <div
+        className="sg-terminal-body"
+        ref={bodyRef}
+        onScroll={checkFollow}
+        role="log"
+        aria-live="polite"
+        aria-label="Agent activity log"
+        tabIndex={0}
+      >
         {lines.length === 0 && <div className="sg-terminal-dim">Waiting for agent output…</div>}
         {lines.map((l, i) => (
           <div key={i} className="sg-terminal-line">{l}</div>

@@ -2,7 +2,11 @@
  * ReportReader styles.
  */
 
-.sg-report-reader { max-width: 860px; padding-bottom: 32px; }
+.sg-report-reader { max-width: 860px; padding-bottom: 32px; animation: sg-reader-in 0.4s ease both; }
+@keyframes sg-reader-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
 .sg-reader-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .sg-reader-head { margin-bottom: 24px; }
 .sg-reader-head h1 {
@@ -10,14 +14,21 @@
   font-family: var(--sg-mono); color: var(--sg-cyan); word-break: break-all;
 }
 .sg-reader-meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.sg-reader-sevs { display: inline-flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 .sg-markdown-body {
   background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
   border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-lg);
   padding: 36px; line-height: 1.75; font-size: 0.96rem; color: var(--sg-text);
 }
-.sg-markdown-body h1, .sg-markdown-body h2, .sg-markdown-body h3 { letter-spacing: -0.02em; margin-top: 1.6em; }
-.sg-markdown-body h1:first-child, .sg-markdown-body h2:first-child { margin-top: 0; }
+.sg-markdown-body h1, .sg-markdown-body h2, .sg-markdown-body h3 { letter-spacing: -0.02em; margin: 1.6em 0 0.5em; }
+.sg-markdown-body h1:first-child, .sg-markdown-body h2:first-child, .sg-markdown-body ul:first-child { margin-top: 0; }
+.sg-markdown-body p { margin: 0 0 1em; }
+.sg-markdown-body p:last-child, .sg-markdown-body li:last-child { margin-bottom: 0; }
+.sg-markdown-body ul, .sg-markdown-body ol { margin: 0 0 1.1em; padding-left: 1.6em; }
+.sg-markdown-body li { margin-bottom: 0.4em; }
+.sg-markdown-body strong { color: #fff; }
+.sg-markdown-body hr { border: 0; border-top: 1px solid var(--sg-line-soft); margin: 1.8em 0; }
 .sg-markdown-body code { font-family: var(--sg-mono); font-size: 0.86em; background: rgba(255,255,255,0.07); padding: 2px 6px; border-radius: 6px; }
 .sg-markdown-body pre { background: #0a0d14; border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md); padding: 18px; overflow-x: auto; }
 .sg-markdown-body pre code { background: none; padding: 0; }
@@ -33,6 +44,12 @@
 
 @media (max-width: 760px) {
   .sg-markdown-body { padding: 22px 18px; }
+  .sg-reader-head h1 { font-size: 1.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-report-reader { animation: none; }
+  .sg-finding-card { transition: none; }
 }
 
 /* ── W5 proof-report additions ─────────────────────────────────────────── */
@@ -50,7 +67,9 @@
 .sg-finding-card {
   border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md);
   padding: 16px 18px; background: rgba(255,255,255,0.02);
+  transition: border-color 0.2s ease, transform 0.2s ease;
 }
+.sg-finding-card:hover { border-color: var(--sg-line); }
 .sg-finding-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .sg-cvss-vector { display: inline-block; font-family: var(--sg-mono); font-size: 0.75rem; color: var(--sg-text-3); margin-bottom: 8px; word-break: break-all; }
 .sg-finding-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
