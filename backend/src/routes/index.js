@@ -96,6 +96,12 @@ export function createRoutes({ controllers }) {
   router.get('/jobs/:id/posture', controllers.jobs.posture);
   router.get('/jobs/:id/diary', controllers.jobs.diary);
 
+  // ─── Recursive self-learning — the agent's evolution stats (local-only) ──
+  router.get('/agent/evolution', asyncHandler(async (req, res) => {
+    const { getEvolutionStats } = await import('../engines/recursiveLearner.js');
+    res.json({ ok: true, evolution: getEvolutionStats() });
+  }));
+
   // ─── Hunt records — report history (hybrid storage: DB artifacts) ──
   // Completed hunts' final reports, versioned per target. Powers target
   // dedup (POST /jobs returns these instantly) + the past-reports browser.

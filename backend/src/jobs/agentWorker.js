@@ -1801,6 +1801,33 @@ export class AgentWorker {
 
     await this.assessmentModel.setStatus(job.assessmentId, 'completed').catch?.(() => {});
     await this.jobModel.transition(job.id, 'completed', { brainStatus: 'idle', waitingReason: null });
+
+    // ── Recursive self-learning (LOCAL ONLY) ──────────────────────────
+    // The agent teaches itself from every hunt. Learnings stay in
+    // ~/.darkmatter/recursive/ on the user's own machine — never cloud.
+    // Each hunt makes the next one smarter: payloads evolve, strategies
+    // sharpen. Best-effort: learning must never fail a completed hunt.
+    try {
+      const { observeHunt } = await import('../engines/recursiveLearner.js');
+      const findings = this.findingModel ? await this.findingModel.list(job.assessmentId).catch(() => []) : [];
+      const toolExecs = this.toolExecutionModel ? await this.toolExecutionModel.list(job.assessmentId).catch(() => []) : [];
+      const learned = observeHunt({
+        target: job.target,
+        techStack: job.techStack || [],
+        findings: findings.map((f) => ({ type: f.type || f.category, payload: f.evidence?.payload })),
+        payloadsTried: toolExecs.map((t) => ({ payload: t.arguments?.payload || t.tool })),
+        durationMs: Date.now() - new Date(job.startedAt || job.createdAt).getTime(),
+      });
+      await this.publish(job.id, {
+        type: 'agent.evolved',
+        level: 'INFO',
+        message: `Agent evolved from this hunt: ${learned.newVariants} new payload variants bred, ${learned.totalPayloads} in arsenal across ${learned.huntsObserved} hunts`,
+        data: learned,
+      });
+    } catch (error) {
+      this.logger.warn?.(`[agent-worker] recursive learning failed for job ${job.id}: ${error.message}`);
+    }
+
     await this.publish(job.id, {
       type: 'job.completed',
       level: 'INFO',
