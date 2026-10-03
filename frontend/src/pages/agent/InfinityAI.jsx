@@ -30,7 +30,8 @@ import {
   Hammer, SlidersHorizontal, Cpu, FileText, CheckCircle2, XCircle,
   FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
   ShieldCheck, Play, Paperclip, FolderOpen, X, Plus,
-  ChevronDown, Check, PanelRightOpen, PanelRightClose, ChevronsLeft
+  ChevronDown, Check, PanelRightOpen, PanelRightClose, ChevronsLeft,
+  Mic, MicOff
 } from 'lucide-react';
 import { sendDirectChat, parseActionIntent, getProviders, listJobs, getComputerStatus, getInfiniteHistory } from '../../services/api';
 import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
@@ -200,6 +201,70 @@ function AttachChips({ files, onRemove }) {
   );
 }
 
+/* ── Shared: microphone voice input (Web Speech API, free, on-device) ──── */
+/* Transcribes speech into the input box. No server needed — the browser
+   handles recognition. Gracefully hides when unsupported. */
+
+function MicButton({ onTranscript, disabled = false, onListeningChange }) {
+  const [listening, setListening] = useState(false);
+  const [supported, setSupported] = useState(false);
+  const recRef = useRef(null);
+
+  useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    setSupported(!!SR);
+    return () => { try { recRef.current?.abort(); } catch { /* noop */ } };
+  }, []);
+
+  useEffect(() => {
+    onListeningChange?.(listening);
+  }, [listening, onListeningChange]);
+
+  const toggle = () => {
+    if (listening) {
+      try { recRef.current?.stop(); } catch { /* noop */ }
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    recRef.current = rec;
+    rec.lang = navigator.language || 'en-US';
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.onresult = (e) => {
+      let finalText = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      }
+      if (finalText) onTranscript(finalText.trim());
+    };
+    rec.onend = () => { setListening(false); recRef.current = null; };
+    rec.onerror = () => { setListening(false); recRef.current = null; };
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  };
+
+  if (!supported) return null;
+  return (
+    <button
+      type="button"
+      className={`inf-mic-btn${listening ? ' inf-listening' : ''}`}
+      onClick={toggle}
+      title={listening ? 'Stop listening' : 'Voice input'}
+      aria-label={listening ? 'Stop voice input' : 'Start voice input'}
+      disabled={disabled}
+    >
+      {listening ? <MicOff size={17} /> : <Mic size={17} />}
+      {listening && <span className="inf-mic-pulse" aria-hidden="true" />}
+    </button>
+  );
+}
+
 function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarVoice, onSpeakAmplitude }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
@@ -353,6 +418,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
           placeholder="Message Infinity AI…"
           disabled={sending}
         />
+        <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={sending} />
         <button onClick={send} disabled={sending || (!input.trim() && !files.length)} aria-label="Send">
           {sending ? <Loader2 size={17} className="sg-spin" /> : <Send size={17} />}
         </button>
