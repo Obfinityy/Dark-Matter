@@ -23,6 +23,9 @@ const MAX_ITERATIONS = 25;
 const MAX_HISTORY_ENTRIES = 20;
 const SHELL_TIMEOUT_MS = 30_000;
 const OBSERVATION_LIMIT = 2000;
+// If the brain does not respond within this window the run degrades to
+// `waiting` instead of hanging forever (e.g. unreachable remote brain).
+const BRAIN_TIMEOUT_MS = 120_000;
 
 export const CREW_EVENT_TYPES = Object.freeze([
   'thinking',
@@ -208,7 +211,25 @@ export class CrewWorker {
 
         this._emit(run, 'thinking', `${crew.name} is thinking… (step ${i + 1})`);
 
-        const text = await provider.generate(messages, { maxTokens: 2000 });
+        let text;
+        try {
+          text = await this._generateWithTimeout(provider, messages, controller.signal);
+        } catch (err) {
+          if (err?.code === 'BRAIN_TIMEOUT' || err?.name === 'AbortError') {
+            this.logger.warn?.(`[crewWorker] brain timed out for ${crew.name}; degrading to waiting.`);
+            run.status = 'waiting';
+            try {
+              await this.crewService.setStatus(run.crewId, 'waiting_brain');
+            } catch { /* best effort */ }
+            this._emit(
+              run,
+              'waiting',
+              `${crew.name}'s brain is not responding — check the Models page (Kaggle link / local model). The run is parked safely and will resume on your next message.`
+            );
+            return;
+          }
+          throw err;
+        }
         controller.signal.throwIfAborted();
 
         const parsed = this._parseBrainResponse(String(text ?? ''));
@@ -282,6 +303,52 @@ export class CrewWorker {
   }
 
   // ------------------------------------------------------------ prompts
+
+  /**
+   * Call the brain with a hard timeout so a hung provider degrades to
+   * `waiting` instead of stalling the run forever. The abort signal also
+   * wins the race when the user stops the run.
+   * @private
+   */
+  _generateWithTimeout(provider, messages, signal) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        const err = new Error('Brain generate timed out');
+        err.code = 'BRAIN_TIMEOUT';
+        reject(err);
+      }, BRAIN_TIMEOUT_MS);
+      const onAbort = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+      };
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener('abort', onAbort, { once: true });
+      Promise.resolve()
+        .then(() => provider.generate(messages, { maxTokens: 2000 }))
+        .then((text) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          signal.removeEventListener('abort', onAbort);
+          resolve(text);
+        })
+        .catch((err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          signal.removeEventListener('abort', onAbort);
+          reject(err);
+        });
+    });
+  }
 
   /**
    * @private
