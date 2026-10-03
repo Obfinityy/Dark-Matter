@@ -132,13 +132,6 @@
 .sg-spin-slow { animation: sg-rotate 3s linear infinite; }
 @keyframes sg-rotate { to { transform: rotate(360deg); } }
 
-/* ── HuntTerminal ── */
-.sg-terminal { border: 1px solid var(--sg-line-soft); border-radius: 14px; overflow: hidden; margin: 14px 0; background: #0a0c14; }
-.sg-terminal-head { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; color: var(--sg-text-3); border-bottom: 1px solid var(--sg-line-soft); }
-.sg-terminal-body { max-height: 220px; overflow-y: auto; padding: 10px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; line-height: 1.55; color: #9fe8c1; }
-.sg-terminal-line { white-space: pre-wrap; word-break: break-word; }
-.sg-terminal-dim { color: var(--sg-text-3); }
-
 /* ── HuntChatPanel log ── */
 .sg-chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; padding: 4px 2px; }
 .sg-chat-hint { font-size: 0.82rem; color: var(--sg-text-3); }
