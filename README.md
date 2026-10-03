@@ -72,6 +72,21 @@ Paste URL → Agent thinks → Recon → Attack surface → Hypotheses
 | 🔨 **Build** | The agent reads/edits real workspace files and builds for you |
 | 🎛️ **Infinity Control** | Command center — system status, brain, backend, hunts, models, all in one place |
 
+### 🎙️ Infinity Voice — the avatar speaks
+
+Every reply in Infinity AI is **spoken aloud** by a natural, human-like voice — with real lip-sync driven by the actual audio. Four voices (Aria, Aria Soft, Kai, Kai Deep), auto-matched to the avatar's gender. Fully offline, zero API cost.
+
+**One-time setup:**
+
+```bash
+cd backend/voice
+python3 -m venv .venv
+.venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/pip install -r requirements.txt
+```
+
+The backend starts the voice engine automatically on first use (~300MB model downloads once, then cached). Toggle voice with the 🔊 button in the avatar header.
+
 ---
 
 ## 🚀 Quick start (2 minutes)

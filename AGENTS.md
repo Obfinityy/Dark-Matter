@@ -76,7 +76,30 @@ GET  /api/v1/computer-tasks/:id/events # SSE event stream (?accessToken=)
 POST /api/v1/jobs                      # Start bug bounty hunt
 POST /api/v1/jobs/:id/ask              # Mid-hunt chat ("kya kar raha hai?")
 GET  /api/v1/infinite/chat             # Infinity AI chat
+GET  /api/v1/voice/health              # Infinity Voice status
+GET  /api/v1/voice/voices              # Available voices (aria, aria2, kai, kai2)
+POST /api/v1/voice/speak               # { text, voice? } → audio/wav (24kHz mono)
 ```
+
+## Infinity Voice (neural TTS)
+
+The Infinity AI avatar speaks every reply with a natural voice. Architecture:
+
+```
+frontend/src/services/voice.js          # fetch WAV → Web Audio API → live amplitude → lip-sync
+  → POST /api/v1/voice/speak
+    → backend/src/services/voiceManager.js   # spawns/manages Python service
+      → backend/voice/voice_service.py       # HTTP server on 127.0.0.1:4120
+        → Kokoro-82M (Apache-2.0, 82M params, CPU-friendly)
+```
+
+- **Branding**: always "Infinity Voice" — the underlying engine is an implementation detail, never user-facing.
+- **Voices**: `aria`/`aria2` (female), `kai`/`kai2` (male). Avatar gender toggle maps female→aria, male→kai.
+- **Setup** (one-time, user's machine): `cd backend/voice && python3 -m venv .venv && .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu && .venv/bin/pip install -r requirements.txt`
+- First `/speak` auto-starts the service; model downloads once (~300MB) then cached.
+- `voice_service.py` sanitizes `no_proxy` env (strips bracketed IPv6) — some sandboxes break httpx parsing.
+- Frontend falls back to browser `speechSynthesis` if the service isn't installed.
+- Chat replies use a speakable system prompt (short, no markdown tables/code blocks) in `healthController.js` `directChat`.
 
 ## The 7 Elite Engines
 
@@ -119,10 +142,14 @@ node --test tests/*.test.js    # Unit tests (261 pass individually)
 - **Commits**: User controls GitHub pushes. Work locally; push only when told.
 - **Security**: Hunt only authorized targets. No destructive testing. Minimal PoCs.
 
-## Current Status (2 Oct 2026)
+## Current Status (3 Oct 2026)
 
 - ✅ 7 elite engines built and tested
 - ✅ Gradio 6.x predict API support
 - ✅ Control mode wiring (frontend → backend → SSE)
+- ✅ Model downloads fixed (verified HF URLs, per-slot localhost servers)
+- ✅ Full frontend redesign (fx design system: DarkVeil, SpotlightCard, DecryptedText, ElectricBorder, Bento)
+- ✅ Infinity AI avatar (male/female) with action intents + bottom mode dock
+- ✅ Infinity Voice — built-in neural TTS, avatar speaks with real lip-sync
 - ⏳ Real Windows E2E test pending (user runs via Anti Gravity)
 - ⏳ Infinity Agent (renamed Agent S) integration in progress
