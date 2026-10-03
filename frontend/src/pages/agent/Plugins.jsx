@@ -66,20 +66,20 @@ export function Plugins() {
 
       <div className="sg-plugins-grid">
         {FAMILIES.map((f) => (
-          <article key={f.id} className="sg-card sg-card-pad sg-plugin-card">
-            <span className="sg-plugin-icon"><f.icon size={22} /></span>
+          <article key={f.id} className={`sg-card sg-card-pad sg-plugin-card${f.disabled ? ' sg-soon' : ''}`}>
+            <span className="sg-plugin-icon" aria-hidden="true"><f.icon size={22} /></span>
             <div className="sg-plugin-top">
               <h3 className="sg-h2">{f.name}</h3>
-              <span className={`sg-pill ${f.status === 'Live' ? 'sg-pill-go' : ''}`}>{f.status}</span>
+              <span className={`sg-pill ${f.status === 'Live' ? 'sg-pill-go' : ''}`}><span className="dot" aria-hidden="true"></span>{f.status}</span>
             </div>
             <p className="sg-plugin-tagline">{f.tagline}</p>
             <p className="sg-small">{f.description}</p>
             {f.to ? (
-              <Link to={f.to} className="sg-btn sg-btn-ghost sg-plugin-cta">
+              <Link to={f.to} className="sg-btn sg-btn-ghost sg-plugin-cta" aria-label={`${f.cta} — ${f.name}`}>
                 {f.cta} <ArrowRight size={15} />
               </Link>
             ) : (
-              <button className="sg-btn sg-btn-ghost sg-plugin-cta" disabled>
+              <button className="sg-btn sg-btn-ghost sg-plugin-cta" disabled aria-disabled="true" title="Coming soon">
                 {f.cta}
               </button>
             )}
