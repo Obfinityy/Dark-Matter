@@ -124,19 +124,22 @@ export function Settings() {
 
   return (
     <div className="sg-settings">
-      <h2 className="sg-h1" style={{ margin: "0 0 24px" }}>Settings</h2>
+      <h2 className="sg-h1 sg-settings-title">Settings</h2>
 
       {/* ── Backend ── */}
-      <section className="sg-card sg-card-pad">
-        <h3 className="sg-h2" style={{ margin: "0 0 10px" }}>Backend</h3>
+      <section className="sg-card sg-card-pad" aria-labelledby="sg-set-backend">
+        <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-backend">Backend</h3>
         <p className="sg-body">
           Where should the app talk to? Cloud is always on. Localhost gives you
           the full power — hunts, computer control, local models.
         </p>
-        <div className="sg-backend-switch">
+        <div className="sg-backend-switch" role="group" aria-label="Backend mode">
           <button
+            type="button"
             className={`sg-backend-opt${mode === BACKEND_MODES.VERCEL ? ' sg-active' : ''}`}
+            aria-pressed={mode === BACKEND_MODES.VERCEL}
             onClick={() => switchMode(BACKEND_MODES.VERCEL)}
+            disabled={testing}
           >
             <Cloud size={22} />
             <span>Cloud</span>
@@ -144,7 +147,9 @@ export function Settings() {
             {mode === BACKEND_MODES.VERCEL && <Check size={16} className="sg-check" />}
           </button>
           <button
+            type="button"
             className={`sg-backend-opt${mode === BACKEND_MODES.LOCALHOST ? ' sg-active' : ''}`}
+            aria-pressed={mode === BACKEND_MODES.LOCALHOST}
             onClick={() => switchMode(BACKEND_MODES.LOCALHOST)}
             disabled={testing}
           >
@@ -161,7 +166,7 @@ export function Settings() {
         )}
 
         {mode === BACKEND_MODES.VERCEL && (
-          <p className="sg-small" style={{ marginTop: 10 }}>
+          <p className="sg-small sg-mode-hint">
             ☁️ Cloud backend se directly connected: <code>{getVercelBackendUrl()}</code>
             <br />URL dalne ki zaroorat nahi — ye built-in hai.
           </p>
@@ -177,21 +182,23 @@ export function Settings() {
           {testing ? <Loader2 size={15} className="sg-spin" /> : null}
           Test connection
         </button>
-        {testResult && !testResult.sessionMismatch && (
-          <p className={`sg-test-result ${testResult.ok ? 'ok' : 'fail'}`}>
-            {testResult.ok ? '✅' : '❌'} {testResult.message}
-          </p>
-        )}
+        <div aria-live="polite">
+          {testResult && !testResult.sessionMismatch && (
+            <p className={`sg-test-result ${testResult.ok ? 'ok' : 'fail'}`}>
+              {testResult.ok ? '✅' : '❌'} {testResult.message}
+            </p>
+          )}
+        </div>
         {testResult?.sessionMismatch && (
-          <div className="sg-test-result fail">
+          <div className="sg-test-result fail" role="alert">
             <p>⚠️ {testResult.message}</p>
-            <p className="sg-small" style={{ marginTop: 8 }}>
+            <p className="sg-small sg-mode-hint">
               Seamless switch ke liye: Vercel dashboard → backend project →
               Environment Variables me se <code>JWT_SECRET</code> copy karke apne{' '}
               <code>backend/.env</code> me daalo aur backend restart karo.
               Ya phir neeche se dobara login karo:
             </p>
-            <button className="sg-btn sg-btn-primary" onClick={handleRelogin} style={{ marginTop: 8 }}>
+            <button type="button" className="sg-btn sg-btn-primary sg-mismatch-actions" onClick={handleRelogin}>
               Logout karke dobara login karo
             </button>
           </div>
@@ -199,8 +206,8 @@ export function Settings() {
       </section>
 
       {/* ── Brain / Models ── */}
-      <section className="sg-card sg-card-pad">
-        <h3 className="sg-h2" style={{ margin: "0 0 10px", display: "flex", alignItems: "center", gap: 10 }}><Cpu size={18} /> Brain</h3>
+      <section className="sg-card sg-card-pad" aria-labelledby="sg-set-brain">
+        <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-brain"><Cpu size={18} aria-hidden="true" /> Brain</h3>
         <p className="sg-body">
           The same brain powers both Hunt and Infinity AI.
         </p>
@@ -212,25 +219,27 @@ export function Settings() {
             </p>
           </div>
         ) : (
-          <p className="sg-small">Loading brain info…</p>
+          <div className="sg-brain-skeleton" aria-hidden="true"><span /><span /></div>
         )}
         <a href="/agent/models" className="sg-btn sg-btn-ghost">Open Models →</a>
       </section>
 
       {/* ── Agent permissions ── */}
-      <section className="sg-card sg-card-pad">
-        <h3 className="sg-h2" style={{ margin: "0 0 10px", display: "flex", alignItems: "center", gap: 10 }}>
-          <ShieldCheck size={18} /> Agent permissions
+      <section className="sg-card sg-card-pad" aria-labelledby="sg-set-perms">
+        <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-perms">
+          <ShieldCheck size={18} aria-hidden="true" /> Agent permissions
         </h3>
         <p className="sg-body">
           How much freedom does the agent get? This is honored by every worker —
           hunt engine, computer control, and tool runners.
         </p>
-        <div className="sg-backend-switch">
+        <div className="sg-backend-switch" role="group" aria-label="Agent permission mode">
           {[PERMISSION_MODES.ASK, PERMISSION_MODES.FULL].map((m) => (
             <button
+              type="button"
               key={m}
               className={`sg-backend-opt${permissionMode === m ? ' sg-active' : ''}`}
+              aria-pressed={permissionMode === m}
               onClick={() => choosePermissionMode(m)}
               disabled={syncingPerms}
             >

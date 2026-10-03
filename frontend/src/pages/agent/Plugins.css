@@ -1,28 +1,79 @@
 /**
  * Plugins page styles — Singularity dark-luxe.
+ *
+ * Polish: fluid responsive grid, staggered entrance, icon wash hover,
+ * focus-visible rings, and a clear "coming soon" treatment for disabled
+ * plugin families.
  */
+.sg-plugins { padding-bottom: 24px; }
+
 .sg-plugins-head { margin-bottom: 28px; }
 .sg-plugins-head .sg-h1 { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; }
 
 .sg-plugins-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
   align-items: stretch;
 }
-.sg-plugin-card { display: flex; flex-direction: column; gap: 6px; }
+
+/* Staggered entrance (original; reuses the global sg-card-in keyframes). */
+.sg-plugins-grid > * { animation: sg-card-in 0.42s var(--sg-ease) both; }
+.sg-plugins-grid > *:nth-child(2) { animation-delay: 0.06s; }
+.sg-plugins-grid > *:nth-child(3) { animation-delay: 0.12s; }
+.sg-plugins-grid > *:nth-child(n+4) { animation-delay: 0.18s; }
+
+.sg-plugin-card {
+  display: flex; flex-direction: column; gap: 6px;
+  transition: border-color var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
+}
+.sg-plugin-card:hover {
+  border-color: rgba(129, 140, 248, 0.32);
+  transform: translateY(-3px);
+  box-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(129, 140, 248, 0.08);
+}
 .sg-plugin-icon {
-  width: 46px; height: 46px; border-radius: 14px;
+  width: 48px; height: 48px; border-radius: 15px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(129, 140, 248, 0.12); color: var(--sg-cyan);
-  margin-bottom: 8px;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.14), rgba(129, 140, 248, 0.14));
+  border: 1px solid rgba(129, 140, 248, 0.25);
+  color: var(--sg-cyan);
+  margin-bottom: 10px;
+  transition: transform var(--sg-fast), box-shadow var(--sg-fast);
+}
+.sg-plugin-card:hover .sg-plugin-icon {
+  transform: scale(1.06) rotate(-3deg);
+  box-shadow: 0 6px 20px -6px rgba(34, 211, 238, 0.5);
 }
 .sg-plugin-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sg-plugin-top .sg-h2 { margin: 0; }
 .sg-plugin-tagline { font-weight: 650; color: var(--sg-text); margin: 2px 0 0; }
 .sg-plugin-card .sg-small { flex: 1; }
-.sg-plugin-cta { margin-top: 14px; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; }
 
-@media (max-width: 900px) {
-  .sg-plugins-grid { grid-template-columns: 1fr; }
+.sg-plugin-cta {
+  margin-top: 16px; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.sg-plugin-cta:hover svg { transform: translateX(3px); }
+.sg-plugin-cta svg { transition: transform var(--sg-fast); }
+.sg-plugin-cta:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 3px;
+}
+.sg-plugin-cta:disabled, .sg-plugin-cta[aria-disabled="true"] {
+  opacity: 0.55; cursor: not-allowed; transform: none;
+}
+.sg-plugin-card.sg-soon { border-style: dashed; }
+.sg-plugin-card.sg-soon:hover { transform: none; box-shadow: none; }
+
+@media (max-width: 560px) {
+  .sg-plugins-grid { grid-template-columns: 1fr; gap: 16px; }
+  /* 44px touch targets for card CTAs on phones. */
+  .sg-plugin-cta { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-plugins-grid > * { animation: none; }
+  .sg-plugin-card:hover, .sg-plugin-card:hover .sg-plugin-icon { transform: none; }
+  .sg-plugin-cta:hover svg { transform: none; }
 }
