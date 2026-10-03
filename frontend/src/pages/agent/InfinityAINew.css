@@ -29,6 +29,7 @@
   -webkit-backdrop-filter: blur(12px);
   position: relative;
   overflow: hidden;
+  animation: sg-fade-up 0.5s var(--sg-ease) both;
 }
 
 .inf-topbar::before {
@@ -264,7 +265,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 9px 15px;
+  min-height: 40px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
@@ -344,6 +346,16 @@
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  transform-origin: bottom left;
+  animation: inf-dd-pop 0.22s var(--sg-ease) both;
+}
+
+@keyframes inf-dd-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inf-mode-dd-menu { animation: none; }
 }
 
 .inf-mode-dd-item {
@@ -352,6 +364,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 10px;
+  min-height: 44px;
   border-radius: 10px;
   border: none;
   background: transparent;

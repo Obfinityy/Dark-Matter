@@ -250,6 +250,7 @@ export function HuntView() {
               <button
                 className={`sg-btn sg-btn-quiet${explainer ? ' active' : ''}`}
                 onClick={() => setExplainer((v) => !v)}
+                aria-pressed={explainer}
                 title="Plain-language explanations for every finding"
               >
                 <Sparkles size={14} /> Plain language

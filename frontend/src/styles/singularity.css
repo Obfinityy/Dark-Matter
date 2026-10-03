@@ -20,6 +20,7 @@
   --sg-ink-1: #0a0d14;          /* page base */
   --sg-ink-2: #0e1219;          /* raised */
   --sg-ink-3: #131824;          /* cards */
+  --sg-panel: rgba(255, 255, 255, 0.028);  /* subtle panel wash */
 
   /* ── Text ── */
   --sg-text: #f2f5fa;
@@ -32,6 +33,7 @@
 
   /* ── Brand gradient (use sparingly) ── */
   --sg-cyan: #22d3ee;
+  --sg-accent: #22d3ee;         /* alias of --sg-cyan (used by model cards) */
   --sg-violet: #c084fc;
   --sg-indigo: #818cf8;
   --sg-gradient: linear-gradient(135deg, #22d3ee 0%, #3b82f6 55%, #0ea5e9 100%);
@@ -205,6 +207,15 @@
 
 /* ── Dividers ── */
 .sg-hr { border: none; border-top: 1px solid var(--sg-line-soft); margin: 0; }
+
+/* ── Alert banners (shared; used by Hunt, Models, Infinity AI, Auth) ── */
+.sg-auth-error {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--sg-danger-dim); border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--sg-danger); border-radius: var(--sg-r-md);
+  padding: 12px 16px; font-size: 0.88rem; font-weight: 500; line-height: 1.5;
+}
+.sg-auth-error svg { flex-shrink: 0; }
 
 /* ── Animations ── */
 @keyframes sg-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }

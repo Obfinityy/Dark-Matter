@@ -56,12 +56,7 @@
 .sg-field-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--sg-text-3); pointer-events: none; }
 .sg-field-input { padding-left: 42px !important; }
 
-.sg-auth-error {
-  display: flex; align-items: center; gap: 9px;
-  background: var(--sg-danger-dim); border: 1px solid rgba(248, 113, 113, 0.3);
-  color: var(--sg-danger); font-size: 0.87rem; font-weight: 500;
-  padding: 12px 14px; border-radius: var(--sg-r-md);
-}
+/* (alert banner now lives in styles/singularity.css as .sg-auth-error) */
 .sg-auth-switch { text-align: center; margin: 22px 0 0; }
 .sg-auth-switch button {
   background: none; border: none; cursor: pointer;
