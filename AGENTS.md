@@ -138,8 +138,10 @@ node --test tests/*.test.js    # Unit tests (261 pass individually)
 
 - **Language**: User speaks Hindi/Hinglish — match their register. GitHub/README = professional English only.
 - **No mock UI**: Never add Simulate/mock buttons. Real brain-driven loops only.
-- **Frontend**: User maintains it — do NOT modify frontend files unless asked.
-- **Commits**: User controls GitHub pushes. Work locally; push only when told.
+- **Frontend**: Agent actively maintains and polishes the frontend (design inspired by reactbits.dev — original implementations, never verbatim). Cards and layouts must have proper margin/padding and breathing room.
+- **Commits**: Agent pushes completed work directly to `main` automatically — no approval needed. User supplied a token; push via GIT_ASKPASS, never store the raw token.
+- **GitHub self-service**: Agent may create issues, open PRs, and merge them itself using the token. No approval cards. For bulk tracking, prefer epic-level issues over thousands of individual issues.
+- **Idea bank**: `IDEAS_10000*.md` (100,004 ideas) is the long-term roadmap. Implement ideas continuously in small verified batches, referencing idea numbers in commits/PRs.
 - **Security**: Hunt only authorized targets. No destructive testing. Minimal PoCs.
 
 ## Current Status (3 Oct 2026)
