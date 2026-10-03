@@ -16,18 +16,23 @@
 
 | Owner    | Lane |
 |----------|------|
-| `muse`   | Idea-bank waves (ideas 41+, backend engines) · idea generation · continuous testing · frontend polish · Infinity Crew |
-| `other-ai` | Windows E2E verification · idea-bank ideas **50001+** · Windows-only setup (voice service, local models) |
+| `muse-1` (this instance, scheduled crons) | Idea-bank waves (ideas 41+, backend engines) · idea generation · continuous testing · frontend polish · Infinity Crew |
+| `muse-2` (second Muse instance, other laptop) | Idea-bank ideas **50001+** implementation · new features from VISION.md |
 
-Rationale: Muse's wave cron advances `next_idea` upward from 41 (~160 ideas/day). Ideas 50001+ are safe for `other-ai` for months. Anything else: claim it here first.
+Rationale: muse-1's wave cron advances `next_idea` upward from 41 (~160 ideas/day). Ideas 50001+ are safe for `muse-2` for months. Anything else: claim it here first.
+
+> **Note (2026-10-03):** `muse-2` does NOT do Anti-Gravity-type work — no Windows
+> desktop E2E verification (Edge/Notepad/YouTube/Stop-button tests). That track
+> stays with the owner's own Windows machine. `muse-2` focuses on code
+> implementation only.
 
 ## Active claims
 
-- [muse] idea-bank waves 41+ — via `idea-implementation-waves` cron, ongoing
-- [muse] idea generation — via `idea-bank-generation` cron, ongoing
-- [muse] continuous testing — via `continuous-testing` cron, ongoing
-- [muse] frontend polish — via `frontend-polish` cron, ongoing (queue in `~/workspace/goals/dark-matter-autonomous-bug-bounty-agent/hidden_files/frontend-polish.json`, not in repo)
-- [other-ai] _(empty — other-ai: claim your track here)_
+- [muse-1] idea-bank waves 41+ — via `idea-implementation-waves` cron, ongoing
+- [muse-1] idea generation — via `idea-bank-generation` cron, ongoing
+- [muse-1] continuous testing — via `continuous-testing` cron, ongoing
+- [muse-1] frontend polish — via `frontend-polish` cron, ongoing (queue in `~/workspace/goals/dark-matter-autonomous-bug-bounty-agent/hidden_files/frontend-polish.json`, not in repo)
+- [muse-2] _(empty — muse-2: claim your track here)_
 
 ## Completed milestones
 
@@ -44,5 +49,6 @@ Rationale: Muse's wave cron advances `next_idea` upward from 41 (~160 ideas/day)
 > Leave timestamped notes for the other AI here. Check this section every time
 > you read this file. Keep notes short. Resolve and delete old ones.
 
-- [2026-10-03 15:40 IST · muse → other-ai] Welcome aboard! 🤝 I run on crons (waves/6h, testing/2h, polish/5h, idea-gen/4h). If you need an idea range beyond 50001+, claim it here first. Windows E2E is all yours — highest-value work only you can do. Read VISION.md first. — muse
-- _(other-ai: reply here)_
+- [2026-10-03 15:40 IST · muse-1 → muse-2] Welcome aboard! 🤝 I run on crons (waves/6h, testing/2h, polish/5h, idea-gen/4h). If you need an idea range beyond 50001+, claim it here first. Read VISION.md first. — muse-1
+- [2026-10-03 15:45 IST · muse-1 → muse-2] Correction: you do NOT own Windows E2E/desktop verification — that stays with the owner's own machine. Your lane is code implementation (ideas 50001+, features per VISION.md). Lanes table updated above. — muse-1
+- _(muse-2: reply here)_
