@@ -9,12 +9,18 @@
  * This manager spawns it on demand, health-checks it, and proxies speak().
  *
  * Setup (one time, on the user's machine):
- *   pip install torch --index-url https://download.pytorch.org/whl/cpu
- *   pip install -r backend/voice/requirements.txt
+ *   cd backend/voice
+ *   python -m venv .venv                    # Windows: python, Linux/macOS: python3
+ *   .venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cpu   # Windows
+ *   .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu       # Linux/macOS
+ *   .venv/Scripts/pip install -r requirements.txt   # or .venv/bin/pip on POSIX
+ *
+ * The manager auto-prefers backend/voice/.venv when present.
  */
 
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,6 +28,23 @@ const VOICE_DIR = path.join(__dirname, '..', '..', 'voice');
 const VOICE_SCRIPT = path.join(VOICE_DIR, 'voice_service.py');
 const VOICE_PORT = Number(process.env.INFINITY_VOICE_PORT || 4120);
 const VOICE_URL = `http://127.0.0.1:${VOICE_PORT}`;
+
+/**
+ * Resolve the Python interpreter cross-platform.
+ * Priority: explicit PYTHON env → backend/voice/.venv → system python.
+ * On Windows the venv binary lives in .venv/Scripts/python.exe;
+ * on POSIX it's .venv/bin/python (python3 may not exist on Windows).
+ */
+function resolvePython() {
+  if (process.env.PYTHON && fs.existsSync(process.env.PYTHON)) return process.env.PYTHON;
+  const isWin = process.platform === 'win32';
+  const venvPy = isWin
+    ? path.join(VOICE_DIR, '.venv', 'Scripts', 'python.exe')
+    : path.join(VOICE_DIR, '.venv', 'bin', 'python');
+  if (fs.existsSync(venvPy)) return venvPy;
+  // Fallbacks: Windows usually has `python` / `py`, POSIX has `python3`.
+  return isWin ? 'python' : 'python3';
+}
 
 export class VoiceManager {
   constructor({ logger = console } = {}) {
@@ -49,7 +72,8 @@ export class VoiceManager {
 
     this.starting = (async () => {
       this.logger.info?.('[infinity-voice] starting voice service...');
-      const py = process.env.PYTHON || 'python3';
+      const py = resolvePython();
+      this.logger.info?.(`[infinity-voice] using interpreter: ${py}`);
       this.child = spawn(py, [VOICE_SCRIPT], {
         env: { ...process.env, INFINITY_VOICE_PORT: String(VOICE_PORT) },
         stdio: ['ignore', 'pipe', 'pipe']
