@@ -79,7 +79,12 @@
       "file": "IDEAS_10000_BATCH16.md",
       "from": 105005,
       "to": 106004
+    },
+    {
+      "file": "IDEAS_10000_BATCH17.md",
+      "from": 106005,
+      "to": 107004
     }
   ],
-  "next_number": 106005
+  "next_number": 107005
 }
