@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, CheckCheck, Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, ChevronRight } from 'lucide-react';
 import { listAlerts, markAlertRead, markAllAlertsRead } from '../../services/api';
 
 const TYPE_LABEL = {
@@ -40,13 +40,17 @@ export function Alerts() {
     setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
   };
 
-  if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Loading alerts…</div>;
+  if (loading) return <div className="dm-page-loading" role="status" aria-live="polite"><Loader2 size={18} className="dm-spin" /> Loading alerts…</div>;
+
+  const unreadCount = alerts.filter((a) => !a.read).length;
 
   return (
     <div className="dm-alerts">
       <header className="dm-page-head">
         <div>
-          <h1><Bell size={22} /> Alerts</h1>
+          <h1><Bell size={22} /> Alerts
+            {unreadCount > 0 && <span className="dm-alert-count" aria-label={`${unreadCount} unread`}>{unreadCount} unread</span>}
+          </h1>
           <p>Critical findings and hunt lifecycle events, the moment they happen.</p>
         </div>
         <div className="dm-head-links">
@@ -54,7 +58,7 @@ export function Alerts() {
             <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
             Unread only
           </label>
-          <button className="dm-btn-ghost" onClick={readAll}>
+          <button className="dm-btn-ghost" onClick={readAll} disabled={unreadCount === 0} aria-label="Mark all alerts as read">
             <CheckCheck size={14} /> Mark all read
           </button>
         </div>
@@ -67,8 +71,13 @@ export function Alerts() {
         </div>
       ) : (
         <ul className="dm-alert-list">
-          {alerts.map((alert) => (
-            <li key={alert.id} className={`dm-alert ${alert.read ? 'read' : 'unread'} type-${alert.type}`}>
+          {alerts.map((alert, i) => (
+            <li
+              key={alert.id}
+              className={`dm-alert dm-polish-in ${alert.read ? 'read' : 'unread'} type-${alert.type}`}
+              style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
+            >
+              {!alert.read && <span className="dm-alert-unread-dot" aria-hidden="true" />}
               <div className="dm-alert-main">
                 <span className="dm-alert-type">{TYPE_LABEL[alert.type] || alert.type}</span>
                 <strong>{alert.title}</strong>
