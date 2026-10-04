@@ -22,40 +22,31 @@ export function Account() {
 
   return (
     <div className="sg-account">
-      <h2 className="sg-h1" style={{ margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <h2 className="sg-h1 sg-account-head">
         <UserRound size={26} /> Account
       </h2>
 
-      <section className="sg-card sg-card-pad" style={{ marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18 }}>
-          <span
-            style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'var(--sg-gradient)', color: '#06080d',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 800, fontSize: '1.4rem', flex: '0 0 auto',
-            }}
-          >
-            {initial}
-          </span>
+      <section className="sg-card sg-card-pad sg-account-section" aria-label="Profile">
+        <div className="sg-account-profile">
+          <span className="sg-account-avatar" aria-hidden="true">{initial}</span>
           <div>
-            <div style={{ fontWeight: 750, fontSize: '1.1rem' }}>{user?.username || user?.name || 'Agent'}</div>
+            <div className="sg-account-name">{user?.username || user?.name || 'Agent'}</div>
             <div className="sg-small">{user?.email || ''}</div>
           </div>
         </div>
         {rows.map((r) => (
-          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: '1px solid var(--sg-line-soft)' }}>
+          <div key={r.label} className="sg-account-row">
             <span className="sg-small">{r.label}</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600, wordBreak: 'break-all', textAlign: 'right' }}>{r.value}</span>
+            <span className="sg-account-value">{r.value}</span>
           </div>
         ))}
       </section>
 
-      <section className="sg-card sg-card-pad" style={{ marginBottom: 18 }}>
-        <h3 className="sg-h2" style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <section className="sg-card sg-card-pad sg-account-section" aria-label="Plan">
+        <h3 className="sg-h2">
           <Crown size={18} style={{ color: '#fbbf24' }} /> Plan
         </h3>
-        <p className="sg-body" style={{ margin: '0 0 12px' }}>
+        <p className="sg-body sg-account-plan">
           {reservedTier
             ? <>Your <strong style={{ textTransform: 'capitalize' }}>{reservedTier}</strong> tier is reserved — billing goes live soon.</>
             : <>You're on the <strong>Free</strong> tier.</>}
@@ -63,17 +54,17 @@ export function Account() {
         <Link to="/agent/premium" className="sg-btn sg-btn-ghost">View Premium tiers →</Link>
       </section>
 
-      <section className="sg-card sg-card-pad" style={{ marginBottom: 18 }}>
-        <h3 className="sg-h2" style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <section className="sg-card sg-card-pad sg-account-section" aria-label="Agent permissions">
+        <h3 className="sg-h2">
           <ShieldCheck size={18} /> Agent permissions
         </h3>
-        <p className="sg-body" style={{ margin: '0 0 12px' }}>
+        <p className="sg-body sg-account-plan">
           Current mode: <strong>{PERMISSION_LABELS[permissionMode]}</strong>
         </p>
         <Link to="/agent/settings" className="sg-btn sg-btn-ghost">Change in Settings →</Link>
       </section>
 
-      <button className="sg-btn sg-btn-ghost" onClick={logout} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <button className="sg-btn sg-btn-ghost sg-account-signout" onClick={logout}>
         <LogOut size={15} /> Sign out
       </button>
     </div>

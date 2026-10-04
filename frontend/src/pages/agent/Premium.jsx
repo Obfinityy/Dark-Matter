@@ -5,7 +5,7 @@
  * No payment code exists yet: clicking a tier marks it "reserved" and tells
  * the user payments will be integrated later. The backend never sees this.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Crown, Check, Sparkles, X } from 'lucide-react';
 import './Premium.css';
 
@@ -108,6 +108,16 @@ export function getReservedTier() {
 export function Premium() {
   const [reserved, setReserved] = useState(() => getReservedTier());
   const [pending, setPending] = useState(null); // tier with the "coming soon" modal open
+  const modalRef = useRef(null);
+
+  // Escape closes the modal; focus it on open for keyboard users.
+  useEffect(() => {
+    if (!pending) return;
+    const onKey = (e) => { if (e.key === 'Escape') setPending(null); };
+    document.addEventListener('keydown', onKey);
+    modalRef.current?.focus();
+    return () => document.removeEventListener('keydown', onKey);
+  }, [pending]);
 
   const reserve = (tier) => {
     setReserved(tier.id);
@@ -125,10 +135,11 @@ export function Premium() {
       </header>
 
       <div className="sg-premium-grid">
-        {TIERS.map((tier) => (
+        {TIERS.map((tier, i) => (
           <article
             key={tier.id}
-            className={`sg-card sg-card-pad sg-premium-card${tier.flagship ? ' sg-premium-flagship' : ''}`}
+            className={`sg-card sg-card-pad sg-premium-card dm-polish-in${tier.flagship ? ' sg-premium-flagship' : ''}`}
+            style={{ animationDelay: `${i * 60}ms` }}
           >
             {tier.flagship && (
               <span className="sg-premium-badge"><Sparkles size={12} /> Most powerful</span>
@@ -168,6 +179,7 @@ export function Premium() {
             className="sg-card sg-card-pad sg-premium-modal"
             role="dialog" aria-modal="true" aria-label={`${pending.name} tier coming soon`}
             onClick={(e) => e.stopPropagation()}
+            ref={modalRef} tabIndex={-1}
           >
             <button className="sg-modal-close" onClick={() => setPending(null)} aria-label="Close">
               <X size={18} />
