@@ -2,27 +2,34 @@
  * FingerprintCard — the target fingerprint card.
  *
  * Shows what the agent knows about the target: hostname, technologies,
- * server header, TLS info, IP/ASN when known, and scope. The "what we know"
- * card at the top of every hunt.
+ * live attack-surface stats (subdomains, endpoints, open ports), and scope.
+ * The "what we know" card at the top of every hunt.
  *
  * Props: { job, surface } — job from GET /jobs/:id, surface from attack-surface
  */
 import React from 'react';
-import { Fingerprint, Lock, Server, Globe } from 'lucide-react';
+import { Fingerprint, Lock, Server, Globe, Network } from 'lucide-react';
+
+const techName = (t) => (typeof t === 'string' ? t : t?.name || t?.version || '');
 
 export function FingerprintCard({ job = {}, surface = {} }) {
   const target = job.target || job.targetHostname || 'unknown target';
-  const technologies = surface.technologies || [];
+  const technologies = (surface.technologies || []).map(techName).filter(Boolean);
+  const openPorts = (surface.openPorts || [])
+    .map((p) => (typeof p === 'string' || typeof p === 'number' ? p : p?.port))
+    .filter((p) => p !== undefined && p !== null && p !== '');
+  const subdomains = (surface.subdomains || []).length;
+  const endpoints = (surface.endpoints || []).length;
   const scope = job.scope || {};
 
   return (
-    <div className="dm-fingerprint">
+    <section className="dm-fingerprint dm-polish-in" aria-label="Target fingerprint" tabIndex={-1}>
       <header>
-        <Fingerprint size={16} />
+        <Fingerprint size={16} aria-hidden="true" />
         <h3>Target fingerprint</h3>
       </header>
       <div className="dm-fingerprint-target">
-        <Globe size={14} />
+        <Globe size={14} aria-hidden="true" />
         <code>{target}</code>
       </div>
       <dl className="dm-fingerprint-grid">
@@ -38,22 +45,42 @@ export function FingerprintCard({ job = {}, surface = {} }) {
           <dt>Steps</dt>
           <dd>{job.stepCount ?? '—'}</dd>
         </div>
-        <div>
+        <div className="dm-fingerprint-objective-cell">
           <dt>Objective</dt>
           <dd className="dm-fingerprint-objective">{job.currentObjective || job.objective || '—'}</dd>
         </div>
+        {subdomains > 0 && (
+          <div>
+            <dt>Subdomains</dt>
+            <dd>{subdomains}</dd>
+          </div>
+        )}
+        {endpoints > 0 && (
+          <div>
+            <dt>Endpoints</dt>
+            <dd>{endpoints}</dd>
+          </div>
+        )}
       </dl>
       {technologies.length > 0 && (
         <div className="dm-fingerprint-tech">
-          <Server size={13} />
-          {technologies.map((t, i) => (
-            <span key={i} className="dm-tech-chip">{typeof t === 'string' ? t : t.name || JSON.stringify(t)}</span>
+          <Server size={13} aria-hidden="true" />
+          {technologies.map((t) => (
+            <span key={t} className="dm-tech-chip">{t}</span>
+          ))}
+        </div>
+      )}
+      {openPorts.length > 0 && (
+        <div className="dm-fingerprint-ports" aria-label="Open ports">
+          <Network size={13} aria-hidden="true" />
+          {openPorts.map((p) => (
+            <span key={p} className="dm-port-chip" title={`Open port ${p}`}>{p}</span>
           ))}
         </div>
       )}
       {(scope.included?.length > 0 || scope.excluded?.length > 0) && (
         <div className="dm-fingerprint-scope">
-          <Lock size={13} />
+          <Lock size={13} aria-hidden="true" />
           <span>
             {scope.included?.length ? `In scope: ${scope.included.join(', ')}` : ''}
             {scope.included?.length && scope.excluded?.length ? ' · ' : ''}
@@ -61,6 +88,6 @@ export function FingerprintCard({ job = {}, surface = {} }) {
           </span>
         </div>
       )}
-    </div>
+    </section>
   );
 }
