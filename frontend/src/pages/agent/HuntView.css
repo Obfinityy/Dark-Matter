@@ -120,6 +120,26 @@
   50% { opacity: 0.45; transform: scale(0.8); }
 }
 
+/* Gentle entrance — the agent fades into presence when it mounts. */
+.sg-agent-char { animation: sg-char-enter 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@keyframes sg-char-enter {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Calm everything down for users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .sg-agent-char,
+  .sg-agent-char .sg-orbit,
+  .sg-agent-char .sg-core-glow,
+  .sg-agent-char .sg-core-hex,
+  .sg-agent-char .sg-tdot,
+  .sg-agent-state.on .sg-live-dot,
+  .sg-stage-banner .sg-live-dot,
+  .sg-spin-slow { animation: none !important; }
+  .sg-agent-char { opacity: 1; transform: none; }
+}
+
 /* ── HuntChatPanel stage banner ── */
 .sg-hunt-chatpanel { display: flex; flex-direction: column; gap: 10px; }
 .sg-stage-banner {
@@ -152,7 +172,13 @@
   display: flex; align-items: center; gap: 2px; flex: 1 1 320px;
   list-style: none; margin: 0; padding: 0; min-width: 0;
 }
-.sg-stage { display: flex; align-items: center; gap: 6px; padding: 4px 8px; opacity: 0.45; }
+.sg-stage { display: flex; align-items: center; gap: 6px; padding: 4px 8px; opacity: 0.45; position: relative; }
+/* Progress track — a hairline connector linking each stage dot to the previous. */
+.sg-stage:not(:first-child)::before {
+  content: ""; position: absolute; left: -4px; top: 50%; transform: translateY(-50%);
+  width: 8px; height: 1px; background: var(--sg-line-soft);
+}
+.sg-stage.sg-done:not(:first-child)::before { background: rgba(34, 211, 238, 0.5); }
 .sg-stage-dot {
   width: 9px; height: 9px; border-radius: 50%;
   background: var(--sg-text-3); flex: none;
@@ -164,6 +190,12 @@
 .sg-stage.sg-current .sg-stage-dot { background: var(--sg-cyan); box-shadow: 0 0 8px var(--sg-cyan); }
 .sg-stage.sg-current .sg-stage-label { color: var(--sg-text); font-weight: 700; }
 .sg-status-panel-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Visible keyboard focus for the panel's action buttons. */
+.sg-status-panel .sg-btn:focus-visible {
+  outline: 2px solid var(--sg-cyan);
+  outline-offset: 2px;
+}
 
 /* ── PostureScore ──────────────────────────────────────────────────────── */
 .sg-posture { display: flex; align-items: center; gap: 10px; }
@@ -185,4 +217,6 @@
   .sg-stage-label { display: none; }
   .sg-stage { padding: 4px 5px; }
   .sg-status-panel { gap: 10px; }
+  /* 44px touch targets for pause/resume/queues. */
+  .sg-status-panel .sg-btn-sm { min-height: 44px; }
 }
