@@ -44,3 +44,79 @@
   .sg-coverage-fill { transition: none; }
   .sg-coverage-cats .sg-pill-info { animation: none; }
 }
+
+/* ── PostureScore ── weak: the "ring" was a flat bordered pill; grade colours were
+ * hard-coded hex; counts were joined plain text; no loading state; no accessible
+ * name. change: true SVG progress ring, token-based grade colours (A→--sg-go,
+ * C→--sg-warn, F→--sg-danger), severity dot-chips, shimmer skeleton while loading,
+ * role=img + aria-label. why: a score deserves a real ring; chips scan faster than
+ * joined text; loading state is honest instead of silent. */
+.sg-posture {
+  display: flex; align-items: center; gap: 12px;
+  animation: dm-polish-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.sg-posture-ringwrap {
+  position: relative; width: 64px; height: 64px; flex: 0 0 auto;
+  transition: transform var(--sg-fast);
+}
+.sg-posture:hover .sg-posture-ringwrap { transform: scale(1.04); }
+.sg-posture-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.sg-posture-track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 6; }
+.sg-posture-arc {
+  fill: none; stroke-width: 6; stroke-linecap: round;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.3s ease;
+}
+.sg-posture-score {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.98rem; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.sg-posture-grade {
+  position: absolute; right: -3px; bottom: -3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.66rem; font-weight: 800; color: #0b0e14;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  border: 2px solid var(--sg-ink-1, #0a0d14);
+}
+.sg-posture-meta { display: flex; flex-direction: column; gap: 5px; line-height: 1.3; }
+.sg-posture-label {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--sg-text-3);
+}
+.sg-posture-counts { display: flex; flex-wrap: wrap; gap: 5px; }
+.sg-posture-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; color: var(--sg-text-2);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--sg-line-soft);
+  border-radius: 999px; padding: 2px 9px 2px 7px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--sg-fast), background var(--sg-fast);
+}
+.sg-posture-chip:hover { border-color: var(--sg-line); background: rgba(255, 255, 255, 0.055); }
+.sg-posture-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.sg-posture-none { font-size: 0.74rem; color: var(--sg-text-3); }
+
+/* loading skeleton */
+.sg-posture-loading { pointer-events: none; }
+.sg-posture-skel-ring {
+  width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto;
+  border: 6px solid rgba(255, 255, 255, 0.07);
+}
+.sg-posture-skel-line {
+  display: block; width: 92px; height: 10px; border-radius: 5px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.sg-posture-skel-line + .sg-posture-skel-line { width: 64px; margin-top: 5px; }
+.sg-posture-skel-ring, .sg-posture-skel-line { animation: dm-posture-shimmer 1.4s ease-in-out infinite; }
+@keyframes dm-posture-shimmer {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-posture { animation: none; }
+  .sg-posture-arc { transition: none; }
+  .sg-posture-skel-ring, .sg-posture-skel-line { animation: none; opacity: 0.7; }
+}
