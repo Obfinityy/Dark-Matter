@@ -1,0 +1,46 @@
+/* ════════════════ POLISH PASS — CoverageMeter / PostureScore / FingerprintCard ════════════════
+ *
+ * Design notes
+ * ── CoverageMeter ── weak: bare bar, progressbar had no accessible name, raw "87%"
+ * jittered (no tabular figures), no denominator ("of 10 categories"), static chips,
+ * raw 0.4s transition ignoring prefers-reduced-motion, no empty state. change: named
+ * progressbar + valuetext, tabular numerals, "N of 10 categories" foot, chip hover
+ * lift + staggered entrance, var-based timing, honest 0% hint. why: numbers need
+ * context and a11y; chips reward hover with feedback.
+ */
+
+/* ── CoverageMeter ── */
+.sg-coverage-pct { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.sg-coverage-fill {
+  transition: width var(--sg-med);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+}
+.sg-coverage-foot {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 6px;
+}
+.sg-coverage-count { font-size: 0.74rem; color: var(--sg-text-3); }
+.sg-coverage-cats .sg-pill-info {
+  transition: transform var(--sg-fast), border-color var(--sg-fast), background var(--sg-fast);
+  animation: dm-polish-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  cursor: default;
+}
+.sg-coverage-cats .sg-pill-info:hover {
+  transform: translateY(-2px);
+  border-color: rgba(129, 140, 248, 0.6);
+  background: rgba(129, 140, 248, 0.22);
+}
+.sg-coverage-cats .sg-pill-info:nth-child(2) { animation-delay: 40ms; }
+.sg-coverage-cats .sg-pill-info:nth-child(3) { animation-delay: 80ms; }
+.sg-coverage-cats .sg-pill-info:nth-child(4) { animation-delay: 120ms; }
+.sg-coverage-cats .sg-pill-info:nth-child(5) { animation-delay: 160ms; }
+.sg-coverage-cats .sg-pill-info:nth-child(n+6) { animation-delay: 200ms; }
+.sg-coverage-empty {
+  margin: 10px 0 0; font-size: 0.78rem; line-height: 1.5;
+  color: var(--sg-text-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-coverage-fill { transition: none; }
+  .sg-coverage-cats .sg-pill-info { animation: none; }
+}
