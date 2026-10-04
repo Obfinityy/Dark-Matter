@@ -28,6 +28,7 @@ import './styles/infinity.css';
 import './styles/agent.css';
 import './styles/polish-pass-payloads-queues-schedules.css';
 import './styles/polish-pass-alerts-account-premium.css';
+import './styles/polish-pass-coverage-posture-fingerprint.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
