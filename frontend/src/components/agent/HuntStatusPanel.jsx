@@ -46,17 +46,22 @@ export function HuntStatusPanel({ job, jobId, onJobChanged }) {
 
   return (
     <section className="sg-status-panel" aria-label="Hunt status">
-      <ol className="sg-stage-stepper">
-        {STAGES.map((s, i) => (
-          <li
-            key={s}
-            className={`sg-stage${i < stageIndex ? ' sg-done' : ''}${i === stageIndex ? ' sg-current' : ''}`}
-            title={s}
-          >
-            <span className="sg-stage-dot" />
-            <span className="sg-stage-label">{s}</span>
-          </li>
-        ))}
+      <ol className="sg-stage-stepper" aria-label="Hunt methodology stages">
+        {STAGES.map((s, i) => {
+          const state = i < stageIndex ? 'completed' : i === stageIndex ? 'current' : 'upcoming';
+          return (
+            <li
+              key={s}
+              className={`sg-stage${i < stageIndex ? ' sg-done' : ''}${i === stageIndex ? ' sg-current' : ''}`}
+              title={s}
+              aria-label={`${s} — ${state}`}
+              aria-current={i === stageIndex ? 'step' : undefined}
+            >
+              <span className="sg-stage-dot" aria-hidden="true" />
+              <span className="sg-stage-label">{s}</span>
+            </li>
+          );
+        })}
       </ol>
 
       <div className="sg-status-panel-right">
