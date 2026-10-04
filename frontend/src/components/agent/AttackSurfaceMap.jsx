@@ -13,20 +13,24 @@ import { Globe, Link2, SlidersHorizontal, Cpu, Plug } from 'lucide-react';
 function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {
   const list = Array.isArray(items) ? items : [];
   return (
-    <section className="dm-surface-panel">
+    <section className="dm-surface-panel" aria-label={`${title} — ${list.length} found`}>
       <header>
-        <Icon size={14} />
+        <span className="dm-surface-icon" aria-hidden="true"><Icon size={15} /></span>
         <h4>{title}</h4>
-        <span className="dm-surface-count">{list.length}</span>
+        <span className="dm-surface-count" title={`${list.length} found`}>{list.length}</span>
       </header>
       {list.length === 0 ? (
-        <p className="dm-surface-empty">{emptyHint}</p>
+        <p className="dm-surface-empty" role="status">{emptyHint}</p>
       ) : (
-        <ul>
+        <ul className="dm-surface-list">
           {list.slice(0, 12).map((item, i) => (
-            <li key={i}>{renderItem ? renderItem(item) : String(item)}</li>
+            <li key={i} tabIndex={0}>{renderItem ? renderItem(item) : String(item)}</li>
           ))}
-          {list.length > 12 && <li className="dm-surface-more">+{list.length - 12} more</li>}
+          {list.length > 12 && (
+            <li className="dm-surface-more" aria-label={`${list.length - 12} more items`}>
+              +{list.length - 12} more
+            </li>
+          )}
         </ul>
       )}
     </section>

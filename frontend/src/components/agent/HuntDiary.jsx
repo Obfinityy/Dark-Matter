@@ -9,6 +9,23 @@
 import React from 'react';
 import { BookOpen } from 'lucide-react';
 
+// Accent color per diary-entry kind — the rail dot and badge tint pick it up
+// via the --diary-kind CSS variable (purely visual, no behavior change).
+const KIND_ACCENT = {
+  finding: 'var(--dm-danger)',
+  hypothesis: '#a78bfa',
+  observation: 'var(--dm-info)',
+  decision: 'var(--dm-accent-bright)',
+  plan: 'var(--dm-accent-bright)',
+  tool: 'var(--dm-warn)'
+};
+
+function accentStyle(kind) {
+  if (!kind) return undefined;
+  const accent = KIND_ACCENT[String(kind).toLowerCase()];
+  return accent ? { '--diary-kind': accent } : undefined;
+}
+
 export function HuntDiary({ entries = [], loading = false }) {
   if (loading) return <div className="dm-diary-loading">Opening the hunt diary…</div>;
 
@@ -24,7 +41,7 @@ export function HuntDiary({ entries = [], loading = false }) {
   return (
     <div className="dm-diary">
       {entries.map((entry, i) => (
-        <article key={entry.id || i} className="dm-diary-entry">
+        <article key={entry.id || i} className="dm-diary-entry" style={accentStyle(entry.kind)} aria-label={entry.title || 'Diary entry'}>
           <div className="dm-diary-rail">
             <span className="dm-diary-dot" />
             {i < entries.length - 1 && <span className="dm-diary-line" />}

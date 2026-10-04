@@ -155,13 +155,17 @@ export function HackerTerminal({
   return (
     <div className="dm-terminal-wrap">
       <div className="dm-terminal-head">
-        <TerminalSquare size={15} />
+        <TerminalSquare size={15} aria-hidden="true" />
         <span className="dm-terminal-title">live hunt terminal</span>
         <span className={`dm-term-conn ${connected ? 'on' : 'off'}`}>
           {connected ? '● live' : '○ reconnecting'}
         </span>
         {!autoScroll && (
-          <button className="dm-term-follow" onClick={() => setAutoScroll(true)}>
+          <button
+            className="dm-term-follow"
+            onClick={() => setAutoScroll(true)}
+            aria-label="Follow latest terminal output"
+          >
             follow latest ↓
           </button>
         )}
@@ -173,6 +177,8 @@ export function HackerTerminal({
         onScroll={onScroll}
         role="log"
         aria-label="Live hunt terminal"
+        aria-live="off"
+        tabIndex={0}
       >
         {lines.length === 0 && (
           <div className="dm-term-empty">waiting for the agent to speak…</div>
