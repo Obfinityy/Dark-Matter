@@ -7,8 +7,8 @@ import React from 'react';
  */
 export function AgentCharacter({ active = false, status = 'Idle' }) {
   return (
-    <div className={`sg-agent-char${active ? ' working' : ' idle'}`} aria-hidden="true">
-      <svg className="sg-agent-svg" viewBox="0 0 120 120">
+    <div className={`sg-agent-char${active ? ' working' : ' idle'}`}>
+      <svg className="sg-agent-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
         <circle className="sg-orbit sg-orbit-outer" cx="60" cy="60" r="52" fill="none"
           stroke="currentColor" strokeWidth="1" strokeDasharray="10 8" opacity="0.35" />
         <circle className="sg-orbit sg-orbit-inner" cx="60" cy="60" r="42" fill="none"
@@ -27,7 +27,8 @@ export function AgentCharacter({ active = false, status = 'Idle' }) {
       </svg>
       <div className="sg-agent-char-label">
         <span className={`sg-agent-state${active ? ' on' : ''}`}>
-          <span className="sg-live-dot" />
+          <span className="visually-hidden">Agent status: </span>
+          <span className="sg-live-dot" aria-hidden="true" />
           {status}
         </span>
       </div>

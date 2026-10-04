@@ -11,8 +11,8 @@
  *   loading
  *   explainer  — boolean; when true every card shows its plain explanation
  */
-import React, { useState } from 'react';
-import { ShieldAlert, ChevronDown, FileText, Crosshair, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldAlert, ChevronDown, FileText, Crosshair, Sparkles, Package } from 'lucide-react';
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'informational', 'info'];
 
@@ -49,7 +49,7 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
   const [openId, setOpenId] = useState(null);
   const [explainAll, setExplainAll] = useState(explainer);
 
-  React.useEffect(() => setExplainAll(explainer), [explainer]);
+  useEffect(() => setExplainAll(explainer), [explainer]);
 
   const sorted = [...findings].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
   const counts = {};
@@ -85,6 +85,7 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
         <button
           className={`dm-btn-ghost ${explainAll ? 'active' : ''}`}
           onClick={() => setExplainAll((v) => !v)}
+          aria-pressed={explainAll}
           title="Plain-language explanations for every finding"
         >
           <Sparkles size={14} /> Explain like I'm new
@@ -98,7 +99,12 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
           const evidenceCount = (finding.evidence && finding.evidence.length) || 0;
           return (
             <div key={finding.id} className={`dm-finding sev-${sev} ${open ? 'open' : ''}`}>
-              <button className="dm-finding-head" onClick={() => setOpenId(open ? null : finding.id)}>
+              <button
+                className="dm-finding-head"
+                onClick={() => setOpenId(open ? null : finding.id)}
+                aria-expanded={open}
+                aria-controls={`finding-body-${finding.id}`}
+              >
                 <span className={`dm-sev-badge sev-${sev}`}>{sev}</span>
                 <span className="dm-finding-title">{finding.title || finding.category || 'Untitled finding'}</span>
                 {finding.cvssMetrics?.baseScore != null && (
@@ -108,7 +114,7 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
               </button>
 
               {(open || explainAll) && (
-                <div className="dm-finding-body">
+                <div className="dm-finding-body" id={`finding-body-${finding.id}`} role="region">
                   {(explainAll) && (
                     <p className="dm-finding-explainer">
                       <Sparkles size={13} /> {explainFinding(finding)}
@@ -121,7 +127,7 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
                         {(finding.affectedEndpoint || finding.affectedAsset) && (
                           <span><FileText size={12} /> {finding.affectedEndpoint || finding.affectedAsset}</span>
                         )}
-                        {evidenceCount > 0 && <span>📦 {evidenceCount} evidence</span>}
+                        {evidenceCount > 0 && <span><Package size={12} /> {evidenceCount} evidence</span>}
                         {finding.confidence != null && <span>confidence {Math.round(finding.confidence * 100)}%</span>}
                       </div>
                       {finding.description && <p className="dm-finding-desc">{finding.description}</p>}
