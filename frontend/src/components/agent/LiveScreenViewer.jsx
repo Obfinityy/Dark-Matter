@@ -29,25 +29,26 @@ import { takeComputerScreenshot, pauseComputer, resumeComputer } from '../../ser
 import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
 
 const ACTION_LABELS = {
-  screenshot: '📸 Taking screenshot',
-  click: '🖱️ Clicking',
-  double_click: '🖱️ Double-clicking',
-  move_mouse: '🖱️ Moving cursor',
-  type: '⌨️ Typing',
-  press_key: '⌨️ Pressing key',
-  hotkey: '⌨️ Pressing hotkey',
-  scroll: '🖱️ Scrolling',
-  open_application: '🚀 Opening app',
-  navigate: '🌐 Navigating',
-  get_active_window: '👁️ Checking active window',
-  get_browser_state: '👁️ Checking browser',
-  sleep: '⏳ Waiting'
+  screenshot: { label: '📸 Taking screenshot', tone: 'shot' },
+  click: { label: '🖱️ Clicking', tone: 'pointer' },
+  double_click: { label: '🖱️ Double-clicking', tone: 'pointer' },
+  move_mouse: { label: '🖱️ Moving cursor', tone: 'pointer' },
+  type: { label: '⌨️ Typing', tone: 'type' },
+  press_key: { label: '⌨️ Pressing key', tone: 'type' },
+  hotkey: { label: '⌨️ Pressing hotkey', tone: 'type' },
+  scroll: { label: '🖱️ Scrolling', tone: 'pointer' },
+  open_application: { label: '🚀 Opening app', tone: 'nav' },
+  navigate: { label: '🌐 Navigating', tone: 'nav' },
+  get_active_window: { label: '👁️ Checking active window', tone: 'observe' },
+  get_browser_state: { label: '👁️ Checking browser', tone: 'observe' },
+  sleep: { label: '⏳ Waiting', tone: 'wait' }
 };
 
 function describeAction(event) {
   const action = event.data?.action || event.action;
-  if (!action) return event.message || event.text || '';
-  const label = ACTION_LABELS[action.type] || `⚙️ ${action.type}`;
+  if (!action) return { text: event.message || event.text || '', tone: null };
+  const entry = ACTION_LABELS[action.type];
+  const label = entry?.label || `⚙️ ${action.type}`;
   const detail = action.params?.text
     ? `: "${String(action.params.text).slice(0, 60)}"`
     : action.params?.url
@@ -57,7 +58,7 @@ function describeAction(event) {
         : action.params?.x != null
           ? ` at (${action.params.x}, ${action.params.y})`
           : '';
-  return `${label}${detail}`;
+  return { text: `${label}${detail}`, tone: entry?.tone || null };
 }
 
 export function LiveScreenViewer({
@@ -88,7 +89,7 @@ export function LiveScreenViewer({
           🖥️ Live screen is available in <strong>Localhost mode</strong> — switch
           backends in Settings to watch the agent on your own machine.
           <br />
-          <span style={{ fontSize: 12, color: '#64748b' }}>
+          <span className="dm-screen-footnote">
             (Remote screen viewing comes later.)
           </span>
         </div>
@@ -135,10 +136,12 @@ export function LiveScreenViewer({
     const onEvent = (event) => {
       const t = event.__sseType || event.type || '';
       if (t.startsWith('computer.') || t === 'action' || t === 'observation') {
+        const described = describeAction(event);
         const line = {
           id: event.id || `ca-${Date.now()}-${Math.random()}`,
           at: event.at || new Date().toISOString(),
-          text: describeAction(event)
+          text: described.text,
+          tone: described.tone
         };
         setActions((prev) => [...prev.slice(-49), line]);
       }
@@ -209,12 +212,12 @@ export function LiveScreenViewer({
               <>
                 🖥️ Computer control isn't running on this machine.
                 <br />
-                <span style={{ fontSize: 12, color: '#64748b' }}>
+                <span className="dm-screen-footnote">
                   Start the local backend with computer control enabled, then{' '}
                 </span>
                 <button
                   type="button"
-                  className="sg-btn sg-btn-ghost sg-btn-sm"
+                  className="dm-btn dm-btn-ghost dm-btn-sm"
                   style={{ marginTop: 8 }}
                   onClick={() => { failCount.current = 0; setError(null); fetchScreenshot(); }}
                 >
@@ -234,13 +237,13 @@ export function LiveScreenViewer({
       </div>
 
       {/* What the agent is doing right now, in plain words. */}
-      <div className="dm-screen-actions">
+      <div className="dm-screen-actions" role="log" aria-label="What the agent is doing">
         <div className="dm-screen-actions-title">what the agent is doing</div>
         {actions.length === 0 ? (
           <div className="dm-screen-actions-empty">waiting for the agent to act…</div>
         ) : (
           actions.slice(-8).reverse().map((a) => (
-            <div key={a.id} className="dm-screen-action-line">
+            <div key={a.id} className={`dm-screen-action-line${a.tone ? ` tone-${a.tone}` : ''}`}>
               <span className="dm-term-ts">
                 {new Date(a.at).toLocaleTimeString('en-GB', { hour12: false })}
               </span>
