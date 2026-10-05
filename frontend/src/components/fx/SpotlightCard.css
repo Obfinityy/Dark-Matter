@@ -1,19 +1,48 @@
+/**
+ * SpotlightCard styles — Singularity design tokens throughout.
+ *
+ * Design notes:
+ *  - Radius, borders and panel wash come from the shared token set so the
+ *    card sits naturally beside .sg-card siblings (--sg-r-lg, --sg-line-soft,
+ *    --sg-panel). Only the glow accent (violet) stays bespoke.
+ *  - Hover gives a tactile lift (translateY(-2px) + soft shadow), matching the
+ *    .sg-card-hover convention used elsewhere in the app.
+ *  - Keyboard discoverability: tabbing into a card reveals the spotlight via
+ *    :focus-within, since mousemove never fires for keyboard users.
+ *  - prefers-reduced-motion: opacity swaps are instant and the lift is
+ *    disabled; the glow still appears, just without animation.
+ */
+
 .sl-card {
   position: relative;
   overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.025);
+  border-radius: var(--sg-r-lg);
+  border: 1px solid var(--sg-line-soft);
+  background: var(--sg-panel);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: border-color 0.3s ease, transform 0.3s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 24px 60px -28px rgba(0, 0, 0, 0.8);
+  transition: border-color var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
   --sl-x: 50%;
   --sl-y: 50%;
   --sl-opacity: 0;
 }
 
-.sl-card:hover {
-  border-color: rgba(139, 92, 246, 0.28);
+.sl-card:hover,
+.sl-card:focus-within {
+  border-color: rgba(129, 140, 248, 0.28);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 28px 64px -24px rgba(0, 0, 0, 0.85);
+}
+
+/* Keyboard focus inside the card reveals the spotlight too. */
+.sl-card:focus-within {
+  --sl-opacity: 1;
+}
+
+.sl-card:focus-visible {
+  outline: 2px solid var(--sg-cyan);
+  outline-offset: 2px;
 }
 
 .sl-glow {
@@ -36,6 +65,10 @@
 
 /* Touch devices: gentle static glow instead of cursor tracking */
 @media (hover: none) {
+  .sl-card:hover,
+  .sl-card:focus-within {
+    transform: none;
+  }
   .sl-glow {
     opacity: 0.5;
     background: radial-gradient(
@@ -43,5 +76,19 @@
       rgba(var(--sl-color, 139, 92, 246), 0.1),
       transparent 65%
     );
+  }
+}
+
+/* Reduced motion: reveal instantly, no lift, no transition. */
+@media (prefers-reduced-motion: reduce) {
+  .sl-card {
+    transition: none;
+  }
+  .sl-card:hover,
+  .sl-card:focus-within {
+    transform: none;
+  }
+  .sl-glow {
+    transition: none;
   }
 }

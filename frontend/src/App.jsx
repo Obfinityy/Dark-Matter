@@ -32,6 +32,7 @@ import './styles/polish-pass-coverage-posture-fingerprint.css';
 import './styles/polish-pass-surfacemap-diary-terminal.css';
 import './styles/polish-pass-crew-cvss-dedup.css';
 import './styles/polish-pass-export-avatar-bento.css';
+import './styles/polish-pass-spotlight-home-hunt.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {

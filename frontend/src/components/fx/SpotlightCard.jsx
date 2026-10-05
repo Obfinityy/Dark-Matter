@@ -3,6 +3,8 @@
  *
  * The card stays dark; a soft violet light follows the pointer across its
  * surface, revealing a subtle glow. Turns static cards into tactile objects.
+ * Keyboard users get the same reveal: tabbing into a card (focus-within)
+ * raises the glow, and the motion is disabled under prefers-reduced-motion.
  * Falls back gracefully on touch devices (static soft glow).
  */
 import React, { useRef, useCallback } from 'react';

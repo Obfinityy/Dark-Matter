@@ -1,0 +1,45 @@
+/* ════════════════ POLISH PASS — SpotlightCard / AgentHome / HuntView ════════════════
+ *
+ * Design notes (6 Oct 2026):
+ * - SpotlightCard (first polish): border-radius and colours were hardcoded
+ *   raw rgba values, drifting off the Singularity token set. -> tokens now:
+ *   --sg-r-lg radius, --sg-line-soft border, --sg-panel wash, hover border
+ *   in brand indigo. Hover adds the tactile translateY(-2px) lift from the
+ *   .sg-card-hover convention. Keyboard discoverability: :focus-within
+ *   reveals the spotlight for tab users (mousemove never fires for them).
+ *   prefers-reduced-motion: instant reveal, no lift, no transition.
+ * - AgentHome (round 2): removed dead `BentoGrid, BentoTile` imports (never
+ *   rendered). Stat numbers now ease in with a 650ms count-up micro-
+ *   interaction (instant for reduced-motion users). The validation error is
+ *   now programmatically linked to the target input (aria-invalid +
+ *   aria-describedby) so screen-reader users know which field failed.
+ *   Hunt rows gain a visible :focus-visible ring.
+ * - HuntView (round 2): removed dead `SpotlightCard` import (imported but
+ *   never rendered). Tabs gain a visible :focus-visible ring. Loading box
+ *   gets role="status" for announcement. Inline flex spacer in the tablist
+ *   moves to the .sg-tabs-spacer class.
+ *
+ * Polish only: no behaviour changes, no mock UI, no new dependencies.
+ */
+
+/* ════ AgentHome ════ */
+.sg-hunt-row:focus-visible {
+  outline: 2px solid var(--sg-cyan);
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: var(--sg-line-soft);
+}
+
+/* Keep the hero call-to-action comfortably reachable on short screens. */
+@media (max-height: 700px) and (min-width: 761px) {
+  .sg-hero { padding: 24px 0 4px; }
+}
+
+/* ════ HuntView ════ */
+.sg-tabs-spacer { flex: 1; }
+
+.sg-tab:focus-visible {
+  outline: 2px solid var(--sg-cyan);
+  outline-offset: -2px;
+  border-radius: 8px 8px 0 0;
+}
