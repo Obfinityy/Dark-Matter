@@ -124,3 +124,52 @@
 @media (prefers-reduced-motion: reduce) {
   .hl-barber-bar, .hl-mini-spinner, .hl-url-shimmer, .hl-queue-pulse, .hl-avatar-ring { animation: none; }
 }
+
+/* ---- Wave 2 additions (ideas 50041–50080) ---- */
+
+/* 50041 reconnect banner */
+.hl-reconnect { display: flex; align-items: center; gap: 10px; background: rgba(120, 72, 20, 0.25); border: 1px solid #7a4d16; color: #f5c97b; border-radius: 10px; padding: 10px 14px; font-size: 13px; }
+.hl-reconnect-btn { margin-left: auto; background: none; border: 1px solid #7a4d16; color: #f5c97b; border-radius: 8px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+
+/* 50045 pause button */
+.hl-pause-btn { display: inline-flex; align-items: center; gap: 8px; background: #1c2333; border: 1px solid #2a3350; color: #c6cfdf; border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.hl-pause-btn:disabled { cursor: default; opacity: 0.8; }
+.hl-pause-btn.hl-paused { border-color: #34d399; color: #a7f3d0; }
+.hl-pause-icon { font-size: 11px; }
+
+/* 50047 typing indicator */
+.hl-typing { display: inline-flex; gap: 5px; background: #121826; border: 1px solid #232c42; border-radius: 14px; padding: 10px 14px; }
+.hl-typing-dot { width: 7px; height: 7px; border-radius: 50%; background: #8b96ad; animation: hl-typing-bounce 1.2s infinite; }
+.hl-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.hl-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes hl-typing-bounce { 0%, 100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-5px); opacity: 1; } }
+
+/* 50049 bulk progress */
+.hl-bulk { display: flex; flex-direction: column; gap: 6px; background: #121826; border: 1px solid #232c42; border-radius: 10px; padding: 10px 14px; min-width: 240px; }
+.hl-bulk-label { font-size: 12px; color: #c6cfdf; }
+
+/* 50053 catch-up */
+.hl-catchup { display: flex; align-items: center; gap: 10px; background: #121826; border: 1px solid #2a3350; border-radius: 999px; padding: 8px 8px 8px 14px; font-size: 12px; color: #8b96ad; }
+.hl-catchup-btn { margin-left: 6px; background: #7c5cf0; border: none; color: #fff; border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+/* 50055 severity chip */
+.hl-sev-chip { display: inline-flex; align-items: center; gap: 8px; background: #121826; border: 1px solid #2a3350; color: #c6cfdf; border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.hl-sev-chip.hl-active { border-color: #7c5cf0; }
+.hl-sev-chip:disabled { cursor: default; }
+.hl-sev-dot { width: 8px; height: 8px; border-radius: 50%; }
+.hl-sev-critical { background: #f87171; }
+.hl-sev-high { background: #fb923c; }
+.hl-sev-medium { background: #facc15; }
+.hl-sev-low { background: #34d399; }
+.hl-sev-count { min-width: 26px; text-align: right; color: #8b96ad; display: inline-flex; justify-content: flex-end; }
+.hl-spinner-xs { width: 11px; height: 11px; border-width: 2px; }
+
+/* 50057 webhook test */
+.hl-webhook-btn { display: inline-flex; align-items: center; gap: 8px; background: #1c2333; border: 1px solid #2a3350; color: #c6cfdf; border-radius: 10px; padding: 9px 16px; font-size: 13px; cursor: pointer; }
+.hl-webhook-btn:disabled { cursor: default; }
+.hl-webhook-success { border-color: #34d399; color: #a7f3d0; }
+.hl-webhook-error { border-color: #f87171; color: #fca5a5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-typing-dot { animation: none; }
+}
