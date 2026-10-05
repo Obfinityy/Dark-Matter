@@ -1,6 +1,7 @@
 import { asyncHandler, extractUrl } from '../core/utils.js';
 import { fingerprintTarget } from '../services/targetFingerprint.js';
 import { buildDiary, sortFindingsCriticalFirst } from '../services/huntDiary.js';
+import { pickEmotion } from '../avatar/emotionPicker.js';
 
 /**
  * Job Controller — REST + SSE surface of the Autonomous Bug Bounty Agent.
@@ -219,6 +220,12 @@ export function createJobController({ jobManager, assessmentService, eventServic
         return response.status(400).json({ error: { code: 'MISSING_MESSAGE', message: 'Message is required' } });
       }
       const answer = await jobManager.askBrain(request.user.id, request.params.id, question);
+      // The avatar reacts to every reply: a deterministic emotion (no ML)
+      // chosen from the reply text + detected intent. Rendered with
+      // CSS/SVG states on the frontend — never emoji.
+      if (answer && typeof answer === 'object') {
+        answer.emotion = pickEmotion(answer.reply, { intent: answer.intent, hasFindings: (answer.findingCount || 0) > 0 });
+      }
       response.json(answer);
     }),
 

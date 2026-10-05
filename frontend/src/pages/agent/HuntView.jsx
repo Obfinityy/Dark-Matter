@@ -18,12 +18,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Pause, Play, Square, Loader2, AlertTriangle,
-  Bug, BookOpen, Map as MapIcon, ChevronLeft, Sparkles, RefreshCw
+  Bug, BookOpen, Map as MapIcon, ChevronLeft, Sparkles, RefreshCw, Mic
 } from 'lucide-react';
 import {
   getJobState, pauseJob, continueJob, cancelJob,
   getJobFindings, getJobDiary, getJobAttackSurface, getJobVulnerabilityReport,
-  subscribeToJobEvents
+  subscribeToJobEvents, askJob
 } from '../../services/api';
 import { LiveScreenViewer } from '../../components/agent/LiveScreenViewer';
 import { FindingsBoard } from '../../components/agent/FindingsBoard';
@@ -34,6 +34,8 @@ import { ReportExport } from '../../components/agent/ReportExport';
 import { HuntTerminal } from './HuntTerminal';
 import { AgentCharacter } from './AgentCharacter';
 import { AgentChat } from '../../components/agent/AgentChat';
+import { AvatarOverlay } from '../../components/agent/AvatarOverlay';
+import { Avatar } from '../../components/fx/Avatar';
 import { HuntStatusPanel } from '../../components/agent/HuntStatusPanel';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { DarkVeil } from '../../components/fx/DarkVeil';
@@ -62,6 +64,11 @@ export function HuntView() {
   // Hands-free voice conversation with the hunting agent (header mic toggle).
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceState, setVoiceState] = useState('idle'); // idle | listening | thinking | speaking
+  // Infinity AI avatar in the Hunt view: emotion + activity come from the
+  // agent-chat replies; tapping the avatar opens the full-screen voice overlay.
+  const [huntEmotion, setHuntEmotion] = useState('neutral');
+  const [huntAvatarState, setHuntAvatarState] = useState('idle');
+  const [overlayOpen, setOverlayOpen] = useState(false);
 
   const refreshDetail = useCallback(async () => {
     try {
@@ -277,6 +284,27 @@ export function HuntView() {
         </div>
 
         <aside className="sg-hunt-side">
+          {/* Infinity AI avatar — compact inline presence. Tap to open the
+              full-screen voice conversation overlay. */}
+          <div className="sg-hunt-avatar-card">
+            <button
+              type="button"
+              className="sg-hunt-avatar-btn"
+              onClick={() => setOverlayOpen(true)}
+              aria-label="Open voice conversation with the Infinity AI avatar"
+              title="Talk to Infinity AI"
+            >
+              <Avatar
+                gender="female"
+                state={huntAvatarState}
+                emotion={huntEmotion}
+                size={76}
+              />
+              <span className="sg-hunt-avatar-cta">
+                <Mic size={13} aria-hidden="true" /> Tap to talk
+              </span>
+            </button>
+          </div>
           <AgentCharacter
             active={active}
             listening={voiceMode && voiceState === 'listening'}
@@ -293,9 +321,26 @@ export function HuntView() {
             voiceMode={voiceMode}
             onVoiceStateChange={setVoiceState}
             onToggleVoiceMode={setVoiceMode}
+            onEmotion={setHuntEmotion}
+            onActivity={setHuntAvatarState}
           />
         </aside>
       </div>
+
+      {/* Full-screen avatar voice conversation (reusable overlay). */}
+      <AvatarOverlay
+        open={overlayOpen}
+        onClose={() => setOverlayOpen(false)}
+        gender="female"
+        voice="aria"
+        onAsk={async (question) => {
+          const body = await askJob(jobId, question);
+          const reply = body?.reply ?? body?.answer ?? body?.message ?? '';
+          const emotion = typeof body?.emotion === 'string' ? body.emotion : 'neutral';
+          setHuntEmotion(emotion);
+          return { reply, emotion };
+        }}
+      />
     </div>
   );
 }

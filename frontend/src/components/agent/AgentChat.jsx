@@ -39,7 +39,7 @@ function timeNow() {
   return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false, onVoiceStateChange, onToggleVoiceMode }) {
+export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false, onVoiceStateChange, onToggleVoiceMode, onEmotion = null, onActivity = null }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [waiting, setWaiting] = useState(false);
@@ -77,12 +77,18 @@ export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false
     setInput('');
     waitingRef.current = true;
     setWaiting(true);
+    onActivity?.('thinking');
 
     try {
       const body = await askJob(jobRef.current, text);
       const reply = body?.reply ?? body?.answer ?? body?.message ?? '';
       if (!String(reply).trim()) throw new Error('empty');
       const clean = String(reply);
+      // The backend picks one emotion per reply (see
+      // backend/src/avatar/emotionPicker.js); the avatar reacts to it.
+      const emotion = typeof body?.emotion === 'string' ? body.emotion : 'neutral';
+      onEmotion?.(emotion);
+      onActivity?.('speaking');
       setMessages((prev) => [
         ...prev,
         {
@@ -96,6 +102,7 @@ export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false
       return clean;
     } catch (err) {
       // Never fake a reply — say plainly that the agent couldn't be reached.
+      onEmotion?.('neutral');
       const why = err?.code === 'ASK_NOT_SUPPORTED'
         ? 'Yeh backend version agent-chat support nahi karta.'
         : err?.message
@@ -114,6 +121,8 @@ export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false
     } finally {
       waitingRef.current = false;
       setWaiting(false);
+      // Let the avatar finish its "speaking" beat, then idle.
+      setTimeout(() => onActivity?.('idle'), 2600);
     }
   }, []);
 

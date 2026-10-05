@@ -1,6 +1,7 @@
 import { asyncHandler } from '../core/utils.js';
 import { classifyComputerInstruction } from '../services/computerTaskManager.js';
 import { stripThinkingTags } from '../agent/providers/phoneLocalProvider.js';
+import { pickEmotion } from '../avatar/emotionPicker.js';
 
 /**
  * Infinite chat controller — ORCHESTRATION ONLY.
@@ -300,6 +301,7 @@ function stitchContinuation(original, continuation) {
 
           sendEvent('done', {
             reply: fullReply,
+            emotion: pickEmotion(fullReply),
             thinkingTimeMs: durationMs,
             steps,
             chat: updatedChat,
@@ -413,6 +415,8 @@ function generateDynamicSteps(message = '', durationMs = 100) {
 
         response.json({
           reply,
+          // Avatar emotion for this reply (deterministic rules, no ML).
+          emotion: pickEmotion(reply),
           chat: updatedChat,
           thinkingTimeMs: durationMs,
           steps,

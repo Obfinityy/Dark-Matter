@@ -231,3 +231,60 @@
   0%, 100% { opacity: 0.12; }
   50% { opacity: 0.35; }
 }
+
+/* -- Hunt-view Infinity AI avatar (inline + tap-to-talk) ----------------- */
+.sg-hunt-avatar-card {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.sg-hunt-avatar-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.sg-hunt-avatar-btn .avatar {
+  transition: transform 0.2s ease;
+}
+
+.sg-hunt-avatar-btn:hover .avatar,
+.sg-hunt-avatar-btn:focus-visible .avatar {
+  transform: scale(1.05);
+}
+
+.sg-hunt-avatar-btn:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.7);
+  outline-offset: 2px;
+}
+
+.sg-hunt-avatar-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #c4b5fd;
+  padding: 7px 14px;
+  min-height: 32px;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.1);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-hunt-avatar-btn .avatar { transition: none; }
+  .sg-hunt-avatar-btn:hover .avatar,
+  .sg-hunt-avatar-btn:focus-visible .avatar { transform: none; }
+}

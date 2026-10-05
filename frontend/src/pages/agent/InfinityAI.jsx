@@ -204,7 +204,7 @@ function AttachChips({ files, onRemove }) {
   );
 }
 
-function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarVoice, avatarVoiceName, onSpeakAmplitude }) {
+function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvatarEmotion, avatarVoice, avatarVoiceName, onSpeakAmplitude }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   // One conversation per pane — the backend creates it on first message.
@@ -269,6 +269,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
     });
     setSending(true);
     onAvatarState?.('thinking');
+    onAvatarEmotion?.('thinking');
     try {
       // First: check if this is an ACTION command ("khol de") vs chat.
       let intent = null;
@@ -296,6 +297,8 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
       const res = await sendDirectChat(fullText, convRef.current);
       const reply = res?.reply || res?.message || res?.text || 'Hmm, empty reply. Try again?';
       setMessages((m) => [...m, { role: 'assistant', text: reply }]);
+      // The backend picks one emotion per reply (backend/src/avatar/emotionPicker.js).
+      onAvatarEmotion?.(typeof res?.emotion === 'string' ? res.emotion : 'neutral');
       // Avatar SPEAKS the reply with a real voice + lip-sync, then idles.
       onAvatarState?.('speaking');
       // Voice mode implies spoken replies even if the voice toggle is muted.
@@ -1023,6 +1026,8 @@ export function InfinityAI() {
 
   // Avatar state: idle | thinking | speaking | listening
   const [avatarState, setAvatarState] = useState('idle');
+  // Avatar emotion: happy | angry | surprised | thinking | neutral (backend-picked per reply)
+  const [avatarEmotion, setAvatarEmotion] = useState('neutral');
   const [avatarGender, setAvatarGender] = useState('female');
   const [speakAmp, setSpeakAmp] = useState(0);
   const [voiceOn, setVoiceOn] = useState(true);
@@ -1078,7 +1083,7 @@ export function InfinityAI() {
             : mode === 'plan' ? <PlanPane key="plan" mode={mode} setMode={setMode} />
             : mode === 'build' ? <BuildPane key="build" mode={mode} setMode={setMode} />
             : <ChatPane key={paneKey} mode={mode} setMode={setMode} initialConversationId={navState.conversationId}
-                onAvatarState={setAvatarState} avatarVoice={voiceOn ? avatarVoice : null}
+                onAvatarState={setAvatarState} onAvatarEmotion={setAvatarEmotion} avatarVoice={voiceOn ? avatarVoice : null}
                 avatarVoiceName={avatarVoice} onSpeakAmplitude={setSpeakAmp} />}
         </div>
 
@@ -1094,6 +1099,7 @@ export function InfinityAI() {
                 <Avatar
                   gender={avatarGender}
                   state={avatarState}
+                  emotion={avatarEmotion}
                   speakAmplitude={speakAmp}
                   size={110}
                 />
@@ -1135,6 +1141,7 @@ export function InfinityAI() {
                 <Avatar
                   gender={avatarGender}
                   state={avatarState}
+                  emotion={avatarEmotion}
                   speakAmplitude={speakAmp}
                   size={40}
                 />
@@ -1170,6 +1177,7 @@ export function InfinityAI() {
           <Avatar
             gender={avatarGender}
             state={avatarState}
+            emotion={avatarEmotion}
             speakAmplitude={speakAmp}
             size={40}
           />
