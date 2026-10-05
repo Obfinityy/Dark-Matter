@@ -424,7 +424,7 @@ export function AgentShell({ children }) {
           </div>
         </header>
 
-        <main className="sg-content">{children}</main>
+        <div className="sg-content">{children}</div>
       </main>
     </div>
   );
