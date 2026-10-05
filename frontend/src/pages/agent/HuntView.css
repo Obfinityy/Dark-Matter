@@ -215,3 +215,19 @@
   /* 44px touch targets for pause/resume/queues. */
   .sg-status-panel .sg-btn-sm { min-height: 44px; }
 }
+
+/* Voice conversation: the agent glyph pulses red while listening. */
+.sg-agent-char.listening .sg-core-glow circle {
+  fill: #f87171;
+  animation: sg-char-listen 1.1s ease-in-out infinite;
+}
+
+.sg-agent-char.listening .sg-orbit-outer {
+  stroke: #f87171;
+  animation-duration: 1.6s;
+}
+
+@keyframes sg-char-listen {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.35; }
+}

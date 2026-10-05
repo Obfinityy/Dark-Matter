@@ -2083,3 +2083,66 @@
 /* ── How-it-works list ── */
 .dm-how-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: #94a3b8; font-size: 0.9rem; }
 .dm-how-list li::marker { color: #3b82f6; font-weight: 600; }
+
+/* ── Voice input in the hunt agent chat ─────────────────────────────── */
+.dm-chat-form .voice-mic-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.dm-chat-form .voice-mic-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.dm-chat-head {
+  position: relative;
+}
+
+.dm-chat-voice-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.14);
+  color: #fecaca;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dm-chat-voice-stop:hover {
+  background: rgba(239, 68, 68, 0.24);
+}
+
+.dm-chat-voice-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 12.5px;
+  color: #a7f3d0;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid var(--dm-border-soft);
+}
+
+.dm-voice-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f87171;
+  flex-shrink: 0;
+  animation: dm-voice-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes dm-voice-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}

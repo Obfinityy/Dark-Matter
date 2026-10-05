@@ -1,0 +1,149 @@
+/* VoiceInput — mic button, voice-mode toggle, live captions.
+   Generic styles; context-specific skins (e.g. .inf-mic-btn inside the
+   Infinity AI input rows) layer on top via the extra className. */
+
+.voice-mic-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.voice-mic-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: #c4b5fd;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.voice-mic-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.16);
+}
+
+.voice-mic-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.voice-mic-btn.voice-mic-listening {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #fca5a5;
+}
+
+.voice-mic-btn.voice-mic-unsupported {
+  opacity: 0.45;
+}
+
+.voice-mic-pulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 16px;
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  animation: voice-mic-ping 1.2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes voice-mic-ping {
+  0% { transform: scale(0.95); opacity: 0.9; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+/* Live interim transcript + status captions, floating above the button. */
+.voice-mic-caption,
+.voice-mic-error {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(10, 6, 24, 0.95);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  color: #d8ccff;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.voice-mic-error {
+  white-space: normal;
+  width: max-content;
+  max-width: 240px;
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #fecaca;
+}
+
+/* Hands-free voice-conversation toggle. */
+.voice-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  color: #d8ccff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.voice-mode-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.2);
+}
+
+.voice-mode-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.voice-mode-btn.voice-mode-active {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #fecaca;
+}
+
+.voice-mode-btn .voice-mic-pulse {
+  border-radius: 16px;
+}
+
+/* Compact icon-only variant for toolbars. */
+.voice-mode-btn.voice-mode-icon {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+.voice-mode-btn.voice-mode-icon .voice-mode-label {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .voice-mode-btn .voice-mode-label {
+    display: none;
+  }
+  .voice-mode-btn {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+}

@@ -46,6 +46,8 @@ import { CrewPanel } from '../../components/agent/CrewPanel';
 import { DecryptedText } from '../../components/fx/DecryptedText';
 import { DarkVeil } from '../../components/fx/DarkVeil';
 import { speak, isVoiceReady } from '../../services/voice';
+import { MicButton, VoiceModeToggle } from '../../components/agent/VoiceInput';
+import { useVoiceConversation } from '../../hooks/useVoiceConversation';
 import './InfinityAI.css';
 import './InfinityAINew.css';
 
@@ -202,71 +204,7 @@ function AttachChips({ files, onRemove }) {
   );
 }
 
-/* ── Shared: microphone voice input (Web Speech API, free, on-device) ──── */
-/* Transcribes speech into the input box. No server needed — the browser
-   handles recognition. Gracefully hides when unsupported. */
-
-function MicButton({ onTranscript, disabled = false, onListeningChange }) {
-  const [listening, setListening] = useState(false);
-  const [supported, setSupported] = useState(false);
-  const recRef = useRef(null);
-
-  useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    setSupported(!!SR);
-    return () => { try { recRef.current?.abort(); } catch { /* noop */ } };
-  }, []);
-
-  useEffect(() => {
-    onListeningChange?.(listening);
-  }, [listening, onListeningChange]);
-
-  const toggle = () => {
-    if (listening) {
-      try { recRef.current?.stop(); } catch { /* noop */ }
-      return;
-    }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    const rec = new SR();
-    recRef.current = rec;
-    rec.lang = navigator.language || 'en-US';
-    rec.interimResults = true;
-    rec.continuous = false;
-    rec.onresult = (e) => {
-      let finalText = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
-      }
-      if (finalText) onTranscript(finalText.trim());
-    };
-    rec.onend = () => { setListening(false); recRef.current = null; };
-    rec.onerror = () => { setListening(false); recRef.current = null; };
-    try {
-      rec.start();
-      setListening(true);
-    } catch {
-      setListening(false);
-    }
-  };
-
-  if (!supported) return null;
-  return (
-    <button
-      type="button"
-      className={`inf-mic-btn${listening ? ' inf-listening' : ''}`}
-      onClick={toggle}
-      title={listening ? 'Stop listening' : 'Voice input'}
-      aria-label={listening ? 'Stop voice input' : 'Start voice input'}
-      disabled={disabled}
-    >
-      {listening ? <MicOff size={17} /> : <Mic size={17} />}
-      {listening && <span className="inf-mic-pulse" aria-hidden="true" />}
-    </button>
-  );
-}
-
-function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarVoice, onSpeakAmplitude }) {
+function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarVoice, avatarVoiceName, onSpeakAmplitude }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   // One conversation per pane — the backend creates it on first message.
@@ -277,7 +215,12 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [files, setFiles] = useState([]); // MVP attachments (names appended to the message)
+  const [voiceMode, setVoiceMode] = useState(false); // hands-free voice conversation
   const bottomRef = useRef(null);
+  const voiceModeRef = useRef(false);
+  const sendingRef = useRef(false);
+  const ttsAbortRef = useRef(null);
+  const sendTextRef = useRef(null);
 
   const addFiles = (fileList) => {
     const picked = Array.from(fileList || []).filter((f) => f.size >= 0);
@@ -308,10 +251,11 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const send = async () => {
-    const text = input.trim();
+  const sendText = async (rawText) => {
+    const text = String(rawText ?? input).trim();
     const suffix = fileSuffix(files);
-    if ((!text && !files.length) || sending) return;
+    if ((!text && !files.length) || sendingRef.current) return;
+    sendingRef.current = true;
     const fullText = text + suffix;
     setInput('');
     setFiles([]);
@@ -354,16 +298,25 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
       setMessages((m) => [...m, { role: 'assistant', text: reply }]);
       // Avatar SPEAKS the reply with a real voice + lip-sync, then idles.
       onAvatarState?.('speaking');
-      if (avatarVoice) {
+      // Voice mode implies spoken replies even if the voice toggle is muted.
+      const speakVoice = voiceModeRef.current ? avatarVoiceName : avatarVoice;
+      if (speakVoice) {
         try {
+          ttsAbortRef.current = voiceModeRef.current ? new AbortController() : null;
           await speak(reply, {
-            voice: avatarVoice,
+            voice: speakVoice,
             onAmplitude: (amp) => onSpeakAmplitude?.(amp),
+            signal: ttsAbortRef.current?.signal,
           });
         } catch {
-          // Voice failed — fall back to timed speaking animation.
-          const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
-          await new Promise((r) => setTimeout(r, speakMs));
+          // Aborted mid-reply (voice mode stopped) — end silently.
+          const aborted = ttsAbortRef.current?.signal.aborted;
+          ttsAbortRef.current = null;
+          if (!aborted) {
+            // Voice failed — fall back to timed speaking animation.
+            const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
+            await new Promise((r) => setTimeout(r, speakMs));
+          }
         }
       } else {
         // Voice muted — just animate.
@@ -379,8 +332,30 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
       onAvatarState?.('idle');
     } finally {
       setSending(false);
+      sendingRef.current = false;
     }
   };
+  sendTextRef.current = sendText;
+
+  const send = () => sendText(input);
+
+  // Hands-free voice conversation: mic → transcript auto-sends → reply is
+  // spoken aloud → mic re-opens. The avatar mirrors listening/speaking.
+  const toggleVoiceMode = () => {
+    const next = !voiceMode;
+    voiceModeRef.current = next;
+    setVoiceMode(next);
+    if (!next) {
+      try { ttsAbortRef.current?.abort(); } catch { /* noop */ }
+      onAvatarState?.('idle');
+    }
+  };
+
+  const voiceConvo = useVoiceConversation({
+    active: voiceMode,
+    onTranscript: (text) => sendTextRef.current?.(text),
+    onStateChange: (s) => onAvatarState?.(s),
+  });
 
   return (
     <>
@@ -409,6 +384,18 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
         <div ref={bottomRef} />
       </div>
       <AttachChips files={files} onRemove={removeFile} />
+      {voiceMode && (
+        <div className="inf-voice-status" role="status" aria-live="polite">
+          <span className="inf-voice-dot" aria-hidden="true" />
+          {!voiceConvo.supported
+            ? 'Voice input isn\u2019t supported in this browser \u2014 try Chrome or Edge'
+            : voiceConvo.processing
+            ? 'Replying…'
+            : voiceConvo.listening
+              ? (voiceConvo.interim ? `Heard: “${voiceConvo.interim}…”` : 'Listening — speak now')
+              : 'Voice chat on'}
+        </div>
+      )}
       <div className="sg-chat-input inf-input-row">
         <ModeDropdown mode={mode} setMode={setMode} />
         <AttachButton onPick={addFiles} />
@@ -420,10 +407,12 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, avatarV
           disabled={sending}
         />
         <MicButton
-          onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-          disabled={sending}
-          onListeningChange={(listening) => onAvatarState?.(listening ? 'listening' : 'idle')}
+          onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+          className="inf-mic-btn"
+          disabled={sending || voiceMode}
+          onListeningChange={(listening) => { if (!voiceModeRef.current) onAvatarState?.(listening ? 'listening' : 'idle'); }}
         />
+        <VoiceModeToggle active={voiceMode} onToggle={toggleVoiceMode} disabled={sending && !voiceMode} />
         <button onClick={send} disabled={sending || (!input.trim() && !files.length)} aria-label="Send">
           {sending ? <Loader2 size={17} className="sg-spin" /> : <Send size={17} />}
         </button>
@@ -483,7 +472,8 @@ function PlanPane({ mode, setMode }) {
             placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
             disabled={loading}
           />
-          <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={loading} />
+          <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+          className="inf-mic-btn" disabled={loading} />
           <button onClick={run} disabled={loading || (!input.trim() && !files.length)} aria-label="Make plan">
             {loading ? <Loader2 size={17} className="sg-spin" /> : <ClipboardList size={17} />}
           </button>
@@ -666,7 +656,8 @@ function BuildPane({ mode, setMode }) {
           placeholder="What should I build?… e.g. “a portfolio page for Rahul Sharma”"
           disabled={loading}
         />
-        <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={loading} />
+        <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+          className="inf-mic-btn" disabled={loading} />
         <button onClick={run} disabled={loading || uploading || !input.trim()} aria-label="Build">
           {loading ? <Loader2 size={17} className="sg-spin" /> : <Hammer size={17} />}
         </button>
@@ -917,7 +908,8 @@ function ControlPane({ mode, setMode }) {
           placeholder="Command the computer… e.g. “MS Word me leave application likho”"
           disabled={running}
         />
-        <MicButton onTranscript={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))} disabled={running} />
+        <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+          className="inf-mic-btn" disabled={running} />
         {running ? (
           <button onClick={stop} aria-label="Stop the agent" title="Stop the agent">
             <XCircle size={17} />
@@ -1087,7 +1079,7 @@ export function InfinityAI() {
             : mode === 'build' ? <BuildPane key="build" mode={mode} setMode={setMode} />
             : <ChatPane key={paneKey} mode={mode} setMode={setMode} initialConversationId={navState.conversationId}
                 onAvatarState={setAvatarState} avatarVoice={voiceOn ? avatarVoice : null}
-                onSpeakAmplitude={setSpeakAmp} />}
+                avatarVoiceName={avatarVoice} onSpeakAmplitude={setSpeakAmp} />}
         </div>
 
         {/* Collapsible avatar side panel */}
