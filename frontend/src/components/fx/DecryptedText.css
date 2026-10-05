@@ -7,6 +7,17 @@
   min-width: 1ch;
 }
 
+/* Invisible sizer: reserves the final text width (from data-text) so the
+   scrambling glyphs — which vary in width — never shift surrounding layout. */
+.dt-text::after {
+  content: attr(data-text);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  white-space: pre;
+}
+
 .dt-scrambling {
   /* Slight glow while decrypting for the terminal feel */
   text-shadow: 0 0 18px rgba(168, 85, 247, 0.35);
