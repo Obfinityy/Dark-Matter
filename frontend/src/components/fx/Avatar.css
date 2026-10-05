@@ -52,6 +52,49 @@
   50% { transform: translateY(-1.5px); }
 }
 
+/* ── Emotions (CSS/SVG only — never emoji) ──────────────────────────────
+   The `emotion` prop adds an `avatar-emotion-<mood>` class. Facial geometry
+   (brows, eyes, mouth, aura color) is set inline in Avatar.jsx; these rules
+   add the motion cue per emotion. */
+
+/* Happy: warm, lively bounce layered over breathing */
+.avatar-emotion-happy .avatar-head {
+  animation: avatar-happy-bounce 2.2s ease-in-out infinite;
+}
+
+@keyframes avatar-happy-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-4px) scale(1.012); }
+  60% { transform: translateY(-1px) scale(1.004); }
+}
+
+/* Angry: slow, tense side-to-side sway */
+.avatar-emotion-angry .avatar-head {
+  animation: avatar-angry-sway 1.6s ease-in-out infinite;
+}
+
+@keyframes avatar-angry-sway {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-2.5px) rotate(-0.8deg); }
+  75% { transform: translateX(2.5px) rotate(0.8deg); }
+}
+
+/* Surprised: one quick pop when the emotion lands */
+.avatar-emotion-surprised .avatar-head {
+  animation: avatar-surprise-pop 0.55s ease-out;
+}
+
+@keyframes avatar-surprise-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.06) translateY(-3px); }
+  100% { transform: scale(1); }
+}
+
+/* Thinking: keep the existing thoughtful drift (defined above) */
+.avatar-emotion-thinking.avatar-thinking .avatar-head {
+  animation: avatar-think 3s ease-in-out infinite;
+}
+
 /* Listening: lean in */
 .avatar-listening .avatar-head {
   animation: avatar-listen 2s ease-in-out infinite;

@@ -36,7 +36,7 @@ function timeNow() {
   return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function AgentChat({ jobId = null, huntRunning = false }) {
+export function AgentChat({ jobId = null, huntRunning = false, onEmotion = null, onActivity = null }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [waiting, setWaiting] = useState(false);
@@ -70,11 +70,17 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setWaiting(true);
+    onActivity?.('thinking');
 
     try {
       const body = await askJob(jobRef.current, text);
       const reply = body?.reply ?? body?.answer ?? body?.message ?? '';
       if (!String(reply).trim()) throw new Error('empty');
+      // The backend picks one emotion per reply (see
+      // backend/src/avatar/emotionPicker.js); the avatar reacts to it.
+      const emotion = typeof body?.emotion === 'string' ? body.emotion : 'neutral';
+      onEmotion?.(emotion);
+      onActivity?.('speaking');
       setMessages((prev) => [
         ...prev,
         {
@@ -87,6 +93,7 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
       ]);
     } catch (err) {
       // Never fake a reply — say plainly that the agent couldn't be reached.
+      onEmotion?.('neutral');
       const why = err?.code === 'ASK_NOT_SUPPORTED'
         ? 'Yeh backend version agent-chat support nahi karta.'
         : err?.message
@@ -103,6 +110,8 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
       ]);
     } finally {
       setWaiting(false);
+      // Let the avatar finish its "speaking" beat, then idle.
+      setTimeout(() => onActivity?.('idle'), 2600);
     }
   }, [waiting]);
 
