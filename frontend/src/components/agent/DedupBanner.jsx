@@ -22,8 +22,8 @@ export function DedupBanner({ result, onView, onNewHunt, onDismiss }) {
 
   return (
     <div className="dm-dedup-banner" role="status">
-      <button className="dm-dedup-close" onClick={onDismiss} aria-label="Dismiss">
-        <X size={15} />
+      <button className="dm-dedup-close" onClick={onDismiss} aria-label="Dismiss banner" title="Dismiss">
+        <X size={16} />
       </button>
       <div className="dm-dedup-icon"><History size={22} /></div>
       <div className="dm-dedup-body">
