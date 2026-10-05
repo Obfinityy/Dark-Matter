@@ -11,7 +11,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Users, Plus, X, Trash2, Send, Monitor, Terminal, FolderOpen,
-  Loader2, Square, Bot
+  Loader2, Square, Bot, Brain, Eye, TriangleAlert, CheckCircle2,
+  XCircle, OctagonX, MessagesSquare
 } from 'lucide-react';
 import {
   listCrews, createCrew, deleteCrew,
@@ -78,7 +79,7 @@ function CrewEventRow({ ev, crewName }) {
     );
   }
   if (type === 'thinking') {
-    return <div className="sg-crew-thinking">💭 {text || 'Thinking…'}</div>;
+    return <div className="sg-crew-thinking" aria-live="polite"><Brain size={14} /> <span>{text || 'Thinking…'}</span></div>;
   }
   if (type === 'action') {
     return (
@@ -90,7 +91,7 @@ function CrewEventRow({ ev, crewName }) {
   if (type === 'observation') {
     return (
       <details className="sg-crew-obs">
-        <summary>👁️ Observation — {text ? String(text).slice(0, 60) : 'see details'}</summary>
+        <summary><Eye size={14} /> <span>Observation — {text ? String(text).slice(0, 60) : 'see details'}</span></summary>
         <pre>{text || JSON.stringify(ev.data || ev, null, 2)}</pre>
       </details>
     );
@@ -98,28 +99,29 @@ function CrewEventRow({ ev, crewName }) {
   if (type === 'waiting') {
     return (
       <div className="sg-crew-notice warn" role="alert">
-        ⚠️ No brain configured — connect a model on the Models page.
+        <TriangleAlert size={15} /> <span>No brain configured — connect a model on the Models page.</span>
       </div>
     );
   }
   if (type === 'done') {
-    return <div className="sg-crew-notice ok">✅ {text || 'Run completed.'}</div>;
+    return <div className="sg-crew-notice ok"><CheckCircle2 size={15} /> <span>{text || 'Run completed.'}</span></div>;
   }
   if (type === 'error') {
-    return <div className="sg-crew-notice bad" role="alert">❌ {text || 'Something went wrong.'}</div>;
+    return <div className="sg-crew-notice bad" role="alert"><XCircle size={15} /> <span>{text || 'Something went wrong.'}</span></div>;
   }
   if (type === 'stopped') {
-    return <div className="sg-crew-notice">🛑 {text || 'Run stopped.'}</div>;
+    return <div className="sg-crew-notice"><OctagonX size={15} /> <span>{text || 'Run stopped.'}</span></div>;
   }
   return <div className="sg-crew-row">{text || type}</div>;
 }
 
 /* ── One crew member card ────────────────────────────────────────────────── */
-function CrewCard({ crew, status, selected, deleting, onSelect, onDelete }) {
+function CrewCard({ crew, status, selected, deleting, onSelect, onDelete, style }) {
   const meta = STATUS_META[status] || STATUS_META.idle;
   return (
     <div
-      className={`sg-crew-card${selected ? ' selected' : ''}`}
+      className={`sg-crew-card sg-crew-card-enter${selected ? ' selected' : ''}`}
+      style={style}
       onClick={onSelect}
       role="button"
       tabIndex={0}
@@ -337,7 +339,8 @@ function CrewChat({ crew, onClose, onStatus }) {
           <div className="sg-crew-events" aria-live="polite">
             {events.length === 0 ? (
               <div className="sg-crew-empty-events">
-                Say hello — {crew.name} will start working on its own computer.
+                <MessagesSquare size={22} aria-hidden="true" />
+                <span>Say hello — {crew.name} will start working on its own computer.</span>
               </div>
             ) : (
               events.map((ev, i) => (
@@ -479,7 +482,7 @@ export function CrewPanel() {
         </div>
       ) : (
         <div className="sg-crew-list">
-          {crews.map((crew) => (
+          {crews.map((crew, i) => (
             <CrewCard
               key={crew.id}
               crew={crew}
@@ -488,6 +491,7 @@ export function CrewPanel() {
               deleting={deletingId === crew.id}
               onSelect={() => setSelectedId(crew.id === selectedId ? null : crew.id)}
               onDelete={() => handleDelete(crew)}
+              style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
             />
           ))}
         </div>
