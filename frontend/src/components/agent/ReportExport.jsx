@@ -93,16 +93,18 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8p
   };
 
   return (
-    <div className="dm-report-export">
-      <button className="dm-btn-primary" onClick={downloadMd} disabled={busy}>
-        {busy === 'md' ? <Loader2 size={15} className="dm-spin" /> : <FileText size={15} />}
+    <div className="dm-report-export" role="group" aria-label="Export report">
+      <button type="button" className="dm-btn-primary" onClick={downloadMd}
+        disabled={Boolean(busy)} aria-busy={busy === 'md'}>
+        {busy === 'md' ? <Loader2 size={15} className="dm-spin" aria-hidden="true" /> : <FileText size={15} aria-hidden="true" />}
         Markdown
       </button>
-      <button className="dm-btn-secondary" onClick={printPdf} disabled={busy}>
-        {busy === 'pdf' ? <Loader2 size={15} className="dm-spin" /> : <Printer size={15} />}
+      <button type="button" className="dm-btn-secondary" onClick={printPdf}
+        disabled={Boolean(busy)} aria-busy={busy === 'pdf'}>
+        {busy === 'pdf' ? <Loader2 size={15} className="dm-spin" aria-hidden="true" /> : <Printer size={15} aria-hidden="true" />}
         PDF <span className="dm-btn-hint">(print)</span>
       </button>
-      <span className="dm-export-note"><Download size={12} /> HackerOne / Bugcrowd-ready format</span>
+      <span className="dm-export-note"><Download size={12} aria-hidden="true" /> HackerOne / Bugcrowd-ready format</span>
     </div>
   );
 }
