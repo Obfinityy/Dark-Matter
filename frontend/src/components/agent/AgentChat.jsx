@@ -15,8 +15,11 @@
  * - Graceful empty state when there is no active hunt (jobId == null).
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Bot, Send, Loader2, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Bot, Send, Loader2, MessageCircle, AlertTriangle, Square } from 'lucide-react';
 import { askJob } from '../../services/api';
+import { speak } from '../../services/voice';
+import { MicButton } from './VoiceInput';
+import { useVoiceConversation } from '../../hooks/useVoiceConversation';
 
 const DEFAULT_SUGGESTIONS = [
   'Kya kar raha hai?',
@@ -36,13 +39,16 @@ function timeNow() {
   return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function AgentChat({ jobId = null, huntRunning = false }) {
+export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false, onVoiceStateChange, onToggleVoiceMode }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [waiting, setWaiting] = useState(false);
   const logRef = useRef(null);
   const jobRef = useRef(jobId);
   jobRef.current = jobId;
+  const waitingRef = useRef(false);
+  const voiceStateCbRef = useRef(onVoiceStateChange);
+  voiceStateCbRef.current = onVoiceStateChange;
 
   // (Re)seed the welcome message whenever the hunt changes.
   useEffect(() => {
@@ -62,29 +68,32 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, waiting]);
 
-  const send = useCallback(async (rawText) => {
+  const askAgent = useCallback(async (rawText) => {
     const text = String(rawText || '').trim();
-    if (!text || waiting || !jobRef.current) return;
+    if (!text || waitingRef.current || !jobRef.current) return null;
 
     const userMsg = { role: 'user', text, at: timeNow() };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    waitingRef.current = true;
     setWaiting(true);
 
     try {
       const body = await askJob(jobRef.current, text);
       const reply = body?.reply ?? body?.answer ?? body?.message ?? '';
       if (!String(reply).trim()) throw new Error('empty');
+      const clean = String(reply);
       setMessages((prev) => [
         ...prev,
         {
           role: 'agent',
-          text: String(reply),
+          text: clean,
           reaction: body?.reaction || null,
           suggestions: Array.isArray(body?.suggestions) ? body.suggestions : [],
           at: timeNow()
         }
       ]);
+      return clean;
     } catch (err) {
       // Never fake a reply — say plainly that the agent couldn't be reached.
       const why = err?.code === 'ASK_NOT_SUPPORTED'
@@ -101,10 +110,46 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
           at: timeNow()
         }
       ]);
+      return null;
     } finally {
+      waitingRef.current = false;
       setWaiting(false);
     }
-  }, [waiting]);
+  }, []);
+
+  const askAgentRef = useRef(askAgent);
+  askAgentRef.current = askAgent;
+  const speakAbortRef = useRef(null);
+
+  const send = (rawText) => { askAgent(rawText); };
+
+  // Hands-free voice conversation (driven by the Hunt header mic toggle):
+  // transcript auto-sends, the agent's reply is spoken aloud, mic re-opens.
+  const handleVoiceTranscript = useCallback(async (text) => {
+    const reply = await askAgentRef.current(text);
+    if (reply) {
+      voiceStateCbRef.current?.('speaking');
+      speakAbortRef.current = new AbortController();
+      try {
+        await speak(reply, { voice: 'aria', signal: speakAbortRef.current.signal });
+      } catch { /* stopped mid-reply or TTS failed — text reply is on screen */ }
+      finally { speakAbortRef.current = null; }
+    }
+  }, []);
+
+  // Leaving voice mode silences any in-flight reply immediately.
+  useEffect(() => {
+    if (!voiceMode) {
+      try { speakAbortRef.current?.abort(); } catch { /* noop */ }
+      voiceStateCbRef.current?.('idle');
+    }
+  }, [voiceMode]);
+
+  const voiceConvo = useVoiceConversation({
+    active: voiceMode && !!jobId,
+    onTranscript: handleVoiceTranscript,
+    onStateChange: (s) => voiceStateCbRef.current?.(s),
+  });
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -119,9 +164,21 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
           <strong>Agent se baat karo</strong>
           <span className={`dm-chat-status${huntRunning ? ' on' : ''}`}>
             <span className="dm-live-dot" />
-            {huntRunning ? 'Hunt live — agent sun raha hai' : jobId ? 'Hunt khatam — report ready' : 'Koi hunt active nahi'}
+            {voiceMode && jobId
+              ? 'Voice chat on — bolo, agent jawab dega'
+              : huntRunning ? 'Hunt live — agent sun raha hai' : jobId ? 'Hunt khatam — report ready' : 'Koi hunt active nahi'}
           </span>
         </div>
+        {voiceMode && (
+          <button
+            type="button"
+            className="dm-chat-voice-stop"
+            onClick={() => onToggleVoiceMode?.(false)}
+            title="Stop the voice conversation"
+          >
+            <Square size={13} /> Stop voice
+          </button>
+        )}
       </header>
 
       {!jobId ? (
@@ -171,10 +228,27 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
               disabled={waiting}
               maxLength={2000}
             />
+            <MicButton
+              onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+              disabled={waiting || voiceMode}
+              title="Voice input — speak instead of typing"
+            />
             <button type="submit" className="dm-chat-send" disabled={waiting || !input.trim()} aria-label="Send message">
               {waiting ? <Loader2 size={18} className="dm-spin" /> : <Send size={18} />}
             </button>
           </form>
+          {voiceMode && jobId && (
+            <p className="dm-chat-voice-status" role="status" aria-live="polite">
+              <span className="dm-voice-dot" aria-hidden="true" />
+              {!voiceConvo.supported
+                ? 'Voice input isn\u2019t supported in this browser \u2014 try Chrome or Edge'
+                : voiceConvo.processing
+                ? 'Agent jawab de raha hai…'
+                : voiceConvo.listening
+                  ? (voiceConvo.interim ? `Suna: “${voiceConvo.interim}…”` : 'Sun raha hoon — bolo')
+                  : 'Voice chat on'}
+            </p>
+          )}
           <p className="dm-chat-hint">Seedha hunting agent se connected — jawab hunt ke live state se aata hai.</p>
         </>
       )}

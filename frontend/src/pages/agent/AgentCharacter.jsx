@@ -5,9 +5,13 @@ import React from 'react';
  * A hexagonal core with orbiting rings: breathes slowly when idle,
  * spins and pulses while the hunt is running. Professional, minimal.
  */
-export function AgentCharacter({ active = false, status = 'Idle' }) {
+export function AgentCharacter({ active = false, listening = false, status = 'Idle' }) {
   return (
-    <div className={`sg-agent-char${active ? ' working' : ' idle'}`}>
+    <div
+      className={`sg-agent-char${active ? ' working' : ' idle'}${listening ? ' listening' : ''}`}
+      role="status"
+      aria-label={`Agent status: ${status}`}
+    >
       <svg className="sg-agent-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
         <circle className="sg-orbit sg-orbit-outer" cx="60" cy="60" r="52" fill="none"
           stroke="currentColor" strokeWidth="1" strokeDasharray="10 8" opacity="0.35" />

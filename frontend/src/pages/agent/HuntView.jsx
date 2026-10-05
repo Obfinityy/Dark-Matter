@@ -40,6 +40,7 @@ import { DarkVeil } from '../../components/fx/DarkVeil';
 import { SpotlightCard } from '../../components/fx/SpotlightCard';
 import { DecryptedText } from '../../components/fx/DecryptedText';
 import { ElectricBorder } from '../../components/fx/ElectricBorder';
+import { VoiceModeToggle } from '../../components/agent/VoiceInput';
 import './HuntViewNew.css';
 import './HuntView.css';
 
@@ -58,6 +59,9 @@ export function HuntView() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
+  // Hands-free voice conversation with the hunting agent (header mic toggle).
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [voiceState, setVoiceState] = useState('idle'); // idle | listening | thinking | speaking
 
   const refreshDetail = useCallback(async () => {
     try {
@@ -190,6 +194,11 @@ export function HuntView() {
           {job?.currentObjective && <p className="sg-hunt-sub">{job.currentObjective}</p>}
         </div>
         <div className="sg-hunt-actions">
+          <VoiceModeToggle
+            active={voiceMode}
+            onToggle={() => setVoiceMode((v) => !v)}
+            className="voice-mode-icon"
+          />
           {status === 'paused' ? (
             <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => doAction('resume', () => continueJob(jobId))}>
               {busy === 'resume' ? <Loader2 size={15} className="sg-spin" /> : <Play size={15} />} Resume
@@ -270,9 +279,21 @@ export function HuntView() {
         <aside className="sg-hunt-side">
           <AgentCharacter
             active={active}
-            status={active ? 'Hunting' : status === 'completed' ? 'Done' : status === 'paused' ? 'Paused' : 'Idle'}
+            listening={voiceMode && voiceState === 'listening'}
+            status={voiceMode
+              ? (voiceState === 'listening' ? 'Listening…'
+                : voiceState === 'speaking' ? 'Speaking…'
+                : voiceState === 'thinking' ? 'Thinking…'
+                : 'Voice chat on')
+              : (active ? 'Hunting' : status === 'completed' ? 'Done' : status === 'paused' ? 'Paused' : 'Idle')}
           />
-          <AgentChat jobId={jobId} huntRunning={active} />
+          <AgentChat
+            jobId={jobId}
+            huntRunning={active}
+            voiceMode={voiceMode}
+            onVoiceStateChange={setVoiceState}
+            onToggleVoiceMode={setVoiceMode}
+          />
         </aside>
       </div>
     </div>
