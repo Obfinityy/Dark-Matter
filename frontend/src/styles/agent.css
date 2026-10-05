@@ -1013,7 +1013,11 @@
   flex-direction: column;
   gap: 14px;
 }
-.dm-chat-msg { display: flex; flex-direction: column; max-width: 88%; }
+.dm-chat-msg { display: flex; flex-direction: column; max-width: 88%; animation: dm-msg-in 0.28s ease both; }
+@keyframes dm-msg-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 .dm-chat-msg.user { align-self: flex-end; align-items: flex-end; }
 .dm-chat-msg.agent { align-self: flex-start; align-items: flex-start; }
 .dm-chat-bubble {
@@ -1696,7 +1700,13 @@
   .dm-home-grid { grid-template-columns: 1fr; }
   .dm-page { padding: 22px 18px 90px; }
 }
+@media (max-width: 760px) {
+  .dm-screen-empty { padding: 28px 20px; }
+  .dm-screen-head .dm-btn-sm { min-height: 44px; }
+  .dm-screen-actions { padding: 8px 12px 12px; }
+}
 @media (max-width: 640px) {
+  .dm-chat-chip { padding: 11px 17px; font-size: 13px; min-height: 44px; align-items: center; }
   .dm-hero { padding-top: 26px; }
   .dm-input-row { flex-direction: column; }
   .dm-input-row .dm-btn-primary { padding: 14px; }
@@ -1898,14 +1908,15 @@
 .dm-screen-head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .dm-screen-title { font-weight: 600; font-size: 14px; }
 .dm-screen-status { font-size: 12px; margin-left: auto; }
-.dm-screen-status.live { color: #10b981; }
-.dm-screen-status.paused { color: #f59e0b; }
+.dm-screen-status.live { color: var(--dm-accent-bright); }
+.dm-screen-status.paused { color: var(--dm-warn); }
 .dm-screen-controls { display: flex; gap: 8px; }
 .dm-screen-frame {
   position: relative;
@@ -1920,46 +1931,56 @@
   pointer-events: none !important;
   user-select: none !important;
 }
-.dm-screen-readonly .dm-screen-controls,
-.dm-screen-readonly .dm-screen-controls * {
-  pointer-events: auto !important;
-}
 .dm-screen-img {
   max-width: 100%;
   max-height: 480px;
   object-fit: contain;
   display: block;
 }
-.dm-screen-empty { color: #64748b; font-size: 13px; padding: 40px; text-align: center; }
+.dm-screen-empty { color: var(--dm-faint); font-size: 13px; padding: 40px; text-align: center; }
+.dm-screen-footnote { font-size: 12px; color: var(--dm-faint); }
 .dm-screen-paused-overlay {
   position: absolute; inset: 0;
   background: rgba(0,0,0,0.55);
   display: flex; align-items: center; justify-content: center;
-  color: #f59e0b; font-weight: 600; font-size: 15px;
+  color: var(--dm-warn); font-weight: 600; font-size: 15px;
 }
 .dm-screen-note {
   padding: 8px 14px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--dm-faint);
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 .dm-screen-actions { padding: 10px 14px 14px; }
 .dm-screen-actions-title {
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #64748b; margin-bottom: 8px;
+  color: var(--dm-faint); margin-bottom: 8px;
 }
-.dm-screen-actions-empty { color: #475569; font-size: 13px; }
+.dm-screen-actions-empty { color: var(--dm-faint); font-size: 13px; }
 .dm-screen-action-line {
   display: flex; gap: 10px;
   font-size: 13px; padding: 4px 0;
-  color: #22d3ee;
+  color: var(--sg-cyan, #22d3ee);
   animation: dm-fade-in 0.3s ease;
+}
+/* Per-action accent tones so the narration is scannable at a glance. */
+.dm-screen-action-line.tone-pointer { color: var(--dm-info); }
+.dm-screen-action-line.tone-type { color: var(--dm-accent-bright); }
+.dm-screen-action-line.tone-nav { color: var(--sg-cyan, #22d3ee); }
+.dm-screen-action-line.tone-shot { color: var(--dm-text); }
+.dm-screen-action-line.tone-observe { color: var(--dm-muted); }
+.dm-screen-action-line.tone-wait { color: var(--dm-warn); }
+/* Base shared by the small dm-* buttons in the viewer head. */
+.dm-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--dm-sans); font-weight: 600; cursor: pointer;
+  text-decoration: none; white-space: nowrap;
 }
 .dm-btn-sm { padding: 6px 12px; font-size: 12px; }
 .dm-btn-warn {
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
+  color: var(--dm-warn);
   border-radius: 8px;
   display: inline-flex; align-items: center; gap: 6px;
   cursor: pointer;
