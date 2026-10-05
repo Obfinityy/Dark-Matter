@@ -30,6 +30,7 @@ import './styles/polish-pass-payloads-queues-schedules.css';
 import './styles/polish-pass-alerts-account-premium.css';
 import './styles/polish-pass-coverage-posture-fingerprint.css';
 import './styles/polish-pass-surfacemap-diary-terminal.css';
+import './styles/polish-pass-crew-cvss-dedup.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
