@@ -231,3 +231,114 @@ export function ZipExportProgressBar({ done = 0, total = 0, className = '' }) {
     </div>
   );
 }
+
+/* ---- Wave 2 additions (ideas 50041–50080) ---- */
+
+/** 50041 — Reconnecting banner with retry countdown. */
+export function ReconnectingBanner({ secondsLeft = 5, onRetryNow, className = '' }) {
+  return (
+    <div className={`hl-reconnect ${className}`} role="alert" aria-label="Connection lost, reconnecting">
+      <span className="hl-mini-spinner" aria-hidden="true" />
+      <span>Reconnecting… retrying in {Math.max(0, Math.ceil(secondsLeft))}s</span>
+      {onRetryNow && (
+        <button type="button" className="hl-reconnect-btn" onClick={onRetryNow}>Retry now</button>
+      )}
+    </div>
+  );
+}
+
+/** 50045 — Pause/resume button with inline spinner during the state transition. */
+export function PauseButtonTransitionSpinner({ paused = false, transitioning = false, onToggle, className = '' }) {
+  return (
+    <button
+      type="button"
+      className={`hl-pause-btn ${paused ? 'hl-paused' : ''} ${className}`}
+      onClick={onToggle}
+      disabled={transitioning}
+      aria-label={paused ? 'Resume hunt' : 'Pause hunt'}
+    >
+      {transitioning ? (
+        <span className="hl-mini-spinner" aria-hidden="true" />
+      ) : (
+        <span className="hl-pause-icon" aria-hidden="true">{paused ? '▶' : '❚❚'}</span>
+      )}
+      {paused ? 'Resume' : 'Pause'}
+    </button>
+  );
+}
+
+/** 50047 — Typing indicator in the "ask agent" follow-up while the answer generates. */
+export function AskAgentTypingIndicator({ className = '' }) {
+  return (
+    <div className={`hl-typing ${className}`} role="status" aria-label="Agent is typing">
+      <span className="hl-typing-dot" />
+      <span className="hl-typing-dot" />
+      <span className="hl-typing-dot" />
+    </div>
+  );
+}
+
+/** 50049 — Bulk-action determinate progress, e.g. "marking 24 findings as reviewed". */
+export function BulkActionProgressBar({ action = 'Working', done = 0, total = 0, className = '' }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className={`hl-bulk ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={action}>
+      <span className="hl-bulk-label">{action}… {done}/{total}</span>
+      <div className="hl-progress-track">
+        <div className="hl-progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/** 50053 — Catch-up state for reopening a hunt with 500+ missed events. */
+export function CatchUpLoadingState({ missed = 0, onJumpToLatest, className = '' }) {
+  return (
+    <div className={`hl-catchup ${className}`} role="status" aria-label="Catching up on missed events">
+      <span className="hl-mini-spinner" aria-hidden="true" />
+      <span>Catching up… {missed > 0 ? `${missed} missed events` : ''}</span>
+      {onJumpToLatest && (
+        <button type="button" className="hl-catchup-btn" onClick={onJumpToLatest}>Jump to latest</button>
+      )}
+    </div>
+  );
+}
+
+/** 50055 — Severity filter counts show inline spinners while aggregations compute. */
+export function SeverityCountSpinner({ severity = 'High', loading = true, count = null, active = false, onClick, className = '' }) {
+  return (
+    <button
+      type="button"
+      className={`hl-sev-chip ${active ? 'hl-active' : ''} ${className}`}
+      onClick={onClick}
+      disabled={loading}
+    >
+      <span className={`hl-sev-dot hl-sev-${severity.toLowerCase()}`} aria-hidden="true" />
+      {severity}
+      <span className="hl-sev-count">
+        {loading ? <span className="hl-mini-spinner hl-spinner-xs" aria-hidden="true" /> : count}
+      </span>
+    </button>
+  );
+}
+
+/** 50057 — Webhook test button showing "sending test payload…" during the check. */
+export function IntegrationTestSpinner({ state = 'idle', onTest, className = '' }) {
+  const labels = {
+    idle: 'Send test payload',
+    testing: 'Sending test payload…',
+    success: 'Delivered ✓',
+    error: 'Failed — retry',
+  };
+  return (
+    <button
+      type="button"
+      className={`hl-webhook-btn hl-webhook-${state} ${className}`}
+      onClick={onTest}
+      disabled={state === 'testing'}
+    >
+      {state === 'testing' && <span className="hl-mini-spinner" aria-hidden="true" />}
+      {labels[state] ?? labels.idle}
+    </button>
+  );
+}

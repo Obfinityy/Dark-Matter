@@ -91,3 +91,61 @@ export function useFaviconProgress(percent) {
     return undefined;
   }, [percent]);
 }
+
+/* ---- Wave 2 addition (idea 50059) ---- */
+
+/**
+ * 50059 — Skeleton timeout fallback: after `timeoutMs` of continuous loading,
+ * report `timedOut = true` so the UI can replace endless spinners with a
+ * "still loading — check connection" hint.
+ */
+export function useSkeletonTimeout(isLoading, timeoutMs = 15000) {
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    if (!isLoading) {
+      setTimedOut(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setTimedOut(true), timeoutMs);
+    return () => clearTimeout(t);
+  }, [isLoading, timeoutMs]);
+  return timedOut;
+}
+
+/* ---- Wave 2 addition (idea 50078) ---- */
+
+/**
+ * 50078 — Reload-persistent progress: snapshots progress state to localStorage
+ * so reopening the page restores the exact last progress state instantly.
+ * Returns [state, update(patch), clear()].
+ */
+export function usePersistentProgress(key, initial = {}) {
+  const [state, setState] = useState(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+      return raw ? { ...initial, ...JSON.parse(raw) } : initial;
+    } catch {
+      return initial;
+    }
+  });
+  const update = (patch) => {
+    setState((prev) => {
+      const next = { ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) };
+      try {
+        if (typeof window !== 'undefined') window.localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        /* storage unavailable — keep in-memory state only */
+      }
+      return next;
+    });
+  };
+  const clear = () => {
+    try {
+      if (typeof window !== 'undefined') window.localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+    setState(initial);
+  };
+  return [state, update, clear];
+}

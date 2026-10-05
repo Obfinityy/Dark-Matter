@@ -311,3 +311,193 @@ export function ModelLibraryCardSkeleton({ count = 6, className = '' }) {
     </div>
   );
 }
+
+/* ---- Wave 2 additions (ideas 50041–50080) ---- */
+
+/** 50042 — Risk-gauge skeleton: placeholder gauge; needle sweeps once the real score loads. */
+export function RiskGaugeSkeleton({ size = 140, score = null, className = '' }) {
+  const w = size;
+  const h = size * 0.62;
+  const cx = w / 2;
+  const cy = h * 0.92;
+  const r = w * 0.38;
+  const angle = score === null ? -90 : -90 + (Math.max(0, Math.min(100, score)) / 100) * 180;
+  const rad = (angle * Math.PI) / 180;
+  return (
+    <div className={`hsk-gauge ${className}`} role="status" aria-label={score === null ? 'Loading risk score' : `Risk score ${score}`}>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="#1c2333" strokeWidth={16} strokeLinecap="round" className={score === null ? 'hsk' : ''} />
+        {score !== null && (
+          <g className="hsk-needle">
+            <line x1={cx} y1={cy} x2={cx + r * 0.82 * Math.cos(rad)} y2={cy + r * 0.82 * Math.sin(rad)} stroke="#a78bfa" strokeWidth={4} strokeLinecap="round" />
+            <circle cx={cx} cy={cy} r={7} fill="#2a3350" />
+          </g>
+        )}
+      </svg>
+      {score === null ? <Skeleton width={54} height={20} radius={8} /> : <span className="hsk-gauge-score">{score}</span>}
+    </div>
+  );
+}
+
+/** 50043 — Evidence thumbnails blur up: blurred thumb sharpens progressively on load. */
+export function EvidenceThumbnailBlurUp({ src, alt = 'Evidence screenshot', width = 160, height = 100, className = '' }) {
+  const [loaded, setLoaded] = React.useState(false);
+  return (
+    <div className={`hsk-evidence ${className}`} style={{ width, height }}>
+      {!loaded && <div className="hsk-evidence-ph" aria-hidden="true" />}
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        onLoad={() => setLoaded(true)}
+        className={`hsk-evidence-img ${loaded ? 'hsk-sharp' : ''}`}
+      />
+    </div>
+  );
+}
+
+/** 50044 — Compare-hunts skeleton: placeholder panes for the diff view. */
+export function CompareHuntsSkeleton({ className = '' }) {
+  return (
+    <div className={`hsk-compare ${className}`} role="status" aria-label="Loading hunt comparison">
+      {[0, 1].map((pane) => (
+        <div key={pane} className="hsk-compare-pane">
+          <Skeleton height={15} width="45%" radius={6} />
+          <SkeletonText lines={3} />
+          <div className="hsk-compare-diff">
+            <Skeleton height={26} radius={8} />
+            <Skeleton height={26} radius={8} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 50046 — Audit-log row skeletons mirroring the table's column widths. */
+export function AuditLogRowSkeleton({ rows = 6, className = '' }) {
+  return (
+    <div className={`hsk-stack ${className}`} role="status" aria-label="Loading audit log">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="hsk-audit-row" aria-hidden="true">
+          <Skeleton width={120} height={11} radius={5} />
+          <Skeleton width={90} height={11} radius={5} />
+          <Skeleton height={11} radius={5} />
+          <Skeleton width={70} height={11} radius={5} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 50048 — Asset-tree skeleton: indented placeholder branches for scope/target panel. */
+export function AssetTreeSkeleton({ levels = [0, 1, 1, 2, 0, 1, 2], className = '' }) {
+  return (
+    <div className={`hsk-stack ${className}`} role="status" aria-label="Loading asset tree" style={{ gap: 8 }}>
+      {levels.map((depth, i) => (
+        <div key={i} className="hsk-row-flex" style={{ paddingLeft: depth * 22 }} aria-hidden="true">
+          <Skeleton width={14} height={14} radius={4} />
+          <Skeleton height={11} width={`${72 - depth * 12}%`} radius={5} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 50050 — Insights-feed skeleton cards (learning & insights feed). */
+export function InsightsFeedSkeleton({ cards = 3, className = '' }) {
+  return (
+    <StaggeredFadeIn className={`hsk-stack ${className}`} step={90} role="status" aria-label="Loading insights">
+      {Array.from({ length: cards }).map((_, i) => (
+        <div key={i} className="hsk-card">
+          <div className="hsk-row-flex">
+            <Skeleton width={34} height={34} radius={10} />
+            <Skeleton height={13} width="50%" radius={6} />
+          </div>
+          <SkeletonText lines={2} lastWidth="70%" />
+        </div>
+      ))}
+    </StaggeredFadeIn>
+  );
+}
+
+/** 50051 — Theme-preview loader: shimmer thumbnails for the theme switcher. */
+export function ThemePreviewLoader({ themes = 4, className = '' }) {
+  return (
+    <div className={`hsk-theme-row ${className}`} role="status" aria-label="Loading themes">
+      {Array.from({ length: themes }).map((_, i) => (
+        <div key={i} className="hsk-theme-thumb" aria-hidden="true">
+          <Skeleton height={64} radius={10} />
+          <Skeleton height={10} width="60%" radius={5} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 50052 — Shortcut-cheatsheet skeleton: kbd placeholders + description rows. */
+export function ShortcutCheatsheetSkeleton({ rows = 8, className = '' }) {
+  return (
+    <div className={`hsk-stack ${className}`} role="status" aria-label="Loading keyboard shortcuts" style={{ gap: 6 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="hsk-shortcut-row" aria-hidden="true">
+          <Skeleton width={64} height={22} radius={6} />
+          <Skeleton height={11} width={`${55 + ((i * 13) % 25)}%`} radius={5} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 50054 — PDF-thumbnail skeleton pages for the report preview. */
+export function PdfThumbnailSkeleton({ pages = 4, className = '' }) {
+  return (
+    <div className={`hsk-pdf-row ${className}`} role="status" aria-label="Loading report pages">
+      {Array.from({ length: pages }).map((_, i) => (
+        <div key={i} className="hsk-pdf-page" aria-hidden="true">
+          <Skeleton height={10} width="70%" radius={4} />
+          <Skeleton height={7} width="90%" radius={4} />
+          <Skeleton height={7} width="80%" radius={4} />
+          <Skeleton height={7} width="85%" radius={4} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 50056 — Collaborator-avatar skeletons: overlapping gray circles. */
+export function CollaboratorAvatarSkeleton({ count = 4, className = '' }) {
+  return (
+    <div className={`hsk-avatars ${className}`} role="status" aria-label="Loading collaborators" aria-hidden="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <span key={i} className="hsk-avatar-ph" style={{ zIndex: count - i }} />
+      ))}
+      <Skeleton width={56} height={20} radius={999} />
+    </div>
+  );
+}
+
+/** 50058 — Phase-grouped timeline skeleton: event rows under each phase header. */
+export function PhaseGroupedTimelineSkeleton({ phases = ['Recon', 'Testing'], perPhase = 3, className = '' }) {
+  return (
+    <div className={`hsk-stack ${className}`} role="status" aria-label="Loading timeline">
+      {phases.map((phase) => (
+        <div key={phase} className="hsk-phase-group">
+          <div className="hsk-row-flex">
+            <Skeleton width={26} height={26} circle />
+            <Skeleton height={13} width={110} radius={6} />
+          </div>
+          <div className="hsk-phase-events">
+            {Array.from({ length: perPhase }).map((_, i) => (
+              <div key={i} className="hsk-row-flex" aria-hidden="true">
+                <Skeleton width={8} height={8} circle />
+                <Skeleton height={10} width={`${60 + ((i * 17) % 25)}%`} radius={5} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
