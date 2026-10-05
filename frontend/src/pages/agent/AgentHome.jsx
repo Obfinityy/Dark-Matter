@@ -16,9 +16,35 @@ import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { DarkVeil } from '../../components/fx/DarkVeil';
 import { DecryptedText } from '../../components/fx/DecryptedText';
-import { BentoGrid, BentoTile } from '../../components/fx/BentoGrid';
 import './AgentHome.css';
 import './AgentHomeNew.css';
+
+/**
+ * useCountUp — eases a number from 0 to its target on mount so stats
+ * land with a subtle micro-interaction. Disabled for reduced-motion
+ * users (they see the final value instantly).
+ */
+function useCountUp(target) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setValue(target);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const DURATION = 650;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / DURATION);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(eased * target));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  return value;
+}
 
 export function AgentHome() {
   const navigate = useNavigate();
@@ -73,6 +99,11 @@ export function AgentHome() {
   const doneCount = jobs.filter((j) => String(j.status).toLowerCase() === 'completed').length;
   const totalFindings = jobs.reduce((n, j) => n + (j.findingsCount || 0), 0);
 
+  // Animated stat numbers — landing with a soft count-up.
+  const runningShown = useCountUp(runningCount);
+  const doneShown = useCountUp(doneCount);
+  const findingsShown = useCountUp(totalFindings);
+
   return (
     <div className="sg-hunt-home home-new">
       <DarkVeil intensity={0.7} />
@@ -101,6 +132,8 @@ export function AgentHome() {
               spellCheck={false}
               autoComplete="off"
               aria-label="Target URL"
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? 'sg-target-error' : undefined}
             />
             <button type="submit" className="sg-btn sg-btn-primary" disabled={starting}>
               {starting && <span className="sg-spin" style={{ display: 'inline-flex' }}>◌</span>}
@@ -113,7 +146,7 @@ export function AgentHome() {
           </label>
         </form>
 
-        {error && <div className="sg-auth-error" role="alert" style={{ marginTop: 16, maxWidth: 640 }}><AlertTriangle size={15} /> {error}</div>}
+        {error && <div id="sg-target-error" className="sg-auth-error" role="alert" style={{ marginTop: 16, maxWidth: 640 }}><AlertTriangle size={15} /> {error}</div>}
 
         {dedup && (
           <div style={{ marginTop: 20, maxWidth: 640 }}>
@@ -130,9 +163,9 @@ export function AgentHome() {
       {/* ── Stats ── */}
       <section className="sg-stats" aria-label="Hunt statistics">
         {[
-          { n: runningCount, label: 'hunts live right now', live: runningCount > 0 },
-          { n: doneCount, label: 'hunts completed' },
-          { n: totalFindings, label: 'findings so far' },
+          { n: runningShown, label: 'hunts live right now', live: runningCount > 0 },
+          { n: doneShown, label: 'hunts completed' },
+          { n: findingsShown, label: 'findings so far' },
         ].map(({ n, label, live }, i) => (
           <div key={label} className={`sg-stat sg-fade-up sg-fade-up-${i + 1}`}>
             <strong>{n}{live && <span className="sg-live-dot" />}</strong>
