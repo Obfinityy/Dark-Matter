@@ -114,7 +114,7 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
   return (
     <section className="dm-chat" aria-label="Chat with the hunting agent">
       <header className="dm-chat-head">
-        <span className="dm-chat-avatar"><Bot size={20} /></span>
+        <span className="dm-chat-avatar"><Bot size={20} aria-hidden="true" /></span>
         <div className="dm-chat-head-text">
           <strong>Agent se baat karo</strong>
           <span className={`dm-chat-status${huntRunning ? ' on' : ''}`}>
@@ -126,7 +126,7 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
 
       {!jobId ? (
         <div className="dm-chat-empty">
-          <MessageCircle size={30} />
+          <MessageCircle size={30} aria-hidden="true" />
           <strong>Abhi koi hunt nahi chal rahi</strong>
           <p>Home page se ek target par hunt shuru karo — phir yahan agent se live baat kar sakte ho.</p>
         </div>
@@ -134,7 +134,7 @@ export function AgentChat({ jobId = null, huntRunning = false }) {
         <>
           <div className="dm-chat-log" ref={logRef} role="log" aria-label="Agent conversation">
             {messages.map((msg, i) => (
-              <div key={i} className={`dm-chat-msg ${msg.role}${msg.error ? ' error' : ''}`}>
+              <div key={i} role={msg.error ? 'alert' : undefined} className={`dm-chat-msg ${msg.role}${msg.error ? ' error' : ''}`}>
                 <div className="dm-chat-bubble">
                   {msg.error && <AlertTriangle size={13} style={{ verticalAlign: -2, marginRight: 6 }} />}
                   {msg.text}
