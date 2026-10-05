@@ -39,7 +39,6 @@ import { Avatar } from '../../components/fx/Avatar';
 import { HuntStatusPanel } from '../../components/agent/HuntStatusPanel';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { DarkVeil } from '../../components/fx/DarkVeil';
-import { SpotlightCard } from '../../components/fx/SpotlightCard';
 import { DecryptedText } from '../../components/fx/DecryptedText';
 import { ElectricBorder } from '../../components/fx/ElectricBorder';
 import { VoiceModeToggle } from '../../components/agent/VoiceInput';
@@ -158,7 +157,7 @@ export function HuntView() {
   if (loading) {
     return (
       <div className="sg-huntview">
-        <div className="sg-loading-box"><Loader2 size={18} className="sg-spin" /> Loading hunt…</div>
+        <div className="sg-loading-box" role="status"><Loader2 size={18} className="sg-spin" /> Loading hunt…</div>
       </div>
     );
   }
@@ -262,7 +261,7 @@ export function HuntView() {
                   {count != null && count > 0 && <span className="sg-tab-badge">{count}</span>}
                 </button>
               ))}
-              <span style={{ flex: 1 }} />
+              <span className="sg-tabs-spacer" aria-hidden="true" />
               <button
                 className={`sg-btn sg-btn-quiet${explainer ? ' active' : ''}`}
                 onClick={() => setExplainer((v) => !v)}
