@@ -26,6 +26,11 @@ import { validateComputerAction } from '../computer/actionSchema.js';
 import { MockComputerAdapter } from '../computer/mockComputerAdapter.js';
 import { MockToolRunner } from './mockToolRunner.js';
 import { ToolRegistry } from '../tools/registry.js';
+import {
+  runControlAgent,
+  createVisionPlanner,
+  createGroundingGrounder
+} from '../control/agentLoop.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -625,6 +630,12 @@ export function validatePlanSteps(steps, context = {}) {
 /**
  * Full Control pipeline: NL → plan → schema validation → adapter execution.
  *
+ * @deprecated The fire-and-forget plan path. Control commands now run through
+ * the see → think → act agent loop (runControlVision below), which screenshots
+ * the desktop, plans with the Vision brain, grounds coordinates with the
+ * Grounding brain, executes one validated action at a time and re-observes.
+ * Kept for backward compatibility (dry-run previews, tests, tooling).
+ *
  * @param {object} opts.adapter  computer adapter (real or MockComputerAdapter).
  *   When omitted, a MockComputerAdapter is used and the run is marked simulated.
  */
@@ -995,11 +1006,102 @@ export async function runControlDeep(instruction, { adapter = null, fileSystem =
   };
 }
 
-export function createInfinityModes({ brainModel = null, brainModelFor = null, workspaceRoot = null, logger = console } = {}) {
+// ── Control agent loop: see → think → act (current Control path) ─────────
+// Control commands run the vision-driven agent loop from
+// backend/src/control/agentLoop.js: screenshot → Vision brain plans the next
+// step → Grounding brain resolves 0–1000 coordinates → one validated action
+// executes → fresh screenshot → replan/verify. This replaces the old
+// fire-and-forget plan (runControlPlan, deprecated above), which executed a
+// static plan without ever looking at the screen again.
+
+/**
+ * Run a Control instruction through the see → think → act agent loop.
+ *
+ * Brains may be injected directly (planner/grounder) or as brain providers
+ * (visionBrain/groundingBrain, wrapped automatically). When no brains are
+ * available the call falls back to the legacy deep-control path (deprecated)
+ * so Control never hard-fails on a brain-less backend.
+ *
+ * @param {string} instruction natural-language desktop command
+ * @param {object} opts
+ * @param {object} [opts.planner] injected planner { plan() } (test seam)
+ * @param {object} [opts.grounder] injected grounder { ground() } (test seam)
+ * @param {object} [opts.visionBrain] brain provider for planning
+ * @param {object} [opts.groundingBrain] brain provider for grounding; falls
+ *   back to visionBrain when absent
+ * @param {object} [opts.bridge] loop bridge { screenshot(), execute() }
+ * @param {object} [opts.adapter] legacy computer adapter (auto-adapted)
+ * @param {function} [opts.onEvent] receives status events (wire to SSE)
+ * @param {number} [opts.maxSteps] step budget
+ * @param {boolean} [opts.dryRun] preview only — delegates to the legacy
+ *   deep-control dry run, which returns the full validated plan
+ * @param {string} [opts.userId]
+ * @param {object} [opts.scopeEngine]
+ */
+export async function runControlVision(instruction, {
+  planner = null,
+  grounder = null,
+  visionBrain = null,
+  groundingBrain = null,
+  bridge = null,
+  adapter = null,
+  onEvent = () => {},
+  maxSteps = 25,
+  dryRun = false,
+  userId = null,
+  scopeEngine = null,
+  fileSystem = null,
+  toolRunner = null
+} = {}) {
+  const resolvedPlanner = planner || (visionBrain ? createVisionPlanner(visionBrain) : null);
+  // The Grounding slot holds the UI-TARS-class model; when no dedicated
+  // grounding brain is configured, the vision brain doubles as grounder.
+  const groundingSource = groundingBrain || visionBrain;
+  const resolvedGrounder = grounder || (groundingSource ? createGroundingGrounder(groundingSource) : null);
+  const resolvedBridge = bridge || adapter || new MockComputerAdapter();
+
+  if (dryRun) {
+    // Preview path: the legacy deep-control dry run returns the full
+    // validated plan without executing anything.
+    return runControlDeep(instruction, {
+      adapter: resolvedBridge,
+      scopeEngine,
+      dryRun: true,
+      fileSystem,
+      toolRunner,
+      userId
+    });
+  }
+
+  if (!resolvedPlanner || !resolvedGrounder) {
+    // DEPRECATED fallback: no vision brains on this backend, so Control runs
+    // the old deep-control path (plan → validate → execute, no re-observe).
+    return runControlDeep(instruction, {
+      adapter: resolvedBridge,
+      scopeEngine,
+      fileSystem,
+      toolRunner,
+      userId
+    });
+  }
+
+  return runControlAgent(String(instruction), {
+    planner: resolvedPlanner,
+    grounder: resolvedGrounder,
+    bridge: resolvedBridge,
+    onEvent,
+    maxSteps
+  });
+}
+
+export function createInfinityModes({ brainModel = null, brainModelFor = null, groundingBrainFor = null, workspaceRoot = null, logger = console } = {}) {
   const workspace = createWorkspace(workspaceRoot || defaultWorkspaceRoot());
   // brainModelFor(userId) lets Plan mode think with the user's ACTIVE brain
   // (Models → Run / Kaggle connect); falls back to the fixed brainModel.
   const brainFor = (userId) => (typeof brainModelFor === 'function' ? brainModelFor(userId) : null) || brainModel;
+  // groundingBrainFor(userId) resolves the Grounding-slot brain (the
+  // UI-TARS-class model). When absent, the vision brain doubles as grounder.
+  const groundingFor = (userId) => (typeof groundingBrainFor === 'function' ? groundingBrainFor(userId) : null);
   return {
     workspace,
     plan: (instruction, opts = {}) => planInstruction(instruction, { brainModel: brainFor(opts?.userId), userId: opts?.userId }),
@@ -1007,7 +1109,21 @@ export function createInfinityModes({ brainModel = null, brainModelFor = null, w
     decompose: decomposeInstruction,
     decomposeDeep: decomposeControlRequest,
     validateSteps: validatePlanSteps,
-    runControl: (instruction, opts = {}) => runControlDeep(instruction, { fileSystem: workspace, ...opts }),
+    // Control commands now run the see → think → act agent loop
+    // (runControlVision) whenever brains are available; otherwise they fall
+    // back to the legacy deep-control path, which is deprecated.
+    runControl: (instruction, opts = {}) => runControlVision(instruction, {
+      visionBrain: brainFor(opts?.userId),
+      groundingBrain: groundingFor(opts?.userId),
+      fileSystem: workspace,
+      ...opts
+    }),
+    runControlVision: (instruction, opts = {}) => runControlVision(instruction, {
+      visionBrain: brainFor(opts?.userId),
+      groundingBrain: groundingFor(opts?.userId),
+      fileSystem: workspace,
+      ...opts
+    }),
     runControlGui: (instruction, opts = {}) => runControlPlan(instruction, opts)
   };
 }
