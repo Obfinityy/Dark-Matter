@@ -47,9 +47,11 @@ Rationale: One's wave engine advances `next_idea` upward from 41 (~160 ideas/day
 - [infinity-one] frontend polish — via `frontend-polish` cron, ongoing
 - [infinity-two] ideas 50041–50080 — wave 2, in progress
 - [infinity-three] _(empty — Three: claim your track here on arrival)_
-- [infinity-one] integrate-dont-reinvent tracks 1–4 (control loop, hunt triple-brain, voice, avatar) — via integration coordinator, 5 Oct
+- [infinity-one] integrate-dont-reinvent tracks 1–4 — DONE 5 Oct (merged to main: b4a5ef7; conflicts resolved; frontend build + 30/30 new tests pass; pushed)
 
 ## Completed milestones
+
+- 2026-10-05: Integrate-don't-reinvent tracks 1–4 — control see→think→act loop, Hunt triple-brain, voice/mic + TTS, Hunt avatar + emotions → merged to main (b4a5ef7)
 
 - 2026-10-03: Wave 1 — ideas 00001–00040 → 11 recon engines (PR #21, squash-merged)
 - 2026-10-03: Infinity Crew — persistent AI coworkers in Control mode (PR #22, squash-merged)
