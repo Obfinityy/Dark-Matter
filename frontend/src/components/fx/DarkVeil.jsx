@@ -6,6 +6,8 @@
  * Pure CSS — no WebGL, no dependencies, GPU-cheap (transform/opacity only).
  *
  * Usage: <DarkVeil /> as the first child of a full-page container.
+ * Children render in a content layer ABOVE the atmosphere so they stay
+ * interactive and visible to assistive tech (the atmosphere is aria-hidden).
  */
 import React, { useMemo } from 'react';
 import './DarkVeil.css';
@@ -20,21 +22,23 @@ export function DarkVeil({ intensity = 1, children }) {
   ], []);
 
   return (
-    <div className="dv-root" style={{ '--dv-intensity': intensity }} aria-hidden="true">
-      {orbs.map((o, i) => (
-        <div
-          key={i}
-          className={`dv-orb dv-orb-${o.hue}`}
-          style={{
-            left: o.x, top: o.y,
-            width: o.size, height: o.size,
-            animationDuration: o.dur,
-            animationDelay: o.delay,
-          }}
-        />
-      ))}
-      <div className="dv-grain" />
-      {children}
+    <div className="dv-root" style={{ '--dv-intensity': intensity }}>
+      <div className="dv-atmosphere" aria-hidden="true">
+        {orbs.map((o, i) => (
+          <div
+            key={i}
+            className={`dv-orb dv-orb-${o.hue}`}
+            style={{
+              left: o.x, top: o.y,
+              width: o.size, height: o.size,
+              animationDuration: o.dur,
+              animationDelay: o.delay,
+            }}
+          />
+        ))}
+        <div className="dv-grain" />
+      </div>
+      {children ? <div className="dv-content">{children}</div> : null}
     </div>
   );
 }

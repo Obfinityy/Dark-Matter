@@ -4,8 +4,21 @@
   inset: 0;
   z-index: -1;
   overflow: hidden;
-  background: #060010; /* near-black, violet-tinted — never pure black */
+  background: var(--dv-base, #060010); /* near-black, violet-tinted — never pure black */
   pointer-events: none;
+}
+
+/* Atmosphere layer: purely decorative, hidden from assistive tech. */
+.dv-atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Content layer: sits above the fog, restores interactivity for children. */
+.dv-content {
+  position: relative;
+  pointer-events: auto;
 }
 
 .dv-orb {
@@ -18,10 +31,11 @@
   will-change: transform;
 }
 
-.dv-orb-violet  { background: radial-gradient(circle, rgba(139, 92, 246, 0.55), transparent 65%); }
-.dv-orb-magenta { background: radial-gradient(circle, rgba(217, 70, 239, 0.42), transparent 65%); }
-.dv-orb-cyan    { background: radial-gradient(circle, rgba(34, 211, 238, 0.28), transparent 65%); }
-.dv-orb-deep    { background: radial-gradient(circle, rgba(76, 29, 149, 0.5), transparent 70%); }
+/* Orb hues are theme-overridable via --dv-hue-*; fallbacks keep the violet look. */
+.dv-orb-violet  { background: radial-gradient(circle, var(--dv-hue-violet,  rgba(139, 92, 246, 0.55)), transparent 65%); }
+.dv-orb-magenta { background: radial-gradient(circle, var(--dv-hue-magenta, rgba(217, 70, 239, 0.42)), transparent 65%); }
+.dv-orb-cyan    { background: radial-gradient(circle, var(--dv-hue-cyan,    rgba(34, 211, 238, 0.28)), transparent 65%); }
+.dv-orb-deep    { background: radial-gradient(circle, var(--dv-hue-deep,    rgba(76, 29, 149, 0.50)), transparent 70%); }
 
 @keyframes dv-drift {
   0%   { transform: translate(-50%, -50%) translate(0, 0) scale(1); }
