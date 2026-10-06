@@ -12,6 +12,7 @@ import { initialHuntState, safeTransition } from '../agent/huntStateMachine.js';
 import { DeterministicBrain } from '../agent/deterministicBrain.js';
 import { buildBrainChain, ResilientBrainProvider } from '../agent/providers/resilientBrainProvider.js';
 import { createSlotBrainProvider, createFeatureBrains, FEATURE_SLOTS } from '../agent/providers/brainProviderFactory.js';
+import { createTripleBrainOrchestrator } from '../services/tripleBrainOrchestrator.js';
 import { LocalAIQueue, localAIQueue } from '../agent/providers/localAiQueue.js';
 
 /**
@@ -215,6 +216,28 @@ export class AgentWorker {
       }
     }
     return brains;
+  }
+
+  /**
+   * Build the triple-brain orchestrator for a hunt's user.
+   *
+   * The orchestrator coordinates the three LOCAL slot servers directly
+   * (vision on its port, grounding on its port, hacker on its port) and runs
+   * the think → see → act loop. Slots with no running model are logged
+   * clearly and the loop degrades gracefully to the available brains.
+   *
+   * @returns {Promise<TripleBrainOrchestrator|null>} null when the worker has
+   *   no brainProviderModel or the job has no user.
+   */
+  async getTripleBrainOrchestratorForJob(job) {
+    if (!this.brainProviderModel || !job?.userId) return null;
+    const selection = await this.brainProviderModel.getSelection(job.userId);
+    return createTripleBrainOrchestrator({
+      runner: this.modelRunnerService || null,
+      selection,
+      appConfig: this.appConfig || {},
+      logger: this.logger || console
+    });
   }
 
   /**
