@@ -500,6 +500,23 @@ export function ModelLibrary() {
   const [library, setLibrary] = useState(() => MODEL_CATALOG);
   // Frontend-only: tracks which models were downloaded this session (no backend).
   const [downloadedIds, setDownloadedIds] = useState(() => new Set());
+  // Frontend-only active brain: which model is selected per slot (no backend).
+  const [activeBrains, setActiveBrains] = useState(() => ({
+    vision: null,
+    grounding: null,
+    hacking: null
+  }));
+
+  // Load active brains from localStorage on mount.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('dm_active_brains');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setActiveBrains((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch { /* ignore */ }
+  }, []);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -769,11 +786,29 @@ export function ModelLibrary() {
     setError('');
     setBusyModel(modelId);
     try {
-      // Runs the model AND sets it as the ACTIVE localhost brain.
-      await runModelFile(modelId, opts || {});
-      refresh();
+      const model = MODEL_CATALOG.find((m) => m.id === modelId);
+      if (!model) throw new Error('Model not found.');
+      // Frontend-only: set as the active brain for its category slot.
+      // No backend needed — the selection is stored locally.
+      const slot = model.category; // 'vision' | 'grounding' | 'hacking'
+      setActiveBrains((prev) => ({ ...prev, [slot]: modelId }));
+      // Also persist to localStorage so it survives reloads.
+      try {
+        localStorage.setItem('dm_active_brains', JSON.stringify({
+          ...activeBrains, [slot]: modelId
+        }));
+      } catch { /* ignore */ }
+      // Try backend run as well (for actual inference when backend is up),
+      // but don't fail if backend is unreachable — frontend selection is the source of truth.
+      try {
+        await runModelFile(modelId, opts || {});
+        refresh();
+      } catch (backendErr) {
+        // Backend unavailable: frontend selection still stands.
+        console.log('Backend run skipped (unreachable):', backendErr.message);
+      }
     } catch (err) {
-      setError(err.message || 'Could not start the model. Is the engine downloaded?');
+      setError(err.message || 'Could not set active brain.');
     } finally {
       setBusyModel(null);
     }
