@@ -1,12 +1,17 @@
 /**
- * Premium — subscription tiers (FRONTEND ONLY for now).
+ * Premium — subscription tiers with live Razorpay billing.
  *
  * Tiers: Free $0 · Low $20 · Medium $50 · High $100 · UltraMax $299 · Infinity $499.
- * No payment code exists yet: clicking a tier marks it "reserved" and tells
- * the user payments will be integrated later. The backend never sees this.
+ * Paid tiers check out through Razorpay (test mode): the backend creates the
+ * order at its own authoritative INR price and verifies the payment signature.
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { Crown, Check, Sparkles, X } from 'lucide-react';
+import {
+  getBillingStatus,
+  createBillingOrder,
+  verifyBillingPayment,
+} from '../../services/api.js';
 import './Premium.css';
 
 const TIERS = [
@@ -94,6 +99,7 @@ const TIERS = [
 ];
 
 const RESERVED_KEY = 'dm.reservedTier';
+const ACTIVE_KEY = 'dm.activeTier';
 
 /** The tier the user reserved on the Premium page (frontend-only for now). */
 export function getReservedTier() {
@@ -105,14 +111,45 @@ export function getReservedTier() {
   }
 }
 
+/** The tier the user actually paid for (verified server-side). */
+export function getActiveTier() {
+  try {
+    const id = window.localStorage.getItem(ACTIVE_KEY);
+    return TIERS.some((t) => t.id === id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Lazily load Razorpay checkout.js. */
+function loadRazorpayScript() {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) return resolve(true);
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload = () => resolve(true);
+    s.onerror = () => reject(new Error('Could not load Razorpay checkout'));
+    document.body.appendChild(s);
+  });
+}
+
 export function Premium() {
   const [reserved, setReserved] = useState(() => getReservedTier());
-  const [pending, setPending] = useState(null); // tier with the "coming soon" modal open
+  const [active, setActive] = useState(() => getActiveTier());
+  const [pending, setPending] = useState(null); // tier with the checkout modal open
+  const [billingLive, setBillingLive] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
   const modalRef = useRef(null);
+
+  useEffect(() => {
+    getBillingStatus().then((s) => setBillingLive(Boolean(s?.configured))).catch(() => {});
+  }, []);
 
   // Escape closes the modal; focus it on open for keyboard users.
   useEffect(() => {
     if (!pending) return;
+    setPayError('');
     const onKey = (e) => { if (e.key === 'Escape') setPending(null); };
     document.addEventListener('keydown', onKey);
     modalRef.current?.focus();
@@ -123,6 +160,54 @@ export function Premium() {
     setReserved(tier.id);
     try { window.localStorage.setItem(RESERVED_KEY, tier.id); } catch { /* ignore */ }
     setPending(null);
+  };
+
+  const payForTier = async (tier) => {
+    setPaying(true);
+    setPayError('');
+    try {
+      await loadRazorpayScript();
+      const { order, keyId } = await createBillingOrder(tier.id);
+      const rzp = new window.Razorpay({
+        key: keyId,
+        order_id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Infinity AI',
+        description: `${tier.name} — monthly`,
+        theme: { color: '#7c3aed' },
+        handler: async (resp) => {
+          try {
+            const result = await verifyBillingPayment({
+              orderId: resp.razorpay_order_id,
+              paymentId: resp.razorpay_payment_id,
+              signature: resp.razorpay_signature,
+              tierId: tier.id,
+            });
+            if (result?.ok) {
+              setActive(tier.id);
+              try { window.localStorage.setItem(ACTIVE_KEY, tier.id); } catch { /* ignore */ }
+              setPending(null);
+            } else {
+              setPayError(result?.error || 'Payment verification failed');
+            }
+          } catch (e) {
+            setPayError(e.message || 'Verification failed');
+          } finally {
+            setPaying(false);
+          }
+        },
+        modal: { ondismiss: () => setPaying(false) },
+      });
+      rzp.on('payment.failed', () => {
+        setPayError('Payment failed — no charge was made.');
+        setPaying(false);
+      });
+      rzp.open();
+    } catch (e) {
+      setPayError(e.message || 'Could not start checkout');
+      setPaying(false);
+    }
   };
 
   return (
@@ -156,13 +241,18 @@ export function Premium() {
               ))}
             </ul>
             <button
-              className={`sg-btn ${reserved === tier.id ? 'sg-btn-ghost' : tier.flagship ? 'sg-btn-primary' : 'sg-btn-ghost'} sg-premium-cta`}
+              className={`sg-btn ${active === tier.id ? 'sg-btn-primary' : reserved === tier.id ? 'sg-btn-ghost' : tier.flagship ? 'sg-btn-primary' : 'sg-btn-ghost'} sg-premium-cta`}
               onClick={() => setPending(tier)}
-              disabled={reserved === tier.id}
+              disabled={active === tier.id}
             >
-              {reserved === tier.id ? '✓ Tier reserved' : tier.price === 0 ? 'Start free' : `Choose ${tier.name}`}
+              {active === tier.id ? '✓ Active plan' : reserved === tier.id ? '✓ Tier reserved' : tier.price === 0 ? 'Start free' : `Choose ${tier.name}`}
             </button>
-            {reserved === tier.id && (
+            {active === tier.id && (
+              <p className="sg-small sg-premium-note">
+                Your <strong>{tier.name}</strong> plan is active. Hunt like an elite. ⚡
+              </p>
+            )}
+            {active !== tier.id && reserved === tier.id && (
               <p className="sg-small sg-premium-note">
                 Payments integrate later — your <strong>{tier.name}</strong> tier is reserved.
                 We'll notify you the moment billing goes live.
@@ -177,7 +267,7 @@ export function Premium() {
         <div className="sg-modal-scrim" onClick={() => setPending(null)} role="presentation">
           <div
             className="sg-card sg-card-pad sg-premium-modal"
-            role="dialog" aria-modal="true" aria-label={`${pending.name} tier coming soon`}
+            role="dialog" aria-modal="true" aria-label={`${pending.name} tier checkout`}
             onClick={(e) => e.stopPropagation()}
             ref={modalRef} tabIndex={-1}
           >
@@ -185,21 +275,59 @@ export function Premium() {
               <X size={18} />
             </button>
             <div className="sg-premium-modal-icon"><Crown size={26} /></div>
-            <h3 className="sg-h2">{pending.name} — coming soon</h3>
-            <p className="sg-body">
-              Billing isn't live yet, so you can't pay for{' '}
-              <strong>${pending.price}/month</strong> today. Reserve the{' '}
-              <strong>{pending.name}</strong> tier now and we'll notify you the
-              moment payments open.
-            </p>
-            <div className="sg-premium-modal-actions">
-              <button className="sg-btn sg-btn-primary" onClick={() => reserve(pending)}>
-                {pending.price === 0 ? 'Start free' : 'Reserve my spot'}
-              </button>
-              <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)}>
-                Not now
-              </button>
-            </div>
+            <h3 className="sg-h2">{pending.name} — ${pending.price}/month</h3>
+            {pending.price === 0 ? (
+              <>
+                <p className="sg-body">
+                  The <strong>Free</strong> tier needs no payment — start hunting right away.
+                </p>
+                <div className="sg-premium-modal-actions">
+                  <button className="sg-btn sg-btn-primary" onClick={() => reserve(pending)}>
+                    Start free
+                  </button>
+                  <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)}>
+                    Not now
+                  </button>
+                </div>
+              </>
+            ) : billingLive ? (
+              <>
+                <p className="sg-body">
+                  Pay securely via Razorpay (UPI, cards, netbanking). Test mode — no real
+                  money moves.
+                </p>
+                {payError && <p className="sg-small" style={{ color: '#f87171' }}>{payError}</p>}
+                <div className="sg-premium-modal-actions">
+                  <button
+                    className="sg-btn sg-btn-primary"
+                    onClick={() => payForTier(pending)}
+                    disabled={paying}
+                  >
+                    {paying ? 'Opening checkout…' : `Pay $${pending.price}/month`}
+                  </button>
+                  <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)} disabled={paying}>
+                    Not now
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="sg-body">
+                  Billing isn't live yet, so you can't pay for{' '}
+                  <strong>${pending.price}/month</strong> today. Reserve the{' '}
+                  <strong>{pending.name}</strong> tier now and we'll notify you the
+                  moment payments open.
+                </p>
+                <div className="sg-premium-modal-actions">
+                  <button className="sg-btn sg-btn-primary" onClick={() => reserve(pending)}>
+                    Reserve my spot
+                  </button>
+                  <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)}>
+                    Not now
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -1318,5 +1318,30 @@ export const apiClient = {
   deleteCrew,
   chatWithCrew,
   stopCrewRun,
-  subscribeToCrewEvents
+  subscribeToCrewEvents,
+  // Infinity AI Billing (Razorpay)
+  getBillingStatus,
+  createBillingOrder,
+  verifyBillingPayment
 };
+
+/** Billing status: is Razorpay live? Returns { configured, keyId, tiers }. */
+export function getBillingStatus() {
+  return request('/billing/status');
+}
+
+/** Create a Razorpay order for a tier. Server decides the price. */
+export function createBillingOrder(tierId) {
+  return request('/billing/order', {
+    method: 'POST',
+    body: JSON.stringify({ tierId }),
+  });
+}
+
+/** Verify a completed Razorpay payment server-side. */
+export function verifyBillingPayment({ orderId, paymentId, signature, tierId }) {
+  return request('/billing/verify', {
+    method: 'POST',
+    body: JSON.stringify({ orderId, paymentId, signature, tierId }),
+  });
+}

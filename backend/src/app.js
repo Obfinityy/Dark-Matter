@@ -51,6 +51,7 @@ import { createCrewController } from './controllers/crewController.js';
 import { CrewService } from './services/crewService.js';
 import { CrewWorker } from './jobs/crewWorker.js';
 import { createVoiceController } from './controllers/voiceController.js';
+import { createBillingController } from './controllers/billingController.js';
 import { VoiceManager } from './services/voiceManager.js';
 import { AgentJobModel } from './models/agentJobModel.js';
 import { ComputerTaskModel } from './models/computerTaskModel.js';
@@ -508,6 +509,7 @@ export async function createApp({ database } = {}) {
         computerAdapter
       }),
       voice: createVoiceController({ voiceManager }),
+      billing: createBillingController(),
       jobs: createJobController({
         jobManager,
         assessmentService,
