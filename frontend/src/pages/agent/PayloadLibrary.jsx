@@ -6,8 +6,8 @@
  * category, with success rates — the agent's accumulated tradecraft, visible.
  */
 import React, { useEffect, useState } from 'react';
-import { LibraryBig, Loader2, TrendingUp, Filter, Unplug, Cloud } from 'lucide-react';
-import { listPayloads, getPayloadLibraryStats } from '../../services/api';
+import { LibraryBig, Loader2, TrendingUp, Filter, Unplug, Cloud, ShieldCheck } from 'lucide-react';
+import { listPayloads, getPayloadLibraryStats, tryApi } from '../../services/api';
 import {
   getBackendMode, BACKEND_MODES, setBackendMode, getApiBase, getBackendModeLabel
 } from '../../services/backendMode';
@@ -19,19 +19,25 @@ export function PayloadLibrary() {
   const [technique, setTechnique] = useState('');
   const [category, setCategory] = useState('');
   const [backendDown, setBackendDown] = useState(false);
+  const [authExpired, setAuthExpired] = useState(false);
   const [backendMode, setBackendModeState] = useState(() => getBackendMode());
 
   const refresh = async () => {
     setLoading(true);
     try {
       const [p, s] = await Promise.all([
-        listPayloads({ technique: technique || null, category: category || null, limit: 50 }).catch(() => null),
-        getPayloadLibraryStats().catch(() => null)
+        tryApi(listPayloads({ technique: technique || null, category: category || null, limit: 50 })),
+        tryApi(getPayloadLibraryStats())
       ]);
-      setBackendDown(p == null && s == null);
+      const errors = [p.error, s.error].filter(Boolean);
+      const allNetworkFailed = errors.length === 2
+        && errors.every((e) => e.status === 0 || e.code === 'BACKEND_UNAVAILABLE');
+      const anyAuthFailed = errors.some((e) => e.status === 401);
+      setBackendDown(allNetworkFailed);
+      setAuthExpired(!allNetworkFailed && anyAuthFailed);
       setBackendModeState(getBackendMode());
-      if (p?.payloads) setPayloads(p.payloads);
-      if (s?.stats) setStats(s.stats);
+      if (p.data?.payloads) setPayloads(p.data.payloads);
+      if (s.data?.stats) setStats(s.data.stats);
     } finally {
       setLoading(false);
     }
@@ -68,7 +74,25 @@ export function PayloadLibrary() {
         </div>
       </header>
 
-      {backendDown && (
+      {authExpired && (
+        <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <ShieldCheck size={18} />
+            <strong>Session expired</strong>
+          </div>
+          <p className="sg-small" style={{ margin: '0 0 12px' }}>
+            Your sign-in has expired. Please sign in again to load the payload library.
+          </p>
+          <button
+            className="sg-btn sg-btn-primary"
+            onClick={() => { try { localStorage.removeItem('dm_jwt'); } catch { /* ignore */ } window.location.href = '/login'; }}
+          >
+            Sign in again
+          </button>
+        </div>
+      )}
+
+      {backendDown && !authExpired && (
         <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <Unplug size={18} />

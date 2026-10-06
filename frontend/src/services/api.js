@@ -18,6 +18,22 @@ export function isCloudFallbackActive() {
 }
 
 /**
+ * Run an API promise, capturing the error instead of throwing.
+ * Returns { data, error } — error is the ApiError (with .status and .code)
+ * or null on success. Use this when you need to distinguish a dead backend
+ * (status 0 / BACKEND_UNAVAILABLE) from an expired session (401) instead of
+ * treating every failure as "backend unreachable".
+ */
+export async function tryApi(promise) {
+  try {
+    const data = await promise;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+/**
  * JWT storage. The backend accepts BOTH the stateless JWT (Authorization
  * header) and the stateful session cookie — the header is preferred because
  * it also authenticates EventSource streams and cross-tab requests.

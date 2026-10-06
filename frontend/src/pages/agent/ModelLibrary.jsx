@@ -32,7 +32,8 @@ import {
   downloadModelFile, runModelFile, subscribeToModelProgress,
   getBrainChain, getBrainSlots, getSlotAssignments, assignBrainSlot,
   getSlotSources, connectSlotKaggle, disconnectSlotKaggle,
-  testRemoteModel, getSlotServers, runSlotServer, stopSlotServer
+  testRemoteModel, getSlotServers, runSlotServer, stopSlotServer,
+  tryApi
 } from '../../services/api';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
@@ -498,6 +499,7 @@ export function ModelLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [backendDown, setBackendDown] = useState(false); // selected backend unreachable
+  const [authExpired, setAuthExpired] = useState(false); // session expired — needs re-login
   const [backendMode, setBackendModeState] = useState(() => getBackendMode());
   const [download, setDownload] = useState(null); // { modelId, percent, status, receivedBytes, totalBytes, error }
   const [engineDl, setEngineDl] = useState(null); // { progress, status }
@@ -534,29 +536,34 @@ export function ModelLibrary() {
   const refresh = useCallback(async () => {
     try {
       const [lib, st, chain, slots, assignments, sources, servers] = await Promise.all([
-        getRunnerLibrary().catch(() => null),
-        getRunnerStatus().catch(() => null),
-        getBrainChain().catch(() => null),
-        getBrainSlots().catch(() => null),
-        getSlotAssignments().catch(() => null),
-        getSlotSources().catch(() => null),
-        getSlotServers().catch(() => null)
+        tryApi(getRunnerLibrary()),
+        tryApi(getRunnerStatus()),
+        tryApi(getBrainChain()),
+        tryApi(getBrainSlots()),
+        tryApi(getSlotAssignments()),
+        tryApi(getSlotSources()),
+        tryApi(getSlotServers())
       ]);
-      // If EVERY call failed, the selected backend is unreachable — say so
-      // clearly instead of showing an eternal spinner.
-      const allFailed = [lib, st, chain, slots, assignments, sources, servers].every((r) => r == null);
-      setBackendDown(allFailed);
+      const errors = [lib, st, chain, slots, assignments, sources, servers]
+        .map((r) => r.error).filter(Boolean);
+      // Distinguish a DEAD backend (network failure) from an EXPIRED session (401).
+      const allNetworkFailed = errors.length === 7
+        && errors.every((e) => e.status === 0 || e.code === 'BACKEND_UNAVAILABLE');
+      const anyAuthFailed = errors.some((e) => e.status === 401);
+      setBackendDown(allNetworkFailed);
+      setAuthExpired(!allNetworkFailed && anyAuthFailed);
       setBackendModeState(getBackendMode());
-      if (lib?.models) setLibrary(lib.models);
-      else if (Array.isArray(lib)) setLibrary(lib);
-      if (chain?.chain) setBrainChain(chain);
-      if (slots?.slots) setBrainSlots(slots.slots);
-      if (assignments?.assignments) setSlotAssignments(assignments.assignments);
-      if (sources?.slotSources) setSlotSources(sources.slotSources);
-      if (servers?.slotServers) setSlotServers(servers.slotServers);
-      if (st) {
-        setStatus(st);
-        const dl = st.download;
+      const libData = lib.data;
+      if (libData?.models) setLibrary(libData.models);
+      else if (Array.isArray(libData)) setLibrary(libData);
+      if (chain.data?.chain) setBrainChain(chain.data);
+      if (slots.data?.slots) setBrainSlots(slots.data.slots);
+      if (assignments.data?.assignments) setSlotAssignments(assignments.data.assignments);
+      if (sources.data?.slotSources) setSlotSources(sources.data.slotSources);
+      if (servers.data?.slotServers) setSlotServers(servers.data.slotServers);
+      if (st.data) {
+        setStatus(st.data);
+        const dl = st.data.download;
         if (dl && dl.status === 'downloading' && dl.modelId) {
           const total = dl.totalBytes || null;
           setDownload({
@@ -835,7 +842,25 @@ export function ModelLibrary() {
 
       {error && <div className="sg-alert sg-auth-error">{error}</div>}
 
-      {backendDown && !loading && (
+      {authExpired && !loading && (
+        <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <ShieldCheck size={18} />
+            <strong>Session expired</strong>
+          </div>
+          <p className="sg-small" style={{ margin: '0 0 12px' }}>
+            Your sign-in has expired. Please sign in again to load the model library.
+          </p>
+          <button
+            className="sg-btn sg-btn-primary"
+            onClick={() => { try { localStorage.removeItem('dm_jwt'); } catch { /* ignore */ } window.location.href = '/login'; }}
+          >
+            Sign in again
+          </button>
+        </div>
+      )}
+
+      {backendDown && !loading && !authExpired && (
         <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <Unplug size={18} />
