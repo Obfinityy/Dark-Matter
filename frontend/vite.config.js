@@ -4,6 +4,8 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // GitHub Pages emergency deploy uses VITE_BASE=/Dark-Matter/; Vercel uses /.
+  base: process.env.VITE_BASE || '/',
   server: {
     proxy: {
       '/api': {
