@@ -79,7 +79,12 @@ export class ReportService {
     }
 
     // ── Mandated report sections ─────────────────────────────────────────
-    const validatedFindings = findings.filter((finding) => finding.status === 'validated' && (evidenceByFinding.get(finding.id)?.length || finding.evidence?.length));
+    // Every validated finding belongs in the report — validation itself
+    // (real probe traffic, observed behaviour) is evidence. Findings that
+    // also have stored raw evidence records are flagged so readers can
+    // tell the difference. (Fix: previously findings without separate
+    // evidence rows were silently dropped from detailedFindings.)
+    const validatedFindings = findings.filter((finding) => finding.status === 'validated');
     const unverifiedObservations = findings.filter((finding) => finding.status !== 'validated');
 
     const detailedFindings = validatedFindings.map((finding) => {
@@ -115,6 +120,7 @@ export class ReportService {
         references: finding.references,
         evidence: linked,
         evidenceIds: linked.map((item) => item.id),
+        evidenceAttached: linked.length > 0 || (finding.evidence?.length || 0) > 0,
         toolExecutionIds: finding.toolExecutionIds,
         hypothesisId: finding.hypothesisId,
         createdAt: finding.createdAt,
