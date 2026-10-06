@@ -7,7 +7,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Crosshair, AlertTriangle, ChevronRight,
+  Crosshair, AlertTriangle, ChevronRight, Loader2,
   Radar, FileCheck2, Target, ShieldCheck
 } from 'lucide-react';
 import { createJob, listJobs } from '../../services/api';
@@ -54,12 +54,16 @@ export function AgentHome() {
   const [error, setError] = useState('');
   const [dedup, setDedup] = useState(null);
   const [jobs, setJobs] = useState([]);
+  // Loading state for the recent-hunts list so we never flash the
+  // "No hunts yet" empty state while the fetch is still in flight.
+  const [jobsLoading, setJobsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
       const jobsBody = await listJobs({ limit: 8 }).catch(() => null);
       if (jobsBody?.jobs) setJobs(jobsBody.jobs);
     } catch { /* home degrades to the hunt box rather than crashing */ }
+    finally { setJobsLoading(false); }
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -136,7 +140,7 @@ export function AgentHome() {
               aria-describedby={error ? 'sg-target-error' : undefined}
             />
             <button type="submit" className="sg-btn sg-btn-primary" disabled={starting}>
-              {starting && <span className="sg-spin" style={{ display: 'inline-flex' }}>◌</span>}
+              {starting && <Loader2 size={17} className="sg-spin" style={{ display: 'inline-flex' }} />}
               {starting ? 'Starting…' : 'Start hunt'}
             </button>
           </div>
@@ -180,7 +184,18 @@ export function AgentHome() {
           <h3 className="sg-h2" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 18px' }}>
             <Target size={18} className="sg-h-icon" /> Recent hunts
           </h3>
-          {jobs.length === 0 ? (
+          {jobsLoading ? (
+            <div className="sg-hunt-list" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="sg-hunt-row sg-skeleton-row">
+                  <div className="sg-hunt-main">
+                    <span className="sg-skeleton-line" style={{ width: `${58 - i * 9}%` }} />
+                    <span className="sg-skeleton-line sg-skeleton-short" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : jobs.length === 0 ? (
             <p className="sg-small">No hunts yet — your first one is one paste away.</p>
           ) : (
             <ul className="sg-hunt-list">

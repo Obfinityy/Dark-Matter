@@ -17,3 +17,42 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* ── Recent-hunts skeleton: shown while the job list is still loading so
+   the "No hunts yet" empty state never flashes incorrectly. ── */
+.sg-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.sg-skeleton-line {
+  display: block;
+  height: 13px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06) 25%, rgba(255, 255, 255, 0.13) 50%, rgba(255, 255, 255, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: sg-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.sg-skeleton-line + .sg-skeleton-line {
+  margin-top: 7px;
+}
+
+.sg-skeleton-short {
+  width: 38%;
+  height: 10px;
+}
+
+@keyframes sg-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-skeleton-line {
+    animation: none;
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
