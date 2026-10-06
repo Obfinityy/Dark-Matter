@@ -13,6 +13,7 @@ import { DeterministicBrain } from '../agent/deterministicBrain.js';
 import { buildBrainChain, ResilientBrainProvider } from '../agent/providers/resilientBrainProvider.js';
 import { createSlotBrainProvider, createFeatureBrains, FEATURE_SLOTS } from '../agent/providers/brainProviderFactory.js';
 import { createTripleBrainOrchestrator } from '../services/tripleBrainOrchestrator.js';
+import { TripleBrainHuntAdapter } from '../agent/tripleBrainHuntAdapter.js';
 import { LocalAIQueue, localAIQueue } from '../agent/providers/localAiQueue.js';
 
 /**
@@ -241,11 +242,73 @@ export class AgentWorker {
   }
 
   /**
+   * Cached triple-brain orchestrator per user. The orchestrator warns about
+   * missing slots ONCE per lifetime (logBrainStatus), so it must survive
+   * across loop iterations — a fresh orchestrator per iteration would spam
+   * the MISSING warnings every cycle. Cleared by refreshBrainForUser().
+   */
+  async getCachedTripleBrainOrchestrator(job) {
+    if (!this.tripleBrainOrchestrators) this.tripleBrainOrchestrators = new Map();
+    const key = job?.userId;
+    if (key && !this.tripleBrainOrchestrators.has(key)) {
+      const orchestrator = await this.getTripleBrainOrchestratorForJob(job);
+      if (orchestrator) this.tripleBrainOrchestrators.set(key, orchestrator);
+    }
+    return (key && this.tripleBrainOrchestrators.get(key)) || null;
+  }
+
+  /**
+   * Build the triple-brain hunt adapter for a job whose resilient brain
+   * chain is unhealthy. Returns { adapter, live, missing, mode } when at
+   * least one slot server is usable, else null — the loop then falls
+   * through to the deterministic fallback as before.
+   *
+   * Missing slots are logged LOUDLY (one line per slot: running model +
+   * localhost port, or MISSING) via orchestrator.logBrainStatus().
+   */
+  async tripleBrainFallbackFor(job) {
+    if (!this.brainProviderModel || !job?.userId) return null;
+    try {
+      const orchestrator = await this.getCachedTripleBrainOrchestrator(job);
+      if (!orchestrator) return null;
+      const missing = orchestrator.logBrainStatus();
+      const checks = await orchestrator.healthCheck();
+      const live = Object.entries(checks || {})
+        .filter(([, c]) => c?.ok)
+        .map(([slot]) => slot);
+      if (!live.length) {
+        this.logger?.warn?.(
+          `[agentWorker] triple-brain: no usable slot servers for user ${job.userId} ` +
+          `(missing: ${missing.join(', ') || 'all three slots'}) — falling back to deterministic strategy`
+        );
+        return null;
+      }
+      const adapter = new TripleBrainHuntAdapter({
+        orchestrator,
+        deterministic: this.deterministicFallbackFor(job),
+        logger: this.logger,
+      });
+      const mode = checks?.hacker?.ok ? 'triple-brain' : 'triple-brain-degraded';
+      this.logger?.info?.(
+        `[agentWorker] triple-brain engaged for job ${job.id}: live=[${live.join(', ')}]` +
+        (missing.length ? ` missing=[${missing.join(', ')}]` : '')
+      );
+      return { adapter, live, missing, mode };
+    } catch (error) {
+      this.logger?.warn?.(
+        `[agentWorker] triple-brain wiring failed: ${error?.message} — falling back to deterministic strategy`
+      );
+      return null;
+    }
+  }
+
+  /**
    * Drop a user's cached brain so the next reasoning step rebuilds it from
    * their current model selection. Called when the user switches models.
    */
   refreshBrainForUser(userId) {
     if (userId) this.brains.delete(userId);
+    if (userId) this.tripleBrainOrchestrators?.delete(userId);
   }
 
   // ── Hunt state awareness ─────────────────────────────────────────────
@@ -403,10 +466,33 @@ export class AgentWorker {
       const loopBrain = await this.getBrainForJob(job);
       const health = await loopBrain.health();
       if (!health.available) {
-        // No LLM reachable. Instead of parking the hunt in `waiting`, engage
-        // the deterministic rule-based strategy: the same loop, the same
-        // tools, the same evidence gates — decided by expert-authored rules
-        // instead of a model. Published honestly as brain.deterministic.
+        // ── Triple-brain slot wiring (overnight mission ②) ──────────────
+        // Before dropping to the deterministic rule-based strategy, try the
+        // user's three LOCAL slot servers (vision / grounding / hacker on
+        // localhost). Missing slots are logged loudly by logBrainStatus();
+        // usable slots drive the hunt with real model thinking instead of
+        // rules. Deterministic remains the last resort.
+        const triple = await this.tripleBrainFallbackFor(job);
+        if (triple) {
+          this.brainOverrides.set(job.id, triple.adapter);
+          await this.jobModel.update(jobId, { brainStatus: triple.mode });
+          await this.publish(jobId, {
+            type: 'brain.triple',
+            level: 'INFO',
+            message: `Resilient brain chain unreachable — hunting with the triple-brain local slots (${triple.live.join(', ')})${triple.missing.length ? `; MISSING brains: ${triple.missing.join(', ')}` : ''}.`,
+            data: { live: triple.live, missing: triple.missing, mode: triple.mode }
+          });
+          await this.recordActivity(jobId, {
+            kind: 'brain',
+            message: `Triple-brain engaged (local slots): ${triple.live.join(', ')} live${triple.missing.length ? `; MISSING: ${triple.missing.join(', ')}` : ''}`
+          });
+          continue;
+        }
+        // No LLM reachable and no triple-brain slot usable. Instead of
+        // parking the hunt in `waiting`, engage the deterministic rule-based
+        // strategy: the same loop, the same tools, the same evidence gates —
+        // decided by expert-authored rules instead of a model. Published
+        // honestly as brain.deterministic.
         const fallback = this.deterministicFallbackFor(job);
         if (fallback) {
           this.brainOverrides.set(job.id, fallback);
