@@ -11,6 +11,12 @@ export function normalizeTargetUrl(value) {
   }
   assert(['http:', 'https:'].includes(parsed.protocol), 400, 'Only HTTP and HTTPS targets are supported', 'UNSUPPORTED_TARGET_PROTOCOL');
   assert(!parsed.username && !parsed.password, 400, 'Target URL cannot contain credentials', 'INVALID_TARGET_URL');
+  // Reject single-label hostnames like "not-a-url" (no TLD) — they can never
+  // resolve. Allow localhost and IP literals (v4/v6) which are valid targets.
+  const host = parsed.hostname;
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':');
+  const isLocalhost = host.toLowerCase() === 'localhost';
+  assert(isIp || isLocalhost || host.includes('.'), 400, 'Target must be a valid hostname or IP address', 'INVALID_TARGET_URL');
   parsed.hash = '';
   return parsed.toString().replace(/\/$/, '');
 }
