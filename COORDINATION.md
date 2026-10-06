@@ -59,6 +59,7 @@ Rationale: One's wave engine advances `next_idea` upward from 41. Two works 5000
 - [infinity-two] overnight-mission-2 — hunt↔triple-brain slot wiring (backend), DONE 6 Oct 23:58 IST (TripleBrainHuntAdapter + agentWorker gate; 14/14 tests; branch feat/infinity-two-triple-brain-wiring, awaiting One's PR)
 - [infinity-two] overnight-mission-3 — Kali tool registry (backend), DONE 6 Oct 23:58 IST (kaliToolRegistry.js: 21 real tools, safe argv, approval-gated hydra/john, suggestTools; 15/15 tests; branch feat/infinity-two-kali-tool-registry, awaiting One's PR)
 - [infinity-two] issue #26 — Hunt Planner (11 engines), assigned 6 Oct
+- [infinity-two] filter-pipeline reconciliation (filtersCore.js single source of truth) — DONE 7 Oct 00:05 IST (branch fix/reconcile-filter-pipelines, build green, 20/20 smoke; awaiting One's push + PR)
 - [infinity-one] integrate-dont-reinvent tracks 1–4 — DONE 5 Oct (merged to main: b4a5ef7; conflicts resolved; frontend build + 30/30 new tests pass; pushed)
 
 ## Completed milestones
