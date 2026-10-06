@@ -42,11 +42,14 @@ print("Evidence in response:", "vulnerable-marker" in resp.text)
 export function generatePoC(finding = {}) {
   if (!finding || typeof finding !== 'object') finding = {};
   const { type = 'Unknown', url = '', evidence = '', cwe = '' } = finding;
+  // Normalize: real hunt findings carry category-style values ("sql-injection")
+  // or free-text titles — match case-insensitively on the normalized form.
+  const t = String(type).toLowerCase().replace(/[-_]/g, ' ');
   const steps = [];
   let curl = '';
   let python = '';
 
-  if (type.includes('SQL Injection')) {
+  if (t.includes('sql injection') || t.includes('sqli')) {
     const payload = "' OR '1'='1";
     const testUrl = url.includes('?') ? `${url}${encodeURIComponent(payload)}` : `${url}?id=${encodeURIComponent(payload)}`;
     curl = curlFor({ url: testUrl });
@@ -57,7 +60,7 @@ export function generatePoC(finding = {}) {
       '3. Compare with a benign request — the error only appears with the payload.',
       'Expected: input is sanitized, no SQL error. Actual: raw SQL error leaks.'
     );
-  } else if (type.includes('XSS')) {
+  } else if (t.includes('xss')) {
     const payload = '<script>alert(document.domain)</script>';
     curl = curlFor({ url, body: payload });
     python = pythonFor({ url, body: payload });
@@ -67,7 +70,7 @@ export function generatePoC(finding = {}) {
       '3. In a real browser this would execute JavaScript.',
       'Expected: output-encoded reflection. Actual: raw HTML/JS reflected.'
     );
-  } else if (type.includes('SSRF')) {
+  } else if (t.includes('ssrf')) {
     steps.push(
       '1. Replace the URL parameter with http://169.254.169.254/latest/meta-data/ (or a Burp Collaborator URL).',
       '2. If the server fetches it, the response will contain cloud metadata.',
@@ -76,7 +79,7 @@ export function generatePoC(finding = {}) {
     );
     curl = curlFor({ url: url.replace(/(url|uri|link)=[^&]*/i, '$1=http://YOUR-COLLABORATOR-URL') });
     python = pythonFor({ url });
-  } else if (type.includes('IDOR')) {
+  } else if (t.includes('idor')) {
     steps.push(
       '1. Authenticate as User A and note your object ID.',
       '2. Change the ID parameter to User B\'s object ID.',

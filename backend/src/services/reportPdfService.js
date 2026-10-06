@@ -114,6 +114,17 @@ export function streamReportPdf(report, out) {
       f.reproductionSteps.forEach((step, n) => paragraph(doc, `${n + 1}. ${step}`, { size: 9, gap: 0.15 }));
     }
     if (f.remediation) paragraph(doc, `Remediation: ${f.remediation}`);
+    if (f.poc && (f.poc.curl || f.poc.python)) {
+      paragraph(doc, 'Proof of Concept:', { bold: true, size: 10, gap: 0.2 });
+      if (f.poc.curl) {
+        doc.fillColor(COLORS.muted).font('Courier').fontSize(8)
+          .text(String(f.poc.curl).slice(0, 600), { width: 470 });
+        doc.moveDown(0.3);
+      }
+      if (f.poc.steps?.length) {
+        f.poc.steps.slice(0, 4).forEach((step) => paragraph(doc, `${step}`, { size: 8, gap: 0.1 }));
+      }
+    }
     if (f.evidenceAttached === false) {
       paragraph(doc, 'Note: validated via live probing; raw evidence capture pending.', { size: 8, color: COLORS.muted });
     }

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { applyCvss } from '../agent/cvss.js';
+import { generatePoC } from '../engines/pocGenerator.js';
 
 /**
  * FindingLifecycleService — observation → hypothesis → validation → evidence →
@@ -235,6 +236,27 @@ export class FindingLifecycleService {
     // Findings are validated only when they carry evidence, and we link it.
     await this.findingModel.update(finding.id, { dedupeKey, status: 'validated', validatedAt: new Date().toISOString() });
     await this.evidenceModel.linkToFinding(finding.id, evidence.map((item) => item.id));
+
+    // ── PoC attach ────────────────────────────────────────────────────
+    // Every validated finding gets a runnable proof-of-concept attached
+    // right here (curl + python + steps). Safe by design: read-only probes.
+    // A failure to generate never blocks the finding itself.
+    try {
+      const poc = generatePoC({
+        type: [category, title].filter(Boolean).join(' '),
+        url: endpoint || asset || '',
+        evidence: evidence[0]?.summary || '',
+        confidence,
+        params: parameter ? { [parameter]: '' } : {},
+      });
+      if (poc && (poc.curl || poc.python)) {
+        await this.findingModel.update(finding.id, {
+          poc: { curl: poc.curl || null, python: poc.python || null, steps: poc.steps || [], attachedAt: new Date().toISOString() },
+        });
+      }
+    } catch {
+      /* PoC generation is best-effort — the validated finding stands regardless. */
+    }
 
     await this.memory.rememberFinding({
       userId,

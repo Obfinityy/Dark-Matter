@@ -121,6 +121,7 @@ export class ReportService {
         evidence: linked,
         evidenceIds: linked.map((item) => item.id),
         evidenceAttached: linked.length > 0 || (finding.evidence?.length || 0) > 0,
+        poc: finding.poc || null,
         toolExecutionIds: finding.toolExecutionIds,
         hypothesisId: finding.hypothesisId,
         createdAt: finding.createdAt,
