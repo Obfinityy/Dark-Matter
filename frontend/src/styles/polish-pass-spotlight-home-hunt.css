@@ -36,7 +36,58 @@
 }
 
 /* ════ HuntView ════ */
+/* ════════════════ POLISH PASS — round 4 (fresh-eyes re-polish) ════════════════
+ *
+ * Design notes (6 Oct 2026):
+ * - AgentHome: seven one-off inline styles (hero sub, error banner, dedup
+ *   wrapper, grid offset, three card headers, footer note) collapsed into
+ *   named classes so spacing is consistent and responsive overrides are
+ *   possible in one place. The three card headers shared an identical flex
+ *   pattern with 12/14/18px margins — now one .sg-card-h with 16px.
+ *   Hunt rows gain a background/border transition so the hover lift feels
+ *   tactile instead of snapping; the "Browse reports" card link gets a
+ *   visible :focus-visible ring for keyboard users. prefers-reduced-motion
+ *   disables the hover lift transition.
+ * - HuntView: the tabpanel's lone inline style becomes .sg-tabpanel, with a
+ *   120px min-height so short panels (empty diary) don't make the page
+ *   jump when switching tabs.
+ */
+
+/* ════ AgentHome (round 4) ════ */
+.home-hero-sub { max-width: 560px; font-size: 1.08rem; }
+.home-error { margin-top: 16px; max-width: 640px; }
+.home-dedup { margin-top: 20px; max-width: 640px; }
+.home-grid-top { margin-top: 8px; }
+.home-note { margin-top: 28px; text-align: center; }
+
+.sg-card-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.sg-hunt-row {
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.sg-card-link:focus-visible {
+  outline: 2px solid var(--sg-cyan, #22d3ee);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-hunt-row { transition: none; }
+}
+
+/* ════ HuntView (round 4) ════ */
 .sg-tabs-spacer { flex: 1; }
+
+.sg-tabpanel {
+  margin-top: 16px;
+  min-height: 120px; /* keeps the page from jumping on tab switches */
+}
 
 .sg-tab:focus-visible {
   outline: 2px solid var(--sg-cyan);

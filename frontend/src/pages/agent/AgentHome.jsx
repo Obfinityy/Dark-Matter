@@ -119,7 +119,7 @@ export function AgentHome() {
           as="h1"
           className="sg-display home-hero-title"
         />
-        <p className="sg-body" style={{ maxWidth: 560, fontSize: '1.08rem' }}>
+        <p className="sg-body home-hero-sub">
           The agent maps the attack surface, tests real hypotheses, and hands you a
           submission-ready report — while you watch it think, live.
         </p>
@@ -150,10 +150,10 @@ export function AgentHome() {
           </label>
         </form>
 
-        {error && <div id="sg-target-error" className="sg-auth-error" role="alert" style={{ marginTop: 16, maxWidth: 640 }}><AlertTriangle size={15} /> {error}</div>}
+        {error && <div id="sg-target-error" className="sg-auth-error home-error" role="alert"><AlertTriangle size={15} /> {error}</div>}
 
         {dedup && (
-          <div style={{ marginTop: 20, maxWidth: 640 }}>
+          <div className="home-dedup">
             <DedupBanner
               result={dedup}
               onView={() => dedup?.huntRecord?.id && navigate(`/agent/reports/${dedup.huntRecord.id}`)}
@@ -179,9 +179,9 @@ export function AgentHome() {
       </section>
 
       {/* ── Content grid ── */}
-      <div className="sg-grid-2 sg-fade-up sg-fade-up-3" style={{ marginTop: 8 }}>
+      <div className="sg-grid-2 sg-fade-up sg-fade-up-3 home-grid-top">
         <section className="sg-card sg-card-pad">
-          <h3 className="sg-h2" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 18px' }}>
+          <h3 className="sg-h2 sg-card-h">
             <Target size={18} className="sg-h-icon" /> Recent hunts
           </h3>
           {jobsLoading ? (
@@ -220,7 +220,7 @@ export function AgentHome() {
 
         <div className="sg-stack">
           <section className="sg-card sg-card-pad">
-            <h3 className="sg-h2" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px' }}>
+            <h3 className="sg-h2 sg-card-h">
               <FileCheck2 size={18} className="sg-h-icon" /> Past reports
             </h3>
             <p className="sg-small">Every completed hunt is archived with a submission-ready report.</p>
@@ -230,7 +230,7 @@ export function AgentHome() {
           </section>
 
           <section className="sg-card sg-card-pad">
-            <h3 className="sg-h2" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 14px' }}>
+            <h3 className="sg-h2 sg-card-h">
               <Crosshair size={18} className="sg-h-icon" /> How it works
             </h3>
             <ol className="sg-steps">
@@ -243,7 +243,7 @@ export function AgentHome() {
         </div>
       </div>
 
-      <p className="sg-tiny sg-fade-up sg-fade-up-4" style={{ marginTop: 28, textAlign: 'center' }}>
+      <p className="sg-tiny sg-fade-up sg-fade-up-4 home-note">
         Re-pasting a hunted target returns its saved report instantly — "Start new hunt" only when you want a fresh look.
       </p>
     </div>
