@@ -24,17 +24,19 @@ import {
   Network
 } from 'lucide-react';
 import {
-  getRunnerStatus, getRunnerLibrary,
+  getRunnerStatus,
   downloadRunnerEngine, subscribeToEngineStream,
   cancelRunnerDownload,
   removeRunnerModel, addRunnerCustomModel,
   stopRunnerModel,
-  downloadModelFile, runModelFile, subscribeToModelProgress,
+  runModelFile, subscribeToModelProgress,
   getBrainChain, getBrainSlots, getSlotAssignments, assignBrainSlot,
   getSlotSources, connectSlotKaggle, disconnectSlotKaggle,
   testRemoteModel, getSlotServers, runSlotServer, stopSlotServer,
   tryApi
 } from '../../services/api';
+import { MODEL_CATALOG } from '../../data/modelCatalog';
+import { downloadModelDirect, cancelDownload as cancelDirectDownload } from '../../services/modelDownload';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
 } from '../../services/deviceDetect';
@@ -304,7 +306,8 @@ function BrainSlotCard({
             const pct = dl ? (download.percent || 0) : 0;
             const isDl = dl && !['done', 'idle'].includes(download.status);
             const dlFailed = dl && (download.status === 'error' || download.status === 'cancelled');
-            const isDownloaded = m.downloaded || (m.downloadedQuants || []).length > 0;
+            // Frontend-only: downloaded state tracked locally (no backend).
+            const isDownloaded = downloadedIds.has(m.id) || m.downloaded || (m.downloadedQuants || []).length > 0;
             return (
               <div
                 key={m.id}
@@ -494,7 +497,9 @@ function BrainSlotCard({
 }
 
 export function ModelLibrary() {
-  const [library, setLibrary] = useState([]);
+  const [library, setLibrary] = useState(() => MODEL_CATALOG);
+  // Frontend-only: tracks which models were downloaded this session (no backend).
+  const [downloadedIds, setDownloadedIds] = useState(() => new Set());
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -535,8 +540,9 @@ export function ModelLibrary() {
 
   const refresh = useCallback(async () => {
     try {
-      const [lib, st, chain, slots, assignments, sources, servers] = await Promise.all([
-        tryApi(getRunnerLibrary()),
+      // Model list comes from the frontend catalog (no backend needed).
+      // Brain slots/status still use the backend when available.
+      const [st, chain, slots, assignments, sources, servers] = await Promise.all([
         tryApi(getRunnerStatus()),
         tryApi(getBrainChain()),
         tryApi(getBrainSlots()),
@@ -544,18 +550,15 @@ export function ModelLibrary() {
         tryApi(getSlotSources()),
         tryApi(getSlotServers())
       ]);
-      const errors = [lib, st, chain, slots, assignments, sources, servers]
+      const errors = [st, chain, slots, assignments, sources, servers]
         .map((r) => r.error).filter(Boolean);
-      // Distinguish a DEAD backend (network failure) from an EXPIRED session (401).
-      const allNetworkFailed = errors.length === 7
+      // Backend status: only for brain slots etc. Models always show (frontend catalog).
+      const allNetworkFailed = errors.length === 6
         && errors.every((e) => e.status === 0 || e.code === 'BACKEND_UNAVAILABLE');
       const anyAuthFailed = errors.some((e) => e.status === 401);
       setBackendDown(allNetworkFailed);
       setAuthExpired(!allNetworkFailed && anyAuthFailed);
       setBackendModeState(getBackendMode());
-      const libData = lib.data;
-      if (libData?.models) setLibrary(libData.models);
-      else if (Array.isArray(libData)) setLibrary(libData);
       if (chain.data?.chain) setBrainChain(chain.data);
       if (slots.data?.slots) setBrainSlots(slots.data.slots);
       if (assignments.data?.assignments) setSlotAssignments(assignments.data.assignments);
@@ -726,27 +729,28 @@ export function ModelLibrary() {
   };
 
   /** Start a REAL streaming download; progress arrives over the per-model SSE stream. */
+  // ── Frontend-only downloads: direct from Hugging Face, no backend needed ──
+
   const startDownload = async (modelId, quant) => {
     setError('');
     stopProgressStream();
     try {
-      await downloadModelFile(modelId, { quant });
-      setDownload({ modelId, quant, percent: 0, status: 'starting', receivedBytes: 0, totalBytes: null });
-      progressUnsub.current = subscribeToModelProgress(modelId, {
-        onEvent: (event) => {
-          const data = event.data ?? event;
-          const terminal = ['done', 'error', 'cancelled'].includes(data.status);
-          setDownload((prev) => ({ ...(prev || { modelId }), ...data }));
-          if (terminal) {
-            stopProgressStream();
-            if (data.status === 'done') {
-              // At 100% the row flips to "Run".
-              setDownload(null);
-              refresh();
-            }
-          }
+      const model = MODEL_CATALOG.find((m) => m.id === modelId);
+      if (!model) throw new Error('Model not found in catalog.');
+      setDownload({ modelId, quant, percent: 0, status: 'downloading', receivedBytes: 0, totalBytes: null });
+      await downloadModelDirect(model, {
+        onProgress: (percent, receivedBytes, totalBytes) => {
+          setDownload({ modelId, quant, percent, status: 'downloading', receivedBytes, totalBytes });
         },
-        onError: () => { /* the stream dropping is non-fatal; refresh shows truth */ }
+        onDone: () => {
+          setDownload(null);
+          setDownloadedIds((prev) => new Set(prev).add(modelId));
+        },
+        onError: (err) => {
+          setError(err.message || 'Download failed.');
+          setDownload(null);
+        },
+        onCancel: () => setDownload(null)
       });
     } catch (err) {
       setError(err.message || 'Could not start the download.');
@@ -754,8 +758,8 @@ export function ModelLibrary() {
     }
   };
 
-  const cancelDownload = async () => {
-    try { await cancelRunnerDownload(); } catch { /* ignore */ }
+  const cancelDownload = () => {
+    if (download?.modelId) cancelDirectDownload(download.modelId);
     stopProgressStream();
     setDownload(null);
     refresh();

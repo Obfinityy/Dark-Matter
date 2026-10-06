@@ -2569,8 +2569,10 @@ export default function App() {
           {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
           <Route path="/agent/*" element={<AgentConsole />} />
           {/* Public marketing landing page (issue #45). */}
-          <Route path="/" element={<Landing />} />
           <Route path="/landing" element={<Landing />} />
+          {/* Root: must be logged in — unauthenticated users go to login.
+              (Security: no anonymous access to the app.) */}
+          <Route path="/" element={<ProtectedRoute><Navigate to="/agent" replace /></ProtectedRoute>} />
           {/* Unknown top-level routes get a real 404 page, not a silent redirect. */}
           <Route path="/*" element={<NotFoundPage />} />
         </Routes>
