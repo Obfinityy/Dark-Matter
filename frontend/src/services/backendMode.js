@@ -30,8 +30,11 @@ const VERCEL_URL_KEY = 'dm_vercel_backend_url';
  */
 const BUILT_IN_VERCEL_URL = 'https://dark-matter-backend-infinity-a371.vercel.app';
 
+/** Persistent cloud backend (Render) — runs the full Express hunt engine. */
+export const PERSISTENT_CLOUD_URL = 'https://dark-matter-90nw.onrender.com';
+
 const DEFAULT_VERCEL_URL = (import.meta.env.VITE_DEFAULT_VERCEL_URL || '').trim().replace(/\/$/, '')
-  || BUILT_IN_VERCEL_URL;
+  || PERSISTENT_CLOUD_URL;
 
 export const BACKEND_MODES = {
   LOCALHOST: 'localhost',
@@ -126,6 +129,18 @@ export function setVercelBackendUrl(url) {
 export function hasCustomBackendUrl() {
   try {
     return (localStorage.getItem(VERCEL_URL_KEY) || '').trim().length > 0;
+  } catch { return false; }
+}
+
+/**
+ * True when the currently selected cloud backend can run hunts: either the
+ * built-in persistent Render backend or any custom URL. Only the legacy
+ * stateless Vercel serverless backend cannot.
+ */
+export function isCloudBackendPersistent() {
+  try {
+    const url = (getVercelBackendUrl() || '').replace(/\/$/, '');
+    return url === PERSISTENT_CLOUD_URL || hasCustomBackendUrl();
   } catch { return false; }
 }
 
