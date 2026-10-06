@@ -34,7 +34,9 @@ function resolvePhoneAiBaseUrl() {
 
 export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  host: process.env.HOST || '127.0.0.1',
+  // PaaS hosts (Render, Railway, Fly) inject PORT and require binding 0.0.0.0.
+  // Local dev keeps 127.0.0.1 unless HOST is set explicitly.
+  host: process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
   port: Number(process.env.PORT || 4000),
   encryptionKey: process.env.APP_ENCRYPTION_KEY || 'development-only-key-change-me',
   mongoUrl: process.env.MONGO_URL,
