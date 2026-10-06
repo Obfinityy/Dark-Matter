@@ -14,7 +14,7 @@
  * arrive over SSE. Pause persists the exact checkpoint — resume continues
  * from the identical state.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Pause, Play, Square, Loader2, AlertTriangle,
@@ -68,6 +68,23 @@ export function HuntView() {
   const [huntEmotion, setHuntEmotion] = useState('neutral');
   const [huntAvatarState, setHuntAvatarState] = useState('idle');
   const [overlayOpen, setOverlayOpen] = useState(false);
+
+  // Roving-tabindex tablist: only the active tab sits in the tab order;
+  // ArrowLeft/Right/Home/End move between tabs (WAI-ARIA tablist pattern).
+  const tabIds = useRef({});
+  const onTabsKeyDown = (e) => {
+    const order = ['findings', 'diary', 'surface'];
+    const i = order.indexOf(tab);
+    let next = null;
+    if (e.key === 'ArrowRight') next = order[(i + 1) % order.length];
+    else if (e.key === 'ArrowLeft') next = order[(i - 1 + order.length) % order.length];
+    else if (e.key === 'Home') next = order[0];
+    else if (e.key === 'End') next = order[order.length - 1];
+    else return;
+    e.preventDefault();
+    setTab(next);
+    tabIds.current[next]?.focus();
+  };
 
   const refreshDetail = useCallback(async () => {
     try {
@@ -244,7 +261,7 @@ export function HuntView() {
           <LiveScreenViewer assessmentId={job?.assessmentId} />
 
           <section>
-            <div className="sg-tabs" role="tablist">
+            <div className="sg-tabs" role="tablist" aria-label="Hunt panels" onKeyDown={onTabsKeyDown}>
               {[
                 { id: 'findings', label: 'Findings', icon: Bug, count: findings.length },
                 { id: 'diary', label: 'Diary', icon: BookOpen },
@@ -252,8 +269,12 @@ export function HuntView() {
               ].map(({ id, label, icon: Icon, count }) => (
                 <button
                   key={id}
+                  ref={(el) => { if (el) tabIds.current[id] = el; }}
+                  id={`sg-tab-${id}`}
                   role="tab"
                   aria-selected={tab === id}
+                  aria-controls={`sg-panel-${id}`}
+                  tabIndex={tab === id ? 0 : -1}
                   className={`sg-tab${tab === id ? ' sg-active' : ''}`}
                   onClick={() => setTab(id)}
                 >
@@ -274,7 +295,12 @@ export function HuntView() {
                 <RefreshCw size={14} />
               </button>
             </div>
-            <div style={{ marginTop: 16 }}>
+            <div
+              id={`sg-panel-${tab}`}
+              role="tabpanel"
+              aria-labelledby={`sg-tab-${tab}`}
+              style={{ marginTop: 16 }}
+            >
               {tab === 'findings' && <FindingsBoard findings={findings} explainer={explainer} />}
               {tab === 'diary' && <HuntDiary entries={diary} />}
               {tab === 'surface' && <AttackSurfaceMap surface={surface} />}
