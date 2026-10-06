@@ -36,7 +36,15 @@ import {
   tryApi
 } from '../../services/api';
 import { MODEL_CATALOG } from '../../data/modelCatalog';
-import { downloadModelDirect, cancelDownload as cancelDirectDownload } from '../../services/modelDownload';
+import {
+  isLocalBackendUp,
+  downloadModelLocal,
+  subscribeToLocalDownloadProgress,
+  cancelLocalDownload,
+  runModelOnLocal,
+  stopSlotOnLocal,
+  getLocalSlotServers
+} from '../../services/localModelApi';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
 } from '../../services/deviceDetect';
@@ -748,69 +756,120 @@ export function ModelLibrary() {
   /** Start a REAL streaming download; progress arrives over the per-model SSE stream. */
   // ── Frontend-only downloads: direct from Hugging Face, no backend needed ──
 
+  // ── Local backend: models run on the USER'S machine (localhost:4000) ──
+  const [localBackendUp, setLocalBackendUp] = useState(false);
+
+  useEffect(() => {
+    isLocalBackendUp().then(setLocalBackendUp);
+    const t = setInterval(() => isLocalBackendUp().then(setLocalBackendUp), 10000);
+    return () => clearInterval(t);
+  }, []);
+
   const startDownload = async (modelId, quant) => {
     setError('');
     stopProgressStream();
+    // Models download to the USER'S LOCAL MACHINE via the local backend.
+    if (!localBackendUp) {
+      setError('Start the Infinity AI backend on your computer (localhost:4000) to download models. Models run on YOUR machine, not the cloud.');
+      return;
+    }
     try {
-      const model = MODEL_CATALOG.find((m) => m.id === modelId);
-      if (!model) throw new Error('Model not found in catalog.');
+      await downloadModelLocal(modelId, { quant });
       setDownload({ modelId, quant, percent: 0, status: 'downloading', receivedBytes: 0, totalBytes: null });
-      await downloadModelDirect(model, {
-        onProgress: (percent, receivedBytes, totalBytes) => {
-          setDownload({ modelId, quant, percent, status: 'downloading', receivedBytes, totalBytes });
+      progressUnsub.current = subscribeToLocalDownloadProgress(modelId, {
+        onEvent: (data) => {
+          const terminal = ['done', 'error', 'cancelled'].includes(data.status);
+          setDownload((prev) => ({ ...(prev || { modelId }), ...data }));
+          if (terminal) {
+            stopProgressStream();
+            if (data.status === 'done') {
+              setDownload(null);
+              setDownloadedIds((prev) => new Set(prev).add(modelId));
+              refresh();
+            }
+          }
         },
-        onDone: () => {
-          setDownload(null);
-          setDownloadedIds((prev) => new Set(prev).add(modelId));
-        },
-        onError: (err) => {
-          setError(err.message || 'Download failed.');
-          setDownload(null);
-        },
-        onCancel: () => setDownload(null)
+        onError: () => { /* stream drop is non-fatal */ }
       });
     } catch (err) {
-      setError(err.message || 'Could not start the download.');
+      setError(err.message || 'Could not start the download. Is the local backend running?');
       setDownload(null);
     }
   };
 
-  const cancelDownload = () => {
-    if (download?.modelId) cancelDirectDownload(download.modelId);
+  const cancelDownload = async () => {
+    try { await cancelLocalDownload(); } catch { /* ignore */ }
     stopProgressStream();
     setDownload(null);
     refresh();
   };
 
+  // ── Refresh slot servers from the local backend. ──
+  const refreshSlotServers = async () => {
+    if (!localBackendUp) return;
+    try {
+      const servers = await getLocalSlotServers();
+      setSlotServers({
+        vision: servers.vision || null,
+        grounding: servers.grounding || null,
+        hacker: servers.hacker || servers.hacking || null
+      });
+    } catch { /* ignore */ }
+  };
+
+  useEffect(() => {
+    if (localBackendUp) refreshSlotServers();
+  }, [localBackendUp]);
+
   const run = async (modelId, opts) => {
     setError('');
     setBusyModel(modelId);
+    // Models run on the USER'S LOCAL MACHINE, each on its own random localhost port.
+    if (!localBackendUp) {
+      setError('Start the Infinity AI backend on your computer (localhost:4000) to run models. Models run on YOUR machine, not the cloud.');
+      setBusyModel(null);
+      return;
+    }
     try {
       const model = MODEL_CATALOG.find((m) => m.id === modelId);
       if (!model) throw new Error('Model not found.');
-      // Frontend-only: set as the active brain for its category slot.
-      // No backend needed — the selection is stored locally.
-      const slot = model.category; // 'vision' | 'grounding' | 'hacking'
-      setActiveBrains((prev) => ({ ...prev, [slot]: modelId }));
-      // Also persist to localStorage so it survives reloads.
+      // Map category to backend slot: 'hacking' -> 'hacker'
+      const slot = model.category === 'hacking' ? 'hacker' : model.category;
+      // Run on the local backend — it picks a random free localhost port.
+      const result = await runModelOnLocal(slot, modelId, opts || {});
+      // Update UI: show the running model and its port.
+      setSlotServers((prev) => ({
+        ...prev,
+        [model.category]: {
+          modelId,
+          port: result.port,
+          baseUrl: result.baseUrl || `http://localhost:${result.port}`
+        }
+      }));
+      // Also save as active brain (frontend state).
+      setActiveBrains((prev) => ({ ...prev, [model.category]: modelId }));
       try {
         localStorage.setItem('dm_active_brains', JSON.stringify({
-          ...activeBrains, [slot]: modelId
+          ...activeBrains, [model.category]: modelId
         }));
       } catch { /* ignore */ }
-      // Try backend run as well (for actual inference when backend is up),
-      // but don't fail if backend is unreachable — frontend selection is the source of truth.
-      try {
-        await runModelFile(modelId, opts || {});
-        refresh();
-      } catch (backendErr) {
-        // Backend unavailable: frontend selection still stands.
-        console.log('Backend run skipped (unreachable):', backendErr.message);
-      }
+      refresh();
     } catch (err) {
-      setError(err.message || 'Could not set active brain.');
+      setError(err.message || 'Could not start the model on your machine.');
     } finally {
       setBusyModel(null);
+    }
+  };
+
+  const stopSlot = async (slot) => {
+    // Map frontend category to backend slot.
+    const backendSlot = slot === 'hacking' ? 'hacker' : slot;
+    try {
+      await stopSlotOnLocal(backendSlot);
+      setSlotServers((prev) => ({ ...prev, [slot]: null }));
+      refresh();
+    } catch (err) {
+      setError(err.message || 'Could not stop the model.');
     }
   };
 
