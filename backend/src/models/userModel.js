@@ -91,6 +91,17 @@ export class UserModel {
     return user?.subscription || null;
   }
 
+  /**
+   * Store the scrypt hash of the account recovery key. Only the hash is
+   * persisted — the plain key is shown to the user once and never stored.
+   */
+  async setRecoveryKeyHash(userId, keyHash) {
+    await this.collection.updateOne(
+      { id: userId },
+      { $set: { recoveryKeyHash: keyHash, recoveryKeySetAt: now(), updatedAt: now() } }
+    );
+  }
+
   async updateProfile(userId, input = {}) {
     const name = String(input.name || '').trim().slice(0, 120);
     assert(name.length >= 2, 400, 'Name must be at least 2 characters', 'INVALID_PROFILE');

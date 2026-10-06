@@ -73,6 +73,26 @@ async function verifyPassword(password, encoded) {
   return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
+/**
+ * Generate a human-readable account recovery key: 6 groups of 4 chars
+ * (e.g. "K7M2-Q9XD-…"). ~143 bits of entropy — not guessable, but typable.
+ * Only the scrypt hash is stored; the plain key is shown to the user once.
+ */
+function generateRecoveryKey() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I confusion
+  const bytes = crypto.randomBytes(24); // 24 chars × ~5 bits = ~120 bits
+  let chars = '';
+  for (let i = 0; i < 24; i++) {
+    chars += alphabet[bytes[i] % alphabet.length];
+  }
+  return chars.match(/.{1,4}/g).join('-');
+}
+
+/** Normalize user-typed recovery key: strip dashes/spaces, uppercase. */
+function normalizeRecoveryKey(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z2-9]/g, '');
+}
+
 export class AuthService {
   // jwtSecret signs stateless JWTs; jwtDays controls their lifetime. The existing
   // session-cookie flow is untouched — JWT is an additional credential the
@@ -128,9 +148,14 @@ export class AuthService {
     }
     assert(!(await this.userModel.findByEmail(email)), 409, 'An account with this email already exists', 'EMAIL_IN_USE');
     const user = await this.userModel.create({ email, name, passwordHash: await hashPassword(password), username: username || null });
+    // Issue an account recovery key — shown ONCE, hashed at rest.
+    // Store the hash of the NORMALIZED key (dashes stripped) so users can
+    // type it with or without dashes.
+    const recoveryKey = generateRecoveryKey();
+    await this.userModel.setRecoveryKeyHash(user.id, await hashPassword(normalizeRecoveryKey(recoveryKey)));
     const session = await this.createSession(user.id);
     const jwt = this.issueJwt(user);
-    return { user, token: session, jwt: jwt.token, jwtExpiresAt: jwt.expiresAt };
+    return { user, token: session, jwt: jwt.token, jwtExpiresAt: jwt.expiresAt, recoveryKey };
   }
 
   async login(input = {}) {
@@ -180,5 +205,37 @@ export class AuthService {
     if (!valid) throw new AppError(401, 'Current password is incorrect', 'INVALID_CURRENT_PASSWORD');
     const newHash = await hashPassword(newPassword);
     await this.userModel.changePassword(userId, newHash);
+  }
+
+  /**
+   * Reset a forgotten password using the account recovery key issued at
+   * signup. On success the key is ROTATED — a fresh key is returned and the
+   * old one stops working. All sessions are revoked for safety.
+   */
+  async resetPasswordWithRecoveryKey({ email, recoveryKey, newPassword }) {
+    const normalizedEmail = normalizeEmail(email);
+    assert(validEmail(normalizedEmail), 400, 'Enter a valid email address', 'INVALID_EMAIL');
+    const cleanKey = normalizeRecoveryKey(recoveryKey);
+    assert(cleanKey.length >= 20, 400, 'Enter your full recovery key', 'INVALID_RECOVERY_KEY');
+    assert(typeof newPassword === 'string' && newPassword.length >= 8, 400, 'New password must be at least 8 characters', 'WEAK_PASSWORD');
+
+    const user = await this.userModel.findByEmail(normalizedEmail);
+    // Same error whether the email or the key is wrong — no account enumeration.
+    const keyValid = user?.recoveryKeyHash
+      ? await verifyPassword(cleanKey, user.recoveryKeyHash)
+      : false;
+    if (!user || !keyValid) {
+      throw new AppError(401, 'Email or recovery key is incorrect', 'INVALID_RECOVERY_CREDENTIALS');
+    }
+
+    await this.userModel.changePassword(user.id, await hashPassword(newPassword));
+    // Rotate: the used key is burned, a new one is issued.
+    const newRecoveryKey = generateRecoveryKey();
+    await this.userModel.setRecoveryKeyHash(user.id, await hashPassword(normalizeRecoveryKey(newRecoveryKey)));
+    // Revoke all sessions — the password change may be from a compromised state.
+    if (this.sessionModel?.revokeAllForUser) {
+      await this.sessionModel.revokeAllForUser(user.id);
+    }
+    return { recoveryKey: newRecoveryKey };
   }
 }

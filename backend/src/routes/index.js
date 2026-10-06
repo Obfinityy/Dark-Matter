@@ -8,6 +8,7 @@ export function createRoutes({ controllers }) {
   router.get('/health/local-ai', controllers.health.localAiHealth);
   router.post('/auth/register', controllers.auth.register);
   router.post('/auth/login', controllers.auth.login);
+  router.post('/auth/recover', controllers.auth.recover);
   router.use(controllers.auth.attach);
 
   router.use(requireAuth);

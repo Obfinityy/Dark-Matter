@@ -25,12 +25,17 @@ export function createAuthController(authService, config) {
     register: asyncHandler(async (request, response) => {
       const result = await authService.register(request.body);
       setSessionCookie(response, result.token, config.sessionDays, config.nodeEnv === 'production');
-      response.status(201).json({ user: result.user, jwt: result.jwt, jwtExpiresAt: result.jwtExpiresAt });
+      response.status(201).json({ user: result.user, jwt: result.jwt, jwtExpiresAt: result.jwtExpiresAt, recoveryKey: result.recoveryKey });
     }),
     login: asyncHandler(async (request, response) => {
       const result = await authService.login(request.body);
       setSessionCookie(response, result.token, config.sessionDays, config.nodeEnv === 'production');
       response.json({ user: result.user, jwt: result.jwt, jwtExpiresAt: result.jwtExpiresAt });
+    }),
+    recover: asyncHandler(async (request, response) => {
+      const { email, recoveryKey, newPassword } = request.body || {};
+      const result = await authService.resetPasswordWithRecoveryKey({ email, recoveryKey, newPassword });
+      response.json({ message: 'Password reset successfully', recoveryKey: result.recoveryKey });
     }),
     me: asyncHandler(async (request, response) => {
       response.json({ user: request.user });

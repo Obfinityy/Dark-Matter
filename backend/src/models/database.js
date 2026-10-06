@@ -199,6 +199,12 @@ class MemoryCollection {
     this.documents.splice(index, 1);
     return { deletedCount: 1 };
   }
+
+  async deleteMany(query) {
+    const before = this.documents.length;
+    this.documents = this.documents.filter((document) => !matches(document, query));
+    return { deletedCount: before - this.documents.length };
+  }
 }
 
 export class MemoryDatabase {

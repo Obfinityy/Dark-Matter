@@ -37,6 +37,9 @@ import {
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
 } from '../../services/deviceDetect';
+import {
+  getBackendMode, BACKEND_MODES, setBackendMode, getApiBase, getBackendModeLabel
+} from '../../services/backendMode';
 import { DarkVeil } from '../../components/fx/DarkVeil';
 import { SpotlightCard } from '../../components/fx/SpotlightCard';
 import { DecryptedText } from '../../components/fx/DecryptedText';
@@ -494,6 +497,8 @@ export function ModelLibrary() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [backendDown, setBackendDown] = useState(false); // selected backend unreachable
+  const [backendMode, setBackendModeState] = useState(() => getBackendMode());
   const [download, setDownload] = useState(null); // { modelId, percent, status, receivedBytes, totalBytes, error }
   const [engineDl, setEngineDl] = useState(null); // { progress, status }
   const [busyModel, setBusyModel] = useState(null);
@@ -537,6 +542,11 @@ export function ModelLibrary() {
         getSlotSources().catch(() => null),
         getSlotServers().catch(() => null)
       ]);
+      // If EVERY call failed, the selected backend is unreachable — say so
+      // clearly instead of showing an eternal spinner.
+      const allFailed = [lib, st, chain, slots, assignments, sources, servers].every((r) => r == null);
+      setBackendDown(allFailed);
+      setBackendModeState(getBackendMode());
       if (lib?.models) setLibrary(lib.models);
       else if (Array.isArray(lib)) setLibrary(lib);
       if (chain?.chain) setBrainChain(chain);
@@ -825,6 +835,30 @@ export function ModelLibrary() {
 
       {error && <div className="sg-alert sg-auth-error">{error}</div>}
 
+      {backendDown && !loading && (
+        <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Unplug size={18} />
+            <strong>Backend unreachable</strong>
+          </div>
+          <p className="sg-small" style={{ margin: '0 0 12px' }}>
+            Models can't load because the selected backend ({getBackendModeLabel()}) isn't responding at{' '}
+            <code>{getApiBase()}</code>.
+            {backendMode === BACKEND_MODES.LOCALHOST
+              ? ' Your local backend may not be running — or switch to Cloud to use the hosted backend.'
+              : ' Check your connection, or try switching backend mode in Settings.'}
+          </p>
+          {backendMode === BACKEND_MODES.LOCALHOST && (
+            <button
+              className="sg-btn sg-btn-primary"
+              onClick={() => { setBackendMode(BACKEND_MODES.VERCEL); setBackendDown(false); setLoading(true); refresh(); }}
+            >
+              <Cloud size={14} /> Switch to Cloud backend
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Brain Slots: three independent brains ──────────────────── */}
       <div className="ml-brain-section">
         <div className="sg-remote-head ml-brain-head">
@@ -867,6 +901,10 @@ export function ModelLibrary() {
                 setKaggleName={(v) => setKaggleNames((m) => ({ ...m, [slotId]: v }))}
               />
             ))}
+          </div>
+        ) : backendDown && !loading ? (
+          <div className="sg-small" style={{ opacity: 0.8 }}>
+            Brain slots unavailable — backend unreachable (see notice above).
           </div>
         ) : (
           <div className="sg-small" style={{ opacity: 0.6 }}>Loading brain slots…</div>

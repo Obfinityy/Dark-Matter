@@ -6,8 +6,11 @@
  * category, with success rates — the agent's accumulated tradecraft, visible.
  */
 import React, { useEffect, useState } from 'react';
-import { LibraryBig, Loader2, TrendingUp, Filter } from 'lucide-react';
+import { LibraryBig, Loader2, TrendingUp, Filter, Unplug, Cloud } from 'lucide-react';
 import { listPayloads, getPayloadLibraryStats } from '../../services/api';
+import {
+  getBackendMode, BACKEND_MODES, setBackendMode, getApiBase, getBackendModeLabel
+} from '../../services/backendMode';
 
 export function PayloadLibrary() {
   const [payloads, setPayloads] = useState([]);
@@ -15,6 +18,8 @@ export function PayloadLibrary() {
   const [loading, setLoading] = useState(true);
   const [technique, setTechnique] = useState('');
   const [category, setCategory] = useState('');
+  const [backendDown, setBackendDown] = useState(false);
+  const [backendMode, setBackendModeState] = useState(() => getBackendMode());
 
   const refresh = async () => {
     setLoading(true);
@@ -23,6 +28,8 @@ export function PayloadLibrary() {
         listPayloads({ technique: technique || null, category: category || null, limit: 50 }).catch(() => null),
         getPayloadLibraryStats().catch(() => null)
       ]);
+      setBackendDown(p == null && s == null);
+      setBackendModeState(getBackendMode());
       if (p?.payloads) setPayloads(p.payloads);
       if (s?.stats) setStats(s.stats);
     } finally {
@@ -60,6 +67,30 @@ export function PayloadLibrary() {
           <p>Self-learning: payloads that worked rise to the top and get suggested first in future hunts.</p>
         </div>
       </header>
+
+      {backendDown && (
+        <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Unplug size={18} />
+            <strong>Backend unreachable</strong>
+          </div>
+          <p className="sg-small" style={{ margin: '0 0 12px' }}>
+            Payloads can't load because the selected backend ({getBackendModeLabel()}) isn't responding at{' '}
+            <code>{getApiBase()}</code>.
+            {backendMode === BACKEND_MODES.LOCALHOST
+              ? ' Your local backend may not be running — or switch to Cloud.'
+              : ' Check your connection, or try switching backend mode in Settings.'}
+          </p>
+          {backendMode === BACKEND_MODES.LOCALHOST && (
+            <button
+              className="sg-btn sg-btn-primary"
+              onClick={() => { setBackendMode(BACKEND_MODES.VERCEL); setBackendDown(false); refresh(); }}
+            >
+              <Cloud size={14} /> Switch to Cloud backend
+            </button>
+          )}
+        </div>
+      )}
 
       {stats && (
         <div className="dm-stat-row" aria-label="Library statistics">
