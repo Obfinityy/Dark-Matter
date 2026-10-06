@@ -455,6 +455,13 @@ export async function createApp({ database } = {}) {
       // are always trusted — CORS is not a localhost security boundary.
       if (!origin || config.frontendOrigins.includes(origin)) return callback(null, true);
       if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin)) return callback(null, true);
+      // Production frontends: always allowed, even if FRONTEND_ORIGINS env is stale.
+      const PRODUCTION_ORIGINS = [
+        'https://hack.thebhavesh.online',
+        'https://dark-matter-frontend.vercel.app',
+        'https://obfinityy.github.io'
+      ];
+      if (PRODUCTION_ORIGINS.includes(origin)) return callback(null, true);
       return callback(new Error('Origin is not allowed by CORS'));
     },
     credentials: true

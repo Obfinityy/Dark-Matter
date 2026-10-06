@@ -43,7 +43,7 @@ export const config = {
   mongoUrl: process.env.MONGO_URL,
   mongoDbName: process.env.MONGO_DB_NAME || 'darkmatter',
   mongoServerSelectionTimeoutMs: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || 10_000),
-  frontendOrigins: (process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
+  frontendOrigins: (process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,https://hack.thebhavesh.online,https://dark-matter-frontend.vercel.app,https://obfinityy.github.io')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
