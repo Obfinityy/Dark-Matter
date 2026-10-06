@@ -261,7 +261,7 @@ export function AgentShell({ children }) {
   const title = React.useMemo(() => {
     if (location.pathname.startsWith('/agent/hunt/')) return 'Active Hunt';
     if (location.pathname.startsWith('/agent/reports/')) return 'Report';
-    return TITLES[location.pathname] || 'DarkMatter';
+    return TITLES[location.pathname] || 'Infinity AI';
   }, [location.pathname]);
 
   const huntLinks = [
@@ -390,7 +390,7 @@ export function AgentShell({ children }) {
             >
               <Menu size={20} />
             </button>
-            <Link to="/agent" className="sg-topbar-brand" title="DarkMatter home">
+            <Link to="/agent" className="sg-topbar-brand" title="Infinity AI home">
               <Logo size={30} />
             </Link>
             <nav className="sg-tabs" aria-label="Primary">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -35,6 +35,7 @@ import './styles/polish-pass-export-avatar-bento.css';
 import './styles/polish-pass-spotlight-home-hunt.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
 import { Landing } from './pages/Landing/Landing';
+import NotFoundPage from './pages/NotFound/NotFound';
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
   const match = /language-(\w+)/.exec(className || '');
@@ -2538,7 +2539,7 @@ const TermsConditionsPage = () => (
       <p className="sg-body" style={{ marginBottom: '20px' }}>You must only test systems you own or are explicitly authorized to assess. Unauthorized use of this autonomous agent is strictly prohibited.</p>
       
       <h2 className="sg-h2" style={{ marginBottom: '10px' }}>2. Liability</h2>
-      <p className="sg-body" style={{ marginBottom: '20px' }}>DarkMatter is provided "as is". We are not responsible for any damage caused by automated actions on misconfigured targets.</p>
+      <p className="sg-body" style={{ marginBottom: '20px' }}>Infinity AI is provided "as is". We are not responsible for any damage caused by automated actions on misconfigured targets.</p>
       
       <h2 className="sg-h2" style={{ marginBottom: '10px' }}>3. Account Termination</h2>
       <p className="sg-body">We reserve the right to terminate accounts that violate our acceptable use policy immediately.</p>
@@ -2570,8 +2571,8 @@ export default function App() {
           {/* Public marketing landing page (issue #45). */}
           <Route path="/" element={<Landing />} />
           <Route path="/landing" element={<Landing />} />
-          {/* Everything else redirects to the agent console. */}
-          <Route path="/*" element={<Navigate to="/agent" replace />} />
+          {/* Unknown top-level routes get a real 404 page, not a silent redirect. */}
+          <Route path="/*" element={<NotFoundPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -44,7 +44,7 @@ const TIERS = [
   {
     name: 'Pro',
     price: '$29',
-    period: '/month',
+    period: 'per month',
     features: ['Unlimited hunts', 'Priority AI brain', 'PoC replay + PDF reports', 'API access'],
     cta: 'Go Pro',
     featured: true,
@@ -112,7 +112,7 @@ function Hero() {
         <div className="lp-stats">
           <div><strong>11</strong><span>planner engines</span></div>
           <div><strong>100%</strong><span>autonomous loop</span></div>
-          <div><strong>0</strong><span>false-positive noise</span></div>
+          <div><strong>0%</strong><span>false-positive noise</span></div>
         </div>
       </div>
     </header>
@@ -170,7 +170,7 @@ function Pricing() {
           <div key={t.name} className={`lp-tier ${t.featured ? 'lp-tier-featured' : ''}`}>
             {t.featured && <span className="lp-tier-badge">Most popular</span>}
             <h3>{t.name}</h3>
-            <p className="lp-tier-price">{t.price}<span>{t.period}</span></p>
+            <p className="lp-tier-price">{t.price}{t.period ? <span>{t.period.startsWith('/') ? t.period : ` ${t.period}`}</span> : null}</p>
             <ul>
               {t.features.map((f) => (
                 <li key={f}><Check size={15} className="lp-check" /> {f}</li>
