@@ -591,3 +591,42 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.45; transform: scale(0.8); }
 }
+
+/* ── Round-4 polish: inline-style extraction + keyboard focus rings ──
+ *
+ * Design notes (6 Oct 2026):
+ * - InfinityAI: fixed a real bug — FeedRow renders <TriangleAlert> for
+ *   WARN-level feed rows but the icon was never imported, so any warning
+ *   row would throw a ReferenceError; the old AlertTriangle alias no
+ *   longer exists in this lucide-react version. Removed dead imports
+ *   (getProviders, listJobs, FileText — never referenced).
+ * - 11 inline `style` props across Plan/Build/Control panes collapse into
+ *   named classes (.inf-constrain-wide etc.) so the 760px column rhythm
+ *   lives in one place. The two 760px input-row inline max-widths were
+ *   redundant (.sg-chat-input already caps at 760px) and are gone.
+ * - Reduced-motion: chat + control-feed auto-scroll now uses instant
+ *   behaviour for prefers-reduced-motion users (they were always smooth).
+ * - Keyboard: input-row utility buttons (mode dropdown options already
+ *   had it) get visible :focus-visible rings on attach/mic/send buttons.
+ */
+
+.inf-center-note { text-align: center; }
+.inf-constrain-wide { max-width: 760px; margin-left: auto; margin-right: auto; }
+.inf-mt-14 { margin-top: 14px; }
+.inf-error-tall { margin: 14px 0; }
+.inf-attach-constrain { max-width: 760px; margin: 0 auto 8px; }
+.inf-attach-row-constrain { max-width: 760px; margin: 10px auto 0; }
+.inf-self-center { align-self: center; }
+.inf-inline-icon { vertical-align: -1px; }
+.inf-pill-gap { margin-left: 8px; }
+.inf-control-intro { max-width: 640px; margin-bottom: 18px; }
+.inf-ask-line { display: flex; align-items: center; gap: 8px; }
+.inf-ask-q { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Keyboard focus mirrors hover on the input-row utility buttons. */
+.sg-chat-input .inf-attach-btn:focus-visible,
+.sg-chat-input .inf-mic-btn:focus-visible,
+.sg-chat-input button:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.75);
+  outline-offset: 2px;
+}
