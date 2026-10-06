@@ -1,5 +1,48 @@
 import { MongoClient } from 'mongodb';
 
+// Every finite database operation gets a hard ceiling so a dead or hanging
+// Mongo connection fails FAST instead of hanging request handlers forever
+// (that hang was the Oct 2026 prod P0: every POST route blocked on a query
+// with no timeout while /health still reported "mongodb"). Explicit
+// per-call maxTimeMS values are always respected.
+export const DEFAULT_QUERY_TIMEOUT_MS = 15_000;
+
+// Index of the options argument for each wrapped driver method.
+const OPTIONS_INDEX = {
+  find: 1,
+  findOne: 1,
+  findOneAndUpdate: 2,
+  findOneAndDelete: 1,
+  updateOne: 2,
+  updateMany: 2,
+  replaceOne: 2,
+  insertOne: 1,
+  insertMany: 1,
+  deleteOne: 1,
+  deleteMany: 1,
+  aggregate: 1,
+  countDocuments: 1,
+  estimatedDocumentCount: 0,
+  distinct: 2,
+  bulkWrite: 1
+};
+
+export function withQueryTimeout(collection, maxTimeMS = DEFAULT_QUERY_TIMEOUT_MS) {
+  return new Proxy(collection, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== 'function' || !(property in OPTIONS_INDEX)) return value;
+      return function (...args) {
+        const index = OPTIONS_INDEX[property];
+        while (args.length <= index) args.push(undefined);
+        if (args[index] == null || typeof args[index] !== 'object') args[index] = {};
+        if (args[index].maxTimeMS == null) args[index].maxTimeMS = maxTimeMS;
+        return value.apply(target, args);
+      };
+    }
+  });
+}
+
 export class MongoDatabase {
   constructor({ mongoUrl, mongoDbName, mongoServerSelectionTimeoutMs = 10_000 }) {
     if (!mongoUrl) throw new Error('MONGO_URL is required for the backend database connection');
@@ -83,7 +126,26 @@ export class MongoDatabase {
 
   collection(name) {
     if (!this.db) throw new Error('Mongo database has not been initialized');
-    return this.db.collection(name);
+    return withQueryTimeout(this.db.collection(name));
+  }
+
+  // Real liveness check: runs a ping command against the server with a hard
+  // timeout. /health uses this so it reports the ACTUAL database state,
+  // never a cached "wired" flag while the connection is dead.
+  async ping(timeoutMs = 5_000) {
+    if (!this.db) return { ok: false, error: 'database not initialized' };
+    const startedAt = Date.now();
+    try {
+      const result = await Promise.race([
+        this.db.command({ ping: 1 }, { maxTimeMS: timeoutMs }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`ping timed out after ${timeoutMs}ms`)), timeoutMs)
+        )
+      ]);
+      return { ok: result?.ok === 1, latencyMs: Date.now() - startedAt };
+    } catch (error) {
+      return { ok: false, latencyMs: Date.now() - startedAt, error: error?.message || String(error) };
+    }
   }
 
   async close() {
@@ -217,6 +279,11 @@ export class MemoryDatabase {
   collection(name) {
     if (!this.collections.has(name)) this.collections.set(name, new MemoryCollection());
     return this.collections.get(name);
+  }
+
+  // The in-memory store is always local, so the ping is trivially healthy.
+  async ping() {
+    return { ok: true, latencyMs: 0, kind: 'memory' };
   }
 
   async close() {}

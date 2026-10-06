@@ -446,6 +446,7 @@ export async function createApp({ database } = {}) {
   const app = express();
   app.disable('x-powered-by');
   // Honest DB reporting for /health: "mongodb" when Atlas is wired, "memory" for the zero-config fallback.
+  app.locals.database = database;
   app.locals.databaseKind = database instanceof MongoDatabase ? 'mongodb' : 'memory';
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({
