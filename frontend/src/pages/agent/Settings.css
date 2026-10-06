@@ -47,6 +47,12 @@
 .sg-backend-opt svg { color: var(--sg-cyan); }
 .sg-check { position: absolute; top: 12px; right: 12px; color: var(--sg-go); }
 
+/* Focus-visible for every other button on this page (option cards have their own). */
+.sg-settings .sg-btn:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 3px;
+}
+
 .sg-mode-hint { margin-top: 10px; }
 .sg-test-result { margin-top: 14px; font-size: 0.9rem; font-weight: 500; }
 .sg-test-result.ok { color: var(--sg-go); }
