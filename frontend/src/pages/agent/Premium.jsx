@@ -19,6 +19,7 @@ const TIERS = [
     id: 'free',
     name: 'Free',
     price: 0,
+    inrPrice: 0,
     tagline: 'Taste the hunt.',
     features: [
       '2 hunts per month',
@@ -31,6 +32,7 @@ const TIERS = [
     id: 'low',
     name: 'Low',
     price: 20,
+    inrPrice: 1699,
     tagline: 'For curious hackers.',
     features: [
       '25 hunts per month',
@@ -44,6 +46,7 @@ const TIERS = [
     id: 'medium',
     name: 'Medium',
     price: 50,
+    inrPrice: 4199,
     tagline: 'Serious bug hunting.',
     features: [
       '150 hunts per month',
@@ -58,6 +61,7 @@ const TIERS = [
     id: 'high',
     name: 'High',
     price: 100,
+    inrPrice: 8399,
     tagline: 'Go pro.',
     features: [
       'Unlimited hunts',
@@ -72,6 +76,7 @@ const TIERS = [
     id: 'ultramax',
     name: 'UltraMax',
     price: 299,
+    inrPrice: 24999,
     tagline: 'Maximum firepower.',
     features: [
       'Everything in High',
@@ -86,6 +91,7 @@ const TIERS = [
     id: 'infinity',
     name: 'Infinity',
     price: 499,
+    inrPrice: 41999,
     tagline: 'No limits. Ever.',
     features: [
       'Everything in UltraMax',
@@ -232,7 +238,7 @@ export function Premium() {
             <h3 className="sg-premium-name">{tier.name}</h3>
             <p className="sg-premium-tagline">{tier.tagline}</p>
             <p className="sg-premium-price">
-              <span className="sg-premium-amount">${tier.price}</span>
+              <span className="sg-premium-amount">₹{tier.inrPrice.toLocaleString('en-IN')}</span>
               <span className="sg-premium-period">/month</span>
             </p>
             <ul className="sg-premium-features">
@@ -275,7 +281,7 @@ export function Premium() {
               <X size={18} />
             </button>
             <div className="sg-premium-modal-icon"><Crown size={26} /></div>
-            <h3 className="sg-h2">{pending.name} — ${pending.price}/month</h3>
+            <h3 className="sg-h2">{pending.name} — ₹{pending.inrPrice.toLocaleString('en-IN')}/month</h3>
             {pending.price === 0 ? (
               <>
                 <p className="sg-body">
@@ -303,7 +309,7 @@ export function Premium() {
                     onClick={() => payForTier(pending)}
                     disabled={paying}
                   >
-                    {paying ? 'Opening checkout…' : `Pay $${pending.price}/month`}
+                    {paying ? 'Opening checkout…' : `Pay ₹${pending.inrPrice.toLocaleString('en-IN')}/month`}
                   </button>
                   <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)} disabled={paying}>
                     Not now
@@ -314,7 +320,7 @@ export function Premium() {
               <>
                 <p className="sg-body">
                   Billing isn't live yet, so you can't pay for{' '}
-                  <strong>${pending.price}/month</strong> today. Reserve the{' '}
+                  <strong>₹{pending.inrPrice.toLocaleString('en-IN')}/month</strong> today. Reserve the{' '}
                   <strong>{pending.name}</strong> tier now and we'll notify you the
                   moment payments open.
                 </p>
