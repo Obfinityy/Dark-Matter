@@ -55,6 +55,12 @@
   transition: color var(--sg-fast), background var(--sg-fast);
 }
 .sg-tab:hover { color: var(--sg-text); background: rgba(255, 255, 255, 0.03); }
+/* Visible keyboard focus for the tablist (roving tabindex). */
+.sg-tab:focus-visible {
+  outline: 2px solid var(--sg-cyan, #22d3ee);
+  outline-offset: -2px;
+  background: rgba(255, 255, 255, 0.04);
+}
 .sg-tab.sg-active { color: var(--sg-text); border-bottom-color: var(--sg-cyan); }
 .sg-tab.sg-active:hover { background: rgba(255, 255, 255, 0.045); }
 .sg-tab-badge {

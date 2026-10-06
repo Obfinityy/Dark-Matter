@@ -31,7 +31,7 @@ import {
   FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
   ShieldCheck, Play, Paperclip, FolderOpen, X, Plus,
   ChevronDown, Check, PanelRightOpen, PanelRightClose, ChevronsLeft,
-  Mic, MicOff
+  Brain, CircleHelp, Ban, Volume2, VolumeX
 } from 'lucide-react';
 import { sendDirectChat, parseActionIntent, getProviders, listJobs, getComputerStatus, getInfiniteHistory } from '../../services/api';
 import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
@@ -79,15 +79,22 @@ function useConversationId(mode) {
 function ModeDropdown({ mode, setMode }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const triggerRef = useRef(null);
+  const optionRefs = useRef({});
   const active = MODES.find((m) => m.id === mode) || MODES[0];
 
-  // Close on outside click / Escape.
+  // Close on outside click / Escape (Escape returns focus to the trigger).
   useEffect(() => {
     if (!open) return;
     const onPointer = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
     document.addEventListener('mousedown', onPointer);
     document.addEventListener('touchstart', onPointer);
     document.addEventListener('keydown', onKey);
@@ -98,13 +105,40 @@ function ModeDropdown({ mode, setMode }) {
     };
   }, [open ]);
 
+  // Full listbox keyboard support: opening moves focus to the current
+  // option; arrows/Home/End move between options; the trigger regains
+  // focus when the menu closes via Escape.
+  const focusOption = (id) => {
+    optionRefs.current[id]?.focus();
+  };
+
+  const onMenuKeyDown = (e) => {
+    const ids = MODES.map((m) => m.id);
+    const i = ids.indexOf(document.activeElement?.dataset?.optionId ?? mode);
+    let next = null;
+    if (e.key === 'ArrowDown') next = ids[(i + 1) % ids.length];
+    else if (e.key === 'ArrowUp') next = ids[(i - 1 + ids.length) % ids.length];
+    else if (e.key === 'Home') next = ids[0];
+    else if (e.key === 'End') next = ids[ids.length - 1];
+    else return;
+    e.preventDefault();
+    focusOption(next);
+  };
+
+  const openMenu = () => {
+    setOpen(true);
+    // Focus the current option once the menu is painted.
+    requestAnimationFrame(() => focusOption(mode));
+  };
+
   const ActiveIcon = active.icon;
   return (
     <div className="inf-mode-dd" ref={wrapRef}>
       <button
         type="button"
+        ref={triggerRef}
         className="inf-mode-dd-btn"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         aria-haspopup="listbox"
         aria-expanded={open}
         title="Switch mode"
@@ -114,17 +148,20 @@ function ModeDropdown({ mode, setMode }) {
         <ChevronDown size={14} className={open ? 'inf-caret-up' : ''} />
       </button>
       {open && (
-        <div className="inf-mode-dd-menu" role="listbox" aria-label="Switch mode">
+        <div className="inf-mode-dd-menu" role="listbox" aria-label="Switch mode" onKeyDown={onMenuKeyDown}>
           {MODES.map((m) => {
             const Icon = m.icon;
             return (
               <button
                 key={m.id}
                 type="button"
+                ref={(el) => { if (el) optionRefs.current[m.id] = el; }}
+                data-option-id={m.id}
                 role="option"
                 aria-selected={m.id === mode}
+                tabIndex={-1}
                 className={`inf-mode-dd-item${m.id === mode ? ' inf-active' : ''}`}
-                onClick={() => { setMode(m.id); setOpen(false); }}
+                onClick={() => { setMode(m.id); setOpen(false); triggerRef.current?.focus(); }}
               >
                 <Icon size={15} />
                 <span className="inf-mode-dd-item-text">
@@ -407,6 +444,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
           placeholder="Message Infinity AI…"
+          aria-label="Message Infinity AI"
           disabled={sending}
         />
         <MicButton
@@ -473,6 +511,7 @@ function PlanPane({ mode, setMode }) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && run()}
             placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
+            aria-label="Describe your idea"
             disabled={loading}
           />
           <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
@@ -657,6 +696,7 @@ function BuildPane({ mode, setMode }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && run()}
           placeholder="What should I build?… e.g. “a portfolio page for Rahul Sharma”"
+          aria-label="Describe what to build"
           disabled={loading}
         />
         <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
@@ -909,6 +949,7 @@ function ControlPane({ mode, setMode }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && start()}
           placeholder="Command the computer… e.g. “MS Word me leave application likho”"
+          aria-label="Command for the computer"
           disabled={running}
         />
         <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
@@ -940,13 +981,18 @@ function ControlPane({ mode, setMode }) {
 
       {askQ && running && (
         <div className="sg-control-ask" style={{ maxWidth: 760, margin: '14px auto 0' }}>
-          <p><strong>❓ The agent asks:</strong> {askQ}</p>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <CircleHelp size={15} aria-hidden="true" /> The agent asks:
+            </strong> {askQ}
+          </p>
           <div className="sg-chat-input">
             <input
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendAnswer()}
               placeholder="Your answer…"
+              aria-label="Answer the agent's question"
             />
             <button onClick={sendAnswer} disabled={!answer.trim()} aria-label="Send answer"><Send size={16} /></button>
           </div>
@@ -984,15 +1030,15 @@ function FeedRow({ ev }) {
   const level = ev.level || 'INFO';
   let icon = <Bot size={14} />;
   let cls = '';
-  if (type.includes('decision')) icon = <span>🧠</span>;
+  if (type.includes('decision')) icon = <Brain size={14} aria-hidden="true" />;
   else if (type.includes('action')) icon = <MousePointerClick size={14} />;
   else if (type.includes('observation')) icon = <Eye size={14} />;
-  else if (type === 'task.ask_user') icon = <span>❓</span>;
+  else if (type === 'task.ask_user') icon = <CircleHelp size={14} aria-hidden="true" />;
   else if (type === 'task.waiting_ai') icon = <Clock3 size={14} />;
   else if (type === 'task.completed') { icon = <CheckCircle2 size={14} />; cls = ' ok'; }
   else if (type === 'task.failed' || level === 'ERROR') { icon = <XCircle size={14} />; cls = ' bad'; }
-  else if (type === 'task.cancelled') icon = <span>🛑</span>;
-  else if (level === 'WARN') icon = <span>⚠️</span>;
+  else if (type === 'task.cancelled') icon = <Ban size={14} aria-hidden="true" />;
+  else if (level === 'WARN') icon = <TriangleAlert size={14} aria-hidden="true" />;
   return (
     <div className={`sg-feed-row${cls}`}>
       <span className="sg-feed-ico">{icon}</span>
@@ -1087,11 +1133,12 @@ export function InfinityAI() {
                 avatarVoiceName={avatarVoice} onSpeakAmplitude={setSpeakAmp} />}
         </div>
 
-        {/* Collapsible avatar side panel */}
+        {/* Collapsible avatar side panel. Note: the closed state keeps the
+            avatar rail interactive (reopen buttons), so it must NOT be
+            aria-hidden — focusable-but-hidden breaks keyboard users. */}
         <aside
           className={`inf-sidepanel${panelOpen ? '' : ' inf-closed'}`}
           aria-label="Avatar panel"
-          aria-hidden={!panelOpen}
         >
           {panelOpen ? (
             <div className="inf-side-full">
@@ -1112,18 +1159,24 @@ export function InfinityAI() {
                 {['female', 'male'].map((g) => (
                   <button
                     key={g}
+                    type="button"
                     className={`inf-gender-btn${avatarGender === g ? ' inf-active' : ''}`}
                     onClick={() => setAvatarGender(g)}
+                    aria-pressed={avatarGender === g}
                   >
-                    {g === 'female' ? '👩' : '👨'} {g}
+                    <User size={14} aria-hidden="true" /> {g}
                   </button>
                 ))}
                 <button
+                  type="button"
                   className={`inf-gender-btn${voiceOn ? ' inf-active' : ''}`}
                   onClick={() => setVoiceOn((v) => !v)}
                   title={voiceOn ? 'Mute voice' : 'Unmute voice'}
+                  aria-pressed={voiceOn}
                 >
-                  {voiceOn ? '🔊' : '🔇'} voice
+                  {voiceOn
+                    ? <Volume2 size={14} aria-hidden="true" />
+                    : <VolumeX size={14} aria-hidden="true" />} voice
                 </button>
               </div>
               <p className="inf-side-hint">
