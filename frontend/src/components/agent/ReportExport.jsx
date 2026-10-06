@@ -4,15 +4,15 @@
  * Two formats, both submission-quality:
  *   - Markdown: downloads the archived report .md (from /hunt-records/:id/report.md
  *     when the hunt completed, otherwise renders the live vulnerability report).
- *   - PDF: opens a print-optimized view and triggers the browser's print-to-PDF.
- *     (No server-side PDF dependency — the browser is the renderer.)
+ *   - PDF: one-click server-rendered PDF (GET /jobs/:id/report.pdf), plus the
+ *     legacy print-to-PDF fallback that opens a print-optimized view.
  *
  * Props:
  *   jobId, recordId (hunt record when the hunt completed), report (live report object)
  */
 import React, { useState } from 'react';
 import { Download, FileText, Printer, Loader2 } from 'lucide-react';
-import { downloadHuntRecordMarkdown, getJobVulnerabilityReport } from '../../services/api';
+import { downloadHuntRecordMarkdown, downloadJobReportPdf, getJobVulnerabilityReport } from '../../services/api';
 
 function slugify(value) {
   return String(value || 'report').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'report';
@@ -45,6 +45,25 @@ export function ReportExport({ jobId, recordId = null, report = null, target = '
       URL.revokeObjectURL(url);
     } catch (err) {
       alert(err.message || 'Could not export the report.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const downloadPdf = async () => {
+    setBusy('pdf-server');
+    try {
+      const blob = await downloadJobReportPdf(jobId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `infinity-ai-${slugify(target)}-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || 'Could not download the PDF report.');
     } finally {
       setBusy(null);
     }
@@ -98,6 +117,11 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8p
         disabled={Boolean(busy)} aria-busy={busy === 'md'}>
         {busy === 'md' ? <Loader2 size={15} className="dm-spin" aria-hidden="true" /> : <FileText size={15} aria-hidden="true" />}
         Markdown
+      </button>
+      <button type="button" className="dm-btn-secondary" onClick={downloadPdf}
+        disabled={Boolean(busy)} aria-busy={busy === 'pdf-server'}>
+        {busy === 'pdf-server' ? <Loader2 size={15} className="dm-spin" aria-hidden="true" /> : <FileText size={15} aria-hidden="true" />}
+        PDF
       </button>
       <button type="button" className="dm-btn-secondary" onClick={printPdf}
         disabled={Boolean(busy)} aria-busy={busy === 'pdf'}>

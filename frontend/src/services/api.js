@@ -846,6 +846,20 @@ export async function downloadHuntRecordMarkdown(recordId) {
   return response.text();
 }
 
+/** Download the styled server-rendered PDF for a hunt job. Returns a Blob. */
+export async function downloadJobReportPdf(jobId) {
+  const jwt = getStoredJwt();
+  const response = await fetch(
+    `${apiBase()}/jobs/${encodeURIComponent(jobId)}/report.pdf`,
+    {
+      headers: { Accept: 'application/pdf', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
+      credentials: 'include'
+    }
+  );
+  if (!response.ok) throw new ApiError('Could not download the PDF report.', response.status, 'DOWNLOAD_FAILED');
+  return response.blob();
+}
+
 /**
  * Download a proof-only PoC artifact for one archived finding.
  * kind: 'poc' (default) or 'repro'; format for repro: 'curl' | 'python'.
@@ -1263,6 +1277,7 @@ export const apiClient = {
   listHuntRecords,
   getHuntRecord,
   downloadHuntRecordMarkdown,
+  downloadJobReportPdf,
   downloadFindingPoc,
   // Alerts
   listAlerts,

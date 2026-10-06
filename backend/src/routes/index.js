@@ -98,6 +98,7 @@ export function createRoutes({ controllers }) {
   router.get('/jobs/:id/reasoning-cycles', controllers.jobs.reasoningCycles);
   router.get('/jobs/:id/findings', controllers.jobs.findings);
   router.get('/jobs/:id/vulnerability-report', controllers.jobs.vulnerabilityReport);
+  router.get('/jobs/:id/report.pdf', controllers.jobs.reportPdf);
   router.get('/jobs/:id/attack-surface', controllers.jobs.attackSurface);
   router.get('/jobs/:id/posture', controllers.jobs.posture);
   router.get('/jobs/:id/diary', controllers.jobs.diary);

@@ -2,6 +2,7 @@ import { asyncHandler, extractUrl } from '../core/utils.js';
 import { fingerprintTarget } from '../services/targetFingerprint.js';
 import { buildDiary, sortFindingsCriticalFirst } from '../services/huntDiary.js';
 import { pickEmotion } from '../avatar/emotionPicker.js';
+import { streamReportPdf } from '../services/reportPdfService.js';
 
 /**
  * Job Controller — REST + SSE surface of the Autonomous Bug Bounty Agent.
@@ -246,6 +247,21 @@ export function createJobController({ jobManager, assessmentService, eventServic
         });
       }
       response.json({ report });
+    }),
+
+    /** GET /api/v1/jobs/:id/report.pdf — styled PDF of the hunt's latest report */
+    reportPdf: asyncHandler(async (request, response) => {
+      const job = await jobManager.requireJob(request.user.id, request.params.id);
+      const report = reportService ? await reportService.getLatest(job.assessmentId) : null;
+      if (!report) {
+        return response.status(404).json({
+          error: { code: 'REPORT_NOT_READY', message: 'The final report is generated when the hunt completes.' }
+        });
+      }
+      const filename = `infinity-ai-hunt-${String(request.params.id).slice(0, 12)}.pdf`;
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      streamReportPdf(report, response);
     }),
 
     /** GET /api/v1/jobs/:id/attack-surface — live map from the agent's state */
