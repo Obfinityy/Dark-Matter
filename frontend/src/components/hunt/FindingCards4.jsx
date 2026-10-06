@@ -2,9 +2,10 @@
  * FindingCards4.jsx — Forge wave 5, ideas 50181–50200.
  * Findings filter-bar suite with a real filter pipeline.
  *
- * Pure logic:
- *   DEFAULT_FILTERS / applyFilters(findings, filters, huntStartedAt) / sortFindings(findings, sortKey)
- *   countActiveFilters(filters) / serializeFilters / deserializeFilters
+ * Pure filter logic lives in ./filtersCore.js (single source of truth):
+ *   DEFAULT_FILTERS / applyFilters(findings, filters, ctx) / sortFindings /
+ *   countActiveFilters / activeFilterLabels / PILL_RESETS — imported below.
+ * Kept here: serializeFilters / deserializeFilters (share-URL, wave-5 specific).
  * Components: 50181 UnreviewedToggle, 50182 SortDropdown, 50183 SavedFilterPresets,
  *   50184 ActiveFilterPills, 50185 ConditionalClearAll, 50186 StatusSegmentedControl,
  *   50187 ConfidenceSlider, 50188 ScopedSearchInput, 50189 AssetFilterDropdown,
@@ -19,6 +20,14 @@
 import React from 'react';
 import { FC_SEVERITY, FC_SEVERITY_KEYS } from './FindingCards';
 import './FindingCards4.css';
+import {
+  DEFAULT_FILTERS,
+  TRIAGE_STAGES,
+  applyFilters,
+  countActiveFilters,
+  activeFilterLabels,
+  PILL_RESETS,
+} from './filtersCore';
 
 /*
  * SHARED FINDING-DATA SHAPE (derived from FindingCards.jsx usage)
@@ -39,160 +48,6 @@ const OWASP_TOP10 = {
   A09: 'Security Logging and Monitoring Failures', A10: 'Server-Side Request Forgery',
 };
 const OWASP_KEYS = Object.keys(OWASP_TOP10);
-
-const TRIAGE_STAGES = ['new', 'triaged', 'confirmed', 'fixed', 'verified'];
-
-/** Default filter state covering every filter dimension. */
-export const DEFAULT_FILTERS = {
-  severities: [],          // multi-select set (array of severity keys)
-  invertSeverity: false,   // 50200 — exclude selected severities instead of including
-  unreviewedOnly: false,   // 50181
-  status: 'all',           // 50186 — 'all' or one triage stage
-  minConfidence: 0,        // 50187 — 0–100
-  query: '',               // 50188 — scoped text search
-  asset: 'all',            // 50189 — 'all' or exact host
-  hasPoc: false,           // 50190
-  hasScreenshot: false,    // 50190 — evidence contains type 'image'
-  tags: [],                // 50191/50199 — multi-select
-  tagLogic: 'OR',          // 50199 — 'AND' | 'OR'
-  dateRange: 'all',        // 50192 — 'all' | 'hour' | 'today' | 'thisHunt'
-  owasp: [],               // 50193 — selected OWASP category codes
-  chainedOnly: false,      // 50194
-};
-
-/** 50182 — priority score: severity weight 40/30/20/10/5 + confidence*0.3 + exploitability up to 30. */
-const SEV_WEIGHT = { critical: 40, high: 30, medium: 20, low: 10, info: 5 };
-export function priorityScore(f = {}) {
-  const sevW = SEV_WEIGHT[f.severity] ?? 5;
-  const confW = Math.max(0, Math.min(100, f.confidence ?? 0)) * 0.3;
-  let expW = 0;
-  if (typeof f.exploitSteps === 'number' && f.exploitSteps > 0) {
-    expW = Math.max(5, 30 - (f.exploitSteps - 1) * 5); // fewer steps → higher exploitability
-  } else if (f.hasPoc) {
-    expW = 10;
-  }
-  return sevW + confW + expW;
-}
-
-const SEV_RANK = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
-
-/** 50182 — sort findings by key; pure, does not mutate input. */
-export function sortFindings(findings = [], sortKey = 'severity') {
-  const arr = [...findings];
-  switch (sortKey) {
-    case 'severity':
-      arr.sort((a, b) => (SEV_RANK[a.severity] ?? 4) - (SEV_RANK[b.severity] ?? 4) || (b.confidence ?? 0) - (a.confidence ?? 0));
-      break;
-    case 'confidence':
-      arr.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-      break;
-    case 'newest':
-      arr.sort((a, b) => (b.discoveredAt ?? 0) - (a.discoveredAt ?? 0));
-      break;
-    case 'oldest':
-      arr.sort((a, b) => (a.discoveredAt ?? 0) - (b.discoveredAt ?? 0));
-      break;
-    case 'title':
-      arr.sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
-      break;
-    case 'priority':
-      arr.sort((a, b) => priorityScore(b) - priorityScore(a));
-      break;
-    default:
-      break;
-  }
-  return arr;
-}
-
-/** 50188 — does a finding match the scoped text query? (title + impact/summary + evidence code/labels) */
-function matchesQuery(f, q) {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return true;
-  const haystack = [
-    f.title, f.impact, f.summary,
-    ...(Array.isArray(f.evidence) ? f.evidence.flatMap((e) => [e && e.label, e && e.code]) : []),
-  ]
-    .filter(Boolean)
-    .join('\n')
-    .toLowerCase();
-  return haystack.includes(needle);
-}
-
-/** 50192 — resolve the cutoff epoch ms for a date range. */
-function dateRangeCutoff(range, huntStartedAt) {
-  const now = Date.now();
-  if (range === 'hour') return now - 60 * 60 * 1000;
-  if (range === 'today') { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
-  if (range === 'thisHunt') return typeof huntStartedAt === 'number' && huntStartedAt > 0 ? huntStartedAt : 0;
-  return 0;
-}
-
-/**
- * The real filter pipeline: pure function applying every filter dimension.
- * Returns a new array; never mutates inputs.
- */
-export function applyFilters(findings = [], filters = {}, huntStartedAt = 0) {
-  const f = { ...DEFAULT_FILTERS, ...filters };
-  const selSev = new Set(f.severities || []);
-  const selTags = f.tags || [];
-  const selOwasp = new Set(f.owasp || []);
-  const cutoff = dateRangeCutoff(f.dateRange, huntStartedAt);
-
-  return findings.filter((fd) => {
-    if (!fd) return false;
-    // severity: multi-select + invert flag (50180/50200)
-    if (selSev.size > 0) {
-      const hit = selSev.has(fd.severity);
-      if (f.invertSeverity ? hit : !hit) return false;
-    }
-    // unreviewed only (50181)
-    if (f.unreviewedOnly && fd.reviewed) return false;
-    // status single-select (50186)
-    if (f.status !== 'all' && fd.status !== f.status) return false;
-    // min confidence (50187)
-    if ((fd.confidence ?? 0) < f.minConfidence) return false;
-    // scoped text search (50188)
-    if (!matchesQuery(fd, f.query)) return false;
-    // asset exact host (50189)
-    if (f.asset !== 'all' && (fd.asset == null || fd.asset.host !== f.asset)) return false;
-    // evidence presence (50190)
-    if (f.hasPoc && !fd.hasPoc) return false;
-    if (f.hasScreenshot && !(Array.isArray(fd.evidence) && fd.evidence.some((e) => e && e.type === 'image'))) return false;
-    // tags AND/OR (50191/50199)
-    if (selTags.length > 0) {
-      const ft = Array.isArray(fd.tags) ? fd.tags : [];
-      if (f.tagLogic === 'AND') {
-        if (!selTags.every((t) => ft.includes(t))) return false;
-      } else if (!selTags.some((t) => ft.includes(t))) return false;
-    }
-    // date range (50192)
-    if (f.dateRange !== 'all' && (!fd.discoveredAt || fd.discoveredAt < cutoff)) return false;
-    // OWASP categories (50193)
-    if (selOwasp.size > 0 && !selOwasp.has(fd.owasp)) return false;
-    // chained only (50194)
-    if (f.chainedOnly && !(fd.chained || fd.parentId)) return false;
-    return true;
-  });
-}
-
-/** Count of active filter dimensions (each toggle/dimension counts once, regardless of value size). */
-export function countActiveFilters(filters = {}) {
-  const f = { ...DEFAULT_FILTERS, ...filters };
-  let n = 0;
-  if ((f.severities || []).length > 0) n += 1;
-  if (f.unreviewedOnly) n += 1;
-  if (f.status !== 'all') n += 1;
-  if (f.minConfidence > 0) n += 1;
-  if (String(f.query || '').trim()) n += 1;
-  if (f.asset !== 'all') n += 1;
-  if (f.hasPoc) n += 1;
-  if (f.hasScreenshot) n += 1;
-  if ((f.tags || []).length > 0) n += 1;
-  if (f.dateRange !== 'all') n += 1;
-  if ((f.owasp || []).length > 0) n += 1;
-  if (f.chainedOnly) n += 1;
-  return n;
-}
 
 /** 50198 — serialize filters to a URL query string (arrays joined with commas). */
 export function serializeFilters(filters = {}) {
@@ -237,41 +92,6 @@ export function deserializeFilters(query) {
     chainedOnly: p.get('chained') === '1',
   };
 }
-
-/** Human-readable active-filter labels for pills / empty state. */
-function activeFilterLabels(filters = {}) {
-  const f = { ...DEFAULT_FILTERS, ...filters };
-  const labels = [];
-  if (f.severities.length) labels.push({ key: 'severity', text: `severity: ${f.severities.join(', ')}${f.invertSeverity ? ' (inverted)' : ''}` });
-  if (f.unreviewedOnly) labels.push({ key: 'unreviewed', text: 'unreviewed only' });
-  if (f.status !== 'all') labels.push({ key: 'status', text: `status: ${f.status}` });
-  if (f.minConfidence > 0) labels.push({ key: 'confidence', text: `confidence ≥ ${f.minConfidence}%` });
-  if (String(f.query || '').trim()) labels.push({ key: 'query', text: `search: “${f.query.trim()}”` });
-  if (f.asset !== 'all') labels.push({ key: 'asset', text: `asset: ${f.asset}` });
-  if (f.hasPoc) labels.push({ key: 'hasPoc', text: 'has PoC' });
-  if (f.hasScreenshot) labels.push({ key: 'hasScreenshot', text: 'has screenshot' });
-  if (f.tags.length) labels.push({ key: 'tags', text: `tags (${f.tagLogic}): ${f.tags.join(', ')}` });
-  if (f.dateRange !== 'all') labels.push({ key: 'dateRange', text: `date: ${f.dateRange}` });
-  if (f.owasp.length) labels.push({ key: 'owasp', text: `OWASP: ${f.owasp.join(', ')}` });
-  if (f.chainedOnly) labels.push({ key: 'chained', text: 'chained only' });
-  return labels;
-}
-
-/** Reset map: how to clear each pill key back to its default. */
-const PILL_RESETS = {
-  severity: { severities: [], invertSeverity: false },
-  unreviewed: { unreviewedOnly: false },
-  status: { status: 'all' },
-  confidence: { minConfidence: 0 },
-  query: { query: '' },
-  asset: { asset: 'all' },
-  hasPoc: { hasPoc: false },
-  hasScreenshot: { hasScreenshot: false },
-  tags: { tags: [], tagLogic: 'OR' },
-  dateRange: { dateRange: 'all' },
-  owasp: { owasp: [] },
-  chained: { chainedOnly: false },
-};
 
 /* ---------------- UI components ---------------- */
 
@@ -793,7 +613,7 @@ export function FindingFilters({
 
   // Live severity counts: apply everything EXCEPT severity, then count per severity.
   const sevCountBase = React.useMemo(
-    () => applyFilters(findings, { ...DEFAULT_FILTERS, ...(filters || {}), severities: [], invertSeverity: false }, huntStartedAt),
+    () => applyFilters(findings, { ...DEFAULT_FILTERS, ...(filters || {}), severities: [], invertSeverity: false }, { huntStartedAt }),
     [findings, filters, huntStartedAt]
   );
 
