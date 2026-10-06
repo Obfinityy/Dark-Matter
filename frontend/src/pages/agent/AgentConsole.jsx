@@ -13,8 +13,8 @@
  * AgentShell chrome (sidebar + top bar), so the host app needs no other
  * wiring. Every page is wrapped in `.dm-page` for consistent padding.
  */
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../../auth/AuthContext';
 import { AgentShell } from '../../components/agent/AgentShell';
 import { Login } from '../Auth/Login';
@@ -52,11 +52,39 @@ function Page({ children }) {
   return <div className="dm-page">{children}</div>;
 }
 
+/* Route-level document titles — orientation in the tab bar and for
+ * screen readers, with no routing or rendering behaviour changes. */
+const ROUTE_TITLES = {
+  '': 'Agent home',
+  hunt: 'Hunt',
+  infinity: 'Infinity AI',
+  settings: 'Settings',
+  reports: 'Reports',
+  models: 'Models',
+  library: 'Payload library',
+  plugins: 'Plugins',
+  premium: 'Premium',
+  account: 'Account',
+  queues: 'Queues',
+  schedules: 'Schedules',
+};
+
+function RouteTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const segment = pathname.replace(/^\/agent\/?/, '').split('/')[0];
+    document.title = `${ROUTE_TITLES[segment] ?? 'Infinity AI'} · Dark-Matter`;
+    return () => { document.title = 'Dark-Matter'; };
+  }, [pathname]);
+  return null;
+}
+
 export function AgentConsole() {
   return (
     <AuthProvider>
       <Gate>
         <AgentShell>
+          <RouteTitle />
           <Routes>
             <Route index element={<Page><AgentHome /></Page>} />
             <Route path="hunt/:jobId" element={<Page><HuntView /></Page>} />

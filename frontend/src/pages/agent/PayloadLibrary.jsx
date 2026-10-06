@@ -154,6 +154,12 @@ export function PayloadLibrary() {
         <button className="dm-btn-secondary" onClick={refresh}>Apply</button>
       </div>
 
+      <p className="dm-result-count" role="status" aria-live="polite">
+        {payloads.length === 0
+          ? 'No payloads to show'
+          : `Showing ${payloads.length} payload${payloads.length === 1 ? '' : 's'}${technique || category ? ` matching ${[technique && `technique “${technique}”`, category && `category “${category}”`].filter(Boolean).join(' and ')}` : ''}`}
+      </p>
+
       {payloads.length === 0 ? (
         <div className="dm-empty-state">
           <TrendingUp size={28} aria-hidden="true" />

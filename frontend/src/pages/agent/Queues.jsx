@@ -15,6 +15,7 @@ export function Queues() {
   const [name, setName] = useState('');
   const [targets, setTargets] = useState('');
   const [busy, setBusy] = useState(false);
+  const [acting, setActing] = useState(false);
   const [error, setError] = useState('');
 
   const refresh = async () => {
@@ -47,8 +48,11 @@ export function Queues() {
   };
 
   const act = async (fn) => {
+    if (acting) return;
+    setActing(true);
     try { await fn(); refresh(); }
     catch (err) { setError(err.message || 'Action failed.'); }
+    finally { setActing(false); }
   };
 
   if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Loading queues…</div>;
@@ -69,7 +73,13 @@ export function Queues() {
         <h3><Plus size={15} /> New queue</h3>
         <label className="dm-form-label">
           Queue name
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional — e.g. staging sweep" />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Optional — e.g. staging sweep"
+            autoComplete="off"
+            maxLength={80}
+          />
         </label>
         <label className="dm-form-label">
           Targets
@@ -80,15 +90,16 @@ export function Queues() {
             rows={4}
             spellCheck={false}
             required
+            aria-describedby="queue-targets-hint"
           />
-          <span className="dm-form-hint">One target per line — the agent works through them top to bottom.</span>
+          <span className="dm-form-hint" id="queue-targets-hint">One target per line — the agent works through them top to bottom.</span>
         </label>
         <button type="submit" className="dm-btn-primary" disabled={busy}>
           {busy ? <Loader2 size={15} className="dm-spin" /> : <Plus size={15} />} Create queue
         </button>
       </form>
 
-      <div className="dm-queue-list">
+      <div className="dm-queue-list" aria-busy={acting || undefined}>
         {queues.map((queue, i) => {
           const queueName = queue.name || 'Untitled queue';
           const total = (queue.targets || []).length;
@@ -96,7 +107,7 @@ export function Queues() {
           const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
           const paused = queue.status === 'paused';
           return (
-            <div key={queue.id} className="dm-card dm-queue-card dm-list-in" style={{ animationDelay: `${Math.min(i, 10) * 60}ms` }}>
+            <div key={queue.id || i} className="dm-card dm-queue-card dm-list-in" style={{ animationDelay: `${Math.min(i, 10) * 60}ms` }}>
               <div className="dm-queue-head">
                 <h3>{queueName}</h3>
                 <span className={`dm-job-status st-${queue.status}`}>{queue.status}</span>
@@ -119,7 +130,10 @@ export function Queues() {
               )}
               <ul className="dm-queue-targets">
                 {(queue.targets || []).slice(0, 6).map((t, j) => (
-                  <li key={j}><code>{typeof t === 'string' ? t : (t.url || t.target)}</code> <span>{t.status || ''}</span></li>
+                  <li key={j}>
+                    <code>{typeof t === 'string' ? t : (t.url || t.target)}</code>
+                    {t.status ? <span>{t.status}</span> : null}
+                  </li>
                 ))}
                 {(queue.targets || []).length > 6 && <li>+{(queue.targets || []).length - 6} more</li>}
               </ul>
@@ -129,17 +143,20 @@ export function Queues() {
                     className="dm-btn-ghost"
                     onClick={() => act(() => resumeQueue(queue.id))}
                     aria-label={`Resume queue ${queueName}`}
+                    disabled={acting}
                   ><Play size={13} /> Resume</button>
                 ) : (
                   <button
                     className="dm-btn-ghost"
                     onClick={() => act(() => pauseQueue(queue.id))}
                     aria-label={`Pause queue ${queueName}`}
+                    disabled={acting}
                   ><Pause size={13} /> Pause</button>
                 )}
                 <button
                   className="dm-btn-ghost dm-danger"
                   aria-label={`Delete queue ${queueName}`}
+                  disabled={acting}
                   onClick={() => {
                     if (window.confirm('Delete this queue? Completed hunt history is kept.')) act(() => deleteQueue(queue.id));
                   }}
