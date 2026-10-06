@@ -5,10 +5,10 @@
 
 .sg-terminal {
   border: 1px solid var(--sg-line-soft);
-  border-radius: 14px;
+  border-radius: var(--sg-r-lg);
   overflow: hidden;
   margin: 14px 0;
-  background: #0a0c14;
+  background: #0a0c14; /* intentional: terminal stays dark in every theme */
   animation: sg-terminal-in 0.35s ease both;
 }
 .sg-terminal-head {
@@ -21,6 +21,28 @@
   letter-spacing: 0.04em;
   color: var(--sg-text-3);
   border-bottom: 1px solid var(--sg-line-soft);
+}
+/* Live pulse dot — decorative. */
+.sg-terminal-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--sg-go);
+  box-shadow: 0 0 8px var(--sg-go);
+  animation: sg-terminal-pulse 1.8s ease-in-out infinite;
+}
+@keyframes sg-terminal-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+/* Blinking block cursor in the idle prompt. */
+.sg-terminal-cursor {
+  display: inline-block; width: 7px; height: 13px;
+  margin: 0 4px 0 6px; vertical-align: -2px;
+  background: #9fe8c1;
+  animation: sg-terminal-blink 1.1s steps(1) infinite;
+}
+@keyframes sg-terminal-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
 }
 .sg-terminal-jump {
   margin-left: auto;
@@ -62,6 +84,7 @@
 @media (prefers-reduced-motion: reduce) {
   .sg-terminal { animation: none; }
   .sg-terminal-body { scroll-behavior: auto; }
+  .sg-terminal-dot, .sg-terminal-cursor { animation: none; }
 }
 
 @media (max-width: 480px) {

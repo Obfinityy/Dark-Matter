@@ -27,10 +27,10 @@
 .sg-markdown-body p:last-child, .sg-markdown-body li:last-child { margin-bottom: 0; }
 .sg-markdown-body ul, .sg-markdown-body ol { margin: 0 0 1.1em; padding-left: 1.6em; }
 .sg-markdown-body li { margin-bottom: 0.4em; }
-.sg-markdown-body strong { color: #fff; }
+.sg-markdown-body strong { color: var(--sg-text); }
 .sg-markdown-body hr { border: 0; border-top: 1px solid var(--sg-line-soft); margin: 1.8em 0; }
 .sg-markdown-body code { font-family: var(--sg-mono); font-size: 0.86em; background: rgba(255,255,255,0.07); padding: 2px 6px; border-radius: 6px; }
-.sg-markdown-body pre { background: #0a0d14; border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md); padding: 18px; overflow-x: auto; }
+.sg-markdown-body pre { background: var(--sg-ink-1); border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md); padding: 18px; overflow-x: auto; }
 .sg-markdown-body pre code { background: none; padding: 0; }
 .sg-markdown-body table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
 .sg-markdown-body th, .sg-markdown-body td { border: 1px solid var(--sg-line-soft); padding: 10px 14px; text-align: left; }
@@ -47,9 +47,14 @@
   .sg-reader-head h1 { font-size: 1.25rem; }
 }
 
+@media (max-width: 480px) {
+  .sg-finding-card { padding: 14px; }
+  .sg-finding-actions .sg-btn { min-height: 44px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sg-report-reader { animation: none; }
-  .sg-finding-card { transition: none; }
+  .sg-finding-card { transition: none; animation: none; }
 }
 
 /* ── W5 proof-report additions ─────────────────────────────────────────── */
@@ -61,6 +66,21 @@
 }
 .sg-notice svg { flex-shrink: 0; margin-top: 2px; color: var(--sg-indigo); }
 
+/* Local loading box — self-contained; do not borrow other pages' CSS. */
+.sg-loading-box {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  color: var(--sg-text-2); padding: 64px 20px; font-size: 0.95rem;
+}
+.sg-loading-box svg { color: var(--sg-cyan); }
+
+/* Local empty state — self-contained; do not borrow other pages' CSS. */
+.sg-empty-state {
+  text-align: center; padding: 80px 20px; color: var(--sg-text-3);
+  border: 1px dashed var(--sg-line); border-radius: var(--sg-r-lg);
+}
+.sg-empty-state svg { margin-bottom: 16px; opacity: 0.5; }
+.sg-empty-state p { margin: 0 0 22px; font-size: 0.95rem; }
+
 .sg-reader-section { margin-bottom: 28px; }
 .sg-h2 { font-size: 1.25rem; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.02em; }
 .sg-finding-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
@@ -68,18 +88,16 @@
   border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md);
   padding: 16px 18px; background: rgba(255,255,255,0.02);
   transition: border-color 0.2s ease, transform 0.2s ease;
+  animation: sg-card-in 0.35s var(--sg-ease) both;
 }
+/* Staggered entrance for the findings list. */
+.sg-finding-list > *:nth-child(2) { animation-delay: 0.05s; }
+.sg-finding-list > *:nth-child(3) { animation-delay: 0.1s; }
+.sg-finding-list > *:nth-child(n+4) { animation-delay: 0.15s; }
 .sg-finding-card:hover { border-color: var(--sg-line); }
 .sg-finding-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .sg-cvss-vector { display: inline-block; font-family: var(--sg-mono); font-size: 0.75rem; color: var(--sg-text-3); margin-bottom: 8px; word-break: break-all; }
 .sg-finding-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.sg-finding-error { color: #f87171; font-size: 0.82rem; margin: 8px 0 0; }
+.sg-finding-error { color: var(--sg-danger); font-size: 0.82rem; margin: 8px 0 0; }
 .sg-poc-note { font-size: 0.76rem; color: var(--sg-text-3); margin: 10px 0 0; }
-.sg-coverage { margin: 12px 0 4px; padding: 14px 16px; border: 1px solid var(--sg-line-soft); border-radius: var(--sg-r-md); background: rgba(255,255,255,0.02); }
-.sg-coverage-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-.sg-coverage-label { font-size: 0.78rem; color: var(--sg-text-3); text-transform: uppercase; letter-spacing: 0.06em; }
-.sg-coverage-pct { font-size: 1.05rem; color: var(--sg-cyan); }
-.sg-coverage-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
-.sg-coverage-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--sg-indigo), var(--sg-cyan)); transition: width 0.4s ease; }
-.sg-coverage-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.sg-pill-info { background: rgba(129,140,248,0.14); color: var(--sg-indigo); border: 1px solid rgba(129,140,248,0.35); }
+/* ── Coverage meter styles now live with the CoverageMeter component ─────── */

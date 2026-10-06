@@ -224,7 +224,11 @@ export function ReportReader() {
     return (
       <div className="sg-report-reader">
         <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} aria-hidden="true" /> Past reports</Link>
-        <div className="sg-page-error" role="alert"><ShieldAlert size={18} aria-hidden="true" /> {error || 'Report not found.'}</div>
+        <div className="sg-page-error" role="alert">
+          <ShieldAlert size={18} aria-hidden="true" />
+          <h2>Couldn't load this report</h2>
+          <p>{error || 'Report not found.'}</p>
+        </div>
       </div>
     );
   }
