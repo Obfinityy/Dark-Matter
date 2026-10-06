@@ -143,7 +143,7 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
       )}
       <div className="sg-row sg-model-actions">
         {isDownloading ? (
-          <div className="sg-pull-progress" style={{ width: '100%' }}>
+          <div className="sg-pull-progress sg-pull-progress-full">
             <ProgressBar value={pct / 100} />
             <span>
               {dlFailed
@@ -232,7 +232,7 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
  */
 function BrainSlotCard({
   slotId, slot, assignments, sources, slotServers,
-  download, busyModel, engineReady, slotBusy, kaggleBusy, kaggleMsg,
+  download, engineReady, slotBusy, kaggleBusy, kaggleMsg,
   onAssign, onDownload, onCancelDownload, onRunSlot, onStopSlot,
   onKaggleConnect, onKaggleDisconnect, onKaggleTest,
   kaggleUrl, setKaggleUrl, kaggleName, setKaggleName
@@ -252,12 +252,12 @@ function BrainSlotCard({
   return (
     <SpotlightCard className="ml-slot" glowColor={server ? '34, 211, 238' : '139, 92, 246'}>
       {/* Slot header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <span style={{ fontSize: 28 }}>{slot.icon}</span>
-        <div style={{ flex: 1 }}>
-          <strong style={{ fontSize: 16 }}>{slot.label}</strong>
-          <div className="sg-small" style={{ opacity: 0.7 }}>{slot.description}</div>
-          <div className="sg-small" style={{ opacity: 0.5, marginTop: 2 }}>
+      <div className="ml-slot-head">
+        <span className="ml-slot-icon" aria-hidden="true">{slot.icon}</span>
+        <div className="ml-slot-head-text">
+          <strong className="ml-slot-title">{slot.label}</strong>
+          <div className="sg-small ml-slot-desc">{slot.description}</div>
+          <div className="sg-small ml-slot-usedby">
             Used by: {(slot.usedBy || []).join(', ')}
           </div>
         </div>
@@ -271,12 +271,12 @@ function BrainSlotCard({
             <CheckCircle2 size={12} /> {slotModels.find(m => m.id === assignedModelId)?.name || 'Local'}
           </span>
         ) : (
-          <span className="sg-pill" style={{ opacity: 0.6 }}>Not set</span>
+          <span className="sg-pill ml-slot-unset">Not set</span>
         )}
       </div>
 
       {/* Source tabs: Local Model | Kaggle Link */}
-      <div className="sg-row" style={{ marginBottom: 12, gap: 8 }}>
+      <div className="sg-row ml-slot-tabs" aria-label={`${slot.label} source`}>
         <button
           className={`sg-btn ${tab === 'local' ? 'sg-btn-primary' : 'sg-btn-ghost'}`}
           onClick={() => setTab('local')}
@@ -293,7 +293,7 @@ function BrainSlotCard({
 
       {/* ── LOCAL: all models for this slot ── */}
       {tab === 'local' && (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ml-slot-models">
           {slotModels.map((m) => {
             const isActive = assignedModelId === m.id && source === 'local';
             const dl = download && download.modelId === m.id;
@@ -304,35 +304,21 @@ function BrainSlotCard({
             return (
               <div
                 key={m.id}
-                className="sg-card"
-                style={{
-                  padding: 12,
-                  background: isActive ? 'rgba(0,255,150,0.06)' : 'rgba(255,255,255,0.02)',
-                  border: isActive ? '1px solid var(--sg-accent)' : '1px solid rgba(255,255,255,0.08)',
-                  // Download progress as a growing border glow
-                  boxShadow: isDl ? `inset ${Math.round(pct * 3)}px 0 0 -2px var(--sg-accent)` : undefined,
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
+                className={`sg-card ml-slot-model${isActive ? ' active' : ''}`}
               >
                 {/* Progress bar along the top edge */}
                 {isDl && (
-                  <div style={{
-                    position: 'absolute', top: 0, left: 0, height: 3,
-                    width: `${Math.round(pct)}%`,
-                    background: 'var(--sg-accent)',
-                    transition: 'width 0.3s'
-                  }} />
+                  <div className="ml-model-edge" style={{ width: `${Math.round(pct)}%` }} aria-hidden="true" />
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: 180 }}>
+                <div className="ml-slot-model-row">
+                  <div className="ml-slot-model-info">
                     <strong>{m.name}</strong>
                     <div className="sg-small" style={{ opacity: 0.6 }}>
                       {m.params} · ~{m.sizeGB} GB · {m.description?.slice(0, 80)}
                     </div>
                   </div>
                   {isDl ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="ml-slot-model-actions">
                       <span className="sg-small" style={{ color: 'var(--sg-accent)', fontWeight: 600 }}>
                         {dlFailed ? `Failed: ${download.error || ''}` : `${Math.round(pct)}%`}
                       </span>
@@ -352,7 +338,7 @@ function BrainSlotCard({
                       )}
                     </div>
                   ) : server && server.modelId === m.id ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="ml-slot-model-actions">
                       <span className="sg-pill sg-pill-go" title={server.baseUrl}>
                         <span className="sg-pulse-dot" /> Running :{server.port}
                       </span>
@@ -366,7 +352,7 @@ function BrainSlotCard({
                       </button>
                     </div>
                   ) : isActive ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className="ml-slot-model-actions">
                       <span className="sg-pill"><CheckCircle2 size={13} /> Selected</span>
                       {isDownloaded && (
                         <button
@@ -381,7 +367,7 @@ function BrainSlotCard({
                       )}
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="ml-slot-model-actions">
                       {!isDownloaded && (
                         <button
                           className="sg-btn sg-btn-ghost sg-btn-sm"
@@ -426,12 +412,12 @@ function BrainSlotCard({
 
       {/* ── KAGGLE: link input per slot ── */}
       {tab === 'kaggle' && (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ml-slot-models">
           {kaggle ? (
-            <div className="sg-card" style={{ padding: 12, background: 'rgba(0,255,150,0.05)', border: '1px solid var(--sg-accent)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="sg-card ml-kaggle-connected">
+              <div className="ml-slot-model-row">
                 <Wifi size={16} />
-                <div style={{ flex: 1 }}>
+                <div className="ml-slot-model-info">
                   <strong>{kaggle.kaggleName || 'Kaggle GPU'}</strong>
                   <div className="sg-small" style={{ opacity: 0.6, wordBreak: 'break-all' }}>{kaggle.kaggleUrl}</div>
                 </div>
@@ -468,7 +454,7 @@ function BrainSlotCard({
                   disabled={kaggleBusy === slotId}
                 />
               </div>
-              <div className="sg-row" style={{ gap: 8 }}>
+              <div className="ml-kaggle-actions">
                 <button
                   className="sg-btn sg-btn-ghost sg-btn-sm"
                   onClick={() => onKaggleTest(slotId)}
@@ -840,8 +826,8 @@ export function ModelLibrary() {
       {error && <div className="sg-alert sg-auth-error">{error}</div>}
 
       {/* ── Brain Slots: three independent brains ──────────────────── */}
-      <div style={{ marginBottom: 18 }}>
-        <div className="sg-remote-head" style={{ marginBottom: 12 }}>
+      <div className="ml-brain-section">
+        <div className="sg-remote-head ml-brain-head">
           <Zap size={18} />
           <div>
             <strong>Brain Slots — three brains, each with local + Kaggle options</strong>
@@ -853,7 +839,7 @@ export function ModelLibrary() {
           </div>
         </div>
         {brainSlots ? (
-          <div style={{ display: 'grid', gap: 14 }}>
+          <div className="ml-slot-list">
             {Object.entries(brainSlots).map(([slotId, slot]) => (
               <BrainSlotCard
                 key={slotId}
@@ -863,7 +849,6 @@ export function ModelLibrary() {
                 sources={slotSources}
                 slotServers={slotServers}
                 download={download}
-                busyModel={busyModel}
                 engineReady={engineReady}
                 slotBusy={slotBusy}
                 kaggleBusy={kaggleBusy}
@@ -1010,7 +995,7 @@ export function ModelLibrary() {
 
           {heavyModels.length > 0 && (
             <>
-              <div className="sg-h2" style={{ marginTop: 8 }}>
+              <div className="sg-h2 ml-sec-h2">
                 Too heavy for this device ({heavyModels.length})
               </div>
               <p className="sg-small">
@@ -1028,7 +1013,7 @@ export function ModelLibrary() {
       )}
 
       {/* Custom model */}
-      <div className="sg-h2" style={{ marginTop: 26 }}>Your own model</div>
+      <div className="sg-h2 ml-sec-h2-lg">Your own model</div>
       <form className="sg-custom-form" onSubmit={addCustom}>
         <h4><Plus size={15} /> Add any public Hugging Face GGUF</h4>
         <div className="sg-form-row">

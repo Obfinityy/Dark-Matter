@@ -7,7 +7,7 @@
  * That's it. No clutter.
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Cloud, Monitor, Check, Loader2, Cpu, ShieldCheck } from 'lucide-react';
 import {
   getBackendMode, setBackendMode, getVercelBackendUrl,
@@ -221,7 +221,7 @@ export function Settings() {
         ) : (
           <div className="sg-brain-skeleton" aria-hidden="true"><span /><span /></div>
         )}
-        <a href="/agent/models" className="sg-btn sg-btn-ghost">Open Models →</a>
+        <Link to="/agent/models" className="sg-btn sg-btn-ghost">Open Models →</Link>
       </section>
 
       {/* ── Agent permissions ── */}

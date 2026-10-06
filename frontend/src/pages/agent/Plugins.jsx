@@ -17,6 +17,7 @@ const FAMILIES = [
   {
     id: 'models',
     icon: Brain,
+    accent: 'cyan',
     name: 'Model plugins',
     tagline: 'Brains the agent can run on.',
     description:
@@ -29,6 +30,7 @@ const FAMILIES = [
   {
     id: 'payloads',
     icon: Package,
+    accent: 'violet',
     name: 'Payload plugins',
     tagline: 'Tradecraft the agent learns.',
     description:
@@ -41,6 +43,7 @@ const FAMILIES = [
   {
     id: 'api',
     icon: Plug,
+    accent: 'amber',
     name: 'API plugins',
     tagline: 'External integrations.',
     description:
@@ -66,8 +69,8 @@ export function Plugins() {
 
       <div className="sg-plugins-grid">
         {FAMILIES.map((f) => (
-          <article key={f.id} className={`sg-card sg-card-pad sg-plugin-card${f.disabled ? ' sg-soon' : ''}`}>
-            <span className="sg-plugin-icon" aria-hidden="true"><f.icon size={22} /></span>
+          <article key={f.id} data-accent={f.accent} className={`sg-card sg-card-pad sg-plugin-card${f.disabled ? ' sg-soon' : ''}`}>
+            <span className="sg-plugin-icon" data-accent={f.accent} aria-hidden="true"><f.icon size={22} /></span>
             <div className="sg-plugin-top">
               <h3 className="sg-h2">{f.name}</h3>
               <span className={`sg-pill ${f.status === 'Live' ? 'sg-pill-go' : ''}`}><span className="dot" aria-hidden="true"></span>{f.status}</span>
