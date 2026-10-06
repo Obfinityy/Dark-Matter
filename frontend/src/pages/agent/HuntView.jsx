@@ -299,7 +299,7 @@ export function HuntView() {
               id={`sg-panel-${tab}`}
               role="tabpanel"
               aria-labelledby={`sg-tab-${tab}`}
-              style={{ marginTop: 16 }}
+              className="sg-tabpanel"
             >
               {tab === 'findings' && <FindingsBoard findings={findings} explainer={explainer} />}
               {tab === 'diary' && <HuntDiary entries={diary} />}
