@@ -1,0 +1,203 @@
+/* FindingCards3.css — Forge wave 5, ideas 50161–50180. Card interaction features.
+   Class prefix fc3-. Dark theme: card bg #121826, borders #232c42,
+   text #e6e9f2, muted #8b96ad, accent #8b5cf6. */
+
+/* 50162 — findings list layouts (see FindingsViewModeToggle usage note in JSX) */
+.fc3-findings { display: flex; flex-direction: column; gap: 14px; }
+.fc3-findings.fc3-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+.fc3-findings.fc3-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* 50161 — add-to-report toggle switch */
+.fc3-switch { display: inline-flex; align-items: center; gap: 8px; background: #1c2333; border: 1px solid #2a3350; border-radius: 999px; padding: 5px 12px 5px 6px; cursor: pointer; color: #8b96ad; font-size: 12px; font-weight: 600; }
+.fc3-switch .fc3-switch-knob { position: relative; width: 34px; height: 20px; border-radius: 999px; background: #2a3350; transition: background 0.2s ease; flex-shrink: 0; }
+.fc3-switch .fc3-switch-knob::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #8b96ad; transition: transform 0.2s ease, background 0.2s ease; }
+.fc3-switch.fc3-on { color: #e6e9f2; border-color: #8b5cf6; }
+.fc3-switch.fc3-on .fc3-switch-knob { background: #8b5cf6; }
+.fc3-switch.fc3-on .fc3-switch-knob::after { transform: translateX(14px); background: #fff; }
+.fc3-switch:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+
+/* 50162 — view-mode segmented control */
+.fc3-viewmode { display: inline-flex; background: #121826; border: 1px solid #232c42; border-radius: 10px; padding: 3px; gap: 2px; }
+.fc3-viewmode-btn { background: none; border: none; color: #8b96ad; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
+.fc3-viewmode-btn:hover { color: #c6cfdf; }
+.fc3-viewmode-btn.fc3-active { background: #2a3350; color: #e6e9f2; }
+.fc3-viewmode-btn:focus-visible { outline: 2px solid #a78bfa; outline-offset: 1px; }
+
+/* 50163 — sticky header inside expanded card bodies */
+.fc3-sticky-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px; background: rgba(18, 24, 38, 0.96); border-bottom: 1px solid #232c42; padding: 10px 4px; margin: 0 -4px; }
+.fc3-sticky-title { font-size: 13px; font-weight: 700; color: #e6e9f2; flex: 1; }
+.fc3-sticky-close { background: #1c2333; border: 1px solid #2a3350; color: #8b96ad; border-radius: 8px; width: 26px; height: 26px; cursor: pointer; font-size: 12px; }
+.fc3-sticky-close:hover { color: #e6e9f2; border-color: #8b5cf6; }
+
+/* 50164 — deep-link copy button */
+.fc3-deeplink { display: inline-flex; align-items: center; gap: 6px; background: #1c2333; border: 1px solid #2a3350; color: #aab4c8; font-size: 12px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.fc3-deeplink:hover { border-color: #8b5cf6; color: #e6e9f2; }
+
+/* 50165 — retest diff view */
+.fc3-diff { background: #0d1119; border: 1px solid #232c42; border-radius: 10px; overflow: hidden; }
+.fc3-diff-summary { font-size: 12px; font-weight: 700; color: #aab4c8; padding: 10px 12px; border-bottom: 1px solid #1c2333; }
+.fc3-diff-body { margin: 0; padding: 8px 0; max-height: 260px; overflow: auto; font-size: 12px; }
+.fc3-diff-line { display: flex; gap: 10px; padding: 3px 12px; line-height: 1.5; }
+.fc3-diff-line code { font-family: ui-monospace, SFMono-Regular, monospace; white-space: pre-wrap; word-break: break-word; }
+.fc3-diff-sign { width: 14px; flex-shrink: 0; text-align: center; color: #5b6b8c; user-select: none; }
+.fc3-diff-add { background: rgba(52, 211, 153, 0.08); }
+.fc3-diff-add code { color: #a7f3d0; }
+.fc3-diff-add .fc3-diff-sign { color: #34d399; }
+.fc3-diff-del { background: rgba(248, 113, 113, 0.08); }
+.fc3-diff-del code { color: #fca5a5; text-decoration: line-through; }
+.fc3-diff-del .fc3-diff-sign { color: #f87171; }
+.fc3-diff-ctx { background: transparent; }
+.fc3-diff-ctx code { color: #8b96ad; }
+
+/* 50166 — card activity feed */
+.fc3-activity { display: flex; flex-direction: column; gap: 10px; }
+.fc3-activity-add { display: flex; gap: 8px; }
+.fc3-activity-input { flex: 1; background: #0d1119; border: 1px solid #232c42; border-radius: 8px; color: #e6e9f2; font-size: 13px; padding: 8px 12px; }
+.fc3-activity-input::placeholder { color: #5b6b8c; }
+.fc3-activity-input:focus { outline: none; border-color: #8b5cf6; }
+.fc3-activity-log { background: #8b5cf6; border: none; color: #fff; font-size: 13px; font-weight: 700; border-radius: 8px; padding: 8px 16px; cursor: pointer; }
+.fc3-activity-log:disabled { opacity: 0.4; cursor: default; }
+.fc3-activity-empty { margin: 0; font-size: 12px; color: #5b6b8c; }
+.fc3-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fc3-activity-item { display: flex; align-items: baseline; gap: 8px; font-size: 12px; background: #0d1119; border: 1px solid #1c2333; border-radius: 8px; padding: 7px 10px; }
+.fc3-activity-who { font-weight: 700; color: #c4b5fd; white-space: nowrap; }
+.fc3-activity-action { color: #aab4c8; flex: 1; }
+.fc3-activity-at { color: #5b6b8c; font-size: 11px; white-space: nowrap; }
+
+/* 50167 — escalate */
+.fc3-escalate-open { display: inline-flex; align-items: center; gap: 6px; background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.5); color: #fdba74; font-size: 12px; font-weight: 700; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.fc3-escalate-open:hover { background: rgba(251, 146, 60, 0.2); }
+.fc3-escalate-form { display: flex; flex-direction: column; gap: 8px; background: #0d1119; border: 1px solid rgba(251, 146, 60, 0.4); border-radius: 10px; padding: 12px; min-width: 260px; }
+.fc3-escalate-form label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 700; color: #8b96ad; text-transform: uppercase; letter-spacing: 0.05em; }
+.fc3-escalate-form select, .fc3-escalate-form input { background: #1c2333; border: 1px solid #2a3350; border-radius: 8px; color: #e6e9f2; font-size: 13px; padding: 8px 10px; }
+.fc3-escalate-form select:focus, .fc3-escalate-form input:focus { outline: none; border-color: #8b5cf6; }
+.fc3-required { color: #f87171; }
+.fc3-form-error { font-size: 12px; color: #fca5a5; }
+.fc3-escalate-actions { display: flex; gap: 8px; }
+.fc3-escalate-confirm { background: #fb923c; border: none; color: #121826; font-size: 12px; font-weight: 800; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+.fc3-escalate-cancel { background: none; border: 1px solid #2a3350; color: #8b96ad; font-size: 12px; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+.fc3-escalated { font-size: 12px; color: #fdba74; background: rgba(251, 146, 60, 0.08); border: 1px solid rgba(251, 146, 60, 0.4); border-radius: 10px; padding: 10px 12px; }
+.fc3-escalated-reason { margin-top: 4px; color: #aab4c8; font-style: italic; }
+
+/* 50168 — empty-evidence placeholder */
+.fc3-empty-evidence { display: flex; align-items: center; gap: 10px; background: #0d1119; border: 1px dashed #2a3350; border-radius: 10px; padding: 14px; font-size: 13px; color: #8b96ad; font-style: italic; }
+.fc3-empty-evidence-icon { font-size: 18px; font-style: normal; color: #5b6b8c; }
+
+/* 50169 — hover elevation + active left spine (CSS only) */
+.fc3-hoverable { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.fc3-hoverable:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(139, 92, 246, 0.18); }
+.fc3-active { border-left: 3px solid #8b5cf6; padding-left: calc(16px - 2px); box-shadow: inset 3px 0 0 rgba(139, 92, 246, 0.25); }
+@media (prefers-reduced-motion: reduce) {
+  .fc3-hoverable, .fc3-hoverable:hover { transition: none; transform: none; }
+}
+
+/* 50170 — translate-summary toggle */
+.fc3-translate { display: flex; flex-direction: column; gap: 6px; }
+.fc3-translate-text { margin: 0; font-size: 13px; color: #aab4c8; }
+.fc3-translate-btn { align-self: flex-start; background: none; border: 1px solid #2a3350; color: #c4b5fd; font-size: 12px; border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+.fc3-translate-btn:hover { border-color: #8b5cf6; }
+.fc3-translate-note { font-size: 12px; color: #5b6b8c; font-style: italic; }
+
+/* 50171 — reading time */
+.fc3-readtime { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #8b96ad; background: #0d1119; border: 1px solid #1c2333; border-radius: 999px; padding: 3px 10px; }
+
+/* 50172 — report-inclusion corner fold (CSS triangle, top-right; parent needs position: relative) */
+.fc3-corner-fold { position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 30px solid #8b5cf6; border-left: 30px solid transparent; border-top-right-radius: 13px; z-index: 5; }
+
+/* 50173 — suppress similar */
+.fc3-suppress-open { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid #2a3350; color: #8b96ad; font-size: 12px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.fc3-suppress-open:hover { border-color: #f87171; color: #fca5a5; }
+.fc3-suppress-confirm { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #e6e9f2; background: #0d1119; border: 1px solid rgba(248, 113, 113, 0.4); border-radius: 8px; padding: 6px 10px; }
+.fc3-suppress-confirm code { font-family: ui-monospace, monospace; font-size: 11px; color: #8b96ad; }
+.fc3-suppress-yes { background: #f87171; border: none; color: #121826; font-size: 12px; font-weight: 800; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.fc3-suppress-no { background: none; border: 1px solid #2a3350; color: #8b96ad; font-size: 12px; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.fc3-suppress-done { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #a7f3d0; }
+
+/* 50174 — PoC replay player */
+.fc3-poc { background: #0d1119; border: 1px solid #232c42; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.fc3-poc-empty { margin: 0; font-size: 12px; color: #5b6b8c; }
+.fc3-poc-step { min-height: 56px; }
+.fc3-poc-label { font-size: 13px; font-weight: 700; color: #e6e9f2; margin-bottom: 6px; }
+.fc3-poc-detail { margin: 0; font-family: ui-monospace, monospace; font-size: 11px; color: #8b96ad; background: #121826; border: 1px solid #1c2333; border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; max-height: 140px; overflow: auto; }
+.fc3-poc-progress-track { height: 6px; background: #1c2333; border-radius: 4px; overflow: hidden; }
+.fc3-poc-progress-fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #c4b5fd); border-radius: 4px; transition: width 0.3s ease; }
+.fc3-poc-controls { display: flex; align-items: center; gap: 8px; }
+.fc3-poc-btn { background: #1c2333; border: 1px solid #2a3350; color: #c6cfdf; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+.fc3-poc-btn:hover:not(:disabled) { border-color: #8b5cf6; color: #e6e9f2; }
+.fc3-poc-btn:disabled { opacity: 0.35; cursor: default; }
+.fc3-poc-play { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+.fc3-poc-counter { margin-left: auto; font-size: 12px; color: #8b96ad; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .fc3-poc-progress-fill { transition: none; }
+}
+
+/* 50175 — finding age */
+.fc3-age { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 4px 12px; border: 1px solid transparent; }
+.fc3-age-fresh { color: #a7f3d0; background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.4); }
+.fc3-age-warning { color: #fde68a; background: rgba(250, 204, 21, 0.08); border-color: rgba(250, 204, 21, 0.4); }
+.fc3-age-stale { color: #fca5a5; background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.4); }
+
+/* 50176 — priority score badge */
+.fc3-priority { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; border-radius: 8px; padding: 5px 12px; font-variant-numeric: tabular-nums; }
+.fc3-priority-high { color: #fca5a5; background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.45); }
+.fc3-priority-mid { color: #fde68a; background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.4); }
+.fc3-priority-low { color: #a7f3d0; background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.4); }
+
+/* 50177 — minimized title-bar row */
+.fc3-minimize { background: #1c2333; border: 1px solid #2a3350; color: #8b96ad; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 13px; }
+.fc3-minimize:hover { color: #e6e9f2; border-color: #8b5cf6; }
+.fc3-minimized { display: flex; align-items: center; gap: 12px; background: #121826; border: 1px solid #232c42; border-radius: 10px; padding: 10px 14px; }
+.fc3-minimized-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--fc-sev, #8b96ad); flex-shrink: 0; }
+.fc3-minimized-title { margin: 0; font-size: 13px; font-weight: 700; color: #e6e9f2; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc3-minimized-restore { background: #1c2333; border: 1px solid #2a3350; color: #aab4c8; font-size: 12px; border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+.fc3-minimized-restore:hover { border-color: #8b5cf6; color: #e6e9f2; }
+
+/* 50178 — previous-hunt comparison badges */
+.fc3-prev { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; border-radius: 6px; padding: 4px 10px; }
+.fc3-prev-new { color: #a7f3d0; background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.5); }
+.fc3-prev-regressed { color: #fca5a5; background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.5); }
+.fc3-prev-fixed { color: #9ca3af; background: rgba(156, 163, 175, 0.1); border: 1px solid rgba(156, 163, 175, 0.4); }
+
+/* 50179 — accessible card */
+.fc3-a11y-card { background: #121826; border: 1px solid #232c42; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.fc3-a11y-card:focus-within { border-color: #8b5cf6; }
+.fc3-a11y-head { display: flex; align-items: center; gap: 10px; }
+.fc3-a11y-title { margin: 0; font-size: 15px; font-weight: 700; color: #e6e9f2; flex: 1; }
+.fc3-a11y-chevron { background: #1c2333; border: 1px solid #2a3350; color: #8b96ad; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 14px; }
+.fc3-a11y-chevron:hover { color: #e6e9f2; border-color: #8b5cf6; }
+.fc3-a11y-chevron:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+.fc3-a11y-body { border-top: 1px dashed #232c42; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+
+/* 50180 — severity multi-select chips */
+.fc3-sevchips { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fc3-sevchip { display: inline-flex; align-items: center; gap: 7px; background: #1c2333; border: 1px solid #2a3350; color: #aab4c8; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.fc3-sevchip:hover { border-color: #3a4563; }
+.fc3-sevchip-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fc-sev); }
+.fc3-sevchip-count { font-size: 11px; font-weight: 800; color: #8b96ad; background: #0d1119; border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.fc3-sevchip.fc3-selected { color: #e6e9f2; border-color: var(--fc-sev); box-shadow: 0 0 0 1px var(--fc-sev), 0 0 12px -2px var(--fc-sev); }
+.fc3-sevchip.fc3-selected .fc3-sevchip-count { color: var(--fc-sev); }
+.fc3-sevchip:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+.fc3-sevchip-reset { display: inline-flex; gap: 6px; margin-left: 4px; }
+.fc3-sevchip-reset button { background: none; border: 1px solid #232c42; color: #5b6b8c; font-size: 11px; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.fc3-sevchip-reset button:hover { color: #c6cfdf; border-color: #3a4563; }
+
+/* shared focus */
+.fc3-deeplink:focus-visible, .fc3-activity-log:focus-visible, .fc3-escalate-confirm:focus-visible,
+.fc3-escalate-cancel:focus-visible, .fc3-escalate-open:focus-visible, .fc3-poc-btn:focus-visible,
+.fc3-minimized-restore:focus-visible, .fc3-suppress-yes:focus-visible, .fc3-suppress-no:focus-visible,
+.fc3-suppress-open:focus-visible, .fc3-translate-btn:focus-visible, .fc3-sticky-close:focus-visible {
+  outline: 2px solid #a78bfa; outline-offset: 2px;
+}
+
+/* print-safe: hide interactive-only controls, keep information */
+@media print {
+  .fc3-viewmode, .fc3-activity-add, .fc3-escalate-actions, .fc3-poc-controls,
+  .fc3-minimize, .fc3-minimized-restore, .fc3-suppress-confirm, .fc3-sevchip-reset {
+    display: none !important;
+  }
+  .fc3-a11y-card, .fc3-diff, .fc3-poc, .fc3-minimized { box-shadow: none; border-color: #ccc; background: #fff; }
+  .fc3-hoverable:hover { transform: none; box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc3-switch .fc3-switch-knob, .fc3-switch .fc3-switch-knob::after { transition: none; }
+}
