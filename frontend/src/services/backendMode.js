@@ -118,6 +118,18 @@ export function setVercelBackendUrl(url) {
 }
 
 /**
+ * True when the Vercel-mode backend is a custom URL (e.g. the user's own
+ * persistent VPS) instead of the baked-in stateless Vercel backend.
+ * A custom URL runs the full Express backend, so long hunts work there —
+ * callers must not show the "hunts need local backend" notice in that case.
+ */
+export function hasCustomBackendUrl() {
+  try {
+    return (localStorage.getItem(VERCEL_URL_KEY) || '').trim().length > 0;
+  } catch { return false; }
+}
+
+/**
  * The API base URL for the currently selected backend mode.
  * Called at request time — switching modes needs no rebuild or reload.
  */
