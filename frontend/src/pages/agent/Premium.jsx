@@ -11,6 +11,7 @@ import {
   getBillingStatus,
   createBillingOrder,
   verifyBillingPayment,
+  getBillingSubscription,
 } from '../../services/api.js';
 import './Premium.css';
 
@@ -150,6 +151,17 @@ export function Premium() {
 
   useEffect(() => {
     getBillingStatus().then((s) => setBillingLive(Boolean(s?.configured))).catch(() => {});
+    // Server-side plan wins: if the user paid on another device/browser,
+    // restore their active tier from the backend.
+    getBillingSubscription()
+      .then((r) => {
+        const tierId = r?.subscription?.tierId;
+        if (tierId && TIERS.some((t) => t.id === tierId)) {
+          setActive(tierId);
+          try { window.localStorage.setItem(ACTIVE_KEY, tierId); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Escape closes the modal; focus it on open for keyboard users.

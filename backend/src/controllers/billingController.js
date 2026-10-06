@@ -21,11 +21,23 @@ const TIER_PRICES = {
   infinity: 4199900, // ₹41,999
 };
 
-export function createBillingController() {
+export function createBillingController({ userModel } = {}) {
   return {
     /** GET /billing/status — is billing live? + public key for checkout.js */
     status(req, res) {
       res.json({ configured: isConfigured(), keyId: publicKeyId(), tiers: Object.keys(TIER_PRICES) });
+    },
+
+    /** GET /billing/subscription — the caller's server-side plan (if any). */
+    async subscription(req, res) {
+      try {
+        const userId = req.user?.id || req.user?._id;
+        if (!userId || !userModel?.getSubscription) return res.json({ subscription: null });
+        const subscription = await userModel.getSubscription(String(userId));
+        res.json({ subscription });
+      } catch (err) {
+        res.status(502).json({ subscription: null, error: err?.message });
+      }
     },
 
     /** POST /billing/order { tierId } → { order, keyId } */
@@ -61,8 +73,23 @@ export function createBillingController() {
         if (expected && Number(payment.amount) !== expected) {
           return res.status(400).json({ ok: false, error: 'Amount mismatch' });
         }
-        // TODO: persist { userId, tierId, paymentId, orderId } to the user/subscription store.
-        res.json({ ok: true, tierId, paymentId });
+        // Persist the verified subscription server-side so the plan survives
+        // localStorage clears and device switches.
+        const userId = req.user?.id || req.user?._id;
+        let subscription = null;
+        if (userId && userModel?.setSubscription) {
+          try {
+            subscription = await userModel.setSubscription(String(userId), {
+              tierId: String(tierId || '').toLowerCase(),
+              paymentId,
+              orderId,
+            });
+          } catch (err) {
+            // Payment verified — never fail the response on a persistence hiccup.
+            console.warn('[billing] subscription persist failed:', err?.message);
+          }
+        }
+        res.json({ ok: true, tierId, paymentId, subscription });
       } catch (err) {
         res.status(502).json({ ok: false, error: err.message || 'Verification failed' });
       }

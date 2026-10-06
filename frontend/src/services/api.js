@@ -1360,3 +1360,8 @@ export function verifyBillingPayment({ orderId, paymentId, signature, tierId }) 
     body: JSON.stringify({ orderId, paymentId, signature, tierId }),
   });
 }
+
+/** The caller's server-side subscription (survives localStorage clears). */
+export function getBillingSubscription() {
+  return request('/billing/subscription');
+}

@@ -25,11 +25,11 @@ const NEW_TASK_PATTERN = /\b(open|launch|start|run|calculate|compute|search|brow
 
 const PRONOUN_REF = /\b(it|that|this|them|the document|the file|the app)\b/i;
 
-/** Desktop-ish verbs that indicate real computer control. */
-const DESKTOP_VERB = /\b(open|launch|start|run|close|quit|exit|save|write|type|calculate|compute|click|press|scroll|minimi[sz]e|maximi[sz]e|switch to|navigate)\b/i;
+/** Desktop-ish verbs that indicate real computer control (English + Hinglish). */
+const DESKTOP_VERB = /\b(open|launch|start|run|close|quit|exit|save|write|type|calculate|compute|click|press|scroll|minimi[sz]e|maximi[sz]e|switch to|navigate|khol|kholde|khol\s*de|band|bandh|bhej|likh|chal[ao]*|daba)/i;
 
 /** Desktop-ish nouns/applications that indicate real computer control. */
-const DESKTOP_NOUN = /\b(word|notepad|calculator|excel|powerpoint|chrome|edge|firefox|browser|paint|explorer|settings|window|document|docx|txt|xlsx|pdf|file|folder|app\b|application|desktop|screen|mouse|keyboard|taskbar|start menu)/i;
+const DESKTOP_NOUN = /\b(word|notepad|calculator|excel|powerpoint|chrome|edge|firefox|browser|paint|explorer|settings|window|document|docx|txt|xlsx|pdf|file|folder|app\b|application|desktop|screen|mouse|keyboard|taskbar|start menu|whatsapp|telegram|youtube|gmail|spotify|vlc|message)/i;
 
 /**
  * Deterministic router helper: should this chat message become a computer
@@ -46,7 +46,12 @@ export function classifyComputerInstruction(message, latestTask = null) {
   const verb = DESKTOP_VERB.test(text);
   const noun = DESKTOP_NOUN.test(text);
   const imperativeStart = /^(open|launch|start|run|close|quit|exit|save|write|type|calculate|compute|click|press|scroll|navigate|search|create|make|edit|add|change|fix|rename|update|minimi[sz]e|maximi[sz]e)\b/i.test(text);
-  const bareMath = /\d\s*[*x×+\-/]\s*\d/.test(text) || /^(calculate|compute)\b/i.test(text);
+  // Bare math ("25*25") opens the calculator — but NOT when the message is a
+  // *question* about math ("2+2 kitna hota hai?"). Those go to chat.
+  const isMathQuestion = /[?？]/.test(text)
+    || /\b(kitna|kya|kaise|what|how|why|kyun|explain|batao|bataye)\b/i.test(text);
+  const bareMathExpr = /^\s*\d[\d\s.,]*\s*[*x×+\-/^%]\s*\d[\d\s.,]*\s*[=?]?\s*$/.test(text);
+  const bareMath = (/^(calculate|compute)\b/i.test(text) || bareMathExpr) && !isMathQuestion;
 
   let isComputerTask = false;
   let isFollowUp = false;

@@ -67,6 +67,30 @@ export class UserModel {
     return this.collection.findOne({ id: userId });
   }
 
+  /**
+   * Persist a verified subscription. Called after Razorpay payment verification
+   * so the plan survives localStorage clears and device switches.
+   */
+  async setSubscription(userId, { tierId, paymentId, orderId }) {
+    const subscription = {
+      tierId: String(tierId || '').toLowerCase(),
+      paymentId: paymentId || null,
+      orderId: orderId || null,
+      activatedAt: now(),
+      status: 'active',
+    };
+    await this.collection.updateOne(
+      { id: userId },
+      { $set: { subscription, updatedAt: now() } }
+    );
+    return subscription;
+  }
+
+  async getSubscription(userId) {
+    const user = await this.findById(userId);
+    return user?.subscription || null;
+  }
+
   async updateProfile(userId, input = {}) {
     const name = String(input.name || '').trim().slice(0, 120);
     assert(name.length >= 2, 400, 'Name must be at least 2 characters', 'INVALID_PROFILE');

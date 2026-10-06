@@ -509,7 +509,7 @@ export async function createApp({ database } = {}) {
         computerAdapter
       }),
       voice: createVoiceController({ voiceManager }),
-      billing: createBillingController(),
+      billing: createBillingController({ userModel }),
       jobs: createJobController({
         jobManager,
         assessmentService,
