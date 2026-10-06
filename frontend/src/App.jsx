@@ -34,6 +34,7 @@ import './styles/polish-pass-crew-cvss-dedup.css';
 import './styles/polish-pass-export-avatar-bento.css';
 import './styles/polish-pass-spotlight-home-hunt.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
+import { Landing } from './pages/Landing/Landing';
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
   const match = /language-(\w+)/.exec(className || '');
@@ -2566,6 +2567,9 @@ export default function App() {
           <Route path="/terms" element={<TermsConditionsPage />} />
           {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
           <Route path="/agent/*" element={<AgentConsole />} />
+          {/* Public marketing landing page (issue #45). */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/landing" element={<Landing />} />
           {/* Everything else redirects to the agent console. */}
           <Route path="/*" element={<Navigate to="/agent" replace />} />
         </Routes>
