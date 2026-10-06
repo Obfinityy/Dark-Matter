@@ -102,3 +102,87 @@
 .sg-quant-pick select option, .sg-ctx-pick select option { color: #111; }
 .sg-ctx-pick { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
 .sg-quant-pick { margin: 0; }
+/* ── Brain-slot layout (moved out of JSX inline styles) ─────── */
+.ml-brain-section { margin-bottom: 18px; }
+.ml-brain-head { margin-bottom: 12px; }
+.ml-slot-list { display: grid; gap: 14px; }
+
+.ml-slot-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.ml-slot-icon { font-size: 28px; line-height: 1; }
+.ml-slot-head-text { flex: 1; min-width: 200px; }
+.ml-slot-title { display: block; font-size: 16px; letter-spacing: -0.01em; }
+.ml-slot-desc { opacity: 0.7; }
+.ml-slot-usedby { opacity: 0.5; margin-top: 2px; }
+.ml-slot-unset { opacity: 0.6; }
+
+.ml-slot-tabs { margin-bottom: 12px; gap: 8px; }
+
+.ml-slot-models { display: grid; gap: 10px; }
+.ml-slot-model {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--sg-line-soft);
+  position: relative;
+  overflow: hidden;
+}
+.ml-slot-model.active {
+  background: var(--sg-go-dim);
+  border-color: rgba(52, 211, 153, 0.45);
+}
+/* Single progress signal: a bar along the top edge. */
+.ml-model-edge {
+  position: absolute; top: 0; left: 0; height: 3px;
+  background: var(--sg-accent);
+  transition: width 0.3s;
+  pointer-events: none;
+}
+.ml-slot-model-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ml-slot-model-info { flex: 1; min-width: 180px; }
+.ml-slot-model-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ml-slot-model-actions .sg-btn { white-space: nowrap; }
+
+.ml-kaggle-connected {
+  padding: 12px;
+  background: var(--sg-go-dim);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+}
+.ml-kaggle-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Card title uses an h3 — the old `strong` selector never matched. */
+.sg-model-top h3 { font-size: 1rem; letter-spacing: -0.01em; margin: 0; }
+.sg-model-top strong { font-size: 1rem; letter-spacing: -0.01em; }
+
+.sg-pull-progress-full { width: 100%; }
+.ml-sec-h2 { margin-top: 8px; }
+.ml-sec-h2-lg { margin-top: 26px; }
+
+/* ── Entrance choreography (skips the fixed DarkVeil canvas) ─── */
+.ml-new > *:not(:first-child) { animation: sg-fade-up 0.5s var(--sg-ease) both; }
+.ml-new > *:nth-child(3) { animation-delay: 0.05s; }
+.ml-new > *:nth-child(4) { animation-delay: 0.1s; }
+.ml-new > *:nth-child(5) { animation-delay: 0.15s; }
+.ml-new > *:nth-child(n+6) { animation-delay: 0.2s; }
+
+/* ── Focus-visible rings on slot controls and card selects ─── */
+.ml-slot button:focus-visible,
+.sg-model-card button:focus-visible,
+.sg-model-card select:focus-visible,
+.ml-new .sg-btn:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .ml-slot-head-text { flex: 1 1 100%; }
+  .ml-slot-model-row { flex-direction: column; align-items: stretch; }
+  .ml-slot-model-actions { width: 100%; }
+  .ml-slot-model-actions .sg-btn { flex: 1; min-height: 44px; justify-content: center; }
+  .ml-slot-tabs { display: flex; }
+  .ml-slot-tabs .sg-btn { flex: 1; min-height: 44px; justify-content: center; }
+  .ml-kaggle-actions .sg-btn { flex: 1; min-height: 44px; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ml-new > *:not(:first-child) { animation: none; }
+  .ml-model-edge { transition: none; }
+}
