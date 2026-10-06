@@ -87,7 +87,7 @@ export function useAuth() {
 export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="dm-boot">Loading DarkMatter…</div>;
+  if (loading) return <div className="dm-boot">Loading Infinity AI…</div>;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return children;
 }
@@ -96,7 +96,7 @@ export function ProtectedRoute({ children }) {
 export function PublicRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="dm-boot">Loading DarkMatter…</div>;
+  if (loading) return <div className="dm-boot">Loading Infinity AI…</div>;
   if (user) {
     const from = location.state?.from || '/agent';
     return <Navigate to={from} replace />;

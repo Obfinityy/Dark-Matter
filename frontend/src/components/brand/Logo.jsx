@@ -6,7 +6,7 @@
 export default function Logo({ size = 36, withWordmark = false, className = '' }) {
   return (
     <span className={`dm-logo ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-      <svg width={size} height={size} viewBox="0 0 64 64" aria-label="DarkMatter logo">
+      <svg width={size} height={size} viewBox="0 0 64 64" aria-label="Infinity AI logo">
         <defs>
           <radialGradient id="dm-core" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="#0b0b14" />

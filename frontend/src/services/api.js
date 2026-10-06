@@ -86,10 +86,10 @@ async function request(path, options = {}) {
           try { console.info('[dm] primary backend unreachable — using Infinity AI Cloud for this session'); } catch { /* ignore */ }
         }
       } catch {
-        throw new ApiError('DarkMatter backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
+        throw new ApiError('Infinity AI backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
       }
     } else {
-      throw new ApiError('DarkMatter backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
+      throw new ApiError('Infinity AI backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
     }
   }
 

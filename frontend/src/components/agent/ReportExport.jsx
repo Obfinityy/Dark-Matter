@@ -76,7 +76,7 @@ export function ReportExport({ jobId, recordId = null, report = null, target = '
       // Print-optimized window: clean typography, no app chrome.
       const win = window.open('', '_blank', 'width=900,height=700');
       if (!win) throw new Error('Popup blocked — allow popups to export PDF.');
-      win.document.write(`<!DOCTYPE html><html><head><title>DarkMatter Report — ${target}</title>
+      win.document.write(`<!DOCTYPE html><html><head><title>Infinity AI Report — ${target}</title>
 <style>
 body{font-family:Georgia,serif;max-width:760px;margin:40px auto;padding:0 24px;color:#111;line-height:1.6}
 h1{border-bottom:2px solid #111;padding-bottom:8px}h2{margin-top:32px;color:#1a1a1a}
