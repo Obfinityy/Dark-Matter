@@ -101,9 +101,22 @@ export function setBackendMode(mode) {
   return value;
 }
 
+/** Backends known to be dead/pinned to stale code — a stored override pointing
+ * at one of these is silently migrated to the baked-in default so users
+ * don't get stuck on a backend that can never answer. */
+const DEAD_BACKEND_URLS = [
+  'https://dark-matter-backend-infinity-a371.vercel.app',
+  'https://dark-matter-backend.vercel.app',
+];
+
 export function getVercelBackendUrl() {
   try {
     const stored = (localStorage.getItem(VERCEL_URL_KEY) || '').trim().replace(/\/$/, '');
+    if (DEAD_BACKEND_URLS.includes(stored)) {
+      // One-time migration: drop the stale override so the live default wins.
+      try { localStorage.removeItem(VERCEL_URL_KEY); } catch { /* ignore */ }
+      return DEFAULT_VERCEL_URL;
+    }
     // A developer-set localStorage override wins; otherwise the baked-in default.
     return stored || DEFAULT_VERCEL_URL;
   } catch {
