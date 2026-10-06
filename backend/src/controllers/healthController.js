@@ -3,12 +3,27 @@ import { PhoneLocalProvider } from '../agent/providers/phoneLocalProvider.js';
 import { localAIQueue } from '../agent/providers/localAiQueue.js';
 import crypto from 'crypto';
 
-export function health(request, response) {
-  response.json({
-    status: 'ok',
+export async function health(request, response) {
+  const databaseKind = request.app?.locals?.databaseKind || 'unknown';
+  // REAL liveness check — a ping with a hard timeout. This must never hang:
+  // if the database is unreachable, /health reports degraded fast instead of
+  // pretending everything is fine while every POST handler hangs (Oct 2026 P0).
+  let databasePing = { ok: null, skipped: true };
+  const database = request.app?.locals?.database;
+  if (database && typeof database.ping === 'function') {
+    try {
+      databasePing = { ...await database.ping(5_000), skipped: false };
+    } catch (error) {
+      databasePing = { ok: false, skipped: false, error: error?.message || String(error) };
+    }
+  }
+  const degraded = databasePing.skipped === false && databasePing.ok === false;
+  response.status(degraded ? 503 : 200).json({
+    status: degraded ? 'degraded' : 'ok',
     service: 'darkmatter-backend',
     framework: 'express',
-    database: request.app?.locals?.databaseKind || 'unknown',
+    database: databaseKind,
+    databasePing,
     timestamp: new Date().toISOString()
   });
 }
