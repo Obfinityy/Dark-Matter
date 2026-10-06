@@ -266,7 +266,7 @@
   align-items: center;
   gap: 6px;
   padding: 9px 15px;
-  min-height: 40px;
+  min-height: 44px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
@@ -375,6 +375,14 @@
 }
 
 .inf-mode-dd-item:hover {
+  background: rgba(139, 92, 246, 0.14);
+  color: #fff;
+}
+
+/* Keyboard focus mirrors hover so arrow-key navigation is visible. */
+.inf-mode-dd-item:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.7);
+  outline-offset: -2px;
   background: rgba(139, 92, 246, 0.14);
   color: #fff;
 }
