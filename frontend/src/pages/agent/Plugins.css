@@ -41,10 +41,46 @@
   margin-bottom: 10px;
   transition: transform var(--sg-fast), box-shadow var(--sg-fast);
 }
+/* Per-family identity: each family keeps its own accent wash. */
+.sg-plugin-icon[data-accent="cyan"] {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(129, 140, 248, 0.1));
+  border-color: rgba(34, 211, 238, 0.4);
+  color: var(--sg-cyan);
+}
+.sg-plugin-icon[data-accent="violet"] {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(217, 70, 239, 0.1));
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #c4b5fd;
+}
+.sg-plugin-icon[data-accent="amber"] {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(249, 115, 22, 0.1));
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fcd34d;
+}
 .sg-plugin-card:hover .sg-plugin-icon {
   transform: scale(1.06) rotate(-3deg);
   box-shadow: 0 6px 20px -6px rgba(34, 211, 238, 0.5);
 }
+/* Accent-colored hover glow per family. */
+.sg-plugin-card:hover .sg-plugin-icon[data-accent="cyan"] { box-shadow: 0 6px 20px -6px rgba(34, 211, 238, 0.55); }
+.sg-plugin-card:hover .sg-plugin-icon[data-accent="violet"] { box-shadow: 0 6px 20px -6px rgba(167, 139, 250, 0.55); }
+.sg-plugin-card:hover .sg-plugin-icon[data-accent="amber"] { box-shadow: 0 6px 20px -6px rgba(251, 191, 36, 0.5); }
+.sg-plugin-card[data-accent="cyan"]:hover { border-color: rgba(34, 211, 238, 0.35); }
+.sg-plugin-card[data-accent="violet"]:hover { border-color: rgba(167, 139, 250, 0.4); }
+.sg-plugin-card[data-accent="amber"]:hover { border-color: rgba(251, 191, 36, 0.35); }
+/* Top accent line that lights up on hover — one glance tells the family. */
+.sg-plugin-card { position: relative; overflow: hidden; }
+.sg-plugin-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--sg-cyan), transparent);
+  opacity: 0;
+  transition: opacity var(--sg-fast);
+}
+.sg-plugin-card[data-accent="cyan"]::before { background: linear-gradient(90deg, transparent, var(--sg-cyan), transparent); }
+.sg-plugin-card[data-accent="violet"]::before { background: linear-gradient(90deg, transparent, #a78bfa, transparent); }
+.sg-plugin-card[data-accent="amber"]::before { background: linear-gradient(90deg, transparent, #fbbf24, transparent); }
+.sg-plugin-card:not(.sg-soon):hover::before { opacity: 1; }
 .sg-plugin-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sg-plugin-top .sg-h2 { margin: 0; }
 .sg-plugin-tagline { font-weight: 650; color: var(--sg-text); margin: 2px 0 0; }
@@ -76,4 +112,5 @@
   .sg-plugins-grid > * { animation: none; }
   .sg-plugin-card:hover, .sg-plugin-card:hover .sg-plugin-icon { transform: none; }
   .sg-plugin-cta:hover svg { transform: none; }
+  .sg-plugin-card::before { display: none; }
 }
