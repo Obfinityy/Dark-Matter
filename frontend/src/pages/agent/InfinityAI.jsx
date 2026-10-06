@@ -27,13 +27,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Send, Loader2, Bot, User, MessageCircle, ClipboardList,
-  Hammer, SlidersHorizontal, Cpu, FileText, CheckCircle2, XCircle,
+  Hammer, SlidersHorizontal, Cpu, CheckCircle2, XCircle,
   FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
   ShieldCheck, Play, Paperclip, FolderOpen, X, Plus,
   ChevronDown, Check, PanelRightOpen, PanelRightClose, ChevronsLeft,
-  Brain, CircleHelp, Ban, Volume2, VolumeX
+  Brain, CircleHelp, Ban, TriangleAlert, Volume2, VolumeX
 } from 'lucide-react';
-import { sendDirectChat, parseActionIntent, getProviders, listJobs, getComputerStatus, getInfiniteHistory } from '../../services/api';
+import { sendDirectChat, parseActionIntent, getComputerStatus, getInfiniteHistory } from '../../services/api';
 import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
 import {
   createComputerTask, cancelComputerTask, answerComputerTask,
@@ -284,8 +284,10 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
     return () => { cancelled = true; };
   }, [initialConversationId]);
 
+  // Reduced-motion users jump straight to the bottom — no smooth scrolling.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
   }, [messages]);
 
   const sendText = async (rawText) => {
@@ -520,10 +522,10 @@ function PlanPane({ mode, setMode }) {
             {loading ? <Loader2 size={17} className="sg-spin" /> : <ClipboardList size={17} />}
           </button>
         </div>
-        <p className="sg-small" style={{ textAlign: 'center' }}>Planning only — nothing is executed. Switch to Build to make it real.</p>
+        <p className="sg-small inf-center-note">Planning only — nothing is executed. Switch to Build to make it real.</p>
       </div>
 
-      {error && <div className="sg-auth-error" role="alert" style={{ margin: '14px 0' }}>{error}</div>}
+      {error && <div className="sg-auth-error inf-error-tall" role="alert">{error}</div>}
 
       {loading && (
         <div className="sg-loading-box"><Loader2 size={20} className="sg-spin" /> Turning your idea into a plan…</div>
@@ -661,7 +663,7 @@ function BuildPane({ mode, setMode }) {
   return (
     <div className="sg-build">
       {attached.length > 0 && (
-        <div className="sg-attach-chips" style={{ maxWidth: 760, margin: '0 auto 8px' }}>
+        <div className="sg-attach-chips inf-attach-constrain">
           {attached.map((a) => (
             <span key={a.path} className="sg-chip">
               <FileCode2 size={13} />
@@ -679,7 +681,7 @@ function BuildPane({ mode, setMode }) {
         </div>
       )}
 
-      <div className="sg-chat-input inf-input-row" style={{ maxWidth: 760 }}>
+      <div className="sg-chat-input inf-input-row">
         <ModeDropdown mode={mode} setMode={setMode} />
         <button
           type="button"
@@ -707,7 +709,7 @@ function BuildPane({ mode, setMode }) {
       </div>
 
       {/* ── Attach a whole folder as brain context ── */}
-      <div className="sg-attach-row" style={{ maxWidth: 760, margin: '10px auto 0' }}>
+      <div className="sg-attach-row inf-attach-row-constrain">
         <button
           className="sg-btn sg-btn-ghost sg-btn-sm"
           onClick={() => folderInputRef.current?.click()}
@@ -717,7 +719,7 @@ function BuildPane({ mode, setMode }) {
           <FolderOpen size={14} />
           <span>Attach folder</span>
         </button>
-        <span className="sg-tiny" style={{ alignSelf: 'center' }}>
+        <span className="sg-tiny inf-self-center">
           The brain reads these as context while building.
         </span>
         <input
@@ -737,12 +739,12 @@ function BuildPane({ mode, setMode }) {
         />
       </div>
 
-      <p className="sg-small" style={{ textAlign: 'center' }}>
-        <ShieldCheck size={12} style={{ verticalAlign: -1 }} /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
-        {build?.brainBuilt && <span className="sg-pill sg-pill-brand" style={{ marginLeft: 8 }}>Built by your active brain</span>}
+      <p className="sg-small inf-center-note">
+        <ShieldCheck size={12} className="inf-inline-icon" /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
+        {build?.brainBuilt && <span className="sg-pill sg-pill-brand inf-pill-gap">Built by your active brain</span>}
       </p>
 
-      {error && <div className="sg-auth-error" role="alert" style={{ maxWidth: 760, margin: '0 auto' }}>{error}</div>}
+      {error && <div className="sg-auth-error inf-constrain-wide" role="alert">{error}</div>}
 
       {loading && (
         <div className="sg-loading-box"><Loader2 size={20} className="sg-spin" /> Agent is writing files…</div>
@@ -830,7 +832,8 @@ function ControlPane({ mode, setMode }) {
   }, []);
 
   useEffect(() => {
-    feedEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    feedEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'nearest' });
   }, [feed]);
 
   const pushFeed = (ev) => setFeed((prev) => [...prev.slice(-250), ev]);
@@ -934,14 +937,14 @@ function ControlPane({ mode, setMode }) {
       </div>
 
       <h3 className="sg-control-title">Tell me what to do on the computer</h3>
-      <p className="sg-small" style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 18px' }}>
+      <p className="sg-small inf-center-note inf-control-intro">
         For example: “MS Word me leave application likho”. Your active brain reasons it out
         step by step — opening the app, observing the screen, acting, and verifying —
         and you watch it think live below. Nothing is canned: the brain composes every word itself.
       </p>
 
       <AttachChips files={files} onRemove={removeFile} />
-      <div className="sg-chat-input inf-input-row" style={{ maxWidth: 760 }}>
+      <div className="sg-chat-input inf-input-row">
         <ModeDropdown mode={mode} setMode={setMode} />
         <AttachButton onPick={addFiles} />
         <input
@@ -977,12 +980,12 @@ function ControlPane({ mode, setMode }) {
         </div>
       )}
 
-      {error && <div className="sg-auth-error" role="alert" style={{ maxWidth: 760, margin: '14px auto 0' }}>{error}</div>}
+      {error && <div className="sg-auth-error inf-constrain-wide inf-mt-14" role="alert">{error}</div>}
 
       {askQ && running && (
-        <div className="sg-control-ask" style={{ maxWidth: 760, margin: '14px auto 0' }}>
-          <p style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div className="sg-control-ask inf-constrain-wide inf-mt-14">
+          <p className="inf-ask-line">
+            <strong className="inf-ask-q">
               <CircleHelp size={15} aria-hidden="true" /> The agent asks:
             </strong> {askQ}
           </p>
@@ -1000,7 +1003,7 @@ function ControlPane({ mode, setMode }) {
       )}
 
       {feed.length > 0 && (
-        <div className="sg-control-feed" style={{ maxWidth: 760, margin: '14px auto 0' }}>
+        <div className="sg-control-feed inf-constrain-wide inf-mt-14">
           {feed.map((ev, i) => (
             <FeedRow key={i} ev={ev} />
           ))}
