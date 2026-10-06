@@ -4,6 +4,7 @@
  * with the covered category IDs as chips.
  */
 import React from 'react';
+import './CoverageMeter.css';
 
 export function CoverageMeter({ coverage }) {
   if (!coverage) return null;

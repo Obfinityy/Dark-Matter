@@ -60,17 +60,19 @@
   word-break: break-all;
 }
 .sg-record-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.82rem; color: var(--sg-text-2); }
-.sg-record-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.sg-record-meta span, .sg-record-meta time { display: inline-flex; align-items: center; gap: 5px; }
 .sg-record-meta svg { flex-shrink: 0; }
 
-/* ── Coverage meter (rendered by the shared CoverageMeter component) ───── */
-.sg-coverage { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--sg-line-soft); }
-.sg-coverage-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-.sg-coverage-label { font-size: 0.78rem; color: var(--sg-text-3); text-transform: uppercase; letter-spacing: 0.06em; }
-.sg-coverage-pct { font-size: 1.05rem; color: var(--sg-cyan); }
-.sg-coverage-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
-.sg-coverage-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--sg-indigo), var(--sg-cyan)); transition: width 0.4s ease; }
-.sg-coverage-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+/* ── Coverage meter (styles live with the CoverageMeter component) ──────────
+   Embedded variant: inside a record card it reads as a divider section. */
+.sg-record-card .sg-coverage {
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px dashed var(--sg-line-soft);
+  border-radius: 0;
+  background: none;
+}
 .sg-pill-info { background: rgba(129,140,248,0.14); color: var(--sg-indigo); border: 1px solid rgba(129,140,248,0.35); }
 
 /* ── Dedup notice ───────────────────────────────────────────────────────── */

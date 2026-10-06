@@ -52,7 +52,7 @@ export function Reports() {
       </header>
 
       <div className="sg-notice">
-        <ShieldCheck size={16} />
+        <ShieldCheck size={16} aria-hidden="true" />
         <span><strong>Report already exists for a target?</strong> Pasting the same target again shows the saved report instantly — no re-hunt, no duplicate work. Use “Start new hunt” on the Hunt page only when you want a fresh run.</span>
       </div>
 
@@ -73,14 +73,20 @@ export function Reports() {
               .slice(0, 3);
             return (
               <li key={record.id}>
-                <Link to={`/agent/reports/${record.id}`} className="sg-card sg-card-pad sg-record-card">
+                <Link
+                  to={`/agent/reports/${record.id}`}
+                  className="sg-card sg-card-pad sg-record-card"
+                  aria-label={`Report for ${record.target}${summary.totalFindings != null ? `, ${summary.totalFindings} findings` : ''}`}
+                >
                   <div className="sg-record-main">
                     <code className="sg-record-target">{record.target}</code>
-                    <span className="sg-pill">v{record.version}</span>
+                    <span className="sg-pill">v{record.version || 1}</span>
                   </div>
                   <div className="sg-record-meta">
                     {record.completedAt && (
-                      <span><CalendarDays size={12} /> {new Date(record.completedAt).toLocaleDateString()}</span>
+                      <time dateTime={record.completedAt}>
+                        <CalendarDays size={12} aria-hidden="true" /> {new Date(record.completedAt).toLocaleDateString()}
+                      </time>
                     )}
                     {summary.totalFindings != null && <span>{summary.totalFindings} findings</span>}
                     {top.map((f) => (
