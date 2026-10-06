@@ -233,6 +233,7 @@ export function createRoutes({ controllers }) {
   router.post('/assessments/:id/report', controllers.reports.generate);
   router.get('/assessments/:id/report', controllers.reports.getLatest);
   router.get('/assessments/:id/report.md', controllers.reports.markdown);
+  router.get('/assessments/:id/report.pdf', controllers.reports.pdf);
   router.get('/assessments/:id/reports', controllers.reports.listVersions);
   router.get('/reports', controllers.reports.listAll);
 

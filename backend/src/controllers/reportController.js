@@ -1,4 +1,5 @@
 import { asyncHandler } from '../core/utils.js';
+import { streamReportPdf } from '../services/reportPdfService.js';
 
 /**
  * Report Controller — REST endpoints for report generation and retrieval.
@@ -52,6 +53,17 @@ export function createReportController(reportService, assessmentService) {
         return response.json(result);
       }
       response.type('text/markdown').send(result.markdown);
+    }),
+
+    /** GET /api/v1/assessments/:id/report.pdf — styled PDF download */
+    pdf: asyncHandler(async (request, response) => {
+      await assessmentService.get(request.user.id, request.params.id); // ownership check
+      const report = await reportService.getLatest(request.params.id);
+      if (!report) return response.status(404).json({ error: { code: 'NO_REPORT', message: 'No report has been generated for this assessment yet.' } });
+      const filename = `infinity-ai-report-${String(request.params.id).slice(0, 12)}.pdf`;
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      streamReportPdf(report, response);
     })
   };
 }
