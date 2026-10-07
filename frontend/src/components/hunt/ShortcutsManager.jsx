@@ -21,6 +21,7 @@ import {
   verifiedCheckmarkText, shareLinkExplainer, simulateToggleCopy,
   filterShortcuts, keyDisplay, markdownPoC, undoToastText, PREF_KEYS,
 } from './shortcutsCore.js';
+import './ShortcutsManager.css';
 
 const ShortcutsContext = createContext(null);
 export function useShortcuts() { return useContext(ShortcutsContext); }
@@ -73,7 +74,6 @@ export function ShortcutsProvider({ actions = {}, children }) {
   const lastSelected = useRef(null);
   const tracker = useRef(new SequenceTracker());
   const overlayOpen = useRef(false);  // cheat sheet / quick menu / export picker
-  const chatRef = useRef(null);
 
   useEffect(() => { overlayOpen.current = cheatOpen || !!quickMenu || exportOpen; }, [cheatOpen, quickMenu, exportOpen]);
   useEffect(() => () => tracker.current.dispose(), []);

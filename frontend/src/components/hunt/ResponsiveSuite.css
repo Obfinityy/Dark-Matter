@@ -1383,3 +1383,90 @@
   animation: none !important;
   transition: none !important;
 }
+
+/* ------------------------------------------------------------------ */
+/* Infinity polish pass (B1): hierarchy, motion, a11y, tap targets    */
+/* ------------------------------------------------------------------ */
+
+/* Subtle entrance for each demo — staggered by section so the gallery
+   reads top-down. Under the 400ms motion budget. */
+.rs-demo { animation: rs-demo-in 300ms ease-out both; }
+.rs-gallery-section:nth-of-type(2) .rs-demo { animation-delay: 60ms; }
+.rs-gallery-section:nth-of-type(3) .rs-demo { animation-delay: 120ms; }
+
+@keyframes rs-demo-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* One consistent, visible focus ring for every interactive element in
+   the suite (token-first, with a fallback for standalone renders). */
+.rs-demo button:focus-visible,
+.rs-demo input:focus-visible,
+.rs-demo [role="checkbox"]:focus-visible,
+.rs-demo [role="separator"]:focus-visible,
+.rs-demo summary:focus-visible {
+  outline: 2px solid var(--accent, #38bdf8);
+  outline-offset: 2px;
+}
+
+/* Shared transition so hover/active feedback is smooth everywhere. */
+.rs-btn, .rs-pp-btn, .rs-sort-btn, .rs-toggle, .rs-tab,
+.rs-touch-chip, .rs-pane-item, .rs-palette-item,
+.rs-pager button, .rs-sheet-row button, .rs-tour-nav button,
+.rs-overflow-btn, .rs-overflow-menu button, .rs-phase-head,
+.rs-lstep, .rs-spring-check, .rs-triage-done button,
+.rs-swipe-actions button, .rs-offline-slim button,
+.rs-chat-input button, .rs-fab, .rs-cta-btn {
+  transition:
+    background var(--transition-fast, 0.15s ease),
+    border-color var(--transition-fast, 0.15s ease),
+    color var(--transition-fast, 0.15s ease),
+    transform var(--transition-fast, 0.15s ease),
+    filter var(--transition-fast, 0.15s ease);
+}
+
+/* Hover: gentle lift in brightness; active: tactile press. */
+.rs-btn:hover, .rs-pp-btn:hover, .rs-sort-btn:hover, .rs-toggle:hover,
+.rs-pane-item:hover, .rs-palette-item:hover,
+.rs-pager button:not(:disabled):hover, .rs-sheet-row button:hover,
+.rs-tour-nav button:not(:disabled):hover, .rs-overflow-btn:hover,
+.rs-phase-head:hover, .rs-lstep:hover, .rs-spring-check:hover,
+.rs-triage-done button:hover, .rs-swipe-actions button:hover,
+.rs-offline-slim button:hover, .rs-chat-input button:hover,
+.rs-fab:hover, .rs-cta-btn:hover {
+  filter: brightness(1.12);
+}
+.rs-btn:active, .rs-pp-btn:active, .rs-sort-btn:active, .rs-toggle:active,
+.rs-pager button:not(:disabled):active, .rs-sheet-row button:active,
+.rs-tour-nav button:not(:disabled):active, .rs-overflow-btn:active,
+.rs-fab:active, .rs-cta-btn:active, .rs-chat-input button:active {
+  transform: scale(0.97);
+}
+.rs-tab:hover { color: #7dd3fc; }
+.rs-tab.rs-active:hover { color: #38bdf8; }
+.rs-touch-chip:hover { border-color: #0284c7; }
+.rs-overflow-menu button:hover { background: #1e293b; filter: none; }
+.rs-palette-item.rs-active:hover { filter: brightness(1.08); }
+
+/* Tap targets: every tappable control reaches 44px on touch screens. */
+.rs-sort-btn, .rs-spring-check, .rs-phase-head,
+.rs-lstep, .rs-pane-item, .rs-offline-slim button { min-height: 44px; }
+.rs-phase-head, .rs-spring-check { align-items: center; }
+
+/* Layout hardening: never force horizontal overflow. */
+.rs-thumb-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rs-stepper-compact .rs-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-budget-row { flex-wrap: wrap; row-gap: 6px; }
+.rs-budget-bar { max-width: 100%; }
+.rs-log-msg { overflow-wrap: anywhere; }
+
+/* Reduced motion: the new entrance + hover motion join the kill list. */
+@media (prefers-reduced-motion: reduce) {
+  .rs-demo { animation: none !important; }
+}
+
+.rs-reduced-motion .rs-demo {
+  animation: none !important;
+  transition: none !important;
+}
