@@ -1,0 +1,166 @@
+/**
+ * SessionStatus.css — wave 27 (ideas 51041–51080): session persistence +
+ * live status suite styles.
+ *
+ * Scoped .sess27-* selectors. No keyframes, no decorative animations, per
+ * the owner's zero-animation order. prefers-reduced-motion guard included.
+ */
+
+.sess27-card {
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  background: var(--surface, #14171f);
+}
+
+.sess27-card > strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.sess27-card p {
+  margin: 6px 0;
+  line-height: 1.5;
+}
+
+.sess27-card ul,
+.sess27-card ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.sess27-card li {
+  margin: 4px 0;
+}
+
+.sess27-card input[type="text"],
+.sess27-card input:not([type]),
+.sess27-card select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #2a2f3a);
+  background: var(--input-bg, #0f1219);
+  color: inherit;
+  margin-right: 8px;
+  max-width: 100%;
+}
+
+.sess27-card button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #2a2f3a);
+  background: var(--btn-bg, #1d2230);
+  color: inherit;
+  cursor: pointer;
+  margin: 4px 4px 4px 0;
+}
+
+.sess27-card button:hover {
+  border-color: var(--accent, #6ea8fe);
+}
+
+.sess27-card pre {
+  background: var(--code-bg, #0b0d13);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.sess27-card code {
+  background: var(--code-bg, #0b0d13);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.85em;
+}
+
+.sess27-hint {
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+.sess27-gallery {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.sess27-gallery > h3 {
+  grid-column: 1 / -1;
+}
+
+.sess27-crumb {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.sess27-crumb-done {
+  background: #12351f;
+  color: #7ddf9a;
+}
+
+.sess27-crumb-current {
+  background: #1c2c4d;
+  color: #9cc3ff;
+  font-weight: 600;
+}
+
+.sess27-crumb-upcoming {
+  opacity: 0.55;
+}
+
+.sess27-live-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #12351f;
+  color: #7ddf9a;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sess27-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--track, #232838);
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.sess27-progress-fill {
+  height: 100%;
+  background: var(--accent, #6ea8fe);
+  border-radius: 999px;
+}
+
+.sess27-status-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 8px 0 0;
+}
+
+.sess27-status-card dt {
+  opacity: 0.65;
+  font-size: 0.85rem;
+}
+
+.sess27-status-card dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.sess27-widget {
+  border-left: 3px solid var(--accent, #6ea8fe);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sess27-card *,
+  .sess27-gallery * {
+    transition: none;
+  }
+}
