@@ -14,6 +14,7 @@ import { createJob, listJobs } from '../../services/api';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
+import { BrainGate } from '../../components/BrainGate';
 import { DarkVeil } from '../../components/fx/DarkVeil';
 import { DecryptedText } from '../../components/fx/DecryptedText';
 import './AgentHome.css';
@@ -124,6 +125,7 @@ export function AgentHome() {
           submission-ready report — while you watch it think, live.
         </p>
 
+        <BrainGate required={['vision', 'grounding', 'hacker']} featureName="Hunt">
         <form className="sg-hunt-form sg-fade-up sg-fade-up-1" onSubmit={startHunt}>
           <div className="sg-hunt-bar">
             <Crosshair size={19} className="sg-hunt-bar-icon" />
@@ -149,6 +151,7 @@ export function AgentHome() {
             <span><ShieldCheck size={14} /> I confirm I'm authorized to security-test this target — I own it or have written permission.</span>
           </label>
         </form>
+        </BrainGate>
 
         {error && <div id="sg-target-error" className="sg-auth-error home-error" role="alert"><AlertTriangle size={15} /> {error}</div>}
 

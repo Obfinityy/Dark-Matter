@@ -183,6 +183,13 @@ export function createRoutes({ controllers }) {
   router.get('/model-runner/brain-slots', controllers.modelRunner.brainSlots);
   router.get('/model-runner/brain-slots/assignments', controllers.modelRunner.getSlotAssignments);
   router.post('/model-runner/brain-slots/assign', controllers.modelRunner.assignSlot);
+  // ── Brain chat: dynamic (non-template) chat with local brains ──
+  // Per-chat memory on local disk; replies generated live by the brain.
+  router.post('/brain-chat', controllers.brainChat.chat);
+  router.get('/brain-chat/brains', controllers.brainChat.brains);
+  router.get('/brain-chat/list', controllers.brainChat.list);
+  router.get('/brain-chat/:chatId/memory', controllers.brainChat.getMemory);
+  router.delete('/brain-chat/:chatId/memory', controllers.brainChat.deleteMemory);
   // Per-slot source: local model or Kaggle/Colab link per slot.
   router.get('/model-runner/brain-slots/sources', controllers.modelRunner.getSlotSources);
   router.post('/model-runner/brain-slots/kaggle', controllers.modelRunner.connectSlotKaggle);

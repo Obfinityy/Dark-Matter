@@ -38,6 +38,139 @@ The brain is swappable anytime. The agent's skills don't change — only the int
 
 ---
 
+## 📊 Data Flow Diagram
+
+How data moves through Infinity AI — from login to report:
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│    USER     │────▶│   FRONTEND   │────▶│  MAIN BACKEND   │
+│ (any device)│     │(local/Vercel/│     │ (Render cloud   │
+└─────────────┘     │ live)        │     │  or localhost)  │
+                    └──────────────┘     └────────┬────────┘
+                                                  │
+                                                  ▼
+                                         ┌─────────────────┐
+                                         │    MongoDB      │
+                                         │ (real database) │
+                                         │                 │
+                                         │ • User accounts │
+                                         │ • AI results    │
+                                         │ • PDF reports   │
+                                         └─────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│                    USER'S LOCAL MACHINE                      │
+│                                                              │
+│  ┌────────────┐    ┌──────────────┐    ┌──────────────────┐  │
+│  │  MODELS    │───▶│ LOCAL BACKEND│───▶│  THREE BRAINS    │  │
+│  │ (download) │    │(localhost:   │    │  (llama-server)  │  │
+│  │            │    │  4000)       │    │                  │  │
+│  │ Step 0:    │    │              │    │ 👁 Vision Brain  │  │
+│  │ llama.cpp  │    │ • Download   │    │    sees screen   │  │
+│  │ engine     │    │ • Pause/     │    │                  │  │
+│  │            │    │   Resume     │    │ 🎯 Grounding     │  │
+│  │ Then:      │    │ • Run/Stop   │    │    Brain         │  │
+│  │ • Vision   │    │ • Remove     │    │    coordinates,  │  │
+│  │ • Grounding│    │              │    │    clicks        │  │
+│  │ • Hacking  │    │              │    │                  │  │
+│  └────────────┘    └──────────────┘    │ 🧠 Hacking Brain │  │
+│                                        │    thinks, finds │  │
+│                                        │    vulns, chats  │  │
+│                                        └──────────────────┘  │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ PER-CHAT MEMORY (local disk: ~/.infinity-ai/)        │  │
+│  │                                                      │  │
+│  │  Chat 1 (Hunt #123) ──▶ memory-chat-1.json          │  │
+│  │  Chat 2 (Hunt #124) ──▶ memory-chat-2.json          │  │
+│  │  Chat 3 (Infinity)  ──▶ memory-chat-3.json          │  │
+│  │                                                      │  │
+│  │  Each chat loads its own memory. Unlimited storage.  │  │
+│  │  Private — never leaves the device.                  │  │
+│  └──────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Hunt Flow (needs all 3 brains)
+
+```
+User pastes URL → Start Hunt
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│  BrainGate checks:                       │
+│  ✅ Vision running?  ✅ Grounding?       │
+│  ✅ Hacking?                             │
+│  ❌ If missing → "Open Models" prompt    │
+└─────────────────────────────────────────┘
+       │ (all 3 running)
+       ▼
+┌─────────────────────────────────────────┐
+│  HUNT RUNNING (on Kali Linux)           │
+│                                          │
+│  👁 Vision sees screen                   │
+│  🎯 Grounding finds click coordinates    │
+│  🧠 Hacking thinks, chains vulns,        │
+│     finds vulnerabilities                │
+│                                          │
+│  ┌────────────┐  ┌────────────────────┐  │
+│  │  AI Mode   │  │    Chat Mode       │  │
+│  │ autonomous │  │ • Live terminal    │  │
+│  │  hunting   │  │   (all logs)       │  │
+│  └────────────┘  │ • Ask anything,    │  │
+│                  │   anytime          │  │
+│                  │ • Hacking Brain    │  │
+│                  │   replies live     │  │
+│                  │   (dynamic, from   │  │
+│                  │    memory+context)  │  │
+│                  └────────────────────┘  │
+└─────────────────────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│  HUNT COMPLETE → Report                  │
+│  • Saved to MongoDB                      │
+│  • PDF generated (best level)            │
+└─────────────────────────────────────────┘
+```
+
+### Infinity AI Modes (brain requirements)
+
+```
+┌──────────────┬─────────────────────────────┐
+│ Mode         │ Required brains             │
+├──────────────┼─────────────────────────────┤
+│ 💬 Chat      │ 👁 Vision only              │
+│ 📋 Plan      │ 👁 Vision only              │
+│ 🔨 Build     │ 👁 Vision only              │
+│ 🎮 Control   │ 👁 Vision + 🎯 Grounding    │
+└──────────────┴─────────────────────────────┘
+```
+
+### Where data lives
+
+```
+┌──────────────────────┬────────────────────────────────┐
+│ Data                 │ Stored in                      │
+├──────────────────────┼────────────────────────────────┤
+│ User accounts        │ MongoDB (real database)        │
+│ AI results / reports │ MongoDB                        │
+│ PDF files            │ MongoDB                        │
+│ Chat memory (per-    │ User's local disk              │
+│   conversation)      │ (~/.infinity-ai/chat-memory/)  │
+│ Model files          │ User's local disk              │
+│ Hunt working memory  │ User's local disk              │
+└──────────────────────┴────────────────────────────────┘
+```
+
+**Key principle:** Models ALWAYS run on the user's local machine — no matter which
+frontend is used (local dev, Vercel, or live). The main backend (Render/cloud)
+handles auth, orchestration, and results storage. The user's computer handles
+all AI inference.
+
+---
+
 ## 🏹 Hunt — how it works
 
 ```

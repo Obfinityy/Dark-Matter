@@ -18,13 +18,14 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Pause, Play, Square, Loader2, AlertTriangle,
-  Bug, BookOpen, Map as MapIcon, ChevronLeft, Sparkles, RefreshCw, Mic
+  Bug, BookOpen, Map as MapIcon, ChevronLeft, Sparkles, RefreshCw, Mic, MessageCircle
 } from 'lucide-react';
 import {
   getJobState, pauseJob, continueJob, cancelJob,
   getJobFindings, getJobDiary, getJobAttackSurface, getJobVulnerabilityReport,
   subscribeToJobEvents, askJob
 } from '../../services/api';
+import { BrainChat } from '../../components/BrainChat';
 import { LiveScreenViewer } from '../../components/agent/LiveScreenViewer';
 import { FindingsBoard } from '../../components/agent/FindingsBoard';
 import { HuntDiary } from '../../components/agent/HuntDiary';
@@ -265,7 +266,8 @@ export function HuntView() {
               {[
                 { id: 'findings', label: 'Findings', icon: Bug, count: findings.length },
                 { id: 'diary', label: 'Diary', icon: BookOpen },
-                { id: 'surface', label: 'Attack surface', icon: MapIcon }
+                { id: 'surface', label: 'Attack surface', icon: MapIcon },
+                { id: 'chat', label: 'Chat', icon: MessageCircle }
               ].map(({ id, label, icon: Icon, count }) => (
                 <button
                   key={id}
@@ -304,6 +306,14 @@ export function HuntView() {
               {tab === 'findings' && <FindingsBoard findings={findings} explainer={explainer} />}
               {tab === 'diary' && <HuntDiary entries={diary} />}
               {tab === 'surface' && <AttackSurfaceMap surface={surface} />}
+              {tab === 'chat' && (
+                <BrainChat
+                  huntId={jobId}
+                  target={job?.target}
+                  findingsCount={findings.length}
+                  currentStep={job?.currentStep}
+                />
+              )}
             </div>
           </section>
         </div>

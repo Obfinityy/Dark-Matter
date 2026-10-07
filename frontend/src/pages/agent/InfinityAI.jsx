@@ -42,6 +42,7 @@ import {
 import { recordConversation } from '../../services/chatHistory';
 import { getBackendUrl } from '../../services/backendMode';
 import { Avatar } from '../../components/fx/Avatar';
+import { BrainGate } from '../../components/BrainGate';
 import { CrewPanel } from '../../components/agent/CrewPanel';
 import { DecryptedText } from '../../components/fx/DecryptedText';
 import { DarkVeil } from '../../components/fx/DarkVeil';
@@ -1126,14 +1127,30 @@ export function InfinityAI() {
       </div>
 
       <div className="inf-layout">
-        {/* Mode content */}
+        {/* Mode content — each mode gated on its required local brains */}
         <div className="inf-body">
-          {mode === 'control' ? <ControlPane key="control" mode={mode} setMode={setMode} />
-            : mode === 'plan' ? <PlanPane key="plan" mode={mode} setMode={setMode} />
-            : mode === 'build' ? <BuildPane key="build" mode={mode} setMode={setMode} />
-            : <ChatPane key={paneKey} mode={mode} setMode={setMode} initialConversationId={navState.conversationId}
-                onAvatarState={setAvatarState} onAvatarEmotion={setAvatarEmotion} avatarVoice={voiceOn ? avatarVoice : null}
-                avatarVoiceName={avatarVoice} onSpeakAmplitude={setSpeakAmp} />}
+          {mode === 'control' ? (
+            <BrainGate required={['vision', 'grounding']} featureName="Control mode">
+              <ControlPane key="control" mode={mode} setMode={setMode} />
+            </BrainGate>
+          )
+            : mode === 'plan' ? (
+              <BrainGate required={['vision']} featureName="Plan mode">
+                <PlanPane key="plan" mode={mode} setMode={setMode} />
+              </BrainGate>
+            )
+            : mode === 'build' ? (
+              <BrainGate required={['vision']} featureName="Build mode">
+                <BuildPane key="build" mode={mode} setMode={setMode} />
+              </BrainGate>
+            )
+            : (
+              <BrainGate required={['vision']} featureName="Chat mode">
+                <ChatPane key={paneKey} mode={mode} setMode={setMode} initialConversationId={navState.conversationId}
+                  onAvatarState={setAvatarState} onAvatarEmotion={setAvatarEmotion} avatarVoice={voiceOn ? avatarVoice : null}
+                  avatarVoiceName={avatarVoice} onSpeakAmplitude={setSpeakAmp} />
+              </BrainGate>
+            )}
         </div>
 
         {/* Collapsible avatar side panel. Note: the closed state keeps the

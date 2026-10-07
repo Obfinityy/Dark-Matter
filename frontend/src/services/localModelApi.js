@@ -8,9 +8,38 @@
  */
 import { getApiBase } from './backendMode.js';
 
-/** API base of the configured backend. */
+/**
+ * Local machine backend URL — models ALWAYS run on the user's own computer,
+ * regardless of which frontend (local/Vercel/live) is used.
+ * VITE_LOCAL_BACKEND_URL can override; defaults to http://localhost:4000.
+ */
+function localMachineBase() {
+  try {
+    const url = import.meta.env?.VITE_LOCAL_BACKEND_URL;
+    if (url && url.trim()) return url.trim().replace(/\/$/, '');
+  } catch { /* ignore */ }
+  return 'http://localhost:4000';
+}
+
+/** API base of the configured backend (for non-model operations). */
 function apiBase() {
   return getApiBase();
+}
+
+/** Fetch from the USER'S LOCAL MACHINE (where models run). */
+async function localMachineFetch(path, options = {}) {
+  const url = `${localMachineBase()}/api/v1${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: { ...getAuthHeaders(), ...(options.headers || {}) },
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const err = new Error(`Local machine error: HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
 }
 
 function getAuthHeaders() {
@@ -193,4 +222,39 @@ export async function resumeDownloadLocal(modelId, opts = {}) {
  */
 export async function getLocalRunnerStatus() {
   return localFetch('/model-runner/status');
+}
+
+/**
+ * Chat with a local brain (dynamic — the brain generates fresh replies).
+ * Goes to the USER'S LOCAL MACHINE — that's where the brains run.
+ * @param {string} chatId - unique conversation ID (per-chat memory)
+ * @param {string} brain - 'hacker' | 'vision' | 'grounding'
+ * @param {string} message - user message
+ * @param {object} context - hunt context { target, findingsCount, currentStep }
+ */
+export async function chatWithBrain(chatId, brain, message, context = {}) {
+  return localMachineFetch('/brain-chat', {
+    method: 'POST',
+    body: JSON.stringify({ chatId, brain, message, context })
+  });
+}
+
+/**
+ * Check which brains are currently running on the user's local machine.
+ * @returns {Promise<{ hacker: boolean, vision: boolean, grounding: boolean }>}
+ */
+export async function getRunningBrains() {
+  try {
+    const res = await localMachineFetch('/brain-chat/brains');
+    return res.brains || { hacker: false, vision: false, grounding: false };
+  } catch {
+    return { hacker: false, vision: false, grounding: false };
+  }
+}
+
+/**
+ * Load a chat's memory from the user's local machine.
+ */
+export async function getChatMemory(chatId) {
+  return localMachineFetch(`/brain-chat/${encodeURIComponent(chatId)}/memory`);
 }
