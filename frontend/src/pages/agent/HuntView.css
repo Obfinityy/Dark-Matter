@@ -43,10 +43,13 @@
 .sg-btn-sm { padding: var(--sg-2) var(--sg-4); font-size: 0.85rem; border-radius: var(--sg-radius); }
 .sg-btn-danger { color: var(--sg-danger) !important; }
 .sg-btn-danger:hover { background: color-mix(in srgb, var(--sg-danger) 12%, transparent) !important; }
-.sg-hunt-actions .sg-active {
-  color: var(--sg-cyan) !important;
-  background: color-mix(in srgb, var(--sg-indigo) 10%, transparent) !important;
-}
+/* Round-5 fresh-eyes (7 Oct 2026): removed the dead HuntChatPanel-era block
+   (.sg-hunt-chatpanel, .sg-stage-banner, .sg-chat-log, .sg-chat-msg and
+   friends) — no JSX renders these classes anymore — plus the dead
+   `.sg-hunt-actions .sg-active` rule (VoiceModeToggle renders
+   `voice-mode-active`, never `sg-active`). */
+
+/* ── AgentCharacter: the visible presence of the hunting agent ── */
 
 /* ── Grid ── */
 .sg-hunt-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--sg-6); align-items: start; }
@@ -83,8 +86,6 @@
   background: color-mix(in srgb, var(--sg-indigo) 16%, transparent); color: var(--sg-cyan);
   font-size: 0.72rem; font-weight: 700; padding: 2px var(--sg-2); border-radius: var(--sg-radius-full);
 }
-
-/* Tab panel entrance — subtle, and skipped for reduced-motion users. */
 
 @media (max-width: 1020px) {
   .sg-hunt-grid { grid-template-columns: 1fr; }
@@ -131,8 +132,6 @@
 .sg-agent-state.on { color: var(--sg-text); }
 .sg-agent-state.on .sg-live-dot { background: var(--sg-go); box-shadow: 0 0 10px var(--sg-go);  }
 
-/* Gentle entrance — the agent fades into presence when it mounts. */
-
 /* Calm everything down for users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   .sg-agent-char,
@@ -140,34 +139,10 @@
   .sg-agent-char .sg-core-glow,
   .sg-agent-char .sg-core-hex,
   .sg-agent-char .sg-tdot,
-  .sg-agent-state.on .sg-live-dot,
-  .sg-stage-banner .sg-live-dot,
-  .sg-spin-slow { animation: none !important; }
+  .sg-agent-state.on .sg-live-dot { animation: none !important; }
   .sg-agent-char { opacity: 1; transform: none; }
 }
 
-/* ── HuntChatPanel stage banner ── */
-.sg-hunt-chatpanel { display: flex; flex-direction: column; gap: var(--sg-3); }
-.sg-stage-banner {
-  display: flex; align-items: center; gap: var(--sg-3);
-  background: color-mix(in srgb, var(--sg-indigo) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--sg-indigo) 25%, transparent);
-  border-radius: var(--sg-radius); padding: var(--sg-3);
-  font-size: 0.85rem; font-weight: 600; color: var(--sg-text);
-}
-.sg-stage-banner .sg-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sg-go); box-shadow: 0 0 10px var(--sg-go);  margin-left: auto; }
-.sg-spin-slow { animation: sg-rotate 3s linear infinite; }
-@keyframes sg-rotate { to { transform: rotate(360deg); } }
-
-/* ── HuntChatPanel log ── */
-.sg-chat-log { display: flex; flex-direction: column; gap: var(--sg-2); max-height: 260px; overflow-y: auto; padding: 4px 2px; }
-.sg-chat-hint { font-size: 0.82rem; color: var(--sg-text-3); }
-.sg-chat-msg { font-size: 0.85rem; padding: var(--sg-2) var(--sg-3); border-radius: var(--sg-radius); max-width: 92%; line-height: 1.45; }
-.sg-chat-user { align-self: flex-end; background: color-mix(in srgb, var(--sg-indigo) 16%, transparent); border: 1px solid color-mix(in srgb, var(--sg-indigo) 30%, transparent); }
-.sg-chat-assistant { align-self: flex-start; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--sg-line-soft); }
-.sg-chat-inputrow { display: flex; gap: var(--sg-2); }
-.sg-chat-inputrow input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--sg-line-soft); border-radius: var(--sg-radius); padding: var(--sg-2) var(--sg-3); color: var(--sg-text); font-size: 0.85rem; }
-.sg-chat-inputrow input:focus-visible { outline: 2px solid var(--sg-cyan); outline-offset: 1px; border-color: var(--sg-cyan); }
 /* ── HuntStatusPanel: stage stepper + posture + quick actions ───────────── */
 .sg-status-panel {
   display: flex; align-items: center; justify-content: space-between;
