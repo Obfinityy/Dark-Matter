@@ -1,0 +1,97 @@
+/* polish-pass-errorboundary.css — PageErrorBoundary fallback polish
+ *
+ * Design note: this card only appears when a page has already crashed, so it
+ * must look deliberate and calm — never like a second failure. Icon badge for
+ * intent, breathing room via clamp() margins, a gentle entrance that respects
+ * reduced motion, and visible focus rings for keyboard users. */
+
+/* Entrance: reuse the global slideUp motion; skip it for reduced motion. */
+.sg-eb { animation: slideUp 0.35s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .sg-eb { animation: none; }
+}
+
+/* Centered, never touching viewport edges on small screens. */
+.sg-eb {
+  margin: clamp(24px, 6vh, 56px) auto;
+  width: min(560px, calc(100% - 32px));
+  text-align: left;
+}
+
+.sg-eb-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* Danger-tinted badge keeps the alert feeling intentional, not alarming. */
+.sg-eb-icon {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--sg-danger-dim);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  color: var(--sg-danger);
+}
+
+.sg-eb-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.sg-eb-copy { margin: 0 0 14px; }
+
+.sg-eb-details { margin: 0 0 20px; }
+.sg-eb-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--sg-text-3);
+  padding: 8px 4px; /* generous hit area */
+  border-radius: 8px;
+}
+.sg-eb-details summary:hover { color: var(--sg-text-2); }
+.sg-eb-details summary:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.8);
+  outline-offset: 2px;
+}
+
+.sg-eb-code {
+  display: block;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  max-height: 180px;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--sg-line-soft);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.sg-eb-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* .sg-btn already clears 44px; add the missing keyboard focus ring. */
+.sg-eb-retry:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.8);
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .sg-eb-head { align-items: flex-start; }
+  .sg-eb-icon { width: 40px; height: 40px; }
+}

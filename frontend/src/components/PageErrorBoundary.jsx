@@ -31,25 +31,30 @@ export class PageErrorBoundary extends Component {
     if (!error) return this.props.children;
     const pageName = this.props.pageName || 'this page';
     return (
-      <div className="sg-card sg-card-pad" role="alert" style={{ margin: '24px auto', maxWidth: 560 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <AlertTriangle size={20} color="var(--sg-danger, #f87171)" />
-          <strong style={{ fontSize: 17 }}>{pageName} ran into a problem</strong>
+      <div className="sg-card sg-card-pad sg-eb" role="alert" aria-labelledby="sg-eb-title">
+        <div className="sg-eb-head">
+          <span className="sg-eb-icon" aria-hidden="true">
+            <AlertTriangle size={22} />
+          </span>
+          <h2 className="sg-eb-title" id="sg-eb-title">{pageName} ran into a problem</h2>
         </div>
-        <p className="sg-small" style={{ marginBottom: 8 }}>
+        <p className="sg-small sg-eb-copy">
           Something went wrong while showing {pageName}. Your other pages are fine —
           this error is contained here.
         </p>
-        <details className="sg-small" style={{ marginBottom: 16, opacity: 0.75 }}>
-          <summary style={{ cursor: 'pointer' }}>Technical details</summary>
-          <code style={{ wordBreak: 'break-word' }}>{String(error?.message || error)}</code>
+        <details className="sg-small sg-eb-details">
+          <summary>Technical details</summary>
+          <code className="sg-eb-code">{String(error?.message || error)}</code>
         </details>
-        <button
-          className="sg-btn sg-btn-primary"
-          onClick={() => this.setState({ error: null })}
-        >
-          <RotateCcw size={15} /> Retry
-        </button>
+        <div className="sg-eb-actions">
+          <button
+            type="button"
+            className="sg-btn sg-btn-primary sg-eb-retry"
+            onClick={() => this.setState({ error: null })}
+          >
+            <RotateCcw size={15} aria-hidden="true" /> Retry
+          </button>
+        </div>
       </div>
     );
   }

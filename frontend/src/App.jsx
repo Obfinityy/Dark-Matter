@@ -15,6 +15,7 @@ import './styles/polish-pass-surfacemap-diary-terminal.css';
 import './styles/polish-pass-crew-cvss-dedup.css';
 import './styles/polish-pass-export-avatar-bento.css';
 import './styles/polish-pass-spotlight-home-hunt.css';
+import './styles/polish-pass-errorboundary.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
 import { Landing } from './pages/Landing/Landing';
 import NotFoundPage from './pages/NotFound/NotFound';
