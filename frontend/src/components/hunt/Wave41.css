@@ -1,0 +1,345 @@
+/**
+ * Wave41.css — wave 41 (ideas 51601–51640): question management +
+ * mid-hunt snapshot suites.
+ * Scoped classes only (.qn41-*, .sn41-*). No keyframes, no animation
+ * or transition properties anywhere — the zero-animation order is hard.
+ */
+
+/* --- question suite (51601–51620) --- */
+
+.qn41-card {
+  border: 1px solid rgba(124, 108, 255, 0.28);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: rgba(17, 18, 34, 0.75);
+}
+
+.qn41-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.qn41-num {
+  font-size: 11px;
+  color: #8f8bb8;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+}
+
+.qn41-card h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #eceaff;
+}
+
+.qn41-card-body {
+  color: #c9c6e6;
+  font-size: 13px;
+}
+
+.qn41-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.qn41-opt {
+  border: 1px solid rgba(124, 108, 255, 0.35);
+  background: rgba(124, 108, 255, 0.08);
+  color: #dcd8ff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.qn41-opt-picked {
+  background: rgba(124, 108, 255, 0.28);
+  border-color: #7c6cff;
+  color: #ffffff;
+}
+
+.qn41-prompt-title {
+  font-weight: 600;
+  color: #f2f0ff;
+  margin-bottom: 4px;
+}
+
+.qn41-prompt-body {
+  color: #b9b5d8;
+  margin-bottom: 8px;
+  white-space: pre-line;
+}
+
+.qn41-meta {
+  font-size: 12px;
+  color: #8f8bb8;
+}
+
+.qn41-urgency {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+  letter-spacing: 0.04em;
+}
+
+.qn41-urgency-fyi { background: rgba(14, 165, 233, 0.18); color: #7dd3fc; }
+.qn41-urgency-decision-needed { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+.qn41-urgency-blocking { background: rgba(239, 68, 68, 0.20); color: #fca5a5; }
+
+.qn41-input {
+  background: #141527;
+  border: 1px solid rgba(124, 108, 255, 0.3);
+  color: #eceaff;
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.qn41-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.qn41-list li {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(124, 108, 255, 0.18);
+  font-size: 12.5px;
+}
+
+.qn41-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(124, 108, 255, 0.15);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.qn41-bar-fill {
+  height: 100%;
+  background: #7c6cff;
+  border-radius: 4px;
+}
+
+.qn41-history-item {
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(124, 108, 255, 0.12);
+}
+
+.qn41-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+
+.qn41-table th {
+  text-align: left;
+  color: #8f8bb8;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(124, 108, 255, 0.25);
+}
+
+.qn41-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(124, 108, 255, 0.12);
+  color: #dcd8ff;
+}
+
+/* --- snapshot suite (51621–51640) --- */
+
+.sn41-card {
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: rgba(14, 26, 24, 0.75);
+}
+
+.sn41-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sn41-num {
+  font-size: 11px;
+  color: #6f9e8d;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+}
+
+.sn41-card h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #eefbf5;
+}
+
+.sn41-card-body {
+  color: #c4d8cf;
+  font-size: 13px;
+}
+
+.sn41-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.sn41-btn {
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.10);
+  color: #d1f4e4;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.sn41-btn-picked {
+  background: rgba(16, 185, 129, 0.30);
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.sn41-meta {
+  font-size: 12px;
+  color: #6f9e8d;
+}
+
+.sn41-kv {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 4px 10px;
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+
+.sn41-kv dt {
+  color: #6f9e8d;
+}
+
+.sn41-kv dd {
+  margin: 0;
+  color: #eefbf5;
+}
+
+.sn41-input {
+  background: #101a17;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #eefbf5;
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sn41-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.sn41-list li {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(16, 185, 129, 0.18);
+  font-size: 12.5px;
+}
+
+.sn41-timeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 10px;
+  overflow-x: auto;
+  padding: 6px 0;
+}
+
+.sn41-timeline-node {
+  flex: 0 0 auto;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.12);
+  color: #d1f4e4;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.sn41-timeline-gap {
+  flex: 1 0 24px;
+  min-width: 24px;
+  border-top: 2px solid rgba(16, 185, 129, 0.35);
+}
+
+.sn41-meter {
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(16, 185, 129, 0.15);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.sn41-meter-fill {
+  height: 100%;
+  background: #10b981;
+  border-radius: 5px;
+}
+
+.sn41-state {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+  letter-spacing: 0.04em;
+}
+
+.sn41-state-draft { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+.sn41-state-validating { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+.sn41-state-confirmed { background: rgba(16, 185, 129, 0.22); color: #6ee7b7; }
+
+.sn41-watermark {
+  border: 1px dashed rgba(16, 185, 129, 0.45);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  color: #a7d7c3;
+  font-size: 12px;
+}
+
+.sn41-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+
+.sn41-table th {
+  text-align: left;
+  color: #6f9e8d;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.sn41-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.12);
+  color: #d1f4e4;
+}
