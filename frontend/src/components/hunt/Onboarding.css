@@ -1,0 +1,364 @@
+/**
+ * Onboarding.css — wave 21 (ideas 50801–50840): onboarding / tour / hint styles.
+ *
+ * Coach-mark overlay + spotlight, hint cards, checklist, celebration,
+ * sandbox banner, rating stars, video snippets, tip-of-the-day.
+ * Respects prefers-reduced-motion.
+ */
+
+.ob-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+.ob-btn:active { transform: translateY(1px); }
+.ob-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ob-btn-primary {
+  background: #6d5cff;
+  color: #fff;
+}
+.ob-btn-primary:hover { background: #5b4ae0; }
+.ob-btn-ghost {
+  background: transparent;
+  color: #cfd2e0;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.ob-btn-ghost:hover { border-color: rgba(255, 255, 255, 0.35); }
+.ob-btn-success {
+  background: #1f9d63;
+  color: #fff;
+}
+
+.ob-kbd {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ob-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #8f9bff;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ob-link-btn:hover { color: #aab3ff; }
+
+/* ---- hint cards (50807) ---- */
+
+.ob-hint-card {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(20, 22, 38, 0.92);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  max-width: 560px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+.ob-hint-highlight { border-color: rgba(109, 92, 255, 0.55); }
+.ob-hint-warn { border-color: rgba(255, 176, 32, 0.5); }
+
+.ob-hint-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f2f3fa;
+  margin-bottom: 6px;
+  padding-right: 28px;
+}
+.ob-hint-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #b9bdd2;
+  margin: 0 0 4px;
+}
+.ob-hint-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.ob-hint-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #8a8fa8;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+.ob-hint-dismiss:hover { color: #fff; }
+.ob-hint-stepcount { color: #8a8fa8; font-weight: 500; }
+
+.ob-tips-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #b9bdd2;
+  cursor: pointer;
+  margin: 6px 0;
+}
+
+.ob-example-list, .ob-mini-steps {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #b9bdd2;
+}
+.ob-example-list li { margin: 4px 0; }
+
+.ob-pulse-demo {
+  display: inline-block;
+  animation: ob-pulse 1.6s ease-in-out infinite;
+  font-weight: 700;
+  color: #fff;
+}
+@keyframes ob-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.ob-did-you-know {
+  border-left: 3px solid #6d5cff;
+  padding: 8px 12px;
+  margin: 10px 0;
+  font-size: 13px;
+  color: #b9bdd2;
+  background: rgba(109, 92, 255, 0.08);
+  border-radius: 0 8px 8px 0;
+}
+
+.ob-synced-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7ee2a8;
+  border: 1px solid rgba(126, 226, 168, 0.4);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin: 6px 0;
+}
+
+/* ---- coach-mark tour (50801) ---- */
+
+.ob-tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 6, 14, 0.72);
+  backdrop-filter: blur(2px);
+}
+.ob-tour-spotlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 42%, transparent 180px, rgba(5, 6, 14, 0.55) 340px);
+}
+.ob-tour-card {
+  position: relative;
+  width: min(440px, calc(100vw - 48px));
+  background: #171a2e;
+  border: 1px solid rgba(109, 92, 255, 0.45);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+.ob-tour-stepcount {
+  font-size: 12px;
+  color: #8a8fa8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.ob-tour-title { font-size: 18px; color: #fff; margin: 0 0 8px; }
+.ob-tour-body { font-size: 14px; line-height: 1.6; color: #b9bdd2; margin: 0 0 14px; }
+.ob-tour-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.ob-tour-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6d5cff, #9d8cff);
+  border-radius: 999px;
+  transition: width 240ms ease;
+}
+.ob-tour-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ob-tour-nav { display: flex; gap: 8px; }
+.ob-tour-resume-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: #8a8fa8;
+}
+
+/* ---- checklist (50805 / 50819 / 50839) ---- */
+
+.ob-checklist {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(20, 22, 38, 0.9);
+  max-width: 420px;
+  margin: 10px 0;
+}
+.ob-checklist-head { margin-bottom: 10px; }
+.ob-checklist-title { font-size: 15px; color: #fff; margin: 0 0 8px; }
+.ob-checklist-items { list-style: none; margin: 0; padding: 0; }
+.ob-checklist-item { margin: 7px 0; font-size: 13px; color: #cfd2e0; }
+.ob-checklist-item label { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.ob-checklist-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: #6d5cff; }
+.ob-checklist-item .ob-done { text-decoration: line-through; color: #8a8fa8; }
+
+.ob-progress-wrap { margin: 4px 0; }
+.ob-progress-label { font-size: 12px; color: #b9bdd2; margin-bottom: 6px; }
+.ob-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.ob-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1f9d63, #5bd693);
+  border-radius: 999px;
+  transition: width 300ms ease;
+}
+
+.ob-celebration {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(109, 92, 255, 0.18), rgba(31, 157, 99, 0.14));
+  border: 1px solid rgba(109, 92, 255, 0.4);
+  text-align: center;
+  animation: ob-pop 420ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes ob-pop {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.ob-celebration-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+.ob-celebration-body { font-size: 13px; color: #b9bdd2; margin: 0 0 10px; }
+
+.ob-tips-archive {
+  margin: 12px 0;
+  font-size: 13px;
+  color: #b9bdd2;
+}
+.ob-tips-archive-title { font-size: 14px; color: #fff; margin: 0 0 6px; }
+
+/* ---- sandbox banner (50826) ---- */
+
+.ob-sandbox-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border: 1px dashed rgba(126, 226, 168, 0.5);
+  background: rgba(31, 157, 99, 0.07);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  max-width: 640px;
+}
+
+/* ---- role picker (50812) ---- */
+
+.ob-role-tasks { margin-top: 12px; font-size: 13px; color: #b9bdd2; }
+.ob-role-headline { font-weight: 700; color: #fff; margin-bottom: 6px; }
+.ob-role-tasks ol { margin: 0; padding-left: 20px; }
+.ob-role-tasks li { margin: 4px 0; }
+
+/* ---- rating stars (50837) ---- */
+
+.ob-rating-stars { display: flex; gap: 4px; margin-top: 10px; }
+.ob-star {
+  background: none;
+  border: none;
+  font-size: 26px;
+  color: #4a4e68;
+  cursor: pointer;
+  padding: 2px;
+  transition: color 120ms ease, transform 120ms ease;
+}
+.ob-star:hover { transform: scale(1.15); }
+.ob-star-on { color: #ffc531; }
+
+/* ---- video snippet (50822) ---- */
+
+.ob-video-snippet { margin: 10px 0; max-width: 480px; }
+.ob-video-player {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #000;
+}
+.ob-video-snippet figcaption { font-size: 12px; color: #8a8fa8; margin-top: 6px; }
+
+/* ---- tip of the day (50823) ---- */
+
+.ob-tip-of-day {
+  position: relative;
+  border: 1px solid rgba(255, 197, 49, 0.4);
+  background: rgba(255, 197, 49, 0.07);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  max-width: 520px;
+}
+
+/* ---- gallery ---- */
+
+.ob-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  margin: 14px 0;
+}
+.ob-gallery h3 { color: #fff; margin: 0 0 8px; font-size: 16px; }
+
+/* ---- copy PoC (50840) ---- */
+
+.ob-copy-poc { font-family: ui-monospace, monospace; font-size: 12px; }
+
+/* ---- reduced motion ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-pulse-demo { animation: none; }
+  .ob-celebration { animation: none; }
+  .ob-tour-progress-fill,
+  .ob-progress-fill,
+  .ob-btn,
+  .ob-star { transition: none; }
+}
