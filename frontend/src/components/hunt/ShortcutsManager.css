@@ -180,3 +180,79 @@ html[data-density="comfortable"] .sc-density-scope { --sc-card-pad: 16px; --sc-c
   .sc-sheet-body { display: block; overflow: visible; }
   .sc-sheet-row { break-inside: avoid; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Infinity polish pass (B1): responsive, motion, a11y               */
+/* ------------------------------------------------------------------ */
+
+/* Entrance motion for the two centered dialogs — subtle, under budget. */
+.sc-quickmenu, .sc-export { animation: sc-pop 180ms ease-out; }
+@keyframes sc-pop {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Visible focus on the export format cards: the radio itself is visually
+   hidden, so the label must carry the ring. */
+.sc-export-opt:focus-within {
+  outline: 2px solid var(--accent, #38bdf8);
+  outline-offset: 2px;
+  border-color: var(--accent, #0ea5e9);
+}
+
+/* Consistent hover/active feedback on dialog + toast actions. */
+.sc-sheet-tools button, .sc-export-actions button,
+.sc-tips-cheat, .sc-tips-never, .sc-tips-dismiss,
+.sc-quickmenu-item {
+  transition: background var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
+}
+.sc-sheet-tools button:hover, .sc-export-actions button:hover { filter: brightness(1.12); }
+.sc-sheet-tools button:active, .sc-export-actions button:active,
+.sc-tips-cheat:active, .sc-tips-never:active, .sc-tips-dismiss:active { transform: scale(0.97); }
+.sc-btn-primary:hover { filter: brightness(1.08); }
+
+/* Tips bar: wrap on narrow screens, 44px tap targets on touch. */
+.sc-tips { flex-wrap: wrap; row-gap: 8px; }
+@media (max-width: 719px) {
+  .sc-tips { padding: 12px; }
+  .sc-tips-text { flex: 1 1 100%; }
+  .sc-tips-cheat, .sc-tips-never { min-height: 44px; padding: 10px 14px; }
+  .sc-tips-dismiss { min-height: 44px; min-width: 44px; }
+}
+
+/* Cheat sheet: fit 390px viewports — no horizontal overflow. */
+@media (max-width: 719px) {
+  .sc-sheet { inset: 3vh 3vw; border-radius: var(--radius-md, 12px); }
+  .sc-sheet-head { flex-wrap: wrap; padding: 14px 16px; }
+  .sc-sheet-tools { flex-wrap: wrap; width: 100%; }
+  .sc-sheet-tools input[type="search"] { flex: 1 1 100%; width: auto; min-height: 44px; }
+  .sc-sheet-tools button { min-height: 44px; }
+  .sc-sheet-body { grid-template-columns: minmax(0, 1fr); padding: 8px 16px 16px; }
+  .sc-sheet-row dt { min-width: 0; flex-wrap: wrap; }
+}
+
+/* Centered dialogs + toasts: stay inside small viewports, clear the
+   home indicator. */
+.sc-quickmenu { max-width: calc(100vw - 32px); }
+@media (max-width: 719px) {
+  .sc-quickmenu { min-width: 0; width: calc(100vw - 48px); }
+  .sc-export { padding: 20px 16px; }
+  .sc-export-formats { flex-wrap: wrap; }
+  .sc-export-opt { flex: 1 1 40%; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+  .sc-export-actions button { min-height: 44px; }
+  .sc-toasts {
+    left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+    max-width: none;
+  }
+}
+
+/* Skip links: generous tap target once revealed. */
+.sc-skip-link:focus { left: 12px; padding: 12px 20px; min-height: 44px; display: inline-flex; align-items: center; }
+
+/* Reduced motion: kill every sc-* animation/transition. */
+@media (prefers-reduced-motion: reduce) {
+  .sc-toast, .sc-quickmenu, .sc-export {
+    animation: none !important;
+    transition: none !important;
+  }
+}
