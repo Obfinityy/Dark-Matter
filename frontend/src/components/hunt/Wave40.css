@@ -1,0 +1,169 @@
+/**
+ * Wave40.css — wave 40: finding sharing + steering prompt components.
+ * Scoped .fs40-* (share) and .sq40-* (steering queue) classes.
+ * ZERO keyframes — no motion anywhere in this file.
+ */
+
+.fs40-gallery, .sq40-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.fs40-gallery h3, .sq40-gallery h3 {
+  grid-column: 1 / -1;
+  margin: 0 0 8px;
+}
+
+.fs40-card, .sq40-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  padding: 14px;
+  background: #14171d;
+  color: #e6e9ef;
+}
+
+.fs40-card-head, .sq40-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.fs40-num, .sq40-num {
+  font-size: 11px;
+  font-weight: 700;
+  background: #1f6feb;
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.fs40-card-head h4, .sq40-card-head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fs40-card-body, .sq40-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.fs40-prompt-title, .sq40-prompt-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.fs40-prompt-body, .sq40-prompt-body {
+  color: #9aa3b2;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fs40-opts, .sq40-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fs40-opt, .sq40-opt {
+  background: #1c212b;
+  border: 1px solid #2f3642;
+  color: #dfe4ec;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fs40-opt:hover, .sq40-opt:hover {
+  border-color: #1f6feb;
+}
+
+.fs40-opt-picked, .sq40-opt-picked {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
+.fs40-meta, .sq40-meta {
+  font-size: 11px;
+  color: #7d8590;
+}
+
+.fs40-input, .sq40-input {
+  background: #0d1117;
+  border: 1px solid #2f3642;
+  color: #dfe4ec;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  width: 100%;
+}
+
+.fs40-row, .sq40-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.fs40-pre, .sq40-pre {
+  background: #0d1117;
+  border: 1px solid #2f3642;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 11px;
+  color: #9aa3b2;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.fs40-chat {
+  background: #0d1117;
+  border-left: 3px solid #f85149;
+  border-radius: 0 8px 8px 0;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.fs40-wm-preview {
+  text-align: center;
+  padding: 18px 8px;
+  color: #dfe4ec;
+  font-weight: 700;
+  border: 1px dashed #2f3642;
+  border-radius: 8px;
+  user-select: none;
+}
+
+.fs40-watermark {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-weight: 700;
+}
+
+.fs40-retro {
+  border-top: 1px solid #2a2f3a;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fs40-retro:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
