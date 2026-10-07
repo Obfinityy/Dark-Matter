@@ -44,7 +44,7 @@ import {
 } from './searchCore.js';
 import './SearchSuite.css';
 
-const SEV_COLOR = { critical: '#f43f5e', high: '#fb923c', medium: '#facc15', low: '#38bdf8', info: '#8b96ad' };
+/* Severity hues come from design tokens via .ss-sev-dot[data-sev] in SearchSuite.css. */
 
 /* ------------------------------------------------------------------ */
 /* Small shared bits                                                  */
@@ -121,7 +121,8 @@ export function CopySearchLinkButton({ state }) {
     setCopied(true); setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <button type="button" className="ss-ghost-btn" onClick={copy} title="Copy a shareable link that reproduces this exact search">
+    <button type="button" className="ss-ghost-btn" onClick={copy} title="Copy a shareable link that reproduces this exact search"
+      aria-label="Copy a shareable link that reproduces this exact search">
       {copied ? 'Link copied' : 'Copy search link'}
     </button>
   );
@@ -178,7 +179,7 @@ export function SimilarFindingsButton({ finding, findings = [], onPick }) {
           {sims.map(({ finding: f, score }) => (
             <button key={f.id} type="button" className="ss-popover-item"
               onClick={() => { onPick && onPick(f); setOpen(false); }}>
-              <span className="ss-sev-dot" style={{ background: SEV_COLOR[String(f.severity || 'info').toLowerCase()] || '#8b96ad' }} />
+              <span className="ss-sev-dot" data-sev={String(f.severity || 'info').toLowerCase()} />
               {f.title} <span className="ss-muted">· score {score}</span>
             </button>
           ))}
@@ -277,13 +278,15 @@ export function SearchBox({
           onBlur={() => setTimeout(() => setFocused(false), 150)}
           onKeyDown={onKeyDown}
           aria-label="Search findings"
+          aria-expanded={focused && completions.length > 0}
+          aria-controls="ss-autocomplete"
         />
         <VoiceSearchButton onResult={(t) => { onChange(t); onSubmit && onSubmit(t); }} />
         {throttled && <span className="ss-throttle" title="Very fast typing on a huge dataset — results are throttled">throttling…</span>}
       </div>
 
       {focused && completions.length > 0 && (
-        <div className="ss-ac" role="listbox">
+        <div className="ss-ac" role="listbox" id="ss-autocomplete" aria-label="Search suggestions">
           {completions.map((c, i) => (
             <button key={`${c.kind}-${c.text}-${i}`} type="button" role="option" aria-selected={i === acIndex}
               className={`ss-ac-item ${i === acIndex ? 'ss-active' : ''}`}
@@ -345,10 +348,14 @@ function ResultRow({ result, query, highlightAll, active, onOpen, onNarrowPhase,
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => onOpen && onOpen(f)}
-      role="button" tabIndex={-1}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && onOpen) { e.preventDefault(); onOpen(f); }
+      }}
+      role="button" tabIndex={0}
+      aria-label={`Open finding: ${f.title || '(untitled)'}`}
       title={explainMatch(reasons)} // 50267 — relevance explanation
     >
-      <span className="ss-sev-dot" style={{ background: SEV_COLOR[badge.severity] || '#8b96ad' }} />
+      <span className="ss-sev-dot" data-sev={badge.severity} />
       <div className="ss-result-main">
         <div className="ss-result-title">
           <HighlightMatches text={f.title || '(untitled)'} terms={terms} />
@@ -470,7 +477,7 @@ export function SearchResults({
 
       {results.length > 0 && (
         <div className="ss-results-foot">
-          <span className="ss-muted">searched {searched} findings in {ms}ms</span>
+          <span className="ss-muted" aria-live="polite">searched {searched} findings in {ms}ms</span>
           {results.length <= 25 && results.length > 1 && (
             <button type="button" className="ss-ghost-btn ss-small"
               onClick={() => onOpenAll && onOpenAll(results.map((r) => r.finding))}>
@@ -493,7 +500,7 @@ export function SearchHistoryPanel({ history = [], onRun, onClear }) {
     <div className="ss-panel">
       <div className="ss-panel-head">
         <span className="ss-field-label">Search history</span>
-        {history.length > 0 && <button type="button" className="ss-link" onClick={onClear}>clear</button>}
+        {history.length > 0 && <button type="button" className="ss-link" onClick={onClear} aria-label="Clear search history">clear</button>}
       </div>
       {history.length === 0 && <div className="ss-empty-note">Your recent searches will appear here.</div>}
       <div className="ss-history-list">
@@ -551,8 +558,8 @@ export function SavedSearchesPanel({ saved = [], findings = [], onRun, onChange 
     <div className="ss-panel">
       <div className="ss-panel-head"><span className="ss-field-label">Saved searches</span></div>
       <div className="ss-save-row">
-        <input className="ss-input ss-small-input" placeholder="Name this search…" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="ss-input ss-small-input" placeholder="Query to save…" value={pendingQ} onChange={(e) => setPendingQ(e.target.value)} />
+        <input className="ss-input ss-small-input" placeholder="Name this search…" aria-label="Name this search" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="ss-input ss-small-input" placeholder="Query to save…" aria-label="Query to save" value={pendingQ} onChange={(e) => setPendingQ(e.target.value)} />
         <button type="button" className="ss-ghost-btn ss-small" onClick={() => save(pendingQ)}>Save</button>
       </div>
       {saved.length === 0 && <div className="ss-empty-note">Save any query to pin it as a live dashboard widget or get digests.</div>}
@@ -608,8 +615,8 @@ export function TerminalLogSearch({ lines = [], onJump }) {
   return (
     <div className="ss-panel">
       <div className="ss-panel-head"><span className="ss-field-label">Terminal log search</span></div>
-      <input className="ss-input" placeholder="Search live terminal log…" value={q} onChange={(e) => setQ(e.target.value)} />
-      {q && <div className="ss-muted ss-mt">{hits.length} match{hits.length === 1 ? '' : 'es'}</div>}
+      <input className="ss-input" placeholder="Search live terminal log…" aria-label="Search live terminal log" value={q} onChange={(e) => setQ(e.target.value)} />
+      {q && <div className="ss-muted ss-mt" aria-live="polite">{hits.length} match{hits.length === 1 ? '' : 'es'}</div>}
       <div className="ss-log-hits">
         {hits.slice(0, 30).map((h) => (
           <button key={h.line} type="button" className="ss-log-hit" onClick={() => onJump && onJump(h.line)}>
@@ -631,7 +638,7 @@ export function TimelineSearch({ events = [], onJump }) {
   const idx = useMemo(() => searchTimeline(events, q), [events, q]);
   return (
     <div className="ss-inline-search">
-      <input className="ss-input ss-small-input" placeholder="Search timeline…" value={q}
+      <input className="ss-input ss-small-input" placeholder="Search timeline…" aria-label="Search timeline" value={q}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && idx >= 0) onJump && onJump(idx); }} />
       <button type="button" className="ss-ghost-btn ss-small" disabled={idx < 0}
@@ -681,9 +688,9 @@ export function InCardSearch({ text = '' }) {
     <div className="ss-incard">
       <div className="ss-incard-bar">
         <input ref={inputRef} className="ss-input ss-small-input" placeholder="Ctrl+F in evidence…"
-          value={q} onChange={(e) => setQ(e.target.value)} />
+          aria-label="Find in evidence" value={q} onChange={(e) => setQ(e.target.value)} />
         {hits.length > 0 && (
-          <span className="ss-incard-nav">
+          <span className="ss-incard-nav" aria-live="polite">
             <span className="ss-muted">{pos + 1}/{hits.length}</span>
             <button type="button" className="ss-mini-btn" onClick={() => setPos((p) => (p - 1 + hits.length) % hits.length)}>↑</button>
             <button type="button" className="ss-mini-btn" onClick={() => setPos((p) => (p + 1) % hits.length)}>↓</button>
@@ -711,10 +718,10 @@ export function ReportPreviewSearch({ pages = [], onJumpToPage }) {
   return (
     <div className="ss-panel">
       <div className="ss-panel-head"><span className="ss-field-label">Search report preview</span></div>
-      <input className="ss-input" placeholder="Search inside the report…" value={q}
+      <input className="ss-input" placeholder="Search inside the report…" aria-label="Search inside the report" value={q}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && matches[0]) onJumpToPage && onJumpToPage(matches[0].page); }} />
-      {q && <div className="ss-muted ss-mt">{matches.length} page{matches.length === 1 ? '' : 's'}</div>}
+      {q && <div className="ss-muted ss-mt" aria-live="polite">{matches.length} page{matches.length === 1 ? '' : 's'}</div>}
       {matches.slice(0, 10).map((m) => (
         <button key={m.page} type="button" className="ss-log-hit" onClick={() => onJumpToPage && onJumpToPage(m.page)}>
           <span className="ss-chip-count">p{m.page}</span>
