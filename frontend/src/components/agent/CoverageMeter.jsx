@@ -8,7 +8,8 @@ import './CoverageMeter.css';
 
 export function CoverageMeter({ coverage }) {
   if (!coverage) return null;
-  const pct = coverage.percent || 0;
+  const raw = Number(coverage.percent);
+  const pct = Math.min(100, Math.max(0, Number.isFinite(raw) ? Math.round(raw) : 0));
   const coveredCount = coverage.covered?.length || 0;
   return (
     <div className="sg-coverage dm-polish-in">
@@ -33,7 +34,14 @@ export function CoverageMeter({ coverage }) {
       {coveredCount > 0 && (
         <div className="sg-coverage-cats">
           {coverage.covered.map((c) => (
-            <span key={c.id} className="sg-pill sg-pill-info" title={c.name}>{c.id}</span>
+            <span
+              key={c.id}
+              className="sg-pill sg-pill-info"
+              title={c.name}
+              aria-label={c.name ? `${c.id}: ${c.name}` : c.id}
+            >
+              {c.id}
+            </span>
           ))}
         </div>
       )}
