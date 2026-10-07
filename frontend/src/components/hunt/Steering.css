@@ -1,0 +1,136 @@
+/**
+ * Steering.css — wave 29 (ideas 51121–51160): mid-hunt steering suite.
+ * Scoped .steer29-* classes only. Zero keyframes/animations per the
+ * owner's zero-animation order. prefers-reduced-motion guard included.
+ */
+
+.steer29-card {
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  background: var(--surface, #14181f);
+}
+
+.steer29-card h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.steer29-card input[type="text"],
+.steer29-card input:not([type]),
+.steer29-card textarea,
+.steer29-card select {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 6px;
+  background: var(--input-bg, #0f1319);
+  color: inherit;
+  font-size: 13px;
+}
+
+.steer29-card input[type="range"] {
+  width: 100%;
+  margin: 6px 0;
+}
+
+.steer29-card input[type="number"] {
+  width: 90px;
+  padding: 6px 8px;
+  margin: 6px 6px 6px 0;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 6px;
+  background: var(--input-bg, #0f1319);
+  color: inherit;
+}
+
+.steer29-card button {
+  margin: 4px 6px 4px 0;
+  padding: 7px 12px;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 6px;
+  background: var(--btn-bg, #1d2530);
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.steer29-card button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.steer29-card ul,
+.steer29-card ol {
+  margin: 8px 0;
+  padding-left: 20px;
+  font-size: 13px;
+}
+
+.steer29-card li {
+  margin: 4px 0;
+}
+
+.steer29-card code {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--code-bg, #0d1117);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.steer29-ack {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--success, #4ade80);
+}
+
+.steer29-warn {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--warning, #fbbf24);
+  border-left: 3px solid var(--warning, #fbbf24);
+  padding-left: 8px;
+}
+
+.steer29-dialog {
+  border-width: 2px;
+  border-color: var(--accent, #60a5fa);
+}
+
+.steer29-touch .steer29-board-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 8px;
+  min-height: 52px;
+}
+
+.steer29-touch .steer29-board-item button {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.steer29-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+/* Reduced-motion guard: no transitions/animations anywhere in this suite. */
+@media (prefers-reduced-motion: reduce) {
+  .steer29-card *,
+  .steer29-gallery * {
+    transition: none;
+    animation: none;
+  }
+}
