@@ -19,14 +19,13 @@
 }
 
 /* Staggered entrance (original; reuses the global sg-card-in keyframes). */
-.sg-plugins-grid > * { animation: sg-card-in 0.42s var(--sg-ease) both; }
 .sg-plugins-grid > *:nth-child(2) { animation-delay: 0.06s; }
 .sg-plugins-grid > *:nth-child(3) { animation-delay: 0.12s; }
 .sg-plugins-grid > *:nth-child(n+4) { animation-delay: 0.18s; }
 
 .sg-plugin-card {
   display: flex; flex-direction: column; gap: var(--sg-1);
-  transition: border-color var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
+  transition: border-color var(--sg-fast);
 }
 .sg-plugin-card:hover {
   border-color: color-mix(in srgb, var(--sg-accent-2) 32%, transparent);
@@ -40,7 +39,7 @@
   border: 1px solid color-mix(in srgb, var(--sg-accent-2) 25%, transparent);
   color: var(--sg-cyan);
   margin-bottom: var(--sg-2);
-  transition: transform var(--sg-fast), box-shadow var(--sg-fast);
+  
 }
 /* Per-family identity: each family keeps its own accent wash. */
 .sg-plugin-icon[data-accent="cyan"] {
@@ -94,7 +93,6 @@
   transition: border-color var(--sg-fast), background var(--sg-fast);
 }
 .sg-plugin-cta:hover svg { transform: translateX(3px); }
-.sg-plugin-cta svg { transition: transform var(--sg-fast); }
 .sg-plugin-cta:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--sg-accent-2) 65%, transparent);
   outline-offset: 3px;

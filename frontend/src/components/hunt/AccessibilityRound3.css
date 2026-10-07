@@ -71,18 +71,9 @@
 }
 
 /* 50560 — new-card slide-in: 300ms ease-out + fading severity-tinted flash --- */
-@keyframes a11y3-slide-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes a11y3-severity-flash {
-  0% { box-shadow: 0 0 0 3px var(--a11y3-sev, #58a6ff); }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
+
 .a11y3-newcard {
-  animation:
-    a11y3-slide-in var(--a11y3-slide-ms, 300ms) ease-out,
-    a11y3-severity-flash 1200ms ease-out;
+  
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -239,7 +230,7 @@
 .a11y3-btn {
   background: #238636; border: 1px solid #2ea043; border-radius: var(--radius-sm); color: #fff;
   padding: 8px 16px; font: inherit; cursor: pointer; min-height: 44px;
-  transition: background var(--transition-fast), transform 80ms ease-in;
+  transition: background var(--transition-fast);
 }
 .a11y3-btn:hover { background: #2ea043; }
 .a11y3-btn:active { transform: scale(0.98); }
@@ -257,7 +248,7 @@
 }
 .a11y3-switch-knob::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
-  border-radius: 50%; background: #fff; transition: left 150ms ease-out;
+  border-radius: 50%; background: #fff; 
 }
 .a11y3-switch[aria-checked="true"] .a11y3-switch-knob { background: #238636; border-color: #2ea043; }
 .a11y3-switch[aria-checked="true"] .a11y3-switch-knob::after { left: 22px; }

@@ -12,12 +12,8 @@
 .toast-center { z-index: 20000; }
 
 /* 50770 — reduced-motion: toasts fade only, never slide. */
-@keyframes toast-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+
 @media (prefers-reduced-motion: reduce) {
-  .toast-card { animation: toast-fade 0.2s ease-out; }
   .toast-card * { transition: none !important; }
   .first-run-celebrate { animation: none; }
   .toast-progress-fill, .first-run-fill { transition: none !important; }
@@ -179,7 +175,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-md);
-  animation: toast-fade var(--transition-fast) ease-out;
+  
 }
 .notif-drawer-head {
   display: flex;
@@ -339,7 +335,7 @@
   color: var(--success);
   font-size: 13px;
   font-weight: 600;
-  animation: toast-fade 0.4s ease-out;
+  
 }
 .first-run-done {
   display: flex;

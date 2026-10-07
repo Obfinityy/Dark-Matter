@@ -38,9 +38,6 @@
 }
 .dm-chat-chip:focus-visible { background: rgba(16,185,129,0.24); }
 
-.dm-chat-send {
-  transition: transform var(--transition-fast, 0.15s ease), filter var(--transition-fast, 0.15s ease);
-}
 .dm-chat-send:hover:not(:disabled) { filter: brightness(1.08); }
 .dm-chat-send:active:not(:disabled) { transform: scale(0.96); }
 .dm-chat-send:disabled { opacity: 0.45; cursor: not-allowed; }

@@ -44,8 +44,6 @@ import { getBackendUrl } from '../../services/backendMode';
 import { Avatar } from '../../components/fx/Avatar';
 import { BrainGate } from '../../components/BrainGate';
 import { CrewPanel } from '../../components/agent/CrewPanel';
-import { DecryptedText } from '../../components/fx/DecryptedText';
-import { DarkVeil } from '../../components/fx/DarkVeil';
 import { speak, isVoiceReady } from '../../services/voice';
 import { MicButton, VoiceModeToggle } from '../../components/agent/VoiceInput';
 import { useVoiceConversation } from '../../hooks/useVoiceConversation';
@@ -1102,12 +1100,11 @@ export function InfinityAI() {
 
   return (
     <div className="inf-new">
-      <DarkVeil intensity={0.7} />
 
       {/* Top bar: title + backend badge + panel toggle */}
       <div className="inf-topbar">
         <div className="inf-topbar-main">
-          <DecryptedText text="Infinity AI" className="inf-title" as="h2" />
+          <h2 className="inf-title">Infinity AI</h2>
           <p className="inf-subtitle">{active.hint}</p>
         </div>
         <div className="inf-topbar-actions">

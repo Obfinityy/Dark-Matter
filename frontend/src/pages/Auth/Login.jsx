@@ -54,16 +54,16 @@ export function Login() {
       <aside className="sg-auth-brand">
         <div className="sg-auth-brand-inner">
           <Logo size={44} withWordmark />
-          <h1 className="sg-display sg-fade-up">
+          <h1 className="sg-display">
             The agent that finds what<br />others <span className="sg-gradient-text">can't see.</span>
           </h1>
-          <p className="sg-body sg-fade-up sg-fade-up-1 sg-auth-lede">
+          <p className="sg-body sg-auth-lede">
             Infinity AI is an autonomous security agent. Point it at a target and it
             hunts: recon, analysis, proof - while you watch it think.
           </p>
           <div className="sg-auth-proofs">
-            {PROOFS.map(({ icon: Icon, title, text }, i) => (
-              <div key={title} className={`sg-auth-proof sg-fade-up sg-fade-up-${i + 2}`}>
+            {PROOFS.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="sg-auth-proof">
                 <span className="sg-auth-proof-icon"><Icon size={18} strokeWidth={1.8} /></span>
                 <div>
                   <div className="sg-h3 sg-auth-proof-title">{title}</div>
@@ -85,7 +85,7 @@ export function Login() {
 
       {/* Form panel */}
       <main className="sg-auth-form-wrap">
-        <div className="sg-auth-card sg-card sg-fade-up">
+        <div className="sg-auth-card sg-card">
           <div className="sg-auth-mobile-brand"><Logo size={38} withWordmark /></div>
 
           <div className="sg-auth-tabs" role="tablist" aria-label="Sign in or create account">

@@ -1,24 +1,4 @@
 /* ════════════════ POLISH PASS — CrewPanel / CvssBadge / DedupBanner ════════════════
- *
- * Design notes (5 Oct 2026):
- * - CrewPanel: emoji glyphs in run events clashed with the lucide design
- *   language -> icon rows; crew cards had no entrance/active feedback and the
- *   delete chip was a 17px tap target.
- * - CvssBadge: low/informational severities rendered as bare neutral pills
- *   with no hierarchy and no accessible label.
- * - DedupBanner: 27px close target, no entrance animation, cramped at 390px.
- *
- * Polish only: no behaviour changes, no mock UI, no new dependencies.
- */
-
-/* ── Shared entrance ── */
-@keyframes dm-polish-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
-
-/* ── Dedup banner ── */
-.dm-dedup-banner { animation: dm-polish-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .dm-dedup-close {
   top: 6px; right: 6px; padding: 14px; min-width: 44px; min-height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -36,10 +16,9 @@
 }
 
 /* ── CVSS badge: dot breathing for the critical pill only ── */
-.sg-pill-danger .dot { animation: sg-pulse 2s infinite; } /* keyframes live in singularity.css */
+/* keyframes live in singularity.css */
 
 /* ── CrewPanel: staggered card entrance ── */
-.sg-crew-card-enter { animation: dm-polish-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .sg-crew-card:active { transform: scale(0.985); }
 .sg-crew-card .sg-chip-x {
   min-width: 40px; min-height: 40px; border-radius: 10px;
@@ -57,7 +36,6 @@
 .sg-crew-thinking svg,
 .sg-crew-notice svg,
 .sg-crew-obs summary svg { flex: 0 0 auto; }
-.sg-crew-thinking { animation: sg-pulse 2.2s ease-in-out infinite; }
 .sg-crew-empty-events {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 34px 12px; color: var(--sg-text-3);

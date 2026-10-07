@@ -30,7 +30,7 @@
 .sg-empty-state {
   text-align: center; padding: 80px 20px; color: var(--sg-text-3);
   border: 1px dashed var(--sg-line); border-radius: var(--sg-r-lg);
-  animation: sg-card-in 0.45s var(--sg-ease) both;
+  
 }
 .sg-empty-state svg { margin-bottom: 16px; opacity: 0.5; }
 .sg-empty-state p { margin: 0 0 22px; font-size: 0.95rem; }
@@ -40,7 +40,6 @@
   display: flex; flex-direction: column; gap: 14px;
 }
 /* Staggered entrance (reuses the global sg-card-in keyframes). */
-.sg-record-list > li { animation: sg-card-in 0.4s var(--sg-ease) both; }
 .sg-record-list > li:nth-child(2) { animation-delay: 0.05s; }
 .sg-record-list > li:nth-child(3) { animation-delay: 0.1s; }
 .sg-record-list > li:nth-child(4) { animation-delay: 0.15s; }
@@ -48,7 +47,7 @@
 
 .sg-record-card {
   display: block; text-decoration: none; color: inherit;
-  transition: border-color var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
+  transition: border-color var(--sg-fast);
 }
 .sg-record-card:hover {
   border-color: rgba(129, 140, 248, 0.32);
@@ -86,7 +85,7 @@
   border: 1px solid var(--sg-line-soft); border-left: 3px solid var(--sg-indigo);
   border-radius: var(--sg-r-md); padding: 14px 16px; margin-bottom: 24px;
   background: rgba(129, 140, 248, 0.06); color: var(--sg-text-2); font-size: 0.88rem; line-height: 1.6;
-  animation: sg-fade-up 0.5s var(--sg-ease) both; animation-delay: 0.1s;
+   animation-delay: 0.1s;
 }
 .sg-notice svg { flex-shrink: 0; margin-top: 2px; color: var(--sg-indigo); }
 

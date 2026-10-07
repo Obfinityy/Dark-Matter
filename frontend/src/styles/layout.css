@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  transition: transform 0.3s ease, width 0.3s ease;
+  
   position: relative;
   z-index: 100;
 }
@@ -723,7 +723,6 @@
   margin-top: 24px;
 }
 
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .chat-sidebar {
@@ -1265,7 +1264,7 @@
   background-image: linear-gradient(rgba(57, 216, 255, 0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(57, 216, 255, 0.11) 1px, transparent 1px);
   background-size: 34px 34px;
   mask-image: linear-gradient(90deg, transparent, black 25%, black 86%, transparent);
-  animation: heroGridShift 16s linear infinite;
+  
 }
 
 .hero-orbit {
@@ -1281,7 +1280,7 @@
   width: 76%;
   height: 58%;
   transform: rotate(-26deg);
-  animation: heroOrbitDrift 18s ease-in-out infinite alternate;
+  
 }
 
 .hero-orbit-two {
@@ -1291,7 +1290,7 @@
   height: 34%;
   border-color: rgba(230, 77, 255, 0.32);
   transform: rotate(20deg);
-  animation: heroOrbitDrift 22s ease-in-out -7s infinite alternate-reverse;
+  
 }
 
 .hero-reticle {
@@ -1303,7 +1302,7 @@
   border: 1px solid rgba(230, 77, 255, 0.55);
   border-radius: 50%;
   box-shadow: 0 0 0 18px rgba(230, 77, 255, 0.04), 0 0 35px rgba(230, 77, 255, 0.22);
-  animation: heroReticleSpin 18s linear infinite;
+  
 }
 
 .hero-reticle::before,
@@ -1402,7 +1401,7 @@
   height: 28%;
   background: var(--accent);
   box-shadow: 0 0 10px rgba(57, 216, 255, 0.5);
-  animation: heroSignalPulse 1.8s ease-in-out infinite alternate;
+  
 }
 
 .hero-signal-lines span:nth-child(2) { height: 62%; animation-delay: -0.3s; background: var(--accent-secondary); }
@@ -1417,34 +1416,11 @@
   background: var(--accent-secondary);
   box-shadow: 0 0 12px var(--accent-secondary);
   transform-origin: left center;
-  animation: heroTraceSweep 8s ease-in-out infinite alternate;
+  
 }
 
 .hero-trace-one { top: 18%; right: 3%; width: 38%; transform: rotate(24deg); }
 .hero-trace-two { bottom: 27%; left: 16%; width: 34%; background: var(--accent); box-shadow: 0 0 12px var(--accent); transform: rotate(-18deg); animation-delay: -3s; }
-
-@keyframes heroGridShift {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(34px, 34px, 0); }
-}
-
-@keyframes heroOrbitDrift {
-  from { transform: rotate(-26deg) translate3d(-8px, 5px, 0); }
-  to { transform: rotate(-18deg) translate3d(12px, -8px, 0); }
-}
-
-@keyframes heroReticleSpin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes heroSignalPulse {
-  to { opacity: 0.55; transform: scaleY(0.72); }
-}
-
-@keyframes heroTraceSweep {
-  from { opacity: 0.34; transform: rotate(24deg) translateX(-8px); }
-  to { opacity: 0.9; transform: rotate(18deg) translateX(20px); }
-}
 
 @media (max-width: 768px) {
   .chat-empty-state {

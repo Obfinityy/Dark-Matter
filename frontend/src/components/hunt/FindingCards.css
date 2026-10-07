@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: 10px;
   box-shadow: var(--shadow-sm);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 .fc-card:hover { border-color: var(--text-muted); box-shadow: var(--shadow-md); }
 /* 50134 — keyboard focus ring, visually distinct from hover */
@@ -41,12 +41,7 @@
 .fc-selected { border-color: #8b5cf6; }
 
 /* 50155 new-card entrance */
-.fc-new-card { animation: fc-enter 0.5s ease; }
-@keyframes fc-enter {
-  0% { transform: translateY(-14px); opacity: 0; box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.35); }
-  60% { box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
-  100% { transform: none; opacity: 1; box-shadow: none; }
-}
+
 .fc-select { position: absolute; top: 12px; left: 12px; width: 18px; height: 18px; accent-color: #8b5cf6; cursor: pointer; }
 
 /* 50121 header */
@@ -94,7 +89,7 @@
   transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 .fc-chevron:hover { border-color: #8b5cf6; color: var(--text-primary); }
-.fc-chevron span { display: inline-block; transition: transform 0.25s ease; }
+.fc-chevron span { display: inline-block;  }
 .fc-chevron.fc-open span { transform: rotate(180deg); }
 
 /* 50135 hover-reveal actions with focus-visible fallback */
@@ -152,7 +147,6 @@
   display: flex; align-items: center; justify-content: center;
   font-style: normal; font-size: 13px; font-weight: 800; color: var(--text-primary);
 }
-.fc-dial-fill { transition: stroke-dashoffset 0.5s ease; }
 
 /* 50128 evidence thumbs */
 .fc-ev-thumbs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -246,9 +240,9 @@
   background: var(--bg-tertiary); border: 1px solid #8b5cf6;
   border-radius: var(--radius-md); padding: 10px 14px;
   box-shadow: var(--shadow-md);
-  animation: fc-bulk-in 0.25s ease;
+  
 }
-@keyframes fc-bulk-in { from { transform: translate(-50%, 12px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
 .fc-bulkbar-count { font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
 .fc-bulkbar button {
   background: var(--surface-active); border: 1px solid var(--border); color: var(--text-primary);

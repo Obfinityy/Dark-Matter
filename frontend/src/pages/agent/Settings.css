@@ -17,7 +17,6 @@
 .sg-settings-sec-title { margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
 
 /* Staggered entrance: page header, then each section. */
-.sg-settings > * { animation: sg-fade-up 0.5s var(--sg-ease) both; }
 .sg-settings > *:nth-child(2) { animation-delay: 0.06s; }
 .sg-settings > *:nth-child(3) { animation-delay: 0.12s; }
 .sg-settings > *:nth-child(4) { animation-delay: 0.18s; }
@@ -34,7 +33,7 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--sg-line-soft); color: var(--sg-text);
   font-family: var(--sg-sans);
-  transition: border-color var(--sg-fast), background var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
+  transition: border-color var(--sg-fast), background var(--sg-fast);
 }
 .sg-backend-opt:hover { border-color: var(--sg-line); transform: translateY(-2px); }
 .sg-backend-opt:focus-visible {
@@ -84,11 +83,10 @@
   display: block; height: 16px; border-radius: 99px;
   background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.11) 50%, rgba(255,255,255,0.05) 75%);
   background-size: 200% 100%;
-  animation: sg-shimmer 1.4s linear infinite;
+  
 }
 .sg-brain-skeleton span:nth-child(1) { width: 55%; }
 .sg-brain-skeleton span:nth-child(2) { width: 80%; }
-@keyframes sg-shimmer { to { background-position: -200% 0; } }
 
 .sg-brain-info p { margin: 0 0 8px; }
 .sg-brain-info strong { color: var(--sg-cyan); }

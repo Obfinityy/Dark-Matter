@@ -12,7 +12,7 @@
   pointer-events: auto; background: #0d1420; border: 1px solid #2a3b55;
   border-left: 4px solid #4da3ff; border-radius: 10px; padding: 12px 14px;
   color: #dbe4f0; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  animation: toast-in 0.22s ease-out;
+  
 }
 .toast-persistent { border-left-width: 5px; }
 .toast-requires-ack { background: #141021; }
@@ -42,10 +42,6 @@
 }
 .toast-more:hover { color: #dbe4f0; border-color: #4da3ff; }
 
-@keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 @media (prefers-reduced-motion: reduce) {
   .toast-card { animation: none; }
 }

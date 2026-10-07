@@ -214,11 +214,11 @@ a.dw2-widget-title:focus-visible {
 }
 .dw2-ticker-track {
   display: inline-flex; gap: 32px; padding-left: 16px;
-  animation: dw2-ticker-scroll 40s linear infinite;
+  
 }
 .dw2-ticker:hover .dw2-ticker-track { animation-play-state: paused; }
 .dw2-ticker-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary); }
-@keyframes dw2-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
 @media (prefers-reduced-motion: reduce) { .dw2-ticker-track { animation: none; } }
 
 /* 50748 */

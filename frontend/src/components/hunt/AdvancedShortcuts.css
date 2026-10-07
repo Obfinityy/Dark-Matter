@@ -19,10 +19,7 @@
 }
 
 /* ── Typing guard toast ─────────────────────────────────────────────────── */
-@keyframes adv-guard-in {
-  from { opacity: 0; transform: translate(-50%, 8px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
+
 .adv-typing-guard {
   position: fixed;
   bottom: 12px;
@@ -39,7 +36,7 @@
   line-height: 1.45;
   z-index: 9000;
   box-shadow: var(--shadow-md);
-  animation: adv-guard-in 0.25s ease backwards;
+  
 }
 
 .adv-f6 {
@@ -70,23 +67,19 @@
 }
 
 /* ── Remap dialog ───────────────────────────────────────────────────────── */
-@keyframes adv-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes adv-pop {
-  from { opacity: 0; transform: scale(0.97) translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
+
 .adv-remap-backdrop {
   position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
   display: flex; align-items: center; justify-content: center; z-index: 9500;
   padding: 16px;
-  animation: adv-backdrop-in 0.2s ease backwards;
+  
 }
 .adv-remap {
   background: var(--adv-bg); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: var(--radius-lg);
   padding: 20px; width: min(560px, 100%); max-height: 80vh; overflow: auto;
   box-shadow: var(--shadow-md);
-  animation: adv-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  
 }
 .adv-remap h2 { margin: 0 0 4px; font-size: 16px; }
 .adv-remap-conflicts p { color: var(--warning); margin: 6px 0; font-size: 13px; line-height: 1.5; }
@@ -150,7 +143,7 @@
   background: var(--adv-surface); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer;
   font-size: 13px;
-  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 .adv-numbered button:hover { border-color: var(--adv-accent); background: var(--surface-hover); transform: translateY(-1px); }
 .adv-numbered button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
@@ -167,7 +160,7 @@
   background: var(--adv-surface); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 10px; min-width: 220px;
   font-size: 13px;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 .adv-hunt-target input:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
 .adv-hunt-target input:focus { border-color: var(--adv-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--adv-accent) 20%, transparent); }
@@ -192,7 +185,7 @@
   border: 1px solid var(--adv-border); border-radius: var(--radius-lg);
   padding: 20px; max-width: 420px; width: 100%;
   box-shadow: var(--shadow-md);
-  animation: adv-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  
 }
 .adv-tour h2, .adv-onboarding h2 { margin: 0 0 8px; font-size: 16px; }
 .adv-tour p, .adv-onboarding p { margin: 0 0 8px; font-size: 13px; line-height: 1.55; }

@@ -16,7 +16,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 .ob-btn:active { transform: translateY(1px); }
 .ob-btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -128,13 +128,9 @@
 
 .ob-pulse-demo {
   display: inline-block;
-  animation: ob-pulse 1.6s ease-in-out infinite;
+  
   font-weight: 700;
   color: #fff;
-}
-@keyframes ob-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
 }
 
 .ob-did-you-know {
@@ -259,12 +255,9 @@
   background: linear-gradient(135deg, rgba(109, 92, 255, 0.18), rgba(31, 157, 99, 0.14));
   border: 1px solid rgba(109, 92, 255, 0.4);
   text-align: center;
-  animation: ob-pop 420ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  
 }
-@keyframes ob-pop {
-  from { transform: scale(0.92); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
+
 .ob-celebration-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px; }
 .ob-celebration-body { font-size: 13px; color: #b9bdd2; margin: 0 0 10px; }
 
@@ -307,7 +300,7 @@
   color: #4a4e68;
   cursor: pointer;
   padding: 2px;
-  transition: color 120ms ease, transform 120ms ease;
+  transition: color 120ms ease;
 }
 .ob-star:hover { transform: scale(1.15); }
 .ob-star-on { color: #ffc531; }

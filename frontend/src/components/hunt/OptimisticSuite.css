@@ -181,14 +181,9 @@
 .opt-skeleton {
   background: linear-gradient(90deg, #16233a 25%, #22344f 50%, #16233a 75%);
   background-size: 200% 100%;
-  animation: opt-shimmer 1.4s infinite linear;
+  
   border-radius: 4px;
   margin: 0.35rem 0;
-}
-
-@keyframes opt-shimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
 }
 
 .opt-spinner {
@@ -209,7 +204,7 @@
   border-radius: 8px;
   background: linear-gradient(90deg, transparent 25%, rgba(147, 197, 253, 0.12) 50%, transparent 75%);
   background-size: 200% 100%;
-  animation: opt-shimmer 1.6s infinite linear;
+  
   pointer-events: none;
 }
 
@@ -220,14 +215,6 @@
 }
 
 /* 50930/50948 — pending optimistic rows pulse gently */
-.opt-pending {
-  animation: opt-pulse 1.2s infinite ease-in-out;
-}
-
-@keyframes opt-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
-}
 
 /* 50956/50959 — undo toast */
 .opt-undo-toast {

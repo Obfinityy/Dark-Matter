@@ -36,7 +36,7 @@
   top: -27vw;
   border-radius: 45%;
   box-shadow: 0 0 0 22px rgba(57, 216, 255, 0.035), 0 0 0 46px rgba(230, 77, 255, 0.025);
-  animation: authSignalDrift 18s ease-in-out infinite alternate;
+  
 }
 
 .auth-signal-two {
@@ -46,7 +46,7 @@
   bottom: -22vw;
   border-radius: 38%;
   border-color: rgba(230, 77, 255, 0.18);
-  animation: authSignalDrift 22s ease-in-out -6s infinite alternate-reverse;
+  
 }
 
 .auth-showcase {
@@ -257,7 +257,7 @@
   border-radius: 7px;
   color: var(--text-muted);
   font-size: 0.77rem;
-  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+  transition: background var(--transition), color var(--transition);
 }
 
 .auth-switch button:hover,
@@ -295,7 +295,7 @@
   border-radius: 9px;
   background: rgba(6, 9, 14, 0.52);
   color: var(--text-muted);
-  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+  transition: border-color var(--transition), background var(--transition);
 }
 
 .auth-input-wrap:focus-within {
@@ -400,7 +400,7 @@
   color: #061018;
   font-size: 0.84rem;
   font-weight: 800;
-  transition: background var(--transition), box-shadow var(--transition), transform var(--transition);
+  transition: background var(--transition);
 }
 
 .auth-submit:hover {
@@ -447,11 +447,6 @@
   color: var(--text-muted);
   font-size: 0.65rem;
   line-height: 1.55;
-}
-
-@keyframes authSignalDrift {
-  from { transform: rotate(-28deg) translate3d(-10px, 6px, 0); }
-  to { transform: rotate(-20deg) translate3d(22px, -12px, 0); }
 }
 
 @media (max-width: 900px) {

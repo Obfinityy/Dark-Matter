@@ -32,7 +32,7 @@
     rgba(34, 211, 238, 0) 66%,
     rgba(34, 211, 238, 0) 100%
   );
-  animation: eb-spin 3s linear infinite;
+  
   filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.5));
 }
 
@@ -43,10 +43,6 @@
   syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
-}
-
-@keyframes eb-spin {
-  to { --eb-angle: 360deg; }
 }
 
 .eb-inner {

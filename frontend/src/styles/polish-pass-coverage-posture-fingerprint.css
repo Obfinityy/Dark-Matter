@@ -21,8 +21,8 @@
 }
 .sg-coverage-count { font-size: 0.74rem; color: var(--sg-text-3); }
 .sg-coverage-cats .sg-pill-info {
-  transition: transform var(--sg-fast), border-color var(--sg-fast), background var(--sg-fast);
-  animation: dm-polish-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transition: border-color var(--sg-fast), background var(--sg-fast);
+  
   cursor: default;
 }
 .sg-coverage-cats .sg-pill-info:hover {
@@ -53,18 +53,18 @@
  * joined text; loading state is honest instead of silent. */
 .sg-posture {
   display: flex; align-items: center; gap: 12px;
-  animation: dm-polish-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  
 }
 .sg-posture-ringwrap {
   position: relative; width: 64px; height: 64px; flex: 0 0 auto;
-  transition: transform var(--sg-fast);
+  
 }
 .sg-posture:hover .sg-posture-ringwrap { transform: scale(1.04); }
 .sg-posture-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .sg-posture-track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 6; }
 .sg-posture-arc {
   fill: none; stroke-width: 6; stroke-linecap: round;
-  transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.3s ease;
+  
 }
 .sg-posture-score {
   position: absolute; inset: 0;
@@ -109,11 +109,6 @@
   background: rgba(255, 255, 255, 0.07);
 }
 .sg-posture-skel-line + .sg-posture-skel-line { width: 64px; margin-top: 5px; }
-.sg-posture-skel-ring, .sg-posture-skel-line { animation: dm-posture-shimmer 1.4s ease-in-out infinite; }
-@keyframes dm-posture-shimmer {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .sg-posture { animation: none; }
@@ -136,8 +131,8 @@
   font-variant-numeric: tabular-nums;
 }
 .dm-fingerprint-grid > div {
-  animation: dm-polish-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease;
+  
+  transition: border-color 0.18s ease;
 }
 .dm-fingerprint-grid > div:hover { transform: translateY(-2px); border-color: var(--dm-border); }
 .dm-fingerprint-grid > div:nth-child(2) { animation-delay: 50ms; }
@@ -147,8 +142,7 @@
 .dm-fingerprint-grid > div:nth-child(6) { animation-delay: 250ms; }
 .dm-fingerprint-objective-cell { grid-column: 1 / -1; }
 .dm-tech-chip {
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s ease,
-              border-color 0.18s ease, box-shadow 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease;
   cursor: default;
 }
 .dm-tech-chip:hover {
@@ -164,8 +158,7 @@
   color: #93c5fd;
   padding: 3px 10px; border-radius: 999px;
   font-variant-numeric: tabular-nums;
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease,
-              background 0.18s ease;
+  transition: border-color 0.18s ease, background 0.18s ease;
   cursor: default;
 }
 .dm-port-chip:hover {

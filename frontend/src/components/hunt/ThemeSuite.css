@@ -117,8 +117,7 @@
 .th-fading *,
 .th-fading *::before,
 .th-fading *::after {
-  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease,
-    box-shadow 250ms ease, fill 250ms ease, stroke 250ms ease, outline-color 250ms ease !important;
+  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -802,7 +801,7 @@
   flex: none;
   background: linear-gradient(100deg, var(--th-skel-base) 40%, var(--th-skel-shimmer) 50%, var(--th-skel-base) 60%);
   background-size: 200% 100%;
-  animation: th-shimmer 1.6s linear infinite;
+  
 }
 
 .th-skeleton-lines {
@@ -818,16 +817,11 @@
   border-radius: 6px;
   background: linear-gradient(100deg, var(--th-skel-base) 40%, var(--th-skel-shimmer) 50%, var(--th-skel-base) 60%);
   background-size: 200% 100%;
-  animation: th-shimmer 1.6s linear infinite;
+  
 }
 
 .th-skeleton-line.th-short {
   width: 60%;
-}
-
-@keyframes th-shimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
 }
 
 /* ---- Code block -------------------------------------------------------------- */

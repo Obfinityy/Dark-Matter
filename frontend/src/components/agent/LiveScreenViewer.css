@@ -1,19 +1,4 @@
 /**
- * LiveScreenViewer.css — co-located polish layer for LiveScreenViewer.jsx.
- *
- * Additive only: the base .dm-screen-* rules live in styles/agent.css and are
- * never overridden here — this file adds entrance motion, focus visibility,
- * spacing rhythm, and small-screen layout refinements. The viewer stays a
- * read-only, non-clickable live view (pointer events stay disabled on the
- * frame per agent.css).
- */
-
-/* Gentle mount entrance — the viewer fades in when it appears. */
-@keyframes lsv-viewer-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.dm-screen-viewer { animation: lsv-viewer-in 240ms ease-out; }
 
 /* The title is a real h2 for landmark semantics; reset its default margin so
    the head row rhythm from agent.css is preserved. */

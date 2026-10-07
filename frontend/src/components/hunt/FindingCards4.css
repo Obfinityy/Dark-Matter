@@ -38,7 +38,7 @@
   padding: 16px 18px;
   display: flex; flex-direction: column; gap: 12px;
   color: var(--fc4-text);
-  animation: fc4-rise 0.3s ease backwards;
+  
 }
 
 .fc4-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -67,7 +67,7 @@
 /* switches (50181 unreviewed, 50194 chained, 50190 evidence) */
 .fc4-switch { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; padding: 4px; cursor: pointer; color: var(--fc4-muted); font-size: 12px; font-weight: 600; }
 .fc4-switch-track { width: 34px; height: 19px; border-radius: 999px; background: var(--fc4-line-strong); border: 1px solid var(--fc4-line-strong); position: relative; transition: background 0.2s ease; flex-shrink: 0; }
-.fc4-switch-thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--fc4-muted); transition: transform 0.2s ease, background 0.2s ease; }
+.fc4-switch-thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--fc4-muted); transition: background 0.2s ease; }
 .fc4-switch.fc4-on .fc4-switch-track { background: color-mix(in srgb, var(--fc4-accent) 40%, transparent); border-color: var(--fc4-accent); }
 .fc4-switch.fc4-on .fc4-switch-thumb { transform: translateX(15px); background: var(--fc4-accent-soft); }
 .fc4-switch-sm .fc4-switch-track { width: 30px; height: 17px; }
@@ -86,7 +86,7 @@
   font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--fc4-sev); background: var(--fc4-inset); border: 1px solid var(--fc4-line-strong);
   border-radius: 999px; padding: 5px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
-  transition: border-color var(--fc4-t-fast), background var(--fc4-t-fast), box-shadow var(--fc4-t-fast);
+  transition: border-color var(--fc4-t-fast), background var(--fc4-t-fast);
 }
 .fc4-sev-chip:hover { border-color: var(--fc4-sev); }
 .fc4-sev-chip.fc4-active { border-color: var(--fc4-sev); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fc4-sev) 25%, transparent); background: var(--fc4-raised); }
@@ -134,7 +134,7 @@
 
 /* active filter pills (50184) */
 .fc4-pills { display: flex; gap: 8px; flex-wrap: wrap; }
-.fc4-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--fc4-muted); background: var(--fc4-raised); border: 1px solid var(--fc4-line-strong); border-radius: 999px; padding: 5px 6px 5px 12px; animation: fc4-pop 0.18s ease backwards; }
+.fc4-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--fc4-muted); background: var(--fc4-raised); border: 1px solid var(--fc4-line-strong); border-radius: 999px; padding: 5px 6px 5px 12px;  }
 .fc4-pill-x { background: none; border: none; color: var(--fc4-muted); cursor: pointer; font-size: 10px; padding: 3px 7px; border-radius: 50%; }
 .fc4-pill-x:hover { color: #f87171; background: color-mix(in srgb, var(--fc4-danger) 12%, transparent); }
 
@@ -150,7 +150,7 @@
   background: var(--fc4-panel); border: 1px dashed var(--fc4-line-strong);
   border-radius: var(--fc4-radius-lg); padding: 36px 24px; text-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--fc4-muted);
-  animation: fc4-rise 0.3s ease backwards;
+  
 }
 .fc4-empty-icon { font-size: 34px; color: var(--fc4-faint); }
 .fc4-empty h3 { margin: 0; font-size: 15px; color: var(--fc4-text); }
@@ -179,8 +179,6 @@
 .fc4-share:active { transform: translateY(1px); }
 
 /* entrance keyframes */
-@keyframes fc4-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@keyframes fc4-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 
 /* small screens: stack, widen targets, stop iOS zoom */
 @media (max-width: 768px) {

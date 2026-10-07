@@ -10,12 +10,7 @@
   border-radius: var(--sg-radius);
   overflow: hidden;
   background: var(--sg-surface);
-  animation: sg-brainchat-in 0.3s var(--sg-ease) both;
-}
-
-@keyframes sg-brainchat-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+  
 }
 
 .brain-chat-head {
@@ -52,12 +47,7 @@
 
 .brain-chat-msg {
   display: flex;
-  animation: sg-brainchat-msg-in 0.25s var(--sg-ease) both;
-}
-
-@keyframes sg-brainchat-msg-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
+  
 }
 
 .brain-chat-msg-user {
@@ -111,7 +101,7 @@
   color: var(--sg-text);
   font-size: 14px;
   font-family: var(--sg-font);
-  transition: border-color var(--sg-fast), box-shadow var(--sg-fast);
+  transition: border-color var(--sg-fast);
 }
 
 .brain-chat-input input::placeholder { color: var(--sg-muted); }

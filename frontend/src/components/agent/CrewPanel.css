@@ -1,25 +1,4 @@
 /**
- * CrewPanel.css — polish batch 7 (co-located, loaded after the shared
- * InfinityAI styles). Token-driven radius/shadow/motion from the design
- * tokens, entrance animations, 390px layout fixes, 44px touch targets and
- * reduced-motion support. No behavior changes.
- */
-
-/* ── Entrance motion ───────────────────────────────────────────────────── */
-@keyframes crew-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes crew-row-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
-.sg-crew-chat { animation: crew-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-.sg-crew-form { animation: crew-rise 0.3s ease backwards; }
-.sg-crew-empty { animation: crew-rise 0.3s ease backwards; }
-.sg-crew-msg, .sg-crew-notice, .sg-crew-action, .sg-crew-thinking, .sg-crew-row {
-  animation: crew-row-in 0.25s ease backwards;
-}
 
 /* ── Card depth (token radius + shadow) ────────────────────────────────── */
 .sg-crew-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }

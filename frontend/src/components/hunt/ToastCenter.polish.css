@@ -81,7 +81,7 @@
   color: var(--text-primary);
   border-radius: var(--radius-sm);
   min-height: 34px;
-  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 .toast-action:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-hover); }
 .toast-action:active:not(:disabled) { transform: translateY(1px); }

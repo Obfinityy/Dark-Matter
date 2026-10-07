@@ -3,12 +3,7 @@
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: var(--shadow-md);
-  animation: avatar-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-}
-
-@keyframes avatar-enter {
-  from { opacity: 0; transform: scale(0.94); }
-  to { opacity: 1; transform: scale(1); }
+  
 }
 
 .avatar-svg {
@@ -21,106 +16,27 @@
 /* Gentle breathing */
 .avatar-head {
   transform-origin: 100px 110px;
-  animation: avatar-breathe 4s ease-in-out infinite;
-}
-
-@keyframes avatar-breathe {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-2px) scale(1.008); }
+  
 }
 
 /* Thinking: eyes drift, head tilts slightly */
-.avatar-thinking .avatar-head {
-  animation: avatar-think 3s ease-in-out infinite;
-}
-
-.avatar-thinking .avatar-pupil {
-  animation: avatar-look 2.4s ease-in-out infinite;
-}
-
-@keyframes avatar-think {
-  0%, 100% { transform: rotate(-2deg) translateY(0); }
-  50% { transform: rotate(2deg) translateY(-3px); }
-}
-
-@keyframes avatar-look {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-3px); }
-  75% { transform: translateX(3px); }
-}
 
 /* Speaking: subtle bounce */
-.avatar-speaking .avatar-head {
-  animation: avatar-speak-bounce 0.5s ease-in-out infinite;
-}
-
-@keyframes avatar-speak-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-1.5px); }
-}
 
 /* ── Emotions (CSS/SVG only — never emoji) ──────────────────────────────
-   The `emotion` prop adds an `avatar-emotion-<mood>` class. Facial geometry
-   (brows, eyes, mouth, aura color) is set inline in Avatar.jsx; these rules
-   add the motion cue per emotion. */
-
-/* Happy: warm, lively bounce layered over breathing */
-.avatar-emotion-happy .avatar-head {
-  animation: avatar-happy-bounce 2.2s ease-in-out infinite;
-}
-
-@keyframes avatar-happy-bounce {
-  0%, 100% { transform: translateY(0) scale(1); }
-  30% { transform: translateY(-4px) scale(1.012); }
-  60% { transform: translateY(-1px) scale(1.004); }
-}
 
 /* Angry: slow, tense side-to-side sway */
-.avatar-emotion-angry .avatar-head {
-  animation: avatar-angry-sway 1.6s ease-in-out infinite;
-}
-
-@keyframes avatar-angry-sway {
-  0%, 100% { transform: translateX(0) rotate(0deg); }
-  25% { transform: translateX(-2.5px) rotate(-0.8deg); }
-  75% { transform: translateX(2.5px) rotate(0.8deg); }
-}
 
 /* Surprised: one quick pop when the emotion lands */
-.avatar-emotion-surprised .avatar-head {
-  animation: avatar-surprise-pop 0.55s ease-out;
-}
-
-@keyframes avatar-surprise-pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.06) translateY(-3px); }
-  100% { transform: scale(1); }
-}
 
 /* Thinking: keep the existing thoughtful drift (defined above) */
-.avatar-emotion-thinking.avatar-thinking .avatar-head {
-  animation: avatar-think 3s ease-in-out infinite;
-}
 
 /* Listening: lean in */
-.avatar-listening .avatar-head {
-  animation: avatar-listen 2s ease-in-out infinite;
-}
-
-@keyframes avatar-listen {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); }
-}
 
 /* Aura pulse */
 .avatar-aura {
   transform-origin: 100px 100px;
-  animation: avatar-aura 3s ease-in-out infinite;
-}
-
-@keyframes avatar-aura {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.04); opacity: 1; }
+  
 }
 
 /* State ring */
@@ -130,16 +46,12 @@
   border-radius: 50%;
   border: 2px solid transparent;
   pointer-events: none;
-  transition: border-color 0.4s ease;
+  
 }
 
 .avatar-state-speaking { border-color: rgba(34, 211, 238, 0.6); }
-.avatar-state-thinking { border-color: rgba(139, 92, 246, 0.6); animation: avatar-ring-spin 4s linear infinite; }
+.avatar-state-thinking { border-color: rgba(139, 92, 246, 0.6);  }
 .avatar-state-listening { border-color: rgba(52, 211, 153, 0.5); }
-
-@keyframes avatar-ring-spin {
-  to { transform: rotate(360deg); border-top-color: rgba(217, 70, 239, 0.8); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .avatar, .avatar-head, .avatar-aura, .avatar-pupil, .avatar-state-ring { animation: none; }

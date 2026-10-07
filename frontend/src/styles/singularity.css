@@ -103,7 +103,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   font-family: var(--sg-sans); font-weight: 600; font-size: 1rem;
   padding: 14px 28px; border-radius: 8px; border: 1px solid transparent;
-  cursor: pointer; transition: transform var(--sg-fast), box-shadow var(--sg-fast), background var(--sg-fast);
+  cursor: pointer; transition: background var(--sg-fast);
   white-space: nowrap; text-decoration: none;
 }
 .sg-btn:active { transform: scale(0.98); }
@@ -131,7 +131,7 @@
   padding: 20px; /* default padding — no more content touching borders */
 }
 .sg-card-pad { padding: 28px; }
-.sg-card-hover { transition: border-color var(--sg-fast), transform var(--sg-fast); }
+.sg-card-hover { transition: border-color var(--sg-fast); }
 .sg-card-hover:hover { border-color: rgba(129, 140, 248, 0.3); transform: translateY(-2px); }
 
 /* ── Model card grids (responsive, breathing room) ── */
@@ -145,11 +145,7 @@
 .sg-model-grid-heavy .sg-card { border-style: dashed; }
 
 /* ── Card entrance animation (original, subtle) ── */
-@keyframes sg-card-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.sg-model-grid > * { animation: sg-card-in 0.35s ease both; }
+
 .sg-model-grid > *:nth-child(2) { animation-delay: 0.04s; }
 .sg-model-grid > *:nth-child(3) { animation-delay: 0.08s; }
 .sg-model-grid > *:nth-child(4) { animation-delay: 0.12s; }
@@ -164,7 +160,7 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--sg-line); border-radius: 8px;
   padding: 16px 20px; outline: none;
-  transition: border-color var(--sg-fast), box-shadow var(--sg-fast), background var(--sg-fast);
+  transition: border-color var(--sg-fast), background var(--sg-fast);
 }
 .sg-input::placeholder, .sg-textarea::placeholder { color: var(--sg-text-3); }
 .sg-input:focus, .sg-textarea:focus, .sg-select:focus {
@@ -184,13 +180,11 @@
 }
 .sg-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .sg-pill-go { color: var(--sg-go); border-color: rgba(52, 211, 153, 0.3); background: var(--sg-go-dim); }
-.sg-pill-go .dot { box-shadow: 0 0 8px var(--sg-go); animation: sg-pulse 2s infinite; }
+.sg-pill-go .dot { box-shadow: 0 0 8px var(--sg-go);  }
 .sg-pill-warn { color: var(--sg-warn); border-color: rgba(251, 191, 36, 0.3); background: var(--sg-warn-dim); }
 .sg-pill-danger { color: var(--sg-danger); border-color: rgba(248, 113, 113, 0.3); background: var(--sg-danger-dim); }
 .sg-pill-info { color: var(--sg-info); border-color: rgba(96, 165, 250, 0.3); background: var(--sg-info-dim); }
 .sg-pill-brand { color: var(--sg-cyan); border-color: rgba(129, 140, 248, 0.35); background: rgba(129, 140, 248, 0.1); }
-
-@keyframes sg-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* ── Layout helpers ── */
 .sg-container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
@@ -218,8 +212,7 @@
 .sg-auth-error svg { flex-shrink: 0; }
 
 /* ── Animations ── */
-@keyframes sg-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.sg-fade-up { animation: sg-fade-up 0.6s var(--sg-ease) both; }
+
 .sg-fade-up-1 { animation-delay: 0.06s; } .sg-fade-up-2 { animation-delay: 0.12s; }
 .sg-fade-up-3 { animation-delay: 0.18s; } .sg-fade-up-4 { animation-delay: 0.24s; }
 

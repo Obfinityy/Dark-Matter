@@ -15,37 +15,8 @@ import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { BrainGate } from '../../components/BrainGate';
-import { DarkVeil } from '../../components/fx/DarkVeil';
-import { DecryptedText } from '../../components/fx/DecryptedText';
 import './AgentHome.css';
 import './AgentHomeNew.css';
-
-/**
- * useCountUp — eases a number from 0 to its target on mount so stats
- * land with a subtle micro-interaction. Disabled for reduced-motion
- * users (they see the final value instantly).
- */
-function useCountUp(target) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      setValue(target);
-      return;
-    }
-    let raf = 0;
-    const start = performance.now();
-    const DURATION = 650;
-    const tick = (now) => {
-      const t = Math.min(1, (now - start) / DURATION);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(Math.round(eased * target));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target]);
-  return value;
-}
 
 export function AgentHome() {
   const navigate = useNavigate();
@@ -104,29 +75,24 @@ export function AgentHome() {
   const doneCount = jobs.filter((j) => String(j.status).toLowerCase() === 'completed').length;
   const totalFindings = jobs.reduce((n, j) => n + (j.findingsCount || 0), 0);
 
-  // Animated stat numbers — landing with a soft count-up.
-  const runningShown = useCountUp(runningCount);
-  const doneShown = useCountUp(doneCount);
-  const findingsShown = useCountUp(totalFindings);
+  // Stat numbers — rendered directly, no animation.
+  const runningShown = runningCount;
+  const doneShown = doneCount;
+  const findingsShown = totalFindings;
 
   return (
     <div className="sg-hunt-home home-new">
-      <DarkVeil intensity={0.7} />
       {/* ── Hero ── */}
-      <section className="sg-hero sg-fade-up">
+      <section className="sg-hero">
         <span className="sg-pill sg-pill-brand"><Radar size={13} /> Autonomous bug bounty</span>
-        <DecryptedText
-          text="Point me at a target. I'll hunt it down."
-          as="h1"
-          className="sg-display home-hero-title"
-        />
+        <h1 className="sg-display home-hero-title">Point me at a target. I'll hunt it down.</h1>
         <p className="sg-body home-hero-sub">
           The agent maps the attack surface, tests real hypotheses, and hands you a
           submission-ready report — while you watch it think, live.
         </p>
 
         <BrainGate required={['vision', 'grounding', 'hacker']} featureName="Hunt">
-        <form className="sg-hunt-form sg-fade-up sg-fade-up-1" onSubmit={startHunt}>
+        <form className="sg-hunt-form" onSubmit={startHunt}>
           <div className="sg-hunt-bar">
             <Crosshair size={19} className="sg-hunt-bar-icon" />
             <input
@@ -174,7 +140,7 @@ export function AgentHome() {
           { n: doneShown, label: 'hunts completed' },
           { n: findingsShown, label: 'findings so far' },
         ].map(({ n, label, live }, i) => (
-          <div key={label} className={`sg-stat sg-fade-up sg-fade-up-${i + 1}`}>
+          <div key={label} className="sg-stat">
             <strong>{n}{live && <span className="sg-live-dot" />}</strong>
             <span>{label}</span>
           </div>
@@ -182,7 +148,7 @@ export function AgentHome() {
       </section>
 
       {/* ── Content grid ── */}
-      <div className="sg-grid-2 sg-fade-up sg-fade-up-3 home-grid-top">
+      <div className="sg-grid-2 home-grid-top">
         <section className="sg-card sg-card-pad">
           <h3 className="sg-h2 sg-card-h">
             <Target size={18} className="sg-h-icon" /> Recent hunts
@@ -246,7 +212,7 @@ export function AgentHome() {
         </div>
       </div>
 
-      <p className="sg-tiny sg-fade-up sg-fade-up-4 home-note">
+      <p className="sg-tiny home-note">
         Re-pasting a hunted target returns its saved report instantly — "Start new hunt" only when you want a fresh look.
       </p>
     </div>

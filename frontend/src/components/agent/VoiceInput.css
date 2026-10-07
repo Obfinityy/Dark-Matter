@@ -23,8 +23,7 @@
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: background var(--transition-fast), border-color var(--transition-fast),
-    color var(--transition-fast), transform var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .voice-mic-btn:hover:not(:disabled) {
@@ -60,13 +59,8 @@
   inset: -4px;
   border-radius: var(--radius-lg);
   border: 2px solid color-mix(in srgb, var(--danger) 60%, transparent);
-  animation: voice-mic-ping 1.2s ease-out infinite;
+  
   pointer-events: none;
-}
-
-@keyframes voice-mic-ping {
-  0% { transform: scale(0.95); opacity: 0.9; }
-  100% { transform: scale(1.15); opacity: 0; }
 }
 
 /* Live interim transcript + status captions, floating above the button. */
@@ -90,12 +84,7 @@
   z-index: 40;
   pointer-events: none;
   box-shadow: var(--shadow-md);
-  animation: voice-caption-in 0.18s ease both;
-}
-
-@keyframes voice-caption-in {
-  from { opacity: 0; transform: translate(-50%, 4px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  
 }
 
 .voice-mic-error {
@@ -122,8 +111,7 @@
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: background var(--transition-fast), border-color var(--transition-fast),
-    color var(--transition-fast), transform var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -180,10 +168,7 @@
     transform: none;
     max-width: min(250px, calc(100vw - 48px));
   }
-  @keyframes voice-caption-in {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: none; }
-  }
+  
 }
 
 @media (prefers-reduced-motion: reduce) {

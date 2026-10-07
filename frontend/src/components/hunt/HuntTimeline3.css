@@ -15,7 +15,6 @@
 
 /* 50101 val ring */
 .ht3-valring { position: relative; display: inline-flex; }
-.ht3-ring-fill { transition: stroke-dashoffset 0.5s ease; }
 .ht3-valring em {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-style: normal; font-size: 10px; font-weight: 700; color: var(--success);
@@ -72,8 +71,8 @@
   max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ht3-crawl-node.ht3-visited { border-color: color-mix(in srgb, var(--success) 40%, transparent); color: var(--success); }
-.ht3-crawl-node.ht3-current { border-color: #8b5cf6; color: var(--text-primary); animation: ht3-node-pulse 1.5s ease-in-out infinite; }
-@keyframes ht3-node-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); } 50% { box-shadow: 0 0 0 5px rgba(139, 92, 246, 0); } }
+.ht3-crawl-node.ht3-current { border-color: #8b5cf6; color: var(--text-primary);  }
+
 .ht3-crawl-link { width: 16px; height: 2px; background: var(--border); flex: none; }
 .ht3-crawl-link.ht3-visited { background: var(--success); }
 
@@ -112,8 +111,7 @@
 }
 
 /* 50113 morph */
-.ht3-morph { display: inline-flex; font-size: 22px; animation: ht3-morph-in 0.45s ease; }
-@keyframes ht3-morph-in { 0% { transform: scale(0.4) rotate(-30deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.ht3-morph { display: inline-flex; font-size: 22px;  }
 
 /* 50114 deep dive */
 .ht3-deepdive {
@@ -164,7 +162,7 @@
 .ht3-replay-phase {
   font-size: 11px; text-transform: capitalize; color: var(--text-muted);
   background: var(--bg-secondary); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 6px 12px; transition: all 0.3s ease;
+  border-radius: var(--radius-sm); padding: 6px 12px; transition: opacity 0.3s ease, color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 .ht3-replay-phase.ht3-now { color: var(--text-primary); border-color: #8b5cf6; background: rgba(139, 92, 246, 0.15); transform: scale(1.08); }
 

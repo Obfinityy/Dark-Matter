@@ -19,10 +19,6 @@
  */
 
 /* ── Shared entrance ── */
-@keyframes dm-polish-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
 
 /* ════ ReportExport ════ */
 .dm-report-export {
@@ -30,7 +26,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  animation: dm-polish-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  
 }
 .dm-report-export .dm-btn-primary,
 .dm-report-export .dm-btn-secondary {
@@ -59,11 +55,6 @@
 
 /* ════ Avatar ════ */
 /* Gentle mount so the face never pops in abruptly in the side panel */
-@keyframes avatar-mount {
-  from { opacity: 0; transform: scale(0.94); }
-  to { opacity: 1; transform: none; }
-}
-.avatar { animation: avatar-mount 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
 /* Reduced motion: state ring must rest too (previously omitted) */
 @media (prefers-reduced-motion: reduce) {
@@ -73,14 +64,10 @@
 /* ════ BentoGrid ════ */
 .bento-grid { gap: 16px; }
 
-@keyframes bento-tile-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.99); }
-  to { opacity: 1; transform: none; }
-}
 .bento-tile {
   min-width: 0; /* prevent long content from blowing out the track */
   overflow-wrap: anywhere;
-  animation: bento-tile-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  
 }
 /* Stagger the first few tiles; cap so long grids don't drift forever */
 .bento-grid > .bento-tile:nth-child(1) { animation-delay: 0.02s; }

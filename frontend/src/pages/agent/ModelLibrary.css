@@ -9,7 +9,7 @@
 
 /* NOTE: .sg-model-grid lives in styles/singularity.css (responsive grid +
    staggered entrance). Do not redefine it here. */
-.sg-model-card { transition: border-color var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast); }
+.sg-model-card { transition: border-color var(--sg-fast); }
 .sg-model-card:hover { border-color: color-mix(in srgb, var(--sg-accent-2) 32%, transparent); transform: translateY(-2px); }
 .sg-model-card.active {
   border-color: color-mix(in srgb, var(--sg-go) 45%, transparent);
@@ -40,7 +40,7 @@
 
 .sg-running-banner { display: flex; align-items: center; gap: var(--sg-4); margin-bottom: var(--sg-6); border-color: color-mix(in srgb, var(--sg-go) 25%, transparent); flex-wrap: wrap; }
 .sg-running-info { flex: 1; min-width: 200px; display: flex; align-items: center; gap: var(--sg-3); }
-.sg-pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sg-go); box-shadow: 0 0 12px var(--sg-go); animation: sg-pulse 1.6s infinite; flex-shrink: 0; }
+.sg-pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sg-go); box-shadow: 0 0 12px var(--sg-go);  flex-shrink: 0; }
 
 .sg-device-specs { display: flex; gap: var(--sg-5); flex-wrap: wrap; margin: var(--sg-1) 0 var(--sg-3); }
 .sg-device-spec { display: flex; align-items: center; gap: var(--sg-2); font-family: var(--sg-mono); font-size: 0.8rem; color: var(--sg-text-3); }
@@ -188,7 +188,6 @@
 .ml-toggle-arrow { opacity: 0.7; }
 
 /* ── Entrance choreography (skips the fixed DarkVeil canvas) ─── */
-.ml-new > *:not(:first-child) { animation: sg-fade-up 0.5s var(--sg-ease) both; }
 .ml-new > *:nth-child(3) { animation-delay: 0.05s; }
 .ml-new > *:nth-child(4) { animation-delay: 0.1s; }
 .ml-new > *:nth-child(5) { animation-delay: 0.15s; }

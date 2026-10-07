@@ -25,11 +25,7 @@
   border-radius: 50%;
   border: 3px solid var(--border);
   border-top-color: var(--accent);
-  animation: dm-boot-spin 0.9s linear infinite;
-}
-
-@keyframes dm-boot-spin {
-  to { transform: rotate(360deg); }
+  
 }
 
 @media (prefers-reduced-motion: reduce) {

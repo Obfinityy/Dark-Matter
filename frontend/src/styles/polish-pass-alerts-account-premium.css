@@ -1,16 +1,10 @@
 /* ════════════════ POLISH PASS — Alerts / Account / Premium ════════════════ */
 
 /* ── Shared entrance (staggered lists) ── */
-@keyframes dm-polish-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
-.dm-polish-in { animation: dm-polish-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
 /* ── Alerts ── */
 .dm-alert {
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: border-color 0.18s ease;
 }
 .dm-alert:hover {
   transform: translateY(-2px);
@@ -28,12 +22,9 @@
   width: 7px; height: 7px; border-radius: 50%;
   background: #10b981;
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.9);
-  animation: dm-alert-pulse 2.2s ease-in-out infinite;
+  
 }
-@keyframes dm-alert-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.45; transform: scale(0.8); }
-}
+
 .dm-alert-main { padding-left: 14px; }
 
 .dm-alerts .dm-check-inline {
@@ -63,7 +54,7 @@
 }
 
 /* ── Account ── */
-.sg-account { max-width: 720px; animation: dm-polish-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.sg-account { max-width: 720px;  }
 .sg-account-head { margin: 0 0 24px; display: flex; align-items: center; gap: 12px; }
 .sg-account-profile { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
 .sg-account-avatar {
@@ -100,8 +91,7 @@
 
 /* ── Premium ── */
 .sg-premium-card {
-  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 .sg-premium-card:hover {
   transform: translateY(-4px);
@@ -119,12 +109,9 @@
 }
 .sg-premium-flagship .sg-premium-badge {
   box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);
-  animation: sg-premium-badge 2.6s ease-in-out infinite;
+  
 }
-@keyframes sg-premium-badge {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
+
 .sg-modal-close { min-width: 44px; min-height: 44px; padding: 10px; }
 .sg-modal-close:focus-visible {
   outline: 2px solid rgba(251, 191, 36, 0.7);

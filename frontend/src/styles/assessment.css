@@ -74,7 +74,7 @@
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   text-decoration: none;
 }
 
@@ -160,7 +160,7 @@
   font-size: 14px;
   border: none;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
 }
 
@@ -185,7 +185,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   backdrop-filter: var(--glass-blur);
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .dashboard-stat-card:hover {
@@ -296,7 +296,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .assessment-card:hover {
@@ -445,7 +445,7 @@
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   min-height: auto;
 }
 
@@ -486,7 +486,7 @@
   height: 6px;
   border-radius: 50%;
   background: currentColor;
-  animation: pulse 2s infinite;
+  
 }
 
 /* Stats bar */
@@ -549,7 +549,7 @@
   border-bottom: 2px solid transparent;
   background: none;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -655,7 +655,7 @@
   border-radius: var(--radius-sm);
   background: var(--surface);
   border: 1px solid var(--border);
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .finding-card:hover {
@@ -1237,7 +1237,7 @@
   border: 1px solid var(--border);
   background: var(--surface);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   text-align: left;
   position: relative;
   color: var(--text-secondary);
@@ -1328,7 +1328,7 @@
   font-size: 15px;
   border: none;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   box-shadow: 0 4px 16px rgba(56, 189, 248, 0.3);
   margin-top: 8px;
 }

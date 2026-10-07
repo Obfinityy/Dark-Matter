@@ -43,12 +43,7 @@
   height: 0.9rem;
   border-radius: 50%;
   background: #8ea2f5;
-  animation: es-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes es-pulse {
-  0%, 100% { opacity: 0.35; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.15); }
+  
 }
 
 .es-title { font-size: 1.15rem; font-weight: 650; margin: 0; color: #eef2ff; }

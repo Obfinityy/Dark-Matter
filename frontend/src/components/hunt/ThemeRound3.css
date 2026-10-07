@@ -11,9 +11,9 @@
   margin: 14px 0;
   background: var(--bg-secondary);
   box-shadow: var(--shadow-sm);
-  animation: thr3-in 0.3s ease both;
+  
 }
-@keyframes thr3-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
 .thr3-demo-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .thr3-demo-id {
   font-size: 11px; font-weight: 700; color: var(--accent);
@@ -28,7 +28,7 @@
   min-height: 44px; padding: 10px 16px;
   font-size: 13px; font-weight: 650; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  transition: filter var(--transition-fast), transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 .thr3-btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
 .thr3-btn:active:not(:disabled) { transform: none; }
@@ -168,9 +168,9 @@
 .thr3-spinner {
   width: 30px; height: 30px; border-radius: 50%; border: 3px solid;
   border-top-color: var(--accent);
-  animation: thr3-spin 0.9s linear infinite; flex-shrink: 0;
+   flex-shrink: 0;
 }
-@keyframes thr3-spin { to { transform: rotate(360deg); } }
+
 .thr3-bar { flex: 1; height: 10px; border-radius: var(--radius-full); background: var(--bg-tertiary); border: 1px solid var(--border); overflow: hidden; }
 .thr3-bar-fill { height: 100%; border-radius: var(--radius-full); transition: width var(--transition); }
 @media (prefers-reduced-motion: reduce) {
@@ -278,7 +278,7 @@
   min-height: 96px; padding: 14px 12px; cursor: pointer;
   display: flex; flex-direction: column; gap: 6px;
   align-items: flex-start; text-align: left;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 /* Literal theme palettes: these cards preview the actual themes. */
 .thr3-firstrun-dark { background: #141416; color: #eee; }

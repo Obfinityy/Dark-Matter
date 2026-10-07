@@ -1,12 +1,4 @@
 /* polish-pass-errorboundary.css — PageErrorBoundary fallback polish
- *
- * Design note: this card only appears when a page has already crashed, so it
- * must look deliberate and calm — never like a second failure. Icon badge for
- * intent, breathing room via clamp() margins, a gentle entrance that respects
- * reduced motion, and visible focus rings for keyboard users. */
-
-/* Entrance: reuse the global slideUp motion; skip it for reduced motion. */
-.sg-eb { animation: slideUp 0.35s ease both; }
 @media (prefers-reduced-motion: reduce) {
   .sg-eb { animation: none; }
 }

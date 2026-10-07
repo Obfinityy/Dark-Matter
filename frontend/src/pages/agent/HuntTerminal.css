@@ -12,7 +12,7 @@
   overflow: hidden;
   margin: var(--sg-4) 0;
   background: #0a0c14; /* intentional: terminal stays dark in every theme */
-  animation: sg-terminal-in 0.35s ease both;
+  
 }
 .sg-terminal-head {
   display: flex;
@@ -30,23 +30,17 @@
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--sg-go);
   box-shadow: 0 0 8px var(--sg-go);
-  animation: sg-terminal-pulse 1.8s ease-in-out infinite;
+  
 }
-@keyframes sg-terminal-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
+
 /* Blinking block cursor in the idle prompt. */
 .sg-terminal-cursor {
   display: inline-block; width: 7px; height: 13px;
   margin: 0 4px 0 6px; vertical-align: -2px;
   background: #9fe8c1;
-  animation: sg-terminal-blink 1.1s steps(1) infinite;
+  
 }
-@keyframes sg-terminal-blink {
-  0%, 55% { opacity: 1; }
-  56%, 100% { opacity: 0; }
-}
+
 .sg-terminal-jump {
   margin-left: auto;
   display: inline-flex;
@@ -61,7 +55,7 @@
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background var(--sg-fast), border-color var(--sg-fast), transform var(--sg-fast);
+  transition: background var(--sg-fast), border-color var(--sg-fast);
 }
 .sg-terminal-jump:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--sg-line); }
 .sg-terminal-jump:active { transform: scale(0.97); }
@@ -81,11 +75,6 @@
 .sg-terminal-line { white-space: pre-wrap; word-break: break-word; }
 .sg-terminal-line + .sg-terminal-line { margin-top: 2px; }
 .sg-terminal-dim { color: var(--sg-text-3); }
-
-@keyframes sg-terminal-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .sg-terminal { animation: none; }

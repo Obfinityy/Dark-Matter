@@ -39,8 +39,6 @@ import { AvatarOverlay } from '../../components/agent/AvatarOverlay';
 import { Avatar } from '../../components/fx/Avatar';
 import { HuntStatusPanel } from '../../components/agent/HuntStatusPanel';
 import { StatusPill } from '../../components/agent/AgentShell';
-import { DarkVeil } from '../../components/fx/DarkVeil';
-import { DecryptedText } from '../../components/fx/DecryptedText';
 import { ElectricBorder } from '../../components/fx/ElectricBorder';
 import { VoiceModeToggle } from '../../components/agent/VoiceInput';
 import './HuntViewNew.css';
@@ -199,14 +197,13 @@ export function HuntView() {
 
   return (
     <div className="sg-huntview hunt-new">
-      <DarkVeil intensity={0.5} />
       <header className="sg-hunt-head">
         <div className="sg-hunt-head-main">
           <div className="sg-hunt-title-row">
             <Link to="/agent" className="sg-btn sg-btn-quiet" aria-label="Back to home">
               <ChevronLeft size={15} />
             </Link>
-            <DecryptedText text="Live hunt" as="h1" className="hunt-title" />
+            <h1 className="hunt-title">Live hunt</h1>
             {active ? (
               <ElectricBorder active={true}>
                 <StatusPill status={status} thinking={thinking} />

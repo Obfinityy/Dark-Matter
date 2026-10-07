@@ -69,7 +69,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  animation: rs-flash-in 400ms ease-out;
+  
 }
 
 .rs-flash-dot {
@@ -88,11 +88,6 @@
 .rs-flash-passed { --rs-flash-color: #34d399; }
 .rs-flash-failed { --rs-flash-color: #f87171; }
 
-@keyframes rs-flash-in {
-  0%   { background: var(--rs-flash-color, #38bdf8); border-color: var(--rs-flash-color, #38bdf8); }
-  100% { background: #0f172a; border-color: #1e293b; }
-}
-
 /* ------------------------------------------------------------------ */
 /* 50603 — avatar ring progress                                       */
 /* ------------------------------------------------------------------ */
@@ -100,7 +95,7 @@
 .rs-avatar-ring { position: relative; display: inline-flex; align-items: center; gap: 12px; }
 
 .rs-ring-fg {
-  transition: stroke-dashoffset 400ms ease;
+  
   transform: rotate(-90deg);
   transform-origin: center;
 }
@@ -117,7 +112,7 @@
   max-height: 0;
   opacity: 0;
   transform: translateY(-100%);
-  transition: max-height 280ms ease, opacity 280ms ease, transform 280ms ease;
+  transition: opacity 280ms ease;
   border-radius: 0 0 10px 10px;
   font-size: 13px;
 }
@@ -127,11 +122,6 @@
 .rs-banner-catching-up { background: #0c4a6e; color: #bae6fd; padding: 10px 14px; }
 .rs-banner-online { background: #064e3b; color: #a7f3d0; padding: 10px 14px; }
 .rs-banner-offline { background: #7f1d1d; color: #fecaca; padding: 10px 14px; }
-
-@keyframes rs-banner-slide {
-  from { transform: translateY(-100%); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
-}
 
 /* ------------------------------------------------------------------ */
 /* 50605 — checkbox spring draw                                       */
@@ -150,18 +140,6 @@
 }
 
 .rs-spring-check svg { display: block; }
-
-.rs-spring-check .rs-check-path {
-  transition: stroke-dashoffset 320ms ease;
-}
-
-.rs-spring-check.rs-checked svg { animation: rs-check-pop 320ms ease; }
-
-@keyframes rs-check-pop {
-  0%   { transform: scale(1); }
-  45%  { transform: scale(1.18); }
-  100% { transform: scale(1); }
-}
 
 /* ------------------------------------------------------------------ */
 /* 50606 — sort-arrow flip (200ms, per spec)                          */
@@ -203,12 +181,7 @@
   font-size: 11px;
   color: #94a3b8;
   opacity: 0;
-  animation: rs-thumb-rise 320ms ease forwards;
-}
-
-@keyframes rs-thumb-rise {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+  
 }
 
 /* ------------------------------------------------------------------ */
@@ -232,17 +205,12 @@
 .rs-pp-icon { position: relative; width: 16px; height: 16px; display: inline-block; }
 .rs-pp-icon span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: opacity 200ms ease; }
 
-.rs-pp-label { display: inline-block; transition: transform 200ms ease, opacity 200ms ease; }
+.rs-pp-label { display: inline-block; transition: opacity 200ms ease; }
 
 .rs-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
-.rs-eq i { width: 3px; background: #38bdf8; border-radius: 2px; animation: rs-eq 700ms ease-in-out infinite; }
+.rs-eq i { width: 3px; background: #38bdf8; border-radius: 2px;  }
 .rs-eq i:nth-child(2) { animation-delay: 180ms; }
 .rs-eq i:nth-child(3) { animation-delay: 360ms; }
-
-@keyframes rs-eq {
-  0%, 100% { height: 5px; }
-  50%      { height: 14px; }
-}
 
 /* ------------------------------------------------------------------ */
 /* 50609 — animation time budget (400ms cap)                          */
@@ -386,7 +354,7 @@
   position: relative;
   background: #0f172a;
   padding: 12px 14px;
-  transition: transform 200ms ease;
+  
   will-change: transform;
 }
 
@@ -512,14 +480,9 @@
   border-radius: 16px 16px 0 0;
   border-top: 1px solid #334155;
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-  animation: rs-sheet-up 280ms ease;
+  
   max-height: 75%;
   overflow-y: auto;
-}
-
-@keyframes rs-sheet-up {
-  from { transform: translateY(40px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
 }
 
 .rs-sheet-grip {
@@ -659,7 +622,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: transform 120ms ease, background 120ms ease;
+  transition: background 120ms ease;
 }
 
 .rs-touch-chip:active { transform: scale(0.95); }
@@ -949,7 +912,7 @@
   border-radius: 10px;
   padding: 12px 14px;
   z-index: 30;
-  animation: rs-toast-in 240ms ease;
+  
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -957,11 +920,6 @@
 .rs-atoast { bottom: calc(12px + env(safe-area-inset-bottom)); }
 @media (min-width: 720px) {
   .rs-atoast { bottom: auto; top: 12px; }
-}
-
-@keyframes rs-toast-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ------------------------------------------------------------------ */
@@ -975,7 +933,7 @@
   z-index: 40;
   display: flex;
   flex-direction: column;
-  animation: rs-sheet-up 240ms ease;
+  
 }
 
 .rs-palette input {
@@ -1077,7 +1035,7 @@
 /* ------------------------------------------------------------------ */
 
 .rs-split { display: flex; height: 280px; border: 1px solid #1e293b; border-radius: 10px; overflow: hidden; }
-.rs-split-list { width: 40%; border-right: 1px solid #1e293b; overflow-y: auto; background: #0b1220; transition: width 240ms ease, margin 240ms ease; }
+.rs-split-list { width: 40%; border-right: 1px solid #1e293b; overflow-y: auto; background: #0b1220;  }
 .rs-split-list.rs-collapsed { width: 0; border-right: none; }
 .rs-split-detail { flex: 1; overflow-y: auto; padding: 14px; background: #0f172a; }
 
@@ -1183,7 +1141,7 @@
   font-size: 12px;
   color: #64748b;
   overflow: hidden;
-  transition: height 160ms ease;
+  
 }
 
 .rs-ptr-spinner {
@@ -1191,10 +1149,8 @@
   border: 2px solid #334155;
   border-top-color: #38bdf8;
   border-radius: 50%;
-  animation: rs-spin 700ms linear infinite;
+  
 }
-
-@keyframes rs-spin { to { transform: rotate(360deg); } }
 
 .rs-ptr-list { will-change: transform; }
 
@@ -1389,15 +1345,8 @@
 /* ------------------------------------------------------------------ */
 
 /* Subtle entrance for each demo — staggered by section so the gallery
-   reads top-down. Under the 400ms motion budget. */
-.rs-demo { animation: rs-demo-in 300ms ease-out both; }
 .rs-gallery-section:nth-of-type(2) .rs-demo { animation-delay: 60ms; }
 .rs-gallery-section:nth-of-type(3) .rs-demo { animation-delay: 120ms; }
-
-@keyframes rs-demo-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /* One consistent, visible focus ring for every interactive element in
    the suite (token-first, with a fallback for standalone renders). */
@@ -1418,12 +1367,7 @@
 .rs-lstep, .rs-spring-check, .rs-triage-done button,
 .rs-swipe-actions button, .rs-offline-slim button,
 .rs-chat-input button, .rs-fab, .rs-cta-btn {
-  transition:
-    background var(--transition-fast, 0.15s ease),
-    border-color var(--transition-fast, 0.15s ease),
-    color var(--transition-fast, 0.15s ease),
-    transform var(--transition-fast, 0.15s ease),
-    filter var(--transition-fast, 0.15s ease);
+  transition: background var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
 }
 
 /* Hover: gentle lift in brightness; active: tactile press. */

@@ -77,9 +77,9 @@
   background: var(--bg-tertiary); border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 8px;
   box-shadow: var(--shadow-md);
-  animation: fc2-pop 0.18s ease both;
+  
 }
-@keyframes fc2-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
 .fc2-cvss-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 8px; font-size: 11px; }
 .fc2-cvss-k { color: var(--text-secondary); }
 .fc2-cvss-v { color: var(--text-primary); font-weight: 600; }
@@ -155,7 +155,7 @@
 .fc2-lightbox-thumb { background: none; border: none; padding: 0; cursor: zoom-in; border-radius: var(--radius-sm); }
 .fc2-lightbox-thumb img {
   display: block; max-width: 200px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); transition: border-color var(--transition-fast), transform var(--transition-fast);
+  border: 1px solid var(--border); transition: border-color var(--transition-fast);
 }
 .fc2-lightbox-thumb:hover img { border-color: var(--accent); transform: scale(1.02); }
 .fc2-lightbox {
@@ -163,9 +163,9 @@
   background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   overflow: hidden; padding: 1rem;
-  animation: fc2-fade 0.2s ease both;
+  
 }
-@keyframes fc2-fade { from { opacity: 0; } to { opacity: 1; } }
+
 .fc2-lightbox-bar {
   position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
@@ -184,7 +184,7 @@
 .fc2-lightbox-x { color: color-mix(in srgb, var(--danger) 75%, var(--text-primary)) !important; }
 .fc2-lightbox-img {
   max-width: 92vw; max-height: 78vh; border-radius: var(--radius-md);
-  border: 1px solid var(--border); transition: transform var(--transition-fast);
+  border: 1px solid var(--border); 
 }
 
 /* 50151 hover peek */
@@ -197,7 +197,7 @@
   border-radius: var(--radius-lg); padding: 12px 14px;
   box-shadow: var(--shadow-md); font-size: 12px; line-height: 1.55;
   color: var(--text-secondary); text-align: left;
-  animation: fc2-pop 0.16s ease both;
+  
 }
 .fc2-peek:hover .fc2-peek-card,
 .fc2-peek:focus .fc2-peek-card,

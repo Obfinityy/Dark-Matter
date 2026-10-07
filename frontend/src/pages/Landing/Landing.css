@@ -11,7 +11,7 @@
 .lp-nav-links a:hover { color: #e6e9f2; }
 
 /* buttons */
-.lp-btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; font-size: 14px; font-weight: 700; padding: 10px 20px; cursor: pointer; border: 1px solid transparent; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.lp-btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; font-size: 14px; font-weight: 700; padding: 10px 20px; cursor: pointer; border: 1px solid transparent;  }
 .lp-btn:hover { transform: translateY(-1px); }
 .lp-btn-primary { background: linear-gradient(135deg, #7c5cf0, #a78bfa); color: #fff; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.35); }
 .lp-btn-ghost { background: #1c2333; border-color: #2a3350; color: #c6cfdf; }

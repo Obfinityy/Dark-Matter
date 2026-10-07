@@ -12,7 +12,7 @@
   min-width: 44px;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   right: calc(20px + env(safe-area-inset-right, 0px));
-  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .mc-help-fab:hover {
@@ -25,24 +25,8 @@
 }
 
 /* Slide-over panel entrance. */
-.mc-help-panel {
-  animation: hp-slide-in 260ms ease backwards;
-}
-
-@keyframes hp-slide-in {
-  from { opacity: 0.4; transform: translateX(28px); }
-  to { opacity: 1; transform: none; }
-}
 
 /* Overlay fade-in. */
-.mc-help-overlay {
-  animation: hp-fade-in 200ms ease backwards;
-}
-
-@keyframes hp-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
 
 /* Article cards: clearer hover affordance + rhythm. */
 .mc-help-item {
@@ -62,7 +46,7 @@
 
 /* Vote thumbs: visible focus + 44px tap targets on touch devices. */
 .mc-vote-btn {
-  transition: opacity var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  transition: opacity var(--transition-fast), border-color var(--transition-fast);
 }
 
 .mc-vote-btn:focus-visible {

@@ -1,31 +1,13 @@
 /**
- * ThemeSuite.polish.css — Infinity AI frontend polish (batch 4).
- *
- * Additive, scoped refinements layered over ThemeSuite.css — entrance
- * motion, tap-target minimums on small screens, table scroll containment,
- * and hover/focus micro-interactions. ThemeSuite.css is never edited here.
- */
-
-/* ---- Subtle staggered entrance for the gallery demos ------------------ */
-.th-gallery .th-demo {
-  animation: thp-fade-up 0.45s ease both;
-}
 .th-gallery .th-demo:nth-of-type(2) { animation-delay: 0.04s; }
 .th-gallery .th-demo:nth-of-type(3) { animation-delay: 0.08s; }
 .th-gallery .th-demo:nth-of-type(4) { animation-delay: 0.12s; }
 .th-gallery .th-demo:nth-of-type(5) { animation-delay: 0.16s; }
 .th-gallery .th-demo:nth-of-type(6) { animation-delay: 0.2s; }
 
-@keyframes thp-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
-
 /* ---- Theme cards: lift on hover --------------------------------------- */
 .th-theme-card {
-  transition: transform var(--transition-fast, 0.15s ease),
-    border-color var(--transition-fast, 0.15s ease),
-    box-shadow var(--transition-fast, 0.15s ease);
+  transition: border-color var(--transition-fast, 0.15s ease);
 }
 .th-theme-card:hover {
   transform: translateY(-2px);
@@ -35,19 +17,13 @@
 }
 
 /* ---- Accent presets: gentle scale on hover ----------------------------- */
-.th-accent-preset {
-  transition: transform var(--transition-fast, 0.15s ease),
-    box-shadow var(--transition-fast, 0.15s ease);
-}
 .th-accent-preset:hover {
   transform: scale(1.08);
 }
 
 /* ---- Buttons: consistent press feedback -------------------------------- */
 .th-btn {
-  transition: border-color var(--transition-fast, 0.15s ease),
-    background-color var(--transition-fast, 0.15s ease),
-    transform var(--transition-fast, 0.15s ease);
+  transition: border-color var(--transition-fast, 0.15s ease), background-color var(--transition-fast, 0.15s ease);
 }
 .th-btn:active {
   transform: translateY(1px);

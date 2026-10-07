@@ -77,7 +77,7 @@
 .fc5-primary-btn {
   background: var(--fc5-accent); border: none; color: #fff; font-size: 12px; font-weight: 700;
   border-radius: var(--fc5-radius-sm); padding: 8px 16px; cursor: pointer;
-  transition: background var(--fc5-t-fast), transform var(--fc5-t-fast);
+  transition: background var(--fc5-t-fast);
 }
 .fc5-primary-btn:hover:not(:disabled) { background: #7c3aed; }
 .fc5-primary-btn:active:not(:disabled) { transform: translateY(1px); }
@@ -93,7 +93,7 @@
 /* switches (50204/50212/50221/50236 + quick toggles) */
 .fc5-switch { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; padding: 4px; cursor: pointer; color: var(--fc5-muted); font-size: 12px; font-weight: 600; }
 .fc5-switch-track { width: 34px; height: 19px; border-radius: 999px; background: var(--fc5-line-strong); border: 1px solid var(--fc5-line-strong); position: relative; transition: background 0.2s ease; flex-shrink: 0; }
-.fc5-switch-thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--fc5-muted); transition: transform 0.2s ease, background 0.2s ease; }
+.fc5-switch-thumb { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--fc5-muted); transition: background 0.2s ease; }
 .fc5-switch.fc5-on .fc5-switch-track { background: color-mix(in srgb, var(--fc5-accent) 40%, transparent); border-color: var(--fc5-accent); }
 .fc5-switch.fc5-on .fc5-switch-thumb { transform: translateX(15px); background: var(--fc5-accent-soft); }
 .fc5-switch-sm .fc5-switch-track { width: 30px; height: 17px; }
@@ -130,7 +130,7 @@
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 240px;
   background: var(--fc5-panel); border: 1px solid var(--fc5-line-strong); border-radius: var(--fc5-radius); padding: 6px;
   list-style: none; margin: 0; box-shadow: var(--fc5-shadow);
-  animation: fc5-pop 0.18s ease backwards;
+  
 }
 .fc5-dropdown-list li button { width: 100%; text-align: left; background: none; border: none; color: var(--fc5-muted); font-size: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
 .fc5-dropdown-list li button:hover { background: var(--fc5-raised); color: var(--fc5-text); }
@@ -166,7 +166,7 @@
   display: inline-flex; align-items: flex-end; gap: 8px;
   background: var(--fc5-inset); border: 1px solid var(--fc5-line-strong); border-radius: var(--fc5-radius);
   padding: 6px 12px; cursor: pointer; color: var(--fc5-sev);
-  transition: border-color var(--fc5-t-fast), background var(--fc5-t-fast), box-shadow var(--fc5-t-fast);
+  transition: border-color var(--fc5-t-fast), background var(--fc5-t-fast);
 }
 .fc5-hist-chip:hover { border-color: var(--fc5-sev); }
 .fc5-hist-chip.fc5-active { border-color: var(--fc5-sev); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fc5-sev) 25%, transparent); background: var(--fc5-raised); }
@@ -249,7 +249,7 @@
 .fc5-sortwrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* group-by (50206) */
-.fc5-group { border: 1px solid var(--fc5-line-strong); border-radius: var(--fc5-radius); padding: 10px 12px; background: var(--fc5-inset); animation: fc5-rise 0.3s ease backwards; }
+.fc5-group { border: 1px solid var(--fc5-line-strong); border-radius: var(--fc5-radius); padding: 10px 12px; background: var(--fc5-inset);  }
 .fc5-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .fc5-group-head h4 { margin: 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fc5-muted); }
 .fc5-groups { display: flex; flex-direction: column; gap: 10px; }
@@ -277,7 +277,7 @@
 .fc5-selected-count { font-size: 12px; color: var(--fc5-accent-soft); font-weight: 700; }
 
 /* fix suggestions (50225) */
-.fc5-fixes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: color-mix(in srgb, var(--fc5-warn) 6%, transparent); border: 1px dashed color-mix(in srgb, var(--fc5-warn) 40%, transparent); border-radius: var(--fc5-radius); padding: 10px 12px; animation: fc5-rise 0.3s ease backwards; }
+.fc5-fixes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: color-mix(in srgb, var(--fc5-warn) 6%, transparent); border: 1px dashed color-mix(in srgb, var(--fc5-warn) 40%, transparent); border-radius: var(--fc5-radius); padding: 10px 12px;  }
 .fc5-fixes-title { font-size: 12px; color: var(--fc5-warn); font-weight: 700; }
 
 /* overlays + dialogs + palette (50201/50235/50215) */
@@ -286,13 +286,13 @@
   -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 12vh 16px 16px;
-  animation: fc5-fade 0.18s ease;
+  
 }
 .fc5-dialog {
   background: var(--fc5-panel); border: 1px solid var(--fc5-line-strong);
   border-radius: var(--fc5-radius-lg); padding: 18px 20px;
   min-width: 0; width: min(480px, 100%); color: var(--fc5-text);
-  animation: fc5-pop 0.22s ease backwards;
+  
 }
 .fc5-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .fc5-dialog-head h3 { margin: 0; font-size: 15px; }
@@ -306,7 +306,7 @@
 .fc5-palette {
   background: var(--fc5-panel); border: 1px solid var(--fc5-line-strong);
   border-radius: var(--fc5-radius-lg); width: min(560px, 100%); overflow: hidden;
-  animation: fc5-pop 0.22s ease backwards;
+  
 }
 .fc5-palette input { width: 100%; box-sizing: border-box; background: var(--fc5-inset); border: none; border-bottom: 1px solid var(--fc5-line-strong); color: var(--fc5-text); font-size: 14px; padding: 14px 16px; outline: none; font-family: inherit; }
 .fc5-palette-list { list-style: none; margin: 0; padding: 6px; max-height: 320px; overflow-y: auto; }
@@ -317,9 +317,6 @@
 .fc5-palette-hint { font-size: 11px; color: var(--fc5-faint); padding: 8px 16px 12px; }
 
 /* entrance keyframes */
-@keyframes fc5-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@keyframes fc5-pop { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
-@keyframes fc5-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* mobile bottom sheet (50227): trigger only visible on small screens */
 .fc5-sheet-trigger { display: none; }
@@ -356,12 +353,12 @@
   .fc5-sheet-overlay {
     position: fixed; inset: 0; z-index: 100; background: rgba(5, 8, 14, 0.7);
     display: flex; align-items: flex-end; justify-content: center;
-    animation: fc5-fade 0.18s ease;
+    
   }
   .fc5-sheet {
     width: 100%; max-height: 85vh; overflow-y: auto; background: var(--fc5-panel);
     border-top: 1px solid var(--fc5-line-strong); border-radius: 16px 16px 0 0; padding: 10px 16px 20px;
-    animation: fc5-sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    
   }
   .fc5-sheet-grip { width: 44px; height: 4px; border-radius: 999px; background: var(--fc5-line-strong); margin: 4px auto 12px; }
   .fc5-sheet-filters { display: flex; flex-direction: column; gap: 14px; }
@@ -369,7 +366,6 @@
   .fc5-sheet-foot .fc5-primary-btn { flex: 1; min-height: 48px; }
   .fc5-sheet-foot .fc5-ghost-btn { min-height: 48px; }
 }
-@keyframes fc5-sheet-up { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .fc5-root *, .fc5-overlay, .fc5-sheet-overlay, .fc5-dropdown-list {

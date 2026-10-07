@@ -206,7 +206,7 @@ textarea:focus-visible {
   border-radius: var(--radius-md);
   background: var(--surface);
   cursor: pointer;
-  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  transition: border-color var(--transition), background var(--transition);
 }
 
 .scan-mode-option:hover,
@@ -911,7 +911,7 @@ textarea:focus-visible {
     z-index: 100;
     width: min(86vw, 300px);
     transform: translateX(-102%);
-    transition: transform var(--transition);
+    
     box-shadow: var(--shadow-lg);
   }
 

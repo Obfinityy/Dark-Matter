@@ -30,12 +30,9 @@
 }
 
 /* ── Entrance: header first, then staggered content columns ── */
-.hunt-new .sg-hunt-head { animation: sg-fade-up 0.5s var(--sg-ease) both; }
-.hunt-new .sg-hunt-main-col > * { animation: sg-fade-up 0.55s var(--sg-ease) both; }
 .hunt-new .sg-hunt-main-col > *:nth-child(2) { animation-delay: 0.07s; }
 .hunt-new .sg-hunt-main-col > *:nth-child(3) { animation-delay: 0.14s; }
 .hunt-new .sg-hunt-main-col > *:nth-child(n+4) { animation-delay: 0.21s; }
-.hunt-new .sg-hunt-side > * { animation: sg-fade-up 0.55s var(--sg-ease) 0.12s both; }
 @media (prefers-reduced-motion: reduce) {
   .hunt-new .sg-hunt-head,
   .hunt-new .sg-hunt-main-col > *,

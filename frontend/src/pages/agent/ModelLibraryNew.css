@@ -62,7 +62,7 @@
   text-align: left;
   padding: var(--sg-2) var(--sg-3);
   min-height: 44px;
-  transition: border-color var(--sg-fast), background var(--sg-fast), transform var(--sg-fast);
+  transition: border-color var(--sg-fast), background var(--sg-fast);
 }
 .ml-cat-tab:hover { transform: translateY(-1px); }
 .ml-cat-tab-text { display: flex; flex-direction: column; gap: 2px; }

@@ -15,7 +15,7 @@
   background: var(--dm-surface, #17171f);
   color: var(--dm-text, #e8e8ee);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .cb-btn:hover { border-color: var(--dm-accent, #6c8cff); }

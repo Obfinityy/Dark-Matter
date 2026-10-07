@@ -13,7 +13,7 @@
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid var(--sg-line);
   border-radius: var(--sg-radius-lg); padding: var(--sg-2) var(--sg-2) var(--sg-2) var(--sg-5);
-  transition: border-color var(--sg-fast), box-shadow var(--sg-fast), background var(--sg-fast);
+  transition: border-color var(--sg-fast), background var(--sg-fast);
 }
 .sg-hunt-bar:hover { border-color: var(--sg-border-light); background: rgba(255, 255, 255, 0.055); }
 .sg-hunt-bar:focus-within {
@@ -56,7 +56,7 @@
 }
 .sg-stat strong { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; display: flex; align-items: center; gap: var(--sg-3); }
 .sg-stat span { font-size: 0.83rem; color: var(--sg-text-2); }
-.sg-live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sg-go); box-shadow: 0 0 10px var(--sg-go); animation: sg-pulse 1.6s infinite; }
+.sg-live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sg-go); box-shadow: 0 0 10px var(--sg-go);  }
 
 /* ── Hunt list ── */
 .sg-h-icon { color: var(--sg-cyan); }
@@ -65,7 +65,7 @@
   display: flex; align-items: center; gap: var(--sg-3);
   padding: var(--sg-3) var(--sg-4); border-radius: var(--sg-r-md);
   border: 1px solid transparent; text-decoration: none;
-  transition: background var(--sg-fast), border-color var(--sg-fast), transform var(--sg-fast);
+  transition: background var(--sg-fast), border-color var(--sg-fast);
 }
 .sg-hunt-row:hover { background: rgba(255, 255, 255, 0.035); border-color: var(--sg-line-soft); }
 .sg-hunt-row:active { transform: scale(0.995); }
@@ -79,7 +79,7 @@
   font-weight: 600; font-size: 0.93rem; color: var(--sg-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.sg-hunt-chevron { color: var(--sg-text-3); flex-shrink: 0; transition: color var(--sg-fast), transform var(--sg-fast); }
+.sg-hunt-chevron { color: var(--sg-text-3); flex-shrink: 0; transition: color var(--sg-fast); }
 .sg-hunt-row:hover .sg-hunt-chevron { color: var(--sg-text); transform: translateX(2px); }
 
 /* ── Steps ── */

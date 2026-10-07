@@ -28,22 +28,6 @@
  * and legible on a phone.
  */
 
-@keyframes dm-surface-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes dm-diary-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes dm-term-line-in {
-  from { opacity: 0; transform: translateY(2px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes dm-term-blink {
-  to { visibility: hidden; }
-}
-
 /* ── AttackSurfaceMap ── */
 .dm-surface-map {
   display: grid;
@@ -58,8 +42,8 @@
   border: 1px solid var(--dm-border-soft);
   border-radius: var(--dm-radius);
   padding: 16px 18px 14px;
-  animation: dm-surface-rise var(--sg-med) both;
-  transition: border-color var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
+  
+  transition: border-color var(--sg-fast);
 }
 .dm-surface-panel:hover {
   border-color: var(--dm-border);
@@ -116,7 +100,7 @@
   padding: 8px 12px;
   color: var(--dm-muted);
   word-break: break-all;
-  transition: background var(--sg-fast), color var(--sg-fast), border-color var(--sg-fast), transform var(--sg-fast);
+  transition: background var(--sg-fast), color var(--sg-fast), border-color var(--sg-fast);
 }
 .dm-surface-list li:hover {
   background: rgba(0, 0, 0, 0.45);
@@ -170,7 +154,7 @@
 .dm-diary { display: flex; flex-direction: column; }
 .dm-diary-entry {
   --diary-kind: var(--dm-accent);
-  animation: dm-diary-rise var(--sg-med) both;
+  
 }
 .dm-diary-entry:nth-child(2) { animation-delay: 50ms; }
 .dm-diary-entry:nth-child(3) { animation-delay: 100ms; }
@@ -184,7 +168,7 @@
   box-shadow: 0 0 12px color-mix(in srgb, var(--diary-kind) 60%, transparent);
 }
 .dm-diary-card {
-  transition: border-color var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
+  transition: border-color var(--sg-fast);
 }
 .dm-diary-entry:hover .dm-diary-card {
   border-color: var(--dm-border);
@@ -216,7 +200,6 @@
   outline: 2px solid var(--dm-accent);
   outline-offset: -2px;
 }
-.dm-term-line { animation: dm-term-line-in 120ms ease-out; }
 .dm-term-line.dm-term-finding {
   box-shadow: inset 2px 0 0 var(--dm-danger);
   padding-left: 10px;
@@ -227,11 +210,11 @@
   content: '▍';
   margin-left: 6px;
   color: var(--dm-accent-bright);
-  animation: dm-term-blink 1.1s steps(2, start) infinite;
+  
 }
 .dm-term-follow {
   min-height: 32px;
-  transition: background var(--sg-fast), transform var(--sg-fast), box-shadow var(--sg-fast);
+  transition: background var(--sg-fast);
 }
 .dm-term-follow:hover {
   box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
