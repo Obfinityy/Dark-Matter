@@ -24,7 +24,6 @@ import {
   syncThemePreference,
   themePreferenceRecord,
   embeddedThemePayload,
-  parseEmbeddedThemeMessage,
   progressAccentForTheme,
   scrollbarClass,
   selectionClass,
@@ -161,7 +160,8 @@ const TABLE_ROWS = [
 ];
 export function HighContrastTableDemo({ mode = 'high-contrast' }) {
   return (
-    <table className={`${tableModeClass(mode)} thr3-table`} aria-label="Findings table demo">
+    <div className="thr3-table-wrap" tabIndex={0} aria-label="Scrollable findings table demo">
+      <table className={`${tableModeClass(mode)} thr3-table`} aria-label="Findings table demo">
       <thead>
         <tr><th scope="col">Severity</th><th scope="col">Finding</th><th scope="col">Location</th><th scope="col">Score</th></tr>
       </thead>
@@ -174,6 +174,7 @@ export function HighContrastTableDemo({ mode = 'high-contrast' }) {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 
