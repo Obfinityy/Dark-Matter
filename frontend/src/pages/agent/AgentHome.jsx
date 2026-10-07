@@ -8,7 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Crosshair, AlertTriangle, ChevronRight, Loader2,
-  FileText, ShieldCheck, ArrowRight
+  FileText, ShieldCheck, ArrowRight, Target
 } from 'lucide-react';
 import { createJob, listJobs } from '../../services/api';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
@@ -90,10 +90,11 @@ export function AgentHome() {
       <section className="dm-card" style={{ marginBottom: 'var(--dm-8)' }}>
         <BrainGate required={['vision', 'grounding', 'hacker']} featureName="Hunt AI">
           <form onSubmit={startHunt}>
-            <div style={{ display: 'flex', gap: 'var(--dm-3)', marginBottom: 'var(--dm-3)' }}>
+            <div className="dm-hunt-row">
               <div style={{ position: 'relative', flex: 1 }}>
                 <Crosshair
                   size={18}
+                  aria-hidden="true"
                   style={{
                     position: 'absolute', left: '16px', top: '50%',
                     transform: 'translateY(-50%)', color: 'var(--dm-muted)',
@@ -114,7 +115,7 @@ export function AgentHome() {
                 />
               </div>
               <button type="submit" className="dm-btn dm-btn-primary dm-btn-lg" disabled={starting}>
-                {starting && <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />}
+                {starting && <Loader2 size={17} aria-hidden="true" style={{ animation: 'spin 1s linear infinite' }} />}
                 {starting ? 'Starting…' : 'Start hunt'}
               </button>
             </div>
@@ -138,8 +139,8 @@ export function AgentHome() {
         </BrainGate>
 
         {error && (
-          <div className="dm-notice" style={{ marginTop: 'var(--dm-4)', borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)' }} role="alert">
-            <AlertTriangle size={16} style={{ color: 'var(--dm-red)', flexShrink: 0, marginTop: '2px' }} />
+          <div className="dm-notice dm-notice-red" style={{ marginTop: 'var(--dm-4)' }} role="alert">
+            <AlertTriangle size={16} aria-hidden="true" style={{ color: 'var(--dm-red)', flexShrink: 0, marginTop: '2px' }} />
             <span>{error}</span>
           </div>
         )}
@@ -170,8 +171,11 @@ export function AgentHome() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
             }}>
               {n}
+              {live ? (
+                <span className="visually-hidden">live now</span>
+              ) : null}
               {live && (
-                <span style={{
+                <span aria-hidden="true" style={{
                   width: '8px', height: '8px', borderRadius: '50%',
                   background: 'var(--dm-green)', display: 'inline-block'
                 }} />
@@ -206,7 +210,9 @@ export function AgentHome() {
             </div>
           ) : jobs.length === 0 ? (
             <div className="dm-empty">
-              <div className="dm-empty-icon">🎯</div>
+              <div className="dm-empty-icon dm-empty-icon-lucide" aria-hidden="true">
+                <Target size={22} />
+              </div>
               <p className="dm-empty-title">No hunts yet</p>
               <p className="dm-empty-sub">Your first hunt is one paste away.</p>
             </div>
