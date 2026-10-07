@@ -1,0 +1,555 @@
+/* MicroMotion.css — Forge wave 15 (ideas 50561–50600).
+ *
+ * Micro-interaction + motion-design round for Infinity AI (Dark-Matter).
+ * All animations are purely additive: no layout shifts by default, and every
+ * animation is killed under `prefers-reduced-motion` (or the manual
+ * .mm-reduced-motion class) — consistent with idea 50503 (wave 13).
+ */
+
+/* ------------------------------------------------------------------ */
+/* Motion primitives                                                  */
+/* ------------------------------------------------------------------ */
+
+.mm-ease-out { transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+.mm-ease-in-out { transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+.mm-spring { transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* 50590 — focus-ring draw: 120ms outline-offset transition */
+.mm-focusable {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 120ms ease-out, outline-offset 120ms ease-out;
+}
+.mm-focusable:focus-visible {
+  outline-color: #7dd3fc;
+  outline-offset: 4px;
+}
+
+/* ------------------------------------------------------------------ */
+/* 50561 — self-drawing checkmark                                      */
+/* ------------------------------------------------------------------ */
+
+.mm-checkmark path {
+  transition: stroke-dashoffset 480ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+.mm-checkmark.mm-drawn path { stroke-dashoffset: 0 !important; }
+
+/* ------------------------------------------------------------------ */
+/* 50562 — pill hover scale (1.05 + soft shadow)                       */
+/* ------------------------------------------------------------------ */
+
+.mm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: transform 160ms cubic-bezier(0.33, 1, 0.68, 1), box-shadow 160ms ease-out;
+}
+.mm-pill:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+/* ------------------------------------------------------------------ */
+/* 50563 — button press feedback (0.97 for 80ms)                       */
+/* ------------------------------------------------------------------ */
+
+.mm-pressable {
+  transition: transform 80ms ease-in;
+}
+.mm-pressable:active { transform: scale(0.97); }
+
+/* ------------------------------------------------------------------ */
+/* 50564 — sliding tab indicator                                       */
+/* ------------------------------------------------------------------ */
+
+.mm-tabs { position: relative; display: flex; gap: 4px; }
+.mm-tab { position: relative; padding: 8px 14px; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; z-index: 1; }
+.mm-tab.mm-tab-active { color: #e2e8f0; }
+.mm-tab-glider {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  background: #38bdf8;
+  border-radius: 2px;
+  transition: left 260ms cubic-bezier(0.33, 1, 0.68, 1), width 260ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* ------------------------------------------------------------------ */
+/* 50565 — chevron rotation                                            */
+/* ------------------------------------------------------------------ */
+
+.mm-chevron {
+  display: inline-block;
+  transition: transform 220ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+.mm-chevron.mm-open { transform: rotate(180deg); }
+
+/* ------------------------------------------------------------------ */
+/* 50567 — progress shimmer sweep (indeterminate → determinate)        */
+/* ------------------------------------------------------------------ */
+
+.mm-progress { position: relative; height: 6px; border-radius: 3px; background: #1e293b; overflow: hidden; }
+.mm-progress-fill {
+  height: 100%;
+  background: #38bdf8;
+  border-radius: 3px;
+  transition: width 400ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+.mm-progress-indeterminate::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55), transparent);
+  animation: mm-shimmer-sweep 1.4s ease-in-out infinite;
+}
+@keyframes mm-shimmer-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+/* ------------------------------------------------------------------ */
+/* 50568 — toast slide-fade (enter up+fade, exit collapse+slide)        */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes mm-toast-out {
+  from { opacity: 1; max-height: 64px; transform: translateY(0); }
+  to { opacity: 0; max-height: 0; transform: translateY(8px); margin: 0; }
+}
+.mm-toast { animation: mm-toast-in 240ms cubic-bezier(0.33, 1, 0.68, 1); overflow: hidden; }
+.mm-toast.mm-leaving { animation: mm-toast-out 200ms ease-in forwards; }
+
+/* ------------------------------------------------------------------ */
+/* 50569 — diagonal skeleton sweep (1.2s loop)                         */
+/* ------------------------------------------------------------------ */
+
+.mm-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #1e293b;
+  border-radius: 6px;
+}
+.mm-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(148, 163, 184, 0.18) 50%, transparent 70%);
+  animation: mm-skeleton-sweep 1.2s linear infinite;
+}
+@keyframes mm-skeleton-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+/* ------------------------------------------------------------------ */
+/* 50570 — terminal line fade (40% → 100% over 200ms)                   */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-terminal-line {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+.mm-terminal-line { animation: mm-terminal-line 200ms ease-out; }
+
+/* ------------------------------------------------------------------ */
+/* 50571 — timeline dot pop (scale bounce on arrival)                  */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-dot-pop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.mm-timeline-dot { animation: mm-dot-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: center; }
+
+/* ------------------------------------------------------------------ */
+/* 50572 — filter-pill morph (scale in on add, collapse before fade)  */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-pill-in {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes mm-pill-out {
+  0% { transform: scale(1); opacity: 1; max-width: 220px; }
+  60% { transform: scale(0.9); opacity: 0; max-width: 0; padding-left: 0; padding-right: 0; }
+  100% { max-width: 0; padding-left: 0; padding-right: 0; opacity: 0; }
+}
+.mm-pill-in { animation: mm-pill-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.mm-pill-out { animation: mm-pill-out 260ms ease-in forwards; overflow: hidden; white-space: nowrap; }
+
+/* ------------------------------------------------------------------ */
+/* 50573 — thinking-dot wave (three staggered dots)                    */
+/* ------------------------------------------------------------------ */
+
+.mm-thinking { display: inline-flex; gap: 6px; align-items: center; }
+.mm-thinking-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #94a3b8;
+  animation: mm-dot-wave 1.2s ease-in-out infinite;
+}
+@keyframes mm-dot-wave {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ------------------------------------------------------------------ */
+/* 50574 — card hover lift (2px, 150ms, softened shadow)               */
+/* ------------------------------------------------------------------ */
+
+.mm-card {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+.mm-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* ------------------------------------------------------------------ */
+/* 50575 — modal scale-in (backdrop fade 150ms, panel 0.96 → 1)         */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mm-panel-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.mm-backdrop { animation: mm-backdrop-in 150ms ease-out; }
+.mm-panel { animation: mm-panel-in 220ms cubic-bezier(0.33, 1, 0.68, 1); }
+
+/* ------------------------------------------------------------------ */
+/* 50576 — confidence fill ease                                        */
+/* ------------------------------------------------------------------ */
+
+.mm-confidence-track { height: 8px; border-radius: 4px; background: #1e293b; overflow: hidden; }
+.mm-confidence-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 500ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* ------------------------------------------------------------------ */
+/* 50577 — donut segment sweep (on first render)                       */
+/* ------------------------------------------------------------------ */
+
+.mm-donut-seg {
+  animation: mm-donut-sweep 700ms cubic-bezier(0.33, 1, 0.68, 1);
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes mm-donut-sweep {
+  from { transform: rotate(-90deg) scale(0.6); opacity: 0; }
+  to { transform: rotate(0) scale(1); opacity: 1; }
+}
+
+/* ------------------------------------------------------------------ */
+/* 50578 — drop-zone pulse (animated dashed border on drag hover)      */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-drop-pulse {
+  0%, 100% { border-color: #38bdf8; box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35); }
+  50% { border-color: #7dd3fc; box-shadow: 0 0 0 6px rgba(56, 189, 248, 0); }
+}
+.mm-dropzone { border: 2px dashed #334155; border-radius: 10px; transition: border-color 160ms ease-out; }
+.mm-dropzone.mm-drag-over {
+  border-style: dashed;
+  animation: mm-drop-pulse 1.4s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* 50579 — spring toggles                                              */
+/* ------------------------------------------------------------------ */
+
+.mm-toggle {
+  width: 44px; height: 24px; border-radius: 12px; background: #334155;
+  border: none; cursor: pointer; position: relative;
+  transition: background 200ms ease-out;
+}
+.mm-toggle.mm-on { background: #0ea5e9; }
+.mm-toggle-knob {
+  position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: #f1f5f9;
+  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.mm-toggle.mm-on .mm-toggle-knob { transform: translateX(20px) scale(1.08); }
+
+/* ------------------------------------------------------------------ */
+/* 50581 — completion ring pulse                                       */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45); }
+  100% { box-shadow: 0 0 0 22px rgba(52, 211, 153, 0); }
+}
+.mm-completion-ring { animation: mm-ring-pulse 1.6s ease-out infinite; border-radius: 999px; }
+
+/* ------------------------------------------------------------------ */
+/* 50582 — gauge needle sweep (900ms ease-in-out)                      */
+/* ------------------------------------------------------------------ */
+
+.mm-gauge-needle {
+  transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1);
+  transform-origin: bottom center;
+}
+
+/* ------------------------------------------------------------------ */
+/* 50583 — "NEW" ribbon slide-in from card edge                        */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-ribbon-in {
+  from { transform: translateX(110%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.mm-ribbon {
+  position: absolute; top: 10px; right: -2px;
+  background: #f59e0b; color: #0f172a;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.06em;
+  padding: 3px 10px; border-radius: 4px 0 0 4px;
+  animation: mm-ribbon-in 300ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* ------------------------------------------------------------------ */
+/* 50584 — staggered search results (30ms intervals)                   */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-stagger-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.mm-stagger {
+  animation: mm-stagger-in 220ms cubic-bezier(0.33, 1, 0.68, 1);
+  animation-fill-mode: both;
+}
+
+/* ------------------------------------------------------------------ */
+/* 50585 — theme cross-fade (250ms)                                    */
+/* ------------------------------------------------------------------ */
+
+.mm-theme-fade { transition: background-color 250ms ease-out, color 250ms ease-out, border-color 250ms ease-out; }
+
+/* ------------------------------------------------------------------ */
+/* 50586 — graph node settle (spring into place)                       */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-node-settle {
+  0% { transform: translate(var(--mm-from-x, -14px), var(--mm-from-y, -10px)) scale(0.7); opacity: 0; }
+  60% { transform: translate(4px, 2px) scale(1.06); opacity: 1; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+.mm-graph-node {
+  animation: mm-node-settle 640ms cubic-bezier(0.34, 1.3, 0.64, 1);
+  animation-fill-mode: both;
+}
+
+/* ------------------------------------------------------------------ */
+/* 50587 — copy-button morph (flip to checkmark, 120ms)                */
+/* ------------------------------------------------------------------ */
+
+.mm-copy-btn { position: relative; }
+.mm-copy-icon {
+  display: inline-block;
+  transition: transform 120ms ease-out, opacity 120ms ease-out;
+}
+.mm-copy-btn.mm-copied .mm-copy-icon { transform: rotateY(90deg); opacity: 0; }
+.mm-copy-check {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  transform: rotateY(-90deg); opacity: 0;
+  transition: transform 120ms ease-out, opacity 120ms ease-out;
+}
+.mm-copy-btn.mm-copied .mm-copy-check { transform: rotateY(0); opacity: 1; }
+
+/* ------------------------------------------------------------------ */
+/* 50588 — dual-ring spinner (0.8s/rev)                                */
+/* ------------------------------------------------------------------ */
+
+.mm-dual-spinner { position: relative; width: 34px; height: 34px; }
+.mm-dual-spinner::before,
+.mm-dual-spinner::after {
+  content: ''; position: absolute; border-radius: 50%;
+  border: 3px solid transparent;
+}
+.mm-dual-spinner::before {
+  inset: 0; border-top-color: #38bdf8;
+  animation: mm-spin 0.8s linear infinite;
+}
+.mm-dual-spinner::after {
+  inset: 7px; border-bottom-color: #a78bfa;
+  animation: mm-spin 0.8s linear infinite reverse;
+}
+@keyframes mm-spin { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------------ */
+/* 50589 — floating empty illustration (±6px, 4s loop)                 */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-float {
+  0%, 100% { transform: translateY(-6px); }
+  50% { transform: translateY(6px); }
+}
+.mm-float { animation: mm-float 4s ease-in-out infinite; }
+
+/* ------------------------------------------------------------------ */
+/* 50591 — sticky-bar shadow (scroll-triggered transition)             */
+/* ------------------------------------------------------------------ */
+
+.mm-sticky-bar {
+  transition: box-shadow 220ms ease-out;
+}
+.mm-sticky-bar.mm-scrolled {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+/* ------------------------------------------------------------------ */
+/* 50592 — route fade-rise (180ms, 8px up)                             */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-route-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.mm-route { animation: mm-route-in 180ms ease-out; }
+
+/* ------------------------------------------------------------------ */
+/* 50593 — badge count pop (scale bounce on increment)                 */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-badge-pop {
+  0% { transform: scale(0.6); }
+  55% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.mm-badge-pop { animation: mm-badge-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1); display: inline-block; }
+
+/* ------------------------------------------------------------------ */
+/* 50594 — height-animated reasoning (no jump)                         */
+/* ------------------------------------------------------------------ */
+
+.mm-reasoning {
+  overflow: hidden;
+  transition: height 240ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* ------------------------------------------------------------------ */
+/* 50595 — scrubber handle grow on hover                               */
+/* ------------------------------------------------------------------ */
+
+.mm-scrubber-handle {
+  transition: transform 160ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+.mm-scrubber-handle:hover { transform: scale(1.35); }
+
+/* ------------------------------------------------------------------ */
+/* 50596 — chip fill wipe (left-to-right color wipe)                   */
+/* ------------------------------------------------------------------ */
+
+.mm-wipe-chip {
+  position: relative; overflow: hidden; isolation: isolate;
+}
+.mm-wipe-chip::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: #0ea5e9;
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 220ms ease-out;
+}
+.mm-wipe-chip.mm-active::before { transform: scaleX(1); }
+.mm-wipe-chip.mm-active { color: #f0f9ff; }
+
+/* ------------------------------------------------------------------ */
+/* 50597 — invalid-input shake (4px, 300ms)                            */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+.mm-shake { animation: mm-shake 300ms ease-in-out; }
+
+/* ------------------------------------------------------------------ */
+/* 50598 — save checkmark (draw, hold 1.2s, fade)                      */
+/* ------------------------------------------------------------------ */
+
+@keyframes mm-save-hold {
+  0% { opacity: 0; transform: scale(0.8); }
+  12% { opacity: 1; transform: scale(1); }
+  82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.mm-save-check { animation: mm-save-hold 1.6s ease-out forwards; }
+
+/* ------------------------------------------------------------------ */
+/* 50599 — sidebar width animation (280 ↔ 64px, icon cross-fades)       */
+/* ------------------------------------------------------------------ */
+
+.mm-sidebar {
+  transition: width 300ms cubic-bezier(0.33, 1, 0.68, 1);
+  overflow: hidden; white-space: nowrap;
+}
+.mm-sidebar .mm-sidebar-label {
+  transition: opacity 180ms ease-out;
+  opacity: 1;
+}
+.mm-sidebar.mm-collapsed .mm-sidebar-label { opacity: 0; }
+
+/* ------------------------------------------------------------------ */
+/* 50600 — thumbnail zoom hover (1.08 + expand overlay fade)           */
+/* ------------------------------------------------------------------ */
+
+.mm-thumb { position: relative; overflow: hidden; border-radius: 8px; }
+.mm-thumb img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  transition: transform 240ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+.mm-thumb:hover img { transform: scale(1.08); }
+.mm-thumb-overlay {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(2, 6, 23, 0.45); color: #e2e8f0; font-size: 12px; font-weight: 600;
+  opacity: 0; transition: opacity 240ms ease-out;
+}
+.mm-thumb:hover .mm-thumb-overlay { opacity: 1; }
+
+/* ------------------------------------------------------------------ */
+/* 50580 — smooth auto-scroll (with user-interrupt detection)          */
+/* ------------------------------------------------------------------ */
+
+.mm-smooth-scroll { scroll-behavior: smooth; }
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion: kill all micro-motion, always & via class           */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-motion, .mm-motion *,
+  .mm-pill, .mm-checkmark path, .mm-tabs .mm-tab-glider, .mm-chevron,
+  .mm-progress-fill, .mm-toast, .mm-skeleton::after, .mm-terminal-line,
+  .mm-timeline-dot, .mm-thinking-dot, .mm-card, .mm-backdrop, .mm-panel,
+  .mm-confidence-fill, .mm-donut-seg, .mm-dropzone.mm-drag-over,
+  .mm-toggle-knob, .mm-completion-ring, .mm-gauge-needle, .mm-ribbon,
+  .mm-stagger, .mm-theme-fade, .mm-graph-node, .mm-copy-icon, .mm-copy-check,
+  .mm-dual-spinner::before, .mm-dual-spinner::after, .mm-float,
+  .mm-sticky-bar, .mm-route, .mm-badge-pop, .mm-reasoning,
+  .mm-scrubber-handle, .mm-wipe-chip::before, .mm-focusable {
+    animation: none !important;
+    transition: none !important;
+  }
+  .mm-smooth-scroll { scroll-behavior: auto !important; }
+}
+.mm-reduced-motion .mm-motion, .mm-reduced-motion .mm-motion *,
+.mm-reduced-motion .mm-pill, .mm-reduced-motion .mm-checkmark path,
+.mm-reduced-motion .mm-chevron, .mm-reduced-motion .mm-card,
+.mm-reduced-motion .mm-toast, .mm-reduced-motion .mm-skeleton::after,
+.mm-reduced-motion .mm-timeline-dot, .mm-reduced-motion .mm-thinking-dot,
+.mm-reduced-motion .mm-completion-ring, .mm-reduced-motion .mm-float,
+.mm-reduced-motion .mm-route, .mm-reduced-motion .mm-badge-pop,
+.mm-reduced-motion .mm-scrubber-handle, .mm-reduced-motion .mm-graph-node {
+  animation: none !important;
+  transition: none !important;
+}
