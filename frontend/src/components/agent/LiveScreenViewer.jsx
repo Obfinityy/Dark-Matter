@@ -27,6 +27,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Monitor, Pause, Play, Camera } from 'lucide-react';
 import { takeComputerScreenshot, pauseComputer, resumeComputer } from '../../services/api';
 import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
+import './LiveScreenViewer.css';
 
 const ACTION_LABELS = {
   screenshot: { label: '📸 Taking screenshot', tone: 'shot' },
@@ -80,10 +81,10 @@ export function LiveScreenViewer({
 
   if (!isLocalBackend) {
     return (
-      <div className="dm-screen-viewer">
+      <div className="dm-screen-viewer" role="region" aria-label="Live screen viewer">
         <div className="dm-screen-head">
-          <Monitor size={15} />
-          <span className="dm-screen-title">live screen</span>
+          <Monitor size={15} aria-hidden="true" />
+          <h2 className="dm-screen-title">live screen</h2>
         </div>
         <div className="dm-screen-empty">
           🖥️ Live screen is available in <strong>Localhost mode</strong> — switch
@@ -172,25 +173,25 @@ export function LiveScreenViewer({
   };
 
   return (
-    <div className="dm-screen-viewer">
+    <div className="dm-screen-viewer" role="region" aria-label="Live screen viewer">
       <div className="dm-screen-head">
-        <Monitor size={15} />
-        <span className="dm-screen-title">live screen</span>
+        <Monitor size={15} aria-hidden="true" />
+        <h2 className="dm-screen-title">live screen</h2>
         <span className={`dm-screen-status ${paused ? 'paused' : 'live'}`}>
           {paused ? '⏸ paused' : '● live'}
         </span>
         <div className="dm-screen-controls">
           {paused ? (
-            <button className="dm-btn dm-btn-primary dm-btn-sm" onClick={handleResume}>
-              <Play size={13} /> Resume control
+            <button type="button" className="dm-btn dm-btn-primary dm-btn-sm" onClick={handleResume}>
+              <Play size={13} aria-hidden="true" /> Resume control
             </button>
           ) : (
-            <button className="dm-btn dm-btn-warn dm-btn-sm" onClick={handlePause}>
-              <Pause size={13} /> Pause control
+            <button type="button" className="dm-btn dm-btn-warn dm-btn-sm" onClick={handlePause}>
+              <Pause size={13} aria-hidden="true" /> Pause control
             </button>
           )}
-          <button className="dm-btn dm-btn-ghost dm-btn-sm" onClick={fetchScreenshot} disabled={loading}>
-            <Camera size={13} /> {loading ? '…' : 'Refresh'}
+          <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={fetchScreenshot} disabled={loading}>
+            <Camera size={13} aria-hidden="true" /> {loading ? '…' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -217,8 +218,7 @@ export function LiveScreenViewer({
                 </span>
                 <button
                   type="button"
-                  className="dm-btn dm-btn-ghost dm-btn-sm"
-                  style={{ marginTop: 8 }}
+                  className="dm-btn dm-btn-ghost dm-btn-sm lsv-retry"
                   onClick={() => { failCount.current = 0; setError(null); fetchScreenshot(); }}
                 >
                   Retry
@@ -229,7 +229,7 @@ export function LiveScreenViewer({
             )}
           </div>
         )}
-        {paused && <div className="dm-screen-paused-overlay">⏸ computer control paused</div>}
+        {paused && <div className="dm-screen-paused-overlay" role="status">⏸ computer control paused</div>}
       </div>
 
       <div className="dm-screen-note">
@@ -244,9 +244,9 @@ export function LiveScreenViewer({
         ) : (
           actions.slice(-8).reverse().map((a) => (
             <div key={a.id} className={`dm-screen-action-line${a.tone ? ` tone-${a.tone}` : ''}`}>
-              <span className="dm-term-ts">
+              <time className="dm-term-ts" dateTime={a.at}>
                 {new Date(a.at).toLocaleTimeString('en-GB', { hour12: false })}
-              </span>
+              </time>
               <span>{a.text}</span>
             </div>
           ))
