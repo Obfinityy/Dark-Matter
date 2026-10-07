@@ -1,6 +1,7 @@
 /**
  * Premium page styles — Singularity dark-luxe.
  */
+.sg-premium { max-width: 1180px; padding-bottom: 24px; }
 .sg-premium-head { margin-bottom: 28px; }
 .sg-premium-head .sg-h1 { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; }
 .sg-premium-head .sg-h1 svg { color: #fbbf24; }
@@ -107,4 +108,17 @@
 }
 @media (max-width: 560px) {
   .sg-premium-grid { grid-template-columns: 1fr; }
+  .sg-premium { padding-left: 4px; padding-right: 4px; }
+}
+
+/* 390px: modal breathing room, no edge contact */
+@media (max-width: 400px) {
+  .sg-modal-scrim { padding: 12px; }
+  .sg-premium-modal { width: 100%; }
+  .sg-premium-amount { font-size: 2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-premium-card:hover { transform: none; }
+  .sg-modal-scrim, .sg-premium-modal { animation: none; }
 }

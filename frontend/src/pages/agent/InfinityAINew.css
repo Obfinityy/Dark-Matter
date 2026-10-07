@@ -97,12 +97,17 @@
   border: 1px solid rgba(139, 92, 246, 0.35);
   color: #c4b5fd;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: background var(--sg-fast), color var(--sg-fast);
 }
 
 .inf-panel-toggle:hover {
   background: rgba(139, 92, 246, 0.24);
   color: #fff;
+}
+
+.inf-panel-toggle:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.75);
+  outline-offset: 2px;
 }
 
 /* ── Layout: content + side panel ── */
@@ -226,7 +231,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition: transform var(--sg-fast), box-shadow var(--sg-fast);
 }
 
 .inf-rail-avatar:hover {
@@ -234,9 +239,14 @@
   box-shadow: 0 0 18px rgba(139, 92, 246, 0.4);
 }
 
+.inf-rail-avatar:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.75);
+  outline-offset: 2px;
+}
+
 .inf-rail-expand {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -245,12 +255,17 @@
   border: 1px solid rgba(139, 92, 246, 0.3);
   color: #c4b5fd;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: background var(--sg-fast), color var(--sg-fast);
 }
 
 .inf-rail-expand:hover {
   background: rgba(139, 92, 246, 0.24);
   color: #fff;
+}
+
+.inf-rail-expand:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.75);
+  outline-offset: 2px;
 }
 
 /* Gender / voice toggle (shared with old header) */
@@ -274,13 +289,18 @@
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: border-color var(--sg-fast), color var(--sg-fast), background var(--sg-fast);
   text-transform: capitalize;
 }
 
 .inf-gender-btn:hover {
   border-color: rgba(139, 92, 246, 0.4);
   color: #fff;
+}
+
+.inf-gender-btn:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.75);
+  outline-offset: 2px;
 }
 
 .inf-gender-btn.inf-active {
@@ -297,6 +317,11 @@
 .sg-chat-input.inf-input-row {
   padding: 8px;
   align-items: center;
+}
+
+/* 390px: input row stays compact via tighter gaps — buttons keep 44px tap targets */
+@media (max-width: 400px) {
+  .sg-chat-input.inf-input-row { gap: 6px; padding: 6px; }
 }
 
 /* Mode dropdown */
@@ -328,6 +353,11 @@
   background: rgba(139, 92, 246, 0.22);
   border-color: rgba(139, 92, 246, 0.55);
   transform: none;
+}
+
+.sg-chat-input .inf-mode-dd-btn:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.75);
+  outline-offset: 2px;
 }
 
 .inf-mode-dd-btn .inf-caret-up { transform: rotate(180deg); }
@@ -549,6 +579,11 @@
   }
 
   .inf-float-avatar:hover { transform: scale(1.08); }
+
+  .inf-float-avatar:focus-visible {
+    outline: 2px solid rgba(167, 139, 250, 0.75);
+    outline-offset: 2px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -557,6 +592,22 @@
   .inf-backend-badge { display: none; }
   .inf-mode-dd-label { display: none; }
   .sg-chat-input .inf-mode-dd-btn { padding: 0 10px; }
+  /* 44px tap targets on phones */
+  .inf-panel-toggle { width: 44px; height: 44px; }
+}
+
+/* 390px: prevent topbar overflow — let actions shrink gracefully */
+@media (max-width: 400px) {
+  .inf-topbar { gap: 8px; padding: 10px 12px; }
+  .inf-topbar-main { flex: 1; }
+  .inf-subtitle { display: none; }
+}
+
+/* Reduced motion: kill entrance + hover transforms */
+@media (prefers-reduced-motion: reduce) {
+  .inf-topbar { animation: none; }
+  .inf-rail-avatar:hover, .inf-float-avatar:hover { transform: none; }
+  .inf-sidepanel { transition: none; }
 }
 
 /* Voice-conversation status line above the input row */

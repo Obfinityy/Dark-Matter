@@ -11,8 +11,9 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Brain, AlertTriangle, Loader2 } from 'lucide-react';
+import { Brain, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import { getRunningBrains } from '../services/localModelApi';
+import './BrainGate.css';
 
 const BRAIN_LABELS = {
   vision: 'Vision Brain',
@@ -41,9 +42,9 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
 
   if (checking) {
     return (
-      <div className="sg-card sg-card-pad" style={{ textAlign: 'center', padding: 40 }}>
-        <Loader2 size={24} className="sg-spin" />
-        <p className="sg-small" style={{ marginTop: 12 }}>Checking your local brains…</p>
+      <div className="sg-card sg-card-pad brain-gate brain-gate-checking" role="status" aria-label="Checking local brains">
+        <Loader2 size={24} className="sg-spin" aria-hidden="true" />
+        <p className="sg-small">Checking your local brains…</p>
       </div>
     );
   }
@@ -52,27 +53,27 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
 
   if (missing.length > 0) {
     return (
-      <div className="sg-card sg-card-pad" style={{ borderColor: 'var(--sg-warn, #f59e0b)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <AlertTriangle size={22} style={{ color: 'var(--sg-warn, #f59e0b)' }} />
+      <div className="sg-card sg-card-pad brain-gate brain-gate-warn" role="alert">
+        <div className="brain-gate-head">
+          <AlertTriangle size={22} aria-hidden="true" />
           <strong>Brains not running</strong>
         </div>
-        <p>
+        <p className="brain-gate-copy">
           <b>{featureName}</b> needs {missing.map(b => BRAIN_LABELS[b]).join(', ')} running on your computer.
         </p>
-        <p className="sg-small" style={{ opacity: 0.7 }}>
+        <p className="sg-small brain-gate-hint">
           Models run on your local machine — download them once from Models, press Run, and they stay ready.
         </p>
-        <div style={{ marginTop: 12 }}>
+        <div className="brain-gate-missing">
           {missing.map(b => (
-            <div key={b} className="sg-small" style={{ marginBottom: 4 }}>
-              <Brain size={14} style={{ marginRight: 6 }} />
-              {BRAIN_LABELS[b]} — <span style={{ color: 'var(--sg-warn, #f59e0b)' }}>not running</span>
+            <div key={b} className="brain-gate-missing-item">
+              <Brain size={14} aria-hidden="true" />
+              <span>{BRAIN_LABELS[b]} — <span className="brain-gate-off">not running</span></span>
             </div>
           ))}
         </div>
-        <Link to="/agent/models" className="sg-btn sg-btn-primary" style={{ marginTop: 16 }}>
-          Open Models to download & run
+        <Link to="/agent/models" className="sg-btn sg-btn-primary brain-gate-cta">
+          Open Models to download & run <ArrowRight size={15} aria-hidden="true" />
         </Link>
       </div>
     );

@@ -1,47 +1,102 @@
 :root {
-  /* Dark Theme (Default) */
-  --bg-primary: #0a0a0c;
-  --bg-secondary: #121216;
-  --bg-tertiary: #18181d;
-  --bg-sidebar: #0f1115;
-  
-  --surface: rgba(18, 18, 22, 0.6);
-  --surface-hover: rgba(24, 24, 29, 0.8);
-  --surface-active: rgba(30, 30, 36, 0.9);
-  
-  --border: rgba(255, 255, 255, 0.08);
-  --border-light: rgba(255, 255, 255, 0.04);
-  
-  --text-primary: #f8f9fa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
+  /* ── Infinity AI Design System ──
+   * Single source of truth. All components use these tokens.
+   * Prefix: --sg-* (singularity). Legacy --bg-*, --text-* map below.
+   */
 
-  --accent: #22d3ee;
-  --accent-secondary: #3b82f6;
-  --accent-gradient: linear-gradient(135deg, #22d3ee, #3b82f6);
+  /* Backgrounds */
+  --sg-bg: #0a0a0c;
+  --sg-bg-2: #121216;
+  --sg-bg-3: #18181d;
+  --sg-sidebar: #0f1115;
 
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --info: #3b82f6;
-  --success: #10b981;
+  /* Surfaces */
+  --sg-surface: rgba(18, 18, 22, 0.6);
+  --sg-surface-2: rgba(24, 24, 29, 0.8);
+  --sg-surface-3: rgba(30, 30, 36, 0.9);
 
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
-  
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 12px;
-  --radius-full: 8px;
-  
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 25px rgba(255, 42, 95, 0.15);
-  
-  --transition-fast: 0.15s ease;
-  --transition: 0.3s ease;
-  
-  --logo-url: url('/dark-logo.png'); /* Placeholder for dark logo */
+  /* Borders */
+  --sg-border: rgba(255, 255, 255, 0.08);
+  --sg-border-light: rgba(255, 255, 255, 0.04);
+
+  /* Text */
+  --sg-text: #f8f9fa;
+  --sg-text-2: #a1a1aa;
+  --sg-muted: #71717a;
+
+  /* Accent */
+  --sg-accent: #22d3ee;
+  --sg-accent-2: #3b82f6;
+  --sg-accent-gradient: linear-gradient(135deg, #22d3ee, #3b82f6);
+
+  /* Semantic */
+  --sg-danger: #ef4444;
+  --sg-warn: #f59e0b;
+  --sg-info: #3b82f6;
+  --sg-go: #10b981;
+
+  /* Typography */
+  --sg-font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  /* Spacing scale (4px base) */
+  --sg-1: 4px;
+  --sg-2: 8px;
+  --sg-3: 12px;
+  --sg-4: 16px;
+  --sg-5: 20px;
+  --sg-6: 24px;
+  --sg-8: 32px;
+  --sg-10: 40px;
+  --sg-12: 48px;
+
+  /* Radius */
+  --sg-radius-sm: 8px;
+  --sg-radius: 12px;
+  --sg-radius-lg: 16px;
+  --sg-radius-xl: 24px;
+  --sg-radius-full: 9999px;
+
+  /* Shadows */
+  --sg-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --sg-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  --sg-shadow-glow: 0 0 24px rgba(34, 211, 238, 0.15);
+
+  /* Motion */
+  --sg-fast: 0.15s ease;
+  --sg-normal: 0.3s ease;
+
+  /* ── Legacy aliases (do not use in new code) ── */
+  --bg-primary: var(--sg-bg);
+  --bg-secondary: var(--sg-bg-2);
+  --bg-tertiary: var(--sg-bg-3);
+  --bg-sidebar: var(--sg-sidebar);
+  --surface: var(--sg-surface);
+  --surface-hover: var(--sg-surface-2);
+  --surface-active: var(--sg-surface-3);
+  --border: var(--sg-border);
+  --border-light: var(--sg-border-light);
+  --text-primary: var(--sg-text);
+  --text-secondary: var(--sg-text-2);
+  --text-muted: var(--sg-muted);
+  --accent: var(--sg-accent);
+  --accent-secondary: var(--sg-accent-2);
+  --accent-gradient: var(--sg-accent-gradient);
+  --danger: var(--sg-danger);
+  --warning: var(--sg-warn);
+  --info: var(--sg-info);
+  --success: var(--sg-go);
+  --font-sans: var(--sg-font);
+  --font-heading: var(--sg-font);
+  --radius-sm: var(--sg-radius-sm);
+  --radius-md: var(--sg-radius);
+  --radius-lg: var(--sg-radius-lg);
+  --radius-xl: var(--sg-radius-xl);
+  --radius-full: var(--sg-radius-full);
+  --shadow-sm: var(--sg-shadow-sm);
+  --shadow-md: var(--sg-shadow);
+  --shadow-glow: var(--sg-shadow-glow);
+  --transition-fast: var(--sg-fast);
+  --transition: var(--sg-normal);
 }
 
 [data-theme="light"] {

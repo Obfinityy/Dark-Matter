@@ -62,10 +62,18 @@ import { ElectricBorder } from '../../components/fx/ElectricBorder';
 import './ModelLibrary.css';
 import './ModelLibraryNew.css';
 
-function ProgressBar({ value }) {
+function ProgressBar({ value, label }) {
+  const pct = Math.round(value * 100);
   return (
-    <div className="sg-progress">
-      <div className="sg-progress-fill" style={{ width: `${Math.round(value * 100)}%` }} />
+    <div
+      className="sg-progress"
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label || 'Download progress'}
+    >
+      <div className="sg-progress-fill" style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -373,13 +381,13 @@ function BrainSlotCard({
                 <div className="ml-slot-model-row">
                   <div className="ml-slot-model-info">
                     <strong>{m.name}</strong>
-                    <div className="sg-small" style={{ opacity: 0.6 }}>
+                    <div className="sg-small ml-slot-model-sub">
                       {m.params} · ~{m.sizeGB} GB · {m.description?.slice(0, 80)}
                     </div>
                   </div>
                   {isDl ? (
                     <div className="ml-slot-model-actions">
-                      <span className="sg-small" style={{ color: 'var(--sg-accent)', fontWeight: 600 }}>
+                      <span className="sg-small ml-dl-pct">
                         {dlFailed
                           ? `Failed: ${download.error || ''}`
                           : download.status === 'paused'
@@ -486,7 +494,7 @@ function BrainSlotCard({
             );
           })}
           {slotModels.length === 0 && (
-            <p className="sg-small" style={{ opacity: 0.6 }}>No local models for this slot yet.</p>
+            <p className="sg-small ml-empty-note">No local models for this slot yet.</p>
           )}
         </div>
       )}
@@ -500,7 +508,7 @@ function BrainSlotCard({
                 <Wifi size={16} />
                 <div className="ml-slot-model-info">
                   <strong>{kaggle.kaggleName || 'Kaggle GPU'}</strong>
-                  <div className="sg-small" style={{ opacity: 0.6, wordBreak: 'break-all' }}>{kaggle.kaggleUrl}</div>
+                  <div className="sg-small ml-kaggle-url">{kaggle.kaggleUrl}</div>
                 </div>
                 <button
                   className="sg-btn sg-btn-ghost sg-btn-sm"
@@ -511,7 +519,7 @@ function BrainSlotCard({
                   Disconnect
                 </button>
               </div>
-              <p className="sg-tiny" style={{ marginTop: 8, opacity: 0.7 }}>
+              <p className="sg-tiny ml-kaggle-hint">
                 This slot now thinks on your Kaggle GPU. Disconnect to fall back to the local model.
               </p>
             </div>
@@ -558,7 +566,7 @@ function BrainSlotCard({
                   {kaggleMsg[slotId].text}
                 </div>
               )}
-              <p className="sg-tiny" style={{ opacity: 0.6 }}>
+              <p className="sg-tiny ml-kaggle-hint">
                 Run a Gradio ChatInterface with <b>share=True</b> on Kaggle/Colab, paste the <b>.gradio.live</b> URL.
                 Only this slot uses it — other slots keep their own brains.
               </p>
@@ -643,10 +651,10 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
         return (
           <SpotlightCard key={p.name} className="ml-assign-row" glowColor="139, 92, 246">
             <div className="ml-assign-head">
-              <span aria-hidden="true" style={{ fontSize: 20 }}>{p.icon}</span>
+              <span aria-hidden="true" className="ml-assign-icon">{p.icon}</span>
               <div>
                 <strong>{p.name}</strong>
-                <div className="sg-small" style={{ opacity: 0.75 }}>{p.desc}</div>
+                <div className="sg-small ml-assign-desc">{p.desc}</div>
               </div>
             </div>
             <div className="ml-assign-slots">
@@ -664,9 +672,9 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
                 );
               })}
             </div>
-            <div className="sg-small ml-assign-notes" style={{ opacity: 0.75 }}>{p.notes}</div>
+            <div className="sg-small ml-assign-notes">{p.notes}</div>
             {missing.length > 0 && (
-              <div className="sg-alert sg-auth-error" role="alert" style={{ marginTop: 10 }}>
+              <div className="sg-alert sg-auth-error ml-alert-mt" role="alert">
                 <AlertTriangle size={15} />
                 <span className="sg-small">
                   <b>{p.name}</b> will be degraded: {missing.map((s) => SLOT_LABEL[s] || s).join(', ')} is not running.
@@ -1190,12 +1198,12 @@ export function ModelLibrary() {
       {error && <div className="sg-alert sg-auth-error">{error}</div>}
 
       {authExpired && !loading && (
-        <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div className="sg-alert sg-auth-error ml-alert-spaced" role="alert">
+          <div className="ml-alert-head">
             <ShieldCheck size={18} />
             <strong>Session expired</strong>
           </div>
-          <p className="sg-small" style={{ margin: '0 0 12px' }}>
+          <p className="sg-small ml-alert-body">
             Your sign-in has expired. Please sign in again to load the model library.
           </p>
           <button
@@ -1208,12 +1216,12 @@ export function ModelLibrary() {
       )}
 
       {backendDown && !loading && !authExpired && (
-        <div className="sg-alert sg-auth-error" role="alert" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div className="sg-alert sg-auth-error ml-alert-spaced" role="alert">
+          <div className="ml-alert-head">
             <Unplug size={18} />
             <strong>Backend unreachable</strong>
           </div>
-          <p className="sg-small" style={{ margin: '0 0 12px' }}>
+          <p className="sg-small ml-alert-body">
             Models can't load because the backend isn't responding at{' '}
             <code>{getApiBase()}</code>.
             {' '}The backend is <code>{getBackendUrl()}</code> — set <code>VITE_BACKEND_URL</code> in{' '}
@@ -1230,9 +1238,9 @@ export function ModelLibrary() {
 
       {/* ── Step 0 FIRST: one-time engine download (runs on the user's machine) ── */}
       {!engineReady && (
-        <div className="sg-card sg-card-pad" style={{ borderColor: 'var(--sg-accent, #22d3ee)' }}>
-          <div className="sg-small">
-            <Server size={17} />
+        <div className="sg-card sg-card-pad ml-engine-card">
+          <div className="sg-small ml-engine-head">
+            <Server size={17} aria-hidden="true" />
             <div>
               <strong>Step 0 — one-time engine download</strong>
               <p>
@@ -1305,11 +1313,11 @@ export function ModelLibrary() {
             ))}
           </div>
         ) : backendDown && !loading ? (
-          <div className="sg-small" style={{ opacity: 0.8 }}>
+          <div className="sg-small ml-empty-note">
             Brain slots unavailable — backend unreachable (see notice above).
           </div>
         ) : (
-          <div className="sg-small" style={{ opacity: 0.6 }}>Loading brain slots…</div>
+          <div className="sg-small ml-empty-note">Loading brain slots…</div>
         )}
       </div>
 
@@ -1401,7 +1409,7 @@ export function ModelLibrary() {
             onClick={() => setCatFilter(t.id)}
             title={t.role}
           >
-            <span aria-hidden="true" style={{ fontSize: 18 }}>{t.icon}</span>
+            <span aria-hidden="true" className="ml-tab-icon">{t.icon}</span>
             <span className="ml-cat-tab-text">
               <strong>{t.label} <span className="ml-cat-fit" title="How many of these models fit this device (browser-detected specs).">{catFitCounts[t.id]} fit</span></strong>
               <small>{t.role}</small>
@@ -1417,7 +1425,7 @@ export function ModelLibrary() {
           : `${CATEGORY_TABS.find((t) => t.id === catFilter)?.label} — fits your device (${compatibleModels.length})`}
       </div>
       {catFilter !== 'all' && (
-        <p className="sg-small" style={{ marginTop: -6 }}>
+        <p className="sg-small ml-filter-note">
           Filtered for <b>this</b> device
           {browserDevice.ramGB ? ` (${formatBrowserRam(browserDevice)} RAM${browserDevice.ramCapped ? ', browser-capped' : ''})` : ''}
           {' '}— only models your machine can comfortably run are shown; heavier ones are collapsed below.
@@ -1464,7 +1472,7 @@ export function ModelLibrary() {
                 aria-expanded={showHeavy}
               >
                 {showHeavy ? 'Hide' : 'Show'} {heavyModels.length} too heavy for this device
-                <span className="sg-small" style={{ opacity: 0.7 }}>
+                <span className="sg-small ml-toggle-arrow">
                   {showHeavy ? ' ▲' : ' ▼'}
                 </span>
               </button>

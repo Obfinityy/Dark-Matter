@@ -8,6 +8,11 @@
 
 .sg-reports { padding-bottom: 24px; max-width: 860px; }
 
+/* Breathing room: content never touches viewport edges. */
+@media (max-width: 900px) {
+  .sg-reports { padding-left: 4px; padding-right: 4px; }
+}
+
 .sg-reports-head {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
   margin-bottom: 28px; flex-wrap: wrap;
@@ -89,6 +94,9 @@
   .sg-reports-head { margin-bottom: 20px; }
   .sg-reports-head .sg-btn { min-height: 44px; }
   .sg-empty-state { padding: 56px 16px; }
+  .sg-empty-state .sg-btn { min-height: 44px; }
+  /* Tighter cards on phones, no horizontal overflow from long targets */
+  .sg-record-card { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {

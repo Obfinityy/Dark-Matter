@@ -74,8 +74,9 @@ export function HuntView() {
   // ArrowLeft/Right/Home/End move between tabs (WAI-ARIA tablist pattern).
   const tabIds = useRef({});
   const onTabsKeyDown = (e) => {
-    const order = ['findings', 'diary', 'surface'];
+    const order = ['findings', 'diary', 'surface', 'chat'];
     const i = order.indexOf(tab);
+    if (i === -1) return;
     let next = null;
     if (e.key === 'ArrowRight') next = order[(i + 1) % order.length];
     else if (e.key === 'ArrowLeft') next = order[(i - 1 + order.length) % order.length];

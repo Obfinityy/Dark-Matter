@@ -1,21 +1,23 @@
 /**
  * ModelLibrary new styles — dark violet aesthetic.
+ *
+ * Polish pass: design-token spacing, responsive type, clean hierarchy.
  */
 
 .ml-new {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: var(--sg-6) var(--sg-4) var(--sg-10);
   position: relative;
 }
 
 .ml-head {
-  margin-bottom: 24px;
+  margin-bottom: var(--sg-6);
   text-align: center;
 }
 
 .ml-title {
-  margin: 0 0 8px;
+  margin: 0 0 var(--sg-2);
   font-size: 2rem;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -37,45 +39,50 @@
 
 /* Brain slot cards get the spotlight treatment */
 .ml-slot {
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: var(--sg-5);
+  margin-bottom: var(--sg-4);
 }
 
 @media (max-width: 640px) {
   .ml-title { font-size: 1.5rem; }
-  .ml-new { padding: 16px 12px 32px; }
+  .ml-new { padding: var(--sg-4) var(--sg-3) var(--sg-8); }
 }
 
 /* ── Category filter tabs (Vision / Hacker Brain / Grounding) ── */
 .ml-cat-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 18px;
+  gap: var(--sg-2);
+  margin: var(--sg-1) 0 var(--sg-4);
 }
 .ml-cat-tab {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sg-2);
   text-align: left;
-  padding: 10px 14px;
+  padding: var(--sg-2) var(--sg-3);
+  min-height: 44px;
+  transition: border-color var(--sg-fast), background var(--sg-fast), transform var(--sg-fast);
 }
+.ml-cat-tab:hover { transform: translateY(-1px); }
 .ml-cat-tab-text { display: flex; flex-direction: column; gap: 2px; }
 .ml-cat-tab-text small { opacity: 0.65; font-weight: 400; font-size: 0.78rem; max-width: 260px; }
 
 /* ── Brain assignments panel (fixed wiring + live slot status) ── */
-.ml-assignments { margin-bottom: 20px; }
+.ml-assignments { margin-bottom: var(--sg-5); }
 .ml-assign-row {
-  margin-bottom: 12px;
-  padding: 14px 16px;
+  margin-bottom: var(--sg-3);
+  padding: var(--sg-3) var(--sg-4);
 }
-.ml-assign-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.ml-assign-slots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.ml-assign-notes { margin-bottom: 0; }
-.ml-assign-row .sg-alert { display: flex; align-items: center; gap: 8px; }
+.ml-assign-head { display: flex; align-items: center; gap: var(--sg-2); margin-bottom: var(--sg-2); }
+.ml-assign-icon { font-size: 20px; }
+.ml-assign-desc { color: var(--sg-text-2); }
+.ml-assign-slots { display: flex; flex-wrap: wrap; gap: var(--sg-2); margin-bottom: var(--sg-2); }
+.ml-assign-notes { margin-bottom: 0; color: var(--sg-text-2); }
+.ml-assign-row .sg-alert { display: flex; align-items: center; gap: var(--sg-2); }
 
 /* Category badge on model cards */
-.sg-pill-cat { border-color: rgba(139, 92, 246, 0.45); }
+.sg-pill-cat { border-color: color-mix(in srgb, #8b5cf6 45%, transparent); }
 
 /* Device-fit count badge on category tabs */
 .ml-cat-fit {
@@ -83,17 +90,27 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(16, 185, 129, 0.45);
+  border: 1px solid color-mix(in srgb, var(--sg-go) 45%, transparent);
   color: #a7f3d0;
   white-space: nowrap;
   vertical-align: middle;
 }
 
 /* Collapsed heavy-models expander on a single category tab */
-.ml-heavy-collapse { margin-top: 18px; }
-.ml-heavy-toggle { width: 100%; justify-content: center; }
+.ml-heavy-collapse { margin-top: var(--sg-4); }
+.ml-heavy-toggle { width: 100%; justify-content: center; min-height: 44px; }
 
 @media (max-width: 640px) {
   .ml-cat-tab { flex: 1 1 46%; }
   .ml-cat-tab-text small { display: none; }
+}
+
+@media (max-width: 390px) {
+  .ml-cat-tabs { gap: var(--sg-1); }
+  .ml-cat-tab { flex: 1 1 100%; }
+  .ml-title { font-size: 1.35rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ml-cat-tab:hover { transform: none; }
 }

@@ -8,7 +8,7 @@
  * Each hunt has its own chatId → its own isolated memory on the local device.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Brain, Trash2 } from 'lucide-react';
+import { Send, Loader2, Brain } from 'lucide-react';
 import { chatWithBrain, getChatMemory } from '../services/localModelApi';
 import './BrainChat.css';
 
@@ -41,7 +41,11 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
   }, [chatId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Respect reduced-motion: jump straight to the bottom instead of
+    // smooth-scrolling when the user prefers less movement.
+    const reducedMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    bottomRef.current?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
   }, [messages]);
 
   const send = async (e) => {
@@ -82,12 +86,12 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
   return (
     <div className="brain-chat">
       <div className="brain-chat-head">
-        <Brain size={16} />
+        <Brain size={16} aria-hidden="true" />
         <strong>Chat with Hacking Brain</strong>
-        <span className="sg-small" style={{ opacity: 0.6 }}>ask anything, anytime</span>
+        <span className="sg-small brain-chat-hint">ask anything, anytime</span>
       </div>
 
-      <div className="brain-chat-messages">
+      <div className="brain-chat-messages" role="log" aria-label="Hacking Brain conversation">
         {messages.length === 0 && (
           <div className="brain-chat-empty sg-small">
             Ask the Hacking Brain anything about this hunt — what it's doing,
@@ -101,15 +105,15 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
         ))}
         {sending && (
           <div className="brain-chat-msg brain-chat-msg-assistant">
-            <div className="brain-chat-bubble">
-              <Loader2 size={14} className="sg-spin" /> thinking…
+            <div className="brain-chat-bubble" role="status">
+              <Loader2 size={14} className="sg-spin" aria-hidden="true" /> thinking…
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {error && <div className="sg-alert sg-auth-error brain-chat-error">{error}</div>}
+      {error && <div className="sg-alert sg-auth-error brain-chat-error" role="alert">{error}</div>}
 
       <form className="brain-chat-input" onSubmit={send}>
         <input
@@ -120,8 +124,13 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
           disabled={sending}
           aria-label="Chat with Hacking Brain"
         />
-        <button type="submit" className="sg-btn sg-btn-primary" disabled={sending || !input.trim()}>
-          {sending ? <Loader2 size={15} className="sg-spin" /> : <Send size={15} />}
+        <button
+          type="submit"
+          className="sg-btn sg-btn-primary"
+          disabled={sending || !input.trim()}
+          aria-label={sending ? 'Sending message…' : 'Send message'}
+        >
+          {sending ? <Loader2 size={15} className="sg-spin" aria-hidden="true" /> : <Send size={15} aria-hidden="true" />}
         </button>
       </form>
     </div>

@@ -20,10 +20,10 @@
 .hunt-new .sg-hunt-head {
   position: relative;
   z-index: 1;
-  padding: 20px;
-  margin-bottom: 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: var(--sg-5);
+  margin-bottom: var(--sg-4);
+  border-radius: var(--sg-radius-lg);
+  border: 1px solid var(--sg-border);
   background: rgba(255, 255, 255, 0.025);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

@@ -8,6 +8,11 @@
 
 .sg-settings { max-width: 680px; padding-bottom: 24px; }
 
+/* Breathing room on smaller screens */
+@media (max-width: 720px) {
+  .sg-settings { padding-left: 4px; padding-right: 4px; }
+}
+
 .sg-settings-title { margin: 0 0 24px; }
 .sg-settings-sec-title { margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
 

@@ -142,7 +142,7 @@ export function AgentHome() {
               aria-describedby={error ? 'sg-target-error' : undefined}
             />
             <button type="submit" className="sg-btn sg-btn-primary" disabled={starting}>
-              {starting && <Loader2 size={17} className="sg-spin" style={{ display: 'inline-flex' }} />}
+              {starting && <Loader2 size={17} className="sg-spin sg-inline-flex" />}
               {starting ? 'Starting…' : 'Start hunt'}
             </button>
           </div>

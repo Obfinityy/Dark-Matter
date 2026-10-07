@@ -1,0 +1,102 @@
+/**
+ * BrainGate styles — elegant gate card for missing local brains.
+ *
+ * Polish: token spacing, calm warning treatment, 44px touch targets on
+ * mobile, subtle entrance, focus-visible rings, reduced-motion support.
+ */
+
+.brain-gate {
+  animation: sg-fade-up 0.4s var(--sg-ease) both;
+}
+
+.brain-gate-checking {
+  text-align: center;
+  padding: var(--sg-10) var(--sg-4);
+}
+
+.brain-gate-checking .sg-small {
+  margin-top: var(--sg-3);
+  color: var(--sg-text-2);
+}
+
+.brain-gate-warn {
+  border-color: color-mix(in srgb, var(--sg-warn) 45%, transparent);
+}
+
+.brain-gate-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sg-3);
+  margin-bottom: var(--sg-3);
+}
+
+.brain-gate-head svg {
+  color: var(--sg-warn);
+  flex-shrink: 0;
+}
+
+.brain-gate-head strong {
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.brain-gate-copy {
+  margin: 0 0 var(--sg-2);
+  line-height: 1.6;
+}
+
+.brain-gate-hint {
+  color: var(--sg-text-2);
+  margin: 0 0 var(--sg-3);
+  line-height: 1.6;
+}
+
+.brain-gate-missing {
+  display: grid;
+  gap: var(--sg-1);
+  margin-bottom: var(--sg-4);
+  padding: var(--sg-3);
+  border-radius: var(--sg-radius-sm);
+  background: color-mix(in srgb, var(--sg-warn) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sg-warn) 18%, transparent);
+}
+
+.brain-gate-missing-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sg-2);
+  font-size: 0.88rem;
+}
+
+.brain-gate-missing-item svg {
+  color: var(--sg-text-2);
+  flex-shrink: 0;
+}
+
+.brain-gate-missing-item .brain-gate-off {
+  color: var(--sg-warn);
+  font-weight: 600;
+}
+
+.brain-gate-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sg-2);
+  min-height: 44px;
+}
+
+.brain-gate-cta:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--sg-accent-2) 65%, transparent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .brain-gate-cta {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brain-gate { animation: none; }
+}

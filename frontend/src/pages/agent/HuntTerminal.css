@@ -1,21 +1,24 @@
 /**
  * HuntTerminal styles — self-contained so the terminal looks right
  * wherever it is rendered, independent of HuntView.css.
+ *
+ * The phosphor-green-on-near-black palette is intentional terminal
+ * aesthetics (it stays dark in every theme); structure uses --sg-* tokens.
  */
 
 .sg-terminal {
   border: 1px solid var(--sg-line-soft);
   border-radius: var(--sg-r-lg);
   overflow: hidden;
-  margin: 14px 0;
+  margin: var(--sg-4) 0;
   background: #0a0c14; /* intentional: terminal stays dark in every theme */
   animation: sg-terminal-in 0.35s ease both;
 }
 .sg-terminal-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: var(--sg-2);
+  padding: var(--sg-2) var(--sg-3);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -48,28 +51,31 @@
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sg-2);
   min-height: 44px;
-  padding: 0 12px;
-  border-radius: 999px;
+  padding: 0 var(--sg-3);
+  border-radius: var(--sg-radius-full);
   border: 1px solid var(--sg-line-soft);
   background: rgba(255, 255, 255, 0.04);
   color: var(--sg-cyan);
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  transition: background var(--sg-fast), border-color var(--sg-fast), transform var(--sg-fast);
 }
-.sg-terminal-jump:hover { background: rgba(255, 255, 255, 0.08); }
+.sg-terminal-jump:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--sg-line); }
+.sg-terminal-jump:active { transform: scale(0.97); }
 .sg-terminal-jump:focus-visible { outline: 2px solid var(--sg-cyan); outline-offset: 2px; }
 .sg-terminal-body {
   max-height: 220px;
   overflow-y: auto;
-  padding: 10px 14px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: var(--sg-3) var(--sg-3);
+  font-family: var(--sg-mono);
   font-size: 0.75rem;
   line-height: 1.55;
   color: #9fe8c1;
   scroll-behavior: smooth;
+  scrollbar-width: thin;
 }
 .sg-terminal-body:focus-visible { outline: 2px solid var(--sg-cyan); outline-offset: -2px; }
 .sg-terminal-line { white-space: pre-wrap; word-break: break-word; }
@@ -89,4 +95,5 @@
 
 @media (max-width: 480px) {
   .sg-terminal-body { font-size: 0.72rem; max-height: 180px; }
+  .sg-terminal-head { padding: var(--sg-2); }
 }
