@@ -1,0 +1,254 @@
+/**
+ * AccessibilityRound3.css — Forge wave 14, ideas 50521–50560.
+ *
+ * Reduced-transparency + reduced-data rules (50525/50549), dyslexia
+ * typeface (50555), readability line-height scope (50554), scroll-margin
+ * (50557), new-card slide-in (50560: 300ms ease-out + severity flash),
+ * underlined finding links (50545), code-block focus contrast (50526),
+ * error-summary landmark padding (50551), roving list / slider / drag
+ * handle / captions / statement styling.
+ */
+
+.a11y3-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* 50525 — reduced transparency: kill glassmorphism blur/ translucency ------ */
+.a11y3-reduced-transparency .a11y3-glass,
+.a11y3-reduced-transparency .glass,
+.a11y3-reduced-transparency [data-glass] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #0d1117 !important;
+  opacity: 1 !important;
+}
+.a11y3-reduced-transparency .a11y3-newcard,
+.a11y3-reduced-transparency .a11y3-destruct,
+.a11y3-reduced-transparency .a11y3-errorsummary {
+  background: #0d1117;
+  border: 1px solid #30363d;
+}
+
+/* 50549 — reduced data: no auto-playing previews, no heavy animation -------- */
+.a11y3-reduced-data .a11y3-newcard-shot,
+.a11y3-reduced-data video,
+.a11y3-reduced-data .a11y3-autoplay {
+  display: none !important;
+}
+.a11y3-reduced-data *,
+.a11y3-reduced-motion *,
+.a11y3-newcard {
+  animation-duration: 0.01ms !important;
+}
+.a11y3-reduced-data .a11y3-newcard,
+.a11y3-reduced-motion .a11y3-newcard {
+  animation: none !important;
+}
+
+/* 50555 — dyslexia-friendly typeface ---------------------------------------- */
+.a11y3-dyslexia,
+.a11y3-dyslexia p,
+.a11y3-dyslexia li,
+.a11y3-dyslexia blockquote {
+  font-family: "OpenDyslexic", "Atkinson Hyperlegible", Verdana, "Segoe UI", sans-serif;
+  word-spacing: 0.06em;
+}
+
+/* 50554 — readability scope: line-height 1.5 baseline ----------------------- */
+.a11y3-settings-scope {
+  line-height: 1.5;
+}
+
+/* 50557 — scroll margin so sticky headers never cover focused elements ------- */
+.a11y3-scrollmargin {
+  scroll-margin-top: 72px; /* JS sets the exact sticky-header + gap value inline */
+}
+
+/* 50560 — new-card slide-in: 300ms ease-out + fading severity-tinted flash --- */
+@keyframes a11y3-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes a11y3-severity-flash {
+  0% { box-shadow: 0 0 0 3px var(--a11y3-sev, #58a6ff); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.a11y3-newcard {
+  animation:
+    a11y3-slide-in var(--a11y3-slide-ms, 300ms) ease-out,
+    a11y3-severity-flash 1200ms ease-out;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 16px; /* 50544: 8px rhythm × 2 */
+  margin-bottom: 16px;
+}
+.a11y3-newcard--critical { --a11y3-sev: #f85149; border-left: 4px solid #f85149; }
+.a11y3-newcard--high { --a11y3-sev: #f0883e; border-left: 4px solid #f0883e; }
+.a11y3-newcard--medium { --a11y3-sev: #d29922; border-left: 4px solid #d29922; }
+.a11y3-newcard--low { --a11y3-sev: #3fb950; border-left: 4px solid #3fb950; }
+.a11y3-newcard--info { --a11y3-sev: #58a6ff; border-left: 4px solid #58a6ff; }
+.a11y3-newcard-title { margin: 0 0 8px; font-size: 1rem; }
+.a11y3-newcard-meta { margin: 0 0 8px; color: #8b949e; font-size: 0.875rem; }
+.a11y3-newcard-shot { max-width: 100%; border-radius: 6px; margin-top: 8px; }
+.a11y3-cardlink {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: #58a6ff; font: inherit; text-align: left;
+}
+
+/* 50545 — links inside findings: underline, never color-alone --------------- */
+.a11y3-finding-link {
+  color: #58a6ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.a11y3-finding-link:hover { text-decoration-thickness: 2px; }
+
+/* 50526 — high-contrast focus inside evidence code blocks ------------------- */
+.a11y3-codeblock:focus-visible,
+.a11y3-terminal:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.a11y3-codeblock {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 50551 — error summary: landmark-adjacent placement + breathing room ------- */
+.a11y3-errorsummary {
+  border: 2px solid #f85149;
+  border-left-width: 6px;
+  border-radius: 8px;
+  padding: 16px 24px; /* 50544 rhythm */
+  margin: 0 0 24px;
+  background: #161b22;
+}
+.a11y3-errorsummary h2 { margin: 0 0 8px; font-size: 1.1rem; }
+.a11y3-errorsummary ul { margin: 8px 0 0; padding-left: 24px; }
+.a11y3-errorsummary li { margin-bottom: 8px; }
+
+/* 50524 — sortable table ----------------------------------------------------- */
+.a11y3-sorttable { border-collapse: collapse; width: 100%; }
+.a11y3-sorttable th, .a11y3-sorttable td {
+  text-align: left; padding: 8px 16px; border-bottom: 1px solid #30363d;
+}
+.a11y3-sortbtn {
+  background: none; border: none; color: inherit; font: inherit; cursor: pointer;
+  padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
+}
+.a11y3-sortbtn:hover { background: #21262d; }
+.a11y3-sortarrow { color: #8b949e; font-size: 0.8em; }
+
+/* 50540 — roving tabindex list ---------------------------------------------- */
+.a11y3-roving { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.a11y3-roving-item {
+  padding: 8px 16px; border: 1px solid #30363d; border-radius: 8px; cursor: default;
+}
+.a11y3-roving-item[aria-selected="true"] { border-color: #58a6ff; }
+
+/* 50542 — severity slider ---------------------------------------------------- */
+.a11y3-slider { display: flex; align-items: center; gap: 16px; padding: 8px 0; }
+.a11y3-slider-label { font-weight: 600; min-width: 96px; }
+.a11y3-slider input[type="range"] { flex: 1; min-height: 44px; accent-color: #58a6ff; }
+.a11y3-slider output { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* 50543 — chart description -------------------------------------------------- */
+.a11y3-chartdesc-text {
+  margin-top: 8px; padding: 16px; border: 1px solid #30363d; border-radius: 8px;
+  background: #161b22; line-height: 1.5;
+}
+
+/* 50552 / 50546 — timeout + destructive confirm ------------------------------ */
+.a11y3-timeout, .a11y3-destruct {
+  border: 1px solid #d29922; border-radius: 8px; padding: 16px 24px; margin: 16px 0;
+  background: #161b22;
+}
+.a11y3-destruct { border-color: #f85149; }
+.a11y3-destruct-actions { display: flex; gap: 16px; margin-top: 16px; }
+
+/* 50528 — avatar captions ---------------------------------------------------- */
+.a11y3-captions {
+  margin: 16px 0; padding: 8px 16px; border-left: 4px solid #58a6ff;
+  background: #0d1117; border-radius: 0 8px 8px 0;
+}
+.a11y3-captions blockquote { margin: 0; font-style: normal; }
+
+/* 50559 — accessibility statement -------------------------------------------- */
+.a11y3-statement { max-width: 72ch; line-height: 1.5; padding: 24px; }
+.a11y3-statement h1 { font-size: 1.75rem; margin-bottom: 8px; }
+.a11y3-statement h2 { font-size: 1.2rem; margin: 24px 0 8px; }
+.a11y3-statement-meta { color: #8b949e; }
+.a11y3-statement li { margin-bottom: 8px; }
+
+/* 50550 — keyboard drag handle: always visibly focusable --------------------- */
+.a11y3-draghandle {
+  background: #21262d; border: 1px solid #30363d; border-radius: 6px;
+  color: #e6edf3; cursor: grab; padding: 8px 12px; font-size: 1rem; line-height: 1;
+}
+.a11y3-draghandle:focus-visible {
+  outline: 3px solid #ffffff; outline-offset: 2px;
+}
+
+/* 50553 — keyboard date input ------------------------------------------------- */
+.a11y3-dateinput { display: flex; flex-direction: column; gap: 8px; max-width: 320px; }
+.a11y3-dateinput input {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+  color: #e6edf3; padding: 8px 16px; font: inherit;
+}
+.a11y3-fielderror { color: #f85149; font-size: 0.875rem; }
+
+/* Shared bits --------------------------------------------------------------- */
+.a11y3-focusable:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.a11y3-btn {
+  background: #238636; border: 1px solid #2ea043; border-radius: 6px; color: #fff;
+  padding: 8px 16px; font: inherit; cursor: pointer; min-height: 44px;
+}
+.a11y3-btn:hover { background: #2ea043; }
+.a11y3-btn-danger { background: #da3633; border-color: #f85149; }
+.a11y3-btn-danger:hover { background: #f85149; }
+.a11y3-hint { color: #8b949e; font-size: 0.875rem; margin: 4px 0; }
+.a11y3-switch {
+  display: inline-flex; align-items: center; gap: 8px; background: none; border: none;
+  color: inherit; font: inherit; cursor: pointer; padding: 8px; border-radius: 8px;
+}
+.a11y3-switch-knob {
+  width: 44px; height: 24px; border-radius: 12px; background: #30363d; position: relative;
+  transition: background 150ms ease-out;
+}
+.a11y3-switch-knob::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; transition: left 150ms ease-out;
+}
+.a11y3-switch[aria-checked="true"] .a11y3-switch-knob { background: #238636; }
+.a11y3-switch[aria-checked="true"] .a11y3-switch-knob::after { left: 22px; }
+.a11y3-readability fieldset, fieldset.a11y3-readability {
+  border: 1px solid #30363d; border-radius: 8px; padding: 16px 24px; margin: 16px 0;
+}
+.a11y3-readability legend { font-weight: 600; padding: 0 8px; }
+.a11y3-readability label { display: flex; align-items: center; gap: 16px; margin: 8px 0; }
+.a11y3-readability input[type="range"] { flex: 1; min-height: 44px; accent-color: #58a6ff; }
+.a11y3-rhythm { display: flex; flex-direction: column; }
+.a11y3-terminal {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+  padding: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.a11y3-graphlist ul { padding-left: 24px; }
+.a11y3-graphlist li { margin-bottom: 4px; }
+
+/* 50503-adjacent: the slide-in + flash never run under reduced motion -------- */
+@media (prefers-reduced-motion: reduce) {
+  .a11y3-newcard { animation: none; }
+  .a11y3-switch-knob, .a11y3-switch-knob::after { transition: none; }
+}
