@@ -1,23 +1,21 @@
 /**
- * Plugins — the extension surface for DarkMatter.
+ * Plugins — the extension surface for Dark Matter.
  *
  * Three plugin families, each wired to the page that already implements it:
- *   🧠 Model plugins   → Models page (local / remote-GPU / Kaggle / Colab brains)
- *   📦 Payload plugins → Payload library (self-learning payload packs)
- *   🔌 API plugins     → external integrations (docs / coming soon)
+ *   Model plugins   → Models page (local / remote-GPU / Kaggle / Colab brains)
+ *   Payload plugins → Payload library (self-learning payload packs)
+ *   API plugins     → external integrations (docs / coming soon)
  *
  * This page is the directory; the heavy lifting lives in the linked pages.
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Blocks, Brain, Package, Plug, ArrowRight } from 'lucide-react';
-import './Plugins.css';
+import { Brain, Package, Plug, ArrowRight } from 'lucide-react';
 
 const FAMILIES = [
   {
     id: 'models',
     icon: Brain,
-    accent: 'cyan',
     name: 'Model plugins',
     tagline: 'Brains the agent can run on.',
     description:
@@ -30,7 +28,6 @@ const FAMILIES = [
   {
     id: 'payloads',
     icon: Package,
-    accent: 'violet',
     name: 'Payload plugins',
     tagline: 'Tradecraft the agent learns.',
     description:
@@ -43,7 +40,6 @@ const FAMILIES = [
   {
     id: 'api',
     icon: Plug,
-    accent: 'amber',
     name: 'API plugins',
     tagline: 'External integrations.',
     description:
@@ -58,36 +54,86 @@ const FAMILIES = [
 
 export function Plugins() {
   return (
-    <div className="sg-plugins">
-      <header className="sg-plugins-head">
-        <h2 className="sg-h1"><Blocks size={26} /> Plugins</h2>
-        <p className="sg-body">
-          Extend the agent. Models, payload packs, and integrations —
-          everything plugs into the same brain.
-        </p>
-      </header>
+    <div className="dm-page">
+      <div className="dm-container">
+        <header className="dm-page-head">
+          <h1 className="dm-page-title">Plugins</h1>
+          <p className="dm-page-sub">
+            Extend the agent. Models, payload packs, and integrations —
+            everything plugs into the same brain.
+          </p>
+        </header>
 
-      <div className="sg-plugins-grid">
-        {FAMILIES.map((f) => (
-          <article key={f.id} data-accent={f.accent} className={`sg-card sg-card-pad sg-plugin-card${f.disabled ? ' sg-soon' : ''}`}>
-            <span className="sg-plugin-icon" data-accent={f.accent} aria-hidden="true"><f.icon size={22} /></span>
-            <div className="sg-plugin-top">
-              <h3 className="sg-h2">{f.name}</h3>
-              <span className={`sg-pill ${f.status === 'Live' ? 'sg-pill-go' : ''}`}><span className="dot" aria-hidden="true"></span>{f.status}</span>
-            </div>
-            <p className="sg-plugin-tagline">{f.tagline}</p>
-            <p className="sg-small">{f.description}</p>
-            {f.to ? (
-              <Link to={f.to} className="sg-btn sg-btn-ghost sg-plugin-cta" aria-label={`${f.cta} — ${f.name}`}>
-                {f.cta} <ArrowRight size={15} />
-              </Link>
-            ) : (
-              <button className="sg-btn sg-btn-ghost sg-plugin-cta" disabled aria-disabled="true" title="Coming soon">
-                {f.cta}
-              </button>
-            )}
-          </article>
-        ))}
+        <div className="dm-grid-3">
+          {FAMILIES.map((f) => (
+            <article
+              key={f.id}
+              className="dm-card"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                opacity: f.disabled ? 0.72 : 1,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 'var(--dm-4)',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 'var(--dm-r)',
+                    background: 'var(--dm-surface-2)',
+                    border: '1px solid var(--dm-border)',
+                    color: 'var(--dm-gold-soft)',
+                  }}
+                >
+                  <f.icon size={22} />
+                </span>
+                <span className={`dm-badge ${f.status === 'Live' ? 'dm-badge-green' : ''}`}>
+                  {f.status}
+                </span>
+              </div>
+              <h3 className="dm-card-title">{f.name}</h3>
+              <p className="dm-card-sub" style={{ marginBottom: 'var(--dm-2)' }}>
+                {f.tagline}
+              </p>
+              <p
+                className="dm-muted"
+                style={{
+                  fontSize: 'var(--dm-text-sm)',
+                  lineHeight: 1.6,
+                  margin: '0 0 var(--dm-6)',
+                  flex: 1,
+                }}
+              >
+                {f.description}
+              </p>
+              {f.to ? (
+                <Link
+                  to={f.to}
+                  className="dm-btn dm-btn-secondary"
+                  aria-label={`${f.cta} — ${f.name}`}
+                >
+                  {f.cta} <ArrowRight size={15} aria-hidden="true" />
+                </Link>
+              ) : (
+                <button className="dm-btn dm-btn-ghost" disabled title="Coming soon">
+                  {f.cta}
+                </button>
+              )}
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   );

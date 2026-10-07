@@ -1,7 +1,7 @@
 /**
  * Premium — subscription tiers with live Razorpay billing.
  *
- * Tiers: Free $0 · Low $20 · Medium $50 · High $100 · UltraMax $299 · Infinity $499.
+ * Tiers: Free ₹0 · Low ₹1,699 · Medium ₹4,199 · High ₹8,399 · UltraMax ₹24,999 · Infinity ₹41,999.
  * Paid tiers check out through Razorpay (test mode): the backend creates the
  * order at its own authoritative INR price and verifies the payment signature.
  */
@@ -13,7 +13,6 @@ import {
   verifyBillingPayment,
   getBillingSubscription,
 } from '../../services/api.js';
-import './Premium.css';
 
 const TIERS = [
   {
@@ -57,6 +56,7 @@ const TIERS = [
       'On-demand PDF reports',
       'Computer control (Control mode)',
     ],
+    popular: true,
   },
   {
     id: 'high',
@@ -140,6 +140,123 @@ function loadRazorpayScript() {
   });
 }
 
+const POPULAR_STYLE = {
+  borderColor: 'var(--dm-gold-border)',
+  background: 'rgba(212, 169, 78, 0.045)',
+};
+
+function TierCard({ tier, active, reserved, onChoose }) {
+  const isActive = active === tier.id;
+  const isReserved = reserved === tier.id;
+  const priceLabel =
+    tier.inrPrice === 0 ? 'Free' : `₹${tier.inrPrice.toLocaleString('en-IN')}`;
+
+  let ctaClass = 'dm-btn dm-btn-secondary dm-btn-block';
+  let ctaLabel = tier.price === 0 ? 'Start free' : `Choose ${tier.name}`;
+  if (isActive) {
+    ctaClass = 'dm-btn dm-btn-primary dm-btn-block';
+    ctaLabel = 'Active plan';
+  } else if (isReserved) {
+    ctaClass = 'dm-btn dm-btn-secondary dm-btn-block';
+    ctaLabel = 'Tier reserved';
+  } else if (tier.popular || tier.flagship) {
+    ctaClass = 'dm-btn dm-btn-primary dm-btn-block';
+  }
+
+  const ariaLabel = isActive
+    ? `${tier.name} — your active plan`
+    : isReserved
+      ? `${tier.name} — reserved, open to pay`
+      : tier.price === 0
+        ? `Start free with ${tier.name}`
+        : `Choose the ${tier.name} tier`;
+
+  return (
+    <article
+      className="dm-card"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        ...(tier.popular ? POPULAR_STYLE : {}),
+      }}
+    >
+      {(tier.popular || tier.flagship) && (
+        <div style={{ marginBottom: 'var(--dm-3)' }}>
+          <span className="dm-badge dm-badge-gold">
+            <Sparkles size={12} aria-hidden="true" />
+            {tier.flagship ? 'Most powerful' : 'Most popular'}
+          </span>
+        </div>
+      )}
+      <h3 className="dm-card-title" style={{ fontSize: 'var(--dm-text-xl)' }}>
+        {tier.name}
+      </h3>
+      <p className="dm-card-sub" style={{ marginBottom: 'var(--dm-2)' }}>
+        {tier.tagline}
+      </p>
+      <p style={{ margin: '0 0 var(--dm-4)' }}>
+        <span style={{ fontSize: 'var(--dm-text-3xl)', fontWeight: 700, letterSpacing: '-0.02em' }}>
+          {priceLabel}
+        </span>
+        {tier.inrPrice > 0 && (
+          <span className="dm-muted" style={{ fontSize: 'var(--dm-text-sm)' }}>
+            {' '}/month
+          </span>
+        )}
+      </p>
+      <ul
+        style={{
+          listStyle: 'none',
+          margin: '0 0 var(--dm-6)',
+          padding: 0,
+          display: 'grid',
+          gap: 'var(--dm-2)',
+          flex: 1,
+        }}
+      >
+        {tier.features.map((f) => (
+          <li
+            key={f}
+            style={{
+              display: 'flex',
+              gap: 'var(--dm-2)',
+              fontSize: 'var(--dm-text-sm)',
+              color: 'var(--dm-text-2)',
+              lineHeight: 1.5,
+            }}
+          >
+            <Check
+              size={14}
+              aria-hidden="true"
+              style={{ color: 'var(--dm-gold-soft)', flexShrink: 0, marginTop: 3 }}
+            />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <button className={ctaClass} onClick={() => onChoose(tier)} disabled={isActive} aria-label={ariaLabel}>
+        {isActive || isReserved ? (
+          <>
+            <Check size={14} aria-hidden="true" /> {ctaLabel}
+          </>
+        ) : (
+          ctaLabel
+        )}
+      </button>
+      {isActive && (
+        <p className="dm-muted dm-mt-2" style={{ fontSize: 'var(--dm-text-xs)', textAlign: 'center' }}>
+          Your <strong className="dm-text-2">{tier.name}</strong> plan is active. Hunt like an elite.
+        </p>
+      )}
+      {!isActive && isReserved && (
+        <p className="dm-muted dm-mt-2" style={{ fontSize: 'var(--dm-text-xs)', textAlign: 'center' }}>
+          Tier reserved — open it to complete payment.
+        </p>
+      )}
+    </article>
+  );
+}
+
 export function Premium() {
   const [reserved, setReserved] = useState(() => getReservedTier());
   const [active, setActive] = useState(() => getActiveTier());
@@ -193,7 +310,7 @@ export function Premium() {
         currency: order.currency,
         name: 'Dark Matter',
         description: `${tier.name} — monthly`,
-        theme: { color: '#7c3aed' },
+        theme: { color: '#d4a94e' },
         handler: async (resp) => {
           try {
             const result = await verifyBillingPayment({
@@ -229,120 +346,144 @@ export function Premium() {
   };
 
   return (
-    <div className="sg-premium">
-      <header className="sg-premium-head">
-        <h2 className="sg-h1"><Crown size={26} /> Premium</h2>
-        <p className="sg-body">
-          Pick the firepower you need. Hunt like an elite — or become one.
-        </p>
-      </header>
+    <div className="dm-page">
+      <div className="dm-container">
+        <header className="dm-page-head">
+          <h1 className="dm-page-title">Premium</h1>
+          <p className="dm-page-sub">
+            Pick the firepower you need. Hunt like an elite — or become one.
+          </p>
+        </header>
 
-      <div className="sg-premium-grid">
-        {TIERS.map((tier, i) => (
-          <article
-            key={tier.id}
-            className={`sg-card sg-card-pad sg-premium-card dm-polish-in${tier.flagship ? ' sg-premium-flagship' : ''}`}
-            style={{ animationDelay: `${i * 60}ms` }}
-          >
-            {tier.flagship && (
-              <span className="sg-premium-badge"><Sparkles size={12} /> Most powerful</span>
-            )}
-            <h3 className="sg-premium-name">{tier.name}</h3>
-            <p className="sg-premium-tagline">{tier.tagline}</p>
-            <p className="sg-premium-price">
-              <span className="sg-premium-amount">₹{tier.inrPrice.toLocaleString('en-IN')}</span>
-              <span className="sg-premium-period">/month</span>
-            </p>
-            <ul className="sg-premium-features">
-              {tier.features.map((f) => (
-                <li key={f}><Check size={14} /> {f}</li>
-              ))}
-            </ul>
-            <button
-              className={`sg-btn ${active === tier.id ? 'sg-btn-primary' : reserved === tier.id ? 'sg-btn-ghost' : tier.flagship ? 'sg-btn-primary' : 'sg-btn-ghost'} sg-premium-cta`}
-              onClick={() => setPending(tier)}
-              disabled={active === tier.id}
-              aria-label={active === tier.id ? `${tier.name} — your active plan` : reserved === tier.id ? `${tier.name} — reserved, open to pay` : tier.price === 0 ? `Start free with ${tier.name}` : `Choose the ${tier.name} tier`}
-            >
-              {active === tier.id ? <><Check size={14} aria-hidden="true" /> Active plan</> : reserved === tier.id ? <><Check size={14} aria-hidden="true" /> Tier reserved</> : tier.price === 0 ? 'Start free' : `Choose ${tier.name}`}
-            </button>
-            {active === tier.id && (
-              <p className="sg-small sg-premium-note">
-                Your <strong>{tier.name}</strong> plan is active. Hunt like an elite. <Sparkles size={12} aria-hidden="true" />
-              </p>
-            )}
-            {active !== tier.id && reserved === tier.id && (
-              <p className="sg-small sg-premium-note">
-                {billingLive
-                  ? <>Your <strong>{tier.name}</strong> tier is reserved — open the tier to complete payment via Razorpay (test mode, no real money moves).</>
-                  : <>Billing goes live soon — your <strong>{tier.name}</strong> tier is reserved. We'll notify you the moment payments open.</>}
-              </p>
-            )}
-          </article>
-        ))}
+        <div className="dm-grid-3">
+          {TIERS.map((tier) => (
+            <TierCard
+              key={tier.id}
+              tier={tier}
+              active={active}
+              reserved={reserved}
+              onChoose={setPending}
+            />
+          ))}
+        </div>
       </div>
 
       {/* ── Checkout modal — live Razorpay billing (test mode). ── */}
       {pending && (
-        <div className="sg-modal-scrim" onClick={() => setPending(null)} role="presentation">
+        <div
+          onClick={() => setPending(null)}
+          role="presentation"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 'var(--dm-4)',
+          }}
+        >
           <div
-            className="sg-card sg-card-pad sg-premium-modal"
-            role="dialog" aria-modal="true" aria-label={`${pending.name} tier checkout`}
+            className="dm-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${pending.name} tier checkout`}
             onClick={(e) => e.stopPropagation()}
-            ref={modalRef} tabIndex={-1}
+            ref={modalRef}
+            tabIndex={-1}
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              position: 'relative',
+              outline: 'none',
+            }}
           >
-            <button className="sg-modal-close" onClick={() => setPending(null)} aria-label="Close checkout dialog">
-              <X size={18} />
+            <button
+              className="dm-btn dm-btn-ghost dm-btn-sm"
+              onClick={() => setPending(null)}
+              aria-label="Close checkout dialog"
+              style={{ position: 'absolute', top: 'var(--dm-3)', right: 'var(--dm-3)' }}
+            >
+              <X size={16} aria-hidden="true" />
             </button>
-            <div className="sg-premium-modal-icon"><Crown size={26} /></div>
-            <h3 className="sg-h2">{pending.name} — ₹{pending.inrPrice.toLocaleString('en-IN')}/month</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dm-3)', marginBottom: 'var(--dm-4)' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 44,
+                  height: 44,
+                  borderRadius: 'var(--dm-r)',
+                  background: 'var(--dm-gold-glow)',
+                  border: '1px solid var(--dm-gold-border)',
+                  color: 'var(--dm-gold-soft)',
+                }}
+                aria-hidden="true"
+              >
+                <Crown size={22} />
+              </span>
+              <div>
+                <h3 className="dm-card-title">{pending.name}</h3>
+                <p className="dm-muted" style={{ margin: 0, fontSize: 'var(--dm-text-sm)' }}>
+                  {pending.inrPrice === 0
+                    ? 'Free forever'
+                    : `₹${pending.inrPrice.toLocaleString('en-IN')} / month`}
+                </p>
+              </div>
+            </div>
             {pending.price === 0 ? (
               <>
-                <p className="sg-body">
-                  The <strong>Free</strong> tier needs no payment — start hunting right away.
+                <p className="dm-card-sub">
+                  The <strong className="dm-text-2">Free</strong> tier needs no payment — start hunting right away.
                 </p>
-                <div className="sg-premium-modal-actions">
-                  <button className="sg-btn sg-btn-primary" onClick={() => reserve(pending)}>
+                <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap' }}>
+                  <button className="dm-btn dm-btn-primary" onClick={() => reserve(pending)}>
                     Start free
                   </button>
-                  <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)}>
+                  <button className="dm-btn dm-btn-ghost" onClick={() => setPending(null)}>
                     Not now
                   </button>
                 </div>
               </>
             ) : billingLive ? (
               <>
-                <p className="sg-body">
+                <p className="dm-card-sub">
                   Pay securely via Razorpay (UPI, cards, netbanking). Test mode — no real
                   money moves.
                 </p>
-                {payError && <p className="sg-small sg-premium-error" role="alert">{payError}</p>}
-                <div className="sg-premium-modal-actions">
+                {payError && (
+                  <p role="alert" style={{ fontSize: 'var(--dm-text-sm)', color: 'var(--dm-red)', margin: '0 0 var(--dm-3)' }}>
+                    {payError}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap' }}>
                   <button
-                    className="sg-btn sg-btn-primary"
+                    className="dm-btn dm-btn-primary"
                     onClick={() => payForTier(pending)}
                     disabled={paying}
                   >
                     {paying ? 'Opening checkout…' : `Pay ₹${pending.inrPrice.toLocaleString('en-IN')}/month`}
                   </button>
-                  <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)} disabled={paying}>
+                  <button className="dm-btn dm-btn-ghost" onClick={() => setPending(null)} disabled={paying}>
                     Not now
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <p className="sg-body">
+                <p className="dm-card-sub">
                   Billing isn't live yet, so you can't pay for{' '}
-                  <strong>₹{pending.inrPrice.toLocaleString('en-IN')}/month</strong> today. Reserve the{' '}
-                  <strong>{pending.name}</strong> tier now and we'll notify you the
-                  moment payments open.
+                  <strong className="dm-text-2">₹{pending.inrPrice.toLocaleString('en-IN')}/month</strong> today.
+                  Reserve the <strong className="dm-text-2">{pending.name}</strong> tier now and we'll
+                  notify you the moment payments open.
                 </p>
-                <div className="sg-premium-modal-actions">
-                  <button className="sg-btn sg-btn-primary" onClick={() => reserve(pending)}>
+                <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap' }}>
+                  <button className="dm-btn dm-btn-primary" onClick={() => reserve(pending)}>
                     Reserve my spot
                   </button>
-                  <button className="sg-btn sg-btn-ghost" onClick={() => setPending(null)}>
+                  <button className="dm-btn dm-btn-ghost" onClick={() => setPending(null)}>
                     Not now
                   </button>
                 </div>

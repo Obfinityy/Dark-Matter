@@ -1,27 +1,20 @@
 /**
- * InfinityAI — your AI companion, ChatGPT-style.
+ * InfinityAI — your AI companion.
  *
  * Four modes, one brain:
  *   Chat     — ask anything, casual conversation, explain, debug
  *   Plan     — describe an idea → get a real step-by-step plan (numbered,
  *              with tools/apps needed). Planning only — never executes.
  *   Build    — the agent reads/writes REAL files inside a sandboxed
- *              workspace (backend/data/agent-workspace/). "Build me a
- *              portfolio page" creates index.html + styles.css + app.js.
+ *              workspace (backend/data/agent-workspace/).
  *   Control  — Infinity Control: natural-language desktop commands.
  *              NL → decomposed GUI plan → every step validated against the
  *              closed action schema → executed by the computer adapter.
- *              Runs simulated (mock adapter) by default — safe anywhere.
- *              On the user's own machine with the bridge installed, the
- *              simulation can be switched off for real desktop control.
  *
  * Same brain powers Hunt and Infinity AI.
  *
- * Layout:
- *   - Top bar: title, current-mode hint, backend badge, avatar-panel toggle.
- *   - Right side: collapsible avatar panel (gender + voice toggles, live state).
- *   - Every mode's input row has the mode-switcher dropdown + [+] attach
- *     INSIDE it — no bottom dock.
+ * Design: Dark Matter "quiet luxury" system (dm-* classes + tokens below).
+ * Simple, elegant, professional — no neon, no decoration.
  */
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -30,7 +23,7 @@ import {
   Hammer, SlidersHorizontal, Cpu, CheckCircle2, XCircle,
   FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
   ShieldCheck, Play, Paperclip, FolderOpen, X, Plus,
-  ChevronDown, Check, PanelRightOpen, PanelRightClose, ChevronsLeft,
+  ChevronDown, Check, PanelRightOpen, PanelRightClose,
   Brain, CircleHelp, Ban, TriangleAlert, Volume2, VolumeX
 } from 'lucide-react';
 import { sendDirectChat, parseActionIntent, getComputerStatus, getInfiniteHistory } from '../../services/api';
@@ -47,8 +40,175 @@ import { CrewPanel } from '../../components/agent/CrewPanel';
 import { speak, isVoiceReady } from '../../services/voice';
 import { MicButton, VoiceModeToggle } from '../../components/agent/VoiceInput';
 import { useVoiceConversation } from '../../hooks/useVoiceConversation';
-import './InfinityAI.css';
-import './InfinityAINew.css';
+
+/* ── Page-local styles: chat layout pieces the dm-* system doesn't cover.
+ * Uses only dm- design tokens. Zero decorative animation. ─────────── */
+const DM_INF_CSS = `
+.dm-inf-page { display: flex; flex-direction: column; gap: var(--dm-4); }
+.dm-inf-layout { display: flex; gap: var(--dm-4); align-items: stretch; }
+.dm-inf-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--dm-4); }
+.dm-inf-side { width: 272px; flex-shrink: 0; }
+@media (max-width: 900px) {
+  .dm-inf-layout { flex-direction: column; }
+  .dm-inf-side { width: 100%; }
+}
+
+/* ── Chat messages ── */
+.dm-chat-messages { display: flex; flex-direction: column; gap: var(--dm-4); }
+.dm-msg { display: flex; gap: var(--dm-3); max-width: 86%; }
+.dm-msg-user { align-self: flex-end; flex-direction: row-reverse; }
+.dm-msg-assistant { align-self: flex-start; }
+@media (max-width: 600px) { .dm-msg { max-width: 96%; } }
+.dm-msg-avatar {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: var(--dm-r-full);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--dm-surface-2); border: 1px solid var(--dm-border);
+  color: var(--dm-text-2); margin-top: 2px;
+}
+.dm-bubble {
+  padding: var(--dm-3) var(--dm-4); border-radius: var(--dm-r-lg);
+  font-size: var(--dm-text-base); line-height: 1.65; white-space: pre-wrap;
+  overflow-wrap: break-word; color: var(--dm-text);
+}
+.dm-msg-user .dm-bubble { background: var(--dm-gold-glow); border: 1px solid var(--dm-gold-border); }
+.dm-msg-assistant .dm-bubble { background: var(--dm-surface); border: 1px solid var(--dm-border); }
+
+/* ── Composer: one clean row ── */
+.dm-composer {
+  display: flex; align-items: center; gap: var(--dm-2);
+  background: var(--dm-surface); border: 1px solid var(--dm-border);
+  border-radius: var(--dm-r-lg); padding: var(--dm-2) var(--dm-2) var(--dm-2) var(--dm-3);
+}
+.dm-composer:focus-within { border-color: var(--dm-gold-border); box-shadow: 0 0 0 3px var(--dm-gold-glow); }
+.dm-composer input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  font-family: var(--dm-font); font-size: var(--dm-text-base); color: var(--dm-text);
+  padding: var(--dm-2) var(--dm-1);
+}
+.dm-composer input::placeholder { color: var(--dm-muted); }
+.dm-composer input:disabled { opacity: 0.5; }
+.dm-icon-btn {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: var(--dm-r); border: 1px solid transparent;
+  background: transparent; color: var(--dm-text-2); cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dm-icon-btn:hover:not(:disabled) { background: var(--dm-surface-2); color: var(--dm-text); }
+.dm-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dm-icon-btn-primary { background: var(--dm-gold); color: #16130a; }
+.dm-icon-btn-primary:hover:not(:disabled) { background: var(--dm-gold-soft); color: #16130a; }
+
+/* ── Mode dropdown (inside the composer) ── */
+.dm-mode-dd { position: relative; flex-shrink: 0; }
+.dm-mode-menu {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 40;
+  min-width: 240px; background: var(--dm-surface); border: 1px solid var(--dm-border);
+  border-radius: var(--dm-r-lg); box-shadow: var(--dm-shadow-lg); padding: var(--dm-1);
+}
+.dm-mode-item {
+  display: flex; align-items: center; gap: var(--dm-3); width: 100%;
+  padding: var(--dm-2) var(--dm-3); border: none; border-radius: var(--dm-r);
+  background: transparent; color: var(--dm-text); cursor: pointer; text-align: left;
+  font-family: var(--dm-font);
+}
+.dm-mode-item:hover { background: var(--dm-surface-2); }
+.dm-mode-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dm-mode-item-text strong { font-size: var(--dm-text-sm); font-weight: 600; }
+.dm-mode-item-text small { font-size: var(--dm-text-xs); color: var(--dm-muted); }
+.dm-mode-item .dm-check { color: var(--dm-gold-soft); flex-shrink: 0; }
+.dm-caret-up { transform: rotate(180deg); }
+
+/* ── Attachment chips ── */
+.dm-attach-chips { display: flex; flex-wrap: wrap; gap: var(--dm-2); margin-bottom: var(--dm-2); }
+.dm-chip-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--dm-muted); cursor: pointer;
+  padding: 2px; border-radius: var(--dm-r-sm);
+}
+.dm-chip-x:hover { color: var(--dm-red); }
+
+/* ── Typing indicator (functional) ── */
+.dm-typing { display: inline-flex; gap: 5px; padding: 4px 2px; }
+.dm-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--dm-muted); }
+.dm-spin { animation: dm-spin 0.9s linear infinite; }
+@keyframes dm-spin { to { transform: rotate(360deg); } }
+
+/* ── Voice status ── */
+.dm-voice-status {
+  display: flex; align-items: center; gap: var(--dm-2);
+  font-size: var(--dm-text-sm); color: var(--dm-text-2);
+  padding: var(--dm-2) var(--dm-1);
+}
+.dm-voice-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dm-red); flex-shrink: 0; }
+
+/* ── Plan steps ── */
+.dm-plan-steps { list-style: none; margin: var(--dm-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--dm-3); }
+.dm-plan-step { display: flex; gap: var(--dm-4); }
+.dm-plan-num {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: var(--dm-r-full);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--dm-gold-glow); border: 1px solid var(--dm-gold-border);
+  color: var(--dm-gold-soft); font-size: var(--dm-text-sm); font-weight: 700;
+}
+.dm-plan-step-body { flex: 1; min-width: 0; }
+.dm-plan-step-body strong { display: block; font-size: var(--dm-text-base); margin-bottom: 2px; }
+.dm-plan-step-body p { margin: 0; font-size: var(--dm-text-sm); color: var(--dm-text-2); line-height: 1.6; }
+.dm-plan-tools { display: flex; flex-wrap: wrap; gap: var(--dm-2); margin-top: var(--dm-2); }
+
+/* ── Control feed ── */
+.dm-feed { display: flex; flex-direction: column; gap: var(--dm-1); }
+.dm-feed-row {
+  display: flex; gap: var(--dm-3); align-items: flex-start;
+  padding: var(--dm-2) var(--dm-3); border-radius: var(--dm-r);
+  font-size: var(--dm-text-sm); line-height: 1.55; color: var(--dm-text-2);
+}
+.dm-feed-row.ok { color: var(--dm-green); }
+.dm-feed-row.bad { color: var(--dm-red); }
+.dm-feed-ico { flex-shrink: 0; margin-top: 2px; display: inline-flex; }
+
+/* ── File preview ── */
+.dm-code {
+  margin: 0; padding: var(--dm-4); border-radius: var(--dm-r);
+  background: var(--dm-bg-2); border: 1px solid var(--dm-border);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--dm-text-sm); line-height: 1.6; color: var(--dm-text);
+  overflow-x: auto; white-space: pre;
+}
+
+/* ── Error notice (red variant) ── */
+.dm-notice-red { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.07); color: var(--dm-text); }
+
+/* ── Loading row (functional) ── */
+.dm-loading-row { display: flex; align-items: center; gap: var(--dm-3); padding: var(--dm-4); color: var(--dm-text-2); font-size: var(--dm-text-sm); }
+
+/* ── Avatar panel bits ── */
+.dm-side-state {
+  display: inline-flex; align-items: center; gap: var(--dm-2);
+  font-size: var(--dm-text-sm); color: var(--dm-text-2); font-weight: 600;
+}
+.dm-state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dm-muted); }
+.dm-state-thinking .dm-state-dot { background: var(--dm-amber); }
+.dm-state-speaking .dm-state-dot { background: var(--dm-green); }
+.dm-state-listening .dm-state-dot { background: var(--dm-blue); }
+.dm-seg { display: flex; gap: var(--dm-1); flex-wrap: wrap; }
+.dm-seg-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--dm-font); font-size: var(--dm-text-xs); font-weight: 600;
+  padding: 7px 12px; border-radius: var(--dm-r-full);
+  border: 1px solid var(--dm-border); background: var(--dm-surface-2);
+  color: var(--dm-text-2); cursor: pointer;
+}
+.dm-seg-btn:hover { border-color: var(--dm-border-strong); color: var(--dm-text); }
+.dm-seg-btn[aria-pressed="true"] {
+  background: var(--dm-gold-glow); border-color: var(--dm-gold-border); color: var(--dm-gold-soft);
+}
+
+/* ── Small helpers ── */
+.dm-row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--dm-3); flex-wrap: wrap; }
+.dm-clickable-badge { cursor: pointer; }
+.dm-clickable-badge:hover { border-color: var(--dm-gold-border); color: var(--dm-gold-soft); }
+.dm-ask-box { display: flex; flex-direction: column; gap: var(--dm-3); }
+`;
 
 const MODES = [
   { id: 'chat', label: 'Chat', icon: MessageCircle, hint: 'Ask anything' },
@@ -132,22 +292,22 @@ function ModeDropdown({ mode, setMode }) {
 
   const ActiveIcon = active.icon;
   return (
-    <div className="inf-mode-dd" ref={wrapRef}>
+    <div className="dm-mode-dd" ref={wrapRef}>
       <button
         type="button"
         ref={triggerRef}
-        className="inf-mode-dd-btn"
+        className="dm-btn dm-btn-secondary dm-btn-sm"
         onClick={() => (open ? setOpen(false) : openMenu())}
         aria-haspopup="listbox"
         aria-expanded={open}
         title="Switch mode"
       >
         <ActiveIcon size={15} />
-        <span className="inf-mode-dd-label">{active.label}</span>
-        <ChevronDown size={14} className={open ? 'inf-caret-up' : ''} />
+        <span>{active.label}</span>
+        <ChevronDown size={14} className={open ? 'dm-caret-up' : ''} />
       </button>
       {open && (
-        <div className="inf-mode-dd-menu" role="listbox" aria-label="Switch mode" onKeyDown={onMenuKeyDown}>
+        <div className="dm-mode-menu" role="listbox" aria-label="Switch mode" onKeyDown={onMenuKeyDown}>
           {MODES.map((m) => {
             const Icon = m.icon;
             return (
@@ -159,15 +319,15 @@ function ModeDropdown({ mode, setMode }) {
                 role="option"
                 aria-selected={m.id === mode}
                 tabIndex={-1}
-                className={`inf-mode-dd-item${m.id === mode ? ' inf-active' : ''}`}
+                className="dm-mode-item"
                 onClick={() => { setMode(m.id); setOpen(false); triggerRef.current?.focus(); }}
               >
                 <Icon size={15} />
-                <span className="inf-mode-dd-item-text">
+                <span className="dm-mode-item-text">
                   <strong>{m.label}</strong>
                   <small>{m.hint}</small>
                 </span>
-                {m.id === mode && <Check size={14} />}
+                {m.id === mode && <Check size={14} className="dm-check" />}
               </button>
             );
           })}
@@ -193,7 +353,7 @@ function AttachButton({ onPick, title = 'Attach files', disabled = false, childr
     <>
       <button
         type="button"
-        className="inf-attach-btn"
+        className="dm-icon-btn"
         onClick={() => inputRef.current?.click()}
         title={title}
         aria-label={title}
@@ -218,17 +378,17 @@ function AttachButton({ onPick, title = 'Attach files', disabled = false, childr
 function AttachChips({ files, onRemove }) {
   if (!files?.length) return null;
   return (
-    <div className="inf-attach-chips" aria-label="Attached files">
+    <div className="dm-attach-chips" aria-label="Attached files">
       {files.map((f, i) => (
-        <span key={`${f.name}-${i}`} className="sg-chip">
+        <span key={`${f.name}-${i}`} className="dm-badge">
           <Paperclip size={12} />
-          <span className="sg-chip-name" title={f.name}>{f.name}</span>
+          <span title={f.name}>{f.name}</span>
           {typeof f.size === 'number' && (
-            <span className="sg-tiny">{(f.size / 1024).toFixed(1)} KB</span>
+            <span className="dm-muted">{(f.size / 1024).toFixed(1)} KB</span>
           )}
           <button
             type="button"
-            className="sg-chip-x"
+            className="dm-chip-x"
             onClick={() => onRemove(i)}
             aria-label={`Remove ${f.name}`}
           >
@@ -400,25 +560,25 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
 
   return (
     <>
-      <div className="sg-chat-messages">
+      <div className="dm-chat-messages">
         {loadingHistory ? (
-          <div className="sg-chat-msg assistant">
-            <span className="sg-chat-avatar"><Bot size={15} /></span>
-            <div className="sg-chat-bubble"><Loader2 size={15} className="sg-spin" /> Loading conversation…</div>
+          <div className="dm-msg dm-msg-assistant">
+            <span className="dm-msg-avatar"><Bot size={15} /></span>
+            <div className="dm-bubble"><Loader2 size={15} className="dm-spin" /> Loading conversation…</div>
           </div>
         ) : messages.map((m, i) => (
-          <div key={i} className={`sg-chat-msg ${m.role}`}>
-            <span className="sg-chat-avatar">
+          <div key={i} className={`dm-msg ${m.role === 'user' ? 'dm-msg-user' : 'dm-msg-assistant'}`}>
+            <span className="dm-msg-avatar">
               {m.role === 'assistant' ? <Bot size={15} /> : <User size={15} />}
             </span>
-            <div className="sg-chat-bubble">{m.text}</div>
+            <div className="dm-bubble">{m.text}</div>
           </div>
         ))}
         {sending && (
-          <div className="sg-chat-msg assistant">
-            <span className="sg-chat-avatar"><Bot size={15} /></span>
-            <div className="sg-chat-bubble sg-typing">
-              <span /><span /><span />
+          <div className="dm-msg dm-msg-assistant">
+            <span className="dm-msg-avatar"><Bot size={15} /></span>
+            <div className="dm-bubble">
+              <span className="dm-typing" aria-label="Typing"><span /><span /><span /></span>
             </div>
           </div>
         )}
@@ -426,8 +586,8 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
       </div>
       <AttachChips files={files} onRemove={removeFile} />
       {voiceMode && (
-        <div className="inf-voice-status" role="status" aria-live="polite">
-          <span className="inf-voice-dot" aria-hidden="true" />
+        <div className="dm-voice-status" role="status" aria-live="polite">
+          <span className="dm-voice-dot" aria-hidden="true" />
           {!voiceConvo.supported
             ? 'Voice input isn\u2019t supported in this browser \u2014 try Chrome or Edge'
             : voiceConvo.processing
@@ -437,7 +597,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
               : 'Voice chat on'}
         </div>
       )}
-      <div className="sg-chat-input inf-input-row">
+      <div className="dm-composer">
         <ModeDropdown mode={mode} setMode={setMode} />
         <AttachButton onPick={addFiles} />
         <input
@@ -450,13 +610,19 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
         />
         <MicButton
           onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-          className="inf-mic-btn"
+          className="dm-icon-btn"
           disabled={sending || voiceMode}
           onListeningChange={(listening) => { if (!voiceModeRef.current) onAvatarState?.(listening ? 'listening' : 'idle'); }}
         />
         <VoiceModeToggle active={voiceMode} onToggle={toggleVoiceMode} disabled={sending && !voiceMode} />
-        <button onClick={send} disabled={sending || (!input.trim() && !files.length)} aria-label="Send">
-          {sending ? <Loader2 size={17} className="sg-spin" /> : <Send size={17} />}
+        <button
+          type="button"
+          className="dm-icon-btn dm-icon-btn-primary"
+          onClick={send}
+          disabled={sending || (!input.trim() && !files.length)}
+          aria-label="Send"
+        >
+          {sending ? <Loader2 size={17} className="dm-spin" /> : <Send size={17} />}
         </button>
       </div>
     </>
@@ -501,58 +667,62 @@ function PlanPane({ mode, setMode }) {
   };
 
   return (
-    <div className="sg-plan">
-      <div className="sg-plan-input">
-        <AttachChips files={files} onRemove={removeFile} />
-        <div className="sg-chat-input inf-input-row">
-          <ModeDropdown mode={mode} setMode={setMode} />
-          <AttachButton onPick={addFiles} />
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && run()}
-            placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
-            aria-label="Describe your idea"
-            disabled={loading}
-          />
-          <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-          className="inf-mic-btn" disabled={loading} />
-          <button onClick={run} disabled={loading || (!input.trim() && !files.length)} aria-label="Make plan">
-            {loading ? <Loader2 size={17} className="sg-spin" /> : <ClipboardList size={17} />}
-          </button>
-        </div>
-        <p className="sg-small inf-center-note">Planning only — nothing is executed. Switch to Build to make it real.</p>
+    <div>
+      <AttachChips files={files} onRemove={removeFile} />
+      <div className="dm-composer">
+        <ModeDropdown mode={mode} setMode={setMode} />
+        <AttachButton onPick={addFiles} />
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && run()}
+          placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
+          aria-label="Describe your idea"
+          disabled={loading}
+        />
+        <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+          className="dm-icon-btn" disabled={loading} />
+        <button
+          type="button"
+          className="dm-icon-btn dm-icon-btn-primary"
+          onClick={run}
+          disabled={loading || (!input.trim() && !files.length)}
+          aria-label="Make plan"
+        >
+          {loading ? <Loader2 size={17} className="dm-spin" /> : <ClipboardList size={17} />}
+        </button>
       </div>
+      <p className="dm-hint dm-center">Planning only — nothing is executed. Switch to Build to make it real.</p>
 
-      {error && <div className="sg-auth-error inf-error-tall" role="alert">{error}</div>}
+      {error && <div className="dm-notice dm-notice-red dm-mt-4" role="alert">{error}</div>}
 
       {loading && (
-        <div className="sg-loading-box"><Loader2 size={20} className="sg-spin" /> Turning your idea into a plan…</div>
+        <div className="dm-loading-row"><Loader2 size={20} className="dm-spin" /> Turning your idea into a plan…</div>
       )}
 
       {plan && !loading && (
-        <div className="sg-plan-result">
-          <div className="sg-plan-head">
-            <h3>{plan.task}</h3>
-            <span className="sg-pill sg-pill-brand">{plan.taskType}</span>
+        <div className="dm-card dm-mt-4">
+          <div className="dm-row-between">
+            <h3 className="dm-card-title">{plan.task}</h3>
+            <span className="dm-badge dm-badge-gold">{plan.taskType}</span>
           </div>
-          <ol className="sg-plan-steps">
+          <ol className="dm-plan-steps">
             {plan.steps.map((s) => (
-              <li key={s.n} className="sg-plan-step">
-                <span className="sg-plan-num">{s.n}</span>
-                <div className="sg-plan-step-body">
+              <li key={s.n} className="dm-plan-step">
+                <span className="dm-plan-num">{s.n}</span>
+                <div className="dm-plan-step-body">
                   <strong>{s.title}</strong>
                   <p>{s.detail}</p>
                   {s.tools?.length > 0 && (
-                    <div className="sg-plan-tools">
-                      {s.tools.map((t, i) => <span key={i} className="sg-chip">{t}</span>)}
+                    <div className="dm-plan-tools">
+                      {s.tools.map((t, i) => <span key={i} className="dm-badge">{t}</span>)}
                     </div>
                   )}
                 </div>
               </li>
             ))}
           </ol>
-          {plan.refinedByBrain && <p className="sg-small">Refined by your local brain.</p>}
+          {plan.refinedByBrain && <p className="dm-hint dm-mt-4">Refined by your local brain.</p>}
         </div>
       )}
     </div>
@@ -660,16 +830,17 @@ function BuildPane({ mode, setMode }) {
   };
 
   return (
-    <div className="sg-build">
+    <div>
       {attached.length > 0 && (
-        <div className="sg-attach-chips inf-attach-constrain">
+        <div className="dm-attach-chips">
           {attached.map((a) => (
-            <span key={a.path} className="sg-chip">
+            <span key={a.path} className="dm-badge">
               <FileCode2 size={13} />
-              <span className="sg-chip-name" title={a.path}>{a.name}</span>
-              <span className="sg-tiny">{(a.size / 1024).toFixed(1)} KB</span>
+              <span title={a.path}>{a.name}</span>
+              <span className="dm-muted">{(a.size / 1024).toFixed(1)} KB</span>
               <button
-                className="sg-chip-x"
+                type="button"
+                className="dm-chip-x"
                 onClick={() => removeAttached(a.path)}
                 aria-label={`Remove ${a.name}`}
               >
@@ -680,17 +851,17 @@ function BuildPane({ mode, setMode }) {
         </div>
       )}
 
-      <div className="sg-chat-input inf-input-row">
+      <div className="dm-composer">
         <ModeDropdown mode={mode} setMode={setMode} />
         <button
           type="button"
-          className="inf-attach-btn"
+          className="dm-icon-btn"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || loading}
           title="Attach files from your machine"
           aria-label="Attach files"
         >
-          {uploading ? <Loader2 size={15} className="sg-spin" /> : <Plus size={17} />}
+          {uploading ? <Loader2 size={15} className="dm-spin" /> : <Plus size={17} />}
         </button>
         <input
           value={input}
@@ -701,16 +872,23 @@ function BuildPane({ mode, setMode }) {
           disabled={loading}
         />
         <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-          className="inf-mic-btn" disabled={loading} />
-        <button onClick={run} disabled={loading || uploading || !input.trim()} aria-label="Build">
-          {loading ? <Loader2 size={17} className="sg-spin" /> : <Hammer size={17} />}
+          className="dm-icon-btn" disabled={loading} />
+        <button
+          type="button"
+          className="dm-icon-btn dm-icon-btn-primary"
+          onClick={run}
+          disabled={loading || uploading || !input.trim()}
+          aria-label="Build"
+        >
+          {loading ? <Loader2 size={17} className="dm-spin" /> : <Hammer size={17} />}
         </button>
       </div>
 
       {/* ── Attach a whole folder as brain context ── */}
-      <div className="sg-attach-row inf-attach-row-constrain">
+      <div className="dm-row-between dm-mt-2">
         <button
-          className="sg-btn sg-btn-ghost sg-btn-sm"
+          type="button"
+          className="dm-btn dm-btn-ghost dm-btn-sm"
           onClick={() => folderInputRef.current?.click()}
           disabled={uploading || loading}
           title="Attach a whole folder from your machine"
@@ -718,7 +896,7 @@ function BuildPane({ mode, setMode }) {
           <FolderOpen size={14} />
           <span>Attach folder</span>
         </button>
-        <span className="sg-tiny inf-self-center">
+        <span className="dm-hint">
           The brain reads these as context while building.
         </span>
         <input
@@ -738,45 +916,50 @@ function BuildPane({ mode, setMode }) {
         />
       </div>
 
-      <p className="sg-small inf-center-note">
-        <ShieldCheck size={12} className="inf-inline-icon" /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
-        {build?.brainBuilt && <span className="sg-pill sg-pill-brand inf-pill-gap">Built by your active brain</span>}
+      <p className="dm-hint dm-center dm-mt-2">
+        <ShieldCheck size={12} style={{ verticalAlign: '-2px' }} /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
+        {build?.brainBuilt && <span className="dm-badge dm-badge-gold" style={{ marginLeft: 8 }}>Built by your active brain</span>}
       </p>
 
-      {error && <div className="sg-auth-error inf-constrain-wide" role="alert">{error}</div>}
+      {error && <div className="dm-notice dm-notice-red dm-mt-4" role="alert">{error}</div>}
 
       {loading && (
-        <div className="sg-loading-box"><Loader2 size={20} className="sg-spin" /> Agent is writing files…</div>
+        <div className="dm-loading-row"><Loader2 size={20} className="dm-spin" /> Agent is writing files…</div>
       )}
 
       {build && !loading && (
-        <div className="sg-build-result">
-          <div className="sg-plan-head">
-            <h3>{build.projectDir}</h3>
-            <span className="sg-pill sg-pill-brand">{build.files.length} files</span>
+        <div className="dm-card dm-mt-4">
+          <div className="dm-row-between">
+            <h3 className="dm-card-title">{build.projectDir}</h3>
+            <span className="dm-badge dm-badge-gold">{build.files.length} files</span>
           </div>
-          <p className="sg-small">{build.note}</p>
-          <ul className="sg-file-list">
+          <p className="dm-card-sub">{build.note}</p>
+          <div>
             {build.files.map((f) => (
-              <li key={f.path}>
-                <button className="sg-file-row" onClick={() => openPreview(f.path)}>
-                  <FileCode2 size={16} />
-                  <span className="sg-file-path">{f.path}</span>
-                  <span className="sg-tiny">{(f.size / 1024).toFixed(1)} KB</span>
-                  <Eye size={14} className="sg-file-eye" />
-                </button>
-              </li>
+              <button
+                key={f.path}
+                type="button"
+                className="dm-row"
+                style={{ width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit' }}
+                onClick={() => openPreview(f.path)}
+              >
+                <FileCode2 size={16} style={{ flexShrink: 0, color: 'var(--dm-text-2)' }} />
+                <span className="dm-row-main">
+                  <span className="dm-row-title">{f.path}</span>
+                </span>
+                <span className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)' }}>{(f.size / 1024).toFixed(1)} KB</span>
+                <Eye size={14} style={{ flexShrink: 0, color: 'var(--dm-muted)' }} />
+              </button>
             ))}
-          </ul>
+          </div>
           {(preview || previewLoading) && (
-            <div className="sg-file-preview">
-              <div className="sg-file-preview-head">
-                <FileCode2 size={14} />
-                <span>{preview?.path || 'Loading…'}</span>
+            <div className="dm-mt-4">
+              <div className="dm-row-between" style={{ marginBottom: 'var(--dm-2)' }}>
+                <span className="dm-badge"><FileCode2 size={12} /> {preview?.path || 'Loading…'}</span>
               </div>
               {previewLoading
-                ? <div className="sg-loading-box"><Loader2 size={16} className="sg-spin" /></div>
-                : <pre className="sg-file-preview-body">{preview?.content}</pre>}
+                ? <div className="dm-loading-row"><Loader2 size={16} className="dm-spin" /></div>
+                : <pre className="dm-code">{preview?.content}</pre>}
             </div>
           )}
         </div>
@@ -920,108 +1103,137 @@ function ControlPane({ mode, setMode }) {
       {/* Infinity Crew: persistent AI coworkers with their own computers.
           Rendered above the one-shot task panel — that flow is untouched. */}
       <CrewPanel />
-      <div className="sg-control-nl">
-      <div className="sg-control-statusline">
-        <span className="sg-chip">
-          <Cpu size={12} /> Backend: {backendUrl}
-        </span>
-        <span className="sg-chip">
-          <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
-        </span>
-        {brainName && (
-          <span className="sg-chip" title="The brain thinking for Control mode — same as Hunt AI and Infinity AI">
-            <Bot size={12} /> Brain: {brainName}
+      <div className="dm-card dm-mt-4">
+        <div className="dm-row-between" style={{ marginBottom: 'var(--dm-4)' }}>
+          <span className="dm-badge">
+            <Cpu size={12} /> Backend: {backendUrl}
           </span>
-        )}
-      </div>
-
-      <h3 className="sg-control-title">Tell me what to do on the computer</h3>
-      <p className="sg-small inf-center-note inf-control-intro">
-        For example: “MS Word me leave application likho”. Your active brain reasons it out
-        step by step — opening the app, observing the screen, acting, and verifying —
-        and you watch it think live below. Nothing is canned: the brain composes every word itself.
-      </p>
-
-      <AttachChips files={files} onRemove={removeFile} />
-      <div className="sg-chat-input inf-input-row">
-        <ModeDropdown mode={mode} setMode={setMode} />
-        <AttachButton onPick={addFiles} />
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && start()}
-          placeholder="Command the computer… e.g. “MS Word me leave application likho”"
-          aria-label="Command for the computer"
-          disabled={running}
-        />
-        <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-          className="inf-mic-btn" disabled={running} />
-        {running ? (
-          <button onClick={stop} aria-label="Stop the agent" title="Stop the agent">
-            <XCircle size={17} />
-          </button>
-        ) : (
-          <button onClick={start} disabled={!input.trim() && !files.length} aria-label="Start">
-            <Play size={17} />
-          </button>
-        )}
-      </div>
-
-      {taskId && (
-        <div className="sg-control-toggles">
-          <span className="sg-chip">
-            {taskStatus === 'completed' ? <CheckCircle2 size={12} /> : taskStatus === 'failed' ? <XCircle size={12} /> : <Loader2 size={12} className="sg-spin" />}
-            {taskStatus === 'waiting_ai' ? 'Waiting for the brain…' : taskStatus || 'running'}
+          <span className="dm-badge">
+            <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
           </span>
-          {!running && (
-            <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={reset}>New command</button>
+          {brainName && (
+            <span className="dm-badge" title="The brain thinking for Control mode — same as Hunt AI and Infinity AI">
+              <Bot size={12} /> Brain: {brainName}
+            </span>
           )}
         </div>
-      )}
 
-      {error && <div className="sg-auth-error inf-constrain-wide inf-mt-14" role="alert">{error}</div>}
+        <h3 className="dm-card-title">Tell me what to do on the computer</h3>
+        <p className="dm-card-sub">
+          For example: “MS Word me leave application likho”. Your active brain reasons it out
+          step by step — opening the app, observing the screen, acting, and verifying —
+          and you watch it think live below. Nothing is canned: the brain composes every word itself.
+        </p>
 
-      {askQ && running && (
-        <div className="sg-control-ask inf-constrain-wide inf-mt-14">
-          <p className="inf-ask-line">
-            <strong className="inf-ask-q">
-              <CircleHelp size={15} aria-hidden="true" /> The agent asks:
-            </strong> {askQ}
-          </p>
-          <div className="sg-chat-input">
-            <input
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendAnswer()}
-              placeholder="Your answer…"
-              aria-label="Answer the agent's question"
-            />
-            <button onClick={sendAnswer} disabled={!answer.trim()} aria-label="Send answer"><Send size={16} /></button>
+        <AttachChips files={files} onRemove={removeFile} />
+        <div className="dm-composer">
+          <ModeDropdown mode={mode} setMode={setMode} />
+          <AttachButton onPick={addFiles} />
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && start()}
+            placeholder="Command the computer… e.g. “MS Word me leave application likho”"
+            aria-label="Command for the computer"
+            disabled={running}
+          />
+          <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+            className="dm-icon-btn" disabled={running} />
+          {running ? (
+            <button
+              type="button"
+              className="dm-icon-btn"
+              onClick={stop}
+              aria-label="Stop the agent"
+              title="Stop the agent"
+            >
+              <XCircle size={17} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="dm-icon-btn dm-icon-btn-primary"
+              onClick={start}
+              disabled={!input.trim() && !files.length}
+              aria-label="Start"
+            >
+              <Play size={17} />
+            </button>
+          )}
+        </div>
+
+        {taskId && (
+          <div className="dm-row-between dm-mt-4">
+            <span className="dm-badge">
+              {taskStatus === 'completed' ? <CheckCircle2 size={12} /> : taskStatus === 'failed' ? <XCircle size={12} /> : <Loader2 size={12} className="dm-spin" />}
+              {taskStatus === 'waiting_ai' ? 'Waiting for the brain…' : taskStatus || 'running'}
+            </span>
+            {!running && (
+              <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={reset}>New command</button>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {feed.length > 0 && (
-        <div className="sg-control-feed inf-constrain-wide inf-mt-14">
-          {feed.map((ev, i) => (
-            <FeedRow key={i} ev={ev} />
-          ))}
-          <div ref={feedEndRef} />
-        </div>
-      )}
+        {error && <div className="dm-notice dm-notice-red dm-mt-4" role="alert">{error}</div>}
 
-      {!taskId && (
-        <div className="sg-control-examples">
-          <span className="sg-small">Try:</span>
-          {[
-            'MS Word me leave application likho',
-            'Open calculator',
-            'Notepad me shopping list likho'
-          ].map((ex) => (
-            <button key={ex} className="sg-chip sg-chip-btn" onClick={() => setInput(ex)}>{ex}</button>
-          ))}
-        </div>
-      )}
+        {askQ && running && (
+          <div className="dm-card dm-mt-4" style={{ background: 'var(--dm-bg-2)' }}>
+            <div className="dm-ask-box">
+              <p style={{ margin: 0, fontSize: 'var(--dm-text-base)' }}>
+                <strong>
+                  <CircleHelp size={15} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> The agent asks:
+                </strong>{' '}{askQ}
+              </p>
+              <div className="dm-composer">
+                <input
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && sendAnswer()}
+                  placeholder="Your answer…"
+                  aria-label="Answer the agent's question"
+                />
+                <button
+                  type="button"
+                  className="dm-icon-btn dm-icon-btn-primary"
+                  onClick={sendAnswer}
+                  disabled={!answer.trim()}
+                  aria-label="Send answer"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {feed.length > 0 && (
+          <div className="dm-feed dm-mt-4">
+            {feed.map((ev, i) => (
+              <FeedRow key={i} ev={ev} />
+            ))}
+            <div ref={feedEndRef} />
+          </div>
+        )}
+
+        {!taskId && (
+          <div className="dm-mt-4" style={{ display: 'flex', alignItems: 'center', gap: 'var(--dm-2)', flexWrap: 'wrap' }}>
+            <span className="dm-hint">Try:</span>
+            {[
+              'MS Word me leave application likho',
+              'Open calculator',
+              'Notepad me shopping list likho'
+            ].map((ex) => (
+              <button
+                key={ex}
+                type="button"
+                className="dm-badge dm-clickable-badge"
+                onClick={() => setInput(ex)}
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
@@ -1042,9 +1254,9 @@ function FeedRow({ ev }) {
   else if (type === 'task.cancelled') icon = <Ban size={14} aria-hidden="true" />;
   else if (level === 'WARN') icon = <TriangleAlert size={14} aria-hidden="true" />;
   return (
-    <div className={`sg-feed-row${cls}`}>
-      <span className="sg-feed-ico">{icon}</span>
-      <span className="sg-feed-msg">{ev.message || type}</span>
+    <div className={`dm-feed-row${cls}`}>
+      <span className="dm-feed-ico">{icon}</span>
+      <span>{ev.message || type}</span>
     </div>
   );
 }
@@ -1099,33 +1311,37 @@ export function InfinityAI() {
   }, [avatarState, voiceOn]);
 
   return (
-    <div className="inf-new">
+    <div className="dm-container dm-inf-page">
+      <style>{DM_INF_CSS}</style>
 
-      {/* Top bar: title + backend badge + panel toggle */}
-      <div className="inf-topbar">
-        <div className="inf-topbar-main">
-          <h2 className="inf-title">Infinity AI</h2>
-          <p className="inf-subtitle">{active.hint}</p>
-        </div>
-        <div className="inf-topbar-actions">
-          <div className="inf-backend-badge">
-            <Cpu size={12} /> {backendUrl}
+      {/* Page header: title + current-mode hint + actions */}
+      <div className="dm-page-head" style={{ marginBottom: 0 }}>
+        <div className="dm-row-between" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <h1 className="dm-page-title">Infinity AI</h1>
+            <p className="dm-page-sub">{active.hint}</p>
           </div>
-          <button
-            className="inf-panel-toggle"
-            onClick={() => setPanelOpen((o) => !o)}
-            title={panelOpen ? 'Hide avatar panel' : 'Show avatar panel'}
-            aria-label="Toggle avatar panel"
-            aria-expanded={panelOpen}
-          >
-            {panelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
-          </button>
+          <div style={{ display: 'flex', gap: 'var(--dm-2)', alignItems: 'center', flexShrink: 0 }}>
+            <span className="dm-badge" title="Connected backend">
+              <Cpu size={12} /> {backendUrl}
+            </span>
+            <button
+              type="button"
+              className="dm-btn dm-btn-ghost dm-btn-sm"
+              onClick={() => setPanelOpen((o) => !o)}
+              title={panelOpen ? 'Hide avatar panel' : 'Show avatar panel'}
+              aria-label="Toggle avatar panel"
+              aria-expanded={panelOpen}
+            >
+              {panelOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="inf-layout">
+      <div className="dm-inf-layout">
         {/* Mode content — each mode gated on its required local brains */}
-        <div className="inf-body">
+        <div className="dm-inf-body">
           {mode === 'control' ? (
             <BrainGate required={['vision', 'grounding']} featureName="Control mode">
               <ControlPane key="control" mode={mode} setMode={setMode} />
@@ -1153,31 +1369,26 @@ export function InfinityAI() {
         {/* Collapsible avatar side panel. Note: the closed state keeps the
             avatar rail interactive (reopen buttons), so it must NOT be
             aria-hidden — focusable-but-hidden breaks keyboard users. */}
-        <aside
-          className={`inf-sidepanel${panelOpen ? '' : ' inf-closed'}`}
-          aria-label="Avatar panel"
-        >
-          {panelOpen ? (
-            <div className="inf-side-full">
-              <div className="inf-side-avatar">
-                <Avatar
-                  gender={avatarGender}
-                  state={avatarState}
-                  emotion={avatarEmotion}
-                  speakAmplitude={speakAmp}
-                  size={110}
-                />
-                <span className={`inf-side-state inf-state-${avatarState}`}>
-                  <span className="inf-state-dot" />
-                  {avatarStatusLabel}
-                </span>
-              </div>
-              <div className="inf-gender-toggle" role="group" aria-label="Avatar appearance">
+        {panelOpen && (
+          <aside className="dm-inf-side" aria-label="Avatar panel">
+            <div className="dm-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--dm-4)', textAlign: 'center' }}>
+              <Avatar
+                gender={avatarGender}
+                state={avatarState}
+                emotion={avatarEmotion}
+                speakAmplitude={speakAmp}
+                size={110}
+              />
+              <span className={`dm-side-state dm-state-${avatarState}`}>
+                <span className="dm-state-dot" />
+                {avatarStatusLabel}
+              </span>
+              <div className="dm-seg" role="group" aria-label="Avatar appearance" style={{ justifyContent: 'center' }}>
                 {['female', 'male'].map((g) => (
                   <button
                     key={g}
                     type="button"
-                    className={`inf-gender-btn${avatarGender === g ? ' inf-active' : ''}`}
+                    className="dm-seg-btn"
                     onClick={() => setAvatarGender(g)}
                     aria-pressed={avatarGender === g}
                   >
@@ -1186,7 +1397,7 @@ export function InfinityAI() {
                 ))}
                 <button
                   type="button"
-                  className={`inf-gender-btn${voiceOn ? ' inf-active' : ''}`}
+                  className="dm-seg-btn"
                   onClick={() => setVoiceOn((v) => !v)}
                   title={voiceOn ? 'Mute voice' : 'Unmute voice'}
                   aria-pressed={voiceOn}
@@ -1196,50 +1407,23 @@ export function InfinityAI() {
                     : <VolumeX size={14} aria-hidden="true" />} voice
                 </button>
               </div>
-              <p className="inf-side-hint">
+              <p className="dm-hint" style={{ margin: 0 }}>
                 Your AI companion — it speaks every reply aloud, with live lip-sync.
               </p>
             </div>
-          ) : (
-            <div className="inf-side-rail">
-              <button
-                className="inf-rail-avatar"
-                onClick={() => setPanelOpen(true)}
-                title="Show avatar panel"
-                aria-label="Show avatar panel"
-              >
-                <Avatar
-                  gender={avatarGender}
-                  state={avatarState}
-                  emotion={avatarEmotion}
-                  speakAmplitude={speakAmp}
-                  size={40}
-                />
-              </button>
-              <button
-                className="inf-rail-expand"
-                onClick={() => setPanelOpen(true)}
-                title="Expand panel"
-                aria-label="Expand avatar panel"
-              >
-                <ChevronsLeft size={16} />
-              </button>
-            </div>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
 
-      {/* Mobile: backdrop + floating reopen button when the drawer is closed */}
-      {panelOpen && (
-        <div
-          className="inf-side-backdrop"
-          onClick={() => setPanelOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      {/* Mobile: floating reopen button when the panel is closed */}
       {!panelOpen && (
         <button
-          className="inf-float-avatar"
+          type="button"
+          className="dm-btn dm-btn-secondary"
+          style={{
+            position: 'fixed', bottom: 'var(--dm-6)', right: 'var(--dm-6)', zIndex: 50,
+            borderRadius: 'var(--dm-r-full)', padding: 'var(--dm-3)',
+          }}
           onClick={() => setPanelOpen(true)}
           title="Show avatar panel"
           aria-label="Show avatar panel"
@@ -1249,7 +1433,7 @@ export function InfinityAI() {
             state={avatarState}
             emotion={avatarEmotion}
             speakAmplitude={speakAmp}
-            size={40}
+            size={32}
           />
         </button>
       )}

@@ -60,6 +60,7 @@ import { SpotlightCard } from '../../components/fx/SpotlightCard';
 import { ElectricBorder } from '../../components/fx/ElectricBorder';
 import './ModelLibrary.css';
 import './ModelLibraryNew.css';
+import './ModelLibrary.elegant.css';
 
 function ProgressBar({ value, label }) {
   const pct = Math.round(value * 100);

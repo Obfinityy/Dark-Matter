@@ -17,7 +17,6 @@ import { listHuntRecords } from '../../services/api';
 import { owaspCoverage } from '../../utils/owaspCoverage';
 import { CoverageMeter } from '../../components/agent/CoverageMeter';
 import { CvssBadge } from '../../components/agent/CvssBadge';
-import './Reports.css';
 
 export function Reports() {
   const [records, setRecords] = useState([]);
@@ -33,37 +32,61 @@ export function Reports() {
 
   if (loading) {
     return (
-      <div className="sg-reports">
-        <div className="sg-reports-loading" role="status" aria-live="polite">
-          <Loader2 size={18} className="sg-spin" /> Loading past reports…
+      <div className="dm-container">
+        <div className="dm-center dm-mt-8" role="status" aria-live="polite">
+          <Loader2 size={18} aria-hidden="true" />
+          <p className="dm-muted">Loading past reports…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="sg-reports">
-      <header className="sg-reports-head">
-        <div>
-          <h1 className="sg-h1 sg-reports-title"><History size={24} aria-hidden="true" /> Past reports</h1>
-          <p className="sg-body">Every completed hunt, archived. Re-open or re-download any report — pasting the same target later returns these instantly.</p>
+    <div className="dm-container">
+      <header
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 16,
+          flexWrap: 'wrap',
+          marginBottom: 24,
+        }}
+      >
+        <div className="dm-page-head" style={{ marginBottom: 0 }}>
+          <h1 className="dm-page-title">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <History size={26} aria-hidden="true" /> Past reports
+            </span>
+          </h1>
+          <p className="dm-page-sub">
+            Every completed hunt, archived. Re-open or re-download any report — pasting the
+            same target later returns these instantly.
+          </p>
         </div>
-        <Link to="/agent" className="sg-btn sg-btn-primary">New hunt</Link>
+        <Link to="/agent" className="dm-btn dm-btn-primary" style={{ flexShrink: 0 }}>New hunt</Link>
       </header>
 
-      <div className="sg-notice">
-        <ShieldCheck size={16} aria-hidden="true" />
-        <span><strong>Report already exists for a target?</strong> Pasting the same target again shows the saved report instantly — no re-hunt, no duplicate work. Use “Start new hunt” on the Hunt AI page only when you want a fresh run.</span>
+      <div className="dm-notice" style={{ marginBottom: 24 }}>
+        <ShieldCheck size={16} className="dm-notice-icon" aria-hidden="true" />
+        <span>
+          <strong style={{ color: 'var(--dm-text)' }}>Report already exists for a target?</strong>{' '}
+          Pasting the same target again shows the saved report instantly — no re-hunt, no
+          duplicate work. Use “Start new hunt” on the Hunt AI page only when you want a fresh run.
+        </span>
       </div>
 
       {records.length === 0 ? (
-        <div className="sg-empty-state">
-          <FileText size={28} aria-hidden="true" />
-          <p>No completed hunts yet. Your reports will live here.</p>
-          <Link to="/agent" className="sg-btn sg-btn-primary">Start your first hunt</Link>
+        <div className="dm-empty">
+          <div className="dm-empty-icon">
+            <FileText size={28} aria-hidden="true" />
+          </div>
+          <h2 className="dm-empty-title">No completed hunts yet</h2>
+          <p className="dm-empty-sub">Your reports will live here.</p>
+          <Link to="/agent" className="dm-btn dm-btn-primary">Start your first hunt</Link>
         </div>
       ) : (
-        <ul className="sg-record-list" aria-label="Past hunt reports">
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} aria-label="Past hunt reports">
           {records.map((record) => {
             const summary = record.summary || {};
             const findings = Array.isArray(record.findings) ? record.findings : [];
@@ -72,28 +95,43 @@ export function Reports() {
               .sort((a, b) => sevRank(b.severity) - sevRank(a.severity))
               .slice(0, 3);
             return (
-              <li key={record.id}>
+              <li key={record.id} style={{ marginBottom: 8 }}>
                 <Link
                   to={`/agent/reports/${record.id}`}
-                  className="sg-card sg-card-pad sg-record-card"
+                  className="dm-row"
+                  style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
                   aria-label={`Report for ${record.target}${summary.totalFindings != null ? `, ${summary.totalFindings} findings` : ''}`}
                 >
-                  <div className="sg-record-main">
-                    <code className="sg-record-target">{record.target}</code>
-                    <span className="sg-pill">v{record.version || 1}</span>
-                  </div>
-                  <div className="sg-record-meta">
-                    {record.completedAt && (
-                      <time dateTime={record.completedAt}>
-                        <CalendarDays size={12} aria-hidden="true" /> {new Date(record.completedAt).toLocaleDateString()}
-                      </time>
+                  <div className="dm-row-main">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, minWidth: 0 }}>
+                      <code className="dm-row-title" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {record.target}
+                      </code>
+                      <span className="dm-badge">v{record.version || 1}</span>
+                    </div>
+                    <p className="dm-row-sub">
+                      {record.completedAt && (
+                        <time dateTime={record.completedAt} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <CalendarDays size={12} aria-hidden="true" />
+                          {new Date(record.completedAt).toLocaleDateString()}
+                        </time>
+                      )}
+                      {record.completedAt && summary.totalFindings != null && ' · '}
+                      {summary.totalFindings != null && `${summary.totalFindings} findings`}
+                    </p>
+                    {top.length > 0 && (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                        {top.map((f) => (
+                          <CvssBadge key={f.id || f.title} finding={f} />
+                        ))}
+                      </div>
                     )}
-                    {summary.totalFindings != null && <span>{summary.totalFindings} findings</span>}
-                    {top.map((f) => (
-                      <CvssBadge key={f.id || f.title} finding={f} />
-                    ))}
+                    {findings.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <CoverageMeter coverage={coverage} />
+                      </div>
+                    )}
                   </div>
-                  {findings.length > 0 && <CoverageMeter coverage={coverage} />}
                 </Link>
               </li>
             );

@@ -18,7 +18,6 @@ import {
   PERMISSION_MODES, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS,
 } from '../../services/permissions';
 import { getProviders } from '../../services/api';
-import './Settings.css';
 
 export function Settings() {
   const [testing, setTesting] = useState(false);
@@ -63,43 +62,58 @@ export function Settings() {
   };
 
   return (
-    <div className="sg-settings">
-      <h2 className="sg-h1 sg-settings-title">Settings</h2>
+    <div className="dm-container">
+      <header className="dm-page-head">
+        <h1 className="dm-page-title">Settings</h1>
+        <p className="dm-page-sub">One backend, one brain, and how much freedom your agent gets.</p>
+      </header>
 
       {/* ── Backend ── */}
-      <section className="sg-card sg-card-pad" aria-labelledby="sg-set-backend">
-        <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-backend">Backend</h3>
-        <p className="sg-body">
+      <section className="dm-card" aria-labelledby="dm-set-backend">
+        <h2 className="dm-card-title" id="dm-set-backend">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Server size={18} aria-hidden="true" /> Backend
+          </span>
+        </h2>
+        <p className="dm-card-sub">
           The app talks to one backend — decided by <code>VITE_BACKEND_URL</code> in the{' '}
           <code>.env</code> file. Not set? Then it uses your local backend on port 4000.
         </p>
-        <div className="sg-backend-info" role="status" aria-label="Active backend">
-          <Server size={20} aria-hidden="true" />
-          <div>
-            <div><code>{backendUrl}</code></div>
-            <small className="sg-small">
+        <div className="dm-notice" role="status" aria-label="Active backend">
+          <Server size={16} className="dm-notice-icon" aria-hidden="true" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <code style={{ wordBreak: 'break-all' }}>{backendUrl}</code>
+            <div className="dm-muted" style={{ fontSize: '0.8rem', marginTop: 4 }}>
               {backendSource === 'env'
                 ? 'from VITE_BACKEND_URL in .env'
                 : 'default — set VITE_BACKEND_URL in .env to point elsewhere'}
               {' '}· {isLocalBackend() ? 'your machine' : 'remote backend'}
-            </small>
+            </div>
           </div>
-          <Check size={16} className="sg-check" aria-hidden="true" />
+          <Check size={16} style={{ color: 'var(--dm-green)', flexShrink: 0 }} aria-hidden="true" />
         </div>
         {!isLocalBackend() && (
-          <p className="sg-small">
+          <p className="dm-hint">
             💻 Local backend chahiye? <code>.env</code> me se <code>VITE_BACKEND_URL</code> hatao
             aur <code>backend/</code> folder me <code>npm start</code> chalao.
           </p>
         )}
-
-        <button className="sg-btn sg-btn-ghost" onClick={testNow} disabled={testing}>
-          {testing ? <Loader2 size={15} className="sg-spin" /> : null}
-          Test connection
-        </button>
+        <div className="dm-mt-4">
+          <button className="dm-btn dm-btn-secondary" onClick={testNow} disabled={testing}>
+            {testing ? <Loader2 size={15} aria-hidden="true" /> : null}
+            Test connection
+          </button>
+        </div>
         <div aria-live="polite">
           {testResult && (
-            <p className={`sg-test-result ${testResult.ok ? 'ok' : 'fail'}`}>
+            <p
+              className="dm-mt-4"
+              style={{
+                margin: '16px 0 0',
+                fontSize: '0.875rem',
+                color: testResult.ok ? 'var(--dm-green)' : 'var(--dm-red)',
+              }}
+            >
               {testResult.ok ? '✅' : '❌'} {testResult.message}
             </p>
           )}
@@ -107,52 +121,79 @@ export function Settings() {
       </section>
 
       {/* ── Brain / Models ── */}
-      <section className="sg-card sg-card-pad" aria-labelledby="sg-set-brain">
-        <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-brain"><Cpu size={18} aria-hidden="true" /> Brain</h3>
-        <p className="sg-body">
+      <section className="dm-card" aria-labelledby="dm-set-brain">
+        <h2 className="dm-card-title" id="dm-set-brain">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Cpu size={18} aria-hidden="true" /> Brain
+          </span>
+        </h2>
+        <p className="dm-card-sub">
           The same brain powers both Hunt AI and Infinity AI.
         </p>
         {providers ? (
-          <div className="sg-brain-info">
-            <p>Active provider: <strong>{providers.active || 'default'}</strong></p>
-            <p className="sg-small">
+          <div>
+            <p style={{ margin: '0 0 4px', fontSize: '0.95rem' }}>
+              Active provider: <strong>{providers.active || 'default'}</strong>
+            </p>
+            <p className="dm-hint">
               Connect a Kaggle/Colab GPU or run a local model from the Models page.
             </p>
           </div>
         ) : (
-          <div className="sg-brain-skeleton" aria-hidden="true"><span /><span /></div>
+          <p className="dm-muted">Loading…</p>
         )}
-        <Link to="/agent/models" className="sg-btn sg-btn-ghost">Open Models →</Link>
+        <div className="dm-mt-4">
+          <Link to="/agent/models" className="dm-btn dm-btn-secondary">Open Models →</Link>
+        </div>
       </section>
 
       {/* ── Agent permissions ── */}
-      <section className="sg-card sg-card-pad" aria-labelledby="sg-set-perms">
-        <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-perms">
-          <ShieldCheck size={18} aria-hidden="true" /> Agent permissions
-        </h3>
-        <p className="sg-body">
+      <section className="dm-card" aria-labelledby="dm-set-perms">
+        <h2 className="dm-card-title" id="dm-set-perms">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <ShieldCheck size={18} aria-hidden="true" /> Agent permissions
+          </span>
+        </h2>
+        <p className="dm-card-sub">
           How much freedom does the agent get? This is honored by every worker —
           hunt engine, computer control, and tool runners.
         </p>
-        <div className="sg-backend-switch" role="group" aria-label="Agent permission mode">
-          {[PERMISSION_MODES.ASK, PERMISSION_MODES.FULL].map((m) => (
-            <button
-              type="button"
-              key={m}
-              className={`sg-backend-opt${permissionMode === m ? ' sg-active' : ''}`}
-              aria-pressed={permissionMode === m}
-              onClick={() => choosePermissionMode(m)}
-              disabled={syncingPerms}
-            >
-              <ShieldCheck size={22} />
-              <span>{PERMISSION_LABELS[m]}</span>
-              <small>{PERMISSION_DESCRIPTIONS[m]}</small>
-              {permissionMode === m && <Check size={16} className="sg-check" />}
-            </button>
-          ))}
+        <div className="dm-grid-2" role="group" aria-label="Agent permission mode">
+          {[PERMISSION_MODES.ASK, PERMISSION_MODES.FULL].map((m) => {
+            const active = permissionMode === m;
+            return (
+              <button
+                type="button"
+                key={m}
+                aria-pressed={active}
+                onClick={() => choosePermissionMode(m)}
+                disabled={syncingPerms}
+                className="dm-btn"
+                style={{
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  padding: 20,
+                  whiteSpace: 'normal',
+                  textAlign: 'left',
+                  background: active ? 'var(--dm-gold-glow)' : 'var(--dm-surface-2)',
+                  borderColor: active ? 'var(--dm-gold-border)' : 'var(--dm-border)',
+                  color: 'var(--dm-text)',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+                  <ShieldCheck size={20} aria-hidden="true" /> {PERMISSION_LABELS[m]}
+                  {active && <Check size={16} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" />}
+                </span>
+                <span className="dm-muted" style={{ fontSize: '0.8rem', fontWeight: 400, lineHeight: 1.5 }}>
+                  {PERMISSION_DESCRIPTIONS[m]}
+                </span>
+              </button>
+            );
+          })}
         </div>
         {syncingPerms && (
-          <p className="sg-small">🔄 Syncing with backend…</p>
+          <p className="dm-hint">🔄 Syncing with backend…</p>
         )}
       </section>
     </div>

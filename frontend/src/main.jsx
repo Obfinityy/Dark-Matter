@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './styles/singularity.css'
+import './styles/elegant.css'
 import App from './App.jsx'
 
 // The mount node must exist in index.html. Fail loudly here with a clear

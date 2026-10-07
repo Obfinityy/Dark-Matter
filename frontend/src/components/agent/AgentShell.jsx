@@ -26,6 +26,7 @@ import { listJobs, listAlerts } from '../../services/api';
 import { listConversations, CONVERSATIONS_CHANGED_EVENT } from '../../services/chatHistory';
 import Logo from '../brand/Logo';
 import './AgentShell.css';
+import './AgentShell.elegant.css';
 
 const TOP_TABS = [
   { to: '/agent', label: 'Hunt AI', icon: Crosshair, end: true, hint: 'Autonomous bug-bounty agent' },

@@ -1,0 +1,181 @@
+/* ─────────────────────────────────────────────────────────────
+ * ModelLibrary — Elegant overrides
+ * Applies Dark Matter design system to existing ml-* / sg-* classes.
+ * No structural changes, pure visual refinement.
+ * ───────────────────────────────────────────────────────────── */
+
+/* Page container */
+.ml-page {
+  max-width: var(--dm-maxw);
+  margin: 0 auto;
+  padding: var(--dm-6) var(--dm-6) var(--dm-16);
+}
+@media (max-width: 768px) {
+  .ml-page { padding: var(--dm-4) var(--dm-4) var(--dm-12); }
+}
+
+/* ── Step 0: hero card ── */
+.ml-engine-card {
+  background: linear-gradient(180deg, var(--dm-gold-glow), var(--dm-surface)) !important;
+  border: 1px solid var(--dm-gold-border) !important;
+  border-radius: var(--dm-r-lg) !important;
+  padding: var(--dm-8) !important;
+  margin-bottom: var(--dm-8) !important;
+  box-shadow: var(--dm-shadow) !important;
+}
+.ml-engine-head {
+  display: flex !important;
+  gap: var(--dm-4) !important;
+  align-items: flex-start !important;
+  margin-bottom: var(--dm-5) !important;
+}
+.ml-engine-head strong {
+  font-size: var(--dm-text-xl) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  display: block !important;
+  margin-bottom: var(--dm-2) !important;
+  color: var(--dm-text) !important;
+}
+.ml-engine-head p {
+  font-size: var(--dm-text-base) !important;
+  color: var(--dm-text-2) !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+  max-width: 640px !important;
+}
+
+/* ── Brain slots section ── */
+.ml-brain-section {
+  margin-bottom: var(--dm-10) !important;
+}
+.ml-brain-head {
+  display: flex !important;
+  gap: var(--dm-3) !important;
+  align-items: flex-start !important;
+  margin-bottom: var(--dm-5) !important;
+  padding: 0 !important;
+  background: none !important;
+  border: none !important;
+}
+.ml-brain-head strong {
+  font-size: var(--dm-text-xl) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  display: block !important;
+  margin-bottom: var(--dm-1) !important;
+}
+.ml-brain-head p {
+  font-size: var(--dm-text-sm) !important;
+  color: var(--dm-text-2) !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+}
+
+.ml-slot-list {
+  display: grid !important;
+  gap: var(--dm-4) !important;
+}
+
+/* Brain slot cards */
+.ml-slot-card {
+  background: var(--dm-surface) !important;
+  border: 1px solid var(--dm-border) !important;
+  border-radius: var(--dm-r-lg) !important;
+  padding: var(--dm-6) !important;
+  box-shadow: var(--dm-shadow-sm) !important;
+}
+.ml-slot-card:hover {
+  border-color: var(--dm-border-strong) !important;
+}
+
+/* ── Model list ── */
+.ml-model-list {
+  display: grid !important;
+  gap: var(--dm-3) !important;
+}
+.ml-model-row {
+  background: var(--dm-surface) !important;
+  border: 1px solid var(--dm-border) !important;
+  border-radius: var(--dm-r) !important;
+  padding: var(--dm-4) var(--dm-5) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--dm-4) !important;
+}
+.ml-model-row:hover {
+  border-color: var(--dm-border-strong) !important;
+  background: var(--dm-surface-2) !important;
+}
+
+/* ── Section titles ── */
+.ml-section-title {
+  font-size: var(--dm-text-2xl) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 0 var(--dm-2) !important;
+  color: var(--dm-text) !important;
+}
+.ml-section-sub {
+  font-size: var(--dm-text-base) !important;
+  color: var(--dm-text-2) !important;
+  line-height: 1.6 !important;
+  margin: 0 0 var(--dm-6) !important;
+  max-width: 720px !important;
+}
+
+/* ── Buttons: map sg-btn to dm-btn ── */
+.ml-page .sg-btn-primary,
+.ml-engine-card .sg-btn-primary {
+  background: var(--dm-gold) !important;
+  color: #16130a !important;
+  border-color: var(--dm-gold-deep) !important;
+  font-weight: 600 !important;
+  border-radius: var(--dm-r) !important;
+  padding: 10px 20px !important;
+  font-size: var(--dm-text-sm) !important;
+}
+.ml-page .sg-btn-primary:hover {
+  background: var(--dm-gold-soft) !important;
+}
+.ml-page .sg-btn-secondary,
+.ml-page .sg-btn-ghost {
+  background: var(--dm-surface-2) !important;
+  color: var(--dm-text) !important;
+  border: 1px solid var(--dm-border) !important;
+  border-radius: var(--dm-r) !important;
+  font-weight: 600 !important;
+}
+
+/* ── Progress bars ── */
+.ml-page .sg-progress,
+.ml-page .dm-progress {
+  height: 8px !important;
+  border-radius: var(--dm-r-full) !important;
+  background: var(--dm-surface-3) !important;
+}
+.ml-page .sg-progress-fill,
+.ml-page .dm-progress-fill {
+  background: var(--dm-gold) !important;
+  border-radius: var(--dm-r-full) !important;
+}
+
+/* ── Badges ── */
+.ml-page .sg-badge,
+.ml-page .sg-pill {
+  font-size: var(--dm-text-xs) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  padding: 4px 12px !important;
+  border-radius: var(--dm-r-full) !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .ml-engine-card { padding: var(--dm-5) !important; }
+  .ml-model-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+}

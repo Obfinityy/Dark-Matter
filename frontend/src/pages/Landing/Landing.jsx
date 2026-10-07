@@ -1,81 +1,50 @@
 /**
- * Landing.jsx — Public marketing landing page for Dark-Matter (issue #45).
- *
- * The first-10-users acquisition page. Public route, no auth required.
- * Sections: hero (paste link → autonomous hunt), how-it-works (3 steps),
- * live-hunt CTA, pricing teaser (Free → Infinity). Infinity AI branding
- * only, lucide icons (no emojis), mobile-responsive.
+ * Landing — Dark Matter public site.
+ * Elegant, professional, quiet confidence. No hype, no neon.
  */
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Zap, FileText, ArrowRight, Check, Link2,
-  Search, FlaskConical, FileCheck, Sparkles, Lock,
+  ArrowRight, Check, Link2, Search,
+  FileCheck, Lock, ShieldCheck, Brain, Eye
 } from 'lucide-react';
-import './Landing.css';
-import './Landing.polish.css';
 import Logo from '../../components/brand/Logo';
+import './Landing.elegant.css';
 
 const STEPS = [
   {
     icon: Link2,
     title: 'Paste your link',
-    text: 'Drop in any website you own or are authorized to test. Scope rules and program policies are parsed automatically before anything runs.',
+    text: 'Drop in any website you own or are authorized to test. Scope is confirmed before anything runs.',
   },
   {
     icon: Search,
     title: 'AI hunts autonomously',
-    text: 'Hunt AI reconnoiters the target, probes for vulnerabilities, validates every finding, and chains them into real attack paths — all on its own.',
+    text: 'Three specialized brains — vision, grounding, hacking — recon, probe, validate, and chain findings into real attack paths.',
   },
   {
     icon: FileCheck,
     title: 'Get PoC + report',
-    text: 'Every confirmed bug ships with a working proof-of-concept and a professional bounty-ready report. No noise, no false positives.',
-  },
-];
-
-const TIERS = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    features: ['3 hunts per month', 'Community findings feed', 'Standard reports'],
-    cta: 'Start free',
-    featured: false,
-  },
-  {
-    name: 'Pro',
-    price: '$29',
-    period: 'per month',
-    features: ['Unlimited hunts', 'Priority AI brain', 'PoC replay + PDF reports', 'API access'],
-    cta: 'Go Pro',
-    featured: true,
-  },
-  {
-    name: 'Infinity',
-    price: 'Custom',
-    period: '',
-    features: ['Team workspaces', 'SSO + audit log', 'Dedicated infrastructure', 'SLA support'],
-    cta: 'Contact us',
-    featured: false,
+    text: 'Every confirmed bug ships with a working proof-of-concept and a professional bounty-ready report.',
   },
 ];
 
 function Nav() {
   const navigate = useNavigate();
   return (
-    <nav className="lp-nav" aria-label="Primary">
-      <div className="lp-nav-inner">
-        <button type="button" className="lp-brand" onClick={() => navigate('/')} aria-label="Dark Matter home">
-          <Logo size={30} />
+    <nav className="dm-nav">
+      <div className="dm-nav-inner">
+        <button type="button" className="dm-nav-brand" onClick={() => navigate('/')} aria-label="Dark Matter home">
+          <Logo size={28} />
           <span>Dark Matter</span>
         </button>
-        <ul className="lp-nav-links">
-          <li><a href="#how">How it works</a></li>
-          <li><a href="#pricing">Pricing</a></li>
-          <li><button type="button" className="lp-btn lp-btn-ghost" onClick={() => navigate('/login')}>Sign in</button></li>
-          <li><button type="button" className="lp-btn lp-btn-primary" onClick={() => navigate('/agent')}>Start hunting</button></li>
-        </ul>
+        <div className="dm-nav-links">
+          <a href="#how">How it works</a>
+          <a href="#brains">The brains</a>
+          <a href="#pricing">Pricing</a>
+          <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={() => navigate('/login')}>Sign in</button>
+          <button type="button" className="dm-btn dm-btn-primary dm-btn-sm" onClick={() => navigate('/agent')}>Start hunting</button>
+        </div>
       </div>
     </nav>
   );
@@ -89,35 +58,33 @@ function Hero() {
     navigate('/agent');
   };
   return (
-    <header className="lp-hero">
-      <div className="lp-hero-glow" aria-hidden="true" />
-      <div className="lp-hero-inner">
-        <span className="lp-eyebrow"><Sparkles size={14} aria-hidden="true" /> Autonomous bug-bounty agent</span>
+    <header className="dm-hero">
+      <div className="dm-hero-inner">
+        <span className="dm-badge dm-badge-gold">Autonomous bug-bounty agent</span>
         <h1>
-          Paste a link. <span className="lp-gradient">AI hunts the bugs.</span>
+          Paste a link.<br />
+          <span className="dm-hero-accent">AI hunts the bugs.</span>
         </h1>
-        <p className="lp-sub">
+        <p className="dm-hero-sub">
           Dark Matter reconnoiters your target, finds vulnerabilities, proves each one
-          with a working PoC, and writes the report — all autonomously, better than any human hunter.
+          with a working PoC, and writes the report — autonomously.
         </p>
-        <form className="lp-hero-form" onSubmit={start}>
-          <div className="lp-url-input">
-            <Link2 size={18} aria-hidden="true" />
+        <form className="dm-hero-form" onSubmit={start}>
+          <div className="dm-hero-input-wrap">
+            <Link2 size={18} className="dm-hero-input-icon" />
             <input
               type="url" value={url} onChange={(e) => setUrl(e.target.value)}
               placeholder="https://your-website.com" aria-label="Target website URL"
+              className="dm-input dm-hero-input"
             />
           </div>
-          <button type="submit" className="lp-btn lp-btn-primary lp-btn-lg">
+          <button type="submit" className="dm-btn dm-btn-primary dm-btn-lg">
             Hunt now <ArrowRight size={18} />
           </button>
         </form>
-        <p className="lp-hero-note"><Lock size={13} /> Only test targets you own or are authorized to test.</p>
-        <div className="lp-stats">
-          <div><strong>11</strong><span>planner engines</span></div>
-          <div><strong>100%</strong><span>autonomous loop</span></div>
-          <div><strong>0%</strong><span>false-positive noise</span></div>
-        </div>
+        <p className="dm-hero-note">
+          <Lock size={13} /> Only test targets you own or are authorized to test.
+        </p>
       </div>
     </header>
   );
@@ -125,37 +92,62 @@ function Hero() {
 
 function HowItWorks() {
   return (
-    <section className="lp-section" id="how" aria-labelledby="lp-how-h">
-      <h2 id="lp-how-h">How it works</h2>
-      <p className="lp-section-sub">Three steps. Zero manual probing.</p>
-      <div className="lp-steps">
-        {STEPS.map((s, i) => (
-          <div key={s.title} className="lp-step">
-            <span className="lp-step-num">{i + 1}</span>
-            <span className="lp-step-icon"><s.icon size={24} /></span>
-            <h3>{s.title}</h3>
-            <p>{s.text}</p>
-          </div>
-        ))}
-      </div>
-      <div className="lp-pipeline" aria-hidden="true">
-        <span><Search size={15} /> Recon</span><i>→</i>
-        <span><FlaskConical size={15} /> Detection</span><i>→</i>
-        <span><Zap size={15} /> PoC</span><i>→</i>
-        <span><FileText size={15} /> Report</span>
+    <section className="dm-section-block" id="how">
+      <div className="dm-container-narrow">
+        <h2 className="dm-h2">How it works</h2>
+        <p className="dm-section-sub">Three steps. Zero manual probing.</p>
+        <div className="dm-grid-3">
+          {STEPS.map((s, i) => (
+            <div key={s.title} className="dm-card">
+              <div className="dm-step-row">
+                <span className="dm-step-num">{i + 1}</span>
+                <s.icon size={20} className="dm-step-icon" />
+              </div>
+              <h3 className="dm-card-title">{s.title}</h3>
+              <p className="dm-card-sub" style={{ margin: 0 }}>{s.text}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function LiveHuntCTA() {
+function Brains() {
+  const brains = [
+    { icon: Eye, name: 'Vision Brain', desc: 'Sees your screen. Reads UI, understands context.' },
+    { icon: Brain, name: 'Hacking Brain', desc: 'Thinks like a hunter. Chains small vulns into big ones.' },
+    { icon: ShieldCheck, name: 'Grounding Brain', desc: 'Acts precisely. Clicks, types, navigates with pixel accuracy.' },
+  ];
+  return (
+    <section className="dm-section-block dm-section-alt" id="brains">
+      <div className="dm-container-narrow">
+        <h2 className="dm-h2">Three brains, one hunter</h2>
+        <p className="dm-section-sub">Each brain runs on your own machine. Nothing leaves your computer.</p>
+        <div className="dm-grid-3">
+          {brains.map((b) => (
+            <div key={b.name} className="dm-card dm-center">
+              <b.icon size={28} style={{ color: 'var(--dm-gold-soft)', marginBottom: 'var(--dm-3)' }} />
+              <h3 className="dm-card-title">{b.name}</h3>
+              <p className="dm-card-sub" style={{ margin: 0 }}>{b.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CTA() {
   const navigate = useNavigate();
   return (
-    <section className="lp-cta" aria-labelledby="lp-cta-h">
-      <div className="lp-cta-inner">
-        <h2 id="lp-cta-h">Watch it hunt, live.</h2>
-        <p>Open the console and see Hunt AI think, probe, validate, and report — in real time.</p>
-        <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => navigate('/agent')}>
+    <section className="dm-cta-block">
+      <div className="dm-container-narrow dm-center">
+        <h2 className="dm-h2">Watch it hunt, live.</h2>
+        <p className="dm-section-sub" style={{ marginBottom: 'var(--dm-6)' }}>
+          Open the console and see Hunt AI think, probe, validate, and report — in real time.
+        </p>
+        <button type="button" className="dm-btn dm-btn-primary dm-btn-lg" onClick={() => navigate('/agent')}>
           Open live hunt <ArrowRight size={18} />
         </button>
       </div>
@@ -165,30 +157,46 @@ function LiveHuntCTA() {
 
 function Pricing() {
   const navigate = useNavigate();
+  const tiers = [
+    { name: 'Free', price: '₹0', period: 'forever', features: ['3 hunts / month', 'Community feed', 'Standard reports'], cta: 'Start free', featured: false },
+    { name: 'Pro', price: '₹1,699', period: '/ month', features: ['Unlimited hunts', 'Priority AI brain', 'PoC replay + PDF', 'API access'], cta: 'Go Pro', featured: true },
+    { name: 'Infinity', price: 'Custom', period: '', features: ['Team workspaces', 'SSO + audit log', 'Dedicated infra', 'SLA support'], cta: 'Contact us', featured: false },
+  ];
   return (
-    <section className="lp-section" id="pricing" aria-labelledby="lp-pricing-h">
-      <h2 id="lp-pricing-h">Pricing</h2>
-      <p className="lp-section-sub">Start free. Scale when the bounties roll in.</p>
-      <div className="lp-tiers">
-        {TIERS.map((t) => (
-          <div key={t.name} className={`lp-tier ${t.featured ? 'lp-tier-featured' : ''}`}>
-            {t.featured && <span className="lp-tier-badge">Most popular</span>}
-            <h3>{t.name}</h3>
-            <p className="lp-tier-price">{t.price}{t.period ? <span>{t.period.startsWith('/') ? t.period : ` ${t.period}`}</span> : null}</p>
-            <ul>
-              {t.features.map((f) => (
-                <li key={f}><Check size={15} className="lp-check" /> {f}</li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              className={`lp-btn ${t.featured ? 'lp-btn-primary' : 'lp-btn-ghost'}`}
-              onClick={() => navigate('/agent')}
+    <section className="dm-section-block" id="pricing">
+      <div className="dm-container-narrow">
+        <h2 className="dm-h2">Pricing</h2>
+        <p className="dm-section-sub">Start free. Scale when the bounties roll in.</p>
+        <div className="dm-grid-3">
+          {tiers.map((t) => (
+            <div
+              key={t.name}
+              className="dm-card"
+              style={t.featured ? { borderColor: 'var(--dm-gold-border)', background: 'var(--dm-gold-glow)' } : undefined}
             >
-              {t.cta}
-            </button>
-          </div>
-        ))}
+              {t.featured && <span className="dm-badge dm-badge-gold" style={{ marginBottom: 'var(--dm-3)' }}>Most popular</span>}
+              <h3 className="dm-card-title">{t.name}</h3>
+              <p style={{ fontSize: 'var(--dm-text-3xl)', fontWeight: 700, margin: 'var(--dm-2) 0', letterSpacing: '-0.02em' }}>
+                {t.price}
+                {t.period && <span style={{ fontSize: 'var(--dm-text-sm)', fontWeight: 400, color: 'var(--dm-muted)' }}>{t.period}</span>}
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 var(--dm-5)', display: 'grid', gap: 'var(--dm-2)' }}>
+                {t.features.map((f) => (
+                  <li key={f} style={{ display: 'flex', gap: 'var(--dm-2)', fontSize: 'var(--dm-text-sm)', color: 'var(--dm-text-2)' }}>
+                    <Check size={15} style={{ color: 'var(--dm-gold-soft)', flexShrink: 0, marginTop: '2px' }} /> {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className={`dm-btn dm-btn-block ${t.featured ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
+                onClick={() => navigate('/agent')}
+              >
+                {t.cta}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -196,25 +204,30 @@ function Pricing() {
 
 function Footer() {
   return (
-    <footer className="lp-footer">
-      <span className="lp-brand"><Logo size={24} /> Dark Matter</span>
-      <span className="lp-footer-note">Autonomous bug-bounty hunting. Test only authorized targets.</span>
-      <span className="lp-footer-links">
-        <Link to="/privacy-policy">Privacy</Link>
-        <Link to="/terms">Terms</Link>
-      </span>
+    <footer className="dm-footer">
+      <div className="dm-footer-inner">
+        <span className="dm-nav-brand"><Logo size={22} /> Dark Matter</span>
+        <span className="dm-muted" style={{ fontSize: 'var(--dm-text-sm)' }}>
+          Autonomous bug-bounty hunting. Test only authorized targets.
+        </span>
+        <span style={{ display: 'flex', gap: 'var(--dm-4)' }}>
+          <Link to="/privacy-policy" className="dm-footer-link">Privacy</Link>
+          <Link to="/terms" className="dm-footer-link">Terms</Link>
+        </span>
+      </div>
     </footer>
   );
 }
 
 export function Landing() {
   return (
-    <div className="lp-page">
+    <div className="dm-landing">
       <Nav />
       <main>
         <Hero />
         <HowItWorks />
-        <LiveHuntCTA />
+        <Brains />
+        <CTA />
         <Pricing />
       </main>
       <Footer />

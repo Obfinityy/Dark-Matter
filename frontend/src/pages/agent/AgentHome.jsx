@@ -1,22 +1,20 @@
 /**
- * AgentHome — "point me at a target".
+ * AgentHome — Hunt AI home. "Point me at a target."
  *
- * One paste box starts a hunt. Dedup returns the cached report instantly.
- * Below: live stats and recent hunts. Singularity design system.
+ * Elegant redesign: calm hero, single paste action, quiet stats,
+ * recent hunts. Dark Matter design system (dm-*).
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Crosshair, AlertTriangle, ChevronRight, Loader2,
-  Radar, FileCheck2, Target, ShieldCheck
+  FileText, ShieldCheck, ArrowRight
 } from 'lucide-react';
 import { createJob, listJobs } from '../../services/api';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { BrainGate } from '../../components/BrainGate';
-import './AgentHome.css';
-import './AgentHomeNew.css';
 
 export function AgentHome() {
   const navigate = useNavigate();
@@ -26,8 +24,6 @@ export function AgentHome() {
   const [error, setError] = useState('');
   const [dedup, setDedup] = useState(null);
   const [jobs, setJobs] = useState([]);
-  // Loading state for the recent-hunts list so we never flash the
-  // "No hunts yet" empty state while the fetch is still in flight.
   const [jobsLoading, setJobsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -41,7 +37,6 @@ export function AgentHome() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const launch = async ({ forceNew = false } = {}) => {
-    // "target.com" → "https://target.com" (scheme-less input gets https://).
     const clean = normalizeTargetUrl(target);
     if (!clean) { setError('Paste a target first — a domain, URL, or IP.'); return; }
     if (!authConfirmed) {
@@ -75,54 +70,82 @@ export function AgentHome() {
   const doneCount = jobs.filter((j) => String(j.status).toLowerCase() === 'completed').length;
   const totalFindings = jobs.reduce((n, j) => n + (j.findingsCount || 0), 0);
 
-  // Stat numbers — rendered directly, no animation.
-  const runningShown = runningCount;
-  const doneShown = doneCount;
-  const findingsShown = totalFindings;
-
   return (
-    <div className="sg-hunt-home home-new">
+    <div className="dm-container">
       {/* ── Hero ── */}
-      <section className="sg-hero">
-        <span className="sg-pill sg-pill-brand"><Radar size={13} /> Autonomous bug bounty</span>
-        <h1 className="sg-display home-hero-title">Point me at a target. I'll hunt it down.</h1>
-        <p className="sg-body home-hero-sub">
+      <header className="dm-page-head" style={{ marginTop: 'var(--dm-8)' }}>
+        <span className="dm-badge dm-badge-gold" style={{ marginBottom: 'var(--dm-4)' }}>
+          Autonomous bug bounty
+        </span>
+        <h1 className="dm-page-title" style={{ fontSize: 'var(--dm-text-4xl)', maxWidth: '640px' }}>
+          Point me at a target. I'll hunt it down.
+        </h1>
+        <p className="dm-page-sub">
           The agent maps the attack surface, tests real hypotheses, and hands you a
           submission-ready report — while you watch it think, live.
         </p>
+      </header>
 
+      {/* ── Hunt input ── */}
+      <section className="dm-card" style={{ marginBottom: 'var(--dm-8)' }}>
         <BrainGate required={['vision', 'grounding', 'hacker']} featureName="Hunt AI">
-        <form className="sg-hunt-form" onSubmit={startHunt}>
-          <div className="sg-hunt-bar">
-            <Crosshair size={19} className="sg-hunt-bar-icon" />
-            <input
-              id="sg-target"
-              type="text"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder="Paste a URL you own — https://target.com"
-              spellCheck={false}
-              autoComplete="off"
-              aria-label="Target URL"
-              aria-invalid={error ? 'true' : undefined}
-              aria-describedby={error ? 'sg-target-error' : undefined}
-            />
-            <button type="submit" className="sg-btn sg-btn-primary" disabled={starting}>
-              {starting && <Loader2 size={17} className="sg-spin sg-inline-flex" />}
-              {starting ? 'Starting…' : 'Start hunt'}
-            </button>
-          </div>
-          <label className="sg-authz">
-            <input type="checkbox" checked={authConfirmed} onChange={(e) => setAuthConfirmed(e.target.checked)} />
-            <span><ShieldCheck size={14} /> I confirm I'm authorized to security-test this target — I own it or have written permission.</span>
-          </label>
-        </form>
+          <form onSubmit={startHunt}>
+            <div style={{ display: 'flex', gap: 'var(--dm-3)', marginBottom: 'var(--dm-3)' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Crosshair
+                  size={18}
+                  style={{
+                    position: 'absolute', left: '16px', top: '50%',
+                    transform: 'translateY(-50%)', color: 'var(--dm-muted)',
+                    pointerEvents: 'none'
+                  }}
+                />
+                <input
+                  id="dm-target"
+                  type="text"
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  placeholder="Paste a URL you own — https://target.com"
+                  spellCheck={false}
+                  autoComplete="off"
+                  aria-label="Target URL"
+                  className="dm-input"
+                  style={{ paddingLeft: '44px' }}
+                />
+              </div>
+              <button type="submit" className="dm-btn dm-btn-primary dm-btn-lg" disabled={starting}>
+                {starting && <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />}
+                {starting ? 'Starting…' : 'Start hunt'}
+              </button>
+            </div>
+            <label style={{
+              display: 'flex', gap: 'var(--dm-2)', alignItems: 'flex-start',
+              fontSize: 'var(--dm-text-sm)', color: 'var(--dm-text-2)',
+              cursor: 'pointer', lineHeight: 1.5
+            }}>
+              <input
+                type="checkbox"
+                checked={authConfirmed}
+                onChange={(e) => setAuthConfirmed(e.target.checked)}
+                style={{ marginTop: '3px', accentColor: 'var(--dm-gold)' }}
+              />
+              <span style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
+                <ShieldCheck size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--dm-gold-soft)' }} />
+                I confirm I'm authorized to security-test this target — I own it or have written permission.
+              </span>
+            </label>
+          </form>
         </BrainGate>
 
-        {error && <div id="sg-target-error" className="sg-auth-error home-error" role="alert"><AlertTriangle size={15} /> {error}</div>}
+        {error && (
+          <div className="dm-notice" style={{ marginTop: 'var(--dm-4)', borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)' }} role="alert">
+            <AlertTriangle size={16} style={{ color: 'var(--dm-red)', flexShrink: 0, marginTop: '2px' }} />
+            <span>{error}</span>
+          </div>
+        )}
 
         {dedup && (
-          <div className="home-dedup">
+          <div style={{ marginTop: 'var(--dm-4)' }}>
             <DedupBanner
               result={dedup}
               onView={() => dedup?.huntRecord?.id && navigate(`/agent/reports/${dedup.huntRecord.id}`)}
@@ -134,85 +157,125 @@ export function AgentHome() {
       </section>
 
       {/* ── Stats ── */}
-      <section className="sg-stats" aria-label="Hunt statistics">
+      <section className="dm-grid-3" style={{ marginBottom: 'var(--dm-10)' }}>
         {[
-          { n: runningShown, label: 'hunts live right now', live: runningCount > 0 },
-          { n: doneShown, label: 'hunts completed' },
-          { n: findingsShown, label: 'findings so far' },
-        ].map(({ n, label, live }, i) => (
-          <div key={label} className="sg-stat">
-            <strong>{n}{live && <span className="sg-live-dot" />}</strong>
-            <span>{label}</span>
+          { n: runningCount, label: 'Hunts live now', live: runningCount > 0 },
+          { n: doneCount, label: 'Hunts completed' },
+          { n: totalFindings, label: 'Findings so far' },
+        ].map(({ n, label, live }) => (
+          <div key={label} className="dm-card dm-center" style={{ padding: 'var(--dm-5)' }}>
+            <div style={{
+              fontSize: 'var(--dm-text-3xl)', fontWeight: 700,
+              letterSpacing: '-0.02em', marginBottom: 'var(--dm-1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+            }}>
+              {n}
+              {live && (
+                <span style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: 'var(--dm-green)', display: 'inline-block'
+                }} />
+              )}
+            </div>
+            <div style={{ fontSize: 'var(--dm-text-sm)', color: 'var(--dm-muted)' }}>{label}</div>
           </div>
         ))}
       </section>
 
-      {/* ── Content grid ── */}
-      <div className="sg-grid-2 home-grid-top">
-        <section className="sg-card sg-card-pad">
-          <h3 className="sg-h2 sg-card-h">
-            <Target size={18} className="sg-h-icon" /> Recent hunts
-          </h3>
+      {/* ── Recent hunts + side cards ── */}
+      <div className="dm-grid-2" style={{ alignItems: 'start' }}>
+        <section className="dm-card">
+          <div className="dm-section-head">
+            <h2 className="dm-section-title">Recent hunts</h2>
+            {jobs.length > 0 && (
+              <Link to="/agent/reports" className="dm-section-link">
+                View all <ArrowRight size={14} style={{ verticalAlign: '-2px' }} />
+              </Link>
+            )}
+          </div>
           {jobsLoading ? (
-            <div className="sg-hunt-list" aria-hidden="true">
+            <div style={{ display: 'grid', gap: 'var(--dm-2)' }}>
               {[0, 1, 2].map((i) => (
-                <div key={i} className="sg-hunt-row sg-skeleton-row">
-                  <div className="sg-hunt-main">
-                    <span className="sg-skeleton-line" style={{ width: `${58 - i * 9}%` }} />
-                    <span className="sg-skeleton-line sg-skeleton-short" />
+                <div key={i} className="dm-row" style={{ opacity: 0.5 }}>
+                  <div className="dm-row-main">
+                    <div style={{ height: '14px', width: `${60 - i * 10}%`, background: 'var(--dm-surface-3)', borderRadius: '4px', marginBottom: '6px' }} />
+                    <div style={{ height: '11px', width: '40%', background: 'var(--dm-surface-3)', borderRadius: '4px' }} />
                   </div>
                 </div>
               ))}
             </div>
           ) : jobs.length === 0 ? (
-            <p className="sg-small">No hunts yet — your first one is one paste away.</p>
+            <div className="dm-empty">
+              <div className="dm-empty-icon">🎯</div>
+              <p className="dm-empty-title">No hunts yet</p>
+              <p className="dm-empty-sub">Your first hunt is one paste away.</p>
+            </div>
           ) : (
-            <ul className="sg-hunt-list">
+            <div style={{ display: 'grid', gap: 'var(--dm-2)' }}>
               {jobs.slice(0, 6).map((job) => (
-                <li key={job.id}>
-                  <Link to={`/agent/hunt/${job.id}`} className="sg-hunt-row">
-                    <div className="sg-hunt-main">
-                      <span className="sg-hunt-target">{job.target || job.targetHostname || job.id}</span>
-                      <span className="sg-tiny">
-                        {job.createdAt ? new Date(job.createdAt).toLocaleString() : ''}
-                        {job.findingsCount != null && ` · ${job.findingsCount} findings`}
-                      </span>
-                    </div>
-                    <StatusPill status={job.status} />
-                    <ChevronRight size={16} className="sg-hunt-chevron" />
-                  </Link>
-                </li>
+                <Link
+                  key={job.id}
+                  to={`/agent/hunt/${job.id}`}
+                  className="dm-row"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <div className="dm-row-main">
+                    <p className="dm-row-title">{job.target || job.targetHostname || job.id}</p>
+                    <p className="dm-row-sub">
+                      {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : ''}
+                      {job.findingsCount != null && ` · ${job.findingsCount} findings`}
+                    </p>
+                  </div>
+                  <StatusPill status={job.status} />
+                  <ChevronRight size={16} style={{ color: 'var(--dm-muted)', flexShrink: 0 }} />
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 
-        <div className="sg-stack">
-          <section className="sg-card sg-card-pad">
-            <h3 className="sg-h2 sg-card-h">
-              <FileCheck2 size={18} className="sg-h-icon" /> Past reports
-            </h3>
-            <p className="sg-small">Every completed hunt is archived with a submission-ready report.</p>
-            <Link to="/agent/reports" className="sg-card-link">
-              Browse reports <ChevronRight size={14} />
+        <div style={{ display: 'grid', gap: 'var(--dm-4)' }}>
+          <section className="dm-card">
+            <h3 className="dm-card-title">Past reports</h3>
+            <p className="dm-card-sub">
+              Every completed hunt is archived with a submission-ready report.
+            </p>
+            <Link to="/agent/reports" className="dm-btn dm-btn-secondary dm-btn-sm">
+              <FileText size={14} /> Browse reports
             </Link>
           </section>
 
-          <section className="sg-card sg-card-pad">
-            <h3 className="sg-h2 sg-card-h">
-              <Crosshair size={18} className="sg-h-icon" /> How it works
-            </h3>
-            <ol className="sg-steps">
-              <li><strong>Paste a URL you own</strong><span>The agent takes it from there.</span></li>
-              <li><strong>It maps the surface</strong><span>Recon, fingerprinting, attack paths.</span></li>
-              <li><strong>Tests hypotheses, safely</strong><span>Real probes. No damage. Full logs.</span></li>
-              <li><strong>You get the report</strong><span>Evidence-backed PDF, ready to submit.</span></li>
-            </ol>
+          <section className="dm-card">
+            <h3 className="dm-card-title">How it works</h3>
+            <div style={{ display: 'grid', gap: 'var(--dm-3)', marginTop: 'var(--dm-3)' }}>
+              {[
+                ['Paste a URL you own', 'The agent takes it from there.'],
+                ['It maps the surface', 'Recon, fingerprinting, attack paths.'],
+                ['Tests hypotheses, safely', 'Real probes. No damage. Full logs.'],
+                ['You get the report', 'Evidence-backed PDF, ready to submit.'],
+              ].map(([title, sub], i) => (
+                <div key={title} style={{ display: 'flex', gap: 'var(--dm-3)' }}>
+                  <span style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    background: 'var(--dm-gold-glow)', border: '1px solid var(--dm-gold-border)',
+                    color: 'var(--dm-gold-soft)', fontSize: 'var(--dm-text-sm)',
+                    fontWeight: 700, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', flexShrink: 0
+                  }}>
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 'var(--dm-text-sm)' }}>{title}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 'var(--dm-text-sm)', color: 'var(--dm-muted)' }}>{sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
       </div>
 
-      <p className="sg-tiny home-note">
+      <p className="dm-hint dm-center" style={{ marginTop: 'var(--dm-8)' }}>
         Re-pasting a hunted target returns its saved report instantly — "Start new hunt" only when you want a fresh look.
       </p>
     </div>

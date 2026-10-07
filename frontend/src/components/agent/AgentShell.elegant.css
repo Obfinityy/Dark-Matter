@@ -1,0 +1,65 @@
+/* ─────────────────────────────────────────────────────────────
+ * AgentShell — elegant overrides for sidebar + topbar
+ * ───────────────────────────────────────────────────────────── */
+
+/* Sidebar */
+.sg-sidebar {
+  background: var(--dm-sidebar) !important;
+  border-right: 1px solid var(--dm-border-soft) !important;
+  width: var(--dm-sidebar-w) !important;
+}
+
+.sg-sidebar .sg-brand,
+.sg-sidebar .sidebar-brand {
+  padding: var(--dm-5) var(--dm-4) !important;
+  border-bottom: 1px solid var(--dm-border-soft) !important;
+}
+
+/* Nav links */
+.sg-nav-link,
+.sg-sidebar a,
+.sg-sidebar button.sg-nav-item {
+  border-radius: var(--dm-r) !important;
+  padding: 10px 14px !important;
+  font-size: var(--dm-text-sm) !important;
+  font-weight: 500 !important;
+  color: var(--dm-text-2) !important;
+  margin: 2px var(--dm-3) !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+.sg-nav-link:hover,
+.sg-sidebar a:hover {
+  background: var(--dm-surface-2) !important;
+  color: var(--dm-text) !important;
+}
+
+.sg-nav-link.active,
+.sg-sidebar a.active,
+.sg-nav-item.active {
+  background: var(--dm-gold-glow) !important;
+  color: var(--dm-gold-soft) !important;
+  font-weight: 600 !important;
+}
+
+/* Topbar */
+.sg-topbar,
+.sg-shell-header {
+  background: rgba(11, 11, 13, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid var(--dm-border-soft) !important;
+  height: var(--dm-topbar-h) !important;
+}
+
+/* Main content area */
+.sg-main,
+.sg-shell-main {
+  background: var(--dm-bg) !important;
+}
+
+/* Mobile: sidebar drawer */
+@media (max-width: 760px) {
+  .sg-sidebar {
+    width: 280px !important;
+  }
+}
