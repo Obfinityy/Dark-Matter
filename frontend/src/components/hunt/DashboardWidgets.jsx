@@ -3,9 +3,7 @@
  * Each widget is a real component driven by dashboardCore.js pure logic.
  * Widgets accept data props and render deterministic demo data when omitted.
  */
-import { useMemo } from 'react';
 import {
-  SEVERITIES,
   activeHuntsModel,
   severityDonutSegments,
   weeklyFindingsModel,
@@ -22,10 +20,9 @@ import {
   storageUsageModel,
   teamLeaderboardModel,
   slaRiskModel,
-  normalizeSparkline,
   formatCountdown,
-  weekOverWeekDelta,
 } from './dashboardCore.js';
+import './DashboardWidgets.polish.css';
 
 /* Shared chrome ------------------------------------------------------- */
 function Widget({ title, id, action, children }) {
@@ -131,7 +128,13 @@ export function SeverityDonutWidget({ findings = DEMO.findings, onSelect }) {
   const segs = severityDonutSegments(findings);
   const stops = [];
   let acc = 0;
-  const colors = { critical: '#ff4d4d', high: '#ff9f43', medium: '#facc15', low: '#22c55e' };
+  /* Severity hues come from the design tokens; hexes are last-resort fallbacks. */
+  const colors = {
+    critical: 'var(--danger, #ff4d4d)',
+    high: 'var(--warning, #ff9f43)',
+    medium: '#facc15',
+    low: 'var(--success, #22c55e)',
+  };
   for (const s of segs) {
     stops.push(`${colors[s.severity]} ${acc.toFixed(1)}% ${(acc + s.pct).toFixed(1)}%`);
     acc += s.pct;
@@ -363,10 +366,10 @@ export function LearningAppliedWidget({ entries = DEMO.learning }) {
 }
 
 /* 50718 — Storage usage ------------------------------------------------------------------------------------------------ */
-export function StorageUsageWidget({ usage }) {
+export function StorageUsageWidget({ usage, onCleanup }) {
   const m = storageUsageModel(usage || { evidenceBytes: 2.4 * 1024 ** 3, snapshotBytes: 0.9 * 1024 ** 3, quotaBytes: 5 * 1024 ** 3 });
   return (
-    <Widget id="50718" title="Storage usage" action={<button type="button" className="dbw-mini">Clean up</button>}>
+    <Widget id="50718" title="Storage usage" action={<button type="button" className="dbw-mini" onClick={() => onCleanup?.()}>Clean up</button>}>
       <div className="dbw-barline" role="progressbar" aria-valuenow={m.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Storage ${m.pct}% used`}>
         <div className="dbw-barline-fill" style={{ width: `${Math.min(100, m.pct)}%` }} />
       </div>

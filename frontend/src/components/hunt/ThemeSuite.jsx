@@ -32,10 +32,8 @@ import {
   syntaxColorsForTheme,
   contrastRatio,
   contrastGrade,
-  bestTextOn,
   accentPairing,
   resolveOsTheme,
-  resolveEffectiveTheme,
   sunTimes,
   isDarkOutside,
   formatMinutes,
@@ -46,6 +44,7 @@ import {
   OS_DARK_QUERY,
 } from './themeCore.js';
 import './ThemeSuite.css';
+import './ThemeSuite.polish.css';
 
 const STORAGE_KEY = 'infinity.theme.v1';
 const TRANSITION_MS = 250;
@@ -375,6 +374,7 @@ export function AccentPicker() {
             role="radio"
             aria-checked={accent.toLowerCase() === p.hex}
             title={p.label}
+            aria-label={`Accent color: ${p.label}`}
             className={`th-accent-preset${accent.toLowerCase() === p.hex ? ' th-selected' : ''}`}
             style={{ background: p.hex }}
             onClick={() => setAccent(p.hex)}
@@ -420,7 +420,8 @@ export function ContrastReadout() {
         return (
           <div key={id} className="th-readout-theme" data-theme={id}>
             <h4>{t.label}</h4>
-            <table>
+            <div className="th-table-scroll">
+              <table>
               <tbody>
                 {pairs.map(([label, fg, bg]) => {
                   const ratio = contrastRatio(fg, bg);
@@ -440,6 +441,7 @@ export function ContrastReadout() {
                 })}
               </tbody>
             </table>
+            </div>
             <div className="th-sev-row" aria-label={`${t.label} severity hues`}>
               {Object.entries(t.severity).map(([k, color]) => (
                 <span key={k} className="th-sev-chip" style={{ borderColor: color, color }} title={`${k}: ${contrastRatio(color, t.surface.base).toFixed(2)}:1`}>
@@ -725,7 +727,7 @@ export function ThemeCycleHint() {
   const { cycleTheme: cycle } = useTheme();
   return (
     <div className="th-cycle-hint">
-      <p className="th-note" style={{ margin: 0 }}>
+      <p className="th-note th-cycle-hint-main">
         Press <kbd>Ctrl</kbd> + <kbd>.</kbd> to cycle themes
         <span className="th-cycle-order" aria-label="Cycle order">
           {THEME_ORDER.map((id, i) => (

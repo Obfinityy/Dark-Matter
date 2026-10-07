@@ -1,0 +1,207 @@
+/**
+ * EmptyStates.polish.css — Infinity AI frontend polish (batch 4).
+ *
+ * Additive, scoped refinements layered over EmptyStates.css — design-token
+ * alignment, 44px tap targets, visible focus rings, entrance motion with a
+ * reduced-motion guard, and small-screen rhythm. EmptyStates.css is never
+ * edited here.
+ */
+
+/* ---- Design-token alignment (fallbacks preserve the original look) ---- */
+.es {
+  border-radius: var(--radius-lg, 14px);
+  border-color: var(--border, rgba(140, 160, 220, 0.35));
+  background: var(--surface, rgba(18, 24, 44, 0.45));
+  color: var(--text-secondary, #d7def5);
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.2));
+  gap: 0.75rem;
+  animation: esp-fade-up 0.4s ease both;
+}
+
+@keyframes esp-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.es-title {
+  color: var(--text-primary, #eef2ff);
+  font-size: 1.2rem;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.es-desc {
+  color: var(--text-secondary, #aab6dd);
+  line-height: 1.6;
+  max-width: 46ch;
+}
+
+.es-hint {
+  color: var(--text-muted, #77819f);
+  line-height: 1.5;
+}
+
+.es-tone-success {
+  border-color: var(--success, rgba(74, 222, 128, 0.4));
+}
+
+.es-tone-hero {
+  border-color: var(--accent, rgba(120, 150, 255, 0.5));
+  box-shadow: var(--shadow-glow, 0 0 25px rgba(255, 42, 95, 0.15));
+}
+
+/* ---- Illustration: crisp SVG marks sit centered in the medallion ------ */
+.es-illustration {
+  color: var(--accent, #8ea2f5);
+}
+
+.es-hero-art {
+  border: 1px solid var(--border, rgba(120, 150, 255, 0.14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.es-hero-art .es-svg-art {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.es-hero-art.es-clean {
+  background: rgba(74, 222, 128, 0.16);
+  color: var(--success, #4ade80);
+}
+
+/* ---- Buttons: 44px targets, token colors, press feedback -------------- */
+.es-btn {
+  border-radius: var(--radius-sm, 9px);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.25rem;
+  line-height: 1.2;
+  transition: background-color var(--transition-fast, 0.15s ease),
+    border-color var(--transition-fast, 0.15s ease),
+    color var(--transition-fast, 0.15s ease),
+    transform var(--transition-fast, 0.15s ease),
+    box-shadow var(--transition-fast, 0.15s ease);
+}
+
+.es-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.es-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.es-primary {
+  background: var(--accent, #4f6df5);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.es-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  background: var(--accent, #4f6df5);
+}
+
+.es-secondary {
+  color: var(--text-secondary, #b9c4ea);
+  border-color: var(--border, rgba(140, 160, 220, 0.4));
+}
+
+.es-secondary:hover {
+  border-color: var(--accent, #8ea2f5);
+  color: var(--text-primary, #e6ebff);
+}
+
+/* ---- Chips: pill targets with clear affordance ------------------------- */
+.es-chip {
+  border-radius: 999px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  line-height: 1.2;
+  color: var(--text-secondary, #c9d3f7);
+  transition: background-color var(--transition-fast, 0.15s ease),
+    border-color var(--transition-fast, 0.15s ease),
+    transform var(--transition-fast, 0.15s ease);
+}
+
+.es-chip:hover {
+  transform: translateY(-1px);
+}
+
+.es-chip:active {
+  transform: translateY(0);
+}
+
+/* ---- Visible keyboard focus -------------------------------------------- */
+.es-btn:focus-visible,
+.es-chip:focus-visible,
+.es-compare select:focus-visible {
+  outline: 2px solid var(--accent, #4f6df5);
+  outline-offset: 2px;
+}
+
+/* ---- Compare picker: roomy, token-aligned ------------------------------- */
+.es-compare select {
+  min-height: 44px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface, #141a30);
+  color: var(--text-primary, #d7def5);
+  border-color: var(--border, rgba(140, 160, 220, 0.35));
+  max-width: 100%;
+}
+
+/* ---- Action rhythm ------------------------------------------------------ */
+.es-actions {
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.es-chips {
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+/* ---- Small screens: breathing room, stacked controls -------------------- */
+@media (max-width: 480px) {
+  .es {
+    padding: 2rem 1.25rem;
+    margin: 0.75rem auto;
+  }
+  .es-compact {
+    padding: 1.25rem 1rem;
+  }
+  .es-actions .es-btn {
+    flex: 1 1 100%;
+  }
+  .es-compare {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .es-compare select,
+  .es-compare .es-btn {
+    width: 100%;
+  }
+}
+
+/* ---- Reduced motion ----------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .es {
+    animation: none;
+  }
+  .es-pulse {
+    animation: none;
+    opacity: 0.85;
+  }
+  .es-btn:hover:not(:disabled),
+  .es-btn:active:not(:disabled),
+  .es-chip:hover,
+  .es-chip:active {
+    transform: none;
+  }
+}
