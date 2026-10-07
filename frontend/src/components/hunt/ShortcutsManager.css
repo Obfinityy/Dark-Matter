@@ -1,0 +1,182 @@
+/* ShortcutsManager.css — wave 12 (ideas 50441–50480) styling.
+   Dark, quiet, generous breathing room. Print rules for the cheat sheet. */
+
+/* Rotating tips bar — 50441 */
+.sc-tips {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; margin: 0 0 16px;
+  background: linear-gradient(90deg, rgba(56,189,248,.10), rgba(56,189,248,.03));
+  border: 1px solid rgba(56,189,248,.25); border-radius: 10px;
+  color: #dbeafe; font-size: 13px;
+}
+.sc-tips-bulb { font-size: 18px; }
+.sc-tips-text { margin: 0; flex: 1; line-height: 1.5; }
+.sc-tips-text strong { color: #7dd3fc; }
+.sc-tips-cheat, .sc-tips-never {
+  background: none; border: 1px solid rgba(125,211,252,.35); color: #7dd3fc;
+  border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.sc-tips-cheat:hover, .sc-tips-never:hover { background: rgba(125,211,252,.12); }
+.sc-tips-dismiss {
+  background: none; border: none; color: #64748b; cursor: pointer; font-size: 14px; padding: 4px;
+}
+.sc-tips-dismiss:hover { color: #e2e8f0; }
+
+/* Verified checkmark — 50442 */
+.sc-verified { display: inline-block; cursor: help; vertical-align: middle; }
+
+/* Share-link explainer — 50443 */
+.sc-share-explainer {
+  border: 1px solid #1e293b; border-radius: 10px; padding: 12px 16px;
+  background: #0f172a; color: #cbd5e1; font-size: 13px; max-width: 560px;
+}
+.sc-share-explainer summary { cursor: pointer; color: #7dd3fc; font-weight: 600; }
+.sc-share-explainer dl { margin: 10px 0 0; display: grid; gap: 8px; }
+.sc-share-explainer dt { font-weight: 600; color: #e2e8f0; }
+.sc-share-explainer dd { margin: 2px 0 0; line-height: 1.5; }
+
+/* Simulate-toggle clarification — 50444 */
+.sc-sim-tip { display: inline-flex; align-items: center; gap: 6px; cursor: help; color: #94a3b8; font-size: 12px; }
+.sc-sim-tip-mode { color: #cbd5e1; }
+
+/* Cheat sheet — 50445 */
+.sc-sheet {
+  position: fixed; inset: 8vh 8vw; z-index: 1200;
+  background: #0b1220; border: 1px solid #1e293b; border-radius: 14px;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6); color: #e2e8f0;
+}
+.sc-sheet-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 20px; border-bottom: 1px solid #1e293b;
+}
+.sc-sheet-head h2 { margin: 0; font-size: 18px; }
+.sc-sheet-tools { display: flex; gap: 8px; align-items: center; }
+.sc-sheet-tools input[type="search"] {
+  background: #111c33; border: 1px solid #24334f; color: #e2e8f0;
+  border-radius: 8px; padding: 8px 12px; font-size: 13px; width: 240px;
+}
+.sc-sheet-tools button {
+  background: #16213a; border: 1px solid #24334f; color: #e2e8f0;
+  border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px;
+}
+.sc-sheet-tools button:hover { background: #1d2c4e; }
+.sc-sheet-body { overflow-y: auto; padding: 8px 20px 20px; display: grid; gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.sc-sheet-group h3 {
+  margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #7dd3fc;
+}
+.sc-sheet-group dl { margin: 0; display: grid; gap: 2px; }
+.sc-sheet-row { display: flex; align-items: baseline; gap: 12px; padding: 5px 0; border-bottom: 1px dashed #16213a; }
+.sc-sheet-row dt { display: flex; gap: 4px; align-items: center; min-width: 130px; }
+.sc-sheet-row dd { margin: 0; font-size: 13px; color: #cbd5e1; }
+.sc-sheet-row kbd, .sc-quickmenu-item kbd {
+  background: #1a2540; border: 1px solid #2b3c5e; border-bottom-width: 2px; border-radius: 5px;
+  padding: 2px 7px; font-size: 11px; font-family: ui-monospace, monospace; color: #bae6fd; white-space: nowrap;
+}
+.sc-sheet-existing {
+  font-size: 10px; color: #86efac; border: 1px solid rgba(134,239,172,.4);
+  border-radius: 4px; padding: 1px 6px;
+}
+.sc-sheet-empty { color: #94a3b8; padding: 24px 0; }
+.sc-sheet-foot { padding: 10px 20px; border-top: 1px solid #1e293b; color: #64748b; font-size: 12px; margin: 0; }
+
+/* Skip links — 50467 (visually hidden until focused) */
+.sc-skip-links { position: absolute; z-index: 2000; }
+.sc-skip-link {
+  position: absolute; left: -9999px; top: 0;
+  background: #0ea5e9; color: #04121f; font-weight: 700; font-size: 13px;
+  padding: 10px 16px; border-radius: 0 0 8px 8px; text-decoration: none;
+}
+.sc-skip-link:focus { left: 12px; }
+
+/* Focus trap wrapper — 50468 (no visual chrome of its own) */
+.sc-focus-trap { outline: none; }
+.sc-focus-trap > .sc-sheet, .sc-focus-trap > .sc-quickmenu, .sc-focus-trap > .sc-export { position: fixed; }
+
+/* Timeline keyboard nav — 50465 (+ 50454 scrub) */
+.sc-timeline-nav {
+  display: flex; gap: 6px; overflow-x: auto; padding: 12px 4px; outline: none;
+  border: 1px solid transparent; border-radius: 10px;
+}
+.sc-timeline-nav:focus-visible { border-color: #0ea5e9; }
+.sc-timeline-event {
+  display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+  background: #0f172a; border: 1px solid #1e293b; border-radius: 999px;
+  color: #cbd5e1; padding: 8px 14px; cursor: pointer; font-size: 12px;
+}
+.sc-timeline-event:focus { outline: none; }
+.sc-timeline-event:focus-visible, .sc-timeline-event.is-active {
+  border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14,165,233,.45); color: #f0f9ff;
+}
+.sc-timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; }
+.sc-timeline-event.is-active .sc-timeline-dot { background: #38bdf8; }
+.sc-timeline-time { color: #64748b; }
+
+/* Quick-action menu — 50475 */
+.sc-quickmenu {
+  position: fixed; z-index: 1300; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: #0b1220; border: 1px solid #1e293b; border-radius: 12px;
+  padding: 8px; min-width: 300px; box-shadow: 0 24px 80px rgba(0,0,0,.6);
+  display: grid; gap: 2px;
+}
+.sc-quickmenu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: none; border: none; color: #e2e8f0; text-align: left;
+  padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+}
+.sc-quickmenu-item:hover, .sc-quickmenu-item:focus-visible { background: #16213a; outline: none; }
+
+/* Export picker — 50456 */
+.sc-export {
+  position: fixed; z-index: 1300; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: #0b1220; border: 1px solid #1e293b; border-radius: 12px;
+  padding: 24px; width: 380px; max-width: 92vw; color: #e2e8f0;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6);
+}
+.sc-export h2 { margin: 0 0 6px; font-size: 16px; }
+.sc-export p { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+.sc-export-formats { display: flex; gap: 8px; margin-bottom: 20px; }
+.sc-export-opt {
+  flex: 1; border: 1px solid #24334f; border-radius: 8px; padding: 10px;
+  text-align: center; cursor: pointer; font-size: 13px; color: #cbd5e1;
+}
+.sc-export-opt.is-selected { border-color: #0ea5e9; background: rgba(14,165,233,.10); color: #f0f9ff; }
+.sc-export-opt input { position: absolute; opacity: 0; }
+.sc-export-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.sc-export-actions button, .sc-btn-primary {
+  border-radius: 8px; padding: 9px 16px; cursor: pointer; font-size: 13px;
+  background: #16213a; border: 1px solid #24334f; color: #e2e8f0;
+}
+.sc-btn-primary { background: #0ea5e9; border-color: #0ea5e9; color: #04121f; font-weight: 700; }
+
+/* Toasts — 50473 */
+.sc-toasts {
+  position: fixed; bottom: 24px; right: 24px; z-index: 1500;
+  display: grid; gap: 8px; max-width: 360px;
+}
+.sc-toast {
+  background: #0f172a; border: 1px solid #1e293b; border-left: 3px solid #38bdf8;
+  color: #e2e8f0; border-radius: 10px; padding: 12px 16px; font-size: 13px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.5); animation: sc-toast-in .18s ease-out;
+}
+.sc-toast-error { border-left-color: #f87171; }
+@keyframes sc-toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Zen mode — 50479: hide chrome, keep the hunt */
+html[data-zen="1"] .sc-zen-hide { display: none !important; }
+
+/* Density + view hooks — 50459/50460 (host app styles off these) */
+html[data-density="compact"] .sc-density-scope { --sc-card-pad: 8px; --sc-card-gap: 6px; }
+html[data-density="comfortable"] .sc-density-scope { --sc-card-pad: 16px; --sc-card-gap: 12px; }
+
+/* Logical tab order — 50466: visible focus everywhere inside the scope */
+.sc-a11y-scope :focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+
+/* Print: cheat sheet prints cleanly — 50445 */
+@media print {
+  .sc-sheet { position: static; inset: auto; box-shadow: none; border: none; }
+  .sc-sheet-tools, .sc-sheet-foot, .sc-toasts, .sc-tips { display: none !important; }
+  .sc-sheet-body { display: block; overflow: visible; }
+  .sc-sheet-row { break-inside: avoid; }
+}
