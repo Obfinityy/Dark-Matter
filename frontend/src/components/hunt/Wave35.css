@@ -1,0 +1,230 @@
+/**
+ * Wave35.css — wave 35 (ideas 51361–51400): strategy round 3 + explainability.
+ * Scoped .st35-* (strategy round 3) and .ex35-* (explainability) styles.
+ * Zero keyframes/animations per the owner's zero-animation order;
+ * prefers-reduced-motion guard included (no-op by design — there is nothing
+ * animated to reduce).
+ */
+
+.st35-gallery, .ex35-gallery {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.st35-card, .ex35-card {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.st35-card-head, .ex35-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.st35-card-title, .ex35-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.st35-idea, .ex35-idea {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
+}
+
+.st35-card-body, .ex35-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.st35-row, .ex35-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.st35-line, .ex35-line {
+  font-size: 13px;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.st35-dim, .ex35-dim {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.st35-warn {
+  font-size: 13px;
+  color: #fbbf24;
+  margin: 0;
+}
+
+.st35-btn, .ex35-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(56, 189, 248, 0.12);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.st35-btn:hover, .ex35-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+}
+
+.st35-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.st35-btn-warn {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.st35-btn-inline {
+  margin-left: 8px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.st35-input, .ex35-input {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(2, 6, 23, 0.6);
+  color: #e2e8f0;
+}
+
+.st35-num {
+  width: 80px;
+}
+
+.st35-check {
+  font-size: 13px;
+  color: #cbd5e1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.st35-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.st35-table th, .st35-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.st35-table th {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.st35-up { color: #34d399; }
+.st35-down { color: #f87171; }
+
+.st35-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.st35-list li { margin-bottom: 4px; }
+
+.st35-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.st35-seg {
+  border-left: 4px solid;
+  padding: 6px 10px;
+  background: rgba(2, 6, 23, 0.4);
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.st35-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.st35-bar-label {
+  width: 140px;
+  color: #cbd5e1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.st35-bar-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.st35-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: #38bdf8;
+}
+
+.st35-pre {
+  font-size: 12px;
+  color: #cbd5e1;
+  background: rgba(2, 6, 23, 0.6);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+}
+
+.ex35-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.ex35-exec {
+  border-left: 3px solid #fbbf24;
+  padding-left: 10px;
+}
+
+.ex35-analogy {
+  border-left: 3px solid #a78bfa;
+  padding-left: 10px;
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Zero-animation order: nothing here animates; this guard is a no-op. */
+  .st35-card, .ex35-card { scroll-behavior: auto; }
+}
