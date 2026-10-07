@@ -380,7 +380,7 @@ export function AvatarFallbackPortrait({ displayName, onRetry }) {
     <div className="rsz-avatar-fallback" role="img" aria-label={`${displayName || 'User'} avatar unavailable`}>
       <span className="rsz-avatar-initials" aria-hidden="true">{initials}</span>
       {onRetry && (
-        <button type="button" className="rsz-mini-btn" onClick={onRetry} title="Retry avatar load">
+        <button type="button" className="rsz-mini-btn" onClick={onRetry} title="Retry avatar load" aria-label="Retry avatar load">
           ↻
         </button>
       )}

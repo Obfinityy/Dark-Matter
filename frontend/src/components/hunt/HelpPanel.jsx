@@ -6,11 +6,15 @@
  * 50437 — helpful-vote thumbs: every help article asks "did this help?",
  * votes persist to localStorage and feed documentation improvement
  * (vote store logic is microcopyCore.recordHelpVote / voteRatio).
+ *
+ * Shared mc-* styling lives in TooltipHelp.css (also used by
+ * MicrocopyTooltips.jsx) — HelpPanel-specific polish is in HelpPanel.css.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { helpDocsFor, recordHelpVote, voteRatio } from './microcopyCore.js';
 import './TooltipHelp.css';
+import './HelpPanel.css';
 
 const VOTE_KEY = 'dm_help_votes_v1';
 
@@ -76,26 +80,45 @@ export function HelpfulVote({ docId }) {
 export function HelpPanel({ page = 'hunt', open: controlledOpen, onClose }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
-  const close = () => {
+  const closeBtnRef = useRef(null);
+  const openerRef = useRef(null);
+
+  const close = useCallback(() => {
     if (onClose) onClose();
     else setInternalOpen(false);
-  };
+  }, [onClose]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') close();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open ]);
+    // Lock background scroll while the panel is open; restore on cleanup.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    // Move focus into the panel so keyboard users land on the close action.
+    if (closeBtnRef.current) closeBtnRef.current.focus();
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+      if (openerRef.current) openerRef.current.focus();
+    };
+  }, [open, close]);
 
   const docs = helpDocsFor(page);
 
   return (
     <>
       {controlledOpen === undefined && (
-        <button type="button" className="mc-btn mc-help-fab" onClick={() => setInternalOpen(true)} aria-label="Open help">
+        <button
+          ref={openerRef}
+          type="button"
+          className="mc-btn mc-help-fab"
+          onClick={() => setInternalOpen(true)}
+          aria-label="Open help"
+          aria-haspopup="dialog"
+        >
           ? Help
         </button>
       )}
@@ -104,12 +127,13 @@ export function HelpPanel({ page = 'hunt', open: controlledOpen, onClose }) {
           <aside
             className="mc-help-panel"
             role="dialog"
+            aria-modal="true"
             aria-label={`Help for ${page}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mc-help-head">
               <strong>Help — {page}</strong>
-              <button type="button" className="mc-pop-x" onClick={close} aria-label="Close help">
+              <button ref={closeBtnRef} type="button" className="mc-pop-x" onClick={close} aria-label="Close help">
                 ×
               </button>
             </div>
