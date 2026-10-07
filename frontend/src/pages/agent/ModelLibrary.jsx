@@ -675,7 +675,7 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
               <div className="sg-alert sg-auth-error ml-alert-mt" role="alert">
                 <AlertTriangle size={15} />
                 <span className="sg-small">
-                  <b>{p.name}</b> will be degraded: {missing.map((s) => SLOT_LABEL[s] || s).join(', ')} is not running.
+                  <b>{p.name}</b>{' '}will be degraded:{' '}{missing.map((s) => SLOT_LABEL[s] || s).join(', ')}{' '}is not running.{' '}
                   Scroll to the Brain Slots above and press Run on a {missing.map((s) => SLOT_LABEL[s] || s).join('/')} model.
                 </span>
               </div>
