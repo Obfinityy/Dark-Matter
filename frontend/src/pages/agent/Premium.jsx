@@ -262,25 +262,27 @@ export function Premium() {
               className={`sg-btn ${active === tier.id ? 'sg-btn-primary' : reserved === tier.id ? 'sg-btn-ghost' : tier.flagship ? 'sg-btn-primary' : 'sg-btn-ghost'} sg-premium-cta`}
               onClick={() => setPending(tier)}
               disabled={active === tier.id}
+              aria-label={active === tier.id ? `${tier.name} — your active plan` : reserved === tier.id ? `${tier.name} — reserved, open to pay` : tier.price === 0 ? `Start free with ${tier.name}` : `Choose the ${tier.name} tier`}
             >
-              {active === tier.id ? '✓ Active plan' : reserved === tier.id ? '✓ Tier reserved' : tier.price === 0 ? 'Start free' : `Choose ${tier.name}`}
+              {active === tier.id ? <><Check size={14} aria-hidden="true" /> Active plan</> : reserved === tier.id ? <><Check size={14} aria-hidden="true" /> Tier reserved</> : tier.price === 0 ? 'Start free' : `Choose ${tier.name}`}
             </button>
             {active === tier.id && (
               <p className="sg-small sg-premium-note">
-                Your <strong>{tier.name}</strong> plan is active. Hunt like an elite. ⚡
+                Your <strong>{tier.name}</strong> plan is active. Hunt like an elite. <Sparkles size={12} aria-hidden="true" />
               </p>
             )}
             {active !== tier.id && reserved === tier.id && (
               <p className="sg-small sg-premium-note">
-                Payments integrate later — your <strong>{tier.name}</strong> tier is reserved.
-                We'll notify you the moment billing goes live.
+                {billingLive
+                  ? <>Your <strong>{tier.name}</strong> tier is reserved — open the tier to complete payment via Razorpay (test mode, no real money moves).</>
+                  : <>Billing goes live soon — your <strong>{tier.name}</strong> tier is reserved. We'll notify you the moment payments open.</>}
               </p>
             )}
           </article>
         ))}
       </div>
 
-      {/* ── "Coming soon" modal — payments don't exist yet (frontend only). ── */}
+      {/* ── Checkout modal — live Razorpay billing (test mode). ── */}
       {pending && (
         <div className="sg-modal-scrim" onClick={() => setPending(null)} role="presentation">
           <div
@@ -289,7 +291,7 @@ export function Premium() {
             onClick={(e) => e.stopPropagation()}
             ref={modalRef} tabIndex={-1}
           >
-            <button className="sg-modal-close" onClick={() => setPending(null)} aria-label="Close">
+            <button className="sg-modal-close" onClick={() => setPending(null)} aria-label="Close checkout dialog">
               <X size={18} />
             </button>
             <div className="sg-premium-modal-icon"><Crown size={26} /></div>
@@ -314,7 +316,7 @@ export function Premium() {
                   Pay securely via Razorpay (UPI, cards, netbanking). Test mode — no real
                   money moves.
                 </p>
-                {payError && <p className="sg-small" style={{ color: '#f87171' }}>{payError}</p>}
+                {payError && <p className="sg-small sg-premium-error" role="alert">{payError}</p>}
                 <div className="sg-premium-modal-actions">
                   <button
                     className="sg-btn sg-btn-primary"

@@ -4,6 +4,21 @@
 .sg-premium-head { margin-bottom: 28px; }
 .sg-premium-head .sg-h1 { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; }
 .sg-premium-head .sg-h1 svg { color: #fbbf24; }
+.sg-premium-head .sg-body { margin: 0; max-width: 60ch; }
+
+/* Card hover lift — premium cards are the storefront, they should invite touch. */
+.sg-premium-card {
+  transition: transform 0.18s var(--sg-ease), box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.sg-premium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.38);
+  border-color: rgba(129, 140, 248, 0.3);
+}
+.sg-premium-flagship:hover { border-color: rgba(251, 191, 36, 0.5); }
+.sg-premium-card .sg-premium-cta { min-height: 44px; }
+.sg-premium-note svg { vertical-align: -2px; margin-left: 2px; }
+.sg-premium-error { color: var(--sg-danger); margin: 0 0 14px; font-weight: 600; }
 
 .sg-premium-grid {
   display: grid;
@@ -44,7 +59,7 @@
 .sg-premium-cta { width: 100%; }
 .sg-premium-note { margin-top: 12px; }
 
-/* ── "Coming soon" modal ── */
+/* ── Checkout modal ── */
 .sg-modal-scrim {
   position: fixed; inset: 0; z-index: 80;
   background: rgba(3, 5, 10, 0.72);
@@ -77,8 +92,13 @@
   background: none; border: none; cursor: pointer;
   color: var(--sg-text-3); padding: 6px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; /* 44px mobile tap target */
 }
 .sg-modal-close:hover { color: var(--sg-text-1); background: rgba(255, 255, 255, 0.06); }
+.sg-modal-close:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.55);
+  outline-offset: 2px;
+}
 @keyframes sg-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sg-pop-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
 
