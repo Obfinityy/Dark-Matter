@@ -132,6 +132,13 @@ export async function getLocalSlotServers() {
 }
 
 /**
+ * Remove a downloaded model from the local backend (frees disk space).
+ */
+export async function removeModelLocal(modelId) {
+  return localFetch(`/local-models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+}
+
+/**
  * Get local runner status (engine, disk, etc.)
  */
 export async function getLocalRunnerStatus() {

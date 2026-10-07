@@ -30,7 +30,7 @@ import {
   removeRunnerModel, addRunnerCustomModel,
   stopRunnerModel,
   runModelFile, subscribeToModelProgress,
-  getBrainChain, getBrainSlots, getSlotAssignments, assignBrainSlot,
+  getBrainChain, getBrainSlots, getSlotAssignments,
   getSlotSources, connectSlotKaggle, disconnectSlotKaggle,
   testRemoteModel, getSlotServers, runSlotServer, stopSlotServer,
   tryApi
@@ -43,7 +43,8 @@ import {
   cancelLocalDownload,
   runModelOnLocal,
   stopSlotOnLocal,
-  getLocalSlotServers
+  getLocalSlotServers,
+  removeModelLocal
 } from '../../services/localModelApi';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
@@ -263,7 +264,7 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
 function BrainSlotCard({
   slotId, slot, assignments, sources, slotServers,
   download, downloadedIds, engineReady, slotBusy, kaggleBusy, kaggleMsg,
-  onAssign, onDownload, onCancelDownload, onRunSlot, onStopSlot,
+  onDownload, onCancelDownload, onRemove, onRunSlot, onStopSlot,
   onKaggleConnect, onKaggleDisconnect, onKaggleTest,
   kaggleUrl, setKaggleUrl, kaggleName, setKaggleName
 }) {
@@ -399,7 +400,7 @@ function BrainSlotCard({
                     </div>
                   ) : (
                     <div className="ml-slot-model-actions">
-                      {!isDownloaded && (
+                      {!isDownloaded ? (
                         <button
                           className="sg-btn sg-btn-ghost sg-btn-sm"
                           onClick={() => onDownload(m.id, 'Q4_K_M')}
@@ -408,26 +409,25 @@ function BrainSlotCard({
                         >
                           <Download size={14} /> Download
                         </button>
-                      )}
-                      {isDownloaded ? (
-                        <button
-                          className="sg-btn sg-btn-primary sg-btn-sm"
-                          onClick={() => onRunSlot(slotId, m.id)}
-                          disabled={slotBusy === `${slotId}-run` || !engineReady}
-                          title={`Run ${m.name} on localhost for ${slot.label} (own port)`}
-                        >
-                          {slotBusy === `${slotId}-run` ? <Loader2 size={14} className="sg-spin" /> : <Play size={14} />}
-                          Run
-                        </button>
                       ) : (
-                        <button
-                          className="sg-btn sg-btn-ghost sg-btn-sm"
-                          onClick={() => onAssign(slotId, m.id)}
-                          disabled={isBusy}
-                          title={`Select ${m.name} for ${slot.label} (downloads first)`}
-                        >
-                          Select
-                        </button>
+                        <>
+                          <button
+                            className="sg-btn sg-btn-primary sg-btn-sm"
+                            onClick={() => onRunSlot(slotId, m.id)}
+                            disabled={slotBusy === `${slotId}-run` || !engineReady}
+                            title={`Run ${m.name} on localhost for ${slot.label} (own port) — it becomes the brain for Hunt and Infinity AI`}
+                          >
+                            {slotBusy === `${slotId}-run` ? <Loader2 size={14} className="sg-spin" /> : <Play size={14} />}
+                            Run
+                          </button>
+                          <button
+                            className="sg-btn sg-btn-ghost sg-btn-sm"
+                            onClick={() => onRemove(m.id)}
+                            title={`Delete ${m.name} from your computer to free up disk space`}
+                          >
+                            <Trash2 size={14} /> Remove
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
@@ -761,19 +761,6 @@ export function ModelLibrary() {
   }, []);
 
   // Assign a model to a brain slot (vision | grounding | hacker)
-  const assignToSlot = async (slot, modelId) => {
-    setSlotBusy(slot);
-    try {
-      const data = await assignBrainSlot(slot, modelId);
-      if (data?.assignments) setSlotAssignments(data.assignments);
-      if (data?.slotSources) setSlotSources(data.slotSources);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSlotBusy(null);
-    }
-  };
-
   // Per-slot Kaggle: test / connect / disconnect a Gradio link for one slot
   const testSlotKaggle = async (slot) => {
     const url = (kaggleUrls[slot] || '').trim();
@@ -1045,6 +1032,21 @@ export function ModelLibrary() {
     }
   };
 
+  // Remove a model downloaded to the USER'S LOCAL MACHINE (frees local disk).
+  // Used by the brain-slot cards: Download → Run / Remove.
+  const removeLocal = async (modelId) => {
+    if (!window.confirm('Delete this model from your computer to free up disk space?')) return;
+    setError('');
+    try {
+      if (!localBackendUp) throw new Error('Start the Infinity AI backend on your computer (localhost:4000) first.');
+      await removeModelLocal(modelId);
+      setDownloadedIds((prev) => { const next = new Set(prev); next.delete(modelId); return next; });
+      refresh();
+    } catch (err) {
+      setError(err.message || 'Could not delete the model from your computer.');
+    }
+  };
+
   const addCustom = async (e) => {
     e.preventDefault();
     if (!customForm.name.trim() || !customForm.repo.trim() || !customForm.file.trim()) return;
@@ -1156,9 +1158,9 @@ export function ModelLibrary() {
                 slotBusy={slotBusy}
                 kaggleBusy={kaggleBusy}
                 kaggleMsg={kaggleMsg}
-                onAssign={assignToSlot}
                 onDownload={startDownload}
                 onCancelDownload={cancelDownload}
+                onRemove={removeLocal}
                 onRunSlot={runSlotHandler}
                 onStopSlot={stopSlotHandler}
                 onKaggleConnect={connectSlotKaggleHandler}
