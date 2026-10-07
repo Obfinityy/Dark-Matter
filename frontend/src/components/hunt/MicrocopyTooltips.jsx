@@ -594,6 +594,9 @@ export function ThemeHoverPreviews({ themes = THEME_PREVIEWS, onSelect }) {
           onFocus={() => setPreview(t)}
           onBlur={() => setPreview(null)}
           onClick={() => onSelect && onSelect(t)}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && onSelect) { e.preventDefault(); onSelect(t); }
+          }}
           role="button"
           aria-label={`Preview ${t.name} theme`}
         >
@@ -745,7 +748,7 @@ export function DropZoneHints({ accept, maxBytes, onFiles }) {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') inputRef.current?.click();
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); }
       }}
       aria-label="File drop zone"
     >
