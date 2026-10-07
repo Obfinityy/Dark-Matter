@@ -1,0 +1,176 @@
+/**
+ * DashboardWidgets.polish.css — Infinity AI frontend polish (batch 4).
+ *
+ * Additive, scoped refinements layered over DashboardWidgets.css —
+ * design-token alignment, 44px tap targets, visible focus rings, entrance
+ * motion with a reduced-motion guard, and row/text containment.
+ * DashboardWidgets.css is never edited here.
+ */
+
+/* ---- Widget chrome: tokens, rhythm, entrance --------------------------- */
+.dbw-widget {
+  border-radius: var(--radius-md, 12px);
+  border-color: var(--border, #2a2a30);
+  background: var(--surface, #17171c);
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.2));
+  padding: 16px;
+  animation: dbwp-fade-up 0.4s ease both;
+  transition: border-color var(--transition-fast, 0.15s ease),
+    box-shadow var(--transition-fast, 0.15s ease);
+}
+
+.dbw-grid > .dbw-widget:nth-child(2) { animation-delay: 0.05s; }
+.dbw-grid > .dbw-widget:nth-child(3) { animation-delay: 0.1s; }
+.dbw-grid > .dbw-widget:nth-child(4) { animation-delay: 0.15s; }
+.dbw-grid > .dbw-widget:nth-child(5) { animation-delay: 0.2s; }
+.dbw-grid > .dbw-widget:nth-child(6) { animation-delay: 0.25s; }
+
+@keyframes dbwp-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dbw-head {
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dbw-id {
+  color: var(--accent, #6e8efb);
+}
+
+.dbw-title {
+  color: var(--text-primary, inherit);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* ---- Rows: no clipped text --------------------------------------------- */
+.dbw-row {
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.dbw-row-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+/* ---- Tap targets: 44px buttons ----------------------------------------- */
+.dbw-mini {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm, 7px);
+  border-color: var(--border, #2a2a30);
+  color: var(--text-primary, #eee);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: border-color var(--transition-fast, 0.15s ease),
+    background-color var(--transition-fast, 0.15s ease),
+    transform var(--transition-fast, 0.15s ease);
+}
+
+.dbw-mini:hover {
+  border-color: var(--accent, #6e8efb);
+  background: var(--surface-hover, rgba(24, 24, 29, 0.8));
+}
+
+.dbw-mini:active {
+  transform: translateY(1px);
+}
+
+/* ---- Legend buttons: full-height hit area ------------------------------- */
+.dbw-legend-btn {
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 7px);
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.dbw-legend-btn:hover {
+  background: var(--surface-hover, rgba(24, 24, 29, 0.8));
+}
+
+/* ---- Donut: gentle hover affordance ------------------------------------- */
+.dbw-donut {
+  transition: transform var(--transition-fast, 0.15s ease);
+}
+
+.dbw-donut:hover {
+  transform: scale(1.04);
+}
+
+.dbw-donut-hole {
+  background: var(--surface, #17171c);
+}
+
+/* ---- Visible keyboard focus --------------------------------------------- */
+.dbw-widget button:focus-visible,
+.dbw-widget a:focus-visible {
+  outline: 2px solid var(--accent, #6e8efb);
+  outline-offset: 2px;
+}
+
+/* ---- Progress ring track uses the token border -------------------------- */
+.dbw-ring {
+  background: conic-gradient(
+    var(--accent, #6e8efb) calc(var(--pct, 0) * 1%),
+    var(--border, #23232a) 0
+  );
+}
+
+.dbw-ring::after {
+  background: var(--surface, #17171c);
+}
+
+/* ---- Storage barline: token track --------------------------------------- */
+.dbw-barline {
+  border-radius: var(--radius-sm, 5px);
+  background: var(--border, #23232a);
+  height: 12px;
+}
+
+.dbw-barline-fill {
+  border-radius: var(--radius-sm, 5px);
+  background: var(--accent-gradient, var(--accent, #6e8efb));
+}
+
+/* ---- Throughput bars: softer, token accent ------------------------------- */
+.dbw-bar {
+  background: var(--accent, #6e8efb);
+}
+
+/* ---- Heatmap: keep cells visible but calm -------------------------------- */
+.dbw-heat-cell {
+  background: var(--accent, #6e8efb);
+  min-height: 10px;
+}
+
+/* ---- Small screens ------------------------------------------------------- */
+@media (max-width: 480px) {
+  .dbw-widget {
+    padding: 14px;
+    min-height: 0;
+  }
+  .dbw-donut-row {
+    flex-wrap: wrap;
+  }
+  .dbw-big {
+    font-size: 24px;
+  }
+}
+
+/* ---- Reduced motion ------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .dbw-widget {
+    animation: none;
+  }
+  .dbw-donut:hover,
+  .dbw-mini:active {
+    transform: none;
+  }
+}

@@ -34,6 +34,40 @@
 
 import { useState } from 'react';
 import './EmptyStates.css';
+import './EmptyStates.polish.css';
+
+/* Small inline SVG marks — crisp at every size, no emoji dependency. ---- */
+
+function PlugIcon() {
+  return (
+    <svg className="es-svg-art" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 3v5M15 3v5" />
+      <path d="M7 8h10v3.5a5 5 0 0 1-10 0V8z" />
+      <path d="M12 16.5V21" />
+    </svg>
+  );
+}
+
+function TeamIcon() {
+  return (
+    <svg className="es-svg-art" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.4" />
+      <path d="M2.8 19.5c.7-3.2 3-5 6.2-5s5.5 1.8 6.2 5" />
+      <circle cx="17" cy="9" r="2.7" />
+      <path d="M15.6 14.9c2.9.3 4.9 1.9 5.6 4.6" />
+    </svg>
+  );
+}
+
+function BrainIcon() {
+  return (
+    <svg className="es-svg-art" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 4.6c-1.9 0-3.3.8-4.2 2C6.1 7 4.9 8.4 4.9 10c0 1 .5 1.9 1.2 2.5A3.6 3.6 0 0 0 5.6 15c0 1.5 1 2.7 2.4 3.1.4 1.4 1.6 2.4 3.1 2.4.4 0 .7 0 1-.1" />
+      <path d="M12 4.6c1.9 0 3.3.8 4.2 2 1.7.4 2.9 1.8 2.9 3.4 0 1-.5 1.9-1.2 2.5.3.8.5 1.6.5 2.5 0 1.5-1 2.7-2.4 3.1-.4 1.4-1.6 2.4-3.1 2.4-.4 0-.7 0-1-.1" />
+      <path d="M12 4.6v15.8" />
+    </svg>
+  );
+}
 
 /* Shared shell ---------------------------------------------------- */
 
@@ -230,7 +264,7 @@ export function AllCaughtUpNotifications() {
 export function EmptyIntegrations({ providers = [], onConnect }) {
   return (
     <EmptyState
-      illustration={<span className="es-hero-art">🔌</span>}
+      illustration={<span className="es-hero-art"><PlugIcon /></span>}
       title="No integrations connected"
       description="Connect API keys to unlock webhooks, SIEM export, Slack alerts, and Jira sync."
       hint="Keys are stored encrypted and never leave your vault."
@@ -258,7 +292,7 @@ export function EmptySharedHunts({ inviteLink, onCopyInvite, onInvite }) {
   };
   return (
     <EmptyState
-      illustration={<span className="es-hero-art">👥</span>}
+      illustration={<span className="es-hero-art"><TeamIcon /></span>}
       title="No shared hunts"
       description="Invite your team to review findings, triage, and comment together."
       primary={onInvite && { label: 'Invite a teammate', onClick: onInvite }}
@@ -504,7 +538,7 @@ export function EmptyModelLibrary({ slots = [], onDownload }) {
   const list = slots.length ? slots : ['Hacking brain', 'Vision brain', 'Grounding brain'];
   return (
     <EmptyState
-      illustration={<span className="es-hero-art">🧠</span>}
+      illustration={<span className="es-hero-art"><BrainIcon /></span>}
       title="No brains downloaded"
       description="Download a local model for each slot — the agent thinks with these when offline."
     >
