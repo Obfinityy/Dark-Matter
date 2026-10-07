@@ -90,7 +90,12 @@ export function PostureScore({ jobId }) {
         <span className="sg-posture-counts">
           {chips.length > 0 ? (
             chips.map(({ sev, n, dot }) => (
-              <span key={sev} className="sg-posture-chip" title={`${n} ${sev} severity finding${n === 1 ? '' : 's'}`}>
+              <span
+                key={sev}
+                className="sg-posture-chip"
+                title={`${n} ${sev} severity finding${n === 1 ? '' : 's'}`}
+                aria-label={`${n} ${sev} severity finding${n === 1 ? '' : 's'}`}
+              >
                 <i className="sg-posture-dot" style={{ background: dot }} aria-hidden="true" />
                 {n} {sev}
               </span>
