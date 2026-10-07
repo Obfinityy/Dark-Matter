@@ -77,6 +77,22 @@
 /* Category badge on model cards */
 .sg-pill-cat { border-color: rgba(139, 92, 246, 0.45); }
 
+/* Device-fit count badge on category tabs */
+.ml-cat-fit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #a7f3d0;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Collapsed heavy-models expander on a single category tab */
+.ml-heavy-collapse { margin-top: 18px; }
+.ml-heavy-toggle { width: 100%; justify-content: center; }
+
 @media (max-width: 640px) {
   .ml-cat-tab { flex: 1 1 46%; }
   .ml-cat-tab-text small { display: none; }

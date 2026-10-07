@@ -695,6 +695,21 @@ export function ModelLibrary() {
   const compatibleModels = filteredModels.filter((m) => m.browserCompatible);
   const heavyModels = filteredModels.filter((m) => !m.browserCompatible);
 
+  // ── Device-aware category view: each tab shows how many of its models fit
+  // THIS device (browser-detected specs). When a single category is selected,
+  // the too-heavy models collapse behind an expander so the tab shows exactly
+  // what fits the user's machine; the "All" tab keeps the full ranked view.
+  const catFitCounts = useMemo(() => {
+    const counts = {};
+    for (const t of CATEGORY_TABS) {
+      const list = t.id === 'all' ? sortedModels : sortedModels.filter((m) => m.category === t.id);
+      counts[t.id] = list.filter((m) => m.browserCompatible).length;
+    }
+    return counts;
+  }, [sortedModels]);
+  const [showHeavy, setShowHeavy] = useState(false);
+  useEffect(() => { setShowHeavy(false); }, [catFilter]);
+
   // ── Per-slot Kaggle: each brain slot can run on its own Kaggle link ──
   // (The old global "Remote GPU" card was removed — Kaggle now lives inside each slot.)
 
@@ -1290,7 +1305,7 @@ export function ModelLibrary() {
           >
             <span aria-hidden="true" style={{ fontSize: 18 }}>{t.icon}</span>
             <span className="ml-cat-tab-text">
-              <strong>{t.label}</strong>
+              <strong>{t.label} <span className="ml-cat-fit" title="How many of these models fit this device (browser-detected specs).">{catFitCounts[t.id]} fit</span></strong>
               <small>{t.role}</small>
             </span>
           </button>
@@ -1298,7 +1313,18 @@ export function ModelLibrary() {
       </div>
 
       {/* Model catalog: compatible ON TOP, incompatible BELOW */}
-      <div className="sg-h2">Runs on your device ({compatibleModels.length})</div>
+      <div className="sg-h2">
+        {catFilter === 'all'
+          ? `Runs on your device (${compatibleModels.length})`
+          : `${CATEGORY_TABS.find((t) => t.id === catFilter)?.label} — fits your device (${compatibleModels.length})`}
+      </div>
+      {catFilter !== 'all' && (
+        <p className="sg-small" style={{ marginTop: -6 }}>
+          Filtered for <b>this</b> device
+          {browserDevice.ramGB ? ` (${formatBrowserRam(browserDevice)} RAM${browserDevice.ramCapped ? ', browser-capped' : ''})` : ''}
+          {' '}— only models your machine can comfortably run are shown; heavier ones are collapsed below.
+        </p>
+      )}
       {loading ? (
         <div className="sg-loading-box"><Loader2 className="sg-spin" size={22} /> Loading models…</div>
       ) : (
@@ -1312,7 +1338,10 @@ export function ModelLibrary() {
             <p className="sg-small">Nothing fits comfortably — the heavier models below still download and run.</p>
           )}
 
-          {heavyModels.length > 0 && (
+          {/* Device-aware heavy section: on a single category tab the too-heavy
+              models collapse behind an expander so the tab shows exactly what
+              fits this device; on "All" the full ranked view stays visible. */}
+          {heavyModels.length > 0 && catFilter === 'all' && (
             <>
               <div className="sg-h2 ml-sec-h2">
                 Too heavy for this device ({heavyModels.length})
@@ -1327,6 +1356,35 @@ export function ModelLibrary() {
                 ))}
               </div>
             </>
+          )}
+          {heavyModels.length > 0 && catFilter !== 'all' && (
+            <div className="ml-heavy-collapse">
+              <button
+                type="button"
+                className="sg-btn sg-btn-ghost ml-heavy-toggle"
+                onClick={() => setShowHeavy((v) => !v)}
+                aria-expanded={showHeavy}
+              >
+                {showHeavy ? 'Hide' : 'Show'} {heavyModels.length} too heavy for this device
+                <span className="sg-small" style={{ opacity: 0.7 }}>
+                  {showHeavy ? ' ▲' : ' ▼'}
+                </span>
+              </button>
+              {showHeavy && (
+                <>
+                  <p className="sg-small">
+                    These need more RAM than your browser reports (
+                    {browserDevice.ramGB ? `${formatBrowserRam(browserDevice)} detected` : 'RAM unknown'}
+                    ). They still download and run — just expect swapping, or run them on a bigger machine.
+                  </p>
+                  <div className="sg-model-grid sg-model-grid-heavy">
+                    {heavyModels.map((model) => (
+                      <ModelCard key={model.id} model={model} {...cardProps} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </>
       )}
