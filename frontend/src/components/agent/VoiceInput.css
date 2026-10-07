@@ -1,6 +1,7 @@
 /* VoiceInput — mic button, voice-mode toggle, live captions.
    Generic styles; context-specific skins (e.g. .inf-mic-btn inside the
-   Infinity AI input rows) layer on top via the extra className. */
+   Infinity AI input rows) layer on top via the extra className.
+   All colors/radius/motion come from variables.css tokens. */
 
 .voice-mic-wrap {
   position: relative;
@@ -12,32 +13,42 @@
 .voice-mic-btn {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  color: #c4b5fd;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  color: color-mix(in srgb, var(--accent) 85%, var(--text-primary));
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), transform var(--transition-fast);
 }
 
 .voice-mic-btn:hover:not(:disabled) {
-  background: rgba(139, 92, 246, 0.16);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: var(--accent);
 }
+
+.voice-mic-btn:active:not(:disabled) { transform: scale(0.94); }
 
 .voice-mic-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
+.voice-mic-btn:focus-visible,
+.voice-mode-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .voice-mic-btn.voice-mic-listening {
-  background: rgba(239, 68, 68, 0.18);
-  border-color: rgba(239, 68, 68, 0.6);
-  color: #fca5a5;
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  color: color-mix(in srgb, var(--danger) 70%, var(--text-primary));
 }
 
 .voice-mic-btn.voice-mic-unsupported {
@@ -47,8 +58,8 @@
 .voice-mic-pulse {
   position: absolute;
   inset: -4px;
-  border-radius: 16px;
-  border: 2px solid rgba(239, 68, 68, 0.6);
+  border-radius: var(--radius-lg);
+  border: 2px solid color-mix(in srgb, var(--danger) 60%, transparent);
   animation: voice-mic-ping 1.2s ease-out infinite;
   pointer-events: none;
 }
@@ -62,7 +73,7 @@
 .voice-mic-caption,
 .voice-mic-error {
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
@@ -70,21 +81,29 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(10, 6, 24, 0.95);
-  border: 1px solid rgba(139, 92, 246, 0.35);
-  color: #d8ccff;
+  line-height: 1.5;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  color: var(--text-primary);
   z-index: 40;
   pointer-events: none;
+  box-shadow: var(--shadow-md);
+  animation: voice-caption-in 0.18s ease both;
+}
+
+@keyframes voice-caption-in {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 .voice-mic-error {
   white-space: normal;
   width: max-content;
-  max-width: 240px;
-  border-color: rgba(239, 68, 68, 0.55);
-  color: #fecaca;
+  max-width: 250px;
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  color: color-mix(in srgb, var(--danger) 70%, var(--text-primary));
 }
 
 /* Hands-free voice-conversation toggle. */
@@ -92,24 +111,28 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 44px;
-  padding: 0 14px;
-  border-radius: 12px;
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.35);
-  color: #d8ccff;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  color: color-mix(in srgb, var(--accent) 85%, var(--text-primary));
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), transform var(--transition-fast);
   white-space: nowrap;
 }
 
 .voice-mode-btn:hover:not(:disabled) {
-  background: rgba(139, 92, 246, 0.2);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
 }
+
+.voice-mode-btn:active:not(:disabled) { transform: scale(0.97); }
 
 .voice-mode-btn:disabled {
   opacity: 0.45;
@@ -117,13 +140,13 @@
 }
 
 .voice-mode-btn.voice-mode-active {
-  background: rgba(239, 68, 68, 0.16);
-  border-color: rgba(239, 68, 68, 0.6);
-  color: #fecaca;
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  color: color-mix(in srgb, var(--danger) 70%, var(--text-primary));
 }
 
 .voice-mode-btn .voice-mic-pulse {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 /* Compact icon-only variant for toolbars. */
@@ -146,4 +169,27 @@
     padding: 0;
     justify-content: center;
   }
+}
+
+/* Keep captions on-screen when the button sits near a viewport edge. */
+@media (max-width: 480px) {
+  .voice-mic-caption,
+  .voice-mic-error {
+    left: auto;
+    right: 0;
+    transform: none;
+    max-width: min(250px, calc(100vw - 48px));
+  }
+  @keyframes voice-caption-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-mic-pulse { animation: none; display: none; }
+  .voice-mic-caption, .voice-mic-error { animation: none; }
+  .voice-mic-btn, .voice-mode-btn { transition: none; }
+  .voice-mic-btn:active:not(:disabled),
+  .voice-mode-btn:active:not(:disabled) { transform: none; }
 }

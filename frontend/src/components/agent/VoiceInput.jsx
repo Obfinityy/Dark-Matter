@@ -33,7 +33,7 @@ export function MicButton({
 }) {
   const rec = useSpeechRecognition({
     lang: lang || detectSpeechLang(),
-    onFinal: (text) => onFinal?.(text),
+    onFinal,
   });
 
   useEffect(() => {

@@ -151,7 +151,7 @@ export function FalsePositiveDismiss({ findingId = '', onDismiss, className = ''
   );
 }
 
-const HL_KEYWORDS = /\b(const|let|var|function|return|if|else|for|while|import|from|export|new|await|async|class|def|select|union|where|from|order|by|insert|into|values|script|alert|document|window|fetch|true|false|null|undefined)\b/;
+const HL_KEYWORDS = /\b(const|let|var|function|return|if|else|for|while|import|from|export|new|await|async|class|def|select|union|where|order|by|insert|into|values|script|alert|document|window|fetch|true|false|null|undefined)\b/;
 const HL_TOKEN = /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?\b)/g;
 
 /** 50148 — Evidence code blocks with syntax highlighting + line numbers. */
@@ -183,9 +183,9 @@ export function HighlightedEvidenceBlock({ code = '', lang = '', className = '' 
     return out.length > 0 ? out : line;
   };
   return (
-    <div className={`fc2-code ${className}`} role="img" aria-label={`Code evidence${lang ? ` in ${lang}` : ''}`}>
+    <div className={`fc2-code ${className}`} role="figure" aria-label={`Code evidence${lang ? ` in ${lang}` : ''}`}>
       {lang && <span className="fc2-code-lang">{lang}</span>}
-      <div className="fc2-code-body">
+      <div className="fc2-code-body" tabIndex={0} aria-label="Scrollable code evidence">
         {lines.map((line, i) => (
           <div key={i} className="fc2-code-line">
             <span className="fc2-code-num" aria-hidden="true">{i + 1}</span>

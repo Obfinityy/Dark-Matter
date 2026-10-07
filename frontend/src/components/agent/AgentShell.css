@@ -130,7 +130,7 @@
   display: flex; flex-direction: column; gap: 2px;
 }
 .sg-side-premium span { font-weight: 750; }
-.sg-side-premium svg { color: #fbbf24 !important; }
+.sg-side-premium svg { color: var(--warning) !important; }
 .sg-side-signout {
   margin-top: 6px; padding: 9px 12px; border-radius: 10px;
   background: transparent; border: 1px solid transparent; cursor: pointer;
@@ -246,4 +246,43 @@
   .sg-tab span { display: none; }
   .sg-tab { padding: 8px 11px; }
   .sg-pill { font-size: 0.72rem; }
+}
+
+/* ── Infinity polish: focus rings, touch targets, reduced motion ── */
+.sg-shell :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sg-side-refresh {
+  min-width: 40px; min-height: 40px;
+}
+
+.sg-side-hist {
+  min-height: 48px;
+  align-items: center;
+}
+
+.sg-side-signout {
+  min-height: 44px;
+  display: flex; align-items: center;
+}
+
+.sg-side-list { scrollbar-width: thin; }
+
+.sg-side-new:active { transform: translateY(0); }
+
+@media (max-width: 760px) {
+  .sg-tab { min-height: 44px; }
+  .sg-side-refresh { min-width: 44px; min-height: 44px; }
+  .sg-topbar-right { gap: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-sidebar, .sg-drawer-scrim, .sg-side-new,
+  .sg-side-item, .sg-side-refresh, .sg-tab,
+  .sg-topbar-brand, .sg-bell, .sg-side-compare {
+    transition: none;
+  }
+  .sg-sidebar:not(.open) { transition: none; }
 }

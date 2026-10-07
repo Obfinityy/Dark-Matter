@@ -366,7 +366,7 @@ export function AgentShell({ children }) {
         onClick={closeDrawer}
         aria-hidden="true"
       />
-      <aside className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`} aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt menu'}>
+      <aside id="sg-sidebar" className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`} aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt menu'}>
         {sidebar}
       </aside>
 
@@ -379,6 +379,8 @@ export function AgentShell({ children }) {
               className="sg-hamburger"
               onClick={() => setDrawerOpen(true)}
               aria-label="Open mobile menu"
+              aria-expanded={drawerOpen}
+              aria-controls="sg-sidebar"
             >
               <Menu size={20} />
             </button>
@@ -386,6 +388,7 @@ export function AgentShell({ children }) {
               className="sg-sidebar-toggle"
               onClick={() => setSidebarClosed(!sidebarClosed)}
               aria-label="Toggle sidebar"
+              aria-pressed={sidebarClosed}
               title="Toggle sidebar"
             >
               <Menu size={20} />
