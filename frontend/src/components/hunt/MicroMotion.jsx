@@ -5,7 +5,7 @@
  * (CSS-driven via MicroMotion.css) plus the `MicroMotionGallery` reference
  * gallery. Every animation respects prefers-reduced-motion.
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   standardCheckmarkProps,
   countUpFrames,
@@ -37,9 +37,9 @@ export function SelfDrawingCheckmark({ size = 24, auto = true, className = '' })
   return (
     <svg className={`mm-checkmark ${drawn ? 'mm-drawn' : ''} ${className}`} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       {segs.map((s, i) => (
-        <path key={i} d={s.path} stroke="#34d399" strokeWidth="2.2" strokeLinecap="round"
+        <path key={i} d={s.path} strokeWidth="2.2" strokeLinecap="round"
           strokeDasharray={s.strokeDasharray} strokeDashoffset={s.strokeDashoffset}
-          style={{ transitionDelay: `${i * 220}ms` }} />
+          style={{ transitionDelay: `${i * 220}ms`, stroke: 'var(--success)' }} />
       ))}
     </svg>
   );
@@ -111,8 +111,8 @@ export function CountUpStat({ target, label, durationMs }) {
   }, [target, durationMs]);
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 28, fontWeight: 800, color: '#f1f5f9', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {label && <div style={{ fontSize: 12, color: '#94a3b8' }}>{label}</div>}
+      <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {label && <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</div>}
     </div>
   );
 }
@@ -136,8 +136,8 @@ export function ShimmerProgress({ value = null }) {
 export function SlideFadeToast({ message, tone = '#0ea5e9', leaving = false }) {
   return (
     <div className={`mm-toast ${leaving ? 'mm-leaving' : ''}`}
-      style={{ background: '#0f172a', border: `1px solid ${tone}66`, borderLeft: `3px solid ${tone}`,
-        borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#e2e8f0', marginBottom: 8 }}
+      style={{ background: 'var(--bg-secondary)', border: `1px solid ${tone}66`, borderLeft: `3px solid ${tone}`,
+        borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 13, color: 'var(--text-primary)', marginBottom: 8 }}
       role="status">
       {message}
     </div>
@@ -155,13 +155,13 @@ export function DiagonalSkeleton({ width = '100%', height = 14 }) {
 /* 50570 — terminal line fade                                          */
 /* ------------------------------------------------------------------ */
 export function TerminalLine({ children }) {
-  return <div className="mm-terminal-line" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, color: '#a5b4fc' }}>{children}</div>;
+  return <div className="mm-terminal-line" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--accent-secondary)' }}>{children}</div>;
 }
 
 /* ------------------------------------------------------------------ */
 /* 50571 — timeline dot pop                                            */
 /* ------------------------------------------------------------------ */
-export function TimelineDot({ color = '#38bdf8', size = 10, bounceKey = 0 }) {
+export function TimelineDot({ color = 'var(--accent)', size = 10, bounceKey = 0 }) {
   return <span key={bounceKey} className="mm-timeline-dot" style={{ display: 'inline-block', width: size, height: size, borderRadius: '50%', background: color }} aria-hidden="true" />;
 }
 
@@ -172,10 +172,10 @@ export function MorphPill({ label, onRemove }) {
   const [leaving, setLeaving] = useState(false);
   return (
     <span className={`mm-pill mm-pill-in ${leaving ? 'mm-pill-out' : ''}`}
-      style={{ background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155' }}>
+      style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
       {label}
       <button aria-label={`Remove ${label}`} onClick={() => { setLeaving(true); setTimeout(() => onRemove?.(), 260); }}
-        style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1 }}>×</button>
+        style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 2, lineHeight: 1, minWidth: 24, minHeight: 24, borderRadius: 6 }}>×</button>
     </span>
   );
 }
@@ -198,7 +198,7 @@ export function ThinkingDots({ label = 'Agent reasoning' }) {
 /* 50574 — card hover lift                                             */
 /* ------------------------------------------------------------------ */
 export function LiftCard({ children, className = '', style }) {
-  return <div className={`mm-card ${className}`} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: 16, ...style }}>{children}</div>;
+  return <div className={`mm-card ${className}`} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 16, ...style }}>{children}</div>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -208,10 +208,10 @@ export function ScaleModal({ open, onClose, title, children }) {
   if (!open) return null;
   return (
     <div className="mm-backdrop" onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.7)', display: 'grid', placeItems: 'center', zIndex: 50 }} role="presentation">
+      style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.7)', display: 'grid', placeItems: 'center', zIndex: 50, padding: 16 }} role="presentation">
       <div className="mm-panel" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
-        style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 14, padding: 20, maxWidth: 480, width: '92%' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16, color: '#f1f5f9' }}>{title}</h3>
+        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 20, maxWidth: 480, width: '100%', boxShadow: 'var(--shadow-md)' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16, color: 'var(--text-primary)' }}>{title}</h3>
         {children}
       </div>
     </div>
@@ -230,7 +230,7 @@ export function ConfidenceFill({ value, animate = true }) {
   }, [value, animate]);
   return (
     <div className="mm-confidence-track" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
-      <div className="mm-confidence-fill" style={{ width: `${w}%`, background: w >= 80 ? '#34d399' : w >= 50 ? '#fbbf24' : '#f87171' }} />
+      <div className="mm-confidence-fill" style={{ width: `${w}%`, background: w >= 80 ? 'var(--success)' : w >= 50 ? 'var(--warning)' : 'var(--danger)' }} />
     </div>
   );
 }
@@ -241,14 +241,14 @@ export function ConfidenceFill({ value, animate = true }) {
 export function DonutSweep({ counts, size = 140 }) {
   const { segments, circumference } = donutSegments(counts);
   const r = 54, cx = 70, cy = 70;
-  const colors = { critical: '#f87171', high: '#fb923c', medium: '#fbbf24', low: '#34d399', info: '#38bdf8' };
+  const colors = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--warning)', low: 'var(--success)', info: 'var(--info)' };
   return (
     <svg width={size} height={size} viewBox="0 0 140 140" role="img" aria-label={`Severity distribution: ${JSON.stringify(counts)}`}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1e293b" strokeWidth="14" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth="14" />
       {segments.map((s) => (
         <circle key={s.key} className="mm-donut-seg" cx={cx} cy={cy} r={r} fill="none"
-          stroke={colors[s.key]} strokeWidth="14" strokeDasharray={s.strokeDasharray} strokeDashoffset={s.strokeDashoffset}
-          strokeLinecap="butt" transform={`rotate(-90 ${cx} ${cy})`} style={{ animationDelay: `${s.sweepDelayMs}ms` }} />
+          strokeWidth="14" strokeDasharray={s.strokeDasharray} strokeDashoffset={s.strokeDashoffset}
+          strokeLinecap="butt" transform={`rotate(-90 ${cx} ${cy})`} style={{ animationDelay: `${s.sweepDelayMs}ms`, stroke: colors[s.key] }} />
       ))}
     </svg>
   );
@@ -261,7 +261,7 @@ export function PulseDropZone({ children, onFiles }) {
   const [over, setOver] = useState(false);
   return (
     <div className={`mm-dropzone ${over ? 'mm-drag-over' : ''}`}
-      style={{ padding: 28, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}
+      style={{ padding: 28, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}
       onDragOver={(e) => { e.preventDefault(); setOver(true); }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); onFiles?.(Array.from(e.dataTransfer.files)); }}>
@@ -307,7 +307,7 @@ export function SmoothScroller({ children, maxHeight = 220, className = '' }) {
 /* ------------------------------------------------------------------ */
 export function CompletionRing({ children, size = 88 }) {
   return (
-    <div className="mm-completion-ring" style={{ width: size, height: size, display: 'grid', placeItems: 'center', background: '#064e3b', border: '2px solid #34d399' }}>
+    <div className="mm-completion-ring" style={{ width: size, height: size, display: 'grid', placeItems: 'center', background: 'color-mix(in srgb, var(--success) 15%, transparent)', border: '2px solid var(--success)' }}>
       {children || <SelfDrawingCheckmark auto={false} />}
     </div>
   );
@@ -321,14 +321,14 @@ export function GaugeNeedle({ score, label = 'Risk' }) {
   return (
     <div style={{ textAlign: 'center' }}>
       <svg width="160" height="92" viewBox="0 0 160 92" role="img" aria-label={`${label} score ${score} of 10`}>
-        <path d="M20 84 A60 60 0 0 1 140 84" fill="none" stroke="#1e293b" strokeWidth="12" strokeLinecap="round" />
-        <path d="M20 84 A60 60 0 0 1 140 84" fill="none" stroke="#f59e0b" strokeWidth="12" strokeLinecap="round"
+        <path d="M20 84 A60 60 0 0 1 140 84" fill="none" stroke="var(--border)" strokeWidth="12" strokeLinecap="round" />
+        <path d="M20 84 A60 60 0 0 1 140 84" fill="none" stroke="var(--warning)" strokeWidth="12" strokeLinecap="round"
           strokeDasharray={`${(score / 10) * 189} 189`} style={{ transition: 'stroke-dasharray 900ms ease-in-out' }} />
         <line className="mm-gauge-needle" x1="80" y1="84" x2="80" y2="34"
-          stroke="#e2e8f0" strokeWidth="3" strokeLinecap="round" style={{ transform: `rotate(${deg}deg)` }} />
-        <circle cx="80" cy="84" r="6" fill="#e2e8f0" />
+          stroke="var(--text-primary)" strokeWidth="3" strokeLinecap="round" style={{ transform: `rotate(${deg}deg)` }} />
+        <circle cx="80" cy="84" r="6" fill="var(--text-primary)" />
       </svg>
-      <div style={{ fontSize: 12, color: '#94a3b8' }}>{label}: <strong style={{ color: '#f1f5f9' }}>{score.toFixed(1)}</strong>/10</div>
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}: <strong style={{ color: 'var(--text-primary)' }}>{score.toFixed(1)}</strong>/10</div>
     </div>
   );
 }
@@ -366,7 +366,7 @@ export function StaggerList({ items = [], renderItem }) {
 export function ThemeCrossFader({ dark = true, children }) {
   return (
     <div className="mm-theme-fade"
-      style={{ background: dark ? '#020617' : '#f8fafc', color: dark ? '#e2e8f0' : '#0f172a', padding: 16, borderRadius: 10 }}>
+      style={{ background: dark ? 'var(--bg-primary)' : 'var(--bg-secondary)', color: 'var(--text-primary)', padding: 16, borderRadius: 'var(--radius-md)' }}>
       {children}
     </div>
   );
@@ -384,7 +384,7 @@ export function SettlingNodes({ nodes = [] }) {
             animationDelay: `${i * 70}ms`,
             '--mm-from-x': `${(i % 3) * -14}px`,
             '--mm-from-y': `${(i % 2) * -12}px`,
-            background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1',
+            background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)',
             borderRadius: 999, padding: '6px 12px', fontSize: 12,
           }}>
           {n.label ?? n}
@@ -409,7 +409,7 @@ export function MorphCopyButton({ text, label = 'Copy' }) {
   return (
     <button className={`mm-copy-btn mm-focusable ${copied ? 'mm-copied' : ''}`} onClick={copy}
       aria-label={copied ? 'Copied' : label}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', cursor: 'pointer', fontSize: 12, minHeight: 44 }}>
       <span className="mm-copy-icon" aria-hidden="true">⧉</span>
       <span className="mm-copy-check" aria-hidden="true">✓</span>
       {copied ? 'Copied' : label}
@@ -435,7 +435,7 @@ export function FloatingIllustration({ children }) {
 /* 50590 — focus-ring draw (demo wrapper)                              */
 /* ------------------------------------------------------------------ */
 export function FocusRingDemo({ children, label }) {
-  return <button className="mm-focusable" aria-label={label} style={{ background: '#1e293b', border: '1px solid #334155', color: '#e2e8f0', borderRadius: 8, padding: '8px 14px', fontSize: 13 }}>{children}</button>;
+  return <button className="mm-focusable" aria-label={label} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', padding: '8px 14px', fontSize: 13, minHeight: 44 }}>{children}</button>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -452,7 +452,7 @@ export function StickyFilterBar({ children, scrollRef }) {
   }, [scrollRef]);
   return (
     <div className={`mm-sticky-bar ${scrolled ? 'mm-scrolled' : ''}`}
-      style={{ position: 'sticky', top: 0, background: '#0f172a', padding: '10px 12px', zIndex: 5, borderRadius: 8 }}>
+      style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary)', padding: '10px 12px', zIndex: 5, borderRadius: 'var(--radius-sm)' }}>
       {children}
     </div>
   );
@@ -477,7 +477,7 @@ export function PopBadge({ count }) {
   }, [count]);
   return (
     <span key={bump} className={bump > 0 ? 'mm-badge-pop' : ''}
-      style={{ background: '#dc2626', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 8px', minWidth: 22, textAlign: 'center' }}
+      style={{ background: 'var(--danger)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 8px', minWidth: 22, textAlign: 'center' }}
       aria-label={`${count} notifications`}>
       {count}
     </span>
@@ -497,7 +497,7 @@ export function AnimatedReasoning({ open, children, title = 'Agent reasoning' })
   return (
     <div>
       <div className="mm-reasoning" style={reasoningHeightStyle(height, open)} aria-hidden={!open}>
-        <div ref={contentRef} style={{ fontSize: 13, color: '#cbd5e1', padding: '8px 0' }} aria-label={title}>
+        <div ref={contentRef} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '8px 0' }} aria-label={title}>
           {children}
         </div>
       </div>
@@ -512,7 +512,7 @@ export function GrowingScrubber({ value = 50, onChange }) {
   return (
     <input type="range" min={0} max={100} value={value} onChange={(e) => onChange?.(Number(e.target.value))}
       className="mm-scrubber-handle" aria-label="Timeline scrubber"
-      style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
+      style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer', minHeight: 44 }} />
   );
 }
 
@@ -522,7 +522,7 @@ export function GrowingScrubber({ value = 50, onChange }) {
 export function WipeChip({ label, active, onClick }) {
   return (
     <button className={`mm-wipe-chip ${active ? 'mm-active' : ''}`} onClick={onClick} aria-pressed={active}
-      style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>
+      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', minHeight: 44 }}>
       {label}
     </button>
   );
@@ -543,8 +543,8 @@ export function ShakeInput({ error, ...props }) {
   useEffect(() => { if (error && shakeKey > 0) trigger(); });
   return (
     <div>
-      <input {...props} aria-invalid={!!error} style={{ background: '#0f172a', border: `1px solid ${error ? '#f87171' : '#334155'}`, color: '#e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 13, width: '100%' }} />
-      {error && <div style={{ color: '#f87171', fontSize: 12, marginTop: 4 }}>{error}</div>}
+      <input {...props} aria-invalid={!!error} style={{ background: 'var(--bg-secondary)', border: `1px solid ${error ? 'var(--danger)' : 'var(--border)'}`, color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 13, width: '100%', minHeight: 44 }} />
+      {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
@@ -561,8 +561,8 @@ export function SaveCheckmark({ onSave, label = 'Save' }) {
     setTimeout(() => setState('idle'), SAVE_HOLD_MS + 400);
   };
   return (
-    <button className="mm-pressable mm-focusable" onClick={save} disabled={state !== 'idle'}
-      style={{ background: '#0e7490', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <button className="mm-pressable mm-focusable" onClick={save} disabled={state !== 'idle'} aria-live="polite"
+      style={{ background: 'var(--info)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 16px', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44 }}>
       {state === 'saved'
         ? <span key={state} className="mm-save-check" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><SelfDrawingCheckmark size={16} /> Saved</span>
         : state === 'saving' ? 'Saving…' : label}
@@ -576,9 +576,9 @@ export function SaveCheckmark({ onSave, label = 'Save' }) {
 export function AnimatedSidebar({ collapsed, items = [] }) {
   return (
     <nav className={`mm-sidebar ${collapsed ? 'mm-collapsed' : ''}`} aria-label="App navigation"
-      style={{ width: collapsed ? SIDEBAR_WIDTH_CLOSED_PX : SIDEBAR_WIDTH_OPEN_PX, background: '#0b1220', borderRight: '1px solid #1e293b', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      style={{ width: collapsed ? SIDEBAR_WIDTH_CLOSED_PX : SIDEBAR_WIDTH_OPEN_PX, background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border)', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
       {items.map((item, i) => (
-        <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', color: '#94a3b8', fontSize: 13, borderRadius: 8 }}>
+        <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', color: 'var(--text-secondary)', fontSize: 13, borderRadius: 'var(--radius-sm)', minHeight: 44 }}>
           <span aria-hidden="true" style={{ fontSize: 16 }}>{item.icon || '•'}</span>
           <span className="mm-sidebar-label">{item.label}</span>
         </span>
@@ -593,7 +593,7 @@ export function AnimatedSidebar({ collapsed, items = [] }) {
 export function ZoomThumbnail({ src, alt, width = 160, height = 100 }) {
   return (
     <span className="mm-thumb" style={{ display: 'inline-block', width, height }}>
-      <img src={src} alt={alt} />
+      <img src={src} alt={alt} loading="lazy" decoding="async" />
       <span className="mm-thumb-overlay">Expand</span>
     </span>
   );
@@ -612,21 +612,21 @@ export function MicroMotionGallery() {
   const [notifs, setNotifs] = useState(2);
   return (
     <div className="mm-motion" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <h2 style={{ color: '#f1f5f9', fontSize: 18, margin: 0 }}>Micro-motion system (50561–50600)</h2>
+      <h2 style={{ color: 'var(--text-primary)', fontSize: 18, margin: 0 }}>Micro-motion system (50561–50600)</h2>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <SelfDrawingCheckmark />
         <HoverPill tone="#34d399">critical ×3</HoverPill>
-        <PressButton onClick={() => {}} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px' }}>Press me</PressButton>
+        <PressButton onClick={() => {}} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 16px', minHeight: 44 }}>Press me</PressButton>
         <MorphCopyButton text="curl https://example.com" />
         <ThinkingDots />
         <DualRingSpinner />
         <PopBadge count={notifs} />
-        <button onClick={() => setNotifs((n) => n + 1)} style={{ background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', borderRadius: 8, padding: '6px 12px' }}>+ notification</button>
+        <button onClick={() => setNotifs((n) => n + 1)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', minHeight: 44, cursor: 'pointer' }}>+ notification</button>
       </div>
       <SlidingTabs tabs={['Hunt', 'Findings', 'Reports']} active={tab} onChange={setTab} />
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <LiftCard style={{ width: 200 }}><strong style={{ color: '#f1f5f9' }}>Finding #1042</strong><p style={{ color: '#94a3b8', fontSize: 12 }}>Reflected XSS in search param</p><ConfidenceFill value={87} /></LiftCard>
-        <NewRibbon><LiftCard style={{ width: 200 }}><strong style={{ color: '#f1f5f9' }}>Finding #1043</strong><p style={{ color: '#94a3b8', fontSize: 12 }}>Open redirect on logout</p></LiftCard></NewRibbon>
+        <LiftCard style={{ width: 200 }}><strong style={{ color: 'var(--text-primary)' }}>Finding #1042</strong><p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Reflected XSS in search param</p><ConfidenceFill value={87} /></LiftCard>
+        <NewRibbon><LiftCard style={{ width: 200 }}><strong style={{ color: 'var(--text-primary)' }}>Finding #1043</strong><p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Open redirect on logout</p></LiftCard></NewRibbon>
       </div>
       <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <CountUpStat target={128} label="findings" />
@@ -646,10 +646,10 @@ export function MicroMotionGallery() {
         {pills.map((p) => <MorphPill key={p} label={p} onRemove={() => setPills((ps) => ps.filter((x) => x !== p))} />)}
         <WipeChip label="untriaged" active={chipActive} onClick={() => setChipActive((a) => !a)} />
         <SpringToggle checked={toggle} onChange={setToggle} label="Auto-scroll" />
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#94a3b8', fontSize: 13, cursor: 'pointer' }}>Expand <RotatingChevron open={toggle} /></span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer' }}>Expand <RotatingChevron open={toggle} /></span>
       </div>
       <StaggerList items={[{ id: 1, title: 'result — stored XSS' }, { id: 2, title: 'result — SSRF via webhook' }, { id: 3, title: 'result — IDOR on invoices' }]}
-        renderItem={(i) => <div style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, marginBottom: 6, color: '#cbd5e1', fontSize: 13 }}>{i.title}</div>} />
+        renderItem={(i) => <div style={{ padding: '8px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: 6, color: 'var(--text-secondary)', fontSize: 13 }}>{i.title}</div>} />
       <SettlingNodes nodes={[{ id: 'a', label: 'attacker.com' }, { id: 'b', label: 'api target' }, { id: 'c', label: 'S3 bucket' }]} />
       <div style={{ display: 'flex', gap: 12 }}>
         <PulseDropZone />
@@ -661,12 +661,12 @@ export function MicroMotionGallery() {
       <div style={{ display: 'flex', gap: 12 }}>
         <FocusRingDemo label="Focusable demo">Focus me (Tab)</FocusRingDemo>
         <SaveCheckmark />
-        <button onClick={() => setModalOpen(true)} style={{ background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', borderRadius: 8, padding: '8px 16px' }}>Open modal</button>
-        <button onClick={() => setSidebarCollapsed((c) => !c)} style={{ background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', borderRadius: 8, padding: '8px 16px' }}>Toggle sidebar</button>
+        <button onClick={() => setModalOpen(true)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 16px', minHeight: 44, cursor: 'pointer' }}>Open modal</button>
+        <button onClick={() => setSidebarCollapsed((c) => !c)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 16px', minHeight: 44, cursor: 'pointer' }}>Toggle sidebar</button>
       </div>
-      <div style={{ display: 'flex', gap: 0, border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', height: 180 }}>
+      <div style={{ display: 'flex', gap: 0, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', height: 180 }}>
         <AnimatedSidebar collapsed={sidebarCollapsed} items={[{ icon: '⌂', label: 'Home' }, { icon: '◎', label: 'Hunts' }, { icon: '⚑', label: 'Findings' }]} />
-        <div style={{ flex: 1, padding: 16, color: '#94a3b8', fontSize: 13 }}>Content area — the sidebar animates 280↔64px beside it.</div>
+        <div style={{ flex: 1, padding: 16, color: 'var(--text-secondary)', fontSize: 13 }}>Content area — the sidebar animates 280↔64px beside it.</div>
       </div>
       <AnimatedReasoning open={toggle} title="Agent reasoning">
         The agent considered 3 tool candidates, picked `nuclei` for template coverage, then validated the reflected XSS with a canary token before reporting.
@@ -679,7 +679,7 @@ export function MicroMotionGallery() {
         </div>
       </div>
       <ScaleModal open={modalOpen} onClose={() => setModalOpen(false)} title="Scale-in modal">
-        <p style={{ color: '#94a3b8', fontSize: 13 }}>Backdrop fades 150ms; panel scales 0.96 → 1.</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Backdrop fades 150ms; panel scales 0.96 → 1.</p>
       </ScaleModal>
     </div>
   );

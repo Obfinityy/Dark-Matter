@@ -31,7 +31,6 @@ import {
   speakableActionName,
   shouldExitTerminal,
   terminalEscHandler,
-  LANDMARKS,
   landmarkProps,
   timeoutAnnouncementCopy,
   SESSION_EXTEND_COPY,
@@ -159,7 +158,7 @@ export function SortableFindingsTable({ columns = [], rows = [], renderRow, capt
   const [sort, setSort] = useState({});
   const [announcement, setAnnouncement] = useState('');
   return (
-    <>
+    <div className="a11y3-tablewrap" role="region" aria-label={`${caption} table`} tabIndex={0}>
       <table className="a11y3-sorttable">
         <caption className="a11y3-sr-only">{caption}</caption>
         <SortableFindingsTableHead columns={columns} sort={sort} onSort={setSort} onAnnounce={setAnnouncement} />
@@ -172,7 +171,7 @@ export function SortableFindingsTable({ columns = [], rows = [], renderRow, capt
       <div className="a11y3-sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -206,9 +205,9 @@ export function RovingTabindexList({ items = [], renderItem, label = 'Findings' 
   };
 
   return (
-    <ul className="a11y3-roving" aria-label={label}>
+    <ul className="a11y3-roving" role="listbox" aria-label={label}>
       {items.map((item, i) => (
-        <li key={item.id || i}>
+        <li key={item.id || i} role="presentation">
           <div
             ref={(el) => { itemRefs.current[i] = el; }}
             role="option"
@@ -493,7 +492,7 @@ export function NewFindingCard({ finding = {}, onOpen }) {
         {sev} · {finding.target || 'unknown target'}
       </p>
       {finding.screenshot && (
-        <img src={finding.screenshot} alt={screenshotAltText(finding)} className="a11y3-newcard-shot" />
+        <img src={finding.screenshot} alt={screenshotAltText(finding)} className="a11y3-newcard-shot" loading="lazy" />
       )}
     </article>
   );

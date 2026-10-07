@@ -1,0 +1,54 @@
+/**
+ * LiveScreenViewer.css — co-located polish layer for LiveScreenViewer.jsx.
+ *
+ * Additive only: the base .dm-screen-* rules live in styles/agent.css and are
+ * never overridden here — this file adds entrance motion, focus visibility,
+ * spacing rhythm, and small-screen layout refinements. The viewer stays a
+ * read-only, non-clickable live view (pointer events stay disabled on the
+ * frame per agent.css).
+ */
+
+/* Gentle mount entrance — the viewer fades in when it appears. */
+@keyframes lsv-viewer-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dm-screen-viewer { animation: lsv-viewer-in 240ms ease-out; }
+
+/* The title is a real h2 for landmark semantics; reset its default margin so
+   the head row rhythm from agent.css is preserved. */
+.dm-screen-viewer .dm-screen-title { margin: 0; font-size: 14px; }
+
+/* Visible keyboard focus on the viewer's control buttons. */
+.dm-screen-viewer .dm-btn:focus-visible {
+  outline: 2px solid var(--accent, #22d3ee);
+  outline-offset: 2px;
+}
+.dm-screen-viewer .dm-btn:active:not(:disabled) { transform: scale(0.97); }
+
+/* Spacing rhythm: paused overlay text never touches the frame edges. */
+.dm-screen-viewer .dm-screen-paused-overlay { padding: 16px; text-align: center; }
+
+/* Retry button inside the empty state — keeps clear of the footnote above. */
+.dm-screen-viewer .lsv-retry { margin-top: 8px; }
+
+/* Action log: keep timestamps from wrapping under the text on narrow screens. */
+.dm-screen-viewer .dm-term-ts { flex-shrink: 0; }
+
+/* 390px: stack the controls full-width so Pause / Resume / Refresh are easy
+   to hit with a thumb and the head never overflows horizontally. */
+@media (max-width: 480px) {
+  .dm-screen-viewer .dm-screen-controls { width: 100%; }
+  .dm-screen-viewer .dm-screen-controls .dm-btn {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+/* New action lines already fade in via agent.css; never animate under
+   reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .dm-screen-viewer { animation: none; }
+  .dm-screen-viewer .dm-screen-action-line { animation: none !important; }
+}
