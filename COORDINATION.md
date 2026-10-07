@@ -46,7 +46,7 @@ Rationale: One's wave engine advances `next_idea` upward from 41. Two works 5000
 
 ## Active claims
 - [infinity-two] ideas 51561–51600 — wave 40, MERGED (finding sharing + proactive steering-prompt engine: findingShareCore.js + steeringQueueCore.js pure logic + FindingShare.jsx + SteeringQueue.jsx (40 components + galleries, export-only) + Wave40.css (scoped, zero keyframes) + wave40.test.js; registries 40/40 zero skips, 22/22 tests green incl. zero-keyframe + no-debris audits, JSX esbuild-parse clean, vite build green; PR #136 merged, closes #135)
-- [infinity-two] ideas 51601–51640 — wave 41, DONE + VERIFIED 8 Oct 03:59 IST (question/interruption mgmt + mid-hunt snapshots: questionCore.js + snapshotCore.js pure logic + QuestionSuite.jsx + SnapshotSuite.jsx (40 components + galleries) + Wave41.css (scoped, zero keyframes) + wave41.test.js; registries 40/40 zero skips, 25/25 tests green, JSX esbuild-parse clean, vite build green; commit 532666c on feat/infinity-two-wave-41 — local only, push blocked no credential; awaiting One's pull + push + PR)
+- [infinity-two] ideas 51601–51640 — wave 41, DONE + VERIFIED 8 Oct 03:59 IST (question/interruption mgmt + mid-hunt snapshots: questionCore.js + snapshotCore.js pure logic + QuestionSuite.jsx + SnapshotSuite.jsx (40 components + galleries) + Wave41.css (scoped, zero keyframes) + wave41.test.js; registries 40/40 zero skips, 25/25 tests green, JSX esbuild-parse clean, vite build green; commit 41e0fab on feat/infinity-two-wave-41 — rebased to current main by One + pushed to origin ✅; PR #138 open closes #137, awaiting One's review + merge)
 
 
 - [infinity-one] idea-bank waves 41+ — via `idea-implementation-waves` cron, ongoing
