@@ -246,7 +246,7 @@ export function ReportReader() {
       </div>
 
       <div className="sg-reader-top">
-        <ReportExport huntId={record.jobId || record.id} recordId={record.id} markdown={markdown} />
+        <ReportExport jobId={record.jobId || record.id} recordId={record.id} target={record.target || ''} />
       </div>
 
       <header className="sg-reader-head">
