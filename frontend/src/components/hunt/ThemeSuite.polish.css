@@ -1,0 +1,127 @@
+/**
+ * ThemeSuite.polish.css — Infinity AI frontend polish (batch 4).
+ *
+ * Additive, scoped refinements layered over ThemeSuite.css — entrance
+ * motion, tap-target minimums on small screens, table scroll containment,
+ * and hover/focus micro-interactions. ThemeSuite.css is never edited here.
+ */
+
+/* ---- Subtle staggered entrance for the gallery demos ------------------ */
+.th-gallery .th-demo {
+  animation: thp-fade-up 0.45s ease both;
+}
+.th-gallery .th-demo:nth-of-type(2) { animation-delay: 0.04s; }
+.th-gallery .th-demo:nth-of-type(3) { animation-delay: 0.08s; }
+.th-gallery .th-demo:nth-of-type(4) { animation-delay: 0.12s; }
+.th-gallery .th-demo:nth-of-type(5) { animation-delay: 0.16s; }
+.th-gallery .th-demo:nth-of-type(6) { animation-delay: 0.2s; }
+
+@keyframes thp-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---- Theme cards: lift on hover --------------------------------------- */
+.th-theme-card {
+  transition: transform var(--transition-fast, 0.15s ease),
+    border-color var(--transition-fast, 0.15s ease),
+    box-shadow var(--transition-fast, 0.15s ease);
+}
+.th-theme-card:hover {
+  transform: translateY(-2px);
+}
+.th-theme-card:active {
+  transform: translateY(0);
+}
+
+/* ---- Accent presets: gentle scale on hover ----------------------------- */
+.th-accent-preset {
+  transition: transform var(--transition-fast, 0.15s ease),
+    box-shadow var(--transition-fast, 0.15s ease);
+}
+.th-accent-preset:hover {
+  transform: scale(1.08);
+}
+
+/* ---- Buttons: consistent press feedback -------------------------------- */
+.th-btn {
+  transition: border-color var(--transition-fast, 0.15s ease),
+    background-color var(--transition-fast, 0.15s ease),
+    transform var(--transition-fast, 0.15s ease);
+}
+.th-btn:active {
+  transform: translateY(1px);
+}
+
+/* ---- Contrast table: contain horizontal overflow on narrow screens ----- */
+.th-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+.th-table-scroll table {
+  min-width: 300px;
+}
+
+/* ---- Cycle hint: rhythm without inline styles -------------------------- */
+.th-cycle-hint-main {
+  margin: 0 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- Gallery rhythm on small screens ----------------------------------- */
+@media (max-width: 640px) {
+  .th-gallery {
+    padding: 16px 12px 48px;
+    gap: 14px;
+  }
+  .th-gallery-head {
+    padding: 16px;
+  }
+  .th-demo {
+    padding: 14px;
+  }
+  .th-preview-grid {
+    grid-template-columns: 1fr;
+  }
+  .th-readout {
+    grid-template-columns: 1fr;
+  }
+  .th-dim-compare {
+    flex-direction: column;
+  }
+  .th-email-frame {
+    height: 300px;
+  }
+  .th-chart-row {
+    grid-template-columns: 56px 1fr 32px;
+  }
+}
+
+/* ---- Tap targets: 44px minimum on touch-sized viewports ---------------- */
+@media (max-width: 768px) {
+  .th-scope .th-btn-small {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  .th-scope .th-json-actions .th-btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---- Reduced motion ----------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .th-gallery .th-demo {
+    animation: none;
+  }
+  .th-theme-card:hover,
+  .th-accent-preset:hover,
+  .th-btn:active {
+    transform: none;
+  }
+}

@@ -625,8 +625,6 @@ export function FindingFilters({
     return [...s].sort();
   }, [findings]);
 
-  const updateFilters = (next) => set(next);
-
   return (
     <section className={`fc4-filterbar ${className}`} aria-label="Finding filters">
       <div className="fc4-row fc4-row-main">
@@ -684,7 +682,7 @@ export function FindingFilters({
 
       <fieldset className="fc4-group">
         <legend>Presets</legend>
-        <SavedFilterPresets filters={f} onApply={(next) => updateFilters({ ...DEFAULT_FILTERS, ...next })} />
+        <SavedFilterPresets filters={f} onApply={(next) => set({ ...DEFAULT_FILTERS, ...next })} />
       </fieldset>
 
       <div className="fc4-row fc4-row-foot">

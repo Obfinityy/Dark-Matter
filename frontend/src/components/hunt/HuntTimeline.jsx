@@ -68,8 +68,13 @@ export function VerticalStepLog({ steps = [], className = '' }) {
       <div
         ref={bodyRef}
         className="ht-steplog-body"
+        tabIndex={0}
+        role="log"
+        aria-label="Hunt step log — auto-scroll pauses while you hover or focus here"
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
+        onFocus={() => setHovering(true)}
+        onBlur={() => setHovering(false)}
       >
         {items.map((phase) => (
           <div key={phase} className="ht-steplog-phase">
@@ -107,8 +112,8 @@ export function EventsPerMinuteSparkline({ points = [], width = 220, height = 36
   return (
     <div className={`ht-spark ${className}`} role="img" aria-label={`Activity sparkline, peak ${max} events per minute`}>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-        <path d={`${line} L${width},${height} L0,${height} Z`} fill="rgba(139,92,246,0.12)" stroke="none" />
-        <path d={line} fill="none" stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" />
+        <path d={`${line} L${width},${height} L0,${height} Z`} fill="color-mix(in srgb, var(--accent) 12%, transparent)" stroke="none" />
+        <path d={line} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" />
       </svg>
       <span className="ht-spark-label">events/min</span>
     </div>
@@ -123,9 +128,9 @@ export function AvatarProgressRing({ percent = 0, initials = 'AI', size = 56, cl
   return (
     <div className={`ht-avatar-ring ${className}`} role="progressbar" aria-valuenow={Math.round(percent)} aria-valuemin={0} aria-valuemax={100} aria-label="Hunt completion">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1c2333" strokeWidth={5} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={5} />
         <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#a78bfa" strokeWidth={5} strokeLinecap="round"
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--accent)" strokeWidth={5} strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={c * (1 - p)}
           transform={`rotate(-90 ${size / 2} ${size / 2})`} className="ht-ring-fill"
         />

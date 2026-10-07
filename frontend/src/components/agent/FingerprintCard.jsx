@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { Fingerprint, Lock, Server, Globe, Network } from 'lucide-react';
+import './FingerprintCard.polish.css';
 
 const techName = (t) => (typeof t === 'string' ? t : t?.name || t?.version || '');
 
@@ -35,7 +36,7 @@ export function FingerprintCard({ job = {}, surface = {} }) {
       <dl className="dm-fingerprint-grid">
         <div>
           <dt>Status</dt>
-          <dd><span className={`dm-job-status st-${job.status}`}>{job.status || '—'}</span></dd>
+          <dd><span className={`dm-job-status st-${job.status || 'unknown'}`}>{job.status || '—'}</span></dd>
         </div>
         <div>
           <dt>Phase</dt>

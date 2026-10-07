@@ -289,7 +289,7 @@ export function RemapDialog({ open, onClose }) {
         {conflicts.length > 0 && (
           <div className="adv-remap-conflicts" role="alert">
             {conflicts.map((c) => (
-              <p key={c.actionId}>⚠️ <code>{c.combo}</code> is already used by {c.conflictsWith.join(', ')}.</p>
+              <p key={c.actionId}><span aria-hidden="true">⚠️</span> <code>{c.combo}</code> is already used by {c.conflictsWith.join(', ')}.</p>
             ))}
           </div>
         )}
@@ -329,14 +329,16 @@ export function PrintableShortcutCard({ onResetDefaults }) {
           <button type="button" onClick={() => { try { localStorage.removeItem('dm-shortcut-remaps-v1'); } catch { /* ignore */ } onResetDefaults?.(); }}>Reset to defaults</button>
         </div>
       </div>
-      <table>
-        <thead><tr><th>Action</th><th>Keys</th><th>Group</th></tr></thead>
-        <tbody>
-          {ADVANCED_SHORTCUTS.map((s) => (
-            <tr key={s.id}><td>{s.label}</td><td><kbd>{s.keys.join(' + ') || '—'}</kbd></td><td>{s.group}</td></tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="adv-print-scroll">
+        <table>
+          <thead><tr><th scope="col">Action</th><th scope="col">Keys</th><th scope="col">Group</th></tr></thead>
+          <tbody>
+            {ADVANCED_SHORTCUTS.map((s) => (
+              <tr key={s.id}><td>{s.label}</td><td><kbd>{s.keys.join(' + ') || '—'}</kbd></td><td>{s.group}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -348,7 +350,7 @@ export function PrintableShortcutCard({ onResetDefaults }) {
 export function NewShortcutHighlights() {
   return (
     <section className="adv-new-highlights" aria-label="New shortcuts in this update">
-      <h3>✨ New in this update</h3>
+      <h3><span aria-hidden="true">✨</span> New in this update</h3>
       <ul>
         {NEW_WAVE13_SHORTCUTS.map((s) => (
           <li key={s.id}><kbd>{s.keys.join(' + ')}</kbd> {s.label}</li>

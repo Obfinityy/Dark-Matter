@@ -21,7 +21,6 @@
   --r2-on-accent: var(--th-on-accent, #ffffff);
   --r2-focus: var(--th-focus, #22d3ee);
   --r2-sev-high: #fb923c;
-  --r2-sev-medium: #facc15;
   max-width: 1080px;
   margin: 0 auto;
   padding: 24px 20px 64px;
@@ -37,11 +36,13 @@
   border-radius: 14px;
   padding: 20px 22px;
   background: var(--r2-card);
+  animation: r2-rise 300ms ease backwards;
 }
 
 .r2-gallery-head h2 {
   margin: 0 0 8px;
   font-size: 22px;
+  letter-spacing: -0.01em;
 }
 
 .r2-demo {
@@ -49,6 +50,22 @@
   border-radius: 14px;
   background: var(--r2-card);
   padding: 18px 20px;
+  animation: r2-rise 300ms ease backwards;
+  transition: border-color 160ms ease;
+}
+
+.r2-demo:hover {
+  border-color: color-mix(in srgb, var(--r2-accent) 45%, var(--r2-border));
+}
+
+@keyframes r2-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .r2-gallery-head,
+  .r2-demo { animation: none; }
 }
 
 .r2-demo h3 {
@@ -86,6 +103,8 @@
 
 .r2-faint { opacity: 0.75; }
 .r2-hint { color: var(--r2-text-3); font-size: 12px; margin: 8px 0 0; }
+.r2-note-tight { margin: 0; }
+.r2-note-btn { margin-left: 8px; }
 
 .r2-btn {
   background: var(--r2-overlay);
@@ -97,9 +116,11 @@
   font-weight: 600;
   cursor: pointer;
   min-height: 44px;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 
-.r2-btn:hover { border-color: var(--r2-accent); }
+.r2-btn:hover { border-color: var(--r2-accent); background: var(--r2-raised); }
+.r2-btn:active { transform: scale(0.98); }
 .r2-btn:disabled { opacity: 0.45; cursor: default; }
 .r2-btn-primary { background: var(--r2-accent); border-color: var(--r2-accent); color: var(--r2-on-accent); }
 .r2-btn-small { min-height: 36px; padding: 6px 12px; font-size: 12px; }
@@ -144,7 +165,15 @@
   -webkit-user-select: none;
   touch-action: pan-y;
   cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
+
+.r2-longpress-card:hover {
+  border-color: var(--r2-accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.r2-longpress-card:active { transform: scale(0.99); }
 
 .r2-longpress-top {
   display: flex;
@@ -363,7 +392,11 @@
   font-style: italic;
   cursor: pointer;
   font-family: Georgia, serif;
+  transition: border-color 150ms ease, transform 150ms ease;
 }
+
+.r2-touch-btn:hover { border-color: var(--r2-accent); }
+.r2-touch-btn:active { transform: scale(0.94); }
 
 .r2-tooltip-wrap { position: relative; margin-left: auto; }
 
@@ -528,6 +561,10 @@
   transition: transform 280ms ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .r2-carousel-track { transition: none; }
+}
+
 .r2-carousel-page {
   flex: 0 0 100%;
   padding: 22px;
@@ -557,7 +594,10 @@
   min-width: 32px;
   min-height: 32px;
   position: relative;
+  transition: border-color 150ms ease;
 }
+
+.r2-carousel-dot:hover { border-color: var(--r2-accent); }
 
 .r2-carousel-dot::after {
   content: '';
@@ -593,7 +633,10 @@
   border-radius: 10px;
   cursor: pointer;
   min-height: 52px;
+  transition: color 150ms ease, background 150ms ease;
 }
+
+.r2-tab:hover { color: var(--r2-text); }
 
 .r2-tab.r2-active { background: var(--r2-overlay); color: var(--r2-text); }
 
@@ -959,7 +1002,7 @@ body.r2-force-desktop .r2-viewport-demo,
   height: 28px;
   flex: none;
   border-radius: 50%;
-  background: #15803d;
+  background: var(--success);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -969,3 +1012,43 @@ body.r2-force-desktop .r2-viewport-demo,
 
 .r2-tested p { margin: 0; font-size: 13px; color: var(--r2-text-2); }
 .r2-tested a { color: var(--r2-accent); font-weight: 700; }
+
+/* ---- Small-screen refinements (390px) ------------------------------------------ */
+@media (max-width: 480px) {
+  .r2-gallery {
+    padding: 20px 16px 48px;
+    gap: 16px;
+  }
+  .r2-gallery-head {
+    padding: 16px 18px;
+  }
+  .r2-gallery-head h2 {
+    font-size: 19px;
+  }
+  .r2-demo {
+    padding: 16px;
+  }
+  .r2-carousel-page {
+    padding: 16px;
+  }
+  .r2-notch-bottombar {
+    flex-wrap: wrap;
+  }
+  .r2-notch-bottombar .r2-btn {
+    flex: 1 1 auto;
+  }
+  .r2-print-report {
+    padding: 16px;
+  }
+  .r2-focusorder-list {
+    gap: 6px;
+  }
+  .r2-viewport-demo.r2-forced {
+    grid-template-columns: 140px 1fr 140px;
+  }
+}
+
+/* Quickmenu item hover already existed — add a transition for polish. */
+.r2-quickmenu-item {
+  transition: background 140ms ease;
+}

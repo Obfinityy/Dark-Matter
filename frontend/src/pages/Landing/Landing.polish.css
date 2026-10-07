@@ -1,0 +1,192 @@
+/* Landing.polish.css — infinity polish batch 10.
+ * Cinematic refinements over Landing.css: token-driven theme, sticky nav,
+ * staggered hero entrance, scroll reveals, hover depth, calm reduced-motion. */
+
+.lp-page {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+}
+
+/* Nav: sticky, blurred, quiet until hovered. */
+.lp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border-light);
+  max-width: none;
+  padding: 14px 32px;
+}
+.lp-nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.lp-brand { color: var(--text-primary); }
+.lp-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius-sm); }
+.lp-brand-icon { color: var(--accent); }
+.lp-nav-links { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 22px; }
+.lp-nav-links a { color: var(--text-secondary); transition: color var(--transition-fast); border-radius: var(--radius-sm); padding: 6px 2px; }
+.lp-nav-links a:hover { color: var(--text-primary); }
+.lp-nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Buttons: consistent rhythm + visible focus. */
+.lp-btn { border-radius: var(--radius-md); transition: transform var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast); }
+.lp-btn:active { transform: translateY(0); }
+.lp-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lp-btn-primary { background: var(--accent-gradient); box-shadow: 0 6px 24px color-mix(in srgb, var(--accent) 32%, transparent); }
+.lp-btn-primary:hover { filter: brightness(1.06); }
+.lp-btn-ghost { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+.lp-btn-ghost:hover { background: var(--surface-hover); border-color: var(--accent); }
+.lp-btn-lg { min-height: 52px; }
+
+/* Hero: staggered cinematic entrance. */
+@keyframes lp-rise {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+.lp-hero { padding: 110px 24px 84px; }
+.lp-hero-glow {
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%);
+}
+.lp-hero-inner > * { animation: lp-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.lp-hero-inner > *:nth-child(1) { animation-delay: 0.05s; }
+.lp-hero-inner > *:nth-child(2) { animation-delay: 0.14s; }
+.lp-hero-inner > *:nth-child(3) { animation-delay: 0.23s; }
+.lp-hero-inner > *:nth-child(4) { animation-delay: 0.32s; }
+.lp-hero-inner > *:nth-child(5) { animation-delay: 0.40s; }
+.lp-hero-inner > *:nth-child(6) { animation-delay: 0.48s; }
+
+.lp-eyebrow {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: var(--radius-full);
+  min-height: 34px;
+}
+.lp-hero h1 { color: var(--text-primary); letter-spacing: -0.025em; }
+.lp-gradient { background: var(--accent-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lp-sub { color: var(--text-secondary); }
+
+.lp-url-input {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.lp-url-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.lp-url-input input { color: var(--text-primary); min-height: 48px; font-size: 16px; }
+.lp-url-input input::placeholder { color: var(--text-muted); }
+.lp-url-input:focus-within { color: var(--text-secondary); }
+
+.lp-hero-note { color: var(--text-muted); }
+
+.lp-stats strong { color: var(--text-primary); }
+.lp-stats span { color: var(--text-muted); }
+
+/* Scroll reveal for below-the-fold sections. */
+.lp-reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+.lp-reveal.lp-revealed { opacity: 1; transform: none; }
+
+/* Sections: token rhythm. */
+.lp-section h2 { color: var(--text-primary); letter-spacing: -0.02em; }
+.lp-section-sub { color: var(--text-secondary); }
+
+.lp-step {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  transition: transform var(--transition), border-color var(--transition-fast), box-shadow var(--transition);
+}
+.lp-step:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: var(--shadow-md); }
+.lp-step-num { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lp-step-icon {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent);
+  border-radius: var(--radius-md);
+}
+.lp-step h3 { color: var(--text-primary); }
+.lp-step p { color: var(--text-secondary); }
+
+.lp-pipeline span {
+  color: var(--text-primary);
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: var(--radius-full);
+}
+.lp-pipeline i { color: var(--text-muted); }
+
+/* CTA band: deeper gradient, cinematic glow. */
+.lp-cta {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-secondary) 16%, var(--bg-secondary)), var(--bg-secondary));
+  border-top-color: var(--border);
+  border-bottom-color: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.lp-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 90% at 50% 120%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.lp-cta-inner { position: relative; }
+.lp-cta-inner h2 { color: var(--text-primary); letter-spacing: -0.02em; }
+.lp-cta-inner p { color: var(--text-secondary); }
+
+/* Pricing tiers. */
+.lp-tier {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  transition: transform var(--transition), border-color var(--transition-fast), box-shadow var(--transition);
+}
+.lp-tier:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.lp-tier-featured {
+  border-color: var(--accent);
+  box-shadow: 0 12px 44px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.lp-tier h3 { color: var(--text-primary); }
+.lp-tier-price { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.lp-tier-price span { color: var(--text-muted); }
+.lp-tier li { color: var(--text-secondary); }
+.lp-check { color: var(--success); }
+.lp-tier .lp-btn { min-height: 48px; }
+
+/* Footer. */
+.lp-footer { border-top-color: var(--border); }
+.lp-footer-note { color: var(--text-muted); }
+.lp-footer-links a { color: var(--text-secondary); border-radius: var(--radius-sm); padding: 4px 2px; }
+.lp-footer-links a:hover { color: var(--text-primary); }
+.lp-footer-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Responsive. */
+@media (max-width: 860px) {
+  .lp-nav { padding: 12px 18px; }
+  .lp-nav-links a { display: none; }
+  .lp-nav-links .lp-btn { padding: 10px 16px; min-height: 44px; }
+  .lp-hero { padding: 72px 20px 56px; }
+  .lp-hero-form { flex-direction: column; align-items: stretch; }
+  .lp-hero-form .lp-btn-lg { width: 100%; justify-content: center; }
+  .lp-stats { gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .lp-section { padding: 56px 20px; }
+  .lp-cta-inner { padding: 56px 20px; }
+  .lp-footer { padding: 28px 20px 36px; }
+}
+@media (max-width: 400px) {
+  .lp-stats { gap: 18px; }
+  .lp-stats strong { font-size: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-hero-inner > * { animation: none; }
+  .lp-reveal { opacity: 1; transform: none; transition: none; }
+  .lp-step, .lp-tier, .lp-btn { transition: none; }
+  .lp-step:hover, .lp-tier:hover { transform: none; }
+}

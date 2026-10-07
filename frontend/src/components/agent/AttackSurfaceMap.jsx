@@ -24,7 +24,13 @@ function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {
       ) : (
         <ul className="dm-surface-list">
           {list.slice(0, 12).map((item, i) => (
-            <li key={i} tabIndex={0}>{renderItem ? renderItem(item) : String(item)}</li>
+            <li
+              key={typeof item === 'string' ? item : (item?.id || item?.path || item?.url || item?.name || i)}
+              tabIndex={0}
+              title={typeof item === 'string' ? item : undefined}
+            >
+              {renderItem ? renderItem(item) : String(item)}
+            </li>
           ))}
           {list.length > 12 && (
             <li className="dm-surface-more" aria-label={`${list.length - 12} more items`}>
@@ -38,7 +44,12 @@ function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {
 }
 
 export function AttackSurfaceMap({ surface = {}, loading = false }) {
-  if (loading) return <div className="dm-surface-loading">Mapping the attack surface…</div>;
+  if (loading) return <div className="dm-surface-loading" role="status">Mapping the attack surface…</div>;
+
+  const updatedAt = surface.updatedAt ? new Date(surface.updatedAt) : null;
+  const updatedLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
+    ? updatedAt.toLocaleTimeString()
+    : null;
 
   return (
     <div className="dm-surface-map">
@@ -74,9 +85,9 @@ export function AttackSurfaceMap({ surface = {}, loading = false }) {
         items={surface.openPorts}
         emptyHint="Port scan hasn't reported yet."
       />
-      {surface.updatedAt && (
+      {updatedLabel && (
         <p className="dm-surface-updated">
-          Last updated {new Date(surface.updatedAt).toLocaleTimeString()}
+          Last updated {updatedLabel}
         </p>
       )}
     </div>

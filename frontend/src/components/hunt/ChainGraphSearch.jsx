@@ -9,6 +9,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { searchChainNodes } from './searchRefine.js';
 import './ChainGraphSearch.css';
+import './ChainGraphSearch.polish.css';
 
 export function ChainGraphSearch({
   nodes = [],
@@ -43,6 +44,8 @@ export function ChainGraphSearch({
     }
   };
 
+  const showResults = value.trim().length > 0;
+
   return (
     <div className="cg-search" role="search">
       <input
@@ -53,16 +56,21 @@ export function ChainGraphSearch({
         onChange={(e) => { onChange && onChange(e.target.value); setActive(0); }}
         onKeyDown={onKeyDown}
         aria-label="Search chain-graph nodes"
-        aria-expanded={value.trim() ? 'true' : 'false'}
+        aria-expanded={showResults ? 'true' : 'false'}
+        aria-activedescendant={showResults && results.length > 0 ? `cg-opt-${active % results.length}` : undefined}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-controls="cg-results-listbox"
       />
-      {value.trim() && (
-        <div className="cg-results" role="listbox" aria-label="Matching nodes">
+      {showResults && (
+        <div className="cg-results" id="cg-results-listbox" role="listbox" aria-label="Matching nodes">
           {results.length === 0 && (
             <div className="cg-empty">No nodes match “{value}”.</div>
           )}
           {results.map((n, i) => (
             <button
               key={n.id ?? i}
+              id={`cg-opt-${i}`}
               type="button"
               role="option"
               aria-selected={i === active}
@@ -70,7 +78,7 @@ export function ChainGraphSearch({
               onMouseEnter={() => setActive(i)}
               onClick={() => onFocusNode && onFocusNode(n)}
             >
-              <span className="cg-kind" data-kind={n.kind ?? 'node'} />
+              <span className="cg-kind" data-kind={n.kind ?? 'node'} aria-hidden="true" />
               <span className="cg-label">{n.label ?? n.id}</span>
               {n.severity && <span className={`cg-sev sev-${n.severity}`}>{n.severity}</span>}
             </button>

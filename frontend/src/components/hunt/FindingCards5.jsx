@@ -79,7 +79,6 @@ import {
   presetsToJson,
   presetsFromJson,
   makeSavedSearch,
-  priorityScore,
 } from './filtersCore';
 import { FC_SEVERITY } from './FindingCards';
 import './FindingCards5.css';
@@ -1336,7 +1335,7 @@ export function MobileFilterSheet({ filters, onApply, onReset, children, classNa
   React.useEffect(() => { if (open) setDraft(filters); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className={`fc5-sheet-wrap ${className}`}>
-      <button type="button" className="fc5-sheet-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog">
+      <button type="button" className="fc5-sheet-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}>
         Filters{countActiveFilters(filters) > 0 && <span className="fc5-chip-count">{countActiveFilters(filters)}</span>}
       </button>
       {open && (
@@ -1420,7 +1419,7 @@ export function AdvancedFindingFilters({
           <RecentSearchesDropdown key={recentRerunKey} onRerun={commitSearch} />
           <RegexModeToggle value={filters.regexMode} onChange={(v) => setFilter('regexMode', v)} />
           <FuzzySearchToggle value={filters.fuzzy} onChange={(v) => setFilter('fuzzy', v)} />
-          <button type="button" className="fc5-ghost-btn" onClick={() => setHelpOpen(true)} title="Keyboard shortcuts (?)">?</button>
+          <button type="button" className="fc5-ghost-btn" onClick={() => setHelpOpen(true)} title="Keyboard shortcuts (?)" aria-label="Show keyboard shortcuts">?</button>
         </div>
         <div className="fc5-row">
           <ScopedSearchTabs value={filters.searchScope} counts={scopeCounts} onChange={(v) => setFilter('searchScope', v)} />
@@ -1536,5 +1535,3 @@ export function AdvancedFindingFilters({
     </div>
   );
 }
-
-export { priorityScore };

@@ -13,6 +13,8 @@ import {
   Search, FlaskConical, FileCheck, Sparkles, Lock,
 } from 'lucide-react';
 import './Landing.css';
+import './Landing.polish.css';
+import { DecryptedText } from '../../components/fx/DecryptedText';
 
 const STEPS = [
   {
@@ -62,19 +64,51 @@ const TIERS = [
 function Nav() {
   const navigate = useNavigate();
   return (
-    <nav className="lp-nav">
-      <button type="button" className="lp-brand" onClick={() => navigate('/')} aria-label="Infinity AI home">
-        <Shield size={22} className="lp-brand-icon" />
-        <span>Infinity AI</span>
-      </button>
-      <div className="lp-nav-links">
-        <a href="#how">How it works</a>
-        <a href="#pricing">Pricing</a>
-        <button type="button" className="lp-btn lp-btn-ghost" onClick={() => navigate('/login')}>Sign in</button>
-        <button type="button" className="lp-btn lp-btn-primary" onClick={() => navigate('/agent')}>Start hunting</button>
+    <nav className="lp-nav" aria-label="Primary">
+      <div className="lp-nav-inner">
+        <button type="button" className="lp-brand" onClick={() => navigate('/')} aria-label="Infinity AI home">
+          <Shield size={22} className="lp-brand-icon" />
+          <span>Infinity AI</span>
+        </button>
+        <ul className="lp-nav-links">
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><button type="button" className="lp-btn lp-btn-ghost" onClick={() => navigate('/login')}>Sign in</button></li>
+          <li><button type="button" className="lp-btn lp-btn-primary" onClick={() => navigate('/agent')}>Start hunting</button></li>
+        </ul>
       </div>
     </nav>
   );
+}
+
+/**
+ * Scroll-reveal hook: adds .lp-revealed when a section first enters the
+ * viewport. Purely visual — content is never hidden from assistive tech
+ * (reduced-motion and no-IO environments reveal instantly).
+ */
+function useReveal() {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const reduce = typeof window !== 'undefined' && window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || typeof IntersectionObserver === 'undefined') {
+      el.classList.add('lp-revealed');
+      return undefined;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          el.classList.add('lp-revealed');
+          io.disconnect();
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return ref;
 }
 
 function Hero() {
@@ -88,7 +122,7 @@ function Hero() {
     <header className="lp-hero">
       <div className="lp-hero-glow" aria-hidden="true" />
       <div className="lp-hero-inner">
-        <span className="lp-eyebrow"><Sparkles size={14} /> Autonomous bug-bounty agent</span>
+        <span className="lp-eyebrow"><Sparkles size={14} aria-hidden="true" /> <DecryptedText text="Autonomous bug-bounty agent" /></span>
         <h1>
           Paste a link. <span className="lp-gradient">AI hunts the bugs.</span>
         </h1>
@@ -120,9 +154,10 @@ function Hero() {
 }
 
 function HowItWorks() {
+  const ref = useReveal();
   return (
-    <section className="lp-section" id="how">
-      <h2>How it works</h2>
+    <section className="lp-section lp-reveal" id="how" ref={ref} aria-labelledby="lp-how-h">
+      <h2 id="lp-how-h">How it works</h2>
       <p className="lp-section-sub">Three steps. Zero manual probing.</p>
       <div className="lp-steps">
         {STEPS.map((s, i) => (
@@ -146,10 +181,11 @@ function HowItWorks() {
 
 function LiveHuntCTA() {
   const navigate = useNavigate();
+  const ref = useReveal();
   return (
-    <section className="lp-cta">
+    <section className="lp-cta lp-reveal" ref={ref} aria-labelledby="lp-cta-h">
       <div className="lp-cta-inner">
-        <h2>Watch it hunt, live.</h2>
+        <h2 id="lp-cta-h">Watch it hunt, live.</h2>
         <p>Open the console and see Infinity AI think, probe, validate, and report — in real time.</p>
         <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => navigate('/agent')}>
           Open live hunt <ArrowRight size={18} />
@@ -161,9 +197,10 @@ function LiveHuntCTA() {
 
 function Pricing() {
   const navigate = useNavigate();
+  const ref = useReveal();
   return (
-    <section className="lp-section" id="pricing">
-      <h2>Pricing</h2>
+    <section className="lp-section lp-reveal" id="pricing" ref={ref} aria-labelledby="lp-pricing-h">
+      <h2 id="lp-pricing-h">Pricing</h2>
       <p className="lp-section-sub">Start free. Scale when the bounties roll in.</p>
       <div className="lp-tiers">
         {TIERS.map((t) => (

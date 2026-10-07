@@ -231,7 +231,7 @@ export function AvatarOverlay({
         <header className="avo-head">
           <div className="avo-title">
             <strong>{title}</strong>
-            <span className={`avo-status avo-${avatarState}`}>
+            <span className={`avo-status avo-${avatarState}`} role="status">
               <span className="avo-dot" aria-hidden="true" />
               {stateLabel}
             </span>

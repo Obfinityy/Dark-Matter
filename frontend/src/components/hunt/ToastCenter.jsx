@@ -12,6 +12,7 @@ import {
 } from './dashboardRound2Core.js';
 import { toastAutoDismissMs, playToastTone, resolveToastSeverityColor, currentThemeId } from './toastRound3Core.js';
 import './ToastCenter.css';
+import './ToastCenter.polish.css';
 
 const ToastCtx = createContext(null);
 let toastSeq = 1;
@@ -125,12 +126,12 @@ export function ToastProvider({
           <ToastCard key={t.id} toast={t} onDismiss={dismiss} onAck={acknowledge} />
         ))}
         {!expanded && collapsedCount > 0 && (
-          <button className="toast-more" onClick={() => setExpanded(true)}>
+          <button className="toast-more" onClick={() => setExpanded(true)} aria-expanded="false">
             +{collapsedCount} more
           </button>
         )}
         {expanded && collapsedCount > 0 && (
-          <button className="toast-more" onClick={() => setExpanded(false)}>Collapse</button>
+          <button className="toast-more" onClick={() => setExpanded(false)} aria-expanded="true">Collapse</button>
         )}
       </div>
     </ToastCtx.Provider>
@@ -250,7 +251,7 @@ export function ToastCard({ toast, onDismiss, onAck }) {
         {/* 50785 — duplicate-suppression counter badge */}
         {toast.dupCount > 1 && <span className="toast-dup" title="Merged duplicates">×{toast.dupCount}</span>}
         {!persistent && (
-          <button className="toast-x" onClick={() => onDismiss(toast.id)} aria-label="Dismiss">✕</button>
+          <button className="toast-x" onClick={() => onDismiss(toast.id)} aria-label={`Dismiss notification: ${toast.title || toast.severity || 'info'}`}>✕</button>
         )}
       </div>
       {/* 50798 — auto-expanded criticals show finding title + affected host */}

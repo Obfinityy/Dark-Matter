@@ -165,7 +165,7 @@ export function RetestDiffView({ before = '', after = '', className = '' }) {
       <div className="fc3-diff-summary" role="status">
         {changed === 0 ? 'No changes — output identical' : `${changed} line${changed === 1 ? '' : 's'} changed`}
       </div>
-      <pre className="fc3-diff-body" aria-label="Retest diff">
+      <pre className="fc3-diff-body" aria-label="Retest diff" tabIndex={0}>
         {rows.map((r, idx) => (
           <div key={idx} className={`fc3-diff-line fc3-diff-${r.type}`}>
             <span className="fc3-diff-sign" aria-hidden="true">
@@ -422,7 +422,7 @@ export function PocReplayPlayer({ steps = [], className = '' }) {
     <div className={`fc3-poc ${className}`} aria-label="PoC replay player">
       <div className="fc3-poc-step">
         <div className="fc3-poc-label">{step.label || `Step ${idx + 1}`}</div>
-        {step.detail && <pre className="fc3-poc-detail">{step.detail}</pre>}
+        {step.detail && <pre className="fc3-poc-detail" tabIndex={0} aria-label="PoC step detail">{step.detail}</pre>}
       </div>
       <div className="fc3-poc-progress-track" role="progressbar" aria-valuenow={idx + 1} aria-valuemin={1} aria-valuemax={steps.length} aria-label="PoC progress">
         <div className="fc3-poc-progress-fill" style={{ width: `${pct}%` }} />

@@ -1,0 +1,45 @@
+/* FingerprintCard.polish.css — infinity polish batch 10.
+ * Refinements over the shared .dm-fingerprint styles: long-hostname
+ * wrapping, a status fallback tone, and roomier touch-friendly rows. */
+
+.dm-fingerprint-target { min-width: 0; }
+.dm-fingerprint-target code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Fallback tone for unexpected/empty statuses so the badge never looks broken. */
+.dm-job-status {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.dm-fingerprint-grid > div { min-width: 0; }
+.dm-fingerprint-grid dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dm-fingerprint-objective { line-height: 1.6; }
+
+.dm-fingerprint-scope { min-width: 0; }
+.dm-fingerprint-scope span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .dm-tech-chip, .dm-port-chip { padding: 8px 12px; font-size: 12px; }
+}

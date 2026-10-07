@@ -8,17 +8,18 @@
  *     legacy print-to-PDF fallback that opens a print-optimized view.
  *
  * Props:
- *   jobId, recordId (hunt record when the hunt completed), report (live report object)
+ *   jobId, recordId (hunt record when the hunt completed), target (for filenames)
  */
 import React, { useState } from 'react';
 import { Download, FileText, Printer, Loader2 } from 'lucide-react';
 import { downloadHuntRecordMarkdown, downloadJobReportPdf, getJobVulnerabilityReport } from '../../services/api';
+import './ReportExport.polish.css';
 
 function slugify(value) {
   return String(value || 'report').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'report';
 }
 
-export function ReportExport({ jobId, recordId = null, report = null, target = '' }) {
+export function ReportExport({ jobId, recordId = null, target = '' }) {
   const [busy, setBusy] = useState(null);
 
   const getMarkdown = async () => {

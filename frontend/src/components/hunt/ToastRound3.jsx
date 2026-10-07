@@ -18,9 +18,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ToastProvider, useToast, ToastCard } from './ToastCenter.jsx';
 import {
   WAVE20_IDEAS, createProgressToast, advanceProgressToast, failProgressToast,
-  UNDO_WINDOW_MS, undoToastPayload, toneSpecForSeverity, playToastTone,
+  UNDO_WINDOW_MS, undoToastPayload, playToastTone,
   dndActive, DEFAULT_DND_SCHEDULE, isHuntQuiet, toggleHuntQuiet,
-  idleToastState, toastAutoDismissMs, shouldSuppressToast, DUP_WINDOW_MS,
+  idleToastState, shouldSuppressToast, DUP_WINDOW_MS,
   unreadBadgeCount, sessionExpiryState, enqueueOfflineAction, drainOfflineQueue,
   quotaLevel, quotaToastPayload, huntCompleteToast, mentionToast,
   updateAvailableToast, scheduledHuntToast, permissionChangeToast,
@@ -362,6 +362,12 @@ export function NotificationCenter({ onBadge }) {
   const [open, setOpen] = useState(false);
   const unread = unreadBadgeCount(history);
   useEffect(() => { if (onBadge) onBadge(unread); }, [unread, onBadge]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open ]);
   return (
     <div className="notif-center">
       <button
@@ -377,8 +383,8 @@ export function NotificationCenter({ onBadge }) {
         <div className="notif-drawer" role="dialog" aria-label="Notification history">
           <div className="notif-drawer-head">
             <strong>Notifications</strong>
-            <button className="notif-mark" onClick={markHistoryRead}>Mark all read</button>
-            <button className="notif-close" onClick={() => setOpen(false)} aria-label="Close">✕</button>
+            <button type="button" className="notif-mark" onClick={markHistoryRead}>Mark all read</button>
+            <button type="button" className="notif-close" onClick={() => setOpen(false)} aria-label="Close">✕</button>
           </div>
           <div className="notif-list">
             {history.length === 0 && <p className="notif-empty">No notifications yet — every toast archives here.</p>}
@@ -437,7 +443,7 @@ export function ToastSoundsSetting() {
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         Toast sounds <span className="toast-setting-hint">(distinct tone per severity)</span>
       </label>
-      <button className="toast-test-btn" onClick={preview}>Preview tone</button>
+      <button type="button" className="toast-test-btn" onClick={preview}>Preview tone</button>
     </div>
   );
 }
@@ -446,7 +452,7 @@ export function PerHuntQuietToggle({ huntId, huntName }) {
   const { isQuiet, toggle } = usePerHuntQuiet();
   const quiet = isQuiet(huntId);
   return (
-    <button className={`toast-quiet-toggle ${quiet ? 'on' : ''}`} onClick={() => toggle(huntId)}
+    <button type="button" className={`toast-quiet-toggle ${quiet ? 'on' : ''}`} onClick={() => toggle(huntId)}
       aria-pressed={quiet} title={quiet ? 'Unmute this hunt' : 'Mute toasts for this hunt'}>
       {quiet ? '🔕' : '🔔'} {huntName || huntId}{quiet ? ' (muted)' : ''}
     </button>
@@ -467,7 +473,7 @@ export function TestNotificationButton() {
     setCycle((c) => c + 1);
     push(k, { category: 'test', rateLimited: false });
   };
-  return <button className="toast-test-btn" onClick={fire}>Test notification</button>;
+  return <button type="button" className="toast-test-btn" onClick={fire}>Test notification</button>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -515,7 +521,7 @@ export function FirstRunChecklist({ completed: external, onCompleteStep }) {
           const isNext = st.nextStep && st.nextStep.id === s.id;
           return (
             <li key={s.id} className={`first-run-step ${done ? 'done' : ''} ${isNext ? 'next' : ''}`}>
-              <button onClick={() => complete(s.id)} aria-pressed={done} disabled={done}>
+              <button type="button" onClick={() => complete(s.id)} aria-pressed={done} disabled={done}>
                 <span className="first-run-box">{done ? '✓' : ''}</span>
                 <span className="first-run-text"><strong>{s.label}</strong><small>{s.hint}</small></span>
               </button>
@@ -617,19 +623,19 @@ function ToastLabInner() {
         <TestNotificationButton />
       </div>
       <div className="toast-lab-grid">
-        <button onClick={demoProgress}>Progress toast (export)</button>
-        <button onClick={demoUndo}>Undo toast (5s window)</button>
-        <button onClick={demoCritical}>Critical (auto-expanded, snooze-1h)</button>
-        <button onClick={demoHuntComplete}>Hunt complete</button>
-        <button onClick={demoMention}>@mention</button>
-        <button onClick={demoScheduled}>Scheduled hunt</button>
-        <button onClick={demoPermission}>Permission change</button>
-        <button onClick={demoLearning}>Learning event</button>
-        <button onClick={demoExportReady}>Export ready (download)</button>
-        <button onClick={demoDup}>Duplicate suppression (fire ×3)</button>
-        <button onClick={demoSession}>Session expiry</button>
-        <button onClick={demoOffline}>Offline action</button>
-        <button onClick={() => copyToast('curl https://example.com/poc', 'PoC copied')}>Copy micro-toast</button>
+        <button type="button" onClick={demoProgress}>Progress toast (export)</button>
+        <button type="button" onClick={demoUndo}>Undo toast (5s window)</button>
+        <button type="button" onClick={demoCritical}>Critical (auto-expanded, snooze-1h)</button>
+        <button type="button" onClick={demoHuntComplete}>Hunt complete</button>
+        <button type="button" onClick={demoMention}>@mention</button>
+        <button type="button" onClick={demoScheduled}>Scheduled hunt</button>
+        <button type="button" onClick={demoPermission}>Permission change</button>
+        <button type="button" onClick={demoLearning}>Learning event</button>
+        <button type="button" onClick={demoExportReady}>Export ready (download)</button>
+        <button type="button" onClick={demoDup}>Duplicate suppression (fire ×3)</button>
+        <button type="button" onClick={demoSession}>Session expiry</button>
+        <button type="button" onClick={demoOffline}>Offline action</button>
+        <button type="button" onClick={() => copyToast('curl https://example.com/poc', 'PoC copied')}>Copy micro-toast</button>
       </div>
       <p className="toast-lab-note">
         Esc dismisses the newest toast and returns focus · hovering pauses auto-dismiss ·

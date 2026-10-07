@@ -27,29 +27,35 @@ function accentStyle(kind) {
 }
 
 export function HuntDiary({ entries = [], loading = false }) {
-  if (loading) return <div className="dm-diary-loading">Opening the hunt diary…</div>;
+  if (loading) return <div className="dm-diary-loading" role="status">Opening the hunt diary…</div>;
 
   if (!entries.length) {
     return (
       <div className="dm-diary-empty">
-        <BookOpen size={22} />
+        <BookOpen size={22} aria-hidden="true" />
         <p>The diary is empty — entries appear as the agent works through the hunt.</p>
       </div>
     );
   }
 
+  const fmtTime = (at) => {
+    if (!at) return '';
+    const d = new Date(at);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString();
+  };
+
   return (
-    <div className="dm-diary">
+    <div className="dm-diary" role="log" aria-label="Hunt diary">
       {entries.map((entry, i) => (
         <article key={entry.id || i} className="dm-diary-entry" style={accentStyle(entry.kind)} aria-label={entry.title || 'Diary entry'}>
-          <div className="dm-diary-rail">
+          <div className="dm-diary-rail" aria-hidden="true">
             <span className="dm-diary-dot" />
             {i < entries.length - 1 && <span className="dm-diary-line" />}
           </div>
           <div className="dm-diary-card">
             <header>
               <span className="dm-diary-time">
-                {entry.at ? new Date(entry.at).toLocaleString() : ''}
+                {fmtTime(entry.at)}
               </span>
               {entry.kind && <span className="dm-diary-kind">{entry.kind}</span>}
             </header>

@@ -7,7 +7,7 @@
  * the chat typing pulse already ships as ThinkingDots (50573, wave 15).
  * Every animation respects the 400ms budget and prefers-reduced-motion.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BOTTOM_TABS,
   GESTURE_GUIDE,
@@ -1228,7 +1228,7 @@ export function TinyViewportDemo() {
     <div>
       <div className="rs-tiny">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <span className="rs-logo" style={{ fontSize: 16 }}>∞</span>
+          <span className="rs-logo" style={{ fontSize: 16 }} aria-hidden="true">∞</span>
           <strong style={{ fontSize: 13, color: '#e2e8f0' }}>Hunt #42</strong>
           <span className="rs-status-pill" style={{ marginLeft: 'auto' }}>● Live</span>
         </div>

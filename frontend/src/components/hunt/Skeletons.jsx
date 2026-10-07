@@ -118,7 +118,7 @@ export function ReportPreviewSkeleton({ className = '' }) {
 /** 50011 — Pulsing waveform placeholder for the live terminal. */
 export function TerminalWaveformSkeleton({ bars = 48, className = '' }) {
   return (
-    <div className={`hsk-waveform ${className}`} role="status" aria-label="Loading terminal output" aria-hidden="true">
+    <div className={`hsk-waveform ${className}`} role="status" aria-label="Loading terminal output">
       {Array.from({ length: bars }).map((_, i) => (
         <span
           key={i}
@@ -152,8 +152,8 @@ export function SeverityDonutSkeleton({ size = 120, thickness = 16, className = 
   return (
     <div className={`hsk-donut-wrap ${className}`} role="status" aria-label="Loading severity chart">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1c2333" strokeWidth={thickness} />
-        <circle cx={size / 2} cy={size / 2} r={r * 0.45} fill="#1c2333" className="hsk-donut-pulse" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={thickness} className="hsk-donut-track" />
+        <circle cx={size / 2} cy={size / 2} r={r * 0.45} className="hsk-donut-pulse" />
       </svg>
     </div>
   );
@@ -162,7 +162,7 @@ export function SeverityDonutSkeleton({ size = 120, thickness = 16, className = 
 /** 50021 — Placeholder ticks for the hunt timeline scrubber. */
 export function TimelineScrubberSkeleton({ ticks = 24, className = '' }) {
   return (
-    <div className={`hsk-scrubber ${className}`} role="status" aria-label="Loading timeline" aria-hidden="true">
+    <div className={`hsk-scrubber ${className}`} role="status" aria-label="Loading timeline">
       <div className="hsk-scrub-track" />
       <div className="hsk-scrub-ticks">
         {Array.from({ length: ticks }).map((_, i) => (
@@ -246,10 +246,10 @@ export function ChainGraphSkeleton({ className = '' }) {
       <svg viewBox="0 0 340 150" width="100%" aria-hidden="true">
         {edges.map(([a, b], i) => (
           <line key={i} x1={nodes[a].x} y1={nodes[a].y} x2={nodes[b].x} y2={nodes[b].y}
-            stroke="#2a3448" strokeWidth={2} strokeDasharray="6 5" className="hsk-edge" />
+            strokeWidth={2} strokeDasharray="6 5" className="hsk-edge" />
         ))}
         {nodes.map((n, i) => (
-          <circle key={i} cx={n.x} cy={n.y} r={20} fill="#1c2333" className="hsk-node" style={{ animationDelay: `${i * 160}ms` }} />
+          <circle key={i} cx={n.x} cy={n.y} r={20} className="hsk-node" style={{ animationDelay: `${i * 160}ms` }} />
         ))}
       </svg>
     </div>
@@ -326,11 +326,11 @@ export function RiskGaugeSkeleton({ size = 140, score = null, className = '' }) 
   return (
     <div className={`hsk-gauge ${className}`} role="status" aria-label={score === null ? 'Loading risk score' : `Risk score ${score}`}>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="#1c2333" strokeWidth={16} strokeLinecap="round" className={score === null ? 'hsk' : ''} />
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" strokeWidth={16} strokeLinecap="round" className={score === null ? 'hsk hsk-gauge-arc' : 'hsk-gauge-arc'} />
         {score !== null && (
           <g className="hsk-needle">
-            <line x1={cx} y1={cy} x2={cx + r * 0.82 * Math.cos(rad)} y2={cy + r * 0.82 * Math.sin(rad)} stroke="#a78bfa" strokeWidth={4} strokeLinecap="round" />
-            <circle cx={cx} cy={cy} r={7} fill="#2a3350" />
+            <line x1={cx} y1={cy} x2={cx + r * 0.82 * Math.cos(rad)} y2={cy + r * 0.82 * Math.sin(rad)} strokeWidth={4} strokeLinecap="round" />
+            <circle cx={cx} cy={cy} r={7} />
           </g>
         )}
       </svg>
@@ -469,7 +469,7 @@ export function PdfThumbnailSkeleton({ pages = 4, className = '' }) {
 /** 50056 — Collaborator-avatar skeletons: overlapping gray circles. */
 export function CollaboratorAvatarSkeleton({ count = 4, className = '' }) {
   return (
-    <div className={`hsk-avatars ${className}`} role="status" aria-label="Loading collaborators" aria-hidden="true">
+    <div className={`hsk-avatars ${className}`} role="status" aria-label="Loading collaborators">
       {Array.from({ length: count }).map((_, i) => (
         <span key={i} className="hsk-avatar-ph" style={{ zIndex: count - i }} />
       ))}

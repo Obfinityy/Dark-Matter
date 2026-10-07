@@ -1,0 +1,59 @@
+/* HackerTerminal.polish.css — infinity polish batch 10.
+ * Refinements over the shared .dm-terminal styles: token-driven colors,
+ * long-line wrapping without layout breakage, clearer header rhythm. */
+
+.dm-terminal-wrap { min-width: 0; }
+
+.dm-terminal-head { gap: 10px; }
+
+.dm-terminal-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.dm-term-conn { font-variant-numeric: tabular-nums; }
+
+/* Long tool output wraps instead of forcing horizontal scroll. */
+.dm-term-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dm-term-ts {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #6b7280);
+}
+.dm-term-tag {
+  flex: none;
+  max-width: 38%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dm-term-text {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Empty state: calmer, centered, keeps its rhythm while waiting. */
+.dm-term-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted, #6b7280);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .dm-term-tag { display: none; }
+  .dm-term-ts { font-size: 11px; }
+  .dm-terminal { line-height: 1.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-term-line { animation: none; }
+}

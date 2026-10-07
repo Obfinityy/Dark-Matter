@@ -1,0 +1,111 @@
+/* HelpExplain.polish.css — infinity polish batch 10.
+ * Token-driven refinements over HelpExplain.css: theme-aware tooltip/popover
+ * surfaces, visible focus rings, popovers that stay inside the viewport. */
+
+.hpx-pill-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-full); }
+.hpx-pill { background: var(--surface); border-radius: var(--radius-full); }
+
+.hpx-tooltip {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  max-width: min(300px, calc(100vw - 40px));
+}
+.hpx-tooltip-example { color: var(--text-muted); }
+
+.hpx-popover {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  max-width: min(320px, calc(100vw - 40px));
+  width: max-content;
+  min-width: min(240px, calc(100vw - 40px));
+}
+.hpx-popover-wide { max-width: min(360px, calc(100vw - 40px)); }
+.hpx-pop-note { color: var(--text-muted); }
+
+.hpx-score { color: var(--text-primary); }
+
+.hpx-info-btn {
+  border-color: color-mix(in srgb, var(--info) 50%, transparent);
+  color: var(--info);
+  min-width: 24px;
+  min-height: 24px;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+.hpx-info-btn:hover { border-color: var(--info); color: var(--text-primary); background: var(--surface-hover); }
+.hpx-info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.hpx-whats-this {
+  color: var(--info);
+  border-radius: var(--radius-sm);
+  padding: 4px 2px;
+  min-height: 32px;
+}
+.hpx-whats-this:hover { color: var(--text-primary); }
+.hpx-whats-this:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.hpx-factor-label { color: var(--text-primary); }
+.hpx-factor-track { background: var(--bg-primary); }
+.hpx-factor-fill { background: var(--accent-gradient); }
+.hpx-factor-points { color: var(--info); }
+
+.hpx-format-toggle {
+  color: var(--info);
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+  min-height: 36px;
+  font-size: 0.85rem;
+}
+.hpx-format-toggle:hover { color: var(--text-primary); }
+.hpx-format-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.hpx-code {
+  background: var(--bg-primary);
+  border-color: var(--border);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+.hpx-format-desc { color: var(--text-muted); }
+
+.hpx-phase {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.hpx-phase:hover { border-color: var(--accent); color: var(--text-primary); }
+.hpx-phase:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hpx-phase-active {
+  border-color: var(--warning);
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.hpx-coach {
+  background: var(--bg-tertiary);
+  border-color: color-mix(in srgb, var(--accent-secondary) 55%, transparent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  max-width: min(360px, calc(100vw - 40px));
+}
+.hpx-coach-step { color: var(--accent-secondary); }
+.hpx-coach-title { color: var(--text-primary); }
+.hpx-coach-body { color: var(--text-secondary); }
+
+/* Small screens: popovers align to the right edge so they never clip. */
+@media (max-width: 640px) {
+  .hpx-popover { left: auto; right: 0; }
+  .hpx-tooltip { max-width: calc(100vw - 48px); }
+  .hpx-info-btn { min-width: 32px; min-height: 32px; }
+  .hpx-format-toggle { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hpx-info-btn, .hpx-phase { transition: none; }
+}

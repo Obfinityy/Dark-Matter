@@ -22,7 +22,6 @@ import {
   viewportKind,
   orientationOf,
   LONG_PRESS_MS,
-  LONG_PRESS_SLOP_PX,
   longPressReady,
   longPressMoved,
   hasCoarsePointer,
@@ -234,7 +233,7 @@ export function PrintLayoutOverride() {
   return (
     <div className="r2-print-wrap">
       <div className="r2-no-print r2-print-toolbar">
-        <p className="r2-note" style={{ margin: 0 }}>
+        <p className="r2-note r2-note-tight">
           Screen view — chrome, actions and shadows. Hit print to see the override.
         </p>
         <button type="button" className="r2-btn" onClick={print}>
@@ -636,7 +635,7 @@ export function MobileTabBadge({ startCount = 3 }) {
       </nav>
       <p className="r2-note">
         Live findings count on the tab badge.
-        <button type="button" className="r2-btn r2-btn-small" onClick={() => setLive((v) => !v)} style={{ marginLeft: 8 }}>
+        <button type="button" className="r2-btn r2-btn-small r2-note-btn" onClick={() => setLive((v) => !v)}>
           {live ? 'Pause live' : 'Resume live'}
         </button>
       </p>
