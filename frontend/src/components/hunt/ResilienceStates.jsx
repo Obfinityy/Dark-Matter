@@ -141,7 +141,7 @@ export function MaintenanceModePage({ estimatedReturnAt, statusUrl, onNotifyMe }
   return (
     <ResilienceState
       illustration="🛠️"
-      title="Infinity AI is in maintenance"
+      title="Dark Matter is in maintenance"
       description="We're upgrading the hunt infrastructure. Your hunts, findings, and settings are safe — nothing is being deleted."
     >
       {valid && (

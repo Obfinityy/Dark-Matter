@@ -310,7 +310,7 @@ export function RolePathPicker({ onPick }) {
   const path = role ? roleOnboardingPath(role) : null;
   return (
     <div className="ob-hint-card">
-      <div className="ob-hint-title">How will you use Infinity AI?</div>
+      <div className="ob-hint-title">How will you use Dark Matter?</div>
       <div className="ob-hint-actions">
         {['researcher', 'executive'].map((r) => (
           <button

@@ -20,7 +20,7 @@ export default function NotFound() {
         <h1 className="nf-title">This corner of the void is empty.</h1>
         <p className="nf-sub">
           The page you were looking for doesn&apos;t exist or was moved.
-          Infinity AI hunts bugs — not missing pages — so let&apos;s get you
+          Dark Matter hunts bugs — not missing pages — so let&apos;s get you
           back on track.
         </p>
         <div className="nf-actions">

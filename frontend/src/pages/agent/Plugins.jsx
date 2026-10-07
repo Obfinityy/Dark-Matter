@@ -22,7 +22,7 @@ const FAMILIES = [
     tagline: 'Brains the agent can run on.',
     description:
       'Local uncensored models, remote GPUs, Kaggle and Colab connections. ' +
-      'Download a model, press Run, and it becomes the brain behind both Hunt and Infinity AI.',
+      'Download a model, press Run, and it becomes the brain behind both Hunt AI and Infinity AI.',
     to: '/agent/models',
     cta: 'Open Models',
     status: 'Live',

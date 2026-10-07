@@ -421,7 +421,7 @@ export function UnsupportedTargetNotice({ targetType, alternatives = [], onPickA
       compact
       illustration="🧭"
       title={`${targetType || 'This target type'} isn't supported yet`}
-      description="Dark-Matter hunts web applications, APIs, and cloud surfaces. Some target types (thick clients, binaries) need a different approach."
+      description="Dark Matter hunts web applications, APIs, and cloud surfaces. Some target types (thick clients, binaries) need a different approach."
       primary={onPickAlternative && alternatives.length > 0 && { label: `Try: ${alternatives[0]}`, onClick: () => onPickAlternative(alternatives[0]) }}
       secondary={alternatives.length > 1 && onPickAlternative && { label: 'See alternatives', onClick: () => onPickAlternative(alternatives[1]) }}
     />

@@ -121,7 +121,7 @@ export function FirstRunHero({ onPasteLink, onWatchDemo }) {
       tone="hero"
       illustration={<span className="es-hero-art">◈</span>}
       title="Hunt your first target"
-      description="Paste any website link below. Infinity AI will recon it, find bugs, prove them with PoCs, and write the report — all autonomous."
+      description="Paste any website link below. Hunt AI will recon it, find bugs, prove them with PoCs, and write the report — all autonomous."
       primary={onPasteLink && { label: 'Paste your first link', onClick: onPasteLink }}
       secondary={onWatchDemo && { label: 'Watch a 30-sec explainer', onClick: onWatchDemo }}
       hint="Your first hunt is free — no card required."
@@ -669,7 +669,7 @@ export function EmptyReportTemplates({ onUseDefault }) {
     <EmptyState
       compact
       title="No custom templates"
-      description="You haven't saved any report templates. The default Infinity AI template produces a full professional report."
+      description="You haven't saved any report templates. The default Dark Matter template produces a full professional report."
       primary={onUseDefault && { label: 'Use the default template', onClick: onUseDefault }}
     />
   );
@@ -805,7 +805,7 @@ export function EmptyScheduledReports({ onPickPreset, presets = ['Weekly', 'Mont
     <EmptyState
       compact
       title="No scheduled reports"
-      description="Pick a cadence and Infinity AI emails you a findings digest on schedule — set it once, forget it."
+      description="Pick a cadence and Dark Matter emails you a findings digest on schedule — set it once, forget it."
       primary={onPickPreset && { label: `Schedule ${presets[0]} reports`, onClick: () => onPickPreset(presets[0]) }}
       secondary={presets[1] && onPickPreset && { label: `Schedule ${presets[1]} reports`, onClick: () => onPickPreset(presets[1]) }}
     />

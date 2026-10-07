@@ -242,7 +242,7 @@ export function ReportReader() {
 
       <div className="sg-notice">
         <ShieldCheck size={16} aria-hidden="true" />
-        <span><strong>Report already exists for this target — showing the saved report</strong> (v{record.version || 1}). Pasting this target again returns this same report instantly. Start a new hunt from the Hunt page for a fresh run.</span>
+        <span><strong>Report already exists for this target — showing the saved report</strong> (v{record.version || 1}). Pasting this target again returns this same report instantly. Start a new hunt from the Hunt AI page for a fresh run.</span>
       </div>
 
       <div className="sg-reader-top">

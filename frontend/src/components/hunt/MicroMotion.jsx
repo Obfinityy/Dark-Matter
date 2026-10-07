@@ -623,7 +623,7 @@ export function MicroMotionGallery() {
         <PopBadge count={notifs} />
         <button onClick={() => setNotifs((n) => n + 1)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', minHeight: 44, cursor: 'pointer' }}>+ notification</button>
       </div>
-      <SlidingTabs tabs={['Hunt', 'Findings', 'Reports']} active={tab} onChange={setTab} />
+      <SlidingTabs tabs={['Hunt AI', 'Findings', 'Reports']} active={tab} onChange={setTab} />
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <LiftCard style={{ width: 200 }}><strong style={{ color: 'var(--text-primary)' }}>Finding #1042</strong><p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Reflected XSS in search param</p><ConfidenceFill value={87} /></LiftCard>
         <NewRibbon><LiftCard style={{ width: 200 }}><strong style={{ color: 'var(--text-primary)' }}>Finding #1043</strong><p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Open redirect on logout</p></LiftCard></NewRibbon>

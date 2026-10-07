@@ -91,7 +91,7 @@ export function AgentHome() {
           submission-ready report — while you watch it think, live.
         </p>
 
-        <BrainGate required={['vision', 'grounding', 'hacker']} featureName="Hunt">
+        <BrainGate required={['vision', 'grounding', 'hacker']} featureName="Hunt AI">
         <form className="sg-hunt-form" onSubmit={startHunt}>
           <div className="sg-hunt-bar">
             <Crosshair size={19} className="sg-hunt-bar-icon" />

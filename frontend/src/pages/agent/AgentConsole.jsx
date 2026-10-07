@@ -57,7 +57,7 @@ function Page({ children }) {
  * screen readers, with no routing or rendering behaviour changes. */
 const ROUTE_TITLES = {
   '': 'Agent home',
-  hunt: 'Hunt',
+  hunt: 'Hunt AI',
   infinity: 'Infinity AI',
   settings: 'Settings',
   reports: 'Reports',
@@ -74,8 +74,8 @@ function RouteTitle() {
   const { pathname } = useLocation();
   useEffect(() => {
     const segment = pathname.replace(/^\/agent\/?/, '').split('/')[0];
-    document.title = `${ROUTE_TITLES[segment] ?? 'Infinity AI'} · Infinity AI`;
-    return () => { document.title = 'Infinity AI'; };
+    document.title = `${ROUTE_TITLES[segment] ?? 'Dark Matter'} · Dark Matter`;
+    return () => { document.title = 'Dark Matter'; };
   }, [pathname]);
   return null;
 }
@@ -88,7 +88,7 @@ export function AgentConsole() {
           <RouteTitle />
           <Routes>
             <Route index element={<Page><PageErrorBoundary pageName="Agent home"><AgentHome /></PageErrorBoundary></Page>} />
-            <Route path="hunt/:jobId" element={<Page><PageErrorBoundary pageName="Hunt"><HuntView /></PageErrorBoundary></Page>} />
+            <Route path="hunt/:jobId" element={<Page><PageErrorBoundary pageName="Hunt AI"><HuntView /></PageErrorBoundary></Page>} />
             <Route path="infinity" element={<Page><PageErrorBoundary pageName="Infinity AI"><InfinityAI /></PageErrorBoundary></Page>} />
             <Route path="settings" element={<Page><PageErrorBoundary pageName="Settings"><Settings /></PageErrorBoundary></Page>} />
             <Route path="reports" element={<Page><PageErrorBoundary pageName="Reports"><Reports /></PageErrorBoundary></Page>} />

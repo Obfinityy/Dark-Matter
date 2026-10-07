@@ -58,7 +58,7 @@ export function Login() {
             The agent that finds what<br />others <span className="sg-gradient-text">can't see.</span>
           </h1>
           <p className="sg-body sg-auth-lede">
-            Infinity AI is an autonomous security agent. Point it at a target and it
+            Dark Matter is an autonomous security agent. Point it at a target and it
             hunts: recon, analysis, proof - while you watch it think.
           </p>
           <div className="sg-auth-proofs">
@@ -168,13 +168,13 @@ export function Login() {
 
             <button type="submit" className="sg-btn sg-btn-primary sg-btn-lg sg-auth-submit" disabled={busy}>
               {busy && <span className="sg-spin sg-auth-spinner" aria-hidden="true">◌</span>}
-              {mode === 'login' ? 'Sign in to Infinity AI' : 'Create my account'}
+              {mode === 'login' ? 'Sign in to Dark Matter' : 'Create my account'}
             </button>
           </form>
 
           <p className="sg-small sg-auth-switch">
             {mode === 'login' ? (
-              <>New to Infinity AI? <button type="button" onClick={() => setMode('register')}>Create an account</button></>
+              <>New to Dark Matter? <button type="button" onClick={() => setMode('register')}>Create an account</button></>
             ) : (
               <>Already have an account? <button type="button" onClick={() => setMode('login')}>Sign in</button></>
             )}

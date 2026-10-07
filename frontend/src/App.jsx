@@ -63,7 +63,7 @@ const TermsConditionsPage = () => (
     </section>
     <section>
       <h2 className="sg-h2">2. Liability</h2>
-      <p className="sg-body">Infinity AI is provided &ldquo;as is&rdquo;. We are not responsible for any damage caused by automated actions on misconfigured targets.</p>
+      <p className="sg-body">Dark Matter is provided &ldquo;as is&rdquo;. We are not responsible for any damage caused by automated actions on misconfigured targets.</p>
     </section>
     <section>
       <h2 className="sg-h2">3. Account Termination</h2>

@@ -28,7 +28,7 @@ import Logo from '../brand/Logo';
 import './AgentShell.css';
 
 const TOP_TABS = [
-  { to: '/agent', label: 'Hunt', icon: Crosshair, end: true, hint: 'Autonomous bug-bounty agent' },
+  { to: '/agent', label: 'Hunt AI', icon: Crosshair, end: true, hint: 'Autonomous bug-bounty agent' },
   { to: '/agent/infinity', label: 'Infinity AI', icon: Sparkles, hint: 'Autonomous coding agent' },
 ];
 
@@ -89,7 +89,7 @@ const STATUS_DOT = {
 };
 
 const TITLES = {
-  '/agent': 'Hunt',
+  '/agent': 'Hunt AI',
   '/agent/infinity': 'Infinity AI',
   '/agent/settings': 'Settings',
   '/agent/reports': 'Reports',
@@ -260,11 +260,11 @@ export function AgentShell({ children }) {
   const title = React.useMemo(() => {
     if (location.pathname.startsWith('/agent/hunt/')) return 'Active Hunt';
     if (location.pathname.startsWith('/agent/reports/')) return 'Report';
-    return TITLES[location.pathname] || 'Infinity AI';
+    return TITLES[location.pathname] || 'Dark Matter';
   }, [location.pathname]);
 
   const huntLinks = [
-    { to: '/agent', label: 'New Hunt', icon: Plus, end: true, primary: true },
+    { to: '/agent', label: 'New Hunt AI', icon: Plus, end: true, primary: true },
     { to: '/agent/library', label: 'Library', icon: LibraryBig },
     { to: '/agent/plugins', label: 'Plugins', icon: Blocks },
   ];
@@ -281,13 +281,13 @@ export function AgentShell({ children }) {
   const sidebar = (
     <div className="sg-side-inner">
       <div className="sg-side-head">
-        <span className="sg-side-mode">{isInfinity ? 'Infinity AI' : 'Hunt'}</span>
+        <span className="sg-side-mode">{isInfinity ? 'Infinity AI' : 'Hunt AI'}</span>
         <button className="sg-side-close" onClick={closeDrawer} aria-label="Close menu">
           <X size={18} />
         </button>
       </div>
 
-      <nav className="sg-side-nav" aria-label={isInfinity ? 'Infinity AI' : 'Hunt'}>
+      <nav className="sg-side-nav" aria-label={isInfinity ? 'Infinity AI' : 'Hunt AI'}>
         {modeLinks.map(({ to, label, icon: Icon, end, primary, state }) => (
           primary ? (
             <button
@@ -352,7 +352,7 @@ export function AgentShell({ children }) {
           <UserRound size={17} strokeWidth={1.9} /> <span>Account</span>
         </NavLink>
         <button className="sg-side-signout" onClick={logout}>Sign out</button>
-        <div className="sg-side-hint" title="Keyboard shortcuts">Alt+1 Hunt · Alt+2 Infinity AI</div>
+        <div className="sg-side-hint" title="Keyboard shortcuts">Alt+1 Hunt AI · Alt+2 Infinity AI</div>
       </div>
     </div>
   );
@@ -365,7 +365,7 @@ export function AgentShell({ children }) {
         onClick={closeDrawer}
         aria-hidden="true"
       />
-      <aside id="sg-sidebar" className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`} aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt menu'}>
+      <aside id="sg-sidebar" className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`} aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt AI menu'}>
         {sidebar}
       </aside>
 
@@ -391,7 +391,7 @@ export function AgentShell({ children }) {
             >
               <Menu size={20} />
             </button>
-            <Link to="/agent" className="sg-topbar-brand" title="Infinity AI home">
+            <Link to="/agent" className="sg-topbar-brand" title="Dark Matter home">
               <Logo size={30} />
             </Link>
             <nav className="sg-tabs" aria-label="Primary">

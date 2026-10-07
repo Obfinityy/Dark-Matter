@@ -110,7 +110,7 @@ export function Settings() {
       <section className="sg-card sg-card-pad" aria-labelledby="sg-set-brain">
         <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-brain"><Cpu size={18} aria-hidden="true" /> Brain</h3>
         <p className="sg-body">
-          The same brain powers both Hunt and Infinity AI.
+          The same brain powers both Hunt AI and Infinity AI.
         </p>
         {providers ? (
           <div className="sg-brain-info">

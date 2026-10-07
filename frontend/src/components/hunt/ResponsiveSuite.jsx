@@ -888,7 +888,7 @@ export function CondensedMobileHeader() {
   return (
     <PhoneFrame>
       <header className="rs-mheader">
-        <span className="rs-logo" aria-label="Infinity AI">∞</span>
+        <span className="rs-logo" aria-label="Dark Matter">∞</span>
         <span className="rs-status-pill">● Running</span>
         <div className="rs-overflow-wrap">
           <button type="button" className="rs-overflow-btn" aria-label="More actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>⋯</button>
@@ -1008,7 +1008,7 @@ export function SlimOfflineBanner() {
 /* ------------------------------------------------------------------ */
 
 const TOUR_STEPS = [
-  { title: 'Welcome to the hunt', body: 'This tour stays docked above the action bar — it never covers the Start Hunt button or the tab bar.' },
+  { title: 'Welcome to Hunt AI', body: 'This tour stays docked above the action bar — it never covers the Start Hunt button or the tab bar.' },
   { title: 'Review findings', body: 'Swipe a finding row to review or snooze it. Try it in the 50612 demo above.' },
   { title: 'You are set', body: 'The tour is done. Every step kept a clear safe zone around tappable controls.' },
 ];

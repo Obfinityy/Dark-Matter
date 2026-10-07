@@ -929,7 +929,7 @@ function ControlPane({ mode, setMode }) {
           <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
         </span>
         {brainName && (
-          <span className="sg-chip" title="The brain thinking for Control mode — same as Hunt and Infinity AI">
+          <span className="sg-chip" title="The brain thinking for Control mode — same as Hunt AI and Infinity AI">
             <Bot size={12} /> Brain: {brainName}
           </span>
         )}

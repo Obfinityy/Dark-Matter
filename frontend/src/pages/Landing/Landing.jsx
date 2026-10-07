@@ -25,7 +25,7 @@ const STEPS = [
   {
     icon: Search,
     title: 'AI hunts autonomously',
-    text: 'Infinity AI reconnoiters the target, probes for vulnerabilities, validates every finding, and chains them into real attack paths — all on its own.',
+    text: 'Hunt AI reconnoiters the target, probes for vulnerabilities, validates every finding, and chains them into real attack paths — all on its own.',
   },
   {
     icon: FileCheck,
@@ -97,7 +97,7 @@ function Hero() {
           Paste a link. <span className="lp-gradient">AI hunts the bugs.</span>
         </h1>
         <p className="lp-sub">
-          Infinity AI reconnoiters your target, finds vulnerabilities, proves each one
+          Dark Matter reconnoiters your target, finds vulnerabilities, proves each one
           with a working PoC, and writes the report — all autonomously, better than any human hunter.
         </p>
         <form className="lp-hero-form" onSubmit={start}>
@@ -154,7 +154,7 @@ function LiveHuntCTA() {
     <section className="lp-cta" aria-labelledby="lp-cta-h">
       <div className="lp-cta-inner">
         <h2 id="lp-cta-h">Watch it hunt, live.</h2>
-        <p>Open the console and see Infinity AI think, probe, validate, and report — in real time.</p>
+        <p>Open the console and see Hunt AI think, probe, validate, and report — in real time.</p>
         <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={() => navigate('/agent')}>
           Open live hunt <ArrowRight size={18} />
         </button>

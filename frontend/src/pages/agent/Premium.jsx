@@ -191,7 +191,7 @@ export function Premium() {
         order_id: order.id,
         amount: order.amount,
         currency: order.currency,
-        name: 'Infinity AI',
+        name: 'Dark Matter',
         description: `${tier.name} — monthly`,
         theme: { color: '#7c3aed' },
         handler: async (resp) => {

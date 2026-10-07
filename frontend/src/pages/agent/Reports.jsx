@@ -53,7 +53,7 @@ export function Reports() {
 
       <div className="sg-notice">
         <ShieldCheck size={16} aria-hidden="true" />
-        <span><strong>Report already exists for a target?</strong> Pasting the same target again shows the saved report instantly — no re-hunt, no duplicate work. Use “Start new hunt” on the Hunt page only when you want a fresh run.</span>
+        <span><strong>Report already exists for a target?</strong> Pasting the same target again shows the saved report instantly — no re-hunt, no duplicate work. Use “Start new hunt” on the Hunt AI page only when you want a fresh run.</span>
       </div>
 
       {records.length === 0 ? (

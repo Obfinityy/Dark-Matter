@@ -233,7 +233,7 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
                   className="sg-btn sg-btn-primary"
                   onClick={() => onRun(model.id, { quant: runQuant, contextSize: ctxSize })}
                   disabled={busyModel === model.id || !engineReady}
-                  title={!engineReady ? 'Download the engine first' : `Run ${runQuant} with ${ctxLabel(ctxSize)} — it becomes the brain for Hunt and Infinity AI`}
+                  title={!engineReady ? 'Download the engine first' : `Run ${runQuant} with ${ctxLabel(ctxSize)} — it becomes the brain for Hunt AI and Infinity AI`}
                 >
                   {busyModel === model.id ? <Loader2 size={15} className="sg-spin" /> : <Play size={15} />}
                   Run{runQuant && runQuant !== 'Q4_K_M' ? ` ${runQuant}` : ''}
@@ -471,7 +471,7 @@ function BrainSlotCard({
                             className="sg-btn sg-btn-primary sg-btn-sm"
                             onClick={() => onRunSlot(slotId, m.id)}
                             disabled={slotBusy === `${slotId}-run` || !engineReady}
-                            title={`Run ${m.name} on localhost for ${slot.label} (own port) — it becomes the brain for Hunt and Infinity AI`}
+                            title={`Run ${m.name} on localhost for ${slot.label} (own port) — it becomes the brain for Hunt AI and Infinity AI`}
                           >
                             {slotBusy === `${slotId}-run` ? <Loader2 size={14} className="sg-spin" /> : <Play size={14} />}
                             Run
@@ -610,7 +610,7 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
 
   const PRODUCTS = [
     {
-      name: 'Hunt',
+      name: 'Hunt AI',
       icon: '🎯',
       desc: 'Autonomous bug-bounty hunter — three brains observe, think, and act together.',
       needs: ['hacker', 'vision', 'grounding'],
@@ -928,7 +928,7 @@ export function ModelLibrary() {
     // The engine (llama-server) must download to the USER'S LOCAL MACHINE —
     // it runs models there, not on the cloud backend.
     if (!localBackendUp) {
-      setError('Start the Infinity AI backend on your computer (localhost:4000) to download the engine. The engine runs on YOUR machine, not the cloud.');
+      setError('Start the Dark Matter backend on your computer (localhost:4000) to download the engine. The engine runs on YOUR machine, not the cloud.');
       return;
     }
     setBusyEngine(true);
@@ -958,7 +958,7 @@ export function ModelLibrary() {
     stopProgressStream();
     // Models download to the USER'S LOCAL MACHINE via the local backend.
     if (!localBackendUp) {
-      setError('Start the Infinity AI backend on your computer (localhost:4000) to download models. Models run on YOUR machine, not the cloud.');
+      setError('Start the Dark Matter backend on your computer (localhost:4000) to download models. Models run on YOUR machine, not the cloud.');
       return;
     }
     try {
@@ -1065,7 +1065,7 @@ export function ModelLibrary() {
     setBusyModel(modelId);
     // Models run on the USER'S LOCAL MACHINE, each on its own random localhost port.
     if (!localBackendUp) {
-      setError('Start the Infinity AI backend on your computer (localhost:4000) to run models. Models run on YOUR machine, not the cloud.');
+      setError('Start the Dark Matter backend on your computer (localhost:4000) to run models. Models run on YOUR machine, not the cloud.');
       setBusyModel(null);
       return;
     }
@@ -1142,7 +1142,7 @@ export function ModelLibrary() {
     if (!window.confirm('Delete this model from your computer to free up disk space?')) return;
     setError('');
     try {
-      if (!localBackendUp) throw new Error('Start the Infinity AI backend on your computer (localhost:4000) first.');
+      if (!localBackendUp) throw new Error('Start the Dark Matter backend on your computer (localhost:4000) first.');
       await removeModelLocal(modelId);
       setDownloadedIds((prev) => { const next = new Set(prev); next.delete(modelId); return next; });
       refresh();
@@ -1188,7 +1188,7 @@ export function ModelLibrary() {
         <h2 className="ml-title">Models — the brain library</h2>
         <p className="ml-sub">
           Every model here is <b>uncensored</b>. Pick one, press <b>Download</b>, then <b>Run</b> —
-          it starts on localhost and becomes the active brain for Hunt and Infinity AI.
+          it starts on localhost and becomes the active brain for Hunt AI and Infinity AI.
         </p>
       </div>
 
@@ -1241,7 +1241,7 @@ export function ModelLibrary() {
             <div>
               <strong>Step 0 — one-time engine download</strong>
               <p>
-                Infinity AI ships its own tiny inference engine (llama-server). It downloads
+                Dark Matter ships its own tiny inference engine (llama-server). It downloads
                 once for your OS — after that, models run directly on your computer, no Ollama needed.
               </p>
             </div>
@@ -1271,7 +1271,7 @@ export function ModelLibrary() {
           <div>
             <strong>Brain Slots — three brains, each with local + Kaggle options</strong>
             <p>
-              <b>Hunt</b> uses all three brains. <b>Infinity Chat</b> uses only Vision.
+              <b>Hunt AI</b> uses all three brains. <b>Infinity Chat</b> uses only Vision.
               <b> Control</b> uses Vision + Grounding. Each slot runs on a local model
               <b> or</b> its own Kaggle link — your choice per slot.
             </p>
@@ -1329,7 +1329,7 @@ export function ModelLibrary() {
             <div>
               <strong>{running.name || running.modelId}</strong>
               <span className="sg-small">
-                Running on localhost{running.port ? ` :${running.port}` : ''} — thinking for Hunt and Infinity AI
+                Running on localhost{running.port ? ` :${running.port}` : ''} — thinking for Hunt AI and Infinity AI
               </span>
             </div>
           </div>

@@ -323,7 +323,7 @@ export function PrintableShortcutCard({ onResetDefaults }) {
   return (
     <div className="adv-print-card">
       <div className="adv-print-head">
-        <h2>Keyboard shortcuts — Dark-Matter</h2>
+        <h2>Keyboard shortcuts — Dark Matter</h2>
         <div className="adv-print-actions">
           <button type="button" onClick={() => window.print()}>Print</button>
           <button type="button" onClick={() => { try { localStorage.removeItem('dm-shortcut-remaps-v1'); } catch { /* ignore */ } onResetDefaults?.(); }}>Reset to defaults</button>

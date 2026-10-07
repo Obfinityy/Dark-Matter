@@ -20,7 +20,7 @@ import {
 
 export function VersionCopyButton({ version = '2.4.1', build = '8812' }) {
   const { copy, status } = useCopy();
-  const text = versionInfoString({ version, build }) || 'Dark-Matter';
+  const text = versionInfoString({ version, build }) || 'Dark Matter';
   return (
     <button
       type="button"

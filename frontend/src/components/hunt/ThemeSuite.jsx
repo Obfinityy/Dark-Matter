@@ -608,7 +608,7 @@ export function ThemedLogo({ size = 40 }) {
         const t = THEMES[id];
         return (
           <div key={id} className="th-logo-cell" data-theme={id} title={`${t.label} variant`}>
-            <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label={`Infinity AI logo, ${t.label} variant`}>
+            <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label={`Dark Matter logo, ${t.label} variant`}>
               <rect x="2" y="2" width="44" height="44" rx="11" fill={t.surface.raised} stroke={t.surface.border} strokeWidth="2" />
               <text x="24" y="33" fontSize="24" textAnchor="middle" fill={t.accent} fontFamily="Georgia,serif">∞</text>
             </svg>
