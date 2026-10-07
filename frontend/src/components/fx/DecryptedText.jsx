@@ -12,6 +12,7 @@
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './DecryptedText.css';
+import './DecryptedText.polish.css';
 
 const GLYPHS = '!<>-_\\/[]{}—=+*^?#@$%&0123456789ABCDEF';
 
@@ -96,9 +97,14 @@ export function DecryptedText({
     <Tag
       className={`dt-text ${done ? 'dt-done' : 'dt-scrambling'} ${className}`}
       aria-label={text}
-      data-text={text}
+      aria-live="off"
     >
-      {display}
+      {/* Invisible sizer reserves the final text width in-flow so the
+          scrambling glyphs never shift surrounding layout; the live text
+          overlays it exactly. Screen readers use aria-label, never the
+          scrambled characters. */}
+      <span className="dt-sizer" aria-hidden="true">{text}</span>
+      <span className="dt-live" aria-hidden="true">{display}</span>
     </Tag>
   );
 }

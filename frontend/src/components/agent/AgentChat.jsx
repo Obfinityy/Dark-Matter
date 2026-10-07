@@ -20,6 +20,7 @@ import { askJob } from '../../services/api';
 import { speak } from '../../services/voice';
 import { MicButton } from './VoiceInput';
 import { useVoiceConversation } from '../../hooks/useVoiceConversation';
+import './AgentChat.polish.css';
 
 const DEFAULT_SUGGESTIONS = [
   'Kya kar raha hai?',
@@ -234,6 +235,7 @@ export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false
               onChange={(e) => setInput(e.target.value)}
               placeholder="Agent se poochho… jaise “kya kar raha hai?”"
               aria-label="Message the hunting agent"
+              aria-describedby="dm-chat-hint"
               disabled={waiting}
               maxLength={2000}
             />
@@ -258,7 +260,7 @@ export function AgentChat({ jobId = null, huntRunning = false, voiceMode = false
                   : 'Voice chat on'}
             </p>
           )}
-          <p className="dm-chat-hint">Seedha hunting agent se connected — jawab hunt ke live state se aata hai.</p>
+          <p className="dm-chat-hint" id="dm-chat-hint">Seedha hunting agent se connected — jawab hunt ke live state se aata hai.</p>
         </>
       )}
     </section>

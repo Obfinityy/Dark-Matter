@@ -15,6 +15,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { TerminalSquare } from 'lucide-react';
 import { subscribeToJobEvents, getJobActivity, getJobEventHistory } from '../../services/api';
+import './HackerTerminal.polish.css';
 
 const KIND_STYLE = {
   brain: 'dm-term-brain',
@@ -183,15 +184,24 @@ export function HackerTerminal({
         {lines.length === 0 && (
           <div className="dm-term-empty">waiting for the agent to speak…</div>
         )}
-        {lines.map((line) => (
-          <div key={line.id} className={`dm-term-line ${KIND_STYLE[line.kind] || ''}`}>
-            <span className="dm-term-ts">
-              {line.at ? new Date(line.at).toLocaleTimeString('en-GB', { hour12: false }) : '--:--:--'}
-            </span>
-            <span className="dm-term-tag">{line.type}</span>
-            <span className="dm-term-text">{line.text}</span>
-          </div>
-        ))}
+        {lines.map((line) => {
+          const when = line.at ? new Date(line.at) : null;
+          const valid = when instanceof Date && !Number.isNaN(when.getTime());
+          const clock = valid ? when.toLocaleTimeString('en-GB', { hour12: false }) : '--:--:--';
+          return (
+            <div key={line.id} className={`dm-term-line ${KIND_STYLE[line.kind] || ''}`}>
+              <time
+                className="dm-term-ts"
+                dateTime={valid ? when.toISOString() : undefined}
+                aria-label={valid ? `at ${clock}` : 'unknown time'}
+              >
+                {clock}
+              </time>
+              <span className="dm-term-tag" aria-hidden="true">{line.type}</span>
+              <span className="dm-term-text">{line.text}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

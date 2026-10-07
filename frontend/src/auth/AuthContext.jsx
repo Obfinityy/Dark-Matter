@@ -15,6 +15,7 @@ import {
   logoutAccount,
   storeJwt
 } from '../services/api';
+import './AuthContext.polish.css';
 
 const AuthContext = createContext(null);
 
@@ -87,7 +88,7 @@ export function useAuth() {
 export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="dm-boot">Loading Infinity AI…</div>;
+  if (loading) return <div className="dm-boot" role="status" aria-live="polite"><span>Loading Infinity AI…</span></div>;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return children;
 }
@@ -96,7 +97,7 @@ export function ProtectedRoute({ children }) {
 export function PublicRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="dm-boot">Loading Infinity AI…</div>;
+  if (loading) return <div className="dm-boot" role="status" aria-live="polite"><span>Loading Infinity AI…</span></div>;
   if (user) {
     const from = location.state?.from || '/agent';
     return <Navigate to={from} replace />;
