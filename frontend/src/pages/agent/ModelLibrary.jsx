@@ -30,7 +30,7 @@ import {
   removeRunnerModel, addRunnerCustomModel,
   stopRunnerModel,
   runModelFile, subscribeToModelProgress,
-  getBrainChain, getBrainSlots, getSlotAssignments,
+  getBrainChain, getBrainSlots,
   getSlotSources, connectSlotKaggle, disconnectSlotKaggle,
   testRemoteModel, getSlotServers, runSlotServer, stopSlotServer,
   tryApi
@@ -262,7 +262,7 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
  * - Hacker: Hunt only
  */
 function BrainSlotCard({
-  slotId, slot, assignments, sources, slotServers,
+  slotId, slot, sources, slotServers,
   download, downloadedIds, engineReady, slotBusy, kaggleBusy, kaggleMsg,
   onDownload, onCancelDownload, onRemove, onRunSlot, onStopSlot,
   onKaggleConnect, onKaggleDisconnect, onKaggleTest,
@@ -270,7 +270,6 @@ function BrainSlotCard({
 }) {
   const source = sources[slotId]?.source || 'local';
   const kaggle = sources[slotId]?.source === 'kaggle' ? sources[slotId] : null;
-  const assignedModelId = assignments[slotId];
   const server = slotServers?.[slotId] || null; // running server for this slot
   const [tab, setTab] = useState(source); // 'local' | 'kaggle'
 
@@ -292,14 +291,16 @@ function BrainSlotCard({
             Used by: {(slot.usedBy || []).join(', ')}
           </div>
         </div>
-        {/* Active status */}
+        {/* Active status: what is actually running on this slot right now.
+            The old "Select/assign" concept is gone — Download → Run is the
+            flow, so the header reflects the live server, not a saved pick. */}
         {kaggle ? (
           <span className="sg-pill sg-pill-go" title={kaggle.kaggleUrl}>
             <span className="sg-pulse-dot" /> Kaggle: {kaggle.kaggleName || 'GPU'}
           </span>
-        ) : assignedModelId ? (
-          <span className="sg-pill sg-pill-go">
-            <CheckCircle2 size={12} /> {slotModels.find(m => m.id === assignedModelId)?.name || 'Local'}
+        ) : server ? (
+          <span className="sg-pill sg-pill-go" title={server.baseUrl || 'Running on localhost'}>
+            <span className="sg-pulse-dot" /> Running{server.port ? ` :${server.port}` : ''}
           </span>
         ) : (
           <span className="sg-pill ml-slot-unset">Not set</span>
@@ -326,7 +327,9 @@ function BrainSlotCard({
       {tab === 'local' && (
         <div className="ml-slot-models">
           {slotModels.map((m) => {
-            const isActive = assignedModelId === m.id && source === 'local';
+            // Highlight the model actually RUNNING on this slot (not the old
+            // saved assignment — the Select/assign concept is removed).
+            const isActive = server?.modelId === m.id && source === 'local';
             const dl = download && download.modelId === m.id;
             const pct = dl ? (download.percent || 0) : 0;
             const isDl = dl && !['done', 'idle'].includes(download.status);
@@ -665,7 +668,6 @@ export function ModelLibrary() {
   const [customBusy, setCustomBusy] = useState(false);
   const [brainChain, setBrainChain] = useState(null); // { provider, modelId, remoteGpu, chain[] }
   const [brainSlots, setBrainSlots] = useState(null); // { vision: {...}, grounding: {...}, hacker: {...} }
-  const [slotAssignments, setSlotAssignments] = useState({}); // { vision: modelId, grounding: modelId, hacker: modelId }
   const [slotSources, setSlotSources] = useState({}); // { vision: { source: 'local'|'kaggle', ... }, ... }
   const [slotServers, setSlotServers] = useState({}); // { vision: {port, baseUrl, ...}|null, ... }
   const [slotBusy, setSlotBusy] = useState(null);
@@ -716,25 +718,23 @@ export function ModelLibrary() {
     try {
       // Model list comes from the frontend catalog (no backend needed).
       // Brain slots/status still use the backend when available.
-      const [st, chain, slots, assignments, sources, servers] = await Promise.all([
+      const [st, chain, slots, sources, servers] = await Promise.all([
         tryApi(getRunnerStatus()),
         tryApi(getBrainChain()),
         tryApi(getBrainSlots()),
-        tryApi(getSlotAssignments()),
         tryApi(getSlotSources()),
         tryApi(getSlotServers())
       ]);
-      const errors = [st, chain, slots, assignments, sources, servers]
+      const errors = [st, chain, slots, sources, servers]
         .map((r) => r.error).filter(Boolean);
       // Backend status: only for brain slots etc. Models always show (frontend catalog).
-      const allNetworkFailed = errors.length === 6
+      const allNetworkFailed = errors.length === 5
         && errors.every((e) => e.status === 0 || e.code === 'BACKEND_UNAVAILABLE');
       const anyAuthFailed = errors.some((e) => e.status === 401);
       setBackendDown(allNetworkFailed);
       setAuthExpired(!allNetworkFailed && anyAuthFailed);
       if (chain.data?.chain) setBrainChain(chain.data);
       if (slots.data?.slots) setBrainSlots(slots.data.slots);
-      if (assignments.data?.assignments) setSlotAssignments(assignments.data.assignments);
       if (sources.data?.slotSources) setSlotSources(sources.data.slotSources);
       if (servers.data?.slotServers) setSlotServers(servers.data.slotServers);
       if (st.data) {
@@ -1149,7 +1149,6 @@ export function ModelLibrary() {
                 key={slotId}
                 slotId={slotId}
                 slot={slot}
-                assignments={slotAssignments}
                 sources={slotSources}
                 slotServers={slotServers}
                 download={download}
