@@ -11,9 +11,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  GRID_COLS, collides, normalizeItem, moveItem, resizeItem, compactLayout,
+  GRID_COLS, moveItem, resizeItem, compactLayout,
   gridArea, serializeLayout, deserializeLayout, presetLayout, duplicateDashboard,
-  DASHBOARD_PRESETS, TIME_RANGES, TIME_RANGE_LABELS, inRange, checkThreshold,
+  DASHBOARD_PRESETS, TIME_RANGES, TIME_RANGE_LABELS, checkThreshold,
   thresholdLabel, canSeeWidget, visibleLayout, isQuietNow, quietHoursSummary,
   kioskNext, snapshotExport, filterGalleryWidgets, updatedAgo, widgetDeepLink,
 } from './dashboardRound2Core.js';
@@ -111,7 +111,7 @@ export function WidgetFrame({
       aria-label={title}
     >
       <div className="dsh-frame-bar">
-        <span className="dsh-drag" {...dragHandleProps} title="Drag to reorder">⠿</span>
+        <span className="dsh-drag" {...dragHandleProps} title="Drag to reorder" aria-hidden="true">⠿</span>
         {deepLinkId ? (
           <a className="dsh-frame-title" href={widgetDeepLink(deepLinkId)}>{title}</a>
         ) : (
@@ -121,9 +121,9 @@ export function WidgetFrame({
         <select className="dsh-range" value={range} onChange={(e) => onRangeChange && onRangeChange(e.target.value)} aria-label="Time range">
           {TIME_RANGES.map((r) => <option key={r} value={r}>{TIME_RANGE_LABELS[r]}</option>)}
         </select>
-        <button className="dsh-icon-btn" onClick={onRefresh} title="Refresh this widget">↻</button>
-        <button className="dsh-icon-btn" onClick={onMaximize} title="Open full-page view">⤢</button>
-        {onRemove && <button className="dsh-icon-btn" onClick={onRemove} title="Remove widget">✕</button>}
+        <button className="dsh-icon-btn" onClick={onRefresh} title="Refresh this widget" aria-label="Refresh this widget">↻</button>
+        <button className="dsh-icon-btn" onClick={onMaximize} title="Open full-page view" aria-label="Open full-page view">⤢</button>
+        {onRemove && <button className="dsh-icon-btn" onClick={onRemove} title="Remove widget" aria-label="Remove widget">✕</button>}
       </div>
       <div className="dsh-frame-content">{children}</div>
       <div

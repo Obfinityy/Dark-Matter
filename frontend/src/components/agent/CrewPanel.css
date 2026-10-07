@@ -1,0 +1,81 @@
+/**
+ * CrewPanel.css — polish batch 7 (co-located, loaded after the shared
+ * InfinityAI styles). Token-driven radius/shadow/motion from the design
+ * tokens, entrance animations, 390px layout fixes, 44px touch targets and
+ * reduced-motion support. No behavior changes.
+ */
+
+/* ── Entrance motion ───────────────────────────────────────────────────── */
+@keyframes crew-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes crew-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.sg-crew-chat { animation: crew-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.sg-crew-form { animation: crew-rise 0.3s ease backwards; }
+.sg-crew-empty { animation: crew-rise 0.3s ease backwards; }
+.sg-crew-msg, .sg-crew-notice, .sg-crew-action, .sg-crew-thinking, .sg-crew-row {
+  animation: crew-row-in 0.25s ease backwards;
+}
+
+/* ── Card depth (token radius + shadow) ────────────────────────────────── */
+.sg-crew-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.sg-crew-card:hover { box-shadow: var(--shadow-md); }
+.sg-crew-chat { box-shadow: var(--shadow-sm); }
+
+/* ── Status dot: subtle ring so the state reads at a glance ─────────────── */
+.sg-status-dot { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06); }
+
+/* ── Form: visible focus + grouped tools ───────────────────────────────── */
+.sg-crew-field input:focus-visible, .sg-crew-field textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+  border-color: var(--accent);
+}
+.sg-crew-tools-field { border: none; padding: 0; margin: 0; min-width: 0; }
+.sg-crew-tools-field legend {
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--sg-text-3); margin-bottom: 6px; padding: 0;
+}
+.sg-crew-tool {
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.sg-crew-tool:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Events: smooth scroll, comfortable rhythm ──────────────────────────── */
+.sg-crew-events { scroll-behavior: smooth; }
+
+/* ── Chat input buttons already 44px in shared styles; keep the stop button
+      reachable and clearly a stop target ───────────────────────────────── */
+.sg-chat-input button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Responsive: 390px ─────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .sg-crew-section { padding: 0 2px; }
+  .sg-crew-head { gap: 12px; }
+  .sg-crew-head > .sg-btn { min-height: 44px; }
+  .sg-crew-form { padding: 14px; border-radius: var(--radius-md); }
+  .sg-crew-chat { padding: 14px; border-radius: var(--radius-md); }
+  .sg-crew-chat-head { gap: 8px; margin-bottom: 12px; }
+  .sg-crew-chat-head .sg-btn { min-height: 44px; }
+  .sg-crew-events { max-height: 320px; padding: 10px; }
+  .sg-crew-msg { max-width: 94%; }
+  .sg-crew-card .sg-chip-x { min-width: 44px; min-height: 44px; border-radius: var(--radius-sm); }
+  .sg-crew-tool { min-height: 44px; }
+  .sg-crew-form-actions .sg-btn { min-height: 44px; }
+}
+
+/* ── Responsive: 768px ─────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sg-crew-list { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .sg-crew-chat, .sg-crew-form, .sg-crew-empty,
+  .sg-crew-msg, .sg-crew-notice, .sg-crew-action,
+  .sg-crew-thinking, .sg-crew-row { animation: none; }
+  .sg-crew-events { scroll-behavior: auto; }
+}
