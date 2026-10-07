@@ -12,7 +12,7 @@
  *   explainer  — boolean; when true every card shows its plain explanation
  */
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, ChevronDown, FileText, Crosshair, Sparkles, Package } from 'lucide-react';
+import { ShieldAlert, ChevronDown, FileText, Crosshair, Sparkles, Package, Loader2 } from 'lucide-react';
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'informational', 'info'];
 
@@ -58,12 +58,12 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
     counts[s] = (counts[s] || 0) + 1;
   });
 
-  if (loading) return <div className="dm-findings-loading">Loading findings…</div>;
+  if (loading) return <div className="dm-findings-loading" role="status" aria-live="polite"><Loader2 size={18} className="dm-spin" aria-hidden="true" /> Loading findings…</div>;
 
   if (!sorted.length) {
     return (
       <div className="dm-findings-empty">
-        <ShieldAlert size={22} />
+        <ShieldAlert size={22} aria-hidden="true" />
         <p>No confirmed findings yet. The agent files a finding only when it has evidence — not on suspicion.</p>
       </div>
     );
@@ -93,12 +93,16 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
       </div>
 
       <div className="dm-finding-list">
-        {sorted.map((finding) => {
+        {sorted.map((finding, i) => {
           const sev = String(finding.severity || 'unknown').toLowerCase();
           const open = openId === finding.id;
           const evidenceCount = (finding.evidence && finding.evidence.length) || 0;
           return (
-            <div key={finding.id} className={`dm-finding sev-${sev} ${open ? 'open' : ''}`}>
+            <div
+              key={finding.id || `${sev}-${i}`}
+              className={`dm-finding sev-${sev} ${open ? 'open' : ''}`}
+              style={{ animationDelay: `${Math.min(i, 10) * 45}ms` }}
+            >
               <button
                 className="dm-finding-head"
                 onClick={() => setOpenId(open ? null : finding.id)}
@@ -110,24 +114,24 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
                 {finding.cvssMetrics?.baseScore != null && (
                   <span className="dm-cvss">CVSS {Number(finding.cvssMetrics.baseScore).toFixed(1)}</span>
                 )}
-                <ChevronDown size={15} className={`dm-chev ${open ? 'open' : ''}`} />
+                <ChevronDown size={15} className={`dm-chev ${open ? 'open' : ''}`} aria-hidden="true" />
               </button>
 
               {(open || explainAll) && (
-                <div className="dm-finding-body" id={`finding-body-${finding.id}`} role="region">
+                <div className="dm-finding-body" id={`finding-body-${finding.id}`} role="region" aria-label={finding.title || finding.category || 'Finding details'}>
                   {(explainAll) && (
                     <p className="dm-finding-explainer">
-                      <Sparkles size={13} /> {explainFinding(finding)}
+                      <Sparkles size={13} aria-hidden="true" /> {explainFinding(finding)}
                     </p>
                   )}
                   {open && (
                     <>
                       <div className="dm-finding-meta">
-                        {finding.category && <span><Crosshair size={12} /> {finding.category}</span>}
+                        {finding.category && <span><Crosshair size={12} aria-hidden="true" /> {finding.category}</span>}
                         {(finding.affectedEndpoint || finding.affectedAsset) && (
-                          <span><FileText size={12} /> {finding.affectedEndpoint || finding.affectedAsset}</span>
+                          <span><FileText size={12} aria-hidden="true" /> {finding.affectedEndpoint || finding.affectedAsset}</span>
                         )}
-                        {evidenceCount > 0 && <span><Package size={12} /> {evidenceCount} evidence</span>}
+                        {evidenceCount > 0 && <span><Package size={12} aria-hidden="true" /> {evidenceCount} evidence</span>}
                         {finding.confidence != null && <span>confidence {Math.round(finding.confidence * 100)}%</span>}
                       </div>
                       {finding.description && <p className="dm-finding-desc">{finding.description}</p>}

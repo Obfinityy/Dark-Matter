@@ -6,11 +6,12 @@ import React from 'react';
  * spins and pulses while the hunt is running. Professional, minimal.
  */
 export function AgentCharacter({ active = false, listening = false, status = 'Idle' }) {
+  const accessibleStatus = listening ? `${status} — listening` : status;
   return (
     <div
       className={`sg-agent-char${active ? ' working' : ' idle'}${listening ? ' listening' : ''}`}
       role="status"
-      aria-label={`Agent status: ${status}`}
+      aria-label={`Agent status: ${accessibleStatus}`}
     >
       <svg className="sg-agent-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
         <circle className="sg-orbit sg-orbit-outer" cx="60" cy="60" r="52" fill="none"
@@ -30,7 +31,7 @@ export function AgentCharacter({ active = false, listening = false, status = 'Id
         </g>
       </svg>
       <div className="sg-agent-char-label">
-        <span className={`sg-agent-state${active ? ' on' : ''}`}>
+        <span className={`sg-agent-state${active ? ' on' : ''}${listening ? ' listening' : ''}`}>
           <span className="visually-hidden">Agent status: </span>
           <span className="sg-live-dot" aria-hidden="true" />
           {status}
