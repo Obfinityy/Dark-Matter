@@ -1,0 +1,31 @@
+/* ChainGraphSearch.css — Forge wave 8, idea 50282. */
+.cg-search { position: relative; max-width: 560px; margin: 0.5rem 0; }
+.cg-input {
+  width: 100%; padding: 0.6rem 0.9rem; border-radius: 10px;
+  background: #141a30; color: #e6ebff; border: 1px solid rgba(140,160,220,.35);
+  font-size: 0.92rem;
+}
+.cg-input:focus { outline: none; border-color: #8ea2f5; }
+.cg-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+  background: #10162b; border: 1px solid rgba(140,160,220,.3); border-radius: 10px;
+  max-height: 280px; overflow-y: auto; padding: 0.35rem;
+}
+.cg-node {
+  display: flex; align-items: center; gap: 0.6rem; width: 100%;
+  background: transparent; border: none; color: #d7def5; text-align: left;
+  padding: 0.5rem 0.6rem; border-radius: 7px; cursor: pointer; font-size: 0.9rem;
+}
+.cg-node.active, .cg-node:hover { background: rgba(120,150,255,.16); }
+.cg-kind { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #8ea2f5; flex: none; }
+.cg-kind[data-kind="finding"] { background: #f87171; }
+.cg-kind[data-kind="asset"] { background: #60a5fa; }
+.cg-kind[data-kind="chain"] { background: #c084fc; }
+.cg-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cg-sev { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.1rem 0.45rem; border-radius: 999px; }
+.sev-critical { background: rgba(248,113,113,.2); color: #fca5a5; }
+.sev-high { background: rgba(251,146,60,.2); color: #fdba74; }
+.sev-medium { background: rgba(250,204,21,.2); color: #fde047; }
+.sev-low { background: rgba(96,165,250,.2); color: #93c5fd; }
+.cg-empty { padding: 0.8rem; color: #77819f; font-size: 0.88rem; text-align: center; }
+.cg-count { margin-top: 0.3rem; font-size: 0.78rem; color: #77819f; }

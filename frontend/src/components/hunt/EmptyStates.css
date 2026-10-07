@@ -1,0 +1,97 @@
+/* EmptyStates.css — Forge wave 8, ideas 50290–50320. */
+
+.es {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1.5rem;
+  border: 1px dashed rgba(140, 160, 220, 0.35);
+  border-radius: 14px;
+  background: rgba(18, 24, 44, 0.45);
+  color: #d7def5;
+  max-width: 640px;
+  margin: 1rem auto;
+}
+
+.es-compact {
+  padding: 1.4rem 1rem;
+  max-width: 520px;
+}
+
+.es-tone-success { border-color: rgba(74, 222, 128, 0.4); }
+.es-tone-hero { border-style: solid; border-color: rgba(120, 150, 255, 0.5); }
+
+.es-illustration { font-size: 2.2rem; line-height: 1; color: #8ea2f5; }
+
+.es-hero-art {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  background: rgba(120, 150, 255, 0.14);
+  font-size: 1.6rem;
+}
+
+.es-hero-art.es-clean { background: rgba(74, 222, 128, 0.16); color: #4ade80; }
+
+.es-pulse {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: #8ea2f5;
+  animation: es-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes es-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.es-title { font-size: 1.15rem; font-weight: 650; margin: 0; color: #eef2ff; }
+.es-desc { margin: 0; color: #aab6dd; font-size: 0.92rem; max-width: 44ch; }
+.es-hint { margin: 0; color: #77819f; font-size: 0.8rem; }
+
+.es-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; margin-top: 0.4rem; }
+
+.es-btn {
+  border-radius: 9px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.es-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.es-primary { background: #4f6df5; color: #fff; }
+.es-primary:hover:not(:disabled) { background: #3f5be0; }
+.es-secondary { background: transparent; color: #b9c4ea; border-color: rgba(140, 160, 220, 0.4); }
+.es-secondary:hover { border-color: #8ea2f5; color: #e6ebff; }
+
+.es-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; margin-top: 0.4rem; }
+
+.es-chip {
+  background: rgba(120, 150, 255, 0.1);
+  border: 1px solid rgba(120, 150, 255, 0.35);
+  color: #c9d3f7;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.es-chip:hover { background: rgba(120, 150, 255, 0.2); }
+
+.es-compare { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; margin-top: 0.6rem; }
+.es-compare select {
+  background: #141a30;
+  color: #d7def5;
+  border: 1px solid rgba(140, 160, 220, 0.35);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.88rem;
+}
