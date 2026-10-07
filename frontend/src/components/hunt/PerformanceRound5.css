@@ -1,0 +1,131 @@
+/* PerformanceRound5.css — wave 25 (ideas 50961–51000): perceived-performance suite.
+   Scoped under .perf5-* to avoid collisions. Dark-first with light-theme hooks. */
+
+.perf5-gallery { display: grid; gap: 16px; padding: 8px; }
+.perf5-section { border: 1px solid var(--perf5-border, rgba(255,255,255,.08)); border-radius: 12px; padding: 4px; background: var(--perf5-bg, rgba(255,255,255,.02)); }
+
+.perf5-card { padding: 16px; border-radius: 10px; background: rgba(255,255,255,.03); }
+.perf5-card h4 { margin: 0 0 10px; font-size: 14px; letter-spacing: .02em; }
+.perf5-note { font-size: 12.5px; opacity: .75; margin: 10px 0 0; line-height: 1.5; }
+.perf5-mini { font-size: 11.5px; opacity: .6; }
+.perf5-pre { font-size: 11.5px; background: rgba(0,0,0,.35); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+.perf5-pre.scroll { max-height: 220px; overflow-y: auto; white-space: pre-wrap; }
+.perf5-code { font-size: 12px; background: rgba(0,0,0,.35); border-radius: 6px; padding: 3px 8px; word-break: break-all; }
+
+.perf5-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.perf5-list { margin: 8px 0; padding-left: 20px; font-size: 13px; }
+.perf5-list li { margin: 3px 0; }
+
+.perf5-btn { font-size: 12.5px; padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: inherit; cursor: pointer; transition: background .15s, transform .1s; }
+.perf5-btn:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.perf5-btn:active:not(:disabled) { transform: scale(.97); }
+.perf5-btn:disabled { opacity: .5; cursor: not-allowed; }
+.perf5-btn.primary { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+.perf5-chip { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: inherit; cursor: pointer; }
+.perf5-chip.on { background: rgba(59,130,246,.25); border-color: #3b82f6; }
+
+.perf5-input, .perf5-textarea { font-size: 13px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.3); color: inherit; width: 100%; box-sizing: border-box; }
+.perf5-textarea { resize: vertical; }
+
+.perf5-check { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; margin: 6px 0; }
+
+/* 50961 — font demo renders with font-display: swap stack */
+.perf5-fontdemo { font-family: 'InfinitySans', system-ui, sans-serif; font-size: 15px; }
+
+/* 50962 — tabs */
+.perf5-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.perf5-tab { font-size: 12.5px; padding: 6px 14px; border-radius: 8px 8px 0 0; border: 1px solid rgba(255,255,255,.12); background: transparent; color: inherit; cursor: pointer; }
+.perf5-tab.active { background: rgba(59,130,246,.2); border-bottom-color: transparent; }
+.perf5-pane { border: 1px solid rgba(255,255,255,.12); border-radius: 0 8px 8px 8px; padding: 12px; font-size: 13px; min-height: 44px; }
+
+/* 50963 — ghost buttons: disabled-looking until data arrives */
+.perf5-ghostbtn.ghost { opacity: .45; filter: saturate(.4); cursor: wait; font-size: 12.5px; padding: 7px 14px; border-radius: 8px; border: 1px dashed rgba(255,255,255,.2); background: transparent; color: inherit; }
+.perf5-ghostbtn.ready { font-size: 12.5px; padding: 7px 14px; border-radius: 8px; border: 1px solid #3b82f6; background: rgba(59,130,246,.2); color: inherit; cursor: pointer; }
+
+/* 50964 — thumbnail */
+.perf5-thumb { width: 160px; height: 96px; border-radius: 8px; background-size: cover; background-position: center; background-color: rgba(255,255,255,.05); margin-top: 8px; border: 1px solid rgba(255,255,255,.1); }
+
+/* 50965 — presence avatars */
+.perf5-avatars { display: flex; gap: 6px; margin-top: 8px; }
+.perf5-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; }
+
+/* 50967 — dialog */
+.perf5-dialog { margin-top: 10px; padding: 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.4); display: flex; gap: 10px; align-items: center; font-size: 13px; }
+
+/* 50968 — reserved slot prevents CLS */
+.perf5-slot { border: 1px dashed rgba(255,255,255,.16); border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: min-height .2s; }
+.perf5-empty { font-size: 12.5px; opacity: .55; }
+.perf5-finding { padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); font-size: 13px; margin: 6px 0; }
+
+/* 50969 — step */
+.perf5-step { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+
+/* 50972 — chat */
+.perf5-msg { padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,.04); margin: 6px 0; font-size: 13px; }
+.perf5-seen { font-size: 11px; opacity: .6; margin-left: 8px; }
+
+/* 50973/50993 — progress bar */
+.perf5-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; margin: 8px 0; }
+.perf5-barfill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); border-radius: 3px; transition: width .2s; }
+.perf5-sliced { font-size: 12px; opacity: .7; max-height: 110px; overflow: hidden; }
+
+/* 50975 — severity pills */
+.perf5-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; }
+.perf5-pill.critical { background: rgba(239,68,68,.2); color: #fca5a5; }
+.perf5-pill.high { background: rgba(249,115,22,.2); color: #fdba74; }
+.perf5-pill.medium { background: rgba(234,179,8,.2); color: #fde047; }
+.perf5-pill.low { background: rgba(34,197,94,.2); color: #86efac; }
+.perf5-pill.pending { opacity: .75; border: 1px dashed currentColor; }
+
+/* 50978 — widget with updating shimmer */
+.perf5-widget { position: relative; padding: 12px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); font-size: 13px; }
+.perf5-widget.updating::after { content: ''; position: absolute; inset: 0; border-radius: 10px; background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.08) 50%, transparent 60%); background-size: 200% 100%; animation: perf5-shimmer 1.2s infinite; pointer-events: none; }
+.perf5-shimmer { font-size: 11.5px; opacity: .6; margin-top: 6px; }
+@keyframes perf5-shimmer { from { background-position: 180% 0; } to { background-position: -80% 0; } }
+
+/* 50983 — attachments */
+.perf5-atts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.perf5-att { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); font-size: 12.5px; }
+.perf5-att.placeholder { border-style: dashed; opacity: .85; }
+.perf5-atticon { font-size: 18px; }
+
+/* 50985 — done state */
+.perf5-done { font-size: 14px; padding: 12px; border-radius: 8px; background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); margin-bottom: 10px; }
+
+/* 50986 — SLA badge */
+.perf5-sla { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+.perf5-sla.on-track { background: rgba(34,197,94,.18); color: #86efac; }
+.perf5-sla.at-risk { background: rgba(234,179,8,.18); color: #fde047; }
+.perf5-sla.breached { background: rgba(239,68,68,.2); color: #fca5a5; }
+
+/* 50988 — cross-fade between preset result sets */
+.perf5-preset-crossfade { animation: perf5-crossfade .45s ease; }
+@keyframes perf5-crossfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* 50989 — watch bell */
+.perf5-bell { font-size: 18px; background: transparent; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 4px 10px; cursor: pointer; opacity: .5; transition: opacity .15s, transform .15s; }
+.perf5-bell.on { opacity: 1; }
+.perf5-bell:active { transform: scale(1.15); }
+
+/* 50990 — budget table */
+.perf5-table { width: 100%; font-size: 12.5px; border-collapse: collapse; margin: 8px 0; }
+.perf5-table th, .perf5-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.perf5-pass { color: #86efac; font-weight: 700; }
+.perf5-fail { color: #fca5a5; font-weight: 700; }
+
+/* 50991 — critical CSS demo */
+.perf5-critdemo { border: 1px solid rgba(255,255,255,.12); border-radius: 8px; overflow: hidden; margin: 8px 0; }
+.perf5-critdemo-header { padding: 10px 14px; background: rgba(59,130,246,.15); font-size: 13px; font-weight: 600; }
+
+/* 50995 — toast */
+.perf5-toast { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.14); font-size: 13px; display: flex; gap: 10px; align-items: center; animation: perf5-crossfade .25s ease; }
+
+/* 50998 — light theme hook: preloaded settings, no flash */
+.perf5-card.theme-light { background: rgba(0,0,0,.03); }
+.perf5-card.theme-light .perf5-input, .perf5-card.theme-light .perf5-textarea { background: rgba(255,255,255,.7); }
+
+@media (prefers-reduced-motion: reduce) {
+  .perf5-widget.updating::after, .perf5-preset-crossfade, .perf5-toast { animation: none; }
+  .perf5-barfill { transition: none; }
+}
