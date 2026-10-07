@@ -19,13 +19,12 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   Cpu, Download, X, Loader2, Plus, Trash2, Zap, AlertTriangle,
-  Server, Play, Square, CheckCircle2, MonitorCog, MemoryStick,
+  Server, Play, Pause, Square, CheckCircle2, MonitorCog, MemoryStick,
   Cloud, Link2, Unplug, Wifi, CircuitBoard, Gauge, ShieldCheck,
   Network
 } from 'lucide-react';
 import {
   getRunnerStatus,
-  downloadRunnerEngine, subscribeToEngineStream,
   cancelRunnerDownload,
   removeRunnerModel, addRunnerCustomModel,
   stopRunnerModel,
@@ -44,7 +43,11 @@ import {
   runModelOnLocal,
   stopSlotOnLocal,
   getLocalSlotServers,
-  removeModelLocal
+  removeModelLocal,
+  downloadEngineLocal,
+  subscribeToLocalEngineStream,
+  pauseDownloadLocal,
+  resumeDownloadLocal
 } from '../../services/localModelApi';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
@@ -104,8 +107,9 @@ const CATEGORY_TABS = [
   { id: 'grounding', icon: '🎯', label: 'Grounding', role: 'Turns decisions into exact click coordinates' }
 ];
 
-function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun, onStop, onRemove, onCancelDownload }) {
+function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun, onStop, onRemove, onCancelDownload, onPauseDownload, onResumeDownload }) {
   const isDownloading = download && download.modelId === model.id && !['done', 'idle'].includes(download.status);
+  const isPaused = download && download.modelId === model.id && download.status === 'paused';
   const dlFailed = download && download.modelId === model.id && (download.status === 'error' || download.status === 'cancelled');
   const compat = model.browserCompat || {};
   const req = model.requirements || {};
@@ -179,14 +183,34 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
             <span>
               {dlFailed
                 ? `${download.status === 'cancelled' ? 'Cancelled' : `Failed: ${download.error || 'unknown error'}`}`
-                : `Downloading ${download.quant || ''}… ${Math.round(pct)}%`}
+                : isPaused
+                  ? `Paused at ${Math.round(pct)}% — resume anytime`
+                  : `Downloading ${download.quant || ''}… ${Math.round(pct)}%`}
             </span>
-            {!dlFailed && (
+            {!dlFailed && !isPaused && (
+              <>
+                <button
+                  className="sg-btn sg-btn-ghost sg-btn-sm"
+                  onClick={onPauseDownload}
+                  title="Pause — keeps downloaded data, resume later"
+                >
+                  <Pause size={13} /> Pause
+                </button>
+                <button
+                  className="sg-btn sg-btn-ghost sg-btn-sm"
+                  onClick={onCancelDownload}
+                >
+                  <X size={13} /> Cancel
+                </button>
+              </>
+            )}
+            {isPaused && (
               <button
-                className="sg-btn sg-btn-ghost sg-btn-sm"
-                onClick={onCancelDownload}
+                className="sg-btn sg-btn-primary sg-btn-sm"
+                onClick={() => onResumeDownload(model.id, quant)}
+                title="Resume download from where it paused"
               >
-                <X size={13} /> Cancel
+                <Play size={13} /> Resume
               </button>
             )}
           </div>
@@ -264,7 +288,8 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
 function BrainSlotCard({
   slotId, slot, sources, slotServers,
   download, downloadedIds, engineReady, slotBusy, kaggleBusy, kaggleMsg,
-  onDownload, onCancelDownload, onRemove, onRunSlot, onStopSlot,
+  onDownload, onCancelDownload, onPauseDownload, onResumeDownload,
+  onRemove, onRunSlot, onStopSlot,
   onKaggleConnect, onKaggleDisconnect, onKaggleTest,
   kaggleUrl, setKaggleUrl, kaggleName, setKaggleName
 }) {
@@ -355,11 +380,33 @@ function BrainSlotCard({
                   {isDl ? (
                     <div className="ml-slot-model-actions">
                       <span className="sg-small" style={{ color: 'var(--sg-accent)', fontWeight: 600 }}>
-                        {dlFailed ? `Failed: ${download.error || ''}` : `${Math.round(pct)}%`}
+                        {dlFailed
+                          ? `Failed: ${download.error || ''}`
+                          : download.status === 'paused'
+                            ? `Paused at ${Math.round(pct)}%`
+                            : `${Math.round(pct)}%`}
                       </span>
-                      {!dlFailed && (
-                        <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={onCancelDownload}>
-                          <X size={13} /> Cancel
+                      {!dlFailed && download.status !== 'paused' && (
+                        <>
+                          <button
+                            className="sg-btn sg-btn-ghost sg-btn-sm"
+                            onClick={onPauseDownload}
+                            title="Pause — keeps downloaded data"
+                          >
+                            <Pause size={13} /> Pause
+                          </button>
+                          <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={onCancelDownload}>
+                            <X size={13} /> Cancel
+                          </button>
+                        </>
+                      )}
+                      {download.status === 'paused' && (
+                        <button
+                          className="sg-btn sg-btn-primary sg-btn-sm"
+                          onClick={() => onResumeDownload(m.id, 'Q4_K_M')}
+                          title="Resume from where it paused"
+                        >
+                          <Play size={13} /> Resume
                         </button>
                       )}
                       {dlFailed && (
@@ -850,19 +897,13 @@ export function ModelLibrary() {
     progressUnsub.current = null;
   };
 
-  // Live engine download progress.
+  // Live engine download progress (from the LOCAL backend — the engine
+  // downloads to the user's machine, not the cloud).
   useEffect(() => {
-    const unsubscribe = subscribeToEngineStream({
-      onEvent: (event) => {
-        const type = event.__sseType;
-        const data = event.data ?? event;
-        // The backend sends one `progress` event; the true state lives in
-        // data.status ('downloading' | 'done' | 'error'). The old code forced
-        // status to 'downloading', so a failed or finished download looked
-        // stuck at 0% forever with no error shown.
-        const st = type === 'engine.done' ? 'done'
-          : type === 'engine.error' ? 'error'
-          : (data?.status || 'downloading');
+    if (!localBackendUp) return;
+    const unsubscribe = subscribeToLocalEngineStream({
+      onEvent: (data) => {
+        const st = data?.status || 'downloading';
         if (st === 'done') { setEngineDl(null); setBusyEngine(false); refresh(); }
         else if (st === 'error') {
           setEngineDl((prev) => ({ ...(prev || {}), ...data, status: 'error' }));
@@ -874,16 +915,22 @@ export function ModelLibrary() {
       onError: () => {}
     });
     return () => unsubscribe?.();
-  }, [refresh]);
+  }, [refresh, localBackendUp]);
 
   const startEngineDownload = async () => {
     setError('');
+    // The engine (llama-server) must download to the USER'S LOCAL MACHINE —
+    // it runs models there, not on the cloud backend.
+    if (!localBackendUp) {
+      setError('Start the Infinity AI backend on your computer (localhost:4000) to download the engine. The engine runs on YOUR machine, not the cloud.');
+      return;
+    }
     setBusyEngine(true);
     try {
-      await downloadRunnerEngine();
+      await downloadEngineLocal();
       setEngineDl({ progress: 0, status: 'starting' });
     } catch (err) {
-      setError(err.message || 'Could not start the engine download.');
+      setError(err.message || 'Could not start the engine download. Is the local backend running?');
       setBusyEngine(false);
     }
   };
@@ -937,6 +984,57 @@ export function ModelLibrary() {
     stopProgressStream();
     setDownload(null);
     refresh();
+  };
+
+  // Pause a download — backend keeps the partial file; Resume continues
+  // from where it left off via HTTP Range.
+  const pauseDownload = async () => {
+    try {
+      const res = await pauseDownloadLocal();
+      if (res?.paused) {
+        setDownload((prev) => prev ? { ...prev, status: 'paused' } : prev);
+      } else {
+        // Fallback: treat as cancel if pause not supported
+        stopProgressStream();
+        setDownload(null);
+      }
+    } catch (err) {
+      setError(err.message || 'Could not pause the download.');
+    }
+  };
+
+  // Resume a paused download from the partial file.
+  const resumeDownload = async (modelId, quant) => {
+    setError('');
+    stopProgressStream();
+    try {
+      await resumeDownloadLocal(modelId, { quant });
+      setDownload((prev) => ({
+        ...(prev || { modelId }),
+        modelId, quant, status: 'downloading',
+        percent: prev?.percent || 0,
+        receivedBytes: prev?.receivedBytes || 0,
+        totalBytes: prev?.totalBytes || null
+      }));
+      progressUnsub.current = subscribeToLocalDownloadProgress(modelId, {
+        onEvent: (data) => {
+          const terminal = ['done', 'error', 'cancelled'].includes(data.status);
+          setDownload((prev) => ({ ...(prev || { modelId }), ...data }));
+          if (terminal) {
+            stopProgressStream();
+            if (data.status === 'done') {
+              setDownload(null);
+              setDownloadedIds((prev) => new Set(prev).add(modelId));
+              refresh();
+            }
+          }
+        },
+        onError: () => { /* stream drop is non-fatal */ }
+      });
+    } catch (err) {
+      setError(err.message || 'Could not resume the download.');
+      setDownload(null);
+    }
   };
 
   // ── Refresh slot servers from the local backend. ──
@@ -1074,7 +1172,8 @@ export function ModelLibrary() {
   const cardProps = {
     download, busyModel, engineReady,
     onDownload: startDownload, onRun: run, onStop: stop, onRemove: remove,
-    onCancelDownload: cancelDownload
+    onCancelDownload: cancelDownload, onPauseDownload: pauseDownload,
+    onResumeDownload: resumeDownload
   };
 
   return (
@@ -1129,6 +1228,37 @@ export function ModelLibrary() {
         </div>
       )}
 
+      {/* ── Step 0 FIRST: one-time engine download (runs on the user's machine) ── */}
+      {!engineReady && (
+        <div className="sg-card sg-card-pad" style={{ borderColor: 'var(--sg-accent, #22d3ee)' }}>
+          <div className="sg-small">
+            <Server size={17} />
+            <div>
+              <strong>Step 0 — one-time engine download</strong>
+              <p>
+                Infinity AI ships its own tiny inference engine (llama-server). It downloads
+                once for your OS — after that, models run directly on your computer, no Ollama needed.
+              </p>
+            </div>
+          </div>
+          {engineDl && engineDl.status !== 'idle' ? (
+            <div className="sg-pull-progress">
+              <ProgressBar value={engineDl.progress || 0} />
+              <span>
+                {engineDl.status === 'error'
+                  ? `Failed: ${engineDl.error || 'unknown error'}`
+                  : `Downloading engine… ${Math.round((engineDl.progress || 0) * 100)}%`}
+              </span>
+            </div>
+          ) : (
+            <button className="sg-btn sg-btn-primary" onClick={startEngineDownload} disabled={busyEngine}>
+              {busyEngine ? <Loader2 size={15} className="sg-spin" /> : <Download size={15} />}
+              Download engine
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Brain Slots: three independent brains ──────────────────── */}
       <div className="ml-brain-section">
         <div className="sg-remote-head ml-brain-head">
@@ -1159,6 +1289,8 @@ export function ModelLibrary() {
                 kaggleMsg={kaggleMsg}
                 onDownload={startDownload}
                 onCancelDownload={cancelDownload}
+                onPauseDownload={pauseDownload}
+                onResumeDownload={resumeDownload}
                 onRemove={removeLocal}
                 onRunSlot={runSlotHandler}
                 onStopSlot={stopSlotHandler}
@@ -1257,37 +1389,6 @@ export function ModelLibrary() {
           Everything stays downloadable and runnable — you may run anything.
         </p>
       </div>
-
-      {/* Engine one-time setup */}
-      {!engineReady && (
-        <div className="sg-card sg-card-pad">
-          <div className="sg-small">
-            <Server size={17} />
-            <div>
-              <strong>Step 0 — one-time engine download</strong>
-              <p>
-                Dark-Matter ships its own tiny inference engine (llama-server). It downloads
-                once for your OS — after that, models run directly, no Ollama needed.
-              </p>
-            </div>
-          </div>
-          {engineDl && engineDl.status !== 'idle' ? (
-            <div className="sg-pull-progress">
-              <ProgressBar value={engineDl.progress || 0} />
-              <span>
-                {engineDl.status === 'error'
-                  ? `Failed: ${engineDl.error || 'unknown error'}`
-                  : `Downloading engine… ${Math.round((engineDl.progress || 0) * 100)}%`}
-              </span>
-            </div>
-          ) : (
-            <button className="sg-btn sg-btn-primary" onClick={startEngineDownload} disabled={busyEngine}>
-              {busyEngine ? <Loader2 size={15} className="sg-spin" /> : <Download size={15} />}
-              Download engine
-            </button>
-          )}
-        </div>
-      )}
 
       {/* ── Category filter tabs: separate models by brain role ─── */}
       <div className="ml-cat-tabs" role="tablist" aria-label="Filter models by brain role">

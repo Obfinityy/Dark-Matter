@@ -175,6 +175,7 @@ export function createRoutes({ controllers }) {
   router.get('/model-runner/engine/stream', controllers.modelRunner.engineStream);
   router.post('/model-runner/download', controllers.modelRunner.download);
   router.post('/model-runner/download/cancel', controllers.modelRunner.cancelDownload);
+  router.post('/model-runner/download/pause', controllers.modelRunner.pauseDownload);
   router.get('/model-runner/download/stream', controllers.modelRunner.downloadStream);
   // ── Brain slots: three independent slots (vision/grounding/hacker) ──
   // Each slot has alternatives; user picks one model per slot.

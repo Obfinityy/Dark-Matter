@@ -250,6 +250,11 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       response.json(modelRunnerService.cancelDownload());
     }),
 
+    /** POST /api/v1/model-runner/download/pause — pause keeping the partial file for resume */
+    pauseDownload: asyncHandler(async (request, response) => {
+      response.json(modelRunnerService.pauseDownload());
+    }),
+
     /** GET /api/v1/model-runner/download/stream — SSE */
     downloadStream: progressStream(
       (send) => modelRunnerService.onDownloadProgress(send),

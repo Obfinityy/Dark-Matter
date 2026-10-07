@@ -476,6 +476,23 @@ export class ModelRunnerService {
     return { cancelled: false };
   }
 
+  /**
+   * Pause a download — aborts the transfer but KEEPS the partial file so a
+   * later download resumes from where it left off (HTTP Range).
+   * Returns the paused state for the UI (modelId, receivedBytes).
+   */
+  pauseDownload() {
+    const state = this.downloadState;
+    if (this.downloadAbort) {
+      this.downloadAbort.abort();
+    }
+    if (state && state.status === 'downloading') {
+      state.status = 'paused';
+      return { paused: true, modelId: state.modelId, receivedBytes: state.receivedBytes || 0, totalBytes: state.totalBytes || null };
+    }
+    return { paused: false };
+  }
+
   /** Delete a downloaded GGUF to free disk (stops it first if running). */
   async deleteModel(modelId) {
     const model = this.findModel(modelId);

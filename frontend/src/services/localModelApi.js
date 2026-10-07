@@ -139,6 +139,56 @@ export async function removeModelLocal(modelId) {
 }
 
 /**
+ * Start downloading the llama-server engine binary on the LOCAL backend
+ * (one-time setup — the engine runs models on the user's machine).
+ */
+export async function downloadEngineLocal() {
+  return localFetch('/model-runner/engine', { method: 'POST' });
+}
+
+/**
+ * Subscribe to engine download progress via SSE from the local backend.
+ */
+export function subscribeToLocalEngineStream(callbacks = {}) {
+  const { onEvent, onError } = callbacks;
+  const jwt = (() => {
+    try { return localStorage.getItem('dm_jwt'); } catch { return null; }
+  })();
+  const url = `${apiBase()}/model-runner/engine/stream${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
+  const es = new EventSource(url);
+  es.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (onEvent) onEvent(data);
+    } catch (e) {
+      if (onError) onError(e);
+    }
+  };
+  es.onerror = (err) => {
+    if (onError) onError(err);
+  };
+  return () => es.close();
+}
+
+/**
+ * Pause a model download on the local backend (keeps partial file for resume).
+ */
+export async function pauseDownloadLocal() {
+  return localFetch('/model-runner/download/pause', { method: 'POST' });
+}
+
+/**
+ * Resume a paused model download on the local backend.
+ * The backend resumes from the partial file via HTTP Range.
+ */
+export async function resumeDownloadLocal(modelId, opts = {}) {
+  return localFetch(`/model-runner/models/${modelId}/download`, {
+    method: 'POST',
+    body: JSON.stringify({ ...opts, resume: true })
+  });
+}
+
+/**
  * Get local runner status (engine, disk, etc.)
  */
 export async function getLocalRunnerStatus() {
