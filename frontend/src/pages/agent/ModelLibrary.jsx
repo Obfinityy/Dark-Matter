@@ -92,6 +92,17 @@ function ctxLabel(tokens) {
 
 const CTX_CHOICES = [4096, 8192, 16384, 32768, 65536, 131072];
 
+/**
+ * CATEGORY_TABS — filter tabs for the model catalog. Each tab shows its brain
+ * role in plain words so the user knows which models belong where.
+ */
+const CATEGORY_TABS = [
+  { id: 'all', icon: '✨', label: 'All models', role: 'Everything in the library' },
+  { id: 'vision', icon: '👁️', label: 'Vision', role: 'Sees the screen, decides where to click and what to do' },
+  { id: 'hacking', icon: '🧠', label: 'Hacker Brain', role: 'The thinking/strategy brain — chains vulnerabilities like a human' },
+  { id: 'grounding', icon: '🎯', label: 'Grounding', role: 'Turns decisions into exact click coordinates' }
+];
+
 function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun, onStop, onRemove, onCancelDownload }) {
   const isDownloading = download && download.modelId === model.id && !['done', 'idle'].includes(download.status);
   const dlFailed = download && download.modelId === model.id && (download.status === 'error' || download.status === 'cancelled');
@@ -131,6 +142,11 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
           <span className="sg-pill sg-pill-go"><span className="sg-pulse-dot" /> Running</span>
         )}
         {model.tierLabel && <span className="sg-pill">{model.tierLabel}</span>}
+        {model.categoryLabel && (
+          <span className="sg-pill sg-pill-cat" title="Which brain role this model is built for.">
+            {model.categoryLabel}
+          </span>
+        )}
       </div>
       <p className="sg-small">{model.description}</p>
       <div className="sg-model-meta">
@@ -504,6 +520,117 @@ function BrainSlotCard({
   );
 }
 
+/**
+ * BrainAssignmentsPanel — the FIXED wiring: which brain slots each product
+ * uses, with live status read from the running slot servers.
+ *
+ * - HUNT: Hacker (strategy brain) + Vision (sees the screen, decides where
+ *   to click and what to do) + Grounding (turns decisions into click coordinates)
+ * - INFINITY CHAT: Vision only
+ * - CONTROL: Vision (thinking model) + Agent S (does the computer work) —
+ *   the hacker brain is NOT needed for Control.
+ *
+ * A warning hint appears under any product whose required brain slot is
+ * currently not running.
+ */
+function BrainAssignmentsPanel({ slotServers, slotSources }) {
+  const slotStatus = (slotId) => {
+    const server = slotServers?.[slotId] || slotServers?.[slotId === 'hacker' ? 'hacking' : slotId] || null;
+    if (server) {
+      return {
+        running: true,
+        text: server.port ? `Running :${server.port}` : 'Running',
+        title: server.baseUrl || 'Running on localhost'
+      };
+    }
+    const src = slotSources?.[slotId];
+    if (src?.source === 'kaggle') {
+      return { running: true, text: `Kaggle: ${src.kaggleName || 'GPU'}`, title: src.kaggleUrl || 'Connected Kaggle link' };
+    }
+    return { running: false, text: 'Not running', title: 'Press Run on this slot (or connect its Kaggle link) to start it.' };
+  };
+
+  const SLOT_LABEL = { vision: 'Vision', grounding: 'Grounding', hacker: 'Hacker Brain' };
+
+  const PRODUCTS = [
+    {
+      name: 'Hunt',
+      icon: '🎯',
+      desc: 'Autonomous bug-bounty hunter — three brains observe, think, and act together.',
+      needs: ['hacker', 'vision', 'grounding'],
+      notes: 'Hacker strategizes and chains vulnerabilities · Vision sees the screen and decides where to click and what to do · Grounding turns decisions into exact click coordinates.'
+    },
+    {
+      name: 'Infinity Chat',
+      icon: '💬',
+      desc: 'The Infinity AI assistant (Chat / Plan / Build).',
+      needs: ['vision'],
+      notes: 'Vision only — it is the thinking model. The hacker brain is not used here.'
+    },
+    {
+      name: 'Control',
+      icon: '🖥️',
+      desc: 'Computer control — Agent S does the actual computer work.',
+      needs: ['vision'],
+      notes: 'Vision (thinking model) + Agent S (does the computer work). Hacker brain: not needed for Control.'
+    }
+  ];
+
+  return (
+    <div className="ml-assignments">
+      <div className="sg-remote-head ml-brain-head">
+        <Network size={18} />
+        <div>
+          <strong>Brain assignments — fixed wiring, live status</strong>
+          <p>
+            Each product always uses the same brains. Green means that brain is
+            live on your machine right now; start missing brains above.
+          </p>
+        </div>
+      </div>
+      {PRODUCTS.map((p) => {
+        const missing = p.needs.filter((s) => !slotStatus(s).running);
+        return (
+          <SpotlightCard key={p.name} className="ml-assign-row" glowColor="139, 92, 246">
+            <div className="ml-assign-head">
+              <span aria-hidden="true" style={{ fontSize: 20 }}>{p.icon}</span>
+              <div>
+                <strong>{p.name}</strong>
+                <div className="sg-small" style={{ opacity: 0.75 }}>{p.desc}</div>
+              </div>
+            </div>
+            <div className="ml-assign-slots">
+              {p.needs.map((s) => {
+                const st = slotStatus(s);
+                return (
+                  <span
+                    key={s}
+                    className={`sg-pill ${st.running ? 'sg-pill-go' : ''}`}
+                    title={st.title}
+                  >
+                    {st.running && <span className="sg-pulse-dot" />}
+                    {SLOT_LABEL[s] || s}: {st.text}
+                  </span>
+                );
+              })}
+            </div>
+            <div className="sg-small ml-assign-notes" style={{ opacity: 0.75 }}>{p.notes}</div>
+            {missing.length > 0 && (
+              <div className="sg-alert sg-auth-error" role="alert" style={{ marginTop: 10 }}>
+                <AlertTriangle size={15} />
+                <span className="sg-small">
+                  <b>{p.name}</b> will be degraded: {missing.map((s) => SLOT_LABEL[s] || s).join(', ')} is not running.
+                  Scroll to the Brain Slots above and press Run on a {missing.map((s) => SLOT_LABEL[s] || s).join('/')} model.
+                </span>
+              </div>
+            )}
+          </SpotlightCard>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ModelLibrary() {
   const [library, setLibrary] = useState(() => MODEL_CATALOG);
   // Frontend-only: tracks which models were downloaded this session (no backend).
@@ -549,6 +676,8 @@ export function ModelLibrary() {
   const [kaggleBusy, setKaggleBusy] = useState(null); // slotId | `${slotId}-test`
   const [kaggleMsg, setKaggleMsg] = useState({}); // { slotId: { ok, text } }
   const progressUnsub = useRef(null);
+  // Category filter for the catalog tabs (all | vision | hacking | grounding).
+  const [catFilter, setCatFilter] = useState('all');
 
   // ── Device: detected in the BROWSER ONLY ────────────────────────────
   const browserDevice = useMemo(() => detectBrowserDevice(), []);
@@ -557,8 +686,14 @@ export function ModelLibrary() {
     () => sortModelsByBrowserCompat(library, browserDevice),
     [library, browserDevice]
   );
-  const compatibleModels = sortedModels.filter((m) => m.browserCompatible);
-  const heavyModels = sortedModels.filter((m) => !m.browserCompatible);
+  // ── Category filter: narrows the whole catalog without touching
+  // download progress / cancel / Run behavior (cards are unchanged). ──
+  const filteredModels = useMemo(
+    () => (catFilter === 'all' ? sortedModels : sortedModels.filter((m) => m.category === catFilter)),
+    [sortedModels, catFilter]
+  );
+  const compatibleModels = filteredModels.filter((m) => m.browserCompatible);
+  const heavyModels = filteredModels.filter((m) => !m.browserCompatible);
 
   // ── Per-slot Kaggle: each brain slot can run on its own Kaggle link ──
   // (The old global "Remote GPU" card was removed — Kaggle now lives inside each slot.)
@@ -1034,6 +1169,9 @@ export function ModelLibrary() {
         )}
       </div>
 
+      {/* Brain assignments: which products use which brains, live status */}
+      <BrainAssignmentsPanel slotServers={slotServers} slotSources={slotSources} />
+
       {/* Currently running model */}
       {running && (
         <div className="sg-card sg-card-pad sg-running-banner">
@@ -1138,6 +1276,26 @@ export function ModelLibrary() {
           )}
         </div>
       )}
+
+      {/* ── Category filter tabs: separate models by brain role ─── */}
+      <div className="ml-cat-tabs" role="tablist" aria-label="Filter models by brain role">
+        {CATEGORY_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={catFilter === t.id}
+            className={`sg-btn ml-cat-tab ${catFilter === t.id ? 'sg-btn-primary' : 'sg-btn-ghost'}`}
+            onClick={() => setCatFilter(t.id)}
+            title={t.role}
+          >
+            <span aria-hidden="true" style={{ fontSize: 18 }}>{t.icon}</span>
+            <span className="ml-cat-tab-text">
+              <strong>{t.label}</strong>
+              <small>{t.role}</small>
+            </span>
+          </button>
+        ))}
+      </div>
 
       {/* Model catalog: compatible ON TOP, incompatible BELOW */}
       <div className="sg-h2">Runs on your device ({compatibleModels.length})</div>

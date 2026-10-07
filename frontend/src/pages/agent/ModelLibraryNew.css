@@ -45,3 +45,39 @@
   .ml-title { font-size: 1.5rem; }
   .ml-new { padding: 16px 12px 32px; }
 }
+
+/* ── Category filter tabs (Vision / Hacker Brain / Grounding) ── */
+.ml-cat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+.ml-cat-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 10px 14px;
+}
+.ml-cat-tab-text { display: flex; flex-direction: column; gap: 2px; }
+.ml-cat-tab-text small { opacity: 0.65; font-weight: 400; font-size: 0.78rem; max-width: 260px; }
+
+/* ── Brain assignments panel (fixed wiring + live slot status) ── */
+.ml-assignments { margin-bottom: 20px; }
+.ml-assign-row {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+}
+.ml-assign-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ml-assign-slots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.ml-assign-notes { margin-bottom: 0; }
+.ml-assign-row .sg-alert { display: flex; align-items: center; gap: 8px; }
+
+/* Category badge on model cards */
+.sg-pill-cat { border-color: rgba(139, 92, 246, 0.45); }
+
+@media (max-width: 640px) {
+  .ml-cat-tab { flex: 1 1 46%; }
+  .ml-cat-tab-text small { display: none; }
+}
