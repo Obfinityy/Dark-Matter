@@ -1,0 +1,153 @@
+/**
+ * Governance.css — wave 30 (ideas 51161–51200): steering round 2 +
+ * approval/governance suite styles.
+ *
+ * Scoped under .gov30-* — zero keyframes/animations per the owner's
+ * zero-animation order. prefers-reduced-motion guard included.
+ */
+.gov30-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  background: #141821;
+  color: #e8ecf4;
+}
+.gov30-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.gov30-gallery h3 {
+  margin: 8px 0 4px;
+  font-size: 1.05rem;
+}
+.gov30-card h4 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+.gov30-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.gov30-card input[type="text"],
+.gov30-card input:not([type]),
+.gov30-card select {
+  background: #0f131c;
+  border: 1px solid #39415a;
+  color: #e8ecf4;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.gov30-card input[type="range"] {
+  width: 220px;
+}
+.gov30-card button {
+  background: #2b3450;
+  border: 1px solid #4a587e;
+  color: #e8ecf4;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.gov30-card button:hover {
+  background: #364063;
+}
+.gov30-note {
+  font-size: 0.85rem;
+  color: #aeb8d0;
+  margin: 6px 0;
+}
+.gov30-dim {
+  color: #7c869e;
+  font-size: 0.82rem;
+}
+.gov30-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+.gov30-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid #1e2431;
+  font-size: 0.88rem;
+}
+.gov30-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.gov30-chip {
+  background: #232b40;
+  border: 1px solid #3d4a6e;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+}
+.gov30-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+.gov30-table th,
+.gov30-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #1e2431;
+}
+.gov30-approval {
+  border: 1px solid #2a2f3a;
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  background: #141821;
+}
+.gov30-risk-safe { border-left-color: #3fb950; }
+.gov30-risk-cautious { border-left-color: #d29922; }
+.gov30-risk-destructive { border-left-color: #f85149; }
+.gov30-risk {
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #232b40;
+}
+.gov30-approve {
+  background: #1a4d2e !important;
+  border-color: #3fb950 !important;
+}
+.gov30-deny {
+  background: #5a1f1f !important;
+  border-color: #f85149 !important;
+}
+.gov30-danger {
+  border-color: #5a2b2b;
+}
+.gov30-badge-good {
+  color: #3fb950;
+  font-size: 0.78rem;
+}
+.gov30-badge-warn {
+  color: #d29922;
+  font-size: 0.78rem;
+}
+.gov30-status-pending { color: #d29922; }
+.gov30-status-awaiting-checkin { color: #58a6ff; }
+.gov30-active {
+  background: #364063 !important;
+  border-color: #58a6ff !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gov30-card *,
+  .gov30-gallery * {
+    animation: none;
+    transition: none;
+  }
+}
