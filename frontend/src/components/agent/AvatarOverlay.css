@@ -27,10 +27,10 @@
   flex-direction: column;
   gap: 12px;
   padding: 18px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(160deg, #150b28 0%, #0a0518 100%);
   border: 1px solid rgba(139, 92, 246, 0.28);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(139, 92, 246, 0.12);
+  box-shadow: var(--shadow-md), 0 0 40px rgba(139, 92, 246, 0.12);
   animation: avo-rise 0.3s ease-out;
   overflow: hidden;
 }
@@ -57,7 +57,7 @@
 .avo-title strong {
   font-size: 17px;
   letter-spacing: 0.02em;
-  color: #f3efff;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
@@ -97,7 +97,7 @@
   min-height: 44px;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(139, 92, 246, 0.3);
   background: rgba(139, 92, 246, 0.1);
   color: #e9e2ff;
@@ -108,6 +108,11 @@
 
 .avo-icon-btn:hover:not(:disabled) {
   background: rgba(139, 92, 246, 0.22);
+}
+
+.avo-icon-btn:focus-visible {
+  outline: 2px solid #a78bfa;
+  outline-offset: 2px;
 }
 
 .avo-icon-btn:active:not(:disabled) {
@@ -154,14 +159,14 @@
   max-height: 220px;
   overflow-y: auto;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(139, 92, 246, 0.18);
 }
 
 .avo-hint {
   margin: 0;
-  color: #8b7fb8;
+  color: var(--text-muted);
   font-size: 14px;
   text-align: center;
 }
@@ -170,7 +175,7 @@
   margin: 0 0 10px;
   font-size: 14px;
   line-height: 1.5;
-  color: #e6defc;
+  color: var(--text-primary);
   overflow-wrap: anywhere;
 }
 
@@ -223,23 +228,23 @@
   min-width: 0;
   min-height: 44px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(139, 92, 246, 0.3);
   background: rgba(255, 255, 255, 0.04);
-  color: #f3efff;
+  color: var(--text-primary);
   font-size: 15px;
 }
 
-.avo-input-row input::placeholder { color: #7d6fa8; }
+.avo-input-row input::placeholder { color: var(--text-muted); }
 
-.avo-input-row input:focus {
+.avo-input-row input:focus-visible {
   outline: 2px solid rgba(167, 139, 250, 0.7);
   outline-offset: 1px;
 }
 
 .avo-end {
   min-height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(239, 68, 68, 0.4);
   background: rgba(239, 68, 68, 0.1);
   color: #fca5a5;
@@ -251,6 +256,13 @@
 
 .avo-end:hover { background: rgba(239, 68, 68, 0.2); }
 
+.avo-end:focus-visible {
+  outline: 2px solid #fca5a5;
+  outline-offset: 2px;
+}
+
+.avo-end:active { transform: scale(0.98); }
+
 .avo-spin { animation: avo-spin 1s linear infinite; }
 
 @keyframes avo-spin {
@@ -260,10 +272,11 @@
 /* 390px phones: keep everything on-screen, no horizontal overflow */
 @media (max-width: 480px) {
   .avo-scrim { padding: 10px; }
-  .avo-panel { padding: 14px; gap: 10px; border-radius: 16px; }
+  .avo-panel { padding: 14px; gap: 10px; border-radius: var(--radius-lg); }
   .avo-title strong { font-size: 15px; }
   .avo-status { font-size: 11px; padding: 3px 8px; }
   .avo-captions { min-height: 80px; max-height: 180px; }
+  .avo-input-row { gap: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

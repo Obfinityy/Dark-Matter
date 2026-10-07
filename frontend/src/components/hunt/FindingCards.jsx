@@ -253,7 +253,7 @@ export function BulkSelectBar({ selected = [], onClear, onMarkReviewed, onExport
 /** 50125 — Duplicate fan-out stacking: "N similar" fans out into cards on click. */
 export function DuplicateFanOutStacking({ groups = [], renderCard, className = '' }) {
   const [open, setOpen] = React.useState({});
-  const items = groups.length > 0 ? groups : [];
+  const items = groups;
   if (!items.length) return null;
   return (
     <div className={`fc-fanout ${className}`}>
@@ -313,6 +313,7 @@ export function FindingCard({
   const [reviewed, setReviewed] = React.useState(false);
   const density = densityProp || useDensity();
   const isNew = f.discoveredAt > 0 && Date.now() - f.discoveredAt < 10 * 60 * 1000;
+  const sevMeta = FC_SEVERITY[sev] || FC_SEVERITY.medium;
 
   const changeSev = (s) => { setSev(s); if (onSeverityChange) onSeverityChange(f.id, s); };
   const markReviewed = () => { setReviewed((r) => !r); if (onMarkReviewed) onMarkReviewed(f.id, !reviewed); };
@@ -320,7 +321,7 @@ export function FindingCard({
   return (
     <article
       className={`fc-card fc-sev-${sev} fc-density-${density} ${isNew ? 'fc-new-card' : ''} ${selected ? 'fc-selected' : ''} ${className}`}
-      tabIndex={0} aria-label={`${f.title}, ${FC_SEVERITY[sev].label} severity`}
+      tabIndex={0} aria-label={`${f.title}, ${sevMeta.label} severity`}
     >
       <NewFindingRibbon discoveredAt={f.discoveredAt} />
       {selectable && (

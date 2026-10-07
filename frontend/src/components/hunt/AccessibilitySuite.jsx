@@ -66,6 +66,7 @@ export function ContrastBadge({ fg, bg, kind = 'normal' }) {
 /* 50505 — ListboxFindings: semantic listbox with aria-activedescendant. ----- */
 
 export function ListboxFindings({ findings = [], activeId = null, onSelect }) {
+  const activate = (f) => onSelect?.(f);
   return (
     <div className="a11y-listbox" {...listboxAriaProps({ activeDescendant: activeId && `finding-option-${activeId}`, expanded: true })}>
       {findings.map((f) => (
@@ -73,7 +74,10 @@ export function ListboxFindings({ findings = [], activeId = null, onSelect }) {
           key={f.id}
           className={`a11y-option ${activeId === f.id ? 'active' : ''}`}
           {...findingOptionProps(f, { active: activeId === f.id })}
-          onClick={() => onSelect?.(f)}
+          onClick={() => activate(f)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(f); }
+          }}
           tabIndex={0}
         >
           <SeverityBadge severity={f.severity} /> {f.title}
@@ -156,6 +160,7 @@ export function FocusModal({ open, onClose, label, children }) {
     const first = dlg?.querySelector('button, [href], input, [tabindex]:not([tabindex="-1"])');
     first?.focus?.();
     const onKey = (e) => {
+      if (e.key === 'Escape') { onClose?.(); return; }
       if (e.key !== 'Tab' || !dlg) return;
       const items = [...dlg.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])')]
         .filter((el) => !el.disabled && el.getClientRects().length);
@@ -163,7 +168,6 @@ export function FocusModal({ open, onClose, label, children }) {
       const firstEl = items[0], lastEl = items[items.length - 1];
       if (e.shiftKey && document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
       else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
-      if (e.key === 'Escape') onClose?.();
     };
     dlg?.addEventListener('keydown', onKey);
     return () => {

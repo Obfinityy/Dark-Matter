@@ -16,8 +16,10 @@
 }
 .sg-auth-brand-inner { position: relative; z-index: 2; max-width: 600px; padding: 100px; }
 .sg-auth-brand-inner .sg-display { margin: 40px 0 24px; font-size: 3.2rem; line-height: 1.1; }
+.sg-auth-lede { max-width: 440px; }
 .sg-auth-proofs { display: flex; flex-direction: column; gap: 32px; margin-top: 64px; }
 .sg-auth-proof { display: flex; gap: 20px; align-items: flex-start; }
+.sg-auth-proof-title { margin-bottom: 4px; }
 .sg-auth-proof-icon {
   flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
@@ -25,6 +27,13 @@
   color: var(--sg-cyan);
 }
 .sg-auth-fineprint { margin-top: 48px; }
+.sg-auth-legal { color: inherit; text-decoration: underline; margin-right: 10px; }
+.sg-auth-legal:last-child { margin-right: 0; }
+.sg-auth-legal:focus-visible {
+  outline: 2px solid var(--sg-cyan, #22d3ee);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .sg-auth-glow {
   position: absolute; inset: 0; pointer-events: none;
   background: conic-gradient(from 200deg at 60% 40%, transparent 0deg, rgba(129,140,248,0.05) 40deg, transparent 90deg);
@@ -60,13 +69,40 @@
 .sg-auth-switch { text-align: center; margin: 22px 0 0; }
 .sg-auth-switch button {
   background: none; border: none; cursor: pointer;
-  color: var(--sg-cyan); font: inherit; font-weight: 600; padding: 0;
+  color: var(--sg-cyan); font: inherit; font-weight: 600; padding: 4px 2px;
+  border-radius: 4px;
 }
 .sg-auth-switch button:hover { text-decoration: underline; }
+.sg-auth-switch button:focus-visible {
+  outline: 2px solid var(--sg-cyan, #22d3ee);
+  outline-offset: 2px;
+  text-decoration: none;
+}
+
+/* Register-mode two-column grid: tighter gap than the shared .sg-grid-2 */
+.sg-auth-grid { gap: 12px; }
+
+/* Full-width primary submit + inline busy spinner */
+.sg-auth-submit { width: 100%; }
+.sg-auth-spinner { display: inline-flex; }
+
+/* Scoped reduced-motion: the shared fade-up has no guard, so the auth
+   experience disables its entrance animation when motion is reduced. */
+@media (prefers-reduced-motion: reduce) {
+  .sg-auth .sg-fade-up { animation: none; }
+}
 
 @media (max-width: 900px) {
   .sg-auth-brand { display: none; }
   .sg-auth-form-wrap { padding: 32px 20px; }
   .sg-auth-card { padding: 28px 22px; }
   .sg-auth-mobile-brand { display: block; }
+  .sg-auth-tabs button { min-height: 44px; }
+  .sg-auth-switch button { min-height: 44px; padding: 10px 12px; }
+}
+
+/* 390px: keep the card breathing room without horizontal overflow */
+@media (max-width: 400px) {
+  .sg-auth-form-wrap { padding: 24px 16px; }
+  .sg-auth-card { padding: 24px 18px; }
 }

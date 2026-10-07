@@ -67,7 +67,7 @@ export function WatchlistWidget({ targets, deepLink }) {
       <ul className="dw2-list">
         {rows.map((t) => (
           <li key={t.id} className="dw2-watch-row">
-            <span className={SEV_CLASS(t.severityMax)} aria-label={`max severity ${t.severityMax}`} />
+            <span className={SEV_CLASS(t.severityMax)} role="img" aria-label={`max severity ${t.severityMax}`} />
             <span className="dw2-watch-host">{t.host}</span>
             {t.newFindings > 0 ? (
               <span className="dw2-badge dw2-badge-new" title="new findings since last visit">
@@ -92,7 +92,7 @@ export function ModelStatusWidget({ slots, deepLink }) {
       <ul className="dw2-list">
         {model.slots.map((s) => (
           <li key={s.slot} className="dw2-model-row">
-            <span className={`dw2-health dw2-health-${s.health}`} aria-label={s.health} />
+            <span className={`dw2-health dw2-health-${s.health}`} role="img" aria-label={s.health} />
             <span className="dw2-model-slot">{s.slot}</span>
             <span className="dw2-model-name">{s.name}</span>
             <span className="dw2-muted">{s.version}</span>
@@ -118,7 +118,7 @@ export function HuntCalendarWidget({ hunts, year, month, deepLink }) {
     <WidgetShell title="Hunt calendar" deepLink={deepLink}>
       <div className="dw2-cal-label">{monthLabel}</div>
       <table className="dw2-cal" aria-label="hunt calendar">
-        <thead><tr>{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <th key={i}>{d}</th>)}</tr></thead>
+        <thead><tr>{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <th key={i} scope="col">{d}</th>)}</tr></thead>
         <tbody>
           {weeks.map((week, wi) => (
             <tr key={wi}>
@@ -154,7 +154,9 @@ export function CostUsageWidget({ spent = 0, tier = { name: 'Free', limit: 0 }, 
   return (
     <WidgetShell title="Cost usage" deepLink={deepLink}>
       <div className="dw2-cost-label">{model.label}</div>
-      <div className="dw2-meter"><span style={{ width: `${model.pct}%` }} className={model.overProjection ? 'dw2-meter-over' : ''} /></div>
+      <div className="dw2-meter" role="progressbar" aria-valuenow={Math.round(model.pct)} aria-valuemin={0} aria-valuemax={100} aria-label={model.label}>
+        <span style={{ width: `${model.pct}%` }} className={model.overProjection ? 'dw2-meter-over' : ''} />
+      </div>
       <div className={`dw2-cost-proj ${model.overProjection ? 'dw2-warn' : 'dw2-muted'}`}>{model.projectedLabel}</div>
     </WidgetShell>
   );
@@ -273,7 +275,7 @@ export function FindingsTickerWidget({ findings }) {
       <div className="dw2-ticker-track">
         {[...items, ...items].map((f, i) => (
           <span key={`${f.id}-${i}`} className="dw2-ticker-item">
-            <i className={`dw2-dot`} style={{ background: toastSeverityColor(f.severity) }} />
+            <i className="dw2-dot" style={{ background: toastSeverityColor(f.severity) }} aria-hidden="true" />
             {f.title}
           </span>
         ))}
