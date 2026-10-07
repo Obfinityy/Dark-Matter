@@ -1,0 +1,211 @@
+/**
+ * Wave34.css — wave 34 (ideas 51321–51360): pause/abort round 2 + live
+ * strategy suite.
+ * Scoped .pc34-* (pause round 2) and .st34-* (strategy) styles. Zero
+ * keyframes/animations per the owner's zero-animation order;
+ * prefers-reduced-motion guard included (no-op by design — there is nothing
+ * animated to reduce).
+ */
+
+.pc34-gallery, .st34-gallery {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.pc34-card, .st34-card {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.pc34-card-head, .st34-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pc34-card-title, .st34-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.pc34-idea, .st34-idea {
+  font-size: 11px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.pc34-card-body, .st34-card-body {
+  display: grid;
+  gap: 10px;
+}
+
+.pc34-row, .st34-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pc34-btn, .st34-btn {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: rgba(30, 41, 59, 0.8);
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pc34-btn:hover, .st34-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+}
+
+.pc34-btn-ghost, .st34-btn-ghost {
+  background: transparent;
+}
+
+.pc34-btn-danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fca5a5;
+}
+
+.pc34-btn-active, .st34-btn-active {
+  border-color: rgba(96, 165, 250, 0.7);
+  color: #bfdbfe;
+}
+
+.pc34-input, .st34-input,
+.pc34-select, .st34-select {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(2, 6, 23, 0.6);
+  color: #e2e8f0;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.pc34-input, .st34-input { flex: 1 1 160px; }
+
+.st34-textarea {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(2, 6, 23, 0.6);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  resize: vertical;
+}
+
+.st34-range {
+  flex: 1 1 120px;
+  accent-color: #60a5fa;
+}
+
+.pc34-list, .st34-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.pc34-list-item, .st34-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #cbd5e1;
+  flex-wrap: wrap;
+}
+
+.pc34-muted, .st34-muted {
+  color: #94a3b8;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.pc34-note, .st34-note {
+  color: #a5b4fc;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.pc34-warn, .st34-down { color: #fca5a5; }
+.pc34-ok, .st34-up { color: #86efac; }
+
+.pc34-pre {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.7);
+  color: #cbd5e1;
+  font-size: 11.5px;
+  overflow: auto;
+  max-height: 260px;
+  white-space: pre-wrap;
+}
+
+.pc34-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+}
+
+.st34-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.st34-table th, .st34-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.st34-phase {
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+  color: #a5b4fc;
+  min-width: 140px;
+}
+
+.st34-bar {
+  flex: 1 1 80px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.15);
+  overflow: hidden;
+}
+
+.st34-fill {
+  display: block;
+  height: 100%;
+  background: #60a5fa;
+}
+
+.st34-heat { font-size: 16px; letter-spacing: 2px; }
+.st34-heat-none { color: #475569; }
+.st34-heat-low { color: #93c5fd; }
+.st34-heat-medium { color: #fbbf24; }
+.st34-heat-high { color: #f87171; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pc34-card, .st34-card,
+  .pc34-btn, .st34-btn {
+    transition: none;
+  }
+}
