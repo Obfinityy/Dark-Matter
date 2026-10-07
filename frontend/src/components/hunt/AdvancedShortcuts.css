@@ -1,109 +1,158 @@
 /**
  * AdvancedShortcuts.css — Forge wave 13, ideas 50481–50499.
- * Dark, quiet styling consistent with the hunt UI. Focus states use the
- * 3px high-contrast outline from the wave-13 accessibility rules.
+ *
+ * Polish batch 7: every color, radius and shadow now resolves through the
+ * shared design tokens (frontend/src/styles/variables.css) instead of a
+ * hardcoded dark palette, so the shortcuts UI follows the app theme.
+ * Hover micro-interactions, entrance motion, 44px mobile tap targets and
+ * reduced-motion support added throughout.
  */
 
 :root {
-  --adv-bg: #0d1117;
-  --adv-surface: #161b22;
-  --adv-border: #30363d;
-  --adv-text: #e6edf3;
-  --adv-muted: #8b949e;
-  --adv-accent: #58a6ff;
-  --adv-focus: #fff;
+  --adv-bg: var(--bg-secondary);
+  --adv-surface: var(--surface);
+  --adv-border: var(--border);
+  --adv-text: var(--text-primary);
+  --adv-muted: var(--text-muted);
+  --adv-accent: var(--accent);
+  --adv-focus: var(--accent);
 }
 
+/* ── Typing guard toast ─────────────────────────────────────────────────── */
+@keyframes adv-guard-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
 .adv-typing-guard {
   position: fixed;
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  text-align: center;
   background: var(--adv-surface);
   border: 1px solid var(--adv-border);
   color: var(--adv-text);
-  padding: 8px 14px;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
   font-size: 13px;
+  line-height: 1.45;
   z-index: 9000;
+  box-shadow: var(--shadow-md);
+  animation: adv-guard-in 0.25s ease backwards;
 }
 
 .adv-f6 {
   background: var(--adv-surface);
   color: var(--adv-text);
   border: 1px solid var(--adv-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   cursor: pointer;
   display: inline-flex;
   gap: 8px;
   align-items: center;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
+.adv-f6:hover { background: var(--surface-hover); border-color: var(--adv-accent); }
 .adv-f6:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
 
-.adv-adaptive-hint { display: inline-flex; align-items: center; gap: 6px; }
+.adv-adaptive-hint { display: inline-flex; align-items: center; gap: 6px; cursor: help; }
 .adv-adaptive-kbd, kbd {
   background: var(--adv-surface);
   border: 1px solid var(--adv-border);
   border-bottom-width: 2px;
   border-radius: 4px;
   padding: 1px 6px;
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 12px;
+  white-space: nowrap;
 }
 
-/* Remap dialog */
+/* ── Remap dialog ───────────────────────────────────────────────────────── */
+@keyframes adv-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes adv-pop {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 .adv-remap-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
   display: flex; align-items: center; justify-content: center; z-index: 9500;
+  padding: 16px;
+  animation: adv-backdrop-in 0.2s ease backwards;
 }
 .adv-remap {
   background: var(--adv-bg); color: var(--adv-text);
-  border: 1px solid var(--adv-border); border-radius: 12px;
-  padding: 20px; width: min(560px, 92vw); max-height: 80vh; overflow: auto;
+  border: 1px solid var(--adv-border); border-radius: var(--radius-lg);
+  padding: 20px; width: min(560px, 100%); max-height: 80vh; overflow: auto;
+  box-shadow: var(--shadow-md);
+  animation: adv-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
-.adv-remap-conflicts p { color: #ffa657; margin: 6px 0; font-size: 13px; }
+.adv-remap h2 { margin: 0 0 4px; font-size: 16px; }
+.adv-remap-conflicts p { color: var(--warning); margin: 6px 0; font-size: 13px; line-height: 1.5; }
+.adv-remap-conflicts code { font-family: ui-monospace, monospace; }
 .adv-remap-list { list-style: none; padding: 0; margin: 12px 0; }
-.adv-remap-list li { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--adv-border); }
+.adv-remap-list li {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--adv-border);
+}
+.adv-remap-list li span { font-size: 13px; }
 .adv-remap-key {
   background: var(--adv-surface); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-size: 12px;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
+.adv-remap-key:hover { border-color: var(--adv-accent); background: var(--surface-hover); }
 .adv-remap-key:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
-.adv-remap-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.adv-remap-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
 .adv-remap-foot button {
   background: var(--adv-surface); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
+.adv-remap-foot button:hover { border-color: var(--adv-accent); background: var(--surface-hover); }
+.adv-remap-foot button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
 
-/* Printable card */
+/* ── Printable card ─────────────────────────────────────────────────────── */
 .adv-print-card { color: var(--adv-text); }
+.adv-print-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .adv-print-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .adv-print-card th, .adv-print-card td { text-align: left; padding: 8px; border-bottom: 1px solid var(--adv-border); }
-.adv-print-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.adv-print-actions { display: flex; gap: 8px; }
+.adv-print-card th { color: var(--adv-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.adv-print-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.adv-print-head h2 { margin: 0; font-size: 16px; }
+.adv-print-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .adv-print-actions button {
   background: var(--adv-surface); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
+.adv-print-actions button:hover { border-color: var(--adv-accent); background: var(--surface-hover); }
+.adv-print-actions button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
 @media print {
   .adv-print-actions { display: none; }
   .adv-print-card { color: #000; }
 }
 
-/* New highlights */
-.adv-new-highlights { background: var(--adv-surface); border: 1px solid var(--adv-border); border-radius: 10px; padding: 14px; }
-.adv-new-highlights ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--adv-text); }
+/* ── New highlights ─────────────────────────────────────────────────────── */
+.adv-new-highlights {
+  background: var(--adv-surface); border: 1px solid var(--adv-border);
+  border-radius: var(--radius-md); padding: 14px 16px;
+}
+.adv-new-highlights ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--adv-text); line-height: 1.5; }
 .adv-new-highlights li { margin: 4px 0; }
 .adv-new-highlights h3 { margin: 0; font-size: 14px; color: var(--adv-text); }
 
-/* Numbered suggestions */
+/* ── Numbered suggestions ───────────────────────────────────────────────── */
 .adv-numbered { display: flex; gap: 8px; flex-wrap: wrap; }
 .adv-numbered button {
   background: var(--adv-surface); color: var(--adv-text);
-  border: 1px solid var(--adv-border); border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  border: 1px solid var(--adv-border); border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer;
+  font-size: 13px;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
+.adv-numbered button:hover { border-color: var(--adv-accent); background: var(--surface-hover); transform: translateY(-1px); }
 .adv-numbered button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
 .adv-numbered-badge {
   display: inline-block; min-width: 18px; text-align: center;
@@ -111,40 +160,81 @@
   font-size: 11px; font-weight: 700; padding: 1px 4px; margin-right: 6px;
 }
 
-/* Hunt target input */
-.adv-hunt-target { display: flex; gap: 8px; align-items: center; }
-.adv-hunt-target label { color: var(--adv-text); font-size: 13px; }
+/* ── Hunt target input ──────────────────────────────────────────────────── */
+.adv-hunt-target { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.adv-hunt-target label { color: var(--adv-text); font-size: 13px; font-weight: 600; }
 .adv-hunt-target input {
   background: var(--adv-surface); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 10px; min-width: 220px;
+  font-size: 13px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .adv-hunt-target input:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
+.adv-hunt-target input:focus { border-color: var(--adv-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--adv-accent) 20%, transparent); }
 .adv-hunt-target .adv-hint { color: var(--adv-muted); font-size: 12px; }
 
-/* Phase pipeline */
-.adv-phases { display: flex; gap: 6px; padding: 8px; }
-.adv-phases:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; border-radius: 8px; }
+/* ── Phase pipeline ─────────────────────────────────────────────────────── */
+.adv-phases { display: flex; gap: 6px; padding: 8px; flex-wrap: wrap; }
+.adv-phases:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; border-radius: var(--radius-sm); }
 .adv-phases button {
   background: var(--adv-surface); color: var(--adv-muted);
   border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  font-size: 13px;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
-.adv-phases button.adv-phase-active { color: var(--adv-text); border-color: var(--adv-accent); }
+.adv-phases button:hover { color: var(--adv-text); border-color: var(--adv-accent); }
+.adv-phases button.adv-phase-active { color: var(--adv-text); border-color: var(--adv-accent); background: var(--surface-hover); }
+.adv-phases button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
 
-/* Tour + onboarding */
+/* ── Tour + onboarding ──────────────────────────────────────────────────── */
 .adv-tour, .adv-onboarding {
   background: var(--adv-bg); color: var(--adv-text);
-  border: 1px solid var(--adv-border); border-radius: 12px;
-  padding: 20px; max-width: 420px;
+  border: 1px solid var(--adv-border); border-radius: var(--radius-lg);
+  padding: 20px; max-width: 420px; width: 100%;
+  box-shadow: var(--shadow-md);
+  animation: adv-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
+.adv-tour h2, .adv-onboarding h2 { margin: 0 0 8px; font-size: 16px; }
+.adv-tour p, .adv-onboarding p { margin: 0 0 8px; font-size: 13px; line-height: 1.55; }
 .adv-tour-count { color: var(--adv-muted); font-size: 12px; margin: 0 0 4px; }
-.adv-tour-foot { display: flex; justify-content: space-between; margin-top: 16px; }
+.adv-tour-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
 .adv-tour-foot button, .adv-onboarding button {
   background: var(--adv-surface); color: var(--adv-text);
   border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
+.adv-tour-foot button:hover:not(:disabled), .adv-onboarding button:hover { border-color: var(--adv-accent); background: var(--surface-hover); }
+.adv-tour-foot button:disabled { opacity: 0.4; cursor: not-allowed; }
 .adv-tour-foot button:focus-visible, .adv-onboarding button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
 .adv-onboarding-progress { list-style: none; display: flex; gap: 8px; padding: 0; margin: 0 0 12px; }
-.adv-onboarding-progress li { flex: 1; height: 6px; border-radius: 3px; background: var(--adv-border); }
-.adv-onboarding-progress li.done { background: #3fb950; }
+.adv-onboarding-progress li { flex: 1; height: 6px; border-radius: 3px; background: var(--adv-border); transition: background var(--transition-fast); }
+.adv-onboarding-progress li.done { background: var(--success); }
 .adv-onboarding-progress li.current { background: var(--adv-accent); }
 .adv-onboarding-hint { color: var(--adv-muted); }
+
+/* ── Responsive: 390px ──────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .adv-hunt-target input { flex: 1 1 100%; min-width: 0; }
+  .adv-remap { padding: 16px; }
+  .adv-remap-key,
+  .adv-remap-foot button,
+  .adv-print-actions button,
+  .adv-numbered button,
+  .adv-phases button,
+  .adv-f6,
+  .adv-tour-foot button,
+  .adv-onboarding button,
+  .adv-hunt-target button { min-height: 44px; }
+  .adv-print-head { flex-direction: column; align-items: flex-start; }
+  .adv-print-card table { min-width: 480px; }
+  .adv-typing-guard { font-size: 12px; padding: 8px 12px; }
+  .adv-tour, .adv-onboarding { padding: 16px; }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .adv-typing-guard, .adv-remap, .adv-remap-backdrop,
+  .adv-tour, .adv-onboarding { animation: none; }
+  .adv-numbered button:hover { transform: none; }
+  .adv-onboarding-progress li { transition: none; }
+}
