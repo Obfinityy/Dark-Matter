@@ -898,6 +898,10 @@ export function ModelLibrary() {
   // Close any dangling progress stream on unmount.
   useEffect(() => () => { progressUnsub.current?.(); progressUnsub.current = null; }, []);
 
+  // ── Local backend: models run on the USER'S machine (localhost:4000) ──
+  // NOTE: this useState MUST stay above its first use (engine-stream effect below).
+  const [localBackendUp, setLocalBackendUp] = useState(false);
+
   const stopProgressStream = () => {
     progressUnsub.current?.();
     progressUnsub.current = null;
@@ -943,9 +947,6 @@ export function ModelLibrary() {
 
   /** Start a REAL streaming download; progress arrives over the per-model SSE stream. */
   // ── Frontend-only downloads: direct from Hugging Face, no backend needed ──
-
-  // ── Local backend: models run on the USER'S machine (localhost:4000) ──
-  const [localBackendUp, setLocalBackendUp] = useState(false);
 
   useEffect(() => {
     isLocalBackendUp().then(setLocalBackendUp);

@@ -120,7 +120,11 @@
   border-color: var(--accent);
 }
 
-.voice-mode-btn:active:not(:disabled) { transform: scale(0.97); }
+.voice-mode-btn:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+/* Inside the chat composer the generic .sg-chat-input button rule forces
+   width:44px — override so the "Voice chat" label is never squeezed. */
+.sg-chat-input .voice-mode-btn { width: auto; }
 
 .voice-mode-btn:disabled {
   opacity: 0.45;
