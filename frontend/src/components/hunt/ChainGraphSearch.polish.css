@@ -1,0 +1,68 @@
+/* ChainGraphSearch.polish.css — infinity polish batch 10.
+ * Token-driven refinements over ChainGraphSearch.css: theme-aware surfaces,
+ * visible focus rings, a results dropdown that never overflows the viewport. */
+
+.cg-search {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  max-width: 640px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.cg-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.cg-input {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  font-size: 0.95rem;
+  min-height: 40px;
+}
+.cg-input::placeholder { color: var(--text-muted); }
+.cg-input:focus { outline: none; border-color: transparent; }
+
+.cg-results {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-height: min(300px, 50vh);
+  top: calc(100% + 8px);
+}
+
+.cg-node {
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  min-height: 40px;
+  transition: background var(--transition-fast);
+}
+.cg-node.active, .cg-node:hover { background: var(--surface-hover); }
+.cg-node:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cg-label { color: var(--text-primary); }
+
+.cg-empty {
+  padding: 14px 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.cg-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding: 6px 10px 2px;
+}
+
+@media (max-width: 640px) {
+  .cg-search { max-width: 100%; }
+  .cg-input { min-height: 44px; font-size: 16px; /* prevents iOS zoom */ }
+  .cg-node { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cg-search, .cg-node { transition: none; }
+}

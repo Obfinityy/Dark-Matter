@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './ResilienceStates.css';
 import './HelpExplain.css';
+import './HelpExplain.polish.css';
 
 const SEVERITY_INFO = {
   critical: {

@@ -10,6 +10,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { searchModels } from './searchRefine.js';
 import './ModelsPageSearch.css';
+import './ModelsPageSearch.polish.css';
 
 export function ModelsSearchBox({ entries = [], onResults, placeholder = 'Search models & plugins…' }) {
   const [query, setQuery] = useState('');
@@ -33,6 +34,7 @@ export function ModelsSearchBox({ entries = [], onResults, placeholder = 'Search
         onChange={(e) => handle(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') handle(''); }}
         aria-label="Search models and plugins"
+        aria-controls="mp-results-grid"
       />
       {query && (
         <button
@@ -66,7 +68,7 @@ export function ModelsSearchGrid({ entries = [], renderEntry, emptyHint }) {
           {emptyHint ?? <p className="mp-hint">Try “vision”, “hacker”, “tts”, or a provider name.</p>}
         </div>
       ) : (
-        <div className="mp-grid">
+        <div className="mp-grid" id="mp-results-grid" role="region" aria-label="Matching models and plugins">
           {visible.map((m, i) => (
             <div key={m.id ?? i} className="mp-cell">
               {renderEntry ? renderEntry(m) : <DefaultModelCard entry={m} />}

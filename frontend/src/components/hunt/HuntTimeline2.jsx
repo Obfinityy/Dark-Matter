@@ -7,6 +7,7 @@
  */
 import React from 'react';
 import './HuntTimeline2.css';
+import './HuntTimeline2.polish.css';
 import { formatElapsed } from './HuntTimeline';
 
 /** 50081 — Parallel worker swimlanes: each isolated worker + its current step. */
@@ -108,6 +109,7 @@ export function TimelineScrubber({ durationSecs = 3600, onScrub, className = '' 
         type="range" min={0} max={durationSecs} value={pos}
         onChange={(e) => move(Number(e.target.value))}
         aria-label="Scrub hunt timeline"
+        aria-valuetext={`${formatElapsed(pos)} of ${formatElapsed(durationSecs)}`}
       />
       <span className="ht2-scrubber-time">{formatElapsed(pos)} / {formatElapsed(durationSecs)}</span>
     </div>
