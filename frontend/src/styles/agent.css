@@ -552,6 +552,9 @@
 .sev-medium { color: #fde68a; border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.1); }
 .sev-low { color: #93c5fd; border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.1); }
 .sev-informational, .sev-info { color: #a8b0c4; border-color: rgba(168,176,196,0.3); background: rgba(168,176,196,0.08); }
+/* Unknown severities still get an accent — no naked chips or cards. */
+.sev-unknown { color: #c4b5fd; border-color: rgba(196,181,253,0.35); background: rgba(196,181,253,0.08); }
+.dm-finding.sev-unknown { border-left: 3px solid #a78bfa; }
 
 /* ════════════════ HOME ════════════════ */
 .dm-hero {
@@ -2145,4 +2148,13 @@
 @keyframes dm-voice-blink {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.45; transform: scale(0.8); }
+}
+
+/* ── Findings board polish (narrow screens) ── */
+@media (max-width: 430px) {
+  /* Badge + title + CVSS + chevron can squeeze at 390px; the CVSS pill is
+     expendable there (the score also appears inside the expanded body). */
+  .dm-finding-head .dm-cvss { display: none; }
+  .dm-finding-head { padding: 14px 14px; gap: 10px; }
+  .dm-findings-bar .dm-btn-ghost { min-height: 44px; }
 }
