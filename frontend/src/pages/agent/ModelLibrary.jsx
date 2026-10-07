@@ -43,6 +43,7 @@ import {
   runModelOnLocal,
   stopSlotOnLocal,
   getLocalSlotServers,
+  getLocalRunnerStatus,
   removeModelLocal,
   downloadEngineLocal,
   subscribeToLocalEngineStream,
@@ -901,6 +902,10 @@ export function ModelLibrary() {
   // ── Local backend: models run on the USER'S machine (localhost:4000) ──
   // NOTE: this useState MUST stay above its first use (engine-stream effect below).
   const [localBackendUp, setLocalBackendUp] = useState(false);
+  // Engine status on the USER'S machine (localhost) — Step 0 shows until the
+  // local engine is downloaded. The remote backend's engineReady is irrelevant
+  // here because models run on localhost, not on Render.
+  const [localEngineReady, setLocalEngineReady] = useState(false);
 
   const stopProgressStream = () => {
     progressUnsub.current?.();
@@ -914,7 +919,7 @@ export function ModelLibrary() {
     const unsubscribe = subscribeToLocalEngineStream({
       onEvent: (data) => {
         const st = data?.status || 'downloading';
-        if (st === 'done') { setEngineDl(null); setBusyEngine(false); refresh(); }
+        if (st === 'done') { setEngineDl(null); setBusyEngine(false); setLocalEngineReady(true); refresh(); }
         else if (st === 'error') {
           setEngineDl((prev) => ({ ...(prev || {}), ...data, status: 'error' }));
           setBusyEngine(false);
@@ -949,8 +954,20 @@ export function ModelLibrary() {
   // ── Frontend-only downloads: direct from Hugging Face, no backend needed ──
 
   useEffect(() => {
-    isLocalBackendUp().then(setLocalBackendUp);
-    const t = setInterval(() => isLocalBackendUp().then(setLocalBackendUp), 10000);
+    const checkLocal = async () => {
+      const up = await isLocalBackendUp();
+      setLocalBackendUp(up);
+      if (up) {
+        try {
+          const st = await getLocalRunnerStatus();
+          setLocalEngineReady(!!st?.engineReady);
+        } catch { /* local backend has no runner yet */ }
+      } else {
+        setLocalEngineReady(false);
+      }
+    };
+    checkLocal();
+    const t = setInterval(checkLocal, 10000);
     return () => clearInterval(t);
   }, []);
 
@@ -1174,7 +1191,9 @@ export function ModelLibrary() {
   };
 
   const running = status?.running;
-  const engineReady = !!status?.engineReady;
+  // engineReady for buttons: MUST be the LOCAL engine (localhost), not remote.
+  // Models run on the user's machine. Remote Render's engine status is irrelevant.
+  const engineReady = localEngineReady;
 
   const cardProps = {
     download, busyModel, engineReady,
@@ -1235,7 +1254,9 @@ export function ModelLibrary() {
       )}
 
       {/* ── Step 0 FIRST: one-time engine download (runs on the user's machine) ── */}
-      {!engineReady && (
+      {/* NOTE: uses localEngineReady (localhost), NOT the remote backend's engineReady —
+          the engine must be on the USER'S machine. Remote Render status is irrelevant. */}
+      {!localEngineReady && (
         <div className="sg-card sg-card-pad ml-engine-card">
           <div className="sg-small ml-engine-head">
             <Server size={17} aria-hidden="true" />
