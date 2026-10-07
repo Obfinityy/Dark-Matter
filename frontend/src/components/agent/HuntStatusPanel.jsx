@@ -46,6 +46,12 @@ export function HuntStatusPanel({ job, jobId, onJobChanged }) {
 
   return (
     <section className="sg-status-panel" aria-label="Hunt status">
+      {/* Mobile-only caption: on small screens the stage labels hide, so the
+          dots need a visible meaning. Screen readers already hear the full
+          list below, so this visual caption is aria-hidden. */}
+      <span className="sg-stage-current-mobile" aria-hidden="true">
+        Step {stageIndex + 1} of {STAGES.length} · {stage}
+      </span>
       <ol className="sg-stage-stepper" aria-label="Hunt methodology stages">
         {STAGES.map((s, i) => {
           const state = i < stageIndex ? 'completed' : i === stageIndex ? 'current' : 'upcoming';
