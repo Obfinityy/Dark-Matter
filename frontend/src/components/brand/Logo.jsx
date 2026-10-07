@@ -1,12 +1,12 @@
 /**
- * DarkMatter brand logo — "The Singularity".
+ * Infinity AI brand logo — "The Singularity".
  * A black hole with a glowing accretion disk and radar sweep:
  * invisible matter, visible power. Security that sees what others can't.
  */
 export default function Logo({ size = 36, withWordmark = false, className = '' }) {
   return (
     <span className={`dm-logo ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-      <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="DarkMatter logo">
+      <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Infinity AI logo">
         <defs>
           <radialGradient id="dm-core" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="#0b0b14" />
@@ -34,7 +34,7 @@ export default function Logo({ size = 36, withWordmark = false, className = '' }
       </svg>
       {withWordmark && (
         <span style={{ fontWeight: 800, fontSize: size * 0.52, letterSpacing: '-0.02em', color: 'var(--dm-text)' }}>
-          Dark<span style={{ background: 'linear-gradient(135deg,#22d3ee,#c084fc)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Matter</span>
+          Infinity<span style={{ background: 'linear-gradient(135deg,#22d3ee,#c084fc)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{' '}AI</span>
         </span>
       )}
     </span>

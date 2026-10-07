@@ -73,8 +73,8 @@ function RouteTitle() {
   const { pathname } = useLocation();
   useEffect(() => {
     const segment = pathname.replace(/^\/agent\/?/, '').split('/')[0];
-    document.title = `${ROUTE_TITLES[segment] ?? 'Infinity AI'} · Dark-Matter`;
-    return () => { document.title = 'Dark-Matter'; };
+    document.title = `${ROUTE_TITLES[segment] ?? 'Infinity AI'} · Infinity AI`;
+    return () => { document.title = 'Infinity AI'; };
   }, [pathname]);
   return null;
 }
