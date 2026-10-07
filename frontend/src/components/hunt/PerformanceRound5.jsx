@@ -825,7 +825,7 @@ export function CrossFadedPresetSwitches() {
           <button key={p} className={sw.to === p ? 'perf5-chip on' : 'perf5-chip'} onClick={() => switchTo(p)}>{p}</button>
         ))}
       </div>
-      <ul className={`perf5-list ${sw.phase === 'crossfade' ? 'perf5-preset-crossfade' : ''}`}>
+      <ul className="perf5-list">
         {sw.results.map((r) => <li key={r}>{r}</li>)}
       </ul>
     </div>
