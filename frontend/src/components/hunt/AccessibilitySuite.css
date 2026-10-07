@@ -1,0 +1,122 @@
+/**
+ * AccessibilitySuite.css — Forge wave 13, ideas 50500–50520.
+ *
+ * Accessibility foundation: 3px high-contrast focus-visible outlines (50502),
+ * 44px minimum touch targets (50518), reduced-motion support (50503),
+ * prefers-contrast boosts (50520), rem/clamp typography for 200% text (50517).
+ */
+
+.a11y-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* 50502 — every interactive element: 3px high-contrast focus-visible outline */
+.a11y-focusable:focus-visible,
+.a11y-iconbtn:focus-visible,
+.a11y-option:focus-visible,
+.a11y-node:focus-visible,
+.a11y-chart-table button:focus-visible,
+.a11y-toast button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 50518 — 44px minimum touch targets */
+.a11y-touch, .a11y-iconbtn {
+  min-width: 44px; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.a11y-touch-demo > * { margin: 4px; }
+
+/* 50503 — reduced motion: kill shimmer, confetti, auto-scroll + manual class */
+@media (prefers-reduced-motion: reduce) {
+  .a11y-no-motion, .a11y-no-motion * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+.a11y-reduced-motion .a11y-no-motion,
+.a11y-reduced-motion .a11y-no-motion * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* 50520 — prefers-contrast: boost borders and text weights */
+@media (prefers-contrast: more) {
+  .a11y-contrast-demo, .a11y-contrast-demo * {
+    border-width: 2px !important;
+    font-weight: 600 !important;
+  }
+}
+
+/* 50517 — rem/clamp typography: survives 200% text scaling */
+.a11y-large-note { font-size: clamp(0.875rem, 1vw + 0.5rem, 1.25rem); line-height: 1.6; }
+
+/* Severity badge — 50501: color + icon + text */
+.a11y-sev {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--sev-color, #8b949e); color: var(--sev-color, #8b949e);
+  border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600;
+  white-space: nowrap;
+}
+
+.a11y-contrast { font-family: ui-monospace, monospace; font-size: 12px; padding: 2px 8px; border-radius: 4px; }
+.a11y-contrast.pass { background: #0d3320; color: #3fb950; }
+.a11y-contrast.fail { background: #3d1215; color: #f85149; }
+
+.a11y-listbox { border: 1px solid #30363d; border-radius: 8px; max-height: 320px; overflow: auto; }
+.a11y-option { padding: 10px 12px; border-bottom: 1px solid #21262d; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+.a11y-option.active { background: #1c2a3f; }
+
+.a11y-timeline { list-style: none; padding: 0; margin: 0; }
+.a11y-timeline li { display: flex; gap: 10px; align-items: center; padding: 8px 4px; border-bottom: 1px solid #21262d; font-size: 14px; }
+.a11y-step-done { color: #3fb950; }
+.a11y-step-running { color: #58a6ff; }
+.a11y-step-pending { color: #8b949e; }
+
+.a11y-field { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.a11y-field label { font-size: 13px; font-weight: 600; }
+.a11y-field input {
+  background: #161b22; color: #e6edf3; border: 1px solid #30363d;
+  border-radius: 6px; padding: 10px 12px; font-size: 14px;
+}
+.a11y-field input:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+.a11y-error { color: #f85149; font-size: 13px; }
+.a11y-error-link { color: #58a6ff; }
+
+.a11y-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; z-index: 9600; }
+.a11y-modal { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 12px; padding: 20px; width: min(480px, 92vw); }
+
+.a11y-toasts { display: flex; flex-direction: column; gap: 8px; }
+.a11y-toast { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 14px; display: flex; gap: 12px; align-items: center; }
+
+.a11y-palette { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.a11y-sw { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.a11y-sw-color { width: 20px; height: 20px; border-radius: 4px; display: inline-block; }
+.a11y-note { color: #8b949e; font-size: 12px; }
+
+.a11y-chart-table table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.a11y-chart-table th, .a11y-chart-table td { border: 1px solid #30363d; padding: 8px; text-align: left; }
+.a11y-chart-table button {
+  background: #161b22; color: #e6edf3; border: 1px solid #30363d;
+  border-radius: 6px; padding: 8px 14px; cursor: pointer;
+}
+
+.a11y-graph { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px; }
+.a11y-node {
+  background: #161b22; color: #e6edf3; border: 1px solid #30363d;
+  border-radius: 8px; padding: 10px 16px; cursor: pointer;
+}
+.a11y-node.active { border-color: #58a6ff; }
+
+.a11y-motion { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+.a11y-focus-demo { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.a11y-visual-order ul { list-style: none; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.a11y-visual-order button {
+  background: #161b22; color: #e6edf3; border: 1px solid #30363d;
+  border-radius: 6px; padding: 8px 14px; cursor: pointer;
+}

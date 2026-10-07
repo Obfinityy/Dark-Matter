@@ -1,0 +1,150 @@
+/**
+ * AdvancedShortcuts.css — Forge wave 13, ideas 50481–50499.
+ * Dark, quiet styling consistent with the hunt UI. Focus states use the
+ * 3px high-contrast outline from the wave-13 accessibility rules.
+ */
+
+:root {
+  --adv-bg: #0d1117;
+  --adv-surface: #161b22;
+  --adv-border: #30363d;
+  --adv-text: #e6edf3;
+  --adv-muted: #8b949e;
+  --adv-accent: #58a6ff;
+  --adv-focus: #fff;
+}
+
+.adv-typing-guard {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--adv-surface);
+  border: 1px solid var(--adv-border);
+  color: var(--adv-text);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 9000;
+}
+
+.adv-f6 {
+  background: var(--adv-surface);
+  color: var(--adv-text);
+  border: 1px solid var(--adv-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.adv-f6:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
+
+.adv-adaptive-hint { display: inline-flex; align-items: center; gap: 6px; }
+.adv-adaptive-kbd, kbd {
+  background: var(--adv-surface);
+  border: 1px solid var(--adv-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* Remap dialog */
+.adv-remap-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center; z-index: 9500;
+}
+.adv-remap {
+  background: var(--adv-bg); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 12px;
+  padding: 20px; width: min(560px, 92vw); max-height: 80vh; overflow: auto;
+}
+.adv-remap-conflicts p { color: #ffa657; margin: 6px 0; font-size: 13px; }
+.adv-remap-list { list-style: none; padding: 0; margin: 12px 0; }
+.adv-remap-list li { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--adv-border); }
+.adv-remap-key {
+  background: var(--adv-surface); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+  font-family: ui-monospace, monospace;
+}
+.adv-remap-key:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
+.adv-remap-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.adv-remap-foot button {
+  background: var(--adv-surface); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+}
+
+/* Printable card */
+.adv-print-card { color: var(--adv-text); }
+.adv-print-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.adv-print-card th, .adv-print-card td { text-align: left; padding: 8px; border-bottom: 1px solid var(--adv-border); }
+.adv-print-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.adv-print-actions { display: flex; gap: 8px; }
+.adv-print-actions button {
+  background: var(--adv-surface); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+@media print {
+  .adv-print-actions { display: none; }
+  .adv-print-card { color: #000; }
+}
+
+/* New highlights */
+.adv-new-highlights { background: var(--adv-surface); border: 1px solid var(--adv-border); border-radius: 10px; padding: 14px; }
+.adv-new-highlights ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--adv-text); }
+.adv-new-highlights li { margin: 4px 0; }
+.adv-new-highlights h3 { margin: 0; font-size: 14px; color: var(--adv-text); }
+
+/* Numbered suggestions */
+.adv-numbered { display: flex; gap: 8px; flex-wrap: wrap; }
+.adv-numbered button {
+  background: var(--adv-surface); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 8px; padding: 8px 12px; cursor: pointer;
+}
+.adv-numbered button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
+.adv-numbered-badge {
+  display: inline-block; min-width: 18px; text-align: center;
+  background: var(--adv-accent); color: #000; border-radius: 4px;
+  font-size: 11px; font-weight: 700; padding: 1px 4px; margin-right: 6px;
+}
+
+/* Hunt target input */
+.adv-hunt-target { display: flex; gap: 8px; align-items: center; }
+.adv-hunt-target label { color: var(--adv-text); font-size: 13px; }
+.adv-hunt-target input {
+  background: var(--adv-surface); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 10px; min-width: 220px;
+}
+.adv-hunt-target input:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
+.adv-hunt-target .adv-hint { color: var(--adv-muted); font-size: 12px; }
+
+/* Phase pipeline */
+.adv-phases { display: flex; gap: 6px; padding: 8px; }
+.adv-phases:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; border-radius: 8px; }
+.adv-phases button {
+  background: var(--adv-surface); color: var(--adv-muted);
+  border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+}
+.adv-phases button.adv-phase-active { color: var(--adv-text); border-color: var(--adv-accent); }
+
+/* Tour + onboarding */
+.adv-tour, .adv-onboarding {
+  background: var(--adv-bg); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 12px;
+  padding: 20px; max-width: 420px;
+}
+.adv-tour-count { color: var(--adv-muted); font-size: 12px; margin: 0 0 4px; }
+.adv-tour-foot { display: flex; justify-content: space-between; margin-top: 16px; }
+.adv-tour-foot button, .adv-onboarding button {
+  background: var(--adv-surface); color: var(--adv-text);
+  border: 1px solid var(--adv-border); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+}
+.adv-tour-foot button:focus-visible, .adv-onboarding button:focus-visible { outline: 3px solid var(--adv-focus); outline-offset: 2px; }
+.adv-onboarding-progress { list-style: none; display: flex; gap: 8px; padding: 0; margin: 0 0 12px; }
+.adv-onboarding-progress li { flex: 1; height: 6px; border-radius: 3px; background: var(--adv-border); }
+.adv-onboarding-progress li.done { background: #3fb950; }
+.adv-onboarding-progress li.current { background: var(--adv-accent); }
+.adv-onboarding-hint { color: var(--adv-muted); }
