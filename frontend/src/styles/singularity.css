@@ -225,6 +225,9 @@
 
 @keyframes sg-spin { to { transform: rotate(360deg); } }
 .sg-spin { animation: sg-spin 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sg-spin { animation: none; }
+}
 
 /* ── Scrollbar ── */
 .sg-app ::-webkit-scrollbar { width: 10px; height: 10px; }

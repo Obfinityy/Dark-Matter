@@ -197,27 +197,31 @@
 .sg-stage.sg-current .sg-stage-label { color: var(--sg-text); font-weight: 700; }
 .sg-status-panel-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+/* Mobile caption for the stage stepper — hidden on desktop where every
+ * stage carries its own label; on small screens the labels collapse to
+ * dots, so this caption keeps the current stage legible. */
+.sg-stage-current-mobile {
+  display: none;
+  font-size: 0.72rem; text-transform: capitalize;
+  color: var(--sg-text-2); letter-spacing: 0.02em;
+}
+
 /* Visible keyboard focus for the panel's action buttons. */
 .sg-status-panel .sg-btn:focus-visible {
   outline: 2px solid var(--sg-cyan);
   outline-offset: 2px;
 }
 
-/* ── PostureScore ──────────────────────────────────────────────────────── */
-.sg-posture { display: flex; align-items: center; gap: 10px; }
-.sg-posture-grade {
-  font-size: 0.68rem; font-weight: 800; color: #0b0e14;
-  width: 20px; height: 20px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.sg-posture-meta { display: flex; flex-direction: column; line-height: 1.25; }
-.sg-posture-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sg-text-3); }
-.sg-posture-counts { font-size: 0.75rem; color: var(--sg-text-2); }
+/* ── PostureScore ────────────────────────────────────────────────────────
+ * Styled by styles/polish-pass-coverage-posture-fingerprint.css (imported
+ * globally in App.jsx) — kept here as a comment only so future edits land
+ * in the single source of truth instead of a second copy. */
 
 @media (max-width: 760px) {
   .sg-stage-label { display: none; }
   .sg-stage { padding: 4px 5px; }
   .sg-status-panel { gap: 10px; }
+  .sg-stage-current-mobile { display: block; flex: 1 1 100%; order: -1; }
   /* 44px touch targets for pause/resume/queues. */
   .sg-status-panel .sg-btn-sm { min-height: 44px; }
 }
