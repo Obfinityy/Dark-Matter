@@ -1,0 +1,197 @@
+/* GovernanceRound2.css — wave 31 (ideas 51201–51240).
+ * Scoped .gov31-* styles. Zero keyframes/animations per the owner's
+ * zero-animation order. prefers-reduced-motion guard included. */
+
+.gov31-card {
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  background: var(--card, #141821);
+}
+
+.gov31-card h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.gov31-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.gov31-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.gov31-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.gov31-input {
+  flex: 1;
+  min-width: 160px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2f3a);
+  background: var(--input, #0f131b);
+  color: inherit;
+}
+
+.gov31-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2f3a);
+  background: var(--accent-dim, #1d2635);
+  color: inherit;
+  cursor: pointer;
+}
+
+.gov31-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.gov31-btn-active {
+  background: var(--accent, #2f6fed);
+  color: #fff;
+}
+
+.gov31-danger {
+  border-color: #b3261e;
+  color: #ff8a80;
+}
+
+.gov31-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.gov31-list li {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border, #2a2f3a);
+  font-size: 13px;
+}
+
+.gov31-dim { color: var(--dim, #8b93a5); font-size: 12px; }
+.gov31-ok { color: #4caf7d; }
+.gov31-warn { color: #e2a63d; }
+.gov31-bad { color: #ff8a80; }
+
+.gov31-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--border, #2a2f3a);
+}
+
+.gov31-hint {
+  background: var(--hint-bg, #16202f);
+  border-left: 3px solid var(--accent, #2f6fed);
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+}
+
+.gov31-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.gov31-watermark {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #3a2b12;
+  color: #ffd98a;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  margin: 8px 0;
+}
+
+.gov31-sim {
+  background: #12303a;
+  color: #8ad4ff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.gov31-meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track, #232a38);
+  overflow: hidden;
+}
+
+.gov31-meter-fill {
+  height: 100%;
+  background: var(--accent, #2f6fed);
+}
+
+.gov31-log {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: #0b0e14;
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: 8px;
+  padding: 10px;
+  max-height: 260px;
+  overflow: auto;
+  margin: 8px 0;
+}
+
+.gov31-log > div {
+  padding: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.gov31-loglevel-debug { color: #8b93a5; }
+.gov31-loglevel-info { color: #c9d4e3; }
+.gov31-loglevel-warning { color: #e2a63d; }
+.gov31-loglevel-error { color: #ff8a80; }
+
+.gov31-highlight {
+  background: rgba(226, 166, 61, 0.14);
+  border-radius: 4px;
+}
+
+.gov31-mono, .gov31-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.gov31-pre {
+  background: #0b0e14;
+  padding: 8px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 200px;
+}
+
+.gov31-details { margin-top: 8px; }
+
+/* Zero decorative animation per owner order; only honor reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .gov31-card, .gov31-btn, .gov31-log, .gov31-watermark {
+    animation: none;
+  }
+}
