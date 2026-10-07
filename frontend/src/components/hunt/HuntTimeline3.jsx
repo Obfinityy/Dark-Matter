@@ -80,7 +80,7 @@ export function SnapshotCheckpointFlags({ checkpoints = [], className = '' }) {
     { at: 30, label: 'Snapshot 1' }, { at: 70, label: 'Snapshot 2' },
   ];
   return (
-    <div className={`ht3-snapshots ${className}`} aria-label="State snapshots">
+    <div className={`ht3-snapshots ${className}`} role="img" aria-label="State snapshots">
       <div className="ht3-snap-track" aria-hidden="true" />
       {items.map((s, i) => (
         <span key={i} className="ht3-snap-flag" style={{ left: `${s.at}%` }} title={s.label} aria-label={s.label}>⚑</span>

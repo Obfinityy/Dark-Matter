@@ -57,7 +57,7 @@ export function Login() {
           <h1 className="sg-display sg-fade-up">
             The agent that finds what<br />others <span className="sg-gradient-text">can't see.</span>
           </h1>
-          <p className="sg-body sg-fade-up sg-fade-up-1" style={{ maxWidth: 440 }}>
+          <p className="sg-body sg-fade-up sg-fade-up-1 sg-auth-lede">
             Infinity AI is an autonomous security agent. Point it at a target and it
             hunts: recon, analysis, proof - while you watch it think.
           </p>
@@ -66,7 +66,7 @@ export function Login() {
               <div key={title} className={`sg-auth-proof sg-fade-up sg-fade-up-${i + 2}`}>
                 <span className="sg-auth-proof-icon"><Icon size={18} strokeWidth={1.8} /></span>
                 <div>
-                  <div className="sg-h3" style={{ marginBottom: 4 }}>{title}</div>
+                  <div className="sg-h3 sg-auth-proof-title">{title}</div>
                   <div className="sg-small">{text}</div>
                 </div>
               </div>
@@ -76,8 +76,8 @@ export function Login() {
             Only test systems you own or are authorized to assess.
             <br />
             <br />
-            <a href="/privacy-policy" style={{ color: 'inherit', textDecoration: 'underline', marginRight: '10px' }}>Privacy Policy</a>
-            <a href="/terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms & Conditions</a>
+            <a className="sg-auth-legal" href="/privacy-policy">Privacy Policy</a>
+            <a className="sg-auth-legal" href="/terms">Terms &amp; Conditions</a>
           </p>
         </div>
         <div className="sg-auth-glow" aria-hidden />
@@ -88,10 +88,11 @@ export function Login() {
         <div className="sg-auth-card sg-card sg-fade-up">
           <div className="sg-auth-mobile-brand"><Logo size={38} withWordmark /></div>
 
-          <div className="sg-auth-tabs" role="tablist">
+          <div className="sg-auth-tabs" role="tablist" aria-label="Sign in or create account">
             {(['login', 'register']).map((m) => (
               <button
-                key={m} type="button" role="tab" aria-selected={mode === m}
+                key={m} type="button" role="tab" id={`sg-auth-tab-${m}`}
+                aria-selected={mode === m} aria-controls="sg-auth-panel"
                 className={mode === m ? 'active' : ''}
                 onClick={() => { setMode(m); setError(''); }}
               >
@@ -100,7 +101,7 @@ export function Login() {
             ))}
           </div>
 
-          <form onSubmit={submit} className="sg-stack">
+          <form onSubmit={submit} className="sg-stack" id="sg-auth-panel" role="tabpanel" aria-labelledby={`sg-auth-tab-${mode}`}>
             {mode === 'login' ? (
               <div>
                 <label className="sg-label" htmlFor="sg-login-id">Username or email</label>
@@ -123,7 +124,7 @@ export function Login() {
                       placeholder="you@example.com" autoComplete="email" required />
                   </div>
                 </div>
-                <div className="sg-grid-2" style={{ gap: 12 }}>
+                <div className="sg-grid-2 sg-auth-grid">
                   <div>
                     <label className="sg-label" htmlFor="sg-reg-user">Username</label>
                     <div className="sg-field">
@@ -165,8 +166,8 @@ export function Login() {
               </div>
             )}
 
-            <button type="submit" className="sg-btn sg-btn-primary sg-btn-lg" style={{ width: '100%' }} disabled={busy}>
-              {busy && <span className="sg-spin" style={{ display: 'inline-flex' }}>◌</span>}
+            <button type="submit" className="sg-btn sg-btn-primary sg-btn-lg sg-auth-submit" disabled={busy}>
+              {busy && <span className="sg-spin sg-auth-spinner" aria-hidden="true">◌</span>}
               {mode === 'login' ? 'Sign in to Infinity AI' : 'Create my account'}
             </button>
           </form>

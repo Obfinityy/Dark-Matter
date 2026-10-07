@@ -189,6 +189,7 @@ export function FilterChipSpinner({ label = 'Filter', loading = true, onClick, a
       className={`hl-filter-chip ${active ? 'hl-active' : ''} ${className}`}
       onClick={onClick}
       disabled={loading}
+      aria-busy={loading}
     >
       {loading && <span className="hl-mini-spinner" aria-hidden="true" />}
       {label}
@@ -313,7 +314,7 @@ export function SeverityCountSpinner({ severity = 'High', loading = true, count 
       onClick={onClick}
       disabled={loading}
     >
-      <span className={`hl-sev-dot hl-sev-${severity.toLowerCase()}`} aria-hidden="true" />
+      <span className={`hl-sev-dot hl-sev-${String(severity).toLowerCase()}`} aria-hidden="true" />
       {severity}
       <span className="hl-sev-count">
         {loading ? <span className="hl-mini-spinner hl-spinner-xs" aria-hidden="true" /> : count}
