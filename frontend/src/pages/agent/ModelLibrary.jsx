@@ -262,7 +262,7 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
  */
 function BrainSlotCard({
   slotId, slot, assignments, sources, slotServers,
-  download, engineReady, slotBusy, kaggleBusy, kaggleMsg,
+  download, downloadedIds, engineReady, slotBusy, kaggleBusy, kaggleMsg,
   onAssign, onDownload, onCancelDownload, onRunSlot, onStopSlot,
   onKaggleConnect, onKaggleDisconnect, onKaggleTest,
   kaggleUrl, setKaggleUrl, kaggleName, setKaggleName
@@ -1151,6 +1151,7 @@ export function ModelLibrary() {
                 sources={slotSources}
                 slotServers={slotServers}
                 download={download}
+                downloadedIds={downloadedIds}
                 engineReady={engineReady}
                 slotBusy={slotBusy}
                 kaggleBusy={kaggleBusy}
