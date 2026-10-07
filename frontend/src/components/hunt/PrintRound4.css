@@ -1,0 +1,210 @@
+/* PrintRound4.css — wave 24 (ideas 50921–50929): print round 4 styles. */
+
+.pr4-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1rem;
+  max-width: 900px;
+}
+
+.pr4-gallery h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.pr4-gallery h3 {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  color: #9db4d0;
+}
+
+/* 50921 — prepared-by line */
+.pr4-prepared-by {
+  font-size: 0.85rem;
+  color: #8fa3bd;
+  border-top: 1px solid #223148;
+  padding-top: 0.5rem;
+}
+
+/* 50922 — duplex note */
+.pr4-duplex p {
+  margin: 0 0 0.5rem;
+}
+
+.pr4-code {
+  background: #0d1626;
+  border: 1px solid #223148;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  color: #b9cdea;
+}
+
+/* 50923 / 50927 — appendix + compliance tables */
+.pr4-scope-appendix h3,
+.pr4-compliance h3,
+.pr4-cheat-sheet h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.pr4-scope-appendix table,
+.pr4-compliance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.pr4-scope-appendix th,
+.pr4-scope-appendix td,
+.pr4-compliance th,
+.pr4-compliance td {
+  border: 1px solid #223148;
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+}
+
+.pr4-scope-appendix th,
+.pr4-compliance th {
+  background: #101c31;
+}
+
+/* 50924 — full list */
+.pr4-full-list .pr4-meta {
+  font-size: 0.8rem;
+  color: #8fa3bd;
+  margin: 0 0 0.4rem;
+}
+
+.pr4-full-row {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #16233a;
+  font-size: 0.85rem;
+}
+
+/* 50925 — cheat sheet */
+.pr4-cheat-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 2rem;
+}
+
+.pr4-cheat-cols ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pr4-cheat-cols li {
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+}
+
+.pr4-cheat-cols kbd {
+  background: #101c31;
+  border: 1px solid #2a3d5c;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.78rem;
+  font-family: ui-monospace, monospace;
+}
+
+/* 50926 — cross-browser note */
+.pr4-xbrowser .pr4-note {
+  font-size: 0.85rem;
+  color: #b9cdea;
+  background: #0d1626;
+  border-left: 3px solid #3b82f6;
+  padding: 0.5rem 0.75rem;
+}
+
+.pr4-xbrowser select {
+  background: #101c31;
+  color: #dbe7f7;
+  border: 1px solid #2a3d5c;
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+}
+
+/* 50928 — printer button */
+.pr4-print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.pr4-print-btn:hover {
+  background: #2563eb;
+}
+
+.pr4-print-btn:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.pr4-printer-icon {
+  font-size: 1.05rem;
+}
+
+/* 50929 — fallback note */
+.pr4-fallback {
+  background: #2a1f0d;
+  border: 1px solid #8a6d1f;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  color: #f0d48a;
+  margin: 0;
+}
+
+/* ---------- print rendering (all ideas 50921–50929) ---------- */
+
+@media print {
+  .pr4-gallery h2,
+  .pr4-gallery > h3 {
+    display: none;
+  }
+
+  .pr4-cheat-sheet {
+    break-inside: avoid;
+  }
+
+  .pr4-cheat-cols {
+    column-gap: 1.5cm;
+  }
+
+  .pr4-full-row {
+    break-inside: avoid;
+  }
+
+  .pr4-scope-appendix,
+  .pr4-compliance {
+    break-before: page;
+  }
+
+  .pr4-print-btn {
+    display: none;
+  }
+
+  .pr4-fallback {
+    border-color: #666;
+    color: #000;
+    background: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr4-print-btn {
+    transition: none;
+  }
+}
