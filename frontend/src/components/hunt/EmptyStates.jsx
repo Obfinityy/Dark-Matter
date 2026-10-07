@@ -19,6 +19,17 @@
  * 50314 empty trash · 50315 inbox-zero review queue · 50316 empty retest
  * queue · 50317 empty model library · 50318 empty scope state ·
  * 50319 queued-hunt timeline · 50320 empty invoices.
+ *
+ * Wave 9 (50321–50340) added 20 more: 50321 empty ideas list · 50322 empty
+ * playbook library · 50323 empty webhook deliveries · 50324 empty profile
+ * activity · 50325 empty shared-with-me · 50326 empty report templates ·
+ * 50327 empty payload lists · 50328 empty paused hunts ·
+ * 50329 empty mention results · 50330 empty compliance checklist ·
+ * 50331 positive no-breach state · 50332 empty agent memory ·
+ * 50333 empty attachments hint · 50334 empty voice history ·
+ * 50335 empty avatar customization · 50336 empty scheduled reports ·
+ * 50337 empty target notes · 50338 empty macro list ·
+ * 50339 friendly hunt 404 · 50340 target-unreachable card.
  */
 
 import { useState } from 'react';
@@ -549,6 +560,281 @@ export function EmptyInvoices({ tier = 'Free', onUpgrade }) {
   );
 }
 
+/* ---- Wave 9 (50321–50340) — empty-states round 2 -------------------------- */
+
+/* 50321 — empty ideas list ------------------------------------------------- */
+
+export function EmptyIdeasList({ onSuggest }) {
+  return (
+    <EmptyState
+      compact
+      title="No feature ideas yet"
+      description="Nobody has submitted a feature idea. The roadmap grows from your suggestions."
+      primary={onSuggest && { label: 'Suggest a feature', onClick: onSuggest }}
+    />
+  );
+}
+
+/* 50322 — empty playbook library ------------------------------------------- */
+
+export function EmptyPlaybooks({ onBrowseStarters }) {
+  return (
+    <EmptyState
+      compact
+      title="No playbooks yet"
+      description="Clone a starter template to run your first reusable hunt workflow — no setup required."
+      primary={onBrowseStarters && { label: 'Browse starter templates', onClick: onBrowseStarters }}
+      hint="Starters cover recon, API auth, and injection workflows."
+    />
+  );
+}
+
+/* 50323 — empty webhook deliveries ----------------------------------------- */
+
+export function EmptyWebhookDeliveries({ onSendTest }) {
+  return (
+    <EmptyState
+      compact
+      title="No webhook deliveries yet"
+      description="Send a test event to verify your endpoint receives and acknowledges payloads."
+      primary={onSendTest && { label: 'Send a test event', onClick: onSendTest }}
+    />
+  );
+}
+
+/* 50324 — empty profile activity ------------------------------------------- */
+
+export function EmptyProfileActivity() {
+  return (
+    <EmptyState
+      compact
+      title="Your hunt stats will appear here"
+      description="Run your first hunt and this profile fills with hunts, findings, and severity breakdowns."
+      hint="Stats update automatically after each completed hunt."
+    />
+  );
+}
+
+/* 50325 — empty shared-with-me --------------------------------------------- */
+
+export function EmptySharedWithMe() {
+  return (
+    <EmptyState
+      compact
+      title="Nothing shared with you yet"
+      description="When a teammate shares a hunt, it appears here with the same findings, timeline, and reports they see."
+      hint="Sharing never copies data — it grants view access to the original hunt."
+    />
+  );
+}
+
+/* 50326 — empty report templates ------------------------------------------- */
+
+export function EmptyReportTemplates({ onUseDefault }) {
+  return (
+    <EmptyState
+      compact
+      title="No custom templates"
+      description="You haven't saved any report templates. The default Infinity AI template produces a full professional report."
+      primary={onUseDefault && { label: 'Use the default template', onClick: onUseDefault }}
+    />
+  );
+}
+
+/* 50327 — empty payload lists ---------------------------------------------- */
+
+export function EmptyPayloadLists({ onImportFile, onBrowseBuiltins }) {
+  return (
+    <EmptyState
+      compact
+      title="No custom payload lists"
+      description="Import a payload list from a file (one payload per line) or start from the built-in sets."
+      primary={onImportFile && { label: 'Import from file', onClick: onImportFile }}
+      secondary={onBrowseBuiltins && { label: 'Browse built-ins', onClick: onBrowseBuiltins }}
+    />
+  );
+}
+
+/* 50328 — empty paused hunts ----------------------------------------------- */
+
+export function EmptyPausedHunts({ onViewRunning }) {
+  return (
+    <EmptyState
+      compact
+      title="No paused hunts"
+      description="Paused hunts wait here with their checkpoints intact — resume exactly where you left off."
+      secondary={onViewRunning && { label: 'View running hunts', onClick: onViewRunning }}
+    />
+  );
+}
+
+/* 50329 — empty mention results -------------------------------------------- */
+
+export function EmptyMentionResults({ target }) {
+  return (
+    <EmptyState
+      compact
+      tone="success"
+      title="No mentions found"
+      description={target
+        ? `No dark-web mentions of ${target} right now — we'll keep watching.`
+        : 'No dark-web mentions right now — we\'ll keep watching.'}
+      hint="Monitoring runs continuously; new mentions surface as notifications."
+    />
+  );
+}
+
+/* 50330 — empty compliance checklist --------------------------------------- */
+
+export function EmptyComplianceChecklist({ onRunScan }) {
+  return (
+    <EmptyState
+      compact
+      title="Checklist is empty"
+      description="Run a compliance scan to populate the checklist with framework requirements and pass/fail evidence."
+      primary={onRunScan && { label: 'Run a compliance scan', onClick: onRunScan }}
+    />
+  );
+}
+
+/* 50331 — positive no-breach state ----------------------------------------- */
+
+export function PositiveNoBreachState({ policyName }) {
+  return (
+    <EmptyState
+      compact
+      tone="success"
+      title="No SLA breaches"
+      description={policyName
+        ? `All targets are within the "${policyName}" policy. Nothing is overdue or at risk.`
+        : 'All targets are within policy. Nothing is overdue or at risk.'}
+      hint="The breach list fills automatically the moment a deadline slips."
+    />
+  );
+}
+
+/* 50332 — empty agent memory ----------------------------------------------- */
+
+export function EmptyAgentMemory() {
+  return (
+    <EmptyState
+      compact
+      title="Memory builds as hunts run"
+      description="The agent remembers what worked: tech fingerprints, effective checks, and verified findings."
+      hint="Sample: example.com → tech: nginx+react → 3 findings confirmed by retest."
+    />
+  );
+}
+
+/* 50333 — empty attachments hint ------------------------------------------- */
+
+export function EmptyAttachmentsHint({ onAttach }) {
+  return (
+    <EmptyState
+      compact
+      title="No files attached"
+      description="Drag files here, or attach them — screenshots, HAR files, and notes all help the agent hunt smarter."
+      primary={onAttach && { label: 'Attach files', onClick: onAttach }}
+    />
+  );
+}
+
+/* 50334 — empty voice history ---------------------------------------------- */
+
+export function EmptyVoiceHistory() {
+  return (
+    <EmptyState
+      compact
+      title="Your voice commands will appear here"
+      description="Every command you speak to Infinity AI lands here as a transcript you can replay or rerun."
+    />
+  );
+}
+
+/* 50335 — empty avatar customization ---------------------------------------- */
+
+export function EmptyAvatarCustomization({ onCustomize }) {
+  return (
+    <EmptyState
+      compact
+      title="Meet your default avatar"
+      description="This is the standard Infinity AI avatar. Make it yours — pick a voice, style, and personality."
+      primary={onCustomize && { label: 'Make it yours', onClick: onCustomize }}
+    />
+  );
+}
+
+/* 50336 — empty scheduled reports ------------------------------------------ */
+
+export function EmptyScheduledReports({ onPickPreset, presets = ['Weekly', 'Monthly'] }) {
+  return (
+    <EmptyState
+      compact
+      title="No scheduled reports"
+      description="Pick a cadence and Infinity AI emails you a findings digest on schedule — set it once, forget it."
+      primary={onPickPreset && { label: `Schedule ${presets[0]} reports`, onClick: () => onPickPreset(presets[0]) }}
+      secondary={presets[1] && onPickPreset && { label: `Schedule ${presets[1]} reports`, onClick: () => onPickPreset(presets[1]) }}
+    />
+  );
+}
+
+/* 50337 — empty target notes ----------------------------------------------- */
+
+export function EmptyTargetNotes({ onAddNote }) {
+  return (
+    <EmptyState
+      compact
+      title="No notes for this target"
+      description="Jot context the agent should know — credentials format, known quirks, out-of-scope paths. It reads these before hunting."
+      primary={onAddNote && { label: 'Add a note', onClick: onAddNote }}
+    />
+  );
+}
+
+/* 50338 — empty macro list -------------------------------------------------- */
+
+export function EmptyMacros({ onRecord }) {
+  return (
+    <EmptyState
+      compact
+      title="No keyboard macros"
+      description="Record a macro to replay a sequence of actions with one keystroke — triage flows, filter presets, anything."
+      primary={onRecord && { label: 'Record your first macro', onClick: onRecord }}
+    />
+  );
+}
+
+/* 50339 — friendly hunt 404 ------------------------------------------------- */
+
+export function FriendlyHunt404({ huntId, onGoHome, onStartHunt }) {
+  return (
+    <EmptyState
+      compact
+      title="This hunt doesn't exist"
+      description={huntId
+        ? `Hunt "${huntId}" doesn't exist — or it was deleted. Check the ID, or start fresh.`
+        : "This hunt doesn't exist — or it was deleted."}
+      primary={onGoHome && { label: 'Back to hunts', onClick: onGoHome }}
+      secondary={onStartHunt && { label: 'Start a new hunt', onClick: onStartHunt }}
+    />
+  );
+}
+
+/* 50340 — target-unreachable card ------------------------------------------- */
+
+export function TargetUnreachableCard({ target, diagnosis, onRetry, onEditTarget }) {
+  return (
+    <EmptyState
+      compact
+      tone="hero"
+      title={`${target || 'Target'} is unreachable`}
+      description={diagnosis || 'DNS resolution and the TCP connection both failed. The host may be down, the domain may be wrong, or a firewall is blocking us.'}
+      primary={onRetry && { label: 'Retry', onClick: onRetry }}
+      secondary={onEditTarget && { label: 'Edit target', onClick: onEditTarget }}
+    />
+  );
+}
+
 /* Registry for honesty checks ----------------------------------------- */
 
 export const EMPTY_STATE_IDEAS = [
@@ -583,6 +869,26 @@ export const EMPTY_STATE_IDEAS = [
   { idea: 50318, name: 'EmptyScopeState' },
   { idea: 50319, name: 'QueuedHuntTimeline' },
   { idea: 50320, name: 'EmptyInvoices' },
+  { idea: 50321, name: 'EmptyIdeasList' },
+  { idea: 50322, name: 'EmptyPlaybooks' },
+  { idea: 50323, name: 'EmptyWebhookDeliveries' },
+  { idea: 50324, name: 'EmptyProfileActivity' },
+  { idea: 50325, name: 'EmptySharedWithMe' },
+  { idea: 50326, name: 'EmptyReportTemplates' },
+  { idea: 50327, name: 'EmptyPayloadLists' },
+  { idea: 50328, name: 'EmptyPausedHunts' },
+  { idea: 50329, name: 'EmptyMentionResults' },
+  { idea: 50330, name: 'EmptyComplianceChecklist' },
+  { idea: 50331, name: 'PositiveNoBreachState' },
+  { idea: 50332, name: 'EmptyAgentMemory' },
+  { idea: 50333, name: 'EmptyAttachmentsHint' },
+  { idea: 50334, name: 'EmptyVoiceHistory' },
+  { idea: 50335, name: 'EmptyAvatarCustomization' },
+  { idea: 50336, name: 'EmptyScheduledReports' },
+  { idea: 50337, name: 'EmptyTargetNotes' },
+  { idea: 50338, name: 'EmptyMacros' },
+  { idea: 50339, name: 'FriendlyHunt404' },
+  { idea: 50340, name: 'TargetUnreachableCard' },
 ];
 
 export default EmptyState;

@@ -1,0 +1,123 @@
+/* ErrorStates.css — Forge wave 9, ideas 50341–50360. */
+
+.ers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1.5rem;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 14px;
+  background: rgba(44, 18, 24, 0.5);
+  color: #f5d7dd;
+  max-width: 640px;
+  margin: 1rem auto;
+}
+
+.ers-compact {
+  padding: 1.4rem 1rem;
+  max-width: 520px;
+}
+
+.ers-tone-warning {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(44, 36, 18, 0.5);
+  color: #f5e8d7;
+}
+
+.ers-illustration { font-size: 2.2rem; line-height: 1; }
+
+.ers-title { font-size: 1.15rem; font-weight: 650; margin: 0; color: #fff1f2; }
+.ers-tone-warning .ers-title { color: #fffbeb; }
+.ers-desc { margin: 0; color: #d6a8b3; font-size: 0.92rem; max-width: 44ch; }
+.ers-tone-warning .ers-desc { color: #d6c3a8; }
+.ers-hint { margin: 0; color: #9f7781; font-size: 0.8rem; max-width: 46ch; }
+.ers-tone-warning .ers-hint { color: #9f8b77; }
+
+.ers-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; margin-top: 0.4rem; }
+
+.ers-btn {
+  border-radius: 9px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.ers-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ers-primary { background: #e05555; color: #fff; }
+.ers-primary:hover:not(:disabled) { background: #c94a4a; }
+.ers-secondary { background: transparent; color: #eab9c4; border-color: rgba(248, 113, 113, 0.4); }
+.ers-secondary:hover { border-color: #f87171; color: #ffe4e6; }
+
+.ers-details-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; width: 100%; }
+
+.ers-details-toggle {
+  background: transparent;
+  border: none;
+  color: #c98b96;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ers-details-toggle:hover { color: #f0a3ae; }
+
+.ers-details {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.78rem;
+  color: #f3c1ca;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ers-countdown {
+  font-variant-numeric: tabular-nums;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fbbf24;
+  margin-top: 0.3rem;
+}
+
+.ers-inline {
+  margin: 0.3rem 0 0;
+  font-size: 0.84rem;
+  text-align: left;
+  width: 100%;
+}
+
+.ers-inline-error { color: #fca5a5; }
+.ers-inline-warning { color: #fcd34d; }
+.ers-inline-example code {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 5px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+.ers-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 20, 0.72);
+  backdrop-filter: blur(3px);
+  padding: 1rem;
+}
+
+.ers-overlay .ers { margin: 0; }
