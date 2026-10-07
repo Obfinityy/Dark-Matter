@@ -1,0 +1,34 @@
+/* DedupBanner.css — co-located polish for the "already hunted" banner.
+ *
+ * The banner's base layout lives in styles/agent.css; this file only adds
+ * robustness polish that belongs to the component:
+ *  - long target URLs wrap instead of overflowing the banner,
+ *  - full-width stacked actions on small screens,
+ *  - a visible keyboard focus ring on the action buttons.
+ */
+
+.dm-dedup-body { min-width: 0; flex: 1; }
+
+/* long targets (URLs) must wrap instead of pushing the close button off-screen */
+.dm-dedup-body code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.dm-dedup-body p { text-wrap: pretty; }
+
+.dm-dedup-actions .dm-btn-primary:focus-visible,
+.dm-dedup-actions .dm-btn-secondary:focus-visible {
+  outline: 2px solid var(--dm-accent, var(--accent));
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .dm-dedup-actions { flex-direction: column; align-items: stretch; }
+  .dm-dedup-actions .dm-btn-primary,
+  .dm-dedup-actions .dm-btn-secondary { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-dedup-banner { animation: none; }
+}
