@@ -1,0 +1,150 @@
+/**
+ * Wave37.css — wave 37 (ideas 51441–51480): explainability round 3 +
+ * on-demand test-request suite.
+ * Scoped .ex37-*/.tq37-* classes. ZERO keyframes per the owner's
+ * zero-animation order (only prefers-reduced-motion guards allowed).
+ */
+
+.ex37-gallery, .tq37-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.ex37-gallery h3, .tq37-gallery h3 {
+  grid-column: 1 / -1;
+  margin: 0 0 8px;
+}
+
+.ex37-card, .tq37-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  padding: 14px;
+  background: #14171d;
+  color: #e6e9ef;
+}
+
+.ex37-card-head, .tq37-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ex37-num, .tq37-num {
+  font-size: 11px;
+  font-weight: 700;
+  background: #243044;
+  color: #9fc1ff;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.ex37-card-head h4, .tq37-card-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.ex37-card-body, .tq37-card-body {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ex37-input, .tq37-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 4px 0;
+  padding: 8px;
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+  background: #0d1015;
+  color: #e6e9ef;
+  font: inherit;
+}
+
+.ex37-row, .tq37-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.ex37-card button, .tq37-card button,
+.ex37-card select, .tq37-card select {
+  padding: 6px 10px;
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+  background: #1b2029;
+  color: #e6e9ef;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ex37-active, .tq37-active {
+  border-color: #4c8dff !important;
+  background: #1d2a44 !important;
+}
+
+.ex37-faq { margin-bottom: 8px; }
+.ex37-faq-q {
+  width: 100%;
+  text-align: left;
+  font-weight: 600;
+}
+.ex37-faq-a {
+  margin: 6px 0 0;
+  padding: 8px;
+  background: #0d1015;
+  border-radius: 6px;
+}
+
+.ex37-diff p { margin: 2px 0; font-family: monospace; font-size: 12px; }
+.ex37-add { color: #6ee7a0; }
+.ex37-rem { color: #ff8a8a; }
+.ex37-same { color: #8b93a5; }
+
+.ex37-pre, .tq37-pre {
+  background: #0d1015;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+  overflow: auto;
+  max-height: 180px;
+}
+
+.ex37-tech { color: #8b93a5; font-size: 12px; }
+.ex37-plain { font-size: 15px; font-weight: 600; }
+.ex37-takeaway {
+  font-size: 15px;
+  font-weight: 600;
+  border-left: 3px solid #4c8dff;
+  padding-left: 10px;
+}
+.ex37-muted { color: #aab2c5; }
+.ex37-note { font-size: 12px; color: #8b93a5; }
+
+.tq37-warn { color: #ff9d5c; }
+.tq37-ok { color: #6ee7a0; }
+.tq37-note { font-size: 12px; color: #8b93a5; }
+
+.tq37-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.tq37-table th, .tq37-table td {
+  border: 1px solid #2a2f3a;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.tq37-card label {
+  display: block;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ex37-card, .tq37-card { transition: none; }
+}
