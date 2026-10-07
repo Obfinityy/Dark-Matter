@@ -306,6 +306,18 @@
   .dm-grid-2, .dm-grid-3, .dm-grid-4 { grid-template-columns: 1fr; }
 }
 
+/* ── Hunt input row (AgentHome): single line on desktop, stacked on mobile ── */
+.dm-hunt-row {
+  display: flex;
+  gap: var(--dm-3);
+  margin-bottom: var(--dm-3);
+}
+.dm-hunt-row > :first-child { flex: 1; min-width: 0; }
+@media (max-width: 600px) {
+  .dm-hunt-row { flex-direction: column; }
+  .dm-hunt-row .dm-btn { width: 100%; min-height: 44px; }
+}
+
 /* ── Empty states ── */
 .dm-empty {
   text-align: center;
@@ -318,6 +330,21 @@
   font-size: 2rem;
   margin-bottom: var(--dm-3);
   opacity: 0.6;
+}
+/* Lucide-icon variant: professional gold-glow circle instead of emoji */
+.dm-empty-icon-lucide {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto var(--dm-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dm-r-full);
+  background: var(--dm-gold-glow);
+  border: 1px solid var(--dm-gold-border);
+  color: var(--dm-gold-soft);
+  font-size: 0;
+  opacity: 1;
 }
 .dm-empty-title {
   font-size: var(--dm-text-lg);
@@ -367,6 +394,12 @@
   background: var(--dm-gold-glow);
   color: var(--dm-text);
 }
+/* Red variant — errors/alerts (shared; used by multiple pages) */
+.dm-notice-red {
+  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(248, 113, 113, 0.07);
+  color: var(--dm-text);
+}
 .dm-notice-icon { flex-shrink: 0; font-size: var(--dm-text-lg); }
 
 /* ── Progress bar ── */
@@ -392,6 +425,14 @@
   border: 1px solid var(--dm-border);
   border-radius: var(--dm-r);
   background: var(--dm-surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+a.dm-row:hover { border-color: var(--dm-border-strong); background: var(--dm-surface-2); }
+a.dm-row:focus-visible,
+button.dm-row:focus-visible,
+.dm-btn:focus-visible {
+  outline: 2px solid var(--dm-gold-soft);
+  outline-offset: 2px;
 }
 .dm-row + .dm-row { margin-top: var(--dm-2); }
 .dm-row-main { flex: 1; min-width: 0; }
