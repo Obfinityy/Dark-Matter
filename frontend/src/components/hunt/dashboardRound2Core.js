@@ -496,6 +496,10 @@ export function criticalToast(finding, huntName = '') {
     actions: ['view', 'snooze'],
     persistent: false,
     createdAt: Date.now(),
+    // wave 20 (50798) — critical toasts auto-expand with finding title + host.
+    autoExpand: true,
+    findingTitle: finding.title,
+    affectedHost: finding.host || finding.url || '',
   };
 }
 
