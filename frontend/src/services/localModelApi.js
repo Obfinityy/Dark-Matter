@@ -52,7 +52,7 @@ function getAuthHeaders() {
 }
 
 async function localFetch(path, options = {}) {
-  const url = `${apiBase()}${path}`;
+  const url = `${localMachineBase()}/api/v1${path}`;
   const res = await fetch(url, {
     ...options,
     headers: { ...getAuthHeaders(), ...(options.headers || {}) },
@@ -72,7 +72,7 @@ async function localFetch(path, options = {}) {
  */
 export async function isLocalBackendUp() {
   try {
-    const res = await fetch(`${apiBase()}/health`, { method: 'GET' });
+    const res = await fetch(`${localMachineBase()}/api/v1/health`, { method: 'GET' });
     return res.ok;
   } catch {
     return false;
@@ -106,7 +106,7 @@ export function subscribeToLocalDownloadProgress(modelId, callbacks = {}) {
   const jwt = (() => {
     try { return localStorage.getItem('dm_jwt'); } catch { return null; }
   })();
-  const url = `${apiBase()}/model-runner/models/${modelId}/download/progress${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
+  const url = `${localMachineBase()}/api/v1/model-runner/models/${modelId}/download/progress${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
   const es = new EventSource(url);
   es.onmessage = (event) => {
     try {
@@ -183,7 +183,7 @@ export function subscribeToLocalEngineStream(callbacks = {}) {
   const jwt = (() => {
     try { return localStorage.getItem('dm_jwt'); } catch { return null; }
   })();
-  const url = `${apiBase()}/model-runner/engine/stream${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
+  const url = `${localMachineBase()}/api/v1/model-runner/engine/stream${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
   const es = new EventSource(url);
   es.onmessage = (event) => {
     try {

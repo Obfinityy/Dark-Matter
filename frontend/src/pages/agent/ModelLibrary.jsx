@@ -566,7 +566,7 @@ function BrainSlotCard({
                 </div>
               )}
               <p className="sg-tiny ml-kaggle-hint">
-                Run a Gradio ChatInterface with <b>share=True</b> on Kaggle/Colab, paste the <b>.gradio.live</b> URL.
+                Run a Gradio ChatInterface with{' '}<b>share=True</b>{' '}on Kaggle/Colab, paste the{' '}<b>.gradio.live</b>{' '}URL.
                 Only this slot uses it — other slots keep their own brains.
               </p>
             </>
@@ -1207,7 +1207,7 @@ export function ModelLibrary() {
       <div className="ml-head">
         <h2 className="ml-title">Models — the brain library</h2>
         <p className="ml-sub">
-          Every model here is <b>uncensored</b>. Pick one, press <b>Download</b>, then <b>Run</b> —
+          Every model here is{' '}<b>uncensored</b>. Pick one, press{' '}<b>Download</b>, then{' '}<b>Run</b> —
           it starts on localhost and becomes the active brain for Hunt AI and Infinity AI.
         </p>
       </div>
@@ -1293,9 +1293,9 @@ export function ModelLibrary() {
           <div>
             <strong>Brain Slots — three brains, each with local + Kaggle options</strong>
             <p>
-              <b>Hunt AI</b> uses all three brains. <b>Infinity Chat</b> uses only Vision.
-              <b> Control</b> uses Vision + Grounding. Each slot runs on a local model
-              <b> or</b> its own Kaggle link — your choice per slot.
+              <b>Hunt AI</b>{' '}uses all three brains. <b>Infinity Chat</b>{' '}uses only Vision.
+              <b> Control</b>{' '}uses Vision + Grounding. Each slot runs on a local model
+              <b> or</b>{' '}its own Kaggle link — your choice per slot.
             </p>
           </div>
         </div>
@@ -1412,7 +1412,7 @@ export function ModelLibrary() {
         </div>
         <p className="sg-device-verdict">{budget.verdict}</p>
         <p className="sg-tiny">
-          Models are ranked for <b>this</b> device: compatible ones on top, heavier ones below.
+          Models are ranked for{' '}<b>this</b>{' '}device: compatible ones on top, heavier ones below.
           Everything stays downloadable and runnable — you may run anything.
         </p>
       </div>
@@ -1445,7 +1445,7 @@ export function ModelLibrary() {
       </div>
       {catFilter !== 'all' && (
         <p className="sg-small ml-filter-note">
-          Filtered for <b>this</b> device
+          Filtered for{' '}<b>this</b>{' '}device
           {browserDevice.ramGB ? ` (${formatBrowserRam(browserDevice)} RAM${browserDevice.ramCapped ? ', browser-capped' : ''})` : ''}
           {' '}— only models your machine can comfortably run are shown; heavier ones are collapsed below.
         </p>
