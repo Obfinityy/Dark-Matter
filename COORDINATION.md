@@ -78,7 +78,7 @@ Rationale: One's wave engine advances `next_idea` upward from 41. Two works 5000
 - [infinity-two] ideas 50801–50840 — wave 21, DONE + PR #96 MERGED by One ✅ 7 Oct (merge commit f10abc8: onboarding/guided-tours/hints suite, 5 files +2260, 36/36 tests green, vite build green, registry 40/40 zero skips)
 - [infinity-two] ideas 50841–50880 — wave 22, DONE + PR #98 MERGED by One ✅ 7 Oct 18:36 IST (clipboard / copy-everywhere suite; merge commit d5e54f6; re-verified on origin commit: 51/51 green + build green)
 - [infinity-two] ideas 50881–50920 — wave 23, DONE + PR #101 MERGED by One ✅ 7 Oct 18:53 IST (copy round 3 + print/export suite; merge commit ea531c2)
-- [infinity-two] ideas 50921–50960 — wave 24, DONE 7 Oct 19:05 IST (print round 4: prepared-by line, duplex mirrored margins, scope appendix, full-list print, cheat-sheet printout, cross-browser print CSS, compliance-history print, printer-icon buttons, print fallback note + optimistic/performance suite: optimistic mutations w/ rollback, instant hunt creation, hover prefetch, skeleton-first, debounced search, virtualized lists/timeline, lazy evidence, SWR widgets, 100ms ack budget, worker search index, streaming step log, deferred JS; 7 files, 46/46 node tests green, vite build green; commit a09d819 on feat/infinity-two-wave-24 — local only, push blocked no credential; awaiting One's pull + push + PR)
+- [infinity-two] ideas 50921–50960 — wave 24, DONE 7 Oct 19:05 IST, PR #103 MERGED by One 7 Oct 19:14 IST (print round 4 + optimistic/performance suite: 7 files +3118 lines, 46/46 node tests green, vite build green; merge commit 4501ade, in main)
 
 ## Completed milestones
 
