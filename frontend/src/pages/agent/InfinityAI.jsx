@@ -37,7 +37,7 @@ import { getBackendUrl } from '../../services/backendMode';
 import { Avatar } from '../../components/fx/Avatar';
 import { BrainGate } from '../../components/BrainGate';
 import { CrewPanel } from '../../components/agent/CrewPanel';
-import { speak, isVoiceReady } from '../../services/voice';
+import { speak } from '../../services/voice';
 import { MicButton, VoiceModeToggle } from '../../components/agent/VoiceInput';
 import { useVoiceConversation } from '../../hooks/useVoiceConversation';
 
@@ -97,6 +97,23 @@ const DM_INF_CSS = `
 .dm-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .dm-icon-btn-primary { background: var(--dm-gold); color: #16130a; }
 .dm-icon-btn-primary:hover:not(:disabled) { background: var(--dm-gold-soft); color: #16130a; }
+/* ≥44px tap targets on mobile */
+@media (max-width: 600px) {
+  .dm-icon-btn { width: 44px; height: 44px; }
+}
+/* Visible keyboard focus for all page-local interactive controls */
+.dm-icon-btn:focus-visible,
+.dm-mode-item:focus-visible,
+.dm-chip-x:focus-visible,
+.dm-seg-btn:focus-visible,
+.dm-clickable-badge:focus-visible {
+  outline: 2px solid var(--dm-gold-soft);
+  outline-offset: 2px;
+}
+/* Reduced motion: functional spinner yields to text-only loading states */
+@media (prefers-reduced-motion: reduce) {
+  .dm-spin { animation: none; }
+}
 
 /* ── Mode dropdown (inside the composer) ── */
 .dm-mode-dd { position: relative; flex-shrink: 0; }
@@ -175,8 +192,7 @@ const DM_INF_CSS = `
   overflow-x: auto; white-space: pre;
 }
 
-/* ── Error notice (red variant) ── */
-.dm-notice-red { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.07); color: var(--dm-text); }
+/* ── Error notice: dm-notice-red lives in elegant.css (shared) ── */
 
 /* ── Loading row (functional) ── */
 .dm-loading-row { display: flex; align-items: center; gap: var(--dm-3); padding: var(--dm-4); color: var(--dm-text-2); font-size: var(--dm-text-sm); }
@@ -205,8 +221,13 @@ const DM_INF_CSS = `
 
 /* ── Small helpers ── */
 .dm-row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--dm-3); flex-wrap: wrap; }
-.dm-clickable-badge { cursor: pointer; }
+.dm-clickable-badge { cursor: pointer; font-family: inherit; }
 .dm-clickable-badge:hover { border-color: var(--dm-gold-border); color: var(--dm-gold-soft); }
+/* On very small screens the composer holds 5 controls — the mode label
+   collapses to icon + chevron so nothing overflows. */
+@media (max-width: 420px) {
+  .dm-mode-dd-label { display: none; }
+}
 .dm-ask-box { display: flex; flex-direction: column; gap: var(--dm-3); }
 `;
 
@@ -303,7 +324,7 @@ function ModeDropdown({ mode, setMode }) {
         title="Switch mode"
       >
         <ActiveIcon size={15} />
-        <span>{active.label}</span>
+        <span className="dm-mode-dd-label">{active.label}</span>
         <ChevronDown size={14} className={open ? 'dm-caret-up' : ''} />
       </button>
       {open && (
@@ -563,12 +584,12 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
       <div className="dm-chat-messages">
         {loadingHistory ? (
           <div className="dm-msg dm-msg-assistant">
-            <span className="dm-msg-avatar"><Bot size={15} /></span>
+            <span className="dm-msg-avatar" aria-hidden="true"><Bot size={15} /></span>
             <div className="dm-bubble"><Loader2 size={15} className="dm-spin" /> Loading conversation…</div>
           </div>
         ) : messages.map((m, i) => (
           <div key={i} className={`dm-msg ${m.role === 'user' ? 'dm-msg-user' : 'dm-msg-assistant'}`}>
-            <span className="dm-msg-avatar">
+            <span className="dm-msg-avatar" aria-hidden="true">
               {m.role === 'assistant' ? <Bot size={15} /> : <User size={15} />}
             </span>
             <div className="dm-bubble">{m.text}</div>
@@ -576,9 +597,9 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
         ))}
         {sending && (
           <div className="dm-msg dm-msg-assistant">
-            <span className="dm-msg-avatar"><Bot size={15} /></span>
+            <span className="dm-msg-avatar" aria-hidden="true"><Bot size={15} /></span>
             <div className="dm-bubble">
-              <span className="dm-typing" aria-label="Typing"><span /><span /><span /></span>
+              <span className="dm-typing" role="status" aria-label="Infinity AI is typing"><span /><span /><span /></span>
             </div>
           </div>
         )}
@@ -1242,15 +1263,15 @@ function ControlPane({ mode, setMode }) {
 function FeedRow({ ev }) {
   const type = ev.__sseType || '';
   const level = ev.level || 'INFO';
-  let icon = <Bot size={14} />;
+  let icon = <Bot size={14} aria-hidden="true" />;
   let cls = '';
   if (type.includes('decision')) icon = <Brain size={14} aria-hidden="true" />;
-  else if (type.includes('action')) icon = <MousePointerClick size={14} />;
-  else if (type.includes('observation')) icon = <Eye size={14} />;
+  else if (type.includes('action')) icon = <MousePointerClick size={14} aria-hidden="true" />;
+  else if (type.includes('observation')) icon = <Eye size={14} aria-hidden="true" />;
   else if (type === 'task.ask_user') icon = <CircleHelp size={14} aria-hidden="true" />;
-  else if (type === 'task.waiting_ai') icon = <Clock3 size={14} />;
-  else if (type === 'task.completed') { icon = <CheckCircle2 size={14} />; cls = ' ok'; }
-  else if (type === 'task.failed' || level === 'ERROR') { icon = <XCircle size={14} />; cls = ' bad'; }
+  else if (type === 'task.waiting_ai') icon = <Clock3 size={14} aria-hidden="true" />;
+  else if (type === 'task.completed') { icon = <CheckCircle2 size={14} aria-hidden="true" />; cls = ' ok'; }
+  else if (type === 'task.failed' || level === 'ERROR') { icon = <XCircle size={14} aria-hidden="true" />; cls = ' bad'; }
   else if (type === 'task.cancelled') icon = <Ban size={14} aria-hidden="true" />;
   else if (level === 'WARN') icon = <TriangleAlert size={14} aria-hidden="true" />;
   return (
