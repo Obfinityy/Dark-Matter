@@ -6,10 +6,10 @@
  * category, with success rates — the agent's accumulated tradecraft, visible.
  */
 import React, { useEffect, useState } from 'react';
-import { LibraryBig, Loader2, TrendingUp, Filter, Unplug, Cloud, ShieldCheck } from 'lucide-react';
+import { LibraryBig, Loader2, TrendingUp, Filter, Unplug, ShieldCheck } from 'lucide-react';
 import { listPayloads, getPayloadLibraryStats, tryApi } from '../../services/api';
 import {
-  getBackendMode, BACKEND_MODES, setBackendMode, getApiBase, getBackendModeLabel
+  getApiBase, getBackendUrl
 } from '../../services/backendMode';
 
 export function PayloadLibrary() {
@@ -20,7 +20,6 @@ export function PayloadLibrary() {
   const [category, setCategory] = useState('');
   const [backendDown, setBackendDown] = useState(false);
   const [authExpired, setAuthExpired] = useState(false);
-  const [backendMode, setBackendModeState] = useState(() => getBackendMode());
 
   const refresh = async () => {
     setLoading(true);
@@ -35,7 +34,6 @@ export function PayloadLibrary() {
       const anyAuthFailed = errors.some((e) => e.status === 401);
       setBackendDown(allNetworkFailed);
       setAuthExpired(!allNetworkFailed && anyAuthFailed);
-      setBackendModeState(getBackendMode());
       if (p.data?.payloads) setPayloads(p.data.payloads);
       if (s.data?.stats) setStats(s.data.stats);
     } finally {
@@ -99,20 +97,17 @@ export function PayloadLibrary() {
             <strong>Backend unreachable</strong>
           </div>
           <p className="sg-small" style={{ margin: '0 0 12px' }}>
-            Payloads can't load because the selected backend ({getBackendModeLabel()}) isn't responding at{' '}
+            Payloads can't load because the backend isn't responding at{' '}
             <code>{getApiBase()}</code>.
-            {backendMode === BACKEND_MODES.LOCALHOST
-              ? ' Your local backend may not be running — or switch to Cloud.'
-              : ' Check your connection, or try switching backend mode in Settings.'}
+            {' '}The backend is <code>{getBackendUrl()}</code> — set <code>VITE_BACKEND_URL</code> in{' '}
+            <code>.env</code> to point elsewhere, or run <code>npm start</code> in <code>backend/</code> for localhost.
           </p>
-          {backendMode === BACKEND_MODES.LOCALHOST && (
-            <button
-              className="sg-btn sg-btn-primary"
-              onClick={() => { setBackendMode(BACKEND_MODES.VERCEL); setBackendDown(false); refresh(); }}
-            >
-              <Cloud size={14} /> Switch to Cloud backend
-            </button>
-          )}
+          <button
+            className="sg-btn sg-btn-primary"
+            onClick={() => { setBackendDown(false); refresh(); }}
+          >
+            Retry
+          </button>
         </div>
       )}
 

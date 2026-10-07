@@ -1,37 +1,34 @@
 /**
  * Settings — dead simple.
  *
- *   Backend:  [ Cloud ☁️ ] [ Localhost 💻 ]  — one click to switch
+ *   Backend:  read-only — from VITE_BACKEND_URL (.env), else localhost:4000.
  *   Models:   pick your brain (local / Kaggle / Colab)
  *
  * That's it. No clutter.
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Cloud, Monitor, Check, Loader2, Cpu, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Server, Check, Loader2, Cpu, ShieldCheck } from 'lucide-react';
 import {
-  getBackendMode, setBackendMode, getVercelBackendUrl,
-  testBackendConnection, testBackendConnectionFor, BACKEND_MODES
+  getBackendUrl, getBackendUrlSource, isLocalBackend, testBackendConnection
 } from '../../services/backendMode';
 import {
   getPermissionMode, setPermissionMode,
   syncPermissionModeToServer, loadPermissionModeFromServer,
   PERMISSION_MODES, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS,
 } from '../../services/permissions';
-import { getProviders, getCurrentUser } from '../../services/api';
-import { useAuth } from '../../auth/AuthContext';
+import { getProviders } from '../../services/api';
 import './Settings.css';
 
 export function Settings() {
-  const [mode, setMode] = useState(getBackendMode());
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
-  const [checkingLocal, setCheckingLocal] = useState(false);
   const [providers, setProviders] = useState(null);
   const [permissionMode, setPermissionModeState] = useState(getPermissionMode());
   const [syncingPerms, setSyncingPerms] = useState(false);
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+
+  const backendUrl = getBackendUrl();
+  const backendSource = getBackendUrlSource(); // 'env' | 'default'
 
   const refreshProviders = () => {
     getProviders().then(setProviders).catch(() => {});
@@ -55,63 +52,6 @@ export function Settings() {
     }
   };
 
-  const switchMode = async (newMode) => {
-    if (newMode === mode || testing) return;
-    setTestResult(null);
-
-    // ── Localhost: probe port 4000 FIRST, switch only if it's alive.
-    // The app must never get stuck pointing at a backend that isn't running.
-    if (newMode === BACKEND_MODES.LOCALHOST) {
-      setTesting(true);
-      setCheckingLocal(true);
-      try {
-        const probe = await testBackendConnectionFor(BACKEND_MODES.LOCALHOST, 4000);
-        if (!probe.ok) {
-          setTestResult({
-            ok: false,
-            message: 'Localhost backend nahi mil raha — port 4000 par kuch nahi chal raha. Pehle terminal me backend/ folder me `npm start` chalao, phir dobara try karo.'
-          });
-          return;
-        }
-        setBackendMode(BACKEND_MODES.LOCALHOST);
-        setMode(BACKEND_MODES.LOCALHOST);
-        refreshProviders();
-        // The cloud JWT is only valid on localhost if both backends share
-        // the same JWT_SECRET — verify the session actually works there.
-        try {
-          await getCurrentUser();
-          setTestResult({ ok: true, message: 'Localhost backend connected — sab ready hai.' });
-        } catch {
-          setTestResult({
-            ok: false,
-            sessionMismatch: true,
-            message: 'Backend mil gaya, par tumhara login is backend par valid nahi hai (JWT secret alag hai).'
-          });
-        }
-      } finally {
-        setTesting(false);
-        setCheckingLocal(false);
-      }
-      return;
-    }
-
-    // ── Cloud is always on — switch, then confirm.
-    setBackendMode(newMode);
-    setMode(newMode);
-    setTesting(true);
-    try {
-      const r = await testBackendConnection();
-      setTestResult(r);
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const handleRelogin = async () => {
-    await logout();
-    navigate('/login');
-  };
-
   const testNow = async () => {
     setTesting(true);
     setTestResult(null);
@@ -130,51 +70,26 @@ export function Settings() {
       <section className="sg-card sg-card-pad" aria-labelledby="sg-set-backend">
         <h3 className="sg-h2 sg-settings-sec-title" id="sg-set-backend">Backend</h3>
         <p className="sg-body">
-          Where should the app talk to? Cloud is always on. Localhost gives you
-          the full power — hunts, computer control, local models.
+          The app talks to one backend — decided by <code>VITE_BACKEND_URL</code> in the{' '}
+          <code>.env</code> file. Not set? Then it uses your local backend on port 4000.
         </p>
-        <div className="sg-backend-switch" role="group" aria-label="Backend mode">
-          <button
-            type="button"
-            className={`sg-backend-opt${mode === BACKEND_MODES.VERCEL ? ' sg-active' : ''}`}
-            aria-pressed={mode === BACKEND_MODES.VERCEL}
-            onClick={() => switchMode(BACKEND_MODES.VERCEL)}
-            disabled={testing}
-          >
-            <Cloud size={22} />
-            <span>Cloud</span>
-            <small>Always on, anywhere</small>
-            {mode === BACKEND_MODES.VERCEL && <Check size={16} className="sg-check" />}
-          </button>
-          <button
-            type="button"
-            className={`sg-backend-opt${mode === BACKEND_MODES.LOCALHOST ? ' sg-active' : ''}`}
-            aria-pressed={mode === BACKEND_MODES.LOCALHOST}
-            onClick={() => switchMode(BACKEND_MODES.LOCALHOST)}
-            disabled={testing}
-          >
-            <Monitor size={22} />
-            <span>Localhost</span>
-            <small>Full power, your machine</small>
-            {checkingLocal
-              ? <Loader2 size={16} className="sg-spin sg-check" />
-              : mode === BACKEND_MODES.LOCALHOST && <Check size={16} className="sg-check" />}
-          </button>
+        <div className="sg-backend-info" role="status" aria-label="Active backend">
+          <Server size={20} aria-hidden="true" />
+          <div>
+            <div><code>{backendUrl}</code></div>
+            <small className="sg-small">
+              {backendSource === 'env'
+                ? 'from VITE_BACKEND_URL in .env'
+                : 'default — set VITE_BACKEND_URL in .env to point elsewhere'}
+              {' '}· {isLocalBackend() ? 'your machine' : 'remote backend'}
+            </small>
+          </div>
+          <Check size={16} className="sg-check" aria-hidden="true" />
         </div>
-        {checkingLocal && (
-          <p className="sg-small">🔍 Localhost backend check ho raha hai (port 4000)…</p>
-        )}
-
-        {mode === BACKEND_MODES.VERCEL && (
-          <p className="sg-small sg-mode-hint">
-            ☁️ Cloud backend se directly connected: <code>{getVercelBackendUrl()}</code>
-            <br />URL dalne ki zaroorat nahi — ye built-in hai.
-          </p>
-        )}
-
-        {mode === BACKEND_MODES.LOCALHOST && (
+        {!isLocalBackend() && (
           <p className="sg-small">
-            💻 Run <code>npm start</code> in the <code>backend/</code> folder, then you're good.
+            💻 Local backend chahiye? <code>.env</code> me se <code>VITE_BACKEND_URL</code> hatao
+            aur <code>backend/</code> folder me <code>npm start</code> chalao.
           </p>
         )}
 
@@ -183,26 +98,12 @@ export function Settings() {
           Test connection
         </button>
         <div aria-live="polite">
-          {testResult && !testResult.sessionMismatch && (
+          {testResult && (
             <p className={`sg-test-result ${testResult.ok ? 'ok' : 'fail'}`}>
               {testResult.ok ? '✅' : '❌'} {testResult.message}
             </p>
           )}
         </div>
-        {testResult?.sessionMismatch && (
-          <div className="sg-test-result fail" role="alert">
-            <p>⚠️ {testResult.message}</p>
-            <p className="sg-small sg-mode-hint">
-              Seamless switch ke liye: Vercel dashboard → backend project →
-              Environment Variables me se <code>JWT_SECRET</code> copy karke apne{' '}
-              <code>backend/.env</code> me daalo aur backend restart karo.
-              Ya phir neeche se dobara login karo:
-            </p>
-            <button type="button" className="sg-btn sg-btn-primary sg-mismatch-actions" onClick={handleRelogin}>
-              Logout karke dobara login karo
-            </button>
-          </div>
-        )}
       </section>
 
       {/* ── Brain / Models ── */}

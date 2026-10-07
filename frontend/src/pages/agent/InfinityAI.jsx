@@ -40,7 +40,7 @@ import {
   subscribeToComputerTaskEvents, getBrainChain
 } from '../../services/api';
 import { recordConversation } from '../../services/chatHistory';
-import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
+import { getBackendUrl } from '../../services/backendMode';
 import { Avatar } from '../../components/fx/Avatar';
 import { CrewPanel } from '../../components/agent/CrewPanel';
 import { DecryptedText } from '../../components/fx/DecryptedText';
@@ -792,7 +792,7 @@ function BuildPane({ mode, setMode }) {
 
 function ControlPane({ mode, setMode }) {
   const conversationId = useConversationId('control');
-  const backendMode = getBackendMode();
+  const backendUrl = getBackendUrl();
   const [computer, setComputer] = useState(null);
   // /computer status shape: { enabled, bridgePath, whitelist, runtime: { available, state, ... } }.
   const runtimeAvailable = Boolean(computer?.runtime?.available);
@@ -924,7 +924,7 @@ function ControlPane({ mode, setMode }) {
       <div className="sg-control-nl">
       <div className="sg-control-statusline">
         <span className="sg-chip">
-          <Cpu size={12} /> Backend: {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
+          <Cpu size={12} /> Backend: {backendUrl}
         </span>
         <span className="sg-chip">
           <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
@@ -1071,7 +1071,7 @@ export function InfinityAI() {
   // location.key changes on every sidebar navigation (resume / new chat),
   // so the pane remounts with a fresh or resumed conversation.
   const paneKey = `${mode}|${location.key}`;
-  const backendMode = getBackendMode();
+  const backendUrl = getBackendUrl();
 
   // Avatar state: idle | thinking | speaking | listening
   const [avatarState, setAvatarState] = useState('idle');
@@ -1111,7 +1111,7 @@ export function InfinityAI() {
         </div>
         <div className="inf-topbar-actions">
           <div className="inf-backend-badge">
-            <Cpu size={12} /> {backendMode === BACKEND_MODES.VERCEL ? 'Cloud' : 'Localhost'}
+            <Cpu size={12} /> {backendUrl}
           </div>
           <button
             className="inf-panel-toggle"

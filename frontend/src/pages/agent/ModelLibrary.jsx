@@ -49,7 +49,7 @@ import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
 } from '../../services/deviceDetect';
 import {
-  getBackendMode, BACKEND_MODES, setBackendMode, getApiBase, getBackendModeLabel
+  getApiBase, getBackendUrl
 } from '../../services/backendMode';
 import { DarkVeil } from '../../components/fx/DarkVeil';
 import { SpotlightCard } from '../../components/fx/SpotlightCard';
@@ -657,7 +657,6 @@ export function ModelLibrary() {
   const [error, setError] = useState('');
   const [backendDown, setBackendDown] = useState(false); // selected backend unreachable
   const [authExpired, setAuthExpired] = useState(false); // session expired — needs re-login
-  const [backendMode, setBackendModeState] = useState(() => getBackendMode());
   const [download, setDownload] = useState(null); // { modelId, percent, status, receivedBytes, totalBytes, error }
   const [engineDl, setEngineDl] = useState(null); // { progress, status }
   const [busyModel, setBusyModel] = useState(null);
@@ -733,7 +732,6 @@ export function ModelLibrary() {
       const anyAuthFailed = errors.some((e) => e.status === 401);
       setBackendDown(allNetworkFailed);
       setAuthExpired(!allNetworkFailed && anyAuthFailed);
-      setBackendModeState(getBackendMode());
       if (chain.data?.chain) setBrainChain(chain.data);
       if (slots.data?.slots) setBrainSlots(slots.data.slots);
       if (assignments.data?.assignments) setSlotAssignments(assignments.data.assignments);
@@ -1115,20 +1113,17 @@ export function ModelLibrary() {
             <strong>Backend unreachable</strong>
           </div>
           <p className="sg-small" style={{ margin: '0 0 12px' }}>
-            Models can't load because the selected backend ({getBackendModeLabel()}) isn't responding at{' '}
+            Models can't load because the backend isn't responding at{' '}
             <code>{getApiBase()}</code>.
-            {backendMode === BACKEND_MODES.LOCALHOST
-              ? ' Your local backend may not be running — or switch to Cloud to use the hosted backend.'
-              : ' Check your connection, or try switching backend mode in Settings.'}
+            {' '}The backend is <code>{getBackendUrl()}</code> — set <code>VITE_BACKEND_URL</code> in{' '}
+            <code>.env</code> to point elsewhere, or run <code>npm start</code> in <code>backend/</code> for localhost.
           </p>
-          {backendMode === BACKEND_MODES.LOCALHOST && (
-            <button
-              className="sg-btn sg-btn-primary"
-              onClick={() => { setBackendMode(BACKEND_MODES.VERCEL); setBackendDown(false); setLoading(true); refresh(); }}
-            >
-              <Cloud size={14} /> Switch to Cloud backend
-            </button>
-          )}
+          <button
+            className="sg-btn sg-btn-primary"
+            onClick={() => { setBackendDown(false); setLoading(true); refresh(); }}
+          >
+            Retry
+          </button>
         </div>
       )}
 

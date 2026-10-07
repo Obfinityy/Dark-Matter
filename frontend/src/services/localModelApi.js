@@ -1,15 +1,17 @@
 /**
- * localModelApi.js — Model operations ALWAYS go to the user's LOCAL machine.
+ * localModelApi.js — model operations go to the CONFIGURED backend.
  *
- * The user runs the backend on their own computer (http://localhost:4000).
- * Model downloads and runs happen THERE, not on the cloud backend.
- * Each model runs on its own random localhost port.
- *
- * This is separate from the cloud API (auth, hunts, billing) which uses
- * the backend mode (localhost/vercel/cloud).
+ * Same rule as everything else: VITE_BACKEND_URL from the environment,
+ * otherwise http://localhost:4000. Model downloads and runs happen on
+ * whichever backend is configured; each model runs on its own random
+ * localhost port managed by that backend's model runner.
  */
+import { getApiBase } from './backendMode.js';
 
-const LOCAL_BASE = 'http://localhost:4000/api/v1';
+/** API base of the configured backend. */
+function apiBase() {
+  return getApiBase();
+}
 
 function getAuthHeaders() {
   const jwt = (() => {
@@ -21,7 +23,7 @@ function getAuthHeaders() {
 }
 
 async function localFetch(path, options = {}) {
-  const url = `${LOCAL_BASE}${path}`;
+  const url = `${apiBase()}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: { ...getAuthHeaders(), ...(options.headers || {}) },
@@ -41,7 +43,7 @@ async function localFetch(path, options = {}) {
  */
 export async function isLocalBackendUp() {
   try {
-    const res = await fetch(`${LOCAL_BASE}/health`, { method: 'GET' });
+    const res = await fetch(`${apiBase()}/health`, { method: 'GET' });
     return res.ok;
   } catch {
     return false;
@@ -75,7 +77,7 @@ export function subscribeToLocalDownloadProgress(modelId, callbacks = {}) {
   const jwt = (() => {
     try { return localStorage.getItem('dm_jwt'); } catch { return null; }
   })();
-  const url = `${LOCAL_BASE}/model-runner/models/${modelId}/download/progress${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
+  const url = `${apiBase()}/model-runner/models/${modelId}/download/progress${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
   const es = new EventSource(url);
   es.onmessage = (event) => {
     try {

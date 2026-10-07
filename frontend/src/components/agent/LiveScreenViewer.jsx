@@ -26,7 +26,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Monitor, Pause, Play, Camera } from 'lucide-react';
 import { takeComputerScreenshot, pauseComputer, resumeComputer } from '../../services/api';
-import { getBackendMode, BACKEND_MODES } from '../../services/backendMode';
+import { isLocalBackend } from '../../services/backendMode';
 import './LiveScreenViewer.css';
 
 const ACTION_LABELS = {
@@ -74,12 +74,13 @@ export function LiveScreenViewer({
   const [error, setError] = useState(null);
   const timerRef = useRef(null);
 
-  // Live screen only makes sense on localhost — the backend IS the user's
-  // machine there. On a remote backend, the server's screen is meaningless
-  // to the user (remote viewing comes later — see TODO at top of file).
-  const isLocalBackend = getBackendMode() === BACKEND_MODES.LOCALHOST;
+  // Live screen only makes sense when the backend IS the user's machine
+  // (VITE_BACKEND_URL unset → localhost:4000). On a remote backend, the
+  // server's screen is meaningless to the user (remote viewing comes later —
+  // see TODO at top of file).
+  const localBackend = isLocalBackend();
 
-  if (!isLocalBackend) {
+  if (!localBackend) {
     return (
       <div className="dm-screen-viewer" role="region" aria-label="Live screen viewer">
         <div className="dm-screen-head">
@@ -87,8 +88,9 @@ export function LiveScreenViewer({
           <h2 className="dm-screen-title">live screen</h2>
         </div>
         <div className="dm-screen-empty">
-          🖥️ Live screen is available in <strong>Localhost mode</strong> — switch
-          backends in Settings to watch the agent on your own machine.
+          🖥️ Live screen needs the <strong>local backend</strong> — remove{' '}
+          <code>VITE_BACKEND_URL</code> from <code>.env</code> and run{' '}
+          <code>npm start</code> in <code>backend/</code> to watch the agent on your own machine.
           <br />
           <span className="dm-screen-footnote">
             (Remote screen viewing comes later.)

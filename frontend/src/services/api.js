@@ -1,20 +1,11 @@
-import { getApiBase, PERSISTENT_CLOUD_URL } from './backendMode.js';
+import { getApiBase } from './backendMode.js';
 
-/** API base URL — resolved at request time so Settings mode-switches apply instantly. */
+/**
+ * API base URL — one rule: VITE_BACKEND_URL from the environment,
+ * otherwise http://localhost:4000. No silent fallbacks.
+ */
 function apiBase() {
-  // Once the cloud fallback kicks in (primary backend dead), keep using it
-  // for the rest of the session so the app just works.
-  if (cloudFallbackActive) return `${PERSISTENT_CLOUD_URL}/api/v1`;
   return getApiBase();
-}
-
-/** Set when the primary backend is unreachable and the Render cloud answered
- * instead — subsequent requests go straight to the cloud for this session. */
-let cloudFallbackActive = false;
-
-/** True when requests are currently being served via the cloud fallback. */
-export function isCloudFallbackActive() {
-  return cloudFallbackActive;
 }
 
 /**
@@ -74,23 +65,10 @@ async function request(path, options = {}) {
   try {
     response = await fetch(`${primaryBase}${path}`, { ...options, headers, credentials: 'include' });
   } catch {
-    // Primary backend unreachable (network-level failure). If it isn't the
-    // Render cloud already, try the cloud once — this rescues browsers stuck
-    // on stale localhost/dead-URL settings so the app just works.
-    const cloudBase = `${PERSISTENT_CLOUD_URL}/api/v1`;
-    if (primaryBase !== cloudBase) {
-      try {
-        response = await fetch(`${cloudBase}${path}`, { ...options, headers, credentials: 'include' });
-        if (!cloudFallbackActive) {
-          cloudFallbackActive = true;
-          try { console.info('[dm] primary backend unreachable — using Infinity AI Cloud for this session'); } catch { /* ignore */ }
-        }
-      } catch {
-        throw new ApiError('Infinity AI backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
-      }
-    } else {
-      throw new ApiError('Infinity AI backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
-    }
+    // Network-level failure — no silent fallbacks. The backend is wherever
+    // VITE_BACKEND_URL points (or localhost:4000 by default); if it is down,
+    // the caller sees BACKEND_UNAVAILABLE and the UI says so honestly.
+    throw new ApiError('Infinity AI backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
   }
 
   const text = await response.text();

@@ -47,6 +47,18 @@
 .sg-backend-opt svg { color: var(--sg-cyan); }
 .sg-check { position: absolute; top: 12px; right: 12px; color: var(--sg-go); }
 
+/* Read-only active-backend display (replaces the old Localhost/Cloud switch). */
+.sg-backend-info {
+  position: relative; display: flex; align-items: center; gap: 14px;
+  padding: 18px; margin: 18px 0; border-radius: var(--sg-r-lg);
+  background: rgba(129, 140, 248, 0.06);
+  border: 1px solid rgba(129, 140, 248, 0.28); color: var(--sg-text);
+}
+.sg-backend-info > svg { color: var(--sg-cyan); flex-shrink: 0; }
+.sg-backend-info code { font-size: 0.95rem; word-break: break-all; }
+.sg-backend-info .sg-small { color: var(--sg-text-2); }
+.sg-backend-info .sg-check { position: static; margin-left: auto; flex-shrink: 0; }
+
 /* Focus-visible for every other button on this page (option cards have their own). */
 .sg-settings .sg-btn:focus-visible {
   outline: 2px solid rgba(129, 140, 248, 0.65);

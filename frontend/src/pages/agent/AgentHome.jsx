@@ -11,7 +11,6 @@ import {
   Radar, FileCheck2, Target, ShieldCheck
 } from 'lucide-react';
 import { createJob, listJobs } from '../../services/api';
-import { getBackendMode, BACKEND_MODES, isCloudBackendPersistent } from '../../services/backendMode';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
@@ -115,12 +114,6 @@ export function AgentHome() {
       {/* ── Hero ── */}
       <section className="sg-hero sg-fade-up">
         <span className="sg-pill sg-pill-brand"><Radar size={13} /> Autonomous bug bounty</span>
-        {getBackendMode() === BACKEND_MODES.VERCEL && !isCloudBackendPersistent() && (
-          <div className="sg-cloud-hunt-notice" role="note">
-            Hunts run on the persistent local backend — switch to <strong>Localhost</strong> in{' '}
-            <Link to="/agent/settings">Settings</Link> (run <code>npm start</code> in <code>backend/</code>) to start hunting.
-          </div>
-        )}
         <DecryptedText
           text="Point me at a target. I'll hunt it down."
           as="h1"
