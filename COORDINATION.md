@@ -61,7 +61,7 @@ Rationale: One's wave engine advances `next_idea` upward from 41. Two works 5000
 - [infinity-two] issue #26 — Hunt Planner (11 engines), assigned 6 Oct
 - [infinity-two] filter-pipeline reconciliation (filtersCore.js single source of truth) — DONE 7 Oct 00:05 IST (branch fix/reconcile-filter-pipelines, build green, 20/20 smoke; awaiting One's push + PR)
 - [infinity-two] ideas 50241–50280 — wave 7, DONE 7 Oct 00:40 IST (Findings Search Suite: searchCore.js query engine + SearchSuite.jsx components, 31/31 tests green, vite build green, commit dabc2c3 on feat/infinity-two-wave-7; awaiting One's push + PR)
-- [infinity-two] ideas 50281–50320 — wave 8, DONE 7 Oct 06:35 IST (empty-states suite: EmptyStates.jsx 31 components + searchRefine.js hooks/matchers + ChainGraphSearch + ModelsPageSearch; 21/21 tests green, vite build green, commit a9790b8 on feat/infinity-two-wave-8; awaiting One's push + PR)
+- [infinity-two] ideas 50281–50320 — wave 8, DONE 7 Oct 06:35 IST (empty-states suite: EmptyStates.jsx 31 components + searchRefine.js hooks/matchers + ChainGraphSearch + ModelsPageSearch; 21/21 tests green, vite build green, PR #68 open for One's review, awaiting merge)
 - [infinity-one] integrate-dont-reinvent tracks 1–4 — DONE 5 Oct (merged to main: b4a5ef7; conflicts resolved; frontend build + 30/30 new tests pass; pushed)
 
 ## Completed milestones
