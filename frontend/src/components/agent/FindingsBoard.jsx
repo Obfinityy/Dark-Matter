@@ -72,7 +72,7 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
   if (loading)
     return (
       <div className="dm-findings-loading" role="status" aria-live="polite">
-        <Loader2 size={18} className="dm-spin" aria-hidden="true" /> Loading findings…
+        <Loader2 size={18} className="sg-spin" aria-hidden="true" /> Loading findings…
       </div>
     );
 
@@ -114,19 +114,20 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
       <div className="dm-finding-list">
         {sorted.map((finding, i) => {
           const sev = String(finding.severity || 'unknown').toLowerCase();
+          const fid = finding.id ?? `${sev}-${i}`;
           const open = openId === finding.id;
           const evidenceCount = (finding.evidence && finding.evidence.length) || 0;
           return (
             <div
-              key={finding.id || `${sev}-${i}`}
-              className={`dm-finding sev-${sev} ${open ? 'open' : ''}`}
+              key={fid}
+              className={`dm-finding dm-list-in sev-${sev} ${open ? 'open' : ''}`}
               style={{ animationDelay: `${Math.min(i, 10) * 45}ms` }}
             >
               <button
                 className="dm-finding-head"
                 onClick={() => setOpenId(open ? null : finding.id)}
                 aria-expanded={open}
-                aria-controls={`finding-body-${finding.id}`}
+                aria-controls={`finding-body-${fid}`}
               >
                 <span className={`dm-sev-badge sev-${sev}`}>{sev}</span>
                 <span className="dm-finding-title">
@@ -147,7 +148,7 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
               {(open || explainAll) && (
                 <div
                   className="dm-finding-body"
-                  id={`finding-body-${finding.id}`}
+                  id={`finding-body-${fid}`}
                   role="region"
                   aria-label={finding.title || finding.category || 'Finding details'}
                 >
