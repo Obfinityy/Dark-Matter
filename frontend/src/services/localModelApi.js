@@ -212,6 +212,34 @@ export async function getSlotSetupStatusLocal() {
 }
 
 /**
+ * Per-slot Kaggle source on the DEVICE backend (localhost) — the hunt engine
+ * runs locally, so the Kaggle link must be saved where the local backend
+ * reads it, never on the cloud backend.
+ */
+export async function getSlotSourcesLocal() {
+  return localFetch('/model-runner/brain-slots/sources');
+}
+
+export async function connectSlotKaggleLocal(slot, url, name) {
+  return localFetch('/model-runner/brain-slots/kaggle', {
+    method: 'POST',
+    body: JSON.stringify({ slot, url, name })
+  });
+}
+
+export async function disconnectSlotKaggleLocal(slot) {
+  return localFetch(`/model-runner/brain-slots/kaggle/${slot}`, { method: 'DELETE' });
+}
+
+/** Test a Gradio link from the device backend (it is what will call it). */
+export async function testRemoteModelLocal(gradioUrl) {
+  return localFetch('/remote-model/test', {
+    method: 'POST',
+    body: JSON.stringify({ gradioUrl })
+  });
+}
+
+/**
  * Stop a model running on a slot.
  */
 export async function stopSlotOnLocal(slot) {
