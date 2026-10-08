@@ -1,0 +1,225 @@
+/**
+ * VmControl.css — styles for the Infinity VM control UI.
+ * Uses only dm- design tokens. Zero decorative animation; loading states
+ * are text/status only.
+ */
+
+.vm-panel { display: flex; flex-direction: column; }
+
+/* ── mode selector ── */
+.vm-mode-row {
+  display: flex;
+  gap: var(--dm-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: var(--dm-3);
+}
+.vm-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dm-2);
+  padding: var(--dm-2) var(--dm-3);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius, 10px);
+  background: var(--dm-bg-2);
+  color: var(--dm-text-1);
+  font: inherit;
+  font-size: var(--dm-text-sm);
+  cursor: pointer;
+}
+.vm-mode-btn.is-active {
+  border-color: var(--dm-gold, #c9a86a);
+  background: var(--dm-bg-3, var(--dm-bg-2));
+}
+.vm-mode-btn.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── custom runner URL ── */
+.vm-url-row { margin-top: var(--dm-3); }
+.vm-url-inputs { display: flex; gap: var(--dm-2); margin-top: var(--dm-1); }
+.vm-url-inputs input {
+  flex: 1;
+  min-width: 0;
+  background: var(--dm-bg-2);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius, 10px);
+  color: var(--dm-text-1);
+  font: inherit;
+  font-size: var(--dm-text-sm);
+  padding: var(--dm-2) var(--dm-3);
+}
+
+/* ── runner health ── */
+.vm-health {
+  margin-top: var(--dm-3);
+  padding: var(--dm-3);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius, 10px);
+  background: var(--dm-bg-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-2);
+  font-size: var(--dm-text-sm);
+}
+.vm-health.is-ok { border-left: 3px solid var(--dm-ok, #5aa469); }
+.vm-health.is-bad { border-left: 3px solid var(--dm-danger, #c0564f); }
+.vm-health-err { color: var(--dm-danger, #c0564f); }
+.vm-health-hint { color: var(--dm-text-1); }
+.vm-health-problems { margin: 0; padding-left: var(--dm-4); color: var(--dm-text-2); }
+
+/* ── screen / terminal grid ── */
+.vm-view-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--dm-4);
+}
+@media (max-width: 1100px) {
+  .vm-view-grid { grid-template-columns: 1fr; }
+}
+
+/* ── VmScreen ── */
+.vm-screen {
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius, 12px);
+  background: var(--dm-bg-2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.vm-screen-head {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-2);
+  padding: var(--dm-2) var(--dm-3);
+  border-bottom: 1px solid var(--dm-border);
+  flex-wrap: wrap;
+}
+.vm-screen-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dm-1);
+  font-size: var(--dm-text-sm);
+  font-weight: 600;
+  color: var(--dm-text-1);
+}
+.vm-screen-status {
+  font-size: var(--dm-text-xs);
+  color: var(--dm-muted);
+}
+.vm-screen-status.is-connected { color: var(--dm-ok, #5aa469); }
+.vm-screen-status.is-error { color: var(--dm-danger, #c0564f); }
+.vm-screen-actions { margin-left: auto; }
+.vm-screen-lock {
+  font-size: var(--dm-text-xs);
+  color: var(--dm-muted);
+}
+.vm-screen-preview {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  cursor: pointer;
+  min-height: 220px;
+}
+.vm-screen-frame-wrap { position: absolute; inset: 0; }
+.vm-screen-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.vm-screen-host { position: absolute; inset: 0; }
+.vm-screen-host canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  display: block;
+}
+.vm-screen-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dm-2);
+  color: var(--dm-muted);
+  font-size: var(--dm-text-sm);
+  text-align: center;
+  padding: var(--dm-4);
+  background: var(--dm-bg-1, #101216);
+}
+.vm-screen-err { color: var(--dm-danger, #c0564f); }
+/* Blocks all pointer input while the agent runs — watch, don't touch. */
+.vm-screen-input-blocker {
+  position: absolute;
+  inset: 0;
+  cursor: not-allowed;
+}
+.vm-screen-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  flex-direction: column;
+}
+.vm-screen-modal-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-3);
+  padding: var(--dm-2) var(--dm-4);
+  border-bottom: 1px solid #2a2d33;
+  color: #e8eaed;
+}
+.vm-screen-modal-body { position: relative; flex: 1; min-height: 0; }
+
+/* ── VmTerminal ── */
+.vm-terminal {
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius, 12px);
+  background: var(--dm-bg-2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.vm-terminal-head {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-2);
+  padding: var(--dm-2) var(--dm-3);
+  border-bottom: 1px solid var(--dm-border);
+}
+.vm-terminal-head .dm-btn { margin-left: auto; }
+.vm-terminal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dm-1);
+  font-size: var(--dm-text-sm);
+  font-weight: 600;
+  color: var(--dm-text-1);
+}
+.vm-terminal-body { position: relative; height: 340px; background: #0b0d10; }
+.vm-terminal-host { position: absolute; inset: 0; padding: 8px; }
+.vm-terminal-host .xterm { height: 100%; }
+
+/* ── mid-session chat ── */
+.vm-quick-row { display: flex; gap: var(--dm-2); flex-wrap: wrap; margin-top: var(--dm-2); }
+.vm-chat-log { margin-top: var(--dm-3); display: flex; flex-direction: column; gap: var(--dm-3); }
+.vm-chat-turn {
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius, 10px);
+  padding: var(--dm-2) var(--dm-3);
+  background: var(--dm-bg-2);
+  font-size: var(--dm-text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-1);
+}
+.vm-chat-q { color: var(--dm-text-2); }
+.vm-chat-a { color: var(--dm-text-1); }
+
+/* feed answer rows */
+.dm-feed-row.answer { border-left: 3px solid var(--dm-gold, #c9a86a); }

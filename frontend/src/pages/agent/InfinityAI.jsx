@@ -19,63 +19,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-  Send,
-  Loader2,
-  Bot,
-  User,
-  MessageCircle,
-  ClipboardList,
-  Hammer,
-  SlidersHorizontal,
-  Cpu,
-  CheckCircle2,
-  XCircle,
-  FileCode2,
-  Eye,
-  MousePointerClick,
-  Clock3,
-  AppWindow,
-  ShieldCheck,
-  Play,
-  Paperclip,
-  FolderOpen,
-  X,
-  Plus,
-  ChevronDown,
-  Check,
-  PanelRightOpen,
-  PanelRightClose,
-  Brain,
-  CircleHelp,
-  Ban,
-  TriangleAlert,
-  Volume2,
-  VolumeX,
+  Send, Loader2, Bot, User, MessageCircle, ClipboardList,
+  Hammer, SlidersHorizontal, Cpu, CheckCircle2,
+  FileCode2, Eye, MousePointerClick, Clock3,
+  ShieldCheck, Paperclip, FolderOpen, X, Plus,
+  ChevronDown, Check, PanelRightOpen, PanelRightClose,
+  Brain, CircleHelp, Ban, TriangleAlert, Volume2, VolumeX
 } from 'lucide-react';
-import {
-  sendDirectChat,
-  parseActionIntent,
-  getComputerStatus,
-  getInfiniteHistory,
-} from '../../services/api';
-import {
-  planWithInfinity,
-  buildWithInfinity,
-  uploadBuildFiles,
-  readWorkspaceFile,
-} from '../../services/api';
-import {
-  createComputerTask,
-  cancelComputerTask,
-  answerComputerTask,
-  subscribeToComputerTaskEvents,
-  getBrainChain,
-} from '../../services/api';
+import { sendDirectChat, parseActionIntent, getInfiniteHistory } from '../../services/api';
+import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
 import { recordConversation } from '../../services/chatHistory';
 import { getBackendUrl } from '../../services/backendMode';
 import { Avatar } from '../../components/fx/Avatar';
 import { BrainGate } from '../../components/BrainGate';
 import { CrewPanel } from '../../components/agent/CrewPanel';
+import { VmControlPanel } from '../../components/agent/VmControlPanel';
 import { speak } from '../../services/voice';
 import { MicButton, VoiceModeToggle } from '../../components/agent/VoiceInput';
 import { useVoiceConversation } from '../../hooks/useVoiceConversation';
@@ -1140,343 +1098,25 @@ function BuildPane({ mode, setMode }) {
 /* The agent loop lives server-side (POST /computer-tasks + SSE). The brain
    reasons one verified step at a time — no canned plans, no templates. */
 
-function ControlPane({ mode, setMode }) {
-  const conversationId = useConversationId('control');
-  const backendUrl = getBackendUrl();
-  const [computer, setComputer] = useState(null);
-  // /computer status shape: { enabled, bridgePath, whitelist, runtime: { available, state, ... } }.
-  const runtimeAvailable = Boolean(computer?.runtime?.available);
-  const runtimeLabel = !computer
-    ? 'Unavailable here'
-    : runtimeAvailable
-      ? computer.simulated
-        ? 'Simulated'
-        : 'Connected'
-      : `Unavailable (${computer.runtime?.state || 'bridge not connected'})`;
-  const [brainName, setBrainName] = useState('');
-  const [input, setInput] = useState('');
-  const [taskId, setTaskId] = useState(null);
-  const [taskStatus, setTaskStatus] = useState(null); // running | waiting_ai | completed | failed | cancelled
-  const [feed, setFeed] = useState([]); // live agent events (newest last)
-  const [askQ, setAskQ] = useState(null);
-  const [answer, setAnswer] = useState('');
-  const [error, setError] = useState('');
-  const [files, setFiles] = useState([]); // MVP attachments (names appended to the command)
-  const unsubRef = useRef(null);
-  const feedEndRef = useRef(null);
+/* ── Control mode ──────────────────────────────────────────────────────── */
+/* Infinity VM Control: the agent works inside a Kali sandbox VM on the user's
+   own PC. UI = VmControlPanel (screen + terminal + task lifecycle + chat).
+   The think→act→observe brain loop lives in frontend/src/agent/vmControlLoop.js
+   (workstream 3) behind the createVmControlLoop interface. */
 
-  const addFiles = fileList => {
-    const picked = Array.from(fileList || []).filter(f => f.size >= 0);
-    if (!picked.length) return;
-    setFiles(prev => [...prev, ...picked].slice(0, 10));
-  };
-  const removeFile = i => setFiles(prev => prev.filter((_, idx) => idx !== i));
-
-  const running = Boolean(taskId) && !['completed', 'failed', 'cancelled'].includes(taskStatus);
-
-  useEffect(() => {
-    getComputerStatus()
-      .then(setComputer)
-      .catch(() => setComputer(null));
-    getBrainChain()
-      .then(c => {
-        const active = c?.chain?.find?.(l => l.active) || c?.chain?.[0];
-        if (active?.name) setBrainName(active.name);
-      })
-      .catch(() => {});
-    return () => {
-      unsubRef.current?.();
-      unsubRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    feedEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'nearest' });
-  }, [feed]);
-
-  const pushFeed = ev => setFeed(prev => [...prev.slice(-250), ev]);
-
-  const handleEvent = ev => {
-    const type = ev.__sseType;
-    pushFeed(ev);
-    if (type === 'task.ask_user') {
-      setAskQ(ev.data?.question || ev.message || 'The agent has a question.');
-    } else if (type === 'task.waiting_ai') {
-      setTaskStatus('waiting_ai');
-    } else if (type === 'task.completed') {
-      setTaskStatus('completed');
-      setAskQ(null);
-      unsubRef.current?.();
-      unsubRef.current = null;
-    } else if (type === 'task.failed') {
-      setTaskStatus('failed');
-      setAskQ(null);
-      unsubRef.current?.();
-      unsubRef.current = null;
-    } else if (type === 'task.cancelled') {
-      setTaskStatus('cancelled');
-      setAskQ(null);
-      unsubRef.current?.();
-      unsubRef.current = null;
-    } else if (type === 'task.resumed' || type === 'task.started') {
-      setTaskStatus('running');
-    }
-  };
-
-  const start = async () => {
-    const instruction = input.trim();
-    const suffix = fileSuffix(files);
-    if ((!instruction && !files.length) || running) return;
-    const full = instruction + suffix;
-    setError('');
-    setFeed([]);
-    setAskQ(null);
-    setAnswer('');
-    unsubRef.current?.();
-    unsubRef.current = null;
-    try {
-      const res = await createComputerTask(full, conversationId);
-      setTaskId(res.taskId);
-      setTaskStatus(res.taskStatus || 'running');
-      setFiles([]);
-      pushFeed({
-        __sseType: 'task.created',
-        level: 'INFO',
-        message: `Task accepted — the brain is thinking…`,
-      });
-      unsubRef.current = subscribeToComputerTaskEvents(res.taskId, {
-        onEvent: handleEvent,
-        onError: () => {},
-      });
-    } catch (err) {
-      setError(err.message || 'Could not start the computer task.');
-    }
-  };
-
-  const stop = async () => {
-    if (!taskId) return;
-    try {
-      await cancelComputerTask(taskId);
-    } catch {
-      /* task may already be done */
-    }
-  };
-
-  const sendAnswer = async () => {
-    const msg = answer.trim();
-    if (!msg || !taskId) return;
-    try {
-      await answerComputerTask(taskId, msg);
-      pushFeed({ __sseType: 'task.answered', level: 'INFO', message: `You answered: ${msg}` });
-      setAskQ(null);
-      setAnswer('');
-    } catch (err) {
-      setError(err.message || 'Could not send the answer.');
-    }
-  };
-
-  const reset = () => {
-    unsubRef.current?.();
-    unsubRef.current = null;
-    setTaskId(null);
-    setTaskStatus(null);
-    setFeed([]);
-    setAskQ(null);
-    setAnswer('');
-    setError('');
-    setInput('');
-  };
-
+function ControlPane() {
   return (
     <>
       {/* Infinity Crew: persistent AI coworkers with their own computers.
-          Rendered above the one-shot task panel — that flow is untouched. */}
+          Rendered above the VM panel — that flow is untouched. */}
       <CrewPanel />
-      <div className="dm-card dm-mt-4">
-        <div className="dm-row-between" style={{ marginBottom: 'var(--dm-4)' }}>
-          <span className="dm-badge">
-            <Cpu size={12} /> Backend: {backendUrl}
-          </span>
-          <span className="dm-badge">
-            <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
-          </span>
-          {brainName && (
-            <span
-              className="dm-badge"
-              title="The brain thinking for Control mode — same as Hunt AI and Infinity AI"
-            >
-              <Bot size={12} /> Brain: {brainName}
-            </span>
-          )}
-        </div>
-
-        <h3 className="dm-card-title">Tell me what to do on the computer</h3>
-        <p className="dm-card-sub">
-          For example: “MS Word me leave application likho”. Your active brain reasons it out step
-          by step — opening the app, observing the screen, acting, and verifying — and you watch it
-          think live below. Nothing is canned: the brain composes every word itself.
-        </p>
-
-        <AttachChips files={files} onRemove={removeFile} />
-        <div className="dm-composer">
-          <ModeDropdown mode={mode} setMode={setMode} />
-          <AttachButton onPick={addFiles} />
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && start()}
-            placeholder="Command the computer… e.g. “MS Word me leave application likho”"
-            aria-label="Command for the computer"
-            disabled={running}
-          />
-          <MicButton
-            onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
-            className="dm-icon-btn"
-            disabled={running}
-          />
-          {running ? (
-            <button
-              type="button"
-              className="dm-icon-btn"
-              onClick={stop}
-              aria-label="Stop the agent"
-              title="Stop the agent"
-            >
-              <XCircle size={17} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="dm-icon-btn dm-icon-btn-primary"
-              onClick={start}
-              disabled={!input.trim() && !files.length}
-              aria-label="Start"
-            >
-              <Play size={17} />
-            </button>
-          )}
-        </div>
-
-        {taskId && (
-          <div className="dm-row-between dm-mt-4">
-            <span className="dm-badge">
-              {taskStatus === 'completed' ? (
-                <CheckCircle2 size={12} />
-              ) : taskStatus === 'failed' ? (
-                <XCircle size={12} />
-              ) : (
-                <Loader2 size={12} className="dm-spin" />
-              )}
-              {taskStatus === 'waiting_ai' ? 'Waiting for the brain…' : taskStatus || 'running'}
-            </span>
-            {!running && (
-              <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={reset}>
-                New command
-              </button>
-            )}
-          </div>
-        )}
-
-        {error && (
-          <div className="dm-notice dm-notice-red dm-mt-4" role="alert">
-            {error}
-          </div>
-        )}
-
-        {askQ && running && (
-          <div className="dm-card dm-mt-4" style={{ background: 'var(--dm-bg-2)' }}>
-            <div className="dm-ask-box">
-              <p style={{ margin: 0, fontSize: 'var(--dm-text-base)' }}>
-                <strong>
-                  <CircleHelp size={15} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> The
-                  agent asks:
-                </strong>{' '}
-                {askQ}
-              </p>
-              <div className="dm-composer">
-                <input
-                  value={answer}
-                  onChange={e => setAnswer(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendAnswer()}
-                  placeholder="Your answer…"
-                  aria-label="Answer the agent's question"
-                />
-                <button
-                  type="button"
-                  className="dm-icon-btn dm-icon-btn-primary"
-                  onClick={sendAnswer}
-                  disabled={!answer.trim()}
-                  aria-label="Send answer"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {feed.length > 0 && (
-          <div className="dm-feed dm-mt-4">
-            {feed.map((ev, i) => (
-              <FeedRow key={i} ev={ev} />
-            ))}
-            <div ref={feedEndRef} />
-          </div>
-        )}
-
-        {!taskId && (
-          <div
-            className="dm-mt-4"
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--dm-2)', flexWrap: 'wrap' }}
-          >
-            <span className="dm-hint">Try:</span>
-            {[
-              'MS Word me leave application likho',
-              'Open calculator',
-              'Notepad me shopping list likho',
-            ].map(ex => (
-              <button
-                key={ex}
-                type="button"
-                className="dm-badge dm-clickable-badge"
-                onClick={() => setInput(ex)}
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="dm-mt-4">
+        <VmControlPanel />
       </div>
     </>
   );
 }
 
-function FeedRow({ ev }) {
-  const type = ev.__sseType || '';
-  const level = ev.level || 'INFO';
-  let icon = <Bot size={14} aria-hidden="true" />;
-  let cls = '';
-  if (type.includes('decision')) icon = <Brain size={14} aria-hidden="true" />;
-  else if (type.includes('action')) icon = <MousePointerClick size={14} aria-hidden="true" />;
-  else if (type.includes('observation')) icon = <Eye size={14} aria-hidden="true" />;
-  else if (type === 'task.ask_user') icon = <CircleHelp size={14} aria-hidden="true" />;
-  else if (type === 'task.waiting_ai') icon = <Clock3 size={14} aria-hidden="true" />;
-  else if (type === 'task.completed') {
-    icon = <CheckCircle2 size={14} aria-hidden="true" />;
-    cls = ' ok';
-  } else if (type === 'task.failed' || level === 'ERROR') {
-    icon = <XCircle size={14} aria-hidden="true" />;
-    cls = ' bad';
-  } else if (type === 'task.cancelled') icon = <Ban size={14} aria-hidden="true" />;
-  else if (level === 'WARN') icon = <TriangleAlert size={14} aria-hidden="true" />;
-  return (
-    <div className={`dm-feed-row${cls}`}>
-      <span className="dm-feed-ico">{icon}</span>
-      <span>{ev.message || type}</span>
-    </div>
-  );
-}
 
 export function InfinityAI() {
   const location = useLocation();
@@ -1565,7 +1205,7 @@ export function InfinityAI() {
         <div className="dm-inf-body">
           {mode === 'control' ? (
             <BrainGate required={['vision', 'grounding']} featureName="Control mode">
-              <ControlPane key="control" mode={mode} setMode={setMode} />
+              <ControlPane key="control" />
             </BrainGate>
           ) : mode === 'plan' ? (
             <BrainGate required={['vision']} featureName="Plan mode">
