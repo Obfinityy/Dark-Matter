@@ -89,9 +89,17 @@ function VerdictBadge({ compatibility }) {
   if (!compatibility) return null;
   const meta = VERDICT_META[compatibility.verdict] || VERDICT_META.blocked;
   const Icon = meta.icon;
+  // Verdict reasons were mouse-only (title tooltip) — expose them to screen
+  // readers too via an explicit label. Visual output is unchanged.
+  const reasons = (compatibility.reasons || []).join(' ');
   return (
-    <span className={`sg-verdict ${meta.cls}`} title={(compatibility.reasons || []).join(' ')}>
-      <Icon size={12} /> {meta.label}
+    <span
+      className={`sg-verdict ${meta.cls}`}
+      title={reasons}
+      role="img"
+      aria-label={reasons ? `${meta.label}. ${reasons}` : meta.label}
+    >
+      <Icon size={12} aria-hidden="true" /> {meta.label}
     </span>
   );
 }
@@ -250,8 +258,13 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
                 </label>
               </>
             )}
-            <button className="sg-btn sg-btn-ghost" onClick={() => onRemove(model.id)} title="Delete all downloaded files for this model">
-              <Trash2 size={15} />
+            <button
+              className="sg-btn sg-btn-ghost"
+              onClick={() => onRemove(model.id)}
+              title="Delete all downloaded files for this model"
+              aria-label="Delete all downloaded files for this model"
+            >
+              <Trash2 size={15} aria-hidden="true" />
             </button>
             {downloadedQuants.length > 1 && (
               <span className="sg-tiny" title="Quantizations on disk — Run uses your pick when available.">
