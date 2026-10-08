@@ -1,0 +1,169 @@
+/**
+ * Wave73.css — Infinity AI · Dark-Matter · Wave 73
+ * Scoped styles for the post-hunt Q&A and reopen gallery
+ * (w73a-) and the reopen workflows gallery (w73b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w73a-gallery,
+.w73b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w73a-card,
+.w73b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w73a-title,
+.w73b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w73a-subtitle,
+.w73b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w73a-note,
+.w73b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w73a-kv,
+.w73b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w73a-k,
+.w73b-k {
+  color: #9aa3b2;
+}
+
+.w73a-v,
+.w73b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w73a-row,
+.w73b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w73a-badge,
+.w73b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w73a-badge-ok,
+.w73b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w73a-badge-warn,
+.w73b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w73a-badge-danger,
+.w73b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w73a-badge-info,
+.w73b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w73a-bar,
+.w73b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w73a-bar-fill,
+.w73b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w73a-link,
+.w73b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w73a-presig,
+.w73b-presig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w73a-subject,
+.w73b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-top: 6px;
+}
+
+.w73a-pre,
+.w73b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
