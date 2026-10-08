@@ -30,10 +30,13 @@ import {
   stopRunnerModel,
   runModelFile, subscribeToModelProgress,
   getBrainChain, getBrainSlots,
-  getSlotSources, connectSlotKaggle, disconnectSlotKaggle,
-  testRemoteModel, getSlotServers, runSlotServer, stopSlotServer,
+  getSlotSources,
+  getSlotServers, runSlotServer, stopSlotServer,
   tryApi
 } from '../../services/api';
+import {
+  getAllKaggleSlots, connectKaggleSlot, disconnectKaggleSlot, testGradioLink
+} from '../../services/gradioDirect';
 import { MODEL_CATALOG } from '../../data/modelCatalog';
 import {
   isLocalBackendUp,
@@ -849,16 +852,37 @@ export function ModelLibrary() {
     }
   }, []);
 
-  // Assign a model to a brain slot (vision | grounding | hacker)
-  // Per-slot Kaggle: test / connect / disconnect a Gradio link for one slot
+  // ── Kaggle links are FRONTEND-DIRECT (owner's architecture) ──
+  // The browser talks straight to Gradio — no localhost, no backend.
+  // Links persist in the browser (localStorage), memory stays on device.
+  const refreshKaggleSources = () => {
+    const saved = getAllKaggleSlots();
+    setSlotSources((prev) => {
+      const next = { ...(prev || {}) };
+      for (const [slot, entry] of Object.entries(saved)) {
+        if (entry) {
+          next[slot] = { source: 'kaggle', kaggleUrl: entry.url, kaggleName: entry.name };
+        } else if (next[slot]?.source === 'kaggle') {
+          next[slot] = { source: 'local' };
+        }
+      }
+      return next;
+    });
+  };
+
+  // Merge browser-saved Kaggle links over whatever the backend reported.
+  useEffect(() => { refreshKaggleSources(); }, []);
+
+  // Per-slot Kaggle: test / connect / disconnect a Gradio link for one slot.
+  // All three run STRAIGHT from the browser — no backend involved.
   const testSlotKaggle = async (slot) => {
     const url = (kaggleUrls[slot] || '').trim();
     if (!url) return;
     setKaggleBusy(`${slot}-test`);
     setKaggleMsg((m) => ({ ...m, [slot]: null }));
     try {
-      const res = await testRemoteModel(url);
-      setKaggleMsg((m) => ({ ...m, [slot]: { ok: true, text: `Link OK — replied "${res.probe || 'ok'}" in the live test.` } }));
+      const probe = await testGradioLink(url);
+      setKaggleMsg((m) => ({ ...m, [slot]: { ok: true, text: `Link OK — ${probe} straight from your browser.` } }));
     } catch (err) {
       setKaggleMsg((m) => ({ ...m, [slot]: { ok: false, text: err.message || 'Could not reach that link.' } }));
     } finally {
@@ -872,9 +896,11 @@ export function ModelLibrary() {
     setKaggleBusy(slot);
     setKaggleMsg((m) => ({ ...m, [slot]: null }));
     try {
-      const data = await connectSlotKaggle(slot, url, (kaggleNames[slot] || '').trim() || undefined);
-      if (data?.slotSources) setSlotSources(data.slotSources);
-      setKaggleMsg((m) => ({ ...m, [slot]: { ok: true, text: 'Connected — this slot now thinks on your Kaggle GPU.' } }));
+      // Verify the link is alive from the browser BEFORE saving it.
+      await testGradioLink(url);
+      connectKaggleSlot(slot, url, (kaggleNames[slot] || '').trim() || undefined);
+      refreshKaggleSources();
+      setKaggleMsg((m) => ({ ...m, [slot]: { ok: true, text: 'Connected — this slot now talks straight to your Kaggle GPU from this browser.' } }));
     } catch (err) {
       setKaggleMsg((m) => ({ ...m, [slot]: { ok: false, text: err.message || 'Could not connect.' } }));
     } finally {
@@ -885,8 +911,9 @@ export function ModelLibrary() {
   const disconnectSlotKaggleHandler = async (slot) => {
     setKaggleBusy(slot);
     try {
-      const data = await disconnectSlotKaggle(slot);
-      if (data?.slotSources) setSlotSources(data.slotSources);
+      disconnectKaggleSlot(slot);
+      refreshKaggleSources();
+      setKaggleMsg((m) => ({ ...m, [slot]: { ok: true, text: 'Disconnected — slot is back to local.' } }));
     } catch (err) {
       setError(err.message);
     } finally {
