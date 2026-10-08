@@ -1,0 +1,143 @@
+/**
+ * Wave68.css — Infinity AI · Dark-Matter · Wave 68
+ * Scoped styles for the stakeholder views part 3 gallery (w68a-)
+ * and the roles, presentation, and lifecycle gallery (w68b-).
+ * Zero keyframes or animated properties per the zero-motion order.
+ * No globals, no override hacks.
+ */
+
+.w68a-gallery,
+.w68b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w68a-card,
+.w68b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w68a-title,
+.w68b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w68a-note,
+.w68b-note {
+  font-size: 11px;
+  color: #8b93a7;
+  margin-bottom: 8px;
+}
+
+.w68a-subject,
+.w68b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #c7cde0;
+  margin-bottom: 8px;
+}
+
+.w68a-kv,
+.w68b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid #1f2430;
+}
+
+.w68a-kv:last-child,
+.w68b-kv:last-child {
+  border-bottom: none;
+}
+
+.w68a-k,
+.w68b-k {
+  color: #8b93a7;
+}
+
+.w68a-v,
+.w68b-v {
+  color: #d5dae7;
+  text-align: right;
+  word-break: break-word;
+}
+
+.w68a-row,
+.w68b-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.w68a-badge,
+.w68b-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a3348;
+  color: #c7cde0;
+  white-space: nowrap;
+}
+
+.w68a-badge-danger,
+.w68b-badge-danger {
+  background: #4c1d1d;
+  color: #fca5a5;
+}
+
+.w68a-badge-warn,
+.w68b-badge-warn {
+  background: #4a3418;
+  color: #fcd34d;
+}
+
+.w68a-badge-ok,
+.w68b-badge-ok {
+  background: #134e2a;
+  color: #86efac;
+}
+
+.w68a-badge-info,
+.w68b-badge-info {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.w68a-presig,
+.w68b-presig {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #aab2c8;
+  background: #0f1320;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.w68a-link,
+.w68b-link {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #93c5fd;
+  background: #0f1320;
+  padding: 6px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+  margin-top: 8px;
+}
