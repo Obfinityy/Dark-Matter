@@ -1225,7 +1225,7 @@ export function ModelLibrary() {
   return (
     <div className="ml-new">
       <div className="ml-head">
-        <h2 className="ml-title">Models — the brain library</h2>
+        <h2 className="ml-title">Model Library</h2>
         <p className="ml-sub">
           Every model here is{' '}<b>uncensored</b>. Pick one, press{' '}<b>Download</b>, then{' '}<b>Run</b> —
           it starts on localhost and becomes the active brain for Hunt AI and Infinity AI.
