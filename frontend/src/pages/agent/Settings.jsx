@@ -94,8 +94,8 @@ export function Settings() {
         </div>
         {!isLocalBackend() && (
           <p className="dm-hint">
-            💻 Local backend chahiye? <code>.env</code> me se <code>VITE_BACKEND_URL</code> hatao
-            aur <code>backend/</code> folder me <code>npm start</code> chalao.
+            To use the local backend, remove <code>VITE_BACKEND_URL</code> from <code>.env</code>
+            and run <code>npm start</code> inside the <code>backend/</code> directory.
           </p>
         )}
         <div className="dm-mt-4">
@@ -194,7 +194,7 @@ export function Settings() {
           })}
         </div>
         {syncingPerms && (
-          <p className="dm-hint">🔄 Syncing with backend…</p>
+          <p className="dm-hint">Syncing with backend…</p>
         )}
       </section>
     </div>
