@@ -45,23 +45,56 @@ const PRIORITY_RANK = { urgent: 0, high: 1, normal: 2, low: 3 };
 /* 52321 — Remediation suggestion insert.
  * Appends a concise, correct fix recommendation to a submission draft. */
 const REMEDIATION_RULES = [
-  { match: ['xss', 'cross-site scripting'], fix: 'Apply context-aware output encoding (HTML, attribute, JS contexts) and deploy a strict Content-Security-Policy without unsafe-inline.' },
-  { match: ['sql injection', 'sqli'], fix: 'Use parameterized queries / prepared statements exclusively; never concatenate user input into SQL. Apply least-privilege DB accounts.' },
-  { match: ['idor', 'insecure direct object'], fix: 'Enforce server-side authorization checks on every object reference; use unpredictable, unguessable identifiers.' },
-  { match: ['ssrf', 'server-side request forgery'], fix: 'Validate and allow-list outbound destinations; block metadata endpoints (e.g. 169.254.169.254) at the network layer.' },
-  { match: ['csrf', 'cross-site request forgery'], fix: 'Require anti-CSRF tokens on all state-changing endpoints and enforce SameSite=Lax/Strict cookies.' },
-  { match: ['rce', 'remote code execution', 'command injection'], fix: 'Avoid shell invocation with user input entirely; use safe APIs. If unavoidable, apply strict allow-list validation and run with least privilege.' },
-  { match: ['open redirect'], fix: 'Validate redirect targets against an allow-list of relative paths; reject absolute URLs not on the allow-list.' },
-  { match: ['jwt'], fix: 'Pin the signing algorithm server-side, reject "none", enforce expiry and audience checks.' },
-  { match: ['cors'], fix: 'Never reflect Origin with Access-Control-Allow-Credentials; use an explicit origin allow-list.' },
-  { match: ['secret', 'api key', 'credential', 'hardcoded'], fix: 'Rotate the exposed credential immediately and move it to a secrets manager; audit access logs for misuse.' },
+  {
+    match: ['xss', 'cross-site scripting'],
+    fix: 'Apply context-aware output encoding (HTML, attribute, JS contexts) and deploy a strict Content-Security-Policy without unsafe-inline.',
+  },
+  {
+    match: ['sql injection', 'sqli'],
+    fix: 'Use parameterized queries / prepared statements exclusively; never concatenate user input into SQL. Apply least-privilege DB accounts.',
+  },
+  {
+    match: ['idor', 'insecure direct object'],
+    fix: 'Enforce server-side authorization checks on every object reference; use unpredictable, unguessable identifiers.',
+  },
+  {
+    match: ['ssrf', 'server-side request forgery'],
+    fix: 'Validate and allow-list outbound destinations; block metadata endpoints (e.g. 169.254.169.254) at the network layer.',
+  },
+  {
+    match: ['csrf', 'cross-site request forgery'],
+    fix: 'Require anti-CSRF tokens on all state-changing endpoints and enforce SameSite=Lax/Strict cookies.',
+  },
+  {
+    match: ['rce', 'remote code execution', 'command injection'],
+    fix: 'Avoid shell invocation with user input entirely; use safe APIs. If unavoidable, apply strict allow-list validation and run with least privilege.',
+  },
+  {
+    match: ['open redirect'],
+    fix: 'Validate redirect targets against an allow-list of relative paths; reject absolute URLs not on the allow-list.',
+  },
+  {
+    match: ['jwt'],
+    fix: 'Pin the signing algorithm server-side, reject "none", enforce expiry and audience checks.',
+  },
+  {
+    match: ['cors'],
+    fix: 'Never reflect Origin with Access-Control-Allow-Credentials; use an explicit origin allow-list.',
+  },
+  {
+    match: ['secret', 'api key', 'credential', 'hardcoded'],
+    fix: 'Rotate the exposed credential immediately and move it to a secrets manager; audit access logs for misuse.',
+  },
 ];
 
 export function suggestRemediation(finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
-  const hay = `${finding.title || ''} ${finding.description || ''} ${finding.vulnClass || ''}`.toLowerCase();
-  const rule = REMEDIATION_RULES.find((r) => r.match.some((m) => hay.includes(m)));
-  const remediation = finding.remediation || (rule ? rule.fix : 'Remediate per vendor hardening guidance and retest before closure.');
+  const hay =
+    `${finding.title || ''} ${finding.description || ''} ${finding.vulnClass || ''}`.toLowerCase();
+  const rule = REMEDIATION_RULES.find(r => r.match.some(m => hay.includes(m)));
+  const remediation =
+    finding.remediation ||
+    (rule ? rule.fix : 'Remediate per vendor hardening guidance and retest before closure.');
   return { ok: true, remediation, fromTemplate: !finding.remediation && Boolean(rule) };
 }
 
@@ -70,14 +103,18 @@ export function insertRemediation(draft, remediation) {
   if (typeof remediation !== 'string' || remediation.length === 0) {
     return { ok: false, reason: 'remediation text required' };
   }
-  return { ok: true, draft: { ...draft, remediation, remediationSource: 'infinity-ai-suggestion' } };
+  return {
+    ok: true,
+    draft: { ...draft, remediation, remediationSource: 'infinity-ai-suggestion' },
+  };
 }
 
 /* 52322 — Researcher handle branding.
  * Apply the researcher's handle and profile links consistently across drafts. */
 export function applyResearcherBranding(draft, researcher) {
   if (!draft || typeof draft !== 'object') return { ok: false, reason: 'draft object required' };
-  if (!researcher || !researcher.handle) return { ok: false, reason: 'researcher with handle required' };
+  if (!researcher || !researcher.handle)
+    return { ok: false, reason: 'researcher with handle required' };
   const signature = [
     `— ${researcher.handle}`,
     ...(Array.isArray(researcher.profileLinks) ? researcher.profileLinks : []),
@@ -104,7 +141,8 @@ export function createBatchDrafts(findings, platforms, buildDraft, now = Date.no
   if (!Array.isArray(platforms) || platforms.length === 0) {
     return { ok: false, reason: 'platforms array required' };
   }
-  if (typeof buildDraft !== 'function') return { ok: false, reason: 'buildDraft function required' };
+  if (typeof buildDraft !== 'function')
+    return { ok: false, reason: 'buildDraft function required' };
   const grouped = {};
   const errors = [];
   for (const platform of platforms) {
@@ -112,7 +150,12 @@ export function createBatchDrafts(findings, platforms, buildDraft, now = Date.no
     for (const finding of findings) {
       const r = buildDraft(finding, platform, now);
       if (r && r.ok) grouped[platform].push({ findingId: finding.id, draft: r.draft || r });
-      else errors.push({ findingId: finding && finding.id, platform, reason: (r && r.reason) || 'buildDraft failed' });
+      else
+        errors.push({
+          findingId: finding && finding.id,
+          platform,
+          reason: (r && r.reason) || 'buildDraft failed',
+        });
     }
   }
   const batch = {
@@ -129,16 +172,22 @@ export function createBatchDrafts(findings, platforms, buildDraft, now = Date.no
 /* 52324 — Submission queue: ordered pending submissions with priority, owner, scheduled send times. */
 export function createSubmissionQueue(name, now = Date.now()) {
   if (!name) return { ok: false, reason: 'queue name required' };
-  return { ok: true, queue: { id: `q_${tokenFor('q', name, now)}`, name, items: [], createdAt: now } };
+  return {
+    ok: true,
+    queue: { id: `q_${tokenFor('q', name, now)}`, name, items: [], createdAt: now },
+  };
 }
 
 function rankOf(entry) {
-  return PRIORITY_RANK[entry.priority] !== undefined ? PRIORITY_RANK[entry.priority] : PRIORITY_RANK.normal;
+  return PRIORITY_RANK[entry.priority] !== undefined
+    ? PRIORITY_RANK[entry.priority]
+    : PRIORITY_RANK.normal;
 }
 
 export function enqueueSubmission(queue, entry = {}, now = Date.now()) {
   if (!queue || !queue.id) return { ok: false, reason: 'queue required' };
-  if (!entry.draftId && !entry.findingId) return { ok: false, reason: 'draftId or findingId required' };
+  if (!entry.draftId && !entry.findingId)
+    return { ok: false, reason: 'draftId or findingId required' };
   const item = {
     id: `qi_${tokenFor('qi', `${queue.id}:${entry.draftId || entry.findingId}`, now)}`,
     draftId: entry.draftId || null,
@@ -162,7 +211,9 @@ export function enqueueSubmission(queue, entry = {}, now = Date.now()) {
 
 export function dequeueDueSubmissions(queue, now = Date.now()) {
   if (!queue || !Array.isArray(queue.items)) return { ok: false, reason: 'queue required' };
-  const due = queue.items.filter((i) => i.state === 'queued' && (i.scheduledSendAt == null || i.scheduledSendAt <= now));
+  const due = queue.items.filter(
+    i => i.state === 'queued' && (i.scheduledSendAt == null || i.scheduledSendAt <= now)
+  );
   return { ok: true, due, remaining: queue.items.length - due.length };
 }
 
@@ -178,9 +229,13 @@ export function syncPlatformInbox(state, messages = [], now = Date.now()) {
     if (!INBOX_MESSAGE_TYPES.includes(m.type)) continue;
     seen.add(m.id);
     applied.push({
-      id: m.id, type: m.type, reportId: m.reportId || null,
-      from: m.from || null, body: m.body || null,
-      platformStatus: m.platformStatus || null, syncedAt: now,
+      id: m.id,
+      type: m.type,
+      reportId: m.reportId || null,
+      from: m.from || null,
+      body: m.body || null,
+      platformStatus: m.platformStatus || null,
+      syncedAt: now,
     });
   }
   return {
@@ -197,7 +252,10 @@ const PLATFORM_STATUS_MAP = {
   duplicate: { lifecycle: 'duplicate', note: 'Platform marked the report as a duplicate.' },
   informative: { lifecycle: 'informative', note: 'Platform closed the report as informative.' },
   resolved: { lifecycle: 'resolved', note: 'Platform marked the report as resolved.' },
-  'not-applicable': { lifecycle: 'not-applicable', note: 'Platform marked the report as not applicable.' },
+  'not-applicable': {
+    lifecycle: 'not-applicable',
+    note: 'Platform marked the report as not applicable.',
+  },
 };
 
 export function applyStatusChange(finding, platformStatus, now = Date.now()) {
@@ -251,7 +309,13 @@ export function rollUpEarnings(ledger = [], by = 'program') {
     totals[key].total += e.amount;
     totals[key].count += 1;
   }
-  return { ok: true, by, totals, grandTotal: rows.reduce((a, e) => a + e.amount, 0), count: rows.length };
+  return {
+    ok: true,
+    by,
+    totals,
+    grandTotal: rows.reduce((a, e) => a + e.amount, 0),
+    count: rows.length,
+  };
 }
 
 /* 52328 — Safe-harbor verification: check program terms, warn before submitting edge cases. */
@@ -260,29 +324,49 @@ export function verifySafeHarbor(program, finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   const terms = program.safeHarbor || {};
   const checks = [
-    { id: 'harbor-stated', pass: terms.stated === true, detail: terms.stated ? 'Program states safe-harbor protection.' : 'Program does not state safe-harbor terms.' },
-    { id: 'testing-within-scope', pass: terms.requiresScopeCompliance !== false, detail: 'Submission must stay within declared scope.' },
-    { id: 'no-dos', pass: !(/denial|dos/i.test(finding.title || '') && terms.prohibitsDoS !== false), detail: 'DoS-style findings may fall outside harbor protection.' },
-    { id: 'good-faith', pass: terms.goodFaithRequired !== false || true, detail: 'Good-faith testing expected.' },
+    {
+      id: 'harbor-stated',
+      pass: terms.stated === true,
+      detail: terms.stated
+        ? 'Program states safe-harbor protection.'
+        : 'Program does not state safe-harbor terms.',
+    },
+    {
+      id: 'testing-within-scope',
+      pass: terms.requiresScopeCompliance !== false,
+      detail: 'Submission must stay within declared scope.',
+    },
+    {
+      id: 'no-dos',
+      pass: !(/denial|dos/i.test(finding.title || '') && terms.prohibitsDoS !== false),
+      detail: 'DoS-style findings may fall outside harbor protection.',
+    },
+    {
+      id: 'good-faith',
+      pass: terms.goodFaithRequired !== false || true,
+      detail: 'Good-faith testing expected.',
+    },
   ];
-  const failed = checks.filter((c) => !c.pass);
+  const failed = checks.filter(c => !c.pass);
   return {
     ok: true,
     safeHarbor: failed.length === 0,
     program: program.name,
     checks,
-    warning: failed.length ? `Safe-harbor risk: ${failed.map((f) => f.detail).join(' ')}` : null,
+    warning: failed.length ? `Safe-harbor risk: ${failed.map(f => f.detail).join(' ')}` : null,
   };
 }
 
 /* 52329 — Out-of-scope warning: hard warning with an override reason trail. */
 export function checkOutOfScope(finding, program, override = null, now = Date.now()) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
-  if (!program || !Array.isArray(program.inScope)) return { ok: false, reason: 'program with inScope array required' };
+  if (!program || !Array.isArray(program.inScope))
+    return { ok: false, reason: 'program with inScope array required' };
   const asset = String(finding.endpoint || finding.url || finding.target || '');
-  const inScope = program.inScope.some((entry) => asset.includes(String(entry)));
-  const excluded = Array.isArray(program.outOfScope)
-    && program.outOfScope.some((entry) => asset.includes(String(entry)));
+  const inScope = program.inScope.some(entry => asset.includes(String(entry)));
+  const excluded =
+    Array.isArray(program.outOfScope) &&
+    program.outOfScope.some(entry => asset.includes(String(entry)));
   const hardBlock = excluded || !inScope;
   if (hardBlock && (!override || !override.reason)) {
     return {
@@ -306,7 +390,11 @@ const PII_PATTERNS = [
   { id: 'email', re: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, token: '[EMAIL]' },
   { id: 'phone', re: /\+?\d[\d\s().-]{7,}\d/g, token: '[PHONE]' },
   { id: 'bearer', re: /Bearer\s+[A-Za-z0-9._~+/-]+=*?/g, token: 'Bearer [TOKEN]' },
-  { id: 'api-key', re: /(api[_-]?key|apikey)\s*[:=]\s*["']?[A-Za-z0-9._-]{8,}["']?/gi, token: 'api_key=[SECRET]' },
+  {
+    id: 'api-key',
+    re: /(api[_-]?key|apikey)\s*[:=]\s*["']?[A-Za-z0-9._-]{8,}["']?/gi,
+    token: 'api_key=[SECRET]',
+  },
   { id: 'ssn-ish', re: /\b\d{3}-\d{2}-\d{4}\b/g, token: '[SSN]' },
   { id: 'card-ish', re: /\b(?:\d[ -]?){13,19}\b/g, token: '[CARD]' },
 ];
@@ -323,7 +411,12 @@ export function scrubPii(text) {
       scrubbed = scrubbed.replace(p.re, p.token);
     }
   }
-  return { ok: true, scrubbed, redactions: hits, redactedCount: hits.reduce((a, h) => a + h.count, 0) };
+  return {
+    ok: true,
+    scrubbed,
+    redactions: hits,
+    redactedCount: hits.reduce((a, h) => a + h.count, 0),
+  };
 }
 
 /* 52331 — Internal review before submit: route drafts through a reviewer queue. */
@@ -331,7 +424,10 @@ export const REVIEW_STATES = ['queued', 'in-review', 'changes-requested', 'appro
 
 export function createReviewQueue(name, now = Date.now()) {
   if (!name) return { ok: false, reason: 'queue name required' };
-  return { ok: true, queue: { id: `rq_${tokenFor('rq', name, now)}`, name, items: [], createdAt: now } };
+  return {
+    ok: true,
+    queue: { id: `rq_${tokenFor('rq', name, now)}`, name, items: [], createdAt: now },
+  };
 }
 
 export function reviewReducer(queue, action = {}, now = Date.now()) {
@@ -341,22 +437,34 @@ export function reviewReducer(queue, action = {}, now = Date.now()) {
       if (!action.draftId) return { ok: false, reason: 'draftId required' };
       const item = {
         id: `ri_${tokenFor('ri', `${queue.id}:${action.draftId}`, now)}`,
-        draftId: action.draftId, findingId: action.findingId || null,
-        submittedBy: action.submittedBy || null, state: 'queued',
-        reviewer: null, notes: [], history: [{ state: 'queued', at: now, by: action.submittedBy || null }],
+        draftId: action.draftId,
+        findingId: action.findingId || null,
+        submittedBy: action.submittedBy || null,
+        state: 'queued',
+        reviewer: null,
+        notes: [],
+        history: [{ state: 'queued', at: now, by: action.submittedBy || null }],
       };
       return { ok: true, queue: { ...queue, items: [...queue.items, item] }, item };
     }
     case 'TRANSITION': {
-      const items = queue.items.map((i) => {
+      const items = queue.items.map(i => {
         if (i.id !== action.id) return i;
         if (!REVIEW_STATES.includes(action.to)) return i;
-        const legal = { queued: ['in-review'], 'in-review': ['changes-requested', 'approved', 'blocked'], 'changes-requested': ['queued'], blocked: ['queued'] };
+        const legal = {
+          queued: ['in-review'],
+          'in-review': ['changes-requested', 'approved', 'blocked'],
+          'changes-requested': ['queued'],
+          blocked: ['queued'],
+        };
         if (!(legal[i.state] || []).includes(action.to)) return i;
         return {
-          ...i, state: action.to,
+          ...i,
+          state: action.to,
           reviewer: action.by || i.reviewer,
-          notes: action.note ? [...i.notes, { by: action.by || null, at: now, note: action.note }] : i.notes,
+          notes: action.note
+            ? [...i.notes, { by: action.by || null, at: now, note: action.note }]
+            : i.notes,
           history: [...i.history, { state: action.to, at: now, by: action.by || null }],
         };
       });
@@ -372,17 +480,21 @@ export const CHAIN_STEPS = ['researcher', 'lead', 'legal'];
 
 export function createApprovalChain(findingId, opts = {}, now = Date.now()) {
   if (!findingId) return { ok: false, reason: 'findingId required' };
-  const steps = Array.isArray(opts.steps) && opts.steps.length
-    ? opts.steps.filter((s) => CHAIN_STEPS.includes(s))
-    : [...CHAIN_STEPS];
+  const steps =
+    Array.isArray(opts.steps) && opts.steps.length
+      ? opts.steps.filter(s => CHAIN_STEPS.includes(s))
+      : [...CHAIN_STEPS];
   if (!steps.length) return { ok: false, reason: 'no valid chain steps' };
   return {
     ok: true,
     chain: {
       id: `ac_${tokenFor('ac', findingId, now)}`,
-      findingId, program: opts.program || null,
-      steps: steps.map((role) => ({ role, by: null, at: null, decision: null })),
-      current: 0, state: 'pending', createdAt: now,
+      findingId,
+      program: opts.program || null,
+      steps: steps.map(role => ({ role, by: null, at: null, decision: null })),
+      current: 0,
+      state: 'pending',
+      createdAt: now,
     },
   };
 }
@@ -395,12 +507,27 @@ export function approvalChainReducer(chain, action = {}, now = Date.now()) {
   const step = chain.steps[idx];
   if (!step) return { ok: false, reason: 'no current step' };
   if (action.decision === 'approve') {
-    const steps = chain.steps.map((s, i) => (i === idx ? { ...s, by: action.by || null, at: now, decision: 'approve' } : s));
+    const steps = chain.steps.map((s, i) =>
+      i === idx ? { ...s, by: action.by || null, at: now, decision: 'approve' } : s
+    );
     const done = idx + 1 >= steps.length;
-    return { ok: true, chain: { ...chain, steps, current: idx + 1, state: done ? 'approved' : 'pending' } };
+    return {
+      ok: true,
+      chain: { ...chain, steps, current: idx + 1, state: done ? 'approved' : 'pending' },
+    };
   }
   if (action.decision === 'reject') {
-    const steps = chain.steps.map((s, i) => (i === idx ? { ...s, by: action.by || null, at: now, decision: 'reject', reason: action.reason || null } : s));
+    const steps = chain.steps.map((s, i) =>
+      i === idx
+        ? {
+            ...s,
+            by: action.by || null,
+            at: now,
+            decision: 'reject',
+            reason: action.reason || null,
+          }
+        : s
+    );
     return { ok: true, chain: { ...chain, steps, state: 'rejected' } };
   }
   return { ok: false, reason: 'decision must be approve|reject' };
@@ -408,7 +535,8 @@ export function approvalChainReducer(chain, action = {}, now = Date.now()) {
 
 /* 52333 — Submission history log: immutable log of every attempt (what/when/by/response). */
 export function appendSubmissionHistory(log = [], entry = {}, now = Date.now()) {
-  if (!entry.draftId && !entry.findingId) return { ok: false, reason: 'draftId or findingId required' };
+  if (!entry.draftId && !entry.findingId)
+    return { ok: false, reason: 'draftId or findingId required' };
   const rows = Array.isArray(log) ? log : [];
   const record = {
     id: `sl_${tokenFor('sl', `${entry.draftId || entry.findingId}:${rows.length}`, now)}`,
@@ -428,11 +556,12 @@ export function filterSubmissionHistory(log = [], filter = {}) {
   const rows = Array.isArray(log) ? log : [];
   return {
     ok: true,
-    records: rows.filter((r) => (
-      (!filter.platform || r.platform === filter.platform)
-      && (!filter.action || r.action === filter.action)
-      && (!filter.findingId || r.findingId === filter.findingId)
-    )),
+    records: rows.filter(
+      r =>
+        (!filter.platform || r.platform === filter.platform) &&
+        (!filter.action || r.action === filter.action) &&
+        (!filter.findingId || r.findingId === filter.findingId)
+    ),
   };
 }
 
@@ -485,13 +614,15 @@ export const MESSAGE_TEMPLATES = {
 export function fillMessageTemplate(kind, vars = {}) {
   const tpl = MESSAGE_TEMPLATES[kind];
   if (!tpl) return { ok: false, reason: `unknown template: ${kind}` };
-  const fill = (s) => String(s).replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? String(vars[k]) : `{${k}}`));
+  const fill = s =>
+    String(s).replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? String(vars[k]) : `{${k}}`));
   return { ok: true, kind, message: { subject: fill(tpl.subject), body: fill(tpl.body) } };
 }
 
 /* 52336 — Triager-question draft replies: grounded in the finding's evidence, awaiting human send. */
 export function draftTriagerReply(question, finding) {
-  if (typeof question !== 'string' || question.length === 0) return { ok: false, reason: 'question required' };
+  if (typeof question !== 'string' || question.length === 0)
+    return { ok: false, reason: 'question required' };
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   const q = question.toLowerCase();
   let answer;
@@ -510,7 +641,9 @@ export function draftTriagerReply(question, finding) {
     reply: {
       question,
       answer,
-      groundedIn: ['evidence', 'pocTrace', 'impact'].filter((k) => finding[k] !== undefined && finding[k] !== null),
+      groundedIn: ['evidence', 'pocTrace', 'impact'].filter(
+        k => finding[k] !== undefined && finding[k] !== null
+      ),
       status: 'draft-awaiting-human-send',
     },
   };
@@ -539,13 +672,16 @@ export function buildMediationDraft(finding, evidenceTrail = [], now = Date.now(
 /* 52338 — Disclosure timeline tracker: agreed disclosure dates with pre-lapse reminders. */
 export function createDisclosureTimeline(reports = [], now = Date.now()) {
   if (!Array.isArray(reports)) return { ok: false, reason: 'reports array required' };
-  const entries = reports.map((r) => ({
-    reportId: r.reportId || r.id,
-    findingId: r.findingId || null,
-    agreedDate: typeof r.agreedDate === 'number' ? r.agreedDate : null,
-    remindBeforeMs: typeof r.remindBeforeMs === 'number' ? r.remindBeforeMs : 7 * 24 * 3600 * 1000,
-    status: r.status || 'pending',
-  })).filter((e) => e.reportId && e.agreedDate != null);
+  const entries = reports
+    .map(r => ({
+      reportId: r.reportId || r.id,
+      findingId: r.findingId || null,
+      agreedDate: typeof r.agreedDate === 'number' ? r.agreedDate : null,
+      remindBeforeMs:
+        typeof r.remindBeforeMs === 'number' ? r.remindBeforeMs : 7 * 24 * 3600 * 1000,
+      status: r.status || 'pending',
+    }))
+    .filter(e => e.reportId && e.agreedDate != null);
   return {
     ok: true,
     timeline: { id: `dt_${tokenFor('dt', `${entries.length}`, now)}`, createdAt: now, entries },
@@ -553,21 +689,26 @@ export function createDisclosureTimeline(reports = [], now = Date.now()) {
 }
 
 export function upcomingDisclosures(timeline, now = Date.now()) {
-  if (!timeline || !Array.isArray(timeline.entries)) return { ok: false, reason: 'timeline required' };
+  if (!timeline || !Array.isArray(timeline.entries))
+    return { ok: false, reason: 'timeline required' };
   const due = timeline.entries
-    .filter((e) => e.status === 'pending' && e.agreedDate - e.remindBeforeMs <= now && e.agreedDate >= now)
+    .filter(
+      e => e.status === 'pending' && e.agreedDate - e.remindBeforeMs <= now && e.agreedDate >= now
+    )
     .sort((a, b) => a.agreedDate - b.agreedDate)
-    .map((e) => ({ ...e, daysLeft: Math.ceil((e.agreedDate - now) / (24 * 3600 * 1000)) }));
-  const lapsed = timeline.entries.filter((e) => e.status === 'pending' && e.agreedDate < now);
+    .map(e => ({ ...e, daysLeft: Math.ceil((e.agreedDate - now) / (24 * 3600 * 1000)) }));
+  const lapsed = timeline.entries.filter(e => e.status === 'pending' && e.agreedDate < now);
   return { ok: true, due, lapsed, counts: { due: due.length, lapsed: lapsed.length } };
 }
 
 /* 52339 — Coordinated disclosure scheduler: public writeups aligned with the vendor's fix release. */
 export function scheduleCoordinatedDisclosure(input = {}, now = Date.now()) {
   if (!input.findingId) return { ok: false, reason: 'findingId required' };
-  if (typeof input.fixReleaseAt !== 'number') return { ok: false, reason: 'fixReleaseAt timestamp required' };
+  if (typeof input.fixReleaseAt !== 'number')
+    return { ok: false, reason: 'fixReleaseAt timestamp required' };
   const embargoDays = typeof input.embargoDays === 'number' ? input.embargoDays : 90;
-  const requestedAt = typeof input.publicAt === 'number' ? input.publicAt : input.fixReleaseAt + 7 * 24 * 3600 * 1000;
+  const requestedAt =
+    typeof input.publicAt === 'number' ? input.publicAt : input.fixReleaseAt + 7 * 24 * 3600 * 1000;
   if (requestedAt < input.fixReleaseAt) {
     return { ok: false, reason: 'publicAt must be at or after the fix release' };
   }
@@ -593,7 +734,8 @@ export function scheduleCoordinatedDisclosure(input = {}, now = Date.now()) {
 /* 52340 — CVE request draft: CVE assignment request with technical details pre-filled. */
 export function buildCveRequestDraft(finding, opts = {}) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
-  if (!finding.severity && finding.cvss == null) return { ok: false, reason: 'severity or cvss required' };
+  if (!finding.severity && finding.cvss == null)
+    return { ok: false, reason: 'severity or cvss required' };
   return {
     ok: true,
     draft: {
@@ -605,7 +747,7 @@ export function buildCveRequestDraft(finding, opts = {}) {
       description: finding.description || null,
       severity: finding.severity || null,
       cvss: finding.cvss != null ? finding.cvss : null,
-      cwe: Array.isArray(finding.cwes) ? finding.cwes : (finding.cwe ? [finding.cwe] : []),
+      cwe: Array.isArray(finding.cwes) ? finding.cwes : finding.cwe ? [finding.cwe] : [],
       affectedEndpoint: finding.endpoint || finding.url || null,
       references: Array.isArray(finding.references) ? finding.references : [],
       reporter: opts.reporter || null,

@@ -176,10 +176,12 @@ export function parseNegotiation(bytesOrHex) {
  */
 export function fingerprintTelnetServer(negotiations = []) {
   const events = Array.isArray(negotiations) ? negotiations : [];
-  const seq = events.map((e) => `${e.command}${e.option != null ? ` ${e.optionName || e.option}` : ''}`);
-  const has = (command, option) => events.some((e) => e.command === command && e.option === option);
-  const willCount = events.filter((e) => e.command === 'WILL').length;
-  const doCount = events.filter((e) => e.command === 'DO').length;
+  const seq = events.map(
+    e => `${e.command}${e.option != null ? ` ${e.optionName || e.option}` : ''}`
+  );
+  const has = (command, option) => events.some(e => e.command === command && e.option === option);
+  const willCount = events.filter(e => e.command === 'WILL').length;
+  const doCount = events.filter(e => e.command === 'DO').length;
 
   const ciscoScore =
     (has('DO', 24) ? 1 : 0) +
@@ -197,7 +199,7 @@ export function fingerprintTelnetServer(negotiations = []) {
     };
   }
 
-  if (has('DO', 37) || has('DONT', 37) || events.some((e) => e.command === 'SB' && e.option === 37)) {
+  if (has('DO', 37) || has('DONT', 37) || events.some(e => e.command === 'SB' && e.option === 37)) {
     return {
       implementation: 'Windows Telnet Server',
       confidence: 'high',
@@ -205,7 +207,16 @@ export function fingerprintTelnetServer(negotiations = []) {
     };
   }
 
-  if (doCount >= 2 && willCount >= 2 && has('DO', 24) && has('DO', 31) && has('WILL', 1) && has('WILL', 3) && !has('DO', 39) && !has('DO', 32)) {
+  if (
+    doCount >= 2 &&
+    willCount >= 2 &&
+    has('DO', 24) &&
+    has('DO', 31) &&
+    has('WILL', 1) &&
+    has('WILL', 3) &&
+    !has('DO', 39) &&
+    !has('DO', 32)
+  ) {
     return {
       implementation: 'MikroTik RouterOS',
       confidence: 'medium',

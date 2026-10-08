@@ -57,7 +57,7 @@ export function normalizeHeaders(headers) {
     }
   } else if (typeof headers === 'object') {
     for (const [k, v] of Object.entries(headers)) {
-      if (Array.isArray(v)) v.forEach((x) => set(k, String(x)));
+      if (Array.isArray(v)) v.forEach(x => set(k, String(x)));
       else set(k, String(v));
     }
   }
@@ -86,11 +86,20 @@ export function fingerprintWebsocketServer(headers) {
   const hits = [];
   for (const sv of headerValues(h, 'server')) {
     for (const sig of SERVER_SIGNATURES) {
-      if (sig.test.test(sv)) hits.push({ implementation: sig.implementation, confidence: sig.confidence, via: `Server: ${sv}` });
+      if (sig.test.test(sv))
+        hits.push({
+          implementation: sig.implementation,
+          confidence: sig.confidence,
+          via: `Server: ${sv}`,
+        });
     }
   }
   for (const xv of headerValues(h, 'x-powered-by')) {
-    hits.push({ implementation: `powered-by hint: ${xv}`, confidence: 'low', via: `X-Powered-By: ${xv}` });
+    hits.push({
+      implementation: `powered-by hint: ${xv}`,
+      confidence: 'low',
+      via: `X-Powered-By: ${xv}`,
+    });
   }
   return hits;
 }
@@ -150,10 +159,13 @@ export function analyzeWebsocketHandshake(obs = {}) {
     outcome = `unexpected status ${status}`;
   }
   observations.push(outcome);
-  if (negotiation.subprotocol) observations.push(`negotiated subprotocol: ${negotiation.subprotocol}`);
-  if (negotiation.extensions.length > 0) observations.push(`negotiated extensions: ${negotiation.extensions.join(', ')}`);
+  if (negotiation.subprotocol)
+    observations.push(`negotiated subprotocol: ${negotiation.subprotocol}`);
+  if (negotiation.extensions.length > 0)
+    observations.push(`negotiated extensions: ${negotiation.extensions.join(', ')}`);
   const cookies = Array.isArray(obs.setCookies) ? obs.setCookies : [];
-  if (cookies.length > 0) observations.push(`${cookies.length} cookie(s) set during the upgrade handshake`);
+  if (cookies.length > 0)
+    observations.push(`${cookies.length} cookie(s) set during the upgrade handshake`);
 
   return {
     status,

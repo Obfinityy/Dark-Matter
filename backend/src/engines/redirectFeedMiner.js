@@ -68,7 +68,9 @@ export function detectPingbackEndpoint(html = '', headersText = '', pageUrl = ''
       let endpoint = attrs.href;
       try {
         endpoint = new URL(attrs.href, pageUrl || undefined).href;
-      } catch { /* keep raw value */ }
+      } catch {
+        /* keep raw value */
+      }
       return { found: true, endpoint, source: 'link-rel-pingback' };
     }
   }
@@ -81,7 +83,9 @@ export function detectPingbackEndpoint(html = '', headersText = '', pageUrl = ''
     let endpoint = value;
     try {
       endpoint = new URL(value, pageUrl || undefined).href;
-    } catch { /* keep raw value */ }
+    } catch {
+      /* keep raw value */
+    }
     return { found: true, endpoint, source: 'x-pingback-header' };
   }
 
@@ -108,7 +112,9 @@ export function harvestFeedUrls(html = '', pageUrl = '') {
     let absolute = url;
     try {
       absolute = new URL(url, pageUrl || undefined).href;
-    } catch { /* keep raw value */ }
+    } catch {
+      /* keep raw value */
+    }
     if (!found.has(absolute)) found.set(absolute, { url: absolute, type, title });
   };
 
@@ -152,7 +158,7 @@ export function harvestFeedUrls(html = '', pageUrl = '') {
 export function parseAutodiscoveryLinks(html = '', pageUrl = '') {
   const feeds = harvestFeedUrls(html, pageUrl);
   const pageHost = safeHost(pageUrl);
-  return feeds.map((feed) => {
+  return feeds.map(feed => {
     const feedHost = safeHost(feed.url);
     return {
       ...feed,
@@ -186,7 +192,9 @@ export function mapJsonFeedEndpoints(html = '', pageUrl = '') {
       let absolute = attrs.href;
       try {
         absolute = new URL(attrs.href, pageUrl || undefined).href;
-      } catch { /* keep raw value */ }
+      } catch {
+        /* keep raw value */
+      }
       if (seen.has(absolute)) continue;
       seen.add(absolute);
       out.push({
@@ -224,7 +232,7 @@ export function parseSitemapImageEntries(xml = '') {
     let im;
     while ((im = imgRe.exec(inner)) !== null) {
       const block = im[1];
-      const get = (tag) => {
+      const get = tag => {
         const m2 = new RegExp(`<image:${tag}>([\\s\\S]*?)<\\/image:${tag}>`, 'i').exec(block);
         return m2 ? m2[1].trim() : '';
       };
@@ -266,7 +274,7 @@ export function parseSitemapVideoEntries(xml = '') {
     let v;
     while ((v = vidRe.exec(inner)) !== null) {
       const block = v[1];
-      const get = (tag) => {
+      const get = tag => {
         const m2 = new RegExp(`<video:${tag}>([\\s\\S]*?)<\\/video:${tag}>`, 'i').exec(block);
         return m2 ? m2[1].trim() : '';
       };
@@ -309,7 +317,7 @@ export function parseSitemapNewsEntries(xml = '') {
     let n;
     while ((n = newsRe.exec(inner)) !== null) {
       const block = n[1];
-      const get = (tag) => {
+      const get = tag => {
         const m2 = new RegExp(`<news:${tag}>([\\s\\S]*?)<\\/news:${tag}>`, 'i').exec(block);
         return m2 ? m2[1].trim() : '';
       };
@@ -358,7 +366,9 @@ export function mapHreflangAlternates(html = '', pageUrl = '') {
       let absolute = attrs.href;
       try {
         absolute = new URL(attrs.href, pageUrl || undefined).href;
-      } catch { /* keep raw value */ }
+      } catch {
+        /* keep raw value */
+      }
       const key = `${hreflang.toLowerCase()}|${absolute}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -482,9 +492,9 @@ export function mapRedirectChain(chain = []) {
     intermediateHosts.push({ host, hops: hostCounts.get(host) });
   }
 
-  const distinctHosts = intermediateHosts.map((h) => h.host);
-  const crossHost = new Set(distinctHosts).size > 1 ||
-    (finalHost !== '' && !distinctHosts.includes(finalHost));
+  const distinctHosts = intermediateHosts.map(h => h.host);
+  const crossHost =
+    new Set(distinctHosts).size > 1 || (finalHost !== '' && !distinctHosts.includes(finalHost));
 
   return {
     hops: hops.length,
@@ -538,7 +548,7 @@ const IMPLEMENTATIONS = {
 export function registryComplete() {
   const ids = Object.keys(REDIRECT_FEED_IDEAS);
   const covered = ids.filter(
-    (id) => typeof IMPLEMENTATIONS[REDIRECT_FEED_IDEAS[id]] === 'function'
+    id => typeof IMPLEMENTATIONS[REDIRECT_FEED_IDEAS[id]] === 'function'
   ).length;
   return { covered, total: ids.length };
 }

@@ -31,9 +31,9 @@ class Summarizer {
         {
           role: 'system',
           content:
-            'You compress source material into a dense factual summary. Preserve exact names, numbers, function signatures, identifiers, requirements and conclusions. Never invent facts. Reply with the summary only — no preamble.'
+            'You compress source material into a dense factual summary. Preserve exact names, numbers, function signatures, identifiers, requirements and conclusions. Never invent facts. Reply with the summary only — no preamble.',
         },
-        { role: 'user', content: text }
+        { role: 'user', content: text },
       ],
       { maxTokens, maxAttempts: 3 }
     );
@@ -50,7 +50,10 @@ class Summarizer {
     if (chunkCount === 0) return { global: null, localCount: 0, sectionCount: 0 };
 
     const groupSize = this.groupSize();
-    const all = await this.store.listChunks(userId, conversationId, inputId, { skip: 0, limit: chunkCount });
+    const all = await this.store.listChunks(userId, conversationId, inputId, {
+      skip: 0,
+      limit: chunkCount,
+    });
 
     // ── Level 1: local summaries (per group of chunks) ────────────────
     const localSummaries = [];
@@ -58,12 +61,12 @@ class Summarizer {
     for (let start = 0; start < all.length; start += groupSize) {
       const group = all.slice(start, start + groupSize);
       const summaryId = `sum-${inputId}-L1-${String(order).padStart(4, '0')}`;
-      const sourceChunks = group.map((c) => c.chunkId);
-      const sourceHash = group.map((c) => c.hash).join('');
+      const sourceChunks = group.map(c => c.chunkId);
+      const sourceHash = group.map(c => c.hash).join('');
 
       const existing = await this.store.getSummary(userId, conversationId, summaryId);
       if (!existing || existing.sourceHash !== sourceHash) {
-        const combined = group.map((c) => c.content).join('\n\n');
+        const combined = group.map(c => c.content).join('\n\n');
         const { text } = await this.summarizeText(combined, { kind: 'local' });
         await this.store.upsertSummary({
           summaryId,
@@ -76,7 +79,7 @@ class Summarizer {
           sourceChunks,
           sourceHash,
           tokenEstimate: estimateTokens(text),
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         });
       }
       localSummaries.push(await this.store.getSummary(userId, conversationId, summaryId));
@@ -95,12 +98,12 @@ class Summarizer {
     for (let start = 0; start < localSummaries.length; start += sectionGroup) {
       const group = localSummaries.slice(start, start + sectionGroup);
       const summaryId = `sum-${inputId}-L2-${String(order).padStart(4, '0')}`;
-      const sourceChunks = group.flatMap((s) => s.sourceChunks);
-      const sourceHash = group.map((s) => s.sourceHash || s.summaryId).join('');
+      const sourceChunks = group.flatMap(s => s.sourceChunks);
+      const sourceHash = group.map(s => s.sourceHash || s.summaryId).join('');
 
       const existing = await this.store.getSummary(userId, conversationId, summaryId);
       if (!existing || existing.sourceHash !== sourceHash) {
-        const combined = group.map((s) => s.summary).join('\n\n');
+        const combined = group.map(s => s.summary).join('\n\n');
         const { text } = await this.summarizeText(combined, { kind: 'section' });
         await this.store.upsertSummary({
           summaryId,
@@ -113,7 +116,7 @@ class Summarizer {
           sourceChunks,
           sourceHash,
           tokenEstimate: estimateTokens(text),
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         });
       }
       sectionSummaries.push(await this.store.getSummary(userId, conversationId, summaryId));
@@ -129,11 +132,11 @@ class Summarizer {
       for (let start = 0, o = 0; start < candidates.length; start += sectionGroup, o++) {
         const group = candidates.slice(start, start + sectionGroup);
         const summaryId = `${nextSummaryIdBase}-${String(o).padStart(4, '0')}`;
-        const sourceChunks = group.flatMap((s) => s.sourceChunks);
-        const sourceHash = group.map((s) => s.sourceHash || s.summaryId).join('');
+        const sourceChunks = group.flatMap(s => s.sourceChunks);
+        const sourceHash = group.map(s => s.sourceHash || s.summaryId).join('');
         const existing = await this.store.getSummary(userId, conversationId, summaryId);
         if (!existing || existing.sourceHash !== sourceHash) {
-          const combined = group.map((s) => s.summary).join('\n\n');
+          const combined = group.map(s => s.summary).join('\n\n');
           const { text } = await this.summarizeText(combined, { kind: 'section' });
           await this.store.upsertSummary({
             summaryId,
@@ -146,7 +149,7 @@ class Summarizer {
             sourceChunks,
             sourceHash,
             tokenEstimate: estimateTokens(text),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
           });
         }
         nextLevel.push(await this.store.getSummary(userId, conversationId, summaryId));
@@ -157,11 +160,11 @@ class Summarizer {
 
     // Final single global summary.
     const globalId = `sum-${inputId}-global`;
-    const sourceChunks = candidates.flatMap((s) => s.sourceChunks);
-    const sourceHash = candidates.map((s) => s.sourceHash || s.summaryId).join('');
+    const sourceChunks = candidates.flatMap(s => s.sourceChunks);
+    const sourceHash = candidates.map(s => s.sourceHash || s.summaryId).join('');
     const existingGlobal = await this.store.getSummary(userId, conversationId, globalId);
     if (!existingGlobal || existingGlobal.sourceHash !== sourceHash) {
-      const combined = candidates.map((s) => s.summary).join('\n\n');
+      const combined = candidates.map(s => s.summary).join('\n\n');
       const { text } = await this.summarizeText(combined, { kind: 'global' });
       await this.store.upsertSummary({
         summaryId: globalId,
@@ -174,7 +177,7 @@ class Summarizer {
         sourceChunks,
         sourceHash,
         tokenEstimate: estimateTokens(text),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       });
     }
     const global = await this.store.getSummary(userId, conversationId, globalId);

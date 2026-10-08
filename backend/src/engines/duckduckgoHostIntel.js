@@ -27,7 +27,10 @@ const DDG_HTML_ENDPOINT = 'https://html.duckduckgo.com/html/';
  * @returns {Array<{ url: string, query: string, page: number }>}
  */
 export function buildDdgSiteQueries(domain, options = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!clean) throw new Error('duckduckgoHostIntel: domain is required');
   const pages = Math.max(1, Math.min(20, Number(options.pages ?? 3)));
   const perPage = Math.max(10, Math.min(50, Number(options.perPage ?? 30)));
@@ -58,7 +61,10 @@ export function buildDdgSiteQueries(domain, options = {}) {
  * @returns {{ hosts: Array<{ host: string, source: string }>, pageOk: boolean }}
  */
 export function parseDdgHtmlResults(html, domain) {
-  const base = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const base = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!base) return { hosts: [], pageOk: false };
   const text = String(html || '');
   const pageOk = /class="[^"]*result|id="links"|name="q"/.test(text);
@@ -66,7 +72,8 @@ export function parseDdgHtmlResults(html, domain) {
 
   // Anchor hrefs (result links) — order-agnostic: the result class may appear
   // before or after the href attribute.
-  const hrefRe = /<a(?=[^>]*class="[^"]*(?:result__a|result-link)[^"]*")[^>]*href="([^"]+)"[^>]*>/gi;
+  const hrefRe =
+    /<a(?=[^>]*class="[^"]*(?:result__a|result-link)[^"]*")[^>]*href="([^"]+)"[^>]*>/gi;
   let m;
   while ((m = hrefRe.exec(text)) !== null) {
     recordFromHref(m[1], base, seen, 'ddg-result-link');
@@ -79,7 +86,10 @@ export function parseDdgHtmlResults(html, domain) {
   // Bare hostnames printed in result snippets (e.g. <span class="result__snippet">).
   // Scan percent-decoded text so URL-encoded markup (%2F%2Fhost) cannot
   // produce mangled hosts like "2fapi.example.com".
-  const bareRe = new RegExp(`\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`, 'gi');
+  const bareRe = new RegExp(
+    `\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`,
+    'gi'
+  );
   const decoded = safeDecode(text);
   while ((m = bareRe.exec(decoded)) !== null) {
     const host = m[1].toLowerCase();

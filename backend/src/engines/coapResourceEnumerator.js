@@ -36,7 +36,7 @@ function parseLink(entry) {
   let m;
   while ((m = tokenRe.exec(rest)) !== null) {
     const key = m[1].trim().toLowerCase();
-    params[key] = m[2] !== undefined ? m[2] : (m[3] !== undefined ? m[3] : true);
+    params[key] = m[2] !== undefined ? m[2] : m[3] !== undefined ? m[3] : true;
   }
   return { uri: uriMatch[1], params };
 }
@@ -81,15 +81,16 @@ export function enumerateCoapResources({ payload = '', endpoint = '' } = {}) {
   }
 
   const sensitive = resources
-    .map((r) => {
-      const hits = SENSITIVE_PATH_HINTS.filter((h) => h.re.test(r.uri));
-      const ifNote = typeof r.params.if === 'string' && SENSITIVE_IF[r.params.if]
-        ? SENSITIVE_IF[r.params.if]
-        : null;
+    .map(r => {
+      const hits = SENSITIVE_PATH_HINTS.filter(h => h.re.test(r.uri));
+      const ifNote =
+        typeof r.params.if === 'string' && SENSITIVE_IF[r.params.if]
+          ? SENSITIVE_IF[r.params.if]
+          : null;
       if (hits.length === 0 && !ifNote) return null;
       return {
         uri: r.uri,
-        reasons: [...hits.map((h) => h.note), ...(ifNote ? [ifNote] : [])],
+        reasons: [...hits.map(h => h.note), ...(ifNote ? [ifNote] : [])],
       };
     })
     .filter(Boolean);
@@ -100,19 +101,21 @@ export function enumerateCoapResources({ payload = '', endpoint = '' } = {}) {
       severity: 'Medium',
       confidence: 'medium',
       cwe: 'CWE-200',
-      evidence: sensitive.map((s) => `${s.uri} (${s.reasons.join('; ')})`).join(' | '),
-      recommendation: 'Verify these resources require authentication and rate limiting before the device ships.',
+      evidence: sensitive.map(s => `${s.uri} (${s.reasons.join('; ')})`).join(' | '),
+      recommendation:
+        'Verify these resources require authentication and rate limiting before the device ships.',
     });
   }
 
-  const observable = resources.filter((r) => r.params.obs !== undefined);
+  const observable = resources.filter(r => r.params.obs !== undefined);
   if (observable.length > 0) {
     findings.push({
       type: 'Observable resources (RFC 7641)',
       severity: 'Info',
       confidence: 'high',
-      evidence: `${observable.length} resource(s) support observation: ${observable.map((r) => r.uri).join(', ')}.`,
-      recommendation: 'Observation subscriptions can leak telemetry streams; confirm they are access-controlled.',
+      evidence: `${observable.length} resource(s) support observation: ${observable.map(r => r.uri).join(', ')}.`,
+      recommendation:
+        'Observation subscriptions can leak telemetry streams; confirm they are access-controlled.',
     });
   }
 
@@ -122,7 +125,8 @@ export function enumerateCoapResources({ payload = '', endpoint = '' } = {}) {
       severity: 'Info',
       confidence: 'high',
       evidence: `${resources.length} resources advertised on /.well-known/core.`,
-      recommendation: 'A large surface invites enumeration; consider trimming discovery output to what clients need.',
+      recommendation:
+        'A large surface invites enumeration; consider trimming discovery output to what clients need.',
     });
   }
 

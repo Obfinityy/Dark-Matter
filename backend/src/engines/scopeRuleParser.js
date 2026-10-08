@@ -9,15 +9,42 @@
 
 /** Known test-action vocabulary, normalized to canonical action ids. */
 export const ACTION_VOCABULARY = [
-  { id: 'subdomain-bruteforce', patterns: [/subdomain.{0,20}(brute|enumerat|fuzz)/i, /dns\s?brute/i] },
+  {
+    id: 'subdomain-bruteforce',
+    patterns: [/subdomain.{0,20}(brute|enumerat|fuzz)/i, /dns\s?brute/i],
+  },
   { id: 'port-scanning', patterns: [/port\s?scann?/i, /\bnmap\b/i] },
-  { id: 'automated-scanning', patterns: [/automated\s?scann?/i, /vulnerability\s?scann?ers?/i, /nessus|nuclei|acunetix/i] },
-  { id: 'dir-bruteforce', patterns: [/director(y|ies).{0,20}(brute|fuzz|enumerat)/i, /\bffuf\b|\bgobuster\b|\bdirb\b/i] },
+  {
+    id: 'automated-scanning',
+    patterns: [/automated\s?scann?/i, /vulnerability\s?scann?ers?/i, /nessus|nuclei|acunetix/i],
+  },
+  {
+    id: 'dir-bruteforce',
+    patterns: [/director(y|ies).{0,20}(brute|fuzz|enumerat)/i, /\bffuf\b|\bgobuster\b|\bdirb\b/i],
+  },
   { id: 'fuzzing', patterns: [/\bfuzz(ing|er)?\b/i, /payload\s?(lists?|injection)/i] },
-  { id: 'social-engineering', patterns: [/social\s?engineer/i, /\bphishing\b/i, /\bvishing\b|\bsmishing\b/i] },
-  { id: 'dos-testing', patterns: [/\b(dos|ddos)\b/i, /denial.of.service/i, /rate.{0,10}limit.{0,10}test/i, /load\s?test/i] },
+  {
+    id: 'social-engineering',
+    patterns: [/social\s?engineer/i, /\bphishing\b/i, /\bvishing\b|\bsmishing\b/i],
+  },
+  {
+    id: 'dos-testing',
+    patterns: [
+      /\b(dos|ddos)\b/i,
+      /denial.of.service/i,
+      /rate.{0,10}limit.{0,10}test/i,
+      /load\s?test/i,
+    ],
+  },
   { id: 'physical-attacks', patterns: [/physical/i] },
-  { id: 'credential-attacks', patterns: [/credential\s?stuffing/i, /password\s?spray/i, /\bbrute\s?force\b.{0,10}(login|password|credential)/i] },
+  {
+    id: 'credential-attacks',
+    patterns: [
+      /credential\s?stuffing/i,
+      /password\s?spray/i,
+      /\bbrute\s?force\b.{0,10}(login|password|credential)/i,
+    ],
+  },
   { id: 'data-exfiltration', patterns: [/exfiltrat/i, /dump.{0,10}(database|table)/i] },
   { id: 'xss-testing', patterns: [/\bxss\b/i, /cross.site.script/i] },
   { id: 'sqli-testing', patterns: [/\bsqli?\b/i, /sql\s?injection/i] },
@@ -55,7 +82,13 @@ const ALLOW_SIGNALS = [
 export function extractActions(fragment) {
   const found = new Set();
   for (const { id, patterns } of ACTION_VOCABULARY) {
-    if (patterns.some((p) => { p.lastIndex = 0; return p.test(fragment); })) found.add(id);
+    if (
+      patterns.some(p => {
+        p.lastIndex = 0;
+        return p.test(fragment);
+      })
+    )
+      found.add(id);
   }
   return [...found];
 }
@@ -76,7 +109,7 @@ export function parseScopeRules(scopeText = '') {
     re.lastIndex = 0;
     while ((m = re.exec(text)) !== null) {
       const actions = extractActions(m[1]);
-      if (actions.length) actions.forEach((a) => forbidden.add(a));
+      if (actions.length) actions.forEach(a => forbidden.add(a));
       else notes.push(`forbidden (unmapped): ${m[1].trim().slice(0, 80)}`);
       if (m[0].length === 0) break;
     }
@@ -86,7 +119,10 @@ export function parseScopeRules(scopeText = '') {
     re.lastIndex = 0;
     while ((m = re.exec(text)) !== null) {
       const actions = extractActions(m[1]);
-      if (actions.length) actions.forEach((a) => { if (!forbidden.has(a)) allowed.add(a); });
+      if (actions.length)
+        actions.forEach(a => {
+          if (!forbidden.has(a)) allowed.add(a);
+        });
       else notes.push(`allowed (unmapped): ${m[1].trim().slice(0, 80)}`);
       if (m[0].length === 0) break;
     }
@@ -106,8 +142,18 @@ export function isActionPermitted(rules, actionId) {
   if (rules.forbidden.includes(actionId)) {
     return { permitted: false, reason: `forbidden by program rules: ${actionId}` };
   }
-  return { permitted: true, reason: rules.allowed.includes(actionId) ? 'explicitly allowed' : 'not mentioned (default allow)' };
+  return {
+    permitted: true,
+    reason: rules.allowed.includes(actionId)
+      ? 'explicitly allowed'
+      : 'not mentioned (default allow)',
+  };
 }
 
-export const SCOPE_RULE_PARSER = { ACTION_VOCABULARY, extractActions, parseScopeRules, isActionPermitted };
+export const SCOPE_RULE_PARSER = {
+  ACTION_VOCABULARY,
+  extractActions,
+  parseScopeRules,
+  isActionPermitted,
+};
 export default SCOPE_RULE_PARSER;

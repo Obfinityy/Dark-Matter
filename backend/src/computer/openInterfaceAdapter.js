@@ -15,7 +15,7 @@ const PYAUTOGUI_ACTIONS = new Set([
   COMPUTER_ACTIONS.TYPE,
   COMPUTER_ACTIONS.PRESS_KEY,
   COMPUTER_ACTIONS.HOTKEY,
-  COMPUTER_ACTIONS.SCROLL
+  COMPUTER_ACTIONS.SCROLL,
 ]);
 
 /**
@@ -31,7 +31,7 @@ const MEANINGFUL_ACTIONS = new Set([
   COMPUTER_ACTIONS.TYPE,
   COMPUTER_ACTIONS.PRESS_KEY,
   COMPUTER_ACTIONS.HOTKEY,
-  COMPUTER_ACTIONS.SCROLL
+  COMPUTER_ACTIONS.SCROLL,
 ]);
 
 /**
@@ -58,7 +58,9 @@ const MEANINGFUL_ACTIONS = new Set([
  * reason. It never simulates a click, a screenshot, or a browser.
  */
 
-const BRIDGE_PATH = fileURLToPath(new URL('../../computer/openInterfaceBridge.py', import.meta.url));
+const BRIDGE_PATH = fileURLToPath(
+  new URL('../../computer/openInterfaceBridge.py', import.meta.url)
+);
 
 /** Python interpreters to try, in order, when COMPUTER_PYTHON_BIN is unset. */
 const PYTHON_CANDIDATES = ['python3', 'python', 'py'];
@@ -66,8 +68,7 @@ const PYTHON_CANDIDATES = ['python3', 'python', 'py'];
  * Interpreter discovery. Overridable so the same adapter can drive a different
  * bridge runtime (the defaults are the real Python bridge).
  */
-const PYTHON_PROBE =
-  'import platform,sys;print("python-ok",platform.python_version())';
+const PYTHON_PROBE = 'import platform,sys;print("python-ok",platform.python_version())';
 
 export class OpenInterfaceAdapter {
   constructor({
@@ -76,7 +77,7 @@ export class OpenInterfaceAdapter {
     events,
     logger = console,
     bridgePath = null,
-    pythonBin = null
+    pythonBin = null,
   } = {}) {
     this.config = config;
     this.state = state;
@@ -136,9 +137,10 @@ export class OpenInterfaceAdapter {
    */
   localVenvPython() {
     const dir = path.dirname(this.bridgePath);
-    const candidates = process.platform === 'win32'
-      ? [path.join(dir, '.venv', 'Scripts', 'python.exe')]
-      : [path.join(dir, '.venv', 'bin', 'python3'), path.join(dir, '.venv', 'bin', 'python')];
+    const candidates =
+      process.platform === 'win32'
+        ? [path.join(dir, '.venv', 'Scripts', 'python.exe')]
+        : [path.join(dir, '.venv', 'bin', 'python3'), path.join(dir, '.venv', 'bin', 'python')];
     for (const candidate of candidates) {
       try {
         if (fs.existsSync(candidate)) return candidate;
@@ -160,7 +162,7 @@ export class OpenInterfaceAdapter {
         const result = spawnSync(bin, this.verifyArgs, {
           encoding: 'utf8',
           timeout: 10_000,
-          windowsHide: true
+          windowsHide: true,
         });
         if (result.status === 0 && /python-ok/.test(result.stdout || '')) {
           const version = (result.stdout.match(/python-ok\s+(\S+)/) || [, 'unknown'])[1];
@@ -197,7 +199,7 @@ export class OpenInterfaceAdapter {
     const result = spawnSync(python.bin, [this.bridgePath, '--probe'], {
       encoding: 'utf8',
       timeout: this.config.probeTimeoutMs || 20_000,
-      windowsHide: true
+      windowsHide: true,
     });
 
     if (result.error) {
@@ -207,7 +209,11 @@ export class OpenInterfaceAdapter {
       return { available: false, capabilities: null, reason, python };
     }
 
-    const line = String(result.stdout || '').trim().split('\n').filter(Boolean).pop();
+    const line = String(result.stdout || '')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .pop();
     let payload = null;
     try {
       payload = JSON.parse(line);
@@ -272,14 +278,14 @@ export class OpenInterfaceAdapter {
     const child = spawn(pythonBin, [...this.spawnArgs, this.bridgePath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
-      env: { ...process.env }
+      env: { ...process.env },
     });
     this.child = child;
 
     child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => this.#onStdout(chunk));
+    child.stdout.on('data', chunk => this.#onStdout(chunk));
     child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => {
+    child.stderr.on('data', chunk => {
       const text = String(chunk).trim();
       if (text) this.logger.warn?.(`[computer-bridge] ${text.slice(0, 400)}`);
     });
@@ -290,16 +296,16 @@ export class OpenInterfaceAdapter {
         this.state.markDisconnected(`computer bridge exited (code=${code})`);
       }
     });
-    child.on('error', (error) => {
+    child.on('error', error => {
       this.lastError = error.message;
       this.#failPending(error);
       this.state.markDisconnected(`computer bridge error: ${error.message}`);
     });
 
     // The bridge announces readiness itself; wait for that line.
-    const ready = await new Promise((resolve) => {
+    const ready = await new Promise(resolve => {
       const timer = setTimeout(() => resolve(false), this.config.probeTimeoutMs || 20_000);
-      this.onceReady = (payload) => {
+      this.onceReady = payload => {
         clearTimeout(timer);
         this.capabilities = payload.result || this.capabilities;
         resolve(true);
@@ -315,7 +321,7 @@ export class OpenInterfaceAdapter {
     await this.events?.publish?.(null, {
       type: 'probe',
       message: `Computer runtime connected (${this.capabilities?.platform} / Python ${this.capabilities?.pythonVersion})`,
-      data: { capabilities: this.capabilities }
+      data: { capabilities: this.capabilities },
     });
     this.state.markReady({ platform: this.capabilities?.platform });
     return true;
@@ -350,7 +356,12 @@ export class OpenInterfaceAdapter {
         this.pending.delete(message.id);
         clearTimeout(timer);
         if (message.ok) resolve(message);
-        else reject(Object.assign(new Error(message.error?.message || 'bridge error'), { kind: message.error?.kind }));
+        else
+          reject(
+            Object.assign(new Error(message.error?.message || 'bridge error'), {
+              kind: message.error?.kind,
+            })
+          );
       }
     }
   }
@@ -374,7 +385,11 @@ export class OpenInterfaceAdapter {
       const timeoutMs = this.config.actionTimeoutMs || 60_000;
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(Object.assign(new Error(`computer action '${cmd}' timed out after ${timeoutMs}ms`), { kind: 'timeout' }));
+        reject(
+          Object.assign(new Error(`computer action '${cmd}' timed out after ${timeoutMs}ms`), {
+            kind: 'timeout',
+          })
+        );
       }, timeoutMs);
 
       this.pending.set(id, { resolve, reject, timer });
@@ -390,19 +405,28 @@ export class OpenInterfaceAdapter {
 
   // ── Public capability surface (generic DARKMATTER vocabulary) ─────────
   async getScreen(channel = null) {
-    return this.execute({ type: COMPUTER_ACTIONS.SCREENSHOT, reason: 'capture current screen state' }, { channel });
+    return this.execute(
+      { type: COMPUTER_ACTIONS.SCREENSHOT, reason: 'capture current screen state' },
+      { channel }
+    );
   }
 
   async getActiveWindow(channel = null) {
-    return this.execute({ type: COMPUTER_ACTIONS.GET_ACTIVE_WINDOW, reason: 'identify active application/window' }, { channel });
+    return this.execute(
+      { type: COMPUTER_ACTIONS.GET_ACTIVE_WINDOW, reason: 'identify active application/window' },
+      { channel }
+    );
   }
 
   async getBrowserState(channel = null) {
-    return this.execute({
-      type: COMPUTER_ACTIONS.GET_BROWSER_STATE,
-      params: { lastUrl: this.lastNavigationUrl },
-      reason: 'read browser state'
-    }, { channel });
+    return this.execute(
+      {
+        type: COMPUTER_ACTIONS.GET_BROWSER_STATE,
+        params: { lastUrl: this.lastNavigationUrl },
+        reason: 'read browser state',
+      },
+      { channel }
+    );
   }
 
   async click(x, y, { channel = null, reason = 'click at coordinates' } = {}) {
@@ -414,11 +438,17 @@ export class OpenInterfaceAdapter {
   }
 
   async pressKey(keys, { channel = null, presses = 1, reason = 'press key' } = {}) {
-    return this.execute({ type: COMPUTER_ACTIONS.PRESS_KEY, params: { keys, presses }, reason }, { channel });
+    return this.execute(
+      { type: COMPUTER_ACTIONS.PRESS_KEY, params: { keys, presses }, reason },
+      { channel }
+    );
   }
 
   async moveMouse(x, y, { channel = null, reason = 'move mouse' } = {}) {
-    return this.execute({ type: COMPUTER_ACTIONS.MOVE_MOUSE, params: { x, y }, reason }, { channel });
+    return this.execute(
+      { type: COMPUTER_ACTIONS.MOVE_MOUSE, params: { x, y }, reason },
+      { channel }
+    );
   }
 
   async scroll(amount, { channel = null, reason = 'scroll' } = {}) {
@@ -426,12 +456,20 @@ export class OpenInterfaceAdapter {
   }
 
   async openApplication(name, { channel = null, reason = 'open application' } = {}) {
-    return this.execute({ type: COMPUTER_ACTIONS.OPEN_APPLICATION, params: { name }, reason }, { channel });
+    return this.execute(
+      { type: COMPUTER_ACTIONS.OPEN_APPLICATION, params: { name }, reason },
+      { channel }
+    );
   }
 
   async navigate(url, { channel = null, reason = 'navigate to url', scopeEngine = null } = {}) {
     const result = await this.execute(
-      { type: COMPUTER_ACTIONS.NAVIGATE, params: { url }, reason, expectedOutcome: 'target page loads' },
+      {
+        type: COMPUTER_ACTIONS.NAVIGATE,
+        params: { url },
+        reason,
+        expectedOutcome: 'target page loads',
+      },
       { channel, scopeEngine }
     );
     if (result.ok) this.lastNavigationUrl = url;
@@ -447,19 +485,23 @@ export class OpenInterfaceAdapter {
    * @returns {{ok: boolean, action: object|null, output: object|null, observation: object|null,
    *            error: {message: string, kind: string}|null, durationMs: number, rejected: boolean}}
    */
-  async execute(action, { channel = null, scopeEngine = null, approvalGranted = true, markAsObservation = false } = {}) {
+  async execute(
+    action,
+    { channel = null, scopeEngine = null, approvalGranted = true, markAsObservation = false } = {}
+  ) {
     const started = Date.now();
 
     // 0. User-paused from the website — refuse GUI actions, but let the
     //    agent know it should ask the user to resume (in their language).
     //    Screenshots stay allowed so the live viewer keeps working.
     if (this.isPaused() && action?.type !== 'screenshot') {
-      const msg = 'Computer control is paused by the user — ask them to resume it from the website screen viewer';
+      const msg =
+        'Computer control is paused by the user — ask them to resume it from the website screen viewer';
       await this.events?.publish?.(channel, {
         type: 'computer.paused_block',
         level: 'WARN',
         message: msg,
-        data: { action, paused: true }
+        data: { action, paused: true },
       });
       return {
         ok: false,
@@ -469,7 +511,7 @@ export class OpenInterfaceAdapter {
         error: { message: msg, kind: 'paused' },
         durationMs: Date.now() - started,
         rejected: true,
-        paused: true
+        paused: true,
       };
     }
 
@@ -480,7 +522,7 @@ export class OpenInterfaceAdapter {
         type: 'action',
         level: 'WARN',
         message: `Computer action rejected: ${validation.errors.join('; ')}`,
-        data: { action, errors: validation.errors }
+        data: { action, errors: validation.errors },
       });
       return {
         ok: false,
@@ -489,7 +531,7 @@ export class OpenInterfaceAdapter {
         observation: null,
         error: { message: validation.errors.join('; '), kind: 'rejected' },
         durationMs: Date.now() - started,
-        rejected: true
+        rejected: true,
       };
     }
 
@@ -499,7 +541,7 @@ export class OpenInterfaceAdapter {
         type: 'permission',
         level: 'WARN',
         message: `Computer action needs explicit approval: ${validation.action.type}`,
-        data: { action: validation.action }
+        data: { action: validation.action },
       });
       return {
         ok: false,
@@ -508,7 +550,7 @@ export class OpenInterfaceAdapter {
         observation: null,
         error: { message: 'computer action requires explicit approval', kind: 'awaiting_approval' },
         durationMs: Date.now() - started,
-        rejected: true
+        rejected: true,
       };
     }
 
@@ -517,7 +559,8 @@ export class OpenInterfaceAdapter {
     if (!startedOk) {
       // Prefer the concrete probe failure (e.g. "bridge not found at …") over
       // the generic state reason so diagnostics name the real layer (#44).
-      const reason = this.lastError || this.state.unavailableReason || 'computer runtime unavailable';
+      const reason =
+        this.lastError || this.state.unavailableReason || 'computer runtime unavailable';
       return {
         ok: false,
         action: validation.action,
@@ -525,7 +568,7 @@ export class OpenInterfaceAdapter {
         observation: null,
         error: { message: reason, kind: 'unavailable' },
         durationMs: Date.now() - started,
-        rejected: false
+        rejected: false,
       };
     }
 
@@ -537,7 +580,7 @@ export class OpenInterfaceAdapter {
         type: 'error',
         level: 'WARN',
         message: `Computer action unavailable: ${message}`,
-        data: { action: validation.action, kind: 'unavailable' }
+        data: { action: validation.action, kind: 'unavailable' },
       });
       return {
         ok: false,
@@ -546,7 +589,7 @@ export class OpenInterfaceAdapter {
         observation: null,
         error: { message, kind: 'unavailable' },
         durationMs: Date.now() - started,
-        rejected: false
+        rejected: false,
       };
     }
 
@@ -557,7 +600,7 @@ export class OpenInterfaceAdapter {
       type: 'action',
       level: 'INFO',
       message: `Computer action: ${approved.type}${approved.params?.url ? ` → ${approved.params.url}` : ''}`,
-      data: { action: approved, reason: approved.reason || null }
+      data: { action: approved, reason: approved.reason || null },
     });
 
     try {
@@ -570,7 +613,7 @@ export class OpenInterfaceAdapter {
         type: 'observation',
         level: 'INFO',
         message: observation.summary,
-        data: observation
+        data: observation,
       });
 
       return {
@@ -580,14 +623,16 @@ export class OpenInterfaceAdapter {
         observation,
         error: null,
         durationMs: Date.now() - started,
-        rejected: false
+        rejected: false,
       };
     } catch (error) {
       const kind = error.kind || 'error';
       // A transport-level failure while the daemon is gone is a disconnect,
       // not a failed action — the worker must wait, not replan.
       if ((kind === 'unavailable' || kind === 'timeout') && this.running !== true) {
-        this.state.markDisconnected(`computer runtime unreachable during ${approved.type}: ${error.message}`);
+        this.state.markDisconnected(
+          `computer runtime unreachable during ${approved.type}: ${error.message}`
+        );
       } else if (markAsObservation) {
         this.state.markObservationFailed(error.message);
       } else {
@@ -597,7 +642,7 @@ export class OpenInterfaceAdapter {
         type: 'error',
         level: 'ERROR',
         message: `Computer action failed: ${error.message}`,
-        data: { action: approved, kind }
+        data: { action: approved, kind },
       });
       return {
         ok: false,
@@ -606,7 +651,7 @@ export class OpenInterfaceAdapter {
         observation: null,
         error: { message: error.message, kind },
         durationMs: Date.now() - started,
-        rejected: false
+        rejected: false,
       };
     }
   }
@@ -626,7 +671,7 @@ export class OpenInterfaceAdapter {
     if (!action || !MEANINGFUL_ACTIONS.has(action.type)) return null;
     this.state.markObserving({ after: action.type });
     const settleMs = Number(this.config.observeSettleMs || 800);
-    await new Promise((resolve) => setTimeout(resolve, settleMs));
+    await new Promise(resolve => setTimeout(resolve, settleMs));
     try {
       const result = await this.execute(
         { type: COMPUTER_ACTIONS.GET_ACTIVE_WINDOW, reason: `re-observe after ${action.type}` },
@@ -639,7 +684,7 @@ export class OpenInterfaceAdapter {
           type: 'observation',
           level: 'INFO',
           message: `Post-action observation: ${result.observation.summary}`,
-          data: { ...result.observation, followUp: true, afterAction: action.type }
+          data: { ...result.observation, followUp: true, afterAction: action.type },
         });
         return result.observation;
       }
@@ -678,7 +723,7 @@ export class OpenInterfaceAdapter {
       actionType: action.type,
       at: new Date().toISOString(),
       raw: output,
-      visionUsed: false
+      visionUsed: false,
     };
 
     switch (action.type) {
@@ -691,7 +736,7 @@ export class OpenInterfaceAdapter {
           height: output.height,
           bytes: output.bytes,
           sha256: output.sha256,
-          path: output.path
+          path: output.path,
         };
       case COMPUTER_ACTIONS.GET_ACTIVE_WINDOW:
         return {
@@ -701,7 +746,7 @@ export class OpenInterfaceAdapter {
             ? `Active window: ${output.title}`
             : `Active window unavailable${output.reason ? ` (${output.reason})` : ''}`,
           title: output.title || null,
-          supported: Boolean(output.supported)
+          supported: Boolean(output.supported),
         };
       case COMPUTER_ACTIONS.GET_BROWSER_STATE:
         return {
@@ -710,21 +755,21 @@ export class OpenInterfaceAdapter {
           summary: output.activeWindowTitle
             ? `Browser state: title "${output.activeWindowTitle}"${output.rememberedUrl ? `, last navigated URL ${output.rememberedUrl}` : ''}`
             : 'Browser state unavailable',
-          browser: output
+          browser: output,
         };
       case COMPUTER_ACTIONS.NAVIGATE:
         return {
           ...base,
           kind: 'navigation',
           summary: `Navigated to ${output.navigatedTo || action.params.url}`,
-          url: output.navigatedTo || action.params.url
+          url: output.navigatedTo || action.params.url,
         };
       case COMPUTER_ACTIONS.OPEN_APPLICATION:
         return {
           ...base,
           kind: 'application_launch',
           summary: `Launched application: ${output.launched || action.params.name}`,
-          application: output.launched || action.params.name
+          application: output.launched || action.params.name,
         };
       case COMPUTER_ACTIONS.SLEEP:
         return { ...base, kind: 'wait', summary: `Waited ${output.slept}s`, seconds: output.slept };
@@ -733,10 +778,14 @@ export class OpenInterfaceAdapter {
           ...base,
           kind: 'input',
           // Never echo typed secrets into the persisted observation.
-          summary: `Typed ${output.typed} character(s)`
+          summary: `Typed ${output.typed} character(s)`,
         };
       default:
-        return { ...base, kind: 'action_result', summary: `Computer action ${action.type} completed` };
+        return {
+          ...base,
+          kind: 'action_result',
+          summary: `Computer action ${action.type} completed`,
+        };
     }
   }
 
@@ -751,12 +800,13 @@ export class OpenInterfaceAdapter {
       capabilities: this.capabilities,
       visionCapable: this.visionCapable,
       inputSimulation: Boolean(this.inputSimulation),
-      degradedActions: this.inputSimulation === false
-        ? (this.capabilities?.pyautoguiActions || [...PYAUTOGUI_ACTIONS])
-        : [],
+      degradedActions:
+        this.inputSimulation === false
+          ? this.capabilities?.pyautoguiActions || [...PYAUTOGUI_ACTIONS]
+          : [],
       lastNavigationUrl: this.lastNavigationUrl,
       lastError: this.lastError,
-      pendingActions: this.pending.size
+      pendingActions: this.pending.size,
     };
   }
 

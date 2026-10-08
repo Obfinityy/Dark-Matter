@@ -22,46 +22,182 @@ import { contrastRatio, meetsWCAG, severityTriple } from './a11yCore.js';
 /* Idea registry: ideas 50521–50560 mapped exactly once ---------------------- */
 
 export const WAVE14_IDEAS = [
-  { idea: 50521, name: 'Hunt screen-reader summary', in: 'AccessibilityRound3.jsx:HuntSummaryLiveRegion + a11yRound3Core.huntSummaryText' },
-  { idea: 50522, name: 'Hidden decorative animation', in: 'a11yRound3Core.ariaHiddenProps (aria-hidden="true" decorator)' },
-  { idea: 50523, name: 'Status-change announcements', in: 'AccessibilityRound3.jsx:StatusAnnouncer + a11yRound3Core.statusAnnouncement' },
-  { idea: 50524, name: 'Sortable table semantics', in: 'AccessibilityRound3.jsx:SortableFindingsTableHead + a11yRound3Core.sortableHeaderProps/sortableAnnouncement' },
-  { idea: 50525, name: 'Reduced transparency', in: 'a11yRound3Core.readMediaPreference + transparencyClass + AccessibilityRound3.css .a11y3-reduced-transparency' },
-  { idea: 50526, name: 'Code-block focus contrast', in: 'a11yRound3Core.checkCodeBlockFocus + AccessibilityRound3.css .a11y3-codeblock:focus-visible' },
+  {
+    idea: 50521,
+    name: 'Hunt screen-reader summary',
+    in: 'AccessibilityRound3.jsx:HuntSummaryLiveRegion + a11yRound3Core.huntSummaryText',
+  },
+  {
+    idea: 50522,
+    name: 'Hidden decorative animation',
+    in: 'a11yRound3Core.ariaHiddenProps (aria-hidden="true" decorator)',
+  },
+  {
+    idea: 50523,
+    name: 'Status-change announcements',
+    in: 'AccessibilityRound3.jsx:StatusAnnouncer + a11yRound3Core.statusAnnouncement',
+  },
+  {
+    idea: 50524,
+    name: 'Sortable table semantics',
+    in: 'AccessibilityRound3.jsx:SortableFindingsTableHead + a11yRound3Core.sortableHeaderProps/sortableAnnouncement',
+  },
+  {
+    idea: 50525,
+    name: 'Reduced transparency',
+    in: 'a11yRound3Core.readMediaPreference + transparencyClass + AccessibilityRound3.css .a11y3-reduced-transparency',
+  },
+  {
+    idea: 50526,
+    name: 'Code-block focus contrast',
+    in: 'a11yRound3Core.checkCodeBlockFocus + AccessibilityRound3.css .a11y3-codeblock:focus-visible',
+  },
   { idea: 50527, name: 'Screenshot alt text', in: 'a11yRound3Core.screenshotAltText' },
-  { idea: 50528, name: 'Avatar speech captions', in: 'AccessibilityRound3.jsx:AvatarCaptionTrack + a11yRound3Core.avatarCaptionText' },
-  { idea: 50529, name: 'Speakable action names', in: 'a11yRound3Core.SPEAKABLE_ACTIONS + speakableActionName' },
-  { idea: 50530, name: 'Terminal Esc exit', in: 'a11yRound3Core.shouldExitTerminal + terminalEscHandler' },
-  { idea: 50531, name: 'Throttled progress announcements', in: 'AccessibilityRound3.jsx:ProgressAnnouncer + a11yRound3Core.makeProgressAnnouncer (10% steps)' },
-  { idea: 50532, name: 'Page landmarks', in: 'AccessibilityRound3.jsx:PageLandmarks + a11yRound3Core.LANDMARKS' },
+  {
+    idea: 50528,
+    name: 'Avatar speech captions',
+    in: 'AccessibilityRound3.jsx:AvatarCaptionTrack + a11yRound3Core.avatarCaptionText',
+  },
+  {
+    idea: 50529,
+    name: 'Speakable action names',
+    in: 'a11yRound3Core.SPEAKABLE_ACTIONS + speakableActionName',
+  },
+  {
+    idea: 50530,
+    name: 'Terminal Esc exit',
+    in: 'a11yRound3Core.shouldExitTerminal + terminalEscHandler',
+  },
+  {
+    idea: 50531,
+    name: 'Throttled progress announcements',
+    in: 'AccessibilityRound3.jsx:ProgressAnnouncer + a11yRound3Core.makeProgressAnnouncer (10% steps)',
+  },
+  {
+    idea: 50532,
+    name: 'Page landmarks',
+    in: 'AccessibilityRound3.jsx:PageLandmarks + a11yRound3Core.LANDMARKS',
+  },
   { idea: 50533, name: 'Unskipped heading levels', in: 'a11yRound3Core.headingLevelIssues' },
   { idea: 50534, name: 'Descriptive link text', in: 'a11yRound3Core.checkLinkText' },
-  { idea: 50535, name: 'Autocomplete attributes', in: 'a11yRound3Core.AUTOCOMPLETE_MAP + autocompleteFor' },
-  { idea: 50536, name: 'Text alongside animation', in: 'a11yRound3Core.formatProgress (always text + any animation)' },
-  { idea: 50537, name: 'Dual timestamps', in: 'a11yRound3Core.dualTimestamp (relative text + absolute title)' },
-  { idea: 50538, name: 'Explained disabled buttons', in: 'a11yRound3Core.disabledButtonProps (aria-disabled + reason)' },
-  { idea: 50539, name: 'Theme-tested severity tints', in: 'a11yRound3Core.testSeverityTints (dark + light, 3:1 UI minimum)' },
-  { idea: 50540, name: 'Roving tabindex list', in: 'AccessibilityRound3.jsx:RovingTabindexList + a11yRound3Core.rovingTabIndexes' },
+  {
+    idea: 50535,
+    name: 'Autocomplete attributes',
+    in: 'a11yRound3Core.AUTOCOMPLETE_MAP + autocompleteFor',
+  },
+  {
+    idea: 50536,
+    name: 'Text alongside animation',
+    in: 'a11yRound3Core.formatProgress (always text + any animation)',
+  },
+  {
+    idea: 50537,
+    name: 'Dual timestamps',
+    in: 'a11yRound3Core.dualTimestamp (relative text + absolute title)',
+  },
+  {
+    idea: 50538,
+    name: 'Explained disabled buttons',
+    in: 'a11yRound3Core.disabledButtonProps (aria-disabled + reason)',
+  },
+  {
+    idea: 50539,
+    name: 'Theme-tested severity tints',
+    in: 'a11yRound3Core.testSeverityTints (dark + light, 3:1 UI minimum)',
+  },
+  {
+    idea: 50540,
+    name: 'Roving tabindex list',
+    in: 'AccessibilityRound3.jsx:RovingTabindexList + a11yRound3Core.rovingTabIndexes',
+  },
   { idea: 50541, name: 'Announced filter changes', in: 'a11yRound3Core.filterAnnouncement' },
-  { idea: 50542, name: 'Keyboard severity slider', in: 'AccessibilityRound3.jsx:SeveritySlider + a11yRound3Core.sliderStep/sliderSpokenValue' },
-  { idea: 50543, name: 'Describe-this-chart button', in: 'AccessibilityRound3.jsx:DescribeChartButton + a11yRound3Core.describeChart' },
-  { idea: 50544, name: 'Low-vision spacing rhythm', in: 'a11yRound3Core.LOW_VISION_SPACING + spacing (8px rhythm)' },
-  { idea: 50545, name: 'Underlined links', in: 'a11yRound3Core.LINK_UNDERLINE_POLICY + AccessibilityRound3.css .a11y3-finding-link' },
-  { idea: 50546, name: 'Non-haptic confirmations', in: 'a11yRound3Core.destructiveConfirmCopy (visual + text confirmation)' },
+  {
+    idea: 50542,
+    name: 'Keyboard severity slider',
+    in: 'AccessibilityRound3.jsx:SeveritySlider + a11yRound3Core.sliderStep/sliderSpokenValue',
+  },
+  {
+    idea: 50543,
+    name: 'Describe-this-chart button',
+    in: 'AccessibilityRound3.jsx:DescribeChartButton + a11yRound3Core.describeChart',
+  },
+  {
+    idea: 50544,
+    name: 'Low-vision spacing rhythm',
+    in: 'a11yRound3Core.LOW_VISION_SPACING + spacing (8px rhythm)',
+  },
+  {
+    idea: 50545,
+    name: 'Underlined links',
+    in: 'a11yRound3Core.LINK_UNDERLINE_POLICY + AccessibilityRound3.css .a11y3-finding-link',
+  },
+  {
+    idea: 50546,
+    name: 'Non-haptic confirmations',
+    in: 'a11yRound3Core.destructiveConfirmCopy (visual + text confirmation)',
+  },
   { idea: 50547, name: 'Nested-list graph fallback', in: 'a11yRound3Core.graphToNestedList' },
   { idea: 50548, name: 'Announced agent typing', in: 'a11yRound3Core.typingAnnouncementText' },
-  { idea: 50549, name: 'Reduced-data mode', in: 'a11yRound3Core.readMediaPreference + reducedDataClass + AccessibilityRound3.css .a11y3-reduced-data' },
-  { idea: 50550, name: 'Keyboard drag equivalents', in: 'AccessibilityRound3.jsx:KeyboardDragHandle + a11yRound3Core.KEYBOARD_DRAG_EQUIVALENTS' },
-  { idea: 50551, name: 'Form error summary', in: 'AccessibilityRound3.jsx:FormErrorSummary + a11yRound3Core.formErrorSummary (anchors)' },
-  { idea: 50552, name: 'Timeout announcements', in: 'AccessibilityRound3.jsx:TimeoutAnnouncer + a11yRound3Core.timeoutAnnouncementCopy' },
-  { idea: 50553, name: 'Keyboard date entry', in: 'AccessibilityRound3.jsx:KeyboardDateInput + a11yRound3Core.keyboardDateProps/parseDateInput' },
-  { idea: 50554, name: 'Readability settings', in: 'AccessibilityRound3.jsx:ReadabilitySettingsPanel + a11yRound3Core.READABILITY_DEFAULTS/readabilityStyle' },
-  { idea: 50555, name: 'Dyslexia-friendly font', in: 'AccessibilityRound3.jsx:DyslexiaToggle + a11yRound3Core.DYSLEXIA_FONT_STACK/dyslexiaClass' },
-  { idea: 50556, name: 'Acronym expansion', in: 'AccessibilityRound3.jsx:AcronymExpander + a11yRound3Core.expandAcronyms/ACRONYM_MAP' },
-  { idea: 50557, name: 'Scroll-margin focus', in: 'AccessibilityRound3.jsx:FocusScrollMargin + a11yRound3Core.scrollMarginFor + AccessibilityRound3.css' },
-  { idea: 50558, name: 'Announced bulk results', in: 'AccessibilityRound3.jsx:BulkActionAnnouncer + a11yRound3Core.bulkResultAnnouncement' },
-  { idea: 50559, name: 'Accessibility statement', in: 'AccessibilityRound3.jsx:AccessibilityStatement + a11yRound3Core.A11Y_STATEMENT' },
-  { idea: 50560, name: 'New-card slide-in', in: 'AccessibilityRound3.jsx:NewFindingCard + a11yRound3Core.NEW_CARD_SLIDE_SPEC + AccessibilityRound3.css keyframes' },
+  {
+    idea: 50549,
+    name: 'Reduced-data mode',
+    in: 'a11yRound3Core.readMediaPreference + reducedDataClass + AccessibilityRound3.css .a11y3-reduced-data',
+  },
+  {
+    idea: 50550,
+    name: 'Keyboard drag equivalents',
+    in: 'AccessibilityRound3.jsx:KeyboardDragHandle + a11yRound3Core.KEYBOARD_DRAG_EQUIVALENTS',
+  },
+  {
+    idea: 50551,
+    name: 'Form error summary',
+    in: 'AccessibilityRound3.jsx:FormErrorSummary + a11yRound3Core.formErrorSummary (anchors)',
+  },
+  {
+    idea: 50552,
+    name: 'Timeout announcements',
+    in: 'AccessibilityRound3.jsx:TimeoutAnnouncer + a11yRound3Core.timeoutAnnouncementCopy',
+  },
+  {
+    idea: 50553,
+    name: 'Keyboard date entry',
+    in: 'AccessibilityRound3.jsx:KeyboardDateInput + a11yRound3Core.keyboardDateProps/parseDateInput',
+  },
+  {
+    idea: 50554,
+    name: 'Readability settings',
+    in: 'AccessibilityRound3.jsx:ReadabilitySettingsPanel + a11yRound3Core.READABILITY_DEFAULTS/readabilityStyle',
+  },
+  {
+    idea: 50555,
+    name: 'Dyslexia-friendly font',
+    in: 'AccessibilityRound3.jsx:DyslexiaToggle + a11yRound3Core.DYSLEXIA_FONT_STACK/dyslexiaClass',
+  },
+  {
+    idea: 50556,
+    name: 'Acronym expansion',
+    in: 'AccessibilityRound3.jsx:AcronymExpander + a11yRound3Core.expandAcronyms/ACRONYM_MAP',
+  },
+  {
+    idea: 50557,
+    name: 'Scroll-margin focus',
+    in: 'AccessibilityRound3.jsx:FocusScrollMargin + a11yRound3Core.scrollMarginFor + AccessibilityRound3.css',
+  },
+  {
+    idea: 50558,
+    name: 'Announced bulk results',
+    in: 'AccessibilityRound3.jsx:BulkActionAnnouncer + a11yRound3Core.bulkResultAnnouncement',
+  },
+  {
+    idea: 50559,
+    name: 'Accessibility statement',
+    in: 'AccessibilityRound3.jsx:AccessibilityStatement + a11yRound3Core.A11Y_STATEMENT',
+  },
+  {
+    idea: 50560,
+    name: 'New-card slide-in',
+    in: 'AccessibilityRound3.jsx:NewFindingCard + a11yRound3Core.NEW_CARD_SLIDE_SPEC + AccessibilityRound3.css keyframes',
+  },
 ];
 
 /* 50521 — Hunt screen-reader summary ----------------------------------------- */
@@ -113,7 +249,9 @@ export function makeProgressAnnouncer(stepPct = 10) {
       lastAnnounced = step;
       return formatProgress(p, label);
     },
-    reset() { lastAnnounced = -1; },
+    reset() {
+      lastAnnounced = -1;
+    },
   };
 }
 
@@ -135,7 +273,13 @@ export function sortableHeaderProps(column = {}, sort = {}) {
   const sorted = sort.id === column.id;
   return {
     scope: 'col',
-    'aria-sort': sorted ? (sort.direction === 'desc' ? 'descending' : 'ascending') : (column.sortable ? 'none' : undefined),
+    'aria-sort': sorted
+      ? sort.direction === 'desc'
+        ? 'descending'
+        : 'ascending'
+      : column.sortable
+        ? 'none'
+        : undefined,
     'aria-label': column.sortable ? `Sort by ${column.label}` : column.label,
   };
 }
@@ -225,7 +369,13 @@ export const SPEAKABLE_ACTIONS = {
 
 /** Voice-control users get a plain speakable name for every action. */
 export function speakableActionName(actionId) {
-  return SPEAKABLE_ACTIONS[actionId] || String(actionId || '').replace(/[-_]+/g, ' ').trim() || 'Unnamed action';
+  return (
+    SPEAKABLE_ACTIONS[actionId] ||
+    String(actionId || '')
+      .replace(/[-_]+/g, ' ')
+      .trim() ||
+    'Unnamed action'
+  );
 }
 
 /* 50530 — Terminal Esc exit ----------------------------------------------------- */
@@ -287,7 +437,11 @@ export function headingLevelIssues(headings = []) {
     if (prev === 0 && level !== 1) {
       issues.push({ index: i, text: h.text, reason: `first heading is h${level}, expected h1` });
     } else if (level > prev + 1) {
-      issues.push({ index: i, text: h.text, reason: `heading level jumps from h${prev} to h${level}` });
+      issues.push({
+        index: i,
+        text: h.text,
+        reason: `heading level jumps from h${prev} to h${level}`,
+      });
     }
     prev = level;
   });
@@ -296,7 +450,15 @@ export function headingLevelIssues(headings = []) {
 
 /* 50534 — Descriptive link text --------------------------------------------------- */
 
-const VAGUE_LINK_TEXT = ['click here', 'here', 'read more', 'learn more', 'link', 'more', 'this page'];
+const VAGUE_LINK_TEXT = [
+  'click here',
+  'here',
+  'read more',
+  'learn more',
+  'link',
+  'more',
+  'this page',
+];
 
 /**
  * Links must read "Download PDF report", never "click here".
@@ -321,7 +483,7 @@ export const AUTOCOMPLETE_MAP = {
   'current-password': 'current-password',
   name: 'name',
   organization: 'organization',
-  'phone': 'tel',
+  phone: 'tel',
   url: 'url',
 };
 
@@ -373,7 +535,7 @@ const THEME_BACKGROUNDS = { dark: '#0d1117', light: '#ffffff' };
  * dark and light themes. Returns [{ severity, dark: {ratio, passes}, light: {...} }].
  */
 export function testSeverityTints() {
-  return Object.keys({ critical: 1, high: 1, medium: 1, low: 1, info: 1 }).map((sev) => {
+  return Object.keys({ critical: 1, high: 1, medium: 1, low: 1, info: 1 }).map(sev => {
     const { color } = severityTriple(sev);
     const entry = { severity: sev, color };
     for (const [theme, bg] of Object.entries(THEME_BACKGROUNDS)) {
@@ -427,7 +589,7 @@ export function describeChart(chart = {}) {
   if (series.length === 0) return `${chart.title || 'Chart'}: no data.`;
   const total = series.reduce((a, s) => a + (Number(s.value) || 0), 0);
   const top = [...series].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))[0];
-  const parts = series.map((s) => `${s.label}: ${s.value}`).join(', ');
+  const parts = series.map(s => `${s.label}: ${s.value}`).join(', ');
   const type = chart.type ? `${chart.type} chart` : 'chart';
   return `${chart.title || 'Chart'} (${type}): ${parts}. Total ${total}. Highest: ${top.label} with ${top.value}.`;
 }
@@ -473,7 +635,7 @@ export function destructiveConfirmCopy(actionLabel) {
 export function graphToNestedList(graph = {}) {
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
   const edges = Array.isArray(graph.edges) ? graph.edges : [];
-  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const byId = new Map(nodes.map(n => [n.id, n]));
   const childrenOf = new Map();
   const hasIncoming = new Set();
   for (const e of edges) {
@@ -489,12 +651,12 @@ export function graphToNestedList(graph = {}) {
     return {
       id,
       label: byId.get(id).label || id,
-      children: (childrenOf.get(id) || []).map((c) => build(c, next)),
+      children: (childrenOf.get(id) || []).map(c => build(c, next)),
     };
   };
-  const roots = nodes.filter((n) => !hasIncoming.has(n.id));
+  const roots = nodes.filter(n => !hasIncoming.has(n.id));
   const start = roots.length > 0 ? roots : nodes.slice(0, 1);
-  return start.map((n) => build(n.id, new Set()));
+  return start.map(n => build(n.id, new Set()));
 }
 
 /* 50548 — Announced agent typing ---------------------------------------------------------------------------------- */
@@ -507,10 +669,19 @@ export function typingAnnouncementText(agentName = 'Infinity AI') {
 /* 50550 — Keyboard drag equivalents ---------------------------------------------------------------------------------- */
 
 export const KEYBOARD_DRAG_EQUIVALENTS = {
-  'reorder-finding': { keys: 'Ctrl+ArrowUp / Ctrl+ArrowDown', description: 'Move the focused finding up or down in the list' },
-  'move-card-column': { keys: 'Ctrl+ArrowLeft / Ctrl+ArrowRight', description: 'Move the focused card to the previous or next column' },
+  'reorder-finding': {
+    keys: 'Ctrl+ArrowUp / Ctrl+ArrowDown',
+    description: 'Move the focused finding up or down in the list',
+  },
+  'move-card-column': {
+    keys: 'Ctrl+ArrowLeft / Ctrl+ArrowRight',
+    description: 'Move the focused card to the previous or next column',
+  },
   'resize-panel': { keys: 'Alt+Arrow keys', description: 'Resize the focused panel in 8px steps' },
-  'reorder-filter-pill': { keys: 'Ctrl+ArrowLeft / Ctrl+ArrowRight', description: 'Reorder the focused filter pill' },
+  'reorder-filter-pill': {
+    keys: 'Ctrl+ArrowLeft / Ctrl+ArrowRight',
+    description: 'Reorder the focused filter pill',
+  },
 };
 
 /** Every drag handle shows visible focus and ships a keyboard equivalent. */
@@ -525,7 +696,7 @@ export function dragKeyboardEquivalent(dragAction) {
  * errors: [{ fieldId, label, message }].
  */
 export function formErrorSummary(errors = []) {
-  const items = errors.map((e) => ({
+  const items = errors.map(e => ({
     fieldId: e.fieldId,
     label: e.label || e.fieldId,
     message: e.message || 'Invalid value',
@@ -533,9 +704,10 @@ export function formErrorSummary(errors = []) {
   }));
   return {
     count: items.length,
-    heading: items.length === 0
-      ? 'No errors'
-      : `${items.length} error${items.length === 1 ? '' : 's'} need${items.length === 1 ? 's' : ''} your attention`,
+    heading:
+      items.length === 0
+        ? 'No errors'
+        : `${items.length} error${items.length === 1 ? '' : 's'} need${items.length === 1 ? 's' : ''} your attention`,
     items,
   };
 }
@@ -552,9 +724,10 @@ export const SESSION_EXTEND_COPY = {
 export function timeoutAnnouncementCopy(minutesLeft) {
   const m = Math.max(0, Math.round(Number(minutesLeft) || 0));
   return {
-    announcement: m === 0
-      ? SESSION_EXTEND_COPY.expired
-      : `Your session expires in ${m} minute${m === 1 ? '' : 's'}.`,
+    announcement:
+      m === 0
+        ? SESSION_EXTEND_COPY.expired
+        : `Your session expires in ${m} minute${m === 1 ? '' : 's'}.`,
     extendLabel: SESSION_EXTEND_COPY.extendLabel,
   };
 }
@@ -578,7 +751,8 @@ export function parseDateInput(str) {
   if (!m) return { ok: false, reason: 'Use the YYYY-MM-DD format' };
   const [, y, mo, d] = m.map(Number);
   const date = new Date(Date.UTC(y, mo - 1, d));
-  const ok = date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+  const ok =
+    date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
   return ok
     ? { ok: true, iso: date.toISOString().slice(0, 10) }
     : { ok: false, reason: 'That date does not exist on the calendar' };

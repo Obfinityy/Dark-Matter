@@ -70,7 +70,7 @@ export function parseEapHeader(buf) {
     identifier,
     length,
     type,
-    typeName: type != null ? (EAP_TYPES[type] || `type_${type}`) : null,
+    typeName: type != null ? EAP_TYPES[type] || `type_${type}` : null,
   };
 }
 
@@ -87,15 +87,21 @@ export function analyzeEapNegotiation(packets = []) {
   let outcome = null;
 
   for (const p of packets) {
-    if (p.code === 3) { outcome = 'success'; break; }
-    if (p.code === 4) { outcome = 'failure'; break; }
+    if (p.code === 3) {
+      outcome = 'success';
+      break;
+    }
+    if (p.code === 4) {
+      outcome = 'failure';
+      break;
+    }
     if (p.code === 1 && p.type != null && p.direction !== 'client') {
       offeredByServer.push(p.type);
       if (p.type !== 1 && p.type !== 3) settledType = p.type; // last non-identity non-NAK proposal
     }
   }
 
-  const offeredNames = [...new Set(offeredByServer)].map((t) => EAP_TYPES[t] || `type_${t}`);
+  const offeredNames = [...new Set(offeredByServer)].map(t => EAP_TYPES[t] || `type_${t}`);
 
   if (offeredNames.length) {
     findings.push({
@@ -122,13 +128,18 @@ export function analyzeEapNegotiation(packets = []) {
 
   // Downgrade signal: NAK dance settled below a strong method the server also offered.
   const nakSeen = offeredByServer.includes(3);
-  const strongOffered = offeredByServer.filter((t) => STRONG_EAP_METHODS.has(t));
-  if (nakSeen && settledType != null && strongOffered.length && !STRONG_EAP_METHODS.has(settledType)) {
+  const strongOffered = offeredByServer.filter(t => STRONG_EAP_METHODS.has(t));
+  if (
+    nakSeen &&
+    settledType != null &&
+    strongOffered.length &&
+    !STRONG_EAP_METHODS.has(settledType)
+  ) {
     findings.push({
       type: 'EAP Method Downgrade',
       confidence: 'medium',
       cwe: 'CWE-757',
-      evidence: `after NAK negotiation the session settled on ${EAP_TYPES[settledType] || `type_${settledType}`} even though the server also offers strong methods (${strongOffered.map((t) => EAP_TYPES[t]).join(', ')}) — verify the server enforces the strongest mutually supported method`,
+      evidence: `after NAK negotiation the session settled on ${EAP_TYPES[settledType] || `type_${settledType}`} even though the server also offers strong methods (${strongOffered.map(t => EAP_TYPES[t]).join(', ')}) — verify the server enforces the strongest mutually supported method`,
     });
   }
 
@@ -137,7 +148,8 @@ export function analyzeEapNegotiation(packets = []) {
       type: 'No EAP Negotiation Observed',
       confidence: 'low',
       cwe: null,
-      evidence: 'transcript contained no EAP Request/Response method exchange — check capture completeness',
+      evidence:
+        'transcript contained no EAP Request/Response method exchange — check capture completeness',
     });
   }
   return findings;

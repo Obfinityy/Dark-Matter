@@ -31,8 +31,18 @@ export function levenshtein(a, b) {
 
 /** Leet-speak substitutions used to dodge naive brand matching. */
 const LEET_MAP = {
-  0: 'o', 1: 'l', 3: 'e', 4: 'a', 5: 's', 6: 'g', 7: 't', 8: 'b',
-  '@': 'a', $: 's', '!': 'i', '+': 't',
+  0: 'o',
+  1: 'l',
+  3: 'e',
+  4: 'a',
+  5: 's',
+  6: 'g',
+  7: 't',
+  8: 'b',
+  '@': 'a',
+  $: 's',
+  '!': 'i',
+  '+': 't',
 };
 
 /**
@@ -41,7 +51,9 @@ const LEET_MAP = {
  * @returns {string}
  */
 export function normalizeLeet(s) {
-  return String(s || '').toLowerCase().replace(/[01345678@$!+]/g, (c) => LEET_MAP[c] || c);
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[01345678@$!+]/g, c => LEET_MAP[c] || c);
 }
 
 /**
@@ -126,7 +138,9 @@ export function filterSinkholeFeed(feed, brands, opts = {}) {
   const matches = [];
   const seen = new Set();
   for (const entry of feed || []) {
-    const domain = String(entry?.domain || '').toLowerCase().trim();
+    const domain = String(entry?.domain || '')
+      .toLowerCase()
+      .trim();
     if (!domain || seen.has(domain)) continue;
     seen.add(domain);
     let best = { score: 0, signals: [], brand: null };
@@ -149,7 +163,8 @@ export function filterSinkholeFeed(feed, brands, opts = {}) {
       brandScore: best.score,
       activity,
       score,
-      evidence: best.signals.join(' | ') +
+      evidence:
+        best.signals.join(' | ') +
         `; ${entry.queryCount ?? 0} sinkhole queries, last seen ${entry.lastSeen || 'unknown'}`,
     });
   }
@@ -172,7 +187,9 @@ export function clusterSinkholeCampaigns(matches, opts = {}) {
   }
   const campaigns = [];
   for (const [brand, items] of byBrand) {
-    const sorted = [...items].sort((a, b) => new Date(a.firstSeen || 0) - new Date(b.firstSeen || 0));
+    const sorted = [...items].sort(
+      (a, b) => new Date(a.firstSeen || 0) - new Date(b.firstSeen || 0)
+    );
     let current = null;
     for (const item of sorted) {
       const start = new Date(item.firstSeen || item.lastSeen || 0).getTime();
@@ -196,17 +213,18 @@ export function clusterSinkholeCampaigns(matches, opts = {}) {
     }
   }
   campaigns.sort((a, b) => b.peakScore - a.peakScore || b.totalQueries - a.totalQueries);
-  return campaigns.map((c) => ({
+  return campaigns.map(c => ({
     brand: c.brand,
     domainCount: c.domains.length,
     domains: c.domains,
     totalQueries: c.totalQueries,
     peakScore: c.peakScore,
-    verdict: c.peakScore >= 70 && c.totalQueries > 100
-      ? 'active campaign — prioritize takedown'
-      : c.peakScore >= 55
-        ? 'emerging activity — monitor and prepare blocklist'
-        : 'low activity — keep on watchlist',
+    verdict:
+      c.peakScore >= 70 && c.totalQueries > 100
+        ? 'active campaign — prioritize takedown'
+        : c.peakScore >= 55
+          ? 'emerging activity — monitor and prepare blocklist'
+          : 'low activity — keep on watchlist',
   }));
 }
 
@@ -215,16 +233,17 @@ export function clusterSinkholeCampaigns(matches, opts = {}) {
  * @param {ReturnType<typeof clusterSinkholeCampaigns>} campaigns
  */
 export function summarizeSinkholeCampaigns(campaigns) {
-  const active = (campaigns || []).filter((c) => c.verdict.startsWith('active'));
+  const active = (campaigns || []).filter(c => c.verdict.startsWith('active'));
   return {
     total: (campaigns || []).length,
     active: active.length,
-    topCampaigns: active.slice(0, 5).map((c) => ({
+    topCampaigns: active.slice(0, 5).map(c => ({
       brand: c.brand,
       domains: c.domains.slice(0, 10),
       totalQueries: c.totalQueries,
     })),
-    summary: `${active.length} active phishing campaign(s) detected in sinkhole data ` +
+    summary:
+      `${active.length} active phishing campaign(s) detected in sinkhole data ` +
       `across ${(campaigns || []).length} brand cluster(s).`,
   };
 }

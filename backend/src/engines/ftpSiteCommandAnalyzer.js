@@ -22,15 +22,47 @@
  * SITE sub-command → likely server implementation(s), with confidence weight.
  */
 const SITE_COMMAND_MAP = [
-  { cmd: 'CHMOD', servers: ['vsftpd', 'ProFTPD', 'Pure-FTPd'], note: 'Unix permission semantics; hallmark of Unix FTP daemons.' },
-  { cmd: 'CHOWN', servers: ['ProFTPD', 'Pure-FTPd'], note: 'Ownership change via SITE; Unix daemons (often root-capable builds).' },
-  { cmd: 'UMASK', servers: ['ProFTPD', 'vsftpd', 'Pure-FTPd'], note: 'Umask control; Unix FTP daemons.' },
-  { cmd: 'IDLE', servers: ['vsftpd', 'ProFTPD', 'Pure-FTPd'], note: 'Idle-timeout control; common Unix daemon extension.' },
+  {
+    cmd: 'CHMOD',
+    servers: ['vsftpd', 'ProFTPD', 'Pure-FTPd'],
+    note: 'Unix permission semantics; hallmark of Unix FTP daemons.',
+  },
+  {
+    cmd: 'CHOWN',
+    servers: ['ProFTPD', 'Pure-FTPd'],
+    note: 'Ownership change via SITE; Unix daemons (often root-capable builds).',
+  },
+  {
+    cmd: 'UMASK',
+    servers: ['ProFTPD', 'vsftpd', 'Pure-FTPd'],
+    note: 'Umask control; Unix FTP daemons.',
+  },
+  {
+    cmd: 'IDLE',
+    servers: ['vsftpd', 'ProFTPD', 'Pure-FTPd'],
+    note: 'Idle-timeout control; common Unix daemon extension.',
+  },
   { cmd: 'UTIME', servers: ['ProFTPD', 'NetKit FTP'], note: 'File timestamp setting.' },
-  { cmd: 'PSWD', servers: ['Serv-U'], note: 'Serv-U password-change extension; strongly identifies Serv-U.' },
-  { cmd: 'ZONE', servers: ['Microsoft IIS FTP'], note: 'IIS time-zone extension; strongly identifies Microsoft FTP.' },
-  { cmd: 'EXEC', servers: ['wu-ftpd'], note: 'Legacy remote-execution extension; wu-ftpd only, long removed upstream.' },
-  { cmd: 'WHO', servers: ['ProFTPD', 'glFTPd'], note: 'Session listing; ProFTPD/glFTPd introspection.' },
+  {
+    cmd: 'PSWD',
+    servers: ['Serv-U'],
+    note: 'Serv-U password-change extension; strongly identifies Serv-U.',
+  },
+  {
+    cmd: 'ZONE',
+    servers: ['Microsoft IIS FTP'],
+    note: 'IIS time-zone extension; strongly identifies Microsoft FTP.',
+  },
+  {
+    cmd: 'EXEC',
+    servers: ['wu-ftpd'],
+    note: 'Legacy remote-execution extension; wu-ftpd only, long removed upstream.',
+  },
+  {
+    cmd: 'WHO',
+    servers: ['ProFTPD', 'glFTPd'],
+    note: 'Session listing; ProFTPD/glFTPd introspection.',
+  },
   { cmd: 'STAT', servers: ['ProFTPD', 'glFTPd'], note: 'Server status via SITE; ProFTPD/glFTPd.' },
   { cmd: 'DIRSTYLE', servers: ['Microsoft IIS FTP'], note: 'IIS directory listing style switch.' },
   { cmd: 'MINFO', servers: ['Microsoft IIS FTP'], note: 'IIS machine info extension.' },
@@ -40,7 +72,11 @@ const SITE_COMMAND_MAP = [
   { cmd: 'CHGRP', servers: ['ProFTPD', 'Pure-FTPd'], note: 'Group change; Unix daemon extension.' },
   { cmd: 'HELP', servers: [], note: 'Generic SITE HELP echo; not identifying by itself.' },
   { cmd: 'VERSION', servers: ['ProFTPD'], note: 'ProFTPD build-version disclosure via SITE.' },
-  { cmd: 'RATIO', servers: ['glFTPd'], note: 'glFTPd ratio management; strongly identifies glFTPd.' },
+  {
+    cmd: 'RATIO',
+    servers: ['glFTPd'],
+    note: 'glFTPd ratio management; strongly identifies glFTPd.',
+  },
   { cmd: 'NUKE', servers: ['glFTPd'], note: 'glFTPd nuke extension.' },
   { cmd: 'MSG', servers: ['glFTPd'], note: 'glFTPd message extension.' },
   { cmd: 'NEWDIR', servers: ['Serv-U'], note: 'Serv-U directory helper.' },
@@ -79,9 +115,10 @@ export function analyzeSiteHelp(siteHelpText = '') {
       server: 'Unknown',
       confidence: 'low',
       matchedCommands: matched,
-      evidence: matched.length === 0
-        ? 'No known SITE sub-commands found in captured SITE HELP text.'
-        : `Recognized commands (${matched.join(', ')}) are too generic to identify a server.`,
+      evidence:
+        matched.length === 0
+          ? 'No known SITE sub-commands found in captured SITE HELP text.'
+          : `Recognized commands (${matched.join(', ')}) are too generic to identify a server.`,
     };
   }
 
@@ -89,14 +126,17 @@ export function analyzeSiteHelp(siteHelpText = '') {
   // High confidence only when a single server owns a distinctive marker
   // (e.g. PSWD→Serv-U, ZONE→IIS) or dominates the vote count.
   const distinctive = SITE_COMMAND_MAP.filter(
-    (e) => e.servers.length === 1 && tokens.has(e.cmd) && e.servers[0] === topServer,
+    e => e.servers.length === 1 && tokens.has(e.cmd) && e.servers[0] === topServer
   );
-  const confidence = distinctive.length > 0 || topVotes >= 3 || (ranked.length > 1 && topVotes > ranked[1][1] + 1)
-    ? 'high'
-    : topVotes >= 2 ? 'medium' : 'low';
+  const confidence =
+    distinctive.length > 0 || topVotes >= 3 || (ranked.length > 1 && topVotes > ranked[1][1] + 1)
+      ? 'high'
+      : topVotes >= 2
+        ? 'medium'
+        : 'low';
 
-  const evidenceBits = matched.map((cmd) => {
-    const e = SITE_COMMAND_MAP.find((x) => x.cmd === cmd);
+  const evidenceBits = matched.map(cmd => {
+    const e = SITE_COMMAND_MAP.find(x => x.cmd === cmd);
     return `${cmd} (${e.servers.join('/') || 'generic'}): ${e.note}`;
   });
   return {
@@ -116,7 +156,10 @@ export function analyzeSiteHelp(siteHelpText = '') {
  * @returns {{ supported: boolean, interpretation: string, serverHint: string }}
  */
 export function analyzeSiteResponse(command = '', code = 0, message = '') {
-  const cmd = String(command || '').trim().toUpperCase().replace(/^SITE\s+/i, '');
+  const cmd = String(command || '')
+    .trim()
+    .toUpperCase()
+    .replace(/^SITE\s+/i, '');
   const msg = String(message || '').trim();
   const codeNum = Number(code) || 0;
 
@@ -134,7 +177,8 @@ export function analyzeSiteResponse(command = '', code = 0, message = '') {
     return {
       supported: false,
       interpretation: `500 on ${cmd}: ${hint} Either the sub-command is unsupported or it was issued out of sequence. Message: "${msg}".`,
-      serverHint: 'Unsupported SITE sub-command; the absence also fingerprints (e.g. no SITE ZONE rules out IIS-style behavior).',
+      serverHint:
+        'Unsupported SITE sub-command; the absence also fingerprints (e.g. no SITE ZONE rules out IIS-style behavior).',
     };
   }
   if (codeNum === 502) {

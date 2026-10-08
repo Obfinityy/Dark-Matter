@@ -21,17 +21,28 @@
  * @returns {{ip: string|null, classification: 'benign'|'malicious'|'unknown', noise: boolean, tags: string[], actor: string|null}}
  */
 export function normalizeClassification(rec) {
-  if (!rec || typeof rec !== 'object') return { ip: null, classification: 'unknown', noise: false, tags: [], actor: null };
+  if (!rec || typeof rec !== 'object')
+    return { ip: null, classification: 'unknown', noise: false, tags: [], actor: null };
   const ip = typeof rec.ip === 'string' ? rec.ip : null;
   const raw = String(rec.classification || rec.category || '').toLowerCase();
-  const classification = raw.includes('benign') ? 'benign' : raw.includes('malicious') ? 'malicious' : 'unknown';
+  const classification = raw.includes('benign')
+    ? 'benign'
+    : raw.includes('malicious')
+      ? 'malicious'
+      : 'unknown';
   const noise = Boolean(rec.noise ?? rec.riot ?? false);
   const tags = (Array.isArray(rec.tags) ? rec.tags : [])
-    .filter((t) => typeof t === 'string')
-    .map((t) => t.trim().toLowerCase())
+    .filter(t => typeof t === 'string')
+    .map(t => t.trim().toLowerCase())
     .filter(Boolean);
-  const actor = typeof rec.actor === 'string' ? rec.actor
-    : (typeof rec.metadata === 'object' && rec.metadata && typeof rec.metadata.organization === 'string' ? rec.metadata.organization : null);
+  const actor =
+    typeof rec.actor === 'string'
+      ? rec.actor
+      : typeof rec.metadata === 'object' &&
+          rec.metadata &&
+          typeof rec.metadata.organization === 'string'
+        ? rec.metadata.organization
+        : null;
   return { ip, classification, noise, tags: [...new Set(tags)], actor };
 }
 
@@ -47,8 +58,20 @@ export function isBenignNoise(rec) {
   if (!rec) return false;
   if (rec.classification === 'benign') return true;
   if (rec.noise) return true;
-  const noiseTags = ['scanner', 'crawler', 'research', 'survey', 'shodan', 'censys', 'binaryedge', 'zoomeye', 'fofa', 'netlas', 'greynoise'];
-  return rec.tags.some((t) => noiseTags.some((n) => t.includes(n)));
+  const noiseTags = [
+    'scanner',
+    'crawler',
+    'research',
+    'survey',
+    'shodan',
+    'censys',
+    'binaryedge',
+    'zoomeye',
+    'fofa',
+    'netlas',
+    'greynoise',
+  ];
+  return rec.tags.some(t => noiseTags.some(n => t.includes(n)));
 }
 
 /**
@@ -65,7 +88,7 @@ export function filterLogIps(logIps, classifications = {}) {
   const filteredNoise = [];
   const unclassified = [];
   for (const raw of logIps || []) {
-    const ip = typeof raw === 'string' ? raw : (raw && typeof raw.ip === 'string' ? raw.ip : null);
+    const ip = typeof raw === 'string' ? raw : raw && typeof raw.ip === 'string' ? raw.ip : null;
     if (!ip) continue;
     const rec = normalizeClassification(classifications[ip]);
     if (rec.classification === 'unknown' && !rec.noise && rec.tags.length === 0) {
@@ -102,9 +125,10 @@ export function scannerSummary(filteredNoise = []) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
   const scannerCount = filteredNoise.length;
-  const summary = scannerCount === 0
-    ? 'GreyNoise filtering removed no benign scanner IPs; the log contains only real or unclassified traffic.'
-    : `GreyNoise benign-IP filtering removed ${scannerCount} scanner IP(s) from the log${actors.length ? ` (top: ${actors[0].actor} ×${actors[0].count})` : ''}, leaving real asset traffic visible.`;
+  const summary =
+    scannerCount === 0
+      ? 'GreyNoise filtering removed no benign scanner IPs; the log contains only real or unclassified traffic.'
+      : `GreyNoise benign-IP filtering removed ${scannerCount} scanner IP(s) from the log${actors.length ? ` (top: ${actors[0].actor} ×${actors[0].count})` : ''}, leaving real asset traffic visible.`;
   return { scannerCount, actors, summary };
 }
 

@@ -26,16 +26,16 @@
  */
 
 export const WORKFLOW_TYPES = Object.freeze([
-  'checkout',       // cart → payment → order
-  'auth',           // login, register, session
+  'checkout', // cart → payment → order
+  'auth', // login, register, session
   'password_reset', // forgot password flow
-  'profile',        // update profile, change email
-  'coupon',         // discount/promo codes
-  'api_crud',       // create/read/update/delete resources
-  'upload',         // file upload
-  'search',         // search/filter
-  'comment',        // comments, reviews, posts
-  'payment'         // payment processing
+  'profile', // update profile, change email
+  'coupon', // discount/promo codes
+  'api_crud', // create/read/update/delete resources
+  'upload', // file upload
+  'search', // search/filter
+  'comment', // comments, reviews, posts
+  'payment', // payment processing
 ]);
 
 /**
@@ -54,9 +54,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['checkout', 'payment'],
     severity: 'high',
     description: 'Set price/amount to a negative value — the app may credit instead of charge.',
-    mutate: (req) => mutateParam(req, ['price', 'amount', 'total', 'cost'], '-1'),
+    mutate: req => mutateParam(req, ['price', 'amount', 'total', 'cost'], '-1'),
     detect: (base, mutated) => detectLogicChange(base, mutated, 'negative price accepted'),
-    impact: 'Financial loss — attacker gets paid instead of paying.'
+    impact: 'Financial loss — attacker gets paid instead of paying.',
   },
   {
     id: 'price_zero',
@@ -64,9 +64,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['checkout', 'payment'],
     severity: 'high',
     description: 'Set price/amount to zero — the app may process a free order.',
-    mutate: (req) => mutateParam(req, ['price', 'amount', 'total', 'cost'], '0'),
+    mutate: req => mutateParam(req, ['price', 'amount', 'total', 'cost'], '0'),
     detect: (base, mutated) => detectLogicChange(base, mutated, 'zero price accepted'),
-    impact: 'Financial loss — free products/orders.'
+    impact: 'Financial loss — free products/orders.',
   },
   {
     id: 'price_decimal',
@@ -74,9 +74,10 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['checkout', 'payment'],
     severity: 'medium',
     description: 'Send 99.999 — truncation may round down the charge.',
-    mutate: (req) => mutateParam(req, ['price', 'amount', 'total'], '99.999'),
-    detect: (base, mutated) => detectLogicChange(base, mutated, 'decimal price handled unexpectedly'),
-    impact: 'Financial loss through rounding.'
+    mutate: req => mutateParam(req, ['price', 'amount', 'total'], '99.999'),
+    detect: (base, mutated) =>
+      detectLogicChange(base, mutated, 'decimal price handled unexpectedly'),
+    impact: 'Financial loss through rounding.',
   },
   {
     id: 'currency_swap',
@@ -84,9 +85,10 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['checkout', 'payment'],
     severity: 'high',
     description: 'Change currency from USD to a weaker one (e.g. INR, JPY) — price stays numeric.',
-    mutate: (req) => mutateParam(req, ['currency', 'curr'], 'INR'),
-    detect: (base, mutated) => detectLogicChange(base, mutated, 'currency changed without price adjustment'),
-    impact: 'Financial loss — pay 1/80th of the price.'
+    mutate: req => mutateParam(req, ['currency', 'curr'], 'INR'),
+    detect: (base, mutated) =>
+      detectLogicChange(base, mutated, 'currency changed without price adjustment'),
+    impact: 'Financial loss — pay 1/80th of the price.',
   },
   {
     id: 'quantity_overflow',
@@ -94,9 +96,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['checkout'],
     severity: 'medium',
     description: 'Extreme quantity (999999999) — integer overflow may wrap to negative/small.',
-    mutate: (req) => mutateParam(req, ['quantity', 'qty', 'count'], '999999999'),
+    mutate: req => mutateParam(req, ['quantity', 'qty', 'count'], '999999999'),
     detect: (base, mutated) => detectLogicChange(base, mutated, 'extreme quantity accepted'),
-    impact: 'Inventory/financial logic break.'
+    impact: 'Inventory/financial logic break.',
   },
 
   // ── Auth Bypass ─────────────────────────────────────────────────────
@@ -106,9 +108,10 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['auth'],
     severity: 'high',
     description: 'Duplicate auth params (user=admin&user=victim) — backend may pick the wrong one.',
-    mutate: (req) => duplicateParam(req, ['username', 'user', 'email']),
-    detect: (base, mutated) => detectLogicChange(base, mutated, 'duplicate auth param changed behavior'),
-    impact: 'Authentication bypass — log in as another user.'
+    mutate: req => duplicateParam(req, ['username', 'user', 'email']),
+    detect: (base, mutated) =>
+      detectLogicChange(base, mutated, 'duplicate auth param changed behavior'),
+    impact: 'Authentication bypass — log in as another user.',
   },
   {
     id: 'auth_forced_browse',
@@ -116,9 +119,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['auth'],
     severity: 'medium',
     description: 'Access authenticated endpoints without session — missing auth check.',
-    mutate: (req) => stripAuth(req),
+    mutate: req => stripAuth(req),
     detect: (base, mutated) => detectAuthBypass(base, mutated),
-    impact: 'Unauthorized access to protected functionality.'
+    impact: 'Unauthorized access to protected functionality.',
   },
 
   // ── Workflow Bypass ─────────────────────────────────────────────────
@@ -127,10 +130,11 @@ export const LOGIC_TESTS = Object.freeze([
     name: 'Skip workflow step',
     workflows: ['checkout', 'password_reset'],
     severity: 'high',
-    description: 'Jump directly to the final step (e.g. /checkout/confirm) without completing earlier steps.',
-    mutate: (req) => skipToFinalStep(req),
+    description:
+      'Jump directly to the final step (e.g. /checkout/confirm) without completing earlier steps.',
+    mutate: req => skipToFinalStep(req),
     detect: (base, mutated) => detectLogicChange(base, mutated, 'workflow step skipped'),
-    impact: 'Bypass payment, verification, or approval steps.'
+    impact: 'Bypass payment, verification, or approval steps.',
   },
 
   // ── Race Conditions ─────────────────────────────────────────────────
@@ -140,9 +144,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['coupon', 'checkout'],
     severity: 'high',
     description: 'Apply the same single-use coupon in parallel requests — both may succeed.',
-    mutate: (req) => markParallel(req, 5),
+    mutate: req => markParallel(req, 5),
     detect: (base, mutated) => detectRaceWin(base, mutated),
-    impact: 'Single-use coupon/discount used multiple times.'
+    impact: 'Single-use coupon/discount used multiple times.',
   },
   {
     id: 'race_withdraw',
@@ -150,9 +154,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['payment'],
     severity: 'critical',
     description: 'Parallel withdrawal/spend requests — balance check may race.',
-    mutate: (req) => markParallel(req, 5),
+    mutate: req => markParallel(req, 5),
     detect: (base, mutated) => detectRaceWin(base, mutated),
-    impact: 'Double-spend — withdraw more than the balance.'
+    impact: 'Double-spend — withdraw more than the balance.',
   },
 
   // ── IDOR (business context) ─────────────────────────────────────────
@@ -161,10 +165,10 @@ export const LOGIC_TESTS = Object.freeze([
     name: 'IDOR via increment',
     workflows: ['api_crud', 'profile', 'checkout'],
     severity: 'high',
-    description: 'Increment IDs (order_id 1001→1002) — access another user\'s resource.',
-    mutate: (req) => incrementIdParam(req),
+    description: "Increment IDs (order_id 1001→1002) — access another user's resource.",
+    mutate: req => incrementIdParam(req),
     detect: (base, mutated) => detectIdor(base, mutated),
-    impact: 'Access/modify another user\'s data.'
+    impact: "Access/modify another user's data.",
   },
 
   // ── Mass Assignment ─────────────────────────────────────────────────
@@ -174,9 +178,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['profile', 'auth', 'api_crud'],
     severity: 'critical',
     description: 'Add role=admin / is_admin=true to update requests.',
-    mutate: (req) => addParams(req, { role: 'admin', is_admin: 'true', isAdmin: 'true' }),
+    mutate: req => addParams(req, { role: 'admin', is_admin: 'true', isAdmin: 'true' }),
     detect: (base, mutated) => detectLogicChange(base, mutated, 'privileged field accepted'),
-    impact: 'Privilege escalation to admin.'
+    impact: 'Privilege escalation to admin.',
   },
 
   // ── Password Reset ──────────────────────────────────────────────────
@@ -186,9 +190,9 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['password_reset'],
     severity: 'high',
     description: 'The reset token may leak in the API response body.',
-    mutate: (req) => req, // no mutation — inspect response
+    mutate: req => req, // no mutation — inspect response
     detect: (base, mutated) => detectTokenLeak(mutated),
-    impact: 'Account takeover via leaked reset token.'
+    impact: 'Account takeover via leaked reset token.',
   },
   {
     id: 'reset_host_poison',
@@ -196,10 +200,10 @@ export const LOGIC_TESTS = Object.freeze([
     workflows: ['password_reset'],
     severity: 'high',
     description: 'Poison Host header — reset link may point to attacker domain.',
-    mutate: (req) => setHeader(req, 'Host', 'evil.example.com'),
+    mutate: req => setHeader(req, 'Host', 'evil.example.com'),
     detect: (base, mutated) => detectHostReflection(base, mutated, 'evil.example.com'),
-    impact: 'Account takeover via poisoned reset link.'
-  }
+    impact: 'Account takeover via poisoned reset link.',
+  },
 ]);
 
 // ── Mutation helpers ──────────────────────────────────────────────────
@@ -225,7 +229,7 @@ function mutateParam(req, names, value) {
 
 function duplicateParam(req, names) {
   const r = cloneRequest(req);
-  r._duplicateParams = names.filter((n) => r.params?.[n] || r.body?.[n]);
+  r._duplicateParams = names.filter(n => r.params?.[n] || r.body?.[n]);
   r._testNote = `duplicate params: ${r._duplicateParams.join(',')}`;
   return r;
 }
@@ -296,7 +300,7 @@ function detectLogicChange(base, mutated, what) {
   if (!baseOk && mutOk) {
     return {
       vulnerable: true,
-      evidence: `${what}: baseline rejected (${base?.status}), mutated accepted (${mutated.status})`
+      evidence: `${what}: baseline rejected (${base?.status}), mutated accepted (${mutated.status})`,
     };
   }
   // Both succeed but responses differ meaningfully
@@ -315,7 +319,7 @@ function detectAuthBypass(base, mutated) {
   if (mutated.status >= 200 && mutated.status < 300) {
     return {
       vulnerable: true,
-      evidence: `Authenticated endpoint returned ${mutated.status} without credentials`
+      evidence: `Authenticated endpoint returned ${mutated.status} without credentials`,
     };
   }
   return { vulnerable: false, evidence: '' };
@@ -324,11 +328,11 @@ function detectAuthBypass(base, mutated) {
 function detectRaceWin(base, responses) {
   // Multiple parallel responses — if more than one succeeded, race won.
   if (!Array.isArray(responses)) return { vulnerable: false, evidence: '' };
-  const wins = responses.filter((r) => r && r.status >= 200 && r.status < 300);
+  const wins = responses.filter(r => r && r.status >= 200 && r.status < 300);
   if (wins.length > 1) {
     return {
       vulnerable: true,
-      evidence: `Race condition: ${wins.length}/${responses.length} parallel requests succeeded`
+      evidence: `Race condition: ${wins.length}/${responses.length} parallel requests succeeded`,
     };
   }
   return { vulnerable: false, evidence: '' };
@@ -343,7 +347,7 @@ function detectIdor(base, mutated) {
     if (bodyStr !== baseStr && bodyStr.length > 10) {
       return {
         vulnerable: true,
-        evidence: `IDOR: incremented ID returned different data (HTTP ${mutated.status})`
+        evidence: `IDOR: incremented ID returned different data (HTTP ${mutated.status})`,
       };
     }
   }
@@ -356,7 +360,7 @@ function detectTokenLeak(response) {
   if (/token|reset/i.test(bodyStr) && /[a-f0-9]{16,}/i.test(bodyStr)) {
     return {
       vulnerable: true,
-      evidence: 'Password reset token leaked in response body'
+      evidence: 'Password reset token leaked in response body',
     };
   }
   return { vulnerable: false, evidence: '' };
@@ -368,7 +372,7 @@ function detectHostReflection(base, mutated, evilHost) {
   if (bodyStr.includes(evilHost)) {
     return {
       vulnerable: true,
-      evidence: `Host header reflected: response contains ${evilHost}`
+      evidence: `Host header reflected: response contains ${evilHost}`,
     };
   }
   return { vulnerable: false, evidence: '' };
@@ -376,7 +380,8 @@ function detectHostReflection(base, mutated, evilHost) {
 
 function diffBodies(a, b) {
   try {
-    const sa = JSON.stringify(a), sb = JSON.stringify(b);
+    const sa = JSON.stringify(a),
+      sb = JSON.stringify(b);
     if (sa === sb) return null;
     return `baseline ${sa.slice(0, 80)}… vs mutated ${sb.slice(0, 80)}…`;
   } catch {
@@ -388,7 +393,7 @@ function diffBodies(a, b) {
  * Get logic tests applicable to a workflow type.
  */
 export function getTestsForWorkflow(workflowType) {
-  return LOGIC_TESTS.filter((t) => t.workflows.includes(workflowType));
+  return LOGIC_TESTS.filter(t => t.workflows.includes(workflowType));
 }
 
 /**

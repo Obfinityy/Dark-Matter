@@ -12,7 +12,8 @@
  */
 
 const HOST_RE = /\b(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d{1,5})?\b/gi;
-const API_PATH_RE = /(?:^|[\s"'`(\[])(https?:\/\/[^\s"'`)\]]+)?(\/[A-Za-z0-9][A-Za-z0-9._~!$&'()*+,;=:@%/+-]*(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%/+-]*)+)/g;
+const API_PATH_RE =
+  /(?:^|[\s"'`(\[])(https?:\/\/[^\s"'`)\]]+)?(\/[A-Za-z0-9][A-Za-z0-9._~!$&'()*+,;=:@%/+-]*(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%/+-]*)+)/g;
 const CODE_FENCE_RE = /```(?:\w+)?\n([\s\S]*?)```/g;
 const INLINE_CODE_RE = /`([^`]{3,200})`/g;
 const TECH_SIGNALS = [
@@ -35,11 +36,26 @@ const TECH_SIGNALS = [
 ];
 
 const GENERIC_HOSTS = new Set([
-  'github.com', 'www.github.com', 'gist.github.com', 'raw.githubusercontent.com',
-  'medium.com', 'towardsdatascience.com', 'blog.google', 'engineering.fb.com',
-  'netflixtechblog.com', 'stackoverflow.com', 'youtube.com', 'www.youtube.com',
-  'twitter.com', 'x.com', 'linkedin.com', 'www.linkedin.com', 'w3.org',
-  'developer.mozilla.org', 'docs.google.com', 'slideshare.net',
+  'github.com',
+  'www.github.com',
+  'gist.github.com',
+  'raw.githubusercontent.com',
+  'medium.com',
+  'towardsdatascience.com',
+  'blog.google',
+  'engineering.fb.com',
+  'netflixtechblog.com',
+  'stackoverflow.com',
+  'youtube.com',
+  'www.youtube.com',
+  'twitter.com',
+  'x.com',
+  'linkedin.com',
+  'www.linkedin.com',
+  'w3.org',
+  'developer.mozilla.org',
+  'docs.google.com',
+  'slideshare.net',
 ]);
 
 /** Collect code-ish regions (fences + inline code) which are highest value. */
@@ -113,10 +129,21 @@ export function mineBlogPost({ url = '', text = '', org = '' } = {}) {
 
   const orgLower = org.toLowerCase();
   const flaggedHosts = hosts
-    .filter(h => h.host.includes('internal') || h.host.includes('corp') || h.host.includes('prod')
-      || h.host.includes('staging') || h.host.includes('dev-') || h.host.includes('.svc')
-      || (orgLower && h.host.includes(orgLower)))
-    .map(h => ({ ...h, confidence: 'high', note: 'Looks like internal/org infrastructure disclosed in a public post' }));
+    .filter(
+      h =>
+        h.host.includes('internal') ||
+        h.host.includes('corp') ||
+        h.host.includes('prod') ||
+        h.host.includes('staging') ||
+        h.host.includes('dev-') ||
+        h.host.includes('.svc') ||
+        (orgLower && h.host.includes(orgLower))
+    )
+    .map(h => ({
+      ...h,
+      confidence: 'high',
+      note: 'Looks like internal/org infrastructure disclosed in a public post',
+    }));
 
   return {
     url,
@@ -132,6 +159,10 @@ export function mineBlogPost({ url = '', text = '', org = '' } = {}) {
 }
 
 export const ENG_BLOG_MINER = {
-  extractHosts, extractApiPaths, extractCodeRegions, detectArchitectureSignals, mineBlogPost,
+  extractHosts,
+  extractApiPaths,
+  extractCodeRegions,
+  detectArchitectureSignals,
+  mineBlogPost,
 };
 export default ENG_BLOG_MINER;

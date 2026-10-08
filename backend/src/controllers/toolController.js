@@ -10,7 +10,7 @@ export function listTools(request, response) {
     execution: tool.riskLevel === 'none' ? 'passive' : 'active',
     riskLevel: tool.riskLevel,
     inputType: tool.inputType,
-    outputFormat: tool.outputFormat
+    outputFormat: tool.outputFormat,
   }));
   response.json({ tools });
 }

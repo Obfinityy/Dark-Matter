@@ -60,9 +60,12 @@ export function parseAfrinicAllocations(text = '') {
  * @param {{ country?: string, orgId?: string, limit?: number, since?: string }} opts
  * @returns {{ country, type, prefix, date, status, orgId }[]}
  */
-export function newestNetblocks(text = '', { country = null, orgId = null, limit = 25, since = null } = {}) {
+export function newestNetblocks(
+  text = '',
+  { country = null, orgId = null, limit = 25, since = null } = {}
+) {
   const { allocations } = parseAfrinicAllocations(text);
-  const filtered = allocations.filter((a) => {
+  const filtered = allocations.filter(a => {
     if (country && a.country !== country.toUpperCase()) return false;
     if (orgId && a.orgId !== orgId) return false;
     if (since && a.date && a.date < since) return false;

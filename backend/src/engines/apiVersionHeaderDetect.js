@@ -90,8 +90,9 @@ export function detectQueryVersion(url) {
  */
 export function detectMediaTypeVersion(mediaType) {
   if (!mediaType || typeof mediaType !== 'string') return { version: null, vendor: null };
-  const m = mediaType.match(/application\/vnd\.([a-z0-9_.-]+?)\.v(\d+(?:\.\d+)*)\+json/i)
-    || mediaType.match(/application\/vnd\.([a-z0-9_.-]+?)[.-]v?(\d+(?:\.\d+)*)\+json/i);
+  const m =
+    mediaType.match(/application\/vnd\.([a-z0-9_.-]+?)\.v(\d+(?:\.\d+)*)\+json/i) ||
+    mediaType.match(/application\/vnd\.([a-z0-9_.-]+?)[.-]v?(\d+(?:\.\d+)*)\+json/i);
   if (m) return { version: m[2], vendor: m[1] };
   return { version: null, vendor: null };
 }
@@ -105,27 +106,47 @@ export function detectVersioningScheme(obs) {
   const o = obs || {};
   const schemes = [];
   for (const v of extractVersionHeaders(o.responseHeaders || {})) {
-    schemes.push({ style: 'header', version: v.value || null, evidence: `response header ${v.header}: ${v.value}` });
+    schemes.push({
+      style: 'header',
+      version: v.value || null,
+      evidence: `response header ${v.header}: ${v.value}`,
+    });
   }
   for (const v of extractVersionHeaders(o.requestHeaders || {})) {
-    schemes.push({ style: 'header', version: v.value || null, evidence: `request header ${v.header}: ${v.value}` });
+    schemes.push({
+      style: 'header',
+      version: v.value || null,
+      evidence: `request header ${v.header}: ${v.value}`,
+    });
   }
   const urlVer = detectUrlVersion(o.url || '');
   if (urlVer.version) {
-    schemes.push({ style: 'url-path', version: urlVer.version, evidence: `path segment "${urlVer.segment}" in ${o.url || 'url'}` });
+    schemes.push({
+      style: 'url-path',
+      version: urlVer.version,
+      evidence: `path segment "${urlVer.segment}" in ${o.url || 'url'}`,
+    });
   }
   const queryVer = detectQueryVersion(o.url || '');
   if (queryVer.version) {
-    schemes.push({ style: 'query-param', version: queryVer.version, evidence: `query parameter "${queryVer.param}" in ${o.url || 'url'}` });
+    schemes.push({
+      style: 'query-param',
+      version: queryVer.version,
+      evidence: `query parameter "${queryVer.param}" in ${o.url || 'url'}`,
+    });
   }
   const accept = Object.entries(o.requestHeaders || {}).find(([k]) => k.toLowerCase() === 'accept');
   const mediaVer = detectMediaTypeVersion(accept ? String(accept[1]) : '');
   if (mediaVer.version) {
-    schemes.push({ style: 'media-type', version: mediaVer.version, evidence: `Accept: ${accept[1]} (vendor ${mediaVer.vendor})` });
+    schemes.push({
+      style: 'media-type',
+      version: mediaVer.version,
+      evidence: `Accept: ${accept[1]} (vendor ${mediaVer.vendor})`,
+    });
   }
   const priority = { 'url-path': 4, header: 3, 'media-type': 2, 'query-param': 1 };
   const ranked = [...schemes].sort((a, b) => (priority[b.style] || 0) - (priority[a.style] || 0));
-  const versions = [...new Set(schemes.map((s) => s.version).filter(Boolean))].sort();
+  const versions = [...new Set(schemes.map(s => s.version).filter(Boolean))].sort();
   return { schemes: ranked, primary: ranked.length > 0 ? ranked[0].style : null, versions };
 }
 

@@ -85,7 +85,10 @@ export function extractPardotTrackers(pageSource = '', trackerHosts = [], cnameT
     if (!cls.isPardot && !cls.isGoTracker) return;
     if (!byHost.has(host)) {
       byHost.set(host, {
-        host, kind: cls.isPardot ? cls.kind : 'go-tracker', isGoTracker: cls.isGoTracker, sources: new Set(),
+        host,
+        kind: cls.isPardot ? cls.kind : 'go-tracker',
+        isGoTracker: cls.isGoTracker,
+        sources: new Set(),
       });
     }
     const entry = byHost.get(host);
@@ -106,7 +109,14 @@ export function extractPardotTrackers(pageSource = '', trackerHosts = [], cnameT
   const { piAId, piCId } = extractPardotTrackingIds(text);
 
   return [...byHost.values()]
-    .map((e) => ({ host: e.host, kind: e.kind, isGoTracker: e.isGoTracker, sources: [...e.sources].sort(), piAId, piCId }))
+    .map(e => ({
+      host: e.host,
+      kind: e.kind,
+      isGoTracker: e.isGoTracker,
+      sources: [...e.sources].sort(),
+      piAId,
+      piCId,
+    }))
     .sort((a, b) => a.host.localeCompare(b.host));
 }
 
@@ -135,25 +145,27 @@ export function detectPardot(pageSource = '') {
  */
 export function scorePardotTrackers(trackers = [], rootDomain = '') {
   const brand = normalizeHostname(rootDomain).split('.')[0];
-  return (trackers || []).map((t) => {
-    let score = 25;
-    const reasons = ['Pardot tracker domain'];
-    if (brand && t.host.includes(brand)) {
-      score += 40;
-      reasons.push(`hostname references brand "${brand}"`);
-    }
-    if (t.isGoTracker) {
-      score += 10;
-      reasons.push('go.* branded tracker domain');
-    }
-    if (t.sources.includes('dns-cname')) {
-      score += 10;
-      reasons.push('confirmed via DNS CNAME');
-    }
-    if (t.piAId) {
-      score += 10;
-      reasons.push('tracking ids attributable');
-    }
-    return { host: t.host, score: Math.min(100, score), reasons };
-  }).sort((a, b) => b.score - a.score);
+  return (trackers || [])
+    .map(t => {
+      let score = 25;
+      const reasons = ['Pardot tracker domain'];
+      if (brand && t.host.includes(brand)) {
+        score += 40;
+        reasons.push(`hostname references brand "${brand}"`);
+      }
+      if (t.isGoTracker) {
+        score += 10;
+        reasons.push('go.* branded tracker domain');
+      }
+      if (t.sources.includes('dns-cname')) {
+        score += 10;
+        reasons.push('confirmed via DNS CNAME');
+      }
+      if (t.piAId) {
+        score += 10;
+        reasons.push('tracking ids attributable');
+      }
+      return { host: t.host, score: Math.min(100, score), reasons };
+    })
+    .sort((a, b) => b.score - a.score);
 }

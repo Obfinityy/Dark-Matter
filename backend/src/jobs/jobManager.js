@@ -23,7 +23,14 @@ import { normalizeTargetUrl } from '../models/targetModel.js';
  */
 
 export class JobManager {
-  constructor({ jobModel, assessmentModel, worker, eventService = null, logger = console, config = {} }) {
+  constructor({
+    jobModel,
+    assessmentModel,
+    worker,
+    eventService = null,
+    logger = console,
+    config = {},
+  }) {
     this.jobModel = jobModel;
     this.assessmentModel = assessmentModel;
     this.worker = worker;
@@ -36,7 +43,7 @@ export class JobManager {
       // hunts process-wide; maxPerUser bounds them per user. Jobs beyond the
       // caps wait in a fair round-robin queue instead of starving anyone.
       maxConcurrent: Number(config.maxConcurrent || process.env.HUNT_MAX_CONCURRENT || 4),
-      maxPerUser: Number(config.maxPerUser || process.env.HUNT_MAX_PER_USER || 2)
+      maxPerUser: Number(config.maxPerUser || process.env.HUNT_MAX_PER_USER || 2),
     };
     /** In-flight dispatch promises, so tests and shutdown can await them. */
     this.dispatches = new Map();
@@ -56,7 +63,15 @@ export class JobManager {
    * Create a durable job. Returns as soon as the job row exists; the worker
    * picks it up on the next tick.
    */
-  async createJob({ userId, assessmentId, target, scope, objective, conversationId = null, kaggleBrains = null }) {
+  async createJob({
+    userId,
+    assessmentId,
+    target,
+    scope,
+    objective,
+    conversationId = null,
+    kaggleBrains = null,
+  }) {
     // Hunt-start intake: accept a bare "target.com" and normalize it to a
     // full URL once, here, so every hunt origin (manual, queue, schedule)
     // stores the same canonical target. Invalid values keep the raw input —
@@ -74,7 +89,7 @@ export class JobManager {
       target: normalizedTarget,
       scope,
       objective,
-      kaggleBrains
+      kaggleBrains,
     });
 
     await this.assessmentModel.setStatus(assessmentId, 'planning').catch?.(() => {});
@@ -82,7 +97,7 @@ export class JobManager {
       type: 'job.created',
       level: 'INFO',
       message: `Autonomous Bug Bounty Agent job queued for ${target}`,
-      data: { jobId: job.id, assessmentId, target, scope }
+      data: { jobId: job.id, assessmentId, target, scope },
     });
 
     this.dispatch(job.id);
@@ -104,7 +119,7 @@ export class JobManager {
     // Admission needs the job's owner (fairness), so it is async — but the
     // admission promise is tracked immediately so waitFor() works for queued
     // jobs too.
-    const admission = this.admit(jobId).catch((error) => {
+    const admission = this.admit(jobId).catch(error => {
       this.logger.error?.(`[job-manager] dispatch ${jobId} failed: ${error.message}`);
       return { status: 'failed', error: error.message };
     });
@@ -123,19 +138,20 @@ export class JobManager {
       return this.startRun(job);
     }
     this.enqueue(job);
-    const position = this.waitQueue.findIndex((entry) => entry.jobId === jobId) + 1;
+    const position = this.waitQueue.findIndex(entry => entry.jobId === jobId) + 1;
     await this.publish(job.id, {
       type: 'job.queued',
       level: 'INFO',
       message: `Hunt queued at position ${position} — a worker slot will pick it up fairly`,
-      data: { position, queueLength: this.waitQueue.length }
+      data: { position, queueLength: this.waitQueue.length },
     });
     return { status: 'queued', position };
   }
 
   canRunNow(job) {
     if (this.worker.runningCount >= this.config.maxConcurrent) return false;
-    if (job.userId && this.worker.runningCountForUser(job.userId) >= this.config.maxPerUser) return false;
+    if (job.userId && this.worker.runningCountForUser(job.userId) >= this.config.maxPerUser)
+      return false;
     return true;
   }
 
@@ -156,9 +172,11 @@ export class JobManager {
       } finally {
         this.dispatches.delete(id);
         // A slot freed — serve the fair queue on the next tick so state settles.
-        setImmediate(() => this.pumpQueue().catch((error) =>
-          this.logger.error?.(`[job-manager] pumpQueue failed: ${error.message}`)
-        ));
+        setImmediate(() =>
+          this.pumpQueue().catch(error =>
+            this.logger.error?.(`[job-manager] pumpQueue failed: ${error.message}`)
+          )
+        );
       }
     })();
     this.dispatches.set(id, promise);
@@ -166,7 +184,7 @@ export class JobManager {
   }
 
   enqueue(job) {
-    if (!this.waitQueue.some((entry) => entry.jobId === job.id)) {
+    if (!this.waitQueue.some(entry => entry.jobId === job.id)) {
       this.waitQueue.push({ jobId: job.id, userId: job.userId, enqueuedAt: Date.now() });
     }
   }
@@ -181,21 +199,23 @@ export class JobManager {
       if (this.worker.runningCount + this.reservedSlots >= this.config.maxConcurrent) break;
       const next = this.pickNextFair();
       if (!next) break;
-      this.waitQueue = this.waitQueue.filter((entry) => entry.jobId !== next.jobId);
+      this.waitQueue = this.waitQueue.filter(entry => entry.jobId !== next.jobId);
       this.lastServedUserId = next.userId;
       this.reservedSlots += 1;
       try {
         await this.publish(next.jobId, {
           type: 'job.dequeued',
           level: 'INFO',
-          message: 'Worker slot freed — starting your queued hunt'
+          message: 'Worker slot freed — starting your queued hunt',
         });
         this.startRun(next).finally(() => {
           this.reservedSlots = Math.max(0, this.reservedSlots - 1);
         });
       } catch (error) {
         this.reservedSlots = Math.max(0, this.reservedSlots - 1);
-        this.logger.error?.(`[job-manager] failed to start queued job ${next.jobId}: ${error.message}`);
+        this.logger.error?.(
+          `[job-manager] failed to start queued job ${next.jobId}: ${error.message}`
+        );
       }
     }
   }
@@ -232,7 +252,7 @@ export class JobManager {
   async waitFor(jobId, { timeoutMs = 60_000 } = {}) {
     const promise = this.dispatches.get(jobId);
     if (!promise) return null;
-    const guard = new Promise((resolve) => setTimeout(() => resolve('timeout'), timeoutMs));
+    const guard = new Promise(resolve => setTimeout(() => resolve('timeout'), timeoutMs));
     return Promise.race([promise, guard]);
   }
 
@@ -246,7 +266,7 @@ export class JobManager {
     await this.publish(jobId, {
       type: 'job.paused',
       level: 'INFO',
-      message: 'Pause requested — the current safe operation will finish, then state is persisted'
+      message: 'Pause requested — the current safe operation will finish, then state is persisted',
     });
     // Wake a sleeping worker so the pause lands immediately.
     this.worker.wake(jobId);
@@ -264,7 +284,11 @@ export class JobManager {
   async continue(userId, jobId) {
     const job = await this.requireJob(userId, jobId);
     if (TERMINAL_JOB_STATES.includes(job.status)) {
-      return { status: 'terminal', jobStatus: job.status, message: 'A finished job cannot be continued.' };
+      return {
+        status: 'terminal',
+        jobStatus: job.status,
+        message: 'A finished job cannot be continued.',
+      };
     }
     await this.jobModel.clearPause(jobId);
     await this.jobModel.transition(jobId, 'resuming', { brainStatus: 'resuming' });
@@ -272,7 +296,7 @@ export class JobManager {
       type: 'job.resumed',
       level: 'INFO',
       message: `Continuing from step ${job.stepCount} (phase ${job.phase})`,
-      data: { stepCount: job.stepCount, phase: job.phase }
+      data: { stepCount: job.stepCount, phase: job.phase },
     });
     await this.assessmentModel.setStatus(job.assessmentId, 'running').catch?.(() => {});
     this.dispatch(jobId);
@@ -289,20 +313,31 @@ export class JobManager {
       return { status: 'completed', jobId, message: 'Job already completed. Report is available.' };
     }
     if (job.status === 'cancelled') {
-      return { status: 'cancelled', jobId, message: 'Cancelled jobs are not resumed. Create a new job to continue testing.' };
+      return {
+        status: 'cancelled',
+        jobId,
+        message: 'Cancelled jobs are not resumed. Create a new job to continue testing.',
+      };
     }
     if (job.status === 'failed') {
-      return { status: 'failed', jobId, message: 'Failed jobs are not auto-resumed; inspect errors and create a new job.' };
+      return {
+        status: 'failed',
+        jobId,
+        message: 'Failed jobs are not auto-resumed; inspect errors and create a new job.',
+      };
     }
 
     await this.jobModel.clearPause(jobId);
     await this.jobModel.incrementCounters(jobId, { resumeCount: 1 });
-    await this.jobModel.transition(jobId, 'resuming', { brainStatus: 'resuming', waitingReason: null });
+    await this.jobModel.transition(jobId, 'resuming', {
+      brainStatus: 'resuming',
+      waitingReason: null,
+    });
     await this.publish(jobId, {
       type: 'job.resumed',
       level: 'INFO',
       message: `Resuming job from the last persisted checkpoint (step ${job.stepCount}, phase ${job.phase})`,
-      data: { stepCount: job.stepCount, phase: job.phase, previousStatus: job.status }
+      data: { stepCount: job.stepCount, phase: job.phase, previousStatus: job.status },
     });
     await this.assessmentModel.setStatus(job.assessmentId, 'running').catch?.(() => {});
     this.dispatch(jobId);
@@ -318,10 +353,11 @@ export class JobManager {
     await this.publish(jobId, {
       type: 'job.cancelled',
       level: 'WARN',
-      message: 'Cancel requested — the agent will stop at the next safe point. History is preserved.'
+      message:
+        'Cancel requested — the agent will stop at the next safe point. History is preserved.',
     });
     // A queued (not yet running) job is simply dequeued — no worker to wake.
-    this.waitQueue = this.waitQueue.filter((entry) => entry.jobId !== jobId);
+    this.waitQueue = this.waitQueue.filter(entry => entry.jobId !== jobId);
     this.dispatches.delete(jobId);
     this.worker.wake(jobId);
     if (!this.worker.isRunning(jobId)) {
@@ -357,7 +393,9 @@ export class JobManager {
         updatedAt: job.updatedAt,
         completedAt: job.completedAt,
         // Duration must come from persisted timestamps, never a browser timer.
-        elapsedMs: (job.completedAt ? new Date(job.completedAt) : new Date()).getTime() - new Date(job.startedAt || job.createdAt).getTime()
+        elapsedMs:
+          (job.completedAt ? new Date(job.completedAt) : new Date()).getTime() -
+          new Date(job.startedAt || job.createdAt).getTime(),
       },
       findings,
       evidenceCount,
@@ -365,7 +403,7 @@ export class JobManager {
       eventCount: events.length,
       lastEventId: events.length ? events[events.length - 1].id : null,
       workerRunning: this.worker.isRunning(jobId),
-      queue: this.worker.brain?.queue?.stats?.() || null
+      queue: this.worker.brain?.queue?.stats?.() || null,
     };
   }
 
@@ -388,7 +426,7 @@ export class JobManager {
     const events = await this.eventService.list(jobId);
     let sliced = events;
     if (afterId) {
-      const index = events.findIndex((event) => event.id === afterId);
+      const index = events.findIndex(event => event.id === afterId);
       sliced = index >= 0 ? events.slice(index + 1) : events;
     }
     return { events: sliced.slice(-limit) };
@@ -430,7 +468,7 @@ export class JobManager {
         jobId,
         conversationId: job.conversationId,
         content: `USER: ${String(question).slice(0, 500)}
-AGENT: ${String(answer.reply).slice(0, 1500)}`
+AGENT: ${String(answer.reply).slice(0, 1500)}`,
       });
     } catch (_) {}
     try {
@@ -438,7 +476,7 @@ AGENT: ${String(answer.reply).slice(0, 1500)}`
         type: 'agent.chat',
         level: 'INFO',
         message: `User asked the agent: ${String(question).slice(0, 120)}`,
-        data: { question: String(question).slice(0, 300), intent: answer.intent }
+        data: { question: String(question).slice(0, 300), intent: answer.intent },
       });
     } catch (_) {}
     return answer;
@@ -458,7 +496,8 @@ AGENT: ${String(answer.reply).slice(0, 1500)}`
     const findings = await this.readFindings(job.assessmentId);
 
     // Simple status questions still use the fast rule-based path.
-    const simplePatterns = /^(kya kar rahe ho|what are you doing|status|progress|kitna hua|kya mila|findings?|report tayyar|ho gaya)/i;
+    const simplePatterns =
+      /^(kya kar rahe ho|what are you doing|status|progress|kitna hua|kya mila|findings?|report tayyar|ho gaya)/i;
     if (simplePatterns.test(question.trim())) {
       return this.ask(userId, jobId, question);
     }
@@ -466,12 +505,19 @@ AGENT: ${String(answer.reply).slice(0, 1500)}`
     // Complex request → let the brain handle it.
     try {
       const jobRecord = await this.worker.jobModel.get(jobId).catch(() => null);
-      const brain = this.worker.getBrainForJob ? await this.worker.getBrainForJob(jobRecord) : this.worker.brain;
+      const brain = this.worker.getBrainForJob
+        ? await this.worker.getBrainForJob(jobRecord)
+        : this.worker.brain;
       if (!brain || !brain.provider) throw new Error('brain unavailable');
 
-      const findingsText = findings.slice(0, 20).map((f, i) =>
-        `${i + 1}. [${f.severity}] ${f.title} — ${String(f.description || '').slice(0, 200)}`
-      ).join('\n') || '(no findings yet)';
+      const findingsText =
+        findings
+          .slice(0, 20)
+          .map(
+            (f, i) =>
+              `${i + 1}. [${f.severity}] ${f.title} — ${String(f.description || '').slice(0, 200)}`
+          )
+          .join('\n') || '(no findings yet)';
 
       const prompt = `You are the Dark-Matter bug bounty agent. The user asks you directly:
 
@@ -489,11 +535,12 @@ Be concrete and helpful. If they want a filtered view of findings (e.g. "only hi
 If they want reports, describe what you'd generate. Never invent findings that aren't listed.
 Keep it focused — no fluff.`;
 
-      const reply = await brain.provider.generate(
-        [{ role: 'user', content: prompt }],
-        { maxTokens: 1200, timeout: 180000 }
-      );
-      const cleanReply = String(reply || '').trim() || 'Samajh nahi aaya — thoda aur detail me pucho.';
+      const reply = await brain.provider.generate([{ role: 'user', content: prompt }], {
+        maxTokens: 1200,
+        timeout: 180000,
+      });
+      const cleanReply =
+        String(reply || '').trim() || 'Samajh nahi aaya — thoda aur detail me pucho.';
 
       // Remember the conversation
       try {
@@ -502,11 +549,18 @@ Keep it focused — no fluff.`;
           assessmentId: job.assessmentId,
           jobId,
           conversationId: job.conversationId,
-          content: `USER: ${String(question).slice(0, 500)}\nAGENT: ${cleanReply.slice(0, 1500)}`
+          content: `USER: ${String(question).slice(0, 500)}\nAGENT: ${cleanReply.slice(0, 1500)}`,
         });
       } catch (_) {}
 
-      return { intent: 'brain', reply: cleanReply, reaction: '🧠', suggestions: [], jobStatus: job.status, phase: job.phase };
+      return {
+        intent: 'brain',
+        reply: cleanReply,
+        reaction: '🧠',
+        suggestions: [],
+        jobStatus: job.status,
+        phase: job.phase,
+      };
     } catch (error) {
       // Brain unavailable → fall back to rules, honestly
       return this.ask(userId, jobId, question);
@@ -539,20 +593,22 @@ Keep it focused — no fluff.`;
 
       await this.jobModel.transition(job.id, 'resuming', {
         brainStatus: 'recovering',
-        waitingReason: null
+        waitingReason: null,
       });
       await this.publish(job.id, {
         type: 'job.resumed',
         level: 'INFO',
         message: `Backend restarted — recovering job from checkpoint (step ${job.stepCount}, phase ${job.phase})`,
-        data: { stepCount: job.stepCount, phase: job.phase }
+        data: { stepCount: job.stepCount, phase: job.phase },
       });
       this.dispatch(job.id);
       recovered += 1;
     }
 
     if (recovered || paused) {
-      this.logger.log?.(`[job-manager] recovery: ${recovered} job(s) resumed, ${paused} left paused`);
+      this.logger.log?.(
+        `[job-manager] recovery: ${recovered} job(s) resumed, ${paused} left paused`
+      );
     }
     return { recovered, paused };
   }

@@ -28,7 +28,8 @@ export function trackRedTeamFinding(f = {}, now = Date.now()) {
     severity,
     status,
     verifiedClosed,
-    hasControlImprovement: typeof f.controlImprovement === 'string' && f.controlImprovement.trim().length > 0,
+    hasControlImprovement:
+      typeof f.controlImprovement === 'string' && f.controlImprovement.trim().length > 0,
     daysToClosure: verifiedClosed ? Math.round(daysOpen * 10) / 10 : null,
     stuck: !verifiedClosed && daysOpen > STUCK_AFTER_DAYS,
   };
@@ -38,20 +39,23 @@ export function trackRedTeamFinding(f = {}, now = Date.now()) {
  * Track a batch. Returns { results, summary }.
  */
 export function trackRedTeamFindings(findings = [], now = Date.now()) {
-  const results = findings.map((f) => trackRedTeamFinding(f, now));
-  const verified = results.filter((r) => r.verifiedClosed);
-  const remediatedLike = results.filter((r) => r.status === 'remediated' || r.verifiedClosed);
+  const results = findings.map(f => trackRedTeamFinding(f, now));
+  const verified = results.filter(r => r.verifiedClosed);
+  const remediatedLike = results.filter(r => r.status === 'remediated' || r.verifiedClosed);
 
   const summary = {
     total: results.length,
     verifiedClosed: verified.length,
-    closureRatePct: results.length === 0 ? 100 : Math.round((verified.length / results.length) * 100),
-    remediatedWithoutControlImprovement: remediatedLike.filter((r) => !r.hasControlImprovement).length,
-    stuck: results.filter((r) => r.stuck).length,
+    closureRatePct:
+      results.length === 0 ? 100 : Math.round((verified.length / results.length) * 100),
+    remediatedWithoutControlImprovement: remediatedLike.filter(r => !r.hasControlImprovement)
+      .length,
+    stuck: results.filter(r => r.stuck).length,
     avgDaysToClosure:
       verified.length === 0
         ? null
-        : Math.round((verified.reduce((s, r) => s + r.daysToClosure, 0) / verified.length) * 10) / 10,
+        : Math.round((verified.reduce((s, r) => s + r.daysToClosure, 0) / verified.length) * 10) /
+          10,
   };
   return { results, summary };
 }

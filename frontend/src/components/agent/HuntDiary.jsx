@@ -17,7 +17,7 @@ const KIND_ACCENT = {
   observation: 'var(--dm-info)',
   decision: 'var(--dm-accent-bright)',
   plan: 'var(--dm-accent-bright)',
-  tool: 'var(--dm-warn)'
+  tool: 'var(--dm-warn)',
 };
 
 function accentStyle(kind) {
@@ -27,7 +27,12 @@ function accentStyle(kind) {
 }
 
 export function HuntDiary({ entries = [], loading = false }) {
-  if (loading) return <div className="dm-diary-loading" role="status">Opening the hunt diary…</div>;
+  if (loading)
+    return (
+      <div className="dm-diary-loading" role="status">
+        Opening the hunt diary…
+      </div>
+    );
 
   if (!entries.length) {
     return (
@@ -38,7 +43,7 @@ export function HuntDiary({ entries = [], loading = false }) {
     );
   }
 
-  const fmtTime = (at) => {
+  const fmtTime = at => {
     if (!at) return '';
     const d = new Date(at);
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString();
@@ -47,22 +52,27 @@ export function HuntDiary({ entries = [], loading = false }) {
   return (
     <div className="dm-diary" role="log" aria-label="Hunt diary">
       {entries.map((entry, i) => (
-        <article key={entry.id || i} className="dm-diary-entry" style={accentStyle(entry.kind)} aria-label={entry.title || 'Diary entry'}>
+        <article
+          key={entry.id || i}
+          className="dm-diary-entry"
+          style={accentStyle(entry.kind)}
+          aria-label={entry.title || 'Diary entry'}
+        >
           <div className="dm-diary-rail" aria-hidden="true">
             <span className="dm-diary-dot" />
             {i < entries.length - 1 && <span className="dm-diary-line" />}
           </div>
           <div className="dm-diary-card">
             <header>
-              <span className="dm-diary-time">
-                {fmtTime(entry.at)}
-              </span>
+              <span className="dm-diary-time">{fmtTime(entry.at)}</span>
               {entry.kind && <span className="dm-diary-kind">{entry.kind}</span>}
             </header>
             <h4>{entry.title || 'Diary entry'}</h4>
             {entry.body && <p>{entry.body}</p>}
             {entry.learned && (
-              <p className="dm-diary-learned"><strong>Learned:</strong> {entry.learned}</p>
+              <p className="dm-diary-learned">
+                <strong>Learned:</strong> {entry.learned}
+              </p>
             )}
           </div>
         </article>

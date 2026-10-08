@@ -186,7 +186,8 @@
   color: #cbd5e1;
 }
 
-.ex36-table th, .ex36-table td {
+.ex36-table th,
+.ex36-table td {
   text-align: left;
   padding: 4px 8px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
@@ -214,7 +215,8 @@
   cursor: pointer;
 }
 
-.ex36-term:hover, .ex36-term-active {
+.ex36-term:hover,
+.ex36-term-active {
   background: rgba(167, 139, 250, 0.25);
 }
 
@@ -378,11 +380,26 @@
   text-transform: uppercase;
 }
 
-.ex36-sev-critical { background: rgba(248, 113, 113, 0.2); color: #f87171; }
-.ex36-sev-high { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
-.ex36-sev-medium { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-.ex36-sev-low { background: rgba(52, 211, 153, 0.2); color: #34d399; }
-.ex36-sev-unknown { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+.ex36-sev-critical {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+.ex36-sev-high {
+  background: rgba(251, 146, 60, 0.2);
+  color: #fb923c;
+}
+.ex36-sev-medium {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+.ex36-sev-low {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+.ex36-sev-unknown {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
 
 .ex36-fixclose {
   border-left: 3px solid #34d399;
@@ -472,7 +489,8 @@
   padding: 8px 10px;
 }
 
-.ex36-myth-tag, .ex36-truth-tag {
+.ex36-myth-tag,
+.ex36-truth-tag {
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;

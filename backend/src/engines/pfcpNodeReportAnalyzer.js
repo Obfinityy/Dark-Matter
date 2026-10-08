@@ -90,7 +90,11 @@ export function analyzeHeartbeat({ recoveryTimestamp = null, previousTimestamp =
     evidence: `UPF reported recovery timestamp ${ts} (${new Date(ts * 1000).toISOString()})`,
     extra: { recoveryTimestamp: ts },
   });
-  if (previousTimestamp != null && Number(previousTimestamp) > 0 && ts > Number(previousTimestamp)) {
+  if (
+    previousTimestamp != null &&
+    Number(previousTimestamp) > 0 &&
+    ts > Number(previousTimestamp)
+  ) {
     findings.push({
       type: 'PFCP Node Restart Detected',
       confidence: 'high',
@@ -158,12 +162,21 @@ export function analyzeNodeReport(report = {}) {
 export function fingerprintUpf(assoc = {}) {
   const features = Array.isArray(assoc.cpFunctionFeatures) ? assoc.cpFunctionFeatures : [];
   // Heuristic: distinctive feature bundles map to known product families.
-  const has = (f) => features.some((x) => String(x).toLowerCase().includes(f));
+  const has = f => features.some(x => String(x).toLowerCase().includes(f));
   let vendorHint = 'unknown';
   let confidence = 'low';
-  if (has('dpx') || has('qos_enforcement_bypass')) { vendorHint = 'vendor family A (DPX-heavy feature set)'; confidence = 'medium'; }
-  if (has('packet_delay_detection') && has('mted')) { vendorHint = 'vendor family B (M-TED + delay detection bundle)'; confidence = 'medium'; }
-  if (assoc.nodeId && /^[a-z]{2,4}-upf/i.test(String(assoc.nodeId))) { vendorHint = 'operator-style node naming convention'; confidence = 'low'; }
+  if (has('dpx') || has('qos_enforcement_bypass')) {
+    vendorHint = 'vendor family A (DPX-heavy feature set)';
+    confidence = 'medium';
+  }
+  if (has('packet_delay_detection') && has('mted')) {
+    vendorHint = 'vendor family B (M-TED + delay detection bundle)';
+    confidence = 'medium';
+  }
+  if (assoc.nodeId && /^[a-z]{2,4}-upf/i.test(String(assoc.nodeId))) {
+    vendorHint = 'operator-style node naming convention';
+    confidence = 'low';
+  }
   return {
     vendorHint,
     confidence,

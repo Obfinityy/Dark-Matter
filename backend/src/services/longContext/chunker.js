@@ -14,9 +14,9 @@ import { estimateTokens } from './tokens.js';
  *   startOffset, endOffset, tokenEstimate, hash, createdAt (+ structural meta)
  */
 
-const DEFAULT_TARGET_CHARS = 6000;   // ~1500-1900 tokens per chunk
-const DEFAULT_MAX_CHARS = 8000;      // hard ceiling per chunk
-const DEFAULT_OVERLAP_TOKENS = 200;  // token-aware overlap (LONG_CONTEXT_CHUNK_OVERLAP)
+const DEFAULT_TARGET_CHARS = 6000; // ~1500-1900 tokens per chunk
+const DEFAULT_MAX_CHARS = 8000; // hard ceiling per chunk
+const DEFAULT_OVERLAP_TOKENS = 200; // token-aware overlap (LONG_CONTEXT_CHUNK_OVERLAP)
 
 /** Candidate boundary priorities, highest first. */
 const BOUNDARY_PRIORITY = [
@@ -26,7 +26,7 @@ const BOUNDARY_PRIORITY = [
   { name: 'line', regex: /\n/g, weight: 5 },
   { name: 'sentence', regex: /(?<=[.!?])\s+(?=[A-Z0-9"'`(])/g, weight: 4 },
   { name: 'space', regex: / /g, weight: 2 },
-  { name: 'anywhere', regex: /. /g, weight: 1 }
+  { name: 'anywhere', regex: /. /g, weight: 1 },
 ];
 
 function hashContent(content) {
@@ -39,7 +39,8 @@ function detectKind(text) {
   if (/^```/.test(t) || /```/.test(t)) return 'code';
   if (/^\s*[[{]/.test(t) && /[\]}]\s*$/.test(t)) return 'json';
   if (/^\s*</.test(t) && />$/.test(t)) return 'xml';
-  if (/\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|WITH)\b/i.test(t.slice(0, 120)) && /;/.test(t)) return 'sql';
+  if (/\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|WITH)\b/i.test(t.slice(0, 120)) && /;/.test(t))
+    return 'sql';
   if (/^#{1,6} /m.test(t)) return 'markdown';
   return 'prose';
 }
@@ -60,9 +61,7 @@ function findBoundary(text, targetIndex, maxIndex) {
       if (idx < searchFrom || idx > maxIndex) continue;
       const distance = Math.abs(idx - targetIndex);
       // Prefer higher weight; on ties prefer closer to target.
-      const better =
-        weight > best.weight ||
-        (weight === best.weight && distance < best.distance);
+      const better = weight > best.weight || (weight === best.weight && distance < best.distance);
       if (better) best = { index: idx, weight, distance };
       if (regex.lastIndex === m.index) regex.lastIndex += 1; // avoid zero-length loops
     }
@@ -77,7 +76,10 @@ function findBoundary(text, targetIndex, maxIndex) {
 
 /** Compute the character length of a token-aware overlap tail. */
 function overlapCharsFor(text) {
-  const overlapTokens = parseInt(process.env.LONG_CONTEXT_CHUNK_OVERLAP || String(DEFAULT_OVERLAP_TOKENS), 10);
+  const overlapTokens = parseInt(
+    process.env.LONG_CONTEXT_CHUNK_OVERLAP || String(DEFAULT_OVERLAP_TOKENS),
+    10
+  );
   if (!Number.isFinite(overlapTokens) || overlapTokens <= 0) return 0;
   const targetChars = Math.round(overlapTokens * 3.6); // inverse of the ~3.6 chars/token average
   if (text.length <= targetChars) return Math.max(0, Math.floor(text.length * 0.2));
@@ -85,7 +87,7 @@ function overlapCharsFor(text) {
   // begin mid-word/mid-token.
   const start = text.length - targetChars;
   const nl = text.indexOf('\n', start);
-  return nl === -1 ? targetChars : (nl + 1 - start);
+  return nl === -1 ? targetChars : nl + 1 - start;
 }
 
 /**
@@ -152,7 +154,7 @@ export function chunkText({ text, inputId, conversationId, userId, options = {} 
       tokenEstimate: estimateTokens(content),
       hash: hashContent(content),
       kind,
-      createdAt
+      createdAt,
     });
 
     cursor = end;

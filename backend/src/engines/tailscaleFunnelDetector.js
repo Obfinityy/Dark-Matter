@@ -117,7 +117,7 @@ export function detectTailscaleFunnels({ source = 'unknown', text = '' } = {}) {
     cliMentions,
     evidence:
       (findings.length
-        ? `Found ${findings.length} Tailscale Funnel endpoint(s) in ${source}: ${findings.map((f) => `${f.url}${f.machine ? ` (machine '${f.machine}')` : ''}`).join('; ')}. `
+        ? `Found ${findings.length} Tailscale Funnel endpoint(s) in ${source}: ${findings.map(f => `${f.url}${f.machine ? ` (machine '${f.machine}')` : ''}`).join('; ')}. `
         : `No Tailscale Funnel endpoints found in ${source}. `) +
       (cliMentions.length ? `Funnel/serve CLI mentions: ${cliMentions.length} found.` : ''),
   };

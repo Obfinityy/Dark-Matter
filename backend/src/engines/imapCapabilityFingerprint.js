@@ -11,7 +11,11 @@ const SERVER_SIGNATURES = [
   { name: 'Dovecot', caps: [/^SASL-IR$/i, /^LITERAL\+$/i], greeting: /dovecot|imap4rev2.*ready/i },
   { name: 'Cyrus IMAP', caps: [/^ANNOTATE-EXPERIMENT-1$/i], greeting: /cyrus/i },
   { name: 'Gmail IMAP', caps: [/^X-GM-EXT-1$/i], greeting: /gimap/i },
-  { name: 'Microsoft Exchange', caps: [/^X-EXCHANGE-ANTI-SPAM/i], greeting: /microsoft exchange|exchange server/i },
+  {
+    name: 'Microsoft Exchange',
+    caps: [/^X-EXCHANGE-ANTI-SPAM/i],
+    greeting: /microsoft exchange|exchange server/i,
+  },
   { name: 'Courier IMAP', caps: [/^CHILDREN$/i], greeting: /courier/i },
   { name: 'Zimbra', caps: [/^XLIST$/i], greeting: /zimbra/i },
   { name: 'dbmail', caps: [], greeting: /dbmail/i },
@@ -44,19 +48,21 @@ export function parseCapabilities(line = '') {
  * @returns {{matches: Array<{name: string, confidence: number, via: string}>, best: string|null}}
  */
 export function fingerprintImapServer(data = {}) {
-  const caps = (data.capabilities || []).map((c) => String(c));
+  const caps = (data.capabilities || []).map(c => String(c));
   const greeting = String(data.greeting || '');
   const matches = [];
 
   for (const sig of SERVER_SIGNATURES) {
-    const capHits = sig.caps.filter((re) => caps.some((c) => re.test(c))).length;
+    const capHits = sig.caps.filter(re => caps.some(c => re.test(c))).length;
     const greetHit = sig.greeting && sig.greeting.test(greeting);
     if (capHits === 0 && !greetHit) continue;
     const confidence = greetHit && capHits > 0 ? 0.95 : greetHit ? 0.8 : 0.7;
     matches.push({
       name: sig.name,
       confidence,
-      via: [greetHit ? 'greeting' : null, capHits > 0 ? `capabilities(${capHits})` : null].filter(Boolean).join(' + '),
+      via: [greetHit ? 'greeting' : null, capHits > 0 ? `capabilities(${capHits})` : null]
+        .filter(Boolean)
+        .join(' + '),
     });
   }
 
@@ -72,11 +78,13 @@ export function fingerprintImapServer(data = {}) {
 export function flagImapCapabilityRisks(capabilities = []) {
   const flags = [];
   for (const f of RISK_FLAGS) {
-    const hit = capabilities.find((c) => f.token.test(c));
+    const hit = capabilities.find(c => f.token.test(c));
     if (hit) flags.push({ token: hit, note: f.note });
   }
-  const secure = !capabilities.some((c) => /^AUTH=PLAIN$/i.test(c)) &&
-    (capabilities.some((c) => /^STARTTLS$/i.test(c)) || capabilities.some((c) => /^LOGINDISABLED$/i.test(c)));
+  const secure =
+    !capabilities.some(c => /^AUTH=PLAIN$/i.test(c)) &&
+    (capabilities.some(c => /^STARTTLS$/i.test(c)) ||
+      capabilities.some(c => /^LOGINDISABLED$/i.test(c)));
   return { flags, secure };
 }
 

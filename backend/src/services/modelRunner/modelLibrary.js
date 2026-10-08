@@ -45,7 +45,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Uncensored Dolphin fine-tune of Llama 3.1 8B — fast, runs on CPU, good for quick triage and chat.'
+      'Uncensored Dolphin fine-tune of Llama 3.1 8B — fast, runs on CPU, good for quick triage and chat.',
   },
   {
     id: 'qwen3-8b-abliterated',
@@ -62,7 +62,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Uncensored (abliterated) Qwen3 8B — strong reasoning for its size, 32k context, runs on CPU.'
+      'Uncensored (abliterated) Qwen3 8B — strong reasoning for its size, 32k context, runs on CPU.',
   },
 
   // ── 14B · Balanced ─────────────────────────────────────────────────
@@ -79,13 +79,13 @@ export const MODEL_LIBRARY = Object.freeze([
     quants: {
       Q4_K_M: { file: 'huihui-ai_Qwen3-14B-abliterated-Q4_K_M.gguf', sizeGB: 9.0 },
       Q5_K_M: { file: 'huihui-ai_Qwen3-14B-abliterated-Q5_K_M.gguf', sizeGB: 10.51 },
-      Q8_0: { file: 'huihui-ai_Qwen3-14B-abliterated-Q8_0.gguf', sizeGB: 15.7 }
+      Q8_0: { file: 'huihui-ai_Qwen3-14B-abliterated-Q8_0.gguf', sizeGB: 15.7 },
     },
     contextWindow: 32768,
     uncensored: true,
     requirements: { ramGB: 12, vramGB: 0, gpuRequired: false },
     description:
-      'Uncensored Qwen3 14B — the sweet spot: noticeably smarter than 8B, still happy on a 16GB laptop CPU.'
+      'Uncensored Qwen3 14B — the sweet spot: noticeably smarter than 8B, still happy on a 16GB laptop CPU.',
   },
 
   // ── 24B · Balanced ─────────────────────────────────────────────────
@@ -103,7 +103,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
     description:
-      'Uncensored Dolphin on Mistral Small 24B — excellent instruction following, the Venice uncensored edition.'
+      'Uncensored Dolphin on Mistral Small 24B — excellent instruction following, the Venice uncensored edition.',
   },
   {
     id: 'dolphin3-r1-mistral-24b',
@@ -119,7 +119,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
     description:
-      'Uncensored Dolphin 3.0 reasoning model on Mistral 24B — first-principles analysis, great for hunt planning.'
+      'Uncensored Dolphin 3.0 reasoning model on Mistral 24B — first-principles analysis, great for hunt planning.',
   },
   {
     id: 'mistral-small-24b-abliterated',
@@ -135,7 +135,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
     description:
-      'Uncensored (abliterated) Mistral Small 24B 2501 — crisp instruction following with refusals removed.'
+      'Uncensored (abliterated) Mistral Small 24B 2501 — crisp instruction following with refusals removed.',
   },
 
   // ── 27B–32B · Powerful ─────────────────────────────────────────────
@@ -153,7 +153,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 24, vramGB: 16, gpuRequired: false },
     description:
-      'Uncensored Qwen3 27B — near-frontier reasoning for agentic hunts. Needs a strong machine: 24GB+ RAM or a 16GB+ GPU.'
+      'Uncensored Qwen3 27B — near-frontier reasoning for agentic hunts. Needs a strong machine: 24GB+ RAM or a 16GB+ GPU.',
   },
   {
     id: 'qwen3-30b-a3b-abliterated',
@@ -169,7 +169,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 24, vramGB: 16, gpuRequired: false },
     description:
-      'Uncensored Qwen3 30B mixture-of-experts (only 3B active per token) — 30B smarts at 8B speed.'
+      'Uncensored Qwen3 30B mixture-of-experts (only 3B active per token) — 30B smarts at 8B speed.',
   },
   {
     id: 'deepseek-r1-distill-qwen-32b',
@@ -185,7 +185,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 32, vramGB: 20, gpuRequired: false },
     description:
-      'Uncensored DeepSeek-R1 reasoning distilled into Qwen 32B — chain-of-thought depth for hard targets.'
+      'Uncensored DeepSeek-R1 reasoning distilled into Qwen 32B — chain-of-thought depth for hard targets.',
   },
 
   // ── 70B · Frontier ─────────────────────────────────────────────────
@@ -205,7 +205,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
     description:
-      'Uncensored Llama 3.3 70B — flagship-class reasoning, 128k context. For workstations and big GPUs.'
+      'Uncensored Llama 3.3 70B — flagship-class reasoning, 128k context. For workstations and big GPUs.',
   },
   {
     id: 'llama31-nemotron-70b',
@@ -223,7 +223,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
     description:
-      "Uncensored NVIDIA Nemotron-tuned Llama 3.1 70B — NVIDIA's alignment-tuned 70B with refusals removed."
+      "Uncensored NVIDIA Nemotron-tuned Llama 3.1 70B — NVIDIA's alignment-tuned 70B with refusals removed.",
   },
   {
     id: 'llama31-70b-abliterated',
@@ -237,14 +237,14 @@ export const MODEL_LIBRARY = Object.freeze([
     sizeGB: 42.6,
     quants: {
       Q4_K_M: { file: 'Llama-3.1-70B-Instruct-abliterated.Q4_K_M.gguf', sizeGB: 42.6 },
-      Q5_K_M: { file: 'Llama-3.1-70B-Instruct-abliterated.Q5_K_M.gguf', sizeGB: 50.0 }
+      Q5_K_M: { file: 'Llama-3.1-70B-Instruct-abliterated.Q5_K_M.gguf', sizeGB: 50.0 },
       // NOTE: no Q8_0 single file in this repo — Q5_K_M is the largest offered.
     },
     contextWindow: 131072,
     uncensored: true,
     requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
     description:
-      'Uncensored Llama 3.1 70B (static quant) — the classic open 70B workhorse, refusal-free.'
+      'Uncensored Llama 3.1 70B (static quant) — the classic open 70B workhorse, refusal-free.',
   },
   {
     id: 'deepseek-r1-distill-llama-70b',
@@ -259,14 +259,20 @@ export const MODEL_LIBRARY = Object.freeze([
     quants: {
       // NOTE: only single-file quants — Q8_0 exists here only as 2 split
       // parts, which the downloader does not support.
-      Q4_K_M: { file: 'huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-Q4_K_M.gguf', sizeGB: 42.52 },
-      Q5_K_S: { file: 'huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-Q5_K_S.gguf', sizeGB: 46.6 }
+      Q4_K_M: {
+        file: 'huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-Q4_K_M.gguf',
+        sizeGB: 42.52,
+      },
+      Q5_K_S: {
+        file: 'huihui-ai_DeepSeek-R1-Distill-Llama-70B-abliterated-Q5_K_S.gguf',
+        sizeGB: 46.6,
+      },
     },
     contextWindow: 32768,
     uncensored: true,
     requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
     description:
-      'Uncensored DeepSeek-R1 reasoning distilled into Llama 70B — the deepest thinker in the library.'
+      'Uncensored DeepSeek-R1 reasoning distilled into Llama 70B — the deepest thinker in the library.',
   },
   {
     id: 'llama3-70b-abliterated-v35',
@@ -284,7 +290,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 64, vramGB: 40, gpuRequired: false },
     description:
-      'failspy v3.5 abliteration of Llama 3 70B — single-layer orthogonalization, minimal behavior change beyond refusals.'
+      'failspy v3.5 abliteration of Llama 3 70B — single-layer orthogonalization, minimal behavior change beyond refusals.',
   },
   // ── Infinity Agent · Grounding (MANDATORY for Control mode) ──────────
   // UI-TARS locates buttons, search bars, and UI elements on screen and
@@ -312,7 +318,7 @@ export const MODEL_LIBRARY = Object.freeze([
     mandatoryFor: 'control',
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Screen grounding for Infinity Agent — finds UI elements and returns coordinates. Tiny, runs on CPU/phone. Required for Control mode.'
+      'Screen grounding for Infinity Agent — finds UI elements and returns coordinates. Tiny, runs on CPU/phone. Required for Control mode.',
   },
   {
     id: 'os-atlas-7b',
@@ -333,7 +339,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Alternative screen grounding model — locates buttons, icons, and text fields with x,y coordinates. CPU-friendly.'
+      'Alternative screen grounding model — locates buttons, icons, and text fields with x,y coordinates. CPU-friendly.',
   },
   // ── Infinity Agent · Vision brains (uncensored) ────────────────────────
   // Vision models SEE screenshots. Run locally via llama.cpp or connect
@@ -363,7 +369,7 @@ export const MODEL_LIBRARY = Object.freeze([
     vision: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Uncensored vision brain — sees screenshots and reasons about them. Runs on CPU, or the same model on Kaggle for GPU speed.'
+      'Uncensored vision brain — sees screenshots and reasons about them. Runs on CPU, or the same model on Kaggle for GPU speed.',
   },
   {
     id: 'qwen25-vl-7b',
@@ -381,8 +387,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: false,
     vision: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
-    description:
-      'Standard Qwen2.5-VL vision model — solid screenshot understanding, ungated repo.'
+    description: 'Standard Qwen2.5-VL vision model — solid screenshot understanding, ungated repo.',
   },
   {
     id: 'minicpm-v-26-8b',
@@ -401,7 +406,7 @@ export const MODEL_LIBRARY = Object.freeze([
     vision: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Compact vision-language model — strong OCR and UI element reading, great for screen-heavy tasks.'
+      'Compact vision-language model — strong OCR and UI element reading, great for screen-heavy tasks.',
   },
   // ── Hacking brains (uncensored, local) ────────────────────────────────
   // The hacking brain strategizes attacks: what to test, which payloads,
@@ -424,7 +429,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
     description:
-      'Uncensored hacking strategist — plans attacks, chooses payloads, chains vulnerabilities. Used only by Hunt mode.'
+      'Uncensored hacking strategist — plans attacks, chooses payloads, chains vulnerabilities. Used only by Hunt mode.',
   },
   {
     id: 'gemma3-12b-abliterated',
@@ -442,7 +447,7 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 12, vramGB: 0, gpuRequired: false },
     description:
-      'Larger uncensored hacking brain — deeper strategy for complex targets. Used only by Hunt mode.'
+      'Larger uncensored hacking brain — deeper strategy for complex targets. Used only by Hunt mode.',
   },
   {
     id: 'dolphin-mistral-24b-hacker',
@@ -460,18 +465,18 @@ export const MODEL_LIBRARY = Object.freeze([
     uncensored: true,
     requirements: { ramGB: 20, vramGB: 12, gpuRequired: false },
     description:
-      'Heavy-duty uncensored hacking brain — 24B Venice edition for the hardest targets. Used only by Hunt mode.'
-  }
+      'Heavy-duty uncensored hacking brain — 24B Venice edition for the hardest targets. Used only by Hunt mode.',
+  },
 ]);
 
 /** Lookup by id; returns null for unknown ids (never throws on user input). */
 export function getLibraryEntry(modelId) {
   if (!modelId || typeof modelId !== 'string') return null;
-  return MODEL_LIBRARY.find((m) => m.id === modelId) || null;
+  return MODEL_LIBRARY.find(m => m.id === modelId) || null;
 }
 
 export function getDefaultEntry() {
-  return MODEL_LIBRARY.find((m) => m.default) || MODEL_LIBRARY[0];
+  return MODEL_LIBRARY.find(m => m.default) || MODEL_LIBRARY[0];
 }
 
 /**
@@ -480,7 +485,7 @@ export function getDefaultEntry() {
  */
 export function getModelsBySlot(slot) {
   if (!slot || typeof slot !== 'string') return [];
-  return MODEL_LIBRARY.filter((m) => m.brainSlot === slot);
+  return MODEL_LIBRARY.filter(m => m.brainSlot === slot);
 }
 
 /**
@@ -510,15 +515,18 @@ export function getDefaultModelForSlot(slot) {
   if (!id) return null;
   // Prefer the slot-specific listing (the library lists some models twice:
   // once per tier, once per brain slot).
-  return MODEL_LIBRARY.find((m) => m.id === id && m.brainSlot === slot)
-    || MODEL_LIBRARY.find((m) => m.id === id)
-    || null;
+  return (
+    MODEL_LIBRARY.find(m => m.id === id && m.brainSlot === slot) ||
+    MODEL_LIBRARY.find(m => m.id === id) ||
+    null
+  );
 }
 export const BRAIN_SLOTS = {
   vision: {
     label: 'Vision Brain',
     icon: '🧠',
-    description: 'Main reasoning brain — sees and thinks. Used by Hunt, Infinity Chat, and Control.',
+    description:
+      'Main reasoning brain — sees and thinks. Used by Hunt, Infinity Chat, and Control.',
     usedBy: ['hunt', 'chat', 'control'],
   },
   grounding: {
@@ -530,7 +538,8 @@ export const BRAIN_SLOTS = {
   hacker: {
     label: 'Hacking Brain',
     icon: '💀',
-    description: 'Uncensored security strategist — plans attacks, chooses payloads. Used only by Hunt.',
+    description:
+      'Uncensored security strategist — plans attacks, chooses payloads. Used only by Hunt.',
     usedBy: ['hunt'],
   },
 };

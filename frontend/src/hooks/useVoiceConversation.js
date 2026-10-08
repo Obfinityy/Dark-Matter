@@ -27,7 +27,7 @@ export function useVoiceConversation({ active, lang, onTranscript, onStateChange
   const stateCbRef = useRef(onStateChange);
   stateCbRef.current = onStateChange;
 
-  const handleFinal = useCallback(async (text) => {
+  const handleFinal = useCallback(async text => {
     if (!activeRef.current || !text) return;
     setProcessing(true);
     stateCbRef.current?.('thinking');

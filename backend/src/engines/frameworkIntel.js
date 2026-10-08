@@ -28,7 +28,7 @@ const SIGNATURES = [
       /React\s+v?(\d+\.\d+\.\d+)/,
       /react\.production\.min\.js/,
     ],
-    versioned: (m) => (m[1] ? m[1] : null),
+    versioned: m => (m[1] ? m[1] : null),
   },
   {
     framework: 'vue',
@@ -62,18 +62,12 @@ const SIGNATURES = [
   {
     framework: 'next.js',
     hooks: [/__NEXT_DATA__/, /next\/dist\//, /__next_f/, /_next\/static/],
-    versions: [
-      /next@(\d+\.\d+\.\d+)/,
-      /"next"\s*:\s*"(\d+\.\d+\.\d+)"/,
-    ],
+    versions: [/next@(\d+\.\d+\.\d+)/, /"next"\s*:\s*"(\d+\.\d+\.\d+)"/],
   },
   {
     framework: 'nuxt',
     hooks: [/__NUXT__/, /\$nuxt/, /nuxt-link/],
-    versions: [
-      /nuxt@(\d+\.\d+\.\d+)/,
-      /"nuxt"\s*:\s*"(\d+\.\d+\.\d+)"/,
-    ],
+    versions: [/nuxt@(\d+\.\d+\.\d+)/, /"nuxt"\s*:\s*"(\d+\.\d+\.\d+)"/],
   },
 ];
 
@@ -114,7 +108,11 @@ const DEV_SIGNALS = [
   { name: 'vue-dev-warn', re: /\[Vue warn\]/, weight: 3 },
   { name: 'angular-isdevmode', re: /isDevMode\s*\(\s*\)/, weight: 2 },
   { name: 'node-env-dev-check', re: /NODE_ENV\s*!==?\s*["']production["']/, weight: 2 },
-  { name: 'devtools-hook-enabled', re: /__REACT_DEVTOOLS_GLOBAL_HOOK__\.isDisabled\s*=\s*!1/, weight: 2 },
+  {
+    name: 'devtools-hook-enabled',
+    re: /__REACT_DEVTOOLS_GLOBAL_HOOK__\.isDisabled\s*=\s*!1/,
+    weight: 2,
+  },
   { name: 'console-warn-heavy', re: /console\.warn\(/, weight: 1 },
   { name: 'development-string', re: /\bdevelopment\b/i, weight: 1 },
   { name: 'svelte-dev-block', re: /\/\*\s*dev\s*\*\//i, weight: 2 },

@@ -35,7 +35,15 @@ export function versionInfoString(input) {
 /* 50882 — Copy as API query --------------------------------------------- */
 
 const API_QUERY_KEYS = [
-  'severity', 'status', 'engine', 'target', 'q', 'sort', 'order', 'from', 'to',
+  'severity',
+  'status',
+  'engine',
+  'target',
+  'q',
+  'sort',
+  'order',
+  'from',
+  'to',
 ];
 
 /** Serialize finding filters to `severity=high&status=open…` for scripts. */
@@ -106,14 +114,22 @@ export function imageCopyPayload(blob) {
 /* 50884 — No copy on secrets -------------------------------------------- */
 
 export const SECRET_FIELD_PATTERNS = [
-  /api[-_ ]?key/i, /secret/i, /token/i, /password/i, /passwd/i, /private[-_ ]?key/i,
-  /client[-_ ]?secret/i, /auth/i, /credential/i, /bearer/i,
+  /api[-_ ]?key/i,
+  /secret/i,
+  /token/i,
+  /password/i,
+  /passwd/i,
+  /private[-_ ]?key/i,
+  /client[-_ ]?secret/i,
+  /auth/i,
+  /credential/i,
+  /bearer/i,
 ];
 
 /** True when a field name looks like it holds a secret. */
 export function isSecretField(fieldName) {
   if (!fieldName) return false;
-  return SECRET_FIELD_PATTERNS.some((re) => re.test(String(fieldName)));
+  return SECRET_FIELD_PATTERNS.some(re => re.test(String(fieldName)));
 }
 
 export const SECRET_REVEAL_WINDOW_MS = 60_000;

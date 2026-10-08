@@ -62,9 +62,14 @@ const SEV_FINDINGS = [
 ];
 
 const SEARCH_ITEMS = [
-  'Cross-site scripting', 'SQL injection', 'Insecure direct object reference',
-  'Server-side request forgery', 'Command injection', 'Open redirect',
-  'Path traversal', 'XML external entity',
+  'Cross-site scripting',
+  'SQL injection',
+  'Insecure direct object reference',
+  'Server-side request forgery',
+  'Command injection',
+  'Open redirect',
+  'Path traversal',
+  'XML external entity',
 ];
 
 const VIRT_ROWS = Array.from({ length: 5000 }, (_, i) => ({
@@ -129,8 +134,13 @@ const DOCS = [
 ];
 
 const STEP_EVENTS = [
-  'Resolving target', 'Fingerprinting tech stack', 'Mining parameters',
-  'Scanning responses', 'Scoring risk', 'Filtering false positives', 'Writing report',
+  'Resolving target',
+  'Fingerprinting tech stack',
+  'Mining parameters',
+  'Scanning responses',
+  'Scoring risk',
+  'Filtering false positives',
+  'Writing report',
 ];
 
 const FP_CARDS = [
@@ -145,7 +155,7 @@ const STATUSES = ['open', 'triaged', 'resolved'];
 /** Status pill flips instantly; a "syncing" badge shows until commit resolves. */
 export function OptimisticStatusToggle({ onCommit }) {
   const [finding, setFinding] = useState({ id: 'F-101', title: 'SQLi in /search', status: 'open' });
-  const commit = onCommit || (() => new Promise((res) => setTimeout(res, 400)));
+  const commit = onCommit || (() => new Promise(res => setTimeout(res, 400)));
 
   async function flip(next) {
     const { optimistic, rollback } = optimisticStatusChange(finding, next);
@@ -157,9 +167,11 @@ export function OptimisticStatusToggle({ onCommit }) {
   return (
     <div className="opt-demo" data-idea="50930">
       <span className="opt-pill">{finding.status}</span>
-      {finding._optimistic ? <span className={`opt-badge ${OPT_PENDING_CLASS}`}>syncing</span> : null}
+      {finding._optimistic ? (
+        <span className={`opt-badge ${OPT_PENDING_CLASS}`}>syncing</span>
+      ) : null}
       <div className="opt-row">
-        {STATUSES.filter((s) => s !== finding.status).map((s) => (
+        {STATUSES.filter(s => s !== finding.status).map(s => (
           <button key={s} type="button" className="opt-btn" onClick={() => flip(s)}>
             Mark {s}
           </button>
@@ -182,11 +194,13 @@ export function InstantHuntCreator() {
   function create() {
     if (!name.trim()) return;
     const row = instantHuntRow(name);
-    setHunts((h) => [row, ...h]);
+    setHunts(h => [row, ...h]);
     setName('');
     timers.current.push(
       setTimeout(() => {
-        setHunts((h) => h.map((x) => (x.id === row.id ? { ...x, status: 'live', _optimistic: false } : x)));
+        setHunts(h =>
+          h.map(x => (x.id === row.id ? { ...x, status: 'live', _optimistic: false } : x))
+        );
       }, 600)
     );
   }
@@ -197,7 +211,7 @@ export function InstantHuntCreator() {
         <input
           className="opt-input"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           placeholder="Hunt name"
           aria-label="Hunt name"
         />
@@ -206,7 +220,7 @@ export function InstantHuntCreator() {
         </button>
       </div>
       <ul className="opt-list">
-        {hunts.map((h) => (
+        {hunts.map(h => (
           <li key={h.id}>
             <code>{h.id}</code> {h.name}
             <span className="opt-chip">{h.status === 'creating' ? 'creating…' : 'live'}</span>
@@ -230,11 +244,11 @@ export function OptimisticCommentBox() {
   function post() {
     if (!body.trim()) return;
     const draft = optimisticCommentDraft(body);
-    setComments((c) => [...c, draft]);
+    setComments(c => [...c, draft]);
     setBody('');
     timers.current.push(
       setTimeout(() => {
-        setComments((c) => c.map((x) => (x.id === draft.id ? markCommentSent(x) : x)));
+        setComments(c => c.map(x => (x.id === draft.id ? markCommentSent(x) : x)));
       }, 500)
     );
   }
@@ -245,7 +259,7 @@ export function OptimisticCommentBox() {
         <input
           className="opt-input"
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={e => setBody(e.target.value)}
           placeholder="Write a comment…"
           aria-label="Comment text"
         />
@@ -254,7 +268,7 @@ export function OptimisticCommentBox() {
         </button>
       </div>
       <ul className="opt-list">
-        {comments.map((c) => (
+        {comments.map(c => (
           <li key={c.id}>
             {c.body}
             <span className="opt-chip">{c.delivery === 'sending' ? 'sending…' : 'sent'}</span>
@@ -270,12 +284,12 @@ export function OptimisticCommentBox() {
 /** Severity filter applies to cached findings instantly — no round-trip. */
 export function InstantCachedFilter() {
   const [sev, setSev] = useState('All');
-  const shown = instantCachedFilter(SEV_FINDINGS, (f) => sev === 'All' || f.severity === sev);
+  const shown = instantCachedFilter(SEV_FINDINGS, f => sev === 'All' || f.severity === sev);
 
   return (
     <div className="opt-demo" data-idea="50933">
       <div className="opt-row" role="group" aria-label="Severity filter">
-        {['All', 'Critical', 'High', 'Medium', 'Low'].map((s) => (
+        {['All', 'Critical', 'High', 'Medium', 'Low'].map(s => (
           <button
             key={s}
             type="button"
@@ -286,9 +300,11 @@ export function InstantCachedFilter() {
           </button>
         ))}
       </div>
-      <p className="opt-note">{shown.length} of {SEV_FINDINGS.length} findings (filtered locally, instantly)</p>
+      <p className="opt-note">
+        {shown.length} of {SEV_FINDINGS.length} findings (filtered locally, instantly)
+      </p>
       <ul className="opt-list">
-        {shown.map((f) => (
+        {shown.map(f => (
           <li key={f.id}>
             <code>{f.id}</code> {f.title} <span className="opt-chip">{f.severity}</span>
           </li>
@@ -322,7 +338,9 @@ export function SkeletonFirstDemo({ expectedMs = 1200 }) {
           <div className={OPT_SKELETON_CLASS} style={{ height: 16, width: '55%' }} />
         </div>
       ) : null}
-      {phase === 'loading' && kind === 'spinner' ? <div className="opt-spinner" role="status" aria-label="Loading" /> : null}
+      {phase === 'loading' && kind === 'spinner' ? (
+        <div className="opt-spinner" role="status" aria-label="Loading" />
+      ) : null}
       {phase === 'done' ? <div className="opt-loaded">Report summary loaded.</div> : null}
       <p className="opt-note">
         loaderKind({expectedMs}) → "{kind}" (skeleton threshold {SKELETON_THRESHOLD_MS}ms)
@@ -392,7 +410,7 @@ export function DebouncedLocalSearch() {
     debounced(e.target.value);
   }
 
-  const hits = SEARCH_ITEMS.filter((i) => i.toLowerCase().includes(applied.toLowerCase()));
+  const hits = SEARCH_ITEMS.filter(i => i.toLowerCase().includes(applied.toLowerCase()));
 
   return (
     <div className="opt-demo" data-idea="50936">
@@ -404,10 +422,11 @@ export function DebouncedLocalSearch() {
         aria-label="Search checks"
       />
       <p className="opt-note">
-        Debounced to {SEARCH_DEBOUNCE_MS}ms — "{applied}" ({hits.length} matches). No network while typing.
+        Debounced to {SEARCH_DEBOUNCE_MS}ms — "{applied}" ({hits.length} matches). No network while
+        typing.
       </p>
       <ul className="opt-list">
-        {hits.map((h) => (
+        {hits.map(h => (
           <li key={h}>{h}</li>
         ))}
       </ul>
@@ -422,14 +441,23 @@ export function VirtualizedFindingsList() {
   const [scrollTop, setScrollTop] = useState(0);
   const rowHeight = 28;
   const viewport = 240;
-  const w = virtualWindow({ total: VIRT_ROWS.length, rowHeight, scrollTop, viewportHeight: viewport });
+  const w = virtualWindow({
+    total: VIRT_ROWS.length,
+    rowHeight,
+    scrollTop,
+    viewportHeight: viewport,
+  });
   const slice = VIRT_ROWS.slice(w.start, w.end);
 
   return (
     <div className="opt-demo" data-idea="50937">
-      <div className="opt-virt" style={{ height: viewport }} onScroll={(e) => setScrollTop(e.target.scrollTop)}>
+      <div
+        className="opt-virt"
+        style={{ height: viewport }}
+        onScroll={e => setScrollTop(e.target.scrollTop)}
+      >
         <div style={{ height: w.topPad }} aria-hidden="true" />
-        {slice.map((r) => (
+        {slice.map(r => (
           <div key={r.id} className="opt-virt-row" style={{ height: rowHeight }}>
             <code>{r.id}</code> <span className="opt-chip">{r.sev}</span>
           </div>
@@ -450,14 +478,23 @@ export function VirtualizedTimeline() {
   const [scrollTop, setScrollTop] = useState(0);
   const rowHeight = 24;
   const viewport = 200;
-  const w = virtualWindow({ total: VIRT_EVENTS.length, rowHeight, scrollTop, viewportHeight: viewport });
+  const w = virtualWindow({
+    total: VIRT_EVENTS.length,
+    rowHeight,
+    scrollTop,
+    viewportHeight: viewport,
+  });
   const slice = VIRT_EVENTS.slice(w.start, w.end);
 
   return (
     <div className="opt-demo" data-idea="50938">
-      <div className="opt-virt" style={{ height: viewport }} onScroll={(e) => setScrollTop(e.target.scrollTop)}>
+      <div
+        className="opt-virt"
+        style={{ height: viewport }}
+        onScroll={e => setScrollTop(e.target.scrollTop)}
+      >
         <div style={{ height: w.topPad }} aria-hidden="true" />
-        {slice.map((r) => (
+        {slice.map(r => (
           <div key={r.id} className="opt-virt-row opt-timeline-row" style={{ height: rowHeight }}>
             <span className="opt-dot" aria-hidden="true" /> {r.label}
           </div>
@@ -483,7 +520,7 @@ export function LazyEvidenceImage() {
       const t = setTimeout(() => setInView(true), 300);
       return () => clearTimeout(t);
     }
-    const io = new IntersectionObserver((entries) => {
+    const io = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting) {
         setInView(true);
         io.disconnect();
@@ -507,7 +544,9 @@ export function LazyEvidenceImage() {
           })}
         />
       </div>
-      <p className="opt-note">{inView ? 'Thumbnail loaded after entering the viewport.' : 'Waiting for viewport…'}</p>
+      <p className="opt-note">
+        {inView ? 'Thumbnail loaded after entering the viewport.' : 'Waiting for viewport…'}
+      </p>
     </div>
   );
 }
@@ -558,7 +597,7 @@ export function OptimisticBookmarkList() {
   const [bookmarked, setBookmarked] = useState(new Set(['F-1']));
   return (
     <div className="opt-demo" data-idea="50941">
-      {SEV_FINDINGS.map((f) => (
+      {SEV_FINDINGS.map(f => (
         <div key={f.id} className="opt-rowline">
           <button
             type="button"
@@ -585,11 +624,21 @@ export function RouteSplitPanel() {
     <div className="opt-demo" data-idea="50942">
       <table className="opt-table">
         <thead>
-          <tr><th>Route</th><th>JS chunk</th></tr>
+          <tr>
+            <th>Route</th>
+            <th>JS chunk</th>
+          </tr>
         </thead>
         <tbody>
-          {routes.map((r) => (
-            <tr key={r}><td><code>{r}</code></td><td><code>{routeChunkName(r)}</code></td></tr>
+          {routes.map(r => (
+            <tr key={r}>
+              <td>
+                <code>{r}</code>
+              </td>
+              <td>
+                <code>{routeChunkName(r)}</code>
+              </td>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -624,8 +673,12 @@ export function CachedHuntSnapshot() {
   return (
     <div className="opt-demo" data-idea="50943">
       <div className="opt-btnrow">
-        <button type="button" className="opt-btn" onClick={open}>Open hunt</button>
-        <button type="button" className="opt-btn" onClick={reopen}>Reopen (cached)</button>
+        <button type="button" className="opt-btn" onClick={open}>
+          Open hunt
+        </button>
+        <button type="button" className="opt-btn" onClick={reopen}>
+          Reopen (cached)
+        </button>
       </div>
       {view && (
         <p className="opt-note">
@@ -653,10 +706,14 @@ export function SwrWidget() {
     <div className="opt-demo" data-idea="50944">
       <div className={`opt-widget ${state.showShimmer ? OPT_SHIMMER_CLASS : ''}`}>
         <strong>Findings overview</strong>
-        <p className="opt-note">open: {state.data.open} · critical: {state.data.critical}</p>
+        <p className="opt-note">
+          open: {state.data.open} · critical: {state.data.critical}
+        </p>
         {state.isRevalidating && <span className="opt-updating">updating…</span>}
       </div>
-      <button type="button" className="opt-btn" onClick={refresh}>Refresh</button>
+      <button type="button" className="opt-btn" onClick={refresh}>
+        Refresh
+      </button>
     </div>
   );
 }
@@ -665,7 +722,12 @@ export function SwrWidget() {
 
 /** Dragged widgets move instantly; layout persists on drop. */
 export function OptimisticWidgetReorder() {
-  const [widgets, setWidgets] = useState(['Severity chart', 'Timeline', 'Top targets', 'SLA badges']);
+  const [widgets, setWidgets] = useState([
+    'Severity chart',
+    'Timeline',
+    'Top targets',
+    'SLA badges',
+  ]);
   const move = (i, dir) => setWidgets(reorderList(widgets, i, i + dir));
   return (
     <div className="opt-demo" data-idea="50945">
@@ -673,8 +735,24 @@ export function OptimisticWidgetReorder() {
         <div key={w} className="opt-rowline">
           <span>{w}</span>
           <span>
-            <button type="button" className="opt-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Move ${w} up`}>↑</button>
-            <button type="button" className="opt-btn" disabled={i === widgets.length - 1} onClick={() => move(i, 1)} aria-label={`Move ${w} down`}>↓</button>
+            <button
+              type="button"
+              className="opt-btn"
+              disabled={i === 0}
+              onClick={() => move(i, -1)}
+              aria-label={`Move ${w} up`}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className="opt-btn"
+              disabled={i === widgets.length - 1}
+              onClick={() => move(i, 1)}
+              aria-label={`Move ${w} down`}
+            >
+              ↓
+            </button>
           </span>
         </div>
       ))}
@@ -692,9 +770,11 @@ export function InstantThemeSwitch() {
     <div className="opt-demo" data-idea="50946">
       <div
         className="opt-themebox"
-        style={dark
-          ? { background: '#0d1626', color: '#dbe7f7', borderColor: '#2a3d5c' }
-          : { background: '#ffffff', color: '#1a2332', borderColor: '#c9d4e4' }}
+        style={
+          dark
+            ? { background: '#0d1626', color: '#dbe7f7', borderColor: '#2a3d5c' }
+            : { background: '#ffffff', color: '#1a2332', borderColor: '#c9d4e4' }
+        }
       >
         Theme swaps via CSS variables in {THEME_SWITCH_DELAY_MS}ms — no reload, no flash.
       </div>
@@ -715,14 +795,16 @@ export function PdfPrefetchHint() {
   return (
     <div className="opt-demo" data-idea="50947">
       <label className="opt-check">
-        <input type="checkbox" checked={tabOpened} onChange={(e) => setTabOpened(e.target.checked)} />
+        <input type="checkbox" checked={tabOpened} onChange={e => setTabOpened(e.target.checked)} />
         Report tab opened
       </label>
       <label className="opt-check">
-        <input type="checkbox" checked={cached} onChange={(e) => setCached(e.target.checked)} />
+        <input type="checkbox" checked={cached} onChange={e => setCached(e.target.checked)} />
         PDF cached
       </label>
-      <p className="opt-note">{prefetch ? '⏬ prefetching PDF in background…' : 'no prefetch needed'}</p>
+      <p className="opt-note">
+        {prefetch ? '⏬ prefetching PDF in background…' : 'no prefetch needed'}
+      </p>
     </div>
   );
 }
@@ -741,7 +823,7 @@ export function OptimisticBulkReview() {
     const { updated, rollback } = optimisticBulkReview(items);
     setItems(updated);
     setRolledBack(false);
-    await new Promise((res) => setTimeout(res, 500));
+    await new Promise(res => setTimeout(res, 500));
     if (injectFailure) {
       setItems(rollback());
       setRolledBack(true);
@@ -752,17 +834,23 @@ export function OptimisticBulkReview() {
   return (
     <div className="opt-demo" data-idea="50948">
       <ul className="opt-list">
-        {items.map((f) => (
+        {items.map(f => (
           <li key={f.id} className={f._optimistic ? OPT_PENDING_CLASS : ''}>
             {f.title} · {f.status}
           </li>
         ))}
       </ul>
       <div className="opt-btnrow">
-        <button type="button" className="opt-btn" onClick={markAll}>Mark all reviewed</button>
+        <button type="button" className="opt-btn" onClick={markAll}>
+          Mark all reviewed
+        </button>
       </div>
       <label className="opt-check">
-        <input type="checkbox" checked={injectFailure} onChange={(e) => setInjectFailure(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={injectFailure}
+          onChange={e => setInjectFailure(e.target.checked)}
+        />
         Demo control: fail the commit (tests rollback)
       </label>
       {rolledBack && <p className="opt-note">Commit failed — rolled back to previous statuses.</p>}
@@ -776,12 +864,19 @@ export function OptimisticBulkReview() {
 export function ClientFilterSortDemo() {
   const [dir, setDir] = useState('asc');
   const [key, setKey] = useState('severityRank');
-  const rows = useMemo(() => clientSort(
-    SEV_FINDINGS.map((f) => ({ ...f, severityRank: { Critical: 0, High: 1, Medium: 2 }[f.severity] ?? 3 })),
-    key,
-    dir
-  ), [key, dir]);
-  const sortBy = (k) => {
+  const rows = useMemo(
+    () =>
+      clientSort(
+        SEV_FINDINGS.map(f => ({
+          ...f,
+          severityRank: { Critical: 0, High: 1, Medium: 2 }[f.severity] ?? 3,
+        })),
+        key,
+        dir
+      ),
+    [key, dir]
+  );
+  const sortBy = k => {
     if (k === key) setDir(dir === 'asc' ? 'desc' : 'asc');
     else {
       setKey(k);
@@ -793,13 +888,24 @@ export function ClientFilterSortDemo() {
       <table className="opt-table">
         <thead>
           <tr>
-            <th><button type="button" className="opt-link" onClick={() => sortBy('title')}>Title {key === 'title' ? (dir === 'asc' ? '▲' : '▼') : ''}</button></th>
-            <th><button type="button" className="opt-link" onClick={() => sortBy('severityRank')}>Severity {key === 'severityRank' ? (dir === 'asc' ? '▲' : '▼') : ''}</button></th>
+            <th>
+              <button type="button" className="opt-link" onClick={() => sortBy('title')}>
+                Title {key === 'title' ? (dir === 'asc' ? '▲' : '▼') : ''}
+              </button>
+            </th>
+            <th>
+              <button type="button" className="opt-link" onClick={() => sortBy('severityRank')}>
+                Severity {key === 'severityRank' ? (dir === 'asc' ? '▲' : '▼') : ''}
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}><td>{r.title}</td><td>{r.severity}</td></tr>
+          {rows.map(r => (
+            <tr key={r.id}>
+              <td>{r.title}</td>
+              <td>{r.severity}</td>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -822,11 +928,17 @@ export function AckBudgetMeter() {
   };
   return (
     <div className="opt-demo" data-idea="50950">
-      <button type="button" className="opt-btn" onClick={click}>Click me</button>
+      <button type="button" className="opt-btn" onClick={click}>
+        Click me
+      </button>
       <p className="opt-note">
         Budget: {ACK_BUDGET_MS}ms
         {lastMs !== null && (
-          <> · last acknowledgment: {lastMs}ms — {ackWithinBudget(Date.now() - lastMs) ? '✓ within budget' : '⚠ over budget'}</>
+          <>
+            {' '}
+            · last acknowledgment: {lastMs}ms —{' '}
+            {ackWithinBudget(Date.now() - lastMs) ? '✓ within budget' : '⚠ over budget'}
+          </>
         )}
       </p>
     </div>
@@ -841,8 +953,8 @@ export function BatchedFetchDemo() {
   const [batch, setBatch] = useState([]);
   const queueRef = useRef([]);
   const timerRef = useRef(null);
-  const expand = (id) => {
-    setExpanded((s) => new Set(s).add(id));
+  const expand = id => {
+    setExpanded(s => new Set(s).add(id));
     queueRef.current.push(id);
     queueRef.current.push(id); // duplicates happen on rapid double-expand
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -851,11 +963,16 @@ export function BatchedFetchDemo() {
       queueRef.current = [];
     }, 250);
   };
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
+  );
   return (
     <div className="opt-demo" data-idea="50951">
       <div className="opt-btnrow">
-        {['c1', 'c2', 'c3'].map((id) => (
+        {['c1', 'c2', 'c3'].map(id => (
           <button key={id} type="button" className="opt-btn" onClick={() => expand(id)}>
             {expanded.has(id) ? '✓' : '+'} Expand {id}
           </button>
@@ -873,7 +990,9 @@ export function BatchedFetchDemo() {
 /* 50952 — OptimisticPauseResume ---------------------------------------------------------------- */
 
 /** The button flips instantly while the backend confirms asynchronously. */
-export function OptimisticPauseResume({ onCommit = () => new Promise((res) => setTimeout(res, 600)) }) {
+export function OptimisticPauseResume({
+  onCommit = () => new Promise(res => setTimeout(res, 600)),
+}) {
   const [status, setStatus] = useState('running');
   const [confirming, setConfirming] = useState(false);
   const toggle = async () => {
@@ -888,7 +1007,10 @@ export function OptimisticPauseResume({ onCommit = () => new Promise((res) => se
       <button type="button" className="opt-btn" onClick={toggle}>
         {status === 'running' ? '⏸ Pause hunt' : '▶ Resume hunt'}
       </button>
-      <p className="opt-note">status: {status}{confirming ? ' · confirming…' : ''}</p>
+      <p className="opt-note">
+        status: {status}
+        {confirming ? ' · confirming…' : ''}
+      </p>
     </div>
   );
 }
@@ -902,7 +1024,9 @@ export function SkeletonOverSpinner() {
       <div className="opt-compare">
         <div>
           <p className="opt-note">200ms load → {loaderKind(200)}</p>
-          <div className="opt-spinner" role="status">Loading…</div>
+          <div className="opt-spinner" role="status">
+            Loading…
+          </div>
         </div>
         <div>
           <p className="opt-note">900ms load → {loaderKind(900)}</p>
@@ -924,8 +1048,13 @@ export function PriorityContentLoader() {
   return (
     <div className="opt-demo" data-idea="50954">
       <ol className="opt-list">
-        {blocks.map((b) => (
-          <li key={b}>{b} <span className="opt-note">(priority {['title', 'severity', 'summary', 'evidence', 'thumbnail'].indexOf(b)})</span></li>
+        {blocks.map(b => (
+          <li key={b}>
+            {b}{' '}
+            <span className="opt-note">
+              (priority {['title', 'severity', 'summary', 'evidence', 'thumbnail'].indexOf(b)})
+            </span>
+          </li>
         ))}
       </ol>
     </div>
@@ -942,9 +1071,18 @@ export function IdlePreloadIndicator() {
   const ok = canIdlePreload({ idle, documentHidden: hidden, saveData });
   return (
     <div className="opt-demo" data-idea="50955">
-      <label className="opt-check"><input type="checkbox" checked={idle} onChange={(e) => setIdle(e.target.checked)} /> browser idle</label>
-      <label className="opt-check"><input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> tab hidden</label>
-      <label className="opt-check"><input type="checkbox" checked={saveData} onChange={(e) => setSaveData(e.target.checked)} /> metered connection</label>
+      <label className="opt-check">
+        <input type="checkbox" checked={idle} onChange={e => setIdle(e.target.checked)} /> browser
+        idle
+      </label>
+      <label className="opt-check">
+        <input type="checkbox" checked={hidden} onChange={e => setHidden(e.target.checked)} /> tab
+        hidden
+      </label>
+      <label className="opt-check">
+        <input type="checkbox" checked={saveData} onChange={e => setSaveData(e.target.checked)} />{' '}
+        metered connection
+      </label>
       <p className="opt-note">{ok ? '⏬ preloading next hunt in history…' : 'preload paused'}</p>
     </div>
   );
@@ -959,32 +1097,38 @@ export function OptimisticDismissToast() {
     { id: 'n2', text: 'New critical finding' },
   ]);
   const [lastDismissed, setLastDismissed] = useState(null);
-  const dismiss = (id) => {
+  const dismiss = id => {
     const { list, dismissed } = dismissNotification(notes, id);
     setNotes(list);
     setLastDismissed(dismissed);
   };
   const undo = () => {
     if (lastDismissed) {
-      setNotes((n) => [...n, lastDismissed]);
+      setNotes(n => [...n, lastDismissed]);
       setLastDismissed(null);
     }
   };
   return (
     <div className="opt-demo" data-idea="50956">
-      <p className="opt-note">🔔 {notes.length} notification{notes.length === 1 ? '' : 's'}</p>
+      <p className="opt-note">
+        🔔 {notes.length} notification{notes.length === 1 ? '' : 's'}
+      </p>
       <ul className="opt-list">
-        {notes.map((n) => (
+        {notes.map(n => (
           <li key={n.id} className="opt-rowline">
             {n.text}
-            <button type="button" className="opt-btn" onClick={() => dismiss(n.id)}>Dismiss</button>
+            <button type="button" className="opt-btn" onClick={() => dismiss(n.id)}>
+              Dismiss
+            </button>
           </li>
         ))}
       </ul>
       {lastDismissed && (
         <div className={OPT_UNDO_CLASS}>
           Dismissed “{lastDismissed.text}”
-          <button type="button" className="opt-btn" onClick={undo}>Undo</button>
+          <button type="button" className="opt-btn" onClick={undo}>
+            Undo
+          </button>
         </div>
       )}
     </div>
@@ -1002,7 +1146,7 @@ const SEARCH_DOCS = [
 ];
 
 export function WorkerSearchDemo() {
-  const idx = useMemo(() => buildSearchIndex(SEARCH_DOCS, (d) => d.title), []);
+  const idx = useMemo(() => buildSearchIndex(SEARCH_DOCS, d => d.title), []);
   const [q, setQ] = useState('');
   const hits = q ? idx.search(q, 5) : [];
   return (
@@ -1011,10 +1155,10 @@ export function WorkerSearchDemo() {
         aria-label="Worker search"
         placeholder="Search findings (worker index)"
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={e => setQ(e.target.value)}
       />
       <ul className="opt-list">
-        {hits.map((d) => (
+        {hits.map(d => (
           <li key={d.id}>{d.title}</li>
         ))}
       </ul>
@@ -1043,7 +1187,7 @@ export function StreamingStepLog() {
       }
       const phase = STEP_PHASES[i];
       i += 1;
-      setLog((l) => appendStepLog(l, { phase, detail: `${phase} complete` }));
+      setLog(l => appendStepLog(l, { phase, detail: `${phase} complete` }));
     }, 450);
   };
   return (
@@ -1052,8 +1196,10 @@ export function StreamingStepLog() {
         {running ? 'Streaming…' : 'Run hunt steps'}
       </button>
       <ol className="opt-list">
-        {log.map((e) => (
-          <li key={e.seq}>#{e.seq} {e.phase} — {e.detail}</li>
+        {log.map(e => (
+          <li key={e.seq}>
+            #{e.seq} {e.phase} — {e.detail}
+          </li>
         ))}
       </ol>
     </div>
@@ -1079,7 +1225,14 @@ export function OptimisticFpDismiss() {
         {undo && (
           <div className={OPT_UNDO_CLASS}>
             Dismissed as false positive
-            <button type="button" className="opt-btn" onClick={() => { setCard({ id: 'fp1', title: 'Verbose error on /login' }); setUndo(null); }}>
+            <button
+              type="button"
+              className="opt-btn"
+              onClick={() => {
+                setCard({ id: 'fp1', title: 'Verbose error on /login' });
+                setUndo(null);
+              }}
+            >
               {undo.label}
             </button>
           </div>
@@ -1091,7 +1244,9 @@ export function OptimisticFpDismiss() {
     <div className="opt-demo" data-idea="50959">
       <div className="opt-rowline">
         <span>{card.title}</span>
-        <button type="button" className="opt-btn" onClick={dismiss}>Dismiss as FP</button>
+        <button type="button" className="opt-btn" onClick={dismiss}>
+          Dismiss as FP
+        </button>
       </div>
     </div>
   );
@@ -1102,11 +1257,14 @@ export function OptimisticFpDismiss() {
 /** Analytics and tips load after the interactive core is ready. */
 export function DeferredJsNote() {
   const [coreReady, setCoreReady] = useState(false);
-  const ready = coreInteractiveReady({ firstPaintMs: coreReady ? 180 : 0, handlersBound: coreReady });
+  const ready = coreInteractiveReady({
+    firstPaintMs: coreReady ? 180 : 0,
+    handlersBound: coreReady,
+  });
   return (
     <div className="opt-demo" data-idea="50960">
       <label className="opt-check">
-        <input type="checkbox" checked={coreReady} onChange={(e) => setCoreReady(e.target.checked)} />
+        <input type="checkbox" checked={coreReady} onChange={e => setCoreReady(e.target.checked)} />
         Interactive core ready (first paint + handlers)
       </label>
       <p className="opt-note">
@@ -1159,7 +1317,9 @@ export function OptimisticSuiteGallery() {
       <h2>Optimistic / performance suite — 50930–50960</h2>
       {GALLERY.map(([id, name, C]) => (
         <section key={id} className="opt-section">
-          <h3>{id} · {name}</h3>
+          <h3>
+            {id} · {name}
+          </h3>
           <C />
         </section>
       ))}

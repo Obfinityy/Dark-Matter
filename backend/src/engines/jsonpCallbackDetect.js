@@ -12,8 +12,16 @@
 
 /** Common JSONP callback parameter names, ordered by prevalence. */
 export const CALLBACK_PARAM_NAMES = [
-  'callback', 'cb', 'jsonp', 'jsoncallback', '_callback', '_jsonp',
-  'jscallback', 'function', 'fn', 'handler',
+  'callback',
+  'cb',
+  'jsonp',
+  'jsoncallback',
+  '_callback',
+  '_jsonp',
+  'jscallback',
+  'function',
+  'fn',
+  'handler',
 ];
 
 /**
@@ -24,12 +32,16 @@ export const CALLBACK_PARAM_NAMES = [
 export function extractCallbackParams(query) {
   const out = [];
   if (!query) return out;
-  const pairs = typeof query === 'string'
-    ? query.replace(/^[?#]/, '').split('&').map((p) => {
-        const i = p.indexOf('=');
-        return i === -1 ? [p, ''] : [p.slice(0, i), p.slice(i + 1)];
-      })
-    : Object.entries(query);
+  const pairs =
+    typeof query === 'string'
+      ? query
+          .replace(/^[?#]/, '')
+          .split('&')
+          .map(p => {
+            const i = p.indexOf('=');
+            return i === -1 ? [p, ''] : [p.slice(0, i), p.slice(i + 1)];
+          })
+      : Object.entries(query);
   for (const [rawName, rawValue] of pairs) {
     let name;
     let value;
@@ -53,13 +65,18 @@ export function extractCallbackParams(query) {
  * @returns {{wrapped:boolean, prefix:string|null, suffix:string|null}}
  */
 export function isWrappedInCallback(body, callbackName) {
-  if (!body || !callbackName || typeof body !== 'string') return { wrapped: false, prefix: null, suffix: null };
+  if (!body || !callbackName || typeof body !== 'string')
+    return { wrapped: false, prefix: null, suffix: null };
   const trimmed = body.trim();
   const escaped = callbackName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const m = trimmed.match(new RegExp(`^${escaped}\\s*\\(`));
   if (!m) return { wrapped: false, prefix: null, suffix: null };
   const suffixOk = /\)\s*;?\s*$/.test(trimmed);
-  return { wrapped: suffixOk, prefix: m[0], suffix: suffixOk ? trimmed.slice(trimmed.lastIndexOf(')')) : null };
+  return {
+    wrapped: suffixOk,
+    prefix: m[0],
+    suffix: suffixOk ? trimmed.slice(trimmed.lastIndexOf(')')) : null,
+  };
 }
 
 /**
@@ -69,7 +86,9 @@ export function isWrappedInCallback(body, callbackName) {
  * @returns {boolean}
  */
 export function isPlausibleCallbackIdentifier(value) {
-  return typeof value === 'string' && /^[A-Za-z_$][A-Za-z0-9_$.]*$/.test(value) && value.length <= 128;
+  return (
+    typeof value === 'string' && /^[A-Za-z_$][A-Za-z0-9_$.]*$/.test(value) && value.length <= 128
+  );
 }
 
 /**
@@ -83,7 +102,13 @@ export function detectJsonp(obs) {
   const contentType = o.contentType || null;
   const notes = [];
   if (params.length === 0) {
-    return { isJsonp: false, confidence: 'none', callback: null, contentType, notes: ['no recognized callback parameter present'] };
+    return {
+      isJsonp: false,
+      confidence: 'none',
+      callback: null,
+      contentType,
+      notes: ['no recognized callback parameter present'],
+    };
   }
   const body = typeof o.body === 'string' ? o.body : '';
   let best = null;
@@ -96,12 +121,17 @@ export function detectJsonp(obs) {
     }
   }
   if (!best) {
-    if (/javascript/i.test(contentType || '')) notes.push('callback parameter present with a JavaScript content type but no wrapping detected');
+    if (/javascript/i.test(contentType || ''))
+      notes.push(
+        'callback parameter present with a JavaScript content type but no wrapping detected'
+      );
     return { isJsonp: false, confidence: 'low', callback: params[0], contentType, notes };
   }
   if (/json/i.test(contentType || '')) notes.push('JSONP wrapper served with a JSON content type');
   if (!isPlausibleCallbackIdentifier(best.param.value)) {
-    notes.push('callback value is not a valid JS identifier — reflection here indicates a separate injection concern');
+    notes.push(
+      'callback value is not a valid JS identifier — reflection here indicates a separate injection concern'
+    );
   }
   const confidence = /javascript/i.test(contentType || '') ? 'high' : 'medium';
   notes.unshift(`callback parameter "${best.param.name}" reflected as function wrapper`);
@@ -119,7 +149,12 @@ export function findJsonpEndpoints(observations) {
   for (const o of list) {
     const r = detectJsonp(o);
     if (r.isJsonp) {
-      hits.push({ url: o.url || null, callback: r.callback, confidence: r.confidence, notes: r.notes });
+      hits.push({
+        url: o.url || null,
+        callback: r.callback,
+        confidence: r.confidence,
+        notes: r.notes,
+      });
     }
   }
   return hits.sort((a, b) => (b.confidence === 'high') - (a.confidence === 'high'));

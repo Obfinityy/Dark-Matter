@@ -35,10 +35,20 @@ export class HuntScheduler {
     if (cadence === 'once') return null;
     const ms = CADENCE_MS[cadence];
     if (!ms) throw new Error(`Unknown cadence: ${cadence}`);
-    return new Date((from instanceof Date ? from.getTime() : new Date(from).getTime()) + ms).toISOString();
+    return new Date(
+      (from instanceof Date ? from.getTime() : new Date(from).getTime()) + ms
+    ).toISOString();
   }
 
-  async schedule({ userId, name, target, scope, objective = null, cadence = 'weekly', nextRunAt = null }) {
+  async schedule({
+    userId,
+    name,
+    target,
+    scope,
+    objective = null,
+    cadence = 'weekly',
+    nextRunAt = null,
+  }) {
     if (!['once', 'daily', 'weekly'].includes(cadence)) {
       throw new Error(`Unknown cadence: ${cadence}`);
     }
@@ -81,7 +91,8 @@ export class HuntScheduler {
           userId: schedule.userId,
           target: schedule.target,
           scope: schedule.scope,
-          objective: schedule.objective || `Scheduled ${schedule.cadence} hunt of ${schedule.target}`,
+          objective:
+            schedule.objective || `Scheduled ${schedule.cadence} hunt of ${schedule.target}`,
           origin: { kind: 'schedule', scheduleId: schedule.id },
         });
 
@@ -89,14 +100,16 @@ export class HuntScheduler {
         fired.push({ scheduleId: schedule.id, jobId: job.id });
 
         if (this.alertService) {
-          await this.alertService.notify({
-            userId: schedule.userId,
-            type: 'hunt_started',
-            title: `Scheduled hunt started: ${schedule.target}`,
-            body: `The "${schedule.name}" schedule fired and the agent is now hunting ${schedule.target}.`,
-            jobId: job.id,
-            metadata: { scheduleId: schedule.id, cadence: schedule.cadence },
-          }).catch((err) => this.logger.warn('[scheduler] alert failed', err.message));
+          await this.alertService
+            .notify({
+              userId: schedule.userId,
+              type: 'hunt_started',
+              title: `Scheduled hunt started: ${schedule.target}`,
+              body: `The "${schedule.name}" schedule fired and the agent is now hunting ${schedule.target}.`,
+              jobId: job.id,
+              metadata: { scheduleId: schedule.id, cadence: schedule.cadence },
+            })
+            .catch(err => this.logger.warn('[scheduler] alert failed', err.message));
         }
       } catch (err) {
         this.logger.warn(`[scheduler] failed to fire schedule ${schedule.id}`, err.message);

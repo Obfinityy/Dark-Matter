@@ -17,7 +17,7 @@
  * bug-bounty agent. No network fetching, no exploit payloads.
  */
 
-const ATTR_RE = (name) => new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, 'i');
+const ATTR_RE = name => new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, 'i');
 
 function attrValue(attrs, name) {
   const m = ATTR_RE(name).exec(attrs || '');
@@ -33,7 +33,10 @@ function elementLabel(tag, attrs) {
 }
 
 function stripTags(html) {
-  return String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return String(html)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function isHiddenAttrs(attrs) {
@@ -79,7 +82,7 @@ function extractForms(html) {
   // Unclosed <form> tags still count as crawl surface.
   const openRe = /<form\b([^>]*)>/gi;
   while ((m = openRe.exec(text)) !== null) {
-    if (!forms.some((f) => f.start === m.index)) {
+    if (!forms.some(f => f.start === m.index)) {
       forms.push({ attrs: m[1], inner: '', start: m.index, end: m.index });
     }
   }
@@ -137,7 +140,7 @@ export function harvestAriaDescribedByTargets(html = '') {
  * @returns {{ form: string, action: string, method: string }[]}
  */
 export function catalogFormActions(html = '') {
-  return extractForms(html).map((f) => ({
+  return extractForms(html).map(f => ({
     form: formLabel(f.attrs),
     action: attrValue(f.attrs, 'action'),
     method: (attrValue(f.attrs, 'method') || 'GET').toUpperCase(),
@@ -206,7 +209,7 @@ export function harvestInputNames(html = '') {
   while ((m = fieldRe.exec(text)) !== null) {
     const name = attrValue(m[2], 'name');
     if (!name || byName.has(name)) continue;
-    const owner = forms.find((f) => m.index >= f.start && m.index <= f.end);
+    const owner = forms.find(f => m.index >= f.start && m.index <= f.end);
     byName.set(name, {
       name,
       tag: m[1],
@@ -405,10 +408,7 @@ export function mapSearchSuggestionApis(html = '') {
 /* 770 — Pagination-link pattern inference                              */
 /* ------------------------------------------------------------------ */
 
-const PAGE_PATTERN_RES = [
-  /([?&](?:page|p|pg|offset)=)(\d+)/i,
-  /(\/(?:page|p|seiten?)\/)(\d+)/i,
-];
+const PAGE_PATTERN_RES = [/([?&](?:page|p|pg|offset)=)(\d+)/i, /(\/(?:page|p|seiten?)\/)(\d+)/i];
 
 /**
  * Infer pagination URL patterns from page-numbered links and return a
@@ -441,7 +441,7 @@ export function inferPaginationPatterns(html = '') {
     pattern,
     exampleUrls: g.exampleUrls,
     count: g.count,
-    generator: (page) => pattern.replace('{n}', String(page)),
+    generator: page => pattern.replace('{n}', String(page)),
   }));
 }
 
@@ -467,8 +467,10 @@ export const FORM_SURFACE_IDEAS = {
  * @returns {{ covered: number, total: number }}
  */
 export function registryComplete() {
-  const ids = Object.keys(FORM_SURFACE_IDEAS).map(Number).sort((a, b) => a - b);
-  const covered = ids.filter((id) => id >= 761 && id <= 770 && FORM_SURFACE_IDEAS[id]).length;
+  const ids = Object.keys(FORM_SURFACE_IDEAS)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const covered = ids.filter(id => id >= 761 && id <= 770 && FORM_SURFACE_IDEAS[id]).length;
   return { covered, total: 10 };
 }
 

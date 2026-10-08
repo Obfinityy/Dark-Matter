@@ -10,12 +10,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  WAVE37_EX_IDEAS, WAVE37_EX_START, WAVE37_EX_END,
-  faqForFinding, diffExplanations, clarityMeter,
-  plainTitle, oneLineTakeaway,
-  SHARE_LEVELS, sharePackage,
+  WAVE37_EX_IDEAS,
+  WAVE37_EX_START,
+  WAVE37_EX_END,
+  faqForFinding,
+  diffExplanations,
+  clarityMeter,
+  plainTitle,
+  oneLineTakeaway,
+  SHARE_LEVELS,
+  sharePackage,
   audioScript,
-  recordExplanationEvent, analyticsSummary,
+  recordExplanationEvent,
+  analyticsSummary,
   explanationStaleness,
   crossFindingSummary,
   citationsFor,
@@ -23,20 +30,30 @@ import {
 } from './explainabilityRound3Core.js';
 
 import {
-  WAVE37_TQ_IDEAS, WAVE37_TQ_START, WAVE37_TQ_END,
+  WAVE37_TQ_IDEAS,
+  WAVE37_TQ_START,
+  WAVE37_TQ_END,
   WAVE37_IDEAS,
-  TECHNIQUE_CATALOG, lookupTechnique,
-  parseTestRequest, normalizeVoiceTranscript,
-  WIZARD_STEPS, validateWizardStep,
+  TECHNIQUE_CATALOG,
+  lookupTechnique,
+  parseTestRequest,
+  normalizeVoiceTranscript,
+  WIZARD_STEPS,
+  validateWizardStep,
   buildTargetDescriptor,
   validatePayload,
-  PRIORITIES, priorityWeight,
-  enqueueTest, queueStatus, cancelTest,
-  explainResult, resultAlert,
+  PRIORITIES,
+  priorityWeight,
+  enqueueTest,
+  queueStatus,
+  cancelTest,
+  explainResult,
+  resultAlert,
   estimateTestCost,
   safetyCheck,
   routeForApproval,
-  saveTemplate, applyTemplate,
+  saveTemplate,
+  applyTemplate,
   chainTests,
   scheduleTest,
   repeatTest,
@@ -44,18 +61,24 @@ import {
   attachNote,
   captureEvidence,
   shareTestLink,
-  recordTestHistory, searchTestHistory,
+  recordTestHistory,
+  searchTestHistory,
   suggestTests,
   bulkRequests,
   tuneParams,
-  sandboxReplica, isSandboxSafe,
+  sandboxReplica,
+  isSandboxSafe,
   dryRun,
 } from './testRequestCore.js';
 
 const F = {
-  id: 'F-1042', type: 'sql-injection', severity: 'high',
-  title: 'SQL injection in login form', location: '/api/login',
-  confidence: 87, businessUnit: 'customer portal',
+  id: 'F-1042',
+  type: 'sql-injection',
+  severity: 'high',
+  title: 'SQL injection in login form',
+  location: '/api/login',
+  confidence: 87,
+  businessUnit: 'customer portal',
   evidence: ['POST /api/login returned 12 rows instead of 1', 'error leaked table name "users"'],
 };
 
@@ -88,7 +111,7 @@ test('combined wave-37 registry is exactly 40/40 ideas, 51441–51480', () => {
   assert.equal(WAVE37_IDEAS.length, 28);
   assert.deepEqual(
     WAVE37_EX_IDEAS.map(([n]) => n).concat(WAVE37_TQ_IDEAS.map(([n]) => n)),
-    Array.from({ length: 40 }, (_, i) => 51441 + i),
+    Array.from({ length: 40 }, (_, i) => 51441 + i)
   );
 });
 
@@ -96,7 +119,7 @@ test('combined wave-37 registry is exactly 40/40 ideas, 51441–51480', () => {
 test('51441 faqForFinding builds 5 answered questions from the finding', () => {
   const faqs = faqForFinding(F);
   assert.equal(faqs.length, 5);
-  faqs.forEach((f) => {
+  faqs.forEach(f => {
     assert.ok(f.q.endsWith('?'));
     assert.ok(f.a.length > 10);
   });
@@ -124,7 +147,10 @@ test('51444/51445 plainTitle + oneLineTakeaway are human-readable', () => {
 });
 
 test('51446 sharePackage respects the three stakeholder levels', () => {
-  assert.deepEqual(SHARE_LEVELS.map((l) => l.id), ['exec', 'team', 'tech']);
+  assert.deepEqual(
+    SHARE_LEVELS.map(l => l.id),
+    ['exec', 'team', 'tech']
+  );
   const exec = sharePackage(F, 'exec');
   assert.equal(exec.level, 'exec');
   assert.ok(exec.takeaway);
@@ -162,7 +188,7 @@ test('51449 explanationStaleness detects confidence/severity/evidence drift', ()
 test('51450 crossFindingSummary synthesizes findings in plain words', () => {
   const s = crossFindingSummary(
     [F, { ...F, id: 'F-2', severity: 'medium', type: 'xss' }],
-    'your login system',
+    'your login system'
   );
   assert.ok(s.includes('your login system'));
   assert.ok(s.includes('2 findings'));
@@ -215,7 +241,10 @@ test('51454 wizard validation walks target → technique → confirm', () => {
   assert.equal(validateWizardStep('target', { target: '/x' }).ok, true);
   assert.equal(validateWizardStep('technique', { technique: 'sqli' }).ok, true);
   assert.equal(validateWizardStep('technique', { technique: 'bogus' }).ok, false);
-  assert.equal(validateWizardStep('confirm', { target: '/x', technique: 'sqli', acknowledged: true }).ok, true);
+  assert.equal(
+    validateWizardStep('confirm', { target: '/x', technique: 'sqli', acknowledged: true }).ok,
+    true
+  );
 });
 
 test('51455 buildTargetDescriptor composes url/form/param', () => {
@@ -251,10 +280,17 @@ test('51459/51460 queue enqueue + status + cancel', () => {
 });
 
 test('51461/51471 result alerts + explanations state the verdict plainly', () => {
-  const a = resultAlert({ id: 'tq-1' }, { vulnerable: true, technique: 'SQL injection', target: '/api/login' });
+  const a = resultAlert(
+    { id: 'tq-1' },
+    { vulnerable: true, technique: 'SQL injection', target: '/api/login' }
+  );
   assert.equal(a.severity, 'attention');
   assert.ok(a.verdict.includes('Vulnerable'));
-  assert.ok(explainResult({ vulnerable: false, technique: 'headers', target: '/x' }).includes('Not vulnerable'));
+  assert.ok(
+    explainResult({ vulnerable: false, technique: 'headers', target: '/x' }).includes(
+      'Not vulnerable'
+    )
+  );
   assert.ok(explainResult({ error: 'timeout' }).includes('errored'));
 });
 
@@ -270,14 +306,17 @@ test('51463 safetyCheck warns on risky techniques + missing targets', () => {
   const risky = safetyCheck({ technique: 'ssrf', target: '/x' });
   assert.equal(risky.safe, false);
   assert.ok(risky.warnings.length >= 1);
-  assert.ok(safetyCheck({ technique: 'headers' }).warnings.some((w) => w.includes('No target')));
+  assert.ok(safetyCheck({ technique: 'headers' }).warnings.some(w => w.includes('No target')));
 });
 
 test('51464 routeForApproval gates medium-risk + urgent + custom-payload tests', () => {
   assert.equal(routeForApproval({ technique: 'headers', target: '/x' }).needsApproval, false);
   assert.equal(routeForApproval({ technique: 'ssrf', target: '/x' }).needsApproval, true);
   assert.equal(routeForApproval({ technique: 'ssrf', target: '/x' }).tier, 'security-lead');
-  assert.equal(routeForApproval({ technique: 'headers', target: '/x', priority: 'urgent' }).needsApproval, true);
+  assert.equal(
+    routeForApproval({ technique: 'headers', target: '/x', priority: 'urgent' }).needsApproval,
+    true
+  );
 });
 
 test('51465 templates save + apply with overrides', () => {
@@ -292,7 +331,10 @@ test('51465 templates save + apply with overrides', () => {
 });
 
 test('51466 chainTests builds a conditional follow-up', () => {
-  const c = chainTests({ technique: 'sqli', target: '/a' }, 'if vulnerable', { technique: 'idor', target: '/b' });
+  const c = chainTests({ technique: 'sqli', target: '/a' }, 'if vulnerable', {
+    technique: 'idor',
+    target: '/b',
+  });
   assert.ok(c.description.includes('idor'));
   assert.ok(c.description.includes('if vulnerable'));
 });
@@ -304,7 +346,11 @@ test('51467 scheduleTest stamps a when', () => {
 });
 
 test('51468 repeatTest clones history entries against a new target', () => {
-  const r = repeatTest([{ id: 'tq-9', technique: 'sqli', target: '/a', status: 'done' }], 'tq-9', '/b');
+  const r = repeatTest(
+    [{ id: 'tq-9', technique: 'sqli', target: '/a', status: 'done' }],
+    'tq-9',
+    '/b'
+  );
   assert.equal(r.ok, true);
   assert.equal(r.test.target, '/b');
   assert.equal(r.test.status, 'queued');
@@ -326,7 +372,11 @@ test('51470 attachNote stores the hypothesis on the test', () => {
 });
 
 test('51472 captureEvidence stores request/response per test', () => {
-  const ev = captureEvidence({ id: 'tq-1', technique: 'sqli', target: '/a' }, { m: 'POST' }, { s: 200 });
+  const ev = captureEvidence(
+    { id: 'tq-1', technique: 'sqli', target: '/a' },
+    { m: 'POST' },
+    { s: 200 }
+  );
   assert.equal(ev.testId, 'tq-1');
   assert.equal(ev.captured, true);
   assert.deepEqual(ev.request, { m: 'POST' });
@@ -339,7 +389,12 @@ test('51473 shareTestLink produces a review path', () => {
 });
 
 test('51475 history records + searchable', () => {
-  let h = recordTestHistory([], { id: 'tq-1', technique: 'sqli', target: '/api/login', note: 'bypass' });
+  let h = recordTestHistory([], {
+    id: 'tq-1',
+    technique: 'sqli',
+    target: '/api/login',
+    note: 'bypass',
+  });
   h = recordTestHistory(h, { id: 'tq-2', technique: 'xss', target: '/profile', note: 'stored' });
   assert.equal(searchTestHistory(h, 'login').length, 1);
   assert.equal(searchTestHistory(h, '').length, 2);
@@ -349,7 +404,7 @@ test('51476 suggestTests proposes tests from discovery context', () => {
   const sug = suggestTests([{ id: 'F-1', type: 'x', location: '/api/login' }], 5);
   assert.ok(sug.length >= 1);
   assert.ok(sug[0].why.length > 5);
-  assert.ok(sug.every((s) => lookupTechnique(s.technique)));
+  assert.ok(sug.every(s => lookupTechnique(s.technique)));
 });
 
 test('51477 bulkRequests expands targets into a batch', () => {
@@ -360,7 +415,10 @@ test('51477 bulkRequests expands targets into a batch', () => {
 });
 
 test('51478 tuneParams clamps depth/payloads/timeout', () => {
-  const t = tuneParams({ technique: 'dirbrute' }, { depth: 99, payloadCount: -5, timeoutMs: 999999 });
+  const t = tuneParams(
+    { technique: 'dirbrute' },
+    { depth: 99, payloadCount: -5, timeoutMs: 999999 }
+  );
   assert.equal(t.tuning.depth, 5);
   assert.equal(t.tuning.payloadCount, 1);
   assert.equal(t.tuning.timeoutMs, 120000);
@@ -374,7 +432,12 @@ test('51479 sandboxReplica is isolated + sandbox-safe for low-risk tests', () =>
 });
 
 test('51480 dryRun previews exactly what will be sent', () => {
-  const d = dryRun({ technique: 'sqli', target: '/api/login', param: 'username', priority: 'normal' });
+  const d = dryRun({
+    technique: 'sqli',
+    target: '/api/login',
+    param: 'username',
+    priority: 'normal',
+  });
   assert.equal(d.technique, 'SQL injection');
   assert.equal(d.target, '/api/login');
   assert.ok(d.cost.label.includes('requests'));
@@ -390,7 +453,13 @@ test('Wave37.css carries zero keyframes per the zero-animation order', async () 
 
 test('all five wave-37 files have no TODO/FIXME/mock/demo/simulate/placeholder debris', async () => {
   const { readFile } = await import('node:fs/promises');
-  const files = ['./explainabilityRound3Core.js', './testRequestCore.js', './ExplainabilityRound3.jsx', './TestRequestSuite.jsx', './Wave37.css'];
+  const files = [
+    './explainabilityRound3Core.js',
+    './testRequestCore.js',
+    './ExplainabilityRound3.jsx',
+    './TestRequestSuite.jsx',
+    './Wave37.css',
+  ];
   for (const f of files) {
     const src = await readFile(new URL(f, import.meta.url), 'utf8');
     assert.ok(!/\bTODO\b|\bFIXME\b/i.test(src), `no TODO/FIXME in ${f}`);
@@ -405,7 +474,10 @@ test('ExplainabilityRound3.jsx parses clean via esbuild', async () => {
   const { execFileSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const jsxPath = fileURLToPath(new URL('./ExplainabilityRound3.jsx', import.meta.url));
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('Wave37ExplainGallery'), 'esbuild parsed the explain gallery export');
 });
 
@@ -413,6 +485,9 @@ test('TestRequestSuite.jsx parses clean via esbuild', async () => {
   const { execFileSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const jsxPath = fileURLToPath(new URL('./TestRequestSuite.jsx', import.meta.url));
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('Wave37TestGallery'), 'esbuild parsed the test gallery export');
 });

@@ -3,18 +3,30 @@
  * comfortable mobile tap targets, calm horizontal chip scrolling,
  * and motion that respects the user's preference. */
 
-.dm-chat { scroll-margin-top: 90px; }
+.dm-chat {
+  scroll-margin-top: 90px;
+}
 
-.dm-chat-head { gap: 12px; }
+.dm-chat-head {
+  gap: 12px;
+}
 
-.dm-chat-log { scroll-behavior: smooth; }
+.dm-chat-log {
+  scroll-behavior: smooth;
+}
 
-.dm-chat-msg { min-width: 0; }
+.dm-chat-msg {
+  min-width: 0;
+}
 
-.dm-chat-bubble { overflow-wrap: anywhere; }
+.dm-chat-bubble {
+  overflow-wrap: anywhere;
+}
 
 /* Chips: keep them reachable on narrow screens without wrapping chaos. */
-.dm-chat-chips { max-width: 100%; }
+.dm-chat-chips {
+  max-width: 100%;
+}
 @media (max-width: 640px) {
   .dm-chat-chips {
     flex-wrap: nowrap;
@@ -22,7 +34,9 @@
     padding-bottom: 4px;
     scrollbar-width: thin;
   }
-  .dm-chat-chip { flex: none; }
+  .dm-chat-chip {
+    flex: none;
+  }
 }
 
 /* Focus visibility everywhere interactive. */
@@ -36,36 +50,76 @@
   outline: 2px solid var(--accent, #10b981);
   outline-offset: 2px;
 }
-.dm-chat-chip:focus-visible { background: rgba(16,185,129,0.24); }
+.dm-chat-chip:focus-visible {
+  background: rgba(16, 185, 129, 0.24);
+}
 
-.dm-chat-send:hover:not(:disabled) { filter: brightness(1.08); }
-.dm-chat-send:active:not(:disabled) { transform: scale(0.96); }
-.dm-chat-send:disabled { opacity: 0.45; cursor: not-allowed; }
+.dm-chat-send:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.dm-chat-send:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.dm-chat-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* Mobile: 44px tap targets, tighter but breathable spacing. */
 @media (max-width: 640px) {
-  .dm-chat { min-height: 480px; max-height: calc(100vh - 160px); }
-  .dm-chat-head { padding: 12px 14px; }
-  .dm-chat-log { padding: 14px; gap: 12px; }
-  .dm-chat-form { padding: 12px; gap: 8px; }
-  .dm-chat-form input { min-height: 44px; font-size: 16px !important; /* prevents iOS zoom */ }
-  .dm-chat-send { flex-basis: 48px; width: 48px; min-height: 48px; }
-  .dm-chat-voice-stop { min-height: 44px; padding: 10px 14px; }
-  .dm-chat-msg { max-width: 94%; }
-  .dm-chat-chip { min-height: 40px; display: inline-flex; align-items: center; }
+  .dm-chat {
+    min-height: 480px;
+    max-height: calc(100vh - 160px);
+  }
+  .dm-chat-head {
+    padding: 12px 14px;
+  }
+  .dm-chat-log {
+    padding: 14px;
+    gap: 12px;
+  }
+  .dm-chat-form {
+    padding: 12px;
+    gap: 8px;
+  }
+  .dm-chat-form input {
+    min-height: 44px;
+    font-size: 16px !important; /* prevents iOS zoom */
+  }
+  .dm-chat-send {
+    flex-basis: 48px;
+    width: 48px;
+    min-height: 48px;
+  }
+  .dm-chat-voice-stop {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+  .dm-chat-msg {
+    max-width: 94%;
+  }
+  .dm-chat-chip {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 /* Empty state: a little more presence and rhythm. */
-.dm-chat-empty { gap: 12px; }
-.dm-chat-empty svg { opacity: 0.65; }
+.dm-chat-empty {
+  gap: 12px;
+}
+.dm-chat-empty svg {
+  opacity: 0.65;
+}
 
 .dm-chat-hint {
   margin: 0;
   padding: 10px 16px 12px;
   font-size: 11.5px;
   color: var(--dm-faint, #6b7280);
-  border-top: 1px solid var(--dm-border-soft, rgba(255,255,255,0.06));
-  background: rgba(0,0,0,0.18);
+  border-top: 1px solid var(--dm-border-soft, rgba(255, 255, 255, 0.06));
+  background: rgba(0, 0, 0, 0.18);
   line-height: 1.5;
 }
 
@@ -77,14 +131,27 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border-top: 1px solid var(--dm-border-soft, rgba(255,255,255,0.06));
+  border-top: 1px solid var(--dm-border-soft, rgba(255, 255, 255, 0.06));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dm-chat-log { scroll-behavior: auto; }
-  .dm-chat-msg { animation: none; }
-  .dm-chat-typing span { animation: none; opacity: 0.7; }
-  .dm-chat-status.on .dm-live-dot { animation: none; }
-  .dm-chat-send { transition: none; }
-  .dm-chat-chip { transition: none; }
+  .dm-chat-log {
+    scroll-behavior: auto;
+  }
+  .dm-chat-msg {
+    animation: none;
+  }
+  .dm-chat-typing span {
+    animation: none;
+    opacity: 0.7;
+  }
+  .dm-chat-status.on .dm-live-dot {
+    animation: none;
+  }
+  .dm-chat-send {
+    transition: none;
+  }
+  .dm-chat-chip {
+    transition: none;
+  }
 }

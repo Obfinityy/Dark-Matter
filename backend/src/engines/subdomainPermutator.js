@@ -13,19 +13,64 @@
  */
 
 const ENV_LABELS = [
-  'dev', 'development', 'test', 'testing', 'qa', 'stage', 'staging',
-  'prod', 'production', 'preprod', 'uat', 'demo', 'beta', 'alpha',
-  'sandbox', 'internal', 'external',
+  'dev',
+  'development',
+  'test',
+  'testing',
+  'qa',
+  'stage',
+  'staging',
+  'prod',
+  'production',
+  'preprod',
+  'uat',
+  'demo',
+  'beta',
+  'alpha',
+  'sandbox',
+  'internal',
+  'external',
 ];
 
-const COMMON_PREFIXES = ['api', 'app', 'web', 'admin', 'portal', 'vpn', 'mail', 'cdn', 'static', 'assets', 'auth', 'login', 'sso'];
-const COMMON_SUFFIXES = ['api', 'app', 'web', 'admin', 'portal', 'db', 'cache', 'cdn', 'static', 'internal', 'svc', 'service', 'node'];
+const COMMON_PREFIXES = [
+  'api',
+  'app',
+  'web',
+  'admin',
+  'portal',
+  'vpn',
+  'mail',
+  'cdn',
+  'static',
+  'assets',
+  'auth',
+  'login',
+  'sso',
+];
+const COMMON_SUFFIXES = [
+  'api',
+  'app',
+  'web',
+  'admin',
+  'portal',
+  'db',
+  'cache',
+  'cdn',
+  'static',
+  'internal',
+  'svc',
+  'service',
+  'node',
+];
 
 /**
  * Split a subdomain label into tokens on hyphens/underscores/dots.
  */
 export function tokenizeLabel(label) {
-  return String(label || '').toLowerCase().split(/[-_.]+/).filter(Boolean);
+  return String(label || '')
+    .toLowerCase()
+    .split(/[-_.]+/)
+    .filter(Boolean);
 }
 
 /**
@@ -78,7 +123,9 @@ export function environmentSwaps(tokens) {
  * @returns {string[]} label-level permutations (registrable label, no trailing domain)
  */
 export function permutationsForSubdomain(subdomain) {
-  const full = String(subdomain || '').toLowerCase().trim();
+  const full = String(subdomain || '')
+    .toLowerCase()
+    .trim();
   if (!full) return [];
   const label = full.split('.')[0];
   const out = new Set();
@@ -127,14 +174,21 @@ export function permutationsForSubdomain(subdomain) {
  */
 export function generatePermutations(knownSubdomains = [], domain = '', options = {}) {
   const maxPer = options.maxPerSubdomain ?? 200;
-  const base = String(domain || '').toLowerCase().replace(/\.$/, '');
+  const base = String(domain || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const seen = new Set();
   const out = [];
   for (const sub of knownSubdomains) {
     const perms = permutationsForSubdomain(sub).slice(0, maxPer);
     for (const p of perms) {
-      const fqdn = base && !p.includes('.') ? `${p}.${base}` : (p.includes('.') && base && !p.endsWith(base) ? `${p}.${base}` : p);
-      const finalName = fqdn.includes('.') ? fqdn : (base ? `${fqdn}.${base}` : fqdn);
+      const fqdn =
+        base && !p.includes('.')
+          ? `${p}.${base}`
+          : p.includes('.') && base && !p.endsWith(base)
+            ? `${p}.${base}`
+            : p;
+      const finalName = fqdn.includes('.') ? fqdn : base ? `${fqdn}.${base}` : fqdn;
       if (seen.has(finalName)) continue;
       seen.add(finalName);
       out.push(finalName);

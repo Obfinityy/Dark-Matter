@@ -18,7 +18,7 @@ export class EventService {
       level: input.level || 'INFO',
       message: String(input.message || ''),
       data: input.data || null,
-      timestamp: now()
+      timestamp: now(),
     };
     await this.collection.insertOne(event);
     for (const listener of this.listeners.get(scanId) || []) listener(event);

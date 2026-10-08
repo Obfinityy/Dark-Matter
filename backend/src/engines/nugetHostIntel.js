@@ -16,14 +16,17 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  const s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  const s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   if (/^(mailto|tel):/i.test(s)) return null;
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`;
   try {
     const u = new URL(withScheme);
     const h = u.hostname.toLowerCase();
     if (!h || h === 'localhost') return null;
-    if (/\.?nuget\.org$/.test(h) || /\.microsoft\.com$/.test(h) || /\.azureedge\.net$/.test(h)) return null;
+    if (/\.?nuget\.org$/.test(h) || /\.microsoft\.com$/.test(h) || /\.azureedge\.net$/.test(h))
+      return null;
     if (/\.github\.com$/.test(h) || /\.gitlab\.com$/.test(h)) return null;
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(h)) return null;
     return h;
@@ -52,7 +55,7 @@ export function parseNugetPackageHosts(catalogEntry) {
     hits.push({ host, provenance, ...(detail ? { detail } : {}) });
   };
 
-  const e = (catalogEntry && typeof catalogEntry === 'object') ? catalogEntry : {};
+  const e = catalogEntry && typeof catalogEntry === 'object' ? catalogEntry : {};
   const pkg = e.id || e.packageId || null;
 
   for (const field of ['projectUrl', 'licenseUrl', 'iconUrl', 'repositoryUrl']) {
@@ -76,7 +79,7 @@ export function parseNugetPackageHosts(catalogEntry) {
   }
 
   // authors may embed contact e-mails ("Name <dev@company.com>")
-  const authors = Array.isArray(e.authors) ? e.authors : (e.authors ? [e.authors] : []);
+  const authors = Array.isArray(e.authors) ? e.authors : e.authors ? [e.authors] : [];
   for (const a of authors) {
     const m = String(a).match(/@([A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,})/);
     if (m) {

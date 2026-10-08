@@ -17,86 +17,94 @@
 
 const TYPE_PROOF = {
   xss_reflected: {
-    needs: ['reflection of the payload in the response', 'script execution (dialog fired or DOM marker)'],
-    test: (ev) => /<script|onerror=|alert\(|dialogFired|reflect/i.test(ev)
+    needs: [
+      'reflection of the payload in the response',
+      'script execution (dialog fired or DOM marker)',
+    ],
+    test: ev => /<script|onerror=|alert\(|dialogFired|reflect/i.test(ev),
   },
   xss_stored: {
     needs: ['payload persisted', 'payload rendered on a later load'],
-    test: (ev) => /persist|stored|rendered|later/i.test(ev)
+    test: ev => /persist|stored|rendered|later/i.test(ev),
   },
   xss_dom: {
-    needs: ['identified source (URL fragment, postMessage, …)', 'identified sink (innerHTML, eval, …)'],
-    test: (ev) => /sink|source|innerHTML|location\.hash|postMessage/i.test(ev)
+    needs: [
+      'identified source (URL fragment, postMessage, …)',
+      'identified sink (innerHTML, eval, …)',
+    ],
+    test: ev => /sink|source|innerHTML|location\.hash|postMessage/i.test(ev),
   },
   xss: {
     needs: ['reflection of the payload in the response'],
-    test: (ev) => /<script|onerror=|alert\(|dialogFired|reflect/i.test(ev)
+    test: ev => /<script|onerror=|alert\(|dialogFired|reflect/i.test(ev),
   },
   sqli: {
     needs: ['boolean/time differential or a database error message'],
-    test: (ev) => /differential|syntax error|sleep|SLEEP|different/i.test(ev)
+    test: ev => /differential|syntax error|sleep|SLEEP|different/i.test(ev),
   },
   sql_injection: {
     needs: ['boolean/time differential or a database error message'],
-    test: (ev) => /differential|syntax error|sleep|SLEEP|different/i.test(ev)
+    test: ev => /differential|syntax error|sleep|SLEEP|different/i.test(ev),
   },
   ssrf: {
     needs: ['canary URL fetched by the server, or internal response reflected'],
-    test: (ev) => /canary|fetched|169\.254|internal/i.test(ev)
+    test: ev => /canary|fetched|169\.254|internal/i.test(ev),
   },
   idor: {
-    needs: ['200 on another (test) account\'s resource with the first account\'s token'],
-    test: (ev) => /200|other.*account|cross-account/i.test(ev)
+    needs: ["200 on another (test) account's resource with the first account's token"],
+    test: ev => /200|other.*account|cross-account/i.test(ev),
   },
   broken_access_control: {
     needs: ['unauthorized access demonstrated with test accounts'],
-    test: (ev) => /200|unauthorized|access/i.test(ev)
+    test: ev => /200|unauthorized|access/i.test(ev),
   },
   lfi: {
     needs: ['traversal marker read from a non-sensitive file'],
-    test: (ev) => /\.\.\/|traversal|marker/i.test(ev)
+    test: ev => /\.\.\/|traversal|marker/i.test(ev),
   },
   path_traversal: {
     needs: ['traversal marker read from a non-sensitive file'],
-    test: (ev) => /\.\.\/|traversal|marker/i.test(ev)
+    test: ev => /\.\.\/|traversal|marker/i.test(ev),
   },
   'path-traversal': {
     needs: ['traversal marker read from a non-sensitive file'],
-    test: (ev) => /\.\.\/|traversal|marker/i.test(ev)
+    test: ev => /\.\.\/|traversal|marker/i.test(ev),
   },
   command_injection: {
     needs: ['timing differential from the sleep canary, or command output reflected'],
-    test: (ev) => /sleep|timing|delay|canary/i.test(ev)
+    test: ev => /sleep|timing|delay|canary/i.test(ev),
   },
   rce: {
     needs: ['timing differential from the sleep canary, or command output reflected'],
-    test: (ev) => /sleep|timing|delay|canary/i.test(ev)
+    test: ev => /sleep|timing|delay|canary/i.test(ev),
   },
   csrf: {
     needs: ['state-changing request succeeded without a token'],
-    test: (ev) => /without.*token|no.*token|succeeded/i.test(ev)
+    test: ev => /without.*token|no.*token|succeeded/i.test(ev),
   },
   open_redirect: {
     needs: ['Location header pointing at the attacker domain'],
-    test: (ev) => /redirect|location|evil\.example/i.test(ev)
+    test: ev => /redirect|location|evil\.example/i.test(ev),
   },
   xxe: {
     needs: ['defined entity resolved in the response'],
-    test: (ev) => /DM-XXE-PROOF|entity|ENTITY/i.test(ev)
+    test: ev => /DM-XXE-PROOF|entity|ENTITY/i.test(ev),
   },
   ssti: {
     needs: ['template arithmetic evaluated (e.g. 7*7 → 49)'],
-    test: (ev) => /49|evaluated|\{\{/i.test(ev)
+    test: ev => /49|evaluated|\{\{/i.test(ev),
   },
   template_injection: {
     needs: ['template arithmetic evaluated (e.g. 7*7 → 49)'],
-    test: (ev) => /49|evaluated|\{\{/i.test(ev)
-  }
+    test: ev => /49|evaluated|\{\{/i.test(ev),
+  },
 };
 
 function typeKey(finding) {
-  const type = String(finding?.type || finding?.vulnType || '').toLowerCase().trim();
-  return Object.keys(TYPE_PROOF).find((k) => type === k || type.includes(k)) || null;
+  const type = String(finding?.type || finding?.vulnType || '')
+    .toLowerCase()
+    .trim();
+  return Object.keys(TYPE_PROOF).find(k => type === k || type.includes(k)) || null;
 }
 
 function evidenceText(finding) {
@@ -127,20 +135,26 @@ export function reviewFinding(finding = {}) {
   checks.push({
     name: 'evidence-attached',
     pass: hasEvidence,
-    detail: hasEvidence ? `${evText.trim().length} chars of evidence` : 'no evidence text attached'
+    detail: hasEvidence ? `${evText.trim().length} chars of evidence` : 'no evidence text attached',
   });
-  if (!hasEvidence) reasons.push('No evidence attached — a finding without evidence is a hypothesis, not a vulnerability.');
+  if (!hasEvidence)
+    reasons.push(
+      'No evidence attached — a finding without evidence is a hypothesis, not a vulnerability.'
+    );
 
   // 2. Reproduction steps concrete?
   const steps = Array.isArray(finding.reproductionSteps) ? finding.reproductionSteps : [];
-  const concreteSteps = steps.filter((s) => /(GET|POST|PUT|DELETE|PATCH|http|\/)/i.test(String(s)));
+  const concreteSteps = steps.filter(s => /(GET|POST|PUT|DELETE|PATCH|http|\/)/i.test(String(s)));
   const stepsOk = concreteSteps.length > 0;
   checks.push({
     name: 'reproduction-concrete',
     pass: stepsOk,
-    detail: stepsOk ? `${concreteSteps.length} concrete step(s)` : 'reproduction steps are missing or vague'
+    detail: stepsOk
+      ? `${concreteSteps.length} concrete step(s)`
+      : 'reproduction steps are missing or vague',
   });
-  if (!stepsOk) reasons.push('Reproduction steps are missing or vague — a triager cannot replay this.');
+  if (!stepsOk)
+    reasons.push('Reproduction steps are missing or vague — a triager cannot replay this.');
 
   // 3. Confidence/evidence consistency.
   const confidence = String(finding.confidence || '').toLowerCase();
@@ -148,9 +162,10 @@ export function reviewFinding(finding = {}) {
   checks.push({
     name: 'confidence-consistent',
     pass: confidenceOk,
-    detail: confidence ? `confidence=${confidence}` : 'no confidence recorded'
+    detail: confidence ? `confidence=${confidence}` : 'no confidence recorded',
   });
-  if (!confidenceOk) reasons.push("Marked 'confirmed' but no evidence is attached — downgrade to needs_retest.");
+  if (!confidenceOk)
+    reasons.push("Marked 'confirmed' but no evidence is attached — downgrade to needs_retest.");
 
   // 4. Type-specific proof requirement.
   let typeOk = true;
@@ -161,14 +176,21 @@ export function reviewFinding(finding = {}) {
       pass: typeOk,
       detail: typeOk
         ? 'type-specific proof present'
-        : `missing: ${TYPE_PROOF[key].needs.join('; ')}`
+        : `missing: ${TYPE_PROOF[key].needs.join('; ')}`,
     });
-    if (!typeOk) reasons.push(`Type-specific proof missing for ${key}: needs ${TYPE_PROOF[key].needs.join('; ')}.`);
+    if (!typeOk)
+      reasons.push(
+        `Type-specific proof missing for ${key}: needs ${TYPE_PROOF[key].needs.join('; ')}.`
+      );
   } else {
-    checks.push({ name: 'type-proof:unknown', pass: true, detail: 'no proof model for this type — manual review' });
+    checks.push({
+      name: 'type-proof:unknown',
+      pass: true,
+      detail: 'no proof model for this type — manual review',
+    });
   }
 
-  const failed = checks.filter((c) => !c.pass);
+  const failed = checks.filter(c => !c.pass);
   let verdict = 'confirmed';
   if (failed.length >= 3 || (!hasEvidence && !stepsOk)) {
     verdict = 'likely_false_positive';

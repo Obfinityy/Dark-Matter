@@ -42,7 +42,8 @@ export function analyzeTraceResponse(exchange, opts = {}) {
   const body = typeof ex.responseBody === 'string' ? ex.responseBody : '';
   const status = typeof ex.responseStatus === 'number' ? ex.responseStatus : null;
 
-  const traceEnabled = status === 200 || status === 201 || (body.length > 0 && /trace\s+\//i.test(body));
+  const traceEnabled =
+    status === 200 || status === 201 || (body.length > 0 && /trace\s+\//i.test(body));
   const findings = [];
   const reflectedHeaders = [];
   let cookieReflected = false;
@@ -59,7 +60,9 @@ export function analyzeTraceResponse(exchange, opts = {}) {
       }
     }
     if (reflectedHeaders.length > 0) {
-      findings.push(`Reflected request headers observed in TRACE body: ${reflectedHeaders.join(', ')}`);
+      findings.push(
+        `Reflected request headers observed in TRACE body: ${reflectedHeaders.join(', ')}`
+      );
     }
     if (canary in reqHeaders && !reflectedHeaders.includes(canary)) {
       findings.push('Canary header was NOT reflected — TRACE echo may be filtered or partial');
@@ -69,7 +72,14 @@ export function analyzeTraceResponse(exchange, opts = {}) {
   }
 
   const proxyLeakage = [];
-  const proxyHeaders = ['via', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-real-ip', 'forwarded'];
+  const proxyHeaders = [
+    'via',
+    'x-forwarded-for',
+    'x-forwarded-host',
+    'x-forwarded-proto',
+    'x-real-ip',
+    'forwarded',
+  ];
   for (const h of proxyHeaders) {
     if (h in resHeaders || body.toLowerCase().includes(h)) proxyLeakage.push(h);
   }
@@ -102,8 +112,10 @@ export function analyzeTraceResponse(exchange, opts = {}) {
 export function traceRiskSummary(result) {
   if (!result || !result.traceEnabled) return 'TRACE is not enabled; no XST exposure.';
   const parts = [`TRACE is enabled with XST risk rated ${result.xstRisk}.`];
-  if (result.reflectedHeaders.length > 0) parts.push(`Echoed headers: ${result.reflectedHeaders.join(', ')}.`);
-  if (result.proxyLeakage.length > 0) parts.push(`Proxy leakage: ${result.proxyLeakage.join(', ')}.`);
+  if (result.reflectedHeaders.length > 0)
+    parts.push(`Echoed headers: ${result.reflectedHeaders.join(', ')}.`);
+  if (result.proxyLeakage.length > 0)
+    parts.push(`Proxy leakage: ${result.proxyLeakage.join(', ')}.`);
   parts.push('Recommendation: disable TRACE at the server or edge.');
   return parts.join(' ');
 }

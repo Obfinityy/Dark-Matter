@@ -29,7 +29,7 @@ import { ToolRegistry } from '../tools/registry.js';
 import {
   runControlAgent,
   createVisionPlanner,
-  createGroundingGrounder
+  createGroundingGrounder,
 } from '../control/agentLoop.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -44,65 +44,196 @@ export function defaultWorkspaceRoot() {
 const TASK_TYPES = [
   {
     id: 'web_build',
-    match: /(website|web app|webapp|web page|webpage|portfolio|landing page|dashboard|site|frontend)/i,
-    label: 'Web project'
+    match:
+      /(website|web app|webapp|web page|webpage|portfolio|landing page|dashboard|site|frontend)/i,
+    label: 'Web project',
   },
   {
     id: 'script',
     match: /(script|automation|bot|crawler|scraper|cli tool|command line)/i,
-    label: 'Script / automation'
+    label: 'Script / automation',
   },
   {
     id: 'document',
     match: /(document|report|resume|cv|letter|application|essay|write-up)/i,
-    label: 'Document'
+    label: 'Document',
   },
   {
     id: 'research',
     match: /(research|learn|study|understand|compare|analysis)/i,
-    label: 'Research'
-  }
+    label: 'Research',
+  },
 ];
 
 const PLAN_TEMPLATES = {
   web_build: [
-    { title: 'Define the scope and pages', detail: 'Write down exactly what the site must do: pages, sections, and the one action each page exists for. Cut everything that is not essential for version one.', tools: ['Notes app', 'Pen & paper'] },
-    { title: 'Sketch the layout', detail: 'Rough wireframes for desktop and mobile — header, hero, content blocks, footer. Decide the visual style (colors, fonts) before writing code.', tools: ['Figma', 'Excalidraw'] },
-    { title: 'Set up the project', detail: 'Create the folder, index.html, styles.css and app.js. Add a CSS reset, responsive meta viewport, and a mobile-first layout grid.', tools: ['VS Code', 'Browser devtools'] },
-    { title: 'Build the static structure', detail: 'Write semantic HTML for every section with real copy (no lorem ipsum). Keep accessibility in mind: headings, alt text, labels.', tools: ['VS Code'] },
-    { title: 'Style it', detail: 'Implement the design system in CSS: variables for colors/spacing, responsive breakpoints, hover and focus states, smooth animations.', tools: ['CSS', 'Browser devtools'] },
-    { title: 'Add interactivity', detail: 'Progressive enhancement in app.js — only the interactions the plan calls for. No framework until the vanilla version hurts.', tools: ['JavaScript'] },
-    { title: 'Test on real devices', detail: 'Check desktop and a 390px phone viewport, keyboard navigation, and load time. Fix layout breaks before adding features.', tools: ['Browser devtools', 'Phone'] },
-    { title: 'Deploy', detail: 'Ship a static build to hosting with a custom domain and HTTPS. Verify the live URL on mobile data, not just Wi-Fi.', tools: ['Vercel', 'Netlify', 'GitHub Pages'] }
+    {
+      title: 'Define the scope and pages',
+      detail:
+        'Write down exactly what the site must do: pages, sections, and the one action each page exists for. Cut everything that is not essential for version one.',
+      tools: ['Notes app', 'Pen & paper'],
+    },
+    {
+      title: 'Sketch the layout',
+      detail:
+        'Rough wireframes for desktop and mobile — header, hero, content blocks, footer. Decide the visual style (colors, fonts) before writing code.',
+      tools: ['Figma', 'Excalidraw'],
+    },
+    {
+      title: 'Set up the project',
+      detail:
+        'Create the folder, index.html, styles.css and app.js. Add a CSS reset, responsive meta viewport, and a mobile-first layout grid.',
+      tools: ['VS Code', 'Browser devtools'],
+    },
+    {
+      title: 'Build the static structure',
+      detail:
+        'Write semantic HTML for every section with real copy (no lorem ipsum). Keep accessibility in mind: headings, alt text, labels.',
+      tools: ['VS Code'],
+    },
+    {
+      title: 'Style it',
+      detail:
+        'Implement the design system in CSS: variables for colors/spacing, responsive breakpoints, hover and focus states, smooth animations.',
+      tools: ['CSS', 'Browser devtools'],
+    },
+    {
+      title: 'Add interactivity',
+      detail:
+        'Progressive enhancement in app.js — only the interactions the plan calls for. No framework until the vanilla version hurts.',
+      tools: ['JavaScript'],
+    },
+    {
+      title: 'Test on real devices',
+      detail:
+        'Check desktop and a 390px phone viewport, keyboard navigation, and load time. Fix layout breaks before adding features.',
+      tools: ['Browser devtools', 'Phone'],
+    },
+    {
+      title: 'Deploy',
+      detail:
+        'Ship a static build to hosting with a custom domain and HTTPS. Verify the live URL on mobile data, not just Wi-Fi.',
+      tools: ['Vercel', 'Netlify', 'GitHub Pages'],
+    },
   ],
   script: [
-    { title: 'Pin down the exact input and output', detail: 'Write one sentence: given X, the script produces Y. List edge cases (empty input, network failure, bad format) up front.', tools: ['Notes app'] },
-    { title: 'Pick the language and libraries', detail: 'Choose the smallest stack that covers the job — standard library first, one dependency only if it saves real complexity.', tools: ['Python', 'Node.js'] },
-    { title: 'Draft the algorithm in pseudocode', detail: 'Five to ten lines of plain-language steps. If you cannot explain it simply, the design is not ready.', tools: ['Notes app'] },
-    { title: 'Implement the happy path', detail: 'Write the minimal working version end to end. Hard-code nothing that the input should provide.', tools: ['VS Code', 'Terminal'] },
-    { title: 'Handle failures loudly', detail: 'Every external call gets a timeout, a retry policy, and a clear error message. Never fail silently.', tools: ['Terminal'] },
-    { title: 'Test with real data', detail: 'Run against a small real sample, then an ugly edge-case sample. Automate the checks you ran by hand.', tools: ['Terminal'] }
+    {
+      title: 'Pin down the exact input and output',
+      detail:
+        'Write one sentence: given X, the script produces Y. List edge cases (empty input, network failure, bad format) up front.',
+      tools: ['Notes app'],
+    },
+    {
+      title: 'Pick the language and libraries',
+      detail:
+        'Choose the smallest stack that covers the job — standard library first, one dependency only if it saves real complexity.',
+      tools: ['Python', 'Node.js'],
+    },
+    {
+      title: 'Draft the algorithm in pseudocode',
+      detail:
+        'Five to ten lines of plain-language steps. If you cannot explain it simply, the design is not ready.',
+      tools: ['Notes app'],
+    },
+    {
+      title: 'Implement the happy path',
+      detail:
+        'Write the minimal working version end to end. Hard-code nothing that the input should provide.',
+      tools: ['VS Code', 'Terminal'],
+    },
+    {
+      title: 'Handle failures loudly',
+      detail:
+        'Every external call gets a timeout, a retry policy, and a clear error message. Never fail silently.',
+      tools: ['Terminal'],
+    },
+    {
+      title: 'Test with real data',
+      detail:
+        'Run against a small real sample, then an ugly edge-case sample. Automate the checks you ran by hand.',
+      tools: ['Terminal'],
+    },
   ],
   document: [
-    { title: 'Gather the raw facts', detail: 'Collect every date, name, number and reference the document needs before writing a single sentence.', tools: ['Notes app'] },
-    { title: 'Outline the structure', detail: 'Headings first: what each section must convey. A reader should get the gist from headings alone.', tools: ['Word', 'Google Docs'] },
-    { title: 'Write the first draft fast', detail: 'Get the full content down without editing. Clarity beats elegance at this stage.', tools: ['Word', 'Google Docs'] },
-    { title: 'Revise for the reader', detail: 'Cut 20 percent. Short sentences, one idea per paragraph, headings that carry meaning.', tools: ['Word'] },
-    { title: 'Proof and format', detail: 'Spell-check, consistent formatting, page numbers and a clean export to PDF.', tools: ['Word', 'PDF export'] }
+    {
+      title: 'Gather the raw facts',
+      detail:
+        'Collect every date, name, number and reference the document needs before writing a single sentence.',
+      tools: ['Notes app'],
+    },
+    {
+      title: 'Outline the structure',
+      detail:
+        'Headings first: what each section must convey. A reader should get the gist from headings alone.',
+      tools: ['Word', 'Google Docs'],
+    },
+    {
+      title: 'Write the first draft fast',
+      detail: 'Get the full content down without editing. Clarity beats elegance at this stage.',
+      tools: ['Word', 'Google Docs'],
+    },
+    {
+      title: 'Revise for the reader',
+      detail:
+        'Cut 20 percent. Short sentences, one idea per paragraph, headings that carry meaning.',
+      tools: ['Word'],
+    },
+    {
+      title: 'Proof and format',
+      detail: 'Spell-check, consistent formatting, page numbers and a clean export to PDF.',
+      tools: ['Word', 'PDF export'],
+    },
   ],
   research: [
-    { title: 'Frame the question', detail: 'Write the exact question you need answered and what a good answer looks like.', tools: ['Notes app'] },
-    { title: 'Collect sources', detail: 'Gather primary sources first — docs, papers, official references — then opinions.', tools: ['Browser', 'Search'] },
-    { title: 'Compare and contrast', detail: 'Build a comparison table: options, strengths, weaknesses, costs.', tools: ['Spreadsheet'] },
-    { title: 'Decide and document', detail: 'State the recommendation, the reasoning, and what would change your mind.', tools: ['Notes app'] }
+    {
+      title: 'Frame the question',
+      detail: 'Write the exact question you need answered and what a good answer looks like.',
+      tools: ['Notes app'],
+    },
+    {
+      title: 'Collect sources',
+      detail: 'Gather primary sources first — docs, papers, official references — then opinions.',
+      tools: ['Browser', 'Search'],
+    },
+    {
+      title: 'Compare and contrast',
+      detail: 'Build a comparison table: options, strengths, weaknesses, costs.',
+      tools: ['Spreadsheet'],
+    },
+    {
+      title: 'Decide and document',
+      detail: 'State the recommendation, the reasoning, and what would change your mind.',
+      tools: ['Notes app'],
+    },
   ],
   generic: [
-    { title: 'Define done', detail: 'Write one paragraph describing what "finished" looks like. If you cannot describe it, you cannot plan it.', tools: ['Notes app'] },
-    { title: 'Break it into milestones', detail: 'Split the work into 3–5 milestones, each independently verifiable.', tools: ['Notes app'] },
-    { title: 'Order by risk', detail: 'Do the riskiest, most uncertain part first — fail fast while it is cheap.', tools: [] },
-    { title: 'Execute milestone one', detail: 'Take the first concrete action today, not tomorrow.', tools: [] },
-    { title: 'Review and adjust', detail: 'After each milestone, check against the definition of done and replan the rest.', tools: [] }
-  ]
+    {
+      title: 'Define done',
+      detail:
+        'Write one paragraph describing what "finished" looks like. If you cannot describe it, you cannot plan it.',
+      tools: ['Notes app'],
+    },
+    {
+      title: 'Break it into milestones',
+      detail: 'Split the work into 3–5 milestones, each independently verifiable.',
+      tools: ['Notes app'],
+    },
+    {
+      title: 'Order by risk',
+      detail: 'Do the riskiest, most uncertain part first — fail fast while it is cheap.',
+      tools: [],
+    },
+    {
+      title: 'Execute milestone one',
+      detail: 'Take the first concrete action today, not tomorrow.',
+      tools: [],
+    },
+    {
+      title: 'Review and adjust',
+      detail: 'After each milestone, check against the definition of done and replan the rest.',
+      tools: [],
+    },
+  ],
 };
 
 function classifyTask(instruction) {
@@ -131,19 +262,26 @@ export async function planInstruction(instruction, { brainModel = null, userId =
     n: i + 1,
     title: s.title,
     detail: s.detail,
-    tools: [...s.tools]
+    tools: [...s.tools],
   }));
 
   let refinedByBrain = false;
   if (brainModel && typeof brainModel.complete === 'function') {
     try {
-      const res = await brainModel.complete([
-        {
-          role: 'system',
-          content: 'You are a planning assistant. The user will receive a numbered plan. Reply with the same steps, slightly reworded to fit their specific request, keeping the same count and order. Format: one line per step as "N. Title — detail (Tools: a, b)".'
-        },
-        { role: 'user', content: `Request: ${clean}\n\nSteps:\n${steps.map((s) => `${s.n}. ${s.title} — ${s.detail}`).join('\n')}` }
-      ], { maxTokens: 1200, userId });
+      const res = await brainModel.complete(
+        [
+          {
+            role: 'system',
+            content:
+              'You are a planning assistant. The user will receive a numbered plan. Reply with the same steps, slightly reworded to fit their specific request, keeping the same count and order. Format: one line per step as "N. Title — detail (Tools: a, b)".',
+          },
+          {
+            role: 'user',
+            content: `Request: ${clean}\n\nSteps:\n${steps.map(s => `${s.n}. ${s.title} — ${s.detail}`).join('\n')}`,
+          },
+        ],
+        { maxTokens: 1200, userId }
+      );
       const text = String(res?.text || '').trim();
       if (text) {
         const parsed = parseNumberedPlan(text, steps.length);
@@ -163,12 +301,15 @@ export async function planInstruction(instruction, { brainModel = null, userId =
     steps,
     refinedByBrain,
     executed: false,
-    note: 'Planning only — nothing was executed. Switch to Build to make it real.'
+    note: 'Planning only — nothing was executed. Switch to Build to make it real.',
   };
 }
 
 function parseNumberedPlan(text, expectedCount) {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean);
   const out = [];
   for (const line of lines) {
     const m = line.match(/^(\d+)[.)]\s*(.+)$/);
@@ -177,9 +318,15 @@ function parseNumberedPlan(text, expectedCount) {
     if (n !== out.length + 1) continue;
     const rest = m[2];
     const toolMatch = rest.match(/\(tools?\s*:\s*([^)]+)\)\s*$/i);
-    const tools = toolMatch ? toolMatch[1].split(/[,;]/).map((t) => t.trim()).filter(Boolean) : [];
+    const tools = toolMatch
+      ? toolMatch[1]
+          .split(/[,;]/)
+          .map(t => t.trim())
+          .filter(Boolean)
+      : [];
     const withoutTools = toolMatch ? rest.slice(0, toolMatch.index).trim() : rest;
-    const dash = withoutTools.indexOf('—') >= 0 ? withoutTools.indexOf('—') : withoutTools.indexOf('-');
+    const dash =
+      withoutTools.indexOf('—') >= 0 ? withoutTools.indexOf('—') : withoutTools.indexOf('-');
     const title = dash > 0 ? withoutTools.slice(0, dash).trim() : withoutTools;
     const detail = dash > 0 ? withoutTools.slice(dash + 1).trim() : '';
     out.push({ n, title: title || `Step ${n}`, detail, tools });
@@ -218,7 +365,9 @@ export function parseFileManifest(text) {
   if (!Array.isArray(parsed) || !parsed.length) return null;
   const files = [];
   for (const entry of parsed.slice(0, 12)) {
-    const relPath = String(entry?.path || '').replace(/\\/g, '/').trim();
+    const relPath = String(entry?.path || '')
+      .replace(/\\/g, '/')
+      .trim();
     const content = String(entry?.content ?? '');
     if (!relPath || relPath.startsWith('/') || relPath.includes('..')) continue;
     if (!content.trim()) continue;
@@ -241,7 +390,10 @@ Rules:
  * Ask the active brain to generate a whole project from the brief.
  * Returns [{path, content}] or throws when the brain can't produce one.
  */
-export async function generateProjectWithBrain(brief, { brainModel, attachments = [], userId = null } = {}) {
+export async function generateProjectWithBrain(
+  brief,
+  { brainModel, attachments = [], userId = null } = {}
+) {
   if (!brainModel || typeof brainModel.complete !== 'function') {
     throw new Error('No brain model available');
   }
@@ -255,7 +407,7 @@ export async function generateProjectWithBrain(brief, { brainModel, attachments 
   const res = await brainModel.complete(
     [
       { role: 'system', content: BUILD_SYSTEM_PROMPT },
-      { role: 'user', content: userContent }
+      { role: 'user', content: userContent },
     ],
     // userId is how the brain adapter resolves the user's ACTIVE brain
     // (Kaggle/Colab/local) — without it, every build would use the default.
@@ -270,13 +422,15 @@ export function createWorkspace(root = defaultWorkspaceRoot()) {
   const ROOT = path.resolve(root);
 
   function safePath(...segments) {
-    const joined = segments.map((s) => String(s || '')).join('/');
+    const joined = segments.map(s => String(s || '')).join('/');
     const resolved = path.resolve(ROOT, joined);
     const relative = path.relative(ROOT, resolved);
     if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
       return resolved;
     }
-    throw Object.assign(new Error(`Refused: path escapes the agent workspace: ${joined}`), { code: 'PATH_TRAVERSAL' });
+    throw Object.assign(new Error(`Refused: path escapes the agent workspace: ${joined}`), {
+      code: 'PATH_TRAVERSAL',
+    });
   }
 
   function ensureRoot() {
@@ -316,7 +470,10 @@ export function createWorkspace(root = defaultWorkspaceRoot()) {
     const full = safePath(relPath);
     fs.mkdirSync(path.dirname(full), { recursive: true });
     fs.writeFileSync(full, String(content ?? ''), 'utf8');
-    return { path: path.relative(ROOT, full), size: Buffer.byteLength(String(content ?? ''), 'utf8') };
+    return {
+      path: path.relative(ROOT, full),
+      size: Buffer.byteLength(String(content ?? ''), 'utf8'),
+    };
   }
 
   return { root: ROOT, safePath, ensureRoot, listFiles, readFile, writeFile };
@@ -327,7 +484,7 @@ function extractName(brief) {
   const patterns = [
     /(?:for|about|named|called)\s+([A-Z][A-Za-z'.-]*(?:\s+[A-Z][A-Za-z'.-]*){0,3})/,
     /\bmy name is\s+([A-Z][A-Za-z'.-]*(?:\s+[A-Z][A-Za-z'.-]*){0,2})/i,
-    /\bi am\s+([A-Z][A-Za-z'.-]*(?:\s+[A-Z][A-Za-z'.-]*){0,2})/i
+    /\bi am\s+([A-Z][A-Za-z'.-]*(?:\s+[A-Z][A-Za-z'.-]*){0,2})/i,
   ];
   for (const p of patterns) {
     const m = text.match(p);
@@ -337,7 +494,13 @@ function extractName(brief) {
 }
 
 function slugify(text) {
-  return String(text || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'project';
+  return (
+    String(text || 'project')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'project'
+  );
 }
 
 /**
@@ -345,7 +508,16 @@ function slugify(text) {
  * a polished portfolio site (index.html + styles.css + app.js). Returns the
  * file list — the caller (and the tests) can read every file back.
  */
-export async function buildProject(brief, { conversationId = null, workspace = null, brainModel = null, attachments = [], userId = null } = {}) {
+export async function buildProject(
+  brief,
+  {
+    conversationId = null,
+    workspace = null,
+    brainModel = null,
+    attachments = [],
+    userId = null,
+  } = {}
+) {
   const clean = String(brief || '').trim();
   if (!clean) throw new Error('brief is required');
 
@@ -360,13 +532,13 @@ export async function buildProject(brief, { conversationId = null, workspace = n
   if (brainModel && typeof brainModel.complete === 'function') {
     try {
       const manifest = await generateProjectWithBrain(clean, { brainModel, attachments, userId });
-      const files = manifest.map((f) => ws.writeFile(`${projectDir}/${f.path}`, f.content));
+      const files = manifest.map(f => ws.writeFile(`${projectDir}/${f.path}`, f.content));
       return {
         brief: clean,
         projectDir,
         files,
         brainBuilt: true,
-        note: `Built by your active brain from the brief${attachments?.length ? ` (+${attachments.length} attached file${attachments.length > 1 ? 's' : ''})` : ''}. Open index.html in a browser to view it.`
+        note: `Built by your active brain from the brief${attachments?.length ? ` (+${attachments.length} attached file${attachments.length > 1 ? 's' : ''})` : ''}. Open index.html in a browser to view it.`,
       };
     } catch (err) {
       // Brain failed or unreachable — fall through to the template builder.
@@ -537,14 +709,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const files = [
     ws.writeFile(`${projectDir}/index.html`, indexHtml),
     ws.writeFile(`${projectDir}/styles.css`, stylesCss),
-    ws.writeFile(`${projectDir}/app.js`, appJs)
+    ws.writeFile(`${projectDir}/app.js`, appJs),
   ];
 
   return {
     brief: clean,
     projectDir,
     files,
-    note: 'Built inside the sandboxed agent workspace. Open index.html in a browser to view it.'
+    note: 'Built inside the sandboxed agent workspace. Open index.html in a browser to view it.',
   };
 }
 
@@ -584,16 +756,20 @@ export function decomposeInstruction(instruction) {
       application: app.canonical,
       launch: app.launch,
       steps: [
-        gui('open_application', { name: app.launch }, `Open ${app.canonical} (launches it, or focuses it if already open)`),
+        gui(
+          'open_application',
+          { name: app.launch },
+          `Open ${app.canonical} (launches it, or focuses it if already open)`
+        ),
         gui('sleep', { seconds: 1 }, `Wait for ${app.canonical} to appear`),
-        gui('get_active_window', {}, `Verify ${app.canonical} is the active window`)
-      ]
+        gui('get_active_window', {}, `Verify ${app.canonical} is the active window`),
+      ],
     };
   }
 
   return {
     ok: false,
-    reason: `I could not turn "${text.slice(0, 80)}" into GUI steps. Name an application I know (for example "open Word", "calculator kholo") or describe a document to write in Word.`
+    reason: `I could not turn "${text.slice(0, 80)}" into GUI steps. Name an application I know (for example "open Word", "calculator kholo") or describe a document to write in Word.`,
   };
 }
 
@@ -622,7 +798,7 @@ export function validatePlanSteps(steps, context = {}) {
       reason: step.reason || '',
       valid: result.valid,
       errors: result.errors,
-      normalized: result.valid ? (result.action || result.step || result.tool || null) : null
+      normalized: result.valid ? result.action || result.step || result.tool || null : null,
     };
   });
 }
@@ -639,25 +815,36 @@ export function validatePlanSteps(steps, context = {}) {
  * @param {object} opts.adapter  computer adapter (real or MockComputerAdapter).
  *   When omitted, a MockComputerAdapter is used and the run is marked simulated.
  */
-export async function runControlPlan(instruction, { adapter = null, scopeEngine = null, dryRun = false } = {}) {
+export async function runControlPlan(
+  instruction,
+  { adapter = null, scopeEngine = null, dryRun = false } = {}
+) {
   const started = Date.now();
   const decomposed = decomposeInstruction(instruction);
   if (!decomposed.ok) {
-    return { ok: false, reason: decomposed.reason, instruction, steps: [], executed: [], simulated: true, durationMs: Date.now() - started };
+    return {
+      ok: false,
+      reason: decomposed.reason,
+      instruction,
+      steps: [],
+      executed: [],
+      simulated: true,
+      durationMs: Date.now() - started,
+    };
   }
 
   const validated = validatePlanSteps(decomposed.steps, { scopeEngine });
-  const invalid = validated.filter((s) => !s.valid);
+  const invalid = validated.filter(s => !s.valid);
   if (invalid.length) {
     return {
       ok: false,
-      reason: `Plan rejected by the action schema: ${invalid.map((s) => `step ${s.index + 1} (${s.type}): ${s.errors.join('; ')}`).join(' | ')}`,
+      reason: `Plan rejected by the action schema: ${invalid.map(s => `step ${s.index + 1} (${s.type}): ${s.errors.join('; ')}`).join(' | ')}`,
       instruction,
       application: decomposed.application,
       steps: validated,
       executed: [],
       simulated: true,
-      durationMs: Date.now() - started
+      durationMs: Date.now() - started,
     };
   }
 
@@ -671,7 +858,7 @@ export async function runControlPlan(instruction, { adapter = null, scopeEngine 
       steps: validated,
       executed: [],
       simulated: true,
-      durationMs: Date.now() - started
+      durationMs: Date.now() - started,
     };
   }
 
@@ -695,12 +882,12 @@ export async function runControlPlan(instruction, { adapter = null, scopeEngine 
       reason: step.reason,
       ok: result.ok === true,
       observation: result.observation?.summary || null,
-      error: result.error?.message || null
+      error: result.error?.message || null,
     });
     if (!result.ok) break; // stop at the first failure — never push past an error
   }
 
-  const allOk = executed.length === validated.length && executed.every((e) => e.ok);
+  const allOk = executed.length === validated.length && executed.every(e => e.ok);
   return {
     ok: allOk,
     instruction,
@@ -710,7 +897,7 @@ export async function runControlPlan(instruction, { adapter = null, scopeEngine 
     executed,
     simulated,
     stoppedEarly: executed.length < validated.length,
-    durationMs: Date.now() - started
+    durationMs: Date.now() - started,
   };
 }
 
@@ -735,7 +922,11 @@ export const FILE_OPS = Object.freeze(['write_file', 'read_file', 'list_files'])
 export function assertSafeRelPath(relPath) {
   const p = String(relPath || '');
   if (!p.trim()) return { ok: false, error: 'path is empty' };
-  if (path.isAbsolute(p)) return { ok: false, error: `Refused: absolute paths are not allowed in the agent workspace: ${p}` };
+  if (path.isAbsolute(p))
+    return {
+      ok: false,
+      error: `Refused: absolute paths are not allowed in the agent workspace: ${p}`,
+    };
   const normalized = path.posix.normalize(p.replace(/\\/g, '/'));
   if (normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')) {
     return { ok: false, error: `Refused: path escapes the agent workspace: ${p}` };
@@ -758,13 +949,17 @@ export function validateFileStep(step) {
     }
   }
   if (step.op === 'write_file') {
-    if (typeof step.content !== 'string' || !step.content) errors.push('write_file requires non-empty content');
-    else if (step.content.length > 200_000) errors.push('write_file content exceeds 200000 characters');
+    if (typeof step.content !== 'string' || !step.content)
+      errors.push('write_file requires non-empty content');
+    else if (step.content.length > 200_000)
+      errors.push('write_file content exceeds 200000 characters');
   }
   return {
     valid: errors.length === 0,
     errors,
-    step: errors.length ? null : { kind: 'file', op: step.op, path: step.path, content: step.content }
+    step: errors.length
+      ? null
+      : { kind: 'file', op: step.op, path: step.path, content: step.content },
   };
 }
 
@@ -773,17 +968,27 @@ export function validateToolStep(step) {
   const errors = [];
   const tool = ToolRegistry.get(step.tool);
   if (!tool) {
-    const names = ToolRegistry.list().map((t) => t.name).slice(0, 10).join(', ');
+    const names = ToolRegistry.list()
+      .map(t => t.name)
+      .slice(0, 10)
+      .join(', ');
     errors.push(`Unknown tool "${step.tool}". Registered tools include: ${names}…`);
   }
   if (step.tool === 'python') {
-    if (typeof step.code !== 'string' || !step.code.trim()) errors.push('python tool step requires code');
+    if (typeof step.code !== 'string' || !step.code.trim())
+      errors.push('python tool step requires code');
     else if (step.code.length > 20000) errors.push('python code exceeds 20000 characters');
   }
   return {
     valid: errors.length === 0,
     errors,
-    tool: tool ? { name: tool.name, riskLevel: tool.riskLevel, requiresAuthorization: tool.requiresAuthorization } : null
+    tool: tool
+      ? {
+          name: tool.name,
+          riskLevel: tool.riskLevel,
+          requiresAuthorization: tool.requiresAuthorization,
+        }
+      : null,
   };
 }
 
@@ -796,9 +1001,13 @@ function extractClipboardText(text) {
 }
 
 function extractFileWrite(text) {
-  let m = text.match(/\b(?:write|save)\b\s*["“”']([\s\S]{1,20000}?)["“”']\s*\bto\b\s*([^\s"“”']{1,120})/i);
+  let m = text.match(
+    /\b(?:write|save)\b\s*["“”']([\s\S]{1,20000}?)["“”']\s*\bto\b\s*([^\s"“”']{1,120})/i
+  );
   if (m) return { content: m[1], path: m[2] };
-  m = text.match(/\b(?:write|save)\b\s*(?:file\s+)?([^\s"“”']{1,120})\s*\bwith\b\s*["“”']([\s\S]{1,20000}?)["“”']/i);
+  m = text.match(
+    /\b(?:write|save)\b\s*(?:file\s+)?([^\s"“”']{1,120})\s*\bwith\b\s*["“”']([\s\S]{1,20000}?)["“”']/i
+  );
   if (m) return { path: m[1], content: m[2] };
   return null;
 }
@@ -833,7 +1042,14 @@ export function decomposeControlRequest(instruction) {
         ok: true,
         kind: 'tool_run',
         application: null,
-        steps: [{ kind: 'tool', tool: 'python', code, reason: 'Run the Python snippet via the python tool (simulated through this endpoint)' }]
+        steps: [
+          {
+            kind: 'tool',
+            tool: 'python',
+            code,
+            reason: 'Run the Python snippet via the python tool (simulated through this endpoint)',
+          },
+        ],
       };
     }
   }
@@ -845,7 +1061,15 @@ export function decomposeControlRequest(instruction) {
       ok: true,
       kind: 'file_write',
       application: null,
-      steps: [{ kind: 'file', op: 'write_file', path: write.path, content: write.content, reason: `Write ${write.path} inside the sandboxed agent workspace` }]
+      steps: [
+        {
+          kind: 'file',
+          op: 'write_file',
+          path: write.path,
+          content: write.content,
+          reason: `Write ${write.path} inside the sandboxed agent workspace`,
+        },
+      ],
     };
   }
   const read = extractFileRead(text);
@@ -854,7 +1078,14 @@ export function decomposeControlRequest(instruction) {
       ok: true,
       kind: 'file_read',
       application: null,
-      steps: [{ kind: 'file', op: 'read_file', path: read, reason: `Read ${read} from the sandboxed agent workspace` }]
+      steps: [
+        {
+          kind: 'file',
+          op: 'read_file',
+          path: read,
+          reason: `Read ${read} from the sandboxed agent workspace`,
+        },
+      ],
     };
   }
   if (/\blist\b.{0,24}\bfiles\b/i.test(text) && /\bworkspace\b/i.test(text)) {
@@ -862,7 +1093,9 @@ export function decomposeControlRequest(instruction) {
       ok: true,
       kind: 'file_list',
       application: null,
-      steps: [{ kind: 'file', op: 'list_files', reason: 'List files in the sandboxed agent workspace' }]
+      steps: [
+        { kind: 'file', op: 'list_files', reason: 'List files in the sandboxed agent workspace' },
+      ],
     };
   }
 
@@ -873,7 +1106,14 @@ export function decomposeControlRequest(instruction) {
       ok: true,
       kind: 'clipboard',
       application: null,
-      steps: [{ kind: 'gui', type: 'clipboard_set', params: { text: clip }, reason: 'Copy the text to the OS clipboard' }]
+      steps: [
+        {
+          kind: 'gui',
+          type: 'clipboard_set',
+          params: { text: clip },
+          reason: 'Copy the text to the OS clipboard',
+        },
+      ],
     };
   }
 
@@ -883,7 +1123,7 @@ export function decomposeControlRequest(instruction) {
 
   return {
     ok: false,
-    reason: `I could not turn "${text.slice(0, 80)}" into steps. Try: "open Word", "focus calculator", 'copy "hello" to clipboard', 'write "notes" to notes.txt', "read file notes.txt", "list workspace files", or "run python: print(2+2)". For full desktop control, use the Control tab's agent mode.`
+    reason: `I could not turn "${text.slice(0, 80)}" into steps. Try: "open Word", "focus calculator", 'copy "hello" to clipboard', 'write "notes" to notes.txt', "read file notes.txt", "list workspace files", or "run python: print(2+2)". For full desktop control, use the Control tab's agent mode.`,
   };
 }
 
@@ -892,20 +1132,45 @@ async function executeFileStep(step, fileSystem) {
   try {
     if (step.op === 'write_file') {
       const written = fileSystem.writeFile(step.path, step.content);
-      return { ok: true, observation: `Wrote ${written.path} (${written.size} bytes) into the sandboxed agent workspace`, durationMs: Date.now() - started, sandboxed: true };
+      return {
+        ok: true,
+        observation: `Wrote ${written.path} (${written.size} bytes) into the sandboxed agent workspace`,
+        durationMs: Date.now() - started,
+        sandboxed: true,
+      };
     }
     if (step.op === 'read_file') {
       const content = fileSystem.readFile(step.path);
       const preview = content.length > 120 ? `${content.slice(0, 120)}…` : content;
-      return { ok: true, observation: `Read ${step.path} (${content.length} chars) from the sandbox: "${preview}"`, durationMs: Date.now() - started, sandboxed: true };
+      return {
+        ok: true,
+        observation: `Read ${step.path} (${content.length} chars) from the sandbox: "${preview}"`,
+        durationMs: Date.now() - started,
+        sandboxed: true,
+      };
     }
     if (step.op === 'list_files') {
       const files = fileSystem.listFiles();
-      return { ok: true, observation: files.length ? `Workspace files: ${files.map((f) => f.path).join(', ')}` : 'The agent workspace is empty', durationMs: Date.now() - started, sandboxed: true };
+      return {
+        ok: true,
+        observation: files.length
+          ? `Workspace files: ${files.map(f => f.path).join(', ')}`
+          : 'The agent workspace is empty',
+        durationMs: Date.now() - started,
+        sandboxed: true,
+      };
     }
-    return { ok: false, error: { message: `unsupported file op ${step.op}`, kind: 'error' }, durationMs: Date.now() - started };
+    return {
+      ok: false,
+      error: { message: `unsupported file op ${step.op}`, kind: 'error' },
+      durationMs: Date.now() - started,
+    };
   } catch (err) {
-    return { ok: false, error: { message: err.message, kind: 'error' }, durationMs: Date.now() - started };
+    return {
+      ok: false,
+      error: { message: err.message, kind: 'error' },
+      durationMs: Date.now() - started,
+    };
   }
 }
 
@@ -916,26 +1181,37 @@ async function executeFileStep(step, fileSystem) {
  * Tool steps are ALWAYS simulated through this path (MockToolRunner) — real
  * code execution stays behind the hunt's authorized tool pipeline.
  */
-export async function runControlDeep(instruction, { adapter = null, fileSystem = null, toolRunner = null, scopeEngine = null, dryRun = false } = {}) {
+export async function runControlDeep(
+  instruction,
+  { adapter = null, fileSystem = null, toolRunner = null, scopeEngine = null, dryRun = false } = {}
+) {
   const started = Date.now();
   const decomposed = decomposeControlRequest(instruction);
   if (!decomposed.ok) {
-    return { ok: false, reason: decomposed.reason, instruction, steps: [], executed: [], simulated: true, durationMs: Date.now() - started };
+    return {
+      ok: false,
+      reason: decomposed.reason,
+      instruction,
+      steps: [],
+      executed: [],
+      simulated: true,
+      durationMs: Date.now() - started,
+    };
   }
 
   const validated = validatePlanSteps(decomposed.steps, { scopeEngine });
-  const invalid = validated.filter((s) => !s.valid);
+  const invalid = validated.filter(s => !s.valid);
   if (invalid.length) {
-    const label = (s) => `step ${s.index + 1} (${s.kind}/${s.type || s.op || s.tool})`;
+    const label = s => `step ${s.index + 1} (${s.kind}/${s.type || s.op || s.tool})`;
     return {
       ok: false,
-      reason: `Plan rejected: ${invalid.map((s) => `${label(s)}: ${s.errors.join('; ')}`).join(' | ')}`,
+      reason: `Plan rejected: ${invalid.map(s => `${label(s)}: ${s.errors.join('; ')}`).join(' | ')}`,
       instruction,
       application: decomposed.application,
       steps: validated,
       executed: [],
       simulated: true,
-      durationMs: Date.now() - started
+      durationMs: Date.now() - started,
     };
   }
 
@@ -949,14 +1225,15 @@ export async function runControlDeep(instruction, { adapter = null, fileSystem =
       steps: validated,
       executed: [],
       simulated: true,
-      durationMs: Date.now() - started
+      durationMs: Date.now() - started,
     };
   }
 
   const computer = adapter || new MockComputerAdapter();
   const files = fileSystem || createWorkspace();
   const tools = toolRunner || new MockToolRunner();
-  const simulated = Boolean(computer.isMock) || validated.some((s) => s.kind === 'tool' && tools.isMock);
+  const simulated =
+    Boolean(computer.isMock) || validated.some(s => s.kind === 'tool' && tools.isMock);
   const executed = [];
 
   for (const step of validated) {
@@ -984,15 +1261,18 @@ export async function runControlDeep(instruction, { adapter = null, fileSystem =
       params: step.params,
       reason: step.reason,
       ok: result.ok === true,
-      observation: typeof result.observation === 'string' ? result.observation : (result.observation?.summary || null),
+      observation:
+        typeof result.observation === 'string'
+          ? result.observation
+          : result.observation?.summary || null,
       error: result.error?.message || (typeof result.error === 'string' ? result.error : null),
       simulated: Boolean(result.simulated),
-      sandboxed: Boolean(result.sandboxed)
+      sandboxed: Boolean(result.sandboxed),
     });
     if (!result.ok) break; // stop at the first failure — never push past an error
   }
 
-  const allOk = executed.length === validated.length && executed.every((e) => e.ok);
+  const allOk = executed.length === validated.length && executed.every(e => e.ok);
   return {
     ok: allOk,
     instruction,
@@ -1002,7 +1282,7 @@ export async function runControlDeep(instruction, { adapter = null, fileSystem =
     executed,
     simulated,
     stoppedEarly: executed.length < validated.length,
-    durationMs: Date.now() - started
+    durationMs: Date.now() - started,
   };
 }
 
@@ -1038,26 +1318,30 @@ export async function runControlDeep(instruction, { adapter = null, fileSystem =
  * @param {string} [opts.userId]
  * @param {object} [opts.scopeEngine]
  */
-export async function runControlVision(instruction, {
-  planner = null,
-  grounder = null,
-  visionBrain = null,
-  groundingBrain = null,
-  bridge = null,
-  adapter = null,
-  onEvent = () => {},
-  maxSteps = 25,
-  dryRun = false,
-  userId = null,
-  scopeEngine = null,
-  fileSystem = null,
-  toolRunner = null
-} = {}) {
+export async function runControlVision(
+  instruction,
+  {
+    planner = null,
+    grounder = null,
+    visionBrain = null,
+    groundingBrain = null,
+    bridge = null,
+    adapter = null,
+    onEvent = () => {},
+    maxSteps = 25,
+    dryRun = false,
+    userId = null,
+    scopeEngine = null,
+    fileSystem = null,
+    toolRunner = null,
+  } = {}
+) {
   const resolvedPlanner = planner || (visionBrain ? createVisionPlanner(visionBrain) : null);
   // The Grounding slot holds the UI-TARS-class model; when no dedicated
   // grounding brain is configured, the vision brain doubles as grounder.
   const groundingSource = groundingBrain || visionBrain;
-  const resolvedGrounder = grounder || (groundingSource ? createGroundingGrounder(groundingSource) : null);
+  const resolvedGrounder =
+    grounder || (groundingSource ? createGroundingGrounder(groundingSource) : null);
   const resolvedBridge = bridge || adapter || new MockComputerAdapter();
 
   if (dryRun) {
@@ -1069,7 +1353,7 @@ export async function runControlVision(instruction, {
       dryRun: true,
       fileSystem,
       toolRunner,
-      userId
+      userId,
     });
   }
 
@@ -1081,7 +1365,7 @@ export async function runControlVision(instruction, {
       scopeEngine,
       fileSystem,
       toolRunner,
-      userId
+      userId,
     });
   }
 
@@ -1090,40 +1374,52 @@ export async function runControlVision(instruction, {
     grounder: resolvedGrounder,
     bridge: resolvedBridge,
     onEvent,
-    maxSteps
+    maxSteps,
   });
 }
 
-export function createInfinityModes({ brainModel = null, brainModelFor = null, groundingBrainFor = null, workspaceRoot = null, logger = console } = {}) {
+export function createInfinityModes({
+  brainModel = null,
+  brainModelFor = null,
+  groundingBrainFor = null,
+  workspaceRoot = null,
+  logger = console,
+} = {}) {
   const workspace = createWorkspace(workspaceRoot || defaultWorkspaceRoot());
   // brainModelFor(userId) lets Plan mode think with the user's ACTIVE brain
   // (Models → Run / Kaggle connect); falls back to the fixed brainModel.
-  const brainFor = (userId) => (typeof brainModelFor === 'function' ? brainModelFor(userId) : null) || brainModel;
+  const brainFor = userId =>
+    (typeof brainModelFor === 'function' ? brainModelFor(userId) : null) || brainModel;
   // groundingBrainFor(userId) resolves the Grounding-slot brain (the
   // UI-TARS-class model). When absent, the vision brain doubles as grounder.
-  const groundingFor = (userId) => (typeof groundingBrainFor === 'function' ? groundingBrainFor(userId) : null);
+  const groundingFor = userId =>
+    typeof groundingBrainFor === 'function' ? groundingBrainFor(userId) : null;
   return {
     workspace,
-    plan: (instruction, opts = {}) => planInstruction(instruction, { brainModel: brainFor(opts?.userId), userId: opts?.userId }),
-    build: (brief, opts = {}) => buildProject(brief, { ...opts, workspace, brainModel: brainFor(opts?.userId) }),
+    plan: (instruction, opts = {}) =>
+      planInstruction(instruction, { brainModel: brainFor(opts?.userId), userId: opts?.userId }),
+    build: (brief, opts = {}) =>
+      buildProject(brief, { ...opts, workspace, brainModel: brainFor(opts?.userId) }),
     decompose: decomposeInstruction,
     decomposeDeep: decomposeControlRequest,
     validateSteps: validatePlanSteps,
     // Control commands now run the see → think → act agent loop
     // (runControlVision) whenever brains are available; otherwise they fall
     // back to the legacy deep-control path, which is deprecated.
-    runControl: (instruction, opts = {}) => runControlVision(instruction, {
-      visionBrain: brainFor(opts?.userId),
-      groundingBrain: groundingFor(opts?.userId),
-      fileSystem: workspace,
-      ...opts
-    }),
-    runControlVision: (instruction, opts = {}) => runControlVision(instruction, {
-      visionBrain: brainFor(opts?.userId),
-      groundingBrain: groundingFor(opts?.userId),
-      fileSystem: workspace,
-      ...opts
-    }),
-    runControlGui: (instruction, opts = {}) => runControlPlan(instruction, opts)
+    runControl: (instruction, opts = {}) =>
+      runControlVision(instruction, {
+        visionBrain: brainFor(opts?.userId),
+        groundingBrain: groundingFor(opts?.userId),
+        fileSystem: workspace,
+        ...opts,
+      }),
+    runControlVision: (instruction, opts = {}) =>
+      runControlVision(instruction, {
+        visionBrain: brainFor(opts?.userId),
+        groundingBrain: groundingFor(opts?.userId),
+        fileSystem: workspace,
+        ...opts,
+      }),
+    runControlGui: (instruction, opts = {}) => runControlPlan(instruction, opts),
   };
 }

@@ -48,8 +48,8 @@ export function fingerprintDirectoryServer({
   rootDomainNamingContext = '',
 } = {}) {
   const mechanisms = supportedSASLMechanisms
-    .map((m) => String(m).toUpperCase())
-    .filter((m) => m.length > 0);
+    .map(m => String(m).toUpperCase())
+    .filter(m => m.length > 0);
 
   let implementation = 'Unknown directory server';
   let confidence = 'low';
@@ -67,14 +67,18 @@ export function fingerprintDirectoryServer({
     implementation = '389 Directory Server / Red Hat DS';
     confidence = 'high';
     evidenceBits.push(`vendorName="${vendorName}"`);
-  } else if (mechanisms.includes('GSSAPI') && namingContexts.some((nc) => /dc=/i.test(nc)) && !mechanisms.includes('ANONYMOUS')) {
+  } else if (
+    mechanisms.includes('GSSAPI') &&
+    namingContexts.some(nc => /dc=/i.test(nc)) &&
+    !mechanisms.includes('ANONYMOUS')
+  ) {
     implementation = 'Likely Active Directory (GSSAPI + domain-style naming contexts)';
     confidence = 'medium';
     evidenceBits.push('GSSAPI offered, no anonymous bind, dc= naming contexts');
   }
   if (vendorVersion) evidenceBits.push(`vendorVersion="${vendorVersion}"`);
 
-  const weakMechanisms = mechanisms.filter((m) => WEAK_MECHANISMS.has(m));
+  const weakMechanisms = mechanisms.filter(m => WEAK_MECHANISMS.has(m));
   const findings = [];
   if (weakMechanisms.length) {
     findings.push({
@@ -104,7 +108,10 @@ export function fingerprintDirectoryServer({
     implementation,
     vendorName: vendorName || undefined,
     vendorVersion: vendorVersion || undefined,
-    mechanisms: mechanisms.map((m) => ({ name: m, note: (SASL_MECHANISMS[m] || {}).note || 'Unrecognized mechanism.' })),
+    mechanisms: mechanisms.map(m => ({
+      name: m,
+      note: (SASL_MECHANISMS[m] || {}).note || 'Unrecognized mechanism.',
+    })),
     namingContexts,
     supportedLDAPVersion,
     findings,

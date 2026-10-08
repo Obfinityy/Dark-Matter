@@ -23,7 +23,9 @@
 
 /* ---- Buttons: consistent press feedback -------------------------------- */
 .th-btn {
-  transition: border-color var(--transition-fast, 0.15s ease), background-color var(--transition-fast, 0.15s ease);
+  transition:
+    border-color var(--transition-fast, 0.15s ease),
+    background-color var(--transition-fast, 0.15s ease);
 }
 .th-btn:active {
   transform: translateY(1px);

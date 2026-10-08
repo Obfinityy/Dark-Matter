@@ -9,8 +9,14 @@
  */
 
 const LOOKALIKE_REPLACEMENTS = [
-  ['rn', 'm'], ['vv', 'w'], ['0', 'o'], ['1', 'l'], ['5', 's'],
-  ['-', ''], ['cl', 'd'], ['ii', 'u'],
+  ['rn', 'm'],
+  ['vv', 'w'],
+  ['0', 'o'],
+  ['1', 'l'],
+  ['5', 's'],
+  ['-', ''],
+  ['cl', 'd'],
+  ['ii', 'u'],
 ];
 
 /**
@@ -42,7 +48,14 @@ export function brandVariantQueries(brand = '', tlds = ['com', 'net', 'org', 'io
  * @param {{ brand?: string, issuer?: string, sanContains?: string, validAfter?: string, validBefore?: string, limit?: number }} opts
  * @returns {Record<string, unknown>} query object for a cert-search API
  */
-export function buildPivotQuery({ brand = '', issuer = null, sanContains = null, validAfter = null, validBefore = null, limit = 100 } = {}) {
+export function buildPivotQuery({
+  brand = '',
+  issuer = null,
+  sanContains = null,
+  validAfter = null,
+  validBefore = null,
+  limit = 100,
+} = {}) {
   const query = {};
   if (brand) query.identity = brand;
   if (issuer) query.issuer = issuer;
@@ -71,14 +84,25 @@ export function parseSearchResults(rows = []) {
     const na = new Date(row.notAfter).getTime();
     if (Number.isFinite(nb) && Number.isFinite(na)) {
       const days = (na - nb) / 86400000;
-      if (days < 7) anomalies.push({ serial: row.serial, kind: 'short-validity', detail: `${Math.round(days)} day(s) validity` });
-      else if (days > 825) anomalies.push({ serial: row.serial, kind: 'long-validity', detail: `${Math.round(days)} day(s) validity exceeds 825-day norm` });
+      if (days < 7)
+        anomalies.push({
+          serial: row.serial,
+          kind: 'short-validity',
+          detail: `${Math.round(days)} day(s) validity`,
+        });
+      else if (days > 825)
+        anomalies.push({
+          serial: row.serial,
+          kind: 'long-validity',
+          detail: `${Math.round(days)} day(s) validity exceeds 825-day norm`,
+        });
     }
   }
-  const top = (map) => [...map.entries()].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
+  const top = map =>
+    [...map.entries()].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
   return {
-    issuers: top(issuerCounts).map((e) => ({ issuer: e.key, count: e.count })),
-    hosts: top(hostCounts).map((e) => ({ hostname: e.key, count: e.count })),
+    issuers: top(issuerCounts).map(e => ({ issuer: e.key, count: e.count })),
+    hosts: top(hostCounts).map(e => ({ hostname: e.key, count: e.count })),
     anomalies,
     total: rows.length,
   };

@@ -15,12 +15,42 @@
  * @type {Array<{stack:string, versions:string[], hints:string[], confidence:number}>}
  */
 export const VERSION_FINGERPRINTS = [
-  { stack: 'nginx + quiche', versions: ['1.0', '1.1', '2', '3'], hints: ['h3 via Alt-Svc', 'h2 via ALPN'], confidence: 0.7 },
-  { stack: 'Cloudflare edge', versions: ['1.1', '2', '3'], hints: ['h3 enabled by default', '1.0 rejected or upgraded'], confidence: 0.75 },
-  { stack: 'Apache httpd', versions: ['1.0', '1.1', '2'], hints: ['h2c via upgrade', 'no native h3'], confidence: 0.7 },
-  { stack: 'IIS', versions: ['1.0', '1.1', '2'], hints: ['h2 over TLS only', 'no cleartext h2c'], confidence: 0.7 },
-  { stack: 'HAProxy', versions: ['1.0', '1.1', '2'], hints: ['h2 as frontend only', 'no h3'], confidence: 0.65 },
-  { stack: 'legacy origin', versions: ['1.0', '1.1'], hints: ['no ALPN h2 advertisement'], confidence: 0.6 },
+  {
+    stack: 'nginx + quiche',
+    versions: ['1.0', '1.1', '2', '3'],
+    hints: ['h3 via Alt-Svc', 'h2 via ALPN'],
+    confidence: 0.7,
+  },
+  {
+    stack: 'Cloudflare edge',
+    versions: ['1.1', '2', '3'],
+    hints: ['h3 enabled by default', '1.0 rejected or upgraded'],
+    confidence: 0.75,
+  },
+  {
+    stack: 'Apache httpd',
+    versions: ['1.0', '1.1', '2'],
+    hints: ['h2c via upgrade', 'no native h3'],
+    confidence: 0.7,
+  },
+  {
+    stack: 'IIS',
+    versions: ['1.0', '1.1', '2'],
+    hints: ['h2 over TLS only', 'no cleartext h2c'],
+    confidence: 0.7,
+  },
+  {
+    stack: 'HAProxy',
+    versions: ['1.0', '1.1', '2'],
+    hints: ['h2 as frontend only', 'no h3'],
+    confidence: 0.65,
+  },
+  {
+    stack: 'legacy origin',
+    versions: ['1.0', '1.1'],
+    hints: ['no ALPN h2 advertisement'],
+    confidence: 0.6,
+  },
 ];
 
 /**
@@ -67,8 +97,8 @@ export function mapVersionSupport(observations) {
 export function fingerprintVersionStack(versionMap) {
   const results = [];
   for (const fp of VERSION_FINGERPRINTS) {
-    const matched = fp.versions.filter((v) => versionMap.supported.includes(v));
-    const extra = versionMap.supported.filter((v) => !fp.versions.includes(v));
+    const matched = fp.versions.filter(v => versionMap.supported.includes(v));
+    const extra = versionMap.supported.filter(v => !fp.versions.includes(v));
     if (matched.length === 0) continue;
     const coverage = matched.length / fp.versions.length;
     const penalty = extra.length * 0.1;
@@ -94,13 +124,17 @@ export function flagVersionConcerns(versionMap) {
     concerns.push('server downgrades modern protocol requests — possible ALPN-stripping middlebox');
   }
   if (!versionMap.supported.includes('2') && !versionMap.supported.includes('3')) {
-    concerns.push('no multiplexed protocol support — request smuggling surface limited to HTTP/1.x framing');
+    concerns.push(
+      'no multiplexed protocol support — request smuggling surface limited to HTTP/1.x framing'
+    );
   }
   if (versionMap.supported.includes('1.0')) {
     concerns.push('HTTP/1.0 accepted — legacy framing path may bypass modern proxy validation');
   }
   if (versionMap.altSvcAdvertised && !versionMap.supported.includes('3')) {
-    concerns.push('Alt-Svc advertises h3 but no h3 support observed — header spoofing or stale config');
+    concerns.push(
+      'Alt-Svc advertises h3 but no h3 support observed — header spoofing or stale config'
+    );
   }
   return { concerns };
 }

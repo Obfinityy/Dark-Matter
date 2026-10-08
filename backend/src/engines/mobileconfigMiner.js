@@ -23,10 +23,22 @@ function hostOf(value) {
 
 // Hostname patterns that indicate a server hostname rather than prose.
 const SERVER_KEY_HINTS = [
-  'hostname', 'servername', 'serveraddress', 'serverurl', 'mdmserver',
-  'vpnserver', 'remoteaddress', 'mailserver', 'incomingmailserver',
-  'outgoingmailserver', 'caldavhostname', 'carddavhostname',
-  'principalurl', 'serverhost', 'exchangehostname', 'ewsurl',
+  'hostname',
+  'servername',
+  'serveraddress',
+  'serverurl',
+  'mdmserver',
+  'vpnserver',
+  'remoteaddress',
+  'mailserver',
+  'incomingmailserver',
+  'outgoingmailserver',
+  'caldavhostname',
+  'carddavhostname',
+  'principalurl',
+  'serverhost',
+  'exchangehostname',
+  'ewsurl',
 ];
 
 /**
@@ -37,7 +49,12 @@ const SERVER_KEY_HINTS = [
 export function parseMobileconfig(plist = '') {
   const notes = [];
   if (typeof plist !== 'string' || !/<plist\b/i.test(plist)) {
-    return { valid: false, hosts: [], uniqueHosts: [], notes: ['Not an XML plist — signed/CMS-wrapped profiles must be decoded first'] };
+    return {
+      valid: false,
+      hosts: [],
+      uniqueHosts: [],
+      notes: ['Not an XML plist — signed/CMS-wrapped profiles must be decoded first'],
+    };
   }
 
   const hosts = [];
@@ -58,18 +75,28 @@ export function parseMobileconfig(plist = '') {
     const lk = key.toLowerCase();
     if (lk.includes('mdm') || lk.includes('enroll')) kind = 'mdm';
     else if (lk.includes('vpn') || lk.includes('remoteaddress')) kind = 'vpn';
-    else if (lk.includes('mail') || lk.includes('imap') || lk.includes('smtp') || lk.includes('exchange') || lk.includes('ews')) kind = 'mail';
+    else if (
+      lk.includes('mail') ||
+      lk.includes('imap') ||
+      lk.includes('smtp') ||
+      lk.includes('exchange') ||
+      lk.includes('ews')
+    )
+      kind = 'mail';
     else if (lk.includes('caldav') || lk.includes('carddav')) kind = 'groupware';
-    else if (SERVER_KEY_HINTS.some((h) => lk.includes(h))) kind = 'server';
+    else if (SERVER_KEY_HINTS.some(h => lk.includes(h))) kind = 'server';
     else continue; // URL but not a server hostname — skip to avoid noise
 
     hosts.push({ kind, value, host });
     unique.add(host);
   }
 
-  if (hosts.length === 0) notes.push('Plist parsed but no server hostnames identified — profile may contain no server payloads');
+  if (hosts.length === 0)
+    notes.push(
+      'Plist parsed but no server hostnames identified — profile may contain no server payloads'
+    );
   if (unique.size > 0) {
-    const kinds = [...new Set(hosts.map((h) => h.kind))];
+    const kinds = [...new Set(hosts.map(h => h.kind))];
     notes.push(`Server host(s) by kind (${kinds.join(', ')}): ${[...unique].join(', ')}`);
   }
 

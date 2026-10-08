@@ -24,13 +24,27 @@ const BRAVE_SEARCH_ENDPOINT = 'https://search.brave.com/search';
  * @returns {Array<{ url: string, query: string, page: number }>}
  */
 export function buildBraveSiteQueries(domain, options = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!clean) throw new Error('braveSearchIntel: domain is required');
   const pages = Math.max(1, Math.min(20, Number(options.pages ?? 3)));
   const lang = String(options.lang ?? 'en');
 
   const queries = [`site:${clean}`];
-  for (const tldPrefix of ['dev', 'test', 'staging', 'beta', 'internal', 'corp', 'ops', 'monitoring', 'jenkins', 'grafana']) {
+  for (const tldPrefix of [
+    'dev',
+    'test',
+    'staging',
+    'beta',
+    'internal',
+    'corp',
+    'ops',
+    'monitoring',
+    'jenkins',
+    'grafana',
+  ]) {
     queries.push(`site:${tldPrefix}.${clean}`);
   }
 
@@ -55,7 +69,10 @@ export function buildBraveSiteQueries(domain, options = {}) {
  * @returns {{ hosts: Array<{ host: string, source: string }>, pageOk: boolean }}
  */
 export function parseBraveSearchResults(html, domain) {
-  const base = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const base = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!base) return { hosts: [], pageOk: false };
   const text = String(html || '');
   const pageOk = /class="[^"]*snippet|id="results"|data-testid="result/.test(text);
@@ -69,7 +86,10 @@ export function parseBraveSearchResults(html, domain) {
   }
 
   // Bare hostnames rendered in result titles/snippets.
-  const bareRe = new RegExp(`\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`, 'gi');
+  const bareRe = new RegExp(
+    `\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`,
+    'gi'
+  );
   const decoded = safeDecode(text);
   while ((m = bareRe.exec(decoded)) !== null) {
     const host = m[1].toLowerCase();

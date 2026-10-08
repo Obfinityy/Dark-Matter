@@ -66,7 +66,7 @@ export class PayloadLibraryModel {
     const all = await this.collection.find({}).toArray();
     if (all.length <= MAX_RECORDS) return;
     // Evict the least useful first: lowest (successes - failures).
-    all.sort((a, b) => (a.successes - a.failures) - (b.successes - b.failures));
+    all.sort((a, b) => a.successes - a.failures - (b.successes - b.failures));
     for (const victim of all.slice(0, all.length - MAX_RECORDS)) {
       await this.collection.deleteOne({ id: victim.id });
     }
@@ -82,9 +82,9 @@ export class PayloadLibraryModel {
     if (category) query.category = category;
     const all = await this.collection.find(query).toArray();
     return all
-      .filter((r) => r.successes > 0 || r.failures === 0)
+      .filter(r => r.successes > 0 || r.failures === 0)
       .sort((a, b) => {
-        const score = (b.successes - b.failures) - (a.successes - a.failures);
+        const score = b.successes - b.failures - (a.successes - a.failures);
         if (score !== 0) return score;
         return new Date(b.lastUsedAt || 0) - new Date(a.lastUsedAt || 0);
       })
@@ -95,7 +95,7 @@ export class PayloadLibraryModel {
     const all = await this.collection.find({}).toArray();
     return {
       total: all.length,
-      withSuccess: all.filter((r) => r.successes > 0).length,
+      withSuccess: all.filter(r => r.successes > 0).length,
       totalSuccesses: all.reduce((n, r) => n + r.successes, 0),
       totalFailures: all.reduce((n, r) => n + r.failures, 0),
     };

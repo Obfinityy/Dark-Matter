@@ -26,26 +26,62 @@ export const WAVE32_END = 51280;
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE32_IDEAS = [
   [51241, 'log bookmarks', 'Mark lines to revisit, with notes attached to each bookmark'],
-  [51242, 'anomaly flagging', 'The agent flags unusual log patterns for your attention automatically'],
+  [
+    51242,
+    'anomaly flagging',
+    'The agent flags unusual log patterns for your attention automatically',
+  ],
   [51243, 'log correlation', 'Lines linked to the finding or phase they contributed to'],
   [51244, 'tail-follow mode', 'The stream auto-scrolls with a pause-on-hover for reading'],
-  [51245, 'log sampling (mid-hunt)', 'During floods, show a representative sample with a "showing 1 of N" indicator'],
+  [
+    51245,
+    'log sampling (mid-hunt)',
+    'During floods, show a representative sample with a "showing 1 of N" indicator',
+  ],
   [51246, 'structured log cards', 'Key events rendered as readable cards instead of raw text'],
   [51247, 'log diff view', 'Compare log segments between two phases or two hunts'],
   [51248, 'tool runtime stats', 'Per-tool execution counts, durations, and error rates live'],
   [51249, 'command echo', 'Every agent decision shown with the command it issued and why'],
   [51250, 'log retention control', 'Choose how much history stays in the live buffer per hunt'],
-  [51251, 'multi-hunt log switcher', 'Flip the log view between concurrent hunts without losing scroll position'],
+  [
+    51251,
+    'multi-hunt log switcher',
+    'Flip the log view between concurrent hunts without losing scroll position',
+  ],
   [51252, 'log annotations', 'Add your own notes inline on any log line for later review'],
-  [51253, 'quiet hours for logs', 'Collapse routine recon chatter into summaries during long phases'],
+  [
+    51253,
+    'quiet hours for logs',
+    'Collapse routine recon chatter into summaries during long phases',
+  ],
   [51254, 'log-driven alerts', 'Get notified when a log pattern you defined appears'],
   [51255, 'screenshot-on-event', 'The agent captures screenshots at key log moments automatically'],
   [51256, 'log timeline minimap', 'A density overview for jumping to busy or quiet periods'],
-  [51257, 'copy-as-curl (mid-hunt)', 'One click copies any logged request as a curl command for manual replay'],
-  [51258, 'log redaction presets', 'One-tap masking profiles for demos, clients, or public sharing'],
-  [51259, 'agent thought stream', 'The agents internal reasoning rendered as a readable companion to raw logs'],
-  [51260, 'log performance overlay', 'Request rates and latencies graphed alongside the log stream'],
-  [51261, 'stall detection', 'The log view highlights when no new activity appears for an unusual gap'],
+  [
+    51257,
+    'copy-as-curl (mid-hunt)',
+    'One click copies any logged request as a curl command for manual replay',
+  ],
+  [
+    51258,
+    'log redaction presets',
+    'One-tap masking profiles for demos, clients, or public sharing',
+  ],
+  [
+    51259,
+    'agent thought stream',
+    'The agents internal reasoning rendered as a readable companion to raw logs',
+  ],
+  [
+    51260,
+    'log performance overlay',
+    'Request rates and latencies graphed alongside the log stream',
+  ],
+  [
+    51261,
+    'stall detection',
+    'The log view highlights when no new activity appears for an unusual gap',
+  ],
   [51262, 'log sharing links', 'Share a live, read-only log view with a teammate via link'],
   [51263, 'log watermarking', 'Shared log views carry viewer identity to discourage leaks'],
   [51264, 'offline log cache', 'The full log stays browsable even if the hunt connection drops'],
@@ -53,18 +89,46 @@ export const WAVE32_IDEAS = [
   [51266, 'tool output diffing', 'Compare outputs of the same tool across runs to spot changes'],
   [51267, 'log keyboard navigation', 'Jump between errors, findings, and bookmarks with shortcuts'],
   [51268, 'custom log views', 'Save filter combinations as named views like "auth failures only"'],
-  [51269, 'log-to-finding promotion', 'Turn any log line into a draft finding with evidence attached'],
-  [51270, 'execution graph view', 'The hunt rendered as a live node graph of actions and their results'],
+  [
+    51269,
+    'log-to-finding promotion',
+    'Turn any log line into a draft finding with evidence attached',
+  ],
+  [
+    51270,
+    'execution graph view',
+    'The hunt rendered as a live node graph of actions and their results',
+  ],
   [51271, 'log sentiment', 'Phases color-coded by success, struggle, or idle based on log signals'],
-  [51272, 'request replay sandbox', 'Re-run a logged request in an isolated sandbox from the log view'],
+  [
+    51272,
+    'request replay sandbox',
+    'Re-run a logged request in an isolated sandbox from the log view',
+  ],
   [51273, 'log integrity hash', 'Tamper-evident hashing so logs serve as reliable evidence'],
-  [51274, 'parallel stream merge', 'Sub-agent logs merged into one chronological stream with color coding'],
+  [
+    51274,
+    'parallel stream merge',
+    'Sub-agent logs merged into one chronological stream with color coding',
+  ],
   [51275, 'log density control', 'Slider from "every packet" to "milestones only"'],
-  [51276, 'smart log folding', 'Repetitive sequences collapsed into "repeated 47x" with expand option'],
+  [
+    51276,
+    'smart log folding',
+    'Repetitive sequences collapsed into "repeated 47x" with expand option',
+  ],
   [51277, 'log voice narration', 'Have key log events read aloud during hands-free monitoring'],
   [51278, 'log export scheduling', 'Auto-export logs to your storage at phase boundaries'],
-  [51279, 'cross-hunt log compare', 'Overlay logs from two hunts of the same target to spot differences'],
-  [51280, 'log-based Q&A', 'Ask "why did the login test fail?" and get an answer grounded in the logs'],
+  [
+    51279,
+    'cross-hunt log compare',
+    'Overlay logs from two hunts of the same target to spot differences',
+  ],
+  [
+    51280,
+    'log-based Q&A',
+    'Ask "why did the login test fail?" and get an answer grounded in the logs',
+  ],
 ];
 
 // --- 51241 log bookmarks -----------------------------------------------------
@@ -110,7 +174,10 @@ export function flagAnomalies(lines) {
     if (i > 0 && ls[i - 1].text === l.text && l.text) {
       let run = 2;
       let j = i - 1;
-      while (j > 0 && ls[j - 1].text === l.text) { run++; j--; }
+      while (j > 0 && ls[j - 1].text === l.text) {
+        run++;
+        j--;
+      }
       if (run >= 4) flags.push({ lineId: l.id, reason: `repeated ${run}x` });
     }
     if (i > 0 && typeof l.ts === 'number' && typeof ls[i - 1].ts === 'number') {
@@ -118,7 +185,8 @@ export function flagAnomalies(lines) {
       if (gap > 120000) flags.push({ lineId: l.id, reason: `gap ${Math.round(gap / 1000)}s` });
     }
   }
-  if (errRun >= 3 && ls.length) flags.push({ lineId: ls[ls.length - 1].id, reason: `error-burst (${errRun} consecutive)` });
+  if (errRun >= 3 && ls.length)
+    flags.push({ lineId: ls[ls.length - 1].id, reason: `error-burst (${errRun} consecutive)` });
   return flags;
 }
 
@@ -127,11 +195,11 @@ export function flagAnomalies(lines) {
 /** Attach finding/phase correlation to lines that reference them. */
 export function correlateLines(lines, findings) {
   const fs = findings || [];
-  return (lines || []).map((l) => {
+  return (lines || []).map(l => {
     const text = String(l.text || '');
-    const hit = fs.find((f) => f.id && text.includes(f.id));
+    const hit = fs.find(f => f.id && text.includes(f.id));
     if (hit) return { ...l, findingId: hit.id, phase: hit.phase || l.phase };
-    const ph = fs.find((f) => f.phase && l.phase === f.phase);
+    const ph = fs.find(f => f.phase && l.phase === f.phase);
     return { ...l, phase: l.phase || (ph ? ph.phase : undefined) };
   });
 }
@@ -162,7 +230,8 @@ export function sampleLines(lines, maxN, bookmarkIds) {
   const rest = [];
   ls.forEach((l, i) => {
     const lvl = String(l.level || 'info').toLowerCase();
-    if (i === 0 || i === ls.length - 1 || lvl === 'error' || lvl === 'warn' || bm.has(l.id)) must.push(i);
+    if (i === 0 || i === ls.length - 1 || lvl === 'error' || lvl === 'warn' || bm.has(l.id))
+      must.push(i);
     else rest.push(i);
   });
   const budget = Math.max(0, maxN - must.length);
@@ -172,7 +241,7 @@ export function sampleLines(lines, maxN, bookmarkIds) {
     for (let k = 0; k < budget; k++) picked.add(rest[Math.floor(k * stride)]);
   }
   const idx = [...picked].sort((a, b) => a - b);
-  return { sample: idx.map((i) => ls[i]), total: ls.length, sampled: true };
+  return { sample: idx.map(i => ls[i]), total: ls.length, sampled: true };
 }
 
 /** Human label for a sampled view: "showing 1 of N". */
@@ -187,8 +256,8 @@ const CARD_LEVELS = new Set(['error', 'warn', 'finding', 'milestone']);
 /** Render key events as structured cards instead of raw text. */
 export function toLogCards(lines) {
   return (lines || [])
-    .filter((l) => CARD_LEVELS.has(String(l.level || '').toLowerCase()) || l.findingId)
-    .map((l) => ({
+    .filter(l => CARD_LEVELS.has(String(l.level || '').toLowerCase()) || l.findingId)
+    .map(l => ({
       id: l.id,
       kind: l.findingId ? 'finding' : String(l.level || 'info').toLowerCase(),
       title: l.findingId ? `Finding ${l.findingId}` : String(l.text || '').slice(0, 80),
@@ -206,13 +275,13 @@ export function toLogCards(lines) {
  * (added), in a but not b (removed). Order-preserving, deterministic.
  */
 export function diffLogSegments(a, b) {
-  const sa = new Set((a || []).map((l) => l.text));
-  const sb = new Set((b || []).map((l) => l.text));
+  const sa = new Set((a || []).map(l => l.text));
+  const sb = new Set((b || []).map(l => l.text));
   return {
-    added: (b || []).filter((l) => !sa.has(l.text)),
-    removed: (a || []).filter((l) => !sb.has(l.text)),
-    addedCount: (b || []).filter((l) => !sa.has(l.text)).length,
-    removedCount: (a || []).filter((l) => !sb.has(l.text)).length,
+    added: (b || []).filter(l => !sa.has(l.text)),
+    removed: (a || []).filter(l => !sb.has(l.text)),
+    addedCount: (b || []).filter(l => !sa.has(l.text)).length,
+    removedCount: (a || []).filter(l => !sb.has(l.text)).length,
   };
 }
 
@@ -228,7 +297,7 @@ export function toolRuntimeStats(lines) {
     if (String(l.level || '').toLowerCase() === 'error') s.errors++;
     if (typeof l.durationMs === 'number') s.totalMs += l.durationMs;
   }
-  return Object.values(stats).map((s) => ({
+  return Object.values(stats).map(s => ({
     ...s,
     avgMs: s.runs ? Math.round(s.totalMs / s.runs) : 0,
     errorRate: s.runs ? Math.round((s.errors / s.runs) * 1000) / 10 : 0,
@@ -296,14 +365,17 @@ export function quietHoursCollapse(lines) {
   const kept = [];
   const collapsed = {};
   for (const l of lines || []) {
-    if (ROUTINE.has(String(l.module || '').toLowerCase()) && String(l.level || 'info').toLowerCase() === 'info') {
+    if (
+      ROUTINE.has(String(l.module || '').toLowerCase()) &&
+      String(l.level || 'info').toLowerCase() === 'info'
+    ) {
       const k = l.module;
       collapsed[k] = collapsed[k] || { module: k, count: 0, firstTs: l.ts, lastTs: l.ts };
       collapsed[k].count++;
       collapsed[k].lastTs = l.ts;
     } else kept.push(l);
   }
-  const summaries = Object.values(collapsed).map((c) => ({
+  const summaries = Object.values(collapsed).map(c => ({
     id: `quiet-${c.module}`,
     level: 'summary',
     module: c.module,
@@ -312,7 +384,11 @@ export function quietHoursCollapse(lines) {
     ts: c.lastTs,
     collapsed: true,
   }));
-  return { lines: kept, summaries, collapsedCount: Object.values(collapsed).reduce((n, c) => n + c.count, 0) };
+  return {
+    lines: kept,
+    summaries,
+    collapsedCount: Object.values(collapsed).reduce((n, c) => n + c.count, 0),
+  };
 }
 
 // --- 51254 log-driven alerts -------------------------------------------------------------------------------------
@@ -320,7 +396,9 @@ export function quietHoursCollapse(lines) {
 /** Return patterns that match a log line's text (case-insensitive substring). */
 export function checkAlertPatterns(line, patterns) {
   const text = String((line && line.text) || '').toLowerCase();
-  return (patterns || []).filter((p) => p && p.pattern && text.includes(String(p.pattern).toLowerCase()));
+  return (patterns || []).filter(
+    p => p && p.pattern && text.includes(String(p.pattern).toLowerCase())
+  );
 }
 
 // --- 51255 screenshot-on-event ----------------------------------------------------------------------------------------
@@ -330,8 +408,12 @@ const SCREENSHOT_TRIGGERS = new Set(['finding', 'error']);
 /** Line ids that should trigger automatic screenshots. */
 export function screenshotEvents(lines) {
   return (lines || [])
-    .filter((l) => SCREENSHOT_TRIGGERS.has(String(l.level || '').toLowerCase()) || l.findingId)
-    .map((l) => ({ lineId: l.id, ts: l.ts, reason: l.findingId ? `finding ${l.findingId}` : l.level }));
+    .filter(l => SCREENSHOT_TRIGGERS.has(String(l.level || '').toLowerCase()) || l.findingId)
+    .map(l => ({
+      lineId: l.id,
+      ts: l.ts,
+      reason: l.findingId ? `finding ${l.findingId}` : l.level,
+    }));
 }
 
 // --- 51256 log timeline minimap -------------------------------------------------------------------------------------------
@@ -346,7 +428,7 @@ export function minimapBuckets(lines, n) {
     buckets[b]++;
   });
   const max = Math.max(...buckets, 1);
-  return buckets.map((c) => Math.round((c / max) * 100) / 100);
+  return buckets.map(c => Math.round((c / max) * 100) / 100);
 }
 
 // --- 51257 copy-as-curl --------------------------------------------------------------------------------------------------------
@@ -361,7 +443,11 @@ export function toCurl(req) {
   const r = req || {};
   const parts = ['curl', '-X', String(r.method || 'GET').toUpperCase()];
   for (const [k, v] of Object.entries(r.headers || {})) parts.push('-H', shellQuote(`${k}: ${v}`));
-  if (r.body) parts.push('--data-raw', shellQuote(typeof r.body === 'string' ? r.body : JSON.stringify(r.body)));
+  if (r.body)
+    parts.push(
+      '--data-raw',
+      shellQuote(typeof r.body === 'string' ? r.body : JSON.stringify(r.body))
+    );
   parts.push(shellQuote(r.url || ''));
   return parts.join(' ');
 }
@@ -371,7 +457,13 @@ export function toCurl(req) {
 const REDACTION_PRESETS = {
   demo: [/password=[^\s&]+/gi, /token=[^\s&]+/gi],
   client: [/password=[^\s&]+/gi, /token=[^\s&]+/gi, /api[_-]?key=[^\s&]+/gi, /secret=[^\s&]+/gi],
-  public: [/password=[^\s&]+/gi, /token=[^\s&]+/gi, /api[_-]?key=[^\s&]+/gi, /secret=[^\s&]+/gi, /\b\d{1,3}(?:\.\d{1,3}){3}\b/g],
+  public: [
+    /password=[^\s&]+/gi,
+    /token=[^\s&]+/gi,
+    /api[_-]?key=[^\s&]+/gi,
+    /secret=[^\s&]+/gi,
+    /\b\d{1,3}(?:\.\d{1,3}){3}\b/g,
+  ],
 };
 
 /** Apply a one-tap masking profile to log text. Unknown preset → unchanged. */
@@ -402,10 +494,10 @@ export function thoughtStreamEntry(thought) {
  * Buckets span the log's time range evenly.
  */
 export function perfOverlay(lines, buckets = 24) {
-  const ls = (lines || []).filter((l) => typeof l.ts === 'number');
+  const ls = (lines || []).filter(l => typeof l.ts === 'number');
   const out = new Array(Math.max(1, buckets)).fill(null).map(() => ({ count: 0, totalMs: 0 }));
-  if (!ls.length) return out.map((b) => ({ ...b, avgMs: 0 }));
-  const ts = ls.map((l) => l.ts);
+  if (!ls.length) return out.map(b => ({ ...b, avgMs: 0 }));
+  const ts = ls.map(l => l.ts);
   const min = Math.min(...ts);
   const max = Math.max(...ts);
   const span = Math.max(1, max - min);
@@ -414,18 +506,19 @@ export function perfOverlay(lines, buckets = 24) {
     out[b].count++;
     if (typeof l.durationMs === 'number') out[b].totalMs += l.durationMs;
   }
-  return out.map((b) => ({ count: b.count, avgMs: b.count ? Math.round(b.totalMs / b.count) : 0 }));
+  return out.map(b => ({ count: b.count, avgMs: b.count ? Math.round(b.totalMs / b.count) : 0 }));
 }
 
 // --- 51261 stall detection ------------------------------------------------------------------------------------------------------------------
 
 /** Find gaps longer than thresholdMs with no new activity. */
 export function detectStalls(lines, thresholdMs) {
-  const ls = (lines || []).filter((l) => typeof l.ts === 'number');
+  const ls = (lines || []).filter(l => typeof l.ts === 'number');
   const stalls = [];
   for (let i = 1; i < ls.length; i++) {
     const gap = ls[i].ts - ls[i - 1].ts;
-    if (gap > thresholdMs) stalls.push({ afterLineId: ls[i - 1].id, beforeLineId: ls[i].id, gapMs: gap });
+    if (gap > thresholdMs)
+      stalls.push({ afterLineId: ls[i - 1].id, beforeLineId: ls[i].id, gapMs: gap });
   }
   return stalls;
 }
@@ -461,12 +554,21 @@ export function watermark(viewer) {
 
 /** Serialize the log for offline browsing (drops nothing, marks cachedAt as null for determinism). */
 export function offlineCache(lines) {
-  return { version: 1, cachedAt: null, count: (lines || []).length, lines: (lines || []).map((l) => ({ ...l })) };
+  return {
+    version: 1,
+    cachedAt: null,
+    count: (lines || []).length,
+    lines: (lines || []).map(l => ({ ...l })),
+  };
 }
 
 // --- 51265 log summarizer -------------------------------------------------------------------------------------------------------------------------------------------
 
-const STOPWORDS = new Set('the,a,an,and,or,to,of,in,on,for,with,is,was,are,were,be,been,by,at,as,it,its,this,that,from'.split(','));
+const STOPWORDS = new Set(
+  'the,a,an,and,or,to,of,in,on,for,with,is,was,are,were,be,been,by,at,as,it,its,this,that,from'.split(
+    ','
+  )
+);
 
 /**
  * Extractive summary: score lines by signal words (error/finding/success/
@@ -474,9 +576,21 @@ const STOPWORDS = new Set('the,a,an,and,or,to,of,in,on,for,with,is,was,are,were,
  */
 export function summarizeRange(lines, maxLines = 5) {
   const ls = lines || [];
-  const signal = ['error', 'failed', 'finding', 'found', 'success', 'vulnerable', 'critical', 'warning'];
+  const signal = [
+    'error',
+    'failed',
+    'finding',
+    'found',
+    'success',
+    'vulnerable',
+    'critical',
+    'warning',
+  ];
   const scored = ls.map((l, i) => {
-    const words = String(l.text || '').toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    const words = String(l.text || '')
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter(Boolean);
     let score = 0;
     for (const w of words) {
       if (STOPWORDS.has(w)) continue;
@@ -490,9 +604,9 @@ export function summarizeRange(lines, maxLines = 5) {
   const top = scored
     .sort((a, b) => b.score - a.score || a.i - b.i)
     .slice(0, Math.max(1, maxLines))
-    .map((s) => s.i)
+    .map(s => s.i)
     .sort((a, b) => a - b);
-  return top.map((i) => ls[i]);
+  return top.map(i => ls[i]);
 }
 
 // --- 51266 tool output diffing -------------------------------------------------------------------------------------------------------------------------------------------
@@ -501,7 +615,7 @@ export function summarizeRange(lines, maxLines = 5) {
 export function diffToolOutputs(a, b) {
   return diffLogSegments(
     (a || []).map((t, i) => ({ id: `a${i}`, text: String(t) })),
-    (b || []).map((t, i) => ({ id: `b${i}`, text: String(t) })),
+    (b || []).map((t, i) => ({ id: `b${i}`, text: String(t) }))
   );
 }
 
@@ -529,7 +643,7 @@ export function shortcutMap() {
 export function navigateLog(lines, fromIndex, kind, direction, bookmarkIds) {
   const ls = lines || [];
   const bm = new Set(bookmarkIds || []);
-  const match = (l) => {
+  const match = l => {
     if (kind === 'error') return ['error', 'warn'].includes(String(l.level || '').toLowerCase());
     if (kind === 'finding') return Boolean(l.findingId);
     if (kind === 'bookmark') return bm.has(l.id);
@@ -555,10 +669,18 @@ export function saveView(views, name, filters) {
 /** Apply a saved view's filters to lines (level + module + text query). */
 export function applyView(lines, view) {
   const f = (view && view.filters) || {};
-  return (lines || []).filter((l) => {
-    if (f.level && String(l.level || '').toLowerCase() !== String(f.level).toLowerCase()) return false;
-    if (f.module && String(l.module || '').toLowerCase() !== String(f.module).toLowerCase()) return false;
-    if (f.query && !String(l.text || '').toLowerCase().includes(String(f.query).toLowerCase())) return false;
+  return (lines || []).filter(l => {
+    if (f.level && String(l.level || '').toLowerCase() !== String(f.level).toLowerCase())
+      return false;
+    if (f.module && String(l.module || '').toLowerCase() !== String(f.module).toLowerCase())
+      return false;
+    if (
+      f.query &&
+      !String(l.text || '')
+        .toLowerCase()
+        .includes(String(f.query).toLowerCase())
+    )
+      return false;
     return true;
   });
 }
@@ -664,7 +786,7 @@ export function fnv1a(str) {
  */
 export function integrityHash(lines) {
   let prev = '00000000';
-  const chain = (lines || []).map((l) => {
+  const chain = (lines || []).map(l => {
     const hash = fnv1a(`${prev}|${l.id}|${l.ts}|${l.text}`);
     prev = hash;
     return { lineId: l.id, hash };
@@ -709,14 +831,15 @@ export function densityFilter(lines, level) {
   const ls = lines || [];
   const lvl = String(level || 'standard').toLowerCase();
   if (lvl === 'packets') return ls.slice();
-  if (lvl === 'detailed') return ls.filter((l) => !['debug', 'trace'].includes(String(l.level || '').toLowerCase()));
+  if (lvl === 'detailed')
+    return ls.filter(l => !['debug', 'trace'].includes(String(l.level || '').toLowerCase()));
   if (lvl === 'milestones') {
-    return ls.filter((l) => {
+    return ls.filter(l => {
       const lv = String(l.level || '').toLowerCase();
       return lv === 'error' || lv === 'finding' || lv === 'milestone' || Boolean(l.findingId);
     });
   }
-  return ls.filter((l) => !['debug', 'trace'].includes(String(l.level || '').toLowerCase()));
+  return ls.filter(l => !['debug', 'trace'].includes(String(l.level || '').toLowerCase()));
 }
 
 export function densityLevels() {
@@ -738,7 +861,14 @@ export function foldRepeats(lines) {
     while (j < ls.length && ls[j].text === ls[i].text) j++;
     const count = j - i;
     if (count >= 3) {
-      out.push({ type: 'fold', text: ls[i].text, count, firstId: ls[i].id, lastId: ls[j - 1].id, ids: ls.slice(i, j).map((l) => l.id) });
+      out.push({
+        type: 'fold',
+        text: ls[i].text,
+        count,
+        firstId: ls[i].id,
+        lastId: ls[j - 1].id,
+        ids: ls.slice(i, j).map(l => l.id),
+      });
     } else {
       for (let k = i; k < j; k++) out.push({ type: 'line', ...ls[k] });
     }
@@ -752,11 +882,11 @@ export function foldRepeats(lines) {
 /** Build spoken text for key log events (errors, findings, milestones). */
 export function voiceNarration(lines) {
   return (lines || [])
-    .filter((l) => {
+    .filter(l => {
       const lv = String(l.level || '').toLowerCase();
       return lv === 'error' || lv === 'finding' || lv === 'milestone' || Boolean(l.findingId);
     })
-    .map((l) => {
+    .map(l => {
       const lv = String(l.level || 'info').toLowerCase();
       const prefix = l.findingId ? 'Finding' : lv === 'error' ? 'Error' : 'Milestone';
       return `${prefix}: ${String(l.text || '').slice(0, 140)}`;
@@ -804,16 +934,20 @@ export function crossHuntCompare(a, b) {
  */
 export function answerFromLogs(question, lines) {
   const q = String(question || '').toLowerCase();
-  const keywords = q.split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !STOPWORDS.has(w));
-  const scored = (lines || []).map((l) => {
-    const text = String(l.text || '').toLowerCase();
-    let score = 0;
-    for (const k of keywords) if (text.includes(k)) score += 2;
-    if (String(l.level || '').toLowerCase() === 'error') score += 1;
-    return { line: l, score };
-  }).filter((s) => s.score > 0);
+  const keywords = q.split(/[^a-z0-9]+/).filter(w => w.length > 3 && !STOPWORDS.has(w));
+  const scored = (lines || [])
+    .map(l => {
+      const text = String(l.text || '').toLowerCase();
+      let score = 0;
+      for (const k of keywords) if (text.includes(k)) score += 2;
+      if (String(l.level || '').toLowerCase() === 'error') score += 1;
+      return { line: l, score };
+    })
+    .filter(s => s.score > 0);
   scored.sort((a, b) => b.score - a.score);
-  const evidence = scored.slice(0, 3).map((s) => ({ lineId: s.line.id, text: s.line.text, ts: s.line.ts }));
+  const evidence = scored
+    .slice(0, 3)
+    .map(s => ({ lineId: s.line.id, text: s.line.text, ts: s.line.ts }));
   return {
     question: String(question || ''),
     answer: evidence.length

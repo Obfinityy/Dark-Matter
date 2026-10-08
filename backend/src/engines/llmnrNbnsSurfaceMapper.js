@@ -52,11 +52,11 @@ export function classifyResponder({
  * @returns {Object} Aggregate surface map with hardening guidance.
  */
 export function mapSpoofSurface(observations = []) {
-  const responders = observations.map((o) => classifyResponder(o)).filter((r) => r.responds);
+  const responders = observations.map(o => classifyResponder(o)).filter(r => r.responds);
 
-  const llmnr = responders.filter((r) => r.protocol === 'LLMNR');
-  const nbns = responders.filter((r) => r.protocol === 'NBNS');
-  const uniqueHosts = [...new Set(responders.map((r) => r.responder))];
+  const llmnr = responders.filter(r => r.protocol === 'LLMNR');
+  const nbns = responders.filter(r => r.protocol === 'NBNS');
+  const uniqueHosts = [...new Set(responders.map(r => r.responder))];
 
   return {
     type: 'LLMNR/NBNS Spoof-Surface Map',

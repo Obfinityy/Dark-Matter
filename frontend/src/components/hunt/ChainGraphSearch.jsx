@@ -22,18 +22,15 @@ export function ChainGraphSearch({
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
 
-  const results = useMemo(
-    () => searchChainNodes(nodes, value, limit),
-    [nodes, value, limit]
-  );
+  const results = useMemo(() => searchChainNodes(nodes, value, limit), [nodes, value, limit]);
 
-  const onKeyDown = (e) => {
+  const onKeyDown = e => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActive((i) => (results.length ? (i + 1) % results.length : 0));
+      setActive(i => (results.length ? (i + 1) % results.length : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActive((i) => (results.length ? (i - 1 + results.length) % results.length : 0));
+      setActive(i => (results.length ? (i - 1 + results.length) % results.length : 0));
     } else if (e.key === 'Enter' && results[active]) {
       e.preventDefault();
       onFocusNode && onFocusNode(results[active]);
@@ -53,20 +50,28 @@ export function ChainGraphSearch({
         className="cg-input"
         value={value}
         placeholder={placeholder}
-        onChange={(e) => { onChange && onChange(e.target.value); setActive(0); }}
+        onChange={e => {
+          onChange && onChange(e.target.value);
+          setActive(0);
+        }}
         onKeyDown={onKeyDown}
         aria-label="Search chain-graph nodes"
         aria-expanded={showResults ? 'true' : 'false'}
-        aria-activedescendant={showResults && results.length > 0 ? `cg-opt-${active % results.length}` : undefined}
+        aria-activedescendant={
+          showResults && results.length > 0 ? `cg-opt-${active % results.length}` : undefined
+        }
         role="combobox"
         aria-autocomplete="list"
         aria-controls="cg-results-listbox"
       />
       {showResults && (
-        <div className="cg-results" id="cg-results-listbox" role="listbox" aria-label="Matching nodes">
-          {results.length === 0 && (
-            <div className="cg-empty">No nodes match “{value}”.</div>
-          )}
+        <div
+          className="cg-results"
+          id="cg-results-listbox"
+          role="listbox"
+          aria-label="Matching nodes"
+        >
+          {results.length === 0 && <div className="cg-empty">No nodes match “{value}”.</div>}
           {results.map((n, i) => (
             <button
               key={n.id ?? i}

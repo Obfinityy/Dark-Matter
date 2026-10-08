@@ -7,7 +7,10 @@
  *  - a visible keyboard focus ring on the action buttons.
  */
 
-.dm-dedup-body { min-width: 0; flex: 1; }
+.dm-dedup-body {
+  min-width: 0;
+  flex: 1;
+}
 
 /* long targets (URLs) must wrap instead of pushing the close button off-screen */
 .dm-dedup-body code {
@@ -15,7 +18,9 @@
   word-break: break-word;
 }
 
-.dm-dedup-body p { text-wrap: pretty; }
+.dm-dedup-body p {
+  text-wrap: pretty;
+}
 
 .dm-dedup-actions .dm-btn-primary:focus-visible,
 .dm-dedup-actions .dm-btn-secondary:focus-visible {
@@ -24,11 +29,18 @@
 }
 
 @media (max-width: 560px) {
-  .dm-dedup-actions { flex-direction: column; align-items: stretch; }
+  .dm-dedup-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .dm-dedup-actions .dm-btn-primary,
-  .dm-dedup-actions .dm-btn-secondary { justify-content: center; }
+  .dm-dedup-actions .dm-btn-secondary {
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dm-dedup-banner { animation: none; }
+  .dm-dedup-banner {
+    animation: none;
+  }
 }

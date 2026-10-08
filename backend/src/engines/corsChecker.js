@@ -29,7 +29,8 @@ export function checkCORS({ url, headers = {}, requestOrigin = 'https://evil.com
       severity: 'High',
       confidence: 'high',
       cwe: 'CWE-942',
-      evidence: 'Access-Control-Allow-Origin: * with Allow-Credentials: true — any site can read authenticated responses.',
+      evidence:
+        'Access-Control-Allow-Origin: * with Allow-Credentials: true — any site can read authenticated responses.',
     };
   }
 

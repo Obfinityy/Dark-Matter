@@ -23,8 +23,12 @@ const NOW = 1700000000000;
 
 function registryOk(reg, first, count) {
   assert.equal(reg.length, count, `expected ${count} registry entries, got ${reg.length}`);
-  const ids = reg.map((e) => e.id);
-  assert.deepEqual(ids, Array.from({ length: count }, (_, i) => first + i), 'registry ids must be the exact idea range in order');
+  const ids = reg.map(e => e.id);
+  assert.deepEqual(
+    ids,
+    Array.from({ length: count }, (_, i) => first + i),
+    'registry ids must be the exact idea range in order'
+  );
   for (const e of reg) {
     assert.ok(typeof e.title === 'string' && e.title.length > 0, `entry ${e.id} needs a title`);
     assert.equal(e.skip, false, `entry ${e.id} must not be skipped`);
@@ -42,31 +46,55 @@ test('WAVE59_LC_IDEAS: 20/20 entries 52341–52360, zero skips', () => {
 });
 
 test('combined coverage: exactly 52321–52360 with no gaps or dupes', () => {
-  const all = [...WAVE59_PS_IDEAS.map((e) => e.id), ...WAVE59_LC_IDEAS.map((e) => e.id)];
+  const all = [...WAVE59_PS_IDEAS.map(e => e.id), ...WAVE59_LC_IDEAS.map(e => e.id)];
   assert.equal(all.length, 40);
-  assert.deepEqual([...all].sort((a, b) => a - b), Array.from({ length: 40 }, (_, i) => 52321 + i));
+  assert.deepEqual(
+    [...all].sort((a, b) => a - b),
+    Array.from({ length: 40 }, (_, i) => 52321 + i)
+  );
 });
 
 const FINDING = {
-  id: 'f-61', title: 'Stored XSS in product reviews', severity: 'high', cvss: 8.2,
-  vulnClass: 'xss', status: 'open', target: 'shop', platform: 'hackerone',
+  id: 'f-61',
+  title: 'Stored XSS in product reviews',
+  severity: 'high',
+  cvss: 8.2,
+  vulnClass: 'xss',
+  status: 'open',
+  target: 'shop',
+  platform: 'hackerone',
   endpoint: 'https://shop.example.com/reviews',
   description: 'The review body is rendered without output encoding.',
   impact: 'Session theft and account takeover.',
   poc: 'curl -X POST https://shop.example.com/reviews -d "body=<script>alert(1)</script>"',
-  pocTrace: ['Log in as any user', 'Post a review with body <script>alert(1)</script>', 'View the product page'],
-  evidence: [{ kind: 'screenshot', name: 'xss.png' }, { kind: 'http', summary: 'POST 200' }],
+  pocTrace: [
+    'Log in as any user',
+    'Post a review with body <script>alert(1)</script>',
+    'View the product page',
+  ],
+  evidence: [
+    { kind: 'screenshot', name: 'xss.png' },
+    { kind: 'http', summary: 'POST 200' },
+  ],
   remediation: 'Encode review output with a context-aware encoder.',
   references: ['https://owasp.org/www-community/attacks/xss/'],
 };
 
 const DRAFT = {
-  id: 'draft-61', title: 'Stored XSS in product reviews', platform: 'hackerone',
-  severity: 'High', impact: 'Session theft and account takeover for any user viewing a poisoned review.',
-  steps: ['1. Log in as any user', '2. Post a review with a script payload', '3. View the product page'],
+  id: 'draft-61',
+  title: 'Stored XSS in product reviews',
+  platform: 'hackerone',
+  severity: 'High',
+  impact: 'Session theft and account takeover for any user viewing a poisoned review.',
+  steps: [
+    '1. Log in as any user',
+    '2. Post a review with a script payload',
+    '3. View the product page',
+  ],
   evidence: [{ kind: 'screenshot', name: 'xss.png' }],
   remediation: 'Encode review output with a context-aware encoder.',
-  cwe: 'CWE-79', asset: 'https://shop.example.com/reviews',
+  cwe: 'CWE-79',
+  asset: 'https://shop.example.com/reviews',
   attachments: [{ name: 'xss.png', sizeBytes: 184320 }],
 };
 
@@ -88,7 +116,11 @@ test('52321 remediation suggestion insert: template fallback, custom kept', () =
 });
 
 test('52322 researcher handle branding: handle + profile links', () => {
-  const r = PS.applyResearcherBranding(DRAFT, { handle: '@hunter_x', name: 'A. Hunter', profileLinks: ['https://hackerone.com/hunter_x'] });
+  const r = PS.applyResearcherBranding(DRAFT, {
+    handle: '@hunter_x',
+    name: 'A. Hunter',
+    profileLinks: ['https://hackerone.com/hunter_x'],
+  });
   assert.equal(r.ok, true);
   assert.equal(r.draft.researcher.handle, '@hunter_x');
   assert.ok(r.draft.signature.includes('@hunter_x'));
@@ -99,12 +131,22 @@ test('52322 researcher handle branding: handle + profile links', () => {
 
 test('52323 batch draft creation: grouped per platform, errors collected', () => {
   const build = (f, p) => ({ ok: true, draft: { id: `${f.id}-${p}`, title: f.title } });
-  const r = PS.createBatchDrafts([FINDING, { ...FINDING, id: 'f-62' }], ['hackerone', 'bugcrowd'], build, NOW);
+  const r = PS.createBatchDrafts(
+    [FINDING, { ...FINDING, id: 'f-62' }],
+    ['hackerone', 'bugcrowd'],
+    build,
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.deepEqual(r.batch.counts, { hackerone: 2, bugcrowd: 2 });
   assert.equal(r.batch.errors.length, 0);
   assert.ok(r.batch.id.startsWith('batch_'));
-  const withErr = PS.createBatchDrafts([FINDING], ['hackerone'], () => ({ ok: false, reason: 'boom' }), NOW);
+  const withErr = PS.createBatchDrafts(
+    [FINDING],
+    ['hackerone'],
+    () => ({ ok: false, reason: 'boom' }),
+    NOW
+  );
   assert.equal(withErr.batch.errors.length, 1);
   assert.equal(withErr.batch.errors[0].reason, 'boom');
   assert.equal(PS.createBatchDrafts([], ['hackerone'], build, NOW).ok, false);
@@ -114,24 +156,51 @@ test('52323 batch draft creation: grouped per platform, errors collected', () =>
 test('52324 submission queue: priority ordering + scheduled send times', () => {
   let q = PS.createSubmissionQueue('post-hunt', NOW).queue;
   assert.equal(q.name, 'post-hunt');
-  q = PS.enqueueSubmission(q, { draftId: 'd-1', platform: 'hackerone', priority: 'low', owner: 'aria', scheduledSendAt: NOW + 7200000 }, NOW).queue;
-  q = PS.enqueueSubmission(q, { draftId: 'd-2', platform: 'bugcrowd', priority: 'urgent', owner: 'bhavesh' }, NOW + 1).queue;
+  q = PS.enqueueSubmission(
+    q,
+    {
+      draftId: 'd-1',
+      platform: 'hackerone',
+      priority: 'low',
+      owner: 'aria',
+      scheduledSendAt: NOW + 7200000,
+    },
+    NOW
+  ).queue;
+  q = PS.enqueueSubmission(
+    q,
+    { draftId: 'd-2', platform: 'bugcrowd', priority: 'urgent', owner: 'bhavesh' },
+    NOW + 1
+  ).queue;
   assert.equal(q.items[0].draftId, 'd-2'); // urgent beats scheduled-low
   assert.equal(q.items[0].state, 'queued');
   const due = PS.dequeueDueSubmissions(q, NOW + 1);
-  assert.deepEqual(due.due.map((d) => d.draftId), ['d-2']);
+  assert.deepEqual(
+    due.due.map(d => d.draftId),
+    ['d-2']
+  );
   assert.equal(due.remaining, 1);
   assert.equal(PS.enqueueSubmission(q, {}, NOW).ok, false);
   assert.equal(PS.createSubmissionQueue('', NOW).ok, false);
 });
 
 test('52325 platform inbox sync: dedupes, skips unknown types', () => {
-  const r = PS.syncPlatformInbox({ syncedIds: [] }, [
-    { id: 'm-1', type: 'status', reportId: 'r-1', platformStatus: 'triaged' },
-    { id: 'm-2', type: 'triager-message', reportId: 'r-1', from: 'triager', body: 'Confirm impact?' },
-    { id: 'm-1', type: 'status', reportId: 'r-1' },
-    { id: 'm-3', type: 'bogus', reportId: 'r-1' },
-  ], NOW);
+  const r = PS.syncPlatformInbox(
+    { syncedIds: [] },
+    [
+      { id: 'm-1', type: 'status', reportId: 'r-1', platformStatus: 'triaged' },
+      {
+        id: 'm-2',
+        type: 'triager-message',
+        reportId: 'r-1',
+        from: 'triager',
+        body: 'Confirm impact?',
+      },
+      { id: 'm-1', type: 'status', reportId: 'r-1' },
+      { id: 'm-3', type: 'bogus', reportId: 'r-1' },
+    ],
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.applied.length, 2);
   assert.equal(r.skipped, 2);
@@ -154,8 +223,23 @@ test('52326 status-change sync: platform status maps to lifecycle + history', ()
 });
 
 test('52327 bounty-paid tracking: per-finding entries, rollups by program/hunt/researcher', () => {
-  let ledger = PS.recordBountyPaid([], { findingId: 'f-61', huntId: 'h-1', program: 'Acme', researcher: 'aria', amount: 750, platform: 'hackerone' }, NOW).ledger;
-  ledger = PS.recordBountyPaid(ledger, { findingId: 'f-62', huntId: 'h-1', program: 'Acme', researcher: 'bhavesh', amount: 1500 }, NOW + 1).ledger;
+  let ledger = PS.recordBountyPaid(
+    [],
+    {
+      findingId: 'f-61',
+      huntId: 'h-1',
+      program: 'Acme',
+      researcher: 'aria',
+      amount: 750,
+      platform: 'hackerone',
+    },
+    NOW
+  ).ledger;
+  ledger = PS.recordBountyPaid(
+    ledger,
+    { findingId: 'f-62', huntId: 'h-1', program: 'Acme', researcher: 'bhavesh', amount: 1500 },
+    NOW + 1
+  ).ledger;
   assert.equal(ledger.length, 2);
   assert.equal(ledger[0].currency, 'USD');
   const byR = PS.rollUpEarnings(ledger, 'researcher');
@@ -178,7 +262,7 @@ test('52328 safe-harbor verification: stated terms pass, missing terms warn', ()
   const risky = PS.verifySafeHarbor({ name: 'Acme', safeHarbor: {} }, FINDING);
   assert.equal(risky.safeHarbor, false);
   assert.ok(risky.warning.includes('Safe-harbor risk'));
-  assert.equal(risky.checks.find((c) => c.id === 'harbor-stated').pass, false);
+  assert.equal(risky.checks.find(c => c.id === 'harbor-stated').pass, false);
   assert.equal(PS.verifySafeHarbor({}, FINDING).ok, false);
   assert.equal(PS.verifySafeHarbor({ name: 'Acme' }, {}).ok, false);
 });
@@ -188,7 +272,12 @@ test('52329 out-of-scope warning: hard block without override, override trail re
   assert.equal(blocked.ok, false);
   assert.ok(blocked.reason.includes('OUT-OF-SCOPE'));
   assert.equal(blocked.outOfScope, true);
-  const overridden = PS.checkOutOfScope(FINDING, { inScope: ['other.example.com'] }, { reason: 'Vendor confirmed scope extension', by: 'bhavesh' }, NOW);
+  const overridden = PS.checkOutOfScope(
+    FINDING,
+    { inScope: ['other.example.com'] },
+    { reason: 'Vendor confirmed scope extension', by: 'bhavesh' },
+    NOW
+  );
   assert.equal(overridden.ok, true);
   assert.equal(overridden.override.reason, 'Vendor confirmed scope extension');
   assert.equal(overridden.override.at, NOW);
@@ -199,10 +288,15 @@ test('52329 out-of-scope warning: hard block without override, override trail re
 });
 
 test('52330 PII scrub: email/phone/bearer/api-key redacted before submit', () => {
-  const r = PS.scrubPii('Victim: jane.doe@example.com, phone +1 555-010-2030, token Bearer abc.def.ghi, key api_key=sk_live_9f8e7d6c5b4a');
+  const r = PS.scrubPii(
+    'Victim: jane.doe@example.com, phone +1 555-010-2030, token Bearer abc.def.ghi, key api_key=sk_live_9f8e7d6c5b4a'
+  );
   assert.equal(r.ok, true);
   assert.equal(r.redactedCount, 4);
-  assert.deepEqual(r.redactions.map((h) => h.id), ['email', 'phone', 'bearer', 'api-key']);
+  assert.deepEqual(
+    r.redactions.map(h => h.id),
+    ['email', 'phone', 'bearer', 'api-key']
+  );
   assert.ok(r.scrubbed.includes('[EMAIL]'));
   assert.ok(r.scrubbed.includes('[PHONE]'));
   assert.ok(r.scrubbed.includes('Bearer [TOKEN]'));
@@ -214,41 +308,107 @@ test('52330 PII scrub: email/phone/bearer/api-key redacted before submit', () =>
 test('52331 internal review queue: queued -> in-review -> approved, illegal jumps ignored', () => {
   const q0 = PS.createReviewQueue('pre-submit', NOW).queue;
   assert.equal(q0.name, 'pre-submit');
-  const added = PS.reviewReducer(q0, { type: 'ADD', draftId: 'draft-61', findingId: 'f-61', submittedBy: 'aria' }, NOW + 1);
+  const added = PS.reviewReducer(
+    q0,
+    { type: 'ADD', draftId: 'draft-61', findingId: 'f-61', submittedBy: 'aria' },
+    NOW + 1
+  );
   assert.equal(added.item.state, 'queued');
-  const inReview = PS.reviewReducer(added.queue, { type: 'TRANSITION', id: added.item.id, to: 'in-review', by: 'bhavesh' }, NOW + 2).queue;
+  const inReview = PS.reviewReducer(
+    added.queue,
+    { type: 'TRANSITION', id: added.item.id, to: 'in-review', by: 'bhavesh' },
+    NOW + 2
+  ).queue;
   assert.equal(inReview.items[0].state, 'in-review');
-  const approved = PS.reviewReducer(inReview, { type: 'TRANSITION', id: added.item.id, to: 'approved', by: 'bhavesh', note: 'Looks solid.' }, NOW + 3).queue;
+  const approved = PS.reviewReducer(
+    inReview,
+    { type: 'TRANSITION', id: added.item.id, to: 'approved', by: 'bhavesh', note: 'Looks solid.' },
+    NOW + 3
+  ).queue;
   assert.equal(approved.items[0].state, 'approved');
   assert.equal(approved.items[0].notes.length, 1);
   assert.equal(approved.items[0].history.length, 3);
-  const illegal = PS.reviewReducer(q0, { type: 'TRANSITION', id: 'missing', to: 'approved' }, NOW + 4);
+  const illegal = PS.reviewReducer(
+    q0,
+    { type: 'TRANSITION', id: 'missing', to: 'approved' },
+    NOW + 4
+  );
   assert.equal(illegal.queue.items.length, 0); // unknown id ignored
   assert.equal(PS.reviewReducer(q0, { type: 'NOPE' }, NOW).ok, false);
   assert.equal(PS.reviewReducer(q0, { type: 'ADD' }, NOW).ok, false);
-  assert.deepEqual(PS.REVIEW_STATES, ['queued', 'in-review', 'changes-requested', 'approved', 'blocked']);
+  assert.deepEqual(PS.REVIEW_STATES, [
+    'queued',
+    'in-review',
+    'changes-requested',
+    'approved',
+    'blocked',
+  ]);
 });
 
 test('52332 submitter approval chain: researcher -> lead -> legal, reject short-circuits', () => {
   let c = PS.createApprovalChain('f-61', { program: 'Acme' }, NOW).chain;
-  assert.deepEqual(c.steps.map((s) => s.role), ['researcher', 'lead', 'legal']);
-  c = PS.approvalChainReducer(c, { type: 'DECIDE', decision: 'approve', by: 'aria' }, NOW + 1).chain;
-  c = PS.approvalChainReducer(c, { type: 'DECIDE', decision: 'approve', by: 'bhavesh' }, NOW + 2).chain;
+  assert.deepEqual(
+    c.steps.map(s => s.role),
+    ['researcher', 'lead', 'legal']
+  );
+  c = PS.approvalChainReducer(
+    c,
+    { type: 'DECIDE', decision: 'approve', by: 'aria' },
+    NOW + 1
+  ).chain;
+  c = PS.approvalChainReducer(
+    c,
+    { type: 'DECIDE', decision: 'approve', by: 'bhavesh' },
+    NOW + 2
+  ).chain;
   assert.equal(c.state, 'pending');
-  c = PS.approvalChainReducer(c, { type: 'DECIDE', decision: 'approve', by: 'legal@x.com' }, NOW + 3).chain;
+  c = PS.approvalChainReducer(
+    c,
+    { type: 'DECIDE', decision: 'approve', by: 'legal@x.com' },
+    NOW + 3
+  ).chain;
   assert.equal(c.state, 'approved');
   assert.equal(c.steps[2].by, 'legal@x.com');
   let r2 = PS.createApprovalChain('f-62', {}, NOW).chain;
-  r2 = PS.approvalChainReducer(r2, { type: 'DECIDE', decision: 'reject', by: 'bhavesh', reason: 'scope unclear' }, NOW + 1).chain;
+  r2 = PS.approvalChainReducer(
+    r2,
+    { type: 'DECIDE', decision: 'reject', by: 'bhavesh', reason: 'scope unclear' },
+    NOW + 1
+  ).chain;
   assert.equal(r2.state, 'rejected');
-  assert.equal(PS.approvalChainReducer(r2, { type: 'DECIDE', decision: 'approve' }, NOW + 2).ok, false);
+  assert.equal(
+    PS.approvalChainReducer(r2, { type: 'DECIDE', decision: 'approve' }, NOW + 2).ok,
+    false
+  );
   assert.equal(PS.createApprovalChain('', {}, NOW).ok, false);
   assert.deepEqual(PS.CHAIN_STEPS, ['researcher', 'lead', 'legal']);
 });
 
 test('52333 submission history log: append + filter', () => {
-  let log = PS.appendSubmissionHistory([], { draftId: 'draft-61', findingId: 'f-61', platform: 'hackerone', action: 'submitted', by: 'aria', response: 'accepted' }, NOW).log;
-  log = PS.appendSubmissionHistory(log, { draftId: 'draft-61', findingId: 'f-61', platform: 'hackerone', action: 'bounty-awarded', by: 'platform', response: '$750' }, NOW + 1).log;
+  let log = PS.appendSubmissionHistory(
+    [],
+    {
+      draftId: 'draft-61',
+      findingId: 'f-61',
+      platform: 'hackerone',
+      action: 'submitted',
+      by: 'aria',
+      response: 'accepted',
+    },
+    NOW
+  ).log;
+  log = PS.appendSubmissionHistory(
+    log,
+    {
+      draftId: 'draft-61',
+      findingId: 'f-61',
+      platform: 'hackerone',
+      action: 'bounty-awarded',
+      by: 'platform',
+      response: '$750',
+    },
+    NOW + 1
+  ).log;
   assert.equal(log.length, 2);
   assert.equal(log[0].at, NOW);
   assert.equal(log[1].action, 'bounty-awarded');
@@ -276,7 +436,11 @@ test('52335 platform message templates: canned replies with variable fill', () =
   assert.equal(r.kind, 'triage-nudge');
   assert.ok(r.message.body.includes('@hunter_x'));
   assert.ok(!r.message.body.includes('{handle}'));
-  const dispute = PS.fillMessageTemplate('duplicate-dispute', { handle: '@h', duplicateId: 'r-9', reason: 'different endpoint' });
+  const dispute = PS.fillMessageTemplate('duplicate-dispute', {
+    handle: '@h',
+    duplicateId: 'r-9',
+    reason: 'different endpoint',
+  });
   assert.ok(dispute.message.body.includes('r-9'));
   assert.equal(Object.keys(PS.MESSAGE_TEMPLATES).length, 5);
   assert.equal(PS.fillMessageTemplate('nope', {}).ok, false);
@@ -299,8 +463,11 @@ test('52336 triager-question draft replies: grounded, awaiting human send', () =
 test('52337 mediation escalation draft: full evidence trail', () => {
   const r = PS.buildMediationDraft(
     { ...FINDING, reportId: 'r-1', platformStatus: 'not-applicable' },
-    [{ type: 'status-change', at: NOW - 1000, note: 'closed as not-applicable' }, { type: 'evidence', at: NOW, note: 'video PoC' }],
-    NOW,
+    [
+      { type: 'status-change', at: NOW - 1000, note: 'closed as not-applicable' },
+      { type: 'evidence', at: NOW, note: 'video PoC' },
+    ],
+    NOW
   );
   assert.equal(r.ok, true);
   assert.equal(r.draft.status, 'draft');
@@ -312,11 +479,14 @@ test('52337 mediation escalation draft: full evidence trail', () => {
 });
 
 test('52338 disclosure timeline tracker: due reminders + lapsed detection', () => {
-  const tl = PS.createDisclosureTimeline([
-    { reportId: 'r-1', findingId: 'f-61', agreedDate: NOW + 5 * 24 * 3600 * 1000 },
-    { reportId: 'r-2', findingId: 'f-62', agreedDate: NOW - 24 * 3600 * 1000 },
-    { reportId: 'r-3' }, // no agreed date → excluded
-  ], NOW).timeline;
+  const tl = PS.createDisclosureTimeline(
+    [
+      { reportId: 'r-1', findingId: 'f-61', agreedDate: NOW + 5 * 24 * 3600 * 1000 },
+      { reportId: 'r-2', findingId: 'f-62', agreedDate: NOW - 24 * 3600 * 1000 },
+      { reportId: 'r-3' }, // no agreed date → excluded
+    ],
+    NOW
+  ).timeline;
   assert.equal(tl.entries.length, 2);
   const u = PS.upcomingDisclosures(tl, NOW);
   assert.equal(u.ok, true);
@@ -330,16 +500,25 @@ test('52338 disclosure timeline tracker: due reminders + lapsed detection', () =
 });
 
 test('52339 coordinated disclosure scheduler: aligns public date with fix release', () => {
-  const r = PS.scheduleCoordinatedDisclosure({
-    findingId: 'f-61', vendor: 'Acme', reportedAt: NOW - 80 * 24 * 3600 * 1000,
-    fixReleaseAt: NOW + 2 * 24 * 3600 * 1000, embargoDays: 90,
-  }, NOW);
+  const r = PS.scheduleCoordinatedDisclosure(
+    {
+      findingId: 'f-61',
+      vendor: 'Acme',
+      reportedAt: NOW - 80 * 24 * 3600 * 1000,
+      fixReleaseAt: NOW + 2 * 24 * 3600 * 1000,
+      embargoDays: 90,
+    },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.schedule.publicAt, NOW + 9 * 24 * 3600 * 1000);
   assert.equal(r.schedule.withinEmbargo, true);
   assert.equal(r.schedule.status, 'scheduled');
   assert.equal(r.schedule.embargoDays, 90);
-  const early = PS.scheduleCoordinatedDisclosure({ findingId: 'f-61', fixReleaseAt: NOW + 1000, publicAt: NOW - 1000 }, NOW);
+  const early = PS.scheduleCoordinatedDisclosure(
+    { findingId: 'f-61', fixReleaseAt: NOW + 1000, publicAt: NOW - 1000 },
+    NOW
+  );
   assert.equal(early.ok, false);
   assert.equal(PS.scheduleCoordinatedDisclosure({ findingId: 'f-61' }, NOW).ok, false);
 });
@@ -347,7 +526,7 @@ test('52339 coordinated disclosure scheduler: aligns public date with fix releas
 test('52340 CVE request draft: technical details pre-filled', () => {
   const r = PS.buildCveRequestDraft(
     { ...FINDING, cwes: ['CWE-79'] },
-    { product: 'Acme Shop', vendor: 'Acme', version: '2.4.1', reporter: '@hunter_x' },
+    { product: 'Acme Shop', vendor: 'Acme', version: '2.4.1', reporter: '@hunter_x' }
   );
   assert.equal(r.ok, true);
   assert.equal(r.draft.product, 'Acme Shop');
@@ -362,10 +541,38 @@ test('52340 CVE request draft: technical details pre-filled', () => {
 
 /* ---- lifecycleCore spot-checks (deterministic) ---- */
 const SUBMISSIONS = [
-  { id: 's-1', platform: 'hackerone', state: 'triaged', submittedAt: 1699000000000, triagedAt: 1699003600000, payout: null },
-  { id: 's-2', platform: 'hackerone', state: 'paid', submittedAt: 1699000000000, triagedAt: 1699010000000, payout: 750 },
-  { id: 's-3', platform: 'bugcrowd', state: 'submitted', submittedAt: 1699000000000, triagedAt: null, payout: null },
-  { id: 's-4', platform: 'bugcrowd', state: 'duplicate', submittedAt: 1699000000000, triagedAt: 1699020000000, payout: null },
+  {
+    id: 's-1',
+    platform: 'hackerone',
+    state: 'triaged',
+    submittedAt: 1699000000000,
+    triagedAt: 1699003600000,
+    payout: null,
+  },
+  {
+    id: 's-2',
+    platform: 'hackerone',
+    state: 'paid',
+    submittedAt: 1699000000000,
+    triagedAt: 1699010000000,
+    payout: 750,
+  },
+  {
+    id: 's-3',
+    platform: 'bugcrowd',
+    state: 'submitted',
+    submittedAt: 1699000000000,
+    triagedAt: null,
+    payout: null,
+  },
+  {
+    id: 's-4',
+    platform: 'bugcrowd',
+    state: 'duplicate',
+    submittedAt: 1699000000000,
+    triagedAt: 1699020000000,
+    payout: null,
+  },
 ];
 
 test('52341 submission analytics: acceptance rate, median triage time, payouts', () => {
@@ -396,7 +603,12 @@ test('52342 per-platform acceptance stats: ranked best-first', () => {
 
 test('52343 draft versioning: every revision kept, diffable', () => {
   let versions = LC.appendDraftVersion([], DRAFT, 'aria', NOW).versions;
-  versions = LC.appendDraftVersion(versions, { ...DRAFT, impact: 'Updated impact text.' }, 'bhavesh', NOW + 1).versions;
+  versions = LC.appendDraftVersion(
+    versions,
+    { ...DRAFT, impact: 'Updated impact text.' },
+    'bhavesh',
+    NOW + 1
+  ).versions;
   assert.equal(versions.length, 2);
   assert.equal(versions[0].version, 1);
   assert.equal(versions[1].author, 'bhavesh');
@@ -406,32 +618,57 @@ test('52343 draft versioning: every revision kept, diffable', () => {
   assert.equal(LC.getDraftVersion(versions, 9).ok, false);
   const diff = LC.diffDraftVersions(versions, 1, 2);
   assert.equal(diff.ok, true);
-  assert.deepEqual(diff.changes.map((c) => c.field), ['impact']);
+  assert.deepEqual(
+    diff.changes.map(c => c.field),
+    ['impact']
+  );
   assert.equal(LC.appendDraftVersion([], null, 'aria', NOW).ok, false);
 });
 
 test('52344 collaborative draft editing: tracked changes by author', () => {
-  const r = LC.applyCollaborativeEdit(DRAFT,
-    { changes: [{ field: 'title', value: 'Stored XSS (critical)' }], comment: 'tightened title' }, 'bhavesh', NOW);
+  const r = LC.applyCollaborativeEdit(
+    DRAFT,
+    { changes: [{ field: 'title', value: 'Stored XSS (critical)' }], comment: 'tightened title' },
+    'bhavesh',
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.draft.title, 'Stored XSS (critical)');
   assert.equal(r.draft.changeLog.length, 1);
   assert.equal(r.edit.author, 'bhavesh');
   assert.equal(r.edit.changes[0].from, DRAFT.title);
   assert.equal(r.edit.changes[0].to, 'Stored XSS (critical)');
-  assert.equal(LC.applyCollaborativeEdit(DRAFT, { changes: [{ field: 'title', value: 'x' }] }, null, NOW).ok, false);
+  assert.equal(
+    LC.applyCollaborativeEdit(DRAFT, { changes: [{ field: 'title', value: 'x' }] }, null, NOW).ok,
+    false
+  );
   assert.equal(LC.applyCollaborativeEdit(DRAFT, { changes: [] }, 'bhavesh', NOW).ok, false);
-  assert.equal(LC.applyCollaborativeEdit(null, { changes: [{ field: 'a', value: 1 }] }, 'bhavesh', NOW).ok, false);
+  assert.equal(
+    LC.applyCollaborativeEdit(null, { changes: [{ field: 'a', value: 1 }] }, 'bhavesh', NOW).ok,
+    false
+  );
 });
 
 test('52345 credential vault: handle descriptors only, plaintext always rejected', () => {
-  const r = LC.storeCredentialHandle({ platform: 'hackerone', owner: 'aria', ciphertextRef: 'kms://vault/h1-aria/v3', scopes: ['read', 'submit'], maskedHint: '••••9f2a' }, NOW);
+  const r = LC.storeCredentialHandle(
+    {
+      platform: 'hackerone',
+      owner: 'aria',
+      ciphertextRef: 'kms://vault/h1-aria/v3',
+      scopes: ['read', 'submit'],
+      maskedHint: '••••9f2a',
+    },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.credential.plaintext, null);
   assert.equal(r.credential.ciphertextRef, 'kms://vault/h1-aria/v3');
   assert.deepEqual(r.credential.scopes, ['read', 'submit']);
   assert.equal(r.credential.maskedHint, '••••9f2a');
-  const leaked = LC.storeCredentialHandle({ platform: 'hackerone', owner: 'aria', plaintext: 'secret-token' }, NOW);
+  const leaked = LC.storeCredentialHandle(
+    { platform: 'hackerone', owner: 'aria', plaintext: 'secret-token' },
+    NOW
+  );
   assert.equal(leaked.ok, false);
   assert.ok(leaked.reason.includes('never accepted'));
   const rotated = LC.rotateCredentialHandle(r.credential, 'kms://vault/h1-aria/v4', NOW + 1);
@@ -465,16 +702,22 @@ test('52347 dry-run validation: pre-flight checks with fix-it hints', () => {
   const bad = LC.dryRunValidate({ ...DRAFT, title: '' }, 'hackerone');
   assert.equal(bad.passed, false);
   assert.ok(bad.failed.includes('title-present'));
-  const hint = bad.checks.find((c) => c.id === 'title-present').hint;
+  const hint = bad.checks.find(c => c.id === 'title-present').hint;
   assert.ok(hint && hint.length > 0);
-  const big = LC.dryRunValidate({ ...DRAFT, attachments: [{ name: 'v.mp4', sizeBytes: 200 * 1024 * 1024 }] }, 'hackerone');
+  const big = LC.dryRunValidate(
+    { ...DRAFT, attachments: [{ name: 'v.mp4', sizeBytes: 200 * 1024 * 1024 }] },
+    'hackerone'
+  );
   assert.ok(big.failed.includes('attachments-within-limit'));
   assert.equal(LC.dryRunValidate(null, 'hackerone').ok, false);
-  assert.ok(LC.DRY_RUN_CHECKS.every((c) => typeof c.hint === 'string'));
+  assert.ok(LC.DRY_RUN_CHECKS.every(c => typeof c.hint === 'string'));
 });
 
 test('52348 rate-limit handling: over-limit submissions queued with retry hint', () => {
-  let limiter = LC.createRateLimiter({ hackerone: { maxPerMinute: 2, maxPerHour: 10 } }, NOW).limiter;
+  let limiter = LC.createRateLimiter(
+    { hackerone: { maxPerMinute: 2, maxPerHour: 10 } },
+    NOW
+  ).limiter;
   const decisions = [];
   for (let i = 0; i < 3; i += 1) {
     const r = LC.rateLimitNext(limiter, 'hackerone', { id: `sub-${i}` }, NOW + i * 1000);
@@ -490,21 +733,51 @@ test('52348 rate-limit handling: over-limit submissions queued with retry hint',
 });
 
 test('52349 submission notifications: status-change/bounty/triager/sla kinds', () => {
-  const r = LC.createSubmissionNotification('status-change',
-    { to: 'aria', reportId: 'r-1', findingId: 'f-61', title: 'Report triaged', body: 'marked triaged' }, NOW);
+  const r = LC.createSubmissionNotification(
+    'status-change',
+    {
+      to: 'aria',
+      reportId: 'r-1',
+      findingId: 'f-61',
+      title: 'Report triaged',
+      body: 'marked triaged',
+    },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.notification.kind, 'status-change');
   assert.equal(r.notification.to, 'aria');
   assert.equal(r.notification.status, 'unread');
-  const paid = LC.createSubmissionNotification('bounty-paid', { to: 'aria', findingId: 'f-61' }, NOW);
+  const paid = LC.createSubmissionNotification(
+    'bounty-paid',
+    { to: 'aria', findingId: 'f-61' },
+    NOW
+  );
   assert.equal(paid.notification.kind, 'bounty-paid');
-  assert.equal(LC.createSubmissionNotification('nope', { to: 'aria', findingId: 'f-61' }, NOW).ok, false);
+  assert.equal(
+    LC.createSubmissionNotification('nope', { to: 'aria', findingId: 'f-61' }, NOW).ok,
+    false
+  );
   assert.equal(LC.createSubmissionNotification('status-change', { to: 'aria' }, NOW).ok, false);
-  assert.deepEqual(LC.SUBMISSION_NOTIF_KINDS, ['status-change', 'bounty-paid', 'triager-question', 'sla-breach']);
+  assert.deepEqual(LC.SUBMISSION_NOTIF_KINDS, [
+    'status-change',
+    'bounty-paid',
+    'triager-question',
+    'sla-breach',
+  ]);
 });
 
 test('52350 webhook receiver: inbound events mapped to lifecycle patches', () => {
-  const wh = LC.receiveWebhook({ event: 'report.bounty_awarded', reportId: 'r-1', platform: 'hackerone', data: { amount: 750 } }, {}, NOW).webhook;
+  const wh = LC.receiveWebhook(
+    {
+      event: 'report.bounty_awarded',
+      reportId: 'r-1',
+      platform: 'hackerone',
+      data: { amount: 750 },
+    },
+    {},
+    NOW
+  ).webhook;
   assert.equal(wh.event, 'report.bounty_awarded');
   assert.equal(wh.receivedAt, NOW);
   const patch = LC.webhookToLifecyclePatch(wh);
@@ -512,11 +785,22 @@ test('52350 webhook receiver: inbound events mapped to lifecycle patches', () =>
   assert.equal(patch.patch.lifecycle, 'paid');
   assert.equal(patch.patch.payout, 750);
   assert.equal(patch.patch.source, 'platform-webhook');
-  const status = LC.receiveWebhook({ event: 'report.status_changed', reportId: 'r-2', data: { status: 'resolved' } }, {}, NOW).webhook;
+  const status = LC.receiveWebhook(
+    { event: 'report.status_changed', reportId: 'r-2', data: { status: 'resolved' } },
+    {},
+    NOW
+  ).webhook;
   assert.equal(LC.webhookToLifecyclePatch(status).patch.lifecycle, 'resolved');
   assert.equal(LC.receiveWebhook({ event: 'nope', reportId: 'r-1' }, {}, NOW).ok, false);
   assert.equal(LC.receiveWebhook({ reportId: 'r-1' }, {}, NOW).ok, false);
-  assert.equal(LC.receiveWebhook({ event: 'report.commented', reportId: 'r-1' }, { verifySignature: true }, NOW).ok, false);
+  assert.equal(
+    LC.receiveWebhook(
+      { event: 'report.commented', reportId: 'r-1' },
+      { verifySignature: true },
+      NOW
+    ).ok,
+    false
+  );
   assert.deepEqual(LC.WEBHOOK_EVENTS.length, 4);
 });
 
@@ -539,8 +823,22 @@ test('52351 bounty earnings leaderboard: ranked with program/quarter breakdowns'
 
 test('52352 tax-report export: annual rows per researcher with CSV', () => {
   const earnings = [
-    { researcher: 'aria', program: 'Acme', amount: 750, paidAt: Date.UTC(2026, 5, 10), currency: 'USD', findingId: 'f-61' },
-    { researcher: 'aria', program: 'Globex', amount: 300, paidAt: Date.UTC(2025, 11, 1), currency: 'USD', findingId: 'f-62' },
+    {
+      researcher: 'aria',
+      program: 'Acme',
+      amount: 750,
+      paidAt: Date.UTC(2026, 5, 10),
+      currency: 'USD',
+      findingId: 'f-61',
+    },
+    {
+      researcher: 'aria',
+      program: 'Globex',
+      amount: 300,
+      paidAt: Date.UTC(2025, 11, 1),
+      currency: 'USD',
+      findingId: 'f-62',
+    },
   ];
   const r = LC.exportTaxReport(earnings, 2026, 'aria');
   assert.equal(r.ok, true);
@@ -555,10 +853,23 @@ test('52352 tax-report export: annual rows per researcher with CSV', () => {
 });
 
 test('52353 duplicate-merge before submit: combined evidence + assets', () => {
-  const r = LC.mergeDuplicates([
-    { id: 'f-61', title: 'Stored XSS in reviews', endpoint: 'https://shop.example.com/reviews', evidence: [{ kind: 'screenshot' }] },
-    { id: 'f-61b', title: 'XSS via review body', url: 'https://shop.example.com/reviews', evidence: [{ kind: 'http' }, { kind: 'video' }] },
-  ], NOW);
+  const r = LC.mergeDuplicates(
+    [
+      {
+        id: 'f-61',
+        title: 'Stored XSS in reviews',
+        endpoint: 'https://shop.example.com/reviews',
+        evidence: [{ kind: 'screenshot' }],
+      },
+      {
+        id: 'f-61b',
+        title: 'XSS via review body',
+        url: 'https://shop.example.com/reviews',
+        evidence: [{ kind: 'http' }, { kind: 'video' }],
+      },
+    ],
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.deepEqual(r.merged.mergedIds, ['f-61', 'f-61b']);
   assert.equal(r.merged.primaryId, 'f-61');
@@ -570,10 +881,13 @@ test('52353 duplicate-merge before submit: combined evidence + assets', () => {
 });
 
 test('52354 program discovery: match targets against connected programs', () => {
-  const r = LC.discoverPrograms([
-    { name: 'Acme', platform: 'hackerone', inScope: ['shop.example.com'], bounty: true },
-    { name: 'Globex', platform: 'bugcrowd', inScope: ['other.example.com'], bounty: false },
-  ], ['shop.example.com']);
+  const r = LC.discoverPrograms(
+    [
+      { name: 'Acme', platform: 'hackerone', inScope: ['shop.example.com'], bounty: true },
+      { name: 'Globex', platform: 'bugcrowd', inScope: ['other.example.com'], bounty: false },
+    ],
+    ['shop.example.com']
+  );
   assert.equal(r.ok, true);
   assert.equal(r.count, 1);
   assert.equal(r.matches[0].program, 'Acme');
@@ -587,7 +901,7 @@ test('52354 program discovery: match targets against connected programs', () => 
 test('52355 scope-diff alerts: added/removed assets flagged', () => {
   const r = LC.diffProgramScope(
     { name: 'Acme', inScope: ['shop.example.com', 'api.example.com'] },
-    ['shop.example.com', 'old.example.com'],
+    ['shop.example.com', 'old.example.com']
   );
   assert.equal(r.ok, true);
   assert.deepEqual(r.added, ['api.example.com']);
@@ -601,16 +915,25 @@ test('52355 scope-diff alerts: added/removed assets flagged', () => {
 });
 
 test('52356 submission SLA monitor: stalled reports flagged', () => {
-  const r = LC.monitorSubmissionSla([
-    { id: 's-1', platform: 'hackerone', submittedAt: NOW - 10 * 24 * 3600 * 1000 },
-    { id: 's-2', platform: 'hackerone', submittedAt: NOW - 1 * 24 * 3600 * 1000 },
-    { id: 's-3', platform: 'hackerone', submittedAt: NOW - 10 * 24 * 3600 * 1000, triagedAt: NOW - 9 * 24 * 3600 * 1000 },
-  ], { hackerone: 7 * 24 * 3600 * 1000 }, NOW);
+  const r = LC.monitorSubmissionSla(
+    [
+      { id: 's-1', platform: 'hackerone', submittedAt: NOW - 10 * 24 * 3600 * 1000 },
+      { id: 's-2', platform: 'hackerone', submittedAt: NOW - 1 * 24 * 3600 * 1000 },
+      {
+        id: 's-3',
+        platform: 'hackerone',
+        submittedAt: NOW - 10 * 24 * 3600 * 1000,
+        triagedAt: NOW - 9 * 24 * 3600 * 1000,
+      },
+    ],
+    { hackerone: 7 * 24 * 3600 * 1000 },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.breachedCount, 1);
   assert.equal(r.breached[0].id, 's-1');
-  assert.equal(r.rows.find((x) => x.id === 's-3').responded, true);
-  assert.equal(r.rows.find((x) => x.id === 's-3').breached, false);
+  assert.equal(r.rows.find(x => x.id === 's-3').responded, true);
+  assert.equal(r.rows.find(x => x.id === 's-3').breached, false);
   assert.equal(LC.monitorSubmissionSla('nope', {}, NOW).ok, false);
 });
 
@@ -629,12 +952,22 @@ test('52357 report-quality score: completeness grades A–D', () => {
 });
 
 test('52358 platform disclosure check: embargo + consent blockers', () => {
-  const blocked = LC.checkDisclosurePolicy(DRAFT, 'intigriti', { embargoDays: 45, vendorConsent: false }, NOW);
+  const blocked = LC.checkDisclosurePolicy(
+    DRAFT,
+    'intigriti',
+    { embargoDays: 45, vendorConsent: false },
+    NOW
+  );
   assert.equal(blocked.ok, true);
   assert.equal(blocked.compliant, false);
-  assert.ok(blocked.blockers.some((b) => b.includes('90 days')));
-  assert.ok(blocked.blockers.some((b) => b.includes('consent')));
-  const ok = LC.checkDisclosurePolicy(DRAFT, 'hackerone', { embargoDays: 30, vendorConsent: true }, NOW);
+  assert.ok(blocked.blockers.some(b => b.includes('90 days')));
+  assert.ok(blocked.blockers.some(b => b.includes('consent')));
+  const ok = LC.checkDisclosurePolicy(
+    DRAFT,
+    'hackerone',
+    { embargoDays: 30, vendorConsent: true },
+    NOW
+  );
   assert.equal(ok.compliant, true);
   assert.deepEqual(ok.blockers, []);
   assert.equal(LC.checkDisclosurePolicy(DRAFT, 'nope', {}, NOW).ok, false);
@@ -645,16 +978,28 @@ test('52359 lifecycle state machine: enforced transitions, illegal jumps rejecte
   let lc = LC.createLifecycle('f-61', NOW).lifecycle;
   assert.equal(lc.state, 'new');
   assert.ok(lc.id.startsWith('lc_'));
-  lc = LC.lifecycleReducer(lc, { type: 'TRANSITION', to: 'triaged', by: 'aria', reason: 'validated' }, NOW + 1).lifecycle;
+  lc = LC.lifecycleReducer(
+    lc,
+    { type: 'TRANSITION', to: 'triaged', by: 'aria', reason: 'validated' },
+    NOW + 1
+  ).lifecycle;
   assert.equal(lc.state, 'triaged');
-  lc = LC.lifecycleReducer(lc, { type: 'TRANSITION', to: 'confirmed', by: 'bhavesh' }, NOW + 2).lifecycle;
+  lc = LC.lifecycleReducer(
+    lc,
+    { type: 'TRANSITION', to: 'confirmed', by: 'bhavesh' },
+    NOW + 2
+  ).lifecycle;
   assert.equal(lc.state, 'confirmed');
   assert.equal(lc.history.length, 3);
   assert.equal(lc.history[1].by, 'aria');
   const illegal = LC.lifecycleReducer(lc, { type: 'TRANSITION', to: 'closed' }, NOW + 3);
   assert.equal(illegal.ok, false);
   assert.ok(illegal.reason.includes('illegal transition confirmed → closed'));
-  const needsInfo = LC.lifecycleReducer(lc, { type: 'TRANSITION', to: 'needs-info' }, NOW + 4).lifecycle;
+  const needsInfo = LC.lifecycleReducer(
+    lc,
+    { type: 'TRANSITION', to: 'needs-info' },
+    NOW + 4
+  ).lifecycle;
   assert.equal(needsInfo.state, 'needs-info');
   assert.equal(LC.createLifecycle('', NOW).ok, false);
   assert.equal(LC.lifecycleReducer(lc, { type: 'NOPE' }, NOW).ok, false);
@@ -663,13 +1008,24 @@ test('52359 lifecycle state machine: enforced transitions, illegal jumps rejecte
 
 test('52360 custom lifecycle states: org states with colors/icons/rules', () => {
   let lc = LC.createLifecycle('f-61', NOW).lifecycle;
-  const added = LC.addCustomState(lc, { id: 'pen-test-review', label: 'Pen-test review', color: '#f59e0b', icon: 'shield', from: ['triaged'], to: ['confirmed'] });
+  const added = LC.addCustomState(lc, {
+    id: 'pen-test-review',
+    label: 'Pen-test review',
+    color: '#f59e0b',
+    icon: 'shield',
+    from: ['triaged'],
+    to: ['confirmed'],
+  });
   assert.equal(added.ok, true);
   assert.equal(added.custom.color, '#f59e0b');
   assert.equal(added.custom.icon, 'shield');
   lc = added.lifecycle;
   lc = LC.lifecycleReducer(lc, { type: 'TRANSITION', to: 'triaged' }, NOW + 1).lifecycle;
-  lc = LC.lifecycleReducer(lc, { type: 'TRANSITION', to: 'pen-test-review', by: 'aria' }, NOW + 2).lifecycle;
+  lc = LC.lifecycleReducer(
+    lc,
+    { type: 'TRANSITION', to: 'pen-test-review', by: 'aria' },
+    NOW + 2
+  ).lifecycle;
   assert.equal(lc.state, 'pen-test-review');
   lc = LC.lifecycleReducer(lc, { type: 'TRANSITION', to: 'confirmed' }, NOW + 3).lifecycle;
   assert.equal(lc.state, 'confirmed');
@@ -678,7 +1034,7 @@ test('52360 custom lifecycle states: org states with colors/icons/rules', () => 
   assert.equal(LC.addCustomState(lc, { id: 'Bad ID' }).ok, false);
   const listed = LC.listLifecycleStates(lc);
   assert.equal(listed.states.length, 11);
-  assert.ok(listed.states.some((s) => s.id === 'pen-test-review' && s.custom === true));
+  assert.ok(listed.states.some(s => s.id === 'pen-test-review' && s.custom === true));
   assert.equal(LC.addCustomState(null, { id: 'x' }).ok, false);
 });
 
@@ -688,10 +1044,13 @@ test('Wave59.css exists, uses only psn59-/lc59- classes, zero keyframes', () => 
   const css = readFileSync(CSS, 'utf8');
   assert.ok(!/@keyframes/i.test(css), 'zero-animation order: no @keyframes allowed');
   assert.ok(!/animation\s*:/i.test(css), 'zero-animation order: no animation declarations allowed');
-  assert.ok(!/transition\s*:/i.test(css), 'zero-animation order: no transition declarations allowed');
-  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map((m) => m[1]);
-  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map((m) => m[1]);
-  const all = new Set([...selectors, ...classSelectors].filter((s) => /^[a-z]/.test(s)));
+  assert.ok(
+    !/transition\s*:/i.test(css),
+    'zero-animation order: no transition declarations allowed'
+  );
+  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map(m => m[1]);
+  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map(m => m[1]);
+  const all = new Set([...selectors, ...classSelectors].filter(s => /^[a-z]/.test(s)));
   assert.ok(all.size > 0, 'no class selectors found');
   for (const s of all) {
     assert.ok(s.startsWith('psn59-') || s.startsWith('lc59-'), `unscoped selector: .${s}`);
@@ -708,16 +1067,20 @@ test('PostSubmit.jsx: real esbuild parse + 20 components + idea comments 52321�
   assert.ok(existsSync(file), 'PostSubmit.jsx missing');
   esbuildParseOk(file);
   const body = readFileSync(file, 'utf8');
-  const comments = [...body.matchAll(/\/\*\s*(523\d\d)\s*—/g)].map((m) => Number(m[1]));
-  assert.deepEqual(comments, Array.from({ length: 20 }, (_, i) => 52321 + i));
-  const exported = [...body.matchAll(/export function ([A-Za-z][A-Za-z0-9]*)\(/g)].map((m) => m[1]);
-  const components = exported.filter((n) => n !== 'PostSubmitGallery');
+  const comments = [...body.matchAll(/\/\*\s*(523\d\d)\s*—/g)].map(m => Number(m[1]));
+  assert.deepEqual(
+    comments,
+    Array.from({ length: 20 }, (_, i) => 52321 + i)
+  );
+  const exported = [...body.matchAll(/export function ([A-Za-z][A-Za-z0-9]*)\(/g)].map(m => m[1]);
+  const components = exported.filter(n => n !== 'PostSubmitGallery');
   assert.equal(components.length, 20, `expected 20 components, got ${components.length}`);
   const gallery = body.match(/export const PSN59_GALLERY = \[([\s\S]*?)\];/);
   assert.ok(gallery, 'PSN59_GALLERY missing');
   const entries = gallery[1].match(/[A-Za-z][A-Za-z0-9]*/g) || [];
   assert.equal(entries.length, 20);
-  for (const e of entries) assert.ok(components.includes(e), `gallery entry ${e} is not an exported component`);
+  for (const e of entries)
+    assert.ok(components.includes(e), `gallery entry ${e} is not an exported component`);
   assert.ok(body.includes('PostSubmitGallery'));
 });
 
@@ -726,22 +1089,33 @@ test('LifecycleMgmt.jsx: real esbuild parse + 20 components + idea comments 5234
   assert.ok(existsSync(file), 'LifecycleMgmt.jsx missing');
   esbuildParseOk(file);
   const body = readFileSync(file, 'utf8');
-  const comments = [...body.matchAll(/\/\*\s*(523\d\d)\s*—/g)].map((m) => Number(m[1]));
-  assert.deepEqual(comments, Array.from({ length: 20 }, (_, i) => 52341 + i));
-  const exported = [...body.matchAll(/export function ([A-Za-z][A-Za-z0-9]*)\(/g)].map((m) => m[1]);
-  const components = exported.filter((n) => n !== 'LifecycleMgmtGallery');
+  const comments = [...body.matchAll(/\/\*\s*(523\d\d)\s*—/g)].map(m => Number(m[1]));
+  assert.deepEqual(
+    comments,
+    Array.from({ length: 20 }, (_, i) => 52341 + i)
+  );
+  const exported = [...body.matchAll(/export function ([A-Za-z][A-Za-z0-9]*)\(/g)].map(m => m[1]);
+  const components = exported.filter(n => n !== 'LifecycleMgmtGallery');
   assert.equal(components.length, 20, `expected 20 components, got ${components.length}`);
   const gallery = body.match(/export const LC59_GALLERY = \[([\s\S]*?)\];/);
   assert.ok(gallery, 'LC59_GALLERY missing');
   const entries = gallery[1].match(/[A-Za-z][A-Za-z0-9]*/g) || [];
   assert.equal(entries.length, 20);
-  for (const e of entries) assert.ok(components.includes(e), `gallery entry ${e} is not an exported component`);
+  for (const e of entries)
+    assert.ok(components.includes(e), `gallery entry ${e} is not an exported component`);
   assert.ok(body.includes('LifecycleMgmtGallery'));
 });
 
 /* ---- Branding-leak audit: no forbidden brand name in wave-59 files ---- */
 test('no branding leak in wave-59 files', () => {
-  const files = ['postSubmitCore.js', 'lifecycleCore.js', 'PostSubmit.jsx', 'LifecycleMgmt.jsx', 'Wave59.css', 'wave59.test.js'];
+  const files = [
+    'postSubmitCore.js',
+    'lifecycleCore.js',
+    'PostSubmit.jsx',
+    'LifecycleMgmt.jsx',
+    'Wave59.css',
+    'wave59.test.js',
+  ];
   const probe = 'M' + 'use'; // self-reference would fail the audit itself
   for (const f of files) {
     const p = join(DIR, f);
@@ -753,8 +1127,18 @@ test('no branding leak in wave-59 files', () => {
 
 /* ---- No-debris audit: no leftover scaffolding words in wave-59 files ---- */
 test('no debris markers in wave-59 files', () => {
-  const files = ['postSubmitCore.js', 'lifecycleCore.js', 'PostSubmit.jsx', 'LifecycleMgmt.jsx', 'Wave59.css', 'wave59.test.js'];
-  const debris = new RegExp(['T' + 'ODO', 'mo' + 'ck', 'si' + 'mulate', 'lo' + 'rem'].join('|'), 'i');
+  const files = [
+    'postSubmitCore.js',
+    'lifecycleCore.js',
+    'PostSubmit.jsx',
+    'LifecycleMgmt.jsx',
+    'Wave59.css',
+    'wave59.test.js',
+  ];
+  const debris = new RegExp(
+    ['T' + 'ODO', 'mo' + 'ck', 'si' + 'mulate', 'lo' + 'rem'].join('|'),
+    'i'
+  );
   for (const f of files) {
     const body = readFileSync(join(DIR, f), 'utf8');
     assert.ok(!debris.test(body), `debris marker found in ${f}`);

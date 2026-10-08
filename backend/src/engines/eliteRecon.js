@@ -11,18 +11,66 @@
  */
 
 const COMMON_SUBDOMAINS = [
-  'www', 'mail', 'ftp', 'admin', 'blog', 'dev', 'staging', 'test', 'api',
-  'app', 'portal', 'secure', 'vpn', 'shop', 'support', 'docs', 'cdn',
-  'static', 'assets', 'beta', 'demo', 'internal', 'stage', 'prod', 'db',
-  'git', 'jenkins', 'jira', 'wiki', 'monitor', 'grafana', 'kibana',
-  'auth', 'login', 'sso', 'oauth', 'dashboard', 'panel', 'console'
+  'www',
+  'mail',
+  'ftp',
+  'admin',
+  'blog',
+  'dev',
+  'staging',
+  'test',
+  'api',
+  'app',
+  'portal',
+  'secure',
+  'vpn',
+  'shop',
+  'support',
+  'docs',
+  'cdn',
+  'static',
+  'assets',
+  'beta',
+  'demo',
+  'internal',
+  'stage',
+  'prod',
+  'db',
+  'git',
+  'jenkins',
+  'jira',
+  'wiki',
+  'monitor',
+  'grafana',
+  'kibana',
+  'auth',
+  'login',
+  'sso',
+  'oauth',
+  'dashboard',
+  'panel',
+  'console',
 ];
 
 const INTERESTING_PATHS = [
-  '/robots.txt', '/sitemap.xml', '/.git/HEAD', '/.env', '/.well-known/security.txt',
-  '/server-status', '/phpinfo.php', '/.DS_Store', '/backup.zip', '/db.sql',
-  '/wp-admin', '/admin', '/.git/config', '/package.json', '/swagger.json',
-  '/api/docs', '/graphql', '/.svn/entries'
+  '/robots.txt',
+  '/sitemap.xml',
+  '/.git/HEAD',
+  '/.env',
+  '/.well-known/security.txt',
+  '/server-status',
+  '/phpinfo.php',
+  '/.DS_Store',
+  '/backup.zip',
+  '/db.sql',
+  '/wp-admin',
+  '/admin',
+  '/.git/config',
+  '/package.json',
+  '/swagger.json',
+  '/api/docs',
+  '/graphql',
+  '/.svn/entries',
 ];
 
 const TECH_SIGNATURES = [
@@ -56,11 +104,17 @@ export function fingerprintTech(response = {}) {
   for (const sig of TECH_SIGNATURES) {
     let matched = false;
     for (const [hk, pattern] of Object.entries(sig.headers || {})) {
-      if (headers[hk] && pattern.test(headers[hk])) { matched = true; break; }
+      if (headers[hk] && pattern.test(headers[hk])) {
+        matched = true;
+        break;
+      }
     }
     if (!matched) {
       for (const pattern of sig.body || []) {
-        if (pattern.test(body)) { matched = true; break; }
+        if (pattern.test(body)) {
+          matched = true;
+          break;
+        }
       }
     }
     if (matched) found.push(sig.name);
@@ -75,7 +129,7 @@ export function fingerprintTech(response = {}) {
  */
 export function subdomainCandidates(domain, extra = []) {
   const words = [...new Set([...COMMON_SUBDOMAINS, ...extra])];
-  return words.map((w) => `${w}.${domain}`);
+  return words.map(w => `${w}.${domain}`);
 }
 
 /**

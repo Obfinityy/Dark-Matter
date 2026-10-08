@@ -63,15 +63,27 @@ export function classifyFastlyCname(cname) {
  */
 export function parseFastlyHeaders(headers) {
   const out = {
-    servedBy: '', popCode: '', popCity: '', cacheStatus: '',
-    cacheHits: 0, fastlyDebug: {}, viaFastly: false,
+    servedBy: '',
+    popCode: '',
+    popCity: '',
+    cacheStatus: '',
+    cacheHits: 0,
+    fastlyDebug: {},
+    viaFastly: false,
   };
   if (!headers) return out;
 
   const entries = Array.isArray(headers)
-    ? headers.map((line) => {
+    ? headers.map(line => {
         const idx = String(line).indexOf(':');
-        return idx === -1 ? ['', ''] : [String(line).slice(0, idx).trim(), String(line).slice(idx + 1).trim()];
+        return idx === -1
+          ? ['', '']
+          : [
+              String(line).slice(0, idx).trim(),
+              String(line)
+                .slice(idx + 1)
+                .trim(),
+            ];
       })
     : Object.entries(headers);
 
@@ -141,7 +153,8 @@ export function detectFastly(hostname, cnameChain = [], headers = {}) {
 
   const hasFastlyCname = serviceHosts.length > 0;
   const behindFastly = hasFastlyCname || headerInfo.viaFastly;
-  const confidence = (hasFastlyCname && headerInfo.viaFastly) ? 'high' : behindFastly ? 'medium' : 'low';
+  const confidence =
+    hasFastlyCname && headerInfo.viaFastly ? 'high' : behindFastly ? 'medium' : 'low';
 
   return {
     hostname: host,

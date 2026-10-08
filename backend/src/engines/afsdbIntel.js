@@ -37,10 +37,14 @@ export function parseAfsdbRecord(rdata) {
     return {
       subtype,
       subtypeName: AFSDB_SUBTYPES[subtype] || `unknown(${subtype})`,
-      hostname: String(rdata.host || '').replace(/\.$/, '').toLowerCase(),
+      hostname: String(rdata.host || '')
+        .replace(/\.$/, '')
+        .toLowerCase(),
     };
   }
-  const parts = String(rdata || '').trim().split(/\s+/);
+  const parts = String(rdata || '')
+    .trim()
+    .split(/\s+/);
   if (parts.length < 2) return null;
   const subtype = Number(parts[0]);
   if (!Number.isInteger(subtype)) return null;
@@ -59,7 +63,10 @@ export function parseAfsdbRecord(rdata) {
  * @returns {{domain:string, present:boolean, servers:Array<{hostname:string, subtype:string}>, findings:Array<{severity:string,type:string,detail:string,recommendation:string}>}}
  */
 export function analyzeAfsdbRecords(domain, records) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const findings = [];
   const parsed = (records || []).map(parseAfsdbRecord).filter(Boolean);
   const seen = new Set();
@@ -75,7 +82,8 @@ export function analyzeAfsdbRecords(domain, records) {
     severity: 'medium',
     type: 'afsdb-legacy-service-reference',
     detail: `${d} publishes ${servers.length} AFSDB record(s): ${servers.map(s => `${s.hostname} (${s.subtype})`).join(', ')} — AFSDB is a legacy record type; the referenced hosts are frequently forgotten file-service infrastructure.`,
-    recommendation: 'Resolve each hostname and fingerprint it: legacy AFS/DCE services are rarely patched and often expose volume or cell metadata. Confirm decommissioning if unused.',
+    recommendation:
+      'Resolve each hostname and fingerprint it: legacy AFS/DCE services are rarely patched and often expose volume or cell metadata. Confirm decommissioning if unused.',
   });
   const dce = servers.filter(s => /dce/i.test(s.subtype));
   if (dce.length > 0) {
@@ -83,7 +91,8 @@ export function analyzeAfsdbRecords(domain, records) {
       severity: 'low',
       type: 'afsdb-dce-cell-reference',
       detail: `DCE/NCS cell server reference(s): ${dce.map(s => s.hostname).join(', ')} — DCE cell infrastructure is end-of-life in most estates; verify these hosts are still intended to exist.`,
-      recommendation: 'If the cell is retired, remove the AFSDB records to shrink the legacy footprint.',
+      recommendation:
+        'If the cell is retired, remove the AFSDB records to shrink the legacy footprint.',
     });
   }
   return { domain: d, present: true, servers, findings };
@@ -97,22 +106,33 @@ export function analyzeAfsdbRecords(domain, records) {
  * @returns {Promise<{domain:string, results:Array, summary:string[]}>}
  */
 export async function mapAfsdbLegacy(domain, names = ['@', 'cell', 'afs', 'dfs']) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const targets = [...new Set(names.map(n => (n === '@' ? d : `${n}.${d}`)))];
   const results = [];
   const summary = [];
-  await Promise.all(targets.map(async (owner) => {
-    try {
-      const raw = await resolver.resolve(owner, 'AFSDB');
-      const analysis = analyzeAfsdbRecords(owner, raw);
-      if (analysis.present) results.push({ owner, ...analysis });
-    } catch { /* no AFSDB — not a finding */ }
-  }));
+  await Promise.all(
+    targets.map(async owner => {
+      try {
+        const raw = await resolver.resolve(owner, 'AFSDB');
+        const analysis = analyzeAfsdbRecords(owner, raw);
+        if (analysis.present) results.push({ owner, ...analysis });
+      } catch {
+        /* no AFSDB — not a finding */
+      }
+    })
+  );
   results.sort((a, b) => a.owner.localeCompare(b.owner));
   if (results.length === 0) {
-    summary.push('No AFSDB records found — no legacy AFS/DCE file-service references in DNS (expected for modern estates).');
+    summary.push(
+      'No AFSDB records found — no legacy AFS/DCE file-service references in DNS (expected for modern estates).'
+    );
   } else {
-    summary.push(`${results.length} owner name(s) with legacy AFSDB references — each referenced host is a forgotten-file-service candidate for fingerprinting.`);
+    summary.push(
+      `${results.length} owner name(s) with legacy AFSDB references — each referenced host is a forgotten-file-service candidate for fingerprinting.`
+    );
   }
   return { domain: d, results, summary };
 }

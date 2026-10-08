@@ -23,7 +23,8 @@ const SECTION_DATA = 11;
 const SECTION_CUSTOM = 0;
 
 /** URL-ish literal finder used across scanners. */
-const URL_RE = /(https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]{3,}|wss?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]{3,}|\/[A-Za-z0-9\-_./]{3,}\.(?:js|wasm|json|png|svg|woff2?|html|css))/g;
+const URL_RE =
+  /(https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]{3,}|wss?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]{3,}|\/[A-Za-z0-9\-_./]{3,}\.(?:js|wasm|json|png|svg|woff2?|html|css))/g;
 
 /**
  * Normalize the caller-supplied input into a Uint8Array.
@@ -86,9 +87,7 @@ export function readName(bytes, offset) {
  */
 export function isWasm(input) {
   const bytes = toBytes(input);
-  return (
-    bytes.length >= 8 && WASM_MAGIC.every((b, i) => bytes[i] === b)
-  );
+  return bytes.length >= 8 && WASM_MAGIC.every((b, i) => bytes[i] === b);
 }
 
 /**
@@ -206,7 +205,7 @@ export function analyzeWasmImports(input) {
     return result;
   }
   result.ok = true;
-  result.moduleDependencies = [...new Set(result.imports.map((x) => x.module))];
+  result.moduleDependencies = [...new Set(result.imports.map(x => x.module))];
   const byKind = {};
   for (const imp of result.imports) byKind[imp.kind] = (byKind[imp.kind] || 0) + 1;
   result.summary = {
@@ -214,8 +213,8 @@ export function analyzeWasmImports(input) {
     hostModules: result.moduleDependencies.length,
     byKind,
     functionImports: result.imports
-      .filter((x) => x.kind === 'function')
-      .map((x) => `${x.module}.${x.name}`),
+      .filter(x => x.kind === 'function')
+      .map(x => `${x.module}.${x.name}`),
   };
   return result;
 }
@@ -263,9 +262,7 @@ export function scanWasmMemorySegments(input, options = {}) {
         const payload = bytes.subarray(i, i + size.value);
         i += size.value;
         const urls = extractUrls(payload);
-        const strings = extractPrintableRuns(payload, minLength).filter(
-          (t) => !urls.includes(t)
-        );
+        const strings = extractPrintableRuns(payload, minLength).filter(t => !urls.includes(t));
         result.segments.push({
           index: n,
           offsetInSection: segStart - s.offset,
@@ -382,9 +379,7 @@ export function analyzeWasmModule(input) {
   const imports = analyzeWasmImports(input);
   const memory = scanWasmMemorySegments(input);
   const names = extractWasmCustomNames(input);
-  const embeddedUrls = [
-    ...new Set(memory.segments.flatMap((s) => s.urls)),
-  ];
+  const embeddedUrls = [...new Set(memory.segments.flatMap(s => s.urls))];
   return {
     ok: imports.ok && memory.ok,
     isWasm: isWasm(input),

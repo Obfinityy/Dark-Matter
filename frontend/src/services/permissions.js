@@ -47,7 +47,9 @@ export function getPermissionMode() {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (isValidPermissionMode(stored)) return stored;
-  } catch { /* storage unavailable */ }
+  } catch {
+    /* storage unavailable */
+  }
   return PERMISSION_MODES.ASK;
 }
 
@@ -57,7 +59,9 @@ export function setPermissionMode(mode) {
   }
   try {
     window.localStorage.setItem(STORAGE_KEY, mode);
-  } catch { /* storage unavailable */ }
+  } catch {
+    /* storage unavailable */
+  }
   return mode;
 }
 
@@ -79,6 +83,8 @@ export async function loadPermissionModeFromServer() {
       setPermissionMode(res.permissionMode);
       return res.permissionMode;
     }
-  } catch { /* offline or unsupported backend */ }
+  } catch {
+    /* offline or unsupported backend */
+  }
   return getPermissionMode();
 }

@@ -9,9 +9,19 @@
 
 /** WHOIS privacy/redaction markers that must NOT be treated as real identities. */
 const PRIVACY_MARKERS = [
-  /privacy/i, /redact/i, /whoisguard/i, /withheld/i, /data protected/i,
-  /contact privacy/i, /domain privacy/i, /registrant (not )?identified/i,
-  /gdpr masked/i, /^n\/a$/i, /^none$/i, /proxy/i, /domains by proxy/i,
+  /privacy/i,
+  /redact/i,
+  /whoisguard/i,
+  /withheld/i,
+  /data protected/i,
+  /contact privacy/i,
+  /domain privacy/i,
+  /registrant (not )?identified/i,
+  /gdpr masked/i,
+  /^n\/a$/i,
+  /^none$/i,
+  /proxy/i,
+  /domains by proxy/i,
 ];
 
 /**
@@ -120,11 +130,19 @@ export function groupByRegistrant(corpus) {
       if (!norm) continue;
       const gkey = `${field}:${norm}`;
       let g = groups.get(gkey);
-      if (!g) { g = { identity: norm, field, domains: new Set() }; groups.set(gkey, g); }
+      if (!g) {
+        g = { identity: norm, field, domains: new Set() };
+        groups.set(gkey, g);
+      }
       g.domains.add(String(rec.domain).toLowerCase());
     }
   }
   return [...groups.values()]
-    .map(g => ({ identity: g.identity, field: g.field, domains: [...g.domains].sort(), count: g.domains.size }))
+    .map(g => ({
+      identity: g.identity,
+      field: g.field,
+      domains: [...g.domains].sort(),
+      count: g.domains.size,
+    }))
     .sort((a, b) => b.count - a.count || a.identity.localeCompare(b.identity));
 }

@@ -41,7 +41,9 @@ export class DeterministicBrain {
       reason: null,
       provider: 'DeterministicBrain',
       mode: this.mode,
-      detail: { note: 'Rule-based strategy — no LLM required. Used when the local AI is unreachable.' }
+      detail: {
+        note: 'Rule-based strategy — no LLM required. Used when the local AI is unreachable.',
+      },
     };
   }
 
@@ -51,7 +53,9 @@ export class DeterministicBrain {
       case 'tool':
         return `Deterministic strategy: running ${decision.nextAction.name}…`;
       case 'parallel_tools': {
-        const names = (decision.nextAction.tools || decision.nextAction.parallelTools || []).map((t) => t.name).join(', ');
+        const names = (decision.nextAction.tools || decision.nextAction.parallelTools || [])
+          .map(t => t.name)
+          .join(', ');
         return `Deterministic strategy: parallel recon (${names})…`;
       }
       case 'validate':
@@ -74,8 +78,8 @@ export class DeterministicBrain {
       const executions = await this.toolExecutionModel.list(assessmentId);
       return new Set(
         (executions || [])
-          .filter((e) => e.status === 'completed' && PROBE_TOOLS.includes(e.tool))
-          .map((e) => e.tool)
+          .filter(e => e.status === 'completed' && PROBE_TOOLS.includes(e.tool))
+          .map(e => e.tool)
       );
     } catch (error) {
       this.logger.warn?.(`[deterministic-brain] could not list executions: ${error.message}`);
@@ -109,10 +113,13 @@ export class DeterministicBrain {
     try {
       const all = await this.evidenceModel.listByJob(jobId);
       return all
-        .filter((e) => e.toolExecutionId === executionId
-          || String(e.asset || '').toLowerCase() === String(target || '').toLowerCase())
+        .filter(
+          e =>
+            e.toolExecutionId === executionId ||
+            String(e.asset || '').toLowerCase() === String(target || '').toLowerCase()
+        )
         .slice(-5)
-        .map((e) => e.id);
+        .map(e => e.id);
     } catch {
       return [];
     }
@@ -136,7 +143,7 @@ export class DeterministicBrain {
       ? String(job.target)
       : `http://${job.target}`;
     const done = await this.completedTools(assessmentId);
-    const filed = new Set((context.findings || []).map((f) => this.findingKey(f)));
+    const filed = new Set((context.findings || []).map(f => this.findingKey(f)));
 
     const toolAction = (name, reason, stage, args = {}) => ({
       objective: `Run ${name} against ${target}`,
@@ -147,27 +154,33 @@ export class DeterministicBrain {
       methodologyStage: stage,
       hypotheses: [],
       memoryNotes: [],
-      nextAction: { type: 'tool', name, target, arguments: args, description: reason }
+      nextAction: { type: 'tool', name, target, arguments: args, description: reason },
     });
 
     // Stage 1 — recon: fingerprint the target and map the attack surface.
     if (!done.has('web_probe')) {
       return {
         decision: {
-          ...toolAction('web_probe', 'Map the attack surface first: fetch the target, extract forms, links, query params, and tech hints before testing anything.', 'recon'),
-          reason: 'Deterministic strategy (no LLM reachable): start with web_probe recon — map forms, params, and endpoints before probing.'
-        }
+          ...toolAction(
+            'web_probe',
+            'Map the attack surface first: fetch the target, extract forms, links, query params, and tech hints before testing anything.',
+            'recon'
+          ),
+          reason:
+            'Deterministic strategy (no LLM reachable): start with web_probe recon — map forms, params, and endpoints before probing.',
+        },
       };
     }
 
     // Stage 2 — injection: reflected XSS + SQLi in parallel (independent).
     if (!done.has('xss_probe') || !done.has('sqli_probe')) {
-      const pending = ['xss_probe', 'sqli_probe'].filter((t) => !done.has(t));
+      const pending = ['xss_probe', 'sqli_probe'].filter(t => !done.has(t));
       return {
         decision: {
           objective: `Run injection probes against ${target}`,
           observation: 'Recon complete — attack surface mapped',
-          reason: 'Deterministic strategy (no LLM reachable): recon mapped the surface; now run reflected-XSS and SQLi probes in parallel.',
+          reason:
+            'Deterministic strategy (no LLM reachable): recon mapped the surface; now run reflected-XSS and SQLi probes in parallel.',
           expectedOutcome: 'Confirmed or ruled-out injection vulnerabilities',
           confidence: 0.85,
           methodologyStage: 'vulnerability_detection',
@@ -176,21 +189,27 @@ export class DeterministicBrain {
           nextAction: {
             type: 'parallel_tools',
             target,
-            tools: pending.map((name) => ({ name, target, arguments: {}, description: `Deterministic ${name}` })),
-            description: 'Parallel injection probes'
-          }
-        }
+            tools: pending.map(name => ({
+              name,
+              target,
+              arguments: {},
+              description: `Deterministic ${name}`,
+            })),
+            description: 'Parallel injection probes',
+          },
+        },
       };
     }
 
     // Stage 3 — persistence + authz: stored XSS + IDOR in parallel.
     if (!done.has('stored_xss_probe') || !done.has('idor_probe')) {
-      const pending = ['stored_xss_probe', 'idor_probe'].filter((t) => !done.has(t));
+      const pending = ['stored_xss_probe', 'idor_probe'].filter(t => !done.has(t));
       return {
         decision: {
           objective: `Run persistence/authorization probes against ${target}`,
           observation: 'Injection probes complete',
-          reason: 'Deterministic strategy (no LLM reachable): injection layer tested; now check stored XSS persistence and object-level authorization.',
+          reason:
+            'Deterministic strategy (no LLM reachable): injection layer tested; now check stored XSS persistence and object-level authorization.',
           expectedOutcome: 'Confirmed or ruled-out stored-XSS / IDOR',
           confidence: 0.85,
           methodologyStage: 'vulnerability_detection',
@@ -199,21 +218,39 @@ export class DeterministicBrain {
           nextAction: {
             type: 'parallel_tools',
             target,
-            tools: pending.map((name) => ({ name, target, arguments: {}, description: `Deterministic ${name}` })),
-            description: 'Parallel persistence/authz probes'
-          }
-        }
+            tools: pending.map(name => ({
+              name,
+              target,
+              arguments: {},
+              description: `Deterministic ${name}`,
+            })),
+            description: 'Parallel persistence/authz probes',
+          },
+        },
       };
     }
 
     // Stage 4 — file one finding per unfiled normalized candidate.
     const candidates = await this.probeCandidates(assessmentId);
-    const unfiled = candidates.filter((c) => ![...filed].some((k) =>
-      k.includes((c.type || '').toLowerCase()) || (c.title || '').toLowerCase().split(' ').slice(0, 4).every((w) => k.includes(w))
-    ));
+    const unfiled = candidates.filter(
+      c =>
+        ![...filed].some(
+          k =>
+            k.includes((c.type || '').toLowerCase()) ||
+            (c.title || '')
+              .toLowerCase()
+              .split(' ')
+              .slice(0, 4)
+              .every(w => k.includes(w))
+        )
+    );
     if (unfiled.length) {
       const c = unfiled[0];
-      const evidenceIds = await this.evidenceForExecution(jobId, c._executionId, c._target || target);
+      const evidenceIds = await this.evidenceForExecution(
+        jobId,
+        c._executionId,
+        c._target || target
+      );
       return {
         decision: {
           objective: `Confirm finding: ${c.title}`,
@@ -238,9 +275,9 @@ export class DeterministicBrain {
             remediation: remediationFor(c.type),
             confidence: c.confidence ?? 0.8,
             evidenceIds,
-            rootCause: c.evidence?.note || c.title
-          }
-        }
+            rootCause: c.evidence?.note || c.title,
+          },
+        },
       };
     }
 
@@ -249,24 +286,28 @@ export class DeterministicBrain {
       decision: {
         objective: 'Assessment complete — deterministic strategy exhausted',
         observation: `${done.size} probes completed, ${candidates.length} candidate(s) filed`,
-        reason: 'Deterministic strategy (no LLM reachable): all probe stages ran and every candidate was filed as a finding. Nothing left to test autonomously.',
+        reason:
+          'Deterministic strategy (no LLM reachable): all probe stages ran and every candidate was filed as a finding. Nothing left to test autonomously.',
         expectedOutcome: 'Job completes with findings report',
         confidence: 1,
         methodologyStage: 'reporting',
         hypotheses: [],
         memoryNotes: [],
-        nextAction: { type: 'complete', description: 'Deterministic hunt complete' }
-      }
+        nextAction: { type: 'complete', description: 'Deterministic hunt complete' },
+      },
     };
   }
 }
 
 function impactFor(type, severity) {
   const map = {
-    'sql-injection': 'Database compromise: authentication bypass, data theft, potential full host takeover via stacked queries.',
-    'reflected-xss': 'Session hijacking and phishing: attacker-crafted links execute script in victims\u2019 browsers.',
-    'stored-xss': 'Persistent script execution for every visitor: mass session theft, defacement, malware delivery.',
-    'idor': 'Unauthorized access to other users\u2019 private records (PII, credentials).'
+    'sql-injection':
+      'Database compromise: authentication bypass, data theft, potential full host takeover via stacked queries.',
+    'reflected-xss':
+      'Session hijacking and phishing: attacker-crafted links execute script in victims\u2019 browsers.',
+    'stored-xss':
+      'Persistent script execution for every visitor: mass session theft, defacement, malware delivery.',
+    idor: 'Unauthorized access to other users\u2019 private records (PII, credentials).',
   };
   return map[type] || `Security weakness with ${severity} severity.`;
 }
@@ -282,10 +323,13 @@ function reproductionFor(c) {
 
 function remediationFor(type) {
   const map = {
-    'sql-injection': 'Use parameterized queries / prepared statements everywhere; never interpolate input into SQL; apply least-privilege DB accounts.',
-    'reflected-xss': 'Context-aware output encoding on every reflection point; adopt a strict Content-Security-Policy.',
-    'stored-xss': 'Encode on output (not just on input); validate/sanitize stored content; strict CSP.',
-    'idor': 'Enforce server-side authorization on every object reference: verify the caller owns (or may access) the requested id.'
+    'sql-injection':
+      'Use parameterized queries / prepared statements everywhere; never interpolate input into SQL; apply least-privilege DB accounts.',
+    'reflected-xss':
+      'Context-aware output encoding on every reflection point; adopt a strict Content-Security-Policy.',
+    'stored-xss':
+      'Encode on output (not just on input); validate/sanitize stored content; strict CSP.',
+    idor: 'Enforce server-side authorization on every object reference: verify the caller owns (or may access) the requested id.',
   };
   return map[type] || 'Fix the root cause and re-test.';
 }

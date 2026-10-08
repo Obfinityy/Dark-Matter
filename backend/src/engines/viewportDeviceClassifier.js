@@ -14,12 +14,48 @@
  * Reference viewport buckets (CSS pixels) per device class.
  */
 const DEVICE_BUCKETS = [
-  { deviceClass: 'phone', minWidth: 0, maxWidth: 480, typicalDpr: [1, 1.5, 2, 2.5, 3], note: 'Handset portrait viewports.' },
-  { deviceClass: 'phablet', minWidth: 481, maxWidth: 768, typicalDpr: [1, 2, 3], note: 'Large phones / small tablets.' },
-  { deviceClass: 'tablet', minWidth: 769, maxWidth: 1200, typicalDpr: [1, 1.5, 2], note: 'Tablet portrait and landscape.' },
-  { deviceClass: 'laptop', minWidth: 1201, maxWidth: 1600, typicalDpr: [1, 1.25, 1.5, 2], note: 'Laptop and small desktop.' },
-  { deviceClass: 'desktop', minWidth: 1601, maxWidth: 2560, typicalDpr: [1, 1.25, 1.5, 2], note: 'Desktop monitors.' },
-  { deviceClass: 'ultrawide', minWidth: 2561, maxWidth: 7680, typicalDpr: [1, 1.5, 2], note: 'Ultrawide / multi-monitor.' },
+  {
+    deviceClass: 'phone',
+    minWidth: 0,
+    maxWidth: 480,
+    typicalDpr: [1, 1.5, 2, 2.5, 3],
+    note: 'Handset portrait viewports.',
+  },
+  {
+    deviceClass: 'phablet',
+    minWidth: 481,
+    maxWidth: 768,
+    typicalDpr: [1, 2, 3],
+    note: 'Large phones / small tablets.',
+  },
+  {
+    deviceClass: 'tablet',
+    minWidth: 769,
+    maxWidth: 1200,
+    typicalDpr: [1, 1.5, 2],
+    note: 'Tablet portrait and landscape.',
+  },
+  {
+    deviceClass: 'laptop',
+    minWidth: 1201,
+    maxWidth: 1600,
+    typicalDpr: [1, 1.25, 1.5, 2],
+    note: 'Laptop and small desktop.',
+  },
+  {
+    deviceClass: 'desktop',
+    minWidth: 1601,
+    maxWidth: 2560,
+    typicalDpr: [1, 1.25, 1.5, 2],
+    note: 'Desktop monitors.',
+  },
+  {
+    deviceClass: 'ultrawide',
+    minWidth: 2561,
+    maxWidth: 7680,
+    typicalDpr: [1, 1.5, 2],
+    note: 'Ultrawide / multi-monitor.',
+  },
 ];
 
 /**
@@ -32,7 +68,13 @@ export function classifyDevice(sample = {}) {
   const height = Number(sample.height);
   const dpr = Number.isFinite(sample.dpr) && sample.dpr > 0 ? sample.dpr : 1;
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return { deviceClass: 'unknown', orientation: 'unknown', dpr, dprAnomaly: false, confidence: 0 };
+    return {
+      deviceClass: 'unknown',
+      orientation: 'unknown',
+      dpr,
+      dprAnomaly: false,
+      confidence: 0,
+    };
   }
   const orientation = width >= height ? 'landscape' : 'portrait';
   // Foldables / split-screen: very narrow but tall, or very short but wide.
@@ -43,15 +85,17 @@ export function classifyDevice(sample = {}) {
     deviceClass = 'foldable';
     confidence = 70;
   } else {
-    const bucket = DEVICE_BUCKETS.find((b) => width >= b.minWidth && width <= b.maxWidth);
+    const bucket = DEVICE_BUCKETS.find(b => width >= b.minWidth && width <= b.maxWidth);
     if (bucket) {
       deviceClass = bucket.deviceClass;
-      const dprMatch = bucket.typicalDpr.some((t) => Math.abs(t - dpr) < 0.01);
+      const dprMatch = bucket.typicalDpr.some(t => Math.abs(t - dpr) < 0.01);
       confidence = dprMatch ? 85 : 65;
     }
   }
-  const bucket = DEVICE_BUCKETS.find((b) => b.deviceClass === deviceClass);
-  const dprAnomaly = bucket ? !bucket.typicalDpr.some((t) => Math.abs(t - dpr) < 0.01) && deviceClass !== 'foldable' : false;
+  const bucket = DEVICE_BUCKETS.find(b => b.deviceClass === deviceClass);
+  const dprAnomaly = bucket
+    ? !bucket.typicalDpr.some(t => Math.abs(t - dpr) < 0.01) && deviceClass !== 'foldable'
+    : false;
   return { deviceClass, orientation, dpr, dprAnomaly, confidence };
 }
 
@@ -92,8 +136,11 @@ export function inferAdaptiveServing(observations = []) {
     if (!byClass.has(o.deviceClass)) byClass.set(o.deviceClass, new Set());
     byClass.get(o.deviceClass).add(o.contentHash);
   }
-  const variants = [...byClass.entries()].map(([deviceClass, hashes]) => ({ deviceClass, hashes: [...hashes] }));
-  const distinctVariants = new Set(variants.flatMap((v) => v.hashes)).size;
+  const variants = [...byClass.entries()].map(([deviceClass, hashes]) => ({
+    deviceClass,
+    hashes: [...hashes],
+  }));
+  const distinctVariants = new Set(variants.flatMap(v => v.hashes)).size;
   const adaptiveServing = variants.length >= 2 && distinctVariants >= 2;
   return {
     adaptiveServing,
@@ -111,11 +158,13 @@ export function inferAdaptiveServing(observations = []) {
  * @returns {{outlier: boolean, zWidth: number, zHeight: number, note: string}}
  */
 export function scoreViewportOutlier(sample = {}, population = []) {
-  const pop = (Array.isArray(population) ? population : [])
-    .filter((s) => Number.isFinite(s.width) && Number.isFinite(s.height));
-  if (pop.length < 5) return { outlier: false, zWidth: 0, zHeight: 0, note: 'population too small' };
-  const stats = (key) => {
-    const vals = pop.map((s) => s[key]);
+  const pop = (Array.isArray(population) ? population : []).filter(
+    s => Number.isFinite(s.width) && Number.isFinite(s.height)
+  );
+  if (pop.length < 5)
+    return { outlier: false, zWidth: 0, zHeight: 0, note: 'population too small' };
+  const stats = key => {
+    const vals = pop.map(s => s[key]);
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
     const std = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length) || 1;
     return { mean, std };
@@ -129,7 +178,9 @@ export function scoreViewportOutlier(sample = {}, population = []) {
     outlier,
     zWidth: Math.round(zWidth * 100) / 100,
     zHeight: Math.round(zHeight * 100) / 100,
-    note: outlier ? 'Viewport is far outside the observed population — possible emulator, headless client, or unusual device.' : 'Viewport within normal population range.',
+    note: outlier
+      ? 'Viewport is far outside the observed population — possible emulator, headless client, or unusual device.'
+      : 'Viewport within normal population range.',
   };
 }
 

@@ -8,7 +8,15 @@ import { ScopeEngine } from '../agent/scopeEngine.js';
  * Creates assessments, validates scope, initializes the agent, handles pause/resume/stop.
  */
 export class AssessmentService {
-  constructor({ assessmentModel, targetModel, agentBrain, stateManager, eventService, planner, providerModel }) {
+  constructor({
+    assessmentModel,
+    targetModel,
+    agentBrain,
+    stateManager,
+    eventService,
+    planner,
+    providerModel,
+  }) {
     this.assessmentModel = assessmentModel;
     this.targetModel = targetModel;
     this.agentBrain = agentBrain;
@@ -47,7 +55,7 @@ export class AssessmentService {
       return {
         status: 'awaiting_authorization',
         targetUrl,
-        message: 'Confirm that you are authorized to test this target before starting.'
+        message: 'Confirm that you are authorized to test this target before starting.',
       };
     }
 
@@ -62,10 +70,15 @@ export class AssessmentService {
         name: input.targetName || hostname,
         scope: input.scope,
         authorizationConfirmed: true,
-        authorizationNotes: input.authorizationNotes
+        authorizationNotes: input.authorizationNotes,
       });
     }
-    assert(target.authorization.confirmed, 400, 'Target authorization is required', 'AUTHORIZATION_REQUIRED');
+    assert(
+      target.authorization.confirmed,
+      400,
+      'Target authorization is required',
+      'AUTHORIZATION_REQUIRED'
+    );
 
     // 3. Create assessment
     const assessment = await this.assessmentModel.create(userId, {
@@ -74,7 +87,7 @@ export class AssessmentService {
       targetHostname: hostname,
       scope: target.scope,
       mode: input.mode,
-      message: input.message
+      message: input.message,
     });
 
     // 4. Validate scope
@@ -84,7 +97,7 @@ export class AssessmentService {
       type: 'SCOPE_VALIDATED',
       level: 'INFO',
       message: `Scope validated — included: ${scope.included.join(', ')}`,
-      data: { scope }
+      data: { scope },
     });
 
     // 5. Initialize agent state
@@ -95,7 +108,7 @@ export class AssessmentService {
       type: 'ASSESSMENT_CREATED',
       level: 'INFO',
       message: `Assessment created for ${hostname}`,
-      data: { assessmentId: assessment.id, target: hostname }
+      data: { assessmentId: assessment.id, target: hostname },
     });
 
     // 6. Start the agent brain (runs asynchronously) — unless the caller owns
@@ -104,7 +117,7 @@ export class AssessmentService {
       return {
         status: 'assessment_created',
         assessmentId: assessment.id,
-        assessment
+        assessment,
       };
     }
 
@@ -113,7 +126,7 @@ export class AssessmentService {
     return {
       status: 'started',
       assessmentId: assessment.id,
-      assessment
+      assessment,
     };
   }
 
@@ -140,7 +153,7 @@ export class AssessmentService {
       await this.eventService.publish(assessmentId, {
         type: 'ASSESSMENT_STOPPED',
         level: 'WARN',
-        message: 'Assessment stopped by user'
+        message: 'Assessment stopped by user',
       });
     }
     return { status: stopped ? 'stopped' : 'not_running' };
@@ -154,8 +167,12 @@ export class AssessmentService {
     // Handle commands
     const lower = message.toLowerCase().trim();
     if (lower === 'pause' || lower === 'stop') {
-      const result = lower === 'pause' ? await this.pause(userId, assessmentId) : await this.stop(userId, assessmentId);
-      const response = lower === 'pause' ? 'Assessment paused. Checkpoint saved.' : 'Assessment stopped.';
+      const result =
+        lower === 'pause'
+          ? await this.pause(userId, assessmentId)
+          : await this.stop(userId, assessmentId);
+      const response =
+        lower === 'pause' ? 'Assessment paused. Checkpoint saved.' : 'Assessment stopped.';
       await this.assessmentModel.addMessage(assessmentId, 'assistant', response);
       return { message: response, ...result };
     }
@@ -178,19 +195,24 @@ export class AssessmentService {
       const context = await this.stateManager.getContext(assessmentId);
       if (context && this.planner) {
         const prompt = `User question during security assessment: "${message}"\nTarget: ${context.target}\nCurrent Phase: ${context.phase}\nIteration: ${context.iterationCount}\nSubdomains found: ${context.subdomainCount}\nEndpoints: ${context.endpointCount}\nTechnologies: ${(context.technologies || []).join(', ') || 'none'}\nOpen Ports: ${(context.openPorts || []).join(', ') || 'none'}\nRecent tools: ${(context.completedToolNames || []).slice(-5).join(', ')}\n\nAnswer the user directly and professionally as an autonomous security AI agent. Be concise, technical, and accurate.`;
-        
+
         // Try user providers first
         if (userId && this.providerModel) {
           const providers = await this.providerModel.getActiveProviders(userId);
           for (const provider of providers) {
             try {
               if (provider.id === 'gemini') {
-                const res = await fetch(`${provider.baseUrl}/models/${provider.model}:generateContent?key=${provider.apiKey}`, {
-                  method: 'POST',
-                  headers: { 'content-type': 'application/json' },
-                  signal: AbortSignal.timeout(15_000),
-                  body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
-                });
+                const res = await fetch(
+                  `${provider.baseUrl}/models/${provider.model}:generateContent?key=${provider.apiKey}`,
+                  {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    signal: AbortSignal.timeout(15_000),
+                    body: JSON.stringify({
+                      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    }),
+                  }
+                );
                 if (res.ok) {
                   const data = await res.json();
                   responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -199,9 +221,17 @@ export class AssessmentService {
               } else if (provider.id === 'anthropic') {
                 const res = await fetch(`${provider.baseUrl}/v1/messages`, {
                   method: 'POST',
-                  headers: { 'content-type': 'application/json', 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01' },
+                  headers: {
+                    'content-type': 'application/json',
+                    'x-api-key': provider.apiKey,
+                    'anthropic-version': '2023-06-01',
+                  },
                   signal: AbortSignal.timeout(15_000),
-                  body: JSON.stringify({ model: provider.model, max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+                  body: JSON.stringify({
+                    model: provider.model,
+                    max_tokens: 1000,
+                    messages: [{ role: 'user', content: prompt }],
+                  }),
                 });
                 if (res.ok) {
                   const data = await res.json();
@@ -211,9 +241,15 @@ export class AssessmentService {
               } else {
                 const res = await fetch(`${provider.baseUrl}/chat/completions`, {
                   method: 'POST',
-                  headers: { 'content-type': 'application/json', 'authorization': `Bearer ${provider.apiKey}` },
+                  headers: {
+                    'content-type': 'application/json',
+                    authorization: `Bearer ${provider.apiKey}`,
+                  },
                   signal: AbortSignal.timeout(15_000),
-                  body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: prompt }] })
+                  body: JSON.stringify({
+                    model: provider.model,
+                    messages: [{ role: 'user', content: prompt }],
+                  }),
                 });
                 if (res.ok) {
                   const data = await res.json();
@@ -231,7 +267,9 @@ export class AssessmentService {
       console.warn('Smart chat generation failed:', e.message);
     }
 
-    const finalResponse = responseText || `Message received. Assessment on ${assessment.targetHostname || 'target'} is ${assessment.status} in phase "${assessment.phase}". Assets found: ${assessment.assetsDiscovered || 0}, findings: ${assessment.findingsCount || 0}.`;
+    const finalResponse =
+      responseText ||
+      `Message received. Assessment on ${assessment.targetHostname || 'target'} is ${assessment.status} in phase "${assessment.phase}". Assets found: ${assessment.assetsDiscovered || 0}, findings: ${assessment.findingsCount || 0}.`;
     await this.assessmentModel.addMessage(assessmentId, 'assistant', finalResponse);
     return { message: finalResponse, status: assessment.status };
   }
@@ -282,9 +320,12 @@ export function computePostureScore(findings = []) {
   const score = Math.max(0, 100 - deduction);
   const rank = { critical: 0, high: 1, medium: 2, low: 3, informational: 4 };
   const topRisks = [...(findings || [])]
-    .sort((a, b) => (rank[normalizeSeverity(a.severity)] ?? 4) - (rank[normalizeSeverity(b.severity)] ?? 4))
+    .sort(
+      (a, b) =>
+        (rank[normalizeSeverity(a.severity)] ?? 4) - (rank[normalizeSeverity(b.severity)] ?? 4)
+    )
     .slice(0, 3)
-    .map((f) => ({ id: f.id, title: f.title, severity: normalizeSeverity(f.severity) }));
+    .map(f => ({ id: f.id, title: f.title, severity: normalizeSeverity(f.severity) }));
   return {
     score,
     grade: gradeForScore(score),

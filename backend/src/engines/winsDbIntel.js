@@ -38,17 +38,28 @@ export function parseWinsLine(line) {
   let state = null;
 
   let m = l.match(/([A-Za-z0-9][\w.$-]{0,30})<([0-9A-Fa-f]{2})>/);
-  if (m) { name = m[1]; nameType = m[2].toUpperCase(); }
+  if (m) {
+    name = m[1];
+    nameType = m[2].toUpperCase();
+  }
   if (!name && (m = l.match(/name\s*=\s*([A-Za-z0-9][\w.$-]{0,30})/i))) name = m[1];
   if (!name && (m = l.match(/^"?([A-Za-z0-9][\w.$-]{1,30})"?\s*[,;]\s*/))) name = m[1];
   if (!name) {
-    const before = l.slice(0, ipM.index).trim().replace(/[,;:"'=<>]+$/g, '').trim();
-    const tok = before.split(/[\s,;]+/).filter(Boolean).pop();
+    const before = l
+      .slice(0, ipM.index)
+      .trim()
+      .replace(/[,;:"'=<>]+$/g, '')
+      .trim();
+    const tok = before
+      .split(/[\s,;]+/)
+      .filter(Boolean)
+      .pop();
     if (tok && /^[A-Za-z0-9][\w.$-]{0,30}$/.test(tok) && !/^\d+$/.test(tok)) name = tok;
   }
   if (!name) return null;
 
-  if (!nameType && (m = l.match(/(?:type\s*=\s*|[,;]\s*)([0-9A-Fa-f]{2})(?:[,;\s]|$)/))) nameType = m[1].toUpperCase();
+  if (!nameType && (m = l.match(/(?:type\s*=\s*|[,;]\s*)([0-9A-Fa-f]{2})(?:[,;\s]|$)/)))
+    nameType = m[1].toUpperCase();
   if ((m = l.match(/\b(active|released|tombstone|tombstoned|expired|static|dynamic)\b/i))) {
     state = m[1].toLowerCase() === 'tombstoned' ? 'tombstone' : m[1].toLowerCase();
   }
@@ -111,26 +122,42 @@ export function extractWinsRecords(text) {
 
   const findings = [];
   if (entries.length) {
-    findings.push(`${summary.uniqueNames} hostname(s) ↔ ${summary.uniqueIps} IP(s) mapped from WINS records — ` +
-      'a legacy Windows estate inventory; cross-reference with DNS for stale entries.');
+    findings.push(
+      `${summary.uniqueNames} hostname(s) ↔ ${summary.uniqueIps} IP(s) mapped from WINS records — ` +
+        'a legacy Windows estate inventory; cross-reference with DNS for stale entries.'
+    );
   }
   if (tombstones.length) {
-    findings.push(`${tombstones.length} tombstoned/released record(s): ` +
-      `${tombstones.slice(0, 8).map(t => `${t.name} (${t.ip})`).join(', ')}${tombstones.length > 8 ? '…' : ''} — ` +
-      'decommissioned hosts whose names/IPs may be reclaimable or still referenced.');
+    findings.push(
+      `${tombstones.length} tombstoned/released record(s): ` +
+        `${tombstones
+          .slice(0, 8)
+          .map(t => `${t.name} (${t.ip})`)
+          .join(', ')}${tombstones.length > 8 ? '…' : ''} — ` +
+        'decommissioned hosts whose names/IPs may be reclaimable or still referenced.'
+    );
   }
   if (multihomed.length) {
-    findings.push(`${multihomed.length} multihomed name(s): ` +
-      `${multihomed.slice(0, 6).map(x => `${x.name} → ${x.ips.join(', ')}`).join('; ')}${multihomed.length > 6 ? '…' : ''} — ` +
-      'multi-interface hosts, often servers or cluster nodes.');
+    findings.push(
+      `${multihomed.length} multihomed name(s): ` +
+        `${multihomed
+          .slice(0, 6)
+          .map(x => `${x.name} → ${x.ips.join(', ')}`)
+          .join('; ')}${multihomed.length > 6 ? '…' : ''} — ` +
+        'multi-interface hosts, often servers or cluster nodes.'
+    );
   }
   const statics = entries.filter(e => e.state === 'static');
   if (statics.length) {
-    findings.push(`${statics.length} static WINS record(s) — hand-pinned entries usually mark ` +
-      'infrastructure the admins consider permanent (DCs, file servers).');
+    findings.push(
+      `${statics.length} static WINS record(s) — hand-pinned entries usually mark ` +
+        'infrastructure the admins consider permanent (DCs, file servers).'
+    );
   }
   if (!entries.length) {
-    findings.push('No WINS records parsed — confirm the input is a WINS export/dump with hostname and IP per line.');
+    findings.push(
+      'No WINS records parsed — confirm the input is a WINS export/dump with hostname and IP per line.'
+    );
   }
 
   return { entries, byName, byIp, tombstones, multihomed, summary, findings };

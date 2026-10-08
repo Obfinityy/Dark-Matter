@@ -26,7 +26,11 @@ export function levenshtein(a, b) {
   for (let i = 1; i <= s.length; i++) {
     curr[0] = i;
     for (let j = 1; j <= t.length; j++) {
-      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + (s[i - 1] === t[j - 1] ? 0 : 1));
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + (s[i - 1] === t[j - 1] ? 0 : 1)
+      );
     }
     [prev, curr] = [curr, prev];
   }
@@ -34,10 +38,32 @@ export function levenshtein(a, b) {
 }
 
 const KEYBOARD_ADJACENT = {
-  a: 'qwsz', b: 'vghn', c: 'xdfv', d: 'serfcx', e: 'wsdr', f: 'drtgcv',
-  g: 'ftyhbv', h: 'gyujnb', i: 'ujko', j: 'huiknm', k: 'jiolm', l: 'kop',
-  m: 'njk', n: 'bhjm', o: 'iklp', p: 'ol', q: 'wa', r: 'edft', s: 'awedxz',
-  t: 'rfgy', u: 'yhji', v: 'cfgb', w: 'qase', x: 'zsdc', y: 'tghu', z: 'xsa',
+  a: 'qwsz',
+  b: 'vghn',
+  c: 'xdfv',
+  d: 'serfcx',
+  e: 'wsdr',
+  f: 'drtgcv',
+  g: 'ftyhbv',
+  h: 'gyujnb',
+  i: 'ujko',
+  j: 'huiknm',
+  k: 'jiolm',
+  l: 'kop',
+  m: 'njk',
+  n: 'bhjm',
+  o: 'iklp',
+  p: 'ol',
+  q: 'wa',
+  r: 'edft',
+  s: 'awedxz',
+  t: 'rfgy',
+  u: 'yhji',
+  v: 'cfgb',
+  w: 'qase',
+  x: 'zsdc',
+  y: 'tghu',
+  z: 'xsa',
 };
 
 /**
@@ -48,7 +74,9 @@ const KEYBOARD_ADJACENT = {
  * @param {string[]} extraTlds extra suspicious TLDs to pair with variants
  */
 export function generateLookalikeLabels(brandLabel, extraTlds = ['com', 'net', 'org', 'io', 'co']) {
-  const label = String(brandLabel || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const label = String(brandLabel || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
   if (!label) return new Set();
   const variants = new Set();
 
@@ -65,7 +93,17 @@ export function generateLookalikeLabels(brandLabel, extraTlds = ['com', 'net', '
     }
   }
   // Prefix/suffix tricks attackers love
-  const affixes = ['secure', 'login', 'verify', 'account', 'support', 'update', 'auth', 'app', 'pay'];
+  const affixes = [
+    'secure',
+    'login',
+    'verify',
+    'account',
+    'support',
+    'update',
+    'auth',
+    'app',
+    'pay',
+  ];
   for (const af of affixes) {
     variants.add(`${af}${label}`);
     variants.add(`${label}${af}`);
@@ -77,7 +115,9 @@ export function generateLookalikeLabels(brandLabel, extraTlds = ['com', 'net', '
 }
 
 function stripTld(domain) {
-  const d = String(domain || '').toLowerCase().replace(/^\*\./, '');
+  const d = String(domain || '')
+    .toLowerCase()
+    .replace(/^\*\./, '');
   const parts = d.split('.');
   return parts.length > 1 ? parts.slice(0, -1).join('.') : d;
 }
@@ -100,7 +140,9 @@ export function matchLookalikeCertificates(brandDomain, certRecords = [], option
   const seen = new Set();
 
   for (const rec of certRecords) {
-    const domain = String(rec?.domain || '').toLowerCase().replace(/^\*\./, '');
+    const domain = String(rec?.domain || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     if (!domain || domain === brand || domain.endsWith(`.${brand}`) || seen.has(domain)) continue;
     seen.add(domain);
     const label = stripTld(domain).split('.').pop() || '';

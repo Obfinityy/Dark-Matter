@@ -40,7 +40,7 @@ export function extractHalLinks(doc = {}) {
  */
 export function mapNavigationGraph(doc = {}) {
   const links = extractHalLinks(doc);
-  const self = links.find((l) => l.rel === 'self')?.href || '(root)';
+  const self = links.find(l => l.rel === 'self')?.href || '(root)';
   const nodes = new Set([self]);
   const edges = [];
   for (const link of links) {
@@ -72,7 +72,8 @@ export function mapNavigationGraph(doc = {}) {
 export function isHalDocument(contentType = '', body) {
   const ct = String(contentType).split(';')[0].trim().toLowerCase();
   const ctMatch = ct === 'application/hal+json' || ct === 'application/hal+xml';
-  const shapeMatch = body && typeof body === 'object' && body._links && typeof body._links === 'object';
+  const shapeMatch =
+    body && typeof body === 'object' && body._links && typeof body._links === 'object';
   return Boolean(ctMatch || shapeMatch);
 }
 
@@ -97,8 +98,8 @@ export function expandTemplatedLink(href = '', vars = {}) {
  */
 export function summarizeFindings(url, graph = { nodes: [], edges: [] }) {
   if (!graph.edges || graph.edges.length === 0) return null;
-  const rels = [...new Set(graph.edges.map((e) => e.rel))];
-  const admin = rels.filter((r) => /admin|internal|debug|manage/i.test(r));
+  const rels = [...new Set(graph.edges.map(e => e.rel))];
+  const admin = rels.filter(r => /admin|internal|debug|manage/i.test(r));
   const note = admin.length ? ` Sensitive-looking relations: ${admin.join(', ')}.` : '';
   return `HAL navigation graph mapped at ${url}: ${graph.edges.length} link(s) across ${rels.length} relation(s) (${rels.slice(0, 8).join(', ')}${rels.length > 8 ? ', ...' : ''}).${note} Recommendation: apply authorization on every linked resource, not just the entry point.`;
 }

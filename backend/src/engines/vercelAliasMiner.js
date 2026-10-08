@@ -15,13 +15,27 @@
 
 /** Vercel DNS delegation targets proving Vercel hosting. */
 export const VERCEL_CNAME_TARGETS = [
-  'cname.vercel-dns.com', 'vercel-dns.com', 'alias.vercel-dns.com',
+  'cname.vercel-dns.com',
+  'vercel-dns.com',
+  'alias.vercel-dns.com',
 ];
 
 /** Common branch/context suffixes used in Vercel git-branch deployment URLs. */
 export const VERCEL_CONTEXT_SUFFIXES = [
-  'staging', 'stage', 'dev', 'development', 'test', 'qa', 'uat', 'preview',
-  'demo', 'beta', 'canary', 'feat', 'fix', 'release',
+  'staging',
+  'stage',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'preview',
+  'demo',
+  'beta',
+  'canary',
+  'feat',
+  'fix',
+  'release',
 ];
 
 /**
@@ -44,7 +58,9 @@ export function slugify(name) {
  * @returns {string[]} unique slug tokens, longest first
  */
 export function brandTokens(brand) {
-  const label = String(brand || '').toLowerCase().split('.')[0];
+  const label = String(brand || '')
+    .toLowerCase()
+    .split('.')[0];
   const base = slugify(label);
   const tokens = new Set();
   if (base) tokens.add(base);
@@ -68,7 +84,9 @@ export function brandTokens(brand) {
  * @returns {{project: string, team: string|null, kind: 'alias'|'deployment'|'branch-deploy', branch: string|null, hash: string|null}|null}
  */
 export function parseVercelAlias(host) {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const m = h.match(/^(.+)\.vercel\.app$/);
   if (!m) return null;
   const slug = m[1];
@@ -97,9 +115,11 @@ export function parseVercelAlias(host) {
  * @returns {{isVercel: boolean, target: string, delegation: '_vercel'|null}}
  */
 export function parseVercelCname(cnameTarget) {
-  const target = String(cnameTarget || '').toLowerCase().replace(/\.$/, '');
+  const target = String(cnameTarget || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!target) return { isVercel: false, target: '', delegation: null };
-  const isVercel = VERCEL_CNAME_TARGETS.some((t) => target === t || target.endsWith(`.${t}`));
+  const isVercel = VERCEL_CNAME_TARGETS.some(t => target === t || target.endsWith(`.${t}`));
   return { isVercel, target, delegation: isVercel ? '_vercel' : null };
 }
 
@@ -175,12 +195,14 @@ export function correlateResolutions(resolutions, brand) {
   const tokens = brandTokens(brand);
   const out = [];
   for (const r of resolutions || []) {
-    const host = String(r?.host || '').toLowerCase().replace(/\.$/, '');
+    const host = String(r?.host || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const parsed = parseVercelCname(r?.cname);
     const alias = parseVercelAlias(host);
     if (!parsed.isVercel && !alias) continue;
     const project = alias ? alias.project : null;
-    const brandMatch = tokens.some((t) => (project || '').includes(t) || host.includes(t));
+    const brandMatch = tokens.some(t => (project || '').includes(t) || host.includes(t));
     out.push({
       host,
       cname: parsed.target,
@@ -189,5 +211,7 @@ export function correlateResolutions(resolutions, brand) {
       brandMatch,
     });
   }
-  return out.sort((a, b) => Number(b.brandMatch) - Number(a.brandMatch) || a.host.localeCompare(b.host));
+  return out.sort(
+    (a, b) => Number(b.brandMatch) - Number(a.brandMatch) || a.host.localeCompare(b.host)
+  );
 }

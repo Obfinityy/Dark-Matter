@@ -27,12 +27,24 @@ const MARGINALIA_SEARCH_ENDPOINT = 'https://search.marginalia.nu/search';
  * @returns {Array<{ url: string, query: string, page: number }>}
  */
 export function buildMarginaliaQueries(domain, options = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!clean) throw new Error('marginaliaIntel: domain is required');
   const pages = Math.max(1, Math.min(10, Number(options.pages ?? 3)));
 
   const queries = [`site:${clean}`];
-  for (const kw of ['legacy', 'archive', 'deprecated', 'old', 'intranet', 'wiki documentation', 'mailing list', 'changelog mirror']) {
+  for (const kw of [
+    'legacy',
+    'archive',
+    'deprecated',
+    'old',
+    'intranet',
+    'wiki documentation',
+    'mailing list',
+    'changelog mirror',
+  ]) {
     queries.push(`"${clean}" ${kw}`);
   }
 
@@ -58,7 +70,10 @@ export function buildMarginaliaQueries(domain, options = {}) {
  * @returns {{ hosts: Array<{ host: string, source: string }>, pageOk: boolean }}
  */
 export function parseMarginaliaResults(html, domain) {
-  const base = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const base = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!base) return { hosts: [], pageOk: false };
   const text = String(html || '');
   const pageOk = /search\.marginalia|class="[^"]*result|name="query"/.test(text);
@@ -74,7 +89,10 @@ export function parseMarginaliaResults(html, domain) {
   // Bare hostnames anywhere in the text-heavy results (strip tags first,
   // then percent-decode so encoded markup can't mangle hosts).
   const plain = safeDecode(text.replace(/<[^>]+>/g, ' '));
-  const bareRe = new RegExp(`\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`, 'gi');
+  const bareRe = new RegExp(
+    `\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`,
+    'gi'
+  );
   while ((m = bareRe.exec(plain)) !== null) {
     const host = m[1].toLowerCase();
     if (!seen.has(host)) seen.set(host, { host, source: 'marginalia-mention' });

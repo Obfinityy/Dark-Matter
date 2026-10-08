@@ -50,20 +50,23 @@ export function formatDuration(ms) {
 // events: [{ at, estimateMs, cause }]
 export function etaRecalcLog(events) {
   const sorted = [...(events || [])].sort((a, b) => (a.at > b.at ? 1 : -1));
-  return sorted.map((e, i) => {
-    const prev = i > 0 ? sorted[i - 1] : null;
-    const deltaMs = prev ? e.estimateMs - prev.estimateMs : 0;
-    const dir = deltaMs > 0 ? 'slipped' : deltaMs < 0 ? 'shrunk' : 'unchanged';
-    return {
-      at: e.at,
-      estimateMs: e.estimateMs,
-      cause: e.cause,
-      deltaMs,
-      text: i === 0
-        ? `${e.at}: initial estimate ${formatDuration(e.estimateMs)} — ${e.cause}`
-        : `${e.at}: ${dir} to ${formatDuration(e.estimateMs)} (${deltaMs > 0 ? '+' : ''}${formatDuration(Math.abs(deltaMs))}) — ${e.cause}`,
-    };
-  }).reverse();
+  return sorted
+    .map((e, i) => {
+      const prev = i > 0 ? sorted[i - 1] : null;
+      const deltaMs = prev ? e.estimateMs - prev.estimateMs : 0;
+      const dir = deltaMs > 0 ? 'slipped' : deltaMs < 0 ? 'shrunk' : 'unchanged';
+      return {
+        at: e.at,
+        estimateMs: e.estimateMs,
+        cause: e.cause,
+        deltaMs,
+        text:
+          i === 0
+            ? `${e.at}: initial estimate ${formatDuration(e.estimateMs)} — ${e.cause}`
+            : `${e.at}: ${dir} to ${formatDuration(e.estimateMs)} (${deltaMs > 0 ? '+' : ''}${formatDuration(Math.abs(deltaMs))}) — ${e.cause}`,
+      };
+    })
+    .reverse();
 }
 
 // 51762 — time-to-first-finding tracked live against history
@@ -106,7 +109,8 @@ export function idleTimeAccounting({ totalWallMs, segments }) {
 // args: { totalWallMs, pausedMs, approvalWaitMs, testWaitMs }
 export function activeTimeCounter({ totalWallMs, pausedMs, approvalWaitMs, testWaitMs }) {
   const wall = Math.max(0, totalWallMs || 0);
-  const idle = Math.max(0, pausedMs || 0) + Math.max(0, approvalWaitMs || 0) + Math.max(0, testWaitMs || 0);
+  const idle =
+    Math.max(0, pausedMs || 0) + Math.max(0, approvalWaitMs || 0) + Math.max(0, testWaitMs || 0);
   const activeMs = Math.max(0, wall - idle);
   const activePct = wall ? Math.round((activeMs / wall) * 100) : 0;
   return {
@@ -118,7 +122,15 @@ export function activeTimeCounter({ totalWallMs, pausedMs, approvalWaitMs, testW
 }
 
 // 51765 — timing data payload included in hunt exports
-export function etaExportPayload({ huntId, exportedAtMs, etaMs, finishAtMs, timezone, pctComplete, recalculations }) {
+export function etaExportPayload({
+  huntId,
+  exportedAtMs,
+  etaMs,
+  finishAtMs,
+  timezone,
+  pctComplete,
+  recalculations,
+}) {
   const payload = {
     huntId,
     exportedAt: exportedAtMs,
@@ -133,7 +145,8 @@ export function etaExportPayload({ huntId, exportedAtMs, etaMs, finishAtMs, time
     },
   };
   payload.json = JSON.stringify(payload, null, 2);
-  payload.csv = 'metric,value\n' +
+  payload.csv =
+    'metric,value\n' +
     `remaining_ms,${payload.timing.remainingMs}\n` +
     `remaining_human,${payload.timing.remainingHuman}\n` +
     `pct_complete,${payload.timing.pctComplete}\n` +
@@ -145,7 +158,13 @@ export function etaExportPayload({ huntId, exportedAtMs, etaMs, finishAtMs, time
 // hunts: [{ id, name, remainingMs, finishAtMs, pctComplete }]
 export function multiHuntEtas(hunts) {
   const rows = [...(hunts || [])]
-    .map((h) => ({ id: h.id, name: h.name, remainingMs: Math.max(0, h.remainingMs || 0), finishAtMs: h.finishAtMs, pctComplete: h.pctComplete || 0 }))
+    .map(h => ({
+      id: h.id,
+      name: h.name,
+      remainingMs: Math.max(0, h.remainingMs || 0),
+      finishAtMs: h.finishAtMs,
+      pctComplete: h.pctComplete || 0,
+    }))
     .sort((a, b) => a.remainingMs - b.remainingMs);
   const total = rows.length;
   const soonest = rows[0] || null;
@@ -164,15 +183,17 @@ export function multiHuntEtas(hunts) {
 export function etaPrioritization(items, remainingMs) {
   const budget = Math.max(0, remainingMs || 0);
   const ranked = [...(items || [])]
-    .map((it) => ({ ...it, density: (it.valueScore || 0) / Math.max(1, it.expectedMs || 1) }))
+    .map(it => ({ ...it, density: (it.valueScore || 0) / Math.max(1, it.expectedMs || 1) }))
     .sort((a, b) => b.density - a.density);
   const fits = [];
   const deferred = [];
   let used = 0;
   for (const it of ranked) {
     const need = Math.max(0, it.expectedMs || 0);
-    if (used + need <= budget) { fits.push(it); used += need; }
-    else deferred.push(it);
+    if (used + need <= budget) {
+      fits.push(it);
+      used += need;
+    } else deferred.push(it);
   }
   return {
     fits,
@@ -203,7 +224,7 @@ export function wrapUpEta({ remainingWorkMs, reportMs, verifyMs }) {
 // 51769 — pending approvals show how long they've waited
 // approvals: [{ id, title, requestedAtMs, avgDecisionMs }], nowMs
 export function approvalEta(approvals, nowMs) {
-  return (approvals || []).map((a) => {
+  return (approvals || []).map(a => {
     const waitedMs = Math.max(0, (nowMs || 0) - (a.requestedAtMs || 0));
     const avg = Math.max(1, a.avgDecisionMs || 1);
     const expectedInMs = Math.max(0, avg - waitedMs);
@@ -223,7 +244,7 @@ export function approvalEta(approvals, nowMs) {
 // tests: [{ id, name, requestedAtMs, expectedDurationMs, queuePosition }], nowMs
 export function testRequestEta(tests, nowMs) {
   const now = nowMs || 0;
-  return (tests || []).map((t) => {
+  return (tests || []).map(t => {
     const waitedMs = Math.max(0, now - (t.requestedAtMs || 0));
     const dur = Math.max(0, t.expectedDurationMs || 0);
     const startsInMs = Math.max(0, (t.queuePosition || 0) * 8 * 60000);
@@ -259,7 +280,7 @@ export function overnightEta({ finishAtMs, targetMorningMs }) {
 // finishAtMs, timezones: [{ label, offsetMin }]
 export function etaTimezone(finishAtMs, timezones) {
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return (timezones || []).map((tz) => {
+  return (timezones || []).map(tz => {
     const d = new Date((finishAtMs || 0) + (tz.offsetMin || 0) * 60000);
     let h = d.getUTCHours();
     const m = String(d.getUTCMinutes()).padStart(2, '0');
@@ -286,11 +307,14 @@ export function etaMilestones(remainingMs, totalMs, milestonesPct) {
   const total = Math.max(1, totalMs || 1);
   const remaining = Math.max(0, remainingMs || 0);
   const donePct = Math.min(100, Math.round(((total - remaining) / total) * 100));
-  return (milestonesPct || [25, 50, 75, 100]).map((pct) => ({
+  return (milestonesPct || [25, 50, 75, 100]).map(pct => ({
     pct,
     reached: donePct >= pct,
     label: pct === 100 ? 'Hunt complete' : `${pct}% there`,
-    text: donePct >= pct ? `🎉 ${pct}% there — keep going.` : `${pct}% milestone: ${pct - donePct} points away.`,
+    text:
+      donePct >= pct
+        ? `🎉 ${pct}% there — keep going.`
+        : `${pct}% milestone: ${pct - donePct} points away.`,
   }));
 }
 
@@ -302,24 +326,29 @@ export function etaDriftAlerts({ baselineMs, currentMs, thresholdMs }) {
   const threshold = Math.max(0, thresholdMs || 15 * 60000);
   const delta = current - base;
   if (Math.abs(delta) <= threshold) return [];
-  return [{
-    direction: delta > 0 ? 'slipped' : 'shrunk',
-    deltaMs: Math.abs(delta),
-    text: delta > 0
-      ? `⚠ ETA slipped ${formatDuration(delta)} beyond the ${formatDuration(threshold)} tolerance — now ${formatDuration(current)}.`
-      : `✓ ETA improved ${formatDuration(-delta)} beyond the ${formatDuration(threshold)} tolerance — now ${formatDuration(current)}.`,
-  }];
+  return [
+    {
+      direction: delta > 0 ? 'slipped' : 'shrunk',
+      deltaMs: Math.abs(delta),
+      text:
+        delta > 0
+          ? `⚠ ETA slipped ${formatDuration(delta)} beyond the ${formatDuration(threshold)} tolerance — now ${formatDuration(current)}.`
+          : `✓ ETA improved ${formatDuration(-delta)} beyond the ${formatDuration(threshold)} tolerance — now ${formatDuration(current)}.`,
+    },
+  ];
 }
 
 // 51776 — "what if I add two more hours?" answered instantly
 // args: { remainingMs, scenarios: [{ id, label, addMs, removeMs, parallelismBoostPct }] }
 export function etaScenarioPlanner({ remainingMs, scenarios }) {
   const remaining = Math.max(0, remainingMs || 0);
-  return (scenarios || []).map((s) => {
+  return (scenarios || []).map(s => {
     const add = Math.max(0, s.addMs || 0);
     const remove = Math.max(0, s.removeMs || 0);
     const boost = Math.max(0, s.parallelismBoostPct || 0);
-    const boosted = boost ? Math.round((remaining + add - remove) / (1 + boost / 100)) : remaining + add - remove;
+    const boosted = boost
+      ? Math.round((remaining + add - remove) / (1 + boost / 100))
+      : remaining + add - remove;
     const newRemainingMs = Math.max(0, boosted);
     return {
       id: s.id,
@@ -334,15 +363,16 @@ export function etaScenarioPlanner({ remainingMs, scenarios }) {
 // 51777 — the agent explains estimate changes in plain words
 // changes: [{ fromMs, toMs, cause, phaseName }]
 export function etaLearning(changes) {
-  return (changes || []).map((c) => {
+  return (changes || []).map(c => {
     const from = Math.max(0, c.fromMs || 0);
     const to = Math.max(0, c.toMs || 0);
     const delta = to - from;
-    const why = delta > 0
-      ? `because ${c.cause || 'new work was discovered'}, so the finish moved out`
-      : delta < 0
-        ? `because ${c.cause || 'work finished ahead of pace'}, so the finish pulled in`
-        : `— ${c.cause || 'no material change'}, the estimate held steady`;
+    const why =
+      delta > 0
+        ? `because ${c.cause || 'new work was discovered'}, so the finish moved out`
+        : delta < 0
+          ? `because ${c.cause || 'work finished ahead of pace'}, so the finish pulled in`
+          : `— ${c.cause || 'no material change'}, the estimate held steady`;
     return {
       phase: c.phaseName || 'hunt',
       deltaMs: delta,
@@ -355,7 +385,13 @@ export function etaLearning(changes) {
 // subAgents: [{ id, name, tabName, remainingMs, taskCount }]
 export function subAgentEtas(subAgents) {
   const rows = [...(subAgents || [])]
-    .map((s) => ({ id: s.id, name: s.name, tabName: s.tabName || s.name, remainingMs: Math.max(0, s.remainingMs || 0), taskCount: s.taskCount || 0 }))
+    .map(s => ({
+      id: s.id,
+      name: s.name,
+      tabName: s.tabName || s.name,
+      remainingMs: Math.max(0, s.remainingMs || 0),
+      taskCount: s.taskCount || 0,
+    }))
     .sort((a, b) => b.remainingMs - a.remainingMs);
   const total = rows.reduce((s, r) => s + r.remainingMs, 0);
   return {
@@ -403,8 +439,10 @@ export function etaApi({ baseUrl }) {
 // hunts: [{ id, predictedMs, actualMs, findings }]
 export function etaDashboard(hunts) {
   const hs = hunts || [];
-  const withActual = hs.filter((h) => h.actualMs != null && h.predictedMs != null);
-  const errors = withActual.map((h) => Math.abs(h.actualMs - h.predictedMs) / Math.max(1, h.predictedMs));
+  const withActual = hs.filter(h => h.actualMs != null && h.predictedMs != null);
+  const errors = withActual.map(
+    h => Math.abs(h.actualMs - h.predictedMs) / Math.max(1, h.predictedMs)
+  );
   const avgError = errors.length ? errors.reduce((s, e) => s + e, 0) / errors.length : 0;
   const accuracy = Math.max(0, Math.round((1 - avgError) * 100));
   const totalFindings = hs.reduce((s, h) => s + (h.findings || 0), 0);
@@ -413,7 +451,14 @@ export function etaDashboard(hunts) {
     accuracyPct: accuracy,
     avgErrorPct: Math.round(avgError * 100),
     totalFindings,
-    verdict: accuracy >= 85 ? 'excellent' : accuracy >= 70 ? 'good' : accuracy >= 50 ? 'fair' : 'needs-work',
+    verdict:
+      accuracy >= 85
+        ? 'excellent'
+        : accuracy >= 70
+          ? 'good'
+          : accuracy >= 50
+            ? 'fair'
+            : 'needs-work',
     text: `${hs.length} hunts tracked · estimate accuracy ${accuracy}% (${withActual.length} with actuals) · ${totalFindings} total findings.`,
   };
 }
@@ -423,17 +468,22 @@ export function etaDashboard(hunts) {
 export function etaFairness(assets, remainingMs) {
   const total = Math.max(0, remainingMs || 0);
   const as = assets || [];
-  const weights = as.map((a) => Math.max(1, a.weight || 1));
+  const weights = as.map(a => Math.max(1, a.weight || 1));
   const sum = weights.reduce((s, w) => s + w, 0);
   let assigned = 0;
   const rows = as.map((a, i) => {
     const share = i === as.length - 1 ? total - assigned : Math.round((total * weights[i]) / sum);
     assigned += share;
-    return { name: a.name, weight: weights[i], etaMs: Math.max(0, share), fairSharePct: Math.round((share / Math.max(1, total)) * 100) };
+    return {
+      name: a.name,
+      weight: weights[i],
+      etaMs: Math.max(0, share),
+      fairSharePct: Math.round((share / Math.max(1, total)) * 100),
+    };
   });
   return {
     rows,
-    text: `Fair split of ${formatDuration(total)}: ${rows.map((r) => `${r.name} ${r.fairSharePct}%`).join(', ')}.`,
+    text: `Fair split of ${formatDuration(total)}: ${rows.map(r => `${r.name} ${r.fairSharePct}%`).join(', ')}.`,
   };
 }
 
@@ -486,11 +536,18 @@ export function etaRetrospective({ estimates, actualMs, predictedAtMs }) {
   const actual = Math.max(1, actualMs || 1);
   const first = (estimates || [])[0];
   const last = (estimates || [])[(estimates || []).length - 1];
-  const firstError = first ? Math.round((Math.abs(first.estimateMs - actual) / actual) * 100) : null;
+  const firstError = first
+    ? Math.round((Math.abs(first.estimateMs - actual) / actual) * 100)
+    : null;
   const lastError = last ? Math.round((Math.abs(last.estimateMs - actual) / actual) * 100) : null;
-  const rows = (estimates || []).map((e) => {
+  const rows = (estimates || []).map(e => {
     const err = Math.round((Math.abs((e.estimateMs || 0) - actual) / actual) * 100);
-    return { at: e.at, estimateMs: e.estimateMs || 0, errorPct: err, accuracyPct: Math.max(0, 100 - err) };
+    return {
+      at: e.at,
+      estimateMs: e.estimateMs || 0,
+      errorPct: err,
+      accuracyPct: Math.max(0, 100 - err),
+    };
   });
   const improvement = firstError != null && lastError != null ? firstError - lastError : 0;
   return {
@@ -499,7 +556,12 @@ export function etaRetrospective({ estimates, actualMs, predictedAtMs }) {
     firstErrorPct: firstError,
     lastErrorPct: lastError,
     improvedBy: improvement,
-    verdict: lastError != null && lastError <= 10 ? 'accurate' : lastError != null && lastError <= 25 ? 'close' : 'drifted',
+    verdict:
+      lastError != null && lastError <= 10
+        ? 'accurate'
+        : lastError != null && lastError <= 25
+          ? 'close'
+          : 'drifted',
     text: rows.length
       ? `Actual ${formatDuration(actual)} vs first estimate ${formatDuration(first.estimateMs)} (${firstError}% off) and final estimate ${formatDuration(last.estimateMs)} (${lastError}% off) — estimates ${improvement >= 0 ? 'improved' : 'worsened'} by ${Math.abs(improvement)} points.`
       : 'No estimates were recorded for this hunt.',
@@ -513,6 +575,7 @@ export function countdownVoiceScript(question, remainingMs, phaseName) {
   const base = `About ${rem} to go${phaseName ? ` — currently in ${phaseName}` : ''}.`;
   const q = (question || '').toLowerCase();
   if (q.includes('finish') || q.includes('done')) return `We'll be done in roughly ${rem}. ${base}`;
-  if (q.includes('phase')) return `${phaseName ? `We're in ${phaseName}, with ${rem} left overall.` : base}`;
+  if (q.includes('phase'))
+    return `${phaseName ? `We're in ${phaseName}, with ${rem} left overall.` : base}`;
   return `You asked "${question || 'how much longer'}?" — ${base}`;
 }

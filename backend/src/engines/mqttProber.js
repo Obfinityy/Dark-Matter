@@ -21,11 +21,36 @@ export const CONNACK_RETURN_CODES = {
 
 /** Known broker fingerprint quirks keyed on probe-response patterns. */
 export const BROKER_QUIRKS = [
-  { broker: 'Eclipse Mosquitto', clue: 'returns 0x02 (identifier_rejected) for >23-char client IDs', match: r => r.identifierRejectedOnLongId === true, confidence: 'high' },
-  { broker: 'EMQX', clue: 'accepts 0-length client IDs and issues server-generated IDs', match: r => r.acceptedEmptyClientId === true, confidence: 'medium' },
-  { broker: 'HiveMQ', clue: 'returns not_authorized (0x05) instead of bad_credentials (0x04)', match: r => r.unauthorizedInsteadOfBadCreds === true, confidence: 'medium' },
-  { broker: 'VerneMQ', clue: 'accepts protocol level 3 only with specific reason codes', match: r => r.protocolLevel3Only === true, confidence: 'low' },
-  { broker: 'AWS IoT Core', clue: 'rejects unauthenticated CONNECT with immediate TCP close (no CONNACK)', match: r => r.tcpCloseWithoutConnack === true, confidence: 'medium' },
+  {
+    broker: 'Eclipse Mosquitto',
+    clue: 'returns 0x02 (identifier_rejected) for >23-char client IDs',
+    match: r => r.identifierRejectedOnLongId === true,
+    confidence: 'high',
+  },
+  {
+    broker: 'EMQX',
+    clue: 'accepts 0-length client IDs and issues server-generated IDs',
+    match: r => r.acceptedEmptyClientId === true,
+    confidence: 'medium',
+  },
+  {
+    broker: 'HiveMQ',
+    clue: 'returns not_authorized (0x05) instead of bad_credentials (0x04)',
+    match: r => r.unauthorizedInsteadOfBadCreds === true,
+    confidence: 'medium',
+  },
+  {
+    broker: 'VerneMQ',
+    clue: 'accepts protocol level 3 only with specific reason codes',
+    match: r => r.protocolLevel3Only === true,
+    confidence: 'low',
+  },
+  {
+    broker: 'AWS IoT Core',
+    clue: 'rejects unauthenticated CONNECT with immediate TCP close (no CONNACK)',
+    match: r => r.tcpCloseWithoutConnack === true,
+    confidence: 'medium',
+  },
 ];
 
 /**
@@ -37,7 +62,8 @@ export const BROKER_QUIRKS = [
 export function parseConnack(buf) {
   const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf || []);
   if (b.length < 4) return { valid: false, reason: 'CONNACK too short' };
-  if ((b[0] & 0xf0) !== 0x20) return { valid: false, reason: 'not a CONNACK packet (fixed header mismatch)' };
+  if ((b[0] & 0xf0) !== 0x20)
+    return { valid: false, reason: 'not a CONNACK packet (fixed header mismatch)' };
   return {
     valid: true,
     sessionPresent: (b[2] & 0x01) === 0x01,
@@ -80,12 +106,19 @@ export function fingerprintMqttBroker(probes = []) {
   const matches = [];
   for (const q of BROKER_QUIRKS) {
     let ok = false;
-    try { ok = q.match(features); } catch { ok = false; }
+    try {
+      ok = q.match(features);
+    } catch {
+      ok = false;
+    }
     if (ok) matches.push({ broker: q.broker, clue: q.clue, confidence: q.confidence });
   }
 
-  const accepted = Object.entries(parsed).filter(([, v]) => v.valid && v.returnCode === 0x00).map(([k]) => k);
-  const rejected = Object.entries(parsed).filter(([, v]) => v.valid && v.returnCode !== 0x00)
+  const accepted = Object.entries(parsed)
+    .filter(([, v]) => v.valid && v.returnCode === 0x00)
+    .map(([k]) => k);
+  const rejected = Object.entries(parsed)
+    .filter(([, v]) => v.valid && v.returnCode !== 0x00)
     .map(([k, v]) => ({ label: k, code: v.returnCodeName }));
 
   return {
@@ -99,9 +132,18 @@ export function fingerprintMqttBroker(probes = []) {
       ? `Behavioral fingerprint suggests: ${matches.map(m => `${m.broker} (${m.confidence})`).join(', ')}.`
       : 'No distinctive broker behavior identified.',
     type: 'MQTT Broker Fingerprint',
-    confidence: matches.some(m => m.confidence === 'high') ? 'high' : matches.length ? 'medium' : 'low',
+    confidence: matches.some(m => m.confidence === 'high')
+      ? 'high'
+      : matches.length
+        ? 'medium'
+        : 'low',
   };
 }
 
-export const MQTT_PROBER = { CONNACK_RETURN_CODES, BROKER_QUIRKS, parseConnack, fingerprintMqttBroker };
+export const MQTT_PROBER = {
+  CONNACK_RETURN_CODES,
+  BROKER_QUIRKS,
+  parseConnack,
+  fingerprintMqttBroker,
+};
 export default MQTT_PROBER;

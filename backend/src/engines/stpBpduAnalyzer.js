@@ -39,7 +39,12 @@ const BRIDGE_OUI_VENDORS = [
 export function parseBpduHex(hex) {
   const buf = Buffer.from(String(hex).replace(/\s+/g, ''), 'hex');
   if (buf.length < 35) return null;
-  const bridgeId = (off) => buf.subarray(off, off + 8).toString('hex').replace(/(.{2})/g, '$1:').replace(/:$/, '');
+  const bridgeId = off =>
+    buf
+      .subarray(off, off + 8)
+      .toString('hex')
+      .replace(/(.{2})/g, '$1:')
+      .replace(/:$/, '');
   return {
     protocolId: buf.readUInt16BE(0),
     version: buf[2],
@@ -78,18 +83,32 @@ function vendorFromBridgeId(bridgeId) {
 export function analyzeBpdu({ hex = null, fields = null } = {}) {
   const f = fields || (hex ? parseBpduHex(hex) : null);
   if (!f) {
-    return { analyzed: false, type: 'No BPDU Data', confidence: 'none', evidence: 'No parseable BPDU supplied.' };
+    return {
+      analyzed: false,
+      type: 'No BPDU Data',
+      confidence: 'none',
+      evidence: 'No parseable BPDU supplied.',
+    };
   }
 
-  const kind = f.bpduType === 0x00 ? 'Configuration BPDU (STP)' : f.bpduType === 0x02 ? 'RSTP BPDU' : `BPDU type 0x${Number(f.bpduType).toString(16)}`;
+  const kind =
+    f.bpduType === 0x00
+      ? 'Configuration BPDU (STP)'
+      : f.bpduType === 0x02
+        ? 'RSTP BPDU'
+        : `BPDU type 0x${Number(f.bpduType).toString(16)}`;
   const isRoot = f.rootBridgeId.toLowerCase() === f.bridgeId.toLowerCase();
   const vendor = vendorFromBridgeId(f.bridgeId);
-  const flags = Object.entries(BPDU_FLAGS).filter(([bit]) => f.flags & Number(bit)).map(([, name]) => name);
+  const flags = Object.entries(BPDU_FLAGS)
+    .filter(([bit]) => f.flags & Number(bit))
+    .map(([, name]) => name);
   const prio = bridgePriority(f.bridgeId);
 
   const notes = [];
-  if (flags.includes('Topology Change')) notes.push('Topology Change flag set — recent STP topology change observed.');
-  if (prio === 0 && !isRoot) notes.push('Bridge priority 0 while not root — unusual, verify topology.');
+  if (flags.includes('Topology Change'))
+    notes.push('Topology Change flag set — recent STP topology change observed.');
+  if (prio === 0 && !isRoot)
+    notes.push('Bridge priority 0 while not root — unusual, verify topology.');
   if (f.messageAge === 0) notes.push('MessageAge 0 — BPDU originates from the root bridge itself.');
 
   return {
@@ -106,7 +125,12 @@ export function analyzeBpdu({ hex = null, fields = null } = {}) {
       bridgePriority: prio,
       portId: f.portId,
       vendor,
-      timers: { helloTime: f.helloTime, maxAge: f.maxAge, forwardDelay: f.forwardDelay, messageAge: f.messageAge },
+      timers: {
+        helloTime: f.helloTime,
+        maxAge: f.maxAge,
+        forwardDelay: f.forwardDelay,
+        messageAge: f.messageAge,
+      },
       flags,
       notes,
     },

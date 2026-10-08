@@ -30,7 +30,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function simpleYamlMap(text) {
@@ -56,7 +58,10 @@ export function parseRoleMetaYaml(metaYaml) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(info.homepage, 'role-homepage', 'galaxy_info.homepage');
@@ -77,7 +82,10 @@ export function parseRoleMetaYaml(metaYaml) {
   URL_RE.lastIndex = 0;
   while ((u = URL_RE.exec(text))) {
     const host = hostFromUrl(u[1]);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'meta-url', provenance: 'meta/url' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'meta-url', provenance: 'meta/url' });
+    }
   }
 
   return {
@@ -102,7 +110,14 @@ export function parseInventoryText(inventoryText) {
   const seen = new Set();
   for (const rawLine of String(inventoryText || '').split('\n')) {
     const line = rawLine.trim();
-    if (!line || line.startsWith('#') || line.startsWith('[') || line.startsWith('-') || line.includes(':')) continue;
+    if (
+      !line ||
+      line.startsWith('#') ||
+      line.startsWith('[') ||
+      line.startsWith('-') ||
+      line.includes(':')
+    )
+      continue;
     const m = HOSTNAME_RE.exec(rawLine);
     if (m && m[1].includes('.')) {
       const h = m[1].toLowerCase();
@@ -146,10 +161,16 @@ export function analyzeAnsibleRole(metaYaml, inventoryText, extraText = '') {
   const merged = [...meta.hosts];
   const seen = new Set(meta.hosts.map(h => h.host));
   for (const h of parseInventoryText(inventoryText)) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push(h); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push(h);
+    }
   }
   for (const h of extractCallbackUrls(extraText)) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push({ host: h.host, kind: h.kind, provenance: h.provenance }); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push({ host: h.host, kind: h.kind, provenance: h.provenance });
+    }
   }
   return { roleName: meta.roleName, author: meta.author, company: meta.company, hosts: merged };
 }

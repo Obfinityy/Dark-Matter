@@ -19,16 +19,52 @@ export const IP_LIKE_RE = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 export const S3_BUCKET_PREFIXES = ['app', 'web', 'assets'];
 export const S3_BUCKET_SUFFIXES = [
-  'app', 'web', 'assets', 'static', 'media', 'files', 'uploads', 'images',
-  'docs', 'backup', 'backups', 'data', 'logs', 'staging', 'stage', 'prod',
-  'production', 'dev', 'development', 'test', 'qa', 'uat', 'demo', 'beta',
-  'cdn', 'www', 'site', 'portal', 'bucket', 's3', 'storage',
+  'app',
+  'web',
+  'assets',
+  'static',
+  'media',
+  'files',
+  'uploads',
+  'images',
+  'docs',
+  'backup',
+  'backups',
+  'data',
+  'logs',
+  'staging',
+  'stage',
+  'prod',
+  'production',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'demo',
+  'beta',
+  'cdn',
+  'www',
+  'site',
+  'portal',
+  'bucket',
+  's3',
+  'storage',
 ];
 
 export const S3_REGIONS = [
-  'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'eu-west-1',
-  'eu-west-2', 'eu-central-1', 'ap-south-1', 'ap-southeast-1',
-  'ap-southeast-2', 'ap-northeast-1', 'sa-east-1',
+  'us-east-1',
+  'us-east-2',
+  'us-west-1',
+  'us-west-2',
+  'eu-west-1',
+  'eu-west-2',
+  'eu-central-1',
+  'ap-south-1',
+  'ap-southeast-1',
+  'ap-southeast-2',
+  'ap-northeast-1',
+  'sa-east-1',
 ];
 
 /**
@@ -70,16 +106,14 @@ export function isValidS3BucketName(name) {
  * @returns {string[]} unique valid bucket names
  */
 export function generateS3BucketNames(brand, subdomains = [], options = {}) {
-  const {
-    prefixes = S3_BUCKET_PREFIXES,
-    suffixes = S3_BUCKET_SUFFIXES,
-    maxNames = 200,
-  } = options;
+  const { prefixes = S3_BUCKET_PREFIXES, suffixes = S3_BUCKET_SUFFIXES, maxNames = 200 } = options;
   const slug = slugifyBrand(brand);
   const seeds = new Set();
   if (slug) seeds.add(slug);
   for (const sub of subdomains || []) {
-    const host = String(sub || '').toLowerCase().replace(/\.$/, '');
+    const host = String(sub || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!host) continue;
     const labels = host.split('.').slice(0, -2);
     for (const label of labels) {
@@ -88,7 +122,7 @@ export function generateS3BucketNames(brand, subdomains = [], options = {}) {
     }
   }
   const out = new Set();
-  const add = (name) => {
+  const add = name => {
     if (out.size >= maxNames) return;
     if (isValidS3BucketName(name)) out.add(name);
   };
@@ -142,7 +176,9 @@ const S3_TARGET_RES = [
  * @returns {{bucket: string, style: 'virtual-hosted'|'website', region: string|null}|null}
  */
 export function bucketNameFromS3Host(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   for (const re of S3_TARGET_RES) {
     const m = h.match(re);
     if (m) {
@@ -169,7 +205,9 @@ export function parseS3DnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target) continue;
     const parsed = bucketNameFromS3Host(target);
     if (parsed) {

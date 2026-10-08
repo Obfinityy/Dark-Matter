@@ -19,20 +19,29 @@ const NOW = 1700000000000; // fixed reference time for deterministic tests
 describe('wave55 registries', () => {
   test('retestRound4Core lists all 21 ideas 52161–52181, zero skips', () => {
     assert.equal(R4.WAVE55_R4_IDEAS.length, 21);
-    const ids = R4.WAVE55_R4_IDEAS.map((i) => i.id);
+    const ids = R4.WAVE55_R4_IDEAS.map(i => i.id);
     for (let id = 52161; id <= 52181; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 21, 'no duplicate ids');
-    assert.ok(R4.WAVE55_R4_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      R4.WAVE55_R4_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
   test('exportCore lists all 19 ideas 52182–52200, zero skips', () => {
     assert.equal(EX.WAVE55_EXP_IDEAS.length, 19);
-    const ids = EX.WAVE55_EXP_IDEAS.map((i) => i.id);
+    const ids = EX.WAVE55_EXP_IDEAS.map(i => i.id);
     for (let id = 52182; id <= 52200; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 19, 'no duplicate ids');
-    assert.ok(EX.WAVE55_EXP_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      EX.WAVE55_EXP_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
   test('combined wave-55 registries cover 40/40 ideas 52161–52200', () => {
-    const ids = new Set([...R4.WAVE55_R4_IDEAS.map((i) => i.id), ...EX.WAVE55_EXP_IDEAS.map((i) => i.id)]);
+    const ids = new Set([
+      ...R4.WAVE55_R4_IDEAS.map(i => i.id),
+      ...EX.WAVE55_EXP_IDEAS.map(i => i.id),
+    ]);
     assert.equal(ids.size, 40);
     for (let id = 52161; id <= 52200; id++) assert.ok(ids.has(id), `missing idea ${id}`);
   });
@@ -45,7 +54,12 @@ describe('retestRound4Core behavior', () => {
     assert.ok(ok.ok);
     assert.equal(ok.signOff.state, 'approved');
     assert.equal(ok.signOff.closesFinding, true);
-    const bad = R4.signOffRetest({ findingId: 'f-1', verdict: 'still-vulnerable' }, 'approved', 'ria', NOW);
+    const bad = R4.signOffRetest(
+      { findingId: 'f-1', verdict: 'still-vulnerable' },
+      'approved',
+      'ria',
+      NOW
+    );
     assert.equal(bad.ok, false);
     const rej = R4.signOffRetest(v, 'needs-review', 'ria', NOW);
     assert.ok(rej.ok);
@@ -63,8 +77,13 @@ describe('retestRound4Core behavior', () => {
     assert.equal(R4.addRetestAttachment({ id: 'rt-1' }, {}).ok, false);
   });
   test('52163 evaluateCIGate blocks on still-vulnerable, passes otherwise', () => {
-    assert.equal(R4.evaluateCIGate([{ findingId: 'f-1', retestId: 'rt-1', verdict: 'fixed' }]).pass, true);
-    const blocked = R4.evaluateCIGate([{ findingId: 'f-2', retestId: 'rt-2', verdict: 'still-vulnerable' }]);
+    assert.equal(
+      R4.evaluateCIGate([{ findingId: 'f-1', retestId: 'rt-1', verdict: 'fixed' }]).pass,
+      true
+    );
+    const blocked = R4.evaluateCIGate([
+      { findingId: 'f-2', retestId: 'rt-2', verdict: 'still-vulnerable' },
+    ]);
     assert.equal(blocked.pass, false);
     assert.equal(blocked.blockers[0].findingId, 'f-2');
     assert.equal(R4.evaluateCIGate([]).pass, true);
@@ -95,20 +114,44 @@ describe('retestRound4Core behavior', () => {
     assert.equal(R4.onBountyStatusChange({ findingId: 'f-1', status: 'paid' }).ok, false);
   });
   test('52167 dueReminders finds past-window requests', () => {
-    const due = R4.dueReminders([
-      { id: 'rt-1', findingId: 'f-1', status: 'queued', assignee: 'ria', windowEnd: NOW - 1000 },
-      { id: 'rt-2', findingId: 'f-2', status: 'queued', assignee: 'dev', windowEnd: NOW + 1000 },
-      { id: 'rt-3', findingId: 'f-3', status: 'completed', windowEnd: NOW - 1000 },
-    ], NOW);
+    const due = R4.dueReminders(
+      [
+        { id: 'rt-1', findingId: 'f-1', status: 'queued', assignee: 'ria', windowEnd: NOW - 1000 },
+        { id: 'rt-2', findingId: 'f-2', status: 'queued', assignee: 'dev', windowEnd: NOW + 1000 },
+        { id: 'rt-3', findingId: 'f-3', status: 'completed', windowEnd: NOW - 1000 },
+      ],
+      NOW
+    );
     assert.equal(due.length, 1);
     assert.equal(due[0].requestId, 'rt-1');
     assert.ok(due[0].overdueByMs > 0);
   });
   test('52168 retestAnalytics computes rates per team and asset', () => {
     const rows = [
-      { findingId: 'f-1', verdict: 'fixed', team: 'web', asset: 'a1', startedAt: NOW - 7200000, completedAt: NOW - 3600000 },
-      { findingId: 'f-2', verdict: 'still-vulnerable', team: 'web', asset: 'a1', startedAt: NOW - 7200000, completedAt: NOW - 1800000 },
-      { findingId: 'f-3', verdict: 'fixed', team: 'cms', asset: 'a2', startedAt: NOW - 5400000, completedAt: NOW - 3600000 },
+      {
+        findingId: 'f-1',
+        verdict: 'fixed',
+        team: 'web',
+        asset: 'a1',
+        startedAt: NOW - 7200000,
+        completedAt: NOW - 3600000,
+      },
+      {
+        findingId: 'f-2',
+        verdict: 'still-vulnerable',
+        team: 'web',
+        asset: 'a1',
+        startedAt: NOW - 7200000,
+        completedAt: NOW - 1800000,
+      },
+      {
+        findingId: 'f-3',
+        verdict: 'fixed',
+        team: 'cms',
+        asset: 'a2',
+        startedAt: NOW - 5400000,
+        completedAt: NOW - 3600000,
+      },
     ];
     const a = R4.retestAnalytics(rows);
     assert.equal(a.total, 3);
@@ -136,9 +179,9 @@ describe('retestRound4Core behavior', () => {
   test('52171 diffEvidenceTokens reports added/removed/same tokens', () => {
     const d = R4.diffEvidenceTokens('a b c', 'a x c d');
     assert.ok(d.changed > 0);
-    assert.ok(d.ops.some((o) => o.type === 'added' && o.token === 'x'));
-    assert.ok(d.ops.some((o) => o.type === 'removed' && o.token === 'b'));
-    assert.ok(d.ops.some((o) => o.type === 'same' && o.token === 'a'));
+    assert.ok(d.ops.some(o => o.type === 'added' && o.token === 'x'));
+    assert.ok(d.ops.some(o => o.type === 'removed' && o.token === 'b'));
+    assert.ok(d.ops.some(o => o.type === 'same' && o.token === 'a'));
     const same = R4.diffEvidenceTokens('a b', 'a b');
     assert.equal(same.changed, 0);
     assert.equal(same.unchanged, 2);
@@ -168,7 +211,14 @@ describe('retestRound4Core behavior', () => {
   });
   test('52174 queueToCsv exports header plus one row per request', () => {
     const out = R4.queueToCsv([
-      { id: 'rt-1', findingId: 'f-1', status: 'queued', priority: 'urgent', trigger: 'manual', requestedAt: NOW },
+      {
+        id: 'rt-1',
+        findingId: 'f-1',
+        status: 'queued',
+        priority: 'urgent',
+        trigger: 'manual',
+        requestedAt: NOW,
+      },
     ]);
     const lines = out.csv.split('\n');
     assert.equal(lines.length, 2);
@@ -179,17 +229,37 @@ describe('retestRound4Core behavior', () => {
   test('52175 findDuplicate matches queued and recent requests, ignores others', () => {
     const existing = [
       { id: 'rt-1', findingId: 'f-1', trigger: 'manual', status: 'queued' },
-      { id: 'rt-2', findingId: 'f-2', trigger: 'manual', status: 'completed', completedAt: NOW - 10 * 86400000 },
-      { id: 'rt-3', findingId: 'f-3', trigger: 'manual', status: 'completed', completedAt: NOW - 400 * 86400000 },
+      {
+        id: 'rt-2',
+        findingId: 'f-2',
+        trigger: 'manual',
+        status: 'completed',
+        completedAt: NOW - 10 * 86400000,
+      },
+      {
+        id: 'rt-3',
+        findingId: 'f-3',
+        trigger: 'manual',
+        status: 'completed',
+        completedAt: NOW - 400 * 86400000,
+      },
     ];
-    const d1 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-1', trigger: 'manual' }, existing, { now: NOW });
+    const d1 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-1', trigger: 'manual' }, existing, {
+      now: NOW,
+    });
     assert.equal(d1.duplicate, true);
     assert.equal(d1.matchedId, 'rt-1');
-    const d2 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-2', trigger: 'manual' }, existing, { now: NOW });
+    const d2 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-2', trigger: 'manual' }, existing, {
+      now: NOW,
+    });
     assert.equal(d2.duplicate, true);
-    const d3 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-3', trigger: 'manual' }, existing, { now: NOW });
+    const d3 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-3', trigger: 'manual' }, existing, {
+      now: NOW,
+    });
     assert.equal(d3.duplicate, false);
-    const d4 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-1', trigger: 'ci' }, existing, { now: NOW });
+    const d4 = R4.findDuplicate({ id: 'rt-x', findingId: 'f-1', trigger: 'ci' }, existing, {
+      now: NOW,
+    });
     assert.equal(d4.duplicate, false, 'different trigger changes the signature');
   });
   test('52176 wafChangeTrigger queues only previously WAF-blocked findings', () => {
@@ -221,10 +291,15 @@ describe('retestRound4Core behavior', () => {
     ];
     const up = R4.reorderQueue(q, 'rt-2', 'up');
     assert.ok(up.ok);
-    const pendingOrder = up.queue.filter((r) => r.status === 'queued').sort((a, b) => a.order - b.order);
+    const pendingOrder = up.queue
+      .filter(r => r.status === 'queued')
+      .sort((a, b) => a.order - b.order);
     assert.equal(pendingOrder[0].id, 'rt-2');
     const top = R4.reorderQueue(q, 'rt-2', 'to-top');
-    assert.equal(top.queue.filter((r) => r.status === 'queued').sort((a, b) => a.order - b.order)[0].id, 'rt-2');
+    assert.equal(
+      top.queue.filter(r => r.status === 'queued').sort((a, b) => a.order - b.order)[0].id,
+      'rt-2'
+    );
     assert.equal(R4.reorderQueue(q, 'rt-3', 'up').ok, false, 'running requests cannot move');
     assert.equal(R4.reorderQueue(q, 'rt-9', 'up').ok, false);
   });
@@ -241,17 +316,28 @@ describe('retestRound4Core behavior', () => {
     const fresh = R4.retentionExpiry(NOW - 10 * 86400000, { days: 90 }, NOW);
     assert.equal(fresh.expired, false);
     const plan = R4.retentionCleanupPlan(
-      [{ id: 'cap-1', capturedAt: NOW - 100 * 86400000 }, { id: 'cap-2', capturedAt: NOW - 10 * 86400000 }],
-      { days: 90 }, NOW);
+      [
+        { id: 'cap-1', capturedAt: NOW - 100 * 86400000 },
+        { id: 'cap-2', capturedAt: NOW - 10 * 86400000 },
+      ],
+      { days: 90 },
+      NOW
+    );
     assert.deepEqual(plan.dueForDeletion, ['cap-1']);
     assert.deepEqual(plan.kept, ['cap-2']);
   });
   test('52181 scoreVerdictConfidence scores signals and flags manual review', () => {
-    const high = R4.scoreVerdictConfidence({ verdict: 'fixed' }, { probes: 6, agreement: 1, evidenceStrength: 'strong' });
+    const high = R4.scoreVerdictConfidence(
+      { verdict: 'fixed' },
+      { probes: 6, agreement: 1, evidenceStrength: 'strong' }
+    );
     assert.ok(high.ok);
     assert.equal(high.level, 'high');
     assert.equal(high.needsManualReview, false);
-    const inc = R4.scoreVerdictConfidence({ verdict: 'inconclusive' }, { probes: 2, agreement: 0.5, evidenceStrength: 'weak' });
+    const inc = R4.scoreVerdictConfidence(
+      { verdict: 'inconclusive' },
+      { probes: 2, agreement: 0.5, evidenceStrength: 'weak' }
+    );
     assert.equal(inc.needsManualReview, true);
     assert.equal(R4.scoreVerdictConfidence({ verdict: 'fixed-ish' }).ok, false);
   });
@@ -259,22 +345,52 @@ describe('retestRound4Core behavior', () => {
 
 describe('exportCore behavior', () => {
   const HUNT = {
-    id: 'hunt-1', target: 'shop.example.com',
+    id: 'hunt-1',
+    target: 'shop.example.com',
     findings: [
       {
-        id: 'f-1', title: 'XSS', severity: 'high', status: 'open', vulnClass: 'xss', cwe: 'CWE-79',
-        endpoint: '/search', target: 'shop', assignee: 'ria', confidence: 'high',
-        description: 'reflected xss', evidence: [{ kind: 'http', summary: 'GET /search?q=<script>', body: 'raw bytes' }],
-        poc: 'curl http://x', remediation: 'encode output',
+        id: 'f-1',
+        title: 'XSS',
+        severity: 'high',
+        status: 'open',
+        vulnClass: 'xss',
+        cwe: 'CWE-79',
+        endpoint: '/search',
+        target: 'shop',
+        assignee: 'ria',
+        confidence: 'high',
+        description: 'reflected xss',
+        evidence: [{ kind: 'http', summary: 'GET /search?q=<script>', body: 'raw bytes' }],
+        poc: 'curl http://x',
+        remediation: 'encode output',
       },
       {
-        id: 'f-2', title: 'SQLi', severity: 'critical', status: 'open', vulnClass: 'sqli', cwe: 'CWE-89',
-        endpoint: '/login', target: 'shop', assignee: 'dev', confidence: 'high',
-        description: 'sqli in login', evidence: [], poc: null, remediation: 'parameterize',
+        id: 'f-2',
+        title: 'SQLi',
+        severity: 'critical',
+        status: 'open',
+        vulnClass: 'sqli',
+        cwe: 'CWE-89',
+        endpoint: '/login',
+        target: 'shop',
+        assignee: 'dev',
+        confidence: 'high',
+        description: 'sqli in login',
+        evidence: [],
+        poc: null,
+        remediation: 'parameterize',
       },
       {
-        id: 'f-3', title: 'FP item', severity: 'medium', status: 'false-positive', vulnClass: 'fp',
-        endpoint: '/', target: 'shop', description: '', evidence: [], remediation: '',
+        id: 'f-3',
+        title: 'FP item',
+        severity: 'medium',
+        status: 'false-positive',
+        vulnClass: 'fp',
+        endpoint: '/',
+        target: 'shop',
+        description: '',
+        evidence: [],
+        remediation: '',
       },
     ],
   };
@@ -321,15 +437,26 @@ describe('exportCore behavior', () => {
     assert.equal(EX.buildProtectionDescriptor('short').ok, false);
   });
   test('52188 buildSignatureBlock signs with the org certificate', () => {
-    const s = EX.buildSignatureBlock({ subject: 'CN=Infinity AI', expiresAt: NOW + 86400000 }, 'sha256:abc', NOW);
+    const s = EX.buildSignatureBlock(
+      { subject: 'CN=Infinity AI', expiresAt: NOW + 86400000 },
+      'sha256:abc',
+      NOW
+    );
     assert.ok(s.ok);
     assert.equal(s.signature.valid, true);
-    const expired = EX.buildSignatureBlock({ subject: 'CN=Infinity AI', expiresAt: NOW - 1 }, 'sha256:abc', NOW);
+    const expired = EX.buildSignatureBlock(
+      { subject: 'CN=Infinity AI', expiresAt: NOW - 1 },
+      'sha256:abc',
+      NOW
+    );
     assert.equal(expired.signature.valid, false);
     assert.equal(EX.buildSignatureBlock(null, 'x').ok, false);
   });
   test('52189 applyLetterheadBrand applies the branding profile', () => {
-    const r = EX.applyLetterheadBrand(EX.buildExecSummaryModel(HUNT), { companyName: 'Acme', primaryColor: '#123456' });
+    const r = EX.applyLetterheadBrand(EX.buildExecSummaryModel(HUNT), {
+      companyName: 'Acme',
+      primaryColor: '#123456',
+    });
     assert.ok(r.ok);
     assert.equal(r.model.letterhead.companyName, 'Acme');
     assert.equal(EX.applyLetterheadBrand(EX.buildExecSummaryModel(HUNT), {}).ok, false);
@@ -363,7 +490,9 @@ describe('exportCore behavior', () => {
     assert.equal(EX.applyColumnPreset('nope').ok, false);
   });
   test('52195 findingsToPivotCsv emits one row per affected asset', () => {
-    const out = EX.findingsToPivotCsv([{ id: 'f-1', title: 'X', severity: 'high', status: 'open', assets: ['a', 'b'] }]);
+    const out = EX.findingsToPivotCsv([
+      { id: 'f-1', title: 'X', severity: 'high', status: 'open', assets: ['a', 'b'] },
+    ]);
     assert.equal(out.rows, 2);
     assert.ok(out.csv.split('\n')[1].includes(',a,'));
   });
@@ -373,8 +502,14 @@ describe('exportCore behavior', () => {
     assert.equal(f.findings.length, 2);
     assert.equal(EX.filterBySeverityThreshold(HUNT.findings, 'nope').ok, false);
     const d = EX.diffRunsToDelta(
-      [{ id: 'f-1', status: 'open', severity: 'high' }, { id: 'f-2', status: 'fixed', severity: 'high' }],
-      [{ id: 'f-1', status: 'open', severity: 'high' }, { id: 'f-3', status: 'open', severity: 'low' }]
+      [
+        { id: 'f-1', status: 'open', severity: 'high' },
+        { id: 'f-2', status: 'fixed', severity: 'high' },
+      ],
+      [
+        { id: 'f-1', status: 'open', severity: 'high' },
+        { id: 'f-3', status: 'open', severity: 'low' },
+      ]
     );
     assert.deepEqual(d.added, ['f-2']);
     assert.deepEqual(d.removed, ['f-3']);
@@ -387,9 +522,9 @@ describe('exportCore behavior', () => {
     const run = s.runs[0];
     assert.equal(run.tool.driver.name, 'Infinity AI Dark-Matter');
     assert.equal(run.results.length, 2, 'false positives excluded');
-    const critical = run.results.find((r) => r.properties.findingId === 'f-2');
+    const critical = run.results.find(r => r.properties.findingId === 'f-2');
     assert.equal(critical.level, 'error');
-    assert.ok(run.results.every((r) => typeof r.ruleId === 'string'));
+    assert.ok(run.results.every(r => typeof r.ruleId === 'string'));
   });
   test('52197 buildSarifPerRun splits SARIF per run', () => {
     const files = EX.buildSarifPerRun([

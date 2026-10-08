@@ -33,22 +33,42 @@ const SQL_ERROR_PATTERNS = [
   /System\.Data\.SQLite/i,
 ];
 
-const XSS_REFLECT_PATTERNS = [
-  /<script>alert\(/i,
-  /javascript:/i,
-  /onerror\s*=/i,
-  /onload\s*=/i,
-];
+const XSS_REFLECT_PATTERNS = [/<script>alert\(/i, /javascript:/i, /onerror\s*=/i, /onload\s*=/i];
 
 const SSRF_PARAM_NAMES = [
-  'url', 'uri', 'link', 'src', 'source', 'target', 'redirect', 'redirect_uri',
-  'return', 'return_url', 'callback', 'webhook', 'fetch', 'proxy', 'file',
-  'path', 'dest', 'destination', 'continue', 'next',
+  'url',
+  'uri',
+  'link',
+  'src',
+  'source',
+  'target',
+  'redirect',
+  'redirect_uri',
+  'return',
+  'return_url',
+  'callback',
+  'webhook',
+  'fetch',
+  'proxy',
+  'file',
+  'path',
+  'dest',
+  'destination',
+  'continue',
+  'next',
 ];
 
 const IDOR_PARAM_NAMES = [
-  'id', 'user_id', 'userid', 'account_id', 'order_id', 'invoice_id',
-  'file_id', 'doc_id', 'patient_id', 'customer_id',
+  'id',
+  'user_id',
+  'userid',
+  'account_id',
+  'order_id',
+  'invoice_id',
+  'file_id',
+  'doc_id',
+  'patient_id',
+  'customer_id',
 ];
 
 const OPEN_REDIRECT_PATTERNS = [
@@ -89,7 +109,8 @@ export function detectXSS(body, canary) {
     for (const pattern of XSS_REFLECT_PATTERNS) {
       if (pattern.test(text)) {
         return {
-          found: true, type: 'Cross-Site Scripting (XSS)',
+          found: true,
+          type: 'Cross-Site Scripting (XSS)',
           confidence: 'high',
           evidence: `Canary reflected in executable context`,
           cwe: 'CWE-79',
@@ -97,7 +118,8 @@ export function detectXSS(body, canary) {
       }
     }
     return {
-      found: true, type: 'Cross-Site Scripting (XSS)',
+      found: true,
+      type: 'Cross-Site Scripting (XSS)',
       confidence: 'medium',
       evidence: `Canary "${canary.slice(0, 40)}" reflected in response`,
       cwe: 'CWE-79',
@@ -115,20 +137,23 @@ export function detectSSRFParams(url) {
     const hits = [];
     for (const [key, value] of u.searchParams) {
       const k = key.toLowerCase();
-      if (SSRF_PARAM_NAMES.some((n) => k === n || k.endsWith('_' + n))) {
+      if (SSRF_PARAM_NAMES.some(n => k === n || k.endsWith('_' + n))) {
         hits.push({ param: key, value: value.slice(0, 80) });
       }
     }
     if (hits.length > 0) {
       return {
-        found: true, type: 'SSRF candidate',
+        found: true,
+        type: 'SSRF candidate',
         confidence: 'medium',
-        evidence: `URL parameters accepting URLs: ${hits.map((h) => h.param).join(', ')}`,
+        evidence: `URL parameters accepting URLs: ${hits.map(h => h.param).join(', ')}`,
         cwe: 'CWE-918',
         params: hits,
       };
     }
-  } catch { /* invalid URL */ }
+  } catch {
+    /* invalid URL */
+  }
   return { found: false };
 }
 
@@ -147,14 +172,17 @@ export function detectIDORParams(url) {
     }
     if (hits.length > 0) {
       return {
-        found: true, type: 'IDOR candidate',
+        found: true,
+        type: 'IDOR candidate',
         confidence: 'low',
-        evidence: `Sequential ID parameters: ${hits.map((h) => `${h.param}=${h.value}`).join(', ')}`,
+        evidence: `Sequential ID parameters: ${hits.map(h => `${h.param}=${h.value}`).join(', ')}`,
         cwe: 'CWE-639',
         params: hits,
       };
     }
-  } catch { /* invalid URL */ }
+  } catch {
+    /* invalid URL */
+  }
   return { found: false };
 }
 
@@ -176,7 +204,11 @@ export function scanResponse({ url, body, headers }, { canary = null } = {}) {
 }
 
 export const VULN_DETECTOR = {
-  detectSQLi, detectXSS, detectSSRFParams, detectIDORParams, scanResponse,
+  detectSQLi,
+  detectXSS,
+  detectSSRFParams,
+  detectIDORParams,
+  scanResponse,
 };
 
 export default VULN_DETECTOR;

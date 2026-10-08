@@ -42,7 +42,12 @@ export const SMB_SECURITY_MODES = {
  * @param {number} dialect
  */
 export function dialectName(dialect) {
-  return SMB_DIALECTS[Number(dialect)] || `unknown_0x${Number(dialect || 0).toString(16).padStart(4, '0')}`;
+  return (
+    SMB_DIALECTS[Number(dialect)] ||
+    `unknown_0x${Number(dialect || 0)
+      .toString(16)
+      .padStart(4, '0')}`
+  );
 }
 
 /**
@@ -87,26 +92,54 @@ export function fingerprintSmbNegotiation(resp = {}) {
 
   // Dialect-based OS hints.
   if (dialect === 0x0311) {
-    candidates.push({ os: 'Windows 10 / Server 2016+ or Samba 4.x (4.5+)', note: 'SMB 3.1.1 requires a modern stack', confidence: 'medium' });
+    candidates.push({
+      os: 'Windows 10 / Server 2016+ or Samba 4.x (4.5+)',
+      note: 'SMB 3.1.1 requires a modern stack',
+      confidence: 'medium',
+    });
   } else if (dialect === 0x0300 || dialect === 0x0302) {
-    candidates.push({ os: 'Windows 8 / Server 2012(+R2) or Samba 4.x', note: 'SMB 3.0/3.0.2 era', confidence: 'medium' });
+    candidates.push({
+      os: 'Windows 8 / Server 2012(+R2) or Samba 4.x',
+      note: 'SMB 3.0/3.0.2 era',
+      confidence: 'medium',
+    });
   } else if (dialect === 0x0210) {
-    candidates.push({ os: 'Windows 7 / Server 2008 R2', note: 'SMB 2.1 maximum suggests legacy Windows', confidence: 'medium' });
+    candidates.push({
+      os: 'Windows 7 / Server 2008 R2',
+      note: 'SMB 2.1 maximum suggests legacy Windows',
+      confidence: 'medium',
+    });
   } else if (dialect === 0x0202) {
-    candidates.push({ os: 'Windows Vista / Server 2008 or very old Samba', note: 'SMB 2.0.2 only', confidence: 'medium' });
+    candidates.push({
+      os: 'Windows Vista / Server 2008 or very old Samba',
+      note: 'SMB 2.0.2 only',
+      confidence: 'medium',
+    });
   }
 
   // Capability-based family hints.
   if (capabilities.includes('MULTI_CHANNEL') && capabilities.includes('ENCRYPTION')) {
-    candidates.push({ os: 'Windows (Server 2012+)', note: 'MULTI_CHANNEL + ENCRYPTION is a Windows-typical combo', confidence: 'low' });
+    candidates.push({
+      os: 'Windows (Server 2012+)',
+      note: 'MULTI_CHANNEL + ENCRYPTION is a Windows-typical combo',
+      confidence: 'low',
+    });
   }
   const nativeOs = String(resp.nativeOs || '');
   const nativeLanman = String(resp.nativeLanman || '');
   if (/samba/i.test(nativeOs) || /samba/i.test(nativeLanman)) {
     const ver = (nativeOs + ' ' + nativeLanman).match(/samba\s+([\d.]+)/i);
-    candidates.unshift({ os: `Samba${ver ? ' ' + ver[1] : ''}`, note: `Native OS string: ${nativeOs || nativeLanman}`, confidence: 'high' });
+    candidates.unshift({
+      os: `Samba${ver ? ' ' + ver[1] : ''}`,
+      note: `Native OS string: ${nativeOs || nativeLanman}`,
+      confidence: 'high',
+    });
   } else if (/windows/i.test(nativeOs) || /windows/i.test(nativeLanman)) {
-    candidates.unshift({ os: `Windows (${nativeOs || nativeLanman})`, note: 'Native OS string', confidence: 'high' });
+    candidates.unshift({
+      os: `Windows (${nativeOs || nativeLanman})`,
+      note: 'Native OS string',
+      confidence: 'high',
+    });
   }
 
   const signingRequired = securityFlags.includes('SIGNING_REQUIRED');
@@ -126,7 +159,11 @@ export function fingerprintSmbNegotiation(resp = {}) {
       ? `SMB negotiation indicates: ${candidates.map(c => `${c.os} (${c.confidence})`).join('; ')}.`
       : `SMB dialect ${dialectLabel} negotiated; no firm OS identification.`,
     type: 'SMB Negotiation Fingerprint',
-    confidence: candidates.some(c => c.confidence === 'high') ? 'high' : candidates.length ? 'medium' : 'low',
+    confidence: candidates.some(c => c.confidence === 'high')
+      ? 'high'
+      : candidates.length
+        ? 'medium'
+        : 'low',
   };
 }
 

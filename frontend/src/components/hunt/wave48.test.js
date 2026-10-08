@@ -8,19 +8,53 @@ import { fileURLToPath } from 'node:url';
 
 import {
   WAVE48_FLEET_IDEAS,
-  buildAuditLog, auditSummary, costRollup, etaBoard, detectConflicts,
-  mergeHunts, splitHunt, pausePreset, resumeOrder, resolveFleetShortcut,
-  resolveVoiceSwitch, mobileCardPayload, widgetPayload, darkModeParityAudit,
-  tourSteps, fleetRetrospective,
+  buildAuditLog,
+  auditSummary,
+  costRollup,
+  etaBoard,
+  detectConflicts,
+  mergeHunts,
+  splitHunt,
+  pausePreset,
+  resumeOrder,
+  resolveFleetShortcut,
+  resolveVoiceSwitch,
+  mobileCardPayload,
+  widgetPayload,
+  darkModeParityAudit,
+  tourSteps,
+  fleetRetrospective,
 } from './fleetOpsCore.js';
 import {
   WAVE48_VOICE_IDEAS,
-  parsePauseResume, statusAnswer, parseSteering, spokenApproval, parseTestCommand,
-  findingBriefing, parseStrategyChange, etaAnswer, detectLanguage, pushToTalkSession,
-  wakeWordConfig, isWakeWord, logVoiceCommand, searchCommandHistory, confirmationPrompt,
-  resolveVoiceShortcut, registerVoiceShortcut, feedbackTone, errorRecovery, voiceHelpList,
-  parseMultiHuntSwitch, parseSnapshotRequest, parseExplanationRequest,
-  dictateNote, voiceChatTurn, interruptionSignal, duckingPolicy, verifyVoiceProfile,
+  parsePauseResume,
+  statusAnswer,
+  parseSteering,
+  spokenApproval,
+  parseTestCommand,
+  findingBriefing,
+  parseStrategyChange,
+  etaAnswer,
+  detectLanguage,
+  pushToTalkSession,
+  wakeWordConfig,
+  isWakeWord,
+  logVoiceCommand,
+  searchCommandHistory,
+  confirmationPrompt,
+  resolveVoiceShortcut,
+  registerVoiceShortcut,
+  feedbackTone,
+  errorRecovery,
+  voiceHelpList,
+  parseMultiHuntSwitch,
+  parseSnapshotRequest,
+  parseExplanationRequest,
+  dictateNote,
+  voiceChatTurn,
+  interruptionSignal,
+  duckingPolicy,
+  verifyVoiceProfile,
   enrollVoiceProfile,
 } from './voiceCore.js';
 
@@ -51,7 +85,10 @@ test('51881 buildAuditLog filters + newest-first', () => {
 
 // ---- 51882 cost rollup ----
 test('51882 costRollup totals + sorts', () => {
-  const r = costRollup([{ id: 'h1', spend: 5 }, { id: 'h2', spend: 10 }]);
+  const r = costRollup([
+    { id: 'h1', spend: 5 },
+    { id: 'h2', spend: 10 },
+  ]);
   assert.equal(r.total, 15);
   assert.equal(r.perHunt[0].huntId, 'h2');
 });
@@ -59,7 +96,10 @@ test('51882 costRollup totals + sorts', () => {
 // ---- 51883 eta board ----
 test('51883 etaBoard sorts by remaining', () => {
   const now = Date.now();
-  const b = etaBoard([{ id: 'a', etaMs: now + 5000 }, { id: 'b', etaMs: 0 }]);
+  const b = etaBoard([
+    { id: 'a', etaMs: now + 5000 },
+    { id: 'b', etaMs: 0 },
+  ]);
   assert.equal(b[0].huntId, 'a');
   assert.equal(b[1].remainingMs, null);
 });
@@ -78,7 +118,7 @@ test('51884 detectConflicts flags overlapping scope', () => {
 test('51885 mergeHunts combines + dedupes', () => {
   const m = mergeHunts(
     { id: 'h1', scope: ['a'], findings: [{ signature: 's1' }, { signature: 's2' }] },
-    { id: 'h2', scope: ['b'], findings: [{ signature: 's2' }, { signature: 's3' }] },
+    { id: 'h2', scope: ['b'], findings: [{ signature: 's2' }, { signature: 's3' }] }
   );
   assert.ok(m.ok);
   assert.equal(m.merged.findings.length, 3);
@@ -89,7 +129,7 @@ test('51885 mergeHunts combines + dedupes', () => {
 test('51886 splitHunt routes findings by scope', () => {
   const s = splitHunt(
     { id: 'h1', findings: [{ target: 'api.x.test/a' }, { target: 'auth.x.test/b' }] },
-    { scopeA: ['api.x.test'], scopeB: ['auth.x.test'] },
+    { scopeA: ['api.x.test'], scopeB: ['auth.x.test'] }
   );
   assert.ok(s.ok);
   assert.equal(s.huntA.findings.length, 1);
@@ -98,9 +138,15 @@ test('51886 splitHunt routes findings by scope', () => {
 
 // ---- 51887 pause preset ----
 test('51887 pausePreset excepts client', () => {
-  const p = pausePreset([{ id: 'h1', client: 'acme' }, { id: 'h2', client: 'globex' }], { exceptClient: 'globex' });
-  assert.equal(p.find((x) => x.huntId === 'h1').action, 'pause');
-  assert.equal(p.find((x) => x.huntId === 'h2').action, 'keep-running');
+  const p = pausePreset(
+    [
+      { id: 'h1', client: 'acme' },
+      { id: 'h2', client: 'globex' },
+    ],
+    { exceptClient: 'globex' }
+  );
+  assert.equal(p.find(x => x.huntId === 'h1').action, 'pause');
+  assert.equal(p.find(x => x.huntId === 'h2').action, 'keep-running');
 });
 
 // ---- 51888 resume order ----
@@ -126,7 +172,11 @@ test('51890 resolveVoiceSwitch resolves hunt', () => {
 
 // ---- 51891 mobile cards ----
 test('51891 mobileCardPayload counts criticals', () => {
-  const c = mobileCardPayload({ id: 'h1', name: 'x', findings: [{ severity: 'Critical' }, { severity: 'low' }] });
+  const c = mobileCardPayload({
+    id: 'h1',
+    name: 'x',
+    findings: [{ severity: 'Critical' }, { severity: 'low' }],
+  });
   assert.equal(c.criticalHigh, 1);
   assert.ok(c.swipeActions.includes('pause'));
 });
@@ -142,7 +192,7 @@ test('51892 widgetPayload fleet summary', () => {
 test('51893 darkModeParityAudit flags gaps', () => {
   const a = darkModeParityAudit([{ view: 'V', tokens: ['bg-light'] }]);
   assert.equal(a[0].parity, false);
-  assert.ok(a[0].issues.some((i) => /dark/i.test(i)));
+  assert.ok(a[0].issues.some(i => /dark/i.test(i)));
 });
 
 // ---- 51894 tour ----
@@ -152,7 +202,10 @@ test('51894 tourSteps has 5 steps', () => {
 
 // ---- 51895 retrospective ----
 test('51895 fleetRetrospective aggregates', () => {
-  const r = fleetRetrospective([{ id: 'h1', name: 'a', findings: [{ severity: 'High' }] }, { id: 'h2', name: 'b', findings: [] }]);
+  const r = fleetRetrospective([
+    { id: 'h1', name: 'a', findings: [{ severity: 'High' }] },
+    { id: 'h2', name: 'b', findings: [] },
+  ]);
   assert.equal(r.hunts, 2);
   assert.equal(r.totalFindings, 1);
   assert.equal(r.bySeverity.high, 1);
@@ -167,7 +220,9 @@ test('51896 parsePauseResume', () => {
 
 // ---- 51897 status ----
 test('51897 statusAnswer speaks status', () => {
-  assert.ok(statusAnswer({ name: 'API hunt', status: 'running', findings: [1] }).includes('API hunt'));
+  assert.ok(
+    statusAnswer({ name: 'API hunt', status: 'running', findings: [1] }).includes('API hunt')
+  );
   assert.ok(statusAnswer(null).includes('No hunt'));
 });
 
@@ -183,7 +238,11 @@ test('51899 spokenApproval verifies voice', () => {
   const ok = spokenApproval('approve', { enrolled: true, speakerId: 's1', matchedSpeakerId: 's1' });
   assert.equal(ok.decision, 'approve');
   assert.equal(ok.authorized, true);
-  const bad = spokenApproval('approve', { enrolled: true, speakerId: 's1', matchedSpeakerId: 's2' });
+  const bad = spokenApproval('approve', {
+    enrolled: true,
+    speakerId: 's1',
+    matchedSpeakerId: 's2',
+  });
   assert.equal(bad.authorized, false);
 });
 
@@ -272,7 +331,9 @@ test('51912 voiceHelpList non-empty', () => {
 
 // ---- 51913 multi-hunt switch ----
 test('51913 parseMultiHuntSwitch resolves by client', () => {
-  const r = parseMultiHuntSwitch('switch to the client acme hunt', [{ id: 'h1', client: 'acme', name: 'Web' }]);
+  const r = parseMultiHuntSwitch('switch to the client acme hunt', [
+    { id: 'h1', client: 'acme', name: 'Web' },
+  ]);
   assert.ok(r.ok);
   assert.equal(r.huntId, 'h1');
 });
@@ -286,7 +347,9 @@ test('51914 parseSnapshotRequest', () => {
 
 // ---- 51915 explanation ----
 test('51915 parseExplanationRequest finds finding', () => {
-  const r = parseExplanationRequest('explain that SQLi simply', [{ id: 'f1', title: 'SQLi in search' }]);
+  const r = parseExplanationRequest('explain that SQLi simply', [
+    { id: 'f1', title: 'SQLi in search' },
+  ]);
   assert.ok(r.ok);
   assert.equal(r.findingId, 'f1');
   assert.equal(r.level, 'simple');

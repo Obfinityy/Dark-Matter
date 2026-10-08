@@ -5,13 +5,23 @@ import { VALID_PHASES } from '../models/assessmentModel.js';
 import { checkOutcome } from '../computer/outcomeCheck.js';
 import { stageForPhase, describeHuntState, techniquesForStage } from '../agent/methodology.js';
 import { suggestRecovery, formatRecoveryAdvice } from '../computer/recoveryAdvisor.js';
-import { VulnerabilityReportBuilder, renderHuntReportMarkdown } from '../services/vulnerabilityReportBuilder.js';
+import {
+  VulnerabilityReportBuilder,
+  renderHuntReportMarkdown,
+} from '../services/vulnerabilityReportBuilder.js';
 import { fingerprintTargetLenient } from '../services/targetFingerprint.js';
 import { buildBrainChain as buildExploitChain, suggestChains } from '../services/chainService.js';
 import { initialHuntState, safeTransition } from '../agent/huntStateMachine.js';
 import { DeterministicBrain } from '../agent/deterministicBrain.js';
-import { buildBrainChain, ResilientBrainProvider } from '../agent/providers/resilientBrainProvider.js';
-import { createSlotBrainProvider, createFeatureBrains, FEATURE_SLOTS } from '../agent/providers/brainProviderFactory.js';
+import {
+  buildBrainChain,
+  ResilientBrainProvider,
+} from '../agent/providers/resilientBrainProvider.js';
+import {
+  createSlotBrainProvider,
+  createFeatureBrains,
+  FEATURE_SLOTS,
+} from '../agent/providers/brainProviderFactory.js';
 import { createTripleBrainOrchestrator } from '../services/tripleBrainOrchestrator.js';
 import { TripleBrainHuntAdapter } from '../agent/tripleBrainHuntAdapter.js';
 import { LocalAIQueue, localAIQueue } from '../agent/providers/localAiQueue.js';
@@ -66,7 +76,7 @@ export class AgentWorker {
     appConfig = null,
     huntRecordModel = null, // persistent artifact store (hybrid storage: DB side)
     modelRunnerService = null, // local GGUF runner (no-Ollama "Download → Run")
-    logger = console
+    logger = console,
   }) {
     this.jobModel = jobModel;
     this.assessmentModel = assessmentModel;
@@ -81,7 +91,8 @@ export class AgentWorker {
     this.reasoningCycleModel = reasoningCycleModel;
     // Stash for the current step's verification verdict (set by the action
     // runners, consumed by the reasoning-cycle bookkeeping in stepReason).
-    this.lastStepVerification = null;    this.findingLifecycle = findingLifecycle;
+    this.lastStepVerification = null;
+    this.findingLifecycle = findingLifecycle;
     this.evidenceModel = evidenceModel;
     this.stateManager = stateManager;
     this.eventService = eventService;
@@ -110,7 +121,7 @@ export class AgentWorker {
       // When no LLM brain is reachable, fall back to the deterministic
       // rule-based strategy instead of parking the hunt in `waiting`.
       // Disable with AGENT_DETERMINISTIC_FALLBACK=0.
-      deterministicFallback: process.env.AGENT_DETERMINISTIC_FALLBACK !== '0'
+      deterministicFallback: process.env.AGENT_DETERMINISTIC_FALLBACK !== '0',
     };
     this.noProgress = new Map();
     this.brainErrors = new Map();
@@ -165,25 +176,26 @@ export class AgentWorker {
       try {
         downloaded = await this.modelRunnerService.library();
       } catch (err) {
-        this.logger?.warn?.(`[agentWorker] model library unavailable for fallback chain: ${err?.message}`);
+        this.logger?.warn?.(
+          `[agentWorker] model library unavailable for fallback chain: ${err?.message}`
+        );
       }
     }
     const chain = buildBrainChain({
       selection,
       appConfig: this.appConfig || {},
       runner: this.modelRunnerService,
-      downloaded
+      downloaded,
     });
     const provider = new ResilientBrainProvider(chain);
     this.logger?.info?.(
-      `[agentWorker] brain chain for user ${job.userId}: ${chain.map((l) => l.name).join(' → ')}`
+      `[agentWorker] brain chain for user ${job.userId}: ${chain.map(l => l.name).join(' → ')}`
     );
     // The phone is ONE piece of hardware: its brains share the hardware
     // queue. Every Ollama brain gets a PRIVATE queue — the agent's
     // thinking loop is never throttled by another user's inference.
-    const queue = selection.provider === 'phone'
-      ? localAIQueue
-      : new LocalAIQueue({ maxConcurrency: 2 });
+    const queue =
+      selection.provider === 'phone' ? localAIQueue : new LocalAIQueue({ maxConcurrency: 2 });
     const brain = new AutonomousBrain({
       memory: this.memory,
       eventService: this.eventService,
@@ -205,7 +217,8 @@ export class AgentWorker {
    * @returns {Promise<{ vision, grounding, hacker }>} providers (null for unconfigured slots)
    */
   async getSlotBrainsForJob(job) {
-    if (!this.brainProviderModel || !job?.userId) return { vision: null, grounding: null, hacker: null };
+    if (!this.brainProviderModel || !job?.userId)
+      return { vision: null, grounding: null, hacker: null };
     const selection = await this.brainProviderModel.getSelection(job.userId);
     const deps = { appConfig: this.appConfig || {}, runner: this.modelRunnerService };
     const brains = {};
@@ -246,7 +259,7 @@ export class AgentWorker {
           kaggleUrl: entry.url,
           kaggleName: entry.name || null,
           model: `kaggle:${slot}`,
-          sourceLabel: 'Kaggle (browser-connected)'
+          sourceLabel: 'Kaggle (browser-connected)',
         };
       }
     }
@@ -254,7 +267,7 @@ export class AgentWorker {
       runner: this.modelRunnerService || null,
       selection: { ...selection, slotSources },
       appConfig: this.appConfig || {},
-      logger: this.logger || console
+      logger: this.logger || console,
     });
   }
 
@@ -296,7 +309,7 @@ export class AgentWorker {
       if (!live.length) {
         this.logger?.warn?.(
           `[agentWorker] triple-brain: no usable slot servers for user ${job.userId} ` +
-          `(missing: ${missing.join(', ') || 'all three slots'}) — falling back to deterministic strategy`
+            `(missing: ${missing.join(', ') || 'all three slots'}) — falling back to deterministic strategy`
         );
         return null;
       }
@@ -308,7 +321,7 @@ export class AgentWorker {
       const mode = checks?.hacker?.ok ? 'triple-brain' : 'triple-brain-degraded';
       this.logger?.info?.(
         `[agentWorker] triple-brain engaged for job ${job.id}: live=[${live.join(', ')}]` +
-        (missing.length ? ` missing=[${missing.join(', ')}]` : '')
+          (missing.length ? ` missing=[${missing.join(', ')}]` : '')
       );
       return { adapter, live, missing, mode };
     } catch (error) {
@@ -344,10 +357,15 @@ export class AgentWorker {
     const job = await this.jobModel.get(jobId);
     if (!job) return null;
     const current = job.huntState || initialHuntState();
-    const next = safeTransition(current, patch.status || current.status, {
-      ...patch,
-      stepsTaken: job.stepCount || 0,
-    }, this.logger);
+    const next = safeTransition(
+      current,
+      patch.status || current.status,
+      {
+        ...patch,
+        stepsTaken: job.stepCount || 0,
+      },
+      this.logger
+    );
     await this.jobModel.update(jobId, { huntState: next });
     return { ...job, huntState: next };
   }
@@ -372,7 +390,7 @@ export class AgentWorker {
     return new DeterministicBrain({
       toolExecutionModel: this.toolExecutionModel,
       evidenceModel: this.evidenceModel,
-      logger: this.logger
+      logger: this.logger,
     });
   }
 
@@ -412,20 +430,23 @@ export class AgentWorker {
       await this.jobModel.claim(jobId, {
         lease: `lease_${crypto.randomUUID().slice(0, 12)}`,
         leaseMs: Number(process.env.AGENT_WORKER_LEASE_MS || 60_000),
-        workerStartedAt: new Date().toISOString()
+        workerStartedAt: new Date().toISOString(),
       });
       await this.jobModel.transition(jobId, 'starting', { brainStatus: 'initializing' });
       await this.publish(jobId, {
         type: 'job.started',
         level: 'INFO',
         message: `Autonomous Bug Bounty Agent started for ${job.target}`,
-        data: { target: job.target, scope: job.scope, objective: job.objective }
+        data: { target: job.target, scope: job.scope, objective: job.objective },
       });
 
       await this.assessmentModel.setStatus(job.assessmentId, 'running');
       await this.jobModel.transition(jobId, 'running');
       await this.recordActivity(jobId, { kind: 'agent', message: 'Agent started' });
-      await this.recordActivity(jobId, { kind: 'scope', message: `Scope loaded: ${(job.scope?.included || [job.target]).join(', ')}` });
+      await this.recordActivity(jobId, {
+        kind: 'scope',
+        message: `Scope loaded: ${(job.scope?.included || [job.target]).join(', ')}`,
+      });
 
       await this.loop(jobId);
       return { status: 'finished' };
@@ -433,12 +454,14 @@ export class AgentWorker {
       this.logger.error?.(`[agent-worker] job ${jobId} crashed:`, error.message);
       await this.jobModel.recordError(jobId, { message: error.message, fatal: true });
       await this.jobModel.transition(jobId, 'failed', { waitingReason: null });
-      await this.assessmentModel.setStatus(job.assessmentId, 'failed', { error: error.message }).catch?.(() => {});
+      await this.assessmentModel
+        .setStatus(job.assessmentId, 'failed', { error: error.message })
+        .catch?.(() => {});
       await this.publish(jobId, {
         type: 'job.failed',
         level: 'ERROR',
         message: `Job failed: ${error.message}`,
-        data: { error: error.message }
+        data: { error: error.message },
       });
       return { status: 'failed', error: error.message };
     } finally {
@@ -497,11 +520,11 @@ export class AgentWorker {
             type: 'brain.triple',
             level: 'INFO',
             message: `Resilient brain chain unreachable — hunting with the triple-brain local slots (${triple.live.join(', ')})${triple.missing.length ? `; MISSING brains: ${triple.missing.join(', ')}` : ''}.`,
-            data: { live: triple.live, missing: triple.missing, mode: triple.mode }
+            data: { live: triple.live, missing: triple.missing, mode: triple.mode },
           });
           await this.recordActivity(jobId, {
             kind: 'brain',
-            message: `Triple-brain engaged (local slots): ${triple.live.join(', ')} live${triple.missing.length ? `; MISSING: ${triple.missing.join(', ')}` : ''}`
+            message: `Triple-brain engaged (local slots): ${triple.live.join(', ')} live${triple.missing.length ? `; MISSING: ${triple.missing.join(', ')}` : ''}`,
           });
           continue;
         }
@@ -518,21 +541,29 @@ export class AgentWorker {
             type: 'brain.deterministic',
             level: 'WARN',
             message: `No local AI reachable (${health.reason || health.provider || 'provider down'}) — running the deterministic rule-based hunt strategy. Every action still passes policy, scope, and evidence gates.`,
-            data: { reason: health.reason, provider: health.provider, strategy: 'deterministicBrain' }
+            data: {
+              reason: health.reason,
+              provider: health.provider,
+              strategy: 'deterministicBrain',
+            },
           });
           await this.recordActivity(jobId, {
             kind: 'brain',
-            message: 'Deterministic rule-based strategy engaged (local AI unreachable) — the hunt drives itself'
+            message:
+              'Deterministic rule-based strategy engaged (local AI unreachable) — the hunt drives itself',
           });
           continue;
         }
         // health.reason already starts with "LOCAL AI UNAVAILABLE — …"; strip it
         // here so the terminal message doesn't repeat the prefix.
-        const waitReason = String(health.reason || 'phone model unreachable').replace(/^LOCAL AI UNAVAILABLE — /i, '');
+        const waitReason = String(health.reason || 'phone model unreachable').replace(
+          /^LOCAL AI UNAVAILABLE — /i,
+          ''
+        );
         await this.enterWaiting(job, {
           reason: health.reason || 'LOCAL AI UNAVAILABLE',
           event: 'brain.unavailable',
-          message: `LOCAL AI UNAVAILABLE — ${waitReason}. Waiting to recover; no cloud fallback will be used.`
+          message: `LOCAL AI UNAVAILABLE — ${waitReason}. Waiting to recover; no cloud fallback will be used.`,
         });
         await this.sleepInterruptible(jobId, this.config.phoneRetryMs);
         continue;
@@ -547,9 +578,10 @@ export class AgentWorker {
           await this.enterWaiting(job, {
             reason: error.message,
             event: error.kind === 'context_window' ? 'brain.decision' : 'brain.unavailable',
-            message: error.kind === 'context_window'
-              ? `Local model context too small: ${error.message}`
-              : error.message
+            message:
+              error.kind === 'context_window'
+                ? `Local model context too small: ${error.message}`
+                : error.message,
           });
           // A context-size problem needs an operator to raise
           // PHONE_AI_CONTEXT_TOKENS, so retry on a slower cadence.
@@ -579,53 +611,69 @@ export class AgentWorker {
     let learnedHints = '';
     try {
       if (this.payloadLibraryModel) {
-        const stageTechniques = techniquesForStage(methodologyStage).map((t) => t.id);
+        const stageTechniques = techniquesForStage(methodologyStage).map(t => t.id);
         const hints = [];
         for (const techId of stageTechniques.slice(0, 5)) {
           const suggested = await this.payloadLibraryModel.suggest({ technique: techId, limit: 2 });
           hints.push(...suggested);
         }
-        const proven = hints.filter((h) => h.successes > 0).slice(0, 5);
+        const proven = hints.filter(h => h.successes > 0).slice(0, 5);
         if (proven.length) {
-          learnedHints += '\nPROVEN PAYLOADS (worked in past hunts — prefer these for the matching technique):\n' +
-            proven.map((h) => `- [${h.technique}] "${h.payload.slice(0, 120)}" (${h.successes}× success)`).join('\n');
+          learnedHints +=
+            '\nPROVEN PAYLOADS (worked in past hunts — prefer these for the matching technique):\n' +
+            proven
+              .map(h => `- [${h.technique}] "${h.payload.slice(0, 120)}" (${h.successes}× success)`)
+              .join('\n');
         }
       }
-        // --- Cross-hunt memory (idea #2): what did past hunts on THIS or
-        // similar targets find? Surface patterns so the agent checks them first.
-        if (this.findingModel && job.userId && job.target) {
-          const targetHost = String(job.target).toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
-          const pastFindings = await this.findingModel.listByUser(job.userId).catch(() => []);
-          const relevant = pastFindings
-            .filter((f) => {
-              const asset = String(f.affectedAsset || f.target || '').toLowerCase();
-              return asset.includes(targetHost) || targetHost.includes(asset.split('/')[0]);
-            })
-            .slice(0, 5);
-          if (relevant.length) {
-            learnedHints += '\nPAST HUNTS ON THIS TARGET (patterns found before — check these FIRST):\n' +
-              relevant.map((f) => `- [${f.severity}] ${f.title} (${f.category || 'vuln'})`).join('\n');
-          }
-          // Pattern learning (idea #5): most successful vuln categories across ALL past hunts
-          const byCategory = {};
-          for (const f of pastFindings.slice(0, 50)) {
-            const cat = f.category || 'general';
-            byCategory[cat] = (byCategory[cat] || 0) + 1;
-          }
-          const topCats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 3);
-          if (topCats.length) {
-            learnedHints += '\nYOUR STRONGEST PATTERNS (vuln types you find most — prioritize these):\n' +
-              topCats.map(([cat, n]) => `- ${cat} (${n}× found)`).join('\n');
-          }
+      // --- Cross-hunt memory (idea #2): what did past hunts on THIS or
+      // similar targets find? Surface patterns so the agent checks them first.
+      if (this.findingModel && job.userId && job.target) {
+        const targetHost = String(job.target)
+          .toLowerCase()
+          .replace(/^https?:\/\//, '')
+          .split('/')[0];
+        const pastFindings = await this.findingModel.listByUser(job.userId).catch(() => []);
+        const relevant = pastFindings
+          .filter(f => {
+            const asset = String(f.affectedAsset || f.target || '').toLowerCase();
+            return asset.includes(targetHost) || targetHost.includes(asset.split('/')[0]);
+          })
+          .slice(0, 5);
+        if (relevant.length) {
+          learnedHints +=
+            '\nPAST HUNTS ON THIS TARGET (patterns found before — check these FIRST):\n' +
+            relevant.map(f => `- [${f.severity}] ${f.title} (${f.category || 'vuln'})`).join('\n');
         }
-        if (Array.isArray(findings) && findings.length >= 2) {
-          const existingChains = findings.filter((f) => f.category === 'vulnerability-chain');
-          const chains = suggestChains(findings, existingChains).slice(0, 3);
-          if (chains.length) {
-            learnedHints += '\nCHAIN CANDIDATES (confirmed findings that combine into bigger attacks — file them with category "vulnerability-chain"): \n' +
-              chains.map((c) => `- ${c.title} → severity ${c.severity.toUpperCase()}: ${c.description.slice(0, 160)}…`).join('\n');
-          }
+        // Pattern learning (idea #5): most successful vuln categories across ALL past hunts
+        const byCategory = {};
+        for (const f of pastFindings.slice(0, 50)) {
+          const cat = f.category || 'general';
+          byCategory[cat] = (byCategory[cat] || 0) + 1;
         }
+        const topCats = Object.entries(byCategory)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3);
+        if (topCats.length) {
+          learnedHints +=
+            '\nYOUR STRONGEST PATTERNS (vuln types you find most — prioritize these):\n' +
+            topCats.map(([cat, n]) => `- ${cat} (${n}× found)`).join('\n');
+        }
+      }
+      if (Array.isArray(findings) && findings.length >= 2) {
+        const existingChains = findings.filter(f => f.category === 'vulnerability-chain');
+        const chains = suggestChains(findings, existingChains).slice(0, 3);
+        if (chains.length) {
+          learnedHints +=
+            '\nCHAIN CANDIDATES (confirmed findings that combine into bigger attacks — file them with category "vulnerability-chain"): \n' +
+            chains
+              .map(
+                c =>
+                  `- ${c.title} → severity ${c.severity.toUpperCase()}: ${c.description.slice(0, 160)}…`
+              )
+              .join('\n');
+        }
+      }
     } catch (error) {
       this.logger.warn?.(`[agent-worker] learned-context enrichment failed: ${error.message}`);
     }
@@ -657,7 +705,7 @@ export class AgentWorker {
         assessmentId: job.assessmentId,
         jobId: job.id,
         query: `${job.currentObjective || job.objective} ${job.target}`,
-        maxTokens: 1100
+        maxTokens: 1100,
       }),
       this.findingModel ? this.findingModel.list(job.assessmentId) : Promise.resolve([]),
       this.toolExecutionModel.list(job.assessmentId),
@@ -665,7 +713,7 @@ export class AgentWorker {
       // state, even after a restart (issue #1 "the brain must always know").
       this.reasoningCycleModel
         ? this.reasoningCycleModel.recentSummaries(jobId, { limit: 6 })
-        : Promise.resolve([])
+        : Promise.resolve([]),
     ]);
 
     // Periodic summarization: every K steps the hunt's aging history is
@@ -693,7 +741,7 @@ export class AgentWorker {
     const huntContext = describeHuntState({
       stage: methodologyStage,
       tried: techniquesTried,
-      findingsCount: job.findingsCount || 0
+      findingsCount: job.findingsCount || 0,
     });
 
     // ── The agent hunts with everything it has learned ───────────────
@@ -711,37 +759,43 @@ export class AgentWorker {
           learnedHints,
         });
       } catch (error) {
-        this.logger.warn?.(`[agent-worker] context assembly failed, using fallback: ${error.message}`);
+        this.logger.warn?.(
+          `[agent-worker] context assembly failed, using fallback: ${error.message}`
+        );
       }
     }
 
-    const budgetedToolResults = (toolResults || []).slice(0, 6).map((execution) => ({
+    const budgetedToolResults = (toolResults || []).slice(0, 6).map(execution => ({
       tool: execution.tool,
       target: execution.target,
-      summary: String(execution.aiSummary || execution.error || execution.status || '').slice(0, 600)
+      summary: String(execution.aiSummary || execution.error || execution.status || '').slice(
+        0,
+        600
+      ),
     }));
 
-    const fallbackObservations = (job.activity || []).slice(-12).map((item) => ({
+    const fallbackObservations = (job.activity || []).slice(-12).map(item => ({
       kind: item.kind,
-      summary: String(item.message || item.text || '').slice(0, 400)
+      summary: String(item.message || item.text || '').slice(0, 400),
     }));
 
     // --- Hypothesis Engine: load active hypotheses so the brain can track
     // competing theories across steps (idea #1: human-expert thinking) ---
     try {
       if (this.stateManager && job.assessmentId) {
-        const state = await this.stateManager.getState?.(job.assessmentId)
-          || await this.stateManager.agentStateModel?.get(job.assessmentId);
+        const state =
+          (await this.stateManager.getState?.(job.assessmentId)) ||
+          (await this.stateManager.agentStateModel?.get(job.assessmentId));
         const hyps = state?.hypotheses || state?.state?.hypotheses || [];
         job.hypotheses = hyps
-          .filter((h) => !['killed', 'confirmed', 'disproven'].includes(h.status))
+          .filter(h => !['killed', 'confirmed', 'disproven'].includes(h.status))
           .slice(0, 8)
-          .map((h) => ({
+          .map(h => ({
             text: h.hypothesis || h.text,
             status: h.status || 'open',
             confidence: h.confidence,
             evidence: h.evidence,
-            nextTest: h.nextTest
+            nextTest: h.nextTest,
           }));
       }
     } catch (error) {
@@ -750,14 +804,15 @@ export class AgentWorker {
 
     // The warm summary rides along with the hunt context — compressed
     // experience the brain must treat as ground truth about this hunt.
-    const composeHuntContext = (ctx) => {
-      const warm = ctx && ctx.warmSummary
-        ? `WARM MEMORY — rolling hunt summary (compressed experience, trust it):\n${ctx.warmSummary}\n\n`
-        : '';
+    const composeHuntContext = ctx => {
+      const warm =
+        ctx && ctx.warmSummary
+          ? `WARM MEMORY — rolling hunt summary (compressed experience, trust it):\n${ctx.warmSummary}\n\n`
+          : '';
       return `${warm}${huntContext}${learnedHints}`;
     };
 
-    const reasonOnce = async (ctx) => {
+    const reasonOnce = async ctx => {
       const { decision } = await brain.decide({
         job,
         memoryContext: memoryContext.text,
@@ -768,7 +823,7 @@ export class AgentWorker {
         findings: ctx ? ctx.findings : findings,
         computerStatus,
         recentCycles: ctx ? ctx.recentCycles : recentCycles,
-        huntContext: composeHuntContext(ctx)
+        huntContext: composeHuntContext(ctx),
       });
       return decision;
     };
@@ -780,9 +835,15 @@ export class AgentWorker {
       // Recovery: on a context-window failure, auto-compact (force a summary
       // refresh, shrink the hot window) and retry ONCE on a strictly smaller
       // prompt — instead of dying or parking blindly.
-      if (error instanceof LocalAiUnavailableError && error.kind === 'context_window' && this.huntContextManager && !job.__compactRetried) {
+      if (
+        error instanceof LocalAiUnavailableError &&
+        error.kind === 'context_window' &&
+        this.huntContextManager &&
+        !job.__compactRetried
+      ) {
         try {
-          const { job: compactedJob, tightenedBudgets } = await this.huntContextManager.emergencyCompact({ job, brain });
+          const { job: compactedJob, tightenedBudgets } =
+            await this.huntContextManager.emergencyCompact({ job, brain });
           if (compactedJob) job = compactedJob;
           job.__compactRetried = true;
           stepContext = await this.huntContextManager.buildStepContext(job, {
@@ -795,7 +856,8 @@ export class AgentWorker {
           await this.publish(jobId, {
             type: 'brain.thinking',
             level: 'WARN',
-            message: 'Local model context overflowed — auto-compacted hunt history and retrying with a smaller prompt'
+            message:
+              'Local model context overflowed — auto-compacted hunt history and retrying with a smaller prompt',
           });
           decision = await reasonOnce(stepContext);
         } catch (retryError) {
@@ -804,14 +866,20 @@ export class AgentWorker {
       } else if (error instanceof LocalAiUnavailableError) {
         throw error; // outer loop handles
       } else {
-        await this.jobModel.recordError(jobId, { message: error.message, kind: error.code || 'brain_error' });
+        await this.jobModel.recordError(jobId, {
+          message: error.message,
+          kind: error.code || 'brain_error',
+        });
         await this.publish(jobId, {
           type: 'brain.decision',
           level: 'WARN',
           message: `Local AI produced an unusable decision: ${error.message}`,
-          data: { raw: String(error.raw || '').slice(0, 1000) }
+          data: { raw: String(error.raw || '').slice(0, 1000) },
         });
-        await this.recordActivity(jobId, { kind: 'brain', message: `Rejected malformed decision: ${error.message}` });
+        await this.recordActivity(jobId, {
+          kind: 'brain',
+          message: `Rejected malformed decision: ${error.message}`,
+        });
 
         // A model that keeps emitting unusable JSON is a real (recoverable)
         // condition, not a reason to spin. Back off, then park the job in
@@ -823,7 +891,7 @@ export class AgentWorker {
           await this.enterWaiting(job, {
             reason: `local AI produced no usable decision after ${streak} attempts: ${error.message}`,
             event: 'brain.decision',
-            message: `Local AI cannot produce a valid decision (${error.message}) — pausing reasoning until it recovers`
+            message: `Local AI cannot produce a valid decision (${error.message}) — pausing reasoning until it recovers`,
           });
           return this.jobModel.get(jobId);
         }
@@ -837,38 +905,47 @@ export class AgentWorker {
     // the hunt stands.
     {
       const nextAction = decision.nextAction || {};
-      const decidedStage = nextAction.type === 'validate' ? 'verifying'
-        : (decision.methodologyStage || methodologyStage);
-      const firstHypothesis = Array.isArray(decision.hypotheses) && decision.hypotheses[0]
-        ? decision.hypotheses[0].hypothesis
-        : null;
+      const decidedStage =
+        nextAction.type === 'validate'
+          ? 'verifying'
+          : decision.methodologyStage || methodologyStage;
+      const firstHypothesis =
+        Array.isArray(decision.hypotheses) && decision.hypotheses[0]
+          ? decision.hypotheses[0].hypothesis
+          : null;
       const updated = await this.updateHuntState(jobId, {
         status: decidedStage,
         stage: methodologyStage,
         lastAction: this.describeAction(nextAction),
-        lastHypothesis: firstHypothesis || nextAction.hypothesis || job.huntState?.lastHypothesis || null,
+        lastHypothesis:
+          firstHypothesis || nextAction.hypothesis || job.huntState?.lastHypothesis || null,
         nextIntent: decision.expectedOutcome || decision.reason,
       });
       if (updated) job = updated;
       // The agent's file memory gets the same note — a human-readable trace
       // of what was decided and why.
       if (this.memory && typeof this.memory.appendJournal === 'function') {
-        await this.memory.appendJournal({
-          userId: job.userId,
-          jobId: job.id,
-          text: `Decided: ${this.describeAction(nextAction)}. Reason: ${decision.reason || '—'}`,
-        }).catch(() => {});
+        await this.memory
+          .appendJournal({
+            userId: job.userId,
+            jobId: job.id,
+            text: `Decided: ${this.describeAction(nextAction)}. Reason: ${decision.reason || '—'}`,
+          })
+          .catch(() => {});
       }
     }
 
-      // ── Persist the decision *before* acting on it (#71) ────────────────
+    // ── Persist the decision *before* acting on it (#71) ────────────────
     if (job.status === 'waiting') {
       // Reasoning works again: leave the waiting state exactly once.
-      await this.jobModel.transition(jobId, 'running', { waitingReason: null, brainStatus: 'reasoning' });
+      await this.jobModel.transition(jobId, 'running', {
+        waitingReason: null,
+        brainStatus: 'reasoning',
+      });
       await this.publish(jobId, {
         type: 'job.resumed',
         level: 'INFO',
-        message: 'Local AI is answering again — resuming the assessment'
+        message: 'Local AI is answering again — resuming the assessment',
       });
     }
 
@@ -880,11 +957,11 @@ export class AgentWorker {
         reason: decision.reason,
         expectedOutcome: decision.expectedOutcome,
         confidence: decision.confidence,
-        at: new Date().toISOString()
+        at: new Date().toISOString(),
       },
       brainStatus: 'decided',
       currentObjective: decision.objective,
-      currentAction: this.describeAction(decision.nextAction)
+      currentAction: this.describeAction(decision.nextAction),
     });
 
     await this.publish(jobId, {
@@ -896,13 +973,13 @@ export class AgentWorker {
         action: decision.nextAction,
         confidence: decision.confidence,
         expectedOutcome: decision.expectedOutcome,
-        summaryLabel: brain.constructor.statusLabel(decision)
-      }
+        summaryLabel: brain.constructor.statusLabel(decision),
+      },
     });
     await this.recordActivity(jobId, {
       kind: 'decision',
       message: `Decision: ${this.describeAction(decision.nextAction)}`,
-      detail: decision.reason
+      detail: decision.reason,
     });
 
     if (decision.phase && VALID_PHASES.includes(decision.phase) && decision.phase !== job.phase) {
@@ -912,7 +989,7 @@ export class AgentWorker {
         type: 'job.phase_changed',
         level: 'INFO',
         message: `Phase → ${decision.phase}`,
-        data: { phase: decision.phase }
+        data: { phase: decision.phase },
       });
     }
 
@@ -923,7 +1000,7 @@ export class AgentWorker {
         assessmentId: job.assessmentId,
         jobId,
         key: 'brain-note',
-        content: note
+        content: note,
       });
     }
 
@@ -942,13 +1019,13 @@ export class AgentWorker {
           jobId,
           stepNumber: (job.stepCount || 0) + 1,
           decision,
-          plan: job.plan || null
+          plan: job.plan || null,
         });
         if (previous && previous.id !== cycle.id) {
           await this.reasoningCycleModel.recordAdaptation(previous.id, {
             nextCycleId: cycle.id,
             nextObjective: decision.objective,
-            nextReason: decision.reason
+            nextReason: decision.reason,
           });
         }
       } catch (error) {
@@ -965,7 +1042,7 @@ export class AgentWorker {
       try {
         const verification = this.lastStepVerification || {
           outcome: 'skipped',
-          reason: 'this action type carries no expected-outcome check'
+          reason: 'this action type carries no expected-outcome check',
         };
         await this.reasoningCycleModel.recordVerification(cycle.id, verification);
         // ── State awareness: "I just did X (outcome Y)" ───────────────
@@ -979,22 +1056,25 @@ export class AgentWorker {
         // The LEARN half: persist the lesson so the next cycle is smarter.
         if (verification.outcome === 'mismatched' || verification.outcome === 'error') {
           await this.reasoningCycleModel.recordLearning(cycle.id, {
-            lesson: `Step ${cycle.stepNumber} (${cycle.technique || 'unknown technique'}): expected "${cycle.expectedOutcome || '?'}" but got "${verification.reason || '?'}" — do not repeat this exact approach; adapt the hypothesis.`
+            lesson: `Step ${cycle.stepNumber} (${cycle.technique || 'unknown technique'}): expected "${cycle.expectedOutcome || '?'}" but got "${verification.reason || '?'}" — do not repeat this exact approach; adapt the hypothesis.`,
           });
         }
         // Track the tried technique on the job so the hunt never repeats an
         // angle and the UI can show real progress (non-stop hunting).
         if (cycle.technique) {
           const tried = Array.isArray(job.techniquesTried) ? job.techniquesTried : [];
-          if (!tried.some((t) => (t.techniqueId || t) === cycle.technique)) {
+          if (!tried.some(t => (t.techniqueId || t) === cycle.technique)) {
             await this.jobModel.update(jobId, {
-              techniquesTried: [...tried, {
-                techniqueId: cycle.technique,
-                stage: cycle.methodologyStage || methodologyStage,
-                stepNumber: cycle.stepNumber,
-                verification: verification.outcome,
-                at: new Date().toISOString()
-              }].slice(-200)
+              techniquesTried: [
+                ...tried,
+                {
+                  techniqueId: cycle.technique,
+                  stage: cycle.methodologyStage || methodologyStage,
+                  stepNumber: cycle.stepNumber,
+                  verification: verification.outcome,
+                  at: new Date().toISOString(),
+                },
+              ].slice(-200),
             });
           }
         }
@@ -1007,9 +1087,12 @@ export class AgentWorker {
           try {
             const attempt = this.extractPayloadAttempt(decision, cycle);
             if (attempt) {
-              const outcome = verification.outcome === 'matched' ? 'success'
-                : (verification.outcome === 'mismatched' || verification.outcome === 'error') ? 'failure'
-                : 'neutral';
+              const outcome =
+                verification.outcome === 'matched'
+                  ? 'success'
+                  : verification.outcome === 'mismatched' || verification.outcome === 'error'
+                    ? 'failure'
+                    : 'neutral';
               await this.payloadLibraryModel.recordOutcome(attempt, outcome);
             }
           } catch (error) {
@@ -1028,7 +1111,12 @@ export class AgentWorker {
     // 'technology' entries.
     if (Array.isArray(decision.discoveredAssets) && decision.discoveredAssets.length) {
       try {
-        await this.mergeDiscoveredAssets(jobId, job.assets, decision.discoveredAssets, cycle?.stepNumber || 0);
+        await this.mergeDiscoveredAssets(
+          jobId,
+          job.assets,
+          decision.discoveredAssets,
+          cycle?.stepNumber || 0
+        );
       } catch (error) {
         this.logger.warn?.(`[agent-worker] asset merge failed: ${error.message}`);
       }
@@ -1049,7 +1137,7 @@ export class AgentWorker {
       step: refreshed.stepCount,
       phase: refreshed.phase,
       objective: refreshed.currentObjective,
-      at: new Date().toISOString()
+      at: new Date().toISOString(),
     });
     await this.jobModel.incrementCounters(jobId, { stepCount: 1 });
 
@@ -1062,14 +1150,18 @@ export class AgentWorker {
         type: 'job.failed',
         level: 'ERROR',
         message: `No progress after ${streak} identical actions — the agent is stuck. Stopping so state stays inspectable.`,
-        data: { action: decision.nextAction }
+        data: { action: decision.nextAction },
       });
       await this.jobModel.recordError(jobId, {
         message: `no progress: repeated identical action ${streak} times`,
-        kind: 'no_progress'
+        kind: 'no_progress',
       });
       await this.jobModel.transition(jobId, 'failed', { brainStatus: 'stuck' });
-      await this.assessmentModel.setStatus(job.assessmentId, 'failed', { error: 'Agent stalled: repeated identical action' }).catch?.(() => {});
+      await this.assessmentModel
+        .setStatus(job.assessmentId, 'failed', {
+          error: 'Agent stalled: repeated identical action',
+        })
+        .catch?.(() => {});
       this.noProgress.delete(jobId);
       return this.jobModel.get(jobId);
     }
@@ -1094,7 +1186,7 @@ export class AgentWorker {
           assessmentId: job.assessmentId,
           jobId: job.id,
           summary: action.observation,
-          refs: { url: action.target || null }
+          refs: { url: action.target || null },
         });
       case 'hypothesis':
         return this.findingLifecycle.raiseHypothesis({
@@ -1104,7 +1196,7 @@ export class AgentWorker {
           hypothesis: action.hypothesis,
           category: action.category || 'general',
           asset: action.target || job.target,
-          endpoint: action.endpoint || null
+          endpoint: action.endpoint || null,
         });
       case 'validate':
         return this.runValidation(job, action);
@@ -1113,12 +1205,17 @@ export class AgentWorker {
       case 'plan_update':
         return this.runPlanUpdate(job, action);
       case 'wait':
-        await this.recordActivity(job.id, { kind: 'wait', message: `Waiting: ${action.reason || decision.reason}` });
+        await this.recordActivity(job.id, {
+          kind: 'wait',
+          message: `Waiting: ${action.reason || decision.reason}`,
+        });
         return { waited: true };
       case 'complete':
         return this.completeJob(job, decision.reason);
       default:
-        await this.jobModel.recordError(job.id, { message: `Unsupported action type: ${action.type}` });
+        await this.jobModel.recordError(job.id, {
+          message: `Unsupported action type: ${action.type}`,
+        });
         return null;
     }
   }
@@ -1127,17 +1224,25 @@ export class AgentWorker {
     const jobId = job.id;
     await this.jobModel.update(jobId, {
       currentAction: `tool:${action.name} → ${action.target}`,
-      lastToolExecution: { tool: action.name, target: action.target, at: new Date().toISOString() }
+      lastToolExecution: { tool: action.name, target: action.target, at: new Date().toISOString() },
     });
-    await this.recordActivity(jobId, { kind: 'tool', message: `Tool: ${action.name} → ${action.target}` });
+    await this.recordActivity(jobId, {
+      kind: 'tool',
+      message: `Tool: ${action.name} → ${action.target}`,
+    });
 
     try {
-      const result = await this.toolExecutor.execute(job.assessmentId, job.userId, {
-        tool: action.name,
-        target: action.target,
-        arguments: action.arguments || {},
-        timeout: action.timeout
-      }, { scopeEngine });
+      const result = await this.toolExecutor.execute(
+        job.assessmentId,
+        job.userId,
+        {
+          tool: action.name,
+          target: action.target,
+          arguments: action.arguments || {},
+          timeout: action.timeout,
+        },
+        { scopeEngine }
+      );
 
       // Real evidence, from the real execution record.
       const { evidence } = await this.evidenceModel.store({
@@ -1149,9 +1254,11 @@ export class AgentWorker {
         asset: action.target,
         endpoint: action.target,
         summary: `${action.name} on ${action.target}: ${String(result.aiSummary || '').slice(0, 800)}`,
-        response: result.execution?.rawOutput ? String(result.execution.rawOutput).slice(0, 40_000) : null,
+        response: result.execution?.rawOutput
+          ? String(result.execution.rawOutput).slice(0, 40_000)
+          : null,
         sha256: result.execution?.fingerprint || null,
-        metadata: { parser: action.name, outputSizeBytes: result.execution?.outputSizeBytes || 0 }
+        metadata: { parser: action.name, outputSizeBytes: result.execution?.outputSizeBytes || 0 },
       });
       await this.jobModel.incrementCounters(jobId, { evidenceCount: 1 });
 
@@ -1161,8 +1268,12 @@ export class AgentWorker {
         jobId,
         key: `tool:${action.name}`,
         content: `${action.name} @ ${action.target} → ${String(result.aiSummary || '').slice(0, 1500)}`,
-        refs: { toolExecutionId: result.execution?.id || null, evidenceId: evidence.id, url: action.target },
-        structured: { deduplicated: Boolean(result.deduplicated) }
+        refs: {
+          toolExecutionId: result.execution?.id || null,
+          evidenceId: evidence.id,
+          url: action.target,
+        },
+        structured: { deduplicated: Boolean(result.deduplicated) },
       });
 
       await this.stateManager.applyToolResult(job.assessmentId, action.name, result.parsed);
@@ -1171,7 +1282,7 @@ export class AgentWorker {
         target: action.target,
         description: action.description || decision_description(action),
         resultSummary: String(result.aiSummary || '').slice(0, 400),
-        deduplicated: result.deduplicated
+        deduplicated: result.deduplicated,
       });
       if (!result.deduplicated) {
         await this.assessmentModel.incrementCounters(job.assessmentId, { toolsExecuted: 1 });
@@ -1180,35 +1291,38 @@ export class AgentWorker {
       if (context) {
         await this.assessmentModel.update(job.assessmentId, {
           assetsDiscovered: context.subdomainCount,
-          endpointsDiscovered: context.endpointCount
+          endpointsDiscovered: context.endpointCount,
         });
       }
 
       await this.recordActivity(jobId, {
         kind: 'tool',
-        message: `${action.name} completed — ${String(result.aiSummary || '').slice(0, 300)}`
+        message: `${action.name} completed — ${String(result.aiSummary || '').slice(0, 300)}`,
       });
       await this.publish(jobId, {
         type: 'tool.output',
         level: 'INFO',
         message: `${action.name}: ${String(result.aiSummary || '').slice(0, 400)}`,
-        data: { tool: action.name, executionId: result.execution?.id, evidenceId: evidence.id }
+        data: { tool: action.name, executionId: result.execution?.id, evidenceId: evidence.id },
       });
       await this.jobModel.update(jobId, {
         lastObservation: {
           kind: 'tool_output',
           summary: String(result.aiSummary || '').slice(0, 1000),
-          at: new Date().toISOString()
-        }
+          at: new Date().toISOString(),
+        },
       });
       return result;
     } catch (error) {
       await this.stateManager.recordFailedAction(job.assessmentId, {
         tool: action.name,
         target: action.target,
-        error: error.message
+        error: error.message,
       });
-      await this.jobModel.recordError(jobId, { message: `${action.name} failed: ${error.message}`, kind: error.code || 'tool_error' });
+      await this.jobModel.recordError(jobId, {
+        message: `${action.name} failed: ${error.message}`,
+        kind: error.code || 'tool_error',
+      });
       await this.memory.rememberTool({
         userId: job.userId,
         assessmentId: job.assessmentId,
@@ -1216,14 +1330,17 @@ export class AgentWorker {
         key: `tool:${action.name}:failed`,
         content: `FAILED ${action.name} @ ${action.target}: ${error.message} — do not repeat this exact attempt`,
         refs: { url: action.target },
-        importance: 0.7
+        importance: 0.7,
       });
-      await this.recordActivity(jobId, { kind: 'error', message: `${action.name} failed: ${error.message}` });
+      await this.recordActivity(jobId, {
+        kind: 'error',
+        message: `${action.name} failed: ${error.message}`,
+      });
       await this.publish(jobId, {
         type: 'tool.output',
         level: 'ERROR',
         message: `${action.name} failed: ${error.message}`,
-        data: { tool: action.name, error: error.message }
+        data: { tool: action.name, error: error.message },
       });
       return null;
     }
@@ -1236,22 +1353,27 @@ export class AgentWorker {
   async runParallelToolsAction(job, action, scopeEngine = null) {
     const jobId = job.id;
     const tools = (action.tools || action.parallelTools || []).slice(0, 6);
-    const names = tools.map((t) => t.name).join(', ');
+    const names = tools.map(t => t.name).join(', ');
     await this.jobModel.update(jobId, {
       currentAction: `parallel:[${names}] → ${job.target}`,
     });
     await this.recordActivity(jobId, { kind: 'tool', message: `Parallel tools: ${names}` });
 
-    const requests = tools.map((t) => ({
+    const requests = tools.map(t => ({
       tool: t.name,
       target: t.target || action.target || job.target,
       arguments: t.arguments || {},
-      timeout: t.timeout
+      timeout: t.timeout,
     }));
 
-    const results = await this.toolExecutor.executeParallel(job.assessmentId, job.userId, requests, { scopeEngine });
-    const succeeded = results.filter((r) => r.ok);
-    const failed = results.filter((r) => !r.ok);
+    const results = await this.toolExecutor.executeParallel(
+      job.assessmentId,
+      job.userId,
+      requests,
+      { scopeEngine }
+    );
+    const succeeded = results.filter(r => r.ok);
+    const failed = results.filter(r => !r.ok);
 
     // Store each successful result as evidence + memory.
     for (const r of succeeded) {
@@ -1266,28 +1388,36 @@ export class AgentWorker {
           refs: { toolExecutionId: res.execution?.id || null, url: r.request.target },
         });
         await this.stateManager.applyToolResult(job.assessmentId, r.request.tool, res.parsed);
-      } catch { /* non-fatal */ }
+      } catch {
+        /* non-fatal */
+      }
     }
     for (const r of failed) {
-      await this.recordActivity(jobId, { kind: 'error', message: `${r.request.tool} failed: ${r.error}` });
+      await this.recordActivity(jobId, {
+        kind: 'error',
+        message: `${r.request.tool} failed: ${r.error}`,
+      });
     }
 
     await this.recordActivity(jobId, {
       kind: 'tool',
-      message: `Parallel batch done: ${succeeded.length} ok, ${failed.length} failed`
+      message: `Parallel batch done: ${succeeded.length} ok, ${failed.length} failed`,
     });
     await this.publish(jobId, {
       type: 'tool.output',
       level: 'INFO',
-      message: `Parallel recon: ${succeeded.map((r) => r.request.tool).join(', ')} completed`,
-      data: { tools: succeeded.map((r) => r.request.tool), failed: failed.map((r) => r.request.tool) }
+      message: `Parallel recon: ${succeeded.map(r => r.request.tool).join(', ')} completed`,
+      data: { tools: succeeded.map(r => r.request.tool), failed: failed.map(r => r.request.tool) },
     });
     await this.jobModel.update(jobId, {
       lastObservation: {
         kind: 'parallel_tool_output',
-        summary: succeeded.map((r) => `${r.request.tool}: ${String(r.result.aiSummary || '').slice(0, 300)}`).join('\n').slice(0, 1000),
-        at: new Date().toISOString()
-      }
+        summary: succeeded
+          .map(r => `${r.request.tool}: ${String(r.result.aiSummary || '').slice(0, 300)}`)
+          .join('\n')
+          .slice(0, 1000),
+        at: new Date().toISOString(),
+      },
     });
     return { succeeded: succeeded.length, failed: failed.length, results };
   }
@@ -1310,7 +1440,7 @@ export class AgentWorker {
         type: 'browser.observation',
         level: 'WARN',
         message: 'Computer control is not wired on this deployment',
-        data: { action: action.action }
+        data: { action: action.action },
       });
       return null;
     }
@@ -1328,8 +1458,12 @@ export class AgentWorker {
           params: action.action?.params || {},
           expectedOutcome: action.action?.expectedOutcome || null,
           decision: decision
-            ? { objective: decision.objective, reason: decision.reason, expectedOutcome: decision.expectedOutcome }
-            : null
+            ? {
+                objective: decision.objective,
+                reason: decision.reason,
+                expectedOutcome: decision.expectedOutcome,
+              }
+            : null,
         });
       } catch (error) {
         this.logger.warn?.(`[agent-worker] computer action ledger unavailable: ${error.message}`);
@@ -1339,20 +1473,22 @@ export class AgentWorker {
     const result = await this.computer.execute(action.action, {
       channel: jobId,
       scopeEngine,
-      approvalGranted: true
+      approvalGranted: true,
     });
 
     await this.jobModel.update(jobId, {
       computerStatus: this.computerState?.snapshot() || null,
-      computerRuntime: result.ok ? 'available' : (result.error?.kind || 'unknown')
+      computerRuntime: result.ok ? 'available' : result.error?.kind || 'unknown',
     });
 
-    const finishRecord = async (fields) => {
+    const finishRecord = async fields => {
       if (actionRecord && this.computerActionModel) {
         try {
           await this.computerActionModel.markFinished(actionRecord.id, fields);
         } catch (error) {
-          this.logger.warn?.(`[agent-worker] computer action ledger write failed: ${error.message}`);
+          this.logger.warn?.(
+            `[agent-worker] computer action ledger write failed: ${error.message}`
+          );
         }
       }
       // The next decision the brain makes belongs to this action's outcome.
@@ -1367,7 +1503,9 @@ export class AgentWorker {
       let followUpObservation = null;
       if (typeof this.computer.observeAfterAction === 'function') {
         try {
-          followUpObservation = await this.computer.observeAfterAction(result.action, { channel: jobId });
+          followUpObservation = await this.computer.observeAfterAction(result.action, {
+            channel: jobId,
+          });
         } catch (error) {
           this.logger.warn?.(`[agent-worker] post-action re-observe failed: ${error.message}`);
         }
@@ -1378,21 +1516,22 @@ export class AgentWorker {
       const outcomeCheck = checkOutcome({
         expectedOutcome: action.action?.expectedOutcome,
         observation,
-        followUpObservation
+        followUpObservation,
       });
       await this.publish(jobId, {
         type: 'browser.outcome',
         level: outcomeCheck.matched === false ? 'WARN' : 'INFO',
-        message: outcomeCheck.matched === false
-          ? `Outcome MISMATCH — expected "${action.action?.expectedOutcome}", observed "${observation.summary}${followUpObservation ? ` / ${followUpObservation.summary}` : ''}"`
-          : `Outcome check: ${outcomeCheck.reason}`,
+        message:
+          outcomeCheck.matched === false
+            ? `Outcome MISMATCH — expected "${action.action?.expectedOutcome}", observed "${observation.summary}${followUpObservation ? ` / ${followUpObservation.summary}` : ''}"`
+            : `Outcome check: ${outcomeCheck.reason}`,
         data: {
           expected: action.action?.expectedOutcome || null,
           actual: observation.summary,
           followUp: followUpObservation?.summary || null,
           matched: outcomeCheck.matched,
-          reason: outcomeCheck.reason
-        }
+          reason: outcomeCheck.reason,
+        },
       });
       if (outcomeCheck.matched === false) {
         await this.memory.rememberEpisodic({
@@ -1401,7 +1540,7 @@ export class AgentWorker {
           jobId,
           key: 'computer-outcome-mismatch',
           content: `COMPUTER OUTCOME MISMATCH: expected "${action.action?.expectedOutcome}" but observed "${observation.summary}". Do not assume the action worked — verify before building on it.`,
-          importance: 0.85
+          importance: 0.85,
         });
       }
 
@@ -1415,7 +1554,7 @@ export class AgentWorker {
         summary: observation.summary,
         sha256: observation.sha256 || null,
         artifactPath: observation.path || null,
-        metadata: { action: result.action, visionUsed: false }
+        metadata: { action: result.action, visionUsed: false },
       });
       await this.jobModel.incrementCounters(jobId, { evidenceCount: 1 });
 
@@ -1425,26 +1564,26 @@ export class AgentWorker {
         jobId,
         key: 'computer',
         content: `COMPUTER: ${observation.summary}${followUpObservation ? ` | After settling: ${followUpObservation.summary}` : ''}`,
-        refs: { url: observation.url || null }
+        refs: { url: observation.url || null },
       });
       await this.jobModel.update(jobId, {
         lastObservation: {
           kind: observation.kind,
           summary: observation.summary,
           followUp: followUpObservation?.summary || null,
-          at: observation.at
-        }
+          at: observation.at,
+        },
       });
       await this.recordActivity(jobId, {
         kind: 'browser',
         message: observation.summary,
-        detail: followUpObservation ? `After settling: ${followUpObservation.summary}` : undefined
+        detail: followUpObservation ? `After settling: ${followUpObservation.summary}` : undefined,
       });
       await this.publish(jobId, {
         type: 'browser.action',
         level: 'INFO',
         message: `${result.action.type}: ${observation.summary}`,
-        data: { action: result.action, observation, followUpObservation, outcomeCheck }
+        data: { action: result.action, observation, followUpObservation, outcomeCheck },
       });
 
       await finishRecord({
@@ -1453,12 +1592,17 @@ export class AgentWorker {
         observation,
         followUpObservation,
         outcomeCheck,
-        durationMs: result.durationMs
+        durationMs: result.durationMs,
       });
       // The verification verdict for this step's reasoning cycle.
       this.lastStepVerification = {
-        outcome: outcomeCheck.matched === true ? 'matched' : outcomeCheck.matched === false ? 'mismatched' : 'skipped',
-        reason: outcomeCheck.reason
+        outcome:
+          outcomeCheck.matched === true
+            ? 'matched'
+            : outcomeCheck.matched === false
+              ? 'mismatched'
+              : 'skipped',
+        reason: outcomeCheck.reason,
       };
       return result;
     }
@@ -1470,15 +1614,16 @@ export class AgentWorker {
     //   • this one action is impossible  → recovery strategies + brain adapts
     //   • the action was rejected        → recovery strategies + brain adapts
     const computerDisabledByConfig = this.computer?.enabled === false;
-    const runtimeGone = !computerDisabledByConfig
-      && (result.error?.kind === 'unavailable' || result.error?.kind === 'timeout')
-      && this.computer.running !== true;
+    const runtimeGone =
+      !computerDisabledByConfig &&
+      (result.error?.kind === 'unavailable' || result.error?.kind === 'timeout') &&
+      this.computer.running !== true;
     // Concrete recovery strategies (issue #1 "Recoverable failures") — the
     // brain gets options, not just an error string.
     const recoveryAdvice = suggestRecovery({
       action: result.action,
       error: result.error,
-      observation: null
+      observation: null,
     });
     await finishRecord({
       ok: false,
@@ -1488,14 +1633,14 @@ export class AgentWorker {
       outcomeCheck: null,
       error: result.error,
       durationMs: result.durationMs,
-      recoveryAdvice
+      recoveryAdvice,
     });
 
     if (runtimeGone) {
       await this.enterWaiting(job, {
         reason: `computer control unavailable: ${result.error.message}`,
         event: 'browser.observation',
-        message: `Computer runtime unavailable (${result.error.message}) — waiting for it to come back`
+        message: `Computer runtime unavailable (${result.error.message}) — waiting for it to come back`,
       });
     } else {
       await this.memory.rememberEpisodic({
@@ -1504,24 +1649,24 @@ export class AgentWorker {
         jobId,
         key: 'computer-rejected',
         content: `COMPUTER ACTION ${result.rejected ? 'REJECTED' : 'UNAVAILABLE'} (${result.error?.kind}): ${result.error?.message} — recovery options:\n${formatRecoveryAdvice(recoveryAdvice)}`,
-        importance: 0.8
+        importance: 0.8,
       });
       await this.recordActivity(jobId, {
         kind: 'error',
         message: `Computer action ${result.rejected ? 'rejected' : 'unavailable'}: ${result.error?.message}`,
-        detail: formatRecoveryAdvice(recoveryAdvice)
+        detail: formatRecoveryAdvice(recoveryAdvice),
       });
       await this.publish(jobId, {
         type: 'browser.observation',
         level: 'WARN',
         message: `Computer action could not run: ${result.error?.message}`,
-        data: { action: result.action, kind: result.error?.kind, recoveryAdvice }
+        data: { action: result.action, kind: result.error?.kind, recoveryAdvice },
       });
     }
     // The verification verdict for this step's reasoning cycle.
     this.lastStepVerification = {
       outcome: 'error',
-      reason: result.error?.message || 'computer action failed'
+      reason: result.error?.message || 'computer action failed',
     };
     return null;
   }
@@ -1548,8 +1693,8 @@ export class AgentWorker {
     // did not name evidence, we fall back to the newest REAL job evidence — we
     // never synthesise a record to make a hypothesis look validated.
     const usable = requested.length
-      ? requested.filter((id) => jobEvidence.some((item) => item.id === id))
-      : jobEvidence.slice(-3).map((item) => item.id);
+      ? requested.filter(id => jobEvidence.some(item => item.id === id))
+      : jobEvidence.slice(-3).map(item => item.id);
 
     if (usable.length === 0) {
       await this.memory.rememberEpisodic({
@@ -1558,17 +1703,17 @@ export class AgentWorker {
         jobId: job.id,
         key: 'validation-blocked',
         content: `Cannot validate hypothesis "${action.hypothesis || action.hypothesisId}" — no stored evidence exists yet. Run a tool or computer action that produces evidence first.`,
-        importance: 0.8
+        importance: 0.8,
       });
       await this.recordActivity(job.id, {
         kind: 'validation',
-        message: `Validation deferred: no evidence yet for "${action.hypothesis || action.hypothesisId}"`
+        message: `Validation deferred: no evidence yet for "${action.hypothesis || action.hypothesisId}"`,
       });
       await this.publish(job.id, {
         type: 'hypothesis.updated',
         level: 'WARN',
         message: `Validation blocked: no evidence stored for "${action.hypothesis || action.hypothesisId}"`,
-        data: { status: 'needs_validation' }
+        data: { status: 'needs_validation' },
       });
       return { validated: false, reason: 'no_evidence' };
     }
@@ -1580,18 +1725,23 @@ export class AgentWorker {
       hypothesisId: action.hypothesisId || null,
       hypothesis: action.hypothesis || null,
       valid: action.valid !== false,
-      evidenceIds: usable
+      evidenceIds: usable,
     });
   }
 
   async runFinding(job, action) {
     const jobEvidence = await this.evidenceModel.listByJob(job.id);
-    const evidenceIds = Array.isArray(action.evidenceIds) && action.evidenceIds.length
-      ? action.evidenceIds
-      : jobEvidence
-        .filter((item) => !action.target || String(item.asset || '').toLowerCase() === String(action.target).toLowerCase())
-        .slice(-5)
-        .map((item) => item.id);
+    const evidenceIds =
+      Array.isArray(action.evidenceIds) && action.evidenceIds.length
+        ? action.evidenceIds
+        : jobEvidence
+            .filter(
+              item =>
+                !action.target ||
+                String(item.asset || '').toLowerCase() === String(action.target).toLowerCase()
+            )
+            .slice(-5)
+            .map(item => item.id);
 
     const result = await this.findingLifecycle.createFinding({
       userId: job.userId,
@@ -1611,7 +1761,7 @@ export class AgentWorker {
       confidence: action.confidence ?? 0.6,
       evidenceIds,
       hypothesisId: action.hypothesisId || null,
-      cvssMetrics: action.cvssMetrics || null
+      cvssMetrics: action.cvssMetrics || null,
     });
 
     if (result.created) {
@@ -1622,14 +1772,18 @@ export class AgentWorker {
       await this.assessmentModel.incrementCounters(job.assessmentId, { findingsCount: 1 });
       await this.recordActivity(job.id, {
         kind: 'finding',
-        message: `Finding confirmed: ${result.finding.title} (${result.finding.severity})`
+        message: `Finding confirmed: ${result.finding.title} (${result.finding.severity})`,
       });
 
       // Critical-finding alert (P1): the user asked to be told the moment a
       // critical lands — never silently. Best-effort; never fails the hunt.
       if (result.finding.severity === 'critical' && this.alertService) {
         try {
-          await this.alertService.notifyCriticalFinding({ userId: job.userId, job, finding: result.finding });
+          await this.alertService.notifyCriticalFinding({
+            userId: job.userId,
+            job,
+            finding: result.finding,
+          });
         } catch (error) {
           this.logger.warn?.(`[agent-worker] critical-finding alert failed: ${error.message}`);
         }
@@ -1640,13 +1794,17 @@ export class AgentWorker {
       // buildBrainChain VALIDATES the proposal — every referenced finding must
       // exist, belong to this hunt, and be confirmed — and escalates severity.
       // A rejected proposal is recorded as activity, never silently dropped.
-      if (action.chain && Array.isArray(action.chain.findingIds) && action.chain.findingIds.length >= 2) {
+      if (
+        action.chain &&
+        Array.isArray(action.chain.findingIds) &&
+        action.chain.findingIds.length >= 2
+      ) {
         await this.recordBrainChain(job, action.chain, result.finding);
       }
     } else if (result.reason === 'no_evidence') {
       await this.recordActivity(job.id, {
         kind: 'finding',
-        message: `Finding rejected (no evidence): ${action.title || action.description}`
+        message: `Finding rejected (no evidence): ${action.title || action.description}`,
       });
     }
     return result;
@@ -1663,24 +1821,23 @@ export class AgentWorker {
    */
   async recordBrainChain(job, chainProposal, triggerFinding) {
     try {
-      const jobFindings = this.findingModel
-        ? await this.findingModel.list(job.assessmentId)
-        : [];
+      const jobFindings = this.findingModel ? await this.findingModel.list(job.assessmentId) : [];
       // Include the just-created finding — the brain usually chains it.
       const allFindings = [...jobFindings];
-      if (triggerFinding && !allFindings.some((f) => f.id === triggerFinding.id)) {
+      if (triggerFinding && !allFindings.some(f => f.id === triggerFinding.id)) {
         allFindings.push(triggerFinding);
       }
       const chain = buildExploitChain(chainProposal, allFindings, job.id);
       // A chain's evidence IS its components' evidence — collect it, because
       // createFinding() rejects evidence-less findings (anti-fabrication rule).
-      const componentById = new Map(allFindings.map((f) => [f.id, f]));
+      const componentById = new Map(allFindings.map(f => [f.id, f]));
       const chainEvidenceIds = [];
       for (const componentId of chain.metadata?.chainOf || []) {
         const component = componentById.get(componentId);
         const ids = component?.evidence || component?.evidenceIds || [];
         for (const evidenceId of ids) {
-          if (evidenceId && !chainEvidenceIds.includes(evidenceId)) chainEvidenceIds.push(evidenceId);
+          if (evidenceId && !chainEvidenceIds.includes(evidenceId))
+            chainEvidenceIds.push(evidenceId);
         }
       }
       const created = await this.findingLifecycle.createFinding({
@@ -1698,19 +1855,19 @@ export class AgentWorker {
         reproductionSteps: chain.reproductionSteps || [],
         remediation: chain.remediation,
         confidence: 0.7,
-        evidenceIds: chainEvidenceIds
+        evidenceIds: chainEvidenceIds,
       });
       if (created.created) {
         await this.jobModel.incrementCounters(job.id, { findingsCount: 1, chainsCount: 1 });
         await this.recordActivity(job.id, {
           kind: 'chain',
-          message: `Vulnerability chain confirmed: ${chain.title} (escalated to ${chain.severity})`
+          message: `Vulnerability chain confirmed: ${chain.title} (escalated to ${chain.severity})`,
         });
         await this.publish(job.id, {
           type: 'chain.confirmed',
           level: 'WARN',
           message: `Chained vulnerability: ${chain.title}`,
-          data: { title: chain.title, severity: chain.severity, chainOf: chain.metadata.chainOf }
+          data: { title: chain.title, severity: chain.severity, chainOf: chain.metadata.chainOf },
         });
       }
     } catch (error) {
@@ -1718,7 +1875,7 @@ export class AgentWorker {
       // link) — recorded visibly so the brain learns, never silently dropped.
       await this.recordActivity(job.id, {
         kind: 'chain',
-        message: `Chain proposal rejected: ${error.message}`
+        message: `Chain proposal rejected: ${error.message}`,
       });
     }
   }
@@ -1731,12 +1888,12 @@ export class AgentWorker {
   async mergeDiscoveredAssets(jobId, existing, discovered, stepNumber) {
     const assets = Array.isArray(existing) ? [...existing] : [];
     const keyOf = (kind, value) => `${kind}::${String(value).toLowerCase()}`;
-    const seen = new Set(assets.map((a) => keyOf(a.kind, a.value)));
+    const seen = new Set(assets.map(a => keyOf(a.kind, a.value)));
     const at = new Date().toISOString();
     let changed = false;
     for (const item of discovered) {
       const key = keyOf(item.kind, item.value);
-      const known = assets.find((a) => keyOf(a.kind, a.value) === key);
+      const known = assets.find(a => keyOf(a.kind, a.value) === key);
       if (known) {
         known.lastSeen = at;
         known.lastStep = stepNumber;
@@ -1750,7 +1907,7 @@ export class AgentWorker {
           firstSeen: at,
           lastSeen: at,
           firstStep: stepNumber,
-          lastStep: stepNumber
+          lastStep: stepNumber,
         });
         changed = true;
       }
@@ -1792,7 +1949,7 @@ export class AgentWorker {
             summary: `Auto-captured at finding confirmation: ${result.observation.summary}`,
             sha256: result.observation.sha256 || null,
             artifactPath: result.observation.path || null,
-            metadata: { autoCaptured: true, at }
+            metadata: { autoCaptured: true, at },
           });
           capturedIds.push(stored.evidence.id);
         }
@@ -1808,14 +1965,22 @@ export class AgentWorker {
       try {
         const recent = await this.computerActionModel.listByJob(jobId, 15);
         if (recent.length) {
-          const log = recent.map((action) => {
-            const cmd = action.action === 'run_command' && action.params?.command
-              ? `$ ${action.params.command}`
-              : `${action.action} ${JSON.stringify(action.params || {}).slice(0, 200)}`;
-            const rawOut = action.output?.stdout || action.output?.outputPreview || action.observation?.summary || action.error?.message || '';
-            const out = String(rawOut).slice(0, 400);
-            return `[${action.startedAt || '?'}] ${cmd}${out ? `\n    → ${out}` : ''}`;
-          }).join('\n');
+          const log = recent
+            .map(action => {
+              const cmd =
+                action.action === 'run_command' && action.params?.command
+                  ? `$ ${action.params.command}`
+                  : `${action.action} ${JSON.stringify(action.params || {}).slice(0, 200)}`;
+              const rawOut =
+                action.output?.stdout ||
+                action.output?.outputPreview ||
+                action.observation?.summary ||
+                action.error?.message ||
+                '';
+              const out = String(rawOut).slice(0, 400);
+              return `[${action.startedAt || '?'}] ${cmd}${out ? `\n    → ${out}` : ''}`;
+            })
+            .join('\n');
           const stored = await this.evidenceModel.store({
             userId: job.userId,
             assessmentId: job.assessmentId,
@@ -1825,7 +1990,7 @@ export class AgentWorker {
             asset: job.target,
             endpoint: finding.affectedEndpoint || null,
             summary: `Auto-captured command log (${recent.length} recent actions) at finding confirmation`,
-            metadata: { autoCaptured: true, at, log: log.slice(0, 8000) }
+            metadata: { autoCaptured: true, at, log: log.slice(0, 8000) },
           });
           capturedIds.push(stored.evidence.id);
         }
@@ -1838,17 +2003,19 @@ export class AgentWorker {
       await this.evidenceModel.linkToFinding(finding.id, capturedIds);
       await this.recordActivity(jobId, {
         kind: 'evidence',
-        message: `Auto-attached ${capturedIds.length} evidence item(s) to finding "${finding.title}"`
+        message: `Auto-attached ${capturedIds.length} evidence item(s) to finding "${finding.title}"`,
       });
     }
   }
 
   async runPlanUpdate(job, action) {
     const plan = {
-      phases: Array.isArray(action.plan.phases) ? action.plan.phases : (job.plan?.phases || []),
+      phases: Array.isArray(action.plan.phases) ? action.plan.phases : job.plan?.phases || [],
       pendingSteps: Array.isArray(action.plan.pendingSteps) ? action.plan.pendingSteps : [],
-      completedSteps: Array.isArray(action.plan.completedSteps) ? action.plan.completedSteps : (job.plan?.completedSteps || []),
-      updatedAt: new Date().toISOString()
+      completedSteps: Array.isArray(action.plan.completedSteps)
+        ? action.plan.completedSteps
+        : job.plan?.completedSteps || [],
+      updatedAt: new Date().toISOString(),
     };
     await this.jobModel.setPlan(job.id, plan);
     await this.memory.rememberTask({
@@ -1856,13 +2023,13 @@ export class AgentWorker {
       assessmentId: job.assessmentId,
       jobId: job.id,
       content: renderPlanForMemory(plan),
-      structured: plan
+      structured: plan,
     });
     await this.publish(job.id, {
       type: 'job.plan_updated',
       level: 'INFO',
       message: 'Assessment plan updated',
-      data: { plan }
+      data: { plan },
     });
     await this.recordActivity(job.id, { kind: 'plan', message: 'Plan updated' });
     return plan;
@@ -1874,7 +2041,7 @@ export class AgentWorker {
     await this.publish(job.id, {
       type: 'report.started',
       level: 'INFO',
-      message: 'Assessment objectives satisfied — generating the report from stored evidence'
+      message: 'Assessment objectives satisfied — generating the report from stored evidence',
     });
     await this.recordActivity(job.id, { kind: 'report', message: 'Report generation started' });
 
@@ -1887,16 +2054,21 @@ export class AgentWorker {
           type: 'report.progress',
           level: 'INFO',
           message: `Report v${report.version} generated`,
-          data: { reportId: report.id, version: report.version }
+          data: { reportId: report.id, version: report.version },
         });
-        await this.recordActivity(job.id, { kind: 'report', message: `Report v${report.version} ready` });
+        await this.recordActivity(job.id, {
+          kind: 'report',
+          message: `Report v${report.version} ready`,
+        });
       } catch (error) {
-        await this.jobModel.recordError(job.id, { message: `Report generation failed: ${error.message}` });
+        await this.jobModel.recordError(job.id, {
+          message: `Report generation failed: ${error.message}`,
+        });
         await this.publish(job.id, {
           type: 'report.progress',
           level: 'ERROR',
           message: `Report generation failed: ${error.message}`,
-          data: { error: error.message }
+          data: { error: error.message },
         });
       }
     }
@@ -1916,17 +2088,28 @@ export class AgentWorker {
           type: 'report.archived',
           level: 'INFO',
           message: `Report archived as hunt record v${huntRecord.version}`,
-          data: { huntRecordId: huntRecord.id, version: huntRecord.version }
+          data: { huntRecordId: huntRecord.id, version: huntRecord.version },
         });
-        await this.recordActivity(job.id, { kind: 'report', message: `Report archived (hunt record v${huntRecord.version})` });
+        await this.recordActivity(job.id, {
+          kind: 'report',
+          message: `Report archived (hunt record v${huntRecord.version})`,
+        });
       } catch (error) {
-        this.logger.warn?.(`[agent-worker] hunt record archival failed for job ${job.id}: ${error.message}`);
-        await this.recordActivity(job.id, { kind: 'report', message: `Report archival failed: ${error.message}` });
+        this.logger.warn?.(
+          `[agent-worker] hunt record archival failed for job ${job.id}: ${error.message}`
+        );
+        await this.recordActivity(job.id, {
+          kind: 'report',
+          message: `Report archival failed: ${error.message}`,
+        });
       }
     }
 
     await this.assessmentModel.setStatus(job.assessmentId, 'completed').catch?.(() => {});
-    await this.jobModel.transition(job.id, 'completed', { brainStatus: 'idle', waitingReason: null });
+    await this.jobModel.transition(job.id, 'completed', {
+      brainStatus: 'idle',
+      waitingReason: null,
+    });
 
     // ── Recursive self-learning (LOCAL ONLY) ──────────────────────────
     // The agent teaches itself from every hunt. Learnings stay in
@@ -1935,13 +2118,17 @@ export class AgentWorker {
     // sharpen. Best-effort: learning must never fail a completed hunt.
     try {
       const { observeHunt } = await import('../engines/recursiveLearner.js');
-      const findings = this.findingModel ? await this.findingModel.list(job.assessmentId).catch(() => []) : [];
-      const toolExecs = this.toolExecutionModel ? await this.toolExecutionModel.list(job.assessmentId).catch(() => []) : [];
+      const findings = this.findingModel
+        ? await this.findingModel.list(job.assessmentId).catch(() => [])
+        : [];
+      const toolExecs = this.toolExecutionModel
+        ? await this.toolExecutionModel.list(job.assessmentId).catch(() => [])
+        : [];
       const learned = observeHunt({
         target: job.target,
         techStack: job.techStack || [],
-        findings: findings.map((f) => ({ type: f.type || f.category, payload: f.evidence?.payload })),
-        payloadsTried: toolExecs.map((t) => ({ payload: t.arguments?.payload || t.tool })),
+        findings: findings.map(f => ({ type: f.type || f.category, payload: f.evidence?.payload })),
+        payloadsTried: toolExecs.map(t => ({ payload: t.arguments?.payload || t.tool })),
         durationMs: Date.now() - new Date(job.startedAt || job.createdAt).getTime(),
       });
       await this.publish(job.id, {
@@ -1951,16 +2138,26 @@ export class AgentWorker {
         data: learned,
       });
     } catch (error) {
-      this.logger.warn?.(`[agent-worker] recursive learning failed for job ${job.id}: ${error.message}`);
+      this.logger.warn?.(
+        `[agent-worker] recursive learning failed for job ${job.id}: ${error.message}`
+      );
     }
 
     await this.publish(job.id, {
       type: 'job.completed',
       level: 'INFO',
       message: `Assessment completed — ${reason}`,
-      data: { reason, reportId: report?.id || null, reportVersion: report?.version || null, huntRecordId: huntRecord?.id || null }
+      data: {
+        reason,
+        reportId: report?.id || null,
+        reportVersion: report?.version || null,
+        huntRecordId: huntRecord?.id || null,
+      },
     });
-    await this.recordActivity(job.id, { kind: 'agent', message: `Assessment completed — ${reason}` });
+    await this.recordActivity(job.id, {
+      kind: 'agent',
+      message: `Assessment completed — ${reason}`,
+    });
 
     // Hunt-complete alert + multi-target queue advance. Best-effort: neither
     // may fail a completion that already happened.
@@ -1973,8 +2170,8 @@ export class AgentWorker {
           stats: {
             total: summary.total ?? 0,
             critical: summary.critical ?? 0,
-            high: summary.high ?? 0
-          }
+            high: summary.high ?? 0,
+          },
         });
       } catch (error) {
         this.logger.warn?.(`[agent-worker] hunt_complete alert failed: ${error.message}`);
@@ -1998,7 +2195,9 @@ export class AgentWorker {
    * to Markdown — the persistent, re-downloadable artifact.
    */
   async archiveHuntRecord(job, report) {
-    const assessment = await this.assessmentModel.get(job.userId, job.assessmentId).catch(() => null);
+    const assessment = await this.assessmentModel
+      .get(job.userId, job.assessmentId)
+      .catch(() => null);
     const targetUrl = assessment?.targetUrl || job.target;
     const fingerprint = fingerprintTargetLenient(targetUrl);
     const startedAt = job.startedAt || job.createdAt;
@@ -2022,9 +2221,9 @@ export class AgentWorker {
         low: summary.low ?? 0,
         info: summary.informational ?? 0,
         steps: job.stepCount ?? 0,
-        durationMs: Number.isFinite(durationMs) && durationMs >= 0 ? Math.round(durationMs) : 0
+        durationMs: Number.isFinite(durationMs) && durationMs >= 0 ? Math.round(durationMs) : 0,
       },
-      findings: (report.detailedFindings || []).map((finding) => ({
+      findings: (report.detailedFindings || []).map(finding => ({
         id: finding.id,
         title: finding.title,
         severity: finding.severity,
@@ -2032,8 +2231,8 @@ export class AgentWorker {
         affectedAsset: finding.affectedAsset,
         affectedEndpoint: finding.affectedEndpoint,
         confidence: finding.confidence,
-        status: finding.status
-      }))
+        status: finding.status,
+      })),
     });
   }
 
@@ -2046,26 +2245,32 @@ export class AgentWorker {
       step: job.stepCount,
       phase: job.phase,
       objective: job.currentObjective,
-      at: new Date().toISOString()
+      at: new Date().toISOString(),
     });
     await this.publish(job.id, {
       type: 'job.paused',
       level: 'INFO',
       message: `Paused safely at step ${job.stepCount} (phase ${job.phase}). State persisted — nothing is lost.`,
-      data: { stepCount: job.stepCount, phase: job.phase }
+      data: { stepCount: job.stepCount, phase: job.phase },
     });
-    await this.recordActivity(job.id, { kind: 'agent', message: `Paused at step ${job.stepCount}` });
+    await this.recordActivity(job.id, {
+      kind: 'agent',
+      message: `Paused at step ${job.stepCount}`,
+    });
     return { paused: true };
   }
 
   async cancelJob(job, reason) {
-    await this.jobModel.transition(job.id, 'cancelled', { brainStatus: 'cancelled', waitingReason: null });
+    await this.jobModel.transition(job.id, 'cancelled', {
+      brainStatus: 'cancelled',
+      waitingReason: null,
+    });
     await this.assessmentModel.setStatus(job.assessmentId, 'stopped').catch?.(() => {});
     await this.publish(job.id, {
       type: 'job.cancelled',
       level: 'WARN',
       message: `Job cancelled — ${reason}. Assessment history is preserved.`,
-      data: { reason, stepCount: job.stepCount }
+      data: { reason, stepCount: job.stepCount },
     });
     await this.recordActivity(job.id, { kind: 'agent', message: `Cancelled — ${reason}` });
     return { cancelled: true };
@@ -2073,13 +2278,16 @@ export class AgentWorker {
 
   async enterWaiting(job, { reason, event, message }) {
     if (job.status !== 'waiting' || job.waitingReason !== reason) {
-      await this.jobModel.transition(job.id, 'waiting', { waitingReason: reason, brainStatus: 'waiting' });
+      await this.jobModel.transition(job.id, 'waiting', {
+        waitingReason: reason,
+        brainStatus: 'waiting',
+      });
       await this.updateHuntState(job.id, { status: 'waiting', lastOutcome: `waiting — ${reason}` });
       await this.publish(job.id, {
         type: event || 'job.waiting',
         level: 'WARN',
         message,
-        data: { reason }
+        data: { reason },
       });
       await this.recordActivity(job.id, { kind: 'wait', message });
     }
@@ -2088,13 +2296,16 @@ export class AgentWorker {
   // ── Helpers ───────────────────────────────────────────────────────────
   /** Interruptible sleep: pause/cancel/shutdown wake it immediately. */
   sleepInterruptible(jobId, ms) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const control = this.running.get(jobId);
       if (!control) return resolve();
-      const timer = setTimeout(() => {
-        control.wake = null;
-        resolve();
-      }, Math.max(0, ms));
+      const timer = setTimeout(
+        () => {
+          control.wake = null;
+          resolve();
+        },
+        Math.max(0, ms)
+      );
       control.wake = () => {
         clearTimeout(timer);
         control.wake = null;
@@ -2110,16 +2321,26 @@ export class AgentWorker {
 
   describeAction(action) {
     switch (action.type) {
-      case 'tool': return `Run tool ${action.name} against ${action.target}`;
-      case 'computer_action': return `Computer: ${action.action?.type}${action.action?.params?.url ? ` → ${action.action.params.url}` : ''}`;
-      case 'observation': return `Record observation: ${String(action.observation || '').slice(0, 120)}`;
-      case 'hypothesis': return `Hypothesis: ${String(action.hypothesis || '').slice(0, 120)}`;
-      case 'validate': return `Validate: ${action.hypothesis || action.hypothesisId}`;
-      case 'finding': return `Confirm finding: ${action.title || action.description}`;
-      case 'plan_update': return 'Update assessment plan';
-      case 'wait': return 'Wait';
-      case 'complete': return 'Complete assessment';
-      default: return action.type;
+      case 'tool':
+        return `Run tool ${action.name} against ${action.target}`;
+      case 'computer_action':
+        return `Computer: ${action.action?.type}${action.action?.params?.url ? ` → ${action.action.params.url}` : ''}`;
+      case 'observation':
+        return `Record observation: ${String(action.observation || '').slice(0, 120)}`;
+      case 'hypothesis':
+        return `Hypothesis: ${String(action.hypothesis || '').slice(0, 120)}`;
+      case 'validate':
+        return `Validate: ${action.hypothesis || action.hypothesisId}`;
+      case 'finding':
+        return `Confirm finding: ${action.title || action.description}`;
+      case 'plan_update':
+        return 'Update assessment plan';
+      case 'wait':
+        return 'Wait';
+      case 'complete':
+        return 'Complete assessment';
+      default:
+        return action.type;
     }
   }
 
@@ -2150,7 +2371,9 @@ export class AgentWorker {
       }
     } else if (next.type === 'tool' && next.args && typeof next.args === 'object') {
       // Tool executions with string args (e.g. a probe string) are learnable.
-      const probeArg = Object.values(next.args).find((v) => typeof v === 'string' && v.length > 0 && v.length <= 2000);
+      const probeArg = Object.values(next.args).find(
+        v => typeof v === 'string' && v.length > 0 && v.length <= 2000
+      );
       if (probeArg) {
         payload = String(probeArg);
         description = `tool ${next.name || 'execution'} argument`;
@@ -2204,9 +2427,10 @@ function renderPlanForMemory(plan) {
   const lines = ['CURRENT TASK PLAN:'];
   for (const phase of plan.phases || []) {
     const steps = phase.steps || [];
-    const done = steps.filter((step) => step.status === 'done').length;
+    const done = steps.filter(step => step.status === 'done').length;
     lines.push(`- ${phase.name} (${done}/${steps.length} done)`);
-    for (const step of steps) lines.push(`   ${step.status === 'done' ? '[x]' : '[ ]'} ${step.step}`);
+    for (const step of steps)
+      lines.push(`   ${step.status === 'done' ? '[x]' : '[ ]'} ${step.step}`);
   }
   if (plan.pendingSteps?.length) lines.push(`- pending: ${plan.pendingSteps.join(', ')}`);
   return lines.join('\n').slice(0, 4000);

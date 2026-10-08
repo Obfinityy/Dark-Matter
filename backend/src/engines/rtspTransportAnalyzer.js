@@ -11,7 +11,10 @@
  * @param {string} value e.g. 'RTP/AVP;unicast;client_port=8000-8001;server_port=9000-9001;source=203.0.113.5'
  */
 export function parseTransport(value = '') {
-  const parts = value.split(';').map((s) => s.trim()).filter(Boolean);
+  const parts = value
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean);
   const out = {
     raw: value,
     protocol: parts[0] || '',
@@ -50,19 +53,30 @@ export function parseTransport(value = '') {
  *   clientPublicIp?: string     // the hunt client's public IP (optional)
  * }} input
  */
-export function analyzeTransport({ requestTransport = '', responseTransport = '', serverAddress = '', clientPublicIp = '' } = {}) {
+export function analyzeTransport({
+  requestTransport = '',
+  responseTransport = '',
+  serverAddress = '',
+  clientPublicIp = '',
+} = {}) {
   const req = parseTransport(requestTransport);
   const res = parseTransport(responseTransport);
   const findings = [];
 
   if (!responseTransport) {
     return {
-      request: req, response: res, findings: [{
-        type: 'No Transport header in SETUP response',
-        severity: 'Low', confidence: 'high',
-        evidence: 'Server did not return a Transport header.',
-        recommendation: 'Treat as a failed or non-standard negotiation; inspect the RTSP status code.',
-      }],
+      request: req,
+      response: res,
+      findings: [
+        {
+          type: 'No Transport header in SETUP response',
+          severity: 'Low',
+          confidence: 'high',
+          evidence: 'Server did not return a Transport header.',
+          recommendation:
+            'Treat as a failed or non-standard negotiation; inspect the RTSP status code.',
+        },
+      ],
     };
   }
 
@@ -72,7 +86,8 @@ export function analyzeTransport({ requestTransport = '', responseTransport = ''
       severity: 'Low',
       confidence: 'high',
       evidence: `Response Transport: ${responseTransport}.`,
-      recommendation: 'Multicast RTP from a public camera is unusual; verify it is intentional and not a reflector risk.',
+      recommendation:
+        'Multicast RTP from a public camera is unusual; verify it is intentional and not a reflector risk.',
     });
   }
 
@@ -93,7 +108,8 @@ export function analyzeTransport({ requestTransport = '', responseTransport = ''
       confidence: 'high',
       cwe: 'CWE-200',
       evidence: `source=${res.source} but the RTSP session is with ${serverAddress}.`,
-      recommendation: 'Media is relayed from a different host — map the relay and test its access controls too.',
+      recommendation:
+        'Media is relayed from a different host — map the relay and test its access controls too.',
     });
   }
 
@@ -103,7 +119,8 @@ export function analyzeTransport({ requestTransport = '', responseTransport = ''
       severity: 'Info',
       confidence: 'high',
       evidence: `Server returned interleaved=${res.interleaved} although UDP was requested.`,
-      recommendation: 'Interleaved media traverses proxies/NAT cleanly; it also concentrates traffic on the control port.',
+      recommendation:
+        'Interleaved media traverses proxies/NAT cleanly; it also concentrates traffic on the control port.',
     });
   }
 
@@ -113,7 +130,8 @@ export function analyzeTransport({ requestTransport = '', responseTransport = ''
       severity: 'Low',
       confidence: 'medium',
       evidence: `Requested ${req.protocol}, server answered ${res.protocol}.`,
-      recommendation: 'Confirm the final transport matches the threat model (e.g. encrypted SRTP if required).',
+      recommendation:
+        'Confirm the final transport matches the threat model (e.g. encrypted SRTP if required).',
     });
   }
 
@@ -124,7 +142,8 @@ export function analyzeTransport({ requestTransport = '', responseTransport = ''
       confidence: 'medium',
       cwe: 'CWE-200',
       evidence: `destination=${res.destination} while the client public IP is ${clientPublicIp}.`,
-      recommendation: 'Verify this is the client\'s requested address and not an attacker-controlled reflector target.',
+      recommendation:
+        "Verify this is the client's requested address and not an attacker-controlled reflector target.",
     });
   }
 

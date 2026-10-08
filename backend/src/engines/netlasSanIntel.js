@@ -23,17 +23,23 @@
  * @returns {{ip: string|null, dnsNames: string[], issuer: string|null, validTo: string|null}}
  */
 export function normalizeNetlasEntry(entry) {
-  if (!entry || typeof entry !== 'object') return { ip: null, dnsNames: [], issuer: null, validTo: null };
+  if (!entry || typeof entry !== 'object')
+    return { ip: null, dnsNames: [], issuer: null, validTo: null };
   const data = entry.data && typeof entry.data === 'object' ? entry.data : entry;
-  const ip = typeof entry.ip === 'string' ? entry.ip
-    : typeof data.ip === 'string' ? data.ip : null;
+  const ip = typeof entry.ip === 'string' ? entry.ip : typeof data.ip === 'string' ? data.ip : null;
   const rawNames = data.dns_names ?? data.san ?? data.subject_alt_names ?? [];
   const dnsNames = (Array.isArray(rawNames) ? rawNames : [rawNames])
-    .filter((n) => typeof n === 'string')
-    .map((n) => n.trim().replace(/^\*\./, '').toLowerCase())
-    .filter((n) => n.length > 0 && !n.startsWith('*'));
-  const issuer = typeof data.issuer_name === 'string' ? data.issuer_name
-    : (data.issuer && typeof data.issuer === 'object' && typeof data.issuer.organization === 'string' ? data.issuer.organization : null);
+    .filter(n => typeof n === 'string')
+    .map(n => n.trim().replace(/^\*\./, '').toLowerCase())
+    .filter(n => n.length > 0 && !n.startsWith('*'));
+  const issuer =
+    typeof data.issuer_name === 'string'
+      ? data.issuer_name
+      : data.issuer &&
+          typeof data.issuer === 'object' &&
+          typeof data.issuer.organization === 'string'
+        ? data.issuer.organization
+        : null;
   const validTo = typeof data.valid_to === 'string' ? data.valid_to : null;
   return { ip, dnsNames: [...new Set(dnsNames)], issuer, validTo };
 }
@@ -54,12 +60,12 @@ export function pullSanLists(rows) {
     for (const n of e.dnsNames) cur.dnsNames.add(n);
     perIp.set(e.ip, cur);
   }
-  const byIp = [...perIp.values()].map((g) => ({
+  const byIp = [...perIp.values()].map(g => ({
     ip: g.ip,
     dnsNames: [...g.dnsNames].sort(),
     certCount: g.certCount,
   }));
-  const allNames = [...new Set(byIp.flatMap((g) => g.dnsNames))].sort();
+  const allNames = [...new Set(byIp.flatMap(g => g.dnsNames))].sort();
   return { byIp, allNames };
 }
 
@@ -73,18 +79,25 @@ export function pullSanLists(rows) {
  * @returns {{newDomains: {domain: string, ips: string[]}[], knownCount: number}}
  */
 export function findCoHostedDomains(byIp, knownDomains = []) {
-  const known = new Set((knownDomains || []).map((d) => String(d).trim().replace(/^\*\./, '').toLowerCase()));
+  const known = new Set(
+    (knownDomains || []).map(d => String(d).trim().replace(/^\*\./, '').toLowerCase())
+  );
   const perDomain = new Map();
   let knownCount = 0;
   for (const g of byIp || []) {
     for (const name of g.dnsNames || []) {
-      if (known.has(name) || [...known].some((k) => name.endsWith('.' + k))) { knownCount++; continue; }
+      if (known.has(name) || [...known].some(k => name.endsWith('.' + k))) {
+        knownCount++;
+        continue;
+      }
       const cur = perDomain.get(name) || { domain: name, ips: [] };
       if (!cur.ips.includes(g.ip)) cur.ips.push(g.ip);
       perDomain.set(name, cur);
     }
   }
-  const newDomains = [...perDomain.values()].sort((a, b) => b.ips.length - a.ips.length || a.domain.localeCompare(b.domain));
+  const newDomains = [...perDomain.values()].sort(
+    (a, b) => b.ips.length - a.ips.length || a.domain.localeCompare(b.domain)
+  );
   return { newDomains, knownCount };
 }
 
@@ -99,9 +112,10 @@ export function netlasSanReport(sanResult = {}, coHostResult = {}) {
   const ipsScanned = (sanResult.byIp || []).length;
   const uniqueNames = (sanResult.allNames || []).length;
   const newDomains = (coHostResult.newDomains || []).length;
-  const summary = newDomains === 0
-    ? `Scanned ${ipsScanned} target IP(s) via Netlas certificate data; all ${uniqueNames} discovered SAN name(s) were already in scope.`
-    : `Netlas certificate SAN pull surfaced ${newDomains} co-hosted domain(s) not previously in scope across ${ipsScanned} target IP(s).`;
+  const summary =
+    newDomains === 0
+      ? `Scanned ${ipsScanned} target IP(s) via Netlas certificate data; all ${uniqueNames} discovered SAN name(s) were already in scope.`
+      : `Netlas certificate SAN pull surfaced ${newDomains} co-hosted domain(s) not previously in scope across ${ipsScanned} target IP(s).`;
   return { ipsScanned, uniqueNames, newDomains, summary };
 }
 

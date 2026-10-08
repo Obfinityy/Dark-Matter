@@ -36,17 +36,19 @@ export const WAVE46_R7_IDEAS = [
 // 51821 — hunts ranked by efficiency: findings per USD
 // hunts: [{ id, name, costUsd, findings }]
 export function resourceLeaderboard(hunts) {
-  const rows = [...(hunts || [])].map((h) => {
-    const cost = Math.max(0.0001, h.costUsd || 0);
-    const findings = Math.max(0, h.findings || 0);
-    return {
-      id: h.id,
-      name: h.name,
-      costUsd: Math.max(0, h.costUsd || 0),
-      findings,
-      findingsPerUsd: Math.round((findings / cost) * 100) / 100,
-    };
-  }).sort((a, b) => b.findingsPerUsd - a.findingsPerUsd);
+  const rows = [...(hunts || [])]
+    .map(h => {
+      const cost = Math.max(0.0001, h.costUsd || 0);
+      const findings = Math.max(0, h.findings || 0);
+      return {
+        id: h.id,
+        name: h.name,
+        costUsd: Math.max(0, h.costUsd || 0),
+        findings,
+        findingsPerUsd: Math.round((findings / cost) * 100) / 100,
+      };
+    })
+    .sort((a, b) => b.findingsPerUsd - a.findingsPerUsd);
   return {
     rows,
     count: rows.length,
@@ -71,9 +73,16 @@ export function resourceRetrospective(hunt) {
   if (pct > 100) tips.push('Overspent the budget — set pause triggers next time (see 51810).');
   else if (pct > 85) tips.push('Ran close to the budget — add mid-hunt alerts at 50% and 80%.');
   else tips.push('Left budget on the table — go deeper or widen the asset list next run.');
-  if (requests > 0 && findings === 0) tips.push('Zero findings after heavy requests — tune target selection and recheck waste flags.');
-  if (costPerFinding != null && costPerFinding > 2) tips.push('Findings are expensive — try the balanced preset or raise parallelism against cheap targets.');
-  if (tokens > 0 && requests > 0 && tokens / requests < 500) tips.push('Very few tokens per request — you may be underusing the model on each check.');
+  if (requests > 0 && findings === 0)
+    tips.push(
+      'Zero findings after heavy requests — tune target selection and recheck waste flags.'
+    );
+  if (costPerFinding != null && costPerFinding > 2)
+    tips.push(
+      'Findings are expensive — try the balanced preset or raise parallelism against cheap targets.'
+    );
+  if (tokens > 0 && requests > 0 && tokens / requests < 500)
+    tips.push('Very few tokens per request — you may be underusing the model on each check.');
   const text = `Retrospective for ${h.id || 'this hunt'}: $${cost.toFixed(2)} spent of a $${budget.toFixed(2)} budget (${pct}%), ${findings} findings${costPerFinding != null ? ` at $${costPerFinding.toFixed(2)} each` : ''}, ${requests.toLocaleString('en-US')} requests, ${tokens.toLocaleString('en-US')} tokens.`;
   return { text, tips, spentPct: pct, costPerFinding };
 }
@@ -82,10 +91,10 @@ export function resourceRetrospective(hunt) {
 // spendEvents: [{ at, amountUsd }]
 export function costTicker(spendEvents) {
   const events = [...(spendEvents || [])]
-    .filter((e) => e && typeof e.amountUsd === 'number')
-    .map((e) => ({ at: e.at, amountUsd: Math.max(0, e.amountUsd) }));
+    .filter(e => e && typeof e.amountUsd === 'number')
+    .map(e => ({ at: e.at, amountUsd: Math.max(0, e.amountUsd) }));
   let running = 0;
-  const points = events.map((e) => {
+  const points = events.map(e => {
     running = Math.round((running + e.amountUsd) * 100) / 100;
     return { at: e.at, amountUsd: e.amountUsd, cumulativeUsd: running };
   });
@@ -121,16 +130,25 @@ export function budgetTopUp(budget, amount, recordedAtMs) {
 // rules: [{ id, name, metric, op, threshold, level }], state: { metric: value }
 export function resourceGuardrails(rules, state) {
   const s = state || {};
-  const rows = (rules || []).map((r) => {
+  const rows = (rules || []).map(r => {
     const value = s[r.metric];
     let tripped = false;
     if (value != null) {
       switch (r.op) {
-        case '>=': tripped = value >= r.threshold; break;
-        case '>': tripped = value > r.threshold; break;
-        case '<=': tripped = value <= r.threshold; break;
-        case '<': tripped = value < r.threshold; break;
-        default: tripped = false;
+        case '>=':
+          tripped = value >= r.threshold;
+          break;
+        case '>':
+          tripped = value > r.threshold;
+          break;
+        case '<=':
+          tripped = value <= r.threshold;
+          break;
+        case '<':
+          tripped = value < r.threshold;
+          break;
+        default:
+          tripped = false;
       }
     }
     return {
@@ -143,13 +161,13 @@ export function resourceGuardrails(rules, state) {
       state: value == null ? 'unknown' : tripped ? 'tripped' : 'holding',
     };
   });
-  const tripped = rows.filter((r) => r.state === 'tripped');
+  const tripped = rows.filter(r => r.state === 'tripped');
   return {
     rows,
     trippedCount: tripped.length,
     healthy: tripped.length === 0,
     text: tripped.length
-      ? `🚧 ${tripped.length} guardrail${tripped.length === 1 ? '' : 's'} tripped: ${tripped.map((r) => r.name).join(', ')}.`
+      ? `🚧 ${tripped.length} guardrail${tripped.length === 1 ? '' : 's'} tripped: ${tripped.map(r => r.name).join(', ')}.`
       : `All ${rows.length} guardrails holding.`,
   };
 }
@@ -158,7 +176,7 @@ export function resourceGuardrails(rules, state) {
 // cells: [{ row, col, value }] → rows of intensities
 export function usageHeatmap(cells) {
   const cs = cells || [];
-  const max = Math.max(1, ...cs.map((c) => Math.max(0, c.value || 0)));
+  const max = Math.max(1, ...cs.map(c => Math.max(0, c.value || 0)));
   const grid = {};
   for (const c of cs) {
     const row = c.row || 'r0';
@@ -227,20 +245,22 @@ export function mobileResourcePayload(usage) {
 // 51829 — side-by-side resource comparison rows
 // hunts: [{ id, name, costUsd, budgetUsd, requests, findings }]
 export function multiHuntResourceBoard(hunts) {
-  const rows = [...(hunts || [])].map((h) => {
-    const budget = Math.max(0.01, h.budgetUsd || 1);
-    const spent = Math.max(0, h.costUsd || 0);
-    const findings = Math.max(0, h.findings || 0);
-    return {
-      id: h.id,
-      name: h.name,
-      spentUsd: Math.round(spent * 100) / 100,
-      budgetPct: Math.round((spent / budget) * 100),
-      requests: Math.max(0, h.requests || 0),
-      findings,
-      costPerFinding: findings > 0 ? Math.round((spent / findings) * 100) / 100 : null,
-    };
-  }).sort((a, b) => b.budgetPct - a.budgetPct);
+  const rows = [...(hunts || [])]
+    .map(h => {
+      const budget = Math.max(0.01, h.budgetUsd || 1);
+      const spent = Math.max(0, h.costUsd || 0);
+      const findings = Math.max(0, h.findings || 0);
+      return {
+        id: h.id,
+        name: h.name,
+        spentUsd: Math.round(spent * 100) / 100,
+        budgetPct: Math.round((spent / budget) * 100),
+        requests: Math.max(0, h.requests || 0),
+        findings,
+        costPerFinding: findings > 0 ? Math.round((spent / findings) * 100) / 100 : null,
+      };
+    })
+    .sort((a, b) => b.budgetPct - a.budgetPct);
   return {
     rows,
     count: rows.length,
@@ -285,7 +305,7 @@ export function carbonEstimate(kwh, gridFactor) {
 // pools: [{ id, name, budgetUsd, assignedHunts: [huntId] }]
 export function resourceSharing(pools) {
   const ps = pools || [];
-  const rows = ps.map((p) => {
+  const rows = ps.map(p => {
     const n = Math.max(1, (p.assignedHunts || []).length);
     const perHunt = Math.round(((p.budgetUsd || 0) / n) * 100) / 100;
     return {
@@ -309,7 +329,7 @@ export function resourceSharing(pools) {
 // 51833 — what paused hunts still cost while idle
 // hunts: [{ id, name, pausedAtMs, idleCostPerDayUsd, nowMs }]
 export function idleResourceDisplay(hunts) {
-  const rows = (hunts || []).map((h) => {
+  const rows = (hunts || []).map(h => {
     const pausedMs = Math.max(0, (h.nowMs || 0) - (h.pausedAtMs || 0));
     const idleDays = pausedMs / 86400000;
     const idleCostUsd = Math.round(idleDays * Math.max(0, h.idleCostPerDayUsd || 0) * 100) / 100;
@@ -330,16 +350,22 @@ export function idleResourceDisplay(hunts) {
 export function resourcePrediction(first10min, elapsedMs) {
   const pts = [...(first10min || [])].sort((a, b) => a.atMs - b.atMs);
   if (pts.length < 2 || elapsedMs <= 0) {
-    return { projectedUsd: 0, confidence: 'low', method: 'early-extrapolation', text: 'Not enough early data — run the hunt for a few more minutes.' };
+    return {
+      projectedUsd: 0,
+      confidence: 'low',
+      method: 'early-extrapolation',
+      text: 'Not enough early data — run the hunt for a few more minutes.',
+    };
   }
   const span = Math.max(1, pts[pts.length - 1].atMs - pts[0].atMs);
   const spent = Math.max(0, pts[pts.length - 1].usedUsd - pts[0].usedUsd);
   const rate = spent / span;
   const remaining = Math.max(0, elapsedMs - span);
   const projectedUsd = Math.round((pts[pts.length - 1].usedUsd + rate * remaining) * 100) / 100;
-  const variance = pts.length > 2
-    ? Math.max(...pts.map((p) => p.usedUsd)) - Math.min(...pts.map((p) => p.usedUsd))
-    : spent;
+  const variance =
+    pts.length > 2
+      ? Math.max(...pts.map(p => p.usedUsd)) - Math.min(...pts.map(p => p.usedUsd))
+      : spent;
   return {
     projectedUsd,
     confidence: variance / Math.max(1, spent) < 0.5 ? 'medium' : 'low',
@@ -358,9 +384,10 @@ export function spendByFinding(cost, findings) {
     costUsd: c,
     findings: f,
     perFindingUsd: perFinding,
-    text: f > 0
-      ? `$${c.toFixed(2)} across ${f} confirmed finding${f === 1 ? '' : 's'} — $${perFinding.toFixed(2)} each.`
-      : `$${c.toFixed(2)} spent with no confirmed findings yet.`,
+    text:
+      f > 0
+        ? `$${c.toFixed(2)} across ${f} confirmed finding${f === 1 ? '' : 's'} — $${perFinding.toFixed(2)} each.`
+        : `$${c.toFixed(2)} spent with no confirmed findings yet.`,
   };
 }
 
@@ -379,7 +406,10 @@ export function resourceQuotaApi(budget) {
     remainingUsd: Math.round(remaining * 100) / 100,
     usedPct: pct,
     retryAfterSec: pct >= 100 ? 3600 : null,
-    text: pct >= 100 ? 'Quota exhausted — stop spending, top up the budget.' : `${pct}% of quota used, $${remaining.toFixed(2)} remaining.`,
+    text:
+      pct >= 100
+        ? 'Quota exhausted — stop spending, top up the budget.'
+        : `${pct}% of quota used, $${remaining.toFixed(2)} remaining.`,
   };
 }
 
@@ -387,9 +417,9 @@ export function resourceQuotaApi(budget) {
 // alert: { id, level }, policies: [{ level, recipients: [email] }]
 export function alertRouting(alert, policies) {
   const a = alert || {};
-  const match = (policies || []).find((p) => p.level === a.level);
+  const match = (policies || []).find(p => p.level === a.level);
   const recipients = (match && match.recipients) || [];
-  const fallback = (policies || []).find((p) => p.level === 'default');
+  const fallback = (policies || []).find(p => p.level === 'default');
   const final = recipients.length ? recipients : (fallback && fallback.recipients) || [];
   return {
     alertId: a.id || null,
@@ -405,7 +435,7 @@ export function alertRouting(alert, policies) {
 // 51838 — month-by-month efficiency trend series
 // months: [{ label, costUsd, findings }]
 export function historicalTrends(months) {
-  const rows = (months || []).map((m) => {
+  const rows = (months || []).map(m => {
     const cost = Math.max(0.0001, m.costUsd || 0);
     const findings = Math.max(0, m.findings || 0);
     return {
@@ -415,9 +445,8 @@ export function historicalTrends(months) {
       findingsPerUsd: Math.round((findings / cost) * 100) / 100,
     };
   });
-  const trend = rows.length >= 2
-    ? rows[rows.length - 1].findingsPerUsd - rows[0].findingsPerUsd
-    : 0;
+  const trend =
+    rows.length >= 2 ? rows[rows.length - 1].findingsPerUsd - rows[0].findingsPerUsd : 0;
   const direction = trend > 0.05 ? 'improving' : trend < -0.05 ? 'declining' : 'flat';
   return {
     rows,
@@ -432,22 +461,25 @@ export function historicalTrends(months) {
 // 51839 — off-peak window suggestions for heavy work
 // hunts: [{ id, name, heavyWork: 'high'|'low' }], windows: [{ label, offPeak, discountPct }]
 export function awareScheduling(hunts, windows) {
-  const ws = (windows || []).filter((w) => w.offPeak);
-  const heavy = (hunts || []).filter((h) => h.heavyWork === 'high');
-  const suggestions = heavy.map((h) => ({
+  const ws = (windows || []).filter(w => w.offPeak);
+  const heavy = (hunts || []).filter(h => h.heavyWork === 'high');
+  const suggestions = heavy.map(h => ({
     huntId: h.id,
     huntName: h.name,
-    windows: ws.map((w) => ({ label: w.label, discountPct: Math.max(0, w.discountPct || 0) })),
+    windows: ws.map(w => ({ label: w.label, discountPct: Math.max(0, w.discountPct || 0) })),
   }));
-  const best = ws.length ? [...ws].sort((a, b) => (b.discountPct || 0) - (a.discountPct || 0))[0] : null;
+  const best = ws.length
+    ? [...ws].sort((a, b) => (b.discountPct || 0) - (a.discountPct || 0))[0]
+    : null;
   return {
     suggestions,
     count: suggestions.length,
-    text: suggestions.length && best
-      ? `Move ${suggestions.length} heavy hunt${suggestions.length === 1 ? '' : 's'} to "${best.label}" for a ${best.discountPct}% off-peak discount.`
-      : suggestions.length
-        ? `${suggestions.length} heavy hunts found but no off-peak windows are configured.`
-        : 'No heavy work needs rescheduling.',
+    text:
+      suggestions.length && best
+        ? `Move ${suggestions.length} heavy hunt${suggestions.length === 1 ? '' : 's'} to "${best.label}" for a ${best.discountPct}% off-peak discount.`
+        : suggestions.length
+          ? `${suggestions.length} heavy hunts found but no off-peak windows are configured.`
+          : 'No heavy work needs rescheduling.',
   };
 }
 
@@ -466,7 +498,10 @@ export function oneClickResourceReport(hunt) {
       { name: 'Spend summary', detail: `$${cost.toFixed(2)} total spend` },
       { name: 'Findings value', detail: `${findings} confirmed findings` },
       { name: 'Duration', detail: `${mins} minutes wall-clock` },
-      { name: 'Cost per finding', detail: findings > 0 ? `$${(cost / findings).toFixed(2)}` : 'n/a' },
+      {
+        name: 'Cost per finding',
+        detail: findings > 0 ? `$${(cost / findings).toFixed(2)}` : 'n/a',
+      },
     ],
     attachment: {
       kind: 'resource-report',

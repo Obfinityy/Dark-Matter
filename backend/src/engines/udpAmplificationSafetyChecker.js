@@ -21,7 +21,7 @@ const BANDS = [
 ];
 
 function bandFor(ratio) {
-  return BANDS.find((b) => ratio >= b.min) || BANDS[BANDS.length - 1];
+  return BANDS.find(b => ratio >= b.min) || BANDS[BANDS.length - 1];
 }
 
 /**
@@ -29,7 +29,13 @@ function bandFor(ratio) {
  *
  * @param {{ service?: string, port?: number, requestBytes: number, responseBytes: number, samples?: number }} input
  */
-export function checkAmplification({ service = 'unknown', port = 0, requestBytes = 0, responseBytes = 0, samples = 1 } = {}) {
+export function checkAmplification({
+  service = 'unknown',
+  port = 0,
+  requestBytes = 0,
+  responseBytes = 0,
+  samples = 1,
+} = {}) {
   const safeRequest = Math.max(requestBytes, 1);
   const ratio = responseBytes / safeRequest;
   const band = bandFor(ratio);
@@ -54,7 +60,8 @@ export function checkAmplification({ service = 'unknown', port = 0, requestBytes
       confidence: samples >= 5 ? 'high' : 'medium',
       cwe: 'CWE-400',
       evidence: `${responseBytes} response bytes from a ${requestBytes}-byte request on UDP/${port} → ${result.amplificationRatio}x amplification (${samples} sample${samples === 1 ? '' : 's'}).`,
-      recommendation: 'Rate-limit or disable this UDP service on public interfaces; verify BCP38/source-validation at the network edge.',
+      recommendation:
+        'Rate-limit or disable this UDP service on public interfaces; verify BCP38/source-validation at the network edge.',
     });
   } else {
     result.findings.push({
@@ -76,20 +83,29 @@ export function checkAmplification({ service = 'unknown', port = 0, requestBytes
  */
 export function summarizeAmplificationSafety({ measurements = [] } = {}) {
   const checks = measurements.map(checkAmplification);
-  const risky = checks.filter((c) => c.reflectorRisk);
-  const worst = checks.reduce((a, b) => (b.amplificationRatio > (a?.amplificationRatio || 0) ? b : a), null);
+  const risky = checks.filter(c => c.reflectorRisk);
+  const worst = checks.reduce(
+    (a, b) => (b.amplificationRatio > (a?.amplificationRatio || 0) ? b : a),
+    null
+  );
 
   return {
     servicesChecked: checks.length,
     riskyCount: risky.length,
-    worstAmplification: worst ? { service: worst.service, port: worst.port, ratio: worst.amplificationRatio } : null,
+    worstAmplification: worst
+      ? { service: worst.service, port: worst.port, ratio: worst.amplificationRatio }
+      : null,
     checks,
-    summary: risky.length === 0
-      ? 'No UDP reflector risk detected in the captured measurements.'
-      : `${risky.length} service(s) show reflector-grade amplification: ${risky.map((r) => `${r.service} (UDP/${r.port}, ${r.amplificationRatio}x)`).join('; ')}.`,
-    findings: risky.flatMap((r) => r.findings),
+    summary:
+      risky.length === 0
+        ? 'No UDP reflector risk detected in the captured measurements.'
+        : `${risky.length} service(s) show reflector-grade amplification: ${risky.map(r => `${r.service} (UDP/${r.port}, ${r.amplificationRatio}x)`).join('; ')}.`,
+    findings: risky.flatMap(r => r.findings),
   };
 }
 
-export const UDP_AMPLIFICATION_SAFETY_CHECKER = { checkAmplification, summarizeAmplificationSafety };
+export const UDP_AMPLIFICATION_SAFETY_CHECKER = {
+  checkAmplification,
+  summarizeAmplificationSafety,
+};
 export default UDP_AMPLIFICATION_SAFETY_CHECKER;

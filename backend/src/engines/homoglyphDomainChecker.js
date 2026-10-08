@@ -18,28 +18,57 @@
  * Unicode confusable pairs used in real IDN homograph attacks.
  */
 export const CONFUSABLES = {
-  a: [['\u0430', 'Cyrillic'], ['\u03B1', 'Greek']],
-  c: [['\u0441', 'Cyrillic'], ['\u03F2', 'Greek']],
+  a: [
+    ['\u0430', 'Cyrillic'],
+    ['\u03B1', 'Greek'],
+  ],
+  c: [
+    ['\u0441', 'Cyrillic'],
+    ['\u03F2', 'Greek'],
+  ],
   d: [['\u0564', 'Armenian']],
   e: [['\u0435', 'Cyrillic']],
   g: [['\u0261', 'Latin-Extended']],
-  h: [['\u04BB', 'Cyrillic'], ['\u0570', 'Armenian']],
-  i: [['\u0456', 'Cyrillic'], ['\u0131', 'Latin-Extended'], ['\u03B9', 'Greek']],
+  h: [
+    ['\u04BB', 'Cyrillic'],
+    ['\u0570', 'Armenian'],
+  ],
+  i: [
+    ['\u0456', 'Cyrillic'],
+    ['\u0131', 'Latin-Extended'],
+    ['\u03B9', 'Greek'],
+  ],
   j: [['\u0458', 'Cyrillic']],
   k: [['\u03BA', 'Greek']],
-  l: [['\u04CF', 'Cyrillic'], ['1', 'Digit']],
+  l: [
+    ['\u04CF', 'Cyrillic'],
+    ['1', 'Digit'],
+  ],
   m: [['\u0271', 'Latin-Extended']],
-  o: [['\u043E', 'Cyrillic'], ['\u03BF', 'Greek']],
-  p: [['\u0440', 'Cyrillic'], ['\u03C1', 'Greek']],
+  o: [
+    ['\u043E', 'Cyrillic'],
+    ['\u03BF', 'Greek'],
+  ],
+  p: [
+    ['\u0440', 'Cyrillic'],
+    ['\u03C1', 'Greek'],
+  ],
   q: [['\u02A0', 'Latin-Extended']],
   r: [['\u027E', 'Latin-Extended']],
   s: [['\u0455', 'Cyrillic']],
   u: [['\u03C5', 'Greek']],
   v: [['\u03BD', 'Greek']],
   w: [['\u051D', 'Cyrillic']],
-  x: [['\u0445', 'Cyrillic'], ['\u03C7', 'Greek']],
+  x: [
+    ['\u0445', 'Cyrillic'],
+    ['\u03C7', 'Greek'],
+  ],
   y: [['\u0443', 'Cyrillic']],
-  0: [['o', 'Latin'], ['\u043E', 'Cyrillic'], ['\u03BF', 'Greek']],
+  0: [
+    ['o', 'Latin'],
+    ['\u043E', 'Cyrillic'],
+    ['\u03BF', 'Greek'],
+  ],
 };
 
 /**
@@ -95,14 +124,14 @@ export function scriptsInDomain(domain) {
 export function mixedScriptScore(domain) {
   const chars = [...String(domain || '')];
   if (!chars.length) return 0;
-  const scripts = scriptsInDomain(domain).filter((s) => s !== 'Hyphen' && s !== 'Digit');
+  const scripts = scriptsInDomain(domain).filter(s => s !== 'Hyphen' && s !== 'Digit');
   if (scripts.length <= 1) return 0;
-  const nonLatin = chars.filter((c) => {
+  const nonLatin = chars.filter(c => {
     const s = scriptOfChar(c);
     return s !== 'Latin' && s !== 'Digit' && s !== 'Hyphen';
   }).length;
-  const latinScripts = scripts.filter((s) => s === 'Latin' || s === 'Latin-Extended');
-  const foreignScripts = scripts.filter((s) => s !== 'Latin' && s !== 'Latin-Extended');
+  const latinScripts = scripts.filter(s => s === 'Latin' || s === 'Latin-Extended');
+  const foreignScripts = scripts.filter(s => s !== 'Latin' && s !== 'Latin-Extended');
   const mixBonus = latinScripts.length > 0 && foreignScripts.length > 0 ? 40 : 0;
   return Math.min(100, Math.round((nonLatin / chars.length) * 60 + mixBonus));
 }
@@ -137,7 +166,8 @@ export function generateHomoglyphs(label, opts = {}) {
   for (const pos of positions) {
     for (const { char, script } of pos.reps) {
       const variant = base.slice(0, pos.index) + char + base.slice(pos.index + 1);
-      if (!pushVariant(variant, [{ index: pos.index, from: pos.from, to: char, script }])) return out;
+      if (!pushVariant(variant, [{ index: pos.index, from: pos.from, to: char, script }]))
+        return out;
     }
   }
 
@@ -153,10 +183,13 @@ export function generateHomoglyphs(label, opts = {}) {
             chars[pa.index] = ra.char;
             chars[pb.index] = rb.char;
             const variant = chars.join('');
-            if (!pushVariant(variant, [
-              { index: pa.index, from: pa.from, to: ra.char, script: ra.script },
-              { index: pb.index, from: pb.from, to: rb.char, script: rb.script },
-            ])) return out;
+            if (
+              !pushVariant(variant, [
+                { index: pa.index, from: pa.from, to: ra.char, script: ra.script },
+                { index: pb.index, from: pb.from, to: rb.char, script: rb.script },
+              ])
+            )
+              return out;
           }
         }
       }
@@ -172,11 +205,13 @@ export function generateHomoglyphs(label, opts = {}) {
  * @param {object} [opts] passed to generateHomoglyphs
  */
 export function homoglyphsForDomain(domain, opts = {}) {
-  const parts = String(domain || '').toLowerCase().split('.');
+  const parts = String(domain || '')
+    .toLowerCase()
+    .split('.');
   if (parts.length < 2) return [];
   const label = parts.slice(0, -1).join('.');
   const tld = parts[parts.length - 1];
-  return generateHomoglyphs(label, opts).map((v) => ({
+  return generateHomoglyphs(label, opts).map(v => ({
     variant: `${v.variant}.${tld}`,
     substitutions: v.substitutions,
     scripts: v.scripts,
@@ -225,8 +260,9 @@ export function checkRegistrationStatus(variants, lookup) {
       visualRisk: visual,
       mixedScriptScore: scriptScore,
       risk,
-      evidence: `${v.substitutions.length} confusable substitution(s) ` +
-        `(${v.substitutions.map((s) => `${s.from}\u2192${s.to} [${s.script}]`).join(', ')}) ` +
+      evidence:
+        `${v.substitutions.length} confusable substitution(s) ` +
+        `(${v.substitutions.map(s => `${s.from}\u2192${s.to} [${s.script}]`).join(', ')}) ` +
         `across scripts: ${v.scripts.join(', ')}`,
     });
   }

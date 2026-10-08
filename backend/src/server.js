@@ -5,9 +5,10 @@ let app;
 try {
   app = await createApp();
 } catch (error) {
-  const message = error?.codeName === 'AtlasError' && error?.code === 8000
-    ? 'MongoDB authentication failed. Check the database username, password, and URL encoding in backend/.env.'
-    : `Backend startup failed: ${error?.message || 'unknown error'}`;
+  const message =
+    error?.codeName === 'AtlasError' && error?.code === 8000
+      ? 'MongoDB authentication failed. Check the database username, password, and URL encoding in backend/.env.'
+      : `Backend startup failed: ${error?.message || 'unknown error'}`;
   console.error(message);
   process.exit(1);
 }

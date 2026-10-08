@@ -90,12 +90,29 @@ export function mineEventHandlerUrls(text) {
 
 /** Parameter names that carry callback / redirect URLs in integrations. */
 const CALLBACK_PARAM_NAMES = [
-  'callback', 'callback_url', 'callbackurl',
-  'redirect', 'redirect_url', 'redirecturl', 'redirect_uri',
-  'return_url', 'returnurl', 'return_to', 'returnto',
-  'next', 'continue', 'target', 'dest', 'destination',
-  'success_url', 'successurl', 'cancel_url', 'cancelurl',
-  'post_login_redirect', 'auth_callback', 'oauth_callback',
+  'callback',
+  'callback_url',
+  'callbackurl',
+  'redirect',
+  'redirect_url',
+  'redirecturl',
+  'redirect_uri',
+  'return_url',
+  'returnurl',
+  'return_to',
+  'returnto',
+  'next',
+  'continue',
+  'target',
+  'dest',
+  'destination',
+  'success_url',
+  'successurl',
+  'cancel_url',
+  'cancelurl',
+  'post_login_redirect',
+  'auth_callback',
+  'oauth_callback',
 ];
 
 const QUERY_PARAM_RE = new RegExp(

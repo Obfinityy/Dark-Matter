@@ -43,7 +43,12 @@ export const HUNT_STATES = Object.freeze([
 ]);
 
 const METHODOLOGY_STATES = new Set([
-  'recon', 'enumeration', 'probing', 'exploitation', 'chaining', 'reporting',
+  'recon',
+  'enumeration',
+  'probing',
+  'exploitation',
+  'chaining',
+  'reporting',
 ]);
 
 // Allowed moves. Anything not listed here is a bug in the caller.
@@ -54,12 +59,50 @@ const TRANSITIONS = {
   recon: ['recon', 'enumeration', 'probing', 'verifying', 'waiting', 'paused', 'complete'],
   enumeration: ['recon', 'enumeration', 'probing', 'verifying', 'waiting', 'paused', 'complete'],
   probing: ['enumeration', 'probing', 'exploitation', 'verifying', 'waiting', 'paused', 'complete'],
-  exploitation: ['probing', 'exploitation', 'chaining', 'verifying', 'waiting', 'paused', 'complete'],
+  exploitation: [
+    'probing',
+    'exploitation',
+    'chaining',
+    'verifying',
+    'waiting',
+    'paused',
+    'complete',
+  ],
   chaining: ['exploitation', 'chaining', 'reporting', 'verifying', 'waiting', 'paused', 'complete'],
   reporting: ['reporting', 'verifying', 'waiting', 'paused', 'complete'],
-  verifying: ['recon', 'enumeration', 'probing', 'exploitation', 'chaining', 'reporting', 'waiting', 'paused', 'complete'],
-  waiting: ['recon', 'enumeration', 'probing', 'exploitation', 'chaining', 'reporting', 'verifying', 'paused', 'complete'],
-  paused: ['recon', 'enumeration', 'probing', 'exploitation', 'chaining', 'reporting', 'verifying', 'waiting', 'complete'],
+  verifying: [
+    'recon',
+    'enumeration',
+    'probing',
+    'exploitation',
+    'chaining',
+    'reporting',
+    'waiting',
+    'paused',
+    'complete',
+  ],
+  waiting: [
+    'recon',
+    'enumeration',
+    'probing',
+    'exploitation',
+    'chaining',
+    'reporting',
+    'verifying',
+    'paused',
+    'complete',
+  ],
+  paused: [
+    'recon',
+    'enumeration',
+    'probing',
+    'exploitation',
+    'chaining',
+    'reporting',
+    'verifying',
+    'waiting',
+    'complete',
+  ],
   complete: [],
 };
 
@@ -95,7 +138,7 @@ export function transition(state, to, patch = {}) {
     ...patch,
     status: to,
     // Keep stage in sync when moving between methodology stages.
-    stage: METHODOLOGY_STATES.has(to) ? to : (patch.stage || state?.stage || 'recon'),
+    stage: METHODOLOGY_STATES.has(to) ? to : patch.stage || state?.stage || 'recon',
     updatedAt: new Date().toISOString(),
   };
 }
@@ -108,7 +151,9 @@ export function safeTransition(state, to, patch = {}, logger = console) {
   try {
     return transition(state, to, patch);
   } catch (error) {
-    logger.warn?.(`[hunt-state] ${error.message} — preserving ${(state && state.status) || 'idle'}`);
+    logger.warn?.(
+      `[hunt-state] ${error.message} — preserving ${(state && state.status) || 'idle'}`
+    );
     return {
       ...(state || initialHuntState()),
       ...patch,
@@ -126,10 +171,14 @@ export function safeTransition(state, to, patch = {}, logger = console) {
 export function describeHuntStateForBrain(state, job = {}) {
   const s = state || initialHuntState();
   const lines = ['## YOUR CURRENT STATE (read this first — it is where you stand)'];
-  lines.push(`- Status: ${s.status.toUpperCase()}${s.stage && s.status !== s.stage ? ` (methodology stage: ${s.stage})` : ''}`);
+  lines.push(
+    `- Status: ${s.status.toUpperCase()}${s.stage && s.status !== s.stage ? ` (methodology stage: ${s.stage})` : ''}`
+  );
 
   if (s.status === 'idle') {
-    lines.push('- Nothing has started yet. This is your first reasoning cycle: orient on the target and scope, then take the first recon action.');
+    lines.push(
+      '- Nothing has started yet. This is your first reasoning cycle: orient on the target and scope, then take the first recon action.'
+    );
   } else {
     if (s.lastAction) lines.push(`- You just did: ${s.lastAction}`);
     if (s.lastOutcome) lines.push(`- Outcome of that action: ${s.lastOutcome}`);
@@ -141,13 +190,17 @@ export function describeHuntStateForBrain(state, job = {}) {
   const findings = job.findingsCount ?? 0;
   lines.push(`- Steps taken so far: ${steps}. Findings confirmed: ${findings}.`);
   if (s.status === 'waiting') {
-    lines.push('- You are WAITING (blocked). Decide whether the blocker cleared; if so, resume the hunt from the state above.');
+    lines.push(
+      '- You are WAITING (blocked). Decide whether the blocker cleared; if so, resume the hunt from the state above.'
+    );
   } else if (s.status === 'paused') {
     lines.push('- You are PAUSED by the user. Do not act; acknowledge the pause.');
   } else if (s.status === 'complete') {
     lines.push('- The hunt is COMPLETE. Do not start new work.');
   } else {
-    lines.push('- Now choose the single next action that follows from the state above. Do not repeat what already worked or failed the same way.');
+    lines.push(
+      '- Now choose the single next action that follows from the state above. Do not repeat what already worked or failed the same way.'
+    );
   }
   return lines.join('\n');
 }

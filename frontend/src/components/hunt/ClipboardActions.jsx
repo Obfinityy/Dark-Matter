@@ -10,12 +10,27 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  createCopyState, copyStart, copyResolve, copyReset,
-  lineCountToast, copyAriaLabel, copyRateGuard, historyPush,
-  blockedFallbackState, formatCopyText, COPY_FORMATS,
-  terminalCopyText, maskToken, isRevealWindowOpen, TOKEN_REVEAL_WINDOW_MS,
-  encodePayload, PAYLOAD_VARIANTS, multiBlockCombine, prefersShareSheet,
-  createAutoCopyState, toggleAutoCopy,
+  createCopyState,
+  copyStart,
+  copyResolve,
+  copyReset,
+  lineCountToast,
+  copyAriaLabel,
+  copyRateGuard,
+  historyPush,
+  blockedFallbackState,
+  formatCopyText,
+  COPY_FORMATS,
+  terminalCopyText,
+  maskToken,
+  isRevealWindowOpen,
+  TOKEN_REVEAL_WINDOW_MS,
+  encodePayload,
+  PAYLOAD_VARIANTS,
+  multiBlockCombine,
+  prefersShareSheet,
+  createAutoCopyState,
+  toggleAutoCopy,
 } from './clipboardCore.js';
 import './Clipboard.css';
 
@@ -26,11 +41,17 @@ function loadHistory() {
     const raw = localStorage.getItem(LS_HISTORY);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 function saveHistory(h) {
-  try { localStorage.setItem(LS_HISTORY, JSON.stringify(h.slice(0, 20))); } catch { /* private mode */ }
+  try {
+    localStorage.setItem(LS_HISTORY, JSON.stringify(h.slice(0, 20)));
+  } catch {
+    /* private mode */
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -76,36 +97,44 @@ export function useCopy({ toastMs = 1600 } = {}) {
   const [blockedText, setBlockedText] = useState(null);
   const timer = useRef(null);
 
-  const copy = useCallback(async (text, { label } = {}) => {
-    const guard = copyRateGuard(rateStamps);
-    if (!guard.allowed) {
-      setToast(guard.note);
-      return { ok: false, rateLimited: true };
-    }
-    setState((s) => copyStart(s));
-    const res = await writeToClipboard(text);
-    rateStamps.push(Date.now());
-    if (res.ok) {
-      setState((s) => copyResolve(s, true));
-      setToast(`${lineCountToast(text)}${label ? ` — ${label}` : ''}`);
-      // Record in history (idea 50859).
-      saveHistory(historyPush(loadHistory(), { text, label }));
-    } else if (res.blocked) {
-      setState((s) => copyResolve(s, false));
-      setBlockedText(blockedFallbackState(text).text);
-    } else {
-      setState((s) => copyResolve(s, false));
-      setToast('Copy failed');
-    }
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      setState((s) => copyReset(s));
-      setToast('');
-    }, toastMs);
-    return res;
-  }, [toastMs]);
+  const copy = useCallback(
+    async (text, { label } = {}) => {
+      const guard = copyRateGuard(rateStamps);
+      if (!guard.allowed) {
+        setToast(guard.note);
+        return { ok: false, rateLimited: true };
+      }
+      setState(s => copyStart(s));
+      const res = await writeToClipboard(text);
+      rateStamps.push(Date.now());
+      if (res.ok) {
+        setState(s => copyResolve(s, true));
+        setToast(`${lineCountToast(text)}${label ? ` — ${label}` : ''}`);
+        // Record in history (idea 50859).
+        saveHistory(historyPush(loadHistory(), { text, label }));
+      } else if (res.blocked) {
+        setState(s => copyResolve(s, false));
+        setBlockedText(blockedFallbackState(text).text);
+      } else {
+        setState(s => copyResolve(s, false));
+        setToast('Copy failed');
+      }
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        setState(s => copyReset(s));
+        setToast('');
+      }, toastMs);
+      return res;
+    },
+    [toastMs]
+  );
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
   return { state, toast, blockedText, dismissBlocked: () => setBlockedText(null), copy };
 }
@@ -114,7 +143,13 @@ export function useCopy({ toastMs = 1600 } = {}) {
 /* CopyButton — morphs to a checkmark on success (ideas 50841, 50871)  */
 /* ------------------------------------------------------------------ */
 
-export function CopyButton({ text, action = 'content', variant = 'ghost', className = '', onCopied }) {
+export function CopyButton({
+  text,
+  action = 'content',
+  variant = 'ghost',
+  className = '',
+  onCopied,
+}) {
   const { state, toast, blockedText, dismissBlocked, copy } = useCopy();
   const busy = state.status === 'copying';
   const done = state.status === 'success';
@@ -137,12 +172,21 @@ export function CopyButton({ text, action = 'content', variant = 'ghost', classN
           </svg>
         ) : (
           <svg className="cb-icon" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M5 2h7v2H7v9H5z M9 4h4v10H9z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path
+              d="M5 2h7v2H7v9H5z M9 4h4v10H9z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
           </svg>
         )}
         <span className="cb-label">{done ? 'Copied' : 'Copy'}</span>
       </button>
-      {toast && <span className="cb-toast" role="status">{toast}</span>}
+      {toast && (
+        <span className="cb-toast" role="status">
+          {toast}
+        </span>
+      )}
       {blockedText !== null && (
         <ClipboardBlockedModal text={blockedText} onClose={dismissBlocked} />
       )}
@@ -169,12 +213,14 @@ export function ClipboardBlockedModal({ text, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label="Clipboard blocked — copy manually"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <p className="cb-modal-title">Clipboard blocked — copy manually</p>
         <textarea ref={ref} className="cb-modal-text" readOnly value={text} rows={8} />
         <div className="cb-modal-actions">
-          <button type="button" className="cb-btn cb-primary" onClick={onClose}>Done</button>
+          <button type="button" className="cb-btn cb-primary" onClick={onClose}>
+            Done
+          </button>
         </div>
       </div>
     </div>
@@ -190,7 +236,7 @@ export function CopyFormatChooser({ text, action = 'content' }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pressTimer = useRef(null);
 
-  const doCopy = (format) => {
+  const doCopy = format => {
     setMenuOpen(false);
     copy(formatCopyText(text, format), { label: `${action} (${format})` });
   };
@@ -199,7 +245,10 @@ export function CopyFormatChooser({ text, action = 'content' }) {
     pressTimer.current = setTimeout(() => setMenuOpen(true), 500);
   };
   const cancelPress = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
   };
 
   return (
@@ -214,13 +263,16 @@ export function CopyFormatChooser({ text, action = 'content' }) {
         onPointerUp={cancelPress}
         onPointerLeave={cancelPress}
         onClick={() => doCopy('plain')}
-        onContextMenu={(e) => { e.preventDefault(); setMenuOpen(true); }}
+        onContextMenu={e => {
+          e.preventDefault();
+          setMenuOpen(true);
+        }}
       >
         Copy{state.status === 'success' ? ' ✓' : ''}
       </button>
       {menuOpen && (
         <span className="cb-menu" role="menu" aria-label="Copy format">
-          {COPY_FORMATS.map((f) => (
+          {COPY_FORMATS.map(f => (
             <button
               key={f}
               type="button"
@@ -233,7 +285,11 @@ export function CopyFormatChooser({ text, action = 'content' }) {
           ))}
         </span>
       )}
-      {toast && <span className="cb-toast" role="status">{toast}</span>}
+      {toast && (
+        <span className="cb-toast" role="status">
+          {toast}
+        </span>
+      )}
     </span>
   );
 }
@@ -248,12 +304,17 @@ export function ClipboardHistoryPanel() {
 
   const refresh = () => setHistory(loadHistory());
   useEffect(() => {
-    const onStorage = (e) => { if (e.key === LS_HISTORY) refresh(); };
+    const onStorage = e => {
+      if (e.key === LS_HISTORY) refresh();
+    };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const clear = () => { saveHistory([]); setHistory([]); };
+  const clear = () => {
+    saveHistory([]);
+    setHistory([]);
+  };
 
   if (history.length === 0) {
     return <p className="cb-empty">No copies yet — everything you copy appears here.</p>;
@@ -262,13 +323,18 @@ export function ClipboardHistoryPanel() {
     <div className="cb-history">
       <div className="cb-history-head">
         <strong>Clipboard history</strong>
-        <button type="button" className="cb-btn cb-ghost cb-sm" onClick={clear}>Clear</button>
+        <button type="button" className="cb-btn cb-ghost cb-sm" onClick={clear}>
+          Clear
+        </button>
       </div>
       <ul className="cb-history-list">
         {history.map((h, i) => (
           <li key={`${h.at}-${i}`} className="cb-history-item">
             <span className="cb-history-label">{h.label || 'copy'}</span>
-            <code className="cb-history-text">{String(h.text).slice(0, 80)}{String(h.text).length > 80 ? '…' : ''}</code>
+            <code className="cb-history-text">
+              {String(h.text).slice(0, 80)}
+              {String(h.text).length > 80 ? '…' : ''}
+            </code>
             <button
               type="button"
               className="cb-btn cb-ghost cb-sm"
@@ -280,7 +346,11 @@ export function ClipboardHistoryPanel() {
           </li>
         ))}
       </ul>
-      {toast && <span className="cb-toast" role="status">{toast}</span>}
+      {toast && (
+        <span className="cb-toast" role="status">
+          {toast}
+        </span>
+      )}
     </div>
   );
 }
@@ -301,7 +371,7 @@ export function TerminalCopy({ logText }) {
         <input
           type="checkbox"
           checked={withTimestamps}
-          onChange={(e) => setWithTimestamps(e.target.checked)}
+          onChange={e => setWithTimestamps(e.target.checked)}
         />
         Include timestamps
       </label>
@@ -333,7 +403,10 @@ export function MaskedTokenCopy({ token }) {
         <button
           type="button"
           className="cb-btn cb-ghost cb-sm"
-          onClick={() => { setRevealedAt(Date.now()); setNow(Date.now()); }}
+          onClick={() => {
+            setRevealedAt(Date.now());
+            setNow(Date.now());
+          }}
         >
           Reveal for 30s
         </button>
@@ -341,7 +414,8 @@ export function MaskedTokenCopy({ token }) {
       {open && <CopyButton text={token} action="API token" />}
       {open && (
         <span className="cb-note" role="timer">
-          Revealed — window closes in {Math.max(0, Math.ceil((TOKEN_REVEAL_WINDOW_MS - (now - revealedAt)) / 1000))}s
+          Revealed — window closes in{' '}
+          {Math.max(0, Math.ceil((TOKEN_REVEAL_WINDOW_MS - (now - revealedAt)) / 1000))}s
         </span>
       )}
     </div>
@@ -368,14 +442,16 @@ export function MultiBlockCopy({ blocks }) {
           <input
             type="checkbox"
             checked={!!selected[i]}
-            onChange={(e) => setSelected((s) => ({ ...s, [i]: e.target.checked }))}
+            onChange={e => setSelected(s => ({ ...s, [i]: e.target.checked }))}
           />
           <span className="cb-block-title">{b.title || `Block ${i + 1}`}</span>
         </label>
       ))}
       {chosen.length > 0 && (
         <div className="cb-multiblock-actions">
-          <span className="cb-note">{chosen.length} block{chosen.length === 1 ? '' : 's'} selected</span>
+          <span className="cb-note">
+            {chosen.length} block{chosen.length === 1 ? '' : 's'} selected
+          </span>
           <CopyButton text={combined} action={`${chosen.length} evidence blocks`} />
         </div>
       )}
@@ -396,7 +472,7 @@ export function PayloadVariantCopy({ payload }) {
   return (
     <div className="cb-payload">
       <div className="cb-segment" role="group" aria-label="Payload encoding">
-        {PAYLOAD_VARIANTS.map((v) => (
+        {PAYLOAD_VARIANTS.map(v => (
           <button
             key={v}
             type="button"
@@ -451,14 +527,38 @@ export function ClipboardGallery() {
   return (
     <section className="cb-gallery" aria-label="Clipboard components gallery">
       <h2>Clipboard suite</h2>
-      <div className="cb-demo"><h3>Copy button</h3><CopyButton text={'example.com/login?id=1'} action="target URL" /></div>
-      <div className="cb-demo"><h3>Format chooser (long-press)</h3><CopyFormatChooser text={'**SQLi** on `/login`'} action="finding" /></div>
-      <div className="cb-demo"><h3>Terminal copy</h3><TerminalCopy logText={SAMPLE_LOG} /></div>
-      <div className="cb-demo"><h3>Masked token</h3><MaskedTokenCopy token="sk-live-9f8e7d6c5b4a3210" /></div>
-      <div className="cb-demo"><h3>Multi-block copy</h3><MultiBlockCopy blocks={SAMPLE_BLOCKS} /></div>
-      <div className="cb-demo"><h3>Payload variants</h3><PayloadVariantCopy payload={"' OR '1'='1"} /></div>
-      <div className="cb-demo"><h3>Auto-copy</h3><AutoCopyToggle /></div>
-      <div className="cb-demo"><h3>History</h3><ClipboardHistoryPanel /></div>
+      <div className="cb-demo">
+        <h3>Copy button</h3>
+        <CopyButton text={'example.com/login?id=1'} action="target URL" />
+      </div>
+      <div className="cb-demo">
+        <h3>Format chooser (long-press)</h3>
+        <CopyFormatChooser text={'**SQLi** on `/login`'} action="finding" />
+      </div>
+      <div className="cb-demo">
+        <h3>Terminal copy</h3>
+        <TerminalCopy logText={SAMPLE_LOG} />
+      </div>
+      <div className="cb-demo">
+        <h3>Masked token</h3>
+        <MaskedTokenCopy token="sk-live-9f8e7d6c5b4a3210" />
+      </div>
+      <div className="cb-demo">
+        <h3>Multi-block copy</h3>
+        <MultiBlockCopy blocks={SAMPLE_BLOCKS} />
+      </div>
+      <div className="cb-demo">
+        <h3>Payload variants</h3>
+        <PayloadVariantCopy payload={"' OR '1'='1"} />
+      </div>
+      <div className="cb-demo">
+        <h3>Auto-copy</h3>
+        <AutoCopyToggle />
+      </div>
+      <div className="cb-demo">
+        <h3>History</h3>
+        <ClipboardHistoryPanel />
+      </div>
     </section>
   );
 }

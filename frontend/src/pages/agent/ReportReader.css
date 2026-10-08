@@ -3,9 +3,13 @@
  * (Previous sg-* rules were retired with the reader's dm conversion.)
  */
 
-.dm-reader { max-width: 880px; }
+.dm-reader {
+  max-width: 880px;
+}
 
-.dm-reader-back { margin-bottom: var(--dm-4); }
+.dm-reader-back {
+  margin-bottom: var(--dm-4);
+}
 
 .dm-reader-loading {
   display: flex;
@@ -16,16 +20,30 @@
   color: var(--dm-text-2);
   font-size: var(--dm-text-sm);
 }
-.dm-reader-loading svg { color: var(--dm-gold-soft); }
+.dm-reader-loading svg {
+  color: var(--dm-gold-soft);
+}
 
-.dm-reader-error { margin-top: var(--dm-6); }
+.dm-reader-error {
+  margin-top: var(--dm-6);
+}
 
-.dm-reader-notice { margin-bottom: var(--dm-6); }
-.dm-reader-notice svg { flex-shrink: 0; margin-top: 2px; color: var(--dm-gold-soft); }
+.dm-reader-notice {
+  margin-bottom: var(--dm-6);
+}
+.dm-reader-notice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--dm-gold-soft);
+}
 
-.dm-reader-top { margin-bottom: var(--dm-6); }
+.dm-reader-top {
+  margin-bottom: var(--dm-6);
+}
 
-.dm-reader-head { margin-bottom: var(--dm-8); }
+.dm-reader-head {
+  margin-bottom: var(--dm-8);
+}
 .dm-reader-title {
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: var(--dm-text-2xl);
@@ -43,17 +61,26 @@
   align-items: center;
   font-size: var(--dm-text-sm);
 }
-.dm-reader-sevs { display: inline-flex; gap: var(--dm-2); flex-wrap: wrap; align-items: center; }
+.dm-reader-sevs {
+  display: inline-flex;
+  gap: var(--dm-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
 
 /* ── Findings ── */
-.dm-reader-section { margin-top: var(--dm-8); }
+.dm-reader-section {
+  margin-top: var(--dm-8);
+}
 .dm-reader-findings {
   display: flex;
   flex-direction: column;
   gap: var(--dm-3);
   margin-top: var(--dm-4);
 }
-.dm-finding-card { padding: var(--dm-5); }
+.dm-finding-card {
+  padding: var(--dm-5);
+}
 .dm-finding-head {
   display: flex;
   align-items: center;
@@ -62,7 +89,10 @@
   flex-wrap: wrap;
   margin-bottom: var(--dm-2);
 }
-.dm-finding-title { font-size: var(--dm-text-base); color: var(--dm-text); }
+.dm-finding-title {
+  font-size: var(--dm-text-base);
+  color: var(--dm-text);
+}
 .dm-finding-vector {
   display: inline-block;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -71,7 +101,9 @@
   margin-bottom: var(--dm-2);
   word-break: break-all;
 }
-.dm-finding-desc { margin-bottom: 0; }
+.dm-finding-desc {
+  margin-bottom: 0;
+}
 .dm-finding-actions {
   display: flex;
   gap: var(--dm-2);
@@ -83,7 +115,10 @@
   font-size: var(--dm-text-xs);
   margin: var(--dm-2) 0 0;
 }
-.dm-finding-note { margin-top: var(--dm-3); margin-bottom: 0; }
+.dm-finding-note {
+  margin-top: var(--dm-3);
+  margin-bottom: 0;
+}
 
 /* ── Markdown body ── */
 .dm-markdown-body {
@@ -95,19 +130,42 @@
   font-size: 0.96rem;
   color: var(--dm-text);
 }
-.dm-markdown-body h1, .dm-markdown-body h2, .dm-markdown-body h3 {
+.dm-markdown-body h1,
+.dm-markdown-body h2,
+.dm-markdown-body h3 {
   letter-spacing: -0.02em;
   margin: 1.6em 0 0.5em;
   color: var(--dm-text);
   line-height: 1.3;
 }
-.dm-markdown-body h1:first-child, .dm-markdown-body h2:first-child, .dm-markdown-body ul:first-child { margin-top: 0; }
-.dm-markdown-body p { margin: 0 0 1em; }
-.dm-markdown-body p:last-child, .dm-markdown-body li:last-child { margin-bottom: 0; }
-.dm-markdown-body ul, .dm-markdown-body ol { margin: 0 0 1.1em; padding-left: 1.6em; }
-.dm-markdown-body li { margin-bottom: 0.4em; }
-.dm-markdown-body strong { color: var(--dm-text); }
-.dm-markdown-body hr { border: 0; border-top: 1px solid var(--dm-border); margin: 1.8em 0; }
+.dm-markdown-body h1:first-child,
+.dm-markdown-body h2:first-child,
+.dm-markdown-body ul:first-child {
+  margin-top: 0;
+}
+.dm-markdown-body p {
+  margin: 0 0 1em;
+}
+.dm-markdown-body p:last-child,
+.dm-markdown-body li:last-child {
+  margin-bottom: 0;
+}
+.dm-markdown-body ul,
+.dm-markdown-body ol {
+  margin: 0 0 1.1em;
+  padding-left: 1.6em;
+}
+.dm-markdown-body li {
+  margin-bottom: 0.4em;
+}
+.dm-markdown-body strong {
+  color: var(--dm-text);
+}
+.dm-markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--dm-border);
+  margin: 1.8em 0;
+}
 .dm-markdown-body code {
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 0.86em;
@@ -123,35 +181,64 @@
   padding: 18px;
   overflow-x: auto;
 }
-.dm-markdown-body pre code { background: none; padding: 0; color: var(--dm-text-2); }
-.dm-markdown-body table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
-.dm-markdown-body th, .dm-markdown-body td {
+.dm-markdown-body pre code {
+  background: none;
+  padding: 0;
+  color: var(--dm-text-2);
+}
+.dm-markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.88rem;
+}
+.dm-markdown-body th,
+.dm-markdown-body td {
   border: 1px solid var(--dm-border);
   padding: 10px 14px;
   text-align: left;
 }
-.dm-markdown-body th { background: var(--dm-surface-2); font-weight: 650; }
+.dm-markdown-body th {
+  background: var(--dm-surface-2);
+  font-weight: 650;
+}
 .dm-markdown-body blockquote {
   border-left: 3px solid var(--dm-gold);
   margin: 16px 0;
   padding: 4px 18px;
   color: var(--dm-text-2);
 }
-.dm-markdown-body a { color: var(--dm-gold-soft); }
+.dm-markdown-body a {
+  color: var(--dm-gold-soft);
+}
 
-.dm-reader-no-markdown { margin-top: var(--dm-8); }
-.dm-reader-no-markdown .dm-empty-sub { margin-bottom: 0; }
+.dm-reader-no-markdown {
+  margin-top: var(--dm-8);
+}
+.dm-reader-no-markdown .dm-empty-sub {
+  margin-bottom: 0;
+}
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .dm-markdown-body { padding: var(--dm-5) var(--dm-4); }
-  .dm-reader-title { font-size: var(--dm-text-xl); }
+  .dm-markdown-body {
+    padding: var(--dm-5) var(--dm-4);
+  }
+  .dm-reader-title {
+    font-size: var(--dm-text-xl);
+  }
 }
 @media (max-width: 600px) {
-  .dm-finding-actions .dm-btn { min-height: 44px; }
+  .dm-finding-actions .dm-btn {
+    min-height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dm-finding-card { transition: none; }
-  .dm-markdown-body { transition: none; }
+  .dm-finding-card {
+    transition: none;
+  }
+  .dm-markdown-body {
+    transition: none;
+  }
 }

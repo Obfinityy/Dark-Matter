@@ -12,21 +12,49 @@
 
 /** Framework hints from server-reflection response metadata. */
 export const FRAMEWORK_HINTS = [
-  { regex: /grpc-go/i, framework: 'grpc-go', note: 'User-Agent / reflection metadata mentions grpc-go' },
+  {
+    regex: /grpc-go/i,
+    framework: 'grpc-go',
+    note: 'User-Agent / reflection metadata mentions grpc-go',
+  },
   { regex: /grpc-java/i, framework: 'grpc-java', note: 'grpc-java stack detected' },
   { regex: /grpc-python/i, framework: 'grpc-python', note: 'grpc-python stack detected' },
-  { regex: /grpc-node|@grpc\/grpc-js/i, framework: 'grpc-node', note: 'grpc-node / grpc-js stack detected' },
+  {
+    regex: /grpc-node|@grpc\/grpc-js/i,
+    framework: 'grpc-node',
+    note: 'grpc-node / grpc-js stack detected',
+  },
   { regex: /grpc-dotnet/i, framework: 'grpc-dotnet', note: '.NET gRPC stack detected' },
   { regex: /envoy/i, framework: 'Envoy', note: 'Envoy proxy in front of or serving reflection' },
-  { regex: /connectrpc|connect-protocol/i, framework: 'ConnectRPC', note: 'Connect protocol stack detected' },
+  {
+    regex: /connectrpc|connect-protocol/i,
+    framework: 'ConnectRPC',
+    note: 'Connect protocol stack detected',
+  },
 ];
 
 /** Well-known reflection-adjacent services worth flagging. */
 export const INTERESTING_SERVICES = [
-  { pattern: /^grpc\.reflection\.v1alpha\.ServerReflection$/, label: 'reflection', note: 'Server reflection enabled — full API surface enumerable.' },
-  { pattern: /^grpc\.health\.v1\.Health$/, label: 'health', note: 'Standard health service exposed.' },
-  { pattern: /^google\.longrunning\.Operations$/, label: 'longrunning', note: 'Long-running operations API exposed.' },
-  { pattern: /Admin|Debug|Internal/i, label: 'admin', note: 'Possibly internal/admin service exposed publicly.' },
+  {
+    pattern: /^grpc\.reflection\.v1alpha\.ServerReflection$/,
+    label: 'reflection',
+    note: 'Server reflection enabled — full API surface enumerable.',
+  },
+  {
+    pattern: /^grpc\.health\.v1\.Health$/,
+    label: 'health',
+    note: 'Standard health service exposed.',
+  },
+  {
+    pattern: /^google\.longrunning\.Operations$/,
+    label: 'longrunning',
+    note: 'Long-running operations API exposed.',
+  },
+  {
+    pattern: /Admin|Debug|Internal/i,
+    label: 'admin',
+    note: 'Possibly internal/admin service exposed publicly.',
+  },
 ];
 
 /**
@@ -75,9 +103,13 @@ export function analyzeReflectionResponse(resp = {}) {
     packages,
     fileDescriptorsFound: fileDescriptors.length,
     symbolsFound: symbols.length,
-    exposure: !reflectionEnabled ? 'none'
-      : interesting.some(i => i.label === 'admin') ? 'high'
-      : interesting.length ? 'medium' : 'low',
+    exposure: !reflectionEnabled
+      ? 'none'
+      : interesting.some(i => i.label === 'admin')
+        ? 'high'
+        : interesting.length
+          ? 'medium'
+          : 'low',
     summary: reflectionEnabled
       ? `Reflection enabled: ${services.length} services listed${frameworks.length ? `; stack: ${frameworks.map(f => f.framework).join(', ')}` : ''}.`
       : 'Server reflection not enabled (ListServices returned nothing).',

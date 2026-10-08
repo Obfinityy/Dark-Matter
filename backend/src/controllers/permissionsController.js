@@ -1,8 +1,5 @@
 import { asyncHandler } from '../core/utils.js';
-import {
-  getPermissionMode,
-  setPermissionMode,
-} from '../services/permissionService.js';
+import { getPermissionMode, setPermissionMode } from '../services/permissionService.js';
 
 export function createPermissionsController() {
   return {

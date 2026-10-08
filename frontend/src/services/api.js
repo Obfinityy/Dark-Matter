@@ -32,14 +32,20 @@ export async function tryApi(promise) {
 const JWT_KEY = 'dm_jwt';
 
 export function getStoredJwt() {
-  try { return localStorage.getItem(JWT_KEY); } catch { return null; }
+  try {
+    return localStorage.getItem(JWT_KEY);
+  } catch {
+    return null;
+  }
 }
 
 export function storeJwt(jwt) {
   try {
     if (jwt) localStorage.setItem(JWT_KEY, jwt);
     else localStorage.removeItem(JWT_KEY);
-  } catch { /* storage unavailable — cookie auth still works */ }
+  } catch {
+    /* storage unavailable — cookie auth still works */
+  }
 }
 
 export class ApiError extends Error {
@@ -57,18 +63,26 @@ async function request(path, options = {}) {
     Accept: 'application/json',
     ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
-    ...(options.headers || {})
+    ...(options.headers || {}),
   };
 
   let response;
   const primaryBase = apiBase();
   try {
-    response = await fetch(`${primaryBase}${path}`, { ...options, headers, credentials: 'include' });
+    response = await fetch(`${primaryBase}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
   } catch {
     // Network-level failure — no silent fallbacks. The backend is wherever
     // VITE_BACKEND_URL points (or localhost:4000 by default); if it is down,
     // the caller sees BACKEND_UNAVAILABLE and the UI says so honestly.
-    throw new ApiError('Infinity AI backend is unavailable. Start the backend on port 4000 and try again.', 0, 'BACKEND_UNAVAILABLE');
+    throw new ApiError(
+      'Infinity AI backend is unavailable. Start the backend on port 4000 and try again.',
+      0,
+      'BACKEND_UNAVAILABLE'
+    );
   }
 
   const text = await response.text();
@@ -105,7 +119,9 @@ export function normalizeTargetUrl(value) {
 }
 
 export function extractTargetUrl(value) {
-  const candidate = String(value || '').match(/(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?::\d+)?(?:\/[^\s<>()]*)?/i)?.[0];
+  const candidate = String(value || '').match(
+    /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?::\d+)?(?:\/[^\s<>()]*)?/i
+  )?.[0];
   return normalizeTargetUrl(candidate);
 }
 
@@ -164,7 +180,7 @@ export function getLocalAiHealth() {
 export function sendDirectChat(message, conversationId, truncateIndex = undefined) {
   return request('/infinite/chat', {
     method: 'POST',
-    body: JSON.stringify({ message, conversationId, truncateIndex })
+    body: JSON.stringify({ message, conversationId, truncateIndex }),
   });
 }
 
@@ -176,7 +192,7 @@ export function sendDirectChat(message, conversationId, truncateIndex = undefine
 export function parseActionIntent(message) {
   return request('/infinite/action', {
     method: 'POST',
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message }),
   });
 }
 
@@ -187,16 +203,18 @@ export async function streamDirectChat(message, conversationId, truncateIndex, h
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'text/event-stream'
+        Accept: 'text/event-stream',
       },
       credentials: 'include',
-      body: JSON.stringify({ message, conversationId, truncateIndex, stream: true })
+      body: JSON.stringify({ message, conversationId, truncateIndex, stream: true }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
       let parsed = {};
-      try { parsed = JSON.parse(errText); } catch(e) {}
+      try {
+        parsed = JSON.parse(errText);
+      } catch (e) {}
       throw new Error(parsed?.error?.message || `HTTP ${res.status}`);
     }
 
@@ -254,7 +272,7 @@ export function getPermissionModePrefs() {
 export function setPermissionModePrefs(permissionMode) {
   return request('/users/me/permissions', {
     method: 'PUT',
-    body: JSON.stringify({ permissionMode })
+    body: JSON.stringify({ permissionMode }),
   });
 }
 
@@ -263,7 +281,7 @@ export function setPermissionModePrefs(permissionMode) {
 export function ingestDocument(conversationId, content, { title, kind, summarize } = {}) {
   return request('/infinite/ingest', {
     method: 'POST',
-    body: JSON.stringify({ conversationId, content, title, kind, summarize })
+    body: JSON.stringify({ conversationId, content, title, kind, summarize }),
   });
 }
 
@@ -274,7 +292,7 @@ export function getIngestion(conversationId, inputId) {
 export function searchChunks(conversationId, query) {
   return request(`/infinite/search/${conversationId}`, {
     method: 'POST',
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query }),
   });
 }
 
@@ -289,7 +307,7 @@ export function summarizeDocument(conversationId, inputId) {
 export function startGeneration(conversationId, genRequest, artifactHint) {
   return request('/infinite/generations', {
     method: 'POST',
-    body: JSON.stringify({ conversationId, request: genRequest, artifactHint })
+    body: JSON.stringify({ conversationId, request: genRequest, artifactHint }),
   });
 }
 
@@ -316,7 +334,7 @@ export function listGenerations(conversationId) {
 export function planWithInfinity(instruction, conversationId) {
   return request('/infinite/plan', {
     method: 'POST',
-    body: JSON.stringify({ instruction, conversationId })
+    body: JSON.stringify({ instruction, conversationId }),
   });
 }
 
@@ -324,7 +342,7 @@ export function planWithInfinity(instruction, conversationId) {
 export function buildWithInfinity(brief, conversationId, { attachments = [] } = {}) {
   return request('/infinite/build', {
     method: 'POST',
-    body: JSON.stringify({ action: 'create', brief, conversationId, attachments })
+    body: JSON.stringify({ action: 'create', brief, conversationId, attachments }),
   });
 }
 
@@ -335,7 +353,7 @@ export function buildWithInfinity(brief, conversationId, { attachments = [] } = 
 export function uploadBuildFiles(conversationId, files) {
   return request('/infinite/build', {
     method: 'POST',
-    body: JSON.stringify({ action: 'upload', conversationId, files })
+    body: JSON.stringify({ action: 'upload', conversationId, files }),
   });
 }
 
@@ -343,7 +361,7 @@ export function uploadBuildFiles(conversationId, files) {
 export function listWorkspaceFiles(subdir = '') {
   return request('/infinite/build', {
     method: 'POST',
-    body: JSON.stringify({ action: 'list', subdir })
+    body: JSON.stringify({ action: 'list', subdir }),
   });
 }
 
@@ -351,7 +369,7 @@ export function listWorkspaceFiles(subdir = '') {
 export function readWorkspaceFile(path) {
   return request('/infinite/build', {
     method: 'POST',
-    body: JSON.stringify({ action: 'read', path })
+    body: JSON.stringify({ action: 'read', path }),
   });
 }
 
@@ -360,17 +378,21 @@ export function readWorkspaceFile(path) {
  * @param {boolean} dryRun    validate + return the plan, execute nothing.
  * @param {boolean} simulate  run through the mock adapter (safe anywhere).
  */
-export function controlComputer(instruction, conversationId, { dryRun = false, simulate = true } = {}) {
+export function controlComputer(
+  instruction,
+  conversationId,
+  { dryRun = false, simulate = true } = {}
+) {
   return request('/infinite/control', {
     method: 'POST',
-    body: JSON.stringify({ instruction, conversationId, dryRun, simulate })
+    body: JSON.stringify({ instruction, conversationId, dryRun, simulate }),
   });
 }
 
 export function updateProviders(providers) {
   return request('/settings/providers', {
     method: 'PUT',
-    body: JSON.stringify({ providers })
+    body: JSON.stringify({ providers }),
   });
 }
 
@@ -379,7 +401,7 @@ export function updateProviders(providers) {
 export function sendAgentMessage(payload) {
   return request('/agent/messages', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 }
 
@@ -396,13 +418,22 @@ export function getScan(scanId) {
 }
 
 export function subscribeToScanEvents(scanId, { onOpen, onEvent, onError } = {}) {
-  const source = new EventSource(`${apiBase()}/scans/${encodeURIComponent(scanId)}/events`, { withCredentials: true });
+  const source = new EventSource(`${apiBase()}/scans/${encodeURIComponent(scanId)}/events`, {
+    withCredentials: true,
+  });
   const eventTypes = [
-    'scan.created', 'scan.phase', 'agent.plan', 'tool.requested',
-    'tool.started', 'tool.completed', 'tool.failed', 'scan.failed', 'scan.cancelled'
+    'scan.created',
+    'scan.phase',
+    'agent.plan',
+    'tool.requested',
+    'tool.started',
+    'tool.completed',
+    'tool.failed',
+    'scan.failed',
+    'scan.cancelled',
   ];
 
-  const handleEvent = (event) => {
+  const handleEvent = event => {
     try {
       onEvent?.(JSON.parse(event.data));
     } catch {
@@ -410,13 +441,16 @@ export function subscribeToScanEvents(scanId, { onOpen, onEvent, onError } = {})
     }
   };
 
-  eventTypes.forEach((eventType) => source.addEventListener(eventType, handleEvent));
+  eventTypes.forEach(eventType => source.addEventListener(eventType, handleEvent));
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Live terminal connection was interrupted.', 0, 'EVENT_STREAM_UNAVAILABLE'));
+  source.onerror = () =>
+    onError?.(
+      new ApiError('Live terminal connection was interrupted.', 0, 'EVENT_STREAM_UNAVAILABLE')
+    );
 
   return () => {
-    eventTypes.forEach((eventType) => source.removeEventListener(eventType, handleEvent));
+    eventTypes.forEach(eventType => source.removeEventListener(eventType, handleEvent));
     source.close();
   };
 }
@@ -427,7 +461,7 @@ export function subscribeToScanEvents(scanId, { onOpen, onEvent, onError } = {})
 export function createAssessment(payload) {
   return request('/assessments', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 }
 
@@ -480,7 +514,7 @@ export function getAssessmentToolExecutions(assessmentId) {
 export function sendAssessmentChat(assessmentId, message) {
   return request(`/assessments/${encodeURIComponent(assessmentId)}/chat`, {
     method: 'POST',
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message }),
   });
 }
 
@@ -511,7 +545,7 @@ export function subscribeToAssessmentEvents(assessmentId, { onOpen, onEvent, onE
     { withCredentials: true }
   );
 
-  const handleEvent = (event) => {
+  const handleEvent = event => {
     try {
       onEvent?.(JSON.parse(event.data));
     } catch {
@@ -521,24 +555,44 @@ export function subscribeToAssessmentEvents(assessmentId, { onOpen, onEvent, onE
 
   // Listen for all assessment event types
   const eventTypes = [
-    'ASSESSMENT_CREATED', 'SCOPE_VALIDATED', 'AGENT_STARTED', 'PLAN_CREATED',
-    'TOOL_REQUESTED', 'TOOL_STARTED', 'TOOL_COMPLETED', 'TOOL_FAILED',
-    'TOOL_BLOCKED', 'TOOL_DEDUPLICATED', 'RESULT_PARSED',
-    'OBSERVATION_CREATED', 'HYPOTHESIS_CREATED', 'HYPOTHESIS_UPDATED',
-    'FINDING_CREATED', 'FINDING_VALIDATED', 'EVIDENCE_ADDED',
-    'AGENT_DECISION', 'AGENT_CRASHED', 'PHASE_CHANGED', 'CHECKPOINT_SAVED',
-    'ASSESSMENT_PAUSED', 'ASSESSMENT_RESUMED', 'ASSESSMENT_STOPPED',
-    'ASSESSMENT_COMPLETED', 'ASSESSMENT_FAILED',
-    'REPORT_GENERATION_STARTED', 'REPORT_GENERATED'
+    'ASSESSMENT_CREATED',
+    'SCOPE_VALIDATED',
+    'AGENT_STARTED',
+    'PLAN_CREATED',
+    'TOOL_REQUESTED',
+    'TOOL_STARTED',
+    'TOOL_COMPLETED',
+    'TOOL_FAILED',
+    'TOOL_BLOCKED',
+    'TOOL_DEDUPLICATED',
+    'RESULT_PARSED',
+    'OBSERVATION_CREATED',
+    'HYPOTHESIS_CREATED',
+    'HYPOTHESIS_UPDATED',
+    'FINDING_CREATED',
+    'FINDING_VALIDATED',
+    'EVIDENCE_ADDED',
+    'AGENT_DECISION',
+    'AGENT_CRASHED',
+    'PHASE_CHANGED',
+    'CHECKPOINT_SAVED',
+    'ASSESSMENT_PAUSED',
+    'ASSESSMENT_RESUMED',
+    'ASSESSMENT_STOPPED',
+    'ASSESSMENT_COMPLETED',
+    'ASSESSMENT_FAILED',
+    'REPORT_GENERATION_STARTED',
+    'REPORT_GENERATED',
   ];
 
-  eventTypes.forEach((type) => source.addEventListener(type, handleEvent));
+  eventTypes.forEach(type => source.addEventListener(type, handleEvent));
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Assessment event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  source.onerror = () =>
+    onError?.(new ApiError('Assessment event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
 
   return () => {
-    eventTypes.forEach((type) => source.removeEventListener(type, handleEvent));
+    eventTypes.forEach(type => source.removeEventListener(type, handleEvent));
     source.close();
   };
 }
@@ -619,7 +673,7 @@ export function cancelJob(jobId) {
 export function askJob(jobId, message) {
   return request(`/jobs/${encodeURIComponent(jobId)}/ask`, {
     method: 'POST',
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message }),
   });
 }
 
@@ -632,7 +686,7 @@ export function getComputerStatus() {
 export function takeComputerScreenshot({ includeBase64 = true } = {}) {
   return request('/computer/screenshot', {
     method: 'POST',
-    body: JSON.stringify({ includeBase64 })
+    body: JSON.stringify({ includeBase64 }),
   });
 }
 
@@ -651,7 +705,7 @@ export function resumeComputer() {
 export function createComputerTask(instruction, conversationId, followUpHint = null) {
   return request('/computer-tasks', {
     method: 'POST',
-    body: JSON.stringify({ instruction, conversationId, followUpHint })
+    body: JSON.stringify({ instruction, conversationId, followUpHint }),
   });
 }
 
@@ -671,7 +725,7 @@ export function getComputerTaskActivity(taskId) {
 export function answerComputerTask(taskId, message) {
   return request(`/computer-tasks/${encodeURIComponent(taskId)}/answer`, {
     method: 'POST',
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message }),
   });
 }
 
@@ -686,7 +740,7 @@ export function subscribeToComputerTaskEvents(taskId, { onOpen, onEvent, onError
   const url = sseUrl(`/computer-tasks/${encodeURIComponent(taskId)}/events`);
   const source = new EventSource(url, { withCredentials: true });
 
-  const handleEvent = (event) => {
+  const handleEvent = event => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
     } catch {
@@ -695,19 +749,34 @@ export function subscribeToComputerTaskEvents(taskId, { onOpen, onEvent, onError
   };
 
   const eventTypes = [
-    'task.created', 'task.started', 'task.decision', 'task.action_started',
-    'task.observation', 'task.action_failed', 'task.brain_decision',
-    'task.waiting_ai', 'task.waiting_computer', 'task.resumed',
-    'task.ask_user', 'task.completed', 'task.failed', 'task.cancelled',
-    'computer.probe', 'computer.state', 'computer.action', 'computer.observation', 'computer.error'
+    'task.created',
+    'task.started',
+    'task.decision',
+    'task.action_started',
+    'task.observation',
+    'task.action_failed',
+    'task.brain_decision',
+    'task.waiting_ai',
+    'task.waiting_computer',
+    'task.resumed',
+    'task.ask_user',
+    'task.completed',
+    'task.failed',
+    'task.cancelled',
+    'computer.probe',
+    'computer.state',
+    'computer.action',
+    'computer.observation',
+    'computer.error',
   ];
-  eventTypes.forEach((type) => source.addEventListener(type, handleEvent));
+  eventTypes.forEach(type => source.addEventListener(type, handleEvent));
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Computer task event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  source.onerror = () =>
+    onError?.(new ApiError('Computer task event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
 
   return () => {
-    eventTypes.forEach((type) => source.removeEventListener(type, handleEvent));
+    eventTypes.forEach(type => source.removeEventListener(type, handleEvent));
     source.close();
   };
 }
@@ -727,10 +796,15 @@ export function getCrew(crewId) {
 }
 
 /** Create a crew member: { name, role, instructions?, toolsAllowed? }. */
-export function createCrew({ name, role, instructions = '', toolsAllowed = ['computer', 'shell', 'files'] }) {
+export function createCrew({
+  name,
+  role,
+  instructions = '',
+  toolsAllowed = ['computer', 'shell', 'files'],
+}) {
   return request('/crew', {
     method: 'POST',
-    body: JSON.stringify({ name, role, instructions, toolsAllowed })
+    body: JSON.stringify({ name, role, instructions, toolsAllowed }),
   });
 }
 
@@ -738,7 +812,7 @@ export function createCrew({ name, role, instructions = '', toolsAllowed = ['com
 export function updateCrew(crewId, patch) {
   return request(`/crew/${encodeURIComponent(crewId)}`, {
     method: 'PATCH',
-    body: JSON.stringify(patch)
+    body: JSON.stringify(patch),
   });
 }
 
@@ -751,7 +825,7 @@ export function deleteCrew(crewId) {
 export function chatWithCrew(crewId, message) {
   return request(`/crew/${encodeURIComponent(crewId)}/chat`, {
     method: 'POST',
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message }),
   });
 }
 
@@ -767,7 +841,7 @@ export function subscribeToCrewEvents(crewId, { onOpen, onEvent, onError } = {})
   const url = sseUrl(`/crew/${encodeURIComponent(crewId)}/events`);
   const source = new EventSource(url, { withCredentials: true });
 
-  const handleEvent = (event) => {
+  const handleEvent = event => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
     } catch {
@@ -776,16 +850,23 @@ export function subscribeToCrewEvents(crewId, { onOpen, onEvent, onError } = {})
   };
 
   const eventTypes = [
-    'thinking', 'action', 'observation', 'reply',
-    'waiting', 'done', 'error', 'stopped'
+    'thinking',
+    'action',
+    'observation',
+    'reply',
+    'waiting',
+    'done',
+    'error',
+    'stopped',
   ];
-  eventTypes.forEach((type) => source.addEventListener(type, handleEvent));
+  eventTypes.forEach(type => source.addEventListener(type, handleEvent));
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Crew event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  source.onerror = () =>
+    onError?.(new ApiError('Crew event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
 
   return () => {
-    eventTypes.forEach((type) => source.removeEventListener(type, handleEvent));
+    eventTypes.forEach(type => source.removeEventListener(type, handleEvent));
     source.close();
   };
 }
@@ -804,10 +885,13 @@ export function getBrowserState() {
 export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEventId } = {}) {
   // EventSource cannot set headers, so the JWT rides as a query param —
   // the backend's getSessionToken() accepts ?accessToken= (see requestContext.js).
-  const url = sseUrl(`/jobs/${encodeURIComponent(jobId)}/events`, lastEventId ? { lastEventId } : null);
+  const url = sseUrl(
+    `/jobs/${encodeURIComponent(jobId)}/events`,
+    lastEventId ? { lastEventId } : null
+  );
   const source = new EventSource(url, { withCredentials: true });
 
-  const handleEvent = (event) => {
+  const handleEvent = event => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
     } catch {
@@ -816,24 +900,48 @@ export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEven
   };
 
   const eventTypes = [
-    'job.created', 'job.started', 'job.phase_changed', 'job.plan_updated',
-    'job.paused', 'job.resumed', 'job.completed', 'job.failed', 'job.cancelled',
-    'brain.thinking', 'brain.decision', 'brain.unavailable', 'brain.deterministic',
-    'tool.started', 'tool.output', 'tool.failed',
-    'browser.action', 'browser.observation',
-    'computer.probe', 'computer.state', 'computer.action', 'computer.observation', 'computer.error',
-    'finding.created', 'finding.updated', 'finding.rejected', 'observation.recorded',
-    'hypothesis.created', 'hypothesis.updated',
-    'report.started', 'report.progress', 'agent.chat'
+    'job.created',
+    'job.started',
+    'job.phase_changed',
+    'job.plan_updated',
+    'job.paused',
+    'job.resumed',
+    'job.completed',
+    'job.failed',
+    'job.cancelled',
+    'brain.thinking',
+    'brain.decision',
+    'brain.unavailable',
+    'brain.deterministic',
+    'tool.started',
+    'tool.output',
+    'tool.failed',
+    'browser.action',
+    'browser.observation',
+    'computer.probe',
+    'computer.state',
+    'computer.action',
+    'computer.observation',
+    'computer.error',
+    'finding.created',
+    'finding.updated',
+    'finding.rejected',
+    'observation.recorded',
+    'hypothesis.created',
+    'hypothesis.updated',
+    'report.started',
+    'report.progress',
+    'agent.chat',
   ];
 
-  eventTypes.forEach((type) => source.addEventListener(type, handleEvent));
+  eventTypes.forEach(type => source.addEventListener(type, handleEvent));
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Job event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  source.onerror = () =>
+    onError?.(new ApiError('Job event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
 
   return () => {
-    eventTypes.forEach((type) => source.removeEventListener(type, handleEvent));
+    eventTypes.forEach(type => source.removeEventListener(type, handleEvent));
     source.close();
   };
 }
@@ -879,24 +987,23 @@ export async function downloadHuntRecordMarkdown(recordId) {
     `${apiBase()}/hunt-records/${encodeURIComponent(recordId)}/report.md`,
     {
       headers: { Accept: 'text/markdown', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
-      credentials: 'include'
+      credentials: 'include',
     }
   );
-  if (!response.ok) throw new ApiError('Could not download the report.', response.status, 'DOWNLOAD_FAILED');
+  if (!response.ok)
+    throw new ApiError('Could not download the report.', response.status, 'DOWNLOAD_FAILED');
   return response.text();
 }
 
 /** Download the styled server-rendered PDF for a hunt job. Returns a Blob. */
 export async function downloadJobReportPdf(jobId) {
   const jwt = getStoredJwt();
-  const response = await fetch(
-    `${apiBase()}/jobs/${encodeURIComponent(jobId)}/report.pdf`,
-    {
-      headers: { Accept: 'application/pdf', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
-      credentials: 'include'
-    }
-  );
-  if (!response.ok) throw new ApiError('Could not download the PDF report.', response.status, 'DOWNLOAD_FAILED');
+  const response = await fetch(`${apiBase()}/jobs/${encodeURIComponent(jobId)}/report.pdf`, {
+    headers: { Accept: 'application/pdf', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
+    credentials: 'include',
+  });
+  if (!response.ok)
+    throw new ApiError('Could not download the PDF report.', response.status, 'DOWNLOAD_FAILED');
   return response.blob();
 }
 
@@ -905,14 +1012,18 @@ export async function downloadJobReportPdf(jobId) {
  * kind: 'poc' (default) or 'repro'; format for repro: 'curl' | 'python'.
  * Returns the file text; the caller triggers the browser download.
  */
-export async function downloadFindingPoc(recordId, findingId, { kind = 'poc', format = 'curl' } = {}) {
+export async function downloadFindingPoc(
+  recordId,
+  findingId,
+  { kind = 'poc', format = 'curl' } = {}
+) {
   const jwt = getStoredJwt();
   const params = new URLSearchParams({ kind, format });
   const response = await fetch(
     `${apiBase()}/hunt-records/${encodeURIComponent(recordId)}/findings/${encodeURIComponent(findingId)}/poc?${params}`,
     {
       headers: { Accept: 'text/plain', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) },
-      credentials: 'include'
+      credentials: 'include',
     }
   );
   if (!response.ok) {
@@ -920,7 +1031,9 @@ export async function downloadFindingPoc(recordId, findingId, { kind = 'poc', fo
     try {
       const body = await response.json();
       if (body?.error?.message) message = body.error.message;
-    } catch { /* keep default */ }
+    } catch {
+      /* keep default */
+    }
     throw new ApiError(message, response.status, 'POC_DOWNLOAD_FAILED');
   }
   return response.text();
@@ -981,7 +1094,7 @@ export function listSchedules() {
 export function updateSchedule(scheduleId, payload) {
   return request(`/schedules/${encodeURIComponent(scheduleId)}`, {
     method: 'PATCH',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 }
 
@@ -1042,17 +1155,20 @@ function sseUrl(path, extraParams = null) {
 /** Live engine download progress via SSE. Events: engine.progress / engine.done / engine.error */
 export function subscribeToEngineStream({ onEvent, onError, onOpen } = {}) {
   const source = new EventSource(sseUrl('/model-runner/engine/stream'), { withCredentials: true });
-  const handleEvent = (event) => {
+  const handleEvent = event => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
     } catch {
       onError?.(new ApiError('Received an invalid engine event.', 0, 'INVALID_EVENT'));
     }
   };
-  ['engine.progress', 'engine.done', 'engine.error'].forEach((type) => source.addEventListener(type, handleEvent));
+  ['engine.progress', 'engine.done', 'engine.error'].forEach(type =>
+    source.addEventListener(type, handleEvent)
+  );
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Engine download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  source.onerror = () =>
+    onError?.(new ApiError('Engine download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
   return () => source.close();
 }
 
@@ -1067,18 +1183,23 @@ export function cancelRunnerDownload() {
 
 /** Live model download progress via SSE. Events: download.progress / download.done / download.error */
 export function subscribeToDownloadStream({ onEvent, onError, onOpen } = {}) {
-  const source = new EventSource(sseUrl('/model-runner/download/stream'), { withCredentials: true });
-  const handleEvent = (event) => {
+  const source = new EventSource(sseUrl('/model-runner/download/stream'), {
+    withCredentials: true,
+  });
+  const handleEvent = event => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
     } catch {
       onError?.(new ApiError('Received an invalid download event.', 0, 'INVALID_EVENT'));
     }
   };
-  ['download.progress', 'download.done', 'download.error'].forEach((type) => source.addEventListener(type, handleEvent));
+  ['download.progress', 'download.done', 'download.error'].forEach(type =>
+    source.addEventListener(type, handleEvent)
+  );
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Model download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  source.onerror = () =>
+    onError?.(new ApiError('Model download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
   return () => source.close();
 }
 
@@ -1116,7 +1237,7 @@ export function stopRunnerModel() {
 export function downloadModelFile(modelId, { quant } = {}) {
   return request(`/models/${encodeURIComponent(modelId)}/download`, {
     method: 'POST',
-    body: JSON.stringify({ ...(quant ? { quant } : {}) })
+    body: JSON.stringify({ ...(quant ? { quant } : {}) }),
   });
 }
 
@@ -1130,8 +1251,8 @@ export function runModelFile(modelId, { quant, contextSize } = {}) {
     method: 'POST',
     body: JSON.stringify({
       ...(quant ? { quant } : {}),
-      ...(contextSize ? { contextSize } : {})
-    })
+      ...(contextSize ? { contextSize } : {}),
+    }),
   });
 }
 
@@ -1155,7 +1276,7 @@ export function getSlotAssignments() {
 export function assignBrainSlot(slot, modelId) {
   return request('/model-runner/brain-slots/assign', {
     method: 'POST',
-    body: JSON.stringify({ slot, modelId })
+    body: JSON.stringify({ slot, modelId }),
   });
 }
 
@@ -1169,13 +1290,13 @@ export function getSlotSources() {
 export function connectSlotKaggle(slot, url, name) {
   return request('/model-runner/brain-slots/kaggle', {
     method: 'POST',
-    body: JSON.stringify({ slot, url, name })
+    body: JSON.stringify({ slot, url, name }),
   });
 }
 
 export function disconnectSlotKaggle(slot) {
   return request(`/model-runner/brain-slots/kaggle/${slot}`, {
-    method: 'DELETE'
+    method: 'DELETE',
   });
 }
 
@@ -1189,13 +1310,13 @@ export function getSlotServers() {
 export function runSlotServer(slot, modelId, opts = {}) {
   return request(`/model-runner/slots/${slot}/run`, {
     method: 'POST',
-    body: JSON.stringify({ modelId, ...opts })
+    body: JSON.stringify({ modelId, ...opts }),
   });
 }
 
 export function stopSlotServer(slot) {
   return request(`/model-runner/slots/${slot}/stop`, {
-    method: 'POST'
+    method: 'POST',
   });
 }
 
@@ -1206,8 +1327,10 @@ export function stopSlotServer(slot) {
  * 'error' or 'cancelled'.
  */
 export function subscribeToModelProgress(modelId, { onEvent, onError, onOpen } = {}) {
-  const source = new EventSource(sseUrl(`/models/${encodeURIComponent(modelId)}/progress`), { withCredentials: true });
-  const handleEvent = (event) => {
+  const source = new EventSource(sseUrl(`/models/${encodeURIComponent(modelId)}/progress`), {
+    withCredentials: true,
+  });
+  const handleEvent = event => {
     try {
       onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
     } catch {
@@ -1217,7 +1340,8 @@ export function subscribeToModelProgress(modelId, { onEvent, onError, onOpen } =
   source.addEventListener('progress', handleEvent);
   source.onmessage = handleEvent;
   source.onopen = () => onOpen?.();
-  source.onerror = () => onError?.(new ApiError('Model download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+  source.onerror = () =>
+    onError?.(new ApiError('Model download stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
   return () => source.close();
 }
 
@@ -1235,7 +1359,10 @@ export function testRemoteModel(gradioUrl) {
 
 /** Connect a Gradio share URL and make it this user's brain. */
 export function connectRemoteModel(gradioUrl, name) {
-  return request('/remote-model/connect', { method: 'POST', body: JSON.stringify({ gradioUrl, name }) });
+  return request('/remote-model/connect', {
+    method: 'POST',
+    body: JSON.stringify({ gradioUrl, name }),
+  });
 }
 
 /** Disconnect the remote brain (back to the phone default). */
@@ -1377,7 +1504,7 @@ export const apiClient = {
   // Infinity AI Billing (Razorpay)
   getBillingStatus,
   createBillingOrder,
-  verifyBillingPayment
+  verifyBillingPayment,
 };
 
 /** Billing status: is Razorpay live? Returns { configured, keyId, tiers }. */

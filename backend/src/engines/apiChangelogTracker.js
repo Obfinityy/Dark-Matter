@@ -11,7 +11,8 @@
 
 const VERSION_RE = /(?:^|\s)(?:v|version\s*)?(\d{1,3}\.\d{1,3}(?:\.\d{1,3})?)/gim;
 const DATE_RE = /\b(20\d{2}[-/.](?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01]))\b/g;
-const PATH_RE = /`?\s*((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)\s*`?/g;
+const PATH_RE =
+  /`?\s*((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)\s*`?/g;
 const HOST_RE = /\bhttps?:\/\/((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d{1,5})?\b/gi;
 
 /** Split changelog text into per-version blocks (best effort). */
@@ -91,7 +92,9 @@ export function trackChangelog({ url = '', text = '' } = {}) {
   });
 
   const allAdded = versions.flatMap(v => v.added.map(e => ({ version: v.version, endpoint: e })));
-  const allDeprecated = versions.flatMap(v => v.deprecated.map(e => ({ version: v.version, endpoint: e })));
+  const allDeprecated = versions.flatMap(v =>
+    v.deprecated.map(e => ({ version: v.version, endpoint: e }))
+  );
   const allHosts = [...new Set(versions.flatMap(v => v.hosts))];
 
   return {
@@ -107,6 +110,10 @@ export function trackChangelog({ url = '', text = '' } = {}) {
 }
 
 export const API_CHANGELOG_TRACKER = {
-  splitVersionBlocks, classifyChange, extractEndpoints, extractHosts, trackChangelog,
+  splitVersionBlocks,
+  classifyChange,
+  extractEndpoints,
+  extractHosts,
+  trackChangelog,
 };
 export default API_CHANGELOG_TRACKER;

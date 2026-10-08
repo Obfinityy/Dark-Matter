@@ -10,16 +10,21 @@
 import { ACTION_TYPES, validateComputerAction } from '../computer/actionSchema.js';
 
 export const TASK_DECISION_TYPES = Object.freeze([
-  'action',     // one validated computer action (the "hands" run it)
-  'observe',    // look without acting (screenshot / active window)
-  'complete',   // goal satisfied — requires explicit verification evidence
-  'ask_user',   // cannot proceed without information only the human has
-  'retry',      // the last action failed; try a different valid approach
-  'wait'        // wait for something to finish loading (bounded)
+  'action', // one validated computer action (the "hands" run it)
+  'observe', // look without acting (screenshot / active window)
+  'complete', // goal satisfied — requires explicit verification evidence
+  'ask_user', // cannot proceed without information only the human has
+  'retry', // the last action failed; try a different valid approach
+  'wait', // wait for something to finish loading (bounded)
 ]);
 
 export const TASK_PHASES = Object.freeze([
-  'understanding', 'planning', 'executing', 'observing', 'verifying', 'finalizing'
+  'understanding',
+  'planning',
+  'executing',
+  'observing',
+  'verifying',
+  'finalizing',
 ]);
 
 /**
@@ -47,14 +52,20 @@ export function validateComputerTaskDecision(decision) {
         if (!action || typeof action !== 'object') {
           errors.push('action decision requires an "action" object');
         } else if (!ACTION_TYPES.includes(action.type)) {
-          errors.push(`action "${action.type}" is not a whitelisted computer action (allowed: ${ACTION_TYPES.join(', ')})`);
+          errors.push(
+            `action "${action.type}" is not a whitelisted computer action (allowed: ${ACTION_TYPES.join(', ')})`
+          );
         } else {
           // Deep-validate parameters now so an invalid action dies at the
           // schema layer, never at the Python bridge.
           const result = validateComputerAction({ type: action.type, params: action.params || {} });
-          if (!result.valid) errors.push(...result.errors.map((e) => `action params: ${e}`));
+          if (!result.valid) errors.push(...result.errors.map(e => `action params: ${e}`));
         }
-        if (typeof decision.userMessage !== 'undefined' && decision.userMessage !== null && typeof decision.userMessage !== 'string') {
+        if (
+          typeof decision.userMessage !== 'undefined' &&
+          decision.userMessage !== null &&
+          typeof decision.userMessage !== 'string'
+        ) {
           errors.push('userMessage must be a string');
         }
         break;
@@ -67,8 +78,13 @@ export function validateComputerTaskDecision(decision) {
         break;
       }
       case 'complete':
-        if (typeof decision.verificationEvidence !== 'string' || !decision.verificationEvidence.trim()) {
-          errors.push('complete requires verificationEvidence: quote the observation that proves the goal is met');
+        if (
+          typeof decision.verificationEvidence !== 'string' ||
+          !decision.verificationEvidence.trim()
+        ) {
+          errors.push(
+            'complete requires verificationEvidence: quote the observation that proves the goal is met'
+          );
         }
         if (typeof decision.userMessage !== 'string' || !decision.userMessage.trim()) {
           errors.push('complete requires userMessage: the short human-facing completion summary');
@@ -109,23 +125,28 @@ export function validateComputerTaskDecision(decision) {
   const normalized = {
     type,
     reason: decision.reason.trim(),
-    phase: typeof decision.phase === 'string' && TASK_PHASES.includes(decision.phase) ? decision.phase : null,
+    phase:
+      typeof decision.phase === 'string' && TASK_PHASES.includes(decision.phase)
+        ? decision.phase
+        : null,
     confidence: decision.confidence === undefined ? null : Number(decision.confidence),
-    planStep: typeof decision.planStep === 'string' ? decision.planStep.trim().slice(0, 300) : null
+    planStep: typeof decision.planStep === 'string' ? decision.planStep.trim().slice(0, 300) : null,
   };
 
   switch (type) {
     case 'action':
       normalized.action = { type: decision.action.type, params: decision.action.params || {} };
-      normalized.userMessage = typeof decision.userMessage === 'string' && decision.userMessage.trim()
-        ? decision.userMessage.trim().slice(0, 300)
-        : `Running ${decision.action.type}…`;
+      normalized.userMessage =
+        typeof decision.userMessage === 'string' && decision.userMessage.trim()
+          ? decision.userMessage.trim().slice(0, 300)
+          : `Running ${decision.action.type}…`;
       break;
     case 'observe':
       normalized.method = decision.method || 'active_window';
-      normalized.userMessage = typeof decision.userMessage === 'string' && decision.userMessage.trim()
-        ? decision.userMessage.trim().slice(0, 300)
-        : 'Observing the screen…';
+      normalized.userMessage =
+        typeof decision.userMessage === 'string' && decision.userMessage.trim()
+          ? decision.userMessage.trim().slice(0, 300)
+          : 'Observing the screen…';
       break;
     case 'complete':
       normalized.verificationEvidence = decision.verificationEvidence.trim().slice(0, 1000);

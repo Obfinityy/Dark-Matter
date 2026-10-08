@@ -1,11 +1,15 @@
 import { config } from '../config.js';
 import { PhoneLocalProvider } from './providers/phoneLocalProvider.js';
 import { localAIQueue } from './providers/localAiQueue.js';
-import { estimateTokens, modelContextCapacity, reservedOutputTokens } from '../services/longContext/tokens.js';
+import {
+  estimateTokens,
+  modelContextCapacity,
+  reservedOutputTokens,
+} from '../services/longContext/tokens.js';
 import {
   COMPUTER_TASK_SCHEMA_PROMPT,
   COMPUTER_TASK_SCHEMA_PROMPT_COMPACT,
-  validateComputerTaskDecision
+  validateComputerTaskDecision,
 } from './computerTaskDecisionSchema.js';
 import {
   isContextWindowError,
@@ -13,7 +17,7 @@ import {
   isBusyError,
   truncateToTokens,
   LocalAiUnavailableError,
-  BrainDecisionError
+  BrainDecisionError,
 } from './autonomousBrain.js';
 import { APPLICATION_ALIASES, BLOCKED_REASON_TEXT } from '../computer/applicationResolver.js';
 
@@ -41,7 +45,7 @@ export class ComputerTaskBrain {
     queue = localAIQueue,
     configOverride = {},
     logger = console,
-    onDecisionRejection = null
+    onDecisionRejection = null,
   } = {}) {
     this.provider = provider || new PhoneLocalProvider(config);
     // providerFor(userId) → provider — when set, the brain is resolved per
@@ -56,8 +60,10 @@ export class ComputerTaskBrain {
     this.settings = {
       temperature: 0.2,
       maxTokens: Number(configOverride.maxTokens || process.env.TASK_BRAIN_MAX_TOKENS || 420),
-      decisionRetries: Number(configOverride.decisionRetries ?? process.env.TASK_BRAIN_RETRIES ?? 2),
-      recentActionBudget: Number(process.env.TASK_BRAIN_RECENT_ACTIONS || 10)
+      decisionRetries: Number(
+        configOverride.decisionRetries ?? process.env.TASK_BRAIN_RETRIES ?? 2
+      ),
+      recentActionBudget: Number(process.env.TASK_BRAIN_RECENT_ACTIONS || 10),
     };
     this.capacity = Number(configOverride.capacity || modelContextCapacity());
     this.outputReserve = Number(configOverride.outputReserve || reservedOutputTokens());
@@ -86,15 +92,17 @@ export class ComputerTaskBrain {
     }
     const health = await provider.healthCheck();
     if (!health.reachable) {
-      return { available: false, reason: `BRAIN UNAVAILABLE — ${health.reason || 'active brain unreachable'}` };
+      return {
+        available: false,
+        reason: `BRAIN UNAVAILABLE — ${health.reason || 'active brain unreachable'}`,
+      };
     }
     return { available: true, reason: null, model: health.model };
   }
 
   // ── Prompt construction ───────────────────────────────────────────────
   buildSystemPrompt({ compact = false } = {}) {
-    const aliasList = APPLICATION_ALIASES
-      .map((entry) => entry.canonical)
+    const aliasList = APPLICATION_ALIASES.map(entry => entry.canonical)
       .slice(0, 30)
       .join(', ');
 
@@ -141,7 +149,13 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
    * Compose the user message for one reasoning step, bounded to the window.
    * Everything durable lives in Mongo; only the operative slice is prompt-fed.
    */
-  buildUserMessage({ task, conversation, decisionHistory = [], computerStatus = null, userAnswer = null }) {
+  buildUserMessage({
+    task,
+    conversation,
+    decisionHistory = [],
+    computerStatus = null,
+    userAnswer = null,
+  }) {
     const parts = [];
 
     parts.push('## USER REQUEST (current)');
@@ -158,7 +172,9 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
     if (conversation?.priorTasks?.length) {
       parts.push('\n## CURRENT TASK CONTEXT (this conversation — "it" refers to this)');
       for (const prior of conversation.priorTasks.slice(-3)) {
-        const lines = [`- Prior request: "${String(prior.instruction).slice(0, 300)}" [${prior.status}]`];
+        const lines = [
+          `- Prior request: "${String(prior.instruction).slice(0, 300)}" [${prior.status}]`,
+        ];
         if (prior.application) lines.push(`  Application: ${prior.application}`);
         if (prior.generatedContent) {
           lines.push(`  Content produced (verbatim, currently in the document):`);
@@ -186,8 +202,11 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
     parts.push(`Status: ${task.status} · phase: ${task.phase} · steps so far: ${task.stepCount}`);
     if (task.currentApplication) parts.push(`Application in use: ${task.currentApplication}`);
     if (computerStatus) {
-      parts.push(`Computer runtime: ${computerStatus.available ? 'connected' : 'UNAVAILABLE'}${computerStatus.reason ? ` (${computerStatus.reason})` : ''}`);
-      if (computerStatus.screen) parts.push(`Screen: ${computerStatus.screen.width}x${computerStatus.screen.height}`);
+      parts.push(
+        `Computer runtime: ${computerStatus.available ? 'connected' : 'UNAVAILABLE'}${computerStatus.reason ? ` (${computerStatus.reason})` : ''}`
+      );
+      if (computerStatus.screen)
+        parts.push(`Screen: ${computerStatus.screen.width}x${computerStatus.screen.height}`);
     }
     if (task.activeWindow) parts.push(`Active window (last observed): "${task.activeWindow}"`);
     if (task.generatedContent) {
@@ -199,7 +218,9 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
       parts.push('\n## LAST ACTION');
       parts.push(`${task.lastAction.type}: ${task.lastAction.reason || ''}`);
       if (task.lastActionResult) {
-        parts.push(`Result: ${task.lastActionResult.ok === false ? `FAILED — ${task.lastActionResult.error}` : 'ok'}`);
+        parts.push(
+          `Result: ${task.lastActionResult.ok === false ? `FAILED — ${task.lastActionResult.error}` : 'ok'}`
+        );
       }
     }
 
@@ -209,7 +230,9 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
     }
 
     if (decisionHistory.length) {
-      parts.push('\n## RECENT STEPS (oldest → newest; do NOT repeat a step that already succeeded)');
+      parts.push(
+        '\n## RECENT STEPS (oldest → newest; do NOT repeat a step that already succeeded)'
+      );
       for (const entry of decisionHistory.slice(-this.settings.recentActionBudget)) {
         parts.push(`  - ${entry}`);
       }
@@ -230,7 +253,7 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
     const wasCompacted = compact;
 
     const fullSystemTokens = estimateTokens(this.buildSystemPrompt({ compact: false }));
-    const useCompact = compact || (fullSystemTokens + 900 > this.promptBudget);
+    const useCompact = compact || fullSystemTokens + 900 > this.promptBudget;
 
     const finalSystem = useCompact ? this.buildSystemPrompt({ compact: true }) : system;
     const user = this.buildUserMessage(context);
@@ -243,7 +266,7 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
       userTokens,
       total: estimateTokens(finalSystem) + userTokens,
       compact: useCompact,
-      compactedByBudget: useCompact && !wasCompacted
+      compactedByBudget: useCompact && !wasCompacted,
     };
 
     return { system: finalSystem, user, diagnostics: this.lastPromptDiagnostics };
@@ -273,11 +296,15 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
       let raw = null;
       try {
         raw = await this.queue.enqueue(
-          () => provider.generateStructured(
-            [{ role: 'system', content: system }, { role: 'user', content: user }],
-            null,
-            { temperature: this.settings.temperature, maxTokens: this.settings.maxTokens }
-          ),
+          () =>
+            provider.generateStructured(
+              [
+                { role: 'system', content: system },
+                { role: 'user', content: user },
+              ],
+              null,
+              { temperature: this.settings.temperature, maxTokens: this.settings.maxTokens }
+            ),
           context.task?.id || 'computer-task-brain'
         );
       } catch (error) {
@@ -285,7 +312,9 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
         if (isContextWindowError(error)) {
           sawContextError = true;
           compact = true;
-          this.logger.warn?.(`[computer-task-brain] context too large, compacting (attempt ${attempt + 1}): ${error.message}`);
+          this.logger.warn?.(
+            `[computer-task-brain] context too large, compacting (attempt ${attempt + 1}): ${error.message}`
+          );
           continue;
         }
         if (isUnavailableError(error)) {
@@ -306,7 +335,7 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
           decision: validation.decision,
           raw,
           model: health.model,
-          diagnostics
+          diagnostics,
         };
       }
 
@@ -314,12 +343,14 @@ ${COMPUTER_TASK_SCHEMA_PROMPT}`;
         `Model returned a decision that violates the schema: ${validation.errors.join('; ')}`,
         { raw, errors: validation.errors }
       );
-      this.logger.warn?.(`[computer-task-brain] rejected malformed decision (attempt ${attempt + 1}): ${validation.errors.join('; ')}`);
+      this.logger.warn?.(
+        `[computer-task-brain] rejected malformed decision (attempt ${attempt + 1}): ${validation.errors.join('; ')}`
+      );
       try {
         this.onDecisionRejection?.({
           taskId: context.task?.id || null,
           errors: validation.errors,
-          attempt: attempt + 1
+          attempt: attempt + 1,
         });
       } catch {
         /* observability must never break reasoning */

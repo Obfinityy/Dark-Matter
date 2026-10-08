@@ -26,29 +26,36 @@ const PROVIDERS = {
     match: (name, value) =>
       name.startsWith('_atlassian-domain-verification.') ||
       /^atlassian-domain-verification\s*=/i.test(value),
-    tokenOf: value => (value.match(/atlassian-domain-verification\s*=\s*([A-Za-z0-9+/=_-]+)/i) || [])[1] || value,
-    tenancy: name => `Confirms an Atlassian Cloud (Jira/Confluence) tenancy verified against '${name}'. ` +
+    tokenOf: value =>
+      (value.match(/atlassian-domain-verification\s*=\s*([A-Za-z0-9+/=_-]+)/i) || [])[1] || value,
+    tenancy: name =>
+      `Confirms an Atlassian Cloud (Jira/Confluence) tenancy verified against '${name}'. ` +
       'Tenant discovery: the token is stable per site — reuse it to correlate other domains claimed by the same tenant.',
   },
   google: {
     display: 'Google',
     match: (_name, value) => /^google-site-verification\s*=/i.test(value),
-    tokenOf: value => (value.match(/google-site-verification\s*=\s*([A-Za-z0-9_.-]+)/i) || [])[1] || value,
-    tenancy: name => `Search Console / Google Workspace verification for '${name}'. ` +
+    tokenOf: value =>
+      (value.match(/google-site-verification\s*=\s*([A-Za-z0-9_.-]+)/i) || [])[1] || value,
+    tenancy: name =>
+      `Search Console / Google Workspace verification for '${name}'. ` +
       'Maps which properties the organization manages in Google tooling — pivot into Workspace tenant and site ownership.',
   },
   bing: {
     display: 'Microsoft Bing',
     match: (_name, value) => /^msvalidate\.01\s*=/i.test(value),
     tokenOf: value => (value.match(/msvalidate\.01\s*=\s*([A-Za-z0-9]+)/i) || [])[1] || value,
-    tenancy: name => `Bing Webmaster verification for '${name}'. ` +
+    tenancy: name =>
+      `Bing Webmaster verification for '${name}'. ` +
       'A second, independent property-mapping source that corroborates the Google/Atlassian set.',
   },
   facebook: {
     display: 'Meta (Facebook)',
     match: (_name, value) => /^facebook-domain-verification\s*=/i.test(value),
-    tokenOf: value => (value.match(/facebook-domain-verification\s*=\s*([A-Za-z0-9]+)/i) || [])[1] || value,
-    tenancy: name => `Facebook Business Manager domain verification for '${name}'. ` +
+    tokenOf: value =>
+      (value.match(/facebook-domain-verification\s*=\s*([A-Za-z0-9]+)/i) || [])[1] || value,
+    tenancy: name =>
+      `Facebook Business Manager domain verification for '${name}'. ` +
       'Reveals Business Manager-linked domains — pivot into ad-account and app asset mapping.',
   },
 };
@@ -65,7 +72,9 @@ function harvestProvider(records, providerKey) {
 
   for (const r of records || []) {
     if (String(r?.type || 'TXT').toUpperCase() !== 'TXT') continue;
-    const name = String(r?.name || '').toLowerCase().replace(/\.$/, '');
+    const name = String(r?.name || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const value = flattenTxtData(r?.data).trim();
     if (!name || !value || !provider.match(name, value)) continue;
 
@@ -87,11 +96,12 @@ function harvestProvider(records, providerKey) {
     verifiedNames,
     distinctDomains,
     count: verifiedNames.length,
-    recommendation: verifiedNames.length > 0
-      ? `${verifiedNames.length} ${provider.display} verification(s) across ${distinctDomains.length} ` +
-        `name(s). Treat each verified name as a confirmed SaaS-linked asset and add it to the target's ` +
-        `tenancy map before testing ${provider.display}-hosted surfaces.`
-      : `No ${provider.display} verification tokens observed in the supplied records.`,
+    recommendation:
+      verifiedNames.length > 0
+        ? `${verifiedNames.length} ${provider.display} verification(s) across ${distinctDomains.length} ` +
+          `name(s). Treat each verified name as a confirmed SaaS-linked asset and add it to the target's ` +
+          `tenancy map before testing ${provider.display}-hosted surfaces.`
+        : `No ${provider.display} verification tokens observed in the supplied records.`,
   };
 }
 
@@ -156,7 +166,8 @@ export function harvestAllVerificationTokens(records) {
     for (const v of result.verifiedNames) {
       if (!perName.has(v.name)) perName.set(v.name, { name: v.name, vendors: [], tokenCount: 0 });
       const entry = perName.get(v.name);
-      if (!entry.vendors.includes(byProvider[key].provider)) entry.vendors.push(byProvider[key].provider);
+      if (!entry.vendors.includes(byProvider[key].provider))
+        entry.vendors.push(byProvider[key].provider);
       entry.tokenCount += 1;
     }
   }
@@ -167,7 +178,8 @@ export function harvestAllVerificationTokens(records) {
     .map(e => ({
       name: e.name,
       vendors: e.vendors,
-      note: `'${e.name}' is verified with ${e.vendors.length} vendors (${e.vendors.join(', ')}): ` +
+      note:
+        `'${e.name}' is verified with ${e.vendors.length} vendors (${e.vendors.join(', ')}): ` +
         'a high-value SaaS-linked asset — prioritize it for tenant and property enumeration.',
     }));
 

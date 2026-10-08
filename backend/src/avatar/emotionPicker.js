@@ -24,26 +24,67 @@ export const DEFAULT_EMOTION = 'neutral';
 // beat the calm thinking state. Each entry: [emotion, RegExp[]].
 
 const KEYWORD_RULES = [
-  ['angry', [
-    /\bfail(ed|ure)?\b/i, /\berror\b/i, /\bblocked\b/i, /\bdenied\b/i,
-    /\brefus/i, /\battack(ed|ing)?\b/i, /\bmalicious\b/i,
-    /nahi ho pa|nahin ho pa/i, /nahi kar sakta/i, /unable to/i,
-  ]],
-  ['surprised', [
-    /\bsurpris/i, /\bunexpected\b/i, /\bunusual\b/i, /\bstrange\b/i,
-    /\binteresting\b/i, /\bnever seen\b/i, /\bpehli baar\b/i,
-    /\bajeeb\b/i, /\bwao\b/i,
-  ]],
-  ['happy', [
-    /\bmil gay[ai]\b/i, /\bmila\b/i, /\bfound\b/i, /\bdiscover/i,
-    /\bsuccess/i, /\bcomplete(d)?\b/i, /\bdone\b/i, /\bho gay[ai]\b/i,
-    /\bcongrat/i, /\bbadhaai\b/i, /\bgreat\b/i, /\bexcellent\b/i,
-    /\bshabaash\b/i, /\bvulnerability\b/i, /\bcritical\b/i,
-  ]],
-  ['thinking', [
-    /\bthinking\b/i, /\banalyz/i, /\bchecking\b/i, /\bworking on\b/i,
-    /soch rh?[ae] hoon/i, /dekh rh?[ae] hoon/i, /pata lag[ae] raha/i,
-  ]],
+  [
+    'angry',
+    [
+      /\bfail(ed|ure)?\b/i,
+      /\berror\b/i,
+      /\bblocked\b/i,
+      /\bdenied\b/i,
+      /\brefus/i,
+      /\battack(ed|ing)?\b/i,
+      /\bmalicious\b/i,
+      /nahi ho pa|nahin ho pa/i,
+      /nahi kar sakta/i,
+      /unable to/i,
+    ],
+  ],
+  [
+    'surprised',
+    [
+      /\bsurpris/i,
+      /\bunexpected\b/i,
+      /\bunusual\b/i,
+      /\bstrange\b/i,
+      /\binteresting\b/i,
+      /\bnever seen\b/i,
+      /\bpehli baar\b/i,
+      /\bajeeb\b/i,
+      /\bwao\b/i,
+    ],
+  ],
+  [
+    'happy',
+    [
+      /\bmil gay[ai]\b/i,
+      /\bmila\b/i,
+      /\bfound\b/i,
+      /\bdiscover/i,
+      /\bsuccess/i,
+      /\bcomplete(d)?\b/i,
+      /\bdone\b/i,
+      /\bho gay[ai]\b/i,
+      /\bcongrat/i,
+      /\bbadhaai\b/i,
+      /\bgreat\b/i,
+      /\bexcellent\b/i,
+      /\bshabaash\b/i,
+      /\bvulnerability\b/i,
+      /\bcritical\b/i,
+    ],
+  ],
+  [
+    'thinking',
+    [
+      /\bthinking\b/i,
+      /\banalyz/i,
+      /\bchecking\b/i,
+      /\bworking on\b/i,
+      /soch rh?[ae] hoon/i,
+      /dekh rh?[ae] hoon/i,
+      /pata lag[ae] raha/i,
+    ],
+  ],
 ];
 
 // ── Intent rules ───────────────────────────────────────────────────────────
@@ -90,7 +131,7 @@ export function pickEmotionForIntent(intent, options = {}) {
 export function pickEmotion(replyText, options = {}) {
   const text = String(replyText || '');
   for (const [emotion, patterns] of KEYWORD_RULES) {
-    if (patterns.some((pattern) => pattern.test(text))) return emotion;
+    if (patterns.some(pattern => pattern.test(text))) return emotion;
   }
   return pickEmotionForIntent(options.intent, options);
 }

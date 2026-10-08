@@ -23,9 +23,31 @@ export const AZURE_QUEUE_SUFFIX = 'queue.core.windows.net';
 export const AZURE_TABLE_SUFFIX = 'table.core.windows.net';
 
 export const AZURE_ACCOUNT_AFFIXES = [
-  'app', 'web', 'assets', 'static', 'media', 'files', 'uploads', 'images',
-  'docs', 'backup', 'backups', 'data', 'logs', 'staging', 'prod', 'dev',
-  'test', 'qa', 'demo', 'cdn', 'site', 'portal', 'storage', 'blob', 'store',
+  'app',
+  'web',
+  'assets',
+  'static',
+  'media',
+  'files',
+  'uploads',
+  'images',
+  'docs',
+  'backup',
+  'backups',
+  'data',
+  'logs',
+  'staging',
+  'prod',
+  'dev',
+  'test',
+  'qa',
+  'demo',
+  'cdn',
+  'site',
+  'portal',
+  'storage',
+  'blob',
+  'store',
 ];
 
 /**
@@ -61,14 +83,11 @@ export function isValidAzureAccountName(name) {
  * @returns {string[]} unique valid storage account names
  */
 export function generateAzureAccountNames(brand, options = {}) {
-  const {
-    affixes = AZURE_ACCOUNT_AFFIXES,
-    maxNames = 200,
-  } = options;
+  const { affixes = AZURE_ACCOUNT_AFFIXES, maxNames = 200 } = options;
   const slug = slugifyBrand(brand);
   if (!slug) return [];
   const out = new Set();
-  const add = (name) => {
+  const add = name => {
     if (out.size >= maxNames) return;
     if (isValidAzureAccountName(name)) out.add(name);
   };
@@ -113,7 +132,9 @@ export function azureServiceUrls(account) {
  * @returns {{account: string, service: 'blob'|'dfs'|'file'|'queue'|'table'}|null}
  */
 export function accountNameFromAzureHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const suffixes = {
     [AZURE_BLOB_SUFFIX]: 'blob',
     [AZURE_DFS_SUFFIX]: 'dfs',
@@ -143,7 +164,9 @@ export function parseAzureDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target) continue;
     const parsed = accountNameFromAzureHost(target);
     if (parsed) {
@@ -167,7 +190,9 @@ export function parseAzureDnsHints(records = []) {
 export function parseAzureCertHints(sans = []) {
   const hits = [];
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     if (!san) continue;
     const parsed = accountNameFromAzureHost(san);
     if (parsed) hits.push({ san: String(raw), account: parsed.account, service: parsed.service });

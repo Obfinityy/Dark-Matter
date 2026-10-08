@@ -39,13 +39,16 @@ function nextId(prefix = 'rr4') {
   rr4Seq += 1;
   return `${prefix}-${String(rr4Seq).padStart(4, '0')}`;
 }
-export function __resetRr4Seq() { rr4Seq = 0; }
+export function __resetRr4Seq() {
+  rr4Seq = 0;
+}
 
 // 52161 — Retest sign-off: formal human approval of the retest verdict before
 // the finding can close. State machine: pending -> approved | rejected | needs-review.
 export function signOffRetest(verdict, action, actor = 'reviewer', now = Date.now()) {
   if (!verdict || !verdict.findingId) return { ok: false, reason: 'a retest verdict is required' };
-  if (!SIGNOFF_STATES.includes(action)) return { ok: false, reason: `unknown sign-off action: ${action}` };
+  if (!SIGNOFF_STATES.includes(action))
+    return { ok: false, reason: `unknown sign-off action: ${action}` };
   if (action === 'approved' && verdict.verdict !== 'fixed') {
     return { ok: false, reason: 'only a "fixed" verdict can be signed off' };
   }
@@ -71,7 +74,13 @@ export function addRetestComment(request, body, author = 'infinity-ai', now = Da
   if (!body || !body.trim()) return { ok: false, reason: 'comment body cannot be empty' };
   return {
     ok: true,
-    comment: { id: nextId('comment'), requestId: request.id, author, body: body.trim(), createdAt: now },
+    comment: {
+      id: nextId('comment'),
+      requestId: request.id,
+      author,
+      body: body.trim(),
+      createdAt: now,
+    },
   };
 }
 export function addRetestAttachment(request, attachment, now = Date.now()) {
@@ -98,12 +107,19 @@ export function addRetestAttachment(request, attachment, now = Date.now()) {
 export function evaluateCIGate(retestResults, options = {}) {
   const results = Array.isArray(retestResults) ? retestResults : [];
   const blockers = results.filter(
-    (r) => r.verdict === 'still-vulnerable' || r.reopened === true || r.verdict === 'inconclusive' && options.strict === true
+    r =>
+      r.verdict === 'still-vulnerable' ||
+      r.reopened === true ||
+      (r.verdict === 'inconclusive' && options.strict === true)
   );
   return {
     pass: blockers.length === 0,
     evaluated: results.length,
-    blockers: blockers.map((b) => ({ findingId: b.findingId, retestId: b.retestId, verdict: b.verdict })),
+    blockers: blockers.map(b => ({
+      findingId: b.findingId,
+      retestId: b.retestId,
+      verdict: b.verdict,
+    })),
     gateName: options.gateName || 'infinity-ai-no-reopened-findings',
   };
 }
@@ -129,10 +145,21 @@ export function handleRetestApiCall(op, payload = {}, now = Date.now()) {
   }
   if (op === 'status') {
     if (!payload.id) return { ok: false, error: 'id is required' };
-    return { ok: true, data: { id: payload.id, status: payload.status || 'queued', updatedAt: now } };
+    return {
+      ok: true,
+      data: { id: payload.id, status: payload.status || 'queued', updatedAt: now },
+    };
   }
   if (!payload.id) return { ok: false, error: 'id is required' };
-  return { ok: true, data: { id: payload.id, status: 'cancelled', cancelledAt: now, reason: payload.reason || 'api' } };
+  return {
+    ok: true,
+    data: {
+      id: payload.id,
+      status: 'cancelled',
+      cancelledAt: now,
+      reason: payload.reason || 'api',
+    },
+  };
 }
 
 // 52165 — Retest from PDF report: deep links in exported PDFs that open the
@@ -148,7 +175,8 @@ export function buildFindingDeepLink(findingId, options = {}) {
 // "needs retest", auto-create the retest request.
 export const NEEDS_RETEST_STATUSES = ['needs-retest', 'fix-rejected', 'reopened'];
 export function onBountyStatusChange(submission, now = Date.now()) {
-  if (!submission || !submission.findingId) return { ok: false, reason: 'submission with findingId is required' };
+  if (!submission || !submission.findingId)
+    return { ok: false, reason: 'submission with findingId is required' };
   if (!NEEDS_RETEST_STATUSES.includes(submission.status)) {
     return { ok: false, reason: `status "${submission.status}" does not trigger a retest` };
   }
@@ -171,8 +199,10 @@ export function onBountyStatusChange(submission, now = Date.now()) {
 export function dueReminders(queue, now = Date.now()) {
   const items = Array.isArray(queue) ? queue : [];
   return items
-    .filter((r) => (r.status === 'queued' || r.status === 'scheduled') && r.windowEnd && r.windowEnd < now)
-    .map((r) => ({
+    .filter(
+      r => (r.status === 'queued' || r.status === 'scheduled') && r.windowEnd && r.windowEnd < now
+    )
+    .map(r => ({
       requestId: r.id,
       findingId: r.findingId,
       assignee: r.assignee || null,
@@ -186,11 +216,16 @@ export function dueReminders(queue, now = Date.now()) {
 export function retestAnalytics(results) {
   const rows = Array.isArray(results) ? results : [];
   const total = rows.length;
-  const fixed = rows.filter((r) => r.verdict === 'fixed').length;
-  const stillVuln = rows.filter((r) => r.verdict === 'still-vulnerable').length;
+  const fixed = rows.filter(r => r.verdict === 'fixed').length;
+  const stillVuln = rows.filter(r => r.verdict === 'still-vulnerable').length;
   const durations = rows
-    .filter((r) => typeof r.completedAt === 'number' && typeof r.startedAt === 'number' && r.completedAt >= r.startedAt)
-    .map((r) => r.completedAt - r.startedAt);
+    .filter(
+      r =>
+        typeof r.completedAt === 'number' &&
+        typeof r.startedAt === 'number' &&
+        r.completedAt >= r.startedAt
+    )
+    .map(r => r.completedAt - r.startedAt);
   const byTeam = {};
   const byAsset = {};
   for (const r of rows) {
@@ -200,25 +235,33 @@ export function retestAnalytics(results) {
     byAsset[a] = byAsset[a] || { total: 0, fixed: 0, stillVulnerable: 0 };
     byTeam[t].total += 1;
     byAsset[a].total += 1;
-    if (r.verdict === 'fixed') { byTeam[t].fixed += 1; byAsset[a].fixed += 1; }
-    if (r.verdict === 'still-vulnerable') { byTeam[t].stillVulnerable += 1; byAsset[a].stillVulnerable += 1; }
+    if (r.verdict === 'fixed') {
+      byTeam[t].fixed += 1;
+      byAsset[a].fixed += 1;
+    }
+    if (r.verdict === 'still-vulnerable') {
+      byTeam[t].stillVulnerable += 1;
+      byAsset[a].stillVulnerable += 1;
+    }
   }
   const rate = (n, d) => (d === 0 ? 0 : n / d);
-  const withRates = (bucket) => Object.fromEntries(
-    Object.entries(bucket).map(([k, v]) => [
-      k,
-      {
-        ...v,
-        fixVerificationRate: rate(v.fixed, v.total),
-        stillVulnerableRate: rate(v.stillVulnerable, v.total),
-      },
-    ])
-  );
+  const withRates = bucket =>
+    Object.fromEntries(
+      Object.entries(bucket).map(([k, v]) => [
+        k,
+        {
+          ...v,
+          fixVerificationRate: rate(v.fixed, v.total),
+          stillVulnerableRate: rate(v.stillVulnerable, v.total),
+        },
+      ])
+    );
   return {
     total,
     fixVerificationRate: rate(fixed, total),
     stillVulnerableRate: rate(stillVuln, total),
-    avgTurnaroundMs: durations.length === 0 ? 0 : durations.reduce((s, d) => s + d, 0) / durations.length,
+    avgTurnaroundMs:
+      durations.length === 0 ? 0 : durations.reduce((s, d) => s + d, 0) / durations.length,
     byTeam: withRates(byTeam),
     byAsset: withRates(byAsset),
   };
@@ -239,7 +282,7 @@ export function queueChainRetest(chain, options = {}, now = Date.now()) {
       status: 'queued',
       priority: options.priority || 'urgent',
       requestedAt: now,
-      requests: chain.findingIds.map((fid) => ({
+      requests: chain.findingIds.map(fid => ({
         id: nextId('rt'),
         findingId: fid,
         status: 'queued',
@@ -270,8 +313,12 @@ export function buildProxyCaptureConfig(targetUrl, options = {}) {
 // responses between the original and the retest evidence. Token-level diff
 // over whitespace-separated tokens using a simple LCS walk.
 export function diffEvidenceTokens(before, after) {
-  const a = String(before || '').split(/\s+/).filter(Boolean);
-  const b = String(after || '').split(/\s+/).filter(Boolean);
+  const a = String(before || '')
+    .split(/\s+/)
+    .filter(Boolean);
+  const b = String(after || '')
+    .split(/\s+/)
+    .filter(Boolean);
   const m = a.length;
   const n = b.length;
   const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
@@ -284,23 +331,42 @@ export function diffEvidenceTokens(before, after) {
   let i = 0;
   let j = 0;
   while (i < m && j < n) {
-    if (a[i] === b[j]) { ops.push({ type: 'same', token: a[i] }); i += 1; j += 1; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push({ type: 'removed', token: a[i] }); i += 1; }
-    else { ops.push({ type: 'added', token: b[j] }); j += 1; }
+    if (a[i] === b[j]) {
+      ops.push({ type: 'same', token: a[i] });
+      i += 1;
+      j += 1;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      ops.push({ type: 'removed', token: a[i] });
+      i += 1;
+    } else {
+      ops.push({ type: 'added', token: b[j] });
+      j += 1;
+    }
   }
-  while (i < m) { ops.push({ type: 'removed', token: a[i] }); i += 1; }
-  while (j < n) { ops.push({ type: 'added', token: b[j] }); j += 1; }
-  const changed = ops.filter((o) => o.type !== 'same').length;
+  while (i < m) {
+    ops.push({ type: 'removed', token: a[i] });
+    i += 1;
+  }
+  while (j < n) {
+    ops.push({ type: 'added', token: b[j] });
+    j += 1;
+  }
+  const changed = ops.filter(o => o.type !== 'same').length;
   return { ops, changed, total: ops.length, unchanged: ops.length - changed };
 }
 
 // 52172 — Bulk retest by severity: queue retests for every open finding at or
 // above a chosen severity in one action.
-export function bulkQueueBySeverity(findings, minSeverity = 'high', options = {}, now = Date.now()) {
+export function bulkQueueBySeverity(
+  findings,
+  minSeverity = 'high',
+  options = {},
+  now = Date.now()
+) {
   const rank = SEVERITY_RANK[minSeverity];
   if (rank === undefined) return { ok: false, reason: `unknown severity: ${minSeverity}` };
   const rows = (Array.isArray(findings) ? findings : []).filter(
-    (f) => f.status === 'open' && (SEVERITY_RANK[f.severity] ?? 99) <= rank
+    f => f.status === 'open' && (SEVERITY_RANK[f.severity] ?? 99) <= rank
   );
   return {
     ok: true,
@@ -310,7 +376,7 @@ export function bulkQueueBySeverity(findings, minSeverity = 'high', options = {}
       minSeverity,
       requestedAt: now,
       count: rows.length,
-      requests: rows.map((f) => ({
+      requests: rows.map(f => ({
         id: nextId('rt'),
         findingId: f.id,
         status: 'queued',
@@ -324,10 +390,11 @@ export function bulkQueueBySeverity(findings, minSeverity = 'high', options = {}
 // 52173 — Bulk retest by asset: queue retests for all open findings on the
 // selected assets after an infra change.
 export function bulkQueueByAsset(findings, assets, options = {}, now = Date.now()) {
-  if (!Array.isArray(assets) || assets.length === 0) return { ok: false, reason: 'at least one asset is required' };
+  if (!Array.isArray(assets) || assets.length === 0)
+    return { ok: false, reason: 'at least one asset is required' };
   const set = new Set(assets);
   const rows = (Array.isArray(findings) ? findings : []).filter(
-    (f) => f.status === 'open' && (set.has(f.asset) || set.has(f.target))
+    f => f.status === 'open' && (set.has(f.asset) || set.has(f.target))
   );
   return {
     ok: true,
@@ -337,7 +404,7 @@ export function bulkQueueByAsset(findings, assets, options = {}, now = Date.now(
       assets: [...assets],
       requestedAt: now,
       count: rows.length,
-      requests: rows.map((f) => ({
+      requests: rows.map(f => ({
         id: nextId('rt'),
         findingId: f.id,
         status: 'queued',
@@ -359,10 +426,18 @@ export function queueToCsv(queue) {
   const header = ['request_id', 'finding_id', 'status', 'priority', 'trigger', 'requested_at'];
   const lines = [header.join(',')];
   for (const r of rows) {
-    lines.push([
-      r.id, r.findingId, r.status, r.priority || '', r.trigger || '',
-      r.requestedAt ? new Date(r.requestedAt).toISOString() : '',
-    ].map(csvCell).join(','));
+    lines.push(
+      [
+        r.id,
+        r.findingId,
+        r.status,
+        r.priority || '',
+        r.trigger || '',
+        r.requestedAt ? new Date(r.requestedAt).toISOString() : '',
+      ]
+        .map(csvCell)
+        .join(',')
+    );
   }
   return { csv: lines.join('\n'), rows: rows.length };
 }
@@ -385,7 +460,7 @@ export function findDuplicate(request, existing, options = {}) {
   if (!sig) return { ok: false, reason: 'request has no signature' };
   const recentMs = options.recentMs || 30 * 24 * 60 * 60 * 1000;
   const now = options.now || Date.now();
-  const match = (Array.isArray(existing) ? existing : []).find((e) => {
+  const match = (Array.isArray(existing) ? existing : []).find(e => {
     if (e.id === request.id) return false;
     if (retestSignature(e) !== sig) return false;
     if (e.status === 'queued' || e.status === 'running' || e.status === 'scheduled') return true;
@@ -398,9 +473,13 @@ export function findDuplicate(request, existing, options = {}) {
 // rule change on the target, auto-queue retests for previously WAF-blocked
 // findings.
 export function wafChangeTrigger(event, findings, now = Date.now()) {
-  if (!event || !event.target) return { ok: false, reason: 'a WAF change event with a target is required' };
+  if (!event || !event.target)
+    return { ok: false, reason: 'a WAF change event with a target is required' };
   const rows = (Array.isArray(findings) ? findings : []).filter(
-    (f) => f.status === 'open' && (f.asset === event.target || f.target === event.target) && f.wafBlocked === true
+    f =>
+      f.status === 'open' &&
+      (f.asset === event.target || f.target === event.target) &&
+      f.wafBlocked === true
   );
   return {
     ok: true,
@@ -411,7 +490,7 @@ export function wafChangeTrigger(event, findings, now = Date.now()) {
       changeId: event.changeId || null,
       requestedAt: now,
       count: rows.length,
-      requests: rows.map((f) => ({
+      requests: rows.map(f => ({
         id: nextId('rt'),
         findingId: f.id,
         status: 'queued',
@@ -439,10 +518,10 @@ export function evaluateNotificationPrefs(prefs, event) {
 // retests by leads (move up/down/to-top).
 export function reorderQueue(queue, requestId, direction = 'up') {
   const rows = Array.isArray(queue) ? [...queue] : [];
-  const idx = rows.findIndex((r) => r.id === requestId);
+  const idx = rows.findIndex(r => r.id === requestId);
   if (idx === -1) return { ok: false, reason: `request ${requestId} not in queue` };
-  const movable = rows.filter((r) => r.status === 'queued' || r.status === 'scheduled');
-  const current = movable.findIndex((r) => r.id === requestId);
+  const movable = rows.filter(r => r.status === 'queued' || r.status === 'scheduled');
+  const current = movable.findIndex(r => r.id === requestId);
   if (current === -1) return { ok: false, reason: 'only pending requests can be reordered' };
   if (direction === 'to-top') {
     movable.splice(0, 0, movable.splice(current, 1)[0]);
@@ -479,7 +558,8 @@ export function scopeRetestToCommit(request, commit) {
 // 52180 — Retest evidence retention policy: configure how long retest
 // evidence is kept, with automatic cleanup of old captures.
 export function retentionExpiry(capturedAt, policy = {}, now = Date.now()) {
-  if (typeof capturedAt !== 'number') return { ok: false, reason: 'capturedAt timestamp is required' };
+  if (typeof capturedAt !== 'number')
+    return { ok: false, reason: 'capturedAt timestamp is required' };
   const days = policy.days || 90;
   const expiresAt = capturedAt + days * 24 * 60 * 60 * 1000;
   return { ok: true, expiresAt, days, expired: now >= expiresAt };
@@ -505,9 +585,12 @@ export function scoreVerdictConfidence(verdict, signals = {}) {
     return { ok: false, reason: 'a valid retest verdict is required' };
   }
   const probes = Math.max(1, signals.probes || 1);
-  const agreement = typeof signals.agreement === 'number' ? Math.min(1, Math.max(0, signals.agreement)) : 0.5;
+  const agreement =
+    typeof signals.agreement === 'number' ? Math.min(1, Math.max(0, signals.agreement)) : 0.5;
   const strength = { weak: 0.2, moderate: 0.5, strong: 0.8 }[signals.evidenceStrength] || 0.5;
-  const score = Math.round(100 * (0.35 * Math.min(1, probes / 5) + 0.4 * agreement + 0.25 * strength));
+  const score = Math.round(
+    100 * (0.35 * Math.min(1, probes / 5) + 0.4 * agreement + 0.25 * strength)
+  );
   const level = score >= 80 ? 'high' : score >= 55 ? 'medium' : 'low';
   return {
     ok: true,

@@ -22,16 +22,30 @@
  * @returns {{host: string|null, lastAnalysis: object|null, categories: string[], reputation: number|null}}
  */
 export function normalizeVtSubdomain(item) {
-  if (!item || typeof item !== 'object') return { host: null, lastAnalysis: null, categories: [], reputation: null };
-  const host = typeof item.id === 'string' ? item.id.trim().toLowerCase()
-    : (typeof item.host === 'string' ? item.host.trim().toLowerCase() : null);
+  if (!item || typeof item !== 'object')
+    return { host: null, lastAnalysis: null, categories: [], reputation: null };
+  const host =
+    typeof item.id === 'string'
+      ? item.id.trim().toLowerCase()
+      : typeof item.host === 'string'
+        ? item.host.trim().toLowerCase()
+        : null;
   const attrs = item.attributes && typeof item.attributes === 'object' ? item.attributes : {};
-  const lastAnalysis = attrs.last_analysis_stats && typeof attrs.last_analysis_stats === 'object'
-    ? { ...attrs.last_analysis_stats } : null;
-  const categories = attrs.categories && typeof attrs.categories === 'object'
-    ? Object.values(attrs.categories).filter((c) => typeof c === 'string') : [];
+  const lastAnalysis =
+    attrs.last_analysis_stats && typeof attrs.last_analysis_stats === 'object'
+      ? { ...attrs.last_analysis_stats }
+      : null;
+  const categories =
+    attrs.categories && typeof attrs.categories === 'object'
+      ? Object.values(attrs.categories).filter(c => typeof c === 'string')
+      : [];
   const reputation = attrs.reputation != null ? Number(attrs.reputation) : null;
-  return { host, lastAnalysis, categories: [...new Set(categories)], reputation: Number.isFinite(reputation) ? reputation : null };
+  return {
+    host,
+    lastAnalysis,
+    categories: [...new Set(categories)],
+    reputation: Number.isFinite(reputation) ? reputation : null,
+  };
 }
 
 /**
@@ -54,9 +68,15 @@ export function vtFlagCount(lastAnalysis) {
  * @returns {{subdomains: object[], newCount: number, flaggedCount: number, total: number}}
  */
 export function enumerateSubdomains(payload, opts = {}) {
-  const raw = Array.isArray(payload) ? payload : (payload && Array.isArray(payload.data) ? payload.data : []);
-  const known = new Set((opts.knownHosts || []).map((h) => String(h).trim().toLowerCase()));
-  const target = String(opts.targetDomain || '').trim().toLowerCase();
+  const raw = Array.isArray(payload)
+    ? payload
+    : payload && Array.isArray(payload.data)
+      ? payload.data
+      : [];
+  const known = new Set((opts.knownHosts || []).map(h => String(h).trim().toLowerCase()));
+  const target = String(opts.targetDomain || '')
+    .trim()
+    .toLowerCase();
   const seen = new Set();
   const subdomains = [];
   for (const item of raw) {
@@ -67,9 +87,12 @@ export function enumerateSubdomains(payload, opts = {}) {
     const flags = vtFlagCount(s.lastAnalysis);
     subdomains.push({ ...s, flagCount: flags, isNew: !known.has(s.host) });
   }
-  subdomains.sort((a, b) => Number(b.isNew) - Number(a.isNew) || b.flagCount - a.flagCount || a.host.localeCompare(b.host));
-  const newCount = subdomains.filter((s) => s.isNew).length;
-  const flaggedCount = subdomains.filter((s) => s.flagCount > 0).length;
+  subdomains.sort(
+    (a, b) =>
+      Number(b.isNew) - Number(a.isNew) || b.flagCount - a.flagCount || a.host.localeCompare(b.host)
+  );
+  const newCount = subdomains.filter(s => s.isNew).length;
+  const flaggedCount = subdomains.filter(s => s.flagCount > 0).length;
   return { subdomains, newCount, flaggedCount, total: subdomains.length };
 }
 
@@ -83,10 +106,14 @@ export function vtSubdomainReport(result = {}) {
   const total = result.total || 0;
   const newCount = result.newCount || 0;
   const flaggedCount = result.flaggedCount || 0;
-  const topNew = (result.subdomains || []).filter((s) => s.isNew).slice(0, 10).map((s) => s.host);
-  const summary = total === 0
-    ? 'VirusTotal subdomain enumeration returned no subdomains for the target domain.'
-    : `VirusTotal passive enumeration found ${total} subdomain(s); ${newCount} new vs. current inventory${flaggedCount ? `, ${flaggedCount} flagged by AV engines` : ''}.`;
+  const topNew = (result.subdomains || [])
+    .filter(s => s.isNew)
+    .slice(0, 10)
+    .map(s => s.host);
+  const summary =
+    total === 0
+      ? 'VirusTotal subdomain enumeration returned no subdomains for the target domain.'
+      : `VirusTotal passive enumeration found ${total} subdomain(s); ${newCount} new vs. current inventory${flaggedCount ? `, ${flaggedCount} flagged by AV engines` : ''}.`;
   return { total, newCount, flaggedCount, topNew, summary };
 }
 

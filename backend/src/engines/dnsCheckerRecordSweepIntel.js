@@ -19,7 +19,18 @@
  */
 
 export const SWEEP_RECORD_TYPES = [
-  'A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SOA', 'CAA', 'SRV', 'PTR', 'DS', 'TLSA',
+  'A',
+  'AAAA',
+  'CNAME',
+  'MX',
+  'TXT',
+  'NS',
+  'SOA',
+  'CAA',
+  'SRV',
+  'PTR',
+  'DS',
+  'TLSA',
 ];
 
 /**
@@ -56,7 +67,9 @@ export function buildCoverageMatrix(observations) {
 export function findRegionOnlyRecords(observations) {
   const byKey = new Map();
   for (const obs of observations ?? []) {
-    const host = String(obs.hostname ?? '').trim().toLowerCase();
+    const host = String(obs.hostname ?? '')
+      .trim()
+      .toLowerCase();
     const t = String(obs.type ?? '').toUpperCase();
     const r = String(obs.region ?? 'default');
     const key = `${host}|${t}`;
@@ -97,10 +110,16 @@ export function collectSensitiveRecords(observations) {
     const t = String(obs.type ?? '').toUpperCase();
     for (const raw of obs.values ?? []) {
       const value = String(raw);
-      const host = String(obs.hostname ?? '').trim().toLowerCase();
+      const host = String(obs.hostname ?? '')
+        .trim()
+        .toLowerCase();
       let signal = null;
       if (t === 'TXT' && /spf1/i.test(value)) signal = 'spf-policy';
-      else if (t === 'TXT' && /google-site-verification|_globalsign|digicert|_amazonses|MS=ms/i.test(value)) signal = 'domain-verification-token';
+      else if (
+        t === 'TXT' &&
+        /google-site-verification|_globalsign|digicert|_amazonses|MS=ms/i.test(value)
+      )
+        signal = 'domain-verification-token';
       else if (t === 'CAA') signal = 'ca-issuance-policy';
       else if (t === 'SRV') signal = 'service-endpoint';
       else if (t === 'TLSA') signal = 'dane-policy';
@@ -108,7 +127,7 @@ export function collectSensitiveRecords(observations) {
     }
   }
   const seen = new Set();
-  return out.filter((r) => {
+  return out.filter(r => {
     const key = `${r.hostname}|${r.type}|${r.value}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -127,7 +146,11 @@ export function sweepCompleteness(observations, hostname) {
   const host = String(hostname).trim().toLowerCase();
   const seenTypes = new Set();
   for (const obs of observations ?? []) {
-    if (String(obs.hostname ?? '').trim().toLowerCase() === host) {
+    if (
+      String(obs.hostname ?? '')
+        .trim()
+        .toLowerCase() === host
+    ) {
       seenTypes.add(String(obs.type ?? '').toUpperCase());
     }
   }

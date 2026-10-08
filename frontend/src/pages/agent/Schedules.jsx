@@ -12,7 +12,7 @@ import { listSchedules, createSchedule, updateSchedule, deleteSchedule } from '.
 const CADENCES = [
   { id: 'once', label: 'Once' },
   { id: 'daily', label: 'Daily' },
-  { id: 'weekly', label: 'Weekly' }
+  { id: 'weekly', label: 'Weekly' },
 ];
 
 export function Schedules() {
@@ -26,15 +26,23 @@ export function Schedules() {
     try {
       const body = await listSchedules();
       setSchedules(body?.schedules || []);
-    } catch { setSchedules([]); }
-    finally { setLoading(false); }
+    } catch {
+      setSchedules([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
 
-  const create = async (e) => {
+  const create = async e => {
     e.preventDefault();
-    if (!form.target.trim()) { setError('Enter a target.'); return; }
+    if (!form.target.trim()) {
+      setError('Enter a target.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -42,7 +50,7 @@ export function Schedules() {
         name: form.name.trim() || undefined,
         target: form.target.trim(),
         cadence: form.cadence,
-        nextRunAt: form.nextRunAt ? new Date(form.nextRunAt).toISOString() : undefined
+        nextRunAt: form.nextRunAt ? new Date(form.nextRunAt).toISOString() : undefined,
       });
       setForm({ name: '', target: '', cadence: 'weekly', nextRunAt: '' });
       refresh();
@@ -53,7 +61,7 @@ export function Schedules() {
     }
   };
 
-  const toggle = async (schedule) => {
+  const toggle = async schedule => {
     try {
       await updateSchedule(schedule.id, { enabled: !schedule.enabled });
       refresh();
@@ -62,27 +70,43 @@ export function Schedules() {
     }
   };
 
-  if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Loading schedules…</div>;
+  if (loading)
+    return (
+      <div className="dm-page-loading">
+        <Loader2 size={18} className="dm-spin" /> Loading schedules…
+      </div>
+    );
 
   return (
     <div className="dm-schedules">
       <header className="dm-page-head">
         <div>
-          <h1><CalendarClock size={22} /> Scheduled hunts</h1>
-          <p>Set it and forget it — the agent hunts on cadence and alerts you when each run starts and finishes.</p>
+          <h1>
+            <CalendarClock size={22} /> Scheduled hunts
+          </h1>
+          <p>
+            Set it and forget it — the agent hunts on cadence and alerts you when each run starts
+            and finishes.
+          </p>
         </div>
       </header>
 
-      {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {error && (
+        <div className="dm-form-error" role="alert">
+          <AlertTriangle size={14} /> {error}
+        </div>
+      )}
 
       <form className="dm-card dm-schedule-form" onSubmit={create}>
-        <h3><Plus size={15} /> New schedule</h3>
+        <h3>
+          <Plus size={15} /> New schedule
+        </h3>
         <div className="dm-form-row">
           <label className="dm-form-label">
             Target
             <input
               value={form.target}
-              onChange={(e) => setForm({ ...form, target: e.target.value })}
+              onChange={e => setForm({ ...form, target: e.target.value })}
               placeholder="https://target.com"
               spellCheck={false}
               required
@@ -92,7 +116,7 @@ export function Schedules() {
             Name
             <input
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={e => setForm({ ...form, name: e.target.value })}
               placeholder="Optional"
             />
           </label>
@@ -100,8 +124,15 @@ export function Schedules() {
         <div className="dm-form-row">
           <label className="dm-form-label">
             Cadence
-            <select value={form.cadence} onChange={(e) => setForm({ ...form, cadence: e.target.value })}>
-              {CADENCES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            <select
+              value={form.cadence}
+              onChange={e => setForm({ ...form, cadence: e.target.value })}
+            >
+              {CADENCES.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </label>
           <label className="dm-form-label">
@@ -109,7 +140,7 @@ export function Schedules() {
             <input
               type="datetime-local"
               value={form.nextRunAt}
-              onChange={(e) => setForm({ ...form, nextRunAt: e.target.value })}
+              onChange={e => setForm({ ...form, nextRunAt: e.target.value })}
               title="First run (defaults to now)"
             />
           </label>
@@ -136,23 +167,44 @@ export function Schedules() {
               </span>
             </div>
             <p className="dm-card-hint">
-              {schedule.nextRunAt ? <>Next run: {new Date(schedule.nextRunAt).toLocaleString()}</> : 'Next run: —'}
-              {schedule.lastRunAt && <> · Last run: {new Date(schedule.lastRunAt).toLocaleString()}</>}
+              {schedule.nextRunAt ? (
+                <>Next run: {new Date(schedule.nextRunAt).toLocaleString()}</>
+              ) : (
+                'Next run: —'
+              )}
+              {schedule.lastRunAt && (
+                <> · Last run: {new Date(schedule.lastRunAt).toLocaleString()}</>
+              )}
             </p>
             <div className="dm-queue-actions">
               <button
                 className="dm-btn-ghost"
                 onClick={() => toggle(schedule)}
                 aria-pressed={schedule.enabled}
-                aria-label={schedule.enabled ? `Disable schedule ${schedule.name || schedule.target}` : `Enable schedule ${schedule.name || schedule.target}`}
+                aria-label={
+                  schedule.enabled
+                    ? `Disable schedule ${schedule.name || schedule.target}`
+                    : `Enable schedule ${schedule.name || schedule.target}`
+                }
               >
-                {schedule.enabled ? <><Pause size={13} /> Disable</> : <><Play size={13} /> Enable</>}
+                {schedule.enabled ? (
+                  <>
+                    <Pause size={13} /> Disable
+                  </>
+                ) : (
+                  <>
+                    <Play size={13} /> Enable
+                  </>
+                )}
               </button>
               <button
                 className="dm-btn-ghost dm-danger"
                 aria-label={`Delete schedule ${schedule.name || schedule.target}`}
                 onClick={() => {
-                  if (window.confirm('Delete this schedule?')) deleteSchedule(schedule.id).then(refresh).catch((err) => setError(err.message));
+                  if (window.confirm('Delete this schedule?'))
+                    deleteSchedule(schedule.id)
+                      .then(refresh)
+                      .catch(err => setError(err.message));
                 }}
               >
                 <Trash2 size={13} /> Delete
@@ -164,7 +216,10 @@ export function Schedules() {
           <div className="dm-empty-state">
             <CalendarClock size={28} aria-hidden="true" />
             <strong>No schedules yet</strong>
-            <p>Set a target on a cadence above — the agent hunts on schedule and alerts you when each run starts and finishes.</p>
+            <p>
+              Set a target on a cadence above — the agent hunts on schedule and alerts you when each
+              run starts and finishes.
+            </p>
           </div>
         )}
       </div>

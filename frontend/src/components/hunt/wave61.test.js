@@ -33,8 +33,12 @@ const DAY = 24 * HOUR;
 
 function registryOk(reg, first, count) {
   assert.equal(reg.length, count, `expected ${count} registry entries, got ${reg.length}`);
-  const ids = reg.map((e) => e.id);
-  assert.deepEqual(ids, Array.from({ length: count }, (_, i) => first + i), 'registry ids must be the exact idea range in order');
+  const ids = reg.map(e => e.id);
+  assert.deepEqual(
+    ids,
+    Array.from({ length: count }, (_, i) => first + i),
+    'registry ids must be the exact idea range in order'
+  );
   for (const e of reg) {
     assert.ok(typeof e.title === 'string' && e.title.length > 0, `entry ${e.id} needs a title`);
     assert.ok(typeof e.desc === 'string' && e.desc.length > 0, `entry ${e.id} needs a desc`);
@@ -52,33 +56,55 @@ test('WAVE61_RG_IDEAS: 29/29 entries 52412–52440, zero skips', () => {
 });
 
 test('combined coverage: exactly 52401–52440 with no gaps or dupes', () => {
-  const all = [...WAVE61_LC4_IDEAS.map((e) => e.id), ...WAVE61_RG_IDEAS.map((e) => e.id)];
+  const all = [...WAVE61_LC4_IDEAS.map(e => e.id), ...WAVE61_RG_IDEAS.map(e => e.id)];
   assert.equal(all.length, 40);
-  assert.deepEqual([...all].sort((a, b) => a - b), Array.from({ length: 40 }, (_, i) => 52401 + i));
+  assert.deepEqual(
+    [...all].sort((a, b) => a - b),
+    Array.from({ length: 40 }, (_, i) => 52401 + i)
+  );
 });
 
 /* ---- Registry titles match the bank ideas ---- */
 const BANK_TITLES = {
-  52401: 'Agent-suggested transitions', 52402: 'State diagram visualization',
-  52403: 'Bulk state import', 52404: 'State migration tool',
-  52405: 'Archived-finding states', 52406: 'State search',
-  52407: 'State-based assignment rules', 52408: 'Lifecycle throughput leaderboard',
-  52409: 'State transition comments', 52410: 'Scheduled state reviews',
+  52401: 'Agent-suggested transitions',
+  52402: 'State diagram visualization',
+  52403: 'Bulk state import',
+  52404: 'State migration tool',
+  52405: 'Archived-finding states',
+  52406: 'State search',
+  52407: 'State-based assignment rules',
+  52408: 'Lifecycle throughput leaderboard',
+  52409: 'State transition comments',
+  52410: 'Scheduled state reviews',
   52411: 'State-based dashboard widgets',
-  52412: 'Fix assignment', 52413: 'Fix due dates',
-  52414: 'Fix verification retest link', 52415: 'Remediation kanban board',
-  52416: 'Per-finding fix notes', 52417: 'Code commit linking',
-  52418: 'One-click regression hunt', 52419: 'Regression scope auto-builder',
-  52420: 'Deploy-triggered regression', 52421: 'Cron-scheduled regression hunts',
-  52422: 'Regression diff report', 52423: 'Regression cadence presets',
-  52424: 'Post-fix verification scheduling', 52425: 'Regression hunt templates',
-  52426: 'Regression notifications', 52427: 'Regression auto-compare',
-  52428: 'Regression cost estimate', 52429: 'Quick vs full regression depth',
-  52430: 'Engine-pinned regression', 52431: 'New-engine regression',
-  52432: 'Cross-environment regression', 52433: 'Regression queue',
-  52434: 'Regression calendar view', 52435: 'Pause/resume scheduled hunts',
-  52436: 'Skip-if-no-change', 52437: 'Target change-detection trigger',
-  52438: 'Git-push regression trigger', 52439: 'CI pipeline regression trigger',
+  52412: 'Fix assignment',
+  52413: 'Fix due dates',
+  52414: 'Fix verification retest link',
+  52415: 'Remediation kanban board',
+  52416: 'Per-finding fix notes',
+  52417: 'Code commit linking',
+  52418: 'One-click regression hunt',
+  52419: 'Regression scope auto-builder',
+  52420: 'Deploy-triggered regression',
+  52421: 'Cron-scheduled regression hunts',
+  52422: 'Regression diff report',
+  52423: 'Regression cadence presets',
+  52424: 'Post-fix verification scheduling',
+  52425: 'Regression hunt templates',
+  52426: 'Regression notifications',
+  52427: 'Regression auto-compare',
+  52428: 'Regression cost estimate',
+  52429: 'Quick vs full regression depth',
+  52430: 'Engine-pinned regression',
+  52431: 'New-engine regression',
+  52432: 'Cross-environment regression',
+  52433: 'Regression queue',
+  52434: 'Regression calendar view',
+  52435: 'Pause/resume scheduled hunts',
+  52436: 'Skip-if-no-change',
+  52437: 'Target change-detection trigger',
+  52438: 'Git-push regression trigger',
+  52439: 'CI pipeline regression trigger',
   52440: 'Scheduled hunt naming conventions',
 };
 
@@ -89,20 +115,41 @@ test('registry titles match bank idea titles (all 40)', () => {
 });
 
 test('registry titles cross-checked against the idea-bank file', () => {
-  const bank = readFileSync(join(DIR, '..', '..', '..', '..', 'ideas', 'batch6', 'part-03-posthunt.md'), 'utf8');
+  const bank = readFileSync(
+    join(DIR, '..', '..', '..', '..', 'ideas', 'batch6', 'part-03-posthunt.md'),
+    'utf8'
+  );
   for (const id of [52401, 52406, 52411, 52412, 52421, 52428, 52433, 52440]) {
-    const line = bank.split('\n').find((l) => l.startsWith(`${id}. `));
+    const line = bank.split('\n').find(l => l.startsWith(`${id}. `));
     assert.ok(line, `bank line for idea ${id} not found`);
     const bankTitle = line.replace(/^\d+\.\s+\*\*/, '').split('**')[0];
-    const entry = [...WAVE61_LC4_IDEAS, ...WAVE61_RG_IDEAS].find((e) => e.id === id);
+    const entry = [...WAVE61_LC4_IDEAS, ...WAVE61_RG_IDEAS].find(e => e.id === id);
     assert.equal(entry.title, bankTitle, `bank title mismatch for ${id}`);
   }
 });
 
 /* ---- Lifecycle round 4 core spot-checks (one+ assertion per idea) ---- */
-const F_RETEST_PASS = { id: 'f-611', state: 'InRetest', retest: { passed: true, id: 'rt-61' }, assetOwner: 'aria', title: 'Stored XSS' };
-const F_STUCK = { id: 'f-612', state: 'Triaged', stateEnteredAt: NOW - 9 * DAY, title: 'SQLi in search', assetOwner: 'kai' };
-const F_AUTO = { id: 'f-613', state: 'New', autoTriaged: true, stateEnteredAt: NOW - 2 * HOUR, title: 'Open redirect' };
+const F_RETEST_PASS = {
+  id: 'f-611',
+  state: 'InRetest',
+  retest: { passed: true, id: 'rt-61' },
+  assetOwner: 'aria',
+  title: 'Stored XSS',
+};
+const F_STUCK = {
+  id: 'f-612',
+  state: 'Triaged',
+  stateEnteredAt: NOW - 9 * DAY,
+  title: 'SQLi in search',
+  assetOwner: 'kai',
+};
+const F_AUTO = {
+  id: 'f-613',
+  state: 'New',
+  autoTriaged: true,
+  stateEnteredAt: NOW - 2 * HOUR,
+  title: 'Open redirect',
+};
 
 test('52401 suggestTransitions: passing retest suggests Verified; one-click approve applies it', () => {
   const r = LC4.suggestTransitions(F_RETEST_PASS, NOW);
@@ -122,17 +169,22 @@ test('52401 suggestTransitions: passing retest suggests Verified; one-click appr
 test('52402 stateDiagramPayload: nodes/edges stats, invalid edges dropped', () => {
   const r = LC4.stateDiagramPayload(
     [{ id: 'New' }, { id: 'Triaged' }, { id: 'Verified', terminal: true }],
-    [{ from: 'New', to: 'Triaged' }, { from: 'Triaged', to: 'Verified' }, { from: 'Triaged', to: 'Nowhere' }],
+    [
+      { from: 'New', to: 'Triaged' },
+      { from: 'Triaged', to: 'Verified' },
+      { from: 'Triaged', to: 'Nowhere' },
+    ]
   );
   assert.equal(r.ok, true);
   assert.equal(r.stats.nodeCount, 3);
   assert.equal(r.stats.edgeCount, 2);
   assert.equal(r.stats.droppedEdges, 1);
-  assert.equal(r.nodes.find((n) => n.id === 'Verified').terminal, true);
+  assert.equal(r.nodes.find(n => n.id === 'Verified').terminal, true);
 });
 
 test('52403 parseStateImport: valid rows accepted, bad state/unknown finding rejected', () => {
-  const csv = 'f-611,Verified,retest passed\nf-612,InProgress,picked up\nf-611,Phantom,nope\nf-999,New,unknown finding';
+  const csv =
+    'f-611,Verified,retest passed\nf-612,InProgress,picked up\nf-611,Phantom,nope\nf-999,New,unknown finding';
   const r = LC4.parseStateImport(csv, [F_RETEST_PASS, F_STUCK], NOW);
   assert.equal(r.rows.length, 2);
   assert.equal(r.errors.length, 2);
@@ -141,7 +193,11 @@ test('52403 parseStateImport: valid rows accepted, bad state/unknown finding rej
 });
 
 test('52404 previewStateRemap: affected findings listed before apply', () => {
-  const r = LC4.previewStateRemap([F_RETEST_PASS, F_STUCK, F_AUTO], { InRetest: 'Verifying', Triaged: 'Triage' }, NOW);
+  const r = LC4.previewStateRemap(
+    [F_RETEST_PASS, F_STUCK, F_AUTO],
+    { InRetest: 'Verifying', Triaged: 'Triage' },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.stats.affected, 2);
   assert.equal(r.stats.unaffected, 1);
@@ -172,7 +228,12 @@ test('52406 searchFindingsByState: history scan finds "was ever Risk Accepted"',
 
 test('52407 evaluateAssignmentRules: entering InProgress assigns the asset owner', () => {
   const rules = [{ id: 'r-1', onState: 'InProgress', assignee: 'assetOwner' }];
-  const r = LC4.evaluateAssignmentRules(rules, F_STUCK, { type: 'enterState', to: 'InProgress' }, NOW);
+  const r = LC4.evaluateAssignmentRules(
+    rules,
+    F_STUCK,
+    { type: 'enterState', to: 'InProgress' },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.autoAssigned, true);
   assert.equal(r.assignments[0].assignee, 'kai');
@@ -187,15 +248,22 @@ test('52408 throughputLeaderboard: weekly terminal moves ranked; anonymize masks
   ];
   const r = LC4.throughputLeaderboard(transitions, NOW);
   assert.equal(r.entries.length, 2);
-  assert.ok(r.entries.every((e) => e.closed >= 1));
+  assert.ok(r.entries.every(e => e.closed >= 1));
   const anon = LC4.throughputLeaderboard(transitions, NOW, { anonymize: true });
-  assert.ok(anon.entries.every((e) => e.actor.startsWith('member-')));
-  const optIn = LC4.throughputLeaderboard([{ actor: 'x', to: 'Closed', at: NOW - DAY }], NOW, { optIn: true });
+  assert.ok(anon.entries.every(e => e.actor.startsWith('member-')));
+  const optIn = LC4.throughputLeaderboard([{ actor: 'x', to: 'Closed', at: NOW - DAY }], NOW, {
+    optIn: true,
+  });
   assert.equal(optIn.entries.length, 0);
 });
 
 test('52409 addTransitionComment: thread grows per transition', () => {
-  let r = LC4.addTransitionComment({}, 't-611', { author: 'aria', body: 'retest evidence attached' }, NOW);
+  let r = LC4.addTransitionComment(
+    {},
+    't-611',
+    { author: 'aria', body: 'retest evidence attached' },
+    NOW
+  );
   assert.equal(r.commentCount, 1);
   r = LC4.addTransitionComment(r.threads, 't-611', { author: 'bhavesh', body: 'approved' }, NOW);
   assert.equal(r.commentCount, 2);
@@ -205,9 +273,9 @@ test('52409 addTransitionComment: thread grows per transition', () => {
 test('52410 scheduleStateReviews: stuck non-terminal findings scheduled for the lead', () => {
   const r = LC4.scheduleStateReviews([F_RETEST_PASS, F_STUCK, F_AUTO], NOW, { lead: 'bhavesh' });
   assert.equal(r.ok, true);
-  assert.ok(r.reviews.some((v) => v.findingId === 'f-612'));
-  assert.ok(!r.reviews.some((v) => v.findingId === 'f-613'));
-  assert.equal(r.reviews.find((v) => v.findingId === 'f-612').reviewer, 'bhavesh');
+  assert.ok(r.reviews.some(v => v.findingId === 'f-612'));
+  assert.ok(!r.reviews.some(v => v.findingId === 'f-613'));
+  assert.equal(r.reviews.find(v => v.findingId === 'f-612').reviewer, 'bhavesh');
   assert.ok(r.reviews[0].nextReviewAt > NOW);
 });
 
@@ -222,8 +290,24 @@ test('52411 stateWidgetPayload: counts and aging for status pages', () => {
 });
 
 /* ---- Regression core spot-checks (one+ assertion per idea) ---- */
-const RF1 = { id: 'f-621', state: 'InProgress', severity: 'high', endpoint: 'https://acme.example/login', target: 'acme-prod', assetId: 'asset-1', title: 'SQLi in login' };
-const RF2 = { id: 'f-622', state: 'InRetest', severity: 'medium', endpoint: 'https://acme.example/search', target: 'acme-prod', assetId: 'asset-2', title: 'XSS in search' };
+const RF1 = {
+  id: 'f-621',
+  state: 'InProgress',
+  severity: 'high',
+  endpoint: 'https://acme.example/login',
+  target: 'acme-prod',
+  assetId: 'asset-1',
+  title: 'SQLi in login',
+};
+const RF2 = {
+  id: 'f-622',
+  state: 'InRetest',
+  severity: 'medium',
+  endpoint: 'https://acme.example/search',
+  target: 'acme-prod',
+  assetId: 'asset-2',
+  title: 'XSS in search',
+};
 const ASSET_MAP = { 'asset-1': { owner: 'aria', team: 'appsec', securityChampion: 'bhavesh' } };
 
 test('52412 suggestFixOwners: asset owner suggested first; assignFixOwner records it', () => {
@@ -252,24 +336,52 @@ test('52414 verifyWithRetestAction: one-click action deeplink names the finding'
 });
 
 test('52415 kanbanReducer: moves columns; WIP limit blocks overflow', () => {
-  const board = { cards: [{ findingId: 'f-621', column: 'ToFix' }, { findingId: 'f-622', column: 'Fixing' }], wipLimits: { Fixing: 1 } };
+  const board = {
+    cards: [
+      { findingId: 'f-621', column: 'ToFix' },
+      { findingId: 'f-622', column: 'Fixing' },
+    ],
+    wipLimits: { Fixing: 1 },
+  };
   const blocked = RG.kanbanReducer(board, { type: 'move', findingId: 'f-621', to: 'Fixing' });
   assert.equal(blocked.ok, false);
   assert.ok(blocked.reason.includes('WIP limit'));
-  const moved = RG.kanbanReducer({ ...board, wipLimits: {} }, { type: 'move', findingId: 'f-621', to: 'Fixing' });
+  const moved = RG.kanbanReducer(
+    { ...board, wipLimits: {} },
+    { type: 'move', findingId: 'f-621', to: 'Fixing' }
+  );
   assert.equal(moved.ok, true);
-  assert.equal(moved.cards.find((c) => c.findingId === 'f-621').column, 'Fixing');
+  assert.equal(moved.cards.find(c => c.findingId === 'f-621').column, 'Fixing');
 });
 
 test('52416 addFixNote: structured files/commits/config attached', () => {
-  const r = RG.addFixNote(RF1, { summary: 'Parameterized query', files: ['src/auth/login.js'], commits: ['abc1234'], author: 'aria' }, NOW);
+  const r = RG.addFixNote(
+    RF1,
+    {
+      summary: 'Parameterized query',
+      files: ['src/auth/login.js'],
+      commits: ['abc1234'],
+      author: 'aria',
+    },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.deepEqual(r.note.files, ['src/auth/login.js']);
   assert.deepEqual(r.note.commits, ['abc1234']);
 });
 
 test('52417 linkCommit: github provider detected; diff stats kept', () => {
-  const r = RG.linkCommit('f-621', { sha: 'abc1234', url: 'https://github.com/acme/app/commit/abc1234', filesChanged: 3, additions: 40, deletions: 12 }, NOW);
+  const r = RG.linkCommit(
+    'f-621',
+    {
+      sha: 'abc1234',
+      url: 'https://github.com/acme/app/commit/abc1234',
+      filesChanged: 3,
+      additions: 40,
+      deletions: 12,
+    },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.link.provider, 'github');
   assert.equal(r.link.stats.additions, 40);
@@ -291,14 +403,22 @@ test('52419 buildRegressionScope: open/recent findings become endpoints', () => 
 });
 
 test('52420 deployTriggeredRegression: CI/CD webhook becomes a hunt', () => {
-  const r = RG.deployTriggeredRegression({ deployId: 'd-99', target: 'acme-prod', environment: 'production', ref: 'main' }, NOW);
+  const r = RG.deployTriggeredRegression(
+    { deployId: 'd-99', target: 'acme-prod', environment: 'production', ref: 'main' },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.trigger, 'deploy');
   assert.equal(r.hunt.environment, 'production');
 });
 
 test('52421 cronRegressionSchedule: timezone-aware next run lands in the future', () => {
-  const r = RG.cronRegressionSchedule('0 2 * * 1', 'acme-prod', { timezone: 'Asia/Kolkata', tzOffsetMin: 330 }, NOW);
+  const r = RG.cronRegressionSchedule(
+    '0 2 * * 1',
+    'acme-prod',
+    { timezone: 'Asia/Kolkata', tzOffsetMin: 330 },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.ok(r.nextRun > NOW);
   const bad = RG.cronRegressionSchedule('not-a-cron', 'acme-prod', {}, NOW);
@@ -306,15 +426,24 @@ test('52421 cronRegressionSchedule: timezone-aware next run lands in the future'
 });
 
 test('52422 regressionDiffReport: fixed/still-vulnerable/new vs baseline + verdict', () => {
-  const baseline = [{ id: 'f-620', status: 'open' }, { id: 'f-621', status: 'open' }];
-  const current = [{ id: 'f-621', status: 'closed' }, { id: 'f-623', status: 'open' }];
+  const baseline = [
+    { id: 'f-620', status: 'open' },
+    { id: 'f-621', status: 'open' },
+  ];
+  const current = [
+    { id: 'f-621', status: 'closed' },
+    { id: 'f-623', status: 'open' },
+  ];
   const r = RG.regressionDiffReport(baseline, current);
   assert.equal(r.ok, true);
   assert.deepEqual(r.fixed.sort(), ['f-620', 'f-621']);
   assert.deepEqual(r.stillVulnerable, []);
   assert.deepEqual(r.newFindings, ['f-623']);
   assert.equal(r.verdict, 'new-issues');
-  const clean = RG.regressionDiffReport(baseline, [{ id: 'f-620', status: 'closed' }, { id: 'f-621', status: 'closed' }]);
+  const clean = RG.regressionDiffReport(baseline, [
+    { id: 'f-620', status: 'closed' },
+    { id: 'f-621', status: 'closed' },
+  ]);
   assert.equal(clean.verdict, 'clean');
 });
 
@@ -334,7 +463,11 @@ test('52424 schedulePostFixVerification: verify auto-scheduled after deploy', ()
 });
 
 test('52425 saveRegressionTemplate + applyRegressionTemplate: reusable config', () => {
-  const t = RG.saveRegressionTemplate('weekly-depth-quick', { depth: 'quick', engines: ['vulnDetector'], scopeRules: ['recently-fixed'] });
+  const t = RG.saveRegressionTemplate('weekly-depth-quick', {
+    depth: 'quick',
+    engines: ['vulnDetector'],
+    scopeRules: ['recently-fixed'],
+  });
   assert.equal(t.ok, true);
   assert.equal(t.template.name, 'weekly-depth-quick');
   const a = RG.applyRegressionTemplate(t.template, 'acme-staging', NOW);
@@ -355,7 +488,13 @@ test('52426 regressionNotifications: start/finish/verdict messages', () => {
 test('52427 autoCompareRegression: diff vs the original hunt', () => {
   const r = RG.autoCompareRegression(
     { id: 'rg-2', findings: [{ id: 'f-621', status: 'open' }] },
-    { id: 'h-1', findings: [{ id: 'f-621', status: 'open' }, { id: 'f-620', status: 'open' }] },
+    {
+      id: 'h-1',
+      findings: [
+        { id: 'f-621', status: 'open' },
+        { id: 'f-620', status: 'open' },
+      ],
+    }
   );
   assert.equal(r.ok, true);
   assert.equal(r.originalId, 'h-1');
@@ -363,7 +502,10 @@ test('52427 autoCompareRegression: diff vs the original hunt', () => {
 });
 
 test('52428 estimateRegressionCost: time/compute preview scales with depth', () => {
-  const quick = RG.estimateRegressionCost({ scope: { endpoints: ['a', 'b', 'c'] }, depth: 'quick' });
+  const quick = RG.estimateRegressionCost({
+    scope: { endpoints: ['a', 'b', 'c'] },
+    depth: 'quick',
+  });
   const full = RG.estimateRegressionCost({ scope: { endpoints: ['a', 'b', 'c'] }, depth: 'full' });
   assert.equal(quick.estimatedMinutes, 6);
   assert.equal(full.estimatedMinutes, 24);
@@ -387,7 +529,9 @@ test('52430 pinEngines: exact versions pinned on the launch', () => {
 });
 
 test('52431 includeNewEngines: newly released engines merged in', () => {
-  const r = RG.includeNewEngines({ id: 'rg-3', engines: { vulnDetector: '3.1.0' } }, [{ name: 'secretScanner', version: '1.2.0' }]);
+  const r = RG.includeNewEngines({ id: 'rg-3', engines: { vulnDetector: '3.1.0' } }, [
+    { name: 'secretScanner', version: '1.2.0' },
+  ]);
   assert.equal(r.ok, true);
   assert.deepEqual(r.added, ['secretScanner']);
   assert.equal(r.launch.engines.secretScanner, '1.2.0');
@@ -409,11 +553,20 @@ test('52433 regressionQueueAdd: priority-sorted queue with owners', () => {
 });
 
 test('52434 regressionCalendarPayload: upcoming hunts sorted, paused hidden', () => {
-  const r = RG.regressionCalendarPayload([
-    { id: 'c-1', target: 'acme-prod', nextRun: NOW + 2 * DAY, preset: 'weekly', owner: 'bhavesh' },
-    { id: 'c-2', target: 'acme-staging', nextRun: NOW + DAY, expr: '0 2 * * 1' },
-    { id: 'c-3', target: 'acme-prod', nextRun: NOW + DAY, paused: true },
-  ], NOW);
+  const r = RG.regressionCalendarPayload(
+    [
+      {
+        id: 'c-1',
+        target: 'acme-prod',
+        nextRun: NOW + 2 * DAY,
+        preset: 'weekly',
+        owner: 'bhavesh',
+      },
+      { id: 'c-2', target: 'acme-staging', nextRun: NOW + DAY, expr: '0 2 * * 1' },
+      { id: 'c-3', target: 'acme-prod', nextRun: NOW + DAY, paused: true },
+    ],
+    NOW
+  );
   assert.equal(r.count, 2);
   assert.equal(r.upcoming[0].id, 'c-2');
 });
@@ -437,30 +590,52 @@ test('52436 skipIfNoChange: unchanged target skips the run', () => {
 });
 
 test('52437 targetChangeTrigger: fingerprint shift fires a regression trigger', () => {
-  const r = RG.targetChangeTrigger({ tech: ['nginx'], contentHash: 'aaa' }, { tech: ['nginx', 'waf'], contentHash: 'aaa' }, 'acme-prod', NOW);
+  const r = RG.targetChangeTrigger(
+    { tech: ['nginx'], contentHash: 'aaa' },
+    { tech: ['nginx', 'waf'], contentHash: 'aaa' },
+    'acme-prod',
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.changed, true);
   assert.ok(r.trigger.shifts.techShift);
-  const calm = RG.targetChangeTrigger({ tech: ['nginx'], contentHash: 'aaa' }, { tech: ['nginx'], contentHash: 'aaa' }, 'acme-prod', NOW);
+  const calm = RG.targetChangeTrigger(
+    { tech: ['nginx'], contentHash: 'aaa' },
+    { tech: ['nginx'], contentHash: 'aaa' },
+    'acme-prod',
+    NOW
+  );
   assert.equal(calm.changed, false);
   assert.equal(calm.trigger, null);
 });
 
 test('52438 gitPushTrigger: watched paths fire a scoped regression', () => {
-  const r = RG.gitPushTrigger({ repo: 'acme/app', paths: ['src/auth/login.js', 'README.md'] }, { 'acme/app': ['src/auth/'] });
+  const r = RG.gitPushTrigger(
+    { repo: 'acme/app', paths: ['src/auth/login.js', 'README.md'] },
+    { 'acme/app': ['src/auth/'] }
+  );
   assert.equal(r.ok, true);
   assert.equal(r.trigger, true);
   assert.deepEqual(r.matchedPaths, ['src/auth/login.js']);
-  const miss = RG.gitPushTrigger({ repo: 'acme/app', paths: ['README.md'] }, { 'acme/app': ['src/auth/'] });
+  const miss = RG.gitPushTrigger(
+    { repo: 'acme/app', paths: ['README.md'] },
+    { 'acme/app': ['src/auth/'] }
+  );
   assert.equal(miss.trigger, false);
 });
 
 test('52439 ciPipelineTrigger: jenkins/github-actions/gitlab-ci hunts', () => {
-  const r = RG.ciPipelineTrigger({ provider: 'github-actions', job: 'deploy-prod', target: 'acme-prod' }, NOW);
+  const r = RG.ciPipelineTrigger(
+    { provider: 'github-actions', job: 'deploy-prod', target: 'acme-prod' },
+    NOW
+  );
   assert.equal(r.ok, true);
   assert.equal(r.hunt.provider, 'github-actions');
   assert.ok(r.hunt.id.length > 0);
-  assert.equal(RG.ciPipelineTrigger({ provider: 'travis', job: 'x', target: 'acme-prod' }, NOW).ok, false);
+  assert.equal(
+    RG.ciPipelineTrigger({ provider: 'travis', job: 'x', target: 'acme-prod' }, NOW).ok,
+    false
+  );
 });
 
 test('52440 autoNameScheduledHunt: "acme-prod weekly #12"', () => {
@@ -471,16 +646,20 @@ test('52440 autoNameScheduledHunt: "acme-prod weekly #12"', () => {
 
 /* ---- JSX structure: named exports only, galleries list all components ---- */
 test('LifecycleRound4.jsx: 11 component exports + gallery', () => {
-  const names = (LC4_JSX.match(/^export function (\w+)/gm) || []).map((m) => m.replace('export function ', ''));
-  const components = names.filter((n) => n !== 'LifecycleRound4Gallery');
+  const names = (LC4_JSX.match(/^export function (\w+)/gm) || []).map(m =>
+    m.replace('export function ', '')
+  );
+  const components = names.filter(n => n !== 'LifecycleRound4Gallery');
   assert.equal(components.length, 11);
   assert.ok(names.includes('LifecycleRound4Gallery'));
   assert.ok(!/^export default /m.test(LC4_JSX), 'no default export allowed');
 });
 
 test('RegressionSuite.jsx: 29 component exports + gallery', () => {
-  const names = (RG_JSX.match(/^export function (\w+)/gm) || []).map((m) => m.replace('export function ', ''));
-  const components = names.filter((n) => n !== 'RegressionSuiteGallery');
+  const names = (RG_JSX.match(/^export function (\w+)/gm) || []).map(m =>
+    m.replace('export function ', '')
+  );
+  const components = names.filter(n => n !== 'RegressionSuiteGallery');
   assert.equal(components.length, 29);
   assert.ok(names.includes('RegressionSuiteGallery'));
   assert.ok(!/^export default /m.test(RG_JSX), 'no default export allowed');
@@ -495,13 +674,17 @@ test('JSX components wire to the right core modules', () => {
 
 test('real esbuild parse of both JSX files', () => {
   for (const f of ['LifecycleRound4.jsx', 'RegressionSuite.jsx']) {
-    execFileSync('npx', ['esbuild', `--loader:.jsx=jsx`, '--format=esm', `--outfile=/dev/null`, join(DIR, f)], { stdio: 'pipe' });
+    execFileSync(
+      'npx',
+      ['esbuild', `--loader:.jsx=jsx`, '--format=esm', `--outfile=/dev/null`, join(DIR, f)],
+      { stdio: 'pipe' }
+    );
   }
 });
 
 /* ---- CSS audit: scoped prefixes only, zero keyframes, no global rules ---- */
 test('Wave61.css: only .lr461-/.rg61- selectors, zero @keyframes, no global rules', () => {
-  const classSelectors = [...CSS_SRC.matchAll(/^\s*\.([a-zA-Z0-9_-]+)\s*[{,]/gm)].map((m) => m[1]);
+  const classSelectors = [...CSS_SRC.matchAll(/^\s*\.([a-zA-Z0-9_-]+)\s*[{,]/gm)].map(m => m[1]);
   assert.ok(classSelectors.length > 0, 'expected class selectors');
   for (const sel of classSelectors) {
     assert.ok(sel.startsWith('lr461-') || sel.startsWith('rg61-'), `unscoped selector .${sel}`);
@@ -523,10 +706,22 @@ test('Wave61.css: both prefixes have the shared layout primitives', () => {
 
 /* ---- Branding audit: Infinity AI only, never Muse ---- */
 test('branding: no "Muse" anywhere; "Infinity AI" present where branded', () => {
-  for (const [name, src] of [['lc4Core', LC4_SRC], ['rgCore', RG_SRC], ['lc4Jsx', LC4_JSX], ['rgJsx', RG_JSX], ['css', CSS_SRC]]) {
+  for (const [name, src] of [
+    ['lc4Core', LC4_SRC],
+    ['rgCore', RG_SRC],
+    ['lc4Jsx', LC4_JSX],
+    ['rgJsx', RG_JSX],
+    ['css', CSS_SRC],
+  ]) {
     assert.ok(!/Muse/i.test(src), `${name} leaks "Muse" branding`);
   }
-  for (const [name, src] of [['lc4Core', LC4_SRC], ['rgCore', RG_SRC], ['lc4Jsx', LC4_JSX], ['rgJsx', RG_JSX], ['css', CSS_SRC]]) {
+  for (const [name, src] of [
+    ['lc4Core', LC4_SRC],
+    ['rgCore', RG_SRC],
+    ['lc4Jsx', LC4_JSX],
+    ['rgJsx', RG_JSX],
+    ['css', CSS_SRC],
+  ]) {
     assert.ok(/Infinity AI/.test(src), `${name} missing "Infinity AI" branding`);
   }
 });
@@ -534,7 +729,13 @@ test('branding: no "Muse" anywhere; "Infinity AI" present where branded', () => 
 /* ---- Debris audit: no TODO/FIXME/mock/demo/placeholder/debris ---- */
 test('no TODO/FIXME/mock/demo/debris in any wave-61 file', () => {
   const bad = /\b(TODO|FIXME|XXX|HACK|lorem ipsum|not implemented)\b/i;
-  for (const [name, src] of [['lc4Core', LC4_SRC], ['rgCore', RG_SRC], ['lc4Jsx', LC4_JSX], ['rgJsx', RG_JSX], ['css', CSS_SRC]]) {
+  for (const [name, src] of [
+    ['lc4Core', LC4_SRC],
+    ['rgCore', RG_SRC],
+    ['lc4Jsx', LC4_JSX],
+    ['rgJsx', RG_JSX],
+    ['css', CSS_SRC],
+  ]) {
     const clean = src.replace(/placeholder="[^"]*"/g, '');
     assert.ok(!bad.test(clean), `${name} contains debris marker`);
     assert.ok(!/\bmock\b/i.test(src) || /no mock/i.test(src), `${name} mentions mock`);

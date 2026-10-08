@@ -17,49 +17,52 @@ export const LB_COOKIE_SIGNATURES = [
   {
     product: 'AWS Elastic Load Balancing (ALB)',
     confidence: 'high',
-    test: (name) => /^AWSALB[A-Za-z0-9]*$/.test(name),
+    test: name => /^AWSALB[A-Za-z0-9]*$/.test(name),
     note: 'AWSALB / AWSALBCORS cookies are minted by Application Load Balancers for stickiness.',
   },
   {
     product: 'AWS Elastic Load Balancing (Classic ELB)',
     confidence: 'high',
-    test: (name) => /^AWSELB[A-Za-z0-9]*$/.test(name),
+    test: name => /^AWSELB[A-Za-z0-9]*$/.test(name),
     note: 'AWSELB cookies are minted by Classic Elastic Load Balancers.',
   },
   {
     product: 'F5 BIG-IP',
     confidence: 'high',
-    test: (name) => /^BIGipServer/i.test(name),
+    test: name => /^BIGipServer/i.test(name),
     note: 'BIGipServer<pool> cookies carry the (often encoded) pool member IP and port.',
   },
   {
     product: 'F5 BIG-IP ASM',
     confidence: 'medium',
-    test: (name) => /^TS[0-9a-f]{6,}$/i.test(name),
+    test: name => /^TS[0-9a-f]{6,}$/i.test(name),
     note: 'TS<hex> cookies are set by F5 ASM (Application Security Manager).',
   },
   {
     product: 'Azure App Service / Front Door',
     confidence: 'high',
-    test: (name) => /^ARRAffinity/i.test(name),
+    test: name => /^ARRAffinity/i.test(name),
     note: 'ARRAffinity / ARRAffinitySameSite cookies pin clients to an Azure App Service instance.',
   },
   {
     product: 'Citrix ADC (NetScaler)',
     confidence: 'medium',
-    test: (name) => /^NSC_/i.test(name),
+    test: name => /^NSC_/i.test(name),
     note: 'NSC_* cookies are minted by Citrix ADC persistence.',
   },
   {
     product: 'Nginx (sticky module)',
     confidence: 'low',
-    test: (name) => /^(srv|route|serverid|backend)/i.test(name),
+    test: name => /^(srv|route|serverid|backend)/i.test(name),
     note: 'Generic sticky names used by nginx sticky/upstream modules — low specificity.',
   },
   {
     product: 'HAProxy (server cookies)',
     confidence: 'low',
-    test: (name, value) => /^[A-Za-z0-9_.-]{1,32}$/.test(name) && /^[A-Za-z0-9_.-]{1,64}$/.test(value || '') && /haproxy|srv/i.test(name + (value || '')),
+    test: (name, value) =>
+      /^[A-Za-z0-9_.-]{1,32}$/.test(name) &&
+      /^[A-Za-z0-9_.-]{1,64}$/.test(value || '') &&
+      /haproxy|srv/i.test(name + (value || '')),
     note: 'HAProxy inserts server-named cookies; names are operator-chosen so this is a weak signal.',
   },
 ];
@@ -70,7 +73,7 @@ export const LB_COOKIE_SIGNATURES = [
  * @returns {Array<{name:string, value:string, attributes:string}>}
  */
 export function parseSetCookies(setCookie) {
-  const list = Array.isArray(setCookie) ? setCookie : (setCookie != null ? [setCookie] : []);
+  const list = Array.isArray(setCookie) ? setCookie : setCookie != null ? [setCookie] : [];
   const out = [];
   for (const raw of list) {
     if (!raw || typeof raw !== 'string') continue;
@@ -104,7 +107,11 @@ export function identifyLoadBalancerCookie(name, value = '') {
     }
     if (matched) return { product: sig.product, confidence: sig.confidence, note: sig.note };
   }
-  return { product: null, confidence: 'none', note: 'Cookie name does not match any known load-balancer persistence signature.' };
+  return {
+    product: null,
+    confidence: 'none',
+    note: 'Cookie name does not match any known load-balancer persistence signature.',
+  };
 }
 
 /**
@@ -120,9 +127,9 @@ export function decodeBigIpCookie(name, value) {
   if (!/^BIGipServer/i.test(name || '')) return null;
   const m = /^(\d+)\.(\d+)\.0000$/.exec((value || '').trim());
   if (!m) return null;
-  const decode = (num) => {
+  const decode = num => {
     const hex = parseInt(num, 10).toString(16).padStart(8, '0');
-    return [6, 4, 2, 0].map((i) => parseInt(hex.slice(i, i + 2), 16)).join('.');
+    return [6, 4, 2, 0].map(i => parseInt(hex.slice(i, i + 2), 16)).join('.');
   };
   const ip = decode(m[1]);
   const portHex = parseInt(m[2], 10).toString(16).padStart(4, '0');
@@ -140,13 +147,15 @@ export function analyzeLoadBalancerCookies(setCookie) {
   const parsed = parseSetCookies(setCookie);
   const cookies = parsed.map(({ name, value }) => {
     const id = identifyLoadBalancerCookie(name, value);
-    const decoded = id.product && id.product.startsWith('F5 BIG-IP') ? decodeBigIpCookie(name, value) : null;
+    const decoded =
+      id.product && id.product.startsWith('F5 BIG-IP') ? decodeBigIpCookie(name, value) : null;
     return { name, value, product: id.product, confidence: id.confidence, decoded };
   });
   const byProduct = new Map();
   for (const c of cookies) {
     if (!c.product) continue;
-    if (!byProduct.has(c.product)) byProduct.set(c.product, { product: c.product, confidence: c.confidence, cookies: [] });
+    if (!byProduct.has(c.product))
+      byProduct.set(c.product, { product: c.product, confidence: c.confidence, cookies: [] });
     byProduct.get(c.product).cookies.push(c.name);
   }
   const rank = { high: 3, medium: 2, low: 1, none: 0 };

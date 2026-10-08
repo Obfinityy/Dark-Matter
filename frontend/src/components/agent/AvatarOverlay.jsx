@@ -57,10 +57,22 @@ export function AvatarOverlay({
 
   // ── Clean pause: stop speech, mic, timers, pending asks ──────────────────
   const stopEverything = useCallback(() => {
-    try { abortRef.current?.abort(); } catch { /* noop */ }
+    try {
+      abortRef.current?.abort();
+    } catch {
+      /* noop */
+    }
     abortRef.current = null;
-    try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
-    try { recRef.current?.abort(); } catch { /* noop */ }
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* noop */
+    }
+    try {
+      recRef.current?.abort();
+    } catch {
+      /* noop */
+    }
     recRef.current = null;
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
@@ -84,12 +96,14 @@ export function AvatarOverlay({
   // Move focus to the close button when the overlay opens.
   useEffect(() => {
     if (open) later(() => closeBtnRef.current?.focus(), 60);
-  }, [open ]);
+  }, [open]);
 
   // Escape closes the overlay.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = e => {
+      if (e.key === 'Escape') onClose?.();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -100,63 +114,78 @@ export function AvatarOverlay({
     if (el) el.scrollTop = el.scrollHeight;
   }, [captions, interim]);
 
-  const pushCaption = (role, text) =>
-    setCaptions((prev) => [...prev.slice(-19), { role, text }]);
+  const pushCaption = (role, text) => setCaptions(prev => [...prev.slice(-19), { role, text }]);
 
   // ── Ask the agent and have the avatar deliver the answer ─────────────────
-  const ask = useCallback(async (question) => {
-    const q = String(question || '').trim();
-    if (!q || stateRef.current === 'thinking' || stateRef.current === 'speaking') return;
-    stopEverything();
-    setInput('');
-    setInterim('');
-    pushCaption('user', q);
-    setAvatarState('thinking');
+  const ask = useCallback(
+    async question => {
+      const q = String(question || '').trim();
+      if (!q || stateRef.current === 'thinking' || stateRef.current === 'speaking') return;
+      stopEverything();
+      setInput('');
+      setInterim('');
+      pushCaption('user', q);
+      setAvatarState('thinking');
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    try {
-      const res = await onAsk?.(q);
-      if (controller.signal.aborted) return;
-      const reply = String(res?.reply || '').trim();
-      const mood = VALID_EMOTIONS.includes(res?.emotion) ? res.emotion : 'neutral';
-      setEmotion(mood);
-      if (!reply) {
-        pushCaption('agent', 'I could not reach the agent just now. Please try again.');
-        setAvatarState('idle');
-        return;
+      try {
+        const res = await onAsk?.(q);
+        if (controller.signal.aborted) return;
+        const reply = String(res?.reply || '').trim();
+        const mood = VALID_EMOTIONS.includes(res?.emotion) ? res.emotion : 'neutral';
+        setEmotion(mood);
+        if (!reply) {
+          pushCaption('agent', 'I could not reach the agent just now. Please try again.');
+          setAvatarState('idle');
+          return;
+        }
+        pushCaption('agent', reply);
+        setAvatarState('speaking');
+        if (!muted) {
+          try {
+            await speak(reply, { voice, onAmplitude: setAmplitude, signal: controller.signal });
+          } catch {
+            /* aborted or voice failed — captions already show the reply */
+          }
+        } else {
+          // Muted: animate the mouth for roughly the reply length.
+          const ms = Math.min(9000, Math.max(1800, reply.length * 28));
+          await new Promise((resolve, reject) => {
+            const id = setTimeout(resolve, ms);
+            timersRef.current.push(id);
+            controller.signal.addEventListener(
+              'abort',
+              () => {
+                clearTimeout(id);
+                reject(new Error('aborted'));
+              },
+              { once: true }
+            );
+          }).catch(() => {});
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          pushCaption('agent', 'I could not reach the agent just now. Please try again.');
+        }
+      } finally {
+        if (!controller.signal.aborted) setAvatarState('idle');
+        setAmplitude(0);
+        if (abortRef.current === controller) abortRef.current = null;
       }
-      pushCaption('agent', reply);
-      setAvatarState('speaking');
-      if (!muted) {
-        try {
-          await speak(reply, { voice, onAmplitude: setAmplitude, signal: controller.signal });
-        } catch { /* aborted or voice failed — captions already show the reply */ }
-      } else {
-        // Muted: animate the mouth for roughly the reply length.
-        const ms = Math.min(9000, Math.max(1800, reply.length * 28));
-        await new Promise((resolve, reject) => {
-          const id = setTimeout(resolve, ms);
-          timersRef.current.push(id);
-          controller.signal.addEventListener('abort', () => { clearTimeout(id); reject(new Error('aborted')); }, { once: true });
-        }).catch(() => {});
-      }
-    } catch {
-      if (!controller.signal.aborted) {
-        pushCaption('agent', 'I could not reach the agent just now. Please try again.');
-      }
-    } finally {
-      if (!controller.signal.aborted) setAvatarState('idle');
-      setAmplitude(0);
-      if (abortRef.current === controller) abortRef.current = null;
-    }
-  }, [muted, onAsk, stopEverything, voice]);
+    },
+    [muted, onAsk, stopEverything, voice]
+  );
 
   // ── Microphone: one-shot voice question ──────────────────────────────────
   const toggleListening = useCallback(() => {
     if (stateRef.current === 'listening') {
-      try { recRef.current?.stop(); } catch { /* noop */ }
+      try {
+        recRef.current?.stop();
+      } catch {
+        /* noop */
+      }
       return;
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -167,7 +196,7 @@ export function AvatarOverlay({
     rec.lang = navigator.language || 'en-US';
     rec.interimResults = true;
     rec.continuous = false;
-    rec.onresult = (e) => {
+    rec.onresult = e => {
       let interimText = '';
       let finalText = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -179,7 +208,11 @@ export function AvatarOverlay({
       if (finalText.trim()) {
         const q = finalText.trim();
         setInterim('');
-        try { rec.stop(); } catch { /* noop */ }
+        try {
+          rec.stop();
+        } catch {
+          /* noop */
+        }
         ask(q);
       }
     };
@@ -205,18 +238,29 @@ export function AvatarOverlay({
   // Muting mid-speech stops the voice immediately.
   const toggleMute = () => {
     if (!muted && stateRef.current === 'speaking') {
-      try { abortRef.current?.abort(); } catch { /* noop */ }
-      try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
+      try {
+        abortRef.current?.abort();
+      } catch {
+        /* noop */
+      }
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {
+        /* noop */
+      }
       setAvatarState('idle');
       setAmplitude(0);
     }
-    setMuted((m) => !m);
+    setMuted(m => !m);
   };
 
   if (!open) return null;
 
   const stateLabel = {
-    idle: 'Idle', listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking',
+    idle: 'Idle',
+    listening: 'Listening',
+    thinking: 'Thinking',
+    speaking: 'Speaking',
   }[avatarState];
 
   return (
@@ -226,7 +270,7 @@ export function AvatarOverlay({
         role="dialog"
         aria-modal="true"
         aria-label={`${title} voice conversation`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <header className="avo-head">
           <div className="avo-title">
@@ -259,7 +303,13 @@ export function AvatarOverlay({
           />
         </div>
 
-        <div className="avo-captions" ref={captionBoxRef} role="log" aria-label="Conversation captions" aria-live="polite">
+        <div
+          className="avo-captions"
+          ref={captionBoxRef}
+          role="log"
+          aria-label="Conversation captions"
+          aria-live="polite"
+        >
           {captions.length === 0 && !interim && (
             <p className="avo-hint">
               {supported
@@ -273,17 +323,27 @@ export function AvatarOverlay({
               {c.text}
             </p>
           ))}
-          {interim && <p className="avo-line avo-user avo-interim"><span className="avo-speaker">You</span>{interim}…</p>}
+          {interim && (
+            <p className="avo-line avo-user avo-interim">
+              <span className="avo-speaker">You</span>
+              {interim}…
+            </p>
+          )}
           {avatarState === 'thinking' && (
             <p className="avo-line avo-agent avo-typing" aria-label={`${title} is thinking`}>
-              <span /><span /><span />
+              <span />
+              <span />
+              <span />
             </p>
           )}
         </div>
 
         <form
           className="avo-input-row"
-          onSubmit={(e) => { e.preventDefault(); ask(input); }}
+          onSubmit={e => {
+            e.preventDefault();
+            ask(input);
+          }}
         >
           {supported && (
             <button
@@ -300,7 +360,7 @@ export function AvatarOverlay({
           <input
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={e => setInput(e.target.value)}
             placeholder="Ask a question…"
             aria-label="Type a question"
             maxLength={2000}
@@ -312,7 +372,11 @@ export function AvatarOverlay({
             aria-label="Send question"
             title="Send"
           >
-            {avatarState === 'thinking' ? <Loader2 size={20} className="avo-spin" /> : <Send size={20} />}
+            {avatarState === 'thinking' ? (
+              <Loader2 size={20} className="avo-spin" />
+            ) : (
+              <Send size={20} />
+            )}
           </button>
           <button
             type="button"

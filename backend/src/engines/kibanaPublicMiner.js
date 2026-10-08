@@ -18,9 +18,21 @@ const SCHEMED_HOST_RE = /^(?:[a-z][a-z0-9+.-]*:\/\/)?([^/:?\s"'<>]+)/i;
 
 /** Field names that conventionally carry host identity in Kibana/Beats data. */
 export const HOST_FIELD_NAMES = [
-  'host.name', 'host.hostname', 'hostname', 'host', 'beat.hostname', 'agent.hostname',
-  'server.name', 'server.host', 'container.hostname', 'kubernetes.node.name',
-  'destination.domain', 'source.domain', 'url.domain', 'http.host', 'host.ip',
+  'host.name',
+  'host.hostname',
+  'hostname',
+  'host',
+  'beat.hostname',
+  'agent.hostname',
+  'server.name',
+  'server.host',
+  'container.hostname',
+  'kubernetes.node.name',
+  'destination.domain',
+  'source.domain',
+  'url.domain',
+  'http.host',
+  'host.ip',
 ];
 
 /**
@@ -87,7 +99,7 @@ export function extractHostsFromQuery(query) {
     if (!rawValue || rawValue === '*') continue;
     const value = normalizeHostname(rawValue.replace(/\*/g, ''));
     if (!value) continue;
-    const isHostField = HOST_FIELD_NAMES.some((f) => field === f || field.endsWith(`.${f}`));
+    const isHostField = HOST_FIELD_NAMES.some(f => field === f || field.endsWith(`.${f}`));
     if (isHostField || value.includes('.')) {
       if (!found.has(value)) found.set(value, field);
     }
@@ -112,7 +124,7 @@ export function extractHostsFromFilter(filter) {
     const v = normalizeHostname(String(value ?? '').replace(/\*/g, ''));
     if (!v || !v.includes('.')) return;
     const f = String(field || '').toLowerCase();
-    const isHostField = HOST_FIELD_NAMES.some((hf) => f === hf || f.endsWith(`.${hf}`));
+    const isHostField = HOST_FIELD_NAMES.some(hf => f === hf || f.endsWith(`.${hf}`));
     if (isHostField || HOSTNAME_RE.test(v)) out.push({ host: v, field: f || 'filter' });
   };
 
@@ -120,13 +132,21 @@ export function extractHostsFromFilter(filter) {
   const key = meta?.key || meta?.field;
   const params = meta?.params || {};
   if (key && params?.query !== undefined) push(key, params.query);
-  if (key && filter?.query?.match_phrase?.[key] !== undefined) push(key, filter.query.match_phrase[key]);
+  if (key && filter?.query?.match_phrase?.[key] !== undefined)
+    push(key, filter.query.match_phrase[key]);
   if (key && filter?.query?.match?.[key] !== undefined) {
     const mv = filter.query.match[key];
     push(key, typeof mv === 'object' ? mv?.query : mv);
   }
   // Exists filters on host fields are worth noting (field exists, no value).
-  if (filter?.exists && HOST_FIELD_NAMES.some((hf) => String(filter.exists.field || '').toLowerCase().endsWith(hf))) {
+  if (
+    filter?.exists &&
+    HOST_FIELD_NAMES.some(hf =>
+      String(filter.exists.field || '')
+        .toLowerCase()
+        .endsWith(hf)
+    )
+  ) {
     out.push({ host: '', field: String(filter.exists.field) });
   }
   return out;
@@ -157,7 +177,13 @@ export function extractDashboardRefs(dashboard) {
   };
 
   const panels = dashboard?.panelsJSON
-    ? (() => { try { return JSON.parse(dashboard.panelsJSON); } catch { return []; } })()
+    ? (() => {
+        try {
+          return JSON.parse(dashboard.panelsJSON);
+        } catch {
+          return [];
+        }
+      })()
     : dashboard?.panels || [];
   const kibanaSaved = dashboard?.attributes || dashboard;
 
@@ -169,7 +195,8 @@ export function extractDashboardRefs(dashboard) {
       const text = typeof q === 'string' ? q : q?.query;
       if (typeof text === 'string' && text) {
         queries.add(text);
-        for (const { host, field } of extractHostsFromQuery(text)) note(host, field, `panel:${title}`);
+        for (const { host, field } of extractHostsFromQuery(text))
+          note(host, field, `panel:${title}`);
       }
     }
     for (const filter of embeddable?.filters || []) {
@@ -194,7 +221,8 @@ export function extractDashboardRefs(dashboard) {
       const q = ss?.query?.query;
       if (typeof q === 'string' && q) {
         queries.add(q);
-        for (const { host, field } of extractHostsFromQuery(q)) note(host, field, 'dashboard-query');
+        for (const { host, field } of extractHostsFromQuery(q))
+          note(host, field, 'dashboard-query');
       }
       if (typeof ss?.index === 'string') indexPatterns.add(ss.index);
       for (const filter of ss?.filter || []) {
@@ -203,14 +231,16 @@ export function extractDashboardRefs(dashboard) {
           else hostFields.add(field);
         }
       }
-    } catch { /* malformed searchSourceJSON: ignore */ }
+    } catch {
+      /* malformed searchSourceJSON: ignore */
+    }
   }
 
   // Column/field lists on saved searches may name host fields directly.
   const columns = kibanaSaved?.columns || kibanaSaved?.attributes?.columns;
   for (const col of columns || []) {
     const c = String(col || '').toLowerCase();
-    if (HOST_FIELD_NAMES.some((hf) => c === hf || c.endsWith(`.${hf}`))) hostFields.add(String(col));
+    if (HOST_FIELD_NAMES.some(hf => c === hf || c.endsWith(`.${hf}`))) hostFields.add(String(col));
   }
 
   return {
@@ -248,8 +278,8 @@ export function scoreHostRelevance(host, rootDomain) {
 export function mineDashboard(dashboard, rootDomain) {
   const refs = extractDashboardRefs(dashboard);
   const hosts = refs.hosts
-    .map((e) => ({ ...e, score: scoreHostRelevance(e.host, rootDomain) }))
-    .filter((e) => e.score > 0)
+    .map(e => ({ ...e, score: scoreHostRelevance(e.host, rootDomain) }))
+    .filter(e => e.score > 0)
     .sort((a, b) => b.score - a.score || a.host.localeCompare(b.host));
   return {
     hosts,

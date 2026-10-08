@@ -65,7 +65,9 @@ const SIGNATURES = [
       const flags = (bytes[2] << 8) | bytes[3];
       const qr = (flags & 0x8000) !== 0;
       if (!qr) return 0;
-      return /\.local/i.test(String.fromCharCode(...bytes.slice(12, Math.min(bytes.length, 80)))) ? 0.9 : 0.55;
+      return /\.local/i.test(String.fromCharCode(...bytes.slice(12, Math.min(bytes.length, 80))))
+        ? 0.9
+        : 0.55;
     },
   },
   {
@@ -128,9 +130,9 @@ export function identifyUdpServices({ responses = [] } = {}) {
 
   for (const resp of responses) {
     const bytes = hexToBytes(resp.payloadHex || '');
-    const text = resp.payloadText || (bytes.length > 0 && bytes.length < 4096
-      ? Buffer.from(bytes).toString('latin1')
-      : '');
+    const text =
+      resp.payloadText ||
+      (bytes.length > 0 && bytes.length < 4096 ? Buffer.from(bytes).toString('latin1') : '');
 
     let best = { service: 'Unknown', confidence: 0 };
     for (const sig of SIGNATURES) {
@@ -148,17 +150,20 @@ export function identifyUdpServices({ responses = [] } = {}) {
   }
 
   const findings = [];
-  const known = identified.filter((i) => i.service !== 'Unknown');
+  const known = identified.filter(i => i.service !== 'Unknown');
   if (known.length > 0) {
     findings.push({
       type: 'UDP services identified',
       severity: 'Info',
       confidence: 'high',
-      evidence: known.map((i) => `${i.service} on UDP/${i.port} (${i.confidence} confidence)`).join('; '),
-      recommendation: 'Inventory the exposed UDP services and confirm each is intentionally reachable.',
+      evidence: known
+        .map(i => `${i.service} on UDP/${i.port} (${i.confidence} confidence)`)
+        .join('; '),
+      recommendation:
+        'Inventory the exposed UDP services and confirm each is intentionally reachable.',
     });
   }
-  const memcached = identified.find((i) => i.service.startsWith('memcached'));
+  const memcached = identified.find(i => i.service.startsWith('memcached'));
   if (memcached) {
     findings.push({
       type: 'Memcached exposed over UDP',
@@ -166,7 +171,8 @@ export function identifyUdpServices({ responses = [] } = {}) {
       confidence: 'high',
       cwe: 'CWE-200',
       evidence: `memcached answered on UDP/${memcached.port}.`,
-      recommendation: 'Disable the UDP listener or firewall it; memcached over UDP is a classic amplification vector.',
+      recommendation:
+        'Disable the UDP listener or firewall it; memcached over UDP is a classic amplification vector.',
     });
   }
 

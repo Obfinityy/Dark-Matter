@@ -64,19 +64,22 @@ import {
   NEW_CARD_SLIDE_SPEC,
 } from './a11yRound3Core.js';
 
-const ideas = (list) => list.map((e) => e.idea).sort((a, b) => a - b);
+const ideas = list => list.map(e => e.idea).sort((a, b) => a - b);
 
 test('wave-14 registry covers 50521–50560 exactly once (40 ideas)', () => {
   const all = ideas(WAVE14_IDEAS);
   assert.equal(all.length, 40);
-  assert.deepEqual(all, Array.from({ length: 40 }, (_, i) => 50521 + i));
+  assert.deepEqual(
+    all,
+    Array.from({ length: 40 }, (_, i) => 50521 + i)
+  );
 });
 
 test('every registry entry names a real implementation (no SKIPs)', () => {
   for (const e of WAVE14_IDEAS) {
     assert.ok(e.in && e.in.length > 10, `idea ${e.idea} has no implementation note`);
   }
-  const skips = WAVE14_IDEAS.filter((e) => e.in.startsWith('SKIP'));
+  const skips = WAVE14_IDEAS.filter(e => e.in.startsWith('SKIP'));
   assert.equal(skips.length, 0);
 });
 
@@ -131,7 +134,7 @@ test('sortableHeaderProps carries scope + aria-sort (50524)', () => {
 test('media preference readers + class resolvers (50525/50549)', () => {
   assert.equal(REDUCED_TRANSPARENCY_QUERY, '(prefers-reduced-transparency: reduce)');
   assert.equal(REDUCED_DATA_QUERY, '(prefers-reduced-data: reduce)');
-  const mm = (q) => ({ matches: q.includes('transparency') });
+  const mm = q => ({ matches: q.includes('transparency') });
   assert.equal(readMediaPreference(REDUCED_TRANSPARENCY_QUERY, mm), true);
   assert.equal(readMediaPreference(REDUCED_DATA_QUERY, mm), false);
   assert.equal(readMediaPreference(REDUCED_DATA_QUERY), false); // no matcher → false
@@ -150,7 +153,11 @@ test('checkCodeBlockFocus enforces 3:1 non-text contrast (50526)', () => {
 });
 
 test('screenshotAltText is generated from finding metadata (50527)', () => {
-  const alt = screenshotAltText({ title: 'SQLi', target: 'example.com/login', severity: 'critical' });
+  const alt = screenshotAltText({
+    title: 'SQLi',
+    target: 'example.com/login',
+    severity: 'critical',
+  });
   assert.ok(alt.includes('SQLi') && alt.includes('example.com/login') && alt.includes('critical'));
 });
 
@@ -172,15 +179,28 @@ test('shouldExitTerminal: Esc always exits terminal focus (50530)', () => {
 });
 
 test('LANDMARKS covers header/nav/main/complementary/contentinfo (50532)', () => {
-  assert.deepEqual(Object.keys(LANDMARKS).sort(), ['complementary', 'contentinfo', 'header', 'main', 'nav']);
+  assert.deepEqual(Object.keys(LANDMARKS).sort(), [
+    'complementary',
+    'contentinfo',
+    'header',
+    'main',
+    'nav',
+  ]);
   assert.equal(landmarkProps('main')['aria-label'], 'Main content');
   assert.deepEqual(landmarkProps('nope'), {});
 });
 
 test('headingLevelIssues flags skipped levels (50533)', () => {
-  const ok = headingLevelIssues([{ level: 1, text: 'A' }, { level: 2, text: 'B' }, { level: 3, text: 'C' }]);
+  const ok = headingLevelIssues([
+    { level: 1, text: 'A' },
+    { level: 2, text: 'B' },
+    { level: 3, text: 'C' },
+  ]);
   assert.deepEqual(ok, []);
-  const bad = headingLevelIssues([{ level: 1, text: 'A' }, { level: 3, text: 'C' }]);
+  const bad = headingLevelIssues([
+    { level: 1, text: 'A' },
+    { level: 3, text: 'C' },
+  ]);
   assert.equal(bad.length, 1);
   assert.ok(bad[0].reason.includes('h1 to h3'));
   const firstBad = headingLevelIssues([{ level: 2, text: 'A' }]);
@@ -248,7 +268,14 @@ test('sliderStep clamps + sliderSpokenValue reads aloud (50542)', () => {
 });
 
 test('describeChart generates a textual chart summary (50543)', () => {
-  const d = describeChart({ type: 'bar', title: 'Findings by severity', series: [{ label: 'Critical', value: 3 }, { label: 'High', value: 2 }] });
+  const d = describeChart({
+    type: 'bar',
+    title: 'Findings by severity',
+    series: [
+      { label: 'Critical', value: 3 },
+      { label: 'High', value: 2 },
+    ],
+  });
   assert.ok(d.includes('Critical: 3') && d.includes('Total 5') && d.includes('Highest: Critical'));
   assert.equal(describeChart({ title: 'Empty' }), 'Empty: no data.');
 });
@@ -274,15 +301,25 @@ test('destructiveConfirmCopy gives visual + text confirmation (50546)', () => {
 
 test('graphToNestedList converts the chain graph to a nested list (50547)', () => {
   const g = {
-    nodes: [{ id: 'a', label: 'XSS' }, { id: 'b', label: 'Session theft' }, { id: 'c', label: 'ATO' }],
-    edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }],
+    nodes: [
+      { id: 'a', label: 'XSS' },
+      { id: 'b', label: 'Session theft' },
+      { id: 'c', label: 'ATO' },
+    ],
+    edges: [
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'c' },
+    ],
   };
   const tree = graphToNestedList(g);
   assert.equal(tree.length, 1);
   assert.equal(tree[0].label, 'XSS');
   assert.equal(tree[0].children[0].children[0].label, 'ATO');
   // cycle-safe
-  const cyclic = graphToNestedList({ nodes: [{ id: 'a', label: 'A' }], edges: [{ from: 'a', to: 'a' }] });
+  const cyclic = graphToNestedList({
+    nodes: [{ id: 'a', label: 'A' }],
+    edges: [{ from: 'a', to: 'a' }],
+  });
   assert.equal(cyclic[0].children[0].cyclic, true);
 });
 

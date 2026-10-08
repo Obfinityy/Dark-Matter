@@ -55,7 +55,11 @@ export function useSpeechRecognition({
       rec.onresult = null;
       rec.onerror = null;
       rec.onend = null;
-      try { rec.abort(); } catch { /* already stopped */ }
+      try {
+        rec.abort();
+      } catch {
+        /* already stopped */
+      }
     }
   }, []);
 
@@ -73,7 +77,7 @@ export function useSpeechRecognition({
     // Some browsers cap single utterances; keep results complete.
     rec.maxAlternatives = 1;
 
-    rec.onresult = (event) => {
+    rec.onresult = event => {
       let finalText = '';
       let interimText = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -88,7 +92,7 @@ export function useSpeechRecognition({
       }
     };
 
-    rec.onerror = (event) => {
+    rec.onerror = event => {
       const kind = event?.error;
       if (kind === 'not-allowed' || kind === 'service-not-allowed') {
         // Mic permission denied or blocked at browser/OS level.
@@ -120,7 +124,11 @@ export function useSpeechRecognition({
   }, [interimResults, continuous]);
 
   const stop = useCallback(() => {
-    try { recRef.current?.stop(); } catch { /* noop */ }
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* noop */
+    }
   }, []);
 
   const abort = useCallback(() => {

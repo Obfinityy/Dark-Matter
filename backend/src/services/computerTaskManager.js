@@ -1,7 +1,4 @@
-import {
-  ComputerTaskModel,
-  TERMINAL_TASK_STATES
-} from '../models/computerTaskModel.js';
+import { ComputerTaskModel, TERMINAL_TASK_STATES } from '../models/computerTaskModel.js';
 
 /**
  * ComputerTaskManager — the control plane for InfiniteChat computer tasks.
@@ -26,10 +23,12 @@ const NEW_TASK_PATTERN = /\b(open|launch|start|run|calculate|compute|search|brow
 const PRONOUN_REF = /\b(it|that|this|them|the document|the file|the app)\b/i;
 
 /** Desktop-ish verbs that indicate real computer control (English + Hinglish). */
-const DESKTOP_VERB = /\b(open|launch|start|run|close|quit|exit|save|write|type|calculate|compute|click|press|scroll|minimi[sz]e|maximi[sz]e|switch to|navigate|khol|kholde|khol\s*de|band|bandh|bhej|likh|chal[ao]*|daba)/i;
+const DESKTOP_VERB =
+  /\b(open|launch|start|run|close|quit|exit|save|write|type|calculate|compute|click|press|scroll|minimi[sz]e|maximi[sz]e|switch to|navigate|khol|kholde|khol\s*de|band|bandh|bhej|likh|chal[ao]*|daba)/i;
 
 /** Desktop-ish nouns/applications that indicate real computer control. */
-const DESKTOP_NOUN = /\b(word|notepad|calculator|excel|powerpoint|chrome|edge|firefox|browser|paint|explorer|settings|window|document|docx|txt|xlsx|pdf|file|folder|app\b|application|desktop|screen|mouse|keyboard|taskbar|start menu|whatsapp|telegram|youtube|gmail|spotify|vlc|message)/i;
+const DESKTOP_NOUN =
+  /\b(word|notepad|calculator|excel|powerpoint|chrome|edge|firefox|browser|paint|explorer|settings|window|document|docx|txt|xlsx|pdf|file|folder|app\b|application|desktop|screen|mouse|keyboard|taskbar|start menu|whatsapp|telegram|youtube|gmail|spotify|vlc|message)/i;
 
 /**
  * Deterministic router helper: should this chat message become a computer
@@ -45,11 +44,15 @@ export function classifyComputerInstruction(message, latestTask = null) {
 
   const verb = DESKTOP_VERB.test(text);
   const noun = DESKTOP_NOUN.test(text);
-  const imperativeStart = /^(open|launch|start|run|close|quit|exit|save|write|type|calculate|compute|click|press|scroll|navigate|search|create|make|edit|add|change|fix|rename|update|minimi[sz]e|maximi[sz]e)\b/i.test(text);
+  const imperativeStart =
+    /^(open|launch|start|run|close|quit|exit|save|write|type|calculate|compute|click|press|scroll|navigate|search|create|make|edit|add|change|fix|rename|update|minimi[sz]e|maximi[sz]e)\b/i.test(
+      text
+    );
   // Bare math ("25*25") opens the calculator — but NOT when the message is a
   // *question* about math ("2+2 kitna hota hai?"). Those go to chat.
-  const isMathQuestion = /[?？]/.test(text)
-    || /\b(kitna|kya|kaise|what|how|why|kyun|explain|batao|bataye)\b/i.test(text);
+  const isMathQuestion =
+    /[?？]/.test(text) ||
+    /\b(kitna|kya|kaise|what|how|why|kyun|explain|batao|bataye)\b/i.test(text);
   const bareMathExpr = /^\s*\d[\d\s.,]*\s*[*x×+\-/^%]\s*\d[\d\s.,]*\s*[=?]?\s*$/.test(text);
   const bareMath = (/^(calculate|compute)\b/i.test(text) || bareMathExpr) && !isMathQuestion;
 
@@ -66,7 +69,9 @@ export function classifyComputerInstruction(message, latestTask = null) {
   } else if (latestTask) {
     const words = text.split(/\s+/).filter(Boolean).length;
     const refinement =
-      (words <= FUZZY_FOLLOWUP_MAX_WORDS + 2 && PRONOUN_REF.test(text) && !NEW_TASK_PATTERN.test(text)) ||
+      (words <= FUZZY_FOLLOWUP_MAX_WORDS + 2 &&
+        PRONOUN_REF.test(text) &&
+        !NEW_TASK_PATTERN.test(text)) ||
       /\b(more|less)\s+(formal|casual|polite|professional|concise|detailed)\b/i.test(text) ||
       (words <= FUZZY_FOLLOWUP_MAX_WORDS && imperativeStart && !NEW_TASK_PATTERN.test(text));
     if (refinement) {
@@ -79,19 +84,13 @@ export function classifyComputerInstruction(message, latestTask = null) {
 }
 
 export class ComputerTaskManager {
-  constructor({
-    taskModel,
-    worker,
-    eventService = null,
-    logger = console,
-    config = {}
-  }) {
+  constructor({ taskModel, worker, eventService = null, logger = console, config = {} }) {
     this.taskModel = taskModel;
     this.worker = worker;
     this.eventService = eventService;
     this.logger = logger;
     this.config = {
-      recoverOnBoot: config.recoverOnBoot !== false
+      recoverOnBoot: config.recoverOnBoot !== false,
     };
     this.dispatches = new Map();
   }
@@ -146,14 +145,14 @@ export class ComputerTaskManager {
       userId,
       conversationId,
       instruction: text,
-      previousTaskId
+      previousTaskId,
     });
 
     await this.publish(task.id, {
       type: 'task.created',
       level: 'INFO',
       message: `Computer task queued: ${truncate(text, 120)}`,
-      data: { taskId: task.id, conversationId, instruction: text, previousTaskId }
+      data: { taskId: task.id, conversationId, instruction: text, previousTaskId },
     });
 
     this.dispatch(task.id);
@@ -185,7 +184,7 @@ export class ComputerTaskManager {
   async waitFor(taskId, { timeoutMs = 60_000 } = {}) {
     const promise = this.dispatches.get(taskId);
     if (!promise) return null;
-    const guard = new Promise((resolve) => setTimeout(() => resolve('timeout'), timeoutMs));
+    const guard = new Promise(resolve => setTimeout(() => resolve('timeout'), timeoutMs));
     return Promise.race([promise, guard]);
   }
 
@@ -194,14 +193,18 @@ export class ComputerTaskManager {
   async answer(userId, taskId, message) {
     const task = await this.requireTask(userId, taskId);
     if (task.status !== 'ask_user') {
-      return { status: 'not_waiting', taskStatus: task.status, message: 'This task is not waiting for an answer.' };
+      return {
+        status: 'not_waiting',
+        taskStatus: task.status,
+        message: 'This task is not waiting for an answer.',
+      };
     }
     await this.taskModel.provideAnswer(taskId, message);
     await this.publish(taskId, {
       type: 'task.resumed',
       level: 'INFO',
       message: 'User answered — resuming the task',
-      data: { answerLength: String(message || '').length }
+      data: { answerLength: String(message || '').length },
     });
     this.worker.wake(taskId); // a parked ask_user loop wakes and consumes the answer
     this.dispatch(taskId);
@@ -218,7 +221,7 @@ export class ComputerTaskManager {
     await this.publish(taskId, {
       type: 'task.cancelled',
       level: 'WARN',
-      message: 'Stop requested — the task will halt at the next safe point. History is preserved.'
+      message: 'Stop requested — the task will halt at the next safe point. History is preserved.',
     });
     this.worker.wake(taskId);
     if (!this.worker.isRunning(taskId)) {
@@ -226,7 +229,7 @@ export class ComputerTaskManager {
       await this.publish(taskId, {
         type: 'task.cancelled',
         level: 'WARN',
-        message: 'Task cancelled — history is preserved.'
+        message: 'Task cancelled — history is preserved.',
       });
     }
     return { status: 'cancelling', taskId };
@@ -254,7 +257,7 @@ export class ComputerTaskManager {
       eventCount: events.length,
       lastEventId: events.length ? events[events.length - 1].id : null,
       workerRunning: this.worker.isRunning(taskId),
-      queue: this.worker.brain?.queue?.stats?.() || null
+      queue: this.worker.brain?.queue?.stats?.() || null,
     };
   }
 
@@ -265,7 +268,7 @@ export class ComputerTaskManager {
     const events = await this.eventService.list(taskId);
     let sliced = events;
     if (afterId) {
-      const index = events.findIndex((event) => event.id === afterId);
+      const index = events.findIndex(event => event.id === afterId);
       sliced = index >= 0 ? events.slice(index + 1) : events;
     }
     return { events: sliced.slice(-limit) };
@@ -290,13 +293,13 @@ export class ComputerTaskManager {
       if (this.worker.isRunning(task.id)) continue;
       await this.taskModel.transition(task.id, 'resuming', {
         brainStatus: 'recovering',
-        waitingReason: null
+        waitingReason: null,
       });
       await this.publish(task.id, {
         type: 'task.resumed',
         level: 'INFO',
         message: `Backend restarted — recovering computer task from checkpoint (step ${task.stepCount})`,
-        data: { stepCount: task.stepCount }
+        data: { stepCount: task.stepCount },
       });
       this.dispatch(task.id);
       recovered += 1;

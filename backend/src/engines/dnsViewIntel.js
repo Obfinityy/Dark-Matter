@@ -68,9 +68,13 @@ export function diffHostnameAcrossResolvers(hostname, views) {
   }
   const agreement = signatureCount.size <= 1;
   // Majority signature (the "common view").
-  let majoritySig = null; let majorityVotes = 0;
+  let majoritySig = null;
+  let majorityVotes = 0;
   for (const [sig, votes] of signatureCount) {
-    if (votes > majorityVotes) { majorityVotes = votes; majoritySig = sig; }
+    if (votes > majorityVotes) {
+      majorityVotes = votes;
+      majoritySig = sig;
+    }
   }
   const majorityAnswers = majoritySig ? JSON.parse(majoritySig) : [];
   const onlyIn = {};
@@ -135,9 +139,9 @@ export function detectSplitHorizon(diffResult) {
       else if (answers.length > 0) visibleIn.push(resolver);
     }
     if (hiddenIn.length > 0 && (visibleIn.length > 0 || Object.keys(diff.missingFrom).length > 0)) {
-      const hiddenAnswers = [...new Set(
-        hiddenIn.flatMap(r => diff.perResolver[r].filter(isPrivate)),
-      )].sort();
+      const hiddenAnswers = [
+        ...new Set(hiddenIn.flatMap(r => diff.perResolver[r].filter(isPrivate))),
+      ].sort();
       findings.push({ hostname: diff.hostname, hiddenAnswers, hiddenIn, visibleIn });
     }
   }

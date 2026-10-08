@@ -16,21 +16,33 @@ export const WAVE58_PS_IDEAS = [
   { id: 52302, title: 'Intigriti draft generator', skip: false },
   { id: 52303, title: 'YesWeHack draft generator', skip: false },
   { id: 52304, title: 'Per-platform field mapping table', skip: false },
-  { id: 52305, title: 'Platform severity auto-mapping (internal/CVSS to platform scales)', skip: false },
+  {
+    id: 52305,
+    title: 'Platform severity auto-mapping (internal/CVSS to platform scales)',
+    skip: false,
+  },
   { id: 52306, title: 'One-click copy formatted report (markdown-preserving)', skip: false },
   { id: 52307, title: 'Approval-gated API submission state machine', skip: false },
   { id: 52308, title: 'Submission draft status tracker (draft to paid)', skip: false },
   { id: 52309, title: 'Pre-submission checklist per platform', skip: false },
   { id: 52310, title: 'Duplicate check (history + disclosed reports)', skip: false },
   { id: 52311, title: 'Platform scope validation', skip: false },
-  { id: 52312, title: 'Bounty estimate display (historical payout range by vuln class)', skip: false },
+  {
+    id: 52312,
+    title: 'Bounty estimate display (historical payout range by vuln class)',
+    skip: false,
+  },
   { id: 52313, title: 'Auto-attached PoC files manifest (curl/Python + evidence)', skip: false },
   { id: 52314, title: 'Screenshot attachment pack collector', skip: false },
   { id: 52315, title: 'Video PoC attachment descriptor with file-size handling', skip: false },
   { id: 52316, title: 'CVSS-to-platform severity translator with explanation', skip: false },
   { id: 52317, title: 'CWE auto-tagging', skip: false },
   { id: 52318, title: 'Affected-asset auto-fill from finding endpoint data', skip: false },
-  { id: 52319, title: 'Steps-to-reproduce formatter (numbered, minimal from PoC trace)', skip: false },
+  {
+    id: 52319,
+    title: 'Steps-to-reproduce formatter (numbered, minimal from PoC trace)',
+    skip: false,
+  },
   { id: 52320, title: 'Impact statement generator', skip: false },
 ];
 
@@ -50,7 +62,8 @@ function summaryLine(finding) {
 }
 
 function stepsArray(finding) {
-  if (Array.isArray(finding.pocTrace) && finding.pocTrace.length) return finding.pocTrace.map(String);
+  if (Array.isArray(finding.pocTrace) && finding.pocTrace.length)
+    return finding.pocTrace.map(String);
   if (finding.poc) return [String(finding.poc)];
   if (finding.description) return [String(finding.description)];
   return ['No reproduction steps recorded.'];
@@ -60,7 +73,8 @@ function stepsArray(finding) {
 export function buildHackerOneDraft(finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   return {
-    ok: true, platform: 'hackerone',
+    ok: true,
+    platform: 'hackerone',
     draft: {
       title: finding.title || `Finding ${finding.id}`,
       summary: summaryLine(finding),
@@ -71,7 +85,7 @@ export function buildHackerOneDraft(finding) {
       steps_to_reproduce: formatSteps(stepsArray(finding)).steps,
       weakness: (tagCwe(finding).cwes[0] || {}).id || null,
       severity: mapSeverity(finding.severity, finding.cvss, 'hackerone').label,
-      attachments: buildPocManifest(finding).manifest.map((m) => m.name),
+      attachments: buildPocManifest(finding).manifest.map(m => m.name),
     },
   };
 }
@@ -80,7 +94,8 @@ export function buildHackerOneDraft(finding) {
 export function buildBugcrowdDraft(finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   return {
-    ok: true, platform: 'bugcrowd',
+    ok: true,
+    platform: 'bugcrowd',
     draft: {
       title: finding.title || `Finding ${finding.id}`,
       vulnerability_type: mapSeverity(finding.severity, finding.cvss, 'bugcrowd').label,
@@ -98,7 +113,8 @@ export function buildBugcrowdDraft(finding) {
 export function buildIntigritiDraft(finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   return {
-    ok: true, platform: 'intigriti',
+    ok: true,
+    platform: 'intigriti',
     draft: {
       title: finding.title || `Finding ${finding.id}`,
       severity: mapSeverity(finding.severity, finding.cvss, 'intigriti').label,
@@ -115,7 +131,8 @@ export function buildIntigritiDraft(finding) {
 export function buildYesWeHackDraft(finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   return {
-    ok: true, platform: 'yeswehack',
+    ok: true,
+    platform: 'yeswehack',
     draft: {
       title: finding.title || `Finding ${finding.id}`,
       criticality: mapSeverity(finding.severity, finding.cvss, 'yeswehack').label,
@@ -131,24 +148,52 @@ export function buildYesWeHackDraft(finding) {
 /* 52304 — Per-platform field mapping table. */
 export const PLATFORM_FIELD_MAP = {
   hackerone: {
-    id: 'id', title: 'title', summary: 'summary', description: 'vulnerability_information',
-    steps: 'steps_to_reproduce', impact: 'vulnerability_information', severity: 'severity',
-    cwe: 'weakness', asset: 'asset_identifier', poc: 'attachments',
+    id: 'id',
+    title: 'title',
+    summary: 'summary',
+    description: 'vulnerability_information',
+    steps: 'steps_to_reproduce',
+    impact: 'vulnerability_information',
+    severity: 'severity',
+    cwe: 'weakness',
+    asset: 'asset_identifier',
+    poc: 'attachments',
   },
   bugcrowd: {
-    id: 'id', title: 'title', summary: 'summary', description: 'description',
-    steps: 'reproduction_steps', impact: 'impact', severity: 'vulnerability_type',
-    cwe: 'cwe', asset: 'target_url', poc: 'attachments',
+    id: 'id',
+    title: 'title',
+    summary: 'summary',
+    description: 'description',
+    steps: 'reproduction_steps',
+    impact: 'impact',
+    severity: 'vulnerability_type',
+    cwe: 'cwe',
+    asset: 'target_url',
+    poc: 'attachments',
   },
   intigriti: {
-    id: 'id', title: 'title', summary: 'summary', description: 'summary',
-    steps: 'poc', impact: 'impact', severity: 'severity',
-    cwe: 'cwe', asset: 'affected_endpoint', poc: 'attachments',
+    id: 'id',
+    title: 'title',
+    summary: 'summary',
+    description: 'summary',
+    steps: 'poc',
+    impact: 'impact',
+    severity: 'severity',
+    cwe: 'cwe',
+    asset: 'affected_endpoint',
+    poc: 'attachments',
   },
   yeswehack: {
-    id: 'id', title: 'title', summary: 'summary', description: 'technical_description',
-    steps: 'reproduction_steps', impact: 'impact', severity: 'criticality',
-    cwe: 'cwe', asset: 'affected_scope', poc: 'attachments',
+    id: 'id',
+    title: 'title',
+    summary: 'summary',
+    description: 'technical_description',
+    steps: 'reproduction_steps',
+    impact: 'impact',
+    severity: 'criticality',
+    cwe: 'cwe',
+    asset: 'affected_scope',
+    poc: 'attachments',
   },
 };
 
@@ -166,20 +211,31 @@ export function mapFindingFields(finding, platform) {
 /* 52305 — Platform severity auto-mapping (internal severity/CVSS → platform scales). */
 const PLATFORM_SEVERITY_SCALES = {
   hackerone: [
-    { label: 'Critical', min: 9.0 }, { label: 'High', min: 7.0 },
-    { label: 'Medium', min: 4.0 }, { label: 'Low', min: 0.1 }, { label: 'None', min: 0 },
+    { label: 'Critical', min: 9.0 },
+    { label: 'High', min: 7.0 },
+    { label: 'Medium', min: 4.0 },
+    { label: 'Low', min: 0.1 },
+    { label: 'None', min: 0 },
   ],
   bugcrowd: [
-    { label: 'P1', min: 9.0 }, { label: 'P2', min: 7.0 },
-    { label: 'P3', min: 4.0 }, { label: 'P4', min: 0.1 }, { label: 'P5', min: 0 },
+    { label: 'P1', min: 9.0 },
+    { label: 'P2', min: 7.0 },
+    { label: 'P3', min: 4.0 },
+    { label: 'P4', min: 0.1 },
+    { label: 'P5', min: 0 },
   ],
   intigriti: [
-    { label: 'Exceptional', min: 9.5 }, { label: 'Critical', min: 9.0 },
-    { label: 'High', min: 7.0 }, { label: 'Medium', min: 4.0 }, { label: 'Low', min: 0 },
+    { label: 'Exceptional', min: 9.5 },
+    { label: 'Critical', min: 9.0 },
+    { label: 'High', min: 7.0 },
+    { label: 'Medium', min: 4.0 },
+    { label: 'Low', min: 0 },
   ],
   yeswehack: [
-    { label: 'Critical', min: 9.0 }, { label: 'High', min: 7.0 },
-    { label: 'Medium', min: 4.0 }, { label: 'Low', min: 0 },
+    { label: 'Critical', min: 9.0 },
+    { label: 'High', min: 7.0 },
+    { label: 'Medium', min: 4.0 },
+    { label: 'Low', min: 0 },
   ],
 };
 
@@ -189,10 +245,17 @@ export function mapSeverity(severity, cvss, platform) {
   const scale = PLATFORM_SEVERITY_SCALES[platform];
   if (!scale) return { ok: false, reason: `unknown platform: ${platform}` };
   let score = typeof cvss === 'number' ? cvss : null;
-  if (score == null) score = INTERNAL_TO_CVSS[severity] !== undefined ? INTERNAL_TO_CVSS[severity] : null;
+  if (score == null)
+    score = INTERNAL_TO_CVSS[severity] !== undefined ? INTERNAL_TO_CVSS[severity] : null;
   if (score == null) return { ok: false, reason: 'no severity or cvss to map from' };
-  const entry = scale.find((s) => score >= s.min) || scale[scale.length - 1];
-  return { ok: true, platform, label: entry.label, cvss: score, fromInternal: typeof cvss !== 'number' };
+  const entry = scale.find(s => score >= s.min) || scale[scale.length - 1];
+  return {
+    ok: true,
+    platform,
+    label: entry.label,
+    cvss: score,
+    fromInternal: typeof cvss !== 'number',
+  };
 }
 
 /* 52306 — One-click copy formatted report (markdown-preserving string). */
@@ -203,7 +266,11 @@ export function buildCopyableReport(finding) {
     '',
     `**Severity:** ${finding.severity || 'unknown'}${finding.cvss != null ? ` (CVSS ${finding.cvss})` : ''}`,
     `**Target:** ${(fillAsset(finding).asset || {}).url || finding.target || 'n/a'}`,
-    `**CWE:** ${(tagCwe(finding).cwes.map((c) => c.id).join(', ')) || 'n/a'}`,
+    `**CWE:** ${
+      tagCwe(finding)
+        .cwes.map(c => c.id)
+        .join(', ') || 'n/a'
+    }`,
     '',
     '## Summary',
     summaryLine(finding),
@@ -225,19 +292,33 @@ export function buildCopyableReport(finding) {
 /* 52307 — Approval-gated API submission state machine.
  * Human approves the EXACT payload before anything may be sent.
  * This module performs NO network calls; transitions model the gate. */
-export const SUBMISSION_STATES = ['draft', 'pending-approval', 'approved', 'sending', 'submitted', 'rejected'];
+export const SUBMISSION_STATES = [
+  'draft',
+  'pending-approval',
+  'approved',
+  'sending',
+  'submitted',
+  'rejected',
+];
 
 export function createSubmission(input = {}, now = Date.now()) {
-  if (!PLATFORMS.includes(input.platform)) return { ok: false, reason: `platform must be ${PLATFORMS.join('|')}` };
+  if (!PLATFORMS.includes(input.platform))
+    return { ok: false, reason: `platform must be ${PLATFORMS.join('|')}` };
   if (!input.finding || !input.finding.id) return { ok: false, reason: 'finding with id required' };
-  if (!input.payload || typeof input.payload !== 'object') return { ok: false, reason: 'payload object required' };
+  if (!input.payload || typeof input.payload !== 'object')
+    return { ok: false, reason: 'payload object required' };
   return {
     ok: true,
     submission: {
       id: `sub_${tokenFor('sub', `${input.platform}:${input.finding.id}`, now)}`,
-      platform: input.platform, findingId: input.finding.id,
-      payload: input.payload, payloadHash: payloadHash(input.payload),
-      state: 'draft', approvals: [], createdAt: now, updatedAt: now,
+      platform: input.platform,
+      findingId: input.finding.id,
+      payload: input.payload,
+      payloadHash: payloadHash(input.payload),
+      state: 'draft',
+      approvals: [],
+      createdAt: now,
+      updatedAt: now,
       networkCalls: 0, // hard invariant: this model never performs sends
     },
   };
@@ -268,15 +349,33 @@ export function submissionReducer(submission, action = {}, now = Date.now()) {
         // The stored payload must still match the hash from request time:
         // any mutation in between blocks approval.
         if (payloadHash(submission.payload) !== submission.payloadHash) {
-          return { ok: false, reason: 'payload mutated after review was requested — re-request approval' };
+          return {
+            ok: false,
+            reason: 'payload mutated after review was requested — re-request approval',
+          };
         }
         return {
           ok: true,
-          submission: { ...stamp, state: 'approved', approvals: [...submission.approvals, { by: action.by || 'owner', at: now, payloadHash: action.payloadHash }] },
+          submission: {
+            ...stamp,
+            state: 'approved',
+            approvals: [
+              ...submission.approvals,
+              { by: action.by || 'owner', at: now, payloadHash: action.payloadHash },
+            ],
+          },
         };
       }
       if (action.type === 'REJECT') {
-        return { ok: true, submission: { ...stamp, state: 'rejected', rejectedBy: action.by || 'owner', rejectReason: action.reason || null } };
+        return {
+          ok: true,
+          submission: {
+            ...stamp,
+            state: 'rejected',
+            rejectedBy: action.by || 'owner',
+            rejectReason: action.reason || null,
+          },
+        };
       }
       return { ok: false, reason: `no transition ${action.type} from pending-approval` };
     case 'approved':
@@ -301,12 +400,15 @@ export const TRACKER_STATES = ['draft', 'submitted', 'triaged', 'resolved', 'pai
 
 export function createSubmissionTracker(findingId, platform, now = Date.now()) {
   if (!findingId) return { ok: false, reason: 'findingId required' };
-  if (!PLATFORMS.includes(platform)) return { ok: false, reason: `platform must be ${PLATFORMS.join('|')}` };
+  if (!PLATFORMS.includes(platform))
+    return { ok: false, reason: `platform must be ${PLATFORMS.join('|')}` };
   return {
     ok: true,
     tracker: {
       id: `trk_${tokenFor('trk', `${platform}:${findingId}`, now)}`,
-      findingId, platform, state: 'draft',
+      findingId,
+      platform,
+      state: 'draft',
       history: [{ state: 'draft', at: now, note: 'draft created' }],
       payout: null,
     },
@@ -329,44 +431,89 @@ export function draftStatusReducer(tracker, action = {}, now = Date.now()) {
 
 /* 52309 — Pre-submission checklist per platform. */
 export const SUBMISSION_CHECKLISTS = {
-  hackerone: ['title-under-140-chars', 'weakness-set', 'steps-numbered', 'impact-present', 'asset-identifier-set'],
-  bugcrowd: ['vulnerability-type-set', 'target-url-set', 'steps-numbered', 'impact-present', 'references-or-poc'],
+  hackerone: [
+    'title-under-140-chars',
+    'weakness-set',
+    'steps-numbered',
+    'impact-present',
+    'asset-identifier-set',
+  ],
+  bugcrowd: [
+    'vulnerability-type-set',
+    'target-url-set',
+    'steps-numbered',
+    'impact-present',
+    'references-or-poc',
+  ],
   intigriti: ['severity-mapped', 'affected-endpoint-set', 'poc-present', 'impact-present'],
-  yeswehack: ['criticality-mapped', 'technical-description-present', 'reproduction-steps-present', 'impact-present'],
+  yeswehack: [
+    'criticality-mapped',
+    'technical-description-present',
+    'reproduction-steps-present',
+    'impact-present',
+  ],
 };
 
 export function runChecklist(finding, platform) {
   const checks = SUBMISSION_CHECKLISTS[platform];
   if (!checks) return { ok: false, reason: `unknown platform: ${platform}` };
-  const results = checks.map((check) => {
+  const results = checks.map(check => {
     let pass = false;
     switch (check) {
-      case 'title-under-140-chars': pass = typeof finding.title === 'string' && finding.title.length > 0 && finding.title.length <= 140; break;
-      case 'weakness-set': case 'severity-mapped': case 'criticality-mapped': case 'vulnerability-type-set':
-        pass = mapSeverity(finding.severity, finding.cvss, platform).ok; break;
-      case 'steps-numbered': case 'reproduction-steps-present': case 'poc-present':
-        pass = stepsArray(finding).length > 0; break;
-      case 'impact-present': pass = Boolean(finding.impact || generateImpact(finding).impact); break;
-      case 'asset-identifier-set': case 'target-url-set': case 'affected-endpoint-set':
-        pass = Boolean((fillAsset(finding).asset || {}).url); break;
-      case 'technical-description-present': pass = typeof finding.description === 'string' && finding.description.length > 0; break;
+      case 'title-under-140-chars':
+        pass =
+          typeof finding.title === 'string' &&
+          finding.title.length > 0 &&
+          finding.title.length <= 140;
+        break;
+      case 'weakness-set':
+      case 'severity-mapped':
+      case 'criticality-mapped':
+      case 'vulnerability-type-set':
+        pass = mapSeverity(finding.severity, finding.cvss, platform).ok;
+        break;
+      case 'steps-numbered':
+      case 'reproduction-steps-present':
+      case 'poc-present':
+        pass = stepsArray(finding).length > 0;
+        break;
+      case 'impact-present':
+        pass = Boolean(finding.impact || generateImpact(finding).impact);
+        break;
+      case 'asset-identifier-set':
+      case 'target-url-set':
+      case 'affected-endpoint-set':
+        pass = Boolean((fillAsset(finding).asset || {}).url);
+        break;
+      case 'technical-description-present':
+        pass = typeof finding.description === 'string' && finding.description.length > 0;
+        break;
       case 'references-or-poc':
-        pass = (Array.isArray(finding.references) && finding.references.length > 0) || Boolean(finding.poc); break;
-      default: pass = false;
+        pass =
+          (Array.isArray(finding.references) && finding.references.length > 0) ||
+          Boolean(finding.poc);
+        break;
+      default:
+        pass = false;
     }
     return { check, pass };
   });
-  const failed = results.filter((r) => !r.pass).map((r) => r.check);
+  const failed = results.filter(r => !r.pass).map(r => r.check);
   return { ok: true, platform, results, failed, passed: failed.length === 0 };
 }
 
 /* 52310 — Duplicate check (search history + disclosed reports for likely duplicates). */
 function tokenize(text) {
-  return new Set(String(text || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2));
+  return new Set(
+    String(text || '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(t => t.length > 2)
+  );
 }
 
 function jaccard(a, b) {
-  const ia = new Set([...a].filter((t) => b.has(t)));
+  const ia = new Set([...a].filter(t => b.has(t)));
   const union = new Set([...a, ...b]);
   return union.size === 0 ? 0 : ia.size / union.size;
 }
@@ -374,16 +521,35 @@ function jaccard(a, b) {
 export function checkDuplicates(finding, history = [], disclosed = []) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   const hay = new Map();
-  for (const h of Array.isArray(history) ? history : []) hay.set(h.id, { source: 'history', title: h.title, description: h.description, asset: h.asset });
-  for (const d of Array.isArray(disclosed) ? disclosed : []) hay.set(d.id, { source: 'disclosed', title: d.title, description: d.description, asset: d.asset });
+  for (const h of Array.isArray(history) ? history : [])
+    hay.set(h.id, {
+      source: 'history',
+      title: h.title,
+      description: h.description,
+      asset: h.asset,
+    });
+  for (const d of Array.isArray(disclosed) ? disclosed : [])
+    hay.set(d.id, {
+      source: 'disclosed',
+      title: d.title,
+      description: d.description,
+      asset: d.asset,
+    });
   const mine = tokenize(`${finding.title} ${finding.description} ${finding.endpoint || ''}`);
   const candidates = [];
   for (const [id, doc] of hay) {
     if (id === finding.id) continue;
     const score = jaccard(mine, tokenize(`${doc.title} ${doc.description} ${doc.asset || ''}`));
-    const sameAsset = finding.endpoint && doc.asset && String(finding.endpoint).includes(String(doc.asset));
+    const sameAsset =
+      finding.endpoint && doc.asset && String(finding.endpoint).includes(String(doc.asset));
     const final = sameAsset ? Math.min(1, score + 0.25) : score;
-    if (final >= 0.35) candidates.push({ id, source: doc.source, title: doc.title, score: Math.round(final * 100) / 100 });
+    if (final >= 0.35)
+      candidates.push({
+        id,
+        source: doc.source,
+        title: doc.title,
+        score: Math.round(final * 100) / 100,
+      });
   }
   candidates.sort((a, b) => b.score - a.score);
   return {
@@ -397,10 +563,15 @@ export function checkDuplicates(finding, history = [], disclosed = []) {
 /* 52311 — Platform scope validation. */
 export function validateScope(finding, program) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
-  if (!program || !Array.isArray(program.inScope)) return { ok: false, reason: 'program with inScope array required' };
-  const asset = String((fillAsset(finding).asset || {}).url || finding.endpoint || finding.target || '');
-  const inScope = program.inScope.some((entry) => asset.includes(String(entry)));
-  const outOfScope = Array.isArray(program.outOfScope) && program.outOfScope.some((entry) => asset.includes(String(entry)));
+  if (!program || !Array.isArray(program.inScope))
+    return { ok: false, reason: 'program with inScope array required' };
+  const asset = String(
+    (fillAsset(finding).asset || {}).url || finding.endpoint || finding.target || ''
+  );
+  const inScope = program.inScope.some(entry => asset.includes(String(entry)));
+  const outOfScope =
+    Array.isArray(program.outOfScope) &&
+    program.outOfScope.some(entry => asset.includes(String(entry)));
   if (outOfScope) return { ok: true, inScope: false, reason: 'explicitly out of scope', asset };
   return { ok: true, inScope, reason: inScope ? 'in scope' : 'not in declared scope', asset };
 }
@@ -420,7 +591,9 @@ export function estimateBounty(vulnClass, severity) {
   const table = PAYOUT_TABLE[String(vulnClass || '').toLowerCase()] || PAYOUT_TABLE.default;
   const range = table[severity] || table.medium || [50, 200];
   return {
-    ok: true, vulnClass: vulnClass || 'default', severity,
+    ok: true,
+    vulnClass: vulnClass || 'default',
+    severity,
     estimate: { low: range[0], high: range[1], currency: 'USD' },
     note: 'Historical payout range; actual bounties vary by program.',
   };
@@ -430,10 +603,18 @@ export function estimateBounty(vulnClass, severity) {
 export function buildPocManifest(finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
   const manifest = [];
-  if (finding.poc) manifest.push({ name: `poc-${finding.id}.sh`, kind: 'curl', source: 'finding.poc' });
-  if (finding.pocPython) manifest.push({ name: `poc-${finding.id}.py`, kind: 'python', source: 'finding.pocPython' });
+  if (finding.poc)
+    manifest.push({ name: `poc-${finding.id}.sh`, kind: 'curl', source: 'finding.poc' });
+  if (finding.pocPython)
+    manifest.push({ name: `poc-${finding.id}.py`, kind: 'python', source: 'finding.pocPython' });
   if (Array.isArray(finding.evidence)) {
-    finding.evidence.forEach((e, i) => manifest.push({ name: `evidence-${finding.id}-${i + 1}.${e.kind === 'screenshot' ? 'png' : 'txt'}`, kind: 'evidence', source: `finding.evidence[${i}]` }));
+    finding.evidence.forEach((e, i) =>
+      manifest.push({
+        name: `evidence-${finding.id}-${i + 1}.${e.kind === 'screenshot' ? 'png' : 'txt'}`,
+        kind: 'evidence',
+        source: `finding.evidence[${i}]`,
+      })
+    );
   }
   return { ok: true, manifest, count: manifest.length };
 }
@@ -441,7 +622,7 @@ export function buildPocManifest(finding) {
 /* 52314 — Screenshot attachment pack collector. */
 export function collectScreenshots(evidence = [], opts = {}) {
   const items = (Array.isArray(evidence) ? evidence : [])
-    .filter((e) => e && e.kind === 'screenshot')
+    .filter(e => e && e.kind === 'screenshot')
     .map((e, i) => ({
       name: e.name || `screenshot-${i + 1}.png`,
       sizeBytes: typeof e.sizeBytes === 'number' ? e.sizeBytes : 0,
@@ -450,7 +631,14 @@ export function collectScreenshots(evidence = [], opts = {}) {
   const totalBytes = items.reduce((a, s) => a + s.sizeBytes, 0);
   const maxTotal = typeof opts.maxTotalBytes === 'number' ? opts.maxTotalBytes : 25 * 1024 * 1024;
   return {
-    ok: true, pack: { items, totalBytes, count: items.length, withinLimit: totalBytes <= maxTotal, maxTotalBytes: maxTotal },
+    ok: true,
+    pack: {
+      items,
+      totalBytes,
+      count: items.length,
+      withinLimit: totalBytes <= maxTotal,
+      maxTotalBytes: maxTotal,
+    },
   };
 }
 
@@ -463,11 +651,17 @@ export function buildVideoPoC(input = {}, opts = {}) {
   return {
     ok: true,
     video: {
-      path: input.path || null, url: input.url || null,
+      path: input.path || null,
+      url: input.url || null,
       format: input.format || (input.path ? input.path.split('.').pop() : null),
       durationSec: typeof input.durationSec === 'number' ? input.durationSec : null,
-      sizeBytes, maxBytes, withinLimit,
-      recommendation: withinLimit === false ? 'Compress or trim the video, or host it externally and link it.' : null,
+      sizeBytes,
+      maxBytes,
+      withinLimit,
+      recommendation:
+        withinLimit === false
+          ? 'Compress or trim the video, or host it externally and link it.'
+          : null,
     },
   };
 }
@@ -480,7 +674,9 @@ export function translateCvss(cvss, platform) {
   const r = mapSeverity(null, cvss, platform);
   if (!r.ok) return r;
   return {
-    ok: true, platform, cvss,
+    ok: true,
+    platform,
+    cvss,
     label: r.label,
     explanation: `CVSS ${cvss} → ${r.label} on ${platform} (from CVSS, not internal severity).`,
   };
@@ -488,27 +684,60 @@ export function translateCvss(cvss, platform) {
 
 /* 52317 — CWE auto-tagging. */
 const CWE_RULES = [
-  { match: ['xss', 'cross-site scripting', 'reflected', 'stored xss', 'dom xss'], id: 'CWE-79', name: 'Cross-site Scripting' },
+  {
+    match: ['xss', 'cross-site scripting', 'reflected', 'stored xss', 'dom xss'],
+    id: 'CWE-79',
+    name: 'Cross-site Scripting',
+  },
   { match: ['sql injection', 'sqli', 'blind sql'], id: 'CWE-89', name: 'SQL Injection' },
-  { match: ['idor', 'insecure direct object'], id: 'CWE-639', name: 'Authorization Bypass Through User-Controlled Key' },
-  { match: ['ssrf', 'server-side request forgery'], id: 'CWE-918', name: 'Server-Side Request Forgery' },
-  { match: ['csrf', 'cross-site request forgery'], id: 'CWE-352', name: 'Cross-Site Request Forgery' },
-  { match: ['rce', 'remote code execution', 'command injection', 'os command'], id: 'CWE-78', name: 'OS Command Injection' },
+  {
+    match: ['idor', 'insecure direct object'],
+    id: 'CWE-639',
+    name: 'Authorization Bypass Through User-Controlled Key',
+  },
+  {
+    match: ['ssrf', 'server-side request forgery'],
+    id: 'CWE-918',
+    name: 'Server-Side Request Forgery',
+  },
+  {
+    match: ['csrf', 'cross-site request forgery'],
+    id: 'CWE-352',
+    name: 'Cross-Site Request Forgery',
+  },
+  {
+    match: ['rce', 'remote code execution', 'command injection', 'os command'],
+    id: 'CWE-78',
+    name: 'OS Command Injection',
+  },
   { match: ['xxe', 'xml external entity'], id: 'CWE-611', name: 'XXE' },
-  { match: ['lfi', 'local file inclusion', 'path traversal', 'directory traversal'], id: 'CWE-22', name: 'Path Traversal' },
+  {
+    match: ['lfi', 'local file inclusion', 'path traversal', 'directory traversal'],
+    id: 'CWE-22',
+    name: 'Path Traversal',
+  },
   { match: ['open redirect'], id: 'CWE-601', name: 'Open Redirect' },
-  { match: ['jwt', 'json web token'], id: 'CWE-347', name: 'Improper Verification of Cryptographic Signature' },
+  {
+    match: ['jwt', 'json web token'],
+    id: 'CWE-347',
+    name: 'Improper Verification of Cryptographic Signature',
+  },
   { match: ['cors'], id: 'CWE-942', name: 'Permissive CORS Policy' },
   { match: ['subdomain takeover'], id: 'CWE-350', name: 'Reliance on Reverse DNS' },
-  { match: ['secret', 'api key', 'credential', 'hardcoded'], id: 'CWE-798', name: 'Hard-coded Credentials' },
+  {
+    match: ['secret', 'api key', 'credential', 'hardcoded'],
+    id: 'CWE-798',
+    name: 'Hard-coded Credentials',
+  },
 ];
 
 export function tagCwe(finding) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
-  const hay = `${finding.title || ''} ${finding.description || ''} ${finding.vulnClass || ''}`.toLowerCase();
+  const hay =
+    `${finding.title || ''} ${finding.description || ''} ${finding.vulnClass || ''}`.toLowerCase();
   const cwes = [];
   for (const rule of CWE_RULES) {
-    if (rule.match.some((m) => hay.includes(m)) && !cwes.some((c) => c.id === rule.id)) {
+    if (rule.match.some(m => hay.includes(m)) && !cwes.some(c => c.id === rule.id)) {
       cwes.push({ id: rule.id, name: rule.name });
     }
   }
@@ -522,14 +751,22 @@ export function fillAsset(finding) {
   let host = null;
   try {
     if (endpoint && /^https?:\/\//i.test(endpoint)) host = new URL(endpoint).host;
-  } catch { host = null; }
+  } catch {
+    host = null;
+  }
   return {
     ok: true,
     asset: {
       url: endpoint,
       host,
-      type: host ? 'web' : (endpoint ? 'other' : null),
-      fromField: finding.endpoint ? 'endpoint' : (finding.url ? 'url' : (finding.target ? 'target' : null)),
+      type: host ? 'web' : endpoint ? 'other' : null,
+      fromField: finding.endpoint
+        ? 'endpoint'
+        : finding.url
+          ? 'url'
+          : finding.target
+            ? 'target'
+            : null,
     },
   };
 }
@@ -538,8 +775,8 @@ export function fillAsset(finding) {
 export function formatSteps(trace) {
   const raw = Array.isArray(trace) ? trace : [trace];
   const steps = raw
-    .map((s) => String(s || '').trim())
-    .filter((s) => s.length > 0)
+    .map(s => String(s || '').trim())
+    .filter(s => s.length > 0)
     .slice(0, 20)
     .map((s, i) => `${i + 1}. ${s}`);
   return { ok: true, steps, text: steps.join('\n') };
@@ -547,12 +784,17 @@ export function formatSteps(trace) {
 
 /* 52320 — Impact statement generator. */
 const IMPACT_TEMPLATES = {
-  xss: (f) => `An attacker can execute arbitrary JavaScript in victim browsers via ${f.endpoint || 'the vulnerable page'}, enabling session theft and account takeover.`,
-  sqli: (f) => `The injectable query exposes backend database contents, allowing data exfiltration${f.endpoint ? ` through ${f.endpoint}` : ''} and potential authentication bypass.`,
-  idor: (f) => `Object references are enumerable, letting any authenticated user read or modify other users' data.`,
-  ssrf: (f) => `The server can be coerced into internal requests, risking cloud metadata access and internal network pivoting.`,
-  rce: (f) => `Remote command execution grants full control of the affected host to an unauthenticated attacker.`,
-  csrf: (f) => `Victims can be tricked into performing state-changing actions without their consent.`,
+  xss: f =>
+    `An attacker can execute arbitrary JavaScript in victim browsers via ${f.endpoint || 'the vulnerable page'}, enabling session theft and account takeover.`,
+  sqli: f =>
+    `The injectable query exposes backend database contents, allowing data exfiltration${f.endpoint ? ` through ${f.endpoint}` : ''} and potential authentication bypass.`,
+  idor: f =>
+    `Object references are enumerable, letting any authenticated user read or modify other users' data.`,
+  ssrf: f =>
+    `The server can be coerced into internal requests, risking cloud metadata access and internal network pivoting.`,
+  rce: f =>
+    `Remote command execution grants full control of the affected host to an unauthenticated attacker.`,
+  csrf: f => `Victims can be tricked into performing state-changing actions without their consent.`,
 };
 
 export function generateImpact(finding) {

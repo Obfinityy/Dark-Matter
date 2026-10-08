@@ -13,9 +13,21 @@
  */
 
 const LMS_PLATFORMS = [
-  { name: 'Teachable', hostRe: /^([a-z0-9-]+)\.teachable\.com$/i, cnameRe: /(^|\.)teachable\.com$/i },
-  { name: 'Thinkific', hostRe: /^([a-z0-9-]+)\.thinkific\.com$/i, cnameRe: /(^|\.)thinkific\.com$/i },
-  { name: 'Kajabi', hostRe: /^([a-z0-9-]+)\.(mykajabi\.com|kajabi\.com)$/i, cnameRe: /(^|\.)(mykajabi\.com|kajabi\.com)$/i },
+  {
+    name: 'Teachable',
+    hostRe: /^([a-z0-9-]+)\.teachable\.com$/i,
+    cnameRe: /(^|\.)teachable\.com$/i,
+  },
+  {
+    name: 'Thinkific',
+    hostRe: /^([a-z0-9-]+)\.thinkific\.com$/i,
+    cnameRe: /(^|\.)thinkific\.com$/i,
+  },
+  {
+    name: 'Kajabi',
+    hostRe: /^([a-z0-9-]+)\.(mykajabi\.com|kajabi\.com)$/i,
+    cnameRe: /(^|\.)(mykajabi\.com|kajabi\.com)$/i,
+  },
 ];
 
 /**
@@ -42,7 +54,7 @@ export function mapLmsCnames(cnameRecords = []) {
   for (const rec of cnameRecords || []) {
     if (!rec || !rec.name || !rec.target) continue;
     const target = String(rec.target).toLowerCase().replace(/\.$/, '');
-    const p = LMS_PLATFORMS.find((pl) => pl.cnameRe.test(target));
+    const p = LMS_PLATFORMS.find(pl => pl.cnameRe.test(target));
     if (!p) continue;
     const classified = classifyLmsHost(target);
     out.push({
@@ -64,7 +76,8 @@ export function extractLmsBranding(html = '') {
   const text = String(html || '');
   const out = [];
   const seen = new Set();
-  const hostRe = /https?:\/\/([a-z0-9-]+\.(?:teachable\.com|thinkific\.com|mykajabi\.com|kajabi\.com))/gi;
+  const hostRe =
+    /https?:\/\/([a-z0-9-]+\.(?:teachable\.com|thinkific\.com|mykajabi\.com|kajabi\.com))/gi;
   let m;
   while ((m = hostRe.exec(text)) !== null) {
     const host = m[1].toLowerCase();
@@ -90,12 +103,12 @@ export function extractLmsBranding(html = '') {
 export function discoverLmsFootprint({ cnames = [], htmlPages = [], orgKeywords = [] } = {}) {
   const tenants = mapLmsCnames(cnames);
   const branding = (htmlPages || []).flatMap(extractLmsBranding);
-  const keywords = (orgKeywords || []).map((k) => String(k).toLowerCase());
+  const keywords = (orgKeywords || []).map(k => String(k).toLowerCase());
   let orgMatchScore = 0;
   if (keywords.length) {
     for (const b of branding) {
       const hay = `${b.title || ''} ${b.school || ''}`.toLowerCase();
-      if (keywords.some((k) => k && hay.includes(k))) orgMatchScore += 1;
+      if (keywords.some(k => k && hay.includes(k))) orgMatchScore += 1;
     }
   }
   return { tenants, branding, orgMatchScore };

@@ -28,12 +28,16 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-const META_RE = /^\s*(name|maintainer|maintainer_email|description|version|source_url|issues_url|chef_version|supports)\s+["']?([^"'\n]+)["']?\s*$/gim;
+const META_RE =
+  /^\s*(name|maintainer|maintainer_email|description|version|source_url|issues_url|chef_version|supports)\s+["']?([^"'\n]+)["']?\s*$/gim;
 const URL_RE = /(https?:\/\/[^\s"'<>()]+)/g;
-const HOSTNAME_ATTR_RE = /\b(?:server|host|hostname|domain|endpoint|api_url|base_url|download_url|repo_url|mirror)\s*=\s*["']([a-z0-9][a-z0-9.-]*\.[a-z]{2,})["']/gi;
+const HOSTNAME_ATTR_RE =
+  /\b(?:server|host|hostname|domain|endpoint|api_url|base_url|download_url|repo_url|mirror)\s*=\s*["']([a-z0-9][a-z0-9.-]*\.[a-z]{2,})["']/gi;
 
 /**
  * Parse cookbook metadata.rb text into fields and host findings.
@@ -51,7 +55,10 @@ export function parseMetadataRb(metadataRb) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(fields.source_url, 'source-repo', 'metadata.source_url');
@@ -60,7 +67,10 @@ export function parseMetadataRb(metadataRb) {
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text))) {
     const host = hostFromUrl(m[1]);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'metadata-url', provenance: 'metadata.rb' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'metadata-url', provenance: 'metadata.rb' });
+    }
   }
 
   return {
@@ -86,13 +96,23 @@ export function parseRecipeText(recipeText) {
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text))) {
     const host = hostFromUrl(m[1]);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'recipe-url', provenance: 'recipe/url' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'recipe-url', provenance: 'recipe/url' });
+    }
   }
 
   HOSTNAME_ATTR_RE.lastIndex = 0;
   while ((m = HOSTNAME_ATTR_RE.exec(text))) {
     const host = m[1].toLowerCase();
-    if (!seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'node-attribute-host', provenance: `attribute.${m[0].split('=')[0].trim()}` }); }
+    if (!seen.has(host)) {
+      seen.add(host);
+      hosts.push({
+        host,
+        kind: 'node-attribute-host',
+        provenance: `attribute.${m[0].split('=')[0].trim()}`,
+      });
+    }
   }
 
   // node['fqdn'] / node['hostname'] style attribute usage — flags server coupling.
@@ -112,7 +132,10 @@ export function parseSupermarketApiJson(apiJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
   add(cb.source_url, 'source-repo', 'api.source_url');
   add(cb.issues_url, 'issue-tracker', 'api.issues_url');
@@ -130,7 +153,10 @@ export function analyzeChefCookbook(metadataRb, recipeText) {
   const merged = [...meta.hosts];
   const seen = new Set(meta.hosts.map(h => h.host));
   for (const h of recipe.hosts) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push(h); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push(h);
+    }
   }
   return {
     name: meta.name,

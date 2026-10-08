@@ -12,7 +12,10 @@
 
 const WEBINAR_PLATFORMS = [
   { name: 'Zoom', hostRe: /\b([a-z0-9-]+\.zoom\.us|zoom\.us)\b/i },
-  { name: 'GoToWebinar', hostRe: /\b([a-z0-9-]+\.gotowebinar\.com|gotowebinar\.com|register\.gotowebinar\.com)\b/i },
+  {
+    name: 'GoToWebinar',
+    hostRe: /\b([a-z0-9-]+\.gotowebinar\.com|gotowebinar\.com|register\.gotowebinar\.com)\b/i,
+  },
   { name: 'Demio', hostRe: /\b([a-z0-9-]+\.demio\.com|demio\.com|event\.demio\.com)\b/i },
 ];
 
@@ -40,9 +43,18 @@ export function extractWebinarLinks(text = '') {
   const out = [];
   const seen = new Set();
   const patterns = [
-    { platform: 'Zoom', re: /https?:\/\/(?:[a-z0-9-]+\.)?zoom\.us\/(?:w|webinar|j)\/([a-z0-9_-]+)/gi },
-    { platform: 'Zoom', re: /https?:\/\/(?:[a-z0-9-]+\.)?zoom\.us\/webinar\/register\/([a-z0-9_-]+)/gi },
-    { platform: 'GoToWebinar', re: /https?:\/\/(?:[a-z0-9-]+\.)?gotowebinar\.com\/register\/(\d+)/gi },
+    {
+      platform: 'Zoom',
+      re: /https?:\/\/(?:[a-z0-9-]+\.)?zoom\.us\/(?:w|webinar|j)\/([a-z0-9_-]+)/gi,
+    },
+    {
+      platform: 'Zoom',
+      re: /https?:\/\/(?:[a-z0-9-]+\.)?zoom\.us\/webinar\/register\/([a-z0-9_-]+)/gi,
+    },
+    {
+      platform: 'GoToWebinar',
+      re: /https?:\/\/(?:[a-z0-9-]+\.)?gotowebinar\.com\/register\/(\d+)/gi,
+    },
     { platform: 'GoToWebinar', re: /https?:\/\/register\.gotowebinar\.com\/rt\/(\d+)/gi },
     { platform: 'Demio', re: /https?:\/\/(?:[a-z0-9-]+\.)?demio\.com\/(?:join\/)?([a-z0-9-]+)/gi },
   ];
@@ -83,7 +95,11 @@ export function mapWebinarCnames(cnameRecords = []) {
     const target = String(rec.target).toLowerCase().replace(/\.$/, '');
     const cls = classifyWebinarHost(target);
     if (cls) {
-      out.push({ alias: String(rec.name).toLowerCase().replace(/\.$/, ''), platform: cls.platform, host: target });
+      out.push({
+        alias: String(rec.name).toLowerCase().replace(/\.$/, ''),
+        platform: cls.platform,
+        host: target,
+      });
     }
   }
   return out;

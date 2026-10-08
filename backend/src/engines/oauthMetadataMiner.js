@@ -38,11 +38,25 @@ export function parseOAuthServerMetadata(doc) {
     try {
       obj = JSON.parse(doc);
     } catch {
-      return { valid: false, issuer: null, hosts: [], uniqueHosts: [], capabilities: [], notes: ['Not valid JSON'] };
+      return {
+        valid: false,
+        issuer: null,
+        hosts: [],
+        uniqueHosts: [],
+        capabilities: [],
+        notes: ['Not valid JSON'],
+      };
     }
   }
   if (!obj || typeof obj !== 'object') {
-    return { valid: false, issuer: null, hosts: [], uniqueHosts: [], capabilities: [], notes: ['Empty document'] };
+    return {
+      valid: false,
+      issuer: null,
+      hosts: [],
+      uniqueHosts: [],
+      capabilities: [],
+      notes: ['Empty document'],
+    };
   }
 
   const hosts = [];
@@ -64,14 +78,19 @@ export function parseOAuthServerMetadata(doc) {
   if (obj.pushed_authorization_request_endpoint) capabilities.push('PAR');
   if (obj.device_authorization_endpoint) capabilities.push('device-flow');
   if (obj.registration_endpoint) capabilities.push('dynamic-client-registration');
-  if (Array.isArray(obj.response_modes_supported) && obj.response_modes_supported.includes('query')) {
+  if (
+    Array.isArray(obj.response_modes_supported) &&
+    obj.response_modes_supported.includes('query')
+  ) {
     capabilities.push('query-response-mode');
   }
 
   const issuer = obj.issuer || null;
   if (unique.size > 1) notes.push(`Authorization server spans ${unique.size} distinct hosts`);
-  if (!obj.revocation_endpoint) notes.push('No revocation endpoint advertised — check how token invalidation is handled');
-  if (obj.registration_endpoint) notes.push('Dynamic client registration enabled — potential unauthorized client surface');
+  if (!obj.revocation_endpoint)
+    notes.push('No revocation endpoint advertised — check how token invalidation is handled');
+  if (obj.registration_endpoint)
+    notes.push('Dynamic client registration enabled — potential unauthorized client surface');
 
   return { valid: true, issuer, hosts, uniqueHosts: [...unique], capabilities, notes };
 }

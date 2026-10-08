@@ -37,7 +37,10 @@ function toLines(source) {
 function snippet(lines, idx, radius = 1) {
   const from = Math.max(0, idx - radius);
   const to = Math.min(lines.length - 1, idx + radius);
-  return lines.slice(from, to + 1).join('\n').slice(0, 600);
+  return lines
+    .slice(from, to + 1)
+    .join('\n')
+    .slice(0, 600);
 }
 
 /** Extract quoted URL-looking strings from a text fragment. */
@@ -59,14 +62,18 @@ function extractUrls(text) {
  * Find network-sink URLs (fetch/XHR/WebSocket/beacon/axios) within ±radius
  * lines of a 0-indexed anchor line.
  */
-const SINK_RE = /\b(fetch|XMLHttpRequest|new\s+WebSocket|navigator\.sendBeacon|axios\.(get|post|put|delete|patch)|\.open\s*\(|\.send\s*\(|WebSocket)\b/;
+const SINK_RE =
+  /\b(fetch|XMLHttpRequest|new\s+WebSocket|navigator\.sendBeacon|axios\.(get|post|put|delete|patch)|\.open\s*\(|\.send\s*\(|WebSocket)\b/;
 
 function nearbyNetworkUrls(lines, anchorIdx, radius = 12) {
   const urls = new Set();
   const from = Math.max(0, anchorIdx - radius);
   const to = Math.min(lines.length - 1, anchorIdx + radius);
   for (let i = from; i <= to; i += 1) {
-    if (SINK_RE.test(lines[i]) || /\b(then|await|promise)\b/i.test(lines[i]) && /https?:\/\//.test(lines[i])) {
+    if (
+      SINK_RE.test(lines[i]) ||
+      (/\b(then|await|promise)\b/i.test(lines[i]) && /https?:\/\//.test(lines[i]))
+    ) {
       for (const u of extractUrls(lines[i])) urls.add(u);
     }
   }
@@ -110,20 +117,28 @@ export function analyzeGetUserMediaConstraints(source, pageUrl = '') {
       signals.push('deviceId constraint present');
       if (risk === 'low') risk = 'medium';
     }
-    if (/enumerateDevices/.test(text.slice(Math.max(0, m.index - 800), m.index + constraints.length))) {
+    if (
+      /enumerateDevices/.test(text.slice(Math.max(0, m.index - 800), m.index + constraints.length))
+    ) {
       signals.push('enumerateDevices used near getUserMedia — device enumeration surface');
       if (risk === 'low') risk = 'medium';
     }
 
     const width = constraints.match(/width\s*:\s*{([^}]*)}|width\s*:\s*(\d+)/);
     const height = constraints.match(/height\s*:\s*{([^}]*)}|height\s*:\s*(\d+)/);
-    const wBody = width ? (width[1] || width[2] || '') : '';
-    const hBody = height ? (height[1] || height[2] || '') : '';
-    if ((/min\s*:/.test(wBody) && /max\s*:/.test(wBody)) || (/min\s*:/.test(hBody) && /max\s*:/.test(hBody))) {
+    const wBody = width ? width[1] || width[2] || '' : '';
+    const hBody = height ? height[1] || height[2] || '' : '';
+    if (
+      (/min\s*:/.test(wBody) && /max\s*:/.test(wBody)) ||
+      (/min\s*:/.test(hBody) && /max\s*:/.test(hBody))
+    ) {
       signals.push('min+max resolution range — narrowing profile for fingerprinting');
       if (risk !== 'high') risk = 'medium';
     }
-    if (/aspectRatio\s*:\s*{\s*exact\s*:/.test(constraints) || /frameRate\s*:\s*{\s*exact\s*:/.test(constraints)) {
+    if (
+      /aspectRatio\s*:\s*{\s*exact\s*:/.test(constraints) ||
+      /frameRate\s*:\s*{\s*exact\s*:/.test(constraints)
+    ) {
       signals.push('exact aspectRatio/frameRate — stable device fingerprint input');
       if (risk !== 'high') risk = 'medium';
     }
@@ -135,20 +150,22 @@ export function analyzeGetUserMediaConstraints(source, pageUrl = '') {
       if (risk !== 'high') risk = 'medium';
     }
 
-    findings.push(finding({
-      idea: 821,
-      api: 'getUserMedia',
-      type: 'media-constraints',
-      risk,
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls: nearbyNetworkUrls(lines, idx - 1),
-      signals: [
-        ...signals,
-        `tracks requested: ${audioVideo.join('+') || 'none'}`,
-        ...(pageUrl ? [`page: ${pageUrl}`] : []),
-      ],
-    }));
+    findings.push(
+      finding({
+        idea: 821,
+        api: 'getUserMedia',
+        type: 'media-constraints',
+        risk,
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls: nearbyNetworkUrls(lines, idx - 1),
+        signals: [
+          ...signals,
+          `tracks requested: ${audioVideo.join('+') || 'none'}`,
+          ...(pageUrl ? [`page: ${pageUrl}`] : []),
+        ],
+      })
+    );
   }
 
   // 2) enumerateDevices label harvesting without any media grant nearby
@@ -157,16 +174,18 @@ export function analyzeGetUserMediaConstraints(source, pageUrl = '') {
     const idx = text.slice(0, m.index).split('\n').length;
     const around = text.slice(Math.max(0, m.index - 400), m.index + 400);
     if (/\.label/.test(around)) {
-      findings.push(finding({
-        idea: 821,
-        api: 'enumerateDevices',
-        type: 'device-enumeration',
-        risk: 'medium',
-        line: idx,
-        evidence: snippet(lines, idx - 1),
-        urls: nearbyNetworkUrls(lines, idx - 1),
-        signals: ['device label collection after enumeration — fingerprinting surface'],
-      }));
+      findings.push(
+        finding({
+          idea: 821,
+          api: 'enumerateDevices',
+          type: 'device-enumeration',
+          risk: 'medium',
+          line: idx,
+          evidence: snippet(lines, idx - 1),
+          urls: nearbyNetworkUrls(lines, idx - 1),
+          signals: ['device label collection after enumeration — fingerprinting surface'],
+        })
+      );
     }
   }
 
@@ -189,19 +208,24 @@ export function mapScreenShareEndpoints(source, pageUrl = '') {
     const idx = text.slice(0, m.index).split('\n').length;
     const around = text.slice(Math.max(0, m.index - 600), m.index + 600);
     const signals = [];
-    if (/RTCPeerConnection/.test(around)) signals.push('WebRTC peer connection near screen capture — inspect signaling URLs');
-    if (/(signaling|signal|socket\.io|Socket)/i.test(around)) signals.push('signaling channel detected near screen capture');
-    if (/(screen|display)\s*(share|sharing|recording)/i.test(around)) signals.push('screen-share terminology in code');
-    findings.push(finding({
-      idea: 822,
-      api: m[1],
-      type: 'screen-capture',
-      risk: signals.length ? 'medium' : 'low',
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls: nearbyNetworkUrls(lines, idx - 1),
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    if (/RTCPeerConnection/.test(around))
+      signals.push('WebRTC peer connection near screen capture — inspect signaling URLs');
+    if (/(signaling|signal|socket\.io|Socket)/i.test(around))
+      signals.push('signaling channel detected near screen capture');
+    if (/(screen|display)\s*(share|sharing|recording)/i.test(around))
+      signals.push('screen-share terminology in code');
+    findings.push(
+      finding({
+        idea: 822,
+        api: m[1],
+        type: 'screen-capture',
+        risk: signals.length ? 'medium' : 'low',
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls: nearbyNetworkUrls(lines, idx - 1),
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -217,7 +241,8 @@ export function mapClipboardApiUsage(source, pageUrl = '') {
   const lines = toLines(source);
   const text = typeof source === 'string' ? source : '';
   const findings = [];
-  const re = /navigator\.clipboard\.(readText|writeText|read|write)\s*\(|document\.execCommand\s*\(\s*['"](copy|cut|paste)['"]\s*\)/g;
+  const re =
+    /navigator\.clipboard\.(readText|writeText|read|write)\s*\(|document\.execCommand\s*\(\s*['"](copy|cut|paste)['"]\s*\)/g;
   let m;
   while ((m = re.exec(text)) !== null) {
     const idx = text.slice(0, m.index).split('\n').length;
@@ -236,7 +261,10 @@ export function mapClipboardApiUsage(source, pageUrl = '') {
     }
     if (method === 'writeText' || method === 'write') {
       const after = text.slice(m.index, m.index + 500);
-      if (/(click|mouseenter|mouseover|scroll|focus)/i.test(before.slice(-300)) && !/copy\s*(button|btn|icon)?/i.test(before.slice(-300))) {
+      if (
+        /(click|mouseenter|mouseover|scroll|focus)/i.test(before.slice(-300)) &&
+        !/copy\s*(button|btn|icon)?/i.test(before.slice(-300))
+      ) {
         signals.push('clipboard WRITE on non-copy gesture — possible paste-jacking overwrite');
         risk = 'high';
       } else {
@@ -249,16 +277,19 @@ export function mapClipboardApiUsage(source, pageUrl = '') {
       signals.push('legacy paste execCommand — check for clipboard interception');
       risk = 'medium';
     }
-    findings.push(finding({
-      idea: 823,
-      api: `clipboard.${method}`,
-      type: method.startsWith('read') || method === 'paste' ? 'clipboard-read' : 'clipboard-write',
-      risk,
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls: nearbyNetworkUrls(lines, idx - 1),
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    findings.push(
+      finding({
+        idea: 823,
+        api: `clipboard.${method}`,
+        type:
+          method.startsWith('read') || method === 'paste' ? 'clipboard-read' : 'clipboard-write',
+        risk,
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls: nearbyNetworkUrls(lines, idx - 1),
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -274,7 +305,8 @@ export function extractNotificationEndpoints(source, pageUrl = '') {
   const lines = toLines(source);
   const text = typeof source === 'string' ? source : '';
   const findings = [];
-  const notifRe = /(Notification\.requestPermission|pushManager\.subscribe|registration\.pushManager|new\s+Notification)\b/g;
+  const notifRe =
+    /(Notification\.requestPermission|pushManager\.subscribe|registration\.pushManager|new\s+Notification)\b/g;
   let m;
   while ((m = notifRe.exec(text)) !== null) {
     const idx = text.slice(0, m.index).split('\n').length;
@@ -283,10 +315,13 @@ export function extractNotificationEndpoints(source, pageUrl = '') {
     const urls = nearbyNetworkUrls(lines, idx - 1, 16);
 
     // VAPID public key material near the subscription
-    const vapid = window.match(/applicationServerKey\s*:\s*['"`]([^'"`]{20,120})['"`]/)
-      || window.match(/urlBase64ToUint8Array\s*\(\s*['"`]([^'"`]{20,120})['"`]\s*\)/);
+    const vapid =
+      window.match(/applicationServerKey\s*:\s*['"`]([^'"`]{20,120})['"`]/) ||
+      window.match(/urlBase64ToUint8Array\s*\(\s*['"`]([^'"`]{20,120})['"`]\s*\)/);
     if (vapid) {
-      signals.push(`VAPID public key present (${vapid[1].slice(0, 16)}…) — identifies the push application server`);
+      signals.push(
+        `VAPID public key present (${vapid[1].slice(0, 16)}…) — identifies the push application server`
+      );
     }
     // Push service endpoint URLs assigned to subscription.endpoint
     for (const u of extractUrls(window)) {
@@ -295,19 +330,22 @@ export function extractNotificationEndpoints(source, pageUrl = '') {
         signals.push(`push-service endpoint: ${u}`);
       }
     }
-    if (/\.endpoint/.test(window)) signals.push('subscription.endpoint consumed — track where it is sent');
+    if (/\.endpoint/.test(window))
+      signals.push('subscription.endpoint consumed — track where it is sent');
     if (/userVisibleOnly/.test(window)) signals.push('userVisibleOnly flag configured');
 
-    findings.push(finding({
-      idea: 824,
-      api: m[1].replace('new ', ''),
-      type: 'push-subscription',
-      risk: vapid || urls.length ? 'medium' : 'low',
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls,
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    findings.push(
+      finding({
+        idea: 824,
+        api: m[1].replace('new ', ''),
+        type: 'push-subscription',
+        risk: vapid || urls.length ? 'medium' : 'low',
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls,
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -334,19 +372,24 @@ export function mapGeolocationCalls(source, pageUrl = '') {
     }
     if (coords.length) signals.push(`position fields consumed: ${coords.join(', ')}`);
     const urls = nearbyNetworkUrls(lines, idx - 1, 18);
-    if (urls.length) signals.push('network sinks near position callback — position likely transmitted');
-    if (/enableHighAccuracy\s*:\s*true/.test(window)) signals.push('enableHighAccuracy:true — precise fix requested');
-    if (/maximumAge|maxAge|timeout/.test(window)) signals.push('position caching options configured');
-    findings.push(finding({
-      idea: 825,
-      api: `geolocation.${m[1]}`,
-      type: urls.length ? 'location-exfil' : 'location-access',
-      risk: urls.length ? 'high' : coords.length ? 'medium' : 'low',
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls,
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    if (urls.length)
+      signals.push('network sinks near position callback — position likely transmitted');
+    if (/enableHighAccuracy\s*:\s*true/.test(window))
+      signals.push('enableHighAccuracy:true — precise fix requested');
+    if (/maximumAge|maxAge|timeout/.test(window))
+      signals.push('position caching options configured');
+    findings.push(
+      finding({
+        idea: 825,
+        api: `geolocation.${m[1]}`,
+        type: urls.length ? 'location-exfil' : 'location-access',
+        risk: urls.length ? 'high' : coords.length ? 'medium' : 'low',
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls,
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -361,28 +404,34 @@ export function mineDeviceOrientationHandlers(source, pageUrl = '') {
   const lines = toLines(source);
   const text = typeof source === 'string' ? source : '';
   const findings = [];
-  const re = /addEventListener\s*\(\s*['"](deviceorientation|devicemotion|deviceorientationabsolute)['"]|\b(DeviceOrientationEvent|DeviceMotionEvent|ondeviceorientation|ondevicemotion)\b/g;
+  const re =
+    /addEventListener\s*\(\s*['"](deviceorientation|devicemotion|deviceorientationabsolute)['"]|\b(DeviceOrientationEvent|DeviceMotionEvent|ondeviceorientation|ondevicemotion)\b/g;
   let m;
   while ((m = re.exec(text)) !== null) {
     const idx = text.slice(0, m.index).split('\n').length;
     const window = text.slice(m.index, m.index + 1100);
     const signals = [];
-    const axes = ['alpha', 'beta', 'gamma', 'x', 'y', 'z', 'acceleration', 'rotationRate']
-      .filter((a) => new RegExp(`\\b${a}\\b`).test(window));
+    const axes = ['alpha', 'beta', 'gamma', 'x', 'y', 'z', 'acceleration', 'rotationRate'].filter(
+      a => new RegExp(`\\b${a}\\b`).test(window)
+    );
     if (axes.length) signals.push(`sensor axes read: ${axes.join(', ')}`);
-    if (/requestPermission/.test(window)) signals.push('sensor permission requested (iOS 13+ pattern)');
+    if (/requestPermission/.test(window))
+      signals.push('sensor permission requested (iOS 13+ pattern)');
     const urls = nearbyNetworkUrls(lines, idx - 1, 16);
-    if (urls.length) signals.push('network sinks near sensor handler — sensor data may leave the device');
-    findings.push(finding({
-      idea: 826,
-      api: m[1] || m[2] || 'sensor',
-      type: urls.length ? 'sensor-exfil' : 'sensor-handler',
-      risk: urls.length ? 'high' : axes.length ? 'medium' : 'low',
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls,
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    if (urls.length)
+      signals.push('network sinks near sensor handler — sensor data may leave the device');
+    findings.push(
+      finding({
+        idea: 826,
+        api: m[1] || m[2] || 'sensor',
+        type: urls.length ? 'sensor-exfil' : 'sensor-handler',
+        risk: urls.length ? 'high' : axes.length ? 'medium' : 'low',
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls,
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -414,19 +463,25 @@ export function detectVibrationApiUsage(source, pageUrl = '') {
         risk = 'medium';
       }
     }
-    if (/(error|success|fail|alert|notify|warn)/i.test(text.slice(Math.max(0, m.index - 300), m.index))) {
+    if (
+      /(error|success|fail|alert|notify|warn)/i.test(
+        text.slice(Math.max(0, m.index - 300), m.index)
+      )
+    ) {
       signals.push('vibration tied to status feedback — mobile-web feature indicator');
     }
-    findings.push(finding({
-      idea: 827,
-      api: 'navigator.vibrate',
-      type: 'vibration',
-      risk,
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls: nearbyNetworkUrls(lines, idx - 1),
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    findings.push(
+      finding({
+        idea: 827,
+        api: 'navigator.vibrate',
+        type: 'vibration',
+        risk,
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls: nearbyNetworkUrls(lines, idx - 1),
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -454,19 +509,27 @@ export function mapBatteryDataFlow(source, pageUrl = '') {
     const window = text.slice(m.index, m.index + 2500);
 
     // Capture the continuation variable: getBattery().then(battery => ...) or (b =>
-    const cont = window.match(/\.then\s*\(\s*(?:async\s*)?\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>/) || window.match(/\.then\s*\(\s*function\s*\(?\s*([A-Za-z_$][\w$]*)/);
+    const cont =
+      window.match(/\.then\s*\(\s*(?:async\s*)?\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>/) ||
+      window.match(/\.then\s*\(\s*function\s*\(?\s*([A-Za-z_$][\w$]*)/);
     const batteryVar = cont ? cont[1] : 'battery';
     tainted.add(batteryVar);
 
     // Destructured / aliased battery properties
-    const destructure = window.match(new RegExp(`(?:const|let|var)\\s*{\\s*([^}]{1,200})\\s*}\\s*=\\s*${batteryVar}\\b`));
+    const destructure = window.match(
+      new RegExp(`(?:const|let|var)\\s*{\\s*([^}]{1,200})\\s*}\\s*=\\s*${batteryVar}\\b`)
+    );
     if (destructure) {
-      for (const name of destructure[1].split(',').map((s) => s.trim().split(/[:\s=]/)[0]).filter(Boolean)) {
+      for (const name of destructure[1]
+        .split(',')
+        .map(s => s.trim().split(/[:\s=]/)[0])
+        .filter(Boolean)) {
         tainted.add(name);
       }
     }
     for (const prop of ['level', 'charging', 'chargingTime', 'dischargingTime']) {
-      if (new RegExp(`${batteryVar}\\.${prop}\\b`).test(window)) tainted.add(`${batteryVar}.${prop}`);
+      if (new RegExp(`${batteryVar}\\.${prop}\\b`).test(window))
+        tainted.add(`${batteryVar}.${prop}`);
     }
 
     // Propagate taint through derived aliases, e.g. const info = {...battery.level...}
@@ -490,7 +553,8 @@ export function mapBatteryDataFlow(source, pageUrl = '') {
 
     const signals = [];
     signals.push(`battery object bound as "${batteryVar}"`);
-    if (destructure) signals.push(`destructured battery fields: ${destructure[1].trim().slice(0, 80)}`);
+    if (destructure)
+      signals.push(`destructured battery fields: ${destructure[1].trim().slice(0, 80)}`);
 
     // Taint sinks: does any tainted identifier reach a network call?
     const sinkHits = [];
@@ -511,23 +575,29 @@ export function mapBatteryDataFlow(source, pageUrl = '') {
     const xhrRe = /\.send\s*\(\s*([^)]{0,300})\)/g;
     while ((s = xhrRe.exec(sinkWindow)) !== null) {
       for (const t of tainted) {
-        if (new RegExp(`\\b${t.split('.')[0]}\\b`).test(s[1])) { sinkHits.push(`xhr.send ← ${t}`); break; }
+        if (new RegExp(`\\b${t.split('.')[0]}\\b`).test(s[1])) {
+          sinkHits.push(`xhr.send ← ${t}`);
+          break;
+        }
       }
     }
 
     const urls = nearbyNetworkUrls(lines, idx - 1, 20);
-    if (sinkHits.length) signals.push(`battery data reaches network sinks: ${[...new Set(sinkHits)].join('; ')}`);
+    if (sinkHits.length)
+      signals.push(`battery data reaches network sinks: ${[...new Set(sinkHits)].join('; ')}`);
 
-    findings.push(finding({
-      idea: 828,
-      api: 'navigator.getBattery',
-      type: sinkHits.length ? 'battery-exfil-flow' : 'battery-read',
-      risk: sinkHits.length ? 'high' : urls.length ? 'medium' : 'low',
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls,
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    findings.push(
+      finding({
+        idea: 828,
+        api: 'navigator.getBattery',
+        type: sinkHits.length ? 'battery-exfil-flow' : 'battery-read',
+        risk: sinkHits.length ? 'high' : urls.length ? 'medium' : 'low',
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls,
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
 
   // Legacy battery properties on navigator (deprecated but still probed)
@@ -535,16 +605,18 @@ export function mapBatteryDataFlow(source, pageUrl = '') {
     const legacyRe = /navigator\.(battery|charging|chargingTime|dischargingTime|level)\b/g;
     while ((m = legacyRe.exec(text)) !== null) {
       const idx = text.slice(0, m.index).split('\n').length;
-      findings.push(finding({
-        idea: 828,
-        api: `navigator.${m[1]}`,
-        type: 'battery-read',
-        risk: 'low',
-        line: idx,
-        evidence: snippet(lines, idx - 1),
-        urls: nearbyNetworkUrls(lines, idx - 1),
-        signals: ['legacy navigator battery property probe'],
-      }));
+      findings.push(
+        finding({
+          idea: 828,
+          api: `navigator.${m[1]}`,
+          type: 'battery-read',
+          risk: 'low',
+          line: idx,
+          evidence: snippet(lines, idx - 1),
+          urls: nearbyNetworkUrls(lines, idx - 1),
+          signals: ['legacy navigator battery property probe'],
+        })
+      );
     }
   }
 
@@ -568,24 +640,29 @@ export function mapNetworkInformationApi(source, pageUrl = '') {
     const idx = text.slice(0, m.index).split('\n').length;
     const window = text.slice(Math.max(0, m.index - 300), m.index + 1100);
     const signals = [];
-    const props = ['effectiveType', 'type', 'downlink', 'rtt', 'saveData']
-      .filter((p) => new RegExp(`connection\\.${p}\\b|\\.${p}\\b`).test(window));
+    const props = ['effectiveType', 'type', 'downlink', 'rtt', 'saveData'].filter(p =>
+      new RegExp(`connection\\.${p}\\b|\\.${p}\\b`).test(window)
+    );
     if (props.length) signals.push(`connection properties read: ${[...new Set(props)].join(', ')}`);
     if (/saveData/.test(window)) signals.push('saveData honored — adaptive content branch');
-    if (/(4g|3g|2g|slow-2g)/i.test(window)) signals.push('effectiveType branching — quality-tiered endpoints likely');
-    if (/addEventListener\s*\(\s*['"]change['"]/.test(window)) signals.push('listens for connection changes');
+    if (/(4g|3g|2g|slow-2g)/i.test(window))
+      signals.push('effectiveType branching — quality-tiered endpoints likely');
+    if (/addEventListener\s*\(\s*['"]change['"]/.test(window))
+      signals.push('listens for connection changes');
     const urls = nearbyNetworkUrls(lines, idx - 1, 18);
     if (urls.length) signals.push('adaptive fetch endpoints near network-hint logic');
-    findings.push(finding({
-      idea: 829,
-      api: 'navigator.connection',
-      type: urls.length ? 'adaptive-endpoint' : 'network-hint-read',
-      risk: urls.length ? 'medium' : 'low',
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls,
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    findings.push(
+      finding({
+        idea: 829,
+        api: 'navigator.connection',
+        type: urls.length ? 'adaptive-endpoint' : 'network-hint-read',
+        risk: urls.length ? 'medium' : 'low',
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls,
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -639,22 +716,26 @@ export function minePaymentRequestEndpoints(source, pageUrl = '') {
     for (const u of responseSinks) {
       if (!urls.includes(u)) urls.push(u);
     }
-    if (/\.show\s*\(/.test(after)) signals.push('PaymentRequest.show() invoked — checkout flow active');
+    if (/\.show\s*\(/.test(after))
+      signals.push('PaymentRequest.show() invoked — checkout flow active');
     if (/canMakePayment/.test(window)) {
       signals.push('canMakePayment pre-check — payment capability probing');
     }
-    if (responseSinks.length) signals.push('endpoints near PaymentRequest — likely payment confirmation/webhook targets');
+    if (responseSinks.length)
+      signals.push('endpoints near PaymentRequest — likely payment confirmation/webhook targets');
 
-    findings.push(finding({
-      idea: 830,
-      api: 'PaymentRequest',
-      type: 'payment-handler',
-      risk: urls.some((u) => /^https?:\/\//i.test(u)) ? 'medium' : 'low',
-      line: idx,
-      evidence: snippet(lines, idx - 1),
-      urls,
-      signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
-    }));
+    findings.push(
+      finding({
+        idea: 830,
+        api: 'PaymentRequest',
+        type: 'payment-handler',
+        risk: urls.some(u => /^https?:\/\//i.test(u)) ? 'medium' : 'low',
+        line: idx,
+        evidence: snippet(lines, idx - 1),
+        urls,
+        signals: [...signals, ...(pageUrl ? [`page: ${pageUrl}`] : [])],
+      })
+    );
   }
   return findings;
 }
@@ -691,8 +772,8 @@ export function analyzeBrowserApiSurface(source, pageUrl = '') {
   }
   const rank = { high: 3, medium: 2, low: 1 };
   const topRisks = [...findings]
-    .filter((f) => f.risk !== 'low')
-    .sort((a, b) => (rank[b.risk] - rank[a.risk]) || (a.idea - b.idea))
+    .filter(f => f.risk !== 'low')
+    .sort((a, b) => rank[b.risk] - rank[a.risk] || a.idea - b.idea)
     .slice(0, 10);
 
   return { pageUrl, totalFindings: findings.length, byIdea, findings, topRisks };

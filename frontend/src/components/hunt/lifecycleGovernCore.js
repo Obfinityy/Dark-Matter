@@ -12,26 +12,126 @@
  */
 
 export const WAVE60_GOVERN_IDEAS = [
-  { id: 52361, title: 'State transition rules', desc: 'Define which transitions are legal (e.g., Verified cannot go back to New) to keep lifecycles clean.', skip: false },
-  { id: 52362, title: 'Per-role state permissions', desc: 'Control who can move findings into sensitive states like Closed or Risk Accepted.', skip: false },
-  { id: 52363, title: 'State-change audit log', desc: 'Immutable record of every state change with actor, timestamp, and reason.', skip: false },
-  { id: 52364, title: 'State-change notifications (post-hunt)', desc: 'Notify watchers and assignees instantly when a finding they follow changes state.', skip: false },
-  { id: 52365, title: 'Bulk state transitions', desc: 'Move many findings to a new state at once with a shared reason and confirmation preview.', skip: false },
-  { id: 52366, title: 'State SLA timers', desc: 'Per-state time targets (e.g., Triaged within 48h) with breach alerts.', skip: false },
-  { id: 52367, title: 'Lifecycle dashboard', desc: 'Counts and aging per state, per team, per severity, in one kanban-style view.', skip: false },
-  { id: 52368, title: 'State timeline per finding', desc: 'Visual timeline of a finding\u2019s journey from discovery to closure.', skip: false },
-  { id: 52369, title: 'Mandatory state-change reasons', desc: 'Require a reason note for key transitions (closing, risk-accepting) to preserve context.', skip: false },
-  { id: 52370, title: 'State undo', desc: 'Revert an accidental state change within a grace window, fully restoring prior metadata.', skip: false },
-  { id: 52371, title: '"Needs info" state', desc: 'Park findings awaiting more data (from agent, reporter, or vendor) without losing them.', skip: false },
-  { id: 52372, title: '"Duplicate" state with link', desc: 'Mark duplicates while linking to the canonical finding, merging evidence automatically.', skip: false },
-  { id: 52373, title: '"Won\'t fix" state with reason', desc: 'Close with documented rationale (e.g., "legacy system, sunset in Q1") and approver.', skip: false },
-  { id: 52374, title: '"Risk accepted" state', desc: 'Formal risk-acceptance with owner, expiry date, and compensating controls noted.', skip: false },
-  { id: 52375, title: '"Deferred" state with date', desc: 'Postpone to a specific future date; the finding auto-reopens for review then.', skip: false },
-  { id: 52376, title: '"Blocked" state with reason', desc: 'Flag findings blocked on external dependencies (vendor patch, third party) with the blocker noted.', skip: false },
-  { id: 52377, title: '"Verified" vs "Closed" distinction', desc: 'Separate technical verification (fix works) from administrative closure (paperwork done).', skip: false },
-  { id: 52378, title: '"Reopened" state', desc: 'Distinct state for regressions with a link to the original closure for root-cause analysis.', skip: false },
-  { id: 52379, title: 'Auto-transitions on retest', desc: 'A passing verification retest auto-moves the finding to Verified; a failing one reopens it.', skip: false },
-  { id: 52380, title: 'State-transition webhooks', desc: 'Fire webhooks on state changes to sync external systems (ticketing, chatops).', skip: false },
+  {
+    id: 52361,
+    title: 'State transition rules',
+    desc: 'Define which transitions are legal (e.g., Verified cannot go back to New) to keep lifecycles clean.',
+    skip: false,
+  },
+  {
+    id: 52362,
+    title: 'Per-role state permissions',
+    desc: 'Control who can move findings into sensitive states like Closed or Risk Accepted.',
+    skip: false,
+  },
+  {
+    id: 52363,
+    title: 'State-change audit log',
+    desc: 'Immutable record of every state change with actor, timestamp, and reason.',
+    skip: false,
+  },
+  {
+    id: 52364,
+    title: 'State-change notifications (post-hunt)',
+    desc: 'Notify watchers and assignees instantly when a finding they follow changes state.',
+    skip: false,
+  },
+  {
+    id: 52365,
+    title: 'Bulk state transitions',
+    desc: 'Move many findings to a new state at once with a shared reason and confirmation preview.',
+    skip: false,
+  },
+  {
+    id: 52366,
+    title: 'State SLA timers',
+    desc: 'Per-state time targets (e.g., Triaged within 48h) with breach alerts.',
+    skip: false,
+  },
+  {
+    id: 52367,
+    title: 'Lifecycle dashboard',
+    desc: 'Counts and aging per state, per team, per severity, in one kanban-style view.',
+    skip: false,
+  },
+  {
+    id: 52368,
+    title: 'State timeline per finding',
+    desc: 'Visual timeline of a finding\u2019s journey from discovery to closure.',
+    skip: false,
+  },
+  {
+    id: 52369,
+    title: 'Mandatory state-change reasons',
+    desc: 'Require a reason note for key transitions (closing, risk-accepting) to preserve context.',
+    skip: false,
+  },
+  {
+    id: 52370,
+    title: 'State undo',
+    desc: 'Revert an accidental state change within a grace window, fully restoring prior metadata.',
+    skip: false,
+  },
+  {
+    id: 52371,
+    title: '"Needs info" state',
+    desc: 'Park findings awaiting more data (from agent, reporter, or vendor) without losing them.',
+    skip: false,
+  },
+  {
+    id: 52372,
+    title: '"Duplicate" state with link',
+    desc: 'Mark duplicates while linking to the canonical finding, merging evidence automatically.',
+    skip: false,
+  },
+  {
+    id: 52373,
+    title: '"Won\'t fix" state with reason',
+    desc: 'Close with documented rationale (e.g., "legacy system, sunset in Q1") and approver.',
+    skip: false,
+  },
+  {
+    id: 52374,
+    title: '"Risk accepted" state',
+    desc: 'Formal risk-acceptance with owner, expiry date, and compensating controls noted.',
+    skip: false,
+  },
+  {
+    id: 52375,
+    title: '"Deferred" state with date',
+    desc: 'Postpone to a specific future date; the finding auto-reopens for review then.',
+    skip: false,
+  },
+  {
+    id: 52376,
+    title: '"Blocked" state with reason',
+    desc: 'Flag findings blocked on external dependencies (vendor patch, third party) with the blocker noted.',
+    skip: false,
+  },
+  {
+    id: 52377,
+    title: '"Verified" vs "Closed" distinction',
+    desc: 'Separate technical verification (fix works) from administrative closure (paperwork done).',
+    skip: false,
+  },
+  {
+    id: 52378,
+    title: '"Reopened" state',
+    desc: 'Distinct state for regressions with a link to the original closure for root-cause analysis.',
+    skip: false,
+  },
+  {
+    id: 52379,
+    title: 'Auto-transitions on retest',
+    desc: 'A passing verification retest auto-moves the finding to Verified; a failing one reopens it.',
+    skip: false,
+  },
+  {
+    id: 52380,
+    title: 'State-transition webhooks',
+    desc: 'Fire webhooks on state changes to sync external systems (ticketing, chatops).',
+    skip: false,
+  },
 ];
 
 function tokenFor(scope, id, now) {
@@ -43,15 +143,34 @@ function tokenFor(scope, id, now) {
 
 /* The canonical finding-lifecycle state set. */
 export const LIFECYCLE_STATES = [
-  'New', 'Triaged', 'NeedsInfo', 'InProgress', 'Blocked', 'Deferred',
-  'InRetest', 'Verified', 'Duplicate', 'WontFix', 'RiskAccepted',
-  'Closed', 'Reopened', 'Archived',
+  'New',
+  'Triaged',
+  'NeedsInfo',
+  'InProgress',
+  'Blocked',
+  'Deferred',
+  'InRetest',
+  'Verified',
+  'Duplicate',
+  'WontFix',
+  'RiskAccepted',
+  'Closed',
+  'Reopened',
+  'Archived',
 ];
 
 /* 52361 — State transition rules: legal-transition graph + canTransition. */
 export const TRANSITION_GRAPH = {
   New: ['Triaged', 'Duplicate'],
-  Triaged: ['NeedsInfo', 'InProgress', 'Deferred', 'Duplicate', 'WontFix', 'RiskAccepted', 'Blocked'],
+  Triaged: [
+    'NeedsInfo',
+    'InProgress',
+    'Deferred',
+    'Duplicate',
+    'WontFix',
+    'RiskAccepted',
+    'Blocked',
+  ],
   NeedsInfo: ['Triaged', 'InProgress', 'WontFix'],
   InProgress: ['NeedsInfo', 'InRetest', 'Blocked', 'WontFix', 'RiskAccepted'],
   Blocked: ['InProgress', 'Triaged', 'WontFix'],
@@ -74,11 +193,21 @@ export function canTransition(from, to) {
   const legal = (TRANSITION_GRAPH[from] || []).includes(to);
   return legal
     ? { ok: true, legal: true, from, to }
-    : { ok: false, legal: false, from, to, reason: `${from} \u2192 ${to} is illegal (Verified \u2192 New style regressions are blocked)` };
+    : {
+        ok: false,
+        legal: false,
+        from,
+        to,
+        reason: `${from} \u2192 ${to} is illegal (Verified \u2192 New style regressions are blocked)`,
+      };
 }
 
 export function transitionRulesGraph() {
-  return { ok: true, states: [...LIFECYCLE_STATES], graph: JSON.parse(JSON.stringify(TRANSITION_GRAPH)) };
+  return {
+    ok: true,
+    states: [...LIFECYCLE_STATES],
+    graph: JSON.parse(JSON.stringify(TRANSITION_GRAPH)),
+  };
 }
 
 export function legalTargets(from) {
@@ -88,8 +217,12 @@ export function legalTargets(from) {
 /* 52362 — Per-role state permissions for sensitive states. */
 const ROLE_RANK = { hunter: 1, agent: 2, triager: 3, lead: 4, approver: 4, manager: 5, admin: 6 };
 const MIN_ROLE_FOR_TARGET = {
-  Closed: 'lead', WontFix: 'lead', RiskAccepted: 'manager', Archived: 'manager',
-  Verified: 'triager', InRetest: 'triager',
+  Closed: 'lead',
+  WontFix: 'lead',
+  RiskAccepted: 'manager',
+  Archived: 'manager',
+  Verified: 'triager',
+  InRetest: 'triager',
 };
 
 export function canRoleTransition(role, from, to) {
@@ -98,7 +231,13 @@ export function canRoleTransition(role, from, to) {
   if (!ROLE_RANK[role]) return { ok: false, role, from, to, reason: `unknown role: ${role}` };
   const minRole = MIN_ROLE_FOR_TARGET[to];
   if (minRole && ROLE_RANK[role] < ROLE_RANK[minRole]) {
-    return { ok: false, role, from, to, reason: `${role} may not move findings to ${to}; requires ${minRole}+` };
+    return {
+      ok: false,
+      role,
+      from,
+      to,
+      reason: `${role} may not move findings to ${to}; requires ${minRole}+`,
+    };
   }
   return { ok: true, role, from, to };
 }
@@ -132,8 +271,18 @@ export function readAuditLog(log = []) {
 }
 
 /* 52364 — State-change notification builder for watchers and assignees. */
-export function notifyStateChange({ findingId, from, to, by, reason, watchers = [], channels = ['inapp', 'email'], now = Date.now() } = {}) {
-  if (!findingId || !from || !to) return { ok: false, reason: 'findingId, from, and to are required' };
+export function notifyStateChange({
+  findingId,
+  from,
+  to,
+  by,
+  reason,
+  watchers = [],
+  channels = ['inapp', 'email'],
+  now = Date.now(),
+} = {}) {
+  if (!findingId || !from || !to)
+    return { ok: false, reason: 'findingId, from, and to are required' };
   const audience = Array.isArray(watchers) ? watchers : [];
   const notifications = audience.map((w, i) => ({
     id: tokenFor('notify', `${findingId}:${i}`, now + i),
@@ -154,7 +303,7 @@ export function notifyStateChange({ findingId, from, to, by, reason, watchers = 
 /* 52365 — Bulk state transitions with shared reason + confirmation preview. */
 export function bulkTransitionPreview(findings = [], to, now = Date.now()) {
   const rows = Array.isArray(findings) ? findings : [];
-  const items = rows.map((f) => {
+  const items = rows.map(f => {
     const gate = canTransition(f.state, to);
     return { id: f.id, from: f.state, to, ok: gate.ok, reason: gate.ok ? null : gate.reason };
   });
@@ -162,13 +311,21 @@ export function bulkTransitionPreview(findings = [], to, now = Date.now()) {
     ok: true,
     preview: true,
     to,
-    legal: items.filter((i) => i.ok),
-    illegal: items.filter((i) => !i.ok),
-    counts: { legal: items.filter((i) => i.ok).length, illegal: items.filter((i) => !i.ok).length, total: items.length },
+    legal: items.filter(i => i.ok),
+    illegal: items.filter(i => !i.ok),
+    counts: {
+      legal: items.filter(i => i.ok).length,
+      illegal: items.filter(i => !i.ok).length,
+      total: items.length,
+    },
   };
 }
 
-export function bulkTransition(findings = [], to, { reason, actor = 'Infinity AI', now = Date.now(), previewOnly = false } = {}) {
+export function bulkTransition(
+  findings = [],
+  to,
+  { reason, actor = 'Infinity AI', now = Date.now(), previewOnly = false } = {}
+) {
   const rows = Array.isArray(findings) ? findings : [];
   if (previewOnly || !reason || String(reason).trim() === '') {
     return { ...bulkTransitionPreview(rows, to, now), applied: false, needsReason: !reason };
@@ -181,7 +338,14 @@ export function bulkTransition(findings = [], to, { reason, actor = 'Infinity AI
       results.push({ id: f.id, from: f.state, to, ok: false, reason: gate.reason });
       continue;
     }
-    const appended = appendStateAudit(log, { findingId: f.id, actor, from: f.state, to, reason, at: now });
+    const appended = appendStateAudit(log, {
+      findingId: f.id,
+      actor,
+      from: f.state,
+      to,
+      reason,
+      at: now,
+    });
     log = appended.log;
     results.push({ id: f.id, from: f.state, to, ok: true, auditId: appended.entry.id });
   }
@@ -193,7 +357,11 @@ export function bulkTransition(findings = [], to, { reason, actor = 'Infinity AI
     actor,
     results,
     auditLog: log,
-    counts: { ok: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length, total: results.length },
+    counts: {
+      ok: results.filter(r => r.ok).length,
+      failed: results.filter(r => !r.ok).length,
+      total: results.length,
+    },
   };
 }
 
@@ -240,11 +408,11 @@ export function slaBreachCheck(state, enteredAt, now = Date.now()) {
 /* 52367 — Lifecycle dashboard: kanban payload with counts + aging per state. */
 export function lifecycleDashboard(findings = [], now = Date.now()) {
   const rows = Array.isArray(findings) ? findings : [];
-  const columns = LIFECYCLE_STATES.map((state) => {
-    const inState = rows.filter((f) => f.state === state);
+  const columns = LIFECYCLE_STATES.map(state => {
+    const inState = rows.filter(f => f.state === state);
     const ages = inState
-      .map((f) => (typeof f.stateEnteredAt === 'number' ? now - f.stateEnteredAt : null))
-      .filter((a) => a !== null);
+      .map(f => (typeof f.stateEnteredAt === 'number' ? now - f.stateEnteredAt : null))
+      .filter(a => a !== null);
     const totalAge = ages.reduce((a, b) => a + b, 0);
     const bySeverity = {};
     for (const f of inState) {
@@ -254,7 +422,7 @@ export function lifecycleDashboard(findings = [], now = Date.now()) {
     return {
       state,
       count: inState.length,
-      findings: inState.map((f) => f.id),
+      findings: inState.map(f => f.id),
       totalAgeMs: totalAge,
       avgAgeMs: ages.length ? totalAge / ages.length : null,
       oldestMs: ages.length ? Math.max(...ages) : null,
@@ -267,7 +435,7 @@ export function lifecycleDashboard(findings = [], now = Date.now()) {
 /* 52368 — Per-finding state timeline built from the audit log. */
 export function buildStateTimeline(log = [], findingId) {
   const rows = (Array.isArray(log) ? log : [])
-    .filter((e) => !findingId || e.findingId === findingId)
+    .filter(e => !findingId || e.findingId === findingId)
     .slice()
     .sort((a, b) => a.at - b.at);
   const timeline = rows.map((e, i) => ({
@@ -279,12 +447,26 @@ export function buildStateTimeline(log = [], findingId) {
 }
 
 /* 52369 — Mandatory state-change reasons for key transitions. */
-const REASON_REQUIRED_TARGETS = new Set(['Closed', 'WontFix', 'RiskAccepted', 'Duplicate', 'Reopened', 'Archived']);
+const REASON_REQUIRED_TARGETS = new Set([
+  'Closed',
+  'WontFix',
+  'RiskAccepted',
+  'Duplicate',
+  'Reopened',
+  'Archived',
+]);
 
 export function requireChangeReason(from, to, reason) {
   if (!REASON_REQUIRED_TARGETS.has(to)) return { ok: true, required: false, from, to };
   if (!reason || String(reason).trim() === '') {
-    return { ok: false, required: true, from, to, missing: true, reason: `a reason note is mandatory for ${from} \u2192 ${to}` };
+    return {
+      ok: false,
+      required: true,
+      from,
+      to,
+      missing: true,
+      reason: `a reason note is mandatory for ${from} \u2192 ${to}`,
+    };
   }
   return { ok: true, required: true, from, to, reason: String(reason) };
 }
@@ -296,7 +478,11 @@ export function reasonRequiredTargets() {
 /* 52370 — Grace-window undo: revert an accidental state change. */
 export const DEFAULT_UNDO_GRACE_MS = 15 * 60 * 1000;
 
-export function undoTransition(auditEntry, graceWindowMs = DEFAULT_UNDO_GRACE_MS, now = Date.now()) {
+export function undoTransition(
+  auditEntry,
+  graceWindowMs = DEFAULT_UNDO_GRACE_MS,
+  now = Date.now()
+) {
   if (!auditEntry || typeof auditEntry !== 'object' || !auditEntry.from || !auditEntry.to) {
     return { ok: false, reason: 'a valid audit entry is required' };
   }
@@ -321,7 +507,8 @@ export function undoTransition(auditEntry, graceWindowMs = DEFAULT_UNDO_GRACE_MS
 /* 52371 — "Needs info" parking state factory. */
 export function parkNeedsInfo(finding, { question, requestedFrom, now = Date.now() } = {}) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with an id is required' };
-  if (!question || String(question).trim() === '') return { ok: false, reason: 'a question describing the missing info is required' };
+  if (!question || String(question).trim() === '')
+    return { ok: false, reason: 'a question describing the missing info is required' };
   const gate = canTransition(finding.state, 'NeedsInfo');
   if (!gate.ok) return { ok: false, ...gate };
   return {
@@ -339,16 +526,21 @@ export function parkNeedsInfo(finding, { question, requestedFrom, now = Date.now
 }
 
 /* 52372 — "Duplicate" state with canonical link + evidence merge. */
-export function markDuplicate(finding, canonical, { mergeEvidence = true, reason, now = Date.now() } = {}) {
+export function markDuplicate(
+  finding,
+  canonical,
+  { mergeEvidence = true, reason, now = Date.now() } = {}
+) {
   if (!finding || !finding.id || !canonical || !canonical.id) {
     return { ok: false, reason: 'both the duplicate finding and the canonical finding need ids' };
   }
-  if (finding.id === canonical.id) return { ok: false, reason: 'a finding cannot duplicate itself' };
+  if (finding.id === canonical.id)
+    return { ok: false, reason: 'a finding cannot duplicate itself' };
   const gate = canTransition(finding.state, 'Duplicate');
   if (!gate.ok) return { ok: false, ...gate };
   const own = Array.isArray(finding.evidence) ? finding.evidence : [];
   const canon = Array.isArray(canonical.evidence) ? canonical.evidence : [];
-  const merged = mergeEvidence ? [...canon, ...own.filter((e) => !canon.includes(e))] : canon;
+  const merged = mergeEvidence ? [...canon, ...own.filter(e => !canon.includes(e))] : canon;
   return {
     ok: true,
     findingId: finding.id,
@@ -365,7 +557,8 @@ export function markDuplicate(finding, canonical, { mergeEvidence = true, reason
 /* 52373 — "Won't fix" state with documented rationale + approver. */
 export function wontFix(finding, { rationale, approver, now = Date.now() } = {}) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with an id is required' };
-  if (!rationale || String(rationale).trim() === '') return { ok: false, reason: 'a documented rationale is required' };
+  if (!rationale || String(rationale).trim() === '')
+    return { ok: false, reason: 'a documented rationale is required' };
   if (!approver) return { ok: false, reason: 'an approver is required to close as won\u2019t fix' };
   const gate = canTransition(finding.state, 'WontFix');
   if (!gate.ok) return { ok: false, ...gate };
@@ -381,7 +574,10 @@ export function wontFix(finding, { rationale, approver, now = Date.now() } = {})
 }
 
 /* 52374 — "Risk accepted" state: owner, expiry, compensating controls. */
-export function riskAccepted(finding, { owner, expiryAt, compensatingControls = [], now = Date.now() } = {}) {
+export function riskAccepted(
+  finding,
+  { owner, expiryAt, compensatingControls = [], now = Date.now() } = {}
+) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with an id is required' };
   if (!owner) return { ok: false, reason: 'a risk owner is required' };
   if (typeof expiryAt !== 'number' || expiryAt <= now) {
@@ -402,8 +598,14 @@ export function riskAccepted(finding, { owner, expiryAt, compensatingControls = 
 }
 
 export function riskAcceptanceExpired(acceptance, now = Date.now()) {
-  if (!acceptance || typeof acceptance.expiryAt !== 'number') return { ok: false, reason: 'acceptance record required' };
-  return { ok: true, expired: now >= acceptance.expiryAt, expiryAt: acceptance.expiryAt, checkedAt: now };
+  if (!acceptance || typeof acceptance.expiryAt !== 'number')
+    return { ok: false, reason: 'acceptance record required' };
+  return {
+    ok: true,
+    expired: now >= acceptance.expiryAt,
+    expiryAt: acceptance.expiryAt,
+    checkedAt: now,
+  };
 }
 
 /* 52375 — "Deferred" state with auto-reopen date. */
@@ -426,7 +628,8 @@ export function deferFinding(finding, { reopenAt, note, now = Date.now() } = {})
 }
 
 export function checkDeferredDue(deferral, now = Date.now()) {
-  if (!deferral || typeof deferral.reopenAt !== 'number') return { ok: false, reason: 'deferral record required' };
+  if (!deferral || typeof deferral.reopenAt !== 'number')
+    return { ok: false, reason: 'deferral record required' };
   return { ok: true, due: now >= deferral.reopenAt, reopenAt: deferral.reopenAt, checkedAt: now };
 }
 
@@ -452,8 +655,9 @@ export function blockFinding(finding, { dependency, note, now = Date.now() } = {
 /* 52377 — Enforce the Verified (technical) vs Closed (administrative) distinction. */
 export function verifiedVsClosedCheck(finding, closure = {}) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with an id is required' };
-  const retestEvidence = (finding.evidence || []).some((e) =>
-    typeof e === 'object' && (e.kind === 'retest' || e.kind === 'retest-pass'));
+  const retestEvidence = (finding.evidence || []).some(
+    e => typeof e === 'object' && (e.kind === 'retest' || e.kind === 'retest-pass')
+  );
   const retestRecord = finding.retest && finding.retest.passed === true;
   const verificationReady = Boolean(retestEvidence || retestRecord);
   const paperworkReady = Boolean(
@@ -480,8 +684,10 @@ export function verifiedVsClosedCheck(finding, closure = {}) {
 /* 52378 — "Reopened" state with link to the original closure. */
 export function reopenFinding(finding, { reason, by, originalClosure, now = Date.now() } = {}) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with an id is required' };
-  if (!reason || String(reason).trim() === '') return { ok: false, reason: 'a reopen reason is required' };
-  if (!originalClosure || !originalClosure.id) return { ok: false, reason: 'a link to the original closure is required' };
+  if (!reason || String(reason).trim() === '')
+    return { ok: false, reason: 'a reopen reason is required' };
+  if (!originalClosure || !originalClosure.id)
+    return { ok: false, reason: 'a link to the original closure is required' };
   const gate = canTransition(finding.state, 'Reopened');
   if (!gate.ok) return { ok: false, ...gate };
   return {
@@ -498,11 +704,18 @@ export function reopenFinding(finding, { reason, by, originalClosure, now = Date
 }
 
 /* 52379 — Auto-transitions on retest: pass \u2192 Verified, fail \u2192 Reopened. */
-export function autoTransitionOnRetest(finding, { passed, retestId, by = 'Infinity AI', now = Date.now() } = {}) {
+export function autoTransitionOnRetest(
+  finding,
+  { passed, retestId, by = 'Infinity AI', now = Date.now() } = {}
+) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with an id is required' };
-  if (typeof passed !== 'boolean') return { ok: false, reason: 'retest outcome (passed boolean) is required' };
+  if (typeof passed !== 'boolean')
+    return { ok: false, reason: 'retest outcome (passed boolean) is required' };
   if (finding.state !== 'InRetest') {
-    return { ok: false, reason: `auto-transition only applies from InRetest, not ${finding.state}` };
+    return {
+      ok: false,
+      reason: `auto-transition only applies from InRetest, not ${finding.state}`,
+    };
   }
   const to = passed ? 'Verified' : 'Reopened';
   const gate = canTransition(finding.state, to);
@@ -514,7 +727,9 @@ export function autoTransitionOnRetest(finding, { passed, retestId, by = 'Infini
     to,
     retestId: retestId || null,
     by,
-    reason: passed ? 'retest passed \u2014 fix confirmed' : 'retest failed \u2014 regression reopened',
+    reason: passed
+      ? 'retest passed \u2014 fix confirmed'
+      : 'retest failed \u2014 regression reopened',
     at: now,
     automatic: true,
   };

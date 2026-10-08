@@ -41,6 +41,6 @@ export class HuntScheduleModel {
   async due(now = new Date()) {
     const ts = now instanceof Date ? now.getTime() : new Date(now).getTime();
     const all = await this.collection.find({ enabled: true }).toArray();
-    return all.filter((s) => s.nextRunAt && new Date(s.nextRunAt).getTime() <= ts);
+    return all.filter(s => s.nextRunAt && new Date(s.nextRunAt).getTime() <= ts);
   }
 }

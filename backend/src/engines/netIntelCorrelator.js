@@ -14,31 +14,82 @@
  * alone; it is reported alongside a confidence level.
  */
 export const PORT_SERVICE_HINTS = {
-  21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS', 67: 'DHCP',
-  80: 'HTTP', 110: 'POP3', 143: 'IMAP', 389: 'LDAP', 443: 'HTTPS',
-  445: 'SMB', 465: 'SMTPS', 587: 'SMTP submission', 636: 'LDAPS',
-  1433: 'MSSQL', 1521: 'Oracle DB', 2049: 'NFS', 2181: 'ZooKeeper',
-  2375: 'Docker API', 2376: 'Docker TLS API', 3306: 'MySQL',
-  3389: 'RDP', 5432: 'PostgreSQL', 5601: 'Kibana', 5672: 'AMQP',
-  5900: 'VNC', 5985: 'WinRM HTTP', 5986: 'WinRM HTTPS', 6379: 'Redis',
-  6443: 'Kubernetes API', 8000: 'HTTP alt', 8080: 'HTTP alt/proxy',
-  8443: 'HTTPS alt', 8500: 'Consul HTTP', 9000: 'PHP-FPM/MinIO',
-  9090: 'Prometheus/metrics', 9200: 'Elasticsearch', 9300: 'Elasticsearch transport',
-  11211: 'Memcached', 27017: 'MongoDB',
+  21: 'FTP',
+  22: 'SSH',
+  23: 'Telnet',
+  25: 'SMTP',
+  53: 'DNS',
+  67: 'DHCP',
+  80: 'HTTP',
+  110: 'POP3',
+  143: 'IMAP',
+  389: 'LDAP',
+  443: 'HTTPS',
+  445: 'SMB',
+  465: 'SMTPS',
+  587: 'SMTP submission',
+  636: 'LDAPS',
+  1433: 'MSSQL',
+  1521: 'Oracle DB',
+  2049: 'NFS',
+  2181: 'ZooKeeper',
+  2375: 'Docker API',
+  2376: 'Docker TLS API',
+  3306: 'MySQL',
+  3389: 'RDP',
+  5432: 'PostgreSQL',
+  5601: 'Kibana',
+  5672: 'AMQP',
+  5900: 'VNC',
+  5985: 'WinRM HTTP',
+  5986: 'WinRM HTTPS',
+  6379: 'Redis',
+  6443: 'Kubernetes API',
+  8000: 'HTTP alt',
+  8080: 'HTTP alt/proxy',
+  8443: 'HTTPS alt',
+  8500: 'Consul HTTP',
+  9000: 'PHP-FPM/MinIO',
+  9090: 'Prometheus/metrics',
+  9200: 'Elasticsearch',
+  9300: 'Elasticsearch transport',
+  11211: 'Memcached',
+  27017: 'MongoDB',
 };
 
 /** Volume heuristics (bytes per packet) for traffic-class inference. */
 const TRAFFIC_CLASS = {
-  INTERACTIVE: { label: 'interactive', bpp: [0, 200], note: 'Small packets: shells, chat, control traffic.' },
-  REQUEST_RESPONSE: { label: 'request-response', bpp: [200, 1500], note: 'Web/API-shaped traffic.' },
-  BULK_TRANSFER: { label: 'bulk-transfer', bpp: [1500, Infinity], note: 'Large packets: file transfer, exfil-shaped or backup traffic.' },
+  INTERACTIVE: {
+    label: 'interactive',
+    bpp: [0, 200],
+    note: 'Small packets: shells, chat, control traffic.',
+  },
+  REQUEST_RESPONSE: {
+    label: 'request-response',
+    bpp: [200, 1500],
+    note: 'Web/API-shaped traffic.',
+  },
+  BULK_TRANSFER: {
+    label: 'bulk-transfer',
+    bpp: [1500, Infinity],
+    note: 'Large packets: file transfer, exfil-shaped or backup traffic.',
+  },
 };
 
 /** ICMP backscatter classification table for darknet-telescope analysis. */
 const BACKSCATTER_CLASSES = {
-  3: { name: 'destination-unreachable', context: 'Typical reply to scans/DDoS probes using spoofed source addresses.' },
-  11: { name: 'time-exceeded', context: 'TTL expiry — common when spoofed traffic traverses routed paths.' },
-  5: { name: 'redirect', context: 'ICMP redirect backscatter; spoofed traffic triggering path changes.' },
+  3: {
+    name: 'destination-unreachable',
+    context: 'Typical reply to scans/DDoS probes using spoofed source addresses.',
+  },
+  11: {
+    name: 'time-exceeded',
+    context: 'TTL expiry — common when spoofed traffic traverses routed paths.',
+  },
+  5: {
+    name: 'redirect',
+    context: 'ICMP redirect backscatter; spoofed traffic triggering path changes.',
+  },
 };
 
 /**
@@ -97,7 +148,7 @@ export function mapServicesEbpf(observations = []) {
   services.sort((a, b) => a.port - b.port);
   return {
     services,
-    listeners: services.filter((s) => s.exposed),
+    listeners: services.filter(s => s.exposed),
     count: services.length,
   };
 }
@@ -117,7 +168,7 @@ export function inferServicesNetflow(flows = [], options = {}) {
   let totalBytes = 0;
   let totalFlows = 0;
 
-  const isLocal = (ip) => localNets.some((n) => String(ip).startsWith(n));
+  const isLocal = ip => localNets.some(n => String(ip).startsWith(n));
 
   for (const f of flows) {
     if (!f || typeof f !== 'object') continue;
@@ -129,7 +180,13 @@ export function inferServicesNetflow(flows = [], options = {}) {
 
     const key = `${String(f.proto || 'tcp').toLowerCase()}/${dstPort}`;
     if (!perPort.has(key)) {
-      perPort.set(key, { bytes: 0, packets: 0, flows: 0, peers: new Set(), destinations: new Set() });
+      perPort.set(key, {
+        bytes: 0,
+        packets: 0,
+        flows: 0,
+        peers: new Set(),
+        destinations: new Set(),
+      });
     }
     const agg = perPort.get(key);
     agg.bytes += bytes;
@@ -145,8 +202,9 @@ export function inferServicesNetflow(flows = [], options = {}) {
     const port = Number(portStr);
     const hint = PORT_SERVICE_HINTS[port] || null;
     const bpp = agg.packets > 0 ? agg.bytes / agg.packets : 0;
-    const trafficClass = Object.values(TRAFFIC_CLASS).find((t) => bpp >= t.bpp[0] && bpp < t.bpp[1]);
-    const durationHint = agg.flows > 0 && agg.bytes / agg.flows > 1_000_000 ? 'long-lived-bulk' : 'short-lived';
+    const trafficClass = Object.values(TRAFFIC_CLASS).find(t => bpp >= t.bpp[0] && bpp < t.bpp[1]);
+    const durationHint =
+      agg.flows > 0 && agg.bytes / agg.flows > 1_000_000 ? 'long-lived-bulk' : 'short-lived';
 
     const score =
       (hint ? 2 : 0) +
@@ -199,7 +257,14 @@ export function analyzeBackscatter(packets = [], targetIps = []) {
     if (!targetSet.has(dstIp)) continue;
 
     if (!windows.has(dstIp)) {
-      windows.set(dstIp, { packets: 0, icmp: {}, tcpFlags: {}, firstSeen: Infinity, lastSeen: 0, sources: new Set() });
+      windows.set(dstIp, {
+        packets: 0,
+        icmp: {},
+        tcpFlags: {},
+        firstSeen: Infinity,
+        lastSeen: 0,
+        sources: new Set(),
+      });
     }
     const agg = windows.get(dstIp);
     agg.packets += 1;
@@ -223,7 +288,9 @@ export function analyzeBackscatter(packets = [], targetIps = []) {
       kind: `icmp-${type}`,
       name: BACKSCATTER_CLASSES[type] ? BACKSCATTER_CLASSES[type].name : 'other-icmp',
       count,
-      context: BACKSCATTER_CLASSES[type] ? BACKSCATTER_CLASSES[type].context : 'Unclassified ICMP backscatter.',
+      context: BACKSCATTER_CLASSES[type]
+        ? BACKSCATTER_CLASSES[type].context
+        : 'Unclassified ICMP backscatter.',
     }));
 
     if (agg.tcpFlags['RST'] || agg.tcpFlags['SA']) {
@@ -231,7 +298,8 @@ export function analyzeBackscatter(packets = [], targetIps = []) {
         kind: 'tcp-response',
         name: 'tcp-rst/syn-ack',
         count: (agg.tcpFlags['RST'] || 0) + (agg.tcpFlags['SA'] || 0),
-        context: 'TCP RST/SYN-ACK backscatter — the target IP is being used as a spoofed source in SYN floods or reflected scans.',
+        context:
+          'TCP RST/SYN-ACK backscatter — the target IP is being used as a spoofed source in SYN floods or reflected scans.',
       });
     }
 
@@ -279,18 +347,26 @@ export function analyzeBackscatter(packets = [], targetIps = []) {
  */
 export function analyzeSinkholeQueries(queries = [], sinkholedDomains = [], options = {}) {
   const { minQueries = 3 } = options;
-  const sinkholed = new Set(sinkholedDomains.map((d) => String(d).toLowerCase().replace(/\.$/, '')));
+  const sinkholed = new Set(sinkholedDomains.map(d => String(d).toLowerCase().replace(/\.$/, '')));
   const byResolver = new Map();
 
   for (const q of queries) {
     if (!q || typeof q !== 'object') continue;
-    const domain = String(q.domain || '').toLowerCase().replace(/\.$/, '');
-    const matched = sinkholed.has(domain) || [...sinkholed].some((s) => domain === s || domain.endsWith(`.${s}`));
+    const domain = String(q.domain || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
+    const matched =
+      sinkholed.has(domain) || [...sinkholed].some(s => domain === s || domain.endsWith(`.${s}`));
     if (!matched) continue;
 
     const resolver = String(q.resolverIp || 'unknown');
     if (!byResolver.has(resolver)) {
-      byResolver.set(resolver, { queries: 0, domains: new Set(), firstSeen: Infinity, lastSeen: 0 });
+      byResolver.set(resolver, {
+        queries: 0,
+        domains: new Set(),
+        firstSeen: Infinity,
+        lastSeen: 0,
+      });
     }
     const agg = byResolver.get(resolver);
     agg.queries += 1;
@@ -322,8 +398,8 @@ export function analyzeSinkholeQueries(queries = [], sinkholedDomains = [], opti
     indicators,
     summary: {
       resolversSeen: indicators.length,
-      resolversFlagged: indicators.filter((i) => i.flagged).length,
-      distinctSinkholedDomains: new Set(indicators.flatMap((i) => i.domainsQueried)).size,
+      resolversFlagged: indicators.filter(i => i.flagged).length,
+      distinctSinkholedDomains: new Set(indicators.flatMap(i => i.domainsQueried)).size,
     },
   };
 }

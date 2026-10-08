@@ -49,9 +49,10 @@ export const DATAGRAM_MESSAGE_TYPES = {
 export function analyzeHostAnnouncement(announcement = {}) {
   const { osVersion, majorVersion, minorVersion } = announcement;
   const match = NETBIOS_OS_HINTS.find(
-    (h) => h.os === osVersion
-      && (h.major === null || h.major === majorVersion)
-      && (h.minor === null || h.minor === minorVersion),
+    h =>
+      h.os === osVersion &&
+      (h.major === null || h.major === majorVersion) &&
+      (h.minor === null || h.minor === minorVersion)
   );
   const host = announcement.host ? `host "${announcement.host}"` : 'unnamed host';
   const fields = `OS=0x${(osVersion ?? 0).toString(16)}, major=${majorVersion ?? '?'}, minor=${minorVersion ?? '?'}`;
@@ -75,23 +76,29 @@ export function analyzeNetbiosDatagrams(input = {}) {
   const queryResponses = Array.isArray(input.queryResponses) ? input.queryResponses : [];
 
   const analyzed = announcements.map(analyzeHostAnnouncement);
-  const osGuesses = [...new Set(analyzed.map((a) => a.osGuess).filter(Boolean))];
+  const osGuesses = [...new Set(analyzed.map(a => a.osGuess).filter(Boolean))];
 
   const masterBrowserHints = announcements
-    .filter((a) => (a.serverType & 0x00000004) !== 0 || /<1b>|<1d>/i.test(String(a.host || '')))
-    .map((a) => `${a.host || 'unknown'} announces as master/domain browser`);
+    .filter(a => (a.serverType & 0x00000004) !== 0 || /<1b>|<1d>/i.test(String(a.host || '')))
+    .map(a => `${a.host || 'unknown'} announces as master/domain browser`);
 
   const behaviorNotes = [];
-  const errors = errorResponses.filter((e) => e.type === 0x13);
+  const errors = errorResponses.filter(e => e.type === 0x13);
   if (errors.length) {
-    behaviorNotes.push(`${errors.length} DATAGRAM ERROR response(s) — host processes datagram-service queries (destinations: ${[...new Set(errors.map((e) => e.destinationName || '?'))].join(', ')})`);
+    behaviorNotes.push(
+      `${errors.length} DATAGRAM ERROR response(s) — host processes datagram-service queries (destinations: ${[...new Set(errors.map(e => e.destinationName || '?'))].join(', ')})`
+    );
   }
-  const negatives = queryResponses.filter((q) => q.type === 0x16);
+  const negatives = queryResponses.filter(q => q.type === 0x16);
   if (negatives.length) {
-    behaviorNotes.push(`${negatives.length} negative query response(s) — datagram service is live and answering`);
+    behaviorNotes.push(
+      `${negatives.length} negative query response(s) — datagram service is live and answering`
+    );
   }
   if (!announcements.length && !errorResponses.length && !queryResponses.length) {
-    behaviorNotes.push('No datagram-service traffic observed — service may be firewalled or NetBIOS disabled');
+    behaviorNotes.push(
+      'No datagram-service traffic observed — service may be firewalled or NetBIOS disabled'
+    );
   }
 
   const confidence = osGuesses.length ? 'medium' : announcements.length ? 'low' : 'low';
@@ -103,7 +110,7 @@ export function analyzeNetbiosDatagrams(input = {}) {
     masterBrowserHints,
     behaviorNotes,
     evidence: [
-      analyzed.length ? analyzed.map((a) => a.evidence).join('; ') : 'no host announcements parsed',
+      analyzed.length ? analyzed.map(a => a.evidence).join('; ') : 'no host announcements parsed',
       ...behaviorNotes,
     ].join('. '),
   };

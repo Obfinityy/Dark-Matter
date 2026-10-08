@@ -129,7 +129,7 @@ function harvestLinkHints(html, ...wantedRels) {
     const relMatch = /rel\s*=\s*["']?([^"'\s>]+)["']?/i.exec(tag);
     if (!relMatch) continue;
     const rels = relMatch[1].toLowerCase().split(/\s+/);
-    if (!wantedRels.some((w) => rels.includes(w.toLowerCase()))) continue;
+    if (!wantedRels.some(w => rels.includes(w.toLowerCase()))) continue;
     const hrefMatch = /href\s*=\s*["']([^"']+)["']/i.exec(tag);
     const url = hrefMatch ? hrefMatch[1].trim() : '';
     if (!url) continue;
@@ -194,7 +194,14 @@ export function extractPrerenderUrls(html = '') {
 }
 
 /** Hint priority order: earliest-in-render wins. */
-const HINT_PRIORITY = ['prerender', 'preconnect', 'preload', 'modulepreload', 'prefetch', 'dns-prefetch'];
+const HINT_PRIORITY = [
+  'prerender',
+  'preconnect',
+  'preload',
+  'modulepreload',
+  'prefetch',
+  'dns-prefetch',
+];
 
 /**
  * Map every resource hint in the HTML to a priority-ordered critical-path view.
@@ -378,7 +385,8 @@ export function harvestNoscriptLinks(html = '') {
     }
 
     // Meta refresh inside noscript
-    const refreshRe = /<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*content\s*=\s*["'][^"']*?url\s*=\s*([^"';]+)/gi;
+    const refreshRe =
+      /<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*content\s*=\s*["'][^"']*?url\s*=\s*([^"';]+)/gi;
     let rm;
     while ((rm = refreshRe.exec(inner)) !== null) {
       const value = rm[1].trim();
@@ -398,8 +406,8 @@ export function harvestNoscriptLinks(html = '') {
 function looksLikeUrl(value) {
   const v = String(value || '').trim();
   if (!v || v.startsWith('#') || v.startsWith('javascript:') || v.startsWith('data:')) return false;
-  if (/^(https?:)?\/\//i.test(v)) return true;      // absolute or protocol-relative
-  if (v.startsWith('/')) return true;              // site-relative path
+  if (/^(https?:)?\/\//i.test(v)) return true; // absolute or protocol-relative
+  if (v.startsWith('/')) return true; // site-relative path
   if (/^[a-zA-Z0-9][\w.-]*\.[a-z]{2,}(\/|$|\?|#)/i.test(v)) return true; // bare host
   if (/\.([a-z]{2,6}|js|json|php|aspx?|html?)$/i.test(v) || v.includes('?')) return true;
   return false;

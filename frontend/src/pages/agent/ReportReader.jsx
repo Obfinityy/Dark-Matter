@@ -11,7 +11,15 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, FileWarning, ShieldAlert, Download, ShieldCheck, FlaskConical } from 'lucide-react';
+import {
+  ArrowLeft,
+  Loader2,
+  FileWarning,
+  ShieldAlert,
+  Download,
+  ShieldCheck,
+  FlaskConical,
+} from 'lucide-react';
 import { getHuntRecord, downloadHuntRecordMarkdown, downloadFindingPoc } from '../../services/api';
 import { ReportExport } from '../../components/agent/ReportExport';
 import { CoverageMeter } from '../../components/agent/CoverageMeter';
@@ -28,7 +36,12 @@ const SEV_BADGE = {
 };
 
 function slugify(value) {
-  return String(value || 'finding').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'finding';
+  return (
+    String(value || 'finding')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'finding'
+  );
 }
 
 function downloadText(filename, text) {
@@ -82,9 +95,16 @@ function MarkdownBody({ markdown }) {
     if (line.startsWith('```')) {
       const buf = [];
       i++;
-      while (i < lines.length && !lines[i].startsWith('```')) { buf.push(lines[i]); i++; }
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        buf.push(lines[i]);
+        i++;
+      }
       i++; // consume the closing fence (or EOF)
-      blocks.push(<pre key={key++}><code>{buf.join('\n')}</code></pre>);
+      blocks.push(
+        <pre key={key++}>
+          <code>{buf.join('\n')}</code>
+        </pre>
+      );
       continue;
     }
 
@@ -93,7 +113,11 @@ function MarkdownBody({ markdown }) {
     if (heading) {
       const level = heading[1].length;
       const Tag = `h${level}`;
-      blocks.push(<Tag key={key++}><Inline text={heading[2]} /></Tag>);
+      blocks.push(
+        <Tag key={key++}>
+          <Inline text={heading[2]} />
+        </Tag>
+      );
       i++;
       continue;
     }
@@ -105,14 +129,18 @@ function MarkdownBody({ markdown }) {
       const items = [];
       while (i < lines.length) {
         const m = lines[i].match(/^\s*([-*+]|\d+[.)])\s+(.*)$/);
-        if (!m || (/^\d/.test(m[1]) !== ordered)) break;
+        if (!m || /^\d/.test(m[1]) !== ordered) break;
         items.push(m[2]);
         i++;
       }
       const ListTag = ordered ? 'ol' : 'ul';
       blocks.push(
         <ListTag key={key++}>
-          {items.map((item, j) => <li key={j}><Inline text={item} /></li>)}
+          {items.map((item, j) => (
+            <li key={j}>
+              <Inline text={item} />
+            </li>
+          ))}
         </ListTag>
       );
       continue;
@@ -120,7 +148,11 @@ function MarkdownBody({ markdown }) {
 
     // Blockquote.
     if (line.startsWith('> ')) {
-      blocks.push(<blockquote key={key++}><Inline text={line.slice(2)} /></blockquote>);
+      blocks.push(
+        <blockquote key={key++}>
+          <Inline text={line.slice(2)} />
+        </blockquote>
+      );
       i++;
       continue;
     }
@@ -133,7 +165,10 @@ function MarkdownBody({ markdown }) {
     }
 
     // Blank line — skip (paragraph spacing comes from CSS).
-    if (line.trim() === '') { i++; continue; }
+    if (line.trim() === '') {
+      i++;
+      continue;
+    }
 
     // Paragraph — gather until a blank line or another block starts.
     const para = [];
@@ -149,7 +184,11 @@ function MarkdownBody({ markdown }) {
       para.push(lines[i]);
       i++;
     }
-    blocks.push(<p key={key++}><Inline text={para.join(' ')} /></p>);
+    blocks.push(
+      <p key={key++}>
+        <Inline text={para.join(' ')} />
+      </p>
+    );
   }
 
   return <article className="dm-markdown-body">{blocks}</article>;
@@ -182,18 +221,51 @@ function FindingCard({ recordId, finding }) {
       {finding.cvss?.vector && <code className="dm-finding-vector">{finding.cvss.vector}</code>}
       {finding.description && <p className="dm-card-sub dm-finding-desc">{finding.description}</p>}
       <div className="dm-finding-actions">
-        <button className="dm-btn dm-btn-ghost dm-btn-sm" disabled={busy} onClick={() => grab('poc', 'curl', 'poc')}>
-          {busy === 'poc' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <FlaskConical size={13} aria-hidden="true" />} PoC
+        <button
+          className="dm-btn dm-btn-ghost dm-btn-sm"
+          disabled={busy}
+          onClick={() => grab('poc', 'curl', 'poc')}
+        >
+          {busy === 'poc' ? (
+            <Loader2 size={13} className="sg-spin" aria-hidden="true" />
+          ) : (
+            <FlaskConical size={13} aria-hidden="true" />
+          )}{' '}
+          PoC
         </button>
-        <button className="dm-btn dm-btn-ghost dm-btn-sm" disabled={busy} onClick={() => grab('repro', 'curl', 'curl')}>
-          {busy === 'curl' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <Download size={13} aria-hidden="true" />} repro.sh
+        <button
+          className="dm-btn dm-btn-ghost dm-btn-sm"
+          disabled={busy}
+          onClick={() => grab('repro', 'curl', 'curl')}
+        >
+          {busy === 'curl' ? (
+            <Loader2 size={13} className="sg-spin" aria-hidden="true" />
+          ) : (
+            <Download size={13} aria-hidden="true" />
+          )}{' '}
+          repro.sh
         </button>
-        <button className="dm-btn dm-btn-ghost dm-btn-sm" disabled={busy} onClick={() => grab('repro', 'python', 'py')}>
-          {busy === 'py' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <Download size={13} aria-hidden="true" />} repro.py
+        <button
+          className="dm-btn dm-btn-ghost dm-btn-sm"
+          disabled={busy}
+          onClick={() => grab('repro', 'python', 'py')}
+        >
+          {busy === 'py' ? (
+            <Loader2 size={13} className="sg-spin" aria-hidden="true" />
+          ) : (
+            <Download size={13} aria-hidden="true" />
+          )}{' '}
+          repro.py
         </button>
       </div>
-      {error && <p className="dm-finding-error" role="alert">{error}</p>}
-      <p className="dm-hint dm-finding-note">Proof-only artifacts — they demonstrate the flaw without exfiltration or state changes.</p>
+      {error && (
+        <p className="dm-finding-error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="dm-hint dm-finding-note">
+        Proof-only artifacts — they demonstrate the flaw without exfiltration or state changes.
+      </p>
     </div>
   );
 }
@@ -211,19 +283,21 @@ export function ReportReader() {
       try {
         const [rec, md] = await Promise.all([
           getHuntRecord(id),
-          downloadHuntRecordMarkdown(id).catch(() => null)
+          downloadHuntRecordMarkdown(id).catch(() => null),
         ]);
         if (cancelled) return;
         // The backend wraps the record as { huntRecord }; tolerate either shape.
         setRecord(rec?.huntRecord || rec?.record || rec);
-        setMarkdown(typeof md === 'string' ? md : (md?.markdown || ''));
+        setMarkdown(typeof md === 'string' ? md : md?.markdown || '');
       } catch (err) {
         if (!cancelled) setError(err.message || 'Could not load the report.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (loading) {
@@ -248,7 +322,9 @@ export function ReportReader() {
           </div>
           <h2 className="dm-empty-title">Couldn't load this report</h2>
           <p className="dm-empty-sub">{error || 'Report not found.'}</p>
-          <Link to="/agent/reports" className="dm-btn dm-btn-secondary">Back to past reports</Link>
+          <Link to="/agent/reports" className="dm-btn dm-btn-secondary">
+            Back to past reports
+          </Link>
         </div>
       </div>
     );
@@ -266,14 +342,20 @@ export function ReportReader() {
       <div className="dm-notice dm-notice-gold dm-reader-notice">
         <ShieldCheck size={16} className="dm-notice-icon" aria-hidden="true" />
         <span>
-          <strong style={{ color: 'var(--dm-text)' }}>Report already exists for this target — showing the saved report</strong>{' '}
+          <strong style={{ color: 'var(--dm-text)' }}>
+            Report already exists for this target — showing the saved report
+          </strong>{' '}
           (v{record.version || 1}). Pasting this target again returns this same report instantly.
           Start a new hunt from the Hunt AI page for a fresh run.
         </span>
       </div>
 
       <div className="dm-reader-top">
-        <ReportExport jobId={record.jobId || record.id} recordId={record.id} target={record.target || ''} />
+        <ReportExport
+          jobId={record.jobId || record.id}
+          recordId={record.id}
+          target={record.target || ''}
+        />
       </div>
 
       <header className="dm-page-head dm-reader-head">
@@ -287,13 +369,14 @@ export function ReportReader() {
           )}
           {record.severitySummary && (
             <span className="dm-reader-sevs">
-              {Object.entries(record.severitySummary).map(([sev, count]) => (
-                count > 0 && (
-                  <span key={sev} className={SEV_BADGE[String(sev).toLowerCase()] || 'dm-badge'}>
-                    {sev} {count}
-                  </span>
-                )
-              ))}
+              {Object.entries(record.severitySummary).map(
+                ([sev, count]) =>
+                  count > 0 && (
+                    <span key={sev} className={SEV_BADGE[String(sev).toLowerCase()] || 'dm-badge'}>
+                      {sev} {count}
+                    </span>
+                  )
+              )}
             </span>
           )}
         </div>
@@ -302,11 +385,13 @@ export function ReportReader() {
       {findings.length > 0 && (
         <section className="dm-section dm-reader-section" aria-labelledby="dm-findings-heading">
           <div className="dm-section-head">
-            <h2 className="dm-section-title" id="dm-findings-heading">Findings ({findings.length})</h2>
+            <h2 className="dm-section-title" id="dm-findings-heading">
+              Findings ({findings.length})
+            </h2>
           </div>
           <CoverageMeter coverage={coverage} />
           <div className="dm-reader-findings">
-            {findings.map((f) => (
+            {findings.map(f => (
               <FindingCard key={f.id || f.title} recordId={record.id} finding={f} />
             ))}
           </div>
@@ -320,7 +405,10 @@ export function ReportReader() {
           <div className="dm-empty-icon-lucide">
             <FileWarning size={24} aria-hidden="true" />
           </div>
-          <p className="dm-empty-sub">No Markdown report was archived for this hunt — its findings summary above is the record.</p>
+          <p className="dm-empty-sub">
+            No Markdown report was archived for this hunt — its findings summary above is the
+            record.
+          </p>
         </div>
       )}
     </div>

@@ -56,7 +56,7 @@ export class AgentSDriver extends EventEmitter {
       });
       this.proc = proc;
 
-      const onReady = (msg) => {
+      const onReady = msg => {
         if (msg?.event === 'service.ready') {
           this.started = true;
           this.off('__raw', onReady);
@@ -65,17 +65,17 @@ export class AgentSDriver extends EventEmitter {
       };
       this.on('__raw', onReady);
 
-      proc.stdout.on('data', (chunk) => this._onData(chunk));
-      proc.stderr.on('data', (chunk) => this.emit('stderr', String(chunk)));
+      proc.stdout.on('data', chunk => this._onData(chunk));
+      proc.stderr.on('data', chunk => this.emit('stderr', String(chunk)));
 
-      proc.on('error', (err) => {
+      proc.on('error', err => {
         this.emit('error', err);
         if (!this.started) {
           this.off('__raw', onReady);
           reject(err);
         }
       });
-      proc.on('exit', (code) => {
+      proc.on('exit', code => {
         this.emit('exit', code);
         for (const [, p] of this.pending) p.reject(new Error(`Agent S exited (code ${code})`));
         this.pending.clear();
@@ -86,7 +86,11 @@ export class AgentSDriver extends EventEmitter {
       setTimeout(() => {
         if (!this.started) {
           this.off('__raw', onReady);
-          reject(new Error('Agent S service did not become ready in time. Is gui-agents installed? (pip install -r backend/computer/agentS/requirements.txt)'));
+          reject(
+            new Error(
+              'Agent S service did not become ready in time. Is gui-agents installed? (pip install -r backend/computer/agentS/requirements.txt)'
+            )
+          );
         }
       }, 30000).unref?.();
     });
@@ -100,13 +104,22 @@ export class AgentSDriver extends EventEmitter {
       this.buffer = this.buffer.slice(idx + 1);
       if (!line) continue;
       let msg;
-      try { msg = JSON.parse(line); } catch { continue; }
+      try {
+        msg = JSON.parse(line);
+      } catch {
+        continue;
+      }
       this.emit('__raw', msg);
       if (msg.id && this.pending.has(msg.id)) {
         const p = this.pending.get(msg.id);
         this.pending.delete(msg.id);
         if (msg.ok) p.resolve(msg.result);
-        else p.reject(Object.assign(new Error(msg.error?.message || 'Agent S error'), { kind: msg.error?.kind }));
+        else
+          p.reject(
+            Object.assign(new Error(msg.error?.message || 'Agent S error'), {
+              kind: msg.error?.kind,
+            })
+          );
       } else if (msg.event) {
         this.emit(msg.event, msg.data || {});
         this.emit('event', { type: msg.event, data: msg.data || {} });
@@ -119,7 +132,7 @@ export class AgentSDriver extends EventEmitter {
     const id = nextId();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.proc.stdin.write(JSON.stringify({ id, cmd, params }) + '\n', (err) => {
+      this.proc.stdin.write(JSON.stringify({ id, cmd, params }) + '\n', err => {
         if (err) {
           this.pending.delete(id);
           reject(err);
@@ -147,7 +160,11 @@ export class AgentSDriver extends EventEmitter {
   }
 
   kill() {
-    try { this.proc?.kill('SIGTERM'); } catch { /* ignore */ }
+    try {
+      this.proc?.kill('SIGTERM');
+    } catch {
+      /* ignore */
+    }
     this.proc = null;
     this.started = false;
   }
@@ -159,7 +176,9 @@ function discoverPython() {
     try {
       execFileSync(bin, ['--version'], { stdio: 'ignore', timeout: 5000 });
       return bin;
-    } catch { /* try next */ }
+    } catch {
+      /* try next */
+    }
   }
   return 'python3';
 }

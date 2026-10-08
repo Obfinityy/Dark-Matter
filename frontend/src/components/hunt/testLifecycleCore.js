@@ -21,13 +21,33 @@ export const WAVE38_TL_END = 51508;
 
 /** Registry of the 28 test-lifecycle ideas — completeness is testable. */
 export const WAVE38_TL_IDEAS = [
-  [51481, 'test result streaming', 'Watch a requested test execute step by step as live events arrive'],
-  [51482, 'test interruption kill switch', 'Stop a running requested test instantly from anywhere in the UI'],
+  [
+    51481,
+    'test result streaming',
+    'Watch a requested test execute step by step as live events arrive',
+  ],
+  [
+    51482,
+    'test interruption kill switch',
+    'Stop a running requested test instantly from anywhere in the UI',
+  ],
   [51483, 'test follow-ups', 'Ask the agent to dig deeper into a test result with one click'],
-  [51484, 'test-to-finding promotion', 'A successful test converts into a draft finding automatically'],
+  [
+    51484,
+    'test-to-finding promotion',
+    'A successful test converts into a draft finding automatically',
+  ],
   [51485, 'test labeling', 'Tag requested tests for filtering in reports and analytics'],
-  [51486, 'test collaboration comments', 'Teammates comment on and refine test requests in threads'],
-  [51487, 'test request API builder', 'External tools submit test requests through a structured payload'],
+  [
+    51486,
+    'test collaboration comments',
+    'Teammates comment on and refine test requests in threads',
+  ],
+  [
+    51487,
+    'test request API builder',
+    'External tools submit test requests through a structured payload',
+  ],
   [51488, 'test quota display', 'See how many on-demand tests remain in the hunt budget'],
   [51489, 'test technique info cards', 'Plain-language cards explaining what each technique does'],
   [51490, 'test risk badges', 'Every request labeled safe, cautious, or destructive up front'],
@@ -41,13 +61,21 @@ export const WAVE38_TL_IDEAS = [
   [51498, 'test idea inbox', 'Jot test ideas the agent picks up when it goes idle'],
   [51499, 'test priority queue controls', 'Reorder requested tests with explicit move controls'],
   [51500, 'test environment selector', 'Choose prod, staging, or mirror as the test target'],
-  [51501, 'test credential descriptor', 'Supply credential descriptors (redacted) for authenticated tests'],
+  [
+    51501,
+    'test credential descriptor',
+    'Supply credential descriptors (redacted) for authenticated tests',
+  ],
   [51502, 'test session recording', 'Requested tests recorded as replayable session logs'],
   [51503, 'test result sharing', 'Share a test outcome via link with full evidence attached'],
   [51504, 'test feedback loop', 'Rate test usefulness so the agent suggests better tests'],
   [51505, 'test templates gallery', 'One-click install of community-shared test recipes'],
   [51506, 'test dependency mapping', 'See which requested tests depend on other tests results'],
-  [51507, 'test outcome predictions', 'The agent estimates likely success before running your test'],
+  [
+    51507,
+    'test outcome predictions',
+    'The agent estimates likely success before running your test',
+  ],
   [51508, 'test request archiving', 'Old requests archived, restorable for future hunts'],
 ];
 
@@ -88,7 +116,7 @@ export function killSwitchRequest(testId, reason) {
 }
 
 export function applyKill(tests, testId, reason) {
-  return (tests || []).map((t) => {
+  return (tests || []).map(t => {
     if (t.id !== testId) return t;
     return { ...t, status: 'killed', killReason: String(reason || 'manual stop') };
   });
@@ -150,9 +178,7 @@ export function resolveComment(thread, commentId) {
   const t = thread || { testId: '', comments: [] };
   return {
     ...t,
-    comments: (t.comments || []).map((c) =>
-      c.id === commentId ? { ...c, resolved: true } : c,
-    ),
+    comments: (t.comments || []).map(c => (c.id === commentId ? { ...c, resolved: true } : c)),
   };
 }
 
@@ -200,69 +226,85 @@ export const TECHNIQUE_INFO = [
     name: 'SQL injection',
     risk: 'low',
     plain: 'Try database trickery on inputs',
-    whatItDoes: 'Sends database-aware characters into form fields and URL parameters, then watches for error messages or timing differences that reveal the query behind the page.',
-    whyItMatters: 'A successful SQL injection can read, change, or delete the whole database behind the site — customer records included.',
+    whatItDoes:
+      'Sends database-aware characters into form fields and URL parameters, then watches for error messages or timing differences that reveal the query behind the page.',
+    whyItMatters:
+      'A successful SQL injection can read, change, or delete the whole database behind the site — customer records included.',
   },
   {
     id: 'xss',
     name: 'Reflected XSS',
     risk: 'low',
     plain: 'Try scripts that bounce back in pages',
-    whatItDoes: 'Submits small script snippets through inputs and checks whether the site reflects them back into the page without encoding.',
-    whyItMatters: 'Reflected scripts run in a victim\u2019s browser, which lets attackers steal sessions or perform actions as that user.',
+    whatItDoes:
+      'Submits small script snippets through inputs and checks whether the site reflects them back into the page without encoding.',
+    whyItMatters:
+      'Reflected scripts run in a victim\u2019s browser, which lets attackers steal sessions or perform actions as that user.',
   },
   {
     id: 'ssrf',
     name: 'SSRF probe',
     risk: 'medium',
     plain: 'Ask the server to fetch a URL it should not',
-    whatItDoes: 'Asks the server to request a controlled address and watches whether it connects — proving the server will fetch URLs on the test\u2019s behalf.',
-    whyItMatters: 'SSRF can reach internal services that were never exposed to the internet, including cloud metadata that hands out credentials.',
+    whatItDoes:
+      'Asks the server to request a controlled address and watches whether it connects — proving the server will fetch URLs on the test\u2019s behalf.',
+    whyItMatters:
+      'SSRF can reach internal services that were never exposed to the internet, including cloud metadata that hands out credentials.',
   },
   {
     id: 'idor',
     name: 'IDOR check',
     risk: 'medium',
     plain: 'Try other users\u2019 object IDs',
-    whatItDoes: 'Requests resources by swapping in other identifiers (order numbers, user IDs) and checks whether access is granted without proper ownership checks.',
-    whyItMatters: 'Missing object-level authorization exposes other people\u2019s data — orders, documents, account details — to anyone with an account.',
+    whatItDoes:
+      'Requests resources by swapping in other identifiers (order numbers, user IDs) and checks whether access is granted without proper ownership checks.',
+    whyItMatters:
+      'Missing object-level authorization exposes other people\u2019s data — orders, documents, account details — to anyone with an account.',
   },
   {
     id: 'dirbrute',
     name: 'Directory discovery',
     risk: 'low',
     plain: 'Probe for hidden paths and files',
-    whatItDoes: 'Requests a wordlist of likely paths and compares response codes and sizes against the baseline to surface hidden endpoints, backups, and admin panels.',
-    whyItMatters: 'Forgotten paths often host unprotected admin tools, backup archives, or config files with secrets.',
+    whatItDoes:
+      'Requests a wordlist of likely paths and compares response codes and sizes against the baseline to surface hidden endpoints, backups, and admin panels.',
+    whyItMatters:
+      'Forgotten paths often host unprotected admin tools, backup archives, or config files with secrets.',
   },
   {
     id: 'jwt',
     name: 'JWT analysis',
     risk: 'low',
     plain: 'Inspect login tokens for flaws',
-    whatItDoes: 'Decodes the login token without verifying its signature and inspects the algorithm, expiry, and claims for trust mistakes.',
-    whyItMatters: 'Weak token handling — no expiry, "none" algorithm, sensitive data inside — lets attackers forge logins or escalate privilege.',
+    whatItDoes:
+      'Decodes the login token without verifying its signature and inspects the algorithm, expiry, and claims for trust mistakes.',
+    whyItMatters:
+      'Weak token handling — no expiry, "none" algorithm, sensitive data inside — lets attackers forge logins or escalate privilege.',
   },
   {
     id: 'cors',
     name: 'CORS check',
     risk: 'low',
     plain: 'See which websites can read this API',
-    whatItDoes: 'Sends requests with crafted Origin headers and checks whether the API answers with permissive cross-origin rules.',
-    whyItMatters: 'Overly permissive CORS lets any website read responses from the user\u2019s browser, leaking data through cross-site requests.',
+    whatItDoes:
+      'Sends requests with crafted Origin headers and checks whether the API answers with permissive cross-origin rules.',
+    whyItMatters:
+      'Overly permissive CORS lets any website read responses from the user\u2019s browser, leaking data through cross-site requests.',
   },
   {
     id: 'headers',
     name: 'Header audit',
     risk: 'none',
     plain: 'Check security headers on responses',
-    whatItDoes: 'Reads the response headers for missing hardening directives such as Content-Security-Policy, HSTS, and X-Frame-Options.',
-    whyItMatters: 'Missing headers leave cheap protections on the table — clickjacking, protocol downgrade, and content-sniffing attacks get easier.',
+    whatItDoes:
+      'Reads the response headers for missing hardening directives such as Content-Security-Policy, HSTS, and X-Frame-Options.',
+    whyItMatters:
+      'Missing headers leave cheap protections on the table — clickjacking, protocol downgrade, and content-sniffing attacks get easier.',
   },
 ];
 
 export function techniqueInfo(id) {
-  return TECHNIQUE_INFO.find((t) => t.id === String(id).toLowerCase()) || null;
+  return TECHNIQUE_INFO.find(t => t.id === String(id).toLowerCase()) || null;
 }
 
 /* --- 51490 · test risk badges ----------------------------------------------------------------------------------------- */
@@ -303,21 +345,22 @@ export function exportTestEvidence(test, result, format) {
   const r = result || {};
   const ext = format === 'markdown' ? 'md' : 'json';
   const filename = `${t.id || 'test'}-evidence.${ext}`;
-  const content = format === 'markdown'
-    ? [
-      `# Test evidence — ${t.id || 'untitled test'}`,
-      '',
-      `Technique: ${t.technique || '—'}`,
-      `Target: ${t.target || '—'}`,
-      `Verdict: ${r.vulnerable ? 'Vulnerable' : r.error ? 'Errored' : 'Not vulnerable'}`,
-      '',
-      '## Evidence',
-      '',
-      ...(Array.isArray(r.evidence) && r.evidence.length
-        ? r.evidence.map((e) => `- ${String(e)}`)
-        : ['- (no evidence captured)']),
-    ].join('\n')
-    : JSON.stringify({ test: t, result: r }, null, 2);
+  const content =
+    format === 'markdown'
+      ? [
+          `# Test evidence — ${t.id || 'untitled test'}`,
+          '',
+          `Technique: ${t.technique || '—'}`,
+          `Target: ${t.target || '—'}`,
+          `Verdict: ${r.vulnerable ? 'Vulnerable' : r.error ? 'Errored' : 'Not vulnerable'}`,
+          '',
+          '## Evidence',
+          '',
+          ...(Array.isArray(r.evidence) && r.evidence.length
+            ? r.evidence.map(e => `- ${String(e)}`)
+            : ['- (no evidence captured)']),
+        ].join('\n')
+      : JSON.stringify({ test: t, result: r }, null, 2);
   return { filename, format: format === 'markdown' ? 'markdown' : 'json', content };
 }
 
@@ -338,9 +381,9 @@ export function replayTest(test) {
 export function diffTestResults(before, after) {
   const b = before || [];
   const a = after || [];
-  const added = a.filter((x) => !b.includes(x));
-  const removed = b.filter((x) => !a.includes(x));
-  const unchanged = b.filter((x) => a.includes(x));
+  const added = a.filter(x => !b.includes(x));
+  const removed = b.filter(x => !a.includes(x));
+  const unchanged = b.filter(x => a.includes(x));
   return {
     added,
     removed,
@@ -369,7 +412,7 @@ export function addChatMessage(thread, role, text) {
 /* --- 51496 · test auto-documentation --------------------------------------------------------------------------------------------------------------------------------------------- */
 
 export function autoDocEntries(tests) {
-  return (tests || []).map((t) => ({
+  return (tests || []).map(t => ({
     id: t.id,
     heading: `Test ${t.id}: ${t.technique} on ${t.target}`,
     body: `The ${t.technique || 'requested'} test ran against ${t.target || 'the target'} and the verdict was ${t.vulnerable ? 'vulnerable' : t.error ? 'errored during execution' : 'not vulnerable'}${t.vulnerable ? ', so it was converted into a draft finding' : ''}.`,
@@ -404,9 +447,7 @@ export function addIdea(inbox, text) {
 }
 
 export function claimIdea(inbox, id) {
-  return (inbox || []).map((idea) =>
-    idea.id === id ? { ...idea, status: 'claimed' } : idea,
-  );
+  return (inbox || []).map(idea => (idea.id === id ? { ...idea, status: 'claimed' } : idea));
 }
 
 /* --- 51499 · test priority queue controls ----------------------------------------------------------------------------------------------------------------------------------------------------------------- */
@@ -414,7 +455,7 @@ export function claimIdea(inbox, id) {
 export function queueReorder(queue, fromIndex, toIndex) {
   const list = queue || [];
   if (list.length === 0) return [];
-  const clamp = (i) => Math.max(0, Math.min(list.length - 1, Number.isFinite(i) ? i : 0));
+  const clamp = i => Math.max(0, Math.min(list.length - 1, Number.isFinite(i) ? i : 0));
   const from = clamp(fromIndex);
   const to = clamp(toIndex);
   if (from === to) return [...list];
@@ -433,7 +474,7 @@ export const ENVIRONMENTS = [
 ];
 
 export function environmentDescriptor(envId) {
-  return ENVIRONMENTS.find((e) => e.id === String(envId).toLowerCase()) || null;
+  return ENVIRONMENTS.find(e => e.id === String(envId).toLowerCase()) || null;
 }
 
 /* --- 51501 · test credential descriptor ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
@@ -480,10 +521,12 @@ export function recordFeedback(store, testId, rating) {
 }
 
 export function feedbackSummary(store) {
-  const values = Object.values(store || {}).filter((v) => v >= 1 && v <= 5);
+  const values = Object.values(store || {}).filter(v => v >= 1 && v <= 5);
   const count = values.length;
   const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  values.forEach((v) => { distribution[ v ] += 1; });
+  values.forEach(v => {
+    distribution[v] += 1;
+  });
   const average = count > 0 ? Math.round((values.reduce((a, b) => a + b, 0) / count) * 10) / 10 : 0;
   return {
     count,
@@ -501,40 +544,45 @@ export const TEMPLATE_GALLERY = [
     name: 'Login form SQL probe',
     technique: 'sqli',
     target: '/login',
-    description: 'Submits quote and boolean-based payloads into the login form\u2019s username and password fields to check for injectable parameters.',
+    description:
+      'Submits quote and boolean-based payloads into the login form\u2019s username and password fields to check for injectable parameters.',
   },
   {
     id: 'tpl-search-xss',
     name: 'Search reflection check',
     technique: 'xss',
     target: '/search?q=',
-    description: 'Injects markup canaries into the search query and verifies whether the value is reflected into the results page without encoding.',
+    description:
+      'Injects markup canaries into the search query and verifies whether the value is reflected into the results page without encoding.',
   },
   {
     id: 'tpl-avatar-ssrf',
     name: 'Avatar URL fetcher probe',
     technique: 'ssrf',
     target: '/profile/avatar',
-    description: 'Points the avatar URL field at a controlled address to see whether the server fetches remote resources on the test\u2019s behalf.',
+    description:
+      'Points the avatar URL field at a controlled address to see whether the server fetches remote resources on the test\u2019s behalf.',
   },
   {
     id: 'tpl-order-idor',
     name: 'Order ID swap check',
     technique: 'idor',
     target: '/orders/{id}',
-    description: 'Requests other order identifiers and flags responses that return another user\u2019s data without an ownership check.',
+    description:
+      'Requests other order identifiers and flags responses that return another user\u2019s data without an ownership check.',
   },
   {
     id: 'tpl-api-headers',
     name: 'API header baseline',
     technique: 'headers',
     target: '/api/v1',
-    description: 'Reads the API\u2019s response headers and lists missing hardening directives such as Content-Security-Policy and HSTS.',
+    description:
+      'Reads the API\u2019s response headers and lists missing hardening directives such as Content-Security-Policy and HSTS.',
   },
 ];
 
 export function installTemplate(templateId) {
-  const tpl = TEMPLATE_GALLERY.find((t) => t.id === templateId);
+  const tpl = TEMPLATE_GALLERY.find(t => t.id === templateId);
   if (!tpl) return { ok: false };
   return {
     ok: true,
@@ -552,13 +600,13 @@ export function installTemplate(templateId) {
 
 export function dependencyGraph(tests) {
   const list = tests || [];
-  const nodes = list.map((t) => ({
+  const nodes = list.map(t => ({
     id: t.id,
     label: `${t.technique || 'test'} → ${t.target || 'target'}`,
   }));
   const edges = [];
-  list.forEach((t) => {
-    (t.dependsOn || []).forEach((depId) => {
+  list.forEach(t => {
+    (t.dependsOn || []).forEach(depId => {
       edges.push({ from: depId, to: t.id });
     });
   });
@@ -569,14 +617,16 @@ export function dependencyGraph(tests) {
 
 export function predictOutcome(test, history) {
   const t = test || {};
-  const sameTechnique = (history || []).filter((h) => h.technique === t.technique);
+  const sameTechnique = (history || []).filter(h => h.technique === t.technique);
   const total = sameTechnique.length;
-  const hits = sameTechnique.filter((h) => h.foundIssue).length;
+  const hits = sameTechnique.filter(h => h.foundIssue).length;
   const score = total > 0 ? Math.round((hits / total) * 100) : 0;
   const likelihood = score >= 60 ? 'high' : score >= 30 ? 'medium' : 'low';
   const reasons = [];
   if (total === 0) {
-    reasons.push(`No prior runs of the ${t.technique || 'unknown'} technique — the estimate is a baseline.`);
+    reasons.push(
+      `No prior runs of the ${t.technique || 'unknown'} technique — the estimate is a baseline.`
+    );
   } else {
     reasons.push(`Same-technique tests found issues in ${hits} of ${total} prior runs.`);
   }
@@ -593,7 +643,7 @@ export function predictOutcome(test, history) {
 
 export function archiveTest(archive, active, testId) {
   const list = active || [];
-  const idx = list.findIndex((t) => t.id === testId);
+  const idx = list.findIndex(t => t.id === testId);
   if (idx === -1) return { ok: false, archive: archive || [], active: list };
   const next = [...list];
   const [moved] = next.splice(idx, 1);
@@ -602,7 +652,7 @@ export function archiveTest(archive, active, testId) {
 
 export function restoreTest(archive, active, testId) {
   const list = archive || [];
-  const idx = list.findIndex((t) => t.id === testId);
+  const idx = list.findIndex(t => t.id === testId);
   if (idx === -1) return { ok: false, archive: list, active: active || [] };
   const next = [...list];
   const [moved] = next.splice(idx, 1);

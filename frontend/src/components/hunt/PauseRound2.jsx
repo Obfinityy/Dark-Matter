@@ -6,26 +6,39 @@
  */
 import React, { useState } from 'react';
 import {
-  VOICE_PAUSE_PHRASES, parseVoicePauseCommand, applyVoiceCommand,
+  VOICE_PAUSE_PHRASES,
+  parseVoicePauseCommand,
+  applyVoiceCommand,
   mobilePauseSpec,
-  pauseWithInheritance, resumeWithInheritance, inheritedPausees,
-  RESUME_ORDERS, orderResume,
-  queueApprovalWhilePaused, drainApprovalQueue,
+  pauseWithInheritance,
+  resumeWithInheritance,
+  inheritedPausees,
+  RESUME_ORDERS,
+  orderResume,
+  queueApprovalWhilePaused,
+  drainApprovalQueue,
   abortSummary,
   pauseToSteer,
   reducedScope,
   watchdogCheck,
-  ABORT_CASCADE_MODES, abortCascade,
+  ABORT_CASCADE_MODES,
+  abortCascade,
   exportPauseState,
   attachResumeNote,
   pauseButtonPlacement,
-  ABORT_REASON_CODES, validateAbortReason,
+  ABORT_REASON_CODES,
+  validateAbortReason,
   snapshotOnPause,
   rampCurve,
-  pauseDiscussion, addPauseComment, canResume,
-  isInPauseWindow, addPauseWindow, describePauseWindow,
+  pauseDiscussion,
+  addPauseComment,
+  canResume,
+  isInPauseWindow,
+  addPauseWindow,
+  describePauseWindow,
   diffPauseState,
-  indexAbortedHunt, searchAbortedHunts,
+  indexAbortedHunt,
+  searchAbortedHunts,
 } from './pauseRound2Core.js';
 
 const NOW = 1728220000000;
@@ -56,13 +69,34 @@ export function VoicePauseToggle() {
   return (
     <Card title="Hands-free pause toggle" idea="51321">
       <div className="pc34-row">
-        <input className="pc34-input" placeholder='Say: "pause the hunt"… (typed transcript)' value={transcript} onChange={(e) => setTranscript(e.target.value)} aria-label="Voice transcript" />
-        <button type="button" className="pc34-btn" onClick={speak}>Send command</button>
+        <input
+          className="pc34-input"
+          placeholder='Say: "pause the hunt"… (typed transcript)'
+          value={transcript}
+          onChange={e => setTranscript(e.target.value)}
+          aria-label="Voice transcript"
+        />
+        <button type="button" className="pc34-btn" onClick={speak}>
+          Send command
+        </button>
       </div>
-      <p className="pc34-muted">Recognized phrases: {VOICE_PAUSE_PHRASES.map((p) => p.phrase).join(' · ')}</p>
-      <p>Status: <strong>{state.paused ? 'PAUSED (voice)' : 'running'}</strong></p>
-      {last && <p className="pc34-note">"{last.parsed.phrase || '—'}" → {last.accepted ? 'accepted' : 'not applied'} — {last.note} (confidence {last.parsed.confidence || 0})</p>}
-      {state.abortArmed && <p className="pc34-warn">Abort armed by voice — confirm in the UI to proceed (voice never aborts directly).</p>}
+      <p className="pc34-muted">
+        Recognized phrases: {VOICE_PAUSE_PHRASES.map(p => p.phrase).join(' · ')}
+      </p>
+      <p>
+        Status: <strong>{state.paused ? 'PAUSED (voice)' : 'running'}</strong>
+      </p>
+      {last && (
+        <p className="pc34-note">
+          "{last.parsed.phrase || '—'}" → {last.accepted ? 'accepted' : 'not applied'} — {last.note}{' '}
+          (confidence {last.parsed.confidence || 0})
+        </p>
+      )}
+      {state.abortArmed && (
+        <p className="pc34-warn">
+          Abort armed by voice — confirm in the UI to proceed (voice never aborts directly).
+        </p>
+      )}
     </Card>
   );
 }
@@ -75,15 +109,30 @@ export function MobilePauseControl() {
   return (
     <Card title="Mobile pause control" idea="51322">
       <div className="pc34-row">
-        <label className="pc34-muted">Viewport width
-          <input className="pc34-input" type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} aria-label="Viewport width" />
+        <label className="pc34-muted">
+          Viewport width
+          <input
+            className="pc34-input"
+            type="number"
+            value={width}
+            onChange={e => setWidth(Number(e.target.value))}
+            aria-label="Viewport width"
+          />
         </label>
-        <button type="button" className="pc34-btn" onClick={() => setPaused((p) => !p)}>{spec.label}</button>
+        <button type="button" className="pc34-btn" onClick={() => setPaused(p => !p)}>
+          {spec.label}
+        </button>
       </div>
       <ul className="pc34-list">
-        <li className="pc34-list-item">Touch target: <strong>{spec.touchTargetPx}px</strong> (min 56px)</li>
-        <li className="pc34-list-item">Placement: {spec.placement} · safe-area inset: {spec.safeAreaInset ? 'yes' : 'no'}</li>
-        <li className="pc34-list-item">State: <strong>{paused ? 'PAUSED' : 'running'}</strong> — size never changes with state</li>
+        <li className="pc34-list-item">
+          Touch target: <strong>{spec.touchTargetPx}px</strong> (min 56px)
+        </li>
+        <li className="pc34-list-item">
+          Placement: {spec.placement} · safe-area inset: {spec.safeAreaInset ? 'yes' : 'no'}
+        </li>
+        <li className="pc34-list-item">
+          State: <strong>{paused ? 'PAUSED' : 'running'}</strong> — size never changes with state
+        </li>
       </ul>
     </Card>
   );
@@ -96,21 +145,40 @@ export function PauseInheritance() {
   return (
     <Card title="Pause inheritance" idea="51323">
       <div className="pc34-row">
-        <button type="button" className="pc34-btn" onClick={() => setTree(pauseWithInheritance('parent-1', subs, NOW))}>Pause parent + subs</button>
-        <button type="button" className="pc34-btn pc34-btn-ghost" onClick={() => setTree((t) => (t ? resumeWithInheritance(t, NOW) : t))}>Resume inherited</button>
+        <button
+          type="button"
+          className="pc34-btn"
+          onClick={() => setTree(pauseWithInheritance('parent-1', subs, NOW))}
+        >
+          Pause parent + subs
+        </button>
+        <button
+          type="button"
+          className="pc34-btn pc34-btn-ghost"
+          onClick={() => setTree(t => (t ? resumeWithInheritance(t, NOW) : t))}
+        >
+          Resume inherited
+        </button>
       </div>
       {!tree && <p className="pc34-muted">Nothing paused yet.</p>}
       {tree && (
         <ul className="pc34-list">
-          {tree.map((n) => (
+          {tree.map(n => (
             <li key={n.huntId} className="pc34-list-item">
               <span className={n.paused ? 'pc34-warn' : 'pc34-ok'}>{n.paused ? '⏸' : '▶'}</span>
-              <span>{n.huntId}{n.inheritedFrom ? ` (inherited from ${n.inheritedFrom})` : ' — parent'}</span>
+              <span>
+                {n.huntId}
+                {n.inheritedFrom ? ` (inherited from ${n.inheritedFrom})` : ' — parent'}
+              </span>
             </li>
           ))}
         </ul>
       )}
-      {tree && <p className="pc34-note">Inherited pausees: {inheritedPausees(tree, 'parent-1').join(', ') || 'none'}</p>}
+      {tree && (
+        <p className="pc34-note">
+          Inherited pausees: {inheritedPausees(tree, 'parent-1').join(', ') || 'none'}
+        </p>
+      )}
     </Card>
   );
 }
@@ -128,15 +196,28 @@ export function ResumeOrdering() {
   return (
     <Card title="Resume ordering" idea="51324">
       <div className="pc34-row">
-        <label className="pc34-muted">Order
-          <select className="pc34-select" value={strategy} onChange={(e) => setStrategy(e.target.value)} aria-label="Resume order">
-            {RESUME_ORDERS.map((o) => <option key={o} value={o}>{o}</option>)}
+        <label className="pc34-muted">
+          Order
+          <select
+            className="pc34-select"
+            value={strategy}
+            onChange={e => setStrategy(e.target.value)}
+            aria-label="Resume order"
+          >
+            {RESUME_ORDERS.map(o => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
           </select>
         </label>
       </div>
       <ol className="pc34-list">
         {ordered.map((h, i) => (
-          <li key={h.huntId} className="pc34-list-item"><strong>#{i + 1}</strong> {h.huntId} — priority {h.priority}, {h.findings} findings, {h.remainingPhases} phases left</li>
+          <li key={h.huntId} className="pc34-list-item">
+            <strong>#{i + 1}</strong> {h.huntId} — priority {h.priority}, {h.findings} findings,{' '}
+            {h.remainingPhases} phases left
+          </li>
         ))}
       </ol>
     </Card>
@@ -147,21 +228,40 @@ export function ResumeOrdering() {
 export function PauseApprovals() {
   const [queue, setQueue] = useState([]);
   const [executed, setExecuted] = useState([]);
-  const add = () => setQueue((q) => queueApprovalWhilePaused(q, { id: `appr-${q.length + 1}`, action: 'run exploit PoC', decided: 'approved', at: NOW }));
+  const add = () =>
+    setQueue(q =>
+      queueApprovalWhilePaused(q, {
+        id: `appr-${q.length + 1}`,
+        action: 'run exploit PoC',
+        decided: 'approved',
+        at: NOW,
+      })
+    );
   const drain = () => {
     const { executed: ex, remaining } = drainApprovalQueue(queue, null);
-    setExecuted((e) => [...e, ...ex]);
+    setExecuted(e => [...e, ...ex]);
     setQueue(remaining);
   };
   return (
     <Card title="Pause during approvals" idea="51325">
-      <p className="pc34-muted">The hunt is paused — approval decisions queue up instead of firing.</p>
+      <p className="pc34-muted">
+        The hunt is paused — approval decisions queue up instead of firing.
+      </p>
       <div className="pc34-row">
-        <button type="button" className="pc34-btn" onClick={add}>Decide approval (queued)</button>
-        <button type="button" className="pc34-btn pc34-btn-ghost" onClick={drain}>Resume → execute queue</button>
+        <button type="button" className="pc34-btn" onClick={add}>
+          Decide approval (queued)
+        </button>
+        <button type="button" className="pc34-btn pc34-btn-ghost" onClick={drain}>
+          Resume → execute queue
+        </button>
       </div>
-      <p>Queued: <strong>{queue.length}</strong> · Executed on resume: <strong>{executed.length}</strong></p>
-      {executed.length > 0 && <p className="pc34-note">Executed: {executed.map((e) => e.action).join(', ')}</p>}
+      <p>
+        Queued: <strong>{queue.length}</strong> · Executed on resume:{' '}
+        <strong>{executed.length}</strong>
+      </p>
+      {executed.length > 0 && (
+        <p className="pc34-note">Executed: {executed.map(e => e.action).join(', ')}</p>
+      )}
     </Card>
   );
 }
@@ -170,23 +270,52 @@ export function PauseApprovals() {
 export function AbortConfirmationSummary() {
   const [confirmed, setConfirmed] = useState(false);
   const hunt = {
-    huntId: 'hunt-42', target: 'https://shop.example.com', startedAt: NOW - 5400000, now: NOW,
-    phases: [{ id: 'recon', status: 'done' }, { id: 'fuzz', status: 'done' }, { id: 'auth', status: 'running' }, { id: 'poc', status: 'pending' }],
-    findings: [{ title: 'Reflected XSS', severity: 'high' }, { title: 'Verbose error', severity: 'low' }],
-    modules: [{ id: 'fuzzer', active: true }, { id: 'crawler', active: false }],
+    huntId: 'hunt-42',
+    target: 'https://shop.example.com',
+    startedAt: NOW - 5400000,
+    now: NOW,
+    phases: [
+      { id: 'recon', status: 'done' },
+      { id: 'fuzz', status: 'done' },
+      { id: 'auth', status: 'running' },
+      { id: 'poc', status: 'pending' },
+    ],
+    findings: [
+      { title: 'Reflected XSS', severity: 'high' },
+      { title: 'Verbose error', severity: 'low' },
+    ],
+    modules: [
+      { id: 'fuzzer', active: true },
+      { id: 'crawler', active: false },
+    ],
     artifactCount: 18,
   };
   const s = abortSummary(hunt);
   return (
     <Card title="Abort confirmation summary" idea="51326">
       <ul className="pc34-list">
-        <li className="pc34-list-item">Hunt <strong>{s.huntId}</strong> on {s.target}</li>
-        <li className="pc34-list-item">{s.findings} findings ({s.criticalFindings} critical) · coverage {s.coverage}% ({s.phasesDone}/{s.phasesTotal} phases)</li>
-        <li className="pc34-list-item">{s.elapsedMin} min elapsed · {s.modulesActive} modules active · {s.artifacts} artifacts</li>
-        <li className="pc34-list-item pc34-warn">This is irreversible — partial findings are archived, the run is gone.</li>
+        <li className="pc34-list-item">
+          Hunt <strong>{s.huntId}</strong> on {s.target}
+        </li>
+        <li className="pc34-list-item">
+          {s.findings} findings ({s.criticalFindings} critical) · coverage {s.coverage}% (
+          {s.phasesDone}/{s.phasesTotal} phases)
+        </li>
+        <li className="pc34-list-item">
+          {s.elapsedMin} min elapsed · {s.modulesActive} modules active · {s.artifacts} artifacts
+        </li>
+        <li className="pc34-list-item pc34-warn">
+          This is irreversible — partial findings are archived, the run is gone.
+        </li>
       </ul>
-      <button type="button" className="pc34-btn pc34-btn-danger" onClick={() => setConfirmed(true)}>I understand — abort the hunt</button>
-      {confirmed && <p className="pc34-note">Confirmed (this panel only — real abort goes through the two-step flow).</p>}
+      <button type="button" className="pc34-btn pc34-btn-danger" onClick={() => setConfirmed(true)}>
+        I understand — abort the hunt
+      </button>
+      {confirmed && (
+        <p className="pc34-note">
+          Confirmed (this panel only — real abort goes through the two-step flow).
+        </p>
+      )}
     </Card>
   );
 }
@@ -196,9 +325,18 @@ export function PauseToSteer() {
   const [hunt, setHunt] = useState({ huntId: 'hunt-42', paused: false, steeringOpen: false });
   return (
     <Card title="Pause-to-steer" idea="51327">
-      <button type="button" className="pc34-btn" onClick={() => setHunt((h) => pauseToSteer(h, NOW))}>Pause + open steering</button>
-      <p>Paused: <strong>{hunt.paused ? 'yes' : 'no'}</strong> · Steering panel: <strong>{hunt.steeringOpen ? 'open' : 'closed'}</strong></p>
-      {hunt.steeringOpen && <p className="pc34-note">Steering opened at the pause moment — redirect the agent, then resume.</p>}
+      <button type="button" className="pc34-btn" onClick={() => setHunt(h => pauseToSteer(h, NOW))}>
+        Pause + open steering
+      </button>
+      <p>
+        Paused: <strong>{hunt.paused ? 'yes' : 'no'}</strong> · Steering panel:{' '}
+        <strong>{hunt.steeringOpen ? 'open' : 'closed'}</strong>
+      </p>
+      {hunt.steeringOpen && (
+        <p className="pc34-note">
+          Steering opened at the pause moment — redirect the agent, then resume.
+        </p>
+      )}
     </Card>
   );
 }
@@ -217,12 +355,23 @@ export function ResumeReducedScope() {
   return (
     <Card title="Resume with reduced scope" idea="51328">
       <div className="pc34-row">
-        <label className="pc34-muted">Keep top N phases
-          <input className="pc34-input" type="number" min="1" max="5" value={keepTop} onChange={(e) => setKeepTop(Number(e.target.value))} aria-label="Keep top N phases" />
+        <label className="pc34-muted">
+          Keep top N phases
+          <input
+            className="pc34-input"
+            type="number"
+            min="1"
+            max="5"
+            value={keepTop}
+            onChange={e => setKeepTop(Number(e.target.value))}
+            aria-label="Keep top N phases"
+          />
         </label>
       </div>
-      <p>Kept: <strong>{kept.map((p) => p.id).join(', ')}</strong></p>
-      <p className="pc34-muted">Dropped: {dropped.map((p) => p.id).join(', ') || 'none'}</p>
+      <p>
+        Kept: <strong>{kept.map(p => p.id).join(', ')}</strong>
+      </p>
+      <p className="pc34-muted">Dropped: {dropped.map(p => p.id).join(', ') || 'none'}</p>
     </Card>
   );
 }
@@ -235,13 +384,27 @@ export function PauseWatchdog() {
   return (
     <Card title="Pause watchdog" idea="51329">
       <div className="pc34-row">
-        <label className="pc34-muted">Alert after (min)
-          <input className="pc34-input" type="number" value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} aria-label="Watchdog threshold minutes" />
+        <label className="pc34-muted">
+          Alert after (min)
+          <input
+            className="pc34-input"
+            type="number"
+            value={threshold}
+            onChange={e => setThreshold(Number(e.target.value))}
+            aria-label="Watchdog threshold minutes"
+          />
         </label>
       </div>
-      <p>Paused for <strong>{w.elapsedMin} min</strong> — {w.overdue
-        ? <span className="pc34-warn">⚠ overdue by {w.overByMin} min — resume, extend, or abort.</span>
-        : <span className="pc34-ok">within the expected window.</span>}</p>
+      <p>
+        Paused for <strong>{w.elapsedMin} min</strong> —{' '}
+        {w.overdue ? (
+          <span className="pc34-warn">
+            ⚠ overdue by {w.overByMin} min — resume, extend, or abort.
+          </span>
+        ) : (
+          <span className="pc34-ok">within the expected window.</span>
+        )}
+      </p>
     </Card>
   );
 }
@@ -254,12 +417,32 @@ export function AbortCascadeControl() {
   return (
     <Card title="Abort cascade control" idea="51330">
       <div className="pc34-row">
-        <select className="pc34-select" value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Abort cascade mode">
-          {ABORT_CASCADE_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+        <select
+          className="pc34-select"
+          value={mode}
+          onChange={e => setMode(e.target.value)}
+          aria-label="Abort cascade mode"
+        >
+          {ABORT_CASCADE_MODES.map(m => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
         </select>
-        <button type="button" className="pc34-btn pc34-btn-danger" onClick={() => setResult(abortCascade('hunt-a', linked, mode))}>Abort</button>
+        <button
+          type="button"
+          className="pc34-btn pc34-btn-danger"
+          onClick={() => setResult(abortCascade('hunt-a', linked, mode))}
+        >
+          Abort
+        </button>
       </div>
-      {result && <p className="pc34-note">Mode <strong>{result.mode}</strong>: aborted {result.aborted.join(', ')} ({result.linkedAborted} linked).</p>}
+      {result && (
+        <p className="pc34-note">
+          Mode <strong>{result.mode}</strong>: aborted {result.aborted.join(', ')} (
+          {result.linkedAborted} linked).
+        </p>
+      )}
     </Card>
   );
 }
@@ -267,10 +450,25 @@ export function AbortCascadeControl() {
 /** 51331 — Pause state export: frozen state as a downloadable snapshot. */
 export function PauseStateExport() {
   const [json, setJson] = useState('');
-  const hunt = { huntId: 'hunt-42', target: 'https://shop.example.com', paused: true, pausedAt: NOW - 60000, pauseReason: 'owner review', phases: [{ id: 'recon', status: 'done' }], findings: [{ title: 'XSS' }], checkpoints: ['cp-1'] };
+  const hunt = {
+    huntId: 'hunt-42',
+    target: 'https://shop.example.com',
+    paused: true,
+    pausedAt: NOW - 60000,
+    pauseReason: 'owner review',
+    phases: [{ id: 'recon', status: 'done' }],
+    findings: [{ title: 'XSS' }],
+    checkpoints: ['cp-1'],
+  };
   return (
     <Card title="Pause state export" idea="51331">
-      <button type="button" className="pc34-btn" onClick={() => setJson(JSON.stringify(exportPauseState(hunt, NOW), null, 2))}>Export frozen state</button>
+      <button
+        type="button"
+        className="pc34-btn"
+        onClick={() => setJson(JSON.stringify(exportPauseState(hunt, NOW), null, 2))}
+      >
+        Export frozen state
+      </button>
       {json && <pre className="pc34-pre">{json}</pre>}
     </Card>
   );
@@ -283,11 +481,32 @@ export function ResumeNotes() {
   return (
     <Card title="Resume notes" idea="51332">
       <div className="pc34-row">
-        <input className="pc34-input" placeholder="Why resume now?…" value={text} onChange={(e) => setText(e.target.value)} aria-label="Resume note" />
-        <button type="button" className="pc34-btn" onClick={() => { if (text.trim()) { setHunt((h) => attachResumeNote(h, text, 'you', NOW)); setText(''); } }}>Attach note</button>
+        <input
+          className="pc34-input"
+          placeholder="Why resume now?…"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          aria-label="Resume note"
+        />
+        <button
+          type="button"
+          className="pc34-btn"
+          onClick={() => {
+            if (text.trim()) {
+              setHunt(h => attachResumeNote(h, text, 'you', NOW));
+              setText('');
+            }
+          }}
+        >
+          Attach note
+        </button>
       </div>
       <ul className="pc34-list">
-        {hunt.resumeNotes.map((n, i) => <li key={i} className="pc34-list-item">"{n.note}" — {n.author}</li>)}
+        {hunt.resumeNotes.map((n, i) => (
+          <li key={i} className="pc34-list-item">
+            "{n.note}" — {n.author}
+          </li>
+        ))}
         {hunt.resumeNotes.length === 0 && <li className="pc34-muted">No resume notes yet.</li>}
       </ul>
     </Card>
@@ -302,12 +521,30 @@ export function PauseButtonPlacement() {
   return (
     <Card title="Pause button placement" idea="51333">
       <div className="pc34-row">
-        <select className="pc34-select" value={screen} onChange={(e) => setScreen(e.target.value)} aria-label="Hunt screen">
-          {['hunt-overview', 'findings', 'timeline', 'steering', 'reports'].map((s) => <option key={s} value={s}>{s}</option>)}
+        <select
+          className="pc34-select"
+          value={screen}
+          onChange={e => setScreen(e.target.value)}
+          aria-label="Hunt screen"
+        >
+          {['hunt-overview', 'findings', 'timeline', 'steering', 'reports'].map(s => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
         </select>
-        <input className="pc34-input" type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} aria-label="Viewport width" />
+        <input
+          className="pc34-input"
+          type="number"
+          value={width}
+          onChange={e => setWidth(Number(e.target.value))}
+          aria-label="Viewport width"
+        />
       </div>
-      <p>On <strong>{spec.screen}</strong> at {width}px: <strong>{spec.position}</strong>, sticky, always visible, aria "{spec.ariaLabel}".</p>
+      <p>
+        On <strong>{spec.screen}</strong> at {width}px: <strong>{spec.position}</strong>, sticky,
+        always visible, aria "{spec.ariaLabel}".
+      </p>
     </Card>
   );
 }
@@ -320,15 +557,45 @@ export function AbortRequiresReason() {
   return (
     <Card title="Abort requires reason" idea="51334">
       <div className="pc34-row">
-        <select className="pc34-select" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Abort reason code">
-          {ABORT_REASON_CODES.map((c) => <option key={c} value={c}>{c}</option>)}
+        <select
+          className="pc34-select"
+          value={code}
+          onChange={e => setCode(e.target.value)}
+          aria-label="Abort reason code"
+        >
+          {ABORT_REASON_CODES.map(c => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
         </select>
       </div>
-      <input className="pc34-input" placeholder="Detail (min 8 chars)…" value={detail} onChange={(e) => setDetail(e.target.value)} aria-label="Abort reason detail" />
-      <button type="button" className="pc34-btn pc34-btn-danger" onClick={() => setResult(validateAbortReason({ code, detail }))}>Abort with reason</button>
-      {result && (result.ok
-        ? <p className="pc34-ok">Reason accepted — abort may proceed; feeds the retrospective.</p>
-        : <ul className="pc34-list">{result.errors.map((e, i) => <li key={i} className="pc34-warn">{e}</li>)}</ul>)}
+      <input
+        className="pc34-input"
+        placeholder="Detail (min 8 chars)…"
+        value={detail}
+        onChange={e => setDetail(e.target.value)}
+        aria-label="Abort reason detail"
+      />
+      <button
+        type="button"
+        className="pc34-btn pc34-btn-danger"
+        onClick={() => setResult(validateAbortReason({ code, detail }))}
+      >
+        Abort with reason
+      </button>
+      {result &&
+        (result.ok ? (
+          <p className="pc34-ok">Reason accepted — abort may proceed; feeds the retrospective.</p>
+        ) : (
+          <ul className="pc34-list">
+            {result.errors.map((e, i) => (
+              <li key={i} className="pc34-warn">
+                {e}
+              </li>
+            ))}
+          </ul>
+        ))}
     </Card>
   );
 }
@@ -337,21 +604,38 @@ export function AbortRequiresReason() {
 export function PauseAndSnapshot() {
   const [snap, setSnap] = useState(null);
   const hunt = {
-    huntId: 'hunt-42', target: 'https://shop.example.com',
+    huntId: 'hunt-42',
+    target: 'https://shop.example.com',
     findings: [
       { title: 'Reflected XSS on /search', severity: 'high' },
       { title: 'Missing rate limit on /login', severity: 'medium' },
       { title: 'Verbose 500 page', severity: 'low' },
     ],
-    phases: [{ id: 'recon', status: 'done' }, { id: 'auth', status: 'running' }],
+    phases: [
+      { id: 'recon', status: 'done' },
+      { id: 'auth', status: 'running' },
+    ],
   };
   return (
     <Card title="Pause-and-snapshot" idea="51335">
-      <button type="button" className="pc34-btn" onClick={() => setSnap(snapshotOnPause(hunt, NOW))}>Pause + capture snapshot</button>
+      <button
+        type="button"
+        className="pc34-btn"
+        onClick={() => setSnap(snapshotOnPause(hunt, NOW))}
+      >
+        Pause + capture snapshot
+      </button>
       {snap && (
         <ul className="pc34-list">
-          <li className="pc34-list-item">{snap.findingsTotal} findings — critical {snap.bySeverity.critical}, high {snap.bySeverity.high}, medium {snap.bySeverity.medium}, low {snap.bySeverity.low}</li>
-          {snap.topFindings.map((f, i) => <li key={i} className="pc34-list-item">[{f.severity}] {f.title}</li>)}
+          <li className="pc34-list-item">
+            {snap.findingsTotal} findings — critical {snap.bySeverity.critical}, high{' '}
+            {snap.bySeverity.high}, medium {snap.bySeverity.medium}, low {snap.bySeverity.low}
+          </li>
+          {snap.topFindings.map((f, i) => (
+            <li key={i} className="pc34-list-item">
+              [{f.severity}] {f.title}
+            </li>
+          ))}
         </ul>
       )}
     </Card>
@@ -366,39 +650,101 @@ export function ResumeSpeedRamp() {
   return (
     <Card title="Resume speed ramp" idea="51336">
       <div className="pc34-row">
-        <label className="pc34-muted">Base RPM
-          <input className="pc34-input" type="number" value={base} onChange={(e) => setBase(Number(e.target.value))} aria-label="Base requests per minute" />
+        <label className="pc34-muted">
+          Base RPM
+          <input
+            className="pc34-input"
+            type="number"
+            value={base}
+            onChange={e => setBase(Number(e.target.value))}
+            aria-label="Base requests per minute"
+          />
         </label>
-        <label className="pc34-muted">Ramp (min)
-          <input className="pc34-input" type="number" value={rampMin} onChange={(e) => setRampMin(Number(e.target.value))} aria-label="Ramp minutes" />
+        <label className="pc34-muted">
+          Ramp (min)
+          <input
+            className="pc34-input"
+            type="number"
+            value={rampMin}
+            onChange={e => setRampMin(Number(e.target.value))}
+            aria-label="Ramp minutes"
+          />
         </label>
       </div>
       <p className="pc34-muted">Starts at 25% of base, linear ramp to 100%:</p>
-      <p className="pc34-note">{curve.map((c) => `${c.minute}m:${c.rpm}`).join(' → ')}</p>
+      <p className="pc34-note">{curve.map(c => `${c.minute}m:${c.rpm}`).join(' → ')}</p>
     </Card>
   );
 }
 
 /** 51337 — Pause collaboration: teammates see who paused and discuss. */
 export function PauseCollaboration() {
-  const [thread, setThread] = useState(() => pauseDiscussion({ pausedBy: 'priya', pausedAt: NOW - 300000, reason: 'Checking scope with client', watchers: ['arjun'] }));
+  const [thread, setThread] = useState(() =>
+    pauseDiscussion({
+      pausedBy: 'priya',
+      pausedAt: NOW - 300000,
+      reason: 'Checking scope with client',
+      watchers: ['arjun'],
+    })
+  );
   const [comment, setComment] = useState('');
   const [user, setUser] = useState('arjun');
   return (
     <Card title="Pause collaboration" idea="51337">
-      <p>Paused by <strong>{thread.pausedBy}</strong> — "{thread.reason}". Participants: {thread.participants.join(', ')}</p>
+      <p>
+        Paused by <strong>{thread.pausedBy}</strong> — "{thread.reason}". Participants:{' '}
+        {thread.participants.join(', ')}
+      </p>
       <ul className="pc34-list">
-        {thread.comments.map((c, i) => <li key={i} className="pc34-list-item"><strong>{c.author}:</strong> {c.text}</li>)}
+        {thread.comments.map((c, i) => (
+          <li key={i} className="pc34-list-item">
+            <strong>{c.author}:</strong> {c.text}
+          </li>
+        ))}
         {thread.comments.length === 0 && <li className="pc34-muted">No comments yet.</li>}
       </ul>
       <div className="pc34-row">
-        <input className="pc34-input" placeholder="Discuss…" value={comment} onChange={(e) => setComment(e.target.value)} aria-label="Discussion comment" />
-        <select className="pc34-select" value={user} onChange={(e) => setUser(e.target.value)} aria-label="Acting user">
-          {['arjun', 'priya', 'outsider'].map((u) => <option key={u} value={u}>{u}</option>)}
+        <input
+          className="pc34-input"
+          placeholder="Discuss…"
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+          aria-label="Discussion comment"
+        />
+        <select
+          className="pc34-select"
+          value={user}
+          onChange={e => setUser(e.target.value)}
+          aria-label="Acting user"
+        >
+          {['arjun', 'priya', 'outsider'].map(u => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
         </select>
-        <button type="button" className="pc34-btn" onClick={() => { if (comment.trim()) { setThread((t) => addPauseComment(t, user, comment, NOW)); setComment(''); } }}>Comment</button>
+        <button
+          type="button"
+          className="pc34-btn"
+          onClick={() => {
+            if (comment.trim()) {
+              setThread(t => addPauseComment(t, user, comment, NOW));
+              setComment('');
+            }
+          }}
+        >
+          Comment
+        </button>
       </div>
-      <p>{canResume(thread, user) ? <span className="pc34-ok">{user} may resume.</span> : <span className="pc34-warn">{user} is not a participant — resume blocked while discussion is open.</span>}</p>
+      <p>
+        {canResume(thread, user) ? (
+          <span className="pc34-ok">{user} may resume.</span>
+        ) : (
+          <span className="pc34-warn">
+            {user} is not a participant — resume blocked while discussion is open.
+          </span>
+        )}
+      </p>
     </Card>
   );
 }
@@ -414,20 +760,58 @@ export function HuntPauseCalendar() {
   return (
     <Card title="Hunt pause calendar" idea="51338">
       <ul className="pc34-list">
-        {calendar.map((w, i) => <li key={i} className="pc34-list-item">{describePauseWindow(w)}</li>)}
+        {calendar.map((w, i) => (
+          <li key={i} className="pc34-list-item">
+            {describePauseWindow(w)}
+          </li>
+        ))}
       </ul>
       <div className="pc34-row">
-        <button type="button" className="pc34-btn pc34-btn-ghost" onClick={() => setCalendar((c) => addPauseWindow(c, { days: [0, 6], startHour: 0, endHour: 24, label: 'weekends' }))}>Add weekend blackout</button>
+        <button
+          type="button"
+          className="pc34-btn pc34-btn-ghost"
+          onClick={() =>
+            setCalendar(c =>
+              addPauseWindow(c, { days: [0, 6], startHour: 0, endHour: 24, label: 'weekends' })
+            )
+          }
+        >
+          Add weekend blackout
+        </button>
       </div>
       <div className="pc34-row">
-        <label className="pc34-muted">Day (0=Sun)
-          <input className="pc34-input" type="number" min="0" max="6" value={checkDay} onChange={(e) => setCheckDay(Number(e.target.value))} aria-label="Check day" />
+        <label className="pc34-muted">
+          Day (0=Sun)
+          <input
+            className="pc34-input"
+            type="number"
+            min="0"
+            max="6"
+            value={checkDay}
+            onChange={e => setCheckDay(Number(e.target.value))}
+            aria-label="Check day"
+          />
         </label>
-        <label className="pc34-muted">Hour
-          <input className="pc34-input" type="number" min="0" max="23" value={checkHour} onChange={(e) => setCheckHour(Number(e.target.value))} aria-label="Check hour" />
+        <label className="pc34-muted">
+          Hour
+          <input
+            className="pc34-input"
+            type="number"
+            min="0"
+            max="23"
+            value={checkHour}
+            onChange={e => setCheckHour(Number(e.target.value))}
+            aria-label="Check hour"
+          />
         </label>
       </div>
-      <p>{res.inWindow ? <span className="pc34-warn">⏸ In a pause window — the hunt stays frozen.</span> : <span className="pc34-ok">Outside pause windows — hunt may run.</span>}</p>
+      <p>
+        {res.inWindow ? (
+          <span className="pc34-warn">⏸ In a pause window — the hunt stays frozen.</span>
+        ) : (
+          <span className="pc34-ok">Outside pause windows — hunt may run.</span>
+        )}
+      </p>
     </Card>
   );
 }
@@ -439,12 +823,28 @@ export function PauseStateDiff() {
   const after = { openPorts: [80, 443, 8080], serverHeader: 'nginx/1.24', loginForm: 'v2' };
   return (
     <Card title="Pause state diff" idea="51339">
-      <button type="button" className="pc34-btn" onClick={() => setDiff(diffPauseState(before, after))}>Compare fingerprints on resume</button>
+      <button
+        type="button"
+        className="pc34-btn"
+        onClick={() => setDiff(diffPauseState(before, after))}
+      >
+        Compare fingerprints on resume
+      </button>
       {diff && (
         <div>
-          <p>{diff.changed ? <span className="pc34-warn">{diff.changeCount} change(s) while paused:</span> : <span className="pc34-ok">No changes during the pause.</span>}</p>
+          <p>
+            {diff.changed ? (
+              <span className="pc34-warn">{diff.changeCount} change(s) while paused:</span>
+            ) : (
+              <span className="pc34-ok">No changes during the pause.</span>
+            )}
+          </p>
           <ul className="pc34-list">
-            {diff.changes.map((c, i) => <li key={i} className="pc34-list-item"><strong>{c.field}:</strong> {JSON.stringify(c.before)} → {JSON.stringify(c.after)}</li>)}
+            {diff.changes.map((c, i) => (
+              <li key={i} className="pc34-list-item">
+                <strong>{c.field}:</strong> {JSON.stringify(c.before)} → {JSON.stringify(c.after)}
+              </li>
+            ))}
           </ul>
         </div>
       )}
@@ -456,24 +856,52 @@ export function PauseStateDiff() {
 export function AbortArchiveSearch() {
   const [index] = useState(() => {
     let idx = [];
-    idx = indexAbortedHunt(idx, { huntId: 'hunt-11', target: 'https://shop.example.com', abortedAt: NOW - 86400000, abortReason: { code: 'scope-changed' }, findings: [{ title: 'Reflected XSS', severity: 'high' }] });
-    idx = indexAbortedHunt(idx, { huntId: 'hunt-12', target: 'https://api.bank.example', abortedAt: NOW - 3600000, abortReason: { code: 'false-positive-storm' }, findings: [{ title: 'Verbose error', severity: 'low' }] });
+    idx = indexAbortedHunt(idx, {
+      huntId: 'hunt-11',
+      target: 'https://shop.example.com',
+      abortedAt: NOW - 86400000,
+      abortReason: { code: 'scope-changed' },
+      findings: [{ title: 'Reflected XSS', severity: 'high' }],
+    });
+    idx = indexAbortedHunt(idx, {
+      huntId: 'hunt-12',
+      target: 'https://api.bank.example',
+      abortedAt: NOW - 3600000,
+      abortReason: { code: 'false-positive-storm' },
+      findings: [{ title: 'Verbose error', severity: 'low' }],
+    });
     return idx;
   });
   const [query, setQuery] = useState('');
   const results = searchAbortedHunts(index, query);
   return (
     <Card title="Abort archive search" idea="51340">
-      <input className="pc34-input" placeholder="Search aborted hunts…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search aborted hunts" />
+      <input
+        className="pc34-input"
+        placeholder="Search aborted hunts…"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        aria-label="Search aborted hunts"
+      />
       <ul className="pc34-list">
-        {query.trim() === '' && <li className="pc34-muted">{index.length} aborted hunts in the archive.</li>}
-        {results.map((h) => (
+        {query.trim() === '' && (
+          <li className="pc34-muted">{index.length} aborted hunts in the archive.</li>
+        )}
+        {results.map(h => (
           <li key={h.huntId} className="pc34-list-item">
-            <strong>{h.huntId}</strong> — {h.target} · reason: {h.abortReason} · {h.findings.length} partial finding(s)
-            {h.findings.map((f) => <span key={f.title} className="pc34-note"> [{f.severity}] {f.title}</span>)}
+            <strong>{h.huntId}</strong> — {h.target} · reason: {h.abortReason} · {h.findings.length}{' '}
+            partial finding(s)
+            {h.findings.map(f => (
+              <span key={f.title} className="pc34-note">
+                {' '}
+                [{f.severity}] {f.title}
+              </span>
+            ))}
           </li>
         ))}
-        {query.trim() !== '' && results.length === 0 && <li className="pc34-muted">No aborted hunts match.</li>}
+        {query.trim() !== '' && results.length === 0 && (
+          <li className="pc34-muted">No aborted hunts match.</li>
+        )}
       </ul>
     </Card>
   );

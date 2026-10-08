@@ -18,10 +18,10 @@
  */
 
 export const PROOF_TYPES = Object.freeze([
-  'vuln_page',      // the vulnerable page itself
-  'poc_execution',  // the PoC running (alert box, response, etc.)
-  'request',        // the malicious request (DevTools / terminal)
-  'response',       // the vulnerable response
+  'vuln_page', // the vulnerable page itself
+  'poc_execution', // the PoC running (alert box, response, etc.)
+  'request', // the malicious request (DevTools / terminal)
+  'response', // the vulnerable response
 ]);
 
 /**
@@ -59,7 +59,7 @@ export async function captureVisualProof({ computer, finding, proofType = 'vuln_
     return {
       ok: true,
       screenshot: {
-        data: shot.base64 || shot.data,  // base64 PNG
+        data: shot.base64 || shot.data, // base64 PNG
         proofType,
         findingId: finding.id,
         capturedAt: new Date().toISOString(),
@@ -68,8 +68,8 @@ export async function captureVisualProof({ computer, finding, proofType = 'vuln_
         dialogFired: shot.dialogFired ?? null,
         dialogMessage: shot.dialogMessage ?? null,
         mimeType: shot.mimeType ?? null,
-        outPath: shot.outPath ?? null
-      }
+        outPath: shot.outPath ?? null,
+      },
     };
   } catch (error) {
     return { ok: false, error: error.message };
@@ -87,7 +87,7 @@ export function proofToEvidence(proof, finding) {
     data: proof.screenshot.data,
     capturedAt: proof.screenshot.capturedAt,
     url: proof.screenshot.url,
-    label: `Visual proof: ${proof.proofType} — ${finding.title || finding.type}`
+    label: `Visual proof: ${proof.proofType} — ${finding.title || finding.type}`,
   };
 }
 
@@ -116,7 +116,8 @@ import { join } from 'node:path';
  */
 export class HeadlessProofAdapter {
   constructor({ scriptPath, outDir = null, timeoutMs = 45000 } = {}) {
-    if (!scriptPath) throw new Error('HeadlessProofAdapter needs scriptPath (capture_proof_shot.py)');
+    if (!scriptPath)
+      throw new Error('HeadlessProofAdapter needs scriptPath (capture_proof_shot.py)');
     this.scriptPath = scriptPath;
     this.outDir = outDir || tmpdir();
     this.timeoutMs = timeoutMs;
@@ -128,7 +129,7 @@ export class HeadlessProofAdapter {
   }
 
   async sleep(ms) {
-    await new Promise((resolve) => setTimeout(resolve, ms));
+    await new Promise(resolve => setTimeout(resolve, ms));
   }
 
   async screenshot() {
@@ -144,14 +145,14 @@ export class HeadlessProofAdapter {
       mimeType: 'image/jpeg',
       dialogFired: result.dialogFired === true,
       dialogMessage: result.dialogMessage || null,
-      outPath
+      outPath,
     };
   }
 
   _runCapture(url, outPath) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const child = spawn('python3', [this.scriptPath, url, outPath], {
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
       let stdout = '';
       let stderr = '';
@@ -159,13 +160,17 @@ export class HeadlessProofAdapter {
         child.kill('SIGKILL');
         resolve({ ok: false, error: `capture timed out after ${this.timeoutMs}ms` });
       }, this.timeoutMs);
-      child.stdout.on('data', (d) => { stdout += d; });
-      child.stderr.on('data', (d) => { stderr += d; });
-      child.on('error', (err) => {
+      child.stdout.on('data', d => {
+        stdout += d;
+      });
+      child.stderr.on('data', d => {
+        stderr += d;
+      });
+      child.on('error', err => {
         clearTimeout(timer);
         resolve({ ok: false, error: `capture spawn failed: ${err.message}` });
       });
-      child.on('close', (code) => {
+      child.on('close', code => {
         clearTimeout(timer);
         if (code !== 0) {
           resolve({ ok: false, error: `capture exited ${code}: ${stderr.slice(0, 300)}` });
@@ -173,7 +178,9 @@ export class HeadlessProofAdapter {
         }
         try {
           const parsed = JSON.parse(stdout.trim().split('\n').pop());
-          resolve(parsed.ok ? parsed : { ok: false, error: parsed.error || 'unknown capture error' });
+          resolve(
+            parsed.ok ? parsed : { ok: false, error: parsed.error || 'unknown capture error' }
+          );
         } catch {
           resolve({ ok: false, error: `could not parse capture output: ${stdout.slice(0, 200)}` });
         }
@@ -194,11 +201,21 @@ export class HeadlessProofAdapter {
  * @param {string} [opts.outDir]
  * @returns {Promise<{ok, proof?, error?}>}
  */
-export async function captureHeadlessProof({ url, finding, proofType = 'poc_execution', scriptPath, outDir }) {
+export async function captureHeadlessProof({
+  url,
+  finding,
+  proofType = 'poc_execution',
+  scriptPath,
+  outDir,
+}) {
   const adapter = new HeadlessProofAdapter({ scriptPath, outDir });
   const target = url || finding?.url || finding?.location || finding?.pocUrl;
   if (!target) return { ok: false, error: 'No URL to capture' };
-  const result = await captureVisualProof({ computer: adapter, finding: { ...finding, url: target }, proofType });
+  const result = await captureVisualProof({
+    computer: adapter,
+    finding: { ...finding, url: target },
+    proofType,
+  });
   if (!result.ok) return result;
   const shot = result.screenshot;
   return {
@@ -208,7 +225,7 @@ export async function captureHeadlessProof({ url, finding, proofType = 'poc_exec
       dialogFired: shot.dialogFired,
       dialogMessage: shot.dialogMessage,
       mimeType: shot.mimeType,
-      outPath: shot.outPath
-    }
+      outPath: shot.outPath,
+    },
   };
 }

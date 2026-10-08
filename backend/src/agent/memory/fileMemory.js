@@ -114,7 +114,15 @@ export class FileMemory {
 
   // ── Remember (AgentMemory-compatible) ─────────────────────────────────
 
-  async remember({ userId, assessmentId, jobId, type = 'episodic', content, key = null, importance = 0.4 }) {
+  async remember({
+    userId,
+    assessmentId,
+    jobId,
+    type = 'episodic',
+    content,
+    key = null,
+    importance = 0.4,
+  }) {
     const target = jobId || assessmentId || 'unscoped';
     const fileKey = TYPE_TO_FILE[type] || 'journal';
     const header = `## ${todayStamp()} [${type}]${key ? ` (${key})` : ''} (importance ${importance})`;
@@ -122,28 +130,110 @@ export class FileMemory {
     return { remembered: true, file: FILES[fileKey] };
   }
 
-  async rememberEpisodic({ userId, assessmentId, jobId, content, refs, importance = 0.4, key = null }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'episodic', content, key, importance });
+  async rememberEpisodic({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    refs,
+    importance = 0.4,
+    key = null,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'episodic',
+      content,
+      key,
+      importance,
+    });
   }
 
-  async rememberSemantic({ userId, assessmentId, jobId, content, key, structured, importance = 0.6 }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'semantic', content, key, importance });
+  async rememberSemantic({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    structured,
+    importance = 0.6,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'semantic',
+      content,
+      key,
+      importance,
+    });
   }
 
-  async rememberTarget({ userId, assessmentId, jobId, content, key, structured, importance = 0.7 }) {
+  async rememberTarget({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    structured,
+    importance = 0.7,
+  }) {
     return this.remember({ userId, assessmentId, jobId, type: 'target', content, key, importance });
   }
 
-  async rememberTool({ userId, assessmentId, jobId, content, key, refs, structured, importance = 0.6 }) {
+  async rememberTool({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    refs,
+    structured,
+    importance = 0.6,
+  }) {
     return this.remember({ userId, assessmentId, jobId, type: 'tool', content, key, importance });
   }
 
-  async rememberFinding({ userId, assessmentId, jobId, content, key, refs, structured, importance = 0.9 }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'finding', content, key, importance });
+  async rememberFinding({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    refs,
+    structured,
+    importance = 0.9,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'finding',
+      content,
+      key,
+      importance,
+    });
   }
 
-  async rememberConversation({ userId, assessmentId, jobId, conversationId, content, key = null, importance = 0.5 }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'conversation', content, key, importance });
+  async rememberConversation({
+    userId,
+    assessmentId,
+    jobId,
+    conversationId,
+    content,
+    key = null,
+    importance = 0.5,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'conversation',
+      content,
+      key,
+      importance,
+    });
   }
 
   async rememberTask({ userId, assessmentId, jobId, content, structured }) {
@@ -157,11 +247,21 @@ export class FileMemory {
 
   /** The agent writes its own notes directly (used by the worker). */
   async appendJournal({ userId, jobId, text }) {
-    this._append(userId, jobId || 'unscoped', 'journal', `## ${todayStamp()}\n${String(text).trim()}\n`);
+    this._append(
+      userId,
+      jobId || 'unscoped',
+      'journal',
+      `## ${todayStamp()}\n${String(text).trim()}\n`
+    );
   }
 
   async writeSummary({ userId, jobId, text }) {
-    this._write(userId, jobId || 'unscoped', 'summary', `# Rolling hunt summary (updated ${todayStamp()})\n\n${String(text).trim()}\n`);
+    this._write(
+      userId,
+      jobId || 'unscoped',
+      'summary',
+      `# Rolling hunt summary (updated ${todayStamp()})\n\n${String(text).trim()}\n`
+    );
   }
 
   // ── Recall ────────────────────────────────────────────────────────────
@@ -171,7 +271,14 @@ export class FileMemory {
    * capped by limit. This is the COLD layer: only what's relevant to the
    * query is retrieved per reasoning cycle.
    */
-  async recall({ assessmentId, query = '', types = null, limit = 12, userId = null, jobId = null } = {}) {
+  async recall({
+    assessmentId,
+    query = '',
+    types = null,
+    limit = 12,
+    userId = null,
+    jobId = null,
+  } = {}) {
     const target = jobId || assessmentId || 'unscoped';
     const chunks = [];
     for (const [fileKey, fileName] of Object.entries(FILES)) {
@@ -179,14 +286,17 @@ export class FileMemory {
       const text = this._read(userId, target, fileKey);
       if (!text.trim()) continue;
       // Split on entry headers; keep the newest entries.
-      const entries = text.split(/^## /m).filter((e) => e.trim());
+      const entries = text.split(/^## /m).filter(e => e.trim());
       for (const entry of entries) {
         chunks.push({ file: fileName, entry: `## ${entry.trim()}` });
       }
     }
 
-    const terms = String(query || '').toLowerCase().split(/\s+/).filter((t) => t.length > 2);
-    const scored = chunks.map((c) => {
+    const terms = String(query || '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(t => t.length > 2);
+    const scored = chunks.map(c => {
       const lower = c.entry.toLowerCase();
       let score = 0;
       for (const term of terms) if (lower.includes(term)) score += 1;
@@ -205,11 +315,17 @@ export class FileMemory {
    * first (it is the densest), then query-relevant learnings, then the
    * freshest journal lines — all inside maxTokens.
    */
-  async buildBrainContext({ userId, assessmentId, jobId = null, query = '', maxTokens = 1200 } = {}) {
+  async buildBrainContext({
+    userId,
+    assessmentId,
+    jobId = null,
+    query = '',
+    maxTokens = 1200,
+  } = {}) {
     const target = jobId || assessmentId || 'unscoped';
     const parts = [];
     let used = 0;
-    const take = (text) => {
+    const take = text => {
       if (!text || !text.trim()) return;
       const remaining = maxTokens - used;
       if (remaining <= 60) return;
@@ -224,7 +340,7 @@ export class FileMemory {
     // The freshest journal lines, newest first, whatever budget remains.
     const journal = this._read(userId, target, 'journal');
     if (journal.trim() && used < maxTokens - 60) {
-      const entries = journal.split(/^## /m).filter((e) => e.trim());
+      const entries = journal.split(/^## /m).filter(e => e.trim());
       for (const entry of entries.slice(-4).reverse()) take(`## ${entry.trim()}`);
     }
 
@@ -243,7 +359,7 @@ export class FileMemory {
   /** Rewrite the rolling summary from the journal (extractive). */
   async consolidate({ userId, jobId }) {
     const journal = this._read(userId, jobId || 'unscoped', 'journal');
-    const entries = journal.split(/^## /m).filter((e) => e.trim());
+    const entries = journal.split(/^## /m).filter(e => e.trim());
     const lines = [
       `# Rolling hunt summary (consolidated ${todayStamp()})`,
       '',

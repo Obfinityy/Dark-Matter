@@ -12,24 +12,39 @@
 
 /** NTLMSSP negotiate-flag bits (MS-NLMP). */
 const NEGOTIATE_FLAGS = {
-  0x00000001: 'NEGOTIATE_UNICODE', 0x00000002: 'NEGOTIATE_OEM',
-  0x00000004: 'REQUEST_TARGET', 0x00000010: 'NEGOTIATE_SIGN',
-  0x00000020: 'NEGOTIATE_SEAL', 0x00000040: 'NEGOTIATE_DATAGRAM',
-  0x00000080: 'NEGOTIATE_LM_KEY', 0x00000400: 'NEGOTIATE_NTLM',
-  0x00008000: 'NEGOTIATE_ALWAYS_SIGN', 0x00010000: 'TARGET_TYPE_DOMAIN',
-  0x00020000: 'TARGET_TYPE_SERVER', 0x00040000: 'TARGET_TYPE_SHARE',
+  0x00000001: 'NEGOTIATE_UNICODE',
+  0x00000002: 'NEGOTIATE_OEM',
+  0x00000004: 'REQUEST_TARGET',
+  0x00000010: 'NEGOTIATE_SIGN',
+  0x00000020: 'NEGOTIATE_SEAL',
+  0x00000040: 'NEGOTIATE_DATAGRAM',
+  0x00000080: 'NEGOTIATE_LM_KEY',
+  0x00000400: 'NEGOTIATE_NTLM',
+  0x00008000: 'NEGOTIATE_ALWAYS_SIGN',
+  0x00010000: 'TARGET_TYPE_DOMAIN',
+  0x00020000: 'TARGET_TYPE_SERVER',
+  0x00040000: 'TARGET_TYPE_SHARE',
   0x00080000: 'NEGOTIATE_EXTENDED_SESSIONSECURITY',
-  0x00100000: 'NEGOTIATE_IDENTIFY', 0x00200000: 'REQUEST_NON_NT_SESSION_KEY',
-  0x00400000: 'NEGOTIATE_TARGET_INFO', 0x00800000: 'NEGOTIATE_VERSION',
-  0x02000000: 'NEGOTIATE_128', 0x04000000: 'NEGOTIATE_KEY_EXCH',
+  0x00100000: 'NEGOTIATE_IDENTIFY',
+  0x00200000: 'REQUEST_NON_NT_SESSION_KEY',
+  0x00400000: 'NEGOTIATE_TARGET_INFO',
+  0x00800000: 'NEGOTIATE_VERSION',
+  0x02000000: 'NEGOTIATE_128',
+  0x04000000: 'NEGOTIATE_KEY_EXCH',
   0x08000000: 'NEGOTIATE_56',
 };
 
 /** AV_PAIR ids (MS-NLMP §2.2.2.1). */
 const AV_PAIR_NAMES = {
-  1: 'NbComputerName', 2: 'NbDomainName', 3: 'DnsComputerName',
-  4: 'DnsDomainName', 5: 'DnsTreeName', 6: 'Flags',
-  7: 'Timestamp', 8: 'Restrictions', 9: 'TargetName',
+  1: 'NbComputerName',
+  2: 'NbDomainName',
+  3: 'DnsComputerName',
+  4: 'DnsDomainName',
+  5: 'DnsTreeName',
+  6: 'Flags',
+  7: 'Timestamp',
+  8: 'Restrictions',
+  9: 'TargetName',
   10: 'ChannelBindings',
 };
 
@@ -73,7 +88,8 @@ export function parseNtlmsspChallenge({
 
   const domain = pairs.NbDomainName || pairs.DnsDomainName || targetName || '';
   const hostname = pairs.NbComputerName || pairs.DnsComputerName || '';
-  const signingOffered = flags.includes('NEGOTIATE_SIGN') || flags.includes('NEGOTIATE_ALWAYS_SIGN');
+  const signingOffered =
+    flags.includes('NEGOTIATE_SIGN') || flags.includes('NEGOTIATE_ALWAYS_SIGN');
   const extendedSecurity = flags.includes('NEGOTIATE_EXTENDED_SESSIONSECURITY');
 
   return {

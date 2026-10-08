@@ -71,8 +71,8 @@ export function analyzeJWT(token = '') {
   // 4. Sensitive data in payload
   if (payload) {
     const sensitiveKeys = ['password', 'ssn', 'credit', 'secret'];
-    const found = Object.keys(payload).filter((k) =>
-      sensitiveKeys.some((s) => k.toLowerCase().includes(s))
+    const found = Object.keys(payload).filter(k =>
+      sensitiveKeys.some(s => k.toLowerCase().includes(s))
     );
     if (found.length > 0) {
       issues.push({

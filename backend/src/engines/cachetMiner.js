@@ -59,22 +59,33 @@ export function parseCachetComponents(payload = {}, rootDomain) {
       seen.add(h);
       if (!(h === root || h.endsWith(`.${root}`) || h.includes(root))) continue;
       results.push({
-        component: name, host: h, linkHost,
-        kind, status: Number(comp?.status ?? 0),
+        component: name,
+        host: h,
+        linkHost,
+        kind,
+        status: Number(comp?.status ?? 0),
         evidence: m[0],
       });
     }
     // The component's link field itself can name an infrastructure host.
-    if (linkHost && (linkHost === root || linkHost.endsWith(`.${root}`) || linkHost.includes(root))) {
+    if (
+      linkHost &&
+      (linkHost === root || linkHost.endsWith(`.${root}`) || linkHost.includes(root))
+    ) {
       results.push({
-        component: name, host: linkHost, linkHost,
-        kind, status: Number(comp?.status ?? 0),
+        component: name,
+        host: linkHost,
+        linkHost,
+        kind,
+        status: Number(comp?.status ?? 0),
         evidence: String(comp?.link || ''),
       });
     }
   }
 
-  return results.sort((a, b) => a.host.localeCompare(b.host) || a.component.localeCompare(b.component));
+  return results.sort(
+    (a, b) => a.host.localeCompare(b.host) || a.component.localeCompare(b.component)
+  );
 }
 
 /**
@@ -101,7 +112,9 @@ export function parseCachetIncidents(payload = {}, rootDomain) {
       }
     }
   }
-  return results.sort((a, b) => a.host.localeCompare(b.host) || a.incident.localeCompare(b.incident));
+  return results.sort(
+    (a, b) => a.host.localeCompare(b.host) || a.incident.localeCompare(b.incident)
+  );
 }
 
 /**

@@ -32,12 +32,14 @@ export function canCoalesce(originA = {}, originB = {}) {
   else blockers.push(`different ports (${a.port} vs ${b.port})`);
   const sansA = new Set(a.sans);
   const sansB = new Set(b.sans);
-  const shared = [...sansA].filter((s) => sansB.has(s));
+  const shared = [...sansA].filter(s => sansB.has(s));
   const crossCovered = sansCovered(a.host, b.sans) && sansCovered(b.host, a.sans);
   if (shared.length > 0 || crossCovered) {
-    reasons.push(crossCovered
-      ? 'certificate presented by one origin is valid for the other host'
-      : `shared SAN entries: ${shared.slice(0, 5).join(', ')}${shared.length > 5 ? '…' : ''}`);
+    reasons.push(
+      crossCovered
+        ? 'certificate presented by one origin is valid for the other host'
+        : `shared SAN entries: ${shared.slice(0, 5).join(', ')}${shared.length > 5 ? '…' : ''}`
+    );
   } else {
     blockers.push('no certificate SAN overlap between the two origins');
   }
@@ -50,10 +52,12 @@ export function canCoalesce(originA = {}, originB = {}) {
  * @returns {{clusters: string[][], singletonCount: number, coalescingRatePct: number}}
  */
 export function mapCoalescibleGroups(origins = []) {
-  const list = (Array.isArray(origins) ? origins : []).filter((o) => o && o.host);
-  const parent = new Map(list.map((o) => [o.host, o.host]));
-  const find = (x) => (parent.get(x) === x ? x : parent.set(x, find(parent.get(x))).get(x));
-  const union = (x, y) => { parent.set(find(x), find(y)); };
+  const list = (Array.isArray(origins) ? origins : []).filter(o => o && o.host);
+  const parent = new Map(list.map(o => [o.host, o.host]));
+  const find = x => (parent.get(x) === x ? x : parent.set(x, find(parent.get(x))).get(x));
+  const union = (x, y) => {
+    parent.set(find(x), find(y));
+  };
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
       if (canCoalesce(list[i], list[j]).coalescible) union(list[i].host, list[j].host);
@@ -65,12 +69,13 @@ export function mapCoalescibleGroups(origins = []) {
     if (!clusters.has(root)) clusters.set(root, []);
     clusters.get(root).push(o.host);
   }
-  const all = [...clusters.values()].map((c) => [...new Set(c)].sort());
-  const inGroups = all.filter((c) => c.length > 1);
+  const all = [...clusters.values()].map(c => [...new Set(c)].sort());
+  const inGroups = all.filter(c => c.length > 1);
   return {
     clusters: inGroups.sort((a, b) => b.length - a.length),
     singletonCount: all.length - inGroups.length,
-    coalescingRatePct: list.length === 0 ? 0 : Math.round((inGroups.flat().length / list.length) * 10000) / 100,
+    coalescingRatePct:
+      list.length === 0 ? 0 : Math.round((inGroups.flat().length / list.length) * 10000) / 100,
   };
 }
 
@@ -102,16 +107,17 @@ export function predictConnectionReuse(groupMap = {}) {
  */
 export function assessCoalescingRisk(groupMap = {}) {
   const clusters = Array.isArray(groupMap.clusters) ? groupMap.clusters : [];
-  return clusters.map((cluster) => {
-    const internal = cluster.filter((h) => /(^|\.)(internal|intranet|staging|dev|test)\b/i.test(h));
+  return clusters.map(cluster => {
+    const internal = cluster.filter(h => /(^|\.)(internal|intranet|staging|dev|test)\b/i.test(h));
     const riskScore = internal.length > 0 ? 70 : 25;
     return {
       cluster,
       hosts: cluster.length,
       riskScore,
-      note: internal.length > 0
-        ? `Coalesced cluster exposes non-production hosts (${internal.join(', ')}); a connection opened for a public origin may carry requests to these. Verify scope.`
-        : 'Coalesced cluster of production hosts sharing certificate and IP — expected CDN/edge behavior; keep scope notes updated.',
+      note:
+        internal.length > 0
+          ? `Coalesced cluster exposes non-production hosts (${internal.join(', ')}); a connection opened for a public origin may carry requests to these. Verify scope.`
+          : 'Coalesced cluster of production hosts sharing certificate and IP — expected CDN/edge behavior; keep scope notes updated.',
     };
   });
 }
@@ -121,7 +127,7 @@ function normalizeOrigin(o) {
     host: String(o.host || '').toLowerCase(),
     ip: String(o.ip || ''),
     port: Number.isFinite(o.port) ? o.port : 443,
-    sans: (Array.isArray(o.sans) ? o.sans : []).map((s) => String(s).toLowerCase()),
+    sans: (Array.isArray(o.sans) ? o.sans : []).map(s => String(s).toLowerCase()),
   };
 }
 
@@ -130,7 +136,8 @@ function sansCovered(host, sansList) {
   for (const san of sansList) {
     const s = String(san).toLowerCase();
     if (s === h) return true;
-    if (s.startsWith('*.') && h.endsWith(s.slice(1)) && h.split('.').length === s.split('.').length) return true;
+    if (s.startsWith('*.') && h.endsWith(s.slice(1)) && h.split('.').length === s.split('.').length)
+      return true;
   }
   return false;
 }

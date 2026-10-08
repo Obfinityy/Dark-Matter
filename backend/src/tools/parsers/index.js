@@ -10,7 +10,7 @@ const PARSERS = {
   jsonlines: parseJsonLines,
   json: parseJson,
   generic: parseGeneric,
-  nmap_xml: parseGeneric   // Full Nmap XML parser can be added later
+  nmap_xml: parseGeneric, // Full Nmap XML parser can be added later
 };
 
 /**

@@ -25,7 +25,10 @@ export const MAX_DNAME_HOPS = 8;
  * @returns {string}
  */
 export function normalizeDnsName(name) {
-  return String(name || '').trim().toLowerCase().replace(/\.$/, '');
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
 }
 
 /**
@@ -43,7 +46,7 @@ export function applyDname(queryName, dnameOwner, dnameTarget) {
   const target = normalizeDnsName(dnameTarget);
   if (q === owner) return target;
   if (q.endsWith(`.${owner}`)) {
-    return `${q.slice(0, -(owner.length))}${target}`;
+    return `${q.slice(0, -owner.length)}${target}`;
   }
   return null;
 }
@@ -83,7 +86,10 @@ export function followDnameChain(seedName, dnameMap) {
       }
     }
     if (!stepped) break;
-    if (visited.has(current)) { loop = true; break; }
+    if (visited.has(current)) {
+      loop = true;
+      break;
+    }
     visited.add(current);
   }
   const finalZone = current.split('.').slice(-2).join('.');
@@ -128,27 +134,38 @@ export function followDnameChain(seedName, dnameMap) {
  * @param {string[]} [owners] owner names (relative labels) to probe for DNAME
  * @returns {Promise<{domain:string, chains:Array, summary:string[]}>}
  */
-export async function discoverDnameChains(domain, owners = ['legacy', 'old', 'archive', 'migration', 'v1', 'beta']) {
+export async function discoverDnameChains(
+  domain,
+  owners = ['legacy', 'old', 'archive', 'migration', 'v1', 'beta']
+) {
   const d = normalizeDnsName(domain);
   const summary = [];
   const chains = [];
   const found = {};
-  await Promise.all(owners.map(async (label) => {
-    const owner = `${label}.${d}`;
-    try {
-      const raw = await resolver.resolve(owner, 'DNAME');
-      const target = normalizeDnsName(String(raw));
-      found[owner] = target;
-    } catch { /* no DNAME — not a finding */ }
-  }));
+  await Promise.all(
+    owners.map(async label => {
+      const owner = `${label}.${d}`;
+      try {
+        const raw = await resolver.resolve(owner, 'DNAME');
+        const target = normalizeDnsName(String(raw));
+        found[owner] = target;
+      } catch {
+        /* no DNAME — not a finding */
+      }
+    })
+  );
   for (const owner of Object.keys(found).sort()) {
     const chain = followDnameChain(owner, found);
     if (chain.hops.length > 0) chains.push(chain);
   }
   if (chains.length === 0) {
-    summary.push('No DNAME records found on probed owner names — no aliased migration subtrees in DNS (or they live under unpublished names).');
+    summary.push(
+      'No DNAME records found on probed owner names — no aliased migration subtrees in DNS (or they live under unpublished names).'
+    );
   } else {
-    summary.push(`${chains.length} DNAME redirection chain(s) discovered — each aliased subtree is legacy-service hunting ground under both old and new names.`);
+    summary.push(
+      `${chains.length} DNAME redirection chain(s) discovered — each aliased subtree is legacy-service hunting ground under both old and new names.`
+    );
   }
   return { domain: d, chains, summary };
 }

@@ -46,12 +46,15 @@ const STRATEGY_SCHEMA = {
     nextAction: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: ['tool', 'click', 'type', 'observe', 'validate', 'report', 'done'] },
+        kind: {
+          type: 'string',
+          enum: ['tool', 'click', 'type', 'observe', 'validate', 'report', 'done'],
+        },
         tool: { type: 'string' },
         targetElement: { type: 'string' },
         text: { type: 'string' },
-        rationale: { type: 'string' }
-      }
+        rationale: { type: 'string' },
+      },
     },
     vulnChains: {
       type: 'array',
@@ -60,16 +63,24 @@ const STRATEGY_SCHEMA = {
         properties: {
           chain: { type: 'string' },
           steps: { type: 'array', items: { type: 'string' } },
-          impact: { type: 'string' }
-        }
-      }
+          impact: { type: 'string' },
+        },
+      },
     },
     // Direct orders from the hacking brain to the other two brains.
     // Vision only sees, grounding only clicks — both obey these verbatim.
-    visionInstruction: { type: 'string', description: 'Concrete order for the vision brain, e.g. "Screenshot the login page and list every input field and button." Empty when the vision brain is not needed this step.' },
-    groundingInstruction: { type: 'string', description: 'Concrete order for the grounding brain, e.g. "Return coordinates for the Submit button." Empty when no click is needed this step.' },
-    done: { type: 'boolean' }
-  }
+    visionInstruction: {
+      type: 'string',
+      description:
+        'Concrete order for the vision brain, e.g. "Screenshot the login page and list every input field and button." Empty when the vision brain is not needed this step.',
+    },
+    groundingInstruction: {
+      type: 'string',
+      description:
+        'Concrete order for the grounding brain, e.g. "Return coordinates for the Submit button." Empty when no click is needed this step.',
+    },
+    done: { type: 'boolean' },
+  },
 };
 
 const COORD_SCHEMA = {
@@ -77,21 +88,21 @@ const COORD_SCHEMA = {
   properties: {
     x: { type: 'number' },
     y: { type: 'number' },
-    confidence: { type: 'number' }
+    confidence: { type: 'number' },
   },
-  required: ['x', 'y']
+  required: ['x', 'y'],
 };
 
 const HACKER_SYSTEM = [
   'You are the HACKING BRAIN of Infinity AI, an autonomous bug-bounty agent.',
-  'You are running on the user\'s own machine for AUTHORIZED security testing only —',
+  "You are running on the user's own machine for AUTHORIZED security testing only —",
   'the user has explicit permission to test every target you are given.',
   'Think like an elite human bug-bounty hunter:',
   '- chain small, low-severity weaknesses into high-impact attack paths;',
   '- prefer evidence-backed hypotheses over guesses;',
   '- never suggest destructive actions (no data deletion, no DoS, no mass exploitation);',
   '- when you have enough evidence, say done:true so the hunt can report.',
-  'Always answer with the requested JSON and nothing else.'
+  'Always answer with the requested JSON and nothing else.',
 ].join('\n');
 
 const VISION_SYSTEM = [
@@ -99,7 +110,7 @@ const VISION_SYSTEM = [
   'You see screenshots of a web target under AUTHORIZED security testing.',
   'Describe precisely what is visible: page structure, forms, buttons,',
   'navigation, error messages, version banners, login states — anything a',
-  'security analyst would note. Be concrete and terse.'
+  'security analyst would note. Be concrete and terse.',
 ].join('\n');
 
 const GROUNDING_SYSTEM = [
@@ -107,7 +118,7 @@ const GROUNDING_SYSTEM = [
   'Given a screenshot and a natural-language description of a UI element,',
   `return its center as normalized coordinates in a 0-${GROUNDING_SPACE} space`,
   '(x: 0 = left edge, 1000 = right edge; y: 0 = top edge, 1000 = bottom edge).',
-  'Answer with the requested JSON and nothing else.'
+  'Answer with the requested JSON and nothing else.',
 ].join('\n');
 
 function imagePart(base64, mime = 'image/png') {
@@ -133,7 +144,14 @@ export class TripleBrainOrchestrator {
    * @param {object} [options.logger] — { info, warn, error }
    * @param {number} [options.timeoutMs] — per-inference timeout
    */
-  constructor({ runner = null, providers = {}, selection = null, appConfig = {}, logger = console, timeoutMs = 120000 } = {}) {
+  constructor({
+    runner = null,
+    providers = {},
+    selection = null,
+    appConfig = {},
+    logger = console,
+    timeoutMs = 120000,
+  } = {}) {
     this.runner = runner;
     this.providers = { ...(providers || {}) };
     this.selection = selection;
@@ -160,7 +178,7 @@ export class TripleBrainOrchestrator {
             name: server.name,
             port: server.port,
             baseUrl: server.baseUrl,
-            startedAt: server.startedAt
+            startedAt: server.startedAt,
           }
         : { running: false };
     }
@@ -180,14 +198,22 @@ export class TripleBrainOrchestrator {
       return {
         provider: new LocalLlamaProvider({ runner: this.runner, slot, timeout: this.timeoutMs }),
         source: 'local',
-        server: { modelId: server.modelId, name: server.name, port: server.port, baseUrl: server.baseUrl }
+        server: {
+          modelId: server.modelId,
+          name: server.name,
+          port: server.port,
+          baseUrl: server.baseUrl,
+        },
       };
     }
     const slotSource = this.selection?.slotSources?.[slot];
     if (slotSource?.source === 'kaggle' && slotSource?.kaggleUrl) {
       return {
-        provider: new GradioProvider({ baseUrl: slotSource.kaggleUrl, model: slotSource.kaggleName || slot }),
-        source: 'kaggle'
+        provider: new GradioProvider({
+          baseUrl: slotSource.kaggleUrl,
+          model: slotSource.kaggleName || slot,
+        }),
+        source: 'kaggle',
       };
     }
     return { provider: null, source: null };
@@ -195,7 +221,7 @@ export class TripleBrainOrchestrator {
 
   /** Names of slots with no usable provider right now. */
   missingBrains() {
-    return BRAIN_SLOTS.filter((slot) => !this.resolveSlot(slot).provider);
+    return BRAIN_SLOTS.filter(slot => !this.resolveSlot(slot).provider);
   }
 
   /**
@@ -214,8 +240,8 @@ export class TripleBrainOrchestrator {
           this._missingWarned.add(slot);
           this.logger.warn?.(
             `[triple-brain] MISSING brain: "${slot}" — no model running for this slot. ` +
-            `Open Models → download a ${slot === 'hacker' ? 'hacking' : slot} model and press Run. ` +
-            'Continuing with the remaining brains.'
+              `Open Models → download a ${slot === 'hacker' ? 'hacking' : slot} model and press Run. ` +
+              'Continuing with the remaining brains.'
           );
         }
       } else if (source === 'local' && server) {
@@ -252,10 +278,16 @@ export class TripleBrainOrchestrator {
             model: h.model || server?.modelId || null,
             port: server?.port ?? null,
             latencyMs: Date.now() - start,
-            ...(h.reachable ? {} : { reason: h.reason || 'unreachable' })
+            ...(h.reachable ? {} : { reason: h.reason || 'unreachable' }),
           };
         } else {
-          out[slot] = { ok: true, source, model: server?.modelId || null, port: server?.port ?? null, latencyMs: Date.now() - start };
+          out[slot] = {
+            ok: true,
+            source,
+            model: server?.modelId || null,
+            port: server?.port ?? null,
+            latencyMs: Date.now() - start,
+          };
         }
       } catch (error) {
         out[slot] = { ok: false, source, reason: error.message, latencyMs: Date.now() - start };
@@ -281,7 +313,7 @@ export class TripleBrainOrchestrator {
         return {
           ok: false,
           reason: 'no hacker brain and no vision fallback — cannot strategize',
-          strategy: this._idleStrategy('No thinking brain available')
+          strategy: this._idleStrategy('No thinking brain available'),
         };
       }
       provider = vision.provider;
@@ -291,16 +323,39 @@ export class TripleBrainOrchestrator {
     const contextBlock = [
       `Target: ${target || '(unknown)'}`,
       `Stage: ${stage}`,
-      findings.length ? `Findings so far:\n${findings.map((f) => `- [${f.severity || '?'}] ${f.title || f.type}: ${(f.description || '').slice(0, 300)}`).join('\n')}` : 'Findings so far: none',
-      observations.length ? `Latest observations:\n${observations.slice(-3).map((o) => `- ${String(o).slice(0, 500)}`).join('\n')}` : 'Latest observations: none',
-      history.length ? `Recent actions:\n${history.slice(-5).map((h) => `- ${typeof h === 'string' ? h : JSON.stringify(h).slice(0, 200)}`).join('\n')}` : 'Recent actions: none',
-      this._methodologyBlock(stage, findings, history)
+      findings.length
+        ? `Findings so far:\n${findings.map(f => `- [${f.severity || '?'}] ${f.title || f.type}: ${(f.description || '').slice(0, 300)}`).join('\n')}`
+        : 'Findings so far: none',
+      observations.length
+        ? `Latest observations:\n${observations
+            .slice(-3)
+            .map(o => `- ${String(o).slice(0, 500)}`)
+            .join('\n')}`
+        : 'Latest observations: none',
+      history.length
+        ? `Recent actions:\n${history
+            .slice(-5)
+            .map(h => `- ${typeof h === 'string' ? h : JSON.stringify(h).slice(0, 200)}`)
+            .join('\n')}`
+        : 'Recent actions: none',
+      this._methodologyBlock(stage, findings, history),
     ].join('\n\n');
 
     const strategy = await provider.generateStructured(
       [
-        { role: 'system', content: HACKER_SYSTEM + (degraded ? '\n(Note: you are the vision model covering for the missing hacker brain — keep reasoning simple and safe.)' : '') + '\n\nYou command two subordinate brains. Every step, give each a concrete order via visionInstruction and groundingInstruction (or leave one empty when that brain is not needed). They execute your orders verbatim — be specific.' },
-        { role: 'user', content: `Authorized bug-bounty hunt context:\n\n${contextBlock}\n\nPropose the single next step. Chain weak signals into attack paths where the evidence supports it.` }
+        {
+          role: 'system',
+          content:
+            HACKER_SYSTEM +
+            (degraded
+              ? '\n(Note: you are the vision model covering for the missing hacker brain — keep reasoning simple and safe.)'
+              : '') +
+            '\n\nYou command two subordinate brains. Every step, give each a concrete order via visionInstruction and groundingInstruction (or leave one empty when that brain is not needed). They execute your orders verbatim — be specific.',
+        },
+        {
+          role: 'user',
+          content: `Authorized bug-bounty hunt context:\n\n${contextBlock}\n\nPropose the single next step. Chain weak signals into attack paths where the evidence supports it.`,
+        },
       ],
       STRATEGY_SCHEMA,
       { timeout: this.timeoutMs }
@@ -318,22 +373,28 @@ export class TripleBrainOrchestrator {
     try {
       const methStage = stageForPhase(stage);
       const tried = new Set(
-        history.map((h) => String(typeof h === 'string' ? h : h?.summary || '').toLowerCase())
+        history.map(h => String(typeof h === 'string' ? h : h?.summary || '').toLowerCase())
       );
       const techniques = techniquesForStage(methStage)
-        .filter((t) => ![...tried].some((h) => h.includes(t.id.replace(/-/g, ' ')) || h.includes(t.id)))
-        .map((t) => `${t.name}: ${t.description}`);
+        .filter(t => ![...tried].some(h => h.includes(t.id.replace(/-/g, ' ')) || h.includes(t.id)))
+        .map(t => `${t.name}: ${t.description}`);
       const coverage = owaspCoverage(findings);
       const uncovered = (coverage?.uncovered || [])
-        .map((c) => (typeof c === 'string' ? c : c?.name || c?.id))
+        .map(c => (typeof c === 'string' ? c : c?.name || c?.id))
         .filter(Boolean);
       const lines = [
         `Elite methodology — current stage: ${methStage}.`,
         techniques.length
-          ? `Untried techniques for this stage (prefer these):\n${techniques.slice(0, 6).map((t) => `- ${t}`).join('\n')}`
+          ? `Untried techniques for this stage (prefer these):\n${techniques
+              .slice(0, 6)
+              .map(t => `- ${t}`)
+              .join('\n')}`
           : 'All known techniques for this stage have been tried — escalate to chaining or the next stage.',
       ];
-      if (uncovered.length) lines.push(`OWASP categories with NO confirmed finding yet: ${uncovered.slice(0, 5).join(', ')}.`);
+      if (uncovered.length)
+        lines.push(
+          `OWASP categories with NO confirmed finding yet: ${uncovered.slice(0, 5).join(', ')}.`
+        );
       lines.push('Do NOT repeat a tried technique without a genuinely new angle.');
       return lines.join('\n');
     } catch {
@@ -359,10 +420,13 @@ export class TripleBrainOrchestrator {
         {
           role: 'user',
           content: [
-            { type: 'text', text: `Describe this screenshot for a security analyst.${hint ? ` Focus: ${hint}` : ''}` },
-            imagePart(imageBase64, mime)
-          ]
-        }
+            {
+              type: 'text',
+              text: `Describe this screenshot for a security analyst.${hint ? ` Focus: ${hint}` : ''}`,
+            },
+            imagePart(imageBase64, mime),
+          ],
+        },
       ],
       { timeout: this.timeoutMs }
     );
@@ -378,19 +442,26 @@ export class TripleBrainOrchestrator {
     const { provider, source } = this.resolveSlot('grounding');
     if (!provider) {
       this._warnMissingOnce('grounding');
-      return { ok: false, reason: 'grounding brain missing — no model running for the grounding slot' };
+      return {
+        ok: false,
+        reason: 'grounding brain missing — no model running for the grounding slot',
+      };
     }
-    if (!element || !String(element).trim()) return { ok: false, reason: 'no element description provided' };
+    if (!element || !String(element).trim())
+      return { ok: false, reason: 'no element description provided' };
     const userContent = imageBase64
       ? [
-          { type: 'text', text: `Locate this UI element and return its center coordinates: "${element}"` },
-          imagePart(imageBase64, mime)
+          {
+            type: 'text',
+            text: `Locate this UI element and return its center coordinates: "${element}"`,
+          },
+          imagePart(imageBase64, mime),
         ]
       : `Locate this UI element on the current screen and return its center coordinates: "${element}"`;
     const raw = await provider.generateStructured(
       [
         { role: 'system', content: GROUNDING_SYSTEM },
-        { role: 'user', content: userContent }
+        { role: 'user', content: userContent },
       ],
       COORD_SCHEMA,
       { timeout: this.timeoutMs }
@@ -398,7 +469,11 @@ export class TripleBrainOrchestrator {
     const x = clampCoord(raw?.x);
     const y = clampCoord(raw?.y);
     if (x === null || y === null) {
-      return { ok: false, source, reason: `grounding model returned unusable coordinates: ${JSON.stringify(raw).slice(0, 200)}` };
+      return {
+        ok: false,
+        source,
+        reason: `grounding model returned unusable coordinates: ${JSON.stringify(raw).slice(0, 200)}`,
+      };
     }
     let confidence = Number(raw?.confidence);
     if (!Number.isFinite(confidence)) confidence = null;
@@ -419,11 +494,10 @@ export class TripleBrainOrchestrator {
 
     // 1. SEE — guided by the hacking brain's vision order from last step.
     const seeHint = prevOrders.vision || hint;
-    const seen = imageBase64 ? await this.see({ imageBase64, mime, hint: seeHint }) : { ok: false, reason: 'no screenshot' };
-    const observations = [
-      ...(options.observations || []),
-      ...(seen.ok ? [seen.description] : [])
-    ];
+    const seen = imageBase64
+      ? await this.see({ imageBase64, mime, hint: seeHint })
+      : { ok: false, reason: 'no screenshot' };
+    const observations = [...(options.observations || []), ...(seen.ok ? [seen.description] : [])];
 
     // 2. THINK
     const thought = await this.think({ ...options, observations });
@@ -443,7 +517,7 @@ export class TripleBrainOrchestrator {
       thought,
       grounded,
       missingBrains: missing,
-      brainsUsed: BRAIN_SLOTS.filter((s) => !missing.includes(s))
+      brainsUsed: BRAIN_SLOTS.filter(s => !missing.includes(s)),
     };
   }
 
@@ -452,12 +526,19 @@ export class TripleBrainOrchestrator {
   _warnMissingOnce(slot) {
     if (!this._missingWarned.has(slot)) {
       this._missingWarned.add(slot);
-      this.logger.warn?.(`[triple-brain] "${slot}" brain missing — continuing with available brains`);
+      this.logger.warn?.(
+        `[triple-brain] "${slot}" brain missing — continuing with available brains`
+      );
     }
   }
 
   _idleStrategy(reason) {
-    return { hypothesis: reason, nextAction: { kind: 'observe', rationale: reason }, vulnChains: [], done: false };
+    return {
+      hypothesis: reason,
+      nextAction: { kind: 'observe', rationale: reason },
+      vulnChains: [],
+      done: false,
+    };
   }
 
   _normalizeStrategy(raw = {}) {
@@ -467,15 +548,17 @@ export class TripleBrainOrchestrator {
       nextAction: {
         kind: typeof nextAction.kind === 'string' ? nextAction.kind : 'observe',
         tool: typeof nextAction.tool === 'string' ? nextAction.tool : null,
-        targetElement: typeof nextAction.targetElement === 'string' ? nextAction.targetElement : null,
+        targetElement:
+          typeof nextAction.targetElement === 'string' ? nextAction.targetElement : null,
         text: typeof nextAction.text === 'string' ? nextAction.text : null,
-        rationale: typeof nextAction.rationale === 'string' ? nextAction.rationale : ''
+        rationale: typeof nextAction.rationale === 'string' ? nextAction.rationale : '',
       },
       vulnChains: Array.isArray(raw.vulnChains) ? raw.vulnChains : [],
       // Direct orders to the subordinate brains (may be empty strings).
       visionInstruction: typeof raw.visionInstruction === 'string' ? raw.visionInstruction : '',
-      groundingInstruction: typeof raw.groundingInstruction === 'string' ? raw.groundingInstruction : '',
-      done: raw.done === true
+      groundingInstruction:
+        typeof raw.groundingInstruction === 'string' ? raw.groundingInstruction : '',
+      done: raw.done === true,
     };
   }
 }

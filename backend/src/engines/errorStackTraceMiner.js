@@ -154,12 +154,21 @@ export function mineErrorPage(html, opts = {}) {
   const url = typeof opts.url === 'string' ? opts.url : null;
   const bits = [];
   if (framework.framework) bits.push(`framework: ${framework.framework}`);
-  if (versions.length > 0) bits.push(`versions: ${versions.map((v) => `${v.product} ${v.version}`).join(', ')}`);
+  if (versions.length > 0)
+    bits.push(`versions: ${versions.map(v => `${v.product} ${v.version}`).join(', ')}`);
   if (internalPaths.length > 0) bits.push(`${internalPaths.length} internal path(s)`);
   if (frames.length > 0) bits.push(`${frames.length} stack frame(s)`);
   return {
-    status, url, frames, framework, versions, internalPaths,
+    status,
+    url,
+    frames,
+    framework,
+    versions,
+    internalPaths,
     leakScore,
-    summary: bits.length > 0 ? `Error page leaks ${bits.join('; ')}.` : 'Error page reveals no stack-trace information.',
+    summary:
+      bits.length > 0
+        ? `Error page leaks ${bits.join('; ')}.`
+        : 'Error page reveals no stack-trace information.',
   };
 }

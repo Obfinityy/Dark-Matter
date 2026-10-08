@@ -10,7 +10,9 @@
 
 function bigSerial(raw) {
   try {
-    const hex = String(raw).replace(/^0x/i, '').replace(/[^0-9a-fA-F]/g, '');
+    const hex = String(raw)
+      .replace(/^0x/i, '')
+      .replace(/[^0-9a-fA-F]/g, '');
     if (!hex) return null;
     return BigInt(`0x${hex}`);
   } catch {
@@ -39,7 +41,9 @@ export function normalizeSerials(serials = []) {
  * @returns {{ sorted: { original, hex, value }[], runs: { from, to, length }[], gaps: { from, to, missing: number }[], sequentialRatio: number }}
  */
 export function findSerialRuns(serials = []) {
-  const sorted = normalizeSerials(serials).sort((a, b) => (a.value < b.value ? -1 : a.value > b.value ? 1 : 0));
+  const sorted = normalizeSerials(serials).sort((a, b) =>
+    a.value < b.value ? -1 : a.value > b.value ? 1 : 0
+  );
   const runs = [];
   const gaps = [];
   let runStart = null;
@@ -48,7 +52,11 @@ export function findSerialRuns(serials = []) {
     if (prev === null || cert.value === prev.value + 1n) {
       if (runStart === null) runStart = cert;
     } else if (cert.value > prev.value) {
-      runs.push({ from: runStart.hex, to: prev.hex, length: sorted.filter((c) => c.value >= runStart.value && c.value <= prev.value).length });
+      runs.push({
+        from: runStart.hex,
+        to: prev.hex,
+        length: sorted.filter(c => c.value >= runStart.value && c.value <= prev.value).length,
+      });
       const missing = cert.value - prev.value - 1n;
       if (missing > 0n && missing <= 100000n) {
         gaps.push({ from: prev.hex, to: cert.hex, missing: Number(missing) });
@@ -58,11 +66,16 @@ export function findSerialRuns(serials = []) {
     prev = cert;
   }
   if (runStart && prev) {
-    runs.push({ from: runStart.hex, to: prev.hex, length: sorted.filter((c) => c.value >= runStart.value && c.value <= prev.value).length });
+    runs.push({
+      from: runStart.hex,
+      to: prev.hex,
+      length: sorted.filter(c => c.value >= runStart.value && c.value <= prev.value).length,
+    });
   }
-  const sequentialRatio = sorted.length > 1
-    ? runs.reduce((sum, r) => sum + Math.max(r.length - 1, 0), 0) / (sorted.length - 1)
-    : 0;
+  const sequentialRatio =
+    sorted.length > 1
+      ? runs.reduce((sum, r) => sum + Math.max(r.length - 1, 0), 0) / (sorted.length - 1)
+      : 0;
   return { sorted, runs, gaps, sequentialRatio };
 }
 
@@ -84,7 +97,8 @@ export function predictProbeSerials(serials = [], knownCerts = []) {
   for (const gap of gaps) {
     const fromValue = bigSerial(gap.from);
     if (fromValue === null) continue;
-    const hint = known.get(fromValue.toString(16)) || known.get(bigSerial(gap.to).toString(16)) || [];
+    const hint =
+      known.get(fromValue.toString(16)) || known.get(bigSerial(gap.to).toString(16)) || [];
     const step = Math.min(gap.missing, 10);
     for (let i = 1; i <= step; i++) {
       probes.push({

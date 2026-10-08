@@ -20,20 +20,29 @@
  * @param {{ events: { streamId: number, increment: number, atMs?: number }[], initialConnectionWindow?: number, initialStreamWindow?: number }} input
  * @returns {{ eventCount: number, totalIncrement: number, avgIncrement: number, connectionLevelEvents: number, streamLevelEvents: number, autoTuneRatio: number|null, features: string[] }}
  */
-export function summarizeWindowBehavior({ events = [], initialConnectionWindow = 65535, initialStreamWindow = 65535 } = {}) {
+export function summarizeWindowBehavior({
+  events = [],
+  initialConnectionWindow = 65535,
+  initialStreamWindow = 65535,
+} = {}) {
   const evs = events || [];
   const totalIncrement = evs.reduce((s, e) => s + (Number(e.increment) || 0), 0);
-  const connectionLevelEvents = evs.filter((e) => Number(e.streamId) === 0).length;
+  const connectionLevelEvents = evs.filter(e => Number(e.streamId) === 0).length;
   const streamLevelEvents = evs.length - connectionLevelEvents;
   // Auto-tune hint: connection-level WINDOW_UPDATEs that arrive without
   // corresponding stream-level pressure suggest proactive window growth.
-  const autoTuneRatio = streamLevelEvents > 0 ? connectionLevelEvents / streamLevelEvents : connectionLevelEvents > 0 ? 1 : 0;
+  const autoTuneRatio =
+    streamLevelEvents > 0
+      ? connectionLevelEvents / streamLevelEvents
+      : connectionLevelEvents > 0
+        ? 1
+        : 0;
 
   const features = [];
   if (initialConnectionWindow >= 16777216) features.push('huge-connection-window');
   if (initialStreamWindow >= 1048576) features.push('huge-stream-window');
   if (autoTuneRatio > 1.5) features.push('proactive-connection-window-growth');
-  if (evs.some((e) => Number(e.increment) >= 16777216)) features.push('jumbo-window-update');
+  if (evs.some(e => Number(e.increment) >= 16777216)) features.push('jumbo-window-update');
   if (evs.length === 0) features.push('no-window-updates-observed');
 
   return {
@@ -84,7 +93,8 @@ export function classifyEndpoint(summary) {
   }
 
   const total = edgeScore + originScore;
-  if (total === 0) return { class: 'indeterminate', score: 0, reasons: ['Insufficient flow-control signal.'] };
+  if (total === 0)
+    return { class: 'indeterminate', score: 0, reasons: ['Insufficient flow-control signal.'] };
   const edgeRatio = edgeScore / total;
   if (edgeRatio >= 0.66) return { class: 'edge-like', score: edgeRatio, reasons };
   if (edgeRatio <= 0.33) return { class: 'origin-like', score: 1 - edgeRatio, reasons };
@@ -106,7 +116,11 @@ export function profileWindowBehavior({
   const summary = summarizeWindowBehavior({ events, initialConnectionWindow, initialStreamWindow });
   const classification = classifyEndpoint(summary);
   const confidence =
-    classification.class === 'indeterminate' ? 'low' : classification.score >= 0.85 ? 'high' : 'medium';
+    classification.class === 'indeterminate'
+      ? 'low'
+      : classification.score >= 0.85
+        ? 'high'
+        : 'medium';
 
   return {
     type: 'HTTP/2 WINDOW_UPDATE Behavior Profiling',
@@ -119,5 +133,9 @@ export function profileWindowBehavior({
   };
 }
 
-export const H2_WINDOW_PROFILER = { summarizeWindowBehavior, classifyEndpoint, profileWindowBehavior };
+export const H2_WINDOW_PROFILER = {
+  summarizeWindowBehavior,
+  classifyEndpoint,
+  profileWindowBehavior,
+};
 export default H2_WINDOW_PROFILER;

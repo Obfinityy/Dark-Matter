@@ -14,30 +14,86 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  CONF44_IDEAS, CONF44_START, CONF44_END,
-  appendOverrideLog, retrospectiveAccuracy, retestQueue, confidenceDigest,
-  scoreLegend, mergedFindingConfidence, presentationScores, approvalGate,
-  siemExportPayload, maturityScore,
+  CONF44_IDEAS,
+  CONF44_START,
+  CONF44_END,
+  appendOverrideLog,
+  retrospectiveAccuracy,
+  retestQueue,
+  confidenceDigest,
+  scoreLegend,
+  mergedFindingConfidence,
+  presentationScores,
+  approvalGate,
+  siemExportPayload,
+  maturityScore,
 } from './confidenceRound4Core.js';
 
 import {
-  ETA44_IDEAS, ETA44_START, ETA44_END,
-  liveEta, phaseEtas, etaInterval, etaTrend, currentStepEta, etaBreakdown,
-  etaHistorySeries, finishTimeClock, etaShiftAlerts, deadlinePlan,
-  deadlineFeasibility, budgetTracker, overtimeWarnings, etaByStrategy,
-  steeringTimeImpact, pauseAdjustedEta, etaPerAsset, etaPerFinding,
-  slowdownDetection, speedupOptions, etaCalibration, etaChatAnswer,
-  etaVoiceScript, etaWidgetPayload, etaShareLink, snapshotEtaStamp,
-  etaVariance, phasePredictions, etaConfidenceMeter, etaBounds, formatDuration,
+  ETA44_IDEAS,
+  ETA44_START,
+  ETA44_END,
+  liveEta,
+  phaseEtas,
+  etaInterval,
+  etaTrend,
+  currentStepEta,
+  etaBreakdown,
+  etaHistorySeries,
+  finishTimeClock,
+  etaShiftAlerts,
+  deadlinePlan,
+  deadlineFeasibility,
+  budgetTracker,
+  overtimeWarnings,
+  etaByStrategy,
+  steeringTimeImpact,
+  pauseAdjustedEta,
+  etaPerAsset,
+  etaPerFinding,
+  slowdownDetection,
+  speedupOptions,
+  etaCalibration,
+  etaChatAnswer,
+  etaVoiceScript,
+  etaWidgetPayload,
+  etaShareLink,
+  snapshotEtaStamp,
+  etaVariance,
+  phasePredictions,
+  etaConfidenceMeter,
+  etaBounds,
+  formatDuration,
 } from './etaCore.js';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const MIN = 60000;
 
 const F = [
-  { id: 'T-1', title: 'SSRF', severity: 'critical', confidence: 84, techniques: ['scanner', 'manual'], overrideLog: [] },
-  { id: 'T-2', title: 'XSS', severity: 'high', confidence: 58, techniques: ['scanner'], overrideLog: [] },
-  { id: 'T-3', title: 'Cipher', severity: 'medium', confidence: 72, techniques: ['headers', 'manual'], overrideLog: [] },
+  {
+    id: 'T-1',
+    title: 'SSRF',
+    severity: 'critical',
+    confidence: 84,
+    techniques: ['scanner', 'manual'],
+    overrideLog: [],
+  },
+  {
+    id: 'T-2',
+    title: 'XSS',
+    severity: 'high',
+    confidence: 58,
+    techniques: ['scanner'],
+    overrideLog: [],
+  },
+  {
+    id: 'T-3',
+    title: 'Cipher',
+    severity: 'medium',
+    confidence: 72,
+    techniques: ['headers', 'manual'],
+    overrideLog: [],
+  },
 ];
 
 /* --- registry completeness ----------------------------------------------------- */
@@ -52,7 +108,10 @@ test('wave-44 combined registry: 40/40 ideas, ids 51721–51760 contiguous, zero
   const all = [...CONF44_IDEAS, ...ETA44_IDEAS];
   const ids = all.map(r => r[0]);
   assert.equal(ids.length, 40);
-  assert.deepEqual(ids, Array.from({ length: 40 }, (_, i) => 51721 + i));
+  assert.deepEqual(
+    ids,
+    Array.from({ length: 40 }, (_, i) => 51721 + i)
+  );
   for (const [id, title, desc] of all) {
     assert.ok(title && title.length > 3, `idea ${id} has a title`);
     assert.ok(desc && desc.length > 10, `idea ${id} has a description`);
@@ -63,13 +122,22 @@ test('wave-44 combined registry: 40/40 ideas, ids 51721–51760 contiguous, zero
 /* --- confidenceRound4Core spot checks (51721–51730) ------------------------------- */
 
 test('appendOverrideLog requires a note, appends immutably', () => {
-  const f = appendOverrideLog(F[1], { from: 58, to: 70, by: 'a.analyst', note: 'confirmed manually', at: '10:00' });
+  const f = appendOverrideLog(F[1], {
+    from: 58,
+    to: 70,
+    by: 'a.analyst',
+    note: 'confirmed manually',
+    at: '10:00',
+  });
   assert.equal(f.confidence, 70);
   assert.equal(f.overridden, true);
   assert.equal(f.overrideLog.length, 1);
   assert.equal(f.overrideLog[0].by, 'a.analyst');
   assert.equal(F[1].confidence, 58);
-  assert.throws(() => appendOverrideLog(F[1], { from: 58, to: 70, note: '   ' }), /requires a reason note/);
+  assert.throws(
+    () => appendOverrideLog(F[1], { from: 58, to: 70, note: '   ' }),
+    /requires a reason note/
+  );
 });
 
 test('retrospectiveAccuracy computes deltas, accuracy, and bias', () => {
@@ -87,7 +155,10 @@ test('retrospectiveAccuracy computes deltas, accuracy, and bias', () => {
 
 test('retestQueue keeps only borderline findings, shakiest first', () => {
   const q = retestQueue(F, { floor: 50, ceiling: 75 });
-  assert.deepEqual(q.map(x => x.id), ['T-2', 'T-3']);
+  assert.deepEqual(
+    q.map(x => x.id),
+    ['T-2', 'T-3']
+  );
   assert.equal(q[0].urgency, 'normal');
   const q2 = retestQueue([{ id: 'X', title: 'x', confidence: 51 }], { floor: 50, ceiling: 75 });
   assert.equal(q2[0].urgency, 'high');
@@ -95,11 +166,14 @@ test('retestQueue keeps only borderline findings, shakiest first', () => {
 });
 
 test('confidenceDigest batches changes and names top movers', () => {
-  const d = confidenceDigest([
-    { findingId: 'a', title: 'A', from: 70, to: 84, at: 't' },
-    { findingId: 'b', title: 'B', from: 62, to: 60, at: 't' },
-    { findingId: 'c', title: 'C', from: 50, to: 44, at: 't' },
-  ], { minDelta: 5 });
+  const d = confidenceDigest(
+    [
+      { findingId: 'a', title: 'A', from: 70, to: 84, at: 't' },
+      { findingId: 'b', title: 'B', from: 62, to: 60, at: 't' },
+      { findingId: 'c', title: 'C', from: 50, to: 44, at: 't' },
+    ],
+    { minDelta: 5 }
+  );
   assert.equal(d.total, 3);
   assert.equal(d.notable, 2);
   assert.equal(d.raised, 1);
@@ -117,7 +191,9 @@ test('scoreLegend covers 0–100 with five labeled bands', () => {
 });
 
 test('mergedFindingConfidence combines independently and lists parts', () => {
-  const m = mergedFindingConfidence({ id: 'P', title: 'p', confidence: 84 }, [{ id: 'D', title: 'd', confidence: 61 }]);
+  const m = mergedFindingConfidence({ id: 'P', title: 'p', confidence: 84 }, [
+    { id: 'D', title: 'd', confidence: 61 },
+  ]);
   assert.equal(m.parts.length, 2);
   assert.equal(m.combined, Math.round((1 - 0.16 * 0.39) * 100));
   assert.ok(m.note.includes('independent'));
@@ -125,7 +201,10 @@ test('mergedFindingConfidence combines independently and lists parts', () => {
 
 test('presentationScores sorts desc and labels bands', () => {
   const rows = presentationScores(F);
-  assert.deepEqual(rows.map(r => r.id), ['T-1', 'T-3', 'T-2']);
+  assert.deepEqual(
+    rows.map(r => r.id),
+    ['T-1', 'T-3', 'T-2']
+  );
   assert.equal(rows[0].band, 'Solid');
   assert.equal(rows[2].band, 'Unproven');
   assert.ok(rows[0].display.includes('84'));
@@ -177,7 +256,10 @@ test('liveEta derives remaining and finish from weighted expectations', () => {
   assert.equal(e.remainingMs, 110 * MIN);
   assert.equal(e.finishAtMs, 1000 + 110 * MIN);
   assert.equal(e.pctComplete, 31);
-  assert.equal(liveEta({ now: 0, elapsedActiveMs: 200 * MIN, totalExpectedActiveMs: 160 * MIN }).remainingMs, 0);
+  assert.equal(
+    liveEta({ now: 0, elapsedActiveMs: 200 * MIN, totalExpectedActiveMs: 160 * MIN }).remainingMs,
+    0
+  );
 });
 
 test('phaseEtas nets elapsed time on the active phase', () => {
@@ -186,7 +268,10 @@ test('phaseEtas nets elapsed time on the active phase', () => {
     { name: 'B', status: 'active', estimatedMs: 60 * MIN, elapsedMs: 22 * MIN },
     { name: 'C', status: 'pending', estimatedMs: 45 * MIN },
   ]);
-  assert.deepEqual(rows.map(r => r.name), ['B', 'C']);
+  assert.deepEqual(
+    rows.map(r => r.name),
+    ['B', 'C']
+  );
   assert.equal(rows[0].etaMs, 38 * MIN);
   assert.equal(rows[1].etaMs, 45 * MIN);
 });
@@ -195,14 +280,32 @@ test('etaInterval contains the estimate and narrows with confidence', () => {
   const wide = etaInterval(100 * MIN, 30);
   const tight = etaInterval(100 * MIN, 95);
   assert.ok(wide.loMs <= 100 * MIN && wide.hiMs >= 100 * MIN);
-  assert.ok((tight.hiMs - tight.loMs) < (wide.hiMs - wide.loMs));
+  assert.ok(tight.hiMs - tight.loMs < wide.hiMs - wide.loMs);
   assert.ok(wide.label.includes('–'));
 });
 
 test('etaTrend detects shrinking, slipping, and steady', () => {
-  assert.equal(etaTrend([{ at: 'a', estimateMs: 170 * MIN }, { at: 'b', estimateMs: 120 * MIN }]).trend, 'shrinking');
-  assert.equal(etaTrend([{ at: 'a', estimateMs: 120 * MIN }, { at: 'b', estimateMs: 170 * MIN }]).trend, 'slipping');
-  assert.equal(etaTrend([{ at: 'a', estimateMs: 150 * MIN }, { at: 'b', estimateMs: 151 * MIN }]).trend, 'steady');
+  assert.equal(
+    etaTrend([
+      { at: 'a', estimateMs: 170 * MIN },
+      { at: 'b', estimateMs: 120 * MIN },
+    ]).trend,
+    'shrinking'
+  );
+  assert.equal(
+    etaTrend([
+      { at: 'a', estimateMs: 120 * MIN },
+      { at: 'b', estimateMs: 170 * MIN },
+    ]).trend,
+    'slipping'
+  );
+  assert.equal(
+    etaTrend([
+      { at: 'a', estimateMs: 150 * MIN },
+      { at: 'b', estimateMs: 151 * MIN },
+    ]).trend,
+    'steady'
+  );
   assert.equal(etaTrend([]).trend, 'unknown');
 });
 
@@ -211,7 +314,10 @@ test('currentStepEta flags overruns', () => {
   assert.equal(s.elapsedMs, 14 * MIN);
   assert.equal(s.remainingMs, 0);
   assert.equal(s.runningOver, true);
-  assert.equal(currentStepEta({ name: 'step', startedAt: 0, now: 5 * MIN, typicalMs: 12 * MIN }).remainingMs, 7 * MIN);
+  assert.equal(
+    currentStepEta({ name: 'step', startedAt: 0, now: 5 * MIN, typicalMs: 12 * MIN }).remainingMs,
+    7 * MIN
+  );
 });
 
 test('etaBreakdown shares sum to 100', () => {
@@ -219,7 +325,10 @@ test('etaBreakdown shares sum to 100', () => {
     { name: 'B', status: 'active', estimatedMs: 60 * MIN, elapsedMs: 22 * MIN },
     { name: 'C', status: 'pending', estimatedMs: 45 * MIN },
   ]);
-  assert.equal(rows.reduce((s, r) => s + r.sharePct, 0), 100);
+  assert.equal(
+    rows.reduce((s, r) => s + r.sharePct, 0),
+    100
+  );
   assert.ok(rows[0].etaMs >= rows[1].etaMs);
 });
 
@@ -246,9 +355,21 @@ test('etaShiftAlerts only fires beyond tolerance', () => {
 });
 
 test('deadlinePlan compresses phases when the deadline is tight', () => {
-  const p = deadlinePlan([{ name: 'B', estimatedMs: 38 * MIN }, { name: 'C', estimatedMs: 45 * MIN }], 120 * MIN);
+  const p = deadlinePlan(
+    [
+      { name: 'B', estimatedMs: 38 * MIN },
+      { name: 'C', estimatedMs: 45 * MIN },
+    ],
+    120 * MIN
+  );
   assert.equal(p.fits, true);
-  const tight = deadlinePlan([{ name: 'B', estimatedMs: 38 * MIN }, { name: 'C', estimatedMs: 45 * MIN }], 60 * MIN);
+  const tight = deadlinePlan(
+    [
+      { name: 'B', estimatedMs: 38 * MIN },
+      { name: 'C', estimatedMs: 45 * MIN },
+    ],
+    60 * MIN
+  );
   assert.equal(tight.fits, false);
   assert.ok(tight.compressionFactor < 1);
   assert.ok(Math.abs(tight.phases.reduce((s, x) => s + x.plannedMs, 0) - 60 * MIN) <= 2);
@@ -289,23 +410,40 @@ test('etaByStrategy sorts fastest first', () => {
 });
 
 test('steeringTimeImpact prices a redirection before confirmation', () => {
-  const d = steeringTimeImpact(110 * MIN, { description: 'redirect', addsMs: 25 * MIN, removesMs: 10 * MIN });
+  const d = steeringTimeImpact(110 * MIN, {
+    description: 'redirect',
+    addsMs: 25 * MIN,
+    removesMs: 10 * MIN,
+  });
   assert.equal(d.deltaMs, 15 * MIN);
   assert.equal(d.newRemainingMs, 125 * MIN);
   assert.ok(d.recommendation.includes('Costs'));
-  const save = steeringTimeImpact(110 * MIN, { description: 'trim', addsMs: 0, removesMs: 20 * MIN });
+  const save = steeringTimeImpact(110 * MIN, {
+    description: 'trim',
+    addsMs: 0,
+    removesMs: 20 * MIN,
+  });
   assert.ok(save.recommendation.includes('Saves'));
 });
 
 test('pauseAdjustedEta pushes the finish by the paused duration', () => {
-  const a = pauseAdjustedEta({ remainingMs: 110 * MIN, finishAtMs: 2000 }, { extraPausedMs: 30 * MIN });
+  const a = pauseAdjustedEta(
+    { remainingMs: 110 * MIN, finishAtMs: 2000 },
+    { extraPausedMs: 30 * MIN }
+  );
   assert.equal(a.finishAtMs, 2000 + 30 * MIN);
   assert.equal(a.remainingMs, 110 * MIN);
   assert.ok(a.note.includes('Paused'));
 });
 
 test('etaPerAsset splits proportionally by weight', () => {
-  const rows = etaPerAsset([{ name: 'a', weight: 1 }, { name: 'b', weight: 3 }], 80 * MIN);
+  const rows = etaPerAsset(
+    [
+      { name: 'a', weight: 1 },
+      { name: 'b', weight: 3 },
+    ],
+    80 * MIN
+  );
   assert.equal(rows[0].etaMs, 20 * MIN);
   assert.equal(rows[1].etaMs, 60 * MIN);
   const explicit = etaPerAsset([{ name: 'a', remainingMs: 5 * MIN }], 80 * MIN);
@@ -330,7 +468,11 @@ test('slowdownDetection flags sub-60% pace', () => {
 });
 
 test('speedupOptions rank by real saved time', () => {
-  const opts = speedupOptions({ remainingMs: 110 * MIN, parallelizableMs: 40 * MIN, lowYieldMs: 15 * MIN });
+  const opts = speedupOptions({
+    remainingMs: 110 * MIN,
+    parallelizableMs: 40 * MIN,
+    lowYieldMs: 15 * MIN,
+  });
   assert.ok(opts[0].savesMs >= opts[1].savesMs);
   assert.ok(opts.every(o => o.tradeoff && o.tradeoff.length > 5));
   assert.equal(speedupOptions({ remainingMs: 100 * MIN }).length, 1);
@@ -349,7 +491,12 @@ test('etaCalibration learns a factor and adjusts estimates', () => {
 });
 
 test('etaChatAnswer answers "how much longer?" plainly', () => {
-  const eta = { etaMs: 110 * MIN, loMs: 95 * MIN, hiMs: 130 * MIN, finishAtMs: 1728288000000 + 110 * MIN };
+  const eta = {
+    etaMs: 110 * MIN,
+    loMs: 95 * MIN,
+    hiMs: 130 * MIN,
+    finishAtMs: 1728288000000 + 110 * MIN,
+  };
   const a = etaChatAnswer('how much longer?', eta);
   assert.ok(a.includes('1h 50m'));
   assert.ok(a.includes('IST'));
@@ -362,21 +509,32 @@ test('etaVoiceScript names the milestone', () => {
 });
 
 test('etaWidgetPayload is compact', () => {
-  const w = etaWidgetPayload({ etaMs: 110 * MIN, finishAtMs: 1728288000000 + 110 * MIN, pctComplete: 31 });
+  const w = etaWidgetPayload({
+    etaMs: 110 * MIN,
+    finishAtMs: 1728288000000 + 110 * MIN,
+    pctComplete: 31,
+  });
   assert.equal(w.etaMin, 110);
   assert.ok(w.compact.includes('1h 50m'));
   assert.equal(w.pctComplete, 31);
 });
 
 test('etaShareLink builds a read-only encoded link', () => {
-  const l = etaShareLink('https://hunt.example.com/', { etaMs: 110 * MIN, finishAtMs: 2000, huntName: 'oct-sweep' });
+  const l = etaShareLink('https://hunt.example.com/', {
+    etaMs: 110 * MIN,
+    finishAtMs: 2000,
+    huntName: 'oct-sweep',
+  });
   assert.ok(l.url.startsWith('https://hunt.example.com/eta/'));
   assert.equal(l.readOnly, true);
   assert.ok(l.note.includes('Read-only'));
 });
 
 test('snapshotEtaStamp freezes the estimate', () => {
-  const s = snapshotEtaStamp({ remainingMs: 110 * MIN, finishAtMs: 2000, confidence: 70 }, { snapshotId: 'snap-014' });
+  const s = snapshotEtaStamp(
+    { remainingMs: 110 * MIN, finishAtMs: 2000, confidence: 70 },
+    { snapshotId: 'snap-014' }
+  );
   assert.equal(s.snapshotId, 'snap-014');
   assert.equal(s.remainingMs, 110 * MIN);
   assert.equal(s.confidence, 70);
@@ -391,11 +549,14 @@ test('etaVariance reports ahead and behind', () => {
 });
 
 test('phasePredictions use medians of similar past phases', () => {
-  const rows = phasePredictions(['Verification', 'Reporting'], [
-    { name: 'Verification', actualMs: 52 * MIN },
-    { name: 'Verification', actualMs: 44 * MIN },
-    { name: 'Reporting', actualMs: 28 * MIN },
-  ]);
+  const rows = phasePredictions(
+    ['Verification', 'Reporting'],
+    [
+      { name: 'Verification', actualMs: 52 * MIN },
+      { name: 'Verification', actualMs: 44 * MIN },
+      { name: 'Reporting', actualMs: 28 * MIN },
+    ]
+  );
   assert.equal(rows[0].predictedMs, 52 * MIN);
   assert.ok(rows[0].source.includes('similar'));
   const unknown = phasePredictions(['Brand-new'], [{ name: 'Other', actualMs: 10 * MIN }]);
@@ -416,7 +577,7 @@ test('etaBounds brackets the estimate', () => {
   assert.ok(b.worstMs >= 110 * MIN);
   assert.ok(b.label.includes('Best') && b.label.includes('worst'));
   const tight = etaBounds(110 * MIN, 99);
-  assert.ok((tight.worstMs - tight.bestMs) < (b.worstMs - b.bestMs));
+  assert.ok(tight.worstMs - tight.bestMs < b.worstMs - b.bestMs);
 });
 
 /* --- zero-keyframe CSS audit ----------------------------------------------------- */
@@ -433,11 +594,23 @@ test('Wave44.css: zero keyframes, no animation/transition, scoped classes only',
 
 test('wave-44 sources carry no unfinished-work or fake-content markers', () => {
   const markers = [
-    ['T', 'O', 'D', 'O'], ['F', 'I', 'X', 'M', 'E'], ['X', 'X', 'X'], ['H', 'A', 'C', 'K'],
-    ['M', 'O', 'C', 'K'], ['D', 'E', 'M', 'O'], ['S', 'i', 'm', 'u', 'l', 'a', 't', 'e'],
+    ['T', 'O', 'D', 'O'],
+    ['F', 'I', 'X', 'M', 'E'],
+    ['X', 'X', 'X'],
+    ['H', 'A', 'C', 'K'],
+    ['M', 'O', 'C', 'K'],
+    ['D', 'E', 'M', 'O'],
+    ['S', 'i', 'm', 'u', 'l', 'a', 't', 'e'],
     ['p', 'l', 'a', 'c', 'e', 'h', 'o', 'l', 'd', 'e', 'r'],
-  ].map((parts) => new RegExp('\\b' + parts.join('') + '\\b', 'i'));
-  const files = ['confidenceRound4Core.js', 'etaCore.js', 'ConfidenceRound4.jsx', 'EtaSuite.jsx', 'Wave44.css', 'wave44.test.js'];
+  ].map(parts => new RegExp('\\b' + parts.join('') + '\\b', 'i'));
+  const files = [
+    'confidenceRound4Core.js',
+    'etaCore.js',
+    'ConfidenceRound4.jsx',
+    'EtaSuite.jsx',
+    'Wave44.css',
+    'wave44.test.js',
+  ];
   for (const f of files) {
     const src = readFileSync(join(DIR, f), 'utf8');
     for (const re of markers) {
@@ -450,12 +623,18 @@ test('wave-44 sources carry no unfinished-work or fake-content markers', () => {
 
 test('ConfidenceRound4.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'ConfidenceRound4.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('ConfidenceRound4Gallery'), 'esbuild parsed the round-4 gallery export');
 });
 
 test('EtaSuite.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'EtaSuite.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('EtaSuiteGallery'), 'esbuild parsed the ETA suite gallery export');
 });

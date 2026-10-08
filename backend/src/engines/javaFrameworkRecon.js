@@ -56,17 +56,25 @@ export const JMX_SIGNATURES = [
  */
 export function probeTomcatManager({ url = '', status = 0, headers = {}, body = '' }) {
   const text = String(body || '');
-  const matched = TOMCAT_ERROR_SIGNATURES.filter((re) => re.test(text));
+  const matched = TOMCAT_ERROR_SIGNATURES.filter(re => re.test(text));
   const serverHeader = String(headers['server'] || headers['Server'] || '');
   const headerHint = /tomcat/i.test(serverHeader);
-  const detected = matched.length > 0 && (status === 401 || status === 403 || status === 404 || status === 200);
+  const detected =
+    matched.length > 0 && (status === 401 || status === 403 || status === 404 || status === 200);
   if (!detected) {
-    return { detected: false, service: 'Apache Tomcat Manager', reason: 'No Tomcat manager fingerprint in response' };
+    return {
+      detected: false,
+      service: 'Apache Tomcat Manager',
+      reason: 'No Tomcat manager fingerprint in response',
+    };
   }
   let version = null;
   for (const re of TOMCAT_VERSION_PATTERNS) {
     const m = re.exec(text) || re.exec(serverHeader);
-    if (m) { version = m[1]; break; }
+    if (m) {
+      version = m[1];
+      break;
+    }
   }
   return {
     detected: true,
@@ -88,9 +96,13 @@ export function probeTomcatManager({ url = '', status = 0, headers = {}, body = 
  */
 export function checkJmxConsole({ url = '', status = 0, headers = {}, body = '' }) {
   const text = String(body || '');
-  const hit = JMX_SIGNATURES.find((sig) => sig.re.test(text));
+  const hit = JMX_SIGNATURES.find(sig => sig.re.test(text));
   if (!(status === 200 && hit)) {
-    return { detected: false, service: 'JMX Console', reason: 'No JMX console signature in response' };
+    return {
+      detected: false,
+      service: 'JMX Console',
+      reason: 'No JMX console signature in response',
+    };
   }
   let version = null;
   if (hit.name === 'Jolokia') {

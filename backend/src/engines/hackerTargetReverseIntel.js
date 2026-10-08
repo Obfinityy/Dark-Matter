@@ -56,11 +56,11 @@ export function aggregateReverseLookups(rows) {
  * @returns {{inScope: Array<{hostname: string, ips: string[]}>, outOfScope: Array<{hostname: string, ips: string[]}>}}
  */
 export function scopeSplit(hostnameToIps, domainSuffixes = []) {
-  const suffixes = domainSuffixes.map((s) => s.toLowerCase());
+  const suffixes = domainSuffixes.map(s => s.toLowerCase());
   const inScope = [];
   const outOfScope = [];
   for (const [hostname, ips] of hostnameToIps) {
-    const hit = suffixes.some((s) => hostname === s || hostname.endsWith(`.${s}`));
+    const hit = suffixes.some(s => hostname === s || hostname.endsWith(`.${s}`));
     (hit ? inScope : outOfScope).push({ hostname, ips: [...ips] });
   }
   const byName = (a, b) => a.hostname.localeCompare(b.hostname);

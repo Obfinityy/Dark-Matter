@@ -23,7 +23,9 @@ export function parseNaabuJsonLines(raw) {
       if (!Number.isInteger(port) || port < 1 || port > 65535 || !host) continue;
       ports.push({ host, port, ip: obj.ip || null });
       hostSet.add(host);
-    } catch { /* skip malformed lines */ }
+    } catch {
+      /* skip malformed lines */
+    }
   }
   return { ports, hosts: [...hostSet] };
 }
@@ -38,23 +40,27 @@ export function parseNmapXml(raw) {
   try {
     const hostBlocks = text.match(/<host[\s>][\s\S]*?<\/host>/g) || [];
     for (const block of hostBlocks) {
-      const addrMatch = block.match(/<address\s+addr="([^"]+)"\s+addrtype="ipv4"/)
-        || block.match(/<address\s+addr="([^"]+)"/);
+      const addrMatch =
+        block.match(/<address\s+addr="([^"]+)"\s+addrtype="ipv4"/) ||
+        block.match(/<address\s+addr="([^"]+)"/);
       const host = addrMatch?.[1];
       if (!host) continue;
       seenHosts.add(host);
       const portBlocks = block.match(/<port\s+[^>]*>[\s\S]*?<\/port>/g) || [];
       for (const pb of portBlocks) {
-        const header = pb.match(/<port\s+protocol="([^"]+)"\s+portid="(\d+)"/)
-          || pb.match(/<port\s+portid="(\d+)"\s+protocol="([^"]+)"/);
+        const header =
+          pb.match(/<port\s+protocol="([^"]+)"\s+portid="(\d+)"/) ||
+          pb.match(/<port\s+portid="(\d+)"\s+protocol="([^"]+)"/);
         if (!header) continue;
-        const protocol = header[1].startsWith('tcp') || header[1].startsWith('udp') ? header[1] : header[2];
-        const portid = header[1].startsWith('tcp') || header[1].startsWith('udp') ? header[2] : header[1];
+        const protocol =
+          header[1].startsWith('tcp') || header[1].startsWith('udp') ? header[1] : header[2];
+        const portid =
+          header[1].startsWith('tcp') || header[1].startsWith('udp') ? header[2] : header[1];
         const state = pb.match(/<state\s+state="([^"]+)"/)?.[1];
         if (state !== 'open') continue;
         const svcTag = pb.match(/<service\s+([^>]*?)\/?>/);
         const attrs = svcTag?.[1] || '';
-        const attr = (name) => attrs.match(new RegExp(`${name}="([^"]*)"`))?.[1] || null;
+        const attr = name => attrs.match(new RegExp(`${name}="([^"]*)"`))?.[1] || null;
         services.push({
           host,
           port: Number(portid),
@@ -63,7 +69,7 @@ export function parseNmapXml(raw) {
           service: attr('name') || 'unknown',
           product: attr('product'),
           version: attr('version'),
-          extrainfo: attr('extrainfo')
+          extrainfo: attr('extrainfo'),
         });
       }
     }
@@ -82,13 +88,13 @@ export function parseNmapXml(raw) {
  *     stealth approval (policyValidator blocks T5)
  *   - maxPorts caps how many ports go into one nmap run (default 100)
  */
-export function buildTargetedNmapArgs(ports, {
-  timing = 'T3',
-  maxPorts = 100,
-  includeDefaultScripts = true,
-  extraArgs = []
-} = {}) {
-  const unique = [...new Set(ports.map(Number).filter((p) => Number.isInteger(p) && p >= 1 && p <= 65535))];
+export function buildTargetedNmapArgs(
+  ports,
+  { timing = 'T3', maxPorts = 100, includeDefaultScripts = true, extraArgs = [] } = {}
+) {
+  const unique = [
+    ...new Set(ports.map(Number).filter(p => Number.isInteger(p) && p >= 1 && p <= 65535)),
+  ];
   if (!unique.length) {
     return { args: null, reason: 'no open ports from naabu — nothing to chain' };
   }
@@ -105,7 +111,7 @@ export function buildTargetedNmapArgs(ports, {
     args,
     ports: selected,
     truncated: unique.length > maxPorts,
-    reason: `targeted nmap service scan over ${selected.length} naabu-confirmed open port(s)`
+    reason: `targeted nmap service scan over ${selected.length} naabu-confirmed open port(s)`,
   };
 }
 
@@ -115,7 +121,10 @@ export function buildTargetedNmapArgs(ports, {
  */
 export function chainNaabuToNmap(naabuRaw, { target, timing = 'T3', maxPorts = 100 } = {}) {
   const { ports, hosts } = parseNaabuJsonLines(naabuRaw);
-  const built = buildTargetedNmapArgs(ports.map((p) => p.port), { timing, maxPorts });
+  const built = buildTargetedNmapArgs(
+    ports.map(p => p.port),
+    { timing, maxPorts }
+  );
   if (!built.args) return { chained: false, reason: built.reason, ports: [], hosts };
   return {
     chained: true,
@@ -127,7 +136,7 @@ export function chainNaabuToNmap(naabuRaw, { target, timing = 'T3', maxPorts = 1
       tool: 'nmap',
       target,
       arguments: { args: built.args },
-      description: `Targeted nmap service scan chained from naabu (${built.ports.length} open ports, no full-range scan)`
-    }
+      description: `Targeted nmap service scan chained from naabu (${built.ports.length} open ports, no full-range scan)`,
+    },
   };
 }

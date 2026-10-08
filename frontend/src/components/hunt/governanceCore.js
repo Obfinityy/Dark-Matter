@@ -32,11 +32,23 @@ export const WAVE31_END = 51240;
 export const WAVE31_IDEAS = [
   [51201, 'approval history search', 'Find any past decision with its context in seconds'],
   [51202, 'policy inheritance', 'New hunts inherit approval policies from previous hunts'],
-  [51203, 'granular action scopes', 'Approve an action for one endpoint without approving it everywhere'],
-  [51204, 'approval-required watermark', 'Hunt header shows a persistent badge while approvals are pending'],
+  [
+    51203,
+    'granular action scopes',
+    'Approve an action for one endpoint without approving it everywhere',
+  ],
+  [
+    51204,
+    'approval-required watermark',
+    'Hunt header shows a persistent badge while approvals are pending',
+  ],
   [51205, 'dual-control approvals', 'Destructive actions need two different people to approve'],
   [51206, 'approval SLAs', 'Target decision time; the agent escalates if you exceed it'],
-  [51207, 'contextual approval hints', 'Plain-words explanation of why this action matters right now'],
+  [
+    51207,
+    'contextual approval hints',
+    'Plain-words explanation of why this action matters right now',
+  ],
   [51208, 'approval from chat', 'Decide directly inside the conversation, no separate panel'],
   [51209, 'scheduled approval windows', 'Approvals only interrupt you during hours you define'],
   [51210, 'approval fatigue guard', 'Agent batches or defers requests when you decide too often'],
@@ -44,23 +56,43 @@ export const WAVE31_IDEAS = [
   [51212, 'forbidden-target list', 'Actions touching listed assets are denied before reaching you'],
   [51213, 'approval reason codes', 'Tag each decision with a reason for later review and learning'],
   [51214, 'agent self-denial log', 'See actions the agent considered but decided not to request'],
-  [51215, 'approval simulation mode', 'Practice the approval flow on a demo hunt before a real one'],
+  [
+    51215,
+    'approval simulation mode',
+    'Practice the approval flow on a demo hunt before a real one',
+  ],
   [51216, 'time-limited approvals', 'An approval grants permission for N minutes, then expires'],
-  [51217, 'approval revocation (mid-hunt)', 'Withdraw an approval while the action is still running'],
+  [
+    51217,
+    'approval revocation (mid-hunt)',
+    'Withdraw an approval while the action is still running',
+  ],
   [51218, 'cross-hunt approval rules', 'One policy governing sensitive actions across all hunts'],
   [51219, 'approval digest email', 'Summary of decisions made, sent when the hunt ends'],
   [51220, 'legal-hold approvals', 'Flag approvals that need legal sign-off before execution'],
   [51221, 'approval confidence score', 'Agent shows how sure it is the action is necessary'],
   [51222, 'alternative-action suggestion', 'Each request offers a safer alternative'],
-  [51223, 'approval keyboard shortcuts', 'Approve, deny, or request info without touching the mouse'],
+  [
+    51223,
+    'approval keyboard shortcuts',
+    'Approve, deny, or request info without touching the mouse',
+  ],
   [51224, 'offline approval queue', 'Decisions made offline sync and apply on reconnect'],
   [51225, 'approval streaks', 'Agent learns your patterns and pre-fills likely decisions'],
-  [51226, 'destructive-action insurance', 'Snapshot target state before approved destructive tests'],
+  [
+    51226,
+    'destructive-action insurance',
+    'Snapshot target state before approved destructive tests',
+  ],
   [51227, 'approval ceremony log', 'Formal record of approvals for regulated environments'],
   [51228, 'post-approval monitoring', 'Watch the action live effects with a kill switch at hand'],
   [51229, 'live log stream', 'Every tool invocation and result streaming in real time'],
   [51230, 'log level filter', 'Toggle debug / info / warning / error to control noise'],
-  [51231, 'per-module log tabs', 'Separate live streams for recon, scanning, exploitation, reporting'],
+  [
+    51231,
+    'per-module log tabs',
+    'Separate live streams for recon, scanning, exploitation, reporting',
+  ],
   [51232, 'log search', 'Instant full-text search across live and historical log buffer'],
   [51233, 'log line details', 'Expand any line to see request, response, and agent reasoning'],
   [51234, 'payload redaction', 'Sensitive values in logs masked automatically, reveal on click'],
@@ -81,11 +113,15 @@ export const WAVE31_IDEAS = [
  * decider, reason code, and notes. Case-insensitive substring match.
  */
 export function searchApprovals(history, query) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!q) return [...history];
-  return history.filter((d) => {
+  return history.filter(d => {
     const hay = [d.action, d.target, d.decider, d.reasonCode, d.notes, d.decision]
-      .filter(Boolean).join(' ').toLowerCase();
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
     return hay.includes(q);
   });
 }
@@ -99,7 +135,7 @@ export function searchApprovals(history, query) {
  * hunt's policies, tagging each as inherited (overridable).
  */
 export function inheritPolicies(prevPolicies) {
-  return (prevPolicies || []).map((p) => ({
+  return (prevPolicies || []).map(p => ({
     ...p,
     inherited: true,
     overridden: false,
@@ -128,7 +164,7 @@ export function scopeAllows(approval, target) {
 
 /** Count pending approvals to drive the header watermark badge. */
 export function pendingApprovalsCount(queue) {
-  return (queue || []).filter((a) => a.status === 'pending').length;
+  return (queue || []).filter(a => a.status === 'pending').length;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,7 +176,7 @@ export function pendingApprovalsCount(queue) {
  * DISTINCT approvers. Returns { approved, approvalsNeeded, approvers }.
  */
 export function dualControlStatus(request) {
-  const approvers = [...new Set((request.approvals || []).map((a) => a.by))];
+  const approvers = [...new Set((request.approvals || []).map(a => a.by))];
   return {
     approved: approvers.length >= 2,
     approvalsNeeded: Math.max(0, 2 - approvers.length),
@@ -184,7 +220,9 @@ export function buildHint(action) {
  * 'approve' | 'deny' | 'info' | null (not a decision).
  */
 export function parseChatDecision(text) {
-  const t = String(text || '').trim().toLowerCase();
+  const t = String(text || '')
+    .trim()
+    .toLowerCase();
   if (/^(yes|approve|approved|go ahead|ok|okay|do it|allow)\b/.test(t)) return 'approve';
   if (/^(no|deny|denied|don't|stop|block|reject)\b/.test(t)) return 'deny';
   if (/\b(why|explain|more info|details|what)\b/.test(t)) return 'info';
@@ -203,7 +241,7 @@ export function inApprovalWindow(nowMs, windows) {
   if (!windows || windows.length === 0) return true; // no windows = always allowed
   const d = new Date(nowMs);
   const h = d.getUTCHours() + d.getUTCMinutes() / 60;
-  return windows.some((w) => {
+  return windows.some(w => {
     if (w.startHour <= w.endHour) return h >= w.startHour && h < w.endHour;
     return h >= w.startHour || h < w.endHour; // wraps midnight
   });
@@ -218,7 +256,7 @@ export function inApprovalWindow(nowMs, windows) {
  * 'fresh' | 'warming' | 'fatigued'. Fatigued → suggest batching.
  */
 export function fatigueLevel(decisions, nowMs, windowMs = 15 * 60 * 1000) {
-  const recent = (decisions || []).filter((d) => nowMs - d.at <= windowMs).length;
+  const recent = (decisions || []).filter(d => nowMs - d.at <= windowMs).length;
   if (recent >= 10) return 'fatigued';
   if (recent >= 5) return 'warming';
   return 'fresh';
@@ -235,7 +273,7 @@ export function fatigueLevel(decisions, nowMs, windowMs = 15 * 60 * 1000) {
  */
 export function checkTargetLists(target, preApproved, forbidden) {
   const t = String(target || '').toLowerCase();
-  const hit = (list) => (list || []).some((e) => t.includes(String(e).toLowerCase()));
+  const hit = list => (list || []).some(e => t.includes(String(e).toLowerCase()));
   if (hit(forbidden)) return 'forbidden';
   if (hit(preApproved)) return 'pre-approved';
   return 'needs-approval';
@@ -256,7 +294,7 @@ export function validateReasonCode(code, allowedCodes) {
 
 /** Filter the agent's internal log to actions it considered but skipped. */
 export function filterSelfDenials(log) {
-  return (log || []).filter((e) => e.outcome === 'self-denied');
+  return (log || []).filter(e => e.outcome === 'self-denied');
 }
 
 // ---------------------------------------------------------------------------
@@ -317,7 +355,10 @@ export function buildDigest(decisions) {
   return {
     total: (decisions || []).length,
     ...counts,
-    lines: (decisions || []).map((d) => `${d.decision.toUpperCase()}: ${d.action} on ${d.target} (${d.reasonCode || 'no reason'})`),
+    lines: (decisions || []).map(
+      d =>
+        `${d.decision.toUpperCase()}: ${d.action} on ${d.target} (${d.reasonCode || 'no reason'})`
+    ),
   };
 }
 
@@ -351,9 +392,15 @@ export function confidenceBand(score) {
  */
 export function suggestAlternative(action) {
   const safer = {
-    'active-scan': { type: 'passive-scan', note: 'Passive scan first — no packets sent to the target.' },
-    'exploit': { type: 'poc-dry-run', note: 'Dry-run the PoC against a local replica instead.' },
-    'brute-force': { type: 'wordlist-sample', note: 'Try a 100-entry sample before the full list.' },
+    'active-scan': {
+      type: 'passive-scan',
+      note: 'Passive scan first — no packets sent to the target.',
+    },
+    exploit: { type: 'poc-dry-run', note: 'Dry-run the PoC against a local replica instead.' },
+    'brute-force': {
+      type: 'wordlist-sample',
+      note: 'Try a 100-entry sample before the full list.',
+    },
   };
   return safer[action.type] || null;
 }
@@ -378,7 +425,7 @@ export function queueOfflineDecision(queue, decision) {
 
 export function flushOfflineQueue(queue) {
   const ordered = [...(queue || [])].sort((a, b) => a.queuedAt - b.queuedAt);
-  return { applied: ordered.map((d) => ({ ...d, synced: true })), remaining: [] };
+  return { applied: ordered.map(d => ({ ...d, synced: true })), remaining: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -390,7 +437,7 @@ export function flushOfflineQueue(queue) {
  * Returns the most common past decision, or null when no history.
  */
 export function predictDecision(history, actionType) {
-  const relevant = (history || []).filter((d) => d.action === actionType);
+  const relevant = (history || []).filter(d => d.action === actionType);
   if (relevant.length === 0) return null;
   const counts = {};
   for (const d of relevant) counts[d.decision] = (counts[d.decision] || 0) + 1;
@@ -441,7 +488,9 @@ export function monitoringState(action) {
   return {
     watching: running,
     killSwitchArmed: running && action.risk === 'destructive',
-    note: running ? `Monitoring ${action.type} on ${action.target} — kill switch ready.` : 'Action not running.',
+    note: running
+      ? `Monitoring ${action.type} on ${action.target} — kill switch ready.`
+      : 'Action not running.',
   };
 }
 
@@ -467,7 +516,7 @@ export function formatLogLine(entry) {
 export function filterByLevel(lines, minLevel) {
   const minIdx = LOG_LEVELS.indexOf(minLevel);
   if (minIdx < 0) return [...lines];
-  return (lines || []).filter((l) => LOG_LEVELS.indexOf(l.level) >= minIdx);
+  return (lines || []).filter(l => LOG_LEVELS.indexOf(l.level) >= minIdx);
 }
 
 // ---------------------------------------------------------------------------
@@ -491,9 +540,11 @@ export function groupByModule(lines) {
 
 /** Full-text search across message, module, and detail fields. */
 export function searchLogs(lines, query) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!q) return [...(lines || [])];
-  return (lines || []).filter((l) =>
+  return (lines || []).filter(l =>
     [l.message, l.module, l.detail].filter(Boolean).join(' ').toLowerCase().includes(q)
   );
 }
@@ -517,7 +568,17 @@ export function expandLine(line) {
 // 51234 — Payload redaction
 // ---------------------------------------------------------------------------
 
-const SECRET_KEYS = ['password', 'passwd', 'secret', 'token', 'api_key', 'apikey', 'authorization', 'cookie', 'session'];
+const SECRET_KEYS = [
+  'password',
+  'passwd',
+  'secret',
+  'token',
+  'api_key',
+  'apikey',
+  'authorization',
+  'cookie',
+  'session',
+];
 
 /**
  * Mask sensitive values in a log string. Returns { text, redactedCount }.
@@ -545,12 +606,16 @@ export function redactPayloads(text) {
  * Returns lines annotated with matched rule labels.
  */
 export function applyHighlightRules(lines, rules) {
-  return (lines || []).map((l) => {
+  return (lines || []).map(l => {
     const matched = (rules || [])
-      .filter((r) => {
-        try { return new RegExp(r.pattern, 'i').test(l.message); } catch { return false; }
+      .filter(r => {
+        try {
+          return new RegExp(r.pattern, 'i').test(l.message);
+        } catch {
+          return false;
+        }
       })
-      .map((r) => r.label);
+      .map(r => r.label);
     return { ...l, highlights: matched };
   });
 }
@@ -561,7 +626,7 @@ export function applyHighlightRules(lines, rules) {
 
 /** Keep only warning and error lines. */
 export function errorOnlyView(lines) {
-  return (lines || []).filter((l) => l.level === 'warning' || l.level === 'error');
+  return (lines || []).filter(l => l.level === 'warning' || l.level === 'error');
 }
 
 // ---------------------------------------------------------------------------
@@ -631,5 +696,5 @@ export function playbackSchedule(lines, speed) {
   const arr = lines || [];
   if (arr.length === 0) return [];
   const t0 = arr[0].at;
-  return arr.map((l) => ({ line: l, delayMs: Math.max(0, Math.round((l.at - t0) / s)) }));
+  return arr.map(l => ({ line: l, delayMs: Math.max(0, Math.round((l.at - t0) / s)) }));
 }

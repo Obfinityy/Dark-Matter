@@ -91,7 +91,8 @@ export function extractUrlsFromMarkdown(markdown) {
  */
 export function mineIssueUrls(comments, options = {}) {
   const includeGithubAssets = options.includeGithubAssets !== false;
-  const list = typeof comments === 'string' ? [{ body: comments }] : (Array.isArray(comments) ? comments : []);
+  const list =
+    typeof comments === 'string' ? [{ body: comments }] : Array.isArray(comments) ? comments : [];
   const hostMap = new Map();
   let totalUrls = 0;
 
@@ -100,7 +101,11 @@ export function mineIssueUrls(comments, options = {}) {
     totalUrls += urls.length;
     for (const { url, kind } of urls) {
       let host;
-      try { host = new URL(url).hostname.toLowerCase(); } catch { continue; }
+      try {
+        host = new URL(url).hostname.toLowerCase();
+      } catch {
+        continue;
+      }
       const isGithubAsset = GITHUB_ASSET_HOSTS.has(host);
       if (isGithubAsset && !includeGithubAssets) continue;
       if (!hostMap.has(host)) {
@@ -128,15 +133,20 @@ export function mineIssueUrls(comments, options = {}) {
  * @returns {Array<{ host: string, count: number, classification: string }>}
  */
 export function classifyMinedHosts(hosts, targetDomain = '') {
-  const scope = String(targetDomain || '').trim().toLowerCase();
+  const scope = String(targetDomain || '')
+    .trim()
+    .toLowerCase();
   return (hosts || []).map(h => {
     const host = h.host;
     let classification = 'external';
     if (h.isGithubAsset) classification = 'github-asset';
     else if (scope && (host === scope || host.endsWith(`.${scope}`))) classification = 'in-scope';
-    else if (/(staging|stage|dev|test|qa|uat|demo|sandbox|internal|corp|intranet)/i.test(host)) classification = 'staging-like';
-    else if (/(pastebin|pastie|gist|transfer\.sh|file\.io|0x0\.st)/i.test(host)) classification = 'pastebin-filehost';
-    else if (/(imgur|cloudinary|s3\.|blob\.core|storage\.googleapis)/i.test(host)) classification = 'image-cdn';
+    else if (/(staging|stage|dev|test|qa|uat|demo|sandbox|internal|corp|intranet)/i.test(host))
+      classification = 'staging-like';
+    else if (/(pastebin|pastie|gist|transfer\.sh|file\.io|0x0\.st)/i.test(host))
+      classification = 'pastebin-filehost';
+    else if (/(imgur|cloudinary|s3\.|blob\.core|storage\.googleapis)/i.test(host))
+      classification = 'image-cdn';
     return { host, count: h.count, classification };
   });
 }

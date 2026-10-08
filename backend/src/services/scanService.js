@@ -13,14 +13,16 @@ export class ScanService {
 
   async list(userId) {
     const scans = await this.scanModel.list(userId);
-    return Promise.all(scans.map(async (scan) => {
-      const target = await this.targetModel.get(userId, scan.targetId);
-      return {
-        ...scan,
-        targetUrl: target.url,
-        targetHostname: target.hostname
-      };
-    }));
+    return Promise.all(
+      scans.map(async scan => {
+        const target = await this.targetModel.get(userId, scan.targetId);
+        return {
+          ...scan,
+          targetUrl: target.url,
+          targetHostname: target.hostname,
+        };
+      })
+    );
   }
 
   async get(userId, scanId) {
@@ -30,12 +32,14 @@ export class ScanService {
 
   async startFromMessage(userId, input) {
     const targetUrl = input.targetUrl || extractUrl(input.message);
-    if (!targetUrl) return { status: 'needs_target', message: 'Please provide an HTTP or HTTPS target URL.' };
+    if (!targetUrl)
+      return { status: 'needs_target', message: 'Please provide an HTTP or HTTPS target URL.' };
     if (input.authorizationConfirmed !== true) {
       return {
         status: 'awaiting_authorization',
         targetUrl,
-        message: 'Before I access this target, confirm that you are authorized to assess it and define its allowed scope.'
+        message:
+          'Before I access this target, confirm that you are authorized to assess it and define its allowed scope.',
       };
     }
 
@@ -47,12 +51,27 @@ export class ScanService {
         name: input.targetName,
         scope: input.scope,
         authorizationConfirmed: true,
-        authorizationNotes: input.authorizationNotes
+        authorizationNotes: input.authorizationNotes,
       });
     }
-    assert(target.authorization.confirmed, 400, 'Target authorization is required', 'AUTHORIZATION_REQUIRED');
-    const scan = await this.scanModel.create({ userId, targetId: target.id, mode: input.mode, message: input.message });
-    await this.eventService.publish(scan.id, { type: 'scan.created', level: 'INFO', message: 'Investigation queued', data: { toolId: scan.toolId, target: target.hostname } });
+    assert(
+      target.authorization.confirmed,
+      400,
+      'Target authorization is required',
+      'AUTHORIZATION_REQUIRED'
+    );
+    const scan = await this.scanModel.create({
+      userId,
+      targetId: target.id,
+      mode: input.mode,
+      message: input.message,
+    });
+    await this.eventService.publish(scan.id, {
+      type: 'scan.created',
+      level: 'INFO',
+      message: 'Investigation queued',
+      data: { toolId: scan.toolId, target: target.hostname },
+    });
     this.subdomainService.start(scan.id).catch(() => undefined);
     return { status: 'started', scanId: scan.id, scan };
   }
@@ -70,16 +89,20 @@ export class ScanService {
    */
   async planPortChain(scanId, naabuRawOutput, opts = {}) {
     const scan = await this.scanModel.getInternal(scanId).catch(() => null);
-    const target = scan ? await this.targetModel.getInternal(scan.targetId).catch(() => null) : null;
+    const target = scan
+      ? await this.targetModel.getInternal(scan.targetId).catch(() => null)
+      : null;
     const chain = chainNaabuToNmap(naabuRawOutput, { target: target?.hostname || scanId, ...opts });
-    await this.eventService.publish(scanId, {
-      type: chain.chained ? 'recon.port_chain.planned' : 'recon.port_chain.skipped',
-      level: chain.chained ? 'INFO' : 'WARN',
-      message: chain.chained
-        ? `Port chain: targeted nmap over ${chain.ports.length} naabu-confirmed open port(s)`
-        : `Port chain skipped: ${chain.reason}`,
-      data: { ports: chain.ports, hosts: chain.hosts, reason: chain.reason }
-    }).catch(() => {});
+    await this.eventService
+      .publish(scanId, {
+        type: chain.chained ? 'recon.port_chain.planned' : 'recon.port_chain.skipped',
+        level: chain.chained ? 'INFO' : 'WARN',
+        message: chain.chained
+          ? `Port chain: targeted nmap over ${chain.ports.length} naabu-confirmed open port(s)`
+          : `Port chain skipped: ${chain.reason}`,
+        data: { ports: chain.ports, hosts: chain.hosts, reason: chain.reason },
+      })
+      .catch(() => {});
     return chain;
   }
 

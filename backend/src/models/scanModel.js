@@ -32,9 +32,18 @@ export class ScanModel {
       progress: 0,
       createdAt: now(),
       updatedAt: now(),
-      messages: message ? [{ id: id('msg'), role: 'user', content: String(message).slice(0, 6000), createdAt: now() }] : [],
+      messages: message
+        ? [
+            {
+              id: id('msg'),
+              role: 'user',
+              content: String(message).slice(0, 6000),
+              createdAt: now(),
+            },
+          ]
+        : [],
       results: { subdomains: [], source: null },
-      error: null
+      error: null,
     };
     await this.collection.insertOne(scan);
     return scan;

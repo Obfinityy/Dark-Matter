@@ -58,17 +58,26 @@ export function parseSendTargets(text = '') {
  */
 export function analyzeIscsiDiscovery(input = {}) {
   const parsed = Array.isArray(input.targets) ? input.targets : parseSendTargets(input.raw || '');
-  const targets = parsed.map((t) => {
-    const hint = ISCSI_IQN_VENDOR_HINTS.find((v) => v.pattern.test(t.iqn));
-    return { portal: t.portal, portalGroup: t.portalGroup, iqn: t.iqn, vendorHint: hint ? hint.vendor : null };
+  const targets = parsed.map(t => {
+    const hint = ISCSI_IQN_VENDOR_HINTS.find(v => v.pattern.test(t.iqn));
+    return {
+      portal: t.portal,
+      portalGroup: t.portalGroup,
+      iqn: t.iqn,
+      vendorHint: hint ? hint.vendor : null,
+    };
   });
-  const vendors = [...new Set(targets.map((t) => t.vendorHint).filter(Boolean))];
+  const vendors = [...new Set(targets.map(t => t.vendorHint).filter(Boolean))];
 
   const exposureNotes = [];
   if (targets.length > 0) {
-    exposureNotes.push(`${targets.length} iSCSI target(s) advertised via SendTargets — storage surface mapped`);
+    exposureNotes.push(
+      `${targets.length} iSCSI target(s) advertised via SendTargets — storage surface mapped`
+    );
     if (input.authObserved === false) {
-      exposureNotes.push('No CHAP/authentication challenge observed during discovery — targets may allow unauthenticated login (verify in authorized assessment)');
+      exposureNotes.push(
+        'No CHAP/authentication challenge observed during discovery — targets may allow unauthenticated login (verify in authorized assessment)'
+      );
     }
   }
 
@@ -79,9 +88,10 @@ export function analyzeIscsiDiscovery(input = {}) {
     targets,
     vendors,
     exposureNotes,
-    evidence: targets.length === 0
-      ? 'No iSCSI targets discovered (empty discovery response or portal refused).'
-      : `Discovered ${targets.length} target(s): ${targets.map((t) => `${t.iqn} @ ${t.portal}${t.vendorHint ? ` (${t.vendorHint})` : ''}`).join('; ')}`
-        + (exposureNotes.length ? `. Notes: ${exposureNotes.join('; ')}` : ''),
+    evidence:
+      targets.length === 0
+        ? 'No iSCSI targets discovered (empty discovery response or portal refused).'
+        : `Discovered ${targets.length} target(s): ${targets.map(t => `${t.iqn} @ ${t.portal}${t.vendorHint ? ` (${t.vendorHint})` : ''}`).join('; ')}` +
+          (exposureNotes.length ? `. Notes: ${exposureNotes.join('; ')}` : ''),
   };
 }

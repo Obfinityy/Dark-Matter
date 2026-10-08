@@ -52,24 +52,28 @@ export function requestCounter(state, delta) {
 // buckets: [{ sec, count }], capPerSec
 export function requestRateSeries(buckets, capPerSec) {
   const bs = buckets || [];
-  const counts = bs.map((b) => Math.max(0, b.count || 0));
+  const counts = bs.map(b => Math.max(0, b.count || 0));
   const peak = counts.length ? Math.max(...counts) : 0;
   const avg = counts.length ? counts.reduce((s, c) => s + c, 0) / counts.length : 0;
   const cap = Math.max(0, capPerSec || 0);
   return {
-    points: bs.map((b) => ({ sec: b.sec, count: Math.max(0, b.count || 0), overCap: cap > 0 && b.count > cap })),
+    points: bs.map(b => ({
+      sec: b.sec,
+      count: Math.max(0, b.count || 0),
+      overCap: cap > 0 && b.count > cap,
+    })),
     peak,
     avg: Math.round(avg * 10) / 10,
     capPerSec: cap,
-    overCapCount: bs.filter((b) => cap > 0 && b.count > cap).length,
-    text: `Rate averaging ${Math.round(avg * 10) / 10}/s, peaking at ${peak}/s${cap > 0 ? ` against a ${cap}/s cap (${bs.filter((b) => b.count > cap).length} seconds over)` : '.'}`,
+    overCapCount: bs.filter(b => cap > 0 && b.count > cap).length,
+    text: `Rate averaging ${Math.round(avg * 10) / 10}/s, peaking at ${peak}/s${cap > 0 ? ` against a ${cap}/s cap (${bs.filter(b => b.count > cap).length} seconds over)` : '.'}`,
   };
 }
 
 // 51788 — data sent and received, with per-phase breakdowns
 // samples: [{ phase, sentBytes, recvBytes }]
 export function bandwidthMeter(samples) {
-  const rows = (samples || []).map((s) => ({
+  const rows = (samples || []).map(s => ({
     phase: s.phase,
     sentBytes: Math.max(0, s.sentBytes || 0),
     recvBytes: Math.max(0, s.recvBytes || 0),
@@ -77,9 +81,12 @@ export function bandwidthMeter(samples) {
   const sentTotal = rows.reduce((s, r) => s + r.sentBytes, 0);
   const recvTotal = rows.reduce((s, r) => s + r.recvBytes, 0);
   const grand = Math.max(1, sentTotal + recvTotal);
-  const ranked = [...rows].sort((a, b) => (b.sentBytes + b.recvBytes) - (a.sentBytes + a.recvBytes));
+  const ranked = [...rows].sort((a, b) => b.sentBytes + b.recvBytes - (a.sentBytes + a.recvBytes));
   return {
-    rows: ranked.map((r) => ({ ...r, sharePct: Math.round(((r.sentBytes + r.recvBytes) / grand) * 100) })),
+    rows: ranked.map(r => ({
+      ...r,
+      sharePct: Math.round(((r.sentBytes + r.recvBytes) / grand) * 100),
+    })),
     sentBytes: sentTotal,
     recvBytes: recvTotal,
     totalBytes: sentTotal + recvTotal,
@@ -90,11 +97,14 @@ export function bandwidthMeter(samples) {
 // 51789 — local agent CPU consumption shown live
 // samples: [{ at, pct }] — returns avg/peak/current plus a status
 export function cpuPanel(samples) {
-  const pcts = (samples || []).map((s) => Math.max(0, Math.min(100, s.pct || 0)));
+  const pcts = (samples || []).map(s => Math.max(0, Math.min(100, s.pct || 0)));
   const current = pcts.length ? pcts[pcts.length - 1] : 0;
   const peak = pcts.length ? Math.max(...pcts) : 0;
-  const avg = pcts.length ? Math.round((pcts.reduce((s, p) => s + p, 0) / pcts.length) * 10) / 10 : 0;
-  const status = current >= 90 ? 'critical' : current >= 70 ? 'high' : current >= 40 ? 'moderate' : 'idle-ish';
+  const avg = pcts.length
+    ? Math.round((pcts.reduce((s, p) => s + p, 0) / pcts.length) * 10) / 10
+    : 0;
+  const status =
+    current >= 90 ? 'critical' : current >= 70 ? 'high' : current >= 40 ? 'moderate' : 'idle-ish';
   return {
     current,
     peak,
@@ -125,7 +135,9 @@ export function memoryPanel({ usedBytes, limitBytes }) {
 // args: { utilPct, vramUsedBytes, vramTotalBytes, modelName }
 export function gpuDisplay({ utilPct, vramUsedBytes, vramTotalBytes, modelName }) {
   const util = Math.max(0, Math.min(100, utilPct || 0));
-  const vramPct = vramTotalBytes ? Math.min(100, Math.round(((vramUsedBytes || 0) / vramTotalBytes) * 100)) : 0;
+  const vramPct = vramTotalBytes
+    ? Math.min(100, Math.round(((vramUsedBytes || 0) / vramTotalBytes) * 100))
+    : 0;
   return {
     utilPct: util,
     vramUsedBytes: Math.max(0, vramUsedBytes || 0),
@@ -133,9 +145,10 @@ export function gpuDisplay({ utilPct, vramUsedBytes, vramTotalBytes, modelName }
     vramPct,
     modelName: modelName || 'no model loaded',
     status: util >= 90 ? 'saturated' : util >= 50 ? 'working' : util > 0 ? 'light' : 'idle',
-    text: util > 0
-      ? `GPU ${util}% (${modelName || 'model'}), VRAM ${formatBytes(vramUsedBytes || 0)} of ${formatBytes(vramTotalBytes || 0)} (${vramPct}%).`
-      : 'GPU idle — no local model running.',
+    text:
+      util > 0
+        ? `GPU ${util}% (${modelName || 'model'}), VRAM ${formatBytes(vramUsedBytes || 0)} of ${formatBytes(vramTotalBytes || 0)} (${vramPct}%).`
+        : 'GPU idle — no local model running.',
   };
 }
 
@@ -143,12 +156,12 @@ export function gpuDisplay({ utilPct, vramUsedBytes, vramTotalBytes, modelName }
 // phases: [{ name, tokens }]
 export function tokenTracker(phases) {
   const rows = [...(phases || [])]
-    .map((p) => ({ name: p.name, tokens: Math.max(0, p.tokens || 0) }))
+    .map(p => ({ name: p.name, tokens: Math.max(0, p.tokens || 0) }))
     .sort((a, b) => b.tokens - a.tokens);
   const total = rows.reduce((s, r) => s + r.tokens, 0);
   const grand = Math.max(1, total);
   return {
-    rows: rows.map((r) => ({ ...r, sharePct: Math.round((r.tokens / grand) * 100) })),
+    rows: rows.map(r => ({ ...r, sharePct: Math.round((r.tokens / grand) * 100) })),
     totalTokens: total,
     text: `${total.toLocaleString('en-US')} tokens total — top consumer: ${rows.length ? rows[0].name : 'none'} (${rows.length ? rows[0].sharePct : 0}%).`,
   };
@@ -156,7 +169,14 @@ export function tokenTracker(phases) {
 
 // 51793 — live projected spend based on tokens, compute, and APIs
 // args: { tokens, modelRatePerK, computeHours, computeRatePerH, apiCalls, apiRatePerCall }
-export function costEstimator({ tokens, modelRatePerK, computeHours, computeRatePerH, apiCalls, apiRatePerCall }) {
+export function costEstimator({
+  tokens,
+  modelRatePerK,
+  computeHours,
+  computeRatePerH,
+  apiCalls,
+  apiRatePerCall,
+}) {
   const tok = Math.max(0, tokens || 0);
   const modelCost = (tok / 1000) * Math.max(0, modelRatePerK || 0);
   const computeCost = Math.max(0, computeHours || 0) * Math.max(0, computeRatePerH || 0);
@@ -184,20 +204,21 @@ export function budgetAlerts({ spent, budget, thresholds }) {
   const s = Math.max(0, spent || 0);
   const usedPct = Math.round((s / b) * 100);
   const th = (thresholds || [50, 80, 100]).slice().sort((a, b2) => a - b2);
-  const fired = th.filter((t) => usedPct >= t);
+  const fired = th.filter(t => usedPct >= t);
   return {
     usedPct,
     budget: b,
     spent: s,
     remaining: Math.max(0, b - s),
-    alerts: fired.map((t) => ({
+    alerts: fired.map(t => ({
       threshold: t,
       level: t >= 100 ? 'critical' : t >= 80 ? 'warning' : 'info',
-      text: t >= 100
-        ? `⛔ Budget ${t}% reached — the hunt is at its resource limit.`
-        : t >= 80
-          ? `⚠ Budget ${t}% used — only ${Math.max(0, 100 - t)}% headroom left.`
-          : `ℹ Budget ${t}% used — halfway through the allowance.`,
+      text:
+        t >= 100
+          ? `⛔ Budget ${t}% reached — the hunt is at its resource limit.`
+          : t >= 80
+            ? `⚠ Budget ${t}% used — only ${Math.max(0, 100 - t)}% headroom left.`
+            : `ℹ Budget ${t}% used — halfway through the allowance.`,
     })),
     text: fired.length
       ? `Budget ${usedPct}% used — ${fired.length} alert${fired.length === 1 ? '' : 's'} fired (${fired.join(', ')}%).`
@@ -209,7 +230,7 @@ export function budgetAlerts({ spent, budget, thresholds }) {
 // modules: [{ name, requests, tokens, cost }]
 export function moduleResourceSplit(modules) {
   const rows = [...(modules || [])]
-    .map((m) => ({
+    .map(m => ({
       name: m.name,
       requests: Math.max(0, m.requests || 0),
       tokens: Math.max(0, m.tokens || 0),
@@ -219,7 +240,7 @@ export function moduleResourceSplit(modules) {
   const total = rows.reduce((s, r) => s + r.cost, 0);
   const grand = Math.max(0.0001, total);
   return {
-    rows: rows.map((r) => ({ ...r, sharePct: Math.round((r.cost / grand) * 100) })),
+    rows: rows.map(r => ({ ...r, sharePct: Math.round((r.cost / grand) * 100) })),
     totalCost: total,
     text: rows.length
       ? `Most expensive module: ${rows[0].name} (${rows[0].sharePct}% of spend).`
@@ -231,10 +252,10 @@ export function moduleResourceSplit(modules) {
 // series: [{ at, requests, tokens, costPct }]
 export function resourceHistory(series) {
   const rows = [...(series || [])];
-  const maxReq = Math.max(1, ...rows.map((r) => r.requests || 0));
-  const maxTok = Math.max(1, ...rows.map((r) => r.tokens || 0));
+  const maxReq = Math.max(1, ...rows.map(r => r.requests || 0));
+  const maxTok = Math.max(1, ...rows.map(r => r.tokens || 0));
   return {
-    points: rows.map((r) => ({
+    points: rows.map(r => ({
       at: r.at,
       requests: r.requests || 0,
       tokens: r.tokens || 0,
@@ -243,7 +264,7 @@ export function resourceHistory(series) {
       tokensNorm: Math.round(((r.tokens || 0) / maxTok) * 100),
     })),
     samples: rows.length,
-    text: `${rows.length} samples — peak ${maxReq.toLocaleString('en-US')} requests and ${(maxTok).toLocaleString('en-US')} tokens in a single sample.`,
+    text: `${rows.length} samples — peak ${maxReq.toLocaleString('en-US')} requests and ${maxTok.toLocaleString('en-US')} tokens in a single sample.`,
   };
 }
 
@@ -252,27 +273,37 @@ export function resourceHistory(series) {
 export function resourceCaps({ usage, caps }) {
   const kinds = ['requests', 'tokens', 'cost'];
   const rows = kinds
-    .filter((k) => caps && caps[k] != null && caps[k] > 0)
-    .map((k) => {
+    .filter(k => caps && caps[k] != null && caps[k] > 0)
+    .map(k => {
       const used = Math.max(0, (usage || {})[k] || 0);
       const limit = Math.max(1, caps[k]);
       const usedPct = Math.round((used / limit) * 100);
-      const action = usedPct >= 100 ? 'pause' : usedPct >= 90 ? 'throttle' : usedPct >= 75 ? 'warn' : 'ok';
+      const action =
+        usedPct >= 100 ? 'pause' : usedPct >= 90 ? 'throttle' : usedPct >= 75 ? 'warn' : 'ok';
       return { kind: k, used, limit, usedPct, action };
     });
-  const worst = rows.find((r) => r.action === 'pause') || rows.find((r) => r.action === 'throttle') || rows.find((r) => r.action === 'warn');
+  const worst =
+    rows.find(r => r.action === 'pause') ||
+    rows.find(r => r.action === 'throttle') ||
+    rows.find(r => r.action === 'warn');
   return {
     rows,
     decision: worst ? worst.action : 'ok',
     text: rows.length
-      ? `Caps: ${rows.map((r) => `${r.kind} ${r.usedPct}%`).join(', ')} — decision: ${worst ? worst.action.toUpperCase() : 'OK, all within limits'}.`
+      ? `Caps: ${rows.map(r => `${r.kind} ${r.usedPct}%`).join(', ')} — decision: ${worst ? worst.action.toUpperCase() : 'OK, all within limits'}.`
       : 'No caps configured.',
   };
 }
 
 // 51798 — dial request rate, parallelism, or model usage live
 // args: { ratePerSec, maxRatePerSec, parallelism, maxParallelism, modelTier: 'full'|'lite' }
-export function throttleControls({ ratePerSec, maxRatePerSec, parallelism, maxParallelism, modelTier }) {
+export function throttleControls({
+  ratePerSec,
+  maxRatePerSec,
+  parallelism,
+  maxParallelism,
+  modelTier,
+}) {
   const rate = Math.max(0, Math.min(ratePerSec || 0, maxRatePerSec || ratePerSec || 0));
   const par = Math.max(1, Math.min(parallelism || 1, maxParallelism || parallelism || 1));
   const tier = modelTier === 'lite' ? 'lite' : 'full';
@@ -307,14 +338,14 @@ export function efficiencyScore({ findings, requests }) {
 // modules: [{ name, requests, tokens, findings }]
 export function wasteDetector(modules) {
   const flagged = (modules || [])
-    .map((m) => ({
+    .map(m => ({
       name: m.name,
       requests: Math.max(0, m.requests || 0),
       tokens: Math.max(0, m.tokens || 0),
       findings: Math.max(0, m.findings || 0),
     }))
-    .filter((m) => m.findings === 0 && (m.requests > 2000 || m.tokens > 50000))
-    .map((m) => ({
+    .filter(m => m.findings === 0 && (m.requests > 2000 || m.tokens > 50000))
+    .map(m => ({
       ...m,
       severity: m.requests > 20000 || m.tokens > 500000 ? 'high' : 'medium',
       text: `${m.name}: ${m.requests.toLocaleString('en-US')} requests, ${m.tokens.toLocaleString('en-US')} tokens, zero findings — ${m.requests > 20000 || m.tokens > 500000 ? 'high' : 'medium'} waste.`,
@@ -323,7 +354,7 @@ export function wasteDetector(modules) {
     flagged,
     count: flagged.length,
     text: flagged.length
-      ? `${flagged.length} wasteful module${flagged.length === 1 ? '' : 's'} flagged: ${flagged.map((m) => m.name).join(', ')}.`
+      ? `${flagged.length} wasteful module${flagged.length === 1 ? '' : 's'} flagged: ${flagged.map(m => m.name).join(', ')}.`
       : 'No waste detected — every active module has produced results.',
   };
 }

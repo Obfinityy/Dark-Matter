@@ -22,21 +22,62 @@
 
 /** Environment tokens commonly used as prefixes/infixes. */
 export const ENV_TOKENS = [
-  'dev', 'development', 'test', 'testing', 'stage', 'staging', 'qa',
-  'uat', 'preprod', 'prod', 'production', 'beta', 'alpha', 'demo',
-  'sandbox', 'canary', 'preview', 'internal', 'corp',
+  'dev',
+  'development',
+  'test',
+  'testing',
+  'stage',
+  'staging',
+  'qa',
+  'uat',
+  'preprod',
+  'prod',
+  'production',
+  'beta',
+  'alpha',
+  'demo',
+  'sandbox',
+  'canary',
+  'preview',
+  'internal',
+  'corp',
 ];
 
 /** Region tokens in long (cloud-style) and short forms. */
 export const REGION_TOKENS = [
   // Long cloud-style codes.
-  'us-east-1', 'us-west-2', 'eu-west-1', 'eu-central-1',
-  'ap-south-1', 'ap-southeast-2', 'ap-northeast-1', 'sa-east-1',
-  'us-east', 'us-west', 'eu-west', 'eu-central', 'ap-south', 'ap-southeast',
-  'ap-northeast', 'sa-east', 'af-south', 'me-south',
+  'us-east-1',
+  'us-west-2',
+  'eu-west-1',
+  'eu-central-1',
+  'ap-south-1',
+  'ap-southeast-2',
+  'ap-northeast-1',
+  'sa-east-1',
+  'us-east',
+  'us-west',
+  'eu-west',
+  'eu-central',
+  'ap-south',
+  'ap-southeast',
+  'ap-northeast',
+  'sa-east',
+  'af-south',
+  'me-south',
   // Short forms operators actually use.
-  'use1', 'usw2', 'euw1', 'euc1', 'aps1', 'apse2', 'apne1',
-  'us', 'eu', 'ap', 'na', 'emea', 'latam',
+  'use1',
+  'usw2',
+  'euw1',
+  'euc1',
+  'aps1',
+  'apse2',
+  'apne1',
+  'us',
+  'eu',
+  'ap',
+  'na',
+  'emea',
+  'latam',
 ];
 
 /** Separators observed between naming tokens. */
@@ -85,7 +126,9 @@ function smartSplitLabel(label) {
  * @returns {{ apex: string, tokens: string[] }}
  */
 export function tokenizeHostname(hostname) {
-  const h = String(hostname || '').trim().toLowerCase();
+  const h = String(hostname || '')
+    .trim()
+    .toLowerCase();
   const parts = h.split('.');
   const apex = parts.length > 1 ? parts.slice(-2).join('.') : h;
   const labelParts = parts.length > 1 ? parts.slice(0, -2) : parts;
@@ -101,7 +144,9 @@ export function tokenizeHostname(hostname) {
  */
 export function classifyTokens(hostname) {
   const { apex, tokens } = tokenizeHostname(hostname);
-  const env = [], region = [], app = [];
+  const env = [],
+    region = [],
+    app = [];
   for (const t of tokens) {
     if (ENV_TOKENS.includes(t)) env.push(t);
     else if (REGION_TOKENS.includes(t)) region.push(t);
@@ -124,7 +169,12 @@ export function inferNamingPatterns(hostnames) {
   const sepSet = new Set();
   const templateSet = new Set();
   for (const h of Array.isArray(hostnames) ? hostnames : []) {
-    const label = String(h || '').trim().toLowerCase().split('.').slice(0, -2).join('.');
+    const label = String(h || '')
+      .trim()
+      .toLowerCase()
+      .split('.')
+      .slice(0, -2)
+      .join('.');
     if (!label) continue;
     for (const sep of SEPARATORS) {
       if (label.includes(sep)) sepSet.add(sep);
@@ -133,7 +183,7 @@ export function inferNamingPatterns(hostnames) {
     env.forEach(t => envSet.add(t));
     region.forEach(t => regionSet.add(t));
     const template = smartSplitLabel(
-      String(h).trim().toLowerCase().split('.').slice(0, -2).join('.'),
+      String(h).trim().toLowerCase().split('.').slice(0, -2).join('.')
     ).map(t => (ENV_TOKENS.includes(t) ? 'env' : REGION_TOKENS.includes(t) ? 'region' : 'app'));
     if (template.length > 0) templateSet.add(JSON.stringify(template));
   }
@@ -184,11 +234,15 @@ function dedupe(names, seen = new Set()) {
  */
 export function generatePatternPermutations(hostnames, opts = {}) {
   const limit = Number.isFinite(opts.limit) ? opts.limit : 5000;
-  const envTokens = Array.isArray(opts.envTokens) && opts.envTokens.length > 0
-    ? opts.envTokens : ENV_TOKENS;
-  const regionTokens = Array.isArray(opts.regionTokens) && opts.regionTokens.length > 0
-    ? opts.regionTokens : REGION_TOKENS;
-  const seen = new Set((Array.isArray(hostnames) ? hostnames : []).map(h => normalizeCandidateName(h)));
+  const envTokens =
+    Array.isArray(opts.envTokens) && opts.envTokens.length > 0 ? opts.envTokens : ENV_TOKENS;
+  const regionTokens =
+    Array.isArray(opts.regionTokens) && opts.regionTokens.length > 0
+      ? opts.regionTokens
+      : REGION_TOKENS;
+  const seen = new Set(
+    (Array.isArray(hostnames) ? hostnames : []).map(h => normalizeCandidateName(h))
+  );
   const candidates = [];
   for (const h of Array.isArray(hostnames) ? hostnames : []) {
     if (candidates.length >= limit) break;
@@ -199,19 +253,23 @@ export function generatePatternPermutations(hostnames, opts = {}) {
     const label = parts.slice(0, -2).join('.');
     const sep = label.includes('-') ? '-' : label.includes('_') ? '_' : '-';
     const toks = smartSplitLabel(label);
-    const kinds = toks.map(t => (ENV_TOKENS.includes(t) ? 'env' : REGION_TOKENS.includes(t) ? 'region' : 'app'));
+    const kinds = toks.map(t =>
+      ENV_TOKENS.includes(t) ? 'env' : REGION_TOKENS.includes(t) ? 'region' : 'app'
+    );
     for (let i = 0; i < toks.length; i++) {
       if (candidates.length >= limit) break;
       if (kinds[i] === 'env') {
         for (const e of envTokens) {
           if (e === toks[i]) continue;
-          const next = [...toks]; next[i] = e;
+          const next = [...toks];
+          next[i] = e;
           candidates.push(`${next.join(sep)}.${apex}`);
         }
       } else if (kinds[i] === 'region') {
         for (const r of regionTokens) {
           if (r === toks[i]) continue;
-          const next = [...toks]; next[i] = r;
+          const next = [...toks];
+          next[i] = r;
           candidates.push(`${next.join(sep)}.${apex}`);
         }
       }
@@ -237,9 +295,11 @@ export function generatePatternPermutations(hostnames, opts = {}) {
  */
 export function generateEnvPrefixMatrix(subdomainBases, opts = {}) {
   const limit = Number.isFinite(opts.limit) ? opts.limit : 5000;
-  const envTokens = Array.isArray(opts.envTokens) && opts.envTokens.length > 0
-    ? opts.envTokens : ENV_TOKENS;
-  const seen = new Set((Array.isArray(subdomainBases) ? subdomainBases : []).map(b => normalizeCandidateName(b)));
+  const envTokens =
+    Array.isArray(opts.envTokens) && opts.envTokens.length > 0 ? opts.envTokens : ENV_TOKENS;
+  const seen = new Set(
+    (Array.isArray(subdomainBases) ? subdomainBases : []).map(b => normalizeCandidateName(b))
+  );
   const candidates = [];
   for (const base of Array.isArray(subdomainBases) ? subdomainBases : []) {
     const norm = normalizeCandidateName(base);
@@ -249,7 +309,7 @@ export function generateEnvPrefixMatrix(subdomainBases, opts = {}) {
     const baseLabel = parts.slice(0, -2).join('.');
     for (const e of envTokens) {
       if (candidates.length >= limit) break;
-      candidates.push(`${e}.${norm}`);            // dev.api.example.com
+      candidates.push(`${e}.${norm}`); // dev.api.example.com
       candidates.push(`${e}-${baseLabel}.${apex}`); // dev-api.example.com
       candidates.push(`${baseLabel}-${e}.${apex}`); // api-dev.example.com
     }
@@ -268,9 +328,13 @@ export function generateEnvPrefixMatrix(subdomainBases, opts = {}) {
  */
 export function generateRegionSuffixSweep(hostnames, opts = {}) {
   const limit = Number.isFinite(opts.limit) ? opts.limit : 5000;
-  const regionTokens = Array.isArray(opts.regionTokens) && opts.regionTokens.length > 0
-    ? opts.regionTokens : REGION_TOKENS;
-  const seen = new Set((Array.isArray(hostnames) ? hostnames : []).map(h => normalizeCandidateName(h)));
+  const regionTokens =
+    Array.isArray(opts.regionTokens) && opts.regionTokens.length > 0
+      ? opts.regionTokens
+      : REGION_TOKENS;
+  const seen = new Set(
+    (Array.isArray(hostnames) ? hostnames : []).map(h => normalizeCandidateName(h))
+  );
   const candidates = [];
   for (const h of Array.isArray(hostnames) ? hostnames : []) {
     const norm = normalizeCandidateName(h);
@@ -281,7 +345,7 @@ export function generateRegionSuffixSweep(hostnames, opts = {}) {
     for (const r of regionTokens) {
       if (candidates.length >= limit) break;
       candidates.push(`${label}-${r}.${apex}`); // api-us-east-1.example.com
-      candidates.push(`${r}.${norm}`);          // us-east-1.api.example.com
+      candidates.push(`${r}.${norm}`); // us-east-1.api.example.com
     }
     if (candidates.length >= limit) break;
   }

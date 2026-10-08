@@ -23,9 +23,16 @@ const CDP_TLV = {
 
 /** CDP capability bit flags. */
 const CDP_CAPABILITY_FLAGS = [
-  'Level 1 router', 'Level 1 source-route bridge', 'Level 2 source-route bridge',
-  'Level 2 switch', 'Level 3 router', 'Level 2 transparent bridge', 'Level 2 source-route switch',
-  'Host', 'IGMP capable', 'Repeater',
+  'Level 1 router',
+  'Level 1 source-route bridge',
+  'Level 2 source-route bridge',
+  'Level 2 switch',
+  'Level 3 router',
+  'Level 2 transparent bridge',
+  'Level 2 source-route switch',
+  'Host',
+  'IGMP capable',
+  'Repeater',
 ];
 
 /** Rough Cisco platform → product family hints. */
@@ -58,7 +65,11 @@ export function parseCdpHex(hex) {
 }
 
 function hexAscii(hex) {
-  return hex ? Buffer.from(hex, 'hex').toString('utf8').replace(/[^\x20-\x7e]/g, '') : '';
+  return hex
+    ? Buffer.from(hex, 'hex')
+        .toString('utf8')
+        .replace(/[^\x20-\x7e]/g, '')
+    : '';
 }
 
 /**
@@ -68,12 +79,17 @@ function hexAscii(hex) {
  * @returns {{ deviceFound: boolean, type, confidence, evidence, device? }}
  */
 export function analyzeCdpFrame({ tlvs = null, hex = null, interface: iface = 'unknown' } = {}) {
-  const list = tlvs && tlvs.length ? tlvs : (hex ? parseCdpHex(hex) : []);
+  const list = tlvs && tlvs.length ? tlvs : hex ? parseCdpHex(hex) : [];
   if (!list.length) {
-    return { deviceFound: false, type: 'No CDP Data', confidence: 'none', evidence: 'No CDP TLVs supplied.' };
+    return {
+      deviceFound: false,
+      type: 'No CDP Data',
+      confidence: 'none',
+      evidence: 'No CDP TLVs supplied.',
+    };
   }
 
-  const byType = (t) => list.find((x) => x.type === t);
+  const byType = t => list.find(x => x.type === t);
   const deviceId = hexAscii(byType(CDP_TLV.DEVICE_ID)?.valueHex);
   const platform = hexAscii(byType(CDP_TLV.PLATFORM)?.valueHex);
   const version = hexAscii(byType(CDP_TLV.VERSION)?.valueHex);
@@ -103,7 +119,12 @@ export function analyzeCdpFrame({ tlvs = null, hex = null, interface: iface = 'u
   };
 
   if (!deviceId && !platform) {
-    return { deviceFound: false, type: 'CDP Incomplete', confidence: 'low', evidence: 'Frame lacked device ID and platform.' };
+    return {
+      deviceFound: false,
+      type: 'CDP Incomplete',
+      confidence: 'low',
+      evidence: 'Frame lacked device ID and platform.',
+    };
   }
 
   return {

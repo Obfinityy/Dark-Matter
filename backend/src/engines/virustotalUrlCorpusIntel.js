@@ -22,8 +22,17 @@
  * @returns {{url: string|null, host: string|null, path: string|null, params: string[], lastAnalysis: object|null, timesSubmitted: number|null}}
  */
 export function normalizeVtUrl(item) {
-  if (!item || typeof item !== 'object') return { url: null, host: null, path: null, params: [], lastAnalysis: null, timesSubmitted: null };
-  const url = typeof item.id === 'string' ? item.id : (typeof item.url === 'string' ? item.url : null);
+  if (!item || typeof item !== 'object')
+    return {
+      url: null,
+      host: null,
+      path: null,
+      params: [],
+      lastAnalysis: null,
+      timesSubmitted: null,
+    };
+  const url =
+    typeof item.id === 'string' ? item.id : typeof item.url === 'string' ? item.url : null;
   const attrs = item.attributes && typeof item.attributes === 'object' ? item.attributes : {};
   let host = null;
   let path = null;
@@ -34,12 +43,23 @@ export function normalizeVtUrl(item) {
       host = u.hostname.toLowerCase();
       path = u.pathname;
       params = [...new Set([...u.searchParams.keys()])];
-    } catch { /* malformed URL */ }
+    } catch {
+      /* malformed URL */
+    }
   }
-  const lastAnalysis = attrs.last_analysis_stats && typeof attrs.last_analysis_stats === 'object'
-    ? { ...attrs.last_analysis_stats } : null;
+  const lastAnalysis =
+    attrs.last_analysis_stats && typeof attrs.last_analysis_stats === 'object'
+      ? { ...attrs.last_analysis_stats }
+      : null;
   const timesSubmitted = attrs.times_submitted != null ? Number(attrs.times_submitted) : null;
-  return { url, host, path, params, lastAnalysis, timesSubmitted: Number.isFinite(timesSubmitted) ? timesSubmitted : null };
+  return {
+    url,
+    host,
+    path,
+    params,
+    lastAnalysis,
+    timesSubmitted: Number.isFinite(timesSubmitted) ? timesSubmitted : null,
+  };
 }
 
 /**
@@ -50,8 +70,14 @@ export function normalizeVtUrl(item) {
  * @returns {{urls: object[], hostCount: number, paramSurface: {param: string, hosts: number, urls: number}[]}}
  */
 export function mineTargetUrls(payload, targetDomain) {
-  const raw = Array.isArray(payload) ? payload : (payload && Array.isArray(payload.data) ? payload.data : []);
-  const target = String(targetDomain || '').trim().toLowerCase();
+  const raw = Array.isArray(payload)
+    ? payload
+    : payload && Array.isArray(payload.data)
+      ? payload.data
+      : [];
+  const target = String(targetDomain || '')
+    .trim()
+    .toLowerCase();
   const seen = new Set();
   const urls = [];
   const paramHosts = new Map();
@@ -72,7 +98,7 @@ export function mineTargetUrls(payload, targetDomain) {
   const paramSurface = [...paramHosts.entries()]
     .map(([param, g]) => ({ param, hosts: g.hosts.size, urls: g.urls }))
     .sort((a, b) => b.urls - a.urls || a.param.localeCompare(b.param));
-  const hostCount = new Set(urls.map((u) => u.host)).size;
+  const hostCount = new Set(urls.map(u => u.host)).size;
   return { urls, hostCount, paramSurface };
 }
 
@@ -93,15 +119,29 @@ export function flagInterestingUrls(urls = []) {
     [/swagger|openapi|api-docs|redoc/i, 'API documentation'],
     [/\.git|\.svn/i, 'version-control artifact'],
   ];
-  const authParams = ['token', 'key', 'secret', 'session', 'auth', 'password', 'apikey', 'api_key', 'access_token'];
+  const authParams = [
+    'token',
+    'key',
+    'secret',
+    'session',
+    'auth',
+    'password',
+    'apikey',
+    'api_key',
+    'access_token',
+  ];
   const out = [];
   for (const u of urls) {
     if (!u.url) continue;
     let reason = null;
     for (const [re, r] of patterns) {
-      if (re.test(u.url)) { reason = r; break; }
+      if (re.test(u.url)) {
+        reason = r;
+        break;
+      }
     }
-    if (!reason && u.params.some((p) => authParams.some((a) => p.toLowerCase().includes(a)))) reason = 'credential-like parameter';
+    if (!reason && u.params.some(p => authParams.some(a => p.toLowerCase().includes(a))))
+      reason = 'credential-like parameter';
     if (reason) out.push({ url: u.url, host: u.host, reason });
   }
   return out;
@@ -119,9 +159,10 @@ export function vtUrlCorpusReport(result = {}, flagged = []) {
   const hostCount = result.hostCount || 0;
   const paramCount = (result.paramSurface || []).length;
   const flaggedCount = flagged.length;
-  const summary = urlCount === 0
-    ? 'VirusTotal URL corpus mining found no target-domain URLs submitted by analysts.'
-    : `VirusTotal URL corpus mining surfaced ${urlCount} analyst-submitted URL(s) across ${hostCount} target host(s) with ${paramCount} distinct parameter name(s); ${flaggedCount} flagged as interesting.`;
+  const summary =
+    urlCount === 0
+      ? 'VirusTotal URL corpus mining found no target-domain URLs submitted by analysts.'
+      : `VirusTotal URL corpus mining surfaced ${urlCount} analyst-submitted URL(s) across ${hostCount} target host(s) with ${paramCount} distinct parameter name(s); ${flaggedCount} flagged as interesting.`;
   return { urlCount, hostCount, paramCount, flaggedCount, summary };
 }
 

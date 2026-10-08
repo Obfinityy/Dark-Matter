@@ -9,12 +9,7 @@
 export const BACKUP_MAX_AGE_HOURS = 24;
 export const RESTORE_TEST_MAX_AGE_DAYS = 30;
 
-export const SUPPORTED_BACKUP_TYPES = [
-  'gitops-repo',
-  'vault',
-  'certificate-authority',
-  'dns-zone',
-];
+export const SUPPORTED_BACKUP_TYPES = ['gitops-repo', 'vault', 'certificate-authority', 'dns-zone'];
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -29,7 +24,13 @@ export function auditConfigBackup(item = {}, now = Date.now()) {
   const result = { id, type, name };
 
   if (!SUPPORTED_BACKUP_TYPES.includes(type)) {
-    return { ...result, backup: 'missing', restoreTest: 'never', overall: 'fail', reason: `unsupported type: ${type}` };
+    return {
+      ...result,
+      backup: 'missing',
+      restoreTest: 'never',
+      overall: 'fail',
+      reason: `unsupported type: ${type}`,
+    };
   }
   if (item.backupEnabled === false) {
     return {
@@ -71,7 +72,7 @@ export function auditConfigBackup(item = {}, now = Date.now()) {
  * Audit a whole inventory. Returns { results, summary }.
  */
 export function auditConfigBackups(items = [], now = Date.now()) {
-  const results = items.map((item) => auditConfigBackup(item, now));
+  const results = items.map(item => auditConfigBackup(item, now));
   return { results, summary: summarizeBackupPosture(results) };
 }
 

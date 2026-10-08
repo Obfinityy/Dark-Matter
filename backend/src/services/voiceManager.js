@@ -76,11 +76,15 @@ export class VoiceManager {
       this.logger.info?.(`[infinity-voice] using interpreter: ${py}`);
       this.child = spawn(py, [VOICE_SCRIPT], {
         env: { ...process.env, INFINITY_VOICE_PORT: String(VOICE_PORT) },
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
-      this.child.stdout?.on('data', (d) => this.logger.info?.(`[infinity-voice] ${String(d).trim()}`));
-      this.child.stderr?.on('data', (d) => this.logger.warn?.(`[infinity-voice] ${String(d).trim().slice(0, 300)}`));
-      this.child.on('exit', (code) => {
+      this.child.stdout?.on('data', d =>
+        this.logger.info?.(`[infinity-voice] ${String(d).trim()}`)
+      );
+      this.child.stderr?.on('data', d =>
+        this.logger.warn?.(`[infinity-voice] ${String(d).trim().slice(0, 300)}`)
+      );
+      this.child.on('exit', code => {
         this.logger.warn?.(`[infinity-voice] service exited (code ${code})`);
         this.child = null;
         this.starting = null;
@@ -89,15 +93,20 @@ export class VoiceManager {
       // Wait for readiness (model load can take 30-60s first time).
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 2000));
         try {
           const hh = await this.health();
           if (hh.ok && hh.ready) {
             this.logger.info?.('[infinity-voice] voice service ready');
             return true;
           }
-        } catch { /* keep waiting */ }
-        if (!this.child) throw new Error('Voice service died during startup — is Python + requirements installed? See backend/voice/requirements.txt');
+        } catch {
+          /* keep waiting */
+        }
+        if (!this.child)
+          throw new Error(
+            'Voice service died during startup — is Python + requirements installed? See backend/voice/requirements.txt'
+          );
       }
       throw new Error('Voice service did not become ready in time');
     })();
@@ -120,7 +129,7 @@ export class VoiceManager {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       signal: AbortSignal.timeout(60000),
-      body: JSON.stringify({ text: String(text).slice(0, 2000), voice })
+      body: JSON.stringify({ text: String(text).slice(0, 2000), voice }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -130,7 +139,11 @@ export class VoiceManager {
   }
 
   async stop() {
-    try { this.child?.kill('SIGTERM'); } catch { /* ignore */ }
+    try {
+      this.child?.kill('SIGTERM');
+    } catch {
+      /* ignore */
+    }
     this.child = null;
     this.starting = null;
   }

@@ -9,7 +9,15 @@ import React from 'react';
 import './Skeletons.css';
 
 /** Base shimmer block. */
-export function Skeleton({ width = '100%', height = 12, radius = 8, circle = false, className = '', style = {}, static_ = false }) {
+export function Skeleton({
+  width = '100%',
+  height = 12,
+  radius = 8,
+  circle = false,
+  className = '',
+  style = {},
+  static_ = false,
+}) {
   return (
     <div
       aria-hidden="true"
@@ -46,7 +54,11 @@ export function StaggeredFadeIn({ children, baseDelay = 0, step = 90, className 
 /** 50005 — Findings-list skeleton rows mirroring real card heights. */
 export function FindingsListSkeleton({ rows = 4, className = '' }) {
   return (
-    <StaggeredFadeIn className={`hsk-stack ${className}`} role="status" aria-label="Loading findings">
+    <StaggeredFadeIn
+      className={`hsk-stack ${className}`}
+      role="status"
+      aria-label="Loading findings"
+    >
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="hsk-card">
           <div className="hsk-row-flex">
@@ -65,7 +77,10 @@ export function FindingsListSkeleton({ rows = 4, className = '' }) {
 }
 
 /** 50006 — Phase-stepper skeleton (Recon / Testing / Chaining / Reporting). */
-export function PhaseStepperSkeleton({ phases = ['Recon', 'Testing', 'Chaining', 'Reporting'], className = '' }) {
+export function PhaseStepperSkeleton({
+  phases = ['Recon', 'Testing', 'Chaining', 'Reporting'],
+  className = '',
+}) {
   return (
     <div className={`hsk-stepper ${className}`} role="status" aria-label="Loading phases">
       {phases.map((p, i) => (
@@ -84,7 +99,10 @@ export function PhaseStepperSkeleton({ phases = ['Recon', 'Testing', 'Chaining',
 /** 50007 — Chat bubble placeholders for the mid-hunt chat panel. */
 export function ChatBubbleSkeleton({ align = 'left', className = '' }) {
   return (
-    <div className={`hsk-chat-row ${align === 'right' ? 'hsk-chat-right' : ''} ${className}`} aria-hidden="true">
+    <div
+      className={`hsk-chat-row ${align === 'right' ? 'hsk-chat-right' : ''} ${className}`}
+      aria-hidden="true"
+    >
       {align === 'left' && <Skeleton width={32} height={32} circle />}
       <div className={`hsk-chat-bubble ${align}`}>
         <SkeletonText lines={2} lastWidth="40%" />
@@ -104,7 +122,7 @@ export function ReportPreviewSkeleton({ className = '' }) {
         <Skeleton height={11} width="25%" radius={6} />
       </div>
       <StaggeredFadeIn baseDelay={150} step={140}>
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2].map(i => (
           <div key={i} className="hsk-section">
             <Skeleton height={15} width="35%" radius={6} />
             <SkeletonText lines={3} />
@@ -123,7 +141,10 @@ export function TerminalWaveformSkeleton({ bars = 48, className = '' }) {
         <span
           key={i}
           className="hsk-wave-bar"
-          style={{ '--hsk-bh': `${18 + 62 * Math.abs(Math.sin(i * 0.55))}%`, '--hsk-bd': `${(i % 12) * 90}ms` }}
+          style={{
+            '--hsk-bh': `${18 + 62 * Math.abs(Math.sin(i * 0.55))}%`,
+            '--hsk-bd': `${(i % 12) * 90}ms`,
+          }}
         />
       ))}
     </div>
@@ -150,9 +171,20 @@ export function ContentAwareFindingCardSkeleton({ className = '' }) {
 export function SeverityDonutSkeleton({ size = 120, thickness = 16, className = '' }) {
   const r = (size - thickness) / 2;
   return (
-    <div className={`hsk-donut-wrap ${className}`} role="status" aria-label="Loading severity chart">
+    <div
+      className={`hsk-donut-wrap ${className}`}
+      role="status"
+      aria-label="Loading severity chart"
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={thickness} className="hsk-donut-track" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={thickness}
+          className="hsk-donut-track"
+        />
         <circle cx={size / 2} cy={size / 2} r={r * 0.45} className="hsk-donut-pulse" />
       </svg>
     </div>
@@ -221,7 +253,7 @@ export function DashboardStatCardSkeleton({ cards = 4, className = '' }) {
 export function PocReplaySkeleton({ className = '' }) {
   return (
     <div className={`hsk-stack ${className}`} role="status" aria-label="Loading PoC replay">
-      {['Request', 'Response'].map((label) => (
+      {['Request', 'Response'].map(label => (
         <div key={label} className="hsk-pane">
           <Skeleton width={84} height={12} radius={6} />
           <div className="hsk-codeblock">
@@ -238,18 +270,41 @@ export function PocReplaySkeleton({ className = '' }) {
 /** 50034 — Chain graph: gray circle nodes, dashed edges, before the real graph loads. */
 export function ChainGraphSkeleton({ className = '' }) {
   const nodes = [
-    { x: 60, y: 70 }, { x: 170, y: 40 }, { x: 170, y: 110 }, { x: 280, y: 75 },
+    { x: 60, y: 70 },
+    { x: 170, y: 40 },
+    { x: 170, y: 110 },
+    { x: 280, y: 75 },
   ];
-  const edges = [[0, 1], [0, 2], [1, 3], [2, 3]];
+  const edges = [
+    [0, 1],
+    [0, 2],
+    [1, 3],
+    [2, 3],
+  ];
   return (
     <div className={`hsk-graph ${className}`} role="status" aria-label="Loading attack chain graph">
       <svg viewBox="0 0 340 150" width="100%" aria-hidden="true">
         {edges.map(([a, b], i) => (
-          <line key={i} x1={nodes[a].x} y1={nodes[a].y} x2={nodes[b].x} y2={nodes[b].y}
-            strokeWidth={2} strokeDasharray="6 5" className="hsk-edge" />
+          <line
+            key={i}
+            x1={nodes[a].x}
+            y1={nodes[a].y}
+            x2={nodes[b].x}
+            y2={nodes[b].y}
+            strokeWidth={2}
+            strokeDasharray="6 5"
+            className="hsk-edge"
+          />
         ))}
         {nodes.map((n, i) => (
-          <circle key={i} cx={n.x} cy={n.y} r={20} className="hsk-node" style={{ animationDelay: `${i * 160}ms` }} />
+          <circle
+            key={i}
+            cx={n.x}
+            cy={n.y}
+            r={20}
+            className="hsk-node"
+            style={{ animationDelay: `${i * 160}ms` }}
+          />
         ))}
       </svg>
     </div>
@@ -259,7 +314,12 @@ export function ChainGraphSkeleton({ className = '' }) {
 /** 50036 — Notification center list placeholders. */
 export function NotificationListSkeleton({ rows = 5, className = '' }) {
   return (
-    <StaggeredFadeIn className={`hsk-stack ${className}`} step={70} role="status" aria-label="Loading notifications">
+    <StaggeredFadeIn
+      className={`hsk-stack ${className}`}
+      step={70}
+      role="status"
+      aria-label="Loading notifications"
+    >
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="hsk-row-flex">
           <Skeleton width={36} height={36} circle />
@@ -274,10 +334,13 @@ export function NotificationListSkeleton({ rows = 5, className = '' }) {
 }
 
 /** 50038 — Labeled placeholders for each settings section while loading. */
-export function SettingsSectionSkeleton({ sections = ['Profile', 'Hunt defaults', 'Notifications'], className = '' }) {
+export function SettingsSectionSkeleton({
+  sections = ['Profile', 'Hunt defaults', 'Notifications'],
+  className = '',
+}) {
   return (
     <div className={`hsk-stack ${className}`} role="status" aria-label="Loading settings">
-      {sections.map((s) => (
+      {sections.map(s => (
         <div key={s} className="hsk-section">
           <span className="hsk-section-label">{s}</span>
           <div className="hsk-row-flex">
@@ -324,23 +387,50 @@ export function RiskGaugeSkeleton({ size = 140, score = null, className = '' }) 
   const angle = score === null ? -90 : -90 + (Math.max(0, Math.min(100, score)) / 100) * 180;
   const rad = (angle * Math.PI) / 180;
   return (
-    <div className={`hsk-gauge ${className}`} role="status" aria-label={score === null ? 'Loading risk score' : `Risk score ${score}`}>
+    <div
+      className={`hsk-gauge ${className}`}
+      role="status"
+      aria-label={score === null ? 'Loading risk score' : `Risk score ${score}`}
+    >
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" strokeWidth={16} strokeLinecap="round" className={score === null ? 'hsk hsk-gauge-arc' : 'hsk-gauge-arc'} />
+        <path
+          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+          fill="none"
+          strokeWidth={16}
+          strokeLinecap="round"
+          className={score === null ? 'hsk hsk-gauge-arc' : 'hsk-gauge-arc'}
+        />
         {score !== null && (
           <g className="hsk-needle">
-            <line x1={cx} y1={cy} x2={cx + r * 0.82 * Math.cos(rad)} y2={cy + r * 0.82 * Math.sin(rad)} strokeWidth={4} strokeLinecap="round" />
+            <line
+              x1={cx}
+              y1={cy}
+              x2={cx + r * 0.82 * Math.cos(rad)}
+              y2={cy + r * 0.82 * Math.sin(rad)}
+              strokeWidth={4}
+              strokeLinecap="round"
+            />
             <circle cx={cx} cy={cy} r={7} />
           </g>
         )}
       </svg>
-      {score === null ? <Skeleton width={54} height={20} radius={8} /> : <span className="hsk-gauge-score">{score}</span>}
+      {score === null ? (
+        <Skeleton width={54} height={20} radius={8} />
+      ) : (
+        <span className="hsk-gauge-score">{score}</span>
+      )}
     </div>
   );
 }
 
 /** 50043 — Evidence thumbnails blur up: blurred thumb sharpens progressively on load. */
-export function EvidenceThumbnailBlurUp({ src, alt = 'Evidence screenshot', width = 160, height = 100, className = '' }) {
+export function EvidenceThumbnailBlurUp({
+  src,
+  alt = 'Evidence screenshot',
+  width = 160,
+  height = 100,
+  className = '',
+}) {
   const [loaded, setLoaded] = React.useState(false);
   return (
     <div className={`hsk-evidence ${className}`} style={{ width, height }}>
@@ -361,7 +451,7 @@ export function EvidenceThumbnailBlurUp({ src, alt = 'Evidence screenshot', widt
 export function CompareHuntsSkeleton({ className = '' }) {
   return (
     <div className={`hsk-compare ${className}`} role="status" aria-label="Loading hunt comparison">
-      {[0, 1].map((pane) => (
+      {[0, 1].map(pane => (
         <div key={pane} className="hsk-compare-pane">
           <Skeleton height={15} width="45%" radius={6} />
           <SkeletonText lines={3} />
@@ -394,9 +484,19 @@ export function AuditLogRowSkeleton({ rows = 6, className = '' }) {
 /** 50048 — Asset-tree skeleton: indented placeholder branches for scope/target panel. */
 export function AssetTreeSkeleton({ levels = [0, 1, 1, 2, 0, 1, 2], className = '' }) {
   return (
-    <div className={`hsk-stack ${className}`} role="status" aria-label="Loading asset tree" style={{ gap: 8 }}>
+    <div
+      className={`hsk-stack ${className}`}
+      role="status"
+      aria-label="Loading asset tree"
+      style={{ gap: 8 }}
+    >
       {levels.map((depth, i) => (
-        <div key={i} className="hsk-row-flex" style={{ paddingLeft: depth * 22 }} aria-hidden="true">
+        <div
+          key={i}
+          className="hsk-row-flex"
+          style={{ paddingLeft: depth * 22 }}
+          aria-hidden="true"
+        >
           <Skeleton width={14} height={14} radius={4} />
           <Skeleton height={11} width={`${72 - depth * 12}%`} radius={5} />
         </div>
@@ -408,7 +508,12 @@ export function AssetTreeSkeleton({ levels = [0, 1, 1, 2, 0, 1, 2], className = 
 /** 50050 — Insights-feed skeleton cards (learning & insights feed). */
 export function InsightsFeedSkeleton({ cards = 3, className = '' }) {
   return (
-    <StaggeredFadeIn className={`hsk-stack ${className}`} step={90} role="status" aria-label="Loading insights">
+    <StaggeredFadeIn
+      className={`hsk-stack ${className}`}
+      step={90}
+      role="status"
+      aria-label="Loading insights"
+    >
       {Array.from({ length: cards }).map((_, i) => (
         <div key={i} className="hsk-card">
           <div className="hsk-row-flex">
@@ -439,7 +544,12 @@ export function ThemePreviewLoader({ themes = 4, className = '' }) {
 /** 50052 — Shortcut-cheatsheet skeleton: kbd placeholders + description rows. */
 export function ShortcutCheatsheetSkeleton({ rows = 8, className = '' }) {
   return (
-    <div className={`hsk-stack ${className}`} role="status" aria-label="Loading keyboard shortcuts" style={{ gap: 6 }}>
+    <div
+      className={`hsk-stack ${className}`}
+      role="status"
+      aria-label="Loading keyboard shortcuts"
+      style={{ gap: 6 }}
+    >
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="hsk-shortcut-row" aria-hidden="true">
           <Skeleton width={64} height={22} radius={6} />
@@ -479,10 +589,14 @@ export function CollaboratorAvatarSkeleton({ count = 4, className = '' }) {
 }
 
 /** 50058 — Phase-grouped timeline skeleton: event rows under each phase header. */
-export function PhaseGroupedTimelineSkeleton({ phases = ['Recon', 'Testing'], perPhase = 3, className = '' }) {
+export function PhaseGroupedTimelineSkeleton({
+  phases = ['Recon', 'Testing'],
+  perPhase = 3,
+  className = '',
+}) {
   return (
     <div className={`hsk-stack ${className}`} role="status" aria-label="Loading timeline">
-      {phases.map((phase) => (
+      {phases.map(phase => (
         <div key={phase} className="hsk-phase-group">
           <div className="hsk-row-flex">
             <Skeleton width={26} height={26} circle />

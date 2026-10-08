@@ -27,45 +27,189 @@ export const WAVE27_END = 51080;
 
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE27_IDEAS = [
-  [51041, 'persistent chat sessions', 'Reopening a hunt restores the full conversation exactly where it left off'],
-  [51042, 'read receipts', 'See which agent messages you have opened and which proactive alerts remain unread'],
-  [51043, 'agent memory notes', 'Say "remember this for later" and the agent stores a pinned note for the rest of the hunt'],
-  [51044, 'cross-hunt comparison', 'Ask how current progress compares with a previous hunt of the same target'],
-  [51045, 'emergency stop phrase', 'A configurable phrase that pauses the hunt instantly when typed or spoken'],
-  [51046, 'pacing awareness', 'The agent reduces proactive messages when your replies suggest you are busy'],
-  [51047, 'handoff brief generator', 'Generate a chat-based handoff summary when passing the hunt to a teammate'],
-  [51048, 'saved question templates', 'Reusable prompts like "any new criticals?" or "recon coverage so far?"'],
+  [
+    51041,
+    'persistent chat sessions',
+    'Reopening a hunt restores the full conversation exactly where it left off',
+  ],
+  [
+    51042,
+    'read receipts',
+    'See which agent messages you have opened and which proactive alerts remain unread',
+  ],
+  [
+    51043,
+    'agent memory notes',
+    'Say "remember this for later" and the agent stores a pinned note for the rest of the hunt',
+  ],
+  [
+    51044,
+    'cross-hunt comparison',
+    'Ask how current progress compares with a previous hunt of the same target',
+  ],
+  [
+    51045,
+    'emergency stop phrase',
+    'A configurable phrase that pauses the hunt instantly when typed or spoken',
+  ],
+  [
+    51046,
+    'pacing awareness',
+    'The agent reduces proactive messages when your replies suggest you are busy',
+  ],
+  [
+    51047,
+    'handoff brief generator',
+    'Generate a chat-based handoff summary when passing the hunt to a teammate',
+  ],
+  [
+    51048,
+    'saved question templates',
+    'Reusable prompts like "any new criticals?" or "recon coverage so far?"',
+  ],
   [51049, 'reply-length slider', 'A terse/balanced/detailed control applied to all future answers'],
-  [51050, 'URL unfurling', 'Pasting a link shows inline target context: resolved host and in-scope status'],
-  [51051, 'command history recall', 'Up-arrow cycles through your previous chat commands and steering instructions'],
-  [51052, 'working-notes channel', 'A separate read-only stream where the agent posts raw reasoning as it works'],
-  [51053, 'chat triage commands', 'Reply "mark as false positive" under a finding alert to update its state instantly'],
-  [51054, 'scheduled chat check-ins', 'The agent posts a status digest in chat every N minutes, configurable per hunt'],
-  [51055, 'answer escalation', 'Flag an agent reply for human expert review with one click and track the outcome'],
-  [51056, 'technical/plain toggle', 'Switch the whole session between technical and plain-language answers'],
-  [51057, 'evidence footnotes', 'Every finding claim in chat carries its evidence link as a footnote'],
-  [51058, 'sub-agent chat tabs', 'When sub-agents run, chat splits into per-agent tabs plus a coordinator thread'],
-  [51059, 'immutable chat audit log', 'A tamper-evident record of all chat instructions, exportable for compliance'],
-  [51060, 'long-hunt personality', 'Optional light tone in status replies to keep overnight hunts pleasant'],
-  [51061, 'instant status command', 'Ask "what are you doing right now?" and get a one-line answer in under a second'],
-  [51062, 'plain-language narration', 'The agent describes its current action as a sentence, not a tool name or log dump'],
-  [51063, 'phase breadcrumb trail', 'A clickable path showing exactly where the current action sits in the hunt plan'],
+  [
+    51050,
+    'URL unfurling',
+    'Pasting a link shows inline target context: resolved host and in-scope status',
+  ],
+  [
+    51051,
+    'command history recall',
+    'Up-arrow cycles through your previous chat commands and steering instructions',
+  ],
+  [
+    51052,
+    'working-notes channel',
+    'A separate read-only stream where the agent posts raw reasoning as it works',
+  ],
+  [
+    51053,
+    'chat triage commands',
+    'Reply "mark as false positive" under a finding alert to update its state instantly',
+  ],
+  [
+    51054,
+    'scheduled chat check-ins',
+    'The agent posts a status digest in chat every N minutes, configurable per hunt',
+  ],
+  [
+    51055,
+    'answer escalation',
+    'Flag an agent reply for human expert review with one click and track the outcome',
+  ],
+  [
+    51056,
+    'technical/plain toggle',
+    'Switch the whole session between technical and plain-language answers',
+  ],
+  [
+    51057,
+    'evidence footnotes',
+    'Every finding claim in chat carries its evidence link as a footnote',
+  ],
+  [
+    51058,
+    'sub-agent chat tabs',
+    'When sub-agents run, chat splits into per-agent tabs plus a coordinator thread',
+  ],
+  [
+    51059,
+    'immutable chat audit log',
+    'A tamper-evident record of all chat instructions, exportable for compliance',
+  ],
+  [
+    51060,
+    'long-hunt personality',
+    'Optional light tone in status replies to keep overnight hunts pleasant',
+  ],
+  [
+    51061,
+    'instant status command',
+    'Ask "what are you doing right now?" and get a one-line answer in under a second',
+  ],
+  [
+    51062,
+    'plain-language narration',
+    'The agent describes its current action as a sentence, not a tool name or log dump',
+  ],
+  [
+    51063,
+    'phase breadcrumb trail',
+    'A clickable path showing exactly where the current action sits in the hunt plan',
+  ],
   [51064, 'active-tool indicator', 'A live badge naming the tool or module currently executing'],
-  [51065, 'in-phase progress bar', 'Percentage completion of the current phase with remaining sub-steps listed'],
-  [51066, 'sub-step checklist', 'The current phase broken into checkable steps that tick off as they finish'],
-  [51067, 'time-in-phase readout', 'How long the agent has spent in the current phase versus the planned budget'],
-  [51068, 'last-action timestamp', 'When the most recent action completed, so silence is distinguishable from stalling'],
+  [
+    51065,
+    'in-phase progress bar',
+    'Percentage completion of the current phase with remaining sub-steps listed',
+  ],
+  [
+    51066,
+    'sub-step checklist',
+    'The current phase broken into checkable steps that tick off as they finish',
+  ],
+  [
+    51067,
+    'time-in-phase readout',
+    'How long the agent has spent in the current phase versus the planned budget',
+  ],
+  [
+    51068,
+    'last-action timestamp',
+    'When the most recent action completed, so silence is distinguishable from stalling',
+  ],
   [51069, 'next-action preview', 'What the agent plans to do immediately after the current step'],
-  [51070, 'status in your language', 'Status answers always match the language you chatted in, switchable anytime'],
-  [51071, 'visual status card', 'A glanceable card with phase, action, progress, and ETA in one place'],
-  [51072, 'status history timeline', 'Scroll back through every status the agent reported during the hunt'],
-  [51073, 'scheduled status digests', 'Automatic plain-language updates posted at intervals you choose'],
-  [51074, 'ask-about-this-action', 'Tap any running action to ask the agent why it is doing it and what it expects'],
-  [51075, 'self-reported blockers', 'The agent proactively says what it is stuck on instead of spinning silently'],
-  [51076, 'waiting-on-you flag', 'A distinct state when the agent is paused awaiting your approval or input'],
-  [51077, 'plan-vs-reality view', 'Current activity shown against the original plan with deviations highlighted'],
-  [51078, 'shareable status link', 'A read-only link showing live hunt status to a stakeholder without chat access'],
-  [51079, 'spoken status readout', 'Hear the current status read aloud through the avatar or voice mode'],
+  [
+    51070,
+    'status in your language',
+    'Status answers always match the language you chatted in, switchable anytime',
+  ],
+  [
+    51071,
+    'visual status card',
+    'A glanceable card with phase, action, progress, and ETA in one place',
+  ],
+  [
+    51072,
+    'status history timeline',
+    'Scroll back through every status the agent reported during the hunt',
+  ],
+  [
+    51073,
+    'scheduled status digests',
+    'Automatic plain-language updates posted at intervals you choose',
+  ],
+  [
+    51074,
+    'ask-about-this-action',
+    'Tap any running action to ask the agent why it is doing it and what it expects',
+  ],
+  [
+    51075,
+    'self-reported blockers',
+    'The agent proactively says what it is stuck on instead of spinning silently',
+  ],
+  [
+    51076,
+    'waiting-on-you flag',
+    'A distinct state when the agent is paused awaiting your approval or input',
+  ],
+  [
+    51077,
+    'plan-vs-reality view',
+    'Current activity shown against the original plan with deviations highlighted',
+  ],
+  [
+    51078,
+    'shareable status link',
+    'A read-only link showing live hunt status to a stakeholder without chat access',
+  ],
+  [
+    51079,
+    'spoken status readout',
+    'Hear the current status read aloud through the avatar or voice mode',
+  ],
   [51080, 'dashboard status widget', 'A mini live-status card embeddable on your hunts dashboard'],
 ];
 
@@ -83,8 +227,11 @@ export function serializeSession({ messages, scrollTop = 0, savedAtMs = 0, huntI
     huntId,
     savedAtMs,
     scrollTop,
-    messages: (messages || []).map((m) => ({
-      id: m.id, role: m.role, text: m.text, ts: m.ts,
+    messages: (messages || []).map(m => ({
+      id: m.id,
+      role: m.role,
+      text: m.text,
+      ts: m.ts,
     })),
   };
 }
@@ -95,7 +242,7 @@ export function restoreSession(snapshot) {
   return {
     huntId: snapshot.huntId || '',
     scrollTop: Number(snapshot.scrollTop) || 0,
-    messages: snapshot.messages.filter((m) => m && typeof m.text === 'string'),
+    messages: snapshot.messages.filter(m => m && typeof m.text === 'string'),
     restored: true,
   };
 }
@@ -112,7 +259,7 @@ export function markRead(readIds, messageId) {
 
 export function unreadAlerts(messages, readIds) {
   const read = new Set(readIds || []);
-  return (messages || []).filter((m) => m && m.alert === true && !read.has(m.id));
+  return (messages || []).filter(m => m && m.alert === true && !read.has(m.id));
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,11 +269,14 @@ export function unreadAlerts(messages, readIds) {
 export function pinMemoryNote(notes, text, ts = 0) {
   const clean = String(text || '').trim();
   if (!clean) return notes || [];
-  return [...(notes || []), { id: `note-${(notes || []).length + 1}`, text: clean, ts, pinned: true }];
+  return [
+    ...(notes || []),
+    { id: `note-${(notes || []).length + 1}`, text: clean, ts, pinned: true },
+  ];
 }
 
 export function unpinMemoryNote(notes, noteId) {
-  return (notes || []).filter((n) => n.id !== noteId);
+  return (notes || []).filter(n => n.id !== noteId);
 }
 
 /* ------------------------------------------------------------------ */
@@ -134,14 +284,16 @@ export function unpinMemoryNote(notes, noteId) {
 /* ------------------------------------------------------------------ */
 
 export function compareHunts(current, previous) {
-  const c = current || {}; const p = previous || {};
-  const pick = (h) => ({
+  const c = current || {};
+  const p = previous || {};
+  const pick = h => ({
     findings: Number(h.findings) || 0,
     criticals: Number(h.criticals) || 0,
     coverage: Number(h.coverage) || 0,
     durationMin: Number(h.durationMin) || 0,
   });
-  const a = pick(c); const b = pick(p);
+  const a = pick(c);
+  const b = pick(p);
   return {
     findingsDelta: a.findings - b.findings,
     criticalsDelta: a.criticals - b.criticals,
@@ -159,7 +311,9 @@ export const STOP_PHRASE_DEFAULT = 'stop the hunt';
 
 export function detectStopPhrase(text, phrase = STOP_PHRASE_DEFAULT) {
   const t = String(text || '').toLowerCase();
-  const p = String(phrase || '').toLowerCase().trim();
+  const p = String(phrase || '')
+    .toLowerCase()
+    .trim();
   if (!p) return false;
   return t.includes(p);
 }
@@ -175,7 +329,7 @@ export const PACING_QUIET = 'quiet';
 export function pacingLevel(recentReplies) {
   const replies = recentReplies || [];
   if (replies.length === 0) return PACING_NORMAL;
-  const shortCount = replies.filter((r) => String(r || '').trim().length < 12).length;
+  const shortCount = replies.filter(r => String(r || '').trim().length < 12).length;
   const ratio = shortCount / replies.length;
   if (ratio >= 0.8 && replies.length >= 3) return PACING_QUIET;
   if (ratio >= 0.5) return PACING_REDUCED;
@@ -198,13 +352,13 @@ export function handoffBrief({ huntId, phase, findings, openBlockers, memoryNote
     `**Findings so far:** ${Number(findings) || 0}`,
     '',
     '## Open blockers',
-    ...((openBlockers || []).map((b) => `- ${b}`)),
+    ...(openBlockers || []).map(b => `- ${b}`),
     '',
     '## Memory notes',
-    ...((memoryNotes || []).map((n) => `- ${typeof n === 'string' ? n : n.text}`)),
+    ...(memoryNotes || []).map(n => `- ${typeof n === 'string' ? n : n.text}`),
     '',
     '## Suggested next steps',
-    ...((nextSteps || []).map((s) => `- ${s}`)),
+    ...(nextSteps || []).map(s => `- ${s}`),
   ];
   return lines.join('\n');
 }
@@ -214,15 +368,35 @@ export function handoffBrief({ huntId, phase, findings, openBlockers, memoryNote
 /* ------------------------------------------------------------------ */
 
 export const QUESTION_TEMPLATES = [
-  { id: 'qt-criticals', label: 'Any new criticals?', prompt: 'Any new critical findings since the last check-in?' },
-  { id: 'qt-coverage', label: 'Recon coverage so far?', prompt: 'What is the recon coverage so far, and what is still missing?' },
-  { id: 'qt-blockers', label: 'Blocked anywhere?', prompt: 'Are you blocked anywhere? What do you need from me?' },
-  { id: 'qt-eta', label: 'ETA to done?', prompt: 'What is your estimated time to finish the current phase?' },
-  { id: 'qt-summary', label: 'Summarize the hunt', prompt: 'Summarize this hunt so far in plain language.' },
+  {
+    id: 'qt-criticals',
+    label: 'Any new criticals?',
+    prompt: 'Any new critical findings since the last check-in?',
+  },
+  {
+    id: 'qt-coverage',
+    label: 'Recon coverage so far?',
+    prompt: 'What is the recon coverage so far, and what is still missing?',
+  },
+  {
+    id: 'qt-blockers',
+    label: 'Blocked anywhere?',
+    prompt: 'Are you blocked anywhere? What do you need from me?',
+  },
+  {
+    id: 'qt-eta',
+    label: 'ETA to done?',
+    prompt: 'What is your estimated time to finish the current phase?',
+  },
+  {
+    id: 'qt-summary',
+    label: 'Summarize the hunt',
+    prompt: 'Summarize this hunt so far in plain language.',
+  },
 ];
 
 export function applyTemplate(templateId) {
-  const t = QUESTION_TEMPLATES.find((x) => x.id === templateId);
+  const t = QUESTION_TEMPLATES.find(x => x.id === templateId);
   return t ? t.prompt : '';
 }
 
@@ -236,7 +410,9 @@ export const REPLY_DETAILED = 'detailed';
 export const REPLY_LENGTHS = [REPLY_TERSE, REPLY_BALANCED, REPLY_DETAILED];
 
 export function applyReplyLength(text, mode = REPLY_BALANCED) {
-  const sentences = String(text || '').split(/(?<=[.!?])\s+/).filter(Boolean);
+  const sentences = String(text || '')
+    .split(/(?<=[.!?])\s+/)
+    .filter(Boolean);
   if (mode === REPLY_TERSE) return sentences.slice(0, 1).join(' ');
   if (mode === REPLY_DETAILED) return sentences.join(' ');
   return sentences.slice(0, 2).join(' ');
@@ -252,9 +428,12 @@ export function unfurlUrl(rawUrl, scopeHosts = []) {
     const u = new URL(String(rawUrl));
     out.host = u.hostname.toLowerCase();
     out.valid = true;
-    out.inScope = scopeHosts.map((h) => String(h).toLowerCase())
-      .some((h) => out.host === h || out.host.endsWith(`.${h}`));
-  } catch { /* invalid URL stays invalid */ }
+    out.inScope = scopeHosts
+      .map(h => String(h).toLowerCase())
+      .some(h => out.host === h || out.host.endsWith(`.${h}`));
+  } catch {
+    /* invalid URL stays invalid */
+  }
   return out;
 }
 
@@ -295,7 +474,9 @@ export const TRIAGE_CONFIRMED = 'confirmed';
 export const TRIAGE_WONT_FIX = 'wont-fix';
 
 export function parseTriageCommand(text) {
-  const t = String(text || '').toLowerCase().trim();
+  const t = String(text || '')
+    .toLowerCase()
+    .trim();
   if (/mark as false positive|mark false positive/.test(t)) return TRIAGE_FALSE_POSITIVE;
   if (/mark as confirmed|mark confirmed/.test(t)) return TRIAGE_CONFIRMED;
   if (/mark as won.?t fix|mark wont fix/.test(t)) return TRIAGE_WONT_FIX;
@@ -323,13 +504,14 @@ export const ESCALATION_RESOLVED = 'resolved';
 
 export function escalateAnswer(escalations, messageId, reason = '') {
   const list = escalations || [];
-  if (list.some((e) => e.messageId === messageId && e.state !== ESCALATION_RESOLVED)) return list;
+  if (list.some(e => e.messageId === messageId && e.state !== ESCALATION_RESOLVED)) return list;
   return [...list, { messageId, reason: String(reason), state: ESCALATION_OPEN }];
 }
 
 export function resolveEscalation(escalations, messageId, outcome = '') {
-  return (escalations || []).map((e) => (e.messageId === messageId
-    ? { ...e, state: ESCALATION_RESOLVED, outcome: String(outcome) } : e));
+  return (escalations || []).map(e =>
+    e.messageId === messageId ? { ...e, state: ESCALATION_RESOLVED, outcome: String(outcome) } : e
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -364,7 +546,7 @@ export function footnoteEvidence(claims) {
 export const COORDINATOR_TAB = 'coordinator';
 
 export function agentTabs(agentIds) {
-  return [COORDINATOR_TAB, ...((agentIds || []).filter(Boolean))];
+  return [COORDINATOR_TAB, ...(agentIds || []).filter(Boolean)];
 }
 
 export function routeToAgentTab(message) {
@@ -414,7 +596,8 @@ export const HUNT_TONE_LIGHT = 'light';
 export const HUNT_TONES = [HUNT_TONE_PROFESSIONAL, HUNT_TONE_LIGHT];
 
 export function withHuntTone(text, tone = HUNT_TONE_PROFESSIONAL) {
-  if (tone === HUNT_TONE_LIGHT) return `${text} — hanging in there, the night shift is almost kind to us.`;
+  if (tone === HUNT_TONE_LIGHT)
+    return `${text} — hanging in there, the night shift is almost kind to us.`;
   return text;
 }
 
@@ -455,9 +638,10 @@ export function narrateAction(action) {
 
 export function phaseBreadcrumb(plan, currentPhaseId) {
   const phases = plan || [];
-  const idx = phases.findIndex((p) => p.id === currentPhaseId);
+  const idx = phases.findIndex(p => p.id === currentPhaseId);
   return phases.map((p, i) => ({
-    id: p.id, label: p.label || p.id,
+    id: p.id,
+    label: p.label || p.id,
     state: i < idx ? 'done' : i === idx ? 'current' : 'upcoming',
   }));
 }
@@ -487,12 +671,14 @@ export function phaseProgress(doneSteps, totalSteps) {
 
 export function subStepChecklist(steps) {
   return (steps || []).map((s, i) => ({
-    id: s.id || `step-${i + 1}`, label: s.label || `Step ${i + 1}`, done: !!s.done,
+    id: s.id || `step-${i + 1}`,
+    label: s.label || `Step ${i + 1}`,
+    done: !!s.done,
   }));
 }
 
 export function tickSubStep(steps, stepId) {
-  return (steps || []).map((s) => (s.id === stepId ? { ...s, done: true } : s));
+  return (steps || []).map(s => (s.id === stepId ? { ...s, done: true } : s));
 }
 
 /* ------------------------------------------------------------------ */
@@ -616,12 +802,11 @@ export function waitingOnYou(reason = '') {
 /* ------------------------------------------------------------------ */
 
 export function planVsReality(plan, actual) {
-  const p = plan || []; const a = actual || [];
+  const p = plan || [];
+  const a = actual || [];
   return p.map((step, i) => {
     const done = a[i];
-    const deviation = !done ? 'not-started'
-      : done.id !== step.id ? 'out-of-order'
-      : 'on-track';
+    const deviation = !done ? 'not-started' : done.id !== step.id ? 'out-of-order' : 'on-track';
     return { planned: step.id, actual: done ? done.id : null, deviation };
   });
 }
@@ -649,7 +834,13 @@ export function spokenStatus({ phase, action, progressPct = 0 }) {
 /* 51080 — dashboard status widget                                      */
 /* ------------------------------------------------------------------ */
 
-export function dashboardWidget({ huntId, phase, progressPct = 0, criticals = 0, waiting = false }) {
+export function dashboardWidget({
+  huntId,
+  phase,
+  progressPct = 0,
+  criticals = 0,
+  waiting = false,
+}) {
   return {
     huntId: huntId || '',
     phase: phase || 'hunt',

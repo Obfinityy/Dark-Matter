@@ -13,7 +13,7 @@ import {
   loginAccount,
   registerAccount,
   logoutAccount,
-  storeJwt
+  storeJwt,
 } from '../services/api';
 import './AuthContext.polish.css';
 
@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
     getCurrentUser()
-      .then((body) => {
+      .then(body => {
         if (!cancelled) setUser(body?.user || null);
       })
       .catch(() => {
@@ -39,7 +39,9 @@ export function AuthProvider({ children }) {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async ({ login, password }) => {
@@ -88,7 +90,12 @@ export function useAuth() {
 export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="dm-boot" role="status" aria-live="polite"><span>Loading Dark Matter…</span></div>;
+  if (loading)
+    return (
+      <div className="dm-boot" role="status" aria-live="polite">
+        <span>Loading Dark Matter…</span>
+      </div>
+    );
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return children;
 }
@@ -97,7 +104,12 @@ export function ProtectedRoute({ children }) {
 export function PublicRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="dm-boot" role="status" aria-live="polite"><span>Loading Dark Matter…</span></div>;
+  if (loading)
+    return (
+      <div className="dm-boot" role="status" aria-live="polite">
+        <span>Loading Dark Matter…</span>
+      </div>
+    );
   if (user) {
     const from = location.state?.from || '/agent';
     return <Navigate to={from} replace />;

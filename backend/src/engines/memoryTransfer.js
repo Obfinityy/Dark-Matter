@@ -26,7 +26,9 @@ async function hasCommand(cmd) {
   } catch {
     try {
       // Windows: `where` instead of `--version`
-      await execFileAsync(process.platform === 'win32' ? 'where' : 'which', [cmd], { timeout: 5000 });
+      await execFileAsync(process.platform === 'win32' ? 'where' : 'which', [cmd], {
+        timeout: 5000,
+      });
       return true;
     } catch {
       return false;
@@ -42,7 +44,9 @@ export async function exportMemoryZip(destPath = null) {
   if (!fs.existsSync(src)) {
     throw new Error('No local memory to export yet. Run a hunt first.');
   }
-  const out = destPath || path.join(os.tmpdir(), `darkmatter-memory-${new Date().toISOString().slice(0, 10)}.zip`);
+  const out =
+    destPath ||
+    path.join(os.tmpdir(), `darkmatter-memory-${new Date().toISOString().slice(0, 10)}.zip`);
 
   if (await hasCommand('zip')) {
     // zip -r out.zip .  (run inside memory dir)
@@ -77,7 +81,7 @@ export async function importMemoryZip(zipPath) {
 
   // Count imported files.
   let count = 0;
-  const walk = (d) => {
+  const walk = d => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name);
       if (e.isDirectory()) walk(p);

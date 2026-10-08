@@ -1,7 +1,14 @@
 import { id, now } from '../core/utils.js';
 
 const VALID_SEVERITIES = ['critical', 'high', 'medium', 'low', 'informational'];
-const VALID_FINDING_STATUSES = ['potential', 'investigating', 'validated', 'false_positive', 'duplicate', 'accepted'];
+const VALID_FINDING_STATUSES = [
+  'potential',
+  'investigating',
+  'validated',
+  'false_positive',
+  'duplicate',
+  'accepted',
+];
 
 /**
  * FindingModel — vulnerability findings with full evidence chains.
@@ -48,11 +55,11 @@ export class FindingModel {
       observationIds: input.observationIds || [],
       toolExecutionIds: input.toolExecutionIds || [],
       hypothesisId: input.hypothesisId || null,
-      cvss: input.cvss || null,               // auto-scored {score,rating,vector,source} — never hardcoded
+      cvss: input.cvss || null, // auto-scored {score,rating,vector,source} — never hardcoded
       cvssMetrics: input.cvssMetrics || null, // brain-supplied metrics (or null when defaults were used)
       createdAt: now(),
       updatedAt: now(),
-      validatedAt: null
+      validatedAt: null,
     };
     await this.collection.insertOne(finding);
     return finding;

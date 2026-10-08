@@ -13,13 +13,25 @@
 
 /** Known ATS providers and how to recognise them in URLs. */
 const ATS_PROVIDERS = [
-  { name: 'Greenhouse', hostMatch: /(^|\.)boards\.greenhouse\.io$/, idFrom: /boards\.greenhouse\.io\/([a-z0-9_-]+)/i },
+  {
+    name: 'Greenhouse',
+    hostMatch: /(^|\.)boards\.greenhouse\.io$/,
+    idFrom: /boards\.greenhouse\.io\/([a-z0-9_-]+)/i,
+  },
   { name: 'Lever', hostMatch: /(^|\.)lever\.co$/, idFrom: /([a-z0-9_-]+)\.lever\.co/i },
   { name: 'Workable', hostMatch: /(^|\.)workable\.com$/, idFrom: /([a-z0-9_-]+)\.workable\.com/i },
   { name: 'Ashby', hostMatch: /(^|\.)ashbyhq\.com$/, idFrom: /jobs\.ashbyhq\.com\/([a-z0-9_-]+)/i },
-  { name: 'SmartRecruiters', hostMatch: /(^|\.)smartrecruiters\.com$/, idFrom: /careers\.smartrecruiters\.com\/([a-z0-9_-]+)/i },
+  {
+    name: 'SmartRecruiters',
+    hostMatch: /(^|\.)smartrecruiters\.com$/,
+    idFrom: /careers\.smartrecruiters\.com\/([a-z0-9_-]+)/i,
+  },
   { name: 'Breezy', hostMatch: /(^|\.)breezy\.hr$/, idFrom: /([a-z0-9_-]+)\.breezy\.hr/i },
-  { name: 'Recruitee', hostMatch: /(^|\.)recruitee\.com$/, idFrom: /([a-z0-9_-]+)\.recruitee\.com/i },
+  {
+    name: 'Recruitee',
+    hostMatch: /(^|\.)recruitee\.com$/,
+    idFrom: /([a-z0-9_-]+)\.recruitee\.com/i,
+  },
   { name: 'JazzHR', hostMatch: /(^|\.)jazzhr\.com$/, idFrom: /([a-z0-9_-]+)\.jazzhr\.com/i },
   { name: 'Taleo', hostMatch: /(^|\.)taleo\.net$/, idFrom: /([a-z0-9_-]+)\.taleo\.net/i },
   { name: 'iCIMS', hostMatch: /(^|\.)icims\.com$/, idFrom: /([a-z0-9_-]+)\.icims\.com/i },
@@ -81,7 +93,10 @@ export function mapAtsHosts(html, pageUrl = '') {
     seen.add(key);
     // Grab a small surrounding snippet as evidence context.
     const idx = Math.max(0, m.index - 120);
-    const context = body.slice(idx, m.index + m[0].length + 40).replace(/\s+/g, ' ').trim();
+    const context = body
+      .slice(idx, m.index + m[0].length + 40)
+      .replace(/\s+/g, ' ')
+      .trim();
     findings.push({
       provider: ats.provider,
       url: link,
@@ -107,7 +122,7 @@ export function isCareersPage(url, html = '') {
 }
 
 export const ATS_HOST_MAPPER = {
-  ATS_PROVIDERS: ATS_PROVIDERS.map((p) => p.name),
+  ATS_PROVIDERS: ATS_PROVIDERS.map(p => p.name),
   identifyAtsProvider,
   mapAtsHosts,
   isCareersPage,

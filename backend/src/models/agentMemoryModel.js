@@ -25,7 +25,7 @@ export const MEMORY_TYPES = Object.freeze([
   'target',
   'tool',
   'finding',
-  'conversation'
+  'conversation',
 ]);
 
 export class AgentMemoryModel {
@@ -35,7 +35,12 @@ export class AgentMemoryModel {
 
   /** Stable dedupe key: the same fact learned twice is stored once. */
   static dedupeKey({ type, assessmentId, key, content }) {
-    const payload = JSON.stringify({ type, assessmentId, key: key || null, content: String(content).slice(0, 500) });
+    const payload = JSON.stringify({
+      type,
+      assessmentId,
+      key: key || null,
+      content: String(content).slice(0, 500),
+    });
     return crypto.createHash('sha256').update(payload).digest('hex').slice(0, 20);
   }
 
@@ -48,7 +53,13 @@ export class AgentMemoryModel {
       // Reinforce rather than duplicate: bump salience and recency.
       await this.collection.updateOne(
         { id: existing.id },
-        { $set: { importance: Math.min(1, (existing.importance || 0.5) + 0.1), updatedAt: now(), lastSeenAt: now() } }
+        {
+          $set: {
+            importance: Math.min(1, (existing.importance || 0.5) + 0.1),
+            updatedAt: now(),
+            lastSeenAt: now(),
+          },
+        }
       );
       return { memory: { ...existing, reinforced: true }, deduplicated: true };
     }
@@ -70,12 +81,12 @@ export class AgentMemoryModel {
         findingId: entry.refs?.findingId || null,
         evidenceId: entry.refs?.evidenceId || null,
         chunkRef: entry.refs?.chunkRef || null,
-        url: entry.refs?.url || null
+        url: entry.refs?.url || null,
       },
       importance: typeof entry.importance === 'number' ? entry.importance : 0.5,
       createdAt: now(),
       updatedAt: now(),
-      lastSeenAt: now()
+      lastSeenAt: now(),
     };
     await this.collection.insertOne(record);
     return { memory: record, deduplicated: false };
@@ -96,7 +107,11 @@ export class AgentMemoryModel {
   }
 
   async listByType(assessmentId, type, limit = 500) {
-    return this.collection.find({ assessmentId, type }).sort({ createdAt: 1 }).limit(limit).toArray();
+    return this.collection
+      .find({ assessmentId, type })
+      .sort({ createdAt: 1 })
+      .limit(limit)
+      .toArray();
   }
 
   /** Ownership-scoped read — the isolation boundary for memory. */
@@ -123,7 +138,7 @@ export class AgentMemoryModel {
       const rows = await this.listByType(assessmentId, type, 5000);
       if (rows.length <= maxPerType) continue;
       const superseded = rows
-        .filter((row) => row.importance < 0.4)
+        .filter(row => row.importance < 0.4)
         .sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
       for (const row of superseded.slice(0, rows.length - maxPerType)) {
         await this.forget(row.id);

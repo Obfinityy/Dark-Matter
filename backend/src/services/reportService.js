@@ -19,7 +19,7 @@ export class ReportService {
     agentStateModel,
     eventService,
     evidenceModel = null,
-    localModel = null
+    localModel = null,
   }) {
     this.reportModel = reportModel;
     this.assessmentModel = assessmentModel;
@@ -62,7 +62,7 @@ export class ReportService {
     await this.eventService.publish(assessmentId, {
       type: 'REPORT_GENERATION_STARTED',
       level: 'INFO',
-      message: 'Report generation started'
+      message: 'Report generation started',
     });
 
     const severityCounts = { critical: 0, high: 0, medium: 0, low: 0, informational: 0 };
@@ -70,7 +70,7 @@ export class ReportService {
       if (severityCounts[finding.severity] !== undefined) severityCounts[finding.severity] += 1;
     }
 
-    const evidenceById = new Map(evidence.map((item) => [item.id, item]));
+    const evidenceById = new Map(evidence.map(item => [item.id, item]));
     const evidenceByFinding = new Map();
     for (const item of evidence) {
       if (!item.findingId) continue;
@@ -84,11 +84,11 @@ export class ReportService {
     // also have stored raw evidence records are flagged so readers can
     // tell the difference. (Fix: previously findings without separate
     // evidence rows were silently dropped from detailedFindings.)
-    const validatedFindings = findings.filter((finding) => finding.status === 'validated');
-    const unverifiedObservations = findings.filter((finding) => finding.status !== 'validated');
+    const validatedFindings = findings.filter(finding => finding.status === 'validated');
+    const unverifiedObservations = findings.filter(finding => finding.status !== 'validated');
 
-    const detailedFindings = validatedFindings.map((finding) => {
-      const linked = (evidenceByFinding.get(finding.id) || []).map((item) => ({
+    const detailedFindings = validatedFindings.map(finding => {
+      const linked = (evidenceByFinding.get(finding.id) || []).map(item => ({
         id: item.id,
         kind: item.kind,
         asset: item.asset,
@@ -98,7 +98,7 @@ export class ReportService {
         summary: item.summary,
         artifactPath: item.artifactPath,
         sha256: item.sha256,
-        capturedAt: item.capturedAt
+        capturedAt: item.capturedAt,
       }));
       return {
         id: finding.id,
@@ -119,13 +119,13 @@ export class ReportService {
         remediation: finding.remediation,
         references: finding.references,
         evidence: linked,
-        evidenceIds: linked.map((item) => item.id),
+        evidenceIds: linked.map(item => item.id),
         evidenceAttached: linked.length > 0 || (finding.evidence?.length || 0) > 0,
         poc: finding.poc || null,
         toolExecutionIds: finding.toolExecutionIds,
         hypothesisId: finding.hypothesisId,
         createdAt: finding.createdAt,
-        validatedAt: finding.validatedAt
+        validatedAt: finding.validatedAt,
       };
     });
 
@@ -135,13 +135,14 @@ export class ReportService {
       technologies: agentState?.technologies || [],
       openPorts: agentState?.openPorts || [],
       topSubdomains: (agentState?.subdomains || []).slice(0, 50),
-      topEndpoints: (agentState?.endpoints || []).slice(0, 50)
+      topEndpoints: (agentState?.endpoints || []).slice(0, 50),
     };
 
-    const assetsTested = [...new Set([
-      assessment.targetHostname,
-      ...(agentState?.subdomains || []).slice(0, 200)
-    ].filter(Boolean))];
+    const assetsTested = [
+      ...new Set(
+        [assessment.targetHostname, ...(agentState?.subdomains || []).slice(0, 200)].filter(Boolean)
+      ),
+    ];
 
     const testingTimeline = this.buildTestingTimeline(events);
     const toolingSummary = this.buildToolingSummary(toolExecutions);
@@ -151,12 +152,16 @@ export class ReportService {
       total: findings.length,
       ...severityCounts,
       validated: validatedFindings.length,
-      potential: findings.filter((finding) => finding.status === 'potential').length,
-      falsePositive: findings.filter((finding) => finding.status === 'false_positive').length,
-      evidenceRecords: evidence.length
+      potential: findings.filter(finding => finding.status === 'potential').length,
+      falsePositive: findings.filter(finding => finding.status === 'false_positive').length,
+      evidenceRecords: evidence.length,
     };
 
-    const executiveSummary = this.generateExecutiveSummary(assessment, findingsSummary, attackSurface);
+    const executiveSummary = this.generateExecutiveSummary(
+      assessment,
+      findingsSummary,
+      attackSurface
+    );
 
     // ── Vulnerability chaining: combine small findings into big impact ──
     // Elite hunters don't report single lows — they chain them. This runs
@@ -169,11 +174,13 @@ export class ReportService {
         await this.eventService.publish(assessmentId, {
           type: 'CHAIN_DETECTED',
           level: 'WARN',
-          message: `${vulnerabilityChains.length} vulnerability chain(s) detected — small findings combine into ${vulnerabilityChains.filter((c) => c.severity === 'Critical').length} critical impact(s)`,
-          data: { chains: vulnerabilityChains.map((c) => ({ name: c.name, severity: c.severity })) },
+          message: `${vulnerabilityChains.length} vulnerability chain(s) detected — small findings combine into ${vulnerabilityChains.filter(c => c.severity === 'Critical').length} critical impact(s)`,
+          data: { chains: vulnerabilityChains.map(c => ({ name: c.name, severity: c.severity })) },
         });
       }
-    } catch { /* chaining must never break report generation */ }
+    } catch {
+      /* chaining must never break report generation */
+    }
 
     const base = {
       title: `Bug Bounty Assessment Report — ${assessment.targetHostname}`,
@@ -181,7 +188,8 @@ export class ReportService {
       scope: {
         included: assessment.scope?.included || [assessment.targetHostname],
         excluded: assessment.scope?.excluded || [],
-        authorization: 'Explicitly authorized by the target owner (confirmed at assessment creation).'
+        authorization:
+          'Explicitly authorized by the target owner (confirmed at assessment creation).',
       },
       methodology: this.getMethodology(),
       testingTimeline,
@@ -191,19 +199,19 @@ export class ReportService {
       detailedFindings,
       vulnerabilityChains,
       testingCoverage,
-      unverifiedObservations: unverifiedObservations.map((finding) => ({
+      unverifiedObservations: unverifiedObservations.map(finding => ({
         id: finding.id,
         title: finding.title,
         status: finding.status,
         severity: finding.severity,
         description: finding.description,
-        note: 'Recorded as an observation/hypothesis only — NOT a confirmed vulnerability.'
+        note: 'Recorded as an observation/hypothesis only — NOT a confirmed vulnerability.',
       })),
       riskContext: this.getRiskContext(findingsSummary),
       limitations: this.getLimitations(assessment, findingsSummary),
       toolingSummary,
       conclusion: this.getConclusion(assessment, findingsSummary),
-      evidenceIndex: evidence.map((item) => ({
+      evidenceIndex: evidence.map(item => ({
         id: item.id,
         kind: item.kind,
         asset: item.asset,
@@ -212,12 +220,12 @@ export class ReportService {
         findingId: item.findingId,
         sha256: item.sha256,
         artifactPath: item.artifactPath,
-        capturedAt: item.capturedAt
+        capturedAt: item.capturedAt,
       })),
       appendix: [],
       targetHostname: assessment.targetHostname,
       totalFindings: findings.length,
-      ...severityCounts
+      ...severityCounts,
     };
 
     // Optional narrative polish via the LOCAL model only. If it is unavailable
@@ -244,7 +252,7 @@ export class ReportService {
       type: 'REPORT_GENERATED',
       level: 'INFO',
       message: `Report v${saved.version} generated — ${validatedFindings.length} confirmed finding(s), ${evidence.length} evidence record(s)`,
-      data: { reportId: saved.id, version: saved.version }
+      data: { reportId: saved.id, version: saved.version },
     });
 
     return saved;
@@ -253,21 +261,30 @@ export class ReportService {
   /** Executive summary — deterministic, no fabrication. */
   generateExecutiveSummary(assessment, findingsSummary, attackSurface) {
     const parts = [];
-    parts.push(`An authorized security assessment was conducted against ${assessment.targetHostname}.`);
-    parts.push(`The assessment enumerated ${attackSurface.subdomains} subdomain(s) and ${attackSurface.endpoints} endpoint(s), backed by ${findingsSummary.evidenceRecords} stored evidence record(s).`);
+    parts.push(
+      `An authorized security assessment was conducted against ${assessment.targetHostname}.`
+    );
+    parts.push(
+      `The assessment enumerated ${attackSurface.subdomains} subdomain(s) and ${attackSurface.endpoints} endpoint(s), backed by ${findingsSummary.evidenceRecords} stored evidence record(s).`
+    );
 
     if (findingsSummary.validated === 0) {
       parts.push('No vulnerabilities were confirmed with evidence during this assessment.');
     } else {
-      parts.push(`${findingsSummary.validated} finding(s) were confirmed with supporting evidence:`);
+      parts.push(
+        `${findingsSummary.validated} finding(s) were confirmed with supporting evidence:`
+      );
       if (findingsSummary.critical > 0) parts.push(`  • ${findingsSummary.critical} Critical`);
       if (findingsSummary.high > 0) parts.push(`  • ${findingsSummary.high} High`);
       if (findingsSummary.medium > 0) parts.push(`  • ${findingsSummary.medium} Medium`);
       if (findingsSummary.low > 0) parts.push(`  • ${findingsSummary.low} Low`);
-      if (findingsSummary.informational > 0) parts.push(`  • ${findingsSummary.informational} Informational`);
+      if (findingsSummary.informational > 0)
+        parts.push(`  • ${findingsSummary.informational} Informational`);
     }
     if (findingsSummary.potential > 0) {
-      parts.push(`${findingsSummary.potential} further observation(s) remain unverified and are listed separately — they are NOT reported as vulnerabilities.`);
+      parts.push(
+        `${findingsSummary.potential} further observation(s) remain unverified and are listed separately — they are NOT reported as vulnerabilities.`
+      );
     }
     if (attackSurface.technologies.length > 0) {
       parts.push(`Technologies detected: ${attackSurface.technologies.slice(0, 15).join(', ')}.`);
@@ -289,7 +306,14 @@ export class ReportService {
     const tools = new Map();
     for (const execution of executions) {
       if (!tools.has(execution.tool)) {
-        tools.set(execution.tool, { tool: execution.tool, category: execution.category, executions: 0, completed: 0, failed: 0, totalDuration: 0 });
+        tools.set(execution.tool, {
+          tool: execution.tool,
+          category: execution.category,
+          executions: 0,
+          completed: 0,
+          failed: 0,
+          totalDuration: 0,
+        });
       }
       const entry = tools.get(execution.tool);
       entry.executions += 1;
@@ -305,11 +329,11 @@ export class ReportService {
 
   /** Testing coverage — what was actually exercised, from real executions. */
   buildTestingCoverage(executions, agentState) {
-    const phasesCovered = new Set(executions.map((execution) => execution.category).filter(Boolean));
-    const failed = executions.filter((execution) => execution.status === 'failed');
+    const phasesCovered = new Set(executions.map(execution => execution.category).filter(Boolean));
+    const failed = executions.filter(execution => execution.status === 'failed');
     return {
       toolsExecuted: executions.length,
-      successful: executions.filter((execution) => execution.status === 'completed').length,
+      successful: executions.filter(execution => execution.status === 'completed').length,
       failed: failed.length,
       phasesCovered: [...phasesCovered],
       assetsEnumerated: (agentState?.subdomains || []).length,
@@ -317,8 +341,10 @@ export class ReportService {
       parametersEnumerated: (agentState?.parameters || []).length,
       gaps: [
         'Automated, non-destructive testing only — manual exploitation was not performed.',
-        failed.length ? `${failed.length} tool execution(s) failed and are listed as coverage gaps.` : null
-      ].filter(Boolean)
+        failed.length
+          ? `${failed.length} tool execution(s) failed and are listed as coverage gaps.`
+          : null,
+      ].filter(Boolean),
     };
   }
 
@@ -384,17 +410,29 @@ The local language model assisted with hypothesis generation and triage; all con
         `Findings summary: ${JSON.stringify(base.findingsSummary)}`,
         `Executive summary draft: ${base.executiveSummary}`,
         `Risk context draft: ${base.riskContext}`,
-        `Conclusion draft: ${base.conclusion}`
+        `Conclusion draft: ${base.conclusion}`,
       ].join('\n');
 
-      const text = await this.localModel.complete([{ role: 'user', content: prompt }], { maxTokens: 900, maxAttempts: 1 });
+      const text = await this.localModel.complete([{ role: 'user', content: prompt }], {
+        maxTokens: 900,
+        maxAttempts: 1,
+      });
       const match = String(text?.text || '').match(/\{[\s\S]*\}/);
       if (!match) return null;
       const parsed = JSON.parse(match[0]);
       return {
-        executiveSummary: typeof parsed.executiveSummary === 'string' ? parsed.executiveSummary.slice(0, 4000) : base.executiveSummary,
-        riskContext: typeof parsed.riskContext === 'string' ? parsed.riskContext.slice(0, 2000) : base.riskContext,
-        conclusion: typeof parsed.conclusion === 'string' ? parsed.conclusion.slice(0, 4000) : base.conclusion
+        executiveSummary:
+          typeof parsed.executiveSummary === 'string'
+            ? parsed.executiveSummary.slice(0, 4000)
+            : base.executiveSummary,
+        riskContext:
+          typeof parsed.riskContext === 'string'
+            ? parsed.riskContext.slice(0, 2000)
+            : base.riskContext,
+        conclusion:
+          typeof parsed.conclusion === 'string'
+            ? parsed.conclusion.slice(0, 4000)
+            : base.conclusion,
       };
     } catch {
       return null;
@@ -421,31 +459,31 @@ The local language model assisted with hypothesis generation and triage; all con
 
     // Severity filter: "sirf high/critical wali do"
     if (options.severities?.length) {
-      const wanted = new Set(options.severities.map((s) => String(s).toLowerCase()));
-      findings = findings.filter((f) => wanted.has(String(f.severity).toLowerCase()));
+      const wanted = new Set(options.severities.map(s => String(s).toLowerCase()));
+      findings = findings.filter(f => wanted.has(String(f.severity).toLowerCase()));
     }
     // Single finding: "is wali ka alag report do"
     if (options.findingId) {
-      findings = findings.filter((f) => f.id === options.findingId);
+      findings = findings.filter(f => f.id === options.findingId);
     }
 
     // Per-finding mode: one standalone report per vulnerability
     if (options.perFinding) {
       return {
         perFinding: true,
-        reports: findings.map((f) => ({
+        reports: findings.map(f => ({
           findingId: f.id,
           title: f.title,
           severity: f.severity,
-          markdown: this.renderFindingReport(f, base, true)
-        }))
+          markdown: this.renderFindingReport(f, base, true),
+        })),
       };
     }
 
     return {
       markdown: this.renderFullReport(findings, base),
       findingCount: findings.length,
-      severityCounts: base.severityCounts
+      severityCounts: base.severityCounts,
     };
   }
 
@@ -455,13 +493,17 @@ The local language model assisted with hypothesis generation and triage; all con
     if (standalone) {
       lines.push(`# ${f.title}`);
       lines.push(``);
-      lines.push(`**Target:** ${base.target || 'n/a'} | **Date:** ${new Date().toISOString().slice(0, 10)}`);
+      lines.push(
+        `**Target:** ${base.target || 'n/a'} | **Date:** ${new Date().toISOString().slice(0, 10)}`
+      );
       lines.push(``);
     } else {
       lines.push(`### ${f.title}`);
       lines.push(``);
     }
-    lines.push(`**Severity:** ${f.severity}${f.cvss ? ` (CVSS ${f.cvss})` : ''} | **Confidence:** ${f.confidence || 'n/a'} | **Status:** ${f.status}`);
+    lines.push(
+      `**Severity:** ${f.severity}${f.cvss ? ` (CVSS ${f.cvss})` : ''} | **Confidence:** ${f.confidence || 'n/a'} | **Status:** ${f.status}`
+    );
     lines.push(`**Affected asset:** ${f.affectedAsset || 'n/a'}`);
     if (f.affectedEndpoint) lines.push(`**Endpoint:** ${f.affectedEndpoint}`);
     if (f.parameter) lines.push(`**Parameter:** ${f.parameter}`);
@@ -500,7 +542,9 @@ The local language model assisted with hypothesis generation and triage; all con
       lines.push(`#### Evidence (${ev.length})`);
       lines.push(``);
       for (const e of ev.slice(0, 5)) {
-        lines.push(`- [${e.kind}] ${e.summary || e.id}${e.sha256 ? ` (sha256: ${String(e.sha256).slice(0, 16)}…)` : ''}`);
+        lines.push(
+          `- [${e.kind}] ${e.summary || e.id}${e.sha256 ? ` (sha256: ${String(e.sha256).slice(0, 16)}…)` : ''}`
+        );
       }
       lines.push(``);
     }
@@ -539,7 +583,7 @@ The local language model assisted with hypothesis generation and triage; all con
     } else {
       lines.push(`## Findings (${findings.length})`);
       lines.push(``);
-      findings.forEach((f) => {
+      findings.forEach(f => {
         lines.push(this.renderFindingReport(f, base, false));
         lines.push(`---`);
         lines.push(``);
@@ -551,9 +595,11 @@ The local language model assisted with hypothesis generation and triage; all con
     if (chains.length > 0) {
       lines.push(`## Vulnerability Chains (${chains.length})`);
       lines.push(``);
-      lines.push(`> Individual findings below were automatically chained into higher-impact attack scenarios — this is how elite hunters turn multiple lows into a critical report.`);
+      lines.push(
+        `> Individual findings below were automatically chained into higher-impact attack scenarios — this is how elite hunters turn multiple lows into a critical report.`
+      );
       lines.push(``);
-      chains.forEach((c) => {
+      chains.forEach(c => {
         lines.push(`### ⛓️ ${c.name} [${c.severity}]`);
         lines.push(``);
         lines.push(`**Impact:** ${c.impact}`);
@@ -569,7 +615,9 @@ The local language model assisted with hypothesis generation and triage; all con
     lines.push(``);
     lines.push(`- Assessment performed by an autonomous agent under explicit user authorization.`);
     lines.push(`- Scope: ${(base.scope?.included || []).join(', ') || base.target || 'n/a'}`);
-    lines.push(`- All findings are backed by stored evidence; unvalidated observations are excluded.`);
+    lines.push(
+      `- All findings are backed by stored evidence; unvalidated observations are excluded.`
+    );
     lines.push(``);
     lines.push(`*Generated by Dark-Matter autonomous bug-bounty agent.*`);
 

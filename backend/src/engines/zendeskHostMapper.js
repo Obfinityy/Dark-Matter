@@ -50,12 +50,17 @@ export function extractHelpCenterBranding(html = '') {
   const text = String(html || '');
   const titleM = text.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
   const hostM = text.match(/https?:\/\/([a-z0-9-]+\.zendesk\.com)/i);
-  const guideM = text.match(/["']guide["']\s*:\s*\{[^}]*["']id["']\s*:\s*(\d+)/i) ||
+  const guideM =
+    text.match(/["']guide["']\s*:\s*\{[^}]*["']id["']\s*:\s*(\d+)/i) ||
     text.match(/help_center[^"']*["']id["']\s*:\s*(\d+)/i);
   let brandName = null;
   if (titleM) {
     // "Acme Help Center" / "Acme Support — Help Center"
-    brandName = titleM[1].replace(/(help\s*center|support|knowledge\s*base)/gi, '').replace(/[-|–—:()[\]]/g, ' ').trim() || null;
+    brandName =
+      titleM[1]
+        .replace(/(help\s*center|support|knowledge\s*base)/gi, '')
+        .replace(/[-|–—:()[\]]/g, ' ')
+        .trim() || null;
   }
   return {
     title: titleM ? titleM[1].trim() : null,
@@ -86,12 +91,12 @@ export function extractZendeskReferences(text = '') {
 export function mapZendeskFootprint({ cnames = [], htmlPages = [], orgKeywords = [] } = {}) {
   const tenants = mapZendeskCnames(cnames);
   const branding = (htmlPages || []).map(extractHelpCenterBranding);
-  const keywords = (orgKeywords || []).map((k) => String(k).toLowerCase());
+  const keywords = (orgKeywords || []).map(k => String(k).toLowerCase());
   let orgMatchScore = 0;
   if (keywords.length) {
     for (const b of branding) {
       const hay = `${b.title || ''} ${b.brandName || ''}`.toLowerCase();
-      if (keywords.some((k) => k && hay.includes(k))) orgMatchScore += 1;
+      if (keywords.some(k => k && hay.includes(k))) orgMatchScore += 1;
     }
   }
   return { tenants, branding, orgMatchScore };

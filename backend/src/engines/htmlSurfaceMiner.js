@@ -54,7 +54,8 @@ function hostOf(url) {
 }
 
 /** Keys whose values look like secrets and must be redacted in reports. */
-const SECRET_KEY_RE = /api[-_]?key|secret|token|passwd|password|private[-_]?key|client[-_]?secret|auth[-_]?token|session[-_]?id/i;
+const SECRET_KEY_RE =
+  /api[-_]?key|secret|token|passwd|password|private[-_]?key|client[-_]?secret|auth[-_]?token|session[-_]?id/i;
 
 /**
  * Deep-clone a value, replacing any value stored under a secret-looking key
@@ -64,7 +65,7 @@ const SECRET_KEY_RE = /api[-_]?key|secret|token|passwd|password|private[-_]?key|
 export function redactSecrets(value, depth = 0) {
   if (depth > 12) return value;
   if (Array.isArray(value)) {
-    return value.map((v) => redactSecrets(v, depth + 1));
+    return value.map(v => redactSecrets(v, depth + 1));
   }
   if (value && typeof value === 'object') {
     const out = {};
@@ -128,10 +129,15 @@ export function collectMatchingStrings(value, predicate, path = '$') {
  * @returns {{ indexApiUrl: string, query: object, filters: object, usage: string }}
  */
 export function buildCommonCrawlSeedPlan(domain, opts = {}) {
-  const clean = String(domain || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
-  const indexes = Array.isArray(opts.indexes) && opts.indexes.length > 0
-    ? opts.indexes
-    : ['CC-MAIN-2026-39', 'CC-MAIN-2026-30', 'CC-MAIN-2026-22'];
+  const clean = String(domain || '')
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .toLowerCase();
+  const indexes =
+    Array.isArray(opts.indexes) && opts.indexes.length > 0
+      ? opts.indexes
+      : ['CC-MAIN-2026-39', 'CC-MAIN-2026-30', 'CC-MAIN-2026-22'];
   const query = {
     url: `${clean}/*`,
     output: 'json',
@@ -145,11 +151,25 @@ export function buildCommonCrawlSeedPlan(domain, opts = {}) {
     query,
     filters: {
       // Applied by filterCommonCrawlResults()
-      dropExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.ico', '.css', '.woff', '.woff2', '.ttf', '.mp4', '.mp3'],
+      dropExtensions: [
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.svg',
+        '.ico',
+        '.css',
+        '.woff',
+        '.woff2',
+        '.ttf',
+        '.mp4',
+        '.mp3',
+      ],
       keepMime: ['text/html', 'application/json', 'text/plain', 'application/xml'],
       dropPaths: ['/static/', '/assets/', '/fonts/', '/images/'],
     },
-    usage: `Query https://index.commoncrawl.org/${indexes[0]}-index with the query params, ` +
+    usage:
+      `Query https://index.commoncrawl.org/${indexes[0]}-index with the query params, ` +
       `then pass each result row through filterCommonCrawlResults(). Rotate through indexes: ${indexes.join(', ')}.`,
   };
 }
@@ -171,13 +191,31 @@ export function filterCommonCrawlResults(rows = [], filters = {}) {
   const byMime = {};
   let dropped = 0;
   for (const row of rows) {
-    if (!row || typeof row.url !== 'string') { dropped++; continue; }
+    if (!row || typeof row.url !== 'string') {
+      dropped++;
+      continue;
+    }
     const lower = row.url.toLowerCase();
-    if (dropExt.some((ext) => lower.split('?')[0].endsWith(ext))) { dropped++; continue; }
-    if (dropPaths.some((p) => lower.includes(p))) { dropped++; continue; }
-    if (keepMime && row.mime && !keepMime.some((m) => row.mime.startsWith(m))) { dropped++; continue; }
-    if (String(row.status) !== '200') { dropped++; continue; }
-    if (seen.has(row.url)) { dropped++; continue; }
+    if (dropExt.some(ext => lower.split('?')[0].endsWith(ext))) {
+      dropped++;
+      continue;
+    }
+    if (dropPaths.some(p => lower.includes(p))) {
+      dropped++;
+      continue;
+    }
+    if (keepMime && row.mime && !keepMime.some(m => row.mime.startsWith(m))) {
+      dropped++;
+      continue;
+    }
+    if (String(row.status) !== '200') {
+      dropped++;
+      continue;
+    }
+    if (seen.has(row.url)) {
+      dropped++;
+      continue;
+    }
     seen.add(row.url);
     urls.push(row.url);
     byMime[row.mime || 'unknown'] = (byMime[row.mime || 'unknown'] || 0) + 1;
@@ -191,8 +229,14 @@ export function filterCommonCrawlResults(rows = [], filters = {}) {
 
 const COMMENT_CLASSIFIERS = [
   { label: 'todo', re: /\b(todo|fixme|hack|xxx|note to self|tbd)\b/i },
-  { label: 'disabled-feature', re: /\b(disabled|commented out|deprecated|do not use|hidden|temporarily removed|wip|under construction)\b/i },
-  { label: 'internal-url', re: /https?:\/\/|localhost|127\.0\.0\.1|10\.\d|192\.168\.|internal|staging|dev\.|qa\./i },
+  {
+    label: 'disabled-feature',
+    re: /\b(disabled|commented out|deprecated|do not use|hidden|temporarily removed|wip|under construction)\b/i,
+  },
+  {
+    label: 'internal-url',
+    re: /https?:\/\/|localhost|127\.0\.0\.1|10\.\d|192\.168\.|internal|staging|dev\.|qa\./i,
+  },
 ];
 
 /**
@@ -211,7 +255,10 @@ export function mineHtmlComments(html) {
     const urls = findUrls(body);
     let classification = 'note';
     for (const c of COMMENT_CLASSIFIERS) {
-      if (c.re.test(body)) { classification = c.label; break; }
+      if (c.re.test(body)) {
+        classification = c.label;
+        break;
+      }
     }
     if (urls.length > 0 && classification === 'note') classification = 'internal-url';
     out.push({ body, classification, urls });
@@ -271,7 +318,7 @@ export function mineSsiDirectives(html) {
     const attrRe = /(\w+)\s*=\s*["']([^"']*)["']/g;
     let a;
     while ((a = attrRe.exec(attrText)) !== null) attributes[a[1].toLowerCase()] = a[2];
-    const includePaths = ['virtual', 'file'].map((k) => attributes[k]).filter(Boolean);
+    const includePaths = ['virtual', 'file'].map(k => attributes[k]).filter(Boolean);
     out.push({ directive: m[0], command, attributes, includePaths });
   }
   return out;
@@ -298,9 +345,9 @@ export function mineJsonLd(html) {
     for (const block of blocks) {
       if (!block || typeof block !== 'object') continue;
       const type = block['@type'] || null;
-      const urls = collectMatchingStrings(block, (s) => /^https?:\/\//i.test(s)).map((h) => h.value);
+      const urls = collectMatchingStrings(block, s => /^https?:\/\//i.test(s)).map(h => h.value);
       const sameAsRaw = block.sameAs;
-      const sameAs = Array.isArray(sameAsRaw) ? sameAsRaw.filter((s) => typeof s === 'string') : [];
+      const sameAs = Array.isArray(sameAsRaw) ? sameAsRaw.filter(s => typeof s === 'string') : [];
       out.push({ type, data: block, urls: [...new Set(urls)], sameAs: [...new Set(sameAs)] });
     }
   }
@@ -323,12 +370,13 @@ export function extractNextData(html) {
   if (!m) return null;
   const data = safeJsonParse(m[1].trim());
   if (!data || typeof data !== 'object') return null;
-  const pageProps = data.props && typeof data.props.pageProps === 'object' && data.props.pageProps !== null
-    ? data.props.pageProps
-    : {};
+  const pageProps =
+    data.props && typeof data.props.pageProps === 'object' && data.props.pageProps !== null
+      ? data.props.pageProps
+      : {};
   const hits = collectMatchingStrings(
     pageProps,
-    (s) => /^https?:\/\//i.test(s) || /^\/api[\w\-/]*/i.test(s),
+    s => /^https?:\/\//i.test(s) || /^\/api[\w\-/]*/i.test(s)
   );
   const urls = [];
   const apiRoutes = [];
@@ -364,7 +412,7 @@ export function extractNuxtPayload(html) {
   const redacted = redactSecrets(data);
   const hits = collectMatchingStrings(
     data,
-    (s) => /^https?:\/\//i.test(s) || /^\/api[\w\-/]*/i.test(s),
+    s => /^https?:\/\//i.test(s) || /^\/api[\w\-/]*/i.test(s)
   );
   const endpoints = [];
   const urls = [];
@@ -413,7 +461,9 @@ export function mineBootstrappedState(html) {
     if (!data || typeof data !== 'object') continue;
     const hits = collectMatchingStrings(
       data,
-      (s) => /^https?:\/\//i.test(s) || /^\/(api|users?|account|profile|dashboard|settings|admin)[\w\-/]*/i.test(s),
+      s =>
+        /^https?:\/\//i.test(s) ||
+        /^\/(api|users?|account|profile|dashboard|settings|admin)[\w\-/]*/i.test(s)
     );
     const urls = [];
     const userRoutes = [];
@@ -422,7 +472,13 @@ export function mineBootstrappedState(html) {
       else userRoutes.push(h.value);
     }
     const apiHosts = [...new Set(urls.map(hostOf).filter(Boolean))];
-    out.push({ varName: name, apiHosts, userRoutes: [...new Set(userRoutes)], urls: [...new Set(urls)], state: redactSecrets(data) });
+    out.push({
+      varName: name,
+      apiHosts,
+      userRoutes: [...new Set(userRoutes)],
+      urls: [...new Set(urls)],
+      state: redactSecrets(data),
+    });
   }
   return out;
 }
@@ -460,8 +516,8 @@ export function extractConfigObjects(html) {
     if (!data || typeof data !== 'object') continue;
     const endpoints = collectMatchingStrings(
       data,
-      (s) => /^https?:\/\//i.test(s) || /^\/[\w\-./]*api[\w\-./]*/i.test(s),
-    ).map((h) => h.value);
+      s => /^https?:\/\//i.test(s) || /^\/[\w\-./]*api[\w\-./]*/i.test(s)
+    ).map(h => h.value);
     out.push({ varName: display, endpoints: [...new Set(endpoints)], env: redactSecrets(data) });
   }
   return out;
@@ -503,16 +559,18 @@ export function harvestMetaTags(html) {
   const metaRe = /<meta\b[^>]*>/gi;
   while ((m = metaRe.exec(text)) !== null) {
     const tag = m[0];
-    const prop = ((attr(tag, 'property') || attr(tag, 'name')) || '').toLowerCase();
+    const prop = (attr(tag, 'property') || attr(tag, 'name') || '').toLowerCase();
     if (prop === 'og:url') ogUrl = attr(tag, 'content');
   }
-  const hosts = [...new Set([canonical, ogUrl, ...alternates.map((a) => a.href)].map(hostOf).filter(Boolean))];
+  const hosts = [
+    ...new Set([canonical, ogUrl, ...alternates.map(a => a.href)].map(hostOf).filter(Boolean)),
+  ];
   return {
     canonical,
     ogUrl,
     alternates,
     hosts,
-    canonicalHost: canonical ? hostOf(canonical) : (ogUrl ? hostOf(ogUrl) : null),
+    canonicalHost: canonical ? hostOf(canonical) : ogUrl ? hostOf(ogUrl) : null,
   };
 }
 

@@ -30,10 +30,10 @@ export const EXPIRY_WINDOWS = {
 
 /** Weighting used by scoreDropPriority(). */
 export const DROP_SCORE_WEIGHTS = {
-  targetLinked: 40,      // domain was previously owned by / linked to the target
-  danglingEvidence: 25,  // evidence that live DNS still references the name
-  brandKeyword: 15,      // domain contains a target brand keyword
-  windowProximity: 20,   // how close the drop is (scaled 0..20)
+  targetLinked: 40, // domain was previously owned by / linked to the target
+  danglingEvidence: 25, // evidence that live DNS still references the name
+  brandKeyword: 15, // domain contains a target brand keyword
+  windowProximity: 20, // how close the drop is (scaled 0..20)
 };
 
 /**
@@ -108,7 +108,9 @@ export function buildWatchEntry(record, opts = {}) {
   const now = opts.now instanceof Date ? opts.now : new Date();
   const expiry = parseExpiryDate(record.expiry);
   const daysLeft = daysUntilExpiry(expiry, now);
-  const brandKeywords = Array.isArray(opts.brandKeywords) ? opts.brandKeywords : (record.brandKeywords || []);
+  const brandKeywords = Array.isArray(opts.brandKeywords)
+    ? opts.brandKeywords
+    : record.brandKeywords || [];
   const brandHit = brandKeywords
     .filter(k => typeof k === 'string' && k.length > 0)
     .some(k => domain.includes(k.toLowerCase()));
@@ -173,14 +175,19 @@ export function scoreDropPriority(entry, opts = {}) {
   }
   if (typeof entry.daysLeft === 'number') {
     // Proximity peaks right after the drop; fades for far-future expiries.
-    const proximity = entry.daysLeft <= 0
-      ? DROP_SCORE_WEIGHTS.windowProximity
-      : Math.max(0, Math.round(
-          DROP_SCORE_WEIGHTS.windowProximity * (1 - entry.daysLeft / EXPIRY_WINDOWS.upcoming),
-        ));
+    const proximity =
+      entry.daysLeft <= 0
+        ? DROP_SCORE_WEIGHTS.windowProximity
+        : Math.max(
+            0,
+            Math.round(
+              DROP_SCORE_WEIGHTS.windowProximity * (1 - entry.daysLeft / EXPIRY_WINDOWS.upcoming)
+            )
+          );
     score += proximity;
     if (entry.daysLeft <= 0) reasons.push('already expired — may be re-registrable now');
-    else if (entry.daysLeft <= EXPIRY_WINDOWS.imminent) reasons.push(`expires in ${entry.daysLeft} day(s)`);
+    else if (entry.daysLeft <= EXPIRY_WINDOWS.imminent)
+      reasons.push(`expires in ${entry.daysLeft} day(s)`);
   }
   return { score: Math.min(100, score), reasons };
 }

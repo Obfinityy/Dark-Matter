@@ -47,9 +47,7 @@ export function buildOrgAsnIndex(rows = []) {
  * @returns {{ expanded: Array<{ asn, orgs: string[], seed: boolean, conflict: boolean }>, orgs: string[], stats: { seeds, total, added } }}
  */
 export function expandAsns(seedAsns = [], index) {
-  const seeds = new Set(
-    (seedAsns || []).map((a) => Number(a)).filter(Number.isFinite),
-  );
+  const seeds = new Set((seedAsns || []).map(a => Number(a)).filter(Number.isFinite));
   const orgs = new Set();
   const expanded = new Map();
   const idx = index || { orgToAsns: new Map(), asnToOrgs: new Map() };
@@ -77,7 +75,7 @@ export function expandAsns(seedAsns = [], index) {
   }
 
   const list = [...expanded.values()].sort((a, b) => a.asn - b.asn);
-  const added = list.filter((e) => !seeds.has(e.asn)).length;
+  const added = list.filter(e => !seeds.has(e.asn)).length;
   return {
     expanded: list,
     orgs: [...orgs].sort(),
@@ -99,7 +97,7 @@ export function diffAsnSets(previous = [], current = []) {
   const prev = new Set(previous.map(Number).filter(Number.isFinite));
   const curr = new Set(current.map(Number).filter(Number.isFinite));
   return {
-    newAsns: [...curr].filter((a) => !prev.has(a)).sort((a, b) => a - b),
-    droppedAsns: [...prev].filter((a) => !curr.has(a)).sort((a, b) => a - b),
+    newAsns: [...curr].filter(a => !prev.has(a)).sort((a, b) => a - b),
+    droppedAsns: [...prev].filter(a => !curr.has(a)).sort((a, b) => a - b),
   };
 }

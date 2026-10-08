@@ -35,7 +35,7 @@
 export function attrValues(obj, attr) {
   const v = obj?.attrs?.[attr];
   if (v == null) return [];
-  return (Array.isArray(v) ? v : [v]).map((x) => String(x).trim()).filter(Boolean);
+  return (Array.isArray(v) ? v : [v]).map(x => String(x).trim()).filter(Boolean);
 }
 
 /**
@@ -49,8 +49,8 @@ export function resourceLinkages(obj) {
   for (const attr of ['admin-c', 'tech-c', 'zone-c']) {
     for (const v of attrValues(obj, attr)) contacts.add(v.toUpperCase());
   }
-  const maintainers = new Set(attrValues(obj, 'mnt-by').map((v) => v.toUpperCase()));
-  const orgs = new Set(attrValues(obj, 'org').map((v) => v.toUpperCase()));
+  const maintainers = new Set(attrValues(obj, 'mnt-by').map(v => v.toUpperCase()));
+  const orgs = new Set(attrValues(obj, 'org').map(v => v.toUpperCase()));
   return {
     contacts: [...contacts].sort(),
     maintainers: [...maintainers].sort(),
@@ -65,9 +65,16 @@ export function resourceLinkages(obj) {
  */
 export function resourceId(obj) {
   if (!obj) return null;
-  const primary = attrValues(obj, obj.type === 'aut-num' ? 'aut-num'
-    : obj.type === 'organisation' ? 'organisation'
-    : obj.type === 'route' ? 'route' : 'inetnum');
+  const primary = attrValues(
+    obj,
+    obj.type === 'aut-num'
+      ? 'aut-num'
+      : obj.type === 'organisation'
+        ? 'organisation'
+        : obj.type === 'route'
+          ? 'route'
+          : 'inetnum'
+  );
   if (primary.length > 0) return primary[0];
   const fallback = attrValues(obj, 'inet6num');
   return fallback.length > 0 ? fallback[0] : null;
@@ -83,9 +90,10 @@ export function resourceId(obj) {
  * @returns {Array<{handle: string, kind: 'contact'|'maintainer', viaResources: string[], otherResources: Array<{id: string, type: string}>}>}
  */
 export function pivotOnAdminHandles(objects, targetResourceIds) {
-  const targets = new Set((targetResourceIds || []).map((id) => String(id).trim().toUpperCase()));
-  const resources = (objects || []).filter((o) =>
-    ['inetnum', 'inet6num', 'aut-num', 'route', 'organisation'].includes(o.type));
+  const targets = new Set((targetResourceIds || []).map(id => String(id).trim().toUpperCase()));
+  const resources = (objects || []).filter(o =>
+    ['inetnum', 'inet6num', 'aut-num', 'route', 'organisation'].includes(o.type)
+  );
   const idOf = new Map();
   for (const r of resources) {
     const id = resourceId(r);
@@ -154,7 +162,7 @@ export function adminReachSummary(objects) {
     }
   }
   return [...people.values()]
-    .map((p) => ({ ...p, resourceCount: reach.get(p.handle) || 0 }))
+    .map(p => ({ ...p, resourceCount: reach.get(p.handle) || 0 }))
     .sort((a, b) => b.resourceCount - a.resourceCount);
 }
 

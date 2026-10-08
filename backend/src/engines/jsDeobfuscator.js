@@ -149,10 +149,7 @@ export function resolveStringArrayRefs(js, tables) {
   let src = String(js || '');
   for (const [name, items] of tables) {
     const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const refRe = new RegExp(
-      `${esc}\\s*\\[\\s*(0x[0-9a-fA-F]+|\\d+)\\s*\\]`,
-      'g'
-    );
+    const refRe = new RegExp(`${esc}\\s*\\[\\s*(0x[0-9a-fA-F]+|\\d+)\\s*\\]`, 'g');
     src = src.replace(refRe, (full, idx) => {
       const i = parseInt(idx, idx.startsWith('0x') ? 16 : 10);
       if (Number.isNaN(i) || i < 0 || i >= items.length) return full;
@@ -180,7 +177,7 @@ export function foldStringConcatenations(js) {
   let prev;
   do {
     prev = src;
-    src = src.replace(chain, (full) => {
+    src = src.replace(chain, full => {
       const parts = [];
       const litRe = new RegExp(operand, 'g');
       let m;
@@ -209,9 +206,7 @@ export function decodeBase64Blobs(js) {
   const src = stripComments(js);
   const candidates = new Set();
   // atob("...") / atob('...') / Buffer.from("...", "base64") arguments
-  for (const m of src.matchAll(
-    /(?:atob|globalThis\.atob)\s*\(\s*(["'])([A-Za-z0-9+/=]{24,})\1/g
-  ))
+  for (const m of src.matchAll(/(?:atob|globalThis\.atob)\s*\(\s*(["'])([A-Za-z0-9+/=]{24,})\1/g))
     candidates.add(m[2]);
   for (const m of src.matchAll(
     /Buffer\s*\.\s*from\s*\(\s*(["'])([A-Za-z0-9+/=]{24,})\1\s*,\s*["']base64["']/g
@@ -289,21 +284,24 @@ export function resolveImportMap(htmlOrJson, baseUrl = '') {
   const text = String(htmlOrJson || '');
   let jsonText = text.trim();
   const blocks = [
-    ...text.matchAll(
-      /<script[^>]*type\s*=\s*["']importmap["'][^>]*>([\s\S]*?)<\/script>/gi
-    ),
+    ...text.matchAll(/<script[^>]*type\s*=\s*["']importmap["'][^>]*>([\s\S]*?)<\/script>/gi),
   ];
   if (blocks.length > 0) jsonText = blocks[0][1];
   let map;
   try {
     map = JSON.parse(jsonText);
   } catch (e) {
-    return { ok: false, error: `import-map JSON parse failed: ${e.message}`, imports: {}, prefixes: {} };
+    return {
+      ok: false,
+      error: `import-map JSON parse failed: ${e.message}`,
+      imports: {},
+      prefixes: {},
+    };
   }
   const raw = map.imports || {};
   const imports = {};
   const prefixes = {};
-  const toAbs = (target) => {
+  const toAbs = target => {
     if (/^[a-z][a-z0-9+.-]*:/i.test(target)) return target;
     if (!baseUrl) return target;
     try {
@@ -348,8 +346,8 @@ export function recoverEndpoints(js) {
   const base64Findings = decodeBase64Blobs(working);
   const dynamicImports = harvestDynamicImports(working);
   const literals = extractStringLiterals(working);
-  const decodedExtras = base64Findings.flatMap((f) => f.decoded.split(/\s+/));
-  const candidates = [...literals, ...decodedExtras, ...dynamicImports.map((d) => d.specifier)];
+  const decodedExtras = base64Findings.flatMap(f => f.decoded.split(/\s+/));
+  const candidates = [...literals, ...decodedExtras, ...dynamicImports.map(d => d.specifier)];
   const endpoints = new Set();
   for (const c of candidates) {
     for (const m of String(c).matchAll(URL_LIKE_RE)) {
@@ -359,16 +357,14 @@ export function recoverEndpoints(js) {
   }
   // Keep chunk-ish relative paths too (lazy-route chunks).
   for (const lit of literals) {
-    if (PATH_END_RE.test(lit) && lit.length < 120 && !endpoints.has(lit))
-      endpoints.add(lit);
+    if (PATH_END_RE.test(lit) && lit.length < 120 && !endpoints.has(lit)) endpoints.add(lit);
   }
   const importMaps = [];
   for (const blk of src.matchAll(
     /<script[^>]*type\s*=\s*["']importmap["'][^>]*>([\s\S]*?)<\/script>/gi
   )) {
     const resolved = resolveImportMap(blk[1]);
-    if (resolved.ok)
-      importMaps.push({ imports: resolved.imports, prefixes: resolved.prefixes });
+    if (resolved.ok) importMaps.push({ imports: resolved.imports, prefixes: resolved.prefixes });
   }
   return {
     endpoints: [...endpoints].sort(),

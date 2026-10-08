@@ -27,7 +27,9 @@ export function normalizeCompanyField(company) {
   if (!raw) return { kind: 'none', value: null };
   const at = raw.match(/^@([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)$/);
   if (at) return { kind: 'handle', value: at[1].toLowerCase() };
-  const domain = raw.match(/([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)/i);
+  const domain = raw.match(
+    /([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)/i
+  );
   if (domain) return { kind: 'domain', value: domain[1].toLowerCase() };
   return { kind: 'none', value: null };
 }
@@ -45,7 +47,9 @@ export function normalizeCompanyField(company) {
  * }}
  */
 export function analyzeOrgMemberDomains(members, primaryDomain) {
-  const primary = String(primaryDomain || '').trim().toLowerCase();
+  const primary = String(primaryDomain || '')
+    .trim()
+    .toLowerCase();
   const list = Array.isArray(members) ? members : [];
   const domainMembers = new Map(); // domain -> { logins:Set, signals:Set }
   const handleMembers = new Map(); // @handle -> logins
@@ -57,7 +61,9 @@ export function analyzeOrgMemberDomains(members, primaryDomain) {
     const login = String(m.login || '').toLowerCase();
     if (!login) continue;
 
-    const email = String(m.email || '').trim().toLowerCase();
+    const email = String(m.email || '')
+      .trim()
+      .toLowerCase();
     if (email && email.includes('@')) {
       withEmail++;
       const domain = email.slice(email.lastIndexOf('@') + 1);

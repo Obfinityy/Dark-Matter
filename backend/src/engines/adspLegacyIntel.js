@@ -42,7 +42,10 @@ export function parseAdspRecord(txt) {
  * @returns {{domain:string, present:boolean, policy:string|null, findings:Array<{severity:string,type:string,detail:string,recommendation:string}>}}
  */
 export function analyzeAdspRecords(domain, txtRecords) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const findings = [];
   const records = (txtRecords || []).map(parseAdspRecord);
   if (records.length === 0 || !records.some(r => r.policy)) {
@@ -53,21 +56,25 @@ export function analyzeAdspRecords(domain, txtRecords) {
     severity: 'info',
     type: 'adsp-legacy-record-present',
     detail: `Obsolete ADSP record still published for ${d} (dkim=${policy}). ADSP was superseded by DMARC (RFC 7489); the record is legacy baggage.`,
-    recommendation: 'Check the domain has a real DMARC record and remove the ADSP TXT once DMARC (p=reject, aligned) is confirmed — stale policy records confuse validators.',
+    recommendation:
+      'Check the domain has a real DMARC record and remove the ADSP TXT once DMARC (p=reject, aligned) is confirmed — stale policy records confuse validators.',
   });
   if (policy === 'unknown') {
     findings.push({
       severity: 'low',
       type: 'adsp-policy-unknown',
-      detail: 'ADSP policy is "unknown" — the author domain claims no signing practice. Any DKIM-signed mail seen from this domain is then suspicious.',
-      recommendation: 'Pivot: DKIM-signed mail from an "unknown" domain is a spoofing/backscatter hunting signal.',
+      detail:
+        'ADSP policy is "unknown" — the author domain claims no signing practice. Any DKIM-signed mail seen from this domain is then suspicious.',
+      recommendation:
+        'Pivot: DKIM-signed mail from an "unknown" domain is a spoofing/backscatter hunting signal.',
     });
   }
   if (records.some(r => !r.valid && Object.keys(r.tags).length > 0)) {
     findings.push({
       severity: 'low',
       type: 'adsp-malformed-record',
-      detail: 'An ADSP-shaped record exists but carries an unrecognized policy value — legacy validators may treat it inconsistently.',
+      detail:
+        'An ADSP-shaped record exists but carries an unrecognized policy value — legacy validators may treat it inconsistently.',
       recommendation: 'Normalize or remove the malformed record during the ADSP cleanup.',
     });
   }
@@ -81,13 +88,17 @@ export function analyzeAdspRecords(domain, txtRecords) {
  * @returns {Promise<{domain:string, present:boolean, policy:string|null, findings:Array}>}
  */
 export async function checkAdspLegacy(domain) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   let txt = [];
   try {
     const raw = await resolver.resolveTxt(`_adsp._domainkey.${d}`);
     txt = raw.map(chunks => chunks.join(''));
   } catch (err) {
-    if (err && err.code !== 'ENODATA' && err.code !== 'ENOTFOUND' && err.code !== 'SERVFAIL') throw err;
+    if (err && err.code !== 'ENODATA' && err.code !== 'ENOTFOUND' && err.code !== 'SERVFAIL')
+      throw err;
   }
   return analyzeAdspRecords(d, txt);
 }

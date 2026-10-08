@@ -11,14 +11,55 @@ const NOW = 1700000000000;
 const DAY = 24 * 3600000;
 const HOUR = 3600000;
 
-const SCHED1 = { id: 'sched-621', targetId: 'acme-prod', targetName: 'acme-prod', cadence: 'weekly', depth: 'quick', owner: 'aria', runAt: NOW + 3 * HOUR, status: 'scheduled' };
-const SCHED2 = { id: 'sched-622', targetId: 'acme-staging', targetName: 'acme-staging', cadence: 'daily', depth: 'full', owner: 'kai', runAt: NOW + 2 * DAY, status: 'scheduled' };
-const RUN1 = { id: 'run-621', target: 'acme-prod', startedAt: NOW - 7 * DAY, verdict: 'all-clear', stats: { newFindings: 0, fixed: 5, persistent: 12, openIssues: 0, meanTimeToVerifyMs: 9000000 } };
-const RUN2 = { id: 'run-622', target: 'acme-prod', startedAt: NOW - 14 * DAY, verdict: 'fixed-found', stats: { newFindings: 2, fixed: 8, persistent: 10, openIssues: 0, meanTimeToVerifyMs: 12000000, reintroduced: 1 } };
+const SCHED1 = {
+  id: 'sched-621',
+  targetId: 'acme-prod',
+  targetName: 'acme-prod',
+  cadence: 'weekly',
+  depth: 'quick',
+  owner: 'aria',
+  runAt: NOW + 3 * HOUR,
+  status: 'scheduled',
+};
+const SCHED2 = {
+  id: 'sched-622',
+  targetId: 'acme-staging',
+  targetName: 'acme-staging',
+  cadence: 'daily',
+  depth: 'full',
+  owner: 'kai',
+  runAt: NOW + 2 * DAY,
+  status: 'scheduled',
+};
+const RUN1 = {
+  id: 'run-621',
+  target: 'acme-prod',
+  startedAt: NOW - 7 * DAY,
+  verdict: 'all-clear',
+  stats: { newFindings: 0, fixed: 5, persistent: 12, openIssues: 0, meanTimeToVerifyMs: 9000000 },
+};
+const RUN2 = {
+  id: 'run-622',
+  target: 'acme-prod',
+  startedAt: NOW - 14 * DAY,
+  verdict: 'fixed-found',
+  stats: {
+    newFindings: 2,
+    fixed: 8,
+    persistent: 10,
+    openIssues: 0,
+    meanTimeToVerifyMs: 12000000,
+    reintroduced: 1,
+  },
+};
 const WS = { id: 'ws-1' };
 
-function Note({ children }) { return <p className="sr62-note">{children}</p>; }
-function Mono({ children }) { return <pre className="sr62-mono">{children}</pre>; }
+function Note({ children }) {
+  return <p className="sr62-note">{children}</p>;
+}
+function Mono({ children }) {
+  return <pre className="sr62-mono">{children}</pre>;
+}
 
 /* 52441 — Scheduled hunt ownership. */
 export function ScheduleOwnership() {
@@ -29,8 +70,12 @@ export function ScheduleOwnership() {
       <h3 className="sr62-title">52441 · Scheduled hunt ownership</h3>
       <Note>Assign an accountable owner to each recurring schedule.</Note>
       <div className="sr62-row">
-        <select className="sr62-select" value={owner} onChange={(e) => setOwner(e.target.value)}>
-          {['aria', 'kai', 'bhavesh'].map((u) => <option key={u} value={u}>{u}</option>)}
+        <select className="sr62-select" value={owner} onChange={e => setOwner(e.target.value)}>
+          {['aria', 'kai', 'bhavesh'].map(u => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
         </select>
         <span className="sr62-chip">owner: {r.schedule.owner}</span>
       </div>
@@ -48,8 +93,12 @@ export function SchedulePermissions() {
       <h3 className="sr62-title">52442 · Scheduled hunt permissions</h3>
       <Note>Role-based control over who can create, edit, or pause recurring hunts.</Note>
       <div className="sr62-row">
-        <select className="sr62-select" value={role} onChange={(e) => setRole(e.target.value)}>
-          {['viewer', 'editor', 'owner', 'admin'].map((x) => <option key={x} value={x}>{x}</option>)}
+        <select className="sr62-select" value={role} onChange={e => setRole(e.target.value)}>
+          {['viewer', 'editor', 'owner', 'admin'].map(x => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
         </select>
         <span className="sr62-chip">{r.allowed ? 'allowed' : 'denied'}</span>
       </div>
@@ -74,14 +123,21 @@ export function ReportAutoSend() {
 
 /* 52444 — Regression SLA tracking. */
 export function RegressionSla() {
-  const r = SR.trackRegressionSla({ ...RUN1, verifiedAt: NOW - 6 * DAY }, NOW - 7 * DAY, 7 * DAY, NOW);
+  const r = SR.trackRegressionSla(
+    { ...RUN1, verifiedAt: NOW - 6 * DAY },
+    NOW - 7 * DAY,
+    7 * DAY,
+    NOW
+  );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52444 · Regression SLA tracking</h3>
       <Note>Time from fix-deploy to verified-fixed against the configured SLA.</Note>
       <div className="sr62-row">
         <span className="sr62-chip">{r.status}</span>
-        <span className="sr62-chip">elapsed: {Math.round(r.elapsedMs / DAY)}d / {Math.round(r.slaMs / DAY)}d</span>
+        <span className="sr62-chip">
+          elapsed: {Math.round(r.elapsedMs / DAY)}d / {Math.round(r.slaMs / DAY)}d
+        </span>
       </div>
     </div>
   );
@@ -89,14 +145,20 @@ export function RegressionSla() {
 
 /* 52445 — Regression history timeline. */
 export function HistoryTimeline() {
-  const r = SR.buildHistoryTimeline([RUN1, RUN2, { ...RUN1, id: 'run-620', target: 'other' }], 'acme-prod');
+  const r = SR.buildHistoryTimeline(
+    [RUN1, RUN2, { ...RUN1, id: 'run-620', target: 'other' }],
+    'acme-prod'
+  );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52445 · Regression history timeline</h3>
       <Note>Per-target timeline of every regression run with verdicts.</Note>
       <ul className="sr62-list">
-        {r.timeline.map((t) => (
-          <li key={t.runId}><span className="sr62-chip">{t.verdict}</span> {t.runId} · {new Date(t.at).toISOString().slice(0, 10)}</li>
+        {r.timeline.map(t => (
+          <li key={t.runId}>
+            <span className="sr62-chip">{t.verdict}</span> {t.runId} ·{' '}
+            {new Date(t.at).toISOString().slice(0, 10)}
+          </li>
         ))}
       </ul>
     </div>
@@ -122,16 +184,23 @@ export function RegressionAnalytics() {
 /* 52447 — Bulk schedule creation. */
 export function BulkScheduleCreate() {
   const r = SR.bulkCreateSchedules(
-    [{ id: 't-1', name: 'acme-prod' }, { id: 't-2', name: 'acme-staging' }],
+    [
+      { id: 't-1', name: 'acme-prod' },
+      { id: 't-2', name: 'acme-staging' },
+    ],
     { name: 'weekly-quick', cadence: 'weekly', depth: 'quick', owner: 'aria' },
-    NOW,
+    NOW
   );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52447 · Bulk schedule creation</h3>
       <Note>Apply the same regression schedule to many targets at once.</Note>
       <ul className="sr62-list">
-        {r.schedules.map((s) => <li key={s.id}><span className="sr62-chip">{s.cadence}</span> {s.targetName}</li>)}
+        {r.schedules.map(s => (
+          <li key={s.id}>
+            <span className="sr62-chip">{s.cadence}</span> {s.targetName}
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -139,12 +208,26 @@ export function BulkScheduleCreate() {
 
 /* 52448 — Schedule-from-triage. */
 export function ScheduleFromTriage() {
-  const r = SR.scheduleFromTriage({ id: 'f-621', state: 'Triaged', triageDecision: 'fix', severity: 'high', title: 'SQLi in search' }, { delayMs: 7 * DAY }, NOW);
+  const r = SR.scheduleFromTriage(
+    {
+      id: 'f-621',
+      state: 'Triaged',
+      triageDecision: 'fix',
+      severity: 'high',
+      title: 'SQLi in search',
+    },
+    { delayMs: 7 * DAY },
+    NOW
+  );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52448 · Schedule-from-triage</h3>
       <Note>Schedule regression verification straight from a triaged finding.</Note>
-      {r.ok ? <Mono>{`verification at ${new Date(r.schedule.runAt).toISOString()}`}</Mono> : <Mono>{r.reason}</Mono>}
+      {r.ok ? (
+        <Mono>{`verification at ${new Date(r.schedule.runAt).toISOString()}`}</Mono>
+      ) : (
+        <Mono>{r.reason}</Mono>
+      )}
     </div>
   );
 }
@@ -156,7 +239,11 @@ export function ScheduleFromBoard() {
     <div className="sr62-card">
       <h3 className="sr62-title">52449 · Schedule-from-remediation-board</h3>
       <Note>Drag a "fixing" card onto a calendar date to schedule verification.</Note>
-      <Mono>{r.ok ? `dropped → verification ${new Date(r.schedule.runAt).toISOString().slice(0, 10)}` : r.reason}</Mono>
+      <Mono>
+        {r.ok
+          ? `dropped → verification ${new Date(r.schedule.runAt).toISOString().slice(0, 10)}`
+          : r.reason}
+      </Mono>
     </div>
   );
 }
@@ -186,7 +273,9 @@ export function TimezoneAware() {
     <div className="sr62-card">
       <h3 className="sr62-title">52451 · Timezone-aware scheduling</h3>
       <Note>Schedules display and fire in the target's local timezone.</Note>
-      <Mono>{r.local} {r.offset}</Mono>
+      <Mono>
+        {r.local} {r.offset}
+      </Mono>
       <Note>{r.dstNote}.</Note>
     </div>
   );
@@ -194,13 +283,18 @@ export function TimezoneAware() {
 
 /* 52452 — Concurrency limits. */
 export function ConcurrencyLimits() {
-  const r = SR.checkConcurrency([{ status: 'running' }, { status: 'running' }, { status: 'done' }], 2);
+  const r = SR.checkConcurrency(
+    [{ status: 'running' }, { status: 'running' }, { status: 'done' }],
+    2
+  );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52452 · Concurrency limits</h3>
       <Note>Cap simultaneous scheduled hunts to protect shared targets and budgets.</Note>
       <div className="sr62-row">
-        <span className="sr62-chip">active: {r.active}/{r.limit}</span>
+        <span className="sr62-chip">
+          active: {r.active}/{r.limit}
+        </span>
         <span className="sr62-chip">{r.allowed ? 'slot available' : 'at cap'}</span>
       </div>
       <Mono>{r.hint}</Mono>
@@ -219,14 +313,21 @@ export function BudgetCaps() {
         <span className="sr62-chip">{r.status}</span>
         <span className="sr62-chip">used: {Math.round(r.pctUsed * 100)}%</span>
       </div>
-      <div className="sr62-bar"><div className="sr62-bar-fill" style={{ width: `${Math.min(100, r.pctUsed * 100)}%` }} /></div>
+      <div className="sr62-bar">
+        <div className="sr62-bar-fill" style={{ width: `${Math.min(100, r.pctUsed * 100)}%` }} />
+      </div>
     </div>
   );
 }
 
 /* 52454 — Scheduled-hunt dry run. */
 export function DryRun() {
-  const r = SR.dryRunSchedule({ id: 'sched-623', scope: { target: 'acme-prod', endpoints: ['/', '/api', '/login'] }, engines: ['xss', 'sqli'], payloadsPerEngine: 50 });
+  const r = SR.dryRunSchedule({
+    id: 'sched-623',
+    scope: { target: 'acme-prod', endpoints: ['/', '/api', '/login'] },
+    engines: ['xss', 'sqli'],
+    payloadsPerEngine: 50,
+  });
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52454 · Scheduled-hunt dry run</h3>
@@ -243,14 +344,22 @@ export function DryRun() {
 /* 52455 — Scheduled-hunt run logs. */
 export function RunLogs() {
   const seed = [];
-  const a = SR.appendRunLog(seed, { runId: 'run-621', level: 'info', message: 'started scope /api' }, NOW);
-  const b = SR.appendRunLog(a.logs, { runId: 'run-621', level: 'error', message: 'engine sqli timed out' }, NOW + 1000);
+  const a = SR.appendRunLog(
+    seed,
+    { runId: 'run-621', level: 'info', message: 'started scope /api' },
+    NOW
+  );
+  const b = SR.appendRunLog(
+    a.logs,
+    { runId: 'run-621', level: 'error', message: 'engine sqli timed out' },
+    NOW + 1000
+  );
   const q = SR.filterRunLogs(b.logs, { level: 'error' });
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52455 · Scheduled-hunt run logs</h3>
       <Note>Full logs per scheduled execution for debugging missed or failed runs.</Note>
-      <Mono>{q.rows.map((x) => `[${x.level}] ${x.message}`).join('\n')}</Mono>
+      <Mono>{q.rows.map(x => `[${x.level}] ${x.message}`).join('\n')}</Mono>
       <span className="sr62-chip">{q.count} error(s)</span>
     </div>
   );
@@ -258,12 +367,18 @@ export function RunLogs() {
 
 /* 52456 — Schedule failure alerts (post-hunt). */
 export function FailureAlerts() {
-  const r = SR.buildFailureAlert(RUN1, { kind: 'did-not-start', detail: 'target DNS unresolvable' }, NOW);
+  const r = SR.buildFailureAlert(
+    RUN1,
+    { kind: 'did-not-start', detail: 'target DNS unresolvable' },
+    NOW
+  );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52456 · Schedule failure alerts</h3>
       <Note>Immediate alert when a scheduled hunt fails to start or errors out.</Note>
-      <div className="sr62-row"><span className="sr62-chip">{r.alert.severity}</span></div>
+      <div className="sr62-row">
+        <span className="sr62-chip">{r.alert.severity}</span>
+      </div>
       <Mono>{r.alert.title}</Mono>
     </div>
   );
@@ -278,7 +393,11 @@ export function RetryPolicy() {
       <h3 className="sr62-title">52457 · Retry policy for scheduled hunts</h3>
       <Note>Configurable retries with exponential backoff for transient failures.</Note>
       <div className="sr62-row">
-        <span className="sr62-chip">{r1.retry ? `attempt ${r1.attempt}/${r1.maxAttempts} in ${r1.delayMs / 60000} min` : r1.reason}</span>
+        <span className="sr62-chip">
+          {r1.retry
+            ? `attempt ${r1.attempt}/${r1.maxAttempts} in ${r1.delayMs / 60000} min`
+            : r1.reason}
+        </span>
         <span className="sr62-chip">{r2.retry ? 'retrying' : r2.reason}</span>
       </div>
     </div>
@@ -287,7 +406,11 @@ export function RetryPolicy() {
 
 /* 52458 — Schedule templates (post-hunt). */
 export function ScheduleTemplates() {
-  const r = SR.applyScheduleTemplate({ name: 'weekly-quick', cadence: 'weekly', depth: 'quick', notify: ['leads@infinity.ai'] }, { id: 'acme-prod', name: 'acme-prod' }, NOW);
+  const r = SR.applyScheduleTemplate(
+    { name: 'weekly-quick', cadence: 'weekly', depth: 'quick', notify: ['leads@infinity.ai'] },
+    { id: 'acme-prod', name: 'acme-prod' },
+    NOW
+  );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52458 · Schedule templates</h3>
@@ -299,7 +422,10 @@ export function ScheduleTemplates() {
 
 /* 52459 — Event-triggered schedules. */
 export function EventTriggers() {
-  const triggers = [{ id: 'trig-1', onEvent: 'certificate-renewal' }, { id: 'trig-2', onEvent: 'dns-change', targetId: 'acme-prod' }];
+  const triggers = [
+    { id: 'trig-1', onEvent: 'certificate-renewal' },
+    { id: 'trig-2', onEvent: 'dns-change', targetId: 'acme-prod' },
+  ];
   const r = SR.matchEventTrigger({ kind: 'certificate-renewal', targetId: 'acme-prod' }, triggers);
   return (
     <div className="sr62-card">
@@ -313,17 +439,53 @@ export function EventTriggers() {
 
 /* 52460 — FP spot-check regression. */
 export function FpSpotCheck() {
-  const r = SR.fpSpotCheckSample([{ id: 'fp-1' }, { id: 'fp-2' }, { id: 'fp-3' }, { id: 'fp-4' }, { id: 'fp-5' }], 2);
+  const r = SR.fpSpotCheckSample(
+    [{ id: 'fp-1' }, { id: 'fp-2' }, { id: 'fp-3' }, { id: 'fp-4' }, { id: 'fp-5' }],
+    2
+  );
   return (
     <div className="sr62-card">
       <h3 className="sr62-title">52460 · FP spot-check regression</h3>
       <Note>Periodically re-validate a sample of FP-dismissed patterns to catch rule drift.</Note>
-      <div className="sr62-row"><span className="sr62-chip">{r.sampled}/{r.total} sampled</span></div>
-      <Mono>{r.sample.map((p) => p.id).join(', ')}</Mono>
+      <div className="sr62-row">
+        <span className="sr62-chip">
+          {r.sampled}/{r.total} sampled
+        </span>
+      </div>
+      <Mono>{r.sample.map(p => p.id).join(', ')}</Mono>
     </div>
   );
 }
 
-export const SR62_GALLERY = [ScheduleOwnership, SchedulePermissions, ReportAutoSend, RegressionSla, HistoryTimeline, RegressionAnalytics, BulkScheduleCreate, ScheduleFromTriage, ScheduleFromBoard, BlackoutWindows, TimezoneAware, ConcurrencyLimits, BudgetCaps, DryRun, RunLogs, FailureAlerts, RetryPolicy, ScheduleTemplates, EventTriggers, FpSpotCheck];
+export const SR62_GALLERY = [
+  ScheduleOwnership,
+  SchedulePermissions,
+  ReportAutoSend,
+  RegressionSla,
+  HistoryTimeline,
+  RegressionAnalytics,
+  BulkScheduleCreate,
+  ScheduleFromTriage,
+  ScheduleFromBoard,
+  BlackoutWindows,
+  TimezoneAware,
+  ConcurrencyLimits,
+  BudgetCaps,
+  DryRun,
+  RunLogs,
+  FailureAlerts,
+  RetryPolicy,
+  ScheduleTemplates,
+  EventTriggers,
+  FpSpotCheck,
+];
 
-export function SchedRegressGallery() { return (<div className="sr62-gallery">{SR62_GALLERY.map((C, i) => <C key={i} />)}</div>); }
+export function SchedRegressGallery() {
+  return (
+    <div className="sr62-gallery">
+      {SR62_GALLERY.map((C, i) => (
+        <C key={i} />
+      ))}
+    </div>
+  );
+}

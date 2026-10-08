@@ -47,8 +47,7 @@ export function isWasmBinary(input) {
   for (let i = 0; i < 4; i++) {
     if (bytes[i] !== WASM_MAGIC[i]) return false;
   }
-  const version =
-    bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24);
+  const version = bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24);
   return version === WASM_VERSION;
 }
 
@@ -94,9 +93,7 @@ export function listWasmSections(input) {
     if (id === 0) {
       // Custom section: leading LEB128 length + UTF-8 name.
       const { value: nameLen, next: nameStart } = readLeb128(bytes, pos);
-      name = Buffer.from(bytes.slice(nameStart, nameStart + nameLen)).toString(
-        'utf8',
-      );
+      name = Buffer.from(bytes.slice(nameStart, nameStart + nameLen)).toString('utf8');
     }
     sections.push({ id, name, offset: start, size });
     pos = start + size;
@@ -149,11 +146,7 @@ export function extractWasmStrings(input, opts = {}) {
 }
 
 /** Endpoint-like patterns: absolute URLs, ws(s) URLs and root paths. */
-const ENDPOINT_PATTERNS = [
-  /^https?:\/\/[^\s]+$/i,
-  /^wss?:\/\/[^\s]+$/i,
-  /^\/[a-z0-9_./-]{2,}$/i,
-];
+const ENDPOINT_PATTERNS = [/^https?:\/\/[^\s]+$/i, /^wss?:\/\/[^\s]+$/i, /^\/[a-z0-9_./-]{2,}$/i];
 
 /** Key-*reference* identifier patterns (names, never values). */
 const KEY_REFERENCE_PATTERNS = [
@@ -180,13 +173,12 @@ export function classifyWasmStrings(strings) {
   const other = [];
   let suspiciousBlobCount = 0;
 
-  const isBlob = (s) =>
-    s.length >= 32 && /^[A-Za-z0-9+/=_-]+$/.test(s) && !/^[a-z]+$/i.test(s);
+  const isBlob = s => s.length >= 32 && /^[A-Za-z0-9+/=_-]+$/.test(s) && !/^[a-z]+$/i.test(s);
 
   for (const s of strings) {
-    if (KEY_REFERENCE_PATTERNS.some((re) => re.test(s))) {
+    if (KEY_REFERENCE_PATTERNS.some(re => re.test(s))) {
       keyReferences.push(s);
-    } else if (ENDPOINT_PATTERNS.some((re) => re.test(s))) {
+    } else if (ENDPOINT_PATTERNS.some(re => re.test(s))) {
       endpoints.push(s);
     } else if (isBlob(s)) {
       suspiciousBlobCount += 1; // counted, never returned

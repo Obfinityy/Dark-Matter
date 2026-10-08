@@ -11,8 +11,20 @@
  */
 
 const TOKEN_WORDS = [
-  'canary', 'honey', 'trap', 'decoy', 'sentinel', 'tripwire', 'bait',
-  'lure', 'mirage', 'phantom', 'ghost', 'shadow', 'warden', 'sentry',
+  'canary',
+  'honey',
+  'trap',
+  'decoy',
+  'sentinel',
+  'tripwire',
+  'bait',
+  'lure',
+  'mirage',
+  'phantom',
+  'ghost',
+  'shadow',
+  'warden',
+  'sentry',
 ];
 
 /**
@@ -28,7 +40,9 @@ const TOKEN_WORDS = [
  * @returns {Array<{ label, fqdn, plantedAt: null, purpose: 'ct-honeytoken' }>}
  */
 export function generateCanarySubdomains(apex, count = 5, seed = '') {
-  const domain = String(apex || '').toLowerCase().replace(/\.$/, '');
+  const domain = String(apex || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!domain || !domain.includes('.')) return [];
   const n = Math.max(1, Math.min(50, Math.floor(count) || 5));
   // Simple deterministic PRNG (xorshift32) from the seed string.
@@ -47,7 +61,9 @@ export function generateCanarySubdomains(apex, count = 5, seed = '') {
   const used = new Set();
   while (out.length < n) {
     const word = TOKEN_WORDS[Math.floor(rand() * TOKEN_WORDS.length)];
-    const frag = Math.floor(rand() * 0xffffff).toString(16).padStart(6, '0');
+    const frag = Math.floor(rand() * 0xffffff)
+      .toString(16)
+      .padStart(6, '0');
     const label = `${word}-${frag}`;
     if (used.has(label)) continue;
     used.add(label);
@@ -69,7 +85,11 @@ export function generateCanarySubdomains(apex, count = 5, seed = '') {
  */
 export function matchScannerHits(observations = [], canaries = []) {
   const canon = new Set(
-    (canaries || []).map((c) => String((c && c.fqdn) || c || '').toLowerCase().replace(/\.$/, '')),
+    (canaries || []).map(c =>
+      String((c && c.fqdn) || c || '')
+        .toLowerCase()
+        .replace(/\.$/, '')
+    )
   );
   const hits = [];
   for (const o of observations || []) {
@@ -87,7 +107,13 @@ export function matchScannerHits(observations = [], canaries = []) {
   const bySource = new Map();
   for (const hit of hits) {
     if (!bySource.has(hit.source)) {
-      bySource.set(hit.source, { source: hit.source, hits: 0, fqdns: new Set(), firstSeen: null, lastSeen: null });
+      bySource.set(hit.source, {
+        source: hit.source,
+        hits: 0,
+        fqdns: new Set(),
+        firstSeen: null,
+        lastSeen: null,
+      });
     }
     const g = bySource.get(hit.source);
     g.hits++;
@@ -97,7 +123,7 @@ export function matchScannerHits(observations = [], canaries = []) {
     g.lastSeen = times[times.length - 1] || null;
   }
   const sources = [...bySource.values()]
-    .map((g) => ({ ...g, fqdns: [...g.fqdns].sort() }))
+    .map(g => ({ ...g, fqdns: [...g.fqdns].sort() }))
     .sort((a, b) => b.hits - a.hits);
   return { hits, bySource: sources };
 }
@@ -113,7 +139,7 @@ export function matchScannerHits(observations = [], canaries = []) {
  */
 export function scoreScannerInfrastructure(bySource = []) {
   return (bySource || [])
-    .map((s) => {
+    .map(s => {
       const distinct = new Set(s.fqdns || []).size;
       let score = Math.min(100, distinct * 25 + Math.min(25, (s.hits || 0) * 2));
       let verdict = 'stray';

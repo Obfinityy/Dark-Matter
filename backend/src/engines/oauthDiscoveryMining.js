@@ -60,9 +60,16 @@ export function hostOf(url) {
  */
 export function parseDiscoveryDocument(doc) {
   const empty = {
-    issuer: null, endpoints: {}, endpointCount: 0,
-    responseTypes: [], responseModes: [], grantTypes: [],
-    scopes: [], claims: [], pkceMethods: [], extraFields: [],
+    issuer: null,
+    endpoints: {},
+    endpointCount: 0,
+    responseTypes: [],
+    responseModes: [],
+    grantTypes: [],
+    scopes: [],
+    claims: [],
+    pkceMethods: [],
+    extraFields: [],
   };
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return empty;
 
@@ -70,8 +77,8 @@ export function parseDiscoveryDocument(doc) {
   for (const field of ENDPOINT_FIELDS) {
     endpoints[field] = typeof doc[field] === 'string' ? doc[field] : null;
   }
-  const str = (v) => (typeof v === 'string' ? v : null);
-  const strList = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+  const str = v => (typeof v === 'string' ? v : null);
+  const strList = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
 
   return {
     issuer: str(doc.issuer),
@@ -84,11 +91,17 @@ export function parseDiscoveryDocument(doc) {
     claims: strList(doc.claims_supported),
     pkceMethods: strList(doc.code_challenge_methods_supported),
     extraFields: Object.keys(doc).filter(
-      (k) => !ENDPOINT_FIELDS.includes(k) && ![
-        'issuer', 'response_types_supported', 'response_modes_supported',
-        'grant_types_supported', 'scopes_supported', 'claims_supported',
-        'code_challenge_methods_supported',
-      ].includes(k),
+      k =>
+        !ENDPOINT_FIELDS.includes(k) &&
+        ![
+          'issuer',
+          'response_types_supported',
+          'response_modes_supported',
+          'grant_types_supported',
+          'scopes_supported',
+          'claims_supported',
+          'code_challenge_methods_supported',
+        ].includes(k)
     ),
   };
 }
@@ -125,7 +138,10 @@ export function fingerprintOAuthProvider(parsed) {
   const haystack = [
     parsed ? parsed.issuer : null,
     ...Object.values((parsed && parsed.endpoints) || {}),
-  ].filter(Boolean).join(' ').toLowerCase();
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
   if (!haystack) return null;
   const table = [
     [/auth0\.com/, 'Auth0'],
@@ -140,9 +156,18 @@ export function fingerprintOAuthProvider(parsed) {
     [/appleid\.apple\.com/, 'Apple Sign In'],
   ];
   for (const [re, provider] of table) {
-    if (re.test(haystack)) return { provider, confidence: 'high', evidence: `discovery URLs match ${provider} patterns` };
+    if (re.test(haystack))
+      return {
+        provider,
+        confidence: 'high',
+        evidence: `discovery URLs match ${provider} patterns`,
+      };
   }
-  return { provider: 'unknown/custom IdP', confidence: 'low', evidence: 'no known provider URL pattern matched' };
+  return {
+    provider: 'unknown/custom IdP',
+    confidence: 'low',
+    evidence: 'no known provider URL pattern matched',
+  };
 }
 
 /**
@@ -158,14 +183,23 @@ export function extractOAuthObservations(parsed) {
   const responseTypes = p.responseTypes || [];
   const grantTypes = p.grantTypes || [];
   const pkce = p.pkceMethods || [];
-  if (responseTypes.some((t) => /(^|\s)token(\s|$)/.test(t) || t === 'id_token')) {
-    notes.push('implicit flow response types advertised — legacy flow with tokens in the URL fragment');
+  if (responseTypes.some(t => /(^|\s)token(\s|$)/.test(t) || t === 'id_token')) {
+    notes.push(
+      'implicit flow response types advertised — legacy flow with tokens in the URL fragment'
+    );
   }
-  if (grantTypes.includes('password') || grantTypes.includes('urn:ietf:params:oauth:grant-type:jwt-bearer')) {
-    notes.push('resource-owner password or JWT-bearer grants advertised — review credential handling');
+  if (
+    grantTypes.includes('password') ||
+    grantTypes.includes('urn:ietf:params:oauth:grant-type:jwt-bearer')
+  ) {
+    notes.push(
+      'resource-owner password or JWT-bearer grants advertised — review credential handling'
+    );
   }
   if (responseTypes.includes('code') && pkce.length === 0) {
-    notes.push('authorization-code flow without advertised PKCE methods — verify PKCE enforcement for public clients');
+    notes.push(
+      'authorization-code flow without advertised PKCE methods — verify PKCE enforcement for public clients'
+    );
   }
   const hosts = mapOAuthHosts(p);
   if (hosts.crossHostEndpoints.length > 0) {

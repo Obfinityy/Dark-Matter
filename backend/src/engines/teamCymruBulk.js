@@ -9,7 +9,8 @@
  * All functions are pure and synchronous — no network calls.
  */
 
-const HEADER_RE = /^\s*AS\s*\|\s*IP\s*\|\s*BGP Prefix\s*\|\s*CC\s*\|\s*Registry\s*\|\s*Allocated\s*\|\s*AS Name/i;
+const HEADER_RE =
+  /^\s*AS\s*\|\s*IP\s*\|\s*BGP Prefix\s*\|\s*CC\s*\|\s*Registry\s*\|\s*Allocated\s*\|\s*AS Name/i;
 
 /**
  * Idea 00194 — Parse Team Cymru bulk WHOIS output into records.
@@ -27,14 +28,14 @@ export function parseCymruBulk(text = '') {
   for (const rawLine of String(text || '').split('\n')) {
     const line = rawLine.trim();
     if (!line || HEADER_RE.test(line)) continue;
-    const cols = line.split('|').map((c) => c.trim());
+    const cols = line.split('|').map(c => c.trim());
     if (cols.length < 2) continue;
     const ip = cols[1];
     if (!ip || seen.has(ip)) continue;
     seen.add(ip);
     const asnRaw = (cols[0] || '').replace(/^AS/i, '').trim();
     const asn = /^\d+$/.test(asnRaw) ? Number(asnRaw) : null;
-    const norm = (v) => {
+    const norm = v => {
       const s = String(v || '').trim();
       return !s || /^NA$/i.test(s) ? null : s;
     };
@@ -64,9 +65,7 @@ export function parseCymruBulk(text = '') {
  * @returns {{ inScope: Array<{asn, ip, prefix, asName}>, outOfScope: Array<{asn, ip, prefix, asName}>, byAsn: Array<{asn, asName, ips: string[], inScope: boolean}>, stats: { resolved, unresolved, inScopeCount, outOfScopeCount } }}
  */
 export function ownershipBoundaries(records = [], targetAsns = []) {
-  const targets = new Set(
-    (targetAsns || []).map((a) => Number(a)).filter(Number.isFinite),
-  );
+  const targets = new Set((targetAsns || []).map(a => Number(a)).filter(Number.isFinite));
   const inScope = [];
   const outOfScope = [];
   const byAsn = new Map();
@@ -81,7 +80,12 @@ export function ownershipBoundaries(records = [], targetAsns = []) {
     }
     resolved++;
     const inScopeFlag = targets.has(Number(r.asn));
-    const entry = { asn: Number(r.asn), ip: r.ip, prefix: r.prefix || null, asName: r.asName || null };
+    const entry = {
+      asn: Number(r.asn),
+      ip: r.ip,
+      prefix: r.prefix || null,
+      asName: r.asName || null,
+    };
     if (inScopeFlag) inScope.push(entry);
     else outOfScope.push(entry);
     if (!byAsn.has(entry.asn)) {
@@ -91,7 +95,7 @@ export function ownershipBoundaries(records = [], targetAsns = []) {
   }
 
   const byAsnList = [...byAsn.values()]
-    .map((g) => ({ ...g, ips: g.ips.sort() }))
+    .map(g => ({ ...g, ips: g.ips.sort() }))
     .sort((a, b) => b.ips.length - a.ips.length || a.asn - b.asn);
 
   return {

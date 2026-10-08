@@ -303,13 +303,13 @@ export function shouldPrefetchPdf({ reportTabOpened, pdfCached }) {
  */
 export function optimisticBulkReview(items) {
   const list = Array.isArray(items) ? items : [];
-  const previous = list.map((f) => ({ id: f.id, status: f.status }));
-  const updated = list.map((f) => ({ ...f, status: 'reviewed', _optimistic: true }));
+  const previous = list.map(f => ({ id: f.id, status: f.status }));
+  const updated = list.map(f => ({ ...f, status: 'reviewed', _optimistic: true }));
   return {
     updated,
     rollback: () =>
-      updated.map((f) => {
-        const prev = previous.find((p) => p.id === f.id);
+      updated.map(f => {
+        const prev = previous.find(p => p.id === f.id);
         const { _optimistic, ...rest } = f;
         return { ...rest, status: prev ? prev.status : rest.status };
       }),
@@ -391,8 +391,8 @@ export function canIdlePreload({ documentHidden, saveData, idle }) {
 /** Notification badges decrement the instant a toast is dismissed. */
 export function dismissNotification(list, id) {
   const arr = Array.isArray(list) ? list : [];
-  const dismissed = arr.find((n) => n.id === id) || null;
-  return { list: arr.filter((n) => n.id !== id), dismissed };
+  const dismissed = arr.find(n => n.id === id) || null;
+  return { list: arr.filter(n => n.id !== id), dismissed };
 }
 
 // ---------------------------------------------------------------------------
@@ -404,15 +404,17 @@ export function dismissNotification(list, id) {
  * Same scoring the Web Worker runs; pure so the main-thread fallback and
  * tests share it. Token-prefix + substring scoring, best matches first.
  */
-export function buildSearchIndex(docs, keyFn = (d) => d.title || '') {
-  const entries = (Array.isArray(docs) ? docs : []).map((d) => ({
+export function buildSearchIndex(docs, keyFn = d => d.title || '') {
+  const entries = (Array.isArray(docs) ? docs : []).map(d => ({
     doc: d,
     hay: String(keyFn(d)).toLowerCase(),
   }));
   return {
     size: entries.length,
     search(query, limit = 10) {
-      const q = String(query || '').toLowerCase().trim();
+      const q = String(query || '')
+        .toLowerCase()
+        .trim();
       if (!q) return [];
       const tokens = q.split(/\s+/);
       const scored = [];
@@ -429,7 +431,7 @@ export function buildSearchIndex(docs, keyFn = (d) => d.title || '') {
         if (score > 0) scored.push({ doc: e.doc, score });
       }
       scored.sort((a, b) => b.score - a.score);
-      return scored.slice(0, Math.max(0, limit)).map((s) => s.doc);
+      return scored.slice(0, Math.max(0, limit)).map(s => s.doc);
     },
   };
 }

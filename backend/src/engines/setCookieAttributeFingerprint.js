@@ -25,39 +25,237 @@
  * @type {Array<{pattern: RegExp, technology: string, component: string, confidence: string, note: string}>}
  */
 const COOKIE_SIGNATURES = [
-  { pattern: /^PHPSESSID$/i, technology: 'PHP', component: 'session handler', confidence: 'high', note: 'Default PHP session cookie name' },
-  { pattern: /^JSESSIONID$/i, technology: 'Java servlet container', component: 'Tomcat / Jetty / app server', confidence: 'high', note: 'JSESSIONID is the Java EE standard session cookie' },
-  { pattern: /^ASP\.NET_SessionId$/i, technology: 'ASP.NET', component: 'IIS / ASP.NET session state', confidence: 'high', note: 'Classic ASP.NET session identifier' },
-  { pattern: /^ARRAffinity$/i, technology: 'Microsoft Azure', component: 'Azure App Service affinity', confidence: 'high', note: 'Azure load-balancer affinity cookie' },
-  { pattern: /^sessionid$/i, technology: 'Django', component: 'Django session framework', confidence: 'high', note: 'Django default session cookie' },
-  { pattern: /^csrftoken$/i, technology: 'Django', component: 'Django CSRF middleware', confidence: 'high', note: 'Django default CSRF cookie' },
-  { pattern: /^connect\.sid$/i, technology: 'Express (Node.js)', component: 'express-session middleware', confidence: 'high', note: 'Default express-session cookie name' },
-  { pattern: /^laravel_session$/i, technology: 'Laravel (PHP)', component: 'Laravel session manager', confidence: 'high', note: 'Default Laravel session cookie' },
-  { pattern: /^XSRF-TOKEN$/i, technology: 'Laravel (PHP)', component: 'Laravel CSRF protection', confidence: 'medium', note: 'Laravel encrypted XSRF cookie; also used by Angular apps' },
-  { pattern: /_session_id$/i, technology: 'Ruby on Rails', component: 'ActionDispatch::Cookies', confidence: 'high', note: 'Rails default cookie-store session name suffix' },
-  { pattern: /^_csrf$/i, technology: 'NestJS / Express', component: 'csurf-compatible middleware', confidence: 'low', note: 'Common CSRF cookie name in Node stacks' },
-  { pattern: /^ci_session$/i, technology: 'CodeIgniter (PHP)', component: 'CodeIgniter session library', confidence: 'high', note: 'Default CodeIgniter session cookie' },
-  { pattern: /^CAKEPHP$/i, technology: 'CakePHP', component: 'CakePHP session', confidence: 'high', note: 'Default CakePHP session cookie' },
-  { pattern: /^MoodleSession$/i, technology: 'Moodle', component: 'Moodle LMS session', confidence: 'high', note: 'Moodle session cookie' },
-  { pattern: /^SESS[a-f0-9]{32}$/i, technology: 'Drupal', component: 'Drupal session', confidence: 'high', note: 'Drupal anonymous/authenticated session pattern' },
-  { pattern: /^fe_typo_user$/i, technology: 'TYPO3', component: 'TYPO3 frontend session', confidence: 'high', note: 'TYPO3 frontend user session' },
-  { pattern: /^wordpress_(logged_in|sec)_/i, technology: 'WordPress', component: 'WordPress auth cookies', confidence: 'high', note: 'WordPress authentication cookies' },
-  { pattern: /^wp-settings-/i, technology: 'WordPress', component: 'WordPress admin UI', confidence: 'high', note: 'WordPress editor preferences' },
-  { pattern: /^cf_clearance$/i, technology: 'Cloudflare', component: 'Cloudflare bot management', confidence: 'high', note: 'Cloudflare clearance cookie (bot mitigation passed)' },
-  { pattern: /^__cf_bm$/i, technology: 'Cloudflare', component: 'Cloudflare bot management', confidence: 'high', note: 'Cloudflare bot-management cookie' },
-  { pattern: /^__cflb$/i, technology: 'Cloudflare', component: 'Cloudflare load balancer', confidence: 'high', note: 'Cloudflare LB affinity cookie' },
-  { pattern: /^AWSALB(TG)?$/i, technology: 'Amazon Web Services', component: 'AWS ALB stickiness', confidence: 'high', note: 'AWS Application Load Balancer stickiness' },
-  { pattern: /^GCLB$/i, technology: 'Google Cloud', component: 'Google Cloud load balancer', confidence: 'high', note: 'Google Cloud LB session affinity' },
-  { pattern: /^BIGipServer/i, technology: 'F5 BIG-IP', component: 'F5 load balancer', confidence: 'high', note: 'F5 persistence cookie' },
-  { pattern: /^dtCookie$/i, technology: 'Dynatrace', component: 'Dynatrace RUM', confidence: 'high', note: 'Dynatrace real-user-monitoring cookie' },
-  { pattern: /^ak_bmsc$/i, technology: 'Akamai', component: 'Akamai Bot Manager', confidence: 'high', note: 'Akamai bot-manager sensor cookie' },
-  { pattern: /^_abck$/i, technology: 'Akamai', component: 'Akamai Bot Manager', confidence: 'high', note: 'Akamai bot-manager cookie' },
-  { pattern: /^bm_sz$/i, technology: 'Akamai', component: 'Akamai Bot Manager', confidence: 'high', note: 'Akamai bot-manager sizing cookie' },
-  { pattern: /^OAMAuthnHint$/i, technology: 'Oracle', component: 'Oracle Access Manager', confidence: 'high', note: 'Oracle Access Management hint cookie' },
-  { pattern: /^_ga$/i, technology: 'Google Analytics', component: 'analytics', confidence: 'high', note: 'Google Analytics client ID' },
-  { pattern: /^datr$/i, technology: 'Meta', component: 'Facebook browser identification', confidence: 'high', note: 'Facebook datr cookie' },
-  { pattern: /^_hjSessionUser_/i, technology: 'Hotjar', component: 'Hotjar analytics', confidence: 'high', note: 'Hotjar session cookie' },
-  { pattern: /^ajs_/i, technology: 'Segment', component: 'Segment analytics.js', confidence: 'medium', note: 'Segment anonymous/user cookies' },
+  {
+    pattern: /^PHPSESSID$/i,
+    technology: 'PHP',
+    component: 'session handler',
+    confidence: 'high',
+    note: 'Default PHP session cookie name',
+  },
+  {
+    pattern: /^JSESSIONID$/i,
+    technology: 'Java servlet container',
+    component: 'Tomcat / Jetty / app server',
+    confidence: 'high',
+    note: 'JSESSIONID is the Java EE standard session cookie',
+  },
+  {
+    pattern: /^ASP\.NET_SessionId$/i,
+    technology: 'ASP.NET',
+    component: 'IIS / ASP.NET session state',
+    confidence: 'high',
+    note: 'Classic ASP.NET session identifier',
+  },
+  {
+    pattern: /^ARRAffinity$/i,
+    technology: 'Microsoft Azure',
+    component: 'Azure App Service affinity',
+    confidence: 'high',
+    note: 'Azure load-balancer affinity cookie',
+  },
+  {
+    pattern: /^sessionid$/i,
+    technology: 'Django',
+    component: 'Django session framework',
+    confidence: 'high',
+    note: 'Django default session cookie',
+  },
+  {
+    pattern: /^csrftoken$/i,
+    technology: 'Django',
+    component: 'Django CSRF middleware',
+    confidence: 'high',
+    note: 'Django default CSRF cookie',
+  },
+  {
+    pattern: /^connect\.sid$/i,
+    technology: 'Express (Node.js)',
+    component: 'express-session middleware',
+    confidence: 'high',
+    note: 'Default express-session cookie name',
+  },
+  {
+    pattern: /^laravel_session$/i,
+    technology: 'Laravel (PHP)',
+    component: 'Laravel session manager',
+    confidence: 'high',
+    note: 'Default Laravel session cookie',
+  },
+  {
+    pattern: /^XSRF-TOKEN$/i,
+    technology: 'Laravel (PHP)',
+    component: 'Laravel CSRF protection',
+    confidence: 'medium',
+    note: 'Laravel encrypted XSRF cookie; also used by Angular apps',
+  },
+  {
+    pattern: /_session_id$/i,
+    technology: 'Ruby on Rails',
+    component: 'ActionDispatch::Cookies',
+    confidence: 'high',
+    note: 'Rails default cookie-store session name suffix',
+  },
+  {
+    pattern: /^_csrf$/i,
+    technology: 'NestJS / Express',
+    component: 'csurf-compatible middleware',
+    confidence: 'low',
+    note: 'Common CSRF cookie name in Node stacks',
+  },
+  {
+    pattern: /^ci_session$/i,
+    technology: 'CodeIgniter (PHP)',
+    component: 'CodeIgniter session library',
+    confidence: 'high',
+    note: 'Default CodeIgniter session cookie',
+  },
+  {
+    pattern: /^CAKEPHP$/i,
+    technology: 'CakePHP',
+    component: 'CakePHP session',
+    confidence: 'high',
+    note: 'Default CakePHP session cookie',
+  },
+  {
+    pattern: /^MoodleSession$/i,
+    technology: 'Moodle',
+    component: 'Moodle LMS session',
+    confidence: 'high',
+    note: 'Moodle session cookie',
+  },
+  {
+    pattern: /^SESS[a-f0-9]{32}$/i,
+    technology: 'Drupal',
+    component: 'Drupal session',
+    confidence: 'high',
+    note: 'Drupal anonymous/authenticated session pattern',
+  },
+  {
+    pattern: /^fe_typo_user$/i,
+    technology: 'TYPO3',
+    component: 'TYPO3 frontend session',
+    confidence: 'high',
+    note: 'TYPO3 frontend user session',
+  },
+  {
+    pattern: /^wordpress_(logged_in|sec)_/i,
+    technology: 'WordPress',
+    component: 'WordPress auth cookies',
+    confidence: 'high',
+    note: 'WordPress authentication cookies',
+  },
+  {
+    pattern: /^wp-settings-/i,
+    technology: 'WordPress',
+    component: 'WordPress admin UI',
+    confidence: 'high',
+    note: 'WordPress editor preferences',
+  },
+  {
+    pattern: /^cf_clearance$/i,
+    technology: 'Cloudflare',
+    component: 'Cloudflare bot management',
+    confidence: 'high',
+    note: 'Cloudflare clearance cookie (bot mitigation passed)',
+  },
+  {
+    pattern: /^__cf_bm$/i,
+    technology: 'Cloudflare',
+    component: 'Cloudflare bot management',
+    confidence: 'high',
+    note: 'Cloudflare bot-management cookie',
+  },
+  {
+    pattern: /^__cflb$/i,
+    technology: 'Cloudflare',
+    component: 'Cloudflare load balancer',
+    confidence: 'high',
+    note: 'Cloudflare LB affinity cookie',
+  },
+  {
+    pattern: /^AWSALB(TG)?$/i,
+    technology: 'Amazon Web Services',
+    component: 'AWS ALB stickiness',
+    confidence: 'high',
+    note: 'AWS Application Load Balancer stickiness',
+  },
+  {
+    pattern: /^GCLB$/i,
+    technology: 'Google Cloud',
+    component: 'Google Cloud load balancer',
+    confidence: 'high',
+    note: 'Google Cloud LB session affinity',
+  },
+  {
+    pattern: /^BIGipServer/i,
+    technology: 'F5 BIG-IP',
+    component: 'F5 load balancer',
+    confidence: 'high',
+    note: 'F5 persistence cookie',
+  },
+  {
+    pattern: /^dtCookie$/i,
+    technology: 'Dynatrace',
+    component: 'Dynatrace RUM',
+    confidence: 'high',
+    note: 'Dynatrace real-user-monitoring cookie',
+  },
+  {
+    pattern: /^ak_bmsc$/i,
+    technology: 'Akamai',
+    component: 'Akamai Bot Manager',
+    confidence: 'high',
+    note: 'Akamai bot-manager sensor cookie',
+  },
+  {
+    pattern: /^_abck$/i,
+    technology: 'Akamai',
+    component: 'Akamai Bot Manager',
+    confidence: 'high',
+    note: 'Akamai bot-manager cookie',
+  },
+  {
+    pattern: /^bm_sz$/i,
+    technology: 'Akamai',
+    component: 'Akamai Bot Manager',
+    confidence: 'high',
+    note: 'Akamai bot-manager sizing cookie',
+  },
+  {
+    pattern: /^OAMAuthnHint$/i,
+    technology: 'Oracle',
+    component: 'Oracle Access Manager',
+    confidence: 'high',
+    note: 'Oracle Access Management hint cookie',
+  },
+  {
+    pattern: /^_ga$/i,
+    technology: 'Google Analytics',
+    component: 'analytics',
+    confidence: 'high',
+    note: 'Google Analytics client ID',
+  },
+  {
+    pattern: /^datr$/i,
+    technology: 'Meta',
+    component: 'Facebook browser identification',
+    confidence: 'high',
+    note: 'Facebook datr cookie',
+  },
+  {
+    pattern: /^_hjSessionUser_/i,
+    technology: 'Hotjar',
+    component: 'Hotjar analytics',
+    confidence: 'high',
+    note: 'Hotjar session cookie',
+  },
+  {
+    pattern: /^ajs_/i,
+    technology: 'Segment',
+    component: 'Segment analytics.js',
+    confidence: 'medium',
+    note: 'Segment anonymous/user cookies',
+  },
 ];
 
 /**
@@ -83,7 +281,7 @@ export function parseSetCookie(headerValue) {
     }
   }
   parts.push(current);
-  const [pair, ...attrParts] = parts.map((p) => p.trim()).filter(Boolean);
+  const [pair, ...attrParts] = parts.map(p => p.trim()).filter(Boolean);
   if (!pair) return null;
   const eq = pair.indexOf('=');
   const name = (eq === -1 ? pair : pair.slice(0, eq)).trim();
@@ -131,15 +329,30 @@ export function matchFrameworkByCookieName(name) {
   const hits = [];
   for (const sig of COOKIE_SIGNATURES) {
     if (sig.pattern.test(name)) {
-      hits.push({ technology: sig.technology, component: sig.component, confidence: sig.confidence, note: sig.note });
+      hits.push({
+        technology: sig.technology,
+        component: sig.component,
+        confidence: sig.confidence,
+        note: sig.note,
+      });
     }
   }
   // Reserved-prefix heuristic (RFC 6265bis): __Host- / __Secure- imply a
   // security-conscious stack that follows modern cookie standards.
   if (/^__Host-/i.test(name)) {
-    hits.push({ technology: 'unknown (prefix-aware stack)', component: 'cookie-prefix hygiene', confidence: 'low', note: '__Host- prefix requires Secure + Path=/ + no Domain' });
+    hits.push({
+      technology: 'unknown (prefix-aware stack)',
+      component: 'cookie-prefix hygiene',
+      confidence: 'low',
+      note: '__Host- prefix requires Secure + Path=/ + no Domain',
+    });
   } else if (/^__Secure-/i.test(name)) {
-    hits.push({ technology: 'unknown (prefix-aware stack)', component: 'cookie-prefix hygiene', confidence: 'low', note: '__Secure- prefix requires the Secure attribute' });
+    hits.push({
+      technology: 'unknown (prefix-aware stack)',
+      component: 'cookie-prefix hygiene',
+      confidence: 'low',
+      note: '__Secure- prefix requires the Secure attribute',
+    });
   }
   return hits;
 }
@@ -154,13 +367,13 @@ export function matchFrameworkByCookieName(name) {
 export function extractSetCookieHeaders(input) {
   if (!input) return [];
   if (typeof input === 'string') return [input];
-  if (Array.isArray(input)) return input.filter((v) => typeof v === 'string');
+  if (Array.isArray(input)) return input.filter(v => typeof v === 'string');
   if (typeof input === 'object') {
     const out = [];
     for (const key of Object.keys(input)) {
       if (key.toLowerCase() === 'set-cookie') {
         const v = input[key];
-        if (Array.isArray(v)) out.push(...v.filter((x) => typeof x === 'string'));
+        if (Array.isArray(v)) out.push(...v.filter(x => typeof x === 'string'));
         else if (typeof v === 'string') out.push(v);
       }
     }
@@ -182,7 +395,15 @@ export function fingerprintCookies(input) {
   const headers = extractSetCookieHeaders(input);
   const cookies = [];
   const fingerprints = [];
-  const summary = { secure: 0, httpOnly: 0, sameSiteStrict: 0, sameSiteLax: 0, sameSiteNone: 0, persistent: 0, total: 0 };
+  const summary = {
+    secure: 0,
+    httpOnly: 0,
+    sameSiteStrict: 0,
+    sameSiteLax: 0,
+    sameSiteNone: 0,
+    persistent: 0,
+    total: 0,
+  };
 
   for (const h of headers) {
     const parsed = parseSetCookie(h);

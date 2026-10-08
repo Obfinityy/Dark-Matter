@@ -138,8 +138,11 @@ export function extractDashboardRefs(dashboard) {
   const queries = new Set();
   const variables = [];
 
-  const noteHost = (h) => { const n = normalizeHostname(h); if (n && n.includes('.')) hosts.add(n); };
-  const walkQueries = (requests) => {
+  const noteHost = h => {
+    const n = normalizeHostname(h);
+    if (n && n.includes('.')) hosts.add(n);
+  };
+  const walkQueries = requests => {
     for (const req of requests || []) {
       for (const key of ['q', 'query']) {
         const q = req?.[key];
@@ -151,7 +154,8 @@ export function extractDashboardRefs(dashboard) {
       // APM/trace-style queries carry tags directly.
       if (Array.isArray(req?.tags)) {
         const { hosts: th, services: ts } = extractHostsFromTags(req.tags);
-        th.forEach(noteHost); ts.forEach((s) => services.add(s));
+        th.forEach(noteHost);
+        ts.forEach(s => services.add(s));
       }
       if (typeof req?.service === 'string' && req.service) services.add(req.service);
       if (typeof req?.service_name === 'string' && req.service_name) services.add(req.service_name);
@@ -175,12 +179,14 @@ export function extractDashboardRefs(dashboard) {
   }
 
   for (const v of dashboard?.template_variables || []) {
-    const values = [...new Set(
-      [v?.default, ...(v?.values || []), ...(v?.prefix ? [] : [])]
-        .filter((x) => typeof x === 'string' && x)
-        .flatMap((x) => parseQueryHosts(x).concat([normalizeHostname(x)]))
-        .filter((x) => x.includes('.'))
-    )];
+    const values = [
+      ...new Set(
+        [v?.default, ...(v?.values || []), ...(v?.prefix ? [] : [])]
+          .filter(x => typeof x === 'string' && x)
+          .flatMap(x => parseQueryHosts(x).concat([normalizeHostname(x)]))
+          .filter(x => x.includes('.'))
+      ),
+    ];
     if (v?.name) {
       variables.push({ name: String(v.name), values });
       values.forEach(noteHost);
@@ -230,10 +236,10 @@ export function scoreHostRelevance(host, rootDomain) {
 export function mineDashboard(dashboard, rootDomain) {
   const refs = extractDashboardRefs(dashboard);
   const hosts = refs.hosts
-    .map((h) => ({ host: h, score: scoreHostRelevance(h, rootDomain) }))
-    .filter((e) => e.score > 0)
+    .map(h => ({ host: h, score: scoreHostRelevance(h, rootDomain) }))
+    .filter(e => e.score > 0)
     .sort((a, b) => b.score - a.score || a.host.localeCompare(b.host));
-  const services = refs.services.filter((s) => {
+  const services = refs.services.filter(s => {
     const label = normalizeHostname(rootDomain).split('.')[0];
     return label.length > 2 && s.toLowerCase().includes(label);
   });

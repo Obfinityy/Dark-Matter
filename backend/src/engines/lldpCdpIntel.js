@@ -22,9 +22,11 @@ const IPV4_RE = /\b(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1?
  */
 export function parseCdpNeighbors(text) {
   const out = [];
-  const blocks = String(text || '').split(/(?=^Device ID:\s*)/gim).filter(b => /^\s*Device ID:/im.test(b));
+  const blocks = String(text || '')
+    .split(/(?=^Device ID:\s*)/gim)
+    .filter(b => /^\s*Device ID:/im.test(b));
   for (const block of blocks) {
-    const pick = (re) => {
+    const pick = re => {
       const mm = block.match(re);
       if (!mm) return null;
       const v = mm[1] !== undefined ? mm[1] : mm[0];
@@ -39,7 +41,8 @@ export function parseCdpNeighbors(text) {
     const remotePort = pick(/^Port ID \(outgoing port\):\s*(.+)$/im);
     const holdtime = pick(/^Holdtime\s*:\s*(.+)$/im);
     const version = pick(/^Version\s*:\s*$/im)
-      ? (block.split(/^Version\s*:\s*$/im)[1] || '').split('\n').slice(0, 3).join(' ').trim() || null
+      ? (block.split(/^Version\s*:\s*$/im)[1] || '').split('\n').slice(0, 3).join(' ').trim() ||
+        null
       : pick(/^Version\s*:\s*(.+)$/im);
     out.push({
       deviceId,
@@ -50,7 +53,8 @@ export function parseCdpNeighbors(text) {
       holdtime,
       version: version ? version.replace(/\s+/g, ' ').slice(0, 160) : null,
       protocol: 'CDP',
-      detail: `CDP neighbor '${deviceId}'${ip ? ` (${ip})` : ''}${platform ? ` — ${platform}` : ''}` +
+      detail:
+        `CDP neighbor '${deviceId}'${ip ? ` (${ip})` : ''}${platform ? ` — ${platform}` : ''}` +
         `${iface ? ` on local ${iface}` : ''}. Adjacent device hostnames extend the asset graph one hop.`,
     });
   }
@@ -69,7 +73,7 @@ export function parseLldpNeighbors(text) {
   const out = [];
   const seen = new Set();
 
-  const push = (n) => {
+  const push = n => {
     const key = `${n.deviceId}|${n.localInterface || ''}`;
     if (!n.deviceId || seen.has(key)) return;
     seen.add(key);
@@ -80,27 +84,31 @@ export function parseLldpNeighbors(text) {
       localInterface: n.localInterface || null,
       remotePort: n.remotePort || null,
       protocol: 'LLDP',
-      detail: `LLDP neighbor '${n.deviceId}'${n.ip ? ` (${n.ip})` : ''}${n.platform ? ` — ${n.platform}` : ''}` +
+      detail:
+        `LLDP neighbor '${n.deviceId}'${n.ip ? ` (${n.ip})` : ''}${n.platform ? ` — ${n.platform}` : ''}` +
         `${n.localInterface ? ` on local ${n.localInterface}` : ''}.`,
     });
   };
 
   // Detail blocks: "System Name: ..." / "Local Intf: ..." / "Management Address: ..."
-  const detailBlocks = raw.split(/(?=^(?:Local Intf|System Name):\s*)/gim)
+  const detailBlocks = raw
+    .split(/(?=^(?:Local Intf|System Name):\s*)/gim)
     .filter(b => /System Name\s*:/i.test(b));
   for (const block of detailBlocks) {
-    const pick = (re) => {
+    const pick = re => {
       const mm = block.match(re);
       if (!mm) return null;
       const v = mm[1] !== undefined ? mm[1] : mm[0];
       const t = String(v).trim();
       return t || null;
     };
-    const name = pick(/System Name\s*:\s*(.+)$/im)
-      || (block.match(/ChassisId\s*:\s*mac\s*([0-9a-f:]+)/i) || [])[1]
-      || pick(/Device ID\s*:\s*(.+)$/im);
-    const ipM = block.match(/Management Address(?:\(\w+\))?\s*:\s*([0-9.]+)/i) || block.match(IPV4_RE);
-    const ip = ipM ? (ipM[1] || ipM[0]) : null;
+    const name =
+      pick(/System Name\s*:\s*(.+)$/im) ||
+      (block.match(/ChassisId\s*:\s*mac\s*([0-9a-f:]+)/i) || [])[1] ||
+      pick(/Device ID\s*:\s*(.+)$/im);
+    const ipM =
+      block.match(/Management Address(?:\(\w+\))?\s*:\s*([0-9.]+)/i) || block.match(IPV4_RE);
+    const ip = ipM ? ipM[1] || ipM[0] : null;
     const localInterface = pick(/Local (?:Intf|Interface)\s*:\s*(\S+)/i);
     const remotePort = pick(/Port (?:id|ID|Descr)\s*:\s*(.+)$/im);
     const platform = pick(/System Description\s*:\s*(.+)$/im);
@@ -120,7 +128,10 @@ export function parseLldpNeighbors(text) {
   const lines = raw.split('\n');
   let inTable = false;
   for (const line of lines) {
-    if (/Device ID\s+Local Intf/i.test(line)) { inTable = true; continue; }
+    if (/Device ID\s+Local Intf/i.test(line)) {
+      inTable = true;
+      continue;
+    }
     if (!inTable) continue;
     if (!line.trim() || /^Total entries/i.test(line)) break;
     const parts = line.trim().split(/\s{2,}|\t/);
@@ -170,22 +181,30 @@ export function parseLinkLayerNeighbors(text) {
 
   const findings = [];
   if (hostnames.length) {
-    findings.push(`${hostnames.length} adjacent device hostname(s): ${hostnames.slice(0, 12).join(', ')}` +
-      `${hostnames.length > 12 ? ` (+${hostnames.length - 12} more)` : ''} — ` +
-      'each is a one-hop asset to inventory and fingerprint.');
+    findings.push(
+      `${hostnames.length} adjacent device hostname(s): ${hostnames.slice(0, 12).join(', ')}` +
+        `${hostnames.length > 12 ? ` (+${hostnames.length - 12} more)` : ''} — ` +
+        'each is a one-hop asset to inventory and fingerprint.'
+    );
   }
   if (managementIps.length) {
-    findings.push(`Management IP(s) disclosed: ${managementIps.join(', ')} — ` +
-      'management-plane addresses are high-value follow-up targets.');
+    findings.push(
+      `Management IP(s) disclosed: ${managementIps.join(', ')} — ` +
+        'management-plane addresses are high-value follow-up targets.'
+    );
   }
   const platforms = [...new Set(neighbors.map(n => n.platform).filter(Boolean))];
   if (platforms.length) {
-    findings.push(`Platform(s): ${platforms.slice(0, 4).join(' | ')}${platforms.length > 4 ? '…' : ''} — ` +
-      'drives version-specific checks on the adjacent fleet.');
+    findings.push(
+      `Platform(s): ${platforms.slice(0, 4).join(' | ')}${platforms.length > 4 ? '…' : ''} — ` +
+        'drives version-specific checks on the adjacent fleet.'
+    );
   }
   if (!neighbors.length) {
-    findings.push('No LLDP/CDP neighbors parsed — confirm the input is `show cdp neighbors detail`, ' +
-      '`show lldp neighbors`, or `show lldp neighbors detail` output.');
+    findings.push(
+      'No LLDP/CDP neighbors parsed — confirm the input is `show cdp neighbors detail`, ' +
+        '`show lldp neighbors`, or `show lldp neighbors detail` output.'
+    );
   }
 
   return { neighbors, managementIps, hostnames, summary, findings };

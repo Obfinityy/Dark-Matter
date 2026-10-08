@@ -15,55 +15,116 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  WAVE42_DIST_IDEAS, WAVE42_DIST_START, WAVE42_DIST_END,
+  WAVE42_DIST_IDEAS,
+  WAVE42_DIST_START,
+  WAVE42_DIST_END,
   escHtml as distEscHtml,
-  newSnapshotComment, commentsForSnapshot, commentsForSection,
-  nextSnapshotVersion, freezeSnapshot, isFrozen,
-  snapshotDelta, diffAlertLevel,
-  SNAPSHOT_API_ROUTES, snapshotApiDto,
-  snapshotEmbedHtml, EMBED_THEMES,
-  redactSnapshot, REDACT_TOKEN,
-  snapshotCover, snapshotToc,
-  severityDistribution, findingTrend, SEVERITIES,
+  newSnapshotComment,
+  commentsForSnapshot,
+  commentsForSection,
+  nextSnapshotVersion,
+  freezeSnapshot,
+  isFrozen,
+  snapshotDelta,
+  diffAlertLevel,
+  SNAPSHOT_API_ROUTES,
+  snapshotApiDto,
+  snapshotEmbedHtml,
+  EMBED_THEMES,
+  redactSnapshot,
+  REDACT_TOKEN,
+  snapshotCover,
+  snapshotToc,
+  severityDistribution,
+  findingTrend,
+  SEVERITIES,
   snapshotAppendices,
-  signoffRequest, recordSignature, signoffStatus,
-  expiringLink, linkExpired,
-  logSnapshotAccess, accessLogFor, uniqueViewers,
-  SNAPSHOT_LANGUAGES, snapshotSectionLabels,
-  snapshotPrintPlan, mobileSnapshotView,
-  snapshotVoiceScript, answerSnapshotQuestion,
+  signoffRequest,
+  recordSignature,
+  signoffStatus,
+  expiringLink,
+  linkExpired,
+  logSnapshotAccess,
+  accessLogFor,
+  uniqueViewers,
+  SNAPSHOT_LANGUAGES,
+  snapshotSectionLabels,
+  snapshotPrintPlan,
+  mobileSnapshotView,
+  snapshotVoiceScript,
+  answerSnapshotQuestion,
   snapshotComparison,
-  milestoneSnapshots, MILESTONE_PHASES,
+  milestoneSnapshots,
+  MILESTONE_PHASES,
 } from './snapshotDistribCore.js';
 
 import {
-  WAVE42_PUB_IDEAS, WAVE42_PUB_START, WAVE42_PUB_END,
-  addCustomSection, customSections, sectionsForSnapshot,
-  snapshotToJson, findingsToCsv,
-  sealSnapshot, verifySnapshotSeal, stripSeal,
-  createCollabDoc, applyCollabEdit, collabNotes, collabPresence,
-  defaultSnapshotRules, notificationTargets,
-  buildSnapshotArchive, searchSnapshotArchive,
-  restoreDraftFromSnapshot, plainDiffSummary,
-  snapshotKpis, snapshotRiskOverview,
-  remediationPreview, complianceMapping,
+  WAVE42_PUB_IDEAS,
+  WAVE42_PUB_START,
+  WAVE42_PUB_END,
+  addCustomSection,
+  customSections,
+  sectionsForSnapshot,
+  snapshotToJson,
+  findingsToCsv,
+  sealSnapshot,
+  verifySnapshotSeal,
+  stripSeal,
+  createCollabDoc,
+  applyCollabEdit,
+  collabNotes,
+  collabPresence,
+  defaultSnapshotRules,
+  notificationTargets,
+  buildSnapshotArchive,
+  searchSnapshotArchive,
+  restoreDraftFromSnapshot,
+  plainDiffSummary,
+  snapshotKpis,
+  snapshotRiskOverview,
+  remediationPreview,
+  complianceMapping,
   clientPortalView,
-  recordSnapshotFeedback, feedbackSummary,
+  recordSnapshotFeedback,
+  feedbackSummary,
   promoteSnapshotToFinal,
-  confidenceScore, addEvidence,
-  confidenceTrend, TREND_GLYPH,
+  confidenceScore,
+  addEvidence,
+  confidenceTrend,
+  TREND_GLYPH,
   evidenceStrengthMeter,
-  VALIDATION_STAGES, validationStage, advanceValidationStage, stageIndex,
+  VALIDATION_STAGES,
+  validationStage,
+  advanceValidationStage,
+  stageIndex,
   confidenceBreakdown,
 } from './snapshotPublishCore.js';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
-const sha256 = (s) => createHash('sha256').update(s, 'utf8').digest('hex');
+const sha256 = s => createHash('sha256').update(s, 'utf8').digest('hex');
 
 const F = [
-  { id: 'f1', title: 'Reflected XSS', severity: 'high', type: 'xss', evidence: [{ kind: 'poc', label: 'curl' }] },
-  { id: 'f2', title: 'SQLi in filter', severity: 'critical', type: 'sqli', evidence: [{ kind: 'poc' }, { kind: 'log' }] },
-  { id: 'f3', title: 'Verbose header', severity: 'low', type: 'info', evidence: [{ kind: 'header' }] },
+  {
+    id: 'f1',
+    title: 'Reflected XSS',
+    severity: 'high',
+    type: 'xss',
+    evidence: [{ kind: 'poc', label: 'curl' }],
+  },
+  {
+    id: 'f2',
+    title: 'SQLi in filter',
+    severity: 'critical',
+    type: 'sqli',
+    evidence: [{ kind: 'poc' }, { kind: 'log' }],
+  },
+  {
+    id: 'f3',
+    title: 'Verbose header',
+    severity: 'low',
+    type: 'info',
+    evidence: [{ kind: 'header' }],
+  },
 ];
 
 /* --- registry completeness ----------------------------------------------------- */
@@ -79,7 +140,10 @@ test('wave-42 combined registry: 40/40 ideas, ids 51641–51680 contiguous, zero
   const ids = all.map(r => r[0]);
   assert.equal(ids.length, 40);
   assert.equal(new Set(ids).size, 40);
-  assert.deepEqual([...ids].sort((a, b) => a - b), Array.from({ length: 40 }, (_, i) => 51641 + i));
+  assert.deepEqual(
+    [...ids].sort((a, b) => a - b),
+    Array.from({ length: 40 }, (_, i) => 51641 + i)
+  );
   for (const [id, title, desc] of all) {
     assert.ok(Number.isInteger(id), 'id present');
     assert.ok(String(title).length > 3, `title present for ${id}`);
@@ -90,11 +154,28 @@ test('wave-42 combined registry: 40/40 ideas, ids 51641–51680 contiguous, zero
 /* --- 51641 comments -------------------------------------------------------------- */
 
 test('51641 snapshot comments: create, section filter, validation', () => {
-  const c = newSnapshotComment({ snapshotId: 's1', section: 'Findings', author: 'Priya', text: '  hello  ' });
+  const c = newSnapshotComment({
+    snapshotId: 's1',
+    section: 'Findings',
+    author: 'Priya',
+    text: '  hello  ',
+  });
   assert.equal(c.snapshotId, 's1');
   assert.equal(c.text, 'hello');
-  assert.throws(() => newSnapshotComment({ snapshotId: 's1', text: '   ' }), /comment text required/);
-  const list = [c, newSnapshotComment({ snapshotId: 's1', section: 'Cover', author: 'A', text: 'x', createdAt: 't' })];
+  assert.throws(
+    () => newSnapshotComment({ snapshotId: 's1', text: '   ' }),
+    /comment text required/
+  );
+  const list = [
+    c,
+    newSnapshotComment({
+      snapshotId: 's1',
+      section: 'Cover',
+      author: 'A',
+      text: 'x',
+      createdAt: 't',
+    }),
+  ];
   assert.equal(commentsForSnapshot(list, 's1').length, 2);
   assert.equal(commentsForSection(list, 's1', 'Cover').length, 1);
 });
@@ -113,8 +194,18 @@ test('51642 versioning: next version, freeze, immutability flag', () => {
 /* --- 51643 diff alerts -------------------------------------------------------------- */
 
 test('51643 diff alerts: delta counts and alert levels', () => {
-  const prev = { findings: [{ id: 'a', severity: 'high' }, { id: 'b', severity: 'low' }] };
-  const next = { findings: [{ id: 'a', severity: 'critical' }, { id: 'c', severity: 'medium' }] };
+  const prev = {
+    findings: [
+      { id: 'a', severity: 'high' },
+      { id: 'b', severity: 'low' },
+    ],
+  };
+  const next = {
+    findings: [
+      { id: 'a', severity: 'critical' },
+      { id: 'c', severity: 'medium' },
+    ],
+  };
   const d = snapshotDelta(prev, next);
   assert.deepEqual(d.added, ['c']);
   assert.deepEqual(d.removed, ['b']);
@@ -136,7 +227,11 @@ test('51644 snapshot API: routes listed, DTO whitelisted', () => {
 });
 
 test('51645 snapshot embedding: iframe HTML with XSS escaping', () => {
-  const html = snapshotEmbedHtml({ snapshotId: 's1"><script>', baseUrl: 'https://x.test', theme: 'dark' });
+  const html = snapshotEmbedHtml({
+    snapshotId: 's1"><script>',
+    baseUrl: 'https://x.test',
+    theme: 'dark',
+  });
   assert.ok(html.includes('<iframe'));
   assert.ok(!html.includes('"><script>'));
   assert.ok(html.includes('theme=dark'));
@@ -147,7 +242,12 @@ test('51645 snapshot embedding: iframe HTML with XSS escaping', () => {
 /* --- 51646 redaction ------------------------------------------------------------------- */
 
 test('51646 redaction: masks sensitive fields, original untouched', () => {
-  const snap = { id: 's1', target: 't', internalNotes: 'secret', findings: [{ id: 'f', internalNotes: 'n2', title: 'T' }] };
+  const snap = {
+    id: 's1',
+    target: 't',
+    internalNotes: 'secret',
+    findings: [{ id: 'f', internalNotes: 'n2', title: 'T' }],
+  };
   const r = redactSnapshot(snap);
   assert.equal(r.internalNotes, REDACT_TOKEN);
   assert.equal(r.findings[0].internalNotes, REDACT_TOKEN);
@@ -166,7 +266,10 @@ test('51647 snapshot cover: totals and scope summary', () => {
 });
 
 test('51648 snapshot TOC: anchors generated', () => {
-  const toc = snapshotToc([{ id: 's1', title: 'Findings' }, { title: 'Charts', depth: 1 }]);
+  const toc = snapshotToc([
+    { id: 's1', title: 'Findings' },
+    { title: 'Charts', depth: 1 },
+  ]);
   assert.equal(toc.length, 2);
   assert.ok(toc[0].anchor.startsWith('sec-'));
   assert.equal(toc[1].depth, 1);
@@ -176,8 +279,14 @@ test('51649 snapshot charts: distribution + trend', () => {
   const dist = severityDistribution(F);
   assert.deepEqual([dist.critical, dist.high, dist.low], [1, 1, 1]);
   assert.ok(SEVERITIES.includes('medium'));
-  const trend = findingTrend([{ version: 1, findings: [F[0]] }, { version: 2, findings: F }]);
-  assert.deepEqual(trend.map(t => t.total), [1, 3]);
+  const trend = findingTrend([
+    { version: 1, findings: [F[0]] },
+    { version: 2, findings: F },
+  ]);
+  assert.deepEqual(
+    trend.map(t => t.total),
+    [1, 3]
+  );
 });
 
 test('51650 snapshot appendices: three organized sections', () => {
@@ -245,7 +354,11 @@ test('51657 voice script: speakable summary with duration estimate', () => {
 /* --- 51658–51660 Q&A, comparison, milestones ----------------------------------------------------- */
 
 test('51658 snapshot Q&A: grounded answer with confidence', () => {
-  const snap = { sections: [{ title: 'Findings', body: 'The critical SQL injection sits in the product filter.' }] };
+  const snap = {
+    sections: [
+      { title: 'Findings', body: 'The critical SQL injection sits in the product filter.' },
+    ],
+  };
   const r = answerSnapshotQuestion(snap, 'Where is the critical SQL injection?');
   assert.ok(r.groundedIn.includes('Findings'));
   assert.ok(r.confidence > 0);
@@ -255,7 +368,10 @@ test('51658 snapshot Q&A: grounded answer with confidence', () => {
 });
 
 test('51659 comparison: versions aligned with severity series', () => {
-  const c = snapshotComparison([{ version: 1, findings: [F[0]] }, { version: 2, findings: F }]);
+  const c = snapshotComparison([
+    { version: 1, findings: [F[0]] },
+    { version: 2, findings: F },
+  ]);
   assert.deepEqual(c.versions, ['v1', 'v2']);
   assert.deepEqual(c.series.critical, [0, 1]);
   assert.deepEqual(c.totals, [1, 3]);
@@ -357,11 +473,18 @@ test('51667 restore: draft reverts to snapshot state without mutating it', () =>
 test('51668 diff summary: plain-language what-changed lines', () => {
   const lines = plainDiffSummary(
     { findings: [{ id: 'a', title: 'XSS', severity: 'high' }] },
-    { findings: [{ id: 'a', title: 'XSS', severity: 'critical' }, { id: 'b', title: 'New', severity: 'low' }] },
+    {
+      findings: [
+        { id: 'a', title: 'XSS', severity: 'critical' },
+        { id: 'b', title: 'New', severity: 'low' },
+      ],
+    }
   );
   assert.ok(lines.some(l => l.includes('1 new finding')));
   assert.ok(lines.some(l => l.includes('changed severity')));
-  assert.deepEqual(plainDiffSummary({ findings: F }, { findings: F }), ['No material changes since the previous snapshot.']);
+  assert.deepEqual(plainDiffSummary({ findings: F }, { findings: F }), [
+    'No material changes since the previous snapshot.',
+  ]);
 });
 
 test('51669 KPI panel: findings, coverage, pace', () => {
@@ -384,7 +507,10 @@ test('51670 risk overview: level, score, top drivers', () => {
 test('51671 remediation preview: per-type guidance with fallback', () => {
   const items = remediationPreview(F);
   assert.ok(items[0].guidance.toLowerCase().includes('content-security-policy'));
-  assert.equal(remediationPreview([{ id: 'z', title: 'Weird', type: 'unknown-xyz' }])[0].effort, 'unknown');
+  assert.equal(
+    remediationPreview([{ id: 'z', title: 'Weird', type: 'unknown-xyz' }])[0].effort,
+    'unknown'
+  );
 });
 
 test('51672 compliance mapping: findings grouped by framework refs', () => {
@@ -394,7 +520,23 @@ test('51672 compliance mapping: findings grouped by framework refs', () => {
 });
 
 test('51673 client portal: branded, internals withheld', () => {
-  const view = clientPortalView({ target: 'example.com', version: 1, findings: [{ id: 'f1', title: 'T', severity: 'high', internalNotes: 'x', technique: 'dirbuster', summary: 's' }] }, { brand: 'Acme' });
+  const view = clientPortalView(
+    {
+      target: 'example.com',
+      version: 1,
+      findings: [
+        {
+          id: 'f1',
+          title: 'T',
+          severity: 'high',
+          internalNotes: 'x',
+          technique: 'dirbuster',
+          summary: 's',
+        },
+      ],
+    },
+    { brand: 'Acme' }
+  );
   assert.equal(view.brand, 'Acme');
   const blob = JSON.stringify(view);
   assert.ok(!blob.includes('internalNotes'));
@@ -412,11 +554,17 @@ test('51674 feedback: ratings recorded and averaged per section', () => {
   assert.equal(sum.count, 3);
   assert.equal(sum.avgBySection.Findings, 4);
   assert.equal(sum.avgBySection.Charts, 5);
-  assert.throws(() => recordSnapshotFeedback({}, { section: 'x', rating: 3 }), /snapshotId and section required/);
+  assert.throws(
+    () => recordSnapshotFeedback({}, { section: 'x', rating: 3 }),
+    /snapshotId and section required/
+  );
 });
 
 test('51675 final-from-snapshot: one-click promotion carries everything over', () => {
-  const fin = promoteSnapshotToFinal({ id: 's1', version: 3, target: 't', sections: [{ title: 'A' }], findings: F }, { promotedAt: 't0' });
+  const fin = promoteSnapshotToFinal(
+    { id: 's1', version: 3, target: 't', sections: [{ title: 'A' }], findings: F },
+    { promotedAt: 't0' }
+  );
   assert.ok(fin.reportId.startsWith('final-'));
   assert.equal(fin.promotedFrom.version, 3);
   assert.equal(fin.findings.length, 3);
@@ -469,12 +617,19 @@ test('51679 validation stages: default, advance, cap at confirmed', () => {
 });
 
 test('51680 confidence breakdown: parts explain the total', () => {
-  const bd = confidenceBreakdown({ evidence: [{ kind: 'poc', label: 'curl PoC' }, { kind: 'note', label: 'analyst note' }] });
+  const bd = confidenceBreakdown({
+    evidence: [
+      { kind: 'poc', label: 'curl PoC' },
+      { kind: 'note', label: 'analyst note' },
+    ],
+  });
   assert.equal(bd.total, 59);
   const sum = bd.parts.reduce((a, p) => a + p.points, 0);
   assert.ok(Math.abs(sum - bd.total) < 0.01);
   assert.ok(bd.parts.some(p => p.source === 'base'));
-  const capped = confidenceBreakdown({ evidence: Array.from({ length: 10 }, () => ({ kind: 'poc' })) });
+  const capped = confidenceBreakdown({
+    evidence: Array.from({ length: 10 }, () => ({ kind: 'poc' })),
+  });
   assert.equal(capped.total, 100);
   assert.ok(capped.capped);
 });
@@ -492,7 +647,13 @@ test('Wave42.css: zero keyframes, no animation/transition, scoped classes only',
 /* --- no-debris audit ------------------------------------------------------------------- */
 
 test('wave-42 sources carry no unfinished-work or fake-content markers', () => {
-  const files = ['snapshotDistribCore.js', 'snapshotPublishCore.js', 'SnapshotDistrib.jsx', 'SnapshotPublish.jsx', 'Wave42.css'];
+  const files = [
+    'snapshotDistribCore.js',
+    'snapshotPublishCore.js',
+    'SnapshotDistrib.jsx',
+    'SnapshotPublish.jsx',
+    'Wave42.css',
+  ];
   for (const f of files) {
     const src = readFileSync(join(DIR, f), 'utf8');
     assert.ok(!/TODO|FIXME|XXX|HACK/i.test(src), 'no todo markers in ' + f);
@@ -507,12 +668,21 @@ test('wave-42 sources carry no unfinished-work or fake-content markers', () => {
 
 test('SnapshotDistrib.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'SnapshotDistrib.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
-  assert.ok(out.includes('SnapshotDistribGallery'), 'esbuild parsed the distribution gallery export');
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+  assert.ok(
+    out.includes('SnapshotDistribGallery'),
+    'esbuild parsed the distribution gallery export'
+  );
 });
 
 test('SnapshotPublish.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'SnapshotPublish.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('SnapshotPublishGallery'), 'esbuild parsed the publishing gallery export');
 });

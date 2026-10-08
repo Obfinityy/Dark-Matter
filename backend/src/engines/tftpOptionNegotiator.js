@@ -19,9 +19,18 @@
 
 /** Well-known TFTP options (RFC 2347–2349). */
 export const TFTP_OPTIONS = {
-  blksize: { description: 'Transfer block size', securityNote: 'large negotiated blksize speeds exfiltration' },
-  timeout: { description: 'Retransmission timeout (seconds)', securityNote: 'accepted values reveal stack patience' },
-  tsize: { description: 'Transfer size (bytes)', securityNote: 'tsize on arbitrary file reads leaks file existence/size' },
+  blksize: {
+    description: 'Transfer block size',
+    securityNote: 'large negotiated blksize speeds exfiltration',
+  },
+  timeout: {
+    description: 'Retransmission timeout (seconds)',
+    securityNote: 'accepted values reveal stack patience',
+  },
+  tsize: {
+    description: 'Transfer size (bytes)',
+    securityNote: 'tsize on arbitrary file reads leaks file existence/size',
+  },
 };
 
 /** Implementation profiles keyed by observed negotiation behavior. */
@@ -56,13 +65,15 @@ export const TFTP_SERVER_PROFILES = [
 export function analyzeTftpNegotiation(exchange = {}) {
   const requested = exchange.requested || {};
   const response = exchange.response || {};
-  const requestedKeys = Object.keys(requested).map((k) => k.toLowerCase());
+  const requestedKeys = Object.keys(requested).map(k => k.toLowerCase());
   const acceptedOptions = [];
   const rejectedOptions = [];
   const negotiated = {};
 
   if (response.type === 'OACK') {
-    const acked = Object.fromEntries(Object.entries(response.options || {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
+    const acked = Object.fromEntries(
+      Object.entries(response.options || {}).map(([k, v]) => [k.toLowerCase(), String(v)])
+    );
     for (const key of requestedKeys) {
       if (key in acked) {
         acceptedOptions.push(key);
@@ -78,9 +89,12 @@ export function analyzeTftpNegotiation(exchange = {}) {
   // DATA response type: server ignored options silently (legacy behavior).
 
   const refused = response.type === 'ERROR';
-  const evidence = `Requested [${requestedKeys.join(', ')}]; server answered ${response.type}`
-    + (response.type === 'OACK' ? `, accepted [${acceptedOptions.join(', ') || 'none'}], rejected [${rejectedOptions.join(', ') || 'none'}], values ${JSON.stringify(negotiated)}`
-      : response.type === 'ERROR' ? ` — negotiation refused (code ${response.errorCode ?? '?'}: ${response.errorMessage || 'no message'})`
+  const evidence =
+    `Requested [${requestedKeys.join(', ')}]; server answered ${response.type}` +
+    (response.type === 'OACK'
+      ? `, accepted [${acceptedOptions.join(', ') || 'none'}], rejected [${rejectedOptions.join(', ') || 'none'}], values ${JSON.stringify(negotiated)}`
+      : response.type === 'ERROR'
+        ? ` — negotiation refused (code ${response.errorCode ?? '?'}: ${response.errorMessage || 'no message'})`
         : ' — options ignored, plain data transfer (legacy server)');
 
   return { acceptedOptions, rejectedOptions, negotiated, refused, evidence };
@@ -92,15 +106,28 @@ export function analyzeTftpNegotiation(exchange = {}) {
  * @returns {{type: string, confidence: 'high'|'medium'|'low', serverGuess: string|null, exposureNotes: string[], evidence: string}}
  */
 export function fingerprintTftpServer(input = {}) {
-  const negotiation = input.negotiation || { acceptedOptions: [], rejectedOptions: [], negotiated: {}, refused: false, evidence: '' };
+  const negotiation = input.negotiation || {
+    acceptedOptions: [],
+    rejectedOptions: [],
+    negotiated: {},
+    refused: false,
+    evidence: '',
+  };
   const exposureNotes = [];
 
   // Security-relevant signal: tsize negotiated on a read reveals file size/existence.
   if (negotiation.acceptedOptions.includes('tsize')) {
-    exposureNotes.push('tsize accepted — server discloses transfer size; on arbitrary filenames this is an oracle for file existence/size');
+    exposureNotes.push(
+      'tsize accepted — server discloses transfer size; on arbitrary filenames this is an oracle for file existence/size'
+    );
   }
-  if (negotiation.acceptedOptions.includes('blksize') && Number(negotiation.negotiated.blksize) > 8192) {
-    exposureNotes.push(`large blksize (${negotiation.negotiated.blksize}) accepted — fast bulk exfiltration path if reads are unauthenticated`);
+  if (
+    negotiation.acceptedOptions.includes('blksize') &&
+    Number(negotiation.negotiated.blksize) > 8192
+  ) {
+    exposureNotes.push(
+      `large blksize (${negotiation.negotiated.blksize}) accepted — fast bulk exfiltration path if reads are unauthenticated`
+    );
   }
   if (negotiation.refused) {
     exposureNotes.push('option negotiation refused via ERROR — legacy or minimal stack');
@@ -126,6 +153,8 @@ export function fingerprintTftpServer(input = {}) {
     confidence,
     serverGuess,
     exposureNotes,
-    evidence: negotiation.evidence + (exposureNotes.length ? `. Exposure notes: ${exposureNotes.join('; ')}` : ''),
+    evidence:
+      negotiation.evidence +
+      (exposureNotes.length ? `. Exposure notes: ${exposureNotes.join('; ')}` : ''),
   };
 }

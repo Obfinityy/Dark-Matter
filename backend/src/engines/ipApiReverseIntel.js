@@ -38,7 +38,7 @@ export function bulkPullReverse(rows) {
       noPtrIps.push(ip);
     }
   }
-  const total = (rows ?? []).filter((r) => String(r.ip ?? '').trim()).length;
+  const total = (rows ?? []).filter(r => String(r.ip ?? '').trim()).length;
   return {
     ptrMap,
     uniqueHostnames: [...hostnames].sort(),
@@ -57,11 +57,15 @@ export function bulkPullReverse(rows) {
  * @returns {{inScope: Array<{ip: string, ptr: string}>, providerPatterns: Array<{pattern: string, ips: string[]}>, other: Array<{ip: string, ptr: string}>}}
  */
 export function correlatePointers(ptrMap, opts = {}) {
-  const suffixes = (opts.domainSuffixes ?? []).map((s) => s.toLowerCase());
+  const suffixes = (opts.domainSuffixes ?? []).map(s => s.toLowerCase());
   const PROVIDER_PATTERNS = [
-    /ec2-\d+-\d+-\d+-\d+.*\.amazonaws\.com$/, /.*\.compute\.amazonaws\.com$/,
-    /.*\.cloudapp\.azure\.com$/, /.*\.googleusercontent\.com$/,
-    /.*\.cloudflare\.com$/, /.*\.hostinger\./, /.*\.digitalocean\.com$/,
+    /ec2-\d+-\d+-\d+-\d+.*\.amazonaws\.com$/,
+    /.*\.compute\.amazonaws\.com$/,
+    /.*\.cloudapp\.azure\.com$/,
+    /.*\.googleusercontent\.com$/,
+    /.*\.cloudflare\.com$/,
+    /.*\.hostinger\./,
+    /.*\.digitalocean\.com$/,
     /static-\d+-\d+-\d+-\d+/,
   ];
   const inScope = [];
@@ -69,11 +73,11 @@ export function correlatePointers(ptrMap, opts = {}) {
   const other = [];
 
   for (const [ip, ptr] of ptrMap) {
-    if (suffixes.length && suffixes.some((s) => ptr === s || ptr.endsWith(`.${s}`))) {
+    if (suffixes.length && suffixes.some(s => ptr === s || ptr.endsWith(`.${s}`))) {
       inScope.push({ ip, ptr });
       continue;
     }
-    const hit = PROVIDER_PATTERNS.find((re) => re.test(ptr));
+    const hit = PROVIDER_PATTERNS.find(re => re.test(ptr));
     if (hit) {
       const list = providerPatterns.get(hit.source) ?? [];
       list.push(ip);
@@ -112,6 +116,6 @@ export function analyzeNetblockGaps(rows) {
     if (row.ptr) entry.withPtr += 1;
   }
   return [...byBlock.values()]
-    .map((e) => ({ ...e, ptrRatio: e.total ? Math.round((e.withPtr / e.total) * 100) / 100 : 0 }))
+    .map(e => ({ ...e, ptrRatio: e.total ? Math.round((e.withPtr / e.total) * 100) / 100 : 0 }))
     .sort((a, b) => a.ptrRatio - b.ptrRatio);
 }

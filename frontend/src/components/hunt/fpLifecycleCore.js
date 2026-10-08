@@ -42,7 +42,11 @@ export function buildFpAppendix(fpDecisions) {
     markedAt: d.markedAt != null ? Number(d.markedAt) : null,
     text: `[${i + 1}] Excluded as false positive — ${d.reasonLabel || d.reasonId || 'unspecified'} (marked by ${d.markedBy || 'unknown'})`,
   }));
-  return { count: rows.length, rows, heading: `Appendix B — Excluded false positives (${rows.length})` };
+  return {
+    count: rows.length,
+    rows,
+    heading: `Appendix B — Excluded false positives (${rows.length})`,
+  };
 }
 
 // 52082 — FP dispute workflow: challenge a dismissal, reopening it into a
@@ -65,16 +69,23 @@ export function openDispute(marking, byUser, challenge, now = Date.now()) {
 }
 export function resolveDispute(disputedMarking, verdict, resolvedBy, now = Date.now()) {
   const m = disputedMarking || {};
-  if (String(m.status || '') !== 'disputed') return { ...m, ok: false, reason: 'not in disputed state' };
+  if (String(m.status || '') !== 'disputed')
+    return { ...m, ok: false, reason: 'not in disputed state' };
   const okVerdict = ['upheld', 'overturned'].includes(String(verdict));
-  if (!okVerdict) return { ...m, ok: false, reason: `verdict must be upheld|overturned, got "${verdict}"` };
+  if (!okVerdict)
+    return { ...m, ok: false, reason: `verdict must be upheld|overturned, got "${verdict}"` };
   const base = { ...m };
   delete base.ok;
   return {
     ...base,
     ok: true,
     status: String(verdict) === 'upheld' ? 'false-positive' : 'open',
-    dispute: { ...(m.dispute || {}), resolution: String(verdict), resolvedBy: String(resolvedBy || 'unknown'), resolvedAt: Number(now) },
+    dispute: {
+      ...(m.dispute || {}),
+      resolution: String(verdict),
+      resolvedBy: String(resolvedBy || 'unknown'),
+      resolvedAt: Number(now),
+    },
   };
 }
 
@@ -92,13 +103,19 @@ export function fpSlaElapsed(foundAt, decidedAt, severity, targetsMs = FP_SLA_TA
   const target = Number((targetsMs || {})[sev] != null ? targetsMs[sev] : targetsMs.medium);
   const elapsed = Number(decidedAt) - Number(foundAt);
   const met = elapsed <= target;
-  return { severity: sev, elapsedMs: elapsed, targetMs: target, met, overrunMs: met ? 0 : elapsed - target };
+  return {
+    severity: sev,
+    elapsedMs: elapsed,
+    targetMs: target,
+    met,
+    overrunMs: met ? 0 : elapsed - target,
+  };
 }
 export function fpSlaSummary(markings, targetsMs = FP_SLA_TARGETS_MS) {
   const rows = (markings || [])
-    .filter((m) => m.foundAt != null && m.decidedAt != null)
-    .map((m) => fpSlaElapsed(m.foundAt, m.decidedAt, m.severity, targetsMs));
-  const met = rows.filter((r) => r.met).length;
+    .filter(m => m.foundAt != null && m.decidedAt != null)
+    .map(m => fpSlaElapsed(m.foundAt, m.decidedAt, m.severity, targetsMs));
+  const met = rows.filter(r => r.met).length;
   return {
     total: rows.length,
     met,
@@ -110,7 +127,7 @@ export function fpSlaSummary(markings, targetsMs = FP_SLA_TARGETS_MS) {
 
 // 52084 — FP trend charts over hunts: hunt-over-hunt FP rates.
 export function fpTrendOverHunts(hunts) {
-  return (hunts || []).map((h) => {
+  return (hunts || []).map(h => {
     const total = Number(h.totalFindings || 0);
     const fps = Number(h.falsePositives || 0);
     const rate = total > 0 ? Math.round((fps / total) * 1000) / 1000 : 0;
@@ -123,35 +140,49 @@ export function fpTrendDirection(series) {
   const first = s[0].fpRate;
   const last = s[s.length - 1].fpRate;
   const delta = Math.round((last - first) * 1000) / 1000;
-  return { direction: delta < -0.005 ? 'improving' : delta > 0.005 ? 'worsening' : 'flat', first, last, delta };
+  return {
+    direction: delta < -0.005 ? 'improving' : delta > 0.005 ? 'worsening' : 'flat',
+    first,
+    last,
+    delta,
+  };
 }
 
 // 52085 — Per-finding FP probability badge: "72% likely FP" from historical
 // dismissal patterns for the same signature.
 export function fpProbabilityForSignature(signature, history) {
   const sig = String(signature || '');
-  const related = (history || []).filter((h) => String(h.signature || '') === sig);
-  const dismissed = related.filter((h) => h.isFalsePositive === true).length;
-  if (!related.length) return { signature: sig, probability: 0.5, sample: 0, label: '50% likely FP' };
+  const related = (history || []).filter(h => String(h.signature || '') === sig);
+  const dismissed = related.filter(h => h.isFalsePositive === true).length;
+  if (!related.length)
+    return { signature: sig, probability: 0.5, sample: 0, label: '50% likely FP' };
   const p = Math.round((dismissed / related.length) * 100) / 100;
-  return { signature: sig, probability: p, sample: related.length, label: `${Math.round(p * 100)}% likely FP` };
+  return {
+    signature: sig,
+    probability: p,
+    sample: related.length,
+    label: `${Math.round(p * 100)}% likely FP`,
+  };
 }
 
 // 52086 — FP reason search: full-text search across justifications for precedent.
 function tokenize(text) {
-  return String(text || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2);
+  return String(text || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(t => t.length > 2);
 }
 export function searchFpReasons(justifications, query) {
   const q = tokenize(query);
   if (!q.length) return [];
   return (justifications || [])
-    .map((j) => {
+    .map(j => {
       const hay = tokenize([j.justification, j.reasonLabel, j.reasonId, j.findingTitle].join(' '));
       const haySet = new Set(hay);
-      const hits = q.filter((t) => haySet.has(t)).length;
+      const hits = q.filter(t => haySet.has(t)).length;
       return { ...j, hits, score: hits / q.length };
     })
-    .filter((j) => j.hits > 0)
+    .filter(j => j.hits > 0)
     .sort((a, b) => b.score - a.score || b.hits - a.hits);
 }
 
@@ -168,7 +199,7 @@ export function detectCrossHuntFpPatterns(fpRecords, minHunts = 3) {
     bySig[sig].reasonIds[rid] = (bySig[sig].reasonIds[rid] || 0) + 1;
   }
   return Object.values(bySig)
-    .map((p) => {
+    .map(p => {
       const topReason = Object.entries(p.reasonIds).sort((a, b) => b[1] - a[1])[0];
       return {
         signature: p.signature,
@@ -180,14 +211,14 @@ export function detectCrossHuntFpPatterns(fpRecords, minHunts = 3) {
         proposedRuleName: `auto-fp: ${p.signature}`,
       };
     })
-    .filter((p) => p.proposesStandingRule)
+    .filter(p => p.proposesStandingRule)
     .sort((a, b) => b.huntCount - a.huntCount || b.occurrences - a.occurrences);
 }
 
 // 52088 — User-defined auto-FP rules: condition DSL matched against findings.
 // Rule shape: { id, name, conditions: [{field, op, value}], action: 'dismiss' }
 export function makeAutoFpRule(id, name, conditions) {
-  const conds = (conditions || []).map((c) => ({
+  const conds = (conditions || []).map(c => ({
     field: String(c.field || ''),
     op: ['contains', 'equals', 'matches'].includes(c.op) ? c.op : 'contains',
     value: String(c.value || ''),
@@ -200,20 +231,35 @@ function getField(finding, field) {
 export function matchAutoFpRule(rule, finding) {
   const conds = (rule || {}).conditions || [];
   if (!conds.length) return { matched: false, matchedConditions: 0 };
-  const matched = conds.filter((c) => {
+  const matched = conds.filter(c => {
     const v = getField(finding, c.field);
     if (c.op === 'equals') return v === c.value;
     if (c.op === 'matches') {
-      try { return new RegExp(c.value, 'i').test(v); } catch { return false; }
+      try {
+        return new RegExp(c.value, 'i').test(v);
+      } catch {
+        return false;
+      }
     }
     return v.toLowerCase().includes(c.value.toLowerCase());
   });
-  return { matched: matched.length === conds.length, matchedConditions: matched.length, totalConditions: conds.length };
+  return {
+    matched: matched.length === conds.length,
+    matchedConditions: matched.length,
+    totalConditions: conds.length,
+  };
 }
 
 // 52089 — Per-target FP allowlist: known-benign behaviors per target that
 // never surface as findings again.
-export function addTargetAllowlistEntry(allowlist, target, signature, reason, addedBy, now = Date.now()) {
+export function addTargetAllowlistEntry(
+  allowlist,
+  target,
+  signature,
+  reason,
+  addedBy,
+  now = Date.now()
+) {
   const list = Array.isArray(allowlist) ? [...allowlist] : [];
   const entry = {
     target: String(target),
@@ -222,14 +268,14 @@ export function addTargetAllowlistEntry(allowlist, target, signature, reason, ad
     addedBy: String(addedBy || 'unknown'),
     addedAt: Number(now),
   };
-  if (list.some((e) => e.target === entry.target && e.signature === entry.signature)) {
+  if (list.some(e => e.target === entry.target && e.signature === entry.signature)) {
     return { allowlist: list, added: false, reason: 'entry already allowlisted' };
   }
   return { allowlist: [...list, entry], added: true, entry };
 }
 export function checkTargetAllowlist(allowlist, target, signature) {
   return (allowlist || []).some(
-    (e) => String(e.target) === String(target) && String(e.signature) === String(signature),
+    e => String(e.target) === String(target) && String(e.signature) === String(signature)
   );
 }
 
@@ -241,7 +287,9 @@ function diffConditions(oldConds, newConds) {
 }
 export function versionAutoFpRule(rule, changes, changedBy, now = Date.now()) {
   const r = rule || {};
-  const before = JSON.parse(JSON.stringify({ conditions: r.conditions, enabled: r.enabled, name: r.name }));
+  const before = JSON.parse(
+    JSON.stringify({ conditions: r.conditions, enabled: r.enabled, name: r.name })
+  );
   const next = {
     ...r,
     conditions: changes.conditions != null ? changes.conditions : r.conditions,
@@ -249,16 +297,26 @@ export function versionAutoFpRule(rule, changes, changedBy, now = Date.now()) {
     name: changes.name != null ? changes.name : r.name,
     version: Number(r.version || 1) + 1,
   };
-  const after = JSON.parse(JSON.stringify({ conditions: next.conditions, enabled: next.enabled, name: next.name }));
+  const after = JSON.parse(
+    JSON.stringify({ conditions: next.conditions, enabled: next.enabled, name: next.name })
+  );
   const diff = diffConditions(before.conditions, after.conditions);
-  if (before.enabled !== after.enabled) diff.push({ field: 'enabled', before: before.enabled, after: after.enabled });
-  if (before.name !== after.name) diff.push({ field: 'name', before: before.name, after: after.name });
-  const historyEntry = { version: next.version, changedBy: String(changedBy || 'unknown'), changedAt: Number(now), diff, snapshot: before };
+  if (before.enabled !== after.enabled)
+    diff.push({ field: 'enabled', before: before.enabled, after: after.enabled });
+  if (before.name !== after.name)
+    diff.push({ field: 'name', before: before.name, after: after.name });
+  const historyEntry = {
+    version: next.version,
+    changedBy: String(changedBy || 'unknown'),
+    changedAt: Number(now),
+    diff,
+    snapshot: before,
+  };
   return { ...next, history: [...(r.history || []), historyEntry] };
 }
 export function rollbackAutoFpRule(rule, toVersion) {
   const r = rule || {};
-  const entry = (r.history || []).find((h) => Number(h.version) === Number(toVersion));
+  const entry = (r.history || []).find(h => Number(h.version) === Number(toVersion));
   if (!entry) return { ...r, ok: false, reason: `no version ${toVersion} in history` };
   return {
     ...r,
@@ -274,7 +332,7 @@ export function rollbackAutoFpRule(rule, toVersion) {
 // against historical hunts before enabling.
 export function sandboxTestRule(rule, historicalFindings) {
   const findings = historicalFindings || [];
-  const matches = findings.filter((f) => matchAutoFpRule(rule, f).matched);
+  const matches = findings.filter(f => matchAutoFpRule(rule, f).matched);
   const bySeverity = {};
   for (const m of matches) {
     const sev = String(m.severity || 'unknown').toLowerCase();
@@ -286,7 +344,9 @@ export function sandboxTestRule(rule, historicalFindings) {
     wouldDismiss: matches.length,
     wouldKeep: findings.length - matches.length,
     bySeverity,
-    sample: matches.slice(0, 5).map((m) => ({ findingId: m.findingId, title: m.title, severity: m.severity })),
+    sample: matches
+      .slice(0, 5)
+      .map(m => ({ findingId: m.findingId, title: m.title, severity: m.severity })),
   };
 }
 
@@ -312,7 +372,11 @@ export function publishTeamRule(rule, owner, teamId, now = Date.now()) {
 export function teamRuleReviewStatus(libraryEntry, now = Date.now()) {
   const e = libraryEntry || {};
   const due = Number(e.reviewDueAt || 0);
-  return { reviewDueAt: due, overdue: Number(now) > due, daysLeft: Math.floor((due - Number(now)) / 86400e3) };
+  return {
+    reviewDueAt: due,
+    overdue: Number(now) > due,
+    daysLeft: Math.floor((due - Number(now)) / 86400e3),
+  };
 }
 
 // 52093 — FP false-negative guard: deterministic pseudo-random sample of
@@ -320,26 +384,47 @@ export function teamRuleReviewStatus(libraryEntry, now = Date.now()) {
 function hashSample(str) {
   let h = 2166136261;
   const s = String(str || '');
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
   return (h >>> 0) % 100;
 }
 export function guardSampleDismissals(autoDismissed, ratePercent = 5) {
-  return (autoDismissed || []).filter((d) => hashSample(String(d.findingId || '')) < Number(ratePercent));
+  return (autoDismissed || []).filter(
+    d => hashSample(String(d.findingId || '')) < Number(ratePercent)
+  );
 }
 export function guardSampleSummary(autoDismissed, ratePercent = 5) {
   const sample = guardSampleDismissals(autoDismissed, ratePercent);
-  return { total: (autoDismissed || []).length, ratePercent: Number(ratePercent), sampled: sample.length, sample };
+  return {
+    total: (autoDismissed || []).length,
+    ratePercent: Number(ratePercent),
+    sampled: sample.length,
+    sample,
+  };
 }
 
 // 52094 — FP confidence threshold setting: per-severity auto-dismiss
 // thresholds; Criticals are never auto-dismissed.
-export const FP_AUTO_DISMISS_THRESHOLDS = { critical: 1.01, high: 0.9, medium: 0.8, low: 0.7, info: 0.6 };
+export const FP_AUTO_DISMISS_THRESHOLDS = {
+  critical: 1.01,
+  high: 0.9,
+  medium: 0.8,
+  low: 0.7,
+  info: 0.6,
+};
 export function canAutoDismiss(severity, fpProbability, thresholds = FP_AUTO_DISMISS_THRESHOLDS) {
   const sev = String(severity || 'medium').toLowerCase();
   if (sev === 'critical') return { allowed: false, reason: 'criticals are never auto-dismissed' };
   const t = (thresholds || {})[sev] != null ? Number(thresholds[sev]) : 0.8;
   const allowed = Number(fpProbability) >= t;
-  return { allowed, threshold: t, probability: Number(fpProbability), reason: allowed ? 'probability above threshold' : 'probability below threshold' };
+  return {
+    allowed,
+    threshold: t,
+    probability: Number(fpProbability),
+    reason: allowed ? 'probability above threshold' : 'probability below threshold',
+  };
 }
 
 // 52095 — FP auto-expiry: time-boxed dismissals that resurface for re-review.
@@ -357,23 +442,41 @@ export function scheduleFpExpiry(marking, daysValid, now = Date.now()) {
 export function fpExpiryStatus(marking, now = Date.now()) {
   const m = marking || {};
   if (m.expiresAt == null) return { expired: false, hasExpiry: false };
-  return { hasExpiry: true, expired: Number(now) >= Number(m.expiresAt), expiresAt: Number(m.expiresAt) };
+  return {
+    hasExpiry: true,
+    expired: Number(now) >= Number(m.expiresAt),
+    expiresAt: Number(m.expiresAt),
+  };
 }
 
 // 52096 — FP tags for sliced analytics.
-export const FP_TAG_TAXONOMY = ['waf-blocked', 'test-data', 'third-party', 'expected-behavior', 'duplicate', 'out-of-scope'];
+export const FP_TAG_TAXONOMY = [
+  'waf-blocked',
+  'test-data',
+  'third-party',
+  'expected-behavior',
+  'duplicate',
+  'out-of-scope',
+];
 export function tagFpDismissal(marking, tags) {
   const m = marking || {};
-  const valid = (tags || []).map((t) => String(t)).filter((t) => FP_TAG_TAXONOMY.includes(t));
-  const invalid = (tags || []).map((t) => String(t)).filter((t) => !FP_TAG_TAXONOMY.includes(t));
-  return { ...m, ok: true, tags: [...new Set([...(m.tags || []), ...valid])], rejected: [...new Set(invalid)] };
+  const valid = (tags || []).map(t => String(t)).filter(t => FP_TAG_TAXONOMY.includes(t));
+  const invalid = (tags || []).map(t => String(t)).filter(t => !FP_TAG_TAXONOMY.includes(t));
+  return {
+    ...m,
+    ok: true,
+    tags: [...new Set([...(m.tags || []), ...valid])],
+    rejected: [...new Set(invalid)],
+  };
 }
 
 // 52097 — FP digest email payload: weekly summary for security leads.
 export function buildFpDigestPayload(fpDecisions, weekStart, now = Date.now()) {
   const start = Number(weekStart != null ? weekStart : Number(now) - 7 * 86400e3);
   const end = start + 7 * 86400e3;
-  const inWeek = (fpDecisions || []).filter((d) => Number(d.markedAt || 0) >= start && Number(d.markedAt || 0) < end);
+  const inWeek = (fpDecisions || []).filter(
+    d => Number(d.markedAt || 0) >= start && Number(d.markedAt || 0) < end
+  );
   const byReason = {};
   const byMarker = {};
   for (const d of inWeek) {
@@ -389,7 +492,13 @@ export function buildFpDigestPayload(fpDecisions, weekStart, now = Date.now()) {
     total: inWeek.length,
     byReason,
     byMarker,
-    rows: inWeek.map((d) => ({ findingId: d.findingId, title: d.title, reasonId: d.reasonId, markedBy: d.markedBy, markedAt: d.markedAt })),
+    rows: inWeek.map(d => ({
+      findingId: d.findingId,
+      title: d.title,
+      reasonId: d.reasonId,
+      markedBy: d.markedBy,
+      markedAt: d.markedAt,
+    })),
   };
 }
 
@@ -399,13 +508,19 @@ export function flagFpForRevalidation(fpRecords, targetChange) {
   const change = targetChange || {};
   const target = String(change.target || '');
   return (fpRecords || [])
-    .filter((r) => String(r.target || '') === target)
-    .map((r) => {
-      const related = String(change.scope || '') === 'config'
-        ? String(r.reasonId || '') === 'expected-behavior'
-        : true;
+    .filter(r => String(r.target || '') === target)
+    .map(r => {
+      const related =
+        String(change.scope || '') === 'config'
+          ? String(r.reasonId || '') === 'expected-behavior'
+          : true;
       const expired = r.expiresAt != null && Number(change.at || Date.now()) >= Number(r.expiresAt);
-      return { findingId: r.findingId, signature: r.signature, flagged: related || expired, reason: expired ? 'dismissal expired' : related ? 'target changed' : 'no change relevance' };
+      return {
+        findingId: r.findingId,
+        signature: r.signature,
+        flagged: related || expired,
+        reason: expired ? 'dismissal expired' : related ? 'target changed' : 'no change relevance',
+      };
     });
 }
 
@@ -418,7 +533,14 @@ export function inheritFpPatterns(previousHuntFps, newHunt) {
   for (const fp of previousHuntFps || []) {
     if (String(fp.target || '') !== target || fp.status === 'overturned') continue;
     const sig = String(fp.signature || '');
-    if (!patterns[sig]) patterns[sig] = { signature: sig, reasonId: fp.reasonId, reasonLabel: fp.reasonLabel, inheritedFrom: fp.huntId, count: 0 };
+    if (!patterns[sig])
+      patterns[sig] = {
+        signature: sig,
+        reasonId: fp.reasonId,
+        reasonLabel: fp.reasonLabel,
+        inheritedFrom: fp.huntId,
+        count: 0,
+      };
     patterns[sig].count += 1;
   }
   return {

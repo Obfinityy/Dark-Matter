@@ -77,17 +77,26 @@ export function parseHlsManifest(playlist, sourceUrl = '') {
     if (value) findings.push({ type, value, evidence: sourceUrl || '(inline)' });
   };
 
-  for (const rx of [HLS_PATTERNS.quotedUri, HLS_PATTERNS.streamInf, HLS_PATTERNS.segmentLine, HLS_PATTERNS.keyUri]) {
+  for (const rx of [
+    HLS_PATTERNS.quotedUri,
+    HLS_PATTERNS.streamInf,
+    HLS_PATTERNS.segmentLine,
+    HLS_PATTERNS.keyUri,
+  ]) {
     rx.lastIndex = 0;
     let m;
     while ((m = rx.exec(text)) !== null) record('uri', m[1] || m[0]);
   }
 
-  const uris = findings.map((f) => f.value);
+  const uris = findings.map(f => f.value);
   const hosts = hostsFromUris(uris);
   return [
     ...findings,
-    ...hosts.map((h) => ({ type: 'segment_host', value: h, evidence: 'absolute URI in HLS manifest' })),
+    ...hosts.map(h => ({
+      type: 'segment_host',
+      value: h,
+      evidence: 'absolute URI in HLS manifest',
+    })),
   ];
 }
 
@@ -108,14 +117,22 @@ export function parseDashManifest(manifest, sourceUrl = '') {
     let m;
     while ((m = rx.exec(text)) !== null) {
       uris.push(m[1]);
-      findings.push({ type: key === 'baseUrl' ? 'base_url' : 'location', value: m[1], evidence: sourceUrl || '(inline)' });
+      findings.push({
+        type: key === 'baseUrl' ? 'base_url' : 'location',
+        value: m[1],
+        evidence: sourceUrl || '(inline)',
+      });
     }
   }
 
   const hosts = hostsFromUris(uris);
   return [
     ...findings,
-    ...hosts.map((h) => ({ type: 'segment_host', value: h, evidence: 'BaseURL/Location in DASH manifest' })),
+    ...hosts.map(h => ({
+      type: 'segment_host',
+      value: h,
+      evidence: 'BaseURL/Location in DASH manifest',
+    })),
   ];
 }
 
@@ -130,7 +147,9 @@ export function parseManifest(text, sourceUrl = '') {
   let findings = [];
   if (flavour === 'hls') findings = parseHlsManifest(text, sourceUrl);
   else if (flavour === 'dash') findings = parseDashManifest(text, sourceUrl);
-  const segmentHosts = [...new Set(findings.filter((f) => f.type === 'segment_host').map((f) => f.value))];
+  const segmentHosts = [
+    ...new Set(findings.filter(f => f.type === 'segment_host').map(f => f.value)),
+  ];
   return { flavour, findings, segmentHosts };
 }
 
@@ -142,9 +161,10 @@ export function parseManifest(text, sourceUrl = '') {
  * @returns {{host: string, cdnLike: boolean}[]}
  */
 export function flagCdnLikeHosts(hosts, targetDomain = '') {
-  const CDN_HINTS = /(cdn|media|video|stream|vod|hls|dash|edge|akamai|cloudfront|fastly|llnwd|cdnetworks|edgecast|jwpltx|mux|cloudinary|vimeocdn|wistia|brightcove|kaltura|jwplatform|dailymotion)/i;
+  const CDN_HINTS =
+    /(cdn|media|video|stream|vod|hls|dash|edge|akamai|cloudfront|fastly|llnwd|cdnetworks|edgecast|jwpltx|mux|cloudinary|vimeocdn|wistia|brightcove|kaltura|jwplatform|dailymotion)/i;
   const own = targetDomain.toLowerCase();
-  return (hosts || []).map((host) => ({
+  return (hosts || []).map(host => ({
     host,
     cdnLike: CDN_HINTS.test(host) || (own && !host.endsWith(own)),
   }));

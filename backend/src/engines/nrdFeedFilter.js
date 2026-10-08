@@ -13,15 +13,43 @@
 
 /** Deceptive keywords commonly paired with brands in fresh phishing domains. */
 export const PHISHING_KEYWORDS = [
-  'login', 'signin', 'verify', 'secure', 'account', 'update', 'support',
-  'wallet', 'billing', 'payment', 'password', 'reset', 'confirm', 'auth',
-  'official', 'portal', 'service', 'online', 'security', 'alert', 'notice',
+  'login',
+  'signin',
+  'verify',
+  'secure',
+  'account',
+  'update',
+  'support',
+  'wallet',
+  'billing',
+  'payment',
+  'password',
+  'reset',
+  'confirm',
+  'auth',
+  'official',
+  'portal',
+  'service',
+  'online',
+  'security',
+  'alert',
+  'notice',
 ];
 
 /** Leet-speak substitutions used to dodge naive brand matching. */
 const LEET_MAP = {
-  0: 'o', 1: 'l', 3: 'e', 4: 'a', 5: 's', 6: 'g', 7: 't', 8: 'b',
-  '@': 'a', $: 's', '!': 'i', '+': 't',
+  0: 'o',
+  1: 'l',
+  3: 'e',
+  4: 'a',
+  5: 's',
+  6: 'g',
+  7: 't',
+  8: 'b',
+  '@': 'a',
+  $: 's',
+  '!': 'i',
+  '+': 't',
 };
 
 /**
@@ -30,7 +58,9 @@ const LEET_MAP = {
  * @returns {string}
  */
 export function normalizeLeet(s) {
-  return String(s || '').toLowerCase().replace(/[01345678@$!+]/g, (c) => LEET_MAP[c] || c);
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[01345678@$!+]/g, c => LEET_MAP[c] || c);
 }
 
 /**
@@ -51,9 +81,12 @@ export function brandHitSignals(domain, brand) {
     signals.push({ signal: 'exact-brand', evidence: `domain is exactly the brand: "${d}"` });
     score = Math.max(score, 100);
   } else if (d.includes(b)) {
-    const keyword = PHISHING_KEYWORDS.find((k) => label.includes(k));
+    const keyword = PHISHING_KEYWORDS.find(k => label.includes(k));
     if (keyword) {
-      signals.push({ signal: 'brand-plus-keyword', evidence: `brand "${b}" with phishing keyword "${keyword}" in "${label}"` });
+      signals.push({
+        signal: 'brand-plus-keyword',
+        evidence: `brand "${b}" with phishing keyword "${keyword}" in "${label}"`,
+      });
       score = Math.max(score, 85);
     } else {
       signals.push({ signal: 'brand-substring', evidence: `brand "${b}" embedded in "${d}"` });
@@ -61,18 +94,27 @@ export function brandHitSignals(domain, brand) {
     }
   }
   if (/[^\x00-\x7F]/.test(d)) {
-    signals.push({ signal: 'non-ascii', evidence: `non-ASCII characters in "${d}" suggest IDN homograph` });
+    signals.push({
+      signal: 'non-ascii',
+      evidence: `non-ASCII characters in "${d}" suggest IDN homograph`,
+    });
     score = Math.max(score, 70);
   }
   const leetLabel = normalizeLeet(label);
   if (leetLabel !== label && leetLabel.includes(b)) {
-    signals.push({ signal: 'leet-obfuscated-brand', evidence: `brand "${b}" hidden with leet substitutions in fresh domain "${d}"` });
+    signals.push({
+      signal: 'leet-obfuscated-brand',
+      evidence: `brand "${b}" hidden with leet substitutions in fresh domain "${d}"`,
+    });
     score = Math.max(score, 80);
   }
   const squashedLabel = label.replace(/[^a-z0-9]/g, '');
   const squashedBrand = b.replace(/[^a-z0-9]/g, '');
   if (squashedLabel.includes(squashedBrand) && !d.includes(b)) {
-    signals.push({ signal: 'separator-obfuscated-brand', evidence: `brand "${b}" hidden behind separators in "${label}"` });
+    signals.push({
+      signal: 'separator-obfuscated-brand',
+      evidence: `brand "${b}" hidden behind separators in "${label}"`,
+    });
     score = Math.max(score, 75);
   }
   return { score: Math.min(100, score), signals };
@@ -123,7 +165,9 @@ export function filterNrdFeed(feed, brands, opts = {}) {
   const matches = [];
   const seen = new Set();
   for (const entry of feed || []) {
-    const domain = String(entry?.domain || '').toLowerCase().trim();
+    const domain = String(entry?.domain || '')
+      .toLowerCase()
+      .trim();
     if (!domain || seen.has(domain)) continue;
     seen.add(domain);
     const ageHours = entryAgeHours(entry.firstSeen, nowMs);
@@ -141,7 +185,8 @@ export function filterNrdFeed(feed, brands, opts = {}) {
       ageHours: ageHours === null ? null : Math.round(ageHours * 10) / 10,
       source: entry.source || 'unknown',
       score: best.score,
-      evidence: best.signals.map((s) => s.evidence).join(' | ') +
+      evidence:
+        best.signals.map(s => s.evidence).join(' | ') +
         (ageHours !== null ? `; first seen ${Math.round(ageHours)}h ago` : ''),
     });
   }
@@ -166,18 +211,19 @@ export function groupByBrand(matches) {
  * @param {ReturnType<typeof filterNrdFeed>} matches
  */
 export function summarizeNrdDigest(matches) {
-  const critical = (matches || []).filter((m) => m.score >= 85);
+  const critical = (matches || []).filter(m => m.score >= 85);
   const groups = groupByBrand(matches);
   return {
     total: (matches || []).length,
     critical: critical.length,
     perBrand: Object.fromEntries(Object.entries(groups).map(([b, ms]) => [b, ms.length])),
-    topThreats: critical.slice(0, 10).map((m) => ({
+    topThreats: critical.slice(0, 10).map(m => ({
       domain: m.domain,
       ageHours: m.ageHours,
       score: m.score,
     })),
-    summary: `${critical.length} critical and ${(matches || []).length - critical.length} ` +
+    summary:
+      `${critical.length} critical and ${(matches || []).length - critical.length} ` +
       `elevated fresh domain(s) matched brand patterns in this feed window.`,
   };
 }

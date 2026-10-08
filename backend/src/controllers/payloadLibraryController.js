@@ -14,7 +14,7 @@ export function createPayloadLibraryController({ payloadLibraryModel }) {
       const payloads = await payloadLibraryModel.suggest({
         technique: request.query.technique || null,
         category: request.query.category || null,
-        limit: Math.min(Math.max(Number(request.query.limit) || 20, 1), 100)
+        limit: Math.min(Math.max(Number(request.query.limit) || 20, 1), 100),
       });
       response.json({ payloads });
     }),
@@ -22,6 +22,6 @@ export function createPayloadLibraryController({ payloadLibraryModel }) {
     /** GET /api/v1/payload-library/stats — learning stats */
     stats: asyncHandler(async (request, response) => {
       response.json({ stats: await payloadLibraryModel.stats() });
-    })
+    }),
   };
 }

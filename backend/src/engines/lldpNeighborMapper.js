@@ -25,9 +25,17 @@ const LLDP_TLV = {
 
 /** System capability bit flags. */
 const CAPABILITY_FLAGS = [
-  'Other', 'Repeater', 'Bridge', 'WLAN access point', 'Router',
-  'Telephone', 'DOCSIS cable device', 'Station only', 'C-VLAN component',
-  'S-VLAN component', 'Two-port MAC relay',
+  'Other',
+  'Repeater',
+  'Bridge',
+  'WLAN access point',
+  'Router',
+  'Telephone',
+  'DOCSIS cable device',
+  'Station only',
+  'C-VLAN component',
+  'S-VLAN component',
+  'Two-port MAC relay',
 ];
 
 /**
@@ -61,12 +69,16 @@ export function decodeCapabilities(bitmap) {
 }
 
 function tlvValue(tlvs, type) {
-  const t = tlvs.find((x) => x.type === type);
+  const t = tlvs.find(x => x.type === type);
   return t ? t.valueHex : null;
 }
 
 function hexToAscii(hex) {
-  return hex ? Buffer.from(hex, 'hex').toString('utf8').replace(/[^\x20-\x7e]/g, '') : '';
+  return hex
+    ? Buffer.from(hex, 'hex')
+        .toString('utf8')
+        .replace(/[^\x20-\x7e]/g, '')
+    : '';
 }
 
 /**
@@ -76,9 +88,14 @@ function hexToAscii(hex) {
  * @returns {{ neighborFound: boolean, type, confidence, evidence, neighbor? }}
  */
 export function mapLldpNeighbor({ tlvs = null, hex = null, interface: iface = 'unknown' } = {}) {
-  const list = tlvs && tlvs.length ? tlvs : (hex ? parseLldpHex(hex) : []);
+  const list = tlvs && tlvs.length ? tlvs : hex ? parseLldpHex(hex) : [];
   if (!list.length) {
-    return { neighborFound: false, type: 'No LLDP Data', confidence: 'none', evidence: 'No LLDP TLVs supplied.' };
+    return {
+      neighborFound: false,
+      type: 'No LLDP Data',
+      confidence: 'none',
+      evidence: 'No LLDP TLVs supplied.',
+    };
   }
 
   const chassisHex = tlvValue(list, LLDP_TLV.CHASSIS_ID);
@@ -87,7 +104,12 @@ export function mapLldpNeighbor({ tlvs = null, hex = null, interface: iface = 'u
   const mgmtHex = tlvValue(list, LLDP_TLV.MANAGEMENT_ADDRESS);
   const capHex = tlvValue(list, LLDP_TLV.SYSTEM_CAPABILITIES);
 
-  const chassisId = chassisHex ? Buffer.from(chassisHex.slice(2), 'hex').toString('hex').replace(/(.{2})/g, '$1:').replace(/:$/, '') : '';
+  const chassisId = chassisHex
+    ? Buffer.from(chassisHex.slice(2), 'hex')
+        .toString('hex')
+        .replace(/(.{2})/g, '$1:')
+        .replace(/:$/, '')
+    : '';
   const neighbor = {
     chassisId: chassisId || hexToAscii(chassisHex),
     portId: hexToAscii(portHex),
@@ -101,7 +123,12 @@ export function mapLldpNeighbor({ tlvs = null, hex = null, interface: iface = 'u
   };
 
   if (!neighbor.chassisId && !neighbor.systemName) {
-    return { neighborFound: false, type: 'LLDP Incomplete', confidence: 'low', evidence: 'Frame lacked chassis ID and system name.' };
+    return {
+      neighborFound: false,
+      type: 'LLDP Incomplete',
+      confidence: 'low',
+      evidence: 'Frame lacked chassis ID and system name.',
+    };
   }
 
   const label = neighbor.systemName || neighbor.chassisId;

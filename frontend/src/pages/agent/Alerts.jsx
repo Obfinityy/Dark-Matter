@@ -12,7 +12,7 @@ import { listAlerts, markAlertRead, markAllAlertsRead } from '../../services/api
 const TYPE_LABEL = {
   critical_finding: 'Critical finding',
   hunt_complete: 'Hunt complete',
-  hunt_started: 'Hunt started'
+  hunt_started: 'Hunt started',
 };
 
 export function Alerts() {
@@ -24,41 +24,66 @@ export function Alerts() {
     try {
       const body = await listAlerts(unreadOnly);
       setAlerts(body?.alerts || []);
-    } catch { setAlerts([]); }
-    finally { setLoading(false); }
+    } catch {
+      setAlerts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { setLoading(true); refresh(); }, [unreadOnly]);
+  useEffect(() => {
+    setLoading(true);
+    refresh();
+  }, [unreadOnly]);
 
-  const read = async (id) => {
+  const read = async id => {
     await markAlertRead(id).catch(() => {});
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
+    setAlerts(prev => prev.map(a => (a.id === id ? { ...a, read: true } : a)));
   };
 
   const readAll = async () => {
     await markAllAlertsRead().catch(() => {});
-    setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
+    setAlerts(prev => prev.map(a => ({ ...a, read: true })));
   };
 
-  if (loading) return <div className="dm-page-loading" role="status" aria-live="polite"><Loader2 size={18} className="dm-spin" /> Loading alerts…</div>;
+  if (loading)
+    return (
+      <div className="dm-page-loading" role="status" aria-live="polite">
+        <Loader2 size={18} className="dm-spin" /> Loading alerts…
+      </div>
+    );
 
-  const unreadCount = alerts.filter((a) => !a.read).length;
+  const unreadCount = alerts.filter(a => !a.read).length;
 
   return (
     <div className="dm-alerts">
       <header className="dm-page-head">
         <div>
-          <h1><Bell size={22} /> Alerts
-            {unreadCount > 0 && <span className="dm-alert-count" aria-label={`${unreadCount} unread`}>{unreadCount} unread</span>}
+          <h1>
+            <Bell size={22} /> Alerts
+            {unreadCount > 0 && (
+              <span className="dm-alert-count" aria-label={`${unreadCount} unread`}>
+                {unreadCount} unread
+              </span>
+            )}
           </h1>
           <p>Critical findings and hunt lifecycle events, the moment they happen.</p>
         </div>
         <div className="dm-head-links">
           <label className="dm-check-inline">
-            <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={unreadOnly}
+              onChange={e => setUnreadOnly(e.target.checked)}
+            />
             Unread only
           </label>
-          <button className="dm-btn-ghost" onClick={readAll} disabled={unreadCount === 0} aria-label="Mark all alerts as read">
+          <button
+            className="dm-btn-ghost"
+            onClick={readAll}
+            disabled={unreadCount === 0}
+            aria-label="Mark all alerts as read"
+          >
             <CheckCheck size={14} /> Mark all read
           </button>
         </div>

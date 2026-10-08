@@ -148,10 +148,38 @@ export function forcedColorsCssVars() {
 /* ------------------------------------------------------------------ */
 
 export const IDE_THEMES = {
-  'vscode-dark': { label: 'VS Code Dark+', bg: '#1e1e1e', fg: '#d4d4d4', kw: '#569cd6', str: '#ce9178', cmt: '#6a9955' },
-  'dracula': { label: 'Dracula', bg: '#282a36', fg: '#f8f8f2', kw: '#ff79c6', str: '#f1fa8c', cmt: '#6272a4' },
-  'github-light': { label: 'GitHub Light', bg: '#ffffff', fg: '#24292f', kw: '#cf222e', str: '#0a3069', cmt: '#6e7781' },
-  'one-dark-pro': { label: 'One Dark Pro', bg: '#282c34', fg: '#abb2bf', kw: '#c678dd', str: '#98c379', cmt: '#5c6370' },
+  'vscode-dark': {
+    label: 'VS Code Dark+',
+    bg: '#1e1e1e',
+    fg: '#d4d4d4',
+    kw: '#569cd6',
+    str: '#ce9178',
+    cmt: '#6a9955',
+  },
+  dracula: {
+    label: 'Dracula',
+    bg: '#282a36',
+    fg: '#f8f8f2',
+    kw: '#ff79c6',
+    str: '#f1fa8c',
+    cmt: '#6272a4',
+  },
+  'github-light': {
+    label: 'GitHub Light',
+    bg: '#ffffff',
+    fg: '#24292f',
+    kw: '#cf222e',
+    str: '#0a3069',
+    cmt: '#6e7781',
+  },
+  'one-dark-pro': {
+    label: 'One Dark Pro',
+    bg: '#282c34',
+    fg: '#abb2bf',
+    kw: '#c678dd',
+    str: '#98c379',
+    cmt: '#5c6370',
+  },
   'follow-app': { label: 'Follow app theme', bg: null, fg: null, kw: null, str: null, cmt: null },
 };
 
@@ -185,7 +213,7 @@ export function shouldRunThemeTransition({ dnd = {}, date = new Date() } = {}) {
 
 export function dndWindowLabel({ startHour, endHour } = {}) {
   if (startHour == null || endHour == null) return 'Off';
-  const fmt = (h) => `${String(Math.floor(h)).padStart(2, '0')}:00`;
+  const fmt = h => `${String(Math.floor(h)).padStart(2, '0')}:00`;
   return `${fmt(startHour)} – ${fmt(endHour)} local`;
 }
 
@@ -202,10 +230,12 @@ export function makeHuntThemeStore(storage) {
       return {};
     }
   };
-  const write = (obj) => {
+  const write = obj => {
     try {
       storage?.setItem(KEY, JSON.stringify(obj));
-    } catch { /* storage blocked — session-only */ }
+    } catch {
+      /* storage blocked — session-only */
+    }
   };
   return {
     /** Get the pinned theme for a hunt, or null for "follow global". */
@@ -270,7 +300,10 @@ export function embeddedThemePayload({ themeId, vars }) {
 export function parseEmbeddedThemeMessage(data) {
   if (!data || data.type !== EMBED_THEME_MESSAGE) return null;
   if (typeof data.themeId !== 'string' || data.themeId.length > 32) return null;
-  return { themeId: data.themeId, vars: data.vars && typeof data.vars === 'object' ? data.vars : {} };
+  return {
+    themeId: data.themeId,
+    vars: data.vars && typeof data.vars === 'object' ? data.vars : {},
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -356,50 +389,290 @@ export function sepiaTextPair() {
 /* ------------------------------------------------------------------ */
 
 export const WAVE18_IDEAS = [
-  { id: 50681, title: 'Themed scrollbars', status: 'shipped', module: 'ThemeRound3.jsx', note: 'scrollbarClass() + .th-scrollbars-* thin theme-matched styling.' },
-  { id: 50682, title: 'Themed selection color', status: 'shipped', module: 'ThemeRound3.jsx', note: 'selectionClass() + ::selection pairing per theme, contrast-checked.' },
-  { id: 50683, title: 'Synced theme preference', status: 'shipped', module: 'ThemeRound3.jsx', note: 'syncThemePreference(): per-device persist + last-writer-wins account merge.' },
-  { id: 50684, title: 'OLED true-black toggle', status: 'skipped', module: 'ThemeSuite.jsx', note: 'SKIP — already live in wave 17 (oledBlack + th-oled class).' },
-  { id: 50685, title: 'Sepia reading theme', status: 'shipped', module: 'ThemeRound3.jsx', note: 'SEPIA_THEME: warm paper palette for long report sessions.' },
-  { id: 50686, title: 'Balanced severity tints', status: 'shipped', module: 'ThemeRound3.jsx', note: 'severityTintForTheme(): 4% opacity dark-family / 8% light-family.' },
-  { id: 50687, title: 'High-contrast tables', status: 'shipped', module: 'ThemeRound3.jsx', note: 'tableModeClass(): zebra rows + strong cell borders mode.' },
-  { id: 50688, title: 'Auto-contrast guard', status: 'skipped', module: 'themeCore.js', note: 'SKIP — already live in wave 17 (accentPairing guard).' },
-  { id: 50689, title: 'Theme-cycle shortcut', status: 'skipped', module: 'ShortcutsManager.jsx', note: 'SKIP — Ctrl+. already live (wave 12), documented by wave 17 ThemeCycleHint.' },
-  { id: 50690, title: 'Themed embedded reports', status: 'shipped', module: 'ThemeRound3.jsx', note: 'EmbeddedReportBridge: postMessage theme inheritance + payload validation.' },
-  { id: 50691, title: 'Themed progress accents', status: 'shipped', module: 'ThemeRound3.jsx', note: 'progressAccentForTheme(): theme-aware spinner/bar colors.' },
-  { id: 50692, title: 'Distinguishable error colors', status: 'shipped', module: 'ThemeRound3.jsx', note: 'errorColorPairs(): hue + icon + text label, never color-alone.' },
-  { id: 50693, title: 'Announced theme changes', status: 'skipped', module: 'ThemeSuite.jsx', note: 'SKIP — already live in wave 17 (ThemeProvider aria-live announcements).' },
-  { id: 50694, title: 'Theme-gated gradients', status: 'shipped', module: 'ThemeRound3.jsx', note: 'gradientsAllowed(): wallpaper gradients only in dark/dim; light stays flat.' },
-  { id: 50695, title: 'Themed empty illustrations', status: 'shipped', module: 'ThemeRound3.jsx', note: 'emptyIllustrationVariant(): dark/light illustration variants per theme.' },
-  { id: 50696, title: 'Contrast-ratio readout', status: 'skipped', module: 'ThemeSuite.jsx', note: 'SKIP — already live in wave 17 (ContrastReadout).' },
-  { id: 50697, title: 'Forced-colors support', status: 'shipped', module: 'ThemeRound3.jsx', note: 'FORCED_COLORS_MAP + forcedColorsCssVars() for Windows High Contrast.' },
-  { id: 50698, title: 'Instant themed cards', status: 'shipped', module: 'ThemeRound3.jsx', note: 'instantThemeAttrs(): data-th-instant disables transition for one paint — no per-card flash.' },
-  { id: 50699, title: 'IDE-theme sync option', status: 'shipped', module: 'ThemeRound3.jsx', note: 'IDE_THEMES: code blocks sync to VS Code/Dracula/GitHub/One Dark Pro.' },
-  { id: 50700, title: 'High-contrast focus spec', status: 'shipped', module: 'ThemeRound3.jsx', note: 'HIGH_CONTRAST_FOCUS_SPEC: 3px solid outline + 2px offset on every control.' },
-  { id: 50701, title: 'DND-aware scheduling', status: 'shipped', module: 'ThemeRound3.jsx', note: 'isDndNow()/shouldRunThemeTransition(): theme scheduling skips DND hours.' },
-  { id: 50702, title: 'Per-hunt theme override', status: 'shipped', module: 'ThemeRound3.jsx', note: 'makeHuntThemeStore(): pin high-contrast per hunt for focused reviews.' },
-  { id: 50703, title: 'Theme JSON export', status: 'skipped', module: 'themeCore.js', note: 'SKIP — already live in wave 17 (ThemeJSONExportImport, schema v1).' },
-  { id: 50704, title: 'First-run theme picker', status: 'shipped', module: 'ThemeRound3.jsx', note: 'FirstRunThemePicker: three large previews on onboarding.' },
-  { id: 50705, title: 'Active-hunts widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'ActiveHuntsWidget: live phase + progress ring per running hunt.' },
-  { id: 50706, title: 'Clickable severity donut', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'SeverityDonutWidget: segments click through to filtered findings.' },
-  { id: 50707, title: 'Weekly-findings sparkline', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'WeeklyFindingsWidget: sparkline + week-over-week delta.' },
-  { id: 50708, title: 'Throughput widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'ThroughputWidget: hunts/day for the last 30 days.' },
-  { id: 50709, title: 'Needs-review widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'NeedsReviewWidget: top 5 unreviewed findings + quick-review actions.' },
-  { id: 50710, title: 'Top-vulnerable-targets widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'TopVulnerableTargetsWidget: ranked by criticals with trend arrows.' },
-  { id: 50711, title: 'Agent-activity heatmap', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'AgentActivityHeatmapWidget: 24x7 grid of agent activity.' },
-  { id: 50712, title: 'Time-to-first-finding widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'TimeToFirstFindingWidget: average + trend arrow.' },
-  { id: 50713, title: 'False-positive-rate widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'FalsePositiveRateWidget: per-engine FP rates + 30-day sparkline.' },
-  { id: 50714, title: 'Report-ready widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'ReportReadyWidget: hunts awaiting report generation + one-click generate.' },
-  { id: 50715, title: 'Scheduled-hunts widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'ScheduledHuntsWidget: next 5 scheduled runs with live countdowns.' },
-  { id: 50716, title: 'Integration-health widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'IntegrationHealthWidget: green/amber/red health dots per provider.' },
-  { id: 50717, title: 'Learning-applied widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'LearningAppliedWidget: rules learned this week with concrete examples.' },
-  { id: 50718, title: 'Storage-usage widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'StorageUsageWidget: evidence + snapshot usage vs quota + cleanup CTA.' },
-  { id: 50719, title: 'Team-leaderboard widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'TeamLeaderboardWidget: opt-in board ranking confirmed findings.' },
-  { id: 50720, title: 'SLA-risk widget', status: 'shipped', module: 'DashboardWidgets.jsx', note: 'SlaRiskWidget: findings nearing SLA breach sorted by urgency + countdowns.' },
+  {
+    id: 50681,
+    title: 'Themed scrollbars',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'scrollbarClass() + .th-scrollbars-* thin theme-matched styling.',
+  },
+  {
+    id: 50682,
+    title: 'Themed selection color',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'selectionClass() + ::selection pairing per theme, contrast-checked.',
+  },
+  {
+    id: 50683,
+    title: 'Synced theme preference',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'syncThemePreference(): per-device persist + last-writer-wins account merge.',
+  },
+  {
+    id: 50684,
+    title: 'OLED true-black toggle',
+    status: 'skipped',
+    module: 'ThemeSuite.jsx',
+    note: 'SKIP — already live in wave 17 (oledBlack + th-oled class).',
+  },
+  {
+    id: 50685,
+    title: 'Sepia reading theme',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'SEPIA_THEME: warm paper palette for long report sessions.',
+  },
+  {
+    id: 50686,
+    title: 'Balanced severity tints',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'severityTintForTheme(): 4% opacity dark-family / 8% light-family.',
+  },
+  {
+    id: 50687,
+    title: 'High-contrast tables',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'tableModeClass(): zebra rows + strong cell borders mode.',
+  },
+  {
+    id: 50688,
+    title: 'Auto-contrast guard',
+    status: 'skipped',
+    module: 'themeCore.js',
+    note: 'SKIP — already live in wave 17 (accentPairing guard).',
+  },
+  {
+    id: 50689,
+    title: 'Theme-cycle shortcut',
+    status: 'skipped',
+    module: 'ShortcutsManager.jsx',
+    note: 'SKIP — Ctrl+. already live (wave 12), documented by wave 17 ThemeCycleHint.',
+  },
+  {
+    id: 50690,
+    title: 'Themed embedded reports',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'EmbeddedReportBridge: postMessage theme inheritance + payload validation.',
+  },
+  {
+    id: 50691,
+    title: 'Themed progress accents',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'progressAccentForTheme(): theme-aware spinner/bar colors.',
+  },
+  {
+    id: 50692,
+    title: 'Distinguishable error colors',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'errorColorPairs(): hue + icon + text label, never color-alone.',
+  },
+  {
+    id: 50693,
+    title: 'Announced theme changes',
+    status: 'skipped',
+    module: 'ThemeSuite.jsx',
+    note: 'SKIP — already live in wave 17 (ThemeProvider aria-live announcements).',
+  },
+  {
+    id: 50694,
+    title: 'Theme-gated gradients',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'gradientsAllowed(): wallpaper gradients only in dark/dim; light stays flat.',
+  },
+  {
+    id: 50695,
+    title: 'Themed empty illustrations',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'emptyIllustrationVariant(): dark/light illustration variants per theme.',
+  },
+  {
+    id: 50696,
+    title: 'Contrast-ratio readout',
+    status: 'skipped',
+    module: 'ThemeSuite.jsx',
+    note: 'SKIP — already live in wave 17 (ContrastReadout).',
+  },
+  {
+    id: 50697,
+    title: 'Forced-colors support',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'FORCED_COLORS_MAP + forcedColorsCssVars() for Windows High Contrast.',
+  },
+  {
+    id: 50698,
+    title: 'Instant themed cards',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'instantThemeAttrs(): data-th-instant disables transition for one paint — no per-card flash.',
+  },
+  {
+    id: 50699,
+    title: 'IDE-theme sync option',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'IDE_THEMES: code blocks sync to VS Code/Dracula/GitHub/One Dark Pro.',
+  },
+  {
+    id: 50700,
+    title: 'High-contrast focus spec',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'HIGH_CONTRAST_FOCUS_SPEC: 3px solid outline + 2px offset on every control.',
+  },
+  {
+    id: 50701,
+    title: 'DND-aware scheduling',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'isDndNow()/shouldRunThemeTransition(): theme scheduling skips DND hours.',
+  },
+  {
+    id: 50702,
+    title: 'Per-hunt theme override',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'makeHuntThemeStore(): pin high-contrast per hunt for focused reviews.',
+  },
+  {
+    id: 50703,
+    title: 'Theme JSON export',
+    status: 'skipped',
+    module: 'themeCore.js',
+    note: 'SKIP — already live in wave 17 (ThemeJSONExportImport, schema v1).',
+  },
+  {
+    id: 50704,
+    title: 'First-run theme picker',
+    status: 'shipped',
+    module: 'ThemeRound3.jsx',
+    note: 'FirstRunThemePicker: three large previews on onboarding.',
+  },
+  {
+    id: 50705,
+    title: 'Active-hunts widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'ActiveHuntsWidget: live phase + progress ring per running hunt.',
+  },
+  {
+    id: 50706,
+    title: 'Clickable severity donut',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'SeverityDonutWidget: segments click through to filtered findings.',
+  },
+  {
+    id: 50707,
+    title: 'Weekly-findings sparkline',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'WeeklyFindingsWidget: sparkline + week-over-week delta.',
+  },
+  {
+    id: 50708,
+    title: 'Throughput widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'ThroughputWidget: hunts/day for the last 30 days.',
+  },
+  {
+    id: 50709,
+    title: 'Needs-review widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'NeedsReviewWidget: top 5 unreviewed findings + quick-review actions.',
+  },
+  {
+    id: 50710,
+    title: 'Top-vulnerable-targets widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'TopVulnerableTargetsWidget: ranked by criticals with trend arrows.',
+  },
+  {
+    id: 50711,
+    title: 'Agent-activity heatmap',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'AgentActivityHeatmapWidget: 24x7 grid of agent activity.',
+  },
+  {
+    id: 50712,
+    title: 'Time-to-first-finding widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'TimeToFirstFindingWidget: average + trend arrow.',
+  },
+  {
+    id: 50713,
+    title: 'False-positive-rate widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'FalsePositiveRateWidget: per-engine FP rates + 30-day sparkline.',
+  },
+  {
+    id: 50714,
+    title: 'Report-ready widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'ReportReadyWidget: hunts awaiting report generation + one-click generate.',
+  },
+  {
+    id: 50715,
+    title: 'Scheduled-hunts widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'ScheduledHuntsWidget: next 5 scheduled runs with live countdowns.',
+  },
+  {
+    id: 50716,
+    title: 'Integration-health widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'IntegrationHealthWidget: green/amber/red health dots per provider.',
+  },
+  {
+    id: 50717,
+    title: 'Learning-applied widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'LearningAppliedWidget: rules learned this week with concrete examples.',
+  },
+  {
+    id: 50718,
+    title: 'Storage-usage widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'StorageUsageWidget: evidence + snapshot usage vs quota + cleanup CTA.',
+  },
+  {
+    id: 50719,
+    title: 'Team-leaderboard widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'TeamLeaderboardWidget: opt-in board ranking confirmed findings.',
+  },
+  {
+    id: 50720,
+    title: 'SLA-risk widget',
+    status: 'shipped',
+    module: 'DashboardWidgets.jsx',
+    note: 'SlaRiskWidget: findings nearing SLA breach sorted by urgency + countdowns.',
+  },
 ];
 
 export function wave18Coverage() {
-  const shipped = WAVE18_IDEAS.filter((i) => i.status === 'shipped').length;
-  const skipped = WAVE18_IDEAS.filter((i) => i.status === 'skipped').length;
+  const shipped = WAVE18_IDEAS.filter(i => i.status === 'shipped').length;
+  const skipped = WAVE18_IDEAS.filter(i => i.status === 'skipped').length;
   return { total: WAVE18_IDEAS.length, shipped, skipped };
 }

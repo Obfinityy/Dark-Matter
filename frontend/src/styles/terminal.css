@@ -61,10 +61,18 @@
   flex-shrink: 0;
 }
 
-.log-level.INFO { color: var(--info); }
-.log-level.WARN { color: var(--warning); }
-.log-level.ERROR { color: var(--danger); }
-.log-level.SUCCESS { color: var(--success); }
+.log-level.INFO {
+  color: var(--info);
+}
+.log-level.WARN {
+  color: var(--warning);
+}
+.log-level.ERROR {
+  color: var(--danger);
+}
+.log-level.SUCCESS {
+  color: var(--success);
+}
 
 .log-message {
   color: var(--text-primary);

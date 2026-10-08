@@ -32,7 +32,7 @@ export function normalizeSnapshot(snapshot) {
   const s = snapshot || {};
   const findings = Array.isArray(s.findings) ? s.findings : [];
   const sevCount = findings.reduce((acc, f) => {
-    const k = String(f && f.severity || 'info').toLowerCase();
+    const k = String((f && f.severity) || 'info').toLowerCase();
     acc[k] = (acc[k] || 0) + 1;
     return acc;
   }, {});
@@ -45,17 +45,21 @@ export function normalizeSnapshot(snapshot) {
       findings: findings.length,
       severity: sevCount,
     },
-    topFindings: findings.slice(0, 5).map((f) => ({
-      id: f && f.id || null,
-      title: String(f && f.title || 'Untitled finding'),
-      severity: String(f && f.severity || 'info'),
+    topFindings: findings.slice(0, 5).map(f => ({
+      id: (f && f.id) || null,
+      title: String((f && f.title) || 'Untitled finding'),
+      severity: String((f && f.severity) || 'info'),
     })),
     compact: true,
   };
 }
 
 // 51962 — Swipe-triage reducer: confirm / dismiss / escalate findings via swipe actions.
-const TRIAGE_ACTIONS = { 'swipe-right': 'confirm', 'swipe-left': 'dismiss', 'swipe-up': 'escalate' };
+const TRIAGE_ACTIONS = {
+  'swipe-right': 'confirm',
+  'swipe-left': 'dismiss',
+  'swipe-up': 'escalate',
+};
 export function reduceSwipeTriage(state, action) {
   const current = Array.isArray(state) ? state : [];
   const a = action || {};
@@ -64,9 +68,7 @@ export function reduceSwipeTriage(state, action) {
     return { state: current, applied: false, decision: null };
   }
   return {
-    state: current.map((f) =>
-      f && f.id === a.findingId ? { ...f, triage: resolved } : f
-    ),
+    state: current.map(f => (f && f.id === a.findingId ? { ...f, triage: resolved } : f)),
     applied: true,
     decision: { findingId: a.findingId, swipe: a.swipe, decision: resolved },
   };
@@ -94,11 +96,25 @@ export function evaluateBiometricGate(policy) {
   const required = p.requireBiometric === true;
   const enrolled = p.biometricEnrolled === true;
   const fallbackPin = p.allowPinFallback === true;
-  const unlocked = required ? enrolled && (p.biometricUnlock === true || (fallbackPin && p.pinUnlock === true)) : true;
+  const unlocked = required
+    ? enrolled && (p.biometricUnlock === true || (fallbackPin && p.pinUnlock === true))
+    : true;
   return {
     locked: required && !unlocked,
-    method: !required ? 'none' : enrolled && p.biometricUnlock ? 'biometric' : fallbackPin && p.pinUnlock ? 'pin' : 'locked',
-    reason: !required ? 'biometric not required' : !enrolled ? 'no biometric enrolled' : unlocked ? 'unlocked' : 'unlock failed',
+    method: !required
+      ? 'none'
+      : enrolled && p.biometricUnlock
+        ? 'biometric'
+        : fallbackPin && p.pinUnlock
+          ? 'pin'
+          : 'locked',
+    reason: !required
+      ? 'biometric not required'
+      : !enrolled
+        ? 'no biometric enrolled'
+        : unlocked
+          ? 'unlocked'
+          : 'unlock failed',
   };
 }
 
@@ -110,7 +126,8 @@ export function buildQuickActions(context) {
     { id: 'status', label: 'Hunt status', icon: 'gauge' },
     { id: 'snapshot', label: 'Take snapshot', icon: 'camera' },
   ];
-  if (ctx.canEscalate) actions.push({ id: 'escalate', label: 'Escalate last finding', icon: 'alert' });
+  if (ctx.canEscalate)
+    actions.push({ id: 'escalate', label: 'Escalate last finding', icon: 'alert' });
   return { actions, count: actions.length };
 }
 
@@ -123,10 +140,20 @@ export function buildNightThemeTokens(overrides) {
     text: '#e8eaf2',
     muted: '#9aa3bd',
     accent: '#7fd0ff',
-    severity: { critical: '#ff6b7a', high: '#ffa94d', medium: '#ffd43b', low: '#69db7c', info: '#74c0fc' },
+    severity: {
+      critical: '#ff6b7a',
+      high: '#ffa94d',
+      medium: '#ffd43b',
+      low: '#69db7c',
+      info: '#74c0fc',
+    },
     minContrastRatio: 4.5,
   };
-  return { ...base, ...(overrides || {}), severity: { ...base.severity, ...((overrides || {}).severity || {}) } };
+  return {
+    ...base,
+    ...(overrides || {}),
+    severity: { ...base.severity, ...((overrides || {}).severity || {}) },
+  };
 }
 
 // 51967 — Data-saver mode: filter/redact payloads for low bandwidth.
@@ -142,7 +169,7 @@ export function applyDataSaver(payload, options) {
   for (const [key, value] of Object.entries(p)) {
     if (kept >= maxFields) break;
     const k = String(key).toLowerCase();
-    if (redactSecrets && REDACT_KEYS.some((r) => k.includes(r))) {
+    if (redactSecrets && REDACT_KEYS.some(r => k.includes(r))) {
       out[key] = '[redacted]';
       kept += 1;
       continue;
@@ -166,8 +193,13 @@ export function scheduleBatterySaver(batteryPercent, isCharging = false) {
 const WIDGET_TYPES = ['status', 'findings', 'eta', 'alerts'];
 export function buildWidgetStack(widgets) {
   const list = (Array.isArray(widgets) ? widgets : [])
-    .filter((w) => w && WIDGET_TYPES.includes(w.type))
-    .map((w, i) => ({ id: w.id || `widget-${i + 1}`, type: w.type, huntId: w.huntId || null, size: w.size || 'medium' }));
+    .filter(w => w && WIDGET_TYPES.includes(w.type))
+    .map((w, i) => ({
+      id: w.id || `widget-${i + 1}`,
+      type: w.type,
+      huntId: w.huntId || null,
+      size: w.size || 'medium',
+    }));
   return { widgets: list, count: list.length, validTypes: WIDGET_TYPES };
 }
 
@@ -179,7 +211,10 @@ export function buildAppleWatchAlert(finding) {
     title: String(f.title || 'New finding'),
     severity: String(f.severity || 'info'),
     shortText: `${String(f.severity || 'info').toUpperCase()}: ${String(f.title || 'New finding')}`,
-    actions: [{ id: 'view', label: 'View' }, { id: 'triage', label: 'Triage' }],
+    actions: [
+      { id: 'view', label: 'View' },
+      { id: 'triage', label: 'Triage' },
+    ],
     glanceable: true,
   };
 }
@@ -192,7 +227,10 @@ export function buildWearOsAlert(finding) {
     title: String(f.title || 'New finding'),
     severity: String(f.severity || 'info'),
     shortText: `${String(f.severity || 'info').toUpperCase()} · ${String(f.title || 'New finding')}`,
-    actions: [{ id: 'view', label: 'View' }, { id: 'dismiss', label: 'Dismiss' }],
+    actions: [
+      { id: 'view', label: 'View' },
+      { id: 'dismiss', label: 'Dismiss' },
+    ],
     glanceable: true,
   };
 }
@@ -206,7 +244,11 @@ export function buildTabletLayout(state) {
     twoPane,
     breakpoint: twoPane ? 'tablet-landscape' : 'phone',
     master: { pane: 'list', widthRatio: twoPane ? 0.38 : 1 },
-    detail: { pane: 'detail', widthRatio: twoPane ? 0.62 : 0, visible: twoPane || Boolean(s.detailOpen) },
+    detail: {
+      pane: 'detail',
+      widthRatio: twoPane ? 0.62 : 0,
+      visible: twoPane || Boolean(s.detailOpen),
+    },
     selectedId: s.selectedId || null,
   };
 }
@@ -240,17 +282,23 @@ export function buildSharePayload(item, target) {
 const MARKUP_TOOLS = ['arrow', 'box', 'blur', 'text'];
 export function buildMarkupSpec(annotations) {
   const list = (Array.isArray(annotations) ? annotations : [])
-    .filter((a) => a && MARKUP_TOOLS.includes(a.tool))
-    .map((a, i) => ({ id: a.id || `mark-${i + 1}`, tool: a.tool, x: Number(a.x || 0), y: Number(a.y || 0), label: String(a.label || '') }));
+    .filter(a => a && MARKUP_TOOLS.includes(a.tool))
+    .map((a, i) => ({
+      id: a.id || `mark-${i + 1}`,
+      tool: a.tool,
+      x: Number(a.x || 0),
+      y: Number(a.y || 0),
+      label: String(a.label || ''),
+    }));
   return { annotations: list, count: list.length, tools: MARKUP_TOOLS };
 }
 
 // 51976 — Comment-thread builder: team comments on a finding from mobile.
 export function buildCommentThread(findingId, comments) {
   const list = (Array.isArray(comments) ? comments : []).map((c, i) => ({
-    id: c && c.id || `c-${i + 1}`,
-    author: String(c && c.author || 'Infinity AI'),
-    body: String(c && c.body || ''),
+    id: (c && c.id) || `c-${i + 1}`,
+    author: String((c && c.author) || 'Infinity AI'),
+    body: String((c && c.body) || ''),
     ts: (c && c.ts) || new Date().toISOString(),
   }));
   return { findingId: findingId || null, comments: list, count: list.length };
@@ -262,7 +310,14 @@ export function appendComment(thread, comment) {
 }
 
 // 51977 — Mobile steering command builder: safe steering commands from the phone.
-const STEERING_COMMANDS = ['pause', 'resume', 'escalate-scope', 'deescalate', 'snapshot', 'request-approval'];
+const STEERING_COMMANDS = [
+  'pause',
+  'resume',
+  'escalate-scope',
+  'deescalate',
+  'snapshot',
+  'request-approval',
+];
 export function buildSteeringCommand(command, huntId, note) {
   const valid = STEERING_COMMANDS.includes(command);
   return {
@@ -283,10 +338,10 @@ const STRATEGIES = [
   { id: 'stealth', label: 'Stealth', description: 'Low-noise, slow checks' },
 ];
 export function listStrategyOptions(currentId) {
-  return STRATEGIES.map((s) => ({ ...s, selected: s.id === currentId }));
+  return STRATEGIES.map(s => ({ ...s, selected: s.id === currentId }));
 }
 export function selectStrategy(currentId, strategyId) {
-  const valid = STRATEGIES.some((s) => s.id === strategyId);
+  const valid = STRATEGIES.some(s => s.id === strategyId);
   return { selected: valid ? strategyId : currentId, changed: valid && strategyId !== currentId };
 }
 
@@ -303,11 +358,11 @@ export function buildTestRequest(huntId, check, target) {
 
 // 51980 — Confidence view payload: per-finding confidence for mobile review.
 export function buildConfidenceView(findings) {
-  const list = (Array.isArray(findings) ? findings : []).map((f) => {
+  const list = (Array.isArray(findings) ? findings : []).map(f => {
     const conf = Number((f && f.confidence) ?? 0);
     return {
-      id: f && f.id || null,
-      title: String(f && f.title || 'Untitled finding'),
+      id: (f && f.id) || null,
+      title: String((f && f.title) || 'Untitled finding'),
       confidence: Math.min(100, Math.max(0, conf)),
       band: conf >= 80 ? 'high' : conf >= 50 ? 'medium' : 'low',
     };

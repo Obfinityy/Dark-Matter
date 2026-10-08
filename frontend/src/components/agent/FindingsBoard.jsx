@@ -12,7 +12,15 @@
  *   explainer  — boolean; when true every card shows its plain explanation
  */
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, ChevronDown, FileText, Crosshair, Sparkles, Package, Loader2 } from 'lucide-react';
+import {
+  ShieldAlert,
+  ChevronDown,
+  FileText,
+  Crosshair,
+  Sparkles,
+  Package,
+  Loader2,
+} from 'lucide-react';
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'informational', 'info'];
 
@@ -28,10 +36,13 @@ function explainFinding(finding) {
   const sev = String(finding.severity || 'unknown').toLowerCase();
   const where = finding.affectedEndpoint || finding.affectedAsset || 'the target';
   const impact =
-    sev === 'critical' ? 'an attacker could likely take meaningful control or steal sensitive data'
-    : sev === 'high' ? 'an attacker could do real damage with moderate effort'
-    : sev === 'medium' ? 'an attacker could misuse this under the right conditions'
-    : 'this is mostly worth knowing about for defense-in-depth';
+    sev === 'critical'
+      ? 'an attacker could likely take meaningful control or steal sensitive data'
+      : sev === 'high'
+        ? 'an attacker could do real damage with moderate effort'
+        : sev === 'medium'
+          ? 'an attacker could misuse this under the right conditions'
+          : 'this is mostly worth knowing about for defense-in-depth';
   const evidence = (finding.evidence && finding.evidence.length) || 0;
   return (
     `The agent confirmed "${title}" on ${where}. ` +
@@ -53,18 +64,26 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
 
   const sorted = [...findings].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
   const counts = {};
-  sorted.forEach((f) => {
+  sorted.forEach(f => {
     const s = String(f.severity || 'unknown').toLowerCase();
     counts[s] = (counts[s] || 0) + 1;
   });
 
-  if (loading) return <div className="dm-findings-loading" role="status" aria-live="polite"><Loader2 size={18} className="dm-spin" aria-hidden="true" /> Loading findings…</div>;
+  if (loading)
+    return (
+      <div className="dm-findings-loading" role="status" aria-live="polite">
+        <Loader2 size={18} className="dm-spin" aria-hidden="true" /> Loading findings…
+      </div>
+    );
 
   if (!sorted.length) {
     return (
       <div className="dm-findings-empty">
         <ShieldAlert size={22} aria-hidden="true" />
-        <p>No confirmed findings yet. The agent files a finding only when it has evidence — not on suspicion.</p>
+        <p>
+          No confirmed findings yet. The agent files a finding only when it has evidence — not on
+          suspicion.
+        </p>
       </div>
     );
   }
@@ -73,18 +92,18 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
     <div className="dm-findings">
       <div className="dm-findings-bar">
         <div className="dm-sev-chips">
-          {['critical', 'high', 'medium', 'low'].map((sev) => (
+          {['critical', 'high', 'medium', 'low'].map(sev =>
             counts[sev] ? (
               <span key={sev} className={`dm-sev-chip sev-${sev}`}>
                 {counts[sev]} {sev}
               </span>
             ) : null
-          ))}
+          )}
           <span className="dm-findings-total">{sorted.length} confirmed</span>
         </div>
         <button
           className={`dm-btn-ghost ${explainAll ? 'active' : ''}`}
-          onClick={() => setExplainAll((v) => !v)}
+          onClick={() => setExplainAll(v => !v)}
           aria-pressed={explainAll}
           title="Plain-language explanations for every finding"
         >
@@ -110,16 +129,29 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
                 aria-controls={`finding-body-${finding.id}`}
               >
                 <span className={`dm-sev-badge sev-${sev}`}>{sev}</span>
-                <span className="dm-finding-title">{finding.title || finding.category || 'Untitled finding'}</span>
+                <span className="dm-finding-title">
+                  {finding.title || finding.category || 'Untitled finding'}
+                </span>
                 {finding.cvssMetrics?.baseScore != null && (
-                  <span className="dm-cvss">CVSS {Number(finding.cvssMetrics.baseScore).toFixed(1)}</span>
+                  <span className="dm-cvss">
+                    CVSS {Number(finding.cvssMetrics.baseScore).toFixed(1)}
+                  </span>
                 )}
-                <ChevronDown size={15} className={`dm-chev ${open ? 'open' : ''}`} aria-hidden="true" />
+                <ChevronDown
+                  size={15}
+                  className={`dm-chev ${open ? 'open' : ''}`}
+                  aria-hidden="true"
+                />
               </button>
 
               {(open || explainAll) && (
-                <div className="dm-finding-body" id={`finding-body-${finding.id}`} role="region" aria-label={finding.title || finding.category || 'Finding details'}>
-                  {(explainAll) && (
+                <div
+                  className="dm-finding-body"
+                  id={`finding-body-${finding.id}`}
+                  role="region"
+                  aria-label={finding.title || finding.category || 'Finding details'}
+                >
+                  {explainAll && (
                     <p className="dm-finding-explainer">
                       <Sparkles size={13} aria-hidden="true" /> {explainFinding(finding)}
                     </p>
@@ -127,25 +159,48 @@ export function FindingsBoard({ findings = [], loading = false, explainer = fals
                   {open && (
                     <>
                       <div className="dm-finding-meta">
-                        {finding.category && <span><Crosshair size={12} aria-hidden="true" /> {finding.category}</span>}
-                        {(finding.affectedEndpoint || finding.affectedAsset) && (
-                          <span><FileText size={12} aria-hidden="true" /> {finding.affectedEndpoint || finding.affectedAsset}</span>
+                        {finding.category && (
+                          <span>
+                            <Crosshair size={12} aria-hidden="true" /> {finding.category}
+                          </span>
                         )}
-                        {evidenceCount > 0 && <span><Package size={12} aria-hidden="true" /> {evidenceCount} evidence</span>}
-                        {finding.confidence != null && <span>confidence {Math.round(finding.confidence * 100)}%</span>}
+                        {(finding.affectedEndpoint || finding.affectedAsset) && (
+                          <span>
+                            <FileText size={12} aria-hidden="true" />{' '}
+                            {finding.affectedEndpoint || finding.affectedAsset}
+                          </span>
+                        )}
+                        {evidenceCount > 0 && (
+                          <span>
+                            <Package size={12} aria-hidden="true" /> {evidenceCount} evidence
+                          </span>
+                        )}
+                        {finding.confidence != null && (
+                          <span>confidence {Math.round(finding.confidence * 100)}%</span>
+                        )}
                       </div>
-                      {finding.description && <p className="dm-finding-desc">{finding.description}</p>}
+                      {finding.description && (
+                        <p className="dm-finding-desc">{finding.description}</p>
+                      )}
                       {finding.impact && (
-                        <p className="dm-finding-impact"><strong>Impact:</strong> {finding.impact}</p>
+                        <p className="dm-finding-impact">
+                          <strong>Impact:</strong> {finding.impact}
+                        </p>
                       )}
                       {finding.reproductionSteps?.length > 0 && (
                         <div className="dm-finding-repro">
                           <strong>Reproduction</strong>
-                          <ol>{finding.reproductionSteps.map((step, i) => <li key={i}>{step}</li>)}</ol>
+                          <ol>
+                            {finding.reproductionSteps.map((step, i) => (
+                              <li key={i}>{step}</li>
+                            ))}
+                          </ol>
                         </div>
                       )}
                       {finding.remediation && (
-                        <p className="dm-finding-fix"><strong>Fix:</strong> {finding.remediation}</p>
+                        <p className="dm-finding-fix">
+                          <strong>Fix:</strong> {finding.remediation}
+                        </p>
                       )}
                     </>
                   )}

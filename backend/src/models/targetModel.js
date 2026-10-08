@@ -9,33 +9,65 @@ export function normalizeTargetUrl(value) {
   } catch {
     throw new AppError(400, 'Target must be a valid URL', 'INVALID_TARGET_URL');
   }
-  assert(['http:', 'https:'].includes(parsed.protocol), 400, 'Only HTTP and HTTPS targets are supported', 'UNSUPPORTED_TARGET_PROTOCOL');
-  assert(!parsed.username && !parsed.password, 400, 'Target URL cannot contain credentials', 'INVALID_TARGET_URL');
+  assert(
+    ['http:', 'https:'].includes(parsed.protocol),
+    400,
+    'Only HTTP and HTTPS targets are supported',
+    'UNSUPPORTED_TARGET_PROTOCOL'
+  );
+  assert(
+    !parsed.username && !parsed.password,
+    400,
+    'Target URL cannot contain credentials',
+    'INVALID_TARGET_URL'
+  );
   // Reject single-label hostnames like "not-a-url" (no TLD) — they can never
   // resolve. Allow localhost and IP literals (v4/v6) which are valid targets.
   const host = parsed.hostname;
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':');
   const isLocalhost = host.toLowerCase() === 'localhost';
-  assert(isIp || isLocalhost || host.includes('.'), 400, 'Target must be a valid hostname or IP address', 'INVALID_TARGET_URL');
+  assert(
+    isIp || isLocalhost || host.includes('.'),
+    400,
+    'Target must be a valid hostname or IP address',
+    'INVALID_TARGET_URL'
+  );
   parsed.hash = '';
   return parsed.toString().replace(/\/$/, '');
 }
 
 function normalizeDomain(value) {
-  return String(value || '').trim().toLowerCase().replace(/^\*\./, '').replace(/^www\./, '');
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '')
+    .replace(/^www\./, '');
 }
 
 export function normalizeScope(url, scope = {}) {
   // host (not hostname): the port is part of the authorized scope, so the
   // default grant covers exactly the target's host:port (127.0.0.1:4555).
   const hostport = normalizeDomain(new URL(url).host);
-  const included = Array.isArray(scope.included) && scope.included.length
-    ? scope.included.map(normalizeDomain).filter(Boolean)
-    : [hostport];
-  const excluded = Array.isArray(scope.excluded) ? scope.excluded.map(normalizeDomain).filter(Boolean) : [];
+  const included =
+    Array.isArray(scope.included) && scope.included.length
+      ? scope.included.map(normalizeDomain).filter(Boolean)
+      : [hostport];
+  const excluded = Array.isArray(scope.excluded)
+    ? scope.excluded.map(normalizeDomain).filter(Boolean)
+    : [];
   // A portless entry covers the host on any port; a ported entry pins the port.
-  assert(included.some((domain) => scopeEntryCovers(domain, hostport)), 400, 'Target is outside the declared scope', 'TARGET_OUT_OF_SCOPE');
-  assert(!excluded.some((domain) => scopeEntryCovers(domain, hostport)), 400, 'Target is excluded by scope', 'TARGET_EXCLUDED');
+  assert(
+    included.some(domain => scopeEntryCovers(domain, hostport)),
+    400,
+    'Target is outside the declared scope',
+    'TARGET_OUT_OF_SCOPE'
+  );
+  assert(
+    !excluded.some(domain => scopeEntryCovers(domain, hostport)),
+    400,
+    'Target is excluded by scope',
+    'TARGET_EXCLUDED'
+  );
   return { included, excluded };
 }
 
@@ -74,12 +106,17 @@ export class TargetModel {
       authorization: {
         confirmed: input.authorizationConfirmed === true,
         notes: String(input.authorizationNotes || '').slice(0, 1000),
-        confirmedAt: input.authorizationConfirmed === true ? now() : null
+        confirmedAt: input.authorizationConfirmed === true ? now() : null,
       },
       createdAt: now(),
-      updatedAt: now()
+      updatedAt: now(),
     };
-    assert(target.authorization.confirmed, 400, 'Explicit authorization confirmation is required', 'AUTHORIZATION_REQUIRED');
+    assert(
+      target.authorization.confirmed,
+      400,
+      'Explicit authorization confirmation is required',
+      'AUTHORIZATION_REQUIRED'
+    );
     try {
       await this.collection.insertOne(target);
     } catch (error) {

@@ -34,13 +34,25 @@ export const WAVE42_PUB_IDEAS = [
   [51670, 'snapshot risk overview', 'Overall risk posture summarized visually per snapshot'],
   [51671, 'snapshot remediation preview', 'Upcoming fix guidance included even mid-hunt'],
   [51672, 'snapshot compliance mapping', 'Findings mapped to frameworks live in the snapshot'],
-  [51673, 'snapshot client portal', 'Clients view snapshots in a branded portal without seeing internals'],
+  [
+    51673,
+    'snapshot client portal',
+    'Clients view snapshots in a branded portal without seeing internals',
+  ],
   [51674, 'snapshot feedback collection', 'Stakeholders rate snapshot usefulness per section'],
   [51675, 'final-from-snapshot', 'Promote any snapshot to the final report with one click'],
-  [51676, 'live confidence score', 'Every finding shows a 0–100 confidence that updates as evidence grows'],
+  [
+    51676,
+    'live confidence score',
+    'Every finding shows a 0–100 confidence that updates as evidence grows',
+  ],
   [51677, 'confidence trend arrow', 'Rising, falling, or stable indicators beside each score'],
   [51678, 'evidence-strength meter', 'Visual gauge of how much proof backs the finding'],
-  [51679, 'validation-stage labels', 'Detected, reproducing, validated, confirmed stages shown live'],
+  [
+    51679,
+    'validation-stage labels',
+    'Detected, reproducing, validated, confirmed stages shown live',
+  ],
   [51680, 'confidence breakdown', 'Expand a score to see which evidence contributed how much'],
 ];
 
@@ -50,8 +62,14 @@ export function addCustomSection(store, { title, body, author }) {
   if (!String(title ?? '').trim()) throw new Error('section title required');
   const sections = [...(store?.customSections || [])];
   const existing = sections.findIndex(s => s.title === title);
-  const entry = { title: String(title).trim(), body: String(body || ''), author: author || 'owner', updatedAt: store?.now || 'unscheduled' };
-  if (existing >= 0) sections[existing] = entry; else sections.push(entry);
+  const entry = {
+    title: String(title).trim(),
+    body: String(body || ''),
+    author: author || 'owner',
+    updatedAt: store?.now || 'unscheduled',
+  };
+  if (existing >= 0) sections[existing] = entry;
+  else sections.push(entry);
   return { ...(store || {}), customSections: sections };
 }
 
@@ -60,7 +78,10 @@ export function customSections(store) {
 }
 
 export function sectionsForSnapshot(snapshot, store) {
-  return [...(snapshot?.sections || []), ...customSections(store).map(s => ({ ...s, custom: true }))];
+  return [
+    ...(snapshot?.sections || []),
+    ...customSections(store).map(s => ({ ...s, custom: true })),
+  ];
 }
 
 /* --- 51662 snapshot data export ------------------------------------------------------ */
@@ -72,7 +93,7 @@ export function snapshotToJson(snapshot) {
 const CSV_COLS = ['id', 'title', 'severity', 'confidence', 'asset', 'technique'];
 
 export function findingsToCsv(findings) {
-  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const rows = (findings || []).map(f => CSV_COLS.map(c => q(f[c])).join(','));
   return [CSV_COLS.join(','), ...rows].join('\n');
 }
@@ -83,7 +104,12 @@ export function sealSnapshot(snapshot, digestHex, sealedAt) {
   if (typeof digestHex !== 'function') throw new Error('digestHex function required');
   const canonical = JSON.stringify(stripSeal(snapshot));
   const digest = digestHex(canonical);
-  return { algorithm: 'sha256', digest, sealedAt: sealedAt || 'unscheduled', version: snapshot?.version || 1 };
+  return {
+    algorithm: 'sha256',
+    digest,
+    sealedAt: sealedAt || 'unscheduled',
+    version: snapshot?.version || 1,
+  };
 }
 
 export function stripSeal(snapshot) {
@@ -106,7 +132,12 @@ export function createCollabDoc() {
 
 export function applyCollabEdit(doc, { author, noteId, text, at }) {
   if (!noteId) throw new Error('noteId required');
-  const op = { author: author || 'anonymous', noteId, text: String(text || ''), at: at || 'unscheduled' };
+  const op = {
+    author: author || 'anonymous',
+    noteId,
+    text: String(text || ''),
+    at: at || 'unscheduled',
+  };
   const notes = { ...(doc?.notes || {}), [noteId]: op };
   return { notes, ops: [...(doc?.ops || []), op], presence: doc?.presence || [] };
 }
@@ -133,7 +164,9 @@ export function defaultSnapshotRules() {
 }
 
 export function notificationTargets(rules, alertLevel) {
-  return (rules || []).filter(r => r.on === alertLevel).map(r => ({ channel: r.channel, to: r.to }));
+  return (rules || [])
+    .filter(r => r.on === alertLevel)
+    .map(r => ({ channel: r.channel, to: r.to }));
 }
 
 /* --- 51666 snapshot archive browser ---------------------------------------------------------- */
@@ -145,7 +178,8 @@ export function buildSnapshotArchive(snapshots) {
     if (!byHunt[hunt]) byHunt[hunt] = [];
     byHunt[hunt].push(s);
   }
-  for (const hunt of Object.keys(byHunt)) byHunt[hunt].sort((a, b) => (b.version || 0) - (a.version || 0));
+  for (const hunt of Object.keys(byHunt))
+    byHunt[hunt].sort((a, b) => (b.version || 0) - (a.version || 0));
   return { byHunt, hunts: Object.keys(byHunt).sort(), total: (snapshots || []).length };
 }
 
@@ -178,16 +212,28 @@ export function restoreDraftFromSnapshot(draft, snapshot, restoredAt) {
 /* --- 51668 snapshot diff summary (plain language) ------------------------------------------------------ */
 
 export function plainDiffSummary(prev, next) {
-  const added = (next?.findings || []).filter(f => !(prev?.findings || []).some(p => p.id === f.id));
-  const removed = (prev?.findings || []).filter(p => !(next?.findings || []).some(f => f.id === p.id));
+  const added = (next?.findings || []).filter(
+    f => !(prev?.findings || []).some(p => p.id === f.id)
+  );
+  const removed = (prev?.findings || []).filter(
+    p => !(next?.findings || []).some(f => f.id === p.id)
+  );
   const changed = (next?.findings || []).filter(f => {
     const p = (prev?.findings || []).find(x => x.id === f.id);
     return p && p.severity !== f.severity;
   });
   const lines = [];
-  if (added.length) lines.push(`${added.length} new finding${added.length > 1 ? 's' : ''}: ${added.slice(0, 3).map(f => f.title).join('; ')}${added.length > 3 ? ` and ${added.length - 3} more` : ''}.`);
-  if (removed.length) lines.push(`${removed.length} finding${removed.length > 1 ? 's' : ''} resolved or removed.`);
-  if (changed.length) lines.push(`${changed.length} finding${changed.length > 1 ? 's' : ''} changed severity.`);
+  if (added.length)
+    lines.push(
+      `${added.length} new finding${added.length > 1 ? 's' : ''}: ${added
+        .slice(0, 3)
+        .map(f => f.title)
+        .join('; ')}${added.length > 3 ? ` and ${added.length - 3} more` : ''}.`
+    );
+  if (removed.length)
+    lines.push(`${removed.length} finding${removed.length > 1 ? 's' : ''} resolved or removed.`);
+  if (changed.length)
+    lines.push(`${changed.length} finding${changed.length > 1 ? 's' : ''} changed severity.`);
   if (!lines.length) lines.push('No material changes since the previous snapshot.');
   return lines;
 }
@@ -220,7 +266,11 @@ export function snapshotRiskOverview(findings) {
   for (const f of list) score += SEV_WEIGHT[String(f.severity || 'info').toLowerCase()] ?? 0;
   const level = score >= 40 ? 'critical' : score >= 20 ? 'high' : score >= 8 ? 'medium' : 'low';
   const drivers = [...list]
-    .sort((a, b) => (SEV_WEIGHT[String(b.severity || 'info').toLowerCase()] ?? 0) - (SEV_WEIGHT[String(a.severity || 'info').toLowerCase()] ?? 0))
+    .sort(
+      (a, b) =>
+        (SEV_WEIGHT[String(b.severity || 'info').toLowerCase()] ?? 0) -
+        (SEV_WEIGHT[String(a.severity || 'info').toLowerCase()] ?? 0)
+    )
     .slice(0, 3)
     .map(f => ({ id: f.id, title: f.title, severity: f.severity }));
   return { level, score, drivers, total: list.length };
@@ -229,19 +279,37 @@ export function snapshotRiskOverview(findings) {
 /* --- 51671 snapshot remediation preview ------------------------------------------------------------------------------------ */
 
 export const REMEDIATION_GUIDANCE = {
-  xss: { guidance: 'Encode output per context; deploy a strict Content-Security-Policy.', effort: 'medium' },
-  sqli: { guidance: 'Use parameterized queries everywhere; retire string-built SQL.', effort: 'medium' },
+  xss: {
+    guidance: 'Encode output per context; deploy a strict Content-Security-Policy.',
+    effort: 'medium',
+  },
+  sqli: {
+    guidance: 'Use parameterized queries everywhere; retire string-built SQL.',
+    effort: 'medium',
+  },
   ssrf: { guidance: 'Allowlist outbound destinations; block link-local ranges.', effort: 'medium' },
-  idor: { guidance: 'Enforce server-side ownership checks on every object reference.', effort: 'low' },
+  idor: {
+    guidance: 'Enforce server-side ownership checks on every object reference.',
+    effort: 'low',
+  },
   csrf: { guidance: 'Add per-session CSRF tokens to state-changing requests.', effort: 'low' },
-  rce: { guidance: 'Remove dynamic code execution paths; sandbox the affected service now.', effort: 'high' },
-  auth: { guidance: 'Harden session handling; rotate exposed secrets immediately.', effort: 'medium' },
+  rce: {
+    guidance: 'Remove dynamic code execution paths; sandbox the affected service now.',
+    effort: 'high',
+  },
+  auth: {
+    guidance: 'Harden session handling; rotate exposed secrets immediately.',
+    effort: 'medium',
+  },
 };
 
 export function remediationPreview(findings) {
   return (findings || []).map(f => {
     const key = String(f.type || '').toLowerCase();
-    const g = REMEDIATION_GUIDANCE[key] || { guidance: 'Triage with the security team; validate before rolling out a fix.', effort: 'unknown' };
+    const g = REMEDIATION_GUIDANCE[key] || {
+      guidance: 'Triage with the security team; validate before rolling out a fix.',
+      effort: 'unknown',
+    };
     return { findingId: f.id, title: f.title, guidance: g.guidance, effort: g.effort };
   });
 }
@@ -249,13 +317,34 @@ export function remediationPreview(findings) {
 /* --- 51672 snapshot compliance mapping ------------------------------------------------------------------------------------------ */
 
 export const COMPLIANCE_MAP = {
-  xss: [{ framework: 'OWASP', ref: 'A03:2021 Injection' }, { framework: 'CWE', ref: 'CWE-79' }],
-  sqli: [{ framework: 'OWASP', ref: 'A03:2021 Injection' }, { framework: 'CWE', ref: 'CWE-89' }],
-  ssrf: [{ framework: 'OWASP', ref: 'A10:2021 SSRF' }, { framework: 'CWE', ref: 'CWE-918' }],
-  idor: [{ framework: 'OWASP', ref: 'A01:2021 Broken Access Control' }, { framework: 'CWE', ref: 'CWE-639' }],
-  csrf: [{ framework: 'OWASP', ref: 'A01:2021 Broken Access Control' }, { framework: 'CWE', ref: 'CWE-352' }],
-  rce: [{ framework: 'OWASP', ref: 'A03:2021 Injection' }, { framework: 'CWE', ref: 'CWE-94' }],
-  auth: [{ framework: 'OWASP', ref: 'A07:2021 Auth Failures' }, { framework: 'CWE', ref: 'CWE-287' }],
+  xss: [
+    { framework: 'OWASP', ref: 'A03:2021 Injection' },
+    { framework: 'CWE', ref: 'CWE-79' },
+  ],
+  sqli: [
+    { framework: 'OWASP', ref: 'A03:2021 Injection' },
+    { framework: 'CWE', ref: 'CWE-89' },
+  ],
+  ssrf: [
+    { framework: 'OWASP', ref: 'A10:2021 SSRF' },
+    { framework: 'CWE', ref: 'CWE-918' },
+  ],
+  idor: [
+    { framework: 'OWASP', ref: 'A01:2021 Broken Access Control' },
+    { framework: 'CWE', ref: 'CWE-639' },
+  ],
+  csrf: [
+    { framework: 'OWASP', ref: 'A01:2021 Broken Access Control' },
+    { framework: 'CWE', ref: 'CWE-352' },
+  ],
+  rce: [
+    { framework: 'OWASP', ref: 'A03:2021 Injection' },
+    { framework: 'CWE', ref: 'CWE-94' },
+  ],
+  auth: [
+    { framework: 'OWASP', ref: 'A07:2021 Auth Failures' },
+    { framework: 'CWE', ref: 'CWE-287' },
+  ],
 };
 
 export function complianceMapping(findings) {
@@ -273,7 +362,13 @@ export function complianceMapping(findings) {
 
 /* --- 51673 snapshot client portal ------------------------------------------------------------------------------------- */
 
-const PORTAL_HIDDEN = new Set(['internalNotes', 'toolOutput', 'rawRequest', 'operatorName', 'technique']);
+const PORTAL_HIDDEN = new Set([
+  'internalNotes',
+  'toolOutput',
+  'rawRequest',
+  'operatorName',
+  'technique',
+]);
 
 export function clientPortalView(snapshot, { brand = 'Infinity AI', accent = '#6d5cff' } = {}) {
   const findings = (snapshot?.findings || []).map(f => {
@@ -292,7 +387,12 @@ export function clientPortalView(snapshot, { brand = 'Infinity AI', accent = '#6
       critical: findings.filter(f => f.severity === 'critical').length,
       high: findings.filter(f => f.severity === 'high').length,
     },
-    findings: findings.map(f => ({ id: f.id, title: f.title, severity: f.severity, summary: f.summary || '' })),
+    findings: findings.map(f => ({
+      id: f.id,
+      title: f.title,
+      severity: f.severity,
+      summary: f.summary || '',
+    })),
     note: 'Prepared for client review. Internal tooling detail withheld.',
   };
 }
@@ -409,7 +509,11 @@ export function confidenceBreakdown(finding) {
   const parts = [{ source: 'base', label: 'Initial detection', points: base }];
   for (const e of finding?.evidence || []) {
     const pts = EVIDENCE_WEIGHTS[String(e.kind || '').toLowerCase()] ?? 3;
-    parts.push({ source: e.kind || 'unknown', label: e.label || String(e.kind || 'evidence'), points: pts });
+    parts.push({
+      source: e.kind || 'unknown',
+      label: e.label || String(e.kind || 'evidence'),
+      points: pts,
+    });
   }
   const raw = parts.reduce((a, p) => a + p.points, 0);
   const total = clamp(raw, 0, 100);

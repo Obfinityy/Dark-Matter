@@ -15,10 +15,13 @@
  * @param {string[]} [serviceRoots] e.g. ['/odata', '/api/odata']
  * @returns {string[]}
  */
-export function metadataCandidates(baseUrl, serviceRoots = ['/odata', '/api/odata', '/v1', '/api']) {
+export function metadataCandidates(
+  baseUrl,
+  serviceRoots = ['/odata', '/api/odata', '/v1', '/api']
+) {
   if (!baseUrl || typeof baseUrl !== 'string') return [];
   const base = baseUrl.replace(/\/+$/, '');
-  return serviceRoots.map((r) => `${base}${r}$metadata`.replace(/\/\$metadata$/, '/$metadata'));
+  return serviceRoots.map(r => `${base}${r}$metadata`.replace(/\/\$metadata$/, '/$metadata'));
 }
 
 /**
@@ -60,8 +63,9 @@ export function parseODataMetadata(xml = '') {
  * @returns {{ entitySets: string[], properties: string[] }} sensitive-looking names
  */
 export function flagSensitiveModel(parsed = {}) {
-  const sensitive = /password|secret|token|ssn|credit|card|salary|medical|health|dob|birth|passport|iban|account/i;
-  const entitySets = (parsed.entitySets || []).filter((s) => sensitive.test(s));
+  const sensitive =
+    /password|secret|token|ssn|credit|card|salary|medical|health|dob|birth|passport|iban|account/i;
+  const entitySets = (parsed.entitySets || []).filter(s => sensitive.test(s));
   const properties = [];
   for (const t of parsed.entityTypes || []) {
     for (const p of t.properties || []) {
@@ -100,13 +104,14 @@ export async function mineMetadata(url, fetchImpl = globalThis.fetch) {
  * @returns {string|null}
  */
 export function summarizeFindings(mined = []) {
-  const found = mined.filter((x) => x.entitySets.length > 0);
+  const found = mined.filter(x => x.entitySets.length > 0);
   if (found.length === 0) return null;
-  const lines = found.map((x) => {
+  const lines = found.map(x => {
     const sensitive = flagSensitiveModel(x);
-    const note = sensitive.entitySets.length || sensitive.properties.length
-      ? `; sensitive-looking: ${[...sensitive.entitySets, ...sensitive.properties].slice(0, 5).join(', ')}`
-      : '';
+    const note =
+      sensitive.entitySets.length || sensitive.properties.length
+        ? `; sensitive-looking: ${[...sensitive.entitySets, ...sensitive.properties].slice(0, 5).join(', ')}`
+        : '';
     return `- ${x.url}: ${x.entitySets.length} entity set(s)${x.version ? ` (OData v${x.version})` : ''}${note}`;
   });
   return `OData data models exposed via $metadata:\n${lines.join('\n')}\nRecommendation: review entity-level authorization and consider restricting $metadata on public services.`;

@@ -37,7 +37,9 @@ export function buildCensysQueries({ ip = '', cidr = '', domain = '', org = '' }
 
 function sansOf(cert) {
   const names = new Set();
-  const add = (v) => { if (typeof v === 'string' && v && !v.startsWith('*.') ) names.add(v.toLowerCase()); };
+  const add = v => {
+    if (typeof v === 'string' && v && !v.startsWith('*.')) names.add(v.toLowerCase());
+  };
   add(cert?.parsed?.subject?.common_name);
   for (const n of cert?.parsed?.extensions?.subject_alt_name?.dns_names || []) add(n);
   for (const n of cert?.names || []) add(n);
@@ -64,15 +66,18 @@ export function correlateCensysHosts(hostRecords = [], certRecords = []) {
     if (!ip) continue;
     const services = [];
     for (const svc of h?.services || []) {
-      const fp = svc?.tls?.certificates?.leaf_data?.fingerprint_sha256 ||
-                 svc?.tls?.certificates?.leaf?.fingerprint_sha256;
+      const fp =
+        svc?.tls?.certificates?.leaf_data?.fingerprint_sha256 ||
+        svc?.tls?.certificates?.leaf?.fingerprint_sha256;
       const cert = fp ? certBySha.get(fp) : null;
       services.push({
         port: svc.port,
         transport: svc.transport_protocol || 'TCP',
         serviceName: svc.service_name || svc.extended_service_name || 'unknown',
-        software: (svc.software || []).map((s) => ({
-          vendor: s.vendor, product: s.product, version: s.version,
+        software: (svc.software || []).map(s => ({
+          vendor: s.vendor,
+          product: s.product,
+          version: s.version,
         })),
         httpTitle: svc.http?.response?.html_title || null,
         tlsFingerprint: fp || null,
@@ -100,14 +105,16 @@ export function correlateCensysHosts(hostRecords = [], certRecords = []) {
       if (seenPairs.has(key)) continue;
       seenPairs.add(key);
       const reasons = [];
-      if (a.asn && a.asn === b.asn) reasons.push(`shared ASN ${a.asn} (${a.asnOrg || 'unknown org'})`);
-      const aSans = new Set(a.services.flatMap((s) => s.tlsSans));
-      const bSans = new Set(b.services.flatMap((s) => s.tlsSans));
-      const sharedSans = [...aSans].filter((n) => bSans.has(n));
-      if (sharedSans.length) reasons.push(`shared certificate SAN(s): ${sharedSans.slice(0, 5).join(', ')}`);
-      const aNames = new Set(a.dnsNames.map((n) => n.toLowerCase()));
-      const bNames = new Set(b.dnsNames.map((n) => n.toLowerCase()));
-      const sharedDns = [...aNames].filter((n) => bNames.has(n));
+      if (a.asn && a.asn === b.asn)
+        reasons.push(`shared ASN ${a.asn} (${a.asnOrg || 'unknown org'})`);
+      const aSans = new Set(a.services.flatMap(s => s.tlsSans));
+      const bSans = new Set(b.services.flatMap(s => s.tlsSans));
+      const sharedSans = [...aSans].filter(n => bSans.has(n));
+      if (sharedSans.length)
+        reasons.push(`shared certificate SAN(s): ${sharedSans.slice(0, 5).join(', ')}`);
+      const aNames = new Set(a.dnsNames.map(n => n.toLowerCase()));
+      const bNames = new Set(b.dnsNames.map(n => n.toLowerCase()));
+      const sharedDns = [...aNames].filter(n => bNames.has(n));
       if (sharedDns.length) reasons.push(`shared DNS name(s): ${sharedDns.slice(0, 5).join(', ')}`);
       if (reasons.length) {
         siblings.push({
@@ -120,17 +127,18 @@ export function correlateCensysHosts(hostRecords = [], certRecords = []) {
   }
 
   // Certificate bridges: certs whose SANs name hosts outside the input set.
-  const inputIps = new Set(hosts.map((h) => h.ip));
+  const inputIps = new Set(hosts.map(h => h.ip));
   const certBridges = [];
   for (const [, c] of certBySha) {
     const names = sansOf(c);
-    const externalNames = names.filter((n) => !inputIps.has(n));
+    const externalNames = names.filter(n => !inputIps.has(n));
     if (externalNames.length) {
       certBridges.push({
         fingerprint: c.fingerprint_sha256 || c?.parsed?.fingerprint_sha256,
         externalNames: externalNames.slice(0, 20),
         confidence: 'medium',
-        rationale: 'Certificate SANs reference names/IPs beyond the scanned set — candidate sibling assets.',
+        rationale:
+          'Certificate SANs reference names/IPs beyond the scanned set — candidate sibling assets.',
       });
     }
   }
@@ -143,7 +151,7 @@ export function correlateCensysHosts(hostRecords = [], certRecords = []) {
       hostCount: hosts.length,
       siblingPairs: siblings.length,
       certBridges: certBridges.length,
-      highConfidencePairs: siblings.filter((s) => s.confidence === 'high').length,
+      highConfidencePairs: siblings.filter(s => s.confidence === 'high').length,
     },
   };
 }
@@ -159,7 +167,8 @@ export function censysFinding(result) {
     confidence: result.stats.hostCount >= 2 ? 'high' : 'low',
     siblings: result.siblings.slice(0, 25),
     certBridges: result.certBridges.slice(0, 10),
-    evidence: `${result.stats.hostCount} Censys host record(s) correlated; ` +
+    evidence:
+      `${result.stats.hostCount} Censys host record(s) correlated; ` +
       `${result.stats.highConfidencePairs} high-confidence sibling pair(s); ` +
       `${result.stats.certBridges} certificate bridge(s) to external names.`,
   };

@@ -35,23 +35,27 @@ const META_FILE = path.join(LEARN_DIR, 'meta.json');
 // Payload mutation operators — applied to successful payloads to breed variants.
 const MUTATORS = [
   // Case variation
-  (p) => p.split('').map((c) => (Math.random() < 0.3 ? c.toUpperCase() : c.toLowerCase())).join(''),
+  p =>
+    p
+      .split('')
+      .map(c => (Math.random() < 0.3 ? c.toUpperCase() : c.toLowerCase()))
+      .join(''),
   // URL encoding (single)
-  (p) => encodeURIComponent(p),
+  p => encodeURIComponent(p),
   // URL encoding (double)
-  (p) => encodeURIComponent(encodeURIComponent(p)),
+  p => encodeURIComponent(encodeURIComponent(p)),
   // HTML entity encoding
-  (p) => p.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+  p => p.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
   // Comment injection (SQL/XSS)
-  (p) => p.replace(/ /g, '/**/'),
+  p => p.replace(/ /g, '/**/'),
   // Tab/newline whitespace swap
-  (p) => p.replace(/ /g, '\t'),
+  p => p.replace(/ /g, '\t'),
   // Null byte suffix
-  (p) => p + '%00',
+  p => p + '%00',
   // Polyglot wrapper
-  (p) => `'"--></script></style></textarea>${p}<!--`,
+  p => `'"--></script></style></textarea>${p}<!--`,
   // Unicode overlong encoding for < >
-  (p) => p.replace(/</g, '%c0%bc').replace(/>/g, '%c0%be'),
+  p => p.replace(/</g, '%c0%bc').replace(/>/g, '%c0%be'),
 ];
 
 function ensureDir() {
@@ -75,7 +79,13 @@ function saveJson(file, data) {
  * Observe a completed hunt. Extract learnings into the arsenal.
  * Call this after every hunt completes (success or failure — both teach).
  */
-export function observeHunt({ target, techStack = [], findings = [], payloadsTried = [], durationMs = 0 }) {
+export function observeHunt({
+  target,
+  techStack = [],
+  findings = [],
+  payloadsTried = [],
+  durationMs = 0,
+}) {
   const arsenal = loadJson(ARSENAL_FILE, { payloads: {}, version: 1 });
   const meta = loadJson(META_FILE, { huntsObserved: 0, totalFindings: 0, generations: 0 });
 
@@ -84,11 +94,16 @@ export function observeHunt({ target, techStack = [], findings = [], payloadsTri
   meta.lastHuntAt = new Date().toISOString();
 
   // Record which payloads were tried and which produced findings.
-  const successPayloads = new Set(findings.map((f) => f.payload).filter(Boolean));
+  const successPayloads = new Set(findings.map(f => f.payload).filter(Boolean));
   for (const p of payloadsTried) {
     const key = p.payload || p;
     if (!arsenal.payloads[key]) {
-      arsenal.payloads[key] = { uses: 0, hits: 0, firstSeen: new Date().toISOString(), techStacks: [] };
+      arsenal.payloads[key] = {
+        uses: 0,
+        hits: 0,
+        firstSeen: new Date().toISOString(),
+        techStacks: [],
+      };
     }
     const rec = arsenal.payloads[key];
     rec.uses += 1;
@@ -112,12 +127,17 @@ export function observeHunt({ target, techStack = [], findings = [], payloadsTri
             const variant = mutator(payload);
             if (variant !== payload && !arsenal.payloads[variant]) {
               arsenal.payloads[variant] = {
-                uses: 0, hits: 0, parent: payload,
-                firstSeen: new Date().toISOString(), techStacks: [...rec.techStacks],
+                uses: 0,
+                hits: 0,
+                parent: payload,
+                firstSeen: new Date().toISOString(),
+                techStacks: [...rec.techStacks],
               };
               newVariants += 1;
             }
-          } catch { /* bad mutation, skip */ }
+          } catch {
+            /* bad mutation, skip */
+          }
         }
       }
     }
@@ -136,7 +156,11 @@ export function observeHunt({ target, techStack = [], findings = [], payloadsTri
   // Update strategy scores.
   evolveStrategies({ findings, techStack, durationMs });
 
-  return { huntsObserved: meta.huntsObserved, newVariants, totalPayloads: Object.keys(arsenal.payloads).length };
+  return {
+    huntsObserved: meta.huntsObserved,
+    newVariants,
+    totalPayloads: Object.keys(arsenal.payloads).length,
+  };
 }
 
 /**
@@ -144,11 +168,17 @@ export function observeHunt({ target, techStack = [], findings = [], payloadsTri
  */
 function evolveStrategies({ findings, techStack, durationMs }) {
   const strategies = loadJson(STRATEGY_FILE, {});
-  const findingTypes = findings.map((f) => f.type || f.category || 'unknown');
+  const findingTypes = findings.map(f => f.type || f.category || 'unknown');
   const key = techStack.sort().join('+') || 'generic';
 
   if (!strategies[key]) {
-    strategies[key] = { hunts: 0, totalFindings: 0, totalDurationMs: 0, findingTypes: {}, score: 0 };
+    strategies[key] = {
+      hunts: 0,
+      totalFindings: 0,
+      totalDurationMs: 0,
+      findingTypes: {},
+      score: 0,
+    };
   }
   const s = strategies[key];
   s.hunts += 1;
@@ -176,10 +206,10 @@ export function getEvolvedArsenal({ techStack = [], limit = 50 } = {}) {
       hitRate: rec.uses > 0 ? rec.hits / rec.uses : 0,
       uses: rec.uses,
       hits: rec.hits,
-      techMatch: techStack.filter((t) => rec.techStacks.includes(t)).length,
+      techMatch: techStack.filter(t => rec.techStacks.includes(t)).length,
     }))
     // Prioritize: tech-stack match first, then hit-rate, then unexplored.
-    .sort((a, b) => (b.techMatch - a.techMatch) || (b.hitRate - a.hitRate) || (a.uses - b.uses));
+    .sort((a, b) => b.techMatch - a.techMatch || b.hitRate - a.hitRate || a.uses - b.uses);
   return entries.slice(0, limit);
 }
 
@@ -200,9 +230,10 @@ export function getStrategyGuidance(techStack = []) {
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([type, count]) => ({ type, count })),
-    recommendation: exact && exact.hunts >= 3
-      ? `Based on ${exact.hunts} past hunts on this stack, prioritize: ${Object.keys(exact.findingTypes).slice(0, 3).join(', ')}.`
-      : 'No local history for this stack yet — running full methodology.',
+    recommendation:
+      exact && exact.hunts >= 3
+        ? `Based on ${exact.hunts} past hunts on this stack, prioritize: ${Object.keys(exact.findingTypes).slice(0, 3).join(', ')}.`
+        : 'No local history for this stack yet — running full methodology.',
   };
 }
 
@@ -216,10 +247,12 @@ export function getEvolutionStats() {
   return {
     ...meta,
     totalPayloads: payloads.length,
-    activePayloads: payloads.filter((p) => !p.dormant).length,
-    dormantPayloads: payloads.filter((p) => p.dormant).length,
+    activePayloads: payloads.filter(p => !p.dormant).length,
+    dormantPayloads: payloads.filter(p => p.dormant).length,
     avgHitRate: payloads.length
-      ? (payloads.reduce((s, p) => s + (p.uses ? p.hits / p.uses : 0), 0) / payloads.length).toFixed(3)
+      ? (
+          payloads.reduce((s, p) => s + (p.uses ? p.hits / p.uses : 0), 0) / payloads.length
+        ).toFixed(3)
       : 0,
   };
 }

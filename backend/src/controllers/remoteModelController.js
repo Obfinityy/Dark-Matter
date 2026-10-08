@@ -18,16 +18,20 @@
 import { GradioProvider, normalizeGradioUrl } from '../agent/providers/gradioProvider.js';
 
 export function createRemoteModelController({ brainProviderModel, agentWorker }) {
-  const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+  const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-  const refreshBrain = (userId) => {
-    try { agentWorker?.refreshBrainForUser?.(userId); } catch { /* best effort */ }
+  const refreshBrain = userId => {
+    try {
+      agentWorker?.refreshBrainForUser?.(userId);
+    } catch {
+      /* best effort */
+    }
   };
 
-  const getUserId = (req) => req.user?.id || null;
+  const getUserId = req => req.user?.id || null;
 
   /** Describe the current remote-brain state for this user. */
-  const describe = async (userId) => {
+  const describe = async userId => {
     const selection = brainProviderModel
       ? await brainProviderModel.getSelection(userId)
       : { provider: 'phone', endpointUrl: null };
@@ -45,7 +49,7 @@ export function createRemoteModelController({ brainProviderModel, agentWorker })
       connected,
       provider: selection.provider,
       gradioUrl: connected ? selection.endpointUrl : null,
-      name: connected ? (selection.modelId || 'Remote GPU') : null,
+      name: connected ? selection.modelId || 'Remote GPU' : null,
       health,
     };
   };
@@ -67,7 +71,7 @@ export function createRemoteModelController({ brainProviderModel, agentWorker })
         normalized = normalizeGradioUrl(gradioUrl);
       } catch (err) {
         return response.status(400).json({
-          error: { code: 'INVALID_URL', message: err.message }
+          error: { code: 'INVALID_URL', message: err.message },
         });
       }
       const provider = new GradioProvider({ baseUrl: normalized });
@@ -76,18 +80,26 @@ export function createRemoteModelController({ brainProviderModel, agentWorker })
         return response.status(502).json({
           ok: false,
           health,
-          error: { code: 'UNREACHABLE', message: health.reason || 'Could not reach the Gradio app' }
+          error: {
+            code: 'UNREACHABLE',
+            message: health.reason || 'Could not reach the Gradio app',
+          },
         });
       }
       // One real inference round-trip to prove the chat endpoint works.
       try {
         const probe = await provider.chatOnce('Reply with exactly: ok', { timeoutMs: 120000 });
-        return response.json({ ok: true, health, probe: String(probe).slice(0, 50), gradioUrl: normalized });
+        return response.json({
+          ok: true,
+          health,
+          probe: String(probe).slice(0, 50),
+          gradioUrl: normalized,
+        });
       } catch (err) {
         return response.status(502).json({
           ok: false,
           health,
-          error: { code: 'CHAT_FAILED', message: err.message }
+          error: { code: 'CHAT_FAILED', message: err.message },
         });
       }
     }),
@@ -104,14 +116,17 @@ export function createRemoteModelController({ brainProviderModel, agentWorker })
         normalized = normalizeGradioUrl(gradioUrl);
       } catch (err) {
         return response.status(400).json({
-          error: { code: 'INVALID_URL', message: err.message }
+          error: { code: 'INVALID_URL', message: err.message },
         });
       }
       const provider = new GradioProvider({ baseUrl: normalized });
       const health = await provider.healthCheck();
       if (!health.reachable) {
         return response.status(502).json({
-          error: { code: 'UNREACHABLE', message: health.reason || 'Could not reach the Gradio app' }
+          error: {
+            code: 'UNREACHABLE',
+            message: health.reason || 'Could not reach the Gradio app',
+          },
         });
       }
       if (brainProviderModel && userId) {

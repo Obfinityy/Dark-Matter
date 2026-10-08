@@ -18,10 +18,10 @@
 
 /** CoAP response codes (class.detail) relevant to Observe. */
 export const COAP_CODES = {
-  '2.05': 'content',
-  '4.04': 'not_found',
-  '4.05': 'method_not_allowed',
-  '4.29': 'bad_option',
+  2.05: 'content',
+  4.04: 'not_found',
+  4.05: 'method_not_allowed',
+  4.29: 'bad_option',
 };
 
 /** Well-known Observe option behaviors per stack family (observed patterns). */
@@ -39,7 +39,7 @@ export const OBSERVE_STACK_HINTS = {
  * @returns {{present:boolean, sequence:number|null, deregistered:boolean}}
  */
 export function parseObserveOption(options = []) {
-  const opt = options.find((o) => o && o.number === 6); // Observe = option 6
+  const opt = options.find(o => o && o.number === 6); // Observe = option 6
   if (!opt) return { present: false, sequence: null, deregistered: false };
   const raw = Buffer.isBuffer(opt.value) ? opt.value : Buffer.from([Number(opt.value) & 0xff]);
   let sequence = 0;
@@ -103,7 +103,7 @@ export function analyzeObserveProbes(probes = []) {
     const result = testObserveSupport(p);
     if (result.supported) {
       supported.push(p.resource);
-      if ((p.options || []).some((o) => o && o.number === 23)) blockwiseSeen = true; // Block2 = 23
+      if ((p.options || []).some(o => o && o.number === 23)) blockwiseSeen = true; // Block2 = 23
     }
   }
 
@@ -122,7 +122,8 @@ export function analyzeObserveProbes(probes = []) {
       type: 'Block-wise CoAP Notifications',
       confidence: 'medium',
       cwe: null,
-      evidence: 'endpoint emits Block2 (block-wise) notifications — stack splits large Observe payloads across blocks (stack fingerprint hint)',
+      evidence:
+        'endpoint emits Block2 (block-wise) notifications — stack splits large Observe payloads across blocks (stack fingerprint hint)',
     });
   }
 

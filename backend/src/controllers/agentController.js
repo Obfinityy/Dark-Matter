@@ -6,6 +6,6 @@ export function createAgentController(scanService) {
       const input = request.body || {};
       const result = await scanService.startFromMessage(request.user.id, input);
       response.status(result.status === 'started' ? 202 : 200).json(result);
-    })
+    }),
   };
 }

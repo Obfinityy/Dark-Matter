@@ -51,32 +51,71 @@ export class LocalLlamaProvider {
   async healthCheck() {
     const start = Date.now();
     // Adopt a server orphaned by a backend restart before judging health.
-    try { await this.runner.ensureRunningState?.(); } catch { /* best effort */ }
+    try {
+      await this.runner.ensureRunningState?.();
+    } catch {
+      /* best effort */
+    }
     const baseUrl = this.baseUrl();
     if (!baseUrl) {
-      return { provider: 'LocalLlamaProvider', enabled: true, reachable: false, modelInstalled: false, reason: 'No local model is running', latencyMs: Date.now() - start };
+      return {
+        provider: 'LocalLlamaProvider',
+        enabled: true,
+        reachable: false,
+        modelInstalled: false,
+        reason: 'No local model is running',
+        latencyMs: Date.now() - start,
+      };
     }
     try {
       const response = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(5000) });
       const latencyMs = Date.now() - start;
       if (!response.ok) {
-        return { provider: 'LocalLlamaProvider', enabled: true, reachable: false, modelInstalled: false, reason: `HTTP ${response.status}`, latencyMs };
+        return {
+          provider: 'LocalLlamaProvider',
+          enabled: true,
+          reachable: false,
+          modelInstalled: false,
+          reason: `HTTP ${response.status}`,
+          latencyMs,
+        };
       }
       let modelInstalled = false;
       try {
         const body = await response.json();
         modelInstalled = Array.isArray(body?.data) && body.data.length > 0;
-      } catch { /* advisory */ }
-      return { provider: 'LocalLlamaProvider', enabled: true, reachable: true, model: await this.resolveModel(), modelInstalled, latencyMs };
+      } catch {
+        /* advisory */
+      }
+      return {
+        provider: 'LocalLlamaProvider',
+        enabled: true,
+        reachable: true,
+        model: await this.resolveModel(),
+        modelInstalled,
+        latencyMs,
+      };
     } catch (error) {
-      return { provider: 'LocalLlamaProvider', enabled: true, reachable: false, modelInstalled: false, reason: error.message, latencyMs: Date.now() - start };
+      return {
+        provider: 'LocalLlamaProvider',
+        enabled: true,
+        reachable: false,
+        modelInstalled: false,
+        reason: error.message,
+        latencyMs: Date.now() - start,
+      };
     }
   }
 
   async generate(messages, options = {}) {
-    try { await this.runner.ensureRunningState?.(); } catch { /* best effort */ }
+    try {
+      await this.runner.ensureRunningState?.();
+    } catch {
+      /* best effort */
+    }
     const baseUrl = this.baseUrl();
-    if (!baseUrl) throw new Error('No local model is running — press Run on a downloaded model first');
+    if (!baseUrl)
+      throw new Error('No local model is running — press Run on a downloaded model first');
     const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -85,8 +124,8 @@ export class LocalLlamaProvider {
         messages: Array.isArray(messages) ? messages : [],
         temperature: options.temperature ?? 0.3,
         max_tokens: options.maxTokens ?? 4000,
-        stream: false
-      })
+        stream: false,
+      }),
     });
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
@@ -104,8 +143,8 @@ export class LocalLlamaProvider {
         ...(Array.isArray(messages) ? messages : []),
         {
           role: 'system',
-          content: `You must respond with valid JSON matching this schema: ${JSON.stringify(schema)}. Output ONLY the JSON object, no other text.`
-        }
+          content: `You must respond with valid JSON matching this schema: ${JSON.stringify(schema)}. Output ONLY the JSON object, no other text.`,
+        },
       ],
       { ...options, temperature: options.temperature ?? 0.1 }
     );
@@ -117,7 +156,8 @@ export class LocalLlamaProvider {
   /** Streaming completions — raw SSE body, same shape as other providers. */
   async stream(messages, options = {}) {
     const baseUrl = this.baseUrl();
-    if (!baseUrl) throw new Error('No local model is running — press Run on a downloaded model first');
+    if (!baseUrl)
+      throw new Error('No local model is running — press Run on a downloaded model first');
     const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -126,8 +166,8 @@ export class LocalLlamaProvider {
         messages: Array.isArray(messages) ? messages : [],
         temperature: options.temperature ?? 0.3,
         max_tokens: options.maxTokens ?? 4000,
-        stream: true
-      })
+        stream: true,
+      }),
     });
     if (!response.ok) {
       const errText = await response.text().catch(() => '');

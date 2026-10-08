@@ -26,8 +26,7 @@
  *   plus mapDeviceApiSurface() — runs every mapper and returns the full surface.
  */
 
-const URL_LITERAL_RE =
-  /['"`](\/(?!\/)[^'"`\s]*|https?:\/\/[^'"`\s<>{}|\\^]+)['"`]/g;
+const URL_LITERAL_RE = /['"`](\/(?!\/)[^'"`\s]*|https?:\/\/[^'"`\s<>{}|\\^]+)['"`]/g;
 
 const FETCH_CALL_RE = /fetch\s*\(\s*['"`]/g;
 
@@ -80,11 +79,17 @@ function callArgs(source, openParenIndex) {
   for (let i = openParenIndex; i < source.length; i++) {
     const ch = source[i];
     if (quote) {
-      if (ch === '\\') { i++; continue; }
+      if (ch === '\\') {
+        i++;
+        continue;
+      }
       if (ch === quote) quote = null;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch;
+      continue;
+    }
     if (ch === '(') depth++;
     else if (ch === ')') {
       depth--;
@@ -112,8 +117,21 @@ function toHex4(n) {
 }
 
 const AUTH_KEYWORDS = [
-  'login', 'signin', 'sign-in', 'sign_up', 'signup', 'register', 'auth',
-  'token', 'session', 'password', 'credential', 'otp', 'verify', 'sso', 'oauth',
+  'login',
+  'signin',
+  'sign-in',
+  'sign_up',
+  'signup',
+  'register',
+  'auth',
+  'token',
+  'session',
+  'password',
+  'credential',
+  'otp',
+  'verify',
+  'sso',
+  'oauth',
 ];
 
 /* ------------------------------------------------------------------ */
@@ -145,7 +163,7 @@ export function mapCredentialStoreCalls(sourceText, url = null) {
         : 'unknown';
     const urls = extractUrls(ctx);
     stores.push({ kind: 'store', credentialType: type, endpoints: urls });
-    authEndpoints.push(...urls.filter((u) => AUTH_KEYWORDS.some((k) => u.toLowerCase().includes(k))));
+    authEndpoints.push(...urls.filter(u => AUTH_KEYWORDS.some(k => u.toLowerCase().includes(k))));
   }
 
   for (const { index, args } of findCallSites(source, /\bcredentials\.get\s*\(/g)) {
@@ -160,7 +178,7 @@ export function mapCredentialStoreCalls(sourceText, url = null) {
           : 'unknown';
     const urls = extractUrls(ctx);
     retrievals.push({ kind: 'get', credentialType: type, endpoints: urls });
-    authEndpoints.push(...urls.filter((u) => AUTH_KEYWORDS.some((k) => u.toLowerCase().includes(k))));
+    authEndpoints.push(...urls.filter(u => AUTH_KEYWORDS.some(k => u.toLowerCase().includes(k))));
   }
 
   return {
@@ -200,13 +218,17 @@ export function mapWebAuthnRelyingParty(sourceText, url = null) {
       // Field extraction prefers the call's own args; falls back to the
       // surrounding window because real code often builds the publicKey
       // options object in a variable first.
-      const pick = (re) => ((args.match(re) || ctx.match(re)) || [])[1] || null;
+      const pick = re => (args.match(re) || ctx.match(re) || [])[1] || null;
       const rpId = pick(/\brp\s*:\s*\{[^}]*?\bid\s*:\s*['"`]([^'"`]+)['"`]/);
       const rpName = pick(/\brp\s*:\s*\{[^}]*?\bname\s*:\s*['"`]([^'"`]+)['"`]/);
       const rpIdOnly = rpId === null ? pick(/\brpId\s*:\s*['"`]([^'"`]+)['"`]/) : null;
       const attestation = pick(/\battestation\s*:\s*['"`](direct|indirect|none|enterprise)['"`]/);
-      const attachment = pick(/\bauthenticatorAttachment\s*:\s*['"`](platform|cross-platform)['"`]/);
-      const userVerification = pick(/\buserVerification\s*:\s*['"`](required|preferred|discouraged)['"`]/);
+      const attachment = pick(
+        /\bauthenticatorAttachment\s*:\s*['"`](platform|cross-platform)['"`]/
+      );
+      const userVerification = pick(
+        /\buserVerification\s*:\s*['"`](required|preferred|discouraged)['"`]/
+      );
       const urls = extractUrls(ctx);
 
       if (rpId || rpName || rpIdOnly) {
@@ -224,7 +246,7 @@ export function mapWebAuthnRelyingParty(sourceText, url = null) {
   }
 
   const seen = new Set();
-  const uniqueRps = relyingParties.filter((r) => {
+  const uniqueRps = relyingParties.filter(r => {
     const key = `${r.rpId}|${r.rpName}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -428,14 +450,28 @@ function parseFilterObjects(chunk) {
   for (const m of chunk.matchAll(/\{([^{}]*)\}/g)) {
     const body = m[1];
     const f = {};
-    for (const key of ['vendorId', 'productId', 'classCode', 'subclassCode', 'protocolCode', 'serialNumber', 'usbVendorId', 'usbProductId', 'usagePage', 'usage']) {
-      const km = body.match(new RegExp(`\\b${key}\\s*:\\s*(0x[0-9a-fA-F]+|\\d+|['"\`][^'"\`]+['"\`])`));
+    for (const key of [
+      'vendorId',
+      'productId',
+      'classCode',
+      'subclassCode',
+      'protocolCode',
+      'serialNumber',
+      'usbVendorId',
+      'usbProductId',
+      'usagePage',
+      'usage',
+    ]) {
+      const km = body.match(
+        new RegExp(`\\b${key}\\s*:\\s*(0x[0-9a-fA-F]+|\\d+|['"\`][^'"\`]+['"\`])`)
+      );
       if (km) {
         const raw = km[1].trim();
-        f[key] =
-          /^['"`]/.test(raw) ? raw.slice(1, -1)
-            : /^0x/i.test(raw) ? parseInt(raw, 16)
-              : Number(raw);
+        f[key] = /^['"`]/.test(raw)
+          ? raw.slice(1, -1)
+          : /^0x/i.test(raw)
+            ? parseInt(raw, 16)
+            : Number(raw);
       }
     }
     if (Object.keys(f).length > 0) filters.push(f);
@@ -466,7 +502,10 @@ export function mineWebUsbFilters(sourceText, url = null) {
         vendorId: f.vendorId !== undefined ? toHex4(f.vendorId) : null,
         productId: f.productId !== undefined ? toHex4(f.productId) : null,
         classCode: f.classCode !== undefined ? toHex4(f.classCode) : null,
-        classLabel: f.classCode !== undefined ? (USB_CLASS_CODES[Number(f.classCode)] || 'Unknown class') : null,
+        classLabel:
+          f.classCode !== undefined
+            ? USB_CLASS_CODES[Number(f.classCode)] || 'Unknown class'
+            : null,
         subclassCode: f.subclassCode !== undefined ? toHex4(f.subclassCode) : null,
         protocolCode: f.protocolCode !== undefined ? toHex4(f.protocolCode) : null,
         serialNumber: f.serialNumber !== undefined ? String(f.serialNumber) : null,
@@ -491,25 +530,25 @@ export function mineWebUsbFilters(sourceText, url = null) {
 /* ------------------------------------------------------------------ */
 
 const BLE_SERVICE_LABELS = {
-  '1800': 'Generic Access — device identity integration',
-  '1801': 'Generic Attribute — service discovery integration',
+  1800: 'Generic Access — device identity integration',
+  1801: 'Generic Attribute — service discovery integration',
   '180a': 'Device Information — hardware metadata integration',
   '180d': 'Heart Rate — fitness tracker integration',
   '180f': 'Battery Service — power-state integration',
-  '1812': 'Human Interface Device — HID-over-GATT integration',
-  '1815': 'Automation IO — home-automation integration',
-  '1816': 'Cycling Speed and Cadence — bike sensor integration',
-  '1818': 'Cycling Power — power-meter integration',
+  1812: 'Human Interface Device — HID-over-GATT integration',
+  1815: 'Automation IO — home-automation integration',
+  1816: 'Cycling Speed and Cadence — bike sensor integration',
+  1818: 'Cycling Power — power-meter integration',
   '181a': 'Environmental Sensing — sensor integration',
   '181b': 'Body Composition — health-scale integration',
   '181c': 'User Data — profile integration',
   '181d': 'Weight Scale — scale integration',
-  '1820': 'Internet Protocol Support — IP-over-BLE integration',
-  '1821': 'Indoor Positioning — beacon integration',
-  '1822': 'Pulse Oximeter — medical sensor integration',
-  '1826': 'Fitness Machine — gym-equipment integration',
-  '1827': 'Mesh Provisioning — mesh-network integration',
-  '1828': 'Mesh Proxy — mesh-network integration',
+  1820: 'Internet Protocol Support — IP-over-BLE integration',
+  1821: 'Indoor Positioning — beacon integration',
+  1822: 'Pulse Oximeter — medical sensor integration',
+  1826: 'Fitness Machine — gym-equipment integration',
+  1827: 'Mesh Provisioning — mesh-network integration',
+  1828: 'Mesh Proxy — mesh-network integration',
 };
 
 const BLE_ALIAS_TO_SHORT = {
@@ -589,7 +628,8 @@ export function mapWebBluetoothServices(sourceText, url = null) {
         seen.add(short);
         services.push({
           service: `0x${short.toUpperCase()}`,
-          integration: BLE_SERVICE_LABELS[short] || 'Custom GATT service — proprietary device integration',
+          integration:
+            BLE_SERVICE_LABELS[short] || 'Custom GATT service — proprietary device integration',
           raw,
         });
       }
@@ -651,7 +691,9 @@ export function mineWebHidCollections(sourceText, url = null) {
         productId: f.productId !== undefined ? toHex4(f.productId) : null,
         usagePage: usagePage !== null ? toHex4(usagePage) : null,
         usage: usage !== null ? toHex4(usage) : null,
-        collectionLabel: (key && HID_USAGE_LABELS[key]) || (key ? 'HID collection' : 'Device filter without usage'),
+        collectionLabel:
+          (key && HID_USAGE_LABELS[key]) ||
+          (key ? 'HID collection' : 'Device filter without usage'),
       });
     }
   }
@@ -703,11 +745,11 @@ export function mineWebSerialConfigs(sourceText, url = null) {
 
   for (const { args } of findCallSites(source, /\.open\s*\(\s*\{/g)) {
     if (!/\bbaudRate\s*:/.test(args)) continue;
-    const num = (key) => {
+    const num = key => {
       const m = args.match(new RegExp(`\\b${key}\\s*:\\s*(\\d+)`));
       return m ? Number(m[1]) : null;
     };
-    const str = (key) => {
+    const str = key => {
       const m = args.match(new RegExp(`\\b${key}\\s*:\\s*['"\`]([^'"\`]+)['"\`]`));
       return m ? m[1] : null;
     };

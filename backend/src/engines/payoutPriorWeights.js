@@ -42,7 +42,9 @@ export function payoutWeights(classes = [], payouts = HISTORICAL_AVG_PAYOUTS) {
  */
 export function rankByPayout(classes = [], payouts = HISTORICAL_AVG_PAYOUTS) {
   const w = payoutWeights(classes, payouts);
-  return Object.entries(w).map(([c, weight]) => ({ class: c, weight })).sort((a, b) => b.weight - a.weight);
+  return Object.entries(w)
+    .map(([c, weight]) => ({ class: c, weight }))
+    .sort((a, b) => b.weight - a.weight);
 }
 
 export const PAYOUT_PRIOR_WEIGHTS = { HISTORICAL_AVG_PAYOUTS, payoutWeights, rankByPayout };

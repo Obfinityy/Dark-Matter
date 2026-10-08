@@ -57,7 +57,7 @@ export function planAxfrSchedule({
   }
 
   const history = [...(soaHistory || [])]
-    .filter((h) => h && Number.isFinite(Number(h.serial)) && h.observedAt)
+    .filter(h => h && Number.isFinite(Number(h.serial)) && h.observedAt)
     .sort((a, b) => new Date(a.observedAt) - new Date(b.observedAt));
 
   // Derive serial-change cadence: only count observations where the serial moved.
@@ -77,7 +77,9 @@ export function planAxfrSchedule({
   const anchor = new Date(asOf || new Date().toISOString()).getTime();
   const lastChange = changeTimes.length
     ? changeTimes[changeTimes.length - 1]
-    : (history.length ? new Date(history[history.length - 1].observedAt).getTime() : anchor);
+    : history.length
+      ? new Date(history[history.length - 1].observedAt).getTime()
+      : anchor;
   const expectedNextChangeAt = avgChangeIntervalHours
     ? new Date(lastChange + avgChangeIntervalHours * 3_600_000).toISOString()
     : null;
@@ -100,7 +102,12 @@ export function planAxfrSchedule({
         // staggered per nameserver so no two servers are hit simultaneously.
         const windowHours = Math.max(avgChangeIntervalHours * 0.15, 0.25);
         const offsetHours = (i - (perServer - 1) / 2) * (windowHours / Math.max(perServer - 1, 1));
-        at = new Date(lastChange + avgChangeIntervalHours * 3_600_000 + offsetHours * 3_600_000 + nsIndex * 5 * 60_000).getTime();
+        at = new Date(
+          lastChange +
+            avgChangeIntervalHours * 3_600_000 +
+            offsetHours * 3_600_000 +
+            nsIndex * 5 * 60_000
+        ).getTime();
         kind = 'serial-refresh';
       } else {
         // Unknown cadence: spread across the day with deterministic jitter.
@@ -116,9 +123,10 @@ export function planAxfrSchedule({
         jitterMinutes: 5,
         maxRetries: 2,
         cooldownMinutes: 30,
-        reason: kind === 'serial-refresh'
-          ? 'Attempt lands near the expected SOA serial increment for fresh zone data.'
-          : 'Baseline attempt: serial cadence unknown, probing for increments.',
+        reason:
+          kind === 'serial-refresh'
+            ? 'Attempt lands near the expected SOA serial increment for fresh zone data.'
+            : 'Baseline attempt: serial cadence unknown, probing for increments.',
       });
     }
   });
@@ -152,15 +160,18 @@ export function planAxfrSchedule({
 export function analyzeNsec3OptOut({ zone, nsec3Params = [], delegations = [] } = {}) {
   const zoneName = String(zone || '');
   const params = nsec3Params || [];
-  const optOutEnabled = params.some((p) => p && (Number(p.flags) & 1) === 1);
+  const optOutEnabled = params.some(p => p && (Number(p.flags) & 1) === 1);
 
-  const PROVIDER_NS = /cloudflare|akamai|awsdns|azure-dns|googledomains|ns\d+\.digitalocean|route53|dnsmadeeasy/i;
+  const PROVIDER_NS =
+    /cloudflare|akamai|awsdns|azure-dns|googledomains|ns\d+\.digitalocean|route53|dnsmadeeasy/i;
 
   const unsignedDelegations = [];
   if (optOutEnabled) {
     for (const d of delegations || []) {
       if (!d || !d.name || d.hasDs) continue;
-      const reasons = ['Unsigned delegation in an NSEC3 opt-out zone: responses for this name can be spoofed.'];
+      const reasons = [
+        'Unsigned delegation in an NSEC3 opt-out zone: responses for this name can be spoofed.',
+      ];
       let risk = 50;
       const depth = String(d.name).split('.').length;
       if (depth >= 4) {
@@ -168,11 +179,13 @@ export function analyzeNsec3OptOut({ zone, nsec3Params = [], delegations = [] } 
         reasons.push('Deeply nested delegation — typically receives less operational oversight.');
       }
       const targets = d.nsTargets || [];
-      if (targets.some((t) => String(t).toLowerCase().endsWith(`.${zoneName.toLowerCase()}`))) {
+      if (targets.some(t => String(t).toLowerCase().endsWith(`.${zoneName.toLowerCase()}`))) {
         risk += 15;
-        reasons.push('In-bailiwick nameservers: the delegation cut itself is a spoofing candidate.');
+        reasons.push(
+          'In-bailiwick nameservers: the delegation cut itself is a spoofing candidate.'
+        );
       }
-      if (targets.some((t) => PROVIDER_NS.test(String(t)))) {
+      if (targets.some(t => PROVIDER_NS.test(String(t)))) {
         risk -= 20;
         reasons.push('Delegated to a managed DNS provider — harder to exploit.');
       }
@@ -215,12 +228,12 @@ export function analyzeNsec3OptOut({ zone, nsec3Params = [], delegations = [] } 
 export function monitorKeyRollover({ zone, snapshots = [] } = {}) {
   const zoneName = String(zone || '');
   const snaps = [...(snapshots || [])]
-    .filter((s) => s && s.observedAt && Array.isArray(s.dnskeys))
+    .filter(s => s && s.observedAt && Array.isArray(s.dnskeys))
     .sort((a, b) => new Date(a.observedAt) - new Date(b.observedAt));
 
-  const roleOf = (flags) => ((Number(flags) & 1) === 1 ? 'KSK' : 'ZSK');
-  const idOf = (k) => `${k.keyTag}/${k.algorithm}`;
-  const keySet = (s) => new Map(s.dnskeys.map((k) => [idOf(k), { ...k, role: roleOf(k.flags) }]));
+  const roleOf = flags => ((Number(flags) & 1) === 1 ? 'KSK' : 'ZSK');
+  const idOf = k => `${k.keyTag}/${k.algorithm}`;
+  const keySet = s => new Map(s.dnskeys.map(k => [idOf(k), { ...k, role: roleOf(k.flags) }]));
 
   const events = [];
   const gaps = [];
@@ -239,7 +252,7 @@ export function monitorKeyRollover({ zone, snapshots = [] } = {}) {
             at: snap.observedAt,
             detail: `New ${key.role} ${key.keyTag} published — rollover started.`,
           });
-          const oldSameRole = [...previous.values()].filter((p) => p.role === key.role);
+          const oldSameRole = [...previous.values()].filter(p => p.role === key.role);
           if (oldSameRole.length) {
             events.push({
               type: key.role === 'ZSK' ? 'double-signature-phase' : 'double-ds-phase',
@@ -247,9 +260,10 @@ export function monitorKeyRollover({ zone, snapshots = [] } = {}) {
               algorithm: key.algorithm,
               role: key.role,
               at: snap.observedAt,
-              detail: key.role === 'ZSK'
-                ? `Old ZSK(s) ${oldSameRole.map((k) => k.keyTag).join(',')} still present: double-signature phase.`
-                : `Old KSK(s) ${oldSameRole.map((k) => k.keyTag).join(',')} still present: double-DS phase.`,
+              detail:
+                key.role === 'ZSK'
+                  ? `Old ZSK(s) ${oldSameRole.map(k => k.keyTag).join(',')} still present: double-signature phase.`
+                  : `Old KSK(s) ${oldSameRole.map(k => k.keyTag).join(',')} still present: double-DS phase.`,
             });
           } else {
             events.push({
@@ -265,7 +279,7 @@ export function monitorKeyRollover({ zone, snapshots = [] } = {}) {
       }
       for (const [id, key] of previous) {
         if (!current.has(id)) {
-          const replacement = [...current.values()].filter((c) => c.role === key.role);
+          const replacement = [...current.values()].filter(c => c.role === key.role);
           events.push({
             type: 'key-removed',
             keyTag: key.keyTag,
@@ -273,7 +287,7 @@ export function monitorKeyRollover({ zone, snapshots = [] } = {}) {
             role: key.role,
             at: snap.observedAt,
             detail: replacement.length
-              ? `${key.role} ${key.keyTag} retired; ${replacement.map((k) => k.keyTag).join(',')} now active — rollover complete.`
+              ? `${key.role} ${key.keyTag} retired; ${replacement.map(k => k.keyTag).join(',')} now active — rollover complete.`
               : `${key.role} ${key.keyTag} retired with NO replacement.`,
           });
           if (!replacement.length && key.role === 'ZSK') {
@@ -281,7 +295,8 @@ export function monitorKeyRollover({ zone, snapshots = [] } = {}) {
               type: 'validation-gap-no-zsk',
               at: snap.observedAt,
               severity: 'critical',
-              detail: 'Last zone-signing key removed — validators cannot verify new signatures until a ZSK returns.',
+              detail:
+                'Last zone-signing key removed — validators cannot verify new signatures until a ZSK returns.',
             });
           }
         }
@@ -325,10 +340,11 @@ export function monitorKeyRollover({ zone, snapshots = [] } = {}) {
 export function trackTlsaRotation({ service, snapshots = [] } = {}) {
   const serviceName = String(service || '');
   const snaps = [...(snapshots || [])]
-    .filter((s) => s && s.observedAt && Array.isArray(s.records))
+    .filter(s => s && s.observedAt && Array.isArray(s.records))
     .sort((a, b) => new Date(a.observedAt) - new Date(b.observedAt));
 
-  const idOf = (r) => `${r.usage}/${r.selector}/${r.matchingType}/${String(r.associationData || '').toLowerCase()}`;
+  const idOf = r =>
+    `${r.usage}/${r.selector}/${r.matchingType}/${String(r.associationData || '').toLowerCase()}`;
 
   const rotations = [];
   const correlations = [];
@@ -338,19 +354,20 @@ export function trackTlsaRotation({ service, snapshots = [] } = {}) {
   for (const snap of snaps) {
     const current = new Set(snap.records.map(idOf));
     if (previous) {
-      const added = [...current].filter((id) => !previous.has(id));
-      const removed = [...previous].filter((id) => !current.has(id));
+      const added = [...current].filter(id => !previous.has(id));
+      const removed = [...previous].filter(id => !current.has(id));
       if (added.length || removed.length) {
         rotations.push({
           at: snap.observedAt,
           kind: added.length && removed.length ? 'rotation' : added.length ? 'addition' : 'removal',
           added,
           removed,
-          detail: added.length && removed.length
-            ? 'TLSA record set rotated — correlate with a certificate deployment.'
-            : added.length
-              ? 'New TLSA records published (likely pre-publish ahead of cert deployment).'
-              : 'TLSA records removed (likely post-deployment cleanup).',
+          detail:
+            added.length && removed.length
+              ? 'TLSA record set rotated — correlate with a certificate deployment.'
+              : added.length
+                ? 'New TLSA records published (likely pre-publish ahead of cert deployment).'
+                : 'TLSA records removed (likely post-deployment cleanup).',
         });
       }
     }
@@ -358,7 +375,9 @@ export function trackTlsaRotation({ service, snapshots = [] } = {}) {
 
     if (snap.servedSpki) {
       const spki = String(snap.servedSpki).toLowerCase();
-      const matched = snap.records.filter((r) => String(r.associationData || '').toLowerCase() === spki);
+      const matched = snap.records.filter(
+        r => String(r.associationData || '').toLowerCase() === spki
+      );
       correlations.push({
         at: snap.observedAt,
         servedSpki: snap.servedSpki,
@@ -370,7 +389,8 @@ export function trackTlsaRotation({ service, snapshots = [] } = {}) {
           type: 'dane-mismatch-window',
           at: snap.observedAt,
           severity: 'high',
-          detail: 'Served certificate SPKI matches no published TLSA record — DANE-EE/DANE-TA clients would fail validation.',
+          detail:
+            'Served certificate SPKI matches no published TLSA record — DANE-EE/DANE-TA clients would fail validation.',
         });
       }
     }
@@ -401,10 +421,10 @@ export function trackTlsaRotation({ service, snapshots = [] } = {}) {
 export function monitorSshfpRotation({ hostname, snapshots = [] } = {}) {
   const host = String(hostname || '');
   const snaps = [...(snapshots || [])]
-    .filter((s) => s && s.observedAt && Array.isArray(s.records))
+    .filter(s => s && s.observedAt && Array.isArray(s.records))
     .sort((a, b) => new Date(a.observedAt) - new Date(b.observedAt));
 
-  const idOf = (r) => `${r.algorithm}/${r.fpType}/${String(r.fingerprint || '').toLowerCase()}`;
+  const idOf = r => `${r.algorithm}/${r.fpType}/${String(r.fingerprint || '').toLowerCase()}`;
   const STRONG_ALGS = new Set([3, 4]); // ECDSA, Ed25519
 
   const events = [];
@@ -413,28 +433,29 @@ export function monitorSshfpRotation({ hostname, snapshots = [] } = {}) {
   const changeTimesByAlg = new Map();
 
   for (const snap of snaps) {
-    const current = new Map(snap.records.map((r) => [idOf(r), r]));
+    const current = new Map(snap.records.map(r => [idOf(r), r]));
     if (previous) {
-      const added = [...current.values()].filter((r) => !previous.has(idOf(r)));
-      const removed = [...previous.values()].filter((r) => !current.has(idOf(r)));
+      const added = [...current.values()].filter(r => !previous.has(idOf(r)));
+      const removed = [...previous.values()].filter(r => !current.has(idOf(r)));
 
-      const prevAlgs = new Set([...previous.values()].map((r) => r.algorithm));
-      const currAlgs = new Set([...current.values()].map((r) => r.algorithm));
-      const hadStrong = [...prevAlgs].some((a) => STRONG_ALGS.has(a));
-      const hasStrong = [...currAlgs].some((a) => STRONG_ALGS.has(a));
+      const prevAlgs = new Set([...previous.values()].map(r => r.algorithm));
+      const currAlgs = new Set([...current.values()].map(r => r.algorithm));
+      const hadStrong = [...prevAlgs].some(a => STRONG_ALGS.has(a));
+      const hasStrong = [...currAlgs].some(a => STRONG_ALGS.has(a));
       if (hadStrong && !hasStrong && current.size > 0) {
         anomalies.push({
           type: 'algorithm-downgrade',
           at: snap.observedAt,
           severity: 'high',
-          detail: 'Strong host-key algorithms (ECDSA/Ed25519) disappeared; only weaker algorithms remain.',
+          detail:
+            'Strong host-key algorithms (ECDSA/Ed25519) disappeared; only weaker algorithms remain.',
         });
       }
 
       for (const r of added) {
-        const sameAlgOld = [...previous.values()].find((p) => p.algorithm === r.algorithm);
+        const sameAlgOld = [...previous.values()].find(p => p.algorithm === r.algorithm);
         const flapTimes = changeTimesByAlg.get(r.algorithm) || [];
-        const recent = flapTimes.filter((t) => new Date(snap.observedAt) - new Date(t) < 86_400_000);
+        const recent = flapTimes.filter(t => new Date(snap.observedAt) - new Date(t) < 86_400_000);
         changeTimesByAlg.set(r.algorithm, [...flapTimes, snap.observedAt]);
         if (recent.length >= 1) {
           anomalies.push({
@@ -444,8 +465,10 @@ export function monitorSshfpRotation({ hostname, snapshots = [] } = {}) {
             detail: `Host key for algorithm ${r.algorithm} changed again within 24h — investigate before trusting.`,
           });
         }
-        const isMigration = removed.length > 0 && added.length >= removed.length &&
-          ![...previous.values()].some((p) => current.has(idOf(p)));
+        const isMigration =
+          removed.length > 0 &&
+          added.length >= removed.length &&
+          ![...previous.values()].some(p => current.has(idOf(p)));
         events.push({
           type: isMigration ? 'migration' : 'planned-rotation',
           algorithm: r.algorithm,

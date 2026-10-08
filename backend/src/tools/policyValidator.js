@@ -30,7 +30,7 @@ const BLOCKED_ARGUMENT_PATTERNS = [
   /(^|[\s;&|])rm\s+(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r)/i, // rm -rf / rm -fr (any order)
   /\bmkfs\b/i,
   /\bdd\s+.*of=\/dev\//i,
-  /:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/,               // fork bomb
+  /:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/, // fork bomb
   /\bshutdown\b|\breboot\b|\bhalt\b|\bpoweroff\b/i,
   /\bchmod\s+(-R\s+)?777\s+\//,
   /\bchown\s+-R\b/,
@@ -45,18 +45,18 @@ const BLOCKED_ARGUMENT_PATTERNS = [
   /--file-dest/i,
   /--sql-shell/i,
   /--sql-query/i,
-  /--dump\b/i,            // dumping whole tables is data theft, not detection
+  /--dump\b/i, // dumping whole tables is data theft, not detection
   /--dump-all/i,
-  /--risk\s*=?\s*[23]/i,  // SQLMap risk 2-3 is destructive
+  /--risk\s*=?\s*[23]/i, // SQLMap risk 2-3 is destructive
   /--level\s*=?\s*[45]/i, // SQLMap level 4-5 is extremely aggressive
   // --- nmap aggressive ---
-  /(^|\s)-T5(\s|$)/,                    // insane timing
-  /--min-rate\s+(\d+)/i,               // flood rates (checked numerically below too)
+  /(^|\s)-T5(\s|$)/, // insane timing
+  /--min-rate\s+(\d+)/i, // flood rates (checked numerically below too)
   /--scan-delay\s+0/i,
   // --- injection / redirection ---
-  /`[^`]*`/,              // backtick command injection
-  /\$\([^)]*\)/,          // subshell injection
-  />\s*\/etc/i,           // write to system directories
+  /`[^`]*`/, // backtick command injection
+  /\$\([^)]*\)/, // subshell injection
+  />\s*\/etc/i, // write to system directories
   />\s*\/root/i,
   />\s*\/bin/i,
   />\s*\/sbin/i,
@@ -79,7 +79,7 @@ const TIMEOUT_LIMITS = {
   none: 120_000,
   low: 300_000,
   medium: 600_000,
-  high: 900_000
+  high: 900_000,
 };
 
 /** nmap --min-rate above this is treated as a flood (blocked, not just gated). */
@@ -174,13 +174,13 @@ export class PolicyValidator {
         tool: request.tool,
         target: request.target || null,
         arguments: request.arguments || null,
-        reason: `${request.tool} is a destructive tool (writes/exploits) — approval required in "ask" mode`
+        reason: `${request.tool} is a destructive tool (writes/exploits) — approval required in "ask" mode`,
       });
       if (gate.decision === 'needs_approval') {
         return {
           allowed: false,
           reason: `PERMISSION_REQUIRED: ${gate.reason} (approval ${gate.approval.id} pending)`,
-          approval: gate.approval
+          approval: gate.approval,
         };
       }
       // 'allowed' (full mode) and 'approved' (ask + user approved) proceed;
@@ -190,7 +190,9 @@ export class PolicyValidator {
     // 6. Timeout limits
     const maxTimeout = TIMEOUT_LIMITS[tool.riskLevel] || TIMEOUT_LIMITS.medium;
     if (request.timeout && request.timeout > maxTimeout) {
-      errors.push(`Timeout ${request.timeout}ms exceeds limit ${maxTimeout}ms for risk level ${tool.riskLevel}`);
+      errors.push(
+        `Timeout ${request.timeout}ms exceeds limit ${maxTimeout}ms for risk level ${tool.riskLevel}`
+      );
     }
 
     if (errors.length) {
@@ -214,13 +216,18 @@ export class PolicyValidator {
       const list = args.map(String);
       const drop = new Set();
       for (let i = 0; i < list.length; i++) {
-        if (matchesBlockedPattern(list[i])) { drop.add(i); continue; }
+        if (matchesBlockedPattern(list[i])) {
+          drop.add(i);
+          continue;
+        }
         if (i + 1 < list.length && matchesBlockedPattern(`${list[i]} ${list[i + 1]}`)) {
           drop.add(i);
           drop.add(i + 1);
         }
       }
-      list.forEach((a, i) => { if (!drop.has(i)) mergedArgs.push(args[i]); });
+      list.forEach((a, i) => {
+        if (!drop.has(i)) mergedArgs.push(args[i]);
+      });
     }
     return mergedArgs;
   }

@@ -27,9 +27,9 @@ export class LearningEngine {
   constructor(memoryDir = null) {
     this.memoryDir = memoryDir;
     // In-memory cache; persisted to disk
-    this.profiles = new Map();      // techStack → { techniques: {name: {success, total}} }
+    this.profiles = new Map(); // techStack → { techniques: {name: {success, total}} }
     this.falsePositives = new Map(); // pattern → count
-    this.targetHistory = [];         // recent hunts (max 100)
+    this.targetHistory = []; // recent hunts (max 100)
   }
 
   /**
@@ -44,7 +44,8 @@ export class LearningEngine {
       if (!existsSync(path)) return engine;
       const data = JSON.parse(readFileSync(path, 'utf8'));
       if (data?.profiles) engine.profiles = new Map(Object.entries(data.profiles));
-      if (data?.falsePositives) engine.falsePositives = new Map(Object.entries(data.falsePositives));
+      if (data?.falsePositives)
+        engine.falsePositives = new Map(Object.entries(data.falsePositives));
       if (Array.isArray(data?.targetHistory)) engine.targetHistory = data.targetHistory;
     } catch {
       // Corrupt store → start clean rather than crash the hunt.
@@ -101,17 +102,19 @@ export class LearningEngine {
     const profile = this.profiles.get(key);
     if (!profile) return [];
 
-    return Object.entries(profile.techniques)
-      .map(([name, stats]) => ({
-        name,
-        rate: stats.total > 0 ? stats.success / stats.total : 0,
-        total: stats.total
-      }))
-      // Need at least 2 data points to trust
-      .filter((t) => t.total >= 2)
-      .sort((a, b) => b.rate - a.rate || b.total - a.total)
-      .slice(0, limit)
-      .map((t) => t.name);
+    return (
+      Object.entries(profile.techniques)
+        .map(([name, stats]) => ({
+          name,
+          rate: stats.total > 0 ? stats.success / stats.total : 0,
+          total: stats.total,
+        }))
+        // Need at least 2 data points to trust
+        .filter(t => t.total >= 2)
+        .sort((a, b) => b.rate - a.rate || b.total - a.total)
+        .slice(0, limit)
+        .map(t => t.name)
+    );
   }
 
   /**
@@ -122,9 +125,9 @@ export class LearningEngine {
       target,
       techStack: this._normStack(techStack),
       findingCount: findings?.length || 0,
-      severities: (findings || []).map((f) => f.severity),
+      severities: (findings || []).map(f => f.severity),
       at: new Date().toISOString(),
-      durationMs
+      durationMs,
     });
     if (this.targetHistory.length > 100) {
       this.targetHistory = this.targetHistory.slice(-100);
@@ -144,13 +147,19 @@ export class LearningEngine {
       lines.push(`Most effective techniques: ${suggestions.join(', ')}`);
     }
     if (this.falsePositives.size > 0) {
-      lines.push(`Known false-positive patterns to double-check: ${this.falsePositives.size} recorded`);
+      lines.push(
+        `Known false-positive patterns to double-check: ${this.falsePositives.size} recorded`
+      );
     }
     return lines.join('\n');
   }
 
   _normStack(stack) {
-    return String(stack || 'unknown').toLowerCase().trim() || 'unknown';
+    return (
+      String(stack || 'unknown')
+        .toLowerCase()
+        .trim() || 'unknown'
+    );
   }
 
   /**
@@ -182,7 +191,7 @@ export class LearningEngine {
     return {
       profiles: Object.fromEntries(this.profiles),
       falsePositives: Object.fromEntries(this.falsePositives),
-      targetHistory: this.targetHistory
+      targetHistory: this.targetHistory,
     };
   }
 

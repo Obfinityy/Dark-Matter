@@ -91,7 +91,11 @@ const FRAMEWORK_SIGNATURES = [
 
 /** Component names commonly surfaced by readiness probes and their category. */
 const DEPENDENCY_MARKERS = [
-  { name: 'database', category: 'datastore', pattern: /\b(database|db|postgres|mysql|mariadb|mongodb|sqlserver)\b/i },
+  {
+    name: 'database',
+    category: 'datastore',
+    pattern: /\b(database|db|postgres|mysql|mariadb|mongodb|sqlserver)\b/i,
+  },
   { name: 'redis', category: 'cache', pattern: /\bredis\b/i },
   { name: 'elasticsearch', category: 'search', pattern: /\belasticsearch\b/i },
   { name: 'kafka', category: 'messaging', pattern: /\bkafka\b/i },
@@ -164,7 +168,7 @@ export function mineReadinessProbe({ url, status = 0, headers = {}, body = '' } 
     }
   }
 
-  const versions = [...new Set([...text.matchAll(VERSION_PATTERN)].map((m) => m[1]))].slice(0, 25);
+  const versions = [...new Set([...text.matchAll(VERSION_PATTERN)].map(m => m[1]))].slice(0, 25);
 
   let structuredChecks = [];
   try {
@@ -172,7 +176,7 @@ export function mineReadinessProbe({ url, status = 0, headers = {}, body = '' } 
     const candidates = parsed.checks || parsed.details || parsed.components || [];
     if (Array.isArray(candidates)) {
       structuredChecks = candidates
-        .map((c) => (typeof c === 'object' && c !== null ? c.name || c.id || c.component : String(c)))
+        .map(c => (typeof c === 'object' && c !== null ? c.name || c.id || c.component : String(c)))
         .filter(Boolean)
         .slice(0, 25);
     }
@@ -193,7 +197,7 @@ export function mineReadinessProbe({ url, status = 0, headers = {}, body = '' } 
     cwe: 'CWE-200',
     evidence:
       dependencies.length > 0
-        ? `Readiness output names dependencies: ${dependencies.map((d) => d.name).join(', ')}.`
+        ? `Readiness output names dependencies: ${dependencies.map(d => d.name).join(', ')}.`
         : 'No dependency names found in readiness output.',
   };
 }

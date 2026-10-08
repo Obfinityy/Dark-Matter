@@ -41,7 +41,12 @@ export function estimateNonceEntropy(nonce = '') {
  *   challengeHeader — the raw WWW-Authenticate/Proxy-Authenticate value.
  *   priorNonces — nonces seen in earlier challenges (detects nonce reuse).
  */
-export function analyzeRegisterChallenge({ challengeHeader = '', statusCode = 401, headerName = 'WWW-Authenticate', priorNonces = [] } = {}) {
+export function analyzeRegisterChallenge({
+  challengeHeader = '',
+  statusCode = 401,
+  headerName = 'WWW-Authenticate',
+  priorNonces = [],
+} = {}) {
   const params = parseDigestChallenge(challengeHeader);
   const findings = [];
 
@@ -59,7 +64,8 @@ export function analyzeRegisterChallenge({ challengeHeader = '', statusCode = 40
       confidence: 'high',
       cwe: 'CWE-327',
       evidence: `Registrar challenges with algorithm=${algorithm}; qop=${qop || 'absent'}.`,
-      recommendation: 'Prefer SHA-256 digest with qop=auth; MD5 without qop is vulnerable to offline cracking and replay.',
+      recommendation:
+        'Prefer SHA-256 digest with qop=auth; MD5 without qop is vulnerable to offline cracking and replay.',
     });
   } else {
     findings.push({
@@ -67,7 +73,8 @@ export function analyzeRegisterChallenge({ challengeHeader = '', statusCode = 40
       severity: 'Info',
       confidence: 'high',
       evidence: `algorithm=${algorithm}; qop=${qop || 'absent'}.`,
-      recommendation: 'No algorithm weakness; continue with credential-strength and lockout-policy checks.',
+      recommendation:
+        'No algorithm weakness; continue with credential-strength and lockout-policy checks.',
     });
   }
 
@@ -77,7 +84,8 @@ export function analyzeRegisterChallenge({ challengeHeader = '', statusCode = 40
       severity: 'Low',
       confidence: 'high',
       cwe: 'CWE-287',
-      evidence: 'Challenge carries no qop parameter; responses cannot include cnonce/nc, weakening replay protection.',
+      evidence:
+        'Challenge carries no qop parameter; responses cannot include cnonce/nc, weakening replay protection.',
       recommendation: 'Enable qop=auth on the registrar.',
     });
   }
@@ -121,7 +129,8 @@ export function analyzeRegisterChallenge({ challengeHeader = '', statusCode = 40
       confidence: 'high',
       cwe: 'CWE-200',
       evidence: `realm="${realm}".`,
-      recommendation: 'Realms often mirror internal domains; confirm no sensitive naming is exposed.',
+      recommendation:
+        'Realms often mirror internal domains; confirm no sensitive naming is exposed.',
     });
   }
 
@@ -140,5 +149,9 @@ export function analyzeRegisterChallenge({ challengeHeader = '', statusCode = 40
   };
 }
 
-export const SIP_REGISTER_ANALYZER = { analyzeRegisterChallenge, parseDigestChallenge, estimateNonceEntropy };
+export const SIP_REGISTER_ANALYZER = {
+  analyzeRegisterChallenge,
+  parseDigestChallenge,
+  estimateNonceEntropy,
+};
 export default SIP_REGISTER_ANALYZER;

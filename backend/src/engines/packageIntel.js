@@ -21,8 +21,14 @@
 
 /** Hostnames considered standard public code hosting — not "forgotten infra". */
 export const KNOWN_CODE_HOSTS = new Set([
-  'github.com', 'www.github.com', 'gitlab.com', 'bitbucket.org',
-  'dev.azure.com', 'sourceforge.net', 'codeberg.org', 'gitee.com',
+  'github.com',
+  'www.github.com',
+  'gitlab.com',
+  'bitbucket.org',
+  'dev.azure.com',
+  'sourceforge.net',
+  'codeberg.org',
+  'gitee.com',
 ]);
 
 const URL_PREFIXES = ['git+', 'git:', 'hg+'];
@@ -88,7 +94,7 @@ export function matchesBrand(name, brand) {
   if (!b) return false;
   if (n.includes(b)) return true;
   const tokens = n.split(/[^a-z0-9]+/).filter(Boolean);
-  return tokens.some((t) => t.includes(b) || b.includes(t));
+  return tokens.some(t => t.includes(b) || b.includes(t));
 }
 
 /**
@@ -154,9 +160,7 @@ export function pivotMaintainerToTargetHosts(packages, maintainerEmail, targetDo
   const target = (targetDomain || '').toLowerCase();
   const hits = [];
   for (const pkg of packages || []) {
-    const owns = (pkg.maintainers || []).some(
-      (m) => (m.email || '').trim().toLowerCase() === email,
-    );
+    const owns = (pkg.maintainers || []).some(m => (m.email || '').trim().toLowerCase() === email);
     if (!owns) continue;
     for (const field of ['homepage', 'repository']) {
       const url = pkg[field];
@@ -189,7 +193,7 @@ export function analyzePackageFootprint(packages, opts) {
     pivots[email] = pivotMaintainerToTargetHosts(packages, email, opts.targetDomain);
   }
   const infra = new Set();
-  for (const f of forgotten) f.infraHosts.forEach((h) => infra.add(h));
-  for (const list of Object.values(pivots)) list.forEach((h) => infra.add(h.host));
+  for (const f of forgotten) f.infraHosts.forEach(h => infra.add(h));
+  for (const list of Object.values(pivots)) list.forEach(h => infra.add(h.host));
   return { forgotten, pivots, infraHosts: [...infra].sort() };
 }

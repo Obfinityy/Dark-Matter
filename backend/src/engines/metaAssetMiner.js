@@ -118,7 +118,8 @@ export function mineStylesheetComments(css = '') {
     const urls = extractUrlsFromText(comment);
     const flags = [];
     if (/\bTODO\b/i.test(comment)) flags.push('todo');
-    if (/\b(disabled|deprecated|do not use|unused|removed)\b/i.test(comment)) flags.push('disabled-hint');
+    if (/\b(disabled|deprecated|do not use|unused|removed)\b/i.test(comment))
+      flags.push('disabled-hint');
     if (/\bapi\b|\bendpoint\b/i.test(comment) || urls.length > 0) flags.push('endpoint-hint');
     results.push({ comment, urls, flags });
   }
@@ -202,7 +203,7 @@ export function mapAppleTouchIcons(html = '') {
     results.push({ sizes, href, host: hostOf(href) });
   }
   // Smallest-first ordering makes the inventory easier to scan.
-  const sizeNum = (s) => {
+  const sizeNum = s => {
     const m = /^(\d+)x(\d+)$/i.exec(s);
     return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
   };
@@ -255,7 +256,7 @@ export function analyzeThemeColors(snapshots = []) {
       const color = attrOf(tag, 'content');
       if (!color) continue;
       const media = attrOf(tag, 'media');
-      if (!colors.some((c) => c.color === color && c.media === media)) {
+      if (!colors.some(c => c.color === color && c.media === media)) {
         colors.push({ color, media });
       }
     }
@@ -362,7 +363,12 @@ export function discoverOEmbedProviders(html = '') {
     const href = attrOf(tag, 'href');
     if (!href || seen.has(href)) continue;
     seen.add(href);
-    results.push({ type: attrOf(tag, 'type'), href, title: attrOf(tag, 'title'), host: hostOf(href) });
+    results.push({
+      type: attrOf(tag, 'type'),
+      href,
+      title: attrOf(tag, 'title'),
+      host: hostOf(href),
+    });
   }
   return results;
 }
@@ -446,7 +452,7 @@ const IDEA_FUNCTIONS = {
 export function registryComplete() {
   const ids = Object.keys(META_ASSET_IDEAS).map(Number);
   const covered = ids.filter(
-    (id) => id >= 781 && id <= 790 && typeof IDEA_FUNCTIONS[META_ASSET_IDEAS[id]] === 'function',
+    id => id >= 781 && id <= 790 && typeof IDEA_FUNCTIONS[META_ASSET_IDEAS[id]] === 'function'
   ).length;
   return { covered, total: 10 };
 }

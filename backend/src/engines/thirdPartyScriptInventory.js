@@ -11,34 +11,56 @@
  */
 
 const KNOWN_CDN_HOSTS = [
-  'cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com',
-  'ajax.googleapis.com', 'stackpath.bootstrapcdn.com',
-  'maxcdn.bootstrapcdn.com', 'cdn.tailwindcss.com',
+  'cdnjs.cloudflare.com',
+  'cdn.jsdelivr.net',
+  'unpkg.com',
+  'ajax.googleapis.com',
+  'stackpath.bootstrapcdn.com',
+  'maxcdn.bootstrapcdn.com',
+  'cdn.tailwindcss.com',
 ];
 
 const KNOWN_ANALYTICS_HOSTS = [
-  'google-analytics.com', 'googletagmanager.com', 'analytics.tiktok.com',
-  'connect.facebook.net', 'static.hotjar.com', 'cdn.segment.com',
-  'bat.bing.com', 'snap.licdn.com',
+  'google-analytics.com',
+  'googletagmanager.com',
+  'analytics.tiktok.com',
+  'connect.facebook.net',
+  'static.hotjar.com',
+  'cdn.segment.com',
+  'bat.bing.com',
+  'snap.licdn.com',
 ];
 
 const KNOWN_ADS_HOSTS = [
-  'doubleclick.net', 'googlesyndication.com', 'adservice.google.com',
-  'amazon-adsystem.com', 'ads.yahoo.com', 'criteo.com',
+  'doubleclick.net',
+  'googlesyndication.com',
+  'adservice.google.com',
+  'amazon-adsystem.com',
+  'ads.yahoo.com',
+  'criteo.com',
 ];
 
 const KNOWN_TAG_MANAGERS = [
-  'googletagmanager.com', 'assets.adobedtm.com', 'tags.tiqcdn.com',
-  'cdn.tagcommander.com', 'bat.bing.com',
+  'googletagmanager.com',
+  'assets.adobedtm.com',
+  'tags.tiqcdn.com',
+  'cdn.tagcommander.com',
+  'bat.bing.com',
 ];
 
 const KNOWN_SOCIAL_HOSTS = [
-  'platform.twitter.com', 'connect.facebook.net', 'apis.google.com',
+  'platform.twitter.com',
+  'connect.facebook.net',
+  'apis.google.com',
   'platform.linkedin.com',
 ];
 
 function hostOf(url) {
-  try { return new URL(url).hostname.toLowerCase(); } catch { return ''; }
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -80,7 +102,9 @@ export function inventoryPageScripts(pageUrl, html = '') {
       const raw = srcMatch[1].trim();
       try {
         url = new URL(raw, pageUrl).href;
-      } catch { url = raw; }
+      } catch {
+        url = raw;
+      }
       host = hostOf(url);
       category = host === pageHost ? 'first-party' : categorizeScript(url);
     }
@@ -109,7 +133,12 @@ export function buildSupplyChainMap(pageInventories = []) {
   for (const { page, scripts } of pageInventories) {
     for (const s of scripts || []) {
       totalScripts += 1;
-      const v = vendors[s.host] || { host: s.host, category: s.category, pages: [], scriptCount: 0 };
+      const v = vendors[s.host] || {
+        host: s.host,
+        category: s.category,
+        pages: [],
+        scriptCount: 0,
+      };
       if (!v.pages.includes(page)) v.pages.push(page);
       v.scriptCount += 1;
       vendors[s.host] = v;

@@ -30,8 +30,12 @@ export function normalizeIpRecord(r) {
     const n = Number(p && p.port !== undefined ? p.port : p);
     if (Number.isInteger(n) && n > 0 && n < 65536) ports.add(n);
   }
-  const tags = [...new Set((r.tags || r.labels || []).filter((t) => typeof t === 'string'))];
-  const domains = [...new Set((r.domains || r.hostnames || []).filter((d) => typeof d === 'string').map((d) => d.toLowerCase()))];
+  const tags = [...new Set((r.tags || r.labels || []).filter(t => typeof t === 'string'))];
+  const domains = [
+    ...new Set(
+      (r.domains || r.hostnames || []).filter(d => typeof d === 'string').map(d => d.toLowerCase())
+    ),
+  ];
   return {
     ip,
     ports: [...ports].sort((a, b) => a - b),
@@ -85,7 +89,7 @@ export function buildIpPivotGraph(ipRecords) {
   linkAll(byDomain, 'shared-domain');
   linkAll(byTag, 'shared-tag');
   linkAll(byAsn, 'shared-asn');
-  return { edges, nodes: norm.map((n) => n.ip) };
+  return { edges, nodes: norm.map(n => n.ip) };
 }
 
 /**
@@ -117,7 +121,10 @@ export function expandFromSeeds(graph, seedIps, maxDepth = 2) {
     if (depth >= maxDepth) continue;
     for (const link of adj.get(current) || []) {
       if (visited.has(link.to)) continue;
-      visited.set(link.to, { depth: depth + 1, path: [...path, { via: link.via, detail: link.detail }] });
+      visited.set(link.to, {
+        depth: depth + 1,
+        path: [...path, { via: link.via, detail: link.detail }],
+      });
       queue.push(link.to);
     }
   }
@@ -136,7 +143,7 @@ export function expandFromSeeds(graph, seedIps, maxDepth = 2) {
 export function rankPivotCandidates(candidates) {
   const weight = { 'shared-domain': 50, 'shared-tag': 25, 'shared-asn': 10 };
   return (candidates || [])
-    .map((c) => {
+    .map(c => {
       const score = c.path.reduce((s, step) => s + (weight[step.via] || 5), 0);
       return { ...c, score };
     })

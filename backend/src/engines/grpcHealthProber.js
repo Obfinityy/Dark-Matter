@@ -55,23 +55,31 @@ export function analyzeHealthChecks(checks = []) {
   const unknownService = rows.filter(r => r.status === 'SERVICE_UNKNOWN');
 
   const latencies = rows.map(r => r.latencyMs).filter(v => v !== null);
-  const latencyStats = latencies.length ? {
-    min: Math.min(...latencies),
-    max: Math.max(...latencies),
-    avg: Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length * 100) / 100,
-    samples: latencies.length,
-  } : null;
+  const latencyStats = latencies.length
+    ? {
+        min: Math.min(...latencies),
+        max: Math.max(...latencies),
+        avg: Math.round((latencies.reduce((a, b) => a + b, 0) / latencies.length) * 100) / 100,
+        samples: latencies.length,
+      }
+    : null;
 
   // Deployment pattern inference.
   const patterns = [];
   if (notServing.length > 0 && serving.length > 0) {
-    patterns.push('Mixed SERVING/NOT_SERVING — possible rolling update, canary, or partially degraded deployment.');
+    patterns.push(
+      'Mixed SERVING/NOT_SERVING — possible rolling update, canary, or partially degraded deployment.'
+    );
   }
   if (unknownService.length > 0) {
-    patterns.push(`${unknownService.length} service name(s) returned SERVICE_UNKNOWN — server validates service names; enumerate from reflection or docs.`);
+    patterns.push(
+      `${unknownService.length} service name(s) returned SERVICE_UNKNOWN — server validates service names; enumerate from reflection or docs.`
+    );
   }
   if (rows.length === 1 && serving.length === 1) {
-    patterns.push('Single global health check — server may implement only the empty-service (overall) check.');
+    patterns.push(
+      'Single global health check — server may implement only the empty-service (overall) check.'
+    );
   }
   if (rows.length > 3 && serving.length === rows.length) {
     patterns.push('All services SERVING — healthy deployment; per-service granularity available.');

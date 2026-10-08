@@ -22,25 +22,31 @@
 export const QMIN_BEHAVIOR_PROFILES = {
   'bind-strict': {
     software: 'BIND 9 (qname-minimization: strict)',
-    quirks: ['sends single-label names below delegation', 'never relaxes on NXDOMAIN unless configured'],
+    quirks: [
+      'sends single-label names below delegation',
+      'never relaxes on NXDOMAIN unless configured',
+    ],
   },
   'bind-relaxed': {
     software: 'BIND 9 (qname-minimization: relaxed)',
-    quirks: ['minimizes but falls back to full QNAME after error responses', 'relaxes below delegation on repeated failure'],
+    quirks: [
+      'minimizes but falls back to full QNAME after error responses',
+      'relaxes below delegation on repeated failure',
+    ],
   },
-  'unbound': {
+  unbound: {
     software: 'Unbound (qname-minimization: yes)',
     quirks: ['iterative single-label queries', 'relaxes to full name on empty non-terminals'],
   },
-  'powerdns': {
+  powerdns: {
     software: 'PowerDNS Recursor (qname-minimization: on)',
     quirks: ['uses 10-iteration cap per label', 'relaxes on servfail'],
   },
-  'knot': {
+  knot: {
     software: 'Knot Resolver (qname-minimization: on)',
     quirks: ['single-label queries', 'DNSSEC-driven relaxation edge cases'],
   },
-  'none': {
+  none: {
     software: 'Unknown / minimization disabled',
     quirks: ['full QNAME sent to every authority'],
   },
@@ -88,13 +94,18 @@ export function detectQnameMinimization(trace = {}) {
   const exchanges = Array.isArray(trace.exchanges) ? trace.exchanges : [];
   const scores = exchanges.map(scoreQminExchange);
   const paired = scores.map((score, i) => ({ score, exchange: exchanges[i] }));
-  const minimizedLevels = paired.filter((p) => p.score.minimized).map((p) => p.exchange.authorityLevel);
+  const minimizedLevels = paired.filter(p => p.score.minimized).map(p => p.exchange.authorityLevel);
   const leakedLevels = paired
-    .filter((p) => p.exchange.authorityLevel !== 'leaf' && !p.score.minimized)
-    .map((p) => p.exchange.authorityLevel);
-  const fullLeaks = scores.filter((s, i) => s.observedQname && exchanges[i].authorityLevel !== 'leaf' && s.signal.startsWith('NOT minimized')).length;
-  const minimizationSteps = scores.filter((s) => s.minimized).length;
-  const totalAuthoritySteps = exchanges.filter((e) => e.authorityLevel !== 'leaf').length;
+    .filter(p => p.exchange.authorityLevel !== 'leaf' && !p.score.minimized)
+    .map(p => p.exchange.authorityLevel);
+  const fullLeaks = scores.filter(
+    (s, i) =>
+      s.observedQname &&
+      exchanges[i].authorityLevel !== 'leaf' &&
+      s.signal.startsWith('NOT minimized')
+  ).length;
+  const minimizationSteps = scores.filter(s => s.minimized).length;
+  const totalAuthoritySteps = exchanges.filter(e => e.authorityLevel !== 'leaf').length;
 
   let qminSupported = false;
   let confidence = 'low';
@@ -111,12 +122,15 @@ export function detectQnameMinimization(trace = {}) {
 
   // Map the strict/relaxed profile to the most plausible resolver family note.
   const softwareGuess = qminSupported
-    ? (profile === 'strict' ? 'Unbound / Knot / strict-mode resolver (BIND 9 strict, Unbound, Knot Resolver)' : 'BIND 9 relaxed-mode or PowerDNS Recursor (relax-on-error behavior)')
+    ? profile === 'strict'
+      ? 'Unbound / Knot / strict-mode resolver (BIND 9 strict, Unbound, Knot Resolver)'
+      : 'BIND 9 relaxed-mode or PowerDNS Recursor (relax-on-error behavior)'
     : 'Resolver does not minimize QNAME (full names leaked upstream — consider qmin disabled or older software)';
 
-  const evidence = scores.length === 0
-    ? 'No delegation exchanges observed — nothing to score.'
-    : scores.map((s) => s.signal).join('; ');
+  const evidence =
+    scores.length === 0
+      ? 'No delegation exchanges observed — nothing to score.'
+      : scores.map(s => s.signal).join('; ');
 
   return {
     type: 'DNS QNAME-Minimization Detection',

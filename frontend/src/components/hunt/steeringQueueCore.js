@@ -25,20 +25,40 @@ export const WAVE40_SQ_IDEAS = [
   [51583, 'retest proposals', '"The target changed; want me to re-verify the earlier findings?"'],
   [51584, 'collaboration prompts', '"Should I invite a teammate to look at this finding?"'],
   [51585, 'learning questions', '"Was that finding useful? Your answer improves my future hunts."'],
-  [51586, 'assumption disclosures', 'The agent states assumptions it operates under for you to correct'],
+  [
+    51586,
+    'assumption disclosures',
+    'The agent states assumptions it operates under for you to correct',
+  ],
   [51587, 'plan-review prompts', '"Here\'s my plan for the next phase — any changes?"'],
   [51588, 'checkpoint questions', 'Scheduled moments where the agent asks for direction'],
-  [51589, 'anomaly alerts as questions', '"Traffic spiked unusually — should I investigate or ignore?"'],
-  [51590, 'coverage questions', '"I\'ve covered 80% — chase the last 20% or go deeper on findings?"'],
+  [
+    51589,
+    'anomaly alerts as questions',
+    '"Traffic spiked unusually — should I investigate or ignore?"',
+  ],
+  [
+    51590,
+    'coverage questions',
+    '"I\'ve covered 80% — chase the last 20% or go deeper on findings?"',
+  ],
   [51591, 'tool-choice questions', '"Two tools could do this; prefer speed or thoroughness?"'],
   [51592, 'evidence questions', '"I have enough for a medium; want stronger proof for a high?"'],
   [51593, 'timing questions', '"This test is slow; run it now or overnight?"'],
   [51594, 'parallelism questions', '"I can run these in parallel; okay to increase load?"'],
   [51595, 'data-handling questions', '"I found exposed data; how should I handle it?"'],
-  [51596, 'disclosure questions', '"Critical finding confirmed — notify the client now or at the end?"'],
+  [
+    51596,
+    'disclosure questions',
+    '"Critical finding confirmed — notify the client now or at the end?"',
+  ],
   [51597, 'steering feedback requests', '"Did that redirection help? I\'ll remember your answer."'],
   [51598, 'goal-alignment checks', '"Just confirming: the goal is still maximum coverage, right?"'],
-  [51599, 'interruption triage', 'When several questions queue, the agent asks the most urgent first'],
+  [
+    51599,
+    'interruption triage',
+    'When several questions queue, the agent asks the most urgent first',
+  ],
   [51600, 'question snoozing', 'Snooze a proactive question and have it return at a better time'],
 ];
 
@@ -103,7 +123,12 @@ export function queueSummary(queue, nowMs) {
   const q = queue || createQueue();
   const due = duePrompts(q, nowMs);
   const snoozed = (q.items || []).filter(p => p.status === 'open' && isSnoozed(p, nowMs)).length;
-  return { total: q.items.length, due: due.length, snoozed, answered: q.items.filter(p => p.status === 'answered').length };
+  return {
+    total: q.items.length,
+    due: due.length,
+    snoozed,
+    answered: q.items.filter(p => p.status === 'answered').length,
+  };
 }
 
 /* --- 51581 notification preference checks ------------------------------------- */
@@ -111,7 +136,13 @@ export function queueSummary(queue, nowMs) {
 export const INTERRUPT_MODES = ['interrupt', 'batch', 'silent'];
 
 export function defaultInterruptPrefs() {
-  return { critical: 'interrupt', high: 'interrupt', medium: 'batch', low: 'silent', info: 'silent' };
+  return {
+    critical: 'interrupt',
+    high: 'interrupt',
+    medium: 'batch',
+    low: 'silent',
+    info: 'silent',
+  };
 }
 
 /** Learn when the human wants interruption from their answers. */
@@ -141,7 +172,10 @@ export function notificationPrefPrompt(prefs) {
       { key: 'quieter', label: 'Quieter (batch highs too)' },
       { key: 'louder', label: 'Louder (interrupt on mediums)' },
     ],
-    urgency: 'low', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'low',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -155,13 +189,19 @@ export function handoffQuestion(idleMs, thresholdMs, nowMs) {
     id: 'handoff-' + Math.round(Number(nowMs) || 0),
     kind: 'handoff',
     title: 'You seem away — continue or wait?',
-    body: 'No response for ' + Math.round(idle / 60000) + ' minutes. Should I continue autonomously or pause for you?',
+    body:
+      'No response for ' +
+      Math.round(idle / 60000) +
+      ' minutes. Should I continue autonomously or pause for you?',
     options: [
       { key: 'continue', label: 'Continue autonomously' },
       { key: 'wait', label: 'Wait for me' },
       { key: 'safe', label: 'Continue, safe steps only' },
     ],
-    urgency: 'high', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'high',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -174,16 +214,28 @@ export function retestProposal(changedAssets, findings) {
     id: 'retest-' + affected.length,
     kind: 'retest',
     title: 'Re-verify earlier findings?',
-    body: changed.length + ' asset' + (changed.length === 1 ? '' : 's') +
-      ' changed since the hunt (' + changed.slice(0, 3).join(', ') + '). ' +
-      affected.length + ' finding' + (affected.length === 1 ? '' : 's') + ' may be affected.',
+    body:
+      changed.length +
+      ' asset' +
+      (changed.length === 1 ? '' : 's') +
+      ' changed since the hunt (' +
+      changed.slice(0, 3).join(', ') +
+      '). ' +
+      affected.length +
+      ' finding' +
+      (affected.length === 1 ? '' : 's') +
+      ' may be affected.',
     options: [
       { key: 'retest', label: 'Re-verify affected (' + affected.length + ')' },
       { key: 'all', label: 'Re-verify everything' },
       { key: 'skip', label: 'Skip' },
     ],
-    urgency: affected.some(f => String(f.severity).toLowerCase() === 'critical') ? 'high' : 'normal',
-    status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: affected.some(f => String(f.severity).toLowerCase() === 'critical')
+      ? 'high'
+      : 'normal',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
     affectedFindingIds: affected.map(f => f.id),
   };
 }
@@ -197,12 +249,22 @@ export function collaborationPrompt(finding, teammates) {
     id: 'collab-' + String(f.id || 'x'),
     kind: 'collaboration',
     title: 'Invite a teammate to look at this?',
-    body: '"' + String(f.title || 'This finding') + '" [' + String(f.severity || '?') +
+    body:
+      '"' +
+      String(f.title || 'This finding') +
+      '" [' +
+      String(f.severity || '?') +
       '] could use a second pair of eyes.',
     options: team.length
       ? team.concat([{ key: 'no', label: 'Handle solo' }])
-      : [{ key: 'invite', label: 'Invite teammate' }, { key: 'no', label: 'Handle solo' }],
-    urgency: 'low', status: 'open', answerKey: null, snoozedUntilMs: null,
+      : [
+          { key: 'invite', label: 'Invite teammate' },
+          { key: 'no', label: 'Handle solo' },
+        ],
+    urgency: 'low',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -220,13 +282,20 @@ export function learningQuestion(finding) {
       { key: 'noise', label: 'Noise' },
       { key: 'unsure', label: 'Not sure' },
     ],
-    urgency: 'low', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'low',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
 export function recordLearningAnswer(store, findingId, useful) {
   const s = store || {};
-  const entry = { findingId: String(findingId), useful: useful === true || useful === 'useful', atMs: 0 };
+  const entry = {
+    findingId: String(findingId),
+    useful: useful === true || useful === 'useful',
+    atMs: 0,
+  };
   return { entries: (s.entries || []).concat([entry]) };
 }
 
@@ -246,8 +315,14 @@ export function assumptionDisclosure(assumptions) {
     title: 'Assumptions I am operating under',
     body: 'Correct anything wrong — I will adjust immediately.',
     assumptions: list,
-    options: [{ key: 'all-good', label: 'All correct' }, { key: 'correct', label: 'Let me correct one' }],
-    urgency: 'normal', status: 'open', answerKey: null, snoozedUntilMs: null,
+    options: [
+      { key: 'all-good', label: 'All correct' },
+      { key: 'correct', label: 'Let me correct one' },
+    ],
+    urgency: 'normal',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -255,7 +330,7 @@ export function assumptionDisclosure(assumptions) {
 
 export function planReviewPrompt(plan) {
   const p = plan || {};
-  const phases = (p.phases || []).map((ph, i) => (i + 1) + '. ' + String(ph));
+  const phases = (p.phases || []).map((ph, i) => i + 1 + '. ' + String(ph));
   return {
     id: 'plan-review',
     kind: 'plan-review',
@@ -267,7 +342,10 @@ export function planReviewPrompt(plan) {
       { key: 'tweak', label: 'Tweak a phase' },
       { key: 'rewrite', label: 'Propose something else' },
     ],
-    urgency: 'normal', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'normal',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -282,13 +360,21 @@ export function checkpointQuestion(phase, intervalMs, elapsedMs) {
     id: 'checkpoint-' + Math.round(elapsed),
     kind: 'checkpoint',
     title: 'Checkpoint — ' + String(phase || 'hunt'),
-    body: 'Scheduled direction check at ' + Math.round(elapsed / 60000) + ' minutes into ' + String(phase || 'the hunt') + '. Keep going or change course?',
+    body:
+      'Scheduled direction check at ' +
+      Math.round(elapsed / 60000) +
+      ' minutes into ' +
+      String(phase || 'the hunt') +
+      '. Keep going or change course?',
     options: [
       { key: 'continue', label: 'Keep going' },
       { key: 'steer', label: 'Steer me' },
       { key: 'stop', label: 'Stop the hunt' },
     ],
-    urgency: 'normal', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'normal',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -297,20 +383,29 @@ export function checkpointQuestion(phase, intervalMs, elapsedMs) {
 export function anomalyQuestion(metric, baseline, current) {
   const b = Number(baseline) || 0;
   const c = Number(current) || 0;
-  const mult = b > 0 ? c / b : (c > 0 ? 99 : 1);
+  const mult = b > 0 ? c / b : c > 0 ? 99 : 1;
   return {
     id: 'anomaly-' + String(metric || 'm'),
     kind: 'anomaly',
     title: 'Unusual ' + String(metric || 'traffic') + ' — investigate?',
-    body: String(metric || 'Traffic') + ' is at ' + c + ' vs a baseline of ' + b +
-      ' (' + (b > 0 ? mult.toFixed(1) + '×' : 'new activity') + '). Investigate or ignore?',
+    body:
+      String(metric || 'Traffic') +
+      ' is at ' +
+      c +
+      ' vs a baseline of ' +
+      b +
+      ' (' +
+      (b > 0 ? mult.toFixed(1) + '×' : 'new activity') +
+      '). Investigate or ignore?',
     options: [
       { key: 'investigate', label: 'Investigate' },
       { key: 'ignore', label: 'Ignore' },
       { key: 'watch', label: 'Watch it' },
     ],
     urgency: mult >= 5 ? 'urgent' : 'high',
-    status: 'open', answerKey: null, snoozedUntilMs: null,
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
     multiplier: b > 0 ? Math.round(mult * 10) / 10 : null,
   };
 }
@@ -329,14 +424,17 @@ export function coverageQuestion(coveredPct, totalAssets) {
       { key: 'deeper', label: 'Go deeper on findings' },
     ],
     urgency: pct >= 80 ? 'normal' : 'low',
-    status: 'open', answerKey: null, snoozedUntilMs: null,
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
 /* --- 51591 tool-choice questions ---------------------------------------------------- */
 
 export function toolChoiceQuestion(toolA, toolB) {
-  const a = String(toolA || 'fast-scan'), b = String(toolB || 'deep-scan');
+  const a = String(toolA || 'fast-scan'),
+    b = String(toolB || 'deep-scan');
   return {
     id: 'tool-choice',
     kind: 'tool-choice',
@@ -346,7 +444,10 @@ export function toolChoiceQuestion(toolA, toolB) {
       { key: 'speed', label: 'Speed — ' + a },
       { key: 'thorough', label: 'Thorough — ' + b },
     ],
-    urgency: 'low', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'low',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -359,14 +460,22 @@ export function evidenceQuestion(finding, targetSeverity) {
     id: 'evidence-' + String(f.id || 'x'),
     kind: 'evidence',
     title: 'Stronger proof for a ' + target + '?',
-    body: 'I have enough for "' + String(f.title || 'this finding') +
-      '" at ' + String(f.severity || 'current severity') +
-      '. Want stronger proof to justify ' + target + '?',
+    body:
+      'I have enough for "' +
+      String(f.title || 'this finding') +
+      '" at ' +
+      String(f.severity || 'current severity') +
+      '. Want stronger proof to justify ' +
+      target +
+      '?',
     options: [
       { key: 'strengthen', label: 'Gather stronger proof' },
       { key: 'enough', label: 'Current proof is enough' },
     ],
-    urgency: 'normal', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'normal',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -386,7 +495,9 @@ export function timingQuestion(testName, estMs) {
       { key: 'skip', label: 'Skip it' },
     ],
     urgency: slow ? 'normal' : 'low',
-    status: 'open', answerKey: null, snoozedUntilMs: null,
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
     estimatedMs: est,
   };
 }
@@ -401,12 +512,21 @@ export function parallelismQuestion(jobs, currentParallel, maxParallel) {
     id: 'parallelism',
     kind: 'parallelism',
     title: 'Increase parallel load?',
-    body: j + ' jobs queued; currently running ' + cur + ' at a time (max ' + max + '). Okay to increase load?',
+    body:
+      j +
+      ' jobs queued; currently running ' +
+      cur +
+      ' at a time (max ' +
+      max +
+      '). Okay to increase load?',
     options: [
       { key: 'increase', label: 'Increase to ' + Math.min(max, cur + 2) },
       { key: 'keep', label: 'Keep at ' + cur },
     ],
-    urgency: 'low', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'low',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
     suggestedParallel: Math.min(max, cur + 2),
   };
 }
@@ -421,10 +541,20 @@ export function dataHandlingQuestion(finding) {
     id: 'data-' + String(f.id || 'x'),
     kind: 'data-handling',
     title: 'How should I handle this exposed data?',
-    body: '"' + String(f.title || 'The finding') + '" exposed data on ' + String(f.asset || 'the target') +
+    body:
+      '"' +
+      String(f.title || 'The finding') +
+      '" exposed data on ' +
+      String(f.asset || 'the target') +
       '. I will not store raw sensitive content without your say.',
-    options: DATA_HANDLING_OPTIONS.map(k => ({ key: k, label: k[0].toUpperCase() + k.slice(1).replace('-', ' ') })),
-    urgency: 'urgent', status: 'open', answerKey: null, snoozedUntilMs: null,
+    options: DATA_HANDLING_OPTIONS.map(k => ({
+      key: k,
+      label: k[0].toUpperCase() + k.slice(1).replace('-', ' '),
+    })),
+    urgency: 'urgent',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -436,14 +566,21 @@ export function disclosureQuestion(finding, stage) {
     id: 'disclosure-' + String(f.id || 'x'),
     kind: 'disclosure',
     title: 'Notify the client now or at the end?',
-    body: 'Critical finding confirmed: "' + String(f.title || 'a critical finding') +
-      '". Disclosure stage: ' + String(stage || 'mid-hunt') + '.',
+    body:
+      'Critical finding confirmed: "' +
+      String(f.title || 'a critical finding') +
+      '". Disclosure stage: ' +
+      String(stage || 'mid-hunt') +
+      '.',
     options: [
       { key: 'now', label: 'Notify now' },
       { key: 'end', label: 'At the end of the hunt' },
       { key: 'never', label: 'Do not notify' },
     ],
-    urgency: 'urgent', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'urgent',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -454,14 +591,19 @@ export function steeringFeedbackRequest(action) {
     id: 'steerfb-' + String((action && action.id) || 'x'),
     kind: 'steering-feedback',
     title: 'Did that redirection help?',
-    body: 'I redirected after "' + String((action && action.label) || 'your steering') +
+    body:
+      'I redirected after "' +
+      String((action && action.label) || 'your steering') +
       '" — your answer teaches me for next time.',
     options: [
       { key: 'helped', label: 'It helped' },
       { key: 'hurt', label: 'It hurt' },
       { key: 'neutral', label: 'No difference' },
     ],
-    urgency: 'low', status: 'open', answerKey: null, snoozedUntilMs: null,
+    urgency: 'low',
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }
 
@@ -494,6 +636,8 @@ export function goalAlignmentCheck(goal, lastConfirmedMs, nowMs) {
       { key: 'change', label: 'Goal changed' },
     ],
     urgency: stale ? 'normal' : 'low',
-    status: 'open', answerKey: null, snoozedUntilMs: null,
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
   };
 }

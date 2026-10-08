@@ -26,7 +26,6 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  
 }
 .dm-report-export .dm-btn-primary,
 .dm-report-export .dm-btn-secondary {
@@ -47,10 +46,19 @@
   white-space: nowrap;
 }
 @media (max-width: 560px) {
-  .dm-report-export { gap: 8px; }
+  .dm-report-export {
+    gap: 8px;
+  }
   .dm-report-export .dm-btn-primary,
-  .dm-report-export .dm-btn-secondary { flex: 1 1 auto; justify-content: center; }
-  .dm-export-note { white-space: normal; flex-basis: 100%; margin-top: 2px; }
+  .dm-report-export .dm-btn-secondary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .dm-export-note {
+    white-space: normal;
+    flex-basis: 100%;
+    margin-top: 2px;
+  }
 }
 
 /* ════ Avatar ════ */
@@ -58,24 +66,40 @@
 
 /* Reduced motion: state ring must rest too (previously omitted) */
 @media (prefers-reduced-motion: reduce) {
-  .avatar, .avatar-state-ring { animation: none; }
+  .avatar,
+  .avatar-state-ring {
+    animation: none;
+  }
 }
 
 /* ════ BentoGrid ════ */
-.bento-grid { gap: 16px; }
+.bento-grid {
+  gap: 16px;
+}
 
 .bento-tile {
   min-width: 0; /* prevent long content from blowing out the track */
   overflow-wrap: anywhere;
-  
 }
 /* Stagger the first few tiles; cap so long grids don't drift forever */
-.bento-grid > .bento-tile:nth-child(1) { animation-delay: 0.02s; }
-.bento-grid > .bento-tile:nth-child(2) { animation-delay: 0.08s; }
-.bento-grid > .bento-tile:nth-child(3) { animation-delay: 0.14s; }
-.bento-grid > .bento-tile:nth-child(4) { animation-delay: 0.2s; }
-.bento-grid > .bento-tile:nth-child(5) { animation-delay: 0.26s; }
-.bento-grid > .bento-tile:nth-child(6) { animation-delay: 0.32s; }
+.bento-grid > .bento-tile:nth-child(1) {
+  animation-delay: 0.02s;
+}
+.bento-grid > .bento-tile:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.bento-grid > .bento-tile:nth-child(3) {
+  animation-delay: 0.14s;
+}
+.bento-grid > .bento-tile:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.bento-grid > .bento-tile:nth-child(5) {
+  animation-delay: 0.26s;
+}
+.bento-grid > .bento-tile:nth-child(6) {
+  animation-delay: 0.32s;
+}
 
 /* Focus ring for tiles that are interactive (tabindex / onClick) */
 .bento-tile:focus-visible {
@@ -84,9 +108,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bento-tile { animation: none; }
+  .bento-tile {
+    animation: none;
+  }
 }
 @media (max-width: 560px) {
-  .bento-grid { gap: 12px; }
-  .bento-tile { padding: 18px; } /* slightly tighter, no content touching edges */
+  .bento-grid {
+    gap: 12px;
+  }
+  .bento-tile {
+    padding: 18px;
+  } /* slightly tighter, no content touching edges */
 }

@@ -13,9 +13,7 @@
  */
 
 /** Well-known locations of the crossdomain.xml file. */
-export const CANDIDATE_PATHS = [
-  '/crossdomain.xml',
-];
+export const CANDIDATE_PATHS = ['/crossdomain.xml'];
 
 /**
  * Build candidate file URLs for a target.
@@ -25,7 +23,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -43,11 +41,17 @@ export function candidateUrls(baseUrl = '') {
 export function analyzeCrossdomain(content, opts = {}) {
   const source = opts.sourceUrl || null;
   const result = {
-    source, allowAccessFrom: [], allowHttpRequestHeadersFrom: [],
-    siteControlPermitted: [], hosts: [], overlyPermissive: false, rawParse: false,
+    source,
+    allowAccessFrom: [],
+    allowHttpRequestHeadersFrom: [],
+    siteControlPermitted: [],
+    hosts: [],
+    overlyPermissive: false,
+    rawParse: false,
   };
   const text = String(content || '');
-  if (!/<cross-domain-policy[\s>]/i.test(text) && !/<allow-access-from[\s>]/i.test(text)) return result;
+  if (!/<cross-domain-policy[\s>]/i.test(text) && !/<allow-access-from[\s>]/i.test(text))
+    return result;
   result.rawParse = true;
   const hosts = new Set();
 
@@ -68,7 +72,9 @@ export function analyzeCrossdomain(content, opts = {}) {
     });
   }
 
-  for (const m of text.matchAll(/<allow-http-request-headers-from\b([^>]*)>([^<]*)<\/allow-http-request-headers-from>/gi)) {
+  for (const m of text.matchAll(
+    /<allow-http-request-headers-from\b([^>]*)>([^<]*)<\/allow-http-request-headers-from>/gi
+  )) {
     const tag = m[1];
     const domain = ((tag.match(/\bdomain\s*=\s*["']([^"']+)["']/i) || [])[1] || '').trim();
     const headers = (tag.match(/\bheaders\s*=\s*["']([^"']+)["']/i) || [])[1] || m[2] || '';
@@ -76,15 +82,20 @@ export function analyzeCrossdomain(content, opts = {}) {
     if (normalized && normalized !== '*') hosts.add(normalized);
     result.allowHttpRequestHeadersFrom.push({
       domain,
-      headers: headers.split(',').map((h) => h.trim()).filter(Boolean),
+      headers: headers
+        .split(',')
+        .map(h => h.trim())
+        .filter(Boolean),
     });
   }
 
-  for (const m of text.matchAll(/<site-control\b[^>]*permitted-cross-domain-policies\s*=\s*["']([^"']+)["']/gi)) {
+  for (const m of text.matchAll(
+    /<site-control\b[^>]*permitted-cross-domain-policies\s*=\s*["']([^"']+)["']/gi
+  )) {
     result.siteControlPermitted.push(m[1]);
   }
 
-  result.hosts = [...hosts].filter((h) => h !== '*');
+  result.hosts = [...hosts].filter(h => h !== '*');
   return result;
 }
 
@@ -100,17 +111,21 @@ export function scorePolicy(analysis) {
     score += 60;
     reasons.push('Global wildcard allow-access-from exposes the policy as overly permissive');
   }
-  const wildcards = (analysis.allowAccessFrom || []).filter((a) => a.wildcard && !a.globalWildcard);
+  const wildcards = (analysis.allowAccessFrom || []).filter(a => a.wildcard && !a.globalWildcard);
   if (wildcards.length) {
     score += 20 * Math.min(wildcards.length, 3);
-    reasons.push(`${wildcards.length} wildcard subdomain entr${wildcards.length === 1 ? 'y' : 'ies'} disclose partner/internal domain space`);
+    reasons.push(
+      `${wildcards.length} wildcard subdomain entr${wildcards.length === 1 ? 'y' : 'ies'} disclose partner/internal domain space`
+    );
   }
-  const internal = (analysis.hosts || []).filter((h) => /internal|intranet|corp|staging|dev|test|local/i.test(h));
+  const internal = (analysis.hosts || []).filter(h =>
+    /internal|intranet|corp|staging|dev|test|local/i.test(h)
+  );
   if (internal.length) {
     score += 25;
     reasons.push(`Internal-looking hosts disclosed: ${internal.slice(0, 5).join(', ')}`);
   }
-  const insecure = (analysis.allowAccessFrom || []).filter((a) => a.secure === false);
+  const insecure = (analysis.allowAccessFrom || []).filter(a => a.secure === false);
   if (insecure.length) {
     score += 15;
     reasons.push(`${insecure.length} entries allow insecure (non-HTTPS) origins`);

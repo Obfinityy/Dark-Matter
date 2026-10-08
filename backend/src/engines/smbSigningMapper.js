@@ -62,7 +62,9 @@ export function classifySmbSigning({
   guestAllowed = false,
 } = {}) {
   const isSmb1 = /^smb1?$/i.test(dialect.replace(/[\s.]/g, ''));
-  const decoded = isSmb1 ? decodeSmb1SecurityMode(securityMode) : decodeSmb2SecurityMode(securityMode);
+  const decoded = isSmb1
+    ? decodeSmb1SecurityMode(securityMode)
+    : decodeSmb2SecurityMode(securityMode);
   const enabled = decoded.signaturesEnabled ?? decoded.enabled;
   const required = decoded.signaturesRequired ?? decoded.required;
 
@@ -103,13 +105,13 @@ export function classifySmbSigning({
  * @returns {Object} Aggregate signing map with relay-risk list.
  */
 export function mapSmbSigning(observations = []) {
-  const hosts = observations.map((o) => classifySmbSigning(o));
-  const atRisk = hosts.filter((h) => h.relayRisk).map((h) => h.server);
+  const hosts = observations.map(o => classifySmbSigning(o));
+  const atRisk = hosts.filter(h => h.relayRisk).map(h => h.server);
   return {
     type: 'SMB Signing Requirement Map',
     confidence: 'high',
     hostCount: hosts.length,
-    required: hosts.filter((h) => h.signingRequired).length,
+    required: hosts.filter(h => h.signingRequired).length,
     notRequired: atRisk.length,
     relayRiskHosts: atRisk,
     hosts,

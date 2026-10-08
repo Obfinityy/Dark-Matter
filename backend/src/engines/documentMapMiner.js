@@ -94,9 +94,10 @@ function hostnameOf(url) {
  */
 export function planIframeCrawl(iframeTree, opts = {}) {
   const maxDepth = Number.isFinite(opts.maxDepth) ? opts.maxDepth : 3;
-  const rootOrigin = iframeTree && iframeTree.origin
-    ? String(iframeTree.origin)
-    : originOf(iframeTree && iframeTree.url);
+  const rootOrigin =
+    iframeTree && iframeTree.origin
+      ? String(iframeTree.origin)
+      : originOf(iframeTree && iframeTree.url);
 
   const frames = [];
   let maxDepthSeen = 0;
@@ -109,9 +110,10 @@ export function planIframeCrawl(iframeTree, opts = {}) {
       const src = resolveUrl(child.src, iframeTree && iframeTree.url);
       const childPath = `${path}/iframe[${idx}]`;
       const childOrigin = src ? originOf(src) : null;
-      const sameOrigin = typeof child.sameOrigin === 'boolean'
-        ? child.sameOrigin
-        : Boolean(rootOrigin && childOrigin && rootOrigin === childOrigin);
+      const sameOrigin =
+        typeof child.sameOrigin === 'boolean'
+          ? child.sameOrigin
+          : Boolean(rootOrigin && childOrigin && rootOrigin === childOrigin);
       const childDepth = depth + 1;
       let crawlable = false;
       let reason = '';
@@ -142,11 +144,11 @@ export function planIframeCrawl(iframeTree, opts = {}) {
   walk(iframeTree, 0, 'root');
   return {
     frames,
-    sameOriginCount: frames.filter((f) => f.sameOrigin).length,
-    crossOriginCount: frames.filter((f) => f.src && !f.sameOrigin).length,
-    unresolvableCount: frames.filter((f) => !f.src).length,
+    sameOriginCount: frames.filter(f => f.sameOrigin).length,
+    crossOriginCount: frames.filter(f => f.src && !f.sameOrigin).length,
+    unresolvableCount: frames.filter(f => !f.src).length,
     maxDepthSeen,
-    crawlableCount: frames.filter((f) => f.crawlable).length,
+    crawlableCount: frames.filter(f => f.crawlable).length,
   };
 }
 
@@ -164,12 +166,15 @@ const ATTR_RE = /([\w-:]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
  */
 function parseTagAttrs(tag) {
   const attrs = {};
-  const inner = String(tag).replace(/^<\w+\s*/, '').replace(/\/?>$/, '');
+  const inner = String(tag)
+    .replace(/^<\w+\s*/, '')
+    .replace(/\/?>$/, '');
   let m;
   ATTR_RE.lastIndex = 0;
   while ((m = ATTR_RE.exec(inner)) !== null) {
     const name = m[1].toLowerCase();
-    attrs[name] = m[2] !== undefined ? m[2] : m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : true;
+    attrs[name] =
+      m[2] !== undefined ? m[2] : m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : true;
   }
   return attrs;
 }
@@ -208,7 +213,8 @@ export function extractCrossOriginIframeMeta(html, pageUrl = '') {
     const entry = {
       src,
       host: hostnameOf(src),
-      sandbox: typeof attrs.sandbox === 'string' ? attrs.sandbox : attrs.sandbox === true ? '' : null,
+      sandbox:
+        typeof attrs.sandbox === 'string' ? attrs.sandbox : attrs.sandbox === true ? '' : null,
       allow: typeof attrs.allow === 'string' ? attrs.allow : null,
       name: typeof attrs.name === 'string' ? attrs.name : null,
       title: typeof attrs.title === 'string' ? attrs.title : null,
@@ -270,7 +276,10 @@ export function parseSitemap(sitemapXml, baseUrl = '') {
     const blocks = xml.match(/<sitemap\b[\s\S]*?<\/sitemap>/gi) || [];
     for (const block of blocks) {
       const loc = resolveUrl(grab(block, 'loc'), baseUrl);
-      if (!loc) { errors.push('sitemap entry without resolvable <loc>'); continue; }
+      if (!loc) {
+        errors.push('sitemap entry without resolvable <loc>');
+        continue;
+      }
       sitemaps.push({ loc, lastmod: grab(block, 'lastmod') });
     }
     return { kind: 'index', sitemaps, urls, errors };
@@ -280,7 +289,10 @@ export function parseSitemap(sitemapXml, baseUrl = '') {
     const blocks = xml.match(/<url\b[\s\S]*?<\/url>/gi) || [];
     for (const block of blocks) {
       const loc = resolveUrl(grab(block, 'loc'), baseUrl);
-      if (!loc) { errors.push('url entry without resolvable <loc>'); continue; }
+      if (!loc) {
+        errors.push('url entry without resolvable <loc>');
+        continue;
+      }
       urls.push({
         loc,
         lastmod: grab(block, 'lastmod'),
@@ -328,12 +340,18 @@ export function expandSitemapIndex(sitemapDocs, startUrl, opts = {}) {
 
   const queue = [{ url: startUrl, depth: 0 }];
   while (queue.length > 0) {
-    if (visited.size >= maxSitemaps) { truncated = true; break; }
+    if (visited.size >= maxSitemaps) {
+      truncated = true;
+      break;
+    }
     const { url, depth } = queue.shift();
     if (visited.has(url) || depth > maxDepth) continue;
     visited.add(url);
     const xml = docs[url];
-    if (xml === undefined) { missing.push(url); continue; }
+    if (xml === undefined) {
+      missing.push(url);
+      continue;
+    }
     const parsed = parseSitemap(xml, url);
     if (visited.size === 1) kind = parsed.kind;
     for (const sm of parsed.sitemaps) {
@@ -360,12 +378,85 @@ export function expandSitemapIndex(sitemapDocs, startUrl, opts = {}) {
 
 /** Path patterns ranked by how often they guard sensitive functionality. */
 const DISALLOW_RANKINGS = [
-  { level: 'critical', score: 100, patterns: [/\.(git|svn|hg)\b/i, /\.env(\.|$)/i, /\bbackup\b/i, /\bbak\b/i, /\.sql(\.|$)/i, /\.bak(\.|$)/i] },
-  { level: 'critical', score: 95, patterns: [/\bwp-admin\b/i, /\bphpmyadmin\b/i, /\badminer\b/i, /\bmanager\/html\b/i, /\bjmx-console\b/i] },
-  { level: 'critical', score: 90, patterns: [/\badmin\b/i, /\bactuator\b/i, /\bconsole\b/i, /\bdebug\b/i, /\binternal\b/i, /\bprivate\b/i, /\bconfig\b/i, /\bsetup\b/i] },
-  { level: 'high', score: 75, patterns: [/\bapi\b.*\b(v1|internal|private|admin)\b/i, /\bstaging\b/i, /\bdev(elopment)?\b/i, /\btest(ing)?\b/i, /\bswagger\b/i, /\bgraphql\b/i, /\bserver-status\b/i, /\bserver-info\b/i] },
-  { level: 'high', score: 70, patterns: [/\btmp\b/i, /\btemp\b/i, /\blogs?\b/i, /\bcgi-bin\b/i, /\binclude\b/i, /\buploads?\b/i, /\bold\b/i, /\bnew\b/i] },
-  { level: 'medium', score: 50, patterns: [/\bsearch\b/i, /\bcart\b/i, /\bcheckout\b/i, /\baccount\b/i, /\buser\b/i, /\blogin\b/i, /\bsignin\b/i, /\bregister\b/i] },
+  {
+    level: 'critical',
+    score: 100,
+    patterns: [
+      /\.(git|svn|hg)\b/i,
+      /\.env(\.|$)/i,
+      /\bbackup\b/i,
+      /\bbak\b/i,
+      /\.sql(\.|$)/i,
+      /\.bak(\.|$)/i,
+    ],
+  },
+  {
+    level: 'critical',
+    score: 95,
+    patterns: [
+      /\bwp-admin\b/i,
+      /\bphpmyadmin\b/i,
+      /\badminer\b/i,
+      /\bmanager\/html\b/i,
+      /\bjmx-console\b/i,
+    ],
+  },
+  {
+    level: 'critical',
+    score: 90,
+    patterns: [
+      /\badmin\b/i,
+      /\bactuator\b/i,
+      /\bconsole\b/i,
+      /\bdebug\b/i,
+      /\binternal\b/i,
+      /\bprivate\b/i,
+      /\bconfig\b/i,
+      /\bsetup\b/i,
+    ],
+  },
+  {
+    level: 'high',
+    score: 75,
+    patterns: [
+      /\bapi\b.*\b(v1|internal|private|admin)\b/i,
+      /\bstaging\b/i,
+      /\bdev(elopment)?\b/i,
+      /\btest(ing)?\b/i,
+      /\bswagger\b/i,
+      /\bgraphql\b/i,
+      /\bserver-status\b/i,
+      /\bserver-info\b/i,
+    ],
+  },
+  {
+    level: 'high',
+    score: 70,
+    patterns: [
+      /\btmp\b/i,
+      /\btemp\b/i,
+      /\blogs?\b/i,
+      /\bcgi-bin\b/i,
+      /\binclude\b/i,
+      /\buploads?\b/i,
+      /\bold\b/i,
+      /\bnew\b/i,
+    ],
+  },
+  {
+    level: 'medium',
+    score: 50,
+    patterns: [
+      /\bsearch\b/i,
+      /\bcart\b/i,
+      /\bcheckout\b/i,
+      /\baccount\b/i,
+      /\buser\b/i,
+      /\blogin\b/i,
+      /\bsignin\b/i,
+      /\bregister\b/i,
+    ],
+  },
 ];
 
 /**
@@ -381,7 +472,10 @@ function rankDisallowPath(path) {
     for (const re of rank.patterns) {
       if (re.test(path)) {
         reasons.push(`matches ${re.source}`);
-        if (rank.score > score) { score = rank.score; level = rank.level; }
+        if (rank.score > score) {
+          score = rank.score;
+          level = rank.level;
+        }
       }
     }
   }
@@ -422,11 +516,17 @@ export function harvestRobotsDisallows(robotsTxt) {
       }
       current.agents.push(value.toLowerCase());
     } else if (field === 'disallow') {
-      if (!current) { current = { agents: ['*'], disallows: [], allows: [], sawRule: false }; groups.push(current); }
+      if (!current) {
+        current = { agents: ['*'], disallows: [], allows: [], sawRule: false };
+        groups.push(current);
+      }
       current.sawRule = true;
       if (value) current.disallows.push(value);
     } else if (field === 'allow') {
-      if (!current) { current = { agents: ['*'], disallows: [], allows: [], sawRule: false }; groups.push(current); }
+      if (!current) {
+        current = { agents: ['*'], disallows: [], allows: [], sawRule: false };
+        groups.push(current);
+      }
       current.sawRule = true;
       if (value) current.allows.push(value);
     }
@@ -448,7 +548,7 @@ export function harvestRobotsDisallows(robotsTxt) {
     .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));
 
   return {
-    groups: groups.map((g) => ({ agents: g.agents, disallows: g.disallows, allows: g.allows })),
+    groups: groups.map(g => ({ agents: g.agents, disallows: g.disallows, allows: g.allows })),
     ranked,
   };
 }
@@ -537,7 +637,7 @@ export function parseLlmsTxt(text, baseUrl = '') {
     BARE_URL_RE.lastIndex = 0;
     while ((m = BARE_URL_RE.exec(rawLine)) !== null) {
       const url = m[0].replace(/[.,;:!?]+$/, '');
-      if (!links.some((l) => l.url === url && l.line === lineNo)) {
+      if (!links.some(l => l.url === url && l.line === lineNo)) {
         links.push({ text: null, url, line: lineNo });
       }
     }
@@ -545,12 +645,15 @@ export function parseLlmsTxt(text, baseUrl = '') {
     ROUTE_RE.lastIndex = 0;
     while ((m = ROUTE_RE.exec(rawLine)) !== null) {
       const path = m[2];
-      if (path.length > 1 && !path.startsWith('//') && !routes.some((r) => r.path === path)) {
+      if (path.length > 1 && !path.startsWith('//') && !routes.some(r => r.path === path)) {
         routes.push({ path, line: lineNo });
       }
     }
 
-    if (/\bapi\b/i.test(line) && /\b(endpoint|route|parameter|authentication|token|key|request|response)\b/i.test(line)) {
+    if (
+      /\bapi\b/i.test(line) &&
+      /\b(endpoint|route|parameter|authentication|token|key|request|response)\b/i.test(line)
+    ) {
       apiMentions.push({ line: lineNo, text: line.slice(0, 220) });
     }
   });
@@ -578,7 +681,7 @@ export function parseLlmsTxt(text, baseUrl = '') {
  * }}
  */
 export function discoverHumansTxtLinks(text, seedHosts = []) {
-  const seeds = new Set((seedHosts || []).map((h) => String(h).toLowerCase()));
+  const seeds = new Set((seedHosts || []).map(h => String(h).toLowerCase()));
   const lines = String(text || '').split(/\r?\n/);
   const hostMap = new Map();
   const emails = [];
@@ -612,7 +715,7 @@ export function discoverHumansTxtLinks(text, seedHosts = []) {
 
     for (const m of line.matchAll(/[\w.+-]+@[\w-]+\.[\w.-]+/g)) {
       const email = m[0].toLowerCase();
-      if (!emails.some((e) => e.email === email)) {
+      if (!emails.some(e => e.email === email)) {
         emails.push({ email, domain: email.split('@')[1] || null });
       }
     }
@@ -621,7 +724,7 @@ export function discoverHumansTxtLinks(text, seedHosts = []) {
   const hosts = [...hostMap.values()].sort((a, b) => b.urls.length - a.urls.length);
   return {
     hosts,
-    newHosts: hosts.filter((h) => !seeds.has(h.host)),
+    newHosts: hosts.filter(h => !seeds.has(h.host)),
     emails,
     sections,
   };
@@ -662,28 +765,27 @@ export function parseSecurityTxt(text, baseUrl = '') {
     fields[key].push(m[2].trim());
   }
 
-  const classify = (value) => {
+  const classify = value => {
     if (/^mailto:/i.test(value)) return 'email';
     if (/^https?:\/\//i.test(value)) return 'url';
     if (/^tel:/i.test(value)) return 'phone';
     return 'other';
   };
 
-  const contacts = (fields.contact || []).map((value) => {
+  const contacts = (fields.contact || []).map(value => {
     const kind = classify(value);
-    const host = kind === 'email'
-      ? (value.replace(/^mailto:/i, '').split('@')[1] || null)
-      : kind === 'url' ? hostnameOf(value) : null;
+    const host =
+      kind === 'email'
+        ? value.replace(/^mailto:/i, '').split('@')[1] || null
+        : kind === 'url'
+          ? hostnameOf(value)
+          : null;
     return { value, kind, host };
   });
 
-  const canonical = (fields.canonical || [])
-    .map((v) => resolveUrl(v, baseUrl))
-    .filter(Boolean);
+  const canonical = (fields.canonical || []).map(v => resolveUrl(v, baseUrl)).filter(Boolean);
 
-  const urlList = (key) => (fields[key] || [])
-    .map((v) => resolveUrl(v, baseUrl))
-    .filter(Boolean);
+  const urlList = key => (fields[key] || []).map(v => resolveUrl(v, baseUrl)).filter(Boolean);
 
   const endpoints = [];
   for (const c of contacts) {
@@ -705,8 +807,12 @@ export function parseSecurityTxt(text, baseUrl = '') {
     policy: urlList('policy'),
     hiring: urlList('hiring'),
     acknowledgments: urlList('acknowledgments'),
-    preferredLanguages: (fields['preferred-languages'] || [])
-      .flatMap((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
+    preferredLanguages: (fields['preferred-languages'] || []).flatMap(v =>
+      v
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+    ),
     endpoints,
     fields,
   };
@@ -736,18 +842,24 @@ export function parseSecurityTxt(text, baseUrl = '') {
  * }}
  */
 export function expandAdsTxtDomains(adsTxt, seedDomains = []) {
-  const seeds = new Set((seedDomains || []).map((d) => String(d).toLowerCase().trim()).filter(Boolean));
+  const seeds = new Set(
+    (seedDomains || []).map(d => String(d).toLowerCase().trim()).filter(Boolean)
+  );
   const added = [];
   const add = (domain, via) => {
-    const d = String(domain || '').toLowerCase().trim().replace(/^www\./, '');
-    if (!d || seeds.has(d) || added.some((a) => a.domain === d)) return;
+    const d = String(domain || '')
+      .toLowerCase()
+      .trim()
+      .replace(/^www\./, '');
+    if (!d || seeds.has(d) || added.some(a => a.domain === d)) return;
     seeds.add(d);
     added.push({ domain: d, via });
   };
 
   const parsed = parseAdsTxt(adsTxt);
   for (const r of parsed.records || []) {
-    if (r.domain) add(r.domain, `ads.txt seller record (relationship=${r.relationship || 'unknown'})`);
+    if (r.domain)
+      add(r.domain, `ads.txt seller record (relationship=${r.relationship || 'unknown'})`);
   }
   for (const key of ['SUBDOMAIN', 'OWNERDOMAIN', 'MANAGERDOMAIN']) {
     for (const value of (parsed.declarations || {})[key] || []) {
@@ -760,8 +872,12 @@ export function expandAdsTxtDomains(adsTxt, seedDomains = []) {
     if (host) add(host, 'ads.txt contact');
   }
 
-  const sellerDomains = [...new Set((parsed.records || []).map((r) => String(r.domain || '').toLowerCase()).filter(Boolean))];
-  const declarationDomains = added.filter((a) => /declaration/.test(a.via)).map((a) => a.domain);
+  const sellerDomains = [
+    ...new Set(
+      (parsed.records || []).map(r => String(r.domain || '').toLowerCase()).filter(Boolean)
+    ),
+  ];
+  const declarationDomains = added.filter(a => /declaration/.test(a.via)).map(a => a.domain);
 
   return { seeds: [...seeds].sort(), added, sellerDomains, declarationDomains };
 }
@@ -789,14 +905,24 @@ const CDX_BASE = 'https://web.archive.org/cdx/search/cdx';
  * }}
  */
 export function buildWaybackSeedUrls(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase()
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
     .replace(/^https?:\/\//, '')
     .replace(/\/.*$/, '');
-  if (!clean) return { domain: '', queries: [], plan: { collapse: '', limit: 0, filters: [], note: 'empty domain' } };
+  if (!clean)
+    return {
+      domain: '',
+      queries: [],
+      plan: { collapse: '', limit: 0, filters: [], note: 'empty domain' },
+    };
 
   const collapse = opts.collapse || 'urlkey';
   const limit = Number.isFinite(opts.limit) ? opts.limit : 20000;
-  const filters = [opts.statusFilter || 'statuscode:200', opts.mimeFilter || 'mimetype:text/html'].filter(Boolean);
+  const filters = [
+    opts.statusFilter || 'statuscode:200',
+    opts.mimeFilter || 'mimetype:text/html',
+  ].filter(Boolean);
 
   const build = (urlPattern, matchType) => {
     const params = new URLSearchParams({
@@ -818,7 +944,11 @@ export function buildWaybackSeedUrls(domain, opts = {}) {
     { label: 'apex host corpus', scope: clean, url: build(`${clean}/*`, 'prefix') },
   ];
   if (opts.includeWww !== false && !clean.startsWith('www.')) {
-    queries.push({ label: 'www host corpus', scope: `www.${clean}`, url: build(`www.${clean}/*`, 'prefix') });
+    queries.push({
+      label: 'www host corpus',
+      scope: `www.${clean}`,
+      url: build(`www.${clean}/*`, 'prefix'),
+    });
   }
 
   return {
@@ -856,28 +986,60 @@ export function normalizeCorpusUrls(records, opts = {}) {
   const domain = opts.domain ? String(opts.domain).toLowerCase() : null;
 
   const dropped = {};
-  const drop = (reason) => { dropped[reason] = (dropped[reason] || 0) + 1; };
+  const drop = reason => {
+    dropped[reason] = (dropped[reason] || 0) + 1;
+  };
   const seen = new Set();
   const seeds = [];
 
   for (const r of records || []) {
     const raw = String((r && r.original) || '').trim();
-    if (!raw) { drop('empty original'); continue; }
-    let url;
-    try { url = new URL(raw); } catch { drop('unparseable url'); continue; }
-    if (!/^https?:$/.test(url.protocol)) { drop('non-http scheme'); continue; }
-    if (domain && url.hostname.toLowerCase() !== domain && !url.hostname.toLowerCase().endsWith(`.${domain}`)) {
-      drop('out-of-scope host'); continue;
+    if (!raw) {
+      drop('empty original');
+      continue;
     }
-    if (onlyOk && r.statuscode && !String(r.statuscode).startsWith('2')) { drop(`status ${r.statuscode}`); continue; }
-    if (onlyHtml && r.mimetype && !/^text\/html/i.test(String(r.mimetype))) { drop(`mimetype ${r.mimetype}`); continue; }
-    if (stripQuery) { url.search = ''; url.hash = ''; }
-    else url.hash = '';
+    let url;
+    try {
+      url = new URL(raw);
+    } catch {
+      drop('unparseable url');
+      continue;
+    }
+    if (!/^https?:$/.test(url.protocol)) {
+      drop('non-http scheme');
+      continue;
+    }
+    if (
+      domain &&
+      url.hostname.toLowerCase() !== domain &&
+      !url.hostname.toLowerCase().endsWith(`.${domain}`)
+    ) {
+      drop('out-of-scope host');
+      continue;
+    }
+    if (onlyOk && r.statuscode && !String(r.statuscode).startsWith('2')) {
+      drop(`status ${r.statuscode}`);
+      continue;
+    }
+    if (onlyHtml && r.mimetype && !/^text\/html/i.test(String(r.mimetype))) {
+      drop(`mimetype ${r.mimetype}`);
+      continue;
+    }
+    if (stripQuery) {
+      url.search = '';
+      url.hash = '';
+    } else url.hash = '';
     const key = url.href;
-    if (seen.has(key)) { drop('duplicate'); continue; }
+    if (seen.has(key)) {
+      drop('duplicate');
+      continue;
+    }
     seen.add(key);
     seeds.push(key);
-    if (seeds.length >= max) { drop('over max'); break; }
+    if (seeds.length >= max) {
+      drop('over max');
+      break;
+    }
   }
 
   return {
@@ -904,40 +1066,57 @@ export function summarizeDocumentMap(parts = {}) {
 
   if (parts.iframePlan) {
     targets += parts.iframePlan.crawlableCount || 0;
-    notes.push(`iframe crawl plan: ${parts.iframePlan.crawlableCount || 0} same-origin frames crawlable, ${parts.iframePlan.crossOriginCount || 0} cross-origin embeds inventoried`);
+    notes.push(
+      `iframe crawl plan: ${parts.iframePlan.crawlableCount || 0} same-origin frames crawlable, ${parts.iframePlan.crossOriginCount || 0} cross-origin embeds inventoried`
+    );
   }
   if (parts.iframeMeta) {
     targets += (parts.iframeMeta.thirdPartyHosts || []).length;
-    notes.push(`third-party integrations: ${(parts.iframeMeta.thirdPartyHosts || []).length} distinct hosts across ${parts.iframeMeta.total || 0} iframes`);
+    notes.push(
+      `third-party integrations: ${(parts.iframeMeta.thirdPartyHosts || []).length} distinct hosts across ${parts.iframeMeta.total || 0} iframes`
+    );
   }
   if (parts.sitemap) {
     const n = (parts.sitemap.urls || []).length;
     targets += n;
-    notes.push(`sitemap mining: ${n} URLs from ${parts.sitemap.visited ? parts.sitemap.visited.length : 1} sitemap document(s)`);
+    notes.push(
+      `sitemap mining: ${n} URLs from ${parts.sitemap.visited ? parts.sitemap.visited.length : 1} sitemap document(s)`
+    );
   }
   if (parts.robots) {
     const ranked = parts.robots.ranked || [];
-    const hot = ranked.filter((r) => r.level === 'critical' || r.level === 'high').length;
+    const hot = ranked.filter(r => r.level === 'critical' || r.level === 'high').length;
     targets += hot;
-    notes.push(`robots.txt: ${ranked.length} disallows harvested, ${hot} ranked critical/high priority`);
-    if (parts.robots.sitemaps) notes.push(`robots.txt declares ${parts.robots.sitemaps.length} sitemap directive(s)`);
+    notes.push(
+      `robots.txt: ${ranked.length} disallows harvested, ${hot} ranked critical/high priority`
+    );
+    if (parts.robots.sitemaps)
+      notes.push(`robots.txt declares ${parts.robots.sitemaps.length} sitemap directive(s)`);
   }
   if (parts.llms) {
     const n = (parts.llms.routes || []).length + (parts.llms.links || []).length;
     targets += n;
-    notes.push(`llms.txt: ${(parts.llms.routes || []).length} routes and ${(parts.llms.links || []).length} links documented`);
+    notes.push(
+      `llms.txt: ${(parts.llms.routes || []).length} routes and ${(parts.llms.links || []).length} links documented`
+    );
   }
   if (parts.humans) {
     targets += (parts.humans.newHosts || []).length;
-    notes.push(`humans.txt: ${(parts.humans.newHosts || []).length} new hosts discovered beyond seed set`);
+    notes.push(
+      `humans.txt: ${(parts.humans.newHosts || []).length} new hosts discovered beyond seed set`
+    );
   }
   if (parts.security) {
     targets += (parts.security.endpoints || []).length;
-    notes.push(`security.txt: ${(parts.security.endpoints || []).length} canonical contact endpoints confirmed`);
+    notes.push(
+      `security.txt: ${(parts.security.endpoints || []).length} canonical contact endpoints confirmed`
+    );
   }
   if (parts.ads) {
     targets += (parts.ads.added || []).length;
-    notes.push(`ads.txt: ${(parts.ads.added || []).length} new seed domains from seller relationships`);
+    notes.push(
+      `ads.txt: ${(parts.ads.added || []).length} new seed domains from seller relationships`
+    );
   }
   if (parts.wayback) {
     targets += (parts.wayback.seeds || []).length;

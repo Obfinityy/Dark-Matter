@@ -98,7 +98,7 @@ import {
   LongContextEngine,
   LongGenerationStore,
   LongGenerationEngine,
-  PhoneModelAdapter
+  PhoneModelAdapter,
 } from './services/longContext/index.js';
 import { UserBrainAdapter } from './services/userBrainAdapter.js';
 
@@ -113,7 +113,7 @@ function resolveDatabase(explicit) {
   // for anything persistent.
   console.warn(
     '[dark-matter] WARNING: MONGO_URL is not set — using an IN-MEMORY database. ' +
-    'All data will be lost on restart. Set MONGO_URL for persistence.'
+      'All data will be lost on restart. Set MONGO_URL for persistence.'
   );
   return new MemoryDatabase();
 }
@@ -132,8 +132,8 @@ export async function createApp({ database } = {}) {
     if (isMongo && config.nodeEnv !== 'production') {
       console.warn(
         `[dark-matter] WARNING: MongoDB unreachable (${err?.message || err}) — ` +
-        'falling back to an IN-MEMORY database for this session. ' +
-        'Data will be lost on restart. Check backend/.env MONGO_URL when you are back online.'
+          'falling back to an IN-MEMORY database for this session. ' +
+          'Data will be lost on restart. Check backend/.env MONGO_URL when you are back online.'
       );
       database = new MemoryDatabase();
       await database.init();
@@ -179,7 +179,7 @@ export async function createApp({ database } = {}) {
     sessionModel,
     sessionDays: config.sessionDays,
     jwtSecret: config.jwtSecret,
-    jwtDays: config.jwtDays
+    jwtDays: config.jwtDays,
   });
   const eventService = new EventService(database);
   const subdomainService = new SubdomainService({ scanModel, targetModel, eventService });
@@ -194,7 +194,11 @@ export async function createApp({ database } = {}) {
 
   const stateManager = new StateManager({ agentStateModel, assessmentModel, eventService });
   const planner = new Planner({ providerModel });
-  const toolExecutor = new ToolExecutor({ toolExecutionModel, eventService, scopeEngine: defaultScopeEngine });
+  const toolExecutor = new ToolExecutor({
+    toolExecutionModel,
+    eventService,
+    scopeEngine: defaultScopeEngine,
+  });
 
   const agentBrain = new AgentBrain({
     stateManager,
@@ -203,7 +207,7 @@ export async function createApp({ database } = {}) {
     scopeEngine: defaultScopeEngine,
     eventService,
     assessmentModel,
-    findingModel
+    findingModel,
   });
 
   const assessmentService = new AssessmentService({
@@ -213,7 +217,7 @@ export async function createApp({ database } = {}) {
     stateManager,
     eventService,
     planner,
-    providerModel
+    providerModel,
   });
 
   const reportService = new ReportService({
@@ -223,7 +227,7 @@ export async function createApp({ database } = {}) {
     toolExecutionModel,
     agentStateModel,
     eventService,
-    evidenceModel
+    evidenceModel,
   });
 
   // ─── Computer Control (Open-Interface "hands") ───────────────────
@@ -234,11 +238,13 @@ export async function createApp({ database } = {}) {
   const computerAdapter = new OpenInterfaceAdapter({
     config: config.computer,
     state: computerState,
-    events: computerEvents
+    events: computerEvents,
   });
   computerState.setCapabilities(null, {
     available: false,
-    reason: config.computer.enabled ? 'not probed yet' : 'computer control is disabled (COMPUTER_CONTROL_ENABLED=false)'
+    reason: config.computer.enabled
+      ? 'not probed yet'
+      : 'computer control is disabled (COMPUTER_CONTROL_ENABLED=false)',
   });
 
   // ─── Persistent Agent Memory (MongoDB as the brain's memory) ─────
@@ -246,8 +252,8 @@ export async function createApp({ database } = {}) {
     memoryModel: agentMemoryModel,
     contextBudgetManager: new ContextBudgetManager({
       capacity: config.longContext.modelContextTokens,
-      outputReserve: config.longContext.outputReserveTokens
-    })
+      outputReserve: config.longContext.outputReserveTokens,
+    }),
   });
 
   const findingLifecycle = new FindingLifecycleService({
@@ -255,14 +261,14 @@ export async function createApp({ database } = {}) {
     evidenceModel,
     memory: agentMemory,
     eventService,
-    agentStateModel
+    agentStateModel,
   });
 
   // ─── Autonomous Brain (local phone Gemma by default) ─────────────────
   const autonomousBrain = new AutonomousBrain({
     memory: agentMemory,
     eventService,
-    computer: computerAdapter
+    computer: computerAdapter,
   });
 
   // ─── Brain provider switching (issue #3: "Run Locally" model library) ──
@@ -276,7 +282,7 @@ export async function createApp({ database } = {}) {
     config,
     brainProviderModel,
     customModelModel,
-    onActivate: (userId) => agentWorker?.refreshBrainForUser(userId)
+    onActivate: userId => agentWorker?.refreshBrainForUser(userId),
   });
 
   // ─── Local GGUF model runner (no Ollama) ──────────────────────────
@@ -286,7 +292,7 @@ export async function createApp({ database } = {}) {
   // for Hunt + Infinity AI via the 'local' brain provider.
   const modelRunnerService = new ModelRunnerService({
     dataDir: process.env.DARKMATTER_DATA_DIR || null,
-    logger: console
+    logger: console,
   });
 
   // ─── Infinity Voice: built-in neural TTS (lazy — spawns on first /speak)
@@ -307,7 +313,7 @@ export async function createApp({ database } = {}) {
     memory: fileMemory,
     findingModel,
     reasoningCycleModel,
-    payloadLibraryModel
+    payloadLibraryModel,
   });
 
   // ─── Persistent Job Worker ────────────────────────────────────────
@@ -336,7 +342,7 @@ export async function createApp({ database } = {}) {
     huntContextManager,
     appConfig: config,
     huntRecordModel,
-    modelRunnerService
+    modelRunnerService,
   });
 
   const jobManager = new JobManager({
@@ -344,7 +350,7 @@ export async function createApp({ database } = {}) {
     assessmentModel,
     worker: agentWorker,
     eventService,
-    config: config.agentWorker
+    config: config.agentWorker,
   });
 
   // ─── Scheduled hunts + multi-target queues ──────────────────────────
@@ -358,7 +364,7 @@ export async function createApp({ database } = {}) {
       targetUrl: url,
       authorizationConfirmed: true, // the user authorized the schedule/queue itself
       message: objective || `Assess ${url}`,
-      deferStart: true
+      deferStart: true,
     });
     if (created.status !== 'assessment_created') {
       throw new Error(created.message || `Could not create assessment for ${url}`);
@@ -369,20 +375,21 @@ export async function createApp({ database } = {}) {
       // Full normalized URL — keeps the port; ScopeEngine accepts full URLs.
       target: created.assessment.targetUrl || created.assessment.targetHostname,
       scope: scope || created.assessment.scope,
-      objective: objective || `Assess ${created.assessment.targetHostname}`
+      objective: objective || `Assess ${created.assessment.targetHostname}`,
     });
   };
   const targetQueueService = new TargetQueueService({
     queueModel: targetQueueModel,
     // Queue advance passes { userId, target, scope, objective, origin }.
-    createJob: ({ userId, target, scope, objective }) => createHuntFromTarget({ userId, target, scope, objective }),
-    alertService
+    createJob: ({ userId, target, scope, objective }) =>
+      createHuntFromTarget({ userId, target, scope, objective }),
+    alertService,
   });
   const huntScheduler = new HuntScheduler({
     // Scheduler tick passes { userId, target, scope, objective, origin }.
     scheduleModel: huntScheduleModel,
     createJob: createHuntFromTarget,
-    alertService
+    alertService,
   });
   // The worker advances the queue when a hunt completes (best-effort).
   agentWorker.targetQueueService = targetQueueService;
@@ -397,13 +404,16 @@ export async function createApp({ database } = {}) {
     brainProviderModel,
     modelRunnerService,
     appConfig: config,
-    defaultModel: phoneModel
+    defaultModel: phoneModel,
   });
   const longContextStore = new LongContextStore(database);
   const longContextEngine = new LongContextEngine({ store: longContextStore, model: userBrain });
   longContextEngine.chatModel = infiniteChatModel; // conversation history stays in infinite_chats
   const longGenerationStore = new LongGenerationStore(database);
-  const longGenerationEngine = new LongGenerationEngine({ store: longGenerationStore, model: userBrain });
+  const longGenerationEngine = new LongGenerationEngine({
+    store: longGenerationStore,
+    model: userBrain,
+  });
 
   // ─── InfiniteChat Computer Tasks (active brain + shared hands) ──────
   // Logically separated from the bug-bounty agent (own model/worker/manager/
@@ -414,7 +424,7 @@ export async function createApp({ database } = {}) {
   // default) does the thinking — no hard-wired model, no canned plans.
   const computerTaskModel = new ComputerTaskModel(database);
   const computerTaskBrain = new ComputerTaskBrain({
-    providerFor: (userId) => userBrain.providerFor(userId)
+    providerFor: userId => userBrain.providerFor(userId),
   });
   const computerTaskWorker = new ComputerTaskWorker({
     taskModel: computerTaskModel,
@@ -423,13 +433,13 @@ export async function createApp({ database } = {}) {
     computer: computerAdapter,
     computerState,
     computerEvents,
-    eventService
+    eventService,
   });
   const computerTaskManager = new ComputerTaskManager({
     taskModel: computerTaskModel,
     worker: computerTaskWorker,
     eventService,
-    config: { recoverOnBoot: config.agentWorker.recoverOnBoot }
+    config: { recoverOnBoot: config.agentWorker.recoverOnBoot },
   });
 
   // ─── Infinity Crew (persistent AI coworkers with their own computers) ─
@@ -439,9 +449,9 @@ export async function createApp({ database } = {}) {
   const crewService = new CrewService({});
   const crewWorker = new CrewWorker({
     crewService,
-    providerFor: (userId) => userBrain.providerFor(userId),
+    providerFor: userId => userBrain.providerFor(userId),
     computerAdapter,
-    logger: console
+    logger: console,
   });
 
   // ─── Express App ──────────────────────────────────────────────────
@@ -451,41 +461,76 @@ export async function createApp({ database } = {}) {
   app.locals.database = database;
   app.locals.databaseKind = database instanceof MongoDatabase ? 'mongodb' : 'memory';
   app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(cors({
-    origin: (origin, callback) => {
-      // Zero-config local dev: the vite dev server may land on any port
-      // (5173, 5174, …) when several instances run. Same-machine origins
-      // are always trusted — CORS is not a localhost security boundary.
-      if (!origin || config.frontendOrigins.includes(origin)) return callback(null, true);
-      if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin)) return callback(null, true);
-      // Production frontends: always allowed, even if FRONTEND_ORIGINS env is stale.
-      const PRODUCTION_ORIGINS = [
-        'https://hack.thebhavesh.online',
-        'https://dark-matter-frontend.vercel.app',
-        'https://obfinityy.github.io'
-      ];
-      if (PRODUCTION_ORIGINS.includes(origin)) return callback(null, true);
-      return callback(new Error('Origin is not allowed by CORS'));
-    },
-    credentials: true
-  }));
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Zero-config local dev: the vite dev server may land on any port
+        // (5173, 5174, …) when several instances run. Same-machine origins
+        // are always trusted — CORS is not a localhost security boundary.
+        if (!origin || config.frontendOrigins.includes(origin)) return callback(null, true);
+        if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin))
+          return callback(null, true);
+        // Production frontends: always allowed, even if FRONTEND_ORIGINS env is stale.
+        const PRODUCTION_ORIGINS = [
+          'https://hack.thebhavesh.online',
+          'https://dark-matter-frontend.vercel.app',
+          'https://obfinityy.github.io',
+        ];
+        if (PRODUCTION_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error('Origin is not allowed by CORS'));
+      },
+      credentials: true,
+    })
+  );
   app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '10mb' }));
 
   // Store services for access in controllers
   app.locals.services = {
-    database, providerModel, targetModel, scanModel, eventService, scanService,
-    subdomainService, authService, assessmentModel, agentStateModel,
-    toolExecutionModel, findingModel, reportModel, assessmentService,
-    reportService, agentBrain,
-    longContextEngine, longGenerationEngine,
-    agentJobModel, agentMemoryModel, evidenceModel, agentMemory,
-    computerState, computerEvents, computerAdapter, autonomousBrain,
-    findingLifecycle, agentWorker, jobManager,
-    computerTaskModel, computerTaskBrain, computerTaskWorker, computerTaskManager,
-    crewService, crewWorker,
-    reasoningCycleModel, brainProviderModel, localModelService, customModelModel,
+    database,
+    providerModel,
+    targetModel,
+    scanModel,
+    eventService,
+    scanService,
+    subdomainService,
+    authService,
+    assessmentModel,
+    agentStateModel,
+    toolExecutionModel,
+    findingModel,
+    reportModel,
+    assessmentService,
+    reportService,
+    agentBrain,
+    longContextEngine,
+    longGenerationEngine,
+    agentJobModel,
+    agentMemoryModel,
+    evidenceModel,
+    agentMemory,
+    computerState,
+    computerEvents,
+    computerAdapter,
+    autonomousBrain,
+    findingLifecycle,
+    agentWorker,
+    jobManager,
+    computerTaskModel,
+    computerTaskBrain,
+    computerTaskWorker,
+    computerTaskManager,
+    crewService,
+    crewWorker,
+    reasoningCycleModel,
+    brainProviderModel,
+    localModelService,
+    customModelModel,
     modelRunnerService,
-    huntRecordModel, alertModel, payloadLibraryModel, huntScheduleModel, targetQueueModel
+    huntRecordModel,
+    alertModel,
+    payloadLibraryModel,
+    huntScheduleModel,
+    targetQueueModel,
   };
   app.locals.shutdown = async () => {
     // Stop all running assessments on shutdown
@@ -500,56 +545,63 @@ export async function createApp({ database } = {}) {
     await database.close();
   };
 
-  app.use('/api/v1', createRoutes({
-    controllers: {
-      health: { health, agentInfo, localAiHealth, directChat },
-      auth: { ...createAuthController(authService, config), attach: attachAuth(authService) },
-      settings: createSettingsController(providerModel),
-      tools: { listTools },
-      targets: createTargetController(targetModel),
-      scans: createScanController(scanService, eventService),
-      agent: createAgentController(scanService),
-      assessments: createAssessmentController(assessmentService, eventService),
-      reports: createReportController(reportService, assessmentService),
-      infiniteChat: createInfiniteChatController({
-        longContextEngine,
-        longGenerationEngine,
-        computerTaskManager,
-        infinityModes: createInfinityModes({ brainModelFor: () => userBrain }),
-        computerAdapter
-      }),
-      voice: createVoiceController({ voiceManager }),
-      billing: createBillingController({ userModel }),
-      jobs: createJobController({
-        jobManager,
-        assessmentService,
-        eventService,
-        computerAdapter,
-        computerActionModel,
-        reasoningCycleModel,
-        huntRecordModel,
-        reportService,
-        findingModel,
-        agentStateModel,
-        evidenceModel
-      }),
-      huntRecords: createHuntRecordController({ huntRecordModel }),
-      alerts: createAlertController({ alertService }),
-      queues: createQueueController({ targetQueueService, targetQueueModel }),
-      schedules: createScheduleController({ huntScheduler, huntScheduleModel }),
-      payloadLibrary: createPayloadLibraryController({ payloadLibraryModel }),
-      localModels: createLocalModelController({ localModelService, agentWorker }),
-      modelRunner: createModelRunnerController({ modelRunnerService, brainProviderModel, agentWorker }),
-      engineLauncher: createEngineLauncherController({ modelRunnerService }),
-      brainChat: createBrainChatController({ modelRunnerService }),
-      remoteModel: createRemoteModelController({ brainProviderModel, agentWorker }),
-      computer: createComputerController({ computerAdapter, assessmentModel }),
-      computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter }),
-      crew: createCrewController({ crewService, crewWorker }),
-      permissions: createPermissionsController(),
-      memory: memoryController,
-    }
-  }));
+  app.use(
+    '/api/v1',
+    createRoutes({
+      controllers: {
+        health: { health, agentInfo, localAiHealth, directChat },
+        auth: { ...createAuthController(authService, config), attach: attachAuth(authService) },
+        settings: createSettingsController(providerModel),
+        tools: { listTools },
+        targets: createTargetController(targetModel),
+        scans: createScanController(scanService, eventService),
+        agent: createAgentController(scanService),
+        assessments: createAssessmentController(assessmentService, eventService),
+        reports: createReportController(reportService, assessmentService),
+        infiniteChat: createInfiniteChatController({
+          longContextEngine,
+          longGenerationEngine,
+          computerTaskManager,
+          infinityModes: createInfinityModes({ brainModelFor: () => userBrain }),
+          computerAdapter,
+        }),
+        voice: createVoiceController({ voiceManager }),
+        billing: createBillingController({ userModel }),
+        jobs: createJobController({
+          jobManager,
+          assessmentService,
+          eventService,
+          computerAdapter,
+          computerActionModel,
+          reasoningCycleModel,
+          huntRecordModel,
+          reportService,
+          findingModel,
+          agentStateModel,
+          evidenceModel,
+        }),
+        huntRecords: createHuntRecordController({ huntRecordModel }),
+        alerts: createAlertController({ alertService }),
+        queues: createQueueController({ targetQueueService, targetQueueModel }),
+        schedules: createScheduleController({ huntScheduler, huntScheduleModel }),
+        payloadLibrary: createPayloadLibraryController({ payloadLibraryModel }),
+        localModels: createLocalModelController({ localModelService, agentWorker }),
+        modelRunner: createModelRunnerController({
+          modelRunnerService,
+          brainProviderModel,
+          agentWorker,
+        }),
+        engineLauncher: createEngineLauncherController({ modelRunnerService }),
+        brainChat: createBrainChatController({ modelRunnerService }),
+        remoteModel: createRemoteModelController({ brainProviderModel, agentWorker }),
+        computer: createComputerController({ computerAdapter, assessmentModel }),
+        computerTasks: createComputerTaskController({ computerTaskManager, computerAdapter }),
+        crew: createCrewController({ crewService, crewWorker }),
+        permissions: createPermissionsController(),
+        memory: memoryController,
+      },
+    })
+  );
   app.use(notFoundHandler);
   app.use(errorHandler);
 
@@ -558,10 +610,10 @@ export async function createApp({ database } = {}) {
   // blocks startup. A restart must not lose a 50-hour assessment (#70).
   if (config.agentWorker.recoverOnBoot && config.agentWorker.autoStartWorker) {
     setImmediate(() => {
-      jobManager.recoverIncompleteJobs().catch((error) => {
+      jobManager.recoverIncompleteJobs().catch(error => {
         console.error('[job-manager] boot recovery failed:', error.message);
       });
-      computerTaskManager.recoverIncompleteTasks().catch((error) => {
+      computerTaskManager.recoverIncompleteTasks().catch(error => {
         console.error('[computer-task-manager] boot recovery failed:', error.message);
       });
     });
@@ -575,7 +627,7 @@ export async function createApp({ database } = {}) {
   if (process.env.HUNT_SCHEDULER_ENABLED !== 'false') {
     const schedulerTickMs = Number(process.env.HUNT_SCHEDULER_TICK_MS || 60_000);
     const schedulerTimer = setInterval(() => {
-      huntScheduler.tick().catch((error) => {
+      huntScheduler.tick().catch(error => {
         console.error('[hunt-scheduler] tick failed:', error.message);
       });
     }, schedulerTickMs);

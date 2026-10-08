@@ -42,14 +42,18 @@ export const AUTODISCOVER_NAMES = [
 export function parseSrvRecord(record) {
   if (record && typeof record === 'object') {
     return {
-      target: String(record.name || record.target || '').replace(/\.$/, '').toLowerCase(),
+      target: String(record.name || record.target || '')
+        .replace(/\.$/, '')
+        .toLowerCase(),
       port: Number(record.port) || 0,
       priority: Number(record.priority) || 0,
       weight: Number(record.weight) || 0,
     };
   }
   // Textual form: "0 0 443 autodiscover.example.com."
-  const m = String(record || '').trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(\S+)$/);
+  const m = String(record || '')
+    .trim()
+    .match(/^(\d+)\s+(\d+)\s+(\d+)\s+(\S+)$/);
   if (!m) return null;
   return {
     target: m[4].replace(/\.$/, '').toLowerCase(),
@@ -70,22 +74,35 @@ export function parseSrvRecord(record) {
  * @returns {Promise<{domain:string, records:Array<{target:string,port:number,priority:number,weight:number}>, found:boolean, notes:string[]}>}
  */
 export async function probeAutodiscoverSrv(domain) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const notes = [];
   let records = [];
   try {
     const raw = await resolver.resolveSrv(`_autodiscover._tcp.${d}`);
-    records = raw.map(parseSrvRecord).filter(Boolean)
+    records = raw
+      .map(parseSrvRecord)
+      .filter(Boolean)
       .sort((a, b) => a.priority - b.priority || b.weight - a.weight);
   } catch (err) {
-    if (err && err.code !== 'ENODATA' && err.code !== 'ENOTFOUND' && err.code !== 'SERVFAIL') throw err;
+    if (err && err.code !== 'ENODATA' && err.code !== 'ENOTFOUND' && err.code !== 'SERVFAIL')
+      throw err;
   }
   if (records.length === 0) {
-    notes.push('No _autodiscover._tcp SRV record — mail clients fall back to HTTPS autodiscover hosts.');
+    notes.push(
+      'No _autodiscover._tcp SRV record — mail clients fall back to HTTPS autodiscover hosts.'
+    );
   } else {
-    notes.push(`SRV exposes ${records.length} mail-client endpoint(s); include each target in TLS and authentication-policy review.`);
+    notes.push(
+      `SRV exposes ${records.length} mail-client endpoint(s); include each target in TLS and authentication-policy review.`
+    );
     const port443 = records.filter(r => r.port === 443);
-    if (port443.length) notes.push(`${port443.length} target(s) serve Autodiscover over HTTPS — check for NTLM/NTLMv2 or basic-auth exposure on /autodiscover/autodiscover.xml.`);
+    if (port443.length)
+      notes.push(
+        `${port443.length} target(s) serve Autodiscover over HTTPS — check for NTLM/NTLMv2 or basic-auth exposure on /autodiscover/autodiscover.xml.`
+      );
   }
   return { domain: d, records, found: records.length > 0, notes };
 }
@@ -101,15 +118,22 @@ export async function probeAutodiscoverSrv(domain) {
  * @returns {Promise<Array<{hostname:string, addresses:string[]}>>} resolvable hostnames
  */
 export async function probeAutodiscoverHosts(domain, names = AUTODISCOVER_NAMES) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const hits = [];
-  await Promise.all(names.map(async (n) => {
-    const hostname = `${n}.${d}`;
-    try {
-      const addrs = await resolver.resolve(hostname);
-      hits.push({ hostname, addresses: addrs });
-    } catch { /* not resolvable — not a finding */ }
-  }));
+  await Promise.all(
+    names.map(async n => {
+      const hostname = `${n}.${d}`;
+      try {
+        const addrs = await resolver.resolve(hostname);
+        hits.push({ hostname, addresses: addrs });
+      } catch {
+        /* not resolvable — not a finding */
+      }
+    })
+  );
   return hits.sort((a, b) => a.hostname.localeCompare(b.hostname));
 }
 
@@ -128,9 +152,13 @@ export async function mapAutodiscoverSurface(domain) {
   ]);
   const summary = [...srv.notes];
   if (hosts.length > 0) {
-    summary.push(`${hosts.length} autodiscover-style hostname(s) resolve: ${hosts.map(h => h.hostname).join(', ')} — enumerate their config endpoints for TLS and credential-transport review.`);
+    summary.push(
+      `${hosts.length} autodiscover-style hostname(s) resolve: ${hosts.map(h => h.hostname).join(', ')} — enumerate their config endpoints for TLS and credential-transport review.`
+    );
   } else {
-    summary.push('No autodiscover-style hostnames resolve — mail bootstrap is external (e.g. Office 365 / Google Workspace) or unpublished.');
+    summary.push(
+      'No autodiscover-style hostnames resolve — mail bootstrap is external (e.g. Office 365 / Google Workspace) or unpublished.'
+    );
   }
   return { domain: String(domain).toLowerCase().replace(/\.$/, ''), srv, hosts, summary };
 }

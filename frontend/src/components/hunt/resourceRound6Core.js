@@ -37,7 +37,7 @@ export const WAVE46_R6_IDEAS = [
 // budgetUsd: spend budget for the hunt
 export function forecastUsage(samples, elapsedMs, budgetUsd) {
   const pts = [...(samples || [])]
-    .filter((s) => s && s.elapsedMs > 0 && s.usedUsd >= 0)
+    .filter(s => s && s.elapsedMs > 0 && s.usedUsd >= 0)
     .sort((a, b) => a.elapsedMs - b.elapsedMs);
   const budget = Math.max(0, budgetUsd || 0);
   if (pts.length < 2 || elapsedMs <= 0) {
@@ -56,7 +56,8 @@ export function forecastUsage(samples, elapsedMs, budgetUsd) {
   const spanUsd = Math.max(0, last.usedUsd - first.usedUsd);
   const burnPerHour = (spanUsd / spanMs) * 3600000;
   const remainingMs = Math.max(0, elapsedMs - last.elapsedMs);
-  const projectedUsd = Math.round((last.usedUsd + (burnPerHour * remainingMs) / 3600000) * 100) / 100;
+  const projectedUsd =
+    Math.round((last.usedUsd + (burnPerHour * remainingMs) / 3600000) * 100) / 100;
   return {
     projectedUsd,
     burnPerHour: Math.round(burnPerHour * 100) / 100,
@@ -84,11 +85,11 @@ export function usageComparison(current, historical) {
     const direction = deltaPct > 10 ? 'above' : deltaPct < -10 ? 'below' : 'near';
     return { metric: label, now: n, avg: a, deltaPct, direction };
   });
-  const hot = rows.filter((r) => r.direction === 'above');
+  const hot = rows.filter(r => r.direction === 'above');
   return {
     rows,
     text: hot.length
-      ? `Running hot on ${hot.map((r) => `${r.metric} (+${r.deltaPct}%)`).join(', ')} vs the historical average.`
+      ? `Running hot on ${hot.map(r => `${r.metric} (+${r.deltaPct}%)`).join(', ')} vs the historical average.`
       : 'Usage is within the historical band on every metric.',
   };
 }
@@ -97,13 +98,15 @@ export function usageComparison(current, historical) {
 // rows: [{ at, requests, tokens, costUsd }] → CSV string
 export function resourceCsvExport(rows) {
   const head = ['at', 'requests', 'tokens', 'cost_usd'];
-  const escape = (v) => {
+  const escape = v => {
     const s = String(v == null ? '' : v);
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [head.join(',')];
   for (const r of rows || []) {
-    lines.push([r.at, r.requests || 0, r.tokens || 0, (r.costUsd || 0).toFixed(2)].map(escape).join(','));
+    lines.push(
+      [r.at, r.requests || 0, r.tokens || 0, (r.costUsd || 0).toFixed(2)].map(escape).join(',')
+    );
   }
   return lines.join('\r\n') + '\r\n';
 }
@@ -114,8 +117,8 @@ export function resourceCsvExport(rows) {
 export function resourceAlertRules(rules, readings, resourceAlertsApi) {
   const values = readings || {};
   const crossed = (rules || [])
-    .filter((r) => values[r.metric] != null && values[r.metric] >= r.threshold)
-    .map((r) => ({
+    .filter(r => values[r.metric] != null && values[r.metric] >= r.threshold)
+    .map(r => ({
       id: r.id,
       name: r.name,
       metric: r.metric,
@@ -123,7 +126,7 @@ export function resourceAlertRules(rules, readings, resourceAlertsApi) {
       threshold: r.threshold,
       level: r.level || 'warning',
     }));
-  const payloads = crossed.map((c) => ({
+  const payloads = crossed.map(c => ({
     event: 'resource.threshold.crossed',
     alert: c,
     target: resourceAlertsApi || { url: null },
@@ -143,7 +146,7 @@ export function resourceAlertRules(rules, readings, resourceAlertsApi) {
 // assets: [{ name, requests, tokens, costUsd, findings }]
 export function perAssetView(assets) {
   const rows = [...(assets || [])]
-    .map((a) => ({
+    .map(a => ({
       name: a.name,
       requests: Math.max(0, a.requests || 0),
       tokens: Math.max(0, a.tokens || 0),
@@ -170,10 +173,13 @@ export function perAssetView(assets) {
 // modelSpends: [{ model, costUsd }]
 export function modelCostBreakdown(modelSpends) {
   const rows = [...(modelSpends || [])]
-    .map((m) => ({ model: m.model, costUsd: Math.max(0, m.costUsd || 0) }))
+    .map(m => ({ model: m.model, costUsd: Math.max(0, m.costUsd || 0) }))
     .sort((a, b) => b.costUsd - a.costUsd);
-  const total = Math.max(1, rows.reduce((s, r) => s + r.costUsd, 0));
-  const withPct = rows.map((r) => ({ ...r, pct: Math.round((r.costUsd / total) * 100) }));
+  const total = Math.max(
+    1,
+    rows.reduce((s, r) => s + r.costUsd, 0)
+  );
+  const withPct = rows.map(r => ({ ...r, pct: Math.round((r.costUsd / total) * 100) }));
   return {
     rows: withPct,
     totalUsd: Math.round(total * 100) / 100,
@@ -212,16 +218,16 @@ function formatShortMs(ms) {
 // windows: [{ at, egressBytes }] — flags windows with >= 2.5x the median
 export function egressMonitor(windows) {
   const ws = windows || [];
-  const sizes = ws.map((w) => Math.max(0, w.egressBytes || 0)).sort((a, b) => a - b);
+  const sizes = ws.map(w => Math.max(0, w.egressBytes || 0)).sort((a, b) => a - b);
   const median = sizes.length ? sizes[Math.floor(sizes.length / 2)] : 0;
   const threshold = Math.max(1, median * 2.5);
-  const flagged = ws.filter((w) => (w.egressBytes || 0) >= threshold);
+  const flagged = ws.filter(w => (w.egressBytes || 0) >= threshold);
   const peak = sizes.length ? sizes[sizes.length - 1] : 0;
   return {
     median,
     threshold,
     peak,
-    flagged: flagged.map((w) => ({
+    flagged: flagged.map(w => ({
       at: w.at,
       egressBytes: w.egressBytes,
       multipleOfMedian: median ? Math.round(((w.egressBytes || 0) / median) * 10) / 10 : 0,
@@ -260,9 +266,10 @@ export function diskTracker(entries) {
   const growthPerDay = (growth / spanMs) * 86400000;
   const capacity = last.capacityBytes || 0;
   const remaining = Math.max(0, capacity - (last.usedBytes || 0));
-  const projectedFullAtMs = growthPerDay > 0 && capacity > 0
-    ? Math.round(last.atMs + (remaining / growthPerDay) * 86400000)
-    : null;
+  const projectedFullAtMs =
+    growthPerDay > 0 && capacity > 0
+      ? Math.round(last.atMs + (remaining / growthPerDay) * 86400000)
+      : null;
   return {
     growthPerDay: Math.round(growthPerDay),
     projectedFullAtMs,
@@ -277,24 +284,30 @@ export function diskTracker(entries) {
 // rules: [{ id, name, when: { metric, op, value } }]
 export function pauseTriggers(state, rules) {
   const s = state || {};
-  const fired = (rules || []).filter((r) => {
+  const fired = (rules || []).filter(r => {
     const v = s[r.when && r.when.metric];
     if (v == null) return false;
     const target = r.when.value;
     switch (r.when.op) {
-      case '>=': return v >= target;
-      case '>': return v > target;
-      case '<=': return v <= target;
-      case '<': return v < target;
-      case '==': return v === target;
-      default: return false;
+      case '>=':
+        return v >= target;
+      case '>':
+        return v > target;
+      case '<=':
+        return v <= target;
+      case '<':
+        return v < target;
+      case '==':
+        return v === target;
+      default:
+        return false;
     }
   });
   return {
-    triggered: fired.map((r) => ({ id: r.id, name: r.name, when: r.when })),
+    triggered: fired.map(r => ({ id: r.id, name: r.name, when: r.when })),
     shouldPause: fired.length > 0,
     text: fired.length
-      ? `⏸ ${fired.length} pause rule${fired.length === 1 ? '' : 's'} fired: ${fired.map((r) => r.name).join(', ')} — hunt should pause.`
+      ? `⏸ ${fired.length} pause rule${fired.length === 1 ? '' : 's'} fired: ${fired.map(r => r.name).join(', ')} — hunt should pause.`
       : 'No pause triggers fired — hunt continues.',
   };
 }
@@ -324,9 +337,27 @@ export function ecoMode(state) {
 // 51812 — light, balanced, and unlimited usage profiles
 export function resourcePreset(name) {
   const presets = {
-    light: { requestsPerMin: 20, tokensPerMin: 15000, maxParallelism: 2, budgetUsd: 2, note: 'Careful, low-cost sweep.' },
-    balanced: { requestsPerMin: 60, tokensPerMin: 60000, maxParallelism: 4, budgetUsd: 10, note: 'Default hunt profile.' },
-    unlimited: { requestsPerMin: 200, tokensPerMin: 240000, maxParallelism: 10, budgetUsd: 100, note: 'Full-throttle deep dive.' },
+    light: {
+      requestsPerMin: 20,
+      tokensPerMin: 15000,
+      maxParallelism: 2,
+      budgetUsd: 2,
+      note: 'Careful, low-cost sweep.',
+    },
+    balanced: {
+      requestsPerMin: 60,
+      tokensPerMin: 60000,
+      maxParallelism: 4,
+      budgetUsd: 10,
+      note: 'Default hunt profile.',
+    },
+    unlimited: {
+      requestsPerMin: 200,
+      tokensPerMin: 240000,
+      maxParallelism: 10,
+      budgetUsd: 100,
+      note: 'Full-throttle deep dive.',
+    },
   };
   const key = String(name || '').toLowerCase();
   const profile = presets[key] || presets.balanced;
@@ -347,15 +378,17 @@ export function teamDashboard(hunts) {
     tokens: hs.reduce((s, h) => s + Math.max(0, h.tokens || 0), 0),
     findings: hs.reduce((s, h) => s + Math.max(0, h.findings || 0), 0),
   };
-  const rows = [...hs].sort((a, b) => (b.costUsd || 0) - (a.costUsd || 0))
-    .map((h) => ({
+  const rows = [...hs]
+    .sort((a, b) => (b.costUsd || 0) - (a.costUsd || 0))
+    .map(h => ({
       id: h.id,
       name: h.name,
       costUsd: Math.max(0, h.costUsd || 0),
       findings: Math.max(0, h.findings || 0),
       costPerFinding: h.findings > 0 ? Math.round((h.costUsd / h.findings) * 100) / 100 : null,
     }));
-  const costPerFinding = total.findings > 0 ? Math.round((total.costUsd / total.findings) * 100) / 100 : null;
+  const costPerFinding =
+    total.findings > 0 ? Math.round((total.costUsd / total.findings) * 100) / 100 : null;
   return {
     hunts: hs.length,
     rows,
@@ -373,9 +406,9 @@ export function chargebackTags(hunt, tags) {
   const cost = Math.max(0, (hunt && hunt.costUsd) || 0);
   const shares = tags || [];
   const totalShare = shares.reduce((s, t) => s + Math.max(0, t.sharePct || 0), 0);
-  const rows = shares.map((t) => {
+  const rows = shares.map(t => {
     const share = Math.max(0, t.sharePct || 0);
-    const amount = totalShare > 0 ? Math.round((cost * (share / totalShare)) * 100) / 100 : 0;
+    const amount = totalShare > 0 ? Math.round(cost * (share / totalShare) * 100) / 100 : 0;
     return { name: t.name, costCenter: t.costCenter, sharePct: share, amountUsd: amount };
   });
   return {
@@ -384,7 +417,7 @@ export function chargebackTags(hunt, tags) {
     rows,
     balanced: totalShare === 100,
     text: rows.length
-      ? `Chargeback for ${hunt && hunt.id}: $${cost.toFixed(2)} split across ${rows.map((r) => `${r.costCenter} (${r.sharePct}%)`).join(', ')}${totalShare !== 100 ? ` — shares total ${totalShare}%, not 100%` : ''}.`
+      ? `Chargeback for ${hunt && hunt.id}: $${cost.toFixed(2)} split across ${rows.map(r => `${r.costCenter} (${r.sharePct}%)`).join(', ')}${totalShare !== 100 ? ` — shares total ${totalShare}%, not 100%` : ''}.`
       : 'No chargeback tags assigned.',
   };
 }
@@ -392,10 +425,15 @@ export function chargebackTags(hunt, tags) {
 // 51815 — statistical anomaly flags on a usage series
 // series: [{ at, value }], k = sigma multiplier
 export function anomalyAlerts(series, k) {
-  const vals = (series || []).map((s) => ({ at: s.at, value: Math.max(0, s.value || 0) }));
+  const vals = (series || []).map(s => ({ at: s.at, value: Math.max(0, s.value || 0) }));
   const mult = k || 2.5;
   if (vals.length < 4) {
-    return { flagged: [], mean: 0, sigma: 0, text: 'Need at least four samples to detect anomalies.' };
+    return {
+      flagged: [],
+      mean: 0,
+      sigma: 0,
+      text: 'Need at least four samples to detect anomalies.',
+    };
   }
   const mean = vals.reduce((s, v) => s + v.value, 0) / vals.length;
   const variance = vals.reduce((s, v) => s + (v.value - mean) * (v.value - mean), 0) / vals.length;
@@ -403,8 +441,11 @@ export function anomalyAlerts(series, k) {
   const hi = mean + mult * sigma;
   const lo = Math.max(0, mean - mult * sigma);
   const flagged = vals
-    .filter((v) => v.value > hi || v.value < lo)
-    .map((v) => ({ ...v, deviation: Math.round(((v.value - mean) / Math.max(1e-9, sigma)) * 10) / 10 }));
+    .filter(v => v.value > hi || v.value < lo)
+    .map(v => ({
+      ...v,
+      deviation: Math.round(((v.value - mean) / Math.max(1e-9, sigma)) * 10) / 10,
+    }));
   return {
     flagged,
     mean: Math.round(mean * 100) / 100,
@@ -446,7 +487,8 @@ export function cacheHitRates({ hits, misses }) {
   const m = Math.max(0, misses || 0);
   const total = h + m;
   const hitRate = total ? Math.round((h / total) * 1000) / 10 : 0;
-  const band = hitRate >= 90 ? 'excellent' : hitRate >= 75 ? 'good' : hitRate >= 50 ? 'fair' : 'poor';
+  const band =
+    hitRate >= 90 ? 'excellent' : hitRate >= 75 ? 'good' : hitRate >= 50 ? 'fair' : 'poor';
   return {
     hits: h,
     misses: m,
@@ -468,7 +510,8 @@ export function strategyHints(usage, budget) {
   else if (pct < 80) hints.push('on pace — keep the current plan, watch the forecast');
   else if (pct <= 100) hints.push('near the cap — finish open checks, then wrap up');
   else hints.push('over budget — pause, verify findings, then request a top-up');
-  if (pct < 50 && (u.findings || 0) >= 5) hints.push('results are cheap — double parallelism while the price is right');
+  if (pct < 50 && (u.findings || 0) >= 5)
+    hints.push('results are cheap — double parallelism while the price is right');
   return {
     spentPct: pct,
     hints,
@@ -484,10 +527,15 @@ export function sessionTime(sessions) {
   const idleMs = ss.reduce((s, x) => s + Math.max(0, x.idleMs || 0), 0);
   const activeMs = Math.max(0, wallMs - idleMs);
   const activePct = wallMs ? Math.round((activeMs / wallMs) * 100) : 0;
-  const rows = ss.map((x) => {
+  const rows = ss.map(x => {
     const w = Math.max(0, x.wallMs || 0);
     const i = Math.max(0, x.idleMs || 0);
-    return { id: x.id, wallMs: w, activeMs: Math.max(0, w - i), activePct: w ? Math.round(((w - i) / w) * 100) : 0 };
+    return {
+      id: x.id,
+      wallMs: w,
+      activeMs: Math.max(0, w - i),
+      activePct: w ? Math.round(((w - i) / w) * 100) : 0,
+    };
   });
   return {
     rows,
@@ -507,18 +555,18 @@ export function apiQuotaMonitor(limits, usage) {
   const rows = [
     { kind: 'requests', limit: Math.max(1, l.requests || 1), used: Math.max(0, u.requests || 0) },
     { kind: 'tokens', limit: Math.max(1, l.tokens || 1), used: Math.max(0, u.tokens || 0) },
-  ].map((r) => {
+  ].map(r => {
     const remaining = Math.max(0, r.limit - r.used);
     const usedPct = Math.round((r.used / r.limit) * 100);
     const throttled = usedPct >= 90;
     return { ...r, remaining, usedPct, throttled };
   });
-  const throttled = rows.filter((r) => r.throttled);
+  const throttled = rows.filter(r => r.throttled);
   return {
     rows,
     throttledCount: throttled.length,
     text: throttled.length
-      ? `⚠ ${throttled.map((r) => r.kind).join(' & ')} at ${throttled.map((r) => `${r.usedPct}%`).join('/') } — throttling advised.`
+      ? `⚠ ${throttled.map(r => r.kind).join(' & ')} at ${throttled.map(r => `${r.usedPct}%`).join('/')} — throttling advised.`
       : 'All API quotas healthy with headroom.',
   };
 }

@@ -13,29 +13,134 @@
  */
 
 export const WAVE60_SYNC_IDEAS = [
-  { id: 52381, title: 'Lifecycle API (post-hunt)', desc: 'Full programmatic control of states, transitions, and history for custom integrations.', skip: false },
-  { id: 52382, title: 'State-based smart views', desc: 'Auto-generated views like "Stuck in Triaged > 7 days" or "Verifying now."', skip: false },
-  { id: 52383, title: 'State-based email rules', desc: 'Trigger emails on entering/exiting states (e.g., daily "newly verified" digest).', skip: false },
-  { id: 52384, title: 'State-based export filters', desc: 'Export exactly the findings in chosen states for status reports.', skip: false },
-  { id: 52385, title: 'State aging reports', desc: 'Show how long findings sit in each state to find process bottlenecks.', skip: false },
-  { id: 52386, title: 'Stuck-in-state alerts', desc: 'Proactive alerts when findings exceed state SLAs, escalating to managers.', skip: false },
-  { id: 52387, title: 'Transition approval gates', desc: 'Require approval for high-impact transitions (e.g., closing a Critical).', skip: false },
-  { id: 52388, title: 'State history export', desc: 'Export per-finding state timelines for audits and retrospectives.', skip: false },
-  { id: 52389, title: 'State analytics', desc: 'Funnel analysis: how many findings reach each state and where they drop off.', skip: false },
-  { id: 52390, title: 'Per-severity state rules', desc: 'Different SLAs and approval gates for Critical vs Low findings.', skip: false },
-  { id: 52391, title: 'Terminal-state configuration', desc: 'Define which states count as "done" for reporting and archiving rules.', skip: false },
-  { id: 52392, title: 'AI-suggested next state', desc: 'Recommend the most likely next state based on finding data and history, one click to apply.', skip: false },
-  { id: 52393, title: 'State-transition checklists', desc: 'Required checks before key transitions (e.g., "evidence of fix attached" before Verified).', skip: false },
-  { id: 52394, title: 'State-gated actions', desc: 'Block actions until prerequisites are met (can\u2019t mark Verified without a retest record).', skip: false },
-  { id: 52395, title: 'State change mobile approval', desc: 'Approve pending transitions from the phone app with full context.', skip: false },
-  { id: 52396, title: 'Lifecycle documentation', desc: 'Auto-generated docs describing your configured states, rules, and SLAs for onboarding.', skip: false },
-  { id: 52397, title: 'State prediction', desc: 'Estimate of time-to-close per finding based on similar historical findings.', skip: false },
-  { id: 52398, title: 'State-based prioritization', desc: 'Boost priority of findings stuck in early states past their SLA.', skip: false },
-  { id: 52399, title: 'Jira two-way state sync', desc: 'Map lifecycle states to Jira statuses and keep both systems in sync automatically.', skip: false },
-  { id: 52400, title: 'Bounty-platform state sync', desc: 'Reflect platform report statuses (triaged, resolved) in the finding lifecycle.', skip: false },
+  {
+    id: 52381,
+    title: 'Lifecycle API (post-hunt)',
+    desc: 'Full programmatic control of states, transitions, and history for custom integrations.',
+    skip: false,
+  },
+  {
+    id: 52382,
+    title: 'State-based smart views',
+    desc: 'Auto-generated views like "Stuck in Triaged > 7 days" or "Verifying now."',
+    skip: false,
+  },
+  {
+    id: 52383,
+    title: 'State-based email rules',
+    desc: 'Trigger emails on entering/exiting states (e.g., daily "newly verified" digest).',
+    skip: false,
+  },
+  {
+    id: 52384,
+    title: 'State-based export filters',
+    desc: 'Export exactly the findings in chosen states for status reports.',
+    skip: false,
+  },
+  {
+    id: 52385,
+    title: 'State aging reports',
+    desc: 'Show how long findings sit in each state to find process bottlenecks.',
+    skip: false,
+  },
+  {
+    id: 52386,
+    title: 'Stuck-in-state alerts',
+    desc: 'Proactive alerts when findings exceed state SLAs, escalating to managers.',
+    skip: false,
+  },
+  {
+    id: 52387,
+    title: 'Transition approval gates',
+    desc: 'Require approval for high-impact transitions (e.g., closing a Critical).',
+    skip: false,
+  },
+  {
+    id: 52388,
+    title: 'State history export',
+    desc: 'Export per-finding state timelines for audits and retrospectives.',
+    skip: false,
+  },
+  {
+    id: 52389,
+    title: 'State analytics',
+    desc: 'Funnel analysis: how many findings reach each state and where they drop off.',
+    skip: false,
+  },
+  {
+    id: 52390,
+    title: 'Per-severity state rules',
+    desc: 'Different SLAs and approval gates for Critical vs Low findings.',
+    skip: false,
+  },
+  {
+    id: 52391,
+    title: 'Terminal-state configuration',
+    desc: 'Define which states count as "done" for reporting and archiving rules.',
+    skip: false,
+  },
+  {
+    id: 52392,
+    title: 'AI-suggested next state',
+    desc: 'Recommend the most likely next state based on finding data and history, one click to apply.',
+    skip: false,
+  },
+  {
+    id: 52393,
+    title: 'State-transition checklists',
+    desc: 'Required checks before key transitions (e.g., "evidence of fix attached" before Verified).',
+    skip: false,
+  },
+  {
+    id: 52394,
+    title: 'State-gated actions',
+    desc: 'Block actions until prerequisites are met (can\u2019t mark Verified without a retest record).',
+    skip: false,
+  },
+  {
+    id: 52395,
+    title: 'State change mobile approval',
+    desc: 'Approve pending transitions from the phone app with full context.',
+    skip: false,
+  },
+  {
+    id: 52396,
+    title: 'Lifecycle documentation',
+    desc: 'Auto-generated docs describing your configured states, rules, and SLAs for onboarding.',
+    skip: false,
+  },
+  {
+    id: 52397,
+    title: 'State prediction',
+    desc: 'Estimate of time-to-close per finding based on similar historical findings.',
+    skip: false,
+  },
+  {
+    id: 52398,
+    title: 'State-based prioritization',
+    desc: 'Boost priority of findings stuck in early states past their SLA.',
+    skip: false,
+  },
+  {
+    id: 52399,
+    title: 'Jira two-way state sync',
+    desc: 'Map lifecycle states to Jira statuses and keep both systems in sync automatically.',
+    skip: false,
+  },
+  {
+    id: 52400,
+    title: 'Bounty-platform state sync',
+    desc: 'Reflect platform report statuses (triaged, resolved) in the finding lifecycle.',
+    skip: false,
+  },
 ];
 
-import { LIFECYCLE_STATES, TRANSITION_GRAPH, STATE_SLA_MS, slaBreachCheck } from './lifecycleGovernCore.js';
+import {
+  LIFECYCLE_STATES,
+  TRANSITION_GRAPH,
+  STATE_SLA_MS,
+  slaBreachCheck,
+} from './lifecycleGovernCore.js';
 
 const DAY = 24 * 3600000;
 
@@ -49,18 +154,81 @@ function tokenFor(scope, id, now) {
 /* 52381 — Lifecycle API route descriptors for custom integrations. */
 export function lifecycleApiRoutes() {
   const routes = [
-    { method: 'GET', path: '/api/v1/lifecycle/states', summary: 'List all configured lifecycle states.', auth: 'bearer' },
-    { method: 'GET', path: '/api/v1/lifecycle/rules', summary: 'Fetch the legal transition graph and role permissions.', auth: 'bearer' },
-    { method: 'GET', path: '/api/v1/lifecycle/findings/:id/state', summary: 'Read a finding\u2019s current state and SLA status.', auth: 'bearer' },
-    { method: 'POST', path: '/api/v1/lifecycle/findings/:id/transition', summary: 'Request a state transition (gates, reasons, approvals enforced).', auth: 'bearer', body: '{ to, reason, actor }' },
-    { method: 'POST', path: '/api/v1/lifecycle/findings/:id/undo', summary: 'Undo a transition inside the grace window.', auth: 'bearer' },
-    { method: 'GET', path: '/api/v1/lifecycle/findings/:id/history', summary: 'Full state timeline for one finding.', auth: 'bearer' },
-    { method: 'GET', path: '/api/v1/lifecycle/dashboard', summary: 'Kanban dashboard payload: counts and aging per state.', auth: 'bearer' },
-    { method: 'POST', path: '/api/v1/lifecycle/bulk-transition', summary: 'Bulk transition with shared reason and preview.', auth: 'bearer', body: '{ ids[], to, reason, actor }' },
-    { method: 'GET', path: '/api/v1/lifecycle/smart-views', summary: 'List smart views and their current matches.', auth: 'bearer' },
-    { method: 'GET', path: '/api/v1/lifecycle/alerts/stuck', summary: 'Stuck-in-state alerts with escalation info.', auth: 'bearer' },
-    { method: 'GET', path: '/api/v1/lifecycle/analytics/funnel', summary: 'Funnel analytics: counts per state and drop-off.', auth: 'bearer' },
-    { method: 'POST', path: '/api/v1/lifecycle/webhooks', summary: 'Register a state-transition webhook target.', auth: 'bearer', body: '{ name, url }' },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/states',
+      summary: 'List all configured lifecycle states.',
+      auth: 'bearer',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/rules',
+      summary: 'Fetch the legal transition graph and role permissions.',
+      auth: 'bearer',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/findings/:id/state',
+      summary: 'Read a finding\u2019s current state and SLA status.',
+      auth: 'bearer',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/lifecycle/findings/:id/transition',
+      summary: 'Request a state transition (gates, reasons, approvals enforced).',
+      auth: 'bearer',
+      body: '{ to, reason, actor }',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/lifecycle/findings/:id/undo',
+      summary: 'Undo a transition inside the grace window.',
+      auth: 'bearer',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/findings/:id/history',
+      summary: 'Full state timeline for one finding.',
+      auth: 'bearer',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/dashboard',
+      summary: 'Kanban dashboard payload: counts and aging per state.',
+      auth: 'bearer',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/lifecycle/bulk-transition',
+      summary: 'Bulk transition with shared reason and preview.',
+      auth: 'bearer',
+      body: '{ ids[], to, reason, actor }',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/smart-views',
+      summary: 'List smart views and their current matches.',
+      auth: 'bearer',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/alerts/stuck',
+      summary: 'Stuck-in-state alerts with escalation info.',
+      auth: 'bearer',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/lifecycle/analytics/funnel',
+      summary: 'Funnel analytics: counts per state and drop-off.',
+      auth: 'bearer',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/lifecycle/webhooks',
+      summary: 'Register a state-transition webhook target.',
+      auth: 'bearer',
+      body: '{ name, url }',
+    },
   ];
   return { ok: true, base: '/api/v1/lifecycle', count: routes.length, routes };
 }
@@ -72,37 +240,52 @@ export function smartViewDefinitions() {
       id: 'stuck-triaged-7d',
       title: 'Stuck in Triaged > 7 days',
       description: 'Findings sitting in Triaged longer than a week.',
-      run: (findings = [], now = Date.now()) => (Array.isArray(findings) ? findings : []).filter(
-        (f) => f.state === 'Triaged' && typeof f.stateEnteredAt === 'number' && now - f.stateEnteredAt > 7 * DAY,
-      ),
+      run: (findings = [], now = Date.now()) =>
+        (Array.isArray(findings) ? findings : []).filter(
+          f =>
+            f.state === 'Triaged' &&
+            typeof f.stateEnteredAt === 'number' &&
+            now - f.stateEnteredAt > 7 * DAY
+        ),
     },
     {
       id: 'verifying-now',
       title: 'Verifying now',
       description: 'Findings currently awaiting or undergoing verification retest.',
-      run: (findings = []) => (Array.isArray(findings) ? findings : []).filter((f) => f.state === 'InRetest'),
+      run: (findings = []) =>
+        (Array.isArray(findings) ? findings : []).filter(f => f.state === 'InRetest'),
     },
     {
       id: 'needs-info-aging',
       title: 'Parked waiting on info',
       description: 'Findings in NeedsInfo for more than 3 days.',
-      run: (findings = [], now = Date.now()) => (Array.isArray(findings) ? findings : []).filter(
-        (f) => f.state === 'NeedsInfo' && typeof f.stateEnteredAt === 'number' && now - f.stateEnteredAt > 3 * DAY,
-      ),
+      run: (findings = [], now = Date.now()) =>
+        (Array.isArray(findings) ? findings : []).filter(
+          f =>
+            f.state === 'NeedsInfo' &&
+            typeof f.stateEnteredAt === 'number' &&
+            now - f.stateEnteredAt > 3 * DAY
+        ),
     },
     {
       id: 'blocked-external',
       title: 'Blocked on externals',
       description: 'Findings in Blocked, grouped by the external dependency.',
-      run: (findings = []) => (Array.isArray(findings) ? findings : []).filter((f) => f.state === 'Blocked'),
+      run: (findings = []) =>
+        (Array.isArray(findings) ? findings : []).filter(f => f.state === 'Blocked'),
     },
     {
       id: 'risk-expiring-30d',
       title: 'Risk acceptances expiring < 30 days',
       description: 'Accepted risks whose expiry is approaching.',
-      run: (findings = [], now = Date.now()) => (Array.isArray(findings) ? findings : []).filter(
-        (f) => f.state === 'RiskAccepted' && typeof f.riskExpiryAt === 'number' && f.riskExpiryAt - now < 30 * DAY && f.riskExpiryAt > now,
-      ),
+      run: (findings = [], now = Date.now()) =>
+        (Array.isArray(findings) ? findings : []).filter(
+          f =>
+            f.state === 'RiskAccepted' &&
+            typeof f.riskExpiryAt === 'number' &&
+            f.riskExpiryAt - now < 30 * DAY &&
+            f.riskExpiryAt > now
+        ),
     },
   ];
 }
@@ -111,18 +294,32 @@ export function runSmartViews(findings = [], now = Date.now()) {
   const defs = smartViewDefinitions();
   return {
     ok: true,
-    views: defs.map((d) => {
+    views: defs.map(d => {
       const matches = d.run(findings, now);
-      return { id: d.id, title: d.title, description: d.description, count: matches.length, findings: matches.map((f) => f.id) };
+      return {
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        count: matches.length,
+        findings: matches.map(f => f.id),
+      };
     }),
     generatedAt: now,
   };
 }
 
 /* 52383 — State-based email rules. */
-export function stateEmailRule({ name, onEnter = [], onExit = [], recipients = [], schedule = 'immediate', template = null } = {}) {
+export function stateEmailRule({
+  name,
+  onEnter = [],
+  onExit = [],
+  recipients = [],
+  schedule = 'immediate',
+  template = null,
+} = {}) {
   if (!name || String(name).trim() === '') return { ok: false, reason: 'rule name is required' };
-  if (!onEnter.length && !onExit.length) return { ok: false, reason: 'at least one onEnter or onExit state is required' };
+  if (!onEnter.length && !onExit.length)
+    return { ok: false, reason: 'at least one onEnter or onExit state is required' };
   if (!recipients.length) return { ok: false, reason: 'at least one recipient is required' };
   return {
     ok: true,
@@ -143,10 +340,31 @@ export function defaultEmailRules() {
   return {
     ok: true,
     rules: [
-      { name: 'Newly verified digest', onEnter: ['Verified'], schedule: 'daily', recipients: ['team'] },
-      { name: 'Critical closed alert', onEnter: ['Closed'], schedule: 'immediate', recipients: ['security-lead'], severityFilter: 'critical' },
-      { name: 'Reopened regression alert', onEnter: ['Reopened'], schedule: 'immediate', recipients: ['assignee', 'manager'] },
-      { name: 'Left Blocked notice', onExit: ['Blocked'], schedule: 'immediate', recipients: ['watchers'] },
+      {
+        name: 'Newly verified digest',
+        onEnter: ['Verified'],
+        schedule: 'daily',
+        recipients: ['team'],
+      },
+      {
+        name: 'Critical closed alert',
+        onEnter: ['Closed'],
+        schedule: 'immediate',
+        recipients: ['security-lead'],
+        severityFilter: 'critical',
+      },
+      {
+        name: 'Reopened regression alert',
+        onEnter: ['Reopened'],
+        schedule: 'immediate',
+        recipients: ['assignee', 'manager'],
+      },
+      {
+        name: 'Left Blocked notice',
+        onExit: ['Blocked'],
+        schedule: 'immediate',
+        recipients: ['watchers'],
+      },
     ],
   };
 }
@@ -154,7 +372,7 @@ export function defaultEmailRules() {
 /* 52384 — State-based export filters. */
 export function stateExportFilter(states = [], { columns = null, format = 'csv' } = {}) {
   const list = Array.isArray(states) ? states : [];
-  const unknown = list.filter((s) => !LIFECYCLE_STATES.includes(s));
+  const unknown = list.filter(s => !LIFECYCLE_STATES.includes(s));
   if (list.length === 0) return { ok: false, reason: 'at least one state is required' };
   if (unknown.length) return { ok: false, reason: `unknown states: ${unknown.join(', ')}` };
   return {
@@ -163,7 +381,7 @@ export function stateExportFilter(states = [], { columns = null, format = 'csv' 
       states: [...list],
       format,
       columns: columns || ['id', 'title', 'state', 'severity', 'stateEnteredAt', 'assignee'],
-      predicate: (f) => list.includes(f.state),
+      predicate: f => list.includes(f.state),
     },
   };
 }
@@ -171,10 +389,10 @@ export function stateExportFilter(states = [], { columns = null, format = 'csv' 
 /* 52385 — State aging reports. */
 export function stateAgingReport(findings = [], now = Date.now()) {
   const rows = Array.isArray(findings) ? findings : [];
-  const perState = LIFECYCLE_STATES.map((state) => {
+  const perState = LIFECYCLE_STATES.map(state => {
     const ages = rows
-      .filter((f) => f.state === state && typeof f.stateEnteredAt === 'number')
-      .map((f) => now - f.stateEnteredAt);
+      .filter(f => f.state === state && typeof f.stateEnteredAt === 'number')
+      .map(f => now - f.stateEnteredAt);
     const total = ages.reduce((a, b) => a + b, 0);
     return {
       state,
@@ -184,10 +402,15 @@ export function stateAgingReport(findings = [], now = Date.now()) {
       totalAgeMs: total,
     };
   });
-  const bottleneck = perState
-    .filter((p) => p.avgAgeMs !== null)
-    .sort((a, b) => b.avgAgeMs - a.avgAgeMs)[0] || null;
-  return { ok: true, total: rows.length, perState, bottleneck: bottleneck ? bottleneck.state : null, generatedAt: now };
+  const bottleneck =
+    perState.filter(p => p.avgAgeMs !== null).sort((a, b) => b.avgAgeMs - a.avgAgeMs)[0] || null;
+  return {
+    ok: true,
+    total: rows.length,
+    perState,
+    bottleneck: bottleneck ? bottleneck.state : null,
+    generatedAt: now,
+  };
 }
 
 /* 52386 — Stuck-in-state alerts with manager escalation. */
@@ -206,7 +429,10 @@ export function stuckAlerts(findings = [], now = Date.now()) {
       ageMs: check.elapsedMs,
       overByMs: check.breachByMs,
       severity: f.severity || 'unknown',
-      escalation: severityMultiplier || (f.severity || '').toLowerCase() === 'critical' ? 'manager' : 'team-lead',
+      escalation:
+        severityMultiplier || (f.severity || '').toLowerCase() === 'critical'
+          ? 'manager'
+          : 'team-lead',
       escalatedAt: now,
       message: `Finding ${f.id} stuck in ${f.state} for ${Math.round(check.elapsedMs / 3600000)}h (SLA ${Math.round(check.targetMs / 3600000)}h)`,
     });
@@ -215,7 +441,7 @@ export function stuckAlerts(findings = [], now = Date.now()) {
     ok: true,
     count: alerts.length,
     alerts,
-    escalatedToManager: alerts.filter((a) => a.escalation === 'manager').length,
+    escalatedToManager: alerts.filter(a => a.escalation === 'manager').length,
     checkedAt: now,
   };
 }
@@ -226,13 +452,25 @@ export function transitionApprovalGates(finding, from, to) {
   const sev = (finding.severity || '').toLowerCase();
   const gates = [];
   if (['Closed', 'WontFix'].includes(to) && ['critical', 'high'].includes(sev)) {
-    gates.push({ gate: 'severity-closure', approverRole: 'manager', reason: `${sev} findings need manager approval to reach ${to}` });
+    gates.push({
+      gate: 'severity-closure',
+      approverRole: 'manager',
+      reason: `${sev} findings need manager approval to reach ${to}`,
+    });
   }
   if (to === 'RiskAccepted') {
-    gates.push({ gate: 'risk-acceptance', approverRole: 'approver', reason: 'risk acceptance always requires a designated approver' });
+    gates.push({
+      gate: 'risk-acceptance',
+      approverRole: 'approver',
+      reason: 'risk acceptance always requires a designated approver',
+    });
   }
   if (to === 'Archived') {
-    gates.push({ gate: 'archive', approverRole: 'manager', reason: 'archiving needs manager sign-off' });
+    gates.push({
+      gate: 'archive',
+      approverRole: 'manager',
+      reason: 'archiving needs manager sign-off',
+    });
   }
   return {
     ok: true,
@@ -244,8 +482,12 @@ export function transitionApprovalGates(finding, from, to) {
   };
 }
 
-export function approveTransitionGate(pending, { approver, approved, note, now = Date.now() } = {}) {
-  if (!pending || !pending.findingId) return { ok: false, reason: 'pending transition record required' };
+export function approveTransitionGate(
+  pending,
+  { approver, approved, note, now = Date.now() } = {}
+) {
+  if (!pending || !pending.findingId)
+    return { ok: false, reason: 'pending transition record required' };
   if (!approver) return { ok: false, reason: 'approver identity is required' };
   return {
     ok: true,
@@ -264,12 +506,16 @@ export function stateHistoryExport(log = [], format = 'json') {
   const rows = (Array.isArray(log) ? log : []).slice().sort((a, b) => a.at - b.at);
   if (format === 'csv') {
     const header = 'id,findingId,actor,from,to,reason,at';
-    const esc = (v) => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""')}"`;
-    const lines = rows.map((e) => [e.id, e.findingId, e.actor, e.from, e.to, e.reason, e.at].map(esc).join(','));
+    const esc = v => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""')}"`;
+    const lines = rows.map(e =>
+      [e.id, e.findingId, e.actor, e.from, e.to, e.reason, e.at].map(esc).join(',')
+    );
     return { ok: true, format: 'csv', rows: rows.length, export: [header, ...lines].join('\n') };
   }
   if (format === 'markdown') {
-    const lines = rows.map((e) => `- ${new Date(e.at).toISOString()} · **${e.from} → ${e.to}** by ${e.actor} — ${e.reason}`);
+    const lines = rows.map(
+      e => `- ${new Date(e.at).toISOString()} · **${e.from} → ${e.to}** by ${e.actor} — ${e.reason}`
+    );
     return { ok: true, format: 'markdown', rows: rows.length, export: lines.join('\n') };
   }
   return { ok: true, format: 'json', rows: rows.length, export: rows };
@@ -288,7 +534,8 @@ export function funnelAnalytics(findings = [], history = []) {
   const reachVerified = started ? verified / started : null;
   const reachClosed = started ? closed / started : null;
   const reopenRate = history.length
-    ? history.filter((e) => e.to === 'Reopened').length / Math.max(1, history.filter((e) => e.to === 'Closed').length)
+    ? history.filter(e => e.to === 'Reopened').length /
+      Math.max(1, history.filter(e => e.to === 'Closed').length)
     : null;
   return {
     ok: true,
@@ -307,7 +554,13 @@ export function funnelAnalytics(findings = [], history = []) {
     },
     dropOff: {
       neverTriaged: counts.New,
-      stuckPreVerify: counts.Triaged + counts.NeedsInfo + counts.InProgress + counts.Blocked + counts.Deferred + counts.InRetest,
+      stuckPreVerify:
+        counts.Triaged +
+        counts.NeedsInfo +
+        counts.InProgress +
+        counts.Blocked +
+        counts.Deferred +
+        counts.InRetest,
     },
   };
 }
@@ -350,9 +603,10 @@ export function terminalStatesConfig() {
   return {
     ok: true,
     terminal: [...TERMINAL_STATES],
-    active: LIFECYCLE_STATES.filter((s) => !TERMINAL_STATES.includes(s)),
-    isTerminal: (state) => TERMINAL_STATES.includes(state),
-    reportingNote: 'Terminal states count as "done" for reporting and archiving rules; Reopened is never terminal.',
+    active: LIFECYCLE_STATES.filter(s => !TERMINAL_STATES.includes(s)),
+    isTerminal: state => TERMINAL_STATES.includes(state),
+    reportingNote:
+      'Terminal states count as "done" for reporting and archiving rules; Reopened is never terminal.',
   };
 }
 
@@ -367,7 +621,9 @@ export function suggestNextState(finding = {}, history = []) {
   };
   const sev = (finding.severity || '').toLowerCase();
   const evidence = Array.isArray(finding.evidence) ? finding.evidence : [];
-  const hasFixEvidence = evidence.some((e) => e && (e.kind === 'fix' || e.kind === 'patch' || e.kind === 'retest-pass'));
+  const hasFixEvidence = evidence.some(
+    e => e && (e.kind === 'fix' || e.kind === 'patch' || e.kind === 'retest-pass')
+  );
   const hasRetest = Boolean(finding.retest && finding.retest.passed);
   switch (state) {
     case 'New':
@@ -375,7 +631,8 @@ export function suggestNextState(finding = {}, history = []) {
       break;
     case 'Triaged':
       if (finding.duplicateOf) push('Duplicate', 0.85, 'finding references a canonical duplicate');
-      else if (hasFixEvidence) push('InRetest', 0.8, 'fix evidence present — ready for verification retest');
+      else if (hasFixEvidence)
+        push('InRetest', 0.8, 'fix evidence present — ready for verification retest');
       else push('InProgress', 0.75, 'no blocker recorded — assign for remediation');
       break;
     case 'NeedsInfo':
@@ -415,8 +672,16 @@ export function suggestNextState(finding = {}, history = []) {
 
 /* 52393 — Transition checklists: required checks before key transitions. */
 const TRANSITION_CHECKLISTS = {
-  'InRetest→Verified': ['evidence of fix attached', 'retest record present and passing', 'no open blockers'],
-  'Verified→Closed': ['closure summary written', 'closed-by owner assigned', 'bounty/platform status synced'],
+  'InRetest→Verified': [
+    'evidence of fix attached',
+    'retest record present and passing',
+    'no open blockers',
+  ],
+  'Verified→Closed': [
+    'closure summary written',
+    'closed-by owner assigned',
+    'bounty/platform status synced',
+  ],
   'Triaged→WontFix': ['documented rationale recorded', 'approver assigned'],
   'Triaged→RiskAccepted': ['risk owner assigned', 'expiry date set', 'compensating controls noted'],
   '*→Closed': ['no open blockers', 'final evidence archived'],
@@ -433,11 +698,11 @@ export function transitionChecklists(from, to) {
 
 export function evaluateChecklist(finding, from, to) {
   const { checks } = transitionChecklists(from, to);
-  const results = checks.map((c) => {
+  const results = checks.map(c => {
     const lc = c.toLowerCase();
     let satisfied = false;
     if (lc.includes('evidence of fix') || lc.includes('fix attached')) {
-      satisfied = (finding.evidence || []).some((e) => e && (e.kind === 'fix' || e.kind === 'patch'));
+      satisfied = (finding.evidence || []).some(e => e && (e.kind === 'fix' || e.kind === 'patch'));
     } else if (lc.includes('retest')) {
       satisfied = Boolean(finding.retest && finding.retest.passed);
     } else if (lc.includes('rationale')) {
@@ -449,7 +714,8 @@ export function evaluateChecklist(finding, from, to) {
     } else if (lc.includes('expiry')) {
       satisfied = typeof finding.riskExpiryAt === 'number';
     } else if (lc.includes('controls')) {
-      satisfied = Array.isArray(finding.compensatingControls) && finding.compensatingControls.length > 0;
+      satisfied =
+        Array.isArray(finding.compensatingControls) && finding.compensatingControls.length > 0;
     } else if (lc.includes('canonical')) {
       satisfied = Boolean(finding.duplicateOf);
     } else if (lc.includes('closure summary')) {
@@ -468,8 +734,8 @@ export function evaluateChecklist(finding, from, to) {
     from,
     to,
     checks: results,
-    allSatisfied: results.every((r) => r.satisfied),
-    missing: results.filter((r) => !r.satisfied).map((r) => r.check),
+    allSatisfied: results.every(r => r.satisfied),
+    missing: results.filter(r => !r.satisfied).map(r => r.check),
   };
 }
 
@@ -479,7 +745,8 @@ export function gatedActions(finding, action) {
   const missing = [];
   switch (action) {
     case 'mark-verified':
-      if (!(finding.retest && finding.retest.passed === true)) missing.push('retest record (must pass)');
+      if (!(finding.retest && finding.retest.passed === true))
+        missing.push('retest record (must pass)');
       break;
     case 'close':
       if (finding.state !== 'Verified') missing.push('finding must be Verified first');
@@ -487,7 +754,8 @@ export function gatedActions(finding, action) {
       if (!finding.closedBy) missing.push('closed-by owner');
       break;
     case 'archive':
-      if (!TERMINAL_STATES.includes(finding.state)) missing.push('finding must be in a terminal state');
+      if (!TERMINAL_STATES.includes(finding.state))
+        missing.push('finding must be in a terminal state');
       break;
     case 'risk-accept':
       if (!finding.riskOwner) missing.push('risk owner');
@@ -500,7 +768,10 @@ export function gatedActions(finding, action) {
 }
 
 /* 52395 — State-change mobile approval payload. */
-export function mobileApprovalPayload(pending, { requestedBy, expiresAt, deepLinkBase = 'infinityai://approvals' } = {}) {
+export function mobileApprovalPayload(
+  pending,
+  { requestedBy, expiresAt, deepLinkBase = 'infinityai://approvals' } = {}
+) {
   if (!pending || !pending.findingId || !pending.from || !pending.to) {
     return { ok: false, reason: 'pending transition with findingId, from, and to is required' };
   }
@@ -522,7 +793,8 @@ export function mobileApprovalPayload(pending, { requestedBy, expiresAt, deepLin
       deepLink: `${deepLinkBase}/${pending.findingId}`,
       actions: ['approve', 'reject'],
       context: {
-        stateAgeHrs: typeof pending.stateAgeMs === 'number' ? Math.round(pending.stateAgeMs / 3600000) : null,
+        stateAgeHrs:
+          typeof pending.stateAgeMs === 'number' ? Math.round(pending.stateAgeMs / 3600000) : null,
         checklist: pending.checklist || null,
       },
     },
@@ -530,7 +802,11 @@ export function mobileApprovalPayload(pending, { requestedBy, expiresAt, deepLin
 }
 
 /* 52396 — Lifecycle documentation generator (markdown for onboarding). */
-export function lifecycleDocs({ states = LIFECYCLE_STATES, graph = TRANSITION_GRAPH, slaMs = STATE_SLA_MS } = {}) {
+export function lifecycleDocs({
+  states = LIFECYCLE_STATES,
+  graph = TRANSITION_GRAPH,
+  slaMs = STATE_SLA_MS,
+} = {}) {
   const lines = [
     '# Finding Lifecycle — Infinity AI',
     '',
@@ -538,18 +814,18 @@ export function lifecycleDocs({ states = LIFECYCLE_STATES, graph = TRANSITION_GR
     '',
     '## States',
     '',
-    ...states.map((s) => `- **${s}**${TERMINAL_STATES.includes(s) ? ' _(terminal)_' : ''}`),
+    ...states.map(s => `- **${s}**${TERMINAL_STATES.includes(s) ? ' _(terminal)_' : ''}`),
     '',
     '## Legal transitions',
     '',
-    ...states.map((s) => {
-      const targets = (graph[s] || []);
+    ...states.map(s => {
+      const targets = graph[s] || [];
       return `- ${s} → ${targets.length ? targets.join(', ') : '_terminal (no outgoing transitions)_'}`;
     }),
     '',
     '## SLA targets',
     '',
-    ...states.map((s) => {
+    ...states.map(s => {
       const ms = slaMs[s];
       return `- ${s}: ${ms === null || ms === undefined ? 'no SLA' : `${Math.round(ms / 3600000)}h`}`;
     }),
@@ -567,14 +843,29 @@ export function lifecycleDocs({ states = LIFECYCLE_STATES, graph = TRANSITION_GR
 export function predictTimeToClose(finding = {}, history = [], now = Date.now()) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with an id is required' };
   const rows = Array.isArray(history) ? history : [];
-  const similar = rows.filter((h) =>
-    h.severity === finding.severity && h.vulnClass === finding.vulnClass
-    && typeof h.openedAt === 'number' && typeof h.closedAt === 'number' && h.closedAt > h.openedAt);
+  const similar = rows.filter(
+    h =>
+      h.severity === finding.severity &&
+      h.vulnClass === finding.vulnClass &&
+      typeof h.openedAt === 'number' &&
+      typeof h.closedAt === 'number' &&
+      h.closedAt > h.openedAt
+  );
   if (!similar.length) {
-    return { ok: true, findingId: finding.id, predictedCloseAt: null, confidence: 0, sampleSize: 0, note: 'no similar historical findings' };
+    return {
+      ok: true,
+      findingId: finding.id,
+      predictedCloseAt: null,
+      confidence: 0,
+      sampleSize: 0,
+      note: 'no similar historical findings',
+    };
   }
-  const durations = similar.map((h) => h.closedAt - h.openedAt).sort((a, b) => a - b);
-  const median = (durations[Math.floor((durations.length - 1) / 2)] + durations[Math.ceil((durations.length - 1) / 2)]) / 2;
+  const durations = similar.map(h => h.closedAt - h.openedAt).sort((a, b) => a - b);
+  const median =
+    (durations[Math.floor((durations.length - 1) / 2)] +
+      durations[Math.ceil((durations.length - 1) / 2)]) /
+    2;
   const openedAt = typeof finding.openedAt === 'number' ? finding.openedAt : now;
   const predictedCloseAt = openedAt + median;
   return {
@@ -594,7 +885,7 @@ const SEVERITY_WEIGHT = { critical: 100, high: 60, medium: 30, low: 10 };
 
 export function prioritizeByState(findings = [], now = Date.now()) {
   const rows = Array.isArray(findings) ? findings : [];
-  const scored = rows.map((f) => {
+  const scored = rows.map(f => {
     const sev = (f.severity || 'low').toLowerCase();
     let score = SEVERITY_WEIGHT[sev] || 10;
     const boosts = [];
@@ -622,10 +913,20 @@ export function prioritizeByState(findings = [], now = Date.now()) {
 /* 52399 — Jira two-way state sync mapping descriptor. */
 export function jiraStateSync() {
   const infinityToJira = {
-    New: 'To Do', Triaged: 'To Do', NeedsInfo: 'Waiting for Info', InProgress: 'In Progress',
-    Blocked: 'Blocked', Deferred: 'Deferred', InRetest: 'In Review', Verified: 'Done (verified)',
-    Duplicate: 'Done (duplicate)', WontFix: "Won't Fix", RiskAccepted: 'Done (risk accepted)',
-    Closed: 'Done', Reopened: 'Reopened', Archived: 'Archived',
+    New: 'To Do',
+    Triaged: 'To Do',
+    NeedsInfo: 'Waiting for Info',
+    InProgress: 'In Progress',
+    Blocked: 'Blocked',
+    Deferred: 'Deferred',
+    InRetest: 'In Review',
+    Verified: 'Done (verified)',
+    Duplicate: 'Done (duplicate)',
+    WontFix: "Won't Fix",
+    RiskAccepted: 'Done (risk accepted)',
+    Closed: 'Done',
+    Reopened: 'Reopened',
+    Archived: 'Archived',
   };
   const jiraToInfinity = {};
   for (const [inf, jira] of Object.entries(infinityToJira)) {
@@ -648,20 +949,35 @@ export function platformStateSync() {
     direction: 'platform → Infinity AI (read), Infinity AI → platform (write on close)',
     platforms: {
       hackerone: {
-        'new': 'New', 'triaged': 'Triaged', 'needs-more-info': 'NeedsInfo',
-        'resolved': 'Verified', 'not-applicable': 'WontFix', 'duplicate': 'Duplicate',
-        'informative': 'Closed', 'retesting': 'InRetest',
+        new: 'New',
+        triaged: 'Triaged',
+        'needs-more-info': 'NeedsInfo',
+        resolved: 'Verified',
+        'not-applicable': 'WontFix',
+        duplicate: 'Duplicate',
+        informative: 'Closed',
+        retesting: 'InRetest',
       },
       bugcrowd: {
-        'new': 'New', 'accepted': 'Triaged', 'needs-info': 'NeedsInfo',
-        'fixed': 'Verified', 'wont-fix': 'WontFix', 'duplicate': 'Duplicate',
-        'closed': 'Closed', 'reopened': 'Reopened',
+        new: 'New',
+        accepted: 'Triaged',
+        'needs-info': 'NeedsInfo',
+        fixed: 'Verified',
+        'wont-fix': 'WontFix',
+        duplicate: 'Duplicate',
+        closed: 'Closed',
+        reopened: 'Reopened',
       },
       intigriti: {
-        'open': 'New', 'in-review': 'Triaged', 'accepted': 'InProgress',
-        'resolved': 'Verified', 'closed': 'Closed', 'duplicate': 'Duplicate',
+        open: 'New',
+        'in-review': 'Triaged',
+        accepted: 'InProgress',
+        resolved: 'Verified',
+        closed: 'Closed',
+        duplicate: 'Duplicate',
       },
     },
-    onPlatformEvent: 'map the platform status to the lifecycle state and append an audit entry with actor "platform-sync"',
+    onPlatformEvent:
+      'map the platform status to the lifecycle state and append an audit entry with actor "platform-sync"',
   };
 }

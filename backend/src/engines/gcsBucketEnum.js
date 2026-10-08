@@ -21,10 +21,37 @@ export const GCS_LEGACY_SUFFIX = 'commondatastorage.googleapis.com';
 
 export const GCS_BUCKET_PREFIXES = ['app', 'web', 'assets'];
 export const GCS_BUCKET_SUFFIXES = [
-  'app', 'web', 'assets', 'static', 'media', 'files', 'uploads', 'images',
-  'docs', 'backup', 'backups', 'data', 'logs', 'staging', 'stage', 'prod',
-  'production', 'dev', 'development', 'test', 'qa', 'uat', 'demo', 'beta',
-  'cdn', 'www', 'site', 'portal', 'bucket', 'gcs', 'storage',
+  'app',
+  'web',
+  'assets',
+  'static',
+  'media',
+  'files',
+  'uploads',
+  'images',
+  'docs',
+  'backup',
+  'backups',
+  'data',
+  'logs',
+  'staging',
+  'stage',
+  'prod',
+  'production',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'demo',
+  'beta',
+  'cdn',
+  'www',
+  'site',
+  'portal',
+  'bucket',
+  'gcs',
+  'storage',
 ];
 
 /**
@@ -75,7 +102,9 @@ export function generateGcsBucketNames(brand, subdomains = [], options = {}) {
   const seeds = new Set();
   if (slug && isValidGcsBucketName(slug)) seeds.add(slug);
   for (const sub of subdomains || []) {
-    const host = String(sub || '').toLowerCase().replace(/\.$/, '');
+    const host = String(sub || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!host) continue;
     const labels = host.split('.').slice(0, -2);
     for (const label of labels) {
@@ -84,7 +113,7 @@ export function generateGcsBucketNames(brand, subdomains = [], options = {}) {
     }
   }
   const out = new Set();
-  const add = (name) => {
+  const add = name => {
     if (out.size >= maxNames) return;
     if (isValidGcsBucketName(name)) out.add(name);
   };
@@ -123,7 +152,9 @@ export function gcsPathStyleUrl(bucket) {
  * @returns {string|null}
  */
 export function bucketNameFromGcsHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   for (const suffix of [GCS_BUCKET_SUFFIX, GCS_LEGACY_SUFFIX]) {
     if (h.endsWith(`.${suffix}`)) {
       const bucket = h.slice(0, -(suffix.length + 1));
@@ -140,9 +171,15 @@ export function bucketNameFromGcsHost(hostname) {
  * @returns {boolean}
  */
 export function isGcsHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
-  return h === GCS_BUCKET_SUFFIX || h.endsWith(`.${GCS_BUCKET_SUFFIX}`) ||
-    h === GCS_LEGACY_SUFFIX || h.endsWith(`.${GCS_LEGACY_SUFFIX}`);
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
+  return (
+    h === GCS_BUCKET_SUFFIX ||
+    h.endsWith(`.${GCS_BUCKET_SUFFIX}`) ||
+    h === GCS_LEGACY_SUFFIX ||
+    h.endsWith(`.${GCS_LEGACY_SUFFIX}`)
+  );
 }
 
 /**
@@ -157,7 +194,9 @@ export function parseGcsDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target || !isGcsHost(target)) continue;
     hits.push({
       recordName: String(rec?.name || ''),
@@ -177,7 +216,9 @@ export function parseGcsDnsHints(records = []) {
 export function parseGcsCertHints(sans = []) {
   const hits = [];
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     if (!san || !isGcsHost(san)) continue;
     hits.push({ san: String(raw), bucket: bucketNameFromGcsHost(san) });
   }

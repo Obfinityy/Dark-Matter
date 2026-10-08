@@ -13,13 +13,31 @@
  */
 
 const INTERNAL_TLDS = new Set([
-  'local', 'internal', 'intranet', 'corp', 'lan', 'home', 'private',
-  'localdomain', 'invalid', 'test',
+  'local',
+  'internal',
+  'intranet',
+  'corp',
+  'lan',
+  'home',
+  'private',
+  'localdomain',
+  'invalid',
+  'test',
 ]);
 
 const INTERNAL_LABELS = new Set([
-  'corp', 'intranet', 'internal', 'lan', 'localdomain', 'mgmt', 'private',
-  'office', 'hq', 'datacenter', 'dc', 'site',
+  'corp',
+  'intranet',
+  'internal',
+  'lan',
+  'localdomain',
+  'mgmt',
+  'private',
+  'office',
+  'hq',
+  'datacenter',
+  'dc',
+  'site',
 ]);
 /**
  * Classify a time source as internal infrastructure, public pool/service,
@@ -28,18 +46,25 @@ const INTERNAL_LABELS = new Set([
  * @returns {'internal' | 'public' | 'unknown'}
  */
 export function classifyNtpSource(host) {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!h) return 'unknown';
   if (/^(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1?\d{1,2})$/.test(h)) {
     const o = h.split('.').map(Number);
-    const priv = o[0] === 10 || (o[0] === 172 && o[1] >= 16 && o[1] <= 31) ||
-      (o[0] === 192 && o[1] === 168) || o[0] === 127 || (o[0] === 169 && o[1] === 254);
+    const priv =
+      o[0] === 10 ||
+      (o[0] === 172 && o[1] >= 16 && o[1] <= 31) ||
+      (o[0] === 192 && o[1] === 168) ||
+      o[0] === 127 ||
+      (o[0] === 169 && o[1] === 254);
     return priv ? 'internal' : 'public';
   }
   if (!h.includes('.')) return 'internal';
   if (INTERNAL_TLDS.has(h.split('.').pop())) return 'internal';
   if (h.split('.').some(l => INTERNAL_LABELS.has(l))) return 'internal';
-  if (/pool\.ntp\.org|time\.(google|windows|apple|cloudflare|nist)\.|ntp\./.test(h)) return 'public';
+  if (/pool\.ntp\.org|time\.(google|windows|apple|cloudflare|nist)\.|ntp\./.test(h))
+    return 'public';
   return 'unknown';
 }
 
@@ -156,7 +181,8 @@ export function extractNtpSources(configText) {
     sources.push({
       ...s,
       classification,
-      detail: `NTP ${s.kind} '${s.host}' (${s.source}) — classified ${classification}. ` +
+      detail:
+        `NTP ${s.kind} '${s.host}' (${s.source}) — classified ${classification}. ` +
         (classification === 'internal'
           ? 'Internal time servers are core infrastructure peers; stratum hierarchy often mirrors network trust zones.'
           : classification === 'public'
@@ -176,21 +202,31 @@ export function extractNtpSources(configText) {
 
   const findings = [];
   if (internalSources.length) {
-    findings.push(`${internalSources.length} internal NTP source(s): ${internalSources.join(', ')} — ` +
-      'internal time infrastructure peers; map their stratum role and reachability.');
+    findings.push(
+      `${internalSources.length} internal NTP source(s): ${internalSources.join(', ')} — ` +
+        'internal time infrastructure peers; map their stratum role and reachability.'
+    );
   }
   if (publicSources.length) {
-    findings.push(`${publicSources.length} public NTP source(s): ${publicSources.join(', ')} — ` +
-      'external time sync; check whether internal hosts also sync here (egress path intel).');
+    findings.push(
+      `${publicSources.length} public NTP source(s): ${publicSources.join(', ')} — ` +
+        'external time sync; check whether internal hosts also sync here (egress path intel).'
+    );
   }
-  const hasRefclock = raw.some(s => s.kind === 'refclock' || /gps|pps|shm/i.test(s.host + s.options));
+  const hasRefclock = raw.some(
+    s => s.kind === 'refclock' || /gps|pps|shm/i.test(s.host + s.options)
+  );
   if (hasRefclock) {
-    findings.push('A reference clock (GPS/PPS/SHM) is configured — this host is a stratum-1 ' +
-      'time source, typically hardened core infrastructure.');
+    findings.push(
+      'A reference clock (GPS/PPS/SHM) is configured — this host is a stratum-1 ' +
+        'time source, typically hardened core infrastructure.'
+    );
   }
   if (!sources.length) {
-    findings.push('No NTP sources parsed from the supplied text — confirm the input is ntp.conf, ' +
-      'chrony.conf, timesyncd, or w32tm output.');
+    findings.push(
+      'No NTP sources parsed from the supplied text — confirm the input is ntp.conf, ' +
+        'chrony.conf, timesyncd, or w32tm output.'
+    );
   }
 
   return { sources, internalSources, publicSources, summary, findings };

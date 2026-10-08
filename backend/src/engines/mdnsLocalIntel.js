@@ -56,7 +56,7 @@ export function parseAvahiBrowse(text) {
 export function parseMdnsRecords(text) {
   const hosts = new Map(); // name -> { addresses: Set, services: Set }
   const services = [];
-  const ensure = (name) => {
+  const ensure = name => {
     const n = name.replace(/\.$/, '').toLowerCase();
     if (!hosts.has(n)) hosts.set(n, { addresses: new Set(), services: new Set() });
     return hosts.get(n);
@@ -78,7 +78,12 @@ export function parseMdnsRecords(text) {
     if (m) {
       const inst = m[2].replace(/\.$/, '');
       const tm = inst.match(/\.(_[a-z0-9-]+\._(?:tcp|udp))(?:\.|$)/i);
-      const st = tm ? tm[1].toLowerCase() : m[1].replace(/\.local\.?$/i, '').replace(/\.$/, '').toLowerCase();
+      const st = tm
+        ? tm[1].toLowerCase()
+        : m[1]
+            .replace(/\.local\.?$/i, '')
+            .replace(/\.$/, '')
+            .toLowerCase();
       services.push({ instance: inst, serviceType: st, host: null, port: null, txt: {} });
       continue;
     }
@@ -127,7 +132,9 @@ export function parseMdnsRecords(text) {
 
   // Fold avahi-style lines into the same model
   for (const a of parseAvahiBrowse(text)) {
-    const h = ensure(a.instance.toLowerCase().endsWith('.local') ? a.instance : `${a.instance}.local`);
+    const h = ensure(
+      a.instance.toLowerCase().endsWith('.local') ? a.instance : `${a.instance}.local`
+    );
     h.services.add(a.serviceType);
   }
 
@@ -153,14 +160,17 @@ export function harvestMdnsNames(text) {
   const raw = String(text || '');
   const { hosts, services } = parseMdnsRecords(raw);
 
-  const hostList = [...hosts.entries()].map(([name, h]) => ({
-    name,
-    addresses: [...h.addresses],
-    services: [...h.services],
-    detail: `mDNS host '${name}'${[...h.addresses].length ? ` (${[...h.addresses].join(', ')})` : ''} ` +
-      `announces: ${[...h.services].join(', ') || 'no parsed services'}. ` +
-      'Service types reveal device roles (printers, file shares, dev servers).',
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  const hostList = [...hosts.entries()]
+    .map(([name, h]) => ({
+      name,
+      addresses: [...h.addresses],
+      services: [...h.services],
+      detail:
+        `mDNS host '${name}'${[...h.addresses].length ? ` (${[...h.addresses].join(', ')})` : ''} ` +
+        `announces: ${[...h.services].join(', ') || 'no parsed services'}. ` +
+        'Service types reveal device roles (printers, file shares, dev servers).',
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const svcList = services.map(s => ({
     instance: s.instance,
@@ -178,28 +188,48 @@ export function harvestMdnsNames(text) {
 
   const findings = [];
   if (hostList.length) {
-    findings.push(`${hostList.length} .local hostname(s) harvested: ${hostList.slice(0, 12).map(h => h.name).join(', ')}` +
-      `${hostList.length > 12 ? ` (+${hostList.length - 12} more)` : ''} — adjacent-network device inventory.`);
+    findings.push(
+      `${hostList.length} .local hostname(s) harvested: ${hostList
+        .slice(0, 12)
+        .map(h => h.name)
+        .join(', ')}` +
+        `${hostList.length > 12 ? ` (+${hostList.length - 12} more)` : ''} — adjacent-network device inventory.`
+    );
   }
-  const interesting = svcList.filter(s => /_ssh\._tcp|_http\._tcp|_smb\._tcp|_afpovertcp|_rdp\._tcp|_vnc\._tcp/i.test(s.serviceType || ''));
+  const interesting = svcList.filter(s =>
+    /_ssh\._tcp|_http\._tcp|_smb\._tcp|_afpovertcp|_rdp\._tcp|_vnc\._tcp/i.test(s.serviceType || '')
+  );
   if (interesting.length) {
-    findings.push(`${interesting.length} remote-access/file service(s) advertised: ` +
-      interesting.slice(0, 6).map(s => `${s.serviceType} on ${s.host || s.instance}${s.port ? `:${s.port}` : ''}`).join(', ') +
-      ' — directly reachable service endpoints.');
+    findings.push(
+      `${interesting.length} remote-access/file service(s) advertised: ` +
+        interesting
+          .slice(0, 6)
+          .map(s => `${s.serviceType} on ${s.host || s.instance}${s.port ? `:${s.port}` : ''}`)
+          .join(', ') +
+        ' — directly reachable service endpoints.'
+    );
   }
-  const printers = svcList.filter(s => /_ipp\._tcp|_printer\._tcp|_pdl-datastream/i.test(s.serviceType || ''));
+  const printers = svcList.filter(s =>
+    /_ipp\._tcp|_printer\._tcp|_pdl-datastream/i.test(s.serviceType || '')
+  );
   if (printers.length) {
-    findings.push(`${printers.length} printer(s) advertising IPP: printers frequently expose ` +
-      'admin panels and stored documents — inventory their models.');
+    findings.push(
+      `${printers.length} printer(s) advertising IPP: printers frequently expose ` +
+        'admin panels and stored documents — inventory their models.'
+    );
   }
   if (!hostList.length && !svcList.length) {
     const v4 = [...new Set(raw.match(IPV4_RE) || [])];
     const v6 = [...new Set(raw.match(IPV6_RE) || [])];
     if (v4.length || v6.length) {
-      findings.push(`No .local names parsed, but ${v4.length + v6.length} address(es) observed in the text: ` +
-        `${[...v4, ...v6].slice(0, 8).join(', ')} — confirm the input format.`);
+      findings.push(
+        `No .local names parsed, but ${v4.length + v6.length} address(es) observed in the text: ` +
+          `${[...v4, ...v6].slice(0, 8).join(', ')} — confirm the input format.`
+      );
     } else {
-      findings.push('No mDNS data parsed — confirm the input is avahi-browse, dns-sd, or captured .local DNS records.');
+      findings.push(
+        'No mDNS data parsed — confirm the input is avahi-browse, dns-sd, or captured .local DNS records.'
+      );
     }
   }
 

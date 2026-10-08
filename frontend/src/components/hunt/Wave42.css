@@ -5,14 +5,16 @@
  * publishing suite). Zero motion anywhere in this file, per the standing order.
  */
 
-.sd42-gallery, .sp42-gallery {
+.sd42-gallery,
+.sp42-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 14px;
   padding: 6px;
 }
 
-.sd42-card, .sp42-card {
+.sd42-card,
+.sp42-card {
   background: #14161d;
   border: 1px solid #2a2e3a;
   border-radius: 12px;
@@ -20,7 +22,8 @@
   color: #e8eaf0;
 }
 
-.sd42-h, .sp42-h {
+.sd42-h,
+.sp42-h {
   margin: 0 0 10px;
   font-size: 14px;
   font-weight: 600;
@@ -34,10 +37,27 @@
   color: #ffffff;
 }
 
-.sd42-p { margin: 6px 0; font-size: 13px; line-height: 1.5; }
-.sd42-dim { color: #9aa1b5; }
-.sd42-list { margin: 6px 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
-.sd42-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.sd42-p {
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sd42-dim {
+  color: #9aa1b5;
+}
+.sd42-list {
+  margin: 6px 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.sd42-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
 
 .sd42-input {
   flex: 1 1 160px;
@@ -59,8 +79,14 @@
   cursor: pointer;
 }
 
-.sd42-btn:disabled { opacity: 0.45; cursor: default; }
-.sd42-on { background: #39415a; border-color: #6d5cff; }
+.sd42-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.sd42-on {
+  background: #39415a;
+  border-color: #6d5cff;
+}
 
 .sd42-chip {
   display: inline-block;
@@ -80,16 +106,43 @@
   font-weight: 600;
 }
 
-.sd42-info { background: #1d3a5f; color: #bfe0ff; }
-.sd42-significant { background: #5f1d2a; color: #ffc9d1; }
-.sd42-none { background: #232838; color: #9aa1b5; }
-.sd42-pending { background: #5a4a1d; color: #ffe9b3; }
-.sd42-complete { background: #1d5f38; color: #c9f2d8; }
+.sd42-info {
+  background: #1d3a5f;
+  color: #bfe0ff;
+}
+.sd42-significant {
+  background: #5f1d2a;
+  color: #ffc9d1;
+}
+.sd42-none {
+  background: #232838;
+  color: #9aa1b5;
+}
+.sd42-pending {
+  background: #5a4a1d;
+  color: #ffe9b3;
+}
+.sd42-complete {
+  background: #1d5f38;
+  color: #c9f2d8;
+}
 
-.sd42-critical { background: #5f1d2a; color: #ffc9d1; }
-.sd42-high { background: #5f3a1d; color: #ffd9b3; }
-.sd42-medium { background: #5a4a1d; color: #ffe9b3; }
-.sd42-low { background: #1d3a5f; color: #bfe0ff; }
+.sd42-critical {
+  background: #5f1d2a;
+  color: #ffc9d1;
+}
+.sd42-high {
+  background: #5f3a1d;
+  color: #ffd9b3;
+}
+.sd42-medium {
+  background: #5a4a1d;
+  color: #ffe9b3;
+}
+.sd42-low {
+  background: #1d3a5f;
+  color: #bfe0ff;
+}
 
 .sd42-code {
   background: #0e1015;
@@ -112,14 +165,40 @@
   overflow: auto;
 }
 
-.sd42-link { color: #8f9bff; text-decoration: underline; }
+.sd42-link {
+  color: #8f9bff;
+  text-decoration: underline;
+}
 
-.sd42-bars { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
-.sd42-bar-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.sd42-bar { flex: 1; background: #0e1015; border-radius: 4px; height: 12px; overflow: hidden; min-width: 60px; }
-.sd42-fill { height: 12px; border-radius: 4px; background: #6d5cff; }
+.sd42-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.sd42-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.sd42-bar {
+  flex: 1;
+  background: #0e1015;
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
+  min-width: 60px;
+}
+.sd42-fill {
+  height: 12px;
+  border-radius: 4px;
+  background: #6d5cff;
+}
 
-.sd42-phone { border-color: #39415a; }
+.sd42-phone {
+  border-color: #39415a;
+}
 
 .sp42-kpi {
   display: flex;
@@ -132,7 +211,18 @@
   min-width: 72px;
 }
 
-.sp42-kpi b { font-size: 18px; color: #ffffff; }
+.sp42-kpi b {
+  font-size: 18px;
+  color: #ffffff;
+}
 
-.sp42-score { font-size: 30px; font-weight: 700; color: #ffffff; margin: 6px 0; }
-.sp42-trend { font-size: 16px; color: #8f9bff; }
+.sp42-score {
+  font-size: 30px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 6px 0;
+}
+.sp42-trend {
+  font-size: 16px;
+  color: #8f9bff;
+}

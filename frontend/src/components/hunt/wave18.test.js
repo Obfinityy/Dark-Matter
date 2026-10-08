@@ -63,9 +63,11 @@ import {
 /* Registry completeness ------------------------------------------------ */
 test('WAVE18_IDEAS covers all 40 ideas 50681-50720', () => {
   assert.equal(WAVE18_IDEAS.length, 40);
-  const ids = WAVE18_IDEAS.map((i) => i.id).sort((a, b) => a - b);
+  const ids = WAVE18_IDEAS.map(i => i.id).sort((a, b) => a - b);
   for (let n = 50681; n <= 50720; n += 1) assert.ok(ids.includes(n), `missing idea ${n}`);
-  const skips = WAVE18_IDEAS.filter((i) => i.status === 'skipped').map((i) => i.id).sort();
+  const skips = WAVE18_IDEAS.filter(i => i.status === 'skipped')
+    .map(i => i.id)
+    .sort();
   assert.deepEqual(skips, [50684, 50688, 50689, 50693, 50696, 50703]);
   const cov = wave18Coverage();
   assert.equal(cov.total, 40);
@@ -127,15 +129,21 @@ test('ideThemePalette returns palettes and a follow-app fallback', () => {
 
 /* 50701 — DND-aware scheduling ------------------------------------------------------ */
 test('isDndNow handles wrapping midnight windows', () => {
-  const at = (h) => new Date(2026, 9, 7, h, 0, 0);
+  const at = h => new Date(2026, 9, 7, h, 0, 0);
   assert.equal(isDndNow({ startHour: 22, endHour: 7, now: at(23) }), true);
   assert.equal(isDndNow({ startHour: 22, endHour: 7, now: at(3) }), true);
   assert.equal(isDndNow({ startHour: 22, endHour: 7, now: at(12) }), false);
   assert.equal(isDndNow({ startHour: 9, endHour: 17, now: at(12) }), true);
   assert.equal(isDndNow({ startHour: 9, endHour: 17, now: at(20) }), false);
   assert.equal(isDndNow({}), false);
-  assert.equal(shouldRunThemeTransition({ dnd: { startHour: 22, endHour: 7 }, date: at(23) }), false);
-  assert.equal(shouldRunThemeTransition({ dnd: { startHour: 22, endHour: 7 }, date: at(12) }), true);
+  assert.equal(
+    shouldRunThemeTransition({ dnd: { startHour: 22, endHour: 7 }, date: at(23) }),
+    false
+  );
+  assert.equal(
+    shouldRunThemeTransition({ dnd: { startHour: 22, endHour: 7 }, date: at(12) }),
+    true
+  );
   assert.equal(dndWindowLabel({ startHour: 22, endHour: 7 }), '22:00 – 07:00 local');
   assert.equal(dndWindowLabel({}), 'Off');
 });
@@ -143,7 +151,12 @@ test('isDndNow handles wrapping midnight windows', () => {
 /* 50702 — per-hunt theme override -------------------------------------------------------- */
 test('makeHuntThemeStore pins and clears per-hunt themes', () => {
   const mem = {};
-  const store = makeHuntThemeStore({ getItem: (k) => mem[k] || null, setItem: (k, v) => { mem[k] = v; } });
+  const store = makeHuntThemeStore({
+    getItem: k => mem[k] || null,
+    setItem: (k, v) => {
+      mem[k] = v;
+    },
+  });
   assert.equal(store.get('h1'), null);
   assert.equal(store.effective('h1', 'dark'), 'dark');
   store.set('h1', 'high-contrast');
@@ -177,7 +190,10 @@ test('embeddedThemePayload / parseEmbeddedThemeMessage round-trip with validatio
   const back = parseEmbeddedThemeMessage(p);
   assert.deepEqual(back, { themeId: 'dark', vars: { '--bg': '#000' } });
   assert.equal(parseEmbeddedThemeMessage({ type: 'nope' }), null);
-  assert.equal(parseEmbeddedThemeMessage({ type: EMBED_THEME_MESSAGE, themeId: 'x'.repeat(64) }), null);
+  assert.equal(
+    parseEmbeddedThemeMessage({ type: EMBED_THEME_MESSAGE, themeId: 'x'.repeat(64) }),
+    null
+  );
   assert.equal(parseEmbeddedThemeMessage(null), null);
 });
 
@@ -198,7 +214,10 @@ test('scrollbar/selection/table/focus helpers', () => {
   assert.equal(tableModeClass('standard'), 'th-table');
   assert.equal(HIGH_CONTRAST_FOCUS_SPEC.outlineWidth, '3px');
   assert.equal(HIGH_CONTRAST_FOCUS_SPEC.outlineOffset, '2px');
-  assert.deepEqual(instantThemeAttrs('light'), { 'data-theme': 'light', 'data-th-instant': 'true' });
+  assert.deepEqual(instantThemeAttrs('light'), {
+    'data-theme': 'light',
+    'data-th-instant': 'true',
+  });
   assert.equal(gradientsAllowed('dark'), true);
   assert.equal(gradientsAllowed('dim'), true);
   assert.equal(gradientsAllowed('light'), false);
@@ -208,7 +227,10 @@ test('scrollbar/selection/table/focus helpers', () => {
   assert.equal(emptyIllustrationVariant('dark'), 'dark');
   const fr = firstRunThemes();
   assert.equal(fr.length, 3);
-  assert.deepEqual(fr.map((t) => t.id), ['dark', 'light', 'sepia']);
+  assert.deepEqual(
+    fr.map(t => t.id),
+    ['dark', 'light', 'sepia']
+  );
 });
 
 /* dashboardCore ----------------------------------------------------------------------------------------------- */
@@ -241,9 +263,12 @@ test('activeHuntsModel filters + shapes running/paused hunts', () => {
 
 test('severityDonutSegments counts + percents sum to 100', () => {
   const segs = severityDonutSegments([
-    { severity: 'critical' }, { severity: 'CRITICAL' }, { severity: 'low' }, { severity: 'weird' },
+    { severity: 'critical' },
+    { severity: 'CRITICAL' },
+    { severity: 'low' },
+    { severity: 'weird' },
   ]);
-  const crit = segs.find((s) => s.severity === 'critical');
+  const crit = segs.find(s => s.severity === 'critical');
   assert.equal(crit.count, 2);
   const sum = segs.reduce((a, s) => a + s.pct, 0);
   assert.ok(Math.abs(sum - 100) < 0.01);
@@ -260,10 +285,10 @@ test('weeklyFindingsModel totals + spark + WoW', () => {
 
 test('throughputModel buckets 30 days', () => {
   const now = new Date('2026-10-07T12:00:00Z');
-  const m = throughputModel([
-    { completedAt: '2026-10-07T06:00:00Z' },
-    { completedAt: '2026-09-01T00:00:00Z' },
-  ], now);
+  const m = throughputModel(
+    [{ completedAt: '2026-10-07T06:00:00Z' }, { completedAt: '2026-09-01T00:00:00Z' }],
+    now
+  );
   assert.equal(m.buckets.length, 30);
   assert.equal(m.total, 1);
   assert.equal(m.buckets[29], 1);
@@ -276,7 +301,10 @@ test('needsReviewModel returns top unreviewed sorted by severity', () => {
     { id: 'c', title: 'reviewed', severity: 'critical', reviewed: true },
     { id: 'd', title: 'fp', severity: 'high', falsePositive: true },
   ]);
-  assert.deepEqual(rows.map((r) => r.id), ['a', 'b'].sort((x, y) => (x === 'b' ? -1 : 1)));
+  assert.deepEqual(
+    rows.map(r => r.id),
+    ['a', 'b'].sort((x, y) => (x === 'b' ? -1 : 1))
+  );
   assert.equal(rows[0].id, 'b');
 });
 
@@ -297,7 +325,9 @@ test('topVulnerableTargetsModel ranks by criticals with trend', () => {
 
 test('agentActivityHeatmap builds a 7x24 grid with peak', () => {
   const events = [
-    { at: '2026-10-07T10:00:00Z' }, { at: '2026-10-07T10:30:00Z' }, { at: '2026-10-06T10:00:00Z' },
+    { at: '2026-10-07T10:00:00Z' },
+    { at: '2026-10-07T10:30:00Z' },
+    { at: '2026-10-06T10:00:00Z' },
   ];
   const { grid, peak } = agentActivityHeatmap(events);
   assert.equal(grid.length, 7);
@@ -318,9 +348,11 @@ test('timeToFirstFindingModel averages and trends (down is good)', () => {
 
 test('fpRateModel computes per-engine rates', () => {
   const rows = fpRateModel([
-    { engine: 'a', falsePositive: true }, { engine: 'a' }, { engine: 'b' },
+    { engine: 'a', falsePositive: true },
+    { engine: 'a' },
+    { engine: 'b' },
   ]);
-  const a = rows.find((r) => r.engine === 'a');
+  const a = rows.find(r => r.engine === 'a');
   assert.equal(a.fpRate, 50);
   assert.equal(a.spark.length, 30);
 });
@@ -332,7 +364,10 @@ test('reportReadyModel + upcomingSchedulesModel filter correctly', () => {
     { id: 'r2', targetUrl: 'https://b.test', status: 'completed', reportGenerated: true },
     { id: 'r3', targetUrl: 'https://c.test', status: 'running' },
   ]);
-  assert.deepEqual(ready.map((r) => r.id), ['r1']);
+  assert.deepEqual(
+    ready.map(r => r.id),
+    ['r1']
+  );
   const sched = upcomingSchedulesModel(
     [
       { id: 's1', name: 'old', targetUrl: 'https://a.test', nextRunAt: '2026-10-01T00:00:00Z' },
@@ -340,15 +375,23 @@ test('reportReadyModel + upcomingSchedulesModel filter correctly', () => {
     ],
     now
   );
-  assert.deepEqual(sched.map((s) => s.id), ['s2']);
+  assert.deepEqual(
+    sched.map(s => s.id),
+    ['s2']
+  );
   assert.equal(sched[0].countdown, '3h 0m');
 });
 
 test('integrationHealthModel maps statuses to dots', () => {
   const rows = integrationHealthModel([
-    { name: 'x', status: 'healthy' }, { name: 'y', status: 'degraded' }, { name: 'z', status: 'down' },
+    { name: 'x', status: 'healthy' },
+    { name: 'y', status: 'degraded' },
+    { name: 'z', status: 'down' },
   ]);
-  assert.deepEqual(rows.map((r) => r.dot), ['green', 'amber', 'red']);
+  assert.deepEqual(
+    rows.map(r => r.dot),
+    ['green', 'amber', 'red']
+  );
 });
 
 test('learningAppliedModel keeps only this-week entries', () => {
@@ -360,14 +403,25 @@ test('learningAppliedModel keeps only this-week entries', () => {
     ],
     now
   );
-  assert.deepEqual(rows.map((r) => r.rule), ['r1']);
+  assert.deepEqual(
+    rows.map(r => r.rule),
+    ['r1']
+  );
 });
 
 test('storageUsageModel computes pct + advice tiers', () => {
-  const m = storageUsageModel({ evidenceBytes: 9 * 1024 ** 3, snapshotBytes: 0, quotaBytes: 10 * 1024 ** 3 });
+  const m = storageUsageModel({
+    evidenceBytes: 9 * 1024 ** 3,
+    snapshotBytes: 0,
+    quotaBytes: 10 * 1024 ** 3,
+  });
   assert.equal(m.pct, 90);
   assert.ok(m.suggestion.includes('clean'));
-  const ok = storageUsageModel({ evidenceBytes: 1024, snapshotBytes: 0, quotaBytes: 10 * 1024 ** 3 });
+  const ok = storageUsageModel({
+    evidenceBytes: 1024,
+    snapshotBytes: 0,
+    quotaBytes: 10 * 1024 ** 3,
+  });
   assert.ok(ok.suggestion.includes('healthy'));
 });
 
@@ -377,7 +431,10 @@ test('teamLeaderboardModel is opt-in and ranked', () => {
     { name: 'a', confirmedFindings: 9, optIn: true },
     { name: 'c', confirmedFindings: 99, optIn: false },
   ]);
-  assert.deepEqual(rows.map((r) => r.name), ['a', 'b']);
+  assert.deepEqual(
+    rows.map(r => r.name),
+    ['a', 'b']
+  );
   assert.equal(rows[0].rank, 1);
 });
 
@@ -387,10 +444,19 @@ test('slaRiskModel sorts by urgency then remaining time', () => {
     [
       { id: 'ok', title: 'ok', severity: 'low', createdAt: '2026-10-07T00:00:00Z' },
       { id: 'hot', title: 'hot', severity: 'critical', createdAt: '2026-10-06T13:00:00Z' },
-      { id: 'done', title: 'done', severity: 'critical', createdAt: '2026-10-06T13:00:00Z', resolved: true },
+      {
+        id: 'done',
+        title: 'done',
+        severity: 'critical',
+        createdAt: '2026-10-06T13:00:00Z',
+        resolved: true,
+      },
     ],
     { now }
   );
-  assert.deepEqual(rows.map((r) => r.id), ['hot', 'ok']);
+  assert.deepEqual(
+    rows.map(r => r.id),
+    ['hot', 'ok']
+  );
   assert.ok(rows[0].countdown.includes('h') || rows[0].countdown.includes('m'));
 });

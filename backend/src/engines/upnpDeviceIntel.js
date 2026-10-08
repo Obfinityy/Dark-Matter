@@ -28,8 +28,10 @@ export function splitTopLevelBlocks(xml, tag) {
   const closeRe = new RegExp(`</${tag}\\s*>`, 'gi');
   const marks = [];
   let m;
-  while ((m = openRe.exec(xml)) !== null) marks.push({ pos: m.index, end: m.index + m[0].length, open: true });
-  while ((m = closeRe.exec(xml)) !== null) marks.push({ pos: m.index, end: m.index + m[0].length, open: false });
+  while ((m = openRe.exec(xml)) !== null)
+    marks.push({ pos: m.index, end: m.index + m[0].length, open: true });
+  while ((m = closeRe.exec(xml)) !== null)
+    marks.push({ pos: m.index, end: m.index + m[0].length, open: false });
   marks.sort((a, b) => a.pos - b.pos || (a.open === b.open ? 0 : a.open ? -1 : 1));
 
   const blocks = [];
@@ -59,7 +61,10 @@ export function splitTopLevelBlocks(xml, tag) {
 export function getXmlField(block, tag) {
   const m = block.match(new RegExp(`<${tag}(\\s[^>]*)?>([\\s\\S]*?)</${tag}\\s*>`, 'i'));
   if (!m) return '';
-  return m[2].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, '').trim();
+  return m[2]
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .trim();
 }
 
 /**
@@ -68,8 +73,11 @@ export function getXmlField(block, tag) {
  */
 export function decodeXmlEntities(s) {
   return String(s || '')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
 }
 
 /**
@@ -156,9 +164,11 @@ export function mineUpnpDescription(xmlText) {
   const allDevices = devices.flatMap(flattenDeviceTree);
 
   const presentationUrls = [...new Set(allDevices.map(d => d.presentationUrl).filter(Boolean))];
-  const externalUrls = [...new Set(
-    allDevices.flatMap(d => [d.modelUrl, d.manufacturerUrl]).filter(u => /^https?:\/\//i.test(u)),
-  )];
+  const externalUrls = [
+    ...new Set(
+      allDevices.flatMap(d => [d.modelUrl, d.manufacturerUrl]).filter(u => /^https?:\/\//i.test(u))
+    ),
+  ];
 
   const services = [];
   for (const d of allDevices) {
@@ -182,29 +192,45 @@ export function mineUpnpDescription(xmlText) {
   const findings = [];
   const named = allDevices.filter(d => d.friendlyName).map(d => d.friendlyName);
   if (named.length) {
-    findings.push(`${named.length} UPnP device(s): ${named.slice(0, 8).join(', ')}${named.length > 8 ? ` (+${named.length - 8} more)` : ''}.`);
+    findings.push(
+      `${named.length} UPnP device(s): ${named.slice(0, 8).join(', ')}${named.length > 8 ? ` (+${named.length - 8} more)` : ''}.`
+    );
   }
-  const models = [...new Set(allDevices.map(d => [d.manufacturer, d.modelName].filter(Boolean).join(' ')).filter(Boolean))];
+  const models = [
+    ...new Set(
+      allDevices.map(d => [d.manufacturer, d.modelName].filter(Boolean).join(' ')).filter(Boolean)
+    ),
+  ];
   if (models.length) {
-    findings.push(`Model fingerprint(s): ${models.slice(0, 6).join(' | ')}${models.length > 6 ? '…' : ''} — ` +
-      'drives firmware-version follow-up.');
+    findings.push(
+      `Model fingerprint(s): ${models.slice(0, 6).join(' | ')}${models.length > 6 ? '…' : ''} — ` +
+        'drives firmware-version follow-up.'
+    );
   }
   if (presentationUrls.length) {
-    findings.push(`Presentation URL(s) — usually the admin web UI: ${presentationUrls.slice(0, 6).join(', ')}` +
-      `${presentationUrls.length > 6 ? '…' : ''}.`);
+    findings.push(
+      `Presentation URL(s) — usually the admin web UI: ${presentationUrls.slice(0, 6).join(', ')}` +
+        `${presentationUrls.length > 6 ? '…' : ''}.`
+    );
   }
   if (externalUrls.length) {
-    findings.push(`Vendor URL(s) referenced by the device: ${externalUrls.slice(0, 4).join(', ')} — ` +
-      'third-party hosts tied to the device supply chain.');
+    findings.push(
+      `Vendor URL(s) referenced by the device: ${externalUrls.slice(0, 4).join(', ')} — ` +
+        'third-party hosts tied to the device supply chain.'
+    );
   }
   const wanServices = services.filter(s => /wanc|wanip|wanppp/i.test(s.serviceType));
   if (wanServices.length) {
-    findings.push(`${wanServices.length} WAN-facing service(s) (WANIPConnection/WANPPPConnection): ` +
-      'this device manages the internet uplink — its control URLs are high-value.');
+    findings.push(
+      `${wanServices.length} WAN-facing service(s) (WANIPConnection/WANPPPConnection): ` +
+        'this device manages the internet uplink — its control URLs are high-value.'
+    );
   }
   const serials = [...new Set(allDevices.map(d => d.serialNumber).filter(Boolean))];
   if (serials.length) {
-    findings.push(`Serial number(s) disclosed: ${serials.slice(0, 4).join(', ')} — hardware identity for asset correlation.`);
+    findings.push(
+      `Serial number(s) disclosed: ${serials.slice(0, 4).join(', ')} — hardware identity for asset correlation.`
+    );
   }
   if (!devices.length) {
     findings.push('No <device> blocks parsed — confirm the input is UPnP device-description XML.');

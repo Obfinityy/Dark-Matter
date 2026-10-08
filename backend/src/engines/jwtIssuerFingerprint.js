@@ -34,7 +34,11 @@ const ISSUER_PROVIDERS = [
   { match: '.supabase.co/auth', provider: 'Supabase Auth', confidence: 'high' },
   { match: 'login.salesforce.com', provider: 'Salesforce', confidence: 'high' },
   { match: '.auth0.', provider: 'Auth0', confidence: 'medium' },
-  { match: 'identitytoolkit.googleapis.com', provider: 'Google Identity Toolkit', confidence: 'medium' },
+  {
+    match: 'identitytoolkit.googleapis.com',
+    provider: 'Google Identity Toolkit',
+    confidence: 'medium',
+  },
   { match: 'login.yahoo.com', provider: 'Yahoo', confidence: 'medium' },
   { match: 'appleid.apple.com', provider: 'Apple Sign In', confidence: 'high' },
 ];
@@ -67,11 +71,22 @@ export function decodeBase64UrlSegment(segment) {
  * @returns {{parts: number, wellFormed: boolean, header: object|null, payload: object|null, signaturePresent: boolean, error: string|null}}
  */
 export function decodeJwtStructure(token) {
-  const bad = { parts: 0, wellFormed: false, header: null, payload: null, signaturePresent: false, error: 'not a string' };
+  const bad = {
+    parts: 0,
+    wellFormed: false,
+    header: null,
+    payload: null,
+    signaturePresent: false,
+    error: 'not a string',
+  };
   if (!token || typeof token !== 'string') return bad;
   const parts = token.split('.');
   if (parts.length < 2 || parts.length > 3) {
-    return { ...bad, parts: parts.length, error: `expected 2-3 dot-separated segments, got ${parts.length}` };
+    return {
+      ...bad,
+      parts: parts.length,
+      error: `expected 2-3 dot-separated segments, got ${parts.length}`,
+    };
   }
   const header = decodeBase64UrlSegment(parts[0]);
   const payload = decodeBase64UrlSegment(parts[1]);
@@ -114,7 +129,8 @@ export function matchIssuerProvider(iss) {
   if (!iss || typeof iss !== 'string') return null;
   const lower = iss.toLowerCase();
   for (const entry of ISSUER_PROVIDERS) {
-    if (lower.includes(entry.match)) return { provider: entry.provider, confidence: entry.confidence };
+    if (lower.includes(entry.match))
+      return { provider: entry.provider, confidence: entry.confidence };
   }
   return null;
 }
@@ -136,7 +152,10 @@ export function analyzeJwtHeader(header) {
     else if (/^Ed/.test(alg)) algFamily = 'EdDSA (asymmetric)';
     else if (/^HS/.test(alg)) algFamily = 'HMAC (symmetric — typical of custom services)';
     else if (alg.toLowerCase() === 'none') algFamily = 'none';
-    if (alg.toLowerCase() === 'none') notes.push('alg=none: unsigned token accepted — critical hardening finding in an authorized test');
+    if (alg.toLowerCase() === 'none')
+      notes.push(
+        'alg=none: unsigned token accepted — critical hardening finding in an authorized test'
+      );
   }
   let kidShape = null;
   if (kid) {
@@ -144,7 +163,14 @@ export function analyzeJwtHeader(header) {
     else if (/^[A-Za-z0-9_-]{20,}$/.test(kid)) kidShape = 'opaque-id';
     else kidShape = 'other';
   }
-  return { alg, algFamily, kidPresent: kid !== null, kidShape, typ: typeof h.typ === 'string' ? h.typ : null, notes };
+  return {
+    alg,
+    algFamily,
+    kidPresent: kid !== null,
+    kidShape,
+    typ: typeof h.typ === 'string' ? h.typ : null,
+    notes,
+  };
 }
 
 /**
@@ -160,8 +186,12 @@ export function fingerprintJwtProvider(token) {
   const decoded = decodeJwtStructure(token);
   if (!decoded.wellFormed) {
     return {
-      wellFormed: false, error: decoded.error, provider: null,
-      claims: {}, headerAnalysis: {}, lifetimeSeconds: null,
+      wellFormed: false,
+      error: decoded.error,
+      provider: null,
+      claims: {},
+      headerAnalysis: {},
+      lifetimeSeconds: null,
       observations: ['token is not a well-formed JWT'],
     };
   }
@@ -170,16 +200,25 @@ export function fingerprintJwtProvider(token) {
   const headerAnalysis = analyzeJwtHeader(decoded.header);
   const observations = [...headerAnalysis.notes];
   if (provider) observations.push(`issuer matches known provider: ${provider.provider}`);
-  else if (claims.iss) observations.push('issuer URL does not match a known provider — likely a custom IdP');
+  else if (claims.iss)
+    observations.push('issuer URL does not match a known provider — likely a custom IdP');
   else observations.push('no iss claim — token carries no issuer identity');
   if (!decoded.signaturePresent) observations.push('no signature segment present');
   let lifetimeSeconds = null;
   if (claims.iat != null && claims.exp != null && claims.exp > claims.iat) {
     lifetimeSeconds = claims.exp - claims.iat;
-    if (lifetimeSeconds > 86400) observations.push(`long token lifetime (${Math.round(lifetimeSeconds / 3600)}h) — extended replay window`);
+    if (lifetimeSeconds > 86400)
+      observations.push(
+        `long token lifetime (${Math.round(lifetimeSeconds / 3600)}h) — extended replay window`
+      );
   }
   return {
-    wellFormed: true, error: null, provider, claims,
-    headerAnalysis, lifetimeSeconds, observations,
+    wellFormed: true,
+    error: null,
+    provider,
+    claims,
+    headerAnalysis,
+    lifetimeSeconds,
+    observations,
   };
 }

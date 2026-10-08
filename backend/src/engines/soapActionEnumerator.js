@@ -35,13 +35,15 @@ export function wsdlCandidates(baseUrl, servicePaths = []) {
 export function enumerateSoapActions(wsdl = '') {
   const result = { operations: [], serviceEndpoints: [], targetNamespace: null };
   const text = String(wsdl);
-  const defMatch = text.match(/<definitions[^>]*targetNamespace="([^"]+)"/i)
-    || text.match(/<wsdl:definitions[^>]*targetNamespace="([^"]+)"/i);
+  const defMatch =
+    text.match(/<definitions[^>]*targetNamespace="([^"]+)"/i) ||
+    text.match(/<wsdl:definitions[^>]*targetNamespace="([^"]+)"/i);
   if (defMatch) result.targetNamespace = defMatch[1];
 
   // Map operation name -> soapAction from binding sections.
   const soapActionByOp = new Map();
-  const opRe = /<operation\s+name="([^"]+)"[^>]*>[\s\S]*?<soap(?:12)?:operation\s+soapAction="([^"]*)"/gi;
+  const opRe =
+    /<operation\s+name="([^"]+)"[^>]*>[\s\S]*?<soap(?:12)?:operation\s+soapAction="([^"]*)"/gi;
   let m;
   while ((m = opRe.exec(text)) !== null) {
     soapActionByOp.set(m[1], m[2]);
@@ -64,7 +66,7 @@ export function enumerateSoapActions(wsdl = '') {
   }
 
   const names = new Set([...soapActionByOp.keys(), ...portTypeOps]);
-  result.operations = [...names].map((name) => ({
+  result.operations = [...names].map(name => ({
     name,
     soapAction: soapActionByOp.get(name) ?? null,
     binding: null,
@@ -107,8 +109,14 @@ export async function enumerateFromUrl(url, fetchImpl = globalThis.fetch) {
  * @returns {string|null}
  */
 export function summarizeFindings(enumerations = []) {
-  const found = enumerations.filter((x) => x.operations.length > 0);
+  const found = enumerations.filter(x => x.operations.length > 0);
   if (found.length === 0) return null;
-  const lines = found.map((x) => `- ${x.url}: ${x.operations.length} operation(s) (${x.operations.slice(0, 5).map((o) => o.name).join(', ')}${x.operations.length > 5 ? ', ...' : ''})`);
+  const lines = found.map(
+    x =>
+      `- ${x.url}: ${x.operations.length} operation(s) (${x.operations
+        .slice(0, 5)
+        .map(o => o.name)
+        .join(', ')}${x.operations.length > 5 ? ', ...' : ''})`
+  );
   return `SOAP services mapped from WSDL:\n${lines.join('\n')}\nRecommendation: disable public ?wsdl disclosure, restrict sensitive operations, and validate inputs against XML attacks (XXE, billion laughs).`;
 }

@@ -64,10 +64,38 @@ export function classifyError({ scenario, status, headers = {}, body = '' } = {}
 // Known (status, scenario) behavior markers keyed by server family.
 // Values are arrays of [scenario, expectedStatus, markerRegex].
 const KNOWN_BEHAVIORS = [
-  { family: 'nginx', checks: [['bad-method', 405, /405 Not Allowed/i], ['long-uri', 414, /414/i], ['malformed-header', 400, /400 Bad Request/i]] },
-  { family: 'apache', checks: [['bad-method', 405, /Method Not Allowed/i], ['long-uri', 414, /Request-URI Too (Long|Large)/i], ['malformed-header', 400, /Bad Request/i]] },
-  { family: 'iis', checks: [['bad-method', 405, /405/i], ['long-uri', 404, /404/i], ['malformed-header', 400, /Bad Request/i]] },
-  { family: 'cloudflare', checks: [['bad-method', 405, /Method Not Allowed/i], ['long-uri', 414, /414/i], ['malformed-header', 400, /cloudflare/i]] },
+  {
+    family: 'nginx',
+    checks: [
+      ['bad-method', 405, /405 Not Allowed/i],
+      ['long-uri', 414, /414/i],
+      ['malformed-header', 400, /400 Bad Request/i],
+    ],
+  },
+  {
+    family: 'apache',
+    checks: [
+      ['bad-method', 405, /Method Not Allowed/i],
+      ['long-uri', 414, /Request-URI Too (Long|Large)/i],
+      ['malformed-header', 400, /Bad Request/i],
+    ],
+  },
+  {
+    family: 'iis',
+    checks: [
+      ['bad-method', 405, /405/i],
+      ['long-uri', 404, /404/i],
+      ['malformed-header', 400, /Bad Request/i],
+    ],
+  },
+  {
+    family: 'cloudflare',
+    checks: [
+      ['bad-method', 405, /Method Not Allowed/i],
+      ['long-uri', 414, /414/i],
+      ['malformed-header', 400, /cloudflare/i],
+    ],
+  },
 ];
 
 /**
@@ -83,7 +111,8 @@ export function matchKnownBehaviors(classified) {
     let hits = 0;
     for (const [scenario, status, marker] of checks) {
       const obs = byScenario[scenario];
-      if (obs && obs.status === status && marker.test(`${obs.signature} ${obs.title || ''}`)) hits++;
+      if (obs && obs.status === status && marker.test(`${obs.signature} ${obs.title || ''}`))
+        hits++;
     }
     return { family, score: hits / checks.length };
   });
@@ -103,7 +132,7 @@ export function analyzeErrorFingerprint({ responses = [], banner = '' } = {}) {
   const bestGuess = best && best.score >= 0.5 ? best.family : null;
   const confidence = bestGuess ? (best.score >= 0.9 ? 'high' : 'medium') : 'low';
 
-  const sigLine = errors.map((e) => `${e.scenario}=${e.status}`).join(', ');
+  const sigLine = errors.map(e => `${e.scenario}=${e.status}`).join(', ');
   return {
     type: 'Error-Message Differential Fingerprinting',
     banner: String(banner || ''),
@@ -114,7 +143,9 @@ export function analyzeErrorFingerprint({ responses = [], banner = '' } = {}) {
     evidence:
       errors.length > 0
         ? `Error differential across ${errors.length} scenario(s) (${sigLine})${
-            bestGuess ? ` best matches '${bestGuess}' (score ${best.score.toFixed(2)})` : ' matches no known behavior strongly'
+            bestGuess
+              ? ` best matches '${bestGuess}' (score ${best.score.toFixed(2)})`
+              : ' matches no known behavior strongly'
           }.`
         : 'No error responses supplied.',
   };

@@ -19,15 +19,35 @@
 /** DigitalOcean App Platform default domain suffix. */
 export const DO_APP_DOMAIN = 'ondigitalocean.app';
 /** Matches a full App Platform default hostname, capturing app slug + suffix. */
-export const DO_APP_HOST_RE = /^([a-z0-9][a-z0-9-]{1,60}[a-z0-9])-([a-z0-9]{5})\.ondigitalocean\.app$/;
+export const DO_APP_HOST_RE =
+  /^([a-z0-9][a-z0-9-]{1,60}[a-z0-9])-([a-z0-9]{5})\.ondigitalocean\.app$/;
 /** App slug fragment rules: lowercase alnum + dashes. */
 export const DO_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}[a-z0-9]$/;
 
 export const DO_SLUG_PREFIXES = ['app', 'web', 'api', 'my'];
 export const DO_SLUG_SUFFIXES = [
-  'app', 'web', 'api', 'staging', 'stage', 'prod', 'production', 'dev',
-  'development', 'test', 'qa', 'uat', 'demo', 'beta', 'v1', 'v2',
-  'site', 'portal', 'dashboard', 'backend', 'frontend', 'service',
+  'app',
+  'web',
+  'api',
+  'staging',
+  'stage',
+  'prod',
+  'production',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'demo',
+  'beta',
+  'v1',
+  'v2',
+  'site',
+  'portal',
+  'dashboard',
+  'backend',
+  'frontend',
+  'service',
 ];
 
 /**
@@ -54,15 +74,11 @@ export function slugifyBrand(brand) {
  * @returns {string[]} unique valid app slugs
  */
 export function generateDoAppSlugs(brand, options = {}) {
-  const {
-    prefixes = DO_SLUG_PREFIXES,
-    suffixes = DO_SLUG_SUFFIXES,
-    maxNames = 100,
-  } = options;
+  const { prefixes = DO_SLUG_PREFIXES, suffixes = DO_SLUG_SUFFIXES, maxNames = 100 } = options;
   const slug = slugifyBrand(brand);
   if (!slug) return [];
   const out = new Set();
-  const add = (name) => {
+  const add = name => {
     if (out.size >= maxNames) return;
     if (DO_SLUG_RE.test(name)) out.add(name);
   };
@@ -81,7 +97,9 @@ export function generateDoAppSlugs(brand, options = {}) {
  * @returns {{hostname: string, appSlug: string, suffix: string}|null}
  */
 export function parseDoAppHostname(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const m = h.match(DO_APP_HOST_RE);
   if (!m) return null;
   return { hostname: h, appSlug: m[1], suffix: m[2] };
@@ -93,7 +111,9 @@ export function parseDoAppHostname(hostname) {
  * @returns {boolean}
  */
 export function isDoAppHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   return h === DO_APP_DOMAIN || h.endsWith(`.${DO_APP_DOMAIN}`);
 }
 
@@ -109,7 +129,9 @@ export function parseDoDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target || !isDoAppHost(target)) continue;
     const parsed = parseDoAppHostname(target);
     hits.push({
@@ -134,7 +156,9 @@ export function parseDoCertHints(sans = [], brandSlug = '') {
   const slug = String(brandSlug || '').toLowerCase();
   const hits = [];
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     if (!san || !isDoAppHost(san)) continue;
     const parsed = parseDoAppHostname(san);
     const appSlug = parsed ? parsed.appSlug : null;

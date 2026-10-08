@@ -88,7 +88,8 @@ export function quotaExceededMessage({ quotaName, resetsAt }) {
   const when = resetsAt ? `Resets ${new Date(resetsAt).toLocaleString()}.` : '';
   return {
     title: `${quotaName || 'Usage quota'} exhausted`,
-    detail: `You've used all of this period's ${quotaName || 'quota'}. ${when} Upgrade for more capacity.`.trim(),
+    detail:
+      `You've used all of this period's ${quotaName || 'quota'}. ${when} Upgrade for more capacity.`.trim(),
   };
 }
 
@@ -100,7 +101,11 @@ const URL_RE = /^https?:\/\/[^\s/$.?#][^\s]*$/i;
 export function validateTargetUrl(raw) {
   const url = String(raw || '').trim();
   if (!url) {
-    return { ok: false, message: 'Enter a target URL to start the hunt.', example: EXAMPLE_GOOD_URL };
+    return {
+      ok: false,
+      message: 'Enter a target URL to start the hunt.',
+      example: EXAMPLE_GOOD_URL,
+    };
   }
   if (/^www\./i.test(url)) {
     return {
@@ -152,19 +157,36 @@ export function agentStallState({ lastProgressAt, now = Date.now() }) {
 /* ---------- 50359: SSO error mapping ---------------------------------- */
 
 const SSO_FIXES = [
-  { match: /redirect_uri_mismatch/i, fix: 'The redirect URL registered with the provider must exactly match this app’s callback URL — including https:// and the trailing path.' },
-  { match: /invalid_client|unauthorized_client/i, fix: 'The provider rejected our client ID or secret. Ask an admin to re-check the SSO credentials in settings.' },
-  { match: /access_denied/i, fix: 'You denied the provider’s consent screen. Sign in again and accept the requested permissions.' },
-  { match: /invalid_grant|expired/i, fix: 'Your session token expired. Sign in again — no data was lost.' },
-  { match: /server_error|temporarily_unavailable/i, fix: 'The provider is having trouble right now. Wait a minute and try again.' },
+  {
+    match: /redirect_uri_mismatch/i,
+    fix: 'The redirect URL registered with the provider must exactly match this app’s callback URL — including https:// and the trailing path.',
+  },
+  {
+    match: /invalid_client|unauthorized_client/i,
+    fix: 'The provider rejected our client ID or secret. Ask an admin to re-check the SSO credentials in settings.',
+  },
+  {
+    match: /access_denied/i,
+    fix: 'You denied the provider’s consent screen. Sign in again and accept the requested permissions.',
+  },
+  {
+    match: /invalid_grant|expired/i,
+    fix: 'Your session token expired. Sign in again — no data was lost.',
+  },
+  {
+    match: /server_error|temporarily_unavailable/i,
+    fix: 'The provider is having trouble right now. Wait a minute and try again.',
+  },
 ];
 
 export function mapSsoError(providerCode, providerName = 'the identity provider') {
   const code = String(providerCode || '');
-  const hit = SSO_FIXES.find((f) => f.match.test(code));
+  const hit = SSO_FIXES.find(f => f.match.test(code));
   return {
     title: 'Sign-in with SSO failed',
-    detail: hit ? hit.fix : `Something went wrong with ${providerName} (${code || 'unknown error'}). Try again, or use email sign-in.`,
+    detail: hit
+      ? hit.fix
+      : `Something went wrong with ${providerName} (${code || 'unknown error'}). Try again, or use email sign-in.`,
     fixKnown: Boolean(hit),
   };
 }

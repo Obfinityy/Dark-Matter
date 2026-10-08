@@ -53,9 +53,15 @@ export function ThemedScrollbarsDemo() {
   const { theme } = useTheme();
   const items = useMemo(() => Array.from({ length: 30 }, (_, i) => `Row ${i + 1}`), []);
   return (
-    <div className={`${scrollbarClass(theme)} thr3-scrollbox`} tabIndex={0} aria-label="Themed scrollbar demo">
-      {items.map((r) => (
-        <div key={r} className="thr3-scrollrow">{r}</div>
+    <div
+      className={`${scrollbarClass(theme)} thr3-scrollbox`}
+      tabIndex={0}
+      aria-label="Themed scrollbar demo"
+    >
+      {items.map(r => (
+        <div key={r} className="thr3-scrollrow">
+          {r}
+        </div>
       ))}
     </div>
   );
@@ -66,8 +72,8 @@ export function ThemedSelectionDemo() {
   const { theme } = useTheme();
   return (
     <p className={`${selectionClass(theme)} thr3-select-demo`}>
-      Drag across this sentence: the selection tint follows the active theme and
-      stays contrast-safe with the text color.
+      Drag across this sentence: the selection tint follows the active theme and stays contrast-safe
+      with the text color.
     </p>
   );
 }
@@ -96,7 +102,10 @@ export function SyncedThemePreference({ accountPreference }) {
       const local = raw ? JSON.parse(raw) : themePreferenceRecord({ deviceId: did, theme, accent });
       const result = syncThemePreference({ deviceId: did, local, account: accountPreference });
       setMerged(result);
-      window.localStorage.setItem('dm_theme_pref_local', JSON.stringify(themePreferenceRecord({ deviceId: did, theme, accent })));
+      window.localStorage.setItem(
+        'dm_theme_pref_local',
+        JSON.stringify(themePreferenceRecord({ deviceId: did, theme, accent }))
+      );
     } catch {
       setMerged({ theme, accent, source: 'local', synced: false });
     }
@@ -104,9 +113,18 @@ export function SyncedThemePreference({ accountPreference }) {
   }, [theme, accent]);
   return (
     <div className="thr3-sync">
-      <p><strong>Device:</strong> <code>{did}</code></p>
-      <p><strong>Preference source:</strong> {merged?.source === 'account' ? 'Account (synced from another device)' : 'This device'} {merged?.synced ? '· synced' : ''}</p>
-      <p className="thr3-muted">Theme <code>{merged?.theme}</code> · accent <code>{merged?.accent}</code> — last writer wins on conflict.</p>
+      <p>
+        <strong>Device:</strong> <code>{did}</code>
+      </p>
+      <p>
+        <strong>Preference source:</strong>{' '}
+        {merged?.source === 'account' ? 'Account (synced from another device)' : 'This device'}{' '}
+        {merged?.synced ? '· synced' : ''}
+      </p>
+      <p className="thr3-muted">
+        Theme <code>{merged?.theme}</code> · accent <code>{merged?.accent}</code> — last writer wins
+        on conflict.
+      </p>
     </div>
   );
 }
@@ -116,7 +134,9 @@ export function SepiaThemeOption() {
   const { setTheme, theme } = useTheme();
   return (
     <div className="thr3-sepia-opt">
-      <p className="thr3-muted">Adds Sepia as a first-class reading theme alongside dark/light/dim/high-contrast.</p>
+      <p className="thr3-muted">
+        Adds Sepia as a first-class reading theme alongside dark/light/dim/high-contrast.
+      </p>
       <button
         type="button"
         className="thr3-btn"
@@ -127,9 +147,24 @@ export function SepiaThemeOption() {
         {theme === 'sepia' ? 'Sepia active' : 'Preview sepia'}
       </button>
       <dl className="thr3-kv">
-        <div><dt>Paper</dt><dd><code>{SEPIA_THEME.vars['--bg']}</code></dd></div>
-        <div><dt>Ink</dt><dd><code>{SEPIA_THEME.vars['--text']}</code></dd></div>
-        <div><dt>Accent</dt><dd><code>{SEPIA_THEME.vars['--accent']}</code></dd></div>
+        <div>
+          <dt>Paper</dt>
+          <dd>
+            <code>{SEPIA_THEME.vars['--bg']}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Ink</dt>
+          <dd>
+            <code>{SEPIA_THEME.vars['--text']}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Accent</dt>
+          <dd>
+            <code>{SEPIA_THEME.vars['--accent']}</code>
+          </dd>
+        </div>
       </dl>
     </div>
   );
@@ -141,8 +176,13 @@ export function BalancedSeverityTints() {
   const { theme } = useTheme();
   return (
     <div className="thr3-tints" role="list" aria-label="Severity tints for current theme">
-      {SEV_ORDER.map((s) => (
-        <div key={s} role="listitem" className="thr3-tint-chip" style={{ background: severityTintForTheme(s, theme) }}>
+      {SEV_ORDER.map(s => (
+        <div
+          key={s}
+          role="listitem"
+          className="thr3-tint-chip"
+          style={{ background: severityTintForTheme(s, theme) }}
+        >
           <span className={`thr3-sev-dot thr3-sev-${s}`} aria-hidden="true" />
           {s} · {theme}
         </div>
@@ -162,18 +202,30 @@ export function HighContrastTableDemo({ mode = 'high-contrast' }) {
   return (
     <div className="thr3-table-wrap" tabIndex={0} aria-label="Scrollable findings table demo">
       <table className={`${tableModeClass(mode)} thr3-table`} aria-label="Findings table demo">
-      <thead>
-        <tr><th scope="col">Severity</th><th scope="col">Finding</th><th scope="col">Location</th><th scope="col">Score</th></tr>
-      </thead>
-      <tbody>
-        {TABLE_ROWS.map(([sev, title, loc, score]) => (
-          <tr key={title}>
-            <td><span className={`thr3-sev-dot thr3-sev-${sev.toLowerCase()}`} aria-hidden="true" />{sev}</td>
-            <td>{title}</td><td><code>{loc}</code></td><td>{score}</td>
+        <thead>
+          <tr>
+            <th scope="col">Severity</th>
+            <th scope="col">Finding</th>
+            <th scope="col">Location</th>
+            <th scope="col">Score</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {TABLE_ROWS.map(([sev, title, loc, score]) => (
+            <tr key={title}>
+              <td>
+                <span className={`thr3-sev-dot thr3-sev-${sev.toLowerCase()}`} aria-hidden="true" />
+                {sev}
+              </td>
+              <td>{title}</td>
+              <td>
+                <code>{loc}</code>
+              </td>
+              <td>{score}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -188,12 +240,19 @@ export function EmbeddedReportBridge() {
     // host; the demo broadcasts to the sandboxed frame only.
     try {
       frameRef.current?.contentWindow?.postMessage(payload, '*');
-    } catch { /* no frame yet */ }
+    } catch {
+      /* no frame yet */
+    }
   };
   return (
     <div className="thr3-embed">
-      <p className="thr3-muted">Embedded report iframes inherit the viewer theme via <code>{`postMessage({type:'dm:embed-theme'})`}</code>.</p>
-      <button type="button" className="thr3-btn" onClick={pushTheme}>Push current theme to embedded report</button>
+      <p className="thr3-muted">
+        Embedded report iframes inherit the viewer theme via{' '}
+        <code>{`postMessage({type:'dm:embed-theme'})`}</code>.
+      </p>
+      <button type="button" className="thr3-btn" onClick={pushTheme}>
+        Push current theme to embedded report
+      </button>
       <iframe
         ref={frameRef}
         title="Embedded report preview"
@@ -201,7 +260,10 @@ export function EmbeddedReportBridge() {
         sandbox="allow-scripts"
         srcDoc={`<!doctype html><html><body style="font:14px system-ui;padding:16px"><p id="st">Waiting for theme…</p><script>addEventListener('message',e=>{const d=e.data||{};if(d.type==='dm:embed-theme'){document.body.style.background=d.themeId==='light'?'#fff':'#16161a';document.body.style.color=d.themeId==='light'?'#111':'#eee';document.getElementById('st').textContent='Embedded report themed: '+d.themeId;}})</script></body></html>`}
       />
-      <p className="thr3-muted">Inbound payloads are validated by <code>parseEmbeddedThemeMessage()</code> (type + length checks).</p>
+      <p className="thr3-muted">
+        Inbound payloads are validated by <code>parseEmbeddedThemeMessage()</code> (type + length
+        checks).
+      </p>
     </div>
   );
 }
@@ -212,10 +274,22 @@ export function ThemedProgressAccents() {
   const { track, fill } = progressAccentForTheme(theme, accent);
   return (
     <div className="thr3-progress">
-      <div className="thr3-spinner" style={{ borderColor: `${track}`, borderTopColor: fill }} role="status" aria-label="Loading">
+      <div
+        className="thr3-spinner"
+        style={{ borderColor: `${track}`, borderTopColor: fill }}
+        role="status"
+        aria-label="Loading"
+      >
         <span className="thr3-sr">Loading</span>
       </div>
-      <div className="thr3-bar" role="progressbar" aria-valuenow={62} aria-valuemin={0} aria-valuemax={100} aria-label="Hunt progress">
+      <div
+        className="thr3-bar"
+        role="progressbar"
+        aria-valuenow={62}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Hunt progress"
+      >
         <div className="thr3-bar-fill" style={{ width: '62%', background: fill }} />
       </div>
     </div>
@@ -228,11 +302,15 @@ export function ErrorColorPairs() {
   const pairs = errorColorPairs(theme);
   return (
     <ul className="thr3-pairs" aria-label="Error/success/warning color pairs">
-      {['error', 'success', 'warning'].map((k) => (
+      {['error', 'success', 'warning'].map(k => (
         <li key={k} className="thr3-pair" style={{ '--pair': pairs[k].hue }}>
-          <span className="thr3-pair-icon" aria-hidden="true">{pairs[k].icon}</span>
+          <span className="thr3-pair-icon" aria-hidden="true">
+            {pairs[k].icon}
+          </span>
           <span className="thr3-pair-label">{pairs[k].label}</span>
-          <span className="thr3-muted">{pairs[k].hue} · {pairs[k].shape}</span>
+          <span className="thr3-muted">
+            {pairs[k].hue} · {pairs[k].shape}
+          </span>
         </li>
       ))}
       <li className="thr3-muted">{pairs.note}</li>
@@ -246,7 +324,11 @@ export function ThemeGatedGradients() {
   const allowed = gradientsAllowed(theme);
   return (
     <div className={`thr3-gradient ${allowed ? 'thr3-gradient-on' : ''}`} aria-hidden="true">
-      <span className="thr3-muted">{allowed ? 'Wallpaper gradient visible (dark/dim)' : 'Flat surface (light/sepia/high-contrast)'}</span>
+      <span className="thr3-muted">
+        {allowed
+          ? 'Wallpaper gradient visible (dark/dim)'
+          : 'Flat surface (light/sepia/high-contrast)'}
+      </span>
     </div>
   );
 }
@@ -256,13 +338,19 @@ export function ThemedEmptyIllustrations() {
   const { theme } = useTheme();
   const variant = emptyIllustrationVariant(theme);
   return (
-    <div className={`thr3-illust thr3-illust-${variant}`} role="img" aria-label={`Empty-state illustration (${variant} variant)`}>
+    <div
+      className={`thr3-illust thr3-illust-${variant}`}
+      role="img"
+      aria-label={`Empty-state illustration (${variant} variant)`}
+    >
       <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true">
         <rect x="8" y="8" width="104" height="64" rx="10" className="thr3-illust-frame" />
         <circle cx="60" cy="40" r="16" className="thr3-illust-sun" />
         <path d="M8 62 Q30 48 50 58 T90 54 T112 60 V72 H8 Z" className="thr3-illust-hill" />
       </svg>
-      <p className="thr3-muted">Serving the <strong>{variant}</strong> illustration for theme <code>{theme}</code>.</p>
+      <p className="thr3-muted">
+        Serving the <strong>{variant}</strong> illustration for theme <code>{theme}</code>.
+      </p>
     </div>
   );
 }
@@ -274,15 +362,20 @@ export function ForcedColorsSupport() {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
     const mq = window.matchMedia('(forced-colors: active)');
     setForced(mq.matches);
-    const onChange = (e) => setForced(e.matches);
+    const onChange = e => setForced(e.matches);
     mq.addEventListener?.('change', onChange);
     return () => mq.removeEventListener?.('change', onChange);
   }, []);
   return (
     <div className="thr3-forced">
-      <p><strong>Windows High Contrast:</strong> {forced ? 'ACTIVE — system colors mapped' : 'not active on this device'}</p>
+      <p>
+        <strong>Windows High Contrast:</strong>{' '}
+        {forced ? 'ACTIVE — system colors mapped' : 'not active on this device'}
+      </p>
       <details>
-        <summary>Forced-colors mapping (applied under <code>@media (forced-colors: active)</code>)</summary>
+        <summary>
+          Forced-colors mapping (applied under <code>@media (forced-colors: active)</code>)
+        </summary>
         <pre className="thr3-code">{forcedColorsCssVars()}</pre>
       </details>
     </div>
@@ -290,12 +383,16 @@ export function ForcedColorsSupport() {
 }
 
 /* 50698 — Instant themed cards ------------------------------------------------ */
-export function InstantThemedCardList({ items = ['SQL injection — login.php', 'Stored XSS — comments', 'Missing CSP — all pages'] }) {
+export function InstantThemedCardList({
+  items = ['SQL injection — login.php', 'Stored XSS — comments', 'Missing CSP — all pages'],
+}) {
   const { theme } = useTheme();
   return (
     <ul className="thr3-instant-list" aria-label="Instantly themed cards">
-      {items.map((t) => (
-        <li key={t} {...instantThemeAttrs(theme)} className="thr3-instant-card">{t}</li>
+      {items.map(t => (
+        <li key={t} {...instantThemeAttrs(theme)} className="thr3-instant-card">
+          {t}
+        </li>
       ))}
     </ul>
   );
@@ -309,17 +406,27 @@ export function IdeThemeSync() {
     <div className="thr3-ide">
       <label className="thr3-field">
         <span>Code-block theme</span>
-        <select value={ide} onChange={(e) => setIde(e.target.value)} aria-label="IDE theme for code blocks">
+        <select
+          value={ide}
+          onChange={e => setIde(e.target.value)}
+          aria-label="IDE theme for code blocks"
+        >
           {Object.entries(IDE_THEMES).map(([id, t]) => (
-            <option key={id} value={id}>{t.label}</option>
+            <option key={id} value={id}>
+              {t.label}
+            </option>
           ))}
         </select>
       </label>
-      <pre className="thr3-codeblock" style={pal.bg ? { background: pal.bg, color: pal.fg } : undefined} aria-label="Code sample in chosen IDE theme">
+      <pre
+        className="thr3-codeblock"
+        style={pal.bg ? { background: pal.bg, color: pal.fg } : undefined}
+        aria-label="Code sample in chosen IDE theme"
+      >
         <code>
           <span style={pal.kw ? { color: pal.kw } : undefined}>const</span> poc ={' '}
-          <span style={pal.str ? { color: pal.str } : undefined}>{"' OR 1=1--"}</span>;
-          {'  '}<span style={pal.cmt ? { color: pal.cmt } : undefined}>// follows IDE theme</span>
+          <span style={pal.str ? { color: pal.str } : undefined}>{"' OR 1=1--"}</span>;{'  '}
+          <span style={pal.cmt ? { color: pal.cmt } : undefined}>// follows IDE theme</span>
         </code>
       </pre>
     </div>
@@ -331,10 +438,20 @@ export function HighContrastFocusDemo() {
   const spec = HIGH_CONTRAST_FOCUS_SPEC;
   return (
     <div className="thr3-hcfocus">
-      <p className="thr3-muted">Spec: <code>{spec.outlineWidth} {spec.outlineStyle}</code> outline, <code>{spec.outlineOffset}</code> offset — on every control in high-contrast mode.</p>
+      <p className="thr3-muted">
+        Spec:{' '}
+        <code>
+          {spec.outlineWidth} {spec.outlineStyle}
+        </code>{' '}
+        outline, <code>{spec.outlineOffset}</code> offset — on every control in high-contrast mode.
+      </p>
       <div className="thr3-hcfocus-row">
-        <button type="button" className="thr3-btn thr3-hcfocus-el">Button</button>
-        <a href="#hcfocus" className="thr3-hcfocus-el thr3-link">Link</a>
+        <button type="button" className="thr3-btn thr3-hcfocus-el">
+          Button
+        </button>
+        <a href="#hcfocus" className="thr3-hcfocus-el thr3-link">
+          Link
+        </a>
         <input className="thr3-hcfocus-el thr3-input" placeholder="Input" aria-label="Demo input" />
       </div>
     </div>
@@ -349,17 +466,37 @@ export function DndAwareScheduler() {
   return (
     <div className="thr3-dnd">
       <div className="thr3-dnd-row">
-        <label className="thr3-field"><span>Do-not-disturb from</span>
-          <input type="number" min="0" max="23" value={startHour} onChange={(e) => setStartHour(Number(e.target.value))} aria-label="DND start hour" />
+        <label className="thr3-field">
+          <span>Do-not-disturb from</span>
+          <input
+            type="number"
+            min="0"
+            max="23"
+            value={startHour}
+            onChange={e => setStartHour(Number(e.target.value))}
+            aria-label="DND start hour"
+          />
         </label>
-        <label className="thr3-field"><span>until</span>
-          <input type="number" min="0" max="23" value={endHour} onChange={(e) => setEndHour(Number(e.target.value))} aria-label="DND end hour" />
+        <label className="thr3-field">
+          <span>until</span>
+          <input
+            type="number"
+            min="0"
+            max="23"
+            value={endHour}
+            onChange={e => setEndHour(Number(e.target.value))}
+            aria-label="DND end hour"
+          />
         </label>
       </div>
-      <p><strong>Window:</strong> {dndWindowLabel({ startHour, endHour })}</p>
-      <p className="thr3-muted">{inDnd
-        ? 'DND is active now — theme transitions are deferred until the window ends.'
-        : 'Outside DND hours — scheduled theme transitions may run.'}</p>
+      <p>
+        <strong>Window:</strong> {dndWindowLabel({ startHour, endHour })}
+      </p>
+      <p className="thr3-muted">
+        {inDnd
+          ? 'DND is active now — theme transitions are deferred until the window ends.'
+          : 'Outside DND hours — scheduled theme transitions may run.'}
+      </p>
     </div>
   );
 }
@@ -367,22 +504,35 @@ export function DndAwareScheduler() {
 /* 50702 — Per-hunt theme override -------------------------------------------------- */
 export function PerHuntThemeOverride({ huntId = 'demo-hunt' }) {
   const { theme } = useTheme();
-  const [store] = useState(() => makeHuntThemeStore(typeof window !== 'undefined' ? window.localStorage : null));
+  const [store] = useState(() =>
+    makeHuntThemeStore(typeof window !== 'undefined' ? window.localStorage : null)
+  );
   const [override, setOverride] = useState(() => store.get(huntId));
-  const apply = (v) => {
+  const apply = v => {
     store.set(huntId, v || null);
     setOverride(store.get(huntId));
   };
   const effective = store.effective(huntId, theme);
   return (
     <div className="thr3-huntoverride">
-      <p className="thr3-muted">Pin a theme for a single hunt (e.g. high-contrast for a focused review session). Global stays <code>{theme}</code>.</p>
+      <p className="thr3-muted">
+        Pin a theme for a single hunt (e.g. high-contrast for a focused review session). Global
+        stays <code>{theme}</code>.
+      </p>
       <div className="thr3-dnd-row">
-        <button type="button" className="thr3-btn" onClick={() => apply('high-contrast')}>Pin high-contrast</button>
-        <button type="button" className="thr3-btn" onClick={() => apply('dark')}>Pin dark</button>
-        <button type="button" className="thr3-btn" onClick={() => apply(null)}>Follow global</button>
+        <button type="button" className="thr3-btn" onClick={() => apply('high-contrast')}>
+          Pin high-contrast
+        </button>
+        <button type="button" className="thr3-btn" onClick={() => apply('dark')}>
+          Pin dark
+        </button>
+        <button type="button" className="thr3-btn" onClick={() => apply(null)}>
+          Follow global
+        </button>
       </div>
-      <p><strong>Effective theme for this hunt:</strong> <code>{effective}</code></p>
+      <p>
+        <strong>Effective theme for this hunt:</strong> <code>{effective}</code>
+      </p>
     </div>
   );
 }
@@ -391,25 +541,41 @@ export function PerHuntThemeOverride({ huntId = 'demo-hunt' }) {
 export function FirstRunThemePicker({ onPick }) {
   const { setTheme } = useTheme();
   const [open, setOpen] = useState(false);
-  const pick = (id) => {
+  const pick = id => {
     setTheme(id);
-    try { window.localStorage.setItem('dm_theme_first_run_done', '1'); } catch { /* ignore */ }
+    try {
+      window.localStorage.setItem('dm_theme_first_run_done', '1');
+    } catch {
+      /* ignore */
+    }
     setOpen(false);
     onPick?.(id);
   };
-  if (!open) return <button type="button" className="thr3-btn" onClick={() => setOpen(true)}>Open first-run theme picker</button>;
+  if (!open)
+    return (
+      <button type="button" className="thr3-btn" onClick={() => setOpen(true)}>
+        Open first-run theme picker
+      </button>
+    );
   return (
     <div className="thr3-firstrun" role="dialog" aria-modal="true" aria-label="Choose your theme">
       <h4>Pick a theme to start</h4>
       <div className="thr3-firstrun-cards">
-        {firstRunThemes().map((t) => (
-          <button key={t.id} type="button" className={`thr3-firstrun-card thr3-firstrun-${t.id}`} onClick={() => pick(t.id)}>
+        {firstRunThemes().map(t => (
+          <button
+            key={t.id}
+            type="button"
+            className={`thr3-firstrun-card thr3-firstrun-${t.id}`}
+            onClick={() => pick(t.id)}
+          >
             <span className="thr3-firstrun-name">{t.label}</span>
             <span className="thr3-muted">{t.tagline}</span>
           </button>
         ))}
       </div>
-      <button type="button" className="thr3-btn thr3-btn-ghost" onClick={() => setOpen(false)}>Skip</button>
+      <button type="button" className="thr3-btn thr3-btn-ghost" onClick={() => setOpen(false)}>
+        Skip
+      </button>
     </div>
   );
 }
@@ -441,7 +607,9 @@ export function ThemeRound3Gallery() {
     <div className="thr3-gallery" aria-label="Wave 18 theming round 3 gallery">
       <h3>Wave 18 — Theming round 3 (50681–50704)</h3>
       {GALLERY.map(([id, title, el]) => (
-        <Theme3Demo key={id} id={id} title={title}>{el}</Theme3Demo>
+        <Theme3Demo key={id} id={id} title={title}>
+          {el}
+        </Theme3Demo>
       ))}
     </div>
   );

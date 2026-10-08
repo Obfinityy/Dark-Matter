@@ -16,7 +16,7 @@
  * @returns {{ ip, hostnames: string[], certCount: number }[]}
  */
 export function pullHostnamesPerIp(entries = [], { includeWildcards = false } = {}) {
-  return (entries || []).map((entry) => {
+  return (entries || []).map(entry => {
     const hosts = new Set();
     let certCount = 0;
     for (const cert of entry.certificates || []) {
@@ -60,8 +60,14 @@ export function sharedHostnameMap(perIp = []) {
  */
 export function flagInterestingHostnames(perIp = []) {
   const PATTERNS = [
-    [/^(staging|stage|stg|dev|development|test|qa|uat|demo|beta|old|legacy|backup|tmp|temp)[.-]/, 'non-production prefix'],
-    [/[.-](staging|stage|dev|test|internal|corp|vpn|admin|jenkins|ci|git|jira)[.-]?/, 'internal/tooling keyword'],
+    [
+      /^(staging|stage|stg|dev|development|test|qa|uat|demo|beta|old|legacy|backup|tmp|temp)[.-]/,
+      'non-production prefix',
+    ],
+    [
+      /[.-](staging|stage|dev|test|internal|corp|vpn|admin|jenkins|ci|git|jira)[.-]?/,
+      'internal/tooling keyword',
+    ],
   ];
   const out = [];
   for (const entry of perIp) {

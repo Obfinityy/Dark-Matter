@@ -77,16 +77,13 @@ export class ReportModel {
 
       // Timestamps
       createdAt: now(),
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.insertOne(report);
     return report;
   }
 
   async update(reportId, patch) {
-    await this.collection.updateOne(
-      { id: reportId },
-      { $set: { ...patch, updatedAt: now() } }
-    );
+    await this.collection.updateOne({ id: reportId }, { $set: { ...patch, updatedAt: now() } });
   }
 }

@@ -27,7 +27,8 @@ export function classifyAppexchangeHost(host, field = '') {
   const h = normalizeHostname(host);
   const f = String(field || '').toLowerCase();
   if (/support/.test(f)) return 'support';
-  if (/demo|trial|playground|sandbox/.test(f) || /(^|[.-])(demo|trial|sandbox)([.-]|$)/.test(h)) return 'demo';
+  if (/demo|trial|playground|sandbox/.test(f) || /(^|[.-])(demo|trial|sandbox)([.-]|$)/.test(h))
+    return 'demo';
   if (/publisher|vendor|website|company/.test(f)) return 'publisher';
   if (/doc|guide|help|knowledge/.test(f)) return 'documentation';
   return 'other';
@@ -37,8 +38,14 @@ export function classifyAppexchangeHost(host, field = '') {
  * Fields of an AppExchange listing that may carry URLs.
  */
 export const APPEXCHANGE_URL_FIELDS = [
-  'supportUrl', 'demoUrl', 'websiteUrl', 'documentationUrl',
-  'supportEmailUrl', 'privacyPolicyUrl', 'termsUrl', 'videoUrl',
+  'supportUrl',
+  'demoUrl',
+  'websiteUrl',
+  'documentationUrl',
+  'supportEmailUrl',
+  'privacyPolicyUrl',
+  'termsUrl',
+  'videoUrl',
 ];
 
 /**
@@ -97,7 +104,9 @@ export function mineAppexchangeListings(listings = [], rootDomain) {
     const found = parseAppexchangeListing(listing);
     for (const f of found) {
       const related = f.host === root || f.host.endsWith(`.${root}`) || f.host.includes(root);
-      const publisherHit = String(listing?.publisher || '').toLowerCase().includes(root.split('.')[0]);
+      const publisherHit = String(listing?.publisher || '')
+        .toLowerCase()
+        .includes(root.split('.')[0]);
       if (related || publisherHit) out.push(f);
     }
   }

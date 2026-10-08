@@ -39,12 +39,24 @@ const CONTROL_OIDS = {
 };
 
 const VENDOR_MARKERS = [
-  { match: /forestfunctionality|domainfunctionality|domaincontrollerfunctionality/i, vendor: 'Microsoft Active Directory', confidence: 'high' },
+  {
+    match: /forestfunctionality|domainfunctionality|domaincontrollerfunctionality/i,
+    vendor: 'Microsoft Active Directory',
+    confidence: 'high',
+  },
   { match: /ntsecurityguid/i, vendor: 'Microsoft Active Directory', confidence: 'high' },
-  { match: /^389|red hat directory|389 directory server/i, vendor: '389 Directory Server', confidence: 'high' },
+  {
+    match: /^389|red hat directory|389 directory server/i,
+    vendor: '389 Directory Server',
+    confidence: 'high',
+  },
   { match: /openldap/i, vendor: 'OpenLDAP', confidence: 'high' },
   { match: /netiq|novell|edir/i, vendor: 'NetIQ eDirectory', confidence: 'high' },
-  { match: /sun|oracle unified directory|opendj/i, vendor: 'Oracle/Sun Directory Server', confidence: 'medium' },
+  {
+    match: /sun|oracle unified directory|opendj/i,
+    vendor: 'Oracle/Sun Directory Server',
+    confidence: 'medium',
+  },
   { match: /apache ?ds|apacheds/i, vendor: 'ApacheDS', confidence: 'high' },
 ];
 
@@ -62,15 +74,27 @@ function detectVendor(attributes, rawAttributes) {
   const vendorValues = asArray(rawAttributes.vendorName).join(' ');
   for (const marker of VENDOR_MARKERS) {
     if (marker.match.test(vendorValues)) {
-      return { vendor: marker.vendor, confidence: marker.confidence, evidence: `vendorName: ${vendorValues}` };
+      return {
+        vendor: marker.vendor,
+        confidence: marker.confidence,
+        evidence: `vendorName: ${vendorValues}`,
+      };
     }
-    if (attrNames.some((name) => marker.match.test(name))) {
-      return { vendor: marker.vendor, confidence: marker.confidence, evidence: `vendor-specific attribute present: ${attrNames.find((n) => marker.match.test(n))}` };
+    if (attrNames.some(name => marker.match.test(name))) {
+      return {
+        vendor: marker.vendor,
+        confidence: marker.confidence,
+        evidence: `vendor-specific attribute present: ${attrNames.find(n => marker.match.test(n))}`,
+      };
     }
   }
   const dn = asArray(rawAttributes.supportedDN || attributes.supporteddn).join(' ');
   if (/cn=schema|cn=configuration/i.test(dn)) {
-    return { vendor: 'Microsoft Active Directory', confidence: 'medium', evidence: 'AD-style configuration/schema naming contexts' };
+    return {
+      vendor: 'Microsoft Active Directory',
+      confidence: 'medium',
+      evidence: 'AD-style configuration/schema naming contexts',
+    };
   }
   return { vendor: 'Unknown', confidence: 'low', evidence: 'No vendor marker matched' };
 }
@@ -89,10 +113,10 @@ export function harvestRootDse({ attributes = {}, dn = '' } = {}) {
     normalized[name.toLowerCase()] = asArray(value);
   }
 
-  const get = (name) => normalized[name.toLowerCase()] || [];
+  const get = name => normalized[name.toLowerCase()] || [];
 
   const namingContexts = get('namingcontexts');
-  const controls = get('supportedcontrol').map((oid) => ({
+  const controls = get('supportedcontrol').map(oid => ({
     oid,
     name: CONTROL_OIDS[oid] || 'Unknown control',
   }));
@@ -110,22 +134,24 @@ export function harvestRootDse({ attributes = {}, dn = '' } = {}) {
       confidence: 'high',
       cwe: 'CWE-200',
       evidence: `rootDSE lists ${namingContexts.length} naming context(s): ${namingContexts.slice(0, 5).join(', ')}${namingContexts.length > 5 ? '…' : ''}`,
-      recommendation: 'Naming contexts aid enumeration; restrict anonymous rootDSE reads where the directory policy allows.',
+      recommendation:
+        'Naming contexts aid enumeration; restrict anonymous rootDSE reads where the directory policy allows.',
     });
   }
 
   if (controls.length > 0) {
-    const adOnly = controls.filter((c) => c.name.startsWith('AD '));
+    const adOnly = controls.filter(c => c.name.startsWith('AD '));
     findings.push({
       type: 'Supported controls enumerated',
       severity: 'Info',
       confidence: 'high',
       evidence: `${controls.length} control OID(s) advertised${adOnly.length ? `, including ${adOnly.length} Active Directory-specific control(s)` : ''}.`,
-      recommendation: 'Control lists reveal server capabilities; pair with anonymous-bind policy review.',
+      recommendation:
+        'Control lists reveal server capabilities; pair with anonymous-bind policy review.',
     });
   }
 
-  if (saslMechanisms.length > 0 && !saslMechanisms.some((m) => /gssapi|external/i.test(m))) {
+  if (saslMechanisms.length > 0 && !saslMechanisms.some(m => /gssapi|external/i.test(m))) {
     findings.push({
       type: 'Weak SASL mechanisms advertised',
       severity: 'Low',

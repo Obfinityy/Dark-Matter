@@ -21,18 +21,95 @@ class Retriever {
   extractKeywords(text, { maxTerms = 12 } = {}) {
     if (!text) return [];
     const STOP = new Set([
-      'the','a','an','and','or','but','if','then','else','for','of','to','in','on','at','by',
-      'is','are','was','were','be','been','being','it','its','this','that','these','those',
-      'with','without','from','as','into','about','over','under','can','could','should','would',
-      'will','shall','do','does','did','have','has','had','i','you','he','she','we','they',
-      'me','my','your','our','their','what','which','who','whom','when','where','why','how',
-      'kya','hai','hain','ho','kar','ke','ka','ki','ko','mein','se','par','aur','ya','bhi'
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'if',
+      'then',
+      'else',
+      'for',
+      'of',
+      'to',
+      'in',
+      'on',
+      'at',
+      'by',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'being',
+      'it',
+      'its',
+      'this',
+      'that',
+      'these',
+      'those',
+      'with',
+      'without',
+      'from',
+      'as',
+      'into',
+      'about',
+      'over',
+      'under',
+      'can',
+      'could',
+      'should',
+      'would',
+      'will',
+      'shall',
+      'do',
+      'does',
+      'did',
+      'have',
+      'has',
+      'had',
+      'i',
+      'you',
+      'he',
+      'she',
+      'we',
+      'they',
+      'me',
+      'my',
+      'your',
+      'our',
+      'their',
+      'what',
+      'which',
+      'who',
+      'whom',
+      'when',
+      'where',
+      'why',
+      'how',
+      'kya',
+      'hai',
+      'hain',
+      'ho',
+      'kar',
+      'ke',
+      'ka',
+      'ki',
+      'ko',
+      'mein',
+      'se',
+      'par',
+      'aur',
+      'ya',
+      'bhi',
     ]);
     const words = text
       .toLowerCase()
       .replace(/[^a-z0-9_\-\s]/g, ' ')
       .split(/\s+/)
-      .filter((w) => w.length > 2 && !STOP.has(w));
+      .filter(w => w.length > 2 && !STOP.has(w));
     // Deduplicate, preserve order, cap.
     return [...new Set(words)].slice(0, maxTerms);
   }
@@ -61,7 +138,14 @@ class Retriever {
    * @param {number} [params.maxSummaries]
    * @returns {Promise<Array<{id,label,content,score,kind,sourceChunks}>>}
    */
-  async retrieve({ userId, conversationId, request, inputs = [], maxChunks = 6, maxSummaries = 4 }) {
+  async retrieve({
+    userId,
+    conversationId,
+    request,
+    inputs = [],
+    maxChunks = 6,
+    maxSummaries = 4,
+  }) {
     const blocks = [];
     const keywords = this.extractKeywords(request);
     const refs = this.extractChunkRefs(request);
@@ -79,15 +163,17 @@ class Retriever {
             content: chunk.content,
             score: 1000,
             kind: 'chunk',
-            sourceChunks: [chunk.chunkId]
+            sourceChunks: [chunk.chunkId],
           });
         }
       }
 
       // 2. Keyword scoring over raw chunks (deterministic search).
       if (keywords.length > 0) {
-        const hits = await this.store.searchChunks(userId, conversationId, keywords, { limit: maxChunks * 3 });
-        const seen = new Set(blocks.map((b) => b.id));
+        const hits = await this.store.searchChunks(userId, conversationId, keywords, {
+          limit: maxChunks * 3,
+        });
+        const seen = new Set(blocks.map(b => b.id));
         for (const hit of hits) {
           const id = `${inputId}/${hit.chunk.chunkId}`;
           if (seen.has(id)) continue;
@@ -98,7 +184,7 @@ class Retriever {
             content: hit.chunk.content,
             score: hit.score * 10,
             kind: 'chunk',
-            sourceChunks: [hit.chunk.chunkId]
+            sourceChunks: [hit.chunk.chunkId],
           });
         }
       }
@@ -106,23 +192,30 @@ class Retriever {
       // 3. Hierarchical summaries (they carry source chunk references).
       const summaries = await this.store.listSummaries(userId, conversationId, inputId);
       const summaryHits = summaries
-        .filter((s) => keywords.length === 0 || keywords.some((k) => (s.summary || '').toLowerCase().includes(k)))
+        .filter(
+          s =>
+            keywords.length === 0 || keywords.some(k => (s.summary || '').toLowerCase().includes(k))
+        )
         .slice(0, maxSummaries);
       for (const s of summaryHits) {
         blocks.push({
           id: s.summaryId,
-          label: `${s.level === 'global' ? 'global' : `level-${s.level}`} summary of "${input.title || inputId}"` +
-                 (s.sourceChunks?.length ? ` (covers ${s.sourceChunks.length} chunks)` : ''),
+          label:
+            `${s.level === 'global' ? 'global' : `level-${s.level}`} summary of "${input.title || inputId}"` +
+            (s.sourceChunks?.length ? ` (covers ${s.sourceChunks.length} chunks)` : ''),
           content: s.summary,
           score: 30,
           kind: 'summary',
-          sourceChunks: s.sourceChunks || []
+          sourceChunks: s.sourceChunks || [],
         });
       }
 
       // 4. Recency: if nothing matched at all, surface the newest chunks.
       if (blocks.length === 0 && input.chunkCount > 0) {
-        const recent = await this.store.listChunks(userId, conversationId, inputId, { skip: Math.max(0, input.chunkCount - maxChunks), limit: maxChunks });
+        const recent = await this.store.listChunks(userId, conversationId, inputId, {
+          skip: Math.max(0, input.chunkCount - maxChunks),
+          limit: maxChunks,
+        });
         for (const chunk of recent) {
           blocks.push({
             id: `${inputId}/${chunk.chunkId}`,
@@ -130,7 +223,7 @@ class Retriever {
             content: chunk.content,
             score: 1,
             kind: 'chunk',
-            sourceChunks: [chunk.chunkId]
+            sourceChunks: [chunk.chunkId],
           });
         }
       }
@@ -138,8 +231,8 @@ class Retriever {
 
     // Global sort by score, cap counts (chunks prioritized over summaries).
     blocks.sort((a, b) => b.score - a.score);
-    const chunksFirst = blocks.filter((b) => b.kind === 'chunk').slice(0, maxChunks);
-    const summariesAfter = blocks.filter((b) => b.kind === 'summary').slice(0, maxSummaries);
+    const chunksFirst = blocks.filter(b => b.kind === 'chunk').slice(0, maxChunks);
+    const summariesAfter = blocks.filter(b => b.kind === 'summary').slice(0, maxSummaries);
     return [...chunksFirst, ...summariesAfter];
   }
 }

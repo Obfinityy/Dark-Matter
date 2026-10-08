@@ -13,24 +13,58 @@
 
 /** Authentication message type codes (Authentication* server messages). */
 export const PG_AUTH_TYPES = {
-  0: { mechanism: 'Trust', requiresPassword: false, description: 'No authentication required — any client is accepted as the claimed user.' },
-  2: { mechanism: 'KerberosV5', requiresPassword: false, description: 'Kerberos v5 ticket required.' },
-  3: { mechanism: 'CleartextPassword', requiresPassword: true, description: 'Password sent in cleartext — must only appear inside TLS.' },
-  5: { mechanism: 'MD5Password', requiresPassword: true, description: 'MD5 challenge-response (legacy; weak against offline cracking).' },
+  0: {
+    mechanism: 'Trust',
+    requiresPassword: false,
+    description: 'No authentication required — any client is accepted as the claimed user.',
+  },
+  2: {
+    mechanism: 'KerberosV5',
+    requiresPassword: false,
+    description: 'Kerberos v5 ticket required.',
+  },
+  3: {
+    mechanism: 'CleartextPassword',
+    requiresPassword: true,
+    description: 'Password sent in cleartext — must only appear inside TLS.',
+  },
+  5: {
+    mechanism: 'MD5Password',
+    requiresPassword: true,
+    description: 'MD5 challenge-response (legacy; weak against offline cracking).',
+  },
   7: { mechanism: 'GSS', requiresPassword: false, description: 'GSSAPI authentication.' },
   8: { mechanism: 'GSSContinue', requiresPassword: false, description: 'GSSAPI continuation.' },
   9: { mechanism: 'SSPI', requiresPassword: false, description: 'SSPI authentication (Windows).' },
-  10: { mechanism: 'SASL', requiresPassword: true, description: 'SASL negotiation follows (usually SCRAM-SHA-256).' },
+  10: {
+    mechanism: 'SASL',
+    requiresPassword: true,
+    description: 'SASL negotiation follows (usually SCRAM-SHA-256).',
+  },
   11: { mechanism: 'SASLContinue', requiresPassword: true, description: 'SASL continuation.' },
   12: { mechanism: 'SASLFinal', requiresPassword: true, description: 'SASL final message.' },
 };
 
 /** ErrorResponse field codes. */
 export const PG_ERROR_FIELDS = {
-  S: 'severity', V: 'severityVerbose', C: 'code', M: 'message', D: 'detail',
-  H: 'hint', P: 'position', p: 'internalPosition', q: 'internalQuery',
-  W: 'where', s: 'schema', t: 'table', c: 'column', d: 'datatype',
-  n: 'constraint', F: 'file', L: 'line', R: 'routine',
+  S: 'severity',
+  V: 'severityVerbose',
+  C: 'code',
+  M: 'message',
+  D: 'detail',
+  H: 'hint',
+  P: 'position',
+  p: 'internalPosition',
+  q: 'internalQuery',
+  W: 'where',
+  s: 'schema',
+  t: 'table',
+  c: 'column',
+  d: 'datatype',
+  n: 'constraint',
+  F: 'file',
+  L: 'line',
+  R: 'routine',
 };
 
 /**
@@ -58,7 +92,9 @@ function readCString(bytes, offset) {
 }
 
 function readInt32(bytes, offset) {
-  return (bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3];
+  return (
+    (bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]
+  );
 }
 
 /**
@@ -82,8 +118,19 @@ export function parsePgAuth(payload) {
   if (payload.length < 4) return { authType: null, mechanism: 'unknown', requiresPassword: null };
   const authType = readInt32(payload, 0);
   const known = PG_AUTH_TYPES[authType];
-  if (known) return { authType, mechanism: known.mechanism, requiresPassword: known.requiresPassword, description: known.description };
-  return { authType, mechanism: `Unknown (${authType})`, requiresPassword: null, description: 'Unrecognized auth type code.' };
+  if (known)
+    return {
+      authType,
+      mechanism: known.mechanism,
+      requiresPassword: known.requiresPassword,
+      description: known.description,
+    };
+  return {
+    authType,
+    mechanism: `Unknown (${authType})`,
+    requiresPassword: null,
+    description: 'Unrecognized auth type code.',
+  };
 }
 
 /**
@@ -125,9 +172,26 @@ export function analyzePgStartup(input) {
   let error = null;
   let messageType = 'unknown';
 
-  if (input && typeof input === 'object' && !(input instanceof Uint8Array) && typeof Buffer !== 'undefined' && !Buffer.isBuffer(input) && !Array.isArray(input)) {
+  if (
+    input &&
+    typeof input === 'object' &&
+    !(input instanceof Uint8Array) &&
+    typeof Buffer !== 'undefined' &&
+    !Buffer.isBuffer(input) &&
+    !Array.isArray(input)
+  ) {
     // Pre-decoded form.
-    if (input.authType != null) { auth = parsePgAuth(new Uint8Array([(input.authType >>> 24) & 255, (input.authType >>> 16) & 255, (input.authType >>> 8) & 255, input.authType & 255])); messageType = 'Authentication'; }
+    if (input.authType != null) {
+      auth = parsePgAuth(
+        new Uint8Array([
+          (input.authType >>> 24) & 255,
+          (input.authType >>> 16) & 255,
+          (input.authType >>> 8) & 255,
+          input.authType & 255,
+        ])
+      );
+      messageType = 'Authentication';
+    }
     parameters = input.parameters || {};
     error = input.error || null;
     if (error) messageType = 'ErrorResponse';
@@ -135,29 +199,58 @@ export function analyzePgStartup(input) {
     const bytes = toBytes(input);
     const msg = parsePgMessage(bytes);
     if (!msg) {
-      return { messageType, auth, serverVersion: null, parameters, error, findings: ['Could not parse a PostgreSQL server message from the captured bytes.'], confidence: 'low' };
+      return {
+        messageType,
+        auth,
+        serverVersion: null,
+        parameters,
+        error,
+        findings: ['Could not parse a PostgreSQL server message from the captured bytes.'],
+        confidence: 'low',
+      };
     }
-    messageType = { R: 'Authentication', E: 'ErrorResponse', S: 'ParameterStatus', K: 'BackendKeyData', N: 'NoticeResponse' }[msg.type] || `Unknown (${msg.type})`;
+    messageType =
+      {
+        R: 'Authentication',
+        E: 'ErrorResponse',
+        S: 'ParameterStatus',
+        K: 'BackendKeyData',
+        N: 'NoticeResponse',
+      }[msg.type] || `Unknown (${msg.type})`;
     if (msg.type === 'R') auth = parsePgAuth(msg.payload);
     else if (msg.type === 'E') error = parsePgError(msg.payload);
-    else if (msg.type === 'S') { const p = parsePgParameterStatus(msg.payload); parameters[p.name] = p.value; }
+    else if (msg.type === 'S') {
+      const p = parsePgParameterStatus(msg.payload);
+      parameters[p.name] = p.value;
+    }
   }
 
   if (messageType === 'Authentication') {
     findings.push(`Server requests "${auth.mechanism}" authentication.`);
-    if (auth.authType === 0) findings.push('CRITICAL: Trust authentication — the server accepts the connection with NO password for this user/database/host combination.');
-    else if (auth.authType === 3) findings.push('HIGH: cleartext password auth — credentials travel unencrypted unless the session is inside TLS.');
-    else if (auth.authType === 5) findings.push('MEDIUM: MD5 challenge-response — legacy and weak; prefer SCRAM-SHA-256.');
-    else if (auth.authType === 10) findings.push('SASL negotiation (typically SCRAM-SHA-256) — modern, strong auth.');
+    if (auth.authType === 0)
+      findings.push(
+        'CRITICAL: Trust authentication — the server accepts the connection with NO password for this user/database/host combination.'
+      );
+    else if (auth.authType === 3)
+      findings.push(
+        'HIGH: cleartext password auth — credentials travel unencrypted unless the session is inside TLS.'
+      );
+    else if (auth.authType === 5)
+      findings.push('MEDIUM: MD5 challenge-response — legacy and weak; prefer SCRAM-SHA-256.');
+    else if (auth.authType === 10)
+      findings.push('SASL negotiation (typically SCRAM-SHA-256) — modern, strong auth.');
     else findings.push(auth.description || 'Unrecognized auth mechanism.');
-    if (auth.requiresPassword === true) findings.push('A password (or equivalent credential) is required to proceed.');
+    if (auth.requiresPassword === true)
+      findings.push('A password (or equivalent credential) is required to proceed.');
   }
   if (error) {
     findings.push(`Server refused startup: [${error.code || '?'}] ${error.message || ''}`.trim());
-    if (/password|authentication/i.test(error.message || '')) findings.push('Refusal is auth-related — the listener is live and parsing startup packets.');
+    if (/password|authentication/i.test(error.message || ''))
+      findings.push('Refusal is auth-related — the listener is live and parsing startup packets.');
   }
   const serverVersion = parameters.server_version || null;
-  if (serverVersion) findings.push(`Server version reported via ParameterStatus: ${serverVersion}.`);
+  if (serverVersion)
+    findings.push(`Server version reported via ParameterStatus: ${serverVersion}.`);
   if (parameters.server_encoding) findings.push(`Server encoding: ${parameters.server_encoding}.`);
 
   return {
@@ -171,5 +264,13 @@ export function analyzePgStartup(input) {
   };
 }
 
-export const PG_STARTUP_PARSER = { toBytes, parsePgMessage, parsePgAuth, parsePgError, parsePgParameterStatus, analyzePgStartup, PG_AUTH_TYPES };
+export const PG_STARTUP_PARSER = {
+  toBytes,
+  parsePgMessage,
+  parsePgAuth,
+  parsePgError,
+  parsePgParameterStatus,
+  analyzePgStartup,
+  PG_AUTH_TYPES,
+};
 export default PG_STARTUP_PARSER;

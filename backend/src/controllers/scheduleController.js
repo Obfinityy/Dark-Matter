@@ -14,11 +14,18 @@ export function createScheduleController({ huntScheduler, huntScheduleModel }) {
     /** POST /api/v1/schedules { name, target, scope?, objective?, cadence, authorizationConfirmed } */
     create: asyncHandler(async (request, response) => {
       const input = request.body || {};
-      assert(input.authorizationConfirmed === true, 400,
+      assert(
+        input.authorizationConfirmed === true,
+        400,
         'Confirm that you are authorized to test this target before scheduling hunts.',
-        'AUTHORIZATION_REQUIRED');
-      assert(typeof input.target === 'string' && input.target.trim().length > 0, 400,
-        'A target URL is required.', 'MISSING_TARGET');
+        'AUTHORIZATION_REQUIRED'
+      );
+      assert(
+        typeof input.target === 'string' && input.target.trim().length > 0,
+        400,
+        'A target URL is required.',
+        'MISSING_TARGET'
+      );
       try {
         const schedule = await huntScheduler.schedule({
           userId: request.user.id,
@@ -27,12 +34,12 @@ export function createScheduleController({ huntScheduler, huntScheduleModel }) {
           scope: input.scope || null,
           objective: input.objective || null,
           cadence: input.cadence || 'weekly',
-          nextRunAt: input.nextRunAt || null
+          nextRunAt: input.nextRunAt || null,
         });
         response.status(201).json({ schedule });
       } catch (error) {
         response.status(400).json({
-          error: { code: 'INVALID_SCHEDULE', message: error.message }
+          error: { code: 'INVALID_SCHEDULE', message: error.message },
         });
       }
     }),
@@ -53,7 +60,7 @@ export function createScheduleController({ huntScheduler, huntScheduleModel }) {
       const schedule = await huntScheduleModel.update(request.user.id, request.params.id, patch);
       if (!schedule) {
         return response.status(404).json({
-          error: { code: 'SCHEDULE_NOT_FOUND', message: 'No schedule with that id.' }
+          error: { code: 'SCHEDULE_NOT_FOUND', message: 'No schedule with that id.' },
         });
       }
       response.json({ schedule });
@@ -64,10 +71,10 @@ export function createScheduleController({ huntScheduler, huntScheduleModel }) {
       const removed = await huntScheduleModel.remove(request.user.id, request.params.id);
       if (!removed) {
         return response.status(404).json({
-          error: { code: 'SCHEDULE_NOT_FOUND', message: 'No schedule with that id.' }
+          error: { code: 'SCHEDULE_NOT_FOUND', message: 'No schedule with that id.' },
         });
       }
       response.status(204).send();
-    })
+    }),
   };
 }

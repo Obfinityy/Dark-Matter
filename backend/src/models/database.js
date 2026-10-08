@@ -24,7 +24,7 @@ const OPTIONS_INDEX = {
   countDocuments: 1,
   estimatedDocumentCount: 0,
   distinct: 2,
-  bulkWrite: 1
+  bulkWrite: 1,
 };
 
 export function withQueryTimeout(collection, maxTimeMS = DEFAULT_QUERY_TIMEOUT_MS) {
@@ -39,7 +39,7 @@ export function withQueryTimeout(collection, maxTimeMS = DEFAULT_QUERY_TIMEOUT_M
         if (args[index].maxTimeMS == null) args[index].maxTimeMS = maxTimeMS;
         return value.apply(target, args);
       };
-    }
+    },
   });
 }
 
@@ -56,7 +56,7 @@ export class MongoDatabase {
   async init() {
     this.client = new MongoClient(this.mongoUrl, {
       serverSelectionTimeoutMS: this.mongoServerSelectionTimeoutMs,
-      maxPoolSize: 20
+      maxPoolSize: 20,
     });
     await this.client.connect();
     this.db = this.client.db(this.mongoDbName);
@@ -95,7 +95,10 @@ export class MongoDatabase {
       this.collection('agent_jobs').createIndex({ status: 1, updatedAt: -1 }),
       // Persistent agent memory (the local AI's only memory)
       this.collection('agent_memory').createIndex({ assessmentId: 1, type: 1, createdAt: 1 }),
-      this.collection('agent_memory').createIndex({ assessmentId: 1, dedupeKey: 1 }, { unique: true }),
+      this.collection('agent_memory').createIndex(
+        { assessmentId: 1, dedupeKey: 1 },
+        { unique: true }
+      ),
       this.collection('agent_memory').createIndex({ userId: 1, updatedAt: -1 }),
       // Evidence store
       this.collection('evidence').createIndex({ assessmentId: 1, createdAt: 1 }),
@@ -106,7 +109,11 @@ export class MongoDatabase {
       this.collection('events').createIndex({ scanId: 1, timestamp: -1 }),
       // InfiniteChat computer tasks
       this.collection('computer_tasks').createIndex({ id: 1 }, { unique: true }),
-      this.collection('computer_tasks').createIndex({ userId: 1, conversationId: 1, createdAt: -1 }),
+      this.collection('computer_tasks').createIndex({
+        userId: 1,
+        conversationId: 1,
+        createdAt: -1,
+      }),
       this.collection('computer_tasks').createIndex({ status: 1, updatedAt: -1 }),
       // Autonomous computer-control action ledger (issue #1)
       this.collection('computer_actions').createIndex({ id: 1 }, { unique: true }),
@@ -120,7 +127,7 @@ export class MongoDatabase {
       this.collection('brain_provider').createIndex({ id: 1 }, { unique: true }),
       // User-added custom models (issue #3)
       this.collection('custom_models').createIndex({ id: 1 }, { unique: true }),
-      this.collection('custom_models').createIndex({ tag: 1 }, { unique: true })
+      this.collection('custom_models').createIndex({ tag: 1 }, { unique: true }),
     ]);
   }
 
@@ -140,11 +147,15 @@ export class MongoDatabase {
         this.db.command({ ping: 1 }, { maxTimeMS: timeoutMs }),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error(`ping timed out after ${timeoutMs}ms`)), timeoutMs)
-        )
+        ),
       ]);
       return { ok: result?.ok === 1, latencyMs: Date.now() - startedAt };
     } catch (error) {
-      return { ok: false, latencyMs: Date.now() - startedAt, error: error?.message || String(error) };
+      return {
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        error: error?.message || String(error),
+      };
     }
   }
 
@@ -163,12 +174,12 @@ function equal(left, right) {
 
 function matches(document, query = {}) {
   return Object.entries(query).every(([key, expected]) => {
-    if (key === '$or') return expected.some((part) => matches(document, part));
+    if (key === '$or') return expected.some(part => matches(document, part));
     const actual = document[key];
     if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
       if ('$gt' in expected) return actual > expected.$gt;
       if ('$gte' in expected) return actual >= expected.$gte;
-      if ('$in' in expected) return expected.$in.some((value) => equal(actual, value));
+      if ('$in' in expected) return expected.$in.some(value => equal(actual, value));
     }
     return equal(actual, expected);
   });
@@ -208,15 +219,15 @@ class MemoryCollection {
   async createIndex() {}
 
   find(query = {}) {
-    return new MemoryCursor(this.documents.filter((document) => matches(document, query)));
+    return new MemoryCursor(this.documents.filter(document => matches(document, query)));
   }
 
   async findOne(query = {}) {
-    return clone(this.documents.find((document) => matches(document, query)) || null);
+    return clone(this.documents.find(document => matches(document, query)) || null);
   }
 
   async countDocuments(query = {}) {
-    return this.documents.filter((document) => matches(document, query)).length;
+    return this.documents.filter(document => matches(document, query)).length;
   }
 
   async insertOne(document) {
@@ -225,10 +236,14 @@ class MemoryCollection {
   }
 
   async updateOne(query, update, options = {}) {
-    const index = this.documents.findIndex((document) => matches(document, query));
+    const index = this.documents.findIndex(document => matches(document, query));
     if (index === -1 && !options.upsert) return { matchedCount: 0, modifiedCount: 0 };
     const current = index === -1 ? { ...query } : this.documents[index];
-    const next = { ...current, ...(update.$setOnInsert && index === -1 ? update.$setOnInsert : {}), ...(update.$set || {}) };
+    const next = {
+      ...current,
+      ...(update.$setOnInsert && index === -1 ? update.$setOnInsert : {}),
+      ...(update.$set || {}),
+    };
     if (update.$push) {
       for (const [key, value] of Object.entries(update.$push)) {
         if (!next[key]) next[key] = [];
@@ -246,17 +261,21 @@ class MemoryCollection {
         if (!Array.isArray(next[key])) next[key] = [];
         const values = value && value.$each ? value.$each : [value];
         for (const item of values) {
-          if (!next[key].some((existing) => equal(existing, item))) next[key].push(item);
+          if (!next[key].some(existing => equal(existing, item))) next[key].push(item);
         }
       }
     }
     if (index === -1) this.documents.push(clone(next));
     else this.documents[index] = clone(next);
-    return { matchedCount: index === -1 ? 0 : 1, modifiedCount: 1, upsertedCount: index === -1 ? 1 : 0 };
+    return {
+      matchedCount: index === -1 ? 0 : 1,
+      modifiedCount: 1,
+      upsertedCount: index === -1 ? 1 : 0,
+    };
   }
 
   async deleteOne(query) {
-    const index = this.documents.findIndex((document) => matches(document, query));
+    const index = this.documents.findIndex(document => matches(document, query));
     if (index === -1) return { deletedCount: 0 };
     this.documents.splice(index, 1);
     return { deletedCount: 1 };
@@ -264,7 +283,7 @@ class MemoryCollection {
 
   async deleteMany(query) {
     const before = this.documents.length;
-    this.documents = this.documents.filter((document) => !matches(document, query));
+    this.documents = this.documents.filter(document => !matches(document, query));
     return { deletedCount: before - this.documents.length };
   }
 }

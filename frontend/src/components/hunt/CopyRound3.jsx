@@ -60,9 +60,10 @@ export function ApiQueryCopyButton({ filters = {} }) {
 
 export function ImageBytesCopyButton({ blob, label = 'Copy image bytes' }) {
   const [status, setStatus] = useState('idle');
-  const supported = typeof window !== 'undefined'
-    ? canCopyImageBytes({ navigator: window.navigator, ClipboardItem: window.ClipboardItem })
-    : false;
+  const supported =
+    typeof window !== 'undefined'
+      ? canCopyImageBytes({ navigator: window.navigator, ClipboardItem: window.ClipboardItem })
+      : false;
   const validation = validateImageCopyBlob(blob);
 
   const onCopy = async () => {
@@ -173,7 +174,7 @@ export function CopyRound3Gallery() {
     const canvas = document.createElement('canvas');
     canvas.width = 4;
     canvas.height = 4;
-    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
   });
   const [resolvedBlob, setResolvedBlob] = useState(null);
   if (blob && typeof blob.then === 'function') {
@@ -189,7 +190,9 @@ export function CopyRound3Gallery() {
         </div>
         <div className="cr3-demo" data-idea="50882">
           <h4>50882 · Filters as API query</h4>
-          <ApiQueryCopyButton filters={{ severity: ['high', 'critical'], status: 'open', q: 'xss', sort: 'severity' }} />
+          <ApiQueryCopyButton
+            filters={{ severity: ['high', 'critical'], status: 'open', q: 'xss', sort: 'severity' }}
+          />
         </div>
         <div className="cr3-demo" data-idea="50883">
           <h4>50883 · Image bytes</h4>
@@ -200,7 +203,9 @@ export function CopyRound3Gallery() {
           <SecretCopyGuard fieldName="api_key" value="dm_live_9f2KqZ…" />
         </div>
       </div>
-      <p className="cr3-note">Demo findings for glossary context: {DEMO_FINDINGS.map((f) => f.title).join(' · ')}</p>
+      <p className="cr3-note">
+        Demo findings for glossary context: {DEMO_FINDINGS.map(f => f.title).join(' · ')}
+      </p>
     </section>
   );
 }

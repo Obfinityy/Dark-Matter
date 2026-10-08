@@ -10,14 +10,37 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
-  shouldShowHint, dismissHint, setTipsEnabled, suggestFirstOperator,
-  filterComboTip, chatExampleQuestions, deepLinkHowTo, chainExplainer,
-  fpDismissalGuide, explainConfidence, zeroResultsRecovery, printHint,
-  timelineClickTip, tipOfTheDay, rotatingHelpTip, slackIntegrationHint,
-  paywallExplainer, postHuntRatingPrompt, darkModeHint, voiceCommandHint,
-  a11yShortcutHint, modelsPageHint, weakTargetCheck, exportWalkthroughSteps,
-  shortcutNudgeCopy, shouldNudgeShortcut, shouldSuggestSchedule,
-  shouldSuggestInvite, videoSnippetSpec, mergeHintState, pocMarkdown,
+  shouldShowHint,
+  dismissHint,
+  setTipsEnabled,
+  suggestFirstOperator,
+  filterComboTip,
+  chatExampleQuestions,
+  deepLinkHowTo,
+  chainExplainer,
+  fpDismissalGuide,
+  explainConfidence,
+  zeroResultsRecovery,
+  printHint,
+  timelineClickTip,
+  tipOfTheDay,
+  rotatingHelpTip,
+  slackIntegrationHint,
+  paywallExplainer,
+  postHuntRatingPrompt,
+  darkModeHint,
+  voiceCommandHint,
+  a11yShortcutHint,
+  modelsPageHint,
+  weakTargetCheck,
+  exportWalkthroughSteps,
+  shortcutNudgeCopy,
+  shouldNudgeShortcut,
+  shouldSuggestSchedule,
+  shouldSuggestInvite,
+  videoSnippetSpec,
+  mergeHintState,
+  pocMarkdown,
   POWER_TIPS,
 } from './onboardingCore.js';
 import './Onboarding.css';
@@ -29,11 +52,17 @@ function loadJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
+  } catch {
+    return fallback;
+  }
 }
 
 function saveJson(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* private mode */
+  }
 }
 
 /** Shared hook: seen-ids + tips toggle, synced across tabs via storage event. */
@@ -42,34 +71,42 @@ export function useHintState() {
   const [prefs, setPrefs] = useState(() => loadJson(LS_PREFS, { tipsEnabled: true }));
 
   useEffect(() => {
-    const onStorage = (e) => {
+    const onStorage = e => {
       if (e.key === LS_SEEN || e.key === LS_PREFS) {
         // 50835 — merge so a dismissal on one device sticks everywhere
         const merged = mergeHintState(
-          { seenIds: loadJson(LS_SEEN, []), tipsEnabled: loadJson(LS_PREFS, { tipsEnabled: true }).tipsEnabled },
-          { seenIds: [], tipsEnabled: true },
+          {
+            seenIds: loadJson(LS_SEEN, []),
+            tipsEnabled: loadJson(LS_PREFS, { tipsEnabled: true }).tipsEnabled,
+          },
+          { seenIds: [], tipsEnabled: true }
         );
         setSeenIds(merged.seenIds);
-        setPrefs((p) => ({ ...p, tipsEnabled: merged.tipsEnabled }));
+        setPrefs(p => ({ ...p, tipsEnabled: merged.tipsEnabled }));
       }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const dismiss = (hintId) => {
+  const dismiss = hintId => {
     const next = dismissHint(seenIds, hintId);
     setSeenIds(next);
     saveJson(LS_SEEN, next);
   };
 
-  const setEnabled = (enabled) => {
+  const setEnabled = enabled => {
     const next = setTipsEnabled(prefs, enabled);
     setPrefs(next);
     saveJson(LS_PREFS, next);
   };
 
-  return { seenIds: new Set(seenIds), dismiss, tipsEnabled: prefs.tipsEnabled !== false, setEnabled };
+  return {
+    seenIds: new Set(seenIds),
+    dismiss,
+    tipsEnabled: prefs.tipsEnabled !== false,
+    setEnabled,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -82,7 +119,9 @@ export function HintCard({ hintId, title, children, hintState, tone = 'info', ac
   return (
     <div className={`ob-hint-card ob-hint-${tone}`} role="note" aria-label={title}>
       <button
-        type="button" className="ob-hint-dismiss" aria-label={`Dismiss: ${title}`}
+        type="button"
+        className="ob-hint-dismiss"
+        aria-label={`Dismiss: ${title}`}
         onClick={() => hs.dismiss && hs.dismiss(hintId)}
       >
         ×
@@ -91,7 +130,9 @@ export function HintCard({ hintId, title, children, hintState, tone = 'info', ac
       <div className="ob-hint-body">{children}</div>
       {action && (
         <div className="ob-hint-actions">
-          <button type="button" className="ob-btn ob-btn-ghost" onClick={action.onClick}>{action.label}</button>
+          <button type="button" className="ob-btn ob-btn-ghost" onClick={action.onClick}>
+            {action.label}
+          </button>
         </div>
       )}
     </div>
@@ -107,7 +148,7 @@ export function GlobalTipsToggle({ hintState }) {
       <input
         type="checkbox"
         checked={hs.tipsEnabled}
-        onChange={(e) => hs.setEnabled && hs.setEnabled(e.target.checked)}
+        onChange={e => hs.setEnabled && hs.setEnabled(e.target.checked)}
       />
       Show onboarding tips
     </label>
@@ -121,8 +162,14 @@ export function GlobalTipsToggle({ hintState }) {
 /** 50802 — the first finding pulses with an explainer. */
 export function FirstFindingHint({ hintState }) {
   return (
-    <HintCard hintId="first-finding" title="This is a finding card" hintState={hintState} tone="highlight">
-      <span className="ob-pulse-demo">Expand it</span> — every card carries severity, confidence, evidence, and a one-click PoC.
+    <HintCard
+      hintId="first-finding"
+      title="This is a finding card"
+      hintState={hintState}
+      tone="highlight"
+    >
+      <span className="ob-pulse-demo">Expand it</span> — every card carries severity, confidence,
+      evidence, and a one-click PoC.
     </HintCard>
   );
 }
@@ -134,7 +181,11 @@ export function FirstOperatorHint({ query, hintState, onApply }) {
   return (
     <HintCard hintId="first-operator" title="Search like a pro" hintState={hintState}>
       {suggestion.hint}{' '}
-      <button type="button" className="ob-link-btn" onClick={() => onApply && onApply(suggestion.operator)}>
+      <button
+        type="button"
+        className="ob-link-btn"
+        onClick={() => onApply && onApply(suggestion.operator)}
+      >
         {suggestion.label}
       </button>
     </HintCard>
@@ -158,15 +209,37 @@ export function FirstExportWalkthrough({ hintState }) {
   if (!shouldShowHint('first-export', hintState?.seenIds, hintState?.tipsEnabled)) return null;
   return (
     <div className="ob-hint-card" role="dialog" aria-label="Export walkthrough">
-      <button type="button" className="ob-hint-dismiss" aria-label="Dismiss export walkthrough"
-        onClick={() => hintState?.dismiss && hintState.dismiss('first-export')}>×</button>
-      <div className="ob-hint-title">{step.title} ({idx + 1}/{steps.length})</div>
+      <button
+        type="button"
+        className="ob-hint-dismiss"
+        aria-label="Dismiss export walkthrough"
+        onClick={() => hintState?.dismiss && hintState.dismiss('first-export')}
+      >
+        ×
+      </button>
+      <div className="ob-hint-title">
+        {step.title} ({idx + 1}/{steps.length})
+      </div>
       <p className="ob-hint-body">{step.body}</p>
       <div className="ob-hint-actions">
-        {idx > 0 && <button type="button" className="ob-btn ob-btn-ghost" onClick={() => setIdx(idx - 1)}>Back</button>}
-        {idx < steps.length - 1
-          ? <button type="button" className="ob-btn ob-btn-primary" onClick={() => setIdx(idx + 1)}>Next</button>
-          : <button type="button" className="ob-btn ob-btn-primary" onClick={() => hintState?.dismiss && hintState.dismiss('first-export')}>Got it</button>}
+        {idx > 0 && (
+          <button type="button" className="ob-btn ob-btn-ghost" onClick={() => setIdx(idx - 1)}>
+            Back
+          </button>
+        )}
+        {idx < steps.length - 1 ? (
+          <button type="button" className="ob-btn ob-btn-primary" onClick={() => setIdx(idx + 1)}>
+            Next
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="ob-btn ob-btn-primary"
+            onClick={() => hintState?.dismiss && hintState.dismiss('first-export')}
+          >
+            Got it
+          </button>
+        )}
       </div>
     </div>
   );
@@ -203,7 +276,11 @@ export function ModelsPageHint({ hintState, onOpenModels }) {
     <HintCard hintId="models-page" title={hint.title} hintState={hintState}>
       {hint.body}
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-ghost" onClick={() => onOpenModels && onOpenModels()}>
+        <button
+          type="button"
+          className="ob-btn ob-btn-ghost"
+          onClick={() => onOpenModels && onOpenModels()}
+        >
           {hint.action.label}
         </button>
       </div>
@@ -217,8 +294,12 @@ export function FirstChatHint({ hintState, onAsk }) {
   return (
     <HintCard hintId="first-chat" title="Ask the agent anything" hintState={hintState}>
       <ul className="ob-example-list">
-        {questions.map((q) => (
-          <li key={q}><button type="button" className="ob-link-btn" onClick={() => onAsk && onAsk(q)}>{q}</button></li>
+        {questions.map(q => (
+          <li key={q}>
+            <button type="button" className="ob-link-btn" onClick={() => onAsk && onAsk(q)}>
+              {q}
+            </button>
+          </li>
         ))}
       </ul>
     </HintCard>
@@ -263,7 +344,9 @@ export function FirstFPHint({ hintState }) {
     <HintCard hintId="first-fp" title={guide.title} hintState={hintState}>
       {guide.body}
       <ol className="ob-mini-steps">
-        {guide.steps.map((s) => <li key={s}>{s}</li>)}
+        {guide.steps.map(s => (
+          <li key={s}>{s}</li>
+        ))}
       </ol>
     </HintCard>
   );
@@ -274,9 +357,16 @@ export function ScheduleHint({ manualRunCount, hintState, onSchedule }) {
   if (!shouldSuggestSchedule(manualRunCount, hintState?.seenIds)) return null;
   return (
     <HintCard hintId="schedule-hint" title="Automate this hunt" hintState={hintState}>
-      You've run this manually {manualRunCount} times — schedule it weekly and let the agent do the repetition.
+      You've run this manually {manualRunCount} times — schedule it weekly and let the agent do the
+      repetition.
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-ghost" onClick={() => onSchedule && onSchedule()}>Set up schedule</button>
+        <button
+          type="button"
+          className="ob-btn ob-btn-ghost"
+          onClick={() => onSchedule && onSchedule()}
+        >
+          Set up schedule
+        </button>
       </div>
     </HintCard>
   );
@@ -300,7 +390,13 @@ export function TeamInviteHint({ huntCount, hintState, onInvite }) {
     <HintCard hintId="team-invite-hint" title="Hunting alone?" hintState={hintState}>
       Invite reviewers to collaborate — findings, comments, and triage stay in sync.
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-ghost" onClick={() => onInvite && onInvite()}>Invite team</button>
+        <button
+          type="button"
+          className="ob-btn ob-btn-ghost"
+          onClick={() => onInvite && onInvite()}
+        >
+          Invite team
+        </button>
       </div>
     </HintCard>
   );
@@ -380,7 +476,11 @@ export function IntegrationHint({ hintState, onConnect }) {
     <HintCard hintId="integration-slack" title={hint.title} hintState={hintState}>
       {hint.body}
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-ghost" onClick={() => onConnect && onConnect()}>
+        <button
+          type="button"
+          className="ob-btn ob-btn-ghost"
+          onClick={() => onConnect && onConnect()}
+        >
           {hint.action.label}
         </button>
       </div>
@@ -404,7 +504,11 @@ export function PaywallExplainerHint({ tierName, hintState, onTrial }) {
     <HintCard hintId="paywall-explainer" title={copy.title} hintState={hintState} tone="highlight">
       {copy.body}
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-primary" onClick={() => onTrial && onTrial()}>
+        <button
+          type="button"
+          className="ob-btn ob-btn-primary"
+          onClick={() => onTrial && onTrial()}
+        >
           {copy.cta.label}
         </button>
       </div>
@@ -422,11 +526,18 @@ export function PostHuntRatingHint({ huntLabel, hintState, onRate }) {
       <div className="ob-hint-title">{prompt.title}</div>
       <p className="ob-hint-body">{prompt.body}</p>
       <div className="ob-rating-stars" role="radiogroup" aria-label="Rating">
-        {[1, 2, 3, 4, 5].map((n) => (
+        {[1, 2, 3, 4, 5].map(n => (
           <button
-            key={n} type="button" role="radio" aria-checked={rating === n}
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={rating === n}
             className={`ob-star ${rating >= n ? 'ob-star-on' : ''}`}
-            onClick={() => { setRating(n); onRate && onRate(n); hintState?.dismiss && hintState.dismiss('post-hunt-rating'); }}
+            onClick={() => {
+              setRating(n);
+              onRate && onRate(n);
+              hintState?.dismiss && hintState.dismiss('post-hunt-rating');
+            }}
             aria-label={`${n} star${n > 1 ? 's' : ''}`}
           >
             ★
@@ -455,7 +566,13 @@ export function VideoSnippet({ flowId }) {
   const spec = videoSnippetSpec(flowId);
   return (
     <figure className="ob-video-snippet">
-      <video className="ob-video-player" controls preload="metadata" src={spec.src} aria-label={spec.caption} />
+      <video
+        className="ob-video-player"
+        controls
+        preload="metadata"
+        src={spec.src}
+        aria-label={spec.caption}
+      />
       <figcaption>{spec.caption}</figcaption>
     </figure>
   );
@@ -471,8 +588,14 @@ export function TipOfTheDayCard({ dateStr, hintState }) {
   if (!shouldShowHint(hintId, hintState?.seenIds, hintState?.tipsEnabled)) return null;
   return (
     <div className="ob-tip-of-day" role="note">
-      <button type="button" className="ob-hint-dismiss" aria-label="Dismiss today's tip"
-        onClick={() => hintState?.dismiss && hintState.dismiss(hintId)}>×</button>
+      <button
+        type="button"
+        className="ob-hint-dismiss"
+        aria-label="Dismiss today's tip"
+        onClick={() => hintState?.dismiss && hintState.dismiss(hintId)}
+      >
+        ×
+      </button>
       <div className="ob-hint-title">Tip of the day</div>
       <p className="ob-hint-body">{tip.tip}</p>
     </div>
@@ -492,7 +615,10 @@ export function CopyPoCButton({ finding, onCopied }) {
     } catch {
       // 50840 fallback: selectable modal when clipboard is blocked
       const w = window.open('', '_blank', 'width=640,height=480');
-      if (w) { w.document.write(`<pre>${text.replace(/</g, '&lt;')}</pre>`); w.document.close(); }
+      if (w) {
+        w.document.write(`<pre>${text.replace(/</g, '&lt;')}</pre>`);
+        w.document.close();
+      }
       return;
     }
     setCopied(true);
@@ -549,7 +675,18 @@ export function OnboardingHintsGallery() {
       <DarkModeHint hintState={hs} />
       <VideoSnippet flowId="triage" />
       <TipOfTheDayCard dateStr="2026-10-07" hintState={hs} />
-      <CopyPoCButton finding={{ title: 'SQLi', severity: 'critical', confidence: 0.91, target: 'https://demo/shop/login', huntId: 'h1', poc: "' OR 1=1--", remediation: 'Use parameterized queries.' }} onCopied={noop} />
+      <CopyPoCButton
+        finding={{
+          title: 'SQLi',
+          severity: 'critical',
+          confidence: 0.91,
+          target: 'https://demo/shop/login',
+          huntId: 'h1',
+          poc: "' OR 1=1--",
+          remediation: 'Use parameterized queries.',
+        }}
+        onCopied={noop}
+      />
     </div>
   );
 }

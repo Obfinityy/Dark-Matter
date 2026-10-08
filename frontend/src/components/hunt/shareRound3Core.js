@@ -9,10 +9,22 @@
  */
 
 export const WAVE58_SR3_IDEAS = [
-  { id: 52281, title: 'Bounty collaborator sharing with collaboration-agreement scope model', skip: false },
-  { id: 52282, title: 'Multi-team hunt sharing with per-team filtered views and comment spaces', skip: false },
+  {
+    id: 52281,
+    title: 'Bounty collaborator sharing with collaboration-agreement scope model',
+    skip: false,
+  },
+  {
+    id: 52282,
+    title: 'Multi-team hunt sharing with per-team filtered views and comment spaces',
+    skip: false,
+  },
   { id: 52283, title: 'Share notification center with accept/decline reducer', skip: false },
-  { id: 52284, title: 'Link preview card payloads (title, severity counts, risk score)', skip: false },
+  {
+    id: 52284,
+    title: 'Link preview card payloads (title, severity counts, risk score)',
+    skip: false,
+  },
   { id: 52285, title: 'Notion/Confluence live-embed descriptors', skip: false },
   { id: 52286, title: 'Shared digest email composer', skip: false },
   { id: 52287, title: 'Mobile-friendly shared-view spec', skip: false },
@@ -62,15 +74,21 @@ export function createCollabAgreement(input = {}, now = Date.now()) {
   const scope = AGREEMENT_SCOPES.includes(input.scope) ? input.scope : 'summary-only';
   const agreement = {
     id: `agr_${tokenFor('agr', input.huntId, now)}`,
-    huntId: input.huntId, scope,
-    parties: input.parties.map((p) => ({
-      email: p.email, name: p.name || null, accepted: false, acceptedAt: null,
+    huntId: input.huntId,
+    scope,
+    parties: input.parties.map(p => ({
+      email: p.email,
+      name: p.name || null,
+      accepted: false,
+      acceptedAt: null,
     })),
-    allowedSeverities: Array.isArray(input.allowedSeverities) && input.allowedSeverities.length
-      ? [...input.allowedSeverities]
-      : Object.keys(SEVERITY_ORDER),
+    allowedSeverities:
+      Array.isArray(input.allowedSeverities) && input.allowedSeverities.length
+        ? [...input.allowedSeverities]
+        : Object.keys(SEVERITY_ORDER),
     expiresAt: typeof input.expiresAt === 'number' ? input.expiresAt : now + 30 * 24 * 3600 * 1000,
-    status: 'draft', createdAt: now,
+    status: 'draft',
+    createdAt: now,
   };
   return { ok: true, agreement };
 }
@@ -80,9 +98,10 @@ export function acceptAgreement(agreement, email, now = Date.now()) {
   if (agreement.status !== 'draft' && agreement.status !== 'active') {
     return { ok: false, reason: `cannot accept while ${agreement.status}` };
   }
-  const parties = agreement.parties.map((p) => (p.email === email
-    ? { ...p, accepted: true, acceptedAt: now } : p));
-  const allAccepted = parties.every((p) => p.accepted);
+  const parties = agreement.parties.map(p =>
+    p.email === email ? { ...p, accepted: true, acceptedAt: now } : p
+  );
+  const allAccepted = parties.every(p => p.accepted);
   return {
     ok: true,
     agreement: { ...agreement, parties, status: allAccepted ? 'active' : agreement.status },
@@ -93,7 +112,8 @@ export function acceptAgreement(agreement, email, now = Date.now()) {
 export function checkAgreementScope(agreement, finding) {
   if (!agreement || !agreement.id) return { ok: false, reason: 'agreement required' };
   if (!finding || !finding.id) return { ok: false, reason: 'finding required' };
-  if (agreement.status !== 'active') return { ok: false, reason: `agreement ${agreement.status}`, allowed: false };
+  if (agreement.status !== 'active')
+    return { ok: false, reason: `agreement ${agreement.status}`, allowed: false };
   if (!agreement.allowedSeverities.includes(finding.severity)) {
     return { ok: false, reason: 'severity out of agreed scope', allowed: false };
   }
@@ -108,14 +128,27 @@ export function shareToTeams(hunt, teamSpecs = [], now = Date.now()) {
   if (!Array.isArray(teamSpecs) || teamSpecs.length === 0) {
     return { ok: false, reason: 'at least one team spec required' };
   }
-  const teams = teamSpecs.map((t) => {
+  const teams = teamSpecs.map(t => {
     let rows = [...hunt.findings];
-    if (t.minSeverity) rows = rows.filter((f) => (SEVERITY_ORDER[f.severity] || 0) >= (SEVERITY_ORDER[t.minSeverity] || 0));
-    if (t.status) rows = rows.filter((f) => f.status === t.status);
+    if (t.minSeverity)
+      rows = rows.filter(
+        f => (SEVERITY_ORDER[f.severity] || 0) >= (SEVERITY_ORDER[t.minSeverity] || 0)
+      );
+    if (t.status) rows = rows.filter(f => f.status === t.status);
     return {
-      teamId: t.teamId, teamName: t.teamName || t.teamId,
-      view: { filters: { minSeverity: t.minSeverity || null, status: t.status || null }, findingIds: rows.map((f) => f.id), counts: summarize(rows) },
-      commentSpace: { id: `cs_${tokenFor('cs', `${hunt.id}:${t.teamId}`, now)}`, teamId: t.teamId, huntId: hunt.id, threads: [] },
+      teamId: t.teamId,
+      teamName: t.teamName || t.teamId,
+      view: {
+        filters: { minSeverity: t.minSeverity || null, status: t.status || null },
+        findingIds: rows.map(f => f.id),
+        counts: summarize(rows),
+      },
+      commentSpace: {
+        id: `cs_${tokenFor('cs', `${hunt.id}:${t.teamId}`, now)}`,
+        teamId: t.teamId,
+        huntId: hunt.id,
+        threads: [],
+      },
       token: tokenFor('team', `${hunt.id}:${t.teamId}`, now),
     };
   });
@@ -124,13 +157,18 @@ export function shareToTeams(hunt, teamSpecs = [], now = Date.now()) {
 
 export function getTeamView(share, teamId) {
   if (!share || !Array.isArray(share.teams)) return { ok: false, reason: 'share required' };
-  const team = share.teams.find((t) => t.teamId === teamId);
+  const team = share.teams.find(t => t.teamId === teamId);
   if (!team) return { ok: false, reason: 'unknown team' };
   return { ok: true, team };
 }
 
 /* 52283 — Share notification center with accept/decline reducer. */
-export const NOTIF_TYPES = ['share-invite', 'agreement-signed', 'access-request', 'comment-mention'];
+export const NOTIF_TYPES = [
+  'share-invite',
+  'agreement-signed',
+  'access-request',
+  'comment-mention',
+];
 
 export function createNotification(input = {}, now = Date.now()) {
   if (!input.to || !NOTIF_TYPES.includes(input.type)) {
@@ -140,8 +178,13 @@ export function createNotification(input = {}, now = Date.now()) {
     ok: true,
     notification: {
       id: `nt_${tokenFor('nt', `${input.to}:${input.type}`, now)}`,
-      to: input.to, type: input.type, from: input.from || null,
-      refId: input.refId || null, status: 'unread', createdAt: now, decidedAt: null,
+      to: input.to,
+      type: input.type,
+      from: input.from || null,
+      refId: input.refId || null,
+      status: 'unread',
+      createdAt: now,
+      decidedAt: null,
     },
   };
 }
@@ -156,13 +199,14 @@ export function notificationReducer(state, action = {}, now = Date.now()) {
     case 'NOTIF_ACCEPT':
     case 'NOTIF_DECLINE': {
       const decision = action.type === 'NOTIF_ACCEPT' ? 'accepted' : 'declined';
-      return rows.map((n) => (n.id === action.id
-        ? { ...n, status: decision, decidedAt: now } : n));
+      return rows.map(n => (n.id === action.id ? { ...n, status: decision, decidedAt: now } : n));
     }
     case 'NOTIF_DISMISS':
-      return rows.filter((n) => n.id !== action.id);
+      return rows.filter(n => n.id !== action.id);
     case 'NOTIF_READ':
-      return rows.map((n) => (n.id === action.id ? { ...n, status: n.status === 'unread' ? 'read' : n.status } : n));
+      return rows.map(n =>
+        n.id === action.id ? { ...n, status: n.status === 'unread' ? 'read' : n.status } : n
+      );
     default:
       return rows;
   }
@@ -178,7 +222,8 @@ export function buildLinkPreview(hunt, link, now = Date.now()) {
     ok: true,
     preview: {
       title: `Infinity AI hunt — ${hunt.target || hunt.id}`,
-      severityCounts: s.bySeverity, total: s.total,
+      severityCounts: s.bySeverity,
+      total: s.total,
       riskScore: riskScoreOf(hunt.findings),
       token: link && link.token ? link.token : null,
       expiresAt: link && typeof link.expiresAt === 'number' ? link.expiresAt : null,
@@ -192,7 +237,8 @@ export const EMBED_TARGETS = ['notion', 'confluence'];
 
 export function buildLiveEmbed(hunt, target, opts = {}, now = Date.now()) {
   if (!hunt || !hunt.id) return { ok: false, reason: 'hunt with id required' };
-  if (!EMBED_TARGETS.includes(target)) return { ok: false, reason: `target must be ${EMBED_TARGETS.join('|')}` };
+  if (!EMBED_TARGETS.includes(target))
+    return { ok: false, reason: `target must be ${EMBED_TARGETS.join('|')}` };
   const base = String(opts.baseUrl || 'https://app.infinity-ai.example').replace(/\/+$/, '');
   const src = `${base}/embed/hunts/${hunt.id}?live=1&token=${opts.token || tokenFor('embed', hunt.id, now)}`;
   return {
@@ -201,10 +247,12 @@ export function buildLiveEmbed(hunt, target, opts = {}, now = Date.now()) {
       target,
       kind: target === 'notion' ? 'embed-block' : 'html-macro',
       src,
-      instructions: target === 'notion'
-        ? 'Paste this URL into a Notion page and choose "Create embed".'
-        : 'Use the Confluence "HTML macro" and paste this URL into the iframe src.',
-      refreshIntervalSec: typeof opts.refreshIntervalSec === 'number' ? opts.refreshIntervalSec : 300,
+      instructions:
+        target === 'notion'
+          ? 'Paste this URL into a Notion page and choose "Create embed".'
+          : 'Use the Confluence "HTML macro" and paste this URL into the iframe src.',
+      refreshIntervalSec:
+        typeof opts.refreshIntervalSec === 'number' ? opts.refreshIntervalSec : 300,
       createdAt: now,
     },
   };
@@ -212,20 +260,28 @@ export function buildLiveEmbed(hunt, target, opts = {}, now = Date.now()) {
 
 /* 52286 — Shared digest email composer. */
 export function composeDigest(hunt, opts = {}, now = Date.now()) {
-  if (!hunt || !Array.isArray(hunt.findings)) return { ok: false, reason: 'hunt with findings array required' };
-  if (typeof opts.to !== 'string' || !opts.to.includes('@')) return { ok: false, reason: 'valid to address required' };
+  if (!hunt || !Array.isArray(hunt.findings))
+    return { ok: false, reason: 'hunt with findings array required' };
+  if (typeof opts.to !== 'string' || !opts.to.includes('@'))
+    return { ok: false, reason: 'valid to address required' };
   const s = summarize(hunt.findings);
   const top = [...hunt.findings]
     .sort((a, b) => (SEVERITY_ORDER[b.severity] || 0) - (SEVERITY_ORDER[a.severity] || 0))
     .slice(0, typeof opts.topN === 'number' ? opts.topN : 5);
-  const lines = top.map((f, i) => `${i + 1}. [${f.severity}] ${f.title} (status: ${f.status || 'open'})`);
+  const lines = top.map(
+    (f, i) => `${i + 1}. [${f.severity}] ${f.title} (status: ${f.status || 'open'})`
+  );
   return {
     ok: true,
     digest: {
       to: opts.to,
       subject: `Hunt digest: ${hunt.target || hunt.id} — ${s.total} findings, risk ${riskScoreOf(hunt.findings)}/100`,
-      body: `Infinity AI hunt results for ${hunt.target || hunt.id}.\n\nTotal findings: ${s.total}\nSeverity breakdown: ${Object.entries(s.bySeverity).map(([k, v]) => `${k}: ${v}`).join(', ')}\n\nTop findings:\n${lines.join('\n') || 'None'}`,
-      topFindings: top.map((f) => ({ id: f.id, title: f.title, severity: f.severity })),
+      body: `Infinity AI hunt results for ${hunt.target || hunt.id}.\n\nTotal findings: ${s.total}\nSeverity breakdown: ${Object.entries(
+        s.bySeverity
+      )
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ')}\n\nTop findings:\n${lines.join('\n') || 'None'}`,
+      topFindings: top.map(f => ({ id: f.id, title: f.title, severity: f.severity })),
       composedAt: now,
     },
   };
@@ -252,7 +308,8 @@ export function buildMobileViewSpec(view, opts = {}) {
 /* 52288 — Link expiry extension without regeneration. */
 export function extendLinkExpiry(link, extraMs, now = Date.now()) {
   if (!link || !link.token) return { ok: false, reason: 'link required' };
-  if (typeof extraMs !== 'number' || extraMs <= 0) return { ok: false, reason: 'positive extraMs required' };
+  if (typeof extraMs !== 'number' || extraMs <= 0)
+    return { ok: false, reason: 'positive extraMs required' };
   if (link.revoked) return { ok: false, reason: 'link revoked' };
   const base = typeof link.expiresAt === 'number' ? Math.max(link.expiresAt, now) : now;
   return {
@@ -267,17 +324,23 @@ export function extendLinkExpiry(link, extraMs, now = Date.now()) {
 export const APPROVAL_STATES = ['requested', 'approved', 'declined', 'expired'];
 
 export function createApprovalRequest(input = {}, now = Date.now()) {
-  if (!input.linkToken && !input.huntId) return { ok: false, reason: 'linkToken or huntId required' };
+  if (!input.linkToken && !input.huntId)
+    return { ok: false, reason: 'linkToken or huntId required' };
   if (!input.requestedBy) return { ok: false, reason: 'requestedBy required' };
   if (!input.owner) return { ok: false, reason: 'owner (approver) required' };
   return {
     ok: true,
     request: {
       id: `apr_${tokenFor('apr', `${input.requestedBy}:${input.huntId || input.linkToken}`, now)}`,
-      linkToken: input.linkToken || null, huntId: input.huntId || null,
-      requestedBy: input.requestedBy, owner: input.owner,
-      state: 'requested', reason: input.reason || null,
-      createdAt: now, decidedAt: null, decidedBy: null,
+      linkToken: input.linkToken || null,
+      huntId: input.huntId || null,
+      requestedBy: input.requestedBy,
+      owner: input.owner,
+      state: 'requested',
+      reason: input.reason || null,
+      createdAt: now,
+      decidedAt: null,
+      decidedBy: null,
       ttlMs: typeof input.ttlMs === 'number' ? input.ttlMs : 24 * 3600 * 1000,
     },
   };
@@ -294,7 +357,12 @@ export function approvalReducer(request, action = {}, now = Date.now()) {
   }
   return {
     ok: true,
-    request: { ...request, state: transitions[action.type], decidedAt: now, decidedBy: action.by || request.owner },
+    request: {
+      ...request,
+      state: transitions[action.type],
+      decidedAt: now,
+      decidedBy: action.by || request.owner,
+    },
   };
 }
 
@@ -302,8 +370,9 @@ export function approvalReducer(request, action = {}, now = Date.now()) {
 export const DELEGABLE_ACTIONS = ['share-view', 'share-comment', 'share-manage'];
 
 export function grantDelegatedShare(input = {}, now = Date.now()) {
-  if (!input.grantor || !input.grantee) return { ok: false, reason: 'grantor and grantee required' };
-  if (!Array.isArray(input.actions) || !input.actions.every((a) => DELEGABLE_ACTIONS.includes(a))) {
+  if (!input.grantor || !input.grantee)
+    return { ok: false, reason: 'grantor and grantee required' };
+  if (!Array.isArray(input.actions) || !input.actions.every(a => DELEGABLE_ACTIONS.includes(a))) {
     return { ok: false, reason: `actions must be a subset of ${DELEGABLE_ACTIONS.join(', ')}` };
   }
   if (typeof input.expiresAt !== 'number' || input.expiresAt <= now) {
@@ -313,10 +382,14 @@ export function grantDelegatedShare(input = {}, now = Date.now()) {
     ok: true,
     grant: {
       id: `del_${tokenFor('del', `${input.grantor}:${input.grantee}`, now)}`,
-      grantor: input.grantor, grantee: input.grantee,
-      actions: [...input.actions], scope: input.scope || 'hunt',
+      grantor: input.grantor,
+      grantee: input.grantee,
+      actions: [...input.actions],
+      scope: input.scope || 'hunt',
       huntIds: Array.isArray(input.huntIds) ? [...input.huntIds] : [],
-      grantedAt: now, expiresAt: input.expiresAt, revoked: false,
+      grantedAt: now,
+      expiresAt: input.expiresAt,
+      revoked: false,
     },
   };
 }
@@ -325,7 +398,8 @@ export function canDelegateShare(grant, action, huntId, now = Date.now()) {
   if (!grant || !grant.id) return { ok: false, reason: 'grant required', allowed: false };
   if (grant.revoked) return { ok: false, reason: 'grant revoked', allowed: false };
   if (now > grant.expiresAt) return { ok: false, reason: 'grant expired', allowed: false };
-  if (!grant.actions.includes(action)) return { ok: false, reason: `action ${action} not granted`, allowed: false };
+  if (!grant.actions.includes(action))
+    return { ok: false, reason: `action ${action} not granted`, allowed: false };
   if (huntId && grant.huntIds.length && !grant.huntIds.includes(huntId)) {
     return { ok: false, reason: 'hunt out of grant scope', allowed: false };
   }
@@ -347,7 +421,10 @@ export function evaluateQuota(link, usage = {}, now = Date.now()) {
   }
   const allowed = remaining > 0 && (dailyRemaining == null || dailyRemaining > 0);
   return {
-    ok: true, allowed, remaining, dailyRemaining,
+    ok: true,
+    allowed,
+    remaining,
+    dailyRemaining,
     reason: allowed ? 'within-quota' : 'quota-exhausted',
   };
 }
@@ -359,7 +436,11 @@ const RESERVED_SLUGS = new Set(['admin', 'api', 'login', 'share', 'embed', 'heal
 export function validateSlug(slug) {
   if (typeof slug !== 'string' || slug.length === 0) return { ok: false, reason: 'slug required' };
   if (slug.length < 4 || slug.length > 48) return { ok: false, reason: 'slug must be 4–48 chars' };
-  if (!SLUG_RE.test(slug)) return { ok: false, reason: 'slug must be lowercase alphanumeric with dashes, no leading/trailing dash' };
+  if (!SLUG_RE.test(slug))
+    return {
+      ok: false,
+      reason: 'slug must be lowercase alphanumeric with dashes, no leading/trailing dash',
+    };
   if (RESERVED_SLUGS.has(slug)) return { ok: false, reason: 'reserved slug' };
   return { ok: true, slug };
 }
@@ -367,9 +448,14 @@ export function validateSlug(slug) {
 export function generateSlug(seed, taken = [], now = Date.now()) {
   if (typeof seed !== 'string' || seed.length === 0) return { ok: false, reason: 'seed required' };
   const used = new Set(Array.isArray(taken) ? taken : []);
-  const base = seed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 36) || 'share';
+  const base =
+    seed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 36) || 'share';
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    const suffix = attempt === 0 ? '' : `-${(tokenFor('slug', `${seed}:${attempt}`, now)).slice(-4)}`;
+    const suffix = attempt === 0 ? '' : `-${tokenFor('slug', `${seed}:${attempt}`, now).slice(-4)}`;
     const candidate = `${base}${suffix}`;
     if (validateSlug(candidate).ok && !used.has(candidate)) return { ok: true, slug: candidate };
   }
@@ -400,9 +486,12 @@ export function buildBrandedPage(org = {}, opts = {}) {
 /* 52294 — Shared team dashboard aggregator payload. */
 export function aggregateTeamDashboard(shares = [], now = Date.now()) {
   if (!Array.isArray(shares)) return { ok: false, reason: 'shares array required' };
-  const perShare = shares.map((s) => ({
-    huntId: s.huntId, teamCount: Array.isArray(s.teams) ? s.teams.length : 0,
-    findingsShared: Array.isArray(s.teams) ? s.teams.reduce((a, t) => a + (t.view ? t.view.findingIds.length : 0), 0) : 0,
+  const perShare = shares.map(s => ({
+    huntId: s.huntId,
+    teamCount: Array.isArray(s.teams) ? s.teams.length : 0,
+    findingsShared: Array.isArray(s.teams)
+      ? s.teams.reduce((a, t) => a + (t.view ? t.view.findingIds.length : 0), 0)
+      : 0,
   }));
   return {
     ok: true,
@@ -423,16 +512,26 @@ export const CHAT_CHANNELS = ['slack', 'teams', 'discord'];
 
 export function buildChatSharePayload(finding, channel, linkUrl, now = Date.now()) {
   if (!finding || !finding.id) return { ok: false, reason: 'finding with id required' };
-  if (!CHAT_CHANNELS.includes(channel)) return { ok: false, reason: `channel must be ${CHAT_CHANNELS.join('|')}` };
+  if (!CHAT_CHANNELS.includes(channel))
+    return { ok: false, reason: `channel must be ${CHAT_CHANNELS.join('|')}` };
   const head = `[${finding.severity}] ${finding.title}`;
   if (channel === 'slack') {
     return {
-      ok: true, channel,
+      ok: true,
+      channel,
       payload: {
         text: `Infinity AI finding shared: ${head}`,
         blocks: [
-          { type: 'section', text: { type: 'mrkdwn', text: `*${head}*\n${finding.impact || finding.description || ''}` } },
-          ...(linkUrl ? [{ type: 'section', text: { type: 'mrkdwn', text: `<${linkUrl}|Open finding>` } }] : []),
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*${head}*\n${finding.impact || finding.description || ''}`,
+            },
+          },
+          ...(linkUrl
+            ? [{ type: 'section', text: { type: 'mrkdwn', text: `<${linkUrl}|Open finding>` } }]
+            : []),
         ],
         sentAt: now,
       },
@@ -440,29 +539,46 @@ export function buildChatSharePayload(finding, channel, linkUrl, now = Date.now(
   }
   if (channel === 'teams') {
     return {
-      ok: true, channel,
+      ok: true,
+      channel,
       payload: {
         type: 'message',
-        attachments: [{
-          contentType: 'application/vnd.microsoft.card.adaptive',
-          content: {
-            type: 'AdaptiveCard', version: '1.4',
-            body: [
-              { type: 'TextBlock', size: 'Large', weight: 'Bolder', text: head },
-              { type: 'TextBlock', text: finding.impact || finding.description || '', wrap: true },
-            ],
-            ...(linkUrl ? { actions: [{ type: 'Action.OpenUrl', title: 'Open finding', url: linkUrl }] } : {}),
+        attachments: [
+          {
+            contentType: 'application/vnd.microsoft.card.adaptive',
+            content: {
+              type: 'AdaptiveCard',
+              version: '1.4',
+              body: [
+                { type: 'TextBlock', size: 'Large', weight: 'Bolder', text: head },
+                {
+                  type: 'TextBlock',
+                  text: finding.impact || finding.description || '',
+                  wrap: true,
+                },
+              ],
+              ...(linkUrl
+                ? { actions: [{ type: 'Action.OpenUrl', title: 'Open finding', url: linkUrl }] }
+                : {}),
+            },
           },
-        }],
+        ],
         sentAt: now,
       },
     };
   }
   return {
-    ok: true, channel,
+    ok: true,
+    channel,
     payload: {
       content: `**Infinity AI finding shared — ${head}**`,
-      embeds: [{ title: finding.title, description: (finding.impact || finding.description || '').slice(0, 500), ...(linkUrl ? { url: linkUrl } : {}) }],
+      embeds: [
+        {
+          title: finding.title,
+          description: (finding.impact || finding.description || '').slice(0, 500),
+          ...(linkUrl ? { url: linkUrl } : {}),
+        },
+      ],
       sentAt: now,
     },
   };
@@ -471,10 +587,50 @@ export function buildChatSharePayload(finding, channel, linkUrl, now = Date.now(
 /* 52296 — Granular finding-field permission evaluator (role x field). */
 export const FIELD_ROLES = ['viewer', 'commenter', 'triager', 'owner'];
 export const FIELD_PERMISSIONS = {
-  viewer: { title: true, severity: true, status: true, description: true, impact: false, evidence: false, poc: false, remediation: true, assignee: true },
-  commenter: { title: true, severity: true, status: true, description: true, impact: true, evidence: false, poc: false, remediation: true, assignee: true },
-  triager: { title: true, severity: true, status: true, description: true, impact: true, evidence: true, poc: true, remediation: true, assignee: true },
-  owner: { title: true, severity: true, status: true, description: true, impact: true, evidence: true, poc: true, remediation: true, assignee: true },
+  viewer: {
+    title: true,
+    severity: true,
+    status: true,
+    description: true,
+    impact: false,
+    evidence: false,
+    poc: false,
+    remediation: true,
+    assignee: true,
+  },
+  commenter: {
+    title: true,
+    severity: true,
+    status: true,
+    description: true,
+    impact: true,
+    evidence: false,
+    poc: false,
+    remediation: true,
+    assignee: true,
+  },
+  triager: {
+    title: true,
+    severity: true,
+    status: true,
+    description: true,
+    impact: true,
+    evidence: true,
+    poc: true,
+    remediation: true,
+    assignee: true,
+  },
+  owner: {
+    title: true,
+    severity: true,
+    status: true,
+    description: true,
+    impact: true,
+    evidence: true,
+    poc: true,
+    remediation: true,
+    assignee: true,
+  },
 };
 
 export function checkFieldAccess(role, field) {
@@ -487,25 +643,31 @@ export function checkFieldAccess(role, field) {
 export function visibleFields(role) {
   const perms = FIELD_PERMISSIONS[role];
   if (!perms) return { ok: false, reason: `unknown-role:${role}` };
-  return { ok: true, fields: Object.keys(perms).filter((f) => perms[f]) };
+  return { ok: true, fields: Object.keys(perms).filter(f => perms[f]) };
 }
 
 /* 52297 — Share-link two-factor email-code gate. */
 export function issueEmailCode(link, email, now = Date.now()) {
   if (!link || !link.token) return { ok: false, reason: 'link required' };
-  if (typeof email !== 'string' || !email.includes('@')) return { ok: false, reason: 'valid email required' };
+  if (typeof email !== 'string' || !email.includes('@'))
+    return { ok: false, reason: 'valid email required' };
   // Deterministic 6-digit code derived from link+email+time (real delivery is
   // server-side; this model carries the gate lifecycle for UI/tests).
   let h = 7;
   const raw = `${link.token}:${email}:${Math.floor(now / 60000)}`;
   for (let i = 0; i < raw.length; i += 1) h = (Math.imul(h, 31) + raw.charCodeAt(i)) | 0;
-  const code = String((h >>> 0) % 900000 + 100000);
+  const code = String(((h >>> 0) % 900000) + 100000);
   return {
     ok: true,
     gate: {
-      linkToken: link.token, email, code,
-      issuedAt: now, expiresAt: now + 10 * 60 * 1000,
-      attempts: 0, maxAttempts: 3, verified: false,
+      linkToken: link.token,
+      email,
+      code,
+      issuedAt: now,
+      expiresAt: now + 10 * 60 * 1000,
+      attempts: 0,
+      maxAttempts: 3,
+      verified: false,
     },
   };
 }
@@ -514,9 +676,11 @@ export function verifyEmailCode(gate, attempt, now = Date.now()) {
   if (!gate || !gate.linkToken) return { ok: false, reason: 'gate required', verified: false };
   if (gate.verified) return { ok: true, verified: true, reason: 'already-verified' };
   if (now > gate.expiresAt) return { ok: false, reason: 'code-expired', verified: false };
-  if (gate.attempts >= gate.maxAttempts) return { ok: false, reason: 'attempts-exhausted', verified: false };
+  if (gate.attempts >= gate.maxAttempts)
+    return { ok: false, reason: 'attempts-exhausted', verified: false };
   const next = { ...gate, attempts: gate.attempts + 1 };
-  if (String(attempt) === gate.code) return { ok: true, verified: true, gate: { ...next, verified: true } };
+  if (String(attempt) === gate.code)
+    return { ok: true, verified: true, gate: { ...next, verified: true } };
   return { ok: false, reason: 'mismatch', verified: false, gate: next };
 }
 
@@ -526,10 +690,16 @@ export function buildPrintSpec(view, opts = {}) {
   return {
     ok: true,
     spec: {
-      page: { size: opts.pageSize || 'A4', orientation: opts.orientation || 'portrait', marginsMm: 12 },
+      page: {
+        size: opts.pageSize || 'A4',
+        orientation: opts.orientation || 'portrait',
+        marginsMm: 12,
+      },
       include: {
-        summary: true, severityChart: opts.severityChart !== false,
-        findingList: true, comments: opts.comments === true,
+        summary: true,
+        severityChart: opts.severityChart !== false,
+        findingList: true,
+        comments: opts.comments === true,
         evidenceBodies: false, // never printed: too long / sensitive
       },
       header: 'Infinity AI — hunt share (printed)',
@@ -543,7 +713,8 @@ export function buildPrintSpec(view, opts = {}) {
 export const ACCESS_REQUEST_STATES = ['requested', 'routed', 'approved', 'declined', 'expired'];
 
 export function requestAccess(input = {}, now = Date.now()) {
-  if (!input.linkToken && !input.huntId) return { ok: false, reason: 'linkToken or huntId required' };
+  if (!input.linkToken && !input.huntId)
+    return { ok: false, reason: 'linkToken or huntId required' };
   if (typeof input.requester !== 'string' || !input.requester.includes('@')) {
     return { ok: false, reason: 'valid requester email required' };
   }
@@ -552,10 +723,16 @@ export function requestAccess(input = {}, now = Date.now()) {
     ok: true,
     request: {
       id: `acc_${tokenFor('acc', `${input.requester}:${input.huntId || input.linkToken}`, now)}`,
-      linkToken: input.linkToken || null, huntId: input.huntId || null,
-      requester: input.requester, role: input.role || 'viewer',
-      state: 'requested', owner: input.owner, routedTo: null,
-      createdAt: now, decidedAt: null, decidedBy: null,
+      linkToken: input.linkToken || null,
+      huntId: input.huntId || null,
+      requester: input.requester,
+      role: input.role || 'viewer',
+      state: 'requested',
+      owner: input.owner,
+      routedTo: null,
+      createdAt: now,
+      decidedAt: null,
+      decidedBy: null,
     },
   };
 }
@@ -571,7 +748,10 @@ export function accessRequestReducer(request, action = {}, now = Date.now()) {
     case 'routed':
       if (action.type === 'APPROVE' || action.type === 'DECLINE') {
         const state = action.type === 'APPROVE' ? 'approved' : 'declined';
-        return { ok: true, request: { ...request, state, decidedAt: now, decidedBy: action.by || request.owner } };
+        return {
+          ok: true,
+          request: { ...request, state, decidedAt: now, decidedBy: action.by || request.owner },
+        };
       }
       return { ok: false, reason: `no transition ${action.type} from routed` };
     default:

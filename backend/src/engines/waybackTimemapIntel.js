@@ -16,10 +16,16 @@
 export function normaliseHosts(items) {
   const hosts = new Set();
   for (const item of items || []) {
-    const s = String(item || '').trim().toLowerCase();
+    const s = String(item || '')
+      .trim()
+      .toLowerCase();
     if (!s) continue;
     let host = s;
-    try { host = new URL(s.includes('://') ? s : `http://${s}`).hostname; } catch { /* keep */ }
+    try {
+      host = new URL(s.includes('://') ? s : `http://${s}`).hostname;
+    } catch {
+      /* keep */
+    }
     host = host.replace(/:\d+$/, '').replace(/\/.*$/, '');
     if (host) hosts.add(host);
   }
@@ -51,11 +57,15 @@ export function diffHostSets(oldHosts, newHosts) {
 export function flagDanglingReview(vanished) {
   return (vanished || []).map(host => {
     const h = String(host).toLowerCase();
-    const paasHint = /(heroku|azurewebsites|cloudfront|s3|bucket|github|netlify|vercel|fastly|appspot|cloudapp)/.test(h);
+    const paasHint =
+      /(heroku|azurewebsites|cloudfront|s3|bucket|github|netlify|vercel|fastly|appspot|cloudapp)/.test(
+        h
+      );
     const legacyHint = /^(old|legacy|dev|test|staging|beta|v1|v2|archive|backup|migration)/.test(h);
     return {
       host,
-      review: 'Host vanished from archive; check whether its DNS still resolves to third-party/reclaimed infrastructure.',
+      review:
+        'Host vanished from archive; check whether its DNS still resolves to third-party/reclaimed infrastructure.',
       priority: paasHint ? 'high' : legacyHint ? 'medium' : 'low',
     };
   });

@@ -116,7 +116,9 @@ export function harvestPrometheusLabels({ url, body = '' } = {}) {
     const metric = match[1];
     const labelStr = match[2];
 
-    if (BUILD_INFO_METRICS.some((b) => metric === b || metric.endsWith(`_${b}`) || b.endsWith(metric))) {
+    if (
+      BUILD_INFO_METRICS.some(b => metric === b || metric.endsWith(`_${b}`) || b.endsWith(metric))
+    ) {
       buildInfo.push({ metric, labels: parseLabelBlock(labelStr) });
     }
 
@@ -192,13 +194,17 @@ function splitLabels(block) {
   }
   if (current.trim()) pairs.push(current.trim());
   return pairs
-    .map((p) => {
+    .map(p => {
       const eq = p.indexOf('=');
       if (eq === -1) return null;
       const key = p.slice(0, eq).trim();
       let value = p.slice(eq + 1).trim();
       if (value.startsWith('"') && value.endsWith('"')) {
-        value = value.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+        value = value
+          .slice(1, -1)
+          .replace(/\\"/g, '"')
+          .replace(/\\n/g, '\n')
+          .replace(/\\\\/g, '\\');
       }
       return [key, value];
     })

@@ -16,7 +16,12 @@
 const VRRP_STATES = { 0: 'Initialize', 1: 'Backup', 2: 'Master' };
 /** HSRP state codes. */
 const HSRP_STATES = {
-  0: 'Initial', 1: 'Learn', 2: 'Listen', 3: 'Speak', 4: 'Standby', 5: 'Active',
+  0: 'Initial',
+  1: 'Learn',
+  2: 'Listen',
+  3: 'Speak',
+  4: 'Standby',
+  5: 'Active',
 };
 
 /**
@@ -28,7 +33,12 @@ const HSRP_STATES = {
 export function detectFhrpState(packet = {}) {
   const { protocol } = packet;
   if (protocol !== 'hsrp' && protocol !== 'vrrp') {
-    return { detected: false, type: 'Unknown Protocol', confidence: 'none', evidence: 'Packet is neither HSRP nor VRRP.' };
+    return {
+      detected: false,
+      type: 'Unknown Protocol',
+      confidence: 'none',
+      evidence: 'Packet is neither HSRP nor VRRP.',
+    };
   }
 
   const isHsrp = protocol === 'hsrp';
@@ -42,16 +52,22 @@ export function detectFhrpState(packet = {}) {
   const findings = [];
 
   if (priority === 255 && isHsrp) {
-    findings.push('HSRP priority 255 — owner-style device, preemption battles unlikely but identity confirmed.');
+    findings.push(
+      'HSRP priority 255 — owner-style device, preemption battles unlikely but identity confirmed.'
+    );
   }
   if (packet.preempt && priority != null && priority > 100) {
-    findings.push('Preempt enabled with high priority — standby can seize master role on link flap.');
+    findings.push(
+      'Preempt enabled with high priority — standby can seize master role on link flap.'
+    );
   }
   if (packet.authType && !/^(none|md5)$/i.test(packet.authType)) {
     findings.push(`Weak HSRP authentication in use: ${packet.authType}.`);
   }
   if (packet.authType && /^none$/i.test(packet.authType)) {
-    findings.push('No HSRP authentication — any local host could inject hellos in an on-path position (monitor-only; no injection performed).');
+    findings.push(
+      'No HSRP authentication — any local host could inject hellos in an on-path position (monitor-only; no injection performed).'
+    );
   }
 
   return {
@@ -83,7 +99,8 @@ export function summarizeFhrpGroups(packets = []) {
   const groups = new Map();
   for (const p of packets) {
     const key = `${p.protocol}:${p.protocol === 'hsrp' ? p.group : p.vrid}`;
-    if (!groups.has(key)) groups.set(key, { packets: 0, masters: new Set(), virtualIps: new Set() });
+    if (!groups.has(key))
+      groups.set(key, { packets: 0, masters: new Set(), virtualIps: new Set() });
     const g = groups.get(key);
     g.packets += 1;
     const stateName = p.protocol === 'hsrp' ? HSRP_STATES[p.stateCode] : VRRP_STATES[p.stateCode];
@@ -96,11 +113,17 @@ export function summarizeFhrpGroups(packets = []) {
     masterIps: [...g.masters],
     virtualIps: [...g.virtualIps],
     dualMaster: g.masters.size > 1,
-    evidence: g.masters.size > 1
-      ? `SPLIT-BRAIN: ${key} shows multiple masters: ${[...g.masters].join(', ')} — possible misconfiguration or rogue device.`
-      : `${key}: ${g.packets} packets, master ${[...g.masters].join(', ') || 'unknown'}.`,
+    evidence:
+      g.masters.size > 1
+        ? `SPLIT-BRAIN: ${key} shows multiple masters: ${[...g.masters].join(', ')} — possible misconfiguration or rogue device.`
+        : `${key}: ${g.packets} packets, master ${[...g.masters].join(', ') || 'unknown'}.`,
   }));
 }
 
-export const HSRP_VRRP_DETECTOR = { detectFhrpState, summarizeFhrpGroups, VRRP_STATES, HSRP_STATES };
+export const HSRP_VRRP_DETECTOR = {
+  detectFhrpState,
+  summarizeFhrpGroups,
+  VRRP_STATES,
+  HSRP_STATES,
+};
 export default HSRP_VRRP_DETECTOR;

@@ -16,7 +16,11 @@ const BAIDU_BASE = 'https://www.baidu.com/s';
  * @returns {string[]} Search URLs, one per results page.
  */
 export function buildBaiduSiteUrls(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const urls = [];
   const pages = opts.pages ?? 3;
   for (let p = 0; p < pages; p++) {
@@ -63,11 +67,19 @@ export function extractBaiduResultUrls(html) {
  * @returns {Array<{ host, urlCount: number, urls: string[] }>}
  */
 export function extractBaiduHosts(html, domain) {
-  const apex = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const apex = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const map = new Map();
   for (const u of extractBaiduResultUrls(html)) {
     let host = '';
-    try { host = new URL(u).hostname.toLowerCase(); } catch { continue; }
+    try {
+      host = new URL(u).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
     if (host !== apex && !host.endsWith(`.${apex}`)) continue;
     if (!map.has(host)) map.set(host, new Set());
     map.get(host).add(u);

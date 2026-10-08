@@ -41,8 +41,11 @@ export function detectGarpPatterns({ packets = [], conflictThreshold = 3 } = {})
 
   const patterns = [];
   for (const [ip, list] of byIp.entries()) {
-    const macs = [...new Set(list.map((p) => p.senderMac.toLowerCase()))];
-    const times = list.map((p) => p.timestamp).filter((t) => typeof t === 'number').sort((a, b) => a - b);
+    const macs = [...new Set(list.map(p => p.senderMac.toLowerCase()))];
+    const times = list
+      .map(p => p.timestamp)
+      .filter(t => typeof t === 'number')
+      .sort((a, b) => a - b);
     let rate = null;
     if (times.length >= 2 && times[times.length - 1] > times[0]) {
       rate = list.length / ((times[times.length - 1] - times[0]) / 1000); // per second
@@ -72,10 +75,14 @@ export function detectGarpPatterns({ packets = [], conflictThreshold = 3 } = {})
     }
   }
 
-  const conflict = patterns.some((p) => p.type === 'IP Conflict / MAC Flap');
+  const conflict = patterns.some(p => p.type === 'IP Conflict / MAC Flap');
   return {
     patterns,
-    type: conflict ? 'ARP Conflict Detected' : garps.length ? 'Gratuitous ARP Observed' : 'No Gratuitous ARP',
+    type: conflict
+      ? 'ARP Conflict Detected'
+      : garps.length
+        ? 'Gratuitous ARP Observed'
+        : 'No Gratuitous ARP',
     confidence: conflict ? 'high' : garps.length ? 'medium' : 'none',
     severity: conflict ? 'Medium' : 'Info',
     evidence: conflict
@@ -87,7 +94,7 @@ export function detectGarpPatterns({ packets = [], conflictThreshold = 3 } = {})
       totalPackets: packets.length,
       gratuitousCount: garps.length,
       probeCount: probes.length,
-      conflictedIps: patterns.filter((p) => p.type === 'IP Conflict / MAC Flap').length,
+      conflictedIps: patterns.filter(p => p.type === 'IP Conflict / MAC Flap').length,
     },
   };
 }

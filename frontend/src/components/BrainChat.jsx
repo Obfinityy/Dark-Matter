@@ -27,28 +27,33 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
       try {
         const mem = await getChatMemory(chatId);
         if (!cancelled && mem?.messages?.length) {
-          setMessages(mem.messages.map(m => ({
-            role: m.role,
-            content: m.content,
-            timestamp: m.timestamp
-          })));
+          setMessages(
+            mem.messages.map(m => ({
+              role: m.role,
+              content: m.content,
+              timestamp: m.timestamp,
+            }))
+          );
         }
       } catch {
         // No memory yet — start fresh
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [chatId]);
 
   useEffect(() => {
     // Respect reduced-motion: jump straight to the bottom instead of
     // smooth-scrolling when the user prefers less movement.
-    const reducedMotion = typeof window !== 'undefined'
-      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     bottomRef.current?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
   }, [messages]);
 
-  const send = async (e) => {
+  const send = async e => {
     e?.preventDefault();
     const text = input.trim();
     if (!text || sending) return;
@@ -63,13 +68,16 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
       const res = await chatWithBrain(chatId, 'hacker', text, {
         target,
         findingsCount,
-        currentStep
+        currentStep,
       });
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: res.reply,
-        timestamp: new Date().toISOString()
-      }]);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: res.reply,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch (err) {
       const msg = err.message?.includes('BRAIN_NOT_RUNNING')
         ? 'Hacking Brain is not running. Go to Models, download and Run it first.'
@@ -94,8 +102,8 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
       <div className="brain-chat-messages" role="log" aria-label="Hacking Brain conversation">
         {messages.length === 0 && (
           <div className="brain-chat-empty sg-small">
-            Ask the Hacking Brain anything about this hunt — what it's doing,
-            what it found, what to try next. It answers from live hunt data + its memory.
+            Ask the Hacking Brain anything about this hunt — what it's doing, what it found, what to
+            try next. It answers from live hunt data + its memory.
           </div>
         )}
         {messages.map((m, i) => (
@@ -113,13 +121,17 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
         <div ref={bottomRef} />
       </div>
 
-      {error && <div className="sg-alert sg-auth-error brain-chat-error" role="alert">{error}</div>}
+      {error && (
+        <div className="sg-alert sg-auth-error brain-chat-error" role="alert">
+          {error}
+        </div>
+      )}
 
       <form className="brain-chat-input" onSubmit={send}>
         <input
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={e => setInput(e.target.value)}
           placeholder="Ask the Hacking Brain anything…"
           disabled={sending}
           aria-label="Chat with Hacking Brain"
@@ -130,7 +142,11 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
           disabled={sending || !input.trim()}
           aria-label={sending ? 'Sending message…' : 'Send message'}
         >
-          {sending ? <Loader2 size={15} className="sg-spin" aria-hidden="true" /> : <Send size={15} aria-hidden="true" />}
+          {sending ? (
+            <Loader2 size={15} className="sg-spin" aria-hidden="true" />
+          ) : (
+            <Send size={15} aria-hidden="true" />
+          )}
         </button>
       </form>
     </div>

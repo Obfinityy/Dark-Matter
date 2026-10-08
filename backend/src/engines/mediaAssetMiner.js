@@ -23,7 +23,9 @@
  * @returns {string} attribute value or ''
  */
 function getAttr(attrs = '', name) {
-  const m = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(String(attrs));
+  const m = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(
+    String(attrs)
+  );
   return m ? (m[1] ?? m[2] ?? m[3] ?? '').trim() : '';
 }
 
@@ -99,9 +101,19 @@ export function mineCalendarDateUrls(html = '') {
     // 3. Year/month/day triples first: ?year=2026&month=10&day=8
     //    (runs before the generic named-param pass so day=/month=/year=
     //    keep their granular placeholders).
-    for (const [pname, placeholder] of [['year', '{year}'], ['y', '{year}'], ['month', '{month}'], ['m', '{month}'], ['day', '{day}'], ['d', '{day}']]) {
+    for (const [pname, placeholder] of [
+      ['year', '{year}'],
+      ['y', '{year}'],
+      ['month', '{month}'],
+      ['m', '{month}'],
+      ['day', '{day}'],
+      ['d', '{day}'],
+    ]) {
       const before = pattern;
-      pattern = pattern.replace(new RegExp(`([?&]${pname}=)\\d{1,4}(?=[&#]|$)`, 'gi'), `$1${placeholder}`);
+      pattern = pattern.replace(
+        new RegExp(`([?&]${pname}=)\\d{1,4}(?=[&#]|$)`, 'gi'),
+        `$1${placeholder}`
+      );
       if (pattern !== before && !dateParams.includes(pname)) dateParams.push(pname);
     }
 
@@ -130,12 +142,18 @@ export function mineCalendarDateUrls(html = '') {
 
 const TILE_PROVIDERS = [
   { provider: 'OpenStreetMap', match: /tile\.openstreetmap\.org/i },
-  { provider: 'Google Maps', match: /(?:mt[01]\.google\.com|maps\.googleapis\.com|\/vt[/?]|khms[01]\.google\.com)/i },
+  {
+    provider: 'Google Maps',
+    match: /(?:mt[01]\.google\.com|maps\.googleapis\.com|\/vt[/?]|khms[01]\.google\.com)/i,
+  },
   { provider: 'Mapbox', match: /api\.mapbox\.com/i },
   { provider: 'CartoDB', match: /(?:basemaps\.cartocdn\.com|\.carto\.com)/i },
   { provider: 'Esri', match: /arcgisonline\.com/i },
   { provider: 'Thunderforest', match: /tile\.thunderforest\.com/i },
-  { provider: 'Bing Maps', match: /(?:ecn\.t\d*\.tiles\.virtualearth\.net|dev\.virtualearth\.net)/i },
+  {
+    provider: 'Bing Maps',
+    match: /(?:ecn\.t\d*\.tiles\.virtualearth\.net|dev\.virtualearth\.net)/i,
+  },
   { provider: 'HERE', match: /hereapi\.com/i },
   { provider: 'Stamen', match: /stamen-tiles/i },
 ];
@@ -153,12 +171,14 @@ export function harvestMapTileUrls(html = '') {
   const results = [];
   const seen = new Set();
 
-  const consider = (raw) => {
-    const url = String(raw).replace(/[.,;:!?]+$/, '').trim();
+  const consider = raw => {
+    const url = String(raw)
+      .replace(/[.,;:!?]+$/, '')
+      .trim();
     if (!url || !TILE_HINT_RE.test(url) || seen.has(url)) return;
     seen.add(url);
     const host = hostOf(url);
-    const hit = TILE_PROVIDERS.find((p) => p.match.test(url));
+    const hit = TILE_PROVIDERS.find(p => p.match.test(url));
     results.push({ url, provider: hit ? hit.provider : 'Generic tile template', host });
   };
 
@@ -414,7 +434,7 @@ function cssImportsOf(css = '') {
  *   imports and detected cycles (each cycle lists the looped names)
  */
 export function followCssImportChains(stylesheets = {}, entry = 'entry') {
-  const sheets = typeof stylesheets === 'string' ? { [entry]: stylesheets } : (stylesheets || {});
+  const sheets = typeof stylesheets === 'string' ? { [entry]: stylesheets } : stylesheets || {};
   const order = [];
   const cycles = [];
   const visited = new Set();
@@ -461,7 +481,8 @@ export function extractFontFaceUrls(css = '') {
     const srcRe = /\bsrc\s*:\s*([^;]+);?/gi;
     let s;
     while ((s = srcRe.exec(body)) !== null) {
-      const chunkRe = /url\(\s*["']?([^"')]+)["']?\s*\)(?:\s*format\(\s*["']?([^"')]+)["']?\s*\))?/gi;
+      const chunkRe =
+        /url\(\s*["']?([^"')]+)["']?\s*\)(?:\s*format\(\s*["']?([^"')]+)["']?\s*\))?/gi;
       let c;
       while ((c = chunkRe.exec(s[1])) !== null) {
         const url = c[1].trim();
@@ -546,7 +567,7 @@ const MEDIA_ASSET_FNS = {
  */
 export function registryComplete() {
   const names = Object.values(MEDIA_ASSET_IDEAS);
-  const covered = names.filter((n) => typeof MEDIA_ASSET_FNS[n] === 'function').length;
+  const covered = names.filter(n => typeof MEDIA_ASSET_FNS[n] === 'function').length;
   return { covered, total: names.length };
 }
 

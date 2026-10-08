@@ -60,7 +60,9 @@ export function parseIdLocation(idParam) {
   if (q) return { in: 'query', name: q[1] };
   const h = s.match(/^header:(.+)$/i);
   if (h) return { in: 'header', name: h[1] };
-  throw new Error(`idorHarness: unrecognized idParam "${s}" (use 'path', 'query:<name>' or 'header:<name>')`);
+  throw new Error(
+    `idorHarness: unrecognized idParam "${s}" (use 'path', 'query:<name>' or 'header:<name>')`
+  );
 }
 
 function assertLocation(loc) {
@@ -86,12 +88,22 @@ function assertLocation(loc) {
  * @param {string|object} [opts.bodyTemplate]    Optional body with {{ID}} placeholder (write-IDOR).
  * @returns {{ probes: Array, idLocation: object }}
  */
-export function buildIdorProbes({ url, method = 'GET', headers = {}, accountA, accountB, idParam = 'path', bodyTemplate = null }) {
+export function buildIdorProbes({
+  url,
+  method = 'GET',
+  headers = {},
+  accountA,
+  accountB,
+  idParam = 'path',
+  bodyTemplate = null,
+}) {
   if (!url || typeof url !== 'string') throw new Error('idorHarness: url is required');
   if (!accountA?.id) throw new Error('idorHarness: accountA.id is required');
   if (!accountB?.id) throw new Error('idorHarness: accountB.id is required');
   if (!accountA?.headers || !accountB?.headers) {
-    throw new Error('idorHarness: both accounts need auth headers (accountA.headers / accountB.headers)');
+    throw new Error(
+      'idorHarness: both accounts need auth headers (accountA.headers / accountB.headers)'
+    );
   }
   if (String(accountA.id) === String(accountB.id)) {
     throw new Error('idorHarness: accountA.id and accountB.id must differ');
@@ -101,15 +113,15 @@ export function buildIdorProbes({ url, method = 'GET', headers = {}, accountA, a
   const aId = String(accountA.id);
   const bId = String(accountB.id);
 
-  const swapInUrl = (targetId) => {
+  const swapInUrl = targetId => {
     const u = new URL(url);
     if (loc.in === 'path') {
       const segs = u.pathname.split('/');
-      const idx = segs.findIndex((s) => s === aId);
+      const idx = segs.findIndex(s => s === aId);
       if (idx === -1) {
         throw new Error(
           `idorHarness: no path segment equals accountA.id ("${aId}") in ${u.pathname} — ` +
-          'pass the URL as seen by Account A, or use query:/header: idParam'
+            'pass the URL as seen by Account A, or use query:/header: idParam'
         );
       }
       segs[idx] = targetId;
@@ -121,12 +133,16 @@ export function buildIdorProbes({ url, method = 'GET', headers = {}, accountA, a
     return u.toString();
   };
 
-  const applyBody = (targetId) => {
+  const applyBody = targetId => {
     if (bodyTemplate == null) return undefined;
     const raw = typeof bodyTemplate === 'string' ? bodyTemplate : JSON.stringify(bodyTemplate);
     const swapped = raw.split('{{ID}}').join(targetId);
     if (typeof bodyTemplate === 'string') return swapped;
-    try { return JSON.parse(swapped); } catch { return swapped; }
+    try {
+      return JSON.parse(swapped);
+    } catch {
+      return swapped;
+    }
   };
 
   const mkProbe = (label, actor, targetId, expectBlocked) => {
@@ -147,8 +163,8 @@ export function buildIdorProbes({ url, method = 'GET', headers = {}, accountA, a
 
   const probes = [
     mkProbe('baseline', accountA, aId, false), // A reads A's object — must work
-    mkProbe('attack', accountA, bId, true),     // A reads B's object — must be blocked
-    mkProbe('control', accountB, bId, false),   // B reads B's object — must work
+    mkProbe('attack', accountA, bId, true), // A reads B's object — must be blocked
+    mkProbe('control', accountB, bId, false), // B reads B's object — must work
   ];
   return { probes, idLocation: loc };
 }
@@ -158,7 +174,11 @@ export function bodyToString(body) {
   if (body == null) return '';
   if (typeof body === 'string') return body;
   if (Buffer.isBuffer(body)) return body.toString('utf8');
-  try { return JSON.stringify(body); } catch { return String(body); }
+  try {
+    return JSON.stringify(body);
+  } catch {
+    return String(body);
+  }
 }
 
 /** Collapse whitespace/case for fuzzy body equality. */
@@ -169,14 +189,15 @@ function normalized(s) {
 function isErrorBody(body) {
   const s = bodyToString(body);
   if (!s) return true;
-  return ERROR_BODY_PATTERNS.some((re) => re.test(s));
+  return ERROR_BODY_PATTERNS.some(re => re.test(s));
 }
 
 function isLoginRedirect(res) {
   const status = res?.status;
-  if (status !== 301 && status !== 302 && status !== 303 && status !== 307 && status !== 308) return false;
+  if (status !== 301 && status !== 302 && status !== 303 && status !== 307 && status !== 308)
+    return false;
   const loc = res?.headers?.location || res?.headers?.Location || '';
-  return REDIRECT_TO_LOGIN_PATTERNS.some((re) => re.test(String(loc)));
+  return REDIRECT_TO_LOGIN_PATTERNS.some(re => re.test(String(loc)));
 }
 
 function escapeRegExp(s) {
@@ -198,11 +219,11 @@ function containsMarker(body, marker) {
 
 function accountMarkers(account) {
   return [account.id, account.email, account.username, account.name]
-    .map((v) => (v == null ? '' : String(v).trim()))
+    .map(v => (v == null ? '' : String(v).trim()))
     .filter(Boolean);
 }
 
-const ok2xx = (s) => s >= 200 && s < 300;
+const ok2xx = s => s >= 200 && s < 300;
 
 /**
  * Analyze the three probe responses and decide whether IDOR exists.
@@ -222,23 +243,31 @@ export function analyzeIdor(baselineRes, attackRes, controlRes, { accountA, acco
     control: summarize(controlRes),
   };
   const inconclusive = (evidence, confidence = 'low') => ({
-    vulnerable: false, verdict: 'inconclusive', confidence, evidence, details,
+    vulnerable: false,
+    verdict: 'inconclusive',
+    confidence,
+    evidence,
+    details,
   });
   const clean = (evidence, confidence = 'high') => ({
-    vulnerable: false, verdict: 'not_vulnerable', confidence, evidence, details,
+    vulnerable: false,
+    verdict: 'not_vulnerable',
+    confidence,
+    evidence,
+    details,
   });
 
   // ── Sanity: control (B reads B) must work, else we proved nothing ──
   if (!ok2xx(controlRes?.status)) {
     return inconclusive(
       `Control failed: Account B could not read its own resource (HTTP ${controlRes?.status}). ` +
-      'Cannot distinguish blocking from breakage — re-check credentials/endpoint.'
+        'Cannot distinguish blocking from breakage — re-check credentials/endpoint.'
     );
   }
   if (!ok2xx(baselineRes?.status)) {
     return inconclusive(
       `Baseline failed: Account A could not read its own resource (HTTP ${baselineRes?.status}). ` +
-      'The endpoint may be down or the auth headers invalid.'
+        'The endpoint may be down or the auth headers invalid.'
     );
   }
 
@@ -252,7 +281,7 @@ export function analyzeIdor(baselineRes, attackRes, controlRes, { accountA, acco
   if (normalized(aBody) && normalized(aBody) === normalized(bBody)) {
     return clean(
       'Baseline and control responses are identical — the resource is not user-scoped ' +
-      '(public or shared object). No IDOR signal possible here.',
+        '(public or shared object). No IDOR signal possible here.',
       'medium'
     );
   }
@@ -272,40 +301,44 @@ export function analyzeIdor(baselineRes, attackRes, controlRes, { accountA, acco
   if (atk === 404) {
     return clean(
       'Attack returned HTTP 404 while the control read the same object successfully — ' +
-      'the server hides or blocks cross-account objects.',
+        'the server hides or blocks cross-account objects.',
       'medium'
     );
   }
   if (atk >= 500) {
-    return inconclusive(`Attack returned HTTP ${atk} — server error, no authorization signal.`, 'low');
+    return inconclusive(
+      `Attack returned HTTP ${atk} — server error, no authorization signal.`,
+      'low'
+    );
   }
 
   // ── HTTP 200: the dangerous case — but 200 alone proves nothing ──
   if (ok2xx(atk)) {
     // (a) Soft-block: 200 with an error page and none of B's data → not vulnerable.
-    if (isErrorBody(atkBody) && !bMarkers.some((m) => containsMarker(atkBody, m))) {
+    if (isErrorBody(atkBody) && !bMarkers.some(m => containsMarker(atkBody, m))) {
       return clean(
         'Attack returned HTTP 200 but the body is an error/denied page with none of ' +
-        "Account B's data — soft-blocked, not vulnerable.",
+          "Account B's data — soft-blocked, not vulnerable.",
         'medium'
       );
     }
     // (b) ID ignored: server returned the caller's OWN record despite the swapped ID.
     if (normalized(atkBody) === normalized(aBody)) {
       return clean(
-        'Attack returned HTTP 200 but the body matches Account A\'s own record — the ID ' +
-        'parameter was ignored server-side. No cross-account data disclosed.',
+        "Attack returned HTTP 200 but the body matches Account A's own record — the ID " +
+          'parameter was ignored server-side. No cross-account data disclosed.',
         'medium'
       );
     }
     // (c) Cross-account data: attack body carries B's markers, or mirrors B's control body.
-    const attackHasB = bMarkers.some((m) => containsMarker(atkBody, m));
-    const mirrorsControl = normalized(atkBody) === normalized(bBody) && normalized(bBody).length > 0;
-    const controlHasB = bMarkers.some((m) => containsMarker(bBody, m));
+    const attackHasB = bMarkers.some(m => containsMarker(atkBody, m));
+    const mirrorsControl =
+      normalized(atkBody) === normalized(bBody) && normalized(bBody).length > 0;
+    const controlHasB = bMarkers.some(m => containsMarker(bBody, m));
     if ((attackHasB || mirrorsControl) && !isErrorBody(atkBody)) {
       const how = attackHasB
-        ? `response contains Account B's identifier (${bMarkers.find((m) => containsMarker(atkBody, m))})`
-        : 'response body is identical to Account B\'s own control response';
+        ? `response contains Account B's identifier (${bMarkers.find(m => containsMarker(atkBody, m))})`
+        : "response body is identical to Account B's own control response";
       const conf = attackHasB && controlHasB ? 'high' : 'medium';
       return {
         vulnerable: true,
@@ -320,12 +353,15 @@ export function analyzeIdor(baselineRes, attackRes, controlRes, { accountA, acco
     // (d) 200, no B data, no error text, differs from both — ambiguous.
     return inconclusive(
       'Attack returned HTTP 200 with an unrecognized body (neither an error page nor ' +
-      "Account B's data). Manual review required.",
+        "Account B's data). Manual review required.",
       'low'
     );
   }
 
-  return inconclusive(`Attack returned unexpected HTTP ${atk} — no clear authorization signal.`, 'low');
+  return inconclusive(
+    `Attack returned unexpected HTTP ${atk} — no clear authorization signal.`,
+    'low'
+  );
 }
 
 function summarize(res) {
@@ -347,12 +383,30 @@ function summarize(res) {
  */
 export async function testIdor(opts, httpClient) {
   if (typeof httpClient !== 'function') {
-    throw new Error('idorHarness.testIdor: httpClient is required (inject a mock in tests; no implicit network)');
+    throw new Error(
+      'idorHarness.testIdor: httpClient is required (inject a mock in tests; no implicit network)'
+    );
   }
-  const { url, method = 'GET', headers = {}, accountA, accountB, idParam = 'path', bodyTemplate = null } = opts;
-  const { probes, idLocation } = buildIdorProbes({ url, method, headers, accountA, accountB, idParam, bodyTemplate });
+  const {
+    url,
+    method = 'GET',
+    headers = {},
+    accountA,
+    accountB,
+    idParam = 'path',
+    bodyTemplate = null,
+  } = opts;
+  const { probes, idLocation } = buildIdorProbes({
+    url,
+    method,
+    headers,
+    accountA,
+    accountB,
+    idParam,
+    bodyTemplate,
+  });
 
-  const run = async (probe) => {
+  const run = async probe => {
     const res = await httpClient({
       url: probe.url,
       method: probe.method,
@@ -371,7 +425,13 @@ export async function testIdor(opts, httpClient) {
   return {
     ...analysis,
     idLocation: idLocation.in,
-    probes: probes.map((p) => ({ label: p.label, url: p.url, method: p.method, actorId: p.actorId, targetId: p.targetId })),
+    probes: probes.map(p => ({
+      label: p.label,
+      url: p.url,
+      method: p.method,
+      actorId: p.actorId,
+      targetId: p.targetId,
+    })),
     responses: { baseline: baselineRes, attack: attackRes, control: controlRes },
   };
 }

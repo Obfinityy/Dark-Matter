@@ -16,7 +16,11 @@ const TEXTSEARCH_BASE = 'https://arquivo.pt/textsearch';
  * @returns {string} Full textsearch API URL.
  */
 export function buildArquivoQueryUrl(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const params = new URLSearchParams({
     versionHistory: opts.versionHistory || `*.${clean}`,
     maxItems: String(opts.maxItems ?? 50),
@@ -51,7 +55,9 @@ export function parseArquivoResponse(raw) {
   let obj;
   try {
     obj = typeof raw === 'string' ? JSON.parse(String(raw).trim()) : raw;
-  } catch { return []; }
+  } catch {
+    return [];
+  }
   const items = (obj && obj.response_items) || [];
   return items
     .map(it => ({
@@ -74,9 +80,14 @@ export function extractArquivoHosts(captures) {
   const map = new Map();
   for (const c of captures || []) {
     let host = '';
-    try { host = new URL(String(c.originalUrl)).hostname.toLowerCase(); } catch { continue; }
+    try {
+      host = new URL(String(c.originalUrl)).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
     if (!host) continue;
-    if (!map.has(host)) map.set(host, { captures: 0, firstSeen: c.timestamp, lastSeen: c.timestamp });
+    if (!map.has(host))
+      map.set(host, { captures: 0, firstSeen: c.timestamp, lastSeen: c.timestamp });
     const e = map.get(host);
     e.captures += 1;
     if (c.timestamp && (!e.firstSeen || c.timestamp < e.firstSeen)) e.firstSeen = c.timestamp;

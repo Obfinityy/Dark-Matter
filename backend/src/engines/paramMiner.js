@@ -8,10 +8,27 @@
  */
 
 const HIDDEN_PARAMS = [
-  'debug', 'test', 'admin', 'dev', 'staging', 'beta',
-  'api_version', 'v', 'version', 'format', 'callback',
-  'show_all', 'all', 'limit', 'offset', 'page_size',
-  'include', 'expand', 'fields', 'verbose', 'trace',
+  'debug',
+  'test',
+  'admin',
+  'dev',
+  'staging',
+  'beta',
+  'api_version',
+  'v',
+  'version',
+  'format',
+  'callback',
+  'show_all',
+  'all',
+  'limit',
+  'offset',
+  'page_size',
+  'include',
+  'expand',
+  'fields',
+  'verbose',
+  'trace',
 ];
 
 const DEBUG_VALUES = ['true', '1', 'yes', 'on'];
@@ -25,7 +42,8 @@ export function mineParams(baseUrl = '') {
   const clean = baseUrl.split('?')[0].split('#')[0];
   const urls = [];
   for (const param of HIDDEN_PARAMS) {
-    for (const val of DEBUG_VALUES.slice(0, 2)) { // limit combos
+    for (const val of DEBUG_VALUES.slice(0, 2)) {
+      // limit combos
       urls.push(`${clean}?${param}=${val}`);
     }
   }

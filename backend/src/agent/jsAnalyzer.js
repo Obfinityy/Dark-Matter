@@ -18,18 +18,42 @@
 
 export const SECRET_PATTERNS = Object.freeze([
   { name: 'AWS Access Key', pattern: /AKIA[0-9A-Z]{16}/g, severity: 'critical' },
-  { name: 'AWS Secret Key', pattern: /aws_secret[^a-z0-9]{0,10}[a-zA-Z0-9/+=]{40}/gi, severity: 'critical' },
+  {
+    name: 'AWS Secret Key',
+    pattern: /aws_secret[^a-z0-9]{0,10}[a-zA-Z0-9/+=]{40}/gi,
+    severity: 'critical',
+  },
   { name: 'Google API Key', pattern: /AIza[0-9A-Za-z\-_]{35}/g, severity: 'high' },
   { name: 'Stripe Key', pattern: /sk_live_[0-9a-zA-Z]{24}/g, severity: 'critical' },
   { name: 'Stripe Publishable', pattern: /pk_live_[0-9a-zA-Z]{24}/g, severity: 'medium' },
   { name: 'GitHub Token', pattern: /ghp_[0-9a-zA-Z]{36}/g, severity: 'critical' },
   { name: 'Slack Token', pattern: /xox[baprs]-[0-9a-zA-Z\-]{10,48}/g, severity: 'high' },
-  { name: 'JWT Token', pattern: /eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+/g, severity: 'high' },
-  { name: 'Private Key', pattern: /-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----/g, severity: 'critical' },
+  {
+    name: 'JWT Token',
+    pattern: /eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+/g,
+    severity: 'high',
+  },
+  {
+    name: 'Private Key',
+    pattern: /-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----/g,
+    severity: 'critical',
+  },
   { name: 'Firebase URL', pattern: /https:\/\/[a-z0-9\-]+\.firebaseio\.com/g, severity: 'medium' },
-  { name: 'Generic API Key', pattern: /["']api[_-]?key["']\s*[:=]\s*["'][a-zA-Z0-9\-_]{16,}["']/gi, severity: 'high' },
-  { name: 'Generic Secret', pattern: /["']secret["']\s*[:=]\s*["'][a-zA-Z0-9\-_]{16,}["']/gi, severity: 'high' },
-  { name: 'Password in JS', pattern: /["']password["']\s*[:=]\s*["'][^"']{4,}["']/gi, severity: 'high' },
+  {
+    name: 'Generic API Key',
+    pattern: /["']api[_-]?key["']\s*[:=]\s*["'][a-zA-Z0-9\-_]{16,}["']/gi,
+    severity: 'high',
+  },
+  {
+    name: 'Generic Secret',
+    pattern: /["']secret["']\s*[:=]\s*["'][a-zA-Z0-9\-_]{16,}["']/gi,
+    severity: 'high',
+  },
+  {
+    name: 'Password in JS',
+    pattern: /["']password["']\s*[:=]\s*["'][^"']{4,}["']/gi,
+    severity: 'high',
+  },
   { name: 'Bearer Token', pattern: /Bearer [a-zA-Z0-9\-._~+/]+=*/g, severity: 'high' },
 ]);
 
@@ -43,13 +67,49 @@ export const ENDPOINT_PATTERNS = Object.freeze([
 ]);
 
 export const CLIENT_LOGIC_FLAGS = Object.freeze([
-  { name: 'Client-side price', pattern: /price|amount|total/i, context: /const|let|var/, severity: 'medium', note: 'Price handled in JS — test server-side validation' },
-  { name: 'Client-side auth check', pattern: /isAdmin|is_admin|role\s*===?\s*['"]admin['"]/i, severity: 'high', note: 'Role check in JS only — bypass by modifying client' },
-  { name: 'Debug endpoint', pattern: /\/debug|\/test|\/dev/i, severity: 'medium', note: 'Debug/test endpoint referenced' },
-  { name: 'TODO with creds', pattern: /TODO.*(?:key|pass|secret|token)/i, severity: 'low', note: 'TODO mentions credentials' },
-  { name: 'eval() usage', pattern: /\beval\s*\(/, severity: 'medium', note: 'eval() — potential code injection sink' },
-  { name: 'innerHTML with data', pattern: /\.innerHTML\s*=\s*[^'"]/, severity: 'medium', note: 'innerHTML with variable — potential XSS sink' },
-  { name: 'document.write', pattern: /document\.write\s*\(/, severity: 'medium', note: 'document.write — potential XSS sink' },
+  {
+    name: 'Client-side price',
+    pattern: /price|amount|total/i,
+    context: /const|let|var/,
+    severity: 'medium',
+    note: 'Price handled in JS — test server-side validation',
+  },
+  {
+    name: 'Client-side auth check',
+    pattern: /isAdmin|is_admin|role\s*===?\s*['"]admin['"]/i,
+    severity: 'high',
+    note: 'Role check in JS only — bypass by modifying client',
+  },
+  {
+    name: 'Debug endpoint',
+    pattern: /\/debug|\/test|\/dev/i,
+    severity: 'medium',
+    note: 'Debug/test endpoint referenced',
+  },
+  {
+    name: 'TODO with creds',
+    pattern: /TODO.*(?:key|pass|secret|token)/i,
+    severity: 'low',
+    note: 'TODO mentions credentials',
+  },
+  {
+    name: 'eval() usage',
+    pattern: /\beval\s*\(/,
+    severity: 'medium',
+    note: 'eval() — potential code injection sink',
+  },
+  {
+    name: 'innerHTML with data',
+    pattern: /\.innerHTML\s*=\s*[^'"]/,
+    severity: 'medium',
+    note: 'innerHTML with variable — potential XSS sink',
+  },
+  {
+    name: 'document.write',
+    pattern: /document\.write\s*\(/,
+    severity: 'medium',
+    note: 'document.write — potential XSS sink',
+  },
 ]);
 
 /**
@@ -82,7 +142,7 @@ export function analyzeJavaScript(code, url = '') {
         match: val.slice(0, 60) + (val.length > 60 ? '…' : ''),
         url,
         // Never store the full secret — just enough to identify
-        redacted: true
+        redacted: true,
       });
       count++;
     }
@@ -116,7 +176,7 @@ export function analyzeJavaScript(code, url = '') {
     secrets,
     endpoints: [...endpoints],
     logicFlags,
-    sourceMap
+    sourceMap,
   };
 }
 

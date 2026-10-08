@@ -55,8 +55,8 @@ export function createEngineLauncherController({ modelRunnerService }) {
         return response.status(400).json({
           error: {
             code: 'UNKNOWN_OS',
-            message: 'Query param "os" must be one of: windows, macos, linux.'
-          }
+            message: 'Query param "os" must be one of: windows, macos, linux.',
+          },
         });
       }
       const site = sanitizeSiteOrigin(request.query?.site) || DEFAULT_SITE;
@@ -64,7 +64,7 @@ export function createEngineLauncherController({ modelRunnerService }) {
       response.set({
         'Content-Type': file.mime,
         'Content-Disposition': `attachment; filename="${file.filename}"`,
-        'Content-Length': Buffer.byteLength(script, 'utf8')
+        'Content-Length': Buffer.byteLength(script, 'utf8'),
       });
       return response.send(script);
     },
@@ -80,8 +80,8 @@ export function createEngineLauncherController({ modelRunnerService }) {
         return response.status(403).json({
           error: {
             code: 'FORBIDDEN',
-            message: 'Engine bootstrap is only available from the local machine.'
-          }
+            message: 'Engine bootstrap is only available from the local machine.',
+          },
         });
       }
       try {
@@ -90,9 +90,9 @@ export function createEngineLauncherController({ modelRunnerService }) {
         return response.status(result.ready ? 200 : 202).json(result);
       } catch (error) {
         return response.status(500).json({
-          error: { code: 'ENGINE_FAILED', message: error.message }
+          error: { code: 'ENGINE_FAILED', message: error.message },
         });
       }
-    }
+    },
   };
 }

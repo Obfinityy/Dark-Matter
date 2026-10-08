@@ -82,7 +82,7 @@ const KNOWN_STACKS = [
  * @returns {{ id: number, name: string }[]}
  */
 export function normalizeTransportParams(paramIds) {
-  return (paramIds || []).map((id) => ({
+  return (paramIds || []).map(id => ({
     id: Number(id),
     name: TRANSPORT_PARAM_IDS[id] || `unknown(0x${Number(id).toString(16)})`,
   }));
@@ -94,22 +94,32 @@ export function normalizeTransportParams(paramIds) {
  * @param {{ negotiatedVersion?: string, offeredVersions?: string[], paramIds?: number[], retrySeen?: boolean, coalescedPackets?: boolean }} hs
  * @returns {{ stack: string, score: number, note: string }[]} Best first.
  */
-export function matchQuicStacks({ negotiatedVersion = '', offeredVersions = [], paramIds = [], retrySeen = false } = {}) {
-  const offered = new Set((offeredVersions || []).map((v) => String(v).toLowerCase()));
+export function matchQuicStacks({
+  negotiatedVersion = '',
+  offeredVersions = [],
+  paramIds = [],
+  retrySeen = false,
+} = {}) {
+  const offered = new Set((offeredVersions || []).map(v => String(v).toLowerCase()));
   const negotiated = String(negotiatedVersion || '').toLowerCase();
   const obsParams = (paramIds || []).map(Number);
 
-  const results = KNOWN_STACKS.map((sig) => {
+  const results = KNOWN_STACKS.map(sig => {
     let score = 0;
     let weight = 0;
     // Version signal
     weight += 1;
-    if (sig.versions.some((v) => v.toLowerCase() === negotiated || offered.has(v.toLowerCase()))) score += 1;
+    if (sig.versions.some(v => v.toLowerCase() === negotiated || offered.has(v.toLowerCase())))
+      score += 1;
     // Grease/marker parameter presence
     weight += 2;
-    const marker = sig.paramOrder.find((id) => id >= 0x2ab2 || id === 0x3127 || id === 0x42);
+    const marker = sig.paramOrder.find(id => id >= 0x2ab2 || id === 0x3127 || id === 0x42);
     if (marker !== undefined && obsParams.includes(marker)) score += 2;
-    else if (marker === undefined && !obsParams.some((id) => id >= 0x2ab2 || id === 0x3127 || id === 0x42)) score += 1;
+    else if (
+      marker === undefined &&
+      !obsParams.some(id => id >= 0x2ab2 || id === 0x3127 || id === 0x42)
+    )
+      score += 1;
     // Parameter order similarity (longest common prefix fraction)
     weight += 1;
     let prefix = 0;
@@ -141,7 +151,7 @@ export function profileQuicHandshake({
   altSvc = '',
 } = {}) {
   const transportParams = normalizeTransportParams(paramIds);
-  const paramOrderSignature = transportParams.map((p) => `0x${p.id.toString(16)}`).join(',');
+  const paramOrderSignature = transportParams.map(p => `0x${p.id.toString(16)}`).join(',');
   const candidates = matchQuicStacks({ negotiatedVersion, offeredVersions, paramIds, retrySeen });
   const best = candidates[0];
   const bestGuess = best && best.score >= 0.55 ? best.stack : null;
@@ -158,7 +168,9 @@ export function profileQuicHandshake({
     evidence: `QUIC handshake negotiated ${negotiatedVersion || '(unknown)'} with ${transportParams.length} transport parameter(s) [${paramOrderSignature || 'none'}]${retrySeen ? ', Retry observed' : ''}${
       coalescedPackets ? ', coalesced packets' : ''
     }${altSvc ? ` (Alt-Svc: ${altSvc})` : ''}${
-      bestGuess ? ` — best match '${bestGuess}' (score ${best.score.toFixed(2)})` : ' — no confident stack match'
+      bestGuess
+        ? ` — best match '${bestGuess}' (score ${best.score.toFixed(2)})`
+        : ' — no confident stack match'
     }.`,
   };
 }

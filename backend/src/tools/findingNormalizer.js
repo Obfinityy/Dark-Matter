@@ -32,7 +32,11 @@ export function normalizeNuclei(raw, { minSeverity = 'info' } = {}) {
     const t = line.trim();
     if (!t) continue;
     let obj;
-    try { obj = JSON.parse(t); } catch { continue; }
+    try {
+      obj = JSON.parse(t);
+    } catch {
+      continue;
+    }
     const info = obj.info || {};
     const severity = clampSeverity(info.severity, 'info');
     if (SEVERITY_ORDER.indexOf(severity) < minIdx) continue;
@@ -49,10 +53,17 @@ export function normalizeNuclei(raw, { minSeverity = 'info' } = {}) {
         request: obj.request || null,
         responseSnippet: String(obj.response || '').slice(0, 2000) || null,
         tags: info.tags || [],
-        reference: info.reference || []
+        reference: info.reference || [],
       },
-      confidence: severity === 'critical' ? 0.9 : severity === 'high' ? 0.8 : severity === 'medium' ? 0.65 : 0.5,
-      source: 'nuclei'
+      confidence:
+        severity === 'critical'
+          ? 0.9
+          : severity === 'high'
+            ? 0.8
+            : severity === 'medium'
+              ? 0.65
+              : 0.5,
+      source: 'nuclei',
     });
   }
   return findings;
@@ -66,7 +77,8 @@ export function normalizeNuclei(raw, { minSeverity = 'info' } = {}) {
 export function normalizeSqlmap(raw) {
   const text = String(raw || '');
   const findings = [];
-  const injectableRe = /Parameter:\s*([^\s(]+)\s*\(([^)]+)\)[\s\S]{0,400}?Type:\s*([^\n]+)\n\s*Title:\s*([^\n]+)/gi;
+  const injectableRe =
+    /Parameter:\s*([^\s(]+)\s*\(([^)]+)\)[\s\S]{0,400}?Type:\s*([^\n]+)\n\s*Title:\s*([^\n]+)/gi;
   let m;
   const seen = new Set();
   while ((m = injectableRe.exec(text)) !== null) {
@@ -83,21 +95,27 @@ export function normalizeSqlmap(raw) {
         place: m[2],
         technique: m[3].trim(),
         title: m[4].trim(),
-        rawExcerpt: text.slice(Math.max(0, m.index - 200), m.index + 600)
+        rawExcerpt: text.slice(Math.max(0, m.index - 200), m.index + 600),
       },
       confidence: 0.85,
-      source: 'sqlmap'
+      source: 'sqlmap',
     });
   }
   // sqlmap explicitly saying "not injectable" → negative evidence (no finding)
   if (!findings.length && /all tested parameters do not appear to be injectable/i.test(text)) {
-    return { findings: [], negative: true, note: 'sqlmap reports target not injectable at risk/level tested' };
+    return {
+      findings: [],
+      negative: true,
+      note: 'sqlmap reports target not injectable at risk/level tested',
+    };
   }
   return { findings, negative: false };
 }
 
 function extractSqlmapUrl(text) {
-  const m = text.match(/URL:\s*(https?:\/\/[^\s]+)/i) || text.match(/testing (?:URL|connection).*?(https?:\/\/[^\s'"]+)/i);
+  const m =
+    text.match(/URL:\s*(https?:\/\/[^\s]+)/i) ||
+    text.match(/testing (?:URL|connection).*?(https?:\/\/[^\s'"]+)/i);
   return m ? m[1] : null;
 }
 
@@ -122,8 +140,11 @@ export function normalizeDalfox(raw) {
     // dalfox marks hits with [V]; be liberal in DETECTION, the lifecycle
     // service still demands stored evidence before confirming a finding.
     // ("not vulnerable" log lines contain the word "vulnerable" — exclude them.)
-    const isVuln = kind.includes('VULN') || log.vulnerable === true || /\[V\]/.test(message)
-      || (/vulnerable/i.test(message) && !/not[\s_-]*vulnerable/i.test(message));
+    const isVuln =
+      kind.includes('VULN') ||
+      log.vulnerable === true ||
+      /\[V\]/.test(message) ||
+      (/vulnerable/i.test(message) && !/not[\s_-]*vulnerable/i.test(message));
     if (!isVuln) continue;
     const isStored = /stored|post|database|persist/i.test(message) || kind.includes('P');
     const isDom = /dom|document\.|innerHTML|sink/i.test(message);
@@ -137,10 +158,10 @@ export function normalizeDalfox(raw) {
         param: log.param || log.parameter || null,
         payload: log.payload || log.poc || null,
         poc: log.poc || null,
-        message: message.slice(0, 1000)
+        message: message.slice(0, 1000),
       },
       confidence: isStored ? 0.85 : 0.75,
-      source: 'dalfox'
+      source: 'dalfox',
     });
   }
   // dalfox "not vulnerable" summary shape
@@ -153,22 +174,50 @@ export function normalizeDalfox(raw) {
 /** corscanner JSON → findings. Wildcard + credentials = high. */
 export function normalizeCorscanner(raw) {
   let data;
-  try { data = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return []; }
-  const rows = Array.isArray(data) ? data : (data?.results ? data.results : [data]);
+  try {
+    data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch {
+    return [];
+  }
+  const rows = Array.isArray(data) ? data : data?.results ? data.results : [data];
   const findings = [];
   for (const row of rows) {
     if (!row || typeof row !== 'object') continue;
     const origin = row.origin || row.tested_origin || '*';
     const acao = row.access_control_allow_origin || row['Access-Control-Allow-Origin'] || '';
-    const acac = /true/i.test(String(row.access_control_allow_credentials || row['Access-Control-Allow-Credentials'] || ''));
+    const acac = /true/i.test(
+      String(row.access_control_allow_credentials || row['Access-Control-Allow-Credentials'] || '')
+    );
     const wildcard = acao.trim() === '*';
-    const reflects = acao && origin !== '*' && String(acao).includes(String(origin).replace(/^https?:\/\//, '')) || acao === origin;
+    const reflects =
+      (acao &&
+        origin !== '*' &&
+        String(acao).includes(String(origin).replace(/^https?:\/\//, ''))) ||
+      acao === origin;
     if (wildcard && acac) {
-      findings.push(corsFinding(row, 'high', 'CORS wildcard with credentials — any origin can read responses with cookies', 0.9, { wildcard: true, credentials: true }));
+      findings.push(
+        corsFinding(
+          row,
+          'high',
+          'CORS wildcard with credentials — any origin can read responses with cookies',
+          0.9,
+          { wildcard: true, credentials: true }
+        )
+      );
     } else if (reflects && acac) {
-      findings.push(corsFinding(row, 'high', 'CORS reflects arbitrary Origin with credentials enabled', 0.85, { reflectedOrigin: true, credentials: true }));
+      findings.push(
+        corsFinding(row, 'high', 'CORS reflects arbitrary Origin with credentials enabled', 0.85, {
+          reflectedOrigin: true,
+          credentials: true,
+        })
+      );
     } else if (wildcard || reflects) {
-      findings.push(corsFinding(row, 'medium', 'Overly permissive CORS origin policy (no credentials)', 0.6, { wildcard, reflectedOrigin: reflects }));
+      findings.push(
+        corsFinding(row, 'medium', 'Overly permissive CORS origin policy (no credentials)', 0.6, {
+          wildcard,
+          reflectedOrigin: reflects,
+        })
+      );
     }
   }
   return findings;
@@ -183,11 +232,12 @@ function corsFinding(row, severity, title, confidence, flags) {
     evidence: {
       testedOrigin: row.origin || row.tested_origin || null,
       allowOrigin: row.access_control_allow_origin || row['Access-Control-Allow-Origin'] || null,
-      allowCredentials: row.access_control_allow_credentials || row['Access-Control-Allow-Credentials'] || null,
-      ...flags
+      allowCredentials:
+        row.access_control_allow_credentials || row['Access-Control-Allow-Credentials'] || null,
+      ...flags,
     },
     confidence,
-    source: 'corscanner'
+    source: 'corscanner',
   };
 }
 
@@ -202,19 +252,36 @@ export function normalizeSslscan(raw) {
   const host = text.match(/Testing SSL server\s+(\S+)/i)?.[1] || null;
 
   const push = (type, title, severity, confidence, evidence) =>
-    findings.push({ type, severity, url: host ? `https://${host}` : null, title, evidence, confidence, source: 'sslscan' });
+    findings.push({
+      type,
+      severity,
+      url: host ? `https://${host}` : null,
+      title,
+      evidence,
+      confidence,
+      source: 'sslscan',
+    });
 
-  if (/SSLv2\s+.*enabled/i.test(text)) push('weak-tls', 'SSLv2 enabled', 'high', 0.9, { protocol: 'SSLv2' });
-  if (/SSLv3\s+.*enabled/i.test(text) || /POODLE/i.test(text)) push('weak-tls', 'SSLv3 enabled (POODLE)', 'high', 0.9, { protocol: 'SSLv3' });
-  if (/TLSv1\.0\s+.*enabled/i.test(text)) push('weak-tls', 'TLS 1.0 enabled (deprecated)', 'medium', 0.85, { protocol: 'TLSv1.0' });
-  if (/TLSv1\.1\s+.*enabled/i.test(text)) push('weak-tls', 'TLS 1.1 enabled (deprecated)', 'medium', 0.85, { protocol: 'TLSv1.1' });
+  if (/SSLv2\s+.*enabled/i.test(text))
+    push('weak-tls', 'SSLv2 enabled', 'high', 0.9, { protocol: 'SSLv2' });
+  if (/SSLv3\s+.*enabled/i.test(text) || /POODLE/i.test(text))
+    push('weak-tls', 'SSLv3 enabled (POODLE)', 'high', 0.9, { protocol: 'SSLv3' });
+  if (/TLSv1\.0\s+.*enabled/i.test(text))
+    push('weak-tls', 'TLS 1.0 enabled (deprecated)', 'medium', 0.85, { protocol: 'TLSv1.0' });
+  if (/TLSv1\.1\s+.*enabled/i.test(text))
+    push('weak-tls', 'TLS 1.1 enabled (deprecated)', 'medium', 0.85, { protocol: 'TLSv1.1' });
   if (/\b(RC4|3DES|DES-CBC3?|NULL|EXPORT|anon)\b/i.test(text) && /enabled/i.test(text)) {
     const cipher = text.match(/\b(RC4|3DES|DES-CBC3?|NULL|EXPORT)\b/i)?.[1];
     push('weak-cipher', `Weak cipher suite accepted: ${cipher}`, 'medium', 0.8, { cipher });
   }
-  if (/heartbleed.*vulnerable/i.test(text)) push('heartbleed', 'Heartbleed (CVE-2014-0160) — VULNERABLE', 'critical', 0.95, { cve: 'CVE-2014-0160' });
-  if (/certificate.*expired/i.test(text)) push('tls-certificate', 'TLS certificate expired', 'low', 0.9, {});
-  if (/self.signed/i.test(text)) push('tls-certificate', 'Self-signed TLS certificate', 'low', 0.8, {});
+  if (/heartbleed.*vulnerable/i.test(text))
+    push('heartbleed', 'Heartbleed (CVE-2014-0160) — VULNERABLE', 'critical', 0.95, {
+      cve: 'CVE-2014-0160',
+    });
+  if (/certificate.*expired/i.test(text))
+    push('tls-certificate', 'TLS certificate expired', 'low', 0.9, {});
+  if (/self.signed/i.test(text))
+    push('tls-certificate', 'Self-signed TLS certificate', 'low', 0.8, {});
   return findings;
 }
 
@@ -225,7 +292,11 @@ export function normalizeSslscan(raw) {
  */
 export function normalizeSubzy(raw) {
   let data;
-  try { data = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return { findings: [], checked: 0 }; }
+  try {
+    data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch {
+    return { findings: [], checked: 0 };
+  }
   const rows = Array.isArray(data) ? data : [data];
   const findings = [];
   let checked = 0;
@@ -234,8 +305,9 @@ export function normalizeSubzy(raw) {
     checked++;
     // "Not Vulnerable" contains the word "vulnerable" — exclude it explicitly.
     const status = String(row.status || '');
-    const vulnerable = row.vulnerable === true
-      || (/vulnerable/i.test(status) && !/not[\s_-]*vulnerable/i.test(status));
+    const vulnerable =
+      row.vulnerable === true ||
+      (/vulnerable/i.test(status) && !/not[\s_-]*vulnerable/i.test(status));
     if (!vulnerable) continue;
     findings.push({
       type: 'subdomain-takeover',
@@ -247,10 +319,10 @@ export function normalizeSubzy(raw) {
         service: row.service || null,
         cname: row.cname || null,
         fingerprint: row.fingerprint || null,
-        verified: row.verified === true
+        verified: row.verified === true,
       },
       confidence: row.verified === true ? 0.9 : 0.7,
-      source: 'subzy'
+      source: 'subzy',
     });
   }
   return { findings, checked };
@@ -266,7 +338,11 @@ export function normalizeHttpx(raw) {
     const t = line.trim();
     if (!t) continue;
     let obj;
-    try { obj = JSON.parse(t); } catch { continue; }
+    try {
+      obj = JSON.parse(t);
+    } catch {
+      continue;
+    }
     if (obj.failed === true) continue; // httpx marks dead hosts failed:true — not live hosts
     const url = obj.url || obj.input || null;
     if (!url) continue;
@@ -283,10 +359,10 @@ export function normalizeHttpx(raw) {
         tech,
         contentLength: obj.content_length ?? null,
         finalUrl: obj.final_url || null,
-        cdn: obj.cdn_name || null
+        cdn: obj.cdn_name || null,
       },
       confidence: 0.95,
-      source: 'httpx'
+      source: 'httpx',
     });
   }
   return findings;
@@ -312,7 +388,7 @@ export function normalizeSubfinder(raw, { baseHost = null } = {}) {
       url: `https://${host}`,
       evidence: { subdomain: host },
       confidence: 1.0,
-      source: 'subfinder'
+      source: 'subfinder',
     });
   }
   return findings;
@@ -320,9 +396,20 @@ export function normalizeSubfinder(raw, { baseHost = null } = {}) {
 
 // Sensitive services: an open port on these is worth more than an info.
 const SENSITIVE_PORTS = {
-  21: 'ftp', 23: 'telnet', 1433: 'mssql', 1521: 'oracle', 3306: 'mysql',
-  3389: 'rdp', 5432: 'postgres', 5900: 'vnc', 6379: 'redis', 27017: 'mongodb',
-  11211: 'memcached', 9200: 'elasticsearch', 445: 'smb', 139: 'netbios'
+  21: 'ftp',
+  23: 'telnet',
+  1433: 'mssql',
+  1521: 'oracle',
+  3306: 'mysql',
+  3389: 'rdp',
+  5432: 'postgres',
+  5900: 'vnc',
+  6379: 'redis',
+  27017: 'mongodb',
+  11211: 'memcached',
+  9200: 'elasticsearch',
+  445: 'smb',
+  139: 'netbios',
 };
 
 /**
@@ -332,27 +419,31 @@ const SENSITIVE_PORTS = {
  */
 export function normalizeNmap(raw) {
   const { services } = parseNmapXml(raw);
-  return services.filter((s) => s.state === 'open').map((s) => {
-    const sensitive = SENSITIVE_PORTS[s.port];
-    return {
-      type: 'open-port',
-      title: sensitive
-        ? `Sensitive service exposed: ${sensitive} on port ${s.port}/${s.protocol || 'tcp'}`
-        : `Open port: ${s.port}/${s.protocol || 'tcp'}${s.service ? ` (${s.service})` : ''}`,
-      severity: sensitive ? 'medium' : 'info',
-      url: s.host ? `${s.service === 'http' || s.port === 80 ? 'http' : 'tcp'}://${s.host}:${s.port}` : null,
-      evidence: {
-        port: s.port,
-        protocol: s.protocol || 'tcp',
-        service: s.service || null,
-        product: s.product || null,
-        version: s.version || null,
-        host: s.host || null
-      },
-      confidence: 0.9,
-      source: 'nmap'
-    };
-  });
+  return services
+    .filter(s => s.state === 'open')
+    .map(s => {
+      const sensitive = SENSITIVE_PORTS[s.port];
+      return {
+        type: 'open-port',
+        title: sensitive
+          ? `Sensitive service exposed: ${sensitive} on port ${s.port}/${s.protocol || 'tcp'}`
+          : `Open port: ${s.port}/${s.protocol || 'tcp'}${s.service ? ` (${s.service})` : ''}`,
+        severity: sensitive ? 'medium' : 'info',
+        url: s.host
+          ? `${s.service === 'http' || s.port === 80 ? 'http' : 'tcp'}://${s.host}:${s.port}`
+          : null,
+        evidence: {
+          port: s.port,
+          protocol: s.protocol || 'tcp',
+          service: s.service || null,
+          product: s.product || null,
+          version: s.version || null,
+          host: s.host || null,
+        },
+        confidence: 0.9,
+        source: 'nmap',
+      };
+    });
 }
 
 /**
@@ -362,15 +453,17 @@ export function normalizeNmap(raw) {
 export function normalizeWafw00f(raw) {
   const parsed = parseWafw00f(raw);
   if (!parsed.detected) return [];
-  return [{
-    type: 'waf-detected',
-    title: `WAF detected: ${parsed.waf}`,
-    severity: 'info',
-    url: null,
-    evidence: { waf: parsed.waf, method: parsed.method },
-    confidence: 0.9,
-    source: 'wafw00f'
-  }];
+  return [
+    {
+      type: 'waf-detected',
+      title: `WAF detected: ${parsed.waf}`,
+      severity: 'info',
+      url: null,
+      evidence: { waf: parsed.waf, method: parsed.method },
+      confidence: 0.9,
+      source: 'wafw00f',
+    },
+  ];
 }
 
 /**
@@ -379,14 +472,14 @@ export function normalizeWafw00f(raw) {
  */
 export function normalizeKatana(raw, { baseHost = null } = {}) {
   const { endpoints } = extractEndpointsFromKatana(raw, { baseHost });
-  return endpoints.map((e) => ({
+  return endpoints.map(e => ({
     type: 'discovered-endpoint',
     title: `Discovered endpoint: ${e.url}`,
     severity: 'info',
     url: e.url,
     evidence: { method: e.method, source: 'katana', hasParams: e.url.includes('?') },
     confidence: 0.95,
-    source: 'katana'
+    source: 'katana',
   }));
 }
 
@@ -404,7 +497,11 @@ export function normalizeGau(raw, { baseHost = null } = {}) {
     const t = line.trim();
     if (!t || seen.has(t) || STATIC_ASSET_RE.test(t.split('?')[0])) continue;
     let host = null;
-    try { host = new URL(t).hostname; } catch { continue; }
+    try {
+      host = new URL(t).hostname;
+    } catch {
+      continue;
+    }
     if (baseHost && !(host === baseHost || host.endsWith(`.${baseHost}`))) continue;
     seen.add(t);
     findings.push({
@@ -414,7 +511,7 @@ export function normalizeGau(raw, { baseHost = null } = {}) {
       url: t,
       evidence: { archived: true, hasParams: t.includes('?') },
       confidence: 0.8,
-      source: 'gau'
+      source: 'gau',
     });
   }
   return findings;
@@ -422,7 +519,8 @@ export function normalizeGau(raw, { baseHost = null } = {}) {
 
 export function normalizeToolFindings(tool, raw, opts = {}) {
   switch (tool) {
-    case 'nuclei': return normalizeNuclei(raw, opts);
+    case 'nuclei':
+      return normalizeNuclei(raw, opts);
     case 'sqlmap': {
       const r = normalizeSqlmap(raw);
       return Array.isArray(r) ? r : r.findings;
@@ -431,18 +529,29 @@ export function normalizeToolFindings(tool, raw, opts = {}) {
       const r = normalizeDalfox(raw);
       return Array.isArray(r) ? r : r.findings;
     }
-    case 'corscanner': case 'cors': return normalizeCorscanner(raw);
-    case 'sslscan': return normalizeSslscan(raw);
+    case 'corscanner':
+    case 'cors':
+      return normalizeCorscanner(raw);
+    case 'sslscan':
+      return normalizeSslscan(raw);
     case 'subzy': {
       const r = normalizeSubzy(raw);
       return r.findings;
     }
-    case 'httpx': return normalizeHttpx(raw);
-    case 'subfinder': return normalizeSubfinder(raw, opts);
-    case 'nmap': return normalizeNmap(raw);
-    case 'wafw00f': return normalizeWafw00f(raw);
-    case 'katana': return normalizeKatana(raw, opts);
-    case 'gau': case 'waybackurls': return normalizeGau(raw, opts);
-    default: return [];
+    case 'httpx':
+      return normalizeHttpx(raw);
+    case 'subfinder':
+      return normalizeSubfinder(raw, opts);
+    case 'nmap':
+      return normalizeNmap(raw);
+    case 'wafw00f':
+      return normalizeWafw00f(raw);
+    case 'katana':
+      return normalizeKatana(raw, opts);
+    case 'gau':
+    case 'waybackurls':
+      return normalizeGau(raw, opts);
+    default:
+      return [];
   }
 }

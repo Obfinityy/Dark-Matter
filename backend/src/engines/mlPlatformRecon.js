@@ -22,7 +22,8 @@ const ML_PLATFORM_SIGNATURES = [
     ui: /<title>\s*MLflow\s*<\/title>|mlflow/i,
     headers: null,
     versionEndpoints: ['/api/2.0/mlflow/experiments/search', '/api/2.0/mlflow/experiments/list'],
-    versionPattern: /"mlflow-version"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"|mlflow[^\d]*(\d+\.\d+\.\d+[\w.-]*)/i,
+    versionPattern:
+      /"mlflow-version"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"|mlflow[^\d]*(\d+\.\d+\.\d+[\w.-]*)/i,
   },
   {
     service: 'Kubeflow',
@@ -114,7 +115,9 @@ export function detectMlPlatform({ url = '', status = 0, headers = {}, body = ''
     }
     if (matchedEndpoint && status === 200) {
       if (confidence === 'low') confidence = 'medium';
-      evidence.push(`Known ${sig.service} API endpoint ${matchedEndpoint} responded with HTTP 200.`);
+      evidence.push(
+        `Known ${sig.service} API endpoint ${matchedEndpoint} responded with HTTP 200.`
+      );
     }
 
     if (confidence === 'low') continue;
@@ -162,7 +165,7 @@ export function parseMlflowExperiments(payload) {
     return { detected: false, experiments: [], reason: 'No experiments found in payload.' };
   }
 
-  const experiments = list.map((e) => ({
+  const experiments = list.map(e => ({
     experimentId: String(e.experiment_id || e.experimentId || ''),
     name: String(e.name || ''),
     artifactLocation: String(e.artifact_location || e.artifactLocation || ''),
@@ -172,8 +175,8 @@ export function parseMlflowExperiments(payload) {
   }));
 
   const namingHints = experiments
-    .map((e) => e.name)
-    .filter((n) => n && !['default', '0'].includes(n.toLowerCase()));
+    .map(e => e.name)
+    .filter(n => n && !['default', '0'].includes(n.toLowerCase()));
 
   return {
     detected: true,
@@ -204,12 +207,17 @@ export function checkTensorBoardDataApi({ url = '', status = 0, body = '' }) {
   const looksLikeTensorBoard = /tensorboard/i.test(text) || isDataEndpoint;
 
   if (!looksLikeTensorBoard) {
-    return { detected: false, service: 'TensorBoard', reason: 'No TensorBoard data-API fingerprint matched.' };
+    return {
+      detected: false,
+      service: 'TensorBoard',
+      reason: 'No TensorBoard data-API fingerprint matched.',
+    };
   }
 
-  const plugins = ok && data && typeof data === 'object'
-    ? Object.keys(data).filter((k) => !['version', 'runs'].includes(k))
-    : [];
+  const plugins =
+    ok && data && typeof data === 'object'
+      ? Object.keys(data).filter(k => !['version', 'runs'].includes(k))
+      : [];
   const runs = ok && Array.isArray(data.runs) ? data.runs.length : null;
 
   const evidence = [`TensorBoard data API responded at ${url} (HTTP ${status}).`];
@@ -251,7 +259,7 @@ export function parseWeaviateSchema(payload) {
     detected: true,
     service: 'Weaviate',
     version,
-    classes: classes.map((c) => ({
+    classes: classes.map(c => ({
       class: String(c.class || ''),
       vectorIndexType: String((c.vectorIndexConfig && c.vectorIndexConfig.distance) || ''),
       propertyCount: Array.isArray(c.properties) ? c.properties.length : 0,
@@ -289,13 +297,13 @@ export function parseQdrantCollections(payload) {
     detected: true,
     service: 'Qdrant',
     version,
-    collections: collections.map((c) => String(c.name || '')),
+    collections: collections.map(c => String(c.name || '')),
     collectionCount: collections.length,
     confidence: 'high',
     severity: version ? 'Medium' : 'Low',
     cwe: 'CWE-200',
     evidence: version
-      ? `Qdrant root endpoint disclosed version ${version} with ${collections.length} collection(s): ${collections.map((c) => c.name || '').join(', ') || 'none listed'}.`
+      ? `Qdrant root endpoint disclosed version ${version} with ${collections.length} collection(s): ${collections.map(c => c.name || '').join(', ') || 'none listed'}.`
       : `Qdrant collections endpoint listed ${collections.length} collection(s).`,
   };
 }
@@ -326,7 +334,12 @@ export function detectVectorDb({ url = '', status = 0, body = '' }) {
   }
 
   // Weaviate: /v1/meta returns {"hostname":..., "version":"1.x.x", "modules":...}
-  if (ok && data && typeof data.version === 'string' && (lowered.includes('/v1/meta') || data.modules || data.hostname)) {
+  if (
+    ok &&
+    data &&
+    typeof data.version === 'string' &&
+    (lowered.includes('/v1/meta') || data.modules || data.hostname)
+  ) {
     return {
       detected: true,
       service: 'Weaviate',
@@ -350,7 +363,13 @@ export function detectVectorDb({ url = '', status = 0, body = '' }) {
       evidence: `Weaviate /v1/schema shape matched at ${url} (${data.classes.length} classes).`,
     };
   }
-  if (ok && data && data.result && Array.isArray(data.result.collections) && lowered.includes('/collections')) {
+  if (
+    ok &&
+    data &&
+    data.result &&
+    Array.isArray(data.result.collections) &&
+    lowered.includes('/collections')
+  ) {
     return {
       detected: true,
       service: 'Qdrant',
@@ -375,7 +394,11 @@ export function detectVectorDb({ url = '', status = 0, body = '' }) {
     };
   }
 
-  return { detected: false, service: 'vector database', reason: 'No Weaviate/Qdrant API shape matched.' };
+  return {
+    detected: false,
+    service: 'vector database',
+    reason: 'No Weaviate/Qdrant API shape matched.',
+  };
 }
 
 export const ML_PLATFORM_RECON = {

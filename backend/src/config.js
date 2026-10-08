@@ -43,16 +43,22 @@ export const config = {
   mongoUrl: process.env.MONGO_URL,
   mongoDbName: process.env.MONGO_DB_NAME || 'darkmatter',
   mongoServerSelectionTimeoutMs: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || 10_000),
-  frontendOrigins: (process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,https://hack.thebhavesh.online,https://dark-matter-frontend.vercel.app,https://obfinityy.github.io')
+  frontendOrigins: (
+    process.env.FRONTEND_ORIGINS ||
+    process.env.FRONTEND_ORIGIN ||
+    'http://localhost:5173,http://127.0.0.1:5173,https://hack.thebhavesh.online,https://dark-matter-frontend.vercel.app,https://obfinityy.github.io'
+  )
     .split(',')
-    .map((origin) => origin.trim())
+    .map(origin => origin.trim())
     .filter(Boolean),
   sessionDays: Number(process.env.SESSION_DAYS || 30),
   // JWT auth: HS256 signing secret + token lifetime. The service warns loudly
   // and uses an ephemeral key when unset (dev only — JWTs die on restart).
   jwtSecret: process.env.JWT_SECRET || null,
   jwtDays: Number(process.env.JWT_DAYS || 7),
-  toolRequestTimeoutMs: Number(process.env.TOOL_REQUEST_TIMEOUT_MS || process.env.AI_REQUEST_TIMEOUT_MS || 20_000),
+  toolRequestTimeoutMs: Number(
+    process.env.TOOL_REQUEST_TIMEOUT_MS || process.env.AI_REQUEST_TIMEOUT_MS || 20_000
+  ),
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120),
 
   // --- Agent Brain ---
@@ -93,11 +99,13 @@ export const config = {
   ollama: {
     host: process.env.OLLAMA_HOST || '127.0.0.1',
     port: Number(process.env.OLLAMA_PORT || 11434),
-    baseUrl: (process.env.OLLAMA_BASE_URL || '').trim() ||
+    baseUrl:
+      (process.env.OLLAMA_BASE_URL || '').trim() ||
       `http://${(process.env.OLLAMA_HOST || '127.0.0.1').trim()}:${Number(process.env.OLLAMA_PORT || 11434)}/v1`,
-    apiBaseUrl: (process.env.OLLAMA_API_BASE_URL || '').trim() ||
+    apiBaseUrl:
+      (process.env.OLLAMA_API_BASE_URL || '').trim() ||
       `http://${(process.env.OLLAMA_HOST || '127.0.0.1').trim()}:${Number(process.env.OLLAMA_PORT || 11434)}/api`,
-    model: process.env.OLLAMA_MODEL || 'huihui_ai/qwen3-abliterated:30b'
+    model: process.env.OLLAMA_MODEL || 'huihui_ai/qwen3-abliterated:30b',
   },
 
   // --- Autonomous Job Worker ---
@@ -115,7 +123,7 @@ export const config = {
     // fairly. maxConcurrent = simultaneous hunts process-wide; maxPerUser =
     // simultaneous hunts per user. Overflow waits in a fair round-robin queue.
     maxConcurrent: Number(process.env.HUNT_MAX_CONCURRENT || 4),
-    maxPerUser: Number(process.env.HUNT_MAX_PER_USER || 2)
+    maxPerUser: Number(process.env.HUNT_MAX_PER_USER || 2),
   },
 
   // --- Computer Control (Open-Interface adapter) ---
@@ -135,7 +143,7 @@ export const config = {
     // can pause/resume computer control live from the website's screen viewer.
     // Set COMPUTER_REQUIRE_APPROVAL=true to require per-action approval.
     requireApproval: process.env.COMPUTER_REQUIRE_APPROVAL === 'true',
-    maxScreenshotBytes: Number(process.env.COMPUTER_MAX_SCREENSHOT_BYTES || 4_000_000)
+    maxScreenshotBytes: Number(process.env.COMPUTER_MAX_SCREENSHOT_BYTES || 4_000_000),
   },
 
   // --- Infinity Long-Context Engine ---
@@ -150,6 +158,6 @@ export const config = {
     summaryGroupSize: Number(process.env.LONG_CONTEXT_SUMMARY_GROUP || 4),
     partMaxTokens: Number(process.env.LONG_CONTEXT_PART_MAX_TOKENS || 700),
     maxParts: Number(process.env.LONG_CONTEXT_MAX_PARTS || 120),
-    repairLoops: Number(process.env.LONG_CONTEXT_REPAIR_LOOPS || 2)
-  }
+    repairLoops: Number(process.env.LONG_CONTEXT_REPAIR_LOOPS || 2),
+  },
 };

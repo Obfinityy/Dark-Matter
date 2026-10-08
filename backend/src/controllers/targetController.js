@@ -7,6 +7,6 @@ export function createTargetController(targetModel) {
     }),
     get: asyncHandler(async (request, response) => {
       response.json(await targetModel.get(request.user.id, request.params.targetId));
-    })
+    }),
   };
 }

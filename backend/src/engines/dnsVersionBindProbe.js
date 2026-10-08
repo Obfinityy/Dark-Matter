@@ -48,7 +48,12 @@ export function fingerprintDnsSoftware(txt = '') {
     }
   }
 
-  return { software: 'Unknown (custom string)', version: answer, confidence: 0.3, eolSuspect: false };
+  return {
+    software: 'Unknown (custom string)',
+    version: answer,
+    confidence: 0.3,
+    eolSuspect: false,
+  };
 }
 
 /**

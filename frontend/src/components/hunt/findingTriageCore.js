@@ -23,7 +23,11 @@ export const WAVE39_TR_IDEAS = [
   [51521, 'live duplicate detection', 'Near-duplicate findings merged as they arrive'],
   [51522, 'finding timeline view', 'Findings plotted on the hunt timeline by discovery moment'],
   [51523, 'finding map view', 'Findings plotted on a visual map of the target attack surface'],
-  [51524, 'finding kanban board', 'Drag findings between new, triaging, confirmed, and false-positive'],
+  [
+    51524,
+    'finding kanban board',
+    'Drag findings between new, triaging, confirmed, and false-positive',
+  ],
   [51525, 'live triage actions', 'Confirm, dismiss, or escalate directly from the feed'],
   [51526, 'finding assignment', 'Assign a live finding to a teammate with one click'],
   [51527, 'finding comments', 'Discuss each finding in its own thread as it develops'],
@@ -84,7 +88,7 @@ export function signatureOf(finding) {
     .toLowerCase()
     .replace(/[^a-z0-9 ]/g, '')
     .split(/\s+/)
-    .filter((w) => w.length > 2)
+    .filter(w => w.length > 2)
     .sort()
     .slice(0, 6)
     .join('|');
@@ -95,8 +99,8 @@ export function signatureOf(finding) {
 export function findDuplicates(feed, finding) {
   const sig = signatureOf(finding);
   return (feed || [])
-    .filter((f) => f && f.id !== finding.id && signatureOf(f) === sig)
-    .map((f) => f.id);
+    .filter(f => f && f.id !== finding.id && signatureOf(f) === sig)
+    .map(f => f.id);
 }
 
 /**
@@ -119,8 +123,8 @@ export function mergeDuplicates(feed) {
     }
     const ordered = items.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
     const survivor = { ...ordered[0] };
-    survivor.evidence = ordered.flatMap((f) => f.evidence || []);
-    survivor.mergeIds = ordered.slice(1).map((f) => f.id);
+    survivor.evidence = ordered.flatMap(f => f.evidence || []);
+    survivor.mergeIds = ordered.slice(1).map(f => f.id);
     survivor.mergeCount = ordered.length;
     out.push(survivor);
   }
@@ -134,7 +138,8 @@ export function timelineSlots(findings, startMs, bucketMs) {
   for (const f of findings || []) {
     const t = f.detectedAtMs == null ? startMs : f.detectedAtMs;
     const idx = Math.max(0, Math.floor((t - startMs) / bucketMs));
-    if (!buckets.has(idx)) buckets.set(idx, { start: startMs + idx * bucketMs, count: 0, severities: {} });
+    if (!buckets.has(idx))
+      buckets.set(idx, { start: startMs + idx * bucketMs, count: 0, severities: {} });
     const b = buckets.get(idx);
     b.count += 1;
     b.severities[f.severity || 'low'] = (b.severities[f.severity || 'low'] || 0) + 1;
@@ -170,15 +175,15 @@ export function mapNodes(findings, cols = 6) {
   for (const [asset, items] of byAsset.entries()) {
     const h = parseInt(djb2(asset), 36);
     const topSeverity = items
-      .map((f) => f.severity || 'low')
+      .map(f => f.severity || 'low')
       .sort((a, b) => (SEVERITY_RANK[b] || 0) - (SEVERITY_RANK[a] || 0))[0];
     nodes.push({
       asset,
       x: (h % cols) + (i % 2 === 0 ? 0.3 : 0.7),
-      y: Math.floor(h / cols) % 4 + 0.5,
+      y: (Math.floor(h / cols) % 4) + 0.5,
       count: items.length,
       topSeverity,
-      findingIds: items.map((f) => f.id),
+      findingIds: items.map(f => f.id),
     });
     i += 1;
   }
@@ -197,7 +202,7 @@ export function emptyKanban() {
 export function moveToColumn(board, findingId, column) {
   if (!KANBAN_COLUMNS.includes(column)) throw new Error('unknown kanban column: ' + column);
   const next = {};
-  for (const c of KANBAN_COLUMNS) next[c] = (board[c] || []).filter((id) => id !== findingId);
+  for (const c of KANBAN_COLUMNS) next[c] = (board[c] || []).filter(id => id !== findingId);
   next[column] = [...next[column], findingId];
   return next;
 }
@@ -215,7 +220,8 @@ export const TRIAGE_ACTIONS = ['confirm', 'dismiss', 'escalate'];
 
 export function triageAction(finding, action) {
   if (!TRIAGE_ACTIONS.includes(action)) throw new Error('unknown triage action: ' + action);
-  const status = action === 'confirm' ? 'confirmed' : action === 'dismiss' ? 'dismissed' : 'escalated';
+  const status =
+    action === 'confirm' ? 'confirmed' : action === 'dismiss' ? 'dismissed' : 'escalated';
   return { ...(finding || {}), triageStatus: status };
 }
 
@@ -262,18 +268,18 @@ export function threadCount(thread) {
 
 export function watchFinding(watchers, findingId, user) {
   const list = (watchers || []).slice();
-  if (!list.some((w) => w.findingId === findingId && w.user === user)) {
+  if (!list.some(w => w.findingId === findingId && w.user === user)) {
     list.push({ findingId, user });
   }
   return list;
 }
 
 export function unwatchFinding(watchers, findingId, user) {
-  return (watchers || []).filter((w) => !(w.findingId === findingId && w.user === user));
+  return (watchers || []).filter(w => !(w.findingId === findingId && w.user === user));
 }
 
 export function watchersFor(watchers, findingId) {
-  return (watchers || []).filter((w) => w.findingId === findingId).map((w) => w.user);
+  return (watchers || []).filter(w => w.findingId === findingId).map(w => w.user);
 }
 
 /* --- 51529 · finding version history ------------------------------------------------------------ */
@@ -295,9 +301,7 @@ export function recordVersion(history, finding, tsMs) {
 }
 
 export function versionHistory(history, findingId) {
-  return (history || [])
-    .filter((e) => e.findingId === findingId)
-    .sort((a, b) => a.tsMs - b.tsMs);
+  return (history || []).filter(e => e.findingId === findingId).sort((a, b) => a.tsMs - b.tsMs);
 }
 
 /** Field-level diff between two version snapshots. */
@@ -336,7 +340,8 @@ export function replayScript(finding) {
 }
 
 export function replayStep(script, idx) {
-  if (!script || script.length === 0) return { current: null, total: 0, hasNext: false, hasPrev: false };
+  if (!script || script.length === 0)
+    return { current: null, total: 0, hasNext: false, hasPrev: false };
   const i = Math.min(Math.max(0, idx), script.length - 1);
   return {
     current: script[i],
@@ -406,7 +411,7 @@ export function shareLink(finding, baseUrl) {
 
 export function printViewHtml(finding) {
   const f = finding || {};
-  const evidence = (f.evidence || []).map((e) => `<li>${escapeHtml(e)}</li>`).join('');
+  const evidence = (f.evidence || []).map(e => `<li>${escapeHtml(e)}</li>`).join('');
   return [
     '<article class="finding-print">',
     `<h1>${escapeHtml(f.title || '(untitled)')}</h1>`,
@@ -484,7 +489,8 @@ export function quietBatch(findings) {
 export function digestEmail(findings, huntName, periodLabel) {
   const list = findings || [];
   const bySeverity = {};
-  for (const f of list) bySeverity[f.severity || 'low'] = (bySeverity[f.severity || 'low'] || 0) + 1;
+  for (const f of list)
+    bySeverity[f.severity || 'low'] = (bySeverity[f.severity || 'low'] || 0) + 1;
   const body = [
     `Hunt: ${huntName || 'untitled'}`,
     `Period: ${periodLabel || 'last hour'}`,
@@ -493,7 +499,7 @@ export function digestEmail(findings, huntName, periodLabel) {
     'By severity:',
     ...Object.entries(bySeverity).map(([s, n]) => `- ${s}: ${n}`),
     '',
-    ...list.map((f) => `* [${f.severity}] ${f.title} (${f.asset})`),
+    ...list.map(f => `* [${f.severity}] ${f.title} (${f.asset})`),
   ].join('\n');
   return {
     subject: `[Infinity AI] ${list.length} new findings — ${huntName || 'hunt'} (${periodLabel || 'hourly'})`,
@@ -506,14 +512,16 @@ export function digestEmail(findings, huntName, periodLabel) {
 
 export function rssFeed(findings, huntName, feedUrl) {
   const items = (findings || [])
-    .map((f) => [
-      '  <item>',
-      `    <title>${escapeXml(`[${f.severity}] ${f.title}`)}</title>`,
-      `    <link>${escapeXml((feedUrl || 'https://app.infinity-ai/findings') + '/' + f.id)}</link>`,
-      `    <description>${escapeXml(f.asset || '')}</description>`,
-      `    <guid>${escapeXml(String(f.id))}</guid>`,
-      '  </item>',
-    ].join('\n'))
+    .map(f =>
+      [
+        '  <item>',
+        `    <title>${escapeXml(`[${f.severity}] ${f.title}`)}</title>`,
+        `    <link>${escapeXml((feedUrl || 'https://app.infinity-ai/findings') + '/' + f.id)}</link>`,
+        `    <description>${escapeXml(f.asset || '')}</description>`,
+        `    <guid>${escapeXml(String(f.id))}</guid>`,
+        '  </item>',
+      ].join('\n')
+    )
     .join('\n');
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',

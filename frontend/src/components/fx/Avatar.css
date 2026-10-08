@@ -3,7 +3,6 @@
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: var(--shadow-md);
-  
 }
 
 .avatar-svg {
@@ -16,7 +15,6 @@
 /* Gentle breathing */
 .avatar-head {
   transform-origin: 100px 110px;
-  
 }
 
 /* Thinking: eyes drift, head tilts slightly */
@@ -36,7 +34,6 @@
 /* Aura pulse */
 .avatar-aura {
   transform-origin: 100px 100px;
-  
 }
 
 /* State ring */
@@ -46,13 +43,24 @@
   border-radius: 50%;
   border: 2px solid transparent;
   pointer-events: none;
-  
 }
 
-.avatar-state-speaking { border-color: rgba(34, 211, 238, 0.6); }
-.avatar-state-thinking { border-color: rgba(139, 92, 246, 0.6);  }
-.avatar-state-listening { border-color: rgba(52, 211, 153, 0.5); }
+.avatar-state-speaking {
+  border-color: rgba(34, 211, 238, 0.6);
+}
+.avatar-state-thinking {
+  border-color: rgba(139, 92, 246, 0.6);
+}
+.avatar-state-listening {
+  border-color: rgba(52, 211, 153, 0.5);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .avatar, .avatar-head, .avatar-aura, .avatar-pupil, .avatar-state-ring { animation: none; }
+  .avatar,
+  .avatar-head,
+  .avatar-aura,
+  .avatar-pupil,
+  .avatar-state-ring {
+    animation: none;
+  }
 }

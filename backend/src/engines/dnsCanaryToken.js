@@ -22,17 +22,18 @@
  * @returns {{ records: Array<{ name, type, ttl, value }>, tokenId }}
  */
 export function buildCanaryRecords(apex, count = 3, tokenId = null) {
-  const domain = String(apex || '').toLowerCase().replace(/\.$/, '');
+  const domain = String(apex || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!domain || !domain.includes('.')) return { records: [], tokenId: null };
   const n = Math.max(1, Math.min(20, Math.floor(count) || 3));
-  const id = tokenId
-    || `ct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = tokenId || `ct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const records = [];
   for (let i = 0; i < n; i++) {
     const name = `zz-canary-${id}-${i}.${domain}`;
     records.push(
       { name, type: 'TXT', ttl: 60, value: `canary=${id};seq=${i}` },
-      { name, type: 'A', ttl: 60, value: '192.0.2.1' }, // TEST-NET-1 sinkhole
+      { name, type: 'A', ttl: 60, value: '192.0.2.1' } // TEST-NET-1 sinkhole
     );
   }
   return { records, tokenId: id };
@@ -51,7 +52,11 @@ export function buildCanaryRecords(apex, count = 3, tokenId = null) {
  */
 export function analyzeCanaryQueries(queryLog = [], canaryRecords = []) {
   const canaryNames = new Set(
-    (canaryRecords || []).map((r) => String((r && r.name) || r || '').toLowerCase().replace(/\.$/, '')),
+    (canaryRecords || []).map(r =>
+      String((r && r.name) || r || '')
+        .toLowerCase()
+        .replace(/\.$/, '')
+    )
   );
   const hits = [];
   for (const q of queryLog || []) {
@@ -68,7 +73,13 @@ export function analyzeCanaryQueries(queryLog = [], canaryRecords = []) {
   const byClient = new Map();
   for (const hit of hits) {
     if (!byClient.has(hit.client)) {
-      byClient.set(hit.client, { client: hit.client, hits: 0, qnames: new Set(), firstSeen: null, lastSeen: null });
+      byClient.set(hit.client, {
+        client: hit.client,
+        hits: 0,
+        qnames: new Set(),
+        firstSeen: null,
+        lastSeen: null,
+      });
     }
     const g = byClient.get(hit.client);
     g.hits++;
@@ -78,7 +89,7 @@ export function analyzeCanaryQueries(queryLog = [], canaryRecords = []) {
     g.lastSeen = times[times.length - 1] || null;
   }
   const clients = [...byClient.values()]
-    .map((g) => ({ ...g, qnames: [...g.qnames].sort() }))
+    .map(g => ({ ...g, qnames: [...g.qnames].sort() }))
     .sort((a, b) => b.hits - a.hits);
   return {
     hits,
@@ -98,17 +109,20 @@ export function analyzeCanaryQueries(queryLog = [], canaryRecords = []) {
  * @returns {Array<{ client, pattern, hits, distinctCanaries, note }>}
  */
 export function classifyEnumeration(byClient = []) {
-  return (byClient || []).map((c) => {
-    const distinct = new Set(c.qnames || []).size;
-    let pattern = 'targeted-lookup';
-    let note = 'Single canary queried — likely a targeted check or resolver retry.';
-    if (distinct >= 3 && c.hits >= distinct * 2) {
-      pattern = 'brute-force-sweep';
-      note = 'Multiple distinct canaries queried repeatedly — brute-force enumeration of the zone.';
-    } else if (distinct >= 2) {
-      pattern = 'broad-enumeration';
-      note = 'More than one canary queried — broader zone enumeration in progress.';
-    }
-    return { client: c.client, pattern, hits: c.hits, distinctCanaries: distinct, note };
-  }).sort((a, b) => b.distinctCanaries - a.distinctCanaries);
+  return (byClient || [])
+    .map(c => {
+      const distinct = new Set(c.qnames || []).size;
+      let pattern = 'targeted-lookup';
+      let note = 'Single canary queried — likely a targeted check or resolver retry.';
+      if (distinct >= 3 && c.hits >= distinct * 2) {
+        pattern = 'brute-force-sweep';
+        note =
+          'Multiple distinct canaries queried repeatedly — brute-force enumeration of the zone.';
+      } else if (distinct >= 2) {
+        pattern = 'broad-enumeration';
+        note = 'More than one canary queried — broader zone enumeration in progress.';
+      }
+      return { client: c.client, pattern, hits: c.hits, distinctCanaries: distinct, note };
+    })
+    .sort((a, b) => b.distinctCanaries - a.distinctCanaries);
 }

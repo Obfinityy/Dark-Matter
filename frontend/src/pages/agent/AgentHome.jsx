@@ -7,8 +7,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Crosshair, AlertTriangle, ChevronRight, Loader2,
-  FileText, ShieldCheck, ArrowRight, Target
+  Crosshair,
+  AlertTriangle,
+  ChevronRight,
+  Loader2,
+  FileText,
+  ShieldCheck,
+  ArrowRight,
+  Target,
 } from 'lucide-react';
 import { createJob, listJobs } from '../../services/api';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
@@ -30,15 +36,23 @@ export function AgentHome() {
     try {
       const jobsBody = await listJobs({ limit: 8 }).catch(() => null);
       if (jobsBody?.jobs) setJobs(jobsBody.jobs);
-    } catch { /* home degrades to the hunt box rather than crashing */ }
-    finally { setJobsLoading(false); }
+    } catch {
+      /* home degrades to the hunt box rather than crashing */
+    } finally {
+      setJobsLoading(false);
+    }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const launch = async ({ forceNew = false } = {}) => {
     const clean = normalizeTargetUrl(target);
-    if (!clean) { setError('Paste a target first — a domain, URL, or IP.'); return; }
+    if (!clean) {
+      setError('Paste a target first — a domain, URL, or IP.');
+      return;
+    }
     if (!authConfirmed) {
       setError('Please confirm you are authorized to test this target.');
       return;
@@ -47,7 +61,12 @@ export function AgentHome() {
     setError('');
     setDedup(null);
     try {
-      const res = await createJob({ target: clean, targetUrl: clean, authorizationConfirmed: true, ...(forceNew ? { forceNew: true } : {}) });
+      const res = await createJob({
+        target: clean,
+        targetUrl: clean,
+        authorizationConfirmed: true,
+        ...(forceNew ? { forceNew: true } : {}),
+      });
       if (res?.deduped) {
         setDedup(res);
         refresh();
@@ -64,10 +83,13 @@ export function AgentHome() {
     }
   };
 
-  const startHunt = (e) => { e.preventDefault(); launch(); };
+  const startHunt = e => {
+    e.preventDefault();
+    launch();
+  };
 
-  const runningCount = jobs.filter((j) => String(j.status).toLowerCase() === 'running').length;
-  const doneCount = jobs.filter((j) => String(j.status).toLowerCase() === 'completed').length;
+  const runningCount = jobs.filter(j => String(j.status).toLowerCase() === 'running').length;
+  const doneCount = jobs.filter(j => String(j.status).toLowerCase() === 'completed').length;
   const totalFindings = jobs.reduce((n, j) => n + (j.findingsCount || 0), 0);
 
   return (
@@ -81,8 +103,8 @@ export function AgentHome() {
           Point me at a target. I'll hunt it down.
         </h1>
         <p className="dm-page-sub">
-          The agent maps the attack surface, tests real hypotheses, and hands you a
-          submission-ready report — while you watch it think, live.
+          The agent maps the attack surface, tests real hypotheses, and hands you a submission-ready
+          report — while you watch it think, live.
         </p>
       </header>
 
@@ -96,16 +118,19 @@ export function AgentHome() {
                   size={18}
                   aria-hidden="true"
                   style={{
-                    position: 'absolute', left: '16px', top: '50%',
-                    transform: 'translateY(-50%)', color: 'var(--dm-muted)',
-                    pointerEvents: 'none'
+                    position: 'absolute',
+                    left: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--dm-muted)',
+                    pointerEvents: 'none',
                   }}
                 />
                 <input
                   id="dm-target"
                   type="text"
                   value={target}
-                  onChange={(e) => setTarget(e.target.value)}
+                  onChange={e => setTarget(e.target.value)}
                   placeholder="Paste a URL you own — https://target.com"
                   spellCheck={false}
                   autoComplete="off"
@@ -115,32 +140,56 @@ export function AgentHome() {
                 />
               </div>
               <button type="submit" className="dm-btn dm-btn-primary dm-btn-lg" disabled={starting}>
-                {starting && <Loader2 size={17} aria-hidden="true" style={{ animation: 'spin 1s linear infinite' }} />}
+                {starting && (
+                  <Loader2
+                    size={17}
+                    aria-hidden="true"
+                    style={{ animation: 'spin 1s linear infinite' }}
+                  />
+                )}
                 {starting ? 'Starting…' : 'Start hunt'}
               </button>
             </div>
-            <label style={{
-              display: 'flex', gap: 'var(--dm-2)', alignItems: 'flex-start',
-              fontSize: 'var(--dm-text-sm)', color: 'var(--dm-text-2)',
-              cursor: 'pointer', lineHeight: 1.5
-            }}>
+            <label
+              style={{
+                display: 'flex',
+                gap: 'var(--dm-2)',
+                alignItems: 'flex-start',
+                fontSize: 'var(--dm-text-sm)',
+                color: 'var(--dm-text-2)',
+                cursor: 'pointer',
+                lineHeight: 1.5,
+              }}
+            >
               <input
                 type="checkbox"
                 checked={authConfirmed}
-                onChange={(e) => setAuthConfirmed(e.target.checked)}
+                onChange={e => setAuthConfirmed(e.target.checked)}
                 style={{ marginTop: '3px', accentColor: 'var(--dm-gold)' }}
               />
               <span style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                <ShieldCheck size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--dm-gold-soft)' }} />
-                I confirm I'm authorized to security-test this target — I own it or have written permission.
+                <ShieldCheck
+                  size={15}
+                  style={{ flexShrink: 0, marginTop: '2px', color: 'var(--dm-gold-soft)' }}
+                />
+                I confirm I'm authorized to security-test this target — I own it or have written
+                permission.
               </span>
             </label>
           </form>
         </BrainGate>
 
         {error && (
-          <div className="dm-notice dm-notice-red" style={{ marginTop: 'var(--dm-4)' }} role="alert">
-            <AlertTriangle size={16} aria-hidden="true" style={{ color: 'var(--dm-red)', flexShrink: 0, marginTop: '2px' }} />
+          <div
+            className="dm-notice dm-notice-red"
+            style={{ marginTop: 'var(--dm-4)' }}
+            role="alert"
+          >
+            <AlertTriangle
+              size={16}
+              aria-hidden="true"
+              style={{ color: 'var(--dm-red)', flexShrink: 0, marginTop: '2px' }}
+            />
             <span>{error}</span>
           </div>
         )}
@@ -149,7 +198,9 @@ export function AgentHome() {
           <div style={{ marginTop: 'var(--dm-4)' }}>
             <DedupBanner
               result={dedup}
-              onView={() => dedup?.huntRecord?.id && navigate(`/agent/reports/${dedup.huntRecord.id}`)}
+              onView={() =>
+                dedup?.huntRecord?.id && navigate(`/agent/reports/${dedup.huntRecord.id}`)
+              }
               onNewHunt={() => launch({ forceNew: true })}
               onDismiss={() => setDedup(null)}
             />
@@ -165,20 +216,31 @@ export function AgentHome() {
           { n: totalFindings, label: 'Findings so far' },
         ].map(({ n, label, live }) => (
           <div key={label} className="dm-card dm-center" style={{ padding: 'var(--dm-5)' }}>
-            <div style={{
-              fontSize: 'var(--dm-text-3xl)', fontWeight: 700,
-              letterSpacing: '-0.02em', marginBottom: 'var(--dm-1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-            }}>
+            <div
+              style={{
+                fontSize: 'var(--dm-text-3xl)',
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                marginBottom: 'var(--dm-1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
               {n}
-              {live ? (
-                <span className="visually-hidden">live now</span>
-              ) : null}
+              {live ? <span className="visually-hidden">live now</span> : null}
               {live && (
-                <span aria-hidden="true" style={{
-                  width: '8px', height: '8px', borderRadius: '50%',
-                  background: 'var(--dm-green)', display: 'inline-block'
-                }} />
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: 'var(--dm-green)',
+                    display: 'inline-block',
+                  }}
+                />
               )}
             </div>
             <div style={{ fontSize: 'var(--dm-text-sm)', color: 'var(--dm-muted)' }}>{label}</div>
@@ -199,11 +261,26 @@ export function AgentHome() {
           </div>
           {jobsLoading ? (
             <div style={{ display: 'grid', gap: 'var(--dm-2)' }}>
-              {[0, 1, 2].map((i) => (
+              {[0, 1, 2].map(i => (
                 <div key={i} className="dm-row" style={{ opacity: 0.5 }}>
                   <div className="dm-row-main">
-                    <div style={{ height: '14px', width: `${60 - i * 10}%`, background: 'var(--dm-surface-3)', borderRadius: '4px', marginBottom: '6px' }} />
-                    <div style={{ height: '11px', width: '40%', background: 'var(--dm-surface-3)', borderRadius: '4px' }} />
+                    <div
+                      style={{
+                        height: '14px',
+                        width: `${60 - i * 10}%`,
+                        background: 'var(--dm-surface-3)',
+                        borderRadius: '4px',
+                        marginBottom: '6px',
+                      }}
+                    />
+                    <div
+                      style={{
+                        height: '11px',
+                        width: '40%',
+                        background: 'var(--dm-surface-3)',
+                        borderRadius: '4px',
+                      }}
+                    />
                   </div>
                 </div>
               ))}
@@ -218,7 +295,7 @@ export function AgentHome() {
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 'var(--dm-2)' }}>
-              {jobs.slice(0, 6).map((job) => (
+              {jobs.slice(0, 6).map(job => (
                 <Link
                   key={job.id}
                   to={`/agent/hunt/${job.id}`}
@@ -261,18 +338,37 @@ export function AgentHome() {
                 ['You get the report', 'Evidence-backed PDF, ready to submit.'],
               ].map(([title, sub], i) => (
                 <div key={title} style={{ display: 'flex', gap: 'var(--dm-3)' }}>
-                  <span style={{
-                    width: '28px', height: '28px', borderRadius: '50%',
-                    background: 'var(--dm-gold-glow)', border: '1px solid var(--dm-gold-border)',
-                    color: 'var(--dm-gold-soft)', fontSize: 'var(--dm-text-sm)',
-                    fontWeight: 700, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', flexShrink: 0
-                  }}>
+                  <span
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'var(--dm-gold-glow)',
+                      border: '1px solid var(--dm-gold-border)',
+                      color: 'var(--dm-gold-soft)',
+                      fontSize: 'var(--dm-text-sm)',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
                     {i + 1}
                   </span>
                   <div>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 'var(--dm-text-sm)' }}>{title}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 'var(--dm-text-sm)', color: 'var(--dm-muted)' }}>{sub}</p>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 'var(--dm-text-sm)' }}>
+                      {title}
+                    </p>
+                    <p
+                      style={{
+                        margin: '2px 0 0',
+                        fontSize: 'var(--dm-text-sm)',
+                        color: 'var(--dm-muted)',
+                      }}
+                    >
+                      {sub}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -282,7 +378,8 @@ export function AgentHome() {
       </div>
 
       <p className="dm-hint dm-center" style={{ marginTop: 'var(--dm-8)' }}>
-        Re-pasting a hunted target returns its saved report instantly — "Start new hunt" only when you want a fresh look.
+        Re-pasting a hunted target returns its saved report instantly — "Start new hunt" only when
+        you want a fresh look.
       </p>
     </div>
   );

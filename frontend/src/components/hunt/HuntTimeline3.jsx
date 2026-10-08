@@ -14,13 +14,28 @@ export function ValidationConfidenceRing({ confidence = 0, size = 44, className 
   const c = 2 * Math.PI * r;
   const p = Math.max(0, Math.min(100, confidence)) / 100;
   return (
-    <span className={`ht3-valring ${className}`} role="progressbar" aria-valuenow={Math.round(confidence)} aria-valuemin={0} aria-valuemax={100} aria-label="Validation confidence">
+    <span
+      className={`ht3-valring ${className}`}
+      role="progressbar"
+      aria-valuenow={Math.round(confidence)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Validation confidence"
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1c2333" strokeWidth={5} />
         <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#34d399" strokeWidth={5} strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - p)}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`} className="ht3-ring-fill"
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="#34d399"
+          strokeWidth={5}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - p)}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          className="ht3-ring-fill"
         />
       </svg>
       <em>{Math.round(confidence)}%</em>
@@ -32,7 +47,11 @@ export function ValidationConfidenceRing({ confidence = 0, size = 44, className 
 export function HuntHealthIndicator({ errorRate = 0, stalled = false, className = '' }) {
   const level = stalled || errorRate > 0.2 ? 'bad' : errorRate > 0.08 ? 'warn' : 'good';
   const label = level === 'good' ? 'healthy' : level === 'warn' ? 'degraded' : 'needs attention';
-  return <span className={`ht3-health ht3-health-${level} ${className}`} role="status">● {label}</span>;
+  return (
+    <span className={`ht3-health ht3-health-${level} ${className}`} role="status">
+      ● {label}
+    </span>
+  );
 }
 
 /** 50103 — Decision breadcrumb trail explaining agent choices. */
@@ -40,7 +59,9 @@ export function DecisionBreadcrumbTrail({ decisions = [], className = '' }) {
   const items = decisions.length > 0 ? decisions : ['chose SQLi next because login form found'];
   return (
     <ol className={`ht3-crumbs ${className}`} aria-label="Agent decisions">
-      {items.map((d, i) => <li key={i}>{d}</li>)}
+      {items.map((d, i) => (
+        <li key={i}>{d}</li>
+      ))}
     </ol>
   );
 }
@@ -49,10 +70,19 @@ export function DecisionBreadcrumbTrail({ decisions = [], className = '' }) {
 export function RequestsPerSecondGauge({ rps = 0, max = 50, className = '' }) {
   const pct = Math.max(0, Math.min(100, (rps / max) * 100));
   return (
-    <div className={`ht3-rps ${className}`} role="meter" aria-valuenow={rps} aria-valuemin={0} aria-valuemax={max} aria-label="Requests per second">
+    <div
+      className={`ht3-rps ${className}`}
+      role="meter"
+      aria-valuenow={rps}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-label="Requests per second"
+    >
       <span className="ht3-rps-value">{rps.toFixed(1)}</span>
       <span className="ht3-rps-unit">req/s</span>
-      <div className="ht3-rps-track"><div className="ht3-rps-fill" style={{ width: `${pct}%` }} /></div>
+      <div className="ht3-rps-track">
+        <div className="ht3-rps-fill" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
@@ -61,7 +91,8 @@ export function RequestsPerSecondGauge({ rps = 0, max = 50, className = '' }) {
 export function PhaseHoverPreview({ name = 'Recon', purpose = '', typical = '', className = '' }) {
   return (
     <span
-      className={`ht3-phase-tip ${className}`} tabIndex={0}
+      className={`ht3-phase-tip ${className}`}
+      tabIndex={0}
       aria-label={`${name}: ${purpose || 'Maps the attack surface'}. Typical duration: ${typical || '2–5 min'}`}
     >
       {name}
@@ -76,14 +107,26 @@ export function PhaseHoverPreview({ name = 'Recon', purpose = '', typical = '', 
 
 /** 50106 — Snapshot checkpoint flags on the timeline. */
 export function SnapshotCheckpointFlags({ checkpoints = [], className = '' }) {
-  const items = checkpoints.length > 0 ? checkpoints : [
-    { at: 30, label: 'Snapshot 1' }, { at: 70, label: 'Snapshot 2' },
-  ];
+  const items =
+    checkpoints.length > 0
+      ? checkpoints
+      : [
+          { at: 30, label: 'Snapshot 1' },
+          { at: 70, label: 'Snapshot 2' },
+        ];
   return (
     <div className={`ht3-snapshots ${className}`} role="img" aria-label="State snapshots">
       <div className="ht3-snap-track" aria-hidden="true" />
       {items.map((s, i) => (
-        <span key={i} className="ht3-snap-flag" style={{ left: `${s.at}%` }} title={s.label} aria-label={s.label}>⚑</span>
+        <span
+          key={i}
+          className="ht3-snap-flag"
+          style={{ left: `${s.at}%` }}
+          title={s.label}
+          aria-label={s.label}
+        >
+          ⚑
+        </span>
       ))}
     </div>
   );
@@ -103,7 +146,12 @@ export function CrawlerPathTrace({ pages = [], className = '' }) {
           >
             {p}
           </span>
-          {i < items.length - 1 && <span className={`ht3-crawl-link ${i < visited ? 'ht3-visited' : ''}`} aria-hidden="true" />}
+          {i < items.length - 1 && (
+            <span
+              className={`ht3-crawl-link ${i < visited ? 'ht3-visited' : ''}`}
+              aria-hidden="true"
+            />
+          )}
         </React.Fragment>
       ))}
     </div>
@@ -114,20 +162,30 @@ export function CrawlerPathTrace({ pages = [], className = '' }) {
 export function LiveTimeInPhaseCounter({ seconds = 0, className = '' }) {
   const [tick, setTick] = React.useState(seconds);
   React.useEffect(() => {
-    const t = setInterval(() => setTick((s) => s + 1), 1000);
+    const t = setInterval(() => setTick(s => s + 1), 1000);
     return () => clearInterval(t);
   }, []);
   const m = Math.floor(tick / 60);
   const s = tick % 60;
-  return <span className={`ht3-phase-time ${className}`} role="timer">{m}m {String(s).padStart(2, '0')}s in phase</span>;
+  return (
+    <span className={`ht3-phase-time ${className}`} role="timer">
+      {m}m {String(s).padStart(2, '0')}s in phase
+    </span>
+  );
 }
 
 /** 50109 — ETA projection cone: optimistic/pessimistic band on the timeline. */
 export function EtaProjectionCone({ optimistic = '', pessimistic = '', className = '' }) {
   return (
-    <div className={`ht3-cone ${className}`} role="status" aria-label={`ETA between ${optimistic || '8 min'} and ${pessimistic || '18 min'}`}>
+    <div
+      className={`ht3-cone ${className}`}
+      role="status"
+      aria-label={`ETA between ${optimistic || '8 min'} and ${pessimistic || '18 min'}`}
+    >
       <div className="ht3-cone-band" aria-hidden="true" />
-      <span>ETA {optimistic || '~8 min'} – {pessimistic || '~18 min'}</span>
+      <span>
+        ETA {optimistic || '~8 min'} – {pessimistic || '~18 min'}
+      </span>
     </div>
   );
 }
@@ -137,8 +195,14 @@ export function StepGroupingToggle({ mode = 'phase', onChange, className = '' })
   const modes = ['phase', 'tool', 'host'];
   return (
     <div className={`ht3-group-toggle ${className}`} role="group" aria-label="Group steps by">
-      {modes.map((m) => (
-        <button key={m} type="button" className={mode === m ? 'ht3-active' : ''} onClick={() => onChange && onChange(m)} aria-pressed={mode === m}>
+      {modes.map(m => (
+        <button
+          key={m}
+          type="button"
+          className={mode === m ? 'ht3-active' : ''}
+          onClick={() => onChange && onChange(m)}
+          aria-pressed={mode === m}
+        >
           {m}
         </button>
       ))}
@@ -165,9 +229,17 @@ export function FindingsBadgeProgressRing({ count = 0, target = 20, className = 
       <svg width={34} height={34} viewBox="0 0 34 34" aria-hidden="true">
         <circle cx={17} cy={17} r={r} fill="none" stroke="#1c2333" strokeWidth={4} />
         <circle
-          cx={17} cy={17} r={r} fill="none" stroke="#f87171" strokeWidth={4} strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - p)}
-          transform="rotate(-90 17 17)" className="ht3-ring-fill"
+          cx={17}
+          cy={17}
+          r={r}
+          fill="none"
+          stroke="#f87171"
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - p)}
+          transform="rotate(-90 17 17)"
+          className="ht3-ring-fill"
         />
       </svg>
       <em>{count}</em>
@@ -190,7 +262,8 @@ export function MorphingPhaseIcons({ phase = 'recon', className = '' }) {
 export function DeepDiveIndicator({ endpoint = '', reason = '', className = '' }) {
   return (
     <span className={`ht3-deepdive ${className}`} role="status">
-      <span aria-hidden="true">🎯</span> deep dive: {endpoint || '/api/graphql'} — {reason || 'complex auth flow'}
+      <span aria-hidden="true">🎯</span> deep dive: {endpoint || '/api/graphql'} —{' '}
+      {reason || 'complex auth flow'}
     </span>
   );
 }
@@ -199,7 +272,11 @@ export function DeepDiveIndicator({ endpoint = '', reason = '', className = '' }
 export function BoringStepsFilter({ hide = false, onToggle, className = '' }) {
   return (
     <label className={`ht3-boring ${className}`}>
-      <input type="checkbox" checked={hide} onChange={(e) => onToggle && onToggle(e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={hide}
+        onChange={e => onToggle && onToggle(e.target.checked)}
+      />
       Hide routine 200-OK checks
     </label>
   );
@@ -210,10 +287,19 @@ export function ActionsPerMinuteMeter({ apm = 0, className = '' }) {
   const bars = 10;
   const lit = Math.min(bars, Math.round(apm / 12));
   return (
-    <div className={`ht3-apm ${className}`} role="meter" aria-valuenow={apm} aria-valuemin={0} aria-valuemax={120} aria-label="Actions per minute">
+    <div
+      className={`ht3-apm ${className}`}
+      role="meter"
+      aria-valuenow={apm}
+      aria-valuemin={0}
+      aria-valuemax={120}
+      aria-label="Actions per minute"
+    >
       <span className="ht3-apm-value">{apm} apm</span>
       <span className="ht3-apm-bars" aria-hidden="true">
-        {Array.from({ length: bars }).map((_, i) => <i key={i} className={i < lit ? 'ht3-on' : ''} />)}
+        {Array.from({ length: bars }).map((_, i) => (
+          <i key={i} className={i < lit ? 'ht3-on' : ''} />
+        ))}
       </span>
     </div>
   );
@@ -240,11 +326,20 @@ export function TimelineInfographicExport({ phases = [], findings = 0, className
     ctx.fillStyle = '#8b96ad';
     ctx.font = '400 24px Inter, sans-serif';
     ctx.fillText(`${findings} findings reported`, 60, 182);
-    const items = phases.length > 0 ? phases : [
-      { name: 'Recon', progress: 100 }, { name: 'Testing', progress: 100 },
-      { name: 'Chaining', progress: 100 }, { name: 'Reporting', progress: 65 },
-    ];
-    const bar = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); };
+    const items =
+      phases.length > 0
+        ? phases
+        : [
+            { name: 'Recon', progress: 100 },
+            { name: 'Testing', progress: 100 },
+            { name: 'Chaining', progress: 100 },
+            { name: 'Reporting', progress: 65 },
+          ];
+    const bar = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fill();
+    };
     items.forEach((p, i) => {
       const y = 260 + i * 78;
       ctx.fillStyle = '#8b96ad';
@@ -276,8 +371,11 @@ export function TimelineInfographicExport({ phases = [], findings = 0, className
 export function PauseOverlayMarker({ atPercent = 0, className = '' }) {
   return (
     <span
-      className={`ht3-pause-marker ${className}`} style={{ left: `${atPercent}%` }}
-      role="img" aria-label={`Hunt paused at ${atPercent}%`} title="Paused here"
+      className={`ht3-pause-marker ${className}`}
+      style={{ left: `${atPercent}%` }}
+      role="img"
+      aria-label={`Hunt paused at ${atPercent}%`}
+      title="Paused here"
     >
       <i aria-hidden="true">❚❚</i>
     </span>
@@ -295,23 +393,34 @@ export function JourneyRecapReplay({ className = '' }) {
     if (playing) return;
     setPlaying(true);
     const start = performance.now();
-    const tick = (now) => {
+    const tick = now => {
       const t = (now - start) / 10000;
-      if (t >= 1) { setPhase(REPLAY_PHASES[3]); setPlaying(false); return; }
+      if (t >= 1) {
+        setPhase(REPLAY_PHASES[3]);
+        setPlaying(false);
+        return;
+      }
       setPhase(REPLAY_PHASES[Math.floor(t * 4)]);
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
   };
-  React.useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+  React.useEffect(
+    () => () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    },
+    []
+  );
   return (
     <div className={`ht3-replay ${className}`}>
       <button type="button" className="ht3-replay-btn" onClick={replay} disabled={playing}>
         {playing ? 'Replaying…' : '▶ Replay journey'}
       </button>
       <div className="ht3-replay-track" aria-hidden="true">
-        {REPLAY_PHASES.map((p) => (
-          <span key={p} className={`ht3-replay-phase ${phase === p ? 'ht3-now' : ''}`}>{p}</span>
+        {REPLAY_PHASES.map(p => (
+          <span key={p} className={`ht3-replay-phase ${phase === p ? 'ht3-now' : ''}`}>
+            {p}
+          </span>
         ))}
       </div>
     </div>
@@ -333,7 +442,8 @@ export function SeverityColorSystem({ severity = 'medium', children, className =
     <span
       className={`ht3-sev ht3-sev-${severity} ${className}`}
       style={{ '--ht3-sev': s.color }}
-      role="status" aria-label={`${s.label} severity`}
+      role="status"
+      aria-label={`${s.label} severity`}
     >
       {children || s.label}
     </span>

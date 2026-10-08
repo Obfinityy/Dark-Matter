@@ -112,13 +112,13 @@ export function extractWebSocketUrls(js) {
   const ctor = /new\s+(?:window\.)?WebSocket\s*\(\s*([\s\S]{0,400}?)\s*\)/g;
   let m;
   while ((m = ctor.exec(text)) !== null) {
-    const parts = m[1].split(/\s*\+\s*/).map((p) => {
+    const parts = m[1].split(/\s*\+\s*/).map(p => {
       const lm = p.match(/^(['"`])((?:\\.|(?!\1)[^\\])*)\1$/);
       if (lm) return lm[2];
       const ident = p.match(/^[A-Za-z_$][\w$]*$/);
       return ident ? ident[0] : null; // keep variable names as placeholders
     });
-    if (parts.length > 0 && parts.every((p) => p !== null)) {
+    if (parts.length > 0 && parts.every(p => p !== null)) {
       push(parts.join(''), true);
     }
   }
@@ -242,9 +242,9 @@ export function resolveAxiosBaseUrls(js) {
     [
       ...text.matchAll(/baseURL\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g),
       ...text.matchAll(
-        /(?:axios|[a-zA-Z_$][\w$]*)\.defaults\.baseURL\s*=\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g,
+        /(?:axios|[a-zA-Z_$][\w$]*)\.defaults\.baseURL\s*=\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g
       ),
-    ].map((m) => m[2]),
+    ].map(m => m[2])
   ).filter(Boolean);
 
   const endpoints = [];
@@ -304,9 +304,7 @@ export function extractJqueryAjaxUrls(js) {
     const body = m[1];
     const urlM = body.match(/\burl\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/);
     if (!urlM) continue;
-    const methodM = body.match(
-      /\b(?:method|type)\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/i,
-    );
+    const methodM = body.match(/\b(?:method|type)\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/i);
     push(urlM[2], methodM ? methodM[2].toUpperCase() : 'GET', '$.ajax');
   }
 
@@ -314,11 +312,7 @@ export function extractJqueryAjaxUrls(js) {
   const short = /\$\s*\.\s*(get|post|getJSON|getScript)\s*\(\s*(['"`])((?:\\.|(?!\2)[^\\])*)\2/g;
   while ((m = short.exec(text)) !== null) {
     const method =
-      m[1].toLowerCase() === 'post'
-        ? 'POST'
-        : m[1].toLowerCase() === 'getscript'
-          ? 'GET'
-          : 'GET';
+      m[1].toLowerCase() === 'post' ? 'POST' : m[1].toLowerCase() === 'getscript' ? 'GET' : 'GET';
     push(m[3], method, `$.${m[1]}`);
   }
 
@@ -354,8 +348,7 @@ export function discoverGraphQLEndpoints(js) {
   };
 
   // uri: "https://api.example.com/graphql"  (Apollo)
-  const uriRe =
-    /\buri\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
+  const uriRe = /\buri\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
   let m;
   while ((m = uriRe.exec(text)) !== null) {
     if (/graphql/i.test(m[2]) || looksLikeEndpoint(m[2])) {
@@ -364,8 +357,7 @@ export function discoverGraphQLEndpoints(js) {
   }
 
   // urql: createClient({ url: "…" }) / exchange config url
-  const urlRe =
-    /\burl\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
+  const urlRe = /\burl\s*:\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
   while ((m = urlRe.exec(text)) !== null) {
     if (/graphql/i.test(m[2])) push(m[2], 'urql url');
   }
@@ -373,7 +365,8 @@ export function discoverGraphQLEndpoints(js) {
   // Bare "/graphql" (or full URLs ending in /graphql) referenced in code
   // that mentions graphql tooling nearby.
   if (/graphql/i.test(text)) {
-    const bare = /(['"`])((?:https?:\/\/[^\s"'`]+)?\/[a-zA-Z0-9_./-]*(?:graphql|gql)[a-zA-Z0-9_./-]*)(\1)/gi;
+    const bare =
+      /(['"`])((?:https?:\/\/[^\s"'`]+)?\/[a-zA-Z0-9_./-]*(?:graphql|gql)[a-zA-Z0-9_./-]*)(\1)/gi;
     while ((m = bare.exec(text)) !== null) {
       push(m[2], 'path reference');
     }
@@ -410,8 +403,7 @@ export function catalogGraphQLOperations(js) {
   };
 
   // Named operations: query GetUser { … }
-  const opRe =
-    /\b(query|mutation|subscription)\s+([A-Za-z_][\w$]*)\s*(?:\([^)]*\))?\s*\{/g;
+  const opRe = /\b(query|mutation|subscription)\s+([A-Za-z_][\w$]*)\s*(?:\([^)]*\))?\s*\{/g;
   let m;
   while ((m = opRe.exec(text)) !== null) {
     push(m[1].toLowerCase(), m[2], 'operation definition');

@@ -35,7 +35,12 @@ export function parseOnvifScopes(scopes) {
  */
 export function analyzeOnvifProbeMatch({ envelope = '', sourceIp = 'unknown' }) {
   if (!envelope || typeof envelope !== 'string') {
-    return { cameraFound: false, type: 'No ONVIF Data', confidence: 'none', evidence: 'No envelope supplied.' };
+    return {
+      cameraFound: false,
+      type: 'No ONVIF Data',
+      confidence: 'none',
+      evidence: 'No envelope supplied.',
+    };
   }
 
   const xAddrsMatch = envelope.match(/<d:XAddrs[^>]*>([^<]*)<\/d:XAddrs>/i);
@@ -46,17 +51,26 @@ export function analyzeOnvifProbeMatch({ envelope = '', sourceIp = 'unknown' }) 
   const scopes = scopesMatch ? scopesMatch[1].trim().split(/\s+/).filter(Boolean) : [];
   const mvMatch = envelope.match(/<d:MetadataVersion[^>]*>([^<]*)<\/d:MetadataVersion>/i);
   const metadataVersion = mvMatch ? mvMatch[1].trim() : null;
-  const endpointMatch = envelope.match(/<wsa:EndpointReference>[\s\S]*?<wsa:Address[^>]*>([^<]*)<\/wsa:Address>/i);
+  const endpointMatch = envelope.match(
+    /<wsa:EndpointReference>[\s\S]*?<wsa:Address[^>]*>([^<]*)<\/wsa:Address>/i
+  );
   const endpointAddress = endpointMatch ? endpointMatch[1].trim() : '';
 
   const isOnvif = /onvif/i.test(deviceTypes.join(' ')) || /onvif/i.test(scopes.join(' '));
   if (!isOnvif) {
-    return { cameraFound: false, type: 'Not an ONVIF Device', confidence: 'high', evidence: 'ProbeMatch contains no ONVIF types or scopes.' };
+    return {
+      cameraFound: false,
+      type: 'Not an ONVIF Device',
+      confidence: 'high',
+      evidence: 'ProbeMatch contains no ONVIF types or scopes.',
+    };
   }
 
   const scopeInfo = parseOnvifScopes(scopes);
-  const isVideoDevice = /NetworkVideoTransmitter|VideoEncoder|NetworkCamera/i.test(deviceTypes.join(' '));
-  const onvifPort = xAddrs.find((a) => /onvif/i.test(a)) || xAddrs[0] || '';
+  const isVideoDevice = /NetworkVideoTransmitter|VideoEncoder|NetworkCamera/i.test(
+    deviceTypes.join(' ')
+  );
+  const onvifPort = xAddrs.find(a => /onvif/i.test(a)) || xAddrs[0] || '';
 
   return {
     cameraFound: true,

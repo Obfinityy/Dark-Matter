@@ -15,7 +15,7 @@ export const WAVE54_FP_IDEAS = [
 // criteria object; a finding matches when every listed criterion matches.
 export function matchesFpRule(finding, matcher) {
   if (!finding || !matcher) return false;
-  return Object.keys(matcher).every((key) => {
+  return Object.keys(matcher).every(key => {
     const want = matcher[key];
     const got = finding[key];
     if (Array.isArray(want)) return want.includes(got);
@@ -26,7 +26,7 @@ export function matchesFpRule(finding, matcher) {
 
 export function simulateFpRuleImpact(rule, openFindings, now = Date.now()) {
   const findings = Array.isArray(openFindings) ? openFindings : [];
-  const affected = findings.filter((f) => matchesFpRule(f, rule.matcher));
+  const affected = findings.filter(f => matchesFpRule(f, rule.matcher));
   const bySeverity = affected.reduce((acc, f) => {
     acc[f.severity || 'unknown'] = (acc[f.severity || 'unknown'] || 0) + 1;
     return acc;
@@ -41,15 +41,21 @@ export function simulateFpRuleImpact(rule, openFindings, now = Date.now()) {
     simulatedAt: now,
     openCount: findings.length,
     affectedCount: affected.length,
-    affectedPct: findings.length === 0 ? 0 : Math.round((affected.length / findings.length) * 1000) / 10,
+    affectedPct:
+      findings.length === 0 ? 0 : Math.round((affected.length / findings.length) * 1000) / 10,
     bySeverity,
     byClass,
-    affectedFindings: affected.map((f) => ({
-      findingId: f.id, title: f.title, severity: f.severity, vulnClass: f.vulnClass, target: f.target,
+    affectedFindings: affected.map(f => ({
+      findingId: f.id,
+      title: f.title,
+      severity: f.severity,
+      vulnClass: f.vulnClass,
+      target: f.target,
     })),
-    warning: affected.length > 0 && affected.some((f) => f.severity === 'critical')
-      ? 'rule would dismiss critical findings — review required'
-      : null,
+    warning:
+      affected.length > 0 && affected.some(f => f.severity === 'critical')
+        ? 'rule would dismiss critical findings — review required'
+        : null,
   };
 }
 
@@ -90,17 +96,18 @@ export function bundleFpDecision(marking, now = Date.now()) {
 
 export function exportFpBundle(markings, now = Date.now()) {
   const list = Array.isArray(markings) ? markings : [];
-  const bundles = list.map((m) => bundleFpDecision(m, now));
-  const ready = bundles.filter((b) => b.ok).map((b) => b.bundle);
-  const rejected = bundles.filter((b) => !b.ok).length;
+  const bundles = list.map(m => bundleFpDecision(m, now));
+  const ready = bundles.filter(b => b.ok).map(b => b.bundle);
+  const rejected = bundles.filter(b => !b.ok).length;
   return {
     exportedAt: now,
     total: list.length,
     exported: ready.length,
     rejected,
     bundles: ready,
-    summary: ready.length === 0
-      ? 'no exportable FP decisions'
-      : `${ready.length} of ${list.length} FP decisions exported with evidence`,
+    summary:
+      ready.length === 0
+        ? 'no exportable FP decisions'
+        : `${ready.length} of ${list.length} FP decisions exported with evidence`,
   };
 }

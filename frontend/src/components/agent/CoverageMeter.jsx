@@ -15,7 +15,9 @@ export function CoverageMeter({ coverage }) {
     <div className="sg-coverage dm-polish-in">
       <div className="sg-coverage-top">
         <span className="sg-coverage-label">OWASP Top-10 coverage</span>
-        <strong className="sg-coverage-pct" aria-hidden="true">{pct}%</strong>
+        <strong className="sg-coverage-pct" aria-hidden="true">
+          {pct}%
+        </strong>
       </div>
       <div
         className="sg-coverage-bar"
@@ -33,7 +35,7 @@ export function CoverageMeter({ coverage }) {
       </div>
       {coveredCount > 0 && (
         <div className="sg-coverage-cats">
-          {coverage.covered.map((c) => (
+          {coverage.covered.map(c => (
             <span
               key={c.id}
               className="sg-pill sg-pill-info"

@@ -28,11 +28,15 @@ function readAll() {
 function writeAll(list) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, MAX_ENTRIES)));
-  } catch { /* storage unavailable */ }
+  } catch {
+    /* storage unavailable */
+  }
   // Notify the sidebar (same tab — the 'storage' event only fires cross-tab).
   try {
     window.dispatchEvent(new CustomEvent('dm:conversations-changed'));
-  } catch { /* non-DOM environment */ }
+  } catch {
+    /* non-DOM environment */
+  }
 }
 
 export const CONVERSATIONS_CHANGED_EVENT = 'dm:conversations-changed';
@@ -42,14 +46,14 @@ export function listConversations() {
 }
 
 export function getConversation(id) {
-  return readAll().find((c) => c.id === id) || null;
+  return readAll().find(c => c.id === id) || null;
 }
 
 export function recordConversation({ id, mode, title }) {
   if (!id) return null;
   const now = new Date().toISOString();
-  const list = readAll().filter((c) => c.id !== id);
-  const existing = readAll().find((c) => c.id === id);
+  const list = readAll().filter(c => c.id !== id);
+  const existing = readAll().find(c => c.id === id);
   const entry = {
     id,
     mode: mode || 'chat',
@@ -62,7 +66,7 @@ export function recordConversation({ id, mode, title }) {
 }
 
 export function removeConversation(id) {
-  writeAll(readAll().filter((c) => c.id !== id));
+  writeAll(readAll().filter(c => c.id !== id));
 }
 
 export function clearConversations() {

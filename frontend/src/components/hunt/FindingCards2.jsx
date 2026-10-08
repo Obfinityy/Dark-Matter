@@ -11,27 +11,38 @@ import './FindingCards2.css';
 import { FC_SEVERITY, FindingCard } from './FindingCards';
 
 /** 50141 — Drag-to-reorder cards (custom sort mode only). */
-export function DragToReorderList({ items = [], onReorder, renderItem, sortMode = 'custom', className = '' }) {
+export function DragToReorderList({
+  items = [],
+  onReorder,
+  renderItem,
+  sortMode = 'custom',
+  className = '',
+}) {
   const [order, setOrder] = React.useState(items.map((_, i) => i));
   const [dragIdx, setDragIdx] = React.useState(null);
-  React.useEffect(() => { setOrder(items.map((_, i) => i)); }, [items.length]);
+  React.useEffect(() => {
+    setOrder(items.map((_, i) => i));
+  }, [items.length]);
   const draggable = sortMode === 'custom';
-  const drop = (targetPos) => {
+  const drop = targetPos => {
     if (dragIdx === null || dragIdx === targetPos) return;
     const next = order.filter((_, p) => p !== dragIdx);
     next.splice(targetPos, 0, order[dragIdx]);
     setOrder(next);
     setDragIdx(null);
-    if (onReorder) onReorder(next.map((oi) => items[oi]));
+    if (onReorder) onReorder(next.map(oi => items[oi]));
   };
   return (
     <div className={`fc2-reorder ${className}`} role="list" aria-label="Findings, drag to reorder">
       {order.map((oi, pos) => (
         <div
-          key={items[oi]?.id || oi} role="listitem"
+          key={items[oi]?.id || oi}
+          role="listitem"
           draggable={draggable}
           onDragStart={() => setDragIdx(pos)}
-          onDragOver={(e) => { if (draggable) e.preventDefault(); }}
+          onDragOver={e => {
+            if (draggable) e.preventDefault();
+          }}
           onDrop={() => drop(pos)}
           onDragEnd={() => setDragIdx(null)}
           className={`fc2-reorder-item ${draggable ? 'fc2-draggable' : ''} ${dragIdx === pos ? 'fc2-dragging' : ''}`}
@@ -48,8 +59,10 @@ export function DragToReorderList({ items = [], onReorder, renderItem, sortMode 
 export function PrintModeToggle({ printMode = false, onChange, className = '' }) {
   return (
     <button
-      type="button" className={`fc2-print-toggle ${className}`}
-      onClick={() => onChange && onChange(!printMode)} aria-pressed={printMode}
+      type="button"
+      className={`fc2-print-toggle ${className}`}
+      onClick={() => onChange && onChange(!printMode)}
+      aria-pressed={printMode}
     >
       <span aria-hidden="true">🖨</span> {printMode ? 'Exit print view' : 'Print view'}
     </button>
@@ -62,8 +75,14 @@ export function SimilarFindingsRow({ related = [], onOpen, className = '' }) {
   return (
     <div className={`fc2-similar ${className}`}>
       <span className="fc2-similar-label">similar to</span>
-      {related.map((r) => (
-        <button key={r.id} type="button" className="fc2-similar-chip" onClick={() => onOpen && onOpen(r.id)} title={r.title}>
+      {related.map(r => (
+        <button
+          key={r.id}
+          type="button"
+          className="fc2-similar-chip"
+          onClick={() => onOpen && onOpen(r.id)}
+          title={r.title}
+        >
           {r.id}
         </button>
       ))}
@@ -73,10 +92,12 @@ export function SimilarFindingsRow({ related = [], onOpen, className = '' }) {
 
 /** 50144 — Discovery meta line: "found during Testing · 14:32". */
 export function DiscoveryMetaLine({ phase = '', at = 0, className = '' }) {
-  const time = at > 0 ? new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const time =
+    at > 0 ? new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
   return (
     <span className={`fc2-meta ${className}`}>
-      found during {phase || 'hunt'}{time ? ` · ${time}` : ''}
+      found during {phase || 'hunt'}
+      {time ? ` · ${time}` : ''}
     </span>
   );
 }
@@ -91,24 +112,47 @@ const CVSS_METRICS = {
   I: { N: 'None', L: 'Low', H: 'High' },
   A: { N: 'None', L: 'Low', H: 'High' },
 };
-const CVSS_NAMES = { AV: 'Attack Vector', AC: 'Attack Complexity', PR: 'Privileges Required', UI: 'User Interaction', S: 'Scope', C: 'Confidentiality', I: 'Integrity', A: 'Availability' };
+const CVSS_NAMES = {
+  AV: 'Attack Vector',
+  AC: 'Attack Complexity',
+  PR: 'Privileges Required',
+  UI: 'User Interaction',
+  S: 'Scope',
+  C: 'Confidentiality',
+  I: 'Integrity',
+  A: 'Availability',
+};
 
 /** 50145 — CVSS vector chip expanding into the full metric breakdown. */
 export function CvssVectorChip({ vector = '', className = '' }) {
   const [open, setOpen] = React.useState(false);
   if (!vector) return null;
-  const parts = vector.split('/').slice(1).map((p) => p.split(':')).filter(([k, v]) => CVSS_METRICS[k] && CVSS_METRICS[k][v]);
+  const parts = vector
+    .split('/')
+    .slice(1)
+    .map(p => p.split(':'))
+    .filter(([k, v]) => CVSS_METRICS[k] && CVSS_METRICS[k][v]);
   return (
     <span className={`fc2-cvss ${className}`}>
-      <button type="button" className="fc2-cvss-chip" onClick={() => setOpen((o) => !o)} aria-expanded={open} title={vector}>
+      <button
+        type="button"
+        className="fc2-cvss-chip"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        title={vector}
+      >
         {vector.split('/')[0]}
       </button>
       {open && (
         <span className="fc2-cvss-panel" role="table" aria-label="CVSS breakdown">
           {parts.map(([k, v]) => (
             <span key={k} className="fc2-cvss-row" role="row">
-              <span role="cell" className="fc2-cvss-k">{CVSS_NAMES[k]}</span>
-              <span role="cell" className="fc2-cvss-v">{CVSS_METRICS[k][v]}</span>
+              <span role="cell" className="fc2-cvss-k">
+                {CVSS_NAMES[k]}
+              </span>
+              <span role="cell" className="fc2-cvss-v">
+                {CVSS_METRICS[k][v]}
+              </span>
             </span>
           ))}
         </span>
@@ -126,7 +170,15 @@ export function FalsePositiveDismiss({ findingId = '', onDismiss, className = ''
     return (
       <div className={`fc2-dismissed ${className}`} role="status">
         <span>Dismissed as false positive — {reason}</span>
-        <button type="button" onClick={() => { setDismissed(false); setReason(''); }}>Undo</button>
+        <button
+          type="button"
+          onClick={() => {
+            setDismissed(false);
+            setReason('');
+          }}
+        >
+          Undo
+        </button>
       </div>
     );
   }
@@ -140,19 +192,39 @@ export function FalsePositiveDismiss({ findingId = '', onDismiss, className = ''
   return (
     <span className={`fc2-fp-ask ${className}`}>
       <input
-        type="text" value={reason} onChange={(e) => setReason(e.target.value)}
-        placeholder="Reason (e.g. expected behavior)" aria-label="False positive reason"
+        type="text"
+        value={reason}
+        onChange={e => setReason(e.target.value)}
+        placeholder="Reason (e.g. expected behavior)"
+        aria-label="False positive reason"
       />
-      <button type="button" disabled={!reason.trim()} onClick={() => { setDismissed(true); if (onDismiss) onDismiss(findingId, reason.trim()); }}>
+      <button
+        type="button"
+        disabled={!reason.trim()}
+        onClick={() => {
+          setDismissed(true);
+          if (onDismiss) onDismiss(findingId, reason.trim());
+        }}
+      >
         Confirm
       </button>
-      <button type="button" onClick={() => { setAsking(false); setReason(''); }}>Cancel</button>
+      <button
+        type="button"
+        onClick={() => {
+          setAsking(false);
+          setReason('');
+        }}
+      >
+        Cancel
+      </button>
     </span>
   );
 }
 
-const HL_KEYWORDS = /\b(const|let|var|function|return|if|else|for|while|import|from|export|new|await|async|class|def|select|union|where|order|by|insert|into|values|script|alert|document|window|fetch|true|false|null|undefined)\b/;
-const HL_TOKEN = /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?\b)/g;
+const HL_KEYWORDS =
+  /\b(const|let|var|function|return|if|else|for|while|import|from|export|new|await|async|class|def|select|union|where|order|by|insert|into|values|script|alert|document|window|fetch|true|false|null|undefined)\b/;
+const HL_TOKEN =
+  /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?\b)/g;
 
 /** 50148 — Evidence code blocks with syntax highlighting + line numbers. */
 export function HighlightedEvidenceBlock({ code = '', lang = '', className = '' }) {
@@ -169,26 +241,42 @@ export function HighlightedEvidenceBlock({ code = '', lang = '', className = '' 
         let km;
         const kwRe = new RegExp(HL_KEYWORDS.source, 'g');
         while ((km = kwRe.exec(plain)) !== null) {
-          if (km.index > kLast) out.push(<span key={`t${li}-${kLast}`}>{plain.slice(kLast, km.index)}</span>);
-          out.push(<span key={`k${li}-${km.index}`} className="fc2-hl-kw">{km[0]}</span>);
+          if (km.index > kLast)
+            out.push(<span key={`t${li}-${kLast}`}>{plain.slice(kLast, km.index)}</span>);
+          out.push(
+            <span key={`k${li}-${km.index}`} className="fc2-hl-kw">
+              {km[0]}
+            </span>
+          );
           kLast = km.index + km[0].length;
         }
-        if (kLast < plain.length) out.push(<span key={`t${li}-${kLast}-e`}>{plain.slice(kLast)}</span>);
+        if (kLast < plain.length)
+          out.push(<span key={`t${li}-${kLast}-e`}>{plain.slice(kLast)}</span>);
       }
       const cls = m[1] ? 'fc2-hl-com' : m[2] ? 'fc2-hl-str' : 'fc2-hl-num';
-      out.push(<span key={`m${li}-${m.index}`} className={cls}>{m[0]}</span>);
+      out.push(
+        <span key={`m${li}-${m.index}`} className={cls}>
+          {m[0]}
+        </span>
+      );
       last = m.index + m[0].length;
     }
     if (last < line.length) out.push(<span key={`e${li}`}>{line.slice(last)}</span>);
     return out.length > 0 ? out : line;
   };
   return (
-    <div className={`fc2-code ${className}`} role="figure" aria-label={`Code evidence${lang ? ` in ${lang}` : ''}`}>
+    <div
+      className={`fc2-code ${className}`}
+      role="figure"
+      aria-label={`Code evidence${lang ? ` in ${lang}` : ''}`}
+    >
       {lang && <span className="fc2-code-lang">{lang}</span>}
       <div className="fc2-code-body" tabIndex={0} aria-label="Scrollable code evidence">
         {lines.map((line, i) => (
           <div key={i} className="fc2-code-line">
-            <span className="fc2-code-num" aria-hidden="true">{i + 1}</span>
+            <span className="fc2-code-num" aria-hidden="true">
+              {i + 1}
+            </span>
             <code>{renderLine(line, i)}</code>
           </div>
         ))}
@@ -227,26 +315,69 @@ export function ScreenshotLightbox({ src = '', alt = 'Evidence screenshot', clas
   const [zoom, setZoom] = React.useState(1);
   React.useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = e => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open ]);
+  }, [open]);
   if (!src) return null;
   return (
     <span className={className}>
-      <button type="button" className="fc2-lightbox-thumb" onClick={() => { setOpen(true); setZoom(1); }} aria-label="Open screenshot viewer">
+      <button
+        type="button"
+        className="fc2-lightbox-thumb"
+        onClick={() => {
+          setOpen(true);
+          setZoom(1);
+        }}
+        aria-label="Open screenshot viewer"
+      >
         <img src={src} alt={alt} />
       </button>
       {open && (
-        <div className="fc2-lightbox" role="dialog" aria-modal="true" aria-label="Screenshot viewer" onClick={() => setOpen(false)}>
-          <div className="fc2-lightbox-bar" onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={() => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))} aria-label="Zoom in">＋</button>
+        <div
+          className="fc2-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Screenshot viewer"
+          onClick={() => setOpen(false)}
+        >
+          <div className="fc2-lightbox-bar" onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}
+              aria-label="Zoom in"
+            >
+              ＋
+            </button>
             <span>{Math.round(zoom * 100)}%</span>
-            <button type="button" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))} aria-label="Zoom out">－</button>
-            <button type="button" onClick={() => setZoom(1)}>Reset</button>
-            <button type="button" className="fc2-lightbox-x" onClick={() => setOpen(false)} aria-label="Close viewer">✕</button>
+            <button
+              type="button"
+              onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+              aria-label="Zoom out"
+            >
+              －
+            </button>
+            <button type="button" onClick={() => setZoom(1)}>
+              Reset
+            </button>
+            <button
+              type="button"
+              className="fc2-lightbox-x"
+              onClick={() => setOpen(false)}
+              aria-label="Close viewer"
+            >
+              ✕
+            </button>
           </div>
-          <img src={src} alt={alt} className="fc2-lightbox-img" style={{ transform: `scale(${zoom})` }} onClick={(e) => e.stopPropagation()} />
+          <img
+            src={src}
+            alt={alt}
+            className="fc2-lightbox-img"
+            style={{ transform: `scale(${zoom})` }}
+            onClick={e => e.stopPropagation()}
+          />
         </div>
       )}
     </span>
@@ -258,7 +389,9 @@ export function HoverPeekPreview({ preview = null, children, className = '' }) {
   return (
     <span className={`fc2-peek ${className}`} tabIndex={0}>
       {children}
-      <span className="fc2-peek-card" role="tooltip">{preview}</span>
+      <span className="fc2-peek-card" role="tooltip">
+        {preview}
+      </span>
     </span>
   );
 }
@@ -269,13 +402,25 @@ export function SeverityDistributionMiniBar({ counts = {}, className = '' }) {
   const total = keys.reduce((s, k) => s + (counts[k] || 0), 0);
   if (!total) return null;
   return (
-    <div className={`fc2-sevbar ${className}`} role="img" aria-label={`Severity mix: ${keys.map((k) => `${counts[k] || 0} ${k}`).join(', ')}`}>
-      {keys.map((k) => (counts[k] || 0) > 0 && (
-        <span
-          key={k} className="fc2-sevbar-seg" title={`${k}: ${counts[k]}`}
-          style={{ width: `${((counts[k] || 0) / total) * 100}%`, background: FC_SEVERITY[k].color }}
-        />
-      ))}
+    <div
+      className={`fc2-sevbar ${className}`}
+      role="img"
+      aria-label={`Severity mix: ${keys.map(k => `${counts[k] || 0} ${k}`).join(', ')}`}
+    >
+      {keys.map(
+        k =>
+          (counts[k] || 0) > 0 && (
+            <span
+              key={k}
+              className="fc2-sevbar-seg"
+              title={`${k}: ${counts[k]}`}
+              style={{
+                width: `${((counts[k] || 0) / total) * 100}%`,
+                background: FC_SEVERITY[k].color,
+              }}
+            />
+          )
+      )}
     </div>
   );
 }
@@ -284,9 +429,17 @@ export function SeverityDistributionMiniBar({ counts = {}, className = '' }) {
 export function ReviewerCheckmark({ name = '', initials = '', className = '' }) {
   if (!name) return null;
   return (
-    <span className={`fc2-reviewer ${className}`} title={`Triaged by ${name}`} aria-label={`Triaged by ${name}`}>
-      <span className="fc2-reviewer-check" aria-hidden="true">✓</span>
-      <span className="fc2-reviewer-avatar" aria-hidden="true">{initials || name.slice(0, 2).toUpperCase()}</span>
+    <span
+      className={`fc2-reviewer ${className}`}
+      title={`Triaged by ${name}`}
+      aria-label={`Triaged by ${name}`}
+    >
+      <span className="fc2-reviewer-check" aria-hidden="true">
+        ✓
+      </span>
+      <span className="fc2-reviewer-avatar" aria-hidden="true">
+        {initials || name.slice(0, 2).toUpperCase()}
+      </span>
       <span className="fc2-reviewer-name">{name}</span>
     </span>
   );
@@ -299,20 +452,34 @@ export function RemediationChecklist({ findingId = '', steps = [], className = '
     try {
       const raw = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
       return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   });
-  const toggle = (i) => {
-    setDone((d) => {
+  const toggle = i => {
+    setDone(d => {
       const next = { ...d, [i]: !d[i] };
-      try { if (typeof window !== 'undefined') window.localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ }
+      try {
+        if (typeof window !== 'undefined') window.localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
       return next;
     });
   };
-  const items = steps.length > 0 ? steps : ['Use parameterized queries', 'Add input validation', 'Re-test after fix'];
+  const items =
+    steps.length > 0
+      ? steps
+      : ['Use parameterized queries', 'Add input validation', 'Re-test after fix'];
   const doneCount = items.filter((_, i) => done[i]).length;
   return (
-    <div className={`fc2-remediation ${className}`} aria-label={`Remediation: ${doneCount} of ${items.length} done`}>
-      <span className="fc2-remediation-title">Remediation — {doneCount}/{items.length}</span>
+    <div
+      className={`fc2-remediation ${className}`}
+      aria-label={`Remediation: ${doneCount} of ${items.length} done`}
+    >
+      <span className="fc2-remediation-title">
+        Remediation — {doneCount}/{items.length}
+      </span>
       {items.map((s, i) => (
         <label key={i} className={`fc2-remediation-step ${done[i] ? 'fc2-done' : ''}`}>
           <input type="checkbox" checked={!!done[i]} onChange={() => toggle(i)} />
@@ -332,8 +499,10 @@ export function RequestRetestButton({ findingId = '', onRetest, className = '' }
   };
   return (
     <button
-      type="button" className={`fc2-retest fc2-retest-${state} ${className}`}
-      onClick={run} disabled={state !== 'idle'}
+      type="button"
+      className={`fc2-retest fc2-retest-${state} ${className}`}
+      onClick={run}
+      disabled={state !== 'idle'}
     >
       {state === 'idle' ? '↻ Request retest' : '✓ Retest requested'}
     </button>
@@ -345,23 +514,35 @@ export function AffectedParameterChip({ param = '', className = '' }) {
   const [copied, setCopied] = React.useState(false);
   if (!param) return null;
   const copy = async () => {
-    try { await navigator.clipboard.writeText(param); } catch { /* clipboard unavailable */ }
+    try {
+      await navigator.clipboard.writeText(param);
+    } catch {
+      /* clipboard unavailable */
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
   return (
     <span className={`fc2-param ${className}`} title={`Vulnerable parameter: ${param}`}>
       <code>{param}</code>
-      <button type="button" onClick={copy} aria-label={`Copy parameter ${param}`}>{copied ? '✓' : '⧉'}</button>
+      <button type="button" onClick={copy} aria-label={`Copy parameter ${param}`}>
+        {copied ? '✓' : '⧉'}
+      </button>
     </span>
   );
 }
 
 const OWASP_TOP10 = {
-  A01: 'Broken Access Control', A02: 'Cryptographic Failures', A03: 'Injection',
-  A04: 'Insecure Design', A05: 'Security Misconfiguration', A06: 'Vulnerable and Outdated Components',
-  A07: 'Identification and Authentication Failures', A08: 'Software and Data Integrity Failures',
-  A09: 'Security Logging and Monitoring Failures', A10: 'Server-Side Request Forgery',
+  A01: 'Broken Access Control',
+  A02: 'Cryptographic Failures',
+  A03: 'Injection',
+  A04: 'Insecure Design',
+  A05: 'Security Misconfiguration',
+  A06: 'Vulnerable and Outdated Components',
+  A07: 'Identification and Authentication Failures',
+  A08: 'Software and Data Integrity Failures',
+  A09: 'Security Logging and Monitoring Failures',
+  A10: 'Server-Side Request Forgery',
 };
 
 /** 50158 — OWASP category badge with explainer link. */
@@ -370,8 +551,11 @@ export function OwaspCategoryBadge({ category = '', className = '' }) {
   if (!name) return null;
   return (
     <a
-      className={`fc2-owasp ${className}`} href="https://owasp.org/Top10/"
-      target="_blank" rel="noopener noreferrer" title={`OWASP Top 10 — ${name}`}
+      className={`fc2-owasp ${className}`}
+      href="https://owasp.org/Top10/"
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`OWASP Top 10 — ${name}`}
     >
       {category} · {name}
     </a>
@@ -381,7 +565,11 @@ export function OwaspCategoryBadge({ category = '', className = '' }) {
 /** 50159 — PoC replay status dot: green replayable, gray manual-only. */
 export function PocReplayStatusDot({ replayable = false, className = '' }) {
   return (
-    <span className={`fc2-replay-dot ${replayable ? 'fc2-replayable' : ''} ${className}`} role="status" aria-label={replayable ? 'PoC is replayable' : 'PoC is manual-only'}>
+    <span
+      className={`fc2-replay-dot ${replayable ? 'fc2-replayable' : ''} ${className}`}
+      role="status"
+      aria-label={replayable ? 'PoC is replayable' : 'PoC is manual-only'}
+    >
       <i aria-hidden="true" /> {replayable ? 'replayable PoC' : 'manual PoC'}
     </span>
   );
@@ -393,9 +581,16 @@ export function AgentReasoningSection({ text = '', className = '' }) {
   if (!text) return null;
   return (
     <div className={`fc2-reasoning ${className}`}>
-      <button type="button" className="fc2-reasoning-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button
+        type="button"
+        className="fc2-reasoning-head"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
         <span aria-hidden="true">🧠</span> Why the agent flagged this
-        <span aria-hidden="true" className="fc2-reasoning-caret">{open ? '▾' : '▸'}</span>
+        <span aria-hidden="true" className="fc2-reasoning-caret">
+          {open ? '▾' : '▸'}
+        </span>
       </button>
       {open && <p className="fc2-reasoning-body">{text}</p>}
     </div>
@@ -405,31 +600,57 @@ export function AgentReasoningSection({ text = '', className = '' }) {
 /** Demo composite: a fully wired finding card using both files. */
 export function DemoFindingCard({ finding = {}, className = '' }) {
   const f = {
-    id: 'DM-2026-0042', title: 'SQL injection in login form', severity: 'critical',
-    confidence: 92, riskScore: 9.1, discoveredAt: Date.now() - 2 * 60 * 1000,
-    tags: ['authenticated', 'chained'], asset: { host: 'app.target.example', path: '/login?user=' },
+    id: 'DM-2026-0042',
+    title: 'SQL injection in login form',
+    severity: 'critical',
+    confidence: 92,
+    riskScore: 9.1,
+    discoveredAt: Date.now() - 2 * 60 * 1000,
+    tags: ['authenticated', 'chained'],
+    asset: { host: 'app.target.example', path: '/login?user=' },
     impact: 'Attackers can dump the entire user database without logging in.',
-    exploitSteps: 3, status: 'triaged', comments: 2, parentId: 'DM-2026-0039',
-    cvss: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N', param: 'user=',
-    owasp: 'A03', replayable: true,
-    reasoning: 'The login form reflects a time-delayed response to stacked queries, and the error message leaks the backend dialect — both strong SQLi signals.',
-    remediation: ['Use parameterized queries', 'Strip verbose DB errors', 'Add WAF rule for stacked queries'],
-    evidence: [{ type: 'code', lang: 'http', code: "POST /login HTTP/1.1\nuser=admin' AND SLEEP(5)-- -", label: 'request' }],
-    pocMarkdown: '## PoC\n```\ncurl -X POST https://app.target.example/login -d "user=admin\' AND SLEEP(5)-- -"\n```',
+    exploitSteps: 3,
+    status: 'triaged',
+    comments: 2,
+    parentId: 'DM-2026-0039',
+    cvss: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:N',
+    param: 'user=',
+    owasp: 'A03',
+    replayable: true,
+    reasoning:
+      'The login form reflects a time-delayed response to stacked queries, and the error message leaks the backend dialect — both strong SQLi signals.',
+    remediation: [
+      'Use parameterized queries',
+      'Strip verbose DB errors',
+      'Add WAF rule for stacked queries',
+    ],
+    evidence: [
+      {
+        type: 'code',
+        lang: 'http',
+        code: "POST /login HTTP/1.1\nuser=admin' AND SLEEP(5)-- -",
+        label: 'request',
+      },
+    ],
+    pocMarkdown:
+      '## PoC\n```\ncurl -X POST https://app.target.example/login -d "user=admin\' AND SLEEP(5)-- -"\n```',
     ...finding,
   };
   return (
     <div className={className}>
       <FindingCard
         finding={f}
-        expandedExtra={(
+        expandedExtra={
           <>
-            <HighlightedEvidenceBlock code={f.evidence[0]?.code || ''} lang={f.evidence[0]?.lang || ''} />
+            <HighlightedEvidenceBlock
+              code={f.evidence[0]?.code || ''}
+              lang={f.evidence[0]?.lang || ''}
+            />
             <RemediationChecklist findingId={f.id} steps={f.remediation} />
             <AgentReasoningSection text={f.reasoning} />
             <SimilarFindingsRow related={[{ id: 'DM-2026-0043', title: 'SQLi in search' }]} />
           </>
-        )}
+        }
       />
       <div className="fc2-demo-row">
         <CvssVectorChip vector={f.cvss} />

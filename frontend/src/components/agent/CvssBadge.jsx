@@ -13,7 +13,7 @@ const SEV_CLASS = {
   high: 'sg-pill-warn',
   medium: 'sg-pill-info',
   low: 'sg-pill-go',
-  informational: 'sg-pill-brand'
+  informational: 'sg-pill-brand',
 };
 
 function prettySeverity(severity) {

@@ -24,14 +24,16 @@ export const WEAK_CIPHERS = [
 
 /** Deprecated protocol versions with severity. */
 const DEPRECATED_VERSIONS = {
-  'SSLv2': { severity: 'Critical', note: 'SSLv2 — catastrophically broken (DROWN)' },
-  'SSLv3': { severity: 'Critical', note: 'SSLv3 — POODLE, must be disabled' },
+  SSLv2: { severity: 'Critical', note: 'SSLv2 — catastrophically broken (DROWN)' },
+  SSLv3: { severity: 'Critical', note: 'SSLv3 — POODLE, must be disabled' },
   'TLS1.0': { severity: 'High', note: 'TLS 1.0 — BEAST, deprecated by RFC 8996' },
   'TLS1.1': { severity: 'High', note: 'TLS 1.1 — deprecated by RFC 8996' },
 };
 
 export function normalizeVersion(v) {
-  const s = String(v || '').replace(/[^0-9a-zA-Z.]/g, '').toLowerCase();
+  const s = String(v || '')
+    .replace(/[^0-9a-zA-Z.]/g, '')
+    .toLowerCase();
   if (/^sslv?2/.test(s) || s === 'ssl2') return 'SSLv2';
   if (/^sslv?3/.test(s) || s === 'ssl3') return 'SSLv3';
   if (/^tlsv?1\.?0?$/.test(s) || s === 'tls10') return 'TLS1.0';
@@ -83,7 +85,7 @@ export function probeFallback({ probes = [] } = {}) {
 
     for (const cipher of p.acceptedCiphers || []) {
       const a = analyzeCipher(cipher);
-      if (a.weak && !weakCiphers.some((w) => w.cipher === a.cipher)) {
+      if (a.weak && !weakCiphers.some(w => w.cipher === a.cipher)) {
         weakCiphers.push({ ...a, acceptedOn: version });
         findings.push({
           type: 'weak-cipher',
@@ -106,15 +108,22 @@ export function probeFallback({ probes = [] } = {}) {
 
   // Terminator fingerprint from the accepted-profile shape.
   const order = ['SSLv2', 'SSLv3', 'TLS1.0', 'TLS1.1', 'TLS1.2', 'TLS1.3'];
-  const sorted = acceptedVersions.filter((v) => order.includes(v)).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const sorted = acceptedVersions
+    .filter(v => order.includes(v))
+    .sort((a, b) => order.indexOf(a) - order.indexOf(b));
   const terminatorProfile = {
     acceptedVersions: sorted,
     minVersion: sorted[0] || null,
     maxVersion: sorted[sorted.length - 1] || null,
     weakCipherCount: weakCiphers.length,
-    archetype: legacyScore >= 40 ? 'legacy-terminator'
-      : legacyScore >= 15 ? 'partially-hardened'
-      : acceptedVersions.length > 0 ? 'modern' : 'unknown',
+    archetype:
+      legacyScore >= 40
+        ? 'legacy-terminator'
+        : legacyScore >= 15
+          ? 'partially-hardened'
+          : acceptedVersions.length > 0
+            ? 'modern'
+            : 'unknown',
   };
 
   const severityRank = { Critical: 3, High: 2, Medium: 1, Low: 0 };
@@ -126,7 +135,7 @@ export function probeFallback({ probes = [] } = {}) {
     terminatorProfile,
     summary: {
       versionsAccepted: acceptedVersions.length,
-      deprecatedAccepted: findings.filter((f) => f.type === 'deprecated-version').length,
+      deprecatedAccepted: findings.filter(f => f.type === 'deprecated-version').length,
       weakCiphersAccepted: weakCiphers.length,
       legacyScore,
       hardened: legacyScore === 0 && acceptedVersions.length > 0,

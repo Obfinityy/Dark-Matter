@@ -28,11 +28,16 @@ export class LocalAIQueue {
       resolve(result);
     } catch (error) {
       const statusStr = String(error.status || error.statusCode || error.message || '');
-      const isTransient = statusStr.includes('429') || statusStr.includes('503') ||
-        error.code === 'ECONNRESET' || error.name === 'FetchError';
+      const isTransient =
+        statusStr.includes('429') ||
+        statusStr.includes('503') ||
+        error.code === 'ECONNRESET' ||
+        error.name === 'FetchError';
 
       if (isTransient && retries < this.maxRetries) {
-        console.warn(`[LocalAIQueue] Local AI busy (${error.message || statusStr}). Retrying queue item (${retries + 1}/${this.maxRetries}) in ${this.retryDelayMs}ms...`);
+        console.warn(
+          `[LocalAIQueue] Local AI busy (${error.message || statusStr}). Retrying queue item (${retries + 1}/${this.maxRetries}) in ${this.retryDelayMs}ms...`
+        );
         setTimeout(() => {
           this.queue.unshift({ task, resolve, reject, requestId, retries: retries + 1 });
           this.activeCount--;
@@ -69,7 +74,7 @@ export class LocalAIQueue {
       active: this.activeCount,
       maxConcurrency: this.maxConcurrency,
       isProcessing: this.isProcessing,
-      policy: 'queue-wait-never-reject'
+      policy: 'queue-wait-never-reject',
     };
   }
 }

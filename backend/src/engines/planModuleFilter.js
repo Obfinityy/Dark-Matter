@@ -30,7 +30,7 @@ export function filterPlanModules(modules = PLAN_MODULES, rules = { allowed: [],
   const kept = [];
   const removed = [];
   for (const mod of modules) {
-    const blocked = (mod.actions || []).filter((a) => rules.forbidden.includes(a));
+    const blocked = (mod.actions || []).filter(a => rules.forbidden.includes(a));
     if (blocked.length) {
       removed.push({ module: mod, reason: `forbidden by program rules: ${blocked.join(', ')}` });
     } else {

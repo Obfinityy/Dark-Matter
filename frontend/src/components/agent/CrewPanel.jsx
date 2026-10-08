@@ -10,13 +10,32 @@
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Users, Plus, X, Trash2, Send, Monitor, Terminal, FolderOpen,
-  Loader2, Square, Bot, Brain, Eye, TriangleAlert, CheckCircle2,
-  XCircle, OctagonX, MessagesSquare
+  Users,
+  Plus,
+  X,
+  Trash2,
+  Send,
+  Monitor,
+  Terminal,
+  FolderOpen,
+  Loader2,
+  Square,
+  Bot,
+  Brain,
+  Eye,
+  TriangleAlert,
+  CheckCircle2,
+  XCircle,
+  OctagonX,
+  MessagesSquare,
 } from 'lucide-react';
 import {
-  listCrews, createCrew, deleteCrew,
-  chatWithCrew, stopCrewRun, subscribeToCrewEvents
+  listCrews,
+  createCrew,
+  deleteCrew,
+  chatWithCrew,
+  stopCrewRun,
+  subscribeToCrewEvents,
 } from '../../services/api';
 import { LiveScreenViewer } from './LiveScreenViewer';
 import './CrewPanel.css';
@@ -24,20 +43,20 @@ import './CrewPanel.css';
 const ALL_TOOLS = [
   { id: 'computer', label: 'Computer', icon: Monitor, hint: 'See and operate the desktop' },
   { id: 'shell', label: 'Shell', icon: Terminal, hint: 'Run terminal commands' },
-  { id: 'files', label: 'Files', icon: FolderOpen, hint: 'Read and write files' }
+  { id: 'files', label: 'Files', icon: FolderOpen, hint: 'Read and write files' },
 ];
 
 const STATUS_META = {
   idle: { label: 'Idle', dot: 'idle' },
   running: { label: 'Working', dot: 'running' },
-  waiting_brain: { label: 'No brain connected', dot: 'waiting_brain' }
+  waiting_brain: { label: 'No brain connected', dot: 'waiting_brain' },
 };
 
 function initials(name) {
   return String(name || '?')
     .trim()
     .split(/\s+/)
-    .map((w) => w[0])
+    .map(w => w[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
@@ -68,7 +87,9 @@ function CrewEventRow({ ev, crewName }) {
 
   if (type === 'user') {
     return (
-      <div className="sg-crew-msg user"><span>{text}</span></div>
+      <div className="sg-crew-msg user">
+        <span>{text}</span>
+      </div>
     );
   }
   if (type === 'reply') {
@@ -80,19 +101,28 @@ function CrewEventRow({ ev, crewName }) {
     );
   }
   if (type === 'thinking') {
-    return <div className="sg-crew-thinking" aria-live="polite"><Brain size={14} aria-hidden="true" /> <span>{text || 'Thinking…'}</span></div>;
+    return (
+      <div className="sg-crew-thinking" aria-live="polite">
+        <Brain size={14} aria-hidden="true" /> <span>{text || 'Thinking…'}</span>
+      </div>
+    );
   }
   if (type === 'action') {
     return (
       <div className="sg-crew-action">
-        <span className="sg-chip"><Bot size={12} aria-hidden="true" /> {describeCrewAction(ev)}</span>
+        <span className="sg-chip">
+          <Bot size={12} aria-hidden="true" /> {describeCrewAction(ev)}
+        </span>
       </div>
     );
   }
   if (type === 'observation') {
     return (
       <details className="sg-crew-obs">
-        <summary><Eye size={14} aria-hidden="true" /> <span>Observation — {text ? String(text).slice(0, 60) : 'see details'}</span></summary>
+        <summary>
+          <Eye size={14} aria-hidden="true" />{' '}
+          <span>Observation — {text ? String(text).slice(0, 60) : 'see details'}</span>
+        </summary>
         <pre>{text || JSON.stringify(ev.data || ev, null, 2)}</pre>
       </details>
     );
@@ -100,18 +130,31 @@ function CrewEventRow({ ev, crewName }) {
   if (type === 'waiting') {
     return (
       <div className="sg-crew-notice warn" role="alert">
-        <TriangleAlert size={15} aria-hidden="true" /> <span>No brain configured — connect a model on the Models page.</span>
+        <TriangleAlert size={15} aria-hidden="true" />{' '}
+        <span>No brain configured — connect a model on the Models page.</span>
       </div>
     );
   }
   if (type === 'done') {
-    return <div className="sg-crew-notice ok"><CheckCircle2 size={15} aria-hidden="true" /> <span>{text || 'Run completed.'}</span></div>;
+    return (
+      <div className="sg-crew-notice ok">
+        <CheckCircle2 size={15} aria-hidden="true" /> <span>{text || 'Run completed.'}</span>
+      </div>
+    );
   }
   if (type === 'error') {
-    return <div className="sg-crew-notice bad" role="alert"><XCircle size={15} aria-hidden="true" /> <span>{text || 'Something went wrong.'}</span></div>;
+    return (
+      <div className="sg-crew-notice bad" role="alert">
+        <XCircle size={15} aria-hidden="true" /> <span>{text || 'Something went wrong.'}</span>
+      </div>
+    );
   }
   if (type === 'stopped') {
-    return <div className="sg-crew-notice"><OctagonX size={15} aria-hidden="true" /> <span>{text || 'Run stopped.'}</span></div>;
+    return (
+      <div className="sg-crew-notice">
+        <OctagonX size={15} aria-hidden="true" /> <span>{text || 'Run stopped.'}</span>
+      </div>
+    );
   }
   return <div className="sg-crew-row">{text || type}</div>;
 }
@@ -126,23 +169,41 @@ function CrewCard({ crew, status, selected, deleting, onSelect, onDelete, style 
       onClick={onSelect}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       title={`${crew.name} — ${meta.label}. Click to chat.`}
     >
-      <div className="sg-crew-avatar" aria-hidden="true">{initials(crew.name)}</div>
+      <div className="sg-crew-avatar" aria-hidden="true">
+        {initials(crew.name)}
+      </div>
       <div className="sg-crew-card-body">
         <div className="sg-crew-card-name">{crew.name}</div>
         <div className="sg-crew-card-role">{crew.role}</div>
       </div>
-      <span className={`sg-status-dot ${meta.dot}`} title={meta.label} aria-label={`Status: ${meta.label}`} />
+      <span
+        className={`sg-status-dot ${meta.dot}`}
+        title={meta.label}
+        aria-label={`Status: ${meta.label}`}
+      />
       <button
         className="sg-chip-x"
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        onClick={e => {
+          e.stopPropagation();
+          onDelete();
+        }}
         disabled={deleting}
         title={`Remove ${crew.name}`}
         aria-label={`Remove ${crew.name}`}
       >
-        {deleting ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <Trash2 size={13} aria-hidden="true" />}
+        {deleting ? (
+          <Loader2 size={13} className="sg-spin" aria-hidden="true" />
+        ) : (
+          <Trash2 size={13} aria-hidden="true" />
+        )}
       </button>
     </div>
   );
@@ -157,8 +218,8 @@ function CrewForm({ onCreated, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const toggleTool = (id) =>
-    setTools((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  const toggleTool = id =>
+    setTools(prev => (prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]));
 
   const submit = async () => {
     if (!name.trim() || !role.trim() || saving) return;
@@ -169,7 +230,7 @@ function CrewForm({ onCreated, onCancel }) {
         name: name.trim(),
         role: role.trim(),
         instructions: instructions.trim(),
-        toolsAllowed: tools
+        toolsAllowed: tools,
       });
       onCreated(res?.crew || null);
     } catch (err) {
@@ -187,7 +248,7 @@ function CrewForm({ onCreated, onCancel }) {
           id="crew-name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           placeholder="e.g. Nova"
           maxLength={60}
         />
@@ -198,7 +259,7 @@ function CrewForm({ onCreated, onCancel }) {
           id="crew-role"
           type="text"
           value={role}
-          onChange={(e) => setRole(e.target.value)}
+          onChange={e => setRole(e.target.value)}
           placeholder="e.g. Research assistant — gathers data from the web"
           maxLength={120}
         />
@@ -208,7 +269,7 @@ function CrewForm({ onCreated, onCancel }) {
         <textarea
           id="crew-instructions"
           value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
+          onChange={e => setInstructions(e.target.value)}
           placeholder="How should this coworker behave? What should it always do or never do?"
           maxLength={2000}
         />
@@ -217,19 +278,23 @@ function CrewForm({ onCreated, onCancel }) {
         <legend>Tools allowed</legend>
         <div className="sg-crew-tools">
           {ALL_TOOLS.map(({ id, label, icon: Icon, hint }) => (
-            <label key={id} className={`sg-crew-tool${tools.includes(id) ? ' on' : ''}`} title={hint}>
-              <input
-                type="checkbox"
-                checked={tools.includes(id)}
-                onChange={() => toggleTool(id)}
-              />
+            <label
+              key={id}
+              className={`sg-crew-tool${tools.includes(id) ? ' on' : ''}`}
+              title={hint}
+            >
+              <input type="checkbox" checked={tools.includes(id)} onChange={() => toggleTool(id)} />
               <Icon size={14} aria-hidden="true" />
               {label}
             </label>
           ))}
         </div>
       </fieldset>
-      {error && <div className="sg-auth-error" role="alert">{error}</div>}
+      {error && (
+        <div className="sg-auth-error" role="alert">
+          {error}
+        </div>
+      )}
       <div className="sg-crew-form-actions">
         <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={onCancel} disabled={saving}>
           Cancel
@@ -239,7 +304,11 @@ function CrewForm({ onCreated, onCancel }) {
           onClick={submit}
           disabled={!name.trim() || !role.trim() || saving}
         >
-          {saving ? <Loader2 size={14} className="sg-spin" aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
+          {saving ? (
+            <Loader2 size={14} className="sg-spin" aria-hidden="true" />
+          ) : (
+            <Plus size={14} aria-hidden="true" />
+          )}
           {saving ? 'Adding…' : 'Add crew member'}
         </button>
       </div>
@@ -257,27 +326,39 @@ function CrewChat({ crew, onClose, onStatus }) {
   const unsubRef = useRef(null);
   const endRef = useRef(null);
 
-  const pushEvent = (ev) => setEvents((prev) => [...prev.slice(-300), ev]);
+  const pushEvent = ev => setEvents(prev => [...prev.slice(-300), ev]);
 
-  const handleEvent = useCallback((ev) => {
-    const type = ev.__sseType;
-    pushEvent({ ...ev, id: ev.id || `ev-${Date.now()}-${Math.random()}`, at: ev.at || new Date().toISOString() });
-    if (type === 'waiting') {
-      setRunning(false);
-      onStatus('waiting_brain');
-    } else if (type === 'done' || type === 'stopped' || type === 'error') {
-      setRunning(false);
-      onStatus('idle');
-    } else if (type === 'thinking' || type === 'action' || type === 'observation' || type === 'reply') {
-      setRunning(true);
-      onStatus('running');
-    }
-  }, [onStatus]);
+  const handleEvent = useCallback(
+    ev => {
+      const type = ev.__sseType;
+      pushEvent({
+        ...ev,
+        id: ev.id || `ev-${Date.now()}-${Math.random()}`,
+        at: ev.at || new Date().toISOString(),
+      });
+      if (type === 'waiting') {
+        setRunning(false);
+        onStatus('waiting_brain');
+      } else if (type === 'done' || type === 'stopped' || type === 'error') {
+        setRunning(false);
+        onStatus('idle');
+      } else if (
+        type === 'thinking' ||
+        type === 'action' ||
+        type === 'observation' ||
+        type === 'reply'
+      ) {
+        setRunning(true);
+        onStatus('running');
+      }
+    },
+    [onStatus]
+  );
 
   useEffect(() => {
     const unsub = subscribeToCrewEvents(crew.id, {
       onEvent: handleEvent,
-      onError: () => {}
+      onError: () => {},
     });
     unsubRef.current = unsub;
     return () => {
@@ -320,7 +401,9 @@ function CrewChat({ crew, onClose, onStatus }) {
   return (
     <div className="sg-crew-chat">
       <div className="sg-crew-chat-head">
-        <div className="sg-crew-avatar sm" aria-hidden="true">{initials(crew.name)}</div>
+        <div className="sg-crew-avatar sm" aria-hidden="true">
+          {initials(crew.name)}
+        </div>
         <div className="sg-crew-chat-head-text">
           <strong>{crew.name}</strong>
           <div className="sg-small">{crew.role}</div>
@@ -344,9 +427,7 @@ function CrewChat({ crew, onClose, onStatus }) {
                 <span>Say hello — {crew.name} will start working on its own computer.</span>
               </div>
             ) : (
-              events.map((ev, i) => (
-                <CrewEventRow key={ev.id || i} ev={ev} crewName={crew.name} />
-              ))
+              events.map((ev, i) => <CrewEventRow key={ev.id || i} ev={ev} crewName={crew.name} />)
             )}
             <div ref={endRef} />
           </div>
@@ -354,8 +435,10 @@ function CrewChat({ crew, onClose, onStatus }) {
           <div className="sg-chat-input">
             <input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') send();
+              }}
               placeholder={`Message ${crew.name}…`}
               aria-label={`Message ${crew.name}`}
             />
@@ -379,7 +462,11 @@ function CrewChat({ crew, onClose, onStatus }) {
               </button>
             )}
           </div>
-          {error && <div className="sg-auth-error" role="alert">{error}</div>}
+          {error && (
+            <div className="sg-auth-error" role="alert">
+              {error}
+            </div>
+          )}
         </div>
 
         {running && (
@@ -421,21 +508,25 @@ export function CrewPanel() {
     refresh();
   }, [refresh]);
 
-  const handleCreated = (crew) => {
+  const handleCreated = crew => {
     setFormOpen(false);
     refresh();
     if (crew?.id) setSelectedId(crew.id);
   };
 
-  const handleDelete = async (crew) => {
+  const handleDelete = async crew => {
     if (!window.confirm(`Remove ${crew.name} from the crew?`)) return;
     setDeletingId(crew.id);
     try {
       // Best-effort: stop an active run before removing the member.
-      try { await stopCrewRun(crew.id); } catch { /* not running */ }
+      try {
+        await stopCrewRun(crew.id);
+      } catch {
+        /* not running */
+      }
       await deleteCrew(crew.id);
       if (selectedId === crew.id) setSelectedId(null);
-      setStatuses((prev) => {
+      setStatuses(prev => {
         const next = { ...prev };
         delete next[crew.id];
         return next;
@@ -448,22 +539,24 @@ export function CrewPanel() {
     }
   };
 
-  const statusFor = (crew) => statuses[crew.id] || crew.status || 'idle';
-  const selected = crews.find((c) => c.id === selectedId) || null;
+  const statusFor = crew => statuses[crew.id] || crew.status || 'idle';
+  const selected = crews.find(c => c.id === selectedId) || null;
 
   return (
     <div className="sg-crew-section">
       <div className="sg-crew-head">
         <div>
-          <h3 className="sg-crew-title"><Users size={18} aria-hidden="true" /> Infinity Crew</h3>
+          <h3 className="sg-crew-title">
+            <Users size={18} aria-hidden="true" /> Infinity Crew
+          </h3>
           <p className="sg-small">
-            Your persistent AI coworkers — each with its own computer.
-            Pick one to chat and put it to work.
+            Your persistent AI coworkers — each with its own computer. Pick one to chat and put it
+            to work.
           </p>
         </div>
         <button
           className="sg-btn sg-btn-primary sg-btn-sm"
-          onClick={() => setFormOpen((o) => !o)}
+          onClick={() => setFormOpen(o => !o)}
           aria-expanded={formOpen}
         >
           {formOpen ? <X size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
@@ -471,16 +564,20 @@ export function CrewPanel() {
         </button>
       </div>
 
-      {error && <div className="sg-auth-error" role="alert">{error}</div>}
+      {error && (
+        <div className="sg-auth-error" role="alert">
+          {error}
+        </div>
+      )}
 
       {formOpen && <CrewForm onCreated={handleCreated} onCancel={() => setFormOpen(false)} />}
 
       {loading ? (
-        <div className="sg-loading-box" role="status"><Loader2 size={20} className="sg-spin" aria-hidden="true" /> Loading your crew…</div>
-      ) : crews.length === 0 && !formOpen ? (
-        <div className="sg-crew-empty">
-          No crew members yet — add your first coworker above.
+        <div className="sg-loading-box" role="status">
+          <Loader2 size={20} className="sg-spin" aria-hidden="true" /> Loading your crew…
         </div>
+      ) : crews.length === 0 && !formOpen ? (
+        <div className="sg-crew-empty">No crew members yet — add your first coworker above.</div>
       ) : (
         <div className="sg-crew-list">
           {crews.map((crew, i) => (
@@ -503,7 +600,7 @@ export function CrewPanel() {
           key={selected.id}
           crew={selected}
           onClose={() => setSelectedId(null)}
-          onStatus={(s) => setStatuses((prev) => ({ ...prev, [selected.id]: s }))}
+          onStatus={s => setStatuses(prev => ({ ...prev, [selected.id]: s }))}
         />
       )}
     </div>

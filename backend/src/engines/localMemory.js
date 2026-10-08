@@ -75,8 +75,9 @@ export function loadHunt(huntId) {
 export function listHunts() {
   const dir = path.join(memoryDir(), 'hunts');
   try {
-    return fs.readdirSync(dir)
-      .map((id) => ({ id, ...readJson(path.join(dir, id, 'hunt.json'), {}) }))
+    return fs
+      .readdirSync(dir)
+      .map(id => ({ id, ...readJson(path.join(dir, id, 'hunt.json'), {}) }))
       .sort((a, b) => String(b.savedAt || '').localeCompare(String(a.savedAt || '')));
   } catch {
     return [];
@@ -87,7 +88,11 @@ export function listHunts() {
 export function appendActivity(huntId, entry = {}) {
   const dir = ensureDir(path.join(memoryDir(), 'hunts', huntId));
   const file = path.join(dir, 'activity.jsonl');
-  fs.appendFileSync(file, JSON.stringify({ ...entry, at: new Date().toISOString() }) + '\n', 'utf8');
+  fs.appendFileSync(
+    file,
+    JSON.stringify({ ...entry, at: new Date().toISOString() }) + '\n',
+    'utf8'
+  );
 }
 
 /** Learning store (persistent across hunts). */
@@ -119,7 +124,7 @@ export function memoryStats() {
   const dir = memoryDir();
   let totalBytes = 0;
   let fileCount = 0;
-  const walk = (d) => {
+  const walk = d => {
     try {
       for (const e of fs.readdirSync(d, { withFileTypes: true })) {
         const p = path.join(d, e.name);
@@ -128,10 +133,14 @@ export function memoryStats() {
           try {
             totalBytes += fs.statSync(p).size;
             fileCount++;
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
-    } catch { /* dir doesn't exist */ }
+    } catch {
+      /* dir doesn't exist */
+    }
   };
   walk(dir);
   return {
@@ -143,10 +152,19 @@ export function memoryStats() {
 }
 
 export const LOCAL_MEMORY = {
-  dataDir, memoryDir,
-  saveHunt, loadHunt, listHunts, appendActivity,
-  loadLearnings, saveLearnings, loadFPs, saveFPs,
-  loadPreferences, savePreferences, memoryStats,
+  dataDir,
+  memoryDir,
+  saveHunt,
+  loadHunt,
+  listHunts,
+  appendActivity,
+  loadLearnings,
+  saveLearnings,
+  loadFPs,
+  saveFPs,
+  loadPreferences,
+  savePreferences,
+  memoryStats,
 };
 
 export default LOCAL_MEMORY;

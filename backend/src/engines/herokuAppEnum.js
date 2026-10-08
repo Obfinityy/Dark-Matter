@@ -21,9 +21,28 @@ export const HEROKU_NAME_RE = /^[a-z][a-z0-9-]{1,28}[a-z0-9]$/;
 
 export const HEROKU_NAME_PREFIXES = ['app', 'web', 'api', 'my'];
 export const HEROKU_NAME_SUFFIXES = [
-  'app', 'web', 'api', 'staging', 'stage', 'prod', 'production', 'dev',
-  'development', 'test', 'qa', 'uat', 'demo', 'beta', 'v1', 'v2',
-  'site', 'portal', 'dashboard', 'backend', 'frontend', 'service',
+  'app',
+  'web',
+  'api',
+  'staging',
+  'stage',
+  'prod',
+  'production',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'demo',
+  'beta',
+  'v1',
+  'v2',
+  'site',
+  'portal',
+  'dashboard',
+  'backend',
+  'frontend',
+  'service',
 ];
 
 /**
@@ -58,7 +77,7 @@ export function generateHerokuAppNames(brand, options = {}) {
   const slug = slugifyBrand(brand);
   if (!slug) return [];
   const out = new Set();
-  const add = (name) => {
+  const add = name => {
     if (out.size >= maxNames) return;
     if (HEROKU_NAME_RE.test(name)) out.add(name);
   };
@@ -102,19 +121,23 @@ export function parseHerokuDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target) continue;
     if (target === HEROKU_APP_DOMAIN || target.endsWith(`.${HEROKU_APP_DOMAIN}`)) {
       const appName = target.split('.')[0] || null;
       hits.push({
         recordName: String(rec?.name || ''),
-        target, appName,
+        target,
+        appName,
         kind: 'app-default-domain',
       });
     } else if (target.endsWith(`.${HEROKU_DNS_SUFFIX}`)) {
       hits.push({
         recordName: String(rec?.name || ''),
-        target, appName: null,
+        target,
+        appName: null,
         kind: 'custom-domain-pointer',
       });
     }
@@ -131,7 +154,9 @@ export function parseHerokuDnsHints(records = []) {
 export function parseHerokuCertHints(sans = []) {
   const hits = [];
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     if (san === HEROKU_APP_DOMAIN || san.endsWith(`.${HEROKU_APP_DOMAIN}`)) {
       hits.push({ san: String(raw), appName: san.split('.')[0] });
     }
@@ -145,7 +170,13 @@ export function parseHerokuCertHints(sans = []) {
  * @returns {boolean}
  */
 export function isHerokuHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
-  return h === HEROKU_APP_DOMAIN || h.endsWith(`.${HEROKU_APP_DOMAIN}`) ||
-    h === HEROKU_DNS_SUFFIX || h.endsWith(`.${HEROKU_DNS_SUFFIX}`);
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
+  return (
+    h === HEROKU_APP_DOMAIN ||
+    h.endsWith(`.${HEROKU_APP_DOMAIN}`) ||
+    h === HEROKU_DNS_SUFFIX ||
+    h.endsWith(`.${HEROKU_DNS_SUFFIX}`)
+  );
 }

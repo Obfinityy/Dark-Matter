@@ -88,8 +88,14 @@ export function buildDorkBatch(domain, options = {}) {
       { query: `site:${d} inurl:login`, technique: 'inurl-login' },
       { query: `site:${d} inurl:api`, technique: 'inurl-api' },
       { query: `site:${d} inurl:dev OR inurl:staging OR inurl:test`, technique: 'inurl-env' },
-      { query: `site:${d} inurl:dashboard OR inurl:panel OR inurl:console`, technique: 'inurl-panel' },
-      { query: `site:${d} filetype:env OR filetype:log OR filetype:sql`, technique: 'filetype-sensitive' },
+      {
+        query: `site:${d} inurl:dashboard OR inurl:panel OR inurl:console`,
+        technique: 'inurl-panel',
+      },
+      {
+        query: `site:${d} filetype:env OR filetype:log OR filetype:sql`,
+        technique: 'filetype-sensitive',
+      }
     );
   }
   for (const kw of extraKeywords) {
@@ -124,14 +130,28 @@ export function mergeDorkResults(resultSets = []) {
       try {
         const u = new URL(url);
         u.hash = '';
-        for (const p of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid']) {
+        for (const p of [
+          'utm_source',
+          'utm_medium',
+          'utm_campaign',
+          'utm_term',
+          'utm_content',
+          'gclid',
+          'fbclid',
+        ]) {
           u.searchParams.delete(p);
         }
         key = u.toString().replace(/\/$/, '');
-      } catch { key = url.toLowerCase().replace(/\/$/, ''); }
+      } catch {
+        key = url.toLowerCase().replace(/\/$/, '');
+      }
       if (!byUrl.has(key)) {
         let hostname = '';
-        try { hostname = new URL(url).hostname.toLowerCase(); } catch { /* keep empty */ }
+        try {
+          hostname = new URL(url).hostname.toLowerCase();
+        } catch {
+          /* keep empty */
+        }
         byUrl.set(key, { url, title: '', snippet: '', engines: [], hostname });
       }
       const entry = byUrl.get(key);
@@ -151,11 +171,31 @@ export function mergeDorkResults(resultSets = []) {
 export function classifyHostType(host) {
   const h = normalizeHostname(host);
   if (/(^|[.-])staging([.-]|$)|(^|[.-])stage([.-]|$)/.test(h)) return 'staging';
-  if (/(^|[.-])dev([.-]|$)|(^|[.-])development([.-]|$)|(^|[.-])test([.-]|$)|(^|[.-])qa([.-]|$)|(^|[.-])uat([.-]|$)/.test(h)) return 'staging';
-  if (/(^|[.-])internal([.-]|$)|(^|[.-])intranet([.-]|$)|(^|[.-])corp([.-]|$)|(^|[.-])lan([.-]|$)/.test(h)) return 'internal';
-  if (/(^|[.-])cdn([.-]|$)|(^|[.-])static([.-]|$)|(^|[.-])assets([.-]|$)|(^|[.-])media([.-]|$)/.test(h)) return 'cdn';
+  if (
+    /(^|[.-])dev([.-]|$)|(^|[.-])development([.-]|$)|(^|[.-])test([.-]|$)|(^|[.-])qa([.-]|$)|(^|[.-])uat([.-]|$)/.test(
+      h
+    )
+  )
+    return 'staging';
+  if (
+    /(^|[.-])internal([.-]|$)|(^|[.-])intranet([.-]|$)|(^|[.-])corp([.-]|$)|(^|[.-])lan([.-]|$)/.test(
+      h
+    )
+  )
+    return 'internal';
+  if (
+    /(^|[.-])cdn([.-]|$)|(^|[.-])static([.-]|$)|(^|[.-])assets([.-]|$)|(^|[.-])media([.-]|$)/.test(
+      h
+    )
+  )
+    return 'cdn';
   if (/(^|[.-])api([.-]|$)/.test(h)) return 'api';
-  if (/(^|[.-])old([.-]|$)|(^|[.-])legacy([.-]|$)|(^|[.-])backup([.-]|$)|(^|[.-])archive([.-]|$)/.test(h)) return 'legacy';
+  if (
+    /(^|[.-])old([.-]|$)|(^|[.-])legacy([.-]|$)|(^|[.-])backup([.-]|$)|(^|[.-])archive([.-]|$)/.test(
+      h
+    )
+  )
+    return 'legacy';
   return 'other';
 }
 
@@ -267,6 +307,6 @@ export function surfaceUnlinkedSubdomains(mergedResults = [], rootDomain, knownH
   }
 
   return [...byHost.values()]
-    .map((e) => ({ ...e, engines: [...e.engines] }))
+    .map(e => ({ ...e, engines: [...e.engines] }))
     .sort((a, b) => b.engines.length - a.engines.length || a.host.localeCompare(b.host));
 }

@@ -39,7 +39,8 @@ export function mapAdSites({ domain = '', records = [] } = {}) {
     if (!target) continue;
 
     // Extract site from _sites.<site>._msdcs-style or _ldap._tcp.<site>._sites.<domain> names.
-    const siteMatch = name.match(/_sites\.([a-z0-9-]+)/i) || name.match(/\._tcp\.([a-z0-9-]+)\._sites\./i);
+    const siteMatch =
+      name.match(/_sites\.([a-z0-9-]+)/i) || name.match(/\._tcp\.([a-z0-9-]+)\._sites\./i);
     const site = siteMatch ? siteMatch[1] : 'Default-First-Site-Name';
 
     if (!sites[site]) sites[site] = [];
@@ -51,15 +52,21 @@ export function mapAdSites({ domain = '', records = [] } = {}) {
       record: r.name,
     });
 
-    const serviceKey = name.startsWith('_ldap') ? 'ldap'
-      : name.startsWith('_kerberos') ? 'kerberos'
-      : name.startsWith('_gc') ? 'global-catalog'
-      : name.startsWith('_kpasswd') ? 'kpasswd' : 'other';
+    const serviceKey = name.startsWith('_ldap')
+      ? 'ldap'
+      : name.startsWith('_kerberos')
+        ? 'kerberos'
+        : name.startsWith('_gc')
+          ? 'global-catalog'
+          : name.startsWith('_kpasswd')
+            ? 'kpasswd'
+            : 'other';
     if (!services[serviceKey]) services[serviceKey] = [];
     services[serviceKey].push(target);
 
     if (!controllers[target]) controllers[target] = { site, services: [] };
-    if (!controllers[target].services.includes(serviceKey)) controllers[target].services.push(serviceKey);
+    if (!controllers[target].services.includes(serviceKey))
+      controllers[target].services.push(serviceKey);
   }
 
   const dcList = Object.keys(controllers);
@@ -90,7 +97,7 @@ export function mapAdSites({ domain = '', records = [] } = {}) {
 export function rankControllersByPreference(sitesMap = {}) {
   const ranked = {};
   for (const [site, entries] of Object.entries(sitesMap)) {
-    ranked[site] = [...entries].sort((a, b) => (a.priority - b.priority) || (b.weight - a.weight));
+    ranked[site] = [...entries].sort((a, b) => a.priority - b.priority || b.weight - a.weight);
   }
   return ranked;
 }

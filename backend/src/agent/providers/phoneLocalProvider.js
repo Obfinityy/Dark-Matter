@@ -96,25 +96,26 @@ function closeTruncatedJson(raw) {
 export function normalizeMessagesForPhone(messages) {
   if (!Array.isArray(messages)) return [];
   const result = [];
-  
+
   for (const item of messages) {
     if (!item) continue;
     let role = item.role || 'user';
-    let content = typeof item.content === 'string' ? item.content : JSON.stringify(item.content || '');
-    
+    let content =
+      typeof item.content === 'string' ? item.content : JSON.stringify(item.content || '');
+
     // Local phone servers (e.g., PocketLLM / MLC-LLM) throw "System role not supported"
     if (role === 'system') {
       role = 'user';
       content = `[System Prompt]\n${content}`;
     }
-    
+
     if (result.length > 0 && result[result.length - 1].role === 'user' && role === 'user') {
       result[result.length - 1].content += `\n\n${content}`;
     } else {
       result.push({ role, content });
     }
   }
-  
+
   return result;
 }
 
@@ -135,7 +136,7 @@ export class PhoneLocalProvider {
     try {
       const fetchOptions = { signal: AbortSignal.timeout(4000) };
       if (this.apiKey && this.apiKey !== 'no-key-required') {
-        fetchOptions.headers = { 'Authorization': `Bearer ${this.apiKey}` };
+        fetchOptions.headers = { Authorization: `Bearer ${this.apiKey}` };
       }
       const response = await fetch(`${this.baseUrl}/models`, fetchOptions);
       if (response.ok) {
@@ -147,34 +148,42 @@ export class PhoneLocalProvider {
         }
       }
     } catch (e) {
-      console.warn('[PhoneLocalProvider] Dynamic model discovery via /v1/models failed:', e.message);
+      console.warn(
+        '[PhoneLocalProvider] Dynamic model discovery via /v1/models failed:',
+        e.message
+      );
     }
     return this.resolvedModel || 'local';
   }
 
   async healthCheck() {
     if (!this.enabled) {
-      return { provider: 'PhoneLocalProvider', enabled: false, reachable: false, reason: 'disabled' };
+      return {
+        provider: 'PhoneLocalProvider',
+        enabled: false,
+        reachable: false,
+        reason: 'disabled',
+      };
     }
-    
+
     const start = Date.now();
     try {
       const fetchOptions = {
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(5000),
       };
       if (this.apiKey && this.apiKey !== 'no-key-required') {
-        fetchOptions.headers = { 'Authorization': `Bearer ${this.apiKey}` };
+        fetchOptions.headers = { Authorization: `Bearer ${this.apiKey}` };
       }
-      
+
       const response = await fetch(`${this.baseUrl}/models`, fetchOptions);
       const latencyMs = Date.now() - start;
-      
+
       if (response.ok) {
         let actualModel = this.model;
         try {
-           const body = await response.json();
-           if (body?.data?.length > 0) actualModel = body.data[0].id;
-        } catch(e) {}
+          const body = await response.json();
+          if (body?.data?.length > 0) actualModel = body.data[0].id;
+        } catch (e) {}
         this.resolvedModel = actualModel;
 
         return {
@@ -182,13 +191,25 @@ export class PhoneLocalProvider {
           enabled: true,
           reachable: true,
           model: actualModel,
-          latencyMs
+          latencyMs,
         };
       }
-      return { provider: 'PhoneLocalProvider', enabled: true, reachable: false, reason: `HTTP ${response.status}`, latencyMs };
+      return {
+        provider: 'PhoneLocalProvider',
+        enabled: true,
+        reachable: false,
+        reason: `HTTP ${response.status}`,
+        latencyMs,
+      };
     } catch (error) {
       const latencyMs = Date.now() - start;
-      return { provider: 'PhoneLocalProvider', enabled: true, reachable: false, reason: error.message, latencyMs };
+      return {
+        provider: 'PhoneLocalProvider',
+        enabled: true,
+        reachable: false,
+        reason: error.message,
+        latencyMs,
+      };
     }
   }
 
@@ -199,14 +220,19 @@ export class PhoneLocalProvider {
       try {
         const response = await fetch(url, fetchOptions);
         if ((response.status === 429 || response.status === 503) && attempt < maxAttempts) {
-          console.warn(`[PhoneLocalProvider] Upstream ${response.status}. Retrying (${attempt}/${maxAttempts}) in 1.5s...`);
-          await new Promise((r) => setTimeout(r, 1500));
+          console.warn(
+            `[PhoneLocalProvider] Upstream ${response.status}. Retrying (${attempt}/${maxAttempts}) in 1.5s...`
+          );
+          await new Promise(r => setTimeout(r, 1500));
           continue;
         }
         return response;
       } catch (err) {
-        if (attempt < maxAttempts && (err.name === 'AbortError' || err.name === 'TypeError' || err.code === 'ECONNRESET')) {
-          await new Promise((r) => setTimeout(r, 1500));
+        if (
+          attempt < maxAttempts &&
+          (err.name === 'AbortError' || err.name === 'TypeError' || err.code === 'ECONNRESET')
+        ) {
+          await new Promise(r => setTimeout(r, 1500));
           continue;
         }
         throw err;
@@ -222,15 +248,15 @@ export class PhoneLocalProvider {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'authorization': `Bearer ${this.apiKey}`
+        authorization: `Bearer ${this.apiKey}`,
       },
       signal: AbortSignal.timeout(options.timeout || 180000),
       body: JSON.stringify({
         model: activeModel,
         messages: safeMessages,
         temperature: options.temperature ?? 0.3,
-        max_tokens: options.maxTokens ?? 2000
-      })
+        max_tokens: options.maxTokens ?? 2000,
+      }),
     });
 
     if (!response.ok) {
@@ -261,7 +287,7 @@ export class PhoneLocalProvider {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'authorization': `Bearer ${this.apiKey}`
+        authorization: `Bearer ${this.apiKey}`,
       },
       signal: AbortSignal.timeout(options.timeout || 180000),
       body: JSON.stringify({
@@ -269,8 +295,8 @@ export class PhoneLocalProvider {
         messages: safeMessages,
         temperature: options.temperature ?? 0.3,
         max_tokens: options.maxTokens ?? 2000,
-        response_format: { type: 'json_object' }
-      })
+        response_format: { type: 'json_object' },
+      }),
     });
 
     if (!response.ok) {
@@ -295,7 +321,7 @@ export class PhoneLocalProvider {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'authorization': `Bearer ${this.apiKey}`
+        authorization: `Bearer ${this.apiKey}`,
       },
       signal: AbortSignal.timeout(options.timeout || 180000),
       body: JSON.stringify({
@@ -303,15 +329,15 @@ export class PhoneLocalProvider {
         messages: safeMessages,
         temperature: options.temperature ?? 0.3,
         max_tokens: options.maxTokens ?? 2000,
-        stream: true
-      })
+        stream: true,
+      }),
     });
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
       throw new Error(`Phone AI Stream ${response.status}: ${errText.slice(0, 200)}`);
     }
-    
+
     return response.body;
   }
 }

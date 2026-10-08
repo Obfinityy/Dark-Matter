@@ -13,9 +13,21 @@
 
 /** Known press-release wire services and their canonical hosts. */
 const WIRE_SERVICES = [
-  { name: 'Business Wire', hostMatch: /(^|\.)businesswire\.com$/, idHint: /\/news\/home\/([a-z0-9-]+)/i },
-  { name: 'GlobeNewswire', hostMatch: /(^|\.)globenewswire\.com$/, idHint: /\/news-release\/\d+\/\d+\/\d+\/(\d+)/i },
-  { name: 'PR Newswire', hostMatch: /(^|\.)prnewswire\.com$/, idHint: /\/news-releases\/[^/]*-(\d+)\.html/i },
+  {
+    name: 'Business Wire',
+    hostMatch: /(^|\.)businesswire\.com$/,
+    idHint: /\/news\/home\/([a-z0-9-]+)/i,
+  },
+  {
+    name: 'GlobeNewswire',
+    hostMatch: /(^|\.)globenewswire\.com$/,
+    idHint: /\/news-release\/\d+\/\d+\/\d+\/(\d+)/i,
+  },
+  {
+    name: 'PR Newswire',
+    hostMatch: /(^|\.)prnewswire\.com$/,
+    idHint: /\/news-releases\/[^/]*-(\d+)\.html/i,
+  },
   { name: 'Accesswire', hostMatch: /(^|\.)accesswire\.com$/, idHint: null },
   { name: 'Newswire.com', hostMatch: /(^|\.)newswire\.com$/, idHint: null },
   { name: 'PRWeb', hostMatch: /(^|\.)prweb\.com$/, idHint: /\/releases\/[^/]*\/prweb(\d+)\.htm/i },
@@ -86,7 +98,7 @@ export function minePressRelease(html, orgDomain = '', pageUrl = '') {
   }
 
   const own = orgDomain.toLowerCase();
-  const orgLinked = [...outbound].filter((h) => own && (h === own || h.endsWith(`.${own}`))).sort();
+  const orgLinked = [...outbound].filter(h => own && (h === own || h.endsWith(`.${own}`))).sort();
 
   return {
     wire: canonical ? { service, canonical } : null,
@@ -97,7 +109,7 @@ export function minePressRelease(html, orgDomain = '', pageUrl = '') {
 }
 
 export const PRESS_WIRE_MINER = {
-  WIRE_SERVICES: WIRE_SERVICES.map((w) => w.name),
+  WIRE_SERVICES: WIRE_SERVICES.map(w => w.name),
   identifyWireService,
   extractCanonicalWireUrl,
   minePressRelease,

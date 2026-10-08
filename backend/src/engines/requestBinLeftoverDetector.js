@@ -47,7 +47,7 @@ export function extractUrls(text) {
  */
 export function isRequestBinHost(hostname) {
   const host = String(hostname || '').toLowerCase();
-  return REQUESTBIN_PATTERNS.some((re) => re.test(host));
+  return REQUESTBIN_PATTERNS.some(re => re.test(host));
 }
 
 /**
@@ -101,7 +101,7 @@ export function detectRequestBinLeftovers({ source = 'unknown', text = '' } = {}
     confidence: findings.length ? 'high' : 'low',
     findings,
     evidence: findings.length
-      ? `Found ${findings.length} leftover RequestBin URL(s) in ${source}: ${findings.map((f) => f.url).join('; ')}. ` +
+      ? `Found ${findings.length} leftover RequestBin URL(s) in ${source}: ${findings.map(f => f.url).join('; ')}. ` +
         'RequestBin URLs in shipped artefacts reveal testing infrastructure and may still receive live requests.'
       : `No RequestBin URLs found in ${source}.`,
   };

@@ -51,7 +51,15 @@ class LongContextEngine {
    * @param {(progress:object)=>void} [params.onProgress]
    * @returns {Promise<object>} input record
    */
-  async ingest({ userId, conversationId, content, title, kind = 'document', summarize = true, onProgress }) {
+  async ingest({
+    userId,
+    conversationId,
+    content,
+    title,
+    kind = 'document',
+    summarize = true,
+    onProgress,
+  }) {
     if (!content || !content.length) {
       const err = new Error('Cannot ingest empty content');
       err.status = 400;
@@ -70,9 +78,9 @@ class LongContextEngine {
       estimatedTokens: estimateTokens(content),
       hash,
       chunkCount: 0,
-      status: 'chunking',   // chunking → indexing → summarizing → ready | failed
+      status: 'chunking', // chunking → indexing → summarizing → ready | failed
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
     // NOTE: raw content is intentionally NOT copied into lc_inputs again —
     // chunks ARE the exact original (startOffset/endOffset reconstruct it).
@@ -87,14 +95,16 @@ class LongContextEngine {
       await this.store.updateInput(userId, conversationId, inputId, {
         chunkCount: chunks.length,
         status: record.status,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       });
       onProgress?.({ phase: 'chunked', inputId, chunkCount: chunks.length });
 
       if (summarize) {
         onProgress?.({ phase: 'summarizing', inputId, chunkCount: chunks.length });
         const { global, localCount, sectionCount } = await this.summarizer.buildHierarchy({
-          userId, conversationId, input: record
+          userId,
+          conversationId,
+          input: record,
         });
         record.status = 'ready';
         record.summary = global?.summary?.slice(0, 400) || null;
@@ -103,13 +113,14 @@ class LongContextEngine {
           status: 'ready',
           summary: record.summary,
           summaryCounts: record.summaryCounts,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         });
         onProgress?.({ phase: 'ready', inputId, chunkCount: chunks.length });
       } else {
         record.status = 'indexed';
         await this.store.updateInput(userId, conversationId, inputId, {
-          status: 'indexed', updatedAt: new Date().toISOString()
+          status: 'indexed',
+          updatedAt: new Date().toISOString(),
         });
       }
 
@@ -119,16 +130,18 @@ class LongContextEngine {
         inputId,
         title: record.title,
         chunkCount: chunks.length,
-        hash
+        hash,
       });
 
       return record;
     } catch (error) {
-      await this.store.updateInput(userId, conversationId, inputId, {
-        status: 'failed',
-        error: error.message.slice(0, 200),
-        updatedAt: new Date().toISOString()
-      }).catch(() => {});
+      await this.store
+        .updateInput(userId, conversationId, inputId, {
+          status: 'failed',
+          error: error.message.slice(0, 200),
+          updatedAt: new Date().toISOString(),
+        })
+        .catch(() => {});
       throw error;
     }
   }
@@ -143,13 +156,15 @@ class LongContextEngine {
     if (chunkCount === 0) throw new Error('Input has no chunks; re-ingest required');
 
     const { global, localCount, sectionCount } = await this.summarizer.buildHierarchy({
-      userId, conversationId, input: { ...input, chunkCount }
+      userId,
+      conversationId,
+      input: { ...input, chunkCount },
     });
     const updated = await this.store.updateInput(userId, conversationId, inputId, {
       status: 'ready',
       summary: global?.summary?.slice(0, 400) || null,
       summaryCounts: { local: localCount, section: sectionCount },
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     });
     onProgress?.({ phase: 'ready', inputId, chunkCount });
     return updated;
@@ -171,7 +186,14 @@ class LongContextEngine {
    * @param {number} [params.maxChunks]
    * @returns {Promise<{messages, usage, retrievedBlocks, taskState}>}
    */
-  async composeChatContext({ userId, conversationId, request, recentMessages = [], taskState = null, maxChunks = 6 }) {
+  async composeChatContext({
+    userId,
+    conversationId,
+    request,
+    recentMessages = [],
+    taskState = null,
+    maxChunks = 6,
+  }) {
     if (!taskState) {
       taskState = await this.getTaskState(conversationId);
     }
@@ -180,7 +202,11 @@ class LongContextEngine {
     let retrievedBlocks = [];
     if (inputs.length > 0) {
       retrievedBlocks = await this.retriever.retrieve({
-        userId, conversationId, request, inputs, maxChunks
+        userId,
+        conversationId,
+        request,
+        inputs,
+        maxChunks,
       });
     }
 
@@ -188,9 +214,9 @@ class LongContextEngine {
     const taskStateBlock = this.serializeTaskState(taskState);
 
     // Retrieved blocks: clamp defensively; budget manager does the real math.
-    const clamped = retrievedBlocks.map((b) => ({
+    const clamped = retrievedBlocks.map(b => ({
       ...b,
-      content: clampBlock(b.content, 12000)
+      content: clampBlock(b.content, 12000),
     }));
 
     const { messages, usage } = this.budget.compose({
@@ -198,7 +224,7 @@ class LongContextEngine {
       taskState: taskStateBlock,
       retrievedBlocks: clamped,
       recentMessages,
-      userRequest: request
+      userRequest: request,
     });
 
     return { messages, usage, retrievedBlocks, taskState };
@@ -207,14 +233,14 @@ class LongContextEngine {
   systemPrompt() {
     return [
       'You are Infinity, the local AI assistant powering DARKMATTER.',
-      'You run through a locally hosted Gemma model on the user\'s own device.',
+      "You run through a locally hosted Gemma model on the user's own device.",
       '',
       'CRITICAL LANGUAGE RULE:',
-      '- ALWAYS detect and reply in the EXACT SAME LANGUAGE and vocabulary/script as the user\'s message.',
+      "- ALWAYS detect and reply in the EXACT SAME LANGUAGE and vocabulary/script as the user's message.",
       '- If the user speaks in Hinglish (e.g. "game bana k de", "kya chal rha hai", "batao mera code"), reply in natural Hinglish.',
       '- If the user speaks in Hindi (e.g. "नमस्ते", "गेम बना कर दो"), reply in Hindi.',
       '- If the user speaks in English, reply in English.',
-      '- Match the user\'s language style consistently throughout your entire response.',
+      "- Match the user's language style consistently throughout your entire response.",
       '',
       'CONTEXT PROTOCOL:',
       '- You may be given [TASK STATE] (persistent conversation memory),',
@@ -227,7 +253,7 @@ class LongContextEngine {
       '  NEVER fabricate quotes, code, or facts.',
       '- Exact source (chunks) always outranks summaries for code/JSON/config questions.',
       '',
-      'STYLE: Use clear markdown formatting for readability.'
+      'STYLE: Use clear markdown formatting for readability.',
     ].join('\n');
   }
 
@@ -244,7 +270,7 @@ class LongContextEngine {
       constraints: [],
       referencedChunks: [],
       inputs: [],
-      updatedAt: null
+      updatedAt: null,
     };
   }
 
@@ -257,8 +283,14 @@ class LongContextEngine {
     const state = await this.getTaskState(conversationId);
     if (entry.type === 'input') {
       state.inputs = [
-        ...state.inputs.filter((i) => i.inputId !== entry.inputId),
-        { inputId: entry.inputId, title: entry.title, chunkCount: entry.chunkCount, hash: entry.hash, at: new Date().toISOString() }
+        ...state.inputs.filter(i => i.inputId !== entry.inputId),
+        {
+          inputId: entry.inputId,
+          title: entry.title,
+          chunkCount: entry.chunkCount,
+          hash: entry.hash,
+          at: new Date().toISOString(),
+        },
       ].slice(-20);
     }
     state.updatedAt = new Date().toISOString();
@@ -271,19 +303,40 @@ class LongContextEngine {
    * extraction heuristics); the rolling summary is only re-condensed when it
    * grows beyond a threshold, to avoid unnecessary model calls (#41).
    */
-  async updateMemoryAfterTurn({ userId = null, conversationId, userMessage, assistantReply, existingSummary }) {
+  async updateMemoryAfterTurn({
+    userId = null,
+    conversationId,
+    userMessage,
+    assistantReply,
+    existingSummary,
+  }) {
     const state = await this.getTaskState(conversationId);
 
     // Rolling summary: append a compact turn digest (deterministic, no model call).
     const turnDigest = `User: ${userMessage.slice(0, 200)}${userMessage.length > 200 ? '…' : ''} | Assistant: ${assistantReply.slice(0, 200)}${assistantReply.length > 200 ? '…' : ''}`;
-    state.conversationSummary = [state.conversationSummary, turnDigest].filter(Boolean).join('\n').slice(-4000);
+    state.conversationSummary = [state.conversationSummary, turnDigest]
+      .filter(Boolean)
+      .join('\n')
+      .slice(-4000);
 
     // Heuristic requirement extraction (deterministic; no model call needed).
     const lower = userMessage.toLowerCase();
-    const REQUIREMENT_HINTS = ['use ', 'must ', 'no ', 'only ', 'always ', 'never ', 'should ', 'keep ', 'requirement', 'constraint', 'prefer'];
-    if (userMessage.length < 500 && REQUIREMENT_HINTS.some((h) => lower.includes(h))) {
+    const REQUIREMENT_HINTS = [
+      'use ',
+      'must ',
+      'no ',
+      'only ',
+      'always ',
+      'never ',
+      'should ',
+      'keep ',
+      'requirement',
+      'constraint',
+      'prefer',
+    ];
+    if (userMessage.length < 500 && REQUIREMENT_HINTS.some(h => lower.includes(h))) {
       const req = userMessage.trim().slice(0, 200);
-      if (!state.requirements.some((r) => r.text === req)) {
+      if (!state.requirements.some(r => r.text === req)) {
         state.requirements.push({ text: req, at: new Date().toISOString() });
         state.requirements = state.requirements.slice(-30);
       }
@@ -297,8 +350,12 @@ class LongContextEngine {
       try {
         const { text } = await this.model.complete(
           [
-            { role: 'system', content: 'Condense the following conversation digest into a tight factual summary under 250 words. Keep names, decisions, requirements. No preamble.' },
-            { role: 'user', content: state.conversationSummary }
+            {
+              role: 'system',
+              content:
+                'Condense the following conversation digest into a tight factual summary under 250 words. Keep names, decisions, requirements. No preamble.',
+            },
+            { role: 'user', content: state.conversationSummary },
           ],
           { maxTokens: 320, maxAttempts: 2, userId }
         );
@@ -317,10 +374,12 @@ class LongContextEngine {
     const parts = [];
     if (state.conversationSummary) parts.push(`CONVERSATION DIGEST:\n${state.conversationSummary}`);
     if (state.requirements?.length) {
-      parts.push(`REQUIREMENTS:\n${state.requirements.map((r) => `- ${r.text}`).join('\n')}`);
+      parts.push(`REQUIREMENTS:\n${state.requirements.map(r => `- ${r.text}`).join('\n')}`);
     }
     if (state.inputs?.length) {
-      parts.push(`INGESTED DOCUMENTS:\n${state.inputs.map((i) => `- ${i.title} (${i.inputId}, ${i.chunkCount} chunks)`).join('\n')}`);
+      parts.push(
+        `INGESTED DOCUMENTS:\n${state.inputs.map(i => `- ${i.title} (${i.inputId}, ${i.chunkCount} chunks)`).join('\n')}`
+      );
     }
     if (!parts.length) return null;
     return parts.join('\n\n');
@@ -346,7 +405,7 @@ class LongContextEngine {
       endOffset: chunk.endOffset,
       preview: chunk.content.slice(0, 300),
       score,
-      matchedTerms
+      matchedTerms,
     }));
   }
 
@@ -371,7 +430,12 @@ class LongContextEngine {
     const input = await this.store.getInput(userId, conversationId, inputId);
     if (!input) throw Object.assign(new Error('Input not found'), { status: 404 });
     const { global } = await this.summarizer.buildHierarchy({ userId, conversationId, input });
-    return { inputId, title: input.title, summary: global?.summary || null, sourceChunks: global?.sourceChunks || [] };
+    return {
+      inputId,
+      title: input.title,
+      summary: global?.summary || null,
+      sourceChunks: global?.sourceChunks || [],
+    };
   }
 }
 

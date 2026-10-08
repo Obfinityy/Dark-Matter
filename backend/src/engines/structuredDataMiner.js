@@ -17,7 +17,8 @@
 
 const SCHEMA_ORG_PREFIX = 'https://schema.org/';
 const AMP_ANALYTICS_RE = /<amp-analytics\b([^>]*)>([\s\S]*?)<\/amp-analytics\s*>/gi;
-const ANALYTICS_JSON_SCRIPT_RE = /<script\b[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script\s*>/i;
+const ANALYTICS_JSON_SCRIPT_RE =
+  /<script\b[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script\s*>/i;
 const LINK_TAG_RE = /<link\b[^>]*>/gi;
 const META_TAG_RE = /<meta\b[^>]*>/gi;
 const ANCHOR_TAG_RE = /<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi;
@@ -53,7 +54,7 @@ function flattenJsonLd(input) {
   if (!data || typeof data !== 'object') return [];
   const roots = Array.isArray(data) ? data : [data];
   const out = [];
-  const visit = (node) => {
+  const visit = node => {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) {
       node.forEach(visit);
@@ -75,9 +76,7 @@ function flattenJsonLd(input) {
 function typeNames(node) {
   const t = node && node['@type'];
   const list = Array.isArray(t) ? t : [t];
-  return list
-    .filter((x) => typeof x === 'string')
-    .map((x) => x.replace(SCHEMA_ORG_PREFIX, ''));
+  return list.filter(x => typeof x === 'string').map(x => x.replace(SCHEMA_ORG_PREFIX, ''));
 }
 
 /**
@@ -96,7 +95,7 @@ function isType(node, type) {
  * @returns {object[]}
  */
 function nodesOfType(jsonLd, types) {
-  return flattenJsonLd(jsonLd).filter((n) => types.some((t) => isType(n, t)));
+  return flattenJsonLd(jsonLd).filter(n => types.some(t => isType(n, t)));
 }
 
 /**
@@ -140,7 +139,7 @@ function urlOf(value) {
  */
 function dedupe(entries, keyFn) {
   const seen = new Set();
-  return entries.filter((e) => {
+  return entries.filter(e => {
     const k = keyFn(e);
     if (seen.has(k)) return false;
     seen.add(k);
@@ -163,10 +162,11 @@ function dedupe(entries, keyFn) {
  */
 export function mapJobPostingHosts(jsonLd) {
   const nodes = nodesOfType(jsonLd, ['JobPosting']);
-  const out = nodes.map((n) => {
+  const out = nodes.map(n => {
     const jobUrl = urlOf(n.url);
     const org = n.hiringOrganization;
-    const orgName = org && typeof org === 'object' ? (org.name || null) : (typeof org === 'string' ? org : null);
+    const orgName =
+      org && typeof org === 'object' ? org.name || null : typeof org === 'string' ? org : null;
     const orgUrl = urlOf(org);
     const contacts = [];
     for (const key of ['applicationContact', 'jobLocation']) {
@@ -188,7 +188,7 @@ export function mapJobPostingHosts(jsonLd) {
       contactUrls: [...new Set(contacts)],
     };
   });
-  return dedupe(out, (e) => `${e.jobUrl || ''}|${e.hiringOrgUrl || ''}`);
+  return dedupe(out, e => `${e.jobUrl || ''}|${e.hiringOrgUrl || ''}`);
 }
 
 /**
@@ -205,29 +205,36 @@ export function mapJobPostingHosts(jsonLd) {
  *   offerUrls: string[], performerUrls: string[]}[]}
  */
 export function mapEventVenues(jsonLd) {
-  const nodes = nodesOfType(jsonLd, ['Event', 'MusicEvent', 'SportsEvent', 'BusinessEvent', 'SocialEvent']);
-  const personOf = (v) => {
+  const nodes = nodesOfType(jsonLd, [
+    'Event',
+    'MusicEvent',
+    'SportsEvent',
+    'BusinessEvent',
+    'SocialEvent',
+  ]);
+  const personOf = v => {
     const url = urlOf(v);
     const name = v && typeof v === 'object' && typeof v.name === 'string' ? v.name : null;
     return { name, url: url || null, host: hostOf(url) };
   };
-  const out = nodes.map((n) => {
+  const out = nodes.map(n => {
     const eventUrl = urlOf(n.url);
-    const toList = (v) => (Array.isArray(v) ? v : [v]).filter(Boolean);
+    const toList = v => (Array.isArray(v) ? v : [v]).filter(Boolean);
     const offerUrls = [...new Set(toList(n.offers).map(urlOf).filter(Boolean))];
     const performerUrls = [...new Set(toList(n.performer).map(urlOf).filter(Boolean))];
     return {
       name: typeof n.name === 'string' ? n.name : null,
       eventUrl: eventUrl || null,
       eventHost: hostOf(eventUrl),
-      eventStatus: typeof n.eventStatus === 'string' ? n.eventStatus.replace(SCHEMA_ORG_PREFIX, '') : null,
-      venues: dedupe(toList(n.location).map(personOf), (v) => v.url || v.name || ''),
-      organizers: dedupe(toList(n.organizer).map(personOf), (o) => o.url || o.name || ''),
+      eventStatus:
+        typeof n.eventStatus === 'string' ? n.eventStatus.replace(SCHEMA_ORG_PREFIX, '') : null,
+      venues: dedupe(toList(n.location).map(personOf), v => v.url || v.name || ''),
+      organizers: dedupe(toList(n.organizer).map(personOf), o => o.url || o.name || ''),
       offerUrls,
       performerUrls,
     };
   });
-  return dedupe(out, (e) => `${e.eventUrl || ''}|${e.name || ''}`);
+  return dedupe(out, e => `${e.eventUrl || ''}|${e.name || ''}`);
 }
 
 /**
@@ -245,16 +252,19 @@ export function mapEventVenues(jsonLd) {
  */
 export function mapProductOffers(jsonLd) {
   const nodes = nodesOfType(jsonLd, ['Product']);
-  const out = nodes.map((n) => {
+  const out = nodes.map(n => {
     const productUrl = urlOf(n.url);
-    const toList = (v) => (Array.isArray(v) ? v : [v]).filter(Boolean);
+    const toList = v => (Array.isArray(v) ? v : [v]).filter(Boolean);
     const offers = dedupe(
       toList(n.offers)
-        .filter((o) => isType(o, 'Offer') || o.url || o.price)
-        .map((o) => {
+        .filter(o => isType(o, 'Offer') || o.url || o.price)
+        .map(o => {
           const offerUrl = urlOf(o);
           const seller = o.seller;
-          const sellerName = seller && typeof seller === 'object' && typeof seller.name === 'string' ? seller.name : null;
+          const sellerName =
+            seller && typeof seller === 'object' && typeof seller.name === 'string'
+              ? seller.name
+              : null;
           const sellerUrl = urlOf(seller);
           return {
             url: offerUrl || null,
@@ -265,10 +275,11 @@ export function mapProductOffers(jsonLd) {
             sellerHost: hostOf(sellerUrl),
           };
         }),
-      (o) => o.url || `${o.sellerHost || ''}|${o.price || ''}`
+      o => o.url || `${o.sellerHost || ''}|${o.price || ''}`
     );
     const reviewUrls = [...new Set(toList(n.review).map(urlOf).filter(Boolean))];
-    const agg = n.aggregateRating && typeof n.aggregateRating === 'object' ? n.aggregateRating : null;
+    const agg =
+      n.aggregateRating && typeof n.aggregateRating === 'object' ? n.aggregateRating : null;
     return {
       name: typeof n.name === 'string' ? n.name : null,
       productUrl: productUrl || null,
@@ -283,7 +294,7 @@ export function mapProductOffers(jsonLd) {
         : null,
     };
   });
-  return dedupe(out, (p) => `${p.productUrl || ''}|${p.name || ''}`);
+  return dedupe(out, p => `${p.productUrl || ''}|${p.name || ''}`);
 }
 
 /**
@@ -300,20 +311,23 @@ export function mapProductOffers(jsonLd) {
  */
 export function mineBreadcrumbPaths(jsonLd) {
   const nodes = nodesOfType(jsonLd, ['BreadcrumbList']);
-  const trails = nodes.map((n) => {
+  const trails = nodes.map(n => {
     const raw = n.itemListElement;
     const items = (Array.isArray(raw) ? raw : [raw])
-      .filter((i) => i && typeof i === 'object')
-      .map((i) => {
+      .filter(i => i && typeof i === 'object')
+      .map(i => {
         const item = i.item;
         const url = urlOf(item) || urlOf(i);
-        const name = (item && typeof item === 'object' && typeof item.name === 'string' ? item.name : null) ||
+        const name =
+          (item && typeof item === 'object' && typeof item.name === 'string' ? item.name : null) ||
           (typeof i.name === 'string' ? i.name : null);
         let path = null;
         if (url && /^https?:\/\//i.test(url)) {
           try {
             path = new URL(url).pathname || '/';
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
         return {
           position: i.position != null ? Number(i.position) : null,
@@ -323,13 +337,15 @@ export function mineBreadcrumbPaths(jsonLd) {
           path,
         };
       })
-      .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
+      .sort(
+        (a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER)
+      );
     const depth = items.length;
-    const firstHost = items.find((i) => i.host)?.host || null;
+    const firstHost = items.find(i => i.host)?.host || null;
     return { items, depth, root: firstHost };
   });
   const maxDepth = trails.reduce((m, t) => Math.max(m, t.depth), 0);
-  const uniqueHosts = [...new Set(trails.flatMap((t) => t.items.map((i) => i.host)).filter(Boolean))];
+  const uniqueHosts = [...new Set(trails.flatMap(t => t.items.map(i => i.host)).filter(Boolean))];
   return { trails, maxDepth, uniqueHosts };
 }
 
@@ -354,8 +370,12 @@ export function mineSitelinksSearchActions(jsonLd) {
     for (const a of list) {
       if (!isType(a, 'SearchAction')) continue;
       const target = a.target;
-      const targetStr = typeof target === 'string' ? target
-        : (target && typeof target === 'object' && typeof target.urlTemplate === 'string' ? target.urlTemplate : null);
+      const targetStr =
+        typeof target === 'string'
+          ? target
+          : target && typeof target === 'object' && typeof target.urlTemplate === 'string'
+            ? target.urlTemplate
+            : null;
       const qi = a['query-input'];
       const queryInput = typeof qi === 'string' ? qi : null;
       let queryParam = null;
@@ -373,7 +393,7 @@ export function mineSitelinksSearchActions(jsonLd) {
       });
     }
   }
-  return dedupe(out, (e) => `${e.siteUrl || ''}|${e.target || ''}`);
+  return dedupe(out, e => `${e.siteUrl || ''}|${e.target || ''}`);
 }
 
 /**
@@ -397,7 +417,10 @@ export function mapSpeakableSections(jsonLd) {
     const selectors = [];
     for (const s of specs) {
       if (typeof s === 'string') {
-        selectors.push({ type: s.trim().startsWith('/') || s.trim().startsWith('(') ? 'xpath' : 'css', value: s });
+        selectors.push({
+          type: s.trim().startsWith('/') || s.trim().startsWith('(') ? 'xpath' : 'css',
+          value: s,
+        });
         continue;
       }
       if (s && typeof s === 'object' && isType(s, 'SpeakableSpecification')) {
@@ -414,10 +437,10 @@ export function mapSpeakableSections(jsonLd) {
     out.push({
       pageUrl: pageUrl || null,
       pageHost: hostOf(pageUrl),
-      selectors: dedupe(selectors, (s) => `${s.type}|${s.value}`),
+      selectors: dedupe(selectors, s => `${s.type}|${s.value}`),
     });
   }
-  return dedupe(out, (e) => `${e.pageUrl || ''}|${e.selectors.map((s) => s.value).join(',')}`);
+  return dedupe(out, e => `${e.pageUrl || ''}|${e.selectors.map(s => s.value).join(',')}`);
 }
 
 /**
@@ -481,7 +504,10 @@ export function extractAmpAnalyticsEndpoints(html = '') {
     if (jsonM) {
       try {
         const cfg = JSON.parse(jsonM[1]);
-        const reqMap = cfg && typeof cfg === 'object' && cfg.requests && typeof cfg.requests === 'object' ? cfg.requests : {};
+        const reqMap =
+          cfg && typeof cfg === 'object' && cfg.requests && typeof cfg.requests === 'object'
+            ? cfg.requests
+            : {};
         requests = Object.entries(reqMap)
           .filter(([, v]) => typeof v === 'string')
           .map(([name, url]) => ({ name, url, host: hostOf(url) }));
@@ -491,13 +517,15 @@ export function extractAmpAnalyticsEndpoints(html = '') {
             requests.push({ name: `transport:${tName}`, url: tVal, host: hostOf(tVal) });
           }
         }
-      } catch { /* malformed inline config — keep attribute-level data */ }
+      } catch {
+        /* malformed inline config — keep attribute-level data */
+      }
     }
     out.push({
       type,
       configUrl: configUrl || null,
       configHost: hostOf(configUrl),
-      requests: dedupe(requests, (r) => `${r.name}|${r.url}`),
+      requests: dedupe(requests, r => `${r.name}|${r.url}`),
     });
   }
   return out;
@@ -574,8 +602,11 @@ export function mapAppleNewsChannels(html = '') {
   let appId = null;
   const appArguments = [];
   const appleNewsMeta = [];
-  const consider = (url) => {
-    if (typeof url === 'string' && /^(https?:)?\/\/([a-z0-9-]+\.)*apple\.news\//i.test(url.trim())) {
+  const consider = url => {
+    if (
+      typeof url === 'string' &&
+      /^(https?:)?\/\/([a-z0-9-]+\.)*apple\.news\//i.test(url.trim())
+    ) {
       channelSet.add(url.trim().replace(/^\/\//, 'https://'));
     }
   };

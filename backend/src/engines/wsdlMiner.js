@@ -12,14 +12,10 @@
  * the full attack surface.
  */
 
-const ADDRESS_RE =
-  /<\s*(?:[\w.-]+:)?address\b[^>]*?\blocation\s*=\s*["']([^"']+)["'][^>]*>/gi;
-const PORT_RE =
-  /<\s*(?:[\w.-]+:)?port\b[^>]*?\bname\s*=\s*["']([^"']+)["'][^>]*>/gi;
-const BINDING_RE =
-  /<\s*(?:[\w.-]+:)?binding\b[^>]*?\bname\s*=\s*["']([^"']+)["'][^>]*>/gi;
-const SERVICE_RE =
-  /<\s*(?:[\w.-]+:)?service\b[^>]*?\bname\s*=\s*["']([^"']+)["'][^>]*>/gi;
+const ADDRESS_RE = /<\s*(?:[\w.-]+:)?address\b[^>]*?\blocation\s*=\s*["']([^"']+)["'][^>]*>/gi;
+const PORT_RE = /<\s*(?:[\w.-]+:)?port\b[^>]*?\bname\s*=\s*["']([^"']+)["'][^>]*>/gi;
+const BINDING_RE = /<\s*(?:[\w.-]+:)?binding\b[^>]*?\bname\s*=\s*["']([^"']+)["'][^>]*>/gi;
+const SERVICE_RE = /<\s*(?:[\w.-]+:)?service\b[^>]*?\bname\s*=\s*["']([^"']+)["'][^>]*>/gi;
 const TARGET_NS_RE =
   /<\s*(?:[\w.-]+:)?definitions\b[^>]*?\btargetNamespace\s*=\s*["']([^"']+)["']/i;
 const BINDING_TYPE_RE =
@@ -105,7 +101,7 @@ export function analyzeWsdl({ url = '', wsdlText = '' } = {}) {
   const endpoints = extractAddresses(text);
   const hosts = extractHosts(text);
   const structure = extractStructure(text);
-  const namedHosts = hosts.filter((h) => h.host).map((h) => h.host);
+  const namedHosts = hosts.filter(h => h.host).map(h => h.host);
 
   return {
     type: 'WSDL Service-Address Extraction',

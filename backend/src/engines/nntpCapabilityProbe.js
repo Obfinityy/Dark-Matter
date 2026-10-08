@@ -9,7 +9,12 @@
  */
 
 const SERVER_SIGNATURES = [
-  { name: 'INN', re: /\binn\b|internews|nntp server ready.*posting/i, ext: /OVER.*HDR/i, confidence: 0.85 },
+  {
+    name: 'INN',
+    re: /\binn\b|internews|nntp server ready.*posting/i,
+    ext: /OVER.*HDR/i,
+    confidence: 0.85,
+  },
   { name: 'Diablo', re: /diablo/i, confidence: 0.95 },
   { name: 'Hamster', re: /hamster/i, confidence: 0.95 },
   { name: 'NNTPCache', re: /nntpcache/i, confidence: 0.9 },
@@ -34,9 +39,9 @@ const RISKY_FEATURES = [
 export function parseNntpExtensions(block = '') {
   return String(block)
     .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !/^\d{3}\b/.test(l) && l !== '.')
-    .map((l) => {
+    .map(l => l.trim())
+    .filter(l => l && !/^\d{3}\b/.test(l) && l !== '.')
+    .map(l => {
       const [token, ...rest] = l.split(/\s+/);
       return { token: token.toUpperCase(), args: rest.join(' ') };
     });
@@ -49,14 +54,17 @@ export function parseNntpExtensions(block = '') {
  */
 export function fingerprintNntpServer(data = {}) {
   const greeting = String(data.greeting || '');
-  const extTokens = (data.extensions || []).map((e) => e.token).join(' ');
+  const extTokens = (data.extensions || []).map(e => e.token).join(' ');
   const candidates = [];
 
   for (const sig of SERVER_SIGNATURES) {
     const greetHit = sig.re.test(greeting);
     const extHit = sig.ext ? sig.ext.test(extTokens) : false;
     if (greetHit || extHit) {
-      candidates.push({ name: sig.name, confidence: greetHit ? sig.confidence : sig.confidence * 0.7 });
+      candidates.push({
+        name: sig.name,
+        confidence: greetHit ? sig.confidence : sig.confidence * 0.7,
+      });
     }
   }
 
@@ -64,7 +72,7 @@ export function fingerprintNntpServer(data = {}) {
   return {
     best: candidates.length > 0 ? candidates[0].name : null,
     confidence: candidates.length > 0 ? candidates[0].confidence : 0,
-    candidates: candidates.map((c) => c.name),
+    candidates: candidates.map(c => c.name),
   };
 }
 
@@ -74,8 +82,8 @@ export function fingerprintNntpServer(data = {}) {
  * @returns {Array<{token: string, note: string}>}
  */
 export function flagNntpExposure(extensions = []) {
-  const present = new Set(extensions.map((e) => e.token.toUpperCase()));
-  return RISKY_FEATURES.filter((f) => present.has(f.token));
+  const present = new Set(extensions.map(e => e.token.toUpperCase()));
+  return RISKY_FEATURES.filter(f => present.has(f.token));
 }
 
 export const NNTP_CAPABILITY_PROBE = {

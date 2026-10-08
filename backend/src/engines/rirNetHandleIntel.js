@@ -117,7 +117,7 @@ export function walkUpToRoot(records, startHandle) {
  * @returns {Array<{netHandle: string, netRange: string, orgHandle: string|null, orgName: string|null, netType: string|null, match: 'org-handle'|'org-name'}>}
  */
 export function findSiblingNetblocks(records, targetHandles) {
-  const targets = new Set((targetHandles || []).map((h) => String(h).trim()));
+  const targets = new Set((targetHandles || []).map(h => String(h).trim()));
   const { byHandle } = buildAllocationTree(records);
   const targetOrgs = new Set();
   const targetNames = new Set();
@@ -148,7 +148,9 @@ export function findSiblingNetblocks(records, targetHandles) {
  * @returns {Array<{netHandle: string, netRange: string, orgName: string|null, parentHandle: string|null, netType: string|null}>}
  */
 export function flagOrgNameDeviations(records, targetOrgName) {
-  const target = String(targetOrgName || '').trim().toLowerCase();
+  const target = String(targetOrgName || '')
+    .trim()
+    .toLowerCase();
   const { byHandle } = buildAllocationTree(records);
   const out = [];
   for (const rec of byHandle.values()) {

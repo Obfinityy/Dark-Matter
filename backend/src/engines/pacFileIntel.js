@@ -14,11 +14,22 @@
  */
 
 const IPV4_RE = /\b(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1?\d{1,2})\b/g;
-const HOSTNAME_RE = /(?<![\w.-])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}(?![\w.-])/g;
+const HOSTNAME_RE =
+  /(?<![\w.-])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}(?![\w.-])/g;
 
 const INTERNAL_TLDS = new Set([
-  'local', 'internal', 'intranet', 'corp', 'lan', 'home', 'private',
-  'localdomain', 'invalid', 'test', 'example', 'wpad',
+  'local',
+  'internal',
+  'intranet',
+  'corp',
+  'lan',
+  'home',
+  'private',
+  'localdomain',
+  'invalid',
+  'test',
+  'example',
+  'wpad',
 ]);
 
 /**
@@ -63,7 +74,9 @@ export function isPrivateIpv4(ip) {
  * @returns {'internal' | 'external' | 'unresolved'}
  */
 export function classifyPacHost(host) {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!h) return 'unresolved';
   if (isIpv4(h)) return isPrivateIpv4(h) ? 'internal' : 'external';
   if (!h.includes('.')) return 'internal';
@@ -98,9 +111,10 @@ export function extractProxyEndpoints(pacText) {
       host,
       port: portPart && /^\d+$/.test(portPart) ? Number(portPart) : null,
       raw,
-      detail: `PAC proxy endpoint: ${m[1].toUpperCase()} ${raw} (${classifyPacHost(host)} host). ` +
+      detail:
+        `PAC proxy endpoint: ${m[1].toUpperCase()} ${raw} (${classifyPacHost(host)} host). ` +
         'Proxy clusters named in PAC files are internet-reachable infrastructure ' +
-        'worth fingerprinting for the target\'s egress architecture.',
+        "worth fingerprinting for the target's egress architecture.",
     });
   }
   return hits;
@@ -155,8 +169,9 @@ export function extractPacSubnets(pacText) {
     out.push({
       network: m[1],
       mask: m[2],
-      detail: `PAC routes ${m[1]}/${m[2]} via a special path — private subnets enumerated ` +
-        'in proxy logic map the target\'s internal network ranges.',
+      detail:
+        `PAC routes ${m[1]}/${m[2]} via a special path — private subnets enumerated ` +
+        "in proxy logic map the target's internal network ranges.",
     });
   }
   return out;
@@ -177,7 +192,8 @@ export function extractDirectBypasses(pacText) {
     const condition = m[1].replace(/\s+/g, ' ').trim();
     out.push({
       condition,
-      detail: `DIRECT bypass when (${condition}) — hosts matching this condition never ` +
+      detail:
+        `DIRECT bypass when (${condition}) — hosts matching this condition never ` +
         'touch the proxy, which identifies internal or trusted destinations.',
     });
   }
@@ -211,7 +227,11 @@ export function extractPacHosts(pacText) {
 
   const hostContexts = new Map(); // host -> Set(context)
   const addHost = (host, context) => {
-    const h = String(host || '').trim().replace(/^\[|\]$/g, '').replace(/\.$/, '').toLowerCase();
+    const h = String(host || '')
+      .trim()
+      .replace(/^\[|\]$/g, '')
+      .replace(/\.$/, '')
+      .toLowerCase();
     if (!h || h === 'direct' || /^\d+$/.test(h)) return;
     if (masks.has(h)) return; // subnet masks are not hosts
     if (!hostContexts.has(h)) hostContexts.set(h, new Set());
@@ -224,7 +244,10 @@ export function extractPacHosts(pacText) {
     const v = lit.value.trim();
     if (!v) continue;
     // Whole-literal host (dnsResolve("intranet01"), PROXY "proxy:8080" args)
-    if (/^[A-Za-z0-9._:-]+$/.test(v) && (isIpv4(v.split(':')[0]) || v.split(':')[0].includes('.') || !v.includes(' '))) {
+    if (
+      /^[A-Za-z0-9._:-]+$/.test(v) &&
+      (isIpv4(v.split(':')[0]) || v.split(':')[0].includes('.') || !v.includes(' '))
+    ) {
       const bare = v.split(':')[0];
       if (isIpv4(bare) || bare.includes('.') || lit.context === 'dnsResolve') {
         if (!/[*?/]/.test(bare)) addHost(bare, lit.context);
@@ -235,19 +258,22 @@ export function extractPacHosts(pacText) {
     for (const im of v.matchAll(IPV4_RE)) addHost(im[0], lit.context);
   }
 
-  const hosts = [...hostContexts.entries()].map(([host, contexts]) => {
-    const kind = classifyPacHost(host);
-    const ctx = [...contexts];
-    return {
-      host,
-      kind,
-      contexts: ctx,
-      detail: `'${host}' appears in PAC logic (${ctx.join(', ')}) — classified ${kind}. ` +
-        (kind === 'internal'
-          ? 'Internal names in proxy rules enumerate intranet infrastructure to pivot into.'
-          : 'External names reveal CDN, SaaS, or partner destinations in the routing policy.'),
-    };
-  }).sort((a, b) => a.host.localeCompare(b.host));
+  const hosts = [...hostContexts.entries()]
+    .map(([host, contexts]) => {
+      const kind = classifyPacHost(host);
+      const ctx = [...contexts];
+      return {
+        host,
+        kind,
+        contexts: ctx,
+        detail:
+          `'${host}' appears in PAC logic (${ctx.join(', ')}) — classified ${kind}. ` +
+          (kind === 'internal'
+            ? 'Internal names in proxy rules enumerate intranet infrastructure to pivot into.'
+            : 'External names reveal CDN, SaaS, or partner destinations in the routing policy.'),
+      };
+    })
+    .sort((a, b) => a.host.localeCompare(b.host));
 
   const summary = {
     proxyCount: proxyEndpoints.length,
@@ -258,23 +284,32 @@ export function extractPacHosts(pacText) {
 
   const findings = [];
   if (proxyEndpoints.length) {
-    findings.push(`${proxyEndpoints.length} proxy endpoint(s) declared: ` +
-      proxyEndpoints.map(e => `${e.scheme} ${e.raw}`).join(', ') +
-      ' — fingerprint these for egress-architecture intel.');
+    findings.push(
+      `${proxyEndpoints.length} proxy endpoint(s) declared: ` +
+        proxyEndpoints.map(e => `${e.scheme} ${e.raw}`).join(', ') +
+        ' — fingerprint these for egress-architecture intel.'
+    );
   }
   const internal = hosts.filter(h => h.kind === 'internal').map(h => h.host);
   if (internal.length) {
-    findings.push(`${internal.length} internal host(s) named in proxy logic: ${internal.slice(0, 12).join(', ')}` +
-      (internal.length > 12 ? ` (+${internal.length - 12} more)` : '') +
-      ' — each is a candidate intranet asset.');
+    findings.push(
+      `${internal.length} internal host(s) named in proxy logic: ${internal.slice(0, 12).join(', ')}` +
+        (internal.length > 12 ? ` (+${internal.length - 12} more)` : '') +
+        ' — each is a candidate intranet asset.'
+    );
   }
   if (subnets.length) {
-    findings.push(`${subnets.length} private subnet(s) enumerated: ` +
-      subnets.map(s => `${s.network}/${s.mask}`).join(', ') + ' — internal ranges from routing policy.');
+    findings.push(
+      `${subnets.length} private subnet(s) enumerated: ` +
+        subnets.map(s => `${s.network}/${s.mask}`).join(', ') +
+        ' — internal ranges from routing policy.'
+    );
   }
   if (directBypasses.length) {
-    findings.push(`${directBypasses.length} DIRECT bypass rule(s) — conditions that skip the proxy ` +
-      'identify trusted/internal destinations.');
+    findings.push(
+      `${directBypasses.length} DIRECT bypass rule(s) — conditions that skip the proxy ` +
+        'identify trusted/internal destinations.'
+    );
   }
 
   return { proxyEndpoints, hosts, subnets, directBypasses, summary, findings };

@@ -70,7 +70,7 @@ export function pivotCoParticipants(ixes, targetAsns) {
     const ixKey = ix.ix_id ?? ix.name ?? 'unknown';
     const ixName = ix.name || `ix-${ix.ix_id ?? 'unknown'}`;
     const parts = ix.participants || [];
-    const targetHere = parts.some((p) => targets.has(p.asn));
+    const targetHere = parts.some(p => targets.has(p.asn));
     for (const p of parts) {
       if (targets.has(p.asn)) {
         if (!targetIxKeys.has(p.asn)) targetIxKeys.set(p.asn, new Set());
@@ -78,8 +78,12 @@ export function pivotCoParticipants(ixes, targetAsns) {
       } else if (targetHere) {
         if (!coParticipants.has(p.asn)) {
           coParticipants.set(p.asn, {
-            asn: p.asn, org: p.org || null, name: p.name || null,
-            shared: new Set(), exchangeNames: new Set(), total: new Set(),
+            asn: p.asn,
+            org: p.org || null,
+            name: p.name || null,
+            shared: new Set(),
+            exchangeNames: new Set(),
+            total: new Set(),
           });
         }
         const entry = coParticipants.get(p.asn);
@@ -99,7 +103,7 @@ export function pivotCoParticipants(ixes, targetAsns) {
 
   const targetIxCount = [...targetIxKeys.values()].reduce((n, s) => n + s.size, 0) || 1;
   return [...coParticipants.values()]
-    .map((e) => ({
+    .map(e => ({
       asn: e.asn,
       org: e.org,
       name: e.name,
@@ -123,7 +127,7 @@ export function peeringDensityByIx(ixes, targetAsns) {
   const out = [];
   for (const ix of ixes || []) {
     const parts = ix.participants || [];
-    const targetHere = parts.filter((p) => targets.has(p.asn)).map((p) => p.asn);
+    const targetHere = parts.filter(p => targets.has(p.asn)).map(p => p.asn);
     if (targetHere.length === 0) continue;
     out.push({
       ixId: ix.ix_id ?? null,
@@ -131,7 +135,7 @@ export function peeringDensityByIx(ixes, targetAsns) {
       city: ix.city || null,
       country: ix.country || null,
       targetAsns: [...new Set(targetHere)].sort((a, b) => a - b),
-      coParticipantCount: parts.filter((p) => !targets.has(p.asn)).length,
+      coParticipantCount: parts.filter(p => !targets.has(p.asn)).length,
     });
   }
   return out.sort((a, b) => b.coParticipantCount - a.coParticipantCount);

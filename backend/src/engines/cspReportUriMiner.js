@@ -42,7 +42,9 @@ export function classifyReportEndpoint(endpoint = '') {
   try {
     const u = new URL(endpoint, 'https://placeholder.invalid');
     host = u.hostname.toLowerCase();
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   let infrastructure = 'in-house-collector';
   if (/report-uri\.com/i.test(host)) infrastructure = 'report-uri-service';
   else if (/sentry\.io|ingest\.sentry/i.test(host)) infrastructure = 'sentry';
@@ -61,8 +63,9 @@ export function classifyReportEndpoint(endpoint = '') {
 export function mineReportUris(headers = {}) {
   const lowered = {};
   for (const [k, v] of Object.entries(headers)) lowered[k.toLowerCase()] = String(v);
-  const csp = lowered['content-security-policy'] || lowered['content-security-policy-report-only'] || '';
-  return extractReportEndpoints(csp).map((e) => ({
+  const csp =
+    lowered['content-security-policy'] || lowered['content-security-policy-report-only'] || '';
+  return extractReportEndpoints(csp).map(e => ({
     ...e,
     ...classifyReportEndpoint(e.endpoint),
   }));

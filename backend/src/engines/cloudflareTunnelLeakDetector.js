@@ -80,7 +80,9 @@ export function parseIngressRules(text) {
     rules.push({
       hostname: hostnames[i] ?? null,
       service: services[i] ?? null,
-      exposesInternal: services[i] ? /localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\./i.test(services[i]) : false,
+      exposesInternal: services[i]
+        ? /localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\./i.test(services[i])
+        : false,
     });
   }
   return rules;
@@ -111,7 +113,8 @@ export function detectCloudflareTunnelLeaks({ source = 'unknown', text = '' } = 
   const credentialsFile = extractCredentialsFile(text);
   const found = tunnelIds.length || tunnelHostnames.length || ingress.length || credentialsFile;
 
-  const severity = credentialsFile || ingress.some((r) => r.exposesInternal) ? 'high' : found ? 'medium' : 'low';
+  const severity =
+    credentialsFile || ingress.some(r => r.exposesInternal) ? 'high' : found ? 'medium' : 'low';
 
   return {
     type: 'Cloudflare Tunnel Config Leak Detection',
@@ -126,8 +129,13 @@ export function detectCloudflareTunnelLeaks({ source = 'unknown', text = '' } = 
         `${tunnelHostnames.length} cfargotunnel.com hostname(s)` +
         (tunnelHostnames.length ? ` (${tunnelHostnames.join(', ')})` : '') +
         `, ${ingress.length} ingress rule(s)` +
-        (ingress.some((r) => r.exposesInternal) ? ' mapping to INTERNAL services' : '') +
-        (credentialsFile ? `, credentials-file reference '${credentialsFile}' (rotate the tunnel secret)`.slice(0, 120) : '') +
+        (ingress.some(r => r.exposesInternal) ? ' mapping to INTERNAL services' : '') +
+        (credentialsFile
+          ? `, credentials-file reference '${credentialsFile}' (rotate the tunnel secret)`.slice(
+              0,
+              120
+            )
+          : '') +
         '. Verify every exposed hostname is intentional.'
       : `No Cloudflare Tunnel artefacts found in ${source}.`,
   };

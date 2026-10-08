@@ -42,10 +42,16 @@ import {
 
 /** OWASP Top 10 names (local copy — FindingCards2 defines this but does not export it; not exported here to avoid name clash). */
 const OWASP_TOP10 = {
-  A01: 'Broken Access Control', A02: 'Cryptographic Failures', A03: 'Injection',
-  A04: 'Insecure Design', A05: 'Security Misconfiguration', A06: 'Vulnerable and Outdated Components',
-  A07: 'Identification and Authentication Failures', A08: 'Software and Data Integrity Failures',
-  A09: 'Security Logging and Monitoring Failures', A10: 'Server-Side Request Forgery',
+  A01: 'Broken Access Control',
+  A02: 'Cryptographic Failures',
+  A03: 'Injection',
+  A04: 'Insecure Design',
+  A05: 'Security Misconfiguration',
+  A06: 'Vulnerable and Outdated Components',
+  A07: 'Identification and Authentication Failures',
+  A08: 'Software and Data Integrity Failures',
+  A09: 'Security Logging and Monitoring Failures',
+  A10: 'Server-Side Request Forgery',
 };
 const OWASP_KEYS = Object.keys(OWASP_TOP10);
 
@@ -72,11 +78,18 @@ export function serializeFilters(filters = {}) {
 
 /** 50198 — deserialize a query string (or URLSearchParams) back into filters, merged over DEFAULT_FILTERS. */
 export function deserializeFilters(query) {
-  const p = query instanceof URLSearchParams ? query : new URLSearchParams(String(query || '').replace(/^\?/, ''));
-  const csv = (k) => (p.get(k) || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const p =
+    query instanceof URLSearchParams
+      ? query
+      : new URLSearchParams(String(query || '').replace(/^\?/, ''));
+  const csv = k =>
+    (p.get(k) || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
   return {
     ...DEFAULT_FILTERS,
-    severities: csv('sev').filter((s) => FC_SEVERITY_KEYS.includes(s)),
+    severities: csv('sev').filter(s => FC_SEVERITY_KEYS.includes(s)),
     invertSeverity: p.get('sevInv') === '1',
     unreviewedOnly: p.get('unrev') === '1',
     status: p.get('status') || 'all',
@@ -88,7 +101,7 @@ export function deserializeFilters(query) {
     tags: csv('tags'),
     tagLogic: p.get('tagLogic') === 'AND' ? 'AND' : 'OR',
     dateRange: p.get('range') || 'all',
-    owasp: csv('owasp').filter((c) => OWASP_KEYS.includes(c)),
+    owasp: csv('owasp').filter(c => OWASP_KEYS.includes(c)),
     chainedOnly: p.get('chained') === '1',
   };
 }
@@ -99,12 +112,16 @@ export function deserializeFilters(query) {
 export function UnreviewedToggle({ value = false, onChange, className = '' }) {
   return (
     <button
-      type="button" role="switch" aria-checked={value}
+      type="button"
+      role="switch"
+      aria-checked={value}
       className={`fc4-switch ${value ? 'fc4-on' : ''} ${className}`}
       onClick={() => onChange && onChange(!value)}
       aria-label="Show unreviewed findings only"
     >
-      <span className="fc4-switch-track" aria-hidden="true"><span className="fc4-switch-thumb" /></span>
+      <span className="fc4-switch-track" aria-hidden="true">
+        <span className="fc4-switch-thumb" />
+      </span>
       <span className="fc4-switch-label">Unreviewed only</span>
     </button>
   );
@@ -114,12 +131,16 @@ export function UnreviewedToggle({ value = false, onChange, className = '' }) {
 export function ChainedOnlyToggle({ value = false, onChange, className = '' }) {
   return (
     <button
-      type="button" role="switch" aria-checked={value}
+      type="button"
+      role="switch"
+      aria-checked={value}
       className={`fc4-switch ${value ? 'fc4-on' : ''} ${className}`}
       onClick={() => onChange && onChange(!value)}
       aria-label="Show only chained findings"
     >
-      <span className="fc4-switch-track" aria-hidden="true"><span className="fc4-switch-thumb" /></span>
+      <span className="fc4-switch-track" aria-hidden="true">
+        <span className="fc4-switch-thumb" />
+      </span>
       <span className="fc4-switch-label">Chained only</span>
     </button>
   );
@@ -128,10 +149,14 @@ export function ChainedOnlyToggle({ value = false, onChange, className = '' }) {
 /** 50200 — "invert selection" checkbox shown beside severity chips. */
 export function InvertSeverityToggle({ value = false, onChange, className = '' }) {
   return (
-    <label className={`fc4-invert ${className}`} title="Exclude the selected severities instead of including them">
+    <label
+      className={`fc4-invert ${className}`}
+      title="Exclude the selected severities instead of including them"
+    >
       <input
-        type="checkbox" checked={value}
-        onChange={(e) => onChange && onChange(e.target.checked)}
+        type="checkbox"
+        checked={value}
+        onChange={e => onChange && onChange(e.target.checked)}
         aria-label="Invert severity selection"
       />
       <span>invert selection</span>
@@ -150,18 +175,20 @@ export function SeverityFilterChips({ findings = [], selected = [], onChange, cl
     }
     return c;
   }, [findings]);
-  const toggle = (sev) => {
+  const toggle = sev => {
     const next = new Set(sel);
-    if (next.has(sev)) next.delete(sev); else next.add(sev);
+    if (next.has(sev)) next.delete(sev);
+    else next.add(sev);
     if (onChange) onChange([...next]);
   };
   return (
     <div className={`fc4-sev-chips ${className}`} role="group" aria-label="Filter by severity">
-      {FC_SEVERITY_KEYS.map((sev) => {
+      {FC_SEVERITY_KEYS.map(sev => {
         const active = sel.has(sev);
         return (
           <button
-            key={sev} type="button"
+            key={sev}
+            type="button"
             className={`fc4-sev-chip fc4-sev-${sev} ${active ? 'fc4-active' : ''}`}
             style={{ '--fc4-sev': FC_SEVERITY[sev].color }}
             aria-pressed={active}
@@ -182,7 +209,11 @@ export function SortDropdown({ value = 'severity', onChange, className = '' }) {
   return (
     <label className={`fc4-sort ${className}`}>
       <span className="fc4-field-label">Sort</span>
-      <select value={value} onChange={(e) => onChange && onChange(e.target.value)} aria-label="Sort findings">
+      <select
+        value={value}
+        onChange={e => onChange && onChange(e.target.value)}
+        aria-label="Sort findings"
+      >
         <option value="severity">Severity</option>
         <option value="confidence">Confidence</option>
         <option value="newest">Newest</option>
@@ -199,9 +230,10 @@ export function StatusSegmentedControl({ value = 'all', onChange, className = ''
   const options = ['all', ...TRIAGE_STAGES];
   return (
     <div className={`fc4-segmented ${className}`} role="group" aria-label="Filter by triage status">
-      {options.map((st) => (
+      {options.map(st => (
         <button
-          key={st} type="button"
+          key={st}
+          type="button"
           className={value === st ? 'fc4-active' : ''}
           aria-pressed={value === st}
           onClick={() => onChange && onChange(st)}
@@ -216,14 +248,23 @@ export function StatusSegmentedControl({ value = 'all', onChange, className = ''
 /** 50199 — AND/OR segmented toggle for tag logic. */
 export function AndOrLogicToggle({ value = 'OR', onChange, className = '' }) {
   return (
-    <div className={`fc4-segmented fc4-andor ${className}`} role="group" aria-label="Tag match logic">
-      {['AND', 'OR'].map((op) => (
+    <div
+      className={`fc4-segmented fc4-andor ${className}`}
+      role="group"
+      aria-label="Tag match logic"
+    >
+      {['AND', 'OR'].map(op => (
         <button
-          key={op} type="button"
+          key={op}
+          type="button"
           className={value === op ? 'fc4-active' : ''}
           aria-pressed={value === op}
           onClick={() => onChange && onChange(op)}
-          title={op === 'AND' ? 'Finding must have ALL selected tags' : 'Finding must have ANY selected tag'}
+          title={
+            op === 'AND'
+              ? 'Finding must have ALL selected tags'
+              : 'Finding must have ANY selected tag'
+          }
         >
           {op}
         </button>
@@ -236,10 +277,16 @@ export function AndOrLogicToggle({ value = 'OR', onChange, className = '' }) {
 export function ConfidenceSlider({ value = 0, onChange, className = '' }) {
   return (
     <label className={`fc4-confidence ${className}`}>
-      <span className="fc4-field-label">Confidence <strong>≥ {value}%</strong></span>
+      <span className="fc4-field-label">
+        Confidence <strong>≥ {value}%</strong>
+      </span>
       <input
-        type="range" min={0} max={100} step={1} value={value}
-        onChange={(e) => onChange && onChange(parseInt(e.target.value, 10))}
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={value}
+        onChange={e => onChange && onChange(parseInt(e.target.value, 10))}
         aria-label="Minimum confidence percent"
       />
     </label>
@@ -250,14 +297,25 @@ export function ConfidenceSlider({ value = 0, onChange, className = '' }) {
 export function ScopedSearchInput({ value = '', onChange, className = '' }) {
   return (
     <label className={`fc4-search ${className}`}>
-      <span aria-hidden="true" className="fc4-search-icon">⌕</span>
+      <span aria-hidden="true" className="fc4-search-icon">
+        ⌕
+      </span>
       <input
-        type="search" value={value} placeholder="Search titles and evidence…"
-        onChange={(e) => onChange && onChange(e.target.value)}
+        type="search"
+        value={value}
+        placeholder="Search titles and evidence…"
+        onChange={e => onChange && onChange(e.target.value)}
         aria-label="Search titles and evidence"
       />
       {value && (
-        <button type="button" className="fc4-search-x" onClick={() => onChange && onChange('')} aria-label="Clear search">✕</button>
+        <button
+          type="button"
+          className="fc4-search-x"
+          onClick={() => onChange && onChange('')}
+          aria-label="Clear search"
+        >
+          ✕
+        </button>
       )}
     </label>
   );
@@ -277,10 +335,16 @@ export function AssetFilterDropdown({ findings = [], value = 'all', onChange, cl
   return (
     <label className={`fc4-asset ${className}`}>
       <span className="fc4-field-label">Asset</span>
-      <select value={value} onChange={(e) => onChange && onChange(e.target.value)} aria-label="Filter by asset host">
+      <select
+        value={value}
+        onChange={e => onChange && onChange(e.target.value)}
+        aria-label="Filter by asset host"
+      >
         <option value="all">All assets</option>
         {assets.map(([host, count]) => (
-          <option key={host} value={host}>{host} ({count})</option>
+          <option key={host} value={host}>
+            {host} ({count})
+          </option>
         ))}
       </select>
     </label>
@@ -288,20 +352,34 @@ export function AssetFilterDropdown({ findings = [], value = 'all', onChange, cl
 }
 
 /** 50190 — Evidence presence toggles: has PoC / has screenshot. */
-export function EvidencePresenceToggles({ hasPoc = false, hasScreenshot = false, onChange, className = '' }) {
+export function EvidencePresenceToggles({
+  hasPoc = false,
+  hasScreenshot = false,
+  onChange,
+  className = '',
+}) {
   const set = (key, v) => onChange && onChange({ hasPoc, hasScreenshot, [key]: v });
   return (
-    <div className={`fc4-evidence ${className}`} role="group" aria-label="Evidence presence filters">
+    <div
+      className={`fc4-evidence ${className}`}
+      role="group"
+      aria-label="Evidence presence filters"
+    >
       {[
         { key: 'hasPoc', val: hasPoc, label: 'Has PoC' },
         { key: 'hasScreenshot', val: hasScreenshot, label: 'Has screenshot' },
-      ].map((t) => (
+      ].map(t => (
         <button
-          key={t.key} type="button" role="switch" aria-checked={t.val}
+          key={t.key}
+          type="button"
+          role="switch"
+          aria-checked={t.val}
           className={`fc4-switch fc4-switch-sm ${t.val ? 'fc4-on' : ''}`}
           onClick={() => set(t.key, !t.val)}
         >
-          <span className="fc4-switch-track" aria-hidden="true"><span className="fc4-switch-thumb" /></span>
+          <span className="fc4-switch-track" aria-hidden="true">
+            <span className="fc4-switch-thumb" />
+          </span>
           <span className="fc4-switch-label">{t.label}</span>
         </button>
       ))}
@@ -314,32 +392,49 @@ export function TagMultiSelect({ allTags = [], selected = [], onChange, classNam
   const [draft, setDraft] = React.useState('');
   const listId = React.useId();
   const sel = selected || [];
-  const add = (tag) => {
+  const add = tag => {
     const t = String(tag || '').trim();
     if (!t || sel.includes(t)) return;
     if (onChange) onChange([...sel, t]);
   };
-  const remove = (tag) => { if (onChange) onChange(sel.filter((t) => t !== tag)); };
+  const remove = tag => {
+    if (onChange) onChange(sel.filter(t => t !== tag));
+  };
   return (
     <div className={`fc4-tags ${className}`}>
       <label className="fc4-tag-input">
         <span className="fc4-field-label">Tags</span>
         <input
-          type="text" value={draft} list={listId} placeholder="Type a tag and press Enter…"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); setDraft(''); } }}
+          type="text"
+          value={draft}
+          list={listId}
+          placeholder="Type a tag and press Enter…"
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add(draft);
+              setDraft('');
+            }
+          }}
           aria-label="Add a tag filter"
         />
         <datalist id={listId}>
-          {(allTags || []).filter((t) => !sel.includes(t)).map((t) => <option key={t} value={t} />)}
+          {(allTags || [])
+            .filter(t => !sel.includes(t))
+            .map(t => (
+              <option key={t} value={t} />
+            ))}
         </datalist>
       </label>
       {sel.length > 0 && (
         <div className="fc4-tag-chips" aria-label="Selected tag filters">
-          {sel.map((t) => (
+          {sel.map(t => (
             <span key={t} className="fc4-tag-chip">
               {t}
-              <button type="button" onClick={() => remove(t)} aria-label={`Remove tag ${t}`}>✕</button>
+              <button type="button" onClick={() => remove(t)} aria-label={`Remove tag ${t}`}>
+                ✕
+              </button>
             </span>
           ))}
         </div>
@@ -357,10 +452,15 @@ export function DateRangeFilter({ value = 'all', onChange, className = '' }) {
     { key: 'thisHunt', label: 'This hunt' },
   ];
   return (
-    <div className={`fc4-segmented ${className}`} role="group" aria-label="Filter by discovery date">
-      {options.map((o) => (
+    <div
+      className={`fc4-segmented ${className}`}
+      role="group"
+      aria-label="Filter by discovery date"
+    >
+      {options.map(o => (
         <button
-          key={o.key} type="button"
+          key={o.key}
+          type="button"
           className={value === o.key ? 'fc4-active' : ''}
           aria-pressed={value === o.key}
           onClick={() => onChange && onChange(o.key)}
@@ -382,17 +482,23 @@ export function OwaspChecklist({ findings = [], selected = [], onChange, classNa
     }
     return c;
   }, [findings]);
-  const toggle = (code) => {
+  const toggle = code => {
     const next = new Set(sel);
-    if (next.has(code)) next.delete(code); else next.add(code);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
     if (onChange) onChange([...next]);
   };
   return (
-    <div className={`fc4-owasp ${className}`} role="group" aria-label="Filter by OWASP Top 10 category">
-      {OWASP_KEYS.map((code) => (
+    <div
+      className={`fc4-owasp ${className}`}
+      role="group"
+      aria-label="Filter by OWASP Top 10 category"
+    >
+      {OWASP_KEYS.map(code => (
         <label key={code} className={`fc4-owasp-row ${sel.has(code) ? 'fc4-checked' : ''}`}>
           <input
-            type="checkbox" checked={sel.has(code)}
+            type="checkbox"
+            checked={sel.has(code)}
             onChange={() => toggle(code)}
             aria-label={`${code} — ${OWASP_TOP10[code]}`}
           />
@@ -422,7 +528,7 @@ function loadPresets() {
   try {
     const raw = window.localStorage.getItem(PRESET_LS_KEY);
     const parsed = JSON.parse(raw || '[]');
-    return Array.isArray(parsed) ? parsed.filter((p) => p && p.name && p.filters) : [];
+    return Array.isArray(parsed) ? parsed.filter(p => p && p.name && p.filters) : [];
   } catch {
     return [];
   }
@@ -431,42 +537,70 @@ function loadPresets() {
 export function SavedFilterPresets({ filters, onApply, onSave, className = '' }) {
   const [saved, setSaved] = React.useState(loadPresets);
   const [draft, setDraft] = React.useState('');
-  const persist = (list) => {
+  const persist = list => {
     setSaved(list);
-    try { window.localStorage.setItem(PRESET_LS_KEY, JSON.stringify(list)); } catch { /* storage unavailable */ }
+    try {
+      window.localStorage.setItem(PRESET_LS_KEY, JSON.stringify(list));
+    } catch {
+      /* storage unavailable */
+    }
   };
   const saveCurrent = () => {
     const name = draft.trim();
     if (!name) return;
-    const next = [...saved.filter((p) => p.name !== name), { name, filters: { ...filters } }];
+    const next = [...saved.filter(p => p.name !== name), { name, filters: { ...filters } }];
     persist(next);
     setDraft('');
     if (onSave) onSave(name, filters);
   };
-  const remove = (name) => persist(saved.filter((p) => p.name !== name));
+  const remove = name => persist(saved.filter(p => p.name !== name));
   return (
     <div className={`fc4-presets ${className}`} role="group" aria-label="Saved filter presets">
-      {BUILT_IN_PRESETS.map((p) => (
-        <button key={p.name} type="button" className="fc4-preset" onClick={() => onApply && onApply(p.filters)} title="Apply built-in preset">
+      {BUILT_IN_PRESETS.map(p => (
+        <button
+          key={p.name}
+          type="button"
+          className="fc4-preset"
+          onClick={() => onApply && onApply(p.filters)}
+          title="Apply built-in preset"
+        >
           {p.name}
         </button>
       ))}
-      {saved.map((p) => (
+      {saved.map(p => (
         <span key={p.name} className="fc4-preset-saved">
-          <button type="button" className="fc4-preset" onClick={() => onApply && onApply(p.filters)} title={`Apply preset “${p.name}”`}>
+          <button
+            type="button"
+            className="fc4-preset"
+            onClick={() => onApply && onApply(p.filters)}
+            title={`Apply preset “${p.name}”`}
+          >
             {p.name}
           </button>
-          <button type="button" className="fc4-preset-x" onClick={() => remove(p.name)} aria-label={`Delete preset ${p.name}`}>✕</button>
+          <button
+            type="button"
+            className="fc4-preset-x"
+            onClick={() => remove(p.name)}
+            aria-label={`Delete preset ${p.name}`}
+          >
+            ✕
+          </button>
         </span>
       ))}
       <span className="fc4-preset-save">
         <input
-          type="text" value={draft} placeholder="Name this filter set…"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') saveCurrent(); }}
+          type="text"
+          value={draft}
+          placeholder="Name this filter set…"
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') saveCurrent();
+          }}
           aria-label="Preset name"
         />
-        <button type="button" onClick={saveCurrent} disabled={!draft.trim()}>Save</button>
+        <button type="button" onClick={saveCurrent} disabled={!draft.trim()}>
+          Save
+        </button>
       </span>
     </div>
   );
@@ -478,11 +612,12 @@ export function ActiveFilterPills({ filters, onRemove, className = '' }) {
   if (!pills.length) return null;
   return (
     <div className={`fc4-pills ${className}`} aria-label="Active filters">
-      {pills.map((p) => (
+      {pills.map(p => (
         <span key={p.key} className="fc4-pill">
           <span className="fc4-pill-text">{p.text}</span>
           <button
-            type="button" className="fc4-pill-x"
+            type="button"
+            className="fc4-pill-x"
             onClick={() => onRemove && onRemove(p.key)}
             aria-label={`Remove filter: ${p.text}`}
           >
@@ -499,7 +634,11 @@ export function ConditionalClearAll({ filters, onClear, className = '' }) {
   const n = countActiveFilters(filters);
   if (n === 0) return null;
   return (
-    <button type="button" className={`fc4-clearall ${className}`} onClick={() => onClear && onClear()}>
+    <button
+      type="button"
+      className={`fc4-clearall ${className}`}
+      onClick={() => onClear && onClear()}
+    >
       Clear all ({n})
     </button>
   );
@@ -519,12 +658,14 @@ export function EmptyResultState({ filters, onClear, className = '' }) {
   const labels = activeFilterLabels(filters);
   return (
     <div className={`fc4-empty ${className}`} role="status">
-      <div className="fc4-empty-icon" aria-hidden="true">∅</div>
+      <div className="fc4-empty-icon" aria-hidden="true">
+        ∅
+      </div>
       <h3>No findings match</h3>
       {labels.length > 0 ? (
         <p>
-          Active filters: {labels.map((l) => l.text).join(' · ')}. Try widening a filter below
-          or clear everything to see the full list.
+          Active filters: {labels.map(l => l.text).join(' · ')}. Try widening a filter below or
+          clear everything to see the full list.
         </p>
       ) : (
         <p>No findings to show. The hunt hasn't surfaced any results yet.</p>
@@ -542,9 +683,14 @@ export function EmptyResultState({ filters, onClear, className = '' }) {
 export function ShareableFilterUrlButton({ filters, className = '' }) {
   const [copied, setCopied] = React.useState(false);
   const timer = React.useRef(null);
-  React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  React.useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
-  const copyFallback = (text) => {
+  const copyFallback = text => {
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.setAttribute('readonly', '');
@@ -553,7 +699,11 @@ export function ShareableFilterUrlButton({ filters, className = '' }) {
     document.body.appendChild(ta);
     ta.select();
     let ok = false;
-    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    try {
+      ok = document.execCommand('copy');
+    } catch {
+      ok = false;
+    }
     document.body.removeChild(ta);
     return ok;
   };
@@ -563,7 +713,9 @@ export function ShareableFilterUrlButton({ filters, className = '' }) {
     const url = `${window.location.origin}${window.location.pathname}${qs ? `?${qs}` : ''}`;
     try {
       window.history.replaceState(null, '', url);
-    } catch { /* history unavailable */ }
+    } catch {
+      /* history unavailable */
+    }
     let ok = false;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -583,7 +735,12 @@ export function ShareableFilterUrlButton({ filters, className = '' }) {
   };
 
   return (
-    <button type="button" className={`fc4-share ${className}`} onClick={share} title="Copy a shareable link with these filters">
+    <button
+      type="button"
+      className={`fc4-share ${className}`}
+      onClick={share}
+      title="Copy a shareable link with these filters"
+    >
       {copied ? '✓ Copied' : '⧉ Share filters'}
     </button>
   );
@@ -601,19 +758,30 @@ export function ShareableFilterUrlButton({ filters, className = '' }) {
  * fieldsets + legends for accessibility.
  */
 export function FindingFilters({
-  findings = [], filters, onChange, onClear,
-  sort = 'severity', onSortChange, huntStartedAt = 0, className = '',
+  findings = [],
+  filters,
+  onChange,
+  onClear,
+  sort = 'severity',
+  onSortChange,
+  huntStartedAt = 0,
+  className = '',
 }) {
   const f = { ...DEFAULT_FILTERS, ...(filters || {}) };
-  const set = (patch) => onChange && onChange({ ...f, ...patch });
-  const removeFilter = (key) => {
+  const set = patch => onChange && onChange({ ...f, ...patch });
+  const removeFilter = key => {
     const reset = PILL_RESETS[key] || {};
     set(reset);
   };
 
   // Live severity counts: apply everything EXCEPT severity, then count per severity.
   const sevCountBase = React.useMemo(
-    () => applyFilters(findings, { ...DEFAULT_FILTERS, ...(filters || {}), severities: [], invertSeverity: false }, { huntStartedAt }),
+    () =>
+      applyFilters(
+        findings,
+        { ...DEFAULT_FILTERS, ...(filters || {}), severities: [], invertSeverity: false },
+        { huntStartedAt }
+      ),
     [findings, filters, huntStartedAt]
   );
 
@@ -628,61 +796,70 @@ export function FindingFilters({
   return (
     <section className={`fc4-filterbar ${className}`} aria-label="Finding filters">
       <div className="fc4-row fc4-row-main">
-        <ScopedSearchInput value={f.query} onChange={(v) => set({ query: v })} />
+        <ScopedSearchInput value={f.query} onChange={v => set({ query: v })} />
         <SortDropdown value={sort} onChange={onSortChange} />
         <ShareableFilterUrlButton filters={f} />
       </div>
 
       <fieldset className="fc4-group">
         <legend>Severity</legend>
-        <SeverityFilterChips findings={sevCountBase} selected={f.severities} onChange={(v) => set({ severities: v })} />
-        <InvertSeverityToggle value={f.invertSeverity} onChange={(v) => set({ invertSeverity: v })} />
+        <SeverityFilterChips
+          findings={sevCountBase}
+          selected={f.severities}
+          onChange={v => set({ severities: v })}
+        />
+        <InvertSeverityToggle value={f.invertSeverity} onChange={v => set({ invertSeverity: v })} />
       </fieldset>
 
       <fieldset className="fc4-group">
         <legend>Status & review</legend>
-        <StatusSegmentedControl value={f.status} onChange={(v) => set({ status: v })} />
+        <StatusSegmentedControl value={f.status} onChange={v => set({ status: v })} />
         <div className="fc4-inline-toggles">
-          <UnreviewedToggle value={f.unreviewedOnly} onChange={(v) => set({ unreviewedOnly: v })} />
-          <ChainedOnlyToggle value={f.chainedOnly} onChange={(v) => set({ chainedOnly: v })} />
+          <UnreviewedToggle value={f.unreviewedOnly} onChange={v => set({ unreviewedOnly: v })} />
+          <ChainedOnlyToggle value={f.chainedOnly} onChange={v => set({ chainedOnly: v })} />
         </div>
       </fieldset>
 
       <fieldset className="fc4-group">
         <legend>Confidence & evidence</legend>
-        <ConfidenceSlider value={f.minConfidence} onChange={(v) => set({ minConfidence: v })} />
+        <ConfidenceSlider value={f.minConfidence} onChange={v => set({ minConfidence: v })} />
         <EvidencePresenceToggles
-          hasPoc={f.hasPoc} hasScreenshot={f.hasScreenshot}
+          hasPoc={f.hasPoc}
+          hasScreenshot={f.hasScreenshot}
           onChange={({ hasPoc, hasScreenshot }) => set({ hasPoc, hasScreenshot })}
         />
       </fieldset>
 
       <fieldset className="fc4-group">
         <legend>Asset</legend>
-        <AssetFilterDropdown findings={findings} value={f.asset} onChange={(v) => set({ asset: v })} />
+        <AssetFilterDropdown
+          findings={findings}
+          value={f.asset}
+          onChange={v => set({ asset: v })}
+        />
       </fieldset>
 
       <fieldset className="fc4-group">
         <legend>Tags</legend>
         <div className="fc4-tags-row">
-          <TagMultiSelect allTags={allTags} selected={f.tags} onChange={(v) => set({ tags: v })} />
-          <AndOrLogicToggle value={f.tagLogic} onChange={(v) => set({ tagLogic: v })} />
+          <TagMultiSelect allTags={allTags} selected={f.tags} onChange={v => set({ tags: v })} />
+          <AndOrLogicToggle value={f.tagLogic} onChange={v => set({ tagLogic: v })} />
         </div>
       </fieldset>
 
       <fieldset className="fc4-group">
         <legend>Discovered</legend>
-        <DateRangeFilter value={f.dateRange} onChange={(v) => set({ dateRange: v })} />
+        <DateRangeFilter value={f.dateRange} onChange={v => set({ dateRange: v })} />
       </fieldset>
 
       <fieldset className="fc4-group">
         <legend>OWASP Top 10</legend>
-        <OwaspChecklist findings={findings} selected={f.owasp} onChange={(v) => set({ owasp: v })} />
+        <OwaspChecklist findings={findings} selected={f.owasp} onChange={v => set({ owasp: v })} />
       </fieldset>
 
       <fieldset className="fc4-group">
         <legend>Presets</legend>
-        <SavedFilterPresets filters={f} onApply={(next) => set({ ...DEFAULT_FILTERS, ...next })} />
+        <SavedFilterPresets filters={f} onApply={next => set({ ...DEFAULT_FILTERS, ...next })} />
       </fieldset>
 
       <div className="fc4-row fc4-row-foot">

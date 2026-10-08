@@ -11,7 +11,7 @@
  * Output shape: { detected, service, version, confidence, severity, evidence, cwe }
  */
 
-const STR = (v) => (typeof v === 'string' ? v : '');
+const STR = v => (typeof v === 'string' ? v : '');
 
 function getHeader(headers = {}, name) {
   const entries = Object.entries(headers);
@@ -62,22 +62,43 @@ const KIBANA_SIGNATURES = [
  * Elasticsearch root response as `esResponse` for cross-correlation.
  * @param {{url, status, headers, body, esResponse?}} input
  */
-export function fingerprintKibana({ url = '', status = 0, headers = {}, body = '', esResponse = null }) {
+export function fingerprintKibana({
+  url = '',
+  status = 0,
+  headers = {},
+  body = '',
+  esResponse = null,
+}) {
   const text = STR(body);
   let score = 0;
   const hits = [];
   for (const sig of KIBANA_SIGNATURES) {
-    const haystack = sig.type === 'header' ? getHeader(headers, 'kbn-name') + ' ' + getHeader(headers, 'kbn-version') : text;
+    const haystack =
+      sig.type === 'header'
+        ? getHeader(headers, 'kbn-name') + ' ' + getHeader(headers, 'kbn-version')
+        : text;
     if (sig.pattern.test(haystack)) {
       score += sig.weight;
       hits.push(sig.type);
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'Kibana', version: null, confidence: 'none', severity: 'None', evidence: 'No Kibana signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'Kibana',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No Kibana signatures matched.',
+      cwe: null,
+    };
   }
   const data = tryParseJson(text);
-  const kibanaVersion = data?.version?.number || data?.metrics?.status?.version || (text.match(/"version"\s*:\s*\{\s*"number"\s*:\s*"([\d.]+)"/i) || [])[1] || null;
+  const kibanaVersion =
+    data?.version?.number ||
+    data?.metrics?.status?.version ||
+    (text.match(/"version"\s*:\s*\{\s*"number"\s*:\s*"([\d.]+)"/i) || [])[1] ||
+    null;
   const jsonVersion = !!(data && data.version && data.version.number);
   // Cross-correlate with the backing Elasticsearch cluster (idea 00477).
   let esInfo = null;
@@ -92,16 +113,18 @@ export function fingerprintKibana({ url = '', status = 0, headers = {}, body = '
       };
     }
   }
-  const matchNote = kibanaVersion && esInfo && kibanaVersion !== esInfo.version
-    ? ` Version mismatch: Kibana ${kibanaVersion} vs Elasticsearch ${esInfo.version} — may indicate mixed-version exposure.`
-    : '';
+  const matchNote =
+    kibanaVersion && esInfo && kibanaVersion !== esInfo.version
+      ? ` Version mismatch: Kibana ${kibanaVersion} vs Elasticsearch ${esInfo.version} — may indicate mixed-version exposure.`
+      : '';
   return {
     detected: true,
     service: 'Kibana',
     version: kibanaVersion,
     confidence: jsonVersion || score >= 5 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed Kibana often leads to the underlying Elasticsearch cluster and its indexed data.',
+    severityReason:
+      'Exposed Kibana often leads to the underlying Elasticsearch cluster and its indexed data.',
     evidence: `Kibana signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${kibanaVersion ? `; Kibana version ${kibanaVersion}` : ''}${esInfo ? `; correlated Elasticsearch ${esInfo.version} (cluster "${esInfo.clusterName}") at ${esInfo.url}` : ''}.${matchNote}`,
     cwe: 'CWE-200',
     correlated: esInfo,
@@ -115,9 +138,22 @@ export function fingerprintKibana({ url = '', status = 0, headers = {}, body = '
 export function fingerprintElasticsearch({ url = '', status = 0, headers = {}, body = '' }) {
   const text = STR(body);
   const data = tryParseJson(text);
-  const isEs = data && typeof data === 'object' && data.version && typeof data.version.number === 'string' && /You Know, for Search/.test(STR(data.tagline));
+  const isEs =
+    data &&
+    typeof data === 'object' &&
+    data.version &&
+    typeof data.version.number === 'string' &&
+    /You Know, for Search/.test(STR(data.tagline));
   if (!isEs) {
-    return { detected: false, service: 'Elasticsearch', version: null, confidence: 'none', severity: 'None', evidence: 'Response is not an Elasticsearch node root document.', cwe: null };
+    return {
+      detected: false,
+      service: 'Elasticsearch',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'Response is not an Elasticsearch node root document.',
+      cwe: null,
+    };
   }
   const hasProductHeader = /Elasticsearch/i.test(getHeader(headers, 'x-elastic-product'));
   return {
@@ -126,7 +162,8 @@ export function fingerprintElasticsearch({ url = '', status = 0, headers = {}, b
     version: String(data.version.number),
     confidence: hasProductHeader ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed Elasticsearch node root leaks version and cluster name; unauthenticated clusters may allow full data access.',
+    severityReason:
+      'Exposed Elasticsearch node root leaks version and cluster name; unauthenticated clusters may allow full data access.',
     evidence: `Elasticsearch node root matched on ${url} [HTTP ${status}]: version ${data.version.number}, cluster "${data.cluster_name || 'unknown'}".`,
     cwe: 'CWE-200',
   };
@@ -161,7 +198,15 @@ export function fingerprintGrafana({ url = '', status = 0, headers = {}, body = 
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'Grafana', version: null, confidence: 'none', severity: 'None', evidence: 'No Grafana signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'Grafana',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No Grafana signatures matched.',
+      cwe: null,
+    };
   }
   // Prefer the /api/health JSON version; fall back to boot-data JSON embedded in /login.
   const data = tryParseJson(text);
@@ -170,7 +215,9 @@ export function fingerprintGrafana({ url = '', status = 0, headers = {}, body = 
     const m = text.match(/"version"\s*:\s*"([\d.]+)"/i);
     if (m) version = m[1];
   }
-  const assetHashes = [...text.matchAll(/public\/build\/[\w.-]+\.([a-f0-9]{8,})\.js/gi)].map((m) => m[1]).slice(0, 5);
+  const assetHashes = [...text.matchAll(/public\/build\/[\w.-]+\.([a-f0-9]{8,})\.js/gi)]
+    .map(m => m[1])
+    .slice(0, 5);
   // An exact version parsed from JSON is stronger than any heuristic count.
   const confidence = version && data ? 'high' : score >= 6 ? 'high' : 'medium';
   return {
@@ -179,7 +226,8 @@ export function fingerprintGrafana({ url = '', status = 0, headers = {}, body = 
     version,
     confidence,
     severity: 'Medium',
-    severityReason: 'Exposed Grafana may allow anonymous dashboards, data-source probing, and version-specific exploits.',
+    severityReason:
+      'Exposed Grafana may allow anonymous dashboards, data-source probing, and version-specific exploits.',
     evidence: `Grafana signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version}` : ''}${assetHashes.length ? `; frontend asset hashes [${assetHashes.join(', ')}]` : ''}.`,
     cwe: 'CWE-200',
   };
@@ -212,7 +260,15 @@ export function detectPrometheus({ url = '', status = 0, headers = {}, body = ''
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'Prometheus', version: null, confidence: 'none', severity: 'None', evidence: 'No Prometheus signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'Prometheus',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No Prometheus signatures matched.',
+      cwe: null,
+    };
   }
   // /api/v1/status/buildinfo carries the exact version.
   const data = tryParseJson(text);
@@ -227,7 +283,8 @@ export function detectPrometheus({ url = '', status = 0, headers = {}, body = ''
     version,
     confidence: score >= 6 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed Prometheus query API leaks infrastructure metrics and may allow arbitrary PromQL execution.',
+    severityReason:
+      'Exposed Prometheus query API leaks infrastructure metrics and may allow arbitrary PromQL execution.',
     evidence: `Prometheus query-API shape matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version}` : ''}.`,
     cwe: 'CWE-200',
   };
@@ -261,7 +318,15 @@ export function detectZabbix({ url = '', status = 0, headers = {}, body = '' }) 
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'Zabbix', version: null, confidence: 'none', severity: 'None', evidence: 'No Zabbix signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'Zabbix',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No Zabbix signatures matched.',
+      cwe: null,
+    };
   }
   const version = (text.match(/Zabbix\s+([\d.]+)/i) || [])[1] || null;
   return {
@@ -270,7 +335,8 @@ export function detectZabbix({ url = '', status = 0, headers = {}, body = '' }) 
     version,
     confidence: score >= 6 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed Zabbix frontend grants monitoring-system access; Zabbix frontends have a history of critical auth bypass flaws.',
+    severityReason:
+      'Exposed Zabbix frontend grants monitoring-system access; Zabbix frontends have a history of critical auth bypass flaws.',
     evidence: `Zabbix login signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version} extracted` : ''}.`,
     cwe: 'CWE-200',
   };

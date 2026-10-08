@@ -60,9 +60,16 @@ export function parseFrontDoorHeaders(headers) {
   if (!headers) return out;
 
   const entries = Array.isArray(headers)
-    ? headers.map((line) => {
+    ? headers.map(line => {
         const idx = String(line).indexOf(':');
-        return idx === -1 ? ['', ''] : [String(line).slice(0, idx).trim(), String(line).slice(idx + 1).trim()];
+        return idx === -1
+          ? ['', '']
+          : [
+              String(line).slice(0, idx).trim(),
+              String(line)
+                .slice(idx + 1)
+                .trim(),
+            ];
       })
     : Object.entries(headers);
 
@@ -126,12 +133,14 @@ export function detectFrontDoor(hostname, cnameChain = [], headers = {}) {
   const headerInfo = parseFrontDoorHeaders(headers);
   if (headerInfo.viaAfd) {
     viaHeader = true;
-    evidence.push(`Response carries Azure Front Door headers (x-azure-ref${headerInfo.azureRef ? `=${headerInfo.azureRef.slice(0, 24)}…` : ''})`);
+    evidence.push(
+      `Response carries Azure Front Door headers (x-azure-ref${headerInfo.azureRef ? `=${headerInfo.azureRef.slice(0, 24)}…` : ''})`
+    );
   }
 
   const hasFdCname = frontendHosts.length > 0;
   const fronted = hasFdCname || viaHeader;
-  const confidence = (hasFdCname && viaHeader) ? 'high' : fronted ? 'medium' : 'low';
+  const confidence = hasFdCname && viaHeader ? 'high' : fronted ? 'medium' : 'low';
 
   return {
     hostname: host,

@@ -17,7 +17,8 @@ const INGEST_PATTERNS = {
   // SRT ingest: srt://host:port?streamid=...
   srt: /\b(srt):\/\/([a-z0-9.\-_:]+)(\/[^"'`\s<>]*)?/gi,
   // Common JSON config keys: { "ingestUrl": "rtmp://...", "streamKey": "..." }
-  ingestKey: /"(?:ingest_?url|ingest|rtmp_?url|publish_?url|stream_?url|playback_?url)"\s*:\s*"([^"]+)"/gi,
+  ingestKey:
+    /"(?:ingest_?url|ingest|rtmp_?url|publish_?url|stream_?url|playback_?url)"\s*:\s*"([^"]+)"/gi,
   // JS variable assignments: var ingestServer = "rtmp://live.example.com/app";
   jsAssign: /\b(?:ingest|rtmp|publish|stream)[A-Za-z]*\s*=\s*["'`](rtmps?:\/\/[^"'`]+)["'`]/gi,
   // WebRTC / Low-Latency HLS signalling hosts near stream config
@@ -75,7 +76,13 @@ export function extractIngestEndpoints(text, sourceUrl = '') {
       const key = `signalling:${u.href}`;
       if (!seen.has(key)) {
         seen.add(key);
-        findings.push({ protocol: 'webrtc-signalling', url: u.href, host: u.hostname.toLowerCase(), app: '', evidence });
+        findings.push({
+          protocol: 'webrtc-signalling',
+          url: u.href,
+          host: u.hostname.toLowerCase(),
+          app: '',
+          evidence,
+        });
       }
     } catch {
       /* ignore */
@@ -111,7 +118,7 @@ export function summariseIngestHosts(findings = []) {
     entry.protocols.add(f.protocol);
     if (f.app) entry.apps.add(f.app);
   }
-  return [...map.values()].map((e) => ({
+  return [...map.values()].map(e => ({
     host: e.host,
     protocols: [...e.protocols],
     apps: [...e.apps],

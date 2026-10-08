@@ -41,7 +41,7 @@ function validateCrewPayload(body) {
     errors.push('instructions must be a string');
   }
   if (body.toolsAllowed !== undefined) {
-    if (!Array.isArray(body.toolsAllowed) || body.toolsAllowed.some((t) => typeof t !== 'string')) {
+    if (!Array.isArray(body.toolsAllowed) || body.toolsAllowed.some(t => typeof t !== 'string')) {
       errors.push('toolsAllowed must be an array of strings');
     }
   }
@@ -77,8 +77,10 @@ export function createCrewController({ crewService, crewWorker }) {
     create: asyncHandler(async (request, response) => {
       const body = request.body || {};
       const { name, role, instructions, toolsAllowed } = body;
-      if (!name || !String(name).trim()) return badRequest(response, 'name is required', 'MISSING_NAME');
-      if (!role || !String(role).trim()) return badRequest(response, 'role is required', 'MISSING_ROLE');
+      if (!name || !String(name).trim())
+        return badRequest(response, 'name is required', 'MISSING_NAME');
+      if (!role || !String(role).trim())
+        return badRequest(response, 'role is required', 'MISSING_ROLE');
 
       const errors = validateCrewPayload(body);
       if (errors.length) return badRequest(response, errors.join('; '), 'INVALID_CREW');
@@ -89,7 +91,7 @@ export function createCrewController({ crewService, crewWorker }) {
           name: String(name).trim(),
           role: String(role).trim(),
           instructions: instructions == null ? '' : String(instructions),
-          toolsAllowed: Array.isArray(toolsAllowed) ? toolsAllowed : []
+          toolsAllowed: Array.isArray(toolsAllowed) ? toolsAllowed : [],
         });
       } catch (error) {
         if (isServiceValidationError(error)) {
@@ -158,7 +160,7 @@ export function createCrewController({ crewService, crewWorker }) {
       const { runId, status } = await crewWorker.startRun({
         crewId: request.params.id,
         userId: request.user.id, // server-derived identity, never trusted from the body
-        message: String(message)
+        message: String(message),
       });
       latestRunByCrew.set(request.params.id, runId);
       response.json({ runId, status });
@@ -172,7 +174,10 @@ export function createCrewController({ crewService, crewWorker }) {
       const run = await latestRunForCrew(request.params.id);
       if (!run) {
         return response.status(404).json({
-          error: { code: 'NO_RUN', message: 'No run for this crew yet — send a chat message first' }
+          error: {
+            code: 'NO_RUN',
+            message: 'No run for this crew yet — send a chat message first',
+          },
         });
       }
       const runId = run.runId || run.id;
@@ -181,11 +186,11 @@ export function createCrewController({ crewService, crewWorker }) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no'
+        'X-Accel-Buffering': 'no',
       });
       response.flushHeaders?.();
 
-      const send = (event) => {
+      const send = event => {
         response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       };
 
@@ -196,27 +201,31 @@ export function createCrewController({ crewService, crewWorker }) {
         if (finished) return;
         finished = true;
         clearInterval(heartbeat);
-        try { unsubscribe(); } catch { /* already gone */ }
+        try {
+          unsubscribe();
+        } catch {
+          /* already gone */
+        }
         response.end();
       };
       request.on('close', finish);
 
       // 1. Replay what happened while the browser was closed.
       const stored = await crewWorker.getEvents(runId);
-      (Array.isArray(stored) ? stored : []).forEach((event) => {
+      (Array.isArray(stored) ? stored : []).forEach(event => {
         if (!finished) send(event);
       });
 
       // 2. If the run already reached a terminal state, close after replay.
       const state = await crewWorker.getRun(runId).catch(() => null);
       const status = state?.status || run?.status;
-      if (TERMINAL_EVENT_TYPES.has(status) || stored.some((e) => TERMINAL_EVENT_TYPES.has(e.type))) {
+      if (TERMINAL_EVENT_TYPES.has(status) || stored.some(e => TERMINAL_EVENT_TYPES.has(e.type))) {
         finish();
         return;
       }
 
       // 3. Otherwise attach live and end the stream on the terminal event.
-      unsubscribe = crewWorker.subscribe(runId, (event) => {
+      unsubscribe = crewWorker.subscribe(runId, event => {
         if (finished) return;
         send(event);
         if (TERMINAL_EVENT_TYPES.has(event.type)) {
@@ -234,11 +243,11 @@ export function createCrewController({ crewService, crewWorker }) {
       const runId = await resolveRunId(request.params.id, request.body?.runId);
       if (!runId) {
         return response.status(404).json({
-          error: { code: 'NO_RUN', message: 'No run to stop for this crew' }
+          error: { code: 'NO_RUN', message: 'No run to stop for this crew' },
         });
       }
       await crewWorker.stopRun(runId);
       response.json({ ok: true });
-    })
+    }),
   };
 }

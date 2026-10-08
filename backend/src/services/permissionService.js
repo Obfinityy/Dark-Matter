@@ -31,9 +31,9 @@ function invalidModeError(mode) {
 
 export class PermissionService {
   constructor() {
-    this.modes = new Map();      // userId → 'ask' | 'full'
-    this.approvals = new Map();  // approvalId → record
-    this.auditLog = [];          // every destructive decision, both modes
+    this.modes = new Map(); // userId → 'ask' | 'full'
+    this.approvals = new Map(); // approvalId → record
+    this.auditLog = []; // every destructive decision, both modes
     this._seq = 0;
   }
 
@@ -65,32 +65,56 @@ export class PermissionService {
 
     if (mode === 'full') {
       this._audit({ ...entry, event: 'destructive_allowed_full_mode', reason });
-      return { decision: 'allowed', mode, reason: 'permissionMode=full — allowed with audit logging' };
+      return {
+        decision: 'allowed',
+        mode,
+        reason: 'permissionMode=full — allowed with audit logging',
+      };
     }
 
     // mode === 'ask': is there a live approval for this exact action?
-    const live = [...this.approvals.values()].find((a) =>
-      a.userId === userId && a.tool === tool && a.target === target &&
-      a.action === action && a.status === 'approved' && Date.now() - a.decidedAt < APPROVAL_TTL_MS
+    const live = [...this.approvals.values()].find(
+      a =>
+        a.userId === userId &&
+        a.tool === tool &&
+        a.target === target &&
+        a.action === action &&
+        a.status === 'approved' &&
+        Date.now() - a.decidedAt < APPROVAL_TTL_MS
     );
     if (live) {
       this._audit({ ...entry, event: 'destructive_allowed_by_approval', approvalId: live.id });
       return { decision: 'approved', mode, approval: live };
     }
 
-    const pending = [...this.approvals.values()].find((a) =>
-      a.userId === userId && a.tool === tool && a.target === target &&
-      a.action === action && a.status === 'pending' && Date.now() - a.createdAt < APPROVAL_TTL_MS
+    const pending = [...this.approvals.values()].find(
+      a =>
+        a.userId === userId &&
+        a.tool === tool &&
+        a.target === target &&
+        a.action === action &&
+        a.status === 'pending' &&
+        Date.now() - a.createdAt < APPROVAL_TTL_MS
     );
-    if (pending) return { decision: 'needs_approval', mode, approval: pending, reason: 'approval already pending — waiting for user' };
+    if (pending)
+      return {
+        decision: 'needs_approval',
+        mode,
+        approval: pending,
+        reason: 'approval already pending — waiting for user',
+      };
 
     const approval = {
       id: `apr_${Date.now().toString(36)}_${(++this._seq).toString(36)}`,
-      userId, action, tool, target, arguments: args,
+      userId,
+      action,
+      tool,
+      target,
+      arguments: args,
       reason: reason || `Destructive tool "${tool}" requires your approval`,
       status: 'pending',
       createdAt: Date.now(),
-      decidedAt: null
+      decidedAt: null,
     };
     this.approvals.set(approval.id, approval);
     this._audit({ ...entry, event: 'approval_requested', approvalId: approval.id });
@@ -105,19 +129,27 @@ export class PermissionService {
     a.status = approved ? 'approved' : 'denied';
     a.decidedAt = Date.now();
     a.decidedBy = userId;
-    this._audit({ userId: a.userId, event: `approval_${a.status}`, approvalId, tool: a.tool, target: a.target });
+    this._audit({
+      userId: a.userId,
+      event: `approval_${a.status}`,
+      approvalId,
+      tool: a.tool,
+      target: a.target,
+    });
     return a;
   }
 
-  getApproval(approvalId) { return this.approvals.get(approvalId) || null; }
+  getApproval(approvalId) {
+    return this.approvals.get(approvalId) || null;
+  }
 
   listPending(userId) {
-    return [...this.approvals.values()].filter((a) => a.userId === userId && a.status === 'pending');
+    return [...this.approvals.values()].filter(a => a.userId === userId && a.status === 'pending');
   }
 
   /** Read-only audit trail for the UI / compliance. */
   getAuditLog({ userId = null, limit = 100 } = {}) {
-    const rows = userId ? this.auditLog.filter((e) => e.userId === userId) : this.auditLog;
+    const rows = userId ? this.auditLog.filter(e => e.userId === userId) : this.auditLog;
     return rows.slice(-limit);
   }
 

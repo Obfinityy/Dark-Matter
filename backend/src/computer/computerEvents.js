@@ -15,7 +15,7 @@ export class ComputerEvents {
   constructor({ eventService = null, state = null } = {}) {
     this.eventService = eventService;
     this.state = state;
-    this.recent = [];          // in-process ring buffer for late subscribers
+    this.recent = []; // in-process ring buffer for late subscribers
     this.maxRecent = 500;
     this.listeners = new Set();
   }
@@ -40,11 +40,12 @@ export class ComputerEvents {
       level,
       message: String(message || ''),
       data: data || null,
-      channel
+      channel,
     };
 
     this.recent.push({ ...event, at: new Date().toISOString() });
-    if (this.recent.length > this.maxRecent) this.recent.splice(0, this.recent.length - this.maxRecent);
+    if (this.recent.length > this.maxRecent)
+      this.recent.splice(0, this.recent.length - this.maxRecent);
 
     for (const listener of this.listeners) {
       try {
@@ -66,7 +67,7 @@ export class ComputerEvents {
 
   /** Recent events, for the dashboard's first paint before SSE attaches. */
   listRecent(channel, limit = 100) {
-    const filtered = channel ? this.recent.filter((e) => e.channel === channel) : this.recent;
+    const filtered = channel ? this.recent.filter(e => e.channel === channel) : this.recent;
     return filtered.slice(-limit);
   }
 }

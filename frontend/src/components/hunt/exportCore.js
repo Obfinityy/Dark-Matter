@@ -55,11 +55,15 @@ function riskScoreOf(findings) {
 // 52182 — Executive-summary PDF export: one-page-per-hunt model with risk
 // score, top findings, and remediation status, branded for leadership.
 export function buildExecSummaryModel(hunt) {
-  const findings = (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).filter((f) => f.status !== 'false-positive');
-  const sorted = [...findings].sort((a, b) => (SEVERITY_RANK[a.severity] ?? 99) - (SEVERITY_RANK[b.severity] ?? 99));
+  const findings = (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).filter(
+    f => f.status !== 'false-positive'
+  );
+  const sorted = [...findings].sort(
+    (a, b) => (SEVERITY_RANK[a.severity] ?? 99) - (SEVERITY_RANK[b.severity] ?? 99)
+  );
   const counts = {};
   for (const f of findings) counts[f.severity] = (counts[f.severity] || 0) + 1;
-  const remediated = findings.filter((f) => f.status === 'fixed' || f.status === 'verified').length;
+  const remediated = findings.filter(f => f.status === 'fixed' || f.status === 'verified').length;
   return {
     kind: 'exec-summary',
     huntId: (hunt && hunt.id) || null,
@@ -68,7 +72,9 @@ export function buildExecSummaryModel(hunt) {
     riskScore: riskScoreOf(findings),
     totalFindings: findings.length,
     severityCounts: counts,
-    topFindings: sorted.slice(0, 5).map((f) => ({ id: f.id, title: f.title, severity: f.severity, status: f.status })),
+    topFindings: sorted
+      .slice(0, 5)
+      .map(f => ({ id: f.id, title: f.title, severity: f.severity, status: f.status })),
     remediationStatus: { remediated, open: findings.length - remediated },
   };
 }
@@ -76,13 +82,15 @@ export function buildExecSummaryModel(hunt) {
 // 52183 — Technical deep-dive PDF: full-evidence model with every
 // request/response, PoC steps, and CWE references for engineers.
 export function buildDeepDiveModel(hunt) {
-  const findings = (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).filter((f) => f.status !== 'false-positive');
+  const findings = (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).filter(
+    f => f.status !== 'false-positive'
+  );
   return {
     kind: 'deep-dive',
     huntId: (hunt && hunt.id) || null,
     target: (hunt && hunt.target) || 'unknown target',
     generatedBy: 'Infinity AI',
-    findings: findings.map((f) => ({
+    findings: findings.map(f => ({
       id: f.id,
       title: f.title,
       severity: f.severity,
@@ -127,18 +135,22 @@ export function buildPerFindingModel(finding, hunt = {}) {
 // stripped, safe for wider distribution. Raw HTTP bodies and payload strings
 // are removed while keeping titles, severities, and remediation guidance.
 export function stripEvidenceForSharing(model) {
-  if (!model || typeof model !== 'object') return { ok: false, reason: 'a report model is required' };
+  if (!model || typeof model !== 'object')
+    return { ok: false, reason: 'a report model is required' };
   const clone = JSON.parse(JSON.stringify(model));
-  const scrub = (finding) => {
+  const scrub = finding => {
     delete finding.poc;
     if (Array.isArray(finding.evidence)) {
-      finding.evidence = finding.evidence.map((e) => ({ kind: e.kind || 'note', summary: 'evidence redacted for sharing' }));
+      finding.evidence = finding.evidence.map(e => ({
+        kind: e.kind || 'note',
+        summary: 'evidence redacted for sharing',
+      }));
     }
     return finding;
   };
   if (Array.isArray(clone.findings)) clone.findings = clone.findings.map(scrub);
   if (clone.finding) clone.finding = scrub(clone.finding);
-  if (Array.isArray(clone.topFindings)) clone.topFindings = clone.topFindings.map((f) => ({ ...f }));
+  if (Array.isArray(clone.topFindings)) clone.topFindings = clone.topFindings.map(f => ({ ...f }));
   clone.evidenceRedacted = true;
   return { ok: true, model: clone };
 }
@@ -179,7 +191,8 @@ export function buildProtectionDescriptor(password, options = {}) {
 // 52188 — Digitally signed PDFs: signature block referencing the org
 // certificate so recipients can verify authenticity.
 export function buildSignatureBlock(cert, payloadHash, now = Date.now()) {
-  if (!cert || !cert.subject) return { ok: false, reason: 'a certificate with a subject is required' };
+  if (!cert || !cert.subject)
+    return { ok: false, reason: 'a certificate with a subject is required' };
   if (!payloadHash) return { ok: false, reason: 'payload hash is required' };
   return {
     ok: true,
@@ -197,8 +210,10 @@ export function buildSignatureBlock(cert, payloadHash, now = Date.now()) {
 // 52189 — Branded report letterhead: company logo, colors, and footer applied
 // to all PDF exports via a branding profile.
 export function applyLetterheadBrand(model, brand) {
-  if (!model || typeof model !== 'object') return { ok: false, reason: 'a report model is required' };
-  if (!brand || !brand.companyName) return { ok: false, reason: 'a branding profile with companyName is required' };
+  if (!model || typeof model !== 'object')
+    return { ok: false, reason: 'a report model is required' };
+  if (!brand || !brand.companyName)
+    return { ok: false, reason: 'a branding profile with companyName is required' };
   return {
     ok: true,
     model: {
@@ -226,7 +241,7 @@ export function buildVersionedDump(hunt, now = Date.now()) {
       startedAt: (hunt && hunt.startedAt) || null,
       completedAt: (hunt && hunt.completedAt) || null,
     },
-    findings: (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).map((f) => ({
+    findings: (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).map(f => ({
       id: f.id,
       title: f.title,
       severity: f.severity,
@@ -275,7 +290,7 @@ export function findingToJson(finding, hunt = {}) {
 // common SIEM schemas (ECS/CEF-friendly).
 export function flattenToSiem(findings, hunt = {}) {
   const rows = Array.isArray(findings) ? findings : [];
-  return rows.map((f) => ({
+  return rows.map(f => ({
     '@timestamp': f.detectedAt ? new Date(f.detectedAt).toISOString() : null,
     'event.kind': 'alert',
     'event.category': ['vulnerability'],
@@ -311,7 +326,7 @@ export const CSV_COLUMN_PRESETS = {
   default: ['id', 'title', 'severity', 'status', 'endpoint', 'target', 'assignee'],
   leadership: ['id', 'title', 'severity', 'status'],
   'no-evidence': ['id', 'title', 'severity', 'status', 'remediation'],
-  full: CSV_COLUMNS.map((c) => c.id),
+  full: CSV_COLUMNS.map(c => c.id),
 };
 export function applyColumnPreset(presetName) {
   const preset = CSV_COLUMN_PRESETS[presetName];
@@ -320,15 +335,19 @@ export function applyColumnPreset(presetName) {
 }
 export function findingsToCsv(findings, columns) {
   const cols = Array.isArray(columns) && columns.length > 0 ? columns : CSV_COLUMN_PRESETS.default;
-  const header = cols.map((c) => {
-    const def = CSV_COLUMNS.find((d) => d.id === c);
+  const header = cols.map(c => {
+    const def = CSV_COLUMNS.find(d => d.id === c);
     return def ? def.label : c;
   });
   const lines = [header.map(csvCell).join(',')];
-  for (const f of (Array.isArray(findings) ? findings : [])) {
-    lines.push(cols.map((c) => csvCell(f[c])).join(','));
+  for (const f of Array.isArray(findings) ? findings : []) {
+    lines.push(cols.map(c => csvCell(f[c])).join(','));
   }
-  return { csv: lines.join('\n'), columns: cols, rows: Array.isArray(findings) ? findings.length : 0 };
+  return {
+    csv: lines.join('\n'),
+    columns: cols,
+    rows: Array.isArray(findings) ? findings.length : 0,
+  };
 }
 
 // 52195 — Excel pivot-ready CSV: normalized, denormalized rows (one per
@@ -337,8 +356,11 @@ export function findingsToPivotCsv(findings) {
   const header = ['finding_id', 'title', 'severity', 'asset', 'status'];
   const lines = [header.join(',')];
   let rows = 0;
-  for (const f of (Array.isArray(findings) ? findings : [])) {
-    const assets = Array.isArray(f.assets) && f.assets.length > 0 ? f.assets : [f.asset || f.target || 'unknown'];
+  for (const f of Array.isArray(findings) ? findings : []) {
+    const assets =
+      Array.isArray(f.assets) && f.assets.length > 0
+        ? f.assets
+        : [f.asset || f.target || 'unknown'];
     for (const asset of assets) {
       lines.push([f.id, f.title, f.severity, asset, f.status || 'open'].map(csvCell).join(','));
       rows += 1;
@@ -353,18 +375,21 @@ export function filterBySeverityThreshold(findings, minSeverity = 'medium') {
   if (rank === undefined) return { ok: false, reason: `unknown severity: ${minSeverity}` };
   return {
     ok: true,
-    findings: (Array.isArray(findings) ? findings : []).filter((f) => (SEVERITY_RANK[f.severity] ?? 99) <= rank),
+    findings: (Array.isArray(findings) ? findings : []).filter(
+      f => (SEVERITY_RANK[f.severity] ?? 99) <= rank
+    ),
   };
 }
 export function diffRunsToDelta(current, previous) {
-  const cur = new Map((Array.isArray(current) ? current : []).map((f) => [f.id, f]));
-  const prev = new Map((Array.isArray(previous) ? previous : []).map((f) => [f.id, f]));
+  const cur = new Map((Array.isArray(current) ? current : []).map(f => [f.id, f]));
+  const prev = new Map((Array.isArray(previous) ? previous : []).map(f => [f.id, f]));
   const added = [];
   const removed = [];
   const changed = [];
   for (const [id, f] of cur) {
     if (!prev.has(id)) added.push(id);
-    else if (prev.get(id).status !== f.status || prev.get(id).severity !== f.severity) changed.push(id);
+    else if (prev.get(id).status !== f.status || prev.get(id).severity !== f.severity)
+      changed.push(id);
   }
   for (const id of prev.keys()) if (!cur.has(id)) removed.push(id);
   return { added, removed, changed };
@@ -373,10 +398,16 @@ export function diffRunsToDelta(current, previous) {
 // 52196 — SARIF 2.1.0 export: standards-compliant SARIF so results import
 // into GitHub code scanning and other SARIF consumers.
 function sarifLevel(severity) {
-  return severity === 'critical' || severity === 'high' ? 'error' : severity === 'medium' ? 'warning' : 'note';
+  return severity === 'critical' || severity === 'high'
+    ? 'error'
+    : severity === 'medium'
+      ? 'warning'
+      : 'note';
 }
 export function buildSarif(hunt, options = {}) {
-  const findings = (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).filter((f) => f.status !== 'false-positive');
+  const findings = (hunt && Array.isArray(hunt.findings) ? hunt.findings : []).filter(
+    f => f.status !== 'false-positive'
+  );
   const rules = [];
   const ruleIndex = new Map();
   for (const f of findings) {
@@ -395,27 +426,37 @@ export function buildSarif(hunt, options = {}) {
   return {
     version: SARIF_VERSION,
     $schema: SARIF_SCHEMA,
-    runs: [{
-      tool: {
-        driver: {
-          name: 'Infinity AI Dark-Matter',
-          version: options.toolVersion || '1.0.0',
-          informationUri: 'https://app.infinity.ai',
-          rules,
-        },
-      },
-      results: findings.map((f) => ({
-        ruleId: ruleIndex.has(`infinity-ai/${f.vulnClass}`) ? `infinity-ai/${f.vulnClass}` : `infinity-ai/${f.id}`,
-        level: sarifLevel(f.severity),
-        message: { text: `${f.title} — ${f.severity}` },
-        locations: [{
-          physicalLocation: {
-            artifactLocation: { uri: f.endpoint || f.target || 'unknown' },
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: 'Infinity AI Dark-Matter',
+            version: options.toolVersion || '1.0.0',
+            informationUri: 'https://app.infinity.ai',
+            rules,
           },
-        }],
-        properties: { findingId: f.id, status: f.status || 'open', confidence: f.confidence || null },
-      })),
-    }],
+        },
+        results: findings.map(f => ({
+          ruleId: ruleIndex.has(`infinity-ai/${f.vulnClass}`)
+            ? `infinity-ai/${f.vulnClass}`
+            : `infinity-ai/${f.id}`,
+          level: sarifLevel(f.severity),
+          message: { text: `${f.title} — ${f.severity}` },
+          locations: [
+            {
+              physicalLocation: {
+                artifactLocation: { uri: f.endpoint || f.target || 'unknown' },
+              },
+            },
+          ],
+          properties: {
+            findingId: f.id,
+            status: f.status || 'open',
+            confidence: f.confidence || null,
+          },
+        })),
+      },
+    ],
   };
 }
 
@@ -423,7 +464,7 @@ export function buildSarif(hunt, options = {}) {
 // that track one scan per commit.
 export function buildSarifPerRun(runs, options = {}) {
   const list = Array.isArray(runs) ? runs : [];
-  return list.map((run) => ({
+  return list.map(run => ({
     runId: run.id || 'run',
     sarif: buildSarif({ findings: run.findings || [] }, options),
   }));
@@ -432,8 +473,10 @@ export function buildSarifPerRun(runs, options = {}) {
 // 52198 — GitHub code-scanning upload helper: one-click package plus
 // instructions to upload SARIF results to GitHub code scanning.
 export function buildCodeScanningUploadPackage(sarif, repo) {
-  if (!sarif || sarif.version !== SARIF_VERSION) return { ok: false, reason: 'a SARIF 2.1.0 document is required' };
-  if (!repo || !repo.includes('/')) return { ok: false, reason: 'a repo in owner/name form is required' };
+  if (!sarif || sarif.version !== SARIF_VERSION)
+    return { ok: false, reason: 'a SARIF 2.1.0 document is required' };
+  if (!repo || !repo.includes('/'))
+    return { ok: false, reason: 'a repo in owner/name form is required' };
   return {
     ok: true,
     package: {
@@ -453,17 +496,26 @@ export function buildCodeScanningUploadPackage(sarif, repo) {
 // 52199 — HTML report export: self-contained, styled HTML report with
 // collapsible findings for sharing without the app.
 export function renderHtmlReport(model) {
-  if (!model || typeof model !== 'object') return { ok: false, reason: 'a report model is required' };
-  const findings = Array.isArray(model.findings) ? model.findings
-    : Array.isArray(model.topFindings) ? model.topFindings
-    : model.finding ? [model.finding] : [];
+  if (!model || typeof model !== 'object')
+    return { ok: false, reason: 'a report model is required' };
+  const findings = Array.isArray(model.findings)
+    ? model.findings
+    : Array.isArray(model.topFindings)
+      ? model.topFindings
+      : model.finding
+        ? [model.finding]
+        : [];
   const brand = (model.letterhead && model.letterhead.primaryColor) || '#6d28d9';
-  const items = findings.map((f) => `
+  const items = findings
+    .map(
+      f => `
     <details class="finding">
       <summary><span class="sev sev-${escHtml(f.severity || 'info')}">${escHtml(f.severity || 'info')}</span> ${escHtml(f.title || f.id)}</summary>
       <p class="desc">${escHtml(f.description || '')}</p>
       ${f.remediation ? `<p class="rem"><strong>Remediation:</strong> ${escHtml(f.remediation)}</p>` : ''}
-    </details>`).join('\n');
+    </details>`
+    )
+    .join('\n');
   return {
     ok: true,
     html: `<!doctype html>
@@ -481,10 +533,15 @@ export function renderHtmlReport(model) {
 // 52200 — Markdown report export (post-hunt): clean Markdown for wikis,
 // Notion, and developer docs.
 export function renderMarkdownReport(model) {
-  if (!model || typeof model !== 'object') return { ok: false, reason: 'a report model is required' };
-  const findings = Array.isArray(model.findings) ? model.findings
-    : Array.isArray(model.topFindings) ? model.topFindings
-    : model.finding ? [model.finding] : [];
+  if (!model || typeof model !== 'object')
+    return { ok: false, reason: 'a report model is required' };
+  const findings = Array.isArray(model.findings)
+    ? model.findings
+    : Array.isArray(model.topFindings)
+      ? model.topFindings
+      : model.finding
+        ? [model.finding]
+        : [];
   const lines = [
     `# Hunt report — ${model.target || 'unknown target'}`,
     '',

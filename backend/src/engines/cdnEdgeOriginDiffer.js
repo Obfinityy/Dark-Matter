@@ -61,7 +61,7 @@ export function scoreObservation(obs = {}) {
   let originScore = 0;
 
   for (const [re, why] of EDGE_HEADER_RES) {
-    const name = Object.keys(headers).find((n) => re.test(n));
+    const name = Object.keys(headers).find(n => re.test(n));
     if (name) {
       const val = getHeader(headers, name);
       edgeScore += 2;
@@ -77,14 +77,14 @@ export function scoreObservation(obs = {}) {
     }
   }
   for (const [re, why] of ORIGIN_HEADER_RES) {
-    const name = Object.keys(headers).find((n) => re.test(n));
+    const name = Object.keys(headers).find(n => re.test(n));
     if (name && name.toLowerCase() !== 'set-cookie') {
       originScore += 1;
       signals.origin.push(`${name} (${why})`);
     }
   }
   // Dynamic Set-Cookie on a cacheable GET leans origin.
-  if (getHeader(headers, 'set-cookie') && (obs.status === 200)) {
+  if (getHeader(headers, 'set-cookie') && obs.status === 200) {
     originScore += 1;
     signals.origin.push('Set-Cookie on 200 response — dynamic origin behavior');
   }
@@ -108,23 +108,28 @@ export function scoreObservation(obs = {}) {
  * @param {HttpObservation[]} observations
  */
 export function differentiateEdgeOrigin(observations = []) {
-  const scored = observations.map((obs) => ({ label: obs.label, ...scoreObservation(obs), obs }));
-  const baseline = scored.find((s) => s.label === 'baseline');
-  const busted = scored.find((s) => s.label === 'cache-busted');
+  const scored = observations.map(obs => ({ label: obs.label, ...scoreObservation(obs), obs }));
+  const baseline = scored.find(s => s.label === 'baseline');
+  const busted = scored.find(s => s.label === 'cache-busted');
 
   let cacheBehavior = 'unknown';
   const behaviorSignals = [];
   if (baseline && busted) {
     const sameBody = baseline.obs.bodyHash && baseline.obs.bodyHash === busted.obs.bodyHash;
     const bustedSlower = (busted.obs.rttMs ?? 0) > (baseline.obs.rttMs ?? 0) * 1.5;
-    const ageReset = parseInt(getHeader(busted.obs.headers, 'age') || '0', 10) <
+    const ageReset =
+      parseInt(getHeader(busted.obs.headers, 'age') || '0', 10) <
       parseInt(getHeader(baseline.obs.headers, 'age') || '0', 10);
     if (sameBody && (bustedSlower || ageReset)) {
       cacheBehavior = 'edge-cache-confirmed';
-      behaviorSignals.push('cache-busted request returned same body but slower / with reset Age — edge cache in front');
+      behaviorSignals.push(
+        'cache-busted request returned same body but slower / with reset Age — edge cache in front'
+      );
     } else if (!sameBody) {
       cacheBehavior = 'dynamic-or-uncached';
-      behaviorSignals.push('cache-busted request returned a different body — dynamic origin or no edge caching');
+      behaviorSignals.push(
+        'cache-busted request returned a different body — dynamic origin or no edge caching'
+      );
     } else {
       cacheBehavior = 'no-cache-delta';
       behaviorSignals.push('no measurable cache delta between baseline and cache-busted request');
@@ -133,11 +138,14 @@ export function differentiateEdgeOrigin(observations = []) {
 
   const totalEdge = scored.reduce((n, s) => n + s.edgeScore, 0);
   const totalOrigin = scored.reduce((n, s) => n + s.originScore, 0);
-  const verdict = totalEdge - totalOrigin >= 4 ? 'edge-in-front'
-    : totalOrigin - totalEdge >= 3 ? 'likely-direct-origin'
-    : 'inconclusive';
-  const confidence = verdict === 'inconclusive' ? 'low'
-    : cacheBehavior !== 'unknown' ? 'high' : 'medium';
+  const verdict =
+    totalEdge - totalOrigin >= 4
+      ? 'edge-in-front'
+      : totalOrigin - totalEdge >= 3
+        ? 'likely-direct-origin'
+        : 'inconclusive';
+  const confidence =
+    verdict === 'inconclusive' ? 'low' : cacheBehavior !== 'unknown' ? 'high' : 'medium';
 
   return {
     verdict,
@@ -146,7 +154,7 @@ export function differentiateEdgeOrigin(observations = []) {
     behaviorSignals,
     totalEdgeScore: totalEdge,
     totalOriginScore: totalOrigin,
-    observations: scored.map((s) => ({
+    observations: scored.map(s => ({
       label: s.label,
       edgeScore: s.edgeScore,
       originScore: s.originScore,
@@ -164,7 +172,7 @@ export function edgeOriginFinding(result, targetLabel = 'target') {
   const titles = {
     'edge-in-front': `CDN edge confirmed in front of ${targetLabel}`,
     'likely-direct-origin': `${targetLabel} appears to be served directly from origin`,
-    'inconclusive': `Edge-vs-origin differentiation inconclusive for ${targetLabel}`,
+    inconclusive: `Edge-vs-origin differentiation inconclusive for ${targetLabel}`,
   };
   return {
     title: titles[result.verdict],
@@ -173,10 +181,15 @@ export function edgeOriginFinding(result, targetLabel = 'target') {
     verdict: result.verdict,
     cacheBehavior: result.cacheBehavior,
     behaviorSignals: result.behaviorSignals,
-    evidence: `Edge score ${result.totalEdgeScore} vs origin score ${result.totalOriginScore} ` +
+    evidence:
+      `Edge score ${result.totalEdgeScore} vs origin score ${result.totalOriginScore} ` +
       `across ${result.observations.length} observation(s); cache behavior: ${result.cacheBehavior}.`,
   };
 }
 
-export const CDN_EDGE_ORIGIN_DIFFER = { scoreObservation, differentiateEdgeOrigin, edgeOriginFinding };
+export const CDN_EDGE_ORIGIN_DIFFER = {
+  scoreObservation,
+  differentiateEdgeOrigin,
+  edgeOriginFinding,
+};
 export default CDN_EDGE_ORIGIN_DIFFER;

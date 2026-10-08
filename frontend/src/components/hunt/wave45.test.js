@@ -13,21 +13,57 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  ETA45_IDEAS, ETA45_START, ETA45_END,
-  etaRecalcLog, timeToFirstFinding, idleTimeAccounting, activeTimeCounter,
-  etaExportPayload, multiHuntEtas, etaPrioritization, wrapUpEta, approvalEta,
-  testRequestEta, overnightEta, etaTimezone, etaTabTitle, etaMilestones,
-  etaDriftAlerts, etaScenarioPlanner, etaLearning, subAgentEtas, etaApi,
-  etaDashboard, etaFairness, etaAutoscale, etaFreeze, etaRetrospective,
-  countdownVoiceScript, formatDuration,
+  ETA45_IDEAS,
+  ETA45_START,
+  ETA45_END,
+  etaRecalcLog,
+  timeToFirstFinding,
+  idleTimeAccounting,
+  activeTimeCounter,
+  etaExportPayload,
+  multiHuntEtas,
+  etaPrioritization,
+  wrapUpEta,
+  approvalEta,
+  testRequestEta,
+  overnightEta,
+  etaTimezone,
+  etaTabTitle,
+  etaMilestones,
+  etaDriftAlerts,
+  etaScenarioPlanner,
+  etaLearning,
+  subAgentEtas,
+  etaApi,
+  etaDashboard,
+  etaFairness,
+  etaAutoscale,
+  etaFreeze,
+  etaRetrospective,
+  countdownVoiceScript,
+  formatDuration,
 } from './etaRound5Core.js';
 
 import {
-  RES45_IDEAS, RES45_START, RES45_END,
-  requestCounter, requestRateSeries, bandwidthMeter, cpuPanel, memoryPanel,
-  gpuDisplay, tokenTracker, costEstimator, budgetAlerts, moduleResourceSplit,
-  resourceHistory, resourceCaps, throttleControls, efficiencyScore,
-  wasteDetector, formatBytes,
+  RES45_IDEAS,
+  RES45_START,
+  RES45_END,
+  requestCounter,
+  requestRateSeries,
+  bandwidthMeter,
+  cpuPanel,
+  memoryPanel,
+  gpuDisplay,
+  tokenTracker,
+  costEstimator,
+  budgetAlerts,
+  moduleResourceSplit,
+  resourceHistory,
+  resourceCaps,
+  throttleControls,
+  efficiencyScore,
+  wasteDetector,
+  formatBytes,
 } from './resourceCore.js';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
@@ -46,7 +82,10 @@ test('wave-45 combined registry: 40/40 ideas, ids 51761–51800 contiguous, zero
   const all = [...ETA45_IDEAS, ...RES45_IDEAS];
   const ids = all.map(r => r[0]);
   assert.equal(ids.length, 40);
-  assert.deepEqual(ids, Array.from({ length: 40 }, (_, i) => 51761 + i));
+  assert.deepEqual(
+    ids,
+    Array.from({ length: 40 }, (_, i) => 51761 + i)
+  );
   for (const [id, title, desc] of all) {
     assert.ok(title && title.length > 3, `idea ${id} has a title`);
     assert.ok(desc && desc.length > 10, `idea ${id} has a description`);
@@ -75,11 +114,19 @@ test('etaRecalcLog records every change with its cause, newest first', () => {
 });
 
 test('timeToFirstFinding compares against history', () => {
-  const t = timeToFirstFinding({ startedAtMs: 0, firstFindingAtMs: 30 * MIN, historyAvgMs: 45 * MIN });
+  const t = timeToFirstFinding({
+    startedAtMs: 0,
+    firstFindingAtMs: 30 * MIN,
+    historyAvgMs: 45 * MIN,
+  });
   assert.equal(t.firstFindingMs, 30 * MIN);
   assert.equal(t.vsHistory, 'faster');
   assert.ok(t.text.includes('faster'));
-  const slow = timeToFirstFinding({ startedAtMs: 0, firstFindingAtMs: 60 * MIN, historyAvgMs: 45 * MIN });
+  const slow = timeToFirstFinding({
+    startedAtMs: 0,
+    firstFindingAtMs: 60 * MIN,
+    historyAvgMs: 45 * MIN,
+  });
   assert.equal(slow.vsHistory, 'slower');
 });
 
@@ -99,13 +146,26 @@ test('idleTimeAccounting splits idle out of wall time', () => {
 });
 
 test('activeTimeCounter counts pure working time', () => {
-  const a = activeTimeCounter({ totalWallMs: 180 * MIN, pausedMs: 20 * MIN, approvalWaitMs: 14 * MIN, testWaitMs: 6 * MIN });
+  const a = activeTimeCounter({
+    totalWallMs: 180 * MIN,
+    pausedMs: 20 * MIN,
+    approvalWaitMs: 14 * MIN,
+    testWaitMs: 6 * MIN,
+  });
   assert.equal(a.activeMs, 140 * MIN);
   assert.equal(a.activePct, 78);
 });
 
 test('etaExportPayload emits JSON and CSV timing exports', () => {
-  const p = etaExportPayload({ huntId: 'H-1', exportedAtMs: NOW, etaMs: 110 * MIN, finishAtMs: NOW + 110 * MIN, timezone: 'IST', pctComplete: 31, recalculations: [] });
+  const p = etaExportPayload({
+    huntId: 'H-1',
+    exportedAtMs: NOW,
+    etaMs: 110 * MIN,
+    finishAtMs: NOW + 110 * MIN,
+    timezone: 'IST',
+    pctComplete: 31,
+    recalculations: [],
+  });
   assert.equal(p.timing.remainingHuman, '1h 50m');
   assert.ok(p.json.includes('H-1'));
   assert.ok(p.csv.includes('remaining_ms,6600000'));
@@ -118,19 +178,31 @@ test('multiHuntEtas sorts soonest first and summarizes the board', () => {
     { id: 'H-2', name: 'vendor-api', remainingMs: 64 * MIN },
     { id: 'H-3', name: 'mobile-app', remainingMs: 205 * MIN },
   ]);
-  assert.deepEqual(b.rows.map(r => r.id), ['H-2', 'H-1', 'H-3']);
+  assert.deepEqual(
+    b.rows.map(r => r.id),
+    ['H-2', 'H-1', 'H-3']
+  );
   assert.ok(b.text.includes('3 hunts'));
   assert.equal(multiHuntEtas([]).count, 0);
 });
 
 test('etaPrioritization fits high value density into the remaining budget', () => {
-  const plan = etaPrioritization([
-    { id: 'a', title: 'A', expectedMs: 40 * MIN, valueScore: 90 },
-    { id: 'b', title: 'B', expectedMs: 60 * MIN, valueScore: 85 },
-    { id: 'c', title: 'C', expectedMs: 20 * MIN, valueScore: 30 },
-  ], 100 * MIN);
-  assert.deepEqual(plan.fits.map(f => f.id), ['a', 'c']);
-  assert.deepEqual(plan.deferred.map(d => d.id), ['b']);
+  const plan = etaPrioritization(
+    [
+      { id: 'a', title: 'A', expectedMs: 40 * MIN, valueScore: 90 },
+      { id: 'b', title: 'B', expectedMs: 60 * MIN, valueScore: 85 },
+      { id: 'c', title: 'C', expectedMs: 20 * MIN, valueScore: 30 },
+    ],
+    100 * MIN
+  );
+  assert.deepEqual(
+    plan.fits.map(f => f.id),
+    ['a', 'c']
+  );
+  assert.deepEqual(
+    plan.deferred.map(d => d.id),
+    ['b']
+  );
   assert.equal(plan.usedMs, 60 * MIN);
 });
 
@@ -142,10 +214,13 @@ test('wrapUpEta totals clean-finish phases', () => {
 });
 
 test('approvalEta flags overdue waits', () => {
-  const rows = approvalEta([
-    { id: 'ap-1', title: 'X', requestedAtMs: NOW - 42 * MIN, avgDecisionMs: 30 * MIN },
-    { id: 'ap-2', title: 'Y', requestedAtMs: NOW - 8 * MIN, avgDecisionMs: 30 * MIN },
-  ], NOW);
+  const rows = approvalEta(
+    [
+      { id: 'ap-1', title: 'X', requestedAtMs: NOW - 42 * MIN, avgDecisionMs: 30 * MIN },
+      { id: 'ap-2', title: 'Y', requestedAtMs: NOW - 8 * MIN, avgDecisionMs: 30 * MIN },
+    ],
+    NOW
+  );
   assert.equal(rows[0].state, 'overdue');
   assert.equal(rows[0].expectedInMs, 0);
   assert.equal(rows[1].state, 'fresh');
@@ -153,24 +228,45 @@ test('approvalEta flags overdue waits', () => {
 });
 
 test('testRequestEta estimates starts from queue position', () => {
-  const rows = testRequestEta([
-    { id: 't-1', name: 'A', requestedAtMs: NOW - 12 * MIN, expectedDurationMs: 18 * MIN, queuePosition: 0 },
-    { id: 't-2', name: 'B', requestedAtMs: NOW - 5 * MIN, expectedDurationMs: 9 * MIN, queuePosition: 1 },
-  ], NOW);
+  const rows = testRequestEta(
+    [
+      {
+        id: 't-1',
+        name: 'A',
+        requestedAtMs: NOW - 12 * MIN,
+        expectedDurationMs: 18 * MIN,
+        queuePosition: 0,
+      },
+      {
+        id: 't-2',
+        name: 'B',
+        requestedAtMs: NOW - 5 * MIN,
+        expectedDurationMs: 9 * MIN,
+        queuePosition: 1,
+      },
+    ],
+    NOW
+  );
   assert.equal(rows[0].startsInMs, 0);
   assert.equal(rows[1].startsInMs, 8 * MIN);
   assert.ok(rows[0].text.includes('A'));
 });
 
 test('overnightEta is honest about the morning target', () => {
-  assert.equal(overnightEta({ finishAtMs: NOW + 170 * MIN, targetMorningMs: NOW + 200 * MIN }).meetsMorning, true);
+  assert.equal(
+    overnightEta({ finishAtMs: NOW + 170 * MIN, targetMorningMs: NOW + 200 * MIN }).meetsMorning,
+    true
+  );
   const miss = overnightEta({ finishAtMs: NOW + 170 * MIN, targetMorningMs: NOW + 100 * MIN });
   assert.equal(miss.meetsMorning, false);
   assert.ok(miss.text.includes('Misses'));
 });
 
 test('etaTimezone renders the finish in every team timezone', () => {
-  const rows = etaTimezone(1728288000000, [{ label: 'IST', offsetMin: 330 }, { label: 'UTC', offsetMin: 0 }]);
+  const rows = etaTimezone(1728288000000, [
+    { label: 'IST', offsetMin: 330 },
+    { label: 'UTC', offsetMin: 0 },
+  ]);
   assert.equal(rows[0].clock, '1:30 PM');
   assert.equal(rows[0].weekday, 'Mon');
   assert.equal(rows[0].text, '1:30 PM IST (Mon)');
@@ -178,23 +274,40 @@ test('etaTimezone renders the finish in every team timezone', () => {
 });
 
 test('etaTabTitle builds the pure tab-title string', () => {
-  assert.equal(etaTabTitle({ remainingMs: 110 * MIN, phaseName: 'Scanning' }), '⏳ 1h 50m · Scanning — Dark-Matter');
+  assert.equal(
+    etaTabTitle({ remainingMs: 110 * MIN, phaseName: 'Scanning' }),
+    '⏳ 1h 50m · Scanning — Dark-Matter'
+  );
   assert.equal(etaTabTitle({ remainingMs: 45 * MIN }), '⏳ 45m — Dark-Matter');
 });
 
 test('etaMilestones marks reached and upcoming milestones', () => {
   const ms = etaMilestones(48 * MIN, 100 * MIN, [25, 50, 75, 100]);
-  assert.deepEqual(ms.map(m => m.reached), [true, true, false, false]);
+  assert.deepEqual(
+    ms.map(m => m.reached),
+    [true, true, false, false]
+  );
   assert.ok(ms[0].text.includes('25%'));
 });
 
 test('etaDriftAlerts only fire beyond tolerance', () => {
-  const fire = etaDriftAlerts({ baselineMs: 148 * MIN, currentMs: 175 * MIN, thresholdMs: 20 * MIN });
+  const fire = etaDriftAlerts({
+    baselineMs: 148 * MIN,
+    currentMs: 175 * MIN,
+    thresholdMs: 20 * MIN,
+  });
   assert.equal(fire.length, 1);
   assert.equal(fire[0].direction, 'slipped');
   assert.ok(fire[0].text.includes('27m'));
-  assert.equal(etaDriftAlerts({ baselineMs: 148 * MIN, currentMs: 150 * MIN, thresholdMs: 20 * MIN }).length, 0);
-  const better = etaDriftAlerts({ baselineMs: 148 * MIN, currentMs: 110 * MIN, thresholdMs: 20 * MIN });
+  assert.equal(
+    etaDriftAlerts({ baselineMs: 148 * MIN, currentMs: 150 * MIN, thresholdMs: 20 * MIN }).length,
+    0
+  );
+  const better = etaDriftAlerts({
+    baselineMs: 148 * MIN,
+    currentMs: 110 * MIN,
+    thresholdMs: 20 * MIN,
+  });
   assert.equal(better[0].direction, 'shrunk');
 });
 
@@ -213,7 +326,12 @@ test('etaScenarioPlanner answers what-if plans instantly', () => {
 test('etaLearning explains estimate changes in plain words', () => {
   const lines = etaLearning([
     { fromMs: 160 * MIN, toMs: 148 * MIN, cause: 'recon finished early', phaseName: 'Recon' },
-    { fromMs: 148 * MIN, toMs: 152 * MIN, cause: 'the new subnet added 12 targets', phaseName: 'Scanning' },
+    {
+      fromMs: 148 * MIN,
+      toMs: 152 * MIN,
+      cause: 'the new subnet added 12 targets',
+      phaseName: 'Scanning',
+    },
   ]);
   assert.ok(lines[0].text.includes('shrank'));
   assert.ok(lines[0].text.includes('recon finished early'));
@@ -225,7 +343,10 @@ test('subAgentEtas lists sub-agents longest-first', () => {
     { id: 's1', name: 'A', remainingMs: 30 * MIN, taskCount: 2 },
     { id: 's2', name: 'B', remainingMs: 60 * MIN, taskCount: 3 },
   ]);
-  assert.deepEqual(s.rows.map(r => r.name), ['B', 'A']);
+  assert.deepEqual(
+    s.rows.map(r => r.name),
+    ['B', 'A']
+  );
   assert.equal(s.totalMs, 90 * MIN);
 });
 
@@ -247,31 +368,56 @@ test('etaDashboard scores cross-hunt timing accuracy', () => {
 });
 
 test('etaFairness splits remaining time proportionally by weight', () => {
-  const f = etaFairness([
-    { name: 'a', weight: 5 },
-    { name: 'b', weight: 3 },
-    { name: 'c', weight: 2 },
-  ], 110 * MIN);
-  assert.deepEqual(f.rows.map(r => r.fairSharePct), [50, 30, 20]);
-  assert.equal(f.rows.reduce((s, r) => s + r.etaMs, 0), 110 * MIN);
+  const f = etaFairness(
+    [
+      { name: 'a', weight: 5 },
+      { name: 'b', weight: 3 },
+      { name: 'c', weight: 2 },
+    ],
+    110 * MIN
+  );
+  assert.deepEqual(
+    f.rows.map(r => r.fairSharePct),
+    [50, 30, 20]
+  );
+  assert.equal(
+    f.rows.reduce((s, r) => s + r.etaMs, 0),
+    110 * MIN
+  );
 });
 
 test('etaAutoscale adds parallelism only when behind', () => {
-  const s = etaAutoscale({ remainingMs: 170 * MIN, plannedMs: 148 * MIN, currentParallelism: 2, maxParallelism: 6 });
+  const s = etaAutoscale({
+    remainingMs: 170 * MIN,
+    plannedMs: 148 * MIN,
+    currentParallelism: 2,
+    maxParallelism: 6,
+  });
   assert.equal(s.behind, true);
   assert.equal(s.addSlots, 1);
   assert.equal(s.newParallelism, 3);
   assert.equal(s.newRemainingMs, Math.round(170 * MIN * (2 / 3)));
-  const onTime = etaAutoscale({ remainingMs: 120 * MIN, plannedMs: 148 * MIN, currentParallelism: 2, maxParallelism: 6 });
+  const onTime = etaAutoscale({
+    remainingMs: 120 * MIN,
+    plannedMs: 148 * MIN,
+    currentParallelism: 2,
+    maxParallelism: 6,
+  });
   assert.equal(onTime.behind, false);
   assert.equal(onTime.addSlots, 0);
 });
 
 test('etaFreeze locks the estimate on demand', () => {
-  const f = etaFreeze({ estimate: { remainingMs: 110 * MIN, finishAtMs: 2000 }, frozen: true, frozenAtMs: 1000 });
+  const f = etaFreeze({
+    estimate: { remainingMs: 110 * MIN, finishAtMs: 2000 },
+    frozen: true,
+    frozenAtMs: 1000,
+  });
   assert.equal(f.frozen, true);
   assert.ok(f.text.includes('frozen'));
-  assert.ok(etaFreeze({ estimate: { remainingMs: 110 * MIN }, frozen: false }).text.includes('live'));
+  assert.ok(
+    etaFreeze({ estimate: { remainingMs: 110 * MIN }, frozen: false }).text.includes('live')
+  );
 });
 
 test('etaRetrospective measures first and final estimate accuracy', () => {
@@ -313,7 +459,13 @@ test('requestCounter ticks totals immutably', () => {
 });
 
 test('requestRateSeries plots rates with the cap overlaid', () => {
-  const s = requestRateSeries([{ sec: 0, count: 40 }, { sec: 1, count: 70 }], 60);
+  const s = requestRateSeries(
+    [
+      { sec: 0, count: 40 },
+      { sec: 1, count: 70 },
+    ],
+    60
+  );
   assert.equal(s.peak, 70);
   assert.equal(s.avg, 55);
   assert.equal(s.overCapCount, 1);
@@ -332,7 +484,10 @@ test('bandwidthMeter totals traffic and ranks phases', () => {
 });
 
 test('cpuPanel reports status bands', () => {
-  const c = cpuPanel([{ at: 'a', pct: 50 }, { at: 'b', pct: 95 }]);
+  const c = cpuPanel([
+    { at: 'a', pct: 50 },
+    { at: 'b', pct: 95 },
+  ]);
   assert.equal(c.current, 95);
   assert.equal(c.peak, 95);
   assert.equal(c.avg, 72.5);
@@ -341,14 +496,25 @@ test('cpuPanel reports status bands', () => {
 });
 
 test('memoryPanel warns before the limit', () => {
-  const m = memoryPanel({ usedBytes: 6.4 * 1024 * 1024 * 1024, limitBytes: 8 * 1024 * 1024 * 1024 });
+  const m = memoryPanel({
+    usedBytes: 6.4 * 1024 * 1024 * 1024,
+    limitBytes: 8 * 1024 * 1024 * 1024,
+  });
   assert.equal(m.usedPct, 80);
   assert.equal(m.status, 'warning');
-  assert.equal(memoryPanel({ usedBytes: 1024, limitBytes: 8 * 1024 * 1024 * 1024 }).status, 'healthy');
+  assert.equal(
+    memoryPanel({ usedBytes: 1024, limitBytes: 8 * 1024 * 1024 * 1024 }).status,
+    'healthy'
+  );
 });
 
 test('gpuDisplay reports utilization and VRAM', () => {
-  const g = gpuDisplay({ utilPct: 74, vramUsedBytes: 5.2 * 1024 * 1024 * 1024, vramTotalBytes: 8 * 1024 * 1024 * 1024, modelName: 'qwen2.5-7b-q4' });
+  const g = gpuDisplay({
+    utilPct: 74,
+    vramUsedBytes: 5.2 * 1024 * 1024 * 1024,
+    vramTotalBytes: 8 * 1024 * 1024 * 1024,
+    modelName: 'qwen2.5-7b-q4',
+  });
   assert.equal(g.status, 'working');
   assert.equal(g.vramPct, 65);
   const idle = gpuDisplay({ utilPct: 0, vramUsedBytes: 0, vramTotalBytes: 0 });
@@ -357,14 +523,24 @@ test('gpuDisplay reports utilization and VRAM', () => {
 });
 
 test('tokenTracker totals tokens and ranks phases', () => {
-  const t = tokenTracker([{ name: 'A', tokens: 100 }, { name: 'B', tokens: 300 }]);
+  const t = tokenTracker([
+    { name: 'A', tokens: 100 },
+    { name: 'B', tokens: 300 },
+  ]);
   assert.equal(t.rows[0].name, 'B');
   assert.equal(t.rows[0].sharePct, 75);
   assert.equal(t.totalTokens, 400);
 });
 
 test('costEstimator projects spend across tokens, compute, and APIs', () => {
-  const c = costEstimator({ tokens: 1000000, modelRatePerK: 0.002, computeHours: 2, computeRatePerH: 0.5, apiCalls: 1000, apiRatePerCall: 0.001 });
+  const c = costEstimator({
+    tokens: 1000000,
+    modelRatePerK: 0.002,
+    computeHours: 2,
+    computeRatePerH: 0.5,
+    apiCalls: 1000,
+    apiRatePerCall: 0.001,
+  });
   assert.equal(c.modelCost, 2);
   assert.equal(c.computeCost, 1);
   assert.equal(c.apiCost, 1);
@@ -415,9 +591,21 @@ test('resourceCaps decides warn/throttle/pause at the caps', () => {
 });
 
 test('throttleControls clamp dials and compute the effective rate', () => {
-  const t = throttleControls({ ratePerSec: 40, maxRatePerSec: 80, parallelism: 3, maxParallelism: 8, modelTier: 'lite' });
+  const t = throttleControls({
+    ratePerSec: 40,
+    maxRatePerSec: 80,
+    parallelism: 3,
+    maxParallelism: 8,
+    modelTier: 'lite',
+  });
   assert.equal(t.effectiveRate, 48);
-  const clamped = throttleControls({ ratePerSec: 200, maxRatePerSec: 80, parallelism: 2, maxParallelism: 8, modelTier: 'full' });
+  const clamped = throttleControls({
+    ratePerSec: 200,
+    maxRatePerSec: 80,
+    parallelism: 2,
+    maxParallelism: 8,
+    modelTier: 'full',
+  });
   assert.equal(clamped.ratePerSec, 80);
   assert.equal(clamped.effectiveRate, 160);
 });
@@ -456,11 +644,23 @@ test('Wave45.css: zero keyframes, no animation/transition, scoped classes only',
 
 test('wave-45 sources carry no unfinished-work or fake-content markers', () => {
   const markers = [
-    ['T', 'O', 'D', 'O'], ['F', 'I', 'X', 'M', 'E'], ['X', 'X', 'X'], ['H', 'A', 'C', 'K'],
-    ['M', 'O', 'C', 'K'], ['D', 'E', 'M', 'O'], ['S', 'i', 'm', 'u', 'l', 'a', 't', 'e'],
+    ['T', 'O', 'D', 'O'],
+    ['F', 'I', 'X', 'M', 'E'],
+    ['X', 'X', 'X'],
+    ['H', 'A', 'C', 'K'],
+    ['M', 'O', 'C', 'K'],
+    ['D', 'E', 'M', 'O'],
+    ['S', 'i', 'm', 'u', 'l', 'a', 't', 'e'],
     ['p', 'l', 'a', 'c', 'e', 'h', 'o', 'l', 'd', 'e', 'r'],
-  ].map((parts) => new RegExp('\\b' + parts.join('') + '\\b', 'i'));
-  const files = ['etaRound5Core.js', 'resourceCore.js', 'EtaRound5.jsx', 'ResourceSuite.jsx', 'Wave45.css', 'wave45.test.js'];
+  ].map(parts => new RegExp('\\b' + parts.join('') + '\\b', 'i'));
+  const files = [
+    'etaRound5Core.js',
+    'resourceCore.js',
+    'EtaRound5.jsx',
+    'ResourceSuite.jsx',
+    'Wave45.css',
+    'wave45.test.js',
+  ];
   for (const f of files) {
     const src = readFileSync(join(DIR, f), 'utf8');
     for (const re of markers) {
@@ -473,12 +673,21 @@ test('wave-45 sources carry no unfinished-work or fake-content markers', () => {
 
 test('EtaRound5.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'EtaRound5.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('EtaRound5Gallery'), 'esbuild parsed the round-5 gallery export');
 });
 
 test('ResourceSuite.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'ResourceSuite.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
-  assert.ok(out.includes('ResourceSuiteGallery'), 'esbuild parsed the resource suite gallery export');
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+  assert.ok(
+    out.includes('ResourceSuiteGallery'),
+    'esbuild parsed the resource suite gallery export'
+  );
 });

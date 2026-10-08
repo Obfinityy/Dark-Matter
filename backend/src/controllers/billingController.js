@@ -25,7 +25,11 @@ export function createBillingController({ userModel } = {}) {
   return {
     /** GET /billing/status — is billing live? + public key for checkout.js */
     status(req, res) {
-      res.json({ configured: isConfigured(), keyId: publicKeyId(), tiers: Object.keys(TIER_PRICES) });
+      res.json({
+        configured: isConfigured(),
+        keyId: publicKeyId(),
+        tiers: Object.keys(TIER_PRICES),
+      });
     },
 
     /** GET /billing/subscription — the caller's server-side plan (if any). */
@@ -66,7 +70,9 @@ export function createBillingController({ userModel } = {}) {
         }
         const payment = await fetchPayment(paymentId);
         if (payment?.status !== 'captured' && payment?.status !== 'authorized') {
-          return res.status(400).json({ ok: false, error: `Payment not captured (${payment?.status})` });
+          return res
+            .status(400)
+            .json({ ok: false, error: `Payment not captured (${payment?.status})` });
         }
         // Amount sanity: what Razorpay captured must match our tier price.
         const expected = TIER_PRICES[String(tierId || '').toLowerCase()];

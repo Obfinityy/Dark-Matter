@@ -26,11 +26,27 @@ export const WAVE37_EX_IDEAS = [
   [51443, 'confidence-to-clarity meter', 'How solid the evidence is, expressed without jargon'],
   [51444, 'plain-language titles', 'A non-technical headline next to every technical name'],
   [51445, 'one-line takeaways', 'The single most important sentence about each finding'],
-  [51446, 'explanation sharing controls', 'Choose which explanation depth each stakeholder receives'],
-  [51447, 'audio explanation clips', 'Short listenable summaries per finding for busy stakeholders'],
-  [51448, 'explanation analytics', 'Which explanations stakeholders actually opened and understood'],
+  [
+    51446,
+    'explanation sharing controls',
+    'Choose which explanation depth each stakeholder receives',
+  ],
+  [
+    51447,
+    'audio explanation clips',
+    'Short listenable summaries per finding for busy stakeholders',
+  ],
+  [
+    51448,
+    'explanation analytics',
+    'Which explanations stakeholders actually opened and understood',
+  ],
   [51449, 'live explanation updates', 'Explanations refresh automatically as confidence changes'],
-  [51450, 'cross-finding plain summaries', '"Overall, your login system has…" synthesis in plain words'],
+  [
+    51450,
+    'cross-finding plain summaries',
+    '"Overall, your login system has…" synthesis in plain words',
+  ],
   [51451, 'explanation citations', 'Sources and evidence listed in reader-friendly form'],
   [51452, 'explain-while-you-watch', 'Explanations generated live as you watch the proof build'],
 ];
@@ -47,9 +63,9 @@ const SEVERITY_WORDS = {
 
 const TYPE_WORDS = {
   'sql-injection': 'the database behind the site could be tricked into giving up data',
-  'xss': 'attackers could run their own scripts in other people\'s browsers',
-  'ssrf': 'the server could be tricked into opening connections it should not',
-  'idor': 'one user could see or change another user\'s data',
+  xss: "attackers could run their own scripts in other people's browsers",
+  ssrf: 'the server could be tricked into opening connections it should not',
+  idor: "one user could see or change another user's data",
   'cors-misconfiguration': 'other websites might be able to read data meant only for yours',
   'open-redirect': 'attackers could craft links that send your users to fake sites',
   'jwt-weakness': 'the login tokens protecting the site have a flaw',
@@ -103,25 +119,33 @@ export function faqForFinding(f) {
 
 function confidenceWord(c) {
   const n = Number(c);
-  if (!Number.isFinite(n)) return 'Confidence has not been scored yet — treat this as an early signal.';
+  if (!Number.isFinite(n))
+    return 'Confidence has not been scored yet — treat this as an early signal.';
   if (n >= 80) return `Very confident (${n}%). The evidence directly proves the issue.`;
-  if (n >= 50) return `Moderately confident (${n}%). The evidence is strong but could use one more confirmation.`;
+  if (n >= 50)
+    return `Moderately confident (${n}%). The evidence is strong but could use one more confirmation.`;
   return `Early signal (${n}%). Worth a look, but more evidence is needed before acting.`;
 }
 
 /* --- 51442 · explanation diff ----------------------------------------------- */
 
 export function diffExplanations(oldText, newText) {
-  const oldLines = String(oldText || '').split('\n').map((s) => s.trim()).filter(Boolean);
-  const newLines = String(newText || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  const oldLines = String(oldText || '')
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean);
+  const newLines = String(newText || '')
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean);
   const oldSet = new Set(oldLines);
   const newSet = new Set(newLines);
-  const added = newLines.filter((l) => !oldSet.has(l));
-  const removed = oldLines.filter((l) => !newSet.has(l));
+  const added = newLines.filter(l => !oldSet.has(l));
+  const removed = oldLines.filter(l => !newSet.has(l));
   return {
     added,
     removed,
-    unchanged: newLines.filter((l) => oldSet.has(l)),
+    unchanged: newLines.filter(l => oldSet.has(l)),
     changed: added.length > 0 || removed.length > 0,
   };
 }
@@ -137,7 +161,7 @@ export const CLARITY_BANDS = [
 
 export function clarityMeter(finding) {
   const n = Math.max(0, Math.min(100, Number(finding.confidence) || 0));
-  const band = CLARITY_BANDS.find((b) => n >= b.min) || CLARITY_BANDS[CLARITY_BANDS.length - 1];
+  const band = CLARITY_BANDS.find(b => n >= b.min) || CLARITY_BANDS[CLARITY_BANDS.length - 1];
   return { score: n, label: band.label, sentence: band.sentence };
 }
 
@@ -149,7 +173,7 @@ export function plainTitle(f) {
 }
 
 function titleCase(s) {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+  return s.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /* --- 51445 · one-line takeaways ---------------------------------------------- */
@@ -167,7 +191,7 @@ export const SHARE_LEVELS = [
 ];
 
 export function sharePackage(f, levelId) {
-  const level = SHARE_LEVELS.find((l) => l.id === levelId) || SHARE_LEVELS[1];
+  const level = SHARE_LEVELS.find(l => l.id === levelId) || SHARE_LEVELS[1];
   const pkg = { level: level.id, levelLabel: level.label, takeaway: oneLineTakeaway(f) };
   if (level.id === 'team' || level.id === 'tech') {
     pkg.title = plainTitle(f);
@@ -198,18 +222,18 @@ export function audioScript(f) {
 /* --- 51448 · explanation analytics --------------------------------------------- */
 
 export function recordExplanationEvent(store, findingId, event) {
-  if (!store[ findingId ]) store[ findingId ] = { opened: 0, understood: 0, shared: 0 };
-  if (event in store[ findingId ]) store[ findingId ][ event ] += 1;
-  return store[ findingId ];
+  if (!store[findingId]) store[findingId] = { opened: 0, understood: 0, shared: 0 };
+  if (event in store[findingId]) store[findingId][event] += 1;
+  return store[findingId];
 }
 
 export function analyticsSummary(store) {
   const ids = Object.keys(store);
   const totals = { opened: 0, understood: 0, shared: 0 };
-  ids.forEach((id) => {
-    totals.opened += store[ id ].opened;
-    totals.understood += store[ id ].understood;
-    totals.shared += store[ id ].shared;
+  ids.forEach(id => {
+    totals.opened += store[id].opened;
+    totals.understood += store[id].understood;
+    totals.shared += store[id].shared;
   });
   return {
     findings: ids.length,
@@ -224,7 +248,8 @@ export function explanationStaleness(oldF, newF) {
   const changed = [];
   if (oldF.confidence !== newF.confidence) changed.push('confidence');
   if (oldF.severity !== newF.severity) changed.push('severity');
-  if (JSON.stringify(oldF.evidence || []) !== JSON.stringify(newF.evidence || [])) changed.push('evidence');
+  if (JSON.stringify(oldF.evidence || []) !== JSON.stringify(newF.evidence || []))
+    changed.push('evidence');
   return { stale: changed.length > 0, changed };
 }
 
@@ -232,14 +257,15 @@ export function explanationStaleness(oldF, newF) {
 
 export function crossFindingSummary(findings, systemName) {
   const list = Array.isArray(findings) ? findings : [];
-  if (list.length === 0) return `Overall, ${systemName || 'the system'} looks clean — no findings to report.`;
+  if (list.length === 0)
+    return `Overall, ${systemName || 'the system'} looks clean — no findings to report.`;
   const bySev = {};
-  list.forEach((f) => {
+  list.forEach(f => {
     const s = String(f.severity || 'info').toLowerCase();
-    bySev[ s ] = (bySev[ s ] || 0) + 1;
+    bySev[s] = (bySev[s] || 0) + 1;
   });
   const parts = Object.entries(bySev).map(([s, n]) => `${n} ${s}`);
-  const types = [...new Set(list.map((f) => String(f.type || 'issue').replace(/-/g, ' ')))];
+  const types = [...new Set(list.map(f => String(f.type || 'issue').replace(/-/g, ' ')))];
   return (
     `Overall, ${systemName || 'the system'} has ${list.length} finding${list.length === 1 ? '' : 's'} ` +
     `(${parts.join(', ')}). The main themes are: ${types.slice(0, 3).join(', ')}. ` +
@@ -261,7 +287,7 @@ export function citationsFor(f) {
 /* --- 51452 · explain-while-you-watch -------------------------------------------- */
 
 export function watchNarration(steps, index) {
-  const s = (steps || [])[ index ];
+  const s = (steps || [])[index];
   if (!s) return { done: true, text: 'Proof complete — all steps shown.' };
   return {
     done: false,

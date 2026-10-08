@@ -44,11 +44,19 @@ function downloadErrorStatus(error) {
   }
 }
 
-export function createModelRunnerController({ modelRunnerService, brainProviderModel, agentWorker }) {
-  const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+export function createModelRunnerController({
+  modelRunnerService,
+  brainProviderModel,
+  agentWorker,
+}) {
+  const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-  const refreshBrain = (userId) => {
-    try { agentWorker?.refreshBrainForUser?.(userId); } catch { /* best effort */ }
+  const refreshBrain = userId => {
+    try {
+      agentWorker?.refreshBrainForUser?.(userId);
+    } catch {
+      /* best effort */
+    }
   };
 
   /** SSE helper shared by both progress streams. */
@@ -58,10 +66,10 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no'
+        'X-Accel-Buffering': 'no',
       });
       response.flushHeaders?.();
-      const send = (state) => {
+      const send = state => {
         response.write(`event: progress\ndata: ${JSON.stringify(state || { status: 'idle' })}\n\n`);
       };
       send(describe());
@@ -92,7 +100,8 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
      * - hacker: Hunt only (local uncensored)
      */
     brainSlots: asyncHandler(async (request, response) => {
-      const { BRAIN_SLOTS, getModelsBySlot } = await import('../services/modelRunner/modelLibrary.js');
+      const { BRAIN_SLOTS, getModelsBySlot } =
+        await import('../services/modelRunner/modelLibrary.js');
       const slots = {};
       for (const [slotId, slotInfo] of Object.entries(BRAIN_SLOTS)) {
         slots[slotId] = {
@@ -110,7 +119,9 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
     getSlotAssignments: asyncHandler(async (request, response) => {
       const userId = request.user?.id;
       if (!userId) {
-        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+        return response
+          .status(401)
+          .json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
       const selection = await brainProviderModel.getSelection(userId);
       response.json({ assignments: selection.slotAssignments || {} });
@@ -123,32 +134,38 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
     assignSlot: asyncHandler(async (request, response) => {
       const userId = request.user?.id;
       if (!userId) {
-        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+        return response
+          .status(401)
+          .json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
       const { slot, modelId } = request.body || {};
       if (!slot || !modelId) {
         return response.status(400).json({
-          error: { code: 'BAD_REQUEST', message: 'slot and modelId are required' }
+          error: { code: 'BAD_REQUEST', message: 'slot and modelId are required' },
         });
       }
       // Validate the model exists and belongs to the slot
-      const { getLibraryEntry, getModelsBySlot } = await import('../services/modelRunner/modelLibrary.js');
+      const { getLibraryEntry, getModelsBySlot } =
+        await import('../services/modelRunner/modelLibrary.js');
       const entry = getLibraryEntry(modelId);
       if (!entry) {
         return response.status(404).json({
-          error: { code: 'UNKNOWN_MODEL', message: `Model "${modelId}" not found` }
+          error: { code: 'UNKNOWN_MODEL', message: `Model "${modelId}" not found` },
         });
       }
       if (entry.brainSlot !== slot) {
         return response.status(400).json({
           error: {
             code: 'SLOT_MISMATCH',
-            message: `"${entry.name}" belongs to slot "${entry.brainSlot}", not "${slot}"`
-          }
+            message: `"${entry.name}" belongs to slot "${entry.brainSlot}", not "${slot}"`,
+          },
         });
       }
       const selection = await brainProviderModel.setSlotAssignment(userId, slot, modelId);
-      response.json({ assignments: selection.slotAssignments || {}, slotSources: selection.slotSources || {} });
+      response.json({
+        assignments: selection.slotAssignments || {},
+        slotSources: selection.slotSources || {},
+      });
     }),
 
     /**
@@ -158,7 +175,9 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
     getSlotSources: asyncHandler(async (request, response) => {
       const userId = request.user?.id;
       if (!userId) {
-        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+        return response
+          .status(401)
+          .json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
       const selection = await brainProviderModel.getSelection(userId);
       response.json({ slotSources: selection.slotSources || {} });
@@ -171,12 +190,14 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
     connectSlotKaggle: asyncHandler(async (request, response) => {
       const userId = request.user?.id;
       if (!userId) {
-        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+        return response
+          .status(401)
+          .json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
       const { slot, url, name } = request.body || {};
       if (!slot || !url) {
         return response.status(400).json({
-          error: { code: 'BAD_REQUEST', message: 'slot and url are required' }
+          error: { code: 'BAD_REQUEST', message: 'slot and url are required' },
         });
       }
       try {
@@ -184,7 +205,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         response.json({ slotSources: selection.slotSources || {} });
       } catch (err) {
         response.status(400).json({
-          error: { code: 'INVALID_SLOT_SOURCE', message: err.message }
+          error: { code: 'INVALID_SLOT_SOURCE', message: err.message },
         });
       }
     }),
@@ -196,7 +217,9 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
     disconnectSlotKaggle: asyncHandler(async (request, response) => {
       const userId = request.user?.id;
       if (!userId) {
-        return response.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
+        return response
+          .status(401)
+          .json({ error: { code: 'UNAUTHORIZED', message: 'Login required' } });
       }
       const { slot } = request.params;
       try {
@@ -204,7 +227,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         response.json({ slotSources: selection.slotSources || {} });
       } catch (err) {
         response.status(400).json({
-          error: { code: 'INVALID_SLOT_SOURCE', message: err.message }
+          error: { code: 'INVALID_SLOT_SOURCE', message: err.message },
         });
       }
     }),
@@ -228,7 +251,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
 
     /** GET /api/v1/model-runner/engine/stream — SSE */
     engineStream: progressStream(
-      (send) => modelRunnerService.engine.onProgress(send),
+      send => modelRunnerService.engine.onProgress(send),
       () => modelRunnerService.engine.describeDownload()
     ),
 
@@ -240,7 +263,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         response.status(202).json(result);
       } catch (error) {
         response.status(downloadErrorStatus(error)).json({
-          error: { code: error.code || 'DOWNLOAD_FAILED', message: error.message }
+          error: { code: error.code || 'DOWNLOAD_FAILED', message: error.message },
         });
       }
     }),
@@ -257,7 +280,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
 
     /** GET /api/v1/model-runner/download/stream — SSE */
     downloadStream: progressStream(
-      (send) => modelRunnerService.onDownloadProgress(send),
+      send => modelRunnerService.onDownloadProgress(send),
       () => modelRunnerService.describeDownload()
     ),
 
@@ -268,7 +291,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         response.json(result);
       } catch (error) {
         response.status(downloadErrorStatus(error)).json({
-          error: { code: error.code || 'DELETE_FAILED', message: error.message }
+          error: { code: error.code || 'DELETE_FAILED', message: error.message },
         });
       }
     }),
@@ -281,7 +304,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         response.status(201).json(result);
       } catch (error) {
         response.status(downloadErrorStatus(error)).json({
-          error: { code: error.code || 'CUSTOM_ADD_FAILED', message: error.message }
+          error: { code: error.code || 'CUSTOM_ADD_FAILED', message: error.message },
         });
       }
     }),
@@ -298,27 +321,27 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
      */
     run: asyncHandler(async (request, response) => {
       const modelId = request.params.modelId || request.body?.modelId;
-      const contextSize = request.body?.contextSize != null ? Number(request.body.contextSize) : undefined;
+      const contextSize =
+        request.body?.contextSize != null ? Number(request.body.contextSize) : undefined;
       const quant = request.body?.quant || undefined;
       try {
-        const result = await modelRunnerService.run(
-          modelId,
-          {
-            ...(Number.isFinite(contextSize) && contextSize > 0 ? { contextSize: Math.floor(contextSize) } : {}),
-            ...(quant ? { quant } : {})
-          }
-        );
+        const result = await modelRunnerService.run(modelId, {
+          ...(Number.isFinite(contextSize) && contextSize > 0
+            ? { contextSize: Math.floor(contextSize) }
+            : {}),
+          ...(quant ? { quant } : {}),
+        });
         const userId = request.user?.id || null;
         const activation = await modelRunnerService.activateBrainForUser({
           userId,
           modelId,
           brainProviderModel,
-          onBrainSwitched: () => refreshBrain(userId)
+          onBrainSwitched: () => refreshBrain(userId),
         });
         response.json({ ...result, brainSwitched: Boolean(activation.selection) });
       } catch (error) {
         response.status(downloadErrorStatus(error)).json({
-          error: { code: error.code || 'RUN_FAILED', message: error.message }
+          error: { code: error.code || 'RUN_FAILED', message: error.message },
         });
       }
     }),
@@ -336,7 +359,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         response.status(202).json(result);
       } catch (error) {
         response.status(downloadErrorStatus(error)).json({
-          error: { code: error.code || 'DOWNLOAD_FAILED', message: error.message }
+          error: { code: error.code || 'DOWNLOAD_FAILED', message: error.message },
         });
       }
     }),
@@ -355,10 +378,10 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no'
+        'X-Accel-Buffering': 'no',
       });
       response.flushHeaders?.();
-      const snapshot = (state) => {
+      const snapshot = state => {
         const s = state || { status: 'idle' };
         const total = s.totalBytes || null;
         const received = s.receivedBytes || 0;
@@ -368,20 +391,24 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
           name: s.name || null,
           receivedBytes: received,
           totalBytes: total,
-          percent: total > 0 ? Math.min(100, Math.round((received / total) * 100))
-            : (s.status === 'done' ? 100 : 0),
-          error: s.error || null
+          percent:
+            total > 0
+              ? Math.min(100, Math.round((received / total) * 100))
+              : s.status === 'done'
+                ? 100
+                : 0,
+          error: s.error || null,
         };
       };
       const current = modelRunnerService.describeDownload();
       const matches = current?.modelId === modelId && current?.status !== 'idle';
-      const send = (state) => {
+      const send = state => {
         response.write(`event: progress\ndata: ${JSON.stringify(snapshot(state))}\n\n`);
       };
       // Initial event: the live state when it belongs to this model,
       // otherwise an honest idle (0%).
       send(matches ? current : { status: 'idle' });
-      const unsubscribe = modelRunnerService.onDownloadProgress((state) => {
+      const unsubscribe = modelRunnerService.onDownloadProgress(state => {
         if (!state || state.modelId !== modelId) return; // not ours — skip
         send(state);
       });
@@ -415,24 +442,29 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       const { modelId, quant, contextSize } = request.body || {};
       if (!modelId) {
         return response.status(400).json({
-          error: { code: 'BAD_REQUEST', message: 'modelId is required' }
+          error: { code: 'BAD_REQUEST', message: 'modelId is required' },
         });
       }
       try {
         const result = await modelRunnerService.runForSlot(slot, modelId, {
           ...(quant ? { quant } : {}),
           ...(Number.isFinite(Number(contextSize)) && Number(contextSize) > 0
-            ? { contextSize: Math.floor(Number(contextSize)) } : {})
+            ? { contextSize: Math.floor(Number(contextSize)) }
+            : {}),
         });
         // Also record the slot assignment so Hunt/Control/Chat resolve it.
         const userId = request.user?.id || null;
         if (userId && brainProviderModel) {
-          try { await brainProviderModel.setSlotAssignment(userId, slot, modelId); } catch { /* non-fatal */ }
+          try {
+            await brainProviderModel.setSlotAssignment(userId, slot, modelId);
+          } catch {
+            /* non-fatal */
+          }
         }
         response.json(result);
       } catch (error) {
         response.status(downloadErrorStatus(error)).json({
-          error: { code: error.code || 'RUN_FAILED', message: error.message }
+          error: { code: error.code || 'RUN_FAILED', message: error.message },
         });
       }
     }),
@@ -452,24 +484,31 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         const def = getDefaultModelForSlot(slot);
         if (!def) {
           return response.status(400).json({
-            error: { code: 'BAD_REQUEST', message: `No default model for slot "${slot}" — pass modelId` }
+            error: {
+              code: 'BAD_REQUEST',
+              message: `No default model for slot "${slot}" — pass modelId`,
+            },
           });
         }
         modelId = def.id;
       }
       try {
         const result = modelRunnerService.downloadAndRunForSlot(slot, modelId, {
-          ...(quant ? { quant } : {})
+          ...(quant ? { quant } : {}),
         });
         // Record the slot assignment so Hunt/Control/Chat resolve it.
         const userId = request.user?.id || null;
         if (userId && brainProviderModel) {
-          try { await brainProviderModel.setSlotAssignment(userId, slot, modelId); } catch { /* non-fatal */ }
+          try {
+            await brainProviderModel.setSlotAssignment(userId, slot, modelId);
+          } catch {
+            /* non-fatal */
+          }
         }
         response.status(202).json(result);
       } catch (error) {
         response.status(downloadErrorStatus(error)).json({
-          error: { code: error.code || 'RUN_FAILED', message: error.message }
+          error: { code: error.code || 'RUN_FAILED', message: error.message },
         });
       }
     }),
@@ -482,7 +521,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       response.json({
         setup: modelRunnerService.describeSlotSetup(),
         errors: modelRunnerService.slotSetupError || {},
-        defaults: (await import('../services/modelRunner/modelLibrary.js')).DEFAULT_SLOT_MODELS
+        defaults: (await import('../services/modelRunner/modelLibrary.js')).DEFAULT_SLOT_MODELS,
       });
     }),
 
@@ -516,19 +555,23 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
         : { provider: 'phone' };
       let downloaded = null;
       if (selection.provider === 'local') {
-        try { downloaded = await modelRunnerService.library(); } catch { /* describe-only */ }
+        try {
+          downloaded = await modelRunnerService.library();
+        } catch {
+          /* describe-only */
+        }
       }
       const chain = buildBrainChain({
         selection,
         appConfig: {},
         runner: modelRunnerService,
-        downloaded
+        downloaded,
       });
       response.json({
         provider: selection.provider,
         modelId: selection.modelId || null,
         remoteGpu: selection.lastGradioUrl || null,
-        chain: chain.map((l) => l.name)
+        chain: chain.map(l => l.name),
       });
     }),
   };

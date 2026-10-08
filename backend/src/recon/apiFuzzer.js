@@ -10,7 +10,15 @@
 
 import { isLoopbackUrl } from './netGuard.js';
 
-const DOC_PATHS = ['/openapi.json', '/swagger.json', '/api/openapi.json', '/api/swagger.json', '/v3/api-docs', '/api-docs', '/swagger/v1/swagger.json'];
+const DOC_PATHS = [
+  '/openapi.json',
+  '/swagger.json',
+  '/api/openapi.json',
+  '/api/swagger.json',
+  '/v3/api-docs',
+  '/api-docs',
+  '/swagger/v1/swagger.json',
+];
 
 async function fetchJson(url, timeoutMs) {
   const ctrl = new AbortController();
@@ -19,13 +27,23 @@ async function fetchJson(url, timeoutMs) {
     const res = await fetch(url, { headers: { accept: 'application/json' }, signal: ctrl.signal });
     if (!res.ok) return null;
     const text = await res.text();
-    try { return JSON.parse(text); } catch { return null; }
-  } catch { return null; }
-  finally { clearTimeout(t); }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 /** Discover a Swagger/OpenAPI document on the target. */
-export async function discoverSwagger(baseUrl, { timeoutMs = 10_000, enforceLoopback = true } = {}) {
+export async function discoverSwagger(
+  baseUrl,
+  { timeoutMs = 10_000, enforceLoopback = true } = {}
+) {
   if (enforceLoopback && !isLoopbackUrl(baseUrl)) {
     throw new Error(`discoverSwagger refused: ${baseUrl} is not loopback (safety)`);
   }
@@ -48,9 +66,14 @@ export function enumerateApiPaths(doc) {
     for (const [method, op] of Object.entries(methods)) {
       if (!['get', 'post', 'put', 'patch', 'delete'].includes(method.toLowerCase())) continue;
       const params = [];
-      const pushParam = (p) => {
+      const pushParam = p => {
         if (!p || typeof p !== 'object') return;
-        params.push({ name: p.name, in: p.in || p.paramType || 'query', required: !!p.required, type: p.type || p.schema?.type || 'string' });
+        params.push({
+          name: p.name,
+          in: p.in || p.paramType || 'query',
+          required: !!p.required,
+          type: p.type || p.schema?.type || 'string',
+        });
       };
       (op.parameters || []).forEach(pushParam);
       (methods.parameters || []).forEach(pushParam);
@@ -63,15 +86,36 @@ export function enumerateApiPaths(doc) {
 /** Fill path templates: /users/{id} → /users/1 */
 export function concretizePath(path, params) {
   return path.replace(/\{([^}]+)\}/g, (_, name) => {
-    const p = params.find((x) => x.name === name);
+    const p = params.find(x => x.name === name);
     return p ? '1' : '1';
   });
 }
 
 const PROBES = [
-  { name: 'sqli-error', value: `'`, detect: /sql syntax|mysql|pg_query|ORA-|sqlite|unclosed quotation|odbc.*driver/i, type: 'sql-injection', severity: 'high', confidence: 0.7 },
-  { name: 'xss-canary', value: `<dmxss>alert(1)</dmxss>`, detect: /<dmxss>alert\(1\)<\/dmxss>/, type: 'reflected-xss', severity: 'medium', confidence: 0.8 },
-  { name: 'type-confusion', value: `{"$ne":null}`, detect: /error|exception|stack trace/i, type: 'type-confusion', severity: 'low', confidence: 0.4 }
+  {
+    name: 'sqli-error',
+    value: `'`,
+    detect: /sql syntax|mysql|pg_query|ORA-|sqlite|unclosed quotation|odbc.*driver/i,
+    type: 'sql-injection',
+    severity: 'high',
+    confidence: 0.7,
+  },
+  {
+    name: 'xss-canary',
+    value: `<dmxss>alert(1)</dmxss>`,
+    detect: /<dmxss>alert\(1\)<\/dmxss>/,
+    type: 'reflected-xss',
+    severity: 'medium',
+    confidence: 0.8,
+  },
+  {
+    name: 'type-confusion',
+    value: `{"$ne":null}`,
+    detect: /error|exception|stack trace/i,
+    type: 'type-confusion',
+    severity: 'low',
+    confidence: 0.4,
+  },
 ];
 
 /**
@@ -79,12 +123,11 @@ const PROBES = [
  * probe values and flag reflections / SQL error markers in the response.
  * Returns normalized findings.
  */
-export async function fuzzApiParams(baseUrl, apiPaths, {
-  timeoutMs = 10_000,
-  enforceLoopback = true,
-  maxParams = 40,
-  authToken = null
-} = {}) {
+export async function fuzzApiParams(
+  baseUrl,
+  apiPaths,
+  { timeoutMs = 10_000, enforceLoopback = true, maxParams = 40, authToken = null } = {}
+) {
   if (enforceLoopback && !isLoopbackUrl(baseUrl)) {
     throw new Error(`fuzzApiParams refused: ${baseUrl} is not loopback (safety)`);
   }
@@ -101,12 +144,15 @@ export async function fuzzApiParams(baseUrl, apiPaths, {
       if (authToken) headers.authorization = `Bearer ${authToken}`;
       const res = await fetch(url, { method, headers, signal: ctrl.signal });
       return { status: res.status, body: await res.text() };
-    } catch (e) { return { status: 0, body: '', error: e.message }; }
-    finally { clearTimeout(t); }
+    } catch (e) {
+      return { status: 0, body: '', error: e.message };
+    } finally {
+      clearTimeout(t);
+    }
   };
 
   for (const api of apiPaths) {
-    const queryParams = api.params.filter((p) => p.in === 'query' || p.in === 'querystring');
+    const queryParams = api.params.filter(p => p.in === 'query' || p.in === 'querystring');
     for (const param of queryParams) {
       if (paramBudget-- <= 0) break;
       for (const probe of PROBES) {
@@ -126,10 +172,10 @@ export async function fuzzApiParams(baseUrl, apiPaths, {
               probe: probe.name,
               probeValue: probe.value,
               responseStatus: status,
-              responseExcerpt: body.slice(0, 1500)
+              responseExcerpt: body.slice(0, 1500),
             },
             confidence: probe.confidence,
-            source: 'api-fuzzer'
+            source: 'api-fuzzer',
           });
           break; // one finding per param — don't stack probes
         }

@@ -40,7 +40,7 @@ export const COMPUTER_ACTIONS = Object.freeze({
   NAVIGATE: 'navigate',
   GET_ACTIVE_WINDOW: 'get_active_window',
   GET_BROWSER_STATE: 'get_browser_state',
-  CLIPBOARD_SET: 'clipboard_set'
+  CLIPBOARD_SET: 'clipboard_set',
 });
 
 export const ACTION_TYPES = Object.freeze(Object.values(COMPUTER_ACTIONS));
@@ -48,7 +48,7 @@ export const ACTION_TYPES = Object.freeze(Object.values(COMPUTER_ACTIONS));
 /** Actions that touch the target over the network → must pass the scope engine. */
 export const SCOPE_BEARING_ACTIONS = Object.freeze([
   COMPUTER_ACTIONS.NAVIGATE,
-  COMPUTER_ACTIONS.OPEN_APPLICATION
+  COMPUTER_ACTIONS.OPEN_APPLICATION,
 ]);
 
 /** Characters pyautogui.write() can emit. Control keys must use press/hotkey. */
@@ -59,34 +59,210 @@ const TYPEABLE = /^[\x20-\x7E\n\r\t\u00A0-\u024F\u0900-\u097F ]*$/;
  * only key names the bridge will accept.
  */
 export const ALLOWED_KEYS = new Set([
-  '\t', '\n', '\r', ' ', '!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+',
-  ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';',
-  '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`',
-  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-  'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-  '{', '|', '}', '~', 'accept', 'add', 'alt', 'altleft', 'altright', 'apps',
-  'backspace', 'browserback', 'browserfavorites', 'browserforward', 'browserhome',
-  'browserrefresh', 'browsersearch', 'browserstop', 'capslock', 'clear', 'convert',
-  'ctrl', 'ctrlleft', 'ctrlright', 'decimal', 'del', 'delete', 'divide', 'down',
-  'end', 'enter', 'esc', 'escape', 'execute', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6',
-  'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17', 'f18',
-  'f19', 'f20', 'f21', 'f22', 'f23', 'f24', 'final', 'fn', 'hanguel', 'hangul',
-  'hanja', 'help', 'home', 'insert', 'junja', 'kana', 'kanji', 'launchapp1',
-  'launchapp2', 'launchmail', 'launchmediaselect', 'left', 'modechange', 'multiply',
-  'nexttrack', 'nonconvert', 'num0', 'num1', 'num2', 'num3', 'num4', 'num5', 'num6',
-  'num7', 'num8', 'num9', 'numlock', 'pagedown', 'pageup', 'paste', 'pause', 'pgdn',
-  'pgup', 'playpause', 'prevtrack', 'print', 'printscreen', 'prntscrn', 'prtsc',
-  'prtscr', 'return', 'right', 'scrolllock', 'select', 'separator', 'shift',
-  'shiftleft', 'shiftright', 'sleep', 'space', 'stop', 'subtract', 'tab', 'up',
-  'volumedown', 'volumemute', 'volumeup', 'win', 'winleft', 'winright', 'yen',
-  'command', 'option', 'optionleft', 'optionright'
+  '\t',
+  '\n',
+  '\r',
+  ' ',
+  '!',
+  '"',
+  '#',
+  '$',
+  '%',
+  '&',
+  "'",
+  '(',
+  ')',
+  '*',
+  '+',
+  ',',
+  '-',
+  '.',
+  '/',
+  '0',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  ':',
+  ';',
+  '<',
+  '=',
+  '>',
+  '?',
+  '@',
+  '[',
+  '\\',
+  ']',
+  '^',
+  '_',
+  '`',
+  'a',
+  'b',
+  'c',
+  'd',
+  'e',
+  'f',
+  'g',
+  'h',
+  'i',
+  'j',
+  'k',
+  'l',
+  'm',
+  'n',
+  'o',
+  'p',
+  'q',
+  'r',
+  's',
+  't',
+  'u',
+  'v',
+  'w',
+  'x',
+  'y',
+  'z',
+  '{',
+  '|',
+  '}',
+  '~',
+  'accept',
+  'add',
+  'alt',
+  'altleft',
+  'altright',
+  'apps',
+  'backspace',
+  'browserback',
+  'browserfavorites',
+  'browserforward',
+  'browserhome',
+  'browserrefresh',
+  'browsersearch',
+  'browserstop',
+  'capslock',
+  'clear',
+  'convert',
+  'ctrl',
+  'ctrlleft',
+  'ctrlright',
+  'decimal',
+  'del',
+  'delete',
+  'divide',
+  'down',
+  'end',
+  'enter',
+  'esc',
+  'escape',
+  'execute',
+  'f1',
+  'f2',
+  'f3',
+  'f4',
+  'f5',
+  'f6',
+  'f7',
+  'f8',
+  'f9',
+  'f10',
+  'f11',
+  'f12',
+  'f13',
+  'f14',
+  'f15',
+  'f16',
+  'f17',
+  'f18',
+  'f19',
+  'f20',
+  'f21',
+  'f22',
+  'f23',
+  'f24',
+  'final',
+  'fn',
+  'hanguel',
+  'hangul',
+  'hanja',
+  'help',
+  'home',
+  'insert',
+  'junja',
+  'kana',
+  'kanji',
+  'launchapp1',
+  'launchapp2',
+  'launchmail',
+  'launchmediaselect',
+  'left',
+  'modechange',
+  'multiply',
+  'nexttrack',
+  'nonconvert',
+  'num0',
+  'num1',
+  'num2',
+  'num3',
+  'num4',
+  'num5',
+  'num6',
+  'num7',
+  'num8',
+  'num9',
+  'numlock',
+  'pagedown',
+  'pageup',
+  'paste',
+  'pause',
+  'pgdn',
+  'pgup',
+  'playpause',
+  'prevtrack',
+  'print',
+  'printscreen',
+  'prntscrn',
+  'prtsc',
+  'prtscr',
+  'return',
+  'right',
+  'scrolllock',
+  'select',
+  'separator',
+  'shift',
+  'shiftleft',
+  'shiftright',
+  'sleep',
+  'space',
+  'stop',
+  'subtract',
+  'tab',
+  'up',
+  'volumedown',
+  'volumemute',
+  'volumeup',
+  'win',
+  'winleft',
+  'winright',
+  'yen',
+  'command',
+  'option',
+  'optionleft',
+  'optionright',
 ]);
 
 const MAX_TYPE_CHARS = 4000;
 const MAX_COORD = 100_000;
 
 function normalizeKeyName(value) {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
 /**
@@ -107,7 +283,7 @@ export function validateComputerAction(action, context = {}) {
   if (!ACTION_TYPES.includes(action.type)) {
     return {
       valid: false,
-      errors: [`Unknown computer action "${action.type}". Allowed: ${ACTION_TYPES.join(', ')}`]
+      errors: [`Unknown computer action "${action.type}". Allowed: ${ACTION_TYPES.join(', ')}`],
     };
   }
 
@@ -130,17 +306,20 @@ export function validateComputerAction(action, context = {}) {
     }
 
     case COMPUTER_ACTIONS.MOVE_MOUSE: {
-      const hasTarget = (Number.isFinite(params.x) && Number.isFinite(params.y)) ||
-        typeof params.to === 'string';
+      const hasTarget =
+        (Number.isFinite(params.x) && Number.isFinite(params.y)) || typeof params.to === 'string';
       if (!hasTarget) errors.push('move_mouse requires x/y coordinates or a "to" position');
       break;
     }
 
     case COMPUTER_ACTIONS.TYPE: {
       const text = params.text ?? params.string;
-      if (typeof text !== 'string' || text.length === 0) errors.push('type requires non-empty text');
-      else if (text.length > MAX_TYPE_CHARS) errors.push(`type text exceeds ${MAX_TYPE_CHARS} characters`);
-      else if (!TYPEABLE.test(text)) errors.push('type text contains characters that require press_key/hotkey');
+      if (typeof text !== 'string' || text.length === 0)
+        errors.push('type requires non-empty text');
+      else if (text.length > MAX_TYPE_CHARS)
+        errors.push(`type text exceeds ${MAX_TYPE_CHARS} characters`);
+      else if (!TYPEABLE.test(text))
+        errors.push('type text contains characters that require press_key/hotkey');
       break;
     }
 
@@ -151,19 +330,22 @@ export function validateComputerAction(action, context = {}) {
       // real adapter can execute this — until then it validates but the bridge
       // reports unsupported (mock covers it in tests/simulation).
       const clipText = params.text ?? params.string;
-      if (typeof clipText !== 'string' || clipText.length === 0) errors.push('clipboard_set requires non-empty text');
-      else if (clipText.length > MAX_TYPE_CHARS) errors.push(`clipboard_set text exceeds ${MAX_TYPE_CHARS} characters`);
-      else if (!TYPEABLE.test(clipText)) errors.push('clipboard_set text contains unsupported characters');
+      if (typeof clipText !== 'string' || clipText.length === 0)
+        errors.push('clipboard_set requires non-empty text');
+      else if (clipText.length > MAX_TYPE_CHARS)
+        errors.push(`clipboard_set text exceeds ${MAX_TYPE_CHARS} characters`);
+      else if (!TYPEABLE.test(clipText))
+        errors.push('clipboard_set text contains unsupported characters');
       break;
     }
 
     case COMPUTER_ACTIONS.PRESS_KEY: {
       const keys = params.keys ?? params.key;
       const list = Array.isArray(keys) ? keys : [keys];
-      if (list.length === 0 || list.some((k) => typeof k !== 'string' || !k)) {
+      if (list.length === 0 || list.some(k => typeof k !== 'string' || !k)) {
         errors.push('press_key requires a key name or list of key names');
       } else {
-        const bad = list.map(normalizeKeyName).filter((k) => !ALLOWED_KEYS.has(k));
+        const bad = list.map(normalizeKeyName).filter(k => !ALLOWED_KEYS.has(k));
         if (bad.length) errors.push(`press_key received unsupported key(s): ${bad.join(', ')}`);
       }
       const presses = params.presses;
@@ -177,22 +359,26 @@ export function validateComputerAction(action, context = {}) {
       const keys = params.keys ?? params.key;
       const list = Array.isArray(keys) ? keys : [keys];
       if (list.length < 2) errors.push('hotkey requires at least two key names');
-      const bad = list.filter((k) => typeof k !== 'string' || !ALLOWED_KEYS.has(normalizeKeyName(k)));
+      const bad = list.filter(k => typeof k !== 'string' || !ALLOWED_KEYS.has(normalizeKeyName(k)));
       if (bad.length) errors.push(`hotkey received unsupported key(s): ${bad.join(', ')}`);
       break;
     }
 
     case COMPUTER_ACTIONS.SCROLL: {
       const amount = params.amount ?? params.clicks;
-      if (!Number.isFinite(amount) || amount === 0) errors.push('scroll requires a non-zero numeric amount');
-      if (Number.isFinite(amount) && Math.abs(amount) > 100) errors.push('scroll amount exceeds 100 clicks');
+      if (!Number.isFinite(amount) || amount === 0)
+        errors.push('scroll requires a non-zero numeric amount');
+      if (Number.isFinite(amount) && Math.abs(amount) > 100)
+        errors.push('scroll amount exceeds 100 clicks');
       break;
     }
 
     case COMPUTER_ACTIONS.SLEEP: {
       const seconds = params.seconds ?? params.secs;
-      if (!Number.isFinite(seconds) || seconds < 0) errors.push('sleep requires non-negative seconds');
-      if (Number.isFinite(seconds) && seconds > 300) errors.push('sleep is capped at 300 seconds per action');
+      if (!Number.isFinite(seconds) || seconds < 0)
+        errors.push('sleep requires non-negative seconds');
+      if (Number.isFinite(seconds) && seconds > 300)
+        errors.push('sleep is capped at 300 seconds per action');
       break;
     }
 
@@ -225,9 +411,12 @@ export function validateComputerAction(action, context = {}) {
   // ── Scope gate: any action that can reach the target must pass the
   // ScopeEngine. Computer control NEVER bypasses authorization (#7).
   if (!errors.length && SCOPE_BEARING_ACTIONS.includes(action.type)) {
-    const url = action.type === COMPUTER_ACTIONS.NAVIGATE
-      ? (params.url.startsWith('http') ? params.url : `https://${params.url}`)
-      : null;
+    const url =
+      action.type === COMPUTER_ACTIONS.NAVIGATE
+        ? params.url.startsWith('http')
+          ? params.url
+          : `https://${params.url}`
+        : null;
 
     if (url) {
       const scopeEngine = context.scopeEngine;
@@ -244,7 +433,8 @@ export function validateComputerAction(action, context = {}) {
   // Normalize into the exact shape the bridge accepts.
   const normalized = { type: action.type, params: { ...params } };
   if (action.reason) normalized.reason = String(action.reason).slice(0, 500);
-  if (action.expectedOutcome) normalized.expectedOutcome = String(action.expectedOutcome).slice(0, 500);
+  if (action.expectedOutcome)
+    normalized.expectedOutcome = String(action.expectedOutcome).slice(0, 500);
   if (action.type === COMPUTER_ACTIONS.TYPE) normalized.params.text = params.text ?? params.string;
   if (action.type === COMPUTER_ACTIONS.PRESS_KEY) {
     const keys = params.keys ?? params.key;

@@ -40,7 +40,16 @@ import './EmptyStates.polish.css';
 
 function PlugIcon() {
   return (
-    <svg className="es-svg-art" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      className="es-svg-art"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M9 3v5M15 3v5" />
       <path d="M7 8h10v3.5a5 5 0 0 1-10 0V8z" />
       <path d="M12 16.5V21" />
@@ -50,7 +59,16 @@ function PlugIcon() {
 
 function TeamIcon() {
   return (
-    <svg className="es-svg-art" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      className="es-svg-art"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="9" cy="8" r="3.4" />
       <path d="M2.8 19.5c.7-3.2 3-5 6.2-5s5.5 1.8 6.2 5" />
       <circle cx="17" cy="9" r="2.7" />
@@ -61,7 +79,16 @@ function TeamIcon() {
 
 function BrainIcon() {
   return (
-    <svg className="es-svg-art" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      className="es-svg-art"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M12 4.6c-1.9 0-3.3.8-4.2 2C6.1 7 4.9 8.4 4.9 10c0 1 .5 1.9 1.2 2.5A3.6 3.6 0 0 0 5.6 15c0 1.5 1 2.7 2.4 3.1.4 1.4 1.6 2.4 3.1 2.4.4 0 .7 0 1-.1" />
       <path d="M12 4.6c1.9 0 3.3.8 4.2 2 1.7.4 2.9 1.8 2.9 3.4 0 1-.5 1.9-1.2 2.5.3.8.5 1.6.5 2.5 0 1.5-1 2.7-2.4 3.1-.4 1.4-1.6 2.4-3.1 2.4-.4 0-.7 0-1-.1" />
       <path d="M12 4.6v15.8" />
@@ -89,7 +116,9 @@ export function EmptyState({
       aria-label={title}
     >
       {illustration && (
-        <div className="es-illustration" aria-hidden="true">{illustration}</div>
+        <div className="es-illustration" aria-hidden="true">
+          {illustration}
+        </div>
       )}
       <h3 className="es-title">{title}</h3>
       {description && <p className="es-desc">{description}</p>}
@@ -206,7 +235,7 @@ export function EmptyChatPrompts({ suggestions = [], onAsk }) {
       hint="Custom questions welcome too."
     >
       <div className="es-chips">
-        {(suggestions.length ? suggestions : defaults).map((q) => (
+        {(suggestions.length ? suggestions : defaults).map(q => (
           <button key={q} type="button" className="es-chip" onClick={() => onAsk && onAsk(q)}>
             {q}
           </button>
@@ -224,10 +253,12 @@ export function EmptyReportList({ onGenerateFromLatest, latestHuntName }) {
       illustration={<span className="es-hero-art">▤</span>}
       title="No reports yet"
       description="Reports appear here after a hunt completes — markdown, PDF, and bounty-ready formats."
-      primary={onGenerateFromLatest && {
-        label: latestHuntName ? `Generate from ${latestHuntName}` : 'Generate from latest hunt',
-        onClick: onGenerateFromLatest,
-      }}
+      primary={
+        onGenerateFromLatest && {
+          label: latestHuntName ? `Generate from ${latestHuntName}` : 'Generate from latest hunt',
+          onClick: onGenerateFromLatest,
+        }
+      }
     />
   );
 }
@@ -264,14 +295,23 @@ export function AllCaughtUpNotifications() {
 export function EmptyIntegrations({ providers = [], onConnect }) {
   return (
     <EmptyState
-      illustration={<span className="es-hero-art"><PlugIcon /></span>}
+      illustration={
+        <span className="es-hero-art">
+          <PlugIcon />
+        </span>
+      }
       title="No integrations connected"
       description="Connect API keys to unlock webhooks, SIEM export, Slack alerts, and Jira sync."
       hint="Keys are stored encrypted and never leave your vault."
     >
       <div className="es-chips">
-        {(providers.length ? providers : ['Slack', 'Jira', 'Webhook', 'SIEM']).map((p) => (
-          <button key={p} type="button" className="es-chip" onClick={() => onConnect && onConnect(p)}>
+        {(providers.length ? providers : ['Slack', 'Jira', 'Webhook', 'SIEM']).map(p => (
+          <button
+            key={p}
+            type="button"
+            className="es-chip"
+            onClick={() => onConnect && onConnect(p)}
+          >
             Connect {p}
           </button>
         ))}
@@ -286,13 +326,22 @@ export function EmptySharedHunts({ inviteLink, onCopyInvite, onInvite }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     if (inviteLink && navigator.clipboard) {
-      try { await navigator.clipboard.writeText(inviteLink); setCopied(true); } catch { /* clipboard blocked */ }
+      try {
+        await navigator.clipboard.writeText(inviteLink);
+        setCopied(true);
+      } catch {
+        /* clipboard blocked */
+      }
     }
     onCopyInvite && onCopyInvite();
   };
   return (
     <EmptyState
-      illustration={<span className="es-hero-art"><TeamIcon /></span>}
+      illustration={
+        <span className="es-hero-art">
+          <TeamIcon />
+        </span>
+      }
       title="No shared hunts"
       description="Invite your team to review findings, triage, and comment together."
       primary={onInvite && { label: 'Invite a teammate', onClick: onInvite }}
@@ -310,9 +359,11 @@ export function EmptyInsightsFeed({ huntsCompleted = 0, huntsNeeded = 3 }) {
       compact
       title="Insights appear after a few hunts"
       description="The learning engine distills patterns from your hunts — common misconfigs, repeat vulns, fix-rate trends."
-      hint={huntsCompleted >= huntsNeeded
-        ? 'Run one more hunt to refresh insights.'
-        : `${huntsCompleted} of ${huntsNeeded} hunts done — insights unlock at ${huntsNeeded}.`}
+      hint={
+        huntsCompleted >= huntsNeeded
+          ? 'Run one more hunt to refresh insights.'
+          : `${huntsCompleted} of ${huntsNeeded} hunts done — insights unlock at ${huntsNeeded}.`
+      }
     />
   );
 }
@@ -355,13 +406,21 @@ export function EmptyCompareView({ hunts = [], onCompare }) {
       hint="Deltas highlight new, fixed, and regressed findings."
     >
       <div className="es-compare">
-        <select aria-label="First hunt" value={a} onChange={(e) => setA(e.target.value)}>
+        <select aria-label="First hunt" value={a} onChange={e => setA(e.target.value)}>
           <option value="">Select hunt A…</option>
-          {hunts.map((h) => <option key={h.id} value={h.id}>{h.name ?? h.id}</option>)}
+          {hunts.map(h => (
+            <option key={h.id} value={h.id}>
+              {h.name ?? h.id}
+            </option>
+          ))}
         </select>
-        <select aria-label="Second hunt" value={b} onChange={(e) => setB(e.target.value)}>
+        <select aria-label="Second hunt" value={b} onChange={e => setB(e.target.value)}>
           <option value="">Select hunt B…</option>
-          {hunts.map((h) => <option key={h.id} value={h.id}>{h.name ?? h.id}</option>)}
+          {hunts.map(h => (
+            <option key={h.id} value={h.id}>
+              {h.name ?? h.id}
+            </option>
+          ))}
         </select>
         <button
           type="button"
@@ -538,13 +597,22 @@ export function EmptyModelLibrary({ slots = [], onDownload }) {
   const list = slots.length ? slots : ['Hacking brain', 'Vision brain', 'Grounding brain'];
   return (
     <EmptyState
-      illustration={<span className="es-hero-art"><BrainIcon /></span>}
+      illustration={
+        <span className="es-hero-art">
+          <BrainIcon />
+        </span>
+      }
       title="No brains downloaded"
       description="Download a local model for each slot — the agent thinks with these when offline."
     >
       <div className="es-chips">
-        {list.map((s) => (
-          <button key={s} type="button" className="es-chip" onClick={() => onDownload && onDownload(s)}>
+        {list.map(s => (
+          <button
+            key={s}
+            type="button"
+            className="es-chip"
+            onClick={() => onDownload && onDownload(s)}
+          >
             Download {s}
           </button>
         ))}
@@ -710,9 +778,11 @@ export function EmptyMentionResults({ target }) {
       compact
       tone="success"
       title="No mentions found"
-      description={target
-        ? `No dark-web mentions of ${target} right now — we'll keep watching.`
-        : 'No dark-web mentions right now — we\'ll keep watching.'}
+      description={
+        target
+          ? `No dark-web mentions of ${target} right now — we'll keep watching.`
+          : "No dark-web mentions right now — we'll keep watching."
+      }
       hint="Monitoring runs continuously; new mentions surface as notifications."
     />
   );
@@ -739,9 +809,11 @@ export function PositiveNoBreachState({ policyName }) {
       compact
       tone="success"
       title="No SLA breaches"
-      description={policyName
-        ? `All targets are within the "${policyName}" policy. Nothing is overdue or at risk.`
-        : 'All targets are within policy. Nothing is overdue or at risk.'}
+      description={
+        policyName
+          ? `All targets are within the "${policyName}" policy. Nothing is overdue or at risk.`
+          : 'All targets are within policy. Nothing is overdue or at risk.'
+      }
       hint="The breach list fills automatically the moment a deadline slips."
     />
   );
@@ -806,8 +878,19 @@ export function EmptyScheduledReports({ onPickPreset, presets = ['Weekly', 'Mont
       compact
       title="No scheduled reports"
       description="Pick a cadence and Dark Matter emails you a findings digest on schedule — set it once, forget it."
-      primary={onPickPreset && { label: `Schedule ${presets[0]} reports`, onClick: () => onPickPreset(presets[0]) }}
-      secondary={presets[1] && onPickPreset && { label: `Schedule ${presets[1]} reports`, onClick: () => onPickPreset(presets[1]) }}
+      primary={
+        onPickPreset && {
+          label: `Schedule ${presets[0]} reports`,
+          onClick: () => onPickPreset(presets[0]),
+        }
+      }
+      secondary={
+        presets[1] &&
+        onPickPreset && {
+          label: `Schedule ${presets[1]} reports`,
+          onClick: () => onPickPreset(presets[1]),
+        }
+      }
     />
   );
 }
@@ -845,9 +928,11 @@ export function FriendlyHunt404({ huntId, onGoHome, onStartHunt }) {
     <EmptyState
       compact
       title="This hunt doesn't exist"
-      description={huntId
-        ? `Hunt "${huntId}" doesn't exist — or it was deleted. Check the ID, or start fresh.`
-        : "This hunt doesn't exist — or it was deleted."}
+      description={
+        huntId
+          ? `Hunt "${huntId}" doesn't exist — or it was deleted. Check the ID, or start fresh.`
+          : "This hunt doesn't exist — or it was deleted."
+      }
       primary={onGoHome && { label: 'Back to hunts', onClick: onGoHome }}
       secondary={onStartHunt && { label: 'Start a new hunt', onClick: onStartHunt }}
     />
@@ -862,7 +947,10 @@ export function TargetUnreachableCard({ target, diagnosis, onRetry, onEditTarget
       compact
       tone="hero"
       title={`${target || 'Target'} is unreachable`}
-      description={diagnosis || 'DNS resolution and the TCP connection both failed. The host may be down, the domain may be wrong, or a firewall is blocking us.'}
+      description={
+        diagnosis ||
+        'DNS resolution and the TCP connection both failed. The host may be down, the domain may be wrong, or a firewall is blocking us.'
+      }
       primary={onRetry && { label: 'Retry', onClick: onRetry }}
       secondary={onEditTarget && { label: 'Edit target', onClick: onEditTarget }}
     />

@@ -20,20 +20,29 @@
  * backend before testing the in-scope endpoints.
  */
 
-const TRANSCRIPT_PATH_RE = /["'`]([^"'`]*\/(?:transcript|conversation|chat|message)[-_a-z]*\/(?:history|export|download|messages|thread)[^"'`]*|[^"'`]*\/(?:history|export|download)\/transcript[^"'`]*)["'`]/gi;
-const TRANSCRIPT_FUNC_RE = /\b(getTranscript|fetchTranscript|downloadTranscript|exportConversation|loadChatHistory|fetchMessages|getConversation)\s*\(/gi;
+const TRANSCRIPT_PATH_RE =
+  /["'`]([^"'`]*\/(?:transcript|conversation|chat|message)[-_a-z]*\/(?:history|export|download|messages|thread)[^"'`]*|[^"'`]*\/(?:history|export|download)\/transcript[^"'`]*)["'`]/gi;
+const TRANSCRIPT_FUNC_RE =
+  /\b(getTranscript|fetchTranscript|downloadTranscript|exportConversation|loadChatHistory|fetchMessages|getConversation)\s*\(/gi;
 
-const CANNED_PATH_RE = /["'`]([^"'`]*\/(?:canned[-_ ]?responses?|quick[-_ ]?replies|macros?|saved[-_ ]?replies|response[-_ ]?templates)[^"'`]*|[^"'`]*(?:canned|quick)[-_]?(?:responses?|replies)[^"'`]*)["'`]/gi;
+const CANNED_PATH_RE =
+  /["'`]([^"'`]*\/(?:canned[-_ ]?responses?|quick[-_ ]?replies|macros?|saved[-_ ]?replies|response[-_ ]?templates)[^"'`]*|[^"'`]*(?:canned|quick)[-_]?(?:responses?|replies)[^"'`]*)["'`]/gi;
 const CANNED_FUNC_RE = /\b(getCannedResponses|fetchQuickReplies|loadMacros|cannedResponses?)\b/gi;
 
-const TICKET_PATH_RE = /["'`]([^"'`]*\/(?:tickets?|support[-_ ]?tickets?|cases?|requests?|helpdesk)[^"'`]*)["'`]/gi;
-const TICKET_CREATE_RE = /\b(createTicket|submitTicket|openTicket|newTicket|postTicket|raiseTicket)\s*\(/gi;
-const TICKET_METHOD_RE = /(?:\b(post|put))\s*\(?\s*["'`]([^"'`]*\/(?:tickets?|cases?|requests?)[^"'`]*)["'`]/gi;
+const TICKET_PATH_RE =
+  /["'`]([^"'`]*\/(?:tickets?|support[-_ ]?tickets?|cases?|requests?|helpdesk)[^"'`]*)["'`]/gi;
+const TICKET_CREATE_RE =
+  /\b(createTicket|submitTicket|openTicket|newTicket|postTicket|raiseTicket)\s*\(/gi;
+const TICKET_METHOD_RE =
+  /(?:\b(post|put))\s*\(?\s*["'`]([^"'`]*\/(?:tickets?|cases?|requests?)[^"'`]*)["'`]/gi;
 
-const KB_SEARCH_RE = /["'`]([^"'`]*\/(?:search|api\/(?:v\d+\/)?(?:search|articles?|docs?|kb|help|hc))[^"'`]*|[^"'`]*\/(?:help|support|docs|kb)[^"'`]*search[^"'`]*)["'`]/gi;
-const KB_FUNC_RE = /\b(searchKnowledgeBase|searchArticles|searchDocs|kbSearch|helpCenterSearch|fetchArticles)\s*\(/gi;
+const KB_SEARCH_RE =
+  /["'`]([^"'`]*\/(?:search|api\/(?:v\d+\/)?(?:search|articles?|docs?|kb|help|hc))[^"'`]*|[^"'`]*\/(?:help|support|docs|kb)[^"'`]*search[^"'`]*)["'`]/gi;
+const KB_FUNC_RE =
+  /\b(searchKnowledgeBase|searchArticles|searchDocs|kbSearch|helpCenterSearch|fetchArticles)\s*\(/gi;
 
-const JSONLD_SCRIPT_RE = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+const JSONLD_SCRIPT_RE =
+  /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
 const URL_RE = /^https?:\/\/[^\s"'<>()]+$/i;
 const EMBEDDED_URL_RE = /https?:\/\/[^\s"'<>()]+/gi;
 
@@ -178,10 +187,10 @@ export function parseJsonLdNodes(jsonLd) {
  */
 export function filterSchemaType(nodes, type) {
   const want = String(type).toLowerCase();
-  return (nodes || []).filter((n) => {
+  return (nodes || []).filter(n => {
     const t = n && n['@type'];
     if (!t) return false;
-    return (Array.isArray(t) ? t : [t]).some((x) => String(x).toLowerCase() === want);
+    return (Array.isArray(t) ? t : [t]).some(x => String(x).toLowerCase() === want);
   });
 }
 
@@ -219,7 +228,9 @@ export function extractFaqSupportUrls(jsonLd) {
   const supportUrls = new Set();
   const questions = [];
   for (const faq of faqs) {
-    const entities = Array.isArray(faq.mainEntity) ? faq.mainEntity : [faq.mainEntity].filter(Boolean);
+    const entities = Array.isArray(faq.mainEntity)
+      ? faq.mainEntity
+      : [faq.mainEntity].filter(Boolean);
     for (const q of entities) {
       if (q && q.name) questions.push(String(q.name).slice(0, 200));
       const accepted = q && q.acceptedAnswer;
@@ -279,7 +290,11 @@ export function mineRecipeContentApis(jsonLd) {
       }
     }
   }
-  return { recipeCount: recipes.length, contentUrls: [...contentUrls], apiPatterns: [...apiPatterns] };
+  return {
+    recipeCount: recipes.length,
+    contentUrls: [...contentUrls],
+    apiPatterns: [...apiPatterns],
+  };
 }
 
 /**
@@ -288,7 +303,7 @@ export function mineRecipeContentApis(jsonLd) {
  * @returns {object} per-idea mapping results
  */
 export function mapSupportInfrastructure({ widgetCode = '', jsSources = [], jsonLd = null } = {}) {
-  const sources = [widgetCode, ...(jsSources || [])].map((s) => String(s || ''));
+  const sources = [widgetCode, ...(jsSources || [])].map(s => String(s || ''));
   const transcripts = sources.map(mapChatTranscriptEndpoints);
   const canned = sources.map(mineCannedResponseApis);
   const tickets = sources.map(mapTicketCreationEndpoints);

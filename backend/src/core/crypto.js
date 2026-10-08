@@ -12,7 +12,7 @@ export class SecretBox {
     const cipher = crypto.createCipheriv(algorithm, this.key, iv);
     const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
-    return [iv, tag, encrypted].map((part) => part.toString('base64url')).join('.');
+    return [iv, tag, encrypted].map(part => part.toString('base64url')).join('.');
   }
 
   decrypt(payload) {
@@ -22,7 +22,7 @@ export class SecretBox {
     decipher.setAuthTag(Buffer.from(tagText, 'base64url'));
     return Buffer.concat([
       decipher.update(Buffer.from(encryptedText, 'base64url')),
-      decipher.final()
+      decipher.final(),
     ]).toString('utf8');
   }
 }

@@ -43,16 +43,27 @@ class Validator {
     for (let i = 0; i < content.length; i++) {
       const ch = content[i];
       const prev = content[i - 1];
-      if (inString) { if (ch === inString && prev !== '\\') inString = null; continue; }
-      if (ch === '"' || ch === "'") { inString = ch; continue; }
+      if (inString) {
+        if (ch === inString && prev !== '\\') inString = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        inString = ch;
+        continue;
+      }
       if (pairs[ch]) stack.push({ ch, line: i });
       else if (ch === ')' || ch === ']' || ch === '}') {
         const open = stack.pop();
-        if (!open || pairs[open.ch] !== ch) { errors.push(`unbalanced "${ch}" near offset ${i}`); break; }
+        if (!open || pairs[open.ch] !== ch) {
+          errors.push(`unbalanced "${ch}" near offset ${i}`);
+          break;
+        }
       }
     }
     if (stack.length > 0) {
-      errors.push(`unclosed "${stack[stack.length - 1].ch}" opened near offset ${stack[stack.length - 1].line}`);
+      errors.push(
+        `unclosed "${stack[stack.length - 1].ch}" opened near offset ${stack[stack.length - 1].line}`
+      );
     }
 
     // def lines must end with ":" (when not a partial continuation)
@@ -71,19 +82,32 @@ class Validator {
     for (let i = 0; i < content.length; i++) {
       const ch = content[i];
       const prev = content[i - 1];
-      if (inString) { if (ch === inString && prev !== '\\') inString = null; continue; }
-      if (ch === '"' || ch === "'" || ch === '`') { inString = ch; continue; }
+      if (inString) {
+        if (ch === inString && prev !== '\\') inString = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        inString = ch;
+        continue;
+      }
       if (pairs[ch]) stack.push(ch);
       else if (ch === ')' || ch === ']' || ch === '}') {
         const open = stack.pop();
-        if (!open || pairs[open] !== ch) { errors.push(`unbalanced "${ch}" near offset ${i}`); break; }
+        if (!open || pairs[open] !== ch) {
+          errors.push(`unbalanced "${ch}" near offset ${i}`);
+          break;
+        }
       }
     }
     if (stack.length > 0) errors.push(`unclosed "${stack[stack.length - 1]}"`);
   }
 
   validateJson(content, errors) {
-    try { JSON.parse(content); } catch (e) { errors.push(`invalid JSON: ${e.message.slice(0, 80)}`); }
+    try {
+      JSON.parse(content);
+    } catch (e) {
+      errors.push(`invalid JSON: ${e.message.slice(0, 80)}`);
+    }
   }
 
   /**
@@ -135,7 +159,12 @@ class Assembler {
         let piece = seg.content || '';
         // Seam repair: guarantee a newline between segments unless the next
         // segment deliberately starts mid-line (continuation).
-        if (content && !content.endsWith('\n') && !piece.startsWith('\n') && lastNonEmpty !== 'partial') {
+        if (
+          content &&
+          !content.endsWith('\n') &&
+          !piece.startsWith('\n') &&
+          lastNonEmpty !== 'partial'
+        ) {
           content += '\n';
         }
         content += piece;
@@ -148,7 +177,7 @@ class Assembler {
 
   assembleText(parts) {
     const ordered = [...parts].sort((a, b) => a.sequence - b.sequence);
-    return ordered.map((p) => p.content).join('');
+    return ordered.map(p => p.content).join('');
   }
 }
 
@@ -185,4 +214,12 @@ class OutputPlanner {
   }
 }
 
-export { Validator, Assembler, OutputPlanner, modelContextCapacity, reservedOutputTokens, ContextWindowError, estimateTokens };
+export {
+  Validator,
+  Assembler,
+  OutputPlanner,
+  modelContextCapacity,
+  reservedOutputTokens,
+  ContextWindowError,
+  estimateTokens,
+};

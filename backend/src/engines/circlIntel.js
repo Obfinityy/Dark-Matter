@@ -25,7 +25,7 @@
  */
 export function correlate(dnsRecords, sslRecords) {
   const out = new Map();
-  const ensure = (ip) => {
+  const ensure = ip => {
     if (!out.has(ip)) out.set(ip, { names: new Set(), certs: new Map() });
     return out.get(ip);
   };
@@ -41,7 +41,7 @@ export function correlate(dnsRecords, sslRecords) {
       entry.certs.set(sha1, {
         sha1,
         cn: r.cert.cn ?? null,
-        sans: [...new Set((r.cert.sans || []).map((s) => String(s).toLowerCase()))].sort(),
+        sans: [...new Set((r.cert.sans || []).map(s => String(s).toLowerCase()))].sort(),
         ports: new Set(),
         firstSeen: r.cert.firstSeen ?? null,
         lastSeen: r.cert.lastSeen ?? null,
@@ -53,7 +53,7 @@ export function correlate(dnsRecords, sslRecords) {
   for (const [ip, e] of out.entries()) {
     result.set(ip, {
       names: [...e.names].sort(),
-      certs: [...e.certs.values()].map((c) => ({ ...c, ports: [...c.ports].sort((a, b) => a - b) })),
+      certs: [...e.certs.values()].map(c => ({ ...c, ports: [...c.ports].sort((a, b) => a - b) })),
     });
   }
   return result;

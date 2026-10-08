@@ -16,10 +16,19 @@ const DAY_MS = 86400000;
  * Patterns are matched case-insensitively against issuer common names.
  */
 export const PIPELINE_PATTERNS = [
-  { match: /let'?s encrypt/i, intermediates: [/R10|R11|E5|E6/i], pipeline: 'Let\'s Encrypt ACME', automation: 'automated' },
+  {
+    match: /let'?s encrypt/i,
+    intermediates: [/R10|R11|E5|E6/i],
+    pipeline: "Let's Encrypt ACME",
+    automation: 'automated',
+  },
   { match: /zerossl/i, pipeline: 'ZeroSSL ACME', automation: 'automated' },
   { match: /buypass/i, pipeline: 'Buypass ACME', automation: 'automated' },
-  { match: /google trust services/i, pipeline: 'Google Trust Services (GTS)', automation: 'automated' },
+  {
+    match: /google trust services/i,
+    pipeline: 'Google Trust Services (GTS)',
+    automation: 'automated',
+  },
   { match: /amazon/i, pipeline: 'Amazon (ACM/Private CA)', automation: 'automated' },
   { match: /digicert/i, pipeline: 'DigiCert', automation: 'managed' },
   { match: /sectigo|comodo/i, pipeline: 'Sectigo (Comodo)', automation: 'managed' },
@@ -67,9 +76,17 @@ export function analyzeChain({ chain = [] } = {}) {
   for (let i = 0; i < certs.length - 1; i++) {
     const issuer = String(chain[i].issuer || '').toLowerCase();
     const nextSubject = String(chain[i + 1].subject || '').toLowerCase();
-    if (issuer && nextSubject && !issuer.includes(nextSubject.split(',')[0].split('=')[1] || '∅') && issuer !== nextSubject) {
+    if (
+      issuer &&
+      nextSubject &&
+      !issuer.includes(nextSubject.split(',')[0].split('=')[1] || '∅') &&
+      issuer !== nextSubject
+    ) {
       // Only flag when clearly mismatched (avoid false positives on DN formatting).
-      if (!nextSubject.includes(issuer.slice(0, 12)) && !issuer.includes(nextSubject.slice(0, 12))) {
+      if (
+        !nextSubject.includes(issuer.slice(0, 12)) &&
+        !issuer.includes(nextSubject.slice(0, 12))
+      ) {
         breaks.push({ atDepth: i, issuer: chain[i].issuer, nextSubject: chain[i + 1].subject });
       }
     }
@@ -77,16 +94,20 @@ export function analyzeChain({ chain = [] } = {}) {
 
   // Pipeline fingerprinting from the leaf issuer and intermediate CNs.
   const leafIssuer = String(chain[0]?.issuer || '');
-  const intermediateCNs = chain.slice(1, -1).map((c) => String(c.commonName || c.subject || ''));
+  const intermediateCNs = chain.slice(1, -1).map(c => String(c.commonName || c.subject || ''));
   let pipeline = { pipeline: 'unknown', automation: 'unknown', confidence: 'low', evidence: [] };
   for (const p of PIPELINE_PATTERNS) {
-    if (p.match.test(leafIssuer) || intermediateCNs.some((cn) => p.match.test(cn))) {
-      const interOk = !p.intermediates || intermediateCNs.some((cn) => p.intermediates.some((re) => re.test(cn)));
+    if (p.match.test(leafIssuer) || intermediateCNs.some(cn => p.match.test(cn))) {
+      const interOk =
+        !p.intermediates || intermediateCNs.some(cn => p.intermediates.some(re => re.test(cn)));
       pipeline = {
         pipeline: p.pipeline,
         automation: p.automation,
         confidence: interOk ? 'high' : 'medium',
-        evidence: [`issuer "${leafIssuer}"`, ...(intermediateCNs.length ? [`intermediates: ${intermediateCNs.join(', ')}`] : [])],
+        evidence: [
+          `issuer "${leafIssuer}"`,
+          ...(intermediateCNs.length ? [`intermediates: ${intermediateCNs.join(', ')}`] : []),
+        ],
       };
       break;
     }
@@ -103,24 +124,59 @@ export function analyzeChain({ chain = [] } = {}) {
 
   const anomalies = [];
   if (depth > 5) {
-    anomalies.push({ type: 'deep-chain', confidence: 'medium', evidence: `Chain depth ${depth} — unusually long; may indicate legacy cross-signs or misconfigured intermediates.` });
+    anomalies.push({
+      type: 'deep-chain',
+      confidence: 'medium',
+      evidence: `Chain depth ${depth} — unusually long; may indicate legacy cross-signs or misconfigured intermediates.`,
+    });
   }
   if (depth <= 1) {
-    anomalies.push({ type: 'no-chain', confidence: 'high', evidence: 'Only the leaf certificate was served — clients must fetch intermediates themselves; some stacks will fail validation.' });
+    anomalies.push({
+      type: 'no-chain',
+      confidence: 'high',
+      evidence:
+        'Only the leaf certificate was served — clients must fetch intermediates themselves; some stacks will fail validation.',
+    });
   }
   for (const c of certs) {
-    if (c.weakSignature) anomalies.push({ type: 'weak-signature', confidence: 'high', evidence: `Depth ${c.depth} (${c.commonName || c.subject}): ${c.signatureAlgorithm} — deprecated signature algorithm.` });
-    if (c.expired) anomalies.push({ type: 'expired-cert', confidence: 'high', evidence: `Depth ${c.depth} (${c.commonName || c.subject}) is EXPIRED — chain will not validate.` });
-    else if (c.expiringSoon) anomalies.push({ type: 'expiring-soon', confidence: 'medium', evidence: `Depth ${c.depth} (${c.commonName || c.subject}) expires in ${c.daysUntilExpiry} days.` });
+    if (c.weakSignature)
+      anomalies.push({
+        type: 'weak-signature',
+        confidence: 'high',
+        evidence: `Depth ${c.depth} (${c.commonName || c.subject}): ${c.signatureAlgorithm} — deprecated signature algorithm.`,
+      });
+    if (c.expired)
+      anomalies.push({
+        type: 'expired-cert',
+        confidence: 'high',
+        evidence: `Depth ${c.depth} (${c.commonName || c.subject}) is EXPIRED — chain will not validate.`,
+      });
+    else if (c.expiringSoon)
+      anomalies.push({
+        type: 'expiring-soon',
+        confidence: 'medium',
+        evidence: `Depth ${c.depth} (${c.commonName || c.subject}) expires in ${c.daysUntilExpiry} days.`,
+      });
   }
   if (crossSigned.length) {
-    anomalies.push({ type: 'cross-signed', confidence: 'medium', evidence: `${crossSigned.length} certificate(s) appear cross-signed — typical of CA hierarchy transitions.` });
+    anomalies.push({
+      type: 'cross-signed',
+      confidence: 'medium',
+      evidence: `${crossSigned.length} certificate(s) appear cross-signed — typical of CA hierarchy transitions.`,
+    });
   }
   for (const b of breaks) {
-    anomalies.push({ type: 'issuer-break', confidence: 'low', evidence: `Issuer/subject continuity break at depth ${b.atDepth} — verify chain ordering.` });
+    anomalies.push({
+      type: 'issuer-break',
+      confidence: 'low',
+      evidence: `Issuer/subject continuity break at depth ${b.atDepth} — verify chain ordering.`,
+    });
   }
 
-  const selfSignedRoot = certs.length > 0 && String(certs[certs.length - 1].subject).toLowerCase() === String(certs[certs.length - 1].issuer).toLowerCase();
+  const selfSignedRoot =
+    certs.length > 0 &&
+    String(certs[certs.length - 1].subject).toLowerCase() ===
+      String(certs[certs.length - 1].issuer).toLowerCase();
 
   return {
     certs,
@@ -130,14 +186,14 @@ export function analyzeChain({ chain = [] } = {}) {
       includesRoot: selfSignedRoot,
     },
     pipeline,
-    crossSigned: crossSigned.map((c) => ({ depth: c.depth, subject: c.subject, issuer: c.issuer })),
+    crossSigned: crossSigned.map(c => ({ depth: c.depth, subject: c.subject, issuer: c.issuer })),
     anomalies: anomalies.sort((a, b) => (b.confidence === 'high') - (a.confidence === 'high')),
     summary: {
       chainLength: depth,
       pipeline: pipeline.pipeline,
       automation: pipeline.automation,
       anomalyCount: anomalies.length,
-      healthy: anomalies.filter((a) => a.confidence === 'high').length === 0,
+      healthy: anomalies.filter(a => a.confidence === 'high').length === 0,
     },
   };
 }

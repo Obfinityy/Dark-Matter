@@ -22,7 +22,8 @@ export function buildShodanQueries({ ip = '', cidr = '', org = '', extraFilters 
   if (ip) queries.push({ label: 'single-host', query: `ip:${ip}${extra}`.trim() });
   if (cidr) queries.push({ label: 'netblock', query: `net:${cidr}${extra}`.trim() });
   if (org) queries.push({ label: 'org-pivot', query: `org:"${org}"${extra}`.trim() });
-  if (ip) queries.push({ label: 'ssl-cert-pivot', query: `ssl.cert.subject.cn:"${ip}"${extra}`.trim() });
+  if (ip)
+    queries.push({ label: 'ssl-cert-pivot', query: `ssl.cert.subject.cn:"${ip}"${extra}`.trim() });
   return { queries };
 }
 
@@ -126,9 +127,9 @@ export function mergeShodanGraph(results = []) {
     edges: [...edges.values()],
     vulns: vulnList,
     stats: {
-      hosts: [...assets.values()].filter((a) => a.kind === 'host').length,
-      services: [...assets.values()].filter((a) => a.kind === 'service').length,
-      hostnames: [...assets.values()].filter((a) => a.kind === 'hostname').length,
+      hosts: [...assets.values()].filter(a => a.kind === 'host').length,
+      services: [...assets.values()].filter(a => a.kind === 'service').length,
+      hostnames: [...assets.values()].filter(a => a.kind === 'hostname').length,
       vulnMentions: vulnList.length,
     },
   };
@@ -145,11 +146,17 @@ export function shodanFinding(graph) {
     severity: graph.stats.vulnMentions ? 'Medium' : 'Info',
     confidence: graph.stats.hosts ? 'high' : 'low',
     stats: graph.stats,
-    cves: interesting.map((v) => ({ cve: v.cve, host: v.host, port: v.port, product: v.product })),
-    evidence: `${graph.stats.hosts} Shodan host record(s) correlated into the asset graph; ` +
+    cves: interesting.map(v => ({ cve: v.cve, host: v.host, port: v.port, product: v.product })),
+    evidence:
+      `${graph.stats.hosts} Shodan host record(s) correlated into the asset graph; ` +
       `${graph.stats.hostnames} hostname pivot(s) available.`,
   };
 }
 
-export const SHODAN_PIVOT_INTEL = { buildShodanQueries, correlateShodanHost, mergeShodanGraph, shodanFinding };
+export const SHODAN_PIVOT_INTEL = {
+  buildShodanQueries,
+  correlateShodanHost,
+  mergeShodanGraph,
+  shodanFinding,
+};
 export default SHODAN_PIVOT_INTEL;

@@ -10,11 +10,7 @@
  * response by its characteristic body markers and headers.
  */
 
-export const APACHE_STATUS_PATHS = [
-  '/server-status',
-  '/server-status?auto',
-  '/status',
-];
+export const APACHE_STATUS_PATHS = ['/server-status', '/server-status?auto', '/status'];
 
 export const APACHE_STATUS_SIGNATURES = [
   /Apache Status/i,
@@ -27,12 +23,7 @@ export const APACHE_STATUS_SIGNATURES = [
   /CPU Usage/i,
 ];
 
-export const NGINX_STATUS_PATHS = [
-  '/nginx_status',
-  '/nginx-status',
-  '/status',
-  '/basic_status',
-];
+export const NGINX_STATUS_PATHS = ['/nginx_status', '/nginx-status', '/status', '/basic_status'];
 
 export const NGINX_STATUS_SIGNATURES = [
   /Active connections:/i,
@@ -40,7 +31,8 @@ export const NGINX_STATUS_SIGNATURES = [
   /Reading:\s*\d+\s*Writing:\s*\d+\s*Waiting:\s*\d+/i,
 ];
 
-export const NGINX_STATUS_METRIC_PATTERN = /Active connections:\s*(\d+)\s*\nserver accepts handled requests\s*\n\s*(\d+)\s+(\d+)\s+(\d+)\s*\nReading:\s*(\d+)\s*Writing:\s*(\d+)\s*Waiting:\s*(\d+)/i;
+export const NGINX_STATUS_METRIC_PATTERN =
+  /Active connections:\s*(\d+)\s*\nserver accepts handled requests\s*\n\s*(\d+)\s+(\d+)\s+(\d+)\s*\nReading:\s*(\d+)\s*Writing:\s*(\d+)\s*Waiting:\s*(\d+)/i;
 
 /**
  * Analyse a response for an exposed Apache server-status page.
@@ -49,13 +41,17 @@ export const NGINX_STATUS_METRIC_PATTERN = /Active connections:\s*(\d+)\s*\nserv
  */
 export function detectApacheServerStatus({ url = '', status = 0, headers = {}, body = '' }) {
   const text = String(body || '');
-  const matched = APACHE_STATUS_SIGNATURES.filter((re) => re.test(text));
+  const matched = APACHE_STATUS_SIGNATURES.filter(re => re.test(text));
   const serverHeader = String(headers['server'] || headers['Server'] || '');
   const apacheHeader = /apache/i.test(serverHeader);
   const autoFormat = /Total accesses:\s*\d+/i.test(text) && /BusyWorkers:\s*\d+/i.test(text);
   const detected = status === 200 && (matched.length >= 2 || (autoFormat && apacheHeader));
   if (!detected) {
-    return { detected: false, service: 'Apache mod_status', reason: 'No server-status signature in response' };
+    return {
+      detected: false,
+      service: 'Apache mod_status',
+      reason: 'No server-status signature in response',
+    };
   }
   const serverVersion = /<address>Apache\/([\d.]+)/i.exec(text);
   return {
@@ -80,7 +76,11 @@ export function detectNginxStubStatus({ url = '', status = 0, headers = {}, body
   const text = String(body || '');
   const m = NGINX_STATUS_METRIC_PATTERN.exec(text);
   if (!(status === 200 && m)) {
-    return { detected: false, service: 'nginx stub_status', reason: 'No stub_status signature in response' };
+    return {
+      detected: false,
+      service: 'nginx stub_status',
+      reason: 'No stub_status signature in response',
+    };
   }
   const serverHeader = String(headers['server'] || headers['Server'] || '');
   const version = /nginx\/([\d.]+)/i.exec(serverHeader);

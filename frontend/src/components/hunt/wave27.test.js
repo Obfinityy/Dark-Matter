@@ -8,42 +8,77 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE27_IDEAS, WAVE27_START, WAVE27_END,
-  serializeSession, restoreSession,
-  markRead, unreadAlerts,
-  pinMemoryNote, unpinMemoryNote,
+  WAVE27_IDEAS,
+  WAVE27_START,
+  WAVE27_END,
+  serializeSession,
+  restoreSession,
+  markRead,
+  unreadAlerts,
+  pinMemoryNote,
+  unpinMemoryNote,
   compareHunts,
-  detectStopPhrase, STOP_PHRASE_DEFAULT,
-  pacingLevel, shouldReduceProactivity, PACING_NORMAL, PACING_REDUCED, PACING_QUIET,
+  detectStopPhrase,
+  STOP_PHRASE_DEFAULT,
+  pacingLevel,
+  shouldReduceProactivity,
+  PACING_NORMAL,
+  PACING_REDUCED,
+  PACING_QUIET,
   handoffBrief,
-  QUESTION_TEMPLATES, applyTemplate,
-  REPLY_LENGTHS, REPLY_TERSE, REPLY_BALANCED, REPLY_DETAILED, applyReplyLength,
+  QUESTION_TEMPLATES,
+  applyTemplate,
+  REPLY_LENGTHS,
+  REPLY_TERSE,
+  REPLY_BALANCED,
+  REPLY_DETAILED,
+  applyReplyLength,
   unfurlUrl,
-  pushHistory, recallHistory,
+  pushHistory,
+  recallHistory,
   appendWorkingNote,
-  parseTriageCommand, TRIAGE_FALSE_POSITIVE, TRIAGE_CONFIRMED,
-  CHECKIN_INTERVALS_MIN, nextCheckin,
-  escalateAnswer, resolveEscalation, ESCALATION_OPEN, ESCALATION_RESOLVED,
-  TECH_MODE, PLAIN_MODE, toggleTechMode,
+  parseTriageCommand,
+  TRIAGE_FALSE_POSITIVE,
+  TRIAGE_CONFIRMED,
+  CHECKIN_INTERVALS_MIN,
+  nextCheckin,
+  escalateAnswer,
+  resolveEscalation,
+  ESCALATION_OPEN,
+  ESCALATION_RESOLVED,
+  TECH_MODE,
+  PLAIN_MODE,
+  toggleTechMode,
   footnoteEvidence,
-  agentTabs, routeToAgentTab, COORDINATOR_TAB,
-  fnv1a, auditLogAppend, verifyAuditLog,
-  HUNT_TONES, HUNT_TONE_PROFESSIONAL, HUNT_TONE_LIGHT, withHuntTone,
+  agentTabs,
+  routeToAgentTab,
+  COORDINATOR_TAB,
+  fnv1a,
+  auditLogAppend,
+  verifyAuditLog,
+  HUNT_TONES,
+  HUNT_TONE_PROFESSIONAL,
+  HUNT_TONE_LIGHT,
+  withHuntTone,
   instantStatus,
   narrateAction,
   phaseBreadcrumb,
   activeToolBadge,
   phaseProgress,
-  subStepChecklist, tickSubStep,
+  subStepChecklist,
+  tickSubStep,
   timeInPhase,
   lastActionStamp,
   nextActionPreview,
-  STATUS_LANGS, statusInLanguage,
+  STATUS_LANGS,
+  statusInLanguage,
   statusCard,
   appendStatus,
   digestSchedule,
   explainAction,
-  reportBlocker, BLOCKER_NONE, BLOCKER_STUCK,
+  reportBlocker,
+  BLOCKER_NONE,
+  BLOCKER_STUCK,
   waitingOnYou,
   planVsReality,
   shareStatusLink,
@@ -57,7 +92,10 @@ describe('wave 27 registry', () => {
     assert.equal(WAVE27_START, 51041);
     assert.equal(WAVE27_END, 51080);
     const ids = WAVE27_IDEAS.map(([id]) => id);
-    assert.deepEqual(ids, Array.from({ length: 40 }, (_, i) => 51041 + i));
+    assert.deepEqual(
+      ids,
+      Array.from({ length: 40 }, (_, i) => 51041 + i)
+    );
     for (const [id, name, desc] of WAVE27_IDEAS) {
       assert.ok(name && name.length > 0, `idea ${id} missing name`);
       assert.ok(desc && desc.length > 0, `idea ${id} missing description`);
@@ -68,7 +106,9 @@ describe('wave 27 registry', () => {
 describe('51041 persistent chat sessions', () => {
   it('serializes and restores a session', () => {
     const snap = serializeSession({
-      huntId: 'h-1', savedAtMs: 5000, scrollTop: 120,
+      huntId: 'h-1',
+      savedAtMs: 5000,
+      scrollTop: 120,
       messages: [{ id: 'm1', role: 'user', text: 'hi', ts: 1000 }],
     });
     assert.equal(snap.version, 1);
@@ -88,7 +128,9 @@ describe('51041 persistent chat sessions', () => {
 describe('51042 read receipts', () => {
   it('marks read and counts unread alerts', () => {
     const msgs = [
-      { id: 'm1', alert: true }, { id: 'm2', alert: true }, { id: 'm3', alert: false },
+      { id: 'm1', alert: true },
+      { id: 'm2', alert: true },
+      { id: 'm3', alert: false },
     ];
     let read = markRead([], 'm1');
     assert.deepEqual(read, ['m1']);
@@ -115,7 +157,7 @@ describe('51044 cross-hunt comparison', () => {
   it('computes deltas and a summary', () => {
     const r = compareHunts(
       { findings: 14, criticals: 3, coverage: 72, durationMin: 95 },
-      { findings: 11, criticals: 2, coverage: 64, durationMin: 110 },
+      { findings: 11, criticals: 2, coverage: 64, durationMin: 110 }
     );
     assert.equal(r.findingsDelta, 3);
     assert.equal(r.criticalsDelta, 1);
@@ -148,8 +190,12 @@ describe('51046 pacing awareness', () => {
 describe('51047 handoff brief generator', () => {
   it('builds a markdown brief', () => {
     const brief = handoffBrief({
-      huntId: 'h-9', phase: 'exploitation', findings: 5,
-      openBlockers: ['WAF'], memoryNotes: [{ text: 'note' }], nextSteps: ['verify'],
+      huntId: 'h-9',
+      phase: 'exploitation',
+      findings: 5,
+      openBlockers: ['WAF'],
+      memoryNotes: [{ text: 'note' }],
+      nextSteps: ['verify'],
     });
     assert.ok(brief.includes('# Handoff brief — hunt h-9'));
     assert.ok(brief.includes('WAF'));
@@ -308,7 +354,10 @@ describe('51063 phase breadcrumb trail', () => {
   it('marks done/current/upcoming', () => {
     const plan = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
     const crumbs = phaseBreadcrumb(plan, 'b');
-    assert.deepEqual(crumbs.map((c) => c.state), ['done', 'current', 'upcoming']);
+    assert.deepEqual(
+      crumbs.map(c => c.state),
+      ['done', 'current', 'upcoming']
+    );
   });
 });
 

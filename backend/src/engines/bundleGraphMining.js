@@ -73,7 +73,7 @@ export function enumerateWebpackChunks(runtimeJs) {
   // Also catch standalone chunk file references: "static/chunks/pages-admin-9f3c.js"
   const fileRe = /["'`]([A-Za-z0-9_$@./-]*?chunks?\/[A-Za-z0-9_$.@/-]+\.(?:js|css))["'`]/g;
   let fm;
-  const seen = new Set(out.chunks.map((c) => c.url));
+  const seen = new Set(out.chunks.map(c => c.url));
   while ((fm = fileRe.exec(text)) !== null) {
     const file = fm[1];
     const url = joinUrl(out.publicPath, file);
@@ -135,17 +135,17 @@ export function parseViteManifest(manifest, baseUrl = '') {
       });
     }
     // Source route inference: src/pages/** and src/routes/**
-    const srcMatch = String(asset.src || '').match(/^src\/(?:pages|routes|views)\/(.+?)(?:\.[A-Za-z0-9]+)?$/);
+    const srcMatch = String(asset.src || '').match(
+      /^src\/(?:pages|routes|views)\/(.+?)(?:\.[A-Za-z0-9]+)?$/
+    );
     if (srcMatch) {
       let route = srcMatch[1]
         .replace(/\.[A-Za-z0-9_-]{6,}$/, '')
         .replace(/\.(vue|jsx?|tsx?|svelte|astro)$/, '');
       if (/^index$/i.test(route)) route = '';
-      route = route
-        .replace(/\[\.\.\.([^\]]+)\]/g, '*$1')
-        .replace(/\[([^\]]+)\]/g, ':$1');
+      route = route.replace(/\[\.\.\.([^\]]+)\]/g, '*$1').replace(/\[([^\]]+)\]/g, ':$1');
       const path = route === '' ? '/' : '/' + route;
-      if (!routes.some((r) => r.path === path)) {
+      if (!routes.some(r => r.path === path)) {
         routes.push({ path, source: 'vite-manifest', detail: { chunk: asset.file } });
       }
     }

@@ -40,19 +40,24 @@ import {
   PREFERS_CONTRAST_QUERY,
 } from './a11yCore.js';
 
-const ideas = (list) => list.map((e) => e.idea).sort((a, b) => a - b);
+const ideas = list => list.map(e => e.idea).sort((a, b) => a - b);
 
 test('wave-13 registries cover 50481–50520 exactly once (40 ideas)', () => {
   const all = [...ideas(WAVE13_SHORTCUTS_IDEAS), ...ideas(WAVE13_A11Y_IDEAS)];
   assert.equal(all.length, 40);
-  assert.deepEqual(all, Array.from({ length: 40 }, (_, i) => 50481 + i));
+  assert.deepEqual(
+    all,
+    Array.from({ length: 40 }, (_, i) => 50481 + i)
+  );
 });
 
 test('every registry entry names a real implementation or an honest SKIP', () => {
   for (const e of [...WAVE13_SHORTCUTS_IDEAS, ...WAVE13_A11Y_IDEAS]) {
     assert.ok(e.in && e.in.length > 10, `idea ${e.idea} has no implementation note`);
   }
-  const skips = [...WAVE13_SHORTCUTS_IDEAS, ...WAVE13_A11Y_IDEAS].filter((e) => e.in.startsWith('SKIP'));
+  const skips = [...WAVE13_SHORTCUTS_IDEAS, ...WAVE13_A11Y_IDEAS].filter(e =>
+    e.in.startsWith('SKIP')
+  );
   assert.equal(skips.length, 2); // 50483, 50508
 });
 
@@ -74,9 +79,10 @@ test('findRemapConflicts catches collisions with existing bindings', () => {
 
 test('adaptive hints appear after 3 mouse uses (50486)', () => {
   const store = new Map();
-  const fake = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+  const fake = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
   assert.equal(shouldShowHint(fake, 'x'), false);
-  recordMouseUse(fake, 'x'); recordMouseUse(fake, 'x');
+  recordMouseUse(fake, 'x');
+  recordMouseUse(fake, 'x');
   assert.equal(shouldShowHint(fake, 'x'), false);
   assert.equal(recordMouseUse(fake, 'x'), 3);
   assert.equal(shouldShowHint(fake, 'x'), true);
@@ -105,7 +111,12 @@ test('buildDeepLink produces an encoded finding URL (50498)', () => {
 });
 
 test('findingPdfPayload carries the fields the exporter needs (50489)', () => {
-  const p = findingPdfPayload({ title: 'SQLi', severity: 'critical', target: 'x.io/login', cwe: 'CWE-89' });
+  const p = findingPdfPayload({
+    title: 'SQLi',
+    severity: 'critical',
+    target: 'x.io/login',
+    cwe: 'CWE-89',
+  });
   assert.equal(p.title, 'SQLi');
   assert.equal(p.severity, 'critical');
   assert.ok(p.exportedAt);
@@ -113,12 +124,18 @@ test('findingPdfPayload carries the fields the exporter needs (50489)', () => {
 
 test('ONBOARDING_STEPS is a 5-step sequence with real combos (50499)', () => {
   assert.equal(ONBOARDING_STEPS.length, 5);
-  assert.deepEqual(ONBOARDING_STEPS.map((s) => s.n), [1, 2, 3, 4, 5]);
+  assert.deepEqual(
+    ONBOARDING_STEPS.map(s => s.n),
+    [1, 2, 3, 4, 5]
+  );
   for (const s of ONBOARDING_STEPS) assert.ok(s.combo && s.hint);
 });
 
 test('F6_REGIONS cycles nav → main → sidebar → chat (50488)', () => {
-  assert.deepEqual(F6_REGIONS.map((r) => r.id), ['nav', 'main', 'sidebar', 'chat']);
+  assert.deepEqual(
+    F6_REGIONS.map(r => r.id),
+    ['nav', 'main', 'sidebar', 'chat']
+  );
 });
 
 test('NEW_WAVE13_SHORTCUTS lists only bound wave-13 additions (50491)', () => {
@@ -127,7 +144,7 @@ test('NEW_WAVE13_SHORTCUTS lists only bound wave-13 additions (50491)', () => {
 });
 
 test('ADVANCED_SHORTCUTS ids are unique', () => {
-  const ids = ADVANCED_SHORTCUTS.map((s) => s.id);
+  const ids = ADVANCED_SHORTCUTS.map(s => s.id);
   assert.equal(new Set(ids).size, ids.length);
 });
 
@@ -137,8 +154,10 @@ test('phaseNarrationText builds the SR announcement (50500)', () => {
 });
 
 test('newFindingAnnouncement names severity + title (50506)', () => {
-  assert.equal(newFindingAnnouncement({ severity: 'critical', title: 'SQL injection', target: '/login' }),
-    'New critical finding: SQL injection on /login.');
+  assert.equal(
+    newFindingAnnouncement({ severity: 'critical', title: 'SQL injection', target: '/login' }),
+    'New critical finding: SQL injection on /login.'
+  );
 });
 
 test('severityTriple never leaves severity as color-alone (50501)', () => {
@@ -160,7 +179,11 @@ test('contrastRatio computes WCAG ratios (50504)', () => {
 });
 
 test('listbox + option props carry ARIA semantics (50505)', () => {
-  const box = listboxAriaProps({ activeDescendant: 'finding-option-1', expanded: true, multi: true });
+  const box = listboxAriaProps({
+    activeDescendant: 'finding-option-1',
+    expanded: true,
+    multi: true,
+  });
   assert.equal(box.role, 'listbox');
   assert.equal(box['aria-activedescendant'], 'finding-option-1');
   assert.equal(box['aria-multiselectable'], 'true');
@@ -175,7 +198,10 @@ test('timelineStepStatusText narrates steps (50507)', () => {
 });
 
 test('assertiveErrorText links the field to its message (50511)', () => {
-  assert.equal(assertiveErrorText('Target', 'Enter a valid URL'), 'Error in Target: Enter a valid URL');
+  assert.equal(
+    assertiveErrorText('Target', 'Enter a valid URL'),
+    'Error in Target: Enter a valid URL'
+  );
 });
 
 test('toastLiveProps declares a polite live region (50513)', () => {
@@ -190,11 +216,19 @@ test('SEVERITY_PALETTE_CVD covers all severities with notes (50514)', () => {
 });
 
 test('chartDataTableRows converts series to rows (50515)', () => {
-  assert.deepEqual(chartDataTableRows([{ label: 'Critical', value: 3 }]), [{ n: 1, label: 'Critical', value: 3 }]);
+  assert.deepEqual(chartDataTableRows([{ label: 'Critical', value: 3 }]), [
+    { n: 1, label: 'Critical', value: 3 },
+  ]);
 });
 
 test('graphArrowNav walks edges with arrow keys (50516)', () => {
-  const g = { nodes: [{ id: 'a' }, { id: 'b' }, { id: 'c' }], edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }] };
+  const g = {
+    nodes: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+    edges: [
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'c' },
+    ],
+  };
   assert.equal(graphArrowNav(g, 'a', 'arrowright'), 'b');
   assert.equal(graphArrowNav(g, 'b', 'arrowleft'), 'a');
   assert.equal(graphArrowNav(g, 'c', 'arrowdown'), 'c'); // dead end stays

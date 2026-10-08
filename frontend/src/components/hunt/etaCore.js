@@ -61,17 +61,23 @@ export function liveEta({ now, elapsedActiveMs, totalExpectedActiveMs }) {
   const elapsed = Math.max(0, elapsedActiveMs || 0);
   const remainingMs = Math.max(0, expected - elapsed);
   const pctComplete = expected ? Math.min(100, Math.round((elapsed / expected) * 100)) : 0;
-  return { remainingMs, finishAtMs: now + remainingMs, pctComplete, label: formatDuration(remainingMs) };
+  return {
+    remainingMs,
+    finishAtMs: now + remainingMs,
+    pctComplete,
+    label: formatDuration(remainingMs),
+  };
 }
 
 // 51732 — per-phase remaining estimates (active phase nets out elapsed time)
 export function phaseEtas(phases) {
   return (phases || [])
-    .filter((p) => p.status !== 'done')
-    .map((p) => {
-      const etaMs = p.status === 'active'
-        ? Math.max(0, (p.estimatedMs || 0) - (p.elapsedMs || 0))
-        : (p.estimatedMs || 0);
+    .filter(p => p.status !== 'done')
+    .map(p => {
+      const etaMs =
+        p.status === 'active'
+          ? Math.max(0, (p.estimatedMs || 0) - (p.elapsedMs || 0))
+          : p.estimatedMs || 0;
       return { name: p.name, status: p.status, etaMs };
     });
 }
@@ -82,7 +88,13 @@ export function etaInterval(etaMs, confidence = 70) {
   const half = Math.round(etaMs * (1 - c / 100) * 1.2);
   const loMs = Math.max(0, etaMs - half);
   const hiMs = etaMs + half;
-  return { estimateMs: etaMs, loMs, hiMs, confidence: c, label: `${formatDuration(loMs)}–${formatDuration(hiMs)}` };
+  return {
+    estimateMs: etaMs,
+    loMs,
+    hiMs,
+    confidence: c,
+    label: `${formatDuration(loMs)}–${formatDuration(hiMs)}`,
+  };
 }
 
 // 51734 — is the estimate shrinking or slipping? samples: [{ at, estimateMs }]
@@ -107,14 +119,14 @@ export function etaBreakdown(phases) {
   const rows = phaseEtas(phases);
   const total = rows.reduce((s, r) => s + r.etaMs, 0);
   return rows
-    .map((r) => ({ ...r, sharePct: total ? Math.round((r.etaMs / total) * 100) : 0 }))
+    .map(r => ({ ...r, sharePct: total ? Math.round((r.etaMs / total) * 100) : 0 }))
     .sort((a, b) => b.etaMs - a.etaMs);
 }
 
 // 51737 — normalized history series for the graph
 // samples: [{ at, estimateMs }]
 export function etaHistorySeries(samples) {
-  return (samples || []).map((s) => ({ at: s.at, estimateMin: Math.round(s.estimateMs / 60000) }));
+  return (samples || []).map(s => ({ at: s.at, estimateMin: Math.round(s.estimateMs / 60000) }));
 }
 
 // 51738 — finish rendered as a wall-clock time; tz given explicitly so it is deterministic
@@ -152,7 +164,7 @@ export function deadlinePlan(remainingPhases, availableMs) {
     totalMs,
     availableMs,
     compressionFactor: Math.round(Math.min(1, factor) * 100) / 100,
-    phases: remainingPhases.map((p) => ({
+    phases: remainingPhases.map(p => ({
       name: p.name,
       fullMs: p.estimatedMs || 0,
       plannedMs: Math.round((p.estimatedMs || 0) * Math.min(1, factor)),
@@ -165,11 +177,12 @@ export function deadlineFeasibility(requiredMs, availableMs) {
   const marginMs = availableMs - requiredMs;
   const ratio = requiredMs ? availableMs / requiredMs : 1;
   const verdict = ratio >= 1.15 ? 'feasible' : ratio >= 0.95 ? 'marginal' : 'infeasible';
-  const note = verdict === 'feasible'
-    ? 'The deadline fits with buffer to spare.'
-    : verdict === 'marginal'
-      ? 'The deadline is tight: any slip misses it.'
-      : 'The deadline cannot be met without cutting scope.';
+  const note =
+    verdict === 'feasible'
+      ? 'The deadline fits with buffer to spare.'
+      : verdict === 'marginal'
+        ? 'The deadline is tight: any slip misses it.'
+        : 'The deadline cannot be met without cutting scope.';
   return { verdict, marginMs, ratio: Math.round(ratio * 100) / 100, note };
 }
 
@@ -191,10 +204,16 @@ export function overtimeWarnings(allocatedMs, usedMs, projectedTotalMs) {
   if (usedMs >= allocatedMs) {
     warnings.push({ level: 'critical', text: 'Budget exhausted — the hunt is now in overtime.' });
   } else if (usedMs >= allocatedMs * 0.8) {
-    warnings.push({ level: 'warning', text: `Budget ${Math.round((usedMs / allocatedMs) * 100)}% used — slow down or replan.` });
+    warnings.push({
+      level: 'warning',
+      text: `Budget ${Math.round((usedMs / allocatedMs) * 100)}% used — slow down or replan.`,
+    });
   }
   if (projectedTotalMs > allocatedMs) {
-    warnings.push({ level: 'projected', text: `At current pace the hunt will overrun by ${formatDuration(projectedTotalMs - allocatedMs)}.` });
+    warnings.push({
+      level: 'projected',
+      text: `At current pace the hunt will overrun by ${formatDuration(projectedTotalMs - allocatedMs)}.`,
+    });
   }
   return warnings;
 }
@@ -203,24 +222,32 @@ export function overtimeWarnings(allocatedMs, usedMs, projectedTotalMs) {
 // strategies: [{ name, scaleFactor, baseRemainingMs }]
 export function etaByStrategy(strategies) {
   return (strategies || [])
-    .map((s) => ({ name: s.name, scaleFactor: s.scaleFactor, remainingMs: Math.round(s.baseRemainingMs * s.scaleFactor) }))
+    .map(s => ({
+      name: s.name,
+      scaleFactor: s.scaleFactor,
+      remainingMs: Math.round(s.baseRemainingMs * s.scaleFactor),
+    }))
     .sort((a, b) => a.remainingMs - b.remainingMs);
 }
 
 // 51745 — time cost of a proposed redirection, shown before the analyst confirms
 // change: { description, addsMs, removesMs }
-export function steeringTimeImpact(currentRemainingMs, { description = '', addsMs = 0, removesMs = 0 } = {}) {
+export function steeringTimeImpact(
+  currentRemainingMs,
+  { description = '', addsMs = 0, removesMs = 0 } = {}
+) {
   const deltaMs = addsMs - removesMs;
   const newRemainingMs = Math.max(0, currentRemainingMs + deltaMs);
   return {
     description,
     deltaMs,
     newRemainingMs,
-    recommendation: deltaMs > 0
-      ? `Costs ${formatDuration(deltaMs)} — confirm before redirecting.`
-      : deltaMs < 0
-        ? `Saves ${formatDuration(-deltaMs)} — worth doing.`
-        : 'No time impact.',
+    recommendation:
+      deltaMs > 0
+        ? `Costs ${formatDuration(deltaMs)} — confirm before redirecting.`
+        : deltaMs < 0
+          ? `Saves ${formatDuration(-deltaMs)} — worth doing.`
+          : 'No time impact.',
   };
 }
 
@@ -231,27 +258,34 @@ export function pauseAdjustedEta(eta, { extraPausedMs = 0 } = {}) {
     remainingMs: eta.remainingMs,
     pausedMs: extraPausedMs,
     finishAtMs: eta.finishAtMs + extraPausedMs,
-    note: extraPausedMs > 0
-      ? `Paused ${formatDuration(extraPausedMs)} — finish pushed by the same amount.`
-      : 'No pause adjustment.',
+    note:
+      extraPausedMs > 0
+        ? `Paused ${formatDuration(extraPausedMs)} — finish pushed by the same amount.`
+        : 'No pause adjustment.',
   };
 }
 
 // 51747 — remaining time split per asset (explicit remainingMs, or weight-proportional)
 export function etaPerAsset(assets, totalRemainingMs) {
   const totalWeight = (assets || []).reduce((s, a) => s + (a.weight || 0), 0);
-  return (assets || []).map((a) => ({
+  return (assets || []).map(a => ({
     name: a.name,
-    etaMs: a.remainingMs != null
-      ? a.remainingMs
-      : Math.round(totalRemainingMs * ((a.weight || 0) / Math.max(1, totalWeight))),
+    etaMs:
+      a.remainingMs != null
+        ? a.remainingMs
+        : Math.round(totalRemainingMs * ((a.weight || 0) / Math.max(1, totalWeight))),
   }));
 }
 
 // 51748 — average time-to-next-finding from current pace
 export function etaPerFinding(findingsCount, elapsedActiveMs) {
   if (findingsCount <= 0 || elapsedActiveMs <= 0) {
-    return { findingsPerHour: 0, avgMinutesPerFinding: null, nextFindingInMs: null, note: 'No findings yet — pace unknown.' };
+    return {
+      findingsPerHour: 0,
+      avgMinutesPerFinding: null,
+      nextFindingInMs: null,
+      note: 'No findings yet — pace unknown.',
+    };
   }
   const avgMs = elapsedActiveMs / findingsCount;
   const findingsPerHour = Math.round((findingsCount / (elapsedActiveMs / 3600000)) * 10) / 10;
@@ -266,7 +300,8 @@ export function etaPerFinding(findingsCount, elapsedActiveMs) {
 // 51749 — flag when progress per hour drops below expectations
 // paceSamples: [{ at, items, windowMs }]
 export function slowdownDetection(paceSamples, expectedPerHour) {
-  if (!paceSamples || paceSamples.length === 0) return { flagged: false, reason: 'No pace data yet.' };
+  if (!paceSamples || paceSamples.length === 0)
+    return { flagged: false, reason: 'No pace data yet.' };
   const latest = paceSamples[paceSamples.length - 1];
   const perHour = latest.windowMs > 0 ? latest.items / (latest.windowMs / 3600000) : 0;
   const ratio = expectedPerHour ? perHour / expectedPerHour : 1;
@@ -276,9 +311,10 @@ export function slowdownDetection(paceSamples, expectedPerHour) {
     perHour: rounded,
     expectedPerHour,
     ratio: Math.round(ratio * 100) / 100,
-    reason: ratio < 0.6
-      ? `Pace ${rounded}/h is under 60% of the expected ${expectedPerHour}/h.`
-      : 'Pace is within expectations.',
+    reason:
+      ratio < 0.6
+        ? `Pace ${rounded}/h is under 60% of the expected ${expectedPerHour}/h.`
+        : 'Pace is within expectations.',
   };
 }
 
@@ -315,9 +351,14 @@ export function speedupOptions({ remainingMs, parallelizableMs = 0, lowYieldMs =
 // history: [{ predictedMs, actualMs }]
 export function etaCalibration(history) {
   if (!history || history.length === 0) {
-    return { factor: 1, direction: 'none', samples: 0, note: 'No historical hunts yet — estimates are uncalibrated.' };
+    return {
+      factor: 1,
+      direction: 'none',
+      samples: 0,
+      note: 'No historical hunts yet — estimates are uncalibrated.',
+    };
   }
-  const ratios = history.map((h) => (h.predictedMs ? h.actualMs / h.predictedMs : 1));
+  const ratios = history.map(h => (h.predictedMs ? h.actualMs / h.predictedMs : 1));
   const factor = Math.round((ratios.reduce((s, r) => s + r, 0) / ratios.length) * 100) / 100;
   const direction = factor > 1.05 ? 'underestimate' : factor < 0.95 ? 'overestimate' : 'calibrated';
   return {
@@ -325,7 +366,7 @@ export function etaCalibration(history) {
     direction,
     samples: history.length,
     note: `Past hunts ran ${factor}× the estimate.`,
-    calibrate: (estimateMs) => Math.round(estimateMs * factor),
+    calibrate: estimateMs => Math.round(estimateMs * factor),
   };
 }
 
@@ -334,7 +375,13 @@ export function etaChatAnswer(question, eta) {
   const q = (question || '').toLowerCase();
   const range = `${formatDuration(eta.loMs != null ? eta.loMs : eta.etaMs)}–${formatDuration(eta.hiMs != null ? eta.hiMs : eta.etaMs)}`;
   const clock = finishTimeClock(eta.finishAtMs).text;
-  if (q.includes('done') || q.includes('finish') || q.includes('longer') || q.includes('left') || q.includes('remaining')) {
+  if (
+    q.includes('done') ||
+    q.includes('finish') ||
+    q.includes('longer') ||
+    q.includes('left') ||
+    q.includes('remaining')
+  ) {
     return `About ${formatDuration(eta.etaMs)} left (roughly ${range}), finishing around ${clock}.`;
   }
   return `Current estimate: ${formatDuration(eta.etaMs)} remaining (${range}), finishing around ${clock}.`;
@@ -358,7 +405,9 @@ export function etaWidgetPayload({ etaMs, finishAtMs, pctComplete = 0 }) {
 function toBase64Url(str) {
   const bytes = new TextEncoder().encode(str);
   let bin = '';
-  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  bytes.forEach(b => {
+    bin += String.fromCharCode(b);
+  });
   const b64 = typeof btoa === 'function' ? btoa(bin) : Buffer.from(bytes).toString('base64');
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -395,9 +444,10 @@ export function etaVariance(plannedMs, actualMs) {
     deltaMs,
     pct,
     status,
-    text: deltaMs <= 0
-      ? `${formatDuration(-deltaMs)} ahead of plan.`
-      : `${formatDuration(deltaMs)} behind plan (${pct}%).`,
+    text:
+      deltaMs <= 0
+        ? `${formatDuration(-deltaMs)} ahead of plan.`
+        : `${formatDuration(deltaMs)} behind plan (${pct}%).`,
   };
 }
 
@@ -405,26 +455,33 @@ export function etaVariance(plannedMs, actualMs) {
 // historical: [{ name, actualMs }]
 export function phasePredictions(upcoming, historical) {
   const byName = {};
-  (historical || []).forEach((h) => { (byName[h.name] = byName[h.name] || []).push(h.actualMs); });
-  const all = (historical || []).map((h) => h.actualMs).sort((a, b) => a - b);
-  const median = (arr) => (arr.length ? arr[Math.floor(arr.length / 2)] : null);
+  (historical || []).forEach(h => {
+    (byName[h.name] = byName[h.name] || []).push(h.actualMs);
+  });
+  const all = (historical || []).map(h => h.actualMs).sort((a, b) => a - b);
+  const median = arr => (arr.length ? arr[Math.floor(arr.length / 2)] : null);
   const globalMedian = median(all);
-  return (upcoming || []).map((name) => {
+  return (upcoming || []).map(name => {
     const same = (byName[name] || []).sort((a, b) => a - b);
     const match = median(same);
     return {
       name,
       predictedMs: match != null ? match : globalMedian,
-      source: match != null
-        ? `median of ${same.length} similar past phase(s)`
-        : 'median of all past phases',
+      source:
+        match != null
+          ? `median of ${same.length} similar past phase(s)`
+          : 'median of all past phases',
       samples: same.length,
     };
   });
 }
 
 // 51759 — how much to trust the estimate: data points, calibration freshness, progress
-export function etaConfidenceMeter({ dataPoints = 0, calibrationAgeDays = 0, progressPct = 0 } = {}) {
+export function etaConfidenceMeter({
+  dataPoints = 0,
+  calibrationAgeDays = 0,
+  progressPct = 0,
+} = {}) {
   const dataScore = Math.min(40, dataPoints * 8);
   const freshScore = Math.max(0, 30 - calibrationAgeDays);
   const progressScore = Math.min(30, progressPct * 0.3);
@@ -442,5 +499,10 @@ export function etaBounds(etaMs, confidence = 70) {
   const spread = etaMs * (1 - c / 100);
   const bestMs = Math.max(0, Math.round(etaMs - spread));
   const worstMs = Math.round(etaMs + spread * 1.5);
-  return { estimateMs: etaMs, bestMs, worstMs, label: `Best ${formatDuration(bestMs)} · worst ${formatDuration(worstMs)}` };
+  return {
+    estimateMs: etaMs,
+    bestMs,
+    worstMs,
+    label: `Best ${formatDuration(bestMs)} · worst ${formatDuration(worstMs)}`,
+  };
 }

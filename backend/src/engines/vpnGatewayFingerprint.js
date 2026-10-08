@@ -83,12 +83,12 @@ const WIREGUARD_RESPONSE_TABLE = [
   {
     classification: 'wireguard-endpoint',
     description: 'Handshake response (type 0x02) — live WireGuard endpoint.',
-    test: (b) => b.length >= 1 && b[0] === 0x02,
+    test: b => b.length >= 1 && b[0] === 0x02,
   },
   {
     classification: 'wireguard-cookie-reply',
     description: 'Cookie reply (type 0x03) — WireGuard endpoint under load / MAC2 required.',
-    test: (b) => b.length >= 1 && b[0] === 0x03,
+    test: b => b.length >= 1 && b[0] === 0x03,
   },
   {
     classification: 'not-wireguard',
@@ -106,12 +106,12 @@ const WIREGUARD_RESPONSE_TABLE = [
  * @returns {{type:string|null, confidence:'high'|'medium'|'low', matchedSignals:string[], description:string|null, evidence:string}}
  */
 export function fingerprintVpnGateway({ signals = [] } = {}) {
-  const observed = new Set(signals.map((s) => String(s).toLowerCase()));
+  const observed = new Set(signals.map(s => String(s).toLowerCase()));
   let best = null;
   let bestScore = 0;
 
   for (const entry of VPN_HANDSHAKE_TABLE) {
-    const matched = entry.signals.filter((s) => observed.has(s));
+    const matched = entry.signals.filter(s => observed.has(s));
     if (matched.length > bestScore) {
       bestScore = matched.length;
       best = { ...entry, matched };
@@ -153,7 +153,9 @@ export function analyzeIkeNegotiation(response = {}) {
   let ikeVersion = null;
   if (versionByte !== null && IKE_VERSION_TABLE[versionByte]) {
     ikeVersion = IKE_VERSION_TABLE[versionByte].version;
-    evidence.push(`${IKE_VERSION_TABLE[versionByte].note} (version byte 0x${versionByte.toString(16)}).`);
+    evidence.push(
+      `${IKE_VERSION_TABLE[versionByte].note} (version byte 0x${versionByte.toString(16)}).`
+    );
   } else if (versionByte !== null) {
     evidence.push(`Unknown IKE version byte 0x${versionByte.toString(16)}.`);
   }
@@ -161,14 +163,16 @@ export function analyzeIkeNegotiation(response = {}) {
 
   const vendors = [];
   for (const vid of vendorIds.filter(Boolean)) {
-    const hit = IKE_VENDOR_TABLE.find((v) => v.pattern.test(vid));
+    const hit = IKE_VENDOR_TABLE.find(v => v.pattern.test(vid));
     if (hit && !vendors.includes(hit.vendor)) {
       vendors.push(hit.vendor);
       evidence.push(`Vendor-ID payload suggests ${hit.vendor}.`);
     }
   }
   if (vendorIds.length && !vendors.length) {
-    evidence.push(`${vendorIds.length} vendor-ID payload(s) observed but none match known signatures.`);
+    evidence.push(
+      `${vendorIds.length} vendor-ID payload(s) observed but none match known signatures.`
+    );
   }
 
   return { ikeVersion, vendors, evidence };
@@ -183,12 +187,12 @@ export function analyzeIkeNegotiation(response = {}) {
  * @returns {{behavior:string|null, description:string|null, evidence:string}}
  */
 export function probeOpenVpnHmac({ signals = [] } = {}) {
-  const observed = new Set(signals.map((s) => String(s).toLowerCase()));
+  const observed = new Set(signals.map(s => String(s).toLowerCase()));
   let best = null;
   let bestScore = 0;
 
   for (const entry of OPENVPN_HMAC_TABLE) {
-    const matched = entry.signals.filter((s) => observed.has(s));
+    const matched = entry.signals.filter(s => observed.has(s));
     if (matched.length > bestScore) {
       bestScore = matched.length;
       best = { ...entry, matched };
@@ -219,9 +223,7 @@ export function probeOpenVpnHmac({ signals = [] } = {}) {
  * @returns {{classification:string, messageType:string|null, evidence:string}}
  */
 export function probeWireGuardHandshake(responseBytes) {
-  const b = Array.isArray(responseBytes)
-    ? responseBytes
-    : Array.from(responseBytes || []);
+  const b = Array.isArray(responseBytes) ? responseBytes : Array.from(responseBytes || []);
 
   if (b.length === 0) {
     return {
@@ -263,7 +265,9 @@ export function detectIpsecNatT(input = {}) {
   }
   if (natDPayloads > 0) {
     score += 2;
-    evidence.push(`${natDPayloads} NAT-D payload(s) observed in IKE exchange — NAT detection in use.`);
+    evidence.push(
+      `${natDPayloads} NAT-D payload(s) observed in IKE exchange — NAT detection in use.`
+    );
   }
   if (natDOE) {
     score += 1;

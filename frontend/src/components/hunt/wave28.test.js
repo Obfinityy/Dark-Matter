@@ -8,31 +8,47 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE28_IDEAS, WAVE28_START, WAVE28_END,
+  WAVE28_IDEAS,
+  WAVE28_START,
+  WAVE28_END,
   tabTitleStatus,
   statusApiPayload,
   captureSnapshot,
   intentExplanation,
   dependencyDisplay,
-  approachConfidence, confidenceLabel, CONF_HIGH, CONF_MEDIUM, CONF_LOW,
+  approachConfidence,
+  confidenceLabel,
+  CONF_HIGH,
+  CONF_MEDIUM,
+  CONF_LOW,
   consideredAlternatives,
   moduleStatus,
-  quietModeFilter, QUIET_ON, QUIET_OFF,
+  quietModeFilter,
+  QUIET_ON,
+  QUIET_OFF,
   pushAlertPayload,
   terminalLine,
-  emojiForPhase, STATUS_EMOJI,
+  emojiForPhase,
+  STATUS_EMOJI,
   timeSinceFinding,
   coverageSummary,
   pausedStatus,
   approvalWaitStatus,
-  exportStatusCsv, exportStatusMarkdown,
-  openQaThread, qaReply,
+  exportStatusCsv,
+  exportStatusMarkdown,
+  openQaThread,
+  qaReply,
   flagUncertain,
   forecastPhases,
-  GRAN_SUMMARY, GRAN_STANDARD, GRAN_VERBOSE, GRANULARITIES, applyGranularity,
+  GRAN_SUMMARY,
+  GRAN_STANDARD,
+  GRAN_VERBOSE,
+  GRANULARITIES,
+  applyGranularity,
   componentStatus,
   scrubTimeline,
-  addBookmark, removeBookmark,
+  addBookmark,
+  removeBookmark,
   workloadMeter,
   modelSwitchNotice,
   bilingualStatus,
@@ -62,7 +78,10 @@ describe('wave 28 registry', () => {
     assert.equal(WAVE28_START, 51081);
     assert.equal(WAVE28_END, 51120);
     const ids = WAVE28_IDEAS.map(([id]) => id);
-    assert.deepEqual(ids, Array.from({ length: 40 }, (_, i) => 51081 + i));
+    assert.deepEqual(
+      ids,
+      Array.from({ length: 40 }, (_, i) => 51081 + i)
+    );
     for (const [id, name, desc] of WAVE28_IDEAS) {
       assert.ok(name && name.length > 0, `idea ${id} missing name`);
       assert.ok(desc && desc.length > 0, `idea ${id} missing description`);
@@ -84,7 +103,13 @@ describe('51081 tab-title status', () => {
 
 describe('51082 status API payload', () => {
   it('returns machine-readable JSON shape', () => {
-    const p = statusApiPayload({ huntId: 'h-1', phase: 'crawl', progressPct: 50, findingCount: 2, updatedAtMs: 1000 });
+    const p = statusApiPayload({
+      huntId: 'h-1',
+      phase: 'crawl',
+      progressPct: 50,
+      findingCount: 2,
+      updatedAtMs: 1000,
+    });
     assert.equal(p.version, 1);
     assert.equal(p.huntId, 'h-1');
     assert.equal(p.phase, 'crawl');
@@ -139,7 +164,9 @@ describe('51086 approach confidence', () => {
 
 describe('51087 considered alternatives', () => {
   it('lists alternatives with rejection reasons', () => {
-    const alts = consideredAlternatives({ alternatives: [{ name: 'manual', rejectedBecause: 'slow' }] });
+    const alts = consideredAlternatives({
+      alternatives: [{ name: 'manual', rejectedBecause: 'slow' }],
+    });
     assert.equal(alts[0].name, 'manual');
     assert.equal(alts[0].rejectedBecause, 'slow');
   });
@@ -200,7 +227,10 @@ describe('51093 time-since-finding', () => {
 
 describe('51094 coverage-so-far summary', () => {
   it('splits covered vs untouched', () => {
-    const c = coverageSummary([{ name: '/a', covered: true }, { name: '/b', covered: false }]);
+    const c = coverageSummary([
+      { name: '/a', covered: true },
+      { name: '/b', covered: false },
+    ]);
     assert.equal(c.covered, 1);
     assert.deepEqual(c.untouched, ['/b']);
     assert.equal(c.pct, 50);
@@ -255,7 +285,11 @@ describe('51099 uncertainty flag', () => {
 
 describe('51100 upcoming-phase forecast', () => {
   it('looks ahead n steps', () => {
-    const f = forecastPhases([{ phase: 'a' }, { phase: 'b' }, { phase: 'c' }, { phase: 'd' }], 0, 2);
+    const f = forecastPhases(
+      [{ phase: 'a' }, { phase: 'b' }, { phase: 'c' }, { phase: 'd' }],
+      0,
+      2
+    );
     assert.equal(f.length, 2);
     assert.equal(f[0].phase, 'b');
   });
@@ -386,8 +420,11 @@ describe('51113 manager-friendly status', () => {
 describe('51114 since-last-visit diff', () => {
   it('summarizes new activity', () => {
     const d = lastVisitDiff(
-      [{ atMs: 2000, kind: 'finding', phase: 'probe' }, { atMs: 500, kind: 'phase', phase: 'recon' }],
-      1000,
+      [
+        { atMs: 2000, kind: 'finding', phase: 'probe' },
+        { atMs: 500, kind: 'phase', phase: 'recon' },
+      ],
+      1000
     );
     assert.equal(d.eventCount, 1);
     assert.equal(d.newFindings, 1);
@@ -450,7 +487,10 @@ describe('51119 finding-type priority boost', () => {
 describe('51120 noisy-check demotion', () => {
   it('pushes noisy checks to the back', () => {
     const out = demoteNoisy([{ id: 'a' }, { id: 'b' }, { id: 'c' }], ['a']);
-    assert.deepEqual(out.map((x) => x.id), ['b', 'c', 'a']);
+    assert.deepEqual(
+      out.map(x => x.id),
+      ['b', 'c', 'a']
+    );
   });
   it('keeps disabled checks in the list', () => {
     assert.equal(demoteNoisy([{ id: 'a' }], ['a']).length, 1);
@@ -472,7 +512,7 @@ describe('wave 28 CSS audit', () => {
     for (const m of noComments.matchAll(/([^{}]+)\{/g)) {
       for (const sm of m[1].matchAll(/\.([A-Za-z0-9_-]+)/g)) selectors.push(sm[1]);
     }
-    const unscoped = selectors.filter((s) => !s.startsWith('st28-'));
+    const unscoped = selectors.filter(s => !s.startsWith('st28-'));
     assert.deepEqual(unscoped, []);
   });
 });

@@ -50,8 +50,8 @@ export function buildDialectMatrix(input = {}) {
   const probes = Array.isArray(input.probes) ? input.probes : [];
   const supported = new Set();
   const unsupported = new Set();
-  const matrix = SMB2_DIALECT_LADDER.map((d) => {
-    const solo = probes.find((p) => p.offered.length === 1 && p.offered[0] === d.code);
+  const matrix = SMB2_DIALECT_LADDER.map(d => {
+    const solo = probes.find(p => p.offered.length === 1 && p.offered[0] === d.code);
     const selected = solo ? solo.selected === d.code : false;
     if (solo) {
       (selected ? supported : unsupported).add(d.name);
@@ -61,11 +61,11 @@ export function buildDialectMatrix(input = {}) {
   // Dialects offered only inside larger sets: infer support if server ever selected them.
   for (const p of probes) {
     if (p.selected != null) {
-      const d = SMB2_DIALECT_LADDER.find((x) => x.code === p.selected);
+      const d = SMB2_DIALECT_LADDER.find(x => x.code === p.selected);
       if (d) supported.add(d.name);
     }
   }
-  const refusedAll = probes.length > 0 && probes.every((p) => p.selected == null);
+  const refusedAll = probes.length > 0 && probes.every(p => p.selected == null);
   return {
     supported: [...supported],
     unsupported: [...unsupported],
@@ -90,23 +90,31 @@ export function mapSmb2Dialects(input = {}) {
       maxDialect: null,
       implementationHint: null,
       legacyDialects: [],
-      hardeningNotes: ['Server refused all SMB2 dialect offers — may require SMB1 or block negotiation probes'],
+      hardeningNotes: [
+        'Server refused all SMB2 dialect offers — may require SMB1 or block negotiation probes',
+      ],
       evidence: 'All NEGOTIATE probes refused; no dialect matrix could be built.',
     };
   }
 
   // Ceiling = highest supported dialect on the ladder.
-  const maxDialect = SMB2_DIALECT_LADDER.map((d) => d.name).find((n) => supported.includes(n)) || null;
-  const ceiling = DIALECT_CEILING_HINTS.find((h) => h.max === maxDialect);
-  const legacyDialects = supported.filter((d) => d === 'SMB 2.0.2' || d === 'SMB 2.1');
+  const maxDialect = SMB2_DIALECT_LADDER.map(d => d.name).find(n => supported.includes(n)) || null;
+  const ceiling = DIALECT_CEILING_HINTS.find(h => h.max === maxDialect);
+  const legacyDialects = supported.filter(d => d === 'SMB 2.0.2' || d === 'SMB 2.1');
   if (legacyDialects.length) {
-    hardeningNotes.push(`Legacy dialects still negotiated (${legacyDialects.join(', ')}) — disable SMB 2.0/2.1 on the server`);
+    hardeningNotes.push(
+      `Legacy dialects still negotiated (${legacyDialects.join(', ')}) — disable SMB 2.0/2.1 on the server`
+    );
   }
   if (maxDialect === 'SMB 2.1' || maxDialect === 'SMB 2.0.2') {
-    hardeningNotes.push('Dialect ceiling indicates an end-of-life Windows generation — prioritize upgrade in the report');
+    hardeningNotes.push(
+      'Dialect ceiling indicates an end-of-life Windows generation — prioritize upgrade in the report'
+    );
   }
   if (input.signingRequired === false) {
-    hardeningNotes.push('SMB signing not required — relay attacks possible where credentials are in play');
+    hardeningNotes.push(
+      'SMB signing not required — relay attacks possible where credentials are in play'
+    );
   }
 
   return {
@@ -116,9 +124,10 @@ export function mapSmb2Dialects(input = {}) {
     implementationHint: ceiling ? ceiling.hint : null,
     legacyDialects,
     hardeningNotes,
-    evidence: supported.length === 0
-      ? 'No supported dialects determined from the probe series.'
-      : `Supported dialects: ${supported.join(', ')}; ceiling ${maxDialect} → ${ceiling ? ceiling.hint : 'unknown stack'}.`
-        + (hardeningNotes.length ? ` Hardening: ${hardeningNotes.join('; ')}` : ''),
+    evidence:
+      supported.length === 0
+        ? 'No supported dialects determined from the probe series.'
+        : `Supported dialects: ${supported.join(', ')}; ceiling ${maxDialect} → ${ceiling ? ceiling.hint : 'unknown stack'}.` +
+          (hardeningNotes.length ? ` Hardening: ${hardeningNotes.join('; ')}` : ''),
   };
 }

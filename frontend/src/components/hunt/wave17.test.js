@@ -95,11 +95,14 @@ test('wave-17 registry covers all 40 ideas (50641–50680)', () => {
   assert.equal(WAVE17_IDEAS.length, 40);
   assert.equal(WAVE17_IDEAS[0].id, 50641);
   assert.equal(WAVE17_IDEAS[39].id, 50680);
-  const skips = WAVE17_IDEAS.filter((i) => i.status === 'skip');
-  assert.equal(skips.length, 0, `expected zero skips, got: ${skips.map((s) => s.id).join(',')}`);
+  const skips = WAVE17_IDEAS.filter(i => i.status === 'skip');
+  assert.equal(skips.length, 0, `expected zero skips, got: ${skips.map(s => s.id).join(',')}`);
   for (const idea of WAVE17_IDEAS) {
     assert.ok(idea.component, `${idea.id} shipped but has no component`);
-    assert.ok(['ThemeSuite.jsx', 'ResponsiveRound2.jsx'].includes(idea.module), `${idea.id} bad module`);
+    assert.ok(
+      ['ThemeSuite.jsx', 'ResponsiveRound2.jsx'].includes(idea.module),
+      `${idea.id} bad module`
+    );
     const src = idea.module === 'ThemeSuite.jsx' ? themeJsx : r2Jsx;
     assert.ok(
       src.includes(`export function ${idea.component}`),
@@ -107,16 +110,31 @@ test('wave-17 registry covers all 40 ideas (50641–50680)', () => {
     );
   }
   // Responsive half lands in ResponsiveRound2.jsx, theming half in ThemeSuite.jsx.
-  assert.ok(WAVE17_IDEAS.filter((i) => i.id <= 50659).every((i) => i.module === 'ResponsiveRound2.jsx'));
-  assert.ok(WAVE17_IDEAS.filter((i) => i.id >= 50660).every((i) => i.module === 'ThemeSuite.jsx'));
+  assert.ok(
+    WAVE17_IDEAS.filter(i => i.id <= 50659).every(i => i.module === 'ResponsiveRound2.jsx')
+  );
+  assert.ok(WAVE17_IDEAS.filter(i => i.id >= 50660).every(i => i.module === 'ThemeSuite.jsx'));
 });
 
 test('every ThemeSuite.jsx export the registry references exists', () => {
   for (const name of [
-    'ThemeProvider', 'useTheme', 'ThemePicker', 'ThemePreviewThumbnail', 'AccentPicker',
-    'ContrastReadout', 'SunsetScheduler', 'ThemeJSONExportImport', 'ThemedLogo',
-    'PerPageThemeMemory', 'DimThemeToggle', 'ThemeCycleHint', 'ThemedSkeleton',
-    'ThemedCodeBlock', 'ThemedChart', 'ThemedEmailPreview', 'ThemeSuiteGallery',
+    'ThemeProvider',
+    'useTheme',
+    'ThemePicker',
+    'ThemePreviewThumbnail',
+    'AccentPicker',
+    'ContrastReadout',
+    'SunsetScheduler',
+    'ThemeJSONExportImport',
+    'ThemedLogo',
+    'PerPageThemeMemory',
+    'DimThemeToggle',
+    'ThemeCycleHint',
+    'ThemedSkeleton',
+    'ThemedCodeBlock',
+    'ThemedChart',
+    'ThemedEmailPreview',
+    'ThemeSuiteGallery',
   ]) {
     assert.ok(themeJsx.includes(`export function ${name}`), `missing export ${name}`);
   }
@@ -124,23 +142,47 @@ test('every ThemeSuite.jsx export the registry references exists', () => {
 
 test('every ResponsiveRound2.jsx export the registry references exists', () => {
   for (const name of [
-    'LongPressMenu', 'ResponsiveThumbnail', 'PrintLayoutOverride', 'OrientationSafeScroller',
-    'NotchSafeBars', 'HybridTabletCard', 'CollapsibleMobileSection', 'OsTextSizeDemo',
-    'SaveDataBadge', 'ShortMobileEmptyState', 'SwipeablePhaseCarousel', 'MobileTabBadge',
-    'BottomSheetModal', 'LargeTouchSlider', 'FullBleedTabletGraph', 'DesktopSiteToggle',
-    'ResponsiveFocusOrder', 'ContainerQueryWidget', 'TestedWidthNote', 'ResponsiveRound2Gallery',
+    'LongPressMenu',
+    'ResponsiveThumbnail',
+    'PrintLayoutOverride',
+    'OrientationSafeScroller',
+    'NotchSafeBars',
+    'HybridTabletCard',
+    'CollapsibleMobileSection',
+    'OsTextSizeDemo',
+    'SaveDataBadge',
+    'ShortMobileEmptyState',
+    'SwipeablePhaseCarousel',
+    'MobileTabBadge',
+    'BottomSheetModal',
+    'LargeTouchSlider',
+    'FullBleedTabletGraph',
+    'DesktopSiteToggle',
+    'ResponsiveFocusOrder',
+    'ContainerQueryWidget',
+    'TestedWidthNote',
+    'ResponsiveRound2Gallery',
   ]) {
     assert.ok(r2Jsx.includes(`export function ${name}`), `missing export ${name}`);
   }
 });
 
 test('identity: no other AI names in wave-17 files', () => {
-  for (const [name, src] of [['themeCore', ''], ['ThemeSuite', themeJsx], ['ResponsiveRound2', r2Jsx]]) {
+  for (const [name, src] of [
+    ['themeCore', ''],
+    ['ThemeSuite', themeJsx],
+    ['ResponsiveRound2', r2Jsx],
+  ]) {
     assert.ok(!src.includes('Muse'), `${name} mentions Muse`);
   }
   const core = readFileSync(join(__dirname, 'themeCore.js'), 'utf8');
   const r2core = readFileSync(join(__dirname, 'responsiveRound2Core.js'), 'utf8');
-  for (const [name, src] of [['themeCore.js', core], ['responsiveRound2Core.js', r2core], ['ThemeSuite.css', themeCss], ['ResponsiveRound2.css', r2Css]]) {
+  for (const [name, src] of [
+    ['themeCore.js', core],
+    ['responsiveRound2Core.js', r2core],
+    ['ThemeSuite.css', themeCss],
+    ['ResponsiveRound2.css', r2Css],
+  ]) {
     assert.ok(!src.includes('Muse'), `${name} mentions Muse`);
     assert.ok(src.includes('Infinity AI'), `${name} missing Infinity AI branding`);
   }
@@ -154,12 +196,31 @@ test('four first-class themes with full palettes', () => {
   for (const id of THEME_IDS) {
     const t = themeById(id);
     assert.ok(t, id);
-    for (const k of ['surface', 'text', 'severity', 'syntax', 'chart', 'focusRing', 'skeleton', 'scrollbar', 'themeColor']) {
+    for (const k of [
+      'surface',
+      'text',
+      'severity',
+      'syntax',
+      'chart',
+      'focusRing',
+      'skeleton',
+      'scrollbar',
+      'themeColor',
+    ]) {
       assert.ok(t[k] != null, `${id}.${k} missing`);
     }
     assert.equal(Object.keys(t.severity).length, 4);
     assert.equal(t.chart.length, 6);
-    for (const k of ['keyword', 'string', 'number', 'comment', 'func', 'lineNumber', 'bg', 'text']) {
+    for (const k of [
+      'keyword',
+      'string',
+      'number',
+      'comment',
+      'func',
+      'lineNumber',
+      'bg',
+      'text',
+    ]) {
       assert.ok(isValidHexColor(t.syntax[k]), `${id}.syntax.${k} not a hex color`);
     }
   }
@@ -255,14 +316,25 @@ test('accent presets + auto-contrast guard (50675)', () => {
 test('resolveOsTheme is null in Node; effective theme resolution', () => {
   assert.equal(resolveOsTheme(), null);
   assert.equal(resolveEffectiveTheme({ manual: 'light', osFollow: true }), 'light');
-  assert.equal(resolveEffectiveTheme({ manual: null, osFollow: true, storedDefault: 'dim' }), 'dim');
-  assert.equal(resolveEffectiveTheme({ manual: 'bogus', osFollow: false, storedDefault: 'light' }), 'light');
+  assert.equal(
+    resolveEffectiveTheme({ manual: null, osFollow: true, storedDefault: 'dim' }),
+    'dim'
+  );
+  assert.equal(
+    resolveEffectiveTheme({ manual: 'bogus', osFollow: false, storedDefault: 'light' }),
+    'light'
+  );
 });
 
 /* ---------------- Sunset math ------------------------------------------ */
 
 test('sunTimes: New Delhi, June 21 (IST = +330)', () => {
-  const t = sunTimes({ lat: 28.6139, lng: 77.209, date: new Date(Date.UTC(2026, 5, 21, 12, 0)), tzOffsetMin: 330 });
+  const t = sunTimes({
+    lat: 28.6139,
+    lng: 77.209,
+    date: new Date(Date.UTC(2026, 5, 21, 12, 0)),
+    tzOffsetMin: 330,
+  });
   assert.ok(!t.polarDay && !t.polarNight);
   assert.ok(t.sunriseMin > 300 && t.sunriseMin < 400, `sunrise ${t.sunriseMin}`);
   assert.ok(t.sunsetMin > 1100 && t.sunsetMin < 1220, `sunset ${t.sunsetMin}`);
@@ -272,17 +344,33 @@ test('sunTimes: New Delhi, June 21 (IST = +330)', () => {
 test('sunTimes: polar day/night', () => {
   const day = sunTimes({ lat: 78, lng: 16, date: new Date(Date.UTC(2026, 5, 21)), tzOffsetMin: 0 });
   assert.ok(day.polarDay);
-  const night = sunTimes({ lat: -78, lng: 16, date: new Date(Date.UTC(2026, 5, 21)), tzOffsetMin: 0 });
+  const night = sunTimes({
+    lat: -78,
+    lng: 16,
+    date: new Date(Date.UTC(2026, 5, 21)),
+    tzOffsetMin: 0,
+  });
   assert.ok(night.polarNight);
   assert.throws(() => sunTimes({ lat: 91, lng: 0 }), /lat must/);
 });
 
 test('isDarkOutside: Delhi noon vs midnight (IST)', () => {
-  const at = (utcH) => ({ lat: 28.6139, lng: 77.209, date: new Date(Date.UTC(2026, 5, 21, utcH, 0)), tzOffsetMin: 330 });
+  const at = utcH => ({
+    lat: 28.6139,
+    lng: 77.209,
+    date: new Date(Date.UTC(2026, 5, 21, utcH, 0)),
+    tzOffsetMin: 330,
+  });
   assert.equal(isDarkOutside(at(6)), false, '11:30 IST is light');
   assert.equal(isDarkOutside(at(18)), true, '23:30 IST is dark');
-  assert.equal(isDarkOutside({ lat: 78, lng: 16, date: new Date(Date.UTC(2026, 5, 21)), tzOffsetMin: 0 }), false);
-  assert.equal(isDarkOutside({ lat: -78, lng: 16, date: new Date(Date.UTC(2026, 5, 21)), tzOffsetMin: 0 }), true);
+  assert.equal(
+    isDarkOutside({ lat: 78, lng: 16, date: new Date(Date.UTC(2026, 5, 21)), tzOffsetMin: 0 }),
+    false
+  );
+  assert.equal(
+    isDarkOutside({ lat: -78, lng: 16, date: new Date(Date.UTC(2026, 5, 21)), tzOffsetMin: 0 }),
+    true
+  );
 });
 
 test('formatMinutes', () => {
@@ -311,8 +399,10 @@ test('makePageThemeStore: set/get/clear/resolve (in-memory)', () => {
 test('makePageThemeStore works over a storage backend', () => {
   const bag = {};
   const backend = {
-    getItem: (k) => (k in bag ? bag[k] : null),
-    setItem: (k, v) => { bag[k] = v; },
+    getItem: k => (k in bag ? bag[k] : null),
+    setItem: (k, v) => {
+      bag[k] = v;
+    },
   };
   const store = makePageThemeStore(backend);
   store.setPageTheme('settings', 'high-contrast');
@@ -323,8 +413,14 @@ test('makePageThemeStore works over a storage backend', () => {
 
 test('theme JSON round-trips', () => {
   const state = {
-    theme: 'dim', accent: '#06b6d4', osFollow: false, sunsetAuto: true,
-    sunsetLat: 28.6139, sunsetLng: 77.209, printTheme: 'light', oledBlack: true,
+    theme: 'dim',
+    accent: '#06b6d4',
+    osFollow: false,
+    sunsetAuto: true,
+    sunsetLat: 28.6139,
+    sunsetLng: 77.209,
+    printTheme: 'light',
+    oledBlack: true,
     pageThemes: { 'report-preview': 'light' },
   };
   const json = exportThemeJson(state);
@@ -339,11 +435,52 @@ test('theme JSON round-trips', () => {
 test('theme JSON import rejects bad input honestly', () => {
   assert.equal(importThemeJson('nope{').ok, false);
   assert.equal(importThemeJson('[1,2]').ok, false);
-  assert.ok(importThemeJson(JSON.stringify({ version: 99, theme: 'dark', accent: '#ffffff', printTheme: 'light' })).error.includes('version'));
-  assert.ok(importThemeJson(JSON.stringify({ version: THEME_EXPORT_VERSION, theme: 'sepia', accent: '#ffffff', printTheme: 'light' })).error.includes('Unknown theme'));
-  assert.ok(importThemeJson(JSON.stringify({ version: THEME_EXPORT_VERSION, theme: 'dark', accent: 'red', printTheme: 'light' })).error.includes('accent'));
-  assert.ok(importThemeJson(JSON.stringify({ version: THEME_EXPORT_VERSION, theme: 'dark', accent: '#ffffff', printTheme: 'x' })).error.includes('printTheme'));
-  assert.ok(importThemeJson(JSON.stringify({ version: THEME_EXPORT_VERSION, theme: 'dark', accent: '#ffffff', printTheme: 'light', pageThemes: { a: 'nope' } })).error.includes('Unknown theme'));
+  assert.ok(
+    importThemeJson(
+      JSON.stringify({ version: 99, theme: 'dark', accent: '#ffffff', printTheme: 'light' })
+    ).error.includes('version')
+  );
+  assert.ok(
+    importThemeJson(
+      JSON.stringify({
+        version: THEME_EXPORT_VERSION,
+        theme: 'sepia',
+        accent: '#ffffff',
+        printTheme: 'light',
+      })
+    ).error.includes('Unknown theme')
+  );
+  assert.ok(
+    importThemeJson(
+      JSON.stringify({
+        version: THEME_EXPORT_VERSION,
+        theme: 'dark',
+        accent: 'red',
+        printTheme: 'light',
+      })
+    ).error.includes('accent')
+  );
+  assert.ok(
+    importThemeJson(
+      JSON.stringify({
+        version: THEME_EXPORT_VERSION,
+        theme: 'dark',
+        accent: '#ffffff',
+        printTheme: 'x',
+      })
+    ).error.includes('printTheme')
+  );
+  assert.ok(
+    importThemeJson(
+      JSON.stringify({
+        version: THEME_EXPORT_VERSION,
+        theme: 'dark',
+        accent: '#ffffff',
+        printTheme: 'light',
+        pageThemes: { a: 'nope' },
+      })
+    ).error.includes('Unknown theme')
+  );
 });
 
 /* ---------------- Email templates ----------------------------------------- */
@@ -352,7 +489,10 @@ test('themedEmailHtml generates themed, escaped HTML', () => {
   const html = themedEmailHtml({
     themeId: 'light',
     title: 'Hunt <done>',
-    rows: [{ label: 'Target', value: 't.test' }, { label: 'Critical', value: '2', tone: 'critical' }],
+    rows: [
+      { label: 'Target', value: 't.test' },
+      { label: 'Critical', value: '2', tone: 'critical' },
+    ],
     cta: { label: 'Open', url: 'https://example.invalid/x' },
   });
   assert.ok(html.includes('Hunt &lt;done&gt;'), 'title must be escaped');
@@ -484,7 +624,8 @@ test('tested-width label', () => {
 /* ---------------- CSS completeness ---------------------------------------- */
 
 test('ThemeSuite.css: four themes, cross-fade, print, focus, shimmer', () => {
-  for (const id of THEME_IDS) assert.ok(themeCss.includes(`[data-theme='${id}']`), `missing theme block ${id}`);
+  for (const id of THEME_IDS)
+    assert.ok(themeCss.includes(`[data-theme='${id}']`), `missing theme block ${id}`);
   assert.ok(themeCss.includes('250ms'), 'cross-fade duration');
   assert.ok(themeCss.includes('@media (prefers-reduced-motion: reduce)'));
   assert.ok(themeCss.includes('@media print'));
@@ -498,13 +639,31 @@ test('ThemeSuite.css: four themes, cross-fade, print, focus, shimmer', () => {
 
 test('ResponsiveRound2.css: key classes, safe areas, print, container queries', () => {
   const classes = [
-    '.r2-longpress-card', '.r2-quickmenu', '.r2-thumb', '.r2-print-report',
-    '.r2-notch-header', '.r2-notch-bottombar', '.r2-tooltip', '.r2-collapse-sec',
-    '.r2-savedata-badge', '.r2-degrade-reduced', '.r2-degrade-minimal',
-    '.r2-short-empty', '.r2-carousel-track', '.r2-tab-badge', '.r2-modal',
-    '.r2-as-sheet', '.r2-sheet-handle', '.r2-slider-thumb', '.r2-graph-bleed',
-    '.r2-graph-legend', '.r2-menu-pop', '.r2-focusorder-chip', '.r2-cq-grid',
-    '.r2-tested', '.r2-gallery',
+    '.r2-longpress-card',
+    '.r2-quickmenu',
+    '.r2-thumb',
+    '.r2-print-report',
+    '.r2-notch-header',
+    '.r2-notch-bottombar',
+    '.r2-tooltip',
+    '.r2-collapse-sec',
+    '.r2-savedata-badge',
+    '.r2-degrade-reduced',
+    '.r2-degrade-minimal',
+    '.r2-short-empty',
+    '.r2-carousel-track',
+    '.r2-tab-badge',
+    '.r2-modal',
+    '.r2-as-sheet',
+    '.r2-sheet-handle',
+    '.r2-slider-thumb',
+    '.r2-graph-bleed',
+    '.r2-graph-legend',
+    '.r2-menu-pop',
+    '.r2-focusorder-chip',
+    '.r2-cq-grid',
+    '.r2-tested',
+    '.r2-gallery',
   ];
   for (const c of classes) assert.ok(r2Css.includes(c), `missing CSS class ${c}`);
   assert.ok(r2Css.includes('safe-area-inset-top'));

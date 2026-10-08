@@ -12,9 +12,7 @@
  */
 
 /** Well-known locations of the assetlinks file. */
-export const CANDIDATE_PATHS = [
-  '/.well-known/assetlinks.json',
-];
+export const CANDIDATE_PATHS = ['/.well-known/assetlinks.json'];
 
 /**
  * Build candidate file URLs for a target.
@@ -24,7 +22,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -59,7 +57,14 @@ function hostnameOf(raw) {
  */
 export function analyzeAssetlinks(content, opts = {}) {
   const source = opts.sourceUrl || null;
-  const empty = { source, statements: [], androidApps: [], webSites: [], webHosts: [], rawParse: false };
+  const empty = {
+    source,
+    statements: [],
+    androidApps: [],
+    webSites: [],
+    webHosts: [],
+    rawParse: false,
+  };
   let doc;
   try {
     doc = typeof content === 'string' ? JSON.parse(content) : content;
@@ -83,7 +88,14 @@ export function analyzeAssetlinks(content, opts = {}) {
       : [];
     const site = target.site ? String(target.site) : null;
     const siteHost = site ? hostnameOf(site) : null;
-    result.statements.push({ relation, namespace, packageName, sha256Fingerprints: fingerprints, site, siteHost });
+    result.statements.push({
+      relation,
+      namespace,
+      packageName,
+      sha256Fingerprints: fingerprints,
+      site,
+      siteHost,
+    });
     if (namespace === 'android_app' && packageName) apps.add(packageName);
     if (namespace === 'web' && site) {
       sites.add(site);
@@ -102,7 +114,9 @@ export function analyzeAssetlinks(content, opts = {}) {
  * @returns {string[]} package names that look like debug/staging builds
  */
 export function findDevPackages(analysis) {
-  return (analysis.androidApps || []).filter((p) => /\.debug$|\.dev$|\.staging$|\.qa$|\.test$|debug|staging|internal/i.test(p));
+  return (analysis.androidApps || []).filter(p =>
+    /\.debug$|\.dev$|\.staging$|\.qa$|\.test$|debug|staging|internal/i.test(p)
+  );
 }
 
 /**

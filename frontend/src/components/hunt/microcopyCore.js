@@ -58,7 +58,11 @@ export const HELP_DOCS = {
     { id: 'find-fp', title: 'False-positive handling', url: '/docs/findings#false-positives' },
   ],
   models: [
-    { id: 'models-slots', title: 'Brain slots (Vision / Grounding / Hacking)', url: '/docs/models#slots' },
+    {
+      id: 'models-slots',
+      title: 'Brain slots (Vision / Grounding / Hacking)',
+      url: '/docs/models#slots',
+    },
     { id: 'models-local', title: 'Running a local model', url: '/docs/models#local' },
   ],
   agent: [
@@ -105,7 +109,7 @@ const FP_SIGNAL_TEXT = {
 
 export function fpTagExplainer(signals) {
   const list = Array.isArray(signals) ? signals : [];
-  const explained = list.map((s) => ({
+  const explained = list.map(s => ({
     signal: s,
     text: FP_SIGNAL_TEXT[s] || 'Flagged by the false-positive filter.',
   }));
@@ -136,12 +140,24 @@ function prValue(pr, scope) {
 }
 
 export const CVSS31_METRICS = {
-  AV: { label: 'Attack Vector', options: ['N', 'A', 'L', 'P'], help: { N: 'Network', A: 'Adjacent network', L: 'Local', P: 'Physical' } },
+  AV: {
+    label: 'Attack Vector',
+    options: ['N', 'A', 'L', 'P'],
+    help: { N: 'Network', A: 'Adjacent network', L: 'Local', P: 'Physical' },
+  },
   AC: { label: 'Attack Complexity', options: ['L', 'H'], help: { L: 'Low', H: 'High' } },
-  PR: { label: 'Privileges Required', options: ['N', 'L', 'H'], help: { N: 'None', L: 'Low', H: 'High' } },
+  PR: {
+    label: 'Privileges Required',
+    options: ['N', 'L', 'H'],
+    help: { N: 'None', L: 'Low', H: 'High' },
+  },
   UI: { label: 'User Interaction', options: ['N', 'R'], help: { N: 'None', R: 'Required' } },
   S: { label: 'Scope', options: ['U', 'C'], help: { U: 'Unchanged', C: 'Changed' } },
-  C: { label: 'Confidentiality', options: ['N', 'L', 'H'], help: { N: 'None', L: 'Low', H: 'High' } },
+  C: {
+    label: 'Confidentiality',
+    options: ['N', 'L', 'H'],
+    help: { N: 'None', L: 'Low', H: 'High' },
+  },
   I: { label: 'Integrity', options: ['N', 'L', 'H'], help: { N: 'None', L: 'Low', H: 'High' } },
   A: { label: 'Availability', options: ['N', 'L', 'H'], help: { N: 'None', L: 'Low', H: 'High' } },
 };
@@ -216,8 +232,16 @@ export const TIER_BADGE_TOOLTIP =
 
 export const SCOPE_GUIDANCE = [
   { format: 'Domain', example: 'example.com', note: 'Covers the domain and its subdomains.' },
-  { format: 'URL', example: 'https://app.example.com/admin', note: 'Limits the hunt to this path and below.' },
-  { format: 'CIDR', example: '203.0.113.0/24', note: 'Covers the whole IP range — confirm you own it.' },
+  {
+    format: 'URL',
+    example: 'https://app.example.com/admin',
+    note: 'Limits the hunt to this path and below.',
+  },
+  {
+    format: 'CIDR',
+    example: '203.0.113.0/24',
+    note: 'Covers the whole IP range — confirm you own it.',
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -266,8 +290,18 @@ export function snapshotLabel(savedAtMs, nowMs = Date.now()) {
 
 const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 function pad2(n) {
@@ -284,13 +318,15 @@ export function cronToEnglish(cron) {
     if (m === '*' || h === '*') return null;
     const mm = Number(m);
     const hh = Number(h);
-    if (!Number.isInteger(mm) || !Number.isInteger(hh) || mm < 0 || mm > 59 || hh < 0 || hh > 23) return null;
+    if (!Number.isInteger(mm) || !Number.isInteger(hh) || mm < 0 || mm > 59 || hh < 0 || hh > 23)
+      return null;
     return `${pad2(hh)}:${pad2(mm)}`;
   };
 
   if (min.startsWith('*/') && hr === '*' && dom === '*' && mon === '*' && dow === '*') {
     const every = Number(min.slice(2));
-    if (Number.isInteger(every) && every > 0) return `Every ${every} minute${every === 1 ? '' : 's'}.`;
+    if (Number.isInteger(every) && every > 0)
+      return `Every ${every} minute${every === 1 ? '' : 's'}.`;
   }
   if (hr === '*' && dom === '*' && mon === '*' && dow === '*') {
     const mm = Number(min);
@@ -303,9 +339,13 @@ export function cronToEnglish(cron) {
   if (dom === '*' && mon === '*') {
     const t = atTime(min, hr);
     if (t) {
-      const days = dow === '*'
-        ? null
-        : String(dow).split(',').map((d) => DOW_NAMES[Number(d)]).filter(Boolean);
+      const days =
+        dow === '*'
+          ? null
+          : String(dow)
+              .split(',')
+              .map(d => DOW_NAMES[Number(d)])
+              .filter(Boolean);
       if (days && days.length) return `Every ${days.join(', ')} at ${t}.`;
       if (dow === '*') return `Every day at ${t}.`;
     }
@@ -321,7 +361,8 @@ export function cronToEnglish(cron) {
     const t = atTime(min, hr);
     if (t && mon !== '*') {
       const mo = Number(mon);
-      if (Number.isInteger(mo) && mo >= 1 && mo <= 12) return `Every day in ${MONTH_NAMES[mo - 1]} at ${t}.`;
+      if (Number.isInteger(mo) && mo >= 1 && mo <= 12)
+        return `Every day in ${MONTH_NAMES[mo - 1]} at ${t}.`;
     }
   }
   return 'Custom schedule — expression kept as-is.';
@@ -370,7 +411,7 @@ export function trackingParamHint(url) {
   } catch {
     return null;
   }
-  const tracking = params.filter((p) => /^utm_|^fbclid$|^gclid$|^msclkid$|^mc_/i.test(p));
+  const tracking = params.filter(p => /^utm_|^fbclid$|^gclid$|^msclkid$|^mc_/i.test(p));
   if (!tracking.length) return null;
   return `We’ll strip ${tracking.length} tracking parameter${tracking.length === 1 ? '' : 's'} (${tracking.join(', ')}) automatically — they don’t change what the hunt sees.`;
 }
@@ -392,10 +433,18 @@ export const ASK_AGENT_EXAMPLES = [
 export function validateTargetInput(value) {
   const v = String(value ?? '').trim();
   if (!v) {
-    return { ok: false, error: 'Target is empty.', fix: 'Paste a full URL, e.g. https://example.com' };
+    return {
+      ok: false,
+      error: 'Target is empty.',
+      fix: 'Paste a full URL, e.g. https://example.com',
+    };
   }
   if (/\s/.test(v)) {
-    return { ok: false, error: 'Targets can’t contain spaces.', fix: 'Remove spaces — e.g. https://example.com/admin' };
+    return {
+      ok: false,
+      error: 'Targets can’t contain spaces.',
+      fix: 'Remove spaces — e.g. https://example.com/admin',
+    };
   }
   const schemeMatch = v.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
   if (!schemeMatch) {
@@ -403,15 +452,27 @@ export function validateTargetInput(value) {
   }
   const scheme = schemeMatch[1].toLowerCase();
   if (scheme !== 'http' && scheme !== 'https') {
-    return { ok: false, error: `“${scheme}:” isn’t a huntable scheme.`, fix: 'Use http:// or https://' };
+    return {
+      ok: false,
+      error: `“${scheme}:” isn’t a huntable scheme.`,
+      fix: 'Use http:// or https://',
+    };
   }
   try {
     const u = new URL(v);
     if (!u.hostname || !u.hostname.includes('.')) {
-      return { ok: false, error: 'That hostname looks incomplete.', fix: 'Check the domain spelling — e.g. https://example.com' };
+      return {
+        ok: false,
+        error: 'That hostname looks incomplete.',
+        fix: 'Check the domain spelling — e.g. https://example.com',
+      };
     }
   } catch {
-    return { ok: false, error: 'That URL doesn’t parse.', fix: 'Check for typos — e.g. https://example.com' };
+    return {
+      ok: false,
+      error: 'That URL doesn’t parse.',
+      fix: 'Check for typos — e.g. https://example.com',
+    };
   }
   return { ok: true };
 }
@@ -421,9 +482,18 @@ export function validateTargetInput(value) {
 /* ------------------------------------------------------------------ */
 
 export const EXPORT_FORMATS = [
-  { format: 'PDF', tradeoff: 'Best for sharing with clients — fixed layout, includes evidence screenshots.' },
-  { format: 'Markdown', tradeoff: 'Best for engineers — pastes into tickets and docs, easy to diff.' },
-  { format: 'JSON', tradeoff: 'Best for tooling — full machine-readable finding data for pipelines.' },
+  {
+    format: 'PDF',
+    tradeoff: 'Best for sharing with clients — fixed layout, includes evidence screenshots.',
+  },
+  {
+    format: 'Markdown',
+    tradeoff: 'Best for engineers — pastes into tickets and docs, easy to diff.',
+  },
+  {
+    format: 'JSON',
+    tradeoff: 'Best for tooling — full machine-readable finding data for pipelines.',
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -434,7 +504,7 @@ export const COMPLIANCE_REQUIREMENTS = {
   'OWASP-Top-10': 'Maps findings to the OWASP Top 10 categories they violate.',
   'PCI-DSS': 'Flags findings relevant to PCI DSS control objectives.',
   'SOC-2': 'Flags findings relevant to SOC 2 trust-service criteria.',
-  'GDPR': 'Flags findings that expose personal data handling risks.',
+  GDPR: 'Flags findings that expose personal data handling risks.',
 };
 
 /* ------------------------------------------------------------------ */
@@ -568,7 +638,8 @@ export function slaPolicyText(sla) {
   if (s.critical) parts.push(`critical: ${s.critical}`);
   if (s.high) parts.push(`high: ${s.high}`);
   if (s.medium) parts.push(`medium: ${s.medium}`);
-  if (!parts.length) return 'SLA countdowns follow your workspace policy: critical 24h, high 72h, medium 7d.';
+  if (!parts.length)
+    return 'SLA countdowns follow your workspace policy: critical 24h, high 72h, medium 7d.';
   return `SLA countdowns: ${parts.join(' · ')}. The clock pauses while a finding is in retest.`;
 }
 
@@ -593,7 +664,11 @@ export function huntabilityScore(target) {
   const schemeMatch = v.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
   const scheme = schemeMatch ? schemeMatch[1].toLowerCase() : '';
   if (scheme !== 'http' && scheme !== 'https') {
-    return { score: 10, label: 'Unsupported', reasons: ['Only http:// and https:// targets can be hunted.'] };
+    return {
+      score: 10,
+      label: 'Unsupported',
+      reasons: ['Only http:// and https:// targets can be hunted.'],
+    };
   }
 
   let url = null;
@@ -613,7 +688,12 @@ export function huntabilityScore(target) {
 
   const host = url.hostname;
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
-  const isLocal = host === 'localhost' || host.endsWith('.local') || host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.');
+  const isLocal =
+    host === 'localhost' ||
+    host.endsWith('.local') ||
+    host.startsWith('127.') ||
+    host.startsWith('10.') ||
+    host.startsWith('192.168.');
   if (isIp && !isLocal) {
     score += 5;
     reasons.push('Bare IP — direct infrastructure surface.');
@@ -639,7 +719,9 @@ export function huntabilityScore(target) {
   const params = [...url.searchParams.keys()];
   if (params.length > 0) {
     score += 5;
-    reasons.push(`${params.length} query parameter${params.length === 1 ? '' : 's'} — injection surface.`);
+    reasons.push(
+      `${params.length} query parameter${params.length === 1 ? '' : 's'} — injection surface.`
+    );
   }
   const tracking = trackingParamHint(v);
   if (tracking) {
@@ -657,7 +739,14 @@ export function huntabilityScore(target) {
   }
 
   score = Math.max(5, Math.min(100, Math.round(score)));
-  const label = score >= 75 ? 'Highly huntable' : score >= 50 ? 'Huntable' : score >= 30 ? 'Limited' : 'Barely huntable';
+  const label =
+    score >= 75
+      ? 'Highly huntable'
+      : score >= 50
+        ? 'Huntable'
+        : score >= 30
+          ? 'Limited'
+          : 'Barely huntable';
   return { score, label, reasons };
 }
 
@@ -750,44 +839,200 @@ export function avatarMoodText(mood) {
 /* ------------------------------------------------------------------ */
 
 export const WAVE11_IDEAS = [
-  { idea: 50401, name: 'pause-button-tooltip', in: 'microcopyCore.PAUSE_TOOLTIP + MicrocopyTooltips.PauseButtonTooltip' },
-  { idea: 50402, name: 'empty-poc-hint', in: 'microcopyCore.EMPTY_POC_HINT + MicrocopyTooltips.EmptyPocHint' },
-  { idea: 50403, name: 'shortcut-hints-in-tooltips', in: 'microcopyCore.shortcutTooltip + MicrocopyTooltips.ShortcutTooltip' },
-  { idea: 50404, name: 'chain-icon-tooltip', in: 'microcopyCore.CHAIN_ICON_TOOLTIP + MicrocopyTooltips.ChainIconTooltip' },
+  {
+    idea: 50401,
+    name: 'pause-button-tooltip',
+    in: 'microcopyCore.PAUSE_TOOLTIP + MicrocopyTooltips.PauseButtonTooltip',
+  },
+  {
+    idea: 50402,
+    name: 'empty-poc-hint',
+    in: 'microcopyCore.EMPTY_POC_HINT + MicrocopyTooltips.EmptyPocHint',
+  },
+  {
+    idea: 50403,
+    name: 'shortcut-hints-in-tooltips',
+    in: 'microcopyCore.shortcutTooltip + MicrocopyTooltips.ShortcutTooltip',
+  },
+  {
+    idea: 50404,
+    name: 'chain-icon-tooltip',
+    in: 'microcopyCore.CHAIN_ICON_TOOLTIP + MicrocopyTooltips.ChainIconTooltip',
+  },
   { idea: 50405, name: 'per-page-help-panel', in: 'HelpPanel.jsx (HELP_DOCS + slide-over)' },
-  { idea: 50406, name: 'eta-tooltip', in: 'microcopyCore.etaBasisText + MicrocopyTooltips.EtaTooltip' },
-  { idea: 50407, name: 'false-positive-tag-explainer', in: 'microcopyCore.fpTagExplainer + MicrocopyTooltips.FalsePositiveTagExplainer' },
-  { idea: 50408, name: 'interactive-cvss-breakdown', in: 'microcopyCore.cvss31Score + MicrocopyTooltips.CvssBreakdown' },
-  { idea: 50409, name: 'tier-badge-tooltip', in: 'microcopyCore.TIER_BADGE_TOOLTIP + MicrocopyTooltips.TierBadgeTooltip' },
-  { idea: 50410, name: 'scope-input-guidance', in: 'microcopyCore.SCOPE_GUIDANCE + MicrocopyTooltips.ScopeInputGuidance' },
-  { idea: 50411, name: 'worker-lane-tooltip', in: 'microcopyCore.WORKER_LANE_TOOLTIP + MicrocopyTooltips.WorkerLaneTooltip' },
-  { idea: 50412, name: 'notification-why-link', in: 'microcopyCore.triggerRuleText + MicrocopyTooltips.WhyLink' },
-  { idea: 50413, name: 'snapshot-tooltip', in: 'microcopyCore.snapshotLabel + MicrocopyTooltips.SnapshotTooltip' },
-  { idea: 50414, name: 'cron-expression-helper', in: 'microcopyCore.cronToEnglish + MicrocopyTooltips.CronHelper' },
-  { idea: 50415, name: 'dedup-tooltip', in: 'microcopyCore.dedupText + MicrocopyTooltips.DedupTooltip' },
-  { idea: 50416, name: 'scrubber-help-popover', in: 'microcopyCore.SCRUBBER_HELP + MicrocopyTooltips.ScrubberHelpPopover' },
-  { idea: 50417, name: 'model-slot-tooltips', in: 'microcopyCore.MODEL_SLOT_TOOLTIPS + MicrocopyTooltips.ModelSlotTooltips' },
-  { idea: 50418, name: 'tracking-param-hint', in: 'microcopyCore.trackingParamHint + MicrocopyTooltips.TrackingParamHint' },
-  { idea: 50419, name: 'ask-agent-examples', in: 'microcopyCore.ASK_AGENT_EXAMPLES + MicrocopyTooltips.AskAgentExamples' },
-  { idea: 50420, name: 'fix-oriented-validation', in: 'microcopyCore.validateTargetInput + MicrocopyTooltips.TargetInputWithHelp' },
-  { idea: 50421, name: 'export-format-tooltip', in: 'microcopyCore.EXPORT_FORMATS + MicrocopyTooltips.ExportFormatTooltip' },
-  { idea: 50422, name: 'compliance-badge-links', in: 'microcopyCore.COMPLIANCE_REQUIREMENTS + MicrocopyTooltips.ComplianceBadge' },
-  { idea: 50423, name: 'collaborator-tooltips', in: 'microcopyCore.collaboratorLine + MicrocopyTooltips.CollaboratorAvatar' },
-  { idea: 50424, name: 'confidence-slider-help', in: 'microcopyCore.confidenceSliderHelp + MicrocopyTooltips.ConfidenceSlider' },
-  { idea: 50425, name: 'findings-badge-tooltip', in: 'microcopyCore.findingsBadgeText + MicrocopyTooltips.FindingsBadgeTooltip' },
-  { idea: 50426, name: 'regenerate-button-hint', in: 'microcopyCore.REGENERATE_HINT + MicrocopyTooltips.RegenerateHint' },
-  { idea: 50427, name: 'archived-hunt-tooltip', in: 'microcopyCore.ARCHIVED_HUNT_TOOLTIP + MicrocopyTooltips.ArchivedHuntTooltip' },
-  { idea: 50428, name: 'what-happens-next-stepper', in: 'microcopyCore.HUNT_PHASE_PREVIEWS + MicrocopyTooltips.WhatHappensNext' },
-  { idea: 50429, name: 'terminal-copy-tooltip', in: 'microcopyCore.terminalCopyText + MicrocopyTooltips.TerminalCopyButton' },
-  { idea: 50430, name: 'jargon-glossary-tooltips', in: 'microcopyCore.glossary + MicrocopyTooltips.GlossaryTerm' },
-  { idea: 50431, name: 'theme-hover-previews', in: 'microcopyCore.THEME_PREVIEWS + MicrocopyTooltips.ThemeHoverPreviews' },
-  { idea: 50432, name: 'bulk-action-hint', in: 'microcopyCore.bulkHint + MicrocopyTooltips.BulkActionHint' },
-  { idea: 50433, name: 'sla-badge-tooltip', in: 'microcopyCore.slaPolicyText + MicrocopyTooltips.SlaBadgeTooltip' },
-  { idea: 50434, name: 'widget-help-affordance', in: 'microcopyCore.WIDGET_HELP + MicrocopyTooltips.WidgetHelpAffordance' },
-  { idea: 50435, name: 'huntability-meter', in: 'microcopyCore.huntabilityScore + MicrocopyTooltips.HuntabilityMeter' },
-  { idea: 50436, name: 'bell-tooltip', in: 'microcopyCore.bellTooltip + MicrocopyTooltips.BellTooltip' },
-  { idea: 50437, name: 'helpful-vote-thumbs', in: 'microcopyCore.recordHelpVote + HelpPanel.HelpfulVote' },
-  { idea: 50438, name: 'diff-legend-tooltip', in: 'microcopyCore.DIFF_LEGEND + MicrocopyTooltips.DiffLegendTooltip' },
-  { idea: 50439, name: 'drop-zone-hints', in: 'microcopyCore.dropZoneHint + MicrocopyTooltips.DropZoneHints' },
-  { idea: 50440, name: 'avatar-mood-tooltip', in: 'microcopyCore.avatarMoodText + MicrocopyTooltips.AvatarMoodTooltip' },
+  {
+    idea: 50406,
+    name: 'eta-tooltip',
+    in: 'microcopyCore.etaBasisText + MicrocopyTooltips.EtaTooltip',
+  },
+  {
+    idea: 50407,
+    name: 'false-positive-tag-explainer',
+    in: 'microcopyCore.fpTagExplainer + MicrocopyTooltips.FalsePositiveTagExplainer',
+  },
+  {
+    idea: 50408,
+    name: 'interactive-cvss-breakdown',
+    in: 'microcopyCore.cvss31Score + MicrocopyTooltips.CvssBreakdown',
+  },
+  {
+    idea: 50409,
+    name: 'tier-badge-tooltip',
+    in: 'microcopyCore.TIER_BADGE_TOOLTIP + MicrocopyTooltips.TierBadgeTooltip',
+  },
+  {
+    idea: 50410,
+    name: 'scope-input-guidance',
+    in: 'microcopyCore.SCOPE_GUIDANCE + MicrocopyTooltips.ScopeInputGuidance',
+  },
+  {
+    idea: 50411,
+    name: 'worker-lane-tooltip',
+    in: 'microcopyCore.WORKER_LANE_TOOLTIP + MicrocopyTooltips.WorkerLaneTooltip',
+  },
+  {
+    idea: 50412,
+    name: 'notification-why-link',
+    in: 'microcopyCore.triggerRuleText + MicrocopyTooltips.WhyLink',
+  },
+  {
+    idea: 50413,
+    name: 'snapshot-tooltip',
+    in: 'microcopyCore.snapshotLabel + MicrocopyTooltips.SnapshotTooltip',
+  },
+  {
+    idea: 50414,
+    name: 'cron-expression-helper',
+    in: 'microcopyCore.cronToEnglish + MicrocopyTooltips.CronHelper',
+  },
+  {
+    idea: 50415,
+    name: 'dedup-tooltip',
+    in: 'microcopyCore.dedupText + MicrocopyTooltips.DedupTooltip',
+  },
+  {
+    idea: 50416,
+    name: 'scrubber-help-popover',
+    in: 'microcopyCore.SCRUBBER_HELP + MicrocopyTooltips.ScrubberHelpPopover',
+  },
+  {
+    idea: 50417,
+    name: 'model-slot-tooltips',
+    in: 'microcopyCore.MODEL_SLOT_TOOLTIPS + MicrocopyTooltips.ModelSlotTooltips',
+  },
+  {
+    idea: 50418,
+    name: 'tracking-param-hint',
+    in: 'microcopyCore.trackingParamHint + MicrocopyTooltips.TrackingParamHint',
+  },
+  {
+    idea: 50419,
+    name: 'ask-agent-examples',
+    in: 'microcopyCore.ASK_AGENT_EXAMPLES + MicrocopyTooltips.AskAgentExamples',
+  },
+  {
+    idea: 50420,
+    name: 'fix-oriented-validation',
+    in: 'microcopyCore.validateTargetInput + MicrocopyTooltips.TargetInputWithHelp',
+  },
+  {
+    idea: 50421,
+    name: 'export-format-tooltip',
+    in: 'microcopyCore.EXPORT_FORMATS + MicrocopyTooltips.ExportFormatTooltip',
+  },
+  {
+    idea: 50422,
+    name: 'compliance-badge-links',
+    in: 'microcopyCore.COMPLIANCE_REQUIREMENTS + MicrocopyTooltips.ComplianceBadge',
+  },
+  {
+    idea: 50423,
+    name: 'collaborator-tooltips',
+    in: 'microcopyCore.collaboratorLine + MicrocopyTooltips.CollaboratorAvatar',
+  },
+  {
+    idea: 50424,
+    name: 'confidence-slider-help',
+    in: 'microcopyCore.confidenceSliderHelp + MicrocopyTooltips.ConfidenceSlider',
+  },
+  {
+    idea: 50425,
+    name: 'findings-badge-tooltip',
+    in: 'microcopyCore.findingsBadgeText + MicrocopyTooltips.FindingsBadgeTooltip',
+  },
+  {
+    idea: 50426,
+    name: 'regenerate-button-hint',
+    in: 'microcopyCore.REGENERATE_HINT + MicrocopyTooltips.RegenerateHint',
+  },
+  {
+    idea: 50427,
+    name: 'archived-hunt-tooltip',
+    in: 'microcopyCore.ARCHIVED_HUNT_TOOLTIP + MicrocopyTooltips.ArchivedHuntTooltip',
+  },
+  {
+    idea: 50428,
+    name: 'what-happens-next-stepper',
+    in: 'microcopyCore.HUNT_PHASE_PREVIEWS + MicrocopyTooltips.WhatHappensNext',
+  },
+  {
+    idea: 50429,
+    name: 'terminal-copy-tooltip',
+    in: 'microcopyCore.terminalCopyText + MicrocopyTooltips.TerminalCopyButton',
+  },
+  {
+    idea: 50430,
+    name: 'jargon-glossary-tooltips',
+    in: 'microcopyCore.glossary + MicrocopyTooltips.GlossaryTerm',
+  },
+  {
+    idea: 50431,
+    name: 'theme-hover-previews',
+    in: 'microcopyCore.THEME_PREVIEWS + MicrocopyTooltips.ThemeHoverPreviews',
+  },
+  {
+    idea: 50432,
+    name: 'bulk-action-hint',
+    in: 'microcopyCore.bulkHint + MicrocopyTooltips.BulkActionHint',
+  },
+  {
+    idea: 50433,
+    name: 'sla-badge-tooltip',
+    in: 'microcopyCore.slaPolicyText + MicrocopyTooltips.SlaBadgeTooltip',
+  },
+  {
+    idea: 50434,
+    name: 'widget-help-affordance',
+    in: 'microcopyCore.WIDGET_HELP + MicrocopyTooltips.WidgetHelpAffordance',
+  },
+  {
+    idea: 50435,
+    name: 'huntability-meter',
+    in: 'microcopyCore.huntabilityScore + MicrocopyTooltips.HuntabilityMeter',
+  },
+  {
+    idea: 50436,
+    name: 'bell-tooltip',
+    in: 'microcopyCore.bellTooltip + MicrocopyTooltips.BellTooltip',
+  },
+  {
+    idea: 50437,
+    name: 'helpful-vote-thumbs',
+    in: 'microcopyCore.recordHelpVote + HelpPanel.HelpfulVote',
+  },
+  {
+    idea: 50438,
+    name: 'diff-legend-tooltip',
+    in: 'microcopyCore.DIFF_LEGEND + MicrocopyTooltips.DiffLegendTooltip',
+  },
+  {
+    idea: 50439,
+    name: 'drop-zone-hints',
+    in: 'microcopyCore.dropZoneHint + MicrocopyTooltips.DropZoneHints',
+  },
+  {
+    idea: 50440,
+    name: 'avatar-mood-tooltip',
+    in: 'microcopyCore.avatarMoodText + MicrocopyTooltips.AvatarMoodTooltip',
+  },
 ];

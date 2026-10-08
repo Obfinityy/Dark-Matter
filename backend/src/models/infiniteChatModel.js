@@ -11,16 +11,16 @@ export class InfiniteChatModel {
 
   async appendMessages(userId, conversationId, newMessages) {
     const now = new Date().toISOString();
-    
+
     // Check if conversation exists
     const existing = await this.get(userId, conversationId);
-    
+
     if (existing) {
       await this.database.collection('infinite_chats').updateOne(
         { userId, conversationId },
-        { 
+        {
           $push: { messages: { $each: newMessages } },
-          $set: { updatedAt: now } 
+          $set: { updatedAt: now },
         }
       );
       const updated = await this.get(userId, conversationId);
@@ -31,7 +31,7 @@ export class InfiniteChatModel {
         conversationId,
         messages: newMessages,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       };
       await this.database.collection('infinite_chats').insertOne(chat);
       return chat;
@@ -40,14 +40,17 @@ export class InfiniteChatModel {
 
   async updateMessages(userId, conversationId, messages) {
     const now = new Date().toISOString();
-    await this.database.collection('infinite_chats').updateOne(
-      { userId, conversationId },
-      { $set: { messages, updatedAt: now } }
-    );
+    await this.database
+      .collection('infinite_chats')
+      .updateOne({ userId, conversationId }, { $set: { messages, updatedAt: now } });
     return this.get(userId, conversationId);
   }
 
   async list(userId) {
-    return this.database.collection('infinite_chats').find({ userId }).sort({ updatedAt: -1 }).toArray();
+    return this.database
+      .collection('infinite_chats')
+      .find({ userId })
+      .sort({ updatedAt: -1 })
+      .toArray();
   }
 }

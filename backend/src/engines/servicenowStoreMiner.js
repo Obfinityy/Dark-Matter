@@ -36,8 +36,14 @@ export function classifyServiceNowStoreHost(host, field = '') {
  * Fields of a ServiceNow store listing that may carry URLs.
  */
 export const SERVICENOW_STORE_URL_FIELDS = [
-  'supportUrl', 'supportEmailUrl', 'documentationUrl', 'websiteUrl',
-  'publisherUrl', 'privacyPolicyUrl', 'termsUrl', 'demoUrl',
+  'supportUrl',
+  'supportEmailUrl',
+  'documentationUrl',
+  'websiteUrl',
+  'publisherUrl',
+  'privacyPolicyUrl',
+  'termsUrl',
+  'demoUrl',
 ];
 
 /**
@@ -94,7 +100,9 @@ export function mineServiceNowStoreListings(listings = [], rootDomain) {
   for (const listing of listings || []) {
     for (const f of parseServiceNowStoreListing(listing)) {
       const related = f.host === root || f.host.endsWith(`.${root}`) || f.host.includes(root);
-      const publisherHit = String(listing?.publisher || '').toLowerCase().includes(brand);
+      const publisherHit = String(listing?.publisher || '')
+        .toLowerCase()
+        .includes(brand);
       if (related || publisherHit) out.push(f);
     }
   }

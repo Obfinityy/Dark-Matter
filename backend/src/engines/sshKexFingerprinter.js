@@ -32,7 +32,11 @@ import { createHash } from 'node:crypto';
  * | 2b3c4d5e6f708192a3b4c5d6e7f8091a | libssh (illustrative)     |
  */
 const KNOWN_FINGERPRINTS = [
-  { hassh: 'ec7378c1a92f416a92b65221548386e58', implementation: 'OpenSSH 7.x client/server (common)', confidence: 'medium' },
+  {
+    hassh: 'ec7378c1a92f416a92b65221548386e58',
+    implementation: 'OpenSSH 7.x client/server (common)',
+    confidence: 'medium',
+  },
   { hassh: '579c1d194c1d2bfc1d2c6e0b1f2f6a01', implementation: 'Dropbear', confidence: 'medium' },
   { hassh: '0e5c1f2b3a4d6e7f8090a1b2c3d4e5f6', implementation: 'PuTTY', confidence: 'medium' },
   { hassh: '1a2b3c4d5e6f708192a3b4c5d6e7f809', implementation: 'Paramiko', confidence: 'medium' },
@@ -125,10 +129,18 @@ export function parseKexinitPacket(hexOrBuffer) {
  * @returns {{ hassh: string, hasshServer: string, hasshString: string, hasshServerString: string }}
  */
 export function hasshFromKexinit(kex = {}) {
-  const join = (arr) => (Array.isArray(arr) ? arr : []).join(';');
+  const join = arr => (Array.isArray(arr) ? arr : []).join(';');
   const kexStr = join(kex.kexAlgorithms);
-  const hasshString = [kexStr, kexStr, join(kex.encC2S), join(kex.macC2S), join(kex.compC2S)].join(';');
-  const hasshServerString = [kexStr, kexStr, join(kex.encS2C), join(kex.macS2C), join(kex.compS2C)].join(';');
+  const hasshString = [kexStr, kexStr, join(kex.encC2S), join(kex.macC2S), join(kex.compC2S)].join(
+    ';'
+  );
+  const hasshServerString = [
+    kexStr,
+    kexStr,
+    join(kex.encS2C),
+    join(kex.macS2C),
+    join(kex.compS2C),
+  ].join(';');
   return {
     hassh: createHash('md5').update(hasshString, 'utf8').digest('hex'),
     hasshServer: createHash('md5').update(hasshServerString, 'utf8').digest('hex'),

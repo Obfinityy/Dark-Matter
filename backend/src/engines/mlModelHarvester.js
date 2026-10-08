@@ -26,8 +26,10 @@ const ONNX_SESSION_CREATE_RE = /InferenceSession\s*\.\s*create\s*\(\s*["'`]([^"'
 const ONNX_RUN_RE = /(?:session|ort\.InferenceSession)\s*\.\s*run\s*\(\s*\{/g;
 
 const WASM_URL_RE = /["'`]((?:https?:)?\/\/[^\s"'`<>]+\.wasm(?:\?[^\s"'`<>]*)?)["'`]/gi;
-const WASM_MODULE_RE = /(ort-wasm|ort-wasm-simd|tfjs-backend-wasm|onnxruntime-web|mediapipe|tflite|ncnn|mnn)\.?[\w-]*\.?(?:wasm|js)?/gi;
-const WASM_INSTANTIATE_RE = /WebAssembly\s*\.\s*(?:instantiate(?:Streaming)?|compile(?:Streaming)?)\s*\(\s*(?:fetch\s*\(\s*["'`]([^"'`]+)["'`])?/g;
+const WASM_MODULE_RE =
+  /(ort-wasm|ort-wasm-simd|tfjs-backend-wasm|onnxruntime-web|mediapipe|tflite|ncnn|mnn)\.?[\w-]*\.?(?:wasm|js)?/gi;
+const WASM_INSTANTIATE_RE =
+  /WebAssembly\s*\.\s*(?:instantiate(?:Streaming)?|compile(?:Streaming)?)\s*\(\s*(?:fetch\s*\(\s*["'`]([^"'`]+)["'`])?/g;
 const TFJS_WASM_BACKEND_RE = /setBackend\s*\(\s*["'`](wasm|webgpu|webgl)["'`]\s*\)/gi;
 const EXECUTION_PROVIDER_RE = /executionProviders?\s*:\s*\[?\s*["'`]([a-z0-9_-]+)["'`]/gi;
 
@@ -43,8 +45,10 @@ const CHAT_WIDGET_MARKERS = [
   { vendor: 'salesforce-chat', re: /embeddedservice|salesforce.*chat/i },
   { vendor: 'tidio', re: /code\.tidio\.co|tidio/i },
 ];
-const CHAT_BACKEND_URL_RE = /["'`]((?:https?:)?\/\/[^\s"'`<>]*(?:chat|message|conversation|widget|socket|realtime|pusher|ably)[^\s"'`<>]*(?:\/[^\s"'`<>]*)?)["'`]/gi;
-const API_KEY_REF_RE = /\b(appId|app_id|apiKey|api_key|widgetId|widget_id|siteId|site_id|propertyId|license|chatKey|clientKey)\b\s*[:=]\s*["'`]?([A-Za-z0-9_.-]{3,80})["'`]?/gi;
+const CHAT_BACKEND_URL_RE =
+  /["'`]((?:https?:)?\/\/[^\s"'`<>]*(?:chat|message|conversation|widget|socket|realtime|pusher|ably)[^\s"'`<>]*(?:\/[^\s"'`<>]*)?)["'`]/gi;
+const API_KEY_REF_RE =
+  /\b(appId|app_id|apiKey|api_key|widgetId|widget_id|siteId|site_id|propertyId|license|chatKey|clientKey)\b\s*[:=]\s*["'`]?([A-Za-z0-9_.-]{3,80})["'`]?/gi;
 const PLACEHOLDER_VALUES = new Set(['your_api_key', 'your-app-id', 'xxx', 'null', 'undefined', '']);
 
 function unique(list) {
@@ -94,7 +98,11 @@ export function mapWasmInferenceModules(jsSource = '') {
   WASM_URL_RE.lastIndex = 0;
   while ((m = WASM_URL_RE.exec(src)) !== null) {
     wasmUrls.add(m[1]);
-    const name = m[1].split('/').pop().replace(/\.wasm.*$/, '').toLowerCase();
+    const name = m[1]
+      .split('/')
+      .pop()
+      .replace(/\.wasm.*$/, '')
+      .toLowerCase();
     if (/ort|onnx/.test(name)) wasmModules.add('onnxruntime-web');
     else if (/tfjs|tensorflow/.test(name)) wasmModules.add('tfjs-backend-wasm');
   }
@@ -127,7 +135,7 @@ export function mapWasmInferenceModules(jsSource = '') {
  */
 export function discoverChatWidgetBackend(jsSource = '') {
   const src = String(jsSource || '');
-  const vendors = unique(CHAT_WIDGET_MARKERS.filter((v) => v.re.test(src)).map((v) => v.vendor));
+  const vendors = unique(CHAT_WIDGET_MARKERS.filter(v => v.re.test(src)).map(v => v.vendor));
   const backendUrls = new Set();
   let m;
   CHAT_BACKEND_URL_RE.lastIndex = 0;
@@ -158,7 +166,7 @@ export function discoverChatWidgetBackend(jsSource = '') {
  * @returns {{onnx: object[], wasm: object[], chat: object[], summary: object}}
  */
 export function harvestMlAndChatSurface(jsSources = []) {
-  const sources = (jsSources || []).map((s) => String(s || ''));
+  const sources = (jsSources || []).map(s => String(s || ''));
   const onnx = sources.map(findOnnxModelUrls);
   const wasm = sources.map(mapWasmInferenceModules);
   const chat = sources.map(discoverChatWidgetBackend);

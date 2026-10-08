@@ -10,9 +10,7 @@
  */
 
 /** Well-known locations of the browserconfig.xml file. */
-export const CANDIDATE_PATHS = [
-  '/browserconfig.xml',
-];
+export const CANDIDATE_PATHS = ['/browserconfig.xml'];
 
 /**
  * Build candidate file URLs for a target.
@@ -22,7 +20,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -71,7 +69,11 @@ export function analyzeBrowserconfig(content, opts = {}) {
     seen.add(src);
     const absoluteUrl = resolveUrl(src, base);
     let host = null;
-    try { host = new URL(absoluteUrl).hostname; } catch { /* ignore */ }
+    try {
+      host = new URL(absoluteUrl).hostname;
+    } catch {
+      /* ignore */
+    }
     if (host) result.hosts.push(host.toLowerCase());
     result.tiles.push({ name, src, absoluteUrl, host: host ? host.toLowerCase() : null });
   }
@@ -87,6 +89,8 @@ export function analyzeBrowserconfig(content, opts = {}) {
  * @returns {string[]} external tile hosts
  */
 export function externalTileHosts(analysis, targetHost = '') {
-  const base = String(targetHost).toLowerCase().replace(/^www\./, '');
-  return (analysis.hosts || []).filter((h) => h !== base && !h.endsWith(`.${base}`));
+  const base = String(targetHost)
+    .toLowerCase()
+    .replace(/^www\./, '');
+  return (analysis.hosts || []).filter(h => h !== base && !h.endsWith(`.${base}`));
 }

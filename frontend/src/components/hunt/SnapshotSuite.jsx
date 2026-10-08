@@ -9,31 +9,42 @@ import React, { useState } from 'react';
 import {
   FINDING_STATES,
   takeSnapshot,
-  scheduleSnapshot, dueScheduledSnapshots, advanceSchedule,
+  scheduleSnapshot,
+  dueScheduledSnapshots,
+  advanceSchedule,
   diffSnapshots,
   snapshotTimeline,
   shareSnapshotLink,
   pdfExportDescriptor,
   annotateSnapshot,
-  snapshotWatermark, applySnapshotWatermark,
+  snapshotWatermark,
+  applySnapshotWatermark,
   snapshotDeltas,
   executiveSummary,
   technicalSummary,
-  subscribeSnapshot, notifySnapshotSubscribers,
-  approveSnapshot, shareableExternally,
+  subscribeSnapshot,
+  notifySnapshotSubscribers,
+  approveSnapshot,
+  shareableExternally,
   applySnapshotRetention,
   searchSnapshots,
-  SNAPSHOT_TEMPLATES, applySnapshotTemplate,
-  snapshotLanguageLabels, labelForLanguage,
+  SNAPSHOT_TEMPLATES,
+  applySnapshotTemplate,
+  snapshotLanguageLabels,
+  labelForLanguage,
   livePreviewDescriptor,
   snapshotCompleteness,
-  markFindingState, findingsByState,
+  markFindingState,
+  findingsByState,
 } from './snapshotCore.js';
 
 function Card({ n, title, children }) {
   return (
     <div className="sn41-card" data-idea={n}>
-      <div className="sn41-card-head"><span className="sn41-num">{n}</span><h4>{title}</h4></div>
+      <div className="sn41-card-head">
+        <span className="sn41-num">{n}</span>
+        <h4>{title}</h4>
+      </div>
       <div className="sn41-card-body">{children}</div>
     </div>
   );
@@ -44,15 +55,36 @@ const DEMO_HUNT = {
   target: 'app.example.com',
   phase: 'injection-testing',
   findings: [
-    { id: 'F-1', title: 'Stored XSS in support chat', type: 'xss', severity: 'high', confidence: 87, asset: 'app.example.com/chat', evidence: 'script payload reflected and stored' },
-    { id: 'F-2', title: 'Missing security headers', type: 'headers', severity: 'low', confidence: 95, asset: '/', evidence: 'no CSP or HSTS on responses' },
+    {
+      id: 'F-1',
+      title: 'Stored XSS in support chat',
+      type: 'xss',
+      severity: 'high',
+      confidence: 87,
+      asset: 'app.example.com/chat',
+      evidence: 'script payload reflected and stored',
+    },
+    {
+      id: 'F-2',
+      title: 'Missing security headers',
+      type: 'headers',
+      severity: 'low',
+      confidence: 95,
+      asset: '/',
+      evidence: 'no CSP or HSTS on responses',
+    },
   ],
 };
 
 function kv(rows) {
   return (
     <dl className="sn41-kv">
-      {rows.map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd>{String(v)}</dd></React.Fragment>)}
+      {rows.map(([k, v]) => (
+        <React.Fragment key={k}>
+          <dt>{k}</dt>
+          <dd>{String(v)}</dd>
+        </React.Fragment>
+      ))}
     </dl>
   );
 }
@@ -63,9 +95,18 @@ export function OneClickSnapshotCard() {
   return (
     <Card n={51621} title="One-click snapshot">
       <div className="sn41-row">
-        <button className="sn41-btn" onClick={() => setSnap(takeSnapshot(DEMO_HUNT, 5000000))}>capture snapshot</button>
+        <button className="sn41-btn" onClick={() => setSnap(takeSnapshot(DEMO_HUNT, 5000000))}>
+          capture snapshot
+        </button>
       </div>
-      {snap && kv([['snapshot id', snap.id], ['target', snap.target], ['findings', snap.findingCount], ['severity mix', JSON.stringify(snap.bySeverity)], ['phase', snap.phase]])}
+      {snap &&
+        kv([
+          ['snapshot id', snap.id],
+          ['target', snap.target],
+          ['findings', snap.findingCount],
+          ['severity mix', JSON.stringify(snap.bySeverity)],
+          ['phase', snap.phase],
+        ])}
     </Card>
   );
 }
@@ -79,17 +120,49 @@ export function ScheduledSnapshotCard() {
     <Card n={51622} title="Scheduled snapshots">
       <div className="sn41-row">
         <span className="sn41-meta">every (min):</span>
-        <input className="sn41-input" style={{ maxWidth: 70 }} type="number" value={intervalMin} onChange={e => setIntervalMin(Number(e.target.value))} />
-        <button className="sn41-btn" onClick={() => setRules(scheduleSnapshot(rules, { label: 'quarter-hourly', intervalMs: intervalMin * 60000, fromMs: 100000 }))}>add schedule</button>
+        <input
+          className="sn41-input"
+          style={{ maxWidth: 70 }}
+          type="number"
+          value={intervalMin}
+          onChange={e => setIntervalMin(Number(e.target.value))}
+        />
+        <button
+          className="sn41-btn"
+          onClick={() =>
+            setRules(
+              scheduleSnapshot(rules, {
+                label: 'quarter-hourly',
+                intervalMs: intervalMin * 60000,
+                fromMs: 100000,
+              })
+            )
+          }
+        >
+          add schedule
+        </button>
       </div>
       <ul className="sn41-list">
         {rules.map(r => (
-          <li key={r.id}>{r.label} · every {r.intervalMs / 60000} min · next at {r.nextAtMs}
-            {r.nextAtMs <= 1000000 && <button className="sn41-btn" style={{ marginLeft: 8 }} onClick={() => setRules(rules.map(x => x.id === r.id ? advanceSchedule(x, 1000000) : x))}>mark taken</button>}
+          <li key={r.id}>
+            {r.label} · every {r.intervalMs / 60000} min · next at {r.nextAtMs}
+            {r.nextAtMs <= 1000000 && (
+              <button
+                className="sn41-btn"
+                style={{ marginLeft: 8 }}
+                onClick={() =>
+                  setRules(rules.map(x => (x.id === r.id ? advanceSchedule(x, 1000000) : x)))
+                }
+              >
+                mark taken
+              </button>
+            )}
           </li>
         ))}
       </ul>
-      <div className="sn41-meta">due now: {due.length} of {rules.length}</div>
+      <div className="sn41-meta">
+        due now: {due.length} of {rules.length}
+      </div>
     </Card>
   );
 }
@@ -97,31 +170,75 @@ export function ScheduledSnapshotCard() {
 /** 51623 — diff any two snapshots. */
 export function SnapshotDiffCard() {
   const [a] = useState(() => takeSnapshot(DEMO_HUNT, 4000000));
-  const [b] = useState(() => takeSnapshot({
-    ...DEMO_HUNT,
-    findings: [...DEMO_HUNT.findings,
-      { id: 'F-3', title: 'IDOR in /api/orders', type: 'idor', severity: 'critical', confidence: 91, asset: 'app.example.com/api/orders', evidence: 'order ids enumerable' },
-      { id: 'F-2', title: 'Missing security headers', type: 'headers', severity: 'medium', confidence: 95, asset: '/', evidence: 'no CSP or HSTS on responses' }],
-  }, 5000000));
+  const [b] = useState(() =>
+    takeSnapshot(
+      {
+        ...DEMO_HUNT,
+        findings: [
+          ...DEMO_HUNT.findings,
+          {
+            id: 'F-3',
+            title: 'IDOR in /api/orders',
+            type: 'idor',
+            severity: 'critical',
+            confidence: 91,
+            asset: 'app.example.com/api/orders',
+            evidence: 'order ids enumerable',
+          },
+          {
+            id: 'F-2',
+            title: 'Missing security headers',
+            type: 'headers',
+            severity: 'medium',
+            confidence: 95,
+            asset: '/',
+            evidence: 'no CSP or HSTS on responses',
+          },
+        ],
+      },
+      5000000
+    )
+  );
   const d = diffSnapshots(a, b);
   return (
     <Card n={51623} title="Snapshot comparison (mid-hunt)">
-      {kv([['from', a.id], ['to', b.id], ['added', d.addedCount + ': ' + d.addedIds.join(', ')], ['changed', d.changedCount + ': ' + d.changedIds.join(', ')], ['removed', d.removedCount]])}
+      {kv([
+        ['from', a.id],
+        ['to', b.id],
+        ['added', d.addedCount + ': ' + d.addedIds.join(', ')],
+        ['changed', d.changedCount + ': ' + d.changedIds.join(', ')],
+        ['removed', d.removedCount],
+      ])}
     </Card>
   );
 }
 
 /** 51624 — scrubbable timeline of snapshots. */
 export function SnapshotTimelineCard() {
-  const [snaps] = useState(() => [takeSnapshot(DEMO_HUNT, 3000000), takeSnapshot(DEMO_HUNT, 4000000), takeSnapshot(DEMO_HUNT, 5000000)]);
+  const [snaps] = useState(() => [
+    takeSnapshot(DEMO_HUNT, 3000000),
+    takeSnapshot(DEMO_HUNT, 4000000),
+    takeSnapshot(DEMO_HUNT, 5000000),
+  ]);
   const tl = snapshotTimeline(snaps);
   return (
     <Card n={51624} title="Snapshot timeline">
       <div className="sn41-timeline">
         {tl.map((t, i) => (
           <React.Fragment key={t.id}>
-            {i > 0 && <div className="sn41-timeline-gap" title={'+' + Math.round(t.gapSincePrevMs / 60000) + ' min'} />}
-            <div className="sn41-timeline-node">#{t.index + 1}<br />{t.findingCount} findings<br />{t.approved ? 'approved' : 'draft'}</div>
+            {i > 0 && (
+              <div
+                className="sn41-timeline-gap"
+                title={'+' + Math.round(t.gapSincePrevMs / 60000) + ' min'}
+              />
+            )}
+            <div className="sn41-timeline-node">
+              #{t.index + 1}
+              <br />
+              {t.findingCount} findings
+              <br />
+              {t.approved ? 'approved' : 'draft'}
+            </div>
           </React.Fragment>
         ))}
       </div>
@@ -138,11 +255,22 @@ export function SnapshotShareCard() {
     <Card n={51625} title="Snapshot sharing">
       <div className="sn41-row">
         {['stakeholder', 'client', 'audit'].map(a => (
-          <button key={a} className={'sn41-btn' + (audience === a ? ' sn41-btn-picked' : '')} onClick={() => setAudience(a)}>{a}</button>
+          <button
+            key={a}
+            className={'sn41-btn' + (audience === a ? ' sn41-btn-picked' : '')}
+            onClick={() => setAudience(a)}
+          >
+            {a}
+          </button>
         ))}
       </div>
-      <div className="sn41-prompt-body sn41-meta" style={{ marginTop: 8, wordBreak: 'break-all' }}>{link.url}</div>
-      <div className="sn41-meta">live controls exposed: {link.liveControlsExposed ? 'yes' : 'no'} · expires in {link.expiresInDays} days</div>
+      <div className="sn41-prompt-body sn41-meta" style={{ marginTop: 8, wordBreak: 'break-all' }}>
+        {link.url}
+      </div>
+      <div className="sn41-meta">
+        live controls exposed: {link.liveControlsExposed ? 'yes' : 'no'} · expires in{' '}
+        {link.expiresInDays} days
+      </div>
     </Card>
   );
 }
@@ -153,7 +281,12 @@ export function SnapshotPdfCard() {
   const pdf = pdfExportDescriptor(snap);
   return (
     <Card n={51626} title="Snapshot PDF export">
-      {kv([['filename', pdf.filename], ['pages', pdf.pages], ['sections', pdf.sections.join(', ')], ['language', pdf.language]])}
+      {kv([
+        ['filename', pdf.filename],
+        ['pages', pdf.pages],
+        ['sections', pdf.sections.join(', ')],
+        ['language', pdf.language],
+      ])}
       <div className="sn41-meta">watermark applied: {pdf.watermarkApplied ? 'yes' : 'not yet'}</div>
     </Card>
   );
@@ -167,10 +300,19 @@ export function SnapshotAnnotateCard() {
     <Card n={51627} title="Snapshot annotations (mid-hunt)">
       <div className="sn41-row">
         <input className="sn41-input" value={note} onChange={e => setNote(e.target.value)} />
-        <button className="sn41-btn" onClick={() => setSnap(annotateSnapshot(snap, note, 'owner', 5100000))}>add note</button>
+        <button
+          className="sn41-btn"
+          onClick={() => setSnap(annotateSnapshot(snap, note, 'owner', 5100000))}
+        >
+          add note
+        </button>
       </div>
       <ul className="sn41-list">
-        {(snap.annotations || []).map(a => <li key={a.id}><b>{a.author}</b>: {a.note}</li>)}
+        {(snap.annotations || []).map(a => (
+          <li key={a.id}>
+            <b>{a.author}</b>: {a.note}
+          </li>
+        ))}
       </ul>
     </Card>
   );
@@ -185,13 +327,41 @@ export function SnapshotWatermarkCard() {
   return (
     <Card n={51628} title="Snapshot watermarking">
       <div className="sn41-row">
-        <input className="sn41-input" style={{ maxWidth: 120 }} value={text} onChange={e => setText(e.target.value)} />
+        <input
+          className="sn41-input"
+          style={{ maxWidth: 120 }}
+          value={text}
+          onChange={e => setText(e.target.value)}
+        />
         <span className="sn41-meta">opacity:</span>
-        <input className="sn41-input" style={{ maxWidth: 70 }} type="number" step="0.01" value={opacity} onChange={e => setOpacity(Number(e.target.value))} />
-        <button className="sn41-btn" onClick={() => setSnap(applySnapshotWatermark(snap, snapshotWatermark(text, { opacity, fontSizePx: 48, rotationDeg: -30 }), 5000000))}>apply stamp</button>
+        <input
+          className="sn41-input"
+          style={{ maxWidth: 70 }}
+          type="number"
+          step="0.01"
+          value={opacity}
+          onChange={e => setOpacity(Number(e.target.value))}
+        />
+        <button
+          className="sn41-btn"
+          onClick={() =>
+            setSnap(
+              applySnapshotWatermark(
+                snap,
+                snapshotWatermark(text, { opacity, fontSizePx: 48, rotationDeg: -30 }),
+                5000000
+              )
+            )
+          }
+        >
+          apply stamp
+        </button>
       </div>
       {wm && (
-        <div className="sn41-watermark">"{wm.text}" · opacity {wm.style.opacity} · rotation {wm.style.rotationDeg}° · applied at {wm.appliedAtMs}</div>
+        <div className="sn41-watermark">
+          "{wm.text}" · opacity {wm.style.opacity} · rotation {wm.style.rotationDeg}° · applied at{' '}
+          {wm.appliedAtMs}
+        </div>
       )}
     </Card>
   );
@@ -200,16 +370,36 @@ export function SnapshotWatermarkCard() {
 /** 51629 — what changed since the previous snapshot. */
 export function SnapshotDeltasCard() {
   const [prev] = useState(() => takeSnapshot(DEMO_HUNT, 4000000));
-  const [cur] = useState(() => takeSnapshot({
-    ...DEMO_HUNT,
-    findings: [...DEMO_HUNT.findings, { id: 'F-3', title: 'IDOR in /api/orders', type: 'idor', severity: 'critical', confidence: 91, asset: 'app.example.com/api/orders', evidence: 'order ids enumerable' }],
-  }, 5000000));
+  const [cur] = useState(() =>
+    takeSnapshot(
+      {
+        ...DEMO_HUNT,
+        findings: [
+          ...DEMO_HUNT.findings,
+          {
+            id: 'F-3',
+            title: 'IDOR in /api/orders',
+            type: 'idor',
+            severity: 'critical',
+            confidence: 91,
+            asset: 'app.example.com/api/orders',
+            evidence: 'order ids enumerable',
+          },
+        ],
+      },
+      5000000
+    )
+  );
   const d = snapshotDeltas(cur, prev);
   return (
     <Card n={51629} title="Snapshot deltas">
       <div className="sn41-prompt-title">{d.headline}</div>
       <ul className="sn41-list">
-        {d.highlights.map(h => <li key={h.id}><b>{h.kind}</b>: {h.title} <span className="sn41-meta">({h.severity})</span></li>)}
+        {d.highlights.map(h => (
+          <li key={h.id}>
+            <b>{h.kind}</b>: {h.title} <span className="sn41-meta">({h.severity})</span>
+          </li>
+        ))}
       </ul>
     </Card>
   );
@@ -224,7 +414,11 @@ export function ExecutiveModeCard() {
       <div className="sn41-prompt-title">{s.headline}</div>
       <div className="sn41-prompt-body">{s.businessImpact}</div>
       <ul className="sn41-list">
-        {s.topRisks.map(r => <li key={r.id}><b>{r.severity}</b> — {r.title}</li>)}
+        {s.topRisks.map(r => (
+          <li key={r.id}>
+            <b>{r.severity}</b> — {r.title}
+          </li>
+        ))}
       </ul>
       <div className="sn41-meta">next: {s.nextSteps.join(' · ')}</div>
     </Card>
@@ -238,9 +432,25 @@ export function TechnicalModeCard() {
   return (
     <Card n={51631} title="Technical snapshot mode">
       <table className="sn41-table">
-        <thead><tr><th>id</th><th>title</th><th>severity</th><th>confidence</th><th>evidence</th></tr></thead>
+        <thead>
+          <tr>
+            <th>id</th>
+            <th>title</th>
+            <th>severity</th>
+            <th>confidence</th>
+            <th>evidence</th>
+          </tr>
+        </thead>
         <tbody>
-          {t.findings.map(f => <tr key={f.id}><td>{f.id}</td><td>{f.title}</td><td>{f.severity}</td><td>{f.confidence}</td><td>{f.evidence}</td></tr>)}
+          {t.findings.map(f => (
+            <tr key={f.id}>
+              <td>{f.id}</td>
+              <td>{f.title}</td>
+              <td>{f.severity}</td>
+              <td>{f.confidence}</td>
+              <td>{f.evidence}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
       <div className="sn41-meta">{t.techniqueNotes}</div>
@@ -257,12 +467,28 @@ export function SnapshotSubscribeCard() {
   return (
     <Card n={51632} title="Snapshot subscriptions">
       <div className="sn41-row">
-        <input className="sn41-input" style={{ maxWidth: 200 }} value={email} onChange={e => setEmail(e.target.value)} />
-        <button className="sn41-btn" onClick={() => setSubs(subscribeSnapshot(subs, { email, role: 'stakeholder' }))}>subscribe</button>
+        <input
+          className="sn41-input"
+          style={{ maxWidth: 200 }}
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+        <button
+          className="sn41-btn"
+          onClick={() => setSubs(subscribeSnapshot(subs, { email, role: 'stakeholder' }))}
+        >
+          subscribe
+        </button>
       </div>
-      <div className="sn41-meta">subscribers: {subs.length} · notifications queued: {queued.length}</div>
+      <div className="sn41-meta">
+        subscribers: {subs.length} · notifications queued: {queued.length}
+      </div>
       <ul className="sn41-list">
-        {subs.map(s => <li key={s.id}>{s.email} ({s.role})</li>)}
+        {subs.map(s => (
+          <li key={s.id}>
+            {s.email} ({s.role})
+          </li>
+        ))}
       </ul>
     </Card>
   );
@@ -274,7 +500,12 @@ export function SnapshotApprovalCard() {
   return (
     <Card n={51633} title="Snapshot approval">
       <div className="sn41-row">
-        <button className="sn41-btn" onClick={() => setSnap(approveSnapshot(snap, 'owner', 5200000))}>mark reviewed</button>
+        <button
+          className="sn41-btn"
+          onClick={() => setSnap(approveSnapshot(snap, 'owner', 5200000))}
+        >
+          mark reviewed
+        </button>
       </div>
       <div className="sn41-meta">
         approved: {snap.approved ? `yes by ${snap.approvedBy} at ${snap.approvedAtMs}` : 'no'} ·
@@ -293,9 +524,17 @@ export function SnapshotRetentionCard() {
     <Card n={51634} title="Snapshot retention">
       <div className="sn41-row">
         <span className="sn41-meta">retain days:</span>
-        <input className="sn41-input" style={{ maxWidth: 70 }} type="number" value={days} onChange={e => setDays(Number(e.target.value))} />
+        <input
+          className="sn41-input"
+          style={{ maxWidth: 70 }}
+          type="number"
+          value={days}
+          onChange={e => setDays(Number(e.target.value))}
+        />
       </div>
-      <div className="sn41-meta">kept: {r.kept.length} · archived: {r.archived.length} · policy: {r.retainDays} days</div>
+      <div className="sn41-meta">
+        kept: {r.kept.length} · archived: {r.archived.length} · policy: {r.retainDays} days
+      </div>
     </Card>
   );
 }
@@ -314,8 +553,16 @@ export function SnapshotSearchCard() {
       <div className="sn41-row">
         <input className="sn41-input" value={q} onChange={e => setQ(e.target.value)} />
       </div>
-      <div className="sn41-meta">{hits.length} match{hits.length === 1 ? '' : 'es'}</div>
-      <ul className="sn41-list">{hits.map(h => <li key={h.id}>{h.id} · {h.target} · {h.findingCount} findings</li>)}</ul>
+      <div className="sn41-meta">
+        {hits.length} match{hits.length === 1 ? '' : 'es'}
+      </div>
+      <ul className="sn41-list">
+        {hits.map(h => (
+          <li key={h.id}>
+            {h.id} · {h.target} · {h.findingCount} findings
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
@@ -329,9 +576,20 @@ export function SnapshotTemplateCard() {
     <Card n={51636} title="Snapshot templates">
       <div className="sn41-row">
         {Object.keys(SNAPSHOT_TEMPLATES).map(k => (
-          <button key={k} className={'sn41-btn' + (key === k ? ' sn41-btn-picked' : '')} onClick={() => setKey(k)}>{k}</button>
+          <button
+            key={k}
+            className={'sn41-btn' + (key === k ? ' sn41-btn-picked' : '')}
+            onClick={() => setKey(k)}
+          >
+            {k}
+          </button>
         ))}
-        <input className="sn41-input" style={{ maxWidth: 160 }} value={org} onChange={e => setOrg(e.target.value)} />
+        <input
+          className="sn41-input"
+          style={{ maxWidth: 160 }}
+          value={org}
+          onChange={e => setOrg(e.target.value)}
+        />
       </div>
       <div className="sn41-watermark" style={{ borderColor: t.accent }}>
         header: {t.header} · accent: {t.accent} · footer: {t.footer}
@@ -348,7 +606,13 @@ export function SnapshotLanguageCard() {
     <Card n={51637} title="Snapshot language options">
       <div className="sn41-row">
         {Object.keys(dict).map(l => (
-          <button key={l} className={'sn41-btn' + (lang === l ? ' sn41-btn-picked' : '')} onClick={() => setLang(l)}>{l}</button>
+          <button
+            key={l}
+            className={'sn41-btn' + (lang === l ? ' sn41-btn-picked' : '')}
+            onClick={() => setLang(l)}
+          >
+            {l}
+          </button>
         ))}
       </div>
       <ul className="sn41-list">
@@ -364,16 +628,30 @@ export function SnapshotLanguageCard() {
 /** 51638 — draft report updating as findings land. */
 export function LivePreviewCard() {
   const [count, setCount] = useState(1);
-  const snap = takeSnapshot({ ...DEMO_HUNT, findings: DEMO_HUNT.findings.slice(0, count) }, 5000000);
+  const snap = takeSnapshot(
+    { ...DEMO_HUNT, findings: DEMO_HUNT.findings.slice(0, count) },
+    5000000
+  );
   const pv = livePreviewDescriptor(snap);
   return (
     <Card n={51638} title="Live snapshot preview">
       <div className="sn41-row">
-        <button className="sn41-btn" onClick={() => setCount(c => Math.min(DEMO_HUNT.findings.length, c + 1))}>new finding lands</button>
-        <button className="sn41-btn" onClick={() => setCount(1)}>reset</button>
+        <button
+          className="sn41-btn"
+          onClick={() => setCount(c => Math.min(DEMO_HUNT.findings.length, c + 1))}
+        >
+          new finding lands
+        </button>
+        <button className="sn41-btn" onClick={() => setCount(1)}>
+          reset
+        </button>
       </div>
-      <div className="sn41-meta">live: {pv.live ? 'yes' : 'no'} · findings in draft: {pv.findingCount}</div>
-      <div className="sn41-prompt-body" style={{ marginTop: 6 }}>{pv.note}</div>
+      <div className="sn41-meta">
+        live: {pv.live ? 'yes' : 'no'} · findings in draft: {pv.findingCount}
+      </div>
+      <div className="sn41-prompt-body" style={{ marginTop: 6 }}>
+        {pv.note}
+      </div>
     </Card>
   );
 }
@@ -385,10 +663,19 @@ export function CompletenessMeterCard() {
   return (
     <Card n={51639} title="Snapshot completeness meter">
       <div className="sn41-row">
-        <button className="sn41-btn" onClick={() => setSnap(approveSnapshot(snap, 'owner', 5200000))}>mark reviewed</button>
+        <button
+          className="sn41-btn"
+          onClick={() => setSnap(approveSnapshot(snap, 'owner', 5200000))}
+        >
+          mark reviewed
+        </button>
       </div>
-      <div className="sn41-meta">{c.pct}% complete ({c.met}/{c.total})</div>
-      <div className="sn41-meter"><div className="sn41-meter-fill" style={{ width: c.pct + '%' }} /></div>
+      <div className="sn41-meta">
+        {c.pct}% complete ({c.met}/{c.total})
+      </div>
+      <div className="sn41-meter">
+        <div className="sn41-meter-fill" style={{ width: c.pct + '%' }} />
+      </div>
       {c.missing.length > 0 && <div className="sn41-meta">missing: {c.missing.join(' · ')}</div>}
     </Card>
   );
@@ -401,17 +688,33 @@ export function FindingStatesCard() {
   return (
     <Card n={51640} title="Snapshot finding states">
       <table className="sn41-table">
-        <thead><tr><th>finding</th><th>state</th><th>set</th></tr></thead>
+        <thead>
+          <tr>
+            <th>finding</th>
+            <th>state</th>
+            <th>set</th>
+          </tr>
+        </thead>
         <tbody>
           {(snap.findings || []).map(f => {
             const cur = (snap.stateOverrides || {})[f.id] || 'draft';
             return (
               <tr key={f.id}>
                 <td>{f.title}</td>
-                <td><span className={'sn41-state sn41-state-' + cur}>{cur}</span></td>
                 <td>
-                  <select className="sn41-input" value={cur} onChange={e => setSnap(markFindingState(snap, f.id, e.target.value))}>
-                    {FINDING_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  <span className={'sn41-state sn41-state-' + cur}>{cur}</span>
+                </td>
+                <td>
+                  <select
+                    className="sn41-input"
+                    value={cur}
+                    onChange={e => setSnap(markFindingState(snap, f.id, e.target.value))}
+                  >
+                    {FINDING_STATES.map(s => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
                   </select>
                 </td>
               </tr>
@@ -420,7 +723,8 @@ export function FindingStatesCard() {
         </tbody>
       </table>
       <div className="sn41-meta" style={{ marginTop: 8 }}>
-        draft: {byState.draft.length} · validating: {byState.validating.length} · confirmed: {byState.confirmed.length}
+        draft: {byState.draft.length} · validating: {byState.validating.length} · confirmed:{' '}
+        {byState.confirmed.length}
       </div>
     </Card>
   );

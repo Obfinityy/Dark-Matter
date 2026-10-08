@@ -42,7 +42,7 @@ export function HelpfulVote({ docId }) {
   const votes = store[docId];
   const ratio = voteRatio(votes);
 
-  const cast = (helpful) => {
+  const cast = helpful => {
     const next = recordHelpVote(store, docId, helpful);
     setStore(next);
     saveVotes(next);
@@ -90,7 +90,7 @@ export function HelpPanel({ page = 'hunt', open: controlledOpen, onClose }) {
 
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => {
+    const onKey = e => {
       if (e.key === 'Escape') close();
     };
     window.addEventListener('keydown', onKey);
@@ -129,11 +129,17 @@ export function HelpPanel({ page = 'hunt', open: controlledOpen, onClose }) {
             role="dialog"
             aria-modal="true"
             aria-label={`Help for ${page}`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <div className="mc-help-head">
               <strong>Help — {page}</strong>
-              <button ref={closeBtnRef} type="button" className="mc-pop-x" onClick={close} aria-label="Close help">
+              <button
+                ref={closeBtnRef}
+                type="button"
+                className="mc-pop-x"
+                onClick={close}
+                aria-label="Close help"
+              >
                 ×
               </button>
             </div>
@@ -141,7 +147,7 @@ export function HelpPanel({ page = 'hunt', open: controlledOpen, onClose }) {
               <p className="mc-hint">No help articles for this page yet.</p>
             ) : (
               <ul className="mc-help-list">
-                {docs.map((d) => (
+                {docs.map(d => (
                   <li key={d.id} className="mc-help-item">
                     <a href={d.url} className="mc-help-link">
                       {d.title}
@@ -151,7 +157,10 @@ export function HelpPanel({ page = 'hunt', open: controlledOpen, onClose }) {
                 ))}
               </ul>
             )}
-            <p className="mc-hint">Votes feed documentation improvements — the least-helpful articles get rewritten first.</p>
+            <p className="mc-hint">
+              Votes feed documentation improvements — the least-helpful articles get rewritten
+              first.
+            </p>
           </aside>
         </div>
       )}

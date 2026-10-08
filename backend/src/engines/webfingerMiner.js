@@ -57,8 +57,12 @@ export function parseWebFinger(jrd) {
   }
 
   const subject = obj.subject || null;
-  if (links.length === 0) notes.push('No links in JRD — host supports WebFinger but disclosed nothing for this resource');
-  if (unique.size > 1) notes.push(`Resource is spread across ${unique.size} hosts — federation/profile surface mapped`);
+  if (links.length === 0)
+    notes.push('No links in JRD — host supports WebFinger but disclosed nothing for this resource');
+  if (unique.size > 1)
+    notes.push(
+      `Resource is spread across ${unique.size} hosts — federation/profile surface mapped`
+    );
 
   return { valid: true, subject, hosts, uniqueHosts: [...unique], notes };
 }

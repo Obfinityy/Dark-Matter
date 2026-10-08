@@ -7,14 +7,41 @@
 import React, { useState } from 'react';
 import {
   WAVE35B_IDEAS,
-  explainFinding, executiveSummary, findingAnalogy, explainFindingAll,
+  explainFinding,
+  executiveSummary,
+  findingAnalogy,
+  explainFindingAll,
 } from './explainabilityCore.js';
 
 const SAMPLE_FINDINGS = [
-  { id: 'F-101', type: 'sql-injection', severity: 'critical', title: 'SQL injection in search endpoint', location: '/api/search?q=' },
-  { id: 'F-102', type: 'xss', severity: 'high', title: 'Stored XSS in comment field', location: '/profile/comments' },
-  { id: 'F-103', type: 'idor', severity: 'high', title: 'IDOR on order endpoint', location: '/api/orders/{id}' },
-  { id: 'F-104', type: 'jwt-none-alg', severity: 'critical', title: 'JWT accepts none algorithm', location: 'Authorization header' },
+  {
+    id: 'F-101',
+    type: 'sql-injection',
+    severity: 'critical',
+    title: 'SQL injection in search endpoint',
+    location: '/api/search?q=',
+  },
+  {
+    id: 'F-102',
+    type: 'xss',
+    severity: 'high',
+    title: 'Stored XSS in comment field',
+    location: '/profile/comments',
+  },
+  {
+    id: 'F-103',
+    type: 'idor',
+    severity: 'high',
+    title: 'IDOR on order endpoint',
+    location: '/api/orders/{id}',
+  },
+  {
+    id: 'F-104',
+    type: 'jwt-none-alg',
+    severity: 'critical',
+    title: 'JWT accepts none algorithm',
+    location: 'Authorization header',
+  },
 ];
 
 function ideaNo(n) {
@@ -36,8 +63,17 @@ function Card({ idea, title, children }) {
 
 function FindingPicker({ value, onChange }) {
   return (
-    <select className="ex35-input" value={value.id} onChange={(e) => onChange(SAMPLE_FINDINGS.find((f) => f.id === e.target.value))} aria-label="Finding">
-      {SAMPLE_FINDINGS.map((f) => <option key={f.id} value={f.id}>{f.id} — {f.title}</option>)}
+    <select
+      className="ex35-input"
+      value={value.id}
+      onChange={e => onChange(SAMPLE_FINDINGS.find(f => f.id === e.target.value))}
+      aria-label="Finding"
+    >
+      {SAMPLE_FINDINGS.map(f => (
+        <option key={f.id} value={f.id}>
+          {f.id} — {f.title}
+        </option>
+      ))}
     </select>
   );
 }
@@ -49,8 +85,16 @@ export function ExplainFindingButton() {
   return (
     <Card idea={51397} title="Explain-this-finding button">
       <div className="ex35-row">
-        <FindingPicker value={finding} onChange={(f) => { setFinding(f); setShown(false); }} />
-        <button className="ex35-btn" onClick={() => setShown(true)}>Explain this finding</button>
+        <FindingPicker
+          value={finding}
+          onChange={f => {
+            setFinding(f);
+            setShown(false);
+          }}
+        />
+        <button className="ex35-btn" onClick={() => setShown(true)}>
+          Explain this finding
+        </button>
       </div>
       {shown && <p className="ex35-text">{explainFinding(finding)}</p>}
     </Card>
@@ -67,7 +111,7 @@ export function Eli5Toggle() {
       <div className="ex35-row">
         <FindingPicker value={finding} onChange={setFinding} />
         <button className="ex35-btn" onClick={() => setEli5(!eli5)} aria-pressed={eli5}>
-          {eli5 ? 'Show standard explanation' : 'Explain like I\'m five'}
+          {eli5 ? 'Show standard explanation' : "Explain like I'm five"}
         </button>
       </div>
       <p className="ex35-text">{eli5 ? all.eli5 : all.plain}</p>
@@ -99,24 +143,38 @@ export function AnalogyCard() {
   return (
     <Card idea={51400} title="Analogy generator">
       <div className="ex35-row">
-        <FindingPicker value={finding} onChange={(f) => { setFinding(f); setN(0); }} />
-        <button className="ex35-btn" onClick={() => setN(n + 1)}>New analogy</button>
+        <FindingPicker
+          value={finding}
+          onChange={f => {
+            setFinding(f);
+            setN(0);
+          }}
+        />
+        <button className="ex35-btn" onClick={() => setN(n + 1)}>
+          New analogy
+        </button>
       </div>
-      <p className="ex35-text ex35-analogy" key={n}>{findingAnalogy(finding)}</p>
+      <p className="ex35-text ex35-analogy" key={n}>
+        {findingAnalogy(finding)}
+      </p>
     </Card>
   );
 }
 
 // --- gallery ---------------------------------------------------------------------------------------------------------------------------------
 const ALL = [
-  [ExplainFindingButton, 51397], [Eli5Toggle, 51398],
-  [ExecutiveSummaryToggle, 51399], [AnalogyCard, 51400],
+  [ExplainFindingButton, 51397],
+  [Eli5Toggle, 51398],
+  [ExecutiveSummaryToggle, 51399],
+  [AnalogyCard, 51400],
 ];
 
 export function ExplainabilityGallery() {
   return (
     <div className="ex35-gallery" aria-label="Explainability gallery">
-      {ALL.map(([C, id]) => <C key={id} />)}
+      {ALL.map(([C, id]) => (
+        <C key={id} />
+      ))}
     </div>
   );
 }

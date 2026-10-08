@@ -21,10 +21,12 @@ const MESSAGE_LISTENER_RE = /(?:\b\w[\w$.]*\.)?addEventListener\s*\(\s*(['"])mes
 const ONMESSAGE_ASSIGN_RE = /\.\s*onmessage\s*=/g;
 
 /** Origin checks inside a handler: event.origin === 'https://...'. */
-const ORIGIN_CHECK_RE = /\b(?:event|e|evt|msg)\.origin\s*(===|!==|==|!=|includes|startsWith|endsWith|match)\s*\(?\s*(['"`])([^'"`]*)\2/g;
+const ORIGIN_CHECK_RE =
+  /\b(?:event|e|evt|msg)\.origin\s*(===|!==|==|!=|includes|startsWith|endsWith|match)\s*\(?\s*(['"`])([^'"`]*)\2/g;
 
 /** event.data.foo / e.data.bar field accesses. */
-const DATA_FIELD_RE = /\b(?:event|e|evt|msg)\.data(?:\.([a-zA-Z0-9_]+)|\[['"]([a-zA-Z0-9_]+)['"]\])/g;
+const DATA_FIELD_RE =
+  /\b(?:event|e|evt|msg)\.data(?:\.([a-zA-Z0-9_]+)|\[['"]([a-zA-Z0-9_]+)['"]\])/g;
 
 /** switch on a data discriminator: switch(event.data.type). */
 const DATA_SWITCH_RE = /switch\s*\(\s*(?:event|e|evt|msg)\.data(?:\.([a-zA-Z0-9_]+))?\s*\)/g;
@@ -181,15 +183,15 @@ export function mapMessageListeners(text) {
     // Inspect the handler context: a few hundred chars cover most listeners
     // without parsing full function bodies.
     const window_ = src.slice(index, index + 1500);
-    const originChecks = [...new Set(
-      [...window_.matchAll(ORIGIN_CHECK_RE)].map((x) => `origin ${x[1]} ${x[3]}`)
-    )].slice(0, 10);
-    const expectedOrigins = [...new Set(
-      [...window_.matchAll(ORIGIN_LITERAL_RE)].map((x) => x[2])
-    )].slice(0, 10);
-    const dataFields = [...new Set(
-      [...window_.matchAll(DATA_FIELD_RE)].map((x) => x[1] || x[2])
-    )].slice(0, 20);
+    const originChecks = [
+      ...new Set([...window_.matchAll(ORIGIN_CHECK_RE)].map(x => `origin ${x[1]} ${x[3]}`)),
+    ].slice(0, 10);
+    const expectedOrigins = [
+      ...new Set([...window_.matchAll(ORIGIN_LITERAL_RE)].map(x => x[2])),
+    ].slice(0, 10);
+    const dataFields = [
+      ...new Set([...window_.matchAll(DATA_FIELD_RE)].map(x => x[1] || x[2])),
+    ].slice(0, 20);
     const kinds = new Set();
     for (const sm of window_.matchAll(DATA_SWITCH_RE)) {
       const seg = window_.slice(sm.index, sm.index + 800);

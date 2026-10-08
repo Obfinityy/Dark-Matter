@@ -69,8 +69,14 @@ export function detectCoordinators(beacons = []) {
   for (const bc of beacons) {
     const parsed = parseBeaconPayload(bc.payload);
     if (!parsed.valid) continue;
-    const pan = typeof bc.panId === 'number' ? `0x${bc.panId.toString(16).padStart(4, '0')}` : String(bc.panId ?? '?');
-    const label = bc.shortAddress === 0x0000 || parsed.panCoordinator ? 'coordinator' : 'router/end-device (beaconing)';
+    const pan =
+      typeof bc.panId === 'number'
+        ? `0x${bc.panId.toString(16).padStart(4, '0')}`
+        : String(bc.panId ?? '?');
+    const label =
+      bc.shortAddress === 0x0000 || parsed.panCoordinator
+        ? 'coordinator'
+        : 'router/end-device (beaconing)';
 
     if (bc.shortAddress === 0x0000 || parsed.panCoordinator) {
       coordinators.push({ panId: pan, shortAddress: bc.shortAddress, ext: bc.extendedAddress });
@@ -99,7 +105,8 @@ export function detectCoordinators(beacons = []) {
       type: 'No Zigbee Coordinators Seen',
       confidence: 'medium',
       cwe: null,
-      evidence: 'beacon scan observed no coordinator beacons — no Zigbee network in range or beacons are disabled',
+      evidence:
+        'beacon scan observed no coordinator beacons — no Zigbee network in range or beacons are disabled',
     });
   }
 

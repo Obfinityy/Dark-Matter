@@ -13,15 +13,18 @@ import './NotFound.css';
 export default function NotFound() {
   return (
     <main className="nf-root">
-      <span className="nf-giant" aria-hidden="true">404</span>
+      <span className="nf-giant" aria-hidden="true">
+        404
+      </span>
       <div className="nf-radar" aria-hidden="true" />
       <div className="nf-card">
-        <span className="nf-badge"><Ghost size={18} aria-hidden="true" /> 404 · NOT FOUND</span>
+        <span className="nf-badge">
+          <Ghost size={18} aria-hidden="true" /> 404 · NOT FOUND
+        </span>
         <h1 className="nf-title">This corner of the void is empty.</h1>
         <p className="nf-sub">
-          The page you were looking for doesn&apos;t exist or was moved.
-          Dark Matter hunts bugs — not missing pages — so let&apos;s get you
-          back on track.
+          The page you were looking for doesn&apos;t exist or was moved. Dark Matter hunts bugs —
+          not missing pages — so let&apos;s get you back on track.
         </p>
         <div className="nf-actions">
           <Link to="/" className="nf-btn nf-btn-primary">

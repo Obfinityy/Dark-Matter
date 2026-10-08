@@ -23,7 +23,7 @@ export function createHuntRecordController({ huntRecordModel }) {
       const record = await huntRecordModel.findFullById(request.user.id, request.params.id);
       if (!record) {
         return response.status(404).json({
-          error: { code: 'HUNT_RECORD_NOT_FOUND', message: 'No hunt record with that id.' }
+          error: { code: 'HUNT_RECORD_NOT_FOUND', message: 'No hunt record with that id.' },
         });
       }
       response.json({ huntRecord: record });
@@ -34,10 +34,15 @@ export function createHuntRecordController({ huntRecordModel }) {
       const record = await huntRecordModel.findFullById(request.user.id, request.params.id);
       if (!record) {
         return response.status(404).json({
-          error: { code: 'HUNT_RECORD_NOT_FOUND', message: 'No hunt record with that id.' }
+          error: { code: 'HUNT_RECORD_NOT_FOUND', message: 'No hunt record with that id.' },
         });
       }
-      const filename = `hunt-report-${record.targetCanonical.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'target'}-v${record.version}.md`;
+      const filename = `hunt-report-${
+        record.targetCanonical
+          .replace(/[^a-z0-9]+/gi, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 60) || 'target'
+      }-v${record.version}.md`;
       response.setHeader('Content-Type', 'text/markdown; charset=utf-8');
       response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       response.send(record.reportMarkdown || '');
@@ -53,13 +58,13 @@ export function createHuntRecordController({ huntRecordModel }) {
       const record = await huntRecordModel.findFullById(request.user.id, request.params.id);
       if (!record) {
         return response.status(404).json({
-          error: { code: 'HUNT_RECORD_NOT_FOUND', message: 'No hunt record with that id.' }
+          error: { code: 'HUNT_RECORD_NOT_FOUND', message: 'No hunt record with that id.' },
         });
       }
-      const finding = (record.findings || []).find((f) => f.id === request.params.findingId);
+      const finding = (record.findings || []).find(f => f.id === request.params.findingId);
       if (!finding) {
         return response.status(404).json({
-          error: { code: 'FINDING_NOT_FOUND', message: 'No finding with that id in this report.' }
+          error: { code: 'FINDING_NOT_FOUND', message: 'No finding with that id in this report.' },
         });
       }
       let poc;
@@ -67,25 +72,31 @@ export function createHuntRecordController({ huntRecordModel }) {
         poc = generateSafePoc(finding);
       } catch (err) {
         return response.status(422).json({
-          error: { code: 'POC_SAFETY_BLOCKED', message: err.message }
+          error: { code: 'POC_SAFETY_BLOCKED', message: err.message },
         });
       }
       if (!poc) {
         return response.status(404).json({
-          error: { code: 'NO_POC_TEMPLATE', message: `No PoC template covers finding type "${finding.type || finding.vulnType}".` }
+          error: {
+            code: 'NO_POC_TEMPLATE',
+            message: `No PoC template covers finding type "${finding.type || finding.vulnType}".`,
+          },
         });
       }
       const ext = { html: 'html', python: 'py', bash: 'sh' }[poc.language] || 'txt';
-      const filename = `poc-${String(finding.id).replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}.${ext}`;
+      const filename = `poc-${String(finding.id)
+        .replace(/[^a-z0-9]+/gi, '-')
+        .slice(0, 40)}.${ext}`;
       const kind = String(request.query.kind || 'poc');
-      const body = kind === 'repro'
-        ? (generateRepro(finding)?.[request.query.format === 'python' ? 'python' : 'curl']
-            || 'No reproducible snippet available for this finding.')
-        : poc.code;
+      const body =
+        kind === 'repro'
+          ? generateRepro(finding)?.[request.query.format === 'python' ? 'python' : 'curl'] ||
+            'No reproducible snippet available for this finding.'
+          : poc.code;
       response.setHeader('Content-Type', 'text/plain; charset=utf-8');
       response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       response.setHeader('X-PoC-Safety', 'checked-proof-only');
       response.send(body);
-    })
+    }),
   };
 }

@@ -30,14 +30,17 @@ export const OVERRIDE_HEADERS = [
 export function analyzeOverrideProbe(baseline, probed, meta = {}) {
   const base = baseline && typeof baseline === 'object' ? baseline : {};
   const probe = probed && typeof probed === 'object' ? probed : {};
-  const header = typeof meta.overrideHeader === 'string' ? meta.overrideHeader : 'X-HTTP-Method-Override';
-  const value = typeof meta.overrideValue === 'string' ? meta.overrideValue.toUpperCase() : 'DELETE';
+  const header =
+    typeof meta.overrideHeader === 'string' ? meta.overrideHeader : 'X-HTTP-Method-Override';
+  const value =
+    typeof meta.overrideValue === 'string' ? meta.overrideValue.toUpperCase() : 'DELETE';
   const path = typeof meta.path === 'string' ? meta.path : '/';
   const evidence = [];
 
   const statusChanged = base.status !== probe.status;
-  const bodyChanged = (base.bodyFingerprint || null) !== (probe.bodyFingerprint || null)
-    && probe.bodyFingerprint != null;
+  const bodyChanged =
+    (base.bodyFingerprint || null) !== (probe.bodyFingerprint || null) &&
+    probe.bodyFingerprint != null;
   const baseAllow = String(base.allowHeader || '');
   const probeAllow = String(probe.allowHeader || '');
   const allowChanged = baseAllow !== probeAllow && probeAllow.length > 0;
@@ -47,7 +50,11 @@ export function analyzeOverrideProbe(baseline, probed, meta = {}) {
   if (allowChanged) evidence.push('Allow header changed between baseline and override probe');
 
   let verdict = 'ignored';
-  if ((statusChanged || bodyChanged || allowChanged) && probe.status !== 400 && probe.status !== 501) {
+  if (
+    (statusChanged || bodyChanged || allowChanged) &&
+    probe.status !== 400 &&
+    probe.status !== 501
+  ) {
     verdict = 'honored';
   } else if (probe.status === 400 || probe.status === 501 || probe.status === 405) {
     verdict = 'rejected';
@@ -59,12 +66,13 @@ export function analyzeOverrideProbe(baseline, probed, meta = {}) {
 
   const honored = verdict === 'honored';
   if (honored) {
-    evidence.unshift(`${header}: ${value} appears honored on ${path} — hidden verb handling present`);
+    evidence.unshift(
+      `${header}: ${value} appears honored on ${path} — hidden verb handling present`
+    );
   }
 
-  const risk = honored && (value === 'DELETE' || value === 'PUT') ? 'high'
-    : honored ? 'medium'
-    : 'info';
+  const risk =
+    honored && (value === 'DELETE' || value === 'PUT') ? 'high' : honored ? 'medium' : 'info';
 
   return { honored, verdict, evidence, risk };
 }
@@ -95,7 +103,7 @@ export function aggregateOverrideResults(probes) {
     const result = analyzeOverrideProbe(p.baseline, p.probed, p);
     entry.verdicts[value] = result.verdict;
     if (result.honored && !entry.honoredValues.includes(value)) entry.honoredValues.push(value);
-    entry.evidence.push(...result.evidence.map((e) => `[${value}] ${e}`));
+    entry.evidence.push(...result.evidence.map(e => `[${value}] ${e}`));
     if (result.risk === 'high') entry.risk = 'high';
     else if (result.risk === 'medium' && entry.risk !== 'high') entry.risk = 'medium';
   }
@@ -110,6 +118,8 @@ export function aggregateOverrideResults(probes) {
 export function overrideSummaryLines(aggregated) {
   const list = Array.isArray(aggregated) ? aggregated : [];
   return list
-    .filter((e) => e.honoredValues.length > 0)
-    .map((e) => `${e.path}: ${e.overrideHeader} honors ${e.honoredValues.join(', ')} (risk: ${e.risk})`);
+    .filter(e => e.honoredValues.length > 0)
+    .map(
+      e => `${e.path}: ${e.overrideHeader} honors ${e.honoredValues.join(', ')} (risk: ${e.risk})`
+    );
 }

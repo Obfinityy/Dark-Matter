@@ -21,7 +21,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // Very small "key: value" YAML reader for flat-ish chart metadata.
@@ -45,7 +47,10 @@ export function parseChartYaml(chartYaml) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(meta.home, 'project-home', 'Chart.home');
@@ -65,10 +70,15 @@ const IMAGE_RE = /^\s*(?:repository|image)\s*:\s*["']?([^"'\s]+)["']?\s*$/gim;
 const URL_RE = /(https?:\/\/[^\s"'<>()]+)/g;
 
 function pushHostUniq(hosts, seen, host, kind, provenance) {
-  host = String(host || '').toLowerCase().replace(/\.$/, '');
+  host = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!host || host.includes('{{') || host.includes('}')) return;
   if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-    if (!seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'ip-literal', provenance }); }
+    if (!seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'ip-literal', provenance });
+    }
     return;
   }
   if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) || seen.has(host)) return;
@@ -89,13 +99,15 @@ export function parseValuesYaml(valuesYaml) {
 
   let m;
   INGRESS_HOST_RE.lastIndex = 0;
-  while ((m = INGRESS_HOST_RE.exec(text))) pushHostUniq(hosts, seen, m[1], 'ingress-host', 'ingress.hosts[]');
+  while ((m = INGRESS_HOST_RE.exec(text)))
+    pushHostUniq(hosts, seen, m[1], 'ingress-host', 'ingress.hosts[]');
 
   TLS_HOST_RE.lastIndex = 0;
   while ((m = TLS_HOST_RE.exec(text))) {
     // Only keep lines inside a tls: section — heuristic: line near "tls:" context.
     const ctx = text.slice(Math.max(0, m.index - 160), m.index);
-    if (/tls\s*:/i.test(ctx)) pushHostUniq(hosts, seen, m[1], 'ingress-tls-host', 'ingress.tls[].hosts[]');
+    if (/tls\s*:/i.test(ctx))
+      pushHostUniq(hosts, seen, m[1], 'ingress-tls-host', 'ingress.tls[].hosts[]');
   }
 
   IMAGE_RE.lastIndex = 0;
@@ -127,7 +139,10 @@ export function analyzeHelmChart(chartYaml, valuesYaml) {
   const merged = [...chart.hosts];
   const seen = new Set(chart.hosts.map(h => h.host));
   for (const h of values.hosts) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push(h); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push(h);
+    }
   }
   return { name: chart.name, version: chart.version, hosts: merged };
 }

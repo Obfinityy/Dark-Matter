@@ -42,7 +42,8 @@ const HEADER_FIELDS = [
 export function extractHeaderHostnames(rawHeaders = '') {
   const text = String(rawHeaders || '');
   const hosts = new Set();
-  const re = /\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)\b/gi;
+  const re =
+    /\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)\b/gi;
   let m;
   while ((m = re.exec(text)) !== null) hosts.add(m[1].toLowerCase());
   return [...hosts];
@@ -60,8 +61,8 @@ export function filterSendgridTrackingHosts(hostnames = [], orgDomain = '') {
   for (const h of hostnames || []) {
     const host = String(h).toLowerCase();
     const isBranded = Boolean(branded) && (host === branded || host.endsWith(`.${branded}`));
-    const looksSendgrid = /^(url|click|track|trk|email|mail|bounce|em)\d*/i.test(host) ||
-      /(sendgrid)/i.test(host);
+    const looksSendgrid =
+      /^(url|click|track|trk|email|mail|bounce|em)\d*/i.test(host) || /(sendgrid)/i.test(host);
     if (looksSendgrid || isBranded) out.push({ host, branded: isBranded });
   }
   return out;
@@ -77,7 +78,7 @@ export function findSendgridCnames(cnameRecords = []) {
   for (const rec of cnameRecords || []) {
     if (!rec || !rec.name || !rec.target) continue;
     const target = String(rec.target).toLowerCase().replace(/\.$/, '');
-    if (SENDGRID_TRACKING_CNAME_TARGETS.some((re) => re.test(target))) {
+    if (SENDGRID_TRACKING_CNAME_TARGETS.some(re => re.test(target))) {
       findings.push({
         subdomain: String(rec.name).toLowerCase().replace(/\.$/, ''),
         target,
@@ -119,7 +120,8 @@ export function analyzeSendgridFootprint({ headers = '', cnames = [], orgDomain 
   const cnameHits = findSendgridCnames(cnames);
   const dkim = extractDkimIdentities(headers);
   const evidence = [];
-  if (trackingHosts.length) evidence.push(`Found ${trackingHosts.length} tracking-like host(s) in email headers.`);
+  if (trackingHosts.length)
+    evidence.push(`Found ${trackingHosts.length} tracking-like host(s) in email headers.`);
   if (cnameHits.length) evidence.push(`Found ${cnameHits.length} CNAME(s) delegated to SendGrid.`);
   if (dkim.length) evidence.push(`Found ${dkim.length} DKIM signing identit(ies).`);
   return { trackingHosts, dkim, evidence, cnameHits };

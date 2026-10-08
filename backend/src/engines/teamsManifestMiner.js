@@ -16,9 +16,16 @@ import { normalizeHostname, hostFromUrl } from './gitIntel.js';
 
 /** Microsoft platform domains that are never target infrastructure. */
 export const TEAMS_PLATFORM_DOMAINS = [
-  'teams.microsoft.com', 'microsoft.com', 'microsoftonline.com',
-  'msauth.net', 'msauthimages.net', 'office.com', 'office.net',
-  'sharepoint.com', 'powerapps.com', 'login.microsoftonline.com',
+  'teams.microsoft.com',
+  'microsoft.com',
+  'microsoftonline.com',
+  'msauth.net',
+  'msauthimages.net',
+  'office.com',
+  'office.net',
+  'sharepoint.com',
+  'powerapps.com',
+  'login.microsoftonline.com',
 ];
 
 /**
@@ -49,7 +56,7 @@ export function parseTeamsManifest(manifest = {}) {
   const note = (host, section) => {
     const h = normalizeHostname(host);
     if (!h) return;
-    if (TEAMS_PLATFORM_DOMAINS.some((p) => h === p || h.endsWith(`.${p}`))) return;
+    if (TEAMS_PLATFORM_DOMAINS.some(p => h === p || h.endsWith(`.${p}`))) return;
     const kind = classifyTeamsManifestHost(section);
     const prev = byHost.get(h);
     // Prefer specific endpoint sections over the domain allowlist.
@@ -106,6 +113,7 @@ export function parseTeamsManifest(manifest = {}) {
 export function mineTeamsManifestHosts(manifest = {}, rootDomain) {
   const root = normalizeHostname(rootDomain);
   if (!root) return [];
-  return parseTeamsManifest(manifest)
-    .filter((f) => f.host === root || f.host.endsWith(`.${root}`) || f.host.includes(root));
+  return parseTeamsManifest(manifest).filter(
+    f => f.host === root || f.host.endsWith(`.${root}`) || f.host.includes(root)
+  );
 }

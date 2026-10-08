@@ -79,7 +79,7 @@ export function chainSourceMapRefs(chunks) {
       }
     }
   }
-  const mapUrls = [...new Set(maps.filter((m) => m.mapUrl).map((m) => m.mapUrl))];
+  const mapUrls = [...new Set(maps.filter(m => m.mapUrl).map(m => m.mapUrl))];
   return { maps, mapUrls, inlineRefs };
 }
 
@@ -98,7 +98,7 @@ const HASH_SEGMENT_RE = /\.[0-9a-f]{8,32}(?=\.(?:js|mjs|cjs|css|ts)$)/i;
 export function predictHiddenMapNames(chunkUrl) {
   if (!chunkUrl) return [];
   const out = [];
-  const push = (u) => {
+  const push = u => {
     if (u && !out.includes(u)) out.push(u);
   };
   push(chunkUrl + '.map');
@@ -139,8 +139,7 @@ export function scoreMapLikelihood(body) {
   if (/"mappings"\s*:/.test(text)) signals.push('mappings-field');
   if (/"sources"\s*:\s*\[/.test(text)) signals.push('sources-array');
   if (/"sourcesContent"\s*:\s*\[/.test(text)) signals.push('sources-content');
-  const confidence =
-    signals.length >= 3 ? 'high' : signals.length === 2 ? 'medium' : 'low';
+  const confidence = signals.length >= 3 ? 'high' : signals.length === 2 ? 'medium' : 'low';
   return { looksLikeMap: signals.length >= 2, confidence, signals };
 }
 
