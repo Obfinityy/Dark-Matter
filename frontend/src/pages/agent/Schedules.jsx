@@ -73,7 +73,7 @@ export function Schedules() {
   if (loading)
     return (
       <div className="dm-page-loading">
-        <Loader2 size={18} className="dm-spin" /> Loading schedules…
+        <Loader2 size={18} className="sg-spin" /> Loading schedules…
       </div>
     );
 
@@ -145,7 +145,7 @@ export function Schedules() {
             />
           </label>
           <button type="submit" className="dm-btn-primary" disabled={busy}>
-            {busy ? <Loader2 size={15} className="dm-spin" /> : <Plus size={15} />} Schedule
+            {busy ? <Loader2 size={15} className="sg-spin" /> : <Plus size={15} />} Schedule
           </button>
         </div>
       </form>

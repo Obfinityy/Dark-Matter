@@ -3,10 +3,11 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, ShieldCheck, LogOut } from 'lucide-react';
+import { Wallet, ShieldCheck, LogOut, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getCreditBalance } from '../../services/api.js';
 import { getPermissionMode, PERMISSION_LABELS } from '../../services/permissions';
+import './Account.css';
 
 export function Account() {
   const { user, logout } = useAuth();
@@ -26,111 +27,77 @@ export function Account() {
   ];
 
   return (
-    <div className="dm-container">
+    <div className="dm-container dm-account">
       <header className="dm-page-head">
         <h1 className="dm-page-title">Account</h1>
         <p className="dm-page-sub">Your identity, your plan, and the way out.</p>
       </header>
 
       {/* ── Profile ── */}
-      <section className="dm-card" aria-label="Profile">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
-          <span
-            aria-hidden="true"
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.4rem',
-              fontWeight: 700,
-              background: 'var(--dm-gold-glow)',
-              border: '1px solid var(--dm-gold-border)',
-              color: 'var(--dm-gold-soft)',
-              flexShrink: 0,
-            }}
-          >
+      <section className="dm-card dm-polish-in" aria-label="Profile">
+        <div className="dm-account-profile">
+          <span className="dm-account-avatar" aria-hidden="true">
             {initial}
           </span>
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: '1.125rem',
-                fontWeight: 700,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {user?.username || user?.name || 'Agent'}
-            </div>
-            <div
-              className="dm-muted"
-              style={{ fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis' }}
-            >
-              {user?.email || ''}
-            </div>
+          <div className="dm-account-identity">
+            <div className="dm-account-name">{user?.username || user?.name || 'Agent'}</div>
+            <div className="dm-muted dm-account-email">{user?.email || ''}</div>
           </div>
         </div>
         {rows.map(r => (
-          <div
-            key={r.label}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-              gap: 16,
-              padding: '12px 0',
-              borderTop: '1px solid var(--dm-border-soft)',
-            }}
-          >
-            <span className="dm-muted" style={{ fontSize: '0.875rem', flexShrink: 0 }}>
-              {r.label}
-            </span>
-            <span
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                wordBreak: 'break-all',
-                textAlign: 'right',
-              }}
-            >
-              {r.value}
-            </span>
+          <div key={r.label} className="dm-account-row">
+            <span className="dm-muted dm-account-row-label">{r.label}</span>
+            <span className="dm-account-row-value">{r.value}</span>
           </div>
         ))}
       </section>
 
       {/* ── Credits ── */}
-      <section className="dm-card" aria-label="Infinity Credits">
+      <section
+        className="dm-card dm-polish-in"
+        aria-label="Infinity Credits"
+        style={{ animationDelay: '70ms' }}
+      >
         <h2 className="dm-card-title">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Wallet size={18} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" /> Infinity Credits
+          <span className="dm-account-section-head">
+            <Wallet size={18} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" /> Infinity
+            Credits
           </span>
         </h2>
         <p className="dm-card-sub">
-          {credits === null
-            ? <>Your balance is unavailable right now.</>
-            : <>You have <strong style={{ color: 'var(--dm-text)' }}>₹{Number(credits).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong> in Infinity Credits.</>}
+          {credits === null ? (
+            <>Your balance is unavailable right now.</>
+          ) : (
+            <>
+              You have{' '}
+              <strong className="dm-account-strong">
+                ₹{Number(credits).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              </strong>{' '}
+              in Infinity Credits.
+            </>
+          )}
         </p>
-        <Link to="/agent/premium" className="dm-btn dm-btn-secondary">Top up credits →</Link>
-
+        <Link to="/agent/premium" className="dm-btn dm-btn-secondary">
+          Top up credits <ArrowRight size={14} aria-hidden="true" />
+        </Link>
       </section>
 
       {/* ── Agent permissions ── */}
-      <section className="dm-card" aria-label="Agent permissions">
+      <section
+        className="dm-card dm-polish-in"
+        aria-label="Agent permissions"
+        style={{ animationDelay: '140ms' }}
+      >
         <h2 className="dm-card-title">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <span className="dm-account-section-head">
             <ShieldCheck size={18} aria-hidden="true" /> Agent permissions
           </span>
         </h2>
         <p className="dm-card-sub">
-          Current mode:{' '}
-          <strong style={{ color: 'var(--dm-text)' }}>{PERMISSION_LABELS[permissionMode]}</strong>
+          Current mode: <strong className="dm-account-strong">{PERMISSION_LABELS[permissionMode]}</strong>
         </p>
         <Link to="/agent/settings" className="dm-btn dm-btn-secondary">
-          Change in Settings →
+          Change in Settings <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </section>
 

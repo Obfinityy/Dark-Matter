@@ -95,6 +95,18 @@
   }
 }
 
+/* Schedules — submit CTA reaches the 44px tap target and goes full-width
+   on narrow screens so it never squeezes into a hard-to-hit pill. */
+.dm-schedule-form .dm-btn-primary {
+  min-height: 44px;
+}
+@media (max-width: 560px) {
+  .dm-schedule-form .dm-btn-primary {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .dm-list-in {
