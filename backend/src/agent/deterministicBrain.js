@@ -27,6 +27,7 @@ const STAGES = ['recon', 'injection', 'persistence_authz', 'file_findings', 'don
 
 const PROBE_TOOLS = ['web_probe', 'xss_probe', 'sqli_probe', 'stored_xss_probe', 'idor_probe'];
 
+/** Deterministic Brain. */
 export class DeterministicBrain {
   constructor({ toolExecutionModel = null, evidenceModel = null, logger = console } = {}) {
     this.toolExecutionModel = toolExecutionModel;

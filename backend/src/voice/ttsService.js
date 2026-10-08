@@ -89,6 +89,7 @@ export function decodeAudioChunk(chunk) {
   return Buffer.from(text, 'utf8');
 }
 
+/** Business-logic service for tts. */
 export class TtsService {
   /**
    * @param {object} [opts] — any DEFAULT_CONFIG key; overrides env.

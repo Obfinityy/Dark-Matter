@@ -21,6 +21,11 @@ const VOICES = [
   { id: 'kai2', label: 'Kai Deep', gender: 'male', description: 'Deep, authoritative male voice' },
 ];
 
+/**
+ * Creates voice controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createVoiceController({ voiceManager }) {
   const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 

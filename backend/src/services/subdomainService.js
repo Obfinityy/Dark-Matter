@@ -1,3 +1,9 @@
+/**
+ * subdomainService — subdomain service.
+ * Encapsulates subdomain business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (business-logic services).
+ */
+
 import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
 
@@ -9,6 +15,7 @@ function inScope(name, hostname) {
   return name === hostname || name.endsWith(`.${hostname}`);
 }
 
+/** Business-logic service for subdomain. */
 export class SubdomainService {
   constructor({ scanModel, targetModel, eventService }) {
     this.scanModel = scanModel;

@@ -7,6 +7,11 @@
  *  - Overly permissive methods/headers
  */
 
+/**
+ * Check C O R S.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function checkCORS({ url, headers = {}, requestOrigin = 'https://evil.com' } = {}) {
   if (!headers || typeof headers !== 'object') headers = {};
   const h = {};

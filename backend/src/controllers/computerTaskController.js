@@ -1,3 +1,9 @@
+/**
+ * computerTaskController — Express route handlers for computer Task.
+ * Factory that wires the computer Task service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**

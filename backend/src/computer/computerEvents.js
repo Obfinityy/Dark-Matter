@@ -11,6 +11,7 @@
  *   computer.error
  */
 
+/** Computer Events. */
 export class ComputerEvents {
   constructor({ eventService = null, state = null } = {}) {
     this.eventService = eventService;

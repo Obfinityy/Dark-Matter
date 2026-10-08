@@ -71,6 +71,10 @@ function sensitiveOverlap(baseline, candidate) {
   return { overlap: disclosed.length > 0, disclosed };
 }
 
+/**
+ * Check Idor.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function checkIdor(
   baseUrl,
   {

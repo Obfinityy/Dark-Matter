@@ -1,3 +1,9 @@
+/**
+ * crewController — Express route handlers for crew.
+ * Factory that wires the crew service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**
@@ -48,6 +54,11 @@ function validateCrewPayload(body) {
   return errors;
 }
 
+/**
+ * Creates crew controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createCrewController({ crewService, crewWorker }) {
   // Latest run per crew — updated by chat(). Used to resolve which run an
   // SSE stream or stop request refers to when the caller only knows the crew.

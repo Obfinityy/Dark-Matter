@@ -12,6 +12,7 @@
 
 import { randomUUID } from 'node:crypto';
 
+/** Business-logic service for target queue. */
 export class TargetQueueService {
   constructor({ queueModel, createJob, alertService = null, logger = console }) {
     this.queueModel = queueModel;

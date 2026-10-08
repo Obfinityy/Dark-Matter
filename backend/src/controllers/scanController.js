@@ -1,5 +1,17 @@
+/**
+ * scanController — Express route handlers for scan.
+ * Factory that wires the scan service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
+/**
+ * Creates scan controller.
+ * @param {*} scanService
+ * @param {*} eventService
+ * @returns {*} Result.
+ */
 export function createScanController(scanService, eventService) {
   return {
     list: asyncHandler(async (request, response) => {

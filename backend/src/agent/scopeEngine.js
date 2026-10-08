@@ -53,6 +53,7 @@ export function scopeEntryCovers(entry, hostport) {
   return true;
 }
 
+/** Scope Engine engine. */
 export class ScopeEngine {
   constructor(scope, targetHostname) {
     this.targetHostname = normalizeDomain(targetHostname);

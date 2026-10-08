@@ -1,3 +1,9 @@
+/**
+ * queueController — Express route handlers for queue.
+ * Factory that wires the queue service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { assert } from '../core/errors.js';
 

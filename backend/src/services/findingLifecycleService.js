@@ -1,3 +1,9 @@
+/**
+ * findingLifecycleService — finding Lifecycle service.
+ * Encapsulates finding Lifecycle business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (business-logic services).
+ */
+
 import crypto from 'node:crypto';
 import { applyCvss } from '../agent/cvss.js';
 import { generatePoC } from '../engines/pocGenerator.js';
@@ -23,6 +29,7 @@ export const HYPOTHESIS_STATES = Object.freeze([
   'false_positive',
 ]);
 
+/** Business-logic service for finding lifecycle. */
 export class FindingLifecycleService {
   constructor({ findingModel, evidenceModel, memory, eventService, agentStateModel = null }) {
     this.findingModel = findingModel;

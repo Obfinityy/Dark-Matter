@@ -1,3 +1,10 @@
+/**
+ * Planner — task planning for the agent.
+ * Decomposes high-level objectives into ordered, executable
+ * steps with dependency tracking.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { config } from '../config.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { DECISION_SCHEMA_PROMPT } from './decisionSchema.js';

@@ -418,6 +418,11 @@ export async function generateProjectWithBrain(
   return files;
 }
 
+/**
+ * Creates workspace.
+ * @param {*} root
+ * @returns {*} Result.
+ */
 export function createWorkspace(root = defaultWorkspaceRoot()) {
   const ROOT = path.resolve(root);
 
@@ -1378,6 +1383,10 @@ export async function runControlVision(
   });
 }
 
+/**
+ * Creates infinity modes.
+ * @returns {*} Result.
+ */
 export function createInfinityModes({
   brainModel = null,
   brainModelFor = null,

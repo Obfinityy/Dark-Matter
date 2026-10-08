@@ -40,6 +40,7 @@ function isPhoneDefault(selection) {
   return provider === 'phone';
 }
 
+/** Adapter for user brain. */
 export class UserBrainAdapter {
   /**
    * @param {object} args

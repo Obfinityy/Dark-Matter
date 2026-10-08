@@ -1,3 +1,10 @@
+/**
+ * longContextEngine — long-context orchestration engine.
+ * Coordinates chunking, retrieval, summarization, and generation
+ * for documents larger than a single context window.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import crypto from 'crypto';
 import { chunkText, hashContent } from './chunker.js';
 import { LongContextStore, newId } from './longContextStore.js';

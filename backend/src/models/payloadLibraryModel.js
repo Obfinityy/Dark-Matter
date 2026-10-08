@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 
 const MAX_RECORDS = 2000;
 
+/** Database model for payload library. */
 export class PayloadLibraryModel {
   constructor(database) {
     this.collection = database.collection('payload_library');

@@ -1,7 +1,18 @@
+/**
+ * targetModel — database model for target.
+ * Schema definition and data-access methods for target records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { AppError, assert } from '../core/errors.js';
 import { id, normalizeUrlCandidate, now } from '../core/utils.js';
 import { scopeEntryCovers } from '../agent/scopeEngine.js';
 
+/**
+ * Normalize Target Url.
+ * @param {*} value
+ * @returns {*} Result.
+ */
 export function normalizeTargetUrl(value) {
   let parsed;
   try {
@@ -44,6 +55,12 @@ function normalizeDomain(value) {
     .replace(/^www\./, '');
 }
 
+/**
+ * Normalize Scope.
+ * @param {*} url
+ * @param {*} scope
+ * @returns {*} Result.
+ */
 export function normalizeScope(url, scope = {}) {
   // host (not hostname): the port is part of the authorized scope, so the
   // default grant covers exactly the target's host:port (127.0.0.1:4555).
@@ -71,6 +88,7 @@ export function normalizeScope(url, scope = {}) {
   return { included, excluded };
 }
 
+/** Database model for target. */
 export class TargetModel {
   constructor(database) {
     this.collection = database.collection('targets');

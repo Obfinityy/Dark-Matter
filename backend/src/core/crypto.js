@@ -1,7 +1,15 @@
+/**
+ * crypto — encryption primitives.
+ * SecretBox authenticated encryption for credentials and tokens
+ * at rest, plus key derivation helpers.
+ * Part of: Infinity AI / Dark-Matter backend (core utilities).
+ */
+
 import crypto from 'node:crypto';
 
 const algorithm = 'aes-256-gcm';
 
+/** Secret Box. */
 export class SecretBox {
   constructor(secret) {
     this.key = crypto.createHash('sha256').update(secret).digest();

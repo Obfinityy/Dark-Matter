@@ -1,6 +1,16 @@
+/**
+ * permissionsController — Express route handlers for permissions.
+ * Factory that wires the permissions service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { getPermissionMode, setPermissionMode } from '../services/permissionService.js';
 
+/**
+ * Creates permissions controller.
+ * @returns {*} Result.
+ */
 export function createPermissionsController() {
   return {
     get: asyncHandler(async (request, response) => {

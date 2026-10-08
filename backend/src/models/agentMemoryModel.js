@@ -1,3 +1,9 @@
+/**
+ * agentMemoryModel — database model for agent Memory.
+ * Schema definition and data-access methods for agent Memory records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import crypto from 'node:crypto';
 import { id, now } from '../core/utils.js';
 
@@ -28,6 +34,7 @@ export const MEMORY_TYPES = Object.freeze([
   'conversation',
 ]);
 
+/** Database model for agent memory. */
 export class AgentMemoryModel {
   constructor(database) {
     this.collection = database.collection('agent_memory');

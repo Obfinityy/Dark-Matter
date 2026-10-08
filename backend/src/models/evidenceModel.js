@@ -1,3 +1,9 @@
+/**
+ * evidenceModel — database model for evidence.
+ * Schema definition and data-access methods for evidence records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import crypto from 'node:crypto';
 import { id, now } from '../core/utils.js';
 
@@ -19,6 +25,7 @@ export const EVIDENCE_KINDS = Object.freeze([
   'file',
 ]);
 
+/** Database model for evidence. */
 export class EvidenceModel {
   constructor(database) {
     this.collection = database.collection('evidence');

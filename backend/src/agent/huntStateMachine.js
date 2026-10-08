@@ -106,6 +106,10 @@ const TRANSITIONS = {
   complete: [],
 };
 
+/**
+ * Initial Hunt State.
+ * @returns {*} Result.
+ */
 export function initialHuntState() {
   return {
     status: 'idle',
@@ -119,6 +123,12 @@ export function initialHuntState() {
   };
 }
 
+/**
+ * Returns whether valid transition.
+ * @param {*} from
+ * @param {*} to
+ * @returns {*} Result.
+ */
 export function isValidTransition(from, to) {
   if (!HUNT_STATES.includes(from) || !HUNT_STATES.includes(to)) return false;
   if (from === to) return true; // idempotent refresh, e.g. idle → idle

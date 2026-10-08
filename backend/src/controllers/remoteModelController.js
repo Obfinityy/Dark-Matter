@@ -17,6 +17,11 @@
  */
 import { GradioProvider, normalizeGradioUrl } from '../agent/providers/gradioProvider.js';
 
+/**
+ * Creates remote model controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createRemoteModelController({ brainProviderModel, agentWorker }) {
   const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 

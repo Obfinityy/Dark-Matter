@@ -30,6 +30,11 @@ const DEPRECATED_VERSIONS = {
   'TLS1.1': { severity: 'High', note: 'TLS 1.1 — deprecated by RFC 8996' },
 };
 
+/**
+ * Normalize Version.
+ * @param {*} v
+ * @returns {*} Result.
+ */
 export function normalizeVersion(v) {
   const s = String(v || '')
     .replace(/[^0-9a-zA-Z.]/g, '')

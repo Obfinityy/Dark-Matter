@@ -1,3 +1,9 @@
+/**
+ * toolExecutionModel — database model for tool Execution.
+ * Schema definition and data-access methods for tool Execution records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import crypto from 'node:crypto';
 import { id, now } from '../core/utils.js';
 

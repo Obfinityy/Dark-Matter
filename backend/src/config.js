@@ -1,3 +1,10 @@
+/**
+ * config — centralized environment configuration.
+ * Resolves every runtime setting from environment variables with
+ * safe defaults for local development and strict checks in production.
+ * Part of: Infinity AI / Dark-Matter backend (application bootstrap).
+ */
+
 import 'dotenv/config';
 
 const isProduction = process.env.NODE_ENV === 'production';

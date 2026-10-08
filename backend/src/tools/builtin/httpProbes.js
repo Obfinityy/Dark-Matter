@@ -132,6 +132,11 @@ function techHints(headers, html) {
 
 // ── Tool 1: web_probe — HTTP fingerprint + attack-surface discovery ──────
 
+/**
+ * Web Probe.
+ * @param {object} options - Named options.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function webProbe({ baseUrl, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const started = Date.now();
   const home = await fetchSameOrigin(baseUrl, {}, timeoutMs);
@@ -166,6 +171,10 @@ export async function webProbe({ baseUrl, timeoutMs = DEFAULT_TIMEOUT_MS } = {})
 
 // ── Tool 2: xss_probe — reflected XSS via discovered params/forms ────────
 
+/**
+ * Xss Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function xssProbe({
   baseUrl,
   webProbe: recon = null,
@@ -246,6 +255,10 @@ export async function xssProbe({
 
 // ── Tool 3: sqli_probe — auth-bypass + error-based SQL injection ─────────
 
+/**
+ * Sqli Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function sqliProbe({
   baseUrl,
   webProbe: recon = null,
@@ -377,6 +390,10 @@ export async function sqliProbe({
 
 // ── Tool 4: stored_xss_probe — persist a payload, verify it renders ──────
 
+/**
+ * Stored Xss Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function storedXssProbe({
   baseUrl,
   webProbe: recon = null,
@@ -449,6 +466,10 @@ export async function storedXssProbe({
 
 const SENSITIVE_KEYS = ['password', 'ssn', 'secret', 'token', 'email', 'phone'];
 
+/**
+ * Idor Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function idorProbe({
   baseUrl,
   webProbe: recon = null,

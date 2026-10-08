@@ -1,3 +1,9 @@
+/**
+ * localModelService — local Model service.
+ * Encapsulates local Model business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (local model management).
+ */
+
 import { spawnSync } from 'node:child_process';
 import { MODEL_LIBRARY, getLibraryEntry, getDefaultEntry } from './modelLibrary.js';
 import { validateCustomTag } from '../../models/customModelModel.js';

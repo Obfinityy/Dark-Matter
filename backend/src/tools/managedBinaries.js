@@ -109,10 +109,19 @@ export function releasePlatform(platform = process.platform, arch = process.arch
   return { os, arch: a };
 }
 
+/**
+ * Tools Dir.
+ * @returns {*} Result.
+ */
 export function toolsDir() {
   return path.join(os.homedir(), '.darkmatter', 'tools');
 }
 
+/**
+ * Tool Dir.
+ * @param {*} name
+ * @returns {*} Result.
+ */
 export function toolDir(name) {
   return path.join(toolsDir(), name);
 }
@@ -131,6 +140,11 @@ export function binaryPath(name, platform = process.platform, arch = process.arc
   return path.join(toolDir(name), spec.binary(platform));
 }
 
+/**
+ * Returns whether installed.
+ * @param {*} name
+ * @returns {*} Result.
+ */
 export function isInstalled(name) {
   try {
     const p = binaryPath(name);

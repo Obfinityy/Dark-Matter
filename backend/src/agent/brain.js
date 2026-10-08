@@ -1,3 +1,10 @@
+/**
+ * AgentBrain — core reasoning brain.
+ * Drives the perceive–plan–act loop: interprets observations,
+ * selects actions, and tracks goals.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { config } from '../config.js';
 import { validateDecision } from './decisionSchema.js';
 

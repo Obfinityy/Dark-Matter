@@ -1,5 +1,13 @@
+/**
+ * LocalAIQueue — serialized local-AI request queue.
+ * Serializes inference requests to the on-device model so
+ * concurrent users never interleave generations.
+ * Part of: Infinity AI / Dark-Matter backend (AI model provider integrations).
+ */
+
 import crypto from 'crypto';
 
+/** Serialized queue for local a i. */
 export class LocalAIQueue {
   constructor() {
     this.queue = [];

@@ -3,6 +3,7 @@
  * Sits between the agent brain and MongoDB.
  */
 
+/** Manages state lifecycle and state. */
 export class StateManager {
   constructor({ agentStateModel, assessmentModel, eventService }) {
     this.agentStateModel = agentStateModel;

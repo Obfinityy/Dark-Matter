@@ -19,6 +19,12 @@ import { extractEndpointsFromKatana } from '../recon/jsEndpointLoop.js';
  */
 
 const SEVERITY_ORDER = ['info', 'low', 'medium', 'high', 'critical'];
+/**
+ * Clamp Severity.
+ * @param {*} sev
+ * @param {*} fallback
+ * @returns {*} Result.
+ */
 export function clampSeverity(sev, fallback = 'medium') {
   const s = String(sev || '').toLowerCase();
   return SEVERITY_ORDER.includes(s) ? s : fallback;
@@ -517,6 +523,13 @@ export function normalizeGau(raw, { baseHost = null } = {}) {
   return findings;
 }
 
+/**
+ * Normalize Tool Findings.
+ * @param {*} tool
+ * @param {*} raw
+ * @param {*} opts
+ * @returns {*} Result.
+ */
 export function normalizeToolFindings(tool, raw, opts = {}) {
   switch (tool) {
     case 'nuclei':

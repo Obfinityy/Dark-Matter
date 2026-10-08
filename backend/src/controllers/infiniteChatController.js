@@ -1,3 +1,9 @@
+/**
+ * infiniteChatController — Express route handlers for infinite Chat.
+ * Factory that wires the infinite Chat service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { classifyComputerInstruction } from '../services/computerTaskManager.js';
 import { stripThinkingTags } from '../agent/providers/phoneLocalProvider.js';

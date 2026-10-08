@@ -28,6 +28,7 @@ function normalizeConfig(input = {}) {
   };
 }
 
+/** AI model provider: ollama. */
 export class OllamaProvider {
   constructor(config = {}) {
     const { baseUrl, model } = normalizeConfig(config);

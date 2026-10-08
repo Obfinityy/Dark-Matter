@@ -1,3 +1,9 @@
+/**
+ * assessmentController — Express route handlers for assessment.
+ * Factory that wires the assessment service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**

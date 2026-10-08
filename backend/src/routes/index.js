@@ -1,7 +1,18 @@
+/**
+ * routes — top-level Express router.
+ * Mounts all API controllers under their versioned paths.
+ * Part of: Infinity AI / Dark-Matter backend (Express route definitions).
+ */
+
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../core/utils.js';
 
+/**
+ * Creates routes.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createRoutes({ controllers }) {
   const router = Router();
   router.get('/health', controllers.health.health);

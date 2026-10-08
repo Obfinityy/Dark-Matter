@@ -1,3 +1,9 @@
+/**
+ * localModelController — Express route handlers for local Model.
+ * Factory that wires the local Model service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { MODEL_LIBRARY } from '../services/localModel/modelLibrary.js';
 

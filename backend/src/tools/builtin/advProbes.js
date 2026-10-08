@@ -244,6 +244,10 @@ function isAccepted(res, baseline) {
 
 // ── Tool: jwt_attack_probe ───────────────────────────────────────────────
 
+/**
+ * Jwt Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function jwtProbe({
   baseUrl,
   token = null,
@@ -532,6 +536,10 @@ function sstiPayloads(a, b) {
 const SSTI_ENGINE_FINGERPRINTS =
   /jinja2|twig|freemarker|velocity|smarty|mustache|handlebars|\berb\b|thymeleaf|djangotemplate|tornado\.template/i;
 
+/**
+ * Ssti Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function sstiProbe({
   baseUrl,
   webProbe: recon = null,
@@ -673,6 +681,10 @@ export async function sstiProbe({
 // (server resolved the external entity → SSRF), (2) file:/// content or an
 // explicit file-read error is returned.
 
+/**
+ * Xxe Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function xxeProbe({
   baseUrl,
   endpoints = null,
@@ -838,6 +850,11 @@ function isGraphqlResponse(res) {
   return j.data !== undefined || j.errors !== undefined;
 }
 
+/**
+ * Graphql Probe.
+ * @param {object} options - Named options.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function graphqlProbe({ baseUrl, paths = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const started = Date.now();
   const origin = baseUrl.replace(/\/$/, '');
@@ -1061,6 +1078,10 @@ function wsHandshake(targetUrl, { origin = undefined, extraHeaders = {}, timeout
   });
 }
 
+/**
+ * Websocket Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function websocketProbe({
   baseUrl,
   paths = null,
@@ -1199,6 +1220,10 @@ export async function websocketProbe({
 // A finding needs the limit to be observably exceeded — never just "N
 // requests were sent".
 
+/**
+ * Race Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function raceProbe({
   baseUrl,
   endpoint = null,
@@ -1386,6 +1411,10 @@ function redactSecret(v) {
   return s.slice(0, 6) + '…' + s.slice(-4) + ' [REDACTED]';
 }
 
+/**
+ * Secrets Probe.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function secretsProbe({
   baseUrl,
   maxFiles = 10,

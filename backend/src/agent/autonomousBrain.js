@@ -1,3 +1,10 @@
+/**
+ * AutonomousBrain — fully autonomous agent brain.
+ * Long-horizon reasoning with error recovery, context-window
+ * management, and provider failover.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { config } from '../config.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { PhoneLocalProvider } from './providers/phoneLocalProvider.js';
@@ -52,14 +59,29 @@ const UNAVAILABLE_PATTERN =
  */
 const BUSY_PATTERN = /42[89]|already in progress|too many requests|rate limit|\bbusy\b/i;
 
+/**
+ * Returns whether context window error.
+ * @param {*} error
+ * @returns {*} Result.
+ */
 export function isContextWindowError(error) {
   return CONTEXT_WINDOW_PATTERN.test(String(error?.message || ''));
 }
 
+/**
+ * Returns whether unavailable error.
+ * @param {*} error
+ * @returns {*} Result.
+ */
 export function isUnavailableError(error) {
   return !isContextWindowError(error) && UNAVAILABLE_PATTERN.test(String(error?.message || ''));
 }
 
+/**
+ * Returns whether busy error.
+ * @param {*} error
+ * @returns {*} Result.
+ */
 export function isBusyError(error) {
   return BUSY_PATTERN.test(String(error?.message || ''));
 }
@@ -73,6 +95,7 @@ export function truncateToTokens(text, maxTokens) {
   return `${text.slice(0, half)}\n\n[... memory truncated to fit the model context window ...]\n\n${text.slice(-half)}`;
 }
 
+/** Error thrown for local ai unavailable failures. */
 export class LocalAiUnavailableError extends Error {
   constructor(message, { kind = 'unreachable', detail = null } = {}) {
     super(message);
@@ -83,6 +106,7 @@ export class LocalAiUnavailableError extends Error {
   }
 }
 
+/** Error thrown for brain decision failures. */
 export class BrainDecisionError extends Error {
   constructor(message, { raw = null, errors = [] } = {}) {
     super(message);
@@ -93,6 +117,7 @@ export class BrainDecisionError extends Error {
   }
 }
 
+/** Autonomous Brain. */
 export class AutonomousBrain {
   constructor({
     memory,

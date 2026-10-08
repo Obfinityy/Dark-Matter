@@ -40,6 +40,7 @@ function normalizeTarget(job) {
   return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
 }
 
+/** Adapter for triple brain hunt. */
 export class TripleBrainHuntAdapter {
   constructor({ orchestrator, deterministic = null, logger = console } = {}) {
     if (!orchestrator) throw new Error('TripleBrainHuntAdapter requires an orchestrator');

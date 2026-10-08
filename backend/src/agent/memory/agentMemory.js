@@ -1,3 +1,10 @@
+/**
+ * AgentMemory — persistent agent memory.
+ * Stores and retrieves facts, preferences, and episodic
+ * memory across conversations.
+ * Part of: Infinity AI / Dark-Matter backend (agent memory subsystems).
+ */
+
 import { MEMORY_TYPES } from '../../models/agentMemoryModel.js';
 import { estimateTokens } from '../../services/longContext/tokens.js';
 
@@ -105,6 +112,7 @@ const STOPWORDS = new Set([
   'bhi',
 ]);
 
+/** Agent Memory. */
 export class AgentMemory {
   constructor({ memoryModel, contextBudgetManager = null, logger = console } = {}) {
     this.memoryModel = memoryModel;

@@ -23,6 +23,7 @@ const CADENCE_MS = {
   weekly: 7 * 24 * 60 * 60 * 1000,
 };
 
+/** Hunt Scheduler. */
 export class HuntScheduler {
   constructor({ scheduleModel, createJob, alertService = null, logger = console }) {
     this.scheduleModel = scheduleModel;

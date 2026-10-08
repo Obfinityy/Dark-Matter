@@ -1,3 +1,9 @@
+/**
+ * authController — Express route handlers for auth.
+ * Factory that wires the auth service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 const cookieName = 'darkmatter_session';
@@ -20,6 +26,12 @@ function clearSessionCookie(response, secure) {
   response.setHeader('Set-Cookie', parts.join('; '));
 }
 
+/**
+ * Creates auth controller.
+ * @param {*} authService
+ * @param {*} config
+ * @returns {*} Result.
+ */
 export function createAuthController(authService, config) {
   return {
     register: asyncHandler(async (request, response) => {

@@ -1,3 +1,9 @@
+/**
+ * computerTaskManager — computer Task manager.
+ * Encapsulates computer Task business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (business-logic services).
+ */
+
 import { ComputerTaskModel, TERMINAL_TASK_STATES } from '../models/computerTaskModel.js';
 
 /**
@@ -83,6 +89,7 @@ export function classifyComputerInstruction(message, latestTask = null) {
   return { isComputerTask, isFollowUp };
 }
 
+/** Manages computer task lifecycle and state. */
 export class ComputerTaskManager {
   constructor({ taskModel, worker, eventService = null, logger = console, config = {} }) {
     this.taskModel = taskModel;

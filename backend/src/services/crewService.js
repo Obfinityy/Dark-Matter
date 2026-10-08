@@ -36,6 +36,7 @@ const CREW_ID_BYTES = 6; // 12 hex chars
  * @property {string} updatedAt     ISO timestamp
  */
 
+/** Business-logic service for crew. */
 export class CrewService {
   /**
    * @param {{ dataDir?: string }} [opts]

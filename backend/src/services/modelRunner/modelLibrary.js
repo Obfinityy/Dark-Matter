@@ -475,6 +475,10 @@ export function getLibraryEntry(modelId) {
   return MODEL_LIBRARY.find(m => m.id === modelId) || null;
 }
 
+/**
+ * Returns default entry.
+ * @returns {*} Result.
+ */
 export function getDefaultEntry() {
   return MODEL_LIBRARY.find(m => m.default) || MODEL_LIBRARY[0];
 }

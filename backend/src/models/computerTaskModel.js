@@ -1,3 +1,9 @@
+/**
+ * computerTaskModel — database model for computer Task.
+ * Schema definition and data-access methods for computer Task records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**
@@ -59,6 +65,7 @@ export const RECOVERABLE_TASK_STATES = Object.freeze([
 
 export const TERMINAL_TASK_STATES = Object.freeze(['completed', 'failed', 'cancelled']);
 
+/** Database model for computer task. */
 export class ComputerTaskModel {
   constructor(database) {
     this.collection = database.collection('computer_tasks');

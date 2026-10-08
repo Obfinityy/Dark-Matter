@@ -1,3 +1,9 @@
+/**
+ * brainProviderModel — database model for brain Provider.
+ * Schema definition and data-access methods for brain Provider records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { now } from '../core/utils.js';
 import { BRAIN_PROVIDERS } from '../agent/providers/brainProviderFactory.js';
 
@@ -54,6 +60,7 @@ export function validateEndpointUrl(raw) {
   return url.toString().replace(/\/$/, '');
 }
 
+/** Database model for brain provider. */
 export class BrainProviderModel {
   constructor(database) {
     this.collection = database.collection('brain_provider');

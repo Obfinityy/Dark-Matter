@@ -32,6 +32,7 @@ export const AGENT_S_SERVICE_PATH = path.join(__dirname, '..', 'agentS', 'agent_
 let _id = 0;
 const nextId = () => `agents-${Date.now()}-${(_id += 1)}`;
 
+/** Agent S Driver. */
 export class AgentSDriver extends EventEmitter {
   constructor({ python = null, env = {} } = {}) {
     super();

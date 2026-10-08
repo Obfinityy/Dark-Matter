@@ -99,6 +99,11 @@ export function appendActivity(huntId, entry = {}) {
 export function loadLearnings() {
   return readJson(path.join(memoryDir(), 'learnings.json'), []);
 }
+/**
+ * Save Learnings.
+ * @param {*} store
+ * @returns {*} Result.
+ */
 export function saveLearnings(store = []) {
   writeJson(path.join(memoryDir(), 'learnings.json'), store);
 }
@@ -107,6 +112,11 @@ export function saveLearnings(store = []) {
 export function loadFPs() {
   return readJson(path.join(memoryDir(), 'fps.json'), []);
 }
+/**
+ * Save F Ps.
+ * @param {*} store
+ * @returns {*} Result.
+ */
 export function saveFPs(store = []) {
   writeJson(path.join(memoryDir(), 'fps.json'), store);
 }
@@ -115,6 +125,11 @@ export function saveFPs(store = []) {
 export function loadPreferences() {
   return readJson(path.join(memoryDir(), 'preferences.json'), {});
 }
+/**
+ * Save Preferences.
+ * @param {*} prefs
+ * @returns {*} Result.
+ */
 export function savePreferences(prefs = {}) {
   writeJson(path.join(memoryDir(), 'preferences.json'), prefs);
 }

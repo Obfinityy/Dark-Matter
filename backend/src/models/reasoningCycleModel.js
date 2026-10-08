@@ -35,6 +35,7 @@ function toSummary(cycle) {
   };
 }
 
+/** Database model for reasoning cycle. */
 export class ReasoningCycleModel {
   constructor(database) {
     this.collection = database.collection('reasoning_cycles');

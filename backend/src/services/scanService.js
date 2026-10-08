@@ -1,8 +1,15 @@
+/**
+ * scanService — scan service.
+ * Encapsulates scan business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (business-logic services).
+ */
+
 import { assert } from '../core/errors.js';
 import { extractUrl } from '../core/utils.js';
 import { normalizeTargetUrl } from '../models/targetModel.js';
 import { chainNaabuToNmap, parseNmapXml } from '../recon/portChain.js';
 
+/** Business-logic service for scan. */
 export class ScanService {
   constructor({ targetModel, scanModel, eventService, subdomainService }) {
     this.targetModel = targetModel;

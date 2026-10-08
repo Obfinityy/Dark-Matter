@@ -55,6 +55,7 @@ export const CREW_EVENT_TYPES = Object.freeze([
  * @property {{ info?: Function, warn?: Function, error?: Function }} [logger]
  */
 
+/** Background worker for crew. */
 export class CrewWorker {
   /**
    * @param {CrewWorkerDeps} deps

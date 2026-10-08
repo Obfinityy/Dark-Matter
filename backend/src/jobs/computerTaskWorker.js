@@ -1,3 +1,10 @@
+/**
+ * computerTaskWorker — computer-task background worker.
+ * Executes queued GUI-automation tasks and records their
+ * actions and screenshots.
+ * Part of: Infinity AI / Dark-Matter backend (background job workers).
+ */
+
 import crypto from 'node:crypto';
 import { validateComputerAction, COMPUTER_ACTIONS } from '../computer/actionSchema.js';
 import { resolveApplication, isApplicationBlocked } from '../computer/applicationResolver.js';
@@ -34,6 +41,7 @@ const NO_PROGRESS_REPEAT_LIMIT = Number(process.env.TASK_NO_PROGRESS_REPEAT_LIMI
 /** Consecutive unusable-decision strikes before parking in a real waiting state. */
 const DECISION_STRIKE_LIMIT = Number(process.env.TASK_DECISION_STRIKE_LIMIT || 6);
 
+/** Background worker for computer task. */
 export class ComputerTaskWorker {
   constructor({
     taskModel,

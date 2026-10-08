@@ -1,3 +1,10 @@
+/**
+ * policyValidator — tool-use policy enforcement.
+ * Validates every proposed tool call against the hunt scope
+ * and safety policy before execution.
+ * Part of: Infinity AI / Dark-Matter backend (agent tool execution).
+ */
+
 import { ToolRegistry } from '../tools/registry.js';
 import { permissionService as defaultPermissionService } from '../services/permissionService.js';
 
@@ -116,6 +123,7 @@ function matchesBlockedPattern(text) {
   return null;
 }
 
+/** Policy Validator. */
 export class PolicyValidator {
   /**
    * Validate a tool execution request. Returns

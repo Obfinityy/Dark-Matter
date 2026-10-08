@@ -1,3 +1,10 @@
+/**
+ * contextBudgetManager — context budget management.
+ * Tracks token usage across chunks, prompts, and outputs to stay
+ * within model context limits.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import {
   estimateTokens,
   estimateMessageTokens,

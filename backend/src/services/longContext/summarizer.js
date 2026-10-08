@@ -1,3 +1,10 @@
+/**
+ * summarizer — long-context summarization.
+ * Compresses retrieved chunks into concise summaries that fit
+ * the model's context budget.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import { newId } from './longContextStore.js';
 import { estimateTokens } from './tokens.js';
 

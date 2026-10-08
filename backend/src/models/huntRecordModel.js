@@ -39,6 +39,7 @@ function publicRecord(record) {
   return view;
 }
 
+/** Database model for hunt record. */
 export class HuntRecordModel {
   constructor(database) {
     this.collection = database.collection('hunt_records');

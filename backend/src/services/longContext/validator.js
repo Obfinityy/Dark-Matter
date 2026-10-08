@@ -1,3 +1,10 @@
+/**
+ * validator — long-context output validation.
+ * Checks generated content for completeness and consistency
+ * before it is returned.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import { estimateTokens, modelContextCapacity, reservedOutputTokens } from './tokens.js';
 import { ContextWindowError } from './phoneModelAdapter.js';
 

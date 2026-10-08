@@ -1,8 +1,20 @@
+/**
+ * healthController — Express route handlers for health.
+ * Factory that wires the health service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { config } from '../config.js';
 import { PhoneLocalProvider } from '../agent/providers/phoneLocalProvider.js';
 import { localAIQueue } from '../agent/providers/localAiQueue.js';
 import crypto from 'crypto';
 
+/**
+ * Health.
+ * @param {*} request
+ * @param {*} response
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function health(request, response) {
   const databaseKind = request.app?.locals?.databaseKind || 'unknown';
   // REAL liveness check — a ping with a hard timeout. This must never hang:
@@ -28,6 +40,12 @@ export async function health(request, response) {
   });
 }
 
+/**
+ * Agent Info.
+ * @param {*} request
+ * @param {*} response
+ * @returns {*} Result.
+ */
 export function agentInfo(request, response) {
   response.json({
     name: 'Elite Bug Bounty Expert',
@@ -46,12 +64,24 @@ export function agentInfo(request, response) {
   });
 }
 
+/**
+ * Local Ai Health.
+ * @param {*} request
+ * @param {*} response
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function localAiHealth(request, response) {
   const phoneAi = new PhoneLocalProvider(config);
   const result = await phoneAi.healthCheck();
   response.json(result);
 }
 
+/**
+ * Direct Chat.
+ * @param {*} request
+ * @param {*} response
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function directChat(request, response) {
   try {
     const { message } = request.body;

@@ -9,6 +9,7 @@
  *     nextRunAt, enabled, lastJobId, lastRunAt, createdAt }
  */
 
+/** Database model for hunt schedule. */
 export class HuntScheduleModel {
   constructor(database) {
     this.collection = database.collection('hunt_schedules');

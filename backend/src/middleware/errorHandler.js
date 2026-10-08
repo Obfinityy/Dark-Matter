@@ -1,9 +1,30 @@
+/**
+ * errorHandler — centralized error middleware.
+ * Converts thrown application errors into consistent JSON
+ * error responses.
+ * Part of: Infinity AI / Dark-Matter backend (Express middleware).
+ */
+
 import { AppError } from '../core/errors.js';
 
+/**
+ * Not Found Handler.
+ * @param {*} request
+ * @param {*} response
+ * @returns {*} Result.
+ */
 export function notFoundHandler(request, response) {
   response.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
 }
 
+/**
+ * Error Handler.
+ * @param {*} error
+ * @param {*} request
+ * @param {*} response
+ * @param {*} next
+ * @returns {*} Result.
+ */
 export function errorHandler(error, request, response, next) {
   if (response.headersSent) return next(error);
   if (error instanceof AppError) {

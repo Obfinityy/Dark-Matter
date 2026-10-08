@@ -1,3 +1,9 @@
+/**
+ * longContextStore — long-context chunk storage.
+ * Persists and indexes text chunks for fast similarity retrieval.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import crypto from 'crypto';
 
 /**

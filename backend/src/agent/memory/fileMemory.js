@@ -37,6 +37,10 @@ import os from 'node:os';
 import { estimateTokens } from '../../services/longContext/tokens.js';
 import { truncateItem } from '../huntContextManager.js';
 
+/**
+ * Default Data Dir.
+ * @returns {*} Result.
+ */
 export function defaultDataDir() {
   return process.env.DARKMATTER_DATA_DIR || path.join(os.homedir(), '.darkmatter');
 }
@@ -64,6 +68,7 @@ function todayStamp() {
   return new Date().toISOString();
 }
 
+/** File Memory. */
 export class FileMemory {
   constructor({ dataDir = null } = {}) {
     this.dataDir = dataDir || defaultDataDir();

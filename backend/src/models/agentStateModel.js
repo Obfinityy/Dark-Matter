@@ -1,3 +1,9 @@
+/**
+ * agentStateModel — database model for agent State.
+ * Schema definition and data-access methods for agent State records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**

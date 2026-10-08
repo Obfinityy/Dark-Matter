@@ -1,3 +1,9 @@
+/**
+ * findingModel — database model for finding.
+ * Schema definition and data-access methods for finding records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 const VALID_SEVERITIES = ['critical', 'high', 'medium', 'low', 'informational'];

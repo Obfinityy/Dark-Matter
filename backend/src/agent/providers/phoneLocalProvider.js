@@ -1,3 +1,15 @@
+/**
+ * PhoneLocalProvider — on-phone model provider.
+ * Talks to the phone-hosted model endpoint; strips
+ * reasoning tags and normalizes message formats.
+ * Part of: Infinity AI / Dark-Matter backend (AI model provider integrations).
+ */
+
+/**
+ * Strip Thinking Tags.
+ * @param {*} text
+ * @returns {*} Result.
+ */
 export function stripThinkingTags(text = '') {
   if (typeof text !== 'string') return '';
   let cleaned = text;
@@ -93,6 +105,11 @@ function closeTruncatedJson(raw) {
   return out;
 }
 
+/**
+ * Normalize Messages For Phone.
+ * @param {*} messages
+ * @returns {*} Result.
+ */
 export function normalizeMessagesForPhone(messages) {
   if (!Array.isArray(messages)) return [];
   const result = [];
@@ -119,6 +136,7 @@ export function normalizeMessagesForPhone(messages) {
   return result;
 }
 
+/** AI model provider: phone local. */
 export class PhoneLocalProvider {
   constructor(config) {
     this.baseUrl = config.phoneAiBaseUrl;

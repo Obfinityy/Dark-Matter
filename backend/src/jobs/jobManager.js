@@ -1,3 +1,10 @@
+/**
+ * JobManager — background job orchestration.
+ * Schedules, tracks, and supervises long-running jobs such as
+ * hunts and model downloads.
+ * Part of: Infinity AI / Dark-Matter backend (background job workers).
+ */
+
 import { AgentJobModel, TERMINAL_JOB_STATES } from '../models/agentJobModel.js';
 import { buildAskReply } from '../services/askAgentService.js';
 import { normalizeTargetUrl } from '../models/targetModel.js';
@@ -22,6 +29,7 @@ import { normalizeTargetUrl } from '../models/targetModel.js';
  *              kept.
  */
 
+/** Manages job lifecycle and state. */
 export class JobManager {
   constructor({
     jobModel,

@@ -1,3 +1,10 @@
+/**
+ * database — database abstraction layer.
+ * MongoDatabase (production) and MemoryDatabase (local dev)
+ * behind a single model-facing interface.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { MongoClient } from 'mongodb';
 
 // Every finite database operation gets a hard ceiling so a dead or hanging
@@ -27,6 +34,12 @@ const OPTIONS_INDEX = {
   bulkWrite: 1,
 };
 
+/**
+ * With Query Timeout.
+ * @param {*} collection
+ * @param {*} maxTimeMS
+ * @returns {*} Result.
+ */
 export function withQueryTimeout(collection, maxTimeMS = DEFAULT_QUERY_TIMEOUT_MS) {
   return new Proxy(collection, {
     get(target, property, receiver) {
@@ -43,6 +56,7 @@ export function withQueryTimeout(collection, maxTimeMS = DEFAULT_QUERY_TIMEOUT_M
   });
 }
 
+/** Mongo Database. */
 export class MongoDatabase {
   constructor({ mongoUrl, mongoDbName, mongoServerSelectionTimeoutMs = 10_000 }) {
     if (!mongoUrl) throw new Error('MONGO_URL is required for the backend database connection');
@@ -288,6 +302,7 @@ class MemoryCollection {
   }
 }
 
+/** Memory Database. */
 export class MemoryDatabase {
   constructor() {
     this.collections = new Map();

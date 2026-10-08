@@ -81,6 +81,12 @@ export async function resolveReleaseTag() {
   }
 }
 
+/**
+ * Download Url For.
+ * @param {*} tag
+ * @param {*} asset
+ * @returns {*} Result.
+ */
 export function downloadUrlFor(tag, asset) {
   return `${DOWNLOAD_BASE}/${tag}/${asset}`;
 }
@@ -142,6 +148,7 @@ export async function waitForRunnerReady(baseUrl, timeoutMs = 240000) {
   }
 }
 
+/** Infinity Runner. */
 export class InfinityRunner {
   constructor({ dataDir, logger = console } = {}) {
     // Same convention as FileMemory: ~/.darkmatter unless overridden.

@@ -1,3 +1,9 @@
+/**
+ * scheduleController — Express route handlers for schedule.
+ * Factory that wires the schedule service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { assert } from '../core/errors.js';
 

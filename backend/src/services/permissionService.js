@@ -29,6 +29,7 @@ function invalidModeError(mode) {
   return err;
 }
 
+/** Business-logic service for permission. */
 export class PermissionService {
   constructor() {
     this.modes = new Map(); // userId → 'ask' | 'full'
@@ -169,14 +170,30 @@ export const PERMISSION_MODES = Object.freeze({
   FULL: 'full',
 });
 
+/**
+ * Returns whether valid permission mode.
+ * @param {*} mode
+ * @returns {*} Result.
+ */
 export function isValidPermissionMode(mode) {
   return VALID_MODES.has(String(mode || '').toLowerCase());
 }
 
+/**
+ * Returns permission mode.
+ * @param {*} userId
+ * @returns {*} Result.
+ */
 export function getPermissionMode(userId) {
   return permissionService.getPermissionMode(userId);
 }
 
+/**
+ * Set Permission Mode.
+ * @param {*} userId
+ * @param {*} mode
+ * @returns {*} Result.
+ */
 export function setPermissionMode(userId, mode) {
   return permissionService.setPermissionMode(userId, mode);
 }

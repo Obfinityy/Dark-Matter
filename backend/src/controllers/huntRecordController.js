@@ -1,3 +1,9 @@
+/**
+ * huntRecordController — Express route handlers for hunt Record.
+ * Factory that wires the hunt Record service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { generateSafePoc, generateRepro } from '../agent/exploitEngine.js';
 

@@ -1,3 +1,10 @@
+/**
+ * retriever — long-context retrieval.
+ * Fetches the most relevant chunks for a query from the
+ * long-context store.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import { newId } from './longContextStore.js';
 
 /**

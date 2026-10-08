@@ -131,6 +131,7 @@ function clampCoord(n) {
   return Math.min(GROUNDING_SPACE, Math.max(0, Math.round(v)));
 }
 
+/** Triple Brain Orchestrator. */
 export class TripleBrainOrchestrator {
   /**
    * @param {object} options

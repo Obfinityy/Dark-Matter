@@ -21,6 +21,11 @@ const PHASE_TO_STAGE = {
   complete: 'reporting',
 };
 
+/**
+ * Stage For Phase.
+ * @param {*} phase
+ * @returns {*} Result.
+ */
 export function stageForPhase(phase) {
   const p = String(phase || '')
     .toLowerCase()
@@ -216,6 +221,11 @@ const TECHNIQUES = {
   ],
 };
 
+/**
+ * Techniques For Stage.
+ * @param {*} stage
+ * @returns {*} Result.
+ */
 export function techniquesForStage(stage) {
   return [...(TECHNIQUES[stage] || TECHNIQUES.recon)];
 }
@@ -356,6 +366,11 @@ function findingTypeOf(finding) {
     .trim();
 }
 
+/**
+ * Owasp Category For.
+ * @param {*} vulnType
+ * @returns {*} Result.
+ */
 export function owaspCategoryFor(vulnType) {
   const type = String(vulnType || '')
     .toLowerCase()

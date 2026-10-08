@@ -1,3 +1,9 @@
+/**
+ * providerModel — database model for provider.
+ * Schema definition and data-access methods for provider records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { assert } from '../core/errors.js';
 import { now, redactSecret } from '../core/utils.js';
 
@@ -26,6 +32,7 @@ export const providerCatalog = {
   },
 };
 
+/** Database model for provider. */
 export class ProviderModel {
   constructor(database, secretBox) {
     this.collection = database.collection('providers');

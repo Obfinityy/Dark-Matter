@@ -1,3 +1,9 @@
+/**
+ * assessmentModel — database model for assessment.
+ * Schema definition and data-access methods for assessment records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { assert } from '../core/errors.js';
 import { id, now } from '../core/utils.js';
 
@@ -37,6 +43,7 @@ const VALID_PHASES = [
   'failed',
 ];
 
+/** Database model for assessment. */
 export class AssessmentModel {
   constructor(database) {
     this.collection = database.collection('assessments');

@@ -51,6 +51,7 @@ export function validateCustomTag(raw) {
   return { valid: true, tag };
 }
 
+/** Database model for custom model. */
 export class CustomModelModel {
   constructor(database) {
     this.collection = database.collection('custom_models');

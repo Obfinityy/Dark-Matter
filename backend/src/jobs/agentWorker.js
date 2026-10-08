@@ -1,3 +1,10 @@
+/**
+ * agentWorker — autonomous agent background worker.
+ * Runs agent reasoning cycles off the request path: planning,
+ * tool execution, and result persistence.
+ * Part of: Infinity AI / Dark-Matter backend (background job workers).
+ */
+
 import crypto from 'node:crypto';
 import { ScopeEngine } from '../agent/scopeEngine.js';
 import { LocalAiUnavailableError, AutonomousBrain } from '../agent/autonomousBrain.js';
@@ -49,6 +56,7 @@ const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
 /** Liveness guard, not a quota: the agent must not spin on an identical no-op. */
 const NO_PROGRESS_REPEAT_LIMIT = Number(process.env.AGENT_NO_PROGRESS_REPEAT_LIMIT || 5);
 
+/** Background worker for agent. */
 export class AgentWorker {
   constructor({
     jobModel,

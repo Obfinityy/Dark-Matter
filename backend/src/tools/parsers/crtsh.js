@@ -11,6 +11,12 @@ function inScope(name, hostname) {
   return name === hostname || name.endsWith(`.${hostname}`);
 }
 
+/**
+ * Parse Crtsh.
+ * @param {*} rawOutput
+ * @param {*} context
+ * @returns {*} Result.
+ */
 export function parseCrtsh(rawOutput, context = {}) {
   try {
     const records = typeof rawOutput === 'string' ? JSON.parse(rawOutput) : rawOutput;

@@ -1,3 +1,9 @@
+/**
+ * reportModel — database model for report.
+ * Schema definition and data-access methods for report records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**

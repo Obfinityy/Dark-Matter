@@ -21,6 +21,11 @@ const TIER_PRICES = {
   infinity: 4199900, // ₹41,999
 };
 
+/**
+ * Creates billing controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createBillingController({ userModel } = {}) {
   return {
     /** GET /billing/status — is billing live? + public key for checkout.js */

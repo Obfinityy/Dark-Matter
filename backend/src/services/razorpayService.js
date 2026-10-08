@@ -66,6 +66,10 @@ export function publicKeyId() {
   return credentials().keyId || null;
 }
 
+/**
+ * Returns whether configured.
+ * @returns {*} Result.
+ */
 export function isConfigured() {
   return credentials().configured;
 }

@@ -1,3 +1,9 @@
+/**
+ * engineLauncherController — Express route handlers for engine Launcher.
+ * Factory that wires the engine Launcher service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { buildLauncher, LAUNCHER_FILES } from '../services/engineLauncher.js';
 
 /**
@@ -43,6 +49,11 @@ export function sanitizeSiteOrigin(site) {
 /** Fallback site when the query param is missing/invalid. */
 export const DEFAULT_SITE = 'https://hack.thebhavesh.online';
 
+/**
+ * Creates engine launcher controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createEngineLauncherController({ modelRunnerService }) {
   return {
     /**

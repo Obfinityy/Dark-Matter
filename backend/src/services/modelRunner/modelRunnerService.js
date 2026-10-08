@@ -71,6 +71,7 @@ async function waitForHealth(baseUrl, timeoutMs = 240000) {
   }
 }
 
+/** Business-logic service for model runner. */
 export class ModelRunnerService {
   constructor({ dataDir, logger = console } = {}) {
     this.dataDir = dataDir || defaultDataDir();

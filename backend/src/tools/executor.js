@@ -1,3 +1,10 @@
+/**
+ * executor — agent tool execution engine.
+ * Runs registered tools with timeout, sandboxing, and
+ * result capture for the agent loop.
+ * Part of: Infinity AI / Dark-Matter backend (agent tool execution).
+ */
+
 import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
 import { ToolRegistry } from './registry.js';

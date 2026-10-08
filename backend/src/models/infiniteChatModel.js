@@ -1,5 +1,12 @@
+/**
+ * infiniteChatModel — database model for infinite Chat.
+ * Schema definition and data-access methods for infinite Chat records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { randomUUID } from 'crypto';
 
+/** Database model for infinite chat. */
 export class InfiniteChatModel {
   constructor(database) {
     this.database = database;

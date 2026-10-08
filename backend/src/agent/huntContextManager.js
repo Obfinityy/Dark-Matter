@@ -62,6 +62,7 @@ export function truncateItem(text, maxTokens) {
   return `${str.slice(0, half)}\n[…truncated…]\n${str.slice(-half)}`;
 }
 
+/** Manages hunt context lifecycle and state. */
 export class HuntContextManager {
   constructor({
     activityModel = null,

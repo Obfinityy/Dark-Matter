@@ -75,10 +75,19 @@ export const MODEL_LIBRARY = Object.freeze([
 
 export const DEFAULT_MODEL_ID = 'qwen3-abliterated-30b';
 
+/**
+ * Returns library entry.
+ * @param {*} modelId
+ * @returns {*} Result.
+ */
 export function getLibraryEntry(modelId) {
   return MODEL_LIBRARY.find(entry => entry.id === modelId) || null;
 }
 
+/**
+ * Returns default entry.
+ * @returns {*} Result.
+ */
 export function getDefaultEntry() {
   return MODEL_LIBRARY.find(entry => entry.default) || MODEL_LIBRARY[0];
 }

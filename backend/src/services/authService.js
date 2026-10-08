@@ -1,3 +1,9 @@
+/**
+ * authService — auth service.
+ * Encapsulates auth business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (business-logic services).
+ */
+
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { AppError, assert } from '../core/errors.js';
@@ -103,6 +109,7 @@ function normalizeRecoveryKey(value) {
     .replace(/[^A-Z2-9]/g, '');
 }
 
+/** Business-logic service for auth. */
 export class AuthService {
   // jwtSecret signs stateless JWTs; jwtDays controls their lifetime. The existing
   // session-cookie flow is untouched — JWT is an additional credential the

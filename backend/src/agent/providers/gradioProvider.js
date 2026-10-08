@@ -47,6 +47,7 @@ function messagesToPrompt(messages = []) {
   return parts.join('\n\n');
 }
 
+/** AI model provider: gradio. */
 export class GradioProvider {
   constructor({ baseUrl, model = 'qwen3-8b', timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     this.baseUrl = normalizeBaseUrl(baseUrl);

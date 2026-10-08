@@ -1,3 +1,9 @@
+/**
+ * userModel — database model for user.
+ * Schema definition and data-access methods for user records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { AppError, assert } from '../core/errors.js';
 import { id, now } from '../core/utils.js';
 
@@ -17,17 +23,28 @@ function normalizeEmail(value) {
     .toLowerCase();
 }
 
+/**
+ * Normalize Username.
+ * @param {*} value
+ * @returns {*} Result.
+ */
 export function normalizeUsername(value) {
   return String(value || '')
     .trim()
     .toLowerCase();
 }
 
+/**
+ * Valid Username.
+ * @param {*} username
+ * @returns {*} Result.
+ */
 export function validUsername(username) {
   // 3-30 chars: letters, digits, underscore, dash. Stable for login + display.
   return /^[a-z0-9_-]{3,30}$/.test(username);
 }
 
+/** Database model for user. */
 export class UserModel {
   constructor(database) {
     this.collection = database.collection('users');

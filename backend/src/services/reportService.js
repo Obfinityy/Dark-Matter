@@ -10,6 +10,7 @@
  *     LOCAL phone model only; without it the report is fully deterministic.
  */
 
+/** Business-logic service for report. */
 export class ReportService {
   constructor({
     reportModel,

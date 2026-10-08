@@ -1,3 +1,9 @@
+/**
+ * jobController — Express route handlers for job.
+ * Factory that wires the job service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler, extractUrl } from '../core/utils.js';
 import { fingerprintTarget } from '../services/targetFingerprint.js';
 import { buildDiary, sortFindingsCriticalFirst } from '../services/huntDiary.js';

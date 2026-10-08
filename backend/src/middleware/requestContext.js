@@ -1,3 +1,10 @@
+/**
+ * requestContext — per-request context middleware.
+ * Assigns request IDs and propagates tracing context
+ * through the request lifecycle.
+ * Part of: Infinity AI / Dark-Matter backend (Express middleware).
+ */
+
 function parseCookies(header = '') {
   return Object.fromEntries(
     header
@@ -10,6 +17,11 @@ function parseCookies(header = '') {
   );
 }
 
+/**
+ * Returns session token.
+ * @param {*} request
+ * @returns {*} Result.
+ */
 export function getSessionToken(request) {
   const authorization = request.header('authorization');
   if (authorization?.startsWith('Bearer ')) return authorization.slice(7).trim();

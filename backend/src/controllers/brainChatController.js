@@ -8,6 +8,11 @@ const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next
 
 const VALID_BRAINS = ['hacker', 'vision', 'grounding'];
 
+/**
+ * Creates brain chat controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createBrainChatController({ modelRunnerService }) {
   const brainChat = createBrainChatService({ modelRunnerService });
 

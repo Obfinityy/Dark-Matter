@@ -24,6 +24,10 @@ import { GradioProvider } from './gradioProvider.js';
 
 export const BRAIN_PROVIDERS = ['phone', 'ollama', 'local', 'gradio'];
 
+/**
+ * Creates brain provider.
+ * @returns {*} Result.
+ */
 export function createBrainProvider(
   provider,
   appConfig = {},

@@ -1,3 +1,9 @@
+/**
+ * payloadLibraryController — Express route handlers for payload Library.
+ * Factory that wires the payload Library service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**

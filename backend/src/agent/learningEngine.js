@@ -1,3 +1,10 @@
+/**
+ * LearningEngine — agent learning from outcomes.
+ * Records action outcomes and adjusts future behavior;
+ * the agent's long-term improvement loop.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -23,6 +30,7 @@ import { join } from 'node:path';
 
 const STORE_FILE = 'learning.json';
 
+/** Learning Engine engine. */
 export class LearningEngine {
   constructor(memoryDir = null) {
     this.memoryDir = memoryDir;

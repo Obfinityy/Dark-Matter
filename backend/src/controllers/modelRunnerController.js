@@ -1,3 +1,9 @@
+/**
+ * modelRunnerController — Express route handlers for model Runner.
+ * Factory that wires the model Runner service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { buildBrainChain } from '../agent/providers/resilientBrainProvider.js';
 
 /**
@@ -44,6 +50,10 @@ function downloadErrorStatus(error) {
   }
 }
 
+/**
+ * Creates model runner controller.
+ * @returns {*} Result.
+ */
 export function createModelRunnerController({
   modelRunnerService,
   brainProviderModel,

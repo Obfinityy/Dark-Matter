@@ -14,6 +14,7 @@
 
 import { stripThinkingTags } from './phoneLocalProvider.js';
 
+/** AI model provider: local llama. */
 export class LocalLlamaProvider {
   /**
    * @param {object} options

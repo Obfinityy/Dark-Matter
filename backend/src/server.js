@@ -1,3 +1,10 @@
+/**
+ * server — process entry point.
+ * Boots the Express app, binds the HTTP listener, and handles
+ * SIGINT/SIGTERM for graceful shutdown.
+ * Part of: Infinity AI / Dark-Matter backend (application bootstrap).
+ */
+
 import { createApp } from './app.js';
 import { config } from './config.js';
 

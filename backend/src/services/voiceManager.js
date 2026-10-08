@@ -46,6 +46,7 @@ function resolvePython() {
   return isWin ? 'python' : 'python3';
 }
 
+/** Manages voice lifecycle and state. */
 export class VoiceManager {
   constructor({ logger = console } = {}) {
     this.logger = logger;

@@ -1,3 +1,10 @@
+/**
+ * OpenInterfaceAdapter — open computer-use adapter.
+ * Implements the computer-action interface against an
+ * open automation backend.
+ * Part of: Infinity AI / Dark-Matter backend (computer-use / GUI automation).
+ */
+
 import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -70,6 +77,7 @@ const PYTHON_CANDIDATES = ['python3', 'python', 'py'];
  */
 const PYTHON_PROBE = 'import platform,sys;print("python-ok",platform.python_version())';
 
+/** Adapter for open interface. */
 export class OpenInterfaceAdapter {
   constructor({
     config = {},

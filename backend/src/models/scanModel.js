@@ -1,6 +1,13 @@
+/**
+ * scanModel — database model for scan.
+ * Schema definition and data-access methods for scan records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { assert } from '../core/errors.js';
 import { id, now } from '../core/utils.js';
 
+/** Database model for scan. */
 export class ScanModel {
   constructor(database) {
     this.collection = database.collection('scans');

@@ -1,3 +1,10 @@
+/**
+ * phoneModelAdapter — on-phone model adapter.
+ * Adapts long-context requests to the phone-hosted model's API
+ * and constraints.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import { config } from '../../config.js';
 import {
   PhoneLocalProvider,
@@ -21,6 +28,7 @@ import { localAIQueue } from '../../agent/providers/localAiQueue.js';
  *    propagated honestly.
  */
 
+/** Error thrown for context window failures. */
 export class ContextWindowError extends Error {
   constructor(message, detail) {
     super(message);

@@ -30,6 +30,7 @@ const FRIENDLY_APP_TITLES = {
   explorer: 'File Explorer',
 };
 
+/** Adapter for mock computer. */
 export class MockComputerAdapter {
   constructor({ logger = console, screen = { width: 1920, height: 1080 } } = {}) {
     this.logger = logger;

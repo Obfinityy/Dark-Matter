@@ -1,3 +1,9 @@
+/**
+ * assessmentService — assessment service.
+ * Encapsulates assessment business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (business-logic services).
+ */
+
 import { assert } from '../core/errors.js';
 import { extractUrl, normalizeUrlCandidate } from '../core/utils.js';
 import { normalizeTargetUrl, normalizeScope } from '../models/targetModel.js';

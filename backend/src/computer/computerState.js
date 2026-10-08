@@ -118,6 +118,7 @@ const ALLOWED_TRANSITIONS = Object.freeze({
   ],
 });
 
+/** Computer State. */
 export class ComputerState {
   constructor({ capabilities = null } = {}) {
     this.state = COMPUTER_STATES.UNAVAILABLE;

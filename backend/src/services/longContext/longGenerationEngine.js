@@ -1,3 +1,10 @@
+/**
+ * longGenerationEngine — long-form generation engine.
+ * Generates long outputs section by section, keeping global
+ * coherence across the full document.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import crypto from 'crypto';
 import { newId } from './longContextStore.js';
 import { Validator, Assembler, OutputPlanner } from './validator.js';

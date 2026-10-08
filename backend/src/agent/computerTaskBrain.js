@@ -1,3 +1,10 @@
+/**
+ * ComputerTaskBrain — brain for GUI-automation tasks.
+ * Plans and supervises computer-use tasks: screen
+ * understanding, action selection, and verification.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { config } from '../config.js';
 import { PhoneLocalProvider } from './providers/phoneLocalProvider.js';
 import { localAIQueue } from './providers/localAiQueue.js';
@@ -38,6 +45,7 @@ import { APPLICATION_ALIASES, BLOCKED_REASON_TEXT } from '../computer/applicatio
  *     <= PHONE_AI_CONTEXT_TOKENS, with automatic compaction + retry.
  */
 
+/** Computer Task Brain. */
 export class ComputerTaskBrain {
   constructor({
     provider = null,

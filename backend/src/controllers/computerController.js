@@ -1,3 +1,9 @@
+/**
+ * computerController — Express route handlers for computer.
+ * Factory that wires the computer service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { ACTION_TYPES } from '../computer/actionSchema.js';
 import { ScopeEngine } from '../agent/scopeEngine.js';

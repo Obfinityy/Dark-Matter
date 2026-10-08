@@ -1,3 +1,9 @@
+/**
+ * alertController — Express route handlers for alert.
+ * Factory that wires the alert service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**

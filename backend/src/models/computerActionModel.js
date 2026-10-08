@@ -1,3 +1,9 @@
+/**
+ * computerActionModel — database model for computer Action.
+ * Schema definition and data-access methods for computer Action records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**

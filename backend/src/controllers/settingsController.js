@@ -1,5 +1,16 @@
+/**
+ * settingsController — Express route handlers for settings.
+ * Factory that wires the settings service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
+/**
+ * Creates settings controller.
+ * @param {*} providerModel
+ * @returns {*} Result.
+ */
 export function createSettingsController(providerModel) {
   return {
     listProviders: asyncHandler(async (request, response) => {

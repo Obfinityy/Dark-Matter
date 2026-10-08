@@ -14,6 +14,12 @@ import { memoryStats } from '../engines/localMemory.js';
 import { exportMemoryZip, importMemoryZip } from '../engines/memoryTransfer.js';
 import { FileMemory } from '../agent/memory/fileMemory.js';
 
+/**
+ * Stats.
+ * @param {*} req
+ * @param {*} res
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function stats(req, res) {
   try {
     res.json({ ok: true, memory: memoryStats() });
@@ -22,6 +28,12 @@ export async function stats(req, res) {
   }
 }
 
+/**
+ * Export Zip.
+ * @param {*} req
+ * @param {*} res
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function exportZip(req, res) {
   try {
     const { path: zipPath, format } = await exportMemoryZip();
@@ -42,6 +54,12 @@ export async function exportZip(req, res) {
   }
 }
 
+/**
+ * Import Zip.
+ * @param {*} req
+ * @param {*} res
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function importZip(req, res) {
   try {
     // Accept a raw ZIP body (Content-Type: application/zip) — no multer needed.

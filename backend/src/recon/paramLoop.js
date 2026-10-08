@@ -59,6 +59,11 @@ export function extractParamCandidates(urls) {
 const HIGH_VALUE_PARAM =
   /^(debug|test|admin|id|user|uid|account|key|token|api[_-]?key|secret|password|passwd|pwd|email|phone|ssn|redirect|url|next|callback|file|path|page|include|template|lang|locale|_method)$/i;
 
+/**
+ * Prioritize Params.
+ * @param {*} candidates
+ * @returns {*} Result.
+ */
 export function prioritizeParams(candidates) {
   return candidates
     .map(c => ({

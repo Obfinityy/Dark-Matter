@@ -1,3 +1,9 @@
+/**
+ * reportController — Express route handlers for report.
+ * Factory that wires the report service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { streamReportPdf } from '../services/reportPdfService.js';
 

@@ -1,3 +1,10 @@
+/**
+ * createApp — Express application factory.
+ * Builds the full Infinity AI backend: middleware, routes, database
+ * connections, agent services, and graceful shutdown wiring.
+ * Part of: Infinity AI / Dark-Matter backend (application bootstrap).
+ */
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -118,6 +125,11 @@ function resolveDatabase(explicit) {
   return new MemoryDatabase();
 }
 
+/**
+ * Creates app.
+ * @param {object} options - Named options.
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function createApp({ database } = {}) {
   database = resolveDatabase(database);
   try {

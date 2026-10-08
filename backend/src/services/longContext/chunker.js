@@ -1,3 +1,10 @@
+/**
+ * chunker — long-context text chunking.
+ * Splits long documents and transcripts into size-bounded chunks
+ * with overlap for retrieval and summarization pipelines.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import crypto from 'crypto';
 import { estimateTokens } from './tokens.js';
 

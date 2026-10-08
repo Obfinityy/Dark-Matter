@@ -1,3 +1,9 @@
+/**
+ * agentJobModel — database model for agent Job.
+ * Schema definition and data-access methods for agent Job records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import crypto from 'node:crypto';
 import { id, now } from '../core/utils.js';
 
@@ -59,6 +65,7 @@ export function sanitizeKaggleBrains(input) {
   return Object.keys(out).length ? out : null;
 }
 
+/** Database model for agent job. */
 export class AgentJobModel {
   constructor(database) {
     this.collection = database.collection('agent_jobs');
