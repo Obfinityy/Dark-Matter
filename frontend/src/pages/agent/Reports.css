@@ -1,0 +1,65 @@
+/**
+ * Reports page — layout helpers on top of the elegant dm-* design system.
+ */
+
+.dm-reports-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--dm-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--dm-6);
+}
+.dm-reports-head .dm-page-head { margin-bottom: 0; }
+.dm-reports-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dm-reports-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--dm-3);
+  margin-top: var(--dm-8);
+}
+.dm-reports-loading svg { color: var(--dm-gold-soft); }
+.dm-reports-loading p { margin: 0; }
+
+.dm-reports-notice { margin-bottom: var(--dm-6); }
+.dm-reports-notice svg { flex-shrink: 0; margin-top: 2px; color: var(--dm-gold-soft); }
+
+.dm-reports-list { list-style: none; padding: 0; margin: 0; }
+.dm-reports-list > li + li { margin-top: var(--dm-2); }
+.dm-reports-row { text-decoration: none; color: inherit; }
+.dm-reports-row-top {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-2);
+  margin-bottom: 4px;
+  min-width: 0;
+}
+.dm-reports-row .dm-row-title {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+.dm-reports-time { display: inline-flex; align-items: center; gap: 4px; }
+.dm-reports-badges {
+  display: flex;
+  gap: 6px;
+  margin-top: var(--dm-2);
+  flex-wrap: wrap;
+}
+.dm-reports-coverage { margin-top: var(--dm-2); }
+
+/* Mobile: full-width CTA with a ≥44px tap target. */
+@media (max-width: 600px) {
+  .dm-reports-head { margin-bottom: var(--dm-4); }
+  .dm-reports-head .dm-btn { width: 100%; min-height: 44px; }
+  .dm-empty .dm-btn { width: 100%; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-reports-row { transition: none; }
+}
