@@ -18,18 +18,37 @@ import { createToolRunner } from './toolRunner.js';
 import { LiveReport } from './liveReport.js';
 
 /**
+ * Attach the hunt's declared target as the VM allowlist scope when a VM
+ * session is attached but no explicit scope was given. Pure — unit tested.
+ * @param {object} runnerOpts — createToolRunner options
+ * @param {string} target — the hunt's declared target
+ * @returns {object} runner options with vm.targets resolved
+ */
+export function withVmScope(runnerOpts, target) {
+  const opts = { ...(runnerOpts || {}) };
+  if (opts.vm && opts.vm.sessionId && !opts.vm.targets) {
+    opts.vm = { ...opts.vm, targets: [target] };
+  }
+  return opts;
+}
+
+/**
  * @param {object} opts
  * @param {string} opts.huntId
  * @param {string} opts.target
  * @param {object|null} [opts.brain] — Hacking-slot brain provider (DI)
- * @param {object} [opts.runner] — createToolRunner options (spawnFn injectable)
+ * @param {object} [opts.runner] — createToolRunner options (spawnFn injectable).
+ *   Pass `{ vm: { sessionId, baseUrl?, token?, targets? } }` to route shell-type
+ *   tool actions to the hunt's VM session via POST /vm/exec instead of
+ *   spawning tool binaries on this host (design §6). The target-scope gate
+ *   (design §7) allows only the hunt's declared target scope to execute.
  * @param {object} [opts.hooks] — { onFinding, onTask, onStage, maxSteps }
  * @param {object} [opts.logger]
  * @returns {Promise<{ hunt, report, steps }>}
  */
 export async function runHunt({ huntId, target, brain = null, runner = {}, hooks = {}, logger = console }) {
   const planner = new TripleBrainPlanner({ brain, logger });
-  const toolRunner = createToolRunner({ logger, ...(runner || {}) });
+  const toolRunner = createToolRunner({ logger, ...withVmScope(runner, target) });
   const report = new LiveReport({ huntId, target, logger });
 
   const hunt = await planner.createHunt({ id: huntId, target });
