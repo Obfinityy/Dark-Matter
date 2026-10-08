@@ -7,11 +7,13 @@
  * localhost port managed by that backend's model runner.
  */
 import { getApiBase } from './backendMode.js';
+import { DEFAULT_BACKEND_URL } from '../lib/apiBase.js';
 
 /**
  * Local machine backend URL — models ALWAYS run on the user's own computer,
  * regardless of which frontend (local/Vercel/live) is used.
- * VITE_LOCAL_BACKEND_URL can override; defaults to http://localhost:4000.
+ * VITE_LOCAL_BACKEND_URL can override; the default is the shared local
+ * backend origin from lib/apiBase.js.
  */
 function localMachineBase() {
   try {
@@ -20,7 +22,7 @@ function localMachineBase() {
   } catch {
     /* ignore */
   }
-  return 'http://localhost:4000';
+  return DEFAULT_BACKEND_URL;
 }
 
 /** API base of the configured backend (for non-model operations). */

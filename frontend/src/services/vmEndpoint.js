@@ -15,11 +15,13 @@
  * NEVER tokens; session tokens live in module memory, see vmRunnerApi.js).
  */
 
+import { LOCAL_RUNNER_BASE_URL, LOCAL_RUNNER_WS_URL } from '../lib/apiBase.js';
+
 const STORAGE_KEY = 'dm.vmEndpoint';
 
 const LOCAL_DEFAULTS = {
-  baseUrl: 'http://127.0.0.1:4100',
-  wsUrl: 'ws://127.0.0.1:4100'
+  baseUrl: LOCAL_RUNNER_BASE_URL,
+  wsUrl: LOCAL_RUNNER_WS_URL
 };
 
 function readStored() {

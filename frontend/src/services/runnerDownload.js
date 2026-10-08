@@ -12,6 +12,8 @@
  * portable Node.js automatically on first run (no admin, no system install).
  */
 
+import { LOCAL_RUNNER_BASE_URL } from '../lib/apiBase.js';
+
 export const RUNNER_VERSION = '1.0.0';
 
 /** Stable download URL for the Windows starter ZIP (GitHub Releases, latest). */
@@ -19,7 +21,7 @@ export const RUNNER_DOWNLOAD_URL =
   'https://github.com/Obfinityy/Dark-Matter/releases/latest/download/Infinity-AI-Runner-Windows.zip';
 
 /** Where the local Runner serves its API (the VM sandbox host). */
-export const RUNNER_LOCAL_URL = 'http://127.0.0.1:4100';
+export const RUNNER_LOCAL_URL = LOCAL_RUNNER_BASE_URL;
 
 /**
  * Probe the local Runner. Resolves { up: true, version? } or { up: false }.
