@@ -115,7 +115,6 @@ export function Account() {
             : <>You have <strong style={{ color: 'var(--dm-text)' }}>₹{Number(credits).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong> in Infinity Credits.</>}
         </p>
         <Link to="/agent/premium" className="dm-btn dm-btn-secondary">Top up credits →</Link>
->>>>>>> origin/feat/vm-billing
 
       </section>
 
