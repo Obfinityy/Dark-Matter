@@ -1,0 +1,179 @@
+/**
+ * Wave57.css — Infinity AI · Dark-Matter · Wave 57
+ * Scoped styles for the sharing & collaboration components:
+ *  - share links & workspaces (.sh57-*)
+ *  - collaboration             (.cb57-*)
+ * Zero animations: no keyframe rules by design (zero-animation order).
+ */
+
+/* ---- Share suite (.sh57-*) ---- */
+
+.sh57-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.sh57-card {
+  border: 1px solid #2b3a55;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #141a26;
+  color: #eef1f8;
+}
+
+.sh57-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #93c5fd;
+}
+
+.sh57-note {
+  font-size: 0.85rem;
+  color: #c3cbdd;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+}
+
+.sh57-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #a5b4d4;
+  background: #0f1420;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.sh57-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.sh57-btn {
+  background: #2b4a7f;
+  color: #f2f5fc;
+  border: 1px solid #3b5d99;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.sh57-btn:hover {
+  background: #35598f;
+}
+
+.sh57-chip {
+  background: #1b2436;
+  color: #cfe0ff;
+  border: 1px solid #33415e;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.sh57-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.sh57-list li {
+  margin: 0.35rem 0;
+}
+
+/* ---- Collaboration suite (.cb57-*) ---- */
+
+.cb57-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.cb57-card {
+  border: 1px solid #3d2f1e;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #1e1811;
+  color: #f4efe4;
+}
+
+.cb57-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #fbbf24;
+}
+
+.cb57-note {
+  font-size: 0.85rem;
+  color: #d8cfba;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+}
+
+.cb57-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #c9bfa8;
+  background: #14100a;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.cb57-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.cb57-btn {
+  background: #6b4d1f;
+  color: #fdf6e8;
+  border: 1px solid #856232;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.cb57-btn:hover {
+  background: #7d5b26;
+}
+
+.cb57-chip {
+  background: #241c10;
+  color: #f5dfa8;
+  border: 1px solid #4d3d22;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.cb57-banner {
+  background: #3a2a12;
+  border: 1px dashed #a37c2c;
+  border-radius: 6px;
+  color: #f8e3ae;
+  font-size: 0.82rem;
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.6rem;
+}
+
+.cb57-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.cb57-list li {
+  margin: 0.35rem 0;
+}
