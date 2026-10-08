@@ -1,12 +1,15 @@
-// resourceRound7Core.js — Infinity AI · wave 46 (ideas 51821–51840)
-// Pure logic for resource monitoring round 7: efficiency leaderboards, hunt
-// retrospectives, live cost tickers, budget top-ups, guardrails, usage
-// heatmaps, voice queries, mobile payloads, multi-hunt boards, export
-// schedules, carbon estimates, budget pooling, idle-hunt costs, early-data
-// forecasts, cost-per-finding, quota API shapes, alert routing, historical
-// trends, off-peak scheduling, and one-click report descriptors.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-
+/**
+ * resourceRound7Core.js — Infinity AI · wave 46 (ideas 51821–51840)
+ * Pure logic for resource monitoring round 7: efficiency leaderboards, hunt
+ * retrospectives, live cost tickers, budget top-ups, guardrails, usage
+ * heatmaps, voice queries, mobile payloads, multi-hunt boards, export
+ * schedules, carbon estimates, budget pooling, idle-hunt costs, early-data
+ * forecasts, cost-per-finding, quota API shapes, alert routing, historical
+ * trends, off-peak scheduling, and one-click report descriptors.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE46_R7_START = 51821;
 export const WAVE46_R7_END = 51840;
 

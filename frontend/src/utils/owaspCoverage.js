@@ -101,6 +101,11 @@ function categoryFor(type) {
   return null;
 }
 
+/**
+ * owaspCoverage — compute OWASP Top-10 coverage from a findings list.
+ * @param {Array} findings - Finding descriptors with category/class fields.
+ * @returns {object} Coverage map keyed by OWASP category.
+ */
 export function owaspCoverage(findings = []) {
   const confirmed = findings.filter(f =>
     ['validated', 'confirmed'].includes(String(f.status || f.state || '').toLowerCase())

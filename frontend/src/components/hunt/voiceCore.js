@@ -1,10 +1,13 @@
-// Infinity AI — Wave 48 (ideas 51896–51920): voice control pure logic.
-// Command parsing, spoken-answer generation, transcript logging, confirmations,
-// shortcuts, error recovery, language detection, push-to-talk config,
-// wake-word config, voice profiles. Pure functions only: no mic, no TTS side
-// effects here — outputs are text payloads the existing Infinity Voice TTS
-// layer speaks (see AGENTS.md Infinity Voice section).
-
+/**
+ * Infinity AI — Wave 48 (ideas 51896–51920): voice control pure logic.
+ * Command parsing, spoken-answer generation, transcript logging, confirmations,
+ * shortcuts, error recovery, language detection, push-to-talk config,
+ * wake-word config, voice profiles. Pure functions only: no mic, no TTS side
+ * effects here — outputs are text payloads the existing Infinity Voice TTS
+ * layer speaks (see AGENTS.md Infinity Voice section).
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE48_VOICE_IDEAS = [
   51896, 51897, 51898, 51899, 51900, 51901, 51902, 51903, 51904, 51905, 51906, 51907, 51908, 51909,
   51910, 51911, 51912, 51913, 51914, 51915, 51916, 51917, 51918, 51919, 51920,

@@ -1,3 +1,11 @@
+/**
+ * api — the frontend API client layer.
+ * Centralized HTTP access to the Dark-Matter backend: authentication,
+ * hunt jobs, SSE event subscriptions, and error normalization via ApiError.
+ * All requests go through a single base-URL rule (VITE_BACKEND_URL or
+ * http://localhost:4000) with no silent fallbacks.
+ * Part of: Infinity AI / Dark-Matter frontend (services).
+ */
 import { getApiBase } from './backendMode.js';
 
 /**
@@ -39,6 +47,7 @@ export function getStoredJwt() {
   }
 }
 
+/** Persist the JWT in local storage. */
 export function storeJwt(jwt) {
   try {
     if (jwt) localStorage.setItem(JWT_KEY, jwt);
@@ -110,6 +119,7 @@ function cleanTargetCandidate(value) {
     .replace(/^[([{<]+|[\])}>,;!?]+$/g, '');
 }
 
+/** Normalize a user-pasted target into a valid URL string. */
 export function normalizeTargetUrl(value) {
   const candidate = cleanTargetCandidate(value);
   if (!candidate) return '';
@@ -118,6 +128,7 @@ export function normalizeTargetUrl(value) {
   return `https://${candidate}`;
 }
 
+/** Extract the target URL from a hunt payload or input value. */
 export function extractTargetUrl(value) {
   const candidate = String(value || '').match(
     /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?::\d+)?(?:\/[^\s<>()]*)?/i
@@ -127,6 +138,7 @@ export function extractTargetUrl(value) {
 
 // ─── Auth ─────────────────────────────────────────────────────────
 
+/** Return the currently authenticated user, or null. */
 export function getCurrentUser() {
   return request('/auth/me');
 }
@@ -151,6 +163,7 @@ export async function loginAccount(payload) {
   return body;
 }
 
+/** Log out the current account and clear the session. */
 export async function logoutAccount() {
   try {
     await request('/auth/logout', { method: 'POST' });
@@ -159,24 +172,29 @@ export async function logoutAccount() {
   }
 }
 
+/** Update the current user profile. Returns the updated user. */
 export function updateProfile(payload) {
   return request('/auth/me', { method: 'PUT', body: JSON.stringify(payload) });
 }
 
+/** Change the current account password. */
 export function changePassword(payload) {
   return request('/auth/password', { method: 'PUT', body: JSON.stringify(payload) });
 }
 
 // ─── Settings ─────────────────────────────────────────────────────
 
+/** List configured AI providers. */
 export function getProviders() {
   return request('/settings/providers');
 }
 
+/** Check the health of the local AI runner. */
 export function getLocalAiHealth() {
   return request('/health/local-ai');
 }
 
+/** Send a direct chat message. Returns the assistant reply. */
 export function sendDirectChat(message, conversationId, truncateIndex = undefined) {
   return request('/infinite/chat', {
     method: 'POST',
@@ -196,6 +214,7 @@ export function parseActionIntent(message) {
   });
 }
 
+/** Stream a direct chat reply via SSE. Handlers: onToken, onDone, onError. */
 export async function streamDirectChat(message, conversationId, truncateIndex, handlers = {}) {
   const { onState, onToken, onDone, onError } = handlers;
   try {
@@ -261,6 +280,7 @@ export async function streamDirectChat(message, conversationId, truncateIndex, h
   }
 }
 
+/** Fetch the full message history for a conversation. */
 export function getInfiniteHistory(conversationId) {
   return request(`/infinite/chat/${conversationId}`);
 }
@@ -278,6 +298,7 @@ export function setPermissionModePrefs(permissionMode) {
 
 // ─── Infinity Long-Context Engine ───────────────────────────────────
 
+/** Ingest a document into a conversation for RAG. Returns the ingestion record. */
 export function ingestDocument(conversationId, content, { title, kind, summarize } = {}) {
   return request('/infinite/ingest', {
     method: 'POST',
@@ -285,10 +306,12 @@ export function ingestDocument(conversationId, content, { title, kind, summarize
   });
 }
 
+/** Get an ingestion record by conversation and input id. */
 export function getIngestion(conversationId, inputId) {
   return request(`/infinite/ingest/${conversationId}/${inputId}`);
 }
 
+/** Search ingested document chunks by query. */
 export function searchChunks(conversationId, query) {
   return request(`/infinite/search/${conversationId}`, {
     method: 'POST',
@@ -296,14 +319,17 @@ export function searchChunks(conversationId, query) {
   });
 }
 
+/** Fetch a single ingested chunk by id. */
 export function getExactChunk(conversationId, inputId, chunkRef) {
   return request(`/infinite/chunk/${conversationId}/${inputId}/${chunkRef}`);
 }
 
+/** Summarize an ingested document. */
 export function summarizeDocument(conversationId, inputId) {
   return request(`/infinite/summarize/${conversationId}/${inputId}`, { method: 'POST' });
 }
 
+/** Start an async content generation. Returns the generation id. */
 export function startGeneration(conversationId, genRequest, artifactHint) {
   return request('/infinite/generations', {
     method: 'POST',
@@ -311,18 +337,22 @@ export function startGeneration(conversationId, genRequest, artifactHint) {
   });
 }
 
+/** Get the status/result of a generation by id. */
 export function getGeneration(generationId) {
   return request(`/infinite/generations/${generationId}`);
 }
 
+/** Cancel a running generation. */
 export function cancelGeneration(generationId) {
   return request(`/infinite/generations/${generationId}/cancel`, { method: 'POST' });
 }
 
+/** Resume a paused generation. */
 export function resumeGeneration(generationId) {
   return request(`/infinite/generations/${generationId}/resume`, { method: 'POST' });
 }
 
+/** List generations for a conversation. */
 export function listGenerations(conversationId) {
   const q = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
   return request(`/infinite/generations${q}`);
@@ -389,6 +419,7 @@ export function controlComputer(
   });
 }
 
+/** Update the configured AI providers. */
 export function updateProviders(providers) {
   return request('/settings/providers', {
     method: 'PUT',
@@ -398,6 +429,7 @@ export function updateProviders(providers) {
 
 // ─── Legacy Agent (old scan system) ───────────────────────────────
 
+/** Send a message to the agent. Returns the agent response. */
 export function sendAgentMessage(payload) {
   return request('/agent/messages', {
     method: 'POST',
@@ -405,18 +437,22 @@ export function sendAgentMessage(payload) {
   });
 }
 
+/** List all scans. */
 export function getScans() {
   return request('/scans');
 }
 
+/** List available scan tools. */
 export function getTools() {
   return request('/tools');
 }
 
+/** Get a scan by id. */
 export function getScan(scanId) {
   return request(`/scans/${encodeURIComponent(scanId)}`);
 }
 
+/** Subscribe to live scan events via SSE. Returns an unsubscribe function. */
 export function subscribeToScanEvents(scanId, { onOpen, onEvent, onError } = {}) {
   const source = new EventSource(`${apiBase()}/scans/${encodeURIComponent(scanId)}/events`, {
     withCredentials: true,
@@ -702,6 +738,7 @@ export function resumeComputer() {
 
 // ─── InfiniteChat Computer Tasks (natural-language desktop control) ──
 
+/** Create a computer-control task. Returns the task. */
 export function createComputerTask(instruction, conversationId, followUpHint = null) {
   return request('/computer-tasks', {
     method: 'POST',
@@ -709,19 +746,23 @@ export function createComputerTask(instruction, conversationId, followUpHint = n
   });
 }
 
+/** List computer-control tasks, optionally filtered by conversation. */
 export function listComputerTasks(conversationId = null) {
   const q = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
   return request(`/computer-tasks${q}`);
 }
 
+/** Get a computer task by id. */
 export function getComputerTask(taskId) {
   return request(`/computer-tasks/${encodeURIComponent(taskId)}`);
 }
 
+/** Get the activity log for a computer task. */
 export function getComputerTaskActivity(taskId) {
   return request(`/computer-tasks/${encodeURIComponent(taskId)}/activity`);
 }
 
+/** Answer a computer task prompt. */
 export function answerComputerTask(taskId, message) {
   return request(`/computer-tasks/${encodeURIComponent(taskId)}/answer`, {
     method: 'POST',
@@ -729,6 +770,7 @@ export function answerComputerTask(taskId, message) {
   });
 }
 
+/** Cancel a computer task. */
 export function cancelComputerTask(taskId) {
   return request(`/computer-tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
 }
@@ -1041,56 +1083,68 @@ export async function downloadFindingPoc(
 
 // ─── Alerts inbox ───────────────────────────────────────────────────
 
+/** List alerts, optionally unread-only. */
 export function listAlerts(unreadOnly = false) {
   return request(`/alerts${unreadOnly ? '?unreadOnly=true' : ''}`);
 }
 
+/** Mark a single alert as read. */
 export function markAlertRead(alertId) {
   return request(`/alerts/${encodeURIComponent(alertId)}/read`, { method: 'POST' });
 }
 
+/** Mark all alerts as read. */
 export function markAllAlertsRead() {
   return request('/alerts/read-all', { method: 'POST' });
 }
 
 // ─── Multi-target queues ────────────────────────────────────────────
 
+/** Create a hunt queue. Returns the queue. */
 export function createQueue(payload) {
   // { name?, targets: string[], scope?, objective?, authorizationConfirmed: true }
   return request('/queues', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+/** List hunt queues. */
 export function listQueues() {
   return request('/queues');
 }
 
+/** Get a queue by id. */
 export function getQueue(queueId) {
   return request(`/queues/${encodeURIComponent(queueId)}`);
 }
 
+/** Pause a hunt queue. */
 export function pauseQueue(queueId) {
   return request(`/queues/${encodeURIComponent(queueId)}/pause`, { method: 'POST' });
 }
 
+/** Resume a paused hunt queue. */
 export function resumeQueue(queueId) {
   return request(`/queues/${encodeURIComponent(queueId)}/resume`, { method: 'POST' });
 }
 
+/** Delete a hunt queue. */
 export function deleteQueue(queueId) {
   return request(`/queues/${encodeURIComponent(queueId)}`, { method: 'DELETE' });
 }
 
 // ─── Scheduled hunts ──────────────────────────────────────────────
 
+/** Create a hunt schedule. Returns the schedule. */
 export function createSchedule(payload) {
   // { name?, target, scope?, objective?, cadence: 'once'|'daily'|'weekly', nextRunAt? }
   return request('/schedules', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+/** List hunt schedules. */
 export function listSchedules() {
   return request('/schedules');
 }
 
+/** Update a hunt schedule. Returns the updated schedule. */
 export function updateSchedule(scheduleId, payload) {
   return request(`/schedules/${encodeURIComponent(scheduleId)}`, {
     method: 'PATCH',
@@ -1098,12 +1152,14 @@ export function updateSchedule(scheduleId, payload) {
   });
 }
 
+/** Delete a hunt schedule. */
 export function deleteSchedule(scheduleId) {
   return request(`/schedules/${encodeURIComponent(scheduleId)}`, { method: 'DELETE' });
 }
 
 // ─── Payload library (self-learning) ──────────────────────────────
 
+/** List payload library entries, with optional technique/category filters. */
 export function listPayloads({ technique = null, category = null, limit = 20 } = {}) {
   const query = new URLSearchParams();
   if (technique) query.set('technique', technique);
@@ -1112,6 +1168,7 @@ export function listPayloads({ technique = null, category = null, limit = 20 } =
   return request(`/payload-library?${query.toString()}`);
 }
 
+/** Get payload library statistics. */
 export function getPayloadLibraryStats() {
   return request('/payload-library/stats');
 }
@@ -1203,6 +1260,7 @@ export function subscribeToDownloadStream({ onEvent, onError, onOpen } = {}) {
   return () => source.close();
 }
 
+/** Remove a downloaded runner model. */
 export function removeRunnerModel(modelId) {
   return request(`/model-runner/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
 }
@@ -1273,6 +1331,7 @@ export function getSlotAssignments() {
   return request('/model-runner/brain-slots/assignments');
 }
 
+/** Assign a model to a brain slot. */
 export function assignBrainSlot(slot, modelId) {
   return request('/model-runner/brain-slots/assign', {
     method: 'POST',
@@ -1294,6 +1353,7 @@ export function connectSlotKaggle(slot, url, name) {
   });
 }
 
+/** Disconnect the Kaggle source for a brain slot. */
 export function disconnectSlotKaggle(slot) {
   return request(`/model-runner/brain-slots/kaggle/${slot}`, {
     method: 'DELETE',
@@ -1314,6 +1374,7 @@ export function runSlotServer(slot, modelId, opts = {}) {
   });
 }
 
+/** Stop the model server running in a brain slot. */
 export function stopSlotServer(slot) {
   return request(`/model-runner/slots/${slot}/stop`, {
     method: 'POST',
@@ -1372,6 +1433,7 @@ export function disconnectRemoteModel() {
 
 // ─── Combined API Client ──────────────────────────────────────────
 
+/** Pre-configured API client with auth headers and base URL. */
 export const apiClient = {
   getCurrentUser,
   registerAccount,

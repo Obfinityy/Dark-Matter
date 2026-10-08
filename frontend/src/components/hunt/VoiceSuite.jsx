@@ -1,7 +1,11 @@
-// Infinity AI — Wave 48 (ideas 51896–51920): voice control components.
-// Purely presentational, export-only (not mounted anywhere). Data flows from
-// voiceCore pure functions over sample transcripts — no mic, no TTS side
-// effects; spoken text goes through the existing Infinity Voice layer.
+/**
+ * Infinity AI — Wave 48 (ideas 51896–51920): voice control components.
+ * Purely presentational, export-only (not mounted anywhere). Data flows from
+ * voiceCore pure functions over sample transcripts — no mic, no TTS side
+ * effects; spoken text goes through the existing Infinity Voice layer.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 import {
   parsePauseResume,
   statusAnswer,

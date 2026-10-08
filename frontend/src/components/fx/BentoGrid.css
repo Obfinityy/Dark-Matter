@@ -1,3 +1,8 @@
+/**
+ * BentoGrid.css — styles for the BentoGrid layout component.
+ * Responsive bento-style tile grid used for dashboard and gallery layouts.
+ * Part of: Infinity AI / Dark-Matter frontend (visual effects).
+ */
 .bento-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

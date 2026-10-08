@@ -1,4 +1,8 @@
-/* infinity.css - DarkMatter Theme implementation */
+/**
+ * infinity.css — the Infinity AI theme implementation.
+ * Core theme layer: color tokens, typography, and component base styles.
+ * Part of: Infinity AI / Dark-Matter frontend (styles).
+ */
 
 .app-root {
   display: flex;

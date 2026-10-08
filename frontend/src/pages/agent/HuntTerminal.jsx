@@ -1,3 +1,9 @@
+/**
+ * HuntTerminal — interactive terminal UI for live hunt interaction.
+ * Streams job activity over SSE, renders event lines, and lets the user
+ * send steering commands to the running hunt.
+ * Part of: Infinity AI / Dark-Matter frontend (pages).
+ */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TerminalSquare, ArrowDown, Send } from 'lucide-react';
 import { getJobActivity, subscribeToJobEvents, askJob } from '../../services/api';

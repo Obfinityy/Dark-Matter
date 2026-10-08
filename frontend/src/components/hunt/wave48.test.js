@@ -1,5 +1,9 @@
-// Infinity AI — Wave 48 tests (ideas 51881–51920): fleet ops + voice control.
-// node --test frontend/src/components/hunt/wave48.test.js
+/**
+ * Infinity AI — Wave 48 tests (ideas 51881–51920): fleet ops + voice control.
+ * node --test frontend/src/components/hunt/wave48.test.js
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

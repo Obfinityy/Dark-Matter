@@ -1,5 +1,5 @@
 /**
- * AgentShell — DarkMatter "Singularity" app chrome.
+ * AgentShell — Infinity AI "Singularity" app chrome.
  *
  * Top navbar: ONLY the two primary destinations — Hunt and Infinity AI
  * (+ live status pill). Per-mode LEFT SIDEBAR below it:

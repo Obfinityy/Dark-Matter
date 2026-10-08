@@ -1,17 +1,20 @@
-// confidenceCore.js — Infinity AI · wave 43 (ideas 51681–51700)
-// Pure logic for the finding-confidence display & triage suite (mid-hunt).
-// No DOM, no network, no side effects: every function is a pure transform over
-// plain finding descriptors so it can run in the browser, in tests, or on a server.
-//
-// Finding shape (input convention):
-//   {
-//     id: 'F-0001', title: 'SQLi in /search', severity: 'critical'|'high'|'medium'|'low'|'info',
-//     confidence: 0..100, techniques: ['sqlmap','manual-review'],          // distinct techniques that fired
-//     evidence: [{ type: 'screenshot'|'response'|'replay'|'log'|'traffic', note: '...' }],
-//     history: [{ score, at, trigger }],   // confidence audit trail, oldest first
-//     disputed: false
-//   }
-
+/**
+ * confidenceCore.js — Infinity AI · wave 43 (ideas 51681–51700)
+ * Pure logic for the finding-confidence display & triage suite (mid-hunt).
+ * No DOM, no network, no side effects: every function is a pure transform over
+ * plain finding descriptors so it can run in the browser, in tests, or on a server.
+ *
+ * Finding shape (input convention):
+ * {
+ * id: 'F-0001', title: 'SQLi in /search', severity: 'critical'|'high'|'medium'|'low'|'info',
+ * confidence: 0..100, techniques: ['sqlmap','manual-review'],          // distinct techniques that fired
+ * evidence: [{ type: 'screenshot'|'response'|'replay'|'log'|'traffic', note: '...' }],
+ * history: [{ score, at, trigger }],   // confidence audit trail, oldest first
+ * disputed: false
+ * }
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE43_CONF_START = 51681;
 export const WAVE43_CONF_END = 51700;
 

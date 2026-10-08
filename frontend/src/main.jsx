@@ -1,3 +1,9 @@
+/**
+ * main — the application entry point.
+ * Mounts the React tree into the #root node with StrictMode enabled.
+ * Fails loudly with a clear message if the mount node is missing.
+ * Part of: Infinity AI / Dark-Matter frontend (app shell).
+ */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';

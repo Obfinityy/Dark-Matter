@@ -1,14 +1,17 @@
-// etaCore.js — Infinity AI · wave 44 (ideas 51731–51760)
-// Pure logic for the live ETA suite: remaining-time estimation, trends,
-// intervals, deadlines, budgets, per-asset/per-finding splits, calibration,
-// and stakeholder-ready ETA payloads.
-// Time is milliseconds everywhere; wall-clock inputs are explicit epoch ms so
-// every function is deterministic for a given input.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-//
-// Hunt-phase shape (input convention):
-//   { name, status: 'done'|'active'|'pending', estimatedMs, elapsedMs }
-
+/**
+ * etaCore.js — Infinity AI · wave 44 (ideas 51731–51760)
+ * Pure logic for the live ETA suite: remaining-time estimation, trends,
+ * intervals, deadlines, budgets, per-asset/per-finding splits, calibration,
+ * and stakeholder-ready ETA payloads.
+ * Time is milliseconds everywhere; wall-clock inputs are explicit epoch ms so
+ * every function is deterministic for a given input.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ *
+ * Hunt-phase shape (input convention):
+ * { name, status: 'done'|'active'|'pending', estimatedMs, elapsedMs }
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const ETA44_START = 51731;
 export const ETA44_END = 51760;
 

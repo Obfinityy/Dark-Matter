@@ -1,18 +1,21 @@
-// multiHuntCore.js — Infinity AI · wave 47 (ideas 51841–51860)
-// Pure logic for the multi-hunt command center: hunt switching, live tabs,
-// fleet rollups, side-by-side comparison, global pause/resume, cross-hunt Q&A,
-// priority ranking, priority-honoring resource allocation, attention sorting,
-// grouping, bulk steering, bulk approvals, hunt cloning, templates, merged
-// findings feeds, cross-hunt dedup, health scores, stalled-hunt alerts, shared
-// request-budget pools, per-hunt caps, the scheduling queue, and dependency
-// resolution (topological start order for "start B when A reaches reporting").
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-// Hunt descriptor shape used throughout:
-// { id, name, target, phase, status, progress, findings:[{id,title,severity,
-//   signature,atMs}], startedAtMs, lastActivityMs, etaMs, priority, owner,
-//   campaignId, clientId, tags:[], needsAttention, blockedReason,
-//   budgetUsedUsd, requestsUsed, dependencies:[{huntId, gate}] }
-
+/**
+ * multiHuntCore.js — Infinity AI · wave 47 (ideas 51841–51860)
+ * Pure logic for the multi-hunt command center: hunt switching, live tabs,
+ * fleet rollups, side-by-side comparison, global pause/resume, cross-hunt Q&A,
+ * priority ranking, priority-honoring resource allocation, attention sorting,
+ * grouping, bulk steering, bulk approvals, hunt cloning, templates, merged
+ * findings feeds, cross-hunt dedup, health scores, stalled-hunt alerts, shared
+ * request-budget pools, per-hunt caps, the scheduling queue, and dependency
+ * resolution (topological start order for "start B when A reaches reporting").
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ * Hunt descriptor shape used throughout:
+ * { id, name, target, phase, status, progress, findings:[{id,title,severity,
+ * signature,atMs}], startedAtMs, lastActivityMs, etaMs, priority, owner,
+ * campaignId, clientId, tags:[], needsAttention, blockedReason,
+ * budgetUsedUsd, requestsUsed, dependencies:[{huntId, gate}] }
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE47_MULTIHUNT_START = 51841;
 export const WAVE47_MULTIHUNT_END = 51860;
 

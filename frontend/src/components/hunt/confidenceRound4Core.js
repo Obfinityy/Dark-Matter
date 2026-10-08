@@ -1,16 +1,19 @@
-// confidenceRound4Core.js — Infinity AI · wave 44 (ideas 51721–51730)
-// Pure logic for the confidence governance round-4 suite: override audit trails,
-// retrospectives, retesting, digests, legends, duplicates, presentations,
-// approval gates, SIEM export, and the confidence maturity model.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-//
-// Finding shape (input convention, extends wave-43 confidenceCore):
-//   {
-//     id: 'F-0201', title: 'SSRF in /fetch', severity: 'critical'|'high'|'medium'|'low'|'info',
-//     confidence: 0..100, techniques: ['scanner','manual-review'],
-//     overrideLog: [{ at, by, from, to, note }]
-//   }
-
+/**
+ * confidenceRound4Core.js — Infinity AI · wave 44 (ideas 51721–51730)
+ * Pure logic for the confidence governance round-4 suite: override audit trails,
+ * retrospectives, retesting, digests, legends, duplicates, presentations,
+ * approval gates, SIEM export, and the confidence maturity model.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ *
+ * Finding shape (input convention, extends wave-43 confidenceCore):
+ * {
+ * id: 'F-0201', title: 'SSRF in /fetch', severity: 'critical'|'high'|'medium'|'low'|'info',
+ * confidence: 0..100, techniques: ['scanner','manual-review'],
+ * overrideLog: [{ at, by, from, to, note }]
+ * }
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const CONF44_START = 51721;
 export const CONF44_END = 51730;
 

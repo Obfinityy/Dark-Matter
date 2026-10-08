@@ -1,10 +1,13 @@
-// Infinity AI — Wave 48 (ideas 51881–51895): fleet operations pure logic.
-// Who-did-what audit, cost rollup, ETA board, scope-conflict detection,
-// hunt merge/split, pause presets, resume ordering, keyboard shortcuts,
-// voice switching resolution, mobile card payloads, widget payloads,
-// dark-mode parity audit, onboarding tour, fleet retrospective.
-// Pure functions only: no DOM, no network, no side effects.
-
+/**
+ * Infinity AI — Wave 48 (ideas 51881–51895): fleet operations pure logic.
+ * Who-did-what audit, cost rollup, ETA board, scope-conflict detection,
+ * hunt merge/split, pause presets, resume ordering, keyboard shortcuts,
+ * voice switching resolution, mobile card payloads, widget payloads,
+ * dark-mode parity audit, onboarding tour, fleet retrospective.
+ * Pure functions only: no DOM, no network, no side effects.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE48_FLEET_IDEAS = [
   51881, 51882, 51883, 51884, 51885, 51886, 51887, 51888, 51889, 51890, 51891, 51892, 51893, 51894,
   51895,

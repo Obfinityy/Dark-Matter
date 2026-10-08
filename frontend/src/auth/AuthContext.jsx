@@ -19,6 +19,10 @@ import './AuthContext.polish.css';
 
 const AuthContext = createContext(null);
 
+/**
+ * AuthProvider — React context provider for authentication state.
+ * Supplies the current user, session, and auth actions to the tree.
+ */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +84,10 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/**
+ * useAuth — access the authentication context.
+ * @returns {{ user, loading, login, logout }} The auth state and actions.
+ */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');

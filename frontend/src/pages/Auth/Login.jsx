@@ -1,5 +1,5 @@
 /**
- * Login — DarkMatter "Singularity" auth experience.
+ * Login — Infinity AI "Singularity" auth experience.
  *
  * Split layout: left brand panel (logo, positioning, proof points),
  * right sign-in / create-account card. One field accepts username or email.

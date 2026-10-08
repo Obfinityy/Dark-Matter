@@ -1,4 +1,8 @@
-/* layout.css */
+/**
+ * layout.css — application layout styles.
+ * App container, sidebar, and main content area positioning.
+ * Part of: Infinity AI / Dark-Matter frontend (styles).
+ */
 .app-container {
   display: flex;
   height: 100dvh; /* Use dynamic viewport height for mobile */
@@ -825,7 +829,7 @@
   }
 }
 
-/* DarkMatter console finish */
+/* Infinity AI console finish */
 .app-container {
   isolation: isolate;
   background:

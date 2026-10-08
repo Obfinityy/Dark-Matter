@@ -1,9 +1,12 @@
-// resourceCore.js — Infinity AI · wave 45 (ideas 51786–51800)
-// Pure logic for the resource monitoring suite: request counters, rate series,
-// bandwidth, CPU/GPU/memory panels, token tracking, cost estimation, budget
-// alerts, per-module splits, caps, throttles, efficiency, and waste detection.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-
+/**
+ * resourceCore.js — Infinity AI · wave 45 (ideas 51786–51800)
+ * Pure logic for the resource monitoring suite: request counters, rate series,
+ * bandwidth, CPU/GPU/memory panels, token tracking, cost estimation, budget
+ * alerts, per-module splits, caps, throttles, efficiency, and waste detection.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const RES45_START = 51786;
 export const RES45_END = 51800;
 

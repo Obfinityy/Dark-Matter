@@ -1,11 +1,14 @@
-// resourceRound6Core.js — Infinity AI · wave 46 (ideas 51801–51820)
-// Pure logic for resource monitoring round 6: usage forecasting, comparisons,
-// CSV export, alert webhooks, per-asset views, cost breakdowns, quotas, egress
-// anomaly flags, disk tracking, auto-pause triggers, eco mode, presets, team
-// rollups, chargeback, anomaly alerts, parallelism tuning, cache hit rates,
-// strategy hints, session-time splits, and API quota monitoring.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-
+/**
+ * resourceRound6Core.js — Infinity AI · wave 46 (ideas 51801–51820)
+ * Pure logic for resource monitoring round 6: usage forecasting, comparisons,
+ * CSV export, alert webhooks, per-asset views, cost breakdowns, quotas, egress
+ * anomaly flags, disk tracking, auto-pause triggers, eco mode, presets, team
+ * rollups, chargeback, anomaly alerts, parallelism tuning, cache hit rates,
+ * strategy hints, session-time splits, and API quota monitoring.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE46_R6_START = 51801;
 export const WAVE46_R6_END = 51820;
 

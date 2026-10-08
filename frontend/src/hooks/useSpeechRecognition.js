@@ -31,6 +31,11 @@ export function isSpeechRecognitionSupported() {
   return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
+/**
+ * useSpeechRecognition — React hook for browser speech-to-text.
+ * @param {object} [opts] - Options: { lang } to override the detected locale.
+ * @returns {{ supported, listening, interim, error, start, stop, toggle, abort }}
+ */
 export function useSpeechRecognition({
   lang,
   onFinal,

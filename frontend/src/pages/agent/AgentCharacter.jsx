@@ -1,3 +1,9 @@
+/**
+ * AgentCharacter — the visible presence of the hunting agent.
+ * A hexagonal core with orbiting rings: breathes slowly when idle, spins
+ * and pulses while a hunt is running. Professional, minimal presentation.
+ * Part of: Infinity AI / Dark-Matter frontend (pages).
+ */
 import React from 'react';
 
 /**

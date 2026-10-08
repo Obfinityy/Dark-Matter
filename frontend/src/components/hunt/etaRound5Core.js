@@ -1,11 +1,14 @@
-// etaRound5Core.js — Infinity AI · wave 45 (ideas 51761–51785)
-// Pure logic for the second ETA suite: recalculation history, active/idle
-// accounting, multi-hunt boards, prioritization, drift, scenarios, fairness,
-// autoscaling, freeze, retrospective, and stakeholder payloads.
-// Time is milliseconds everywhere; wall-clock inputs are explicit epoch ms so
-// every function is deterministic for a given input.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-
+/**
+ * etaRound5Core.js — Infinity AI · wave 45 (ideas 51761–51785)
+ * Pure logic for the second ETA suite: recalculation history, active/idle
+ * accounting, multi-hunt boards, prioritization, drift, scenarios, fairness,
+ * autoscaling, freeze, retrospective, and stakeholder payloads.
+ * Time is milliseconds everywhere; wall-clock inputs are explicit epoch ms so
+ * every function is deterministic for a given input.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const ETA45_START = 51761;
 export const ETA45_END = 51785;
 

@@ -1,3 +1,9 @@
+/**
+ * App — the root application shell.
+ * Sets up client-side routing, authentication providers, and the main
+ * layout (navigation, protected routes, global styles).
+ * Part of: Infinity AI / Dark-Matter frontend (app shell).
+ */
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';

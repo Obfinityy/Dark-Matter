@@ -1,3 +1,9 @@
+/**
+ * globals.css — the global stylesheet.
+ * Imports design tokens, auth styles, and theme layers, then applies base
+ * resets (box-sizing, margins) shared by the whole application.
+ * Part of: Infinity AI / Dark-Matter frontend (styles).
+ */
 @import './variables.css';
 @import './auth.css';
 @import './infinity.css';

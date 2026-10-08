@@ -1,10 +1,13 @@
-// confidenceGovernCore.js — Infinity AI · wave 43 (ideas 51701–51720)
-// Pure logic for the confidence governance & depth suite: disputes, benchmarks,
-// export/API, agreement, floors, badges, evidence requests, sharing controls,
-// trend alerts, reporting order, explanations, calibration training, mobile,
-// snapshot diffs, SLAs, grouping, and analyst overrides.
-// Companionship: pairs with confidenceCore.js (display & triage, 51681–51700).
-
+/**
+ * confidenceGovernCore.js — Infinity AI · wave 43 (ideas 51701–51720)
+ * Pure logic for the confidence governance & depth suite: disputes, benchmarks,
+ * export/API, agreement, floors, badges, evidence requests, sharing controls,
+ * trend alerts, reporting order, explanations, calibration training, mobile,
+ * snapshot diffs, SLAs, grouping, and analyst overrides.
+ * Companionship: pairs with confidenceCore.js (display & triage, 51681–51700).
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 import {
   clampScore,
   confidenceColor,

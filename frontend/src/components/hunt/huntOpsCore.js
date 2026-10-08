@@ -1,14 +1,17 @@
-// huntOpsCore.js — Infinity AI · wave 47 (ideas 51861–51880)
-// Pure logic for hunt operations across the fleet: dependency gate status,
-// campaign and client rollups, search, filters, archiving, favorites, the
-// notifications hub, routing rules, ownership transfer, collaboration roles,
-// the activity feed, timeline comparison, notes, tags, saved views,
-// bulk export (JSON/CSV/markdown with injection-safe cells), per-hunt API
-// token descriptors, webhook payload descriptors, and SSO scoping.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-// API tokens and webhook signatures here are deterministic SAMPLE descriptors
-// for UI display — never real credentials.
-
+/**
+ * huntOpsCore.js — Infinity AI · wave 47 (ideas 51861–51880)
+ * Pure logic for hunt operations across the fleet: dependency gate status,
+ * campaign and client rollups, search, filters, archiving, favorites, the
+ * notifications hub, routing rules, ownership transfer, collaboration roles,
+ * the activity feed, timeline comparison, notes, tags, saved views,
+ * bulk export (JSON/CSV/markdown with injection-safe cells), per-hunt API
+ * token descriptors, webhook payload descriptors, and SSO scoping.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ * API tokens and webhook signatures here are deterministic SAMPLE descriptors
+ * for UI display — never real credentials.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE47_HUNTOPS_START = 51861;
 export const WAVE47_HUNTOPS_END = 51880;
 

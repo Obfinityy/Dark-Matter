@@ -1,3 +1,9 @@
+/**
+ * auth.css — styles for the authentication experience.
+ * Split-layout sign-in / create-account screens: brand panel on one side,
+ * credential card on the other. Responsive down to mobile widths.
+ * Part of: Infinity AI / Dark-Matter frontend (styles).
+ */
 .auth-shell {
   min-height: 100dvh;
   display: grid;

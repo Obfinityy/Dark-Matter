@@ -1,6 +1,10 @@
-// Infinity AI — Wave 48 (ideas 51881–51895): fleet operations components.
-// Purely presentational, export-only (not mounted anywhere). Data flows from
-// fleetOpsCore pure functions over sample state — no network, no side effects.
+/**
+ * Infinity AI — Wave 48 (ideas 51881–51895): fleet operations components.
+ * Purely presentational, export-only (not mounted anywhere). Data flows from
+ * fleetOpsCore pure functions over sample state — no network, no side effects.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 import {
   buildAuditLog,
   auditSummary,

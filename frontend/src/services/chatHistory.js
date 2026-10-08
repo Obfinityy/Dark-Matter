@@ -41,14 +41,17 @@ function writeAll(list) {
 
 export const CONVERSATIONS_CHANGED_EVENT = 'dm:conversations-changed';
 
+/** List stored chat conversations, newest first. */
 export function listConversations() {
   return readAll();
 }
 
+/** Get a stored conversation by id. */
 export function getConversation(id) {
   return readAll().find(c => c.id === id) || null;
 }
 
+/** Persist a conversation to local history. */
 export function recordConversation({ id, mode, title }) {
   if (!id) return null;
   const now = new Date().toISOString();
@@ -65,10 +68,12 @@ export function recordConversation({ id, mode, title }) {
   return entry;
 }
 
+/** Delete a conversation from local history. */
 export function removeConversation(id) {
   writeAll(readAll().filter(c => c.id !== id));
 }
 
+/** Clear all stored conversations. */
 export function clearConversations() {
   writeAll([]);
 }

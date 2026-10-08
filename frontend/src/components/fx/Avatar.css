@@ -1,3 +1,9 @@
+/**
+ * Avatar.css — styles for the Avatar component.
+ * Circular avatar presentation with SVG rendering support, sized via
+ * CSS custom properties for consistent use across the UI.
+ * Part of: Infinity AI / Dark-Matter frontend (visual effects).
+ */
 .avatar {
   position: relative;
   border-radius: 50%;
