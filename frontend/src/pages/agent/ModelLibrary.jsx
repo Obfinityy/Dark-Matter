@@ -21,7 +21,7 @@ import {
   Cpu, Download, X, Loader2, Plus, Trash2, Zap, AlertTriangle,
   Server, Play, Pause, Square, CheckCircle2, MonitorCog, MemoryStick,
   Cloud, Link2, Unplug, Wifi, CircuitBoard, Gauge, ShieldCheck,
-  Network, HelpCircle, Copy, Check
+  Network
 } from 'lucide-react';
 import {
   getRunnerStatus,
@@ -37,7 +37,6 @@ import {
 import {
   getAllKaggleSlots, connectKaggleSlot, disconnectKaggleSlot, testGradioLink
 } from '../../services/gradioDirect';
-import { getKaggleCell } from '../../services/kaggleCells';
 import { MODEL_CATALOG } from '../../data/modelCatalog';
 import {
   isLocalBackendUp,
@@ -305,65 +304,6 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
 }
 
 /**
- * KaggleCellModal — the "?" popup: shows the ONE notebook cell for this
- * brain slot. The user copies it, pastes it into a Kaggle notebook, runs it,
- * and gets a live Gradio link to paste into the Kaggle Link tab.
- */
-function KaggleCellModal({ slotId, slotLabel, onClose }) {
-  const cell = getKaggleCell(slotId);
-  const [copied, setCopied] = useState(false);
-
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(cell.code);
-    } catch {
-      // Clipboard API blocked — fall back to selecting the text.
-      const el = document.getElementById('kaggle-cell-code');
-      if (el) {
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  if (!cell) return null;
-
-  return (
-    <div className="ml-cell-overlay" role="dialog" aria-modal="true" aria-label={cell.title} onClick={onClose}>
-      <div className="ml-cell-modal sg-card" onClick={(e) => e.stopPropagation()}>
-        <div className="ml-cell-head">
-          <div>
-            <strong>{cell.title}</strong>
-            <div className="sg-tiny ml-cell-model">{cell.model}</div>
-          </div>
-          <button className="sg-btn sg-btn-ghost sg-btn-sm" onClick={onClose} aria-label="Close">
-            <X size={16} />
-          </button>
-        </div>
-        <ol className="sg-small ml-cell-steps">
-          <li>Copy this <b>one cell</b> below.</li>
-          <li>Kaggle → New Notebook → <b>GPU on</b> → paste → <b>Run</b>.</li>
-          <li>Copy the <b>gradio.live link</b> it prints → paste in the Kaggle Link tab → Connect.</li>
-        </ol>
-        <pre id="kaggle-cell-code" className="ml-cell-code"><code>{cell.code}</code></pre>
-        <div className="ml-cell-foot">
-          <button className="sg-btn sg-btn-primary" onClick={copyCode}>
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-            {copied ? 'Copied!' : 'Copy cell code'}
-          </button>
-          <span className="sg-tiny">The link stays live until you stop the notebook.</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
  * BrainSlotCard — one brain slot (vision / grounding / hacker).
  *
  * Each slot shows ALL its models as clickable cards with Download →
@@ -386,8 +326,6 @@ function BrainSlotCard({
   const kaggle = sources[slotId]?.source === 'kaggle' ? sources[slotId] : null;
   const server = slotServers?.[slotId] || null; // running server for this slot
   const [tab, setTab] = useState(source); // 'local' | 'kaggle'
-  const [cellOpen, setCellOpen] = useState(false); // Kaggle one-cell code modal
-  const [copied, setCopied] = useState(false);
 
   // Keep tab in sync when source changes from elsewhere
   useEffect(() => { setTab(source); }, [source]);
@@ -453,18 +391,7 @@ function BrainSlotCard({
         >
           <Cloud size={15} /> Kaggle Link
         </button>
-        <button
-          className="sg-btn sg-btn-ghost sg-btn-sm ml-kaggle-help"
-          onClick={() => { setCopied(false); setCellOpen(true); }}
-          title="Get the one-cell Kaggle notebook code for this brain"
-          aria-label={`Get Kaggle setup code for ${slot.label}`}
-        >
-          <HelpCircle size={15} />
-        </button>
       </div>
-
-      {/* Kaggle one-cell code modal */}
-      {cellOpen && <KaggleCellModal slotId={slotId} slotLabel={slot.label} onClose={() => setCellOpen(false)} />}
 
       {/* ── LOCAL: all models for this slot ── */}
       {tab === 'local' && (
