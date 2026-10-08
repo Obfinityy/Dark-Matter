@@ -951,7 +951,7 @@ export function ModelLibrary() {
 
   const startEngineDownload = async () => {
     setError('');
-    // The engine (llama-server) downloads to the USER'S LOCAL MACHINE via the
+    // The Infinity AI Runner downloads to the USER'S LOCAL MACHINE via the
     // local backend. If the backend is not running yet, the Step 0 card offers
     // the one-click launcher instead — this guard is only a fallback.
     if (!localBackendUp) {
@@ -1285,8 +1285,9 @@ export function ModelLibrary() {
             <div>
               <strong>Step 0 — one-time engine setup</strong>
               <p>
-                Dark Matter ships its own tiny inference engine (llama-server). It downloads
-                once for your OS — after that, models run directly on your computer, no Ollama needed.
+                Dark Matter ships its own tiny inference engine, the Infinity AI Runner.
+                It downloads automatically the first time you press Run on a model —
+                after that, models run directly on your computer, no Ollama needed.
               </p>
             </div>
           </div>

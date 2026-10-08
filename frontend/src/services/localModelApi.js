@@ -208,7 +208,7 @@ export async function removeModelLocal(modelId) {
 }
 
 /**
- * Start downloading the llama-server engine binary on the LOCAL backend
+ * Start downloading the Infinity AI Runner engine binary on the LOCAL backend
  * (one-time setup — the engine runs models on the user's machine).
  */
 export async function downloadEngineLocal() {

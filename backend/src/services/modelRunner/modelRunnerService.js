@@ -5,13 +5,13 @@
  *   • library()        — curated GGUF models + device-compatibility ranking
  *   • device()         — detected hardware snapshot
  *   • download(model)  — stream a GGUF from Hugging Face with progress
- *   • run(model)       — ensure engine, spawn llama-server on 127.0.0.1,
+ *   • run(model)       — ensure Runner, spawn Infinity AI Runner on 127.0.0.1,
  *                        wait for /health, expose the OpenAI-compatible base URL
  *   • stop()           — kill the server, free RAM/VRAM
  *   • status()         — everything the Models UI needs in one call
  *
  * Layout under <dataDir>/model-runner/:
- *   engine/            — extracted llama-server binary (one-time download)
+ *   infinity-runner/   — Infinity AI Runner binary (one-time download, on Run click)
  *   models/<id>/      — <id>.gguf per library model, custom/<n>.gguf for customs
  *
  * Only ONE model runs at a time (one brain per machine). The running
@@ -25,7 +25,7 @@ import net from 'node:net';
 import { spawn } from 'node:child_process';
 import { MODEL_LIBRARY, getLibraryEntry, hfDownloadUrl, sanitizeHfPart } from './modelLibrary.js';
 import { detectDevice, rankModelForDevice } from './deviceInfo.js';
-import { EngineManager } from './engineManager.js';
+import { InfinityRunner, RUNNER_DISPLAY_NAME, buildSpawnArgs } from './infinityRunner.js';
 import { downloadFile } from './downloadUtil.js';
 
 /** Same convention as FileMemory: ~/.darkmatter unless overridden. */
@@ -41,7 +41,7 @@ function modelsDir(dataDir) {
   return path.join(runnerRoot(dataDir), 'models');
 }
 
-/** Find a free 127.0.0.1 port for llama-server. */
+/** Find a free 127.0.0.1 port for the Infinity AI Runner. */
 function findFreePort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -53,15 +53,19 @@ function findFreePort() {
   });
 }
 
-async function waitForHealth(baseUrl, timeoutMs = 180000) {
+/**
+ * Wait until the Runner's OpenAI-compatible API answers on /v1/models.
+ * (koboldcpp has no /health endpoint — that was llama-server.)
+ */
+async function waitForHealth(baseUrl, timeoutMs = 240000) {
   const start = Date.now();
   for (;;) {
     try {
-      const response = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      const response = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(4000) });
       if (response.ok) return true;
     } catch { /* not up yet */ }
     if (Date.now() - start > timeoutMs) return false;
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
   }
 }
 
@@ -69,7 +73,10 @@ export class ModelRunnerService {
   constructor({ dataDir, logger = console } = {}) {
     this.dataDir = dataDir || defaultDataDir();
     this.logger = logger;
-    this.engine = new EngineManager({ dataDir: this.dataDir, logger });
+    // The inference engine is the Infinity AI Runner (koboldcpp-based single
+    // executable). It downloads ONLY when the user clicks Run — never on page
+    // open (owner's choice). runForSlot()/run() ensure it before spawning.
+    this.engine = new InfinityRunner({ dataDir: this.dataDir, logger });
     this.deviceCache = null;
     this.deviceCacheAt = 0;
 
@@ -95,7 +102,7 @@ export class ModelRunnerService {
 
   /**
    * Run a downloaded model for a specific brain slot on its own localhost port.
-   * Each slot (vision | grounding | hacker) gets its own llama-server process
+   * Each slot (vision | grounding | hacker) gets its own Infinity AI Runner process
    * and port, so all three brains can run simultaneously.
    * @param {string} slot — 'vision' | 'grounding' | 'hacker'
    * @param {string} modelId
@@ -124,7 +131,7 @@ export class ModelRunnerService {
     if (existing && existing.modelId === modelId) {
       // Verify it's still alive
       try {
-        const res = await fetch(`${existing.baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+        const res = await fetch(`${existing.baseUrl}/v1/models`, { signal: AbortSignal.timeout(3000) });
         if (res.ok) return { alreadyRunning: true, slot, ...existing };
       } catch { /* dead — restart below */ }
     }
@@ -132,6 +139,7 @@ export class ModelRunnerService {
     if (existing) await this.stopSlot(slot);
 
     const device = await this.getDevice();
+    // Download-on-Run: the Infinity AI Runner downloads here on first Run click.
     const { path: binaryPath } = await this.engine.ensureEngine(device);
     const port = await findFreePort();
     const ggufPath = this.modelFilePath(model, quant);
@@ -142,16 +150,13 @@ export class ModelRunnerService {
       maxCtx
     );
 
-    const args = [
-      '-m', ggufPath,
-      '--port', String(port),
-      '--host', '127.0.0.1',
-      '-c', String(contextSize),
-      '-ngl', '99'
-    ];
-    this.logger.info?.(`[model-runner] starting ${model.name} for slot "${slot}" on 127.0.0.1:${port}`);
+    // koboldcpp flags (not llama-server): --model, --port, --host,
+    // --contextsize, --gpulayers, --quiet.
+    const gpuLayers = device?.hasNvidia ? 99 : 0;
+    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers });
+    this.logger.info?.(`[model-runner] starting ${model.name} for slot "${slot}" on 127.0.0.1:${port} via ${RUNNER_DISPLAY_NAME}`);
 
-    const child = spawn(binaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(spawnArgv[0], spawnArgv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
     const baseUrl = `http://127.0.0.1:${port}`;
     const serverInfo = {
       slot, modelId: model.id, name: model.name, quant, pid: child.pid, port, baseUrl,
@@ -170,8 +175,8 @@ export class ModelRunnerService {
 
     if (exited.exited || exited.healthy === false) {
       const reason = exited.exited
-        ? `llama-server exited immediately (code ${exited.code}): ${stderrTail.slice(-300)}`
-        : 'llama-server did not become healthy in time';
+        ? `${RUNNER_DISPLAY_NAME} exited immediately (code ${exited.code}): ${stderrTail.slice(-300)}`
+        : `${RUNNER_DISPLAY_NAME} did not become healthy in time`;
       delete this.slotServers[slot];
       this.emitRun();
       try { child.kill(); } catch { /* ignore */ }
@@ -621,8 +626,8 @@ export class ModelRunnerService {
   }
 
   /**
-   * Re-attach to a llama-server that survived a backend restart (orphan).
-   * Called lazily: if the run-state file references a live pid whose /health
+   * Re-attach to an Infinity AI Runner that survived a backend restart (orphan).
+   * Called lazily: if the run-state file references a live pid whose /v1/models
    * responds, adopt it instead of spawning a second copy. Returns true when
    * adopted.
    */
@@ -633,7 +638,7 @@ export class ModelRunnerService {
     if (!saved?.port || !saved?.baseUrl) return false;
     if (!this._pidAlive(saved.pid)) { this._writeRunState(); return false; }
     try {
-      const response = await fetch(`${saved.baseUrl}/health`, { signal: AbortSignal.timeout(4000) });
+      const response = await fetch(`${saved.baseUrl}/v1/models`, { signal: AbortSignal.timeout(4000) });
       if (!response.ok) return false;
     } catch { return false; }
     this.running = saved;
@@ -644,7 +649,7 @@ export class ModelRunnerService {
 
   /**
    * Run a downloaded model on localhost. Ensures the engine binary first
-   * (one-time download), spawns llama-server, waits for /health.
+   * (one-time download on Run click), spawns the Infinity AI Runner, waits for /v1/models.
    */
   async run(modelId, options = {}) {
     const model = this.findModel(modelId);
@@ -669,6 +674,7 @@ export class ModelRunnerService {
     }
 
     const device = await this.getDevice();
+    // Download-on-Run: the Infinity AI Runner downloads here on first Run click.
     const { path: binaryPath } = await this.engine.ensureEngine(device);
     const port = await findFreePort();
     const ggufPath = this.modelFilePath(model, quant);
@@ -682,16 +688,13 @@ export class ModelRunnerService {
       maxCtx
     );
 
-    const args = [
-      '-m', ggufPath,
-      '--port', String(port),
-      '--host', '127.0.0.1',
-      '-c', String(contextSize),
-      '-ngl', '99' // offload as many layers to GPU as possible; ignored on CPU builds
-    ];
-    this.logger.info?.(`[model-runner] starting ${model.name} on 127.0.0.1:${port} (context ${contextSize})`);
+    // koboldcpp flags (not llama-server): --model, --port, --host,
+    // --contextsize, --gpulayers, --quiet.
+    const gpuLayers = device?.hasNvidia ? 99 : 0;
+    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers });
+    this.logger.info?.(`[model-runner] starting ${model.name} on 127.0.0.1:${port} (context ${contextSize}) via ${RUNNER_DISPLAY_NAME}`);
 
-    const child = spawn(binaryPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(spawnArgv[0], spawnArgv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
     const baseUrl = `http://127.0.0.1:${port}`;
     this.running = {
       modelId: model.id, name: model.name, quant, pid: child.pid, port, baseUrl,
@@ -710,8 +713,8 @@ export class ModelRunnerService {
 
     if (exited.exited || exited.healthy === false) {
       const reason = exited.exited
-        ? `llama-server exited immediately (code ${exited.code}): ${stderrTail.slice(-300)}`
-        : 'llama-server did not become healthy in time';
+        ? `${RUNNER_DISPLAY_NAME} exited immediately (code ${exited.code}): ${stderrTail.slice(-300)}`
+        : `${RUNNER_DISPLAY_NAME} did not become healthy in time`;
       this.running = null;
       this._writeRunState();
       this.emitRun();
@@ -737,7 +740,7 @@ export class ModelRunnerService {
    *   1. brainProviderModel (DB / in-memory fallback) — per-user selection
    *      the brain factory reads when building the inference provider.
    *   2. active-brain.json on disk — machine-level record of which model
-   *      file backs the running llama-server.
+   *      file backs the running Infinity AI Runner.
    *
    * This is the exact method the POST /models/:id/run controller calls after
    * the model is healthy, so the unit test exercises the real activation path.

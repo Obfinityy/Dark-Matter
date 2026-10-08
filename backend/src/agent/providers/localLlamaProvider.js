@@ -1,7 +1,7 @@
 /**
- * localLlamaProvider.js — the brain when a model is RUNNING via model-runner.
+ * localLlamaProvider.js — the brain when a model is RUNNING via the Infinity AI Runner.
  *
- * Talks to the backend-spawned llama-server's OpenAI-compatible API
+ * Talks to the backend-spawned Runner's OpenAI-compatible API
  * (/v1/chat/completions, /v1/models) on 127.0.0.1. No Ollama, no cloud.
  * The endpoint is dynamic (free port per run), so the provider resolves it
  * from the ModelRunnerService on every call — never a stale URL.
@@ -57,7 +57,7 @@ export class LocalLlamaProvider {
       return { provider: 'LocalLlamaProvider', enabled: true, reachable: false, modelInstalled: false, reason: 'No local model is running', latencyMs: Date.now() - start };
     }
     try {
-      const response = await fetch(`${baseUrl}/models`, { signal: AbortSignal.timeout(5000) });
+      const response = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(5000) });
       const latencyMs = Date.now() - start;
       if (!response.ok) {
         return { provider: 'LocalLlamaProvider', enabled: true, reachable: false, modelInstalled: false, reason: `HTTP ${response.status}`, latencyMs };
@@ -77,7 +77,7 @@ export class LocalLlamaProvider {
     try { await this.runner.ensureRunningState?.(); } catch { /* best effort */ }
     const baseUrl = this.baseUrl();
     if (!baseUrl) throw new Error('No local model is running — press Run on a downloaded model first');
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       signal: AbortSignal.timeout(options.timeout || this.timeout),
@@ -118,7 +118,7 @@ export class LocalLlamaProvider {
   async stream(messages, options = {}) {
     const baseUrl = this.baseUrl();
     if (!baseUrl) throw new Error('No local model is running — press Run on a downloaded model first');
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       signal: AbortSignal.timeout(options.timeout || this.timeout),

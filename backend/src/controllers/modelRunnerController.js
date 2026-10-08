@@ -6,7 +6,7 @@ import { buildBrainChain } from '../agent/providers/resilientBrainProvider.js';
  *   GET  /api/v1/model-runner/status            — device, engine, downloads, running, models
  *   GET  /api/v1/model-runner/library           — models + compatibility ranking
  *   GET  /api/v1/model-runner/device            — hardware snapshot
- *   POST /api/v1/model-runner/engine            — download llama-server (one-time)
+ *   POST /api/v1/model-runner/engine            — download Infinity AI Runner (one-time, on demand)
  *   GET  /api/v1/model-runner/engine/stream     — SSE: engine download progress
  *   POST /api/v1/model-runner/download {modelId}— download a GGUF
  *   POST /api/v1/model-runner/download/cancel   — cancel the download
@@ -214,7 +214,7 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
       response.json({ device: await modelRunnerService.getDevice() });
     }),
 
-    /** POST /api/v1/model-runner/engine — one-time llama-server download.
+    /** POST /api/v1/model-runner/engine — one-time Infinity AI Runner download.
      *  Returns 202 immediately; progress arrives over the SSE stream. */
     ensureEngine: asyncHandler(async (request, response) => {
       try {
