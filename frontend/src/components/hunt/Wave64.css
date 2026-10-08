@@ -1,0 +1,113 @@
+/**
+ * Wave64.css — Infinity AI · Dark-Matter · Wave 64
+ * Scoped styles for the wave 64 component galleries (comparison deep-dive + archive suite).
+ * Strictly scoped: only .cd64- and .ar64- class selectors. Zero animations,
+ * zero transitions, no global element selectors.
+ */
+
+.cd64-gallery,
+.ar64-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.cd64-card,
+.ar64-card {
+  border: 1px solid #33475e;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #141b26;
+  color: #eef3fa;
+}
+
+.cd64-title,
+.ar64-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: #ffd479;
+}
+
+.cd64-note,
+.ar64-note {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+  color: #b8c6da;
+}
+
+.cd64-row,
+.ar64-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid #223046;
+  font-size: 0.82rem;
+}
+
+.cd64-row:first-of-type,
+.ar64-row:first-of-type {
+  border-top: none;
+}
+
+.cd64-stat,
+.ar64-stat {
+  font-variant-numeric: tabular-nums;
+  color: #9fd6ff;
+}
+
+.cd64-badge,
+.ar64-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #223046;
+  color: #cfe0f5;
+}
+
+.cd64-badge-good,
+.ar64-badge-good {
+  background: #123f2b;
+  color: #7de2a8;
+}
+
+.cd64-badge-warn,
+.ar64-badge-warn {
+  background: #4a3413;
+  color: #ffcf7d;
+}
+
+.cd64-badge-bad,
+.ar64-badge-bad {
+  background: #4a1f1f;
+  color: #ff9d9d;
+}
+
+.cd64-table,
+.ar64-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.cd64-table th,
+.ar64-table th {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  color: #8fa3bd;
+  font-weight: 600;
+  border-bottom: 1px solid #33475e;
+}
+
+.cd64-table td,
+.ar64-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #223046;
+  color: #dbe6f5;
+}
