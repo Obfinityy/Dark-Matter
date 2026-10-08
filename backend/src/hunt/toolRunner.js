@@ -25,6 +25,8 @@
  */
 
 import { spawn as nodeSpawn } from 'node:child_process';
+import { execOnVm } from './vmRunnerClient.js';
+import { createTargetScope, hostOfTarget } from './targetScope.js';
 
 /** Default per-tool wall-clock timeouts (ms). */
 export const TOOL_TIMEOUTS = Object.freeze({
@@ -254,13 +256,102 @@ function createSemaphore(limit) {
 }
 
 /**
+ * Quote one argv element for the guest shell. Targets are already sanitized
+ * (no shell metacharacters allowed), so single-quote wrapping is sufficient.
+ */
+function shellQuote(s) {
+  return `'${String(s).replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Build the exact command string the VM runner executes inside the guest.
+ * Same binary + argv the local path would spawn; stdin-fed tools get their
+ * targets via a printf pipe (identical semantics to the spawn path).
+ */
+function buildVmCommand(def, name, list, o, stdinLines) {
+  const argv = [def.bin, ...def.buildArgs(list[0], o)].map(shellQuote).join(' ');
+  if (!stdinLines.length) return argv;
+  return `printf '%s\\n' ${stdinLines.map(shellQuote).join(' ')} | ${argv}`;
+}
+
+/**
+ * Run one tool inside the attached VM session via POST /vm/exec instead of
+ * spawning a binary on the backend host. The target-scope gate (design §7)
+ * runs first: out-of-scope targets are blocked without touching the runner.
+ */
+async function runToolOnVm({ def, name, list, o, vm, started, logger }) {
+  const scope = createTargetScope(vm.targets || []);
+  for (const t of list) {
+    const host = hostOfTarget(t);
+    if (!scope.allows(host)) {
+      const error = `target "${t.slice(0, 80)}" is outside the authorized hunt scope (${scope.hosts.join(', ') || 'none declared'}) — blocked`;
+      logger.warn?.(`[toolRunner] ${name}: ${error}`);
+      return { tool: name, records: [], findings: [], skipped: false, blocked: true, durationMs: Date.now() - started, error };
+    }
+  }
+  const records = [];
+  const findings = [];
+  const stdinLines = o.stdinLines ?? (['subfinder'].includes(name) ? [] : list);
+  const command = buildVmCommand(def, name, list, o, stdinLines);
+  let execRes;
+  try {
+    execRes = await execOnVm({
+      baseUrl: vm.baseUrl,
+      token: vm.token,
+      sessionId: vm.sessionId,
+      command,
+      timeoutMs: o.timeoutMs,
+    });
+  } catch (err) {
+    const error = `VM runner exec failed: ${err?.message || err}`;
+    logger.warn?.(`[toolRunner] ${name}: ${error}`);
+    return { tool: name, records, findings, skipped: false, durationMs: Date.now() - started, error };
+  }
+  for (const line of String(execRes.stdout || '').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let rec = null;
+    try {
+      rec = def.parseLine(trimmed);
+    } catch (e) {
+      logger.warn?.(`[toolRunner] ${name} (vm) line handler: ${e.message}`);
+      continue;
+    }
+    if (!rec) continue;
+    records.push(rec);
+    o.onRecord?.(rec);
+    if (rec.kind === 'finding') {
+      findings.push(rec);
+      o.onFinding?.(rec);
+    }
+  }
+  return {
+    tool: name,
+    records,
+    findings,
+    skipped: false,
+    durationMs: Date.now() - started,
+    exitCode: execRes.exit_code,
+    timedOut: execRes.timed_out,
+    error: execRes.timed_out ? `timed out after ${o.timeoutMs}ms` : undefined,
+  };
+}
+
+/**
  * Create a tool runner. `spawnFn` is injectable for tests.
+ *
+ * `vm` (optional) attaches a VM session: shell-type tool actions then run
+ * inside the session's Kali VM via POST /vm/exec instead of spawning binaries
+ * on this host. Shape: { sessionId, baseUrl?, token?, targets? } where
+ * `targets` is the hunt's declared target scope for the allowlist gate
+ * (defaults to the runTool targets when omitted).
  */
 export function createToolRunner({
   spawnFn = nodeSpawn,
   logger = console,
   timeouts = TOOL_TIMEOUTS,
   maxConcurrent = 3,
+  vm = null,
 } = {}) {
   const sem = createSemaphore(Math.max(1, maxConcurrent));
 
@@ -311,6 +402,21 @@ export function createToolRunner({
       timeoutMs: opts.timeoutMs || timeouts[name] || 180_000,
     };
     const started = Date.now();
+
+    // VM-attached path (design §6): shell-type tool actions run inside the
+    // session's Kali VM via POST /vm/exec — never spawned on this host.
+    if (vm && vm.sessionId) {
+      return runToolOnVm({
+        def,
+        name,
+        list,
+        vm,
+        started,
+        logger,
+        o: { ...o, stdinLines: opts.stdinLines, onRecord: opts.onRecord, onFinding: opts.onFinding },
+      });
+    }
+
     const records = [];
     const findings = [];
 
@@ -480,16 +586,16 @@ function streamChild(child, { tool, bin, timeoutMs, stdinLines, signal, onLine, 
  * report builds DURING the hunt.
  *
  * @param {string|string[]} targets
- * @param {object} opts — { profile, onFinding, onRecord, onStage, signal, logger, spawnFn, timeouts, maxConcurrent, skipTools }
+ * @param {object} opts — { profile, onFinding, onRecord, onStage, signal, logger, spawnFn, timeouts, maxConcurrent, skipTools, vm }
+ * `vm` — optional { sessionId, baseUrl?, token?, targets? }: route tool execs to the VM runner instead of spawning locally.
  * @returns {Promise<{ findings, recordsByTool, stages }>}
  */
 export async function runPipeline(targets, opts = {}) {
   const logger = opts.logger || console;
   const runner = createToolRunner({
-    spawnFn: opts.spawnFn,
-    logger,
-    timeouts: opts.timeouts,
-    maxConcurrent: opts.maxConcurrent,
+    spawnFn: opts.spawnFn, logger,
+    timeouts: opts.timeouts, maxConcurrent: opts.maxConcurrent,
+    vm: opts.vm,
   });
   const list = sanitizeTargets(targets);
   const profile = opts.profile === 'standard' ? 'standard' : 'fast';
