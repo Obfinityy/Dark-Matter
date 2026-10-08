@@ -1,0 +1,140 @@
+/**
+ * Wave63.css — Infinity AI · Dark-Matter · Wave 63
+ * Scoped styles for the wave 63 component galleries (hunt comparison + comparison ops).
+ * Strictly scoped: only .hc63- and .co63- class selectors. Zero animations,
+ * zero transitions, no global element selectors.
+ */
+
+.hc63-gallery,
+.co63-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.hc63-card,
+.co63-card {
+  border: 1px solid #33475e;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #141b26;
+  color: #eef3fa;
+}
+
+.hc63-title,
+.co63-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: #ffd479;
+}
+
+.hc63-note,
+.co63-note {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+  color: #b8c6da;
+}
+
+.hc63-row,
+.co63-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.hc63-chip,
+.co63-chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #1e2a3d;
+  border: 1px solid #33475e;
+  color: #9fe8ff;
+}
+
+.hc63-chip-warn,
+.co63-chip-warn {
+  color: #ffb020;
+  border-color: #8a5a1d;
+}
+
+.hc63-chip-bad,
+.co63-chip-bad {
+  color: #ff6b6b;
+  border-color: #8a2d2d;
+}
+
+.hc63-chip-good,
+.co63-chip-good {
+  color: #51d88a;
+  border-color: #1f6b45;
+}
+
+.hc63-mono,
+.co63-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  background: #0d141f;
+  border: 1px solid #22304a;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #cfe3ff;
+}
+
+.hc63-select,
+.co63-select,
+.hc63-input,
+.co63-input {
+  font-size: 0.8rem;
+  background: #1e2a3d;
+  color: #eef3fa;
+  border: 1px solid #33475e;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+}
+
+.hc63-btn,
+.co63-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+.hc63-table,
+.co63-table {
+  width: 100%;
+  font-size: 0.78rem;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+}
+
+.hc63-table th,
+.hc63-table td,
+.co63-table th,
+.co63-table td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #22304a;
+}
+
+.hc63-table th,
+.co63-table th {
+  color: #9fb3cc;
+  font-weight: 600;
+}
