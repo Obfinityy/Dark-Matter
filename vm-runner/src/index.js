@@ -21,6 +21,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { findQemuBinary, detectAccel, detectWhpx } from './qemu.js';
+import { resolveVmHome } from './vmManager.js';
 
 const PKG = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -28,15 +29,7 @@ export const VERSION = PKG.version;
 export const PORT = Number.parseInt(process.env.INFINITY_VM_RUNNER_PORT || '4100', 10);
 export const BIND_HOST = '127.0.0.1';
 
-/** Default VM home: %USERPROFILE%\DarkMatter\vm on Windows. */
-export function resolveVmHome() {
-  if (process.env.INFINITY_VM_RUNNER_HOME) return process.env.INFINITY_VM_RUNNER_HOME;
-  if (os.platform() === 'win32') {
-    const profile = process.env.USERPROFILE || path.join(os.homedir(), '');
-    return path.join(profile, 'DarkMatter', 'vm');
-  }
-  return path.join(os.homedir(), '.local', 'share', 'infinity-vm-runner', 'vm');
-}
+export { resolveVmHome };
 
 export async function loadKaliDescriptor() {
   try {
