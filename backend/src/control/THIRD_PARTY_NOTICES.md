@@ -35,6 +35,16 @@ informed by the published architectures of the following open-source projects
   verification step of the loop. No UI-TARS-desktop code is included or
   reproduced here.
 
+## Infinity Sandbox VM control plane
+
+The VM lifecycle behind Control mode adapts concepts from
+feder-cr/invisible_dots (MIT) — VM lifecycle patterns, guest-agent channel
+design, permission-gate pattern, local memory pattern; no original code copied
+verbatim, and the original project's cloud API-key "brain" is not used. Full
+attribution and the complete MIT license text: see the repo-root
+`THIRD_PARTY_NOTICES.md` ("invisible_dots — the "Infinity Sandbox" VM control
+plane"). Branding note below applies.
+
 ## Branding note
 
 In the Infinity AI product and UI, these concepts are presented under Infinity

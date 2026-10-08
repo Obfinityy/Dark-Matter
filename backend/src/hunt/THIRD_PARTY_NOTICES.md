@@ -87,6 +87,15 @@ recon feed.
 Note: `nuclei -ai` is deliberately not used (it requires ProjectDiscovery
 Cloud, which conflicts with the product's no-cloud-dependency stance).
 
+## 5. invisible_dots (feder-cr) — MIT License — concept only
+
+The VM-backed hunt execution stage adapts concepts from
+feder-cr/invisible_dots (MIT) — VM lifecycle patterns, guest-agent channel
+design, permission-gate pattern, local memory pattern; no original code copied
+verbatim. Full attribution and the complete MIT license text: see the
+repo-root `THIRD_PARTY_NOTICES.md` ("invisible_dots — the "Infinity Sandbox"
+VM control plane"). Rebranding policy below applies.
+
 ## Rebranding policy
 
 Per product direction, all user-visible strings in the hunt subsystem say
