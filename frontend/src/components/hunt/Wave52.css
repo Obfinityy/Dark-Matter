@@ -1,0 +1,161 @@
+/* Wave52.css — Infinity AI · Dark-Matter · Wave 52
+ * Scoped styles for the triage round-2 (.tr2-*) and FP management (.fp52-*) galleries.
+ * No keyframes, no transitions, no animations.
+ */
+
+.tr2-gallery,
+.fp52-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.tr2-card {
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  padding: 16px;
+  background: #14141f;
+  color: #e8e8f0;
+}
+
+.fp52-card {
+  border: 1px solid #3a2a4a;
+  border-radius: 10px;
+  padding: 16px;
+  background: #171422;
+  color: #e8e8f0;
+}
+
+.tr2-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #9fd0ff;
+}
+
+.fp52-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e6b3ff;
+}
+
+.tr2-list,
+.fp52-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+
+.tr2-item,
+.fp52-item {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  background: #1e1e2e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.fp52-item {
+  background: #221c33;
+}
+
+.tr2-note,
+.fp52-note {
+  margin: 8px 0;
+  font-size: 12px;
+  color: #9a9ab5;
+  line-height: 1.5;
+}
+
+.tr2-btn,
+.fp52-btn {
+  display: inline-block;
+  margin: 4px 6px 4px 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid #3a3a55;
+  border-radius: 6px;
+  background: #23233a;
+  color: #e8e8f0;
+  cursor: pointer;
+}
+
+.fp52-btn {
+  border-color: #4a3a5a;
+  background: #2a2038;
+}
+
+.tr2-input,
+.fp52-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px solid #3a3a55;
+  border-radius: 6px;
+  background: #1e1e2e;
+  color: #e8e8f0;
+}
+
+.tr2-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.tr2-th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #3a3a55;
+  color: #9fd0ff;
+}
+
+.tr2-td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #24243a;
+}
+
+.tr2-row-diff {
+  background: #23233a;
+}
+
+.tr2-widgets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tr2-widget {
+  flex: 1 1 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #3a3a55;
+  border-radius: 8px;
+  background: #1e1e2e;
+  color: #e8e8f0;
+  cursor: pointer;
+}
+
+.tr2-widget-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: #9fd0ff;
+}
+
+.tr2-widget-label {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #9a9ab5;
+}
+
+.fp52-link {
+  color: #e6b3ff;
+}
