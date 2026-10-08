@@ -48,7 +48,10 @@ import {
   downloadEngineLocal,
   subscribeToLocalEngineStream,
   pauseDownloadLocal,
-  resumeDownloadLocal
+  resumeDownloadLocal,
+  downloadEngineLauncher,
+  detectUserOS,
+  userOSLabel
 } from '../../services/localModelApi';
 import {
   detectBrowserDevice, browserBudget, sortModelsByBrowserCompat, formatBrowserRam
@@ -948,10 +951,11 @@ export function ModelLibrary() {
 
   const startEngineDownload = async () => {
     setError('');
-    // The engine (llama-server) must download to the USER'S LOCAL MACHINE —
-    // it runs models there, not on the cloud backend.
+    // The engine (llama-server) downloads to the USER'S LOCAL MACHINE via the
+    // local backend. If the backend is not running yet, the Step 0 card offers
+    // the one-click launcher instead — this guard is only a fallback.
     if (!localBackendUp) {
-      setError('Start the Dark Matter backend on your computer (localhost:4000) to download the engine. The engine runs on YOUR machine, not the cloud.');
+      setError('Your local engine is not running yet. Download the one-click launcher in Step 0 above, run it, and it starts everything automatically.');
       return;
     }
     setBusyEngine(true);
@@ -989,8 +993,9 @@ export function ModelLibrary() {
     setError('');
     stopProgressStream();
     // Models download to the USER'S LOCAL MACHINE via the local backend.
+    // If it is not running, Step 0's one-click launcher starts it automatically.
     if (!localBackendUp) {
-      setError('Start the Dark Matter backend on your computer (localhost:4000) to download models. Models run on YOUR machine, not the cloud.');
+      setError('Your local engine is not running yet. Download the one-click launcher in Step 0 above, run it, and it starts everything automatically.');
       return;
     }
     try {
@@ -1096,8 +1101,9 @@ export function ModelLibrary() {
     setError('');
     setBusyModel(modelId);
     // Models run on the USER'S LOCAL MACHINE, each on its own random localhost port.
+    // If the local backend is not running, Step 0's one-click launcher starts it.
     if (!localBackendUp) {
-      setError('Start the Dark Matter backend on your computer (localhost:4000) to run models. Models run on YOUR machine, not the cloud.');
+      setError('Your local engine is not running yet. Download the one-click launcher in Step 0 above, run it, and it starts everything automatically.');
       setBusyModel(null);
       return;
     }
@@ -1174,7 +1180,7 @@ export function ModelLibrary() {
     if (!window.confirm('Delete this model from your computer to free up disk space?')) return;
     setError('');
     try {
-      if (!localBackendUp) throw new Error('Start the Dark Matter backend on your computer (localhost:4000) first.');
+      if (!localBackendUp) throw new Error('Your local engine is not running yet. Download the one-click launcher in Step 0 above, run it, and it starts everything automatically.');
       await removeModelLocal(modelId);
       setDownloadedIds((prev) => { const next = new Set(prev); next.delete(modelId); return next; });
       refresh();
@@ -1267,22 +1273,41 @@ export function ModelLibrary() {
         </div>
       )}
 
-      {/* ── Step 0 FIRST: one-time engine download (runs on the user's machine) ── */}
+      {/* ── Step 0 FIRST: one-time engine setup (runs on the user's machine) ── */}
       {/* NOTE: uses localEngineReady (localhost), NOT the remote backend's engineReady —
-          the engine must be on the USER'S machine. Remote Render status is irrelevant. */}
+          the engine must be on the USER'S machine. Remote Render status is irrelevant.
+          When the local backend is down, offer the one-click launcher download instead
+          of a dead-end error — the launcher starts everything automatically. */}
       {!localEngineReady && (
         <div className="sg-card sg-card-pad ml-engine-card">
           <div className="sg-small ml-engine-head">
             <Server size={17} aria-hidden="true" />
             <div>
-              <strong>Step 0 — one-time engine download</strong>
+              <strong>Step 0 — one-time engine setup</strong>
               <p>
                 Dark Matter ships its own tiny inference engine (llama-server). It downloads
                 once for your OS — after that, models run directly on your computer, no Ollama needed.
               </p>
             </div>
           </div>
-          {engineDl && engineDl.status !== 'idle' ? (
+          {!localBackendUp ? (
+            <div className="ml-launcher-block">
+              <p className="sg-small">
+                Download the one-click launcher for your computer and run it — it starts the
+                Dark Matter backend and downloads the engine automatically. Nothing to set up by hand.
+              </p>
+              <button className="sg-btn sg-btn-primary" onClick={downloadEngineLauncher}>
+                <Download size={15} />
+                Download launcher for {userOSLabel()}
+              </button>
+              <p className="sg-small ml-launcher-note">
+                Run the downloaded file, then come back here — this page detects it automatically.
+                {detectUserOS() !== 'windows' && (
+                  <> On macOS/Linux, run it with: <code>sh ~/Downloads/dark-matter-engine.sh</code></>
+                )}
+              </p>
+            </div>
+          ) : engineDl && engineDl.status !== 'idle' ? (
             <div className="sg-pull-progress">
               <ProgressBar value={engineDl.progress || 0} />
               <span>

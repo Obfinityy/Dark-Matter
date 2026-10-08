@@ -9,6 +9,13 @@ export function createRoutes({ controllers }) {
   router.post('/auth/register', controllers.auth.register);
   router.post('/auth/login', controllers.auth.login);
   router.post('/auth/recover', controllers.auth.recover);
+
+  // ─── Dark Matter Engine one-click launcher (PUBLIC — the user downloads
+  // this before they have any local backend running) ─────────────────────
+  router.get('/engine/launcher', controllers.engineLauncher.launcher);
+  // Loopback-only: the launcher calls this after starting the local backend.
+  router.post('/engine/bootstrap', controllers.engineLauncher.bootstrap);
+
   router.use(controllers.auth.attach);
 
   router.use(requireAuth);

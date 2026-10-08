@@ -179,6 +179,11 @@
 .ml-engine-card { border-color: var(--sg-accent); box-shadow: var(--sg-shadow-glow); }
 .ml-engine-head { display: flex; gap: var(--sg-3); align-items: flex-start; }
 .ml-engine-head svg { flex-shrink: 0; margin-top: var(--sg-1); color: var(--sg-accent); }
+/* One-click launcher block (shown when the local backend is not running yet) */
+.ml-launcher-block { display: flex; flex-direction: column; gap: var(--sg-3); margin-top: var(--sg-3); }
+.ml-launcher-block p { margin: 0; }
+.ml-launcher-note { opacity: 0.75; }
+.ml-launcher-note code { font-family: ui-monospace, monospace; font-size: 0.92em; }
 .ml-alert-head { display: flex; align-items: center; gap: var(--sg-2); margin-bottom: var(--sg-2); }
 .ml-alert-spaced { margin-bottom: var(--sg-4); }
 .ml-alert-body { margin: 0 0 var(--sg-3); }

@@ -44,6 +44,7 @@ import { createJobController } from './controllers/jobController.js';
 import { createPermissionsController } from './controllers/permissionsController.js';
 import { createLocalModelController } from './controllers/localModelController.js';
 import { createModelRunnerController } from './controllers/modelRunnerController.js';
+import { createEngineLauncherController } from './controllers/engineLauncherController.js';
 import { createBrainChatController } from './controllers/brainChatController.js';
 import { createRemoteModelController } from './controllers/remoteModelController.js';
 import { createComputerController } from './controllers/computerController.js';
@@ -539,6 +540,7 @@ export async function createApp({ database } = {}) {
       payloadLibrary: createPayloadLibraryController({ payloadLibraryModel }),
       localModels: createLocalModelController({ localModelService, agentWorker }),
       modelRunner: createModelRunnerController({ modelRunnerService, brainProviderModel, agentWorker }),
+      engineLauncher: createEngineLauncherController({ modelRunnerService }),
       brainChat: createBrainChatController({ modelRunnerService }),
       remoteModel: createRemoteModelController({ brainProviderModel, agentWorker }),
       computer: createComputerController({ computerAdapter, assessmentModel }),

@@ -88,6 +88,46 @@ export async function getLocalLibrary() {
 }
 
 /**
+ * Detect the user's OS for the engine launcher download.
+ * @returns {'windows'|'macos'|'linux'}
+ */
+export function detectUserOS() {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/Win/i.test(ua)) return 'windows';
+    if (/Mac/i.test(ua)) return 'macos';
+  } catch { /* ignore */ }
+  return 'linux';
+}
+
+/** Friendly OS name for the launcher download button. */
+export function userOSLabel() {
+  const os = detectUserOS();
+  return os === 'windows' ? 'Windows' : os === 'macos' ? 'macOS' : 'Linux';
+}
+
+/**
+ * Download the one-click Dark Matter Engine launcher for this computer.
+ *
+ * Served by the CONFIGURED backend (the Render backend on the deployed site)
+ * — the launcher itself then sets up the LOCAL backend + engine on the user's
+ * own machine and starts everything automatically. This is what Step 0 offers
+ * when the local backend is not running, instead of a dead-end error.
+ */
+export function downloadEngineLauncher() {
+  const os = detectUserOS();
+  let site = '';
+  try { site = window.location.origin || ''; } catch { /* ignore */ }
+  const url = `${apiBase()}/engine/launcher?os=${os}${site ? `&site=${encodeURIComponent(site)}` : ''}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = os === 'windows' ? 'dark-matter-engine.bat' : 'dark-matter-engine.sh';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/**
  * Start downloading a model on the local backend.
  * The backend downloads from Hugging Face and saves to its model directory.
  */
