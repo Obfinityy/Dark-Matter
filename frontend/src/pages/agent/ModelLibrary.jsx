@@ -97,6 +97,7 @@ import {
 import { getApiBase, getBackendUrl } from '../../services/backendMode';
 import { SpotlightCard } from '../../components/fx/SpotlightCard';
 import { ElectricBorder } from '../../components/fx/ElectricBorder';
+import { RunnerStatusCard } from '../../components/agent/RunnerStatusCard';
 import './ModelLibrary.css';
 import './ModelLibraryNew.css';
 import './ModelLibrary.elegant.css';
@@ -1198,6 +1199,14 @@ export function ModelLibrary() {
     }
   };
 
+  // ── Local backend: models run on the USER'S machine (localhost:4000) ──
+  // NOTE: this useState MUST stay above its first use (one-click setup + engine-stream effects below).
+  const [localBackendUp, setLocalBackendUp] = useState(false);
+  // Engine status on the USER'S machine (localhost) — Step 0 shows until the
+  // local engine is downloaded. The remote backend's engineReady is irrelevant
+  // here because models run on localhost, not on Render.
+  const [localEngineReady, setLocalEngineReady] = useState(false);
+
   // ONE-CLICK brain setup: download the slot's default model (when missing)
   // then run it — a single button press. Progress shows via the download SSE
   // events; the slot flips to Running when the brain is up.
@@ -1270,13 +1279,7 @@ export function ModelLibrary() {
     []
   );
 
-  // ── Local backend: models run on the USER'S machine (localhost:4000) ──
-  // NOTE: this useState MUST stay above its first use (engine-stream effect below).
-  const [localBackendUp, setLocalBackendUp] = useState(false);
-  // Engine status on the USER'S machine (localhost) — Step 0 shows until the
-  // local engine is downloaded. The remote backend's engineReady is irrelevant
-  // here because models run on localhost, not on Render.
-  const [localEngineReady, setLocalEngineReady] = useState(false);
+  // ── Local backend state lives above (with the one-click setup section) ──
 
   const stopProgressStream = () => {
     progressUnsub.current?.();
@@ -1751,6 +1754,9 @@ export function ModelLibrary() {
           )}
         </div>
       )}
+
+      {/* ── Infinity AI Runner: local PC companion ─────────────────── */}
+      <RunnerStatusCard />
 
       {/* ── Brain Slots: three independent brains ──────────────────── */}
       <div className="ml-brain-section">
