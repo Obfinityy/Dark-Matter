@@ -1,4 +1,5 @@
 import { getApiBase } from './backendMode.js';
+import { getAllKaggleSlots } from './gradioDirect.js';
 
 /**
  * API base URL — one rule: VITE_BACKEND_URL from the environment,
@@ -544,8 +545,6 @@ export function subscribeToAssessmentEvents(assessmentId, { onOpen, onEvent, onE
 }
 
 // ─── Autonomous Bug Bounty Agent (persistent jobs) ────────────────
-
-import { getAllKaggleSlots } from './gradioDirect';
 
 /** Create an autonomous assessment job. Returns as soon as the job is queued. */
 export function createJob(payload) {
