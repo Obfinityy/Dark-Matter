@@ -18,14 +18,14 @@
 
 // Cipher-suite preference order markers per TLS library family.
 const CIPHER_FAMILIES = {
-  'TLS_AES_128_GCM_SHA256': 'tls13',
-  'TLS_AES_256_GCM_SHA384': 'tls13',
-  'TLS_CHACHA20_POLY1305_SHA256': 'tls13',
-  'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256': 'openssl-like',
-  'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384': 'openssl-like',
-  'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256': 'openssl-like',
-  'TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256': 'boringssl-like',
-  'TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256': 'boringssl-like',
+  TLS_AES_128_GCM_SHA256: 'tls13',
+  TLS_AES_256_GCM_SHA384: 'tls13',
+  TLS_CHACHA20_POLY1305_SHA256: 'tls13',
+  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256: 'openssl-like',
+  TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384: 'openssl-like',
+  TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256: 'openssl-like',
+  TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256: 'boringssl-like',
+  TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256: 'boringssl-like',
 };
 
 const KNOWN_TERMINATORS = [
@@ -81,12 +81,16 @@ export function catalogHandshake({
  * @returns {{ mode: 'server-preference'|'client-preference'|'mixed'|'insufficient', cipherDiversity: number, detail: string }}
  */
 export function analyzeCipherPreference(catalog) {
-  const rows = (catalog || []).filter((r) => r.negotiatedCipher);
+  const rows = (catalog || []).filter(r => r.negotiatedCipher);
   if (rows.length < 2) {
-    return { mode: 'insufficient', cipherDiversity: rows.length, detail: 'Need at least 2 JA3 variants to judge preference mode.' };
+    return {
+      mode: 'insufficient',
+      cipherDiversity: rows.length,
+      detail: 'Need at least 2 JA3 variants to judge preference mode.',
+    };
   }
-  const families = new Set(rows.map((r) => r.cipherFamily));
-  const ciphers = new Set(rows.map((r) => r.negotiatedCipher));
+  const families = new Set(rows.map(r => r.cipherFamily));
+  const ciphers = new Set(rows.map(r => r.negotiatedCipher));
   // Heuristic: if the terminator always picks the same cipher despite
   // different client orders, it enforces server preference.
   if (ciphers.size === 1) {
@@ -119,14 +123,21 @@ export function analyzeCipherPreference(catalog) {
  */
 export function matchTerminators(preference, catalog) {
   const rows = catalog || [];
-  const chachaPicked = rows.some((r) => /CHACHA20/i.test(r.negotiatedCipher));
-  const tls13Only = rows.length > 0 && rows.every((r) => /1\.3/.test(r.tlsVersion));
+  const chachaPicked = rows.some(r => /CHACHA20/i.test(r.negotiatedCipher));
+  const tls13Only = rows.length > 0 && rows.every(r => /1\.3/.test(r.tlsVersion));
 
-  const scored = KNOWN_TERMINATORS.map((t) => {
+  const scored = KNOWN_TERMINATORS.map(t => {
     let score = 0;
-    if (t.terminator.startsWith('Go') && preference.mode === 'server-preference' && chachaPicked) score += 0.7;
-    if (t.terminator.startsWith('BoringSSL') && preference.mode === 'server-preference') score += 0.5;
-    if (t.terminator.startsWith('OpenSSL') && preference.mode === 'server-preference' && !chachaPicked) score += 0.6;
+    if (t.terminator.startsWith('Go') && preference.mode === 'server-preference' && chachaPicked)
+      score += 0.7;
+    if (t.terminator.startsWith('BoringSSL') && preference.mode === 'server-preference')
+      score += 0.5;
+    if (
+      t.terminator.startsWith('OpenSSL') &&
+      preference.mode === 'server-preference' &&
+      !chachaPicked
+    )
+      score += 0.6;
     if (t.terminator.startsWith('NSS') && preference.mode === 'client-preference') score += 0.6;
     if (tls13Only && /Go|BoringSSL/.test(t.terminator)) score += 0.1;
     return { terminator: t.terminator, score: Math.min(1, score), markers: t.markers };
@@ -157,10 +168,17 @@ export function analyzeJa3Catalog({ host = '', records = [] } = {}) {
     bestGuess,
     confidence,
     evidence: `Cataloged ${catalog.length} JA3 variant(s)${host ? ` against ${host}` : ''}: cipher-preference mode '${preference.mode}' (${preference.detail})${
-      bestGuess ? ` — best terminator match '${bestGuess}' (score ${best.score.toFixed(2)})` : ' — no confident terminator match'
+      bestGuess
+        ? ` — best terminator match '${bestGuess}' (score ${best.score.toFixed(2)})`
+        : ' — no confident terminator match'
     }.`,
   };
 }
 
-export const JA3_PROFILER = { catalogHandshake, analyzeCipherPreference, matchTerminators, analyzeJa3Catalog };
+export const JA3_PROFILER = {
+  catalogHandshake,
+  analyzeCipherPreference,
+  matchTerminators,
+  analyzeJa3Catalog,
+};
 export default JA3_PROFILER;

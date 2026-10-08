@@ -1,23 +1,50 @@
+/**
+ * userModel — database model for user.
+ * Schema definition and data-access methods for user records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { AppError, assert } from '../core/errors.js';
 import { id, now } from '../core/utils.js';
 
 function publicUser(user) {
-  return { id: user.id, email: user.email, username: user.username || null, name: user.name, createdAt: user.createdAt };
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username || null,
+    name: user.name,
+    createdAt: user.createdAt,
+  };
 }
 
 function normalizeEmail(value) {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
+/**
+ * Normalize Username.
+ * @param {*} value
+ * @returns {*} Result.
+ */
 export function normalizeUsername(value) {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
+/**
+ * Valid Username.
+ * @param {*} username
+ * @returns {*} Result.
+ */
 export function validUsername(username) {
   // 3-30 chars: letters, digits, underscore, dash. Stable for login + display.
   return /^[a-z0-9_-]{3,30}$/.test(username);
 }
 
+/** Database model for user. */
 export class UserModel {
   constructor(database) {
     this.collection = database.collection('users');
@@ -30,7 +57,7 @@ export class UserModel {
       name,
       passwordHash,
       createdAt: now(),
-      updatedAt: now()
+      updatedAt: now(),
     };
     if (username) user.username = username;
     try {
@@ -39,7 +66,8 @@ export class UserModel {
       if (error?.code === 11000) {
         // Keep the 409 human-readable; the sparse unique index fires on either field.
         const existing = await this.findByEmail(email);
-        if (existing) throw new AppError(409, 'An account with this email already exists', 'EMAIL_IN_USE');
+        if (existing)
+          throw new AppError(409, 'An account with this email already exists', 'EMAIL_IN_USE');
         throw new AppError(409, 'That username is already taken', 'USERNAME_IN_USE');
       }
       throw error;
@@ -79,10 +107,7 @@ export class UserModel {
       activatedAt: now(),
       status: 'active',
     };
-    await this.collection.updateOne(
-      { id: userId },
-      { $set: { subscription, updatedAt: now() } }
-    );
+    await this.collection.updateOne({ id: userId }, { $set: { subscription, updatedAt: now() } });
     return subscription;
   }
 
@@ -103,7 +128,9 @@ export class UserModel {
   }
 
   async updateProfile(userId, input = {}) {
-    const name = String(input.name || '').trim().slice(0, 120);
+    const name = String(input.name || '')
+      .trim()
+      .slice(0, 120);
     assert(name.length >= 2, 400, 'Name must be at least 2 characters', 'INVALID_PROFILE');
     await this.collection.updateOne({ id: userId }, { $set: { name, updatedAt: now() } });
     const user = await this.findById(userId);
@@ -112,6 +139,9 @@ export class UserModel {
   }
 
   async changePassword(userId, newPasswordHash) {
-    await this.collection.updateOne({ id: userId }, { $set: { passwordHash: newPasswordHash, updatedAt: now() } });
+    await this.collection.updateOne(
+      { id: userId },
+      { $set: { passwordHash: newPasswordHash, updatedAt: now() } }
+    );
   }
 }

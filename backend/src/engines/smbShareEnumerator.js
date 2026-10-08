@@ -13,14 +13,7 @@
  */
 
 /** Administrative / special shares that are always sensitive when listed. */
-export const ADMIN_SHARES = new Set([
-  'IPC$',
-  'ADMIN$',
-  'PRINT$',
-  'FAX$',
-  'SYSVOL',
-  'NETLOGON',
-]);
+export const ADMIN_SHARES = new Set(['IPC$', 'ADMIN$', 'PRINT$', 'FAX$', 'SYSVOL', 'NETLOGON']);
 
 /** Drive-letter administrative shares such as C$, D$. */
 export const ADMIN_SHARE_PATTERN = /^[A-Z]\$$/;
@@ -51,7 +44,10 @@ export function parseSmbclientListing(text) {
   let inTable = false;
   for (const raw of lines) {
     const line = raw.replace(/\s+$/, '');
-    if (/^\s*Sharename\s+Type\s+Comment/i.test(line)) { inTable = true; continue; }
+    if (/^\s*Sharename\s+Type\s+Comment/i.test(line)) {
+      inTable = true;
+      continue;
+    }
     if (!inTable) continue;
     if (/^\s*-{3,}/.test(line)) continue; // separator row
     if (!line.trim()) continue;
@@ -79,7 +75,9 @@ export function classifyShare(share) {
   if (ADMIN_SHARES.has(name.toUpperCase()) || ADMIN_SHARE_PATTERN.test(name.toUpperCase())) {
     sensitivity = 'high';
     confidence = 'high';
-    reasons.push(`Administrative share "${name}" is enumerable — IPC$/ADMIN$/C$ style shares aid lateral movement.`);
+    reasons.push(
+      `Administrative share "${name}" is enumerable — IPC$/ADMIN$/C$ style shares aid lateral movement.`
+    );
   } else if (/IPC/i.test(String(share.type || ''))) {
     sensitivity = 'high';
     confidence = 'high';
@@ -111,16 +109,20 @@ export function classifyShare(share) {
  */
 export function enumerateSmbShares(input) {
   const parsed = Array.isArray(input)
-    ? input.map((s) => ({ name: String(s.name || ''), type: String(s.type || ''), comment: String(s.comment || '') }))
+    ? input.map(s => ({
+        name: String(s.name || ''),
+        type: String(s.type || ''),
+        comment: String(s.comment || ''),
+      }))
     : parseSmbclientListing(input);
   const shares = parsed.map(classifyShare);
-  const highSensitivity = shares.filter((s) => s.sensitivity === 'high');
-  const medium = shares.filter((s) => s.sensitivity === 'medium');
+  const highSensitivity = shares.filter(s => s.sensitivity === 'high');
+  const medium = shares.filter(s => s.sensitivity === 'medium');
   const summary = `${parsed.length} share(s) enumerated: ${highSensitivity.length} high-sensitivity, ${medium.length} medium-sensitivity.`;
   return {
     total: parsed.length,
     shares,
-    highSensitivity: highSensitivity.map((s) => s.share),
+    highSensitivity: highSensitivity.map(s => s.share),
     summary,
     confidence: parsed.length > 0 ? 'high' : 'low',
   };

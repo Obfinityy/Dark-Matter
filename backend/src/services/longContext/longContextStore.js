@@ -1,3 +1,9 @@
+/**
+ * longContextStore — long-context chunk storage.
+ * Persists and indexes text chunks for fast similarity retrieval.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import crypto from 'crypto';
 
 /**
@@ -41,10 +47,9 @@ class LongContextStore {
   }
 
   async updateInput(userId, conversationId, inputId, patch) {
-    await this.database.collection('lc_inputs').updateOne(
-      { userId, conversationId, inputId },
-      { $set: patch }
-    );
+    await this.database
+      .collection('lc_inputs')
+      .updateOne({ userId, conversationId, inputId }, { $set: patch });
     return this.getInput(userId, conversationId, inputId);
   }
 
@@ -103,11 +108,11 @@ class LongContextStore {
       .collection('lc_chunks')
       .find({ userId, conversationId })
       .toArray();
-    const lowered = terms.map((t) => t.toLowerCase());
+    const lowered = terms.map(t => t.toLowerCase());
     const hits = [];
     for (const chunk of all) {
       const content = (chunk.content || '').toLowerCase();
-      const matched = lowered.filter((t) => content.includes(t));
+      const matched = lowered.filter(t => content.includes(t));
       if (matched.length > 0) {
         hits.push({ chunk, score: matched.length, matchedTerms: matched });
       }
@@ -121,13 +126,19 @@ class LongContextStore {
     const existing = await this.database.collection('lc_summaries').findOne({
       userId: record.userId,
       conversationId: record.conversationId,
-      summaryId: record.summaryId
+      summaryId: record.summaryId,
     });
     if (existing) {
-      await this.database.collection('lc_summaries').updateOne(
-        { userId: record.userId, conversationId: record.conversationId, summaryId: record.summaryId },
-        { $set: record }
-      );
+      await this.database
+        .collection('lc_summaries')
+        .updateOne(
+          {
+            userId: record.userId,
+            conversationId: record.conversationId,
+            summaryId: record.summaryId,
+          },
+          { $set: record }
+        );
     } else {
       await this.database.collection('lc_summaries').insertOne(record);
     }
@@ -135,9 +146,7 @@ class LongContextStore {
   }
 
   async getSummary(userId, conversationId, summaryId) {
-    return this.database
-      .collection('lc_summaries')
-      .findOne({ userId, conversationId, summaryId });
+    return this.database.collection('lc_summaries').findOne({ userId, conversationId, summaryId });
   }
 
   async listSummaries(userId, conversationId, inputId) {
@@ -145,7 +154,7 @@ class LongContextStore {
       .collection('lc_summaries')
       .find({ userId, conversationId, inputId })
       .toArray();
-    all.sort((a, b) => (a.level - b.level) || (a.order - b.order));
+    all.sort((a, b) => a.level - b.level || a.order - b.order);
     return all;
   }
 
@@ -157,10 +166,9 @@ class LongContextStore {
   async saveTaskState(conversationId, state) {
     const existing = await this.getTaskState(conversationId);
     if (existing) {
-      await this.database.collection('lc_task_state').updateOne(
-        { conversationId },
-        { $set: state }
-      );
+      await this.database
+        .collection('lc_task_state')
+        .updateOne({ conversationId }, { $set: state });
     } else {
       await this.database.collection('lc_task_state').insertOne({ ...state, conversationId });
     }

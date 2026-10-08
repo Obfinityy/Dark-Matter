@@ -87,8 +87,13 @@ export function parseOAuthAppEntry(entry = {}) {
     if (field === 'homepageUrl') flags.push('homepage');
     if (field === 'supportUrl') flags.push('support');
     results.push({
-      client, vendor, host: a.host, uri: String(uri).trim(),
-      scheme: a.scheme, score: scoreRedirectUri(a), flags,
+      client,
+      vendor,
+      host: a.host,
+      uri: String(uri).trim(),
+      scheme: a.scheme,
+      score: scoreRedirectUri(a),
+      flags,
     });
   }
   return results.sort((a, b) => b.score - a.score || a.host.localeCompare(b.host));
@@ -109,7 +114,9 @@ export function mineOAuthRedirectHosts(entries = [], rootDomain) {
   for (const entry of entries || []) {
     for (const f of parseOAuthAppEntry(entry)) {
       const related = f.host === root || f.host.endsWith(`.${root}`) || f.host.includes(root);
-      const vendorHit = String(entry?.vendor || entry?.provider || '').toLowerCase().includes(brand);
+      const vendorHit = String(entry?.vendor || entry?.provider || '')
+        .toLowerCase()
+        .includes(brand);
       if (related || vendorHit) out.push(f);
     }
   }

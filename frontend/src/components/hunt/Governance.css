@@ -34,7 +34,7 @@
   align-items: center;
   margin: 8px 0;
 }
-.gov30-card input[type="text"],
+.gov30-card input[type='text'],
 .gov30-card input:not([type]),
 .gov30-card select {
   background: #0f131c;
@@ -43,7 +43,7 @@
   border-radius: 6px;
   padding: 6px 10px;
 }
-.gov30-card input[type="range"] {
+.gov30-card input[type='range'] {
   width: 220px;
 }
 .gov30-card button {
@@ -108,9 +108,15 @@
   margin: 8px 0;
   background: #141821;
 }
-.gov30-risk-safe { border-left-color: #3fb950; }
-.gov30-risk-cautious { border-left-color: #d29922; }
-.gov30-risk-destructive { border-left-color: #f85149; }
+.gov30-risk-safe {
+  border-left-color: #3fb950;
+}
+.gov30-risk-cautious {
+  border-left-color: #d29922;
+}
+.gov30-risk-destructive {
+  border-left-color: #f85149;
+}
 .gov30-risk {
   text-transform: uppercase;
   font-size: 0.72rem;
@@ -138,8 +144,12 @@
   color: #d29922;
   font-size: 0.78rem;
 }
-.gov30-status-pending { color: #d29922; }
-.gov30-status-awaiting-checkin { color: #58a6ff; }
+.gov30-status-pending {
+  color: #d29922;
+}
+.gov30-status-awaiting-checkin {
+  color: #58a6ff;
+}
 .gov30-active {
   background: #364063 !important;
   border-color: #58a6ff !important;

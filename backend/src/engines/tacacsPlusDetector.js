@@ -49,11 +49,12 @@ export function analyzeTacacsHeader({
     };
   }
 
-  const minorMeaning = minorVersion === 0
-    ? 'RFC 8907 compliant'
-    : minorVersion === 1
-      ? 'legacy draft-11/12'
-      : `unknown minor version ${minorVersion}`;
+  const minorMeaning =
+    minorVersion === 0
+      ? 'RFC 8907 compliant'
+      : minorVersion === 1
+        ? 'legacy draft-11/12'
+        : `unknown minor version ${minorVersion}`;
 
   return {
     type: 'TACACS+ Version Detection',
@@ -65,9 +66,10 @@ export function analyzeTacacsHeader({
     packetType: typeName || 'unknown',
     sessionId: `0x${sessionId.toString(16)}`,
     bodyLength,
-    exposureNote: minorVersion !== 0
-      ? 'Non-standard minor version — likely legacy implementation with weaker defaults.'
-      : undefined,
+    exposureNote:
+      minorVersion !== 0
+        ? 'Non-standard minor version — likely legacy implementation with weaker defaults.'
+        : undefined,
   };
 }
 

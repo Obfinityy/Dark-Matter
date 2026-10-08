@@ -29,7 +29,18 @@ const ENTERPRISE_VENDORS = {
 };
 
 /** Communities that should never authenticate a device. */
-const DEFAULT_COMMUNITIES = ['public', 'private', 'community', 'manager', 'admin', 'default', 'snmp', 'cisco', 'password', 'publics'];
+const DEFAULT_COMMUNITIES = [
+  'public',
+  'private',
+  'community',
+  'manager',
+  'admin',
+  'default',
+  'snmp',
+  'cisco',
+  'password',
+  'publics',
+];
 
 /**
  * Identify a vendor from an SNMP sysObjectID such as
@@ -56,20 +67,19 @@ export function vendorFromSysObjectId(sysObjectID = '') {
  * }} input
  */
 export function analyzeCommunityProbes({ target = '', results = [], baseline = [] } = {}) {
-  const working = results.filter((r) => r.success);
+  const working = results.filter(r => r.success);
   const findings = [];
 
-  const identified = working
-    .map((r) => {
-      const { vendor, enterprise } = vendorFromSysObjectId(r.sysObjectID || '');
-      return {
-        community: r.community,
-        sysDescr: r.sysDescr || '',
-        sysObjectID: r.sysObjectID || '',
-        vendor,
-        enterprise,
-      };
-    });
+  const identified = working.map(r => {
+    const { vendor, enterprise } = vendorFromSysObjectId(r.sysObjectID || '');
+    return {
+      community: r.community,
+      sysDescr: r.sysDescr || '',
+      sysObjectID: r.sysObjectID || '',
+      vendor,
+      enterprise,
+    };
+  });
 
   for (const w of working) {
     if (DEFAULT_COMMUNITIES.includes(w.community.toLowerCase())) {
@@ -79,7 +89,8 @@ export function analyzeCommunityProbes({ target = '', results = [], baseline = [
         confidence: 'high',
         cwe: 'CWE-798',
         evidence: `Community "${w.community}" returned sysDescr "${w.sysDescr.slice(0, 120)}".`,
-        recommendation: 'Replace default communities with long, unique, per-device strings; consider migrating to SNMPv3 with authentication.',
+        recommendation:
+          'Replace default communities with long, unique, per-device strings; consider migrating to SNMPv3 with authentication.',
       });
     }
   }
@@ -89,16 +100,17 @@ export function analyzeCommunityProbes({ target = '', results = [], baseline = [
       type: 'Multiple valid community strings',
       severity: 'Info',
       confidence: 'high',
-      evidence: `${working.length} communities authenticated: ${working.map((w) => `"${w.community}"`).join(', ')}.`,
-      recommendation: 'Consolidate to the minimum set of read-only communities; retire unused ones.',
+      evidence: `${working.length} communities authenticated: ${working.map(w => `"${w.community}"`).join(', ')}.`,
+      recommendation:
+        'Consolidate to the minimum set of read-only communities; retire unused ones.',
     });
   }
 
   if (baseline.length > 0) {
-    const baselineSet = new Set(baseline.map((c) => c.toLowerCase()));
-    const currentSet = new Set(working.map((w) => w.community.toLowerCase()));
-    const rotatedOut = [...baselineSet].filter((c) => !currentSet.has(c));
-    const newlyAdded = [...currentSet].filter((c) => !baselineSet.has(c));
+    const baselineSet = new Set(baseline.map(c => c.toLowerCase()));
+    const currentSet = new Set(working.map(w => w.community.toLowerCase()));
+    const rotatedOut = [...baselineSet].filter(c => !currentSet.has(c));
+    const newlyAdded = [...currentSet].filter(c => !baselineSet.has(c));
     if (rotatedOut.length > 0 || newlyAdded.length > 0) {
       findings.push({
         type: 'Community string rotation detected',
@@ -110,7 +122,7 @@ export function analyzeCommunityProbes({ target = '', results = [], baseline = [
     }
   }
 
-  const writable = working.filter((w) => /private|manager|rw/i.test(w.community));
+  const writable = working.filter(w => /private|manager|rw/i.test(w.community));
   if (writable.length > 0) {
     findings.push({
       type: 'Potentially write-capable community accepted',

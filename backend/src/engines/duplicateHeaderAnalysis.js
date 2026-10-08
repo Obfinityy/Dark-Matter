@@ -32,26 +32,50 @@ export function inferDuplicateStrategy(obs) {
   const o = obs || {};
   if (o.rejected) {
     const s = o.status === 431 ? 'reject-431' : 'reject-400';
-    return { strategy: s, confidence: 0.95, evidence: `duplicate ${o.header} rejected with status ${o.status}` };
+    return {
+      strategy: s,
+      confidence: 0.95,
+      evidence: `duplicate ${o.header} rejected with status ${o.status}`,
+    };
   }
   const sent = o.sentValues || [];
   const recv = o.receivedValue;
   if (sent.length < 2) {
-    return { strategy: 'unknown', confidence: 0, evidence: 'fewer than two values sent — cannot infer strategy' };
+    return {
+      strategy: 'unknown',
+      confidence: 0,
+      evidence: 'fewer than two values sent — cannot infer strategy',
+    };
   }
   if (o.receivedCount != null && o.receivedCount === sent.length) {
-    return { strategy: 'array', confidence: 0.85, evidence: `all ${sent.length} values preserved individually` };
+    return {
+      strategy: 'array',
+      confidence: 0.85,
+      evidence: `all ${sent.length} values preserved individually`,
+    };
   }
   if (typeof recv === 'string' && recv.includes(',')) {
     return { strategy: 'comma-join', confidence: 0.8, evidence: `values joined as "${recv}"` };
   }
   if (recv === sent[0]) {
-    return { strategy: 'first-wins', confidence: 0.85, evidence: `first value "${sent[0]}" authoritative` };
+    return {
+      strategy: 'first-wins',
+      confidence: 0.85,
+      evidence: `first value "${sent[0]}" authoritative`,
+    };
   }
   if (recv === sent[sent.length - 1]) {
-    return { strategy: 'last-wins', confidence: 0.85, evidence: `last value "${sent[sent.length - 1]}" authoritative` };
+    return {
+      strategy: 'last-wins',
+      confidence: 0.85,
+      evidence: `last value "${sent[sent.length - 1]}" authoritative`,
+    };
   }
-  return { strategy: 'unknown', confidence: 0.3, evidence: `received "${recv}" matches neither first nor last sent value` };
+  return {
+    strategy: 'unknown',
+    confidence: 0.3,
+    evidence: `received "${recv}" matches neither first nor last sent value`,
+  };
 }
 
 /**
@@ -74,7 +98,7 @@ export const STRATEGY_FRAMEWORKS = {
  */
 export function fingerprintDuplicateHandling(observations) {
   const list = Array.isArray(observations) ? observations : [];
-  const perHeader = list.map((o) => {
+  const perHeader = list.map(o => {
     const r = inferDuplicateStrategy(o);
     return { header: o.header, strategy: r.strategy, confidence: r.confidence };
   });
@@ -86,13 +110,16 @@ export function fingerprintDuplicateHandling(observations) {
   let dominantStrategy = null;
   let best = 0;
   for (const [s, c] of counts) {
-    if (c > best) { best = c; dominantStrategy = s; }
+    if (c > best) {
+      best = c;
+      dominantStrategy = s;
+    }
   }
-  const known = perHeader.filter((p) => p.strategy !== 'unknown').length;
+  const known = perHeader.filter(p => p.strategy !== 'unknown').length;
   return {
     perHeader,
     dominantStrategy,
-    candidates: dominantStrategy ? (STRATEGY_FRAMEWORKS[dominantStrategy] || []) : [],
+    candidates: dominantStrategy ? STRATEGY_FRAMEWORKS[dominantStrategy] || [] : [],
     consistent: known > 0 && best === known,
   };
 }

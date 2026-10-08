@@ -83,8 +83,16 @@ export function planInteractiveCrawl(pageState) {
     if (!selector) continue;
     const label = (el.text || el.ariaLabel || '').toLowerCase();
     if (/logout|delete|remove|close account/i.test(label)) continue; // never destructive
-    plan.push({ action: 'click', selector, reason: `activate "${(el.text || el.tag || 'element').slice(0, 48)}"` });
-    plan.push({ action: 'extract', selector: 'a[href]', reason: 'harvest links revealed by interaction' });
+    plan.push({
+      action: 'click',
+      selector,
+      reason: `activate "${(el.text || el.tag || 'element').slice(0, 48)}"`,
+    });
+    plan.push({
+      action: 'extract',
+      selector: 'a[href]',
+      reason: 'harvest links revealed by interaction',
+    });
   }
 
   // 3. Forms get benign fill plans (delegated to idea 718).
@@ -92,7 +100,11 @@ export function planInteractiveCrawl(pageState) {
     plan.push(...planFormFill({ forms: [form] }, { submit: false }));
   }
 
-  plan.push({ action: 'extract', selector: 'a[href]', reason: 'final link harvest after interactions' });
+  plan.push({
+    action: 'extract',
+    selector: 'a[href]',
+    reason: 'final link harvest after interactions',
+  });
   return plan;
 }
 
@@ -116,9 +128,15 @@ export const INFINITE_SCROLL_MARKERS = [
  */
 export function detectInfiniteScroll(html) {
   const text = String(html || '');
-  const hits = INFINITE_SCROLL_MARKERS.filter((re) => re.test(text)).map((re) => String(re));
-  const cont = text.match(/<(?:div|section|ul)[^>]*(?:class|id)=["'][^"']*(?:infinite|feed|results|items)[^"']*["'][^>]*>/i);
-  return { infinite: hits.length > 0, markers: hits, container: cont ? cont[0].slice(0, 120) : null };
+  const hits = INFINITE_SCROLL_MARKERS.filter(re => re.test(text)).map(re => String(re));
+  const cont = text.match(
+    /<(?:div|section|ul)[^>]*(?:class|id)=["'][^"']*(?:infinite|feed|results|items)[^"']*["'][^>]*>/i
+  );
+  return {
+    infinite: hits.length > 0,
+    markers: hits,
+    container: cont ? cont[0].slice(0, 120) : null,
+  };
 }
 
 /**
@@ -199,24 +217,28 @@ export function extractFormSchemas(html) {
     while ((im = fieldRe.exec(inner)) !== null) {
       const tag = im[1].toLowerCase();
       const a = im[2];
-      const pick = (name) => {
+      const pick = name => {
         const r = new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, 'i');
         const m2 = a.match(r);
         return m2 ? m2[1] : '';
       };
       fields.push({
-        type: tag === 'input' ? (pick('type') || 'text') : tag,
+        type: tag === 'input' ? pick('type') || 'text' : tag,
         name: pick('name'),
         placeholder: pick('placeholder'),
         required: /\brequired\b/i.test(a),
       });
     }
-    const pickAttr = (name) => {
+    const pickAttr = name => {
       const r = new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, 'i');
       const m2 = attrs.match(r);
       return m2 ? m2[1] : '';
     };
-    forms.push({ action: pickAttr('action'), method: (pickAttr('method') || 'get').toLowerCase(), fields });
+    forms.push({
+      action: pickAttr('action'),
+      method: (pickAttr('method') || 'get').toLowerCase(),
+      fields,
+    });
   }
   return forms;
 }
@@ -231,12 +253,12 @@ export function planFormFill(formSet, opts = {}) {
   const plan = [];
   const submit = opts.submit !== false;
   for (const form of (formSet && formSet.forms) || []) {
-    const selector = form.action
-      ? `form[action="${form.action}"]`
-      : selectorFor({ tag: 'form' });
+    const selector = form.action ? `form[action="${form.action}"]` : selectorFor({ tag: 'form' });
     for (const field of form.fields || []) {
       if (String(field.type).toLowerCase() === 'hidden') continue;
-      const fieldSel = field.name ? `input[name="${field.name}"], select[name="${field.name}"], textarea[name="${field.name}"]` : 'input';
+      const fieldSel = field.name
+        ? `input[name="${field.name}"], select[name="${field.name}"], textarea[name="${field.name}"]`
+        : 'input';
       plan.push({
         action: 'fill',
         selector: `${selector} ${fieldSel}`,
@@ -250,7 +272,11 @@ export function planFormFill(formSet, opts = {}) {
         selector,
         reason: 'reach post-submit state with benign values',
       });
-      plan.push({ action: 'extract', selector: 'a[href]', reason: 'harvest routes from post-submit state' });
+      plan.push({
+        action: 'extract',
+        selector: 'a[href]',
+        reason: 'harvest routes from post-submit state',
+      });
     }
   }
   return plan;
@@ -276,12 +302,12 @@ export const WIZARD_MARKERS = [
  */
 export function detectWizardStructure(html) {
   const text = String(html || '');
-  const wizard = WIZARD_MARKERS.some((re) => re.test(text));
+  const wizard = WIZARD_MARKERS.some(re => re.test(text));
   const steps = [];
   const stepRe = /data-step(?:-?name)?=["']([^"']{1,60})["']/gi;
   let sm;
   while ((sm = stepRe.exec(text)) !== null) steps.push(sm[1]);
-  const btn = (pat) => {
+  const btn = pat => {
     const m = text.match(new RegExp(`<button[^>]*?(?:${pat})[^>]*>`, 'i'));
     if (!m) return null;
     const id = m[0].match(/id=["']([^"']+)["']/i);
@@ -342,7 +368,10 @@ export function detectTabs(html) {
   while ((m = tabRe.exec(text)) !== null) {
     const tag = m[0];
     const ctrl = tag.match(/aria-controls=["']([^"']+)["']/i);
-    const label = m[1].replace(/<[^>]*>/g, '').trim().slice(0, 60);
+    const label = m[1]
+      .replace(/<[^>]*>/g, '')
+      .trim()
+      .slice(0, 60);
     tabs.push({
       label,
       target: ctrl ? ctrl[1] : '',
@@ -351,9 +380,13 @@ export function detectTabs(html) {
   }
   // Fallback: data-tab attributes without ARIA roles.
   if (!tabs.length) {
-    const dataRe = /<(?:button|a|li)[^>]*data-tab=["']([^"']{1,60})["'][^>]*>([\s\S]{1,80}?)<\/(?:button|a|li)>/gi;
+    const dataRe =
+      /<(?:button|a|li)[^>]*data-tab=["']([^"']{1,60})["'][^>]*>([\s\S]{1,80}?)<\/(?:button|a|li)>/gi;
     while ((m = dataRe.exec(text)) !== null) {
-      const label = m[2].replace(/<[^>]*>/g, '').trim().slice(0, 60);
+      const label = m[2]
+        .replace(/<[^>]*>/g, '')
+        .trim()
+        .slice(0, 60);
       tabs.push({ label, target: m[1], panelSelector: `[data-tab-panel="${m[1]}"]` });
     }
   }
@@ -433,7 +466,7 @@ export function analyzeClickables(html) {
   while ((m = re.exec(text)) !== null) {
     const tag = m[1].toLowerCase();
     const attrs = m[2];
-    const pick = (name) => {
+    const pick = name => {
       const r = new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, 'i');
       const m2 = attrs.match(r);
       return m2 ? m2[1] : '';
@@ -467,7 +500,11 @@ export function composePagePlan(url, html) {
     forms: extractFormSchemas(html),
     clickables: analyzeClickables(html).length,
   };
-  let plan = planInteractiveCrawl({ url, clickables: analyzeClickables(html), forms: detected.forms });
+  let plan = planInteractiveCrawl({
+    url,
+    clickables: analyzeClickables(html),
+    forms: detected.forms,
+  });
   if (detected.infiniteScroll.infinite) plan = plan.concat(planInfiniteScroll({ maxScrolls: 8 }));
   if (detected.wizard.wizard) {
     plan = plan.concat(

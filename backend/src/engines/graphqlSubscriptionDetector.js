@@ -28,7 +28,7 @@ const SUBSCRIPTION_PROTOCOLS = [
 export function graphqlCandidates(baseUrl, extraPaths = []) {
   if (!baseUrl || typeof baseUrl !== 'string') return [];
   const base = baseUrl.replace(/\/+$/, '');
-  return [...new Set([...GRAPHQL_PATHS, ...extraPaths])].map((p) => `${base}${p}`);
+  return [...new Set([...GRAPHQL_PATHS, ...extraPaths])].map(p => `${base}${p}`);
 }
 
 /**
@@ -50,10 +50,10 @@ export function subscriptionHandshake(protocol) {
  */
 export function acceptedSubscriptionProtocols(secWebSocketProtocol) {
   const values = Array.isArray(secWebSocketProtocol)
-    ? secWebSocketProtocol.flatMap((v) => String(v).split(','))
+    ? secWebSocketProtocol.flatMap(v => String(v).split(','))
     : String(secWebSocketProtocol || '').split(',');
-  const accepted = values.map((v) => v.trim()).filter(Boolean);
-  return SUBSCRIPTION_PROTOCOLS.map((s) => s.protocol).filter((p) => accepted.includes(p));
+  const accepted = values.map(v => v.trim()).filter(Boolean);
+  return SUBSCRIPTION_PROTOCOLS.map(s => s.protocol).filter(p => accepted.includes(p));
 }
 
 /**
@@ -69,10 +69,10 @@ export function analyzeSchemaForSubscriptions(schema) {
   if (!sub) return result;
   result.detected = true;
   result.subscriptionType = sub.name || null;
-  const typeDef = (s.types || []).find((t) => t.name === sub.name);
+  const typeDef = (s.types || []).find(t => t.name === sub.name);
   const fields = typeDef?.fields || [];
   result.fieldCount = fields.length;
-  result.fields = fields.map((f) => f.name).filter(Boolean);
+  result.fields = fields.map(f => f.name).filter(Boolean);
   return result;
 }
 
@@ -97,8 +97,8 @@ export async function detectSubscriptionSupport(url, fetchImpl = globalThis.fetc
       body: JSON.stringify({ query: '{ __typename }' }),
     });
     if (res.status === 101 || res.status === 426) outcome.websocketUpgrade = true;
-    const protoHeader = res.headers?.get?.('sec-websocket-protocol')
-      ?? res.headers?.get?.('Sec-WebSocket-Protocol');
+    const protoHeader =
+      res.headers?.get?.('sec-websocket-protocol') ?? res.headers?.get?.('Sec-WebSocket-Protocol');
     outcome.protocols = acceptedSubscriptionProtocols(protoHeader);
     const allow = res.headers?.get?.('upgrade');
     if (allow && /websocket/i.test(allow)) outcome.websocketUpgrade = true;
@@ -114,9 +114,9 @@ export async function detectSubscriptionSupport(url, fetchImpl = globalThis.fetc
  * @returns {string|null}
  */
 export function summarizeFindings(detections = []) {
-  const exposed = detections.filter((d) => d.protocols.length > 0 || d.websocketUpgrade);
+  const exposed = detections.filter(d => d.protocols.length > 0 || d.websocketUpgrade);
   if (exposed.length === 0) return null;
-  const lines = exposed.map((d) => {
+  const lines = exposed.map(d => {
     const proto = d.protocols.length ? d.protocols.join(', ') : 'none advertised';
     return `- ${d.url}: websocket upgrade ${d.websocketUpgrade ? 'accepted' : 'not observed'}; subprotocols: ${proto}`;
   });

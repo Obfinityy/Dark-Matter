@@ -14,7 +14,10 @@ const PUSH_PROVIDER_PATTERNS = [
   { name: 'pushwoosh', patterns: [/pushwoosh/i] },
   { name: 'pusher-beams', patterns: [/pusher.*beams|beams/i] },
   { name: 'airship', patterns: [/urbanairship|airship/i] },
-  { name: 'web-push-generic', patterns: [/pushManager\s*\.\s*subscribe/i, /applicationServerKey/i] },
+  {
+    name: 'web-push-generic',
+    patterns: [/pushManager\s*\.\s*subscribe/i, /applicationServerKey/i],
+  },
 ];
 
 /**
@@ -24,12 +27,14 @@ const PUSH_PROVIDER_PATTERNS = [
  */
 export function scanWorkerForPush(workerSource = '') {
   const src = String(workerSource);
-  const usesPush = /pushManager|['"]push['"]\s*:/i.test(src) && /addEventListener|onpush/i.test(src);
-  const vapidMatch = /applicationServerKey\s*[:=]\s*['"]([^'"]{20,})['"]/i.exec(src)
-    || /vapid[^'"]*['"]\s*[:=]\s*['"]([^'"]{20,})['"]/i.exec(src);
-  const providers = PUSH_PROVIDER_PATTERNS
-    .filter((p) => p.patterns.some((re) => re.test(src)))
-    .map((p) => p.name);
+  const usesPush =
+    /pushManager|['"]push['"]\s*:/i.test(src) && /addEventListener|onpush/i.test(src);
+  const vapidMatch =
+    /applicationServerKey\s*[:=]\s*['"]([^'"]{20,})['"]/i.exec(src) ||
+    /vapid[^'"]*['"]\s*[:=]\s*['"]([^'"]{20,})['"]/i.exec(src);
+  const providers = PUSH_PROVIDER_PATTERNS.filter(p => p.patterns.some(re => re.test(src))).map(
+    p => p.name
+  );
   return {
     usesPush,
     hasVapidKey: Boolean(vapidMatch),

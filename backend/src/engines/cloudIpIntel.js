@@ -21,7 +21,10 @@
 /** Well-known cloud metadata-service endpoints (public documentation). */
 export const METADATA_ENDPOINTS = Object.freeze({
   aws: ['http://169.254.169.254/latest/meta-data/', 'http://fd00:ec2::254/latest/meta-data/'],
-  gcp: ['http://metadata.google.internal/computeMetadata/v1/', 'http://169.254.169.254/computeMetadata/v1/'],
+  gcp: [
+    'http://metadata.google.internal/computeMetadata/v1/',
+    'http://169.254.169.254/computeMetadata/v1/',
+  ],
   azure: ['http://169.254.169.254/metadata/instance?api-version=2021-02-01'],
   digitalocean: ['http://169.254.169.254/metadata/v1/'],
   oracle: ['http://169.254.169.254/opc/v2/instance/'],
@@ -92,7 +95,7 @@ export function mapIpToRange(ip, ranges) {
   let bestBits = -1;
   for (const r of ranges) {
     if (!r || !r.prefix) continue;
-    const bits = Number((r.prefix.split('/')[1] || '0'));
+    const bits = Number(r.prefix.split('/')[1] || '0');
     if (bits <= bestBits) continue;
     if (ipInCidr(ip, r.prefix)) {
       best = r;
@@ -123,7 +126,11 @@ export function mapIpsToProviders(ips, ranges) {
     const m = mapIpToRange(ip, ranges);
     if (m.provider) {
       mapped.push(m);
-      const cur = byProvider.get(m.provider) || { provider: m.provider, regions: new Set(), count: 0 };
+      const cur = byProvider.get(m.provider) || {
+        provider: m.provider,
+        regions: new Set(),
+        count: 0,
+      };
       if (m.region) cur.regions.add(m.region);
       cur.count++;
       byProvider.set(m.provider, cur);
@@ -135,7 +142,7 @@ export function mapIpsToProviders(ips, ranges) {
     mapped: mapped.sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true })),
     unmapped: unmapped.sort(),
     providerSummary: [...byProvider.values()]
-      .map((p) => ({ provider: p.provider, regions: [...p.regions].sort(), count: p.count }))
+      .map(p => ({ provider: p.provider, regions: [...p.regions].sort(), count: p.count }))
       .sort((a, b) => b.count - a.count),
   };
 }
@@ -153,13 +160,18 @@ export function identifySiblingTenants(ips, ranges, minGroupSize = 2) {
   const { mapped } = mapIpsToProviders(ips, ranges);
   const byPrefix = new Map();
   for (const m of mapped) {
-    const cur = byPrefix.get(m.prefix) || { prefix: m.prefix, provider: m.provider, region: m.region, ips: [] };
+    const cur = byPrefix.get(m.prefix) || {
+      prefix: m.prefix,
+      provider: m.provider,
+      region: m.region,
+      ips: [],
+    };
     cur.ips.push(m.ip);
     byPrefix.set(m.prefix, cur);
   }
   return [...byPrefix.values()]
-    .filter((g) => g.ips.length >= minGroupSize)
-    .map((g) => ({ ...g, ips: g.ips.sort() }))
+    .filter(g => g.ips.length >= minGroupSize)
+    .map(g => ({ ...g, ips: g.ips.sort() }))
     .sort((a, b) => b.ips.length - a.ips.length);
 }
 
@@ -173,25 +185,27 @@ export function identifySiblingTenants(ips, ranges, minGroupSize = 2) {
  */
 export function correlateCloudDns(dnsRecords, ranges) {
   if (!Array.isArray(dnsRecords)) return [];
-  return dnsRecords.map((rec) => {
-    const ips = Array.isArray(rec.ips) ? rec.ips : [];
-    const cloudIps = ips.map((ip) => mapIpToRange(ip, ranges)).filter((m) => m.provider);
-    const providers = [...new Set(cloudIps.map((m) => m.provider))];
-    let metadataPriority = 'low';
-    if (cloudIps.length > 0 && cloudIps.length === ips.length) metadataPriority = 'high';
-    else if (cloudIps.length > 0) metadataPriority = 'medium';
-    const suggestedMetadataEndpoints = providers.flatMap((p) => METADATA_ENDPOINTS[p] || []);
-    return {
-      host: rec.host,
-      ips,
-      cloudIps,
-      metadataPriority,
-      suggestedMetadataEndpoints: [...new Set(suggestedMetadataEndpoints)],
-    };
-  }).sort((a, b) => {
-    const order = { high: 0, medium: 1, low: 2 };
-    return order[a.metadataPriority] - order[b.metadataPriority] || a.host.localeCompare(b.host);
-  });
+  return dnsRecords
+    .map(rec => {
+      const ips = Array.isArray(rec.ips) ? rec.ips : [];
+      const cloudIps = ips.map(ip => mapIpToRange(ip, ranges)).filter(m => m.provider);
+      const providers = [...new Set(cloudIps.map(m => m.provider))];
+      let metadataPriority = 'low';
+      if (cloudIps.length > 0 && cloudIps.length === ips.length) metadataPriority = 'high';
+      else if (cloudIps.length > 0) metadataPriority = 'medium';
+      const suggestedMetadataEndpoints = providers.flatMap(p => METADATA_ENDPOINTS[p] || []);
+      return {
+        host: rec.host,
+        ips,
+        cloudIps,
+        metadataPriority,
+        suggestedMetadataEndpoints: [...new Set(suggestedMetadataEndpoints)],
+      };
+    })
+    .sort((a, b) => {
+      const order = { high: 0, medium: 1, low: 2 };
+      return order[a.metadataPriority] - order[b.metadataPriority] || a.host.localeCompare(b.host);
+    });
 }
 
 export default {

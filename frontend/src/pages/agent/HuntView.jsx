@@ -17,13 +17,31 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  Pause, Play, Square, Loader2, AlertTriangle,
-  Bug, BookOpen, Map as MapIcon, ChevronLeft, Sparkles, RefreshCw, Mic, MessageCircle
+  Pause,
+  Play,
+  Square,
+  Loader2,
+  AlertTriangle,
+  Bug,
+  BookOpen,
+  Map as MapIcon,
+  ChevronLeft,
+  Sparkles,
+  RefreshCw,
+  Mic,
+  MessageCircle,
 } from 'lucide-react';
 import {
-  getJobState, pauseJob, continueJob, cancelJob,
-  getJobFindings, getJobDiary, getJobAttackSurface, getJobVulnerabilityReport,
-  subscribeToJobEvents, askJob
+  getJobState,
+  pauseJob,
+  continueJob,
+  cancelJob,
+  getJobFindings,
+  getJobDiary,
+  getJobAttackSurface,
+  getJobVulnerabilityReport,
+  subscribeToJobEvents,
+  askJob,
 } from '../../services/api';
 import { BrainChat } from '../../components/BrainChat';
 import { LiveScreenViewer } from '../../components/agent/LiveScreenViewer';
@@ -71,7 +89,7 @@ export function HuntView() {
   // Roving-tabindex tablist: only the active tab sits in the tab order;
   // ArrowLeft/Right/Home/End move between tabs (WAI-ARIA tablist pattern).
   const tabIds = useRef({});
-  const onTabsKeyDown = (e) => {
+  const onTabsKeyDown = e => {
     const order = ['findings', 'diary', 'surface', 'chat'];
     const i = order.indexOf(tab);
     if (i === -1) return;
@@ -91,12 +109,14 @@ export function HuntView() {
       const [f, d, s] = await Promise.all([
         getJobFindings(jobId).catch(() => null),
         getJobDiary(jobId).catch(() => null),
-        getJobAttackSurface(jobId).catch(() => null)
+        getJobAttackSurface(jobId).catch(() => null),
       ]);
       if (f?.findings) setFindings(f.findings);
       if (d?.diary) setDiary(d.diary);
       if (s?.attackSurface) setSurface(s.attackSurface);
-    } catch { /* panels degrade gracefully */ }
+    } catch {
+      /* panels degrade gracefully */
+    }
   }, [jobId]);
 
   const refreshReport = useCallback(async () => {
@@ -106,19 +126,21 @@ export function HuntView() {
         setReport(body.report);
         if (body.report.huntRecordId) setRecordId(body.report.huntRecordId);
       }
-    } catch { /* 404 until the hunt completes — expected */ }
+    } catch {
+      /* 404 until the hunt completes — expected */
+    }
   }, [jobId]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     getJobState(jobId)
-      .then((body) => {
+      .then(body => {
         if (cancelled) return;
         setJob(body?.job || body);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch(err => {
         if (!cancelled) {
           setError(err.message || 'Could not load the hunt.');
           setLoading(false);
@@ -126,16 +148,20 @@ export function HuntView() {
       });
     refreshDetail();
     refreshReport();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [jobId, refreshDetail, refreshReport]);
 
   // Live job events → patch header state, refresh panels on meaningful events.
   useEffect(() => {
     const unsubscribe = subscribeToJobEvents(jobId, {
-      onEvent: (event) => {
+      onEvent: event => {
         const type = event.__sseType || event.type || '';
         if (type === 'job.phase_changed' || type.startsWith('job.')) {
-          setJob((prev) => (prev ? { ...prev, ...event.data?.job, status: event.data?.status || prev.status } : prev));
+          setJob(prev =>
+            prev ? { ...prev, ...event.data?.job, status: event.data?.status || prev.status } : prev
+          );
         }
         if (type === 'report.archived' && event.data?.huntRecordId) {
           setRecordId(event.data.huntRecordId);
@@ -148,7 +174,7 @@ export function HuntView() {
           refreshDetail();
         }
       },
-      onError: () => {}
+      onError: () => {},
     });
     return () => unsubscribe?.();
   }, [jobId, refreshDetail, refreshReport]);
@@ -174,7 +200,9 @@ export function HuntView() {
   if (loading) {
     return (
       <div className="sg-huntview">
-        <div className="sg-loading-box" role="status"><Loader2 size={18} className="sg-spin" /> Loading hunt…</div>
+        <div className="sg-loading-box" role="status">
+          <Loader2 size={18} className="sg-spin" /> Loading hunt…
+        </div>
       </div>
     );
   }
@@ -185,7 +213,9 @@ export function HuntView() {
         <h2>Couldn't open this hunt</h2>
         <p>{error}</p>
         <div className="sg-row">
-          <Link to="/agent" className="sg-btn sg-btn-ghost"><ChevronLeft size={15} /> Back to home</Link>
+          <Link to="/agent" className="sg-btn sg-btn-ghost">
+            <ChevronLeft size={15} /> Back to home
+          </Link>
         </div>
       </div>
     );
@@ -193,7 +223,8 @@ export function HuntView() {
 
   const status = String(job?.status || 'unknown').toLowerCase();
   const active = ACTIVE_STATUSES.includes(status);
-  const thinking = active && /think|plan|reason|analy/i.test(String(job?.phase || job?.currentPhase || ''));
+  const thinking =
+    active && /think|plan|reason|analy/i.test(String(job?.phase || job?.currentPhase || ''));
 
   return (
     <div className="sg-huntview hunt-new">
@@ -218,16 +249,26 @@ export function HuntView() {
         <div className="sg-hunt-actions">
           <VoiceModeToggle
             active={voiceMode}
-            onToggle={() => setVoiceMode((v) => !v)}
+            onToggle={() => setVoiceMode(v => !v)}
             className="voice-mode-icon"
           />
           {status === 'paused' ? (
-            <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => doAction('resume', () => continueJob(jobId))}>
-              {busy === 'resume' ? <Loader2 size={15} className="sg-spin" /> : <Play size={15} />} Resume
+            <button
+              className="sg-btn sg-btn-ghost sg-btn-sm"
+              disabled={busy}
+              onClick={() => doAction('resume', () => continueJob(jobId))}
+            >
+              {busy === 'resume' ? <Loader2 size={15} className="sg-spin" /> : <Play size={15} />}{' '}
+              Resume
             </button>
           ) : active ? (
-            <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => doAction('pause', () => pauseJob(jobId))}>
-              {busy === 'pause' ? <Loader2 size={15} className="sg-spin" /> : <Pause size={15} />} Pause
+            <button
+              className="sg-btn sg-btn-ghost sg-btn-sm"
+              disabled={busy}
+              onClick={() => doAction('pause', () => pauseJob(jobId))}
+            >
+              {busy === 'pause' ? <Loader2 size={15} className="sg-spin" /> : <Pause size={15} />}{' '}
+              Pause
             </button>
           ) : null}
           {active && (
@@ -247,9 +288,19 @@ export function HuntView() {
         </div>
       </header>
 
-      {error && <div className="sg-auth-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {error && (
+        <div className="sg-auth-error" role="alert">
+          <AlertTriangle size={14} /> {error}
+        </div>
+      )}
 
-      <HuntStatusPanel job={job} jobId={jobId} onJobChanged={(j) => { if (j) setJob(j); }} />
+      <HuntStatusPanel
+        job={job}
+        jobId={jobId}
+        onJobChanged={j => {
+          if (j) setJob(j);
+        }}
+      />
 
       <div className="sg-hunt-grid">
         <div className="sg-hunt-main-col">
@@ -260,16 +311,23 @@ export function HuntView() {
           <LiveScreenViewer assessmentId={job?.assessmentId} />
 
           <section>
-            <div className="sg-tabs" role="tablist" aria-label="Hunt panels" onKeyDown={onTabsKeyDown}>
+            <div
+              className="sg-tabs"
+              role="tablist"
+              aria-label="Hunt panels"
+              onKeyDown={onTabsKeyDown}
+            >
               {[
                 { id: 'findings', label: 'Findings', icon: Bug, count: findings.length },
                 { id: 'diary', label: 'Diary', icon: BookOpen },
                 { id: 'surface', label: 'Attack surface', icon: MapIcon },
-                { id: 'chat', label: 'Chat', icon: MessageCircle }
+                { id: 'chat', label: 'Chat', icon: MessageCircle },
               ].map(({ id, label, icon: Icon, count }) => (
                 <button
                   key={id}
-                  ref={(el) => { if (el) tabIds.current[id] = el; }}
+                  ref={el => {
+                    if (el) tabIds.current[id] = el;
+                  }}
                   id={`sg-tab-${id}`}
                   role="tab"
                   aria-selected={tab === id}
@@ -285,13 +343,18 @@ export function HuntView() {
               <span className="sg-tabs-spacer" aria-hidden="true" />
               <button
                 className={`sg-btn sg-btn-quiet${explainer ? ' active' : ''}`}
-                onClick={() => setExplainer((v) => !v)}
+                onClick={() => setExplainer(v => !v)}
                 aria-pressed={explainer}
                 title="Plain-language explanations for every finding"
               >
                 <Sparkles size={14} /> Plain language
               </button>
-              <button className="sg-btn sg-btn-quiet" onClick={refreshDetail} title="Refresh panels" aria-label="Refresh panels">
+              <button
+                className="sg-btn sg-btn-quiet"
+                onClick={refreshDetail}
+                title="Refresh panels"
+                aria-label="Refresh panels"
+              >
                 <RefreshCw size={14} />
               </button>
             </div>
@@ -327,12 +390,7 @@ export function HuntView() {
               aria-label="Open voice conversation with the Infinity AI avatar"
               title="Talk to Infinity AI"
             >
-              <Avatar
-                gender="female"
-                state={huntAvatarState}
-                emotion={huntEmotion}
-                size={76}
-              />
+              <Avatar gender="female" state={huntAvatarState} emotion={huntEmotion} size={76} />
               <span className="sg-hunt-avatar-cta">
                 <Mic size={13} aria-hidden="true" /> Tap to talk
               </span>
@@ -341,12 +399,23 @@ export function HuntView() {
           <AgentCharacter
             active={active}
             listening={voiceMode && voiceState === 'listening'}
-            status={voiceMode
-              ? (voiceState === 'listening' ? 'Listening…'
-                : voiceState === 'speaking' ? 'Speaking…'
-                : voiceState === 'thinking' ? 'Thinking…'
-                : 'Voice chat on')
-              : (active ? 'Hunting' : status === 'completed' ? 'Done' : status === 'paused' ? 'Paused' : 'Idle')}
+            status={
+              voiceMode
+                ? voiceState === 'listening'
+                  ? 'Listening…'
+                  : voiceState === 'speaking'
+                    ? 'Speaking…'
+                    : voiceState === 'thinking'
+                      ? 'Thinking…'
+                      : 'Voice chat on'
+                : active
+                  ? 'Hunting'
+                  : status === 'completed'
+                    ? 'Done'
+                    : status === 'paused'
+                      ? 'Paused'
+                      : 'Idle'
+            }
           />
           <AgentChat
             jobId={jobId}
@@ -366,7 +435,7 @@ export function HuntView() {
         onClose={() => setOverlayOpen(false)}
         gender="female"
         voice="aria"
-        onAsk={async (question) => {
+        onAsk={async question => {
           const body = await askJob(jobId, question);
           const reply = body?.reply ?? body?.answer ?? body?.message ?? '';
           const emotion = typeof body?.emotion === 'string' ? body.emotion : 'neutral';

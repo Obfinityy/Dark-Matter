@@ -48,7 +48,7 @@ export function extractRecordSubdomains(record) {
   ];
   const seen = new Set();
   for (const [field, value] of fields) {
-    const values = Array.isArray(value) ? value : (value ? [value] : []);
+    const values = Array.isArray(value) ? value : value ? [value] : [];
     for (const raw of values) {
       // ZoomEye sometimes packs several domains in one comma/space separated string
       for (const part of String(raw).split(/[,\s;]+/)) {
@@ -77,7 +77,12 @@ export function harvestSubdomains(records, opts = {}) {
   const list = Array.isArray(records) ? records : [];
   let used = 0;
   for (const record of list) {
-    const asn = record.asn != null ? String(record.asn) : (record.asnumber != null ? String(record.asnumber) : null);
+    const asn =
+      record.asn != null
+        ? String(record.asn)
+        : record.asnumber != null
+          ? String(record.asnumber)
+          : null;
     if (asns.size > 0 && (!asn || !asns.has(asn))) continue;
     used += 1;
     for (const { subdomain, ip, sourceField } of extractRecordSubdomains(record)) {
@@ -92,14 +97,17 @@ export function harvestSubdomains(records, opts = {}) {
   }
   return {
     subdomains: [...map.values()]
-      .map((e) => ({
+      .map(e => ({
         subdomain: e.subdomain,
         inScope: root !== '' && (e.subdomain === root || e.subdomain.endsWith(`.${root}`)),
         ips: [...e.ips].sort(),
         sourceFields: [...e.sourceFields].sort(),
         records: e.records,
       }))
-      .sort((a, b) => (b.inScope - a.inScope) || b.records - a.records || a.subdomain.localeCompare(b.subdomain)),
+      .sort(
+        (a, b) =>
+          b.inScope - a.inScope || b.records - a.records || a.subdomain.localeCompare(b.subdomain)
+      ),
     totalRecords: list.length,
     usedRecords: used,
   };
@@ -121,7 +129,11 @@ export function prioritizeSubdomains(harvested) {
       priority += 50;
       reasons.push('in scope of target domain');
     }
-    if (/\b(dev|staging|test|qa|uat|beta|demo|internal|corp|vpn|admin|portal|api|cdn|static)\b/i.test(s.subdomain)) {
+    if (
+      /\b(dev|staging|test|qa|uat|beta|demo|internal|corp|vpn|admin|portal|api|cdn|static)\b/i.test(
+        s.subdomain
+      )
+    ) {
       priority += 20;
       reasons.push('environment/service-indicating label');
     }

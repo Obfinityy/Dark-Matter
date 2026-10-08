@@ -28,13 +28,33 @@ export const WAVE36_END = 51440;
 
 /** Registry of the 40 explainability-round-2 ideas — completeness is testable. Zero skips. */
 export const WAVE36_IDEAS = [
-  [51401, 'explanation depth slider', 'Dial an explanation from a one-liner up to a full walkthrough'],
+  [
+    51401,
+    'explanation depth slider',
+    'Dial an explanation from a one-liner up to a full walkthrough',
+  ],
   [51402, 'jargon buster', 'Inline plain definitions for technical terms'],
-  [51403, 'visual exploit walkthrough', 'Step-by-step illustrated flow of how the finding was proven'],
+  [
+    51403,
+    'visual exploit walkthrough',
+    'Step-by-step illustrated flow of how the finding was proven',
+  ],
   [51404, 'ask-follow-up threads', 'Keep questioning any explanation until it clicks'],
-  [51405, 'multi-language explanations', 'Template-based plain-language explanations in Hindi and Spanish'],
-  [51406, 'role-based explanations', 'Tailored versions for developer, manager, or executive audiences'],
-  [51407, 'explanation confidence flags', 'The agent flags the parts of an explanation it is less sure about'],
+  [
+    51405,
+    'multi-language explanations',
+    'Template-based plain-language explanations in Hindi and Spanish',
+  ],
+  [
+    51406,
+    'role-based explanations',
+    'Tailored versions for developer, manager, or executive audiences',
+  ],
+  [
+    51407,
+    'explanation confidence flags',
+    'The agent flags the parts of an explanation it is less sure about',
+  ],
   [51408, 'evidence-linked claims', 'Each claim in the explanation links to supporting evidence'],
   [51409, 'comparison explanations', '"Like the finding we saw last month, except…" framing'],
   [51410, 'risk-in-context explainer', 'Why this finding matters for this specific business'],
@@ -49,7 +69,11 @@ export const WAVE36_IDEAS = [
   [51419, 'explanation versioning', 'Track how an explanation evolved as the finding matured'],
   [51420, 'contrasting opinions', 'Alternative interpretations of ambiguous findings'],
   [51421, 'severity justification', 'Plain-language reasoning for the severity rating'],
-  [51422, 'attack-scenario narration', '"Here is how an attacker would actually use this" storytelling'],
+  [
+    51422,
+    'attack-scenario narration',
+    '"Here is how an attacker would actually use this" storytelling',
+  ],
   [51423, 'business-process mapping', 'The finding mapped to the business process it threatens'],
   [51424, 'explanation search', 'Find past explanations by keyword across all hunts'],
   [51425, 'explanation export', 'Download explanations as slides or one-pagers'],
@@ -60,10 +84,18 @@ export const WAVE36_IDEAS = [
   [51430, 'explanation feedback loop', 'Rate explanations to improve future ones'],
   [51431, 'multi-finding narratives', 'Several related findings woven into one coherent story'],
   [51432, 'explanation chat threads', 'Discuss any explanation with the agent in a thread'],
-  [51433, 'visual severity scales', 'Intuitive gauges showing where the finding sits on risk scales'],
+  [
+    51433,
+    'visual severity scales',
+    'Intuitive gauges showing where the finding sits on risk scales',
+  ],
   [51434, 'remediation difficulty meter', 'Plain indication of how hard the fix will be'],
   [51435, 'exploitability meter', 'How easily an attacker could use this, in plain terms'],
-  [51436, 'white-labeled client explanations', 'Client-ready explanations with internal branding removed'],
+  [
+    51436,
+    'white-labeled client explanations',
+    'Client-ready explanations with internal branding removed',
+  ],
   [51437, 'glossary auto-linking', 'Every technical term links to a plain definition'],
   [51438, 'story-mode report section', 'Findings retold as a narrative chapter in the report'],
   [51439, 'explanation personalization', 'Explanations adapt to what the reader already knows'],
@@ -73,32 +105,98 @@ export const WAVE36_IDEAS = [
 /* Shared per-type knowledge ------------------------------------------------ */
 
 const TYPE_FIX = {
-  'sql-injection': ['Use parameterized queries / prepared statements everywhere user input reaches SQL.', 'Apply least-privilege DB accounts so a breakout reads as little as possible.', 'Add a WAF rule as a stopgap, then fix the code — the WAF is not the fix.'],
-  xss: ['Encode output for the right context (HTML, attribute, JS) — never trust raw interpolation.', 'Ship a Content-Security-Policy that blocks inline scripts.', 'Audit stored user content paths, not just reflected ones.'],
-  idor: ['Check ownership on every object access, server-side, on every request.', 'Use unpredictable identifiers or capability URLs where feasible.', 'Add tests that swap IDs between two test users.'],
-  ssrf: ['Allowlist outbound fetch targets; block cloud metadata endpoints explicitly.', 'Validate and normalize user-supplied URLs before fetching.', 'Run outbound requests through a locked-down proxy with no internal routes.'],
-  'jwt-none-alg': ['Enforce an explicit allowlist of signing algorithms — never accept "none".', 'Verify signatures with the correct key on every request.', 'Add short expirations and rotate signing keys.'],
-  'secret-leak': ['Rotate the exposed secret immediately — treat it as compromised.', 'Move secrets to a vault / environment config, never into client bundles or logs.', 'Scan history for how long the secret was exposed.'],
-  'cors-misconfig': ['Replace the wildcard origin with an explicit allowlist.', 'Only send Access-Control-Allow-Credentials to trusted origins.', 'Vary: Origin on responses so caches do not leak across sites.'],
-  'open-redirect': ['Allowlist redirect targets; reject absolute URLs you do not recognize.', 'Use internal redirect keys instead of raw URLs in parameters.', 'Warn users when leaving the trusted domain.'],
-  'subdomain-takeover': ['Remove the dangling DNS record or point it at a resource you control.', 'Audit all CNAME records against live services quarterly.', 'Claim the dangling service name yourself until DNS is cleaned.'],
-  'broken-auth': ['Add rate limiting and lockouts on login attempts.', 'Use a proven auth library instead of hand-rolled session logic.', 'Enforce MFA for privileged accounts.'],
-  'rate-limit': ['Add per-IP and per-account throttles on the endpoint.', 'Return 429 with Retry-After instead of silently queuing.', 'Alert on sustained throttle hits — it is often an attack.'],
-  'info-disclosure': ['Replace verbose errors with generic messages; log details server-side.', 'Strip stack traces, versions, and paths from public responses.', 'Add a response-header audit to CI.'],
+  'sql-injection': [
+    'Use parameterized queries / prepared statements everywhere user input reaches SQL.',
+    'Apply least-privilege DB accounts so a breakout reads as little as possible.',
+    'Add a WAF rule as a stopgap, then fix the code — the WAF is not the fix.',
+  ],
+  xss: [
+    'Encode output for the right context (HTML, attribute, JS) — never trust raw interpolation.',
+    'Ship a Content-Security-Policy that blocks inline scripts.',
+    'Audit stored user content paths, not just reflected ones.',
+  ],
+  idor: [
+    'Check ownership on every object access, server-side, on every request.',
+    'Use unpredictable identifiers or capability URLs where feasible.',
+    'Add tests that swap IDs between two test users.',
+  ],
+  ssrf: [
+    'Allowlist outbound fetch targets; block cloud metadata endpoints explicitly.',
+    'Validate and normalize user-supplied URLs before fetching.',
+    'Run outbound requests through a locked-down proxy with no internal routes.',
+  ],
+  'jwt-none-alg': [
+    'Enforce an explicit allowlist of signing algorithms — never accept "none".',
+    'Verify signatures with the correct key on every request.',
+    'Add short expirations and rotate signing keys.',
+  ],
+  'secret-leak': [
+    'Rotate the exposed secret immediately — treat it as compromised.',
+    'Move secrets to a vault / environment config, never into client bundles or logs.',
+    'Scan history for how long the secret was exposed.',
+  ],
+  'cors-misconfig': [
+    'Replace the wildcard origin with an explicit allowlist.',
+    'Only send Access-Control-Allow-Credentials to trusted origins.',
+    'Vary: Origin on responses so caches do not leak across sites.',
+  ],
+  'open-redirect': [
+    'Allowlist redirect targets; reject absolute URLs you do not recognize.',
+    'Use internal redirect keys instead of raw URLs in parameters.',
+    'Warn users when leaving the trusted domain.',
+  ],
+  'subdomain-takeover': [
+    'Remove the dangling DNS record or point it at a resource you control.',
+    'Audit all CNAME records against live services quarterly.',
+    'Claim the dangling service name yourself until DNS is cleaned.',
+  ],
+  'broken-auth': [
+    'Add rate limiting and lockouts on login attempts.',
+    'Use a proven auth library instead of hand-rolled session logic.',
+    'Enforce MFA for privileged accounts.',
+  ],
+  'rate-limit': [
+    'Add per-IP and per-account throttles on the endpoint.',
+    'Return 429 with Retry-After instead of silently queuing.',
+    'Alert on sustained throttle hits — it is often an attack.',
+  ],
+  'info-disclosure': [
+    'Replace verbose errors with generic messages; log details server-side.',
+    'Strip stack traces, versions, and paths from public responses.',
+    'Add a response-header audit to CI.',
+  ],
 };
 
 const TYPE_DIFFICULTY = {
-  'sql-injection': { value: 45, factors: ['Code change in query layer', 'Needs regression tests on search'] },
-  xss: { value: 55, factors: ['Output encoding across templates', 'CSP rollout can break inline scripts'] },
+  'sql-injection': {
+    value: 45,
+    factors: ['Code change in query layer', 'Needs regression tests on search'],
+  },
+  xss: {
+    value: 55,
+    factors: ['Output encoding across templates', 'CSP rollout can break inline scripts'],
+  },
   idor: { value: 60, factors: ['Ownership checks on every endpoint', 'Easy to miss one path'] },
   ssrf: { value: 50, factors: ['URL validation logic', 'Proxy or allowlist config'] },
-  'jwt-none-alg': { value: 25, factors: ['Small, well-understood change', 'Key rotation coordination'] },
-  'secret-leak': { value: 30, factors: ['Rotation is quick', 'Audit of exposure window takes longer'] },
-  'cors-misconfig': { value: 20, factors: ['Single config change', 'Verify no legit integration breaks'] },
+  'jwt-none-alg': {
+    value: 25,
+    factors: ['Small, well-understood change', 'Key rotation coordination'],
+  },
+  'secret-leak': {
+    value: 30,
+    factors: ['Rotation is quick', 'Audit of exposure window takes longer'],
+  },
+  'cors-misconfig': {
+    value: 20,
+    factors: ['Single config change', 'Verify no legit integration breaks'],
+  },
   'open-redirect': { value: 30, factors: ['Allowlist of targets', 'Small code change'] },
   'subdomain-takeover': { value: 15, factors: ['DNS record removal', 'No code change needed'] },
   'broken-auth': { value: 70, factors: ['Auth redesign risk', 'Session migration for users'] },
-  'rate-limit': { value: 35, factors: ['Middleware or gateway rule', 'Tune thresholds to avoid false blocks'] },
+  'rate-limit': {
+    value: 35,
+    factors: ['Middleware or gateway rule', 'Tune thresholds to avoid false blocks'],
+  },
   'info-disclosure': { value: 20, factors: ['Error handler change', 'Low blast radius'] },
 };
 
@@ -106,53 +204,123 @@ const TYPE_EXPLOITABILITY = {
   'sql-injection': { value: 85, factors: ['Automated tools exist', 'No user interaction needed'] },
   xss: { value: 70, factors: ['Needs a victim to click', 'Phishing delivery is common'] },
   idor: { value: 80, factors: ['Just change an ID', 'Scriptable enumeration'] },
-  ssrf: { value: 65, factors: ['Needs server to fetch attacker URL', 'Cloud metadata is one request away'] },
+  ssrf: {
+    value: 65,
+    factors: ['Needs server to fetch attacker URL', 'Cloud metadata is one request away'],
+  },
   'jwt-none-alg': { value: 95, factors: ['Forge any identity', 'Trivial to weaponize'] },
   'secret-leak': { value: 90, factors: ['Key is already public', 'Attacker just uses it'] },
-  'cors-misconfig': { value: 60, factors: ['Needs victim browser visit', 'Silent data theft once loaded'] },
+  'cors-misconfig': {
+    value: 60,
+    factors: ['Needs victim browser visit', 'Silent data theft once loaded'],
+  },
   'open-redirect': { value: 75, factors: ['Phishing amplifier', 'Abuses domain trust'] },
-  'subdomain-takeover': { value: 70, factors: ['Claim the dangling service', 'Then phish from your domain'] },
+  'subdomain-takeover': {
+    value: 70,
+    factors: ['Claim the dangling service', 'Then phish from your domain'],
+  },
   'broken-auth': { value: 80, factors: ['Credential stuffing at scale', 'Automation-friendly'] },
   'rate-limit': { value: 75, factors: ['Scriptable abuse', 'No exploit skill needed'] },
   'info-disclosure': { value: 40, factors: ['Aids recon only', 'Not directly exploitable'] },
 };
 
 const TYPE_PEER_DAYS = {
-  'sql-injection': 14, xss: 21, idor: 14, ssrf: 21, 'jwt-none-alg': 7,
-  'secret-leak': 3, 'cors-misconfig': 14, 'open-redirect': 21,
-  'subdomain-takeover': 7, 'broken-auth': 14, 'rate-limit': 30, 'info-disclosure': 30,
+  'sql-injection': 14,
+  xss: 21,
+  idor: 14,
+  ssrf: 21,
+  'jwt-none-alg': 7,
+  'secret-leak': 3,
+  'cors-misconfig': 14,
+  'open-redirect': 21,
+  'subdomain-takeover': 7,
+  'broken-auth': 14,
+  'rate-limit': 30,
+  'info-disclosure': 30,
 };
 
 const TYPE_MYTHS = {
   'sql-injection': [
-    { myth: 'Our WAF blocks SQL injection, so the code is fine.', truth: 'A WAF is a seatbelt, not brakes — attackers routinely bypass signature-based filters. The query code itself must be fixed.' },
-    { myth: 'Only login forms are at risk.', truth: 'Any input that reaches a query is at risk — search boxes, sort parameters, and APIs are the usual overlooked paths.' },
+    {
+      myth: 'Our WAF blocks SQL injection, so the code is fine.',
+      truth:
+        'A WAF is a seatbelt, not brakes — attackers routinely bypass signature-based filters. The query code itself must be fixed.',
+    },
+    {
+      myth: 'Only login forms are at risk.',
+      truth:
+        'Any input that reaches a query is at risk — search boxes, sort parameters, and APIs are the usual overlooked paths.',
+    },
   ],
   xss: [
-    { myth: 'XSS is just defacement, not a real breach.', truth: 'Stored XSS runs attacker JavaScript as your users — session theft and account takeover, not graffiti.' },
-    { myth: 'Our framework escapes everything automatically.', truth: 'Frameworks escape the default context only. Raw HTML helpers, innerHTML, and JS contexts still need manual care.' },
+    {
+      myth: 'XSS is just defacement, not a real breach.',
+      truth:
+        'Stored XSS runs attacker JavaScript as your users — session theft and account takeover, not graffiti.',
+    },
+    {
+      myth: 'Our framework escapes everything automatically.',
+      truth:
+        'Frameworks escape the default context only. Raw HTML helpers, innerHTML, and JS contexts still need manual care.',
+    },
   ],
   idor: [
-    { myth: 'Nobody will guess our sequential IDs.', truth: 'Attackers do not guess — they enumerate. Sequential IDs make someone else\'s data one number away.' },
-    { myth: 'It is fine because the data is not sensitive.', truth: 'Today\'s "not sensitive" IDOR becomes tomorrow\'s data breach when fields are added to the same endpoint.' },
+    {
+      myth: 'Nobody will guess our sequential IDs.',
+      truth:
+        "Attackers do not guess — they enumerate. Sequential IDs make someone else's data one number away.",
+    },
+    {
+      myth: 'It is fine because the data is not sensitive.',
+      truth:
+        'Today\'s "not sensitive" IDOR becomes tomorrow\'s data breach when fields are added to the same endpoint.',
+    },
   ],
   ssrf: [
-    { myth: 'Blocking external URLs is enough.', truth: 'SSRF\'s danger is internal URLs — cloud metadata and admin panels the server can reach but the internet cannot.' },
-    { myth: 'Our allowlist covers it.', truth: 'Allowlists fail on redirect chains, DNS rebinding, and parser quirks. Validate the final resolved target, not just the input string.' },
+    {
+      myth: 'Blocking external URLs is enough.',
+      truth:
+        "SSRF's danger is internal URLs — cloud metadata and admin panels the server can reach but the internet cannot.",
+    },
+    {
+      myth: 'Our allowlist covers it.',
+      truth:
+        'Allowlists fail on redirect chains, DNS rebinding, and parser quirks. Validate the final resolved target, not just the input string.',
+    },
   ],
   'jwt-none-alg': [
-    { myth: 'Nobody knows we accept unsigned tokens.', truth: 'Algorithm confusion is textbook — scanners test for "none" automatically. Obscurity is not a control.' },
-    { myth: 'Our tokens are short-lived, so it does not matter.', truth: 'A forged admin token valid for even five minutes is a full authentication bypass.' },
+    {
+      myth: 'Nobody knows we accept unsigned tokens.',
+      truth:
+        'Algorithm confusion is textbook — scanners test for "none" automatically. Obscurity is not a control.',
+    },
+    {
+      myth: 'Our tokens are short-lived, so it does not matter.',
+      truth: 'A forged admin token valid for even five minutes is a full authentication bypass.',
+    },
   ],
 };
 
 const GENERIC_MYTHS = [
-  { myth: 'Low severity means we can ignore it.', truth: 'Low severity means limited impact alone — chained with other findings it often becomes the entry point.' },
-  { myth: 'We will fix it in the next big rewrite.', truth: 'Deferred fixes compound. Small, targeted patches now beat perfect rewrites later.' },
+  {
+    myth: 'Low severity means we can ignore it.',
+    truth:
+      'Low severity means limited impact alone — chained with other findings it often becomes the entry point.',
+  },
+  {
+    myth: 'We will fix it in the next big rewrite.',
+    truth: 'Deferred fixes compound. Small, targeted patches now beat perfect rewrites later.',
+  },
 ];
 
 function fixSteps(finding) {
-  return TYPE_FIX[finding.type] || ['Have an engineer reproduce the finding from the evidence.', 'Apply the smallest safe fix, then re-test the exact proof steps.', 'Add a regression check so it cannot silently return.'];
+  return (
+    TYPE_FIX[finding.type] || [
+      'Have an engineer reproduce the finding from the evidence.',
+      'Apply the smallest safe fix, then re-test the exact proof steps.',
+      'Add a regression check so it cannot silently return.',
+    ]
+  );
 }
 
 /* 51401 — depth slider -------------------------------------------------------- */
@@ -169,18 +337,23 @@ export function depthText(finding, level) {
   const lvl = Math.min(4, Math.max(1, level || 1));
   const oneLiner = `${finding.title || finding.id} at ${finding.location} — ${finding.severity || 'unknown'} severity.`;
   if (lvl === 1) return { level: 1, label: 'One-liner', text: oneLiner };
-  if (lvl === 2) return { level: 2, label: 'Brief', text: `${oneLiner} ${explainFinding(finding)}` };
+  if (lvl === 2)
+    return { level: 2, label: 'Brief', text: `${oneLiner} ${explainFinding(finding)}` };
   if (lvl === 3) {
     return {
-      level: 3, label: 'Detailed',
+      level: 3,
+      label: 'Detailed',
       text: `${explainFinding(finding)} ${severityJustification(finding).summary} ${riskInContext(finding, { business: finding.businessUnit || 'saas' })}`,
     };
   }
   return {
-    level: 4, label: 'Full walkthrough',
+    level: 4,
+    label: 'Full walkthrough',
     text: [
       explainFinding(finding),
-      `How it was proven: ${exploitSteps(finding).map((s) => `step ${s.n} — ${s.title}`).join('; ')}.`,
+      `How it was proven: ${exploitSteps(finding)
+        .map(s => `step ${s.n} — ${s.title}`)
+        .join('; ')}.`,
       severityJustification(finding).summary,
       riskInContext(finding, { business: finding.businessUnit || 'saas' }),
       `Fix outlook: ${fixEnding(finding).closing}`,
@@ -191,15 +364,17 @@ export function depthText(finding, level) {
 /* 51402 — jargon buster -------------------------------------------------------- */
 
 export const JARGON_GLOSSARY = {
-  'sql injection': 'Tricking an app into running attacker-written database commands by hiding them inside normal input.',
-  xss: 'Cross-site scripting: attacker text that runs as code in another user\'s browser.',
+  'sql injection':
+    'Tricking an app into running attacker-written database commands by hiding them inside normal input.',
+  xss: "Cross-site scripting: attacker text that runs as code in another user's browser.",
   payload: 'The piece of data an attacker sends to trigger the vulnerability.',
   sanitization: 'Cleaning user input so dangerous characters cannot become code.',
-  token: 'A small credential string that proves who you are without sending your password each time.',
-  session: 'The server\'s memory of your logged-in visit, usually tracked with a cookie.',
-  cors: 'Cross-origin rules deciding which websites may read your site\'s responses.',
+  token:
+    'A small credential string that proves who you are without sending your password each time.',
+  session: "The server's memory of your logged-in visit, usually tracked with a cookie.",
+  cors: "Cross-origin rules deciding which websites may read your site's responses.",
   ssrf: 'Server-side request forgery: tricking your server into fetching an attacker-chosen URL.',
-  idor: 'Insecure direct object reference: changing an ID in a request to access someone else\'s data.',
+  idor: "Insecure direct object reference: changing an ID in a request to access someone else's data.",
   cve: 'A public catalog number for a known vulnerability, so everyone refers to the same flaw.',
   cvss: 'A 0–10 score estimating how severe a vulnerability is.',
   exploit: 'A working method that actually abuses the vulnerability, not just theory.',
@@ -210,10 +385,11 @@ export const JARGON_GLOSSARY = {
   mitm: 'Man-in-the-middle: an attacker secretly sitting between you and the site you use.',
   rce: 'Remote code execution: the attacker runs their own programs on your server.',
   'privilege escalation': 'Going from a low-power account to a high-power one without permission.',
-  'zero-day': 'A flaw nobody knew about before — no patch exists yet because it was just discovered.',
+  'zero-day':
+    'A flaw nobody knew about before — no patch exists yet because it was just discovered.',
   waf: 'Web application firewall: a filter in front of the app that blocks known attack patterns.',
   csrf: 'Cross-site request forgery: tricking your browser into performing actions on a site where you are logged in.',
-  dns: 'The internet\'s phone book, turning names like example.com into server addresses.',
+  dns: "The internet's phone book, turning names like example.com into server addresses.",
   csp: 'Content-security-policy: a browser rule limiting which scripts a page may run.',
 };
 
@@ -232,7 +408,7 @@ export function findJargonTerms(text) {
   const found = [];
   for (const term of JARGON_TERMS) {
     if (lower.includes(` ${term} `) || lower.includes(` ${term}.`) || lower.includes(` ${term},`)) {
-      if (!found.some((f) => term.includes(f) || f.includes(term))) found.push(term);
+      if (!found.some(f => term.includes(f) || f.includes(term))) found.push(term);
     }
   }
   return found;
@@ -242,34 +418,89 @@ export function findJargonTerms(text) {
 
 const TYPE_STEPS = {
   'sql-injection': [
-    { n: 1, title: 'Map the input', detail: 'The hunt found the search box at the location passes text straight into a database query.' },
-    { n: 2, title: 'Send a probe', detail: 'A harmless test character was sent; the error reply confirmed the input reaches the query unsanitized.' },
-    { n: 3, title: 'Prove control', detail: 'A crafted input made the database answer a question only it could know — proving attacker commands run.' },
-    { n: 4, title: 'Measure impact', detail: 'The same channel could read or change data the attacker should never touch.' },
+    {
+      n: 1,
+      title: 'Map the input',
+      detail:
+        'The hunt found the search box at the location passes text straight into a database query.',
+    },
+    {
+      n: 2,
+      title: 'Send a probe',
+      detail:
+        'A harmless test character was sent; the error reply confirmed the input reaches the query unsanitized.',
+    },
+    {
+      n: 3,
+      title: 'Prove control',
+      detail:
+        'A crafted input made the database answer a question only it could know — proving attacker commands run.',
+    },
+    {
+      n: 4,
+      title: 'Measure impact',
+      detail: 'The same channel could read or change data the attacker should never touch.',
+    },
   ],
   xss: [
-    { n: 1, title: 'Find the sink', detail: 'User-supplied text at the location is rendered into the page without encoding.' },
-    { n: 2, title: 'Inject a marker', detail: 'A harmless marker string was submitted and observed executing in the rendered page.' },
-    { n: 3, title: 'Confirm the session angle', detail: 'The injected script runs as the victim user — sessions and actions are reachable.' },
+    {
+      n: 1,
+      title: 'Find the sink',
+      detail: 'User-supplied text at the location is rendered into the page without encoding.',
+    },
+    {
+      n: 2,
+      title: 'Inject a marker',
+      detail: 'A harmless marker string was submitted and observed executing in the rendered page.',
+    },
+    {
+      n: 3,
+      title: 'Confirm the session angle',
+      detail: 'The injected script runs as the victim user — sessions and actions are reachable.',
+    },
   ],
   idor: [
-    { n: 1, title: 'Capture a request', detail: 'A normal request at the location carries an object ID belonging to the test user.' },
-    { n: 2, title: 'Swap the ID', detail: 'Replacing the ID with another user\'s returned their data — no ownership check ran.' },
-    { n: 3, title: 'Confirm scope', detail: 'Sequential IDs enumerate further records, proving bulk access is possible.' },
+    {
+      n: 1,
+      title: 'Capture a request',
+      detail: 'A normal request at the location carries an object ID belonging to the test user.',
+    },
+    {
+      n: 2,
+      title: 'Swap the ID',
+      detail: "Replacing the ID with another user's returned their data — no ownership check ran.",
+    },
+    {
+      n: 3,
+      title: 'Confirm scope',
+      detail: 'Sequential IDs enumerate further records, proving bulk access is possible.',
+    },
   ],
 };
 
 function genericSteps(finding) {
   return [
-    { n: 1, title: 'Locate the weakness', detail: `The hunt flagged ${finding.location} during automated checks.` },
-    { n: 2, title: 'Send a safe probe', detail: 'A non-destructive test confirmed the behavior described in the finding.' },
-    { n: 3, title: 'Verify reachability', detail: 'The proof used only normal network access — no special privileges needed.' },
+    {
+      n: 1,
+      title: 'Locate the weakness',
+      detail: `The hunt flagged ${finding.location} during automated checks.`,
+    },
+    {
+      n: 2,
+      title: 'Send a safe probe',
+      detail: 'A non-destructive test confirmed the behavior described in the finding.',
+    },
+    {
+      n: 3,
+      title: 'Verify reachability',
+      detail: 'The proof used only normal network access — no special privileges needed.',
+    },
   ];
 }
 
 /** Ordered, illustrated-flow-ready steps showing how the finding was proven. */
 export function exploitSteps(finding) {
-  return (TYPE_STEPS[finding.type] || genericSteps(finding)).map((s) => ({ ...s }));
+  return (TYPE_STEPS[finding.type] || genericSteps(finding)).map(s => ({ ...s }));
 }
 
 /* 51404 — follow-up threads ------------------------------------------------------ */
@@ -292,16 +523,24 @@ export function answerFollowUp(finding, question) {
     const fe = fixEnding(finding);
     return `Fixing it looks like this: ${fe.steps.join(' ')} ${fe.closing}`;
   }
-  if (q.includes('cost') || q.includes('much') || q.includes('money') || q.includes('financial')) return costSentence(finding);
+  if (q.includes('cost') || q.includes('much') || q.includes('money') || q.includes('financial'))
+    return costSentence(finding);
   if (q.includes('attacker') || q.includes('abuse') || q.includes('use this')) {
     const sc = attackScenario(finding);
-    return `${sc.title}: ${sc.beats.map((b) => b.title).join(' → ')}.`;
+    return `${sc.title}: ${sc.beats.map(b => b.title).join(' → ')}.`;
   }
-  if (q.includes('why') && (q.includes('sever') || q.includes('rating') || q.includes('critical') || q.includes('high'))) return severityJustification(finding).summary;
-  if (q.includes('long') || q.includes('when') || q.includes('exist')) return weaknessTimeline(finding).sentence;
+  if (
+    q.includes('why') &&
+    (q.includes('sever') || q.includes('rating') || q.includes('critical') || q.includes('high'))
+  )
+    return severityJustification(finding).summary;
+  if (q.includes('long') || q.includes('when') || q.includes('exist'))
+    return weaknessTimeline(finding).sentence;
   if (q.includes('evidence') || q.includes('proof') || q.includes('prove') || q.includes('real')) {
     const links = evidenceLinks(finding);
-    return links.length ? `The proof: ${links.map((l) => l.claim).join(' ')} Evidence on file: ${links[0].evidence}.` : 'No evidence recorded yet — ask for a re-test with proof capture.';
+    return links.length
+      ? `The proof: ${links.map(l => l.claim).join(' ')} Evidence on file: ${links[0].evidence}.`
+      : 'No evidence recorded yet — ask for a re-test with proof capture.';
   }
   return `${explainFinding(finding)} Ask about the fix, the cost, the evidence, or how an attacker would use it.`;
 }
@@ -342,7 +581,11 @@ export const EXPLANATION_ROLES = ['developer', 'manager', 'executive'];
 export function roleExplanation(finding, role) {
   const r = String(role || '').toLowerCase();
   if (r === 'developer') {
-    return `Developer brief — ${finding.title || finding.id} (${finding.severity || 'unknown'}) at ${finding.location}. ${explainFinding(finding)} Reproduce with: ${exploitSteps(finding).map((s) => s.title).join(' → ')}. Fix: ${fixSteps(finding)[0]}`;
+    return `Developer brief — ${finding.title || finding.id} (${finding.severity || 'unknown'}) at ${finding.location}. ${explainFinding(finding)} Reproduce with: ${exploitSteps(
+      finding
+    )
+      .map(s => s.title)
+      .join(' → ')}. Fix: ${fixSteps(finding)[0]}`;
   }
   if (r === 'manager') {
     return `Manager brief — ${finding.title || finding.id} is ${finding.severity || 'unknown'} severity at ${finding.location}. ${riskInContext(finding, { business: finding.businessUnit || 'saas' })} Peers typically resolve this class in ${peerBenchmark(finding).typicalFixDays} days; remediation difficulty is ${difficultyMeter(finding).label.toLowerCase()}.`;
@@ -361,17 +604,23 @@ export function confidenceFlags(finding) {
   flags.push({
     part: 'finding description',
     level: knownType ? 'high' : 'medium',
-    note: knownType ? 'Vulnerability class is in the knowledge base.' : 'Finding type is not in the knowledge base — the description is a generic fallback. Confirm with an engineer.',
+    note: knownType
+      ? 'Vulnerability class is in the knowledge base.'
+      : 'Finding type is not in the knowledge base — the description is a generic fallback. Confirm with an engineer.',
   });
   flags.push({
     part: 'severity rating',
     level: SEVERITY_KNOWN.includes((finding.severity || '').toLowerCase()) ? 'high' : 'low',
-    note: SEVERITY_KNOWN.includes((finding.severity || '').toLowerCase()) ? 'Severity uses the standard scale.' : 'Severity value is non-standard — treat the rating as provisional.',
+    note: SEVERITY_KNOWN.includes((finding.severity || '').toLowerCase())
+      ? 'Severity uses the standard scale.'
+      : 'Severity value is non-standard — treat the rating as provisional.',
   });
   flags.push({
     part: 'evidence',
     level: finding.evidence ? 'high' : 'medium',
-    note: finding.evidence ? 'Direct evidence is attached to the finding.' : 'No direct evidence attached — the claim rests on scanner output alone.',
+    note: finding.evidence
+      ? 'Direct evidence is attached to the finding.'
+      : 'No direct evidence attached — the claim rests on scanner output alone.',
   });
   flags.push({
     part: 'exploitability',
@@ -384,40 +633,75 @@ export function confidenceFlags(finding) {
 /* 51408 — evidence-linked claims ----------------------------------------------------- */
 
 const TYPE_CLAIMS = {
-  'sql-injection': ['User input reaches a database query without sanitization.', 'Attacker-controlled database commands execute in the application context.'],
-  xss: ['Attacker-supplied text is rendered as code in another user\'s browser.', 'The injected script runs with the victim user\'s session.'],
-  idor: ['Object IDs from the request are trusted without an ownership check.', 'Another user\'s records are retrievable by swapping the ID.'],
-  ssrf: ['The server fetches a URL taken from user input.', 'Internal-only endpoints are reachable through the fetch.'],
-  'jwt-none-alg': ['Tokens signed with the "none" algorithm are accepted.', 'A forged token is trusted as any user, including admin.'],
+  'sql-injection': [
+    'User input reaches a database query without sanitization.',
+    'Attacker-controlled database commands execute in the application context.',
+  ],
+  xss: [
+    "Attacker-supplied text is rendered as code in another user's browser.",
+    "The injected script runs with the victim user's session.",
+  ],
+  idor: [
+    'Object IDs from the request are trusted without an ownership check.',
+    "Another user's records are retrievable by swapping the ID.",
+  ],
+  ssrf: [
+    'The server fetches a URL taken from user input.',
+    'Internal-only endpoints are reachable through the fetch.',
+  ],
+  'jwt-none-alg': [
+    'Tokens signed with the "none" algorithm are accepted.',
+    'A forged token is trusted as any user, including admin.',
+  ],
 };
 
 /** Each claim paired with the supporting evidence (or an honest gap note). */
 export function evidenceLinks(finding) {
-  const claims = TYPE_CLAIMS[finding.type] || [`The scanner flagged ${finding.location} as ${finding.title || finding.id}.`];
-  const evidence = finding.evidence || 'No direct evidence recorded — re-test with proof capture before prioritizing.';
-  return claims.map((claim, i) => ({ id: `ev-${i + 1}`, claim, evidence, ref: finding.evidence ? `${finding.id}-evidence` : null }));
+  const claims = TYPE_CLAIMS[finding.type] || [
+    `The scanner flagged ${finding.location} as ${finding.title || finding.id}.`,
+  ];
+  const evidence =
+    finding.evidence ||
+    'No direct evidence recorded — re-test with proof capture before prioritizing.';
+  return claims.map((claim, i) => ({
+    id: `ev-${i + 1}`,
+    claim,
+    evidence,
+    ref: finding.evidence ? `${finding.id}-evidence` : null,
+  }));
 }
 
 /* 51409 — comparison explanations ----------------------------------------------------- */
 
 /** "Like the one we saw last month, except…" — diffs two findings honestly. */
 export function comparisonExplanation(finding, previous) {
-  if (!previous) return `${explainFinding(finding)} No earlier finding was supplied for comparison.`;
+  if (!previous)
+    return `${explainFinding(finding)} No earlier finding was supplied for comparison.`;
   const diffs = [];
-  if (previous.type !== finding.type) diffs.push(`the class is ${finding.type} instead of ${previous.type}`);
-  if (previous.severity !== finding.severity) diffs.push(`severity is ${finding.severity || 'unknown'} rather than ${previous.severity || 'unknown'}`);
-  if (previous.location !== finding.location) diffs.push(`it lives at ${finding.location} instead of ${previous.location}`);
-  const except = diffs.length ? `, except ${diffs.join(', ')}` : ' — same class, severity, and location pattern';
+  if (previous.type !== finding.type)
+    diffs.push(`the class is ${finding.type} instead of ${previous.type}`);
+  if (previous.severity !== finding.severity)
+    diffs.push(
+      `severity is ${finding.severity || 'unknown'} rather than ${previous.severity || 'unknown'}`
+    );
+  if (previous.location !== finding.location)
+    diffs.push(`it lives at ${finding.location} instead of ${previous.location}`);
+  const except = diffs.length
+    ? `, except ${diffs.join(', ')}`
+    : ' — same class, severity, and location pattern';
   return `This is like the ${previous.title || previous.id} we saw at ${previous.location || 'a previous hunt'}${except}. ${explainFinding(finding)}`;
 }
 
 /* 51410 — risk in context --------------------------------------------------------------- */
 
 const BUSINESS_CONTEXT = {
-  ecommerce: 'orders, payments, and customer addresses flow through this surface — a breach here hits revenue and chargebacks first',
+  ecommerce:
+    'orders, payments, and customer addresses flow through this surface — a breach here hits revenue and chargebacks first',
   saas: 'customer tenants share this surface — one flaw can cross tenant boundaries and trigger churn plus SLA penalties',
-  fintech: 'money movement and KYC data sit behind this surface — regulators and auditors will ask about this finding by name',
-  healthcare: 'patient data is protected by law here — this finding maps directly to breach-notification obligations',
+  fintech:
+    'money movement and KYC data sit behind this surface — regulators and auditors will ask about this finding by name',
+  healthcare:
+    'patient data is protected by law here — this finding maps directly to breach-notification obligations',
 };
 
 /** Why this finding matters for this specific business. */
@@ -442,15 +726,24 @@ export function fixEnding(finding) {
 export function recordExplanation(history, entry) {
   const list = Array.isArray(history) ? history : [];
   const id = `expl-${list.length + 1}`;
-  return [...list, { id, findingId: entry.findingId, mode: entry.mode || 'plain', text: entry.text || '', seq: list.length + 1 }];
+  return [
+    ...list,
+    {
+      id,
+      findingId: entry.findingId,
+      mode: entry.mode || 'plain',
+      text: entry.text || '',
+      seq: list.length + 1,
+    },
+  ];
 }
 
 export function explanationHistory(history, findingId) {
-  return (Array.isArray(history) ? history : []).filter((e) => e.findingId === findingId);
+  return (Array.isArray(history) ? history : []).filter(e => e.findingId === findingId);
 }
 
 export function getExplanation(history, id) {
-  return (Array.isArray(history) ? history : []).find((e) => e.id === id) || null;
+  return (Array.isArray(history) ? history : []).find(e => e.id === id) || null;
 }
 
 /* 51413 — shareable explanation cards ------------------------------------------------------------- */
@@ -477,7 +770,11 @@ export function buildShareCard(finding) {
 
 /** Plain-text, TTS-friendly script: short sentences, no markdown, no jargon dumps. */
 export function voiceScript(finding) {
-  const clean = (s) => String(s || '').replace(/[*_`#>\[\]()]/g, '').replace(/\s+/g, ' ').trim();
+  const clean = s =>
+    String(s || '')
+      .replace(/[*_`#>\[\]()]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   const sentences = [
     `Finding: ${finding.title || finding.id}.`,
     `Severity: ${finding.severity || 'unknown'}.`,
@@ -492,25 +789,82 @@ export function voiceScript(finding) {
 
 const TYPE_QUIZ = {
   'sql-injection': [
-    { q: 'What is the core mistake behind a SQL injection?', options: ['User input is placed into a database query without cleaning', 'The database password is too short', 'The server has too little memory', 'The page loads too slowly'], answer: 0 },
-    { q: 'What is the correct fix?', options: ['A bigger server', 'Parameterized queries / prepared statements', 'Hiding the search box', 'More logging'], answer: 1 },
+    {
+      q: 'What is the core mistake behind a SQL injection?',
+      options: [
+        'User input is placed into a database query without cleaning',
+        'The database password is too short',
+        'The server has too little memory',
+        'The page loads too slowly',
+      ],
+      answer: 0,
+    },
+    {
+      q: 'What is the correct fix?',
+      options: [
+        'A bigger server',
+        'Parameterized queries / prepared statements',
+        'Hiding the search box',
+        'More logging',
+      ],
+      answer: 1,
+    },
   ],
   xss: [
-    { q: 'Why is stored XSS dangerous?', options: ['It makes pages load slowly', 'Attacker script runs as the victim user, stealing sessions', 'It deletes the database directly', 'It only affects the attacker'], answer: 1 },
-    { q: 'Which control most reduces XSS impact?', options: ['A longer password policy', 'Content-Security-Policy plus output encoding', 'Blocking all images', 'Daily reboots'], answer: 1 },
+    {
+      q: 'Why is stored XSS dangerous?',
+      options: [
+        'It makes pages load slowly',
+        'Attacker script runs as the victim user, stealing sessions',
+        'It deletes the database directly',
+        'It only affects the attacker',
+      ],
+      answer: 1,
+    },
+    {
+      q: 'Which control most reduces XSS impact?',
+      options: [
+        'A longer password policy',
+        'Content-Security-Policy plus output encoding',
+        'Blocking all images',
+        'Daily reboots',
+      ],
+      answer: 1,
+    },
   ],
 };
 
 function genericQuiz(finding) {
   return [
-    { q: `Where was "${finding.title || finding.id}" found?`, options: [finding.location, '/unrelated/page', 'Nowhere — it is theoretical', 'In the office printer'], answer: 0 },
-    { q: 'What should happen next?', options: ['Ignore it', 'Reproduce from the evidence, fix, and re-test', 'Delete the report', 'Wait a year'], answer: 1 },
+    {
+      q: `Where was "${finding.title || finding.id}" found?`,
+      options: [
+        finding.location,
+        '/unrelated/page',
+        'Nowhere — it is theoretical',
+        'In the office printer',
+      ],
+      answer: 0,
+    },
+    {
+      q: 'What should happen next?',
+      options: [
+        'Ignore it',
+        'Reproduce from the evidence, fix, and re-test',
+        'Delete the report',
+        'Wait a year',
+      ],
+      answer: 1,
+    },
   ];
 }
 
 /** Check-questions generated from the finding; deterministic. */
 export function buildQuiz(finding) {
-  const questions = (TYPE_QUIZ[finding.type] || genericQuiz(finding)).map((q, i) => ({ id: `q-${i + 1}`, ...q }));
+  const questions = (TYPE_QUIZ[finding.type] || genericQuiz(finding)).map((q, i) => ({
+    id: `q-${i + 1}`,
+    ...q,
+  }));
   return { findingId: finding.id, questions };
 }
 
@@ -518,7 +872,9 @@ export function buildQuiz(finding) {
 export function scoreQuiz(quiz, answers) {
   const total = quiz.questions.length;
   let correct = 0;
-  quiz.questions.forEach((q, i) => { if (answers[i] === q.answer) correct += 1; });
+  quiz.questions.forEach((q, i) => {
+    if (answers[i] === q.answer) correct += 1;
+  });
   const pct = total ? Math.round((correct / total) * 100) : 0;
   return { correct, total, pct, passed: pct >= 70 };
 }
@@ -526,48 +882,83 @@ export function scoreQuiz(quiz, answers) {
 /* 51416 — kid-friendly mode ------------------------------------------------------------------------------- */
 
 const TYPE_KID = {
-  'sql-injection': 'Somebody found a sneaky way to whisper extra instructions to the computer that remembers things — like telling the librarian to also throw away the secret files. Grown-ups need to teach the librarian to only follow safe instructions.',
+  'sql-injection':
+    'Somebody found a sneaky way to whisper extra instructions to the computer that remembers things — like telling the librarian to also throw away the secret files. Grown-ups need to teach the librarian to only follow safe instructions.',
   xss: 'Someone left a naughty note on the school noticeboard that whispers mean things to everyone who reads it. Grown-ups need to check every note before pinning it up.',
   idor: 'The toy boxes have numbers, and anyone can open any box just by saying a different number. Grown-ups need to put a real lock on each box.',
 };
 
 export function kidExplanation(finding) {
-  const body = TYPE_KID[finding.type] || `Something at ${finding.location} is not as safe as it should be — like a gate with a wobbly lock. Grown-ups are fixing the lock.`;
+  const body =
+    TYPE_KID[finding.type] ||
+    `Something at ${finding.location} is not as safe as it should be — like a gate with a wobbly lock. Grown-ups are fixing the lock.`;
   return `A super-simple version for young learners: ${body} Remember: if something online looks strange, tell a grown-up.`;
 }
 
 /* 51417 — explanation templates --------------------------------------------------------------------------------- */
 
 export const EXPLANATION_TEMPLATES = [
-  { id: 'what-why-fix', name: 'What / Why / Fix', sections: ['What happened', 'Why it matters', 'How to fix'] },
+  {
+    id: 'what-why-fix',
+    name: 'What / Why / Fix',
+    sections: ['What happened', 'Why it matters', 'How to fix'],
+  },
   { id: 'exec-brief', name: 'Executive brief', sections: ['Headline', 'Business impact', 'Ask'] },
-  { id: 'dev-ticket', name: 'Developer ticket', sections: ['Reproduction', 'Root cause', 'Acceptance criteria'] },
+  {
+    id: 'dev-ticket',
+    name: 'Developer ticket',
+    sections: ['Reproduction', 'Root cause', 'Acceptance criteria'],
+  },
 ];
 
 /** Applies a preferred structure to the finding's explanation. */
 export function applyTemplate(templateId, finding) {
-  const tpl = EXPLANATION_TEMPLATES.find((t) => t.id === templateId) || EXPLANATION_TEMPLATES[0];
+  const tpl = EXPLANATION_TEMPLATES.find(t => t.id === templateId) || EXPLANATION_TEMPLATES[0];
   const bodies = {
-    'what-why-fix': [explainFinding(finding), riskInContext(finding, { business: finding.businessUnit || 'saas' }), fixEnding(finding).closing],
-    'exec-brief': [`${finding.title || finding.id} — ${finding.severity || 'unknown'} severity at ${finding.location}.`, riskInContext(finding, { business: finding.businessUnit || 'saas' }), `Approve remediation; peers resolve this class in ~${peerBenchmark(finding).typicalFixDays} days.`],
-    'dev-ticket': [`Steps: ${exploitSteps(finding).map((s) => s.title).join(' → ')} at ${finding.location}.`, `Root cause class: ${finding.type || 'unknown'}.`, `Done when: ${fixSteps(finding)[0]} Lower bar: proof steps no longer reproduce.`],
+    'what-why-fix': [
+      explainFinding(finding),
+      riskInContext(finding, { business: finding.businessUnit || 'saas' }),
+      fixEnding(finding).closing,
+    ],
+    'exec-brief': [
+      `${finding.title || finding.id} — ${finding.severity || 'unknown'} severity at ${finding.location}.`,
+      riskInContext(finding, { business: finding.businessUnit || 'saas' }),
+      `Approve remediation; peers resolve this class in ~${peerBenchmark(finding).typicalFixDays} days.`,
+    ],
+    'dev-ticket': [
+      `Steps: ${exploitSteps(finding)
+        .map(s => s.title)
+        .join(' → ')} at ${finding.location}.`,
+      `Root cause class: ${finding.type || 'unknown'}.`,
+      `Done when: ${fixSteps(finding)[0]} Lower bar: proof steps no longer reproduce.`,
+    ],
   };
   const texts = bodies[tpl.id] || bodies['what-why-fix'];
-  return { templateId: tpl.id, name: tpl.name, sections: tpl.sections.map((heading, i) => ({ heading, body: texts[i] || '' })) };
+  return {
+    templateId: tpl.id,
+    name: tpl.name,
+    sections: tpl.sections.map((heading, i) => ({ heading, body: texts[i] || '' })),
+  };
 }
 
 /* 51418 — live explanation editing ----------------------------------------------------------------------------------- */
 
 /** Heuristic style profile learned from the user's edited text. */
 export function learnStyle(text) {
-  const words = String(text || '').split(/\s+/).filter(Boolean);
-  const sentences = String(text || '').split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const words = String(text || '')
+    .split(/\s+/)
+    .filter(Boolean);
+  const sentences = String(text || '')
+    .split(/[.!?]+/)
+    .filter(s => s.trim().length > 0);
   const avgSentenceLen = sentences.length ? Math.round(words.length / sentences.length) : 0;
-  const casualHits = (String(text).match(/\b(don't|can't|won't|it's|you'll|we'll|gonna|kinda)\b/gi) || []).length;
+  const casualHits = (
+    String(text).match(/\b(don't|can't|won't|it's|you'll|we'll|gonna|kinda)\b/gi) || []
+  ).length;
   return {
     wordCount: words.length,
     avgSentenceLen,
-    tone: casualHits >= 2 ? 'casual' : (avgSentenceLen >= 22 ? 'formal' : 'mixed'),
+    tone: casualHits >= 2 ? 'casual' : avgSentenceLen >= 22 ? 'formal' : 'mixed',
   };
 }
 
@@ -585,15 +976,25 @@ export function addExplanationVersion(versions, text) {
 }
 
 export function getVersion(versions, v) {
-  return (Array.isArray(versions) ? versions : []).find((x) => x.v === v) || null;
+  return (Array.isArray(versions) ? versions : []).find(x => x.v === v) || null;
 }
 
 /** Simple word-level diff between two versions (capped, deterministic). */
 export function diffVersions(a, b) {
-  const aw = new Set(String(a || '').toLowerCase().split(/\s+/).filter(Boolean));
-  const bw = new Set(String(b || '').toLowerCase().split(/\s+/).filter(Boolean));
-  const added = [...bw].filter((w) => !aw.has(w)).slice(0, 25);
-  const removed = [...aw].filter((w) => !bw.has(w)).slice(0, 25);
+  const aw = new Set(
+    String(a || '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+  );
+  const bw = new Set(
+    String(b || '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+  );
+  const added = [...bw].filter(w => !aw.has(w)).slice(0, 25);
+  const removed = [...aw].filter(w => !bw.has(w)).slice(0, 25);
   return { added, removed, addedCount: added.length, removedCount: removed.length };
 }
 
@@ -610,7 +1011,8 @@ export function contrastingOpinions(finding) {
     },
     {
       stance: 'Could be benign',
-      reason: 'Scanner output can misread framework protections — a framework-level encoder or gateway rule may already neutralize it.',
+      reason:
+        'Scanner output can misread framework protections — a framework-level encoder or gateway rule may already neutralize it.',
     },
     {
       stance: 'Needs a human check',
@@ -624,17 +1026,38 @@ export function contrastingOpinions(finding) {
 /* 51421 — severity justification ------------------------------------------------------------------------------------------------------ */
 
 const SEVERITY_REASONS = {
-  critical: ['Direct path to full compromise (data theft, auth bypass, or code execution).', 'Exploitable with low skill and no user interaction in the common case.', 'Breach-notification and disclosure obligations likely trigger.'],
-  high: ['Serious impact on confidentiality or integrity, though usually needing one extra condition.', 'Well-understood exploit techniques exist in the wild.', 'Should block a release until addressed.'],
-  medium: ['Real weakness, but exploitation needs specific conditions or user interaction.', 'Often the stepping-stone that makes a high-severity chain possible.', 'Fix in the normal sprint cycle.'],
-  low: ['Limited direct impact — mostly useful for reconnaissance or minor abuse.', 'Still worth fixing: low findings become entry points when chained.', 'Fix opportunistically.'],
-  info: ['No direct security impact; noted for completeness.', 'Useful context for hardening, not a vulnerability to patch urgently.'],
+  critical: [
+    'Direct path to full compromise (data theft, auth bypass, or code execution).',
+    'Exploitable with low skill and no user interaction in the common case.',
+    'Breach-notification and disclosure obligations likely trigger.',
+  ],
+  high: [
+    'Serious impact on confidentiality or integrity, though usually needing one extra condition.',
+    'Well-understood exploit techniques exist in the wild.',
+    'Should block a release until addressed.',
+  ],
+  medium: [
+    'Real weakness, but exploitation needs specific conditions or user interaction.',
+    'Often the stepping-stone that makes a high-severity chain possible.',
+    'Fix in the normal sprint cycle.',
+  ],
+  low: [
+    'Limited direct impact — mostly useful for reconnaissance or minor abuse.',
+    'Still worth fixing: low findings become entry points when chained.',
+    'Fix opportunistically.',
+  ],
+  info: [
+    'No direct security impact; noted for completeness.',
+    'Useful context for hardening, not a vulnerability to patch urgently.',
+  ],
 };
 
 /** Plain-language reasoning for why the severity rating was assigned. */
 export function severityJustification(finding) {
   const sev = (finding.severity || 'unknown').toLowerCase();
-  const reasons = SEVERITY_REASONS[sev] || ['The severity value is non-standard, so this rating is provisional — confirm with the owning engineer.'];
+  const reasons = SEVERITY_REASONS[sev] || [
+    'The severity value is non-standard, so this rating is provisional — confirm with the owning engineer.',
+  ];
   const summary = `Rated ${finding.severity || 'unknown'} because: ${reasons[0]}`;
   return { severity: finding.severity || 'unknown', reasons, summary };
 }
@@ -643,28 +1066,77 @@ export function severityJustification(finding) {
 
 const TYPE_SCENARIO = {
   'sql-injection': [
-    { n: 1, title: 'Recon', detail: 'The attacker finds the search box and notices database-flavored error messages.' },
-    { n: 2, title: 'Weaponize', detail: 'They craft input that asks the database for the users table instead of products.' },
-    { n: 3, title: 'Exfiltrate', detail: 'Rows stream out — emails, password hashes, whatever the query can reach.' },
-    { n: 4, title: 'Cash out', detail: 'Credentials get tested against other sites; the breach becomes someone else\'s login problem too.' },
+    {
+      n: 1,
+      title: 'Recon',
+      detail: 'The attacker finds the search box and notices database-flavored error messages.',
+    },
+    {
+      n: 2,
+      title: 'Weaponize',
+      detail: 'They craft input that asks the database for the users table instead of products.',
+    },
+    {
+      n: 3,
+      title: 'Exfiltrate',
+      detail: 'Rows stream out — emails, password hashes, whatever the query can reach.',
+    },
+    {
+      n: 4,
+      title: 'Cash out',
+      detail:
+        "Credentials get tested against other sites; the breach becomes someone else's login problem too.",
+    },
   ],
   xss: [
-    { n: 1, title: 'Plant', detail: 'The attacker saves a comment carrying a script at the vulnerable page.' },
-    { n: 2, title: 'Wait', detail: 'Every visitor who loads the page silently runs the attacker\'s code.' },
-    { n: 3, title: 'Harvest', detail: 'Sessions and keystrokes flow to the attacker; accounts fall one by one.' },
+    {
+      n: 1,
+      title: 'Plant',
+      detail: 'The attacker saves a comment carrying a script at the vulnerable page.',
+    },
+    {
+      n: 2,
+      title: 'Wait',
+      detail: "Every visitor who loads the page silently runs the attacker's code.",
+    },
+    {
+      n: 3,
+      title: 'Harvest',
+      detail: 'Sessions and keystrokes flow to the attacker; accounts fall one by one.',
+    },
   ],
   idor: [
-    { n: 1, title: 'Borrow', detail: 'The attacker signs up for a normal account and watches their own requests.' },
-    { n: 2, title: 'Swap', detail: 'They change the ID in the URL and someone else\'s order appears.' },
+    {
+      n: 1,
+      title: 'Borrow',
+      detail: 'The attacker signs up for a normal account and watches their own requests.',
+    },
+    {
+      n: 2,
+      title: 'Swap',
+      detail: "They change the ID in the URL and someone else's order appears.",
+    },
     { n: 3, title: 'Enumerate', detail: 'A script walks through IDs, collecting records in bulk.' },
   ],
 };
 
 function genericScenario(finding) {
   return [
-    { n: 1, title: 'Probe', detail: `The attacker pokes at ${finding.location} the way the hunt did.` },
-    { n: 2, title: 'Confirm', detail: 'The weak behavior answers back — the flaw is real and reachable.' },
-    { n: 3, title: 'Abuse', detail: 'They fold it into their toolkit and return whenever it is useful.' },
+    {
+      n: 1,
+      title: 'Probe',
+      detail: `The attacker pokes at ${finding.location} the way the hunt did.`,
+    },
+    {
+      n: 2,
+      title: 'Confirm',
+      detail: 'The weak behavior answers back — the flaw is real and reachable.',
+    },
+    {
+      n: 3,
+      title: 'Abuse',
+      detail: 'They fold it into their toolkit and return whenever it is useful.',
+    },
   ];
 }
 
@@ -672,7 +1144,7 @@ function genericScenario(finding) {
 export function attackScenario(finding) {
   return {
     title: `How an attacker would use the ${finding.title || finding.id}`,
-    beats: (TYPE_SCENARIO[finding.type] || genericScenario(finding)).map((b) => ({ ...b })),
+    beats: (TYPE_SCENARIO[finding.type] || genericScenario(finding)).map(b => ({ ...b })),
   };
 }
 
@@ -698,7 +1170,7 @@ const TYPE_PROCESS_HINT = {
 export function mapToProcess(finding, business) {
   const processes = PROCESS_MAP[business] || PROCESS_MAP.saas;
   const hint = TYPE_PROCESS_HINT[finding.type];
-  return processes.map((process) => {
+  return processes.map(process => {
     const threatened = hint ? hint.test(process) : process.length > 0;
     return {
       process,
@@ -713,19 +1185,34 @@ export function mapToProcess(finding, business) {
 /* 51424 — explanation search ---------------------------------------------------------------------------------------------------------------------- */
 
 export function buildExplanationIndex(explanations) {
-  return (Array.isArray(explanations) ? explanations : []).map((e) => ({
-    id: e.id, findingId: e.findingId, text: e.text || '',
-    tokens: new Set(String(e.text || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2)),
+  return (Array.isArray(explanations) ? explanations : []).map(e => ({
+    id: e.id,
+    findingId: e.findingId,
+    text: e.text || '',
+    tokens: new Set(
+      String(e.text || '')
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(t => t.length > 2)
+    ),
   }));
 }
 
 /** Keyword search over past explanations; ranked by token overlap. */
 export function searchExplanations(index, query) {
-  const terms = String(query || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2);
+  const terms = String(query || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(t => t.length > 2);
   if (!terms.length) return [];
   return index
-    .map((e) => ({ id: e.id, findingId: e.findingId, text: e.text, score: terms.filter((t) => e.tokens.has(t)).length }))
-    .filter((r) => r.score > 0)
+    .map(e => ({
+      id: e.id,
+      findingId: e.findingId,
+      text: e.text,
+      score: terms.filter(t => e.tokens.has(t)).length,
+    }))
+    .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id)));
 }
 
@@ -744,10 +1231,10 @@ export function exportSlidesMarkdown(finding) {
     riskInContext(finding, { business: finding.businessUnit || 'saas' }),
     '---',
     '# Evidence',
-    ...evidenceLinks(finding).map((l) => `- ${l.claim} (Evidence: ${l.evidence})`),
+    ...evidenceLinks(finding).map(l => `- ${l.claim} (Evidence: ${l.evidence})`),
     '---',
     '# What fixing it looks like',
-    ...fe.steps.map((s) => `- ${s}`),
+    ...fe.steps.map(s => `- ${s}`),
   ];
   return lines.join('\n');
 }
@@ -766,10 +1253,10 @@ export function exportOnePagerMarkdown(finding) {
     riskInContext(finding, { business: finding.businessUnit || 'saas' }),
     '',
     '## Severity rationale',
-    ...severityJustification(finding).reasons.map((r) => `- ${r}`),
+    ...severityJustification(finding).reasons.map(r => `- ${r}`),
     '',
     '## Fix',
-    ...fe.steps.map((s) => `- ${s}`),
+    ...fe.steps.map(s => `- ${s}`),
     '',
     `*Peer benchmark: similar companies resolve this class in ~${peerBenchmark(finding).typicalFixDays} days.*`,
   ].join('\n');
@@ -778,10 +1265,22 @@ export function exportOnePagerMarkdown(finding) {
 /* 51426 — regulatory framing ---------------------------------------------------------------------------------------------------------------------------------- */
 
 const REG_FRAMING = {
-  gdpr: { name: 'GDPR', text: 'requires protection of personal data by design and 72-hour breach notification — this finding is the kind of weakness regulators cite' },
-  'pci-dss': { name: 'PCI DSS', text: 'requires secure coding, access control, and prompt patching of internet-facing flaws — an assessor would flag this finding' },
-  hipaa: { name: 'HIPAA', text: 'requires safeguards for electronic health information — this finding weakens the technical safeguards auditors check' },
-  'soc-2': { name: 'SOC 2', text: 'tests whether security controls actually work — this finding is evidence a control failed its test' },
+  gdpr: {
+    name: 'GDPR',
+    text: 'requires protection of personal data by design and 72-hour breach notification — this finding is the kind of weakness regulators cite',
+  },
+  'pci-dss': {
+    name: 'PCI DSS',
+    text: 'requires secure coding, access control, and prompt patching of internet-facing flaws — an assessor would flag this finding',
+  },
+  hipaa: {
+    name: 'HIPAA',
+    text: 'requires safeguards for electronic health information — this finding weakens the technical safeguards auditors check',
+  },
+  'soc-2': {
+    name: 'SOC 2',
+    text: 'tests whether security controls actually work — this finding is evidence a control failed its test',
+  },
 };
 
 export const REGULATIONS = Object.keys(REG_FRAMING);
@@ -809,7 +1308,14 @@ function fmtUSD(n) {
 /** Plain-number cost framing from a deterministic per-severity table. */
 export function costOfBreach(finding) {
   const row = COST_TABLE[(finding.severity || '').toLowerCase()] || COST_TABLE.medium;
-  return { currency: 'USD', low: row.low, mid: row.mid, high: row.high, basis: 'Industry breach-cost ranges for this severity class; your numbers vary with record count and response speed.' };
+  return {
+    currency: 'USD',
+    low: row.low,
+    mid: row.mid,
+    high: row.high,
+    basis:
+      'Industry breach-cost ranges for this severity class; your numbers vary with record count and response speed.',
+  };
 }
 
 export function costSentence(finding) {
@@ -821,11 +1327,27 @@ export function costSentence(finding) {
 
 export function weaknessTimeline(finding) {
   const events = [];
-  if (finding.introducedIn) events.push({ label: 'Likely introduced', detail: `The weakness probably dates to ${finding.introducedIn}.` });
-  else events.push({ label: 'Likely introduced', detail: 'No code-history marker — the weakness predates the first scan that checked for it.' });
-  if (finding.firstSeen) events.push({ label: 'First seen', detail: `First flagged on ${finding.firstSeen}.` });
-  else events.push({ label: 'First seen', detail: 'First flagged by this hunt — it may have been visible to attackers longer.' });
-  events.push({ label: 'Today', detail: `Still present at ${finding.location}; every day it stays open is another day of exposure.` });
+  if (finding.introducedIn)
+    events.push({
+      label: 'Likely introduced',
+      detail: `The weakness probably dates to ${finding.introducedIn}.`,
+    });
+  else
+    events.push({
+      label: 'Likely introduced',
+      detail: 'No code-history marker — the weakness predates the first scan that checked for it.',
+    });
+  if (finding.firstSeen)
+    events.push({ label: 'First seen', detail: `First flagged on ${finding.firstSeen}.` });
+  else
+    events.push({
+      label: 'First seen',
+      detail: 'First flagged by this hunt — it may have been visible to attackers longer.',
+    });
+  events.push({
+    label: 'Today',
+    detail: `Still present at ${finding.location}; every day it stays open is another day of exposure.`,
+  });
   const sentence = finding.introducedIn
     ? `This weakness likely existed since ${finding.introducedIn} — every day since was a day an attacker could have found it first.`
     : 'This weakness predates the first scan that checked for it — assume attackers had the same window you did, or longer.';
@@ -848,14 +1370,20 @@ export function peerBenchmark(finding) {
 export function recordFeedback(ratings, entry) {
   const list = Array.isArray(ratings) ? ratings : [];
   const score = Math.min(5, Math.max(1, Number(entry.score) || 3));
-  return [...list, { explanationId: entry.explanationId, score, note: entry.note || '', seq: list.length + 1 }];
+  return [
+    ...list,
+    { explanationId: entry.explanationId, score, note: entry.note || '', seq: list.length + 1 },
+  ];
 }
 
 export function feedbackSummary(ratings) {
   const list = Array.isArray(ratings) ? ratings : [];
   const count = list.length;
   const avg = count ? Math.round((list.reduce((s, r) => s + r.score, 0) / count) * 10) / 10 : 0;
-  const distribution = [1, 2, 3, 4, 5].map((s) => ({ score: s, count: list.filter((r) => r.score === s).length }));
+  const distribution = [1, 2, 3, 4, 5].map(s => ({
+    score: s,
+    count: list.filter(r => r.score === s).length,
+  }));
   return { count, avg, distribution };
 }
 
@@ -864,10 +1392,17 @@ export function feedbackSummary(ratings) {
 /** Weaves several related findings into one coherent story. */
 export function multiFindingNarrative(findings) {
   const list = Array.isArray(findings) ? findings : [];
-  if (!list.length) return { title: 'No findings selected', paragraphs: ['Select at least one finding to build the narrative.'] };
-  const types = [...new Set(list.map((f) => f.type || 'unknown'))];
-  const locations = [...new Set(list.map((f) => f.location))];
-  const worst = list.reduce((a, b) => (severityRank(a.severity) >= severityRank(b.severity) ? a : b), list[0]);
+  if (!list.length)
+    return {
+      title: 'No findings selected',
+      paragraphs: ['Select at least one finding to build the narrative.'],
+    };
+  const types = [...new Set(list.map(f => f.type || 'unknown'))];
+  const locations = [...new Set(list.map(f => f.location))];
+  const worst = list.reduce(
+    (a, b) => (severityRank(a.severity) >= severityRank(b.severity) ? a : b),
+    list[0]
+  );
   return {
     title: `The story of ${list.length} finding${list.length > 1 ? 's' : ''}: ${types.slice(0, 2).join(' and ')}`,
     paragraphs: [
@@ -887,7 +1422,10 @@ function severityRank(sev) {
 
 export function postThreadMessage(thread, author, text) {
   const list = Array.isArray(thread) ? thread : [];
-  return [...list, { id: `msg-${list.length + 1}`, author, text: String(text || ''), seq: list.length + 1 }];
+  return [
+    ...list,
+    { id: `msg-${list.length + 1}`, author, text: String(text || ''), seq: list.length + 1 },
+  ];
 }
 
 /** The agent's reply inside an explanation thread, grounded in the finding. */
@@ -925,13 +1463,19 @@ function meterLabel(value) {
 
 /** 51434 — how hard the fix will be, 0–100 with the driving factors. */
 export function difficultyMeter(finding) {
-  const row = TYPE_DIFFICULTY[finding.type] || { value: 50, factors: ['Scope depends on the codebase', 'Confirm with the owning engineer'] };
+  const row = TYPE_DIFFICULTY[finding.type] || {
+    value: 50,
+    factors: ['Scope depends on the codebase', 'Confirm with the owning engineer'],
+  };
   return { value: row.value, label: meterLabel(row.value), factors: row.factors };
 }
 
 /** 51435 — how easily an attacker could use this, 0–100 with the driving factors. */
 export function exploitabilityMeter(finding) {
-  const row = TYPE_EXPLOITABILITY[finding.type] || { value: 50, factors: ['Depends on attacker access', 'Confirm with a proof attempt'] };
+  const row = TYPE_EXPLOITABILITY[finding.type] || {
+    value: 50,
+    factors: ['Depends on attacker access', 'Confirm with a proof attempt'],
+  };
   return { value: row.value, label: meterLabel(row.value), factors: row.factors };
 }
 
@@ -942,7 +1486,7 @@ export function whiteLabel(text, clientName) {
   const name = clientName || 'your security team';
   return String(text || '')
     .split('\n')
-    .filter((line) => !/^\s*internal:/i.test(line))
+    .filter(line => !/^\s*internal:/i.test(line))
     .join('\n')
     .replace(/Infinity AI/g, name)
     .replace(/Dark-Matter/g, 'the security assessment');
@@ -982,13 +1526,20 @@ export function autoLinkGlossary(text) {
   const picked = [];
   let lastEnd = 0;
   for (const h of hits) {
-    if (h.at >= lastEnd) { picked.push(h); lastEnd = h.end; }
+    if (h.at >= lastEnd) {
+      picked.push(h);
+      lastEnd = h.end;
+    }
   }
   const segments = [];
   let cursor = 0;
   for (const h of picked) {
     if (h.at > cursor) segments.push({ text: src.slice(cursor, h.at), term: null });
-    segments.push({ text: src.slice(h.at, h.end), term: h.term, definition: JARGON_GLOSSARY[h.term] });
+    segments.push({
+      text: src.slice(h.at, h.end),
+      term: h.term,
+      definition: JARGON_GLOSSARY[h.term],
+    });
     cursor = h.end;
   }
   if (cursor < src.length) segments.push({ text: src.slice(cursor), term: null });
@@ -1005,14 +1556,22 @@ export function storyModeSection(findings) {
   list.forEach((f, i) => {
     lines.push(`## Scene ${i + 1}: ${f.title || f.id}`);
     lines.push('');
-    lines.push(`The hunt reached ${f.location} and found ${f.title || f.id} — ${f.severity || 'unknown'} severity. ${explainFinding(f).split('. ')[0]}.`);
+    lines.push(
+      `The hunt reached ${f.location} and found ${f.title || f.id} — ${f.severity || 'unknown'} severity. ${explainFinding(f).split('. ')[0]}.`
+    );
     lines.push('');
-    lines.push(`The proof unfolded in ${exploitSteps(f).length} steps: ${exploitSteps(f).map((s) => s.title.toLowerCase()).join(', ')}. The chapter closes the way every chapter should: ${fixEnding(f).steps[0]}`);
+    lines.push(
+      `The proof unfolded in ${exploitSteps(f).length} steps: ${exploitSteps(f)
+        .map(s => s.title.toLowerCase())
+        .join(', ')}. The chapter closes the way every chapter should: ${fixEnding(f).steps[0]}`
+    );
     lines.push('');
   });
   lines.push(`## Epilogue`);
   lines.push('');
-  lines.push(`Across ${list.length} scene${list.length > 1 ? 's' : ''}, the pattern is clear — and every scene already carries its fix. That is the whole story: found, proven, and fixable.`);
+  lines.push(
+    `Across ${list.length} scene${list.length > 1 ? 's' : ''}, the pattern is clear — and every scene already carries its fix. That is the whole story: found, proven, and fixable.`
+  );
   return lines.join('\n');
 }
 
@@ -1025,7 +1584,11 @@ export function estimateKnowledge(profile) {
   const seen = Number(p.priorFindingsSeen) || 0;
   const score = years * 2 + Math.min(seen, 20);
   const level = score >= 16 ? 'expert' : score >= 6 ? 'intermediate' : 'beginner';
-  return { level, score, detail: `Estimated ${level} from ${years} year(s) experience and ${seen} prior finding(s) reviewed.` };
+  return {
+    level,
+    score,
+    detail: `Estimated ${level} from ${years} year(s) experience and ${seen} prior finding(s) reviewed.`,
+  };
 }
 
 /** Adapts the explanation to what the reader already knows. */

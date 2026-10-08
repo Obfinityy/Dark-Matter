@@ -18,7 +18,9 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  let s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  let s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   if (/^(mailto|tel):/i.test(s)) return null;
   // scm:git:git://host/org/repo.git / scm:git:ssh://git@host/...
   const scm = s.match(/^scm:[a-z0-9]+:((?:git\+)?[a-z][a-z0-9+.-]*:\/\/[^\s]+)$/i);
@@ -31,7 +33,8 @@ export function toHost(value) {
     const u = new URL(withScheme);
     const h = u.hostname.toLowerCase();
     if (!h || h === 'localhost') return null;
-    if (/\.?maven\.org$/.test(h) || /\.sonatype\.com$/.test(h) || /\.apache\.org$/.test(h)) return null;
+    if (/\.?maven\.org$/.test(h) || /\.sonatype\.com$/.test(h) || /\.apache\.org$/.test(h))
+      return null;
     if (/\.github\.com$/.test(h) || /\.gitlab\.com$/.test(h)) return null;
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(h)) return null;
     return h;
@@ -88,7 +91,9 @@ export function parseMavenPomHosts(pomXml) {
     if (host) add(host, 'project.url', u);
   }
   // organization/url — pull from the organization block only
-  const orgBlock = xml.match(/<(?:[\w-]+:)?organization\b[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?organization>/i);
+  const orgBlock = xml.match(
+    /<(?:[\w-]+:)?organization\b[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?organization>/i
+  );
   if (orgBlock) {
     for (const u of xmlTagValues(orgBlock[1], 'url')) {
       const host = toHost(u);

@@ -48,9 +48,10 @@ export function evaluateStarttlsHandling(session = {}) {
     risk,
     findings,
     starttlsRequired: tlsOk && session.acceptsPlaintextAuth === false,
-    summary: risk === 'low'
-      ? 'STARTTLS is properly advertised and enforced.'
-      : `STARTTLS handling weakness detected (risk: ${risk}). ${findings.join(' ')}`,
+    summary:
+      risk === 'low'
+        ? 'STARTTLS is properly advertised and enforced.'
+        : `STARTTLS handling weakness detected (risk: ${risk}). ${findings.join(' ')}`,
   };
 }
 
@@ -60,10 +61,10 @@ export function evaluateStarttlsHandling(session = {}) {
  * @returns {{supportsStarttls: boolean, missingSecureIndicators: string[], score: number}}
  */
 export function scoreDowngradeIndicators(data = {}) {
-  const caps = (data.capabilities || []).map((c) => String(c).toUpperCase());
+  const caps = (data.capabilities || []).map(c => String(c).toUpperCase());
   const missing = [];
-  if (!caps.some((c) => c.includes('STARTTLS'))) missing.push('STARTTLS');
-  if (!caps.some((c) => c.includes('SMTPUTF8'))) missing.push('SMTPUTF8');
+  if (!caps.some(c => c.includes('STARTTLS'))) missing.push('STARTTLS');
+  if (!caps.some(c => c.includes('SMTPUTF8'))) missing.push('SMTPUTF8');
   const transcript = String(data.rawTranscript || '');
   let score = 100;
   if (missing.length > 0) score -= 40 * missing.length;

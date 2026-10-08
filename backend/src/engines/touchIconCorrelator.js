@@ -12,16 +12,66 @@
 
 /** Known icon profiles: hash/dimension signatures mapped to products. */
 export const KNOWN_ICON_PROFILES = [
-  { product: 'WordPress', match: { rel: /apple-touch-icon/, size: /180x180/, hashPrefix: null }, confidence: 'medium', note: 'WordPress ships a default 180x180 apple-touch-icon.' },
-  { product: 'Joomla', match: { rel: /apple-touch-icon/, size: /152x152|144x144/, hashPrefix: null }, confidence: 'low', note: 'Legacy CMS touch icon dimensions.' },
-  { product: 'Django Admin', match: { rel: /icon|shortcut/, filename: /favicon|icon/i, size: /32x32/ }, confidence: 'low', note: 'Django admin default favicon is 32x32.' },
-  { product: 'Laravel', match: { rel: /icon/, filename: /laravel/i }, confidence: 'medium', note: 'Laravel starter kit favicon naming.' },
-  { product: 'Next.js', match: { rel: /icon/, filename: /favicon\.ico|icon/i, size: /16x16|32x32/ }, confidence: 'low', note: 'Next.js default favicon footprint.' },
-  { product: 'Shopify', match: { rel: /icon/, filename: /shopify/i }, confidence: 'high', note: 'Shopify-branded touch icon filename.' },
-  { product: 'Ghost', match: { rel: /icon/, filename: /ghost/i }, confidence: 'high', note: 'Ghost-branded icon filename.' },
-  { product: 'Discourse', match: { rel: /apple-touch-icon/, size: /180x180/, filename: /apple-touch-icon/ }, confidence: 'medium', note: 'Discourse default apple-touch-icon path.' },
-  { product: 'phpMyAdmin', match: { rel: /icon/, filename: /pma|phpmyadmin/i }, confidence: 'high', note: 'phpMyAdmin icon naming.' },
-  { product: 'cPanel', match: { rel: /icon/, filename: /cpanel/i }, confidence: 'high', note: 'cPanel-branded icon filename.' },
+  {
+    product: 'WordPress',
+    match: { rel: /apple-touch-icon/, size: /180x180/, hashPrefix: null },
+    confidence: 'medium',
+    note: 'WordPress ships a default 180x180 apple-touch-icon.',
+  },
+  {
+    product: 'Joomla',
+    match: { rel: /apple-touch-icon/, size: /152x152|144x144/, hashPrefix: null },
+    confidence: 'low',
+    note: 'Legacy CMS touch icon dimensions.',
+  },
+  {
+    product: 'Django Admin',
+    match: { rel: /icon|shortcut/, filename: /favicon|icon/i, size: /32x32/ },
+    confidence: 'low',
+    note: 'Django admin default favicon is 32x32.',
+  },
+  {
+    product: 'Laravel',
+    match: { rel: /icon/, filename: /laravel/i },
+    confidence: 'medium',
+    note: 'Laravel starter kit favicon naming.',
+  },
+  {
+    product: 'Next.js',
+    match: { rel: /icon/, filename: /favicon\.ico|icon/i, size: /16x16|32x32/ },
+    confidence: 'low',
+    note: 'Next.js default favicon footprint.',
+  },
+  {
+    product: 'Shopify',
+    match: { rel: /icon/, filename: /shopify/i },
+    confidence: 'high',
+    note: 'Shopify-branded touch icon filename.',
+  },
+  {
+    product: 'Ghost',
+    match: { rel: /icon/, filename: /ghost/i },
+    confidence: 'high',
+    note: 'Ghost-branded icon filename.',
+  },
+  {
+    product: 'Discourse',
+    match: { rel: /apple-touch-icon/, size: /180x180/, filename: /apple-touch-icon/ },
+    confidence: 'medium',
+    note: 'Discourse default apple-touch-icon path.',
+  },
+  {
+    product: 'phpMyAdmin',
+    match: { rel: /icon/, filename: /pma|phpmyadmin/i },
+    confidence: 'high',
+    note: 'phpMyAdmin icon naming.',
+  },
+  {
+    product: 'cPanel',
+    match: { rel: /icon/, filename: /cpanel/i },
+    confidence: 'high',
+    note: 'cPanel-branded icon filename.',
+  },
 ];
 
 /**
@@ -65,14 +115,17 @@ export function correlateTouchIcons(icons = []) {
   const seen = new Set();
   for (const c of candidates) {
     const key = c.product;
-    if (!seen.has(key)) { seen.add(key); unique.push(c); }
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(c);
+    }
   }
 
   // Score: icon count + known matches + touch-icon presence.
-  const score = Math.min(100,
-    icons.length * 8 +
-    (signals.length > 0 ? 20 : 0) +
-    unique.length * 25);
+  const score = Math.min(
+    100,
+    icons.length * 8 + (signals.length > 0 ? 20 : 0) + unique.length * 25
+  );
 
   return {
     iconsFound: icons.length,
@@ -84,7 +137,11 @@ export function correlateTouchIcons(icons = []) {
       ? `Icon footprint correlates with: ${unique.map(c => `${c.product} (${c.confidence})`).join(', ')}.`
       : 'No known application icon profile matched.',
     type: 'Icon Correlation',
-    confidence: unique.some(c => c.confidence === 'high') ? 'high' : unique.length ? 'medium' : 'low',
+    confidence: unique.some(c => c.confidence === 'high')
+      ? 'high'
+      : unique.length
+        ? 'medium'
+        : 'low',
   };
 }
 

@@ -113,12 +113,17 @@ export function minePostmanWorkspace({ url = '', data = {} } = {}) {
     baseUrls: [...new Set(resolved.map(r => r.url.split(/[?#]/)[0]))].slice(0, 200),
     authSummary: auth,
     stageEnvironments: stageEnvs,
-    unresolvedVariables: [...new Set(resolved.flatMap(r => (r.url.match(/\{\{[^}]+\}\}/g) || [])))],
+    unresolvedVariables: [...new Set(resolved.flatMap(r => r.url.match(/\{\{[^}]+\}\}/g) || []))],
   };
 }
 
 export const POSTMAN_MINER = {
-  collectRequests, resolveUrlNode, substituteVariables, extractVariables,
-  extractHostsFromUrls, summarizeAuth, minePostmanWorkspace,
+  collectRequests,
+  resolveUrlNode,
+  substituteVariables,
+  extractVariables,
+  extractHostsFromUrls,
+  summarizeAuth,
+  minePostmanWorkspace,
 };
 export default POSTMAN_MINER;

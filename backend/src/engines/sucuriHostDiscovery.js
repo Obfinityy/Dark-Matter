@@ -39,9 +39,16 @@ export function parseSucuriHeaders(headers) {
   if (!headers) return out;
 
   const entries = Array.isArray(headers)
-    ? headers.map((line) => {
+    ? headers.map(line => {
         const idx = String(line).indexOf(':');
-        return idx === -1 ? ['', ''] : [String(line).slice(0, idx).trim(), String(line).slice(idx + 1).trim()];
+        return idx === -1
+          ? ['', '']
+          : [
+              String(line).slice(0, idx).trim(),
+              String(line)
+                .slice(idx + 1)
+                .trim(),
+            ];
       })
     : Object.entries(headers);
 
@@ -78,8 +85,8 @@ export function parseSucuriHeaders(headers) {
  * @returns {{matches: string[], count: number}}
  */
 export function matchSucuriIps(ips = [], knownSucuriIps = []) {
-  const known = new Set((knownSucuriIps || []).map((ip) => String(ip).trim()));
-  const matches = (ips || []).map((ip) => String(ip).trim()).filter((ip) => known.has(ip));
+  const known = new Set((knownSucuriIps || []).map(ip => String(ip).trim()));
+  const matches = (ips || []).map(ip => String(ip).trim()).filter(ip => known.has(ip));
   return { matches: [...new Set(matches)], count: matches.length };
 }
 
@@ -115,7 +122,7 @@ export function detectSucuri(hostname, headers = {}, dnsHint = {}) {
   const hasHeader = headerInfo.viaSucuri;
   const hasIp = matches.length > 0;
   const fronted = hasHeader || hasIp;
-  const confidence = (hasHeader && hasIp) ? 'high' : fronted ? 'medium' : 'low';
+  const confidence = hasHeader && hasIp ? 'high' : fronted ? 'medium' : 'low';
 
   return {
     hostname: host,

@@ -84,10 +84,19 @@
   font-size: 13px;
 }
 
-.gov31-dim { color: var(--dim, #8b93a5); font-size: 12px; }
-.gov31-ok { color: #4caf7d; }
-.gov31-warn { color: #e2a63d; }
-.gov31-bad { color: #ff8a80; }
+.gov31-dim {
+  color: var(--dim, #8b93a5);
+  font-size: 12px;
+}
+.gov31-ok {
+  color: #4caf7d;
+}
+.gov31-warn {
+  color: #e2a63d;
+}
+.gov31-bad {
+  color: #ff8a80;
+}
 
 .gov31-pill {
   display: inline-block;
@@ -164,17 +173,26 @@
   word-break: break-word;
 }
 
-.gov31-loglevel-debug { color: #8b93a5; }
-.gov31-loglevel-info { color: #c9d4e3; }
-.gov31-loglevel-warning { color: #e2a63d; }
-.gov31-loglevel-error { color: #ff8a80; }
+.gov31-loglevel-debug {
+  color: #8b93a5;
+}
+.gov31-loglevel-info {
+  color: #c9d4e3;
+}
+.gov31-loglevel-warning {
+  color: #e2a63d;
+}
+.gov31-loglevel-error {
+  color: #ff8a80;
+}
 
 .gov31-highlight {
   background: rgba(226, 166, 61, 0.14);
   border-radius: 4px;
 }
 
-.gov31-mono, .gov31-pre {
+.gov31-mono,
+.gov31-pre {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
 }
@@ -187,11 +205,16 @@
   max-height: 200px;
 }
 
-.gov31-details { margin-top: 8px; }
+.gov31-details {
+  margin-top: 8px;
+}
 
 /* Zero decorative animation per owner order; only honor reduced motion. */
 @media (prefers-reduced-motion: reduce) {
-  .gov31-card, .gov31-btn, .gov31-log, .gov31-watermark {
+  .gov31-card,
+  .gov31-btn,
+  .gov31-log,
+  .gov31-watermark {
     animation: none;
   }
 }

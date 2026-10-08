@@ -27,11 +27,28 @@ const SCHEMED_HOST_RE = /^(?:[a-z][a-z0-9+.-]*:\/\/)?([^/:?\s"'<>]+)/i;
 
 /** Well-known public infrastructure hosts to exclude from CI-log noise. */
 export const CI_NOISE_HOSTS = [
-  'github.com', 'api.github.com', 'objects.githubusercontent.com', 'raw.githubusercontent.com',
-  'registry.npmjs.org', 'pypi.org', 'files.pythonhosted.org', 'registry.yarnpkg.com',
-  'rubygems.org', 'maven.org', 'repo1.maven.org', 'dl.google.com', 'storage.googleapis.com',
-  'amazonaws.com', 'docker.io', 'registry-1.docker.io', 'hub.docker.com',
-  'deb.debian.org', 'archive.ubuntu.com', 'security.ubuntu.com', 'alpine', 'microsoft.com',
+  'github.com',
+  'api.github.com',
+  'objects.githubusercontent.com',
+  'raw.githubusercontent.com',
+  'registry.npmjs.org',
+  'pypi.org',
+  'files.pythonhosted.org',
+  'registry.yarnpkg.com',
+  'rubygems.org',
+  'maven.org',
+  'repo1.maven.org',
+  'dl.google.com',
+  'storage.googleapis.com',
+  'amazonaws.com',
+  'docker.io',
+  'registry-1.docker.io',
+  'hub.docker.com',
+  'deb.debian.org',
+  'archive.ubuntu.com',
+  'security.ubuntu.com',
+  'alpine',
+  'microsoft.com',
 ];
 
 /**
@@ -72,8 +89,18 @@ export function classifyCodeHost(host, context = '') {
   const ctx = String(context || '').toLowerCase();
   if (/webhook|hook|callback|notify/.test(ctx) || /(^|[.-])hook([.-]|$)/.test(h)) return 'webhook';
   if (/(^|[.-])artifact([.-]|$)|\/artifacts?\//.test(h + ctx)) return 'artifact';
-  if (/(^|[.-])internal([.-]|$)|(^|[.-])intranet([.-]|$)|(^|[.-])corp([.-]|$)|(^|[.-])vpn([.-]|$)/.test(h) || /internal|intranet|\.local|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\./.test(ctx)) return 'internal';
-  if (/(^|[.-])(staging|stage|dev|development|test|qa|uat|preview|canary)([.-]|$)/.test(h) || /staging|\bstage\b|\bdev\b/.test(ctx)) return 'staging';
+  if (
+    /(^|[.-])internal([.-]|$)|(^|[.-])intranet([.-]|$)|(^|[.-])corp([.-]|$)|(^|[.-])vpn([.-]|$)/.test(
+      h
+    ) ||
+    /internal|intranet|\.local|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\./.test(ctx)
+  )
+    return 'internal';
+  if (
+    /(^|[.-])(staging|stage|dev|development|test|qa|uat|preview|canary)([.-]|$)/.test(h) ||
+    /staging|\bstage\b|\bdev\b/.test(ctx)
+  )
+    return 'staging';
   if (/(^|[.-])api([.-]|$)/.test(h) || /\/api[\/v]|\/graphql|\/rest\//.test(ctx)) return 'api';
   return 'other';
 }
@@ -185,7 +212,8 @@ export function analyzeCommitHistory(commits = [], rootDomain) {
   const root = normalizeHostname(rootDomain);
   if (!root) return { hosts: [], forgotten: [] };
   const sorted = [...(commits || [])].sort((a, b) =>
-    String(a?.date || '') < String(b?.date || '') ? -1 : 1);
+    String(a?.date || '') < String(b?.date || '') ? -1 : 1
+  );
 
   const track = new Map(); // host -> { firstSeen, lastSeen, introducedIn, lastCommit, removed: bool }
   for (const commit of sorted) {
@@ -196,7 +224,14 @@ export function analyzeCommitHistory(commits = [], rootDomain) {
       const removed = extractHostnamesFromCode(String(change?.removed || ''), rootDomain);
       for (const f of added) {
         if (!track.has(f.host)) {
-          track.set(f.host, { firstSeen: date, lastSeen: date, introducedIn: sha, lastCommit: sha, kind: f.kind, removed: false });
+          track.set(f.host, {
+            firstSeen: date,
+            lastSeen: date,
+            introducedIn: sha,
+            lastCommit: sha,
+            kind: f.kind,
+            removed: false,
+          });
         } else {
           const t = track.get(f.host);
           t.lastSeen = date;
@@ -212,8 +247,13 @@ export function analyzeCommitHistory(commits = [], rootDomain) {
         // Host removed before we ever saw it added (history truncated): still track it.
         else {
           track.set(f.host, {
-            firstSeen: '(pre-history)', lastSeen: date, introducedIn: '(pre-history)',
-            lastCommit: sha, kind: f.kind, removed: true, removedAfter: date,
+            firstSeen: '(pre-history)',
+            lastSeen: date,
+            introducedIn: '(pre-history)',
+            lastCommit: sha,
+            kind: f.kind,
+            removed: true,
+            removedAfter: date,
           });
         }
       }
@@ -225,13 +265,22 @@ export function analyzeCommitHistory(commits = [], rootDomain) {
   for (const [host, t] of track) {
     const status = t.removed ? 'removed' : 'active';
     hosts.push({
-      host, kind: t.kind, firstSeen: t.firstSeen, lastSeen: t.lastSeen,
-      status, introducedIn: t.introducedIn, lastCommit: t.lastCommit,
+      host,
+      kind: t.kind,
+      firstSeen: t.firstSeen,
+      lastSeen: t.lastSeen,
+      status,
+      introducedIn: t.introducedIn,
+      lastCommit: t.lastCommit,
     });
     if (t.removed) {
       forgotten.push({
-        host, kind: t.kind, firstSeen: t.firstSeen, lastSeen: t.lastSeen,
-        introducedIn: t.introducedIn, removedAfter: t.removedAfter || t.lastSeen,
+        host,
+        kind: t.kind,
+        firstSeen: t.firstSeen,
+        lastSeen: t.lastSeen,
+        introducedIn: t.introducedIn,
+        removedAfter: t.removedAfter || t.lastSeen,
       });
     }
   }
@@ -263,7 +312,7 @@ export function parseCiLogs(logText, rootDomain, options = {}) {
   const note = (host, line, source) => {
     const h = normalizeHostname(host);
     if (!h) return;
-    if (excludeNoise && (noise.has(h) || [...noise].some((n) => h.endsWith(`.${n}`)))) return;
+    if (excludeNoise && (noise.has(h) || [...noise].some(n => h.endsWith(`.${n}`)))) return;
     if (!byHost.has(h)) {
       byHost.set(h, {
         host: h,
@@ -287,7 +336,12 @@ export function parseCiLogs(logText, rootDomain, options = {}) {
   for (const line of lines) {
     for (const m of line.matchAll(URL_IN_CODE_RE)) {
       const host = hostFromUrl(m[1]);
-      if (host && (host.endsWith(`.${root}`) || host.includes(root) || /internal|staging|artifact|hook/.test(host + line.toLowerCase()))) {
+      if (
+        host &&
+        (host.endsWith(`.${root}`) ||
+          host.includes(root) ||
+          /internal|staging|artifact|hook/.test(host + line.toLowerCase()))
+      ) {
         note(host, line, 'url');
       } else if (host && !excludeNoise) {
         note(host, line, 'url');
@@ -302,5 +356,7 @@ export function parseCiLogs(logText, rootDomain, options = {}) {
     }
   }
 
-  return [...byHost.values()].sort((a, b) => b.occurrences - a.occurrences || a.host.localeCompare(b.host));
+  return [...byHost.values()].sort(
+    (a, b) => b.occurrences - a.occurrences || a.host.localeCompare(b.host)
+  );
 }

@@ -27,16 +27,21 @@ export function tlsVersionLabel(version) {
 
 /** Hash the extension list to a 12-char hex digest (FNV-1a 64-bit fold). */
 export function hashExtensions(extensions) {
-  const str = (extensions || []).map((e) => {
-    if (typeof e === 'number') return e.toString(16).padStart(4, '0');
-    return String(e).toLowerCase();
-  }).join(',');
-  let h1 = 0x811c9dc5, h2 = 0x811c9dc5;
+  const str = (extensions || [])
+    .map(e => {
+      if (typeof e === 'number') return e.toString(16).padStart(4, '0');
+      return String(e).toLowerCase();
+    })
+    .join(',');
+  let h1 = 0x811c9dc5,
+    h2 = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
     h1 = Math.imul(h1 ^ str.charCodeAt(i), 0x01000193);
     h2 = Math.imul(h2 ^ str.charCodeAt(str.length - 1 - i), 0x01000193);
   }
-  return ((h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0')).slice(0, 12);
+  return (
+    (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0')
+  ).slice(0, 12);
 }
 
 /**
@@ -55,7 +60,13 @@ export function hashExtensions(extensions) {
  * @param {number} [hello.certCount] - number of certificates in the chain
  * @returns {{fingerprint: string, parts: Object}}
  */
-export function computeJA4S({ version, cipher, extensions = [], alpn = null, certCount = null } = {}) {
+export function computeJA4S({
+  version,
+  cipher,
+  extensions = [],
+  alpn = null,
+  certCount = null,
+} = {}) {
   const a = tlsVersionLabel(version);
   let b = '0000';
   if (typeof cipher === 'number') b = cipher.toString(16).padStart(4, '0');
@@ -89,9 +100,10 @@ export const KNOWN_JA4S = [
  */
 export function fingerprintServer(hello = {}) {
   const { fingerprint, parts } = computeJA4S(hello);
-  const knownMatches = KNOWN_JA4S
-    .filter((k) => k.match.test(fingerprint))
-    .map((k) => ({ label: k.label, confidence: k.confidence }));
+  const knownMatches = KNOWN_JA4S.filter(k => k.match.test(fingerprint)).map(k => ({
+    label: k.label,
+    confidence: k.confidence,
+  }));
 
   const assessment = {
     modernStack: parts.version === 't13' || parts.version === 't12',
@@ -112,13 +124,30 @@ export function fingerprintServer(hello = {}) {
 export function compareServerHellos(helloA, helloB) {
   const a = computeJA4S(helloA);
   const b = computeJA4S(helloB);
-  if (a.fingerprint === b.fingerprint) return { similarity: 1, fingerprintA: a.fingerprint, fingerprintB: b.fingerprint, sameStack: true };
+  if (a.fingerprint === b.fingerprint)
+    return {
+      similarity: 1,
+      fingerprintA: a.fingerprint,
+      fingerprintB: b.fingerprint,
+      sameStack: true,
+    };
   let score = 0;
   if (a.parts.version === b.parts.version) score += 0.4;
   if (a.parts.cipher === b.parts.cipher) score += 0.3;
   if (a.parts.extensionHash === b.parts.extensionHash) score += 0.3;
-  return { similarity: score, fingerprintA: a.fingerprint, fingerprintB: b.fingerprint, sameStack: score >= 0.7 };
+  return {
+    similarity: score,
+    fingerprintA: a.fingerprint,
+    fingerprintB: b.fingerprint,
+    sameStack: score >= 0.7,
+  };
 }
 
-export const JA4S_PROFILER = { computeJA4S, fingerprintServer, compareServerHellos, tlsVersionLabel, KNOWN_JA4S };
+export const JA4S_PROFILER = {
+  computeJA4S,
+  fingerprintServer,
+  compareServerHellos,
+  tlsVersionLabel,
+  KNOWN_JA4S,
+};
 export default JA4S_PROFILER;

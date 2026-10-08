@@ -1,3 +1,9 @@
+/**
+ * authController — Express route handlers for auth.
+ * Factory that wires the auth service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 const cookieName = 'darkmatter_session';
@@ -8,7 +14,7 @@ function setSessionCookie(response, token, sessionDays, secure) {
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
-    `Max-Age=${Math.max(1, Math.floor(sessionDays * 86_400))}`
+    `Max-Age=${Math.max(1, Math.floor(sessionDays * 86_400))}`,
   ];
   if (secure) parts.push('Secure');
   response.setHeader('Set-Cookie', parts.join('; '));
@@ -20,12 +26,25 @@ function clearSessionCookie(response, secure) {
   response.setHeader('Set-Cookie', parts.join('; '));
 }
 
+/**
+ * Creates auth controller.
+ * @param {*} authService
+ * @param {*} config
+ * @returns {*} Result.
+ */
 export function createAuthController(authService, config) {
   return {
     register: asyncHandler(async (request, response) => {
       const result = await authService.register(request.body);
       setSessionCookie(response, result.token, config.sessionDays, config.nodeEnv === 'production');
-      response.status(201).json({ user: result.user, jwt: result.jwt, jwtExpiresAt: result.jwtExpiresAt, recoveryKey: result.recoveryKey });
+      response
+        .status(201)
+        .json({
+          user: result.user,
+          jwt: result.jwt,
+          jwtExpiresAt: result.jwtExpiresAt,
+          recoveryKey: result.recoveryKey,
+        });
     }),
     login: asyncHandler(async (request, response) => {
       const result = await authService.login(request.body);
@@ -34,7 +53,11 @@ export function createAuthController(authService, config) {
     }),
     recover: asyncHandler(async (request, response) => {
       const { email, recoveryKey, newPassword } = request.body || {};
-      const result = await authService.resetPasswordWithRecoveryKey({ email, recoveryKey, newPassword });
+      const result = await authService.resetPasswordWithRecoveryKey({
+        email,
+        recoveryKey,
+        newPassword,
+      });
       response.json({ message: 'Password reset successfully', recoveryKey: result.recoveryKey });
     }),
     me: asyncHandler(async (request, response) => {
@@ -52,6 +75,6 @@ export function createAuthController(authService, config) {
       await authService.logout(request.sessionToken);
       clearSessionCookie(response, config.nodeEnv === 'production');
       response.status(204).send();
-    })
+    }),
   };
 }

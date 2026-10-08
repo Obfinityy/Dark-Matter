@@ -14,9 +14,18 @@
 /** OPC-UA security policy URIs of interest. */
 export const OPCUA_SECURITY_POLICIES = {
   'http://opcfoundation.org/UA/SecurityPolicy#None': { encryption: 'none', signing: 'none' },
-  'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256': { encryption: 'aes256', signing: 'hmac-sha256' },
-  'http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss': { encryption: 'aes256', signing: 'rsa-pss' },
-  'http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep': { encryption: 'aes128', signing: 'rsa-oaep' },
+  'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256': {
+    encryption: 'aes256',
+    signing: 'hmac-sha256',
+  },
+  'http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss': {
+    encryption: 'aes256',
+    signing: 'rsa-pss',
+  },
+  'http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep': {
+    encryption: 'aes128',
+    signing: 'rsa-oaep',
+  },
 };
 
 /**
@@ -27,14 +36,14 @@ export const OPCUA_SECURITY_POLICIES = {
  * @returns {object} normalized discovery summary
  */
 export function summarizeFindServers(servers = []) {
-  const list = (Array.isArray(servers) ? servers : []).map((s) => ({
+  const list = (Array.isArray(servers) ? servers : []).map(s => ({
     name: s.applicationName || s.applicationUri || 'unknown',
     applicationUri: s.applicationUri || null,
     productUri: s.productUri || null,
     discoveryUrls: Array.isArray(s.discoveryUrls) ? s.discoveryUrls : [],
     serverType: s.serverType ?? null,
   }));
-  const anonymous = list.filter((s) => s.discoveryUrls.some((u) => /^opc\.tcp:\/\//i.test(u)));
+  const anonymous = list.filter(s => s.discoveryUrls.some(u => /^opc\.tcp:\/\//i.test(u)));
   return {
     valid: list.length > 0,
     serverCount: list.length,
@@ -51,8 +60,11 @@ export function summarizeFindServers(servers = []) {
  * @returns {object} endpoint security assessment
  */
 export function assessOpcuaEndpoints(endpoints = []) {
-  const list = (Array.isArray(endpoints) ? endpoints : []).map((e) => {
-    const policy = OPCUA_SECURITY_POLICIES[e.securityPolicyUri] || { encryption: 'unknown', signing: 'unknown' };
+  const list = (Array.isArray(endpoints) ? endpoints : []).map(e => {
+    const policy = OPCUA_SECURITY_POLICIES[e.securityPolicyUri] || {
+      encryption: 'unknown',
+      signing: 'unknown',
+    };
     return {
       endpointUrl: e.endpointUrl || null,
       securityPolicyUri: e.securityPolicyUri || null,
@@ -61,16 +73,19 @@ export function assessOpcuaEndpoints(endpoints = []) {
       ...policy,
     };
   });
-  const nonePolicy = list.filter((e) => /SecurityPolicy#None/.test(e.securityPolicyUri || ''));
+  const nonePolicy = list.filter(e => /SecurityPolicy#None/.test(e.securityPolicyUri || ''));
   const findings = [];
   if (nonePolicy.length > 0) {
     findings.push({
       level: 'high',
       text: `${nonePolicy.length} endpoint(s) advertise SecurityPolicy#None — no message security.`,
-      endpoints: nonePolicy.map((e) => e.endpointUrl),
+      endpoints: nonePolicy.map(e => e.endpointUrl),
     });
   } else if (list.length > 0) {
-    findings.push({ level: 'low', text: `${list.length} endpoint(s) analyzed; none use SecurityPolicy#None.` });
+    findings.push({
+      level: 'low',
+      text: `${list.length} endpoint(s) analyzed; none use SecurityPolicy#None.`,
+    });
   }
   return {
     valid: list.length > 0,

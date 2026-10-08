@@ -261,7 +261,7 @@ export function extractAngularRoutes(bundleText = '') {
 
   return {
     framework: 'angular-router',
-    routes: dedupeRoutes(routes.map((r) => ({ ...r, path: r.fullPath }))),
+    routes: dedupeRoutes(routes.map(r => ({ ...r, path: r.fullPath }))),
     lazyModules: [...lazyModules],
     redirects,
   };
@@ -291,9 +291,9 @@ export function mineRoutes(bundleText = '') {
     results['angular-router'] = extractAngularRoutes(text);
   }
 
-  const allRoutes = dedupeRoutes(
-    Object.values(results).flatMap((r) => r.routes || [])
-  ).sort((a, b) => (b.interestingness || 0) - (a.interestingness || 0));
+  const allRoutes = dedupeRoutes(Object.values(results).flatMap(r => r.routes || [])).sort(
+    (a, b) => (b.interestingness || 0) - (a.interestingness || 0)
+  );
 
   return { detected, results, allRoutes };
 }

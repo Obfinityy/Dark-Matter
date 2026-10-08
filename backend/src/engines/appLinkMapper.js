@@ -27,9 +27,25 @@ const HOST_RE = '(?:[a-z0-9-]+\\.)*[a-z0-9-]+\\.[a-z]{2,}';
 
 /** Protocols that are NOT custom app schemes and must be excluded. */
 const KNOWN_PROTOCOLS = new Set([
-  'http', 'https', 'ftp', 'ftps', 'ws', 'wss', 'file', 'data',
-  'mailto', 'tel', 'sms', 'smsto', 'javascript', 'blob', 'about',
-  'content', 'android-app', 'market', 'intent',
+  'http',
+  'https',
+  'ftp',
+  'ftps',
+  'ws',
+  'wss',
+  'file',
+  'data',
+  'mailto',
+  'tel',
+  'sms',
+  'smsto',
+  'javascript',
+  'blob',
+  'about',
+  'content',
+  'android-app',
+  'market',
+  'intent',
 ]);
 
 /**
@@ -57,7 +73,11 @@ function collectHosts(text, re) {
 function safeParse(input) {
   if (input == null) return null;
   if (typeof input === 'object') return input;
-  try { return JSON.parse(String(input)); } catch { return null; }
+  try {
+    return JSON.parse(String(input));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -71,7 +91,7 @@ function extractMetaTags(html = '') {
   let m;
   while ((m = re.exec(String(html))) !== null) {
     const attrs = m[1];
-    const get = (k) => {
+    const get = k => {
       const mm = attrs.match(new RegExp(`${k}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'));
       return mm ? (mm[2] ?? mm[3] ?? mm[4] ?? '') : '';
     };
@@ -126,8 +146,9 @@ export function mapPwaInstallRoutes(manifestJson, jsSource = '') {
     }
   }
 
-  const installSignals = PWA_PROMPT_SIGNALS.filter((sig) => lower.includes(sig));
-  const serviceWorkerRegistered = /navigator\s*\.\s*serviceworker\s*\.\s*register|serviceworker\s*\.\s*register/i.test(js);
+  const installSignals = PWA_PROMPT_SIGNALS.filter(sig => lower.includes(sig));
+  const serviceWorkerRegistered =
+    /navigator\s*\.\s*serviceworker\s*\.\s*register|serviceworker\s*\.\s*register/i.test(js);
 
   const entryRoutes = [];
   if (manifest.start_url) entryRoutes.push(String(manifest.start_url));
@@ -183,7 +204,8 @@ export function extractSmartAppBannerUrls(html = '') {
     if (meta.name === 'google-play-app' && meta.content) {
       const appId = /app-id\s*=\s*([a-z0-9._]+)/i.exec(meta.content);
       googlePlay = { appId: appId ? appId[1] : null };
-      if (googlePlay.appId) urls.add(`https://play.google.com/store/apps/details?id=${googlePlay.appId}`);
+      if (googlePlay.appId)
+        urls.add(`https://play.google.com/store/apps/details?id=${googlePlay.appId}`);
     }
     if (meta.name === 'msapplication-starturl' && meta.content) urls.add(meta.content);
   }
@@ -239,7 +261,7 @@ export function mapUniversalLinks(aasaJson) {
         if (!c || typeof c !== 'object') continue;
         const exclude = c['#exclude'] === true;
         // Modern format: ["/" : "<pattern>"], {"#exclude": true, "/": "..."}
-        const keys = Object.keys(c).filter((k) => k !== '#exclude');
+        const keys = Object.keys(c).filter(k => k !== '#exclude');
         for (const k of keys) {
           const val = c[k];
           if (typeof val !== 'string') continue;
@@ -249,8 +271,8 @@ export function mapUniversalLinks(aasaJson) {
       }
     }
 
-    const includes = routes.filter((r) => r.include).map((r) => r.route);
-    const excludes = routes.filter((r) => !r.include).map((r) => r.route);
+    const includes = routes.filter(r => r.include).map(r => r.route);
+    const excludes = routes.filter(r => !r.include).map(r => r.route);
     results.push({
       apps: [{ appId, teamId, bundleId }],
       routes,
@@ -290,7 +312,7 @@ export function mapAndroidAppLinks(assetlinksJson) {
     if (!s || typeof s !== 'object') continue;
     const target = s.target || {};
     const fingerprints = Array.isArray(target.sha256_cert_fingerprints)
-      ? target.sha256_cert_fingerprints.map((f) => String(f).toUpperCase().replace(/:/g, ''))
+      ? target.sha256_cert_fingerprints.map(f => String(f).toUpperCase().replace(/:/g, ''))
       : [];
     out.push({
       relations: Array.isArray(s.relation) ? s.relation.map(String) : [],
@@ -429,7 +451,11 @@ export function mapFirebaseDynamicLinkDomains(htmlOrJs = '') {
     if (/page\.link$/i.test(m[2])) continue;
     const ctxStart = Math.max(0, m.index - 120);
     const ctx = lower.slice(ctxStart, m.index);
-    if (ctx.includes('dynamic') || ctx.includes('firebasedynamiclinks') || ctx.includes('firebase')) {
+    if (
+      ctx.includes('dynamic') ||
+      ctx.includes('firebasedynamiclinks') ||
+      ctx.includes('firebase')
+    ) {
       customDomains.add(m[2].toLowerCase());
     } else if (/dynamiclinks/i.test(url)) {
       customDomains.add(m[2].toLowerCase());
@@ -470,7 +496,8 @@ export function extractAdjustTrackers(jsSource = '') {
   let m;
   while ((m = ADJUST_TOKEN_RE.exec(text)) !== null) {
     tokens.add(m[1].toLowerCase());
-    const urlM = text.slice(Math.max(0, m.index - 60), m.index + m[0].length + 120)
+    const urlM = text
+      .slice(Math.max(0, m.index - 60), m.index + m[0].length + 120)
       .match(/https?:\/\/(?:app\.)?adjust\.com\/[a-z0-9]{6,32}[^\s"'`]*/i);
     if (urlM) trackerUrls.add(urlM[0]);
   }
@@ -510,7 +537,8 @@ export function mapAppsFlyerOneLinkDomains(htmlOrJs = '') {
   const domains = new Set(collectHosts(text, ONELINK_HOST_RE));
 
   // Custom OneLink domains declared via SDK/web config
-  const cfgRe = /["']?(?:onelink[-_]?domain|oneLinkURL)["']?\s*[:=]\s*["']((?:[a-z0-9-]+\.)+[a-z]{2,})["']/gi;
+  const cfgRe =
+    /["']?(?:onelink[-_]?domain|oneLinkURL)["']?\s*[:=]\s*["']((?:[a-z0-9-]+\.)+[a-z]{2,})["']/gi;
   let m;
   while ((m = cfgRe.exec(text)) !== null) domains.add(m[1].toLowerCase());
 
@@ -546,7 +574,8 @@ export function extractKochavaTrackers(htmlOrJs = '') {
   const hosts = collectHosts(text, /((?:[a-z0-9-]+\.)?kochava\.(?:com|net|io))/i);
   const trackerUrls = new Set();
 
-  for (const u of text.match(/https?:\/\/(?:[a-z0-9-]+\.)?kochava\.(?:com|net|io)[^\s"'`<>]*/gi) || []) {
+  for (const u of text.match(/https?:\/\/(?:[a-z0-9-]+\.)?kochava\.(?:com|net|io)[^\s"'`<>]*/gi) ||
+    []) {
     trackerUrls.add(u);
   }
 
@@ -600,7 +629,8 @@ export function mapAppLinkSurface(sources = {}) {
 
   const notes = [];
   if (pwa.entryRoutes.length) notes.push(`PWA entry routes: ${pwa.entryRoutes.join(', ')}`);
-  if (banners.apple || banners.googlePlay) notes.push('Native app banners link web pages to store apps');
+  if (banners.apple || banners.googlePlay)
+    notes.push('Native app banners link web pages to store apps');
   if (universal.length) notes.push(`${universal.length} iOS universal-link app claim(s) found`);
   if (android.length) notes.push(`${android.length} Android app-link statement(s) found`);
   if (schemes.schemes.length) notes.push(`Custom schemes: ${schemes.schemes.join(', ')}`);
@@ -608,8 +638,16 @@ export function mapAppLinkSurface(sources = {}) {
   if (attrHosts.length) notes.push(`Attribution link hosts: ${[...new Set(attrHosts)].join(', ')}`);
 
   return {
-    pwa, banners, universal, android, schemes,
-    branch, firebase, adjust, appsflyer, kochava,
+    pwa,
+    banners,
+    universal,
+    android,
+    schemes,
+    branch,
+    firebase,
+    adjust,
+    appsflyer,
+    kochava,
     notes,
   };
 }

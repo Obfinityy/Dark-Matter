@@ -20,19 +20,22 @@
 
 /** Known aggressive-NSEC implementations and their observable quirks. */
 export const AGGRESSIVE_NSEC_IMPLEMENTATIONS = {
-  'bind': {
+  bind: {
     software: 'BIND 9 (aggressive negative caching)',
     quirks: ['synthesizes from cached NSEC', 'rtt of synthesized answer ~0ms', 'AD flag preserved'],
   },
-  'unbound': {
+  unbound: {
     software: 'Unbound (aggressive-nsec: yes)',
-    quirks: ['synthesizes NXDOMAIN and NODATA', 'second query shows cache hit with 0 upstream queries'],
+    quirks: [
+      'synthesizes NXDOMAIN and NODATA',
+      'second query shows cache hit with 0 upstream queries',
+    ],
   },
-  'knot': {
+  knot: {
     software: 'Knot Resolver',
     quirks: ['aggressive caching on by default', 'synthesized answers carry original TTL of NSEC'],
   },
-  'powerdns': {
+  powerdns: {
     software: 'PowerDNS Recursor',
     quirks: ['aggressive NSEC via nsec3 cache', 'synthesis visible in cache dump'],
   },
@@ -44,7 +47,10 @@ export const AGGRESSIVE_NSEC_IMPLEMENTATIONS = {
  * @returns {boolean}
  */
 export function nameInsideNsecSpan(span = {}) {
-  const norm = (s) => String(s || '').toLowerCase().replace(/\.$/, '');
+  const norm = s =>
+    String(s || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
   const owner = norm(span.owner);
   const next = norm(span.next);
   const name = norm(span.name);
@@ -65,9 +71,11 @@ export function evaluateAggressiveNsecProbe(probe = {}) {
   const signals = [];
 
   const secondCovered = nameInsideNsecSpan({ ...span, name: second.name });
-  signals.push(secondCovered
-    ? `second name "${second.name}" lies inside the NSEC span returned for the first query`
-    : `second name "${second.name}" is NOT covered by the first query's NSEC span — probe inconclusive for this span`);
+  signals.push(
+    secondCovered
+      ? `second name "${second.name}" lies inside the NSEC span returned for the first query`
+      : `second name "${second.name}" is NOT covered by the first query's NSEC span — probe inconclusive for this span`
+  );
 
   if (!first.hasNsec) {
     return {
@@ -80,23 +88,37 @@ export function evaluateAggressiveNsecProbe(probe = {}) {
 
   // The tell: second query answered with zero upstream traffic and ~0 rtt
   // despite never being queried before → synthesized from cached NSEC.
-  const synthesized = secondCovered
-    && Number(second.upstreamQueries) === 0
-    && Number(second.rttMs) < 5
-    && /NXDOMAIN/i.test(String(second.rcode || ''));
+  const synthesized =
+    secondCovered &&
+    Number(second.upstreamQueries) === 0 &&
+    Number(second.rttMs) < 5 &&
+    /NXDOMAIN/i.test(String(second.rcode || ''));
   const refetched = Number(second.upstreamQueries) > 0;
   const cachedDenial = Number(second.upstreamQueries) === 0 && Number(second.rttMs) >= 5;
 
   if (synthesized) {
-    signals.push(`second query answered with 0 upstream queries in ${second.rttMs}ms — synthesized negative answer from cached NSEC`);
+    signals.push(
+      `second query answered with 0 upstream queries in ${second.rttMs}ms — synthesized negative answer from cached NSEC`
+    );
   } else if (refetched) {
-    signals.push(`second query triggered ${second.upstreamQueries} upstream quer(ies) — resolver did NOT synthesize from cached NSEC`);
+    signals.push(
+      `second query triggered ${second.upstreamQueries} upstream quer(ies) — resolver did NOT synthesize from cached NSEC`
+    );
   } else if (cachedDenial) {
-    signals.push(`second query served from cache but with non-trivial rtt (${second.rttMs}ms) — ordinary negative caching, not aggressive synthesis`);
+    signals.push(
+      `second query served from cache but with non-trivial rtt (${second.rttMs}ms) — ordinary negative caching, not aggressive synthesis`
+    );
   }
 
   const supportsAggressiveNsec = secondCovered ? synthesized : null;
-  const confidence = supportsAggressiveNsec === null ? 'low' : synthesized ? 'high' : refetched ? 'medium' : 'medium';
+  const confidence =
+    supportsAggressiveNsec === null
+      ? 'low'
+      : synthesized
+        ? 'high'
+        : refetched
+          ? 'medium'
+          : 'medium';
 
   return {
     type: 'DNS Aggressive-NSEC Detection',
@@ -115,18 +137,26 @@ export function evaluateAggressiveNsecProbe(probe = {}) {
 export function fingerprintAggressiveNsec(input = {}) {
   const probes = Array.isArray(input.probes) ? input.probes : [];
   const results = probes.map(evaluateAggressiveNsecProbe);
-  const positive = results.filter((r) => r.supportsAggressiveNsec === true).length;
-  const negative = results.filter((r) => r.supportsAggressiveNsec === false).length;
+  const positive = results.filter(r => r.supportsAggressiveNsec === true).length;
+  const negative = results.filter(r => r.supportsAggressiveNsec === false).length;
 
   let aggressiveNsec = null;
   let confidence = 'low';
-  if (positive > 0 && negative === 0) { aggressiveNsec = true; confidence = 'high'; }
-  else if (negative > 0 && positive === 0) { aggressiveNsec = false; confidence = 'high'; }
-  else if (positive > 0 || negative > 0) { aggressiveNsec = positive >= negative; confidence = 'medium'; }
+  if (positive > 0 && negative === 0) {
+    aggressiveNsec = true;
+    confidence = 'high';
+  } else if (negative > 0 && positive === 0) {
+    aggressiveNsec = false;
+    confidence = 'high';
+  } else if (positive > 0 || negative > 0) {
+    aggressiveNsec = positive >= negative;
+    confidence = 'medium';
+  }
 
   let likelySoftware = null;
   if (aggressiveNsec === true) {
-    likelySoftware = 'Validating resolver with aggressive NSEC (RFC 8198) enabled — BIND 9, Unbound (aggressive-nsec: yes), Knot Resolver, or PowerDNS Recursor';
+    likelySoftware =
+      'Validating resolver with aggressive NSEC (RFC 8198) enabled — BIND 9, Unbound (aggressive-nsec: yes), Knot Resolver, or PowerDNS Recursor';
   } else if (aggressiveNsec === false) {
     likelySoftware = 'Validating resolver without aggressive NSEC, or a non-validating forwarder';
   }
@@ -136,8 +166,10 @@ export function fingerprintAggressiveNsec(input = {}) {
     aggressiveNsec,
     confidence,
     likelySoftware,
-    evidence: results.length === 0
-      ? 'No probes supplied.'
-      : `${positive}/${results.length} probes synthesized negative answers from cached NSEC; ${negative}/${results.length} re-queried upstream. ` + results.map((r) => r.evidence).join(' | '),
+    evidence:
+      results.length === 0
+        ? 'No probes supplied.'
+        : `${positive}/${results.length} probes synthesized negative answers from cached NSEC; ${negative}/${results.length} re-queried upstream. ` +
+          results.map(r => r.evidence).join(' | '),
   };
 }

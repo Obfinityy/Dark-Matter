@@ -9,12 +9,29 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COACH_MARK_STEPS, ONBOARDING_STEPS, createTourState, startTour,
-  nextTourStep, prevTourStep, skipTour, tourProgress, checklistProgress,
-  completeChecklistStep, celebrationState, graduateChecklist,
-  sampleHuntSpec, sandboxConfig, roleOnboardingPath, dripEmailSchedule,
-  daysBetween, shouldShowWelcomeBack, welcomeBackCopy, widgetTourSteps,
-  shouldShowHint, dismissHint, setTipsEnabled,
+  COACH_MARK_STEPS,
+  ONBOARDING_STEPS,
+  createTourState,
+  startTour,
+  nextTourStep,
+  prevTourStep,
+  skipTour,
+  tourProgress,
+  checklistProgress,
+  completeChecklistStep,
+  celebrationState,
+  graduateChecklist,
+  sampleHuntSpec,
+  sandboxConfig,
+  roleOnboardingPath,
+  dripEmailSchedule,
+  daysBetween,
+  shouldShowWelcomeBack,
+  welcomeBackCopy,
+  widgetTourSteps,
+  shouldShowHint,
+  dismissHint,
+  setTipsEnabled,
 } from './onboardingCore.js';
 import './Onboarding.css';
 
@@ -32,11 +49,17 @@ function loadJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
+  } catch {
+    return fallback;
+  }
 }
 
 function saveJson(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* private mode */
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -47,7 +70,8 @@ function saveJson(key, value) {
 export function CoachMarkTour({ onDone }) {
   const [tour, setTour] = useState(() => {
     const saved = loadJson(LS_TOUR, null);
-    if (saved && saved.status === 'active') return startTour(createTourState(), saved.stepIndex || 0);
+    if (saved && saved.status === 'active')
+      return startTour(createTourState(), saved.stepIndex || 0);
     return createTourState();
   });
 
@@ -58,10 +82,13 @@ export function CoachMarkTour({ onDone }) {
   const step = tour.status === 'active' ? COACH_MARK_STEPS[tour.stepIndex] : null;
   const progress = tourProgress(tour);
 
-  const finish = useCallback((next) => {
-    setTour(next);
-    if ((next.status === 'done' || next.status === 'skipped') && onDone) onDone(next.status);
-  }, [onDone]);
+  const finish = useCallback(
+    next => {
+      setTour(next);
+      if ((next.status === 'done' || next.status === 'skipped') && onDone) onDone(next.status);
+    },
+    [onDone]
+  );
 
   if (tour.status !== 'active' || !step) return null;
 
@@ -69,30 +96,46 @@ export function CoachMarkTour({ onDone }) {
     <div className="ob-tour-overlay" role="dialog" aria-modal="true" aria-label="Product tour">
       <div className="ob-tour-spotlight" aria-hidden="true" />
       <div className="ob-tour-card">
-        <div className="ob-tour-stepcount">Step {tour.stepIndex + 1} of {COACH_MARK_STEPS.length}</div>
+        <div className="ob-tour-stepcount">
+          Step {tour.stepIndex + 1} of {COACH_MARK_STEPS.length}
+        </div>
         <h3 className="ob-tour-title">{step.title}</h3>
         <p className="ob-tour-body">{step.body}</p>
         <div className="ob-tour-progress" aria-hidden="true">
-          <div className="ob-tour-progress-fill" style={{ width: `${Math.round(progress * 100)}%` }} />
+          <div
+            className="ob-tour-progress-fill"
+            style={{ width: `${Math.round(progress * 100)}%` }}
+          />
         </div>
         <div className="ob-tour-actions">
-          <button type="button" className="ob-btn ob-btn-ghost" onClick={() => finish(skipTour(tour))}>
+          <button
+            type="button"
+            className="ob-btn ob-btn-ghost"
+            onClick={() => finish(skipTour(tour))}
+          >
             Skip tour
           </button>
           <span className="ob-tour-nav">
             <button
-              type="button" className="ob-btn ob-btn-ghost"
+              type="button"
+              className="ob-btn ob-btn-ghost"
               disabled={tour.stepIndex === 0}
               onClick={() => setTour(prevTourStep(tour))}
             >
               Back
             </button>
-            <button type="button" className="ob-btn ob-btn-primary" onClick={() => finish(nextTourStep(tour))}>
+            <button
+              type="button"
+              className="ob-btn ob-btn-primary"
+              onClick={() => finish(nextTourStep(tour))}
+            >
               {tour.stepIndex === COACH_MARK_STEPS.length - 1 ? 'Finish' : 'Next'}
             </button>
           </span>
         </div>
-        <p className="ob-tour-resume-note">You can resume this tour anytime from Help → Product tour.</p>
+        <p className="ob-tour-resume-note">
+          You can resume this tour anytime from Help → Product tour.
+        </p>
       </div>
     </div>
   );
@@ -103,10 +146,10 @@ export function TourLauncher() {
   const [key, setKey] = useState(0);
   return (
     <>
-      <button type="button" className="ob-btn ob-btn-ghost" onClick={() => setKey((k) => k + 1)}>
+      <button type="button" className="ob-btn ob-btn-ghost" onClick={() => setKey(k => k + 1)}>
         Restart product tour
       </button>
-      <CoachMarkTour key={key} onDone={() => setKey((k) => k + 1)} />
+      <CoachMarkTour key={key} onDone={() => setKey(k => k + 1)} />
     </>
   );
 }
@@ -125,10 +168,24 @@ export function WelcomeBackTour({ lastSeenMs, changeCount = 3, onStart, onDismis
       <div className="ob-hint-title">{copy.title}</div>
       <p className="ob-hint-body">{copy.body}</p>
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-primary" onClick={() => { setVisible(false); onStart && onStart(); }}>
+        <button
+          type="button"
+          className="ob-btn ob-btn-primary"
+          onClick={() => {
+            setVisible(false);
+            onStart && onStart();
+          }}
+        >
           Take the tour
         </button>
-        <button type="button" className="ob-btn ob-btn-ghost" onClick={() => { setVisible(false); onDismiss && onDismiss(); }}>
+        <button
+          type="button"
+          className="ob-btn ob-btn-ghost"
+          onClick={() => {
+            setVisible(false);
+            onDismiss && onDismiss();
+          }}
+        >
           Not now
         </button>
       </div>
@@ -149,15 +206,33 @@ export function WidgetTour({ onDone }) {
   const last = idx === steps.length - 1;
   return (
     <div className="ob-hint-card" role="dialog" aria-label="Dashboard widget tour">
-      <div className="ob-hint-title">{step.title} <span className="ob-hint-stepcount">({idx + 1}/{steps.length})</span></div>
+      <div className="ob-hint-title">
+        {step.title}{' '}
+        <span className="ob-hint-stepcount">
+          ({idx + 1}/{steps.length})
+        </span>
+      </div>
       <p className="ob-hint-body">{step.body}</p>
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-ghost" onClick={() => { setOpen(false); onDone && onDone('skipped'); }}>
+        <button
+          type="button"
+          className="ob-btn ob-btn-ghost"
+          onClick={() => {
+            setOpen(false);
+            onDone && onDone('skipped');
+          }}
+        >
           Skip
         </button>
         <button
-          type="button" className="ob-btn ob-btn-primary"
-          onClick={() => { if (last) { setOpen(false); onDone && onDone('done'); } else setIdx(idx + 1); }}
+          type="button"
+          className="ob-btn ob-btn-primary"
+          onClick={() => {
+            if (last) {
+              setOpen(false);
+              onDone && onDone('done');
+            } else setIdx(idx + 1);
+          }}
         >
           {last ? 'Got it' : 'Next'}
         </button>
@@ -174,7 +249,14 @@ export function WidgetTour({ onDone }) {
 export function SidebarProgressBar({ doneIds }) {
   const p = checklistProgress(doneIds);
   return (
-    <div className="ob-progress-wrap" role="progressbar" aria-valuenow={p.percent} aria-valuemin="0" aria-valuemax="100" aria-label="Onboarding progress">
+    <div
+      className="ob-progress-wrap"
+      role="progressbar"
+      aria-valuenow={p.percent}
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-label="Onboarding progress"
+    >
       <div className="ob-progress-label">{p.label}</div>
       <div className="ob-progress-track">
         <div className="ob-progress-fill" style={{ width: `${p.percent}%` }} />
@@ -190,10 +272,10 @@ export function OnboardingChecklist({ doneIds, onChange, onGraduate }) {
   const progress = checklistProgress(done);
   const party = celebrationState(progress);
 
-  const toggle = (id) => {
+  const toggle = id => {
     const next = completeChecklistStep(done, id);
     // allow unchecking too
-    const finalIds = done.includes(id) ? done.filter((d) => d !== id) : next;
+    const finalIds = done.includes(id) ? done.filter(d => d !== id) : next;
     setDone(finalIds);
     saveJson(LS_CHECKLIST, finalIds);
     onChange && onChange(finalIds);
@@ -217,14 +299,10 @@ export function OnboardingChecklist({ doneIds, onChange, onGraduate }) {
         <SidebarProgressBar doneIds={done} />
       </div>
       <ul className="ob-checklist-items">
-        {ONBOARDING_STEPS.map((s) => (
+        {ONBOARDING_STEPS.map(s => (
           <li key={s.id} className="ob-checklist-item">
             <label>
-              <input
-                type="checkbox"
-                checked={done.includes(s.id)}
-                onChange={() => toggle(s.id)}
-              />
+              <input type="checkbox" checked={done.includes(s.id)} onChange={() => toggle(s.id)} />
               <span className={done.includes(s.id) ? 'ob-done' : ''}>{s.label}</span>
             </label>
           </li>
@@ -251,7 +329,7 @@ export function TipsArchive() {
     <div className="ob-tips-archive">
       <h4 className="ob-tips-archive-title">Tips</h4>
       <ul>
-        {tips.map((t) => (
+        {tips.map(t => (
           <li key={t.id}>
             <strong>{t.title}</strong> — {t.body}
           </li>
@@ -271,10 +349,15 @@ export function SampleHuntLauncher({ onLaunch }) {
     <div className="ob-hint-card">
       <div className="ob-hint-title">Try a sample hunt</div>
       <p className="ob-hint-body">
-        {spec.note} {spec.findings} findings ({spec.critical} critical) in about {Math.round(spec.durationSec / 60)} min.
+        {spec.note} {spec.findings} findings ({spec.critical} critical) in about{' '}
+        {Math.round(spec.durationSec / 60)} min.
       </p>
       <div className="ob-hint-actions">
-        <button type="button" className="ob-btn ob-btn-primary" onClick={() => onLaunch && onLaunch(spec)}>
+        <button
+          type="button"
+          className="ob-btn ob-btn-primary"
+          onClick={() => onLaunch && onLaunch(spec)}
+        >
           Load sample hunt
         </button>
       </div>
@@ -294,7 +377,11 @@ export function SandboxBanner({ onEnter }) {
         <div className="ob-hint-title">{cfg.label} — $0 quota</div>
         <p className="ob-hint-body">{cfg.body}</p>
       </div>
-      <button type="button" className="ob-btn ob-btn-primary" onClick={() => onEnter && onEnter(cfg)}>
+      <button
+        type="button"
+        className="ob-btn ob-btn-primary"
+        onClick={() => onEnter && onEnter(cfg)}
+      >
         Enter sandbox
       </button>
     </div>
@@ -312,12 +399,15 @@ export function RolePathPicker({ onPick }) {
     <div className="ob-hint-card">
       <div className="ob-hint-title">How will you use Dark Matter?</div>
       <div className="ob-hint-actions">
-        {['researcher', 'executive'].map((r) => (
+        {['researcher', 'executive'].map(r => (
           <button
             key={r}
             type="button"
             className={`ob-btn ${role === r ? 'ob-btn-primary' : 'ob-btn-ghost'}`}
-            onClick={() => { setRole(r); onPick && onPick(roleOnboardingPath(r)); }}
+            onClick={() => {
+              setRole(r);
+              onPick && onPick(roleOnboardingPath(r));
+            }}
           >
             {r === 'researcher' ? 'Security researcher' : 'Executive'}
           </button>
@@ -327,7 +417,9 @@ export function RolePathPicker({ onPick }) {
         <div className="ob-role-tasks">
           <div className="ob-role-headline">{path.headline}</div>
           <ol>
-            {path.firstTasks.map((t) => <li key={t}>{t}</li>)}
+            {path.firstTasks.map(t => (
+              <li key={t}>{t}</li>
+            ))}
           </ol>
         </div>
       )}
@@ -354,7 +446,11 @@ export function DripEmailCard() {
         <button
           type="button"
           className={`ob-btn ${optedIn ? 'ob-btn-ghost' : 'ob-btn-primary'}`}
-          onClick={() => { const next = !optedIn; setOptedIn(next); saveJson('infinite.onboarding.drip.v1', next); }}
+          onClick={() => {
+            const next = !optedIn;
+            setOptedIn(next);
+            saveJson('infinite.onboarding.drip.v1', next);
+          }}
         >
           {optedIn ? 'Opt out' : 'Opt in'}
         </button>
@@ -373,9 +469,18 @@ export function OnboardingTourGallery() {
     <div className="ob-gallery">
       <h3>Onboarding tour components</h3>
       <TourLauncher />
-      <WelcomeBackTour lastSeenMs={Date.now() - 15 * 86400000} changeCount={4} onStart={noop} onDismiss={noop} />
+      <WelcomeBackTour
+        lastSeenMs={Date.now() - 15 * 86400000}
+        changeCount={4}
+        onStart={noop}
+        onDismiss={noop}
+      />
       <WidgetTour onDone={noop} />
-      <OnboardingChecklist doneIds={['target', 'finding', 'chat']} onChange={noop} onGraduate={noop} />
+      <OnboardingChecklist
+        doneIds={['target', 'finding', 'chat']}
+        onChange={noop}
+        onGraduate={noop}
+      />
       <SampleHuntLauncher onLaunch={noop} />
       <SandboxBanner onEnter={noop} />
       <RolePathPicker onPick={noop} />

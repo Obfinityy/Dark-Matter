@@ -24,11 +24,13 @@ export const PERMISSION_MODES = {
   FULL: 'full',
 };
 
+/** Human-readable labels for permission modes. */
 export const PERMISSION_LABELS = {
   [PERMISSION_MODES.ASK]: 'Har action par puchho',
   [PERMISSION_MODES.FULL]: 'Full control — no prompts',
 };
 
+/** Descriptions explaining each permission mode. */
 export const PERMISSION_DESCRIPTIONS = {
   [PERMISSION_MODES.ASK]:
     'Agent har tool / system action se pehle tumse permission maangega. Safe, thoda slow.',
@@ -38,6 +40,7 @@ export const PERMISSION_DESCRIPTIONS = {
 
 const STORAGE_KEY = 'dm.permissionMode';
 
+/** Return true if the value is a known permission mode. */
 export function isValidPermissionMode(mode) {
   return mode === PERMISSION_MODES.ASK || mode === PERMISSION_MODES.FULL;
 }
@@ -47,17 +50,22 @@ export function getPermissionMode() {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (isValidPermissionMode(stored)) return stored;
-  } catch { /* storage unavailable */ }
+  } catch {
+    /* storage unavailable */
+  }
   return PERMISSION_MODES.ASK;
 }
 
+/** Persist the selected permission mode. */
 export function setPermissionMode(mode) {
   if (!isValidPermissionMode(mode)) {
     throw new Error(`Invalid permission mode: ${mode}`);
   }
   try {
     window.localStorage.setItem(STORAGE_KEY, mode);
-  } catch { /* storage unavailable */ }
+  } catch {
+    /* storage unavailable */
+  }
   return mode;
 }
 
@@ -79,6 +87,8 @@ export async function loadPermissionModeFromServer() {
       setPermissionMode(res.permissionMode);
       return res.permissionMode;
     }
-  } catch { /* offline or unsupported backend */ }
+  } catch {
+    /* offline or unsupported backend */
+  }
   return getPermissionMode();
 }

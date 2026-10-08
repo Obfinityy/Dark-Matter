@@ -86,12 +86,20 @@ export function buildProbeRequest(url) {
  * @returns {Promise<object>} { url, detected, version, pathShape, error }
  */
 export async function probeConnectEndpoint(url, fetchImpl = globalThis.fetch) {
-  const outcome = { url, detected: false, version: null, pathShape: matchConnectPath(url), error: null };
+  const outcome = {
+    url,
+    detected: false,
+    version: null,
+    pathShape: matchConnectPath(url),
+    error: null,
+  };
   const { options } = buildProbeRequest(url);
   try {
     const res = await fetchImpl(url, options);
     const headers = {};
-    res.headers?.forEach?.((v, k) => { headers[k.toLowerCase()] = v; });
+    res.headers?.forEach?.((v, k) => {
+      headers[k.toLowerCase()] = v;
+    });
     const analysis = analyzeConnectHeaders(headers);
     outcome.detected = analysis.detected;
     outcome.version = analysis.version;
@@ -108,10 +116,12 @@ export async function probeConnectEndpoint(url, fetchImpl = globalThis.fetch) {
  * @returns {string|null}
  */
 export function summarizeFindings(probes = []) {
-  const exposed = probes.filter((p) => p.detected || p.pathShape.matches);
+  const exposed = probes.filter(p => p.detected || p.pathShape.matches);
   if (exposed.length === 0) return null;
-  const lines = exposed.map((p) => {
-    const shape = p.pathShape.matches ? `${p.pathShape.package}.${p.pathShape.service}/${p.pathShape.method}` : 'no procedure shape';
+  const lines = exposed.map(p => {
+    const shape = p.pathShape.matches
+      ? `${p.pathShape.package}.${p.pathShape.service}/${p.pathShape.method}`
+      : 'no procedure shape';
     return `- ${p.url}: Connect-style endpoint (shape: ${shape}${p.version ? `, protocol v${p.version}` : ''})`;
   });
   return `Connect-protocol RPC surface detected:\n${lines.join('\n')}\nRecommendation: enforce per-procedure authorization and avoid exposing internal package/service naming.`;

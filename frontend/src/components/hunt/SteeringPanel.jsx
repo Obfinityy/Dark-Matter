@@ -55,10 +55,26 @@ export function ScopeEditor({ scope, onChange }) {
   return (
     <div className="steer29-card" data-testid="scope-editor">
       <h4>Scope targets</h4>
-      <ul>{scope.map((t) => <li key={t}>{t}</li>)}</ul>
-      <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="sub.example.com or /path" aria-label="New scope target" />
+      <ul>
+        {scope.map(t => (
+          <li key={t}>{t}</li>
+        ))}
+      </ul>
+      <input
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        placeholder="sub.example.com or /path"
+        aria-label="New scope target"
+      />
       <button onClick={add}>Add to scope</button>
-      {ack && <p className="steer29-ack">Agent: {ack.status === 'acknowledged' ? `acknowledged — now testing ${ack.target}` : `${ack.target} already in scope`}</p>}
+      {ack && (
+        <p className="steer29-ack">
+          Agent:{' '}
+          {ack.status === 'acknowledged'
+            ? `acknowledged — now testing ${ack.target}`
+            : `${ack.target} already in scope`}
+        </p>
+      )}
     </div>
   );
 }
@@ -66,7 +82,7 @@ export function ScopeEditor({ scope, onChange }) {
 /* 51122 — mid-hunt scope removal */
 export function ScopeRemover({ scope, inFlight, onChange }) {
   const [result, setResult] = useState(null);
-  const remove = (target) => {
+  const remove = target => {
     const r = removeScopeTarget(scope, inFlight, target);
     onChange(r.scope, r.remaining);
     setResult(r);
@@ -74,8 +90,10 @@ export function ScopeRemover({ scope, inFlight, onChange }) {
   return (
     <div className="steer29-card" data-testid="scope-remover">
       <h4>Remove from scope</h4>
-      {scope.map((t) => (
-        <button key={t} onClick={() => remove(t)}>Remove {t}</button>
+      {scope.map(t => (
+        <button key={t} onClick={() => remove(t)}>
+          Remove {t}
+        </button>
       ))}
       {result && (
         <p className="steer29-ack">
@@ -91,9 +109,14 @@ export function ProfileSwitch({ plan, onChange }) {
   return (
     <div className="steer29-card" data-testid="profile-switch">
       <h4>Target profile</h4>
-      {TARGET_PROFILES.map((p) => (
-        <button key={p} disabled={plan.profile === p} onClick={() => onChange(switchTargetProfile(plan, p))}>
-          {p}{plan.profile === p ? ' (active)' : ''}
+      {TARGET_PROFILES.map(p => (
+        <button
+          key={p}
+          disabled={plan.profile === p}
+          onClick={() => onChange(switchTargetProfile(plan, p))}
+        >
+          {p}
+          {plan.profile === p ? ' (active)' : ''}
         </button>
       ))}
       {plan.retuned && <p className="steer29-ack">Plan retuned live for {plan.profile}.</p>}
@@ -112,8 +135,13 @@ export function WordlistInjector({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="wordlist-injector">
       <h4>Inject wordlist mid-hunt</h4>
-      <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Wordlist name" />
-      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="one word per line" aria-label="Wordlist words" />
+      <input value={name} onChange={e => setName(e.target.value)} aria-label="Wordlist name" />
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="one word per line"
+        aria-label="Wordlist words"
+      />
       <button onClick={inject}>Inject now</button>
       <p>{(state.wordlists || []).length} wordlist(s) active</p>
     </div>
@@ -126,7 +154,14 @@ export function RateCapControl({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="rate-cap">
       <h4>Request-rate cap: {rps}/s</h4>
-      <input type="range" min="1" max="200" value={rps} onChange={(e) => setRps(Number(e.target.value))} aria-label="Requests per second cap" />
+      <input
+        type="range"
+        min="1"
+        max="200"
+        value={rps}
+        onChange={e => setRps(Number(e.target.value))}
+        aria-label="Requests per second cap"
+      />
       <button onClick={() => onChange(setRateCap(state, rps))}>Apply cap</button>
       {state.throttled && <p className="steer29-ack">Throttling active.</p>}
     </div>
@@ -138,8 +173,14 @@ export function IntensityDial({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="intensity-dial">
       <h4>Scan intensity</h4>
-      {INTENSITY_LEVELS.map((l) => (
-        <button key={l} disabled={state.intensity === l} onClick={() => onChange(setIntensity(state, l))}>{l}</button>
+      {INTENSITY_LEVELS.map(l => (
+        <button
+          key={l}
+          disabled={state.intensity === l}
+          onClick={() => onChange(setIntensity(state, l))}
+        >
+          {l}
+        </button>
       ))}
       <p>{state.payloadsPerCheck || 3} payloads per check</p>
     </div>
@@ -152,8 +193,20 @@ export function EndpointRedirect({ queue, onChange }) {
   return (
     <div className="steer29-card" data-testid="endpoint-redirect">
       <h4>Redirect to endpoint</h4>
-      <input value={ep} onChange={(e) => setEp(e.target.value)} placeholder="/api/v2/admin" aria-label="Endpoint" />
-      <button onClick={() => { onChange(redirectEndpoint(queue, ep)); setEp(''); }}>Investigate next</button>
+      <input
+        value={ep}
+        onChange={e => setEp(e.target.value)}
+        placeholder="/api/v2/admin"
+        aria-label="Endpoint"
+      />
+      <button
+        onClick={() => {
+          onChange(redirectEndpoint(queue, ep));
+          setEp('');
+        }}
+      >
+        Investigate next
+      </button>
       <p>Next up: {queue[0] ? queue[0].endpoint : '—'}</p>
     </div>
   );
@@ -164,12 +217,18 @@ export function ModulePauseList({ modules, onChange }) {
   return (
     <div className="steer29-card" data-testid="module-pause">
       <h4>Modules</h4>
-      {modules.map((m) => (
+      {modules.map(m => (
         <div key={m.name}>
-          <span>{m.name}{m.paused ? ' (paused)' : ''}{m.enabled === false ? ' (disabled)' : ''}</span>
-          {m.paused
-            ? <button onClick={() => onChange(resumeModule(modules, m.name))}>Resume</button>
-            : <button onClick={() => onChange(pauseModule(modules, m.name))}>Pause</button>}
+          <span>
+            {m.name}
+            {m.paused ? ' (paused)' : ''}
+            {m.enabled === false ? ' (disabled)' : ''}
+          </span>
+          {m.paused ? (
+            <button onClick={() => onChange(resumeModule(modules, m.name))}>Resume</button>
+          ) : (
+            <button onClick={() => onChange(pauseModule(modules, m.name))}>Pause</button>
+          )}
         </div>
       ))}
     </div>
@@ -184,9 +243,18 @@ export function PhaseReorder({ phases, onChange }) {
       <h4>Phase order</h4>
       <ol>
         {phases.map((p, i) => (
-          <li key={p}>{p}
-            <button onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Move ${p} up`}>↑</button>
-            <button onClick={() => move(i, 1)} disabled={i === phases.length - 1} aria-label={`Move ${p} down`}>↓</button>
+          <li key={p}>
+            {p}
+            <button onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Move ${p} up`}>
+              ↑
+            </button>
+            <button
+              onClick={() => move(i, 1)}
+              disabled={i === phases.length - 1}
+              aria-label={`Move ${p} down`}
+            >
+              ↓
+            </button>
           </li>
         ))}
       </ol>
@@ -200,7 +268,13 @@ export function TimeBudgetExtender({ plan, onChange }) {
   return (
     <div className="steer29-card" data-testid="time-budget">
       <h4>Time budget: {plan.timeBudgetMin || 60} min</h4>
-      <input type="number" value={extra} min="1" onChange={(e) => setExtra(Number(e.target.value))} aria-label="Extra minutes" />
+      <input
+        type="number"
+        value={extra}
+        min="1"
+        onChange={e => setExtra(Number(e.target.value))}
+        aria-label="Extra minutes"
+      />
       <button onClick={() => onChange(extendTimeBudget(plan, extra))}>Grant extra time</button>
     </div>
   );
@@ -212,7 +286,13 @@ export function WrapUpButton({ plan, onChange }) {
   return (
     <div className="steer29-card" data-testid="wrap-up">
       <h4>Wrap up hunt</h4>
-      <input type="number" value={minutes} min="1" onChange={(e) => setMinutes(Number(e.target.value))} aria-label="Wrap-up minutes" />
+      <input
+        type="number"
+        value={minutes}
+        min="1"
+        onChange={e => setMinutes(Number(e.target.value))}
+        aria-label="Wrap-up minutes"
+      />
       <button onClick={() => onChange(wrapUp(plan, minutes))}>Finish within {minutes} min</button>
       {plan.mode === 'wrap-up' && <p className="steer29-ack">Condensed final sweep armed.</p>}
     </div>
@@ -233,9 +313,18 @@ export function NLSteeringInput({ state, onApply }) {
   return (
     <div className="steer29-card" data-testid="nl-steering">
       <h4>Steer in plain words</h4>
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder='e.g. "spend more time on the API"' aria-label="Steering command" />
+      <input
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder='e.g. "spend more time on the API"'
+        aria-label="Steering command"
+      />
       <button onClick={send}>Send</button>
-      {parsed && <p>Parsed: <code>{parsed.type}</code></p>}
+      {parsed && (
+        <p>
+          Parsed: <code>{parsed.type}</code>
+        </p>
+      )}
       {pushback && <p className="steer29-warn">{pushback}</p>}
       {needsApproval(parsed) && <p className="steer29-warn">Big change — confirmation required.</p>}
     </div>
@@ -250,9 +339,18 @@ export function PriorityList({ priorities, onChange }) {
       <h4>Hunt priorities</h4>
       <ol>
         {priorities.map((p, i) => (
-          <li key={String(p)}>{p}
-            <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
-            <button onClick={() => move(i, 1)} disabled={i === priorities.length - 1} aria-label="Move down">↓</button>
+          <li key={String(p)}>
+            {p}
+            <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
+              ↑
+            </button>
+            <button
+              onClick={() => move(i, 1)}
+              disabled={i === priorities.length - 1}
+              aria-label="Move down"
+            >
+              ↓
+            </button>
           </li>
         ))}
       </ol>
@@ -265,8 +363,12 @@ export function PresetButtons({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="steering-presets">
       <h4>Steering presets</h4>
-      {STEERING_PRESETS.map((p) => (
-        <button key={p} disabled={state.activePreset === p} onClick={() => onChange(applyPreset(state, p))}>
+      {STEERING_PRESETS.map(p => (
+        <button
+          key={p}
+          disabled={state.activePreset === p}
+          onClick={() => onChange(applyPreset(state, p))}
+        >
           {p === 'go-wide' ? 'Go wide' : p === 'go-deep' ? 'Go deep' : 'Be quiet'}
         </button>
       ))}
@@ -285,7 +387,9 @@ export function UndoButton({ history, onUndo }) {
   };
   return (
     <div className="steer29-card" data-testid="undo-steering">
-      <button onClick={undo} disabled={!history.length}>Undo last steering</button>
+      <button onClick={undo} disabled={!history.length}>
+        Undo last steering
+      </button>
       {msg && <p className="steer29-ack">{msg}</p>}
     </div>
   );
@@ -299,8 +403,14 @@ export function SteeringPreviewDialog({ state, command, onConfirm, onCancel }) {
   return (
     <div className="steer29-card steer29-dialog" data-testid="steering-preview">
       <h4>Preview steering change</h4>
-      <ul>{preview.changes.map((c, i) => <li key={i}>{c}</li>)}</ul>
-      <p>Estimated impact: +{impact.minutes} min, +{impact.requests} requests</p>
+      <ul>
+        {preview.changes.map((c, i) => (
+          <li key={i}>{c}</li>
+        ))}
+      </ul>
+      <p>
+        Estimated impact: +{impact.minutes} min, +{impact.requests} requests
+      </p>
       <button onClick={onConfirm}>Confirm</button>
       <button onClick={onCancel}>Cancel</button>
     </div>
@@ -315,12 +425,26 @@ export function SteeringHistory({ history, onLog }) {
     <div className="steer29-card" data-testid="steering-history">
       <h4>Steering history</h4>
       <ol>
-        {history.map((h) => (
-          <li key={h.seq}>#{h.seq} {h.by}: {h.summary || h.command.type}</li>
+        {history.map(h => (
+          <li key={h.seq}>
+            #{h.seq} {h.by}: {h.summary || h.command.type}
+          </li>
         ))}
       </ol>
-      <input value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What changed?" aria-label="Change summary" />
-      <button onClick={() => { onLog(logSteering(history, { by, command: { type: 'manual' }, summary })); setSummary(''); }}>Log entry</button>
+      <input
+        value={summary}
+        onChange={e => setSummary(e.target.value)}
+        placeholder="What changed?"
+        aria-label="Change summary"
+      />
+      <button
+        onClick={() => {
+          onLog(logSteering(history, { by, command: { type: 'manual' }, summary }));
+          setSummary('');
+        }}
+      >
+        Log entry
+      </button>
     </div>
   );
 }
@@ -340,8 +464,9 @@ export function CoSteeringPanel({ proposals, onChange }) {
   return (
     <div className="steer29-card" data-testid="co-steering">
       <h4>Co-steering proposals</h4>
-      {proposals.map((p) => (
-        <div key={p.id}>{p.by}: {p.command.type} — {p.status}
+      {proposals.map(p => (
+        <div key={p.id}>
+          {p.by}: {p.command.type} — {p.status}
           {p.status === 'pending' && (
             <>
               <button onClick={() => resolve(p.id, true)}>Approve</button>
@@ -350,7 +475,12 @@ export function CoSteeringPanel({ proposals, onChange }) {
           )}
         </div>
       ))}
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Propose a steering change" aria-label="Proposal" />
+      <input
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="Propose a steering change"
+        aria-label="Proposal"
+      />
       <button onClick={propose}>Propose</button>
     </div>
   );
@@ -362,11 +492,28 @@ export function TemplateManager({ state, templates, onStateChange, onTemplatesCh
   return (
     <div className="steer29-card" data-testid="steering-templates">
       <h4>Steering templates</h4>
-      {Object.keys(templates).map((t) => (
-        <button key={t} onClick={() => onStateChange(applyTemplate(state, templates, t))}>Apply {t}</button>
+      {Object.keys(templates).map(t => (
+        <button key={t} onClick={() => onStateChange(applyTemplate(state, templates, t))}>
+          Apply {t}
+        </button>
       ))}
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Template name" aria-label="Template name" />
-      <button onClick={() => { onTemplatesChange(saveTemplate(templates, name, { intensity: state.intensity, rateCapRps: state.rateCapRps })); setName(''); }}>
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Template name"
+        aria-label="Template name"
+      />
+      <button
+        onClick={() => {
+          onTemplatesChange(
+            saveTemplate(templates, name, {
+              intensity: state.intensity,
+              rateCapRps: state.rateCapRps,
+            })
+          );
+          setName('');
+        }}
+      >
         Save current as template
       </button>
     </div>
@@ -377,7 +524,11 @@ export function TemplateManager({ state, templates, onStateChange, onTemplatesCh
 export function SteeringGallery() {
   const [scope, setScope] = useState(['example.com']);
   const [inFlight, setInFlight] = useState([{ id: 1, target: 'example.com/api' }]);
-  const [plan, setPlan] = useState({ profile: 'generic', timeBudgetMin: 60, perPhaseMin: { recon: 20, fuzz: 40 } });
+  const [plan, setPlan] = useState({
+    profile: 'generic',
+    timeBudgetMin: 60,
+    perPhaseMin: { recon: 20, fuzz: 40 },
+  });
   const [state, setState] = useState({ intensity: 'normal', rateCapRps: 10 });
   const [queue, setQueue] = useState([]);
   const [modules, setModules] = useState(seedModules());
@@ -387,7 +538,7 @@ export function SteeringGallery() {
   const [proposals, setProposals] = useState([]);
   const [templates, setTemplates] = useState({});
   const [previewCmd, setPreviewCmd] = useState(null);
-  const apply = (cmd) => {
+  const apply = cmd => {
     const before = { ...state };
     let next = { ...state };
     if (cmd.type === 'set-intensity') next = setIntensity(next, cmd.level);
@@ -399,7 +550,14 @@ export function SteeringGallery() {
   return (
     <div className="steer29-gallery" data-testid="steering-gallery">
       <ScopeEditor scope={scope} onChange={setScope} />
-      <ScopeRemover scope={scope} inFlight={inFlight} onChange={(s, r) => { setScope(s); setInFlight(r); }} />
+      <ScopeRemover
+        scope={scope}
+        inFlight={inFlight}
+        onChange={(s, r) => {
+          setScope(s);
+          setInFlight(r);
+        }}
+      />
       <ProfileSwitch plan={plan} onChange={setPlan} />
       <WordlistInjector state={state} onChange={setState} />
       <RateCapControl state={state} onChange={setState} />
@@ -409,14 +567,33 @@ export function SteeringGallery() {
       <PhaseReorder phases={phases} onChange={setPhases} />
       <TimeBudgetExtender plan={plan} onChange={setPlan} />
       <WrapUpButton plan={plan} onChange={setPlan} />
-      <NLSteeringInput state={state} onApply={(c) => setPreviewCmd(c)} />
+      <NLSteeringInput state={state} onApply={c => setPreviewCmd(c)} />
       <PriorityList priorities={priorities} onChange={setPriorities} />
       <PresetButtons state={state} onChange={setState} />
-      <UndoButton history={history} onUndo={(s, h) => { setState(s); setHistory(h); }} />
-      <SteeringPreviewDialog state={state} command={previewCmd} onConfirm={() => { apply(previewCmd); setPreviewCmd(null); }} onCancel={() => setPreviewCmd(null)} />
+      <UndoButton
+        history={history}
+        onUndo={(s, h) => {
+          setState(s);
+          setHistory(h);
+        }}
+      />
+      <SteeringPreviewDialog
+        state={state}
+        command={previewCmd}
+        onConfirm={() => {
+          apply(previewCmd);
+          setPreviewCmd(null);
+        }}
+        onCancel={() => setPreviewCmd(null)}
+      />
       <SteeringHistory history={history} onLog={setHistory} />
       <CoSteeringPanel proposals={proposals} onChange={setProposals} />
-      <TemplateManager state={state} templates={templates} onStateChange={setState} onTemplatesChange={setTemplates} />
+      <TemplateManager
+        state={state}
+        templates={templates}
+        onStateChange={setState}
+        onTemplatesChange={setTemplates}
+      />
     </div>
   );
 }

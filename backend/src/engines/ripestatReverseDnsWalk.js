@@ -22,7 +22,9 @@ const INTERNAL_HINT_RE =
  * @returns {{ ptr, delegation: boolean, internal: boolean, labels: string[] }}
  */
 export function classifyPtr(ptr = '') {
-  const name = String(ptr || '').toLowerCase().replace(/\.$/, '');
+  const name = String(ptr || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const labels = name ? name.split('.') : [];
   return {
     ptr: name || null,
@@ -62,7 +64,7 @@ export function walkReverseDnsChain(chain = [], minHosts = 3) {
     if (cls.delegation) z.delegationHits++;
     if (cls.internal) z.internalHits++;
   }
-  const zones = [...byZone.values()].map((z) => ({
+  const zones = [...byZone.values()].map(z => ({
     ...z,
     subZoneCandidate: z.hosts.length >= minHosts && (z.delegationHits > 0 || z.internalHits > 0),
   }));
@@ -88,7 +90,9 @@ export function walkReverseDnsChain(chain = [], minHosts = 3) {
 export function extractSubZoneRoots(ptrs = [], minShared = 2) {
   const counts = new Map();
   for (const raw of ptrs || []) {
-    const name = String(raw || '').toLowerCase().replace(/\.$/, '');
+    const name = String(raw || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const labels = name.split('.').filter(Boolean);
     if (labels.length < 3) continue;
     const suffix = labels.slice(1).join('.');

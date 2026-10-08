@@ -38,17 +38,27 @@ export function scoreObservation(obs) {
     score += 20;
   }
   if (o.observedStatus !== o.baselineStatus && o.baselineStatus != null) {
-    indicators.push(`status differential: baseline ${o.baselineStatus} vs observed ${o.observedStatus}`);
+    indicators.push(
+      `status differential: baseline ${o.baselineStatus} vs observed ${o.observedStatus}`
+    );
     score += 15;
   }
-  if (o.baselineLength != null && o.observedLength != null && o.observedLength !== o.baselineLength) {
-    indicators.push(`response length differential: ${o.baselineLength} vs ${o.observedLength} bytes`);
+  if (
+    o.baselineLength != null &&
+    o.observedLength != null &&
+    o.observedLength !== o.baselineLength
+  ) {
+    indicators.push(
+      `response length differential: ${o.baselineLength} vs ${o.observedLength} bytes`
+    );
     score += 15;
   }
   const base = Number(o.baselineLatencyMs) || 0;
   const cur = Number(o.observedLatencyMs) || 0;
   if (base > 0 && cur > base * 3 && cur - base > 2000) {
-    indicators.push(`latency spike (${base}ms -> ${cur}ms) consistent with request queuing on the backend`);
+    indicators.push(
+      `latency spike (${base}ms -> ${cur}ms) consistent with request queuing on the backend`
+    );
     score += 10;
   }
   if (!AMBIGUITY_CLASSES.includes(o.ambiguityClass)) {
@@ -103,7 +113,9 @@ export function summarizeAssessment(result, targetHost) {
   const recommendations = [];
   if (top) {
     recommendations.push('Confirm with a manual timing-based differential test before reporting');
-    recommendations.push('Recommend normalizing Content-Length/Transfer-Encoding handling at the frontend proxy');
+    recommendations.push(
+      'Recommend normalizing Content-Length/Transfer-Encoding handling at the frontend proxy'
+    );
     recommendations.push(`Highest-signal ambiguity class: ${top.ambiguityClass}`);
   } else {
     recommendations.push('Ambiguity classes tested clean; re-test after any proxy/server change');

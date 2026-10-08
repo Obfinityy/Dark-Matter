@@ -9,25 +9,69 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import {
-  WAVE19_IDEAS, wave19IdeasComplete,
-  GRID_COLS, collides, normalizeItem, moveItem, resizeItem, compactLayout, gridArea,
-  serializeLayout, deserializeLayout,
-  DASHBOARD_PRESETS, presetLayout, duplicateDashboard,
-  TIME_RANGES, TIME_RANGE_LABELS, rangeMs, inRange,
-  recentReportsModel, watchlistModel, modelStatusModel, calendarMonth, huntsByDay,
-  costUsageModel, projectMonthEnd, webhookDeliveryModel, rankPayloadFamilies,
-  retestQueueModel, unreadMentionsModel, findingsTickerModel, uptimeModel,
-  chainsModel, coverageModel, comparativeCard, widgetDeepLink,
-  checkThreshold, thresholdLabel, canSeeWidget, visibleLayout,
-  isQuietNow, quietHoursSummary, kioskNext, snapshotExport,
-  TOAST_POSITIONS, DEFAULT_TOAST_POSITION, MOBILE_TOAST_POSITION,
-  toastSeverityColor, criticalToast, phaseToast, errorToast, actionToast,
-  stackToasts, TOAST_STACK_LIMIT, rateLimitOk, TOAST_RATE_WINDOW_MS,
-  groupFindingsToast, resolveToastPosition, filterGalleryWidgets, updatedAgo,
+  WAVE19_IDEAS,
+  wave19IdeasComplete,
+  GRID_COLS,
+  collides,
+  normalizeItem,
+  moveItem,
+  resizeItem,
+  compactLayout,
+  gridArea,
+  serializeLayout,
+  deserializeLayout,
+  DASHBOARD_PRESETS,
+  presetLayout,
+  duplicateDashboard,
+  TIME_RANGES,
+  TIME_RANGE_LABELS,
+  rangeMs,
+  inRange,
+  recentReportsModel,
+  watchlistModel,
+  modelStatusModel,
+  calendarMonth,
+  huntsByDay,
+  costUsageModel,
+  projectMonthEnd,
+  webhookDeliveryModel,
+  rankPayloadFamilies,
+  retestQueueModel,
+  unreadMentionsModel,
+  findingsTickerModel,
+  uptimeModel,
+  chainsModel,
+  coverageModel,
+  comparativeCard,
+  widgetDeepLink,
+  checkThreshold,
+  thresholdLabel,
+  canSeeWidget,
+  visibleLayout,
+  isQuietNow,
+  quietHoursSummary,
+  kioskNext,
+  snapshotExport,
+  TOAST_POSITIONS,
+  DEFAULT_TOAST_POSITION,
+  MOBILE_TOAST_POSITION,
+  toastSeverityColor,
+  criticalToast,
+  phaseToast,
+  errorToast,
+  actionToast,
+  stackToasts,
+  TOAST_STACK_LIMIT,
+  rateLimitOk,
+  TOAST_RATE_WINDOW_MS,
+  groupFindingsToast,
+  resolveToastPosition,
+  filterGalleryWidgets,
+  updatedAgo,
 } from './dashboardRound2Core.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const read = (f) => readFileSync(join(here, f), 'utf8');
+const read = f => readFileSync(join(here, f), 'utf8');
 
 /* Registry ---------------------------------------------------------------- */
 
@@ -70,7 +114,7 @@ test('compactLayout removes vertical gaps without overlap', () => {
     { id: 'b', x: 0, y: 5, w: 4, h: 2 },
   ];
   const c = compactLayout(layout);
-  const b = c.find((i) => i.id === 'b');
+  const b = c.find(i => i.id === 'b');
   assert.ok(b.y < 5);
   assert.ok(!collides(c[0], c[1]));
 });
@@ -90,14 +134,26 @@ test('serialize/deserialize round-trip; bad JSON returns null', () => {
 
 test('presets produce layouts from the catalog', () => {
   const allIds = [
-    'severityDonut', 'coverage', 'costUsage', 'recentReports', 'findingsTicker',
-    'chains', 'payloadFamily', 'watchlist', 'retestQueue', 'agentHeatmap',
-    'needsReview', 'criticalToastFeed', 'mentions', 'slaRisk', 'webhookDeliveries',
+    'severityDonut',
+    'coverage',
+    'costUsage',
+    'recentReports',
+    'findingsTicker',
+    'chains',
+    'payloadFamily',
+    'watchlist',
+    'retestQueue',
+    'agentHeatmap',
+    'needsReview',
+    'criticalToastFeed',
+    'mentions',
+    'slaRisk',
+    'webhookDeliveries',
   ];
   for (const name of Object.keys(DASHBOARD_PRESETS)) {
     const l = presetLayout(name, allIds);
     assert.ok(Array.isArray(l) && l.length > 0, name);
-    assert.ok(l.every((it) => it.x + it.w <= 12));
+    assert.ok(l.every(it => it.x + it.w <= 12));
   }
   assert.equal(presetLayout('nope', []), null);
   assert.deepEqual(presetLayout('executive', []), []);
@@ -126,10 +182,18 @@ test('rangeMs and inRange', () => {
 
 test('recentReportsModel sorts newest-first and limits', () => {
   const now = Date.now();
-  const rows = recentReportsModel([
-    { id: '1', createdAt: now - 2000 }, { id: '2', createdAt: now - 1000 }, { id: '3', createdAt: now },
-  ], 2);
-  assert.deepEqual(rows.map((r) => r.id), ['3', '2']);
+  const rows = recentReportsModel(
+    [
+      { id: '1', createdAt: now - 2000 },
+      { id: '2', createdAt: now - 1000 },
+      { id: '3', createdAt: now },
+    ],
+    2
+  );
+  assert.deepEqual(
+    rows.map(r => r.id),
+    ['3', '2']
+  );
   assert.ok(rows[0].dateLabel);
 });
 
@@ -143,14 +207,20 @@ test('modelStatusModel summarizes brain health', () => {
   assert.equal(modelStatusModel([{ slot: 'h', health: 'healthy' }]).summary, 'healthy');
   assert.equal(modelStatusModel([{ slot: 'h', health: 'degraded' }]).summary, 'degraded');
   assert.equal(modelStatusModel([{ slot: 'h', health: 'down' }]).summary, 'down');
-  const m = modelStatusModel([{ slot: 'hacker', name: 'qwen', version: '32b', location: 'local', health: 'healthy' }]);
+  const m = modelStatusModel([
+    { slot: 'hacker', name: 'qwen', version: '32b', location: 'local', health: 'healthy' },
+  ]);
   assert.equal(m.slots[0].location, 'Local');
 });
 
 test('calendarMonth builds week rows; huntsByDay buckets by date', () => {
   const weeks = calendarMonth(2026, 9);
-  assert.ok(weeks.length >= 4 && weeks.every((w) => w.length === 7));
-  const map = huntsByDay([{ startedAt: new Date(2026, 9, 7).getTime() }, { startedAt: new Date(2026, 9, 7).getTime() }], 2026, 9);
+  assert.ok(weeks.length >= 4 && weeks.every(w => w.length === 7));
+  const map = huntsByDay(
+    [{ startedAt: new Date(2026, 9, 7).getTime() }, { startedAt: new Date(2026, 9, 7).getTime() }],
+    2026,
+    9
+  );
   assert.equal(map[7].length, 2);
 });
 
@@ -169,14 +239,19 @@ test('webhookDeliveryModel maps status dots and retry', () => {
     { id: '2', event: 'e', status: 'failed', attemptedAt: 2 },
     { id: '3', event: 'e', status: 'retrying', attemptedAt: 3 },
   ]);
-  assert.deepEqual(rows.map((r) => r.dot), ['amber', 'red', 'green']);
-  assert.ok(rows.find((r) => r.id === '2').retryable);
+  assert.deepEqual(
+    rows.map(r => r.dot),
+    ['amber', 'red', 'green']
+  );
+  assert.ok(rows.find(r => r.id === '2').retryable);
 });
 
 test('rankPayloadFamilies sorts by confirmed', () => {
   const rows = rankPayloadFamilies([
-    { family: 'xss', confirmed: true }, { family: 'xss', confirmed: false },
-    { family: 'sqli', confirmed: true }, { family: 'sqli', confirmed: true },
+    { family: 'xss', confirmed: true },
+    { family: 'xss', confirmed: false },
+    { family: 'sqli', confirmed: true },
+    { family: 'sqli', confirmed: true },
   ]);
   assert.equal(rows[0].family, 'sqli');
   assert.equal(rows[1].family, 'xss');
@@ -185,7 +260,9 @@ test('rankPayloadFamilies sorts by confirmed', () => {
 
 test('retestQueueModel filters and enables run-all', () => {
   const m = retestQueueModel([
-    { id: '1', needsRetest: true }, { id: '2', needsRetest: true, retestedAt: 1 }, { id: '3' },
+    { id: '1', needsRetest: true },
+    { id: '2', needsRetest: true, retestedAt: 1 },
+    { id: '3' },
   ]);
   assert.equal(m.count, 1);
   assert.ok(m.runAllEnabled);
@@ -193,7 +270,10 @@ test('retestQueueModel filters and enables run-all', () => {
 });
 
 test('unreadMentionsModel counts unread', () => {
-  const m = unreadMentionsModel([{ id: '1', read: false }, { id: '2', read: true }]);
+  const m = unreadMentionsModel([
+    { id: '1', read: false },
+    { id: '2', read: true },
+  ]);
   assert.equal(m.count, 1);
   assert.equal(m.items[0].id, '1');
 });
@@ -206,9 +286,14 @@ test('findingsTickerModel limits to 20 newest', () => {
 
 test('uptimeModel computes downtime', () => {
   const now = Date.now();
-  const m = uptimeModel([
-    { at: now - 3600000, type: 'down' }, { at: now - 3540000, type: 'up' },
-  ], 86400000, now);
+  const m = uptimeModel(
+    [
+      { at: now - 3600000, type: 'down' },
+      { at: now - 3540000, type: 'up' },
+    ],
+    86400000,
+    now
+  );
   assert.ok(m.pct > 99 && m.pct < 100);
   assert.equal(m.downtimeMs, 60000);
   assert.equal(uptimeModel([], 86400000).pct, 100);
@@ -222,7 +307,10 @@ test('chainsModel returns count + top 3', () => {
     { id: 'd', severityScore: 8, findings: [1] },
   ]);
   assert.equal(m.count, 4);
-  assert.deepEqual(m.top.map((c) => c.id), ['a', 'd', 'c']);
+  assert.deepEqual(
+    m.top.map(c => c.id),
+    ['a', 'd', 'c']
+  );
   assert.equal(m.top[2].hops, 3);
 });
 
@@ -259,7 +347,10 @@ test('canSeeWidget respects role allowlists', () => {
   assert.ok(canSeeWidget('w1', ['admin'], {}));
   assert.ok(canSeeWidget('w1', ['viewer'], { w1: ['viewer'] }));
   assert.ok(!canSeeWidget('w1', ['viewer'], { w1: ['admin'] }));
-  assert.ok(visibleLayout([{ id: 'w1', x: 0, y: 0, w: 4, h: 2 }], ['viewer'], { w1: ['admin'] }).length === 0);
+  assert.ok(
+    visibleLayout([{ id: 'w1', x: 0, y: 0, w: 4, h: 2 }], ['viewer'], { w1: ['admin'] }).length ===
+      0
+  );
 });
 
 test('isQuietNow wraps midnight', () => {
@@ -312,7 +403,7 @@ test('stackToasts keeps max 3 visible and never collapses persistent', () => {
   assert.equal(visible.length, 3);
   assert.equal(collapsedCount, 2);
   const withErr = stackToasts([mk(1), mk(2), mk(3), mk(4, true), mk(5)]);
-  assert.ok(withErr.visible.some((t) => t.id === 't4'));
+  assert.ok(withErr.visible.some(t => t.id === 't4'));
 });
 
 test('rateLimitOk enforces 10s per category', () => {
@@ -326,7 +417,9 @@ test('rateLimitOk enforces 10s per category', () => {
 test('groupFindingsToast merges 2+ findings', () => {
   assert.equal(groupFindingsToast([{ id: '1' }]), null);
   const g = groupFindingsToast([
-    { id: '1', severity: 'critical' }, { id: '2', severity: 'low' }, { id: '3', severity: 'medium' },
+    { id: '1', severity: 'critical' },
+    { id: '2', severity: 'low' },
+    { id: '3', severity: 'medium' },
   ]);
   assert.equal(g.title, '3 new findings');
   assert.ok(g.expandable);
@@ -364,45 +457,95 @@ test('updatedAgo labels', () => {
 test('DashboardWidgets2.jsx exports all 13 widgets + gallery + shell', () => {
   const src = read('DashboardWidgets2.jsx');
   for (const name of [
-    'RecentReportsWidget', 'WatchlistWidget', 'ModelStatusWidget', 'HuntCalendarWidget',
-    'CostUsageWidget', 'WebhookDeliveryWidget', 'PayloadFamilyWidget', 'RetestQueueWidget',
-    'MentionsWidget', 'ComparativeCard', 'FindingsTickerWidget', 'UptimeWidget',
-    'ChainsWidget', 'CoverageWidget', 'WidgetShell', 'DashboardWidgets2Gallery',
-  ]) assert.ok(src.includes(`export function ${name}`), name);
+    'RecentReportsWidget',
+    'WatchlistWidget',
+    'ModelStatusWidget',
+    'HuntCalendarWidget',
+    'CostUsageWidget',
+    'WebhookDeliveryWidget',
+    'PayloadFamilyWidget',
+    'RetestQueueWidget',
+    'MentionsWidget',
+    'ComparativeCard',
+    'FindingsTickerWidget',
+    'UptimeWidget',
+    'ChainsWidget',
+    'CoverageWidget',
+    'WidgetShell',
+    'DashboardWidgets2Gallery',
+  ])
+    assert.ok(src.includes(`export function ${name}`), name);
 });
 
 test('DashboardShell.jsx exports shell, gallery, frame, hooks', () => {
   const src = read('DashboardShell.jsx');
-  for (const name of [
-    'catalogEntry', 'WidgetFrame', 'WidgetGallery',
-  ]) assert.ok(src.includes(name), name);
+  for (const name of ['catalogEntry', 'WidgetFrame', 'WidgetGallery'])
+    assert.ok(src.includes(name), name);
   assert.ok(src.includes('export function useAutoRefresh'), 'useAutoRefresh');
   assert.ok(src.includes('export function DashboardShell'), 'DashboardShell');
   assert.ok(src.includes('export const WIDGET_CATALOG'), 'WIDGET_CATALOG');
-  const catalogBlock = src.slice(src.indexOf('export const WIDGET_CATALOG'), src.indexOf('];', src.indexOf('export const WIDGET_CATALOG')));
+  const catalogBlock = src.slice(
+    src.indexOf('export const WIDGET_CATALOG'),
+    src.indexOf('];', src.indexOf('export const WIDGET_CATALOG'))
+  );
   const entries = catalogBlock.match(/\{ id: '/g) || [];
   assert.ok(entries.length >= 29, `catalog entries: ${entries.length}`);
   // wave-19 widget ids present in catalog
-  for (const id of ['recentReports', 'watchlist', 'modelStatus', 'huntCalendar', 'costUsage',
-    'webhookDeliveries', 'payloadFamily', 'retestQueue', 'mentions', 'findingsTicker',
-    'uptime', 'chains', 'coverage', 'comparative']) {
+  for (const id of [
+    'recentReports',
+    'watchlist',
+    'modelStatus',
+    'huntCalendar',
+    'costUsage',
+    'webhookDeliveries',
+    'payloadFamily',
+    'retestQueue',
+    'mentions',
+    'findingsTicker',
+    'uptime',
+    'chains',
+    'coverage',
+    'comparative',
+  ]) {
     assert.ok(catalogBlock.includes(`id: '${id}'`), `catalog missing ${id}`);
   }
 });
 
 test('ToastCenter.jsx exports provider, hook, card', () => {
   const src = read('ToastCenter.jsx');
-  for (const name of ['ToastProvider', 'useToast', 'ToastCard']) assert.ok(src.includes(name), name);
+  for (const name of ['ToastProvider', 'useToast', 'ToastCard'])
+    assert.ok(src.includes(name), name);
 });
 
 test('CSS files carry the class hooks the components use', () => {
   const w2 = read('DashboardWidgets2.css');
-  for (const cls of ['.dw2-widget', '.dw2-ticker-track', '.dw2-cal', '.dw2-bar-fill', '.dw2-ring-fg', '.dw2-chain-mini'])
+  for (const cls of [
+    '.dw2-widget',
+    '.dw2-ticker-track',
+    '.dw2-cal',
+    '.dw2-bar-fill',
+    '.dw2-ring-fg',
+    '.dw2-chain-mini',
+  ])
     assert.ok(w2.includes(cls), cls);
   const sh = read('DashboardShell.css');
-  for (const cls of ['.dsh-grid', '.dsh-frame', '.dsh-resize-handle', '.dsh-modal-backdrop', '.dsh-sticky', '.dsh-quiet-banner'])
+  for (const cls of [
+    '.dsh-grid',
+    '.dsh-frame',
+    '.dsh-resize-handle',
+    '.dsh-modal-backdrop',
+    '.dsh-sticky',
+    '.dsh-quiet-banner',
+  ])
     assert.ok(sh.includes(cls), cls);
   const tc = read('ToastCenter.css');
-  for (const cls of ['.toast-center', '.toast-card', '.toast-bottom-right', '.toast-bottom-center', '.toast-requires-ack', '.toast-more'])
+  for (const cls of [
+    '.toast-center',
+    '.toast-card',
+    '.toast-bottom-right',
+    '.toast-bottom-center',
+    '.toast-requires-ack',
+    '.toast-more',
+  ])
     assert.ok(tc.includes(cls), cls);
 });

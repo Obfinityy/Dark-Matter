@@ -11,7 +11,6 @@
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow-sm);
-  
 }
 
 .card:hover {
@@ -47,7 +46,11 @@
   border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 0.95rem;
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
   cursor: pointer;
   letter-spacing: 0.01em;
 }
@@ -97,11 +100,31 @@
   letter-spacing: 0.5px;
 }
 
-.badge-success { background: rgba(0, 230, 153, 0.1); color: var(--success); border: 1px solid rgba(0, 230, 153, 0.3); }
-.badge-danger { background: rgba(255, 77, 77, 0.1); color: var(--danger); border: 1px solid rgba(255, 77, 77, 0.3); }
-.badge-warning { background: rgba(255, 184, 77, 0.1); color: var(--warning); border: 1px solid rgba(255, 184, 77, 0.3); }
-.badge-info { background: rgba(77, 148, 255, 0.1); color: var(--info); border: 1px solid rgba(77, 148, 255, 0.3); }
-.badge-neutral { background: var(--surface-hover); color: var(--text-secondary); border: 1px solid var(--border-light); }
+.badge-success {
+  background: rgba(0, 230, 153, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(0, 230, 153, 0.3);
+}
+.badge-danger {
+  background: rgba(255, 77, 77, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(255, 77, 77, 0.3);
+}
+.badge-warning {
+  background: rgba(255, 184, 77, 0.1);
+  color: var(--warning);
+  border: 1px solid rgba(255, 184, 77, 0.3);
+}
+.badge-info {
+  background: rgba(77, 148, 255, 0.1);
+  color: var(--info);
+  border: 1px solid rgba(77, 148, 255, 0.3);
+}
+.badge-neutral {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
 
 /* Timeline */
 .timeline {

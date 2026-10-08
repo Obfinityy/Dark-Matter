@@ -10,13 +10,7 @@ export function BentoGrid({ children, className = '' }) {
   return <div className={`bento-grid ${className}`}>{children}</div>;
 }
 
-export function BentoTile({
-  children,
-  span = '1x1',
-  glowColor,
-  className = '',
-  ...rest
-}) {
+export function BentoTile({ children, span = '1x1', glowColor, className = '', ...rest }) {
   return (
     <SpotlightCard
       className={`bento-tile bento-${span} ${className}`}

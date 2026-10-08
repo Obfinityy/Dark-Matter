@@ -26,7 +26,7 @@ export function Reports() {
   useEffect(() => {
     listHuntRecords()
       // The backend wraps the list as { huntRecords }; tolerate either shape.
-      .then((body) => setRecords(body?.records || body?.huntRecords || []))
+      .then(body => setRecords(body?.records || body?.huntRecords || []))
       .catch(() => setRecords([]))
       .finally(() => setLoading(false));
   }, []);
@@ -52,19 +52,21 @@ export function Reports() {
             </span>
           </h1>
           <p className="dm-page-sub">
-            Every completed hunt, archived. Re-open or re-download any report — pasting the
-            same target later returns these instantly.
+            Every completed hunt, archived. Re-open or re-download any report — pasting the same
+            target later returns these instantly.
           </p>
         </div>
-        <Link to="/agent" className="dm-btn dm-btn-primary">New hunt</Link>
+        <Link to="/agent" className="dm-btn dm-btn-primary">
+          New hunt
+        </Link>
       </header>
 
       <div className="dm-notice dm-reports-notice">
         <ShieldCheck size={16} className="dm-notice-icon" aria-hidden="true" />
         <span>
           <strong style={{ color: 'var(--dm-text)' }}>Report already exists for a target?</strong>{' '}
-          Pasting the same target again shows the saved report instantly — no re-hunt, no
-          duplicate work. Use “Start new hunt” on the Hunt AI page only when you want a fresh run.
+          Pasting the same target again shows the saved report instantly — no re-hunt, no duplicate
+          work. Use “Start new hunt” on the Hunt AI page only when you want a fresh run.
         </span>
       </div>
 
@@ -75,11 +77,13 @@ export function Reports() {
           </div>
           <h2 className="dm-empty-title">No completed hunts yet</h2>
           <p className="dm-empty-sub">Your reports will live here.</p>
-          <Link to="/agent" className="dm-btn dm-btn-primary">Start your first hunt</Link>
+          <Link to="/agent" className="dm-btn dm-btn-primary">
+            Start your first hunt
+          </Link>
         </div>
       ) : (
         <ul className="dm-reports-list" aria-label="Past hunt reports">
-          {records.map((record) => {
+          {records.map(record => {
             const summary = record.summary || {};
             const findings = Array.isArray(record.findings) ? record.findings : [];
             const coverage = owaspCoverage(findings);
@@ -95,9 +99,7 @@ export function Reports() {
                 >
                   <div className="dm-row-main">
                     <div className="dm-reports-row-top">
-                      <code className="dm-row-title">
-                        {record.target}
-                      </code>
+                      <code className="dm-row-title">{record.target}</code>
                       <span className="dm-badge">v{record.version || 1}</span>
                     </div>
                     <p className="dm-row-sub">
@@ -112,7 +114,7 @@ export function Reports() {
                     </p>
                     {top.length > 0 && (
                       <div className="dm-reports-badges">
-                        {top.map((f) => (
+                        {top.map(f => (
                           <CvssBadge key={f.id || f.title} finding={f} />
                         ))}
                       </div>
@@ -134,5 +136,9 @@ export function Reports() {
 }
 
 function sevRank(sev) {
-  return { critical: 4, high: 3, medium: 2, low: 1, informational: 0 }[String(sev || '').toLowerCase()] ?? 0;
+  return (
+    { critical: 4, high: 3, medium: 2, low: 1, informational: 0 }[
+      String(sev || '').toLowerCase()
+    ] ?? 0
+  );
 }

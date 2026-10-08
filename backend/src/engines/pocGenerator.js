@@ -51,7 +51,9 @@ export function generatePoC(finding = {}) {
 
   if (t.includes('sql injection') || t.includes('sqli')) {
     const payload = "' OR '1'='1";
-    const testUrl = url.includes('?') ? `${url}${encodeURIComponent(payload)}` : `${url}?id=${encodeURIComponent(payload)}`;
+    const testUrl = url.includes('?')
+      ? `${url}${encodeURIComponent(payload)}`
+      : `${url}?id=${encodeURIComponent(payload)}`;
     curl = curlFor({ url: testUrl });
     python = pythonFor({ url: testUrl });
     steps.push(
@@ -77,14 +79,16 @@ export function generatePoC(finding = {}) {
       '3. Use a collaborator URL for a safe, external proof.',
       'Expected: URL is validated against an allowlist. Actual: arbitrary URLs are fetched.'
     );
-    curl = curlFor({ url: url.replace(/(url|uri|link)=[^&]*/i, '$1=http://YOUR-COLLABORATOR-URL') });
+    curl = curlFor({
+      url: url.replace(/(url|uri|link)=[^&]*/i, '$1=http://YOUR-COLLABORATOR-URL'),
+    });
     python = pythonFor({ url });
   } else if (t.includes('idor')) {
     steps.push(
       '1. Authenticate as User A and note your object ID.',
-      '2. Change the ID parameter to User B\'s object ID.',
-      '3. If User B\'s data is returned, IDOR is confirmed.',
-      'Expected: 403 Forbidden. Actual: 200 with another user\'s data.'
+      "2. Change the ID parameter to User B's object ID.",
+      "3. If User B's data is returned, IDOR is confirmed.",
+      "Expected: 403 Forbidden. Actual: 200 with another user's data."
     );
     curl = curlFor({ url });
     python = pythonFor({ url });

@@ -36,7 +36,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -50,26 +52,37 @@ export function parseAddonManifest(manifestJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(manifest.homepage_url, 'addon-homepage', 'manifest.homepage_url');
 
-  const gecko = (manifest.browser_specific_settings && manifest.browser_specific_settings.gecko) || {};
+  const gecko =
+    (manifest.browser_specific_settings && manifest.browser_specific_settings.gecko) || {};
   add(gecko.update_url, 'addon-update-host', 'manifest.browser_specific_settings.gecko.update_url');
 
   if (manifest.author) {
     const dm = /@([a-z0-9.-]+\.[a-z]{2,})\s*>?/.exec(String(manifest.author));
     if (dm && !seen.has(dm[1].toLowerCase())) {
       seen.add(dm[1].toLowerCase());
-      hosts.push({ host: dm[1].toLowerCase(), kind: 'author-domain', provenance: 'manifest.author' });
+      hosts.push({
+        host: dm[1].toLowerCase(),
+        kind: 'author-domain',
+        provenance: 'manifest.author',
+      });
     }
   }
 
   for (const p of manifest.permissions || []) {
     if (typeof p !== 'string' || !p.includes('://')) continue;
     const host = hostFromUrl(p.replace(/\*/g, 'www'));
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'permission-host', provenance: 'manifest.permissions' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'permission-host', provenance: 'manifest.permissions' });
+    }
   }
 
   return { name: manifest.name || null, version: manifest.version || null, hosts };
@@ -86,7 +99,10 @@ export function parseAmoListingJson(amoJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(addon.homepage && addon.homepage.url, 'amo-homepage', 'amo.homepage.url');
@@ -114,7 +130,10 @@ export function analyzeFirefoxAddon(manifestJson, amoJson) {
   const merged = [...manifest.hosts];
   const seen = new Set(manifest.hosts.map(h => h.host));
   for (const h of listing.hosts) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push(h); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push(h);
+    }
   }
   return { name: manifest.name || listing.name, authors: listing.authors, hosts: merged };
 }

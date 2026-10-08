@@ -19,9 +19,17 @@ export const WAVE37_TQ_END = 51480;
 
 /** Registry of the 28 on-demand test-request ideas — completeness is testable. */
 export const WAVE37_TQ_IDEAS = [
-  [51453, 'on-demand test box', 'Type "try SQLi on the login form" and the agent queues a targeted test'],
+  [
+    51453,
+    'on-demand test box',
+    'Type "try SQLi on the login form" and the agent queues a targeted test',
+  ],
   [51454, 'test request wizard', 'Guided steps turning a vague idea into a precise, safe test'],
-  [51455, 'test targeting picker', 'Point-and-click selection of the exact URL, form, or parameter'],
+  [
+    51455,
+    'test targeting picker',
+    'Point-and-click selection of the exact URL, form, or parameter',
+  ],
   [51456, 'test technique menu', 'The full technique catalog with plain descriptions'],
   [51457, 'custom payload input', 'Supply your own test payload for the agent to execute safely'],
   [51458, 'test priority flag', 'Mark a requested test as urgent to jump the queue'],
@@ -54,18 +62,66 @@ export const WAVE37_IDEAS = WAVE37_TQ_IDEAS;
 /* --- 51456 · technique catalog -------------------------------------------------- */
 
 export const TECHNIQUE_CATALOG = [
-  { id: 'sqli', name: 'SQL injection', plain: 'Try database trickery on inputs', risk: 'low', requests: 12 },
-  { id: 'xss', name: 'Reflected XSS', plain: 'Try scripts that bounce back in pages', risk: 'low', requests: 10 },
-  { id: 'ssrf', name: 'SSRF probe', plain: 'Ask the server to fetch a URL it should not', risk: 'medium', requests: 8 },
-  { id: 'idor', name: 'IDOR check', plain: 'Try other users\u2019 object IDs', risk: 'medium', requests: 6 },
-  { id: 'dirbrute', name: 'Directory discovery', plain: 'Probe for hidden paths and files', risk: 'low', requests: 200 },
-  { id: 'jwt', name: 'JWT analysis', plain: 'Inspect login tokens for flaws', risk: 'low', requests: 4 },
-  { id: 'cors', name: 'CORS check', plain: 'See which websites can read this API', risk: 'low', requests: 3 },
-  { id: 'headers', name: 'Header audit', plain: 'Check security headers on responses', risk: 'none', requests: 2 },
+  {
+    id: 'sqli',
+    name: 'SQL injection',
+    plain: 'Try database trickery on inputs',
+    risk: 'low',
+    requests: 12,
+  },
+  {
+    id: 'xss',
+    name: 'Reflected XSS',
+    plain: 'Try scripts that bounce back in pages',
+    risk: 'low',
+    requests: 10,
+  },
+  {
+    id: 'ssrf',
+    name: 'SSRF probe',
+    plain: 'Ask the server to fetch a URL it should not',
+    risk: 'medium',
+    requests: 8,
+  },
+  {
+    id: 'idor',
+    name: 'IDOR check',
+    plain: 'Try other users\u2019 object IDs',
+    risk: 'medium',
+    requests: 6,
+  },
+  {
+    id: 'dirbrute',
+    name: 'Directory discovery',
+    plain: 'Probe for hidden paths and files',
+    risk: 'low',
+    requests: 200,
+  },
+  {
+    id: 'jwt',
+    name: 'JWT analysis',
+    plain: 'Inspect login tokens for flaws',
+    risk: 'low',
+    requests: 4,
+  },
+  {
+    id: 'cors',
+    name: 'CORS check',
+    plain: 'See which websites can read this API',
+    risk: 'low',
+    requests: 3,
+  },
+  {
+    id: 'headers',
+    name: 'Header audit',
+    plain: 'Check security headers on responses',
+    risk: 'none',
+    requests: 2,
+  },
 ];
 
 export function lookupTechnique(id) {
-  return TECHNIQUE_CATALOG.find((t) => t.id === String(id).toLowerCase()) || null;
+  return TECHNIQUE_CATALOG.find(t => t.id === String(id).toLowerCase()) || null;
 }
 
 /* --- 51453 · on-demand test box --------------------------------------------------- */
@@ -85,7 +141,10 @@ export function parseTestRequest(text) {
   const t = String(text || '').toLowerCase();
   let technique = null;
   for (const [id, words] of Object.entries(TECH_WORDS)) {
-    if (words.some((w) => t.includes(w))) { technique = id; break; }
+    if (words.some(w => t.includes(w))) {
+      technique = id;
+      break;
+    }
   }
   const urlMatch = String(text || '').match(/https?:\/\/[^\s'"]+|\/[A-Za-z0-9/_.-]+/);
   const paramMatch = t.match(/(?:param|parameter|field|input)\s*[:=]?\s*([a-z0-9_]+)/);
@@ -116,8 +175,10 @@ export const WIZARD_STEPS = ['target', 'technique', 'confirm'];
 export function validateWizardStep(step, data) {
   const d = data || {};
   if (step === 'target') return { ok: Boolean(d.target), missing: d.target ? [] : ['target'] };
-  if (step === 'technique') return { ok: Boolean(lookupTechnique(d.technique)), missing: d.technique ? [] : ['technique'] };
-  if (step === 'confirm') return { ok: Boolean(d.target && d.technique && d.acknowledged), missing: [] };
+  if (step === 'technique')
+    return { ok: Boolean(lookupTechnique(d.technique)), missing: d.technique ? [] : ['technique'] };
+  if (step === 'confirm')
+    return { ok: Boolean(d.target && d.technique && d.acknowledged), missing: [] };
   return { ok: false, missing: ['unknown-step'] };
 }
 
@@ -140,7 +201,8 @@ export function validatePayload(payload) {
   const issues = [];
   if (!p.trim()) issues.push('Payload is empty.');
   if (p.length > 4096) issues.push('Payload is longer than 4096 characters.');
-  if (PAYLOAD_FORBIDDEN.some((re) => re.test(p))) issues.push('Payload contains a destructive pattern and is blocked.');
+  if (PAYLOAD_FORBIDDEN.some(re => re.test(p)))
+    issues.push('Payload contains a destructive pattern and is blocked.');
   return { ok: issues.length === 0, issues };
 }
 
@@ -173,13 +235,17 @@ export function enqueueTest(queue, test) {
 
 export function queueStatus(queue) {
   const counts = {};
-  TEST_STATUSES.forEach((s) => { counts[ s ] = 0; });
-  (queue || []).forEach((t) => { counts[ t.status ] = (counts[ t.status ] || 0) + 1; });
+  TEST_STATUSES.forEach(s => {
+    counts[s] = 0;
+  });
+  (queue || []).forEach(t => {
+    counts[t.status] = (counts[t.status] || 0) + 1;
+  });
   return { total: (queue || []).length, counts };
 }
 
 export function cancelTest(queue, id) {
-  return (queue || []).map((t) => {
+  return (queue || []).map(t => {
     if (t.id !== id) return t;
     if (t.status === 'done' || t.status === 'failed') return t;
     return { ...t, status: 'cancelled' };
@@ -190,7 +256,8 @@ export function cancelTest(queue, id) {
 
 export function explainResult(result) {
   const r = result || {};
-  if (r.vulnerable) return `Vulnerable — ${r.technique || 'the test'} confirmed the issue at ${r.target || 'the target'}. See the evidence tab for proof.`;
+  if (r.vulnerable)
+    return `Vulnerable — ${r.technique || 'the test'} confirmed the issue at ${r.target || 'the target'}. See the evidence tab for proof.`;
   if (r.error) return `The test errored (${r.error}) — not a finding, needs a re-run.`;
   return `Not vulnerable — ${r.technique || 'the test'} ran clean at ${r.target || 'the target'} with no weakness found.`;
 }
@@ -226,8 +293,10 @@ const RISKY_TECHNIQUES = new Set(['ssrf', 'idor']);
 export function safetyCheck(test) {
   const warnings = [];
   const tech = lookupTechnique(test.technique);
-  if (tech && RISKY_TECHNIQUES.has(tech.id)) warnings.push(`${tech.name} can touch other systems — confirm the target is in scope.`);
-  if (test.payload && !validatePayload(test.payload).ok) warnings.push('Custom payload failed validation.');
+  if (tech && RISKY_TECHNIQUES.has(tech.id))
+    warnings.push(`${tech.name} can touch other systems — confirm the target is in scope.`);
+  if (test.payload && !validatePayload(test.payload).ok)
+    warnings.push('Custom payload failed validation.');
   if (!test.target) warnings.push('No target set — the test cannot run yet.');
   return { safe: warnings.length === 0, warnings };
 }
@@ -236,7 +305,8 @@ export function safetyCheck(test) {
 
 export function routeForApproval(test) {
   const tech = lookupTechnique(test.technique) || { risk: 'low' };
-  const needsApproval = tech.risk === 'medium' || priorityWeight(test.priority) >= 5 || Boolean(test.payload);
+  const needsApproval =
+    tech.risk === 'medium' || priorityWeight(test.priority) >= 5 || Boolean(test.payload);
   return {
     needsApproval,
     tier: !needsApproval ? 'auto' : tech.risk === 'medium' ? 'security-lead' : 'standard',
@@ -277,21 +347,35 @@ export function scheduleTest(test, when) {
 /* --- 51468 · repetition ------------------------------------------------------------------------------- */
 
 export function repeatTest(history, id, newTarget) {
-  const prev = (history || []).find((t) => t.id === id);
+  const prev = (history || []).find(t => t.id === id);
   if (!prev) return { ok: false, error: `No test "${id}" in history.` };
-  return { ok: true, test: { ...prev, id: undefined, target: newTarget || prev.target, status: 'queued', note: `Repeat of ${id}` } };
+  return {
+    ok: true,
+    test: {
+      ...prev,
+      id: undefined,
+      target: newTarget || prev.target,
+      status: 'queued',
+      note: `Repeat of ${id}`,
+    },
+  };
 }
 
 /* --- 51469 · comparison ---------------------------------------------------------------------------------- */
 
 export function compareResults(results) {
-  const rows = (results || []).map((r) => ({
+  const rows = (results || []).map(r => ({
     target: r.target || '—',
     technique: r.technique || '—',
     verdict: r.vulnerable ? 'vulnerable' : r.error ? 'error' : 'clean',
   }));
-  const vulnerable = rows.filter((r) => r.verdict === 'vulnerable').length;
-  return { rows, vulnerable, total: rows.length, summary: `${vulnerable} of ${rows.length} endpoints vulnerable` };
+  const vulnerable = rows.filter(r => r.verdict === 'vulnerable').length;
+  return {
+    rows,
+    vulnerable,
+    total: rows.length,
+    summary: `${vulnerable} of ${rows.length} endpoints vulnerable`,
+  };
 }
 
 /* --- 51470 · notes ----------------------------------------------------------------------------------------- */
@@ -317,9 +401,10 @@ export function captureEvidence(test, request, response) {
 
 export function shareTestLink(test) {
   const s = String(test.id || 'unsaved');
-  const token = (typeof Buffer !== 'undefined'
-    ? Buffer.from(s, 'utf8').toString('base64')
-    : btoa(unescape(encodeURIComponent(s)))
+  const token = (
+    typeof Buffer !== 'undefined'
+      ? Buffer.from(s, 'utf8').toString('base64')
+      : btoa(unescape(encodeURIComponent(s)))
   ).replace(/=+$/, '');
   return { token, path: `/tests/share/${token}`, reviewer: 'teammate' };
 }
@@ -333,23 +418,31 @@ export function recordTestHistory(history, entry) {
 export function searchTestHistory(history, query) {
   const q = String(query || '').toLowerCase();
   if (!q) return history || [];
-  return (history || []).filter((h) =>
-    [h.id, h.technique, h.target, h.note].filter(Boolean).join(' ').toLowerCase().includes(q),
+  return (history || []).filter(h =>
+    [h.id, h.technique, h.target, h.note].filter(Boolean).join(' ').toLowerCase().includes(q)
   );
 }
 
 /* --- 51476 · suggestion engine --------------------------------------------------------------------------------------- */
 
 const SUGGEST_RULES = [
-  { when: (f) => /login|auth|session/i.test(f.location || ''), suggest: 'idor', why: 'Auth-adjacent surface — check object-level access.' },
-  { when: (f) => /sql/i.test(f.type || ''), suggest: 'sqli', why: 'SQLi signal — probe related inputs.' },
+  {
+    when: f => /login|auth|session/i.test(f.location || ''),
+    suggest: 'idor',
+    why: 'Auth-adjacent surface — check object-level access.',
+  },
+  {
+    when: f => /sql/i.test(f.type || ''),
+    suggest: 'sqli',
+    why: 'SQLi signal — probe related inputs.',
+  },
   { when: () => true, suggest: 'headers', why: 'Baseline hardening check for any surface.' },
 ];
 
 export function suggestTests(findings, max) {
   const out = [];
-  (findings || []).forEach((f) => {
-    SUGGEST_RULES.forEach((rule) => {
+  (findings || []).forEach(f => {
+    SUGGEST_RULES.forEach(rule => {
       if (rule.when(f) && out.length < (max || 5)) {
         out.push({ technique: rule.suggest, target: f.location || '', why: rule.why, for: f.id });
       }
@@ -381,7 +474,7 @@ export function tuneParams(test, tuning) {
   const t = { ...(tuning || {}) };
   const clamped = {};
   for (const [key, [min, max]] of Object.entries(TUNE_BOUNDS)) {
-    if (key in t) clamped[ key ] = Math.max(min, Math.min(max, Number(t[ key ]) || min));
+    if (key in t) clamped[key] = Math.max(min, Math.min(max, Number(t[key]) || min));
   }
   return { ...test, tuning: { depth: 2, payloadCount: 50, timeoutMs: 30000, ...clamped } };
 }
@@ -399,7 +492,7 @@ export function sandboxReplica(test) {
 
 export function isSandboxSafe(test) {
   const sc = safetyCheck(test);
-  return sc.safe || sc.warnings.every((w) => !/destructive/i.test(w));
+  return sc.safe || sc.warnings.every(w => !/destructive/i.test(w));
 }
 
 /* --- 51480 · dry-run ------------------------------------------------------------------------------------------------------------------- */
@@ -417,8 +510,9 @@ export function dryRun(test) {
     cost,
     safety,
     approval: route,
-    willSend: safety.safe && !route.needsApproval
-      ? 'Yes — safe and auto-approved.'
-      : 'No — resolve the warnings or get approval first.',
+    willSend:
+      safety.safe && !route.needsApproval
+        ? 'Yes — safe and auto-approved.'
+        : 'No — resolve the warnings or get approval first.',
   };
 }

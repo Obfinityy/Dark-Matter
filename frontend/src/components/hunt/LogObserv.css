@@ -109,8 +109,12 @@
   word-break: break-word;
 }
 
-.lo32-added { color: #7ee2a8; }
-.lo32-removed { color: #f47e7e; }
+.lo32-added {
+  color: #7ee2a8;
+}
+.lo32-removed {
+  color: #f47e7e;
+}
 
 .lo32-table {
   width: 100%;
@@ -185,8 +189,12 @@
   background: rgba(30, 41, 59, 0.7);
 }
 
-.lo32-gnode-error { border-color: rgba(244, 126, 126, 0.6); }
-.lo32-gnode-finding { border-color: rgba(126, 226, 168, 0.6); }
+.lo32-gnode-error {
+  border-color: rgba(244, 126, 126, 0.6);
+}
+.lo32-gnode-finding {
+  border-color: rgba(126, 226, 168, 0.6);
+}
 
 .lo32-agentdot {
   display: inline-block;
@@ -196,11 +204,20 @@
   margin-right: 6px;
 }
 
-.lo32-sentiment-success { background: rgba(126, 226, 168, 0.2); border-color: rgba(126, 226, 168, 0.5); }
-.lo32-sentiment-struggle { background: rgba(244, 126, 126, 0.2); border-color: rgba(244, 126, 126, 0.5); }
-.lo32-sentiment-idle { background: rgba(148, 163, 184, 0.15); border-color: rgba(148, 163, 184, 0.4); }
+.lo32-sentiment-success {
+  background: rgba(126, 226, 168, 0.2);
+  border-color: rgba(126, 226, 168, 0.5);
+}
+.lo32-sentiment-struggle {
+  background: rgba(244, 126, 126, 0.2);
+  border-color: rgba(244, 126, 126, 0.5);
+}
+.lo32-sentiment-idle {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.4);
+}
 
-.lo32-card input[type="text"],
+.lo32-card input[type='text'],
 .lo32-card input:not([type]),
 .lo32-card select {
   background: rgba(2, 6, 23, 0.7);
@@ -211,7 +228,7 @@
   font-size: 0.85rem;
 }
 
-.lo32-card input[type="range"] {
+.lo32-card input[type='range'] {
   flex: 1;
   min-width: 120px;
 }

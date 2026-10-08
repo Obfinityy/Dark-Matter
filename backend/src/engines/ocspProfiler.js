@@ -34,7 +34,12 @@ export const EDGE_RESPONDER_PATTERNS = [
  * @param {string} [args.host] - hostname (for reporting only)
  * @returns {{stapling: Object, freshness: Object, responder: Object, profile: Object}}
  */
-export function profileOcsp({ stapled = false, ocsp = null, certNotAfter = null, host = null } = {}) {
+export function profileOcsp({
+  stapled = false,
+  ocsp = null,
+  certNotAfter = null,
+  host = null,
+} = {}) {
   const now = Date.now();
 
   const stapling = {
@@ -55,9 +60,15 @@ export function profileOcsp({ stapled = false, ocsp = null, certNotAfter = null,
     freshness.ageHours = ageHours !== null ? Math.round(ageHours * 10) / 10 : null;
 
     if (ageHours !== null) {
-      if (ageHours < 24) { freshness.score += 40; freshness.details.push('staple produced <24h ago — freshly fetched'); }
-      else if (ageHours < 72) { freshness.score += 20; freshness.details.push('staple 1-3 days old — acceptable'); }
-      else { freshness.details.push(`staple ${Math.round(ageHours / 24)} days old — stale cache`); }
+      if (ageHours < 24) {
+        freshness.score += 40;
+        freshness.details.push('staple produced <24h ago — freshly fetched');
+      } else if (ageHours < 72) {
+        freshness.score += 20;
+        freshness.details.push('staple 1-3 days old — acceptable');
+      } else {
+        freshness.details.push(`staple ${Math.round(ageHours / 24)} days old — stale cache`);
+      }
     }
     if (Number.isFinite(nextUpd)) {
       if (nextUpd < now) {
@@ -66,8 +77,15 @@ export function profileOcsp({ stapled = false, ocsp = null, certNotAfter = null,
         const windowHours = (nextUpd - (Number.isFinite(thisUpd) ? thisUpd : now)) / HOUR_MS;
         freshness.validityWindowHours = Math.round(windowHours * 10) / 10;
         // Short validity windows imply aggressive refresh cadence (edge-like).
-        if (windowHours <= 96) { freshness.score += 30; freshness.details.push(`short validity window (~${Math.round(windowHours)}h) — aggressive refresh`); }
-        else { freshness.score += 10; freshness.details.push(`long validity window (~${Math.round(windowHours / 24)}d)`); }
+        if (windowHours <= 96) {
+          freshness.score += 30;
+          freshness.details.push(
+            `short validity window (~${Math.round(windowHours)}h) — aggressive refresh`
+          );
+        } else {
+          freshness.score += 10;
+          freshness.details.push(`long validity window (~${Math.round(windowHours / 24)}d)`);
+        }
       }
     }
     if (ocsp.responseStatus && String(ocsp.responseStatus).toLowerCase() !== 'successful') {
@@ -86,7 +104,9 @@ export function profileOcsp({ stapled = false, ocsp = null, certNotAfter = null,
       }
     }
   } else if (!stapled) {
-    freshness.details.push('no OCSP staple served — clients must fetch OCSP themselves (privacy + latency cost)');
+    freshness.details.push(
+      'no OCSP staple served — clients must fetch OCSP themselves (privacy + latency cost)'
+    );
   }
 
   freshness.score = Math.min(Math.max(freshness.score, 0), 100);
@@ -94,16 +114,20 @@ export function profileOcsp({ stapled = false, ocsp = null, certNotAfter = null,
   // Edge vs origin classification.
   let classification, confidence, evidence;
   if (stapled && freshness.score >= 60 && responder.edgeOperated) {
-    classification = 'cdn-edge'; confidence = 'high';
+    classification = 'cdn-edge';
+    confidence = 'high';
     evidence = `Fresh staple (score ${freshness.score}) from ${responder.operator} responder infrastructure.`;
   } else if (stapled && freshness.score >= 60) {
-    classification = 'well-managed-origin'; confidence = 'medium';
+    classification = 'well-managed-origin';
+    confidence = 'medium';
     evidence = `Fresh staple (score ${freshness.score}) — actively refreshed OCSP cache.`;
   } else if (stapled && freshness.score < 40) {
-    classification = 'stale-origin'; confidence = 'medium';
+    classification = 'stale-origin';
+    confidence = 'medium';
     evidence = `Stapled response is stale or long-cached (score ${freshness.score}) — likely an origin with infrequent refresh.`;
   } else {
-    classification = 'no-stapling-origin'; confidence = 'medium';
+    classification = 'no-stapling-origin';
+    confidence = 'medium';
     evidence = 'Server does not staple OCSP responses — typical of origins or minimal TLS stacks.';
   }
 
@@ -113,7 +137,8 @@ export function profileOcsp({ stapled = false, ocsp = null, certNotAfter = null,
     const nu = new Date(ocsp.nextUpdate).getTime();
     const ce = new Date(certNotAfter).getTime();
     if (Number.isFinite(nu) && Number.isFinite(ce) && nu > ce) {
-      expiryNote = 'OCSP nextUpdate is after certificate expiry — responder data looks inconsistent.';
+      expiryNote =
+        'OCSP nextUpdate is after certificate expiry — responder data looks inconsistent.';
     }
   }
 
@@ -144,9 +169,10 @@ export function compareOcspProfiles(profiles = []) {
   return {
     tiered: keys.length > 1,
     groups,
-    note: keys.length > 1
-      ? `Mixed OCSP behavior across endpoints (${keys.join(' vs ')}) — suggests tiered edge/origin infrastructure.`
-      : 'Uniform OCSP behavior — single infrastructure tier.',
+    note:
+      keys.length > 1
+        ? `Mixed OCSP behavior across endpoints (${keys.join(' vs ')}) — suggests tiered edge/origin infrastructure.`
+        : 'Uniform OCSP behavior — single infrastructure tier.',
   };
 }
 

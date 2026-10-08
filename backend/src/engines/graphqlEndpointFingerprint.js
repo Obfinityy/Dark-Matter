@@ -31,7 +31,12 @@ export const GRAPHQL_SERVER_SIGNATURES = [
   {
     server: 'Apollo Server',
     confidence: 'medium',
-    markers: ['PersistedQueryNotFound', 'PERSISTED_QUERY_NOT_FOUND', 'apollo', 'GraphQL Playground is deprecated'],
+    markers: [
+      'PersistedQueryNotFound',
+      'PERSISTED_QUERY_NOT_FOUND',
+      'apollo',
+      'GraphQL Playground is deprecated',
+    ],
     note: 'Apollo emits persisted-query error codes and historically served GraphQL Playground.',
   },
   {
@@ -101,7 +106,12 @@ export function isGraphqlShapedError(body) {
     if ('data' in parsed && (parsed.data === null || typeof parsed.data === 'object')) {
       reasons.push('top-level "data" key alongside errors — GraphQL response shape');
     }
-    if (parsed.errors && parsed.errors.some((e) => e && /syntax|introspection|field .* not found|validation/i.test(JSON.stringify(e)))) {
+    if (
+      parsed.errors &&
+      parsed.errors.some(
+        e => e && /syntax|introspection|field .* not found|validation/i.test(JSON.stringify(e))
+      )
+    ) {
       reasons.push('GraphQL-typical error message (syntax/validation/introspection)');
     }
   }
@@ -118,12 +128,19 @@ export function isGraphqlShapedError(body) {
  */
 export function fingerprintGraphqlServer(obs) {
   const o = obs || {};
-  const haystack = `${o.body || ''}\n${Object.entries(o.headers || {}).map(([k, v]) => `${k}: ${v}`).join('\n')}`.toLowerCase();
+  const haystack = `${o.body || ''}\n${Object.entries(o.headers || {})
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n')}`.toLowerCase();
   const hits = [];
   for (const sig of GRAPHQL_SERVER_SIGNATURES) {
-    const matched = sig.markers.filter((m) => haystack.includes(m.toLowerCase()));
+    const matched = sig.markers.filter(m => haystack.includes(m.toLowerCase()));
     if (matched.length > 0) {
-      hits.push({ server: sig.server, confidence: sig.confidence, note: sig.note, matchedMarkers: matched });
+      hits.push({
+        server: sig.server,
+        confidence: sig.confidence,
+        note: sig.note,
+        matchedMarkers: matched,
+      });
     }
   }
   const rank = { high: 3, medium: 2, low: 1 };
@@ -143,8 +160,10 @@ export function detectGraphql(obs) {
   const notes = [];
   if (path.isGraphqlPath) notes.push(`GraphQL-typical path (${path.matchedPattern})`);
   notes.push(...shape.reasons);
-  const signals = (path.isGraphqlPath ? 1 : 0) + (shape.graphqlShaped ? 1 : 0) + (servers.length > 0 ? 1 : 0);
-  const confidence = signals >= 3 ? 'high' : signals === 2 ? 'medium' : signals === 1 ? 'low' : 'none';
+  const signals =
+    (path.isGraphqlPath ? 1 : 0) + (shape.graphqlShaped ? 1 : 0) + (servers.length > 0 ? 1 : 0);
+  const confidence =
+    signals >= 3 ? 'high' : signals === 2 ? 'medium' : signals === 1 ? 'low' : 'none';
   return {
     isGraphql: signals > 0,
     confidence,

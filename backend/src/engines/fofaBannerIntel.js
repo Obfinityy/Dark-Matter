@@ -28,8 +28,8 @@ export function bannerFingerprint(banner) {
   fp = fp
     .toLowerCase()
     .replace(/\b\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}:\d{2}[^\s]*/g, '') // timestamps
-    .replace(/\b\d{10,}\b/g, '')                                    // epoch/unix ids
-    .replace(/\b[a-f0-9]{8,}-[a-f0-9-]{8,}\b/g, '')                // uuids
+    .replace(/\b\d{10,}\b/g, '') // epoch/unix ids
+    .replace(/\b[a-f0-9]{8,}-[a-f0-9-]{8,}\b/g, '') // uuids
     .replace(/session[=:\s]+[a-z0-9-]+/g, 'session')
     .replace(/\s+/g, ' ')
     .trim();
@@ -46,7 +46,7 @@ export function bannerSimilarity(a, b) {
   if (!a || !b) return 0;
   const ta = new Set(a.split(' '));
   const tb = new Set(b.split(' '));
-  const inter = [...ta].filter((t) => tb.has(t)).length;
+  const inter = [...ta].filter(t => tb.has(t)).length;
   const union = ta.size + tb.size - inter;
   return union === 0 ? 0 : inter / union;
 }
@@ -68,7 +68,8 @@ export function extractFofaBanners(records) {
       banner: raw.split(/\r?\n/)[0],
       fingerprint: fp,
       ip: record.ip || record.host || 'unknown',
-      asn: record.asn != null ? String(record.asn) : (record.asnumber ? String(record.asnumber) : null),
+      asn:
+        record.asn != null ? String(record.asn) : record.asnumber ? String(record.asnumber) : null,
       port: record.port || null,
       protocol: record.protocol || 'unknown',
     });
@@ -95,7 +96,14 @@ export function expandByBanner(records, seedBanner, opts = {}) {
     if (targetAsns.size > 0 && (!row.asn || !targetAsns.has(row.asn))) continue;
     const sim = bannerSimilarity(seedFp, row.fingerprint);
     if (sim >= threshold) {
-      matches.push({ ip: row.ip, asn: row.asn, port: row.port, protocol: row.protocol, similarity: Math.round(sim * 100) / 100, banner: row.banner });
+      matches.push({
+        ip: row.ip,
+        asn: row.asn,
+        port: row.port,
+        protocol: row.protocol,
+        similarity: Math.round(sim * 100) / 100,
+        banner: row.banner,
+      });
     }
   }
   matches.sort((a, b) => b.similarity - a.similarity || a.ip.localeCompare(b.ip));

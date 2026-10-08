@@ -114,7 +114,7 @@ export function detectDjangoDebugToolbar({ url, status = 0, headers = {}, body =
   const cookieText = Array.isArray(rawCookies) ? rawCookies.join(' ') : String(rawCookies || '');
   const haystack = text + '\n' + cookieText;
 
-  const matches = DJANGO_TOOLBAR_SIGNATURES.filter((s) => s.pattern.test(haystack));
+  const matches = DJANGO_TOOLBAR_SIGNATURES.filter(s => s.pattern.test(haystack));
   const detected = status >= 200 && status < 400 && matches.length > 0;
 
   return {
@@ -124,9 +124,9 @@ export function detectDjangoDebugToolbar({ url, status = 0, headers = {}, body =
     status,
     framework: 'Django',
     surface: 'debug toolbar',
-    matchedSignatures: matches.map((m) => ({ marker: m.marker, detail: m.detail })),
+    matchedSignatures: matches.map(m => ({ marker: m.marker, detail: m.detail })),
     confidence:
-      matches.some((m) => m.confidence === 'high') && matches.length >= 2
+      matches.some(m => m.confidence === 'high') && matches.length >= 2
         ? 'high'
         : matches.length > 0
           ? 'medium'
@@ -134,7 +134,7 @@ export function detectDjangoDebugToolbar({ url, status = 0, headers = {}, body =
     severity: detected ? 'Medium' : 'Info',
     cwe: 'CWE-200',
     evidence: detected
-      ? `Django debug toolbar markers found at ${url}: ${matches.map((m) => m.marker).join(', ')}. The toolbar exposes SQL queries, settings, and request data.`
+      ? `Django debug toolbar markers found at ${url}: ${matches.map(m => m.marker).join(', ')}. The toolbar exposes SQL queries, settings, and request data.`
       : 'No Django debug toolbar markers found.',
   };
 }
@@ -145,12 +145,14 @@ export function detectDjangoDebugToolbar({ url, status = 0, headers = {}, body =
  */
 export function detectRailsInfoRoutes({ url, status = 0, headers = {}, body = '' } = {}) {
   const text = String(body || '');
-  const matches = RAILS_INFO_SIGNATURES.filter((s) => s.pattern.test(text));
+  const matches = RAILS_INFO_SIGNATURES.filter(s => s.pattern.test(text));
   const detected = status >= 200 && status < 400 && matches.length > 0;
 
   // Extract just the version tokens (metadata, never secrets).
-  const railsVersion = (text.match(/Rails version<\/td>\s*<td[^>]*>(\d+\.\d+[\w.]*)/i) || [])[1] || null;
-  const rubyVersion = (text.match(/Ruby version<\/td>\s*<td[^>]*>(\d+\.\d+\.\d+[\w.]*)/i) || [])[1] || null;
+  const railsVersion =
+    (text.match(/Rails version<\/td>\s*<td[^>]*>(\d+\.\d+[\w.]*)/i) || [])[1] || null;
+  const rubyVersion =
+    (text.match(/Ruby version<\/td>\s*<td[^>]*>(\d+\.\d+\.\d+[\w.]*)/i) || [])[1] || null;
 
   return {
     detected,
@@ -159,11 +161,11 @@ export function detectRailsInfoRoutes({ url, status = 0, headers = {}, body = ''
     status,
     framework: 'Ruby on Rails',
     surface: 'info routes',
-    matchedSignatures: matches.map((m) => ({ marker: m.marker, detail: m.detail })),
+    matchedSignatures: matches.map(m => ({ marker: m.marker, detail: m.detail })),
     railsVersion,
     rubyVersion,
     confidence:
-      matches.some((m) => m.confidence === 'high') && matches.length >= 2
+      matches.some(m => m.confidence === 'high') && matches.length >= 2
         ? 'high'
         : matches.length > 0
           ? 'medium'
@@ -171,7 +173,7 @@ export function detectRailsInfoRoutes({ url, status = 0, headers = {}, body = ''
     severity: detected ? 'Medium' : 'Info',
     cwe: 'CWE-200',
     evidence: detected
-      ? `Rails info route live at ${url}: ${matches.map((m) => m.marker).join(', ')}.` +
+      ? `Rails info route live at ${url}: ${matches.map(m => m.marker).join(', ')}.` +
         (railsVersion ? ` Rails ${railsVersion}` : '') +
         (rubyVersion ? `, Ruby ${rubyVersion}` : '') +
         '. The page exposes the route table and application metadata.'

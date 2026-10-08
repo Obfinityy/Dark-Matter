@@ -63,9 +63,20 @@ export function extractPkiEndpoints(cert) {
 
 /** Host patterns typical of managed/public PKI providers. */
 const PUBLIC_PKI_PATTERNS = [
-  /digicert/i, /globalsign/i, /comodo/i, /sectigo/i, /letsencrypt/i,
-  /entrust/i, /godaddy/i, /verisign/i, /symantec/i, /amazontrust/i,
-  /google.*trust/i, /microsoft/i, /apple/i, /cloudflare/i,
+  /digicert/i,
+  /globalsign/i,
+  /comodo/i,
+  /sectigo/i,
+  /letsencrypt/i,
+  /entrust/i,
+  /godaddy/i,
+  /verisign/i,
+  /symantec/i,
+  /amazontrust/i,
+  /google.*trust/i,
+  /microsoft/i,
+  /apple/i,
+  /cloudflare/i,
 ];
 
 /**
@@ -95,13 +106,15 @@ export function mapPkiInfrastructure(certs) {
       entry.subjects.add(cert.subject || cert.fingerprint || 'unknown');
     }
   }
-  return [...byHost.entries()].map(([host, v]) => ({
-    host,
-    roles: [...v.roles].sort(),
-    certCount: v.subjects.size,
-    certSubjects: [...v.subjects].sort().slice(0, 10),
-    provider: PUBLIC_PKI_PATTERNS.some((re) => re.test(host)) ? 'public-pki' : 'private',
-  })).sort((a, b) => b.certCount - a.certCount);
+  return [...byHost.entries()]
+    .map(([host, v]) => ({
+      host,
+      roles: [...v.roles].sort(),
+      certCount: v.subjects.size,
+      certSubjects: [...v.subjects].sort().slice(0, 10),
+      provider: PUBLIC_PKI_PATTERNS.some(re => re.test(host)) ? 'public-pki' : 'private',
+    }))
+    .sort((a, b) => b.certCount - a.certCount);
 }
 
 /**
@@ -130,8 +143,12 @@ export function detectPkiAnomalies(certs) {
         if (!httpResponders.has(ep.host)) httpResponders.set(ep.host, new Set());
         httpResponders.get(ep.host).add(subject);
       }
-      const looksPublicPki = PUBLIC_PKI_PATTERNS.some((re) => re.test(ep.host));
-      if (ep.role === 'ocsp' && !looksPublicPki && PUBLIC_PKI_PATTERNS.some((re) => re.test(issuer))) {
+      const looksPublicPki = PUBLIC_PKI_PATTERNS.some(re => re.test(ep.host));
+      if (
+        ep.role === 'ocsp' &&
+        !looksPublicPki &&
+        PUBLIC_PKI_PATTERNS.some(re => re.test(issuer))
+      ) {
         if (!privateRespondersOnPublicCerts.has(ep.host)) {
           privateRespondersOnPublicCerts.set(ep.host, new Set());
         }
@@ -144,7 +161,8 @@ export function detectPkiAnomalies(certs) {
     findings.push({
       severity: 'info',
       host,
-      finding: 'PKI endpoint served over plain HTTP (normal for OCSP/CRL, verify it matches org policy)',
+      finding:
+        'PKI endpoint served over plain HTTP (normal for OCSP/CRL, verify it matches org policy)',
       certs: [...subjects].sort(),
     });
   }
@@ -152,7 +170,8 @@ export function detectPkiAnomalies(certs) {
     findings.push({
       severity: 'warning',
       host,
-      finding: 'private responder host used on certificates issued by a public CA — possible OCSP stapling proxy or unexpected delegation',
+      finding:
+        'private responder host used on certificates issued by a public CA — possible OCSP stapling proxy or unexpected delegation',
       certs: [...subjects].sort(),
     });
   }

@@ -17,7 +17,9 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  let s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  let s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   if (/^(mailto|tel):/i.test(s)) return null;
   s = s
     .replace(/^(git\+)?ssh:\/\/(git@)?/i, 'https://')
@@ -31,7 +33,8 @@ export function toHost(value) {
     const u = new URL(withScheme);
     const h = u.hostname.toLowerCase();
     if (!h || h === 'localhost') return null;
-    if (/\.?npmjs\.com$/.test(h) || /\.github\.com$/.test(h) || /\.gitlab\.com$/.test(h)) return null;
+    if (/\.?npmjs\.com$/.test(h) || /\.github\.com$/.test(h) || /\.gitlab\.com$/.test(h))
+      return null;
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(h)) return null;
     return h;
   } catch {
@@ -58,7 +61,7 @@ export function parseNpmPackageHosts(packument) {
     hits.push({ host, provenance, ...(detail ? { detail } : {}) });
   };
 
-  const p = (packument && typeof packument === 'object') ? packument : {};
+  const p = packument && typeof packument === 'object' ? packument : {};
   const pkg = p.name || null;
 
   if (typeof p.homepage === 'string' && p.homepage) {
@@ -66,7 +69,7 @@ export function parseNpmPackageHosts(packument) {
     if (host) add(host, 'homepage', p.homepage);
   }
   const repo = p.repository;
-  const repoUrl = typeof repo === 'string' ? repo : (repo && repo.url);
+  const repoUrl = typeof repo === 'string' ? repo : repo && repo.url;
   if (typeof repoUrl === 'string' && repoUrl) {
     const host = toHost(repoUrl);
     if (host) add(host, 'repository.url', repoUrl);
@@ -75,13 +78,13 @@ export function parseNpmPackageHosts(packument) {
     if (gh) add('github.com', 'repository.org', `GitHub org: ${gh[1]}`);
   }
   const bugs = p.bugs;
-  const bugsUrl = typeof bugs === 'string' ? bugs : (bugs && bugs.url);
+  const bugsUrl = typeof bugs === 'string' ? bugs : bugs && bugs.url;
   if (typeof bugsUrl === 'string' && bugsUrl) {
     const host = toHost(bugsUrl);
     if (host) add(host, 'bugs.url', bugsUrl);
   }
 
-  const funding = Array.isArray(p.funding) ? p.funding : (p.funding ? [p.funding] : []);
+  const funding = Array.isArray(p.funding) ? p.funding : p.funding ? [p.funding] : [];
   for (const f of funding) {
     if (f && typeof f.url === 'string' && f.url) {
       const host = toHost(f.url);
@@ -98,7 +101,11 @@ export function parseNpmPackageHosts(packument) {
         const domain = m[1].toLowerCase();
         if (!/\.?npmjs\.com$/.test(domain) && !seen.has(`${domain}|${role}.email`)) {
           seen.add(`${domain}|${role}.email`);
-          hits.push({ host: domain, provenance: `${role}.email`, detail: `contact domain (${email})` });
+          hits.push({
+            host: domain,
+            provenance: `${role}.email`,
+            detail: `contact domain (${email})`,
+          });
         }
       }
     }

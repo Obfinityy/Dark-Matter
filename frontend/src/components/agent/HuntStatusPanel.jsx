@@ -16,7 +16,8 @@ const STAGES = ['recon', 'enumeration', 'probing', 'exploitation', 'chaining', '
 
 function currentStage(job) {
   const hs = job?.huntState;
-  const fromState = hs && (STAGES.includes(hs.status) ? hs.status : STAGES.includes(hs.stage) ? hs.stage : null);
+  const fromState =
+    hs && (STAGES.includes(hs.status) ? hs.status : STAGES.includes(hs.stage) ? hs.stage : null);
   if (fromState) return fromState;
   const phase = String(job?.phase || '').toLowerCase();
   return STAGES.includes(phase) ? phase : 'recon';
@@ -79,7 +80,8 @@ export function HuntStatusPanel({ job, jobId, onJobChanged }) {
             disabled={busy}
             onClick={() => act('resume', () => continueJob(jobId))}
           >
-            {busy === 'resume' ? <Loader2 size={14} className="sg-spin" /> : <Play size={14} />} Resume
+            {busy === 'resume' ? <Loader2 size={14} className="sg-spin" /> : <Play size={14} />}{' '}
+            Resume
           </button>
         ) : active ? (
           <button
@@ -88,10 +90,15 @@ export function HuntStatusPanel({ job, jobId, onJobChanged }) {
             disabled={busy}
             onClick={() => act('pause', () => pauseJob(jobId))}
           >
-            {busy === 'pause' ? <Loader2 size={14} className="sg-spin" /> : <Pause size={14} />} Pause
+            {busy === 'pause' ? <Loader2 size={14} className="sg-spin" /> : <Pause size={14} />}{' '}
+            Pause
           </button>
         ) : null}
-        <Link to="/agent/queues" className="sg-btn sg-btn-quiet sg-btn-sm" title="Multi-target queues">
+        <Link
+          to="/agent/queues"
+          className="sg-btn sg-btn-quiet sg-btn-sm"
+          title="Multi-target queues"
+        >
           <Layers size={14} /> Queues
         </Link>
       </div>

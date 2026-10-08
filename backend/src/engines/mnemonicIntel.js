@@ -36,7 +36,7 @@ export function wildcardToRegExp(pattern) {
 export function wildcardMatch(records, pattern) {
   const re = wildcardToRegExp(pattern);
   return (records || [])
-    .filter((r) => r && r.name && re.test(String(r.name).replace(/\.$/, '')))
+    .filter(r => r && r.name && re.test(String(r.name).replace(/\.$/, '')))
     .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 }
 
@@ -62,7 +62,7 @@ export function deepLabelPatterns(records, domain, opts = {}) {
     if (name !== apex && !name.endsWith(`.${apex}`)) continue;
     const labels = name.split('.');
     if (labels.length < minDepth) continue;
-    const signature = labels.map((l) => l.replace(/\d+/g, '#')).join('.');
+    const signature = labels.map(l => l.replace(/\d+/g, '#')).join('.');
     if (!groups.has(signature)) groups.set(signature, new Set());
     groups.get(signature).add(name);
   }
@@ -103,12 +103,12 @@ export function burstAnalysis(records, domain, opts = {}) {
   }
   const days = [...byDay.entries()].map(([day, names]) => ({ day, names: [...names].sort() }));
   if (days.length < 2) return [];
-  const counts = days.map((d) => d.names.length);
+  const counts = days.map(d => d.names.length);
   const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
   const variance = counts.reduce((a, b) => a + (b - mean) ** 2, 0) / counts.length;
   const threshold = mean + factor * Math.sqrt(variance);
   return days
-    .filter((d) => d.names.length > threshold)
-    .map((d) => ({ day: d.day, newNames: d.names.length, names: d.names }))
+    .filter(d => d.names.length > threshold)
+    .map(d => ({ day: d.day, newNames: d.names.length, names: d.names }))
     .sort((a, b) => b.newNames - a.newNames);
 }

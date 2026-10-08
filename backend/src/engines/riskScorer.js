@@ -63,9 +63,13 @@ export function scoreFinding(finding = {}) {
   }
 
   score = Math.max(0, Math.min(10, Math.round(score * 10) / 10));
-  const severity = SEVERITY_BANDS.find((b) => score >= b.min)?.label || 'Info';
+  const severity = SEVERITY_BANDS.find(b => score >= b.min)?.label || 'Info';
 
-  return { score, severity, breakdown: { base, confidence, confidenceMultiplier: confMult, adjustments } };
+  return {
+    score,
+    severity,
+    breakdown: { base, confidence, confidenceMultiplier: confMult, adjustments },
+  };
 }
 
 /**
@@ -73,7 +77,7 @@ export function scoreFinding(finding = {}) {
  */
 export function prioritize(findings = []) {
   return findings
-    .map((f) => ({ ...f, risk: scoreFinding(f) }))
+    .map(f => ({ ...f, risk: scoreFinding(f) }))
     .sort((a, b) => b.risk.score - a.risk.score);
 }
 

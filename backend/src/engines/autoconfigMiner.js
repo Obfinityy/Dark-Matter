@@ -17,7 +17,12 @@ const TAG_VALUE_RE = /<(\w+)>([^<]*)<\/\1\s*>/g;
 export function parseAutoconfig(xml = '') {
   const notes = [];
   if (typeof xml !== 'string' || !/<clientConfig\b/i.test(xml)) {
-    return { valid: false, servers: [], uniqueHosts: [], notes: ['Not an autoconfig clientConfig document'] };
+    return {
+      valid: false,
+      servers: [],
+      uniqueHosts: [],
+      notes: ['Not an autoconfig clientConfig document'],
+    };
   }
 
   const servers = [];
@@ -32,7 +37,11 @@ export function parseAutoconfig(xml = '') {
       fields[t[1].toLowerCase()] = t[2].trim();
     }
 
-    const role = /incoming/i.test(tagName) ? 'incoming' : /outgoing/i.test(tagName) ? 'outgoing' : 'server';
+    const role = /incoming/i.test(tagName)
+      ? 'incoming'
+      : /outgoing/i.test(tagName)
+        ? 'outgoing'
+        : 'server';
     const hostname = fields.hostname || null;
     if (hostname) unique.add(hostname);
 
@@ -47,7 +56,8 @@ export function parseAutoconfig(xml = '') {
   }
 
   if (servers.length === 0) notes.push('clientConfig present but no server blocks found');
-  if (unique.size > 1) notes.push(`Mail infrastructure spans ${unique.size} host(s): ${[...unique].join(', ')}`);
+  if (unique.size > 1)
+    notes.push(`Mail infrastructure spans ${unique.size} host(s): ${[...unique].join(', ')}`);
 
   return { valid: true, servers, uniqueHosts: [...unique], notes };
 }
@@ -58,7 +68,9 @@ export function parseAutoconfig(xml = '') {
  * @returns {string[]}
  */
 export function autoconfigUrls(domain) {
-  const clean = String(domain).replace(/^https?:\/\//, '').split('/')[0];
+  const clean = String(domain)
+    .replace(/^https?:\/\//, '')
+    .split('/')[0];
   return [
     `https://autoconfig.${clean}/mail/config-v1.1.xml`,
     `https://${clean}/.well-known/autoconfig/mail/config-v1.1.xml`,

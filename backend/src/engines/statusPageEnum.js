@@ -18,9 +18,21 @@ const HOSTNAME_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/
 
 /** Common first labels used for status pages. */
 export const STATUS_PAGE_LABELS = [
-  'status', 'statuspage', 'statuspage2', 'uptime', 'health', 'systemstatus',
-  'service-status', 'ops', 'operations', 'availability', 'monitoring',
-  'ping', 'statusboard', 'reliability', 'incident',
+  'status',
+  'statuspage',
+  'statuspage2',
+  'uptime',
+  'health',
+  'systemstatus',
+  'service-status',
+  'ops',
+  'operations',
+  'availability',
+  'monitoring',
+  'ping',
+  'statusboard',
+  'reliability',
+  'incident',
 ];
 
 /**
@@ -61,7 +73,7 @@ export function matchStatusPageProbes(candidates = [], probes = []) {
   } else {
     for (const [k, v] of Object.entries(probes)) lookup.set(normalizeHostname(k), !!v);
   }
-  return candidates.map((c) => ({ host: c, reachable: !!lookup.get(c) }));
+  return candidates.map(c => ({ host: c, reachable: !!lookup.get(c) }));
 }
 
 /**
@@ -90,5 +102,7 @@ export function extractStatuspageComponentHosts(summary = {}, rootDomain) {
       }
     }
   }
-  return results.sort((a, b) => a.host.localeCompare(b.host) || a.component.localeCompare(b.component));
+  return results.sort(
+    (a, b) => a.host.localeCompare(b.host) || a.component.localeCompare(b.component)
+  );
 }

@@ -14,14 +14,54 @@
  * Known edge stacks and their WebTransport posture signals.
  */
 const EDGE_STACK_SIGNALS = [
-  { stack: 'cloudflare', markers: [/cloudflare/i], webtransport: 'supported', note: 'Cloudflare edge advertises WebTransport over HTTP/3.' },
-  { stack: 'fastly', markers: [/fastly/i], webtransport: 'supported', note: 'Fastly supports WebTransport on HTTP/3.' },
-  { stack: 'akamai', markers: [/akamai/i, /akamaighost/i], webtransport: 'partial', note: 'Akamai WebTransport availability varies by product line.' },
-  { stack: 'aws-cloudfront', markers: [/cloudfront/i], webtransport: 'supported', note: 'CloudFront supports WebTransport via HTTP/3.' },
-  { stack: 'google-cloud-lb', markers: [/gws/i, /google/i], webtransport: 'supported', note: 'Google front-ends support WebTransport.' },
-  { stack: 'azure-frontdoor', markers: [/azure/i], webtransport: 'partial', note: 'Azure Front Door HTTP/3 rollout in progress.' },
-  { stack: 'nginx-quic', markers: [/nginx/i], webtransport: 'possible', note: 'nginx QUIC builds can proxy WebTransport with configuration.' },
-  { stack: 'envoy', markers: [/envoy/i], webtransport: 'supported', note: 'Envoy has native WebTransport support.' },
+  {
+    stack: 'cloudflare',
+    markers: [/cloudflare/i],
+    webtransport: 'supported',
+    note: 'Cloudflare edge advertises WebTransport over HTTP/3.',
+  },
+  {
+    stack: 'fastly',
+    markers: [/fastly/i],
+    webtransport: 'supported',
+    note: 'Fastly supports WebTransport on HTTP/3.',
+  },
+  {
+    stack: 'akamai',
+    markers: [/akamai/i, /akamaighost/i],
+    webtransport: 'partial',
+    note: 'Akamai WebTransport availability varies by product line.',
+  },
+  {
+    stack: 'aws-cloudfront',
+    markers: [/cloudfront/i],
+    webtransport: 'supported',
+    note: 'CloudFront supports WebTransport via HTTP/3.',
+  },
+  {
+    stack: 'google-cloud-lb',
+    markers: [/gws/i, /google/i],
+    webtransport: 'supported',
+    note: 'Google front-ends support WebTransport.',
+  },
+  {
+    stack: 'azure-frontdoor',
+    markers: [/azure/i],
+    webtransport: 'partial',
+    note: 'Azure Front Door HTTP/3 rollout in progress.',
+  },
+  {
+    stack: 'nginx-quic',
+    markers: [/nginx/i],
+    webtransport: 'possible',
+    note: 'nginx QUIC builds can proxy WebTransport with configuration.',
+  },
+  {
+    stack: 'envoy',
+    markers: [/envoy/i],
+    webtransport: 'supported',
+    note: 'Envoy has native WebTransport support.',
+  },
 ];
 
 /**
@@ -50,9 +90,13 @@ export function detectFromHeaders(headers = {}) {
   if (/webtransport/i.test(h.upgrade || '')) signals.push('upgrade-header-mentions-webtransport');
   if (/webtransport/i.test(h['accept-ch'] || '')) signals.push('client-hints-mention-webtransport');
 
-  const supported = signals.some((s) => s.startsWith('header:sec-webtransport') || s.startsWith('upgrade-header'))
+  const supported = signals.some(
+    s => s.startsWith('header:sec-webtransport') || s.startsWith('upgrade-header')
+  )
     ? true
-    : h3Advertised ? null : false;
+    : h3Advertised
+      ? null
+      : false;
   return { supported, signals, details };
 }
 
@@ -62,8 +106,10 @@ export function detectFromHeaders(headers = {}) {
  * @returns {{http3: boolean, webtransportPossible: boolean, note: string}}
  */
 export function detectFromAlpn(alpnProtocols = []) {
-  const list = (Array.isArray(alpnProtocols) ? alpnProtocols : []).map((p) => String(p).toLowerCase());
-  const http3 = list.some((p) => p === 'h3' || p.startsWith('h3-'));
+  const list = (Array.isArray(alpnProtocols) ? alpnProtocols : []).map(p =>
+    String(p).toLowerCase()
+  );
+  const http3 = list.some(p => p === 'h3' || p.startsWith('h3-'));
   return {
     http3,
     webtransportPossible: http3,
@@ -86,10 +132,11 @@ export function classifyEdgeStack(headers = {}, alpnProtocols = []) {
   const wt = detectFromHeaders(headers);
   const out = [];
   for (const sig of EDGE_STACK_SIGNALS) {
-    const hits = sig.markers.filter((m) => m.test(haystack)).length;
+    const hits = sig.markers.filter(m => m.test(haystack)).length;
     if (hits === 0) continue;
     let confidence = 55 + hits * 15;
-    if (wt.signals.length > 0 && sig.webtransport === 'supported') confidence = Math.min(95, confidence + 10);
+    if (wt.signals.length > 0 && sig.webtransport === 'supported')
+      confidence = Math.min(95, confidence + 10);
     out.push({
       stack: sig.stack,
       webtransport: sig.webtransport,
@@ -110,11 +157,27 @@ export function buildDetectionPlan(host) {
   return {
     host: String(host || ''),
     checks: [
-      { name: 'alt-svc-h3', header: 'alt-svc', description: 'Look for h3 advertisement — prerequisite for WebTransport.' },
-      { name: 'wt-draft-header', header: 'sec-webtransport-http3-draft', description: 'Direct WebTransport capability advertisement.' },
-      { name: 'wt-protocol-header', header: 'sec-webtransport-protocol', description: 'Negotiated WebTransport subprotocol, if any.' },
+      {
+        name: 'alt-svc-h3',
+        header: 'alt-svc',
+        description: 'Look for h3 advertisement — prerequisite for WebTransport.',
+      },
+      {
+        name: 'wt-draft-header',
+        header: 'sec-webtransport-http3-draft',
+        description: 'Direct WebTransport capability advertisement.',
+      },
+      {
+        name: 'wt-protocol-header',
+        header: 'sec-webtransport-protocol',
+        description: 'Negotiated WebTransport subprotocol, if any.',
+      },
       { name: 'alpn', alpn: true, description: 'Confirm h3 in the negotiated ALPN set.' },
-      { name: 'server-banner', header: 'server', description: 'Edge-stack banner for stack classification.' },
+      {
+        name: 'server-banner',
+        header: 'server',
+        description: 'Edge-stack banner for stack classification.',
+      },
     ],
   };
 }

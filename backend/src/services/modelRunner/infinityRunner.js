@@ -65,8 +65,11 @@ export function assetNameFor(_tag, device = {}) {
 export async function resolveReleaseTag() {
   try {
     const response = await fetch(`${RELEASES_API}?per_page=3`, {
-      headers: { 'user-agent': 'dark-matter-infinity-runner', accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(10000)
+      headers: {
+        'user-agent': 'dark-matter-infinity-runner',
+        accept: 'application/vnd.github+json',
+      },
+      signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) throw new Error(`GitHub API ${response.status}`);
     const releases = await response.json();
@@ -78,6 +81,12 @@ export async function resolveReleaseTag() {
   }
 }
 
+/**
+ * Download Url For.
+ * @param {*} tag
+ * @param {*} asset
+ * @returns {*} Result.
+ */
 export function downloadUrlFor(tag, asset) {
   return `${DOWNLOAD_BASE}/${tag}/${asset}`;
 }
@@ -98,15 +107,27 @@ function binaryNameForAsset(asset) {
  *   (Qwen2.5-VL / OS-Atlas / UI-TARS). Omit for text-only models. WITHOUT it
  *   a vision model loads text-only and screenshots are invisible to it.
  */
-export function buildSpawnArgs({ binaryPath, modelPath, port, contextSize = 8192, gpuLayers = 0, mmprojPath = null }) {
+export function buildSpawnArgs({
+  binaryPath,
+  modelPath,
+  port,
+  contextSize = 8192,
+  gpuLayers = 0,
+  mmprojPath = null,
+}) {
   const args = [
     binaryPath,
-    '--model', modelPath,
-    '--port', String(port),
-    '--host', '127.0.0.1',
-    '--contextsize', String(contextSize),
-    '--gpulayers', String(gpuLayers),
-    '--quiet'
+    '--model',
+    modelPath,
+    '--port',
+    String(port),
+    '--host',
+    '127.0.0.1',
+    '--contextsize',
+    String(contextSize),
+    '--gpulayers',
+    String(gpuLayers),
+    '--quiet',
   ];
   if (mmprojPath) args.push('--mmproj', mmprojPath);
   return args;
@@ -119,16 +140,20 @@ export async function waitForRunnerReady(baseUrl, timeoutMs = 240000) {
     try {
       const response = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(4000) });
       if (response.ok) return true;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     if (Date.now() - start > timeoutMs) return false;
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 800));
   }
 }
 
+/** Infinity Runner. */
 export class InfinityRunner {
   constructor({ dataDir, logger = console } = {}) {
     // Same convention as FileMemory: ~/.darkmatter unless overridden.
-    this.dataDir = dataDir || process.env.DARKMATTER_DATA_DIR || path.join(os.homedir(), '.darkmatter');
+    this.dataDir =
+      dataDir || process.env.DARKMATTER_DATA_DIR || path.join(os.homedir(), '.darkmatter');
     this.logger = logger;
     this.downloadState = null; // { status, tag, asset, receivedBytes, totalBytes, error }
     this.listeners = new Set();
@@ -141,16 +166,18 @@ export class InfinityRunner {
 
   emit() {
     for (const listener of this.listeners) {
-      try { listener(this.describeDownload()); } catch { /* ignore */ }
+      try {
+        listener(this.describeDownload());
+      } catch {
+        /* ignore */
+      }
     }
   }
 
   describeDownload() {
     if (!this.downloadState) return { status: 'idle', progress: 0 };
     const { receivedBytes = 0, totalBytes = null } = this.downloadState;
-    const progress = totalBytes && totalBytes > 0
-      ? Math.min(1, receivedBytes / totalBytes)
-      : 0;
+    const progress = totalBytes && totalBytes > 0 ? Math.min(1, receivedBytes / totalBytes) : 0;
     return { ...this.downloadState, progress };
   }
 
@@ -169,7 +196,9 @@ export class InfinityRunner {
         const full = path.join(dir, entry);
         try {
           if (fs.statSync(full).isFile()) return full;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     }
     return null;
@@ -207,7 +236,7 @@ export class InfinityRunner {
     if (!asset) {
       const error = new Error(
         `${RUNNER_DISPLAY_NAME} has no official binary for ${os.platform()}/${os.arch()} — ` +
-        'see https://github.com/LostRuins/koboldcpp for build-from-source instructions.'
+          'see https://github.com/LostRuins/koboldcpp for build-from-source instructions.'
       );
       error.code = 'UNSUPPORTED_PLATFORM';
       throw error;
@@ -217,7 +246,14 @@ export class InfinityRunner {
     fs.mkdirSync(dir, { recursive: true });
     const destPath = path.join(dir, binaryNameForAsset(asset));
 
-    this.downloadState = { status: 'downloading', tag, asset, receivedBytes: 0, totalBytes: null, error: null };
+    this.downloadState = {
+      status: 'downloading',
+      tag,
+      asset,
+      receivedBytes: 0,
+      totalBytes: null,
+      error: null,
+    };
     this.emit();
     try {
       await downloadFile(url, destPath, {
@@ -226,20 +262,42 @@ export class InfinityRunner {
           this.downloadState.receivedBytes = receivedBytes;
           this.downloadState.totalBytes = totalBytes;
           this.emit();
-        }
+        },
       });
       if (os.platform() !== 'win32') {
-        try { fs.chmodSync(destPath, 0o755); } catch { /* best effort */ }
+        try {
+          fs.chmodSync(destPath, 0o755);
+        } catch {
+          /* best effort */
+        }
       }
       const binary = this.binaryPath();
       if (!binary) throw new Error(`${RUNNER_DISPLAY_NAME} binary not found after download`);
-      this.downloadState = { status: 'done', tag, asset, receivedBytes: this.downloadState.receivedBytes, totalBytes: this.downloadState.totalBytes, error: null };
+      this.downloadState = {
+        status: 'done',
+        tag,
+        asset,
+        receivedBytes: this.downloadState.receivedBytes,
+        totalBytes: this.downloadState.totalBytes,
+        error: null,
+      };
       this.emit();
       this.logger.info?.(`[infinity-runner] ${RUNNER_DISPLAY_NAME} ready at ${binary}`);
       return { ready: true, path: binary, cached: false };
     } catch (error) {
-      try { fs.unlinkSync(destPath); } catch { /* ignore partial file */ }
-      this.downloadState = { status: 'error', tag, asset, receivedBytes: this.downloadState?.receivedBytes || 0, totalBytes: null, error: error.message };
+      try {
+        fs.unlinkSync(destPath);
+      } catch {
+        /* ignore partial file */
+      }
+      this.downloadState = {
+        status: 'error',
+        tag,
+        asset,
+        receivedBytes: this.downloadState?.receivedBytes || 0,
+        totalBytes: null,
+        error: error.message,
+      };
       this.emit();
       throw error;
     }
@@ -250,31 +308,51 @@ export class InfinityRunner {
    * process once /v1/models answers. Rejects when the binary exits early or
    * never becomes healthy.
    */
-  async spawnWithModel({ modelPath, port, contextSize = 8192, gpuLayers = 0, modelName = 'model', mmprojPath = null }) {
+  async spawnWithModel({
+    modelPath,
+    port,
+    contextSize = 8192,
+    gpuLayers = 0,
+    modelName = 'model',
+    mmprojPath = null,
+  }) {
     const binary = this.binaryPath();
     if (!binary) {
       const error = new Error(`${RUNNER_DISPLAY_NAME} is not downloaded yet`);
       error.code = 'RUNNER_MISSING';
       throw error;
     }
-    const args = buildSpawnArgs({ binaryPath: binary, modelPath, port, contextSize, gpuLayers, mmprojPath });
+    const args = buildSpawnArgs({
+      binaryPath: binary,
+      modelPath,
+      port,
+      contextSize,
+      gpuLayers,
+      mmprojPath,
+    });
     // buildSpawnArgs returns [binary, ...flags]; spawn needs them split.
     const child = spawn(args[0], args.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
     const baseUrl = `http://127.0.0.1:${port}`;
 
     let stderrTail = '';
-    child.stderr.on('data', (d) => { stderrTail = `${stderrTail}${d}`.slice(-2000); });
-    const earlyExit = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+    child.stderr.on('data', d => {
+      stderrTail = `${stderrTail}${d}`.slice(-2000);
+    });
+    const earlyExit = new Promise(resolve => child.on('exit', code => resolve(code)));
     const exited = await Promise.race([
-      earlyExit.then((code) => ({ exited: true, code })),
-      waitForRunnerReady(baseUrl).then((healthy) => ({ exited: false, healthy }))
+      earlyExit.then(code => ({ exited: true, code })),
+      waitForRunnerReady(baseUrl).then(healthy => ({ exited: false, healthy })),
     ]);
 
     if (exited.exited || exited.healthy === false) {
       const reason = exited.exited
         ? `${RUNNER_DISPLAY_NAME} exited immediately (code ${exited.code}): ${stderrTail.slice(-300)}`
         : `${RUNNER_DISPLAY_NAME} did not become healthy in time`;
-      try { child.kill(); } catch { /* ignore */ }
+      try {
+        child.kill();
+      } catch {
+        /* ignore */
+      }
       const error = new Error(reason);
       error.code = 'RUN_FAILED';
       throw error;

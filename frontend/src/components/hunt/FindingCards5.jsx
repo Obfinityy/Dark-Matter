@@ -93,7 +93,11 @@ import './FindingCards5.css';
  * undo stack (50234, Ctrl+Z / Ctrl+Shift+Z), persists per hunt (50219) and
  * records recently-used filters (50202). Sort prefs persist per user (50205).
  */
-export function useFilterState({ huntId = 'default', currentUserId = null, initialFilters = {} } = {}) {
+export function useFilterState({
+  huntId = 'default',
+  currentUserId = null,
+  initialFilters = {},
+} = {}) {
   const [filters, setFiltersState] = React.useState(() => {
     const saved = loadFilterState(huntId);
     const userDefault = loadUserDefault();
@@ -110,21 +114,24 @@ export function useFilterState({ huntId = 'default', currentUserId = null, initi
   const [future, setFuture] = React.useState([]);
   const [tagPriorityOrder, setTagPriorityOrder] = React.useState(() => filters.tags || []);
 
-  const commit = React.useCallback((next) => {
+  const commit = React.useCallback(next => {
     setFiltersState(next);
-    setHistory((h) => pushHistory(h, next));
+    setHistory(h => pushHistory(h, next));
     setFuture([]);
   }, []);
 
-  const setFilter = React.useCallback((key, value) => {
-    commit((prev) => (typeof prev === 'object' ? { ...prev, [key]: value } : prev));
-  }, [commit]);
+  const setFilter = React.useCallback(
+    (key, value) => {
+      commit(prev => (typeof prev === 'object' ? { ...prev, [key]: value } : prev));
+    },
+    [commit]
+  );
 
   // function-form updater support
-  const update = React.useCallback((updater) => {
-    setFiltersState((prev) => {
+  const update = React.useCallback(updater => {
+    setFiltersState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
-      setHistory((h) => pushHistory(h, next));
+      setHistory(h => pushHistory(h, next));
       setFuture([]);
       return next;
     });
@@ -132,12 +139,20 @@ export function useFilterState({ huntId = 'default', currentUserId = null, initi
 
   const undo = React.useCallback(() => {
     const res = undoOnce(history, future);
-    if (res) { setFiltersState(res.filters); setHistory(res.history); setFuture(res.future); }
+    if (res) {
+      setFiltersState(res.filters);
+      setHistory(res.history);
+      setFuture(res.future);
+    }
   }, [history, future]);
 
   const redo = React.useCallback(() => {
     const res = redoOnce(history, future);
-    if (res) { setFiltersState(res.filters); setHistory(res.history); setFuture(res.future); }
+    if (res) {
+      setFiltersState(res.filters);
+      setHistory(res.history);
+      setFuture(res.future);
+    }
   }, [history, future]);
 
   const resetAll = React.useCallback(() => {
@@ -145,19 +160,32 @@ export function useFilterState({ huntId = 'default', currentUserId = null, initi
     commit({ ...DEFAULT_FILTERS, ...(userDefault || {}) });
   }, [commit]);
 
-  const applyPreset = React.useCallback((presetFilters, presetName) => {
-    update((prev) => ({ ...DEFAULT_FILTERS, sortKey: prev.sortKey, sortDir: prev.sortDir, ...presetFilters }));
-    if (presetName) recordPresetUse(presetName);
-  }, [update]);
+  const applyPreset = React.useCallback(
+    (presetFilters, presetName) => {
+      update(prev => ({
+        ...DEFAULT_FILTERS,
+        sortKey: prev.sortKey,
+        sortDir: prev.sortDir,
+        ...presetFilters,
+      }));
+      if (presetName) recordPresetUse(presetName);
+    },
+    [update]
+  );
 
   // 50234 — Ctrl+Z / Ctrl+Shift+Z restores previous filter sets (skipped inside text inputs).
   React.useEffect(() => {
-    const onKey = (e) => {
+    const onKey = e => {
       const tag = (document.activeElement && document.activeElement.tagName) || '';
-      if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (document.activeElement && document.activeElement.isContentEditable)) return;
+      if (
+        /^(INPUT|TEXTAREA|SELECT)$/.test(tag) ||
+        (document.activeElement && document.activeElement.isContentEditable)
+      )
+        return;
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        if (e.shiftKey) redo(); else undo();
+        if (e.shiftKey) redo();
+        else undo();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -172,7 +200,9 @@ export function useFilterState({ huntId = 'default', currentUserId = null, initi
       saveFilterState(huntId, filters);
       recordRecentFilters(filters);
     }, 400);
-    return () => { if (persistTimer.current) clearTimeout(persistTimer.current); };
+    return () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+    };
   }, [filters, huntId]);
 
   // 50205 — persist sort prefs per user.
@@ -181,9 +211,18 @@ export function useFilterState({ huntId = 'default', currentUserId = null, initi
   }, [filters.sortKey, filters.sortDir]);
 
   return {
-    filters, setFilter, update, commit, resetAll, applyPreset, undo, redo,
-    canUndo: history.length > 1, canRedo: future.length > 0,
-    tagPriorityOrder, setTagPriorityOrder,
+    filters,
+    setFilter,
+    update,
+    commit,
+    resetAll,
+    applyPreset,
+    undo,
+    redo,
+    canUndo: history.length > 1,
+    canRedo: future.length > 0,
+    tagPriorityOrder,
+    setTagPriorityOrder,
     ctx: { currentUserId, currentHuntId: huntId, seenWatermark: getSeenWatermark() },
   };
 }
@@ -197,7 +236,9 @@ export function useSearchInputRef() {
   const ref = React.useRef(null);
   React.useEffect(() => {
     if (ref.current) ref.current.setAttribute('data-fc5-search-input', '1');
-    return () => { if (ref.current) ref.current.removeAttribute('data-fc5-search-input'); };
+    return () => {
+      if (ref.current) ref.current.removeAttribute('data-fc5-search-input');
+    };
   }, []);
   return ref;
 }
@@ -208,9 +249,11 @@ export function useSearchInputRef() {
  */
 export function useGlobalShortcuts({ onToggleHelp } = {}) {
   React.useEffect(() => {
-    const onKey = (e) => {
+    const onKey = e => {
       const tag = (document.activeElement && document.activeElement.tagName) || '';
-      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (document.activeElement && document.activeElement.isContentEditable);
+      const typing =
+        /^(INPUT|TEXTAREA|SELECT)$/.test(tag) ||
+        (document.activeElement && document.activeElement.isContentEditable);
       if (e.key === 'Escape') {
         if (onToggleHelp) onToggleHelp(false);
         return;
@@ -242,16 +285,31 @@ export function ShortcutsHelpOverlay({ open = false, onClose }) {
     ['Enter', 'Run a command-palette item'],
   ];
   return (
-    <div className="fc5-overlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={onClose}>
-      <div className="fc5-dialog" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fc5-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Keyboard shortcuts"
+      onClick={onClose}
+    >
+      <div className="fc5-dialog" onClick={e => e.stopPropagation()}>
         <div className="fc5-dialog-head">
           <h3>Keyboard shortcuts</h3>
-          <button type="button" className="fc5-icon-btn" onClick={onClose} aria-label="Close shortcuts help">✕</button>
+          <button
+            type="button"
+            className="fc5-icon-btn"
+            onClick={onClose}
+            aria-label="Close shortcuts help"
+          >
+            ✕
+          </button>
         </div>
         <dl className="fc5-shortcut-list">
           {rows.map(([key, desc]) => (
             <div key={key} className="fc5-shortcut-row">
-              <dt><kbd>{key}</kbd></dt>
+              <dt>
+                <kbd>{key}</kbd>
+              </dt>
               <dd>{desc}</dd>
             </div>
           ))}
@@ -265,11 +323,33 @@ export function ShortcutsHelpOverlay({ open = false, onClose }) {
 /* 50234 — undo / redo buttons                                           */
 /* ------------------------------------------------------------------ */
 
-export function UndoRedoControls({ canUndo = false, canRedo = false, onUndo, onRedo, className = '' }) {
+export function UndoRedoControls({
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
+  className = '',
+}) {
   return (
     <div className={`fc5-undo ${className}`} role="group" aria-label="Undo and redo filter changes">
-      <button type="button" disabled={!canUndo} onClick={onUndo} title="Undo filter change (Ctrl+Z)" aria-label="Undo filter change">↩ Undo</button>
-      <button type="button" disabled={!canRedo} onClick={onRedo} title="Redo filter change (Ctrl+Shift+Z)" aria-label="Redo filter change">↪ Redo</button>
+      <button
+        type="button"
+        disabled={!canUndo}
+        onClick={onUndo}
+        title="Undo filter change (Ctrl+Z)"
+        aria-label="Undo filter change"
+      >
+        ↩ Undo
+      </button>
+      <button
+        type="button"
+        disabled={!canRedo}
+        onClick={onRedo}
+        title="Redo filter change (Ctrl+Shift+Z)"
+        aria-label="Redo filter change"
+      >
+        ↪ Redo
+      </button>
     </div>
   );
 }
@@ -282,37 +362,78 @@ export function UndoRedoControls({ canUndo = false, canRedo = false, onUndo, onR
  * Jump-to-anywhere palette. `targets` is a real list of {id, label, kind, run};
  * default targets navigate the app shell via hash routes.
  */
-export function CommandPalette({ targets = [], open: controlledOpen, onOpenChange, className = '' }) {
+export function CommandPalette({
+  targets = [],
+  open: controlledOpen,
+  onOpenChange,
+  className = '',
+}) {
   const [internalOpen, setInternalOpen] = React.useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
-  const setOpen = (v) => { if (onOpenChange) onOpenChange(v); else setInternalOpen(v); };
+  const setOpen = v => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
   const [query, setQuery] = React.useState('');
   const [activeIdx, setActiveIdx] = React.useState(0);
   const inputRef = React.useRef(null);
 
-  const defaultTargets = React.useMemo(() => ([
-    { id: 'findings', label: 'Go to findings list', kind: 'Findings', run: () => { window.location.hash = '#/hunts'; } },
-    { id: 'hunts', label: 'Go to hunts', kind: 'Hunts', run: () => { window.location.hash = '#/hunts'; } },
-    { id: 'reports', label: 'Go to reports', kind: 'Reports', run: () => { window.location.hash = '#/reports'; } },
-    { id: 'settings', label: 'Open settings', kind: 'Settings', run: () => { window.location.hash = '#/settings'; } },
-  ]), []);
+  const defaultTargets = React.useMemo(
+    () => [
+      {
+        id: 'findings',
+        label: 'Go to findings list',
+        kind: 'Findings',
+        run: () => {
+          window.location.hash = '#/hunts';
+        },
+      },
+      {
+        id: 'hunts',
+        label: 'Go to hunts',
+        kind: 'Hunts',
+        run: () => {
+          window.location.hash = '#/hunts';
+        },
+      },
+      {
+        id: 'reports',
+        label: 'Go to reports',
+        kind: 'Reports',
+        run: () => {
+          window.location.hash = '#/reports';
+        },
+      },
+      {
+        id: 'settings',
+        label: 'Open settings',
+        kind: 'Settings',
+        run: () => {
+          window.location.hash = '#/settings';
+        },
+      },
+    ],
+    []
+  );
   const all = targets.length ? targets : defaultTargets;
 
   const results = React.useMemo(() => {
     const q = query.trim();
     if (!q) return all;
     return all
-      .map((t) => ({ t, s: fuzzyScore(q, `${t.label} ${t.kind}`) }))
-      .filter((r) => r.s > 0)
+      .map(t => ({ t, s: fuzzyScore(q, `${t.label} ${t.kind}`) }))
+      .filter(r => r.s > 0)
       .sort((a, b) => b.s - a.s)
-      .map((r) => r.t);
+      .map(r => r.t);
   }, [all, query]);
 
   React.useEffect(() => {
-    const onKey = (e) => {
+    const onKey = e => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setOpen(!open); setQuery(''); setActiveIdx(0);
+        setOpen(!open);
+        setQuery('');
+        setActiveIdx(0);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -321,19 +442,40 @@ export function CommandPalette({ targets = [], open: controlledOpen, onOpenChang
 
   React.useEffect(() => {
     if (open && inputRef.current) inputRef.current.focus();
-  }, [open ]);
+  }, [open]);
 
   if (!open) return null;
-  const run = (t) => { setOpen(false); if (t && typeof t.run === 'function') t.run(); };
+  const run = t => {
+    setOpen(false);
+    if (t && typeof t.run === 'function') t.run();
+  };
   return (
-    <div className={`fc5-overlay ${className}`} role="dialog" aria-modal="true" aria-label="Command palette" onClick={() => setOpen(false)}>
-      <div className="fc5-palette" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`fc5-overlay ${className}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
+      onClick={() => setOpen(false)}
+    >
+      <div className="fc5-palette" onClick={e => e.stopPropagation()}>
         <input
-          ref={inputRef} type="text" value={query} placeholder="Jump to findings, hunts, reports, settings…"
-          onChange={(e) => { setQuery(e.target.value); setActiveIdx(0); }}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, results.length - 1)); }
-            if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
+          ref={inputRef}
+          type="text"
+          value={query}
+          placeholder="Jump to findings, hunts, reports, settings…"
+          onChange={e => {
+            setQuery(e.target.value);
+            setActiveIdx(0);
+          }}
+          onKeyDown={e => {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setActiveIdx(i => Math.min(i + 1, results.length - 1));
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setActiveIdx(i => Math.max(i - 1, 0));
+            }
             if (e.key === 'Enter' && results[activeIdx]) run(results[activeIdx]);
             if (e.key === 'Escape') setOpen(false);
           }}
@@ -341,8 +483,13 @@ export function CommandPalette({ targets = [], open: controlledOpen, onOpenChang
         />
         <ul className="fc5-palette-list" role="listbox" aria-label="Palette results">
           {results.map((t, i) => (
-            <li key={t.id} role="option" aria-selected={i === activeIdx}
-                className={i === activeIdx ? 'fc5-active' : ''} onClick={() => run(t)}>
+            <li
+              key={t.id}
+              role="option"
+              aria-selected={i === activeIdx}
+              className={i === activeIdx ? 'fc5-active' : ''}
+              onClick={() => run(t)}
+            >
               <span className="fc5-palette-kind">{t.kind}</span>
               <span>{t.label}</span>
             </li>
@@ -360,30 +507,57 @@ export function CommandPalette({ targets = [], open: controlledOpen, onOpenChang
 /* ------------------------------------------------------------------ */
 
 /** 50237 — search-as-you-type with a real 150ms debounce. */
-export function DebouncedSearchInput({ value = '', onChange, placeholder = 'Search titles and evidence…  ( / )', className = '' }) {
+export function DebouncedSearchInput({
+  value = '',
+  onChange,
+  placeholder = 'Search titles and evidence…  ( / )',
+  className = '',
+}) {
   const [draft, setDraft] = React.useState(value);
   const ref = useSearchInputRef();
   const timer = React.useRef(null);
 
-  React.useEffect(() => { setDraft(value); }, [value]);
+  React.useEffect(() => {
+    setDraft(value);
+  }, [value]);
 
-  React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  React.useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
-  const handle = (v) => {
+  const handle = v => {
     setDraft(v);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { if (onChange) onChange(v); }, 150);
+    timer.current = setTimeout(() => {
+      if (onChange) onChange(v);
+    }, 150);
   };
 
   return (
     <label className={`fc5-search ${className}`}>
-      <span aria-hidden="true" className="fc5-search-icon">⌕</span>
+      <span aria-hidden="true" className="fc5-search-icon">
+        ⌕
+      </span>
       <input
-        ref={ref} type="search" value={draft} placeholder={placeholder}
-        onChange={(e) => handle(e.target.value)} aria-label="Search findings"
+        ref={ref}
+        type="search"
+        value={draft}
+        placeholder={placeholder}
+        onChange={e => handle(e.target.value)}
+        aria-label="Search findings"
       />
       {draft && (
-        <button type="button" className="fc5-search-x" onClick={() => handle('')} aria-label="Clear search">✕</button>
+        <button
+          type="button"
+          className="fc5-search-x"
+          onClick={() => handle('')}
+          aria-label="Clear search"
+        >
+          ✕
+        </button>
       )}
     </label>
   );
@@ -394,9 +568,15 @@ export function HighlightedText({ text = '', query = '', regexMode = false, clas
   const segments = highlightSegments(text, query, { regexMode });
   return (
     <span className={`fc5-highlight ${className}`}>
-      {segments.map((s, i) => (s.match
-        ? <mark key={i} className="fc5-mark">{s.text}</mark>
-        : <React.Fragment key={i}>{s.text}</React.Fragment>))}
+      {segments.map((s, i) =>
+        s.match ? (
+          <mark key={i} className="fc5-mark">
+            {s.text}
+          </mark>
+        ) : (
+          <React.Fragment key={i}>{s.text}</React.Fragment>
+        )
+      )}
     </span>
   );
 }
@@ -415,14 +595,19 @@ export function ScopedSearchTabs({ value = 'thisHunt', onChange, counts = {}, cl
   ];
   return (
     <div className={`fc5-tabs ${className}`} role="tablist" aria-label="Search scope">
-      {tabs.map((t) => (
+      {tabs.map(t => (
         <button
-          key={t.key} type="button" role="tab" aria-selected={value === t.key}
+          key={t.key}
+          type="button"
+          role="tab"
+          aria-selected={value === t.key}
           className={value === t.key ? 'fc5-active' : ''}
           onClick={() => onChange && onChange(t.key)}
         >
           {t.label}
-          {typeof counts[t.key] === 'number' && <span className="fc5-tab-count">{counts[t.key]}</span>}
+          {typeof counts[t.key] === 'number' && (
+            <span className="fc5-tab-count">{counts[t.key]}</span>
+          )}
         </button>
       ))}
     </div>
@@ -440,23 +625,48 @@ export function RecentSearchesDropdown({ onRerun, className = '' }) {
   const refresh = () => setItems(getRecentSearches());
   return (
     <div className={`fc5-dropdown ${className}`}>
-      <button type="button" className="fc5-ghost-btn" aria-haspopup="listbox" aria-expanded={open}
-              onClick={() => { refresh(); setOpen((o) => !o); }}>
+      <button
+        type="button"
+        className="fc5-ghost-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => {
+          refresh();
+          setOpen(o => !o);
+        }}
+      >
         Recent searches
       </button>
       {open && (
         <ul className="fc5-dropdown-list" role="listbox" aria-label="Recent searches">
           {items.length === 0 && <li className="fc5-dropdown-empty">No recent searches yet.</li>}
-          {items.map((s) => (
+          {items.map(s => (
             <li key={`${s.at}-${s.query}`}>
-              <button type="button" onClick={() => { if (onRerun) onRerun(s.query); setOpen(false); }}>
-                <span className="fc5-search-icon" aria-hidden="true">⌕</span> {s.query}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onRerun) onRerun(s.query);
+                  setOpen(false);
+                }}
+              >
+                <span className="fc5-search-icon" aria-hidden="true">
+                  ⌕
+                </span>{' '}
+                {s.query}
               </button>
             </li>
           ))}
           {items.length > 0 && (
             <li className="fc5-dropdown-foot">
-              <button type="button" onClick={() => { clearRecentSearches(); refresh(); }}>Clear all</button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearRecentSearches();
+                  refresh();
+                }}
+              >
+                Clear all
+              </button>
             </li>
           )}
         </ul>
@@ -470,32 +680,71 @@ export function RecentSearchesDropdown({ onRerun, className = '' }) {
 /* ------------------------------------------------------------------ */
 
 /** 50240 — save the current filter set under a custom name. */
-export function SavedSearchesPanel({ filters, saved = [], onSave, onApply, onDelete, onTogglePin, className = '' }) {
+export function SavedSearchesPanel({
+  filters,
+  saved = [],
+  onSave,
+  onApply,
+  onDelete,
+  onTogglePin,
+  className = '',
+}) {
   const [name, setName] = React.useState('');
   return (
     <div className={`fc5-saved ${className}`}>
       <div className="fc5-saved-form">
         <input
-          type="text" value={name} placeholder="Name this search…"
-          onChange={(e) => setName(e.target.value)} aria-label="Saved search name"
-          onKeyDown={(e) => { if (e.key === 'Enter' && name.trim() && onSave) { onSave(name.trim()); setName(''); } }}
+          type="text"
+          value={name}
+          placeholder="Name this search…"
+          onChange={e => setName(e.target.value)}
+          aria-label="Saved search name"
+          onKeyDown={e => {
+            if (e.key === 'Enter' && name.trim() && onSave) {
+              onSave(name.trim());
+              setName('');
+            }
+          }}
         />
-        <button type="button" disabled={!name.trim()} onClick={() => { if (onSave) onSave(name.trim()); setName(''); }}>
+        <button
+          type="button"
+          disabled={!name.trim()}
+          onClick={() => {
+            if (onSave) onSave(name.trim());
+            setName('');
+          }}
+        >
           Save search
         </button>
       </div>
       <ul className="fc5-saved-list">
-        {saved.map((s) => (
+        {saved.map(s => (
           <li key={s.id} className={s.pinned ? 'fc5-pinned' : ''}>
-            <button type="button" className="fc5-saved-name" onClick={() => onApply && onApply(s)} title="Apply this saved search">
+            <button
+              type="button"
+              className="fc5-saved-name"
+              onClick={() => onApply && onApply(s)}
+              title="Apply this saved search"
+            >
               {s.name}
             </button>
-            <button type="button" className="fc5-icon-btn" aria-pressed={!!s.pinned} title={s.pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
-                    onClick={() => onTogglePin && onTogglePin(s.id)}>
+            <button
+              type="button"
+              className="fc5-icon-btn"
+              aria-pressed={!!s.pinned}
+              title={s.pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+              onClick={() => onTogglePin && onTogglePin(s.id)}
+            >
               {s.pinned ? '★' : '☆'}
             </button>
-            <button type="button" className="fc5-icon-btn" aria-label={`Delete saved search ${s.name}`}
-                    onClick={() => onDelete && onDelete(s.id)}>✕</button>
+            <button
+              type="button"
+              className="fc5-icon-btn"
+              aria-label={`Delete saved search ${s.name}`}
+              onClick={() => onDelete && onDelete(s.id)}
+            >
+              ✕
+            </button>
           </li>
         ))}
         {saved.length === 0 && <li className="fc5-dropdown-empty">No saved searches yet.</li>}
@@ -506,13 +755,19 @@ export function SavedSearchesPanel({ filters, saved = [], onSave, onApply, onDel
 
 /** 50240 — pinned searches shown as a sidebar rail. */
 export function PinnedSearchRail({ saved = [], onApply, className = '' }) {
-  const pinned = saved.filter((s) => s.pinned);
+  const pinned = saved.filter(s => s.pinned);
   if (pinned.length === 0) return null;
   return (
     <nav className={`fc5-rail ${className}`} aria-label="Pinned saved searches">
       <span className="fc5-rail-title">Pinned</span>
-      {pinned.map((s) => (
-        <button key={s.id} type="button" className="fc5-rail-item" onClick={() => onApply && onApply(s)} title="Apply pinned search">
+      {pinned.map(s => (
+        <button
+          key={s.id}
+          type="button"
+          className="fc5-rail-item"
+          onClick={() => onApply && onApply(s)}
+          title="Apply pinned search"
+        >
           ★ {s.name}
         </button>
       ))}
@@ -529,16 +784,23 @@ export function RegexModeToggle({ value = false, onChange, className = '' }) {
   return (
     <div className={`fc5-regex ${className}`}>
       <button
-        type="button" role="switch" aria-checked={value}
+        type="button"
+        role="switch"
+        aria-checked={value}
         className={`fc5-switch fc5-switch-sm ${value ? 'fc5-on' : ''}`}
         onClick={() => onChange && onChange(!value)}
       >
-        <span className="fc5-switch-track" aria-hidden="true"><span className="fc5-switch-thumb" /></span>
-        <span className="fc5-switch-label"><code>.*</code> regex</span>
+        <span className="fc5-switch-track" aria-hidden="true">
+          <span className="fc5-switch-thumb" />
+        </span>
+        <span className="fc5-switch-label">
+          <code>.*</code> regex
+        </span>
       </button>
       {value && (
         <span className="fc5-hint" role="note">
-          Regex mode: <code>.</code> any · <code>*</code> repeat · <code>^$</code> anchors · <code>( )</code> group · <code>[ ]</code> class · invalid patterns match nothing.
+          Regex mode: <code>.</code> any · <code>*</code> repeat · <code>^$</code> anchors ·{' '}
+          <code>( )</code> group · <code>[ ]</code> class · invalid patterns match nothing.
         </span>
       )}
     </div>
@@ -549,12 +811,16 @@ export function RegexModeToggle({ value = false, onChange, className = '' }) {
 export function FuzzySearchToggle({ value = false, onChange, className = '' }) {
   return (
     <button
-      type="button" role="switch" aria-checked={value}
+      type="button"
+      role="switch"
+      aria-checked={value}
       className={`fc5-switch fc5-switch-sm ${value ? 'fc5-on' : ''} ${className}`}
       onClick={() => onChange && onChange(!value)}
       title="Tolerate typos in the search query (e.g. xss still matches)"
     >
-      <span className="fc5-switch-track" aria-hidden="true"><span className="fc5-switch-thumb" /></span>
+      <span className="fc5-switch-track" aria-hidden="true">
+        <span className="fc5-switch-thumb" />
+      </span>
       <span className="fc5-switch-label">Fuzzy match</span>
     </button>
   );
@@ -566,16 +832,41 @@ export function FuzzySearchToggle({ value = false, onChange, className = '' }) {
 
 /** 50211 — dual min/max slider filtering by numeric risk score (0–10). */
 export function RiskScoreRangeSlider({ min = 0, max = 10, onChange, className = '' }) {
-  const setMin = (v) => { const nv = Math.min(v, max); if (onChange) onChange(nv, max); };
-  const setMax = (v) => { const nv = Math.max(v, min); if (onChange) onChange(min, nv); };
+  const setMin = v => {
+    const nv = Math.min(v, max);
+    if (onChange) onChange(nv, max);
+  };
+  const setMax = v => {
+    const nv = Math.max(v, min);
+    if (onChange) onChange(min, nv);
+  };
   return (
     <div className={`fc5-risk ${className}`}>
-      <span className="fc5-field-label">Risk score <strong>{min}–{max}</strong></span>
+      <span className="fc5-field-label">
+        Risk score{' '}
+        <strong>
+          {min}–{max}
+        </strong>
+      </span>
       <div className="fc5-risk-sliders">
-        <input type="range" min={0} max={10} step={0.5} value={min}
-               onChange={(e) => setMin(parseFloat(e.target.value))} aria-label="Minimum risk score" />
-        <input type="range" min={0} max={10} step={0.5} value={max}
-               onChange={(e) => setMax(parseFloat(e.target.value))} aria-label="Maximum risk score" />
+        <input
+          type="range"
+          min={0}
+          max={10}
+          step={0.5}
+          value={min}
+          onChange={e => setMin(parseFloat(e.target.value))}
+          aria-label="Minimum risk score"
+        />
+        <input
+          type="range"
+          min={0}
+          max={10}
+          step={0.5}
+          value={max}
+          onChange={e => setMax(parseFloat(e.target.value))}
+          aria-label="Maximum risk score"
+        />
       </div>
     </div>
   );
@@ -589,28 +880,36 @@ export function RiskScoreRangeSlider({ min = 0, max = 10, onChange, className = 
 export function SeverityHistogramChips({ findings = [], selected = [], onChange, className = '' }) {
   const counts = React.useMemo(() => {
     const c = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    for (const f of findings) { if (f && c[f.severity] !== undefined) c[f.severity] += 1; }
+    for (const f of findings) {
+      if (f && c[f.severity] !== undefined) c[f.severity] += 1;
+    }
     return c;
   }, [findings]);
   const peak = Math.max(1, ...Object.values(counts));
   const sel = new Set(selected);
-  const toggle = (sev) => {
+  const toggle = sev => {
     const next = new Set(sel);
-    if (next.has(sev)) next.delete(sev); else next.add(sev);
+    if (next.has(sev)) next.delete(sev);
+    else next.add(sev);
     if (onChange) onChange([...next]);
   };
   return (
     <div className={`fc5-hist ${className}`} role="group" aria-label="Filter by severity">
-      {SEVERITY_KEYS.map((sev) => (
+      {SEVERITY_KEYS.map(sev => (
         <button
-          key={sev} type="button" aria-pressed={sel.has(sev)}
+          key={sev}
+          type="button"
+          aria-pressed={sel.has(sev)}
           className={`fc5-hist-chip fc5-sev-${sev} ${sel.has(sev) ? 'fc5-active' : ''}`}
           style={{ '--fc5-sev': FC_SEVERITY[sev] ? FC_SEVERITY[sev].color : '#8b96ad' }}
           onClick={() => toggle(sev)}
           title={`${sev}: ${counts[sev]} findings`}
         >
           <span className="fc5-hist-bars" aria-hidden="true">
-            <span className="fc5-hist-bar" style={{ height: `${Math.max(8, (counts[sev] / peak) * 100)}%` }} />
+            <span
+              className="fc5-hist-bar"
+              style={{ height: `${Math.max(8, (counts[sev] / peak) * 100)}%` }}
+            />
           </span>
           <span className="fc5-hist-label">{sev}</span>
           <span className="fc5-hist-count">{counts[sev]}</span>
@@ -628,12 +927,16 @@ export function SeverityHistogramChips({ findings = [], selected = [], onChange,
 export function ExcludeFpToggle({ value = true, hiddenCount = 0, onChange, className = '' }) {
   return (
     <button
-      type="button" role="switch" aria-checked={value}
+      type="button"
+      role="switch"
+      aria-checked={value}
       className={`fc5-switch ${value ? 'fc5-on' : ''} ${className}`}
       onClick={() => onChange && onChange(!value)}
       title="Hide findings marked as false positives"
     >
-      <span className="fc5-switch-track" aria-hidden="true"><span className="fc5-switch-thumb" /></span>
+      <span className="fc5-switch-track" aria-hidden="true">
+        <span className="fc5-switch-thumb" />
+      </span>
       <span className="fc5-switch-label">
         Exclude false positives
         {value && hiddenCount > 0 && <span className="fc5-hidden-count">{hiddenCount} hidden</span>}
@@ -646,12 +949,16 @@ export function ExcludeFpToggle({ value = true, hiddenCount = 0, onChange, class
 export function ShowDismissedToggle({ value = false, onChange, className = '' }) {
   return (
     <button
-      type="button" role="switch" aria-checked={value}
+      type="button"
+      role="switch"
+      aria-checked={value}
       className={`fc5-switch fc5-switch-sm ${value ? 'fc5-on' : ''} ${className}`}
       onClick={() => onChange && onChange(!value)}
       title="Show dismissed findings in a muted style"
     >
-      <span className="fc5-switch-track" aria-hidden="true"><span className="fc5-switch-thumb" /></span>
+      <span className="fc5-switch-track" aria-hidden="true">
+        <span className="fc5-switch-thumb" />
+      </span>
       <span className="fc5-switch-label">Show dismissed</span>
     </button>
   );
@@ -676,11 +983,17 @@ export function AssigneeFilter({ findings = [], value = 'all', onChange, classNa
   return (
     <label className={`fc5-assignee ${className}`}>
       <span className="fc5-field-label">Assignee</span>
-      <select value={value} onChange={(e) => onChange && onChange(e.target.value)} aria-label="Filter by assignee">
+      <select
+        value={value}
+        onChange={e => onChange && onChange(e.target.value)}
+        aria-label="Filter by assignee"
+      >
         <option value="all">Everyone</option>
         <option value="unassigned">Unassigned</option>
-        {assignees.map((a) => (
-          <option key={a.name} value={a.name}>{a.name} ({a.count})</option>
+        {assignees.map(a => (
+          <option key={a.name} value={a.name}>
+            {a.name} ({a.count})
+          </option>
         ))}
       </select>
     </label>
@@ -694,11 +1007,16 @@ export function AssigneeFilter({ findings = [], value = 'all', onChange, classNa
 function SimpleSwitch({ label, title, value, onChange, small = false, className = '' }) {
   return (
     <button
-      type="button" role="switch" aria-checked={value} title={title || label}
+      type="button"
+      role="switch"
+      aria-checked={value}
+      title={title || label}
       className={`fc5-switch ${small ? 'fc5-switch-sm' : ''} ${value ? 'fc5-on' : ''} ${className}`}
       onClick={() => onChange && onChange(!value)}
     >
-      <span className="fc5-switch-track" aria-hidden="true"><span className="fc5-switch-thumb" /></span>
+      <span className="fc5-switch-track" aria-hidden="true">
+        <span className="fc5-switch-thumb" />
+      </span>
       <span className="fc5-switch-label">{label}</span>
     </button>
   );
@@ -706,11 +1024,24 @@ function SimpleSwitch({ label, title, value, onChange, small = false, className 
 
 /** 50210 — fixed findings awaiting verification get their own queue view. */
 export function NeedsRetestToggle(props) {
-  return <SimpleSwitch label="Needs retest" title="Show fixed findings awaiting verification" {...props} />;
+  return (
+    <SimpleSwitch
+      label="Needs retest"
+      title="Show fixed findings awaiting verification"
+      {...props}
+    />
+  );
 }
 /** 50214 — only findings the current user personally interacted with. */
 export function MyFindingsToggle(props) {
-  return <SimpleSwitch label="My findings" title="Show only findings you interacted with" small {...props} />;
+  return (
+    <SimpleSwitch
+      label="My findings"
+      title="Show only findings you interacted with"
+      small
+      {...props}
+    />
+  );
 }
 /** 50224 — bookmarked findings get their own view. */
 export function StarredToggle(props) {
@@ -718,7 +1049,14 @@ export function StarredToggle(props) {
 }
 /** 50228 — show only findings NEW versus the previous hunt. */
 export function CompareModeToggle(props) {
-  return <SimpleSwitch label="New vs previous hunt" title="Show only findings not seen in the previous hunt" small {...props} />;
+  return (
+    <SimpleSwitch
+      label="New vs previous hunt"
+      title="Show only findings not seen in the previous hunt"
+      small
+      {...props}
+    />
+  );
 }
 
 /** 50216 — PoC replayability: replayable vs manual-only. */
@@ -729,11 +1067,20 @@ export function ReplayabilitySegmented({ value = 'all', onChange, className = ''
     { key: 'manual', label: 'Manual only' },
   ];
   return (
-    <div className={`fc5-segmented ${className}`} role="group" aria-label="Filter by PoC replayability">
-      {opts.map((o) => (
-        <button key={o.key} type="button" aria-pressed={value === o.key}
-                className={value === o.key ? 'fc5-active' : ''}
-                onClick={() => onChange && onChange(o.key)} title="Filter by PoC replayability">
+    <div
+      className={`fc5-segmented ${className}`}
+      role="group"
+      aria-label="Filter by PoC replayability"
+    >
+      {opts.map(o => (
+        <button
+          key={o.key}
+          type="button"
+          aria-pressed={value === o.key}
+          className={value === o.key ? 'fc5-active' : ''}
+          onClick={() => onChange && onChange(o.key)}
+          title="Filter by PoC replayability"
+        >
           {o.label}
         </button>
       ))}
@@ -746,10 +1093,14 @@ export function EvidenceTypeFilter({ value = 'all', onChange, counts = {}, class
   const opts = ['all', ...EVIDENCE_TYPES];
   return (
     <div className={`fc5-evtype ${className}`} role="group" aria-label="Filter by evidence type">
-      {opts.map((t) => (
-        <button key={t} type="button" aria-pressed={value === t}
-                className={`fc5-evtype-btn ${value === t ? 'fc5-active' : ''}`}
-                onClick={() => onChange && onChange(t)}>
+      {opts.map(t => (
+        <button
+          key={t}
+          type="button"
+          aria-pressed={value === t}
+          className={`fc5-evtype-btn ${value === t ? 'fc5-active' : ''}`}
+          onClick={() => onChange && onChange(t)}
+        >
           {t === 'all' ? 'Any evidence' : EVIDENCE_TYPE_LABELS[t]}
           {typeof counts[t] === 'number' && <span className="fc5-chip-count">{counts[t]}</span>}
         </button>
@@ -766,11 +1117,19 @@ export function OriginSegmented({ value = 'all', onChange, className = '' }) {
     { key: 'human', label: 'Human-confirmed' },
   ];
   return (
-    <div className={`fc5-segmented ${className}`} role="group" aria-label="Filter by finding origin">
-      {opts.map((o) => (
-        <button key={o.key} type="button" aria-pressed={value === o.key}
-                className={value === o.key ? 'fc5-active' : ''}
-                onClick={() => onChange && onChange(o.key)}>
+    <div
+      className={`fc5-segmented ${className}`}
+      role="group"
+      aria-label="Filter by finding origin"
+    >
+      {opts.map(o => (
+        <button
+          key={o.key}
+          type="button"
+          aria-pressed={value === o.key}
+          className={value === o.key ? 'fc5-active' : ''}
+          onClick={() => onChange && onChange(o.key)}
+        >
           {o.label}
         </button>
       ))}
@@ -787,10 +1146,14 @@ export function AgingSegmented({ value = 'all', onChange, className = '' }) {
   ];
   return (
     <div className={`fc5-segmented ${className}`} role="group" aria-label="Filter by finding age">
-      {opts.map((o) => (
-        <button key={o.key} type="button" aria-pressed={value === o.key}
-                className={value === o.key ? 'fc5-active' : ''}
-                onClick={() => onChange && onChange(o.key)}>
+      {opts.map(o => (
+        <button
+          key={o.key}
+          type="button"
+          aria-pressed={value === o.key}
+          className={value === o.key ? 'fc5-active' : ''}
+          onClick={() => onChange && onChange(o.key)}
+        >
           {o.label}
         </button>
       ))}
@@ -811,10 +1174,14 @@ export function ConfidenceBandPresets({ value = 'all', onChange, className = '' 
   ];
   return (
     <div className={`fc5-segmented ${className}`} role="group" aria-label="Confidence band presets">
-      {opts.map((o) => (
-        <button key={o.key} type="button" aria-pressed={value === o.key}
-                className={value === o.key ? 'fc5-active' : ''}
-                onClick={() => onChange && onChange(o.key)}>
+      {opts.map(o => (
+        <button
+          key={o.key}
+          type="button"
+          aria-pressed={value === o.key}
+          className={value === o.key ? 'fc5-active' : ''}
+          onClick={() => onChange && onChange(o.key)}
+        >
           {o.label}
         </button>
       ))}
@@ -834,9 +1201,19 @@ export function ConfidenceBandPresets({ value = 'all', onChange, className = '' 
 export function ChangedSinceVisitToggle({ value = false, onChange, onMarkSeen, className = '' }) {
   return (
     <div className={`fc5-changed ${className}`}>
-      <SimpleSwitch label="Changed since visit" title="Show only findings updated since your last visit" small
-                    value={value} onChange={onChange} />
-      <button type="button" className="fc5-ghost-btn" onClick={onMarkSeen} title="Stamp the seen watermark to now">
+      <SimpleSwitch
+        label="Changed since visit"
+        title="Show only findings updated since your last visit"
+        small
+        value={value}
+        onChange={onChange}
+      />
+      <button
+        type="button"
+        className="fc5-ghost-btn"
+        onClick={onMarkSeen}
+        title="Stamp the seen watermark to now"
+      >
         Mark all seen
       </button>
     </div>
@@ -851,13 +1228,20 @@ export function ChangedSinceVisitToggle({ value = false, onChange, onMarkSeen, c
 export function UntriagedCriticalsPreset({ onApply, className = '' }) {
   return (
     <button
-      type="button" className={`fc5-emergency ${className}`}
-      onClick={() => onApply && onApply({
-        severities: ['critical'],
-        status: 'new',
-        unreviewedOnly: true,
-        excludeFalsePositives: true,
-      }, 'untriaged-criticals')}
+      type="button"
+      className={`fc5-emergency ${className}`}
+      onClick={() =>
+        onApply &&
+        onApply(
+          {
+            severities: ['critical'],
+            status: 'new',
+            unreviewedOnly: true,
+            excludeFalsePositives: true,
+          },
+          'untriaged-criticals'
+        )
+      }
       title="Surface untriaged critical findings immediately"
     >
       Untriaged criticals
@@ -877,7 +1261,8 @@ export function SimilarToThisButton({ finding, active = false, onToggle, classNa
   if (!finding) return null;
   return (
     <button
-      type="button" aria-pressed={active}
+      type="button"
+      aria-pressed={active}
       className={`fc5-similar ${active ? 'fc5-active' : ''} ${className}`}
       onClick={() => onToggle && onToggle(finding)}
       title={`Find findings similar to "${finding.title || finding.id}" (same severity, OWASP, or tags)`}
@@ -897,24 +1282,37 @@ const SORT_OPTIONS = [
   { key: 'confidence', label: 'Confidence' },
   { key: 'newest', label: 'Newest' },
   { key: 'oldest', label: 'Oldest' },
-  { key: 'firstSeen', label: 'First seen' },   // 50223
+  { key: 'firstSeen', label: 'First seen' }, // 50223
   { key: 'lastUpdated', label: 'Last updated' }, // 50223
   { key: 'title', label: 'Title A–Z' },
 ];
 
 /** 50205 — sort key + direction toggle; direction persists per user across sessions. */
-export function SortDropdown5({ sortKey = 'severity', sortDir = 'desc', onChange, className = '' }) {
-  const set = (key, dir) => { if (onChange) onChange(key ?? sortKey, dir ?? sortDir); };
+export function SortDropdown5({
+  sortKey = 'severity',
+  sortDir = 'desc',
+  onChange,
+  className = '',
+}) {
+  const set = (key, dir) => {
+    if (onChange) onChange(key ?? sortKey, dir ?? sortDir);
+  };
   return (
     <div className={`fc5-sortwrap ${className}`}>
       <label className="fc5-sort">
         <span className="fc5-field-label">Sort</span>
-        <select value={sortKey} onChange={(e) => set(e.target.value)} aria-label="Sort findings">
-          {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        <select value={sortKey} onChange={e => set(e.target.value)} aria-label="Sort findings">
+          {SORT_OPTIONS.map(o => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+            </option>
+          ))}
         </select>
       </label>
       <button
-        type="button" className="fc5-dir-btn" aria-label={`Sort direction: ${sortDir === 'desc' ? 'descending' : 'ascending'}. Toggle to change.`}
+        type="button"
+        className="fc5-dir-btn"
+        aria-label={`Sort direction: ${sortDir === 'desc' ? 'descending' : 'ascending'}. Toggle to change.`}
         onClick={() => set(undefined, sortDir === 'desc' ? 'asc' : 'desc')}
         title="Toggle sort direction (persists across sessions)"
       >
@@ -941,29 +1339,45 @@ export function GroupByControl({ value = 'none', onChange, className = '' }) {
   return (
     <label className={`fc5-groupby ${className}`}>
       <span className="fc5-field-label">Group by</span>
-      <select value={value} onChange={(e) => onChange && onChange(e.target.value)} aria-label="Group findings by">
-        {GROUP_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+      <select
+        value={value}
+        onChange={e => onChange && onChange(e.target.value)}
+        aria-label="Group findings by"
+      >
+        {GROUP_OPTIONS.map(o => (
+          <option key={o.key} value={o.key}>
+            {o.label}
+          </option>
+        ))}
       </select>
     </label>
   );
 }
 
 /** 50206 — renders grouped findings; renderFinding draws one row. */
-export function GroupedFindingsView({ groups = [], renderFinding, selectedIds = [], onToggleSelect, className = '' }) {
+export function GroupedFindingsView({
+  groups = [],
+  renderFinding,
+  selectedIds = [],
+  onToggleSelect,
+  className = '',
+}) {
   return (
     <div className={`fc5-groups ${className}`}>
-      {groups.map((g) => (
+      {groups.map(g => (
         <section key={g.key} className="fc5-group">
           <header className="fc5-group-head">
             <h4>{g.label}</h4>
             <span className="fc5-chip-count">{g.items.length}</span>
           </header>
           <ul className="fc5-group-list">
-            {g.items.map((f) => (
+            {g.items.map(f => (
               <li key={f.id} className={f.dismissed ? 'fc5-dismissed-row' : ''}>
                 {onToggleSelect && (
                   <input
-                    type="checkbox" checked={selectedIds.includes(f.id)} aria-label={`Select ${f.title || f.id}`}
+                    type="checkbox"
+                    checked={selectedIds.includes(f.id)}
+                    aria-label={`Select ${f.title || f.id}`}
                     onChange={() => onToggleSelect(f.id)}
                   />
                 )}
@@ -982,17 +1396,25 @@ export function GroupedFindingsView({ groups = [], renderFinding, selectedIds = 
 /* ------------------------------------------------------------------ */
 
 /** 50208 — bulk selection offers "select all N shown" for the filtered set. */
-export function SelectAllFilteredBar({ filtered = [], selectedIds = [], onChange, className = '' }) {
-  const allSelected = filtered.length > 0 && filtered.every((f) => selectedIds.includes(f.id));
+export function SelectAllFilteredBar({
+  filtered = [],
+  selectedIds = [],
+  onChange,
+  className = '',
+}) {
+  const allSelected = filtered.length > 0 && filtered.every(f => selectedIds.includes(f.id));
   return (
     <div className={`fc5-selectall ${className}`} role="group" aria-label="Bulk selection">
       <button
-        type="button" disabled={filtered.length === 0}
-        onClick={() => onChange && onChange(allSelected ? [] : filtered.map((f) => f.id))}
+        type="button"
+        disabled={filtered.length === 0}
+        onClick={() => onChange && onChange(allSelected ? [] : filtered.map(f => f.id))}
       >
         {allSelected ? 'Clear selection' : `Select all ${filtered.length} shown`}
       </button>
-      {selectedIds.length > 0 && <span className="fc5-selected-count">{selectedIds.length} selected</span>}
+      {selectedIds.length > 0 && (
+        <span className="fc5-selected-count">{selectedIds.length} selected</span>
+      )}
     </div>
   );
 }
@@ -1005,34 +1427,67 @@ export function SelectAllFilteredBar({ filtered = [], selectedIds = [], onChange
  * 50215 — export operates on the currently filtered set; the dialog states
  * exactly that, and downloads a real CSV.
  */
-export function ExportFilteredButton({ filtered = [], total = 0, fileName = 'findings-export.csv', className = '' }) {
+export function ExportFilteredButton({
+  filtered = [],
+  total = 0,
+  fileName = 'findings-export.csv',
+  className = '',
+}) {
   const [open, setOpen] = React.useState(false);
   const download = () => {
     const csv = findingsToCsv(filtered);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = fileName;
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     URL.revokeObjectURL(url);
     setOpen(false);
   };
   return (
     <div className={`fc5-export ${className}`}>
-      <button type="button" className="fc5-ghost-btn" onClick={() => setOpen(true)} disabled={filtered.length === 0}>
+      <button
+        type="button"
+        className="fc5-ghost-btn"
+        onClick={() => setOpen(true)}
+        disabled={filtered.length === 0}
+      >
         Export CSV
       </button>
       {open && (
-        <div className="fc5-overlay" role="dialog" aria-modal="true" aria-label="Export findings" onClick={() => setOpen(false)}>
-          <div className="fc5-dialog" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fc5-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Export findings"
+          onClick={() => setOpen(false)}
+        >
+          <div className="fc5-dialog" onClick={e => e.stopPropagation()}>
             <div className="fc5-dialog-head">
               <h3>Export findings</h3>
-              <button type="button" className="fc5-icon-btn" onClick={() => setOpen(false)} aria-label="Close export dialog">✕</button>
+              <button
+                type="button"
+                className="fc5-icon-btn"
+                onClick={() => setOpen(false)}
+                aria-label="Close export dialog"
+              >
+                ✕
+              </button>
             </div>
             <p className="fc5-dialog-body">{describeExportSet(filtered, total)}</p>
             <div className="fc5-dialog-foot">
-              <button type="button" className="fc5-ghost-btn" onClick={() => setOpen(false)}>Cancel</button>
-              <button type="button" className="fc5-primary-btn" onClick={download} disabled={filtered.length === 0}>
+              <button type="button" className="fc5-ghost-btn" onClick={() => setOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="fc5-primary-btn"
+                onClick={download}
+                disabled={filtered.length === 0}
+              >
                 Download {filtered.length} rows
               </button>
             </div>
@@ -1048,15 +1503,29 @@ export function ExportFilteredButton({ filtered = [], total = 0, fileName = 'fin
 /* ------------------------------------------------------------------ */
 
 /** 50225 — when nothing matches, suggest which filter to remove, ranked by restored count. */
-export function FilterFixSuggestions({ findings = [], filters = {}, ctx = {}, onRemove, className = '' }) {
-  const fixes = React.useMemo(() => suggestFilterFixes(findings, filters, ctx), [findings, filters, ctx]);
+export function FilterFixSuggestions({
+  findings = [],
+  filters = {},
+  ctx = {},
+  onRemove,
+  className = '',
+}) {
+  const fixes = React.useMemo(
+    () => suggestFilterFixes(findings, filters, ctx),
+    [findings, filters, ctx]
+  );
   if (fixes.length === 0) return null;
   return (
     <div className={`fc5-fixes ${className}`} role="note" aria-label="Filter fix suggestions">
       <span className="fc5-fixes-title">No results. Try removing:</span>
-      {fixes.map((fx) => (
-        <button key={fx.key} type="button" className="fc5-fix-btn" onClick={() => onRemove && onRemove(fx.key)}
-                title={`Removing this restores ${fx.restores} findings`}>
+      {fixes.map(fx => (
+        <button
+          key={fx.key}
+          type="button"
+          className="fc5-fix-btn"
+          onClick={() => onRemove && onRemove(fx.key)}
+          title={`Removing this restores ${fx.restores} findings`}
+        >
           {fx.label} <span className="fc5-chip-count">+{fx.restores}</span>
         </button>
       ))}
@@ -1073,41 +1542,52 @@ export function FilterFixSuggestions({ findings = [], filters = {}, ctx = {}, on
  * mode, the individual tag pills set precedence: the resulting tag order
  * feeds sortFindings as a priority tie-break.
  */
-export function ReorderableFilterPills({ filters = {}, tagPriorityOrder = [], onRemovePill, onClearAll, onReorderTags, onReorderPills, className = '' }) {
+export function ReorderableFilterPills({
+  filters = {},
+  tagPriorityOrder = [],
+  onRemovePill,
+  onClearAll,
+  onReorderTags,
+  onReorderPills,
+  className = '',
+}) {
   const labels = activeFilterLabels(filters);
-  const [order, setOrder] = React.useState(() => labels.map((l) => l.key));
+  const [order, setOrder] = React.useState(() => labels.map(l => l.key));
   const dragKey = React.useRef(null);
 
   React.useEffect(() => {
-    setOrder((prev) => {
-      const keys = labels.map((l) => l.key);
-      const kept = prev.filter((k) => keys.includes(k));
-      const added = keys.filter((k) => !kept.includes(k));
+    setOrder(prev => {
+      const keys = labels.map(l => l.key);
+      const kept = prev.filter(k => keys.includes(k));
+      const added = keys.filter(k => !kept.includes(k));
       return [...kept, ...added];
     });
   }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ordered = order.map((k) => labels.find((l) => l.key === k)).filter(Boolean);
+  const ordered = order.map(k => labels.find(l => l.key === k)).filter(Boolean);
   const f = { ...DEFAULT_FILTERS, ...filters };
   const tags = f.tags || [];
 
-  const onDragStart = (e, key) => { dragKey.current = key; e.dataTransfer.effectAllowed = 'move'; };
+  const onDragStart = (e, key) => {
+    dragKey.current = key;
+    e.dataTransfer.effectAllowed = 'move';
+  };
   const onDragOver = (e, key) => {
     e.preventDefault();
     if (!dragKey.current || dragKey.current === key) return;
-    setOrder((prev) => {
-      const next = prev.filter((k) => k !== dragKey.current);
+    setOrder(prev => {
+      const next = prev.filter(k => k !== dragKey.current);
       next.splice(next.indexOf(key), 0, dragKey.current);
       return next;
     });
   };
   const onDropPill = () => {
-    const final = order.filter((k) => k !== dragKey.current);
+    const final = order.filter(k => k !== dragKey.current);
     if (onReorderPills) onReorderPills(final);
     dragKey.current = null;
   };
-  const onDropTag = (tag) => {
-    const remaining = tagPriorityOrder.filter((t) => t !== dragKey.current);
+  const onDropTag = tag => {
+    const remaining = tagPriorityOrder.filter(t => t !== dragKey.current);
     const next = [...remaining];
     next.splice(next.indexOf(tag) >= 0 ? next.indexOf(tag) : next.length, 0, dragKey.current);
     if (onReorderTags) onReorderTags(next);
@@ -1117,31 +1597,49 @@ export function ReorderableFilterPills({ filters = {}, tagPriorityOrder = [], on
   if (ordered.length === 0) return null;
   return (
     <div className={`fc5-pills ${className}`} aria-label="Active filters (drag to reorder)">
-      {ordered.map((pill) => (
-        <span key={pill.key} className="fc5-pill" draggable
-              onDragStart={(e) => onDragStart(e, pill.key)}
-              onDragOver={(e) => onDragOver(e, pill.key)}
-              onDragEnd={onDropPill}
-              title="Drag to reorder">
+      {ordered.map(pill => (
+        <span
+          key={pill.key}
+          className="fc5-pill"
+          draggable
+          onDragStart={e => onDragStart(e, pill.key)}
+          onDragOver={e => onDragOver(e, pill.key)}
+          onDragEnd={onDropPill}
+          title="Drag to reorder"
+        >
           {pill.key === 'tags' ? (
             <span className="fc5-pill-tags" aria-label={`Tags in ${f.tagLogic} mode`}>
-              {tagPriorityOrder.map((t) => (
-                <span key={t} className="fc5-pill-tag" draggable
-                      onDragStart={(e) => onDragStart(e, `tag:${t}`)}
-                      onDragOver={(e) => onDragOver(e, `tag:${t}`)}
-                      onDragEnd={() => onDropTag(t)}
-                      title="Drag to set OR-mode precedence">
+              {tagPriorityOrder.map(t => (
+                <span
+                  key={t}
+                  className="fc5-pill-tag"
+                  draggable
+                  onDragStart={e => onDragStart(e, `tag:${t}`)}
+                  onDragOver={e => onDragOver(e, `tag:${t}`)}
+                  onDragEnd={() => onDropTag(t)}
+                  title="Drag to set OR-mode precedence"
+                >
                   {t}
                 </span>
               ))}
               <span className="fc5-pill-tag-logic">({f.tagLogic})</span>
             </span>
-          ) : pill.text}
-          <button type="button" className="fc5-pill-x" aria-label={`Remove filter ${pill.text}`}
-                  onClick={() => onRemovePill && onRemovePill(pill.key)}>✕</button>
+          ) : (
+            pill.text
+          )}
+          <button
+            type="button"
+            className="fc5-pill-x"
+            aria-label={`Remove filter ${pill.text}`}
+            onClick={() => onRemovePill && onRemovePill(pill.key)}
+          >
+            ✕
+          </button>
         </span>
       ))}
-      <button type="button" className="fc5-clear-all" onClick={onClearAll}>Clear all</button>
+      <button type="button" className="fc5-clear-all" onClick={onClearAll}>
+        Clear all
+      </button>
     </div>
   );
 }
@@ -1151,12 +1649,25 @@ export function ReorderableFilterPills({ filters = {}, tagPriorityOrder = [], on
 /* ------------------------------------------------------------------ */
 
 /** 50218 — advanced filters collapse into a panel, keeping the bar clean. */
-export function AdvancedFiltersPanel({ title = 'Advanced filters', activeCount = 0, defaultOpen = false, children, className = '' }) {
+export function AdvancedFiltersPanel({
+  title = 'Advanced filters',
+  activeCount = 0,
+  defaultOpen = false,
+  children,
+  className = '',
+}) {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
     <div className={`fc5-advanced ${open ? 'fc5-open' : ''} ${className}`}>
-      <button type="button" className="fc5-advanced-head" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="fc5-advanced-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
+      <button
+        type="button"
+        className="fc5-advanced-head"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="fc5-advanced-caret" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
         {title}
         {activeCount > 0 && <span className="fc5-chip-count">{activeCount}</span>}
       </button>
@@ -1178,14 +1689,28 @@ export function RecentlyUsedFiltersRow({ onApply, className = '' }) {
       <div className="fc5-recent-row">
         {items.length === 0 && <span className="fc5-empty-note">No recent filter sets yet.</span>}
         {items.map((it, i) => (
-          <button key={`${it.at}-${i}`} type="button" className="fc5-recent-item"
-                  onClick={() => { if (onApply) onApply(it.filters); }}
-                  title={`${it.active} active filters · ${new Date(it.at).toLocaleTimeString()}`}>
-            {activeFilterLabels(it.filters).slice(0, 3).map((l) => l.text).join(' · ') || `${it.active} filters`}
+          <button
+            key={`${it.at}-${i}`}
+            type="button"
+            className="fc5-recent-item"
+            onClick={() => {
+              if (onApply) onApply(it.filters);
+            }}
+            title={`${it.active} active filters · ${new Date(it.at).toLocaleTimeString()}`}
+          >
+            {activeFilterLabels(it.filters)
+              .slice(0, 3)
+              .map(l => l.text)
+              .join(' · ') || `${it.active} filters`}
           </button>
         ))}
         {items.length > 0 && (
-          <button type="button" className="fc5-ghost-btn" onClick={() => setItems(getRecentFilters())} title="Refresh recent list">
+          <button
+            type="button"
+            className="fc5-ghost-btn"
+            onClick={() => setItems(getRecentFilters())}
+            title="Refresh recent list"
+          >
             Refresh
           </button>
         )}
@@ -1199,7 +1724,10 @@ export function RecentlyUsedFiltersRow({ onApply, className = '' }) {
 /* ------------------------------------------------------------------ */
 
 const BUILT_IN_PRESETS = [
-  { name: 'Critical review queue', filters: { severities: ['critical', 'high'], unreviewedOnly: true } },
+  {
+    name: 'Critical review queue',
+    filters: { severities: ['critical', 'high'], unreviewedOnly: true },
+  },
   { name: 'Verified PoCs only', filters: { hasPoc: true, minConfidence: 60 } },
   { name: 'Agent-found, needs human', filters: { origin: 'agent', status: 'new' } },
   { name: 'Stale SLA risks', filters: { aging: '30d' } },
@@ -1220,22 +1748,27 @@ export function PresetBar({ onApply, className = '' }) {
   };
 
   const exportJson = () => {
-    const blob = new Blob([presetsToJson([...BUILT_IN_PRESETS, ...custom])], { type: 'application/json' });
+    const blob = new Blob([presetsToJson([...BUILT_IN_PRESETS, ...custom])], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'filter-presets.json';
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.download = 'filter-presets.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   };
 
-  const importJson = (e) => {
+  const importJson = e => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const imported = presetsFromJson(reader.result);
-        setCustom(imported.filter((p) => !BUILT_IN_PRESETS.some((b) => b.name === p.name)));
+        setCustom(imported.filter(p => !BUILT_IN_PRESETS.some(b => b.name === p.name)));
       } catch (err) {
         // surface the failure honestly instead of silently swallowing it
         window.alert(`Could not import presets: ${err.message}`);
@@ -1250,20 +1783,45 @@ export function PresetBar({ onApply, className = '' }) {
     <div className={`fc5-presets ${className}`}>
       <span className="fc5-field-label">Presets</span>
       <div className="fc5-presets-row">
-        {all.map((p) => (
-          <button key={p.name} type="button" className="fc5-preset-btn" onClick={() => apply(p.name, p.filters)} title={`Apply preset “${p.name}”`}>
+        {all.map(p => (
+          <button
+            key={p.name}
+            type="button"
+            className="fc5-preset-btn"
+            onClick={() => apply(p.name, p.filters)}
+            title={`Apply preset “${p.name}”`}
+          >
             {p.name}
-            {(usage[p.name] || 0) >= POPULAR_THRESHOLD && <span className="fc5-popular-badge">Popular</span>}
+            {(usage[p.name] || 0) >= POPULAR_THRESHOLD && (
+              <span className="fc5-popular-badge">Popular</span>
+            )}
           </button>
         ))}
         <span className="fc5-preset-sync" role="group" aria-label="Sync presets across devices">
-          <button type="button" className="fc5-ghost-btn" onClick={exportJson} title="Export presets as JSON to move to another device">
+          <button
+            type="button"
+            className="fc5-ghost-btn"
+            onClick={exportJson}
+            title="Export presets as JSON to move to another device"
+          >
             Export
           </button>
-          <button type="button" className="fc5-ghost-btn" onClick={() => fileRef.current && fileRef.current.click()} title="Import presets JSON from another device">
+          <button
+            type="button"
+            className="fc5-ghost-btn"
+            onClick={() => fileRef.current && fileRef.current.click()}
+            title="Import presets JSON from another device"
+          >
             Import
           </button>
-          <input ref={fileRef} type="file" accept="application/json" hidden onChange={importJson} aria-label="Import presets JSON" />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            hidden
+            onChange={importJson}
+            aria-label="Import presets JSON"
+          />
         </span>
       </div>
     </div>
@@ -1279,14 +1837,27 @@ export function DefaultFilterManager({ filters, onClearDefault, className = '' }
   const [hasDefault, setHasDefault] = React.useState(() => !!loadUserDefault());
   return (
     <div className={`fc5-default ${className}`}>
-      <button type="button" className="fc5-ghost-btn"
-              onClick={() => { saveUserDefault(filters); setHasDefault(true); }}
-              title="Save the current filters as your default (applied every time the view loads)">
+      <button
+        type="button"
+        className="fc5-ghost-btn"
+        onClick={() => {
+          saveUserDefault(filters);
+          setHasDefault(true);
+        }}
+        title="Save the current filters as your default (applied every time the view loads)"
+      >
         Save as my default
       </button>
       {hasDefault && (
-        <button type="button" className="fc5-ghost-btn"
-                onClick={() => { clearUserDefault(); setHasDefault(false); if (onClearDefault) onClearDefault(); }}>
+        <button
+          type="button"
+          className="fc5-ghost-btn"
+          onClick={() => {
+            clearUserDefault();
+            setHasDefault(false);
+            if (onClearDefault) onClearDefault();
+          }}
+        >
           Clear default
         </button>
       )}
@@ -1308,14 +1879,22 @@ export function ShareableFilterUrlButton({ filters, className = '' }) {
       await navigator.clipboard.writeText(url);
     } catch {
       const ta = document.createElement('textarea');
-      ta.value = url; document.body.appendChild(ta); ta.select();
-      document.execCommand('copy'); ta.remove();
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   };
   return (
-    <button type="button" className={`fc5-ghost-btn ${className}`} onClick={copy} title="Copy a URL with the exact current filter state">
+    <button
+      type="button"
+      className={`fc5-ghost-btn ${className}`}
+      onClick={copy}
+      title="Copy a URL with the exact current filter state"
+    >
       {copied ? 'Link copied' : 'Share filters'}
     </button>
   );
@@ -1332,24 +1911,55 @@ export function ShareableFilterUrlButton({ filters, className = '' }) {
 export function MobileFilterSheet({ filters, onApply, onReset, children, className = '' }) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState(filters);
-  React.useEffect(() => { if (open) setDraft(filters); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (open) setDraft(filters);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className={`fc5-sheet-wrap ${className}`}>
-      <button type="button" className="fc5-sheet-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}>
-        Filters{countActiveFilters(filters) > 0 && <span className="fc5-chip-count">{countActiveFilters(filters)}</span>}
+      <button
+        type="button"
+        className="fc5-sheet-trigger"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        Filters
+        {countActiveFilters(filters) > 0 && (
+          <span className="fc5-chip-count">{countActiveFilters(filters)}</span>
+        )}
       </button>
       {open && (
-        <div className="fc5-sheet-overlay" role="dialog" aria-modal="true" aria-label="Filters" onClick={() => setOpen(false)}>
-          <div className="fc5-sheet" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fc5-sheet-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filters"
+          onClick={() => setOpen(false)}
+        >
+          <div className="fc5-sheet" onClick={e => e.stopPropagation()}>
             <div className="fc5-sheet-grip" aria-hidden="true" />
             <div className="fc5-sheet-body">
               {typeof children === 'function' ? children(draft, setDraft) : children}
             </div>
             <div className="fc5-sheet-foot">
-              <button type="button" className="fc5-ghost-btn" onClick={() => { if (onReset) onReset(); setOpen(false); }}>
+              <button
+                type="button"
+                className="fc5-ghost-btn"
+                onClick={() => {
+                  if (onReset) onReset();
+                  setOpen(false);
+                }}
+              >
                 Reset
               </button>
-              <button type="button" className="fc5-primary-btn" onClick={() => { if (onApply) onApply(draft); setOpen(false); }}>
+              <button
+                type="button"
+                className="fc5-primary-btn"
+                onClick={() => {
+                  if (onApply) onApply(draft);
+                  setOpen(false);
+                }}
+              >
                 Apply filters
               </button>
             </div>
@@ -1376,37 +1986,74 @@ export function AdvancedFindingFilters({
   className = '',
 }) {
   const state = useFilterState({ huntId, currentUserId });
-  const { filters, setFilter, update, resetAll, applyPreset, undo, redo, canUndo, canRedo, tagPriorityOrder, setTagPriorityOrder, ctx } = state;
+  const {
+    filters,
+    setFilter,
+    update,
+    resetAll,
+    applyPreset,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    tagPriorityOrder,
+    setTagPriorityOrder,
+    ctx,
+  } = state;
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
   const [savedSearches, setSavedSearches] = React.useState([]);
   const [recentRerunKey, setRecentRerunKey] = React.useState(0);
 
-  useGlobalShortcuts({ onToggleHelp: (v) => setHelpOpen(v === undefined ? (o) => !o : v) });
+  useGlobalShortcuts({ onToggleHelp: v => setHelpOpen(v === undefined ? o => !o : v) });
 
-  const filtered = React.useMemo(() => applyFilters(findings, filters, {
-    ...ctx,
-    similarFinding: filters.similarToId ? findings.find((f) => f && f.id === filters.similarToId) : null,
-  }), [findings, filters, ctx]);
+  const filtered = React.useMemo(
+    () =>
+      applyFilters(findings, filters, {
+        ...ctx,
+        similarFinding: filters.similarToId
+          ? findings.find(f => f && f.id === filters.similarToId)
+          : null,
+      }),
+    [findings, filters, ctx]
+  );
   const sorted = React.useMemo(
     () => sortFindings(filtered, filters.sortKey, filters.sortDir, tagPriorityOrder),
-    [filtered, filters.sortKey, filters.sortDir, tagPriorityOrder],
+    [filtered, filters.sortKey, filters.sortDir, tagPriorityOrder]
   );
-  const groups = React.useMemo(() => groupFindings(sorted, filters.groupBy), [sorted, filters.groupBy]);
+  const groups = React.useMemo(
+    () => groupFindings(sorted, filters.groupBy),
+    [sorted, filters.groupBy]
+  );
   const hiddenFpCount = React.useMemo(() => countHiddenFalsePositives(findings), [findings]);
-  const scopeCounts = React.useMemo(() => ({
-    thisHunt: findings.filter((f) => !ctx.currentHuntId || !f.huntId || f.huntId === ctx.currentHuntId).length,
-    allHunts: findings.length,
-  }), [findings, ctx.currentHuntId]);
+  const scopeCounts = React.useMemo(
+    () => ({
+      thisHunt: findings.filter(
+        f => !ctx.currentHuntId || !f.huntId || f.huntId === ctx.currentHuntId
+      ).length,
+      allHunts: findings.length,
+    }),
+    [findings, ctx.currentHuntId]
+  );
   const evCounts = React.useMemo(() => {
     const c = {};
-    for (const t of EVIDENCE_TYPES) c[t] = findings.filter((f) => Array.isArray(f.evidence) && f.evidence.some((e) => e && e.type === t)).length;
+    for (const t of EVIDENCE_TYPES)
+      c[t] = findings.filter(
+        f => Array.isArray(f.evidence) && f.evidence.some(e => e && e.type === t)
+      ).length;
     return c;
   }, [findings]);
   const activeCount = countActiveFilters(filters);
 
-  const commitSearch = (v) => { setFilter('query', v); recordRecentSearch(v); setRecentRerunKey((k) => k + 1); };
-  const removePill = (key) => { const reset = PILL_RESETS[key]; if (reset) update((p) => ({ ...p, ...reset })); };
+  const commitSearch = v => {
+    setFilter('query', v);
+    recordRecentSearch(v);
+    setRecentRerunKey(k => k + 1);
+  };
+  const removePill = key => {
+    const reset = PILL_RESETS[key];
+    if (reset) update(p => ({ ...p, ...reset }));
+  };
 
   return (
     <div className={`fc5-root ${className}`}>
@@ -1417,98 +2064,190 @@ export function AdvancedFindingFilters({
         <div className="fc5-row">
           <DebouncedSearchInput value={filters.query} onChange={commitSearch} />
           <RecentSearchesDropdown key={recentRerunKey} onRerun={commitSearch} />
-          <RegexModeToggle value={filters.regexMode} onChange={(v) => setFilter('regexMode', v)} />
-          <FuzzySearchToggle value={filters.fuzzy} onChange={(v) => setFilter('fuzzy', v)} />
-          <button type="button" className="fc5-ghost-btn" onClick={() => setHelpOpen(true)} title="Keyboard shortcuts (?)" aria-label="Show keyboard shortcuts">?</button>
+          <RegexModeToggle value={filters.regexMode} onChange={v => setFilter('regexMode', v)} />
+          <FuzzySearchToggle value={filters.fuzzy} onChange={v => setFilter('fuzzy', v)} />
+          <button
+            type="button"
+            className="fc5-ghost-btn"
+            onClick={() => setHelpOpen(true)}
+            title="Keyboard shortcuts (?)"
+            aria-label="Show keyboard shortcuts"
+          >
+            ?
+          </button>
         </div>
         <div className="fc5-row">
-          <ScopedSearchTabs value={filters.searchScope} counts={scopeCounts} onChange={(v) => setFilter('searchScope', v)} />
-          <SortDropdown5 sortKey={filters.sortKey} sortDir={filters.sortDir}
-                         onChange={(key, dir) => update((p) => ({ ...p, sortKey: key, sortDir: dir }))} />
-          <GroupByControl value={filters.groupBy} onChange={(v) => setFilter('groupBy', v)} />
+          <ScopedSearchTabs
+            value={filters.searchScope}
+            counts={scopeCounts}
+            onChange={v => setFilter('searchScope', v)}
+          />
+          <SortDropdown5
+            sortKey={filters.sortKey}
+            sortDir={filters.sortDir}
+            onChange={(key, dir) => update(p => ({ ...p, sortKey: key, sortDir: dir }))}
+          />
+          <GroupByControl value={filters.groupBy} onChange={v => setFilter('groupBy', v)} />
           <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
         </div>
         <div className="fc5-row">
-          <SeverityHistogramChips findings={findings} selected={filters.severities} onChange={(v) => setFilter('severities', v)} />
+          <SeverityHistogramChips
+            findings={findings}
+            selected={filters.severities}
+            onChange={v => setFilter('severities', v)}
+          />
         </div>
         <div className="fc5-row">
-          <ExcludeFpToggle value={filters.excludeFalsePositives} hiddenCount={hiddenFpCount}
-                           onChange={(v) => setFilter('excludeFalsePositives', v)} />
-          <ShowDismissedToggle value={filters.showDismissed} onChange={(v) => setFilter('showDismissed', v)} />
+          <ExcludeFpToggle
+            value={filters.excludeFalsePositives}
+            hiddenCount={hiddenFpCount}
+            onChange={v => setFilter('excludeFalsePositives', v)}
+          />
+          <ShowDismissedToggle
+            value={filters.showDismissed}
+            onChange={v => setFilter('showDismissed', v)}
+          />
           <UntriagedCriticalsPreset onApply={applyPreset} />
-          <ConfidenceBandPresets value={filters.confidenceBand} onChange={(v) => setFilter('confidenceBand', v)} />
+          <ConfidenceBandPresets
+            value={filters.confidenceBand}
+            onChange={v => setFilter('confidenceBand', v)}
+          />
         </div>
         <ReorderableFilterPills
-          filters={filters} tagPriorityOrder={tagPriorityOrder.length ? tagPriorityOrder : (filters.tags || [])}
-          onRemovePill={removePill} onClearAll={resetAll}
-          onReorderTags={(order) => setTagPriorityOrder(order)}
+          filters={filters}
+          tagPriorityOrder={tagPriorityOrder.length ? tagPriorityOrder : filters.tags || []}
+          onRemovePill={removePill}
+          onClearAll={resetAll}
+          onReorderTags={order => setTagPriorityOrder(order)}
         />
-        <RecentlyUsedFiltersRow onApply={(snap) => update((p) => ({ ...p, ...snap }))} />
+        <RecentlyUsedFiltersRow onApply={snap => update(p => ({ ...p, ...snap }))} />
         <PresetBar onApply={applyPreset} />
         <AdvancedFiltersPanel title="Advanced filters" activeCount={activeCount}>
           <div className="fc5-advanced-grid">
-            <RiskScoreRangeSlider min={filters.riskScoreMin} max={filters.riskScoreMax}
-                                  onChange={(mn, mx) => update((p) => ({ ...p, riskScoreMin: mn, riskScoreMax: mx }))} />
-            <AssigneeFilter findings={findings} value={filters.assignee} onChange={(v) => setFilter('assignee', v)} />
-            <EvidenceTypeFilter value={filters.evidenceType} counts={evCounts} onChange={(v) => setFilter('evidenceType', v)} />
-            <ReplayabilitySegmented value={filters.replayable} onChange={(v) => setFilter('replayable', v)} />
-            <OriginSegmented value={filters.origin} onChange={(v) => setFilter('origin', v)} />
-            <AgingSegmented value={filters.aging} onChange={(v) => setFilter('aging', v)} />
+            <RiskScoreRangeSlider
+              min={filters.riskScoreMin}
+              max={filters.riskScoreMax}
+              onChange={(mn, mx) => update(p => ({ ...p, riskScoreMin: mn, riskScoreMax: mx }))}
+            />
+            <AssigneeFilter
+              findings={findings}
+              value={filters.assignee}
+              onChange={v => setFilter('assignee', v)}
+            />
+            <EvidenceTypeFilter
+              value={filters.evidenceType}
+              counts={evCounts}
+              onChange={v => setFilter('evidenceType', v)}
+            />
+            <ReplayabilitySegmented
+              value={filters.replayable}
+              onChange={v => setFilter('replayable', v)}
+            />
+            <OriginSegmented value={filters.origin} onChange={v => setFilter('origin', v)} />
+            <AgingSegmented value={filters.aging} onChange={v => setFilter('aging', v)} />
             <div className="fc5-inline-toggles">
-              <NeedsRetestToggle value={filters.needsRetest} onChange={(v) => setFilter('needsRetest', v)} />
-              <MyFindingsToggle value={filters.myFindings} onChange={(v) => setFilter('myFindings', v)} />
-              <StarredToggle value={filters.starredOnly} onChange={(v) => setFilter('starredOnly', v)} />
-              <CompareModeToggle value={filters.compareMode} onChange={(v) => setFilter('compareMode', v)} />
+              <NeedsRetestToggle
+                value={filters.needsRetest}
+                onChange={v => setFilter('needsRetest', v)}
+              />
+              <MyFindingsToggle
+                value={filters.myFindings}
+                onChange={v => setFilter('myFindings', v)}
+              />
+              <StarredToggle
+                value={filters.starredOnly}
+                onChange={v => setFilter('starredOnly', v)}
+              />
+              <CompareModeToggle
+                value={filters.compareMode}
+                onChange={v => setFilter('compareMode', v)}
+              />
             </div>
-            <ChangedSinceVisitToggle value={filters.changedSinceVisit}
-                                     onChange={(v) => setFilter('changedSinceVisit', v)}
-                                     onMarkSeen={() => markAllSeen()} />
+            <ChangedSinceVisitToggle
+              value={filters.changedSinceVisit}
+              onChange={v => setFilter('changedSinceVisit', v)}
+              onMarkSeen={() => markAllSeen()}
+            />
             <div className="fc5-row">
               <DefaultFilterManager filters={filters} onClearDefault={resetAll} />
               <ShareableFilterUrlButton filters={filters} />
               <ExportFilteredButton filtered={sorted} total={findings.length} />
             </div>
             <SavedSearchesPanel
-              filters={filters} saved={savedSearches}
-              onSave={(name) => setSavedSearches((s) => [...s, makeSavedSearch(name, filters)])}
-              onApply={(s) => update((p) => ({ ...p, ...s.filters }))}
-              onDelete={(id) => setSavedSearches((s) => s.filter((x) => x.id !== id))}
-              onTogglePin={(id) => setSavedSearches((s) => s.map((x) => (x.id === id ? { ...x, pinned: !x.pinned } : x)))}
+              filters={filters}
+              saved={savedSearches}
+              onSave={name => setSavedSearches(s => [...s, makeSavedSearch(name, filters)])}
+              onApply={s => update(p => ({ ...p, ...s.filters }))}
+              onDelete={id => setSavedSearches(s => s.filter(x => x.id !== id))}
+              onTogglePin={id =>
+                setSavedSearches(s => s.map(x => (x.id === id ? { ...x, pinned: !x.pinned } : x)))
+              }
             />
           </div>
         </AdvancedFiltersPanel>
       </div>
 
       <div className="fc5-body">
-        <PinnedSearchRail saved={savedSearches} onApply={(s) => update((p) => ({ ...p, ...s.filters }))} />
+        <PinnedSearchRail
+          saved={savedSearches}
+          onApply={s => update(p => ({ ...p, ...s.filters }))}
+        />
         <div className="fc5-results">
           <div className="fc5-result-line" aria-live="polite">
             Showing <strong>{sorted.length}</strong> of {findings.length} findings
-            {activeCount > 0 && <span> · {activeCount} filter{activeCount === 1 ? '' : 's'} active</span>}
+            {activeCount > 0 && (
+              <span>
+                {' '}
+                · {activeCount} filter{activeCount === 1 ? '' : 's'} active
+              </span>
+            )}
             {filters.excludeFalsePositives && hiddenFpCount > 0 && (
-              <span> · {hiddenFpCount} false positive{hiddenFpCount === 1 ? '' : 's'} hidden</span>
+              <span>
+                {' '}
+                · {hiddenFpCount} false positive{hiddenFpCount === 1 ? '' : 's'} hidden
+              </span>
             )}
           </div>
-          <SelectAllFilteredBar filtered={sorted} selectedIds={selectedIds} onChange={setSelectedIds} />
+          <SelectAllFilteredBar
+            filtered={sorted}
+            selectedIds={selectedIds}
+            onChange={setSelectedIds}
+          />
           {sorted.length === 0 && (
-            <FilterFixSuggestions findings={findings} filters={filters} ctx={ctx} onRemove={removePill} />
+            <FilterFixSuggestions
+              findings={findings}
+              filters={filters}
+              ctx={ctx}
+              onRemove={removePill}
+            />
           )}
           <GroupedFindingsView
             groups={groups}
             selectedIds={selectedIds}
-            onToggleSelect={(id) => setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))}
-            renderFinding={(f) => (
+            onToggleSelect={id =>
+              setSelectedIds(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]))
+            }
+            renderFinding={f => (
               <div className="fc5-finding-row">
                 <span className={`fc5-sev-dot fc5-sev-${f.severity}`} aria-hidden="true" />
                 <span className="fc5-finding-main">
-                  <HighlightedText text={f.title} query={filters.query} regexMode={filters.regexMode} />
+                  <HighlightedText
+                    text={f.title}
+                    query={filters.query}
+                    regexMode={filters.regexMode}
+                  />
                   <span className="fc5-finding-meta">
                     {f.severity} · conf {f.confidence}% · risk {f.riskScore ?? '—'}
                     {f.starred ? ' ★' : ''}
                   </span>
                 </span>
-                <SimilarToThisButton finding={f} active={filters.similarToId === f.id}
-                                     onToggle={(fd) => setFilter('similarToId', filters.similarToId === fd.id ? null : fd.id)} />
+                <SimilarToThisButton
+                  finding={f}
+                  active={filters.similarToId === f.id}
+                  onToggle={fd =>
+                    setFilter('similarToId', filters.similarToId === fd.id ? null : fd.id)
+                  }
+                />
               </div>
             )}
           />
@@ -1517,18 +2256,30 @@ export function AdvancedFindingFilters({
 
       <MobileFilterSheet
         filters={filters}
-        onApply={(draft) => update((p) => ({ ...p, ...draft }))}
+        onApply={draft => update(p => ({ ...p, ...draft }))}
         onReset={resetAll}
       >
         {(draft, setDraft) => (
           <div className="fc5-sheet-filters">
-            <DebouncedSearchInput value={draft.query} onChange={(v) => setDraft({ ...draft, query: v })} />
-            <SeverityHistogramChips findings={findings} selected={draft.severities || []}
-                                    onChange={(v) => setDraft({ ...draft, severities: v })} />
-            <RiskScoreRangeSlider min={draft.riskScoreMin ?? 0} max={draft.riskScoreMax ?? 10}
-                                  onChange={(mn, mx) => setDraft({ ...draft, riskScoreMin: mn, riskScoreMax: mx })} />
-            <ExcludeFpToggle value={draft.excludeFalsePositives ?? true} hiddenCount={hiddenFpCount}
-                             onChange={(v) => setDraft({ ...draft, excludeFalsePositives: v })} />
+            <DebouncedSearchInput
+              value={draft.query}
+              onChange={v => setDraft({ ...draft, query: v })}
+            />
+            <SeverityHistogramChips
+              findings={findings}
+              selected={draft.severities || []}
+              onChange={v => setDraft({ ...draft, severities: v })}
+            />
+            <RiskScoreRangeSlider
+              min={draft.riskScoreMin ?? 0}
+              max={draft.riskScoreMax ?? 10}
+              onChange={(mn, mx) => setDraft({ ...draft, riskScoreMin: mn, riskScoreMax: mx })}
+            />
+            <ExcludeFpToggle
+              value={draft.excludeFalsePositives ?? true}
+              hiddenCount={hiddenFpCount}
+              onChange={v => setDraft({ ...draft, excludeFalsePositives: v })}
+            />
           </div>
         )}
       </MobileFilterSheet>

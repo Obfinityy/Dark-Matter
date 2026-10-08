@@ -13,25 +13,73 @@
 
 /** Curated new-gTLD set weighted toward phishing-prone namespaces. */
 export const NEW_GTLDS = [
-  'app', 'dev', 'io', 'ai', 'xyz', 'top', 'site', 'online', 'shop',
-  'store', 'tech', 'cloud', 'security', 'digital', 'solutions', 'services',
-  'support', 'help', 'careers', 'jobs', 'news', 'blog', 'live', 'vip',
-  'club', 'link', 'click', 'win', 'bid', 'loan', 'trade', 'money',
-  'account', 'login', 'verify', 'secure', 'update', 'alert',
+  'app',
+  'dev',
+  'io',
+  'ai',
+  'xyz',
+  'top',
+  'site',
+  'online',
+  'shop',
+  'store',
+  'tech',
+  'cloud',
+  'security',
+  'digital',
+  'solutions',
+  'services',
+  'support',
+  'help',
+  'careers',
+  'jobs',
+  'news',
+  'blog',
+  'live',
+  'vip',
+  'club',
+  'link',
+  'click',
+  'win',
+  'bid',
+  'loan',
+  'trade',
+  'money',
+  'account',
+  'login',
+  'verify',
+  'secure',
+  'update',
+  'alert',
 ];
 
 /** Keyboard-adjacency map (QWERTY) for typosquat generation. */
 const KEYBOARD_ADJACENT = {
-  a: ['q', 'w', 's', 'z'], b: ['v', 'g', 'h', 'n'], c: ['x', 'd', 'f', 'v'],
-  d: ['s', 'e', 'r', 'f', 'c', 'x'], e: ['w', 's', 'd', 'r'],
-  f: ['d', 'r', 't', 'g', 'v', 'c'], g: ['f', 't', 'y', 'h', 'b', 'v'],
-  h: ['g', 'y', 'u', 'j', 'n', 'b'], i: ['u', 'j', 'k', 'o'],
-  j: ['h', 'u', 'i', 'k', 'n', 'm'], k: ['j', 'i', 'o', 'l', 'm'],
-  l: ['k', 'o', 'p'], m: ['n', 'j', 'k'], n: ['b', 'h', 'j', 'm'],
-  o: ['i', 'k', 'l', 'p'], p: ['o', 'l'], q: ['w', 'a'],
-  r: ['e', 'd', 'f', 't'], s: ['a', 'w', 'e', 'd', 'x', 'z'],
-  t: ['r', 'f', 'g', 'y'], u: ['y', 'h', 'j', 'i'], v: ['c', 'f', 'g', 'b'],
-  w: ['q', 'a', 's', 'e'], x: ['z', 's', 'd', 'c'], y: ['t', 'g', 'h', 'u'],
+  a: ['q', 'w', 's', 'z'],
+  b: ['v', 'g', 'h', 'n'],
+  c: ['x', 'd', 'f', 'v'],
+  d: ['s', 'e', 'r', 'f', 'c', 'x'],
+  e: ['w', 's', 'd', 'r'],
+  f: ['d', 'r', 't', 'g', 'v', 'c'],
+  g: ['f', 't', 'y', 'h', 'b', 'v'],
+  h: ['g', 'y', 'u', 'j', 'n', 'b'],
+  i: ['u', 'j', 'k', 'o'],
+  j: ['h', 'u', 'i', 'k', 'n', 'm'],
+  k: ['j', 'i', 'o', 'l', 'm'],
+  l: ['k', 'o', 'p'],
+  m: ['n', 'j', 'k'],
+  n: ['b', 'h', 'j', 'm'],
+  o: ['i', 'k', 'l', 'p'],
+  p: ['o', 'l'],
+  q: ['w', 'a'],
+  r: ['e', 'd', 'f', 't'],
+  s: ['a', 'w', 'e', 'd', 'x', 'z'],
+  t: ['r', 'f', 'g', 'y'],
+  u: ['y', 'h', 'j', 'i'],
+  v: ['c', 'f', 'g', 'b'],
+  w: ['q', 'a', 's', 'e'],
+  x: ['z', 's', 'd', 'c'],
+  y: ['t', 'g', 'h', 'u'],
   z: ['a', 's', 'x'],
 };
 
@@ -42,7 +90,9 @@ const KEYBOARD_ADJACENT = {
  * @returns {{variant: string, kind: string}[]}
  */
 export function brandVariants(slug, cap = 500) {
-  const base = String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const base = String(slug || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
   const out = new Map(); // variant → kind (first kind wins)
   const add = (variant, kind) => {
     if (!variant || variant === base || out.has(variant)) return;
@@ -63,11 +113,22 @@ export function brandVariants(slug, cap = 500) {
     }
   }
   // Duplication: double each character once
-  for (let i = 0; i < base.length; i++) add(base.slice(0, i + 1) + base[i] + base.slice(i + 1), 'duplication');
+  for (let i = 0; i < base.length; i++)
+    add(base.slice(0, i + 1) + base[i] + base.slice(i + 1), 'duplication');
   // Hyphenation
   for (let i = 1; i < base.length; i++) add(`${base.slice(0, i)}-${base.slice(i)}`, 'hyphenation');
   // Common affixes seen in phishing
-  for (const affix of ['support', 'help', 'login', 'secure', 'verify', 'account', 'pay', 'app', 'hq']) {
+  for (const affix of [
+    'support',
+    'help',
+    'login',
+    'secure',
+    'verify',
+    'account',
+    'pay',
+    'app',
+    'hq',
+  ]) {
     add(`${base}-${affix}`, 'affix');
     add(`${affix}-${base}`, 'affix');
     add(`${base}${affix}`, 'affix');
@@ -86,11 +147,18 @@ export function brandVariants(slug, cap = 500) {
  */
 export function sweepCandidates(brand, opts = {}) {
   const rawBrand = String(brand || '').trim();
-  const slug = rawBrand.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split('.')[0].replace(/[^a-z0-9]/g, '');
+  const slug = rawBrand
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split('.')[0]
+    .replace(/[^a-z0-9]/g, '');
   if (!slug) return [];
   const tlds = opts.tlds || NEW_GTLDS;
   const includeVariants = opts.includeVariants !== false;
-  const kinds = includeVariants ? [{ variant: slug, kind: 'exact' }, ...brandVariants(slug, opts.variantCap || 500)] : [{ variant: slug, kind: 'exact' }];
+  const kinds = includeVariants
+    ? [{ variant: slug, kind: 'exact' }, ...brandVariants(slug, opts.variantCap || 500)]
+    : [{ variant: slug, kind: 'exact' }];
   const seen = new Set();
   const out = [];
   for (const { variant, kind } of kinds) {

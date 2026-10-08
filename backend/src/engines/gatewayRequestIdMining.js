@@ -37,31 +37,31 @@ export const REQUEST_ID_FORMATS = [
   {
     product: 'AWS (X-Ray trace ID)',
     confidence: 'high',
-    test: (v) => /^1-[0-9a-f]{8}-[0-9a-f]{24}$/i.test(v),
+    test: v => /^1-[0-9a-f]{8}-[0-9a-f]{24}$/i.test(v),
     note: 'AWS X-Ray format "1-<epoch-hex-8>-<unique-hex-24>" — minted by ALB, API Gateway, or Lambda.',
   },
   {
     product: 'Google Cloud (Cloud Trace)',
     confidence: 'high',
-    test: (v) => /^[0-9a-f]{32}\/\d+;o=\d$/i.test(v),
+    test: v => /^[0-9a-f]{32}\/\d+;o=\d$/i.test(v),
     note: 'X-Cloud-Trace-Context "<32-hex-trace>/<span>;o=<flags>" — Google Cloud load balancers and services.',
   },
   {
     product: 'Cloudflare (Ray ID)',
     confidence: 'high',
-    test: (v) => /^[0-9a-f]{16}-[A-Z]{3,4}\d?$/i.test(v),
+    test: v => /^[0-9a-f]{16}-[A-Z]{3,4}\d?$/i.test(v),
     note: 'CF-RAY "<16-hex>-<colo-code>" — Cloudflare edge; the suffix names the serving datacenter.',
   },
   {
     product: 'W3C Trace Context',
     confidence: 'high',
-    test: (v) => /^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/i.test(v),
+    test: v => /^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/i.test(v),
     note: 'traceparent "version-traceid-parentid-flags" — OpenTelemetry-compatible stacks.',
   },
   {
     product: 'Zipkin B3 (single or multi-header)',
     confidence: 'medium',
-    test: (v) => /^[0-9a-f]{16}([0-9a-f]{16})?$/i.test(v),
+    test: v => /^[0-9a-f]{16}([0-9a-f]{16})?$/i.test(v),
     note: 'B3 trace IDs are 16 or 32 lowercase hex chars — Zipkin-instrumented services and gateways.',
   },
   {
@@ -73,19 +73,20 @@ export const REQUEST_ID_FORMATS = [
   {
     product: 'ULID (time-ordered)',
     confidence: 'medium',
-    test: (v) => /^[0-9A-HJKMNP-TV-Z]{26}$/.test(v),
+    test: v => /^[0-9A-HJKMNP-TV-Z]{26}$/.test(v),
     note: '26-char Crockford base32 ULID — time-ordered IDs minted by modern API frameworks.',
   },
   {
     product: 'UUID (random)',
     confidence: 'low',
-    test: (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v),
+    test: v => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v),
     note: 'UUIDv4 — generic; many gateways and frameworks mint these (Envoy, Kong, Rails, Django).',
   },
   {
     product: 'Azure (x-ms-request-id)',
     confidence: 'medium',
-    test: (v, header) => /x-ms-request-id|x-azure-ref/i.test(header || '') && /^[0-9a-f-]{36}$/i.test(v),
+    test: (v, header) =>
+      /x-ms-request-id|x-azure-ref/i.test(header || '') && /^[0-9a-f-]{36}$/i.test(v),
     note: 'Azure services mint GUID request IDs in x-ms-request-id.',
   },
 ];
@@ -125,7 +126,11 @@ export function classifyRequestId(value, headerName = '') {
     if (matched) return { product: fmt.product, confidence: fmt.confidence, note: fmt.note };
   }
   if (/^\d{10,20}$/.test(v)) {
-    return { product: 'unknown (decimal/snowflake-like)', confidence: 'low', note: 'Long decimal ID — could be a snowflake-style generator; not attributable.' };
+    return {
+      product: 'unknown (decimal/snowflake-like)',
+      confidence: 'low',
+      note: 'Long decimal ID — could be a snowflake-style generator; not attributable.',
+    };
   }
   return { product: null, confidence: 'none', note: 'No known gateway request-ID format matched.' };
 }
@@ -143,7 +148,8 @@ export function mineRequestIds(headers) {
   const byProduct = new Map();
   for (const id of ids) {
     if (!id.product) continue;
-    if (!byProduct.has(id.product)) byProduct.set(id.product, { product: id.product, confidence: id.confidence, evidence: [] });
+    if (!byProduct.has(id.product))
+      byProduct.set(id.product, { product: id.product, confidence: id.confidence, evidence: [] });
     byProduct.get(id.product).evidence.push(`${id.header}: ${id.value}`);
   }
   const rank = { high: 3, medium: 2, low: 1, none: 0 };

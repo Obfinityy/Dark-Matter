@@ -21,7 +21,10 @@
  * Ordered by service; each entry lists [service, pattern] where group 1 is the hostname.
  */
 const BANNER_HOSTNAME_PATTERNS = [
-  ['smtp', /220[\s-](?:[a-zA-Z0-9-]+\s+)*([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+)\s+ESMTP/i],
+  [
+    'smtp',
+    /220[\s-](?:[a-zA-Z0-9-]+\s+)*([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+)\s+ESMTP/i,
+  ],
   ['smtp', /^220[\s-]([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,})\b/],
   ['ftp', /^220[\s-](?:[^\s]*\s)?([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,})/],
   ['ssh', /SSH-[\d.]+\s+([a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,})\b/],
@@ -98,7 +101,9 @@ export function aggregateBannerHostnames(hosts) {
     }
   }
   return {
-    hostnames: [...map.values()].sort((a, b) => b.count - a.count || a.hostname.localeCompare(b.hostname)),
+    hostnames: [...map.values()].sort(
+      (a, b) => b.count - a.count || a.hostname.localeCompare(b.hostname)
+    ),
     totalRecords: records.length,
   };
 }
@@ -112,7 +117,7 @@ export function aggregateBannerHostnames(hosts) {
  * @returns {Array<{hostname:string, score:number, reasons:string[], sightings:Array}>} sorted by score.
  */
 export function rankBannerHostnames(aggregated, opts = {}) {
-  const keywords = (opts.orgKeywords || []).map((k) => k.toLowerCase());
+  const keywords = (opts.orgKeywords || []).map(k => k.toLowerCase());
   const root = (opts.registrableDomain || '').toLowerCase();
   const rows = [];
   for (const entry of aggregated.hostnames || []) {
@@ -129,7 +134,7 @@ export function rankBannerHostnames(aggregated, opts = {}) {
       score += 40;
       reasons.push(`shares target domain ${root}`);
     }
-    const uniqueIps = new Set(entry.sightings.map((s) => s.ip)).size;
+    const uniqueIps = new Set(entry.sightings.map(s => s.ip)).size;
     if (uniqueIps > 1) {
       const bonus = Math.min(20, (uniqueIps - 1) * 5);
       score += bonus;

@@ -51,14 +51,16 @@ export function parseMqttSnHeader(buf) {
   if (b.length < 2) return { valid: false, reason: 'datagram too short for MQTT-SN header' };
   let length = b[0];
   let typeOffset = 1;
-  if (length === 0x01) { // extended length encoding
+  if (length === 0x01) {
+    // extended length encoding
     if (b.length < 4) return { valid: false, reason: 'truncated extended-length header' };
     length = b.readUInt16BE(1);
     typeOffset = 3;
   }
   const msgType = b[typeOffset];
   const msgName = MQTTSN_MESSAGE_TYPES[msgType];
-  if (!msgName) return { valid: false, reason: `unknown MQTT-SN message type 0x${msgType.toString(16)}` };
+  if (!msgName)
+    return { valid: false, reason: `unknown MQTT-SN message type 0x${msgType.toString(16)}` };
   return { valid: true, length, msgType, msgName };
 }
 
@@ -89,7 +91,10 @@ export function detectGateways(events = []) {
   for (const ev of events) {
     const type = ev.msgName || MQTTSN_MESSAGE_TYPES[ev.msgType];
     if (!type) continue;
-    if (type === 'SEARCHGW') { searchGwSeen = true; continue; }
+    if (type === 'SEARCHGW') {
+      searchGwSeen = true;
+      continue;
+    }
     if (type === 'GWINFO' || type === 'ADVERTISE') {
       const id = ev.gatewayId;
       const key = `${id ?? 'unknown'}@${ev.fromAddress || 'unknown'}`;
@@ -112,7 +117,8 @@ export function detectGateways(events = []) {
         type: 'No MQTT-SN Gateway Response',
         confidence: 'medium',
         cwe: null,
-        evidence: 'SEARCHGW was answered by no GWINFO — no MQTT-SN gateway reachable from the observation point',
+        evidence:
+          'SEARCHGW was answered by no GWINFO — no MQTT-SN gateway reachable from the observation point',
       });
     }
     return findings;

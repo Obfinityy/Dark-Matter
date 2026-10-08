@@ -45,7 +45,9 @@ function toEpoch(v) {
 export function buildPrefixTimeline(records) {
   const byPrefix = new Map();
   for (const r of records || []) {
-    const prefix = String(r.prefix || '').trim().toLowerCase();
+    const prefix = String(r.prefix || '')
+      .trim()
+      .toLowerCase();
     if (!prefix) continue;
     if (!byPrefix.has(prefix)) {
       byPrefix.set(prefix, {
@@ -68,11 +70,13 @@ export function buildPrefixTimeline(records) {
     if (path.length > 0) entry.originAsns.add(path[path.length - 1]);
     if (r.collector) entry.collectors.add(String(r.collector));
   }
-  return [...byPrefix.values()].map((e) => ({
-    ...e,
-    originAsns: [...e.originAsns].sort((a, b) => a - b),
-    collectors: [...e.collectors].sort(),
-  })).sort((a, b) => (a.firstSeen ?? 0) - (b.firstSeen ?? 0));
+  return [...byPrefix.values()]
+    .map(e => ({
+      ...e,
+      originAsns: [...e.originAsns].sort((a, b) => a - b),
+      collectors: [...e.collectors].sort(),
+    }))
+    .sort((a, b) => (a.firstSeen ?? 0) - (b.firstSeen ?? 0));
 }
 
 /**
@@ -87,7 +91,7 @@ export function buildPrefixTimeline(records) {
  */
 export function findWithdrawnPrefixes(records, currentPrefixes, opts = {}) {
   const { staleAfterMs = 30 * 24 * 3600 * 1000 } = opts;
-  const current = new Set((currentPrefixes || []).map((p) => String(p).trim().toLowerCase()));
+  const current = new Set((currentPrefixes || []).map(p => String(p).trim().toLowerCase()));
   const now = Date.now();
   const out = [];
   for (const t of buildPrefixTimeline(records)) {
@@ -114,9 +118,13 @@ export function findWithdrawnPrefixes(records, currentPrefixes, opts = {}) {
  */
 export function detectOriginAsChurn(records) {
   return buildPrefixTimeline(records)
-    .filter((t) => t.originAsns.length > 1)
+    .filter(t => t.originAsns.length > 1)
     .map(({ prefix, originAsns, observations, firstSeen, lastSeen }) => ({
-      prefix, originAsns, observations, firstSeen, lastSeen,
+      prefix,
+      originAsns,
+      observations,
+      firstSeen,
+      lastSeen,
     }));
 }
 
@@ -129,13 +137,13 @@ export function detectOriginAsChurn(records) {
  * @returns {{asn: number, everAnnounced: number, currentlyAnnounced: number, withdrawn: number, prefixes: Array<{prefix: string, lastSeenIso: string|null, stillAnnounced: boolean}>}}
  */
 export function asnHistoricalFootprint(records, asn, currentPrefixes = []) {
-  const current = new Set(currentPrefixes.map((p) => String(p).trim().toLowerCase()));
-  const relevant = (records || []).filter((r) => {
+  const current = new Set(currentPrefixes.map(p => String(p).trim().toLowerCase()));
+  const relevant = (records || []).filter(r => {
     const path = Array.isArray(r.asPath) ? r.asPath : [];
     return path.length > 0 && path[path.length - 1] === asn;
   });
   const timeline = buildPrefixTimeline(relevant);
-  const prefixes = timeline.map((t) => ({
+  const prefixes = timeline.map(t => ({
     prefix: t.prefix,
     lastSeenIso: t.lastSeen != null ? new Date(t.lastSeen).toISOString() : null,
     stillAnnounced: current.has(t.prefix),
@@ -143,8 +151,8 @@ export function asnHistoricalFootprint(records, asn, currentPrefixes = []) {
   return {
     asn,
     everAnnounced: timeline.length,
-    currentlyAnnounced: prefixes.filter((p) => p.stillAnnounced).length,
-    withdrawn: prefixes.filter((p) => !p.stillAnnounced).length,
+    currentlyAnnounced: prefixes.filter(p => p.stillAnnounced).length,
+    withdrawn: prefixes.filter(p => !p.stillAnnounced).length,
     prefixes,
   };
 }

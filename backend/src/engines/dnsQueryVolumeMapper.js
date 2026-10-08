@@ -17,10 +17,11 @@
  *   scored assets sorted by count descending (volumeScore is 0-100)
  */
 export function scoreVolumes(records = []) {
-  const clean = (Array.isArray(records) ? records : [])
-    .filter((r) => r && typeof r.name === 'string' && Number.isFinite(r.count) && r.count >= 0);
+  const clean = (Array.isArray(records) ? records : []).filter(
+    r => r && typeof r.name === 'string' && Number.isFinite(r.count) && r.count >= 0
+  );
   if (clean.length === 0) return [];
-  const logVolumes = clean.map((r) => Math.log10(r.count + 1));
+  const logVolumes = clean.map(r => Math.log10(r.count + 1));
   const maxLog = Math.max(...logVolumes, 1);
   return clean
     .map((r, i) => ({
@@ -40,10 +41,11 @@ export function scoreVolumes(records = []) {
  * @returns {{name: string, count: number, zScore: number, direction: 'spike'|'lull'}[]}
  */
 export function detectVolumeAnomalies(records = [], threshold = 2.0) {
-  const clean = (Array.isArray(records) ? records : [])
-    .filter((r) => r && typeof r.name === 'string' && Number.isFinite(r.count) && r.count >= 0);
+  const clean = (Array.isArray(records) ? records : []).filter(
+    r => r && typeof r.name === 'string' && Number.isFinite(r.count) && r.count >= 0
+  );
   if (clean.length < 4) return [];
-  const logs = clean.map((r) => Math.log10(r.count + 1));
+  const logs = clean.map(r => Math.log10(r.count + 1));
   const mean = logs.reduce((a, b) => a + b, 0) / logs.length;
   const variance = logs.reduce((a, b) => a + (b - mean) ** 2, 0) / logs.length;
   const std = Math.sqrt(variance);
@@ -108,7 +110,7 @@ export function rollupByLabel(records = [], apexDomain = '') {
     groups.set(label, g);
   }
   return [...groups.values()]
-    .map((g) => ({ label: g.label, totalQueries: g.totalQueries, subdomains: g.subdomains.size }))
+    .map(g => ({ label: g.label, totalQueries: g.totalQueries, subdomains: g.subdomains.size }))
     .sort((a, b) => b.totalQueries - a.totalQueries);
 }
 
@@ -138,11 +140,16 @@ export function mapVolumeChanges(before = [], after = []) {
       out.push({ name, before: b, after: 0, deltaPct: null, trend: 'gone' });
     } else {
       const deltaPct = b === 0 ? (a === 0 ? 0 : Infinity) : round(((a - b) / b) * 100, 2);
-      const trend = deltaPct >= 200 ? 'spike' : deltaPct >= 25 ? 'growth' : deltaPct <= -50 ? 'fade' : 'stable';
+      const trend =
+        deltaPct >= 200 ? 'spike' : deltaPct >= 25 ? 'growth' : deltaPct <= -50 ? 'fade' : 'stable';
       out.push({ name, before: b, after: a, deltaPct, trend });
     }
   }
-  return out.sort((a, b) => Math.abs(b.deltaPct === Infinity ? 1000 : b.deltaPct || 0) - Math.abs(a.deltaPct === Infinity ? 1000 : a.deltaPct || 0));
+  return out.sort(
+    (a, b) =>
+      Math.abs(b.deltaPct === Infinity ? 1000 : b.deltaPct || 0) -
+      Math.abs(a.deltaPct === Infinity ? 1000 : a.deltaPct || 0)
+  );
 }
 
 function round(n, digits) {

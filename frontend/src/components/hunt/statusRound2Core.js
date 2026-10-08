@@ -29,46 +29,182 @@ export const WAVE28_END = 51120;
 
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE28_IDEAS = [
-  [51081, 'tab-title status', 'The browser tab title shows a one-line live status for at-a-glance monitoring'],
+  [
+    51081,
+    'tab-title status',
+    'The browser tab title shows a one-line live status for at-a-glance monitoring',
+  ],
   [51082, 'status API endpoint', 'Machine-readable current-status JSON for integrations and bots'],
-  [51083, 'status snapshots', 'Capture timestamped status cards into the hunt record with one click'],
-  [51084, 'intent explanation', '"Why am I doing this" answers that connect the current action to the hunt goal'],
-  [51085, 'dependency display', 'Shows what the current step is waiting for, e.g. recon results before probing'],
-  [51086, 'approach confidence', 'The agent states how confident it is that the current approach will pay off'],
-  [51087, 'considered alternatives', 'Ask what else it considered before choosing the current action'],
-  [51088, 'per-module status', 'Drill into any single module to see exactly what that component is doing'],
-  [51089, 'quiet status mode', 'Suppress routine updates and surface only phase changes and findings'],
+  [
+    51083,
+    'status snapshots',
+    'Capture timestamped status cards into the hunt record with one click',
+  ],
+  [
+    51084,
+    'intent explanation',
+    '"Why am I doing this" answers that connect the current action to the hunt goal',
+  ],
+  [
+    51085,
+    'dependency display',
+    'Shows what the current step is waiting for, e.g. recon results before probing',
+  ],
+  [
+    51086,
+    'approach confidence',
+    'The agent states how confident it is that the current approach will pay off',
+  ],
+  [
+    51087,
+    'considered alternatives',
+    'Ask what else it considered before choosing the current action',
+  ],
+  [
+    51088,
+    'per-module status',
+    'Drill into any single module to see exactly what that component is doing',
+  ],
+  [
+    51089,
+    'quiet status mode',
+    'Suppress routine updates and surface only phase changes and findings',
+  ],
   [51090, 'push status alerts', 'Phase changes and completions pushed to your phone or desktop'],
-  [51091, 'terminal-style status', 'An optional monospace live feed for users who prefer raw operational text'],
+  [
+    51091,
+    'terminal-style status',
+    'An optional monospace live feed for users who prefer raw operational text',
+  ],
   [51092, 'status emoji legend', 'Consistent icons for phases so status is scannable at a glance'],
-  [51093, 'time-since-finding', 'How long since the last finding, to judge whether the hunt has gone cold'],
-  [51094, 'coverage-so-far summary', 'Which parts of the target have been exercised and which remain untouched'],
-  [51095, 'paused-state status', 'While paused, status shows exactly where the hunt froze and what resumes next'],
-  [51096, 'approval-wait status', 'During approval waits, status names the pending action and who is holding it up'],
+  [
+    51093,
+    'time-since-finding',
+    'How long since the last finding, to judge whether the hunt has gone cold',
+  ],
+  [
+    51094,
+    'coverage-so-far summary',
+    'Which parts of the target have been exercised and which remain untouched',
+  ],
+  [
+    51095,
+    'paused-state status',
+    'While paused, status shows exactly where the hunt froze and what resumes next',
+  ],
+  [
+    51096,
+    'approval-wait status',
+    'During approval waits, status names the pending action and who is holding it up',
+  ],
   [51097, 'status export', 'Download the full status history as CSV or markdown for records'],
-  [51098, 'status Q&A thread', 'Every status update opens a thread where you can question that specific moment'],
-  [51099, 'uncertainty flag', 'The agent marks status lines it is unsure about rather than stating them as fact'],
-  [51100, 'upcoming-phase forecast', '"About to start API fuzzing" style lookahead of the next 2–3 steps'],
-  [51101, 'status granularity dial', 'Choose summary, standard, or verbose depth for all status output'],
-  [51102, 'component-specific status', 'Ask "what\'s the crawler doing?" for a focused answer on one component'],
-  [51103, 'timeline scrubber', 'Drag through the hunt timeline to see what the agent was doing at any minute'],
+  [
+    51098,
+    'status Q&A thread',
+    'Every status update opens a thread where you can question that specific moment',
+  ],
+  [
+    51099,
+    'uncertainty flag',
+    'The agent marks status lines it is unsure about rather than stating them as fact',
+  ],
+  [
+    51100,
+    'upcoming-phase forecast',
+    '"About to start API fuzzing" style lookahead of the next 2–3 steps',
+  ],
+  [
+    51101,
+    'status granularity dial',
+    'Choose summary, standard, or verbose depth for all status output',
+  ],
+  [
+    51102,
+    'component-specific status',
+    'Ask "what\'s the crawler doing?" for a focused answer on one component',
+  ],
+  [
+    51103,
+    'timeline scrubber',
+    'Drag through the hunt timeline to see what the agent was doing at any minute',
+  ],
   [51104, 'status bookmarks', 'Bookmark moments in the status stream to revisit or cite later'],
-  [51105, 'agent workload meter', 'How many parallel tasks the agent is juggling right now, shown as a simple gauge'],
-  [51106, 'model-switch status', 'A notice whenever the agent swaps brains mid-hunt, with the reason for the switch'],
-  [51107, 'bilingual status view', 'Status displayed in two languages side by side for mixed-language teams'],
-  [51108, 'payload-redacted status', 'Status lines automatically hide sensitive payload contents with reveal-on-click'],
-  [51109, 'finding-linked status', 'Each status update links to the findings discovered during that window'],
-  [51110, 'idle-nudge suggestions', 'When the agent idles, it proposes useful next steps you can approve with one tap'],
+  [
+    51105,
+    'agent workload meter',
+    'How many parallel tasks the agent is juggling right now, shown as a simple gauge',
+  ],
+  [
+    51106,
+    'model-switch status',
+    'A notice whenever the agent swaps brains mid-hunt, with the reason for the switch',
+  ],
+  [
+    51107,
+    'bilingual status view',
+    'Status displayed in two languages side by side for mixed-language teams',
+  ],
+  [
+    51108,
+    'payload-redacted status',
+    'Status lines automatically hide sensitive payload contents with reveal-on-click',
+  ],
+  [
+    51109,
+    'finding-linked status',
+    'Each status update links to the findings discovered during that window',
+  ],
+  [
+    51110,
+    'idle-nudge suggestions',
+    'When the agent idles, it proposes useful next steps you can approve with one tap',
+  ],
   [51111, 'activity heatmap', 'A visual map of agent activity intensity across the hunt timeline'],
-  [51112, 'avatar status narration', 'The avatar speaks status updates in a natural voice during long hunts'],
-  [51113, 'manager-friendly status', 'A jargon-free status view designed for non-technical stakeholders'],
-  [51114, 'since-last-visit diff', '"Here\'s what happened since you last checked" summary shown on return'],
-  [51115, 'current-task ETA', 'Estimated finish time for the specific step in progress, not just the whole hunt'],
-  [51116, 'status confidence trend', 'A sparkline showing how the agent\'s confidence evolved across phases'],
-  [51117, 'focus-this-URL command', 'Tell the agent to concentrate testing on one URL with immediate reprioritization'],
-  [51118, 'skip-this-area command', 'Mark a section as off-limits and watch the agent reroute around it'],
-  [51119, 'finding-type priority boost', 'Elevate a vulnerability class so the agent hunts it first everywhere'],
-  [51120, 'noisy-check demotion', 'Push low-signal checks to the back of the queue without disabling them'],
+  [
+    51112,
+    'avatar status narration',
+    'The avatar speaks status updates in a natural voice during long hunts',
+  ],
+  [
+    51113,
+    'manager-friendly status',
+    'A jargon-free status view designed for non-technical stakeholders',
+  ],
+  [
+    51114,
+    'since-last-visit diff',
+    '"Here\'s what happened since you last checked" summary shown on return',
+  ],
+  [
+    51115,
+    'current-task ETA',
+    'Estimated finish time for the specific step in progress, not just the whole hunt',
+  ],
+  [
+    51116,
+    'status confidence trend',
+    "A sparkline showing how the agent's confidence evolved across phases",
+  ],
+  [
+    51117,
+    'focus-this-URL command',
+    'Tell the agent to concentrate testing on one URL with immediate reprioritization',
+  ],
+  [
+    51118,
+    'skip-this-area command',
+    'Mark a section as off-limits and watch the agent reroute around it',
+  ],
+  [
+    51119,
+    'finding-type priority boost',
+    'Elevate a vulnerability class so the agent hunts it first everywhere',
+  ],
+  [
+    51120,
+    'noisy-check demotion',
+    'Push low-signal checks to the back of the queue without disabling them',
+  ],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -88,7 +224,15 @@ export function tabTitleStatus({ phase, action, findingCount }) {
 /* ------------------------------------------------------------------ */
 
 /** Machine-readable current-status JSON for integrations and bots. */
-export function statusApiPayload({ huntId, phase, action, progressPct, findingCount, updatedAtMs, paused }) {
+export function statusApiPayload({
+  huntId,
+  phase,
+  action,
+  progressPct,
+  findingCount,
+  updatedAtMs,
+  paused,
+}) {
   return {
     version: 1,
     huntId: huntId || null,
@@ -169,7 +313,7 @@ export function confidenceLabel(band) {
 /** What else was considered before choosing the current action. */
 export function consideredAlternatives(action) {
   const alts = (action && action.alternatives) || [];
-  return alts.map((a) => ({
+  return alts.map(a => ({
     name: a.name || 'unknown',
     rejectedBecause: a.rejectedBecause || 'not evaluated',
   }));
@@ -181,7 +325,7 @@ export function consideredAlternatives(action) {
 
 /** Drill into a single module for its focused status. */
 export function moduleStatus(modules, name) {
-  const m = (modules || []).find((x) => x.name === name);
+  const m = (modules || []).find(x => x.name === name);
   if (!m) return { name, found: false, status: 'No such module in this hunt.' };
   return {
     name,
@@ -202,7 +346,7 @@ export const QUIET_ON = 'on';
 /** In quiet mode, keep only phase changes and findings. */
 export function quietModeFilter(updates, mode) {
   if (mode !== QUIET_ON) return updates || [];
-  return (updates || []).filter((u) => u.kind === 'phase' || u.kind === 'finding');
+  return (updates || []).filter(u => u.kind === 'phase' || u.kind === 'finding');
 }
 
 /* ------------------------------------------------------------------ */
@@ -227,7 +371,9 @@ export function pushAlertPayload(event) {
 /** Format a status event as a monospace terminal line. */
 export function terminalLine(event) {
   const ts = new Date(event.atMs || 0).toISOString().slice(11, 19);
-  const kind = String(event.kind || 'info').toUpperCase().padEnd(7, ' ');
+  const kind = String(event.kind || 'info')
+    .toUpperCase()
+    .padEnd(7, ' ');
   return `[${ts}] ${kind} ${event.text || ''}`;
 }
 
@@ -276,13 +422,13 @@ export function timeSinceFinding(lastFindingMs, nowMs) {
 /** Which parts of the target are exercised vs untouched. */
 export function coverageSummary(areas) {
   const list = areas || [];
-  const covered = list.filter((a) => a.covered);
-  const untouched = list.filter((a) => !a.covered);
+  const covered = list.filter(a => a.covered);
+  const untouched = list.filter(a => !a.covered);
   const pct = list.length === 0 ? 0 : Math.round((covered.length / list.length) * 100);
   return {
     total: list.length,
     covered: covered.length,
-    untouched: untouched.map((a) => a.name),
+    untouched: untouched.map(a => a.name),
     pct,
   };
 }
@@ -329,16 +475,15 @@ function csvCell(v) {
 
 /** Export status history as CSV. */
 export function exportStatusCsv(history) {
-  const rows = (history || []).map((h) =>
-    [h.atMs, h.kind, h.phase, h.text].map(csvCell).join(','),
-  );
+  const rows = (history || []).map(h => [h.atMs, h.kind, h.phase, h.text].map(csvCell).join(','));
   return ['atMs,kind,phase,text', ...rows].join('\n');
 }
 
 /** Export status history as markdown. */
 export function exportStatusMarkdown(history) {
   const lines = (history || []).map(
-    (h) => `- ${new Date(h.atMs || 0).toISOString()} **[${h.kind || 'info'}]** (${h.phase || 'idle'}): ${h.text || ''}`,
+    h =>
+      `- ${new Date(h.atMs || 0).toISOString()} **[${h.kind || 'info'}]** (${h.phase || 'idle'}): ${h.text || ''}`
   );
   return ['# Hunt status history', '', ...lines].join('\n');
 }
@@ -400,9 +545,9 @@ export const GRANULARITIES = [GRAN_SUMMARY, GRAN_STANDARD, GRAN_VERBOSE];
 /** Filter status output by chosen depth. */
 export function applyGranularity(updates, level) {
   const list = updates || [];
-  if (level === GRAN_SUMMARY) return list.filter((u) => u.depth === 'summary');
+  if (level === GRAN_SUMMARY) return list.filter(u => u.depth === 'summary');
   if (level === GRAN_VERBOSE) return list;
-  return list.filter((u) => u.depth !== 'verbose');
+  return list.filter(u => u.depth !== 'verbose');
 }
 
 /* ------------------------------------------------------------------ */
@@ -413,7 +558,13 @@ export function applyGranularity(updates, level) {
 export function componentStatus(components, query) {
   const q = String(query || '').toLowerCase();
   const hit = (components || []).find(
-    (c) => String(c.name || '').toLowerCase().includes(q) || String(c.alias || '').toLowerCase().includes(q),
+    c =>
+      String(c.name || '')
+        .toLowerCase()
+        .includes(q) ||
+      String(c.alias || '')
+        .toLowerCase()
+        .includes(q)
   );
   if (!hit) return { found: false, answer: `No component matches "${query}".` };
   return {
@@ -429,7 +580,7 @@ export function componentStatus(components, query) {
 
 /** What the agent was doing at a given minute offset. */
 export function scrubTimeline(events, minute) {
-  const at = (events || []).filter((e) => (e.minute || 0) <= minute);
+  const at = (events || []).filter(e => (e.minute || 0) <= minute);
   if (at.length === 0) return { minute, found: false, summary: 'Hunt had not started yet.' };
   const last = at[at.length - 1];
   return {
@@ -447,14 +598,19 @@ export function scrubTimeline(events, minute) {
 
 /** Bookmark a moment in the status stream. */
 export function addBookmark(bookmarks, event, label) {
-  const b = { id: `bm-${event.atMs || Date.now()}`, atMs: event.atMs || 0, label: label || event.text || 'bookmark', phase: event.phase || '' };
+  const b = {
+    id: `bm-${event.atMs || Date.now()}`,
+    atMs: event.atMs || 0,
+    label: label || event.text || 'bookmark',
+    phase: event.phase || '',
+  };
   const list = bookmarks || [];
-  if (list.some((x) => x.id === b.id)) return list;
+  if (list.some(x => x.id === b.id)) return list;
   return [...list, b];
 }
 
 export function removeBookmark(bookmarks, id) {
-  return (bookmarks || []).filter((b) => b.id !== id);
+  return (bookmarks || []).filter(b => b.id !== id);
 }
 
 /* ------------------------------------------------------------------ */
@@ -502,7 +658,10 @@ export function bilingualStatus(primary, secondary, primaryLang = 'en', secondar
 /** Hide sensitive payload contents; reveal-on-click handled by UI state. */
 export function redactPayload(line) {
   const s = String(line || '');
-  const redacted = s.replace(/(password|secret|token|api[_-]?key)\s*[:=]\s*\S+/gi, '$1: [redacted]');
+  const redacted = s.replace(
+    /(password|secret|token|api[_-]?key)\s*[:=]\s*\S+/gi,
+    '$1: [redacted]'
+  );
   return { original: s, redacted, wasRedacted: redacted !== s };
 }
 
@@ -512,7 +671,7 @@ export function redactPayload(line) {
 
 /** Attach finding links to a status update. */
 export function linkFindings(status, findings) {
-  const links = (findings || []).map((f) => ({ id: f.id, title: f.title || f.id }));
+  const links = (findings || []).map(f => ({ id: f.id, title: f.title || f.id }));
   return { ...status, findingLinks: links, findingCount: links.length };
 }
 
@@ -525,8 +684,13 @@ export function idleNudges(idleMs, context) {
   if ((idleMs || 0) < 60000) return [];
   const c = context || {};
   const nudges = [];
-  if (c.unreviewedFindings > 0) nudges.push({ id: 'review', text: `Review ${c.unreviewedFindings} unreviewed finding(s)` });
-  if (c.uncoveredAreas > 0) nudges.push({ id: 'coverage', text: `Expand coverage to ${c.uncoveredAreas} untouched area(s)` });
+  if (c.unreviewedFindings > 0)
+    nudges.push({ id: 'review', text: `Review ${c.unreviewedFindings} unreviewed finding(s)` });
+  if (c.uncoveredAreas > 0)
+    nudges.push({
+      id: 'coverage',
+      text: `Expand coverage to ${c.uncoveredAreas} untouched area(s)`,
+    });
   if (nudges.length === 0) nudges.push({ id: 'wrap', text: 'Wrap up and generate the report' });
   return nudges;
 }
@@ -545,7 +709,11 @@ export function activityHeatmap(events, bucketMinutes = 5) {
   return Object.keys(buckets)
     .map(Number)
     .sort((a, b) => a - b)
-    .map((start) => ({ startMinute: start, endMinute: start + bucketMinutes, count: buckets[start] }));
+    .map(start => ({
+      startMinute: start,
+      endMinute: start + bucketMinutes,
+      count: buckets[start],
+    }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -556,7 +724,8 @@ export function activityHeatmap(events, bucketMinutes = 5) {
 export function avatarNarration(status) {
   const phase = status.phase || 'idle';
   const action = status.action ? ` Currently ${status.action}.` : '';
-  const findings = typeof status.findingCount === 'number' ? ` ${status.findingCount} findings so far.` : '';
+  const findings =
+    typeof status.findingCount === 'number' ? ` ${status.findingCount} findings so far.` : '';
   return `Hunt status: ${phase}.${action}${findings}`;
 }
 
@@ -587,9 +756,9 @@ export function managerStatus(status) {
 
 /** "Here's what happened since you last checked." */
 export function lastVisitDiff(events, lastVisitMs) {
-  const fresh = (events || []).filter((e) => (e.atMs || 0) > (lastVisitMs || 0));
-  const findings = fresh.filter((e) => e.kind === 'finding').length;
-  const phases = [...new Set(fresh.map((e) => e.phase).filter(Boolean))];
+  const fresh = (events || []).filter(e => (e.atMs || 0) > (lastVisitMs || 0));
+  const findings = fresh.filter(e => e.kind === 'finding').length;
+  const phases = [...new Set(fresh.map(e => e.phase).filter(Boolean))];
   return {
     eventCount: fresh.length,
     newFindings: findings,
@@ -657,7 +826,7 @@ export function parseSkipCommand(text) {
 /** Elevate a vulnerability class to the front of the hunt order. */
 export function priorityBoost(types, vulnClass) {
   const list = [...(types || [])];
-  const idx = list.findIndex((t) => String(t).toLowerCase() === String(vulnClass).toLowerCase());
+  const idx = list.findIndex(t => String(t).toLowerCase() === String(vulnClass).toLowerCase());
   if (idx <= 0) return list;
   const [hit] = list.splice(idx, 1);
   return [hit, ...list];
@@ -670,7 +839,7 @@ export function priorityBoost(types, vulnClass) {
 /** Push low-signal checks to the back without disabling them. */
 export function demoteNoisy(checks, noisyIds) {
   const noisy = new Set(noisyIds || []);
-  const keep = (checks || []).filter((c) => !noisy.has(c.id || c));
-  const demoted = (checks || []).filter((c) => noisy.has(c.id || c));
+  const keep = (checks || []).filter(c => !noisy.has(c.id || c));
+  const demoted = (checks || []).filter(c => noisy.has(c.id || c));
   return [...keep, ...demoted];
 }

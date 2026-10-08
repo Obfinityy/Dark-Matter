@@ -19,7 +19,9 @@ const JSONAPI_MEDIA_TYPE = 'application/vnd.api+json';
  */
 export function analyzeJsonApiContentType(contentType = '') {
   const result = { isJsonApi: false, profiles: [], ext: [] };
-  const [mediaType, ...params] = String(contentType).split(';').map((s) => s.trim());
+  const [mediaType, ...params] = String(contentType)
+    .split(';')
+    .map(s => s.trim());
   if (mediaType.toLowerCase() !== JSONAPI_MEDIA_TYPE) return result;
   result.isJsonApi = true;
   for (const param of params) {
@@ -39,13 +41,22 @@ export function analyzeJsonApiContentType(contentType = '') {
  */
 export function analyzeJsonApiDocument(doc) {
   const result = {
-    detected: false, version: null, profiles: [],
-    hasData: false, hasRelationships: false, hasIncluded: false,
-    hasErrors: false, verboseErrors: false,
+    detected: false,
+    version: null,
+    profiles: [],
+    hasData: false,
+    hasRelationships: false,
+    hasIncluded: false,
+    hasErrors: false,
+    verboseErrors: false,
   };
   let data = doc;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch { return result; }
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return result;
+    }
   }
   if (!data || typeof data !== 'object') return result;
   const jsonapi = data.jsonapi;
@@ -55,16 +66,18 @@ export function analyzeJsonApiDocument(doc) {
   if (jsonapi && typeof jsonapi === 'object') {
     result.version = jsonapi.version || null;
     const profiles = jsonapi.profile;
-    if (Array.isArray(profiles)) result.profiles = profiles.filter((p) => typeof p === 'string');
+    if (Array.isArray(profiles)) result.profiles = profiles.filter(p => typeof p === 'string');
     else if (typeof profiles === 'string') result.profiles = [profiles];
   }
   result.hasData = 'data' in data;
   result.hasIncluded = Array.isArray(data.included) && data.included.length > 0;
-  const resources = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : []);
-  result.hasRelationships = resources.some((r) => r && typeof r === 'object' && r.relationships);
+  const resources = Array.isArray(data.data) ? data.data : data.data ? [data.data] : [];
+  result.hasRelationships = resources.some(r => r && typeof r === 'object' && r.relationships);
   result.hasErrors = Array.isArray(data.errors) && data.errors.length > 0;
   if (result.hasErrors) {
-    result.verboseErrors = data.errors.some((e) => e && (e.meta || e.source || (typeof e.detail === 'string' && e.detail.length > 120)));
+    result.verboseErrors = data.errors.some(
+      e => e && (e.meta || e.source || (typeof e.detail === 'string' && e.detail.length > 120))
+    );
   }
   return result;
 }
@@ -76,7 +89,8 @@ export function analyzeJsonApiDocument(doc) {
  */
 export function fingerprintFramework(analysis = {}) {
   if (!analysis.detected) return null;
-  if (analysis.profiles.some((p) => /atomic/i.test(p))) return 'JSON:API Atomic Operations profile in use';
+  if (analysis.profiles.some(p => /atomic/i.test(p)))
+    return 'JSON:API Atomic Operations profile in use';
   if (analysis.version === '1.1') return 'JSON:API v1.1 server (modern implementation)';
   if (analysis.version === '1.0') return 'JSON:API v1.0 server';
   return 'JSON:API server (version not advertised)';
@@ -95,7 +109,9 @@ export async function probeJsonApi(url, fetchImpl = globalThis.fetch) {
       headers: { Accept: 'application/vnd.api+json' },
     });
     const headers = {};
-    res.headers?.forEach?.((v, k) => { headers[k.toLowerCase()] = v; });
+    res.headers?.forEach?.((v, k) => {
+      headers[k.toLowerCase()] = v;
+    });
     outcome.contentType = analyzeJsonApiContentType(headers['content-type']);
     const text = await res.text();
     outcome.document = analyzeJsonApiDocument(text);
@@ -113,9 +129,9 @@ export async function probeJsonApi(url, fetchImpl = globalThis.fetch) {
  * @returns {string|null}
  */
 export function summarizeFindings(probes = []) {
-  const exposed = probes.filter((p) => p.document?.detected || p.contentType?.isJsonApi);
+  const exposed = probes.filter(p => p.document?.detected || p.contentType?.isJsonApi);
   if (exposed.length === 0) return null;
-  const lines = exposed.map((p) => {
+  const lines = exposed.map(p => {
     const d = p.document || {};
     const bits = [];
     if (d.version) bits.push(`v${d.version}`);

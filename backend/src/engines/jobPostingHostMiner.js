@@ -11,18 +11,75 @@
  * public postings). No scraping is performed by this module.
  */
 
-const HOSTNAME_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|io|dev|cloud|internal|corp|local|ai|co|app|tech|systems|infra)\b/gi;
+const HOSTNAME_RE =
+  /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|io|dev|cloud|internal|corp|local|ai|co|app|tech|systems|infra)\b/gi;
 
 const KNOWN_TOOLS = [
-  'jenkins', 'circleci', 'travis', 'github actions', 'gitlab ci', 'teamcity', 'bamboo',
-  'kubernetes', 'k8s', 'docker', 'terraform', 'ansible', 'puppet', 'chef', 'pulumi',
-  'jira', 'confluence', 'notion', 'slack', 'pagerduty', 'opsgenie', 'datadog',
-  'new relic', 'splunk', 'elk', 'grafana', 'prometheus', 'sentry', 'snowflake',
-  'redshift', 'bigquery', 'kafka', 'rabbitmq', 'redis', 'postgres', 'postgresql',
-  'mysql', 'mongodb', 'elasticsearch', 'cassandra', 'dynamodb', 'vault',
-  'okta', 'auth0', 'keycloak', 'aws', 'gcp', 'azure', 'cloudflare', 'akamai',
-  'fastly', 'vercel', 'netlify', 'heroku', 'digitalocean', 'argocd', 'flux',
-  'istio', 'linkerd', 'consul', 'nomad', 'airflow', 'dbt', 'looker', 'tableau',
+  'jenkins',
+  'circleci',
+  'travis',
+  'github actions',
+  'gitlab ci',
+  'teamcity',
+  'bamboo',
+  'kubernetes',
+  'k8s',
+  'docker',
+  'terraform',
+  'ansible',
+  'puppet',
+  'chef',
+  'pulumi',
+  'jira',
+  'confluence',
+  'notion',
+  'slack',
+  'pagerduty',
+  'opsgenie',
+  'datadog',
+  'new relic',
+  'splunk',
+  'elk',
+  'grafana',
+  'prometheus',
+  'sentry',
+  'snowflake',
+  'redshift',
+  'bigquery',
+  'kafka',
+  'rabbitmq',
+  'redis',
+  'postgres',
+  'postgresql',
+  'mysql',
+  'mongodb',
+  'elasticsearch',
+  'cassandra',
+  'dynamodb',
+  'vault',
+  'okta',
+  'auth0',
+  'keycloak',
+  'aws',
+  'gcp',
+  'azure',
+  'cloudflare',
+  'akamai',
+  'fastly',
+  'vercel',
+  'netlify',
+  'heroku',
+  'digitalocean',
+  'argocd',
+  'flux',
+  'istio',
+  'linkerd',
+  'consul',
+  'nomad',
+  'airflow',
+  'dbt',
+  'looker',
+  'tableau',
 ];
 
 const INFRA_PHRASES = [
@@ -90,7 +147,8 @@ export function extractInternalToolNames(text) {
     const name = m[1].trim();
     if (!found.has(name)) found.set(name, snippet(t, m.index));
   }
-  const internalRe = /\binternal\s+(?:tool|system|platform|service|dashboard|portal)[,\s]+(?:called\s+|named\s+)?([A-Z][A-Za-z0-9]+)/gi;
+  const internalRe =
+    /\binternal\s+(?:tool|system|platform|service|dashboard|portal)[,\s]+(?:called\s+|named\s+)?([A-Z][A-Za-z0-9]+)/gi;
   while ((m = internalRe.exec(t)) !== null) {
     const name = m[1].trim();
     if (!/^[A-Z]/.test(name)) continue; // must be a proper noun, not a stray lowercase word
@@ -138,10 +196,14 @@ export function mineJobPosting(posting = {}) {
  * @param {string} domain
  */
 export function toolNamesToHostGuesses(mined, domain = '') {
-  const base = String(domain || '').toLowerCase().replace(/\.$/, '');
+  const base = String(domain || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const guesses = new Set();
   for (const t of mined?.internalTools || []) {
-    const slug = String(t.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const slug = String(t.name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
     if (!slug) continue;
     guesses.add(slug);
     guesses.add(`${slug}-internal`);
@@ -149,7 +211,7 @@ export function toolNamesToHostGuesses(mined, domain = '') {
     guesses.add(`${slug}-tool`);
   }
   const list = [...guesses];
-  return base ? list.map((g) => `${g}.${base}`) : list;
+  return base ? list.map(g => `${g}.${base}`) : list;
 }
 
 export const JOB_POSTING_HOST_MINER = {

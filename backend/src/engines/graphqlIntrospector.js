@@ -11,8 +11,10 @@
  */
 
 const HOST_RE = /https?:\/\/((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d{1,5})?/gi;
-const SERVICE_HINT_RE = /\b(service|svc|endpoint|host|url|uri|gateway|microservice|backend|worker|queue|topic|bucket|table|cluster|node|proxy|upstream)\b/i;
-const SERVICE_SUFFIX_RE = /(Service|Gateway|Endpoint|Backend|Worker|Proxy|Upstream|Client|Microservice|Host|Url|Uri)$/;
+const SERVICE_HINT_RE =
+  /\b(service|svc|endpoint|host|url|uri|gateway|microservice|backend|worker|queue|topic|bucket|table|cluster|node|proxy|upstream)\b/i;
+const SERVICE_SUFFIX_RE =
+  /(Service|Gateway|Endpoint|Backend|Worker|Proxy|Upstream|Client|Microservice|Host|Url|Uri)$/;
 
 /** Walk every type/field/argument/description node in the schema. */
 export function walkSchema(schema, visit) {
@@ -24,7 +26,13 @@ export function walkSchema(schema, visit) {
       if (!f) continue;
       visit({ kind: 'field', parent: t.name, name: f.name, description: f.description });
       for (const a of f.args || []) {
-        if (a) visit({ kind: 'arg', parent: `${t.name}.${f.name}`, name: a.name, description: a.description });
+        if (a)
+          visit({
+            kind: 'arg',
+            parent: `${t.name}.${f.name}`,
+            name: a.name,
+            description: a.description,
+          });
       }
     }
     for (const v of t.enumValues || []) {
@@ -118,7 +126,12 @@ export function summarizeSchema(schema) {
 export function introspectHosts({ url = '', introspection = null } = {}) {
   const schema = introspection && introspection.data && introspection.data.__schema;
   if (!schema) {
-    return { url, type: 'GraphQL Introspection Host Discovery', confidence: 'none', error: 'No __schema found — introspection may be disabled' };
+    return {
+      url,
+      type: 'GraphQL Introspection Host Discovery',
+      confidence: 'none',
+      error: 'No __schema found — introspection may be disabled',
+    };
   }
   const hosts = extractHostsFromDescriptions(schema);
   const hints = findServiceHints(schema);
@@ -127,7 +140,7 @@ export function introspectHosts({ url = '', introspection = null } = {}) {
   return {
     url,
     type: 'GraphQL Introspection Host Discovery',
-    confidence: hosts.length ? 'high' : (hints.length ? 'medium' : 'low'),
+    confidence: hosts.length ? 'high' : hints.length ? 'medium' : 'low',
     evidence: `${hosts.length} host URL(s) in schema descriptions, ${hints.length} service-hint name(s) found.`,
     hosts,
     serviceHints: hints.slice(0, 200),
@@ -136,6 +149,10 @@ export function introspectHosts({ url = '', introspection = null } = {}) {
 }
 
 export const GRAPHQL_INTROSPECTOR = {
-  walkSchema, extractHostsFromDescriptions, findServiceHints, summarizeSchema, introspectHosts,
+  walkSchema,
+  extractHostsFromDescriptions,
+  findServiceHints,
+  summarizeSchema,
+  introspectHosts,
 };
 export default GRAPHQL_INTROSPECTOR;

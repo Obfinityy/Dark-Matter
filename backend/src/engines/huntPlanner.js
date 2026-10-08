@@ -37,7 +37,13 @@ const sharedLedger = createPlanLedger();
  * @param {object} [opts.history] - { [targetType]: huntCount } for cold-start check
  * @returns {object} versioned plan
  */
-export function planHunt({ scopeText = '', target = {}, budget = {}, userGoal = '', history = {} } = {}) {
+export function planHunt({
+  scopeText = '',
+  target = {},
+  budget = {},
+  userGoal = '',
+  history = {},
+} = {}) {
   // 30005 — parse scope rules
   const rules = parseScopeRules(scopeText);
   // 30006 — classify target → template
@@ -51,7 +57,7 @@ export function planHunt({ scopeText = '', target = {}, budget = {}, userGoal = 
   // every forbidden action is audited in removedModules, never silently dropped)
   const { kept, removed } = filterPlanModules(PLAN_MODULES, rules);
   // 30014 — cold start orders the surviving modules by writeup-derived preference
-  const preferred = coldStart.modules.length ? coldStart.modules : kept.map((m) => m.id);
+  const preferred = coldStart.modules.length ? coldStart.modules : kept.map(m => m.id);
   const ordered = [...kept].sort((a, b) => {
     const ai = preferred.indexOf(a.id);
     const bi = preferred.indexOf(b.id);
@@ -79,7 +85,7 @@ export function planHunt({ scopeText = '', target = {}, budget = {}, userGoal = 
     intent,
     modules: winner.modules,
     strategy: winner.name,
-    removedModules: removed.map((r) => ({ id: r.module.id, reason: r.reason })),
+    removedModules: removed.map(r => ({ id: r.module.id, reason: r.reason })),
     forbidden: rules.forbidden,
     coverage,
     tournamentScores: scored,

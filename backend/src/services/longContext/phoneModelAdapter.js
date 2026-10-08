@@ -1,5 +1,16 @@
+/**
+ * phoneModelAdapter — on-phone model adapter.
+ * Adapts long-context requests to the phone-hosted model's API
+ * and constraints.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import { config } from '../../config.js';
-import { PhoneLocalProvider, normalizeMessagesForPhone, stripThinkingTags } from '../../agent/providers/phoneLocalProvider.js';
+import {
+  PhoneLocalProvider,
+  normalizeMessagesForPhone,
+  stripThinkingTags,
+} from '../../agent/providers/phoneLocalProvider.js';
 import { localAIQueue } from '../../agent/providers/localAiQueue.js';
 
 /**
@@ -17,6 +28,7 @@ import { localAIQueue } from '../../agent/providers/localAiQueue.js';
  *    propagated honestly.
  */
 
+/** Error thrown for context window failures. */
 export class ContextWindowError extends Error {
   constructor(message, detail) {
     super(message);
@@ -33,10 +45,20 @@ function isRetryable(status) {
 
 /** Errors that indicate the prompt exceeded the model's real context window. */
 function isContextOverflow(status, body) {
-  if (status === 500 && (body.includes('Tokenization failed') || body.includes('prompt too long') || body.includes('context'))) {
+  if (
+    status === 500 &&
+    (body.includes('Tokenization failed') ||
+      body.includes('prompt too long') ||
+      body.includes('context'))
+  ) {
     return true;
   }
-  if (status === 400 && (body.includes('prompt too long') || body.includes('max context') || body.includes('context window'))) {
+  if (
+    status === 400 &&
+    (body.includes('prompt too long') ||
+      body.includes('max context') ||
+      body.includes('context window'))
+  ) {
     return true;
   }
   return false;
@@ -65,7 +87,8 @@ class PhoneModelAdapter {
    */
   async complete(messages, options = {}) {
     const maxTokens = options.maxTokens || 768;
-    const timeoutMs = options.timeoutMs || parseInt(process.env.PHONE_AI_GENERATION_TIMEOUT_MS || '3600000', 10);
+    const timeoutMs =
+      options.timeoutMs || parseInt(process.env.PHONE_AI_GENERATION_TIMEOUT_MS || '3600000', 10);
     const maxAttempts = options.maxAttempts || 8;
     const onAttempt = options.onAttempt || (() => {});
 
@@ -87,9 +110,9 @@ class PhoneModelAdapter {
             body: JSON.stringify({
               model: activeModel,
               messages: safeMessages,
-              max_tokens: maxTokens
+              max_tokens: maxTokens,
             }),
-            signal: AbortSignal.timeout(timeoutMs)
+            signal: AbortSignal.timeout(timeoutMs),
           };
           if (this.provider.apiKey && this.provider.apiKey !== 'no-key-required') {
             fetchOptions.headers['Authorization'] = `Bearer ${this.provider.apiKey}`;
@@ -104,7 +127,7 @@ class PhoneModelAdapter {
             return {
               text: stripThinkingTags(rawText),
               finishReason: choice?.finish_reason || null,
-              raw: data
+              raw: data,
             };
           }
 
@@ -114,51 +137,55 @@ class PhoneModelAdapter {
             // Adaptive prompt reduction retry if phone LLM context overflows
             if (safeMessages.length > 0) {
               const lastMsg = safeMessages[safeMessages.length - 1];
-              const trimmedContent = typeof lastMsg.content === 'string'
-                ? lastMsg.content.slice(0, 1200) + '\n\n[... Prompt trimmed to fit phone memory ...]'
-                : lastMsg.content;
+              const trimmedContent =
+                typeof lastMsg.content === 'string'
+                  ? lastMsg.content.slice(0, 1200) +
+                    '\n\n[... Prompt trimmed to fit phone memory ...]'
+                  : lastMsg.content;
               const fallbackMessages = [{ role: 'user', content: trimmedContent }];
-              
+
               try {
                 const fallbackOptions = {
                   ...fetchOptions,
                   body: JSON.stringify({
                     model: activeModel,
                     messages: fallbackMessages,
-                    max_tokens: Math.min(maxTokens, 512)
-                  })
+                    max_tokens: Math.min(maxTokens, 512),
+                  }),
                 };
-                const fallbackRes = await fetch(`${this.provider.baseUrl}/chat/completions`, fallbackOptions);
+                const fallbackRes = await fetch(
+                  `${this.provider.baseUrl}/chat/completions`,
+                  fallbackOptions
+                );
                 if (fallbackRes.ok) {
                   const data = await fallbackRes.json();
                   const choice = data?.choices?.[0];
                   return {
                     text: choice?.message?.content || '',
                     finishReason: choice?.finish_reason || null,
-                    raw: data
+                    raw: data,
                   };
                 }
               } catch (e) {}
             }
 
-            throw new ContextWindowError(
-              'Prompt exceeded the local model context window',
-              { upstreamStatus: res.status, body: errorBody.slice(0, 300) }
-            );
+            throw new ContextWindowError('Prompt exceeded the local model context window', {
+              upstreamStatus: res.status,
+              body: errorBody.slice(0, 300),
+            });
           }
 
           if (isRetryable(res.status)) {
             const retryAfter = res.headers.get('Retry-After');
-            const delayMs = res.status === 429
-              ? (retryAfter ? parseInt(retryAfter, 10) * 1000 : 3000)
-              : 3000;
+            const delayMs =
+              res.status === 429 ? (retryAfter ? parseInt(retryAfter, 10) * 1000 : 3000) : 3000;
             onAttempt({ attempt, status: res.status, delayMs });
             if (attempt >= maxAttempts) {
               const err = new Error(`Local AI busy (${res.status}) after ${maxAttempts} attempts.`);
               err.status = res.status;
               throw err;
             }
-            await new Promise((r) => setTimeout(r, delayMs));
+            await new Promise(r => setTimeout(r, delayMs));
             continue;
           }
 
@@ -166,7 +193,8 @@ class PhoneModelAdapter {
           err.status = res.status;
           throw err;
         } catch (error) {
-          if (error.name === 'ContextWindowError' || error.code === 'CONTEXT_WINDOW_EXCEEDED') throw error;
+          if (error.name === 'ContextWindowError' || error.code === 'CONTEXT_WINDOW_EXCEEDED')
+            throw error;
           if (error.name === 'AbortError' || error.name === 'TimeoutError') {
             lastError = new Error('AI request timed out.');
             lastError.status = 504;
@@ -177,7 +205,7 @@ class PhoneModelAdapter {
           // retries too, but do not mask the final failure.
           if (attempt >= maxAttempts) throw lastError;
           onAttempt({ attempt, status: lastError.status || 0, delayMs: 2000 });
-          await new Promise((r) => setTimeout(r, 2000));
+          await new Promise(r => setTimeout(r, 2000));
         }
       }
 
@@ -216,7 +244,10 @@ class PhoneModelAdapter {
     const timeoutMs = options.timeoutMs || 3600000;
 
     return this.queue.enqueue(async () => {
-      onState({ step: 'Connecting to Local Phone AI', detail: 'Acquiring queue lock & resolving model...' });
+      onState({
+        step: 'Connecting to Local Phone AI',
+        detail: 'Acquiring queue lock & resolving model...',
+      });
       const activeModel = await this.provider.resolveModel();
       const safeMessages = normalizeMessagesForPhone(messages);
 
@@ -227,9 +258,9 @@ class PhoneModelAdapter {
           model: activeModel,
           messages: safeMessages,
           max_tokens: maxTokens,
-          stream: true
+          stream: true,
         }),
-        signal: AbortSignal.timeout(timeoutMs)
+        signal: AbortSignal.timeout(timeoutMs),
       };
       if (this.provider.apiKey && this.provider.apiKey !== 'no-key-required') {
         fetchOptions.headers['Authorization'] = `Bearer ${this.provider.apiKey}`;
@@ -282,7 +313,7 @@ class PhoneModelAdapter {
       return {
         text: finalCleanText || fullText,
         finishReason: 'stop',
-        raw: { text: fullText }
+        raw: { text: fullText },
       };
     });
   }

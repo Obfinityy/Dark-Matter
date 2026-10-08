@@ -1,15 +1,12 @@
-# Dark Matter — Autonomous AI Bug Bounty Agent
+# Infinity AI — Autonomous Bug-Bounty & Coding Agent
 
 > **Paste a link. The agent hunts. You get the report.**
 
-Dark Matter is an autonomous AI security researcher for authorized bug bounty hunting. It reasons like a human hunter — reconnaissance, attack-surface mapping, hypothesis testing, controlled validation — and delivers professional PDF reports.
-
-**Infinity AI** is the built-in AI assistant with four modes: Chat, Plan, Build, and Control.
+Infinity AI is an autonomous AI security researcher for authorized bug-bounty hunting, plus an AI coding companion — in one app. It reasons like a human hunter (reconnaissance, attack-surface mapping, hypothesis testing, controlled validation) and delivers professional, submission-ready reports.
 
 [![Status](https://img.shields.io/badge/Status-Production-blue)](#)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2018-61dafb)](#)
 [![Backend](https://img.shields.io/badge/Backend-Node.js-339933)](#)
-[![License](https://img.shields.io/badge/License-Private-red)](#)
 
 ---
 
@@ -21,11 +18,13 @@ Dark Matter is an autonomous AI security researcher for authorized bug bounty hu
 - Validates findings with working proof-of-concepts
 - Generates submission-ready PDF reports
 
-**Infinity AI** — Your AI coding companion:
+**Infinity AI** — Your AI companion with four modes:
 - **Chat** — Ask anything, debug, brainstorm
 - **Plan** — Get step-by-step build plans
-- **Build** — Agent reads and edits real files
-- **Control** — Command your computer (see screen, click, type)
+- **Build** — The agent reads and edits real files
+- **Control** — Command your computer (see the screen, click, type)
+
+**Infinity Voice** — Neural text-to-speech with real lip-sync on the avatar.
 
 ---
 
@@ -34,7 +33,7 @@ Dark Matter is an autonomous AI security researcher for authorized bug bounty hu
 ```
 ┌──────────┐     ┌──────────┐     ┌──────────────┐
 │ Frontend │────▶│ Backend  │────▶│   MongoDB    │
-│ (Vercel) │     │ (Render) │     │ (Atlas)      │
+│ (Vercel) │     │ (Render) │     │   (Atlas)    │
 └──────────┘     └──────────┘     └──────────────┘
      │                 │
      │                 ▼
@@ -65,18 +64,18 @@ Dark Matter is an autonomous AI security researcher for authorized bug bounty hu
 
 ## Quick Start
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev        # → http://localhost:5173
-```
-
 ### Backend
 ```bash
 cd backend
 npm install
 npm start          # → http://localhost:4000
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev        # → http://localhost:5173
 ```
 
 Sign up in the UI, open Hunt AI, paste a URL you own.
@@ -86,23 +85,43 @@ Sign up in the UI, open Hunt AI, paste a URL you own.
 ## Project Structure
 
 ```
-Dark-Matter/
-├── frontend/               # React 18 application
+.
+├── backend/                    # Node.js (ESM) + Express API
 │   └── src/
-│       ├── pages/          # Routes (Landing, Hunt, Infinity AI, Models, etc.)
-│       ├── components/     # Reusable UI components
-│       ├── services/       # API clients
-│       └── styles/         # Design system
-├── backend/                # Node.js + Express API
+│       ├── agent/              # Autonomous hunting brain (providers, state machine)
+│       ├── engines/            # ~590 pure-function security engines
+│       ├── hunt/               # Hunt orchestration (runner, planner, reporting)
+│       ├── recon/              # Reconnaissance scan loops
+│       ├── tools/              # Security tool integrations (nuclei, katana, …)
+│       ├── computer/           # Desktop control bridge (Node.js half)
+│       ├── control/            # Control-mode agent loop
+│       ├── routes/             # API routing table (index.js — start here)
+│       ├── controllers/        # Thin HTTP controllers
+│       ├── services/           # Business logic (auth, chat, voice, billing)
+│       ├── models/             # MongoDB schemas
+│       ├── jobs/               # Background workers
+│       ├── middleware/         # Express middleware
+│       ├── core/               # Shared primitives (crypto, errors, utils)
+│       ├── avatar/             # Avatar emotion system
+│       └── voice/              # Infinity Voice TTS service layer
+├── frontend/                   # React 18 + Vite application
 │   └── src/
-│       ├── agent/          # Autonomous hunting brain
-│       ├── tools/          # Security tools integration
-│       ├── computer/       # Computer-control bridge
-│       ├── jobs/           # Hunt queue and workers
-│       └── routes/         # REST API endpoints
-├── ideas/                  # Product roadmap (100k+ ideas)
-└── docs/                   # Documentation
+│       ├── pages/              # Routes (Landing, Auth, agent workspace, Hunt)
+│       ├── components/         # Reusable UI (agent, brand, fx, hunt wave galleries)
+│       ├── services/           # API clients (api.js, voice.js, …)
+│       ├── auth/               # Auth context
+│       ├── hooks/              # Shared React hooks
+│       ├── styles/             # Design system CSS
+│       ├── utils/              # Pure helpers
+│       └── data/               # Static data (model catalog)
+├── ideas/                      # Idea bank — 100,000+ numbered product ideas
+├── research/                   # Methodology and strategy research
+├── AGENTS.md                   # Project guide for AI agents (read first)
+├── VISION.md                   # Product vision
+└── THIRD_PARTY_NOTICES.md      # License attributions
 ```
+
+Every directory carries a short `README.md` explaining what lives there and why.
 
 ---
 
@@ -118,10 +137,19 @@ Dark-Matter/
 
 ## Tech Stack
 
-- **Frontend:** React 18, React Router, Lucide icons
-- **Backend:** Node.js, Express, MongoDB
-- **AI:** Local GGUF models via llama-server, Kaggle/Colab remote, cloud APIs
+- **Frontend:** React 18, React Router, Vite, Lucide icons
+- **Backend:** Node.js (ESM), Express, MongoDB
+- **AI:** Local GGUF models via llama.cpp; Kaggle Gradio vision link; cloud APIs
+- **Voice:** Kokoro-82M neural TTS (Apache-2.0), CPU-friendly
 - **Deploy:** Vercel (frontend), Render (backend)
+
+---
+
+## Key Docs
+
+- [AGENTS.md](AGENTS.md) — full project guide for contributors and AI agents
+- [VISION.md](VISION.md) — product vision
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — license attributions
 
 ---
 
@@ -132,5 +160,5 @@ Private — Obfinity. All rights reserved.
 ---
 
 <p align="center">
-  Built by <b>Obfinity</b> — <i>hunt smarter, not harder.</i>
+  Built by <b>Infinity AI</b> — <i>hunt smarter, not harder.</i>
 </p>

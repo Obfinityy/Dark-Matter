@@ -19,25 +19,101 @@ import { SHORTCUTS as WAVE12_SHORTCUTS, normalizeKeyEvent } from './shortcutsCor
 /* binding/implementation they honestly reuse (no reinvention).              */
 
 export const WAVE13_SHORTCUTS_IDEAS = [
-  { idea: 50481, name: 'Home/End list jumps', in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (first/last finding focus)' },
-  { idea: 50482, name: 'PageUp/PageDown scroll', in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (scroll findings list by viewport)' },
-  { idea: 50483, name: 'Ctrl+, settings / Ctrl+. theme', in: 'SKIP: already live — wave 12 ShortcutsManager.jsx:ShortcutsProvider (settings-open / theme-cycle bindings)' },
-  { idea: 50484, name: 'Printable shortcut card', in: 'AdvancedShortcuts.jsx:PrintableShortcutCard (print stylesheet, reset to defaults)' },
-  { idea: 50485, name: 'Remappable shortcuts', in: 'AdvancedShortcuts.jsx:RemapDialog + advancedShortcutsCore.findRemapConflicts' },
-  { idea: 50486, name: 'Adaptive shortcut hints', in: 'AdvancedShortcuts.jsx:AdaptiveHint + advancedShortcutsCore.recordMouseUse/shouldShowHint' },
-  { idea: 50487, name: 'Typing-mode guard', in: 'AdvancedShortcuts.jsx:TypingGuardIndicator + AdvancedShortcutsProvider typing guard' },
-  { idea: 50488, name: 'F6 region cycling', in: 'AdvancedShortcuts.jsx:F6RegionCycler + advancedShortcutsCore.F6_REGIONS' },
-  { idea: 50489, name: 'Ctrl+Shift+E finding PDF', in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider + advancedShortcutsCore.findingPdfPayload' },
-  { idea: 50490, name: 'Alt+arrows hunt history', in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (alt+arrowleft/arrowright)' },
-  { idea: 50491, name: 'New-shortcut highlights', in: 'AdvancedShortcuts.jsx:NewShortcutHighlights + advancedShortcutsCore.NEW_WAVE13_SHORTCUTS' },
-  { idea: 50492, name: 'Numbered chat suggestions', in: 'AdvancedShortcuts.jsx:NumberedSuggestions + advancedShortcutsCore.pickSuggestion' },
-  { idea: 50493, name: 'Ctrl+Enter starts hunt', in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider ([data-hunt-target] input)' },
-  { idea: 50494, name: 'Esc hierarchy', in: 'AdvancedShortcuts.jsx:useEscHierarchy + advancedShortcutsCore.resolveEscAction' },
-  { idea: 50495, name: 'Phase-pipeline arrows', in: 'AdvancedShortcuts.jsx:PhasePipelineArrows + advancedShortcutsCore.movePhaseIndex' },
-  { idea: 50496, name: 'Keyboard-operable tour', in: 'AdvancedShortcuts.jsx:KeyboardTour (roving focus, all steps keyboard-driven)' },
-  { idea: 50497, name: 'Shift+N newest finding', in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (focus newest [data-finding-card])' },
-  { idea: 50498, name: 'Ctrl+Shift+C deep link', in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider + advancedShortcutsCore.buildDeepLink' },
-  { idea: 50499, name: 'Keyboard-first onboarding', in: 'AdvancedShortcuts.jsx:ShortcutOnboarding + advancedShortcutsCore.ONBOARDING_STEPS' },
+  {
+    idea: 50481,
+    name: 'Home/End list jumps',
+    in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (first/last finding focus)',
+  },
+  {
+    idea: 50482,
+    name: 'PageUp/PageDown scroll',
+    in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (scroll findings list by viewport)',
+  },
+  {
+    idea: 50483,
+    name: 'Ctrl+, settings / Ctrl+. theme',
+    in: 'SKIP: already live — wave 12 ShortcutsManager.jsx:ShortcutsProvider (settings-open / theme-cycle bindings)',
+  },
+  {
+    idea: 50484,
+    name: 'Printable shortcut card',
+    in: 'AdvancedShortcuts.jsx:PrintableShortcutCard (print stylesheet, reset to defaults)',
+  },
+  {
+    idea: 50485,
+    name: 'Remappable shortcuts',
+    in: 'AdvancedShortcuts.jsx:RemapDialog + advancedShortcutsCore.findRemapConflicts',
+  },
+  {
+    idea: 50486,
+    name: 'Adaptive shortcut hints',
+    in: 'AdvancedShortcuts.jsx:AdaptiveHint + advancedShortcutsCore.recordMouseUse/shouldShowHint',
+  },
+  {
+    idea: 50487,
+    name: 'Typing-mode guard',
+    in: 'AdvancedShortcuts.jsx:TypingGuardIndicator + AdvancedShortcutsProvider typing guard',
+  },
+  {
+    idea: 50488,
+    name: 'F6 region cycling',
+    in: 'AdvancedShortcuts.jsx:F6RegionCycler + advancedShortcutsCore.F6_REGIONS',
+  },
+  {
+    idea: 50489,
+    name: 'Ctrl+Shift+E finding PDF',
+    in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider + advancedShortcutsCore.findingPdfPayload',
+  },
+  {
+    idea: 50490,
+    name: 'Alt+arrows hunt history',
+    in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (alt+arrowleft/arrowright)',
+  },
+  {
+    idea: 50491,
+    name: 'New-shortcut highlights',
+    in: 'AdvancedShortcuts.jsx:NewShortcutHighlights + advancedShortcutsCore.NEW_WAVE13_SHORTCUTS',
+  },
+  {
+    idea: 50492,
+    name: 'Numbered chat suggestions',
+    in: 'AdvancedShortcuts.jsx:NumberedSuggestions + advancedShortcutsCore.pickSuggestion',
+  },
+  {
+    idea: 50493,
+    name: 'Ctrl+Enter starts hunt',
+    in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider ([data-hunt-target] input)',
+  },
+  {
+    idea: 50494,
+    name: 'Esc hierarchy',
+    in: 'AdvancedShortcuts.jsx:useEscHierarchy + advancedShortcutsCore.resolveEscAction',
+  },
+  {
+    idea: 50495,
+    name: 'Phase-pipeline arrows',
+    in: 'AdvancedShortcuts.jsx:PhasePipelineArrows + advancedShortcutsCore.movePhaseIndex',
+  },
+  {
+    idea: 50496,
+    name: 'Keyboard-operable tour',
+    in: 'AdvancedShortcuts.jsx:KeyboardTour (roving focus, all steps keyboard-driven)',
+  },
+  {
+    idea: 50497,
+    name: 'Shift+N newest finding',
+    in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider (focus newest [data-finding-card])',
+  },
+  {
+    idea: 50498,
+    name: 'Ctrl+Shift+C deep link',
+    in: 'AdvancedShortcuts.jsx:AdvancedShortcutsProvider + advancedShortcutsCore.buildDeepLink',
+  },
+  {
+    idea: 50499,
+    name: 'Keyboard-first onboarding',
+    in: 'AdvancedShortcuts.jsx:ShortcutOnboarding + advancedShortcutsCore.ONBOARDING_STEPS',
+  },
 ];
 
 /* New binding registry (wave-13 additions only; wave-12 combos unchanged) --- */
@@ -45,22 +121,75 @@ export const WAVE13_SHORTCUTS_IDEAS = [
 export const ADVANCED_SHORTCUTS = [
   { id: 'finding-first', keys: ['home'], label: 'Jump to first finding', group: 'List navigation' },
   { id: 'finding-last', keys: ['end'], label: 'Jump to last finding', group: 'List navigation' },
-  { id: 'list-page-up', keys: ['pageup'], label: 'Scroll list up one viewport', group: 'List navigation' },
-  { id: 'list-page-down', keys: ['pagedown'], label: 'Scroll list down one viewport', group: 'List navigation' },
-  { id: 'finding-newest', keys: ['shift+n'], label: 'Focus the newest finding', group: 'List navigation' },
-  { id: 'region-cycle', keys: ['f6'], label: 'Cycle focus: nav → main → sidebar → chat', group: 'Focus' },
-  { id: 'finding-pdf', keys: ['ctrl+shift+e'], label: 'Export focused finding as PDF', group: 'Export' },
-  { id: 'history-back', keys: ['alt+arrowleft'], label: 'Hunt history back (like browser)', group: 'History' },
-  { id: 'history-forward', keys: ['alt+arrowright'], label: 'Hunt history forward', group: 'History' },
-  { id: 'finding-deep-link', keys: ['ctrl+shift+c'], label: 'Copy deep link to focused finding', group: 'Share' },
-  { id: 'hunt-start-target', keys: ['ctrl+enter'], label: 'Start hunt from target input', group: 'Hunt', inInput: '[data-hunt-target]' },
-  { id: 'shortcut-remap', keys: [], label: 'Remap shortcuts (open remap dialog)', group: 'Shortcuts' },
+  {
+    id: 'list-page-up',
+    keys: ['pageup'],
+    label: 'Scroll list up one viewport',
+    group: 'List navigation',
+  },
+  {
+    id: 'list-page-down',
+    keys: ['pagedown'],
+    label: 'Scroll list down one viewport',
+    group: 'List navigation',
+  },
+  {
+    id: 'finding-newest',
+    keys: ['shift+n'],
+    label: 'Focus the newest finding',
+    group: 'List navigation',
+  },
+  {
+    id: 'region-cycle',
+    keys: ['f6'],
+    label: 'Cycle focus: nav → main → sidebar → chat',
+    group: 'Focus',
+  },
+  {
+    id: 'finding-pdf',
+    keys: ['ctrl+shift+e'],
+    label: 'Export focused finding as PDF',
+    group: 'Export',
+  },
+  {
+    id: 'history-back',
+    keys: ['alt+arrowleft'],
+    label: 'Hunt history back (like browser)',
+    group: 'History',
+  },
+  {
+    id: 'history-forward',
+    keys: ['alt+arrowright'],
+    label: 'Hunt history forward',
+    group: 'History',
+  },
+  {
+    id: 'finding-deep-link',
+    keys: ['ctrl+shift+c'],
+    label: 'Copy deep link to focused finding',
+    group: 'Share',
+  },
+  {
+    id: 'hunt-start-target',
+    keys: ['ctrl+enter'],
+    label: 'Start hunt from target input',
+    group: 'Hunt',
+    inInput: '[data-hunt-target]',
+  },
+  {
+    id: 'shortcut-remap',
+    keys: [],
+    label: 'Remap shortcuts (open remap dialog)',
+    group: 'Shortcuts',
+  },
   { id: 'shortcut-print', keys: [], label: 'Open printable shortcut card', group: 'Shortcuts' },
 ];
 
 /** New-in-wave-13 highlight data (50491) — shown by NewShortcutHighlights. */
-export const NEW_WAVE13_SHORTCUTS = ADVANCED_SHORTCUTS.filter((s) => s.keys.length > 0).map((s) => ({
-  keys: s.keys, label: s.label, id: s.id,
+export const NEW_WAVE13_SHORTCUTS = ADVANCED_SHORTCUTS.filter(s => s.keys.length > 0).map(s => ({
+  keys: s.keys,
+  label: s.label,
+  id: s.id,
 }));
 
 /** F6 focus regions in cycle order (50488). */
@@ -100,13 +229,13 @@ export function resolveEscAction(state = {}) {
  */
 export function findRemapConflicts(remaps = {}) {
   const all = [
-    ...WAVE12_SHORTCUTS.filter((s) => s.keys?.length).map((s) => ({ id: s.id, keys: s.keys })),
-    ...ADVANCED_SHORTCUTS.filter((s) => s.keys?.length).map((s) => ({ id: s.id, keys: s.keys })),
+    ...WAVE12_SHORTCUTS.filter(s => s.keys?.length).map(s => ({ id: s.id, keys: s.keys })),
+    ...ADVANCED_SHORTCUTS.filter(s => s.keys?.length).map(s => ({ id: s.id, keys: s.keys })),
   ];
   const conflicts = [];
   for (const [actionId, combo] of Object.entries(remaps)) {
-    const hit = all.filter((s) => s.id !== actionId && s.keys.some((k) => k === combo));
-    if (hit.length) conflicts.push({ actionId, combo, conflictsWith: hit.map((s) => s.id) });
+    const hit = all.filter(s => s.id !== actionId && s.keys.some(k => k === combo));
+    if (hit.length) conflicts.push({ actionId, combo, conflictsWith: hit.map(s => s.id) });
   }
   return conflicts;
 }
@@ -122,8 +251,20 @@ function hintStore(storage) {
   const mem = { [HINT_KEY]: '{}' };
   const s = storage ?? (typeof localStorage !== 'undefined' ? localStorage : mem);
   return {
-    get() { try { return JSON.parse(s.getItem(HINT_KEY) || '{}'); } catch { return {}; } },
-    set(v) { try { s.setItem(HINT_KEY, JSON.stringify(v)); } catch { /* ignore */ } },
+    get() {
+      try {
+        return JSON.parse(s.getItem(HINT_KEY) || '{}');
+      } catch {
+        return {};
+      }
+    },
+    set(v) {
+      try {
+        s.setItem(HINT_KEY, JSON.stringify(v));
+      } catch {
+        /* ignore */
+      }
+    },
   };
 }
 
@@ -171,8 +312,10 @@ export function pickSuggestion(suggestions = [], num) {
 /** Build a shareable deep link to one finding (50498). */
 export function buildDeepLink(findingId, base = '') {
   if (!findingId) return null;
-  const b = String(base || (typeof window !== 'undefined' ? window.location.origin : ''))
-    .replace(/[#/?]+$/, '');
+  const b = String(base || (typeof window !== 'undefined' ? window.location.origin : '')).replace(
+    /[#/?]+$/,
+    ''
+  );
   return `${b}/#/findings/${encodeURIComponent(findingId)}`;
 }
 
@@ -194,11 +337,35 @@ export function findingPdfPayload(finding = {}) {
 /* performs the actual shortcut.                                             */
 
 export const ONBOARDING_STEPS = [
-  { n: 1, combo: 'j', action: 'finding-next', label: 'Navigate', hint: 'Press J to move to the next finding' },
+  {
+    n: 1,
+    combo: 'j',
+    action: 'finding-next',
+    label: 'Navigate',
+    hint: 'Press J to move to the next finding',
+  },
   { n: 2, combo: '/', action: 'focus-search', label: 'Search', hint: 'Press / to jump to search' },
-  { n: 3, combo: 'enter', action: 'finding-open', label: 'Open', hint: 'Press Enter to open the focused finding' },
-  { n: 4, combo: 'escape', action: 'esc-hierarchy', label: 'Dismiss', hint: 'Press Esc to close it back down' },
-  { n: 5, combo: '?', action: 'cheat-sheet', label: 'Help', hint: 'Press Shift+? to open the shortcut cheat sheet' },
+  {
+    n: 3,
+    combo: 'enter',
+    action: 'finding-open',
+    label: 'Open',
+    hint: 'Press Enter to open the focused finding',
+  },
+  {
+    n: 4,
+    combo: 'escape',
+    action: 'esc-hierarchy',
+    label: 'Dismiss',
+    hint: 'Press Esc to close it back down',
+  },
+  {
+    n: 5,
+    combo: '?',
+    action: 'cheat-sheet',
+    label: 'Help',
+    hint: 'Press Shift+? to open the shortcut cheat sheet',
+  },
 ];
 
 /* Re-export so consumers can bind tests against one module ----------------- */

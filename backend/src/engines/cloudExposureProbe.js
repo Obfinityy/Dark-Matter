@@ -58,8 +58,16 @@ const METADATA_SIGNATURES = [
 ];
 
 const CREDENTIAL_LIKE_KEYS = [
-  'secretaccesskey', 'accesskeyid', 'sessiontoken', 'token', 'secret',
-  'password', 'privatekey', 'authorization', 'x-auth-token', 'iam',
+  'secretaccesskey',
+  'accesskeyid',
+  'sessiontoken',
+  'token',
+  'secret',
+  'password',
+  'privatekey',
+  'authorization',
+  'x-auth-token',
+  'iam',
 ];
 
 const SENSITIVE_KEY_PATTERN = /(secret|token|key|password|credential|private)/i;
@@ -80,14 +88,14 @@ export function detectCloudMetadata({ url = '', statusCode = 0, body = '', heade
   for (const sig of METADATA_SIGNATURES) {
     if (sig.match(text, haystack)) matches.push(sig);
   }
-  const credentialPresent = CREDENTIAL_LIKE_KEYS.some((k) => {
+  const credentialPresent = CREDENTIAL_LIKE_KEYS.some(k => {
     const re = new RegExp(`"${k}"\\s*:\\s*"[^"]{4,}"`, 'i');
     return re.test(text);
   });
   return {
     detected: matches.length > 0,
     provider: matches.length > 0 ? matches[0].provider : null,
-    matches: matches.map((m) => ({ provider: m.provider, name: m.name, description: m.description })),
+    matches: matches.map(m => ({ provider: m.provider, name: m.name, description: m.description })),
     credentialPresent,
     classification: matches.length > 0 ? 'cloud-metadata-exposure' : 'no-metadata-signature',
     statusCode,
@@ -109,10 +117,22 @@ export function analyzeInstanceIdentity({ provider = '', body = '' } = {}) {
   try {
     doc = JSON.parse(String(body));
   } catch {
-    return { parsed: false, provider: null, inventory: {}, redacted: [], reason: 'Not valid JSON.' };
+    return {
+      parsed: false,
+      provider: null,
+      inventory: {},
+      redacted: [],
+      reason: 'Not valid JSON.',
+    };
   }
   if (doc && typeof doc !== 'object') {
-    return { parsed: false, provider: null, inventory: {}, redacted: [], reason: 'Not an object document.' };
+    return {
+      parsed: false,
+      provider: null,
+      inventory: {},
+      redacted: [],
+      reason: 'Not an object document.',
+    };
   }
 
   const inventory = {};
@@ -132,7 +152,7 @@ export function analyzeInstanceIdentity({ provider = '', body = '' } = {}) {
   };
 
   const seen = new Set();
-  const pickAll = (source) => {
+  const pickAll = source => {
     if (!source || typeof source !== 'object') return;
     for (const k of Object.keys(source)) {
       if (seen.has(k)) continue;

@@ -115,7 +115,10 @@ export function extractBrokerHosts(servers) {
     const url = String(s.url || '').trim();
     if (!url) continue;
     // Broker URLs often lack a scheme; try as-is then with a placeholder scheme.
-    const candidates = [url, /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? null : `placeholder://${url}`].filter(Boolean);
+    const candidates = [
+      url,
+      /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? null : `placeholder://${url}`,
+    ].filter(Boolean);
     for (const cand of candidates) {
       try {
         const u = new URL(cand);

@@ -4,19 +4,22 @@
  * ZERO keyframes — no motion anywhere in this file.
  */
 
-.tl38-gallery, .lf38-gallery {
+.tl38-gallery,
+.lf38-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   padding: 16px;
 }
 
-.tl38-gallery h3, .lf38-gallery h3 {
+.tl38-gallery h3,
+.lf38-gallery h3 {
   grid-column: 1 / -1;
   margin: 0 0 8px;
 }
 
-.tl38-card, .lf38-card {
+.tl38-card,
+.lf38-card {
   border: 1px solid #2a2f3a;
   border-radius: 10px;
   padding: 14px;
@@ -24,14 +27,16 @@
   color: #e6e9ef;
 }
 
-.tl38-card-head, .lf38-card-head {
+.tl38-card-head,
+.lf38-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
 
-.tl38-num, .lf38-num {
+.tl38-num,
+.lf38-num {
   font-size: 11px;
   font-weight: 700;
   background: #243044;
@@ -40,17 +45,20 @@
   padding: 2px 6px;
 }
 
-.tl38-card-head h4, .lf38-card-head h4 {
+.tl38-card-head h4,
+.lf38-card-head h4 {
   margin: 0;
   font-size: 14px;
 }
 
-.tl38-card-body, .lf38-card-body {
+.tl38-card-body,
+.lf38-card-body {
   font-size: 13px;
   line-height: 1.5;
 }
 
-.tl38-input, .lf38-input {
+.tl38-input,
+.lf38-input {
   width: 100%;
   box-sizing: border-box;
   margin: 4px 0;
@@ -62,7 +70,8 @@
   font: inherit;
 }
 
-.tl38-row, .lf38-row {
+.tl38-row,
+.lf38-row {
   display: flex;
   gap: 8px;
   margin-top: 8px;
@@ -70,7 +79,8 @@
   align-items: center;
 }
 
-.tl38-btn, .lf38-btn {
+.tl38-btn,
+.lf38-btn {
   padding: 6px 12px;
   border: 1px solid #2a2f3a;
   border-radius: 6px;
@@ -80,19 +90,23 @@
   cursor: pointer;
 }
 
-.tl38-btn-primary, .lf38-btn-primary {
+.tl38-btn-primary,
+.lf38-btn-primary {
   background: #2b6cb0;
   border-color: #2b6cb0;
   color: #fff;
 }
 
-.tl38-btn:disabled, .lf38-btn:disabled,
-.tl38-btn-primary:disabled, .lf38-btn-primary:disabled {
+.tl38-btn:disabled,
+.lf38-btn:disabled,
+.tl38-btn-primary:disabled,
+.lf38-btn-primary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.tl38-pre, .lf38-pre {
+.tl38-pre,
+.lf38-pre {
   background: #0f1217;
   padding: 8px;
   border-radius: 6px;
@@ -101,17 +115,20 @@
   white-space: pre-wrap;
 }
 
-.tl38-note, .lf38-note {
+.tl38-note,
+.lf38-note {
   color: #9aa3b2;
   font-size: 12px;
 }
 
-.tl38-warn, .lf38-warn {
+.tl38-warn,
+.lf38-warn {
   color: #ff9f43;
   font-size: 12px;
 }
 
-.tl38-badge, .lf38-badge {
+.tl38-badge,
+.lf38-badge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 10px;
@@ -121,7 +138,7 @@
 
 .tl38-risk-safe {
   background: #173d28;
-  color: #6bcB77;
+  color: #6bcb77;
 }
 
 .tl38-risk-cautious {
@@ -151,16 +168,18 @@
 
 .lf38-sev-low {
   background: #173d28;
-  color: #6bcB77;
+  color: #6bcb77;
 }
 
-.tl38-list, .lf38-list {
+.tl38-list,
+.lf38-list {
   list-style: none;
   margin: 8px 0;
   padding: 0;
 }
 
-.tl38-list li, .lf38-list li {
+.tl38-list li,
+.lf38-list li {
   padding: 6px 8px;
   border-bottom: 1px solid #232a36;
 }
@@ -179,7 +198,7 @@
 }
 
 .tl38-step.done {
-  color: #6bcB77;
+  color: #6bcb77;
 }
 
 .tl38-step.active {
@@ -191,7 +210,8 @@
   color: #9aa3b2;
 }
 
-.tl38-kv, .lf38-kv {
+.tl38-kv,
+.lf38-kv {
   display: flex;
   justify-content: space-between;
   padding: 4px 0;
@@ -229,7 +249,8 @@
   border-radius: 4px;
 }
 
-.tl38-tag, .lf38-tag {
+.tl38-tag,
+.lf38-tag {
   display: inline-block;
   background: #243044;
   color: #9fc1ff;
@@ -239,7 +260,8 @@
   margin: 2px 4px 2px 0;
 }
 
-.tl38-empty, .lf38-empty {
+.tl38-empty,
+.lf38-empty {
   color: #9aa3b2;
   font-style: italic;
   padding: 8px 0;

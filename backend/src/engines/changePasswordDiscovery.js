@@ -15,10 +15,16 @@
 export function interpretChangePasswordProbe(probe = {}) {
   const notes = [];
   const redirects = Array.isArray(probe.redirects) ? probe.redirects : [];
-  const chain = [probe.url, ...redirects.map((r) => r.location), probe.finalUrl].filter(Boolean);
+  const chain = [probe.url, ...redirects.map(r => r.location), probe.finalUrl].filter(Boolean);
 
   if (!chain.length) {
-    return { found: false, idpHost: null, idpVendor: 'unknown', chain: [], notes: ['Empty probe result'] };
+    return {
+      found: false,
+      idpHost: null,
+      idpVendor: 'unknown',
+      chain: [],
+      notes: ['Empty probe result'],
+    };
   }
 
   const finalUrl = probe.finalUrl || probe.url || '';
@@ -30,7 +36,11 @@ export function interpretChangePasswordProbe(probe = {}) {
   }
 
   const startHost = (() => {
-    try { return new URL(probe.url).hostname; } catch { return null; }
+    try {
+      return new URL(probe.url).hostname;
+    } catch {
+      return null;
+    }
   })();
 
   let idpVendor = 'unknown';
@@ -38,9 +48,11 @@ export function interpretChangePasswordProbe(probe = {}) {
     const h = idpHost.toLowerCase();
     if (h.includes('okta')) idpVendor = 'Okta';
     else if (h.includes('auth0')) idpVendor = 'Auth0';
-    else if (h.includes('microsoftonline') || h.includes('login.microsoft')) idpVendor = 'Microsoft Entra ID';
+    else if (h.includes('microsoftonline') || h.includes('login.microsoft'))
+      idpVendor = 'Microsoft Entra ID';
     else if (h.includes('accounts.google')) idpVendor = 'Google Workspace';
-    else if (h.includes('keycloak') || h.includes('sso') || h.includes('iam') || h.includes('idp')) idpVendor = 'Self-hosted IAM (heuristic)';
+    else if (h.includes('keycloak') || h.includes('sso') || h.includes('iam') || h.includes('idp'))
+      idpVendor = 'Self-hosted IAM (heuristic)';
     else if (startHost && h !== startHost) idpVendor = 'Third-party IdP (unrecognized vendor)';
     else idpVendor = 'Same-host password flow';
   }

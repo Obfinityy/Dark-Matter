@@ -12,27 +12,35 @@ import { searchModels } from './searchRefine.js';
 import './ModelsPageSearch.css';
 import './ModelsPageSearch.polish.css';
 
-export function ModelsSearchBox({ entries = [], onResults, placeholder = 'Search models & plugins…' }) {
+export function ModelsSearchBox({
+  entries = [],
+  onResults,
+  placeholder = 'Search models & plugins…',
+}) {
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
 
   const results = useMemo(() => searchModels(entries, query), [entries, query]);
 
-  const handle = (q) => {
+  const handle = q => {
     setQuery(q);
     onResults && onResults(searchModels(entries, q));
   };
 
   return (
     <div className="mp-search" role="search">
-      <span className="mp-icon" aria-hidden="true">⌕</span>
+      <span className="mp-icon" aria-hidden="true">
+        ⌕
+      </span>
       <input
         ref={inputRef}
         className="mp-input"
         value={query}
         placeholder={placeholder}
-        onChange={(e) => handle(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Escape') handle(''); }}
+        onChange={e => handle(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Escape') handle('');
+        }}
         aria-label="Search models and plugins"
         aria-controls="mp-results-grid"
       />
@@ -65,10 +73,17 @@ export function ModelsSearchGrid({ entries = [], renderEntry, emptyHint }) {
       {visible.length === 0 ? (
         <div className="mp-no-results">
           <p>No models or plugins match your search.</p>
-          {emptyHint ?? <p className="mp-hint">Try “vision”, “hacker”, “tts”, or a provider name.</p>}
+          {emptyHint ?? (
+            <p className="mp-hint">Try “vision”, “hacker”, “tts”, or a provider name.</p>
+          )}
         </div>
       ) : (
-        <div className="mp-grid" id="mp-results-grid" role="region" aria-label="Matching models and plugins">
+        <div
+          className="mp-grid"
+          id="mp-results-grid"
+          role="region"
+          aria-label="Matching models and plugins"
+        >
           {visible.map((m, i) => (
             <div key={m.id ?? i} className="mp-cell">
               {renderEntry ? renderEntry(m) : <DefaultModelCard entry={m} />}
@@ -91,8 +106,10 @@ export function DefaultModelCard({ entry }) {
       {entry.slot && <div className="mp-slot">slot: {entry.slot}</div>}
       {Array.isArray(entry.tags) && entry.tags.length > 0 && (
         <div className="mp-tags">
-          {entry.tags.map((t) => (
-            <span key={t} className="mp-tag">{t}</span>
+          {entry.tags.map(t => (
+            <span key={t} className="mp-tag">
+              {t}
+            </span>
           ))}
         </div>
       )}

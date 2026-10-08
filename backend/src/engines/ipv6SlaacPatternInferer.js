@@ -22,17 +22,17 @@ function expand(addr) {
   const tp = tail ? tail.split(':').filter(Boolean) : [];
   if (head === undefined || tail === undefined) {
     const all = lower.split(':');
-    return all.length === 8 && all.every((p) => /^[0-9a-f]{1,4}$/.test(p)) ? all : null;
+    return all.length === 8 && all.every(p => /^[0-9a-f]{1,4}$/.test(p)) ? all : null;
   }
   const missing = 8 - hp.length - tp.length;
   if (missing < 0) return null;
   const parts = [...hp, ...Array(missing).fill('0'), ...tp];
-  if (parts.length !== 8 || !parts.every((p) => /^[0-9a-f]{1,4}$/.test(p))) return null;
+  if (parts.length !== 8 || !parts.every(p => /^[0-9a-f]{1,4}$/.test(p))) return null;
   return parts;
 }
 
 function hexOf(hextets) {
-  return hextets.map((h) => h.padStart(4, '0')).join(':');
+  return hextets.map(h => h.padStart(4, '0')).join(':');
 }
 
 /**
@@ -43,7 +43,7 @@ function hexOf(hextets) {
 export function classifyIid(address) {
   const parts = expand(address);
   if (!parts) return { scheme: 'unknown', oui: null, detail: 'not a valid IPv6 address' };
-  const iid = parts.slice(4).map((h) => h.padStart(4, '0'));
+  const iid = parts.slice(4).map(h => h.padStart(4, '0'));
   const iidHex = iid.join('');
   const uBit = parseInt(iid[0].slice(0, 2), 16);
 
@@ -71,7 +71,8 @@ export function classifyIid(address) {
     return {
       scheme: 'privacy',
       oui: null,
-      detail: 'Randomized IID with universal/local bit clear — privacy extension or RFC 7217 stable address.',
+      detail:
+        'Randomized IID with universal/local bit clear — privacy extension or RFC 7217 stable address.',
     };
   }
   return {
@@ -106,7 +107,9 @@ export function analyzeSlaacPatterns(addresses = []) {
   return {
     classified,
     byScheme,
-    ouis: [...ouis.entries()].map(([oui, count]) => ({ oui, count })).sort((a, b) => b.count - a.count),
+    ouis: [...ouis.entries()]
+      .map(([oui, count]) => ({ oui, count }))
+      .sort((a, b) => b.count - a.count),
     prefixes: [...prefixes.entries()].map(([prefix, count]) => ({ prefix, count })),
   };
 }
@@ -137,7 +140,10 @@ export function inferCandidateHosts(analysis, options = {}) {
     const base = prefix.toLowerCase();
     for (let i = 1; i <= lowIidMax; i++) {
       const iid = i.toString(16);
-      push(`${base}::${iid}`, `Low static IID ::${iid} on ${prefix}::/64 — common for routers/servers.`);
+      push(
+        `${base}::${iid}`,
+        `Low static IID ::${iid} on ${prefix}::/64 — common for routers/servers.`
+      );
     }
   }
 
@@ -149,12 +155,18 @@ export function inferCandidateHosts(analysis, options = {}) {
     const first = (parseInt(clean.slice(0, 2), 16) ^ 0x02).toString(16).padStart(2, '0');
     const iid = `${first}${clean.slice(2, 4)}:${clean.slice(4, 6)}ff:fe${clean.slice(6, 8)}:${clean.slice(8, 10)}${clean.slice(10, 12)}`;
     for (const { prefix } of analysis.prefixes) {
-      push(`${prefix.toLowerCase()}::${iid}`.replace('::::', '::'), `EUI-64 derived from MAC ${seed} on ${prefix}::/64.`);
+      push(
+        `${prefix.toLowerCase()}::${iid}`.replace('::::', '::'),
+        `EUI-64 derived from MAC ${seed} on ${prefix}::/64.`
+      );
     }
   }
 
   const privacyCount = analysis.byScheme.privacy || 0;
-  if (privacyCount) skipped.push(`${privacyCount} privacy-IID host(s): no feasible candidate generation — not targeted.`);
+  if (privacyCount)
+    skipped.push(
+      `${privacyCount} privacy-IID host(s): no feasible candidate generation — not targeted.`
+    );
 
   return { candidates, skipped };
 }
@@ -171,13 +183,19 @@ export function slaacFinding(analysis) {
     confidence: analysis.classified.length >= 5 ? 'high' : 'medium',
     schemes: analysis.byScheme,
     vendorOuis: analysis.ouis,
-    evidence: eui > 0
-      ? `${eui} EUI-64 address(es) expose device MACs/vendor OUIs — trackable and predictable; ` +
-        'recommend privacy extensions or RFC 7217 stable IIDs.'
-      : 'No EUI-64 addresses observed in the sample.',
+    evidence:
+      eui > 0
+        ? `${eui} EUI-64 address(es) expose device MACs/vendor OUIs — trackable and predictable; ` +
+          'recommend privacy extensions or RFC 7217 stable IIDs.'
+        : 'No EUI-64 addresses observed in the sample.',
   };
 }
 
 export { IPV6_FULL };
-export const IPV6_SLAAC_INFERER = { classifyIid, analyzeSlaacPatterns, inferCandidateHosts, slaacFinding };
+export const IPV6_SLAAC_INFERER = {
+  classifyIid,
+  analyzeSlaacPatterns,
+  inferCandidateHosts,
+  slaacFinding,
+};
 export default IPV6_SLAAC_INFERER;

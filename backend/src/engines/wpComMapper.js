@@ -17,7 +17,8 @@ const WP_HOST_RES = [
   { re: /\.wpcomstaging\.com$/i, kind: 'wpengine-staging', note: 'WP Engine staging host' },
 ];
 
-const HOSTNAME_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:wordpress\.com|wpengine\.com|wpenginepowered\.com|wpcomstaging\.com)\b/gi;
+const HOSTNAME_RE =
+  /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:wordpress\.com|wpengine\.com|wpenginepowered\.com|wpcomstaging\.com)\b/gi;
 const GENERATOR_RE = /<meta[^>]+name=["']generator["'][^>]+content=["']WordPress[^"']*["']/i;
 const WP_JSON_RE = /\/wp-json\/?(?:wp\/v2)?/i;
 
@@ -77,7 +78,7 @@ export function extractWpHosts(pageSource = '', cnameTargets = []) {
   }
 
   return [...byHost.values()]
-    .map((e) => ({ host: e.host, kind: e.kind, note: e.note, sources: [...e.sources].sort() }))
+    .map(e => ({ host: e.host, kind: e.kind, note: e.note, sources: [...e.sources].sort() }))
     .sort((a, b) => a.host.localeCompare(b.host));
 }
 
@@ -115,21 +116,23 @@ export function detectWordPress(pageSource = '', headers = {}) {
  */
 export function scoreWpHosts(hosts = [], rootDomain = '') {
   const brand = normalizeHostname(rootDomain).split('.')[0];
-  return (hosts || []).map((h) => {
-    let score = 25;
-    const reasons = ['WordPress-hosted property'];
-    if (brand && h.host.includes(brand)) {
-      score += 45;
-      reasons.push(`hostname references brand "${brand}"`);
-    }
-    if (h.sources.includes('dns-cname')) {
-      score += 10;
-      reasons.push('confirmed via DNS CNAME');
-    }
-    if (h.kind === 'wpengine-staging') {
-      score += 10;
-      reasons.push('staging environment');
-    }
-    return { host: h.host, score: Math.min(100, score), reasons };
-  }).sort((a, b) => b.score - a.score);
+  return (hosts || [])
+    .map(h => {
+      let score = 25;
+      const reasons = ['WordPress-hosted property'];
+      if (brand && h.host.includes(brand)) {
+        score += 45;
+        reasons.push(`hostname references brand "${brand}"`);
+      }
+      if (h.sources.includes('dns-cname')) {
+        score += 10;
+        reasons.push('confirmed via DNS CNAME');
+      }
+      if (h.kind === 'wpengine-staging') {
+        score += 10;
+        reasons.push('staging environment');
+      }
+      return { host: h.host, score: Math.min(100, score), reasons };
+    })
+    .sort((a, b) => b.score - a.score);
 }

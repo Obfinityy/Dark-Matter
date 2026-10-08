@@ -93,15 +93,18 @@ test('wave-16 registry covers all 40 ideas (50601–50640)', () => {
   assert.equal(WAVE16_IDEAS.length, 40);
   assert.equal(WAVE16_IDEAS[0].id, 50601);
   assert.equal(WAVE16_IDEAS[39].id, 50640);
-  const skips = WAVE16_IDEAS.filter((i) => i.status === 'skip');
+  const skips = WAVE16_IDEAS.filter(i => i.status === 'skip');
   assert.equal(skips.length, 1);
   assert.equal(skips[0].id, 50602);
   assert.ok(skips[0].note.length > 20, 'skip needs a real justification');
   assert.equal(skips[0].component, null);
-  for (const idea of WAVE16_IDEAS.filter((i) => i.status === 'shipped')) {
+  for (const idea of WAVE16_IDEAS.filter(i => i.status === 'shipped')) {
     assert.ok(idea.component, `${idea.id} shipped but has no component`);
     assert.equal(idea.module, 'ResponsiveSuite.jsx');
-    assert.ok(jsx.includes(`export function ${idea.component}`), `${idea.component} missing from JSX`);
+    assert.ok(
+      jsx.includes(`export function ${idea.component}`),
+      `${idea.component} missing from JSX`
+    );
   }
 });
 
@@ -148,7 +151,10 @@ test('touch detection is Node-safe', () => {
   assert.equal(isTouchDevice({ navigatorLike: { maxTouchPoints: 0 } }), false);
   assert.equal(isTouchDevice({ windowLike: { ontouchstart: null } }), true);
   assert.equal(prefersCoarsePointer(), false);
-  assert.equal(prefersCoarsePointer(() => ({ matches: true })), true);
+  assert.equal(
+    prefersCoarsePointer(() => ({ matches: true })),
+    true
+  );
 });
 
 test('swipe math: delta, direction, classification', () => {
@@ -235,9 +241,20 @@ test('fluid type clamp interpolates 14px@320w -> 16px@1280w (50633)', () => {
 
 test('viewport-height class resolves dvh with a vh fallback (50632)', () => {
   assert.equal(viewportHeightClass(), 'rs-vh-fallback'); // Node has no CSS.supports
-  assert.equal(viewportHeightClass(() => true), 'rs-dvh');
-  assert.equal(viewportHeightClass(() => false), 'rs-vh-fallback');
-  assert.equal(viewportHeightClass(() => { throw new Error('x'); }), 'rs-vh-fallback');
+  assert.equal(
+    viewportHeightClass(() => true),
+    'rs-dvh'
+  );
+  assert.equal(
+    viewportHeightClass(() => false),
+    'rs-vh-fallback'
+  );
+  assert.equal(
+    viewportHeightClass(() => {
+      throw new Error('x');
+    }),
+    'rs-vh-fallback'
+  );
   assert.ok(css.includes('.rs-dvh'));
   assert.ok(css.includes('100dvh'));
   assert.ok(css.includes('.rs-vh-fallback'));
@@ -335,17 +352,26 @@ test('layout selectors: tables, hunt, toasts, sticky CTA', () => {
 
 test('foldable mode, bottom tabs, gesture guide', () => {
   assert.equal(foldableMode(), 'single'); // Node has no matchMedia
-  assert.equal(foldableMode(() => ({ matches: true })), 'dual');
-  assert.equal(foldableMode(() => ({ matches: false })), 'single');
+  assert.equal(
+    foldableMode(() => ({ matches: true })),
+    'dual'
+  );
+  assert.equal(
+    foldableMode(() => ({ matches: false })),
+    'single'
+  );
   assert.equal(BOTTOM_TABS.length, 4);
-  assert.deepEqual(BOTTOM_TABS.map((t) => t.label), ['Hunt', 'Findings', 'Chat', 'More']);
+  assert.deepEqual(
+    BOTTOM_TABS.map(t => t.label),
+    ['Hunt', 'Findings', 'Chat', 'More']
+  );
   assert.ok(GESTURE_GUIDE.length >= 5);
-  assert.ok(GESTURE_GUIDE.some((g) => g.gesture === 'swipe-right'));
-  assert.ok(GESTURE_GUIDE.every((g) => g.label && g.icon));
+  assert.ok(GESTURE_GUIDE.some(g => g.gesture === 'swipe-right'));
+  assert.ok(GESTURE_GUIDE.every(g => g.label && g.icon));
 });
 
 test('JSX exports every shipped component and the gallery', () => {
-  for (const idea of WAVE16_IDEAS.filter((i) => i.status === 'shipped')) {
+  for (const idea of WAVE16_IDEAS.filter(i => i.status === 'shipped')) {
     assert.ok(jsx.includes(`export function ${idea.component}`), idea.component);
   }
   assert.ok(jsx.includes('export function ResponsiveSuiteGallery'));
@@ -356,53 +382,108 @@ test('JSX exports every shipped component and the gallery', () => {
 
 test('CSS ships every rs-* building block, keyframes, and guards', () => {
   const classes = [
-    '.rs-demo', '.rs-phone-frame',
-    '.rs-flash', '.rs-flash-running', '.rs-flash-failed',
-    '.rs-avatar-ring', '.rs-ring-fg',
-    '.rs-banner', '.rs-banner-catching-up', '.rs-banner-visible',
-    '.rs-spring-check', '.rs-sort-btn', '.rs-sort-arrow',
-    '.rs-thumb-grid', '.rs-thumb-rise',
-    '.rs-pp-btn', '.rs-pp-icon', '.rs-eq',
-    '.rs-cap', '.rs-budget-bar',
-    '.rs-stepper-compact', '.rs-hunt-col',
-    '.rs-bottom-tabbar', '.rs-tab', '.rs-tab-badge',
-    '.rs-swipe-row', '.rs-swipe-actions', '.rs-swipe-card',
-    '.rs-timeline', '.rs-now-marker',
-    '.rs-fab', '.rs-sheet', '.rs-sheet-overlay', '.rs-sheet-grip',
-    '.rs-widget-col', '.rs-terminal',
-    '.rs-twopane', '.rs-divider',
+    '.rs-demo',
+    '.rs-phone-frame',
+    '.rs-flash',
+    '.rs-flash-running',
+    '.rs-flash-failed',
+    '.rs-avatar-ring',
+    '.rs-ring-fg',
+    '.rs-banner',
+    '.rs-banner-catching-up',
+    '.rs-banner-visible',
+    '.rs-spring-check',
+    '.rs-sort-btn',
+    '.rs-sort-arrow',
+    '.rs-thumb-grid',
+    '.rs-thumb-rise',
+    '.rs-pp-btn',
+    '.rs-pp-icon',
+    '.rs-eq',
+    '.rs-cap',
+    '.rs-budget-bar',
+    '.rs-stepper-compact',
+    '.rs-hunt-col',
+    '.rs-bottom-tabbar',
+    '.rs-tab',
+    '.rs-tab-badge',
+    '.rs-swipe-row',
+    '.rs-swipe-actions',
+    '.rs-swipe-card',
+    '.rs-timeline',
+    '.rs-now-marker',
+    '.rs-fab',
+    '.rs-sheet',
+    '.rs-sheet-overlay',
+    '.rs-sheet-grip',
+    '.rs-widget-col',
+    '.rs-terminal',
+    '.rs-twopane',
+    '.rs-divider',
     '.rs-touch-chip',
-    '.rs-report-card', '.rs-page-dots',
-    '.rs-chat', '.rs-chat-input', '.rs-chat-msg',
-    '.rs-data-table', '.rs-card-list', '.rs-only-mobile', '.rs-only-desktop',
-    '.rs-mheader', '.rs-status-pill', '.rs-overflow-menu',
-    '.rs-pinch', '.rs-pinch-hint',
+    '.rs-report-card',
+    '.rs-page-dots',
+    '.rs-chat',
+    '.rs-chat-input',
+    '.rs-chat-msg',
+    '.rs-data-table',
+    '.rs-card-list',
+    '.rs-only-mobile',
+    '.rs-only-desktop',
+    '.rs-mheader',
+    '.rs-status-pill',
+    '.rs-overflow-menu',
+    '.rs-pinch',
+    '.rs-pinch-hint',
     '.rs-offline-slim',
-    '.rs-tour-pop', '.rs-tour-dots',
+    '.rs-tour-pop',
+    '.rs-tour-dots',
     '.rs-atoast',
-    '.rs-palette', '.rs-palette-item',
+    '.rs-palette',
+    '.rs-palette-item',
     '.rs-landscape-stepper',
-    '.rs-fold', '.rs-fold-dual',
+    '.rs-fold',
+    '.rs-fold-dual',
     '.rs-tiny',
-    '.rs-split', '.rs-split-list',
+    '.rs-split',
+    '.rs-split-list',
     '.rs-fluid',
-    '.rs-code-block', '.rs-code-wrap', '.rs-code-nowrap', '.rs-toggle',
-    '.rs-sticky-cta', '.rs-cta-btn',
+    '.rs-code-block',
+    '.rs-code-wrap',
+    '.rs-code-nowrap',
+    '.rs-toggle',
+    '.rs-sticky-cta',
+    '.rs-cta-btn',
     '.rs-autofit',
-    '.rs-ptr', '.rs-ptr-indicator', '.rs-ptr-spinner',
-    '.rs-log-row', '.rs-log-detail',
-    '.rs-gesture-guide', '.rs-gesture',
-    '.rs-triage-card', '.rs-stamp', '.rs-stamp-review', '.rs-stamp-snooze',
-    '.rs-gallery', '.rs-btn',
+    '.rs-ptr',
+    '.rs-ptr-indicator',
+    '.rs-ptr-spinner',
+    '.rs-log-row',
+    '.rs-log-detail',
+    '.rs-gesture-guide',
+    '.rs-gesture',
+    '.rs-triage-card',
+    '.rs-stamp',
+    '.rs-stamp-review',
+    '.rs-stamp-snooze',
+    '.rs-gallery',
+    '.rs-btn',
     '.rs-reduced-motion',
   ];
   for (const c of classes) assert.ok(css.includes(c), `missing CSS class ${c}`);
 
   const keyframes = [
-    'rs-flash-in', 'rs-banner-slide', 'rs-check-pop', 'rs-thumb-rise',
-    'rs-eq', 'rs-sheet-up', 'rs-spin', 'rs-toast-in',
+    'rs-flash-in',
+    'rs-banner-slide',
+    'rs-check-pop',
+    'rs-thumb-rise',
+    'rs-eq',
+    'rs-sheet-up',
+    'rs-spin',
+    'rs-toast-in',
   ];
-  for (const kf of keyframes) assert.ok(css.includes(`@keyframes ${kf}`), `missing @keyframes ${kf}`);
+  for (const kf of keyframes)
+    assert.ok(css.includes(`@keyframes ${kf}`), `missing @keyframes ${kf}`);
 
   // Media queries, safe areas, dvh, fluid type, motion guards.
   assert.ok(css.includes('@media (max-width: 719px)'));

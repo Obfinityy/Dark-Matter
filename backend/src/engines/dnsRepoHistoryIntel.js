@@ -26,10 +26,22 @@ export const DANGLE_SENSITIVE_TYPES = new Set(['CNAME', 'NS']);
 
 /** Cloud targets whose disappearance usually means the resource may be reclaimable. */
 const CLOUD_TARGET_HINTS = [
-  'cloudfront.net', 'amazonaws.com', 'azurewebsites.net', 'azureedge.net',
-  'herokuapp.com', 'github.io', 'netlify.app', 'vercel.app',
-  's3-website', 'blob.core.windows.net', 'appspot.com', 'fastly.net',
-  'pantheonsite.io', 'wpengine.com', 'squarespace.com', 'shopify.com',
+  'cloudfront.net',
+  'amazonaws.com',
+  'azurewebsites.net',
+  'azureedge.net',
+  'herokuapp.com',
+  'github.io',
+  'netlify.app',
+  'vercel.app',
+  's3-website',
+  'blob.core.windows.net',
+  'appspot.com',
+  'fastly.net',
+  'pantheonsite.io',
+  'wpengine.com',
+  'squarespace.com',
+  'shopify.com',
 ];
 
 /**
@@ -62,7 +74,13 @@ export function buildHostnameTimeline(records) {
     if (!rec) continue;
     let entry = byHost.get(rec.hostname);
     if (!entry) {
-      entry = { hostname: rec.hostname, firstSeen: rec.firstSeen, lastSeen: rec.lastSeen, records: [], types: new Set() };
+      entry = {
+        hostname: rec.hostname,
+        firstSeen: rec.firstSeen,
+        lastSeen: rec.lastSeen,
+        records: [],
+        types: new Set(),
+      };
       byHost.set(rec.hostname, entry);
     }
     entry.firstSeen = Math.min(entry.firstSeen, rec.firstSeen);
@@ -102,13 +120,23 @@ export function findDeletedSubdomains(historical, current = new Set(), opts = {}
       if (DANGLE_SENSITIVE_TYPES.has(rec.type) && rec.value) {
         dangleSignals.push(`${rec.type} -> ${rec.value}`);
         const lv = rec.value.toLowerCase();
-        if (CLOUD_TARGET_HINTS.some((h) => lv.includes(h))) cloudHint = true;
+        if (CLOUD_TARGET_HINTS.some(h => lv.includes(h))) cloudHint = true;
       }
     }
 
     // Score: cloud hint doubles value; more quiet time slightly raises it.
-    const score = Math.min(100, (cloudHint ? 60 : 25) + dangleSignals.length * 8 + Math.min(20, daysQuiet / 30));
-    out.push({ hostname, lastSeen: entry.lastSeen, daysQuiet: Math.round(daysQuiet), dangleSignals, cloudHint, score: Math.round(score) });
+    const score = Math.min(
+      100,
+      (cloudHint ? 60 : 25) + dangleSignals.length * 8 + Math.min(20, daysQuiet / 30)
+    );
+    out.push({
+      hostname,
+      lastSeen: entry.lastSeen,
+      daysQuiet: Math.round(daysQuiet),
+      dangleSignals,
+      cloudHint,
+      score: Math.round(score),
+    });
   }
   return out.sort((a, b) => b.score - a.score);
 }
@@ -123,6 +151,10 @@ export function findDeletedSubdomains(historical, current = new Set(), opts = {}
  */
 export function flagDanglingTakeoverSignals(historical, current = new Set(), opts = {}) {
   return findDeletedSubdomains(historical, current, opts)
-    .filter((d) => d.cloudHint && d.dangleSignals.length > 0)
-    .map((d) => ({ hostname: d.hostname, target: d.dangleSignals[0].split(' -> ')[1] ?? '', score: d.score }));
+    .filter(d => d.cloudHint && d.dangleSignals.length > 0)
+    .map(d => ({
+      hostname: d.hostname,
+      target: d.dangleSignals[0].split(' -> ')[1] ?? '',
+      score: d.score,
+    }));
 }

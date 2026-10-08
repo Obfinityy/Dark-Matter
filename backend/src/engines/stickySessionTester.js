@@ -133,9 +133,7 @@ function setCookieNames(headers) {
   const raw = headers['set-cookie'];
   if (!raw) return [];
   const list = Array.isArray(raw) ? raw : [raw];
-  return list
-    .map((c) => String(c).split(';')[0].split('=')[0].trim())
-    .filter(Boolean);
+  return list.map(c => String(c).split(';')[0].split('=')[0].trim()).filter(Boolean);
 }
 
 /**
@@ -148,7 +146,7 @@ export function analyzeStickySession({ url, status = 0, headers = {}, body = '' 
   const findings = [];
 
   for (const cookie of cookieNames) {
-    const sig = AFFINITY_COOKIES.find((s) => s.pattern.test(cookie));
+    const sig = AFFINITY_COOKIES.find(s => s.pattern.test(cookie));
     if (sig) {
       findings.push({
         detected: true,
@@ -200,11 +198,11 @@ export function analyzeStickySession({ url, status = 0, headers = {}, body = '' 
  * @param {{url, samples: Array<{status, headers}>}} input
  */
 export function detectAffinityBehavior({ url, samples = [] } = {}) {
-  const cookieSeries = samples.map((s) => setCookieNames(normalizeHeaders(s.headers)));
+  const cookieSeries = samples.map(s => setCookieNames(normalizeHeaders(s.headers)));
   const rotated = new Set();
   const flat = cookieSeries.flat();
   for (const name of flat) {
-    const sig = AFFINITY_COOKIES.find((s) => s.pattern.test(name));
+    const sig = AFFINITY_COOKIES.find(s => s.pattern.test(name));
     if (sig) rotated.add(sig.name);
   }
 

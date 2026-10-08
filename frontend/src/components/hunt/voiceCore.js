@@ -1,28 +1,36 @@
-// Infinity AI — Wave 48 (ideas 51896–51920): voice control pure logic.
-// Command parsing, spoken-answer generation, transcript logging, confirmations,
-// shortcuts, error recovery, language detection, push-to-talk config,
-// wake-word config, voice profiles. Pure functions only: no mic, no TTS side
-// effects here — outputs are text payloads the existing Infinity Voice TTS
-// layer speaks (see AGENTS.md Infinity Voice section).
-
+/**
+ * Infinity AI — Wave 48 (ideas 51896–51920): voice control pure logic.
+ * Command parsing, spoken-answer generation, transcript logging, confirmations,
+ * shortcuts, error recovery, language detection, push-to-talk config,
+ * wake-word config, voice profiles. Pure functions only: no mic, no TTS side
+ * effects here — outputs are text payloads the existing Infinity Voice TTS
+ * layer speaks (see AGENTS.md Infinity Voice section).
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE48_VOICE_IDEAS = [
-  51896, 51897, 51898, 51899, 51900, 51901, 51902, 51903, 51904, 51905,
-  51906, 51907, 51908, 51909, 51910, 51911, 51912, 51913, 51914, 51915,
-  51916, 51917, 51918, 51919, 51920,
+  51896, 51897, 51898, 51899, 51900, 51901, 51902, 51903, 51904, 51905, 51906, 51907, 51908, 51909,
+  51910, 51911, 51912, 51913, 51914, 51915, 51916, 51917, 51918, 51919, 51920,
 ];
 
-const clampStr = (v) => (typeof v === 'string' ? v : '');
-const clampArr = (v) => (Array.isArray(v) ? v : []);
+const clampStr = v => (typeof v === 'string' ? v : '');
+const clampArr = v => (Array.isArray(v) ? v : []);
 const clampNum = (v, d = 0) => (Number.isFinite(v) ? v : d);
 
 // ---- 51896: Voice pause/resume — "pause the hunt" / "resume" hands-free ----
 export function parsePauseResume(transcript) {
   const t = clampStr(transcript).toLowerCase().trim();
   if (/^(pause|hold|stop)( the)? ?(hunts?|everything)?$/.test(t)) {
-    return { action: 'pause', scope: t.includes('everything') || t.includes('hunts') ? 'all' : 'current' };
+    return {
+      action: 'pause',
+      scope: t.includes('everything') || t.includes('hunts') ? 'all' : 'current',
+    };
   }
   if (/^(resume|continue|unpause)( the)? ?(hunts?|everything)?$/.test(t)) {
-    return { action: 'resume', scope: t.includes('everything') || t.includes('hunts') ? 'all' : 'current' };
+    return {
+      action: 'resume',
+      scope: t.includes('everything') || t.includes('hunts') ? 'all' : 'current',
+    };
   }
   return { action: 'unknown', heard: t };
 }
@@ -47,9 +55,16 @@ export function parseSteering(transcript) {
 // ---- 51899: Spoken approval decisions — approve/deny with voice verification ----
 export function spokenApproval(transcript, profile) {
   const t = clampStr(transcript).toLowerCase().trim();
-  const decision = /^(approve|yes|allow|go ahead)/.test(t) ? 'approve'
-    : /^(deny|no|reject|block)/.test(t) ? 'deny' : 'unknown';
-  const verified = !!(profile && profile.enrolled && clampStr(profile.speakerId) === clampStr(profile.matchedSpeakerId));
+  const decision = /^(approve|yes|allow|go ahead)/.test(t)
+    ? 'approve'
+    : /^(deny|no|reject|block)/.test(t)
+      ? 'deny'
+      : 'unknown';
+  const verified = !!(
+    profile &&
+    profile.enrolled &&
+    clampStr(profile.speakerId) === clampStr(profile.matchedSpeakerId)
+  );
   return { decision, verified, authorized: decision !== 'unknown' && verified };
 }
 
@@ -61,16 +76,23 @@ export function parseTestCommand(transcript) {
   if (!m) return { ok: false, heard: t };
   const technique = m[2].trim();
   const target = m[4].trim();
-  const matched = TEST_CATALOG.find((c) => technique.replace(/[^a-z]/g, '').includes(c.replace('-', '')));
+  const matched = TEST_CATALOG.find(c =>
+    technique.replace(/[^a-z]/g, '').includes(c.replace('-', ''))
+  );
   return { ok: true, technique, techniqueId: matched || 'custom', target, heard: t };
 }
 
 // ---- 51901: Voice finding briefings — "read me the new criticals" ----
 export function findingBriefing(findings, { severity = 'critical' } = {}) {
-  const list = clampArr(findings).filter((f) =>
-    clampStr(f && f.severity).toLowerCase() === severity.toLowerCase());
+  const list = clampArr(findings).filter(
+    f => clampStr(f && f.severity).toLowerCase() === severity.toLowerCase()
+  );
   if (list.length === 0) return `No ${severity} findings.`;
-  const top = list.slice(0, 3).map((f) => clampStr(f && f.title)).filter(Boolean).join('; ');
+  const top = list
+    .slice(0, 3)
+    .map(f => clampStr(f && f.title))
+    .filter(Boolean)
+    .join('; ');
   return `${list.length} ${severity} finding${list.length === 1 ? '' : 's'}. Top: ${top}.`;
 }
 
@@ -81,8 +103,10 @@ export function parseStrategyChange(transcript) {
   const m = /^(switch to|use|enable) (.+?)( mode| strategy)?$/.exec(t);
   if (!m) return { ok: false, heard: t };
   const want = m[2].trim();
-  const hit = STRATEGIES.find((s) => want.includes(s));
-  return hit ? { ok: true, strategy: hit, heard: t } : { ok: false, heard: t, error: `unknown strategy "${want}"` };
+  const hit = STRATEGIES.find(s => want.includes(s));
+  return hit
+    ? { ok: true, strategy: hit, heard: t }
+    : { ok: false, heard: t, error: `unknown strategy "${want}"` };
 }
 
 // ---- 51903: Voice ETA checks — "how much longer?" ----
@@ -91,8 +115,9 @@ export function etaAnswer(hunt, nowMs = Date.now()) {
   const ms = clampNum(hunt.etaMs) - nowMs;
   if (ms <= 0) return 'The hunt should be finished any moment now.';
   const min = Math.round(ms / 60000);
-  return min < 60 ? `About ${min} minute${min === 1 ? '' : 's'} remaining.` :
-    `About ${Math.round(min / 60)} hour${Math.round(min / 60) === 1 ? '' : 's'} remaining.`;
+  return min < 60
+    ? `About ${min} minute${min === 1 ? '' : 's'} remaining.`
+    : `About ${Math.round(min / 60)} hour${Math.round(min / 60) === 1 ? '' : 's'} remaining.`;
 }
 
 // ---- 51904: Voice language choice — Hindi / English / Hinglish ----
@@ -123,7 +148,7 @@ export function wakeWordConfig(words = ['hey infinity']) {
 
 export function isWakeWord(transcript, config) {
   const t = clampStr(transcript).toLowerCase();
-  return clampArr(config && config.wakeWords).some((w) => t.includes(clampStr(w).toLowerCase()));
+  return clampArr(config && config.wakeWords).some(w => t.includes(clampStr(w).toLowerCase()));
 }
 
 // ---- 51907: Voice command history — every command logged with transcript ----
@@ -142,14 +167,14 @@ export function logVoiceCommand(history, entry) {
 
 export function searchCommandHistory(history, query) {
   const q = clampStr(query).toLowerCase();
-  return clampArr(history).filter((e) => clampStr(e.transcript).toLowerCase().includes(q));
+  return clampArr(history).filter(e => clampStr(e.transcript).toLowerCase().includes(q));
 }
 
 // ---- 51908: Voice confirmation — repeat back risky commands ----
 const RISKY = ['delete', 'merge', 'pause all', 'resume all', 'approve', 'deny', 'stop everything'];
 export function confirmationPrompt(command) {
   const c = clampStr(command).toLowerCase();
-  const risky = RISKY.some((r) => c.includes(r));
+  const risky = RISKY.some(r => c.includes(r));
   if (!risky) return { needsConfirmation: false, text: '' };
   return {
     needsConfirmation: true,
@@ -160,14 +185,16 @@ export function confirmationPrompt(command) {
 // ---- 51909: Voice shortcuts — custom phrases to command sequences ----
 export function resolveVoiceShortcut(phrase, shortcuts) {
   const p = clampStr(phrase).toLowerCase().trim();
-  const hit = clampArr(shortcuts).find((s) => clampStr(s && s.phrase).toLowerCase() === p);
+  const hit = clampArr(shortcuts).find(s => clampStr(s && s.phrase).toLowerCase() === p);
   return hit
     ? { ok: true, phrase: p, commands: clampArr(hit.commands) }
     : { ok: false, phrase: p, error: 'no shortcut registered for that phrase' };
 }
 
 export function registerVoiceShortcut(shortcuts, phrase, commands) {
-  const rows = clampArr(shortcuts).filter((s) => clampStr(s && s.phrase).toLowerCase() !== clampStr(phrase).toLowerCase());
+  const rows = clampArr(shortcuts).filter(
+    s => clampStr(s && s.phrase).toLowerCase() !== clampStr(phrase).toLowerCase()
+  );
   return [...rows, { phrase: clampStr(phrase), commands: clampArr(commands) }];
 }
 
@@ -185,10 +212,10 @@ export function errorRecovery(transcript, candidates) {
   const t = clampStr(transcript).toLowerCase().trim();
   const list = clampArr(candidates).map(clampStr);
   const suggestions = list
-    .map((c) => ({ cmd: c, score: sharedPrefixLen(t, c.toLowerCase()) }))
+    .map(c => ({ cmd: c, score: sharedPrefixLen(t, c.toLowerCase()) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
-    .map((s) => s.cmd);
+    .map(s => s.cmd);
   return {
     heard: t,
     text: t
@@ -206,10 +233,17 @@ function sharedPrefixLen(a, b) {
 // ---- 51912: Voice command help — "what can I say?" ----
 export function voiceHelpList() {
   return [
-    'pause the hunt', 'resume the hunt', 'what are you doing?',
-    'focus on the API', 'read me the new criticals', 'how much longer?',
-    'switch to depth mode', 'take a report snapshot', 'explain that finding simply',
-    'switch to the client X hunt', 'what can I say?',
+    'pause the hunt',
+    'resume the hunt',
+    'what are you doing?',
+    'focus on the API',
+    'read me the new criticals',
+    'how much longer?',
+    'switch to depth mode',
+    'take a report snapshot',
+    'explain that finding simply',
+    'switch to the client X hunt',
+    'what can I say?',
   ];
 }
 export function voiceHelpText() {
@@ -222,9 +256,15 @@ export function parseMultiHuntSwitch(transcript, hunts) {
   const m = /^switch to (the )?(.+?)( hunt)?$/.exec(t);
   if (!m) return { ok: false, heard: t };
   const want = m[2].trim().replace(/^client\s+/, '');
-  const hit = clampArr(hunts).find((h) =>
-    clampStr(h && h.client).toLowerCase().includes(want) ||
-    clampStr(h && h.name).toLowerCase().includes(want));
+  const hit = clampArr(hunts).find(
+    h =>
+      clampStr(h && h.client)
+        .toLowerCase()
+        .includes(want) ||
+      clampStr(h && h.name)
+        .toLowerCase()
+        .includes(want)
+  );
   return hit
     ? { ok: true, huntId: clampStr(hit.id || hit.huntId), heard: t }
     : { ok: false, heard: t, error: `no hunt matches "${want}"` };
@@ -234,7 +274,11 @@ export function parseMultiHuntSwitch(transcript, hunts) {
 export function parseSnapshotRequest(transcript) {
   const t = clampStr(transcript).toLowerCase().trim();
   if (/take (a )?(report )?snapshot/.test(t)) {
-    return { ok: true, snapshot: { ts: Date.now(), kind: t.includes('report') ? 'report' : 'state' }, heard: t };
+    return {
+      ok: true,
+      snapshot: { ts: Date.now(), kind: t.includes('report') ? 'report' : 'state' },
+      heard: t,
+    };
   }
   return { ok: false, heard: t };
 }
@@ -245,9 +289,14 @@ export function parseExplanationRequest(transcript, findings) {
   const m = /^explain (.+?)( simply| in simple terms| like i am five)?$/.exec(t);
   if (!m) return { ok: false, heard: t };
   const want = m[1].replace(/^that |^the /, '').trim();
-  const hit = clampArr(findings).find((f) => clampStr(f && f.title).toLowerCase().includes(want));
+  const hit = clampArr(findings).find(f =>
+    clampStr(f && f.title)
+      .toLowerCase()
+      .includes(want)
+  );
   return {
-    ok: !!hit, heard: t,
+    ok: !!hit,
+    heard: t,
     findingId: hit ? clampStr(hit.id) : null,
     level: m[2] ? 'simple' : 'standard',
   };
@@ -257,14 +306,18 @@ export function parseExplanationRequest(transcript, findings) {
 export function dictateNote(transcript, huntId) {
   const text = clampStr(transcript).trim();
   if (!text) return { ok: false, error: 'empty dictation' };
-  return { ok: true, note: { id: `note-${Date.now()}`, ts: Date.now(), huntId: clampStr(huntId), text } };
+  return {
+    ok: true,
+    note: { id: `note-${Date.now()}`, ts: Date.now(), huntId: clampStr(huntId), text },
+  };
 }
 
 // ---- 51917: Voice chat mode — conversational interaction ----
 export function voiceChatTurn(transcript, context) {
   const t = clampStr(transcript).toLowerCase().trim();
   if (/^(hi|hello|hey)/.test(t)) return { reply: 'Hello. I am listening.', end: false };
-  if (/bye|goodbye|stop listening/.test(t)) return { reply: 'Voice chat off. Say the wake word to resume.', end: true };
+  if (/bye|goodbye|stop listening/.test(t))
+    return { reply: 'Voice chat off. Say the wake word to resume.', end: true };
   const status = statusAnswer(context && context.hunt);
   return { reply: `Heard: "${clampStr(transcript).trim()}". ${status}`, end: false };
 }
@@ -295,7 +348,7 @@ export function duckingPolicy(speaking) {
 export function verifyVoiceProfile(sample, profiles) {
   const list = clampArr(profiles);
   const id = clampStr(sample && sample.speakerId);
-  const hit = list.find((p) => clampStr(p && p.speakerId) === id && p && p.enrolled);
+  const hit = list.find(p => clampStr(p && p.speakerId) === id && p && p.enrolled);
   return {
     recognized: !!hit,
     speakerId: id || null,
@@ -305,6 +358,15 @@ export function verifyVoiceProfile(sample, profiles) {
 }
 
 export function enrollVoiceProfile(profiles, { speakerId, name, allowSensitive = false }) {
-  const list = clampArr(profiles).filter((p) => clampStr(p && p.speakerId) !== clampStr(speakerId));
-  return [...list, { speakerId: clampStr(speakerId), name: clampStr(name), enrolled: true, allowSensitive: !!allowSensitive, enrolledAt: Date.now() }];
+  const list = clampArr(profiles).filter(p => clampStr(p && p.speakerId) !== clampStr(speakerId));
+  return [
+    ...list,
+    {
+      speakerId: clampStr(speakerId),
+      name: clampStr(name),
+      enrolled: true,
+      allowSensitive: !!allowSensitive,
+      enrolledAt: Date.now(),
+    },
+  ];
 }

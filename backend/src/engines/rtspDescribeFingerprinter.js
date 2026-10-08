@@ -80,7 +80,10 @@ export function fingerprintRtspDescribe({ response = '' } = {}) {
     }
   }
 
-  const publicMethods = (headers.public || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+  const publicMethods = (headers.public || '')
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
   const contentBase = headers['content-base'] || '';
 
   const findings = [
@@ -89,7 +92,8 @@ export function fingerprintRtspDescribe({ response = '' } = {}) {
       severity: 'Info',
       confidence,
       evidence: `Server: "${server || '(none)'}"; SDP session: "${sdp.sessionName || '(none)'}"; media: ${sdp.media.join(', ') || 'none'}; Public: ${publicMethods.join(', ') || 'absent'}.`,
-      recommendation: 'Version banners help targeted testing; remove or genericize Server headers on exposed cameras.',
+      recommendation:
+        'Version banners help targeted testing; remove or genericize Server headers on exposed cameras.',
     },
   ];
 
@@ -100,7 +104,8 @@ export function fingerprintRtspDescribe({ response = '' } = {}) {
       confidence: 'high',
       cwe: 'CWE-200',
       evidence: `Content-Base: ${contentBase}; ${sdp.media.length} media section(s) described.`,
-      recommendation: 'Confirm DESCRIBE requires authentication; unauthenticated stream enumeration leaks camera topology.',
+      recommendation:
+        'Confirm DESCRIBE requires authentication; unauthenticated stream enumeration leaks camera topology.',
     });
   }
 
@@ -111,7 +116,8 @@ export function fingerprintRtspDescribe({ response = '' } = {}) {
       severity: 'Info',
       confidence: 'high',
       evidence: `401 with ${auth ? `"${auth.slice(0, 60)}…"` : 'no challenge details'}.`,
-      recommendation: 'Good — verify the challenge uses digest auth and that default camera credentials are changed.',
+      recommendation:
+        'Good — verify the challenge uses digest auth and that default camera credentials are changed.',
     });
   }
 
@@ -121,7 +127,8 @@ export function fingerprintRtspDescribe({ response = '' } = {}) {
       severity: 'Low',
       confidence: 'medium',
       evidence: `Public: "${headers.public || '(absent)'}".`,
-      recommendation: 'Confirm the method inventory matches the documented API; hidden methods may still be accepted.',
+      recommendation:
+        'Confirm the method inventory matches the documented API; hidden methods may still be accepted.',
     });
   }
 

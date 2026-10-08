@@ -1,3 +1,10 @@
+/**
+ * AgentMemory — persistent agent memory.
+ * Stores and retrieves facts, preferences, and episodic
+ * memory across conversations.
+ * Part of: Infinity AI / Dark-Matter backend (agent memory subsystems).
+ */
+
 import { MEMORY_TYPES } from '../../models/agentMemoryModel.js';
 import { estimateTokens } from '../../services/longContext/tokens.js';
 
@@ -20,15 +27,92 @@ import { estimateTokens } from '../../services/longContext/tokens.js';
  */
 
 const STOPWORDS = new Set([
-  'the', 'a', 'an', 'and', 'or', 'but', 'if', 'then', 'else', 'for', 'of', 'to', 'in', 'on',
-  'at', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'it', 'its', 'this', 'that',
-  'these', 'those', 'with', 'without', 'from', 'as', 'into', 'about', 'over', 'under', 'can',
-  'could', 'should', 'would', 'will', 'shall', 'do', 'does', 'did', 'have', 'has', 'had', 'i',
-  'you', 'he', 'she', 'we', 'they', 'me', 'my', 'your', 'our', 'their', 'what', 'which', 'who',
-  'whom', 'when', 'where', 'why', 'how', 'kya', 'hai', 'hain', 'ho', 'kar', 'ke', 'ka', 'ki',
-  'ko', 'mein', 'se', 'par', 'aur', 'ya', 'bhi'
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'but',
+  'if',
+  'then',
+  'else',
+  'for',
+  'of',
+  'to',
+  'in',
+  'on',
+  'at',
+  'by',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'been',
+  'being',
+  'it',
+  'its',
+  'this',
+  'that',
+  'these',
+  'those',
+  'with',
+  'without',
+  'from',
+  'as',
+  'into',
+  'about',
+  'over',
+  'under',
+  'can',
+  'could',
+  'should',
+  'would',
+  'will',
+  'shall',
+  'do',
+  'does',
+  'did',
+  'have',
+  'has',
+  'had',
+  'i',
+  'you',
+  'he',
+  'she',
+  'we',
+  'they',
+  'me',
+  'my',
+  'your',
+  'our',
+  'their',
+  'what',
+  'which',
+  'who',
+  'whom',
+  'when',
+  'where',
+  'why',
+  'how',
+  'kya',
+  'hai',
+  'hain',
+  'ho',
+  'kar',
+  'ke',
+  'ka',
+  'ki',
+  'ko',
+  'mein',
+  'se',
+  'par',
+  'aur',
+  'ya',
+  'bhi',
 ]);
 
+/** Agent Memory. */
 export class AgentMemory {
   constructor({ memoryModel, contextBudgetManager = null, logger = console } = {}) {
     this.memoryModel = memoryModel;
@@ -41,36 +125,147 @@ export class AgentMemory {
     return this.memoryModel.remember(entry);
   }
 
-  async rememberEpisodic({ userId, assessmentId, jobId, content, refs, importance = 0.4, key = null }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'episodic', content, refs, importance, key });
-  }
-
-  async rememberSemantic({ userId, assessmentId, jobId, content, key, structured, importance = 0.6 }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'semantic', content, key, structured, importance });
-  }
-
-  async rememberTarget({ userId, assessmentId, jobId, content, key, structured, importance = 0.7 }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'target', content, key, structured, importance });
-  }
-
-  async rememberTool({ userId, assessmentId, jobId, content, key, refs, structured, importance = 0.6 }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'tool', content, key, refs, structured, importance });
-  }
-
-  async rememberFinding({ userId, assessmentId, jobId, content, key, refs, structured, importance = 0.9 }) {
-    return this.remember({ userId, assessmentId, jobId, type: 'finding', content, key, refs, structured, importance });
-  }
-
-  async rememberConversation({ userId, assessmentId, jobId, conversationId, content, key = null, importance = 0.5 }) {
+  async rememberEpisodic({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    refs,
+    importance = 0.4,
+    key = null,
+  }) {
     return this.remember({
-      userId, assessmentId, jobId, conversationId, type: 'conversation', content, key, importance
+      userId,
+      assessmentId,
+      jobId,
+      type: 'episodic',
+      content,
+      refs,
+      importance,
+      key,
+    });
+  }
+
+  async rememberSemantic({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    structured,
+    importance = 0.6,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'semantic',
+      content,
+      key,
+      structured,
+      importance,
+    });
+  }
+
+  async rememberTarget({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    structured,
+    importance = 0.7,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'target',
+      content,
+      key,
+      structured,
+      importance,
+    });
+  }
+
+  async rememberTool({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    refs,
+    structured,
+    importance = 0.6,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'tool',
+      content,
+      key,
+      refs,
+      structured,
+      importance,
+    });
+  }
+
+  async rememberFinding({
+    userId,
+    assessmentId,
+    jobId,
+    content,
+    key,
+    refs,
+    structured,
+    importance = 0.9,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      type: 'finding',
+      content,
+      key,
+      refs,
+      structured,
+      importance,
+    });
+  }
+
+  async rememberConversation({
+    userId,
+    assessmentId,
+    jobId,
+    conversationId,
+    content,
+    key = null,
+    importance = 0.5,
+  }) {
+    return this.remember({
+      userId,
+      assessmentId,
+      jobId,
+      conversationId,
+      type: 'conversation',
+      content,
+      key,
+      importance,
     });
   }
 
   /** Task memory is a snapshot, not an append log: the plan is upserted. */
   async rememberTask({ userId, assessmentId, jobId, content, structured }) {
     return this.remember({
-      userId, assessmentId, jobId, type: 'task', key: 'current-plan', content, structured, importance: 0.95
+      userId,
+      assessmentId,
+      jobId,
+      type: 'task',
+      key: 'current-plan',
+      content,
+      structured,
+      importance: 0.95,
     });
   }
 
@@ -81,7 +276,7 @@ export class AgentMemory {
       .toLowerCase()
       .replace(/[^a-z0-9_\-./:\s]/g, ' ')
       .split(/\s+/)
-      .filter((word) => word.length > 2 && !STOPWORDS.has(word));
+      .filter(word => word.length > 2 && !STOPWORDS.has(word));
     return [...new Set(words)].slice(0, maxTerms);
   }
 
@@ -92,13 +287,13 @@ export class AgentMemory {
   async recall({ assessmentId, query = '', types = null, limit = 12, userId = null } = {}) {
     const rows = await this.memoryModel.listAll(assessmentId, { types, limit: 4000 });
     if (rows.length === 0) return [];
-    if (userId) rows.filter((row) => row.userId === userId);
+    if (userId) rows.filter(row => row.userId === userId);
 
     const keywords = this.extractKeywords(query);
     const queryLower = String(query || '').toLowerCase();
     const nowMs = Date.now();
 
-    const scored = rows.map((row) => {
+    const scored = rows.map(row => {
       const haystack = `${row.key || ''} ${row.content}`.toLowerCase();
       let score = 0;
 
@@ -108,17 +303,20 @@ export class AgentMemory {
       }
       score += (row.importance || 0.5) * 5;
 
-      const ageHours = Math.max(0, (nowMs - new Date(row.updatedAt || row.createdAt).getTime()) / 3_600_000);
+      const ageHours = Math.max(
+        0,
+        (nowMs - new Date(row.updatedAt || row.createdAt).getTime()) / 3_600_000
+      );
       score += Math.max(0, 3 - ageHours / 24); // gentle recency boost, not dominance
 
       return { row, score };
     });
 
     return scored
-      .filter((entry) => entry.score > 0)
+      .filter(entry => entry.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
-      .map((entry) => ({ ...entry.row, score: Number(entry.score.toFixed(3)) }));
+      .map(entry => ({ ...entry.row, score: Number(entry.score.toFixed(3)) }));
   }
 
   /**
@@ -135,39 +333,49 @@ export class AgentMemory {
       this.recall({ assessmentId, userId, query, types: ['target', 'semantic'], limit: 12 }),
       this.recall({ assessmentId, userId, query, types: ['tool'], limit: 8 }),
       this.memoryModel.listByType(assessmentId, 'episodic', 200),
-      this.memoryModel.listByType(assessmentId, 'conversation', 60)
+      this.memoryModel.listByType(assessmentId, 'conversation', 60),
     ]);
 
     const sections = [];
-    if (task.length) sections.push({ label: 'TASK MEMORY (what remains)', content: task[task.length - 1].content });
+    if (task.length)
+      sections.push({
+        label: 'TASK MEMORY (what remains)',
+        content: task[task.length - 1].content,
+      });
     if (findings.length) {
       sections.push({
         label: 'FINDING MEMORY',
-        content: findings.map((f) => `- ${f.content}`).join('\n')
+        content: findings.map(f => `- ${f.content}`).join('\n'),
       });
     }
     if (target.length) {
       sections.push({
         label: 'TARGET / SEMANTIC MEMORY',
-        content: target.map((t) => `- ${t.content}`).join('\n')
+        content: target.map(t => `- ${t.content}`).join('\n'),
       });
     }
     if (tool.length) {
       sections.push({
         label: 'RELEVANT TOOL MEMORY',
-        content: tool.map((t) => `- ${t.content}`).join('\n')
+        content: tool.map(t => `- ${t.content}`).join('\n'),
       });
     }
     if (episodic.length) {
       sections.push({
         label: 'RECENT EPISODIC MEMORY',
-        content: episodic.slice(-12).map((e) => `- ${e.content}`).join('\n')
+        content: episodic
+          .slice(-12)
+          .map(e => `- ${e.content}`)
+          .join('\n'),
       });
     }
     if (conversation.length) {
       sections.push({
         label: 'CONVERSATION MEMORY',
-        content: conversation.slice(-8).map((c) => `- ${c.content}`).join('\n')
+        content: conversation
+          .slice(-8)
+          .map(c => `- ${c.content}`)
+          .join('\n'),
       });
     }
 
@@ -177,7 +385,7 @@ export class AgentMemory {
         included: [],
         dropped: [],
         tokens: 0,
-        unknown: true
+        unknown: true,
       };
     }
 
@@ -199,7 +407,13 @@ export class AgentMemory {
       ? `MEMORY (retrieved from MongoDB — this is the ONLY historical knowledge you have; anything not here is UNKNOWN):\n\n${included.join('\n\n')}`
       : 'MEMORY: (nothing relevant retrieved — treat historical specifics as UNKNOWN)';
 
-    return { text, included: included.length, dropped, tokens: used, unknown: included.length === 0 };
+    return {
+      text,
+      included: included.length,
+      dropped,
+      tokens: used,
+      unknown: included.length === 0,
+    };
   }
 
   async countByType(assessmentId) {

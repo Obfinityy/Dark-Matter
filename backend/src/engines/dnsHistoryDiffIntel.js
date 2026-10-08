@@ -58,8 +58,8 @@ export function diffSnapshots(before, after) {
       added.push(host);
       continue;
     }
-    const addedValues = [...aEntry.values].filter((v) => !bEntry.values.has(v));
-    const removedValues = [...bEntry.values].filter((v) => !aEntry.values.has(v));
+    const addedValues = [...aEntry.values].filter(v => !bEntry.values.has(v));
+    const removedValues = [...bEntry.values].filter(v => !aEntry.values.has(v));
     if (addedValues.length || removedValues.length) {
       changed.push({ hostname: host, addedValues, removedValues });
     }

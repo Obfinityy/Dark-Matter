@@ -17,14 +17,17 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  const s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  const s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   if (/^(mailto|tel):/i.test(s)) return null;
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`;
   try {
     const u = new URL(withScheme);
     const h = u.hostname.toLowerCase();
     if (!h || h === 'localhost') return null;
-    if (/\.?pypi\.org$/.test(h) || /\.?python\.org$/.test(h) || /\.?pythonhosted\.org$/.test(h)) return null;
+    if (/\.?pypi\.org$/.test(h) || /\.?python\.org$/.test(h) || /\.?pythonhosted\.org$/.test(h))
+      return null;
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(h)) return null;
     return h;
   } catch {

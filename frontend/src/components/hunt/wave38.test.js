@@ -10,51 +10,72 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  WAVE38_TL_IDEAS, WAVE38_TL_START, WAVE38_TL_END,
+  WAVE38_TL_IDEAS,
+  WAVE38_TL_START,
+  WAVE38_TL_END,
   WAVE38_IDEAS,
-  streamEvent, stepRendererState,
-  killSwitchRequest, applyKill,
+  streamEvent,
+  stepRendererState,
+  killSwitchRequest,
+  applyKill,
   followUpRequest,
   promoteTestToFinding,
   labelTest,
-  newCommentThread, addComment, resolveComment,
-  requestApiPayload, validateApiPayload,
+  newCommentThread,
+  addComment,
+  resolveComment,
+  requestApiPayload,
+  validateApiPayload,
   quotaStatus,
-  TECHNIQUE_INFO, techniqueInfo,
+  TECHNIQUE_INFO,
+  techniqueInfo,
   riskBadge,
   rollbackPlan,
   exportTestEvidence,
   replayTest,
   diffTestResults,
-  newChatThread, addChatMessage,
+  newChatThread,
+  addChatMessage,
   autoDocEntries,
-  recordTestOutcome, successMetrics,
-  addIdea, claimIdea,
+  recordTestOutcome,
+  successMetrics,
+  addIdea,
+  claimIdea,
   queueReorder,
-  ENVIRONMENTS, environmentDescriptor,
+  ENVIRONMENTS,
+  environmentDescriptor,
   credentialDescriptor,
   recordSession,
   shareTestLink,
-  recordFeedback, feedbackSummary,
-  TEMPLATE_GALLERY, installTemplate,
+  recordFeedback,
+  feedbackSummary,
+  TEMPLATE_GALLERY,
+  installTemplate,
   dependencyGraph,
   predictOutcome,
-  archiveTest, restoreTest,
+  archiveTest,
+  restoreTest,
 } from './testLifecycleCore.js';
 
 import {
-  WAVE38_LF_IDEAS, WAVE38_LF_START, WAVE38_LF_END,
-  SEVERITY_COLORS, SEVERITIES,
+  WAVE38_LF_IDEAS,
+  WAVE38_LF_START,
+  WAVE38_LF_END,
+  SEVERITY_COLORS,
+  SEVERITIES,
   SOUND_CUES,
   insertFinding,
-  pushToast, dismissToast,
+  pushToast,
+  dismissToast,
   soundCueFor,
   tickerSlice,
   liveCardPayload,
-  openDrawer, closeDrawer,
+  openDrawer,
+  closeDrawer,
   mergeSeverity,
   sparklinePoints,
-  acknowledgeSpotlight, isSpotlit,
+  acknowledgeSpotlight,
+  isSpotlit,
   matchFilters,
   searchFeed,
   groupFindings,
@@ -91,7 +112,7 @@ test('combined wave-38 registry is exactly 40/40 ideas, 51481–51520', () => {
   assert.equal(WAVE38_IDEAS.length, 40);
   assert.deepEqual(
     WAVE38_IDEAS.map(([n]) => n),
-    Array.from({ length: 40 }, (_, i) => 51481 + i),
+    Array.from({ length: 40 }, (_, i) => 51481 + i)
   );
 });
 
@@ -101,7 +122,10 @@ test('51481 streamEvent + stepRendererState track live execution steps', () => {
   assert.equal(e.progress, 0.5);
   assert.equal(e.done, false);
   const st = stepRendererState(['a', 'b', 'c'], 1);
-  assert.deepEqual(st.map((s) => s.state), ['done', 'active', 'pending']);
+  assert.deepEqual(
+    st.map(s => s.state),
+    ['done', 'active', 'pending']
+  );
 });
 
 test('51482 kill switch requests and applies a kill', () => {
@@ -239,12 +263,21 @@ test('51498 idea inbox adds + claims ideas', () => {
 test('51499 queueReorder moves items without mutating', () => {
   const q = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
   const r = queueReorder(q, 0, 2);
-  assert.deepEqual(r.map((t) => t.id), ['b', 'c', 'a']);
-  assert.deepEqual(q.map((t) => t.id), ['a', 'b', 'c']);
+  assert.deepEqual(
+    r.map(t => t.id),
+    ['b', 'c', 'a']
+  );
+  assert.deepEqual(
+    q.map(t => t.id),
+    ['a', 'b', 'c']
+  );
 });
 
 test('51500 environment selector describes prod/staging/mirror', () => {
-  assert.deepEqual(ENVIRONMENTS.map((e) => e.id), ['production', 'staging', 'mirror']);
+  assert.deepEqual(
+    ENVIRONMENTS.map(e => e.id),
+    ['production', 'staging', 'mirror']
+  );
   const prod = environmentDescriptor('production');
   assert.ok(prod.warning.toLowerCase().includes('live'));
   assert.equal(environmentDescriptor('bogus'), null);
@@ -320,16 +353,49 @@ test('51508 archiveTest / restoreTest move requests between lists', () => {
 
 // --- live findings feed logic --------------------------------------------------
 const FINDINGS = [
-  { id: 'F-1', title: 'SQL injection in login', type: 'sql-injection', severity: 'critical', confidence: 87, asset: '/api/login', technique: 'sqli', evidence: ['row leak', 'error text'], seq: 3 },
-  { id: 'F-2', title: 'Reflected XSS in profile', type: 'xss', severity: 'high', confidence: 72, asset: '/profile', technique: 'xss', evidence: ['script bounce'], seq: 2 },
-  { id: 'F-3', title: 'Missing security headers', type: 'headers', severity: 'low', confidence: 91, asset: '/', technique: 'headers', evidence: [], seq: 1 },
+  {
+    id: 'F-1',
+    title: 'SQL injection in login',
+    type: 'sql-injection',
+    severity: 'critical',
+    confidence: 87,
+    asset: '/api/login',
+    technique: 'sqli',
+    evidence: ['row leak', 'error text'],
+    seq: 3,
+  },
+  {
+    id: 'F-2',
+    title: 'Reflected XSS in profile',
+    type: 'xss',
+    severity: 'high',
+    confidence: 72,
+    asset: '/profile',
+    technique: 'xss',
+    evidence: ['script bounce'],
+    seq: 2,
+  },
+  {
+    id: 'F-3',
+    title: 'Missing security headers',
+    type: 'headers',
+    severity: 'low',
+    confidence: 91,
+    asset: '/',
+    technique: 'headers',
+    evidence: [],
+    seq: 1,
+  },
 ];
 
 test('51509 insertFinding orders newest-first and dedupes by id', () => {
   let feed = [];
   feed = insertFinding(feed, FINDINGS[2]);
   feed = insertFinding(feed, FINDINGS[0]);
-  assert.deepEqual(feed.map((f) => f.id), ['F-1', 'F-3']);
+  assert.deepEqual(
+    feed.map(f => f.id),
+    ['F-1', 'F-3']
+  );
   feed = insertFinding(feed, { ...FINDINGS[0], confidence: 95 });
   assert.equal(feed.length, 2);
   assert.equal(feed[0].confidence, 95);
@@ -394,8 +460,19 @@ test('51518 matchFilters matches severity/confidence/asset/technique', () => {
   const f = { severities: ['critical'], minConfidence: 80, asset: '', technique: '' };
   assert.equal(matchFilters(FINDINGS[0], f), true);
   assert.equal(matchFilters(FINDINGS[1], f), false);
-  assert.equal(matchFilters(FINDINGS[0], { severities: [], minConfidence: 95, asset: '', technique: '' }), false);
-  assert.equal(matchFilters(FINDINGS[0], { severities: [], minConfidence: 0, asset: '/api/login', technique: 'sqli' }), true);
+  assert.equal(
+    matchFilters(FINDINGS[0], { severities: [], minConfidence: 95, asset: '', technique: '' }),
+    false
+  );
+  assert.equal(
+    matchFilters(FINDINGS[0], {
+      severities: [],
+      minConfidence: 0,
+      asset: '/api/login',
+      technique: 'sqli',
+    }),
+    true
+  );
 });
 
 test('51519 searchFeed full-text searches across fields', () => {
@@ -407,7 +484,7 @@ test('51519 searchFeed full-text searches across fields', () => {
 
 test('51520 groupFindings clusters by asset + type', () => {
   const groups = groupFindings([...FINDINGS, { ...FINDINGS[0], id: 'F-4', seq: 4 }]);
-  const login = groups.find((g) => g.key === '/api/login::sql-injection');
+  const login = groups.find(g => g.key === '/api/login::sql-injection');
   assert.equal(login.count, 2);
   assert.equal(login.collapsed, false);
   assert.ok(groups[0].count >= groups[groups.length - 1].count);
@@ -422,7 +499,13 @@ test('Wave38.css carries zero keyframes per the zero-animation order', async () 
 
 test('all five wave-38 source files have no TODO/FIXME/mock/demo/simulate/placeholder debris', async () => {
   const { readFile } = await import('node:fs/promises');
-  const files = ['./testLifecycleCore.js', './liveFindingsCore.js', './TestLifecycleRound2.jsx', './LiveFindingsFeed.jsx', './Wave38.css'];
+  const files = [
+    './testLifecycleCore.js',
+    './liveFindingsCore.js',
+    './TestLifecycleRound2.jsx',
+    './LiveFindingsFeed.jsx',
+    './Wave38.css',
+  ];
   for (const f of files) {
     const src = await readFile(new URL(f, import.meta.url), 'utf8');
     assert.ok(!/\bTODO\b|\bFIXME\b/i.test(src), `no TODO/FIXME in ${f}`);
@@ -437,14 +520,23 @@ test('TestLifecycleRound2.jsx parses clean via esbuild', async () => {
   const { execFileSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const jsxPath = fileURLToPath(new URL('./TestLifecycleRound2.jsx', import.meta.url));
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
-  assert.ok(out.includes('TestLifecycleRound2Gallery'), 'esbuild parsed the lifecycle gallery export');
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+  assert.ok(
+    out.includes('TestLifecycleRound2Gallery'),
+    'esbuild parsed the lifecycle gallery export'
+  );
 });
 
 test('LiveFindingsFeed.jsx parses clean via esbuild', async () => {
   const { execFileSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const jsxPath = fileURLToPath(new URL('./LiveFindingsFeed.jsx', import.meta.url));
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('LiveFindingsFeedGallery'), 'esbuild parsed the feed gallery export');
 });

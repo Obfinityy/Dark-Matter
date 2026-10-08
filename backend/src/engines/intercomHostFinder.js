@@ -22,7 +22,8 @@ const INTERCOM_ENDPOINTS = [
   'intercom.help',
 ];
 
-const INTERCOM_CNAME_RE = /(^|\.)(intercom\.io|intercom\.help|custom\.intercom\.help|intercomcdn\.com)$/i;
+const INTERCOM_CNAME_RE =
+  /(^|\.)(intercom\.io|intercom\.help|custom\.intercom\.help|intercomcdn\.com)$/i;
 
 /**
  * Detect Intercom widget usage in page HTML/JS.
@@ -50,7 +51,12 @@ export function detectIntercomSnippet(html = '') {
   else if (/intercomSettings/i.test(text)) snippetType = 'settings-object';
   else if (endpoints.size) snippetType = 'endpoint-reference';
 
-  return { detected: Boolean(snippetType), appIds: [...appIds], endpoints: [...endpoints], snippetType };
+  return {
+    detected: Boolean(snippetType),
+    appIds: [...appIds],
+    endpoints: [...endpoints],
+    snippetType,
+  };
 }
 
 /**
@@ -77,7 +83,8 @@ export function findIntercomCnames(cnameRecords = []) {
  */
 export function extractIntercomHosts(text = '') {
   const hosts = new Set();
-  const re = /\b([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:intercom\.io|intercom\.help|intercomcdn\.com))\b/gi;
+  const re =
+    /\b([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:intercom\.io|intercom\.help|intercomcdn\.com))\b/gi;
   let m;
   while ((m = re.exec(String(text))) !== null) hosts.add(m[1].toLowerCase());
   return [...hosts];
@@ -91,6 +98,6 @@ export function extractIntercomHosts(text = '') {
 export function discoverIntercomFootprint({ htmlPages = [], cnames = [] } = {}) {
   const pages = (htmlPages || []).map(detectIntercomSnippet);
   const cnameHits = findIntercomCnames(cnames);
-  const appIds = [...new Set(pages.flatMap((p) => p.appIds))];
+  const appIds = [...new Set(pages.flatMap(p => p.appIds))];
   return { pages, cnameHits, appIds };
 }

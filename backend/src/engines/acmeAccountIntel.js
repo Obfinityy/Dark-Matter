@@ -62,7 +62,11 @@ export function groupIssuancesByAccount(certs = []) {
     }
   }
   return [...groups.values()]
-    .map((g) => ({ ...g, caHost: hostOf(g.accountUri), accountId: g.accountUri.split('/').filter(Boolean).pop() }))
+    .map(g => ({
+      ...g,
+      caHost: hostOf(g.accountUri),
+      accountId: g.accountUri.split('/').filter(Boolean).pop(),
+    }))
     .sort((a, b) => b.certificateCount - a.certificateCount);
 }
 

@@ -38,16 +38,28 @@ export function PostureScore({ jobId }) {
     }
     setLoading(true);
     getJobPosture(jobId)
-      .then((body) => { if (!cancelled && body?.posture) setPosture(body.posture); })
-      .catch(() => { /* 404/empty — panel simply hides */ })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .then(body => {
+        if (!cancelled && body?.posture) setPosture(body.posture);
+      })
+      .catch(() => {
+        /* 404/empty — panel simply hides */
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [jobId]);
 
   if (!posture) {
     if (!loading) return null;
     return (
-      <div className="sg-posture sg-posture-loading" aria-busy="true" aria-label="Loading security posture">
+      <div
+        className="sg-posture sg-posture-loading"
+        aria-busy="true"
+        aria-label="Loading security posture"
+      >
         <span className="sg-posture-skel-ring" aria-hidden="true" />
         <span className="sg-posture-meta" aria-hidden="true">
           <span className="sg-posture-skel-line" />
@@ -74,13 +86,17 @@ export function PostureScore({ jobId }) {
           <circle className="sg-posture-track" cx="32" cy="32" r="27" />
           <circle
             className="sg-posture-arc"
-            cx="32" cy="32" r="27"
+            cx="32"
+            cy="32"
+            r="27"
             strokeDasharray={RING_C}
             strokeDashoffset={RING_C * (1 - Math.min(100, Math.max(0, posture.score || 0)) / 100)}
             style={{ stroke: color }}
           />
         </svg>
-        <span className="sg-posture-score" style={{ color }}>{posture.score}</span>
+        <span className="sg-posture-score" style={{ color }}>
+          {posture.score}
+        </span>
         <span className="sg-posture-grade" style={{ background: color }} aria-hidden="true">
           {posture.grade}
         </span>

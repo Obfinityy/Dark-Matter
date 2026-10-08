@@ -9,6 +9,10 @@ data/
 # Dependencies
 node_modules/
 
+# Logs
+*.log
+npm-debug.log*
+
 # Local env files (never commit real values; .env.example is the template)
 .env
 .env.local

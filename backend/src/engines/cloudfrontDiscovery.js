@@ -25,7 +25,9 @@ export const CLOUDFRONT_ID_RE = /^d[a-z0-9]{12,14}$/i;
  * @returns {string|null} the distribution ID, or null if not a distribution host
  */
 export function distributionIdFromHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (h === CLOUDFRONT_SUFFIX || !h.endsWith(`.${CLOUDFRONT_SUFFIX}`)) return null;
   const id = h.slice(0, -(CLOUDFRONT_SUFFIX.length + 1));
   return CLOUDFRONT_ID_RE.test(id) ? id : null;
@@ -41,16 +43,19 @@ export function isCloudFrontHost(hostname) {
 }
 
 /** Suffixes that identify likely S3 origins behind a CloudFront distribution. */
-const S3_ORIGIN_SUFFIXES = [
-  '.s3.amazonaws.com',
-  '.s3-website-', '.s3-website.',
-  '.s3.',
-];
+const S3_ORIGIN_SUFFIXES = ['.s3.amazonaws.com', '.s3-website-', '.s3-website.', '.s3.'];
 /** Suffixes that identify other common origin infrastructure. */
 const KNOWN_ORIGIN_SUFFIXES = [
-  '.amazonaws.com', '.elasticbeanstalk.com', '.elb.amazonaws.com',
-  '.herokuapp.com', '.onrender.com', '.up.railway.app', '.fly.dev',
-  '.ondigitalocean.app', '.azureedge.net', '.blob.core.windows.net',
+  '.amazonaws.com',
+  '.elasticbeanstalk.com',
+  '.elb.amazonaws.com',
+  '.herokuapp.com',
+  '.onrender.com',
+  '.up.railway.app',
+  '.fly.dev',
+  '.ondigitalocean.app',
+  '.azureedge.net',
+  '.blob.core.windows.net',
   '.storage.googleapis.com',
 ];
 
@@ -62,9 +67,13 @@ const KNOWN_ORIGIN_SUFFIXES = [
  */
 export function classifyOriginHint(host) {
   const h = String(host || '').toLowerCase();
-  if (S3_ORIGIN_SUFFIXES.some((s) => h.includes(s))) return 's3';
-  if (h.includes('.elasticbeanstalk.com') || h.includes('.elb.amazonaws.com') ||
-      h.includes('.amazonaws.com')) return 'aws';
+  if (S3_ORIGIN_SUFFIXES.some(s => h.includes(s))) return 's3';
+  if (
+    h.includes('.elasticbeanstalk.com') ||
+    h.includes('.elb.amazonaws.com') ||
+    h.includes('.amazonaws.com')
+  )
+    return 'aws';
   if (h.includes('.herokuapp.com')) return 'heroku';
   if (h.includes('.onrender.com')) return 'render';
   if (h.includes('.up.railway.app')) return 'railway';
@@ -89,7 +98,9 @@ export function parseCloudFrontDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target) continue;
     const id = distributionIdFromHost(target);
     if (id) {
@@ -115,7 +126,9 @@ export function parseCloudFrontCertHints(sans = []) {
   const distributionIds = new Set();
   const customerDomains = new Set();
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     if (!san) continue;
     const id = distributionIdFromHost(san);
     if (id) {
@@ -148,16 +161,21 @@ export function parseCloudFrontCertHints(sans = []) {
  * }}
  */
 export function mapDistributionToOrigins(distributionHost, evidence = {}) {
-  const host = String(distributionHost || '').toLowerCase().replace(/\.$/, '');
+  const host = String(distributionHost || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const id = distributionIdFromHost(host);
   const customerDomains = new Set();
   const origins = new Map(); // host -> kind
 
-  const noteHost = (raw) => {
-    const h = String(raw || '').toLowerCase().replace(/^\*\./, '').replace(/\.$/, '');
+  const noteHost = raw => {
+    const h = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '')
+      .replace(/\.$/, '');
     if (!h || h === host || isCloudFrontHost(h)) return;
     if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(h)) return;
-    if (KNOWN_ORIGIN_SUFFIXES.some((s) => h.includes(s))) {
+    if (KNOWN_ORIGIN_SUFFIXES.some(s => h.includes(s))) {
       origins.set(h, classifyOriginHint(h));
     } else {
       customerDomains.add(h);
@@ -168,7 +186,9 @@ export function mapDistributionToOrigins(distributionHost, evidence = {}) {
   for (const s of evidence.certSans || []) noteHost(s);
   for (const hint of evidence.headerHints || []) {
     // Header hints may be full header lines; pull hostname-looking tokens.
-    for (const m of String(hint).matchAll(/\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/gi)) {
+    for (const m of String(hint).matchAll(
+      /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/gi
+    )) {
       noteHost(m[0]);
     }
   }

@@ -1,3 +1,9 @@
+/**
+ * HuntTerminal — interactive terminal UI for live hunt interaction.
+ * Streams job activity over SSE, renders event lines, and lets the user
+ * send steering commands to the running hunt.
+ * Part of: Infinity AI / Dark-Matter frontend (pages).
+ */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TerminalSquare, ArrowDown, Send } from 'lucide-react';
 import { getJobActivity, subscribeToJobEvents, askJob } from '../../services/api';
@@ -15,7 +21,8 @@ function lineText(ev) {
 /** Classify an event for the terminal filter. */
 function lineKind(ev) {
   const t = String(ev?.__sseType || ev?.type || '');
-  if (/^finding\.|^observation\.|phase_changed|completed|failed|cancelled|error/i.test(t)) return 'key';
+  if (/^finding\.|^observation\.|phase_changed|completed|failed|cancelled|error/i.test(t))
+    return 'key';
   return 'info';
 }
 
@@ -36,37 +43,43 @@ export function HuntTerminal({ jobId }) {
   const bodyRef = useRef(null);
   const followRef = useRef(true);
   const [reducedMotion] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    () =>
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
 
   const push = useCallback((incoming, kindOverride) => {
     const items = Array.isArray(incoming) ? incoming : [incoming];
-    const wrapped = items.map((it) =>
+    const wrapped = items.map(it =>
       typeof it === 'string'
         ? { text: it, kind: kindOverride || 'info' }
         : { text: lineText(it), kind: kindOverride || lineKind(it) }
     );
-    setLines((prev) => [...prev, ...wrapped].slice(-400));
+    setLines(prev => [...prev, ...wrapped].slice(-400));
     // Lines that stream in while the user is scrolled up are counted so
     // the "Latest" button can say how much was missed.
-    if (!followRef.current) setUnseen((n) => n + wrapped.length);
+    if (!followRef.current) setUnseen(n => n + wrapped.length);
   }, []);
 
   useEffect(() => {
     if (!jobId) return;
     let cancelled = false;
     getJobActivity(jobId, 120)
-      .then((res) => {
+      .then(res => {
         if (cancelled) return;
         const items = res?.activity || res?.items || [];
         if (items.length) push(items);
       })
       .catch(() => {});
     const unsubscribe = subscribeToJobEvents(jobId, {
-      onEvent: (ev) => { if (!cancelled) push(ev); },
+      onEvent: ev => {
+        if (!cancelled) push(ev);
+      },
       onError: () => {},
     });
-    return () => { cancelled = true; unsubscribe?.(); };
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [jobId, push]);
 
   const checkFollow = useCallback(() => {
@@ -111,7 +124,8 @@ export function HuntTerminal({ jobId }) {
     }
   }, [question, asking, jobId, push]);
 
-  const visibleLines = filter === 'all' ? lines : lines.filter((l) => l.kind === filter || l.kind === 'chat');
+  const visibleLines =
+    filter === 'all' ? lines : lines.filter(l => l.kind === filter || l.kind === 'chat');
 
   return (
     <section className="sg-terminal" aria-label="Hunt terminal">
@@ -120,7 +134,7 @@ export function HuntTerminal({ jobId }) {
         <TerminalSquare size={13} aria-hidden="true" />
         <span>Live terminal</span>
         <span className="sg-terminal-filters" role="group" aria-label="Terminal filter">
-          {['all', 'key', 'chat'].map((f) => (
+          {['all', 'key', 'chat'].map(f => (
             <button
               key={f}
               type="button"
@@ -156,21 +170,32 @@ export function HuntTerminal({ jobId }) {
         tabIndex={0}
       >
         {visibleLines.length === 0 && (
-          <div className="sg-terminal-dim">$ waiting<span className="sg-terminal-cursor" aria-hidden="true" /> agent output…</div>
+          <div className="sg-terminal-dim">
+            $ waiting
+            <span className="sg-terminal-cursor" aria-hidden="true" /> agent output…
+          </div>
         )}
         {visibleLines.map((l, i) => (
-          <div key={i} className={`sg-terminal-line${l.kind === 'chat' ? ' sg-terminal-chat' : ''}`}>{l.text}</div>
+          <div
+            key={i}
+            className={`sg-terminal-line${l.kind === 'chat' ? ' sg-terminal-chat' : ''}`}
+          >
+            {l.text}
+          </div>
         ))}
       </div>
       {/* Mid-hunt chat: talk to the hacking brain without pausing the hunt. */}
       <form
         className="sg-terminal-ask"
-        onSubmit={(e) => { e.preventDefault(); sendQuestion(); }}
+        onSubmit={e => {
+          e.preventDefault();
+          sendQuestion();
+        }}
       >
         <input
           type="text"
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={e => setQuestion(e.target.value)}
           placeholder="Ask the hacking brain anything, anytime…"
           aria-label="Ask the hacking brain"
           disabled={asking}

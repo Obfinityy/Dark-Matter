@@ -1,3 +1,9 @@
+/**
+ * computerTaskController — Express route handlers for computer Task.
+ * Factory that wires the computer Task service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**
@@ -16,12 +22,12 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
 
       if (!instruction || !String(instruction).trim()) {
         return response.status(400).json({
-          error: { code: 'MISSING_INSTRUCTION', message: 'instruction is required' }
+          error: { code: 'MISSING_INSTRUCTION', message: 'instruction is required' },
         });
       }
       if (!conversationId) {
         return response.status(400).json({
-          error: { code: 'MISSING_CONVERSATION', message: 'conversationId is required' }
+          error: { code: 'MISSING_CONVERSATION', message: 'conversationId is required' },
         });
       }
 
@@ -29,7 +35,12 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
         userId,
         conversationId,
         instruction: String(instruction),
-        followUpHint: request.body?.followUpHint === true ? true : (request.body?.followUpHint === false ? false : null)
+        followUpHint:
+          request.body?.followUpHint === true
+            ? true
+            : request.body?.followUpHint === false
+              ? false
+              : null,
       });
 
       // 202: accepted, running in the background. Deliberately no long-lived request.
@@ -39,7 +50,7 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
         conversationId: task.conversationId,
         taskStatus: task.status,
         previousTaskId: task.previousTaskId || null,
-        createdAt: task.createdAt
+        createdAt: task.createdAt,
       });
     }),
 
@@ -47,10 +58,10 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
     list: asyncHandler(async (request, response) => {
       const tasks = await computerTaskManager.list(request.user.id, {
         conversationId: request.query.conversationId || null,
-        limit: Math.min(Number(request.query.limit || 30), 100)
+        limit: Math.min(Number(request.query.limit || 30), 100),
       });
       response.json({
-        tasks: tasks.map((task) => ({
+        tasks: tasks.map(task => ({
           id: task.id,
           conversationId: task.conversationId,
           instruction: task.instruction,
@@ -66,8 +77,8 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
           previousTaskId: task.previousTaskId || null,
           createdAt: task.createdAt,
           updatedAt: task.updatedAt,
-          completedAt: task.completedAt
-        }))
+          completedAt: task.completedAt,
+        })),
       });
     }),
 
@@ -89,7 +100,7 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
     eventHistory: asyncHandler(async (request, response) => {
       const result = await computerTaskManager.listEvents(request.user.id, request.params.id, {
         afterId: request.query.after || null,
-        limit: Math.min(Number(request.query.limit || 500), 2000)
+        limit: Math.min(Number(request.query.limit || 500), 2000),
       });
       response.json(result);
     }),
@@ -102,19 +113,23 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no'
+        'X-Accel-Buffering': 'no',
       });
       response.flushHeaders?.();
 
-      const send = (event) => {
+      const send = event => {
         response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       };
 
       // 1. Replay what happened while the browser was closed.
-      const history = await computerTaskManager.listEvents(request.user.id, task.id, { limit: 2000 });
+      const history = await computerTaskManager.listEvents(request.user.id, task.id, {
+        limit: 2000,
+      });
       const lastEventId = request.header('last-event-id') || request.query.lastEventId;
-      const startIndex = lastEventId ? history.events.findIndex((event) => event.id === lastEventId) + 1 : 0;
-      (history.events.slice(Math.max(0, startIndex))).forEach(send);
+      const startIndex = lastEventId
+        ? history.events.findIndex(event => event.id === lastEventId) + 1
+        : 0;
+      history.events.slice(Math.max(0, startIndex)).forEach(send);
 
       // 2. Then attach live.
       const unsubscribe = computerTaskManager.eventService.subscribe(task.id, send);
@@ -132,16 +147,20 @@ export function createComputerTaskController({ computerTaskManager, computerAdap
       const message = request.body?.message;
       if (!message || !String(message).trim()) {
         return response.status(400).json({
-          error: { code: 'MISSING_MESSAGE', message: 'message is required' }
+          error: { code: 'MISSING_MESSAGE', message: 'message is required' },
         });
       }
-      const result = await computerTaskManager.answer(request.user.id, request.params.id, String(message));
+      const result = await computerTaskManager.answer(
+        request.user.id,
+        request.params.id,
+        String(message)
+      );
       response.json(result);
     }),
 
     /** POST /api/v1/computer-tasks/:id/cancel — the Stop Task button */
     cancel: asyncHandler(async (request, response) => {
       response.json(await computerTaskManager.cancel(request.user.id, request.params.id));
-    })
+    }),
   };
 }

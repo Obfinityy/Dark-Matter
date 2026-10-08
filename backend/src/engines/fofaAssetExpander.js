@@ -31,10 +31,7 @@ function esc(token) {
  */
 export function buildFofaQueries(rules = [], scope = {}) {
   const { cidrs = [], ips = [], org = '' } = scope;
-  const scopeClauses = [
-    ...cidrs.map((c) => `ip="${esc(c)}"`),
-    ...ips.map((i) => `ip="${esc(i)}"`),
-  ];
+  const scopeClauses = [...cidrs.map(c => `ip="${esc(c)}"`), ...ips.map(i => `ip="${esc(i)}"`)];
   if (org) scopeClauses.push(`org="${esc(org)}"`);
   const scopePart = scopeClauses.length ? ` && (${scopeClauses.join(' || ')})` : '';
 
@@ -119,11 +116,15 @@ export function expandFofaAssets(records = [], rules = [], options = {}) {
   }
   return {
     assets,
-    byIp: [...byIp.entries()].map(([ip, items]) => ({ ip, count: items.length, bestScore: items[0].score })),
+    byIp: [...byIp.entries()].map(([ip, items]) => ({
+      ip,
+      count: items.length,
+      bestScore: items[0].score,
+    })),
     stats: {
       records: records.length,
       expanded: assets.length,
-      highConfidence: assets.filter((a) => a.confidence === 'high').length,
+      highConfidence: assets.filter(a => a.confidence === 'high').length,
       distinctIps: byIp.size,
     },
   };
@@ -139,14 +140,24 @@ export function fofaFinding(result) {
     severity: result.stats.highConfidence ? 'Low' : 'Info',
     confidence: result.stats.expanded >= 3 ? 'high' : 'medium',
     stats: result.stats,
-    topAssets: result.assets.slice(0, 15).map((a) => ({
-      ip: a.ip, port: a.port, title: a.title, score: a.score, confidence: a.confidence,
+    topAssets: result.assets.slice(0, 15).map(a => ({
+      ip: a.ip,
+      port: a.port,
+      title: a.title,
+      score: a.score,
+      confidence: a.confidence,
     })),
-    evidence: `${result.stats.records} Fofa record(s) evaluated; ` +
+    evidence:
+      `${result.stats.records} Fofa record(s) evaluated; ` +
       `${result.stats.expanded} passed the rule threshold; ` +
       `${result.stats.highConfidence} high-confidence match(es).`,
   };
 }
 
-export const FOFA_ASSET_EXPANDER = { buildFofaQueries, scoreFofaRecord, expandFofaAssets, fofaFinding };
+export const FOFA_ASSET_EXPANDER = {
+  buildFofaQueries,
+  scoreFofaRecord,
+  expandFofaAssets,
+  fofaFinding,
+};
 export default FOFA_ASSET_EXPANDER;

@@ -35,7 +35,7 @@ export const CREW_EVENT_TYPES = Object.freeze([
   'waiting',
   'done',
   'error',
-  'stopped'
+  'stopped',
 ]);
 
 /**
@@ -55,13 +55,15 @@ export const CREW_EVENT_TYPES = Object.freeze([
  * @property {{ info?: Function, warn?: Function, error?: Function }} [logger]
  */
 
+/** Background worker for crew. */
 export class CrewWorker {
   /**
    * @param {CrewWorkerDeps} deps
    */
   constructor({ crewService, providerFor, computerAdapter, logger } = {}) {
     if (!crewService) throw new Error('CrewWorker requires a crewService.');
-    if (typeof providerFor !== 'function') throw new Error('CrewWorker requires a providerFor function.');
+    if (typeof providerFor !== 'function')
+      throw new Error('CrewWorker requires a providerFor function.');
     this.crewService = crewService;
     this.providerFor = providerFor;
     this.computerAdapter = computerAdapter || null;
@@ -97,14 +99,14 @@ export class CrewWorker {
       controller,
       events: [],
       listeners: new Set(),
-      history: []
+      history: [],
     };
     this.runs.set(runId, run);
 
     await this.crewService.setStatus(crew.id, 'running');
 
     // Fire-and-forget: the loop manages its own lifecycle.
-    this._loop(run, crew, String(message ?? '')).catch((err) => {
+    this._loop(run, crew, String(message ?? '')).catch(err => {
       this.logger.error?.(`[crewWorker] run ${runId} loop threw:`, err);
     });
 
@@ -188,7 +190,9 @@ export class CrewWorker {
         run.status = 'waiting';
         try {
           await this.crewService.setStatus(run.crewId, 'waiting_brain');
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
         this._emit(
           run,
           'waiting',
@@ -202,7 +206,7 @@ export class CrewWorker {
       const messages = [
         { role: 'system', content: system },
         ...run.history,
-        { role: 'user', content: userMessage }
+        { role: 'user', content: userMessage },
       ];
 
       // 3. Iterate: think → act → observe.
@@ -216,11 +220,15 @@ export class CrewWorker {
           text = await this._generateWithTimeout(provider, messages, controller.signal);
         } catch (err) {
           if (err?.code === 'BRAIN_TIMEOUT' || err?.name === 'AbortError') {
-            this.logger.warn?.(`[crewWorker] brain timed out for ${crew.name}; degrading to waiting.`);
+            this.logger.warn?.(
+              `[crewWorker] brain timed out for ${crew.name}; degrading to waiting.`
+            );
             run.status = 'waiting';
             try {
               await this.crewService.setStatus(run.crewId, 'waiting_brain');
-            } catch { /* best effort */ }
+            } catch {
+              /* best effort */
+            }
             this._emit(
               run,
               'waiting',
@@ -245,7 +253,7 @@ export class CrewWorker {
         // 4. Execute the action.
         this._emit(run, 'action', `${crew.name} is using ${parsed.action.tool}…`, {
           action: parsed.action,
-          thought: parsed.thought
+          thought: parsed.thought,
         });
 
         const observation = await this._executeAction(run, crew, parsed.action, parsed.thought);
@@ -268,7 +276,7 @@ export class CrewWorker {
 
       await finish('done', {
         type: 'done',
-        message: `${crew.name} finished after ${MAX_ITERATIONS} steps. Send a follow-up message to continue.`
+        message: `${crew.name} finished after ${MAX_ITERATIONS} steps. Send a follow-up message to continue.`,
       });
     } catch (err) {
       if (controller.signal.aborted) {
@@ -276,15 +284,19 @@ export class CrewWorker {
         this._emit(run, 'stopped', `${crew.name} was stopped.`);
         try {
           await this.crewService.setStatus(run.crewId, 'idle');
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
       } else {
         run.status = 'failed';
         this._emit(run, 'error', err?.message || 'The run failed unexpectedly.', {
-          error: err?.message
+          error: err?.message,
         });
         try {
           await this.crewService.setStatus(run.crewId, 'idle');
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
       }
     }
   }
@@ -333,14 +345,14 @@ export class CrewWorker {
       signal.addEventListener('abort', onAbort, { once: true });
       Promise.resolve()
         .then(() => provider.generate(messages, { maxTokens: 2000 }))
-        .then((text) => {
+        .then(text => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
           signal.removeEventListener('abort', onAbort);
           resolve(text);
         })
-        .catch((err) => {
+        .catch(err => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
@@ -359,10 +371,10 @@ export class CrewWorker {
     if (crew.toolsAllowed.includes('computer')) {
       toolDocs.push(
         `COMPUTER — control your own computer desktop. action = {"tool":"computer","action":{"type":"<one of: ${ACTION_TYPES.join(', ')}>","params":{...}}}. ` +
-        `Examples: {"type":"screenshot","params":{}}, {"type":"click","params":{"x":640,"y":400}}, ` +
-        `{"type":"type","params":{"text":"hello"}}, {"type":"press_key","params":{"key":"enter"}}, ` +
-        `{"type":"hotkey","params":{"keys":["ctrl","c"]}}, {"type":"scroll","params":{"direction":"down","amount":3}}, ` +
-        `{"type":"navigate","params":{"url":"https://example.com"}}, {"type":"open_application","params":{"application":"notepad"}}.`
+          `Examples: {"type":"screenshot","params":{}}, {"type":"click","params":{"x":640,"y":400}}, ` +
+          `{"type":"type","params":{"text":"hello"}}, {"type":"press_key","params":{"key":"enter"}}, ` +
+          `{"type":"hotkey","params":{"keys":["ctrl","c"]}}, {"type":"scroll","params":{"direction":"down","amount":3}}, ` +
+          `{"type":"navigate","params":{"url":"https://example.com"}}, {"type":"open_application","params":{"application":"notepad"}}.`
       );
     }
     if (crew.toolsAllowed.includes('shell')) {
@@ -373,7 +385,7 @@ export class CrewWorker {
     if (crew.toolsAllowed.includes('files')) {
       toolDocs.push(
         `FILES — read or write files inside your workspace directory only. ` +
-        `action = {"tool":"file_read","path":"<relative path>"} or {"tool":"file_write","path":"<relative path>","content":"<text>"}.`
+          `action = {"tool":"file_read","path":"<relative path>"} or {"tool":"file_write","path":"<relative path>","content":"<text>"}.`
       );
     }
 
@@ -387,7 +399,7 @@ export class CrewWorker {
       ``,
       `RESPONSE FORMAT — respond with JSON only, exactly like this:`,
       `{"thought":"what you are about to do and why","action":{"tool":"computer","action":{"type":"screenshot","params":{}}} | {"tool":"shell","command":"..."} | {"tool":"file_read","path":"..."} | {"tool":"file_write","path":"...","content":"..."} | null,"reply":"..."}`,
-      `Set "action" to null when you are done and just want to reply to the user; the reply is what the user sees.`
+      `Set "action" to null when you are done and just want to reply to the user; the reply is what the user sees.`,
     ].join('\n');
   }
 
@@ -406,7 +418,7 @@ export class CrewWorker {
       return {
         thought: typeof obj?.thought === 'string' ? obj.thought : '',
         action,
-        reply: typeof obj?.reply === 'string' ? obj.reply : ''
+        reply: typeof obj?.reply === 'string' ? obj.reply : '',
       };
     } catch {
       return { thought: '', action: null, reply: cleaned };
@@ -426,7 +438,8 @@ export class CrewWorker {
       return `Unknown or missing tool "${tool}". Use one of your allowed tools.`;
     }
 
-    const requiredPermission = tool === 'computer' ? 'computer' : tool === 'shell' ? 'shell' : 'files';
+    const requiredPermission =
+      tool === 'computer' ? 'computer' : tool === 'shell' ? 'shell' : 'files';
     if (!crew.toolsAllowed.includes(requiredPermission)) {
       return 'Tool not permitted for this crew member.';
     }
@@ -461,7 +474,7 @@ export class CrewWorker {
         {
           type: valid.type,
           params: valid.params,
-          reason: reason || thought || 'crew action'
+          reason: reason || thought || 'crew action',
         },
         {}
       );
@@ -469,9 +482,8 @@ export class CrewWorker {
       result = { ok: false, error: { message: err?.message || 'adapter threw' } };
     }
 
-    const observation = result?.observation?.summary
-      || JSON.stringify(result, null, 2)
-      || '(no result)';
+    const observation =
+      result?.observation?.summary || JSON.stringify(result, null, 2) || '(no result)';
     return this._truncate(observation, OBSERVATION_LIMIT);
   }
 

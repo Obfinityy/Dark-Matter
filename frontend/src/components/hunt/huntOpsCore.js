@@ -1,14 +1,17 @@
-// huntOpsCore.js — Infinity AI · wave 47 (ideas 51861–51880)
-// Pure logic for hunt operations across the fleet: dependency gate status,
-// campaign and client rollups, search, filters, archiving, favorites, the
-// notifications hub, routing rules, ownership transfer, collaboration roles,
-// the activity feed, timeline comparison, notes, tags, saved views,
-// bulk export (JSON/CSV/markdown with injection-safe cells), per-hunt API
-// token descriptors, webhook payload descriptors, and SSO scoping.
-// No DOM, no network, no side effects: pure transforms over plain descriptors.
-// API tokens and webhook signatures here are deterministic SAMPLE descriptors
-// for UI display — never real credentials.
-
+/**
+ * huntOpsCore.js — Infinity AI · wave 47 (ideas 51861–51880)
+ * Pure logic for hunt operations across the fleet: dependency gate status,
+ * campaign and client rollups, search, filters, archiving, favorites, the
+ * notifications hub, routing rules, ownership transfer, collaboration roles,
+ * the activity feed, timeline comparison, notes, tags, saved views,
+ * bulk export (JSON/CSV/markdown with injection-safe cells), per-hunt API
+ * token descriptors, webhook payload descriptors, and SSO scoping.
+ * No DOM, no network, no side effects: pure transforms over plain descriptors.
+ * API tokens and webhook signatures here are deterministic SAMPLE descriptors
+ * for UI display — never real credentials.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 export const WAVE47_HUNTOPS_START = 51861;
 export const WAVE47_HUNTOPS_END = 51880;
 
@@ -57,7 +60,7 @@ export function escapeHtml(s) {
 // 51861 — per-hunt dependency gate status: which gates are met, who is blocked
 // dependencies: [{ huntId, gate: 'done' | 'reporting' }]
 export function dependencyGates(hunts) {
-  const byId = new Map((hunts || []).map((h) => [h.id, h]));
+  const byId = new Map((hunts || []).map(h => [h.id, h]));
   const satisfiedGate = (dep, gate) => {
     if (!dep) return false;
     if (gate === 'done') return dep.status === 'done';
@@ -65,67 +68,99 @@ export function dependencyGates(hunts) {
     return false;
   };
   const rows = (hunts || [])
-    .filter((h) => (h.dependencies || []).length)
-    .map((h) => {
-      const gates = (h.dependencies || []).map((d) => ({
+    .filter(h => (h.dependencies || []).length)
+    .map(h => {
+      const gates = (h.dependencies || []).map(d => ({
         depId: d.huntId,
         gate: d.gate,
         satisfied: satisfiedGate(byId.get(d.huntId), d.gate),
       }));
-      return { huntId: h.id, name: h.name, gates, blocked: gates.some((g) => !g.satisfied) };
+      return { huntId: h.id, name: h.name, gates, blocked: gates.some(g => !g.satisfied) };
     });
   return {
     rows,
-    blocked: rows.filter((r) => r.blocked).map((r) => r.huntId),
-    ready: rows.filter((r) => !r.blocked).map((r) => r.huntId),
+    blocked: rows.filter(r => r.blocked).map(r => r.huntId),
+    ready: rows.filter(r => !r.blocked).map(r => r.huntId),
     text: rows.length
-      ? `${rows.filter((r) => r.blocked).length} of ${rows.length} dependent hunts blocked on gates.`
+      ? `${rows.filter(r => r.blocked).length} of ${rows.length} dependent hunts blocked on gates.`
       : 'No hunts declare dependencies.',
   };
 }
 
 // 51862 — campaign dashboard rollup across all its hunts
 export function campaignRollup(hunts, campaignId) {
-  const inCampaign = (hunts || []).filter((h) => h.campaignId === campaignId);
+  const inCampaign = (hunts || []).filter(h => h.campaignId === campaignId);
   const findings = inCampaign.reduce((n, h) => n + (h.findings || []).length, 0);
-  const activeHunts = inCampaign.filter((h) => h.status === 'running').length;
-  const avgProgress = inCampaign.length ? Math.round(inCampaign.reduce((n, h) => n + (h.progress || 0), 0) / inCampaign.length) : 0;
-  const totalCostUsd = Math.round(inCampaign.reduce((n, h) => n + (h.budgetUsedUsd || 0), 0) * 100) / 100;
+  const activeHunts = inCampaign.filter(h => h.status === 'running').length;
+  const avgProgress = inCampaign.length
+    ? Math.round(inCampaign.reduce((n, h) => n + (h.progress || 0), 0) / inCampaign.length)
+    : 0;
+  const totalCostUsd =
+    Math.round(inCampaign.reduce((n, h) => n + (h.budgetUsedUsd || 0), 0) * 100) / 100;
   const byStatus = {};
-  for (const h of inCampaign) byStatus[h.status || 'unknown'] = (byStatus[h.status || 'unknown'] || 0) + 1;
+  for (const h of inCampaign)
+    byStatus[h.status || 'unknown'] = (byStatus[h.status || 'unknown'] || 0) + 1;
   return {
-    campaignId, hunts: inCampaign.length, findings, activeHunts, avgProgress,
-    totalCostUsd, byStatus, huntIds: inCampaign.map((h) => h.id),
+    campaignId,
+    hunts: inCampaign.length,
+    findings,
+    activeHunts,
+    avgProgress,
+    totalCostUsd,
+    byStatus,
+    huntIds: inCampaign.map(h => h.id),
     text: `Campaign ${campaignId}: ${inCampaign.length} hunts, ${findings} findings, ${activeHunts} active, avg ${avgProgress}% — $${totalCostUsd.toFixed(2)} spent.`,
   };
 }
 
 // 51863 — per-client rollup of hunts, findings, time, and spend
 export function clientRollup(hunts, clientId) {
-  const owned = (hunts || []).filter((h) => h.clientId === clientId);
+  const owned = (hunts || []).filter(h => h.clientId === clientId);
   const findings = owned.reduce((n, h) => n + (h.findings || []).length, 0);
   const totalTimeMs = owned.reduce((n, h) => n + Math.max(0, h.durationMs || 0), 0);
-  const totalCostUsd = Math.round(owned.reduce((n, h) => n + (h.budgetUsedUsd || 0), 0) * 100) / 100;
+  const totalCostUsd =
+    Math.round(owned.reduce((n, h) => n + (h.budgetUsedUsd || 0), 0) * 100) / 100;
   const bySeverity = { critical: 0, high: 0, medium: 0, low: 0 };
-  for (const h of owned) for (const f of h.findings || []) if (bySeverity[f.severity] != null) bySeverity[f.severity] += 1;
+  for (const h of owned)
+    for (const f of h.findings || [])
+      if (bySeverity[f.severity] != null) bySeverity[f.severity] += 1;
   return {
-    clientId, hunts: owned.length, findings, totalTimeMs,
+    clientId,
+    hunts: owned.length,
+    findings,
+    totalTimeMs,
     totalTimeHrs: Math.round((totalTimeMs / 3600000) * 10) / 10,
-    totalCostUsd, bySeverity, huntIds: owned.map((h) => h.id),
+    totalCostUsd,
+    bySeverity,
+    huntIds: owned.map(h => h.id),
     text: `Client ${clientId}: ${owned.length} hunts, ${findings} findings, ${(totalTimeMs / 3600000).toFixed(1)}h hunt time, $${totalCostUsd.toFixed(2)} spent.`,
   };
 }
 
 // 51864 — find any hunt by target, name, id, owner, or tag
 export function searchHunts(hunts, query) {
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) return { results: [], count: 0, query: '', text: 'Type to search hunts by target, name, owner, or tag.' };
-  const results = (hunts || []).filter((h) =>
-    [h.id, h.name, h.target, h.owner, ...(h.tags || [])].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)),
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
+  if (!q)
+    return {
+      results: [],
+      count: 0,
+      query: '',
+      text: 'Type to search hunts by target, name, owner, or tag.',
+    };
+  const results = (hunts || []).filter(h =>
+    [h.id, h.name, h.target, h.owner, ...(h.tags || [])]
+      .filter(Boolean)
+      .some(v => String(v).toLowerCase().includes(q))
   );
   return {
-    results, count: results.length, query: q,
-    text: results.length ? `${results.length} hunt${results.length === 1 ? '' : 's'} match “${query}”.` : `No hunts match “${query}”.`,
+    results,
+    count: results.length,
+    query: q,
+    text: results.length
+      ? `${results.length} hunt${results.length === 1 ? '' : 's'} match “${query}”.`
+      : `No hunts match “${query}”.`,
   };
 }
 
@@ -134,42 +169,51 @@ export function searchHunts(hunts, query) {
 // health matches h.health when the caller attaches health labels to hunts.
 export function filterHunts(hunts, filters) {
   const f = filters || {};
-  const results = (hunts || []).filter((h) =>
-    (!f.phase || h.phase === f.phase) &&
-    (!f.status || h.status === f.status) &&
-    (!f.owner || h.owner === f.owner) &&
-    (!f.health || h.health === f.health) &&
-    (!f.tag || (h.tags || []).includes(f.tag)) &&
-    (f.minFindings == null || (h.findings || []).length >= f.minFindings) &&
-    (!f.severity || (h.findings || []).some((x) => x.severity === f.severity)),
+  const results = (hunts || []).filter(
+    h =>
+      (!f.phase || h.phase === f.phase) &&
+      (!f.status || h.status === f.status) &&
+      (!f.owner || h.owner === f.owner) &&
+      (!f.health || h.health === f.health) &&
+      (!f.tag || (h.tags || []).includes(f.tag)) &&
+      (f.minFindings == null || (h.findings || []).length >= f.minFindings) &&
+      (!f.severity || (h.findings || []).some(x => x.severity === f.severity))
   );
   return {
-    results, count: results.length, filters: f,
-    text: results.length ? `${results.length} hunt${results.length === 1 ? '' : 's'} pass the filters.` : 'No hunts pass the current filters.',
+    results,
+    count: results.length,
+    filters: f,
+    text: results.length
+      ? `${results.length} hunt${results.length === 1 ? '' : 's'} pass the filters.`
+      : 'No hunts pass the current filters.',
   };
 }
 
 // 51866 — archive a finished hunt; reopening restores it instantly
 export function archiveHunt(hunts, id) {
-  const updated = (hunts || []).map((h) => (h.id === id ? { ...h, archived: true } : h));
-  const hunt = updated.find((h) => h.id === id) || null;
-  return { hunts: updated, hunt, text: hunt ? `Hunt ${id} archived — reopen it any time.` : `Hunt ${id} not found.` };
+  const updated = (hunts || []).map(h => (h.id === id ? { ...h, archived: true } : h));
+  const hunt = updated.find(h => h.id === id) || null;
+  return {
+    hunts: updated,
+    hunt,
+    text: hunt ? `Hunt ${id} archived — reopen it any time.` : `Hunt ${id} not found.`,
+  };
 }
 
 export function reopenHunt(hunts, id) {
-  const updated = (hunts || []).map((h) => (h.id === id ? { ...h, archived: false } : h));
-  const hunt = updated.find((h) => h.id === id) || null;
+  const updated = (hunts || []).map(h => (h.id === id ? { ...h, archived: false } : h));
+  const hunt = updated.find(h => h.id === id) || null;
   return { hunts: updated, hunt, text: hunt ? `Hunt ${id} reopened.` : `Hunt ${id} not found.` };
 }
 
 // 51867 — pin critical hunts to the top of every list
 export function favoriteHunt(hunts, id) {
-  const updated = (hunts || []).map((h) => (h.id === id ? { ...h, favorite: true } : h));
+  const updated = (hunts || []).map(h => (h.id === id ? { ...h, favorite: true } : h));
   return { hunts: updated, huntId: id, text: `Hunt ${id} pinned as a favorite.` };
 }
 
 export function unfavoriteHunt(hunts, id) {
-  const updated = (hunts || []).map((h) => (h.id === id ? { ...h, favorite: false } : h));
+  const updated = (hunts || []).map(h => (h.id === id ? { ...h, favorite: false } : h));
   return { hunts: updated, huntId: id, text: `Hunt ${id} removed from favorites.` };
 }
 
@@ -177,15 +221,20 @@ export function unfavoriteHunt(hunts, id) {
 // notifications: [{ id, huntId, severity, type, title, atMs, read }]
 export function notificationsHub(notifications) {
   const items = [...(notifications || [])].sort((a, b) => (b.atMs || 0) - (a.atMs || 0));
-  const unread = items.filter((n) => !n.read).length;
+  const unread = items.filter(n => !n.read).length;
   const groups = {};
   for (const n of items) {
     const k = n.severity || 'info';
     (groups[k] = groups[k] || []).push(n);
   }
   return {
-    items, total: items.length, unread, groups,
-    text: items.length ? `${unread} unread of ${items.length} notifications.` : 'Notification inbox is empty.',
+    items,
+    total: items.length,
+    unread,
+    groups,
+    text: items.length
+      ? `${unread} unread of ${items.length} notifications.`
+      : 'Notification inbox is empty.',
   };
 }
 
@@ -193,41 +242,57 @@ export function notificationsHub(notifications) {
 // rules: [{ id, match: { severity?, huntId?, type? }, channels: [], recipients: [] }]
 export function routeNotifications(rules, notification) {
   const n = notification || {};
-  const matched = (rules || []).filter((r) => {
+  const matched = (rules || []).filter(r => {
     const m = r.match || {};
-    return (!m.severity || m.severity === n.severity)
-      && (!m.huntId || m.huntId === n.huntId)
-      && (!m.type || m.type === n.type);
+    return (
+      (!m.severity || m.severity === n.severity) &&
+      (!m.huntId || m.huntId === n.huntId) &&
+      (!m.type || m.type === n.type)
+    );
   });
-  const routes = matched.map((r) => ({ ruleId: r.id, channels: r.channels || ['inapp'], recipients: r.recipients || [] }));
+  const routes = matched.map(r => ({
+    ruleId: r.id,
+    channels: r.channels || ['inapp'],
+    recipients: r.recipients || [],
+  }));
   return {
-    routes, matched: routes.length > 0, count: routes.length,
+    routes,
+    matched: routes.length > 0,
+    count: routes.length,
     text: routes.length
-      ? `Alert routed by ${routes.length} rule${routes.length === 1 ? '' : 's'}: ${routes.map((r) => r.ruleId).join(', ')}.`
+      ? `Alert routed by ${routes.length} rule${routes.length === 1 ? '' : 's'}: ${routes.map(r => r.ruleId).join(', ')}.`
       : 'No routing rule matched — alert stays in the hub only.',
   };
 }
 
 // 51870 — assign an owner; transfers keep a clean history
 export function assignOwner(hunts, huntId, owner) {
-  const updated = (hunts || []).map((h) => (h.id === huntId ? { ...h, owner } : h));
+  const updated = (hunts || []).map(h => (h.id === huntId ? { ...h, owner } : h));
   return { hunts: updated, huntId, owner, text: `Hunt ${huntId} assigned to ${owner}.` };
 }
 
 export function transferOwnership(hunts, huntId, newOwner, atMs = 0) {
   let previousOwner = null;
-  const updated = (hunts || []).map((h) => {
+  const updated = (hunts || []).map(h => {
     if (h.id !== huntId) return h;
     previousOwner = h.owner || null;
     return {
       ...h,
       owner: newOwner,
-      ownershipHistory: [...(h.ownershipHistory || []), { from: previousOwner, to: newOwner, atMs }],
+      ownershipHistory: [
+        ...(h.ownershipHistory || []),
+        { from: previousOwner, to: newOwner, atMs },
+      ],
     };
   });
   return {
-    hunts: updated, huntId, previousOwner, newOwner,
-    text: previousOwner ? `Ownership of ${huntId} transferred from ${previousOwner} to ${newOwner}.` : `Hunt ${huntId} assigned to ${newOwner}.`,
+    hunts: updated,
+    huntId,
+    previousOwner,
+    newOwner,
+    text: previousOwner
+      ? `Ownership of ${huntId} transferred from ${previousOwner} to ${newOwner}.`
+      : `Hunt ${huntId} assigned to ${newOwner}.`,
   };
 }
 
@@ -237,7 +302,10 @@ export function inviteCollaborator(hunt, user, role, atMs = 0) {
   if (!COLLAB_ROLES.includes(role)) {
     return { ok: false, hunt: h, error: `Unknown role “${role}” — use viewer, analyst, or admin.` };
   }
-  const collaborators = [...(h.collaborators || []).filter((c) => c.user !== user), { user, role, invitedAtMs: atMs }];
+  const collaborators = [
+    ...(h.collaborators || []).filter(c => c.user !== user),
+    { user, role, invitedAtMs: atMs },
+  ];
   const invitation = { huntId: h.id || null, user, role, atMs };
   return {
     ok: true,
@@ -252,7 +320,8 @@ export function inviteCollaborator(hunt, user, role, atMs = 0) {
 export function activityFeed(events) {
   const items = [...(events || [])].sort((a, b) => (b.atMs || 0) - (a.atMs || 0));
   return {
-    items, count: items.length,
+    items,
+    count: items.length,
     text: items.length ? `${items.length} events, newest first.` : 'No activity recorded yet.',
   };
 }
@@ -266,11 +335,16 @@ export function timelineCompare(a, b) {
   const sy = [...(y.samples || [])].sort((p, q) => p.atMs - q.atMs);
   const at = (samples, t) => {
     let v = 0;
-    for (const p of samples) { if (p.atMs <= t) v = p.progress; else break; }
+    for (const p of samples) {
+      if (p.atMs <= t) v = p.progress;
+      else break;
+    }
     return v;
   };
-  const times = [...new Set([...sx.map((p) => p.atMs), ...sy.map((p) => p.atMs)])].sort((p, q) => p - q);
-  const rows = times.map((t) => {
+  const times = [...new Set([...sx.map(p => p.atMs), ...sy.map(p => p.atMs)])].sort(
+    (p, q) => p - q
+  );
+  const rows = times.map(t => {
     const ap = at(sx, t);
     const bp = at(sy, t);
     return { atMs: t, aProgress: ap, bProgress: bp, delta: ap - bp };
@@ -279,24 +353,44 @@ export function timelineCompare(a, b) {
   const lb = sy.length ? sy[sy.length - 1].progress : 0;
   const leader = la === lb ? null : la > lb ? x.id || null : y.id || null;
   return {
-    aId: x.id || null, bId: y.id || null, rows, leader, delta: la - lb,
-    text: leader ? `${leader} is ahead by ${Math.abs(la - lb)} points of progress.` : 'Both hunts are on the same pace.',
+    aId: x.id || null,
+    bId: y.id || null,
+    rows,
+    leader,
+    delta: la - lb,
+    text: leader
+      ? `${leader} is ahead by ${Math.abs(la - lb)} points of progress.`
+      : 'Both hunts are on the same pace.',
   };
 }
 
 // 51874 — per-hunt notes visible to the whole team (body escaped for HTML)
 export function addHuntNote(hunts, huntId, note) {
   const n = note || {};
-  const full = { author: n.author || 'unknown', body: String(n.body || ''), atMs: n.atMs || 0, bodyHtml: escapeHtml(n.body || '') };
-  const updated = (hunts || []).map((h) => (h.id === huntId ? { ...h, notes: [...(h.notes || []), full] } : h));
+  const full = {
+    author: n.author || 'unknown',
+    body: String(n.body || ''),
+    atMs: n.atMs || 0,
+    bodyHtml: escapeHtml(n.body || ''),
+  };
+  const updated = (hunts || []).map(h =>
+    h.id === huntId ? { ...h, notes: [...(h.notes || []), full] } : h
+  );
   return { hunts: updated, huntId, note: full, text: `Note added to ${huntId} by ${full.author}.` };
 }
 
 // 51875 — custom tags for slicing hunts any way the team likes
 export function tagHunt(hunts, huntId, tags) {
   const add = (Array.isArray(tags) ? tags : [tags]).filter(Boolean).map(String);
-  const updated = (hunts || []).map((h) => (h.id === huntId ? { ...h, tags: [...new Set([...(h.tags || []), ...add])] } : h));
-  return { hunts: updated, huntId, tags: add, text: `Tagged ${huntId}: ${add.join(', ') || 'no new tags'}.` };
+  const updated = (hunts || []).map(h =>
+    h.id === huntId ? { ...h, tags: [...new Set([...(h.tags || []), ...add])] } : h
+  );
+  return {
+    hunts: updated,
+    huntId,
+    tags: add,
+    text: `Tagged ${huntId}: ${add.join(', ') || 'no new tags'}.`,
+  };
 }
 
 // 51876 — named filter sets ("my criticals this week") applied in one tap
@@ -305,7 +399,12 @@ export function applySavedView(hunts, view) {
   const v = view || {};
   const filtered = filterHunts(hunts, v.filters || {}).results;
   const dir = v.sortDir === 'desc' ? -1 : 1;
-  const val = (h) => (v.sortBy === 'progress' ? h.progress || 0 : v.sortBy === 'name' ? String(h.name || '') : (h.findings || []).length);
+  const val = h =>
+    v.sortBy === 'progress'
+      ? h.progress || 0
+      : v.sortBy === 'name'
+        ? String(h.name || '')
+        : (h.findings || []).length;
   const sorted = [...filtered].sort((a, b) => {
     const va = val(a);
     const vb = val(b);
@@ -313,7 +412,9 @@ export function applySavedView(hunts, view) {
     return (va - vb) * dir;
   });
   return {
-    hunts: sorted, viewName: v.name || 'unnamed', count: sorted.length,
+    hunts: sorted,
+    viewName: v.name || 'unnamed',
+    count: sorted.length,
     text: `View “${v.name || 'unnamed'}”: ${sorted.length} hunt${sorted.length === 1 ? '' : 's'}.`,
   };
 }
@@ -329,22 +430,45 @@ function csvCell(v) {
 export function bulkExport(hunts, ids, format = 'json') {
   const set = new Set(ids || []);
   const rows = (hunts || [])
-    .filter((h) => set.has(h.id))
-    .map((h) => ({
-      id: h.id, name: h.name, target: h.target, phase: h.phase, status: h.status,
-      progress: h.progress || 0, findings: (h.findings || []).length,
-      owner: h.owner || '', tags: (h.tags || []).join(';'),
+    .filter(h => set.has(h.id))
+    .map(h => ({
+      id: h.id,
+      name: h.name,
+      target: h.target,
+      phase: h.phase,
+      status: h.status,
+      progress: h.progress || 0,
+      findings: (h.findings || []).length,
+      owner: h.owner || '',
+      tags: (h.tags || []).join(';'),
     }));
   let content;
   let filename;
   if (format === 'csv') {
-    const head = ['id', 'name', 'target', 'phase', 'status', 'progress', 'findings', 'owner', 'tags'];
-    content = `${head.join(',')}\r\n${rows.map((r) => head.map((k) => csvCell(r[k])).join(',')).join('\r\n')}\r\n`;
+    const head = [
+      'id',
+      'name',
+      'target',
+      'phase',
+      'status',
+      'progress',
+      'findings',
+      'owner',
+      'tags',
+    ];
+    content = `${head.join(',')}\r\n${rows.map(r => head.map(k => csvCell(r[k])).join(',')).join('\r\n')}\r\n`;
     filename = 'hunts-export.csv';
   } else if (format === 'markdown') {
-    const lines = ['# Hunt export', '', '| id | name | target | phase | status | progress | findings |', '|---|---|---|---|---|---|---|'];
+    const lines = [
+      '# Hunt export',
+      '',
+      '| id | name | target | phase | status | progress | findings |',
+      '|---|---|---|---|---|---|---|',
+    ];
     for (const r of rows) {
-      lines.push(`| ${escapeHtml(r.id)} | ${escapeHtml(r.name)} | ${escapeHtml(r.target)} | ${escapeHtml(r.phase)} | ${escapeHtml(r.status)} | ${r.progress}% | ${r.findings} |`);
+      lines.push(
+        `| ${escapeHtml(r.id)} | ${escapeHtml(r.name)} | ${escapeHtml(r.target)} | ${escapeHtml(r.phase)} | ${escapeHtml(r.status)} | ${r.progress}% | ${r.findings} |`
+      );
     }
     content = `${lines.join('\n')}\n`;
     filename = 'hunts-export.md';
@@ -353,7 +477,10 @@ export function bulkExport(hunts, ids, format = 'json') {
     filename = 'hunts-export.json';
   }
   return {
-    format, filename, content, count: rows.length,
+    format,
+    filename,
+    content,
+    count: rows.length,
     text: `Exported ${rows.length} hunt${rows.length === 1 ? '' : 's'} as ${format} (${filename}).`,
   };
 }
@@ -393,12 +520,15 @@ export function webhookPayload(event) {
 export function ssoScope(user, hunts) {
   const u = user || {};
   const list = hunts || [];
-  const visible = u.assignedHuntIds === 'all' ? list : list.filter((h) => (u.assignedHuntIds || []).includes(h.id));
+  const visible =
+    u.assignedHuntIds === 'all' ? list : list.filter(h => (u.assignedHuntIds || []).includes(h.id));
   return {
     userId: u.id || null,
     hunts: visible,
     count: visible.length,
     hidden: list.length - visible.length,
-    text: visible.length ? `${u.id || 'user'} can see ${visible.length} of ${list.length} hunts.` : `${u.id || 'user'} has no hunts in scope.`,
+    text: visible.length
+      ? `${u.id || 'user'} can see ${visible.length} of ${list.length} hunts.`
+      : `${u.id || 'user'} has no hunts in scope.`,
   };
 }

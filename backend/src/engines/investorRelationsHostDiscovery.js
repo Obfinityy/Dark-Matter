@@ -22,7 +22,8 @@ const IR_PROVIDERS = [
   { name: 'S&P Global', hostMatch: /(^|\.)spglobal\.com$/, pathHint: /investor/i },
 ];
 
-const IR_PAGE_HINTS = /(investor-?relations|\/investors?\b|ir\.[a-z0-9.-]+|financial-?results|annual-?report|sec-?filings?|shareholder)/i;
+const IR_PAGE_HINTS =
+  /(investor-?relations|\/investors?\b|ir\.[a-z0-9.-]+|financial-?results|annual-?report|sec-?filings?|shareholder)/i;
 const LINK_ATTRS = /(?:href|src)=["']([^"']+)["']/gi;
 
 /**
@@ -71,7 +72,12 @@ export function discoverIrHosts(html, pageUrl = '') {
     const tagEnd = body.indexOf('</a>', m.index);
     let anchor = '';
     if (tagStart !== -1 && tagEnd !== -1 && tagEnd - tagStart < 600) {
-      anchor = body.slice(body.indexOf('>', m.index) + 1, tagEnd).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      anchor = body
+        .slice(body.indexOf('>', m.index) + 1, tagEnd)
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 120);
     }
     findings.push({ provider: ir.provider, url: link, host: ir.host, anchor, evidence });
   }
@@ -110,7 +116,7 @@ export function extractIrSiteSlug(url) {
 }
 
 export const IR_HOST_DISCOVERY = {
-  IR_PROVIDERS: IR_PROVIDERS.map((p) => p.name),
+  IR_PROVIDERS: IR_PROVIDERS.map(p => p.name),
   identifyIrProvider,
   discoverIrHosts,
   isInvestorPage,

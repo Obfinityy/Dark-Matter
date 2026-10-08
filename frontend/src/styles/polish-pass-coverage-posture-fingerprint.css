@@ -10,19 +10,29 @@
  */
 
 /* ── CoverageMeter ── */
-.sg-coverage-pct { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.sg-coverage-pct {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 .sg-coverage-fill {
   transition: width var(--sg-med);
   box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
 }
 .sg-coverage-foot {
-  display: flex; justify-content: space-between; align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   margin-top: 6px;
 }
-.sg-coverage-count { font-size: 0.74rem; color: var(--sg-text-3); }
+.sg-coverage-count {
+  font-size: 0.74rem;
+  color: var(--sg-text-3);
+}
 .sg-coverage-cats .sg-pill-info {
-  transition: border-color var(--sg-fast), background var(--sg-fast);
-  
+  transition:
+    border-color var(--sg-fast),
+    background var(--sg-fast);
+
   cursor: default;
 }
 .sg-coverage-cats .sg-pill-info:hover {
@@ -30,19 +40,35 @@
   border-color: rgba(129, 140, 248, 0.6);
   background: rgba(129, 140, 248, 0.22);
 }
-.sg-coverage-cats .sg-pill-info:nth-child(2) { animation-delay: 40ms; }
-.sg-coverage-cats .sg-pill-info:nth-child(3) { animation-delay: 80ms; }
-.sg-coverage-cats .sg-pill-info:nth-child(4) { animation-delay: 120ms; }
-.sg-coverage-cats .sg-pill-info:nth-child(5) { animation-delay: 160ms; }
-.sg-coverage-cats .sg-pill-info:nth-child(n+6) { animation-delay: 200ms; }
+.sg-coverage-cats .sg-pill-info:nth-child(2) {
+  animation-delay: 40ms;
+}
+.sg-coverage-cats .sg-pill-info:nth-child(3) {
+  animation-delay: 80ms;
+}
+.sg-coverage-cats .sg-pill-info:nth-child(4) {
+  animation-delay: 120ms;
+}
+.sg-coverage-cats .sg-pill-info:nth-child(5) {
+  animation-delay: 160ms;
+}
+.sg-coverage-cats .sg-pill-info:nth-child(n + 6) {
+  animation-delay: 200ms;
+}
 .sg-coverage-empty {
-  margin: 10px 0 0; font-size: 0.78rem; line-height: 1.5;
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
   color: var(--sg-text-3);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sg-coverage-fill { transition: none; }
-  .sg-coverage-cats .sg-pill-info { animation: none; }
+  .sg-coverage-fill {
+    transition: none;
+  }
+  .sg-coverage-cats .sg-pill-info {
+    animation: none;
+  }
 }
 
 /* ── PostureScore ── weak: the "ring" was a flat bordered pill; grade colours were
@@ -52,68 +78,142 @@
  * role=img + aria-label. why: a score deserves a real ring; chips scan faster than
  * joined text; loading state is honest instead of silent. */
 .sg-posture {
-  display: flex; align-items: center; gap: 12px;
-  
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .sg-posture-ringwrap {
-  position: relative; width: 64px; height: 64px; flex: 0 0 auto;
-  
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
 }
-.sg-posture:hover .sg-posture-ringwrap { transform: scale(1.04); }
-.sg-posture-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.sg-posture-track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 6; }
+.sg-posture:hover .sg-posture-ringwrap {
+  transform: scale(1.04);
+}
+.sg-posture-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.sg-posture-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 6;
+}
 .sg-posture-arc {
-  fill: none; stroke-width: 6; stroke-linecap: round;
-  
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
 }
 .sg-posture-score {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.98rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.98rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 .sg-posture-grade {
-  position: absolute; right: -3px; bottom: -3px;
-  width: 22px; height: 22px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.66rem; font-weight: 800; color: #0b0e14;
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #0b0e14;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
   border: 2px solid var(--sg-ink-1, #0a0d14);
 }
-.sg-posture-meta { display: flex; flex-direction: column; gap: 5px; line-height: 1.3; }
+.sg-posture-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  line-height: 1.3;
+}
 .sg-posture-label {
-  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--sg-text-3);
 }
-.sg-posture-counts { display: flex; flex-wrap: wrap; gap: 5px; }
+.sg-posture-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
 .sg-posture-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 0.72rem; color: var(--sg-text-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--sg-text-2);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--sg-line-soft);
-  border-radius: 999px; padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  padding: 2px 9px 2px 7px;
   font-variant-numeric: tabular-nums;
-  transition: border-color var(--sg-fast), background var(--sg-fast);
+  transition:
+    border-color var(--sg-fast),
+    background var(--sg-fast);
 }
-.sg-posture-chip:hover { border-color: var(--sg-line); background: rgba(255, 255, 255, 0.055); }
-.sg-posture-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
-.sg-posture-none { font-size: 0.74rem; color: var(--sg-text-3); }
+.sg-posture-chip:hover {
+  border-color: var(--sg-line);
+  background: rgba(255, 255, 255, 0.055);
+}
+.sg-posture-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.sg-posture-none {
+  font-size: 0.74rem;
+  color: var(--sg-text-3);
+}
 
 /* loading skeleton */
-.sg-posture-loading { pointer-events: none; }
+.sg-posture-loading {
+  pointer-events: none;
+}
 .sg-posture-skel-ring {
-  width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex: 0 0 auto;
   border: 6px solid rgba(255, 255, 255, 0.07);
 }
 .sg-posture-skel-line {
-  display: block; width: 92px; height: 10px; border-radius: 5px;
+  display: block;
+  width: 92px;
+  height: 10px;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.07);
 }
-.sg-posture-skel-line + .sg-posture-skel-line { width: 64px; margin-top: 5px; }
+.sg-posture-skel-line + .sg-posture-skel-line {
+  width: 64px;
+  margin-top: 5px;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .sg-posture { animation: none; }
-  .sg-posture-arc { transition: none; }
-  .sg-posture-skel-ring, .sg-posture-skel-line { animation: none; opacity: 0.7; }
+  .sg-posture {
+    animation: none;
+  }
+  .sg-posture-arc {
+    transition: none;
+  }
+  .sg-posture-skel-ring,
+  .sg-posture-skel-line {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 /* ── FingerprintCard ── weak: docstring promised server header / TLS / IP / ASN
@@ -125,24 +225,44 @@
  * full row, overflow-wrap:anywhere, stable chip keys, chip hover lift, staggered
  * entrance. why: the "what we know" card should surface everything the agent
  * actually knows; the objective needs a full line to be readable. */
-.dm-fingerprint:focus-visible { outline: 2px solid var(--dm-accent-bright); outline-offset: 3px; }
+.dm-fingerprint:focus-visible {
+  outline: 2px solid var(--dm-accent-bright);
+  outline-offset: 3px;
+}
 .dm-fingerprint-target code {
-  overflow-wrap: anywhere; word-break: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
   font-variant-numeric: tabular-nums;
 }
 .dm-fingerprint-grid > div {
-  
   transition: border-color 0.18s ease;
 }
-.dm-fingerprint-grid > div:hover { transform: translateY(-2px); border-color: var(--dm-border); }
-.dm-fingerprint-grid > div:nth-child(2) { animation-delay: 50ms; }
-.dm-fingerprint-grid > div:nth-child(3) { animation-delay: 100ms; }
-.dm-fingerprint-grid > div:nth-child(4) { animation-delay: 150ms; }
-.dm-fingerprint-grid > div:nth-child(5) { animation-delay: 200ms; }
-.dm-fingerprint-grid > div:nth-child(6) { animation-delay: 250ms; }
-.dm-fingerprint-objective-cell { grid-column: 1 / -1; }
+.dm-fingerprint-grid > div:hover {
+  transform: translateY(-2px);
+  border-color: var(--dm-border);
+}
+.dm-fingerprint-grid > div:nth-child(2) {
+  animation-delay: 50ms;
+}
+.dm-fingerprint-grid > div:nth-child(3) {
+  animation-delay: 100ms;
+}
+.dm-fingerprint-grid > div:nth-child(4) {
+  animation-delay: 150ms;
+}
+.dm-fingerprint-grid > div:nth-child(5) {
+  animation-delay: 200ms;
+}
+.dm-fingerprint-grid > div:nth-child(6) {
+  animation-delay: 250ms;
+}
+.dm-fingerprint-objective-cell {
+  grid-column: 1 / -1;
+}
 .dm-tech-chip {
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
   cursor: default;
 }
 .dm-tech-chip:hover {
@@ -152,13 +272,17 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 .dm-port-chip {
-  font-family: var(--dm-mono); font-size: 12px;
+  font-family: var(--dm-mono);
+  font-size: 12px;
   background: rgba(96, 165, 250, 0.08);
   border: 1px solid rgba(96, 165, 250, 0.3);
   color: #93c5fd;
-  padding: 3px 10px; border-radius: 999px;
+  padding: 3px 10px;
+  border-radius: 999px;
   font-variant-numeric: tabular-nums;
-  transition: border-color 0.18s ease, background 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
   cursor: default;
 }
 .dm-port-chip:hover {
@@ -167,17 +291,34 @@
   border-color: rgba(96, 165, 250, 0.55);
 }
 .dm-fingerprint-ports {
-  display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
-  margin-top: 14px; color: var(--dm-faint); font-size: 12.5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  margin-top: 14px;
+  color: var(--dm-faint);
+  font-size: 12.5px;
 }
-.dm-fingerprint-ports svg { color: var(--dm-faint); }
+.dm-fingerprint-ports svg {
+  color: var(--dm-faint);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .dm-fingerprint-grid > div { animation: none; }
-  .dm-fingerprint-grid > div:hover, .dm-tech-chip:hover, .dm-port-chip:hover { transform: none; }
+  .dm-fingerprint-grid > div {
+    animation: none;
+  }
+  .dm-fingerprint-grid > div:hover,
+  .dm-tech-chip:hover,
+  .dm-port-chip:hover {
+    transform: none;
+  }
 }
 
 @media (max-width: 480px) {
-  .dm-fingerprint { padding: 16px 16px; }
-  .dm-fingerprint-grid { grid-template-columns: repeat(2, 1fr); }
+  .dm-fingerprint {
+    padding: 16px 16px;
+  }
+  .dm-fingerprint-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

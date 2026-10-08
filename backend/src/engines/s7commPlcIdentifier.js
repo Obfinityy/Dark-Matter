@@ -46,7 +46,10 @@ function toBuffer(hexOrBuffer) {
 
 /** Decode ASCII field: strip NULs and spaces, printable-only, or 'unknown'. */
 function decodeAsciiField(buf) {
-  const text = buf.toString('latin1').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]/g, '').trim();
+  const text = buf
+    .toString('latin1')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]/g, '')
+    .trim();
   return text.length > 0 ? text : 'unknown';
 }
 

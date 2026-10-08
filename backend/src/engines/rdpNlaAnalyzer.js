@@ -30,16 +30,35 @@ export const PROTOCOLS = {
 /** CredSSP failure codes with OS hints. */
 export const CREDSSP_FAILURE_HINTS = [
   { regex: /0x8009030[CE]/i, hint: 'SEC_E_* logon failure — host is live, credentials rejected' },
-  { regex: /0x80004005/i, hint: 'E_FAIL during CredSSP — possible patched host rejecting the handshake' },
+  {
+    regex: /0x80004005/i,
+    hint: 'E_FAIL during CredSSP — possible patched host rejecting the handshake',
+  },
   { regex: /STATUS_LOGON_FAILURE|0xC000006D/i, hint: 'NTLM logon failure from the host' },
 ];
 
 /** Windows version hints derived from negotiation behavior. */
 export const OS_HINTS = [
-  { match: r => r.restrictedAdminSupported === true, os: 'Windows 8.1 / Server 2012 R2 or newer', note: 'RESTRICTED_ADMIN_MODE_SUPPORTED flag' },
-  { match: r => r.negotiatedProtocol === 'CredSSP (NLA)', os: 'Windows Vista / Server 2008 or newer', note: 'NLA offered' },
-  { match: r => r.negotiatedProtocol === 'RDP (native, no enhanced security)', os: 'Legacy host (XP/2003 era) or NLA disabled', note: 'Native RDP only' },
-  { match: r => r.negotiatedProtocol === 'EARLY_USER_AUTHORIZATION_RESULT_PDU (RDSTLS)', os: 'Windows 10 / Server 2016+ via RD Gateway', note: 'RDSTLS indicates gateway' },
+  {
+    match: r => r.restrictedAdminSupported === true,
+    os: 'Windows 8.1 / Server 2012 R2 or newer',
+    note: 'RESTRICTED_ADMIN_MODE_SUPPORTED flag',
+  },
+  {
+    match: r => r.negotiatedProtocol === 'CredSSP (NLA)',
+    os: 'Windows Vista / Server 2008 or newer',
+    note: 'NLA offered',
+  },
+  {
+    match: r => r.negotiatedProtocol === 'RDP (native, no enhanced security)',
+    os: 'Legacy host (XP/2003 era) or NLA disabled',
+    note: 'Native RDP only',
+  },
+  {
+    match: r => r.negotiatedProtocol === 'EARLY_USER_AUTHORIZATION_RESULT_PDU (RDSTLS)',
+    os: 'Windows 10 / Server 2016+ via RD Gateway',
+    note: 'RDSTLS indicates gateway',
+  },
 ];
 
 /**
@@ -63,7 +82,9 @@ export function decodeNegotiation(resp = {}) {
   for (const [bit, name] of Object.entries(NEGOTIATION_FLAGS)) {
     if (flags & Number(bit)) decodedFlags.push(name);
   }
-  const proto = PROTOCOLS[Number(resp.selectedProtocol)] || `unknown_0x${Number(resp.selectedProtocol || 0).toString(16)}`;
+  const proto =
+    PROTOCOLS[Number(resp.selectedProtocol)] ||
+    `unknown_0x${Number(resp.selectedProtocol || 0).toString(16)}`;
   return {
     success: true,
     flags: decodedFlags,
@@ -112,11 +133,18 @@ export function analyzeNlaHandshake(obs = {}) {
   const osCandidates = [];
   for (const h of OS_HINTS) {
     let ok = false;
-    try { ok = h.match(neg); } catch { ok = false; }
+    try {
+      ok = h.match(neg);
+    } catch {
+      ok = false;
+    }
     if (ok) osCandidates.push({ os: h.os, note: h.note });
   }
 
-  const isGateway = !!obs.gatewayDetected || neg.negotiatedProtocol.includes('RDSTLS') || neg.redirectedAuthSupported;
+  const isGateway =
+    !!obs.gatewayDetected ||
+    neg.negotiatedProtocol.includes('RDSTLS') ||
+    neg.redirectedAuthSupported;
   findings.isGateway = isGateway;
   findings.osCandidates = osCandidates;
   findings.nlaEnforced = neg.negotiatedProtocol.includes('CredSSP') || obs.nlaRequired === true;

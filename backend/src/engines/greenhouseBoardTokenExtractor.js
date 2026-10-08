@@ -17,7 +17,10 @@ const BOARD_TOKEN_PATTERNS = [
   // boards-api.greenhouse.io/v1/boards/<token>/...
   { rx: /boards-api\.greenhouse\.io\/v\d+\/boards\/([a-z0-9_-]+)/gi, kind: 'api_url' },
   // JS: greenhouseBoardToken = "acme"; board_token: "acme"
-  { rx: /(?:greenhouse[_-]?board[_-]?token|board[_-]?token)\s*[:=]\s*["']([a-z0-9_-]+)["']/gi, kind: 'js_config' },
+  {
+    rx: /(?:greenhouse[_-]?board[_-]?token|board[_-]?token)\s*[:=]\s*["']([a-z0-9_-]+)["']/gi,
+    kind: 'js_config',
+  },
   // Harvest embed: data-board-token="acme"
   { rx: /data-board-token\s*=\s*["']([a-z0-9_-]+)["']/gi, kind: 'embed_attr' },
   // Greenhouse "gh_src" job links: ?gh_src=..., plus /gh/jid query style
@@ -49,7 +52,8 @@ export function extractBoardTokens(text, sourceUrl = '') {
     while ((m = rx.exec(body)) !== null) {
       const token = m[1].toLowerCase();
       // Skip obvious false positives (query keys, placeholder words).
-      if (/^(jobs|boards|api|embed|v1|careers|openings|search|undefined|null)$/.test(token)) continue;
+      if (/^(jobs|boards|api|embed|v1|careers|openings|search|undefined|null)$/.test(token))
+        continue;
       const key = `${token}:${kind}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -81,8 +85,12 @@ export function boardTokenEndpoints(token) {
  * @returns {'exact'|'close'|'unrelated'}
  */
 export function tokenOrgMatch(token, orgName) {
-  const t = String(token || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const o = String(orgName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const t = String(token || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+  const o = String(orgName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
   if (!t || !o) return 'unrelated';
   if (t === o) return 'exact';
   if (t.includes(o) || o.includes(t)) return 'close';

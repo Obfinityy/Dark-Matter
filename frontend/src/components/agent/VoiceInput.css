@@ -23,7 +23,10 @@
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .voice-mic-btn:hover:not(:disabled) {
@@ -31,7 +34,9 @@
   border-color: var(--accent);
 }
 
-.voice-mic-btn:active:not(:disabled) { transform: scale(0.94); }
+.voice-mic-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
 
 .voice-mic-btn:disabled {
   opacity: 0.4;
@@ -59,7 +64,7 @@
   inset: -4px;
   border-radius: var(--radius-lg);
   border: 2px solid color-mix(in srgb, var(--danger) 60%, transparent);
-  
+
   pointer-events: none;
 }
 
@@ -84,7 +89,6 @@
   z-index: 40;
   pointer-events: none;
   box-shadow: var(--shadow-md);
-  
 }
 
 .voice-mic-error {
@@ -111,7 +115,10 @@
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -120,11 +127,15 @@
   border-color: var(--accent);
 }
 
-.voice-mode-btn:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.voice-mode-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
 
 /* Inside the chat composer the generic .sg-chat-input button rule forces
    width:44px — override so the "Voice chat" label is never squeezed. */
-.sg-chat-input .voice-mode-btn { width: auto; }
+.sg-chat-input .voice-mode-btn {
+  width: auto;
+}
 
 .voice-mode-btn:disabled {
   opacity: 0.45;
@@ -172,13 +183,23 @@
     transform: none;
     max-width: min(250px, calc(100vw - 48px));
   }
-  
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .voice-mic-pulse { animation: none; display: none; }
-  .voice-mic-caption, .voice-mic-error { animation: none; }
-  .voice-mic-btn, .voice-mode-btn { transition: none; }
+  .voice-mic-pulse {
+    animation: none;
+    display: none;
+  }
+  .voice-mic-caption,
+  .voice-mic-error {
+    animation: none;
+  }
+  .voice-mic-btn,
+  .voice-mode-btn {
+    transition: none;
+  }
   .voice-mic-btn:active:not(:disabled),
-  .voice-mode-btn:active:not(:disabled) { transform: none; }
+  .voice-mode-btn:active:not(:disabled) {
+    transform: none;
+  }
 }

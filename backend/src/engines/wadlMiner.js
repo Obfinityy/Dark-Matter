@@ -10,14 +10,10 @@
  * surface a target publicly documents so reviews can cover it.
  */
 
-const RESOURCES_BASE_RE =
-  /<\s*(?:[\w.-]+:)?resources\b[^>]*?\bbase\s*=\s*["']([^"']+)["']/i;
-const RESOURCE_PATH_RE =
-  /<\s*(?:[\w.-]+:)?resource\b[^>]*?\bpath\s*=\s*["']([^"']+)["'][^>]*>/gi;
-const METHOD_RE =
-  /<\s*(?:[\w.-]+:)?method\b[^>]*?\bname\s*=\s*["']([A-Za-z]+)["'][^>]*>/gi;
-const METHOD_ID_RE =
-  /<\s*(?:[\w.-]+:)?method\b[^>]*?\bid\s*=\s*["']([^"']+)["'][^>]*>/gi;
+const RESOURCES_BASE_RE = /<\s*(?:[\w.-]+:)?resources\b[^>]*?\bbase\s*=\s*["']([^"']+)["']/i;
+const RESOURCE_PATH_RE = /<\s*(?:[\w.-]+:)?resource\b[^>]*?\bpath\s*=\s*["']([^"']+)["'][^>]*>/gi;
+const METHOD_RE = /<\s*(?:[\w.-]+:)?method\b[^>]*?\bname\s*=\s*["']([A-Za-z]+)["'][^>]*>/gi;
+const METHOD_ID_RE = /<\s*(?:[\w.-]+:)?method\b[^>]*?\bid\s*=\s*["']([^"']+)["'][^>]*>/gi;
 
 /**
  * Extract the base URL declared on the <resources> element.
@@ -90,7 +86,7 @@ export function analyzeWadl({ url = '', wadlText = '' } = {}) {
   const base = extractBase(text);
   const paths = extractPaths(text);
   const methods = extractMethods(text);
-  const fullUrls = paths.map((p) => joinUrl(base, p));
+  const fullUrls = paths.map(p => joinUrl(base, p));
 
   let host = null;
   if (base) {

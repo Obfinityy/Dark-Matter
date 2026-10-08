@@ -1,17 +1,49 @@
+/**
+ * assessmentModel — database model for assessment.
+ * Schema definition and data-access methods for assessment records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { assert } from '../core/errors.js';
 import { id, now } from '../core/utils.js';
 
-const VALID_STATUSES = ['created', 'scope_validation', 'planning', 'running', 'paused', 'completed', 'failed', 'stopped'];
+const VALID_STATUSES = [
+  'created',
+  'scope_validation',
+  'planning',
+  'running',
+  'paused',
+  'completed',
+  'failed',
+  'stopped',
+];
 const VALID_PHASES = [
-  'initializing', 'scope_validation', 'planning',
-  'passive_recon', 'active_recon', 'dns_enumeration', 'subdomain_enumeration',
-  'http_discovery', 'technology_detection', 'endpoint_discovery',
-  'content_discovery', 'parameter_discovery', 'javascript_analysis',
-  'certificate_analysis', 'vulnerability_detection', 'configuration_analysis',
-  'authentication_testing', 'authorization_testing', 'api_security_testing',
-  'evidence_collection', 'report_generation', 'completed', 'failed'
+  'initializing',
+  'scope_validation',
+  'planning',
+  'passive_recon',
+  'active_recon',
+  'dns_enumeration',
+  'subdomain_enumeration',
+  'http_discovery',
+  'technology_detection',
+  'endpoint_discovery',
+  'content_discovery',
+  'parameter_discovery',
+  'javascript_analysis',
+  'certificate_analysis',
+  'vulnerability_detection',
+  'configuration_analysis',
+  'authentication_testing',
+  'authorization_testing',
+  'api_security_testing',
+  'evidence_collection',
+  'report_generation',
+  'completed',
+  'failed',
 ];
 
+/** Database model for assessment. */
 export class AssessmentModel {
   constructor(database) {
     this.collection = database.collection('assessments');
@@ -23,7 +55,12 @@ export class AssessmentModel {
 
   async get(userId, assessmentId) {
     const assessment = await this.collection.findOne({ id: assessmentId, userId });
-    assert(assessment && assessment.userId === userId, 404, 'Assessment not found', 'ASSESSMENT_NOT_FOUND');
+    assert(
+      assessment && assessment.userId === userId,
+      404,
+      'Assessment not found',
+      'ASSESSMENT_NOT_FOUND'
+    );
     return assessment;
   }
 
@@ -59,12 +96,19 @@ export class AssessmentModel {
 
       // Chat messages
       messages: input.message
-        ? [{ id: id('msg'), role: 'user', content: String(input.message).slice(0, 6000), createdAt: now() }]
+        ? [
+            {
+              id: id('msg'),
+              role: 'user',
+              content: String(input.message).slice(0, 6000),
+              createdAt: now(),
+            },
+          ]
         : [],
 
       // Error tracking
       error: null,
-      lastCheckpoint: null
+      lastCheckpoint: null,
     };
     await this.collection.insertOne(assessment);
     return assessment;
@@ -76,7 +120,12 @@ export class AssessmentModel {
   }
 
   async addMessage(assessmentId, role, content) {
-    const message = { id: id('msg'), role, content: String(content).slice(0, 10_000), createdAt: now() };
+    const message = {
+      id: id('msg'),
+      role,
+      content: String(content).slice(0, 10_000),
+      createdAt: now(),
+    };
     await this.collection.updateOne(
       { id: assessmentId },
       { $push: { messages: message }, $set: { updatedAt: now() } }
@@ -104,7 +153,10 @@ export class AssessmentModel {
       if (typeof value === 'number' && value > 0) inc[key] = value;
     }
     if (Object.keys(inc).length) {
-      await this.collection.updateOne({ id: assessmentId }, { $inc: inc, $set: { updatedAt: now() } });
+      await this.collection.updateOne(
+        { id: assessmentId },
+        { $inc: inc, $set: { updatedAt: now() } }
+      );
     }
   }
 }

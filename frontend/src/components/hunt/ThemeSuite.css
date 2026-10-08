@@ -117,7 +117,10 @@
 .th-fading *,
 .th-fading *::before,
 .th-fading *::after {
-  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease;
+  transition:
+    background-color 250ms ease,
+    color 250ms ease,
+    border-color 250ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -378,10 +381,26 @@
   box-shadow: 0 0 0 2px var(--th-accent);
 }
 
-.th-theme-card[data-theme='dark'] { background: #0b0e14; color: #e9edf5; border-color: #263046; }
-.th-theme-card[data-theme='light'] { background: #ffffff; color: #141a26; border-color: #d4dae6; }
-.th-theme-card[data-theme='dim'] { background: #171a21; color: #dfe4ee; border-color: #333a4e; }
-.th-theme-card[data-theme='high-contrast'] { background: #000000; color: #ffffff; border-color: #ffffff; }
+.th-theme-card[data-theme='dark'] {
+  background: #0b0e14;
+  color: #e9edf5;
+  border-color: #263046;
+}
+.th-theme-card[data-theme='light'] {
+  background: #ffffff;
+  color: #141a26;
+  border-color: #d4dae6;
+}
+.th-theme-card[data-theme='dim'] {
+  background: #171a21;
+  color: #dfe4ee;
+  border-color: #333a4e;
+}
+.th-theme-card[data-theme='high-contrast'] {
+  background: #000000;
+  color: #ffffff;
+  border-color: #ffffff;
+}
 
 .th-theme-swatch {
   width: 34px;
@@ -608,10 +627,22 @@
   padding: 2px 7px;
 }
 
-.th-grade-aaa { background: #15803d; color: #fff; }
-.th-grade-aa { background: #1d4ed8; color: #fff; }
-.th-grade-aalarge { background: #a16207; color: #fff; }
-.th-grade-fail { background: #dc2626; color: #fff; }
+.th-grade-aaa {
+  background: #15803d;
+  color: #fff;
+}
+.th-grade-aa {
+  background: #1d4ed8;
+  color: #fff;
+}
+.th-grade-aalarge {
+  background: #a16207;
+  color: #fff;
+}
+.th-grade-fail {
+  background: #dc2626;
+  color: #fff;
+}
 
 .th-sev-row {
   display: flex;
@@ -799,9 +830,13 @@
   height: 44px;
   border-radius: 50%;
   flex: none;
-  background: linear-gradient(100deg, var(--th-skel-base) 40%, var(--th-skel-shimmer) 50%, var(--th-skel-base) 60%);
+  background: linear-gradient(
+    100deg,
+    var(--th-skel-base) 40%,
+    var(--th-skel-shimmer) 50%,
+    var(--th-skel-base) 60%
+  );
   background-size: 200% 100%;
-  
 }
 
 .th-skeleton-lines {
@@ -815,9 +850,13 @@
 .th-skeleton-line {
   height: 12px;
   border-radius: 6px;
-  background: linear-gradient(100deg, var(--th-skel-base) 40%, var(--th-skel-shimmer) 50%, var(--th-skel-base) 60%);
+  background: linear-gradient(
+    100deg,
+    var(--th-skel-base) 40%,
+    var(--th-skel-shimmer) 50%,
+    var(--th-skel-base) 60%
+  );
   background-size: 200% 100%;
-  
 }
 
 .th-skeleton-line.th-short {

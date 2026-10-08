@@ -48,7 +48,11 @@ export function detectTarpit({
     });
   }
 
-  if (bannerCharsPerSec !== null && bannerCharsPerSec <= ENDLESSH_CHARS_PER_SEC && banner.length > 0) {
+  if (
+    bannerCharsPerSec !== null &&
+    bannerCharsPerSec <= ENDLESSH_CHARS_PER_SEC &&
+    banner.length > 0
+  ) {
     score += 3;
     indicators.push({
       type: 'endlessh-style-drip',
@@ -59,14 +63,14 @@ export function detectTarpit({
 
   if (responseDelaysMs.length >= 3) {
     const avg = responseDelaysMs.reduce((a, b) => a + b, 0) / responseDelaysMs.length;
-    const maxDev = Math.max(...responseDelaysMs.map((d) => Math.abs(d - avg)));
+    const maxDev = Math.max(...responseDelaysMs.map(d => Math.abs(d - avg)));
     const uniform = avg >= RESPONSE_TARPIT_MS && maxDev < avg * 0.25;
     if (uniform) {
       score += 2;
       indicators.push({
         type: 'uniform-response-delay',
         severity: 'medium',
-        detail: `${responseDelaysMs.length} responses each delayed ~${(avg / 1000).toFixed(1)}s with ${(maxDev).toFixed(0)}ms deviation — artificial, uniform throttling, not congestion.`,
+        detail: `${responseDelaysMs.length} responses each delayed ~${(avg / 1000).toFixed(1)}s with ${maxDev.toFixed(0)}ms deviation — artificial, uniform throttling, not congestion.`,
       });
     } else if (avg >= RESPONSE_TARPIT_MS) {
       score += 1;

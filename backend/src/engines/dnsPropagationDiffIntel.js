@@ -33,7 +33,10 @@ export function indexByHostname(answers) {
       hostEntry = new Map();
       idx.set(host, hostEntry);
     }
-    hostEntry.set(String(ans.resolver ?? 'unknown'), new Set((ans.answers ?? []).map((a) => String(a).trim())));
+    hostEntry.set(
+      String(ans.resolver ?? 'unknown'),
+      new Set((ans.answers ?? []).map(a => String(a).trim()))
+    );
   }
   return idx;
 }
@@ -68,7 +71,9 @@ export function findResolverDisagreements(answers, opts = {}) {
       });
     }
   }
-  return out.sort((a, b) => b.disagreement - a.disagreement || a.hostname.localeCompare(b.hostname));
+  return out.sort(
+    (a, b) => b.disagreement - a.disagreement || a.hostname.localeCompare(b.hostname)
+  );
 }
 
 /**
@@ -111,7 +116,7 @@ export function propagationDivergenceScore(answers) {
   if (!idx.size) return 0;
   let divergent = 0;
   for (const resolverMap of idx.values()) {
-    const fps = new Set([...resolverMap.values()].map((s) => [...s].sort().join('|')));
+    const fps = new Set([...resolverMap.values()].map(s => [...s].sort().join('|')));
     if (fps.size > 1) divergent += 1;
   }
   return Math.round((divergent / idx.size) * 100);

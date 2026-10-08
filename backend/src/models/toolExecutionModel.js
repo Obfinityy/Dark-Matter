@@ -1,3 +1,9 @@
+/**
+ * toolExecutionModel — database model for tool Execution.
+ * Schema definition and data-access methods for tool Execution records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import crypto from 'node:crypto';
 import { id, now } from '../core/utils.js';
 
@@ -61,7 +67,7 @@ export class ToolExecutionModel {
       maxRetries: input.maxRetries || 2,
 
       createdAt: now(),
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.insertOne(execution);
     return execution;
@@ -91,8 +97,8 @@ export class ToolExecutionModel {
           outputSizeBytes: output.raw ? Buffer.byteLength(output.raw, 'utf8') : 0,
           completedAt,
           duration,
-          updatedAt: now()
-        }
+          updatedAt: now(),
+        },
       }
     );
   }
@@ -105,9 +111,9 @@ export class ToolExecutionModel {
           status: 'failed',
           error: String(error).slice(0, 2000),
           completedAt: now(),
-          updatedAt: now()
+          updatedAt: now(),
         },
-        $inc: { retryCount: 1 }
+        $inc: { retryCount: 1 },
       }
     );
   }

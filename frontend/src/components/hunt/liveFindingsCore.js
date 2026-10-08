@@ -39,7 +39,7 @@ export const WAVE38_LF_IDEAS = [
  */
 export function insertFinding(feed, finding) {
   const list = (feed || []).slice();
-  const idx = list.findIndex((f) => f && f.id === finding.id);
+  const idx = list.findIndex(f => f && f.id === finding.id);
   if (idx >= 0) {
     list[idx] = { ...finding };
   } else {
@@ -72,7 +72,7 @@ export function pushToast(queue, finding) {
 }
 
 export function dismissToast(queue, toastId) {
-  return (queue || []).filter((t) => t.id !== toastId);
+  return (queue || []).filter(t => t.id !== toastId);
 }
 
 /* --- 51511 · severity sound cues ------------------------------------------------------- */
@@ -95,7 +95,7 @@ export function soundCueFor(severity) {
 /* --- 51512 · findings ticker ------------------------------------------------------------ */
 
 export function tickerSlice(feed, count) {
-  return (feed || []).slice(0, count).map((f) => ({
+  return (feed || []).slice(0, count).map(f => ({
     id: f.id,
     text: '[' + f.severity + '] ' + f.title,
   }));
@@ -185,16 +185,16 @@ export function matchFilters(finding, filters) {
 /* --- 51519 · finding feed search ------------------------------------------------------------------------- */
 
 function evidenceText(evidence) {
-  return (evidence || [])
-    .map((e) => (typeof e === 'string' ? e : String(e)))
-    .join(' ');
+  return (evidence || []).map(e => (typeof e === 'string' ? e : String(e))).join(' ');
 }
 
 export function searchFeed(feed, query) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
   const list = feed || [];
   if (!q) return list;
-  return list.filter((f) => {
+  return list.filter(f => {
     const haystack = [f.title, f.type, f.asset, f.technique, evidenceText(f.evidence)]
       .filter(Boolean)
       .join(' ')
@@ -207,7 +207,7 @@ export function searchFeed(feed, query) {
 
 export function groupFindings(feed) {
   const groups = new Map();
-  (feed || []).forEach((f) => {
+  (feed || []).forEach(f => {
     const key = `${f.asset || ''}::${f.type || ''}`;
     if (!groups.has(key)) {
       groups.set(key, {

@@ -10,10 +10,21 @@
 import { useMemo, useState } from 'react';
 import {
   HUNT_PERSONAS,
-  deemphasizeFindingsClass, steerFromFindings, switchPersona,
-  addCheckpoint, reachCheckpoint, steeringAnalytics, emergencyRescope,
-  defineAlias, expandAlias, scheduleSteering, dueSteering,
-  resolveSteeringConflict, setAutonomy, pushSteeringEvent, postSteeringSummary,
+  deemphasizeFindingsClass,
+  steerFromFindings,
+  switchPersona,
+  addCheckpoint,
+  reachCheckpoint,
+  steeringAnalytics,
+  emergencyRescope,
+  defineAlias,
+  expandAlias,
+  scheduleSteering,
+  dueSteering,
+  resolveSteeringConflict,
+  setAutonomy,
+  pushSteeringEvent,
+  postSteeringSummary,
 } from './governCore.js';
 
 /* 51161 — de-emphasize findings class */
@@ -31,10 +42,21 @@ export function DeemphasizeClass({ initial = [] }) {
     <div className="gov30-card">
       <h4>De-emphasize findings class</h4>
       <div className="gov30-row">
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="e.g. informational" aria-label="Finding category" />
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="e.g. informational"
+          aria-label="Finding category"
+        />
         <button onClick={add}>De-emphasize</button>
       </div>
-      <div className="gov30-chips">{deemphasized.map((c) => <span key={c} className="gov30-chip">{c}</span>)}</div>
+      <div className="gov30-chips">
+        {deemphasized.map(c => (
+          <span key={c} className="gov30-chip">
+            {c}
+          </span>
+        ))}
+      </div>
       {adaptation && <p className="gov30-note">{adaptation.note}</p>}
     </div>
   );
@@ -43,18 +65,28 @@ export function DeemphasizeClass({ initial = [] }) {
 /* 51162 — steering via findings feed */
 export function FindingsFeedSteering({ findings = [] }) {
   const [selected, setSelected] = useState([]);
-  const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const toggle = id => setSelected(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
   const directive = useMemo(
-    () => steerFromFindings(findings.filter((f) => selected.includes(f.id))),
-    [findings, selected],
+    () => steerFromFindings(findings.filter(f => selected.includes(f.id))),
+    [findings, selected]
   );
   return (
     <div className="gov30-card">
       <h4>Steer via findings feed</h4>
       <ul className="gov30-list">
-        {findings.map((f) => (
+        {findings.map(f => (
           <li key={f.id}>
-            <label><input type="checkbox" checked={selected.includes(f.id)} onChange={() => toggle(f.id)} /> {f.title} <span className="gov30-dim">({f.category} · {f.severity})</span></label>
+            <label>
+              <input
+                type="checkbox"
+                checked={selected.includes(f.id)}
+                onChange={() => toggle(f.id)}
+              />{' '}
+              {f.title}{' '}
+              <span className="gov30-dim">
+                ({f.category} · {f.severity})
+              </span>
+            </label>
           </li>
         ))}
       </ul>
@@ -67,7 +99,7 @@ export function FindingsFeedSteering({ findings = [] }) {
 export function PersonaSwitch({ initial = 'balanced' }) {
   const [persona, setPersona] = useState(initial);
   const [profile, setProfile] = useState(null);
-  const change = (p) => {
+  const change = p => {
     const r = switchPersona(persona, p);
     setPersona(r.persona);
     setProfile(r.profile);
@@ -76,11 +108,18 @@ export function PersonaSwitch({ initial = 'balanced' }) {
     <div className="gov30-card">
       <h4>Hunt persona</h4>
       <div className="gov30-row">
-        {HUNT_PERSONAS.map((p) => (
-          <button key={p} className={persona === p ? 'gov30-active' : ''} onClick={() => change(p)}>{p}</button>
+        {HUNT_PERSONAS.map(p => (
+          <button key={p} className={persona === p ? 'gov30-active' : ''} onClick={() => change(p)}>
+            {p}
+          </button>
         ))}
       </div>
-      {profile && <p className="gov30-note">{profile.rps} rps · depth {profile.depth} · {profile.noise} noise · {profile.verify} verify</p>}
+      {profile && (
+        <p className="gov30-note">
+          {profile.rps} rps · depth {profile.depth} · {profile.noise} noise · {profile.verify}{' '}
+          verify
+        </p>
+      )}
     </div>
   );
 }
@@ -89,19 +128,32 @@ export function PersonaSwitch({ initial = 'balanced' }) {
 export function CheckpointPanel() {
   const [cps, setCps] = useState([]);
   const [phase, setPhase] = useState('');
-  const add = () => { if (phase.trim()) { setCps((c) => addCheckpoint(c, phase.trim(), '')); setPhase(''); } };
-  const reach = (p) => setCps((c) => reachCheckpoint(c, p));
+  const add = () => {
+    if (phase.trim()) {
+      setCps(c => addCheckpoint(c, phase.trim(), ''));
+      setPhase('');
+    }
+  };
+  const reach = p => setCps(c => reachCheckpoint(c, p));
   return (
     <div className="gov30-card">
       <h4>Plan checkpoints</h4>
       <div className="gov30-row">
-        <input value={phase} onChange={(e) => setPhase(e.target.value)} placeholder="Phase name" aria-label="Phase name" />
+        <input
+          value={phase}
+          onChange={e => setPhase(e.target.value)}
+          placeholder="Phase name"
+          aria-label="Phase name"
+        />
         <button onClick={add}>Add checkpoint</button>
       </div>
       <ul className="gov30-list">
-        {cps.map((c) => (
-          <li key={c.id}>{c.phase} — <span className={`gov30-status-${c.status}`}>{c.status}</span>{' '}
-            {c.status === 'pending' && <button onClick={() => reach(c.phase)}>Simulate reach</button>}
+        {cps.map(c => (
+          <li key={c.id}>
+            {c.phase} — <span className={`gov30-status-${c.status}`}>{c.status}</span>{' '}
+            {c.status === 'pending' && (
+              <button onClick={() => reach(c.phase)}>Simulate reach</button>
+            )}
           </li>
         ))}
       </ul>
@@ -116,10 +168,20 @@ export function SteeringAnalyticsView({ commands = [], findings = [] }) {
     <div className="gov30-card">
       <h4>Steering analytics</h4>
       <table className="gov30-table">
-        <thead><tr><th>Command</th><th>Findings</th><th>Top severity</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Findings</th>
+            <th>Top severity</th>
+          </tr>
+        </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.commandId}><td>{r.label}</td><td>{r.findingsAttributed}</td><td>{r.topSeverity || '—'}</td></tr>
+          {rows.map(r => (
+            <tr key={r.commandId}>
+              <td>{r.label}</td>
+              <td>{r.findingsAttributed}</td>
+              <td>{r.topSeverity || '—'}</td>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -135,8 +197,17 @@ export function EmergencyRescope({ plan }) {
     <div className="gov30-card gov30-danger">
       <h4>Emergency re-scope</h4>
       <div className="gov30-row">
-        <input value={asset} onChange={(e) => setAsset(e.target.value)} placeholder="Critical asset" aria-label="Critical asset" />
-        <button onClick={() => setResult(emergencyRescope(plan || { scope: [], modules: [] }, asset))}>Re-scope now</button>
+        <input
+          value={asset}
+          onChange={e => setAsset(e.target.value)}
+          placeholder="Critical asset"
+          aria-label="Critical asset"
+        />
+        <button
+          onClick={() => setResult(emergencyRescope(plan || { scope: [], modules: [] }, asset))}
+        >
+          Re-scope now
+        </button>
       </div>
       {result && <p className="gov30-note">{result.note}</p>}
     </div>
@@ -153,15 +224,44 @@ export function AliasManager() {
     <div className="gov30-card">
       <h4>Command aliases</h4>
       <div className="gov30-row">
-        <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="shorthand" aria-label="Shorthand" />
-        <input value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="full command" aria-label="Full command" />
-        <button onClick={() => { setAliases((a) => defineAlias(a, key, cmd)); setKey(''); setCmd(''); }}>Save</button>
+        <input
+          value={key}
+          onChange={e => setKey(e.target.value)}
+          placeholder="shorthand"
+          aria-label="Shorthand"
+        />
+        <input
+          value={cmd}
+          onChange={e => setCmd(e.target.value)}
+          placeholder="full command"
+          aria-label="Full command"
+        />
+        <button
+          onClick={() => {
+            setAliases(a => defineAlias(a, key, cmd));
+            setKey('');
+            setCmd('');
+          }}
+        >
+          Save
+        </button>
       </div>
       <div className="gov30-row">
-        <input value={probe} onChange={(e) => setProbe(e.target.value)} placeholder="try an alias" aria-label="Try alias" />
+        <input
+          value={probe}
+          onChange={e => setProbe(e.target.value)}
+          placeholder="try an alias"
+          aria-label="Try alias"
+        />
         <span className="gov30-note">→ {expandAlias(aliases, probe)}</span>
       </div>
-      <div className="gov30-chips">{Object.keys(aliases).map((k) => <span key={k} className="gov30-chip">{k} → {aliases[k]}</span>)}</div>
+      <div className="gov30-chips">
+        {Object.keys(aliases).map(k => (
+          <span key={k} className="gov30-chip">
+            {k} → {aliases[k]}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -176,12 +276,34 @@ export function ScheduledSteering() {
     <div className="gov30-card">
       <h4>Scheduled steering</h4>
       <div className="gov30-row">
-        <input value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="command" aria-label="Command" />
-        <input value={at} onChange={(e) => setAt(e.target.value)} placeholder="at (time/phase)" aria-label="Trigger" />
-        <button onClick={() => { setQueue((q) => scheduleSteering(q, cmd, at)); setCmd(''); }}>Queue</button>
+        <input
+          value={cmd}
+          onChange={e => setCmd(e.target.value)}
+          placeholder="command"
+          aria-label="Command"
+        />
+        <input
+          value={at}
+          onChange={e => setAt(e.target.value)}
+          placeholder="at (time/phase)"
+          aria-label="Trigger"
+        />
+        <button
+          onClick={() => {
+            setQueue(q => scheduleSteering(q, cmd, at));
+            setCmd('');
+          }}
+        >
+          Queue
+        </button>
       </div>
       <ul className="gov30-list">
-        {queue.map((q) => <li key={q.id}>{q.command} @ {q.at} — {q.status}{due.includes(q) ? ' (DUE)' : ''}</li>)}
+        {queue.map(q => (
+          <li key={q.id}>
+            {q.command} @ {q.at} — {q.status}
+            {due.includes(q) ? ' (DUE)' : ''}
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -190,10 +312,13 @@ export function ScheduledSteering() {
 /* 51169 — steering conflict resolver */
 export function ConflictResolver() {
   const [result, setResult] = useState(null);
-  const demo = () => setResult(resolveSteeringConflict(
-    { author: 'you', command: { scope: ['a.com'], rps: 10 } },
-    { author: 'teammate', command: { scope: ['a.com'], rps: 25 } },
-  ));
+  const demo = () =>
+    setResult(
+      resolveSteeringConflict(
+        { author: 'you', command: { scope: ['a.com'], rps: 10 } },
+        { author: 'teammate', command: { scope: ['a.com'], rps: 25 } }
+      )
+    );
   return (
     <div className="gov30-card">
       <h4>Steering conflict resolver</h4>
@@ -202,7 +327,9 @@ export function ConflictResolver() {
         <div className="gov30-note">
           <p>Merged: {JSON.stringify(result.merged)}</p>
           {result.conflicts.map((c, i) => (
-            <p key={i}>Conflict on <b>{c.field}</b>: {JSON.stringify(c.fromA)} vs {JSON.stringify(c.fromB)}</p>
+            <p key={i}>
+              Conflict on <b>{c.field}</b>: {JSON.stringify(c.fromA)} vs {JSON.stringify(c.fromB)}
+            </p>
           ))}
           {result.needsHuman && <p>Needs human pick.</p>}
         </div>
@@ -217,8 +344,18 @@ export function AutonomySlider({ initial = 50 }) {
   return (
     <div className="gov30-card">
       <h4>Agent autonomy</h4>
-      <input type="range" min="0" max="100" value={env.level} onChange={(e) => setEnv(setAutonomy(e.target.value))} aria-label="Autonomy level" />
-      <p className="gov30-note">{env.level}% — {env.label} · self-redirect {env.maySelfRedirect ? 'on' : 'off'} · destructive needs asking: {env.mustAskBeforeDestructive ? 'yes' : 'no'}</p>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={env.level}
+        onChange={e => setEnv(setAutonomy(e.target.value))}
+        aria-label="Autonomy level"
+      />
+      <p className="gov30-note">
+        {env.level}% — {env.label} · self-redirect {env.maySelfRedirect ? 'on' : 'off'} ·
+        destructive needs asking: {env.mustAskBeforeDestructive ? 'yes' : 'no'}
+      </p>
     </div>
   );
 }
@@ -226,12 +363,25 @@ export function AutonomySlider({ initial = 50 }) {
 /* 51171 — steering notification feed */
 export function SteeringFeed({ initial = [] }) {
   const [feed, setFeed] = useState(initial);
-  const push = () => setFeed((f) => pushSteeringEvent(f, { kind: 'plan-change', text: `Plan updated (${f.length + 1})`, trigger: 'manual' }));
+  const push = () =>
+    setFeed(f =>
+      pushSteeringEvent(f, {
+        kind: 'plan-change',
+        text: `Plan updated (${f.length + 1})`,
+        trigger: 'manual',
+      })
+    );
   return (
     <div className="gov30-card">
       <h4>Steering notification feed</h4>
       <button onClick={push}>Simulate plan change</button>
-      <ul className="gov30-list">{feed.map((e) => <li key={e.id}>{e.text} — <span className="gov30-dim">{e.trigger}</span></li>)}</ul>
+      <ul className="gov30-list">
+        {feed.map(e => (
+          <li key={e.id}>
+            {e.text} — <span className="gov30-dim">{e.trigger}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -242,7 +392,13 @@ export function PostSteeringSummaryDemo() {
   return (
     <div className="gov30-card">
       <h4>Post-steering summary</h4>
-      <button onClick={() => setSummary(postSteeringSummary({ scope: ['a.com', 'b.com'], mode: 'aggressive' }))}>Summarize last change</button>
+      <button
+        onClick={() =>
+          setSummary(postSteeringSummary({ scope: ['a.com', 'b.com'], mode: 'aggressive' }))
+        }
+      >
+        Summarize last change
+      </button>
       {summary && <p className="gov30-note">{summary}</p>}
     </div>
   );
@@ -262,7 +418,10 @@ export function SteeringRound2Gallery() {
       <FindingsFeedSteering findings={findings} />
       <PersonaSwitch />
       <CheckpointPanel />
-      <SteeringAnalyticsView commands={[{ id: 'c1', label: 'go deep on API' }]} findings={[{ foundAfter: 'c1', severity: 'high' }]} />
+      <SteeringAnalyticsView
+        commands={[{ id: 'c1', label: 'go deep on API' }]}
+        findings={[{ foundAfter: 'c1', severity: 'high' }]}
+      />
       <EmergencyRescope plan={{ scope: ['a.com'], modules: ['recon', 'critical-path'] }} />
       <AliasManager />
       <ScheduledSteering />

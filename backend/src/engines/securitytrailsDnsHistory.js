@@ -25,17 +25,30 @@
  * @returns {{host: string|null, type: string|null, values: string[], firstSeen: string|null, lastSeen: string|null}}
  */
 export function normalizeStRecord(rec) {
-  if (!rec || typeof rec !== 'object') return { host: null, type: null, values: [], firstSeen: null, lastSeen: null };
-  const host = typeof rec.hostname === 'string' ? rec.hostname.trim().toLowerCase()
-    : (typeof rec.host === 'string' ? rec.host.trim().toLowerCase() : null);
+  if (!rec || typeof rec !== 'object')
+    return { host: null, type: null, values: [], firstSeen: null, lastSeen: null };
+  const host =
+    typeof rec.hostname === 'string'
+      ? rec.hostname.trim().toLowerCase()
+      : typeof rec.host === 'string'
+        ? rec.host.trim().toLowerCase()
+        : null;
   const type = typeof rec.type === 'string' ? rec.type.toUpperCase() : null;
   const values = (Array.isArray(rec.values) ? rec.values : [])
-    .map((v) => (v && typeof v === 'object' ? v.ip || v.value || v.target : v))
-    .filter((v) => typeof v === 'string');
-  const firstSeen = typeof rec.first_seen === 'string' ? rec.first_seen
-    : (typeof rec.firstSeen === 'string' ? rec.firstSeen : null);
-  const lastSeen = typeof rec.last_seen === 'string' ? rec.last_seen
-    : (typeof rec.lastSeen === 'string' ? rec.lastSeen : null);
+    .map(v => (v && typeof v === 'object' ? v.ip || v.value || v.target : v))
+    .filter(v => typeof v === 'string');
+  const firstSeen =
+    typeof rec.first_seen === 'string'
+      ? rec.first_seen
+      : typeof rec.firstSeen === 'string'
+        ? rec.firstSeen
+        : null;
+  const lastSeen =
+    typeof rec.last_seen === 'string'
+      ? rec.last_seen
+      : typeof rec.lastSeen === 'string'
+        ? rec.lastSeen
+        : null;
   return { host, type, values: [...new Set(values)], firstSeen, lastSeen };
 }
 
@@ -52,7 +65,13 @@ export function mineDnsHistory(payload) {
   const add = (rec, seenIn) => {
     const r = normalizeStRecord(rec);
     if (!r.host) return;
-    const cur = perHost.get(r.host) || { host: r.host, types: new Set(), firstSeen: null, lastSeen: null, seenIn: [] };
+    const cur = perHost.get(r.host) || {
+      host: r.host,
+      types: new Set(),
+      firstSeen: null,
+      lastSeen: null,
+      seenIn: [],
+    };
     if (r.type) cur.types.add(r.type);
     if (r.firstSeen && (!cur.firstSeen || r.firstSeen < cur.firstSeen)) cur.firstSeen = r.firstSeen;
     if (r.lastSeen && (!cur.lastSeen || r.lastSeen > cur.lastSeen)) cur.lastSeen = r.lastSeen;
@@ -60,15 +79,17 @@ export function mineDnsHistory(payload) {
     perHost.set(r.host, cur);
   };
   if (Array.isArray(payload)) {
-    payload.forEach((r) => add(r, 'records'));
+    payload.forEach(r => add(r, 'records'));
   } else if (payload && typeof payload === 'object') {
     for (const r of payload.current || []) add(r, 'current');
     for (const r of payload.history || []) add(r, 'history');
     for (const r of payload.records || []) add(r, 'records');
   }
   const hosts = [...perHost.values()]
-    .map((h) => ({ ...h, types: [...h.types].sort() }))
-    .sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || '') || a.host.localeCompare(b.host));
+    .map(h => ({ ...h, types: [...h.types].sort() }))
+    .sort(
+      (a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || '') || a.host.localeCompare(b.host)
+    );
   return { hosts, total: hosts.length };
 }
 
@@ -83,18 +104,29 @@ export function mineDnsHistory(payload) {
  * @param {string} [targetDomain] Optional scope filter.
  * @returns {{candidates: {host: string, lastSeen: string|null, types: string[]}[], dropped: number}}
  */
-export function resurrectionCandidates(historyResult = {}, currentlyResolving = [], targetDomain = '') {
-  const resolving = new Set((currentlyResolving || []).map((h) => String(h).trim().toLowerCase()));
-  const target = String(targetDomain || '').trim().toLowerCase();
+export function resurrectionCandidates(
+  historyResult = {},
+  currentlyResolving = [],
+  targetDomain = ''
+) {
+  const resolving = new Set((currentlyResolving || []).map(h => String(h).trim().toLowerCase()));
+  const target = String(targetDomain || '')
+    .trim()
+    .toLowerCase();
   const candidates = [];
   let dropped = 0;
   for (const h of historyResult.hosts || []) {
     if (target && !(h.host === target || h.host.endsWith('.' + target))) continue;
     if (resolving.has(h.host)) continue;
-    if (h.seenIn.includes('current')) { dropped++; continue; }
+    if (h.seenIn.includes('current')) {
+      dropped++;
+      continue;
+    }
     candidates.push({ host: h.host, lastSeen: h.lastSeen, types: h.types });
   }
-  candidates.sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || '') || a.host.localeCompare(b.host));
+  candidates.sort(
+    (a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || '') || a.host.localeCompare(b.host)
+  );
   return { candidates, dropped };
 }
 
@@ -109,10 +141,11 @@ export function securitytrailsHistoryReport(historyResult = {}, candidateResult 
   const totalHosts = historyResult.total || 0;
   const candidates = (candidateResult.candidates || []).length;
   const dropped = candidateResult.dropped || 0;
-  const topCandidates = (candidateResult.candidates || []).slice(0, 10).map((c) => c.host);
-  const summary = totalHosts === 0
-    ? 'SecurityTrails DNS-history mining returned no historical records.'
-    : `SecurityTrails DNS-history mining saw ${totalHosts} historical hostname(s); ${candidates} resurrection candidate(s) are absent from current records and the resolving inventory and deserve re-probing.`;
+  const topCandidates = (candidateResult.candidates || []).slice(0, 10).map(c => c.host);
+  const summary =
+    totalHosts === 0
+      ? 'SecurityTrails DNS-history mining returned no historical records.'
+      : `SecurityTrails DNS-history mining saw ${totalHosts} historical hostname(s); ${candidates} resurrection candidate(s) are absent from current records and the resolving inventory and deserve re-probing.`;
   return { totalHosts, candidates, dropped, topCandidates, summary };
 }
 

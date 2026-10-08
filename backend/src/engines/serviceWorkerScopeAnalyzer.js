@@ -16,7 +16,11 @@ export function analyzeScope(registration = {}) {
   const { scriptUrl, scope } = registration;
   if (!scriptUrl) return null;
   let scriptHost = '';
-  try { scriptHost = new URL(scriptUrl).hostname.toLowerCase(); } catch { return null; }
+  try {
+    scriptHost = new URL(scriptUrl).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
   let scopeUrl = scope;
   if (!scopeUrl) {
     // Default scope: directory containing the script.
@@ -29,7 +33,9 @@ export function analyzeScope(registration = {}) {
     const u = new URL(scopeUrl);
     scopeHost = u.hostname.toLowerCase();
     scopePath = u.pathname;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
   const broad = scopePath === '/' || scopePath === '';
   return {
     scriptUrl,
@@ -56,7 +62,9 @@ export function analyzeWorkerScopes(registrations = []) {
   }
   for (const w of workers) {
     if (w.broad && w.crossOrigin) {
-      flags.push(`third-party worker ${w.scriptHost} claims root scope on ${w.scopeHost} — supply-chain review warranted`);
+      flags.push(
+        `third-party worker ${w.scriptHost} claims root scope on ${w.scopeHost} — supply-chain review warranted`
+      );
     } else if (w.broad) {
       flags.push(`root-scope worker at ${w.scriptUrl} intercepts all site traffic`);
     }
@@ -64,7 +72,7 @@ export function analyzeWorkerScopes(registrations = []) {
       flags.push(`cross-origin service worker: script ${w.scriptHost} vs scope ${w.scopeHost}`);
     }
   }
-  const boundaries = [...new Set(workers.map((w) => `${w.scopeHost}${w.scopePath}`))];
+  const boundaries = [...new Set(workers.map(w => `${w.scopeHost}${w.scopePath}`))];
   return {
     workers,
     offlineCapable: workers.length > 0,

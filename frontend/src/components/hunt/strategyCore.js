@@ -20,26 +20,54 @@ export const WAVE34B_END = 51360;
 
 /** Registry of the 20 live-strategy ideas — completeness is testable. */
 export const WAVE34B_IDEAS = [
-  [51341, 'breadth-to-depth switch', 'One control that shifts the agent from wide coverage to deep dives'],
-  [51342, 'depth-to-breadth switch', 'The reverse: pull back from deep testing to cover more surface'],
+  [
+    51341,
+    'breadth-to-depth switch',
+    'One control that shifts the agent from wide coverage to deep dives',
+  ],
+  [
+    51342,
+    'depth-to-breadth switch',
+    'The reverse: pull back from deep testing to cover more surface',
+  ],
   [51343, 'strategy presets', 'Named strategies like "API-first" or "auth-focused" applied live'],
   [51344, 'strategy comparison', 'See the current strategy side by side with the proposed one'],
   [51345, 'strategy impact forecast', 'Estimated time and coverage change before you commit'],
-  [51346, 'custom strategy builder', 'Compose phase mixes with sliders and save as your own preset'],
+  [
+    51346,
+    'custom strategy builder',
+    'Compose phase mixes with sliders and save as your own preset',
+  ],
   [51347, 'strategy versioning', 'Every strategy change versioned so you can roll back'],
   [51348, 'A/B strategy testing', 'Run two strategies on mirrored scope and compare finding yield'],
   [51349, 'strategy suggestions', 'The agent recommends strategy shifts based on live results'],
   [51350, 'scheduled strategy shifts', '"Go deep on auth after recon completes" queued in advance'],
-  [51351, 'strategy per asset', 'Different strategies for different in-scope assets simultaneously'],
+  [
+    51351,
+    'strategy per asset',
+    'Different strategies for different in-scope assets simultaneously',
+  ],
   [51352, 'strategy heatmap', 'Visual map of where effort is going under the current strategy'],
-  [51353, 'strategy rationale log', 'Why each strategy change was made, in the agent\'s own words'],
-  [51354, 'strategy templates by industry', 'Prebuilt strategies tuned for fintech, health, SaaS, and more'],
+  [51353, 'strategy rationale log', "Why each strategy change was made, in the agent's own words"],
+  [
+    51354,
+    'strategy templates by industry',
+    'Prebuilt strategies tuned for fintech, health, SaaS, and more',
+  ],
   [51355, 'strategy import/export', 'Share strategies with teammates or the community as files'],
   [51356, 'strategy dry-run', 'Preview a strategy change against remaining scope before applying'],
-  [51357, 'strategy confidence', 'The agent rates how well the current strategy fits what it is discovering'],
+  [
+    51357,
+    'strategy confidence',
+    'The agent rates how well the current strategy fits what it is discovering',
+  ],
   [51358, 'auto-strategy mode', 'Let the agent shift strategies on its own within bounds you set'],
   [51359, 'strategy guardrails', 'Limits on what auto-strategy may change without asking'],
-  [51360, 'strategy change alerts', 'Notified whenever the strategy shifts, manually or automatically'],
+  [
+    51360,
+    'strategy change alerts',
+    'Notified whenever the strategy shifts, manually or automatically',
+  ],
 ];
 
 /**
@@ -67,34 +95,101 @@ export const DEPTH_PHASES = ['auth-deep', 'business-logic', 'exploit-chain'];
 
 function reweight(allocation, breadthScale, depthScale) {
   const out = { ...(allocation || {}) };
-  for (const p of BREADTH_PHASES) if (out[p] != null) out[p] = Math.max(0, Math.round(out[p] * breadthScale));
-  for (const p of DEPTH_PHASES) if (out[p] != null) out[p] = Math.max(0, Math.round(out[p] * depthScale));
+  for (const p of BREADTH_PHASES)
+    if (out[p] != null) out[p] = Math.max(0, Math.round(out[p] * breadthScale));
+  for (const p of DEPTH_PHASES)
+    if (out[p] != null) out[p] = Math.max(0, Math.round(out[p] * depthScale));
   return out;
 }
 
 /** 51341: shift effort from wide coverage into deep dives. */
 export function shiftBreadthToDepth(strategy) {
-  return normalizeStrategy({ ...strategy, name: `${strategy.name} → depth`, focus: 'depth', allocation: reweight(strategy.allocation, 0.5, 1.8) });
+  return normalizeStrategy({
+    ...strategy,
+    name: `${strategy.name} → depth`,
+    focus: 'depth',
+    allocation: reweight(strategy.allocation, 0.5, 1.8),
+  });
 }
 
 /** 51342: shift effort from deep dives back into wide coverage. */
 export function shiftDepthToBreadth(strategy) {
-  return normalizeStrategy({ ...strategy, name: `${strategy.name} → breadth`, focus: 'breadth', allocation: reweight(strategy.allocation, 1.8, 0.5) });
+  return normalizeStrategy({
+    ...strategy,
+    name: `${strategy.name} → breadth`,
+    focus: 'breadth',
+    allocation: reweight(strategy.allocation, 1.8, 0.5),
+  });
 }
 
 // --- 51343 strategy presets --------------------------------------------------
 
 export const STRATEGY_PRESETS = [
-  { name: 'Balanced', focus: 'balanced', allocation: { recon: 20, 'surface-map': 15, 'tech-fingerprint': 10, 'auth-deep': 20, 'business-logic': 20, 'exploit-chain': 15 } },
-  { name: 'API-first', focus: 'depth', allocation: { recon: 10, 'surface-map': 10, 'tech-fingerprint': 15, 'auth-deep': 25, 'business-logic': 25, 'exploit-chain': 15 } },
-  { name: 'Auth-focused', focus: 'depth', allocation: { recon: 10, 'surface-map': 5, 'tech-fingerprint': 10, 'auth-deep': 40, 'business-logic': 25, 'exploit-chain': 10 } },
-  { name: 'Recon-wide', focus: 'breadth', allocation: { recon: 35, 'surface-map': 30, 'tech-fingerprint': 20, 'auth-deep': 5, 'business-logic': 5, 'exploit-chain': 5 } },
-  { name: 'Logic-heavy', focus: 'depth', allocation: { recon: 10, 'surface-map': 10, 'tech-fingerprint': 10, 'auth-deep': 15, 'business-logic': 40, 'exploit-chain': 15 } },
+  {
+    name: 'Balanced',
+    focus: 'balanced',
+    allocation: {
+      recon: 20,
+      'surface-map': 15,
+      'tech-fingerprint': 10,
+      'auth-deep': 20,
+      'business-logic': 20,
+      'exploit-chain': 15,
+    },
+  },
+  {
+    name: 'API-first',
+    focus: 'depth',
+    allocation: {
+      recon: 10,
+      'surface-map': 10,
+      'tech-fingerprint': 15,
+      'auth-deep': 25,
+      'business-logic': 25,
+      'exploit-chain': 15,
+    },
+  },
+  {
+    name: 'Auth-focused',
+    focus: 'depth',
+    allocation: {
+      recon: 10,
+      'surface-map': 5,
+      'tech-fingerprint': 10,
+      'auth-deep': 40,
+      'business-logic': 25,
+      'exploit-chain': 10,
+    },
+  },
+  {
+    name: 'Recon-wide',
+    focus: 'breadth',
+    allocation: {
+      recon: 35,
+      'surface-map': 30,
+      'tech-fingerprint': 20,
+      'auth-deep': 5,
+      'business-logic': 5,
+      'exploit-chain': 5,
+    },
+  },
+  {
+    name: 'Logic-heavy',
+    focus: 'depth',
+    allocation: {
+      recon: 10,
+      'surface-map': 10,
+      'tech-fingerprint': 10,
+      'auth-deep': 15,
+      'business-logic': 40,
+      'exploit-chain': 15,
+    },
+  },
 ];
 
 /** Apply a named preset live; returns the normalized strategy. */
 export function applyPreset(presetName) {
-  const p = STRATEGY_PRESETS.find((s) => s.name === presetName);
+  const p = STRATEGY_PRESETS.find(s => s.name === presetName);
   if (!p) return null;
   return normalizeStrategy({ name: p.name, focus: p.focus, allocation: { ...p.allocation } });
 }
@@ -109,7 +204,7 @@ export function compareStrategies(current, proposed) {
   const c = (current && current.allocation) || {};
   const p = (proposed && proposed.allocation) || {};
   const phases = [...new Set([...Object.keys(c), ...Object.keys(p)])].sort();
-  const rows = phases.map((phase) => ({
+  const rows = phases.map(phase => ({
     phase,
     current: c[phase] || 0,
     proposed: p[phase] || 0,
@@ -119,7 +214,10 @@ export function compareStrategies(current, proposed) {
     rows,
     focusChanged: (current && current.focus) !== (proposed && proposed.focus),
     nameChanged: (current && current.name) !== (proposed && proposed.name),
-    biggestShift: rows.reduce((m, r) => (Math.abs(r.delta) > Math.abs(m.delta) ? r : m), { delta: 0, phase: null }),
+    biggestShift: rows.reduce((m, r) => (Math.abs(r.delta) > Math.abs(m.delta) ? r : m), {
+      delta: 0,
+      phase: null,
+    }),
   };
 }
 
@@ -132,12 +230,12 @@ export function compareStrategies(current, proposed) {
  */
 export function forecastImpact(current, proposed, remainingScope) {
   const scope = remainingScope || {};
-  const estHours = (alloc) => {
+  const estHours = alloc => {
     const breadth = BREADTH_PHASES.reduce((s, p) => s + (alloc[p] || 0), 0) / 100;
     const depth = DEPTH_PHASES.reduce((s, p) => s + (alloc[p] || 0), 0) / 100;
     return (scope.endpoints || 0) * breadth * 0.05 + (scope.endpoints || 0) * depth * 0.12;
   };
-  const coverageOf = (alloc) => {
+  const coverageOf = alloc => {
     const breadth = BREADTH_PHASES.reduce((s, p) => s + (alloc[p] || 0), 0);
     return Math.min(100, Math.round(breadth * 1.2));
   };
@@ -170,7 +268,10 @@ export function buildStrategy(name, phaseMix) {
     if (Number(mix[p]) < 0 || Number(mix[p]) > 100) errors.push(`weight for ${p} out of range`);
   }
   if (errors.length) return { ok: false, errors };
-  return { ok: true, strategy: normalizeStrategy({ name: String(name).trim(), focus: 'custom', allocation: mix }) };
+  return {
+    ok: true,
+    strategy: normalizeStrategy({ name: String(name).trim(), focus: 'custom', allocation: mix }),
+  };
 }
 
 // --- 51347 strategy versioning -------------------------------------------------------
@@ -188,12 +289,17 @@ export function commitStrategy(history, strategy, note, now) {
 }
 
 export function rollbackStrategy(history, version) {
-  const entry = (history || []).find((e) => e.version === version);
+  const entry = (history || []).find(e => e.version === version);
   return entry ? JSON.parse(JSON.stringify(entry.strategy)) : null;
 }
 
 export function strategyHistoryList(history) {
-  return (history || []).map((e) => ({ version: e.version, at: e.at, name: e.strategy.name, note: e.note }));
+  return (history || []).map(e => ({
+    version: e.version,
+    at: e.at,
+    name: e.strategy.name,
+    note: e.note,
+  }));
 }
 
 // --- 51348 A/B strategy testing ---------------------------------------------------------
@@ -212,7 +318,8 @@ export function abTestPlan(strategyA, strategyB, scope) {
 }
 
 export function abResult(yieldA, yieldB) {
-  const a = Number(yieldA) || 0; const b = Number(yieldB) || 0;
+  const a = Number(yieldA) || 0;
+  const b = Number(yieldB) || 0;
   const winner = a === b ? 'tie' : a > b ? 'A' : 'B';
   return { yieldA: a, yieldB: b, winner, delta: Math.abs(a - b) };
 }
@@ -227,15 +334,31 @@ export function abResult(yieldA, yieldB) {
 export function suggestStrategyShift(stats) {
   const s = stats || {};
   if ((s.coveragePct || 0) < 40 && (s.breadthHours || 0) < (s.depthHours || 0)) {
-    return { suggestion: 'shift', preset: 'Recon-wide', rationale: 'Coverage below 40% while depth dominates — widen first.' };
+    return {
+      suggestion: 'shift',
+      preset: 'Recon-wide',
+      rationale: 'Coverage below 40% while depth dominates — widen first.',
+    };
   }
   if ((s.findingsPerHour || 0) < 0.5 && (s.coveragePct || 0) >= 60) {
-    return { suggestion: 'shift', preset: 'Auth-focused', rationale: 'Surface covered but yield is thin — go deep on auth.' };
+    return {
+      suggestion: 'shift',
+      preset: 'Auth-focused',
+      rationale: 'Surface covered but yield is thin — go deep on auth.',
+    };
   }
   if ((s.authFindings || 0) >= 3 && (s.findingsPerHour || 0) >= 1) {
-    return { suggestion: 'shift', preset: 'Logic-heavy', rationale: 'Auth is fruitful and yield is strong — double down on business logic.' };
+    return {
+      suggestion: 'shift',
+      preset: 'Logic-heavy',
+      rationale: 'Auth is fruitful and yield is strong — double down on business logic.',
+    };
   }
-  return { suggestion: 'hold', preset: null, rationale: 'Current strategy matches live results — no shift recommended.' };
+  return {
+    suggestion: 'hold',
+    preset: null,
+    rationale: 'Current strategy matches live results — no shift recommended.',
+  };
 }
 
 // --- 51350 scheduled strategy shifts -----------------------------------------------------------
@@ -253,7 +376,7 @@ export function scheduleShift(shifts, shift) {
 
 export function shiftsDue(shifts, huntState) {
   const state = huntState || {};
-  return (shifts || []).filter((s) => {
+  return (shifts || []).filter(s => {
     if (s.status !== 'scheduled') return false;
     if (String(s.when).startsWith('phase-complete:')) {
       const phase = String(s.when).slice('phase-complete:'.length);
@@ -276,7 +399,7 @@ export function shiftsDue(shifts, huntState) {
 export function perAssetStrategy(assets, assignments, defaultStrategy) {
   const map = {};
   for (const a of assignments || []) map[a.asset] = a.strategyName;
-  return (assets || []).map((asset) => ({
+  return (assets || []).map(asset => ({
     asset,
     strategy: map[asset] || (defaultStrategy && defaultStrategy.name) || 'Balanced',
   }));
@@ -290,11 +413,13 @@ export function perAssetStrategy(assets, assignments, defaultStrategy) {
  */
 export function strategyHeatmap(strategy) {
   const alloc = (strategy && strategy.allocation) || {};
-  return Object.keys(alloc).sort().map((phase) => {
-    const w = alloc[phase];
-    const intensity = w <= 0 ? 'none' : w < 15 ? 'low' : w < 30 ? 'medium' : 'high';
-    return { phase, weight: w, intensity };
-  });
+  return Object.keys(alloc)
+    .sort()
+    .map(phase => {
+      const w = alloc[phase];
+      const intensity = w <= 0 ? 'none' : w < 15 ? 'low' : w < 30 ? 'medium' : 'high';
+      return { phase, weight: w, intensity };
+    });
 }
 
 // --- 51353 strategy rationale log ------------------------------------------------------------------------------
@@ -309,11 +434,36 @@ export function logRationale(log, change, rationale, now) {
 // --- 51354 strategy templates by industry ---------------------------------------------------------------------------
 
 export const INDUSTRY_TEMPLATES = {
-  fintech: { name: 'Fintech', focus: 'depth', note: 'Auth + business-logic heavy: money movement, RBAC, rate limits', strategy: 'Auth-focused' },
-  health: { name: 'Health', focus: 'depth', note: 'PHI exposure, access controls, audit trails', strategy: 'Auth-focused' },
-  saas: { name: 'SaaS', focus: 'balanced', note: 'Multi-tenant isolation, API abuse, subscription logic', strategy: 'Balanced' },
-  retail: { name: 'Retail', focus: 'balanced', note: 'Checkout flows, promos, inventory APIs', strategy: 'API-first' },
-  gov: { name: 'Government', focus: 'breadth', note: 'Wide surface coverage, legacy endpoints', strategy: 'Recon-wide' },
+  fintech: {
+    name: 'Fintech',
+    focus: 'depth',
+    note: 'Auth + business-logic heavy: money movement, RBAC, rate limits',
+    strategy: 'Auth-focused',
+  },
+  health: {
+    name: 'Health',
+    focus: 'depth',
+    note: 'PHI exposure, access controls, audit trails',
+    strategy: 'Auth-focused',
+  },
+  saas: {
+    name: 'SaaS',
+    focus: 'balanced',
+    note: 'Multi-tenant isolation, API abuse, subscription logic',
+    strategy: 'Balanced',
+  },
+  retail: {
+    name: 'Retail',
+    focus: 'balanced',
+    note: 'Checkout flows, promos, inventory APIs',
+    strategy: 'API-first',
+  },
+  gov: {
+    name: 'Government',
+    focus: 'breadth',
+    note: 'Wide surface coverage, legacy endpoints',
+    strategy: 'Recon-wide',
+  },
 };
 
 /** Resolve an industry template to a concrete preset strategy. */
@@ -343,12 +493,15 @@ export function importStrategy(jsonText) {
     errors.push('not valid JSON');
     return { ok: false, errors };
   }
-  if (!parsed || parsed.format !== 'dark-matter-strategy') errors.push('not a dark-matter strategy file');
+  if (!parsed || parsed.format !== 'dark-matter-strategy')
+    errors.push('not a dark-matter strategy file');
   const s = parsed && parsed.strategy;
-  if (!s || typeof s.name !== 'string' || typeof s.allocation !== 'object') errors.push('strategy missing name/allocation');
+  if (!s || typeof s.name !== 'string' || typeof s.allocation !== 'object')
+    errors.push('strategy missing name/allocation');
   else {
     const total = Object.values(s.allocation).reduce((sum, v) => sum + (Number(v) || 0), 0);
-    if (Math.abs(total - 100) > 2) errors.push(`allocation must sum to ~100 (got ${Math.round(total)})`);
+    if (Math.abs(total - 100) > 2)
+      errors.push(`allocation must sum to ~100 (got ${Math.round(total)})`);
   }
   if (errors.length) return { ok: false, errors };
   return { ok: true, strategy: normalizeStrategy(s) };
@@ -363,13 +516,14 @@ export function importStrategy(jsonText) {
 export function dryRun(current, proposed, remainingScope) {
   const f = forecastImpact(current, proposed, remainingScope);
   const coverageDelta = f.coverageProposed - f.coverageCurrent;
-  const verdict = coverageDelta > 0 && f.hoursDelta <= 2
-    ? 'worth it'
-    : coverageDelta > 0
-      ? 'more coverage, more time'
-      : f.hoursDelta < 0
-        ? 'faster, less coverage'
-        : 'roughly equivalent';
+  const verdict =
+    coverageDelta > 0 && f.hoursDelta <= 2
+      ? 'worth it'
+      : coverageDelta > 0
+        ? 'more coverage, more time'
+        : f.hoursDelta < 0
+          ? 'faster, less coverage'
+          : 'roughly equivalent';
   return { ...f, coverageDelta, verdict };
 }
 
@@ -415,9 +569,12 @@ export function autoStrategyBounds(overrides) {
  */
 export function autoShiftAllowed(bounds, change) {
   const b = bounds || autoStrategyBounds();
-  if (change.kind === 'preset' && !b.allowPresetChange) return { allowed: false, reason: 'preset changes need approval' };
-  if (change.kind === 'breadth-depth' && !b.allowBreadthDepth) return { allowed: false, reason: 'breadth/depth shifts disabled' };
-  if ((change.shiftPct || 0) > b.maxShiftPct) return { allowed: false, reason: `shift ${change.shiftPct}% exceeds max ${b.maxShiftPct}%` };
+  if (change.kind === 'preset' && !b.allowPresetChange)
+    return { allowed: false, reason: 'preset changes need approval' };
+  if (change.kind === 'breadth-depth' && !b.allowBreadthDepth)
+    return { allowed: false, reason: 'breadth/depth shifts disabled' };
+  if ((change.shiftPct || 0) > b.maxShiftPct)
+    return { allowed: false, reason: `shift ${change.shiftPct}% exceeds max ${b.maxShiftPct}%` };
   return { allowed: true, reason: 'within auto bounds' };
 }
 
@@ -432,11 +589,12 @@ export function checkGuardrails(change, guardrails) {
   const violations = [];
   for (const g of guardrails || []) {
     if (g.kind === 'min-breadth' && change.kind === 'breadth-depth') {
-      const newBreadth = (change.newBreadthPct || 0);
-      if (newBreadth < g.limit) violations.push(`${g.id}: breadth would drop to ${newBreadth}% (min ${g.limit}%)`);
+      const newBreadth = change.newBreadthPct || 0;
+      if (newBreadth < g.limit)
+        violations.push(`${g.id}: breadth would drop to ${newBreadth}% (min ${g.limit}%)`);
     }
     if (g.kind === 'forbid-phase' && change.removedPhases) {
-      const hit = (change.removedPhases || []).filter((p) => (g.phases || []).includes(p));
+      const hit = (change.removedPhases || []).filter(p => (g.phases || []).includes(p));
       if (hit.length) violations.push(`${g.id}: auto may not drop ${hit.join(', ')}`);
     }
     if (g.kind === 'max-shift' && (change.shiftPct || 0) > g.limit) {
@@ -455,7 +613,7 @@ export function checkGuardrails(change, guardrails) {
 export function strategyAlert(change, watchers, now) {
   const ws = watchers || [];
   const summary = `${change.from || '?'} → ${change.to || '?'}`;
-  return ws.map((w) => ({
+  return ws.map(w => ({
     to: w.id,
     channel: w.channel || 'board',
     subject: `Strategy changed: ${summary}`,

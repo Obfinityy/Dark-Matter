@@ -10,20 +10,56 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  WAVE30_IDEAS, WAVE30_START, WAVE30_END,
-  HUNT_PERSONAS, RISK_LEVELS, APPROVAL_TEMPLATES,
-  deemphasizeFindingsClass, steerFromFindings, switchPersona,
-  addCheckpoint, reachCheckpoint, steeringAnalytics, emergencyRescope,
-  defineAlias, expandAlias, scheduleSteering, dueSteering,
-  resolveSteeringConflict, setAutonomy, pushSteeringEvent, postSteeringSummary,
-  toApprovalCard, riskLabel, requiresExplicitApproval, approvalDetail,
-  decideApproval, bulkDecide, applyApprovalTimeouts, approveWithLimits,
-  addStandingRule, checkStandingRules, delegateApprovals, stepUpAuthorized,
-  auditApproval, pendingCountdowns, gracefulWaitTasks, applyApprovalTemplate,
-  sandboxPreview, reversibleBadge, mobileApprovalPayload, parseVoiceApproval,
-  approvalScopeNote, requestMoreInfo, approvalAnalytics, emergencyDenyAll,
-  approvalChatThread, estimateSideEffects, rollbackPlan,
-  approvalNotifications, batchApprovals,
+  WAVE30_IDEAS,
+  WAVE30_START,
+  WAVE30_END,
+  HUNT_PERSONAS,
+  RISK_LEVELS,
+  APPROVAL_TEMPLATES,
+  deemphasizeFindingsClass,
+  steerFromFindings,
+  switchPersona,
+  addCheckpoint,
+  reachCheckpoint,
+  steeringAnalytics,
+  emergencyRescope,
+  defineAlias,
+  expandAlias,
+  scheduleSteering,
+  dueSteering,
+  resolveSteeringConflict,
+  setAutonomy,
+  pushSteeringEvent,
+  postSteeringSummary,
+  toApprovalCard,
+  riskLabel,
+  requiresExplicitApproval,
+  approvalDetail,
+  decideApproval,
+  bulkDecide,
+  applyApprovalTimeouts,
+  approveWithLimits,
+  addStandingRule,
+  checkStandingRules,
+  delegateApprovals,
+  stepUpAuthorized,
+  auditApproval,
+  pendingCountdowns,
+  gracefulWaitTasks,
+  applyApprovalTemplate,
+  sandboxPreview,
+  reversibleBadge,
+  mobileApprovalPayload,
+  parseVoiceApproval,
+  approvalScopeNote,
+  requestMoreInfo,
+  approvalAnalytics,
+  emergencyDenyAll,
+  approvalChatThread,
+  estimateSideEffects,
+  rollbackPlan,
+  approvalNotifications,
+  batchApprovals,
 } from './governCore.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -97,7 +133,10 @@ test('addCheckpoint + reachCheckpoint lifecycle', () => {
 test('steeringAnalytics attributes findings to commands', () => {
   const rows = steeringAnalytics(
     [{ id: 'c1', label: 'go deep' }],
-    [{ foundAfter: 'c1', severity: 'high' }, { foundAfter: 'c1', severity: 'low' }],
+    [
+      { foundAfter: 'c1', severity: 'high' },
+      { foundAfter: 'c1', severity: 'low' },
+    ]
   );
   assert.equal(rows[0].findingsAttributed, 2);
   assert.equal(rows[0].topSeverity, 'high');
@@ -131,7 +170,7 @@ test('scheduleSteering queues and dueSteering fires', () => {
 test('resolveSteeringConflict merges shared fields, flags conflicts', () => {
   const r = resolveSteeringConflict(
     { author: 'a', command: { scope: ['x'], rps: 5 } },
-    { author: 'b', command: { scope: ['x'], rps: 20 } },
+    { author: 'b', command: { scope: ['x'], rps: 20 } }
   );
   assert.deepEqual(r.merged, { scope: ['x'] });
   assert.equal(r.conflicts.length, 1);
@@ -178,7 +217,15 @@ test('riskLabel falls back to cautious; requiresExplicitApproval', () => {
 
 // --- 51175 detail drawer ---------------------------------------------------------------------------------
 test('approvalDetail exposes requests/targets/side effects', () => {
-  const d = approvalDetail({ id: 'x', title: 't', risk: 'safe', requests: ['GET /'], targets: ['a.com'], sideEffects: ['none'], reversible: true });
+  const d = approvalDetail({
+    id: 'x',
+    title: 't',
+    risk: 'safe',
+    requests: ['GET /'],
+    targets: ['a.com'],
+    sideEffects: ['none'],
+    reversible: true,
+  });
   assert.deepEqual(d.targets, ['a.com']);
   assert.equal(d.reversible, true);
 });
@@ -194,7 +241,11 @@ test('decideApproval resolves pending cards', () => {
 
 // --- 51177 bulk queue ------------------------------------------------------------------------------------------------
 test('bulkDecide counts outcomes', () => {
-  const cards = [{ id: 'a', status: 'pending' }, { id: 'b', status: 'pending' }, { id: 'c', status: 'approved' }];
+  const cards = [
+    { id: 'a', status: 'pending' },
+    { id: 'b', status: 'pending' },
+    { id: 'c', status: 'approved' },
+  ];
   const r = bulkDecide(cards, { a: 'approved', b: 'denied' });
   assert.equal(r.approved, 1);
   assert.equal(r.denied, 1);
@@ -203,7 +254,10 @@ test('bulkDecide counts outcomes', () => {
 
 // --- 51178 timeouts -------------------------------------------------------------------------------------------------------
 test('applyApprovalTimeouts auto-denies stale cards', () => {
-  const cards = [{ id: 'a', status: 'pending', requestedAt: 0 }, { id: 'b', status: 'pending', requestedAt: 590000 }];
+  const cards = [
+    { id: 'a', status: 'pending', requestedAt: 0 },
+    { id: 'b', status: 'pending', requestedAt: 590000 },
+  ];
   const r = applyApprovalTimeouts(cards, 600000, 120000, 'auto-deny');
   assert.equal(r[0].status, 'denied');
   assert.equal(r[1].status, 'pending');
@@ -248,14 +302,20 @@ test('auditApproval appends frozen records', () => {
 
 // --- 51185 countdowns ------------------------------------------------------------------------------------------------------------------------------------
 test('pendingCountdowns reports waits', () => {
-  const cs = pendingCountdowns([{ id: 'a', status: 'pending', requestedAt: 1000 }], 61000, { a: 'scanning' });
+  const cs = pendingCountdowns([{ id: 'a', status: 'pending', requestedAt: 1000 }], 61000, {
+    a: 'scanning',
+  });
   assert.equal(cs[0].waitedMs, 60000);
   assert.equal(cs[0].agentMeanwhile, 'scanning');
 });
 
 // --- 51186 graceful wait ----------------------------------------------------------------------------------------------------------------------------------
 test('gracefulWaitTasks filters to safe tasks', () => {
-  const t = gracefulWaitTasks([{ safe: true }, { safe: false }, { safe: true, needsApproval: true }]);
+  const t = gracefulWaitTasks([
+    { safe: true },
+    { safe: false },
+    { safe: true, needsApproval: true },
+  ]);
   assert.equal(t.length, 1);
 });
 
@@ -268,7 +328,14 @@ test('applyApprovalTemplate returns known policies', () => {
 
 // --- 51188 sandbox preview ----------------------------------------------------------------------------------------------------------------------------------------------
 test('sandboxPreview estimates without executing', () => {
-  const p = sandboxPreview({ id: 'x', risk: 'destructive', targets: ['a'], estimatedRps: 10, estimatedSeconds: 30, reversible: false });
+  const p = sandboxPreview({
+    id: 'x',
+    risk: 'destructive',
+    targets: ['a'],
+    estimatedRps: 10,
+    estimatedSeconds: 30,
+    reversible: false,
+  });
   assert.equal(p.simulated, true);
   assert.equal(p.estimatedRequests, 300);
   assert.ok(p.warning);
@@ -311,18 +378,25 @@ test('requestMoreInfo flags card', () => {
 // --- 51194 analytics --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 test('approvalAnalytics suggests standing rules', () => {
   const a = approvalAnalytics([
-    { category: 'recon', decision: 'approved' }, { category: 'recon', decision: 'approved' }, { category: 'recon', decision: 'approved' },
-    { category: 'fuzz', decision: 'denied' }, { category: 'fuzz', decision: 'denied' }, { category: 'fuzz', decision: 'denied' },
+    { category: 'recon', decision: 'approved' },
+    { category: 'recon', decision: 'approved' },
+    { category: 'recon', decision: 'approved' },
+    { category: 'fuzz', decision: 'denied' },
+    { category: 'fuzz', decision: 'denied' },
+    { category: 'fuzz', decision: 'denied' },
   ]);
-  const recon = a.find((x) => x.category === 'recon');
-  const fuzz = a.find((x) => x.category === 'fuzz');
+  const recon = a.find(x => x.category === 'recon');
+  const fuzz = a.find(x => x.category === 'fuzz');
   assert.equal(recon.suggestion, 'always-allow candidate');
   assert.equal(fuzz.suggestion, 'always-deny candidate');
 });
 
 // --- 51195 deny-all --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 test('emergencyDenyAll denies pending and pauses', () => {
-  const r = emergencyDenyAll([{ id: 'a', status: 'pending' }, { id: 'b', status: 'approved' }]);
+  const r = emergencyDenyAll([
+    { id: 'a', status: 'pending' },
+    { id: 'b', status: 'approved' },
+  ]);
   assert.equal(r.cards[0].status, 'denied');
   assert.equal(r.cards[1].status, 'approved');
   assert.equal(r.huntPaused, true);
@@ -337,7 +411,12 @@ test('approvalChatThread appends non-empty messages', () => {
 
 // --- 51197 + 51198 side effects + rollback ----------------------------------------------------------------------------------------------------------------------------------------------------------
 test('estimateSideEffects lists effects', () => {
-  const e = estimateSideEffects({ targets: ['a', 'b'], writesData: true, estimatedRps: 50, risk: 'destructive' });
+  const e = estimateSideEffects({
+    targets: ['a', 'b'],
+    writesData: true,
+    estimatedRps: 50,
+    risk: 'destructive',
+  });
   assert.ok(e.length >= 4);
   assert.deepEqual(estimateSideEffects({}), ['no significant side effects expected']);
 });
@@ -348,7 +427,10 @@ test('rollbackPlan notes reversibility', () => {
 
 // --- 51199 notifications ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 test('approvalNotifications filters channels', () => {
-  const n = approvalNotifications({ id: 'a1', title: 'scan', risk: 'safe' }, ['push', 'carrier-pigeon']);
+  const n = approvalNotifications({ id: 'a1', title: 'scan', risk: 'safe' }, [
+    'push',
+    'carrier-pigeon',
+  ]);
   assert.equal(n.length, 1);
   assert.equal(n[0].channel, 'push');
 });
@@ -371,6 +453,6 @@ test('Governance.css is scoped and animation-free', () => {
   const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.ok(!/@keyframes/.test(css), 'no @keyframes allowed');
   const classSelectors = css.match(/\.[a-zA-Z][\w-]*/g) || [];
-  const unscoped = classSelectors.filter((s) => !s.startsWith('.gov30'));
+  const unscoped = classSelectors.filter(s => !s.startsWith('.gov30'));
   assert.equal(unscoped.length, 0, `unscoped selectors: ${unscoped.slice(0, 5).join(', ')}`);
 });

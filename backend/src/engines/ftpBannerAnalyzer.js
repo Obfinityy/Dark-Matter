@@ -15,26 +15,81 @@
  */
 const BANNER_SIGNATURES = [
   {
-    server: 'vsftpd', re: /\(vsFTPd\s+([\d.]+[a-z0-9]*|)\)/i, version: 1,
+    server: 'vsftpd',
+    re: /\(vsFTPd\s+([\d.]+[a-z0-9]*|)\)/i,
+    version: 1,
     quirk: 'Parenthesized "(vsFTPd X.Y.Z)" token after the greeting text.',
   },
-  { server: 'ProFTPD', re: /ProFTPD\s+([\d.]+[a-z0-9]*)\s+Server/i, version: 1, quirk: '"ProFTPD X.Y.Z Server" phrasing.' },
   {
-    server: 'Pure-FTPd', re: /-+\s*Welcome to Pure-FTPd/i, version: 0,
-    quirk: 'Dash-framed multiline greeting ("---------- Welcome to Pure-FTPd") with no version disclosed.',
+    server: 'ProFTPD',
+    re: /ProFTPD\s+([\d.]+[a-z0-9]*)\s+Server/i,
+    version: 1,
+    quirk: '"ProFTPD X.Y.Z Server" phrasing.',
   },
-  { server: 'FileZilla Server', re: /FileZilla Server(?:\s+(?:version\s+)?([\d.]+))?/i, version: 1, quirk: '"FileZilla Server" banner, optional "version X.Y" token.' },
-  { server: 'Microsoft IIS FTP', re: /Microsoft FTP Service/i, version: 0, quirk: '"Microsoft FTP Service" banner with no version disclosed.' },
-  { server: 'Serv-U', re: /Serv-U FTP(?:-Server)?(?:\s+v?([\d.]+))?/i, version: 1, quirk: '"Serv-U FTP" banner, version given after "v".' },
-  { server: 'glFTPd', re: /glFTPd\s+([\d.]+[a-z0-9]*)/i, version: 1, quirk: 'Lowercase "glFTPd" token with version in greeting.' },
-  { server: 'wu-ftpd', re: /wu-?ftpd/i, version: 0, quirk: '"wu-ftpd" token; classic Unix daemon.' },
+  {
+    server: 'Pure-FTPd',
+    re: /-+\s*Welcome to Pure-FTPd/i,
+    version: 0,
+    quirk:
+      'Dash-framed multiline greeting ("---------- Welcome to Pure-FTPd") with no version disclosed.',
+  },
+  {
+    server: 'FileZilla Server',
+    re: /FileZilla Server(?:\s+(?:version\s+)?([\d.]+))?/i,
+    version: 1,
+    quirk: '"FileZilla Server" banner, optional "version X.Y" token.',
+  },
+  {
+    server: 'Microsoft IIS FTP',
+    re: /Microsoft FTP Service/i,
+    version: 0,
+    quirk: '"Microsoft FTP Service" banner with no version disclosed.',
+  },
+  {
+    server: 'Serv-U',
+    re: /Serv-U FTP(?:-Server)?(?:\s+v?([\d.]+))?/i,
+    version: 1,
+    quirk: '"Serv-U FTP" banner, version given after "v".',
+  },
+  {
+    server: 'glFTPd',
+    re: /glFTPd\s+([\d.]+[a-z0-9]*)/i,
+    version: 1,
+    quirk: 'Lowercase "glFTPd" token with version in greeting.',
+  },
+  {
+    server: 'wu-ftpd',
+    re: /wu-?ftpd/i,
+    version: 0,
+    quirk: '"wu-ftpd" token; classic Unix daemon.',
+  },
   { server: 'bftpd', re: /\bbftpd\b/i, version: 0, quirk: '"bftpd" token.' },
-  { server: 'CrushFTP', re: /CrushFTP(?:\s+v?([\d.]+))?/i, version: 1, quirk: '"CrushFTP" banner token.' },
-  { server: 'Titan FTP', re: /Titan FTP Server(?:\s+([\d.]+))?/i, version: 1, quirk: '"Titan FTP Server" banner token.' },
-  { server: 'Xlight FTP', re: /Xlight FTP Server/i, version: 0, quirk: '"Xlight FTP Server" token.' },
+  {
+    server: 'CrushFTP',
+    re: /CrushFTP(?:\s+v?([\d.]+))?/i,
+    version: 1,
+    quirk: '"CrushFTP" banner token.',
+  },
+  {
+    server: 'Titan FTP',
+    re: /Titan FTP Server(?:\s+([\d.]+))?/i,
+    version: 1,
+    quirk: '"Titan FTP Server" banner token.',
+  },
+  {
+    server: 'Xlight FTP',
+    re: /Xlight FTP Server/i,
+    version: 0,
+    quirk: '"Xlight FTP Server" token.',
+  },
   { server: 'Gene6 / G6 FTP', re: /G6 FTP Server/i, version: 0, quirk: '"G6 FTP Server" token.' },
   { server: 'NcFTPd', re: /NcFTPd Server/i, version: 0, quirk: '"NcFTPd Server" token.' },
-  { server: 'PyFTPdlib', re: /pyftpdlib/i, version: 0, quirk: 'Python pyftpdlib default banner phrasing.' },
+  {
+    server: 'PyFTPdlib',
+    re: /pyftpdlib/i,
+    version: 0,
+    quirk: 'Python pyftpdlib default banner phrasing.',
+  },
   { server: 'NetKit FTP', re: /NetKit FTP/i, version: 0, quirk: '"NetKit FTP" token.' },
 ];
 
@@ -48,7 +103,7 @@ const BANNER_SIGNATURES = [
 export function analyzeFtpBanner(banner = '') {
   const text = String(banner || '');
   const lines = text.split(/\r?\n/);
-  const first220 = lines.find((l) => /^220[\s-]/.test(l)) || lines[0] || '';
+  const first220 = lines.find(l => /^220[\s-]/.test(l)) || lines[0] || '';
 
   for (const sig of BANNER_SIGNATURES) {
     const m = sig.re.exec(text);

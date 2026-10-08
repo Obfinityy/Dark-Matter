@@ -11,26 +11,126 @@
  */
 
 export const WAVE62_HD_IDEAS = [
-  { id: 52461, title: 'Regression scope-diff preview', desc: 'Show what the next regression will cover vs the last run before it starts.', skip: false },
-  { id: 52462, title: 'Auto-archive old regressions', desc: 'Archive regression runs older than N months, keeping only their diff summaries.', skip: false },
-  { id: 52463, title: 'Regression comparison dashboard', desc: 'Side-by-side verdicts of the last N regressions per target.', skip: false },
-  { id: 52464, title: '"All clear" certificate', desc: 'Generate a signed certificate when a regression finds zero open issues.', skip: false },
-  { id: 52465, title: 'Schedule-via-API', desc: 'Create and manage recurring hunts programmatically.', skip: false },
-  { id: 52466, title: 'Schedule-via-chat', desc: 'Tell the agent "regression every Monday at 2am" and it configures the schedule.', skip: false },
-  { id: 52467, title: 'Regression reminders', desc: 'Remind owners before a scheduled regression and nudge if targets are unreachable.', skip: false },
-  { id: 52468, title: 'Regression digest email', desc: 'Periodic summary of all regression outcomes across targets.', skip: false },
-  { id: 52469, title: 'Multi-target regression campaigns', desc: 'Group regressions across an asset portfolio into one campaign with unified reporting.', skip: false },
-  { id: 52470, title: 'PR linking for fixes', desc: 'Link pull requests to findings; show PR status (open/merged) on the remediation card.', skip: false },
-  { id: 52471, title: 'Fix diff viewer', desc: 'View the actual code diff of a linked fix commit without leaving the finding page.', skip: false },
-  { id: 52472, title: 'Verification evidence panel', desc: 'Retest evidence displayed alongside the fix notes for one-glance verification.', skip: false },
-  { id: 52473, title: '"Verified fixed" badge', desc: 'Prominent badge on findings that passed verification retest, with date and verifier.', skip: false },
-  { id: 52474, title: 'Fix SLA per severity', desc: 'Configurable fix deadlines (Critical: 7d, High: 30d...) with breach escalation.', skip: false },
-  { id: 52475, title: 'SLA breach alerts (post-hunt)', desc: 'Escalating notifications (assignee → lead → manager) as fix SLAs approach and pass.', skip: false },
-  { id: 52476, title: 'Remediation progress percentage', desc: 'Per-hunt and per-target % of findings fixed and verified, shown on dashboards.', skip: false },
-  { id: 52477, title: 'Before/after hunt diff view (post-hunt)', desc: 'Visual diff of two hunts: new, fixed, persistent, and severity-changed findings.', skip: false },
-  { id: 52478, title: 'Target A vs target B compare', desc: "Compare two different targets' hunts to benchmark security posture.", skip: false },
-  { id: 52479, title: 'New-findings highlight', desc: 'In diffs, new findings get a prominent badge with "first seen" timestamps.', skip: false },
-  { id: 52480, title: 'Fixed-findings highlight', desc: 'Celebrate remediated findings in diffs with fix dates and linked commits.', skip: false },
+  {
+    id: 52461,
+    title: 'Regression scope-diff preview',
+    desc: 'Show what the next regression will cover vs the last run before it starts.',
+    skip: false,
+  },
+  {
+    id: 52462,
+    title: 'Auto-archive old regressions',
+    desc: 'Archive regression runs older than N months, keeping only their diff summaries.',
+    skip: false,
+  },
+  {
+    id: 52463,
+    title: 'Regression comparison dashboard',
+    desc: 'Side-by-side verdicts of the last N regressions per target.',
+    skip: false,
+  },
+  {
+    id: 52464,
+    title: '"All clear" certificate',
+    desc: 'Generate a signed certificate when a regression finds zero open issues.',
+    skip: false,
+  },
+  {
+    id: 52465,
+    title: 'Schedule-via-API',
+    desc: 'Create and manage recurring hunts programmatically.',
+    skip: false,
+  },
+  {
+    id: 52466,
+    title: 'Schedule-via-chat',
+    desc: 'Tell the agent "regression every Monday at 2am" and it configures the schedule.',
+    skip: false,
+  },
+  {
+    id: 52467,
+    title: 'Regression reminders',
+    desc: 'Remind owners before a scheduled regression and nudge if targets are unreachable.',
+    skip: false,
+  },
+  {
+    id: 52468,
+    title: 'Regression digest email',
+    desc: 'Periodic summary of all regression outcomes across targets.',
+    skip: false,
+  },
+  {
+    id: 52469,
+    title: 'Multi-target regression campaigns',
+    desc: 'Group regressions across an asset portfolio into one campaign with unified reporting.',
+    skip: false,
+  },
+  {
+    id: 52470,
+    title: 'PR linking for fixes',
+    desc: 'Link pull requests to findings; show PR status (open/merged) on the remediation card.',
+    skip: false,
+  },
+  {
+    id: 52471,
+    title: 'Fix diff viewer',
+    desc: 'View the actual code diff of a linked fix commit without leaving the finding page.',
+    skip: false,
+  },
+  {
+    id: 52472,
+    title: 'Verification evidence panel',
+    desc: 'Retest evidence displayed alongside the fix notes for one-glance verification.',
+    skip: false,
+  },
+  {
+    id: 52473,
+    title: '"Verified fixed" badge',
+    desc: 'Prominent badge on findings that passed verification retest, with date and verifier.',
+    skip: false,
+  },
+  {
+    id: 52474,
+    title: 'Fix SLA per severity',
+    desc: 'Configurable fix deadlines (Critical: 7d, High: 30d...) with breach escalation.',
+    skip: false,
+  },
+  {
+    id: 52475,
+    title: 'SLA breach alerts (post-hunt)',
+    desc: 'Escalating notifications (assignee → lead → manager) as fix SLAs approach and pass.',
+    skip: false,
+  },
+  {
+    id: 52476,
+    title: 'Remediation progress percentage',
+    desc: 'Per-hunt and per-target % of findings fixed and verified, shown on dashboards.',
+    skip: false,
+  },
+  {
+    id: 52477,
+    title: 'Before/after hunt diff view (post-hunt)',
+    desc: 'Visual diff of two hunts: new, fixed, persistent, and severity-changed findings.',
+    skip: false,
+  },
+  {
+    id: 52478,
+    title: 'Target A vs target B compare',
+    desc: "Compare two different targets' hunts to benchmark security posture.",
+    skip: false,
+  },
+  {
+    id: 52479,
+    title: 'New-findings highlight',
+    desc: 'In diffs, new findings get a prominent badge with "first seen" timestamps.',
+    skip: false,
+  },
+  {
+    id: 52480,
+    title: 'Fixed-findings highlight',
+    desc: 'Celebrate remediated findings in diffs with fix dates and linked commits.',
+    skip: false,
+  },
 ];
 
 function tokenFor(scope, id, now) {
@@ -43,13 +143,15 @@ function tokenFor(scope, id, now) {
 /* 52461 — Regression scope-diff preview: what the next regression will cover
  * versus the last run, before it starts. */
 export function previewScopeDiff(lastScope, nextScope) {
-  if (!lastScope || !nextScope) return { ok: false, reason: 'lastScope and nextScope are required' };
+  if (!lastScope || !nextScope)
+    return { ok: false, reason: 'lastScope and nextScope are required' };
   const last = new Set((lastScope.endpoints || []).map(String));
   const next = new Set((nextScope.endpoints || []).map(String));
-  const added = [...next].filter((e) => !last.has(e));
-  const removed = [...last].filter((e) => !next.has(e));
-  const unchanged = [...next].filter((e) => last.has(e));
-  const enginesChanged = JSON.stringify(lastScope.engines || []) !== JSON.stringify(nextScope.engines || []);
+  const added = [...next].filter(e => !last.has(e));
+  const removed = [...last].filter(e => !next.has(e));
+  const unchanged = [...next].filter(e => last.has(e));
+  const enginesChanged =
+    JSON.stringify(lastScope.engines || []) !== JSON.stringify(nextScope.engines || []);
   return {
     ok: true,
     added,
@@ -88,7 +190,13 @@ export function autoArchiveCandidates(runs, olderThanDays, now = Date.now()) {
     if ((r.startedAt || 0) < cutoff && !r.pinned) candidates.push(summary);
     else kept.push(r.id);
   }
-  return { ok: true, olderThanDays, archived: candidates, kept, counts: { archived: candidates.length, kept: kept.length } };
+  return {
+    ok: true,
+    olderThanDays,
+    archived: candidates,
+    kept,
+    counts: { archived: candidates.length, kept: kept.length },
+  };
 }
 
 /* 52463 — Regression comparison dashboard: side-by-side verdicts of the last
@@ -106,7 +214,12 @@ export function buildComparisonDashboard(runs, perTarget = 5) {
       .slice()
       .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
       .slice(0, perTarget)
-      .map((r) => ({ runId: r.id, verdict: r.verdict || 'unknown', at: r.startedAt, stats: r.stats || {} }));
+      .map(r => ({
+        runId: r.id,
+        verdict: r.verdict || 'unknown',
+        at: r.startedAt,
+        stats: r.stats || {},
+      }));
     cards.push({ target, recent, count: recent.length });
   }
   return { ok: true, perTarget, cards, targets: cards.length };
@@ -136,7 +249,8 @@ export function issueAllClearCertificate(regression, issuer = 'Infinity AI', now
 
 /* 52465 — Schedule-via-API: validate an API payload into a recurring schedule. */
 export function parseScheduleApiPayload(payload, now = Date.now()) {
-  if (!payload || typeof payload !== 'object') return { ok: false, reason: 'payload object is required' };
+  if (!payload || typeof payload !== 'object')
+    return { ok: false, reason: 'payload object is required' };
   const { targetId, cadence, depth = 'quick', owner = null } = payload;
   if (!targetId) return { ok: false, reason: 'targetId is required' };
   if (!/^(hourly|daily|weekly|monthly|once)$/.test(cadence || '')) {
@@ -162,14 +276,15 @@ export function parseScheduleApiPayload(payload, now = Date.now()) {
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 export function parseScheduleChatCommand(text, now = Date.now()) {
-  if (typeof text !== 'string' || !text.trim()) return { ok: false, reason: 'command text is required' };
+  if (typeof text !== 'string' || !text.trim())
+    return { ok: false, reason: 'command text is required' };
   const lower = text.toLowerCase();
   if (!/regression/.test(lower)) return { ok: false, reason: 'command must mention regression' };
   let cadence = 'weekly';
   if (/every\s+day|daily/.test(lower)) cadence = 'daily';
   else if (/every\s+week|weekly/.test(lower)) cadence = 'weekly';
   else if (/every\s+month|monthly/.test(lower)) cadence = 'monthly';
-  const dayMatch = DAYS.find((d) => lower.includes(d));
+  const dayMatch = DAYS.find(d => lower.includes(d));
   const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
   let hour = 2;
   let minute = 0;
@@ -242,7 +357,7 @@ export function buildDigestEmail(runs, periodLabel, now = Date.now()) {
     period: periodLabel || 'recent',
     total: runs.length,
     byVerdict,
-    sections: runs.slice(0, 25).map((r) => `${r.id} · ${r.target} · ${r.verdict || 'unknown'}`),
+    sections: runs.slice(0, 25).map(r => `${r.id} · ${r.target} · ${r.verdict || 'unknown'}`),
     generatedAt: now,
   };
 }
@@ -251,8 +366,9 @@ export function buildDigestEmail(runs, periodLabel, now = Date.now()) {
  * asset portfolio into one campaign with unified reporting. */
 export function buildCampaign(name, regressions, now = Date.now()) {
   if (!name || typeof name !== 'string') return { ok: false, reason: 'campaign name is required' };
-  if (!Array.isArray(regressions) || regressions.length === 0) return { ok: false, reason: 'regressions array is required' };
-  const targets = [...new Set(regressions.map((r) => r.target))];
+  if (!Array.isArray(regressions) || regressions.length === 0)
+    return { ok: false, reason: 'regressions array is required' };
+  const targets = [...new Set(regressions.map(r => r.target))];
   const totals = { new: 0, fixed: 0, persistent: 0 };
   for (const r of regressions) {
     const s = r.stats || {};
@@ -266,7 +382,7 @@ export function buildCampaign(name, regressions, now = Date.now()) {
       id: tokenFor('camp', name, now),
       name,
       targets,
-      regressionIds: regressions.map((r) => r.id),
+      regressionIds: regressions.map(r => r.id),
       totals,
       createdAt: now,
       status: 'active',
@@ -295,7 +411,7 @@ export function linkPrToFinding(finding, pr, now = Date.now()) {
  * linked fix commit. */
 export function fixDiffViewerPayload(pr, files = []) {
   if (!pr || !pr.number) return { ok: false, reason: 'PR with a number is required' };
-  const rows = files.map((f) => ({
+  const rows = files.map(f => ({
     path: f.path,
     additions: f.additions || 0,
     deletions: f.deletions || 0,
@@ -320,7 +436,9 @@ export function evidencePanelPayload(finding) {
     findingId: finding.id,
     fixNotes: finding.fixNotes || '',
     evidence,
-    retest: retest ? { passed: !!retest.passed, at: retest.at || null, by: retest.by || null } : null,
+    retest: retest
+      ? { passed: !!retest.passed, at: retest.at || null, by: retest.by || null }
+      : null,
     verdict: retest && retest.passed ? 'verified-fixed' : 'pending-verification',
     evidenceCount: evidence.length,
   };
@@ -355,7 +473,13 @@ export function fixSlaDeadline(severity, foundAt, policy = {}) {
   const sev = String(severity || '').toLowerCase();
   const days = policy[sev] || DEFAULT_FIX_SLA_DAYS[sev];
   if (!days) return { ok: false, reason: `unknown severity "${severity}"` };
-  return { ok: true, severity: sev, slaDays: days, deadline: foundAt + days * 24 * 3600000, foundAt };
+  return {
+    ok: true,
+    severity: sev,
+    slaDays: days,
+    deadline: foundAt + days * 24 * 3600000,
+    foundAt,
+  };
 }
 
 /* 52475 — SLA breach alerts (post-hunt): escalating notifications
@@ -370,9 +494,23 @@ export function slaBreachAlerts(findings, policy = {}, now = Date.now()) {
     if (msLeft < 0) {
       const daysOver = Math.floor(-msLeft / (24 * 3600000));
       const level = daysOver >= 14 ? 'manager' : daysOver >= 7 ? 'lead' : 'assignee';
-      alerts.push({ findingId: f.id, severity: sla.severity, kind: 'breached', level, daysOver, deadline: sla.deadline });
+      alerts.push({
+        findingId: f.id,
+        severity: sla.severity,
+        kind: 'breached',
+        level,
+        daysOver,
+        deadline: sla.deadline,
+      });
     } else if (msLeft <= 3 * 24 * 3600000) {
-      alerts.push({ findingId: f.id, severity: sla.severity, kind: 'approaching', level: 'assignee', msLeft, deadline: sla.deadline });
+      alerts.push({
+        findingId: f.id,
+        severity: sla.severity,
+        kind: 'approaching',
+        level: 'assignee',
+        msLeft,
+        deadline: sla.deadline,
+      });
     }
   }
   return { ok: true, count: alerts.length, alerts };
@@ -384,8 +522,10 @@ export function remediationProgress(findings) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array is required' };
   const total = findings.length;
   if (total === 0) return { ok: true, total: 0, pct: 0, fixed: 0, verified: 0 };
-  const fixed = findings.filter((f) => ['Fixed', 'Verified', 'Closed'].includes(f.state)).length;
-  const verified = findings.filter((f) => f.state === 'Verified' || (f.retest && f.retest.passed === true)).length;
+  const fixed = findings.filter(f => ['Fixed', 'Verified', 'Closed'].includes(f.state)).length;
+  const verified = findings.filter(
+    f => f.state === 'Verified' || (f.retest && f.retest.passed === true)
+  ).length;
   return {
     ok: true,
     total,
@@ -400,17 +540,23 @@ export function remediationProgress(findings) {
  * new, fixed, persistent, and severity-changed findings. */
 export function diffHunts(huntA, huntB) {
   if (!huntA || !huntB) return { ok: false, reason: 'both hunts are required' };
-  const mapA = new Map((huntA.findings || []).map((f) => [f.id, f]));
-  const mapB = new Map((huntB.findings || []).map((f) => [f.id, f]));
+  const mapA = new Map((huntA.findings || []).map(f => [f.id, f]));
+  const mapB = new Map((huntB.findings || []).map(f => [f.id, f]));
   const newFindings = [];
   const fixed = [];
   const persistent = [];
   const severityChanged = [];
   for (const [id, b] of mapB) {
     const a = mapA.get(id);
-    if (!a) { newFindings.push(b); continue; }
+    if (!a) {
+      newFindings.push(b);
+      continue;
+    }
     const bFixed = ['Fixed', 'Verified', 'Closed'].includes(b.state);
-    if (bFixed && !['Fixed', 'Verified', 'Closed'].includes(a.state)) { fixed.push({ from: a, to: b }); continue; }
+    if (bFixed && !['Fixed', 'Verified', 'Closed'].includes(a.state)) {
+      fixed.push({ from: a, to: b });
+      continue;
+    }
     persistent.push({ from: a, to: b });
     if (a.severity !== b.severity) severityChanged.push({ from: a, to: b });
   }
@@ -436,7 +582,12 @@ export function diffHunts(huntA, huntB) {
 export function compareTargets(huntA, huntB) {
   const d = diffHunts(huntA, huntB);
   if (!d.ok) return d;
-  const riskOf = (h) => (h.findings || []).reduce((sum, f) => sum + ({ critical: 4, high: 3, medium: 2, low: 1 }[String(f.severity).toLowerCase()] || 0), 0);
+  const riskOf = h =>
+    (h.findings || []).reduce(
+      (sum, f) =>
+        sum + ({ critical: 4, high: 3, medium: 2, low: 1 }[String(f.severity).toLowerCase()] || 0),
+      0
+    );
   const ra = riskOf(huntA);
   const rb = riskOf(huntB);
   return {
@@ -454,10 +605,11 @@ export function compareTargets(huntA, huntB) {
 /* 52479 — New-findings highlight: in diffs, new findings get a prominent
  * badge with "first seen" timestamps. */
 export function highlightNewFindings(diff, now = Date.now()) {
-  if (!diff || !Array.isArray(diff.newFindings)) return { ok: false, reason: 'diff with newFindings is required' };
+  if (!diff || !Array.isArray(diff.newFindings))
+    return { ok: false, reason: 'diff with newFindings is required' };
   return {
     ok: true,
-    items: diff.newFindings.map((f) => ({
+    items: diff.newFindings.map(f => ({
       id: f.id,
       title: f.title || f.id,
       severity: f.severity,
@@ -470,7 +622,8 @@ export function highlightNewFindings(diff, now = Date.now()) {
 /* 52480 — Fixed-findings highlight: celebrate remediated findings in diffs
  * with fix dates and linked commits. */
 export function highlightFixedFindings(diff) {
-  if (!diff || !Array.isArray(diff.fixed)) return { ok: false, reason: 'diff with fixed is required' };
+  if (!diff || !Array.isArray(diff.fixed))
+    return { ok: false, reason: 'diff with fixed is required' };
   return {
     ok: true,
     items: diff.fixed.map(({ from, to }) => ({
@@ -478,7 +631,7 @@ export function highlightFixedFindings(diff) {
       title: to.title || to.id,
       severity: to.severity,
       fixedAt: to.fixedAt || null,
-      commit: (to.linkedPrs && to.linkedPrs.find((p) => p.status === 'merged')) || null,
+      commit: (to.linkedPrs && to.linkedPrs.find(p => p.status === 'merged')) || null,
       badge: { kind: 'fixed-finding', label: 'FIXED', at: to.fixedAt || null },
     })),
   };

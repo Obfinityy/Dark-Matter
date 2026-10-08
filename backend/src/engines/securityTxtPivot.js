@@ -11,10 +11,7 @@
  */
 
 /** Well-known locations of the security.txt file. */
-export const CANDIDATE_PATHS = [
-  '/.well-known/security.txt',
-  '/security.txt',
-];
+export const CANDIDATE_PATHS = ['/.well-known/security.txt', '/security.txt'];
 
 /**
  * Build candidate file URLs for a target.
@@ -24,7 +21,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -69,19 +66,28 @@ export function analyzeSecurityTxt(content, opts = {}) {
   }
 
   const hosts = new Set();
-  const track = (url) => {
+  const track = url => {
     const host = hostnameOf(url);
     if (host) hosts.add(host.toLowerCase());
   };
 
-  const classifyContact = (value) => {
-    if (/^mailto:/i.test(value)) return { kind: 'email', host: value.replace(/^mailto:/i, '').split('@')[1]?.toLowerCase() || null };
-    if (/^https?:\/\//i.test(value)) return { kind: 'url', host: hostnameOf(value)?.toLowerCase() || null };
+  const classifyContact = value => {
+    if (/^mailto:/i.test(value))
+      return {
+        kind: 'email',
+        host:
+          value
+            .replace(/^mailto:/i, '')
+            .split('@')[1]
+            ?.toLowerCase() || null,
+      };
+    if (/^https?:\/\//i.test(value))
+      return { kind: 'url', host: hostnameOf(value)?.toLowerCase() || null };
     if (/^tel:/i.test(value)) return { kind: 'phone', host: null };
     return { kind: 'other', host: null };
   };
 
-  const contacts = (fields.contact || []).map((value) => {
+  const contacts = (fields.contact || []).map(value => {
     const { kind, host } = classifyContact(value);
     if (host) hosts.add(host);
     return { value, kind, host };
@@ -105,8 +111,16 @@ export function analyzeSecurityTxt(content, opts = {}) {
   if (!(fields.expires || []).length) parseErrors.push('Missing Expires field');
 
   return {
-    source, fields, contacts, policyUrls, encryptionUrls, hiringUrls, canonical,
-    hosts: [...hosts], expired, parseErrors,
+    source,
+    fields,
+    contacts,
+    policyUrls,
+    encryptionUrls,
+    hiringUrls,
+    canonical,
+    hosts: [...hosts],
+    expired,
+    parseErrors,
   };
 }
 
@@ -117,19 +131,21 @@ export function analyzeSecurityTxt(content, opts = {}) {
  * @returns {Array<{ host: string, score: number, reason: string }>}
  */
 export function rankPivotHosts(analysis) {
-  return (analysis.hosts || []).map((host) => {
-    let score = 30;
-    let reason = 'referenced by security.txt';
-    if (/security|vuln|psirt|bugcrowd|hackerone|synack|yeswehack/i.test(host)) {
-      score = 90;
-      reason = 'security-team or bug-bounty platform host';
-    } else if (/jira|zendesk|servicenow|freshdesk|support|ticket/i.test(host)) {
-      score = 70;
-      reason = 'support/ticketing host';
-    } else if (/policy|legal|trust/i.test(host)) {
-      score = 50;
-      reason = 'policy/trust host';
-    }
-    return { host, score, reason };
-  }).sort((a, b) => b.score - a.score);
+  return (analysis.hosts || [])
+    .map(host => {
+      let score = 30;
+      let reason = 'referenced by security.txt';
+      if (/security|vuln|psirt|bugcrowd|hackerone|synack|yeswehack/i.test(host)) {
+        score = 90;
+        reason = 'security-team or bug-bounty platform host';
+      } else if (/jira|zendesk|servicenow|freshdesk|support|ticket/i.test(host)) {
+        score = 70;
+        reason = 'support/ticketing host';
+      } else if (/policy|legal|trust/i.test(host)) {
+        score = 50;
+        reason = 'policy/trust host';
+      }
+      return { host, score, reason };
+    })
+    .sort((a, b) => b.score - a.score);
 }

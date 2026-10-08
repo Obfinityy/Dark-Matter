@@ -38,7 +38,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -52,26 +54,45 @@ export function parseExtensionPackageJson(packageJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
-  const repo = typeof pkg.repository === 'string' ? pkg.repository : (pkg.repository && pkg.repository.url);
+  const repo =
+    typeof pkg.repository === 'string' ? pkg.repository : pkg.repository && pkg.repository.url;
   if (repo) {
     const host = hostFromUrl(repo);
     if (host) {
-      const kind = host.includes('github.com') ? 'github-repo-host' : host.includes('gitlab.com') ? 'gitlab-repo-host' : 'repo-host';
+      const kind = host.includes('github.com')
+        ? 'github-repo-host'
+        : host.includes('gitlab.com')
+          ? 'gitlab-repo-host'
+          : 'repo-host';
       add(repo, kind, 'package.repository');
     } else {
       // git@github.com:org/repo.git style
       const scp = /^[\w.-]+@([a-z0-9.-]+\.[a-z]{2,}):/i.exec(String(repo));
-      if (scp && !seen.has(scp[1].toLowerCase())) { seen.add(scp[1].toLowerCase()); hosts.push({ host: scp[1].toLowerCase(), kind: 'repo-host', provenance: 'package.repository(scp)' }); }
+      if (scp && !seen.has(scp[1].toLowerCase())) {
+        seen.add(scp[1].toLowerCase());
+        hosts.push({
+          host: scp[1].toLowerCase(),
+          kind: 'repo-host',
+          provenance: 'package.repository(scp)',
+        });
+      }
     }
   }
 
   add(pkg.homepage, 'extension-homepage', 'package.homepage');
-  add(typeof pkg.bugs === 'string' ? pkg.bugs : (pkg.bugs && pkg.bugs.url), 'issue-tracker', 'package.bugs');
+  add(
+    typeof pkg.bugs === 'string' ? pkg.bugs : pkg.bugs && pkg.bugs.url,
+    'issue-tracker',
+    'package.bugs'
+  );
 
-  const funding = Array.isArray(pkg.funding) ? pkg.funding : (pkg.funding ? [pkg.funding] : []);
+  const funding = Array.isArray(pkg.funding) ? pkg.funding : pkg.funding ? [pkg.funding] : [];
   for (const f of funding) {
     const url = typeof f === 'string' ? f : f && f.url;
     add(url, 'funding-link', 'package.funding');
@@ -82,7 +103,11 @@ export function parseExtensionPackageJson(packageJson) {
     const dm = /@([a-z0-9.-]+\.[a-z]{2,})\s*>?/.exec(String(author || ''));
     if (dm && !seen.has(dm[1].toLowerCase())) {
       seen.add(dm[1].toLowerCase());
-      hosts.push({ host: dm[1].toLowerCase(), kind: 'author-domain', provenance: 'package.author' });
+      hosts.push({
+        host: dm[1].toLowerCase(),
+        kind: 'author-domain',
+        provenance: 'package.author',
+      });
     }
   }
 
@@ -116,7 +141,10 @@ export function parseVsixManifest(vsixXml) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
   add(props.moreinfourl, 'more-info-host', 'vsix.MoreInfoUrl');
   add(props.license, 'license-host', 'vsix.License');
@@ -137,7 +165,14 @@ export function analyzeVscodeExtension(packageJson, vsixXml = '') {
   const merged = [...pkg.hosts];
   const seen = new Set(pkg.hosts.map(h => h.host));
   for (const h of vsix.hosts) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push(h); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push(h);
+    }
   }
-  return { name: pkg.name, publisher: pkg.publisher || vsix.identity.publisher || null, hosts: merged };
+  return {
+    name: pkg.name,
+    publisher: pkg.publisher || vsix.identity.publisher || null,
+    hosts: merged,
+  };
 }

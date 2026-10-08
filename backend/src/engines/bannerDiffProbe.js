@@ -42,7 +42,7 @@ export function classifyOrdering(a, b) {
   if (A.length === 0 || B.length === 0) {
     return { mode: 'identical', score: 0, detail: 'empty order list' };
   }
-  const sameSet = A.length === B.length && A.every((x) => B.includes(x));
+  const sameSet = A.length === B.length && A.every(x => B.includes(x));
   if (A.join('|') === B.join('|')) {
     return { mode: 'echo', score: 1, detail: 'response order mirrors probe order' };
   }
@@ -68,9 +68,17 @@ export function classifyOrdering(a, b) {
       return { mode: 'echo', score: tau, detail: 'response mostly preserves probe order' };
     }
     if (tau < 0.15) {
-      return { mode: 'priority', score: 1 - tau, detail: 'response follows internal priority order, not probe order' };
+      return {
+        mode: 'priority',
+        score: 1 - tau,
+        detail: 'response follows internal priority order, not probe order',
+      };
     }
-    return { mode: 'scrambled', score: 1 - Math.abs(tau - 0.5) * 2, detail: 'response order is neither echo, sorted, nor priority' };
+    return {
+      mode: 'scrambled',
+      score: 1 - Math.abs(tau - 0.5) * 2,
+      detail: 'response order is neither echo, sorted, nor priority',
+    };
   }
   return { mode: 'scrambled', score: 0.5, detail: 'response set differs from probe set' };
 }
@@ -83,7 +91,7 @@ export function classifyOrdering(a, b) {
  * @returns {{ type: string, banner: string, differentials: object[], fingerprint: string, confidence: string, evidence: string }}
  */
 export function analyzeDifferentialProbes({ probes = [], banner = '' } = {}) {
-  const differentials = probes.map((p) => ({
+  const differentials = probes.map(p => ({
     label: p.label,
     dimension: p.dimension,
     ...classifyOrdering(p.sentOrder, p.observedOrder),
@@ -91,7 +99,7 @@ export function analyzeDifferentialProbes({ probes = [], banner = '' } = {}) {
 
   // A stack whose responses never echo probe order has a strong internal
   // implementation fingerprint; one that always echoes is weak/distinguishable too.
-  const modes = differentials.map((d) => d.mode);
+  const modes = differentials.map(d => d.mode);
   const uniqueModes = [...new Set(modes)];
   let fingerprint = 'indeterminate';
   let confidence = 'low';
@@ -111,7 +119,7 @@ export function analyzeDifferentialProbes({ probes = [], banner = '' } = {}) {
     }
   }
 
-  const sig = differentials.map((d) => `${d.dimension}:${d.mode}`).join('; ');
+  const sig = differentials.map(d => `${d.dimension}:${d.mode}`).join('; ');
   return {
     type: 'Banner-Ordering Differential Probing',
     banner: String(banner || ''),

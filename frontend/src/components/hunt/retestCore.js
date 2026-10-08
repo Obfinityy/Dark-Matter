@@ -53,14 +53,24 @@ export const RETEST_PRIORITIES = [
   { id: 'low', label: 'Low', weight: 2 },
 ];
 
-export const RETEST_STATUSES = ['queued', 'awaiting-approval', 'scheduled', 'running', 'completed', 'failed', 'cancelled'];
+export const RETEST_STATUSES = [
+  'queued',
+  'awaiting-approval',
+  'scheduled',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+];
 
 let retestSeq = 0;
 function nextRetestId(prefix = 'rt') {
   retestSeq += 1;
   return `${prefix}-${String(retestSeq).padStart(4, '0')}`;
 }
-export function __resetRetestSeq() { retestSeq = 0; }
+export function __resetRetestSeq() {
+  retestSeq = 0;
+}
 
 // 52123 — Per-finding retest request: targeted retest of a single finding.
 export function requestRetest(finding, options = {}, now = Date.now()) {
@@ -106,12 +116,12 @@ export function autoQueueOnFixDeployed(finding, deployInfo = {}, now = Date.now(
 // 52125 — Retest with mutated payloads: replay original PoC plus
 // deterministically generated mutations to catch incomplete fixes.
 const MUTATIONS = [
-  (p) => `${p}' OR '1'='1`,
-  (p) => p.replace(/</g, '%3C').replace(/>/g, '%3E'),
-  (p) => p.split('').reverse().join(''),
-  (p) => `${p}\n`,
-  (p) => p.replace(/\s/g, '/**/'),
-  (p) => Buffer.from(p, 'utf8').toString('base64'),
+  p => `${p}' OR '1'='1`,
+  p => p.replace(/</g, '%3C').replace(/>/g, '%3E'),
+  p => p.split('').reverse().join(''),
+  p => `${p}\n`,
+  p => p.replace(/\s/g, '/**/'),
+  p => Buffer.from(p, 'utf8').toString('base64'),
 ];
 export function buildMutatedPayloads(pocPayload, count = 5) {
   const seed = String(pocPayload || '');
@@ -135,7 +145,7 @@ export function scheduleRetest(request, scheduledAt, now = Date.now()) {
       ...request,
       status: 'scheduled',
       scheduledAt,
-      reminders: [scheduledAt - 3600000, scheduledAt - 600000].filter((t) => t > now),
+      reminders: [scheduledAt - 3600000, scheduledAt - 600000].filter(t => t > now),
     },
   };
 }
@@ -151,22 +161,22 @@ export function queueSummary(queue, now = Date.now()) {
   return {
     total: list.length,
     byStatus,
-    pending: list.filter((r) => r.status === 'queued' || r.status === 'scheduled').length,
+    pending: list.filter(r => r.status === 'queued' || r.status === 'scheduled').length,
     running: byStatus.running || 0,
     completed: byStatus.completed || 0,
     failed: byStatus.failed || 0,
-    owners: [...new Set(list.map((r) => r.requestedBy).filter(Boolean))],
+    owners: [...new Set(list.map(r => r.requestedBy).filter(Boolean))],
     oldestPendingAt: list
-      .filter((r) => r.status === 'queued')
-      .map((r) => r.requestedAt)
+      .filter(r => r.status === 'queued')
+      .map(r => r.requestedAt)
       .reduce((min, t) => (min === null || t < min ? t : min), null),
     etaMs: estimateQueueEta(list, now),
   };
 }
 
 function estimateQueueEta(list, now) {
-  const pending = list.filter((r) => r.status === 'queued' || r.status === 'scheduled');
-  const running = list.filter((r) => r.status === 'running');
+  const pending = list.filter(r => r.status === 'queued' || r.status === 'scheduled');
+  const running = list.filter(r => r.status === 'running');
   const avgMs = 900000; // 15 min average retest
   const slots = Math.max(1, 4 - running.length);
   return Math.ceil(pending.length / slots) * avgMs;
@@ -179,7 +189,10 @@ export function applyScopePicker(request, scope = {}) {
     parameters: Array.isArray(scope.parameters) ? scope.parameters : [],
     payloadClasses: Array.isArray(scope.payloadClasses) ? scope.payloadClasses : [],
   };
-  const empty = scoped.endpoints.length === 0 && scoped.parameters.length === 0 && scoped.payloadClasses.length === 0;
+  const empty =
+    scoped.endpoints.length === 0 &&
+    scoped.parameters.length === 0 &&
+    scoped.payloadClasses.length === 0;
   return {
     ok: !empty,
     reason: empty ? 'pick at least one endpoint, parameter, or payload class' : null,
@@ -202,19 +215,24 @@ export function diffRetestReport(original, retestOutcome) {
     after,
     behaviorChanged: changed,
     verdict,
-    note: verdict === 'fixed' ? 'vulnerability no longer reproducible'
-      : verdict === 'still-vulnerable' ? 'vulnerability persists — fix incomplete'
-        : verdict === 'changed-behavior' ? 'response behavior changed, re-verify manually'
-          : 'no observable change',
+    note:
+      verdict === 'fixed'
+        ? 'vulnerability no longer reproducible'
+        : verdict === 'still-vulnerable'
+          ? 'vulnerability persists — fix incomplete'
+          : verdict === 'changed-behavior'
+            ? 'response behavior changed, re-verify manually'
+            : 'no observable change',
   };
 }
 
 // 52130 — Retest cost estimate: estimated agent compute/time before confirm.
 export function estimateRetestCost(request) {
   const depthCost = request && request.options && request.options.depth === 'deep' ? 4 : 1;
-  const scopeCount = request && request.scope
-    ? Math.max(1, request.scope.endpoints.length + request.scope.parameters.length)
-    : 3;
+  const scopeCount =
+    request && request.scope
+      ? Math.max(1, request.scope.endpoints.length + request.scope.parameters.length)
+      : 3;
   const brainCost = request && request.options && request.options.brain !== 'default' ? 1.5 : 1;
   const computeUnits = Math.round(depthCost * scopeCount * brainCost * 10) / 10;
   return {
@@ -237,7 +255,7 @@ export function prioritizeQueue(queue) {
 }
 
 export function setRetestPriority(request, priority) {
-  if (!RETEST_PRIORITIES.some((p) => p.id === priority)) {
+  if (!RETEST_PRIORITIES.some(p => p.id === priority)) {
     return { ok: false, reason: `unknown priority "${priority}"` };
   }
   return { ok: true, request: { ...request, priority } };
@@ -261,9 +279,9 @@ export function triageQuickRetest(finding, now = Date.now()) {
 // 52133 — "Needs more evidence" auto-retest: thin-evidence findings enter a
 // retest flow that gathers deeper proof.
 export function autoRetestThinEvidence(findings, now = Date.now()) {
-  const thin = (findings || []).filter((f) => f.evidenceStrength === 'thin' && f.status === 'open');
+  const thin = (findings || []).filter(f => f.evidenceStrength === 'thin' && f.status === 'open');
   return {
-    queued: thin.map((f) => ({
+    queued: thin.map(f => ({
       ...requestRetest(f, { priority: 'low', depth: 'deep' }, now).request,
       trigger: 'auto-thin-evidence',
     })),
@@ -278,24 +296,37 @@ export const RETEST_BRAINS = [
   { id: 'local-llm', label: 'Local LLM brain' },
 ];
 export function retestWithBrain(request, brainId) {
-  const brain = RETEST_BRAINS.find((b) => b.id === brainId);
+  const brain = RETEST_BRAINS.find(b => b.id === brainId);
   if (!brain) return { ok: false, reason: `unknown brain "${brainId}"` };
   return {
     ok: true,
-    request: { ...request, options: { ...(request.options || {}), brain: brain.id }, secondOpinion: true },
+    request: {
+      ...request,
+      options: { ...(request.options || {}), brain: brain.id },
+      secondOpinion: true,
+    },
   };
 }
 
 // 52135 — Retest stealth-mode toggle: low-noise for sensitive production.
 export function setStealthMode(request, on) {
-  return { ok: true, request: { ...request, options: { ...(request.options || {}), stealth: on === true } } };
+  return {
+    ok: true,
+    request: { ...request, options: { ...(request.options || {}), stealth: on === true } },
+  };
 }
 
 // 52136 — Retest concurrency limits: cap simultaneous retests per target.
 export function checkConcurrency(target, running, limit) {
-  const active = (running || []).filter((r) => r.target === target && r.status === 'running').length;
+  const active = (running || []).filter(r => r.target === target && r.status === 'running').length;
   const cap = typeof limit === 'number' && limit > 0 ? limit : 2;
-  return { target, active, cap, allowed: active < cap, reason: active >= cap ? `concurrency cap ${cap} reached for ${target}` : null };
+  return {
+    target,
+    active,
+    cap,
+    allowed: active < cap,
+    reason: active >= cap ? `concurrency cap ${cap} reached for ${target}` : null,
+  };
 }
 
 // 52137 — Retest completion notifications: requester + watchers get verdict.
@@ -315,22 +346,31 @@ export function appendRetestHistory(finding, attempt) {
   const history = Array.isArray(finding.retestHistory) ? finding.retestHistory : [];
   return {
     ...finding,
-    retestHistory: [...history, {
-      attemptId: attempt.id || `att-${history.length + 1}`,
-      at: attempt.at || Date.now(),
-      payload: attempt.payload || null,
-      outcome: attempt.outcome || 'unknown',
-      verdict: attempt.verdict || null,
-    }],
+    retestHistory: [
+      ...history,
+      {
+        attemptId: attempt.id || `att-${history.length + 1}`,
+        at: attempt.at || Date.now(),
+        payload: attempt.payload || null,
+        outcome: attempt.outcome || 'unknown',
+        verdict: attempt.verdict || null,
+      },
+    ],
   };
 }
 
 // 52139 — Retest SLA tracking: request-to-verdict vs per-severity targets.
-export const RETEST_SLA_TARGETS = { critical: 4 * 3600000, high: 24 * 3600000, medium: 72 * 3600000, low: 168 * 3600000 };
+export const RETEST_SLA_TARGETS = {
+  critical: 4 * 3600000,
+  high: 24 * 3600000,
+  medium: 72 * 3600000,
+  low: 168 * 3600000,
+};
 export function slaStatus(request, finding, now = Date.now()) {
   const targetMs = RETEST_SLA_TARGETS[finding && finding.severity] || RETEST_SLA_TARGETS.medium;
   const elapsed = now - (request.requestedAt || now);
-  const breached = request.status !== 'completed' && request.status !== 'failed' && elapsed > targetMs;
+  const breached =
+    request.status !== 'completed' && request.status !== 'failed' && elapsed > targetMs;
   return {
     requestId: request.id,
     severity: (finding && finding.severity) || 'medium',
@@ -344,7 +384,7 @@ export function slaStatus(request, finding, now = Date.now()) {
 // 52140 — Bulk retest requests: queue many findings at once.
 export function bulkRequestRetests(findings, options = {}, now = Date.now()) {
   const list = findings || [];
-  const requests = list.map((f) => requestRetest(f, options, now).request);
+  const requests = list.map(f => requestRetest(f, options, now).request);
   return { ok: true, count: requests.length, requests };
 }
 
@@ -363,12 +403,14 @@ export function applyRetestTemplate(finding, template, overrides = {}, now = Dat
 
 // 52142 — Retest on deploy webhook: deployment event auto-triggers retests.
 export function deployWebhookTrigger(openFindings, deployEvent, now = Date.now()) {
-  const findings = (openFindings || []).filter((f) => f.target === deployEvent.target && f.status === 'open');
+  const findings = (openFindings || []).filter(
+    f => f.target === deployEvent.target && f.status === 'open'
+  );
   return {
     event: deployEvent.id || null,
     target: deployEvent.target,
     matched: findings.length,
-    requests: findings.map((f) => ({
+    requests: findings.map(f => ({
       ...requestRetest(f, { priority: 'urgent' }, now).request,
       trigger: 'deploy-webhook',
       deployRef: deployEvent.ref || null,
@@ -402,9 +444,12 @@ export function checkRetestBudget(spentUnits, capUnits, now = Date.now()) {
     pctUsed: Math.round(pct * 10) / 10,
     state,
     checkedAt: now,
-    message: state === 'blocked' ? 'budget exhausted — retests paused'
-      : state === 'warning' ? 'budget above 80% — approvals recommended'
-        : 'within budget',
+    message:
+      state === 'blocked'
+        ? 'budget exhausted — retests paused'
+        : state === 'warning'
+          ? 'budget above 80% — approvals recommended'
+          : 'within budget',
   };
 }
 
@@ -421,14 +466,16 @@ export function refreshRetestEvidence(attempt, freshEvidence) {
 // 52146 — Retest across environments: same verification on staging + prod.
 export function compareEnvironments(resultsByEnv) {
   const envs = Object.keys(resultsByEnv || {});
-  const verdicts = envs.map((e) => resultsByEnv[e].verdict);
+  const verdicts = envs.map(e => resultsByEnv[e].verdict);
   const consistent = new Set(verdicts).size <= 1;
   return {
     environments: envs,
     results: resultsByEnv,
     consistent,
     verdict: consistent ? 'consistent' : 'divergent',
-    note: consistent ? 'same outcome across environments' : 'outcomes differ — investigate environment drift',
+    note: consistent
+      ? 'same outcome across environments'
+      : 'outcomes differ — investigate environment drift',
   };
 }
 
@@ -437,7 +484,7 @@ export function inRetestWindow(atMs, windows) {
   const list = Array.isArray(windows) ? windows : [];
   const day = new Date(atMs).getUTCDay();
   const hour = new Date(atMs).getUTCHours() + new Date(atMs).getUTCMinutes() / 60;
-  return list.some((w) => (w.days || []).includes(day) && hour >= w.startHour && hour < w.endHour);
+  return list.some(w => (w.days || []).includes(day) && hour >= w.startHour && hour < w.endHour);
 }
 export function validateRetestWindow(request, windows, now = Date.now()) {
   const at = request.scheduledAt || now;
@@ -458,12 +505,15 @@ export function backoffForRetest(consecutive429s, baseMs = 30000) {
 // 52149 — Retest dry-run preview: exactly which requests would be sent.
 export function dryRunPreview(request) {
   const scope = (request && request.scope) || {};
-  const endpoints = scope.endpoints && scope.endpoints.length ? scope.endpoints : ['/ (original finding endpoint)'];
+  const endpoints =
+    scope.endpoints && scope.endpoints.length ? scope.endpoints : ['/ (original finding endpoint)'];
   const payloads = buildMutatedPayloads(request && request.originalPayload, 3);
   return {
     requestId: request ? request.id : null,
     dryRun: true,
-    wouldSend: endpoints.flatMap((ep) => payloads.map((p) => ({ method: 'GET', endpoint: ep, payload: p }))),
+    wouldSend: endpoints.flatMap(ep =>
+      payloads.map(p => ({ method: 'GET', endpoint: ep, payload: p }))
+    ),
     totalRequests: endpoints.length * payloads.length,
     note: 'no requests were sent — change-control preview only',
   };
@@ -471,10 +521,14 @@ export function dryRunPreview(request) {
 
 // 52150 — Retest with authenticated session: supply or reuse stored creds.
 export function attachAuthSession(request, sessionRef) {
-  if (!sessionRef || !sessionRef.id) return { ok: false, reason: 'a stored session reference is required' };
+  if (!sessionRef || !sessionRef.id)
+    return { ok: false, reason: 'a stored session reference is required' };
   return {
     ok: true,
-    request: { ...request, auth: { sessionId: sessionRef.id, principal: sessionRef.principal || null } },
+    request: {
+      ...request,
+      auth: { sessionId: sessionRef.id, principal: sessionRef.principal || null },
+    },
   };
 }
 
@@ -482,7 +536,12 @@ export function attachAuthSession(request, sessionRef) {
 export function buildReplayPlan(huntTrace) {
   const steps = Array.isArray(huntTrace) ? huntTrace : [];
   return {
-    steps: steps.map((s, i) => ({ order: i + 1, method: s.method || 'GET', url: s.url || '', payload: s.payload || null })),
+    steps: steps.map((s, i) => ({
+      order: i + 1,
+      method: s.method || 'GET',
+      url: s.url || '',
+      payload: s.payload || null,
+    })),
     total: steps.length,
     deterministic: true,
   };
@@ -512,7 +571,7 @@ export function depthConfig(mode) {
 // 52154 — Retest engine selection: pick which detection engines participate.
 export function selectRetestEngines(request, engineIds, availableEngines) {
   const available = new Set(availableEngines || []);
-  const picked = (engineIds || []).filter((e) => available.has(e));
+  const picked = (engineIds || []).filter(e => available.has(e));
   if (picked.length === 0) return { ok: false, reason: 'select at least one available engine' };
   return { ok: true, request: { ...request, engines: picked } };
 }
@@ -523,7 +582,9 @@ export function appendRetestLog(attempt, entry, now = Date.now()) {
   return { ...attempt, logs: [...logs, { at: now, ...entry }] };
 }
 export function formatRetestLog(attempt) {
-  return (attempt.logs || []).map((l) => `[${new Date(l.at).toISOString()}] ${l.step || 'step'}: ${l.detail || ''}`).join('\n');
+  return (attempt.logs || [])
+    .map(l => `[${new Date(l.at).toISOString()}] ${l.step || 'step'}: ${l.detail || ''}`)
+    .join('\n');
 }
 
 // 52156 — Retest failure alerts: immediate alert with failure reason.
@@ -541,7 +602,8 @@ export function buildFailureAlert(request, error, watchers = [], now = Date.now(
 // 52157 — Retest assignment: oversight assignee with due dates.
 export function assignRetest(request, assignee, dueAt, now = Date.now()) {
   if (!assignee) return { ok: false, reason: 'an assignee is required' };
-  if (typeof dueAt === 'number' && dueAt <= now) return { ok: false, reason: 'due date must be in the future' };
+  if (typeof dueAt === 'number' && dueAt <= now)
+    return { ok: false, reason: 'due date must be in the future' };
   return { ok: true, request: { ...request, assignee, dueAt: dueAt || null } };
 }
 
@@ -574,7 +636,8 @@ export function escalateStillVulnerable(request, finding, manager, now = Date.no
 
 // 52160 — Verification certificate: signed "verified fixed on <date>".
 export function issueVerificationCertificate(finding, verdict, issuer, now = Date.now()) {
-  if (verdict !== 'fixed') return { ok: false, reason: 'certificates are issued only for fixed findings' };
+  if (verdict !== 'fixed')
+    return { ok: false, reason: 'certificates are issued only for fixed findings' };
   const date = new Date(now).toISOString().slice(0, 10);
   const payload = `${finding.id}|${date}|${issuer || 'infinity-ai'}`;
   let sig = 0;

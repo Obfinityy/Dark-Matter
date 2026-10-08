@@ -113,16 +113,19 @@ export function compareVersions(frontendVersion, backendVersion) {
   return {
     drift: true,
     behind,
-    message: behind === 'backend'
-      ? `Frontend v${frontendVersion} needs backend ≥${min}, but the server reports v${backendVersion}. Ask an admin to update the backend.`
-      : `Backend v${backendVersion} is newer than this frontend v${frontendVersion}. Refresh to load the matching frontend build.`,
+    message:
+      behind === 'backend'
+        ? `Frontend v${frontendVersion} needs backend ≥${min}, but the server reports v${backendVersion}. Ask an admin to update the backend.`
+        : `Backend v${backendVersion} is newer than this frontend v${frontendVersion}. Refresh to load the matching frontend build.`,
   };
 }
 
 /* ---------- 50363: friendly 500 --------------------------------------- */
 
 export function makeErrorId() {
-  const rand = Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, '0');
+  const rand = Math.floor(Math.random() * 0xffffffff)
+    .toString(16)
+    .padStart(8, '0');
   return `ERR-${Date.now().toString(36).toUpperCase()}-${rand.toUpperCase()}`;
 }
 
@@ -170,7 +173,7 @@ export function diffLinesToView(expectedText, actualText) {
 }
 
 export function diffSummary(rows) {
-  const changed = rows.filter((r) => !r.same).length;
+  const changed = rows.filter(r => !r.same).length;
   return `${changed} of ${rows.length} line${rows.length === 1 ? '' : 's'} differ`;
 }
 
@@ -185,15 +188,18 @@ export function staleIndexMessage(minutesOld) {
 /* ---------- 50372: impossible filter combination ----------------------- */
 
 export function buildFilterConflictMessage({ filters = [], conflictingPair, suggestion }) {
-  const pair = conflictingPair && conflictingPair.length === 2
-    ? `"${conflictingPair[0]}" + "${conflictingPair[1]}"`
-    : 'the selected filters';
+  const pair =
+    conflictingPair && conflictingPair.length === 2
+      ? `"${conflictingPair[0]}" + "${conflictingPair[1]}"`
+      : 'the selected filters';
   return {
     title: 'No findings can match this combination',
     detail: `Filters ${pair} contradict each other — nothing in the index satisfies both.`,
-    suggestion: suggestion || (filters.length
-      ? `Try removing "${filters[filters.length - 1]}" and searching again.`
-      : 'Try removing one filter and searching again.'),
+    suggestion:
+      suggestion ||
+      (filters.length
+        ? `Try removing "${filters[filters.length - 1]}" and searching again.`
+        : 'Try removing one filter and searching again.'),
   };
 }
 
@@ -205,14 +211,18 @@ export function buildFilterConflictMessage({ filters = [], conflictingPair, sugg
  */
 export function summarizeBulkResult(results, actionVerb = 'updated') {
   const list = Array.isArray(results) ? results : [];
-  const ok = list.filter((r) => r.ok).length;
-  const failed = list.filter((r) => !r.ok);
+  const ok = list.filter(r => r.ok).length;
+  const failed = list.filter(r => !r.ok);
   return {
     updated: ok,
     failed: failed.length,
     total: list.length,
     headline: `${ok} of ${list.length} ${actionVerb} — ${failed.length} failed`,
-    failures: failed.map((r) => ({ id: r.id, label: r.label || r.id, reason: r.reason || 'Unknown error' })),
+    failures: failed.map(r => ({
+      id: r.id,
+      label: r.label || r.id,
+      reason: r.reason || 'Unknown error',
+    })),
   };
 }
 
@@ -223,7 +233,7 @@ export function summarizeBulkResult(results, actionVerb = 'updated') {
  * Returns grouped errors plus a plain-text error report for download.
  */
 export function aggregateCsvErrors(rows, fileName = 'import.csv') {
-  const errors = (Array.isArray(rows) ? rows : []).map((r) => ({
+  const errors = (Array.isArray(rows) ? rows : []).map(r => ({
     row: r.row,
     column: r.column || '—',
     value: r.value ?? '',
@@ -236,7 +246,10 @@ export function aggregateCsvErrors(rows, fileName = 'import.csv') {
     `Generated: ${new Date().toISOString()}`,
     `${errors.length} row${errors.length === 1 ? '' : 's'} failed validation.`,
     '',
-    ...errors.map((e) => `Row ${e.row}, column "${e.column}": ${e.message}${e.value !== '' ? ` (got "${e.value}")` : ''}`),
+    ...errors.map(
+      e =>
+        `Row ${e.row}, column "${e.column}": ${e.message}${e.value !== '' ? ` (got "${e.value}")` : ''}`
+    ),
   ].join('\n');
   return { count: errors.length, errors, byColumn, reportText };
 }
@@ -277,10 +290,12 @@ export function diskQuotaAdvice({ usedBytes, quotaBytes, breakdown = [] }) {
     `Evidence storage is ${pct}% full — ${formatBytes(usedBytes)} of ${formatBytes(quotaBytes)} used.`,
   ];
   if (sorted.length) {
-    lines.push(`Breakdown: ${sorted.map((b) => `${b.label} ${formatBytes(b.bytes)}`).join(' · ')}.`);
+    lines.push(`Breakdown: ${sorted.map(b => `${b.label} ${formatBytes(b.bytes)}`).join(' · ')}.`);
   }
   if (biggest) {
-    lines.push(`Biggest consumer is "${biggest.label}" — deleting old ${biggest.label.toLowerCase()} frees the most space.`);
+    lines.push(
+      `Biggest consumer is "${biggest.label}" — deleting old ${biggest.label.toLowerCase()} frees the most space.`
+    );
   }
   return { pct, message: lines.join(' '), biggest: biggest || null };
 }

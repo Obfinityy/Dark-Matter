@@ -101,23 +101,31 @@ export function discoverAlternateOrigins(frames = []) {
  * @returns {{origin: string, inScope: boolean, exposure: string, riskScore: number}[]}
  */
 export function assessOriginExposure(origins = [], inScopeHosts = []) {
-  const scope = new Set((Array.isArray(inScopeHosts) ? inScopeHosts : []).map((h) => String(h).toLowerCase()));
-  return (Array.isArray(origins) ? origins : []).map((origin) => {
-    let host = '';
-    try { host = new URL(origin).hostname.toLowerCase(); } catch { host = ''; }
-    const inScope = host !== '' && scope.has(host);
-    let exposure = 'public-alias';
-    let riskScore = 10;
-    if (!inScope) {
-      exposure = 'out-of-scope-origin';
-      riskScore = 55;
-    }
-    if (/(^|[.-])(internal|intranet|staging|stage|dev|test|qa|admin|vpn)($|[.-])/i.test(host)) {
-      exposure = 'sensitive-name-origin';
-      riskScore = Math.max(riskScore, 75);
-    }
-    return { origin, inScope, exposure, riskScore };
-  }).sort((a, b) => b.riskScore - a.riskScore);
+  const scope = new Set(
+    (Array.isArray(inScopeHosts) ? inScopeHosts : []).map(h => String(h).toLowerCase())
+  );
+  return (Array.isArray(origins) ? origins : [])
+    .map(origin => {
+      let host = '';
+      try {
+        host = new URL(origin).hostname.toLowerCase();
+      } catch {
+        host = '';
+      }
+      const inScope = host !== '' && scope.has(host);
+      let exposure = 'public-alias';
+      let riskScore = 10;
+      if (!inScope) {
+        exposure = 'out-of-scope-origin';
+        riskScore = 55;
+      }
+      if (/(^|[.-])(internal|intranet|staging|stage|dev|test|qa|admin|vpn)($|[.-])/i.test(host)) {
+        exposure = 'sensitive-name-origin';
+        riskScore = Math.max(riskScore, 75);
+      }
+      return { origin, inScope, exposure, riskScore };
+    })
+    .sort((a, b) => b.riskScore - a.riskScore);
 }
 
 export const H2_ORIGIN_FRAME = {

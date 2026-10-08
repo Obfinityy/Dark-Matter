@@ -25,31 +25,83 @@ import { sortFindingsCriticalFirst } from './huntDiary.js';
 
 const INTENT_RULES = [
   // destructive command — answered with guidance, never executed from chat
-  { intent: 'stop', patterns: [/band kar ?de/, /rok de/, /^stop\b/, /cancel kar/, /\bstop the hunt\b/] },
+  {
+    intent: 'stop',
+    patterns: [/band kar ?de/, /rok de/, /^stop\b/, /cancel kar/, /\bstop the hunt\b/],
+  },
   // why did it stop / get stuck
-  { intent: 'whystopped', patterns: [/ruk kyun/, /kyun ruk/, /kyun band/, /kyun atka/, /atka hua/, /\bstuck\b/, /why.*(stop(ped)?|paused|stuck|waiting)/, /kya dikkat/] },
+  {
+    intent: 'whystopped',
+    patterns: [
+      /ruk kyun/,
+      /kyun ruk/,
+      /kyun band/,
+      /kyun atka/,
+      /atka hua/,
+      /\bstuck\b/,
+      /why.*(stop(ped)?|paused|stuck|waiting)/,
+      /kya dikkat/,
+    ],
+  },
   // what is it doing right now
-  { intent: 'doing', patterns: [/kya kar rh?[ae]/, /kya ho rh?[ae]/, /abhi kya/, /what.*doing/, /currently/, /\bkya chal rh?[ae]/] },
+  {
+    intent: 'doing',
+    patterns: [
+      /kya kar rh?[ae]/,
+      /kya ho rh?[ae]/,
+      /abhi kya/,
+      /what.*doing/,
+      /currently/,
+      /\bkya chal rh?[ae]/,
+    ],
+  },
   // what did it find so far
-  { intent: 'findings', patterns: [/kya mila/, /kitn[ie].*(vuln|kamzor|finding|bug)/, /findings?/, /vulnerabilit/, /kamzoriy/, /\bbugs?\b.*(mile|found)/, /what.*(found|find)\b/] },
+  {
+    intent: 'findings',
+    patterns: [
+      /kya mila/,
+      /kitn[ie].*(vuln|kamzor|finding|bug)/,
+      /findings?/,
+      /vulnerabilit/,
+      /kamzoriy/,
+      /\bbugs?\b.*(mile|found)/,
+      /what.*(found|find)\b/,
+    ],
+  },
   // how much is done
-  { intent: 'progress', patterns: [/kitna hua/, /kitna.*(complete|baki|baaki|hua)/, /progress/, /percent/, /kitne step/] },
+  {
+    intent: 'progress',
+    patterns: [
+      /kitna hua/,
+      /kitna.*(complete|baki|baaki|hua)/,
+      /progress/,
+      /percent/,
+      /kitne step/,
+    ],
+  },
   // what happens next
-  { intent: 'next', patterns: [/aage kya/, /agl[ae] kya/, /what.?s next/, /what next/, /next step/, /aage ka plan/] },
+  {
+    intent: 'next',
+    patterns: [/aage kya/, /agl[ae] kya/, /what.?s next/, /what next/, /next step/, /aage ka plan/],
+  },
   // explicit status ask
   { intent: 'status', patterns: [/\bstatus\b/, /kya haal/, /haal chaal/, /how.*going/] },
 ];
 
 /** Normalize a user message for keyword matching. */
 export function normalizeMessage(message) {
-  return String(message || '').toLowerCase().replace(/[?!.,।]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return String(message || '')
+    .toLowerCase()
+    .replace(/[?!.,।]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Detect the user's intent from a normalized message. Falls back to 'status'. */
 export function detectIntent(message) {
   const text = normalizeMessage(message);
   for (const rule of INTENT_RULES) {
-    if (rule.patterns.some((pattern) => pattern.test(text))) return rule.intent;
+    if (rule.patterns.some(pattern => pattern.test(text))) return rule.intent;
   }
   return 'status';
 }
@@ -61,7 +113,13 @@ export function detectIntent(message) {
 // job.huntState FIRST so mid-hunt chat reports the REAL current stage;
 // job.phase is only a fallback for jobs created before huntState existed.
 const METHODOLOGY_STAGES = new Set([
-  'recon', 'enumeration', 'probing', 'exploitation', 'chaining', 'reporting', 'verifying',
+  'recon',
+  'enumeration',
+  'probing',
+  'exploitation',
+  'chaining',
+  'reporting',
+  'verifying',
 ]);
 
 /** The hunt's real current stage: state machine first, job.phase as fallback. */
@@ -79,9 +137,10 @@ export function currentStageOf(job) {
 /** The most recent real action, preferring the state machine's record. */
 function lastRealAction(job) {
   const hs = job && job.huntState;
-  const stateAction = hs && (hs.lastAction || hs.lastOutcome)
-    ? [hs.lastAction, hs.lastOutcome].filter(Boolean).join(' — ')
-    : null;
+  const stateAction =
+    hs && (hs.lastAction || hs.lastOutcome)
+      ? [hs.lastAction, hs.lastOutcome].filter(Boolean).join(' — ')
+      : null;
   return stateAction || lastActivityText(job);
 }
 
@@ -114,7 +173,8 @@ const STATUS_LABELS = {
 // Internal jargon that must NEVER be quoted raw in a user-facing reply.
 // (e.g. currentStep can hold "PHONE_AI_ENABLED is not true" — meaningless
 // to the user, so we describe it plainly instead.)
-const INTERNAL_JARGON = /PHONE_AI_ENABLED|UNAVAILABLE|Waiting to recover|no cloud fallback|\bError\b|\bException\b/i;
+const INTERNAL_JARGON =
+  /PHONE_AI_ENABLED|UNAVAILABLE|Waiting to recover|no cloud fallback|\bError\b|\bException\b/i;
 
 /** Pick a user-facing "what I'm doing" line, skipping internal jargon. */
 function userFacingDoing(job) {
@@ -216,7 +276,8 @@ function replyDoing(job, findingsInfo) {
 
 function replyFindings(job, findingsInfo, findings) {
   if (findingsInfo.total === 0) {
-    if (job.status === 'queued') return 'Abhi tak kuch nahi mila — hunt shuru bhi nahi hua hai. Shuru hote hi jo milega, yahin bataunga.';
+    if (job.status === 'queued')
+      return 'Abhi tak kuch nahi mila — hunt shuru bhi nahi hua hai. Shuru hote hi jo milega, yahin bataunga.';
     return 'Abhi tak koi pakki finding nahi mili hai. Main abhi bhi dhoondh raha hun — milte hi sabse pehle yahin dikhega.';
   }
   const { critical, high, medium, low } = findingsInfo.counts;
@@ -240,15 +301,21 @@ function replyProgress(job) {
 function replyNext(job, recentCycles) {
   const plan = job.plan || {};
   const pending = plan.pendingSteps || [];
-  if (job.status === 'completed') return 'Hunt poora ho gaya hai — aage kuch planned nahi hai. Report taiyaar hai.';
-  if (job.status === 'paused') return 'Pehle hunt resume karna hoga — uske baad main wahin se aage badhunga jahan ruka tha.';
+  if (job.status === 'completed')
+    return 'Hunt poora ho gaya hai — aage kuch planned nahi hai. Report taiyaar hai.';
+  if (job.status === 'paused')
+    return 'Pehle hunt resume karna hoga — uske baad main wahin se aage badhunga jahan ruka tha.';
   if (pending.length) {
-    const next = pending.slice(0, 3).map((step) => `"${String(step.title || step.name || step).slice(0, 80)}"`);
+    const next = pending
+      .slice(0, 3)
+      .map(step => `"${String(step.title || step.name || step).slice(0, 80)}"`);
     return `Aage ye steps planned hain: ${next.join(', ')}${pending.length > 3 ? `, aur ${pending.length - 3} aur` : ''}.`;
   }
   const lastCycle = recentCycles[0];
-  if (lastCycle?.nextObjective) return `Agla plan: ${String(lastCycle.nextObjective).slice(0, 200)}.`;
-  if (job.status === 'queued') return 'Hunt shuru hote hi main pehle recon karunga — target ki poori mapping.';
+  if (lastCycle?.nextObjective)
+    return `Agla plan: ${String(lastCycle.nextObjective).slice(0, 200)}.`;
+  if (job.status === 'queued')
+    return 'Hunt shuru hote hi main pehle recon karunga — target ki poori mapping.';
   return 'Agla step abhi plan ho raha hai — thodi der mein clear ho jayega.';
 }
 
@@ -292,17 +359,26 @@ function replyStatus(job, findingsInfo) {
 function pickReaction(job, findingsInfo) {
   const status = String(job.status || '').toLowerCase();
   const recent = lastActivityText(job) || '';
-  if (status === 'running' && /found|critical|high/i.test(recent) && findingsInfo.total > 0) return '🎉';
+  if (status === 'running' && /found|critical|high/i.test(recent) && findingsInfo.total > 0)
+    return '🎉';
   switch (status) {
-    case 'running': return '🔍';
-    case 'waiting': return '⏳';
-    case 'paused': return '⏸️';
-    case 'queued': return '⏳';
-    case 'completed': return findingsInfo.total > 0 ? '🎉' : '✅';
-    case 'failed': return '⚠️';
+    case 'running':
+      return '🔍';
+    case 'waiting':
+      return '⏳';
+    case 'paused':
+      return '⏸️';
+    case 'queued':
+      return '⏳';
+    case 'completed':
+      return findingsInfo.total > 0 ? '🎉' : '✅';
+    case 'failed':
+      return '⚠️';
     case 'cancelled':
-    case 'cancelling': return '🛑';
-    default: return '🤖';
+    case 'cancelling':
+      return '🛑';
+    default:
+      return '🤖';
   }
 }
 
@@ -325,13 +401,26 @@ export function buildAskReply({ job, findings = [], recentCycles = [], question 
   const findingsInfo = findingsSummary(findings);
   let reply;
   switch (intent) {
-    case 'doing': reply = replyDoing(job, findingsInfo); break;
-    case 'findings': reply = replyFindings(job, findingsInfo, findings); break;
-    case 'progress': reply = replyProgress(job); break;
-    case 'next': reply = replyNext(job, recentCycles); break;
-    case 'whystopped': reply = replyWhyStopped(job); break;
-    case 'stop': reply = replyStop(job); break;
-    default: reply = replyStatus(job, findingsInfo);
+    case 'doing':
+      reply = replyDoing(job, findingsInfo);
+      break;
+    case 'findings':
+      reply = replyFindings(job, findingsInfo, findings);
+      break;
+    case 'progress':
+      reply = replyProgress(job);
+      break;
+    case 'next':
+      reply = replyNext(job, recentCycles);
+      break;
+    case 'whystopped':
+      reply = replyWhyStopped(job);
+      break;
+    case 'stop':
+      reply = replyStop(job);
+      break;
+    default:
+      reply = replyStatus(job, findingsInfo);
   }
   return {
     intent,

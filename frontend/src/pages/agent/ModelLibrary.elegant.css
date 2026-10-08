@@ -11,7 +11,9 @@
   padding: var(--dm-6) var(--dm-6) var(--dm-16);
 }
 @media (max-width: 768px) {
-  .ml-page { padding: var(--dm-4) var(--dm-4) var(--dm-12); }
+  .ml-page {
+    padding: var(--dm-4) var(--dm-4) var(--dm-12);
+  }
 }
 
 /* ── Step 0: hero card ── */
@@ -173,7 +175,9 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .ml-engine-card { padding: var(--dm-5) !important; }
+  .ml-engine-card {
+    padding: var(--dm-5) !important;
+  }
   .ml-model-row {
     flex-direction: column !important;
     align-items: flex-start !important;

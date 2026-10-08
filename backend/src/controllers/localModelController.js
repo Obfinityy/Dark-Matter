@@ -1,3 +1,9 @@
+/**
+ * localModelController — Express route handlers for local Model.
+ * Factory that wires the local Model service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { MODEL_LIBRARY } from '../services/localModel/modelLibrary.js';
 
@@ -14,7 +20,7 @@ export function createLocalModelController({ localModelService, agentWorker = nu
   if (!localModelService) throw new Error('createLocalModelController requires localModelService');
   // When the user switches brains, the worker's cached per-user brain must be
   // dropped so the next reasoning step rebuilds it from the new selection.
-  const refreshBrain = (userId) => {
+  const refreshBrain = userId => {
     try {
       agentWorker?.refreshBrainForUser?.(userId);
     } catch {
@@ -22,13 +28,18 @@ export function createLocalModelController({ localModelService, agentWorker = nu
     }
   };
 
-  const pullErrorStatus = (error) => {
+  const pullErrorStatus = error => {
     switch (error.code) {
-      case 'UNKNOWN_MODEL': return 404;
-      case 'PULL_IN_PROGRESS': return 409;
-      case 'OLLAMA_NOT_RUNNING': return 503;
-      case 'MODEL_NOT_INSTALLED': return 409;
-      default: return 500;
+      case 'UNKNOWN_MODEL':
+        return 404;
+      case 'PULL_IN_PROGRESS':
+        return 409;
+      case 'OLLAMA_NOT_RUNNING':
+        return 503;
+      case 'MODEL_NOT_INSTALLED':
+        return 409;
+      default:
+        return 500;
     }
   };
 
@@ -56,7 +67,7 @@ export function createLocalModelController({ localModelService, agentWorker = nu
         response.status(202).json({ started: true, pull });
       } catch (error) {
         response.status(pullErrorStatus(error)).json({
-          error: { code: error.code || 'PULL_FAILED', message: error.message }
+          error: { code: error.code || 'PULL_FAILED', message: error.message },
         });
       }
     }),
@@ -73,12 +84,14 @@ export function createLocalModelController({ localModelService, agentWorker = nu
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no'
+        'X-Accel-Buffering': 'no',
       });
       response.flushHeaders?.();
 
-      const send = (pull) => {
-        response.write(`event: pull-progress\ndata: ${JSON.stringify(pull || { status: 'idle' })}\n\n`);
+      const send = pull => {
+        response.write(
+          `event: pull-progress\ndata: ${JSON.stringify(pull || { status: 'idle' })}\n\n`
+        );
       };
 
       // Current state first, then live updates.
@@ -95,10 +108,12 @@ export function createLocalModelController({ localModelService, agentWorker = nu
     /** DELETE /api/v1/local-models/:modelId — remove a downloaded model */
     remove: asyncHandler(async (request, response) => {
       try {
-        response.json(await localModelService.removeModel(request.user?.id || null, request.params.modelId));
+        response.json(
+          await localModelService.removeModel(request.user?.id || null, request.params.modelId)
+        );
       } catch (error) {
         response.status(pullErrorStatus(error)).json({
-          error: { code: error.code || 'REMOVE_FAILED', message: error.message }
+          error: { code: error.code || 'REMOVE_FAILED', message: error.message },
         });
       }
     }),
@@ -112,7 +127,7 @@ export function createLocalModelController({ localModelService, agentWorker = nu
         response.json(result);
       } catch (error) {
         response.status(pullErrorStatus(error)).json({
-          error: { code: error.code || 'ACTIVATE_FAILED', message: error.message }
+          error: { code: error.code || 'ACTIVATE_FAILED', message: error.message },
         });
       }
     }),
@@ -131,12 +146,19 @@ export function createLocalModelController({ localModelService, agentWorker = nu
     addCustom: asyncHandler(async (request, response) => {
       const { tag } = request.body || {};
       try {
-        const result = await localModelService.addCustomModel(tag, { addedBy: request.user?.id || null });
+        const result = await localModelService.addCustomModel(tag, {
+          addedBy: request.user?.id || null,
+        });
         response.status(202).json(result);
       } catch (error) {
-        const status = error.code === 'INVALID_TAG' ? 400 : error.code === 'NOT_CONFIGURED' ? 503 : pullErrorStatus(error);
+        const status =
+          error.code === 'INVALID_TAG'
+            ? 400
+            : error.code === 'NOT_CONFIGURED'
+              ? 503
+              : pullErrorStatus(error);
         response.status(status).json({
-          error: { code: error.code || 'CUSTOM_ADD_FAILED', message: error.message }
+          error: { code: error.code || 'CUSTOM_ADD_FAILED', message: error.message },
         });
       }
     }),
@@ -144,12 +166,14 @@ export function createLocalModelController({ localModelService, agentWorker = nu
     /** DELETE /api/v1/local-models/custom/:id — remove a user-added model */
     removeCustom: asyncHandler(async (request, response) => {
       try {
-        response.json(await localModelService.removeCustomModel(request.user?.id || null, request.params.id));
+        response.json(
+          await localModelService.removeCustomModel(request.user?.id || null, request.params.id)
+        );
       } catch (error) {
         response.status(pullErrorStatus(error)).json({
-          error: { code: error.code || 'REMOVE_FAILED', message: error.message }
+          error: { code: error.code || 'REMOVE_FAILED', message: error.message },
         });
       }
-    })
+    }),
   };
 }

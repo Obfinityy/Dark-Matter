@@ -4,19 +4,22 @@
  * ZERO keyframes — no motion anywhere in this file.
  */
 
-.fs40-gallery, .sq40-gallery {
+.fs40-gallery,
+.sq40-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
   padding: 16px;
 }
 
-.fs40-gallery h3, .sq40-gallery h3 {
+.fs40-gallery h3,
+.sq40-gallery h3 {
   grid-column: 1 / -1;
   margin: 0 0 8px;
 }
 
-.fs40-card, .sq40-card {
+.fs40-card,
+.sq40-card {
   border: 1px solid #2a2f3a;
   border-radius: 10px;
   padding: 14px;
@@ -24,14 +27,16 @@
   color: #e6e9ef;
 }
 
-.fs40-card-head, .sq40-card-head {
+.fs40-card-head,
+.sq40-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
 
-.fs40-num, .sq40-num {
+.fs40-num,
+.sq40-num {
   font-size: 11px;
   font-weight: 700;
   background: #1f6feb;
@@ -41,37 +46,43 @@
   white-space: nowrap;
 }
 
-.fs40-card-head h4, .sq40-card-head h4 {
+.fs40-card-head h4,
+.sq40-card-head h4 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
 }
 
-.fs40-card-body, .sq40-card-body {
+.fs40-card-body,
+.sq40-card-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
   font-size: 13px;
 }
 
-.fs40-prompt-title, .sq40-prompt-title {
+.fs40-prompt-title,
+.sq40-prompt-title {
   font-weight: 600;
   font-size: 13px;
 }
 
-.fs40-prompt-body, .sq40-prompt-body {
+.fs40-prompt-body,
+.sq40-prompt-body {
   color: #9aa3b2;
   font-size: 12px;
   line-height: 1.5;
 }
 
-.fs40-opts, .sq40-opts {
+.fs40-opts,
+.sq40-opts {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.fs40-opt, .sq40-opt {
+.fs40-opt,
+.sq40-opt {
   background: #1c212b;
   border: 1px solid #2f3642;
   color: #dfe4ec;
@@ -81,22 +92,26 @@
   cursor: pointer;
 }
 
-.fs40-opt:hover, .sq40-opt:hover {
+.fs40-opt:hover,
+.sq40-opt:hover {
   border-color: #1f6feb;
 }
 
-.fs40-opt-picked, .sq40-opt-picked {
+.fs40-opt-picked,
+.sq40-opt-picked {
   background: #1f6feb;
   border-color: #1f6feb;
   color: #fff;
 }
 
-.fs40-meta, .sq40-meta {
+.fs40-meta,
+.sq40-meta {
   font-size: 11px;
   color: #7d8590;
 }
 
-.fs40-input, .sq40-input {
+.fs40-input,
+.sq40-input {
   background: #0d1117;
   border: 1px solid #2f3642;
   color: #dfe4ec;
@@ -106,14 +121,16 @@
   width: 100%;
 }
 
-.fs40-row, .sq40-row {
+.fs40-row,
+.sq40-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
 }
 
-.fs40-pre, .sq40-pre {
+.fs40-pre,
+.sq40-pre {
   background: #0d1117;
   border: 1px solid #2f3642;
   border-radius: 8px;

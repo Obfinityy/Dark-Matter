@@ -37,7 +37,7 @@
  * @returns {{asn: number|null, name: string|null, aka: string|null, website: string|null, policy: string|null, prefixes: string[], exchanges: Array<{ixId: number|null, name: string, city: string|null, country: string|null, speedMbps: number|null, ip4: string|null, ip6: string|null}>, facilities: Array<{facId: number|null, name: string, city: string|null, country: string|null, address: string|null}>}}
  */
 export function normaliseNetRecord(net) {
-  const exchanges = (net.netixlan_set || []).map((x) => ({
+  const exchanges = (net.netixlan_set || []).map(x => ({
     ixId: x.ix_id ?? null,
     name: x.ix_name || `ix-${x.ix_id ?? 'unknown'}`,
     city: x.city || null,
@@ -46,7 +46,7 @@ export function normaliseNetRecord(net) {
     ip4: x.ipaddr4 || null,
     ip6: x.ipaddr6 || null,
   }));
-  const facilities = (net.netfac_set || []).map((f) => ({
+  const facilities = (net.netfac_set || []).map(f => ({
     facId: f.fac_id ?? null,
     name: f.fac_name || `fac-${f.fac_id ?? 'unknown'}`,
     city: f.city || null,
@@ -55,8 +55,8 @@ export function normaliseNetRecord(net) {
   }));
   const prefixes = String(net.info_prefixes4 || net.info_prefixes6 || '')
     .split(/[\s,;]+/)
-    .map((p) => p.trim())
-    .filter((p) => /^([0-9a-fA-F.:]+\/\d{1,3})$/.test(p));
+    .map(p => p.trim())
+    .filter(p => /^([0-9a-fA-F.:]+\/\d{1,3})$/.test(p));
   return {
     asn: net.asn ?? null,
     name: net.name || null,
@@ -83,8 +83,13 @@ export function exchangePointFootprint(nets) {
       const key = x.ixId ?? x.name;
       if (!byIx.has(key)) {
         byIx.set(key, {
-          ixId: x.ixId, name: x.name, city: x.city, country: x.country,
-          asns: new Set(), peerIp4: new Set(), peerIp6: new Set(),
+          ixId: x.ixId,
+          name: x.name,
+          city: x.city,
+          country: x.country,
+          asns: new Set(),
+          peerIp4: new Set(),
+          peerIp6: new Set(),
         });
       }
       const entry = byIx.get(key);
@@ -93,12 +98,14 @@ export function exchangePointFootprint(nets) {
       if (x.ip6) entry.peerIp6.add(x.ip6);
     }
   }
-  return [...byIx.values()].map((e) => ({
-    ...e,
-    asns: [...e.asns].sort((a, b) => a - b),
-    peerIp4: [...e.peerIp4].sort(),
-    peerIp6: [...e.peerIp6].sort(),
-  })).sort((a, b) => b.asns.length - a.asns.length || a.name.localeCompare(b.name));
+  return [...byIx.values()]
+    .map(e => ({
+      ...e,
+      asns: [...e.asns].sort((a, b) => a - b),
+      peerIp4: [...e.peerIp4].sort(),
+      peerIp6: [...e.peerIp6].sort(),
+    }))
+    .sort((a, b) => b.asns.length - a.asns.length || a.name.localeCompare(b.name));
 }
 
 /**
@@ -114,14 +121,25 @@ export function facilityFootprint(nets) {
     for (const f of n.facilities) {
       const key = f.facId ?? f.name;
       if (!byFac.has(key)) {
-        byFac.set(key, { facId: f.facId, name: f.name, city: f.city, country: f.country, address: f.address, asns: new Set() });
+        byFac.set(key, {
+          facId: f.facId,
+          name: f.name,
+          city: f.city,
+          country: f.country,
+          address: f.address,
+          asns: new Set(),
+        });
       }
       if (n.asn != null) byFac.get(key).asns.add(n.asn);
     }
   }
   return [...byFac.values()]
-    .map((e) => ({ ...e, asns: [...e.asns].sort((a, b) => a - b) }))
-    .sort((a, b) => (a.country || '').localeCompare(b.country || '') || (a.city || '').localeCompare(b.city || ''));
+    .map(e => ({ ...e, asns: [...e.asns].sort((a, b) => a - b) }))
+    .sort(
+      (a, b) =>
+        (a.country || '').localeCompare(b.country || '') ||
+        (a.city || '').localeCompare(b.city || '')
+    );
 }
 
 /**

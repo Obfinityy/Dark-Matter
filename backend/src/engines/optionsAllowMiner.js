@@ -43,9 +43,10 @@ export function parseAllowHeader(value) {
  */
 export function mineOptionsResponses(responses) {
   const list = Array.isArray(responses) ? responses : [];
-  return list.map((r) => {
+  return list.map(r => {
     const rec = r && typeof r === 'object' ? r : {};
-    const path = typeof rec.path === 'string' ? rec.path : (typeof rec.url === 'string' ? rec.url : '/');
+    const path =
+      typeof rec.path === 'string' ? rec.path : typeof rec.url === 'string' ? rec.url : '/';
     const parsed = parseAllowHeader(rec.allowHeader);
     return {
       path,
@@ -68,7 +69,7 @@ export function mineOptionsResponses(responses) {
 export function detectAllowDiscrepancies(advertised, observed) {
   const advList = Array.isArray(advertised) ? advertised : [];
   const obsList = Array.isArray(observed) ? observed : [];
-  const obsByPath = new Map(obsList.map((o) => [o.path, o.methods || {}]));
+  const obsByPath = new Map(obsList.map(o => [o.path, o.methods || {}]));
   const out = [];
   for (const adv of advList) {
     const methods = obsByPath.get(adv.path);
@@ -79,12 +80,18 @@ export function detectAllowDiscrepancies(advertised, observed) {
       const works = verdict === 'accepted' || verdict === 'protected';
       if (advertisedSet.has(method) && verdict === 'rejected') {
         out.push({
-          path: adv.path, type: 'advertised-but-rejected', method, risk: 'low',
+          path: adv.path,
+          type: 'advertised-but-rejected',
+          method,
+          risk: 'low',
           detail: `${method} is listed in the Allow header on ${adv.path} but probing returned 405/404 — the header over-advertises`,
         });
       } else if (!advertisedSet.has(method) && works) {
         out.push({
-          path: adv.path, type: 'working-but-unadvertised', method, risk: methodRisk(method),
+          path: adv.path,
+          type: 'working-but-unadvertised',
+          method,
+          risk: methodRisk(method),
           detail: `${method} works on ${adv.path} but is missing from the Allow header — a hidden verb capability`,
         });
       }
@@ -100,7 +107,7 @@ export function detectAllowDiscrepancies(advertised, observed) {
  */
 export function allowSummaryLines(mined) {
   const list = Array.isArray(mined) ? mined : [];
-  return list.map((m) => {
+  return list.map(m => {
     const adv = m.advertised.length > 0 ? m.advertised.join(', ') : '(no Allow header advertised)';
     const extra = m.unknownVerbs.length > 0 ? `; custom verbs: ${m.unknownVerbs.join(', ')}` : '';
     return `${m.path} advertises: ${adv}${extra}`;

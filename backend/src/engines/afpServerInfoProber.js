@@ -19,13 +19,28 @@
 
 /** Known AFP UAMs and their security posture. */
 export const AFP_UAMS = {
-  'No User Authent': { description: 'Guest access without credentials', risk: 'High — unauthenticated access possible' },
-  'Cleartxt Passwrd': { description: 'Cleartext password', risk: 'High — credentials sent in cleartext' },
-  'Randnum Exchange': { description: 'Two-way random-number exchange', risk: 'Medium — weak legacy crypto' },
-  '2-Way Randnum Exchange': { description: 'Two-way random-number exchange', risk: 'Medium — weak legacy crypto' },
-  'DHCAST128': { description: 'Diffie-Hellman + CAST-128', risk: 'Low — reasonable for legacy protocol' },
-  'DHX2': { description: 'Diffie-Hellman key exchange v2', risk: 'Low — strongest legacy AFP UAM' },
-  'GSS': { description: 'Kerberos GSSAPI', risk: 'Low — Kerberos authentication' },
+  'No User Authent': {
+    description: 'Guest access without credentials',
+    risk: 'High — unauthenticated access possible',
+  },
+  'Cleartxt Passwrd': {
+    description: 'Cleartext password',
+    risk: 'High — credentials sent in cleartext',
+  },
+  'Randnum Exchange': {
+    description: 'Two-way random-number exchange',
+    risk: 'Medium — weak legacy crypto',
+  },
+  '2-Way Randnum Exchange': {
+    description: 'Two-way random-number exchange',
+    risk: 'Medium — weak legacy crypto',
+  },
+  DHCAST128: {
+    description: 'Diffie-Hellman + CAST-128',
+    risk: 'Low — reasonable for legacy protocol',
+  },
+  DHX2: { description: 'Diffie-Hellman key exchange v2', risk: 'Low — strongest legacy AFP UAM' },
+  GSS: { description: 'Kerberos GSSAPI', risk: 'Low — Kerberos authentication' },
 };
 
 /** Implementation hints from machine-type / version strings. */
@@ -77,7 +92,7 @@ export function analyzeAfpServerInfo(info = {}) {
   ].filter(Boolean);
 
   if (weakUams.length) {
-    parts.push(`WEAK AUTH: ${weakUams.map((w) => `${w.uam} (${w.risk})`).join(', ')}`);
+    parts.push(`WEAK AUTH: ${weakUams.map(w => `${w.uam} (${w.risk})`).join(', ')}`);
   }
 
   return {

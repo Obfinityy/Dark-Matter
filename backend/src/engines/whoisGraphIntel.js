@@ -86,16 +86,24 @@ export function clusterByCreationDate(records = [], options = {}) {
     if (!groups.has(key)) {
       groups.set(key, { key, date: day, registrar, domains: [] });
     }
-    const domain = String(rec?.domain || '').toLowerCase().trim();
+    const domain = String(rec?.domain || '')
+      .toLowerCase()
+      .trim();
     if (domain && !groups.get(key).domains.includes(domain)) {
       groups.get(key).domains.push(domain);
     }
   }
 
   return [...groups.values()]
-    .filter((g) => g.domains.length >= minClusterSize)
+    .filter(g => g.domains.length >= minClusterSize)
     .sort((a, b) => b.domains.length - a.domains.length)
-    .map((g) => ({ key: g.key, date: g.date, registrar: g.registrar, size: g.domains.length, domains: [...g.domains] }));
+    .map(g => ({
+      key: g.key,
+      date: g.date,
+      registrar: g.registrar,
+      size: g.domains.length,
+      domains: [...g.domains],
+    }));
 }
 
 /**
@@ -106,16 +114,28 @@ export function clusterByCreationDate(records = [], options = {}) {
  * @returns {boolean}
  */
 export function isCustomNameserver(nameserver, domain = '') {
-  const ns = String(nameserver || '').toLowerCase().replace(/\.$/, '');
+  const ns = String(nameserver || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!ns) return false;
   const d = String(domain || '').toLowerCase();
   if (d && (ns === d || ns.endsWith(`.${d}`))) return true;
   const providerPatterns = [
-    /awsdns/i, /cloudflare/i, /godaddy/i, /namecheap/i, /dnsmadeeasy/i,
-    /digitalocean/i, /linode/i, /azure-dns/i, /googledomains/i, /verisign/i,
-    /registrar-servers/i, /domaincontrol\.com/i, /ns\d+\.worldnic/i,
+    /awsdns/i,
+    /cloudflare/i,
+    /godaddy/i,
+    /namecheap/i,
+    /dnsmadeeasy/i,
+    /digitalocean/i,
+    /linode/i,
+    /azure-dns/i,
+    /googledomains/i,
+    /verisign/i,
+    /registrar-servers/i,
+    /domaincontrol\.com/i,
+    /ns\d+\.worldnic/i,
   ];
-  return !providerPatterns.some((p) => p.test(ns));
+  return !providerPatterns.some(p => p.test(ns));
 }
 
 /**
@@ -133,13 +153,19 @@ export function isCustomNameserver(nameserver, domain = '') {
  * }}
  */
 export function buildNameserverGraph(records = [], targetDomain = '') {
-  const target = String(targetDomain || '').toLowerCase().trim();
+  const target = String(targetDomain || '')
+    .toLowerCase()
+    .trim();
   const nodes = (records || [])
-    .map((r) => ({
-      domain: String(r?.domain || '').toLowerCase().trim(),
-      nameservers: [...new Set((r?.nameservers || []).map((n) => String(n).toLowerCase().replace(/\.$/, '')))],
+    .map(r => ({
+      domain: String(r?.domain || '')
+        .toLowerCase()
+        .trim(),
+      nameservers: [
+        ...new Set((r?.nameservers || []).map(n => String(n).toLowerCase().replace(/\.$/, ''))),
+      ],
     }))
-    .filter((n) => n.domain);
+    .filter(n => n.domain);
 
   const nameserverIndex = {};
   for (const node of nodes) {
@@ -167,17 +193,17 @@ export function buildNameserverGraph(records = [], targetDomain = '') {
     }
   }
 
-  const targetNode = nodes.find((n) => n.domain === target);
+  const targetNode = nodes.find(n => n.domain === target);
   const relatedToTarget = [];
   if (targetNode) {
     for (const node of nodes) {
       if (node.domain === target) continue;
-      const shared = node.nameservers.filter((ns) => targetNode.nameservers.includes(ns));
+      const shared = node.nameservers.filter(ns => targetNode.nameservers.includes(ns));
       if (shared.length > 0) {
         relatedToTarget.push({
           domain: node.domain,
           sharedNameservers: shared,
-          sharedCustom: shared.some((ns) => isCustomNameserver(ns, target)),
+          sharedCustom: shared.some(ns => isCustomNameserver(ns, target)),
         });
       }
     }
@@ -213,14 +239,23 @@ export function traverseRdapHistory(entries = []) {
   const statusTransitions = [];
   const previouslyAssociated = [];
   const abandonedButResolving = [];
-  const INACTIVE_MARKERS = ['inactive', 'pendingdelete', 'pending delete', 'redemptionperiod', 'clienthold', 'serverhold'];
+  const INACTIVE_MARKERS = [
+    'inactive',
+    'pendingdelete',
+    'pending delete',
+    'redemptionperiod',
+    'clienthold',
+    'serverhold',
+  ];
 
   for (const entry of entries || []) {
-    const domain = String(entry?.domain || '').toLowerCase().trim();
+    const domain = String(entry?.domain || '')
+      .toLowerCase()
+      .trim();
     if (!domain) continue;
 
     const events = (entry?.events || [])
-      .map((e) => ({ action: String(e?.eventAction || 'unknown'), date: String(e?.eventDate || '') }))
+      .map(e => ({ action: String(e?.eventAction || 'unknown'), date: String(e?.eventDate || '') }))
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     timelines[domain] = events;
 
@@ -238,14 +273,20 @@ export function traverseRdapHistory(entries = []) {
     }
 
     for (const rel of entry?.relatedDomains || []) {
-      const rd = String(rel?.domain || '').toLowerCase().trim();
+      const rd = String(rel?.domain || '')
+        .toLowerCase()
+        .trim();
       if (rd && rd !== domain) {
-        previouslyAssociated.push({ domain: rd, via: domain, relation: String(rel?.relation || 'associated') });
+        previouslyAssociated.push({
+          domain: rd,
+          via: domain,
+          relation: String(rel?.relation || 'associated'),
+        });
       }
     }
 
-    const statuses = (entry?.status || []).map((s) => String(s).toLowerCase());
-    const looksAbandoned = statuses.some((s) => INACTIVE_MARKERS.some((m) => s.includes(m)));
+    const statuses = (entry?.status || []).map(s => String(s).toLowerCase());
+    const looksAbandoned = statuses.some(s => INACTIVE_MARKERS.some(m => s.includes(m)));
     if (looksAbandoned && entry?.resolves === true) {
       abandonedButResolving.push({
         domain,

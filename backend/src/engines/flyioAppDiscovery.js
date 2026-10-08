@@ -21,9 +21,28 @@ export const FLY_NAME_RE = /^[a-z][a-z0-9-]{1,28}[a-z0-9]$/;
 
 export const FLY_NAME_PREFIXES = ['app', 'web', 'api', 'my'];
 export const FLY_NAME_SUFFIXES = [
-  'app', 'web', 'api', 'staging', 'stage', 'prod', 'production', 'dev',
-  'development', 'test', 'qa', 'uat', 'demo', 'beta', 'v1', 'v2',
-  'site', 'portal', 'dashboard', 'backend', 'frontend', 'service',
+  'app',
+  'web',
+  'api',
+  'staging',
+  'stage',
+  'prod',
+  'production',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'demo',
+  'beta',
+  'v1',
+  'v2',
+  'site',
+  'portal',
+  'dashboard',
+  'backend',
+  'frontend',
+  'service',
 ];
 
 /**
@@ -50,15 +69,11 @@ export function slugifyBrand(brand) {
  * @returns {string[]} unique valid Fly.io app names
  */
 export function generateFlyAppNames(brand, options = {}) {
-  const {
-    prefixes = FLY_NAME_PREFIXES,
-    suffixes = FLY_NAME_SUFFIXES,
-    maxNames = 100,
-  } = options;
+  const { prefixes = FLY_NAME_PREFIXES, suffixes = FLY_NAME_SUFFIXES, maxNames = 100 } = options;
   const slug = slugifyBrand(brand);
   if (!slug) return [];
   const out = new Set();
-  const add = (name) => {
+  const add = name => {
     if (out.size >= maxNames) return;
     if (FLY_NAME_RE.test(name)) out.add(name);
   };
@@ -86,7 +101,9 @@ export function flyAppUrl(appName) {
  * @returns {string|null}
  */
 export function appNameFromHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (h === FLY_APP_DOMAIN || !h.endsWith(`.${FLY_APP_DOMAIN}`)) return null;
   const label = h.slice(0, -(FLY_APP_DOMAIN.length + 1));
   return label || null;
@@ -104,19 +121,23 @@ export function parseFlyDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME', 'AAAA', 'A'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target) continue;
     const appName = appNameFromHost(target);
     if (appName) {
       hits.push({
         recordName: String(rec?.name || ''),
-        target, appName,
+        target,
+        appName,
       });
     } else if (target.endsWith(`.${FLY_LEGACY_SUFFIX}`)) {
       // Legacy flyio.net target still identifies the deployment.
       hits.push({
         recordName: String(rec?.name || ''),
-        target, appName: target.split('.')[0] || null,
+        target,
+        appName: target.split('.')[0] || null,
       });
     }
   }
@@ -132,7 +153,9 @@ export function parseFlyDnsHints(records = []) {
 export function parseFlyCertHints(sans = []) {
   const hits = [];
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     const appName = appNameFromHost(san);
     if (appName) hits.push({ san: String(raw), appName });
   }
@@ -145,7 +168,13 @@ export function parseFlyCertHints(sans = []) {
  * @returns {boolean}
  */
 export function isFlyHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
-  return h === FLY_APP_DOMAIN || h.endsWith(`.${FLY_APP_DOMAIN}`) ||
-    h === FLY_LEGACY_SUFFIX || h.endsWith(`.${FLY_LEGACY_SUFFIX}`);
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
+  return (
+    h === FLY_APP_DOMAIN ||
+    h.endsWith(`.${FLY_APP_DOMAIN}`) ||
+    h === FLY_LEGACY_SUFFIX ||
+    h.endsWith(`.${FLY_LEGACY_SUFFIX}`)
+  );
 }

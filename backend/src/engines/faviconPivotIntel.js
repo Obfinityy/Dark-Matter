@@ -37,7 +37,12 @@ export function murmur3x86_32(data, seed = 0) {
   const nblocks = Math.floor(len / 4);
 
   for (let i = 0; i < nblocks; i++) {
-    let k1 = (bytes[i * 4] | (bytes[i * 4 + 1] << 8) | (bytes[i * 4 + 2] << 16) | (bytes[i * 4 + 3] << 24)) >>> 0;
+    let k1 =
+      (bytes[i * 4] |
+        (bytes[i * 4 + 1] << 8) |
+        (bytes[i * 4 + 2] << 16) |
+        (bytes[i * 4 + 3] << 24)) >>>
+      0;
     k1 = Math.imul(k1, c1);
     k1 = ((k1 << 15) | (k1 >>> 17)) >>> 0;
     k1 = Math.imul(k1, c2);
@@ -86,13 +91,22 @@ export function faviconHash(faviconBytes) {
  * @returns {{ip: string|null, hash: number|null, asn: string|null, hostnames: string[], port: number|null, org: string|null}}
  */
 export function normalizeIndexEntry(entry) {
-  if (!entry || typeof entry !== 'object') return { ip: null, hash: null, asn: null, hostnames: [], port: null, org: null };
+  if (!entry || typeof entry !== 'object')
+    return { ip: null, hash: null, asn: null, hostnames: [], port: null, org: null };
   const hashRaw = entry.hash ?? entry.favicon_hash ?? entry['http.favicon.hash'];
   const hash = hashRaw === null || hashRaw === undefined || hashRaw === '' ? null : Number(hashRaw);
-  const hostnames = Array.isArray(entry.hostnames) ? entry.hostnames.filter((h) => typeof h === 'string')
-    : typeof entry.hostname === 'string' ? [entry.hostname] : [];
+  const hostnames = Array.isArray(entry.hostnames)
+    ? entry.hostnames.filter(h => typeof h === 'string')
+    : typeof entry.hostname === 'string'
+      ? [entry.hostname]
+      : [];
   return {
-    ip: typeof entry.ip === 'string' ? entry.ip : (typeof entry.ip_str === 'string' ? entry.ip_str : null),
+    ip:
+      typeof entry.ip === 'string'
+        ? entry.ip
+        : typeof entry.ip_str === 'string'
+          ? entry.ip_str
+          : null,
     hash: Number.isFinite(hash) ? hash : null,
     asn: entry.asn != null ? String(entry.asn) : null,
     hostnames,
@@ -135,29 +149,37 @@ export function matchFaviconHash(targetHash, indexEntries, opts = {}) {
  */
 export function pivotNetblock(targetHash, indexEntries, netblocks, opts = {}) {
   const matches = matchFaviconHash(targetHash, indexEntries, opts);
-  const inBlock = matches.filter((e) => e.ip && (netblocks || []).some((cidr) => {
-    const m = cidr.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
-    if (!m) return false;
-    const toInt = (ip) => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0) >>> 0;
-    const bits = Number(m[2]);
-    const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
-    const n = toInt(e.ip);
-    const net = (toInt(m[1]) & mask) >>> 0;
-    return n >= net && n <= ((net | (~mask >>> 0)) >>> 0);
-  }));
-  const byNetblock = (netblocks || []).map((netblock) => {
-    const ips = inBlock.filter((e) => {
-      const m = netblock.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
-      if (!m) return false;
-      const toInt = (ip) => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0) >>> 0;
-      const bits = Number(m[2]);
-      const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
-      const n = toInt(e.ip);
-      const net = (toInt(m[1]) & mask) >>> 0;
-      return n >= net && n <= ((net | (~mask >>> 0)) >>> 0);
-    }).map((e) => e.ip);
-    return { netblock, count: ips.length, ips };
-  }).filter((g) => g.count > 0);
+  const inBlock = matches.filter(
+    e =>
+      e.ip &&
+      (netblocks || []).some(cidr => {
+        const m = cidr.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
+        if (!m) return false;
+        const toInt = ip => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0) >>> 0;
+        const bits = Number(m[2]);
+        const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+        const n = toInt(e.ip);
+        const net = (toInt(m[1]) & mask) >>> 0;
+        return n >= net && n <= (net | (~mask >>> 0)) >>> 0;
+      })
+  );
+  const byNetblock = (netblocks || [])
+    .map(netblock => {
+      const ips = inBlock
+        .filter(e => {
+          const m = netblock.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
+          if (!m) return false;
+          const toInt = ip => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0) >>> 0;
+          const bits = Number(m[2]);
+          const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+          const n = toInt(e.ip);
+          const net = (toInt(m[1]) & mask) >>> 0;
+          return n >= net && n <= (net | (~mask >>> 0)) >>> 0;
+        })
+        .map(e => e.ip);
+      return { netblock, count: ips.length, ips };
+    })
+    .filter(g => g.count > 0);
   return { matches: inBlock, byNetblock };
 }
 
@@ -172,11 +194,15 @@ export function pivotNetblock(targetHash, indexEntries, netblocks, opts = {}) {
  * @returns {{inAsn: ReturnType<normalizeIndexEntry>[], newInfrastructure: ReturnType<normalizeIndexEntry>[], asnSummary: {asn: string, count: number}[]}}
  */
 export function searchAsnWide(targetHash, indexEntries, targetAsns, opts = {}) {
-  const asns = new Set((Array.isArray(targetAsns) ? targetAsns : [targetAsns]).map((a) => String(a).replace(/^as/i, '').toLowerCase()));
-  const known = new Set((opts.knownHostnames || []).map((h) => h.toLowerCase()));
+  const asns = new Set(
+    (Array.isArray(targetAsns) ? targetAsns : [targetAsns]).map(a =>
+      String(a).replace(/^as/i, '').toLowerCase()
+    )
+  );
+  const known = new Set((opts.knownHostnames || []).map(h => h.toLowerCase()));
   const matches = matchFaviconHash(targetHash, indexEntries, opts);
-  const inAsn = matches.filter((e) => e.asn && asns.has(e.asn.replace(/^as/i, '').toLowerCase()));
-  const newInfrastructure = inAsn.filter((e) => !e.hostnames.some((h) => known.has(h.toLowerCase())));
+  const inAsn = matches.filter(e => e.asn && asns.has(e.asn.replace(/^as/i, '').toLowerCase()));
+  const newInfrastructure = inAsn.filter(e => !e.hostnames.some(h => known.has(h.toLowerCase())));
   const byAsn = new Map();
   for (const e of inAsn) {
     const cur = byAsn.get(e.asn) || { asn: e.asn, count: 0 };
@@ -201,9 +227,10 @@ export function faviconPivotReport(netblockResult = {}, asnResult = {}) {
   const netblockHits = (netblockResult.matches || []).length;
   const asnHits = (asnResult.newInfrastructure || []).length;
   const total = netblockHits + asnHits;
-  const summary = total === 0
-    ? 'No related infrastructure found via favicon-hash pivoting.'
-    : `Favicon-hash pivoting found ${total} related host(s): ${netblockHits} inside target netblocks, ${asnHits} new same-branded host(s) elsewhere in the target ASN.`;
+  const summary =
+    total === 0
+      ? 'No related infrastructure found via favicon-hash pivoting.'
+      : `Favicon-hash pivoting found ${total} related host(s): ${netblockHits} inside target netblocks, ${asnHits} new same-branded host(s) elsewhere in the target ASN.`;
   return {
     totalRelatedHosts: total,
     netblockHits,

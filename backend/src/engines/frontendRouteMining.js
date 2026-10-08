@@ -169,7 +169,7 @@ export function parseNextPagesManifest(manifest, kind = 'pages') {
       const matchers = (entry && entry.matchers) || [];
       const r = makeRoute(page, ROUTE_SOURCES.NEXT_MIDDLEWARE, {
         isMiddleware: true,
-        matchers: matchers.map((x) => x.regexp).filter(Boolean),
+        matchers: matchers.map(x => x.regexp).filter(Boolean),
       });
       if (r) out.push(r);
     }
@@ -213,11 +213,9 @@ export function mapNuxtRoutes(assetPaths) {
     // Route groups (auth) are invisible in URLs
     route = route.replace(/\([^)]*\)\//g, '');
     // Dynamic segments
-    route = route
-      .replace(/\[\.\.\.([^\]]+)\]/g, '*$1')
-      .replace(/\[([^\]]+)\]/g, ':$1');
+    route = route.replace(/\[\.\.\.([^\]]+)\]/g, '*$1').replace(/\[([^\]]+)\]/g, ':$1');
     const r = makeRoute(route === '' ? '/' : route, ROUTE_SOURCES.NUXT, { chunk: p });
-    if (r && !out.some((x) => x.path === r.path)) out.push(r);
+    if (r && !out.some(x => x.path === r.path)) out.push(r);
   }
   return out;
 }
@@ -281,7 +279,7 @@ export function extractAstroRoutes(buildText) {
   const out = [];
   const push = (path, detail) => {
     const r = makeRoute(path, ROUTE_SOURCES.ASTRO, detail);
-    if (r && !out.some((x) => x.path === r.path)) out.push(r);
+    if (r && !out.some(x => x.path === r.path)) out.push(r);
   };
 
   // JSON: "route": "/about"
@@ -324,7 +322,7 @@ export function mineGatsbyPageData(input) {
   const out = [];
   const push = (path, detail) => {
     const r = makeRoute(path, ROUTE_SOURCES.GATSBY, detail);
-    if (r && !out.some((x) => x.path === r.path)) out.push(r);
+    if (r && !out.some(x => x.path === r.path)) out.push(r);
   };
 
   const data = typeof input === 'string' ? safeJson(input) : input;
@@ -373,7 +371,10 @@ function scanRegexLiteral(text, start) {
   let inClass = false;
   while (i < text.length) {
     const c = text[i];
-    if (c === '\\') { i += 2; continue; }
+    if (c === '\\') {
+      i += 2;
+      continue;
+    }
     if (c === '[') inClass = true;
     else if (c === ']') inClass = false;
     else if (c === '/' && !inClass) {

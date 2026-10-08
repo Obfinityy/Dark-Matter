@@ -36,7 +36,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -50,7 +52,10 @@ export function parseExtensionManifest(manifestJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(manifest.update_url, 'extension-update-host', 'manifest.update_url');
@@ -62,20 +67,34 @@ export function parseExtensionManifest(manifestJson) {
       const dm = /@([a-z0-9.-]+\.[a-z]{2,})\s*>?/.exec(String(author));
       if (dm && !seen.has(dm[1].toLowerCase())) {
         seen.add(dm[1].toLowerCase());
-        hosts.push({ host: dm[1].toLowerCase(), kind: 'author-domain', provenance: 'manifest.author' });
+        hosts.push({
+          host: dm[1].toLowerCase(),
+          kind: 'author-domain',
+          provenance: 'manifest.author',
+        });
       }
     }
   }
 
   for (const p of manifest.host_permissions || []) {
     const host = hostFromUrl(p.replace(/\*/g, 'www'));
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'permission-host', provenance: 'manifest.host_permissions' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'permission-host', provenance: 'manifest.host_permissions' });
+    }
   }
 
   const extPages = manifest.externally_connectable;
   for (const site of (extPages && extPages.matches) || []) {
     const host = hostFromUrl(site.replace(/\*/g, 'www'));
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'connectable-host', provenance: 'manifest.externally_connectable.matches' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({
+        host,
+        kind: 'connectable-host',
+        provenance: 'manifest.externally_connectable.matches',
+      });
+    }
   }
 
   return {
@@ -98,7 +117,10 @@ export function parseStoreListingData(listingData) {
 
   const addUrl = (url, kind, provenance) => {
     const host = hostFromUrl(url);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   const linkRe = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([^<]{0,80})<\/a>/gi;
@@ -106,13 +128,17 @@ export function parseStoreListingData(listingData) {
   while ((m = linkRe.exec(text))) {
     const label = m[2].toLowerCase();
     if (/website|developer|support|privacy|homepage/.test(label)) {
-      const kind = /support/.test(label) ? 'support-site' : /privacy/.test(label) ? 'privacy-page' : 'developer-website';
+      const kind = /support/.test(label)
+        ? 'support-site'
+        : /privacy/.test(label)
+          ? 'privacy-page'
+          : 'developer-website';
       addUrl(m[1], kind, 'listing.link');
     }
   }
 
   // JSON listing shape: { developer: { name, website, supportUrl } }
-  const data = typeof listingData === 'object' ? (listingData || {}) : {};
+  const data = typeof listingData === 'object' ? listingData || {} : {};
   const dev = data.developer || data.author || {};
   addUrl(dev.website || dev.url, 'developer-website', 'listing.developer.website');
   addUrl(dev.supportUrl || dev.support_url, 'support-site', 'listing.developer.supportUrl');
@@ -135,7 +161,15 @@ export function analyzeChromeExtension(manifestJson, listingData) {
   const merged = [...manifest.hosts];
   const seen = new Set(manifest.hosts.map(h => h.host));
   for (const h of listing.hosts) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push(h); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push(h);
+    }
   }
-  return { name: manifest.name, developer: listing.developer, updateUrl: manifest.updateUrl, hosts: merged };
+  return {
+    name: manifest.name,
+    developer: listing.developer,
+    updateUrl: manifest.updateUrl,
+    hosts: merged,
+  };
 }

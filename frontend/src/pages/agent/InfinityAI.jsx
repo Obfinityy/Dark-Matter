@@ -19,18 +19,57 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-  Send, Loader2, Bot, User, MessageCircle, ClipboardList,
-  Hammer, SlidersHorizontal, Cpu, CheckCircle2, XCircle,
-  FileCode2, Eye, MousePointerClick, Clock3, AppWindow,
-  ShieldCheck, Play, Paperclip, FolderOpen, X, Plus,
-  ChevronDown, Check, PanelRightOpen, PanelRightClose,
-  Brain, CircleHelp, Ban, TriangleAlert, Volume2, VolumeX
+  Send,
+  Loader2,
+  Bot,
+  User,
+  MessageCircle,
+  ClipboardList,
+  Hammer,
+  SlidersHorizontal,
+  Cpu,
+  CheckCircle2,
+  XCircle,
+  FileCode2,
+  Eye,
+  MousePointerClick,
+  Clock3,
+  AppWindow,
+  ShieldCheck,
+  Play,
+  Paperclip,
+  FolderOpen,
+  X,
+  Plus,
+  ChevronDown,
+  Check,
+  PanelRightOpen,
+  PanelRightClose,
+  Brain,
+  CircleHelp,
+  Ban,
+  TriangleAlert,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
-import { sendDirectChat, parseActionIntent, getComputerStatus, getInfiniteHistory } from '../../services/api';
-import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
 import {
-  createComputerTask, cancelComputerTask, answerComputerTask,
-  subscribeToComputerTaskEvents, getBrainChain
+  sendDirectChat,
+  parseActionIntent,
+  getComputerStatus,
+  getInfiniteHistory,
+} from '../../services/api';
+import {
+  planWithInfinity,
+  buildWithInfinity,
+  uploadBuildFiles,
+  readWorkspaceFile,
+} from '../../services/api';
+import {
+  createComputerTask,
+  cancelComputerTask,
+  answerComputerTask,
+  subscribeToComputerTaskEvents,
+  getBrainChain,
 } from '../../services/api';
 import { recordConversation } from '../../services/chatHistory';
 import { getBackendUrl } from '../../services/backendMode';
@@ -235,21 +274,22 @@ const MODES = [
   { id: 'chat', label: 'Chat', icon: MessageCircle, hint: 'Ask anything' },
   { id: 'plan', label: 'Plan', icon: ClipboardList, hint: 'Turn ideas into plans' },
   { id: 'build', label: 'Build', icon: Hammer, hint: 'Agent builds for you' },
-  { id: 'control', label: 'Control', icon: SlidersHorizontal, hint: 'Command the system' }
+  { id: 'control', label: 'Control', icon: SlidersHorizontal, hint: 'Command the system' },
 ];
 
 const WELCOME = {
   chat: "Hey! I'm Infinity AI. Ask me anything — explain code, debug, brainstorm, or just chat. What's on your mind?",
   plan: "Plan mode. Tell me your idea — an app, a feature, a project — and I'll return a numbered step-by-step plan with the tools each step needs. Planning only: nothing gets executed.",
-  build: "Build mode. Tell me what to build and I'll create real files in my sandboxed workspace — for example, “build me a portfolio page for Rahul Sharma”. What are we making?",
-  control: null // control renders its own panel
+  build:
+    "Build mode. Tell me what to build and I'll create real files in my sandboxed workspace — for example, “build me a portfolio page for Rahul Sharma”. What are we making?",
+  control: null, // control renders its own panel
 };
 
 /** One stable conversation id per mode tab (backend creates the record on first message). */
 function useConversationId(mode) {
   const ref = useRef(null);
   if (!ref.current) {
-    ref.current = `${mode}-${(crypto.randomUUID ? crypto.randomUUID() : String(Date.now()))}`;
+    ref.current = `${mode}-${crypto.randomUUID ? crypto.randomUUID() : String(Date.now())}`;
   }
   return ref.current;
 }
@@ -261,15 +301,15 @@ function ModeDropdown({ mode, setMode }) {
   const wrapRef = useRef(null);
   const triggerRef = useRef(null);
   const optionRefs = useRef({});
-  const active = MODES.find((m) => m.id === mode) || MODES[0];
+  const active = MODES.find(m => m.id === mode) || MODES[0];
 
   // Close on outside click / Escape (Escape returns focus to the trigger).
   useEffect(() => {
     if (!open) return;
-    const onPointer = (e) => {
+    const onPointer = e => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
     };
-    const onKey = (e) => {
+    const onKey = e => {
       if (e.key === 'Escape') {
         setOpen(false);
         triggerRef.current?.focus();
@@ -283,17 +323,17 @@ function ModeDropdown({ mode, setMode }) {
       document.removeEventListener('touchstart', onPointer);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open ]);
+  }, [open]);
 
   // Full listbox keyboard support: opening moves focus to the current
   // option; arrows/Home/End move between options; the trigger regains
   // focus when the menu closes via Escape.
-  const focusOption = (id) => {
+  const focusOption = id => {
     optionRefs.current[id]?.focus();
   };
 
-  const onMenuKeyDown = (e) => {
-    const ids = MODES.map((m) => m.id);
+  const onMenuKeyDown = e => {
+    const ids = MODES.map(m => m.id);
     const i = ids.indexOf(document.activeElement?.dataset?.optionId ?? mode);
     let next = null;
     if (e.key === 'ArrowDown') next = ids[(i + 1) % ids.length];
@@ -328,20 +368,31 @@ function ModeDropdown({ mode, setMode }) {
         <ChevronDown size={14} className={open ? 'dm-caret-up' : ''} />
       </button>
       {open && (
-        <div className="dm-mode-menu" role="listbox" aria-label="Switch mode" onKeyDown={onMenuKeyDown}>
-          {MODES.map((m) => {
+        <div
+          className="dm-mode-menu"
+          role="listbox"
+          aria-label="Switch mode"
+          onKeyDown={onMenuKeyDown}
+        >
+          {MODES.map(m => {
             const Icon = m.icon;
             return (
               <button
                 key={m.id}
                 type="button"
-                ref={(el) => { if (el) optionRefs.current[m.id] = el; }}
+                ref={el => {
+                  if (el) optionRefs.current[m.id] = el;
+                }}
                 data-option-id={m.id}
                 role="option"
                 aria-selected={m.id === mode}
                 tabIndex={-1}
                 className="dm-mode-item"
-                onClick={() => { setMode(m.id); setOpen(false); triggerRef.current?.focus(); }}
+                onClick={() => {
+                  setMode(m.id);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
               >
                 <Icon size={15} />
                 <span className="dm-mode-item-text">
@@ -365,7 +416,7 @@ function ModeDropdown({ mode, setMode }) {
 
 function fileSuffix(files) {
   if (!files || !files.length) return '';
-  return `\n[Attached: ${files.map((f) => f.name).join(', ')}]`;
+  return `\n[Attached: ${files.map(f => f.name).join(', ')}]`;
 }
 
 function AttachButton({ onPick, title = 'Attach files', disabled = false, children }) {
@@ -387,7 +438,7 @@ function AttachButton({ onPick, title = 'Attach files', disabled = false, childr
         type="file"
         multiple
         hidden
-        onChange={(e) => {
+        onChange={e => {
           if (e.target.files?.length) onPick(e.target.files);
           e.target.value = '';
         }}
@@ -421,13 +472,23 @@ function AttachChips({ files, onRemove }) {
   );
 }
 
-function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvatarEmotion, avatarVoice, avatarVoiceName, onSpeakAmplitude }) {
+function ChatPane({
+  mode,
+  setMode,
+  initialConversationId,
+  onAvatarState,
+  onAvatarEmotion,
+  avatarVoice,
+  avatarVoiceName,
+  onSpeakAmplitude,
+}) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: WELCOME[mode] }]);
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId);
   // One conversation per pane — the backend creates it on first message.
   // When resumed from the sidebar, reuse the stored conversation id.
   const convRef = useRef(
-    initialConversationId || `${mode}-${(crypto.randomUUID ? crypto.randomUUID() : String(Date.now()))}`
+    initialConversationId ||
+      `${mode}-${crypto.randomUUID ? crypto.randomUUID() : String(Date.now())}`
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -439,29 +500,39 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
   const ttsAbortRef = useRef(null);
   const sendTextRef = useRef(null);
 
-  const addFiles = (fileList) => {
-    const picked = Array.from(fileList || []).filter((f) => f.size >= 0);
+  const addFiles = fileList => {
+    const picked = Array.from(fileList || []).filter(f => f.size >= 0);
     if (!picked.length) return;
-    setFiles((prev) => [...prev, ...picked].slice(0, 10));
+    setFiles(prev => [...prev, ...picked].slice(0, 10));
   };
-  const removeFile = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
+  const removeFile = i => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
   // Resumed conversation: backfill messages from the backend.
   useEffect(() => {
     if (!initialConversationId) return;
     let cancelled = false;
-    getInfiniteHistory(initialConversationId).then((res) => {
-      if (cancelled) return;
-      const stored = res?.chat?.messages || [];
-      if (stored.length > 0) {
-        setMessages(stored.map((m) => ({
-          role: m.role === 'user' ? 'user' : 'assistant',
-          text: m.content || m.text || '',
-        })));
-      }
-    }).catch(() => { /* fall back to the welcome message */ })
-      .finally(() => { if (!cancelled) setLoadingHistory(false); });
-    return () => { cancelled = true; };
+    getInfiniteHistory(initialConversationId)
+      .then(res => {
+        if (cancelled) return;
+        const stored = res?.chat?.messages || [];
+        if (stored.length > 0) {
+          setMessages(
+            stored.map(m => ({
+              role: m.role === 'user' ? 'user' : 'assistant',
+              text: m.content || m.text || '',
+            }))
+          );
+        }
+      })
+      .catch(() => {
+        /* fall back to the welcome message */
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingHistory(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [initialConversationId]);
 
   // Reduced-motion users jump straight to the bottom — no smooth scrolling.
@@ -470,7 +541,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
     bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
   }, [messages]);
 
-  const sendText = async (rawText) => {
+  const sendText = async rawText => {
     const text = String(rawText ?? input).trim();
     const suffix = fileSuffix(files);
     if ((!text && !files.length) || sendingRef.current) return;
@@ -478,7 +549,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
     const fullText = text + suffix;
     setInput('');
     setFiles([]);
-    setMessages((m) => [...m, { role: 'user', text: fullText }]);
+    setMessages(m => [...m, { role: 'user', text: fullText }]);
     // Index this conversation for the sidebar chat history.
     const titleBase = text || `${files.length} file(s) attached`;
     recordConversation({
@@ -492,12 +563,16 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
     try {
       // First: check if this is an ACTION command ("khol de") vs chat.
       let intent = null;
-      try { intent = await parseActionIntent(fullText); } catch { /* fall through to chat */ }
+      try {
+        intent = await parseActionIntent(fullText);
+      } catch {
+        /* fall through to chat */
+      }
 
       if (intent?.type === 'action') {
         // Safe action — tell the user we're doing it, then route to Control.
         const doingMsg = intent.message || 'Kar raha hoon…';
-        setMessages((m) => [...m, { role: 'assistant', text: doingMsg }]);
+        setMessages(m => [...m, { role: 'assistant', text: doingMsg }]);
         onAvatarState?.('speaking');
         setTimeout(() => onAvatarState?.('idle'), 2500);
         // Note: full Control-mode execution happens when the user switches
@@ -506,7 +581,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
       }
       if (intent?.type === 'action_blocked') {
         const blockedMsg = intent.message || 'Ye action main nahi kar sakta.';
-        setMessages((m) => [...m, { role: 'assistant', text: blockedMsg }]);
+        setMessages(m => [...m, { role: 'assistant', text: blockedMsg }]);
         onAvatarState?.('speaking');
         setTimeout(() => onAvatarState?.('idle'), 2500);
         return;
@@ -515,7 +590,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
       // Chat intent — normal brain response.
       const res = await sendDirectChat(fullText, convRef.current);
       const reply = res?.reply || res?.message || res?.text || 'Hmm, empty reply. Try again?';
-      setMessages((m) => [...m, { role: 'assistant', text: reply }]);
+      setMessages(m => [...m, { role: 'assistant', text: reply }]);
       // The backend picks one emotion per reply (backend/src/avatar/emotionPicker.js).
       onAvatarEmotion?.(typeof res?.emotion === 'string' ? res.emotion : 'neutral');
       // Avatar SPEAKS the reply with a real voice + lip-sync, then idles.
@@ -527,7 +602,7 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
           ttsAbortRef.current = voiceModeRef.current ? new AbortController() : null;
           await speak(reply, {
             voice: speakVoice,
-            onAmplitude: (amp) => onSpeakAmplitude?.(amp),
+            onAmplitude: amp => onSpeakAmplitude?.(amp),
             signal: ttsAbortRef.current?.signal,
           });
         } catch {
@@ -537,20 +612,23 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
           if (!aborted) {
             // Voice failed — fall back to timed speaking animation.
             const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
-            await new Promise((r) => setTimeout(r, speakMs));
+            await new Promise(r => setTimeout(r, speakMs));
           }
         }
       } else {
         // Voice muted — just animate.
         const speakMs = Math.min(8000, Math.max(1800, reply.length * 32));
-        await new Promise((r) => setTimeout(r, speakMs));
+        await new Promise(r => setTimeout(r, speakMs));
       }
       onAvatarState?.('idle');
     } catch (err) {
-      setMessages((m) => [...m, {
-        role: 'assistant',
-        text: `Couldn't reach the brain: ${(err.message || 'connection failed').replace(/\.+$/, '')}. Check Models in Settings.`
-      }]);
+      setMessages(m => [
+        ...m,
+        {
+          role: 'assistant',
+          text: `Couldn't reach the brain: ${(err.message || 'connection failed').replace(/\.+$/, '')}. Check Models in Settings.`,
+        },
+      ]);
       onAvatarState?.('idle');
     } finally {
       setSending(false);
@@ -568,15 +646,19 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
     voiceModeRef.current = next;
     setVoiceMode(next);
     if (!next) {
-      try { ttsAbortRef.current?.abort(); } catch { /* noop */ }
+      try {
+        ttsAbortRef.current?.abort();
+      } catch {
+        /* noop */
+      }
       onAvatarState?.('idle');
     }
   };
 
   const voiceConvo = useVoiceConversation({
     active: voiceMode,
-    onTranscript: (text) => sendTextRef.current?.(text),
-    onStateChange: (s) => onAvatarState?.(s),
+    onTranscript: text => sendTextRef.current?.(text),
+    onStateChange: s => onAvatarState?.(s),
   });
 
   return (
@@ -584,22 +666,37 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
       <div className="dm-chat-messages">
         {loadingHistory ? (
           <div className="dm-msg dm-msg-assistant">
-            <span className="dm-msg-avatar" aria-hidden="true"><Bot size={15} /></span>
-            <div className="dm-bubble"><Loader2 size={15} className="dm-spin" /> Loading conversation…</div>
-          </div>
-        ) : messages.map((m, i) => (
-          <div key={i} className={`dm-msg ${m.role === 'user' ? 'dm-msg-user' : 'dm-msg-assistant'}`}>
             <span className="dm-msg-avatar" aria-hidden="true">
-              {m.role === 'assistant' ? <Bot size={15} /> : <User size={15} />}
+              <Bot size={15} />
             </span>
-            <div className="dm-bubble">{m.text}</div>
+            <div className="dm-bubble">
+              <Loader2 size={15} className="dm-spin" /> Loading conversation…
+            </div>
           </div>
-        ))}
+        ) : (
+          messages.map((m, i) => (
+            <div
+              key={i}
+              className={`dm-msg ${m.role === 'user' ? 'dm-msg-user' : 'dm-msg-assistant'}`}
+            >
+              <span className="dm-msg-avatar" aria-hidden="true">
+                {m.role === 'assistant' ? <Bot size={15} /> : <User size={15} />}
+              </span>
+              <div className="dm-bubble">{m.text}</div>
+            </div>
+          ))
+        )}
         {sending && (
           <div className="dm-msg dm-msg-assistant">
-            <span className="dm-msg-avatar" aria-hidden="true"><Bot size={15} /></span>
+            <span className="dm-msg-avatar" aria-hidden="true">
+              <Bot size={15} />
+            </span>
             <div className="dm-bubble">
-              <span className="dm-typing" role="status" aria-label="Infinity AI is typing"><span /><span /><span /></span>
+              <span className="dm-typing" role="status" aria-label="Infinity AI is typing">
+                <span />
+                <span />
+                <span />
+              </span>
             </div>
           </div>
         )}
@@ -612,10 +709,12 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
           {!voiceConvo.supported
             ? 'Voice input isn\u2019t supported in this browser \u2014 try Chrome or Edge'
             : voiceConvo.processing
-            ? 'Replying…'
-            : voiceConvo.listening
-              ? (voiceConvo.interim ? `Heard: “${voiceConvo.interim}…”` : 'Listening — speak now')
-              : 'Voice chat on'}
+              ? 'Replying…'
+              : voiceConvo.listening
+                ? voiceConvo.interim
+                  ? `Heard: “${voiceConvo.interim}…”`
+                  : 'Listening — speak now'
+                : 'Voice chat on'}
         </div>
       )}
       <div className="dm-composer">
@@ -623,19 +722,25 @@ function ChatPane({ mode, setMode, initialConversationId, onAvatarState, onAvata
         <AttachButton onPick={addFiles} />
         <input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && send()}
           placeholder="Message Infinity AI…"
           aria-label="Message Infinity AI"
           disabled={sending}
         />
         <MicButton
-          onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
+          onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
           className="dm-icon-btn"
           disabled={sending || voiceMode}
-          onListeningChange={(listening) => { if (!voiceModeRef.current) onAvatarState?.(listening ? 'listening' : 'idle'); }}
+          onListeningChange={listening => {
+            if (!voiceModeRef.current) onAvatarState?.(listening ? 'listening' : 'idle');
+          }}
         />
-        <VoiceModeToggle active={voiceMode} onToggle={toggleVoiceMode} disabled={sending && !voiceMode} />
+        <VoiceModeToggle
+          active={voiceMode}
+          onToggle={toggleVoiceMode}
+          disabled={sending && !voiceMode}
+        />
         <button
           type="button"
           className="dm-icon-btn dm-icon-btn-primary"
@@ -660,12 +765,12 @@ function PlanPane({ mode, setMode }) {
   const [error, setError] = useState('');
   const [files, setFiles] = useState([]); // MVP attachments (names appended to the instruction)
 
-  const addFiles = (fileList) => {
-    const picked = Array.from(fileList || []).filter((f) => f.size >= 0);
+  const addFiles = fileList => {
+    const picked = Array.from(fileList || []).filter(f => f.size >= 0);
     if (!picked.length) return;
-    setFiles((prev) => [...prev, ...picked].slice(0, 10));
+    setFiles(prev => [...prev, ...picked].slice(0, 10));
   };
-  const removeFile = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
+  const removeFile = i => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
   const run = async () => {
     const instruction = input.trim();
@@ -695,14 +800,17 @@ function PlanPane({ mode, setMode }) {
         <AttachButton onPick={addFiles} />
         <input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && run()}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="Describe your idea… e.g. “a portfolio website for a photographer”"
           aria-label="Describe your idea"
           disabled={loading}
         />
-        <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-          className="dm-icon-btn" disabled={loading} />
+        <MicButton
+          onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
+          className="dm-icon-btn"
+          disabled={loading}
+        />
         <button
           type="button"
           className="dm-icon-btn dm-icon-btn-primary"
@@ -713,12 +821,20 @@ function PlanPane({ mode, setMode }) {
           {loading ? <Loader2 size={17} className="dm-spin" /> : <ClipboardList size={17} />}
         </button>
       </div>
-      <p className="dm-hint dm-center">Planning only — nothing is executed. Switch to Build to make it real.</p>
+      <p className="dm-hint dm-center">
+        Planning only — nothing is executed. Switch to Build to make it real.
+      </p>
 
-      {error && <div className="dm-notice dm-notice-red dm-mt-4" role="alert">{error}</div>}
+      {error && (
+        <div className="dm-notice dm-notice-red dm-mt-4" role="alert">
+          {error}
+        </div>
+      )}
 
       {loading && (
-        <div className="dm-loading-row"><Loader2 size={20} className="dm-spin" /> Turning your idea into a plan…</div>
+        <div className="dm-loading-row">
+          <Loader2 size={20} className="dm-spin" /> Turning your idea into a plan…
+        </div>
       )}
 
       {plan && !loading && (
@@ -728,7 +844,7 @@ function PlanPane({ mode, setMode }) {
             <span className="dm-badge dm-badge-gold">{plan.taskType}</span>
           </div>
           <ol className="dm-plan-steps">
-            {plan.steps.map((s) => (
+            {plan.steps.map(s => (
               <li key={s.n} className="dm-plan-step">
                 <span className="dm-plan-num">{s.n}</span>
                 <div className="dm-plan-step-body">
@@ -736,7 +852,11 @@ function PlanPane({ mode, setMode }) {
                   <p>{s.detail}</p>
                   {s.tools?.length > 0 && (
                     <div className="dm-plan-tools">
-                      {s.tools.map((t, i) => <span key={i} className="dm-badge">{t}</span>)}
+                      {s.tools.map((t, i) => (
+                        <span key={i} className="dm-badge">
+                          {t}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -768,21 +888,22 @@ function BuildPane({ mode, setMode }) {
 
   const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
-  const readAsBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || '');
-      const comma = dataUrl.indexOf(',');
-      resolve(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
-    };
-    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
-    reader.readAsDataURL(file);
-  });
+  const readAsBase64 = file =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result || '');
+        const comma = dataUrl.indexOf(',');
+        resolve(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
+      };
+      reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+      reader.readAsDataURL(file);
+    });
 
-  const handlePickedFiles = async (fileList) => {
-    const picked = Array.from(fileList || []).filter((f) => f.size > 0);
+  const handlePickedFiles = async fileList => {
+    const picked = Array.from(fileList || []).filter(f => f.size > 0);
     if (!picked.length) return;
-    const tooBig = picked.find((f) => f.size > MAX_FILE_BYTES);
+    const tooBig = picked.find(f => f.size > MAX_FILE_BYTES);
     if (tooBig) {
       setError(`"${tooBig.name}" is too big — max 2 MB per file.`);
       return;
@@ -799,11 +920,11 @@ function BuildPane({ mode, setMode }) {
         payload.push({ name: f.name, type: f.type || '', content: await readAsBase64(f) });
       }
       const res = await uploadBuildFiles(conversationId, payload);
-      const newly = (res?.uploaded || []).map((u) => ({ path: u.path, name: u.name, size: u.size }));
+      const newly = (res?.uploaded || []).map(u => ({ path: u.path, name: u.name, size: u.size }));
       // De-dupe by path (re-attaching the same file replaces it).
-      setAttached((prev) => {
-        const paths = new Set(newly.map((n) => n.path));
-        return [...prev.filter((p) => !paths.has(p.path)), ...newly];
+      setAttached(prev => {
+        const paths = new Set(newly.map(n => n.path));
+        return [...prev.filter(p => !paths.has(p.path)), ...newly];
       });
     } catch (err) {
       setError(err.message || 'Upload failed.');
@@ -814,8 +935,8 @@ function BuildPane({ mode, setMode }) {
     }
   };
 
-  const removeAttached = (path) => {
-    setAttached((prev) => prev.filter((a) => a.path !== path));
+  const removeAttached = path => {
+    setAttached(prev => prev.filter(a => a.path !== path));
   };
 
   const run = async () => {
@@ -827,7 +948,7 @@ function BuildPane({ mode, setMode }) {
     setPreview(null);
     try {
       const res = await buildWithInfinity(brief, conversationId, {
-        attachments: attached.map((a) => a.path)
+        attachments: attached.map(a => a.path),
       });
       if (!res?.build?.files?.length) throw new Error('The builder created no files.');
       setBuild(res.build);
@@ -838,7 +959,7 @@ function BuildPane({ mode, setMode }) {
     }
   };
 
-  const openPreview = async (filePath) => {
+  const openPreview = async filePath => {
     setPreviewLoading(true);
     try {
       const res = await readWorkspaceFile(filePath);
@@ -854,7 +975,7 @@ function BuildPane({ mode, setMode }) {
     <div>
       {attached.length > 0 && (
         <div className="dm-attach-chips">
-          {attached.map((a) => (
+          {attached.map(a => (
             <span key={a.path} className="dm-badge">
               <FileCode2 size={13} />
               <span title={a.path}>{a.name}</span>
@@ -886,14 +1007,17 @@ function BuildPane({ mode, setMode }) {
         </button>
         <input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && run()}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="What should I build?… e.g. “a portfolio page for Rahul Sharma”"
           aria-label="Describe what to build"
           disabled={loading}
         />
-        <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-          className="dm-icon-btn" disabled={loading} />
+        <MicButton
+          onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
+          className="dm-icon-btn"
+          disabled={loading}
+        />
         <button
           type="button"
           className="dm-icon-btn dm-icon-btn-primary"
@@ -917,15 +1041,13 @@ function BuildPane({ mode, setMode }) {
           <FolderOpen size={14} />
           <span>Attach folder</span>
         </button>
-        <span className="dm-hint">
-          The brain reads these as context while building.
-        </span>
+        <span className="dm-hint">The brain reads these as context while building.</span>
         <input
           ref={fileInputRef}
           type="file"
           multiple
           hidden
-          onChange={(e) => handlePickedFiles(e.target.files)}
+          onChange={e => handlePickedFiles(e.target.files)}
         />
         <input
           ref={folderInputRef}
@@ -933,19 +1055,30 @@ function BuildPane({ mode, setMode }) {
           hidden
           // Non-standard but supported by Chrome/Edge: picks a whole folder.
           {...{ webkitdirectory: '' }}
-          onChange={(e) => handlePickedFiles(e.target.files)}
+          onChange={e => handlePickedFiles(e.target.files)}
         />
       </div>
 
       <p className="dm-hint dm-center dm-mt-2">
-        <ShieldCheck size={12} style={{ verticalAlign: '-2px' }} /> Real files, sandboxed workspace only — the agent can never touch anything outside it.
-        {build?.brainBuilt && <span className="dm-badge dm-badge-gold" style={{ marginLeft: 8 }}>Built by your active brain</span>}
+        <ShieldCheck size={12} style={{ verticalAlign: '-2px' }} /> Real files, sandboxed workspace
+        only — the agent can never touch anything outside it.
+        {build?.brainBuilt && (
+          <span className="dm-badge dm-badge-gold" style={{ marginLeft: 8 }}>
+            Built by your active brain
+          </span>
+        )}
       </p>
 
-      {error && <div className="dm-notice dm-notice-red dm-mt-4" role="alert">{error}</div>}
+      {error && (
+        <div className="dm-notice dm-notice-red dm-mt-4" role="alert">
+          {error}
+        </div>
+      )}
 
       {loading && (
-        <div className="dm-loading-row"><Loader2 size={20} className="dm-spin" /> Agent is writing files…</div>
+        <div className="dm-loading-row">
+          <Loader2 size={20} className="dm-spin" /> Agent is writing files…
+        </div>
       )}
 
       {build && !loading && (
@@ -956,19 +1089,27 @@ function BuildPane({ mode, setMode }) {
           </div>
           <p className="dm-card-sub">{build.note}</p>
           <div>
-            {build.files.map((f) => (
+            {build.files.map(f => (
               <button
                 key={f.path}
                 type="button"
                 className="dm-row"
-                style={{ width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit' }}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  color: 'inherit',
+                }}
                 onClick={() => openPreview(f.path)}
               >
                 <FileCode2 size={16} style={{ flexShrink: 0, color: 'var(--dm-text-2)' }} />
                 <span className="dm-row-main">
                   <span className="dm-row-title">{f.path}</span>
                 </span>
-                <span className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)' }}>{(f.size / 1024).toFixed(1)} KB</span>
+                <span className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)' }}>
+                  {(f.size / 1024).toFixed(1)} KB
+                </span>
                 <Eye size={14} style={{ flexShrink: 0, color: 'var(--dm-muted)' }} />
               </button>
             ))}
@@ -976,11 +1117,17 @@ function BuildPane({ mode, setMode }) {
           {(preview || previewLoading) && (
             <div className="dm-mt-4">
               <div className="dm-row-between" style={{ marginBottom: 'var(--dm-2)' }}>
-                <span className="dm-badge"><FileCode2 size={12} /> {preview?.path || 'Loading…'}</span>
+                <span className="dm-badge">
+                  <FileCode2 size={12} /> {preview?.path || 'Loading…'}
+                </span>
               </div>
-              {previewLoading
-                ? <div className="dm-loading-row"><Loader2 size={16} className="dm-spin" /></div>
-                : <pre className="dm-code">{preview?.content}</pre>}
+              {previewLoading ? (
+                <div className="dm-loading-row">
+                  <Loader2 size={16} className="dm-spin" />
+                </div>
+              ) : (
+                <pre className="dm-code">{preview?.content}</pre>
+              )}
             </div>
           )}
         </div>
@@ -1002,7 +1149,9 @@ function ControlPane({ mode, setMode }) {
   const runtimeLabel = !computer
     ? 'Unavailable here'
     : runtimeAvailable
-      ? (computer.simulated ? 'Simulated' : 'Connected')
+      ? computer.simulated
+        ? 'Simulated'
+        : 'Connected'
       : `Unavailable (${computer.runtime?.state || 'bridge not connected'})`;
   const [brainName, setBrainName] = useState('');
   const [input, setInput] = useState('');
@@ -1016,22 +1165,29 @@ function ControlPane({ mode, setMode }) {
   const unsubRef = useRef(null);
   const feedEndRef = useRef(null);
 
-  const addFiles = (fileList) => {
-    const picked = Array.from(fileList || []).filter((f) => f.size >= 0);
+  const addFiles = fileList => {
+    const picked = Array.from(fileList || []).filter(f => f.size >= 0);
     if (!picked.length) return;
-    setFiles((prev) => [...prev, ...picked].slice(0, 10));
+    setFiles(prev => [...prev, ...picked].slice(0, 10));
   };
-  const removeFile = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
+  const removeFile = i => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
   const running = Boolean(taskId) && !['completed', 'failed', 'cancelled'].includes(taskStatus);
 
   useEffect(() => {
-    getComputerStatus().then(setComputer).catch(() => setComputer(null));
-    getBrainChain().then((c) => {
-      const active = c?.chain?.find?.((l) => l.active) || c?.chain?.[0];
-      if (active?.name) setBrainName(active.name);
-    }).catch(() => {});
-    return () => { unsubRef.current?.(); unsubRef.current = null; };
+    getComputerStatus()
+      .then(setComputer)
+      .catch(() => setComputer(null));
+    getBrainChain()
+      .then(c => {
+        const active = c?.chain?.find?.(l => l.active) || c?.chain?.[0];
+        if (active?.name) setBrainName(active.name);
+      })
+      .catch(() => {});
+    return () => {
+      unsubRef.current?.();
+      unsubRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -1039,9 +1195,9 @@ function ControlPane({ mode, setMode }) {
     feedEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'nearest' });
   }, [feed]);
 
-  const pushFeed = (ev) => setFeed((prev) => [...prev.slice(-250), ev]);
+  const pushFeed = ev => setFeed(prev => [...prev.slice(-250), ev]);
 
-  const handleEvent = (ev) => {
+  const handleEvent = ev => {
     const type = ev.__sseType;
     pushFeed(ev);
     if (type === 'task.ask_user') {
@@ -1051,15 +1207,18 @@ function ControlPane({ mode, setMode }) {
     } else if (type === 'task.completed') {
       setTaskStatus('completed');
       setAskQ(null);
-      unsubRef.current?.(); unsubRef.current = null;
+      unsubRef.current?.();
+      unsubRef.current = null;
     } else if (type === 'task.failed') {
       setTaskStatus('failed');
       setAskQ(null);
-      unsubRef.current?.(); unsubRef.current = null;
+      unsubRef.current?.();
+      unsubRef.current = null;
     } else if (type === 'task.cancelled') {
       setTaskStatus('cancelled');
       setAskQ(null);
-      unsubRef.current?.(); unsubRef.current = null;
+      unsubRef.current?.();
+      unsubRef.current = null;
     } else if (type === 'task.resumed' || type === 'task.started') {
       setTaskStatus('running');
     }
@@ -1074,16 +1233,21 @@ function ControlPane({ mode, setMode }) {
     setFeed([]);
     setAskQ(null);
     setAnswer('');
-    unsubRef.current?.(); unsubRef.current = null;
+    unsubRef.current?.();
+    unsubRef.current = null;
     try {
       const res = await createComputerTask(full, conversationId);
       setTaskId(res.taskId);
       setTaskStatus(res.taskStatus || 'running');
       setFiles([]);
-      pushFeed({ __sseType: 'task.created', level: 'INFO', message: `Task accepted — the brain is thinking…` });
+      pushFeed({
+        __sseType: 'task.created',
+        level: 'INFO',
+        message: `Task accepted — the brain is thinking…`,
+      });
       unsubRef.current = subscribeToComputerTaskEvents(res.taskId, {
         onEvent: handleEvent,
-        onError: () => {}
+        onError: () => {},
       });
     } catch (err) {
       setError(err.message || 'Could not start the computer task.');
@@ -1092,7 +1256,11 @@ function ControlPane({ mode, setMode }) {
 
   const stop = async () => {
     if (!taskId) return;
-    try { await cancelComputerTask(taskId); } catch { /* task may already be done */ }
+    try {
+      await cancelComputerTask(taskId);
+    } catch {
+      /* task may already be done */
+    }
   };
 
   const sendAnswer = async () => {
@@ -1109,7 +1277,8 @@ function ControlPane({ mode, setMode }) {
   };
 
   const reset = () => {
-    unsubRef.current?.(); unsubRef.current = null;
+    unsubRef.current?.();
+    unsubRef.current = null;
     setTaskId(null);
     setTaskStatus(null);
     setFeed([]);
@@ -1133,7 +1302,10 @@ function ControlPane({ mode, setMode }) {
             <AppWindow size={12} /> Desktop runtime: {runtimeLabel}
           </span>
           {brainName && (
-            <span className="dm-badge" title="The brain thinking for Control mode — same as Hunt AI and Infinity AI">
+            <span
+              className="dm-badge"
+              title="The brain thinking for Control mode — same as Hunt AI and Infinity AI"
+            >
               <Bot size={12} /> Brain: {brainName}
             </span>
           )}
@@ -1141,9 +1313,9 @@ function ControlPane({ mode, setMode }) {
 
         <h3 className="dm-card-title">Tell me what to do on the computer</h3>
         <p className="dm-card-sub">
-          For example: “MS Word me leave application likho”. Your active brain reasons it out
-          step by step — opening the app, observing the screen, acting, and verifying —
-          and you watch it think live below. Nothing is canned: the brain composes every word itself.
+          For example: “MS Word me leave application likho”. Your active brain reasons it out step
+          by step — opening the app, observing the screen, acting, and verifying — and you watch it
+          think live below. Nothing is canned: the brain composes every word itself.
         </p>
 
         <AttachChips files={files} onRemove={removeFile} />
@@ -1152,14 +1324,17 @@ function ControlPane({ mode, setMode }) {
           <AttachButton onPick={addFiles} />
           <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && start()}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && start()}
             placeholder="Command the computer… e.g. “MS Word me leave application likho”"
             aria-label="Command for the computer"
             disabled={running}
           />
-          <MicButton onFinal={(t) => setInput((prev) => (prev ? `${prev} ${t}` : t))}
-            className="dm-icon-btn" disabled={running} />
+          <MicButton
+            onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
+            className="dm-icon-btn"
+            disabled={running}
+          />
           {running ? (
             <button
               type="button"
@@ -1186,30 +1361,44 @@ function ControlPane({ mode, setMode }) {
         {taskId && (
           <div className="dm-row-between dm-mt-4">
             <span className="dm-badge">
-              {taskStatus === 'completed' ? <CheckCircle2 size={12} /> : taskStatus === 'failed' ? <XCircle size={12} /> : <Loader2 size={12} className="dm-spin" />}
+              {taskStatus === 'completed' ? (
+                <CheckCircle2 size={12} />
+              ) : taskStatus === 'failed' ? (
+                <XCircle size={12} />
+              ) : (
+                <Loader2 size={12} className="dm-spin" />
+              )}
               {taskStatus === 'waiting_ai' ? 'Waiting for the brain…' : taskStatus || 'running'}
             </span>
             {!running && (
-              <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={reset}>New command</button>
+              <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={reset}>
+                New command
+              </button>
             )}
           </div>
         )}
 
-        {error && <div className="dm-notice dm-notice-red dm-mt-4" role="alert">{error}</div>}
+        {error && (
+          <div className="dm-notice dm-notice-red dm-mt-4" role="alert">
+            {error}
+          </div>
+        )}
 
         {askQ && running && (
           <div className="dm-card dm-mt-4" style={{ background: 'var(--dm-bg-2)' }}>
             <div className="dm-ask-box">
               <p style={{ margin: 0, fontSize: 'var(--dm-text-base)' }}>
                 <strong>
-                  <CircleHelp size={15} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> The agent asks:
-                </strong>{' '}{askQ}
+                  <CircleHelp size={15} aria-hidden="true" style={{ verticalAlign: '-2px' }} /> The
+                  agent asks:
+                </strong>{' '}
+                {askQ}
               </p>
               <div className="dm-composer">
                 <input
                   value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendAnswer()}
+                  onChange={e => setAnswer(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && sendAnswer()}
                   placeholder="Your answer…"
                   aria-label="Answer the agent's question"
                 />
@@ -1237,13 +1426,16 @@ function ControlPane({ mode, setMode }) {
         )}
 
         {!taskId && (
-          <div className="dm-mt-4" style={{ display: 'flex', alignItems: 'center', gap: 'var(--dm-2)', flexWrap: 'wrap' }}>
+          <div
+            className="dm-mt-4"
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--dm-2)', flexWrap: 'wrap' }}
+          >
             <span className="dm-hint">Try:</span>
             {[
               'MS Word me leave application likho',
               'Open calculator',
-              'Notepad me shopping list likho'
-            ].map((ex) => (
+              'Notepad me shopping list likho',
+            ].map(ex => (
               <button
                 key={ex}
                 type="button"
@@ -1270,9 +1462,13 @@ function FeedRow({ ev }) {
   else if (type.includes('observation')) icon = <Eye size={14} aria-hidden="true" />;
   else if (type === 'task.ask_user') icon = <CircleHelp size={14} aria-hidden="true" />;
   else if (type === 'task.waiting_ai') icon = <Clock3 size={14} aria-hidden="true" />;
-  else if (type === 'task.completed') { icon = <CheckCircle2 size={14} aria-hidden="true" />; cls = ' ok'; }
-  else if (type === 'task.failed' || level === 'ERROR') { icon = <XCircle size={14} aria-hidden="true" />; cls = ' bad'; }
-  else if (type === 'task.cancelled') icon = <Ban size={14} aria-hidden="true" />;
+  else if (type === 'task.completed') {
+    icon = <CheckCircle2 size={14} aria-hidden="true" />;
+    cls = ' ok';
+  } else if (type === 'task.failed' || level === 'ERROR') {
+    icon = <XCircle size={14} aria-hidden="true" />;
+    cls = ' bad';
+  } else if (type === 'task.cancelled') icon = <Ban size={14} aria-hidden="true" />;
   else if (level === 'WARN') icon = <TriangleAlert size={14} aria-hidden="true" />;
   return (
     <div className={`dm-feed-row${cls}`}>
@@ -1285,14 +1481,14 @@ function FeedRow({ ev }) {
 export function InfinityAI() {
   const location = useLocation();
   const navState = location.state || {};
-  const [mode, setMode] = useState(
-    () => (MODES.some((m) => m.id === navState.mode) ? navState.mode : 'chat')
+  const [mode, setMode] = useState(() =>
+    MODES.some(m => m.id === navState.mode) ? navState.mode : 'chat'
   );
-  const active = MODES.find((m) => m.id === mode);
+  const active = MODES.find(m => m.id === mode);
 
   // Arriving from the sidebar (history resume or New Chat) re-syncs the pane.
   useEffect(() => {
-    if (navState.conversationId && MODES.some((m) => m.id === navState.mode)) {
+    if (navState.conversationId && MODES.some(m => m.id === navState.mode)) {
       setMode(navState.mode);
     } else if (navState.fresh) {
       setMode('chat');
@@ -1315,13 +1511,17 @@ export function InfinityAI() {
   // Voice follows gender: female → aria, male → kai
   const avatarVoice = avatarGender === 'female' ? 'aria' : 'kai';
   // Avatar side panel: open by default on desktop, closed on small screens.
-  const [panelOpen, setPanelOpen] = useState(
-    () => (typeof window !== 'undefined' ? window.innerWidth > 900 : true)
+  const [panelOpen, setPanelOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth > 900 : true
   );
 
-  const avatarStatusLabel = {
-    idle: 'Idle', thinking: 'Thinking…', speaking: 'Speaking…', listening: 'Listening…',
-  }[avatarState] || 'Idle';
+  const avatarStatusLabel =
+    {
+      idle: 'Idle',
+      thinking: 'Thinking…',
+      speaking: 'Speaking…',
+      listening: 'Listening…',
+    }[avatarState] || 'Idle';
 
   // Real lip-sync comes from the audio amplitude via onSpeakAmplitude.
   // When voice is muted, fall back to a gentle simulated mouth motion.
@@ -1349,7 +1549,7 @@ export function InfinityAI() {
             <button
               type="button"
               className="dm-btn dm-btn-ghost dm-btn-sm"
-              onClick={() => setPanelOpen((o) => !o)}
+              onClick={() => setPanelOpen(o => !o)}
               title={panelOpen ? 'Hide avatar panel' : 'Show avatar panel'}
               aria-label="Toggle avatar panel"
               aria-expanded={panelOpen}
@@ -1367,24 +1567,29 @@ export function InfinityAI() {
             <BrainGate required={['vision', 'grounding']} featureName="Control mode">
               <ControlPane key="control" mode={mode} setMode={setMode} />
             </BrainGate>
-          )
-            : mode === 'plan' ? (
-              <BrainGate required={['vision']} featureName="Plan mode">
-                <PlanPane key="plan" mode={mode} setMode={setMode} />
-              </BrainGate>
-            )
-            : mode === 'build' ? (
-              <BrainGate required={['vision']} featureName="Build mode">
-                <BuildPane key="build" mode={mode} setMode={setMode} />
-              </BrainGate>
-            )
-            : (
-              <BrainGate required={['vision']} featureName="Chat mode">
-                <ChatPane key={paneKey} mode={mode} setMode={setMode} initialConversationId={navState.conversationId}
-                  onAvatarState={setAvatarState} onAvatarEmotion={setAvatarEmotion} avatarVoice={voiceOn ? avatarVoice : null}
-                  avatarVoiceName={avatarVoice} onSpeakAmplitude={setSpeakAmp} />
-              </BrainGate>
-            )}
+          ) : mode === 'plan' ? (
+            <BrainGate required={['vision']} featureName="Plan mode">
+              <PlanPane key="plan" mode={mode} setMode={setMode} />
+            </BrainGate>
+          ) : mode === 'build' ? (
+            <BrainGate required={['vision']} featureName="Build mode">
+              <BuildPane key="build" mode={mode} setMode={setMode} />
+            </BrainGate>
+          ) : (
+            <BrainGate required={['vision']} featureName="Chat mode">
+              <ChatPane
+                key={paneKey}
+                mode={mode}
+                setMode={setMode}
+                initialConversationId={navState.conversationId}
+                onAvatarState={setAvatarState}
+                onAvatarEmotion={setAvatarEmotion}
+                avatarVoice={voiceOn ? avatarVoice : null}
+                avatarVoiceName={avatarVoice}
+                onSpeakAmplitude={setSpeakAmp}
+              />
+            </BrainGate>
+          )}
         </div>
 
         {/* Collapsible avatar side panel. Note: the closed state keeps the
@@ -1392,7 +1597,16 @@ export function InfinityAI() {
             aria-hidden — focusable-but-hidden breaks keyboard users. */}
         {panelOpen && (
           <aside className="dm-inf-side" aria-label="Avatar panel">
-            <div className="dm-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--dm-4)', textAlign: 'center' }}>
+            <div
+              className="dm-card"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 'var(--dm-4)',
+                textAlign: 'center',
+              }}
+            >
               <Avatar
                 gender={avatarGender}
                 state={avatarState}
@@ -1404,8 +1618,13 @@ export function InfinityAI() {
                 <span className="dm-state-dot" />
                 {avatarStatusLabel}
               </span>
-              <div className="dm-seg" role="group" aria-label="Avatar appearance" style={{ justifyContent: 'center' }}>
-                {['female', 'male'].map((g) => (
+              <div
+                className="dm-seg"
+                role="group"
+                aria-label="Avatar appearance"
+                style={{ justifyContent: 'center' }}
+              >
+                {['female', 'male'].map(g => (
                   <button
                     key={g}
                     type="button"
@@ -1419,13 +1638,16 @@ export function InfinityAI() {
                 <button
                   type="button"
                   className="dm-seg-btn"
-                  onClick={() => setVoiceOn((v) => !v)}
+                  onClick={() => setVoiceOn(v => !v)}
                   title={voiceOn ? 'Mute voice' : 'Unmute voice'}
                   aria-pressed={voiceOn}
                 >
-                  {voiceOn
-                    ? <Volume2 size={14} aria-hidden="true" />
-                    : <VolumeX size={14} aria-hidden="true" />} voice
+                  {voiceOn ? (
+                    <Volume2 size={14} aria-hidden="true" />
+                  ) : (
+                    <VolumeX size={14} aria-hidden="true" />
+                  )}{' '}
+                  voice
                 </button>
               </div>
               <p className="dm-hint" style={{ margin: 0 }}>
@@ -1442,8 +1664,12 @@ export function InfinityAI() {
           type="button"
           className="dm-btn dm-btn-secondary"
           style={{
-            position: 'fixed', bottom: 'var(--dm-6)', right: 'var(--dm-6)', zIndex: 50,
-            borderRadius: 'var(--dm-r-full)', padding: 'var(--dm-3)',
+            position: 'fixed',
+            bottom: 'var(--dm-6)',
+            right: 'var(--dm-6)',
+            zIndex: 50,
+            borderRadius: 'var(--dm-r-full)',
+            padding: 'var(--dm-3)',
           }}
           onClick={() => setPanelOpen(true)}
           title="Show avatar panel"

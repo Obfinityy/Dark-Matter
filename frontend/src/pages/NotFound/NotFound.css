@@ -14,8 +14,16 @@
   padding: 32px 20px;
   overflow: hidden;
   background:
-    radial-gradient(900px 420px at 20% 10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
-    radial-gradient(800px 400px at 85% 85%, color-mix(in srgb, var(--accent-secondary) 10%, transparent), transparent 60%),
+    radial-gradient(
+      900px 420px at 20% 10%,
+      color-mix(in srgb, var(--accent) 12%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      800px 400px at 85% 85%,
+      color-mix(in srgb, var(--accent-secondary) 10%, transparent),
+      transparent 60%
+    ),
     var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -51,7 +59,7 @@
 }
 
 .nf-radar::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 18%;
   border: 1px solid var(--border-light);
@@ -59,12 +67,15 @@
 }
 
 .nf-radar::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, color-mix(in srgb, var(--accent) 22%, transparent), transparent 25%);
-  
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--accent) 22%, transparent),
+    transparent 25%
+  );
 }
 
 .nf-card {
@@ -79,7 +90,6 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-md);
-  
 }
 
 .nf-badge {
@@ -134,7 +144,9 @@
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .nf-btn:focus-visible {
@@ -150,7 +162,9 @@
 
 .nf-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md), 0 8px 24px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow:
+    var(--shadow-md),
+    0 8px 24px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .nf-btn-primary:active {
@@ -185,6 +199,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nf-card { animation: none; }
-  .nf-radar::after { animation: none; }
+  .nf-card {
+    animation: none;
+  }
+  .nf-radar::after {
+    animation: none;
+  }
 }

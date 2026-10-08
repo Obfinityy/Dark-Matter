@@ -14,7 +14,11 @@
  * @returns {string} Hostname or ''.
  */
 function hostOf(url) {
-  try { return new URL(String(url)).hostname.toLowerCase(); } catch { return ''; }
+  try {
+    return new URL(String(url)).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -34,7 +38,11 @@ export function parseRedirectChain(chain) {
   } else {
     for (const h of items) {
       if (h && (h.from || h.to)) {
-        hops.push({ from: String(h.from || ''), to: String(h.to || ''), status: String(h.status || '3xx') });
+        hops.push({
+          from: String(h.from || ''),
+          to: String(h.to || ''),
+          status: String(h.status || '3xx'),
+        });
       }
     }
   }
@@ -52,12 +60,15 @@ export function extractChainHosts(chains) {
     const hops = parseRedirectChain(chain);
     if (!hops.length) continue;
     const urlsInChain = [];
-    for (const h of hops) { urlsInChain.push(h.from, h.to); }
+    for (const h of hops) {
+      urlsInChain.push(h.from, h.to);
+    }
     const terminalHost = hostOf(hops[hops.length - 1].to);
     for (const u of urlsInChain) {
       const host = hostOf(u);
       if (!host) continue;
-      if (!roles.has(host)) roles.set(host, { firstSeenAt: 'intermediate', hopCount: 0, terminalUrls: new Set() });
+      if (!roles.has(host))
+        roles.set(host, { firstSeenAt: 'intermediate', hopCount: 0, terminalUrls: new Set() });
       const r = roles.get(host);
       r.hopCount += 1;
       if (u === hops[0].from && r.firstSeenAt === 'intermediate') r.firstSeenAt = 'origin';
@@ -84,7 +95,9 @@ export function extractChainHosts(chains) {
  * @returns {Array<{ chain: Array<{from,to,status}>, externalTerminal: string }>}
  */
 export function findExternalTerminals(chains, domain) {
-  const apex = String(domain || '').trim().toLowerCase();
+  const apex = String(domain || '')
+    .trim()
+    .toLowerCase();
   const hits = [];
   for (const chain of chains || []) {
     const hops = parseRedirectChain(chain);

@@ -15,12 +15,42 @@
  * @type {Array<{framework:string, pattern:RegExp, weak:boolean, description:string}>}
  */
 export const ETAG_SIGNATURES = [
-  { framework: 'Apache httpd', pattern: /^[0-9a-f]+-[0-9a-f]+-[0-9a-f]+$/i, weak: false, description: 'inode-size-mtime hex triple' },
-  { framework: 'IIS', pattern: /^[0-9a-f]+:[0-9a-f]+$/i, weak: false, description: 'filetimestamp:changenumber hex pair' },
-  { framework: 'Express.js', pattern: /^[0-9a-f]{27}$/i, weak: true, description: 'content-length + hash, 27 hex chars' },
-  { framework: 'nginx', pattern: /^[0-9a-f]+-[0-9a-f]+$/i, weak: true, description: 'mtime-size hex pair' },
-  { framework: 'ASP.NET', pattern: /^[0-9a-f]{8}:[0-9a-f]+$/i, weak: false, description: 'change-number style pair' },
-  { framework: 'Rack/Rails', pattern: /^[0-9a-f]{32,64}$/i, weak: true, description: 'content digest hash' },
+  {
+    framework: 'Apache httpd',
+    pattern: /^[0-9a-f]+-[0-9a-f]+-[0-9a-f]+$/i,
+    weak: false,
+    description: 'inode-size-mtime hex triple',
+  },
+  {
+    framework: 'IIS',
+    pattern: /^[0-9a-f]+:[0-9a-f]+$/i,
+    weak: false,
+    description: 'filetimestamp:changenumber hex pair',
+  },
+  {
+    framework: 'Express.js',
+    pattern: /^[0-9a-f]{27}$/i,
+    weak: true,
+    description: 'content-length + hash, 27 hex chars',
+  },
+  {
+    framework: 'nginx',
+    pattern: /^[0-9a-f]+-[0-9a-f]+$/i,
+    weak: true,
+    description: 'mtime-size hex pair',
+  },
+  {
+    framework: 'ASP.NET',
+    pattern: /^[0-9a-f]{8}:[0-9a-f]+$/i,
+    weak: false,
+    description: 'change-number style pair',
+  },
+  {
+    framework: 'Rack/Rails',
+    pattern: /^[0-9a-f]{32,64}$/i,
+    weak: true,
+    description: 'content digest hash',
+  },
 ];
 
 /**
@@ -59,7 +89,11 @@ export function fingerprintEtagSource(parsed) {
     if (!sig.pattern.test(parsed.opaque)) continue;
     let confidence = 0.75;
     if (sig.weak === parsed.weak) confidence += 0.1;
-    results.push({ framework: sig.framework, confidence: Math.min(0.95, confidence), description: sig.description });
+    results.push({
+      framework: sig.framework,
+      confidence: Math.min(0.95, confidence),
+      description: sig.description,
+    });
   }
   return results.sort((a, b) => b.confidence - a.confidence);
 }
@@ -90,8 +124,12 @@ export function detectInodeLeak(samples) {
     if (spread > 0 && spread < 100000) {
       leak = true;
       severity = 'low';
-      evidence.push(`ETag first components cluster in a narrow inode range (spread ${spread}) across ${inodes.length} resources`);
-      evidence.push('pattern consistent with Apache-style inode-size-mtime ETags exposing filesystem inode numbers');
+      evidence.push(
+        `ETag first components cluster in a narrow inode range (spread ${spread}) across ${inodes.length} resources`
+      );
+      evidence.push(
+        'pattern consistent with Apache-style inode-size-mtime ETags exposing filesystem inode numbers'
+      );
     }
   }
   if (!leak) evidence.push('no inode-clustering pattern detected across sampled ETags');
@@ -105,11 +143,11 @@ export function detectInodeLeak(samples) {
  */
 export function analyzeHostEtags(samples) {
   const list = Array.isArray(samples) ? samples : [];
-  const fps = list.map((s) => fingerprintEtagSource(parseEtag(s.etag))[0]).filter(Boolean);
-  const frameworks = [...new Set(fps.map((f) => f.framework))];
+  const fps = list.map(s => fingerprintEtagSource(parseEtag(s.etag))[0]).filter(Boolean);
+  const frameworks = [...new Set(fps.map(f => f.framework))];
   const leak = detectInodeLeak(list);
   return {
-    sources: fps.slice(0, 3).map((f) => ({ framework: f.framework, confidence: f.confidence })),
+    sources: fps.slice(0, 3).map(f => ({ framework: f.framework, confidence: f.confidence })),
     leak: { leak: leak.leak, severity: leak.severity },
     consistent: frameworks.length <= 1,
   };

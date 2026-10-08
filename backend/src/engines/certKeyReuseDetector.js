@@ -38,8 +38,8 @@ export function groupByPublicKey(certs = []) {
     groups.get(spki).members.push(c);
   }
   return [...groups.values()]
-    .filter((g) => g.members.length > 1)
-    .map((g) => ({ ...g, size: g.members.length }))
+    .filter(g => g.members.length > 1)
+    .map(g => ({ ...g, size: g.members.length }))
     .sort((a, b) => b.size - a.size);
 }
 
@@ -52,14 +52,18 @@ export function groupByPublicKey(certs = []) {
 export function classifyReuse(group) {
   const notes = [];
   if (!group || !Array.isArray(group.members) || group.members.length < 2) {
-    return { classification: 'insufficient-data', riskScore: 0, notes: ['Fewer than two certificates in group.'] };
+    return {
+      classification: 'insufficient-data',
+      riskScore: 0,
+      notes: ['Fewer than two certificates in group.'],
+    };
   }
   const members = group.members;
-  const issuers = new Set(members.map((m) => String(m.issuer || '').toLowerCase()));
-  const subjects = new Set(members.map((m) => String(m.subject || '').toLowerCase()));
-  const hosts = members.map((m) => String(m.host || ''));
-  const uniqueApex = new Set(hosts.map((h) => apexOf(h)));
-  const envs = new Set(hosts.map((h) => environmentTag(h)));
+  const issuers = new Set(members.map(m => String(m.issuer || '').toLowerCase()));
+  const subjects = new Set(members.map(m => String(m.subject || '').toLowerCase()));
+  const hosts = members.map(m => String(m.host || ''));
+  const uniqueApex = new Set(hosts.map(h => apexOf(h)));
+  const envs = new Set(hosts.map(h => environmentTag(h)));
 
   let classification = 'shared-infrastructure';
   let riskScore = 10;
@@ -67,21 +71,35 @@ export function classifyReuse(group) {
   if (issuers.size > 1) {
     classification = 'cross-issuer-reuse';
     riskScore = 85;
-    notes.push('Same public key appears in certificates from different issuers — possible migration or unauthorized re-issuance.');
+    notes.push(
+      'Same public key appears in certificates from different issuers — possible migration or unauthorized re-issuance.'
+    );
   } else if (uniqueApex.size > 1) {
     classification = 'cross-domain-reuse';
     riskScore = 60;
-    notes.push('Same public key secures different apex domains — verify this is an intentional shared edge/tenant setup.');
-  } else if (envs.size > 1 && envs.has('prod') && (envs.has('staging') || envs.has('dev') || envs.has('test'))) {
+    notes.push(
+      'Same public key secures different apex domains — verify this is an intentional shared edge/tenant setup.'
+    );
+  } else if (
+    envs.size > 1 &&
+    envs.has('prod') &&
+    (envs.has('staging') || envs.has('dev') || envs.has('test'))
+  ) {
     classification = 'cross-environment-reuse';
     riskScore = 75;
-    notes.push('Production key material appears reused in a non-production environment — key compromise blast radius is widened.');
+    notes.push(
+      'Production key material appears reused in a non-production environment — key compromise blast radius is widened.'
+    );
   } else if (subjects.size === 1) {
     classification = 'same-service-pool';
     riskScore = 5;
-    notes.push('Identical key across members of one service pool (expected for load-balanced / CDN edges).');
+    notes.push(
+      'Identical key across members of one service pool (expected for load-balanced / CDN edges).'
+    );
   } else {
-    notes.push('Same key reused within one apex domain across services — review whether this is an intentional wildcard setup.');
+    notes.push(
+      'Same key reused within one apex domain across services — review whether this is an intentional wildcard setup.'
+    );
     riskScore = 30;
   }
   notes.push(`${members.length} certificates share SPKI ${group.spkiSha256.slice(0, 16)}…`);
@@ -97,12 +115,12 @@ export function classifyReuse(group) {
 export function findCrossIssuerReuse(certs = []) {
   const out = [];
   for (const g of groupByPublicKey(certs)) {
-    const issuers = [...new Set(g.members.map((m) => String(m.issuer || 'unknown')))];
+    const issuers = [...new Set(g.members.map(m => String(m.issuer || 'unknown')))];
     if (issuers.length > 1) {
       out.push({
         spkiSha256: g.spkiSha256,
         issuers,
-        hosts: g.members.map((m) => String(m.host || 'unknown')),
+        hosts: g.members.map(m => String(m.host || 'unknown')),
       });
     }
   }
@@ -116,13 +134,20 @@ export function findCrossIssuerReuse(certs = []) {
  */
 export function summarizeKeyReuse(certs = []) {
   const list = Array.isArray(certs) ? certs : [];
-  const uniqueKeys = new Set(list.map((c) => normalizeSpki(c && c.spkiSha256)).filter(Boolean));
+  const uniqueKeys = new Set(list.map(c => normalizeSpki(c && c.spkiSha256)).filter(Boolean));
   const groups = groupByPublicKey(list);
-  const classifications = groups.map((g) => ({ spkiSha256: g.spkiSha256, size: g.size, ...classifyReuse(g) }));
+  const classifications = groups.map(g => ({
+    spkiSha256: g.spkiSha256,
+    size: g.size,
+    ...classifyReuse(g),
+  }));
   return {
     total: list.length,
     uniqueKeys: uniqueKeys.size,
-    reuseRatePct: list.length === 0 ? 0 : Math.round(((list.length - uniqueKeys.size) / list.length) * 10000) / 100,
+    reuseRatePct:
+      list.length === 0
+        ? 0
+        : Math.round(((list.length - uniqueKeys.size) / list.length) * 10000) / 100,
     groups,
     classifications,
   };

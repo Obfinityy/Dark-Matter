@@ -68,7 +68,9 @@ export function parseIec104Apci(buf) {
   const c1 = b[2];
   if ((c1 & 0x01) === 0) {
     return {
-      valid: true, format: 'I', apduLen,
+      valid: true,
+      format: 'I',
+      apduLen,
       sendSeq: ((b[3] << 8) | c1) >> 1,
       recvSeq: ((b[5] << 8) | b[4]) >> 1,
       asduOffset: 6,
@@ -79,8 +81,21 @@ export function parseIec104Apci(buf) {
   }
   if ((c1 & 0x03) === 0x03) {
     const uFn = c1 & 0xfc;
-    const names = { 0x04: 'TESTFR_act', 0x08: 'TESTFR_con', 0x10: 'STOPDT_act', 0x20: 'STOPDT_con', 0x40: 'STARTDT_act', 0x80: 'STARTDT_con' };
-    return { valid: true, format: 'U', apduLen, uFunction: names[uFn] || `unknown_0x${uFn.toString(16)}`, asduOffset: 6 };
+    const names = {
+      0x04: 'TESTFR_act',
+      0x08: 'TESTFR_con',
+      0x10: 'STOPDT_act',
+      0x20: 'STOPDT_con',
+      0x40: 'STARTDT_act',
+      0x80: 'STARTDT_con',
+    };
+    return {
+      valid: true,
+      format: 'U',
+      apduLen,
+      uFunction: names[uFn] || `unknown_0x${uFn.toString(16)}`,
+      asduOffset: 6,
+    };
   }
   return { valid: false, reason: 'unrecognized APCI control field' };
 }
@@ -121,7 +136,10 @@ export function parseIec104Asdu(asdu) {
 export function assessIec104Exposure(evidence = {}) {
   const findings = [];
   if (evidence.portOpen) {
-    findings.push({ level: 'high', text: 'IEC-60870-5-104 (:2404) reachable — no authentication in the base protocol; commands are accepted from any peer.' });
+    findings.push({
+      level: 'high',
+      text: 'IEC-60870-5-104 (:2404) reachable — no authentication in the base protocol; commands are accepted from any peer.',
+    });
   }
   const asdu = evidence.asdu;
   if (asdu && asdu.valid) {
@@ -130,7 +148,7 @@ export function assessIec104Exposure(evidence = {}) {
       text: `ASDU observed: ${asdu.typeName}, COT=${asdu.cotName}, common address ${asdu.commonAddress} — useful for asset inventory.`,
     });
   }
-  const score = findings.some((f) => f.level === 'high') ? 9 : findings.length ? 3 : 0;
+  const score = findings.some(f => f.level === 'high') ? 9 : findings.length ? 3 : 0;
   return {
     detected: findings.length > 0,
     score,

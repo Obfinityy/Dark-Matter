@@ -31,15 +31,49 @@
 
 /** Feature-flag SDKs and the call patterns that reference a flag key. */
 export const FLAG_SDK_PATTERNS = [
-  { sdk: 'launchdarkly', regex: /(?:ldClient|launchdarkly)[\w.$]*\.(?:variation|allFlags|variationDetail|track)\(\s*['"`]([^'"`]{1,120})['"`]/gi },
-  { sdk: 'launchdarkly-react', regex: /useFlags\(\s*\)|\basyncWithLDProvider\b|\bwithLDProvider\b/gi, keyed: false },
-  { sdk: 'unleash', regex: /(?:unleashClient|unleash)[\w.$]*\.(?:isEnabled|getVariant|toggle)\(\s*['"`]([^'"`]{1,120})['"`]/gi },
-  { sdk: 'configcat', regex: /(?:configCatClient|configcat)[\w.$]*\.(?:getValue|getValueAsync)\(\s*['"`]([^'"`]{1,120})['"`]/gi },
-  { sdk: 'split', regex: /(?:splitClient|splitio)[\w.$]*\.(?:getTreatment|getTreatments)\(\s*['"`]([^'"`]{1,120})['"`]/gi },
-  { sdk: 'statsig', regex: /(?:statsig|Statsig)[\w.$]*\.(?:checkGate|getConfig|getExperiment)\(\s*['"`]([^'"`]{1,120})['"`]/gi },
-  { sdk: 'flagsmith', regex: /(?:flagsmith)[\w.$]*\.(?:hasFeature|getValue)\(\s*['"`]([^'"`]{1,120})['"`]/gi },
-  { sdk: 'growthbook', regex: /(?:growthbook|gb)[\w.$]*\.(?:isOn|getFeatureValue|evalFeature)\(\s*['"`]([^'"`]{1,120})['"`]/gi },
-  { sdk: 'generic-flag', regex: /(?:featureFlags|feature_flags|FLAGS|flagStore)[\w.$]*\[['"`]([^'"`]{1,120})['"`]\]/gi },
+  {
+    sdk: 'launchdarkly',
+    regex:
+      /(?:ldClient|launchdarkly)[\w.$]*\.(?:variation|allFlags|variationDetail|track)\(\s*['"`]([^'"`]{1,120})['"`]/gi,
+  },
+  {
+    sdk: 'launchdarkly-react',
+    regex: /useFlags\(\s*\)|\basyncWithLDProvider\b|\bwithLDProvider\b/gi,
+    keyed: false,
+  },
+  {
+    sdk: 'unleash',
+    regex:
+      /(?:unleashClient|unleash)[\w.$]*\.(?:isEnabled|getVariant|toggle)\(\s*['"`]([^'"`]{1,120})['"`]/gi,
+  },
+  {
+    sdk: 'configcat',
+    regex:
+      /(?:configCatClient|configcat)[\w.$]*\.(?:getValue|getValueAsync)\(\s*['"`]([^'"`]{1,120})['"`]/gi,
+  },
+  {
+    sdk: 'split',
+    regex:
+      /(?:splitClient|splitio)[\w.$]*\.(?:getTreatment|getTreatments)\(\s*['"`]([^'"`]{1,120})['"`]/gi,
+  },
+  {
+    sdk: 'statsig',
+    regex:
+      /(?:statsig|Statsig)[\w.$]*\.(?:checkGate|getConfig|getExperiment)\(\s*['"`]([^'"`]{1,120})['"`]/gi,
+  },
+  {
+    sdk: 'flagsmith',
+    regex: /(?:flagsmith)[\w.$]*\.(?:hasFeature|getValue)\(\s*['"`]([^'"`]{1,120})['"`]/gi,
+  },
+  {
+    sdk: 'growthbook',
+    regex:
+      /(?:growthbook|gb)[\w.$]*\.(?:isOn|getFeatureValue|evalFeature)\(\s*['"`]([^'"`]{1,120})['"`]/gi,
+  },
+  {
+    sdk: 'generic-flag',
+    regex: /(?:featureFlags|feature_flags|FLAGS|flagStore)[\w.$]*\[['"`]([^'"`]{1,120})['"`]\]/gi,
+  },
   { sdk: 'generic-flag', regex: /isFeatureEnabled\(\s*['"`]([^'"`]{1,120})['"`]\s*\)/gi },
 ];
 
@@ -73,10 +107,22 @@ export function enumerateFlagKeys(jsText) {
 
 /** Known remote-config URL shapes, keyed by provider. */
 export const REMOTE_CONFIG_PATTERNS = [
-  { provider: 'firebase-remote-config', regex: /https?:\/\/[^\s'"`]*firebaseremoteconfig\.googleapis\.com[^\s'"`]*/gi },
-  { provider: 'firebase-remote-config', regex: /https?:\/\/[^\s'"`]*\/v1\/projects\/[^\s'"`]*\/namespaces\/[^\s'"`]*:fetch/gi },
-  { provider: 'launchdarkly-stream', regex: /https?:\/\/[^\s'"`]*(?:clientstream|events)\.launchdarkly\.com[^\s'"`]*/gi },
-  { provider: 'launchdarkly-flags', regex: /https?:\/\/[^\s'"`]*app\.launchdarkly\.com\/sdk\/flags\/[A-Za-z0-9_-]+/gi },
+  {
+    provider: 'firebase-remote-config',
+    regex: /https?:\/\/[^\s'"`]*firebaseremoteconfig\.googleapis\.com[^\s'"`]*/gi,
+  },
+  {
+    provider: 'firebase-remote-config',
+    regex: /https?:\/\/[^\s'"`]*\/v1\/projects\/[^\s'"`]*\/namespaces\/[^\s'"`]*:fetch/gi,
+  },
+  {
+    provider: 'launchdarkly-stream',
+    regex: /https?:\/\/[^\s'"`]*(?:clientstream|events)\.launchdarkly\.com[^\s'"`]*/gi,
+  },
+  {
+    provider: 'launchdarkly-flags',
+    regex: /https?:\/\/[^\s'"`]*app\.launchdarkly\.com\/sdk\/flags\/[A-Za-z0-9_-]+/gi,
+  },
   { provider: 'unleash-api', regex: /https?:\/\/[^\s'"`]*\/api\/client\/features[^\s'"`]*/gi },
   { provider: 'configcat-cdn', regex: /https?:\/\/[^\s'"`]*cdn\.configcat\.com[^\s'"`]*/gi },
   { provider: 'split-api', regex: /https?:\/\/[^\s'"`]*sdk\.split\.io[^\s'"`]*/gi },
@@ -84,7 +130,10 @@ export const REMOTE_CONFIG_PATTERNS = [
   { provider: 'statsig-config', regex: /https?:\/\/[^\s'"`]*statsigapi\.net[^\s'"`]*/gi },
   { provider: 'growthbook-cdn', regex: /https?:\/\/[^\s'"`]*cdn\.growthbook\.io[^\s'"`]*/gi },
   { provider: 'well-known-remote-config', regex: /(\/?\.well-known\/remote-config(?:\.json)?)/gi },
-  { provider: 'generic-config-json', regex: /["'`]([^\s'"`]*\/(?:remote-?config|app-?config|client-?config)(?:\.json)?)["'`]/gi },
+  {
+    provider: 'generic-config-json',
+    regex: /["'`]([^\s'"`]*\/(?:remote-?config|app-?config|client-?config)(?:\.json)?)["'`]/gi,
+  },
 ];
 
 /**
@@ -121,37 +170,40 @@ export const ERROR_MONITOR_PATTERNS = [
   {
     provider: 'sentry',
     regex: /https:\/\/[0-9a-fA-F]{16,64}@([A-Za-z0-9.-]+)\/(\d{1,10})/g,
-    parse: (m) => ({ dsn: m[0], host: m[1], projectId: m[2] }),
+    parse: m => ({ dsn: m[0], host: m[1], projectId: m[2] }),
   },
   {
     provider: 'sentry-init',
     regex: /Sentry\.init\(\s*\{[^}]*?dsn\s*:\s*["'`]([^"'`]+)["'`]/g,
-    parse: (m) => ({ dsn: m[1] }),
+    parse: m => ({ dsn: m[1] }),
   },
   {
     provider: 'bugsnag',
     regex: /Bugsnag\.start\(\s*\{[^}]*?apiKey\s*:\s*["'`]([0-9a-fA-F]{32})["'`]/g,
-    parse: (m) => ({ apiKey: m[1] }),
+    parse: m => ({ apiKey: m[1] }),
   },
   {
     provider: 'datadog-rum',
     regex: /(?:applicationId|clientToken)\s*:\s*["'`]([A-Za-z0-9_-]{20,})["'`]/g,
-    parse: (m, m2) => ({ [m.includes('applicationId') ? 'applicationId' : 'clientToken']: m2 || m[1] }),
+    parse: (m, m2) => ({
+      [m.includes('applicationId') ? 'applicationId' : 'clientToken']: m2 || m[1],
+    }),
   },
   {
     provider: 'datadog-logs',
     regex: /browserLogs?[^\n]{0,200}?clientToken\s*:\s*["'`]([A-Za-z0-9_-]{20,})["'`]/g,
-    parse: (m) => ({ clientToken: m[1] }),
+    parse: m => ({ clientToken: m[1] }),
   },
   {
     provider: 'rollbar',
-    regex: /accessToken\s*:\s*["'`]([0-9a-fA-F]{32})["'`][^}]{0,200}?environment\s*:\s*["'`]([^"'`]+)["'`]/g,
-    parse: (m) => ({ accessToken: m[1], environment: m[2] }),
+    regex:
+      /accessToken\s*:\s*["'`]([0-9a-fA-F]{32})["'`][^}]{0,200}?environment\s*:\s*["'`]([^"'`]+)["'`]/g,
+    parse: m => ({ accessToken: m[1], environment: m[2] }),
   },
   {
     provider: 'airbrake',
     regex: /projectId\s*:\s*(\d{1,10})[^}]{0,200}?projectKey\s*:\s*["'`]([0-9a-fA-F]{24,})["'`]/g,
-    parse: (m) => ({ projectId: m[1], projectKey: m[2] }),
+    parse: m => ({ projectId: m[1], projectKey: m[2] }),
   },
 ];
 
@@ -192,9 +244,18 @@ export function extractErrorMonitoringDsns(jsText) {
 
 /** Analytics/data-collection endpoint shapes. */
 export const ANALYTICS_PATTERNS = [
-  { provider: 'google-analytics-4', regex: /https?:\/\/[^\s'"`]*google-analytics\.com\/(?:g\/)?collect[^\s'"`]*/gi },
-  { provider: 'google-tag-manager', regex: /https?:\/\/[^\s'"`]*googletagmanager\.com\/gtm\.js\?id=(GTM-[A-Z0-9]+)/gi },
-  { provider: 'segment', regex: /https?:\/\/cdn\.segment\.com\/analytics\.js\/v1\/([A-Za-z0-9]+)\/analytics\.min\.js/gi },
+  {
+    provider: 'google-analytics-4',
+    regex: /https?:\/\/[^\s'"`]*google-analytics\.com\/(?:g\/)?collect[^\s'"`]*/gi,
+  },
+  {
+    provider: 'google-tag-manager',
+    regex: /https?:\/\/[^\s'"`]*googletagmanager\.com\/gtm\.js\?id=(GTM-[A-Z0-9]+)/gi,
+  },
+  {
+    provider: 'segment',
+    regex: /https?:\/\/cdn\.segment\.com\/analytics\.js\/v1\/([A-Za-z0-9]+)\/analytics\.min\.js/gi,
+  },
   { provider: 'mixpanel', regex: /https?:\/\/cdn\.(?:mxpnl|mixpanel)\.com[^\s'"`]*/gi },
   { provider: 'mixpanel', regex: /\bmixpanel\.(?:init|track|identify)\s*\(/gi },
   { provider: 'amplitude', regex: /https?:\/\/cdn\.amplitude\.com[^\s'"`]*/gi },
@@ -241,12 +302,22 @@ export function catalogAnalyticsEndpoints(jsText, htmlText = '') {
 /** Experiment/variant declaration shapes. */
 export const EXPERIMENT_PATTERNS = [
   { sdk: 'optimizely', regex: /optimizely\.activate\(\s*["'`]([^"'`]{1,120})["'`]/gi },
-  { sdk: 'optimizely', regex: /createInstance\(\s*\{[^}]{0,400}?experimentId\s*:\s*["'`]([^"'`]{1,120})["'`]/gi },
+  {
+    sdk: 'optimizely',
+    regex: /createInstance\(\s*\{[^}]{0,400}?experimentId\s*:\s*["'`]([^"'`]{1,120})["'`]/gi,
+  },
   { sdk: 'vwo', regex: /_vwo_code[^\n]{0,120}?account_id\s*:\s*["'`](\d+)["'`]/gi, variant: false },
   { sdk: 'vwo', regex: /VWO\.(?:push|track)\(\s*\[["'`]track\.([^"'`\]]{1,120})["'`]/gi },
   { sdk: 'google-optimize', regex: /optimize\.get\(\s*["'`]([^"'`]{1,60})["'`]\s*\)/gi },
-  { sdk: 'growthbook-experiment', regex: /useExperiment\(\s*\{\s*key\s*:\s*["'`]([^"'`]{1,120})["'`]/gi },
-  { sdk: 'growthbook-experiment', regex: /run\(\s*\{\s*key\s*:\s*["'`]([^"'`]{1,120})["'`]\s*,?\s*variations\s*:\s*(\[[^\]]{1,400}\])/gi },
+  {
+    sdk: 'growthbook-experiment',
+    regex: /useExperiment\(\s*\{\s*key\s*:\s*["'`]([^"'`]{1,120})["'`]/gi,
+  },
+  {
+    sdk: 'growthbook-experiment',
+    regex:
+      /run\(\s*\{\s*key\s*:\s*["'`]([^"'`]{1,120})["'`]\s*,?\s*variations\s*:\s*(\[[^\]]{1,400}\])/gi,
+  },
   { sdk: 'split-treatment', regex: /getTreatment(?:sWithConfig)?\(\s*["'`]([^"'`]{1,120})["'`]/gi },
   { sdk: 'ab-tasty', regex: /ABTastyClickTracking\(\s*["'`]([^"'`]{1,120})["'`]/gi },
   { sdk: 'custom-experiment', regex: /experiments?\s*:\s*\{([^}]{1,800})\}/gi },

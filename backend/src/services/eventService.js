@@ -1,5 +1,12 @@
+/**
+ * eventService — event service.
+ * Encapsulates event business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (business-logic services).
+ */
+
 import { id, now } from '../core/utils.js';
 
+/** Business-logic service for event. */
 export class EventService {
   constructor(database) {
     this.collection = database.collection('events');
@@ -18,7 +25,7 @@ export class EventService {
       level: input.level || 'INFO',
       message: String(input.message || ''),
       data: input.data || null,
-      timestamp: now()
+      timestamp: now(),
     };
     await this.collection.insertOne(event);
     for (const listener of this.listeners.get(scanId) || []) listener(event);

@@ -9,9 +9,7 @@
  */
 
 function earliestSctTime(cert) {
-  const times = (cert.scts || [])
-    .map((s) => new Date(s.timestamp).getTime())
-    .filter(Number.isFinite);
+  const times = (cert.scts || []).map(s => new Date(s.timestamp).getTime()).filter(Number.isFinite);
   return times.length ? Math.min(...times) : null;
 }
 
@@ -22,7 +20,7 @@ function earliestSctTime(cert) {
  */
 export function orderBySctTimestamp(certs = []) {
   return certs
-    .map((c) => {
+    .map(c => {
       const t = earliestSctTime(c);
       return {
         serial: c.serial || null,
@@ -32,7 +30,7 @@ export function orderBySctTimestamp(certs = []) {
         sctCount: (c.scts || []).length,
       };
     })
-    .filter((c) => c.sctTime !== null)
+    .filter(c => c.sctTime !== null)
     .sort((a, b) => a.sctTime - b.sctTime);
 }
 
@@ -81,7 +79,11 @@ export function firstSeenHostnames(certs = []) {
   for (const cert of ordered) {
     for (const h of cert.hostnames) {
       if (!firstSeen.has(h)) {
-        firstSeen.set(h, { hostname: h, sctTimeIso: cert.sctTimeIso, rolloutRank: firstSeen.size + 1 });
+        firstSeen.set(h, {
+          hostname: h,
+          sctTimeIso: cert.sctTimeIso,
+          rolloutRank: firstSeen.size + 1,
+        });
       }
     }
   }

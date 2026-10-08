@@ -135,7 +135,7 @@ export function harvestNsec3Salts(zoneParams, opts = {}) {
   const summary = { high: 0, medium: 0, low: 0 };
   for (const z of zones) summary[z.estimate.feasibility] += 1;
   const ranked = [...zones].sort(
-    (a, b) => a.estimate.timePerMillionGuessesSec - b.estimate.timePerMillionGuessesSec,
+    (a, b) => a.estimate.timePerMillionGuessesSec - b.estimate.timePerMillionGuessesSec
   );
   return { zones, summary, mostAttractive: ranked.length ? ranked[0].zone : null };
 }
@@ -248,7 +248,7 @@ function readFramedMessage(socket, timeoutMs) {
       socket.removeListener('data', onData);
       socket.removeListener('error', onError);
     };
-    const onData = (chunk) => {
+    const onData = chunk => {
       buffer = Buffer.concat([buffer, chunk]);
       if (buffer.length >= 2) {
         const length = buffer.readUInt16BE(0);
@@ -258,7 +258,7 @@ function readFramedMessage(socket, timeoutMs) {
         }
       }
     };
-    const onError = (err) => {
+    const onError = err => {
       cleanup();
       reject(err);
     };
@@ -384,11 +384,11 @@ export async function probeAxfrTcpAll(zone, nsHosts, opts = {}) {
   const results = [];
   for (let i = 0; i < targets.length; i += concurrency) {
     const batch = await Promise.all(
-      targets.slice(i, i + concurrency).map((t) => attemptAxfrTcp(zone, t, { timeoutMs })),
+      targets.slice(i, i + concurrency).map(t => attemptAxfrTcp(zone, t, { timeoutMs }))
     );
     results.push(...batch);
   }
-  return { zone, results, accepted: results.filter((r) => r.accepted) };
+  return { zone, results, accepted: results.filter(r => r.accepted) };
 }
 
 // ---------------------------------------------------------------------------
@@ -463,13 +463,19 @@ export async function probeAxfrDotAll(zone, nsHosts, opts = {}) {
   const hosts = nsHosts || [];
   for (let i = 0; i < hosts.length; i += concurrency) {
     const batch = await Promise.all(
-      hosts.slice(i, i + concurrency).map((host) =>
-        attemptAxfrDot(zone, { host, port }, { timeoutMs, rejectUnauthorized: opts.rejectUnauthorized }),
-      ),
+      hosts
+        .slice(i, i + concurrency)
+        .map(host =>
+          attemptAxfrDot(
+            zone,
+            { host, port },
+            { timeoutMs, rejectUnauthorized: opts.rejectUnauthorized }
+          )
+        )
     );
     results.push(...batch);
   }
-  return { zone, results, accepted: results.filter((r) => r.accepted) };
+  return { zone, results, accepted: results.filter(r => r.accepted) };
 }
 
 // ---------------------------------------------------------------------------
@@ -482,7 +488,11 @@ export async function probeAxfrDotAll(zone, nsHosts, opts = {}) {
  * @returns {string} base64url
  */
 export function encodeDohParam(msg) {
-  return Buffer.from(msg).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return Buffer.from(msg)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 /**
@@ -534,13 +544,19 @@ export async function probeDohZoneDump(zone, endpoints, opts = {}) {
     const soaQuery = buildDnsQuery(zone, TYPE_SOA);
     const axfr = await queryDohEndpoint(endpoint, axfrQuery, { timeoutMs });
     const soa = await queryDohEndpoint(endpoint, soaQuery, { timeoutMs });
-    const axfrAccepted = !!(axfr.ok && axfr.header && axfr.header.rcode === 0 && axfr.header.ancount > 0);
+    const axfrAccepted = !!(
+      axfr.ok &&
+      axfr.header &&
+      axfr.header.rcode === 0 &&
+      axfr.header.ancount > 0
+    );
     // Heuristic: a sane gateway returns a handful of records; hundreds of
     // answers to a single query suggests zone-dump behavior.
     const bulkDump = !!(soa.ok && soa.header && soa.header.ancount > 50);
     const notes = [];
     if (axfrAccepted) notes.push('endpoint answered an AXFR query with records');
-    if (bulkDump) notes.push(`SOA query returned ${soa.header.ancount} answers — possible zone-dump behavior`);
+    if (bulkDump)
+      notes.push(`SOA query returned ${soa.header.ancount} answers — possible zone-dump behavior`);
     if (axfr.ok && axfr.header && axfr.header.rcode !== 0) {
       notes.push(`AXFR refused as expected (${axfr.header.rcodeName})`);
     }
@@ -557,7 +573,7 @@ export async function probeDohZoneDump(zone, endpoints, opts = {}) {
       notes,
     });
   }
-  return { zone, results, suspicious: results.filter((r) => r.suspicious) };
+  return { zone, results, suspicious: results.filter(r => r.suspicious) };
 }
 
 // ---------------------------------------------------------------------------
@@ -599,7 +615,7 @@ export function mineAnyResponse(records) {
     }
     // TXT: often contains hostnames, SPF includes, internal references.
     if (type === 'TXT') {
-      const names = [...new Set((rdata.match(HOSTNAME_RE) || []).map((h) => h.toLowerCase()))];
+      const names = [...new Set((rdata.match(HOSTNAME_RE) || []).map(h => h.toLowerCase()))];
       for (const n of names) hostnameSet.add(n);
       if (names.length > 0 || /internal|intranet|corp|staging|dev|test/i.test(rdata)) {
         txtFindings.push({ name: rec.name, rdata, hostnames: names });
@@ -607,13 +623,13 @@ export function mineAnyResponse(records) {
     }
     // MX / SRV / NS / CNAME / PTR targets are hostnames by definition.
     if (['MX', 'SRV', 'NS', 'CNAME', 'PTR', 'DNAME'].includes(type)) {
-      const names = (rdata.match(HOSTNAME_RE) || []).map((h) => h.toLowerCase());
+      const names = (rdata.match(HOSTNAME_RE) || []).map(h => h.toLowerCase());
       for (const n of names) hostnameSet.add(n);
     }
     // Legacy types frequently leak internal structure.
     if (LEGACY_REVEALING_TYPES.has(type)) {
       legacyRecords.push({ name: rec.name, type, rdata });
-      const names = (rdata.match(HOSTNAME_RE) || []).map((h) => h.toLowerCase());
+      const names = (rdata.match(HOSTNAME_RE) || []).map(h => h.toLowerCase());
       for (const n of names) hostnameSet.add(n);
     }
   }
@@ -667,7 +683,7 @@ export function analyzeNotifyPattern(samples, opts = {}) {
     }
     if (lastSerial === null || s.serial > lastSerial) lastSerial = s.serial;
   }
-  const intervals = increments.map((i) => i.intervalSinceLastMs).filter((v) => v !== null);
+  const intervals = increments.map(i => i.intervalSinceLastMs).filter(v => v !== null);
   const avgIntervalMs = intervals.length
     ? Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length)
     : null;
@@ -700,7 +716,7 @@ export function analyzeNotifyPattern(samples, opts = {}) {
     increments.length === 0
       ? 'No serial increments observed — the zone looks static; schedule a single full enumeration.'
       : `Zone updated ${increments.length} time(s). Re-run enumeration within ~${Math.round(
-          suggestedWindowMs / 1000,
+          suggestedWindowMs / 1000
         )}s after the next serial increment to catch newly added hosts early.`;
   return {
     increments: increments.length,

@@ -71,10 +71,10 @@ export function createProgressToast(title, total, opts = {}) {
     title,
     total: Math.max(1, total | 0),
     done: 0,
-    progress: 0,            // 0..1
-    status: 'running',      // running | complete | failed
+    progress: 0, // 0..1
+    status: 'running', // running | complete | failed
     body: opts.body || '',
-    persistent: true,       // never auto-dismiss while running
+    persistent: true, // never auto-dismiss while running
     dismissOnComplete: opts.dismissOnComplete !== false,
     completeDelayMs: opts.completeDelayMs ?? 2500,
   };
@@ -116,7 +116,9 @@ export function undoToastPayload(title, body, onUndo) {
     title,
     body,
     actions: ['undo', 'dismiss'],
-    onAction: (action) => { if (action === 'undo' && typeof onUndo === 'function') onUndo(); },
+    onAction: action => {
+      if (action === 'undo' && typeof onUndo === 'function') onUndo();
+    },
     undoDeadline: Date.now() + UNDO_WINDOW_MS,
   };
 }
@@ -128,11 +130,16 @@ export function undoToastPayload(title, body, onUndo) {
 /** WebAudio tone spec per severity. Real audio, gated behind a setting. */
 export function toneSpecForSeverity(severity) {
   switch (severity) {
-    case 'critical': return { freq: 880, duration: 0.35, type: 'sawtooth', gain: 0.12 };
-    case 'high':     return { freq: 660, duration: 0.25, type: 'square',   gain: 0.08 };
-    case 'medium':   return { freq: 520, duration: 0.20, type: 'sine',     gain: 0.10 };
-    case 'low':      return { freq: 440, duration: 0.15, type: 'sine',     gain: 0.08 };
-    default:         return { freq: 500, duration: 0.15, type: 'sine',     gain: 0.07 };
+    case 'critical':
+      return { freq: 880, duration: 0.35, type: 'sawtooth', gain: 0.12 };
+    case 'high':
+      return { freq: 660, duration: 0.25, type: 'square', gain: 0.08 };
+    case 'medium':
+      return { freq: 520, duration: 0.2, type: 'sine', gain: 0.1 };
+    case 'low':
+      return { freq: 440, duration: 0.15, type: 'sine', gain: 0.08 };
+    default:
+      return { freq: 500, duration: 0.15, type: 'sine', gain: 0.07 };
   }
 }
 
@@ -141,10 +148,13 @@ export function toneSpecForSeverity(severity) {
  * pass a fake in tests. Returns false when audio is unavailable.
  */
 export function playToastTone(severity, ctxFactory) {
-  const make = ctxFactory || (() => {
-    const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
-    return AC ? new AC() : null;
-  });
+  const make =
+    ctxFactory ||
+    (() => {
+      const AC =
+        typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+      return AC ? new AC() : null;
+    });
   const ctx = make();
   if (!ctx || !ctx.createOscillator) return false;
   const spec = toneSpecForSeverity(severity);
@@ -155,8 +165,10 @@ export function playToastTone(severity, ctxFactory) {
     osc.frequency.value = spec.freq;
     gain.gain.setValueAtTime(spec.gain, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + spec.duration);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(); osc.stop(ctx.currentTime + spec.duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + spec.duration);
     return true;
   } catch {
     return false;
@@ -171,7 +183,8 @@ export function playToastTone(severity, ctxFactory) {
 export function hhmmToMinutes(hhmm) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ''));
   if (!m) return null;
-  const h = +m[1]; const min = +m[2];
+  const h = +m[1];
+  const min = +m[2];
   if (h > 23 || min > 59) return null;
   return h * 60 + min;
 }
@@ -239,11 +252,16 @@ export function idleToastState(elapsedMs, timeoutMs, now = Date.now()) {
 export function toastAutoDismissMs(toast) {
   if (toast.persistent || toast.requiresAck) return Infinity;
   switch (toast.priority || toast.severity) {
-    case 'critical': return Infinity;
-    case 'error':    return Infinity;   // ack-required per wave 19's errorToast
-    case 'warning':  return 8000;
-    case 'micro':    return 1500;        // 50775 copy micro-toast
-    default:         return 5000;
+    case 'critical':
+      return Infinity;
+    case 'error':
+      return Infinity; // ack-required per wave 19's errorToast
+    case 'warning':
+      return 8000;
+    case 'micro':
+      return 1500; // 50775 copy micro-toast
+    default:
+      return 5000;
   }
 }
 
@@ -259,10 +277,10 @@ export const DUP_WINDOW_MS = 60000;
  * Returns { suppress: boolean, mergeInto: id|null }.
  */
 export function shouldSuppressToast(newToast, recent, windowMs = DUP_WINDOW_MS, now = Date.now()) {
-  const key = (t) => `${t.severity || 'info'}|${t.title || ''}|${t.body || ''}`;
+  const key = t => `${t.severity || 'info'}|${t.title || ''}|${t.body || ''}`;
   const want = key(newToast);
   for (const t of recent || []) {
-    if (key(t) === want && (now - (t.createdAt || 0)) < windowMs) {
+    if (key(t) === want && now - (t.createdAt || 0) < windowMs) {
       return { suppress: true, mergeInto: t.id || null };
     }
   }
@@ -275,12 +293,12 @@ export function shouldSuppressToast(newToast, recent, windowMs = DUP_WINDOW_MS, 
 
 /** Unread badge count = history entries not yet marked read. */
 export function unreadBadgeCount(history) {
-  return (history || []).filter((t) => !t.readAt).length;
+  return (history || []).filter(t => !t.readAt).length;
 }
 
 /** Mark every history entry read. Returns a new array. */
 export function markAllRead(history, now = Date.now()) {
-  return (history || []).map((t) => ({ ...t, readAt: t.readAt || now }));
+  return (history || []).map(t => ({ ...t, readAt: t.readAt || now }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -326,14 +344,18 @@ export function quotaLevel(usedFraction) {
 export function quotaToastPayload(level, planLabel = 'your plan') {
   if (level === 'warn100') {
     return {
-      kind: 'quota', severity: 'critical', priority: 'critical',
+      kind: 'quota',
+      severity: 'critical',
+      priority: 'critical',
       title: 'Quota exhausted',
       body: `You've used 100% of ${planLabel}. Hunts will pause until you upgrade or the quota resets.`,
       actions: ['upgrade', 'dismiss'],
     };
   }
   return {
-    kind: 'quota', severity: 'warning', priority: 'warning',
+    kind: 'quota',
+    severity: 'warning',
+    priority: 'warning',
     title: '80% of quota used',
     body: `You've used 80% of ${planLabel}. Consider upgrading for uninterrupted hunting.`,
     actions: ['upgrade', 'dismiss'],
@@ -346,18 +368,21 @@ export function quotaToastPayload(level, planLabel = 'your plan') {
 
 export function huntCompleteToast(huntName, findingCount) {
   return {
-    kind: 'hunt-complete', severity: 'info',
+    kind: 'hunt-complete',
+    severity: 'info',
     title: `Hunt complete: ${huntName}`,
-    body: findingCount === 0
-      ? 'No confirmed findings this run.'
-      : `${findingCount} confirmed finding${findingCount === 1 ? '' : 's'}.`,
+    body:
+      findingCount === 0
+        ? 'No confirmed findings this run.'
+        : `${findingCount} confirmed finding${findingCount === 1 ? '' : 's'}.`,
     actions: ['view-report', 'start-next', 'dismiss'],
   };
 }
 
 export function mentionToast(author, commentPreview, commentId) {
   return {
-    kind: 'mention', severity: 'info',
+    kind: 'mention',
+    severity: 'info',
     title: `${author} mentioned you`,
     body: commentPreview,
     commentId,
@@ -367,17 +392,21 @@ export function mentionToast(author, commentPreview, commentId) {
 
 export function updateAvailableToast(version, reload) {
   return {
-    kind: 'update', severity: 'info',
+    kind: 'update',
+    severity: 'info',
     title: `Update available (${version})`,
     body: 'A new frontend version is ready. Reload to apply it.',
     actions: ['reload', 'dismiss'],
-    onAction: (a) => { if (a === 'reload' && typeof reload === 'function') reload(); },
+    onAction: a => {
+      if (a === 'reload' && typeof reload === 'function') reload();
+    },
   };
 }
 
 export function scheduledHuntToast(huntName, target) {
   return {
-    kind: 'scheduled', severity: 'info',
+    kind: 'scheduled',
+    severity: 'info',
     title: `Scheduled run started: ${huntName}`,
     body: `Scanning ${target}.`,
     actions: ['view', 'dismiss'],
@@ -386,7 +415,8 @@ export function scheduledHuntToast(huntName, target) {
 
 export function permissionChangeToast(huntName, newRole) {
   return {
-    kind: 'permission', severity: 'info',
+    kind: 'permission',
+    severity: 'info',
     title: 'Access updated',
     body: `You now have ${newRole} access to ${huntName}.`,
     actions: ['view', 'dismiss'],
@@ -395,7 +425,8 @@ export function permissionChangeToast(huntName, newRole) {
 
 export function learningEventToast(ruleSummary) {
   return {
-    kind: 'learning', severity: 'info',
+    kind: 'learning',
+    severity: 'info',
     title: 'Agent learned something',
     body: ruleSummary,
     actions: ['view', 'dismiss'],
@@ -404,11 +435,14 @@ export function learningEventToast(ruleSummary) {
 
 export function exportReadyToast(exportName, download) {
   return {
-    kind: 'export-ready', severity: 'info',
+    kind: 'export-ready',
+    severity: 'info',
     title: 'Export ready',
     body: exportName,
     actions: ['download', 'dismiss'],
-    onAction: (a) => { if (a === 'download' && typeof download === 'function') download(); },
+    onAction: a => {
+      if (a === 'download' && typeof download === 'function') download();
+    },
   };
 }
 
@@ -417,20 +451,36 @@ export function exportReadyToast(exportName, download) {
 /* ------------------------------------------------------------------ */
 
 export const FIRST_RUN_STEPS = [
-  { id: 'paste-target', label: 'Paste a target URL', hint: 'Drop any website into the hunt input.' },
-  { id: 'run-hunt', label: 'Run your first hunt', hint: 'Start the autonomous agent on that target.' },
-  { id: 'review-finding', label: 'Review a finding', hint: 'Open any finding card and read the evidence.' },
-  { id: 'export-report', label: 'Export the report', hint: 'Download the PDF or Markdown bounty report.' },
+  {
+    id: 'paste-target',
+    label: 'Paste a target URL',
+    hint: 'Drop any website into the hunt input.',
+  },
+  {
+    id: 'run-hunt',
+    label: 'Run your first hunt',
+    hint: 'Start the autonomous agent on that target.',
+  },
+  {
+    id: 'review-finding',
+    label: 'Review a finding',
+    hint: 'Open any finding card and read the evidence.',
+  },
+  {
+    id: 'export-report',
+    label: 'Export the report',
+    hint: 'Download the PDF or Markdown bounty report.',
+  },
 ];
 
 /** Checklist state from a completed-step id set. */
 export function checklistState(completedIds) {
-  const done = FIRST_RUN_STEPS.filter((s) => (completedIds || []).includes(s.id));
+  const done = FIRST_RUN_STEPS.filter(s => (completedIds || []).includes(s.id));
   return {
     done: done.length,
     total: FIRST_RUN_STEPS.length,
     allDone: done.length === FIRST_RUN_STEPS.length,
-    nextStep: FIRST_RUN_STEPS.find((s) => !(completedIds || []).includes(s.id)) || null,
+    nextStep: FIRST_RUN_STEPS.find(s => !(completedIds || []).includes(s.id)) || null,
     celebrate: done.length === FIRST_RUN_STEPS.length,
   };
 }
@@ -498,10 +548,26 @@ export function auditToastContrast(themeId, contrast) {
   for (const sev of sevs) {
     const fg = toastColors[sev];
     // Severity dot/swatch on the toast surface…
-    results.push({ themeId, severity: sev, role: 'dot', fg, bg, ratio: contrast(fg, bg), pass: contrast(fg, bg) >= 3 });
+    results.push({
+      themeId,
+      severity: sev,
+      role: 'dot',
+      fg,
+      bg,
+      ratio: contrast(fg, bg),
+      pass: contrast(fg, bg) >= 3,
+    });
     // …and primary text on the toast surface (must read at 4.5:1).
     if (sev === sevs[0]) {
-      results.push({ themeId, severity: 'text', role: 'text', fg: text, bg, ratio: contrast(text, bg), pass: contrast(text, bg) >= 4.5 });
+      results.push({
+        themeId,
+        severity: 'text',
+        role: 'text',
+        fg: text,
+        bg,
+        ratio: contrast(text, bg),
+        pass: contrast(text, bg) >= 4.5,
+      });
     }
   }
   return results;
@@ -513,7 +579,9 @@ export function auditToastContrast(themeId, contrast) {
 
 export function copyMicroToastPayload(label = 'Copied') {
   return {
-    kind: 'micro', severity: 'info', priority: 'micro',
+    kind: 'micro',
+    severity: 'info',
+    priority: 'micro',
     title: label,
     body: '',
     actions: [],

@@ -14,25 +14,31 @@ import * as M from './mobileCore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const NEW_FILES = [
-  'voiceRound2Core.js', 'mobileCore.js',
-  'VoiceRound2.jsx', 'MobileSuite.jsx',
-  'Wave49.css', 'wave49.test.js',
+  'voiceRound2Core.js',
+  'mobileCore.js',
+  'VoiceRound2.jsx',
+  'MobileSuite.jsx',
+  'Wave49.css',
+  'wave49.test.js',
 ];
 
 describe('voiceRound2Core registry', () => {
   test('lists all 30 voice ideas 51921–51950, zero skips', () => {
     assert.equal(V.WAVE49_VOICE2_IDEAS.length, 30);
-    const ids = V.WAVE49_VOICE2_IDEAS.map((i) => i.id);
+    const ids = V.WAVE49_VOICE2_IDEAS.map(i => i.id);
     for (let id = 51921; id <= 51950; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 30, 'no duplicate ids');
-    assert.ok(V.WAVE49_VOICE2_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      V.WAVE49_VOICE2_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
 describe('mobileCore registry', () => {
   test('lists all 10 mobile ideas 51951–51960, zero skips', () => {
     assert.equal(M.WAVE49_MOBILE_IDEAS.length, 10);
-    const ids = M.WAVE49_MOBILE_IDEAS.map((i) => i.id);
+    const ids = M.WAVE49_MOBILE_IDEAS.map(i => i.id);
     for (let id = 51951; id <= 51960; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 10, 'no duplicate ids');
   });
@@ -48,7 +54,12 @@ describe('voiceRound2Core spot checks', () => {
     assert.equal(benign.allowed, true);
   });
   test('51922 audit trail appends an entry and grows the log', () => {
-    const { entry, log } = V.appendVoiceAuditEntry([], 'pause hunt', { name: 'owner', enrolled: true }, 'paused');
+    const { entry, log } = V.appendVoiceAuditEntry(
+      [],
+      'pause hunt',
+      { name: 'owner', enrolled: true },
+      'paused'
+    );
     assert.equal(log.length, 1);
     assert.equal(entry.type, 'voice-command');
     assert.ok(entry.ts);
@@ -102,7 +113,10 @@ describe('voiceRound2Core spot checks', () => {
     assert.equal(h.valid, true);
   });
   test('51945 log Q&A answers a failure question from logs', () => {
-    const a = V.answerLogQuestion([{ message: 'Error: probe 7 timed out' }], 'why did that test fail?');
+    const a = V.answerLogQuestion(
+      [{ message: 'Error: probe 7 timed out' }],
+      'why did that test fail?'
+    );
     assert.ok(a.answer.includes('probe 7'), `got: ${a.answer}`);
   });
   test('51949 sandbox never touches the real hunt', () => {
@@ -130,9 +144,15 @@ describe('mobileCore spot checks', () => {
     assert.equal(s.total, 3);
   });
   test('51953 push alert respects severity threshold and quiet hours', () => {
-    const send = M.evaluatePushAlert({ severity: 'critical', title: 'X' }, { minSeverity: 'medium' });
+    const send = M.evaluatePushAlert(
+      { severity: 'critical', title: 'X' },
+      { minSeverity: 'medium' }
+    );
     assert.equal(send.send, true);
-    const quiet = M.evaluatePushAlert({ severity: 'critical', title: 'X' }, { minSeverity: 'medium', quietHours: true });
+    const quiet = M.evaluatePushAlert(
+      { severity: 'critical', title: 'X' },
+      { minSeverity: 'medium', quietHours: true }
+    );
     assert.equal(quiet.send, false);
     const low = M.evaluatePushAlert({ severity: 'low', title: 'X' }, { minSeverity: 'high' });
     assert.equal(low.send, false);
@@ -140,7 +160,10 @@ describe('mobileCore spot checks', () => {
   test('51954 approval card has approve/deny/defer actions', () => {
     const card = M.buildApprovalCard({ id: 'r1', title: 'T' });
     assert.equal(card.actions.length, 3);
-    assert.deepEqual(card.actions.map((a) => a.value), ['approve', 'deny', 'defer']);
+    assert.deepEqual(
+      card.actions.map(a => a.value),
+      ['approve', 'deny', 'defer']
+    );
   });
   test('51955 pause button is thumb-friendly and toggles', () => {
     const b = M.describePauseButton('running');
@@ -175,7 +198,7 @@ describe('mobileCore spot checks', () => {
 describe('no-debris audit', () => {
   test('none of the 5 product files contain TODO/FIXME/mock/demo placeholder text', () => {
     const pattern = /\b(todo|fixme|xxx|hack|mock|lorem|demo)\b/i;
-    for (const f of NEW_FILES.filter((x) => x !== 'wave49.test.js')) {
+    for (const f of NEW_FILES.filter(x => x !== 'wave49.test.js')) {
       const content = readFileSync(join(HERE, f), 'utf8');
       const hit = content.match(pattern);
       assert.ok(!hit, `${f} contains debris marker: "${hit && hit[0]}"`);
@@ -190,11 +213,11 @@ describe('no-debris audit', () => {
   test('Wave49.css uses only scoped prefixes .vr2-* and .ms49-*', () => {
     const css = readFileSync(join(HERE, 'Wave49.css'), 'utf8');
     const classSelectors = css.match(/^\.[a-zA-Z][a-zA-Z0-9_-]*/gm) || [];
-    const rogue = classSelectors.filter((c) => !c.startsWith('.vr2-') && !c.startsWith('.ms49-'));
+    const rogue = classSelectors.filter(c => !c.startsWith('.vr2-') && !c.startsWith('.ms49-'));
     assert.deepEqual(rogue, [], `unscoped selectors: ${rogue.join(', ')}`);
   });
   test('Infinity AI branding only — no other worker name in product files', () => {
-    const productFiles = NEW_FILES.filter((f) => f !== 'wave49.test.js');
+    const productFiles = NEW_FILES.filter(f => f !== 'wave49.test.js');
     for (const f of productFiles) {
       const content = readFileSync(join(HERE, f), 'utf8');
       assert.ok(!/\b[mM]use\b/.test(content), `${f} mentions the forbidden worker name`);

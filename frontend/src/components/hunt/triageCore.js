@@ -45,7 +45,14 @@ export const WAVE51_TRIAGE_IDEAS = [
 ];
 
 // 52005 — Keyboard-driven triage queue: single-key navigation and decisions.
-const KEY_ACTIONS = { j: 'next', k: 'prev', a: 'accept', d: 'dismiss', e: 'escalate', r: 'mark-read' };
+const KEY_ACTIONS = {
+  j: 'next',
+  k: 'prev',
+  a: 'accept',
+  d: 'dismiss',
+  e: 'escalate',
+  r: 'mark-read',
+};
 export function applyKeyAction(state, key) {
   const s = state || {};
   const items = Array.isArray(s.items) ? s.items : [];
@@ -58,7 +65,8 @@ export function applyKeyAction(state, key) {
   else if (action === 'prev') index = Math.max(index - 1, 0);
   let nextItems = items;
   if (action === 'accept' || action === 'dismiss' || action === 'escalate') {
-    const decision = action === 'accept' ? 'accepted' : action === 'dismiss' ? 'dismissed' : 'escalated';
+    const decision =
+      action === 'accept' ? 'accepted' : action === 'dismiss' ? 'dismissed' : 'escalated';
     nextItems = items.map((f, i) => (i === index ? { ...f, triage: decision } : f));
   } else if (action === 'mark-read') {
     nextItems = items.map((f, i) => (i === index ? { ...f, read: true } : f));
@@ -77,7 +85,7 @@ export function blendedTriageScore(finding) {
 }
 export function rankInbox(findings) {
   return (Array.isArray(findings) ? findings : [])
-    .map((f) => ({ ...f, triageScore: blendedTriageScore(f) }))
+    .map(f => ({ ...f, triageScore: blendedTriageScore(f) }))
     .sort((a, b) => b.triageScore - a.triageScore);
 }
 
@@ -97,7 +105,7 @@ export function buildReadingCard(finding) {
 }
 export function expandCard(card, stage) {
   const c = card || {};
-  const target = CARD_STAGES.includes(stage) ? stage : (c.stage || 'collapsed');
+  const target = CARD_STAGES.includes(stage) ? stage : c.stage || 'collapsed';
   return { ...c, stage: target };
 }
 
@@ -133,7 +141,7 @@ export function buildEvidencePreview(finding) {
   const payloads = Array.isArray(f.payloads) ? f.payloads : [];
   return {
     findingId: f.id || null,
-    http: http.slice(0, 3).map((x) => ({
+    http: http.slice(0, 3).map(x => ({
       request: String((x && x.request) || ''),
       response: String((x && x.response) || '').slice(0, 500),
     })),
@@ -145,7 +153,27 @@ export function buildEvidencePreview(finding) {
 }
 
 // 52011 — AI-generated finding TL;DR: extractive two-sentence summary.
-const TLDR_STOPWORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'is', 'it', 'this', 'that', 'with', 'for', 'as', 'at', 'by', 'from']);
+const TLDR_STOPWORDS = new Set([
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'of',
+  'to',
+  'in',
+  'on',
+  'is',
+  'it',
+  'this',
+  'that',
+  'with',
+  'for',
+  'as',
+  'at',
+  'by',
+  'from',
+]);
 function tldrWordFreq(sentences) {
   const freq = {};
   for (const s of sentences) {
@@ -158,14 +186,28 @@ function tldrWordFreq(sentences) {
 export function buildExtractiveTldr(finding) {
   const f = finding || {};
   const text = String(f.description || f.summary || f.title || '');
-  const sentences = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter((s) => s.length > 8);
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 8);
   if (sentences.length === 0) {
-    return { findingId: f.id || null, tldr: String(f.title || 'No description available.'), sentences: 0 };
+    return {
+      findingId: f.id || null,
+      tldr: String(f.title || 'No description available.'),
+      sentences: 0,
+    };
   }
   const freq = tldrWordFreq(sentences);
-  const keywords = new Set(Object.entries(freq).filter(([, n]) => n >= 2).map(([w]) => w));
-  const scoreOf = (s) => {
-    const words = s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w && !TLDR_STOPWORDS.has(w));
+  const keywords = new Set(
+    Object.entries(freq)
+      .filter(([, n]) => n >= 2)
+      .map(([w]) => w)
+  );
+  const scoreOf = s => {
+    const words = s
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(w => w && !TLDR_STOPWORDS.has(w));
     let score = words.length * 0.01;
     for (const w of words) if (keywords.has(w)) score += 1;
     return score;
@@ -175,7 +217,11 @@ export function buildExtractiveTldr(finding) {
     .sort((a, b) => b.score - a.score || a.i - b.i)
     .slice(0, 2)
     .sort((a, b) => a.i - b.i);
-  return { findingId: f.id || null, tldr: ranked.map((r) => r.s).join(' '), sentences: ranked.length };
+  return {
+    findingId: f.id || null,
+    tldr: ranked.map(r => r.s).join(' '),
+    sentences: ranked.length,
+  };
 }
 
 // 52012 — Read/unread tracking per finding with a persistent progress label.
@@ -197,38 +243,45 @@ export function markRead(readIds, findingId, total) {
 export function saveFilter(filters, name, criteria) {
   const list = Array.isArray(filters) ? filters.slice() : [];
   const entry = { name: String(name || 'untitled'), criteria: criteria || {} };
-  const idx = list.findIndex((f) => f.name === entry.name);
+  const idx = list.findIndex(f => f.name === entry.name);
   if (idx >= 0) list[idx] = entry;
   else list.push(entry);
   return list;
 }
 export function applySavedFilter(findings, filter) {
   const c = (filter && filter.criteria) || {};
-  return (Array.isArray(findings) ? findings : []).filter((f) => {
+  return (Array.isArray(findings) ? findings : []).filter(f => {
     if (!f) return false;
-    if (c.severity && String(f.severity || '').toLowerCase() !== String(c.severity).toLowerCase()) return false;
+    if (c.severity && String(f.severity || '').toLowerCase() !== String(c.severity).toLowerCase())
+      return false;
     if (c.authRequired != null && Boolean(f.authRequired) !== Boolean(c.authRequired)) return false;
     if (c.asset && String(f.asset || '') !== String(c.asset)) return false;
-    if (c.minConfidence != null && Number(f.confidence || 0) < Number(c.minConfidence)) return false;
+    if (c.minConfidence != null && Number(f.confidence || 0) < Number(c.minConfidence))
+      return false;
     if (c.vulnClass && String(f.vulnClass || '') !== String(c.vulnClass)) return false;
     return true;
   });
 }
 
 // 52014 — Triage checklist per finding: must be complete before marking reviewed.
-const DEFAULT_CHECKLIST = ['reproduced', 'in-scope', 'impact-confirmed', 'false-positive-ruled-out'];
+const DEFAULT_CHECKLIST = [
+  'reproduced',
+  'in-scope',
+  'impact-confirmed',
+  'false-positive-ruled-out',
+];
 export function buildChecklist(config) {
   const items = Array.isArray(config) && config.length ? config : DEFAULT_CHECKLIST;
-  return items.map((label) => ({ label: String(label), checked: false }));
+  return items.map(label => ({ label: String(label), checked: false }));
 }
 export function toggleChecklistItem(checklist, label) {
-  return (Array.isArray(checklist) ? checklist : []).map((it) =>
+  return (Array.isArray(checklist) ? checklist : []).map(it =>
     it.label === label ? { ...it, checked: !it.checked } : it
   );
 }
 export function canMarkReviewed(checklist) {
   const list = Array.isArray(checklist) ? checklist : [];
-  return list.length > 0 && list.every((it) => it.checked === true);
+  return list.length > 0 && list.every(it => it.checked === true);
 }
 
 // 52015 — Confidence badges on findings: band plus the top two reasons.
@@ -254,26 +307,38 @@ export function flagForEvidence(finding, reason, now = Date.now()) {
 }
 export function resolveEvidenceFlag(finding, now = Date.now()) {
   const f = finding || {};
-  const flag = f.evidenceFlag ? { ...f.evidenceFlag, resolved: true, resolvedAt: new Date(now).toISOString() } : null;
+  const flag = f.evidenceFlag
+    ? { ...f.evidenceFlag, resolved: true, resolvedAt: new Date(now).toISOString() }
+    : null;
   return { ...f, evidenceStatus: 'gathered', evidenceFlag: flag };
 }
 
 // 52017 — Similar-findings sidebar: linked findings from this and past hunts.
 export function findSimilar(finding, corpus, limit = 5) {
   const f = finding || {};
-  const fWords = new Set(String(f.title || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  const fWords = new Set(
+    String(f.title || '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+  );
   const scored = (Array.isArray(corpus) ? corpus : [])
-    .filter((c) => c && c.id !== f.id)
-    .map((c) => {
+    .filter(c => c && c.id !== f.id)
+    .map(c => {
       let score = 0;
       if (c.vulnClass && c.vulnClass === f.vulnClass) score += 3;
       if (c.asset && c.asset === f.asset) score += 2;
       if (c.severity && c.severity === f.severity) score += 1;
-      const cWords = new Set(String(c.title || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+      const cWords = new Set(
+        String(c.title || '')
+          .toLowerCase()
+          .split(/[^a-z0-9]+/)
+          .filter(Boolean)
+      );
       for (const w of fWords) if (w.length > 3 && cWords.has(w)) score += 0.5;
       return { finding: c, score: Math.round(score * 10) / 10 };
     })
-    .filter((r) => r.score > 0)
+    .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, Math.max(1, Number(limit) || 5));
   return { findingId: f.id || null, similar: scored, count: scored.length };
@@ -282,7 +347,11 @@ export function findSimilar(finding, corpus, limit = 5) {
 // 52018 — Triage timer with analytics: seconds per finding plus team averages.
 export function recordDwell(sessions, findingId, seconds, reviewer) {
   const list = Array.isArray(sessions) ? sessions.slice() : [];
-  list.push({ findingId, seconds: Math.max(0, Number(seconds) || 0), reviewer: String(reviewer || 'reviewer') });
+  list.push({
+    findingId,
+    seconds: Math.max(0, Number(seconds) || 0),
+    reviewer: String(reviewer || 'reviewer'),
+  });
   return list;
 }
 function avgSeconds(values) {
@@ -298,7 +367,7 @@ export function teamAverages(sessions) {
     (byReviewer[s.reviewer] = byReviewer[s.reviewer] || []).push(s.seconds);
   }
   return {
-    overallAvgSeconds: avgSeconds(list.map((s) => s.seconds)),
+    overallAvgSeconds: avgSeconds(list.map(s => s.seconds)),
     perFinding: Object.fromEntries(Object.entries(byFinding).map(([k, v]) => [k, avgSeconds(v)])),
     perReviewer: Object.fromEntries(Object.entries(byReviewer).map(([k, v]) => [k, avgSeconds(v)])),
     samples: list.length,
@@ -313,28 +382,31 @@ export function hoverActions(finding) {
     { id: 'false-positive', label: 'False-positive' },
     { id: 'escalate', label: 'Escalate' },
     { id: 'assign', label: 'Assign' },
-  ].map((a) => ({ ...a, findingId: f.id || null, enabled: true }));
+  ].map(a => ({ ...a, findingId: f.id || null, enabled: true }));
 }
 
 // 52020 — Review delegation (post-hunt): reassign findings with an audit trail.
 export function delegateFindings(findings, assignee, note, now = Date.now()) {
   const ids = (Array.isArray(findings) ? findings : [])
-    .map((f) => (f && typeof f === 'object' ? f.id : f))
-    .filter((id) => id != null);
+    .map(f => (f && typeof f === 'object' ? f.id : f))
+    .filter(id => id != null);
   const at = new Date(now).toISOString();
   return {
     assignee: String(assignee || ''),
     findingIds: ids,
     note: String(note || ''),
     delegatedAt: at,
-    audit: ids.map((id) => ({ findingId: id, from: 'triage-queue', to: String(assignee || ''), at })),
+    audit: ids.map(id => ({ findingId: id, from: 'triage-queue', to: String(assignee || ''), at })),
   };
 }
 
 // 52021 — Exploitability-first sorting: real-world exploitability before raw CVSS.
 export function sortByExploitability(findings) {
   return (Array.isArray(findings) ? findings : [])
-    .map((f) => ({ ...f, exploitability: Math.min(1, Math.max(0, Number((f && f.exploitability) ?? 0))) }))
+    .map(f => ({
+      ...f,
+      exploitability: Math.min(1, Math.max(0, Number((f && f.exploitability) ?? 0))),
+    }))
     .sort((a, b) => b.exploitability - a.exploitability);
 }
 
@@ -354,12 +426,16 @@ const SENSITIVITY_PATTERNS = [
 ];
 export function sensitivityBadge(finding) {
   const f = finding || {};
-  const haystack = [f.title, f.description, f.asset, (f.tags || []).join(' ')].filter(Boolean).join(' ');
-  const matched = SENSITIVITY_PATTERNS.filter((p) => p.test.test(haystack));
-  const level = matched.some((m) => m.key === 'secrets' || m.key === 'payment')
+  const haystack = [f.title, f.description, f.asset, (f.tags || []).join(' ')]
+    .filter(Boolean)
+    .join(' ');
+  const matched = SENSITIVITY_PATTERNS.filter(p => p.test.test(haystack));
+  const level = matched.some(m => m.key === 'secrets' || m.key === 'payment')
     ? 'high'
-    : matched.length ? 'medium' : 'none';
-  return { level, badges: matched.map((m) => m.label), dataAtRisk: matched.map((m) => m.key) };
+    : matched.length
+      ? 'medium'
+      : 'none';
+  return { level, badges: matched.map(m => m.label), dataAtRisk: matched.map(m => m.key) };
 }
 
 // 52024 — Regulatory mapping tags: PCI DSS, HIPAA, GDPR, SOC 2.
@@ -371,8 +447,10 @@ const REGULATORY_MAP = [
 ];
 export function regulatoryTags(finding) {
   const f = finding || {};
-  const haystack = [f.title, f.description, f.vulnClass, (f.tags || []).join(' ')].filter(Boolean).join(' ');
-  const tags = REGULATORY_MAP.filter((r) => r.test.test(haystack)).map((r) => r.framework);
+  const haystack = [f.title, f.description, f.vulnClass, (f.tags || []).join(' ')]
+    .filter(Boolean)
+    .join(' ');
+  const tags = REGULATORY_MAP.filter(r => r.test.test(haystack)).map(r => r.framework);
   return { findingId: f.id || null, tags, count: tags.length };
 }
 
@@ -400,14 +478,18 @@ export function buildFocusSpec(finding) {
 }
 
 // 52027 — Swipe-to-triage on mobile: right accept, left dismiss, up escalate.
-const SWIPE_DECISIONS = { 'swipe-right': 'accepted', 'swipe-left': 'dismissed', 'swipe-up': 'escalated' };
+const SWIPE_DECISIONS = {
+  'swipe-right': 'accepted',
+  'swipe-left': 'dismissed',
+  'swipe-up': 'escalated',
+};
 export function reduceSwipe(queue, action) {
   const items = Array.isArray(queue) ? queue.slice() : [];
   const a = action || {};
   const decision = SWIPE_DECISIONS[a.swipe] || null;
   if (!decision || a.findingId == null) return { queue: items, applied: false, decision: null };
-  const next = items.map((f) => (f && f.id === a.findingId ? { ...f, triage: decision } : f));
-  const remaining = next.filter((f) => !(f && f.triage)).length;
+  const next = items.map(f => (f && f.id === a.findingId ? { ...f, triage: decision } : f));
+  const remaining = next.filter(f => !(f && f.triage)).length;
   return {
     queue: next,
     applied: true,
@@ -476,20 +558,27 @@ function ruleMatches(finding, rule) {
   const cond = r.when || {};
   const f = finding || {};
   if (cond.vulnClass && String(f.vulnClass || '') !== String(cond.vulnClass)) return false;
-  if (cond.severity && String(f.severity || '').toLowerCase() !== String(cond.severity).toLowerCase()) return false;
+  if (
+    cond.severity &&
+    String(f.severity || '').toLowerCase() !== String(cond.severity).toLowerCase()
+  )
+    return false;
   if (cond.asset && String(f.asset || '') !== String(cond.asset)) return false;
-  if (cond.authRequired != null && Boolean(f.authRequired) !== Boolean(cond.authRequired)) return false;
+  if (cond.authRequired != null && Boolean(f.authRequired) !== Boolean(cond.authRequired))
+    return false;
   return true;
 }
 export function applyPriorityRules(findings, rules) {
   const rs = Array.isArray(rules) ? rules : [];
-  return (Array.isArray(findings) ? findings : []).map((f) => {
-    const matched = rs.filter((r) => ruleMatches(f, r));
-    const top = matched.slice().sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))[0];
+  return (Array.isArray(findings) ? findings : []).map(f => {
+    const matched = rs.filter(r => ruleMatches(f, r));
+    const top = matched
+      .slice()
+      .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))[0];
     return {
       ...f,
-      autoPriority: top ? top.priority : ((f && f.autoPriority) || null),
-      matchedRules: matched.map((r) => r.id || r.name || 'rule'),
+      autoPriority: top ? top.priority : (f && f.autoPriority) || null,
+      matchedRules: matched.map(r => r.id || r.name || 'rule'),
     };
   });
 }
@@ -520,7 +609,7 @@ export function pinFinding(pinnedIds, findingId) {
   return [...set];
 }
 export function unpinFinding(pinnedIds, findingId) {
-  return (Array.isArray(pinnedIds) ? pinnedIds : []).filter((id) => id !== findingId);
+  return (Array.isArray(pinnedIds) ? pinnedIds : []).filter(id => id !== findingId);
 }
 export function pinnedFirst(findings, pinnedIds) {
   const pinned = new Set(Array.isArray(pinnedIds) ? pinnedIds : []);
@@ -543,7 +632,7 @@ export function starFinding(starredIds, findingId) {
 export function buildHandoff(options, now = Date.now()) {
   const o = options || {};
   const list = Array.isArray(o.findings) ? o.findings : [];
-  const triaged = list.filter((f) => f && f.triage).length;
+  const triaged = list.filter(f => f && f.triage).length;
   return {
     from: String(o.from || ''),
     to: String(o.to || ''),
@@ -551,7 +640,7 @@ export function buildHandoff(options, now = Date.now()) {
     summary: String(o.summary || ''),
     progress: { total: list.length, triaged, remaining: list.length - triaged },
     openQuestions: Array.isArray(o.openQuestions) ? o.openQuestions : [],
-    findingIds: list.map((f) => (f && typeof f === 'object' ? f.id : f)).filter((id) => id != null),
+    findingIds: list.map(f => (f && typeof f === 'object' ? f.id : f)).filter(id => id != null),
   };
 }
 
@@ -559,7 +648,11 @@ export function buildHandoff(options, now = Date.now()) {
 export function overrideSeverity(finding, newSeverity, reason, reviewer, now = Date.now()) {
   const f = finding || {};
   if (!reason || !String(reason).trim()) {
-    return { ...f, overrideApplied: false, overrideError: 'a reason is required to override severity' };
+    return {
+      ...f,
+      overrideApplied: false,
+      overrideError: 'a reason is required to override severity',
+    };
   }
   const audit = Array.isArray(f.severityAudit) ? f.severityAudit.slice() : [];
   audit.push({
@@ -608,9 +701,7 @@ export function cvss31Score(metrics) {
   const i = metricKey(CVSS31.CIA, m.i, 'N');
   const a = metricKey(CVSS31.CIA, m.a, 'N');
   const iss = 1 - (1 - CVSS31.CIA[c]) * (1 - CVSS31.CIA[i]) * (1 - CVSS31.CIA[a]);
-  const impact = scopeChanged
-    ? 7.52 * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15)
-    : 6.42 * iss;
+  const impact = scopeChanged ? 7.52 * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15) : 6.42 * iss;
   const exploitability = 8.22 * CVSS31.AV[av] * CVSS31.AC[ac] * prTable[pr] * CVSS31.UI[ui];
   let score = 0;
   if (impact > 0) {
@@ -618,7 +709,16 @@ export function cvss31Score(metrics) {
       ? cvssRoundup(Math.min(1.08 * (impact + exploitability), 10))
       : cvssRoundup(Math.min(impact + exploitability, 10));
   }
-  const severity = score === 0 ? 'none' : score < 4 ? 'low' : score < 7 ? 'medium' : score < 9 ? 'high' : 'critical';
+  const severity =
+    score === 0
+      ? 'none'
+      : score < 4
+        ? 'low'
+        : score < 7
+          ? 'medium'
+          : score < 9
+            ? 'high'
+            : 'critical';
   return {
     score,
     severity,
@@ -641,15 +741,21 @@ export function estimateImpact(answers) {
     statement = 'Critical impact: sensitive data is exposed without authentication.';
   } else if (data && auth && !ui) {
     level = 'high';
-    statement = 'High impact: authenticated access exposes sensitive data with no user interaction.';
+    statement =
+      'High impact: authenticated access exposes sensitive data with no user interaction.';
   } else if (data && auth && ui) {
     level = 'medium';
-    statement = 'Medium impact: data exposure needs an authenticated session plus user interaction.';
+    statement =
+      'Medium impact: data exposure needs an authenticated session plus user interaction.';
   } else if (!data && !auth) {
     level = 'medium';
     statement = 'Medium impact: reachable without authentication, but no sensitive data exposure.';
   }
-  return { level, statement, answers: { dataExposed: data, authRequired: auth, userInteraction: ui } };
+  return {
+    level,
+    statement,
+    answers: { dataExposed: data, authRequired: auth, userInteraction: ui },
+  };
 }
 
 // 52039 — Affected-user count estimate: derived from endpoint traffic hints.
@@ -657,19 +763,31 @@ export function estimateAffectedUsers(finding) {
   const f = finding || {};
   const traffic = f.traffic || {};
   const dailyUsers = Math.max(0, Number(traffic.dailyUsers || 0));
-  const exposedRatio = Math.min(1, Math.max(0, Number(traffic.exposedRatio ?? (f.authRequired ? 0.05 : 0.5))));
+  const exposedRatio = Math.min(
+    1,
+    Math.max(0, Number(traffic.exposedRatio ?? (f.authRequired ? 0.05 : 0.5)))
+  );
   const estimatedUsers = Math.round(dailyUsers * exposedRatio);
-  const band = estimatedUsers >= 100000 ? 'mass'
-    : estimatedUsers >= 10000 ? 'large'
-    : estimatedUsers >= 1000 ? 'moderate'
-    : estimatedUsers > 0 ? 'small' : 'unknown';
+  const band =
+    estimatedUsers >= 100000
+      ? 'mass'
+      : estimatedUsers >= 10000
+        ? 'large'
+        : estimatedUsers >= 1000
+          ? 'moderate'
+          : estimatedUsers > 0
+            ? 'small'
+            : 'unknown';
   return {
     findingId: f.id || null,
     dailyUsers,
     exposedRatio,
     estimatedUsers,
     band,
-    label: estimatedUsers > 0 ? `≈${estimatedUsers.toLocaleString('en-US')} users exposed` : 'exposure unknown',
+    label:
+      estimatedUsers > 0
+        ? `≈${estimatedUsers.toLocaleString('en-US')} users exposed`
+        : 'exposure unknown',
   };
 }
 

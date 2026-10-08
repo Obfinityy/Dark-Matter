@@ -13,16 +13,16 @@
 import { ACTION_TYPES } from '../computer/actionSchema.js';
 
 export const AUTONOMOUS_ACTION_TYPES = Object.freeze([
-  'tool',             // run a registry tool
-  'parallel_tools',   // run multiple INDEPENDENT tools at once (parallel recon)
-  'computer_action',  // drive the computer layer
-  'observation',      // record information into memory without acting
-  'hypothesis',       // raise a testable hypothesis
-  'validate',         // attempt to validate an existing hypothesis
-  'finding',          // promote a validated hypothesis to a finding
-  'plan_update',      // change the durable task plan
-  'wait',             // nothing to do right now (e.g. runtime unavailable)
-  'complete'          // assessment objectives satisfied
+  'tool', // run a registry tool
+  'parallel_tools', // run multiple INDEPENDENT tools at once (parallel recon)
+  'computer_action', // drive the computer layer
+  'observation', // record information into memory without acting
+  'hypothesis', // raise a testable hypothesis
+  'validate', // attempt to validate an existing hypothesis
+  'finding', // promote a validated hypothesis to a finding
+  'plan_update', // change the durable task plan
+  'wait', // nothing to do right now (e.g. runtime unavailable)
+  'complete', // assessment objectives satisfied
 ]);
 
 export const CONFIDENCE_MIN = 0;
@@ -54,15 +54,24 @@ export function validateAutonomousDecision(decision, options = {}) {
   if (!action || typeof action !== 'object') {
     errors.push('Missing nextAction object');
   } else if (action.type === 'computer_action' && !computerActionAllowed) {
-    errors.push('computer_action is not available in this environment (computer control is disabled) — choose a registry "tool" action instead');
+    errors.push(
+      'computer_action is not available in this environment (computer control is disabled) — choose a registry "tool" action instead'
+    );
   } else if (!AUTONOMOUS_ACTION_TYPES.includes(action.type)) {
-    errors.push(`Invalid nextAction.type "${action.type}". Allowed: ${AUTONOMOUS_ACTION_TYPES.join(', ')}`);
+    errors.push(
+      `Invalid nextAction.type "${action.type}". Allowed: ${AUTONOMOUS_ACTION_TYPES.join(', ')}`
+    );
   } else {
     switch (action.type) {
       case 'tool':
-        if (typeof action.name !== 'string' || !action.name.trim()) errors.push('tool action requires "name"');
-        if (typeof action.target !== 'string' || !action.target.trim()) errors.push('tool action requires "target"');
-        if (action.arguments !== undefined && (action.arguments === null || typeof action.arguments !== 'object')) {
+        if (typeof action.name !== 'string' || !action.name.trim())
+          errors.push('tool action requires "name"');
+        if (typeof action.target !== 'string' || !action.target.trim())
+          errors.push('tool action requires "target"');
+        if (
+          action.arguments !== undefined &&
+          (action.arguments === null || typeof action.arguments !== 'object')
+        ) {
           errors.push('tool action "arguments" must be an object');
         }
         break;
@@ -119,7 +128,11 @@ export function validateAutonomousDecision(decision, options = {}) {
 
   if (decision.confidence !== undefined) {
     const confidence = Number(decision.confidence);
-    if (!Number.isFinite(confidence) || confidence < CONFIDENCE_MIN || confidence > CONFIDENCE_MAX) {
+    if (
+      !Number.isFinite(confidence) ||
+      confidence < CONFIDENCE_MIN ||
+      confidence > CONFIDENCE_MAX
+    ) {
       errors.push('confidence must be a number between 0 and 1');
     }
   }
@@ -134,11 +147,15 @@ export function validateAutonomousDecision(decision, options = {}) {
       observation: typeof decision.observation === 'string' ? decision.observation.trim() : null,
       nextAction: action,
       reason: decision.reason.trim(),
-      expectedOutcome: typeof decision.expectedOutcome === 'string' ? decision.expectedOutcome.trim() : null,
+      expectedOutcome:
+        typeof decision.expectedOutcome === 'string' ? decision.expectedOutcome.trim() : null,
       confidence: decision.confidence === undefined ? null : Number(decision.confidence),
-      phase: typeof decision.phase === 'string' && decision.phase.trim() ? decision.phase.trim() : null,
-      memoryNotes: Array.isArray(decision.memoryNotes) ? decision.memoryNotes.filter((n) => typeof n === 'string').slice(0, 20) : []
-    }
+      phase:
+        typeof decision.phase === 'string' && decision.phase.trim() ? decision.phase.trim() : null,
+      memoryNotes: Array.isArray(decision.memoryNotes)
+        ? decision.memoryNotes.filter(n => typeof n === 'string').slice(0, 20)
+        : [],
+    },
   };
 }
 

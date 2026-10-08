@@ -25,7 +25,7 @@ function labelSimilarity(a, b) {
   const x = String(a).toLowerCase();
   const y = String(b).toLowerCase();
   if (x === y) return 1;
-  const tokens = (s) => new Set(s.split(/[^a-z0-9]+/).filter(Boolean));
+  const tokens = s => new Set(s.split(/[^a-z0-9]+/).filter(Boolean));
   const tx = tokens(x);
   const ty = tokens(y);
   if (tx.size === 0 || ty.size === 0) return 0;
@@ -61,7 +61,7 @@ export function findLookalikes(records, seedDomain, opts = {}) {
   const minSimilarity = opts.minSimilarity ?? 0.4;
   const seed = String(seedDomain).toLowerCase().replace(/\.$/, '');
   const seedRec = (records || []).find(
-    (r) => r && String(r.domain).toLowerCase().replace(/\.$/, '') === seed
+    r => r && String(r.domain).toLowerCase().replace(/\.$/, '') === seed
   );
   const seedMs = seedRec ? toMs(seedRec.registeredAt) : 0;
   const out = [];
@@ -83,9 +83,7 @@ export function findLookalikes(records, seedDomain, opts = {}) {
       campaign: r.campaign ?? null,
     });
   }
-  return out.sort(
-    (a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0) || b.similarity - a.similarity
-  );
+  return out.sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0) || b.similarity - a.similarity);
 }
 
 /**
@@ -104,7 +102,12 @@ export function campaignClusters(records) {
     if (!r || !r.domain) continue;
     const key = r.campaign
       ? `campaign:${r.campaign}`
-      : `infra:${(r.registrar || 'unknown').toLowerCase()}|${(r.nameservers || []).map((n) => String(n).toLowerCase()).sort().join(',') || 'no-ns'}`;
+      : `infra:${(r.registrar || 'unknown').toLowerCase()}|${
+          (r.nameservers || [])
+            .map(n => String(n).toLowerCase())
+            .sort()
+            .join(',') || 'no-ns'
+        }`;
     if (!groups.has(key)) groups.set(key, { domains: [], risks: [] });
     const g = groups.get(key);
     g.domains.push(String(r.domain).toLowerCase());

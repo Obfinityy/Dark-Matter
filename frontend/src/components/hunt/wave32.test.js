@@ -6,24 +6,68 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE32_START, WAVE32_END, WAVE32_IDEAS,
-  addBookmark, removeBookmark, listBookmarks,
-  flagAnomalies, correlateLines, tailFollowState,
-  sampleLines, sampleLabel, toLogCards, diffLogSegments,
-  toolRuntimeStats, commandEcho, retentionSlice,
-  switchHuntLog, restoreScroll, addAnnotation,
-  quietHoursCollapse, checkAlertPatterns, screenshotEvents,
-  minimapBuckets, toCurl, applyRedactionPreset,
-  thoughtStreamEntry, perfOverlay, detectStalls,
-  shareLink, watermark, offlineCache, summarizeRange,
-  diffToolOutputs, shortcutMap, navigateLog,
-  saveView, applyView, promoteToFinding, executionGraph,
-  logSentiment, replaySandbox, fnv1a, integrityHash, verifyIntegrity,
-  mergeStreams, densityFilter, densityLevels, foldRepeats,
-  voiceNarration, exportSchedule, crossHuntCompare, answerFromLogs,
+  WAVE32_START,
+  WAVE32_END,
+  WAVE32_IDEAS,
+  addBookmark,
+  removeBookmark,
+  listBookmarks,
+  flagAnomalies,
+  correlateLines,
+  tailFollowState,
+  sampleLines,
+  sampleLabel,
+  toLogCards,
+  diffLogSegments,
+  toolRuntimeStats,
+  commandEcho,
+  retentionSlice,
+  switchHuntLog,
+  restoreScroll,
+  addAnnotation,
+  quietHoursCollapse,
+  checkAlertPatterns,
+  screenshotEvents,
+  minimapBuckets,
+  toCurl,
+  applyRedactionPreset,
+  thoughtStreamEntry,
+  perfOverlay,
+  detectStalls,
+  shareLink,
+  watermark,
+  offlineCache,
+  summarizeRange,
+  diffToolOutputs,
+  shortcutMap,
+  navigateLog,
+  saveView,
+  applyView,
+  promoteToFinding,
+  executionGraph,
+  logSentiment,
+  replaySandbox,
+  fnv1a,
+  integrityHash,
+  verifyIntegrity,
+  mergeStreams,
+  densityFilter,
+  densityLevels,
+  foldRepeats,
+  voiceNarration,
+  exportSchedule,
+  crossHuntCompare,
+  answerFromLogs,
 } from './logObservCore.js';
 
-const L = (id, extra) => ({ id, ts: 1728220000000, level: 'info', module: 'recon', text: `line ${id}`, ...extra });
+const L = (id, extra) => ({
+  id,
+  ts: 1728220000000,
+  level: 'info',
+  module: 'recon',
+  text: `line ${id}`,
+  ...extra,
+});
 
 // --- registry completeness -------------------------------------------------
 
@@ -61,14 +105,14 @@ test('flagAnomalies detects error bursts and long gaps', () => {
     L('d', { level: 'info', ts: 200000 }),
   ];
   const flags = flagAnomalies(lines);
-  assert.ok(flags.some((f) => f.reason.startsWith('error-burst')));
-  assert.ok(flags.some((f) => f.reason.startsWith('gap')));
+  assert.ok(flags.some(f => f.reason.startsWith('error-burst')));
+  assert.ok(flags.some(f => f.reason.startsWith('gap')));
 });
 
 test('flagAnomalies flags repeated identical failures', () => {
-  const lines = [1, 2, 3, 4].map((i) => L(`r${i}`, { text: 'same failure', ts: i * 1000 }));
+  const lines = [1, 2, 3, 4].map(i => L(`r${i}`, { text: 'same failure', ts: i * 1000 }));
   const flags = flagAnomalies(lines);
-  assert.ok(flags.some((f) => f.reason.startsWith('repeated')));
+  assert.ok(flags.some(f => f.reason.startsWith('repeated')));
 });
 
 // --- 51243 correlation -----------------------------------------------------------
@@ -85,21 +129,35 @@ test('correlateLines links lines to findings by id', () => {
 test('tailFollowState pauses on hover or scroll-up', () => {
   assert.equal(tailFollowState({ following: true, hovering: true, scrolledUp: false }), 'paused');
   assert.equal(tailFollowState({ following: true, hovering: false, scrolledUp: true }), 'paused');
-  assert.equal(tailFollowState({ following: true, hovering: false, scrolledUp: false }), 'following');
+  assert.equal(
+    tailFollowState({ following: true, hovering: false, scrolledUp: false }),
+    'following'
+  );
   assert.equal(tailFollowState({ following: false, hovering: false, scrolledUp: false }), 'idle');
 });
 
 // --- 51245 sampling --------------------------------------------------------------------
 
 test('sampleLines keeps errors and endpoints within budget', () => {
-  const lines = Array.from({ length: 20 }, (_, i) => L(`s${i}`, { level: i === 10 ? 'error' : 'info', ts: i * 1000 }));
+  const lines = Array.from({ length: 20 }, (_, i) =>
+    L(`s${i}`, { level: i === 10 ? 'error' : 'info', ts: i * 1000 })
+  );
   const { sample, total, sampled } = sampleLines(lines, 6, []);
   assert.equal(total, 20);
   assert.ok(sampled);
   assert.ok(sample.length <= 6);
-  assert.ok(sample.some((l) => l.id === 's10'), 'error kept');
-  assert.ok(sample.some((l) => l.id === 's0'), 'first kept');
-  assert.ok(sample.some((l) => l.id === 's19'), 'last kept');
+  assert.ok(
+    sample.some(l => l.id === 's10'),
+    'error kept'
+  );
+  assert.ok(
+    sample.some(l => l.id === 's0'),
+    'first kept'
+  );
+  assert.ok(
+    sample.some(l => l.id === 's19'),
+    'last kept'
+  );
 });
 
 test('sampleLabel formats counts', () => {
@@ -110,7 +168,11 @@ test('sampleLabel formats counts', () => {
 // --- 51246 log cards ----------------------------------------------------------------------
 
 test('toLogCards picks key events only', () => {
-  const cards = toLogCards([L('a', { level: 'error' }), L('b', { level: 'info' }), L('c', { findingId: 'F-1' })]);
+  const cards = toLogCards([
+    L('a', { level: 'error' }),
+    L('b', { level: 'info' }),
+    L('c', { findingId: 'F-1' }),
+  ]);
   assert.equal(cards.length, 2);
   assert.equal(cards[1].kind, 'finding');
 });
@@ -134,7 +196,7 @@ test('toolRuntimeStats aggregates runs and error rates', () => {
     L('c', { tool: 'ffuf', durationMs: 50 }),
   ];
   const s = toolRuntimeStats(lines);
-  const nmap = s.find((x) => x.tool === 'nmap');
+  const nmap = s.find(x => x.tool === 'nmap');
   assert.equal(nmap.runs, 2);
   assert.equal(nmap.avgMs, 150);
   assert.equal(nmap.errorRate, 50);
@@ -151,8 +213,11 @@ test('commandEcho formats decision + command + why', () => {
 // --- 51250 retention ----------------------------------------------------------------------------------------
 
 test('retentionSlice keeps newest N', () => {
-  const lines = [1, 2, 3, 4, 5].map((i) => L(`r${i}`));
-  assert.deepEqual(retentionSlice(lines, 2).map((l) => l.id), ['r4', 'r5']);
+  const lines = [1, 2, 3, 4, 5].map(i => L(`r${i}`));
+  assert.deepEqual(
+    retentionSlice(lines, 2).map(l => l.id),
+    ['r4', 'r5']
+  );
   assert.deepEqual(retentionSlice(lines, 0), []);
 });
 
@@ -191,31 +256,48 @@ test('quietHoursCollapse folds routine chatter', () => {
 // --- 51254 alerts -----------------------------------------------------------------------------------------------------------------
 
 test('checkAlertPatterns matches case-insensitively', () => {
-  const hits = checkAlertPatterns(L('x', { text: 'Connection REFUSED' }), [{ pattern: 'refused', label: 'net' }]);
+  const hits = checkAlertPatterns(L('x', { text: 'Connection REFUSED' }), [
+    { pattern: 'refused', label: 'net' },
+  ]);
   assert.equal(hits.length, 1);
-  assert.equal(checkAlertPatterns(L('y', { text: 'all good' }), [{ pattern: 'refused' }]).length, 0);
+  assert.equal(
+    checkAlertPatterns(L('y', { text: 'all good' }), [{ pattern: 'refused' }]).length,
+    0
+  );
 });
 
 // --- 51255 screenshots -------------------------------------------------------------------------------------------------------------------
 
 test('screenshotEvents triggers on findings and errors', () => {
-  const ev = screenshotEvents([L('a', { level: 'error' }), L('b', { level: 'info' }), L('c', { findingId: 'F-2' })]);
+  const ev = screenshotEvents([
+    L('a', { level: 'error' }),
+    L('b', { level: 'info' }),
+    L('c', { findingId: 'F-2' }),
+  ]);
   assert.equal(ev.length, 2);
 });
 
 // --- 51256 minimap --------------------------------------------------------------------------------------------------------------------------------
 
 test('minimapBuckets normalizes to 0..1', () => {
-  const b = minimapBuckets(Array.from({ length: 10 }, (_, i) => L(`m${i}`)), 4);
+  const b = minimapBuckets(
+    Array.from({ length: 10 }, (_, i) => L(`m${i}`)),
+    4
+  );
   assert.equal(b.length, 4);
-  assert.ok(b.every((v) => v >= 0 && v <= 1));
+  assert.ok(b.every(v => v >= 0 && v <= 1));
   assert.equal(Math.max(...b), 1);
 });
 
 // --- 51257 curl ---------------------------------------------------------------------------------------------------------------------------------------------
 
 test('toCurl builds a quoted curl command', () => {
-  const cmd = toCurl({ method: 'post', url: 'https://x.test/api', headers: { 'Content-Type': 'application/json' }, body: { a: 1 } });
+  const cmd = toCurl({
+    method: 'post',
+    url: 'https://x.test/api',
+    headers: { 'Content-Type': 'application/json' },
+    body: { a: 1 },
+  });
   assert.ok(cmd.startsWith('curl -X POST'));
   assert.ok(cmd.includes('https://x.test/api'));
   assert.ok(cmd.includes('--data-raw'));
@@ -242,7 +324,7 @@ test('thoughtStreamEntry normalizes a thought', () => {
 // --- 51260 perf overlay ---------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('perfOverlay buckets counts and avg latency', () => {
-  const lines = [1, 2, 3, 4].map((i) => L(`p${i}`, { ts: i * 1000, durationMs: i * 10 }));
+  const lines = [1, 2, 3, 4].map(i => L(`p${i}`, { ts: i * 1000, durationMs: i * 10 }));
   const b = perfOverlay(lines, 2);
   assert.equal(b.length, 2);
   assert.equal(b[0].count + b[1].count, 4);
@@ -349,7 +431,10 @@ test('executionGraph links consecutive tool runs', () => {
 // --- 51271 sentiment -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('logSentiment classifies phases', () => {
-  assert.equal(logSentiment([L('a', { findingId: 'F-1' }), L('b'), L('c'), L('d'), L('e'), L('f')]), 'success');
+  assert.equal(
+    logSentiment([L('a', { findingId: 'F-1' }), L('b'), L('c'), L('d'), L('e'), L('f')]),
+    'success'
+  );
   const errs = Array.from({ length: 4 }, (_, i) => L(`e${i}`, { level: 'error' }));
   assert.equal(logSentiment([...errs, L('x')]), 'struggle');
   assert.equal(logSentiment([L('x', { text: 'ok' })]), 'idle');
@@ -377,7 +462,9 @@ test('integrityHash chains and verifies', () => {
   const { head, chain } = integrityHash(lines);
   assert.equal(chain.length, 2);
   assert.ok(verifyIntegrity(lines, chain));
-  assert.ok(!verifyIntegrity([L('a', { ts: 1, text: 'tampered' }), L('b', { ts: 2, text: 'two' })], chain));
+  assert.ok(
+    !verifyIntegrity([L('a', { ts: 1, text: 'tampered' }), L('b', { ts: 2, text: 'two' })], chain)
+  );
   assert.equal(head, chain[chain.length - 1].hash);
 });
 
@@ -407,7 +494,12 @@ test('densityFilter respects levels', () => {
 // --- 51276 folding -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('foldRepeats collapses runs of 3+', () => {
-  const lines = [L('a', { text: 'x' }), L('b', { text: 'x' }), L('c', { text: 'x' }), L('d', { text: 'y' })];
+  const lines = [
+    L('a', { text: 'x' }),
+    L('b', { text: 'x' }),
+    L('c', { text: 'x' }),
+    L('d', { text: 'y' }),
+  ];
   const f = foldRepeats(lines);
   assert.equal(f[0].type, 'fold');
   assert.equal(f[0].count, 3);
@@ -417,7 +509,10 @@ test('foldRepeats collapses runs of 3+', () => {
 // --- 51277 voice -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('voiceNarration scripts key events only', () => {
-  const v = voiceNarration([L('a', { level: 'error', text: 'boom' }), L('b', { level: 'info', text: 'ok' })]);
+  const v = voiceNarration([
+    L('a', { level: 'error', text: 'boom' }),
+    L('b', { level: 'info', text: 'ok' }),
+  ]);
   assert.equal(v.length, 1);
   assert.ok(v[0].startsWith('Error:'));
 });
@@ -436,7 +531,7 @@ test('exportSchedule plans per phase boundary', () => {
 test('crossHuntCompare counts shared and unique', () => {
   const c = crossHuntCompare(
     [L('a', { text: 'one' }), L('b', { text: 'two' })],
-    [L('c', { text: 'two' }), L('d', { text: 'three' })],
+    [L('c', { text: 'two' }), L('d', { text: 'three' })]
   );
   assert.equal(c.sharedLines, 1);
   assert.equal(c.onlyInA, 1);
@@ -446,7 +541,10 @@ test('crossHuntCompare counts shared and unique', () => {
 // --- 51280 Q&A -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('answerFromLogs grounds answers in matching lines', () => {
-  const lines = [L('a', { text: 'login test failed: invalid credentials' }), L('b', { text: 'heartbeat ok' })];
+  const lines = [
+    L('a', { text: 'login test failed: invalid credentials' }),
+    L('b', { text: 'heartbeat ok' }),
+  ];
   const r = answerFromLogs('why did the login test fail?', lines);
   assert.ok(r.grounded);
   assert.equal(r.evidence[0].lineId, 'a');

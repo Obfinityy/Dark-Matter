@@ -11,11 +11,7 @@
  */
 
 const MGMT_UI_TITLE = /<title>\s*rabbitmq\s+management\s*<\/title>/i;
-const MGMT_BODY_MARKERS = [
-  /rabbitmq-management/i,
-  /\/js\/dispatcher\.js/i,
-  /"rabbitmq"/i,
-];
+const MGMT_BODY_MARKERS = [/rabbitmq-management/i, /\/js\/dispatcher\.js/i, /"rabbitmq"/i];
 
 /**
  * Analyze an HTTP response for the RabbitMQ management UI.
@@ -26,7 +22,8 @@ const MGMT_BODY_MARKERS = [
 export function analyzeRabbitMqMgmtUi(response = {}) {
   const body = String(response.body || '');
   const signals = [];
-  if (MGMT_UI_TITLE.test(body)) signals.push({ signal: 'ui_title', detail: '<title>RabbitMQ Management</title>' });
+  if (MGMT_UI_TITLE.test(body))
+    signals.push({ signal: 'ui_title', detail: '<title>RabbitMQ Management</title>' });
   for (const re of MGMT_BODY_MARKERS) {
     if (re.test(body)) signals.push({ signal: 'body_marker', detail: String(re) });
   }
@@ -55,16 +52,22 @@ export function analyzeRabbitMqMgmtUi(response = {}) {
 export function parseManagementOverview(payload) {
   let data = payload;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch {
+    try {
+      data = JSON.parse(data);
+    } catch {
       return { valid: false, reason: 'payload is not valid JSON' };
     }
   }
   if (!data || typeof data !== 'object' || !data.rabbitmq_version) {
     return { valid: false, reason: 'not a RabbitMQ /api/overview payload' };
   }
-  const listeners = Array.isArray(data.listeners) ? data.listeners.map((l) => ({
-    protocol: l.protocol, ip: l.ip_address, port: l.port,
-  })) : [];
+  const listeners = Array.isArray(data.listeners)
+    ? data.listeners.map(l => ({
+        protocol: l.protocol,
+        ip: l.ip_address,
+        port: l.port,
+      }))
+    : [];
   return {
     valid: true,
     product: data.product || 'RabbitMQ',
@@ -74,7 +77,7 @@ export function parseManagementOverview(payload) {
     nodeName: data.node || null,
     listeners,
     messageStats: data.message_stats || {},
-    exposedListeners: listeners.filter((l) => l.ip === '0.0.0.0' || l.ip === '::'),
+    exposedListeners: listeners.filter(l => l.ip === '0.0.0.0' || l.ip === '::'),
   };
 }
 
@@ -86,17 +89,28 @@ export function parseManagementOverview(payload) {
  */
 export function assessRabbitMqExposure(evidence = {}) {
   const findings = [];
-  if (evidence.ui?.detected) findings.push({ level: 'medium', text: 'RabbitMQ management UI reachable over HTTP.' });
+  if (evidence.ui?.detected)
+    findings.push({ level: 'medium', text: 'RabbitMQ management UI reachable over HTTP.' });
   if (evidence.overview?.valid) {
     if (evidence.overview.exposedListeners?.length) {
-      findings.push({ level: 'high', text: `RabbitMQ listens on all interfaces: ${evidence.overview.exposedListeners.map((l) => `${l.protocol}:${l.port}`).join(', ')}.` });
+      findings.push({
+        level: 'high',
+        text: `RabbitMQ listens on all interfaces: ${evidence.overview.exposedListeners.map(l => `${l.protocol}:${l.port}`).join(', ')}.`,
+      });
     } else {
-      findings.push({ level: 'low', text: `RabbitMQ ${evidence.overview.rabbitmqVersion} identified via management API.` });
+      findings.push({
+        level: 'low',
+        text: `RabbitMQ ${evidence.overview.rabbitmqVersion} identified via management API.`,
+      });
     }
   }
-  const score = findings.some((f) => f.level === 'high') ? 7
-    : findings.some((f) => f.level === 'medium') ? 4
-    : findings.length ? 1 : 0;
+  const score = findings.some(f => f.level === 'high')
+    ? 7
+    : findings.some(f => f.level === 'medium')
+      ? 4
+      : findings.length
+        ? 1
+        : 0;
   return { findings, score, detected: findings.length > 0 };
 }
 

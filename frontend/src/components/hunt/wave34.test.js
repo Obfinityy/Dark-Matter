@@ -7,54 +7,92 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE34A_START, WAVE34A_END, WAVE34A_IDEAS,
-  VOICE_PAUSE_PHRASES, parseVoicePauseCommand, applyVoiceCommand,
+  WAVE34A_START,
+  WAVE34A_END,
+  WAVE34A_IDEAS,
+  VOICE_PAUSE_PHRASES,
+  parseVoicePauseCommand,
+  applyVoiceCommand,
   mobilePauseSpec,
-  pauseWithInheritance, resumeWithInheritance, inheritedPausees,
-  RESUME_ORDERS, orderResume,
-  queueApprovalWhilePaused, drainApprovalQueue,
+  pauseWithInheritance,
+  resumeWithInheritance,
+  inheritedPausees,
+  RESUME_ORDERS,
+  orderResume,
+  queueApprovalWhilePaused,
+  drainApprovalQueue,
   abortSummary,
   pauseToSteer,
   reducedScope,
   watchdogCheck,
-  ABORT_CASCADE_MODES, abortCascade,
+  ABORT_CASCADE_MODES,
+  abortCascade,
   exportPauseState,
   attachResumeNote,
   pauseButtonPlacement,
-  ABORT_REASON_CODES, validateAbortReason,
+  ABORT_REASON_CODES,
+  validateAbortReason,
   snapshotOnPause,
-  rampRate, rampCurve,
-  pauseDiscussion, addPauseComment, canResume,
-  isInPauseWindow, addPauseWindow, describePauseWindow,
+  rampRate,
+  rampCurve,
+  pauseDiscussion,
+  addPauseComment,
+  canResume,
+  isInPauseWindow,
+  addPauseWindow,
+  describePauseWindow,
   diffPauseState,
-  indexAbortedHunt, searchAbortedHunts,
+  indexAbortedHunt,
+  searchAbortedHunts,
 } from './pauseRound2Core.js';
 import {
-  WAVE34B_START, WAVE34B_END, WAVE34B_IDEAS,
+  WAVE34B_START,
+  WAVE34B_END,
+  WAVE34B_IDEAS,
   normalizeStrategy,
-  shiftBreadthToDepth, shiftDepthToBreadth,
-  STRATEGY_PRESETS, applyPreset,
+  shiftBreadthToDepth,
+  shiftDepthToBreadth,
+  STRATEGY_PRESETS,
+  applyPreset,
   compareStrategies,
   forecastImpact,
   buildStrategy,
-  commitStrategy, rollbackStrategy, strategyHistoryList,
-  abTestPlan, abResult,
+  commitStrategy,
+  rollbackStrategy,
+  strategyHistoryList,
+  abTestPlan,
+  abResult,
   suggestStrategyShift,
-  scheduleShift, shiftsDue,
+  scheduleShift,
+  shiftsDue,
   perAssetStrategy,
   strategyHeatmap,
   logRationale,
-  INDUSTRY_TEMPLATES, industryTemplate,
-  exportStrategy, importStrategy,
+  INDUSTRY_TEMPLATES,
+  industryTemplate,
+  exportStrategy,
+  importStrategy,
   dryRun,
   strategyConfidence,
-  autoStrategyBounds, autoShiftAllowed,
+  autoStrategyBounds,
+  autoShiftAllowed,
   checkGuardrails,
   strategyAlert,
 } from './strategyCore.js';
 
 const NOW = 1728220000000;
-const BALANCED = normalizeStrategy({ name: 'Balanced', focus: 'balanced', allocation: { recon: 20, 'surface-map': 15, 'tech-fingerprint': 10, 'auth-deep': 20, 'business-logic': 20, 'exploit-chain': 15 } });
+const BALANCED = normalizeStrategy({
+  name: 'Balanced',
+  focus: 'balanced',
+  allocation: {
+    recon: 20,
+    'surface-map': 15,
+    'tech-fingerprint': 10,
+    'auth-deep': 20,
+    'business-logic': 20,
+    'exploit-chain': 15,
+  },
+});
 
 // --- registry completeness ---------------------------------------------------
 
@@ -116,8 +154,11 @@ test('pause inheritance pauses subs; resume only lifts inherited ones', () => {
   assert.equal(tree.length, 3);
   assert.deepEqual(inheritedPausees(tree, 'p'), ['s1', 's2']);
   const resumed = resumeWithInheritance(tree, NOW);
-  assert.ok(resumed.find((n) => n.huntId === 'p').paused, 'parent stays paused');
-  assert.ok(resumed.filter((n) => n.inheritedFrom).every((n) => !n.paused), 'inherited sub-hunts resume');
+  assert.ok(resumed.find(n => n.huntId === 'p').paused, 'parent stays paused');
+  assert.ok(
+    resumed.filter(n => n.inheritedFrom).every(n => !n.paused),
+    'inherited sub-hunts resume'
+  );
 });
 
 // --- 51324 ordering ------------------------------------------------------------------
@@ -128,10 +169,22 @@ test('resume ordering strategies order the queue', () => {
     { huntId: 'b', priority: 5, pausedAt: NOW - 90, findings: 3, remainingPhases: 2 },
     { huntId: 'c', priority: 3, pausedAt: NOW - 20, findings: 30, remainingPhases: 6 },
   ];
-  assert.deepEqual(orderResume(q, 'priority').map((h) => h.huntId), ['b', 'a', 'c']);
-  assert.deepEqual(orderResume(q, 'fifo').map((h) => h.huntId), ['b', 'a', 'c']);
-  assert.deepEqual(orderResume(q, 'largest-first').map((h) => h.huntId), ['c', 'a', 'b']);
-  assert.deepEqual(orderResume(q, 'quickest-first').map((h) => h.huntId), ['b', 'a', 'c']);
+  assert.deepEqual(
+    orderResume(q, 'priority').map(h => h.huntId),
+    ['b', 'a', 'c']
+  );
+  assert.deepEqual(
+    orderResume(q, 'fifo').map(h => h.huntId),
+    ['b', 'a', 'c']
+  );
+  assert.deepEqual(
+    orderResume(q, 'largest-first').map(h => h.huntId),
+    ['c', 'a', 'b']
+  );
+  assert.deepEqual(
+    orderResume(q, 'quickest-first').map(h => h.huntId),
+    ['b', 'a', 'c']
+  );
   assert.deepEqual(RESUME_ORDERS, ['priority', 'fifo', 'largest-first', 'quickest-first']);
 });
 
@@ -153,10 +206,20 @@ test('approvals decided while paused queue and drain on resume', () => {
 
 test('abort summary captures final-screen facts', () => {
   const s = abortSummary({
-    huntId: 'h1', target: 't', startedAt: NOW - 3600000, now: NOW,
-    phases: [{ id: 'a', status: 'done' }, { id: 'b', status: 'running' }],
-    findings: [{ title: 'X', severity: 'critical' }, { title: 'Y', severity: 'low' }],
-    modules: [{ id: 'm', active: true }], artifactCount: 5,
+    huntId: 'h1',
+    target: 't',
+    startedAt: NOW - 3600000,
+    now: NOW,
+    phases: [
+      { id: 'a', status: 'done' },
+      { id: 'b', status: 'running' },
+    ],
+    findings: [
+      { title: 'X', severity: 'critical' },
+      { title: 'Y', severity: 'low' },
+    ],
+    modules: [{ id: 'm', active: true }],
+    artifactCount: 5,
   });
   assert.equal(s.coverage, 50);
   assert.equal(s.criticalFindings, 1);
@@ -181,8 +244,14 @@ test('resume with reduced scope drops lowest-priority phases', () => {
     { id: 'p4', priority: 4, status: 'pending' },
   ];
   const { kept, dropped } = reducedScope(phases, 2);
-  assert.deepEqual(kept.map((p) => p.id), ['p1', 'p4']);
-  assert.deepEqual(dropped.map((p) => p.id), ['p2']);
+  assert.deepEqual(
+    kept.map(p => p.id),
+    ['p1', 'p4']
+  );
+  assert.deepEqual(
+    dropped.map(p => p.id),
+    ['p2']
+  );
 });
 
 // --- 51329 watchdog ----------------------------------------------------------------------------------------
@@ -206,7 +275,17 @@ test('abort cascade respects the mode', () => {
 // --- 51331 export ------------------------------------------------------------------------------------------------------
 
 test('pause state export is JSON-serializable', () => {
-  const snap = exportPauseState({ huntId: 'h1', target: 't', paused: true, phases: [{ id: 'a', status: 'done' }], findings: [{}], checkpoints: ['c'] }, NOW);
+  const snap = exportPauseState(
+    {
+      huntId: 'h1',
+      target: 't',
+      paused: true,
+      phases: [{ id: 'a', status: 'done' }],
+      findings: [{}],
+      checkpoints: ['c'],
+    },
+    NOW
+  );
   assert.equal(snap.format, 'dark-matter-pause-state');
   assert.equal(JSON.parse(JSON.stringify(snap)).huntId, 'h1');
 });
@@ -244,10 +323,17 @@ test('abort requires a valid reason code and detail', () => {
 // --- 51335 snapshot --------------------------------------------------------------------------------------------------------------------------------
 
 test('pause-and-snapshot freezes report counts', () => {
-  const s = snapshotOnPause({
-    huntId: 'h1', findings: [{ title: 'A', severity: 'high' }, { title: 'B', severity: 'low' }],
-    phases: [{ id: 'a', status: 'done' }],
-  }, NOW);
+  const s = snapshotOnPause(
+    {
+      huntId: 'h1',
+      findings: [
+        { title: 'A', severity: 'high' },
+        { title: 'B', severity: 'low' },
+      ],
+      phases: [{ id: 'a', status: 'done' }],
+    },
+    NOW
+  );
   assert.equal(s.findingsTotal, 2);
   assert.equal(s.bySeverity.high, 1);
   assert.equal(s.topFindings.length, 2);
@@ -267,7 +353,12 @@ test('resume speed ramp starts low and reaches base', () => {
 // --- 51337 collaboration ---------------------------------------------------------------------------------------------------------------------------------------------
 
 test('pause collaboration gates resume to participants', () => {
-  const t = pauseDiscussion({ pausedBy: 'priya', pausedAt: NOW, reason: 'scope check', watchers: ['arjun'] });
+  const t = pauseDiscussion({
+    pausedBy: 'priya',
+    pausedAt: NOW,
+    reason: 'scope check',
+    watchers: ['arjun'],
+  });
   assert.deepEqual(t.participants.sort(), ['arjun', 'priya']);
   assert.ok(canResume(t, 'arjun'));
   assert.ok(!canResume(t, 'outsider'));
@@ -297,8 +388,20 @@ test('pause state diff reports target changes during pause', () => {
 // --- 51340 archive search ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('aborted hunts stay searchable with partial findings', () => {
-  let idx = indexAbortedHunt([], { huntId: 'h1', target: 'shop.example', abortedAt: NOW, abortReason: { code: 'scope-changed' }, findings: [{ title: 'XSS on /search', severity: 'high' }] });
-  idx = indexAbortedHunt(idx, { huntId: 'h2', target: 'api.bank.example', abortedAt: NOW, abortReason: { code: 'other' }, findings: [] });
+  let idx = indexAbortedHunt([], {
+    huntId: 'h1',
+    target: 'shop.example',
+    abortedAt: NOW,
+    abortReason: { code: 'scope-changed' },
+    findings: [{ title: 'XSS on /search', severity: 'high' }],
+  });
+  idx = indexAbortedHunt(idx, {
+    huntId: 'h2',
+    target: 'api.bank.example',
+    abortedAt: NOW,
+    abortReason: { code: 'other' },
+    findings: [],
+  });
   assert.equal(searchAbortedHunts(idx, 'xss').length, 1);
   assert.equal(searchAbortedHunts(idx, 'scope-changed').length, 1);
   assert.equal(searchAbortedHunts(idx, 'zzz').length, 0);
@@ -311,7 +414,10 @@ test('breadth-to-depth and back keep weights at 100', () => {
   const deep = shiftBreadthToDepth(BALANCED);
   const back = shiftDepthToBreadth(deep);
   for (const s of [deep, back]) {
-    assert.equal(Object.values(s.allocation).reduce((a, b) => a + b, 0), 100);
+    assert.equal(
+      Object.values(s.allocation).reduce((a, b) => a + b, 0),
+      100
+    );
   }
   assert.equal(deep.focus, 'depth');
   assert.equal(back.focus, 'breadth');
@@ -325,7 +431,10 @@ test('strategy presets apply live and normalize', () => {
   assert.ok(STRATEGY_PRESETS.length >= 4);
   const p = applyPreset('Auth-focused');
   assert.equal(p.name, 'Auth-focused');
-  assert.equal(Object.values(p.allocation).reduce((a, b) => a + b, 0), 100);
+  assert.equal(
+    Object.values(p.allocation).reduce((a, b) => a + b, 0),
+    100
+  );
   assert.equal(applyPreset('Nope'), null);
 });
 
@@ -334,7 +443,7 @@ test('strategy presets apply live and normalize', () => {
 test('strategy comparison diffs current vs proposed', () => {
   const cmp = compareStrategies(BALANCED, applyPreset('Auth-focused'));
   assert.ok(cmp.rows.length > 0);
-  const auth = cmp.rows.find((r) => r.phase === 'auth-deep');
+  const auth = cmp.rows.find(r => r.phase === 'auth-deep');
   assert.ok(auth.delta > 0);
   assert.ok(cmp.focusChanged);
   assert.ok(cmp.biggestShift.phase);
@@ -355,7 +464,7 @@ test('custom strategy builder validates weight sums', () => {
   const ok = buildStrategy('Mine', { recon: 50, 'auth-deep': 50 });
   assert.ok(ok.ok && ok.strategy.name === 'Mine');
   const bad = buildStrategy('Mine', { recon: 50, 'auth-deep': 30 });
-  assert.ok(!bad.ok && bad.errors.some((e) => e.includes('sum to 100')));
+  assert.ok(!bad.ok && bad.errors.some(e => e.includes('sum to 100')));
   assert.ok(!buildStrategy('', { recon: 100 }).ok);
 });
 
@@ -374,7 +483,9 @@ test('strategy versioning commits and rolls back', () => {
 // --- 51348 A/B ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('A/B plan splits mirrored scope; result picks the winner', () => {
-  const plan = abTestPlan(applyPreset('API-first'), applyPreset('Auth-focused'), { endpoints: 401 });
+  const plan = abTestPlan(applyPreset('API-first'), applyPreset('Auth-focused'), {
+    endpoints: 401,
+  });
   assert.equal(plan.armA.endpoints + plan.armB.endpoints, 401);
   assert.equal(abResult(7, 11).winner, 'B');
   assert.equal(abResult(11, 7).winner, 'A');
@@ -384,9 +495,19 @@ test('A/B plan splits mirrored scope; result picks the winner', () => {
 // --- 51349 suggestions -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('strategy suggestions react to live stats', () => {
-  const s1 = suggestStrategyShift({ coveragePct: 20, breadthHours: 1, depthHours: 5, findingsPerHour: 1 });
+  const s1 = suggestStrategyShift({
+    coveragePct: 20,
+    breadthHours: 1,
+    depthHours: 5,
+    findingsPerHour: 1,
+  });
   assert.equal(s1.preset, 'Recon-wide');
-  const s2 = suggestStrategyShift({ coveragePct: 80, findingsPerHour: 0.2, breadthHours: 5, depthHours: 5 });
+  const s2 = suggestStrategyShift({
+    coveragePct: 80,
+    findingsPerHour: 0.2,
+    breadthHours: 5,
+    depthHours: 5,
+  });
   assert.equal(s2.preset, 'Auth-focused');
   const s3 = suggestStrategyShift({ coveragePct: 80, findingsPerHour: 3, authFindings: 4 });
   assert.equal(s3.preset, 'Logic-heavy');
@@ -409,8 +530,8 @@ test('scheduled shifts fire on phase completion or time', () => {
 
 test('per-asset strategies map assets with a default fallback', () => {
   const rows = perAssetStrategy(['a', 'b'], [{ asset: 'a', strategyName: 'API-first' }], BALANCED);
-  assert.equal(rows.find((r) => r.asset === 'a').strategy, 'API-first');
-  assert.equal(rows.find((r) => r.asset === 'b').strategy, 'Balanced');
+  assert.equal(rows.find(r => r.asset === 'a').strategy, 'API-first');
+  assert.equal(rows.find(r => r.asset === 'b').strategy, 'Balanced');
 });
 
 // --- 51352 heatmap -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -418,7 +539,7 @@ test('per-asset strategies map assets with a default fallback', () => {
 test('strategy heatmap classifies intensity', () => {
   const rows = strategyHeatmap(BALANCED);
   assert.ok(rows.length > 0);
-  const recon = rows.find((r) => r.phase === 'recon');
+  const recon = rows.find(r => r.phase === 'recon');
   assert.equal(recon.intensity, 'medium');
   assert.ok(['none', 'low', 'medium', 'high'].includes(recon.intensity));
 });
@@ -448,7 +569,15 @@ test('strategy import/export round-trips with validation', () => {
   assert.ok(back.ok && back.strategy.name === 'Balanced');
   assert.ok(!importStrategy('not json').ok);
   assert.ok(!importStrategy(JSON.stringify({ format: 'other' })).ok);
-  assert.ok(!importStrategy(JSON.stringify({ format: 'dark-matter-strategy', version: 1, strategy: { name: 'X', allocation: { a: 10 } } })).ok);
+  assert.ok(
+    !importStrategy(
+      JSON.stringify({
+        format: 'dark-matter-strategy',
+        version: 1,
+        strategy: { name: 'X', allocation: { a: 10 } },
+      })
+    ).ok
+  );
 });
 
 // --- 51356 dry-run ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -465,7 +594,10 @@ test('strategy confidence scores fit 0–100', () => {
   const deep = shiftBreadthToDepth(BALANCED);
   const c = strategyConfidence(deep, { coveragePct: 90, findingsPerHour: 2.5 });
   assert.ok(c >= 0 && c <= 100);
-  assert.ok(strategyConfidence(BALANCED, { coveragePct: 10, findingsPerHour: 0 }) < c, 'fit beats misfit');
+  assert.ok(
+    strategyConfidence(BALANCED, { coveragePct: 10, findingsPerHour: 0 }) < c,
+    'fit beats misfit'
+  );
 });
 
 // --- 51358 auto bounds ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -488,15 +620,28 @@ test('guardrails flag violations', () => {
     { id: 'auth', kind: 'forbid-phase', phases: ['auth-deep'] },
     { id: 'cap', kind: 'max-shift', limit: 40 },
   ];
-  const v = checkGuardrails({ kind: 'breadth-depth', newBreadthPct: 10, shiftPct: 45, removedPhases: ['auth-deep'] }, rails);
+  const v = checkGuardrails(
+    { kind: 'breadth-depth', newBreadthPct: 10, shiftPct: 45, removedPhases: ['auth-deep'] },
+    rails
+  );
   assert.equal(v.length, 3);
-  assert.equal(checkGuardrails({ kind: 'breadth-depth', newBreadthPct: 20, shiftPct: 10, removedPhases: [] }, rails).length, 0);
+  assert.equal(
+    checkGuardrails(
+      { kind: 'breadth-depth', newBreadthPct: 20, shiftPct: 10, removedPhases: [] },
+      rails
+    ).length,
+    0
+  );
 });
 
 // --- 51360 alerts ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('strategy change alerts fan out to watchers', () => {
-  const a = strategyAlert({ from: 'Balanced', to: 'Auth-focused', reason: 'suggestion accepted' }, [{ id: 'you', channel: 'board' }], NOW);
+  const a = strategyAlert(
+    { from: 'Balanced', to: 'Auth-focused', reason: 'suggestion accepted' },
+    [{ id: 'you', channel: 'board' }],
+    NOW
+  );
   assert.equal(a.length, 1);
   assert.ok(a[0].subject.includes('Balanced'));
   assert.ok(a[0].body.includes('suggestion accepted'));

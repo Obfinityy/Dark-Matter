@@ -49,7 +49,7 @@ export function base32HexEncode(buf) {
  */
 export function canonicalWire(name) {
   const labels = String(name).toLowerCase().replace(/\.$/, '').split('.').filter(Boolean);
-  const parts = labels.map((l) => {
+  const parts = labels.map(l => {
     const b = Buffer.from(l, 'utf8');
     return Buffer.concat([Buffer.from([b.length]), b]);
   });
@@ -72,7 +72,10 @@ export function nsec3Hash(name, { iterations = 1, salt = '' } = {}) {
     .update(Buffer.concat([canonicalWire(name), saltBuf]))
     .digest();
   for (let i = 0; i < iterations; i++) {
-    digest = crypto.createHash('sha1').update(Buffer.concat([digest, saltBuf])).digest();
+    digest = crypto
+      .createHash('sha1')
+      .update(Buffer.concat([digest, saltBuf]))
+      .digest();
   }
   return base32HexEncode(digest);
 }
@@ -86,11 +89,11 @@ export function nsec3Hash(name, { iterations = 1, salt = '' } = {}) {
 export function parseNsecLine(line) {
   if (!line || typeof line !== 'string') return null;
   const tokens = line.trim().split(/\s+/);
-  const nsecIdx = tokens.findIndex((t) => t.toUpperCase() === 'NSEC');
+  const nsecIdx = tokens.findIndex(t => t.toUpperCase() === 'NSEC');
   if (nsecIdx < 1) return null;
   const owner = tokens[0].toLowerCase();
   const next = (tokens[nsecIdx + 1] || '').toLowerCase().replace(/\.$/, '') + '.';
-  const types = tokens.slice(nsecIdx + 2).map((t) => t.toUpperCase());
+  const types = tokens.slice(nsecIdx + 2).map(t => t.toUpperCase());
   if (!next || next === '.') return null;
   return { owner: owner.replace(/\.$/, '') + '.', next, types };
 }
@@ -104,7 +107,7 @@ export function parseNsecLine(line) {
 export function parseNsec3Line(line) {
   if (!line || typeof line !== 'string') return null;
   const tokens = line.trim().split(/\s+/);
-  const idx = tokens.findIndex((t) => t.toUpperCase() === 'NSEC3');
+  const idx = tokens.findIndex(t => t.toUpperCase() === 'NSEC3');
   if (idx < 1 || tokens.length < idx + 6) return null;
   const ownerToken = tokens[0].toLowerCase();
   const ownerHash = ownerToken.split('.')[0].toUpperCase();
@@ -115,7 +118,7 @@ export function parseNsec3Line(line) {
     iterations: parseInt(tokens[idx + 3], 10),
     salt: tokens[idx + 4] === '-' ? '' : tokens[idx + 4].toLowerCase(),
     nextHash: (tokens[idx + 5] || '').toUpperCase(),
-    types: tokens.slice(idx + 6).map((t) => t.toUpperCase()),
+    types: tokens.slice(idx + 6).map(t => t.toUpperCase()),
   };
 }
 
@@ -140,7 +143,7 @@ export function createNsecLookup(records) {
   for (const r of records || []) {
     if (r && r.owner) map.set(r.owner.toLowerCase(), r);
   }
-  return (name) => map.get(String(name).toLowerCase()) || null;
+  return name => map.get(String(name).toLowerCase()) || null;
 }
 
 /**
@@ -153,7 +156,7 @@ export function createNsec3Lookup(records) {
   for (const r of records || []) {
     if (r && r.ownerHash) map.set(String(r.ownerHash).toUpperCase(), r);
   }
-  return (hash) => map.get(String(hash).toUpperCase()) || null;
+  return hash => map.get(String(hash).toUpperCase()) || null;
 }
 
 /**

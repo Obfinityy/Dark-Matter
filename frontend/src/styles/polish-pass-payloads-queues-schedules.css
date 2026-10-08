@@ -1,39 +1,62 @@
-
 /* ════════════════ POLISH PASS — PayloadLibrary / Queues / Schedules ════════════════ */
 
 /* (dead payload-card/filter-field rules from the pre-redesign pass removed 8 Oct 2026 — no JSX references them; PayloadLibrary now uses its own stylesheet) */
 
 /* Labelled form rows */
 .dm-form-label {
-  display: flex; flex-direction: column; gap: 7px;
-  flex: 1; min-width: 180px;
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--dm-faint);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  min-width: 180px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dm-faint);
 }
-.dm-form-label input, .dm-form-label select, .dm-form-label textarea { min-height: 44px; }
+.dm-form-label input,
+.dm-form-label select,
+.dm-form-label textarea {
+  min-height: 44px;
+}
 .dm-form-hint {
-  font-size: 12px; font-weight: 400; text-transform: none;
-  letter-spacing: 0; color: var(--dm-faint); line-height: 1.5;
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--dm-faint);
+  line-height: 1.5;
 }
-.dm-schedule-form .dm-form-row { align-items: flex-end; }
+.dm-schedule-form .dm-form-row {
+  align-items: flex-end;
+}
 
 /* Queue progress */
 .dm-queue-progress {
-  height: 6px; border-radius: 3px;
+  height: 6px;
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.07);
-  overflow: hidden; margin-top: 10px;
+  overflow: hidden;
+  margin-top: 10px;
 }
 .dm-queue-progress > span {
-  display: block; height: 100%; border-radius: 3px;
+  display: block;
+  height: 100%;
+  border-radius: 3px;
   background: linear-gradient(90deg, var(--dm-accent), #5eead4);
   transition: width 0.3s ease;
 }
 
 /* Card hover lift for queues / schedules */
-.dm-queue-card, .dm-schedule-card {
-  transition: border-color 0.2s ease, opacity 0.2s ease;
+.dm-queue-card,
+.dm-schedule-card {
+  transition:
+    border-color 0.2s ease,
+    opacity 0.2s ease;
 }
-.dm-queue-card:hover, .dm-schedule-card:hover {
+.dm-queue-card:hover,
+.dm-schedule-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   border-color: rgba(255, 255, 255, 0.12);
@@ -41,27 +64,43 @@
 
 /* Richer empty states */
 .dm-empty-state {
-  text-align: center; padding: 48px 24px;
-  border: 1px dashed var(--dm-border); border-radius: var(--radius-lg);
+  text-align: center;
+  padding: 48px 24px;
+  border: 1px dashed var(--dm-border);
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.015);
 }
-.dm-empty-state svg { margin-bottom: 12px; }
-.dm-empty-state p { max-width: 420px; margin-inline: auto; line-height: 1.55; }
+.dm-empty-state svg {
+  margin-bottom: 12px;
+}
+.dm-empty-state p {
+  max-width: 420px;
+  margin-inline: auto;
+  line-height: 1.55;
+}
 
 /* Result count line under the filters — subtle, SR-announced via aria-live */
 .dm-result-count {
-  font-size: 12.5px; color: var(--dm-faint);
-  margin: -8px 0 14px; line-height: 1.5;
+  font-size: 12.5px;
+  color: var(--dm-faint);
+  margin: -8px 0 14px;
+  line-height: 1.5;
 }
 
 /* 44px tap targets for queue row actions on mobile */
 @media (max-width: 768px) {
   .dm-queue-actions .dm-btn-ghost,
-  .dm-queue-actions .dm-card-link { min-height: 44px; }
+  .dm-queue-actions .dm-card-link {
+    min-height: 44px;
+  }
 }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .dm-list-in { animation: none; }
-  .dm-queue-progress > span { transition: none; }
+  .dm-list-in {
+    animation: none;
+  }
+  .dm-queue-progress > span {
+    transition: none;
+  }
 }

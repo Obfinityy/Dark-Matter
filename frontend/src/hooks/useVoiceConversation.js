@@ -18,6 +18,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSpeechRecognition } from './useSpeechRecognition';
 
+/**
+ * useVoiceConversation — React hook managing a full voice conversation loop.
+ * Wires speech recognition to TTS responses with turn-taking state.
+ * @returns {object} Conversation state and controls.
+ */
 export function useVoiceConversation({ active, lang, onTranscript, onStateChange }) {
   const [processing, setProcessing] = useState(false);
   const activeRef = useRef(active);
@@ -27,7 +32,7 @@ export function useVoiceConversation({ active, lang, onTranscript, onStateChange
   const stateCbRef = useRef(onStateChange);
   stateCbRef.current = onStateChange;
 
-  const handleFinal = useCallback(async (text) => {
+  const handleFinal = useCallback(async text => {
     if (!activeRef.current || !text) return;
     setProcessing(true);
     stateCbRef.current?.('thinking');

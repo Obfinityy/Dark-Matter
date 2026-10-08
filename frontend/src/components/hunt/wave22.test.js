@@ -6,20 +6,61 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE22_IDEAS, wave22IdeaIds,
-  createCopyState, copyStart, copyResolve, copyReset, COPY_STATES,
-  buildCurlCommand, findingDeepLink, cvssCopyText, normalizeTargetUrl,
-  stripTimestamps, terminalCopyText, rowsToCsv, reportSectionCopy,
-  shareText, maskToken, isRevealWindowOpen, TOKEN_REVEAL_WINDOW_MS,
-  diagnosticsBundle, searchAsUrl, webhookExample, findingAsTicket,
-  filteredSetText, huntSummaryText, checksumCopyText, timelineEventLine,
-  historyPush, CLIPBOARD_HISTORY_MAX, COPY_FORMATS, formatCopyText,
-  citationAppend, assetListText, retestDiffText, shortcutText,
-  statusUpdateText, modelConfigJson, filterAsUrl, createAutoCopyState,
-  toggleAutoCopy, lineCountToast, blockedFallbackState, copyAriaLabel,
-  encodePayload, PAYLOAD_VARIANTS, dualTimestamps, inviteLinkText,
-  widgetConfigJson, verifyRegex, escapeRegex, multiBlockCombine,
-  accessibleTableText, copyRateGuard, COPY_RATE_LIMIT, prefersShareSheet,
+  WAVE22_IDEAS,
+  wave22IdeaIds,
+  createCopyState,
+  copyStart,
+  copyResolve,
+  copyReset,
+  COPY_STATES,
+  buildCurlCommand,
+  findingDeepLink,
+  cvssCopyText,
+  normalizeTargetUrl,
+  stripTimestamps,
+  terminalCopyText,
+  rowsToCsv,
+  reportSectionCopy,
+  shareText,
+  maskToken,
+  isRevealWindowOpen,
+  TOKEN_REVEAL_WINDOW_MS,
+  diagnosticsBundle,
+  searchAsUrl,
+  webhookExample,
+  findingAsTicket,
+  filteredSetText,
+  huntSummaryText,
+  checksumCopyText,
+  timelineEventLine,
+  historyPush,
+  CLIPBOARD_HISTORY_MAX,
+  COPY_FORMATS,
+  formatCopyText,
+  citationAppend,
+  assetListText,
+  retestDiffText,
+  shortcutText,
+  statusUpdateText,
+  modelConfigJson,
+  filterAsUrl,
+  createAutoCopyState,
+  toggleAutoCopy,
+  lineCountToast,
+  blockedFallbackState,
+  copyAriaLabel,
+  encodePayload,
+  PAYLOAD_VARIANTS,
+  dualTimestamps,
+  inviteLinkText,
+  widgetConfigJson,
+  verifyRegex,
+  escapeRegex,
+  multiBlockCombine,
+  accessibleTableText,
+  copyRateGuard,
+  COPY_RATE_LIMIT,
+  prefersShareSheet,
 } from './clipboardCore.js';
 
 describe('wave 22 registry', () => {
@@ -75,7 +116,11 @@ describe('copy-as-cURL (50842)', () => {
 
 describe('deep link + CVSS + target URL (50843–50845)', () => {
   it('builds an expanded finding link', () => {
-    const link = findingDeepLink({ baseUrl: 'https://app.example/', huntId: 'h1', findingId: 'f 1' });
+    const link = findingDeepLink({
+      baseUrl: 'https://app.example/',
+      huntId: 'h1',
+      findingId: 'f 1',
+    });
     assert.equal(link, 'https://app.example/hunts/h1?finding=f%201');
   });
   it('trims CVSS vectors', () => {
@@ -103,7 +148,10 @@ describe('terminal copy (50846)', () => {
 describe('CSV (50847)', () => {
   it('produces well-formed CSV with quoting', () => {
     const csv = rowsToCsv(
-      [{ a: 'x', b: 'y,z' }, { a: 'p"q', b: 'r' }],
+      [
+        { a: 'x', b: 'y,z' },
+        { a: 'p"q', b: 'r' },
+      ],
       ['a', 'b']
     );
     assert.equal(csv, 'a,b\r\nx,"y,z"\r\n"p""q",r');
@@ -115,7 +163,13 @@ describe('report section + share text (50848–50849)', () => {
     assert.equal(reportSectionCopy({ title: 'Findings', body: 'two' }), '# Findings\n\ntwo');
   });
   it('formats the share line', () => {
-    const t = shareText({ severity: 'Critical', title: 'SQLi', host: 'example.com', path: '/login', link: 'L' });
+    const t = shareText({
+      severity: 'Critical',
+      title: 'SQLi',
+      host: 'example.com',
+      path: '/login',
+      link: 'L',
+    });
     assert.equal(t, 'Critical: SQLi on example.com/login — details: L');
   });
 });
@@ -170,7 +224,10 @@ describe('filtered set + hunt summary + checksum (50855–50857)', () => {
     assert.ok(filteredSetText(f, 'csv').includes('severity'));
   });
   it('writes the standup paragraph', () => {
-    const t = huntSummaryText({ name: 'nightly', findings: [{ severity: 'Critical' }, { severity: 'high' }] });
+    const t = huntSummaryText({
+      name: 'nightly',
+      findings: [{ severity: 'Critical' }, { severity: 'high' }],
+    });
     assert.ok(t.startsWith('Hunt nightly: 2 findings'));
     assert.ok(t.includes('1 critical'));
   });
@@ -231,7 +288,10 @@ describe('status update + model config + filter URL (50865–50867)', () => {
     assert.deepEqual(JSON.parse(modelConfigJson({ a: 1 })), { a: 1 });
   });
   it('encodes filter state as a URL', () => {
-    const url = filterAsUrl('https://app.example', { severity: ['critical', 'high'], sort: 'risk' });
+    const url = filterAsUrl('https://app.example', {
+      severity: ['critical', 'high'],
+      sort: 'risk',
+    });
     assert.ok(url.includes('severity=critical%2Chigh'));
     assert.ok(url.includes('sort=risk'));
   });

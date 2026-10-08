@@ -15,29 +15,38 @@ import * as FP from './fpCore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const NEW_FILES = [
-  'triageRound2Core.js', 'fpCore.js',
-  'TriageRound2.jsx', 'FPManagement.jsx',
-  'Wave52.css', 'wave52.test.js',
+  'triageRound2Core.js',
+  'fpCore.js',
+  'TriageRound2.jsx',
+  'FPManagement.jsx',
+  'Wave52.css',
+  'wave52.test.js',
 ];
 const NOW = 1700000000000; // fixed reference time for deterministic tests
 
 describe('triageRound2Core registry', () => {
   test('lists all 23 triage round-2 ideas 52041–52063, zero skips', () => {
     assert.equal(TR2.WAVE52_TRIAGE2_IDEAS.length, 23);
-    const ids = TR2.WAVE52_TRIAGE2_IDEAS.map((i) => i.id);
+    const ids = TR2.WAVE52_TRIAGE2_IDEAS.map(i => i.id);
     for (let id = 52041; id <= 52063; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 23, 'no duplicate ids');
-    assert.ok(TR2.WAVE52_TRIAGE2_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      TR2.WAVE52_TRIAGE2_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
 describe('fpCore registry', () => {
   test('lists all 17 FP ideas 52064–52080, zero skips', () => {
     assert.equal(FP.WAVE52_FP_IDEAS.length, 17);
-    const ids = FP.WAVE52_FP_IDEAS.map((i) => i.id);
+    const ids = FP.WAVE52_FP_IDEAS.map(i => i.id);
     for (let id = 52064; id <= 52080; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 17, 'no duplicate ids');
-    assert.ok(FP.WAVE52_FP_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      FP.WAVE52_FP_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
@@ -56,8 +65,24 @@ describe('triageRound2Core spot checks', () => {
   test('buildComparisonTable needs 2–3 findings and flags differing fields', () => {
     assert.equal(TR2.buildComparisonTable([]).ok, false);
     const ok = TR2.buildComparisonTable([
-      { id: 'a', severity: 'high', vulnClass: 'xss', endpoint: '/x', confidence: 90, status: 'open', evidence: [1] },
-      { id: 'b', severity: 'high', vulnClass: 'sqli', endpoint: '/x', confidence: 40, status: 'open', evidence: [] },
+      {
+        id: 'a',
+        severity: 'high',
+        vulnClass: 'xss',
+        endpoint: '/x',
+        confidence: 90,
+        status: 'open',
+        evidence: [1],
+      },
+      {
+        id: 'b',
+        severity: 'high',
+        vulnClass: 'sqli',
+        endpoint: '/x',
+        confidence: 40,
+        status: 'open',
+        evidence: [],
+      },
     ]);
     assert.equal(ok.ok, true);
     assert.ok(ok.differs.includes('vulnClass'));
@@ -78,10 +103,18 @@ describe('triageRound2Core spot checks', () => {
   });
 
   test('computeReminders fires after interval and escalates criticals', () => {
-    const r = TR2.computeReminders([{ status: 'open', severity: 'critical' }], { intervalHours: 1, lastSentAt: 0, criticalEscalate: true }, NOW);
-    assert.ok(r.some((x) => x.message.includes('1 findings pending triage')));
-    assert.ok(r.some((x) => x.escalated === true));
-    const none = TR2.computeReminders([{ status: 'open' }], { intervalHours: 24, lastSentAt: NOW }, NOW);
+    const r = TR2.computeReminders(
+      [{ status: 'open', severity: 'critical' }],
+      { intervalHours: 1, lastSentAt: 0, criticalEscalate: true },
+      NOW
+    );
+    assert.ok(r.some(x => x.message.includes('1 findings pending triage')));
+    assert.ok(r.some(x => x.escalated === true));
+    const none = TR2.computeReminders(
+      [{ status: 'open' }],
+      { intervalHours: 24, lastSentAt: NOW },
+      NOW
+    );
     assert.equal(none.length, 0);
   });
 
@@ -90,7 +123,9 @@ describe('triageRound2Core spot checks', () => {
     assert.equal(pack.rev, 3);
     const decided = TR2.applyOfflineDecision(pack, 'a', 'accepted', NOW);
     assert.equal(decided.findings[0].decision, 'accepted');
-    const merged = TR2.mergeOfflineDecisions(decided, [{ id: 'a', decision: 'dismissed', updatedAt: NOW - 100 }]);
+    const merged = TR2.mergeOfflineDecisions(decided, [
+      { id: 'a', decision: 'dismissed', updatedAt: NOW - 100 },
+    ]);
     assert.equal(merged.merged[0].source, 'offline-newer');
     assert.equal(merged.conflicts.length, 1);
     assert.equal(merged.conflicts[0].resolution, 'offline-newer-kept');
@@ -111,7 +146,10 @@ describe('triageRound2Core spot checks', () => {
   });
 
   test('searchAllHunts finds findings across hunts', () => {
-    const r = TR2.searchAllHunts([{ id: 'h1', name: 'Shop', findings: [{ id: 'f1', title: 'XSS here', vulnClass: 'xss' }] }], 'xss');
+    const r = TR2.searchAllHunts(
+      [{ id: 'h1', name: 'Shop', findings: [{ id: 'f1', title: 'XSS here', vulnClass: 'xss' }] }],
+      'xss'
+    );
     assert.equal(r.length, 1);
     assert.equal(r[0].huntId, 'h1');
     assert.equal(TR2.searchAllHunts([], 'xss').length, 0);
@@ -119,13 +157,26 @@ describe('triageRound2Core spot checks', () => {
   });
 
   test('routeToTeams routes by asset ownership, unassigned fallback', () => {
-    const q = TR2.routeToTeams([{ asset: 'a1', id: 'f1' }, { asset: 'a9', id: 'f2' }], { a1: 'team-x' });
+    const q = TR2.routeToTeams(
+      [
+        { asset: 'a1', id: 'f1' },
+        { asset: 'a9', id: 'f2' },
+      ],
+      { a1: 'team-x' }
+    );
     assert.equal(q['team-x'].length, 1);
     assert.equal(q['unassigned'].length, 1);
   });
 
   test('describeForScreenReader produces a complete spoken summary', () => {
-    const d = TR2.describeForScreenReader({ id: 'f9', severity: 'high', status: 'open', title: 'SQLi', vulnClass: 'sqli', endpoint: '/p' });
+    const d = TR2.describeForScreenReader({
+      id: 'f9',
+      severity: 'high',
+      status: 'open',
+      title: 'SQLi',
+      vulnClass: 'sqli',
+      endpoint: '/p',
+    });
     assert.ok(d.includes('f9') && d.includes('high') && d.includes('/p'));
     assert.ok(TR2.TRIAGE_KEYBOARD_HINTS.length >= 4);
   });
@@ -140,14 +191,19 @@ describe('triageRound2Core spot checks', () => {
   });
 
   test('buildEvidenceChain numbers steps', () => {
-    const c = TR2.buildEvidenceChain([{ method: 'POST', url: '/a', request: 'r', response: '200' }]);
+    const c = TR2.buildEvidenceChain([
+      { method: 'POST', url: '/a', request: 'r', response: '200' },
+    ]);
     assert.equal(c.totalSteps, 1);
     assert.equal(c.steps[0].step, 1);
     assert.equal(TR2.buildEvidenceChain([]).valid, false);
   });
 
   test('simplifyFinding glosses jargon', () => {
-    const s = TR2.simplifyFinding('Reflected XSS via query parameter', { XSS: 'attacker code in a page', parameter: 'value in the address' });
+    const s = TR2.simplifyFinding('Reflected XSS via query parameter', {
+      XSS: 'attacker code in a page',
+      parameter: 'value in the address',
+    });
     assert.ok(s.includes('attacker code in a page'));
   });
 
@@ -175,7 +231,9 @@ describe('triageRound2Core spot checks', () => {
 
   test('buildHeatmap aggregates asset x vuln class', () => {
     const cells = TR2.buildHeatmap([
-      { asset: 'shop', vulnClass: 'xss' }, { asset: 'shop', vulnClass: 'xss' }, { asset: 'blog', vulnClass: 'sqli' },
+      { asset: 'shop', vulnClass: 'xss' },
+      { asset: 'shop', vulnClass: 'xss' },
+      { asset: 'blog', vulnClass: 'sqli' },
     ]);
     assert.equal(cells[0].count, 2);
     assert.deepEqual(cells[0].filter, { asset: 'shop', vulnClass: 'xss' });
@@ -188,13 +246,15 @@ describe('triageRound2Core spot checks', () => {
       { id: 'c', endpoint: '/y', parameter: 'q' },
     ]);
     assert.equal(g.nodes.length, 3);
-    assert.ok(g.edges.some((e) => e.via === 'shared-endpoint'));
-    assert.ok(g.edges.some((e) => e.via === 'shared-parameter'));
+    assert.ok(g.edges.some(e => e.via === 'shared-endpoint'));
+    assert.ok(g.edges.some(e => e.via === 'shared-parameter'));
   });
 
   test('buildFirstLookTour takes top 5 by severity', () => {
     const t = TR2.buildFirstLookTour([
-      { id: 'a', severity: 'low' }, { id: 'b', severity: 'critical' }, { id: 'c', severity: 'high' },
+      { id: 'a', severity: 'low' },
+      { id: 'b', severity: 'critical' },
+      { id: 'c', severity: 'high' },
     ]);
     assert.equal(t.steps[0].findingId, 'b');
     assert.equal(t.totalSteps, 3);
@@ -202,18 +262,27 @@ describe('triageRound2Core spot checks', () => {
 
   test('balanceWorkload distributes to least-loaded reviewer', () => {
     const r = TR2.balanceWorkload(
-      [{ id: 'a', status: 'open' }, { id: 'b', status: 'open' }, { id: 'c', status: 'closed' }],
-      [{ name: 'ria', load: 10 }, { name: 'sam', load: 1 }],
+      [
+        { id: 'a', status: 'open' },
+        { id: 'b', status: 'open' },
+        { id: 'c', status: 'closed' },
+      ],
+      [
+        { name: 'ria', load: 10 },
+        { name: 'sam', load: 1 },
+      ]
     );
     assert.equal(r.assignments.length, 2);
-    assert.ok(r.assignments.some((a) => a.reviewer === 'sam'));
+    assert.ok(r.assignments.some(a => a.reviewer === 'sam'));
     assert.equal(r.unassigned.length, 0);
     const empty = TR2.balanceWorkload([{ id: 'a', status: 'open' }], []);
     assert.equal(empty.unassigned.length, 1);
   });
 
   test('exportDecisions produces quoted CSV', () => {
-    const csv = TR2.exportDecisions([{ findingId: 'f1', decidedBy: 'ria', decision: 'accepted', decidedAt: 123 }]);
+    const csv = TR2.exportDecisions([
+      { findingId: 'f1', decidedBy: 'ria', decision: 'accepted', decidedAt: 123 },
+    ]);
     const lines = csv.split('\n');
     assert.equal(lines.length, 2);
     assert.ok(lines[0].includes('finding_id,decided_by'));
@@ -239,8 +308,8 @@ describe('triageRound2Core spot checks', () => {
   test('describeTriageApi lists REST endpoints', () => {
     const api = TR2.describeTriageApi();
     assert.ok(api.length >= 7);
-    assert.ok(api.every((e) => e.method && e.path && e.summary));
-    assert.ok(api.some((e) => e.path.includes('openapi')));
+    assert.ok(api.every(e => e.method && e.path && e.summary));
+    assert.ok(api.some(e => e.path.includes('openapi')));
   });
 });
 
@@ -257,20 +326,35 @@ describe('fpCore spot checks', () => {
     const short = FP.validateJustification('too short', 8);
     assert.equal(short.ok, false);
     assert.equal(short.words, 2);
-    const long = FP.validateJustification('this payload is blocked by the WAF before reaching the application', 8);
+    const long = FP.validateJustification(
+      'this payload is blocked by the WAF before reaching the application',
+      8
+    );
     assert.equal(long.ok, true);
   });
 
   test('linkEvidence attaches proving snippet', () => {
-    const m = FP.linkEvidence({ findingId: 'f1' }, { label: 'WAF page', content: 'blocked', capturedAt: NOW });
+    const m = FP.linkEvidence(
+      { findingId: 'f1' },
+      { label: 'WAF page', content: 'blocked', capturedAt: NOW }
+    );
     assert.equal(m.ok, true);
     assert.equal(m.evidenceLink.label, 'WAF page');
     assert.equal(FP.linkEvidence({}, {}).ok, false);
   });
 
   test('fpConfidenceScore rises with WAF block + no evidence', () => {
-    const high = FP.fpConfidenceScore({ evidence: [], responseBody: '403 WAF blocked', severity: 'low' });
-    const low = FP.fpConfidenceScore({ evidence: [{ x: 1 }], responseBody: '200', severity: 'critical', asset: 'prod' });
+    const high = FP.fpConfidenceScore({
+      evidence: [],
+      responseBody: '403 WAF blocked',
+      severity: 'low',
+    });
+    const low = FP.fpConfidenceScore({
+      evidence: [{ x: 1 }],
+      responseBody: '200',
+      severity: 'critical',
+      asset: 'prod',
+    });
     assert.ok(high > low);
     assert.ok(high <= 0.99);
   });
@@ -284,7 +368,12 @@ describe('fpCore spot checks', () => {
   });
 
   test('buildTrainingSample needs a reason', () => {
-    const s = FP.buildTrainingSample({ findingId: 'f1', reasonId: 'test-artifact', vulnClass: 'xss', engine: 'e1' });
+    const s = FP.buildTrainingSample({
+      findingId: 'f1',
+      reasonId: 'test-artifact',
+      vulnClass: 'xss',
+      engine: 'e1',
+    });
     assert.equal(s.ok, true);
     assert.equal(s.label, 'false-positive');
     assert.equal(FP.buildTrainingSample({}).ok, false);
@@ -303,8 +392,10 @@ describe('fpCore spot checks', () => {
 
   test('fpRateByClass ranks noisiest class first', () => {
     const rows = FP.fpRateByClass([
-      { vulnClass: 'xss', isFalsePositive: true }, { vulnClass: 'xss', isFalsePositive: true },
-      { vulnClass: 'sqli', isFalsePositive: true }, { vulnClass: 'sqli', isFalsePositive: false },
+      { vulnClass: 'xss', isFalsePositive: true },
+      { vulnClass: 'xss', isFalsePositive: true },
+      { vulnClass: 'sqli', isFalsePositive: true },
+      { vulnClass: 'sqli', isFalsePositive: false },
     ]);
     assert.equal(rows[0].vulnClass, 'xss');
     assert.equal(rows[0].rate, 1);
@@ -312,22 +403,30 @@ describe('fpCore spot checks', () => {
   });
 
   test('fpRateByTarget groups by asset', () => {
-    const rows = FP.fpRateByTarget([{ target: 'shop', isFalsePositive: true }, { target: 'blog', isFalsePositive: false }]);
+    const rows = FP.fpRateByTarget([
+      { target: 'shop', isFalsePositive: true },
+      { target: 'blog', isFalsePositive: false },
+    ]);
     assert.equal(rows[0].target, 'shop');
     assert.equal(rows[0].rate, 1);
   });
 
   test('engineFpLeaderboard sorts cleanest engine first', () => {
     const rows = FP.engineFpLeaderboard([
-      { engine: 'noisy', isFalsePositive: true }, { engine: 'noisy', isFalsePositive: true },
-      { engine: 'clean', isFalsePositive: false }, { engine: 'clean', isFalsePositive: false },
+      { engine: 'noisy', isFalsePositive: true },
+      { engine: 'noisy', isFalsePositive: true },
+      { engine: 'clean', isFalsePositive: false },
+      { engine: 'clean', isFalsePositive: false },
     ]);
     assert.equal(rows[0].engine, 'clean');
     assert.equal(rows[1].fpRate, 1);
   });
 
   test('unmarkFp restores prior state and logs reversal', () => {
-    const r = FP.unmarkFp({ id: 'f1', fpMarked: true, status: 'dismissed-fp', priorStatus: 'open' }, NOW);
+    const r = FP.unmarkFp(
+      { id: 'f1', fpMarked: true, status: 'dismissed-fp', priorStatus: 'open' },
+      NOW
+    );
     assert.equal(r.ok, true);
     assert.equal(r.finding.status, 'open');
     assert.equal(r.finding.fpMarked, false);
@@ -348,10 +447,20 @@ describe('fpCore spot checks', () => {
   });
 
   test('bulkMarkFp marks many under a shared reason', () => {
-    const r = FP.bulkMarkFp([{ id: 'a', status: 'open' }, { id: 'b', status: 'open' }], 'test-artifact', 'ria', NOW);
+    const r = FP.bulkMarkFp(
+      [
+        { id: 'a', status: 'open' },
+        { id: 'b', status: 'open' },
+      ],
+      'test-artifact',
+      'ria',
+      NOW
+    );
     assert.equal(r.ok, true);
     assert.equal(r.count, 2);
-    assert.ok(r.findings.every((f) => f.fpMarked && f.status === 'dismissed-fp' && f.markedAt === NOW));
+    assert.ok(
+      r.findings.every(f => f.fpMarked && f.status === 'dismissed-fp' && f.markedAt === NOW)
+    );
     assert.equal(FP.bulkMarkFp([{ id: 'a' }], 'bogus', 'ria').ok, false);
   });
 
@@ -365,7 +474,11 @@ describe('fpCore spot checks', () => {
   });
 
   test('recordTeachingNote caps at 30 seconds', () => {
-    const ok = FP.recordTeachingNote({ findingId: 'f1', reasonId: 'not-reproducible' }, 'The WAF strips payloads.', 24);
+    const ok = FP.recordTeachingNote(
+      { findingId: 'f1', reasonId: 'not-reproducible' },
+      'The WAF strips payloads.',
+      24
+    );
     assert.equal(ok.ok, true);
     assert.equal(ok.teachingNote.durationSeconds, 24);
     assert.equal(FP.recordTeachingNote({}, 'text', 45).ok, false);
@@ -373,11 +486,26 @@ describe('fpCore spot checks', () => {
   });
 
   test('fpAnalytics aggregates dashboard metrics', () => {
-    const a = FP.fpAnalytics([
-      { isFalsePositive: true, reasonId: 'not-reproducible', markedBy: 'ria', markedAt: NOW, foundAt: NOW - 60000 },
-      { isFalsePositive: true, reasonId: 'not-reproducible', markedBy: 'sam', markedAt: NOW, foundAt: NOW - 120000 },
-      { isFalsePositive: false },
-    ], NOW);
+    const a = FP.fpAnalytics(
+      [
+        {
+          isFalsePositive: true,
+          reasonId: 'not-reproducible',
+          markedBy: 'ria',
+          markedAt: NOW,
+          foundAt: NOW - 60000,
+        },
+        {
+          isFalsePositive: true,
+          reasonId: 'not-reproducible',
+          markedBy: 'sam',
+          markedAt: NOW,
+          foundAt: NOW - 120000,
+        },
+        { isFalsePositive: false },
+      ],
+      NOW
+    );
     assert.equal(a.totalMarked, 2);
     assert.equal(a.fpRateOverall, 0.667);
     assert.equal(a.topReasons[0].key, 'not-reproducible');
@@ -427,7 +555,7 @@ describe('self audits', () => {
   });
   test('none of the 5 product files contain TODO/FIXME/XXX/mock/simulate/lorem/demo placeholder text', () => {
     const pattern = /\b(todo|fixme|xxx|hack|mock|simulate|lorem|demo)\b/i;
-    for (const f of NEW_FILES.filter((x) => x !== 'wave52.test.js')) {
+    for (const f of NEW_FILES.filter(x => x !== 'wave52.test.js')) {
       const content = readFileSync(join(HERE, f), 'utf8');
       const hit = content.match(pattern);
       assert.ok(!hit, `${f} contains debris marker: "${hit && hit[0]}"`);
@@ -442,11 +570,11 @@ describe('self audits', () => {
   test('Wave52.css uses only scoped prefixes .tr2-* and .fp52-*', () => {
     const css = readFileSync(join(HERE, 'Wave52.css'), 'utf8');
     const classSelectors = css.match(/^\.[a-zA-Z][a-zA-Z0-9_-]*/gm) || [];
-    const rogue = classSelectors.filter((c) => !c.startsWith('.tr2-') && !c.startsWith('.fp52-'));
+    const rogue = classSelectors.filter(c => !c.startsWith('.tr2-') && !c.startsWith('.fp52-'));
     assert.deepEqual(rogue, [], `unscoped selectors: ${rogue.join(', ')}`);
   });
   test('Infinity AI branding only — no other worker name in product files', () => {
-    const productFiles = NEW_FILES.filter((f) => f !== 'wave52.test.js');
+    const productFiles = NEW_FILES.filter(f => f !== 'wave52.test.js');
     for (const f of productFiles) {
       const content = readFileSync(join(HERE, f), 'utf8');
       assert.ok(!/\b[mM]use\b/.test(content), `${f} mentions the forbidden worker name`);

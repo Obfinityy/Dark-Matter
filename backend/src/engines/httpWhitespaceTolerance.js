@@ -32,8 +32,22 @@ export const WHITESPACE_PROBES = [
  */
 export const PARSER_TIERS = [
   { tier: 'strict-rfc', acceptedProbes: [], description: 'rejects every whitespace deviation' },
-  { tier: 'moderate', acceptedProbes: ['tab-after-value', 'multiple-spaces-request-line'], description: 'tolerates benign spacing, rejects obs-fold and bare LF' },
-  { tier: 'permissive', acceptedProbes: ['space-before-colon', 'tab-after-value', 'obs-fold', 'multiple-spaces-request-line', 'bare-lf'], description: 'accepts obsolete and malformed framing — desync-prone' },
+  {
+    tier: 'moderate',
+    acceptedProbes: ['tab-after-value', 'multiple-spaces-request-line'],
+    description: 'tolerates benign spacing, rejects obs-fold and bare LF',
+  },
+  {
+    tier: 'permissive',
+    acceptedProbes: [
+      'space-before-colon',
+      'tab-after-value',
+      'obs-fold',
+      'multiple-spaces-request-line',
+      'bare-lf',
+    ],
+    description: 'accepts obsolete and malformed framing — desync-prone',
+  },
 ];
 
 /**
@@ -49,7 +63,8 @@ export function scoreWhitespaceTolerance(observations) {
   for (const o of list) {
     if (o.accepted) accepted.push(o.probe);
     else rejected.push(o.probe);
-    if (o.accepted && o.normalized) notes.push(`probe "${o.probe}" accepted and normalized to standard framing`);
+    if (o.accepted && o.normalized)
+      notes.push(`probe "${o.probe}" accepted and normalized to standard framing`);
     if (o.accepted && (o.probe === 'obs-fold' || o.probe === 'bare-lf')) {
       notes.push(`probe "${o.probe}" accepted — parser diverges from strict RFC framing`);
     }
@@ -67,20 +82,31 @@ export function identifyParserTier(scored) {
   let best = PARSER_TIERS[0];
   let bestOverlap = -1;
   for (const tier of PARSER_TIERS) {
-    const overlap = tier.acceptedProbes.filter((p) => scored.accepted.includes(p)).length;
-    const unexpected = scored.accepted.filter((p) => !tier.acceptedProbes.includes(p)).length;
+    const overlap = tier.acceptedProbes.filter(p => scored.accepted.includes(p)).length;
+    const unexpected = scored.accepted.filter(p => !tier.acceptedProbes.includes(p)).length;
     const score = overlap - unexpected;
-    if (score > bestOverlap) { bestOverlap = score; best = tier; }
+    if (score > bestOverlap) {
+      bestOverlap = score;
+      best = tier;
+    }
   }
   const implications = [];
   if (best.tier === 'permissive') {
-    implications.push('permissive parsing widens the desync surface — prioritize smuggling differentials');
+    implications.push(
+      'permissive parsing widens the desync surface — prioritize smuggling differentials'
+    );
     implications.push('flag in report: parser accepts obsolete framing constructs');
   } else if (best.tier === 'strict-rfc') {
     implications.push('strict parser — desync unlikely at the framing layer');
   }
-  const confidence = scored.accepted.length + best.acceptedProbes.length > 0
-    ? Math.max(0, bestOverlap) / Math.max(1, best.acceptedProbes.length)
-    : 0.3;
-  return { tier: best.tier, confidence: Math.min(0.95, confidence + 0.2), description: best.description, implications };
+  const confidence =
+    scored.accepted.length + best.acceptedProbes.length > 0
+      ? Math.max(0, bestOverlap) / Math.max(1, best.acceptedProbes.length)
+      : 0.3;
+  return {
+    tier: best.tier,
+    confidence: Math.min(0.95, confidence + 0.2),
+    description: best.description,
+    implications,
+  };
 }

@@ -61,9 +61,9 @@ export const PRESREEN_QUEUE_THRESHOLD = 0.6;
  */
 export function matchCatalog(cname) {
   const target = String(cname || '').replace(/\.+$/, '');
-  return SAAS_CNAME_CATALOG
-    .filter((entry) => entry.pattern.test(target))
-    .map(({ service, weight }) => ({ service, weight }));
+  return SAAS_CNAME_CATALOG.filter(entry => entry.pattern.test(target)).map(
+    ({ service, weight }) => ({ service, weight })
+  );
 }
 
 /**
@@ -83,8 +83,8 @@ export function prescreenCandidate(record) {
   const cname = String(record.cname || '').replace(/\.+$/, '');
   const matches = matchCatalog(cname);
   const reasons = [];
-  let confidence = matches.length ? Math.max(...matches.map((m) => m.weight)) : 0;
-  if (matches.length) reasons.push(`CNAME matches ${matches.map((m) => m.service).join(', ')}`);
+  let confidence = matches.length ? Math.max(...matches.map(m => m.weight)) : 0;
+  if (matches.length) reasons.push(`CNAME matches ${matches.map(m => m.service).join(', ')}`);
   if (record.cnameNxdomain && matches.length) {
     confidence = Math.min(0.99, confidence + 0.15);
     reasons.push('CNAME target does not resolve (NXDOMAIN)');
@@ -118,9 +118,7 @@ export function prescreenCandidate(record) {
  */
 export function queueTakeoverCandidates(records) {
   const screened = records.map(prescreenCandidate);
-  const queued = screened
-    .filter((s) => s.queue)
-    .sort((a, b) => b.confidence - a.confidence);
+  const queued = screened.filter(s => s.queue).sort((a, b) => b.confidence - a.confidence);
   return { queued, skipped: screened.length - queued.length };
 }
 
@@ -146,14 +144,17 @@ export function catalogCoverage(cnames) {
       if (!hits.has(m.service)) hits.set(m.service, { service: m.service, count: 0, examples: [] });
       const entry = hits.get(m.service);
       entry.count += 1;
-      if (entry.examples.length < 3 && !entry.examples.includes(target)) entry.examples.push(target);
+      if (entry.examples.length < 3 && !entry.examples.includes(target))
+        entry.examples.push(target);
     }
   }
   const hitList = [...hits.values()].sort((a, b) => b.count - a.count);
   return {
     hits: hitList,
     unmatched,
-    catalogCoverage: cnames.length ? Math.round((cnames.length - unmatched.length) / cnames.length * 1000) / 1000 : 0,
+    catalogCoverage: cnames.length
+      ? Math.round(((cnames.length - unmatched.length) / cnames.length) * 1000) / 1000
+      : 0,
   };
 }
 

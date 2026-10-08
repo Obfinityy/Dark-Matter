@@ -36,26 +36,43 @@ export function DedupBanner({ result, onView, onNewHunt, onDismiss }) {
 
   return (
     <div className="dm-dedup-banner" role="status">
-      <button type="button" className="dm-dedup-close" onClick={onDismiss} aria-label="Dismiss banner" title="Dismiss">
+      <button
+        type="button"
+        className="dm-dedup-close"
+        onClick={onDismiss}
+        aria-label="Dismiss banner"
+        title="Dismiss"
+      >
         <X size={16} aria-hidden="true" />
       </button>
-      <div className="dm-dedup-icon" aria-hidden="true"><History size={22} /></div>
+      <div className="dm-dedup-icon" aria-hidden="true">
+        <History size={22} />
+      </div>
       <div className="dm-dedup-body">
         <h3>Already hunted — report ready instantly</h3>
         <p>
           <code>{target}</code> was hunted before{completedLabel}.
           {record.version != null && (
-            <> Report <strong>v{record.version}</strong></>
+            <>
+              {' '}
+              Report <strong>v{record.version}</strong>
+            </>
           )}
           {totalFindings != null && (
-            <> — {totalFindings} finding{totalFindings === 1 ? '' : 's'}
-            {criticalCount > 0 && (
-              <span className="dm-sev-chip sev-critical"> {criticalCount} critical</span>
-            )}
+            <>
+              {' '}
+              — {totalFindings} finding{totalFindings === 1 ? '' : 's'}
+              {criticalCount > 0 && (
+                <span className="dm-sev-chip sev-critical"> {criticalCount} critical</span>
+              )}
             </>
-          )}.
+          )}
+          .
         </p>
-        <p className="dm-dedup-hint">No need to burn another hunt — the cached report is below. Want a fresh look? Start a new hunt.</p>
+        <p className="dm-dedup-hint">
+          No need to burn another hunt — the cached report is below. Want a fresh look? Start a new
+          hunt.
+        </p>
         <div className="dm-dedup-actions">
           <button type="button" className="dm-btn-primary" onClick={onView}>
             <Eye size={14} aria-hidden="true" /> View cached report

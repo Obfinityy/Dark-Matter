@@ -13,21 +13,57 @@
 /* WAVE19_IDEAS registry — idea → implementation mapping ------------------- */
 
 export const WAVE19_IDEAS = {
-  50721: { title: 'Recent-reports widget', status: 'new', module: 'DashboardWidgets2:RecentReportsWidget' },
+  50721: {
+    title: 'Recent-reports widget',
+    status: 'new',
+    module: 'DashboardWidgets2:RecentReportsWidget',
+  },
   50722: { title: 'Watchlist widget', status: 'new', module: 'DashboardWidgets2:WatchlistWidget' },
-  50723: { title: 'Model-status widget', status: 'new', module: 'DashboardWidgets2:ModelStatusWidget' },
-  50724: { title: 'Hunt-calendar widget', status: 'new', module: 'DashboardWidgets2:HuntCalendarWidget' },
+  50723: {
+    title: 'Model-status widget',
+    status: 'new',
+    module: 'DashboardWidgets2:ModelStatusWidget',
+  },
+  50724: {
+    title: 'Hunt-calendar widget',
+    status: 'new',
+    module: 'DashboardWidgets2:HuntCalendarWidget',
+  },
   50725: { title: 'Cost-usage widget', status: 'new', module: 'DashboardWidgets2:CostUsageWidget' },
-  50726: { title: 'Webhook-delivery widget', status: 'new', module: 'DashboardWidgets2:WebhookDeliveryWidget' },
-  50727: { title: 'Payload-family widget', status: 'new', module: 'DashboardWidgets2:PayloadFamilyWidget' },
-  50728: { title: 'Retest-queue widget', status: 'new', module: 'DashboardWidgets2:RetestQueueWidget' },
+  50726: {
+    title: 'Webhook-delivery widget',
+    status: 'new',
+    module: 'DashboardWidgets2:WebhookDeliveryWidget',
+  },
+  50727: {
+    title: 'Payload-family widget',
+    status: 'new',
+    module: 'DashboardWidgets2:PayloadFamilyWidget',
+  },
+  50728: {
+    title: 'Retest-queue widget',
+    status: 'new',
+    module: 'DashboardWidgets2:RetestQueueWidget',
+  },
   50729: { title: 'Mentions widget', status: 'new', module: 'DashboardWidgets2:MentionsWidget' },
-  50730: { title: 'Drag-drop widget layout', status: 'new', module: 'DashboardShell:grid + dragDropLayout' },
+  50730: {
+    title: 'Drag-drop widget layout',
+    status: 'new',
+    module: 'DashboardShell:grid + dragDropLayout',
+  },
   50731: { title: 'Resizable widgets', status: 'new', module: 'DashboardShell:resizeItem' },
   50732: { title: 'Widget gallery', status: 'new', module: 'DashboardShell:WidgetGallery' },
-  50733: { title: 'Per-widget time range', status: 'new', module: 'DashboardShell:TimeRangePicker' },
+  50733: {
+    title: 'Per-widget time range',
+    status: 'new',
+    module: 'DashboardShell:TimeRangePicker',
+  },
   50734: { title: 'Widget maximize', status: 'new', module: 'DashboardShell:WidgetMaximizer' },
-  50735: { title: 'Widget refresh control', status: 'new', module: 'DashboardShell:RefreshControl' },
+  50735: {
+    title: 'Widget refresh control',
+    status: 'new',
+    module: 'DashboardShell:RefreshControl',
+  },
   50736: { title: 'Widget empty state', status: 'new', module: 'DashboardShell:WidgetEmptyState' },
   50737: { title: 'Widget error state', status: 'new', module: 'DashboardShell:WidgetErrorState' },
   50738: { title: 'Dashboard presets', status: 'new', module: 'DashboardShell:DASHBOARD_PRESETS' },
@@ -35,16 +71,36 @@ export const WAVE19_IDEAS = {
   50740: { title: 'Widget deep links', status: 'new', module: 'widgetDeepLink' },
   50741: { title: 'Auto-refresh toggle', status: 'new', module: 'DashboardShell:useAutoRefresh' },
   50742: { title: 'Kiosk mode', status: 'new', module: 'DashboardShell:KioskMode' },
-  50743: { title: 'Widget threshold alerts', status: 'new', module: 'checkThreshold + ThresholdAlert' },
-  50744: { title: 'Comparative mini cards', status: 'new', module: 'DashboardWidgets2:ComparativeCard' },
+  50743: {
+    title: 'Widget threshold alerts',
+    status: 'new',
+    module: 'checkThreshold + ThresholdAlert',
+  },
+  50744: {
+    title: 'Comparative mini cards',
+    status: 'new',
+    module: 'DashboardWidgets2:ComparativeCard',
+  },
   50745: { title: 'Dashboard snapshot export', status: 'new', module: 'snapshotExport' },
   50746: { title: 'Widget access control', status: 'new', module: 'canSeeWidget' },
-  50747: { title: 'Findings ticker widget', status: 'new', module: 'DashboardWidgets2:FindingsTickerWidget' },
+  50747: {
+    title: 'Findings ticker widget',
+    status: 'new',
+    module: 'DashboardWidgets2:FindingsTickerWidget',
+  },
   50748: { title: 'Uptime widget', status: 'new', module: 'DashboardWidgets2:UptimeWidget' },
   50749: { title: 'Chains widget', status: 'new', module: 'DashboardWidgets2:ChainsWidget' },
   50750: { title: 'Coverage widget', status: 'new', module: 'DashboardWidgets2:CoverageWidget' },
-  50751: { title: 'Keyboard widget navigation', status: 'new', module: 'DashboardShell:WidgetGrid keyboard nav' },
-  50752: { title: 'Widget gallery search', status: 'new', module: 'DashboardShell:filterGalleryWidgets' },
+  50751: {
+    title: 'Keyboard widget navigation',
+    status: 'new',
+    module: 'DashboardShell:WidgetGrid keyboard nav',
+  },
+  50752: {
+    title: 'Widget gallery search',
+    status: 'new',
+    module: 'DashboardShell:filterGalleryWidgets',
+  },
   50753: { title: 'Sticky widget', status: 'new', module: 'DashboardShell:StickyWidget' },
   50754: { title: 'Quiet-hours dashboards', status: 'new', module: 'isQuietNow + QuietHours' },
   50755: { title: 'Critical-finding toast', status: 'new', module: 'ToastCenter:criticalToast' },
@@ -52,7 +108,11 @@ export const WAVE19_IDEAS = {
   50757: { title: 'Toast stacking', status: 'new', module: 'stackToasts' },
   50758: { title: 'Inline toast actions', status: 'new', module: 'ToastCenter:ToastActions' },
   50759: { title: 'Persistent error toasts', status: 'new', module: 'ToastCenter:errorToast' },
-  50760: { title: 'Configurable toast position', status: 'new', module: 'ToastCenter:TOAST_POSITIONS' },
+  50760: {
+    title: 'Configurable toast position',
+    status: 'new',
+    module: 'ToastCenter:TOAST_POSITIONS',
+  },
 };
 
 export function wave19IdeasComplete() {
@@ -73,12 +133,7 @@ export const MAX_H = 4;
 /** @returns true when two grid items overlap */
 export function collides(a, b) {
   if (a.id === b.id) return false;
-  return !(
-    a.x + a.w <= b.x ||
-    b.x + b.w <= a.x ||
-    a.y + a.h <= b.y ||
-    b.y + b.h <= a.y
-  );
+  return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
 }
 
 /** Clamp an item into the grid bounds; rows may grow unbounded. */
@@ -92,12 +147,12 @@ export function normalizeItem(item) {
 
 /** Move an item to a new cell; returns a NEW layout array. */
 export function moveItem(layout, id, x, y) {
-  return layout.map((it) => (it.id === id ? normalizeItem({ ...it, x, y }) : it));
+  return layout.map(it => (it.id === id ? normalizeItem({ ...it, x, y }) : it));
 }
 
 /** Resize an item (clamped to grid); returns a NEW layout array. */
 export function resizeItem(layout, id, w, h) {
-  return layout.map((it) => (it.id === id ? normalizeItem({ ...it, w, h }) : it));
+  return layout.map(it => (it.id === id ? normalizeItem({ ...it, w, h }) : it));
 }
 
 /** Compact: push every item up into free space above it (stable order). */
@@ -106,10 +161,10 @@ export function compactLayout(layout) {
   const placed = [];
   for (const item of sorted) {
     let candidate = { ...item, y: 0 };
-    while (candidate.y < item.y && placed.some((p) => collides(candidate, p))) {
+    while (candidate.y < item.y && placed.some(p => collides(candidate, p))) {
       candidate.y += 1;
     }
-    while (placed.some((p) => collides(candidate, p))) {
+    while (placed.some(p => collides(candidate, p))) {
       candidate.y += 1;
     }
     placed.push(candidate);
@@ -134,7 +189,7 @@ export function deserializeLayout(json) {
     return null;
   }
   if (!Array.isArray(parsed)) return null;
-  return compactLayout(parsed.filter((it) => typeof it.id === 'string').map(normalizeItem));
+  return compactLayout(parsed.filter(it => typeof it.id === 'string').map(normalizeItem));
 }
 
 /* Dashboard presets ------------------------------------------------------- */
@@ -160,7 +215,7 @@ export const DASHBOARD_PRESETS = {
 export function presetLayout(presetName, widgetIds) {
   const preset = DASHBOARD_PRESETS[presetName];
   if (!preset) return null;
-  const ids = widgetIds.filter((id) => preset.widgets.includes(id));
+  const ids = widgetIds.filter(id => preset.widgets.includes(id));
   const layout = [];
   let cursor = 0;
   for (const id of ids) {
@@ -175,7 +230,7 @@ export function presetLayout(presetName, widgetIds) {
 /** Duplicate a dashboard: new ids, same geometry, new name. */
 export function duplicateDashboard(dashboard, suffix = ' (copy)') {
   const layout = deserializeLayout(serializeLayout(dashboard.layout));
-  const renamed = layout.map((it) => ({ ...it, id: `${it.id}-copy-${Date.now() % 100000}` }));
+  const renamed = layout.map(it => ({ ...it, id: `${it.id}-copy-${Date.now() % 100000}` }));
   return { ...dashboard, name: dashboard.name + suffix, layout: renamed };
 }
 
@@ -191,10 +246,14 @@ export const TIME_RANGE_LABELS = {
 
 export function rangeMs(range) {
   switch (range) {
-    case '24h': return 24 * 3600 * 1000;
-    case '7d': return 7 * 24 * 3600 * 1000;
-    case '30d': return 30 * 24 * 3600 * 1000;
-    default: return Infinity;
+    case '24h':
+      return 24 * 3600 * 1000;
+    case '7d':
+      return 7 * 24 * 3600 * 1000;
+    case '30d':
+      return 30 * 24 * 3600 * 1000;
+    default:
+      return Infinity;
   }
 }
 
@@ -209,13 +268,15 @@ export function recentReportsModel(reports, limit = 5) {
   return [...(reports || [])]
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, limit)
-    .map((r) => ({
+    .map(r => ({
       id: r.id,
       title: r.title || 'Untitled report',
       target: r.target || '',
       createdAt: r.createdAt,
       dateLabel: new Date(r.createdAt).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
       }),
       findingsCount: r.findingsCount || 0,
       downloadUrl: r.downloadUrl || null,
@@ -223,7 +284,7 @@ export function recentReportsModel(reports, limit = 5) {
 }
 
 export function watchlistModel(targets) {
-  return (targets || []).map((t) => ({
+  return (targets || []).map(t => ({
     id: t.id,
     host: t.host,
     newFindings: Math.max(0, t.newFindings || 0),
@@ -233,15 +294,15 @@ export function watchlistModel(targets) {
 }
 
 export function modelStatusModel(slots) {
-  const list = (slots || []).map((s) => ({
+  const list = (slots || []).map(s => ({
     slot: s.slot,
     name: s.name || 'Unassigned',
     version: s.version || '—',
     location: s.location === 'kaggle' ? 'Kaggle' : s.location === 'local' ? 'Local' : 'Unset',
     health: s.health || 'unknown', // healthy | degraded | down | unknown
   }));
-  const down = list.filter((s) => s.health === 'down').length;
-  const degraded = list.filter((s) => s.health === 'degraded').length;
+  const down = list.filter(s => s.health === 'down').length;
+  const degraded = list.filter(s => s.health === 'degraded').length;
   return {
     slots: list,
     summary: down > 0 ? 'down' : degraded > 0 ? 'degraded' : list.length ? 'healthy' : 'unknown',
@@ -258,7 +319,11 @@ export function calendarMonth(year, month /* 0-based */) {
   while (day <= daysInMonth) {
     const week = [];
     for (let i = 0; i < 7; i++) {
-      week.push(day >= 1 && day <= daysInMonth ? { date: day, inMonth: true } : { date: null, inMonth: false });
+      week.push(
+        day >= 1 && day <= daysInMonth
+          ? { date: day, inMonth: true }
+          : { date: null, inMonth: false }
+      );
       day += 1;
     }
     weeks.push(week);
@@ -301,7 +366,7 @@ export function webhookDeliveryModel(deliveries, limit = 10) {
   return [...(deliveries || [])]
     .sort((a, b) => b.attemptedAt - a.attemptedAt)
     .slice(0, limit)
-    .map((d) => ({
+    .map(d => ({
       id: d.id,
       event: d.event,
       target: d.target || '',
@@ -316,26 +381,26 @@ export function rankPayloadFamilies(runs) {
   const byFamily = {};
   for (const r of runs || []) {
     const fam = r.family || 'unknown';
-    (byFamily[fam] = byFamily[fam] || { family: fam, hits: 0, confirmed: 0 });
+    byFamily[fam] = byFamily[fam] || { family: fam, hits: 0, confirmed: 0 };
     byFamily[fam].hits += 1;
     if (r.confirmed) byFamily[fam].confirmed += 1;
   }
   return Object.values(byFamily)
     .sort((a, b) => b.confirmed - a.confirmed || b.hits - a.hits)
-    .map((f) => ({ ...f, rate: f.hits ? f.confirmed / f.hits : 0 }));
+    .map(f => ({ ...f, rate: f.hits ? f.confirmed / f.hits : 0 }));
 }
 
 export function retestQueueModel(findings) {
-  const queue = (findings || []).filter((f) => f.needsRetest && !f.retestedAt);
+  const queue = (findings || []).filter(f => f.needsRetest && !f.retestedAt);
   return {
-    items: queue.map((f) => ({ id: f.id, title: f.title, severity: f.severity, fixedAt: f.fixedAt })),
+    items: queue.map(f => ({ id: f.id, title: f.title, severity: f.severity, fixedAt: f.fixedAt })),
     count: queue.length,
     runAllEnabled: queue.length > 0,
   };
 }
 
 export function unreadMentionsModel(mentions) {
-  const unread = (mentions || []).filter((m) => !m.read);
+  const unread = (mentions || []).filter(m => !m.read);
   return { items: unread, count: unread.length };
 }
 
@@ -343,18 +408,21 @@ export function findingsTickerModel(findings, limit = 20) {
   return [...(findings || [])]
     .sort((a, b) => b.foundAt - a.foundAt)
     .slice(0, limit)
-    .map((f) => ({ id: f.id, title: f.title, severity: f.severity, hunt: f.huntName || '' }));
+    .map(f => ({ id: f.id, title: f.title, severity: f.severity, hunt: f.huntName || '' }));
 }
 
 /** Uptime % from up/down event log over a window. */
 export function uptimeModel(events, windowMs, now = Date.now()) {
-  const inWin = (events || []).filter((e) => now - e.at <= windowMs).sort((a, b) => a.at - b.at);
+  const inWin = (events || []).filter(e => now - e.at <= windowMs).sort((a, b) => a.at - b.at);
   if (!inWin.length) return { pct: 100, downtimeMs: 0 };
   let downMs = 0;
   let downStart = null;
   for (const e of inWin) {
     if (e.type === 'down' && downStart == null) downStart = e.at;
-    if (e.type === 'up' && downStart != null) { downMs += e.at - downStart; downStart = null; }
+    if (e.type === 'up' && downStart != null) {
+      downMs += e.at - downStart;
+      downStart = null;
+    }
   }
   if (downStart != null) downMs += now - downStart;
   const pct = Math.max(0, Math.min(100, ((windowMs - downMs) / windowMs) * 100));
@@ -362,10 +430,12 @@ export function uptimeModel(events, windowMs, now = Date.now()) {
 }
 
 export function chainsModel(chains, limit = 3) {
-  const sorted = [...(chains || [])].sort((a, b) => (b.severityScore || 0) - (a.severityScore || 0));
+  const sorted = [...(chains || [])].sort(
+    (a, b) => (b.severityScore || 0) - (a.severityScore || 0)
+  );
   return {
     count: (chains || []).length,
-    top: sorted.slice(0, limit).map((c) => ({
+    top: sorted.slice(0, limit).map(c => ({
       id: c.id,
       hops: c.findings ? c.findings.length : 0,
       severityScore: c.severityScore || 0,
@@ -390,11 +460,21 @@ export function comparativeCard(current, average, higherIsBetter = true) {
 /** Widget deep link: every widget title links to its full page. */
 export function widgetDeepLink(widgetId, basePath = '/agent') {
   const map = {
-    severityDonut: '/findings', recentReports: '/reports', watchlist: '/targets',
-    modelStatus: '/models', huntCalendar: '/hunts', costUsage: '/billing',
-    webhookDeliveries: '/integrations', payloadFamily: '/payloads', retestQueue: '/retest',
-    mentions: '/notifications', chains: '/chains', coverage: '/coverage',
-    needsReview: '/review', findingsTicker: '/findings', uptime: '/status',
+    severityDonut: '/findings',
+    recentReports: '/reports',
+    watchlist: '/targets',
+    modelStatus: '/models',
+    huntCalendar: '/hunts',
+    costUsage: '/billing',
+    webhookDeliveries: '/integrations',
+    payloadFamily: '/payloads',
+    retestQueue: '/retest',
+    mentions: '/notifications',
+    chains: '/chains',
+    coverage: '/coverage',
+    needsReview: '/review',
+    findingsTicker: '/findings',
+    uptime: '/status',
   };
   return `${basePath}${map[widgetId] || ''}`;
 }
@@ -423,14 +503,12 @@ export function thresholdLabel(level) {
 export function canSeeWidget(widgetId, userRoles = [], widgetRoles = {}) {
   const allowed = widgetRoles[widgetId];
   if (!allowed || allowed.length === 0) return true;
-  return userRoles.some((r) => allowed.includes(r));
+  return userRoles.some(r => allowed.includes(r));
 }
 
 /** Filter a layout to widgets visible to the current user. */
 export function visibleLayout(layout, userRoles = [], widgetRoles = {}) {
-  return compactLayout(
-    layout.filter((it) => canSeeWidget(it.id, userRoles, widgetRoles))
-  );
+  return compactLayout(layout.filter(it => canSeeWidget(it.id, userRoles, widgetRoles)));
 }
 
 /**
@@ -438,7 +516,10 @@ export function visibleLayout(layout, userRoles = [], widgetRoles = {}) {
  * @param {{start:'22:00', end:'07:00'}} window — overnight windows wrap midnight.
  */
 export function isQuietNow(now = new Date(), window = { start: '22:00', end: '07:00' }) {
-  const toMin = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const toMin = s => {
+    const [h, m] = s.split(':').map(Number);
+    return h * 60 + m;
+  };
   const cur = now.getHours() * 60 + now.getMinutes();
   const s = toMin(window.start);
   const e = toMin(window.end);
@@ -447,8 +528,10 @@ export function isQuietNow(now = new Date(), window = { start: '22:00', end: '07
 }
 
 export function quietHoursSummary(skippedCount, window) {
-  return `Paused ${skippedCount} live update${skippedCount === 1 ? '' : 's'} overnight ` +
-    `(${window.start}–${window.end}). Dashboard caught up on resume.`;
+  return (
+    `Paused ${skippedCount} live update${skippedCount === 1 ? '' : 's'} overnight ` +
+    `(${window.start}–${window.end}). Dashboard caught up on resume.`
+  );
 }
 
 /** Kiosk rotation (50742): pick the next dashboard index. */
@@ -550,18 +633,26 @@ export function actionToast(title, body, actions = ['view', 'undo', 'retry']) {
 export const TOAST_STACK_LIMIT = 3;
 
 export function stackToasts(queue) {
-  const persistent = queue.filter((t) => t.persistent);
-  const normal = queue.filter((t) => !t.persistent);
-  const visible = [...persistent, ...normal.slice(-(TOAST_STACK_LIMIT - Math.min(persistent.length, TOAST_STACK_LIMIT)))];
-  const shown = new Set(visible.map((t) => t.id));
-  const collapsed = queue.filter((t) => !shown.has(t.id));
+  const persistent = queue.filter(t => t.persistent);
+  const normal = queue.filter(t => !t.persistent);
+  const visible = [
+    ...persistent,
+    ...normal.slice(-(TOAST_STACK_LIMIT - Math.min(persistent.length, TOAST_STACK_LIMIT))),
+  ];
+  const shown = new Set(visible.map(t => t.id));
+  const collapsed = queue.filter(t => !shown.has(t.id));
   return { visible, collapsedCount: collapsed.length, collapsed };
 }
 
 /** Rate limiting (toast storms): at most one toast per 10s per category. */
 export const TOAST_RATE_WINDOW_MS = 10_000;
 
-export function rateLimitOk(lastFiredByCategory, category, now = Date.now(), windowMs = TOAST_RATE_WINDOW_MS) {
+export function rateLimitOk(
+  lastFiredByCategory,
+  category,
+  now = Date.now(),
+  windowMs = TOAST_RATE_WINDOW_MS
+) {
   const last = lastFiredByCategory[category] || 0;
   return now - last >= windowMs;
 }
@@ -572,13 +663,13 @@ export function rateLimitOk(lastFiredByCategory, category, now = Date.now(), win
  */
 export function groupFindingsToast(findings) {
   if (!findings || findings.length < 2) return null;
-  const crits = findings.filter((f) => f.severity === 'critical').length;
+  const crits = findings.filter(f => f.severity === 'critical').length;
   return {
     kind: 'grouped-findings',
     severity: crits > 0 ? 'critical' : 'info',
     title: `${findings.length} new findings`,
     body: crits > 0 ? `including ${crits} critical` : 'expand for details',
-    findingIds: findings.map((f) => f.id),
+    findingIds: findings.map(f => f.id),
     actions: ['expand', 'view'],
     expandable: true,
     persistent: false,
@@ -597,7 +688,7 @@ export function filterGalleryWidgets(entries, query) {
   const q = (query || '').trim().toLowerCase();
   if (!q) return entries;
   return entries.filter(
-    (e) =>
+    e =>
       e.title.toLowerCase().includes(q) ||
       (e.category || '').toLowerCase().includes(q) ||
       (e.description || '').toLowerCase().includes(q)

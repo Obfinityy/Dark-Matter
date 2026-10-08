@@ -10,57 +10,153 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  WAVE39_TR_IDEAS, WAVE39_TR_START, WAVE39_TR_END,
-  signatureOf, findDuplicates, mergeDuplicates,
-  timelineSlots, timelinePosition,
+  WAVE39_TR_IDEAS,
+  WAVE39_TR_START,
+  WAVE39_TR_END,
+  signatureOf,
+  findDuplicates,
+  mergeDuplicates,
+  timelineSlots,
+  timelinePosition,
   mapNodes,
-  KANBAN_COLUMNS, emptyKanban, moveToColumn, kanbanColumnOf,
-  TRIAGE_ACTIONS, triageAction,
-  assignFinding, unassignFinding,
-  newCommentThread, addComment, threadCount,
-  watchFinding, unwatchFinding, watchersFor,
-  recordVersion, versionHistory, diffVersions,
+  KANBAN_COLUMNS,
+  emptyKanban,
+  moveToColumn,
+  kanbanColumnOf,
+  TRIAGE_ACTIONS,
+  triageAction,
+  assignFinding,
+  unassignFinding,
+  newCommentThread,
+  addComment,
+  threadCount,
+  watchFinding,
+  unwatchFinding,
+  watchersFor,
+  recordVersion,
+  versionHistory,
+  diffVersions,
   evidencePreview,
-  replayScript, replayStep,
-  provenanceOf, provenanceLine,
-  exportFindingMarkdown, exportFindingJson,
-  shareToken, shareLink,
-  printViewHtml, batchPrintViewHtml,
-  notificationChannels, shouldNotify, notificationFor,
-  quietBatch, isQuietCandidate,
+  replayScript,
+  replayStep,
+  provenanceOf,
+  provenanceLine,
+  exportFindingMarkdown,
+  exportFindingJson,
+  shareToken,
+  shareLink,
+  printViewHtml,
+  batchPrintViewHtml,
+  notificationChannels,
+  shouldNotify,
+  notificationFor,
+  quietBatch,
+  isQuietCandidate,
   digestEmail,
   rssFeed,
-  webhookPayload, webhookDelivery,
+  webhookPayload,
+  webhookDelivery,
 } from './findingTriageCore.js';
 
 import {
-  WAVE39_AN_IDEAS, WAVE39_AN_START, WAVE39_AN_END,
-  FINDING_API_ROUTES, apiRouteList, apiFindingShape,
-  WIDGET_KINDS, widgetPayload,
+  WAVE39_AN_IDEAS,
+  WAVE39_AN_START,
+  WAVE39_AN_END,
+  FINDING_API_ROUTES,
+  apiRouteList,
+  apiFindingShape,
+  WIDGET_KINDS,
+  widgetPayload,
   heatmapCells,
   trendSeries,
   compareHunts,
-  MILESTONES, milestonesReached, nextMilestone,
+  MILESTONES,
+  milestonesReached,
+  nextMilestone,
   leaderboard,
   coverageMeter,
-  dedupReviewQueue, splitGroup, resolveReview,
-  castVote, severityConsensus,
+  dedupReviewQueue,
+  splitGroup,
+  resolveReview,
+  castVote,
+  severityConsensus,
   slaStatus,
   agingAlerts,
-  bulkTriage, bulkAssign,
-  addTag, removeTag, tagsFor, findingsByTag,
-  saveView, applyView, deleteView,
-  presentationOrder, presentationStep,
+  bulkTriage,
+  bulkAssign,
+  addTag,
+  removeTag,
+  tagsFor,
+  findingsByTag,
+  saveView,
+  applyView,
+  deleteView,
+  presentationOrder,
+  presentationStep,
   voiceBriefingScript,
   mobileCardPayload,
-  offlineSnapshot, offlineDiff,
-  redactFinding, redactionNotice,
+  offlineSnapshot,
+  offlineDiff,
+  redactFinding,
+  redactionNotice,
 } from './findingAnalyticsCore.js';
 
-const F1 = { id: 'F-1', title: 'SQL injection in login form', type: 'sql-injection', severity: 'critical', confidence: 92, asset: '/api/login', technique: 'sqli', module: 'vulnDetector', evidence: ['e1', 'e2'], seq: 2, detectedAtMs: 1000, triageStatus: 'new' };
-const F2 = { id: 'F-2', title: 'SQL injection at login form', type: 'sql-injection', severity: 'critical', confidence: 88, asset: '/api/login', technique: 'sqli', module: 'vulnDetector', evidence: ['e3'], seq: 1, detectedAtMs: 2000, triageStatus: 'new' };
-const F3 = { id: 'F-3', title: 'Reflected XSS in profile', type: 'xss', severity: 'high', confidence: 70, asset: '/profile', technique: 'xss', module: 'vulnDetector', evidence: ['e4'], seq: 3, detectedAtMs: 3000, triageStatus: 'new' };
-const F4 = { id: 'F-4', title: 'Missing headers', type: 'headers', severity: 'low', confidence: 95, asset: '/', technique: 'headers', module: 'eliteRecon', evidence: ['e5'], seq: 4, detectedAtMs: 4000, triageStatus: 'new' };
+const F1 = {
+  id: 'F-1',
+  title: 'SQL injection in login form',
+  type: 'sql-injection',
+  severity: 'critical',
+  confidence: 92,
+  asset: '/api/login',
+  technique: 'sqli',
+  module: 'vulnDetector',
+  evidence: ['e1', 'e2'],
+  seq: 2,
+  detectedAtMs: 1000,
+  triageStatus: 'new',
+};
+const F2 = {
+  id: 'F-2',
+  title: 'SQL injection at login form',
+  type: 'sql-injection',
+  severity: 'critical',
+  confidence: 88,
+  asset: '/api/login',
+  technique: 'sqli',
+  module: 'vulnDetector',
+  evidence: ['e3'],
+  seq: 1,
+  detectedAtMs: 2000,
+  triageStatus: 'new',
+};
+const F3 = {
+  id: 'F-3',
+  title: 'Reflected XSS in profile',
+  type: 'xss',
+  severity: 'high',
+  confidence: 70,
+  asset: '/profile',
+  technique: 'xss',
+  module: 'vulnDetector',
+  evidence: ['e4'],
+  seq: 3,
+  detectedAtMs: 3000,
+  triageStatus: 'new',
+};
+const F4 = {
+  id: 'F-4',
+  title: 'Missing headers',
+  type: 'headers',
+  severity: 'low',
+  confidence: 95,
+  asset: '/',
+  technique: 'headers',
+  module: 'eliteRecon',
+  evidence: ['e5'],
+  seq: 4,
+  detectedAtMs: 4000,
+  triageStatus: 'new',
+};
 const FEED = [F1, F2, F3, F4];
 
 // --- registry completeness ---------------------------------------------------
@@ -98,7 +194,7 @@ test('51521 signatureOf + findDuplicates + mergeDuplicates', () => {
   assert.deepEqual(findDuplicates(FEED, F1), ['F-2']);
   const merged = mergeDuplicates(FEED);
   assert.equal(merged.length, 3);
-  const survivor = merged.find((f) => f.mergeCount > 1);
+  const survivor = merged.find(f => f.mergeCount > 1);
   assert.ok(survivor);
   assert.equal(survivor.id, 'F-2');
   assert.deepEqual(survivor.mergeIds, ['F-1']);
@@ -119,7 +215,7 @@ test('51522 timelineSlots + timelinePosition', () => {
 test('51523 mapNodes groups by asset with top severity', () => {
   const nodes = mapNodes(FEED, 4);
   assert.equal(nodes.length, 3);
-  const login = nodes.find((n) => n.asset === '/api/login');
+  const login = nodes.find(n => n.asset === '/api/login');
   assert.equal(login.count, 2);
   assert.equal(login.topSeverity, 'critical');
   assert.ok(login.x >= 0 && login.x <= 4);
@@ -157,7 +253,10 @@ test('51527 comment thread add + count', () => {
   t = addComment(t, { author: 'Bhavesh', text: 'looks real', tsMs: 9000 });
   assert.equal(threadCount(t), 1);
   assert.equal(t.comments[0].author, 'Bhavesh');
-  assert.throws(() => addComment(t, { author: 'x', text: '  ', tsMs: 1 }), /comment text is required/);
+  assert.throws(
+    () => addComment(t, { author: 'x', text: '  ', tsMs: 1 }),
+    /comment text is required/
+  );
 });
 
 test('51528 watchers add/remove idempotent', () => {
@@ -175,7 +274,7 @@ test('51529 version history + diffVersions', () => {
   const versions = versionHistory(h, 'F-1');
   assert.equal(versions.length, 2);
   const diff = diffVersions(versions[0].snapshot, versions[1].snapshot);
-  const fields = diff.map((d) => d.field);
+  const fields = diff.map(d => d.field);
   assert.ok(fields.includes('confidence') && fields.includes('triageStatus'));
 });
 
@@ -187,7 +286,13 @@ test('51530 evidencePreview slices with overflow count', () => {
 });
 
 test('51531 replayScript + replayStep navigation', () => {
-  const f = { ...F1, steps: [{ action: 'probe', detail: 'd1' }, { action: 'confirm', detail: 'd2' }] };
+  const f = {
+    ...F1,
+    steps: [
+      { action: 'probe', detail: 'd1' },
+      { action: 'confirm', detail: 'd2' },
+    ],
+  };
   const script = replayScript(f);
   assert.equal(script.length, 2);
   assert.equal(script[0].n, 1);
@@ -246,8 +351,11 @@ test('51536 notification channels + shouldNotify + notificationFor', () => {
 
 test('51537 quietBatch splits low findings into digest', () => {
   const { loud, digest } = quietBatch(FEED);
-  assert.deepEqual(loud.map((f) => f.id).sort(), ['F-1', 'F-2', 'F-3']);
-  assert.deepEqual(digest.map((f) => f.id), ['F-4']);
+  assert.deepEqual(loud.map(f => f.id).sort(), ['F-1', 'F-2', 'F-3']);
+  assert.deepEqual(
+    digest.map(f => f.id),
+    ['F-4']
+  );
   assert.equal(isQuietCandidate(F4), true);
   assert.equal(isQuietCandidate(F1), false);
 });
@@ -389,18 +497,18 @@ test('51551 slaStatus open/triaged/breached', () => {
 
 test('51552 agingAlerts flags stale criticals', () => {
   const stale = agingAlerts(FEED, 1000 + 7200000, 1800000);
-  assert.ok(stale.some((f) => f.id === 'F-1'));
-  assert.ok(!stale.some((f) => f.id === 'F-4'));
-  const triagedFeed = FEED.map((f) => ({ ...f, triageStatus: 'confirmed' }));
+  assert.ok(stale.some(f => f.id === 'F-1'));
+  assert.ok(!stale.some(f => f.id === 'F-4'));
+  const triagedFeed = FEED.map(f => ({ ...f, triageStatus: 'confirmed' }));
   assert.equal(agingAlerts(triagedFeed, 1000 + 7200000, 1800000).length, 0);
 });
 
 test('51553 bulkTriage + bulkAssign', () => {
   const r1 = bulkTriage(FEED, ['F-3', 'F-4', 'F-9'], 'confirm');
   assert.equal(r1.updated, 2);
-  assert.equal(r1.findings.find((f) => f.id === 'F-3').triageStatus, 'confirmed');
+  assert.equal(r1.findings.find(f => f.id === 'F-3').triageStatus, 'confirmed');
   const r2 = bulkAssign(FEED, ['F-3'], 'Arvind');
-  assert.equal(r2.findings.find((f) => f.id === 'F-3').assignee, 'Arvind');
+  assert.equal(r2.findings.find(f => f.id === 'F-3').assignee, 'Arvind');
   assert.throws(() => bulkTriage(FEED, ['F-3'], 'hug'), /unknown bulk action/);
 });
 
@@ -453,7 +561,7 @@ test('51559 offlineSnapshot + offlineDiff', () => {
   const snap = offlineSnapshot(FEED);
   assert.equal(snap.version, 'wf39-1');
   assert.equal(snap.count, 4);
-  assert.ok(snap.items.every((f) => !('internalNotes' in f)));
+  assert.ok(snap.items.every(f => !('internalNotes' in f)));
   const diff = offlineDiff(snap, [...FEED, { ...F1, id: 'F-9' }]);
   assert.deepEqual(diff.added, ['F-9']);
   assert.deepEqual(diff.removed, []);
@@ -461,7 +569,7 @@ test('51559 offlineSnapshot + offlineDiff', () => {
 
 test('51560 redactFinding hides evidence + notice', () => {
   const r = redactFinding({ ...F1, steps: [{ action: 'probe', detail: 'secret payload' }] });
-  assert.ok(r.evidence.every((e) => e === '[redacted]'));
+  assert.ok(r.evidence.every(e => e === '[redacted]'));
   assert.equal(r.steps[0].detail, '[redacted]');
   assert.equal(r.title, F1.title);
   assert.ok(redactionNotice().includes('Redaction mode'));
@@ -476,7 +584,13 @@ test('Wave39.css carries zero keyframes per the zero-animation order', async () 
 
 test('all five wave-39 source files have no TODO/FIXME/debris', async () => {
   const { readFile } = await import('node:fs/promises');
-  const files = ['./findingTriageCore.js', './findingAnalyticsCore.js', './FindingTriage.jsx', './FindingAnalytics.jsx', './Wave39.css'];
+  const files = [
+    './findingTriageCore.js',
+    './findingAnalyticsCore.js',
+    './FindingTriage.jsx',
+    './FindingAnalytics.jsx',
+    './Wave39.css',
+  ];
   for (const f of files) {
     const src = await readFile(new URL(f, import.meta.url), 'utf8');
     assert.ok(!/\bTODO\b|\bFIXME\b/i.test(src), `no TODO/FIXME in ${f}`);
@@ -491,7 +605,10 @@ test('FindingTriage.jsx parses clean via esbuild', async () => {
   const { execFileSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const jsxPath = fileURLToPath(new URL('./FindingTriage.jsx', import.meta.url));
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('FindingTriageGallery'), 'esbuild parsed the triage gallery export');
 });
 
@@ -499,6 +616,9 @@ test('FindingAnalytics.jsx parses clean via esbuild', async () => {
   const { execFileSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const jsxPath = fileURLToPath(new URL('./FindingAnalytics.jsx', import.meta.url));
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('FindingAnalyticsGallery'), 'esbuild parsed the analytics gallery export');
 });

@@ -18,7 +18,7 @@
   font-weight: 600;
 }
 
-.steer29-card input[type="text"],
+.steer29-card input[type='text'],
 .steer29-card input:not([type]),
 .steer29-card textarea,
 .steer29-card select {
@@ -33,12 +33,12 @@
   font-size: 13px;
 }
 
-.steer29-card input[type="range"] {
+.steer29-card input[type='range'] {
   width: 100%;
   margin: 6px 0;
 }
 
-.steer29-card input[type="number"] {
+.steer29-card input[type='number'] {
   width: 90px;
   padding: 6px 8px;
   margin: 6px 6px 6px 0;

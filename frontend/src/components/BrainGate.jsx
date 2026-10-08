@@ -18,7 +18,7 @@ import './BrainGate.css';
 const BRAIN_LABELS = {
   vision: 'Vision Brain',
   grounding: 'Grounding Brain',
-  hacker: 'Hacking Brain'
+  hacker: 'Hacking Brain',
 };
 
 export function BrainGate({ required = [], featureName = 'this feature', children }) {
@@ -44,12 +44,14 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
       const running = await refresh();
       if (!cancelled) setBrains(running);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [refresh]);
 
-  const missing = required.filter((b) => !(brains && brains[b]));
+  const missing = required.filter(b => !(brains && brains[b]));
 
-  const handleAttempt = (e) => {
+  const handleAttempt = e => {
     // Keep the check fresh in the background.
     refresh();
     if (brains && missing.length > 0) {
@@ -61,7 +63,7 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
     // Brains unknown or all running → let the action through normally.
   };
 
-  const handleKeyAttempt = (e) => {
+  const handleKeyAttempt = e => {
     // Plain Enter (not Shift+Enter for newlines) counts as an attempt.
     if (e.key === 'Enter' && !e.shiftKey) handleAttempt(e);
   };
@@ -89,16 +91,20 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
             </button>
           </div>
           <p className="brain-gate-copy">
-            <b>{featureName}</b> needs {missing.map((b) => BRAIN_LABELS[b]).join(', ')} running on your computer.
+            <b>{featureName}</b> needs {missing.map(b => BRAIN_LABELS[b]).join(', ')} running on
+            your computer.
           </p>
           <p className="sg-small brain-gate-hint">
-            Models run on your local machine — download them once from Models, press Run, and they stay ready.
+            Models run on your local machine — download them once from Models, press Run, and they
+            stay ready.
           </p>
           <div className="brain-gate-missing">
-            {missing.map((b) => (
+            {missing.map(b => (
               <div key={b} className="brain-gate-missing-item">
                 <Brain size={14} aria-hidden="true" />
-                <span>{BRAIN_LABELS[b]} — <span className="brain-gate-off">not running</span></span>
+                <span>
+                  {BRAIN_LABELS[b]} — <span className="brain-gate-off">not running</span>
+                </span>
               </div>
             ))}
           </div>

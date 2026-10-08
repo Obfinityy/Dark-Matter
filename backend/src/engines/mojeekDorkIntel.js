@@ -26,12 +26,26 @@ const MOJEEK_SEARCH_ENDPOINT = 'https://www.mojeek.com/search';
  * @returns {Array<{ url: string, query: string, page: number }>}
  */
 export function buildMojeekSiteQueries(domain, options = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!clean) throw new Error('mojeekDorkIntel: domain is required');
   const pages = Math.max(1, Math.min(20, Number(options.pages ?? 3)));
 
   const queries = [`site:${clean}`];
-  for (const kw of ['login', 'dashboard', 'portal', 'console', 'panel', 'api-docs', 'status', 'docs', 'support', 'partners']) {
+  for (const kw of [
+    'login',
+    'dashboard',
+    'portal',
+    'console',
+    'panel',
+    'api-docs',
+    'status',
+    'docs',
+    'support',
+    'partners',
+  ]) {
     queries.push(`site:${clean} ${kw}`);
   }
 
@@ -56,7 +70,10 @@ export function buildMojeekSiteQueries(domain, options = {}) {
  * @returns {{ hosts: Array<{ host: string, source: string }>, pageOk: boolean }}
  */
 export function parseMojeekResults(html, domain) {
-  const base = String(domain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const base = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!base) return { hosts: [], pageOk: false };
   const text = String(html || '');
   const pageOk = /class="[^"]*results-standard|id="results"|name="q"/.test(text);
@@ -76,7 +93,10 @@ export function parseMojeekResults(html, domain) {
     }
   }
   // Bare hostnames in snippets (decoded so %2F sequences can't mangle hosts).
-  const bareRe = new RegExp(`\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`, 'gi');
+  const bareRe = new RegExp(
+    `\\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.${escapeRegex(base)})\\b`,
+    'gi'
+  );
   const decoded = safeDecode(text);
   while ((m = bareRe.exec(decoded)) !== null) {
     const host = m[1].toLowerCase();

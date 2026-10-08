@@ -42,8 +42,12 @@ export const COMMON_PATHS = [
 
 /** <link> rel values that declare icons, in preference order. */
 const ICON_RELS = [
-  'icon', 'shortcut icon', 'apple-touch-icon', 'apple-touch-icon-precomposed',
-  'mask-icon', 'fluid-icon',
+  'icon',
+  'shortcut icon',
+  'apple-touch-icon',
+  'apple-touch-icon-precomposed',
+  'mask-icon',
+  'fluid-icon',
 ];
 
 /**
@@ -74,7 +78,7 @@ export function extractFaviconLinks(html, baseUrl) {
     }
   }
   // Prefer larger / standard icons first.
-  const relRank = (r) => ICON_RELS.indexOf(r);
+  const relRank = r => ICON_RELS.indexOf(r);
   out.sort((a, b) => relRank(a.rel) - relRank(b.rel));
   return out;
 }
@@ -101,7 +105,11 @@ export function planHarvest({ baseUrl, html = null, extraPaths = [], maxCandidat
 
   const push = (url, source, priority) => {
     let normalized;
-    try { normalized = new URL(url).toString(); } catch { return; }
+    try {
+      normalized = new URL(url).toString();
+    } catch {
+      return;
+    }
     if (seen.has(normalized)) return;
     seen.add(normalized);
     candidates.push({ url: normalized, source, priority });
@@ -141,7 +149,10 @@ export function dedupeHarvest(results = []) {
   const unique = [];
   const duplicates = [];
   for (const r of results) {
-    if (r.hash === null || r.hash === undefined) { unique.push(r); continue; }
+    if (r.hash === null || r.hash === undefined) {
+      unique.push(r);
+      continue;
+    }
     if (byHash.has(r.hash)) {
       duplicates.push({ ...r, duplicateOf: byHash.get(r.hash).url });
     } else {

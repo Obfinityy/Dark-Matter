@@ -33,15 +33,20 @@ export function analyzeKafkaRestProxy(response = {}) {
   let topics = null;
   try {
     const parsed = JSON.parse(body);
-    if (Array.isArray(parsed) && parsed.every((t) => typeof t === 'string')
-        && (path === '/topics' || path.endsWith('/topics'))) {
+    if (
+      Array.isArray(parsed) &&
+      parsed.every(t => typeof t === 'string') &&
+      (path === '/topics' || path.endsWith('/topics'))
+    ) {
       topics = parsed;
       signals.push({ signal: 'topic_listing', detail: `${parsed.length} topics listed` });
     }
     if (parsed && typeof parsed === 'object' && Array.isArray(parsed.brokers)) {
       signals.push({ signal: 'broker_listing', detail: `brokers: ${parsed.brokers.join(', ')}` });
     }
-  } catch { /* not JSON — not a REST proxy response */ }
+  } catch {
+    /* not JSON — not a REST proxy response */
+  }
 
   const contentType = headers['content-type'] || '';
   if (/application\/vnd\.kafka(\.v\d+)?\+json/i.test(contentType)) {
@@ -54,7 +59,11 @@ export function analyzeKafkaRestProxy(response = {}) {
   const detected = signals.length > 0;
   return {
     detected,
-    confidence: signals.some((s) => s.signal === 'topic_listing' || s.signal === 'kafka_media_type') ? 'high' : detected ? 'medium' : 'none',
+    confidence: signals.some(s => s.signal === 'topic_listing' || s.signal === 'kafka_media_type')
+      ? 'high'
+      : detected
+        ? 'medium'
+        : 'none',
     service: 'kafka-rest-proxy',
     version: versionMatch ? versionMatch[1] : null,
     topics,
@@ -80,11 +89,16 @@ export function analyzeSchemaRegistry(response = {}) {
   let subjects = null;
   try {
     const parsed = JSON.parse(body);
-    if (Array.isArray(parsed) && parsed.every((s) => typeof s === 'string')
-        && (String(response.path || '').endsWith('/subjects'))) {
+    if (
+      Array.isArray(parsed) &&
+      parsed.every(s => typeof s === 'string') &&
+      String(response.path || '').endsWith('/subjects')
+    ) {
       subjects = parsed;
     }
-  } catch { /* not JSON */ }
+  } catch {
+    /* not JSON */
+  }
   const detected = subjects !== null;
   return {
     detected,

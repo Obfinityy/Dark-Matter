@@ -25,7 +25,9 @@
   font-weight: 500 !important;
   color: var(--dm-text-2) !important;
   margin: 2px var(--dm-3) !important;
-  transition: background 0.15s ease, color 0.15s ease !important;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease !important;
 }
 
 .sg-nav-link:hover,

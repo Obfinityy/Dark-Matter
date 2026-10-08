@@ -18,8 +18,18 @@
 import { id, now } from '../core/utils.js';
 
 const PUBLIC_FIELDS = [
-  'id', 'userId', 'target', 'targetCanonical', 'targetHash', 'version',
-  'jobId', 'assessmentId', 'summary', 'findings', 'completedAt', 'createdAt'
+  'id',
+  'userId',
+  'target',
+  'targetCanonical',
+  'targetHash',
+  'version',
+  'jobId',
+  'assessmentId',
+  'summary',
+  'findings',
+  'completedAt',
+  'createdAt',
 ];
 
 function publicRecord(record) {
@@ -29,6 +39,7 @@ function publicRecord(record) {
   return view;
 }
 
+/** Database model for hunt record. */
 export class HuntRecordModel {
   constructor(database) {
     this.collection = database.collection('hunt_records');
@@ -38,7 +49,17 @@ export class HuntRecordModel {
    * Persist a completed hunt's final report. version is assigned as
    * (existing versions for this user+target) + 1.
    */
-  async create({ userId, target, targetCanonical, targetHash, jobId = null, assessmentId = null, reportMarkdown, summary = {}, findings = [] }) {
+  async create({
+    userId,
+    target,
+    targetCanonical,
+    targetHash,
+    jobId = null,
+    assessmentId = null,
+    reportMarkdown,
+    summary = {},
+    findings = [],
+  }) {
     const version = (await this.countByTarget(userId, targetHash)) + 1;
     const record = {
       id: id('hr'),
@@ -52,14 +73,18 @@ export class HuntRecordModel {
       reportMarkdown: String(reportMarkdown || ''),
       summary: {
         totalFindings: 0,
-        critical: 0, high: 0, medium: 0, low: 0, info: 0,
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        info: 0,
         steps: 0,
         durationMs: 0,
-        ...summary
+        ...summary,
       },
       findings: Array.isArray(findings) ? findings : [],
       completedAt: now(),
-      createdAt: now()
+      createdAt: now(),
     };
     await this.collection.insertOne(record);
     return publicRecord(record);
@@ -91,7 +116,7 @@ export class HuntRecordModel {
       .toArray();
     // The history view is lightweight: the heavy report markdown is fetched
     // per-record via findFullById (view / re-download).
-    return records.map((record) => {
+    return records.map(record => {
       const { reportMarkdown, ...rest } = record;
       return publicRecord(rest);
     });

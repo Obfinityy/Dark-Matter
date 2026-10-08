@@ -25,8 +25,7 @@ export function looksLikeHydra(doc) {
   const context = JSON.stringify(doc['@context'] ?? '');
   const type = JSON.stringify(doc['@type'] ?? '');
   const hasHydraContext = CONTEXT_URL_RE.test(context);
-  const hasSupportedClass =
-    type.includes('ApiDocumentation') || Array.isArray(doc.supportedClass);
+  const hasSupportedClass = type.includes('ApiDocumentation') || Array.isArray(doc.supportedClass);
   return hasHydraContext || hasSupportedClass;
 }
 
@@ -51,10 +50,10 @@ export function extractSupportedClasses(doc) {
 export function parseSupportedClass(cls = {}) {
   const ops = cls.supportedOperation ?? cls['hydra:supportedOperation'] ?? [];
   const props = cls.supportedProperty ?? cls['hydra:supportedProperty'] ?? [];
-  const opList = (Array.isArray(ops) ? ops : [ops]).filter((o) => o && typeof o === 'object');
-  const propList = (Array.isArray(props) ? props : [props]).filter((p) => p && typeof p === 'object');
+  const opList = (Array.isArray(ops) ? ops : [ops]).filter(o => o && typeof o === 'object');
+  const propList = (Array.isArray(props) ? props : [props]).filter(p => p && typeof p === 'object');
 
-  const operations = opList.map((op) => ({
+  const operations = opList.map(op => ({
     id: op['@id'] ?? null,
     title: op.title ?? null,
     method: op.method ?? op['hydra:method'] ?? null,
@@ -63,7 +62,7 @@ export function parseSupportedClass(cls = {}) {
     possibleStatus: op.possibleStatus ?? op['hydra:possibleStatus'] ?? [],
   }));
 
-  const properties = propList.map((prop) => {
+  const properties = propList.map(prop => {
     const inner = prop.property ?? {};
     return {
       id: prop['@id'] ?? null,
@@ -140,7 +139,7 @@ export function analyzeHydraVocab({ url = '', document = null } = {}) {
   return {
     type: 'Hydra Vocabulary Operation Mapping',
     confidence: isHydra && classes.length ? 'high' : classes.length ? 'medium' : 'low',
-    classes: classes.map((c) => ({
+    classes: classes.map(c => ({
       classId: c.id,
       title: c.title,
       operations: c.operations,

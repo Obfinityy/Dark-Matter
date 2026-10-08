@@ -35,7 +35,7 @@
   margin: 4px 0;
 }
 
-.sess27-card input[type="text"],
+.sess27-card input[type='text'],
 .sess27-card input:not([type]),
 .sess27-card select {
   padding: 6px 10px;

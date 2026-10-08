@@ -56,7 +56,14 @@ export function clamp(n, lo, hi) {
 }
 
 let commentSeq = 0;
-export function newSnapshotComment({ snapshotId, section, author, role = 'stakeholder', text, createdAt }) {
+export function newSnapshotComment({
+  snapshotId,
+  section,
+  author,
+  role = 'stakeholder',
+  text,
+  createdAt,
+}) {
   if (!snapshotId) throw new Error('snapshotId required');
   if (!String(text ?? '').trim()) throw new Error('comment text required');
   commentSeq += 1;
@@ -102,8 +109,17 @@ export function snapshotDelta(prev, next) {
   const n = new Map((next?.findings || []).map(f => [f.id, f]));
   const added = [...n.keys()].filter(id => !p.has(id));
   const removed = [...p.keys()].filter(id => !n.has(id));
-  const severityChanged = [...n.keys()].filter(id => p.has(id) && p.get(id).severity !== n.get(id).severity);
-  return { added, removed, severityChanged, addedCount: added.length, removedCount: removed.length, changedCount: severityChanged.length };
+  const severityChanged = [...n.keys()].filter(
+    id => p.has(id) && p.get(id).severity !== n.get(id).severity
+  );
+  return {
+    added,
+    removed,
+    severityChanged,
+    addedCount: added.length,
+    removedCount: removed.length,
+    changedCount: severityChanged.length,
+  };
 }
 
 export function diffAlertLevel(delta, thresholds = { significant: 5 }) {
@@ -122,7 +138,16 @@ export const SNAPSHOT_API_ROUTES = [
   { method: 'GET', path: '/api/v1/snapshots/:id/diff', desc: 'Diff against the previous version' },
 ];
 
-const API_DTO_FIELDS = ['id', 'version', 'huntId', 'target', 'takenAt', 'findingCounts', 'kpis', 'immutable'];
+const API_DTO_FIELDS = [
+  'id',
+  'version',
+  'huntId',
+  'target',
+  'takenAt',
+  'findingCounts',
+  'kpis',
+  'immutable',
+];
 
 export function snapshotApiDto(snapshot) {
   const dto = {};
@@ -134,17 +159,31 @@ export function snapshotApiDto(snapshot) {
 
 export const EMBED_THEMES = ['dark', 'light', 'auto'];
 
-export function snapshotEmbedHtml({ snapshotId, baseUrl, theme = 'auto', width = '100%', height = 560 }) {
+export function snapshotEmbedHtml({
+  snapshotId,
+  baseUrl,
+  theme = 'auto',
+  width = '100%',
+  height = 560,
+}) {
   if (!snapshotId) throw new Error('snapshotId required');
   const safeTheme = EMBED_THEMES.includes(theme) ? theme : 'auto';
   const src = `${String(baseUrl || 'https://app.infinity-ai.local').replace(/\/$/, '')}/embed/snapshots/${encodeURIComponent(snapshotId)}?theme=${safeTheme}`;
-  return `<iframe src="${escHtml(src)}" width="${escHtml(width)}" height="${escHtml(Number(height) || 560)}" ` +
-    `frameborder="0" loading="lazy" title="Snapshot ${escHtml(snapshotId)}"></iframe>`;
+  return (
+    `<iframe src="${escHtml(src)}" width="${escHtml(width)}" height="${escHtml(Number(height) || 560)}" ` +
+    `frameborder="0" loading="lazy" title="Snapshot ${escHtml(snapshotId)}"></iframe>`
+  );
 }
 
 /* --- 51646 snapshot redaction --------------------------------------------------------- */
 
-export const REDACT_FIELDS = ['internalNotes', 'toolOutput', 'rawRequest', 'credentialsHint', 'operatorName'];
+export const REDACT_FIELDS = [
+  'internalNotes',
+  'toolOutput',
+  'rawRequest',
+  'credentialsHint',
+  'operatorName',
+];
 
 export const REDACT_TOKEN = '[redacted]';
 
@@ -152,8 +191,8 @@ export function redactSnapshot(snapshot, extraFields = []) {
   if (!snapshot) throw new Error('snapshot required');
   const fields = new Set([...REDACT_FIELDS, ...extraFields]);
   const out = Array.isArray(snapshot) ? [...snapshot] : { ...snapshot };
-  const redactValue = (v) => (v === undefined || v === null) ? v : REDACT_TOKEN;
-  const walk = (obj) => {
+  const redactValue = v => (v === undefined || v === null ? v : REDACT_TOKEN);
+  const walk = obj => {
     if (Array.isArray(obj)) return obj.map(walk);
     if (obj && typeof obj === 'object') {
       const copy = {};
@@ -188,7 +227,9 @@ export function snapshotCover(snapshot) {
 
 export function snapshotToc(sections) {
   return (sections || []).map((s, i) => ({
-    anchor: `sec-${String(s.id || i).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    anchor: `sec-${String(s.id || i)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')}`,
     title: s.title || `Section ${i + 1}`,
     depth: clamp(s.depth || 0, 0, 3),
   }));
@@ -202,7 +243,8 @@ export function severityDistribution(findings) {
   const dist = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const f of findings || []) {
     const sev = String(f.severity || 'info').toLowerCase();
-    if (sev in dist) dist[sev] += 1; else dist.info += 1;
+    if (sev in dist) dist[sev] += 1;
+    else dist.info += 1;
   }
   return dist;
 }
@@ -220,11 +262,23 @@ export function findingTrend(snapshots) {
 
 export function snapshotAppendices(snapshot) {
   const findings = snapshot?.findings || [];
-  const evidence = findings.flatMap(f => (f.evidence || []).map(e => ({ findingId: f.id, kind: 'evidence', ...e })));
+  const evidence = findings.flatMap(f =>
+    (f.evidence || []).map(e => ({ findingId: f.id, kind: 'evidence', ...e }))
+  );
   return [
     { id: 'app-a', title: 'Appendix A — Evidence index', kind: 'evidence', entries: evidence },
-    { id: 'app-b', title: 'Appendix B — Activity log', kind: 'log', entries: snapshot?.activityLog || [] },
-    { id: 'app-c', title: 'Appendix C — Scope record', kind: 'scope', entries: snapshot?.scopeRecord || [] },
+    {
+      id: 'app-b',
+      title: 'Appendix B — Activity log',
+      kind: 'log',
+      entries: snapshot?.activityLog || [],
+    },
+    {
+      id: 'app-c',
+      title: 'Appendix C — Scope record',
+      kind: 'scope',
+      entries: snapshot?.scopeRecord || [],
+    },
   ];
 }
 
@@ -237,13 +291,19 @@ export function signoffRequest(snapshotId, stakeholders, createdAt) {
     snapshotId,
     createdAt: createdAt || 'unscheduled',
     status: 'pending',
-    required: (stakeholders || []).map(s => ({ name: s.name || s, role: s.role || 'stakeholder', signedAt: null })),
+    required: (stakeholders || []).map(s => ({
+      name: s.name || s,
+      role: s.role || 'stakeholder',
+      signedAt: null,
+    })),
   };
 }
 
 export function recordSignature(request, { by, at }) {
   if (!request) throw new Error('request required');
-  const required = request.required.map(r => r.name === by ? { ...r, signedAt: at || 'unscheduled' } : r);
+  const required = request.required.map(r =>
+    r.name === by ? { ...r, signedAt: at || 'unscheduled' } : r
+  );
   const done = required.every(r => r.signedAt);
   return { ...request, required, status: done ? 'complete' : 'pending' };
 }
@@ -260,7 +320,13 @@ export function expiringLink({ snapshotId, ttlHours = 72, createdAt, baseUrl }) 
   const created = Number(createdAt) || 0;
   const expiresAt = created + ttlHours * 3600 * 1000;
   const base = String(baseUrl || 'https://app.infinity-ai.local').replace(/\/$/, '');
-  return { snapshotId, url: `${base}/s/${encodeURIComponent(snapshotId)}`, createdAt: created, expiresAt, ttlHours };
+  return {
+    snapshotId,
+    url: `${base}/s/${encodeURIComponent(snapshotId)}`,
+    createdAt: created,
+    expiresAt,
+    ttlHours,
+  };
 }
 
 export function linkExpired(link, now) {
@@ -287,9 +353,27 @@ export function uniqueViewers(log, snapshotId) {
 export const SNAPSHOT_LANGUAGES = ['en', 'hi', 'es'];
 
 const SECTION_LABELS = {
-  en: { cover: 'Cover', findings: 'Findings', charts: 'Charts', appendices: 'Appendices', signoff: 'Sign-off' },
-  hi: { cover: 'मुखपृष्ठ', findings: 'निष्कर्ष', charts: 'चार्ट', appendices: 'परिशिष्ट', signoff: 'अनुमोदन' },
-  es: { cover: 'Portada', findings: 'Hallazgos', charts: 'Gráficos', appendices: 'Apéndices', signoff: 'Aprobación' },
+  en: {
+    cover: 'Cover',
+    findings: 'Findings',
+    charts: 'Charts',
+    appendices: 'Appendices',
+    signoff: 'Sign-off',
+  },
+  hi: {
+    cover: 'मुखपृष्ठ',
+    findings: 'निष्कर्ष',
+    charts: 'चार्ट',
+    appendices: 'परिशिष्ट',
+    signoff: 'अनुमोदन',
+  },
+  es: {
+    cover: 'Portada',
+    findings: 'Hallazgos',
+    charts: 'Gráficos',
+    appendices: 'Apéndices',
+    signoff: 'Aprobación',
+  },
 };
 
 export function snapshotSectionLabels(lang = 'en') {
@@ -323,7 +407,13 @@ export function mobileSnapshotView(snapshot) {
     .sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
     .slice(0, 3)
     .map(f => ({ id: f.id, title: f.title, severity: f.severity }));
-  return { title: cover.title, version: cover.version, total: cover.total, counts: cover.findingCounts, topFindings: top };
+  return {
+    title: cover.title,
+    version: cover.version,
+    total: cover.total,
+    counts: cover.findingCounts,
+    topFindings: top,
+  };
 }
 
 export function severityRank(sev) {
@@ -335,7 +425,8 @@ export function severityRank(sev) {
 export function snapshotVoiceScript(snapshot) {
   const cover = snapshotCover(snapshot);
   const c = cover.findingCounts;
-  const script = `Snapshot ${cover.version} for ${cover.target}, taken ${cover.takenAt}. ` +
+  const script =
+    `Snapshot ${cover.version} for ${cover.target}, taken ${cover.takenAt}. ` +
     `${cover.total} findings: ${c.critical} critical, ${c.high} high, ${c.medium} medium, ${c.low} low. ` +
     `${cover.scopeSummary}.`;
   const estSeconds = Math.max(8, Math.round(script.split(/\s+/).length / 2.4));
@@ -344,21 +435,59 @@ export function snapshotVoiceScript(snapshot) {
 
 /* --- 51658 snapshot Q&A (extractive, keyword-grounded) ----------------------------------------------------- */
 
-const STOPWORDS = new Set(['the', 'a', 'an', 'of', 'in', 'on', 'for', 'to', 'and', 'or', 'is', 'are', 'what', 'how', 'why', 'when', 'which', 'does', 'do', 'it', 'this', 'that', 'with', 'by', 'from']);
+const STOPWORDS = new Set([
+  'the',
+  'a',
+  'an',
+  'of',
+  'in',
+  'on',
+  'for',
+  'to',
+  'and',
+  'or',
+  'is',
+  'are',
+  'what',
+  'how',
+  'why',
+  'when',
+  'which',
+  'does',
+  'do',
+  'it',
+  'this',
+  'that',
+  'with',
+  'by',
+  'from',
+]);
 
 export function answerSnapshotQuestion(snapshot, question) {
-  const words = String(question || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w && !STOPWORDS.has(w));
+  const words = String(question || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(w => w && !STOPWORDS.has(w));
   const sections = snapshot?.sections || [];
-  const scored = sections.map(s => {
-    const hay = `${s.title || ''} ${s.body || ''}`.toLowerCase();
-    const hits = words.filter(w => hay.includes(w));
-    return { section: s, score: hits.length, hits };
-  }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
+  const scored = sections
+    .map(s => {
+      const hay = `${s.title || ''} ${s.body || ''}`.toLowerCase();
+      const hits = words.filter(w => hay.includes(w));
+      return { section: s, score: hits.length, hits };
+    })
+    .filter(r => r.score > 0)
+    .sort((a, b) => b.score - a.score);
   const top = scored.slice(0, 2);
   if (!top.length) {
-    return { answer: 'No section of this snapshot covers that question.', groundedIn: [], confidence: 0 };
+    return {
+      answer: 'No section of this snapshot covers that question.',
+      groundedIn: [],
+      confidence: 0,
+    };
   }
-  const answer = top.map(t => `${t.section.title}: ${String(t.section.body || '').slice(0, 220)}`).join(' ');
+  const answer = top
+    .map(t => `${t.section.title}: ${String(t.section.body || '').slice(0, 220)}`)
+    .join(' ');
   return {
     answer,
     groundedIn: top.map(t => t.section.title),
@@ -371,7 +500,8 @@ export function answerSnapshotQuestion(snapshot, question) {
 export function snapshotComparison(snapshots) {
   const versions = (snapshots || []).map(s => `v${s.version || 0}`);
   const series = {};
-  for (const sev of SEVERITIES) series[sev] = (snapshots || []).map(s => severityDistribution(s.findings)[sev]);
+  for (const sev of SEVERITIES)
+    series[sev] = (snapshots || []).map(s => severityDistribution(s.findings)[sev]);
   return { versions, series, totals: (snapshots || []).map(s => (s.findings || []).length) };
 }
 

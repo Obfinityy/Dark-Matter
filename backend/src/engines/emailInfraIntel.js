@@ -42,15 +42,15 @@ export function parseMxRecords(mxRecords) {
  * @returns {{hosts: {host: string, preference: number, ips: string[], provider: string}[], providers: string[], webmailCandidates: string[]}}
  */
 export function mapMailInfrastructure(mx, hostToIps = {}) {
-  const hosts = mx.map((m) => ({
+  const hosts = mx.map(m => ({
     host: m.host,
     preference: m.preference,
     ips: hostToIps[m.host] || hostToIps[m.host.toLowerCase()] || [],
     provider: guessMailProvider(m.host),
   }));
-  const providers = [...new Set(hosts.map((h) => h.provider))];
+  const providers = [...new Set(hosts.map(h => h.provider))];
   const webmailCandidates = hosts
-    .map((h) => h.host.replace(/^mail\d*\./, 'webmail.'))
+    .map(h => h.host.replace(/^mail\d*\./, 'webmail.'))
     .filter((h, i, arr) => arr.indexOf(h) === i);
   return { hosts, providers, webmailCandidates };
 }
@@ -63,7 +63,8 @@ export function mapMailInfrastructure(mx, hostToIps = {}) {
 export function guessMailProvider(host) {
   const h = host.toLowerCase();
   if (h.includes('google') || h.includes('googlemail')) return 'Google Workspace';
-  if (h.includes('outlook') || h.includes('protection.outlook') || h.includes('hotmail')) return 'Microsoft 365';
+  if (h.includes('outlook') || h.includes('protection.outlook') || h.includes('hotmail'))
+    return 'Microsoft 365';
   if (h.includes('zoho')) return 'Zoho Mail';
   if (h.includes('proton')) return 'Proton Mail';
   if (h.includes('fastmail') || h.includes('messagingengine')) return 'Fastmail';
@@ -82,7 +83,9 @@ export function guessMailProvider(host) {
  * @returns {{qualifier: string, mechanism: string, value: string}[]}
  */
 export function tokeniseSpf(spfRecord) {
-  const body = String(spfRecord || '').replace(/^"?(v=spf1)\s*/i, '').replace(/"$/g, '');
+  const body = String(spfRecord || '')
+    .replace(/^"?(v=spf1)\s*/i, '')
+    .replace(/"$/g, '');
   const tokens = [];
   for (const raw of body.split(/\s+/).filter(Boolean)) {
     const m = raw.match(/^([+\-~?]?)([a-z0-9]+)(?::([^/\s]+))?(\/\d+)?$/i);
@@ -111,7 +114,10 @@ export function expandSpfChain(spfRecord, resolveSpf, maxDepth = 10) {
   const seen = new Set();
   let truncated = false;
   const walk = (record, via, depth) => {
-    if (depth > maxDepth) { truncated = true; return; }
+    if (depth > maxDepth) {
+      truncated = true;
+      return;
+    }
     for (const tok of tokeniseSpf(record)) {
       if (tok.mechanism === 'include') {
         if (!seen.has(tok.value)) {
@@ -128,7 +134,11 @@ export function expandSpfChain(spfRecord, resolveSpf, maxDepth = 10) {
           if (child) walk(child, [...via, tok.value], depth + 1);
         }
       } else if (['ip4', 'ip6', 'a', 'mx', 'ptr', 'exists'].includes(tok.mechanism)) {
-        senders.push({ mechanism: tok.mechanism, via: [...via], ...(tok.value ? { domain: tok.value } : {}) });
+        senders.push({
+          mechanism: tok.mechanism,
+          via: [...via],
+          ...(tok.value ? { domain: tok.value } : {}),
+        });
       }
     }
   };
@@ -138,7 +148,10 @@ export function expandSpfChain(spfRecord, resolveSpf, maxDepth = 10) {
   const keys = new Set();
   for (const s of senders) {
     const key = `${s.mechanism}:${s.domain || ''}`;
-    if (!keys.has(key)) { keys.add(key); unique.push(s); }
+    if (!keys.has(key)) {
+      keys.add(key);
+      unique.push(s);
+    }
   }
   return { senders: unique, includes, redirects, truncated };
 }
@@ -150,17 +163,20 @@ export function expandSpfChain(spfRecord, resolveSpf, maxDepth = 10) {
  */
 export function parseDmarcRecord(dmarcRecord) {
   const text = String(dmarcRecord || '');
-  const tag = (name) => {
+  const tag = name => {
     const m = text.match(new RegExp(`\\b${name}=([^;]+)`, 'i'));
     return m ? m[1].trim() : null;
   };
-  const mailboxes = (raw) => {
+  const mailboxes = raw => {
     if (!raw) return [];
-    return raw.split(',').map((m) => m.trim().replace(/^mailto:/i, '')).filter((m) => m.includes('@'));
+    return raw
+      .split(',')
+      .map(m => m.trim().replace(/^mailto:/i, ''))
+      .filter(m => m.includes('@'));
   };
   const rua = mailboxes(tag('rua'));
   const ruf = mailboxes(tag('ruf'));
-  const reportDomains = [...new Set([...rua, ...ruf].map((m) => m.split('@')[1].toLowerCase()))];
+  const reportDomains = [...new Set([...rua, ...ruf].map(m => m.split('@')[1].toLowerCase()))];
   return {
     policy: tag('p'),
     rua,
@@ -177,14 +193,18 @@ export function parseDmarcRecord(dmarcRecord) {
  */
 export function parseBimiRecord(bimiRecord) {
   const text = String(bimiRecord || '');
-  const tag = (name) => {
+  const tag = name => {
     const m = text.match(new RegExp(`\\b${name}=([^;]*)`, 'i'));
     return m ? m[1].trim() : null;
   };
   const logoUrl = tag('l') || null;
   let logoHost = null;
   if (logoUrl) {
-    try { logoHost = new URL(logoUrl).hostname.toLowerCase(); } catch { logoHost = null; }
+    try {
+      logoHost = new URL(logoUrl).hostname.toLowerCase();
+    } catch {
+      logoHost = null;
+    }
   }
   return {
     version: tag('v'),
@@ -201,13 +221,13 @@ export function parseBimiRecord(bimiRecord) {
  */
 export function parseMtaStsPolicy(policyText) {
   const lines = String(policyText || '').split(/\r?\n/);
-  const get = (name) => {
-    const line = lines.find((l) => l.trim().toLowerCase().startsWith(`${name}:`));
+  const get = name => {
+    const line = lines.find(l => l.trim().toLowerCase().startsWith(`${name}:`));
     return line ? line.split(':').slice(1).join(':').trim() : null;
   };
   const mx = lines
-    .filter((l) => l.trim().toLowerCase().startsWith('mx:'))
-    .map((l) => l.split(':').slice(1).join(':').trim().toLowerCase().replace(/\.+$/, ''))
+    .filter(l => l.trim().toLowerCase().startsWith('mx:'))
+    .map(l => l.split(':').slice(1).join(':').trim().toLowerCase().replace(/\.+$/, ''))
     .filter(Boolean);
   const maxAge = get('max_age');
   return {
@@ -226,12 +246,12 @@ export function parseMtaStsPolicy(policyText) {
  * @returns {{declared: string[], inMx: string[], missingFromMx: string[]}}
  */
 export function compareMtaStsWithMx(mtaStsMx, mxRecords) {
-  const declared = [...new Set(mtaStsMx.map((h) => h.toLowerCase()))];
-  const mxHosts = new Set(mxRecords.map((m) => m.host.toLowerCase()));
+  const declared = [...new Set(mtaStsMx.map(h => h.toLowerCase()))];
+  const mxHosts = new Set(mxRecords.map(m => m.host.toLowerCase()));
   return {
     declared,
-    inMx: declared.filter((h) => mxHosts.has(h)),
-    missingFromMx: declared.filter((h) => !mxHosts.has(h)),
+    inMx: declared.filter(h => mxHosts.has(h)),
+    missingFromMx: declared.filter(h => !mxHosts.has(h)),
   };
 }
 

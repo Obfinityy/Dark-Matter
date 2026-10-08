@@ -13,11 +13,31 @@
 
 /** Well-known AMQP protocol headers sent by brokers on version mismatch. */
 export const KNOWN_HEADERS = [
-  { broker: 'RabbitMQ', header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x00, 0x09, 0x01], note: 'RabbitMQ speaks AMQP 0-9-1' },
-  { broker: 'RabbitMQ (AMQP 1.0 plugin)', header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x01, 0x00, 0x00], note: 'AMQP 1.0 plugin enabled' },
-  { broker: 'Apache Qpid', header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x00, 0x09, 0x01], note: 'Qpid also answers 0-9-1' },
-  { broker: 'ActiveMQ', header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x01, 0x00, 0x00], note: 'ActiveMQ prefers AMQP 1.0' },
-  { broker: 'EMQX', header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x01, 0x00, 0x00], note: 'EMQX AMQP gateway (1.0)' },
+  {
+    broker: 'RabbitMQ',
+    header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x00, 0x09, 0x01],
+    note: 'RabbitMQ speaks AMQP 0-9-1',
+  },
+  {
+    broker: 'RabbitMQ (AMQP 1.0 plugin)',
+    header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x01, 0x00, 0x00],
+    note: 'AMQP 1.0 plugin enabled',
+  },
+  {
+    broker: 'Apache Qpid',
+    header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x00, 0x09, 0x01],
+    note: 'Qpid also answers 0-9-1',
+  },
+  {
+    broker: 'ActiveMQ',
+    header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x01, 0x00, 0x00],
+    note: 'ActiveMQ prefers AMQP 1.0',
+  },
+  {
+    broker: 'EMQX',
+    header: [0x41, 0x4d, 0x51, 0x50, 0x00, 0x01, 0x00, 0x00],
+    note: 'EMQX AMQP gateway (1.0)',
+  },
 ];
 
 /** SASL mechanism strings that hint at broker family after version agree. */
@@ -48,7 +68,9 @@ export function decodeProtocolHeader(bytes) {
   }
   return {
     valid: true,
-    major: b[5], minor: b[6], revision: b[7],
+    major: b[5],
+    minor: b[6],
+    revision: b[7],
     version: `${b[5]}-${b[6]}-${b[7]}`,
     magic: String.fromCharCode(...b.slice(0, 4)),
   };
@@ -69,9 +91,15 @@ export function fingerprintAmqpBroker(obs = {}) {
   if (decoded.valid) {
     evidence.push(`server protocol header offers AMQP ${decoded.version}`);
     for (const kh of KNOWN_HEADERS) {
-      const bytes = Array.isArray(obs.serverHeader) ? obs.serverHeader : Array.from(obs.serverHeader || []);
+      const bytes = Array.isArray(obs.serverHeader)
+        ? obs.serverHeader
+        : Array.from(obs.serverHeader || []);
       if (headersEqual(bytes, kh.header)) {
-        candidates.push({ broker: kh.broker, note: kh.note, confidence: decoded.version === '0-0-9-1' ? 'medium' : 'high' });
+        candidates.push({
+          broker: kh.broker,
+          note: kh.note,
+          confidence: decoded.version === '0-0-9-1' ? 'medium' : 'high',
+        });
       }
     }
   } else {
@@ -79,12 +107,13 @@ export function fingerprintAmqpBroker(obs = {}) {
   }
 
   const saslHints = [];
-  for (const mech of (obs.saslMechanisms || [])) {
+  for (const mech of obs.saslMechanisms || []) {
     for (const h of SASL_MECHANISM_HINTS) {
       if (h.regex.test(mech)) saslHints.push({ mechanism: mech, hint: h.hint });
     }
   }
-  if (saslHints.length) evidence.push(`SASL mechanisms observed: ${saslHints.map(s => s.mechanism).join(', ')}`);
+  if (saslHints.length)
+    evidence.push(`SASL mechanisms observed: ${saslHints.map(s => s.mechanism).join(', ')}`);
 
   const err = String(obs.errorText || '');
   if (/PRECONDITION_FAILED|NOT_IMPLEMENTED|ACCESS_REFUSED/i.test(err)) {
@@ -92,10 +121,15 @@ export function fingerprintAmqpBroker(obs = {}) {
   }
 
   // 0-9-1 + AMQPLAIN is a strong RabbitMQ indicator.
-  const rabbit = candidates.some(c => c.broker === 'RabbitMQ') &&
+  const rabbit =
+    candidates.some(c => c.broker === 'RabbitMQ') &&
     (obs.saslMechanisms || []).some(m => /AMQPLAIN/i.test(m));
   if (rabbit) {
-    candidates.unshift({ broker: 'RabbitMQ', note: '0-9-1 header plus AMQPLAIN mechanism', confidence: 'high' });
+    candidates.unshift({
+      broker: 'RabbitMQ',
+      note: '0-9-1 header plus AMQPLAIN mechanism',
+      confidence: 'high',
+    });
   }
 
   return {
@@ -109,7 +143,11 @@ export function fingerprintAmqpBroker(obs = {}) {
       ? `AMQP handshake indicates: ${candidates.map(c => `${c.broker} (${c.confidence})`).join(', ')}.`
       : 'AMQP handshake did not match a known broker profile.',
     type: 'AMQP Handshake Fingerprint',
-    confidence: candidates.some(c => c.confidence === 'high') ? 'high' : candidates.length ? 'medium' : 'low',
+    confidence: candidates.some(c => c.confidence === 'high')
+      ? 'high'
+      : candidates.length
+        ? 'medium'
+        : 'low',
   };
 }
 

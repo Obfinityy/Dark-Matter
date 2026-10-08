@@ -1,3 +1,9 @@
+/**
+ * AgentCharacter — the visible presence of the hunting agent.
+ * A hexagonal core with orbiting rings: breathes slowly when idle, spins
+ * and pulses while a hunt is running. Professional, minimal presentation.
+ * Part of: Infinity AI / Dark-Matter frontend (pages).
+ */
 import React from 'react';
 
 /**
@@ -14,15 +20,38 @@ export function AgentCharacter({ active = false, listening = false, status = 'Id
       aria-label={`Agent status: ${accessibleStatus}`}
     >
       <svg className="sg-agent-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
-        <circle className="sg-orbit sg-orbit-outer" cx="60" cy="60" r="52" fill="none"
-          stroke="currentColor" strokeWidth="1" strokeDasharray="10 8" opacity="0.35" />
-        <circle className="sg-orbit sg-orbit-inner" cx="60" cy="60" r="42" fill="none"
-          stroke="currentColor" strokeWidth="1" strokeDasharray="4 10" opacity="0.25" />
+        <circle
+          className="sg-orbit sg-orbit-outer"
+          cx="60"
+          cy="60"
+          r="52"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="10 8"
+          opacity="0.35"
+        />
+        <circle
+          className="sg-orbit sg-orbit-inner"
+          cx="60"
+          cy="60"
+          r="42"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="4 10"
+          opacity="0.25"
+        />
         <g className="sg-core-glow">
           <circle cx="60" cy="60" r="26" fill="currentColor" opacity="0.12" />
         </g>
-        <polygon className="sg-core-hex" points="60,38 79,49 79,71 60,82 41,71 41,49"
-          fill="none" stroke="currentColor" strokeWidth="2" />
+        <polygon
+          className="sg-core-hex"
+          points="60,38 79,49 79,71 60,82 41,71 41,49"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
         <circle cx="60" cy="60" r="6" fill="currentColor" opacity="0.9" />
         <g fill="currentColor">
           <circle className="sg-tdot sg-tdot-1" cx="48" cy="96" r="2.5" />

@@ -31,10 +31,11 @@ function toSummary(cycle) {
     verification: cycle.verification || null,
     adaptation: cycle.adaptation || null,
     learning: cycle.learning || null,
-    createdAt: cycle.createdAt
+    createdAt: cycle.createdAt,
   };
 }
 
+/** Database model for reasoning cycle. */
 export class ReasoningCycleModel {
   constructor(database) {
     this.collection = database.collection('reasoning_cycles');
@@ -69,7 +70,7 @@ export class ReasoningCycleModel {
       learning: null,
       learnings: [],
       createdAt: now(),
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.insertOne(cycle);
     return { ...cycle };
@@ -91,20 +92,23 @@ export class ReasoningCycleModel {
       verification: {
         outcome: verification.outcome || 'unknown',
         reason: verification.reason || null,
-        at: now()
+        at: now(),
       },
       status: 'verified',
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.updateOne({ id: cycleId }, { $set: update });
     return this.collection.findOne({ id: cycleId });
   }
 
-  async recordAdaptation(cycleId, { nextCycleId = null, nextObjective = null, nextReason = null } = {}) {
+  async recordAdaptation(
+    cycleId,
+    { nextCycleId = null, nextObjective = null, nextReason = null } = {}
+  ) {
     const update = {
       adaptation: { nextCycleId, nextObjective, nextReason, at: now() },
       status: 'closed',
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.updateOne({ id: cycleId }, { $set: update });
     return this.collection.findOne({ id: cycleId });
@@ -116,7 +120,7 @@ export class ReasoningCycleModel {
       { id: cycleId },
       {
         $set: { learning: lesson, updatedAt: now() },
-        $push: { learnings: { lesson, at: now() } }
+        $push: { learnings: { lesson, at: now() } },
       }
     );
     return this.collection.findOne({ id: cycleId });

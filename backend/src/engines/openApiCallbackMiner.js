@@ -25,19 +25,32 @@ export function extractCallbacks(spec = {}) {
   for (const [path, item] of Object.entries(paths)) {
     if (!item || typeof item !== 'object') continue;
     for (const [method, operation] of Object.entries(item)) {
-      if (!operation || typeof operation !== 'object' || method === 'parameters' || method.startsWith('x-')) continue;
-      const callbacks = operation.callbacks && typeof operation.callbacks === 'object' ? operation.callbacks : {};
+      if (
+        !operation ||
+        typeof operation !== 'object' ||
+        method === 'parameters' ||
+        method.startsWith('x-')
+      )
+        continue;
+      const callbacks =
+        operation.callbacks && typeof operation.callbacks === 'object' ? operation.callbacks : {};
       for (const [callbackName, callback] of Object.entries(callbacks)) {
         if (!callback || typeof callback !== 'object') continue;
         for (const [callbackPath, pathItem] of Object.entries(callback)) {
           if (!pathItem || typeof pathItem !== 'object') continue;
           const pathItemServers = Array.isArray(pathItem.servers)
-            ? pathItem.servers.map((s) => s && s.url).filter(Boolean)
+            ? pathItem.servers.map(s => s && s.url).filter(Boolean)
             : [];
           for (const [targetMethod, targetOp] of Object.entries(pathItem)) {
-            if (!targetOp || typeof targetOp !== 'object' || targetMethod === 'servers' || targetMethod === 'parameters') continue;
+            if (
+              !targetOp ||
+              typeof targetOp !== 'object' ||
+              targetMethod === 'servers' ||
+              targetMethod === 'parameters'
+            )
+              continue;
             const opServers = Array.isArray(targetOp.servers)
-              ? targetOp.servers.map((s) => s && s.url).filter(Boolean)
+              ? targetOp.servers.map(s => s && s.url).filter(Boolean)
               : [];
             const servers = [...new Set([...pathItemServers, ...opServers])];
             out.push({
@@ -69,10 +82,16 @@ export function extractTopLevelWebhooks(spec = {}) {
   for (const [name, pathItem] of Object.entries(webhooks)) {
     if (!pathItem || typeof pathItem !== 'object') continue;
     const servers = Array.isArray(pathItem.servers)
-      ? pathItem.servers.map((s) => s && s.url).filter(Boolean)
+      ? pathItem.servers.map(s => s && s.url).filter(Boolean)
       : [];
     for (const [method, operation] of Object.entries(pathItem)) {
-      if (!operation || typeof operation !== 'object' || method === 'servers' || method === 'parameters') continue;
+      if (
+        !operation ||
+        typeof operation !== 'object' ||
+        method === 'servers' ||
+        method === 'parameters'
+      )
+        continue;
       out.push({ name, path: name, method: method.toUpperCase(), servers });
     }
   }
@@ -102,7 +121,8 @@ export function callbackHosts(callbacks = []) {
     for (const serverUrl of cb.servers || []) {
       try {
         const parsed = new URL(serverUrl, 'https://placeholder.invalid');
-        if (parsed.hostname && parsed.hostname !== 'placeholder.invalid') hosts.add(parsed.hostname);
+        if (parsed.hostname && parsed.hostname !== 'placeholder.invalid')
+          hosts.add(parsed.hostname);
       } catch {
         /* ignore unparsable server URLs */
       }
@@ -119,11 +139,10 @@ export function callbackHosts(callbacks = []) {
  * @returns {Array}
  */
 export function findSuspiciousCallbackTargets(callbacks = []) {
-  const internalRe = /(localhost|127\.0\.0\.1|::1|\.local$|\.internal$|\.corp$|dev|staging|test|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/i;
+  const internalRe =
+    /(localhost|127\.0\.0\.1|::1|\.local$|\.internal$|\.corp$|dev|staging|test|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/i;
   return callbacks.filter(
-    (cb) =>
-      !looksLikeRuntimeExpression(cb.callbackPath) &&
-      cb.servers.some((s) => internalRe.test(s))
+    cb => !looksLikeRuntimeExpression(cb.callbackPath) && cb.servers.some(s => internalRe.test(s))
   );
 }
 
@@ -177,7 +196,9 @@ export function analyzeOpenApiCallbacks({ url = '', spec = null } = {}) {
     evidence:
       callbacks.length || webhooks.length
         ? `OpenAPI spec${url ? ` at ${url}` : ''} declares ${callbacks.length} operation callback(s) and ${webhooks.length} top-level webhook(s) referencing host(s): ${hosts.join(', ') || '(client-supplied only)'}.` +
-          (suspicious.length ? ` ${suspicious.length} callback target(s) point at internal/dev hosts — verify they are intentional.` : '')
+          (suspicious.length
+            ? ` ${suspicious.length} callback target(s) point at internal/dev hosts — verify they are intentional.`
+            : '')
         : `No callbacks or webhooks declared in spec${url ? ` at ${url}` : ''}.`,
   };
 }

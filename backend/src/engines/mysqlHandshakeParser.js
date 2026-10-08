@@ -80,8 +80,12 @@ function readCString(bytes, offset) {
   return { text: String.fromCharCode(...bytes.slice(offset, end)), next: end + 1 };
 }
 
-function readU16LE(b, o) { return b[o] | (b[o + 1] << 8); }
-function readU32LE(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
+function readU16LE(b, o) {
+  return b[o] | (b[o + 1] << 8);
+}
+function readU32LE(b, o) {
+  return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+}
 
 /**
  * Decode a capability bitmap into named flags.
@@ -89,9 +93,9 @@ function readU32LE(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (
  * @returns {Array<{flag: string, description: string}>}
  */
 export function decodeCapabilities(bitmap) {
-  return MYSQL_CAPABILITIES
-    .filter(([bit]) => (bitmap & bit) !== 0)
-    .map(([, flag, description]) => ({ flag, description }));
+  return MYSQL_CAPABILITIES.filter(([bit]) => (bitmap & bit) !== 0).map(
+    ([, flag, description]) => ({ flag, description })
+  );
 }
 
 /**
@@ -119,22 +123,34 @@ export function parseMysqlHandshake(input) {
   }
   const protocolVersion = bytes[0];
   if (protocolVersion !== 10) {
-    return { protocolVersion, findings: [`Unexpected protocol version ${protocolVersion} (expected 10).`], confidence: 'low' };
+    return {
+      protocolVersion,
+      findings: [`Unexpected protocol version ${protocolVersion} (expected 10).`],
+      confidence: 'low',
+    };
   }
 
   const v = readCString(bytes, 1);
   const serverVersion = v.text;
   let offset = v.next;
-  const connectionId = readU32LE(bytes, offset); offset += 4;
+  const connectionId = readU32LE(bytes, offset);
+  offset += 4;
   offset += 8; // auth-plugin-data-part-1
   offset += 1; // filler
-  const capLower = readU16LE(bytes, offset); offset += 2;
-  const charset = bytes[offset]; offset += 1;
-  const statusBits = readU16LE(bytes, offset); offset += 2;
-  const statusFlags = MYSQL_STATUS_FLAGS.filter(([bit]) => (statusBits & bit) !== 0).map(([, flag, description]) => ({ flag, description }));
-  const capUpper = readU16LE(bytes, offset); offset += 2;
-  const capabilities = (((capUpper << 16) | capLower) >>> 0);
-  const authPluginDataLen = bytes[offset]; offset += 1;
+  const capLower = readU16LE(bytes, offset);
+  offset += 2;
+  const charset = bytes[offset];
+  offset += 1;
+  const statusBits = readU16LE(bytes, offset);
+  offset += 2;
+  const statusFlags = MYSQL_STATUS_FLAGS.filter(([bit]) => (statusBits & bit) !== 0).map(
+    ([, flag, description]) => ({ flag, description })
+  );
+  const capUpper = readU16LE(bytes, offset);
+  offset += 2;
+  const capabilities = ((capUpper << 16) | capLower) >>> 0;
+  const authPluginDataLen = bytes[offset];
+  offset += 1;
   offset += 10; // reserved
   const part2Len = Math.max(13, authPluginDataLen - 8);
   offset += Math.min(part2Len, bytes.length - offset);
@@ -149,23 +165,39 @@ export function parseMysqlHandshake(input) {
 
   const vendor = identifyVendor(serverVersion);
   const caps = decodeCapabilities(capabilities);
-  const capNames = new Set(caps.map((c) => c.flag));
+  const capNames = new Set(caps.map(c => c.flag));
 
-  findings.push(`MySQL protocol 10 handshake: ${vendor.vendor} ${vendor.version} (connection id ${connectionId}).`);
-  if (/mariadb/i.test(serverVersion)) findings.push('Version string identifies MariaDB (note the 5.5.5 compatibility prefix some MariaDB builds send).');
+  findings.push(
+    `MySQL protocol 10 handshake: ${vendor.vendor} ${vendor.version} (connection id ${connectionId}).`
+  );
+  if (/mariadb/i.test(serverVersion))
+    findings.push(
+      'Version string identifies MariaDB (note the 5.5.5 compatibility prefix some MariaDB builds send).'
+    );
   findings.push(`Server offers ${caps.length} capability flag(s).`);
-  if (!capNames.has('CLIENT_SSL')) findings.push('HIGH: server does not advertise CLIENT_SSL — connections may fall back to plaintext.');
+  if (!capNames.has('CLIENT_SSL'))
+    findings.push(
+      'HIGH: server does not advertise CLIENT_SSL — connections may fall back to plaintext.'
+    );
   else findings.push('Server advertises CLIENT_SSL — encrypted sessions are negotiable.');
   if (authPlugin) {
     findings.push(`Authentication plugin: ${authPlugin}.`);
-    if (authPlugin === 'mysql_native_password') findings.push('MEDIUM: mysql_native_password uses SHA1-based auth — weaker than caching_sha2_password.');
-    else if (authPlugin === 'caching_sha2_password') findings.push('caching_sha2_password — modern default auth plugin.');
+    if (authPlugin === 'mysql_native_password')
+      findings.push(
+        'MEDIUM: mysql_native_password uses SHA1-based auth — weaker than caching_sha2_password.'
+      );
+    else if (authPlugin === 'caching_sha2_password')
+      findings.push('caching_sha2_password — modern default auth plugin.');
   }
   const majorMinor = /^(\d+)\.(\d+)/.exec(vendor.version);
-  if (majorMinor && (parseInt(majorMinor[1], 10) < 5 || (majorMinor[1] === '5' && parseInt(majorMinor[2], 10) < 7))) {
+  if (
+    majorMinor &&
+    (parseInt(majorMinor[1], 10) < 5 || (majorMinor[1] === '5' && parseInt(majorMinor[2], 10) < 7))
+  ) {
     findings.push(`HIGH: ${vendor.version} is end-of-life and receives no security fixes.`);
   }
-  if (!capNames.has('CLIENT_PLUGIN_AUTH')) findings.push('No auth-plugin negotiation advertised — legacy 4.1-era auth handshake.');
+  if (!capNames.has('CLIENT_PLUGIN_AUTH'))
+    findings.push('No auth-plugin negotiation advertised — legacy 4.1-era auth handshake.');
 
   return {
     protocolVersion,
@@ -182,5 +214,12 @@ export function parseMysqlHandshake(input) {
   };
 }
 
-export const MYSQL_HANDSHAKE_PARSER = { toBytes, decodeCapabilities, identifyVendor, parseMysqlHandshake, MYSQL_CAPABILITIES, MYSQL_STATUS_FLAGS };
+export const MYSQL_HANDSHAKE_PARSER = {
+  toBytes,
+  decodeCapabilities,
+  identifyVendor,
+  parseMysqlHandshake,
+  MYSQL_CAPABILITIES,
+  MYSQL_STATUS_FLAGS,
+};
 export default MYSQL_HANDSHAKE_PARSER;

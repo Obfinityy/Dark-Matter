@@ -47,6 +47,6 @@ export function parseGeneric(rawOutput) {
   return {
     text: text.slice(0, 500_000), // Cap at 500KB for storage
     lineCount: text.split('\n').length,
-    truncated: text.length > 500_000
+    truncated: text.length > 500_000,
   };
 }

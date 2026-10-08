@@ -1,5 +1,16 @@
+/**
+ * targetController — Express route handlers for target.
+ * Factory that wires the target service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
+/**
+ * Creates target controller.
+ * @param {*} targetModel
+ * @returns {*} Result.
+ */
 export function createTargetController(targetModel) {
   return {
     list: asyncHandler(async (request, response) => {
@@ -7,6 +18,6 @@ export function createTargetController(targetModel) {
     }),
     get: asyncHandler(async (request, response) => {
       response.json(await targetModel.get(request.user.id, request.params.targetId));
-    })
+    }),
   };
 }

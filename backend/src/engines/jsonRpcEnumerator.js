@@ -10,7 +10,8 @@
  * Pure functions: takes parsed discovery JSON, returns structured intel.
  */
 
-const SENSITIVE_METHOD_RE = /\b(admin|debug|internal|private|exec|eval|shell|system|config|backup|restore|shutdown|restart|deploy|migrate|secret|key|token|user|auth|password|billing|payment)\b/i;
+const SENSITIVE_METHOD_RE =
+  /\b(admin|debug|internal|private|exec|eval|shell|system|config|backup|restore|shutdown|restart|deploy|migrate|secret|key|token|user|auth|password|billing|payment)\b/i;
 const NAMESPACE_SPLIT_RE = /[._:]/;
 
 /** Normalize discovery input: array, {result:[]}, or {methods:[]} shapes. */
@@ -69,9 +70,12 @@ export function extractMethodsFromErrors(responses = []) {
     const err = r && r.error;
     if (!err) continue;
     const text = `${err.message || ''} ${err.data || ''}`;
-    const m = text.match(/method\s+['"]?([A-Za-z][\w.:_-]*)['"]?/i)
-      || text.match(/unknown\s+method\s+['"]?([A-Za-z][\w.:_-]*)['"]?/i)
-      || text.match(/['"]([A-Za-z][\w]*[.:_][\w.:_-]*)['"]\s+(?:is\s+)?not\s+(?:a\s+)?(?:valid|known|registered)/i);
+    const m =
+      text.match(/method\s+['"]?([A-Za-z][\w.:_-]*)['"]?/i) ||
+      text.match(/unknown\s+method\s+['"]?([A-Za-z][\w.:_-]*)['"]?/i) ||
+      text.match(
+        /['"]([A-Za-z][\w]*[.:_][\w.:_-]*)['"]\s+(?:is\s+)?not\s+(?:a\s+)?(?:valid|known|registered)/i
+      );
     if (m) found.add(m[1]);
   }
   return [...found];
@@ -86,9 +90,16 @@ export function extractMethodsFromErrors(responses = []) {
  * @returns structured findings
  */
 export function enumerateJsonRpc({ url = '', discovery = null, errorResponses = [] } = {}) {
-  const methods = [...new Set([...normalizeDiscovery(discovery), ...extractMethodsFromErrors(errorResponses)])].sort();
+  const methods = [
+    ...new Set([...normalizeDiscovery(discovery), ...extractMethodsFromErrors(errorResponses)]),
+  ].sort();
   if (!methods.length) {
-    return { url, type: 'JSON-RPC Method Enumeration', confidence: 'none', error: 'No methods disclosed in discovery response' };
+    return {
+      url,
+      type: 'JSON-RPC Method Enumeration',
+      confidence: 'none',
+      error: 'No methods disclosed in discovery response',
+    };
   }
   const groups = groupByNamespace(methods);
   const sensitive = flagSensitiveMethods(methods);
@@ -108,7 +119,11 @@ export function enumerateJsonRpc({ url = '', discovery = null, errorResponses = 
 }
 
 export const JSON_RPC_ENUMERATOR = {
-  normalizeDiscovery, groupByNamespace, flagSensitiveMethods, inferBackendServices,
-  extractMethodsFromErrors, enumerateJsonRpc,
+  normalizeDiscovery,
+  groupByNamespace,
+  flagSensitiveMethods,
+  inferBackendServices,
+  extractMethodsFromErrors,
+  enumerateJsonRpc,
 };
 export default JSON_RPC_ENUMERATOR;

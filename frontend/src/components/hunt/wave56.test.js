@@ -21,8 +21,12 @@ const NOW = 1700000000000;
 
 function registryOk(reg, first, last) {
   assert.equal(reg.length, 20, `expected 20 registry entries, got ${reg.length}`);
-  const ids = reg.map((e) => e.id);
-  assert.deepEqual(ids, Array.from({ length: 20 }, (_, i) => first + i), 'registry ids must be the exact 20-idea range in order');
+  const ids = reg.map(e => e.id);
+  assert.deepEqual(
+    ids,
+    Array.from({ length: 20 }, (_, i) => first + i),
+    'registry ids must be the exact 20-idea range in order'
+  );
   for (const e of reg) {
     assert.ok(typeof e.title === 'string' && e.title.length > 0, `entry ${e.id} needs a title`);
     assert.equal(e.skip, false, `entry ${e.id} must not be skipped`);
@@ -40,17 +44,48 @@ test('WAVE56_OPS_IDEAS: 20/20 entries 52221–52240, zero skips', () => {
 });
 
 test('combined coverage: exactly 52201–52240 with no gaps or dupes', () => {
-  const all = [...WAVE56_FMT_IDEAS.map((e) => e.id), ...WAVE56_OPS_IDEAS.map((e) => e.id)];
+  const all = [...WAVE56_FMT_IDEAS.map(e => e.id), ...WAVE56_OPS_IDEAS.map(e => e.id)];
   assert.equal(all.length, 40);
-  assert.deepEqual([...all].sort((a, b) => a - b), Array.from({ length: 40 }, (_, i) => 52201 + i));
+  assert.deepEqual(
+    [...all].sort((a, b) => a - b),
+    Array.from({ length: 40 }, (_, i) => 52201 + i)
+  );
 });
 
 const SAMPLE = {
   id: 'hunt-t',
   target: 't.example.com',
   findings: [
-    { id: 'f-1', title: 'XSS', severity: 'high', status: 'open', vulnClass: 'xss', cwe: 'CWE-79', target: 't', assignee: 'a', description: 'd1', poc: 'curl x', remediation: 'r1', evidence: [{ kind: 'http', summary: 's1' }], createdAt: NOW - 1000, updatedAt: NOW - 500 },
-    { id: 'f-2', title: 'Low info', severity: 'low', status: 'open', vulnClass: 'info', cwe: null, target: 't', description: 'd2', remediation: null, evidence: [], createdAt: NOW - 2000, updatedAt: NOW - 2000 },
+    {
+      id: 'f-1',
+      title: 'XSS',
+      severity: 'high',
+      status: 'open',
+      vulnClass: 'xss',
+      cwe: 'CWE-79',
+      target: 't',
+      assignee: 'a',
+      description: 'd1',
+      poc: 'curl x',
+      remediation: 'r1',
+      evidence: [{ kind: 'http', summary: 's1' }],
+      createdAt: NOW - 1000,
+      updatedAt: NOW - 500,
+    },
+    {
+      id: 'f-2',
+      title: 'Low info',
+      severity: 'low',
+      status: 'open',
+      vulnClass: 'info',
+      cwe: null,
+      target: 't',
+      description: 'd2',
+      remediation: null,
+      evidence: [],
+      createdAt: NOW - 2000,
+      updatedAt: NOW - 2000,
+    },
   ],
 };
 
@@ -82,13 +117,21 @@ test('buildJUnitXml: failures = critical+high only', () => {
 
 test('selectFilteredSubset + exportSelectedOnly order', () => {
   const s = F.selectFilteredSubset(SAMPLE.findings, { severity: ['high'] });
-  assert.deepEqual(s.subset.map((f) => f.id), ['f-1']);
+  assert.deepEqual(
+    s.subset.map(f => f.id),
+    ['f-1']
+  );
   const o = F.exportSelectedOnly(SAMPLE.findings, ['f-2', 'f-1']);
-  assert.deepEqual(o.findings.map((f) => f.id), ['f-2', 'f-1']);
+  assert.deepEqual(
+    o.findings.map(f => f.id),
+    ['f-2', 'f-1']
+  );
 });
 
 test('enrichWithTriage / buildFpAppendix / enrichRemediationStatus', () => {
-  const t = F.enrichWithTriage(SAMPLE.findings, { 'f-1': { decision: 'confirmed', reviewer: 'r' } });
+  const t = F.enrichWithTriage(SAMPLE.findings, {
+    'f-1': { decision: 'confirmed', reviewer: 'r' },
+  });
   assert.equal(t.findings[0].triage.decision, 'confirmed');
   assert.equal(t.findings[1].triage.decision, 'pending');
   const fp = F.buildFpAppendix([{ id: 'f-9', title: 'x', severity: 'low', fpReason: 'not real' }]);
@@ -98,9 +141,21 @@ test('enrichWithTriage / buildFpAppendix / enrichRemediationStatus', () => {
 });
 
 test('evaluateSchedule due vs upcoming', () => {
-  const r = F.evaluateSchedule([{ id: 'a', nextRunAt: NOW - 1 }, { id: 'b', nextRunAt: NOW + 1 }], NOW);
-  assert.deepEqual(r.due.map((s) => s.id), ['a']);
-  assert.deepEqual(r.upcoming.map((s) => s.id), ['b']);
+  const r = F.evaluateSchedule(
+    [
+      { id: 'a', nextRunAt: NOW - 1 },
+      { id: 'b', nextRunAt: NOW + 1 },
+    ],
+    NOW
+  );
+  assert.deepEqual(
+    r.due.map(s => s.id),
+    ['a']
+  );
+  assert.deepEqual(
+    r.upcoming.map(s => s.id),
+    ['b']
+  );
 });
 
 test('buildDeliveryDescriptor s3 + drive + invalid', () => {
@@ -170,7 +225,10 @@ test('buildLifecycleTimeline sorted + buildCoverPageModel', () => {
     { findingId: 'f-1', at: NOW, to: 'triaged' },
     { findingId: 'f-1', at: NOW - 10, to: 'open' },
   ]);
-  assert.deepEqual(r.timeline.map((t) => t.to), ['open', 'triaged']);
+  assert.deepEqual(
+    r.timeline.map(t => t.to),
+    ['open', 'triaged']
+  );
   assert.equal(O.buildCoverPageModel({}).coverPage.tester, 'Infinity AI');
 });
 
@@ -187,18 +245,30 @@ test('buildChartExportDescriptor + buildToc', () => {
   assert.ok(c.ok && c.descriptor.filename === 'trend-line.svg');
   assert.ok(!O.buildChartExportDescriptor({ type: 'nope' }).ok);
   const t = O.buildToc([{ title: 'A', pageSpan: 2 }, { title: 'B' }]);
-  assert.deepEqual(t.toc.entries.map((e) => e.page), [1, 3]);
+  assert.deepEqual(
+    t.toc.entries.map(e => e.page),
+    [1, 3]
+  );
 });
 
 test('buildChecklistAppendix sorted critical-first', () => {
-  const r = O.buildChecklistAppendix(SAMPLE.findings.concat({ id: 'f-3', title: 'C', severity: 'critical' }));
+  const r = O.buildChecklistAppendix(
+    SAMPLE.findings.concat({ id: 'f-3', title: 'C', severity: 'critical' })
+  );
   assert.equal(r.appendix.items[0].severity, 'critical');
 });
 
 test('buildPgpExportDescriptor / evaluateRetention', () => {
   assert.ok(O.buildPgpExportDescriptor({ fingerprint: 'AA' }).ok);
   assert.ok(!O.buildPgpExportDescriptor({}).ok);
-  const r = O.evaluateRetention([{ id: 'old', createdAt: NOW - 31 * 86400000 }, { id: 'new', createdAt: NOW }], { retainDays: 30 }, NOW);
+  const r = O.evaluateRetention(
+    [
+      { id: 'old', createdAt: NOW - 31 * 86400000 },
+      { id: 'new', createdAt: NOW },
+    ],
+    { retainDays: 30 },
+    NOW
+  );
   assert.deepEqual(r.expired, ['old']);
   assert.deepEqual(r.kept, ['new']);
 });
@@ -244,10 +314,15 @@ test('appendHistory / getExportPreset / buildJiraCsv', () => {
 });
 
 test('buildStixBundle / extractCvssVectors / buildCweMapping', () => {
-  const s = O.buildStixBundle([{ id: 'f-1', title: 'X', severity: 'high', description: 'd', cwe: 'CWE-79' }], NOW);
+  const s = O.buildStixBundle(
+    [{ id: 'f-1', title: 'X', severity: 'high', description: 'd', cwe: 'CWE-79' }],
+    NOW
+  );
   assert.equal(s.count, 1);
   assert.equal(s.bundle.objects[0].external_references[0].external_id, 'CWE-79');
-  const v = O.extractCvssVectors([{ id: 'f-1', title: 'X', severity: 'high', cvssVector: 'CVSS:3.1/AV:N', cvssScore: 9.0 }]);
+  const v = O.extractCvssVectors([
+    { id: 'f-1', title: 'X', severity: 'high', cvssVector: 'CVSS:3.1/AV:N', cvssScore: 9.0 },
+  ]);
   assert.equal(v.withVector, 1);
   const m = O.buildCweMapping(SAMPLE.findings);
   assert.equal(m.cweCount, 2);
@@ -274,9 +349,9 @@ test('Wave56.css exists and has zero keyframes', () => {
 
 test('Wave56.css: every class-like selector is scoped .exf56-/.exo56-', () => {
   const css = readFileSync(CSS, 'utf8');
-  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map((m) => m[1]);
-  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map((m) => m[1]);
-  const all = new Set([...selectors, ...classSelectors].filter((s) => /^[a-z]/.test(s)));
+  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map(m => m[1]);
+  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map(m => m[1]);
+  const all = new Set([...selectors, ...classSelectors].filter(s => /^[a-z]/.test(s)));
   assert.ok(all.size > 0, 'no class selectors found');
   for (const s of all) {
     assert.ok(s.startsWith('exf56-') || s.startsWith('exo56-'), `unscoped selector: .${s}`);
@@ -285,7 +360,14 @@ test('Wave56.css: every class-like selector is scoped .exf56-/.exo56-', () => {
 
 /* ---- Branding-leak audit: no forbidden brand name in wave-56 files ---- */
 test('no branding leak in wave-56 files', () => {
-  const files = ['exportFormatsCore.js', 'exportOpsCore.js', 'ExportFormats.jsx', 'ExportOps.jsx', 'Wave56.css', 'wave56.test.js'];
+  const files = [
+    'exportFormatsCore.js',
+    'exportOpsCore.js',
+    'ExportFormats.jsx',
+    'ExportOps.jsx',
+    'Wave56.css',
+    'wave56.test.js',
+  ];
   const probe = 'M' + 'use'; // self-reference would fail the audit itself
   for (const f of files) {
     const p = join(DIR, f);

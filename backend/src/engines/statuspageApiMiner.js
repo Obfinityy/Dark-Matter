@@ -58,12 +58,17 @@ export function mineStatuspageComponents(payload = {}, rootDomain) {
     const group = groups.get(String(comp?.group_id || '')) || '';
     for (const h of targetHostsInText(`${name} ${group}`, root)) {
       results.push({
-        host: h, component: name, group,
-        status: String(comp?.status || ''), kind: 'component',
+        host: h,
+        component: name,
+        group,
+        status: String(comp?.status || ''),
+        kind: 'component',
       });
     }
   }
-  return results.sort((a, b) => a.host.localeCompare(b.host) || a.component.localeCompare(b.component));
+  return results.sort(
+    (a, b) => a.host.localeCompare(b.host) || a.component.localeCompare(b.component)
+  );
 }
 
 /**
@@ -87,13 +92,17 @@ export function mineStatuspageMaintenances(payload = {}, rootDomain) {
     for (const body of bodies) {
       for (const h of targetHostsInText(body, root)) {
         results.push({
-          host: h, maintenance: name,
-          status: String(mt?.status || ''), evidence: body.slice(0, 160),
+          host: h,
+          maintenance: name,
+          status: String(mt?.status || ''),
+          evidence: body.slice(0, 160),
         });
       }
     }
   }
-  return results.sort((a, b) => a.host.localeCompare(b.host) || a.maintenance.localeCompare(b.maintenance));
+  return results.sort(
+    (a, b) => a.host.localeCompare(b.host) || a.maintenance.localeCompare(b.maintenance)
+  );
 }
 
 /**
@@ -117,11 +126,15 @@ export function mineStatuspageIncidents(payload = {}, rootDomain) {
     for (const body of bodies) {
       for (const h of targetHostsInText(body, root)) {
         results.push({
-          host: h, incident: name,
-          status: String(inc?.status || ''), evidence: body.slice(0, 160),
+          host: h,
+          incident: name,
+          status: String(inc?.status || ''),
+          evidence: body.slice(0, 160),
         });
       }
     }
   }
-  return results.sort((a, b) => a.host.localeCompare(b.host) || a.incident.localeCompare(b.incident));
+  return results.sort(
+    (a, b) => a.host.localeCompare(b.host) || a.incident.localeCompare(b.incident)
+  );
 }

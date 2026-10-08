@@ -21,7 +21,6 @@
   max-width: 640px;
   margin: 1.5rem auto;
   box-shadow: var(--shadow-md);
-  
 }
 
 .ers-compact {
@@ -92,10 +91,16 @@
   font-weight: 650;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
-.ers-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ers-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 .ers-btn:focus-visible,
 .ers-details-toggle:focus-visible {
@@ -114,7 +119,9 @@
   transform: translateY(-1px);
 }
 
-.ers-primary:active:not(:disabled) { transform: translateY(0); }
+.ers-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
 
 .ers-secondary {
   background: transparent;
@@ -150,7 +157,9 @@
   border-radius: var(--radius-sm);
 }
 
-.ers-details-toggle:hover { color: var(--text-primary); }
+.ers-details-toggle:hover {
+  color: var(--text-primary);
+}
 
 .ers-details {
   margin: 0;
@@ -195,8 +204,12 @@
   width: 100%;
 }
 
-.ers-inline-error { color: color-mix(in srgb, var(--danger) 80%, var(--text-primary)); }
-.ers-inline-warning { color: color-mix(in srgb, var(--warning) 85%, var(--text-primary)); }
+.ers-inline-error {
+  color: color-mix(in srgb, var(--danger) 80%, var(--text-primary));
+}
+.ers-inline-warning {
+  color: color-mix(in srgb, var(--warning) 85%, var(--text-primary));
+}
 
 .ers-inline-example code {
   background: var(--bg-secondary);
@@ -239,13 +252,27 @@
     max-width: none;
   }
 
-  .ers-actions { flex-direction: column; align-items: stretch; }
-  .ers-actions .ers-btn { width: 100%; }
-  .ers-countdown { font-size: 1.6rem; }
+  .ers-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ers-actions .ers-btn {
+    width: 100%;
+  }
+  .ers-countdown {
+    font-size: 1.6rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ers { animation: none; }
-  .ers-btn, .ers-details-toggle { transition: none; }
-  .ers-primary:hover:not(:disabled) { transform: none; }
+  .ers {
+    animation: none;
+  }
+  .ers-btn,
+  .ers-details-toggle {
+    transition: none;
+  }
+  .ers-primary:hover:not(:disabled) {
+    transform: none;
+  }
 }

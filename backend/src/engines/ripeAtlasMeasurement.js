@@ -55,10 +55,10 @@ export function parseAbufIps(abuf = '') {
   if (!/^[0-9a-fA-F]+$/.test(bytes) || bytes.length < 24) return [];
   for (let i = 24; i + 8 <= bytes.length; i += 2) {
     const chunk = bytes.slice(i, i + 8);
-    const octets = [0, 2, 4, 6].map((o) => parseInt(chunk.slice(o, o + 2), 16));
-    if (octets.some((o) => Number.isNaN(o))) continue;
+    const octets = [0, 2, 4, 6].map(o => parseInt(chunk.slice(o, o + 2), 16));
+    if (octets.some(o => Number.isNaN(o))) continue;
     // Skip multicast/reserved/0/255-heavy noise.
-    if (octets[0] === 0 || octets[0] >= 224 || octets.every((o) => o === 255)) continue;
+    if (octets[0] === 0 || octets[0] >= 224 || octets.every(o => o === 255)) continue;
     found.add(octets.join('.'));
   }
   return [...found];
@@ -77,9 +77,10 @@ export function parseAbufIps(abuf = '') {
  * @returns {{ geoSplit: boolean, regions: Array<{ region, ips: string[], probeCount }>, outliers: Array<{ probeId, region, answers }>, agreement: number }}
  */
 export function detectGeoSplitDns(resolutions = [], probeMeta = {}) {
-  const meta = probeMeta instanceof Map
-    ? probeMeta
-    : new Map(Object.entries(probeMeta || {}).map(([k, v]) => [Number(k), v]));
+  const meta =
+    probeMeta instanceof Map
+      ? probeMeta
+      : new Map(Object.entries(probeMeta || {}).map(([k, v]) => [Number(k), v]));
   const byRegion = new Map();
   const ipSets = [];
   for (const r of resolutions || []) {
@@ -104,7 +105,7 @@ export function detectGeoSplitDns(resolutions = [], probeMeta = {}) {
   for (let i = 0; i < regions.length && !geoSplit; i++) {
     for (let j = i + 1; j < regions.length; j++) {
       const a = new Set(regions[i].ips);
-      const overlap = regions[j].ips.some((ip) => a.has(ip));
+      const overlap = regions[j].ips.some(ip => a.has(ip));
       if (!overlap && regions[i].ips.length && regions[j].ips.length) {
         geoSplit = true;
         break;
@@ -121,7 +122,7 @@ export function detectGeoSplitDns(resolutions = [], probeMeta = {}) {
       for (const ip of p.answers) counts.set(ip, (counts.get(ip) || 0) + 1);
     }
     for (const p of g.probes) {
-      const shared = p.answers.some((ip) => (counts.get(ip) || 0) > 1);
+      const shared = p.answers.some(ip => (counts.get(ip) || 0) > 1);
       if (!shared) outliers.push({ probeId: p.probeId, region: null, answers: p.answers });
     }
   }
@@ -137,10 +138,12 @@ export function detectGeoSplitDns(resolutions = [], probeMeta = {}) {
   const total = ipSets.length;
   const agreement = total
     ? Math.round(
-        (ipSets.filter((s) => {
+        (ipSets.filter(s => {
           const top = [...allIps.entries()].sort((a, b) => b[1] - a[1])[0];
           return top && s.has(top[0]);
-        }).length / total) * 100,
+        }).length /
+          total) *
+          100
       )
     : 100;
 

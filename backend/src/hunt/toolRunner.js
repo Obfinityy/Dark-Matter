@@ -48,8 +48,17 @@ export const PD_TOOLS = {
   subfinder: {
     bin: 'subfinder',
     stage: 'recon',
-    buildArgs: (target, o) => ['-d', target, '-silent', '-json', '-t', String(o.threads), '-rl', String(o.rateLimit)],
-    parseLine: (line) => {
+    buildArgs: (target, o) => [
+      '-d',
+      target,
+      '-silent',
+      '-json',
+      '-t',
+      String(o.threads),
+      '-rl',
+      String(o.rateLimit),
+    ],
+    parseLine: line => {
       const j = safeJson(line);
       if (!j?.host) return null;
       return { kind: 'host', host: j.host, source: j.source || 'subfinder', raw: j };
@@ -58,8 +67,17 @@ export const PD_TOOLS = {
   dnsx: {
     bin: 'dnsx',
     stage: 'recon',
-    buildArgs: (_t, o) => ['-silent', '-json', '-t', String(o.threads), '-rl', String(o.rateLimit), '-wd', _t],
-    parseLine: (line) => {
+    buildArgs: (_t, o) => [
+      '-silent',
+      '-json',
+      '-t',
+      String(o.threads),
+      '-rl',
+      String(o.rateLimit),
+      '-wd',
+      _t,
+    ],
+    parseLine: line => {
       const j = safeJson(line);
       if (!j?.host) return null;
       return { kind: 'dns', host: j.host, a: j.a || [], cname: j.cname || [], raw: j };
@@ -68,22 +86,51 @@ export const PD_TOOLS = {
   httpx: {
     bin: 'httpx',
     stage: 'recon',
-    buildArgs: (_t, o) => ['-silent', '-json', '-td', '-t', String(o.threads), '-rl', String(o.rateLimit), '-timeout', '10', '-retries', '1'],
-    parseLine: (line) => {
+    buildArgs: (_t, o) => [
+      '-silent',
+      '-json',
+      '-td',
+      '-t',
+      String(o.threads),
+      '-rl',
+      String(o.rateLimit),
+      '-timeout',
+      '10',
+      '-retries',
+      '1',
+    ],
+    parseLine: line => {
       const j = safeJson(line);
       if (!j?.url) return null;
       return {
-        kind: 'http', url: j.url, host: j.host || '', title: j.title || '',
+        kind: 'http',
+        url: j.url,
+        host: j.host || '',
+        title: j.title || '',
         statusCode: j['status-code'] ?? j.status_code ?? 0,
-        tech: j.tech || [], ip: j.ip || '', raw: j,
+        tech: j.tech || [],
+        ip: j.ip || '',
+        raw: j,
       };
     },
   },
   katana: {
     bin: 'katana',
     stage: 'recon',
-    buildArgs: (_t, o) => ['-silent', '-jsonl', '-c', String(o.threads), '-d', '3', '-jc', '-kf', 'all', '-timeout', '10'],
-    parseLine: (line) => {
+    buildArgs: (_t, o) => [
+      '-silent',
+      '-jsonl',
+      '-c',
+      String(o.threads),
+      '-d',
+      '3',
+      '-jc',
+      '-kf',
+      'all',
+      '-timeout',
+      '10',
+    ],
+    parseLine: line => {
       const j = safeJson(line);
       const endpoint = j?.request?.endpoint;
       if (!endpoint) return null;
@@ -94,12 +141,25 @@ export const PD_TOOLS = {
     bin: 'nuclei',
     stage: 'vuln',
     buildArgs: (_t, o) => {
-      const args = ['-silent', '-j', '-c', String(o.threads), '-bs', '25', '-rl', String(o.rateLimit),
-        '-timeout', '10', '-retries', '1', '-ni'];
+      const args = [
+        '-silent',
+        '-j',
+        '-c',
+        String(o.threads),
+        '-bs',
+        '25',
+        '-rl',
+        String(o.rateLimit),
+        '-timeout',
+        '10',
+        '-retries',
+        '1',
+        '-ni',
+      ];
       if (o.profile === 'fast') args.push('-s', 'critical,high');
       return args;
     },
-    parseLine: (line) => {
+    parseLine: line => {
       const j = safeJson(line);
       if (!j?.['template-id']) return null;
       const info = j.info || {};
@@ -110,7 +170,10 @@ export const PD_TOOLS = {
         severity: String(info.severity || 'info').toLowerCase(),
         target: j['matched-at'] || j.host || '',
         description: `Matched template ${j['template-id']}${j['matcher-name'] ? ` (matcher: ${j['matcher-name']})` : ''}.`,
-        evidence: JSON.stringify({ matchedAt: j['matched-at'], extracted: j['extracted-results'] || undefined }).slice(0, 2000),
+        evidence: JSON.stringify({
+          matchedAt: j['matched-at'],
+          extracted: j['extracted-results'] || undefined,
+        }).slice(0, 2000),
         remediation: info.remediation || '',
         raw: j,
       };
@@ -119,8 +182,17 @@ export const PD_TOOLS = {
   naabu: {
     bin: 'naabu',
     stage: 'recon',
-    buildArgs: (_t, o) => ['-silent', '-json', '-t', String(o.threads), '-rl', String(o.rateLimit), '-timeout', '10'],
-    parseLine: (line) => {
+    buildArgs: (_t, o) => [
+      '-silent',
+      '-json',
+      '-t',
+      String(o.threads),
+      '-rl',
+      String(o.rateLimit),
+      '-timeout',
+      '10',
+    ],
+    parseLine: line => {
       const j = safeJson(line);
       if (!j?.host || j?.port == null) return null;
       return { kind: 'port', host: j.host, port: j.port, ip: j.ip || '', raw: j };
@@ -141,9 +213,13 @@ export function sanitizeTarget(target) {
   const t = String(target || '').trim();
   if (!t) throw new Error('empty target');
   // Allow hostnames, IPv4/IPv6, and http(s) URLs — nothing shell-ish.
-  if (/[;&|`$(){}[\]<>!#'"\\]/.test(t)) throw new Error(`unsafe target rejected: ${t.slice(0, 60)}`);
+  if (/[;&|`$(){}[\]<>!#'"\\]/.test(t))
+    throw new Error(`unsafe target rejected: ${t.slice(0, 60)}`);
   if (t.length > 253) throw new Error('target too long');
-  const host = t.replace(/^https?:\/\//i, '').split('/')[0].split(':')[0];
+  const host = t
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0]
+    .split(':')[0];
   if (!/^[A-Za-z0-9_.-]+$/.test(host) && !/^\[[0-9a-fA-F:]+\]$/.test(host)) {
     throw new Error(`invalid target host: ${t.slice(0, 60)}`);
   }
@@ -159,14 +235,20 @@ function sanitizeTargets(targets) {
 function createSemaphore(limit) {
   let active = 0;
   const queue = [];
-  const acquire = () => new Promise((resolve) => {
-    if (active < limit) { active++; resolve(); }
-    else queue.push(resolve);
-  });
+  const acquire = () =>
+    new Promise(resolve => {
+      if (active < limit) {
+        active++;
+        resolve();
+      } else queue.push(resolve);
+    });
   const release = () => {
     active--;
     const next = queue.shift();
-    if (next) { active++; next(); }
+    if (next) {
+      active++;
+      next();
+    }
   };
   return { acquire, release };
 }
@@ -189,7 +271,7 @@ export function createToolRunner({
   async function isAvailable(name) {
     const def = PD_TOOLS[name];
     if (!def) return false;
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       let child;
       try {
         child = spawnFn(def.bin, ['-version'], { stdio: 'ignore' });
@@ -198,8 +280,15 @@ export function createToolRunner({
         return;
       }
       child.on('error', () => resolve(false));
-      child.on('exit', (code) => resolve(code === 0 || code === 2));
-      setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* noop */ } resolve(false); }, 8000);
+      child.on('exit', code => resolve(code === 0 || code === 2));
+      setTimeout(() => {
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          /* noop */
+        }
+        resolve(false);
+      }, 8000);
     });
   }
 
@@ -232,8 +321,17 @@ export function createToolRunner({
       const stdinLines = opts.stdinLines ?? (['subfinder'].includes(name) ? [] : list);
       const child = await spawnChecked(def.bin, argv);
       if (!child) {
-        logger.warn?.(`[toolRunner] ${def.bin} not installed — skipping ${name}, continuing with engine-based recon`);
-        return { tool: name, records, findings, skipped: true, durationMs: Date.now() - started, error: 'binary not found' };
+        logger.warn?.(
+          `[toolRunner] ${def.bin} not installed — skipping ${name}, continuing with engine-based recon`
+        );
+        return {
+          tool: name,
+          records,
+          findings,
+          skipped: true,
+          durationMs: Date.now() - started,
+          error: 'binary not found',
+        };
       }
 
       const outcome = await streamChild(child, {
@@ -242,7 +340,7 @@ export function createToolRunner({
         timeoutMs: o.timeoutMs,
         stdinLines,
         signal: opts.signal,
-        onLine: (line) => {
+        onLine: line => {
           const rec = def.parseLine(line);
           if (!rec) return;
           records.push(rec);
@@ -256,9 +354,18 @@ export function createToolRunner({
       });
       const skipped = outcome.skipped === true;
       if (skipped) {
-        logger.warn?.(`[toolRunner] ${def.bin} not installed — skipping ${name}, continuing with engine-based recon`);
+        logger.warn?.(
+          `[toolRunner] ${def.bin} not installed — skipping ${name}, continuing with engine-based recon`
+        );
       }
-      return { tool: name, records, findings, skipped, durationMs: Date.now() - started, ...outcome };
+      return {
+        tool: name,
+        records,
+        findings,
+        skipped,
+        durationMs: Date.now() - started,
+        ...outcome,
+      };
     } finally {
       sem.release();
     }
@@ -278,25 +385,37 @@ export function createToolRunner({
 
 /** Stream a child's stdout line-by-line with a wall-clock timeout. */
 function streamChild(child, { tool, bin, timeoutMs, stdinLines, signal, onLine, logger }) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     let buffer = '';
     let killed = false;
-    const finish = (result) => {
+    const finish = result => {
       clearTimeout(timer);
-      try { child.stdin?.end(); } catch { /* noop */ }
+      try {
+        child.stdin?.end();
+      } catch {
+        /* noop */
+      }
       resolve(result);
     };
     const timer = setTimeout(() => {
       killed = true;
       logger.warn?.(`[toolRunner] ${bin} timed out after ${timeoutMs}ms — killing`);
-      try { child.kill('SIGKILL'); } catch { /* noop */ }
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        /* noop */
+      }
       finish({ timedOut: true });
     }, timeoutMs);
 
     if (signal) {
       const abort = () => {
         killed = true;
-        try { child.kill('SIGKILL'); } catch { /* noop */ }
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          /* noop */
+        }
         finish({ aborted: true });
       };
       if (signal.aborted) abort();
@@ -306,32 +425,49 @@ function streamChild(child, { tool, bin, timeoutMs, stdinLines, signal, onLine, 
     if (Array.isArray(stdinLines) && stdinLines.length && child.stdin?.writable) {
       child.stdin.write(`${stdinLines.join('\n')}\n`);
     }
-    try { child.stdin?.end(); } catch { /* noop */ }
+    try {
+      child.stdin?.end();
+    } catch {
+      /* noop */
+    }
 
-    child.stdout?.on('data', (chunk) => {
+    child.stdout?.on('data', chunk => {
       buffer += chunk.toString('utf8');
       let idx;
       while ((idx = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, idx).trim();
         buffer = buffer.slice(idx + 1);
         if (line) {
-          try { onLine(line); } catch (e) { logger.warn?.(`[toolRunner] ${tool} line handler: ${e.message}`); }
+          try {
+            onLine(line);
+          } catch (e) {
+            logger.warn?.(`[toolRunner] ${tool} line handler: ${e.message}`);
+          }
         }
       }
     });
-    child.stderr?.on('data', () => { /* PD tools are chatty on stderr; ignore */ });
-    child.on('error', (err) => {
+    child.stderr?.on('data', () => {
+      /* PD tools are chatty on stderr; ignore */
+    });
+    child.on('error', err => {
       // ENOENT = binary not installed → graceful skip, not a failure.
       if (err?.code === 'ENOENT') {
         logger.warn?.(`[toolRunner] ${bin} not installed — skipping`);
         finish({ skipped: true, error: 'binary not found' });
         return;
       }
-      if (!killed) { logger.warn?.(`[toolRunner] ${bin} error: ${err.message}`); finish({ error: err.message }); }
+      if (!killed) {
+        logger.warn?.(`[toolRunner] ${bin} error: ${err.message}`);
+        finish({ error: err.message });
+      }
     });
-    child.on('close', (code) => {
+    child.on('close', code => {
       if (buffer.trim()) {
-        try { onLine(buffer.trim()); } catch { /* noop */ }
+        try {
+          onLine(buffer.trim());
+        } catch {
+          /* noop */
+        }
       }
       finish({ exitCode: code, timedOut: killed && undefined });
     });
@@ -350,8 +486,10 @@ function streamChild(child, { tool, bin, timeoutMs, stdinLines, signal, onLine, 
 export async function runPipeline(targets, opts = {}) {
   const logger = opts.logger || console;
   const runner = createToolRunner({
-    spawnFn: opts.spawnFn, logger,
-    timeouts: opts.timeouts, maxConcurrent: opts.maxConcurrent,
+    spawnFn: opts.spawnFn,
+    logger,
+    timeouts: opts.timeouts,
+    maxConcurrent: opts.maxConcurrent,
   });
   const list = sanitizeTargets(targets);
   const profile = opts.profile === 'standard' ? 'standard' : 'fast';
@@ -360,7 +498,7 @@ export async function runPipeline(targets, opts = {}) {
   const recordsByTool = {};
   const stages = [];
 
-  const onFinding = (rec) => {
+  const onFinding = rec => {
     findings.push({ ...rec, pipelineStage: rec.kind });
     opts.onFinding?.(rec);
   };
@@ -372,33 +510,51 @@ export async function runPipeline(targets, opts = {}) {
     }
     opts.onStage?.({ tool: name, phase: 'start', targets: stageTargets.length });
     const res = await runner.runTool(name, stageTargets, {
-      profile, onFinding, onRecord: opts.onRecord, signal: opts.signal, ...extra,
+      profile,
+      onFinding,
+      onRecord: opts.onRecord,
+      signal: opts.signal,
+      ...extra,
     });
     recordsByTool[name] = res.records;
-    stages.push({ tool: name, skipped: res.skipped, records: res.records.length, findings: res.findings.length, durationMs: res.durationMs });
-    opts.onStage?.({ tool: name, phase: 'done', records: res.records.length, findings: res.findings.length, skipped: res.skipped });
+    stages.push({
+      tool: name,
+      skipped: res.skipped,
+      records: res.records.length,
+      findings: res.findings.length,
+      durationMs: res.durationMs,
+    });
+    opts.onStage?.({
+      tool: name,
+      phase: 'done',
+      records: res.records.length,
+      findings: res.findings.length,
+      skipped: res.skipped,
+    });
     return res;
   }
 
   // 1. subfinder: passive subdomain enumeration for the root target(s).
-  const roots = list.map((t) => t.replace(/^https?:\/\//i, '').split('/')[0]);
+  const roots = list.map(t => t.replace(/^https?:\/\//i, '').split('/')[0]);
   const sub = await stage('subfinder', roots);
-  const subdomains = sub.records.map((r) => r.host).filter(Boolean);
+  const subdomains = sub.records.map(r => r.host).filter(Boolean);
 
   // 2. dnsx: resolve + wildcard-filter the discovered names.
   const dnsTargets = subdomains.length ? subdomains : roots;
   const dns = await stage('dnsx', roots, { stdinLines: dnsTargets });
-  const liveHosts = [...new Set(dns.records.map((r) => r.host).filter(Boolean))];
+  const liveHosts = [...new Set(dns.records.map(r => r.host).filter(Boolean))];
   const resolveTargets = liveHosts.length ? liveHosts : dnsTargets;
 
   // 3. httpx: probe live HTTP services + technology detection.
   const http = await stage('httpx', roots, { stdinLines: resolveTargets });
-  const urls = [...new Set(http.records.map((r) => r.url).filter(Boolean))];
+  const urls = [...new Set(http.records.map(r => r.url).filter(Boolean))];
   const httpTargets = urls.length ? urls : resolveTargets;
 
   // 4. katana: crawl endpoints/JS from live URLs.
-  const kat = await stage('katana', httpTargets.slice(0, 50), { stdinLines: httpTargets.slice(0, 50) });
-  const endpoints = [...new Set(kat.records.map((r) => r.url).filter(Boolean))];
+  const kat = await stage('katana', httpTargets.slice(0, 50), {
+    stdinLines: httpTargets.slice(0, 50),
+  });
+  const endpoints = [...new Set(kat.records.map(r => r.url).filter(Boolean))];
 
   // 5. nuclei: template scan over live hosts/endpoints (severity-capped in fast profile).
   const nucleiTargets = [...new Set([...httpTargets, ...endpoints])].slice(0, 200);
@@ -414,7 +570,9 @@ export async function runPipeline(targets, opts = {}) {
     await stage('naabu', resolveTargets.slice(0, 20), { stdinLines: resolveTargets.slice(0, 20) });
   }
 
-  logger.info?.(`[toolRunner] pipeline complete: ${findings.length} findings from ${stages.length} stages`);
+  logger.info?.(
+    `[toolRunner] pipeline complete: ${findings.length} findings from ${stages.length} stages`
+  );
   return { findings, recordsByTool, stages };
 }
 

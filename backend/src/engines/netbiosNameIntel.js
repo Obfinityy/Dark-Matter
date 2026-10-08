@@ -24,23 +24,23 @@ export const NETBIOS_SUFFIX_MAP = {
   '1C': { scope: 'GROUP', role: 'Domain controllers for the domain' },
   '1D': { scope: 'GROUP', role: 'Master browser for the subnet' },
   '1E': { scope: 'GROUP', role: 'Browser elections service (workgroup/domain)' },
-  '20': { scope: 'UNIQUE', role: 'File server service (Server service)' },
-  '21': { scope: 'UNIQUE', role: 'RAS client' },
-  '22': { scope: 'UNIQUE', role: 'RAS server' },
-  '23': { scope: 'UNIQUE', role: 'SMS clients' },
-  '24': { scope: 'UNIQUE', role: 'SMS administrators' },
-  '30': { scope: 'UNIQUE', role: 'NetBIOS datagram service' },
-  '31': { scope: 'UNIQUE', role: 'NetBIOS name service client' },
-  '43': { scope: 'UNIQUE', role: 'SMS remote control' },
-  '44': { scope: 'UNIQUE', role: 'SMS remote chat' },
-  '45': { scope: 'UNIQUE', role: 'SMS remote file transfer' },
-  '46': { scope: 'UNIQUE', role: 'SMS remote chat (2)' },
+  20: { scope: 'UNIQUE', role: 'File server service (Server service)' },
+  21: { scope: 'UNIQUE', role: 'RAS client' },
+  22: { scope: 'UNIQUE', role: 'RAS server' },
+  23: { scope: 'UNIQUE', role: 'SMS clients' },
+  24: { scope: 'UNIQUE', role: 'SMS administrators' },
+  30: { scope: 'UNIQUE', role: 'NetBIOS datagram service' },
+  31: { scope: 'UNIQUE', role: 'NetBIOS name service client' },
+  43: { scope: 'UNIQUE', role: 'SMS remote control' },
+  44: { scope: 'UNIQUE', role: 'SMS remote chat' },
+  45: { scope: 'UNIQUE', role: 'SMS remote file transfer' },
+  46: { scope: 'UNIQUE', role: 'SMS remote chat (2)' },
   '4C': { scope: 'UNIQUE', role: 'DEC TCP/IP print server' },
-  '52': { scope: 'UNIQUE', role: 'DEC TCP/IP print server (2)' },
+  52: { scope: 'UNIQUE', role: 'DEC TCP/IP print server (2)' },
   '6A': { scope: 'UNIQUE', role: 'Microsoft Exchange Interchange' },
-  '87': { scope: 'UNIQUE', role: 'Microsoft Exchange MTA' },
-  'BE': { scope: 'GROUP', role: 'Network monitor agent' },
-  'BF': { scope: 'GROUP', role: 'Network monitor utility' },
+  87: { scope: 'UNIQUE', role: 'Microsoft Exchange MTA' },
+  BE: { scope: 'GROUP', role: 'Network monitor agent' },
+  BF: { scope: 'GROUP', role: 'Network monitor utility' },
 };
 
 /**
@@ -54,7 +54,8 @@ export const NETBIOS_SUFFIX_MAP = {
  */
 export function parseNetbiosNameTable(text) {
   const out = [];
-  const re = /^\s*([A-Za-z0-9!#$%&'()\-@^_`{}~][A-Za-z0-9!#$%&'()\-@^_`{}~ .]{0,30}?)\s*<([0-9A-Fa-f]{2})>\s+(UNIQUE|GROUP)\s+(\w[\w-]*)/gim;
+  const re =
+    /^\s*([A-Za-z0-9!#$%&'()\-@^_`{}~][A-Za-z0-9!#$%&'()\-@^_`{}~ .]{0,30}?)\s*<([0-9A-Fa-f]{2})>\s+(UNIQUE|GROUP)\s+(\w[\w-]*)/gim;
   let m;
   while ((m = re.exec(text)) !== null) {
     const name = m[1].trim().replace(/\s+$/, '');
@@ -69,7 +70,8 @@ export function parseNetbiosNameTable(text) {
       scope,
       role: known ? known.role : null,
       status,
-      detail: `NetBIOS name '${name}<${suffix}>' (${scope}) — ` +
+      detail:
+        `NetBIOS name '${name}<${suffix}>' (${scope}) — ` +
         (known ? known.role : 'unrecognized suffix; investigate the registering service') +
         ` [${status}].`,
     });
@@ -83,7 +85,9 @@ export function parseNetbiosNameTable(text) {
  * @returns {string | null}
  */
 export function extractNetbiosMac(text) {
-  const m = String(text || '').match(/MAC Address\s*=\s*([0-9A-Fa-f]{2}(?:[-:][0-9A-Fa-f]{2}){5})/i);
+  const m = String(text || '').match(
+    /MAC Address\s*=\s*([0-9A-Fa-f]{2}(?:[-:][0-9A-Fa-f]{2}){5})/i
+  );
   return m ? m[1].toUpperCase().replace(/:/g, '-') : null;
 }
 
@@ -112,10 +116,20 @@ export function mineNetbiosNames(text) {
   const names = parseNetbiosNameTable(raw);
   const mac = extractNetbiosMac(raw);
 
-  const machineNames = [...new Set(names.filter(n => n.scope === 'UNIQUE' && ['00', '20'].includes(n.suffix)).map(n => n.name))];
-  const workgroups = [...new Set(names.filter(n => n.scope === 'GROUP' && ['00', '1E'].includes(n.suffix)).map(n => n.name))];
+  const machineNames = [
+    ...new Set(
+      names.filter(n => n.scope === 'UNIQUE' && ['00', '20'].includes(n.suffix)).map(n => n.name)
+    ),
+  ];
+  const workgroups = [
+    ...new Set(
+      names.filter(n => n.scope === 'GROUP' && ['00', '1E'].includes(n.suffix)).map(n => n.name)
+    ),
+  ];
   const domainControllers = [...new Set(names.filter(n => n.suffix === '1C').map(n => n.name))];
-  const masterBrowsers = [...new Set(names.filter(n => ['1B', '1D'].includes(n.suffix)).map(n => n.name))];
+  const masterBrowsers = [
+    ...new Set(names.filter(n => ['1B', '1D'].includes(n.suffix)).map(n => n.name)),
+  ];
   const fileServers = [...new Set(names.filter(n => n.suffix === '20').map(n => n.name))];
 
   const summary = {
@@ -126,30 +140,50 @@ export function mineNetbiosNames(text) {
 
   const findings = [];
   if (machineNames.length) {
-    findings.push(`Machine name(s): ${machineNames.join(', ')} — the host's NetBIOS identity; ` +
-      'naming conventions decode site/role numbering.');
+    findings.push(
+      `Machine name(s): ${machineNames.join(', ')} — the host's NetBIOS identity; ` +
+        'naming conventions decode site/role numbering.'
+    );
   }
   if (workgroups.length) {
-    findings.push(`Workgroup/domain(s): ${workgroups.join(', ')} — the Windows domain this host belongs to; ` +
-      'seed for AD-oriented enumeration.');
+    findings.push(
+      `Workgroup/domain(s): ${workgroups.join(', ')} — the Windows domain this host belongs to; ` +
+        'seed for AD-oriented enumeration.'
+    );
   }
   if (domainControllers.length) {
-    findings.push(`Domain controller group registration(s): ${domainControllers.join(', ')} — ` +
-      'confirms an Active Directory domain is in use; enumerate its controllers.');
+    findings.push(
+      `Domain controller group registration(s): ${domainControllers.join(', ')} — ` +
+        'confirms an Active Directory domain is in use; enumerate its controllers.'
+    );
   }
   if (masterBrowsers.length) {
-    findings.push(`Browser role(s): ${masterBrowsers.join(', ')} — browse-list holders know every Windows host on the segment.`);
+    findings.push(
+      `Browser role(s): ${masterBrowsers.join(', ')} — browse-list holders know every Windows host on the segment.`
+    );
   }
   if (fileServers.length) {
-    findings.push(`File-server registration(s): ${fileServers.join(', ')} — Server service is running; ` +
-      'inventory its shares within scope.');
+    findings.push(
+      `File-server registration(s): ${fileServers.join(', ')} — Server service is running; ` +
+        'inventory its shares within scope.'
+    );
   }
   if (mac) findings.push(`MAC address: ${mac} — hardware identity for asset correlation.`);
   if (!names.length) {
-    findings.push('No NetBIOS names parsed — confirm the input is nbtstat -A / nmblookup -A output.');
+    findings.push(
+      'No NetBIOS names parsed — confirm the input is nbtstat -A / nmblookup -A output.'
+    );
   }
 
   return {
-    names, machineNames, workgroups, domainControllers, masterBrowsers, fileServers, mac, summary, findings,
+    names,
+    machineNames,
+    workgroups,
+    domainControllers,
+    masterBrowsers,
+    fileServers,
+    mac,
+    summary,
+    findings,
   };
 }

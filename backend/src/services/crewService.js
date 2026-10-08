@@ -36,6 +36,7 @@ const CREW_ID_BYTES = 6; // 12 hex chars
  * @property {string} updatedAt     ISO timestamp
  */
 
+/** Business-logic service for crew. */
 export class CrewService {
   /**
    * @param {{ dataDir?: string }} [opts]
@@ -87,7 +88,12 @@ export class CrewService {
       throw new Error('Crew instructions must be a string.');
     }
     const tools = this._validateTools(toolsAllowed);
-    return { name: name.trim(), role: role.trim(), instructions: instructions ?? '', toolsAllowed: tools };
+    return {
+      name: name.trim(),
+      role: role.trim(),
+      instructions: instructions ?? '',
+      toolsAllowed: tools,
+    };
   }
 
   /** @private */
@@ -98,9 +104,7 @@ export class CrewService {
     }
     for (const tool of toolsAllowed) {
       if (!CREW_TOOLS.includes(tool)) {
-        throw new Error(
-          `Unknown tool "${tool}". Allowed tools: ${CREW_TOOLS.join(', ')}.`
-        );
+        throw new Error(`Unknown tool "${tool}". Allowed tools: ${CREW_TOOLS.join(', ')}.`);
       }
     }
     return [...new Set(toolsAllowed)];
@@ -144,7 +148,7 @@ export class CrewService {
       workspacePath: path.join(this.dataDir, 'workspace', id),
       status: 'idle',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
     crews[id] = crew;
     await this._writeStore(crews);
@@ -164,13 +168,21 @@ export class CrewService {
 
     const next = { ...crew };
     if (patch.name !== undefined) {
-      if (typeof patch.name !== 'string' || patch.name.trim().length === 0 || patch.name.length > 60) {
+      if (
+        typeof patch.name !== 'string' ||
+        patch.name.trim().length === 0 ||
+        patch.name.length > 60
+      ) {
         throw new Error('Crew name must be 1-60 characters.');
       }
       next.name = patch.name.trim();
     }
     if (patch.role !== undefined) {
-      if (typeof patch.role !== 'string' || patch.role.trim().length === 0 || patch.role.length > 120) {
+      if (
+        typeof patch.role !== 'string' ||
+        patch.role.trim().length === 0 ||
+        patch.role.length > 120
+      ) {
         throw new Error('Crew role must be 1-120 characters.');
       }
       next.role = patch.role.trim();

@@ -41,17 +41,20 @@ export function buildEnvironmentMap(resources = [], activeEnvironmentId = null) 
 /** Resolve an Insomnia request URL template against environment variables. */
 export function resolveRequestUrl(request, vars = {}) {
   if (!request || typeof request.url !== 'string') return '';
-  const lookup = (name) => {
+  const lookup = name => {
     // Insomnia template prefixes: {{ _.var }}, {{ _.env.var }}, {{ base_url }}
     if (name.startsWith('_.env.')) name = name.slice(6);
     else if (name.startsWith('_.')) name = name.slice(2);
     else if (name.startsWith('env.')) name = name.slice(4);
     return name in vars ? vars[name] : null;
   };
-  return request.url.replace(/\{\{\s*([A-Za-z0-9_.$-]+(?:\.[A-Za-z0-9_.$-]+)*)\s*\}\}/g, (m, name) => {
-    const v = lookup(name);
-    return v === null ? m : v;
-  });
+  return request.url.replace(
+    /\{\{\s*([A-Za-z0-9_.$-]+(?:\.[A-Za-z0-9_.$-]+)*)\s*\}\}/g,
+    (m, name) => {
+      const v = lookup(name);
+      return v === null ? m : v;
+    }
+  );
 }
 
 /** Extract distinct hosts from resolved URL strings. */
@@ -70,11 +73,26 @@ export function flagEnvironmentValues(vars = {}) {
   const flagged = [];
   for (const [k, v] of Object.entries(vars)) {
     const key = k.toLowerCase();
-    if (/api[_-]?key|secret|token|password|passwd|credential|private/i.test(key) && v && !/\{\{/.test(v)) {
-      flagged.push({ key: k, kind: 'possible-credential', confidence: 'medium', note: 'Environment variable name suggests a secret; value was published in a public collection.' });
+    if (
+      /api[_-]?key|secret|token|password|passwd|credential|private/i.test(key) &&
+      v &&
+      !/\{\{/.test(v)
+    ) {
+      flagged.push({
+        key: k,
+        kind: 'possible-credential',
+        confidence: 'medium',
+        note: 'Environment variable name suggests a secret; value was published in a public collection.',
+      });
     }
     if (/staging|stage|dev|test|prod|internal|corp/i.test(v)) {
-      flagged.push({ key: k, value: v, kind: 'stage-host', confidence: 'medium', note: 'Value discloses a deployment stage or internal host.' });
+      flagged.push({
+        key: k,
+        value: v,
+        kind: 'stage-host',
+        confidence: 'medium',
+        note: 'Value discloses a deployment stage or internal host.',
+      });
     }
   }
   return flagged;
@@ -91,7 +109,12 @@ export function flagEnvironmentValues(vars = {}) {
 export function mineInsomniaCollection({ url = '', data = {}, activeEnvironmentId = null } = {}) {
   const resources = collectResources(data);
   if (!resources.length) {
-    return { url, type: 'Insomnia Collection Mining', confidence: 'none', error: 'No resources found in export' };
+    return {
+      url,
+      type: 'Insomnia Collection Mining',
+      confidence: 'none',
+      error: 'No resources found in export',
+    };
   }
   const vars = buildEnvironmentMap(resources, activeEnvironmentId);
   const requests = resources.filter(r => r && r._type === 'request');
@@ -118,12 +141,16 @@ export function mineInsomniaCollection({ url = '', data = {}, activeEnvironmentI
     endpoints: resolved.slice(0, 200),
     authSummary: authCounts,
     flaggedEnvironmentValues: flagged,
-    unresolvedTemplates: [...new Set(resolved.flatMap(r => (r.url.match(/\{\{[^}]+\}\}/g) || [])))],
+    unresolvedTemplates: [...new Set(resolved.flatMap(r => r.url.match(/\{\{[^}]+\}\}/g) || []))],
   };
 }
 
 export const INSOMNIA_MINER = {
-  collectResources, buildEnvironmentMap, resolveRequestUrl, extractHosts,
-  flagEnvironmentValues, mineInsomniaCollection,
+  collectResources,
+  buildEnvironmentMap,
+  resolveRequestUrl,
+  extractHosts,
+  flagEnvironmentValues,
+  mineInsomniaCollection,
 };
 export default INSOMNIA_MINER;

@@ -113,7 +113,7 @@ export function scoreCVSS(metrics = {}) {
     score = cvssRoundUp(Math.min(impact + exploitability, 10));
   }
 
-  const severity = SEVERITY_BANDS.find((b) => score >= b.min)?.label || 'None';
+  const severity = SEVERITY_BANDS.find(b => score >= b.min)?.label || 'None';
   const vector =
     `CVSS:3.1/AV:${m.attackVector}/AC:${m.attackComplexity}` +
     `/PR:${m.privilegesRequired}/UI:${m.userInteraction}/S:${m.scope}` +
@@ -135,9 +135,20 @@ export function scoreCVSS(metrics = {}) {
  * Returns null when the string is not a valid base vector.
  */
 export function parseVector(vector = '') {
-  const match = String(vector).trim().match(/^CVSS:3\.1\/((?:[A-Z]+:[A-Z]+\/?)+)$/i);
+  const match = String(vector)
+    .trim()
+    .match(/^CVSS:3\.1\/((?:[A-Z]+:[A-Z]+\/?)+)$/i);
   if (!match) return null;
-  const map = { AV: 'attackVector', AC: 'attackComplexity', PR: 'privilegesRequired', UI: 'userInteraction', S: 'scope', C: 'confidentiality', I: 'integrity', A: 'availability' };
+  const map = {
+    AV: 'attackVector',
+    AC: 'attackComplexity',
+    PR: 'privilegesRequired',
+    UI: 'userInteraction',
+    S: 'scope',
+    C: 'confidentiality',
+    I: 'integrity',
+    A: 'availability',
+  };
   const metrics = {};
   for (const part of match[1].split('/')) {
     const [k, v] = part.split(':');
@@ -156,7 +167,10 @@ export function describeMetrics(metrics = {}) {
   return Object.entries(METRIC_LABELS)
     .filter(([key]) => metrics[key])
     .map(([key, labels]) => {
-      const pretty = key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim();
+      const pretty = key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, s => s.toUpperCase())
+        .trim();
       return `${pretty}: ${labels[metrics[key]] || metrics[key]}`;
     });
 }
@@ -170,145 +184,376 @@ const VULN_METRIC_PRESETS = [
   {
     match: ['sqli', 'sql_injection', 'sql injection', 'blind_sqli'],
     cwe: 'CWE-89',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'L', availability: 'N' },
-    rationale: 'Unauthenticated SQLi with demonstrated data extraction. Raise Integrity to High when write access is proved (DELETE/UPDATE/ stacked queries) — score moves to ~9.1 Critical.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'Unauthenticated SQLi with demonstrated data extraction. Raise Integrity to High when write access is proved (DELETE/UPDATE/ stacked queries) — score moves to ~9.1 Critical.',
   },
   {
     match: ['xss_stored', 'stored_xss', 'stored xss'],
     cwe: 'CWE-79',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'L', userInteraction: 'R', scope: 'C', confidentiality: 'L', integrity: 'L', availability: 'N' },
-    rationale: 'Stored XSS reachable by victims; script executes in their session (Scope: Changed). Raise Integrity to High when session hijack or account takeover is demonstrated — score moves to ~7.4 High.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'L',
+      userInteraction: 'R',
+      scope: 'C',
+      confidentiality: 'L',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'Stored XSS reachable by victims; script executes in their session (Scope: Changed). Raise Integrity to High when session hijack or account takeover is demonstrated — score moves to ~7.4 High.',
   },
   {
     match: ['xss_reflected', 'reflected_xss', 'reflected xss', 'xss'],
     cwe: 'CWE-79',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'R', scope: 'C', confidentiality: 'L', integrity: 'L', availability: 'N' },
-    rationale: 'Reflected XSS needs a victim to open a crafted link (UI: Required). Lower reach than stored; the UI metric is what separates it from stored.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'R',
+      scope: 'C',
+      confidentiality: 'L',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'Reflected XSS needs a victim to open a crafted link (UI: Required). Lower reach than stored; the UI metric is what separates it from stored.',
   },
   {
     match: ['idor_read', 'idor'],
     cwe: 'CWE-639',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'L', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'N', availability: 'N' },
-    rationale: 'IDOR exposing other users\u2019 data with only a self-registered account. Confidentiality: High applies to cross-tenant PII exposure.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'L',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'N',
+      availability: 'N',
+    },
+    rationale:
+      'IDOR exposing other users\u2019 data with only a self-registered account. Confidentiality: High applies to cross-tenant PII exposure.',
   },
   {
     match: ['idor_write', 'idor_delete'],
     cwe: 'CWE-639',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'L', userInteraction: 'N', scope: 'U', confidentiality: 'N', integrity: 'H', availability: 'L' },
-    rationale: 'IDOR allowing modification or deletion of other users\u2019 objects. Availability: Low covers the delete path; drop it when only modification is proved.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'L',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'N',
+      integrity: 'H',
+      availability: 'L',
+    },
+    rationale:
+      'IDOR allowing modification or deletion of other users\u2019 objects. Availability: Low covers the delete path; drop it when only modification is proved.',
   },
   {
     match: ['ssrf'],
     cwe: 'CWE-918',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'C', confidentiality: 'H', integrity: 'L', availability: 'N' },
-    rationale: 'SSRF reaching cloud metadata or internal credentials — the subsequent system (not the SSRF endpoint itself) is what carries Confidentiality: High.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'C',
+      confidentiality: 'H',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'SSRF reaching cloud metadata or internal credentials — the subsequent system (not the SSRF endpoint itself) is what carries Confidentiality: High.',
   },
   {
     match: ['auth_bypass', 'authentication_bypass', 'auth bypass', 'broken_auth'],
     cwe: 'CWE-287',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'C', confidentiality: 'H', integrity: 'H', availability: 'H' },
-    rationale: 'Authentication bypass to an admin session compromises a subsequent authorization domain (Scope: Changed) with full read/write impact.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'C',
+      confidentiality: 'H',
+      integrity: 'H',
+      availability: 'H',
+    },
+    rationale:
+      'Authentication bypass to an admin session compromises a subsequent authorization domain (Scope: Changed) with full read/write impact.',
   },
   {
     match: ['jwt_none', 'jwt_alg_none', 'alg_none'],
     cwe: 'CWE-327',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'H', availability: 'N' },
-    rationale: 'JWT alg=none acceptance lets an attacker forge any identity the token format supports, including admin claims.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'H',
+      availability: 'N',
+    },
+    rationale:
+      'JWT alg=none acceptance lets an attacker forge any identity the token format supports, including admin claims.',
   },
   {
     match: ['ssti', 'template_injection'],
     cwe: 'CWE-94',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'H', availability: 'H' },
-    rationale: 'Server-side template injection with demonstrated command execution is unauthenticated RCE.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'H',
+      availability: 'H',
+    },
+    rationale:
+      'Server-side template injection with demonstrated command execution is unauthenticated RCE.',
   },
   {
     match: ['cmdi', 'command_injection', 'os_command'],
     cwe: 'CWE-78',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'H', availability: 'H' },
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'H',
+      availability: 'H',
+    },
     rationale: 'OS command injection with proved command output is unauthenticated RCE.',
   },
   {
     match: ['xxe', 'xml_external'],
     cwe: 'CWE-611',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'N', availability: 'N' },
-    rationale: 'XXE with local file disclosure proved via file contents in the response. Raise Integrity/Availability when SSRF-via-XXE or DoS is also demonstrated.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'N',
+      availability: 'N',
+    },
+    rationale:
+      'XXE with local file disclosure proved via file contents in the response. Raise Integrity/Availability when SSRF-via-XXE or DoS is also demonstrated.',
   },
   {
     match: ['lfi', 'local_file', 'path_traversal', 'directory_traversal'],
     cwe: 'CWE-22',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'N', availability: 'N' },
-    rationale: 'Local file inclusion reading sensitive files (e.g. /etc/passwd, config with secrets). Score what the files actually expose.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'N',
+      availability: 'N',
+    },
+    rationale:
+      'Local file inclusion reading sensitive files (e.g. /etc/passwd, config with secrets). Score what the files actually expose.',
   },
   {
     match: ['open_redirect'],
     cwe: 'CWE-601',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'R', scope: 'U', confidentiality: 'L', integrity: 'L', availability: 'N' },
-    rationale: 'Open redirect is a phishing enabler; impact stays bounded unless chained with token leakage or OAuth misconfiguration.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'R',
+      scope: 'U',
+      confidentiality: 'L',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'Open redirect is a phishing enabler; impact stays bounded unless chained with token leakage or OAuth misconfiguration.',
   },
   {
     match: ['csrf', 'xsrf'],
     cwe: 'CWE-352',
-    metrics: { attackVector: 'N', attackComplexity: 'H', privilegesRequired: 'N', userInteraction: 'R', scope: 'U', confidentiality: 'N', integrity: 'L', availability: 'N' },
-    rationale: 'CSRF on a non-critical action. Attack Complexity: High reflects the narrow exploit window; raise Integrity when the action is sensitive (e.g. password change, transfer).',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'H',
+      privilegesRequired: 'N',
+      userInteraction: 'R',
+      scope: 'U',
+      confidentiality: 'N',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'CSRF on a non-critical action. Attack Complexity: High reflects the narrow exploit window; raise Integrity when the action is sensitive (e.g. password change, transfer).',
   },
   {
     match: ['default_cred', 'default_password', 'hardcoded_cred'],
     cwe: 'CWE-798',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'C', confidentiality: 'H', integrity: 'H', availability: 'H' },
-    rationale: 'Default or hardcoded credentials on an admin interface give full control of a subsequent system with zero attacker effort.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'C',
+      confidentiality: 'H',
+      integrity: 'H',
+      availability: 'H',
+    },
+    rationale:
+      'Default or hardcoded credentials on an admin interface give full control of a subsequent system with zero attacker effort.',
   },
   {
     match: ['file_upload'],
     cwe: 'CWE-434',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'H', availability: 'H' },
-    rationale: 'Unrestricted file upload with demonstrated code execution. If only stored (no execution proved), lower Integrity to Low and re-score.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'H',
+      availability: 'H',
+    },
+    rationale:
+      'Unrestricted file upload with demonstrated code execution. If only stored (no execution proved), lower Integrity to Low and re-score.',
   },
   {
     match: ['sensitive_exposure', 'pii_exposure', 'data_exposure'],
     cwe: 'CWE-200',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'H', integrity: 'N', availability: 'N' },
-    rationale: 'Direct exposure of other users\u2019 PII. Confidentiality: High when the data is names, emails, or identifiers at scale — not just the visitor\u2019s own data.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'H',
+      integrity: 'N',
+      availability: 'N',
+    },
+    rationale:
+      'Direct exposure of other users\u2019 PII. Confidentiality: High when the data is names, emails, or identifiers at scale — not just the visitor\u2019s own data.',
   },
   {
     match: ['info_disclosure', 'information_disclosure', 'verbose_error'],
     cwe: 'CWE-200',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'L', integrity: 'N', availability: 'N' },
-    rationale: 'Non-PII information disclosure (stack traces, internal paths, version banners). Confidentiality: Low — useful to attackers but not user data.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'L',
+      integrity: 'N',
+      availability: 'N',
+    },
+    rationale:
+      'Non-PII information disclosure (stack traces, internal paths, version banners). Confidentiality: Low — useful to attackers but not user data.',
   },
   {
     match: ['subdomain_takeover', 'takeover'],
     cwe: 'CWE-829',
-    metrics: { attackVector: 'N', attackComplexity: 'H', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'N', integrity: 'L', availability: 'N' },
-    rationale: 'Takeover of a dangling DNS record lets the attacker serve content under the victim brand (phishing, cookie theft on shared parent domains).',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'H',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'N',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'Takeover of a dangling DNS record lets the attacker serve content under the victim brand (phishing, cookie theft on shared parent domains).',
   },
   {
     match: ['cors'],
     cwe: 'CWE-942',
-    metrics: { attackVector: 'N', attackComplexity: 'H', privilegesRequired: 'N', userInteraction: 'R', scope: 'U', confidentiality: 'L', integrity: 'L', availability: 'N' },
-    rationale: 'Permissive CORS (reflected origin with credentials) leaks authenticated responses cross-origin; needs a victim visit, hence UI: Required.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'H',
+      privilegesRequired: 'N',
+      userInteraction: 'R',
+      scope: 'U',
+      confidentiality: 'L',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'Permissive CORS (reflected origin with credentials) leaks authenticated responses cross-origin; needs a victim visit, hence UI: Required.',
   },
   {
     match: ['clickjacking', 'ui_redress'],
     cwe: 'CWE-1021',
-    metrics: { attackVector: 'N', attackComplexity: 'H', privilegesRequired: 'N', userInteraction: 'R', scope: 'U', confidentiality: 'N', integrity: 'L', availability: 'N' },
-    rationale: 'Missing frame-ancestors protection on a non-sensitive page. Raise Integrity when a state-changing action can be framed with a working PoC.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'H',
+      privilegesRequired: 'N',
+      userInteraction: 'R',
+      scope: 'U',
+      confidentiality: 'N',
+      integrity: 'L',
+      availability: 'N',
+    },
+    rationale:
+      'Missing frame-ancestors protection on a non-sensitive page. Raise Integrity when a state-changing action can be framed with a working PoC.',
   },
   {
     match: ['mass_assignment', 'mass-assign'],
     cwe: 'CWE-915',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'L', userInteraction: 'N', scope: 'U', confidentiality: 'N', integrity: 'H', availability: 'N' },
-    rationale: 'Mass assignment binding a privileged field (e.g. role=is_admin). Integrity: High when privilege escalation is proved via a follow-up request.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'L',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'N',
+      integrity: 'H',
+      availability: 'N',
+    },
+    rationale:
+      'Mass assignment binding a privileged field (e.g. role=is_admin). Integrity: High when privilege escalation is proved via a follow-up request.',
   },
   {
     match: ['graphql_introspection'],
     cwe: 'CWE-200',
-    metrics: { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'L', integrity: 'N', availability: 'N' },
-    rationale: 'GraphQL introspection enabled in production leaks the full schema — an information disclosure that accelerates further attacks.',
+    metrics: {
+      attackVector: 'N',
+      attackComplexity: 'L',
+      privilegesRequired: 'N',
+      userInteraction: 'N',
+      scope: 'U',
+      confidentiality: 'L',
+      integrity: 'N',
+      availability: 'N',
+    },
+    rationale:
+      'GraphQL introspection enabled in production leaks the full schema — an information disclosure that accelerates further attacks.',
   },
 ];
 
 function normalizeType(type = '') {
-  return String(type).toLowerCase().replace(/[\s_-]+/g, '_');
+  return String(type)
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '_');
 }
 
 /**
@@ -324,7 +569,7 @@ export function suggestMetrics(finding = {}) {
   const normalized = normalizeType(finding.type || '');
 
   for (const preset of VULN_METRIC_PRESETS) {
-    if (preset.match.some((key) => normalized.includes(key))) {
+    if (preset.match.some(key => normalized.includes(key))) {
       return {
         metrics: { ...preset.metrics },
         cwe: preset.cwe,
@@ -335,11 +580,21 @@ export function suggestMetrics(finding = {}) {
   }
 
   // Conservative default: unauthenticated read of non-sensitive data.
-  const metrics = { attackVector: 'N', attackComplexity: 'L', privilegesRequired: 'N', userInteraction: 'N', scope: 'U', confidentiality: 'L', integrity: 'N', availability: 'N' };
+  const metrics = {
+    attackVector: 'N',
+    attackComplexity: 'L',
+    privilegesRequired: 'N',
+    userInteraction: 'N',
+    scope: 'U',
+    confidentiality: 'L',
+    integrity: 'N',
+    availability: 'N',
+  };
   return {
     metrics,
     cwe: 'CWE-200',
-    rationale: 'No preset matched this vulnerability class — scored conservatively as low-impact information disclosure. Adjust the metrics to match what was actually proved.',
+    rationale:
+      'No preset matched this vulnerability class — scored conservatively as low-impact information disclosure. Adjust the metrics to match what was actually proved.',
     computed: scoreCVSS(metrics),
   };
 }
@@ -347,30 +602,76 @@ export function suggestMetrics(finding = {}) {
 // ─── Part 2 — Impact statements ──────────────────────────────────────────────
 
 const VULN_ACTION_PHRASES = [
-  { match: ['sqli', 'sql_injection', 'sql injection', 'blind_sqli'], phrase: 'execute arbitrary SQL queries against the backend database' },
-  { match: ['xss_stored'], phrase: 'inject persistent JavaScript that executes in every victim\u2019s browser session' },
+  {
+    match: ['sqli', 'sql_injection', 'sql injection', 'blind_sqli'],
+    phrase: 'execute arbitrary SQL queries against the backend database',
+  },
+  {
+    match: ['xss_stored'],
+    phrase: 'inject persistent JavaScript that executes in every victim\u2019s browser session',
+  },
   { match: ['xss'], phrase: 'execute arbitrary JavaScript in a victim\u2019s browser session' },
-  { match: ['idor'], phrase: 'access and manipulate objects belonging to other users by swapping identifiers' },
-  { match: ['ssrf'], phrase: 'force the server to issue requests to internal systems and cloud metadata endpoints' },
-  { match: ['auth_bypass', 'broken_auth'], phrase: 'bypass authentication and operate inside other users\u2019 accounts, including administrators' },
-  { match: ['jwt_none'], phrase: 'forge authentication tokens for any identity, including administrators' },
-  { match: ['ssti', 'cmdi'], phrase: 'execute arbitrary operating-system commands on the application server' },
+  {
+    match: ['idor'],
+    phrase: 'access and manipulate objects belonging to other users by swapping identifiers',
+  },
+  {
+    match: ['ssrf'],
+    phrase: 'force the server to issue requests to internal systems and cloud metadata endpoints',
+  },
+  {
+    match: ['auth_bypass', 'broken_auth'],
+    phrase:
+      'bypass authentication and operate inside other users\u2019 accounts, including administrators',
+  },
+  {
+    match: ['jwt_none'],
+    phrase: 'forge authentication tokens for any identity, including administrators',
+  },
+  {
+    match: ['ssti', 'cmdi'],
+    phrase: 'execute arbitrary operating-system commands on the application server',
+  },
   { match: ['xxe'], phrase: 'read arbitrary local files from the application server' },
-  { match: ['lfi', 'path_traversal'], phrase: 'read arbitrary local files from the application server' },
-  { match: ['open_redirect'], phrase: 'redirect victims to attacker-controlled pages from a trusted domain' },
-  { match: ['csrf'], phrase: 'trigger state-changing actions in a victim\u2019s authenticated session' },
-  { match: ['default_cred'], phrase: 'log in with publicly known credentials and take full administrative control' },
+  {
+    match: ['lfi', 'path_traversal'],
+    phrase: 'read arbitrary local files from the application server',
+  },
+  {
+    match: ['open_redirect'],
+    phrase: 'redirect victims to attacker-controlled pages from a trusted domain',
+  },
+  {
+    match: ['csrf'],
+    phrase: 'trigger state-changing actions in a victim\u2019s authenticated session',
+  },
+  {
+    match: ['default_cred'],
+    phrase: 'log in with publicly known credentials and take full administrative control',
+  },
   { match: ['file_upload'], phrase: 'upload and execute arbitrary code on the application server' },
-  { match: ['subdomain_takeover'], phrase: 'serve attacker-controlled content under the organization\u2019s own domain name' },
-  { match: ['cors'], phrase: 'read authenticated API responses cross-origin from any malicious website' },
-  { match: ['clickjacking'], phrase: 'trick victims into performing unintended actions through an invisible framed page' },
-  { match: ['mass_assignment'], phrase: 'escalate privileges by binding protected fields such as user roles' },
+  {
+    match: ['subdomain_takeover'],
+    phrase: 'serve attacker-controlled content under the organization\u2019s own domain name',
+  },
+  {
+    match: ['cors'],
+    phrase: 'read authenticated API responses cross-origin from any malicious website',
+  },
+  {
+    match: ['clickjacking'],
+    phrase: 'trick victims into performing unintended actions through an invisible framed page',
+  },
+  {
+    match: ['mass_assignment'],
+    phrase: 'escalate privileges by binding protected fields such as user roles',
+  },
 ];
 
 function actionPhraseFor(vulnType = '') {
   const normalized = normalizeType(vulnType);
   for (const entry of VULN_ACTION_PHRASES) {
-    if (entry.match.some((key) => normalized.includes(key))) return entry.phrase;
+    if (entry.match.some(key => normalized.includes(key))) return entry.phrase;
   }
   return 'exploit the identified vulnerability against the application';
 }
@@ -393,7 +694,12 @@ function formatUsers(n) {
  *
  * Returns a 3–5 sentence paragraph in professional English.
  */
-export function buildImpactStatement({ vulnType = '', affectedUsers = null, dataExposed = '', businessContext = '' } = {}) {
+export function buildImpactStatement({
+  vulnType = '',
+  affectedUsers = null,
+  dataExposed = '',
+  businessContext = '',
+} = {}) {
   const action = actionPhraseFor(vulnType);
   const users = formatUsers(affectedUsers);
   const sentences = [];
@@ -403,27 +709,37 @@ export function buildImpactStatement({ vulnType = '', affectedUsers = null, data
 
   // Sentence 2: scale.
   if (users) {
-    sentences.push(`The exposed surface covers approximately ${users} registered users${businessContext ? ` on ${businessContext}` : ''}.`);
+    sentences.push(
+      `The exposed surface covers approximately ${users} registered users${businessContext ? ` on ${businessContext}` : ''}.`
+    );
   } else if (businessContext) {
-    sentences.push(`The vulnerable endpoint sits on ${businessContext}, where exploitation is directly reachable.`);
+    sentences.push(
+      `The vulnerable endpoint sits on ${businessContext}, where exploitation is directly reachable.`
+    );
   }
 
   // Sentence 3: data.
   if (dataExposed && String(dataExposed).trim()) {
-    sentences.push(`Successful exploitation discloses ${String(dataExposed).trim().replace(/\.$/, '')}.`);
+    sentences.push(
+      `Successful exploitation discloses ${String(dataExposed).trim().replace(/\.$/, '')}.`
+    );
   }
 
   // Sentence 4: business consequence.
   const normalized = normalizeType(vulnType);
   let consequence;
   if (/sql|ssrf|xxe|lfi|sensitive_exposure|idor|data_exposure/.test(normalized)) {
-    consequence = 'Beyond direct data theft, this creates regulatory exposure (breach-notification duties and fines under regimes such as GDPR), mandatory incident response, and lasting reputational damage once customer data is involved.';
+    consequence =
+      'Beyond direct data theft, this creates regulatory exposure (breach-notification duties and fines under regimes such as GDPR), mandatory incident response, and lasting reputational damage once customer data is involved.';
   } else if (/xss|csrf|clickjacking|cors|open_redirect/.test(normalized)) {
-    consequence = 'Because exploitation runs inside real user sessions, it enables account takeover, session theft, and phishing that inherits the organization\u2019s own domain trust — the kind of incident that erodes user confidence at scale.';
+    consequence =
+      'Because exploitation runs inside real user sessions, it enables account takeover, session theft, and phishing that inherits the organization\u2019s own domain trust — the kind of incident that erodes user confidence at scale.';
   } else if (/ssti|cmdi|file_upload|auth_bypass|default_cred|jwt_none/.test(normalized)) {
-    consequence = 'Full server or account compromise turns a single endpoint into a foothold for lateral movement, data destruction, and supply-chain abuse against the organization\u2019s own customers.';
+    consequence =
+      'Full server or account compromise turns a single endpoint into a foothold for lateral movement, data destruction, and supply-chain abuse against the organization\u2019s own customers.';
   } else {
-    consequence = 'Left unpatched, this gives attackers a reliable primitive they can combine with other weaknesses to escalate impact over time.';
+    consequence =
+      'Left unpatched, this gives attackers a reliable primitive they can combine with other weaknesses to escalate impact over time.';
   }
   sentences.push(consequence);
 
@@ -437,70 +753,96 @@ const MULTIPLIER_RULES = [
     id: 'chained',
     label: 'Chained vulnerability',
     range: '2–5×',
-    test: (f) => f.partOfChain === true || (Number(f.chainLength) || 0) > 1 || /chain/i.test(String(f.type || '')),
-    reason: 'Findings demonstrated as part of a working exploit chain pay multiples of single-issue reports.',
+    test: f =>
+      f.partOfChain === true ||
+      (Number(f.chainLength) || 0) > 1 ||
+      /chain/i.test(String(f.type || '')),
+    reason:
+      'Findings demonstrated as part of a working exploit chain pay multiples of single-issue reports.',
   },
   {
     id: 'high_value_target',
     label: 'High-value target',
     range: '3–10×',
-    test: (f) => f.adminTarget === true || /admin|internal|prod|dashboard|console/i.test(String(f.url || '')),
-    reason: 'Vulnerabilities on admin, internal, or production systems carry outsized business risk.',
+    test: f =>
+      f.adminTarget === true || /admin|internal|prod|dashboard|console/i.test(String(f.url || '')),
+    reason:
+      'Vulnerabilities on admin, internal, or production systems carry outsized business risk.',
   },
   {
     id: 'auth_bypass',
     label: 'Authentication bypass',
     range: 'escalates severity',
-    test: (f) => {
-      const t = String(f.type || '').toLowerCase().replace(/[\s_-]+/g, '_');
-      return /auth.*bypass|bypass.*auth|broken_auth|jwt_none|default_cred/.test(t) || f.authBypassed === true;
+    test: f => {
+      const t = String(f.type || '')
+        .toLowerCase()
+        .replace(/[\s_-]+/g, '_');
+      return (
+        /auth.*bypass|bypass.*auth|broken_auth|jwt_none|default_cred/.test(t) ||
+        f.authBypassed === true
+      );
     },
-    reason: 'Bypassing authentication collapses the trust boundary — triagers rate this above the raw CVSS.',
+    reason:
+      'Bypassing authentication collapses the trust boundary — triagers rate this above the raw CVSS.',
   },
   {
     id: 'account_takeover',
     label: 'Account takeover demonstrated',
     range: '2–4×',
-    test: (f) => f.accountTakeover === true || /account.?takeover|\bato\b/i.test(String(f.evidence || '') + ' ' + String(f.type || '')),
+    test: f =>
+      f.accountTakeover === true ||
+      /account.?takeover|\bato\b/i.test(String(f.evidence || '') + ' ' + String(f.type || '')),
     reason: 'A proved victim-account takeover is the clearest possible impact statement.',
   },
   {
     id: 'rce',
     label: 'Remote code execution',
     range: '3–10×',
-    test: (f) => /rce|remote.?code|ssti|cmdi|command.?injection|template.?injection/i.test(String(f.type || '')),
+    test: f =>
+      /rce|remote.?code|ssti|cmdi|command.?injection|template.?injection/i.test(
+        String(f.type || '')
+      ),
     reason: 'RCE is the top of the impact ladder on virtually every program.',
   },
   {
     id: 'mass_impact',
     label: 'Mass user impact',
     range: '2–5×',
-    test: (f) => (Number(String(f.affectedUsers || '').replace(/[^0-9]/g, '')) || 0) >= 10000,
+    test: f => (Number(String(f.affectedUsers || '').replace(/[^0-9]/g, '')) || 0) >= 10000,
     reason: 'Findings affecting 10,000+ users multiply both real-world harm and program liability.',
   },
   {
     id: 'regulated_data',
     label: 'Regulated data exposure',
     range: '2–4×',
-    test: (f) => /pii|gdpr|hipaa|pci|health|ssn|passport|financial/i.test(String(f.dataExposed || '') + ' ' + String(f.type || '')),
-    reason: 'PII, health, or financial data triggers breach-notification duties and regulatory fines.',
+    test: f =>
+      /pii|gdpr|hipaa|pci|health|ssn|passport|financial/i.test(
+        String(f.dataExposed || '') + ' ' + String(f.type || '')
+      ),
+    reason:
+      'PII, health, or financial data triggers breach-notification duties and regulatory fines.',
   },
   {
     id: 'financial_tx',
     label: 'Financial transaction impact',
     range: '2–5×',
-    test: (f) => /payment|price|balance|checkout|billing|transaction|wallet/i.test(String(f.type || '') + ' ' + String(f.url || '') + ' ' + String(f.businessContext || '')),
-    reason: 'Direct money movement or price manipulation is priced against fraud loss, not just CVSS.',
+    test: f =>
+      /payment|price|balance|checkout|billing|transaction|wallet/i.test(
+        String(f.type || '') + ' ' + String(f.url || '') + ' ' + String(f.businessContext || '')
+      ),
+    reason:
+      'Direct money movement or price manipulation is priced against fraud loss, not just CVSS.',
   },
   {
     id: 'zero_interaction_wormable',
     label: 'Unauthenticated, no user interaction',
     range: 'scalable / wormable premium',
-    test: (f) => {
+    test: f => {
       const m = f.suggestedMetrics?.metrics || f.cvssMetrics;
       return m && m.privilegesRequired === 'N' && m.userInteraction === 'N';
     },
-    reason: 'Zero-click, unauthenticated flaws can be automated against every deployment — programs pay for that scale.',
+    reason:
+      'Zero-click, unauthenticated flaws can be automated against every deployment — programs pay for that scale.',
   },
 ];
 
@@ -514,7 +856,7 @@ const MULTIPLIER_RULES = [
  * Returns [{ id, label, range, reason }] for each rule that fires.
  */
 export function impactMultipliers(finding = {}) {
-  return MULTIPLIER_RULES.filter((rule) => {
+  return MULTIPLIER_RULES.filter(rule => {
     try {
       return rule.test(finding);
     } catch {
@@ -536,12 +878,14 @@ export function buildSeverityRequest({ cvss, platformDefault = '', businessAncho
   if (!cvss || typeof cvss.score !== 'number') {
     throw new Error('buildSeverityRequest requires a cvss { score, severity, vector } object');
   }
-  const anchor = businessAnchor && String(businessAnchor).trim()
-    ? ` ${String(businessAnchor).trim().replace(/\.$/, '')}.`
-    : '';
-  const platform = platformDefault && String(platformDefault).trim()
-    ? ` The platform default of ${String(platformDefault).trim()} understates this finding.`
-    : '';
+  const anchor =
+    businessAnchor && String(businessAnchor).trim()
+      ? ` ${String(businessAnchor).trim().replace(/\.$/, '')}.`
+      : '';
+  const platform =
+    platformDefault && String(platformDefault).trim()
+      ? ` The platform default of ${String(platformDefault).trim()} understates this finding.`
+      : '';
   return (
     `Severity assessment: CVSS 3.1 ${cvss.vector} = ${cvss.score} ${cvss.severity}.${platform}` +
     ` This rating follows directly from the demonstrated metrics — not from assumed worst cases.${anchor}`

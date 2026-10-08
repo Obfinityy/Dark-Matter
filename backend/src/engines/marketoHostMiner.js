@@ -108,21 +108,23 @@ export function detectMarketo(pageSource = '') {
  */
 export function scoreMarketoHosts(hosts = [], rootDomain = '') {
   const brand = normalizeHostname(rootDomain).split('.')[0];
-  return (hosts || []).map((h) => {
-    let score = 25;
-    const reasons = ['Marketo landing-page host'];
-    if (brand && h.host.includes(brand)) {
-      score += 40;
-      reasons.push(`hostname references brand "${brand}"`);
-    }
-    if (h.sources.length > 1) {
-      score += 15;
-      reasons.push(`confirmed via ${h.sources.join(' + ')}`);
-    }
-    if (h.munchkinId) {
-      score += 10;
-      reasons.push('Munchkin id attributable');
-    }
-    return { host: h.host, score: Math.min(100, score), reasons };
-  }).sort((a, b) => b.score - a.score);
+  return (hosts || [])
+    .map(h => {
+      let score = 25;
+      const reasons = ['Marketo landing-page host'];
+      if (brand && h.host.includes(brand)) {
+        score += 40;
+        reasons.push(`hostname references brand "${brand}"`);
+      }
+      if (h.sources.length > 1) {
+        score += 15;
+        reasons.push(`confirmed via ${h.sources.join(' + ')}`);
+      }
+      if (h.munchkinId) {
+        score += 10;
+        reasons.push('Munchkin id attributable');
+      }
+      return { host: h.host, score: Math.min(100, score), reasons };
+    })
+    .sort((a, b) => b.score - a.score);
 }

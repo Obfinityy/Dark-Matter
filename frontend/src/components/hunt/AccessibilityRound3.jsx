@@ -115,7 +115,7 @@ export function TypingAnnouncer({ typing = false, agentName = 'Infinity AI' }) {
 /* 50524 — SortableFindingsTableHead: proper th scope + sort semantics. -------- */
 
 export function SortableFindingsTableHead({ columns = [], sort = {}, onSort, onAnnounce }) {
-  const handleSort = (col) => {
+  const handleSort = col => {
     if (!col.sortable) return;
     const direction = sort.id === col.id && sort.direction === 'asc' ? 'desc' : 'asc';
     if (onAnnounce) onAnnounce(sortableAnnouncement(col, direction));
@@ -124,7 +124,7 @@ export function SortableFindingsTableHead({ columns = [], sort = {}, onSort, onA
   return (
     <thead>
       <tr>
-        {columns.map((col) => {
+        {columns.map(col => {
           const props = sortableHeaderProps(col, sort);
           const sorted = sort.id === col.id;
           return (
@@ -154,14 +154,24 @@ export function SortableFindingsTableHead({ columns = [], sort = {}, onSort, onA
 
 /** Full sortable findings table: thead semantics + an external live region. --- */
 
-export function SortableFindingsTable({ columns = [], rows = [], renderRow, caption = 'Findings' }) {
+export function SortableFindingsTable({
+  columns = [],
+  rows = [],
+  renderRow,
+  caption = 'Findings',
+}) {
   const [sort, setSort] = useState({});
   const [announcement, setAnnouncement] = useState('');
   return (
     <div className="a11y3-tablewrap" role="region" aria-label={`${caption} table`} tabIndex={0}>
       <table className="a11y3-sorttable">
         <caption className="a11y3-sr-only">{caption}</caption>
-        <SortableFindingsTableHead columns={columns} sort={sort} onSort={setSort} onAnnounce={setAnnouncement} />
+        <SortableFindingsTableHead
+          columns={columns}
+          sort={sort}
+          onSort={setSort}
+          onAnnounce={setAnnouncement}
+        />
         <tbody>
           {rows.map((row, i) => (
             <tr key={row.id || i}>{renderRow ? renderRow(row, sort) : null}</tr>
@@ -209,11 +219,13 @@ export function RovingTabindexList({ items = [], renderItem, label = 'Findings' 
       {items.map((item, i) => (
         <li key={item.id || i} role="presentation">
           <div
-            ref={(el) => { itemRefs.current[i] = el; }}
+            ref={el => {
+              itemRefs.current[i] = el;
+            }}
             role="option"
             aria-selected={i === focused}
             tabIndex={tabIndexes[i]}
-            onKeyDown={(e) => onKeyDown(e, i)}
+            onKeyDown={e => onKeyDown(e, i)}
             onFocus={() => setFocused(i)}
             className="a11y3-roving-item a11y3-focusable"
           >
@@ -227,9 +239,17 @@ export function RovingTabindexList({ items = [], renderItem, label = 'Findings' 
 
 /* 50542 — SeveritySlider: arrow-key stepping + spoken values. ------------------ */
 
-export function SeveritySlider({ value = 50, onChange, label = 'Confidence', min = 0, max = 100, step = 5, id = 'a11y3-severity-slider' }) {
+export function SeveritySlider({
+  value = 50,
+  onChange,
+  label = 'Confidence',
+  min = 0,
+  max = 100,
+  step = 5,
+  id = 'a11y3-severity-slider',
+}) {
   const [announcement, setAnnouncement] = useState('');
-  const handleKeyDown = (e) => {
+  const handleKeyDown = e => {
     let dir = null;
     if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 'up';
     else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = 'down';
@@ -241,7 +261,9 @@ export function SeveritySlider({ value = 50, onChange, label = 'Confidence', min
   };
   return (
     <div className="a11y3-slider">
-      <label htmlFor={id} className="a11y3-slider-label">{label}</label>
+      <label htmlFor={id} className="a11y3-slider-label">
+        {label}
+      </label>
       <input
         id={id}
         type="range"
@@ -250,11 +272,15 @@ export function SeveritySlider({ value = 50, onChange, label = 'Confidence', min
         max={max}
         step={step}
         value={value}
-        onChange={(e) => { if (onChange) onChange(Number(e.target.value)); }}
+        onChange={e => {
+          if (onChange) onChange(Number(e.target.value));
+        }}
         onKeyDown={handleKeyDown}
         aria-valuetext={sliderSpokenValue(value, label)}
       />
-      <output htmlFor={id} aria-hidden="true">{value}%</output>
+      <output htmlFor={id} aria-hidden="true">
+        {value}%
+      </output>
       <div className="a11y3-sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
@@ -274,7 +300,7 @@ export function DescribeChartButton({ chart = {}, id = 'a11y3-chart-desc' }) {
         className="a11y3-btn a11y3-focusable"
         aria-expanded={open ? 'true' : 'false'}
         aria-controls={id}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(o => !o)}
       >
         {speakableActionName('describe-chart')}
       </button>
@@ -293,10 +319,15 @@ export function FormErrorSummary({ errors = [] }) {
   const summary = formErrorSummary(errors);
   if (summary.count === 0) return null;
   return (
-    <div role="alert" aria-labelledby="a11y3-errsum-heading" className="a11y3-errorsummary" tabIndex={-1}>
+    <div
+      role="alert"
+      aria-labelledby="a11y3-errsum-heading"
+      className="a11y3-errorsummary"
+      tabIndex={-1}
+    >
       <h2 id="a11y3-errsum-heading">{summary.heading}</h2>
       <ul>
-        {summary.items.map((item) => (
+        {summary.items.map(item => (
           <li key={item.fieldId}>
             <a href={item.anchor} className="a11y3-finding-link a11y3-focusable">
               {item.label}: {item.message}
@@ -333,15 +364,21 @@ export function TimeoutAnnouncer({ minutesLeft = 2, onExtend }) {
 
 export function ReadabilitySettingsPanel({ settings = {}, onChange }) {
   const s = { ...READABILITY_DEFAULTS, ...settings };
-  const set = (patch) => { if (onChange) onChange({ ...s, ...patch }); };
+  const set = patch => {
+    if (onChange) onChange({ ...s, ...patch });
+  };
   return (
     <fieldset className="a11y3-readability">
       <legend>Readability settings</legend>
       <label>
         Line height
         <input
-          type="range" min="1" max="2" step="0.1" value={s.lineHeight}
-          onChange={(e) => set({ lineHeight: Number(e.target.value) })}
+          type="range"
+          min="1"
+          max="2"
+          step="0.1"
+          value={s.lineHeight}
+          onChange={e => set({ lineHeight: Number(e.target.value) })}
           aria-valuetext={`Line height ${s.lineHeight}`}
           className="a11y3-focusable"
         />
@@ -350,8 +387,12 @@ export function ReadabilitySettingsPanel({ settings = {}, onChange }) {
       <label>
         Letter spacing
         <input
-          type="range" min="0" max="0.12" step="0.01" value={parseFloat(s.letterSpacing)}
-          onChange={(e) => set({ letterSpacing: `${Number(e.target.value).toFixed(2)}em` })}
+          type="range"
+          min="0"
+          max="0.12"
+          step="0.01"
+          value={parseFloat(s.letterSpacing)}
+          onChange={e => set({ letterSpacing: `${Number(e.target.value).toFixed(2)}em` })}
           aria-valuetext={`Letter spacing ${s.letterSpacing}`}
           className="a11y3-focusable"
         />
@@ -360,14 +401,22 @@ export function ReadabilitySettingsPanel({ settings = {}, onChange }) {
       <label>
         Word spacing
         <input
-          type="range" min="0" max="0.3" step="0.02" value={parseFloat(s.wordSpacing)}
-          onChange={(e) => set({ wordSpacing: `${Number(e.target.value).toFixed(2)}em` })}
+          type="range"
+          min="0"
+          max="0.3"
+          step="0.02"
+          value={parseFloat(s.wordSpacing)}
+          onChange={e => set({ wordSpacing: `${Number(e.target.value).toFixed(2)}em` })}
           aria-valuetext={`Word spacing ${s.wordSpacing}`}
           className="a11y3-focusable"
         />
         <span>{s.wordSpacing}</span>
       </label>
-      <button type="button" className="a11y3-btn a11y3-focusable" onClick={() => set({ ...READABILITY_DEFAULTS })}>
+      <button
+        type="button"
+        className="a11y3-btn a11y3-focusable"
+        onClick={() => set({ ...READABILITY_DEFAULTS })}
+      >
         Reset to defaults
       </button>
     </fieldset>
@@ -385,21 +434,30 @@ export function DyslexiaToggle({ enabled = false, onChange, id = 'a11y3-dyslexia
         role="switch"
         aria-checked={enabled ? 'true' : 'false'}
         className="a11y3-switch a11y3-focusable"
-        onClick={() => { if (onChange) onChange(!enabled); }}
+        onClick={() => {
+          if (onChange) onChange(!enabled);
+        }}
       >
         <span {...ariaHiddenProps(true)} className="a11y3-switch-knob" />
         <span className="a11y3-switch-label">Dyslexia-friendly font</span>
       </button>
-      <p className="a11y3-hint">Switches body text to a weighted typeface designed for readers with dyslexia.</p>
+      <p className="a11y3-hint">
+        Switches body text to a weighted typeface designed for readers with dyslexia.
+      </p>
     </div>
   );
 }
 
 /* 50550 — KeyboardDragHandle: visible focus + keyboard equivalents. ------------- */
 
-export function KeyboardDragHandle({ dragAction = 'reorder-finding', label = 'Drag handle', onMove, onDrop }) {
+export function KeyboardDragHandle({
+  dragAction = 'reorder-finding',
+  label = 'Drag handle',
+  onMove,
+  onDrop,
+}) {
   const eq = dragKeyboardEquivalent(dragAction);
-  const handleKeyDown = (e) => {
+  const handleKeyDown = e => {
     let dir = null;
     if (e.key === 'ArrowUp' && e.ctrlKey) dir = 'up';
     else if (e.key === 'ArrowDown' && e.ctrlKey) dir = 'down';
@@ -455,7 +513,9 @@ export function AccessibilityStatement() {
       <p>{st.summary}</p>
       <h2>What we commit to</h2>
       <ul>
-        {st.commitments.map((c, i) => <li key={i}>{c}</li>)}
+        {st.commitments.map((c, i) => (
+          <li key={i}>{c}</li>
+        ))}
       </ul>
       <h2>Known limitations</h2>
       <p>{st.limitations}</p>
@@ -483,7 +543,9 @@ export function NewFindingCard({ finding = {}, onOpen }) {
         <button
           type="button"
           className="a11y3-cardlink a11y3-focusable"
-          onClick={() => { if (onOpen) onOpen(finding); }}
+          onClick={() => {
+            if (onOpen) onOpen(finding);
+          }}
         >
           {finding.title || 'Untitled finding'}
         </button>
@@ -492,7 +554,12 @@ export function NewFindingCard({ finding = {}, onOpen }) {
         {sev} · {finding.target || 'unknown target'}
       </p>
       {finding.screenshot && (
-        <img src={finding.screenshot} alt={screenshotAltText(finding)} className="a11y3-newcard-shot" loading="lazy" />
+        <img
+          src={finding.screenshot}
+          alt={screenshotAltText(finding)}
+          className="a11y3-newcard-shot"
+          loading="lazy"
+        />
       )}
     </article>
   );
@@ -505,7 +572,9 @@ export function AvatarCaptionTrack({ text = '', visible = true }) {
   return (
     <figure className="a11y3-captions" aria-label="Avatar speech captions">
       <figcaption className="a11y3-sr-only">Spoken by the Infinity AI avatar</figcaption>
-      <blockquote aria-live="polite" aria-atomic="true">{avatarCaptionText(text)}</blockquote>
+      <blockquote aria-live="polite" aria-atomic="true">
+        {avatarCaptionText(text)}
+      </blockquote>
     </figure>
   );
 }
@@ -521,7 +590,10 @@ export function AcronymExpander({ text = '' }) {
 
 export function FocusScrollMargin({ children, headerHeightPx = 64, gapPx = 8 }) {
   return (
-    <div className="a11y3-scrollmargin" style={{ scrollMarginTop: scrollMarginFor(headerHeightPx, gapPx) }}>
+    <div
+      className="a11y3-scrollmargin"
+      style={{ scrollMarginTop: scrollMarginFor(headerHeightPx, gapPx) }}
+    >
       {children}
     </div>
   );
@@ -547,7 +619,7 @@ function NestedListNodes({ nodes }) {
   if (!nodes || nodes.length === 0) return null;
   return (
     <ul>
-      {nodes.map((n) => (
+      {nodes.map(n => (
         <li key={n.id}>
           {n.label}
           {n.cyclic && <span className="a11y3-hint"> (cycle — already listed above)</span>}
@@ -569,18 +641,29 @@ export function ChainGraphNestedList({ graph = {}, label = 'Attack chain relatio
 
 /* 50553 — KeyboardDateInput: keyboard-entry fallback for date pickers. --------- */
 
-export function KeyboardDateInput({ value = '', onChange, id = 'a11y3-date-input', label = 'Date' }) {
+export function KeyboardDateInput({
+  value = '',
+  onChange,
+  id = 'a11y3-date-input',
+  label = 'Date',
+}) {
   const [error, setError] = useState('');
-  const handleChange = (e) => {
+  const handleChange = e => {
     const v = e.target.value;
-    if (v === '') { setError(''); if (onChange) onChange(''); return; }
+    if (v === '') {
+      setError('');
+      if (onChange) onChange('');
+      return;
+    }
     const parsed = parseDateInput(v);
     setError(parsed.ok ? '' : parsed.reason);
     if (parsed.ok && onChange) onChange(parsed.iso);
   };
   return (
     <div className="a11y3-dateinput">
-      <label htmlFor={id}>{label} <span className="a11y3-hint">(keyboard entry)</span></label>
+      <label htmlFor={id}>
+        {label} <span className="a11y3-hint">(keyboard entry)</span>
+      </label>
       <input
         id={id}
         defaultValue={value}
@@ -590,8 +673,14 @@ export function KeyboardDateInput({ value = '', onChange, id = 'a11y3-date-input
         className="a11y3-focusable"
         {...keyboardDateProps()}
       />
-      <span id="date-format-hint" className="a11y3-hint">Format: YYYY-MM-DD</span>
-      {error && <span id={`${id}-error`} role="alert" className="a11y3-fielderror">{error}</span>}
+      <span id="date-format-hint" className="a11y3-hint">
+        Format: YYYY-MM-DD
+      </span>
+      {error && (
+        <span id={`${id}-error`} role="alert" className="a11y3-fielderror">
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -605,7 +694,7 @@ export function TerminalPanel({ children, onExit, label = 'Terminal output' }) {
     openerRef.current = document.activeElement;
     if (panelRef.current) panelRef.current.focus();
   }, []);
-  const onKeyDown = (e) => {
+  const onKeyDown = e => {
     if (!shouldExitTerminal(e.key)) return;
     e.stopPropagation();
     if (onExit) onExit();
@@ -631,11 +720,20 @@ export function TerminalPanel({ children, onExit, label = 'Terminal output' }) {
 export function DestructiveConfirm({ actionLabel = 'Delete', onConfirm, onCancel }) {
   const copy = destructiveConfirmCopy(actionLabel);
   return (
-    <div role="alertdialog" aria-labelledby="a11y3-destruct-title" aria-describedby="a11y3-destruct-body" className="a11y3-destruct">
+    <div
+      role="alertdialog"
+      aria-labelledby="a11y3-destruct-title"
+      aria-describedby="a11y3-destruct-body"
+      className="a11y3-destruct"
+    >
       <h2 id="a11y3-destruct-title">{copy.title}</h2>
       <p id="a11y3-destruct-body">{copy.body}</p>
       <div className="a11y3-destruct-actions">
-        <button type="button" className="a11y3-btn a11y3-btn-danger a11y3-focusable" onClick={onConfirm}>
+        <button
+          type="button"
+          className="a11y3-btn a11y3-btn-danger a11y3-focusable"
+          onClick={onConfirm}
+        >
           {copy.confirmLabel}
         </button>
         <button type="button" className="a11y3-btn a11y3-focusable" onClick={onCancel}>
@@ -653,7 +751,12 @@ export function DestructiveConfirm({ actionLabel = 'Delete', onConfirm, onCancel
 
 export function ExplainedDisabledButton({ reason, children, ...rest }) {
   return (
-    <button type="button" className="a11y3-btn a11y3-focusable" {...disabledButtonProps(reason)} {...rest}>
+    <button
+      type="button"
+      className="a11y3-btn a11y3-focusable"
+      {...disabledButtonProps(reason)}
+      {...rest}
+    >
       {children}
     </button>
   );
@@ -693,34 +796,49 @@ function loadStoredSettings() {
 }
 
 export function AccessibilitySettingsProvider({ children }) {
-  const [readability, setReadability] = useState(() => ({ ...READABILITY_DEFAULTS, ...loadStoredSettings().readability }));
+  const [readability, setReadability] = useState(() => ({
+    ...READABILITY_DEFAULTS,
+    ...loadStoredSettings().readability,
+  }));
   const [dyslexia, setDyslexia] = useState(() => !!loadStoredSettings().dyslexia);
   const [reducedMotion] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? readMediaPreference('(prefers-reduced-motion: reduce)', window.matchMedia.bind(window))
-      : false);
+      : false
+  );
   const [reducedTransparency] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? readMediaPreference(REDUCED_TRANSPARENCY_QUERY, window.matchMedia.bind(window))
-      : false);
+      : false
+  );
   const [reducedData] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? readMediaPreference(REDUCED_DATA_QUERY, window.matchMedia.bind(window))
-      : false);
+      : false
+  );
 
   useEffect(() => {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify({ readability, dyslexia }));
       }
-    } catch { /* storage unavailable — settings stay in memory */ }
+    } catch {
+      /* storage unavailable — settings stay in memory */
+    }
   }, [readability, dyslexia]);
 
-  const value = useMemo(() => ({
-    readability, setReadability,
-    dyslexia, setDyslexia,
-    reducedMotion, reducedTransparency, reducedData,
-  }), [readability, dyslexia, reducedMotion, reducedTransparency, reducedData]);
+  const value = useMemo(
+    () => ({
+      readability,
+      setReadability,
+      dyslexia,
+      setDyslexia,
+      reducedMotion,
+      reducedTransparency,
+      reducedData,
+    }),
+    [readability, dyslexia, reducedMotion, reducedTransparency, reducedData]
+  );
 
   const classNames = [
     'a11y3-settings-scope',
@@ -728,7 +846,9 @@ export function AccessibilitySettingsProvider({ children }) {
     reducedDataClass(reducedData),
     dyslexiaClass(dyslexia),
     reducedMotion ? 'a11y3-reduced-motion' : '',
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <A11ySettingsContext.Provider value={value}>
@@ -743,7 +863,10 @@ export function AccessibilitySettingsProvider({ children }) {
 
 export function SpacingRhythm({ units = 2, children, className = '' }) {
   return (
-    <div className={`a11y3-rhythm ${className}`} style={{ padding: spacing(units), gap: spacing(1) }}>
+    <div
+      className={`a11y3-rhythm ${className}`}
+      style={{ padding: spacing(units), gap: spacing(1) }}
+    >
       {children}
     </div>
   );

@@ -27,7 +27,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -73,8 +73,18 @@ function resolveUrl(raw, manifestUrl) {
 export function analyzeWebManifest(content, opts = {}) {
   const source = opts.sourceUrl || null;
   const empty = {
-    source, name: null, shortName: null, startUrl: null, scope: null, id: null,
-    icons: [], screenshots: [], shortcuts: [], relatedApplications: [], hosts: [], rawParse: false,
+    source,
+    name: null,
+    shortName: null,
+    startUrl: null,
+    scope: null,
+    id: null,
+    icons: [],
+    screenshots: [],
+    shortcuts: [],
+    relatedApplications: [],
+    hosts: [],
+    rawParse: false,
   };
   let doc;
   try {
@@ -150,6 +160,8 @@ export function analyzeWebManifest(content, opts = {}) {
  * @returns {string[]} external hosts
  */
 export function externalManifestHosts(analysis, targetHost = '') {
-  const base = String(targetHost).toLowerCase().replace(/^www\./, '');
-  return (analysis.hosts || []).filter((h) => h !== base && !h.endsWith(`.${base}`));
+  const base = String(targetHost)
+    .toLowerCase()
+    .replace(/^www\./, '');
+  return (analysis.hosts || []).filter(h => h !== base && !h.endsWith(`.${base}`));
 }

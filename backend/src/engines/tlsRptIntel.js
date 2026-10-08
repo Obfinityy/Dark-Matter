@@ -107,7 +107,12 @@ export function parseTlsRptRecord(rdata, domain = '') {
         else if (token.trim()) rec.unknown.push(`rua:${token.trim()}`);
       }
     } else if (tag === 'ruf') {
-      rec.ruf.push(...value.split(',').map((s) => s.trim()).filter(Boolean));
+      rec.ruf.push(
+        ...value
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+      );
     } else {
       rec.unknown.push(`${tag}=${value}`);
     }

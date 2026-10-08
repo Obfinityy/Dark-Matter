@@ -44,9 +44,9 @@ export async function hackingBrainDecide(hackingBrain, context = {}) {
     `Technology: ${techStack.join(', ') || 'unknown'}`,
     `Current phase: ${phase} (phases: ${PHASES.join(' → ')})`,
     `Findings so far: ${findings.length}`,
-    ...findings.slice(-5).map((f) => `  - ${f.type} @ ${f.url} (${f.confidence})`),
+    ...findings.slice(-5).map(f => `  - ${f.type} @ ${f.url} (${f.confidence})`),
     `Recent actions:`,
-    ...history.slice(-5).map((h) => `  - ${h}`),
+    ...history.slice(-5).map(h => `  - ${h}`),
     '',
     'Decide the SINGLE next strategic step. Respond with ONLY valid JSON:',
     '{"reasoning": "why this step", "controlInstruction": "exact natural-language instruction for the desktop-control brain, e.g. \'open Edge and go to http://target.com/wp-admin\'", "phase": "next phase name"}',
@@ -102,7 +102,13 @@ export async function dualBrainCycle({ hackingBrain, controlBrain, context }) {
  * Build context for the hacking brain from hunt state.
  */
 export function buildHuntContext({ target, techStack, findings, phase, history }) {
-  return { target, techStack: techStack || [], findings: findings || [], phase: phase || 'recon', history: history || [] };
+  return {
+    target,
+    techStack: techStack || [],
+    findings: findings || [],
+    phase: phase || 'recon',
+    history: history || [],
+  };
 }
 
 export const DUAL_BRAIN = {

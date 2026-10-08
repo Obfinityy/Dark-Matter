@@ -82,7 +82,9 @@ export const DNSSD_SERVICE_MAP = {
  * @returns {string | null}
  */
 export function normalizeServiceType(s) {
-  const m = String(s || '').toLowerCase().match(/_[a-z0-9-]+\._(?:tcp|udp)/);
+  const m = String(s || '')
+    .toLowerCase()
+    .match(/_[a-z0-9-]+\._(?:tcp|udp)/);
   return m ? m[0] : null;
 }
 
@@ -93,7 +95,10 @@ export function normalizeServiceType(s) {
  */
 export function describeServiceType(serviceType) {
   const key = normalizeServiceType(serviceType);
-  return (key && DNSSD_SERVICE_MAP[key]) || 'Unrecognized service type — investigate the instance TXT records';
+  return (
+    (key && DNSSD_SERVICE_MAP[key]) ||
+    'Unrecognized service type — investigate the instance TXT records'
+  );
 }
 
 /**
@@ -117,9 +122,10 @@ export function browseDnsSd(text) {
   const serviceTypes = new Set();
   const instances = new Map(); // instance name -> { serviceType, host, port, txt }
 
-  const ensure = (inst) => {
+  const ensure = inst => {
     const key = inst.replace(/\.$/, '');
-    if (!instances.has(key)) instances.set(key, { serviceType: null, host: null, port: null, txt: {} });
+    if (!instances.has(key))
+      instances.set(key, { serviceType: null, host: null, port: null, txt: {} });
     return instances.get(key);
   };
   const tagService = (inst, rawType) => {
@@ -183,16 +189,22 @@ export function browseDnsSd(text) {
     // A/AAAA owner names feed the host inventory below via instances.
   }
 
-  const instanceList = [...instances.entries()].map(([instance, s]) => ({
-    instance,
-    serviceType: s.serviceType,
-    host: s.host,
-    port: s.port,
-    txt: s.txt,
-    detail: `Service instance '${instance}'` +
-      (s.serviceType ? ` (${describeServiceType(s.serviceType)})` : '') +
-      (s.host ? ` → ${s.host}${s.port ? `:${s.port}` : ''}` : ' — host/port not resolved in browse data') + '.',
-  })).sort((a, b) => a.instance.localeCompare(b.instance));
+  const instanceList = [...instances.entries()]
+    .map(([instance, s]) => ({
+      instance,
+      serviceType: s.serviceType,
+      host: s.host,
+      port: s.port,
+      txt: s.txt,
+      detail:
+        `Service instance '${instance}'` +
+        (s.serviceType ? ` (${describeServiceType(s.serviceType)})` : '') +
+        (s.host
+          ? ` → ${s.host}${s.port ? `:${s.port}` : ''}`
+          : ' — host/port not resolved in browse data') +
+        '.',
+    }))
+    .sort((a, b) => a.instance.localeCompare(b.instance));
 
   const hostMap = new Map();
   for (const s of instanceList) {
@@ -200,16 +212,20 @@ export function browseDnsSd(text) {
     if (!hostMap.has(s.host)) hostMap.set(s.host, new Set());
     if (s.serviceType) hostMap.get(s.host).add(s.serviceType);
   }
-  const hosts = [...hostMap.entries()].map(([name, svcs]) => ({
-    name,
-    services: [...svcs],
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  const hosts = [...hostMap.entries()]
+    .map(([name, svcs]) => ({
+      name,
+      services: [...svcs],
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  const typeList = [...serviceTypes].map(t => ({
-    type: t,
-    description: describeServiceType(t),
-    instanceCount: instanceList.filter(s => s.serviceType === t).length,
-  })).sort((a, b) => b.instanceCount - a.instanceCount || a.type.localeCompare(b.type));
+  const typeList = [...serviceTypes]
+    .map(t => ({
+      type: t,
+      description: describeServiceType(t),
+      instanceCount: instanceList.filter(s => s.serviceType === t).length,
+    }))
+    .sort((a, b) => b.instanceCount - a.instanceCount || a.type.localeCompare(b.type));
 
   const summary = {
     serviceTypes: typeList.length,
@@ -219,27 +235,52 @@ export function browseDnsSd(text) {
 
   const findings = [];
   if (typeList.length) {
-    findings.push(`${typeList.length} service type(s) advertised: ` +
-      typeList.slice(0, 8).map(t => `${t.type} (${t.description})`).join(', ') +
-      `${typeList.length > 8 ? ` (+${typeList.length - 8} more)` : ''}.`);
+    findings.push(
+      `${typeList.length} service type(s) advertised: ` +
+        typeList
+          .slice(0, 8)
+          .map(t => `${t.type} (${t.description})`)
+          .join(', ') +
+        `${typeList.length > 8 ? ` (+${typeList.length - 8} more)` : ''}.`
+    );
   }
   if (hosts.length) {
-    findings.push(`${hosts.length} host(s) behind advertised services: ${hosts.slice(0, 10).map(h => h.name).join(', ')}` +
-      `${hosts.length > 10 ? ` (+${hosts.length - 10} more)` : ''} — service-to-host mapping for the segment.`);
+    findings.push(
+      `${hosts.length} host(s) behind advertised services: ${hosts
+        .slice(0, 10)
+        .map(h => h.name)
+        .join(', ')}` +
+        `${hosts.length > 10 ? ` (+${hosts.length - 10} more)` : ''} — service-to-host mapping for the segment.`
+    );
   }
-  const remoteAccess = instanceList.filter(s => /_ssh\._tcp|_rdp\._tcp|_vnc\._tcp|_rfb\._tcp|_telnet\._tcp/.test(s.serviceType || ''));
+  const remoteAccess = instanceList.filter(s =>
+    /_ssh\._tcp|_rdp\._tcp|_vnc\._tcp|_rfb\._tcp|_telnet\._tcp/.test(s.serviceType || '')
+  );
   if (remoteAccess.length) {
-    findings.push(`${remoteAccess.length} remote-access service instance(s): ` +
-      remoteAccess.slice(0, 6).map(s => `${s.instance}${s.host ? ` → ${s.host}:${s.port ?? '?'}` : ''}`).join(', ') +
-      ' — reachable management endpoints.');
+    findings.push(
+      `${remoteAccess.length} remote-access service instance(s): ` +
+        remoteAccess
+          .slice(0, 6)
+          .map(s => `${s.instance}${s.host ? ` → ${s.host}:${s.port ?? '?'}` : ''}`)
+          .join(', ') +
+        ' — reachable management endpoints.'
+    );
   }
-  const iot = instanceList.filter(s => /_hap\._tcp|_homekit|_mqtt|_coap|_esphome|_octoprint|_onvif|_axis-video/.test(s.serviceType || ''));
+  const iot = instanceList.filter(s =>
+    /_hap\._tcp|_homekit|_mqtt|_coap|_esphome|_octoprint|_onvif|_axis-video/.test(
+      s.serviceType || ''
+    )
+  );
   if (iot.length) {
-    findings.push(`${iot.length} IoT/smart-device service instance(s) — IoT devices are a soft ` +
-      'perimeter; inventory models and firmware.');
+    findings.push(
+      `${iot.length} IoT/smart-device service instance(s) — IoT devices are a soft ` +
+        'perimeter; inventory models and firmware.'
+    );
   }
   if (!typeList.length && !instanceList.length) {
-    findings.push('No DNS-SD data parsed — confirm the input is dig PTR/SRV/TXT, dns-sd, or avahi-browse output.');
+    findings.push(
+      'No DNS-SD data parsed — confirm the input is dig PTR/SRV/TXT, dns-sd, or avahi-browse output.'
+    );
   }
 
   return { serviceTypes: typeList, instances: instanceList, hosts, summary, findings };

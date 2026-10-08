@@ -7,28 +7,75 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE33_START, WAVE33_END, WAVE33_IDEAS,
-  createHuntControl, instantPause, beginGracefulPause, gracefulDrainTick,
-  completeInFlightUnit, PAUSE_REASONS, tagPauseReason, describePauseReason,
-  resume, schedulePause, scheduledPauseDue, applyScheduledPause,
-  shouldPauseOnFinding, pauseOnFinding, pauseOnApproval,
-  prepareAbort, confirmAbort, abortAndArchive, softAbort,
-  setModulePaused, pausedModules, pauseAllHunts, resumeAllHunts,
-  pauseBanner, resumeChecklist,
-  scheduleAutoResume, autoResumeDue, applyAutoResume, stealthPause,
-  ABORT_REASON_CODES, describeAbortCode, pauseNotifications,
-  createCheckpoint, resumeFromCheckpoint,
-  parsePauseCommand, pauseHeat, resumeDryRun, abortImpact,
-  pauseChatContext, armResumeCondition, checkResumeCondition,
-  PAUSE_TEMPLATES, applyPauseTemplate,
-  hibernate, wakeFromHibernation, shouldWake, pauseCost,
-  resumeWithInstructions, cloneHuntConfig,
-  suspendApprovalTimers, resumeApprovalTimers,
-  checkResumeConflicts, setScreenLocked, abortToReport,
-  recordPauseEvent, pauseAnalytics,
-  LOG_ROLES, canSeeRawLogs, visibleLogView,
-  RETENTION_POLICIES, applyRetentionPolicy, buildIncidentPackage,
-  ARTIFACT_TYPES, addArtifact, filterArtifacts, artifactCounts,
+  WAVE33_START,
+  WAVE33_END,
+  WAVE33_IDEAS,
+  createHuntControl,
+  instantPause,
+  beginGracefulPause,
+  gracefulDrainTick,
+  completeInFlightUnit,
+  PAUSE_REASONS,
+  tagPauseReason,
+  describePauseReason,
+  resume,
+  schedulePause,
+  scheduledPauseDue,
+  applyScheduledPause,
+  shouldPauseOnFinding,
+  pauseOnFinding,
+  pauseOnApproval,
+  prepareAbort,
+  confirmAbort,
+  abortAndArchive,
+  softAbort,
+  setModulePaused,
+  pausedModules,
+  pauseAllHunts,
+  resumeAllHunts,
+  pauseBanner,
+  resumeChecklist,
+  scheduleAutoResume,
+  autoResumeDue,
+  applyAutoResume,
+  stealthPause,
+  ABORT_REASON_CODES,
+  describeAbortCode,
+  pauseNotifications,
+  createCheckpoint,
+  resumeFromCheckpoint,
+  parsePauseCommand,
+  pauseHeat,
+  resumeDryRun,
+  abortImpact,
+  pauseChatContext,
+  armResumeCondition,
+  checkResumeCondition,
+  PAUSE_TEMPLATES,
+  applyPauseTemplate,
+  hibernate,
+  wakeFromHibernation,
+  shouldWake,
+  pauseCost,
+  resumeWithInstructions,
+  cloneHuntConfig,
+  suspendApprovalTimers,
+  resumeApprovalTimers,
+  checkResumeConflicts,
+  setScreenLocked,
+  abortToReport,
+  recordPauseEvent,
+  pauseAnalytics,
+  LOG_ROLES,
+  canSeeRawLogs,
+  visibleLogView,
+  RETENTION_POLICIES,
+  applyRetentionPolicy,
+  buildIncidentPackage,
+  ARTIFACT_TYPES,
+  addArtifact,
+  filterArtifacts,
+  artifactCounts,
 } from './pauseControlCore.js';
 
 const NOW = 1728220000000;
@@ -161,7 +208,11 @@ test('per-module pause freezes one module only', () => {
 });
 
 test('global pause hits every running hunt; resume only globally-paused ones', () => {
-  const hunts = [mk({ huntId: 'a' }), mk({ huntId: 'b' }), mk({ huntId: 'c', status: 'paused', pauseReason: 'manual' })];
+  const hunts = [
+    mk({ huntId: 'a' }),
+    mk({ huntId: 'b' }),
+    mk({ huntId: 'c', status: 'paused', pauseReason: 'manual' }),
+  ];
   const paused = pauseAllHunts(hunts, { by: 'op', now: NOW });
   assert.equal(paused[0].status, 'paused');
   assert.equal(paused[1].pauseReason, 'global');
@@ -184,13 +235,18 @@ test('pause banner model covers every stopped state', () => {
 });
 
 test('resume checklist lists next actions and special states', () => {
-  const items = resumeChecklist(mk({
-    status: 'paused', completedSteps: 9, nextActions: ['a', 'b'],
-    networkHalted: true, newInstructions: ['x'],
-  }));
-  assert.ok(items.some((i) => i.label.includes('step 10')));
-  assert.ok(items.some((i) => i.label.includes('Network traffic will resume')));
-  assert.ok(items.some((i) => i.label.includes('1 new instruction')));
+  const items = resumeChecklist(
+    mk({
+      status: 'paused',
+      completedSteps: 9,
+      nextActions: ['a', 'b'],
+      networkHalted: true,
+      newInstructions: ['x'],
+    })
+  );
+  assert.ok(items.some(i => i.label.includes('step 10')));
+  assert.ok(items.some(i => i.label.includes('Network traffic will resume')));
+  assert.ok(items.some(i => i.label.includes('1 new instruction')));
 });
 
 test('auto-resume timer fires while paused', () => {
@@ -243,7 +299,10 @@ test('checkpoints allow rollback resume', () => {
 test('pause API parses every supported command', () => {
   assert.deepEqual(parsePauseCommand('pause'), { action: 'pause' });
   assert.deepEqual(parsePauseCommand('pause 10m'), { action: 'pause-timed', minutes: 10 });
-  assert.deepEqual(parsePauseCommand('pause module recon'), { action: 'pause-module', module: 'recon' });
+  assert.deepEqual(parsePauseCommand('pause module recon'), {
+    action: 'pause-module',
+    module: 'recon',
+  });
   assert.deepEqual(parsePauseCommand('resume'), { action: 'resume' });
   assert.deepEqual(parsePauseCommand('resume dry-run'), { action: 'resume-dry-run' });
   assert.deepEqual(parsePauseCommand('abort'), { action: 'abort' });
@@ -263,7 +322,9 @@ test('pause heat flags mid-exploit pauses for review', () => {
 });
 
 test('resume dry-run previews at most 5 actions', () => {
-  const preview = resumeDryRun(mk({ completedSteps: 12, nextActions: ['a', 'b', 'c', 'd', 'e', 'f'] }));
+  const preview = resumeDryRun(
+    mk({ completedSteps: 12, nextActions: ['a', 'b', 'c', 'd', 'e', 'f'] })
+  );
   assert.equal(preview.length, 5);
   assert.equal(preview[0].fromStep, 13);
   assert.equal(preview[4].order, 5);
@@ -271,7 +332,10 @@ test('resume dry-run previews at most 5 actions', () => {
 
 test('abort impact summary quantifies the loss', () => {
   const impact = abortImpact(mk({ inFlight: 2, nextActions: ['a', 'b', 'c'] }), {
-    findings: [{}, {}, {}], coveragePct: 62, startedAt: NOW - 45 * 60_000, now: NOW,
+    findings: [{}, {}, {}],
+    coveragePct: 62,
+    startedAt: NOW - 45 * 60_000,
+    now: NOW,
   });
   assert.equal(impact.findingsDrafted, 3);
   assert.equal(impact.inFlightLost, 2);
@@ -349,9 +413,14 @@ test('approval timers suspend and resume with the pause', () => {
 });
 
 test('resume conflict check warns on target change', () => {
-  const c = mk({ status: 'paused', targetFingerprint: 'fp-aaaa', completedSteps: 5, nextActions: [] });
+  const c = mk({
+    status: 'paused',
+    targetFingerprint: 'fp-aaaa',
+    completedSteps: 5,
+    nextActions: [],
+  });
   const w = checkResumeConflicts(c, 'fp-bbbb');
-  assert.ok(w.some((x) => x.id === 'target-changed' && x.severity === 'high'));
+  assert.ok(w.some(x => x.id === 'target-changed' && x.severity === 'high'));
   assert.deepEqual(checkResumeConflicts({ ...c, nextActions: ['a'] }, 'fp-aaaa'), []);
 });
 
@@ -414,7 +483,11 @@ test('retention policies archive or purge correctly', () => {
 
 test('incident package bundles logs, findings, and timeline', () => {
   const pack = buildIncidentPackage({
-    huntId: 'hunt-42', logs: [{}, {}], findings: [{}], timeline: [{}, {}, {}], builtAt: NOW,
+    huntId: 'hunt-42',
+    logs: [{}, {}],
+    findings: [{}],
+    timeline: [{}, {}, {}],
+    builtAt: NOW,
   });
   assert.equal(pack.kind, 'incident-package');
   assert.deepEqual(pack.manifest, { logs: 2, findings: 1, timelineEvents: 3 });

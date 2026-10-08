@@ -6,7 +6,17 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Pause, Play, Trash2, Plus, Loader2, AlertTriangle, ChevronRight, CalendarClock } from 'lucide-react';
+import {
+  Layers,
+  Pause,
+  Play,
+  Trash2,
+  Plus,
+  Loader2,
+  AlertTriangle,
+  ChevronRight,
+  CalendarClock,
+} from 'lucide-react';
 import './Queues.css';
 import { listQueues, createQueue, pauseQueue, resumeQueue, deleteQueue } from '../../services/api';
 
@@ -23,21 +33,36 @@ export function Queues() {
     try {
       const body = await listQueues();
       setQueues(body?.queues || []);
-    } catch { setQueues([]); }
-    finally { setLoading(false); }
+    } catch {
+      setQueues([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
 
-  const create = async (e) => {
+  const create = async e => {
     e.preventDefault();
-    const list = targets.split('\n').map((t) => t.trim()).filter(Boolean);
-    if (!list.length) { setError('Add at least one target.'); return; }
+    const list = targets
+      .split('\n')
+      .map(t => t.trim())
+      .filter(Boolean);
+    if (!list.length) {
+      setError('Add at least one target.');
+      return;
+    }
     if (!window.confirm('Confirm you are authorized to security-test these targets.')) return;
     setBusy(true);
     setError('');
     try {
-      await createQueue({ name: name.trim() || undefined, targets: list, authorizationConfirmed: true });
+      await createQueue({
+        name: name.trim() || undefined,
+        targets: list,
+        authorizationConfirmed: true,
+      });
       setName('');
       setTargets('');
       refresh();
@@ -48,35 +73,58 @@ export function Queues() {
     }
   };
 
-  const act = async (fn) => {
+  const act = async fn => {
     if (acting) return;
     setActing(true);
-    try { await fn(); refresh(); }
-    catch (err) { setError(err.message || 'Action failed.'); }
-    finally { setActing(false); }
+    try {
+      await fn();
+      refresh();
+    } catch (err) {
+      setError(err.message || 'Action failed.');
+    } finally {
+      setActing(false);
+    }
   };
 
-  if (loading) return <div className="dm-page-loading" role="status"><Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading queues…</div>;
+  if (loading)
+    return (
+      <div className="dm-page-loading" role="status">
+        <Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading queues…
+      </div>
+    );
 
   return (
     <div className="dm-queues">
       <header className="dm-queues-head">
         <div className="dm-page-head">
-          <h1><Layers size={22} aria-hidden="true" /> Target queues</h1>
-          <p>Line up targets — the agent works through them in order, sharing the pool fairly with your other hunts.</p>
+          <h1>
+            <Layers size={22} aria-hidden="true" /> Target queues
+          </h1>
+          <p>
+            Line up targets — the agent works through them in order, sharing the pool fairly with
+            your other hunts.
+          </p>
         </div>
-        <Link to="/agent/schedules" className="dm-btn-ghost"><CalendarClock size={13} aria-hidden="true" /> Scheduled hunts</Link>
+        <Link to="/agent/schedules" className="dm-btn-ghost">
+          <CalendarClock size={13} aria-hidden="true" /> Scheduled hunts
+        </Link>
       </header>
 
-      {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} aria-hidden="true" /> {error}</div>}
+      {error && (
+        <div className="dm-form-error" role="alert">
+          <AlertTriangle size={14} aria-hidden="true" /> {error}
+        </div>
+      )}
 
       <form className="dm-card dm-queue-form" onSubmit={create}>
-        <h3><Plus size={15} aria-hidden="true" /> New queue</h3>
+        <h3>
+          <Plus size={15} aria-hidden="true" /> New queue
+        </h3>
         <label className="dm-form-label">
           Queue name
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={e => setName(e.target.value)}
             placeholder="Optional — e.g. staging sweep"
             autoComplete="off"
             maxLength={80}
@@ -86,17 +134,24 @@ export function Queues() {
           Targets
           <textarea
             value={targets}
-            onChange={(e) => setTargets(e.target.value)}
+            onChange={e => setTargets(e.target.value)}
             placeholder={'https://one.com\nhttps://two.com/app'}
             rows={4}
             spellCheck={false}
             required
             aria-describedby="queue-targets-hint"
           />
-          <span className="dm-form-hint" id="queue-targets-hint">One target per line — the agent works through them top to bottom.</span>
+          <span className="dm-form-hint" id="queue-targets-hint">
+            One target per line — the agent works through them top to bottom.
+          </span>
         </label>
         <button type="submit" className="dm-btn-primary" disabled={busy}>
-          {busy ? <Loader2 size={15} aria-hidden="true" className="sg-spin" /> : <Plus size={15} aria-hidden="true" />} Create queue
+          {busy ? (
+            <Loader2 size={15} aria-hidden="true" className="sg-spin" />
+          ) : (
+            <Plus size={15} aria-hidden="true" />
+          )}{' '}
+          Create queue
         </button>
       </form>
 
@@ -108,14 +163,23 @@ export function Queues() {
           const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
           const paused = queue.status === 'paused';
           return (
-            <div key={queue.id || i} className="dm-card dm-queue-card dm-list-in" style={{ animationDelay: `${Math.min(i, 10) * 60}ms` }}>
+            <div
+              key={queue.id || i}
+              className="dm-card dm-queue-card dm-list-in"
+              style={{ animationDelay: `${Math.min(i, 10) * 60}ms` }}
+            >
               <div className="dm-queue-head">
                 <h3>{queueName}</h3>
                 <span className={`dm-job-status st-${queue.status}`}>{queue.status}</span>
               </div>
               <p className="dm-card-hint">
                 {total} targets · {done} done
-                {queue.currentTarget && <> · hunting <code>{queue.currentTarget}</code></>}
+                {queue.currentTarget && (
+                  <>
+                    {' '}
+                    · hunting <code>{queue.currentTarget}</code>
+                  </>
+                )}
               </p>
               {total > 0 && (
                 <div
@@ -132,11 +196,13 @@ export function Queues() {
               <ul className="dm-queue-targets">
                 {(queue.targets || []).slice(0, 6).map((t, j) => (
                   <li key={j}>
-                    <code>{typeof t === 'string' ? t : (t.url || t.target)}</code>
+                    <code>{typeof t === 'string' ? t : t.url || t.target}</code>
                     {t.status ? <span>{t.status}</span> : null}
                   </li>
                 ))}
-                {(queue.targets || []).length > 6 && <li>+{(queue.targets || []).length - 6} more</li>}
+                {(queue.targets || []).length > 6 && (
+                  <li>+{(queue.targets || []).length - 6} more</li>
+                )}
               </ul>
               <div className="dm-queue-actions">
                 {paused ? (
@@ -145,21 +211,26 @@ export function Queues() {
                     onClick={() => act(() => resumeQueue(queue.id))}
                     aria-label={`Resume queue ${queueName}`}
                     disabled={acting}
-                  ><Play size={13} aria-hidden="true" /> Resume</button>
+                  >
+                    <Play size={13} aria-hidden="true" /> Resume
+                  </button>
                 ) : (
                   <button
                     className="dm-btn-ghost"
                     onClick={() => act(() => pauseQueue(queue.id))}
                     aria-label={`Pause queue ${queueName}`}
                     disabled={acting}
-                  ><Pause size={13} aria-hidden="true" /> Pause</button>
+                  >
+                    <Pause size={13} aria-hidden="true" /> Pause
+                  </button>
                 )}
                 <button
                   className="dm-btn-ghost dm-danger"
                   aria-label={`Delete queue ${queueName}`}
                   disabled={acting}
                   onClick={() => {
-                    if (window.confirm('Delete this queue? Completed hunt history is kept.')) act(() => deleteQueue(queue.id));
+                    if (window.confirm('Delete this queue? Completed hunt history is kept.'))
+                      act(() => deleteQueue(queue.id));
                   }}
                 >
                   <Trash2 size={13} aria-hidden="true" /> Delete
@@ -177,7 +248,10 @@ export function Queues() {
           <div className="dm-empty-state">
             <Layers size={28} aria-hidden="true" />
             <strong>No queues yet</strong>
-            <p>Create a queue above to line up targets — the agent works through them in order, sharing the pool fairly with your other hunts.</p>
+            <p>
+              Create a queue above to line up targets — the agent works through them in order,
+              sharing the pool fairly with your other hunts.
+            </p>
           </div>
         )}
       </div>

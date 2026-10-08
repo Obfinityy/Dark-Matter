@@ -15,17 +15,27 @@ function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {
   return (
     <section className="dm-surface-panel" aria-label={`${title} — ${list.length} found`}>
       <header>
-        <span className="dm-surface-icon" aria-hidden="true"><Icon size={15} /></span>
+        <span className="dm-surface-icon" aria-hidden="true">
+          <Icon size={15} />
+        </span>
         <h4>{title}</h4>
-        <span className="dm-surface-count" title={`${list.length} found`}>{list.length}</span>
+        <span className="dm-surface-count" title={`${list.length} found`}>
+          {list.length}
+        </span>
       </header>
       {list.length === 0 ? (
-        <p className="dm-surface-empty" role="status">{emptyHint}</p>
+        <p className="dm-surface-empty" role="status">
+          {emptyHint}
+        </p>
       ) : (
         <ul className="dm-surface-list">
           {list.slice(0, 12).map((item, i) => (
             <li
-              key={typeof item === 'string' ? item : (item?.id || item?.path || item?.url || item?.name || i)}
+              key={
+                typeof item === 'string'
+                  ? item
+                  : item?.id || item?.path || item?.url || item?.name || i
+              }
               tabIndex={0}
               title={typeof item === 'string' ? item : undefined}
             >
@@ -44,12 +54,16 @@ function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {
 }
 
 export function AttackSurfaceMap({ surface = {}, loading = false }) {
-  if (loading) return <div className="dm-surface-loading" role="status">Mapping the attack surface…</div>;
+  if (loading)
+    return (
+      <div className="dm-surface-loading" role="status">
+        Mapping the attack surface…
+      </div>
+    );
 
   const updatedAt = surface.updatedAt ? new Date(surface.updatedAt) : null;
-  const updatedLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
-    ? updatedAt.toLocaleTimeString()
-    : null;
+  const updatedLabel =
+    updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt.toLocaleTimeString() : null;
 
   return (
     <div className="dm-surface-map">
@@ -63,14 +77,14 @@ export function AttackSurfaceMap({ surface = {}, loading = false }) {
         icon={Link2}
         title="Endpoints"
         items={surface.endpoints}
-        renderItem={(e) => (typeof e === 'string' ? e : e.path || e.url || JSON.stringify(e))}
+        renderItem={e => (typeof e === 'string' ? e : e.path || e.url || JSON.stringify(e))}
         emptyHint="No endpoints discovered yet."
       />
       <Panel
         icon={SlidersHorizontal}
         title="Parameters"
         items={surface.parameters}
-        renderItem={(p) => (typeof p === 'string' ? p : p.name || JSON.stringify(p))}
+        renderItem={p => (typeof p === 'string' ? p : p.name || JSON.stringify(p))}
         emptyHint="No parameters fingerprinted yet."
       />
       <Panel
@@ -85,11 +99,7 @@ export function AttackSurfaceMap({ surface = {}, loading = false }) {
         items={surface.openPorts}
         emptyHint="Port scan hasn't reported yet."
       />
-      {updatedLabel && (
-        <p className="dm-surface-updated">
-          Last updated {updatedLabel}
-        </p>
-      )}
+      {updatedLabel && <p className="dm-surface-updated">Last updated {updatedLabel}</p>}
     </div>
   );
 }

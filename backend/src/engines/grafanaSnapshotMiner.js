@@ -75,14 +75,18 @@ export function extractHostsFromExpr(expr) {
   const found = new Map(); // host -> label
 
   // Label matchers: instance="...", host="...", hostname=~"...", nodename="...".
-  for (const m of e.matchAll(/\b(instance|host|hostname|node|nodename|server|target)\s*=~\s*"([^"]*)"/gi)) {
+  for (const m of e.matchAll(
+    /\b(instance|host|hostname|node|nodename|server|target)\s*=~\s*"([^"]*)"/gi
+  )) {
     const label = m[1].toLowerCase();
     for (const alt of m[2].split('|')) {
       const h = normalizeHostname(alt.replace(/[.\\^$*+?()|[\]{}]/g, ''));
       if (h.includes('.')) found.set(h, label);
     }
   }
-  for (const m of e.matchAll(/\b(instance|host|hostname|node|nodename|server|target)\s*=\s*"([^"]*)"/gi)) {
+  for (const m of e.matchAll(
+    /\b(instance|host|hostname|node|nodename|server|target)\s*=\s*"([^"]*)"/gi
+  )) {
     const label = m[1].toLowerCase();
     const h = normalizeHostname(m[2]);
     if (h.includes('.')) found.set(h, label);
@@ -141,7 +145,7 @@ export function extractSnapshotRefs(snapshot) {
 
   const dashboard = snapshot?.dashboard || snapshot;
   const panels = [];
-  const collectPanels = (rows) => {
+  const collectPanels = rows => {
     for (const p of rows || []) {
       if (p?.panels) collectPanels(p.panels); // old row layout
       if (p?.targets || p?.title) panels.push(p);
@@ -156,7 +160,8 @@ export function extractSnapshotRefs(snapshot) {
         const expr = target?.[key];
         if (typeof expr === 'string' && expr) {
           expressions.push({ expr, panel: title });
-          for (const { host, label } of extractHostsFromExpr(expr)) note(host, label, `expr:${title}`);
+          for (const { host, label } of extractHostsFromExpr(expr))
+            note(host, label, `expr:${title}`);
         }
       }
       const alias = target?.legendFormat || target?.alias;
@@ -221,8 +226,8 @@ export function scoreHostRelevance(host, rootDomain) {
 export function mineSnapshot(snapshot, rootDomain) {
   const refs = extractSnapshotRefs(snapshot);
   const hosts = refs.hosts
-    .map((e) => ({ ...e, score: scoreHostRelevance(e.host, rootDomain) }))
-    .filter((e) => e.score > 0)
+    .map(e => ({ ...e, score: scoreHostRelevance(e.host, rootDomain) }))
+    .filter(e => e.score > 0)
     .sort((a, b) => b.score - a.score || a.host.localeCompare(b.host));
   return { hosts, expressions: refs.expressions, legends: refs.legends, variables: refs.variables };
 }

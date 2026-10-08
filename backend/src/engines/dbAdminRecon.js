@@ -11,7 +11,7 @@
  * Output shape: { detected, service, version, confidence, severity, evidence, cwe }
  */
 
-const STR = (v) => (typeof v === 'string' ? v : '');
+const STR = v => (typeof v === 'string' ? v : '');
 
 function getHeader(headers = {}, name) {
   const entries = Object.entries(headers);
@@ -63,9 +63,18 @@ export function detectMinIOConsole({ url = '', status = 0, headers = {}, body = 
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'MinIO Console', version: null, confidence: 'none', severity: 'None', evidence: 'No MinIO console signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'MinIO Console',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No MinIO console signatures matched.',
+      cwe: null,
+    };
   }
-  const apiHit = /application\/json/i.test(getHeader(headers, 'content-type')) && /minio|Console/i.test(text);
+  const apiHit =
+    /application\/json/i.test(getHeader(headers, 'content-type')) && /minio|Console/i.test(text);
   const version = (text.match(/"version"\s*:\s*"([\d.]+)"/i) || [])[1] || null;
   return {
     detected: true,
@@ -73,7 +82,8 @@ export function detectMinIOConsole({ url = '', status = 0, headers = {}, body = 
     version,
     confidence: score >= 5 || apiHit ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed object-store admin console; may allow management access or user enumeration.',
+    severityReason:
+      'Exposed object-store admin console; may allow management access or user enumeration.',
     evidence: `MinIO console signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}].`,
     cwe: 'CWE-200',
   };
@@ -114,12 +124,23 @@ export function fingerprintPhpMyAdmin({ url = '', status = 0, headers = {}, body
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'phpMyAdmin', version: null, confidence: 'none', severity: 'None', evidence: 'No phpMyAdmin signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'phpMyAdmin',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No phpMyAdmin signatures matched.',
+      cwe: null,
+    };
   }
   let version = null;
   for (const rx of PHPMYADMIN_VERSION_PATTERNS) {
     const m = text.match(rx);
-    if (m) { version = m[1]; break; }
+    if (m) {
+      version = m[1];
+      break;
+    }
   }
   return {
     detected: true,
@@ -127,7 +148,8 @@ export function fingerprintPhpMyAdmin({ url = '', status = 0, headers = {}, body
     version,
     confidence: score >= 6 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed database admin panel is a high-value target for credential attacks and version-specific flaws.',
+    severityReason:
+      'Exposed database admin panel is a high-value target for credential attacks and version-specific flaws.',
     evidence: `phpMyAdmin signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version} extracted` : ''}.`,
     cwe: 'CWE-200',
   };
@@ -161,7 +183,15 @@ export function detectAdminer({ url = '', status = 0, headers = {}, body = '' })
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'Adminer', version: null, confidence: 'none', severity: 'None', evidence: 'No Adminer signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'Adminer',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No Adminer signatures matched.',
+      cwe: null,
+    };
   }
   const version = (text.match(/Adminer\s+([\d.]+)/i) || [])[1] || null;
   return {
@@ -170,7 +200,8 @@ export function detectAdminer({ url = '', status = 0, headers = {}, body = '' })
     version,
     confidence: score >= 6 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed Adminer instance accepts connections to arbitrary database servers — a classic initial-access foothold.',
+    severityReason:
+      'Exposed Adminer instance accepts connections to arbitrary database servers — a classic initial-access foothold.',
     evidence: `Adminer single-file login signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version} extracted` : ''}.`,
     cwe: 'CWE-200',
   };
@@ -202,7 +233,15 @@ export function detectMongoExpress({ url = '', status = 0, headers = {}, body = 
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'Mongo Express', version: null, confidence: 'none', severity: 'None', evidence: 'No mongo-express signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'Mongo Express',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No mongo-express signatures matched.',
+      cwe: null,
+    };
   }
   const version = (text.match(/mongo[- ]express[^0-9]*v?([\d.]+)/i) || [])[1] || null;
   return {
@@ -211,7 +250,8 @@ export function detectMongoExpress({ url = '', status = 0, headers = {}, body = 
     version,
     confidence: score >= 5 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed Mongo Express gives web UI access to MongoDB; often deployed without authentication.',
+    severityReason:
+      'Exposed Mongo Express gives web UI access to MongoDB; often deployed without authentication.',
     evidence: `mongo-express signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version} extracted` : ''}.`,
     cwe: 'CWE-200',
   };
@@ -242,7 +282,15 @@ export function detectRedisCommander({ url = '', status = 0, headers = {}, body 
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'Redis Commander', version: null, confidence: 'none', severity: 'None', evidence: 'No Redis Commander signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'Redis Commander',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No Redis Commander signatures matched.',
+      cwe: null,
+    };
   }
   const version = (text.match(/Redis Commander[^0-9]*v?([\d.]+)/i) || [])[1] || null;
   return {
@@ -251,7 +299,8 @@ export function detectRedisCommander({ url = '', status = 0, headers = {}, body 
     version,
     confidence: score >= 5 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed Redis Commander allows executing Redis commands through a web UI; dangerous when reachable anonymously.',
+    severityReason:
+      'Exposed Redis Commander allows executing Redis commands through a web UI; dangerous when reachable anonymously.',
     evidence: `Redis Commander signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version} extracted` : ''}.`,
     cwe: 'CWE-200',
   };
@@ -283,7 +332,15 @@ export function detectPgAdmin({ url = '', status = 0, headers = {}, body = '' })
     }
   }
   if (score < 2) {
-    return { detected: false, service: 'pgAdmin', version: null, confidence: 'none', severity: 'None', evidence: 'No pgAdmin signatures matched.', cwe: null };
+    return {
+      detected: false,
+      service: 'pgAdmin',
+      version: null,
+      confidence: 'none',
+      severity: 'None',
+      evidence: 'No pgAdmin signatures matched.',
+      cwe: null,
+    };
   }
   const versionMatch = text.match(/pgAdmin\s*4\s+v([\d.]+)/i);
   const version = versionMatch ? versionMatch[1] : null;
@@ -293,7 +350,8 @@ export function detectPgAdmin({ url = '', status = 0, headers = {}, body = '' })
     version,
     confidence: score >= 5 ? 'high' : 'medium',
     severity: 'Medium',
-    severityReason: 'Exposed pgAdmin login flow grants database management access to anyone with valid credentials.',
+    severityReason:
+      'Exposed pgAdmin login flow grants database management access to anyone with valid credentials.',
     evidence: `pgAdmin signatures matched (${hits.join(', ')}) on ${url} [HTTP ${status}]${version ? `; version ${version} extracted` : ''}.`,
     cwe: 'CWE-200',
   };

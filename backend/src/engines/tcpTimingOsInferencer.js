@@ -36,20 +36,22 @@ export function ttlOsHint(ttl) {
  * @returns {{count:number, meanSynAckMs:number, jitterMs:number, meanTtl:number|null, profile:string}|null}
  */
 export function handshakeTimingProfile(samples) {
-  const list = (Array.isArray(samples) ? samples : []).filter((s) => s && typeof s.synAckMs === 'number' && s.synAckMs >= 0);
+  const list = (Array.isArray(samples) ? samples : []).filter(
+    s => s && typeof s.synAckMs === 'number' && s.synAckMs >= 0
+  );
   if (list.length === 0) return null;
-  const times = list.map((s) => s.synAckMs);
+  const times = list.map(s => s.synAckMs);
   const mean = times.reduce((a, b) => a + b, 0) / times.length;
   const variance = times.reduce((s, v) => s + (v - mean) * (v - mean), 0) / times.length;
   const jitter = Math.sqrt(variance);
-  const ttls = list.map((s) => s.ttl).filter((t) => typeof t === 'number');
+  const ttls = list.map(s => s.ttl).filter(t => typeof t === 'number');
   const meanTtl = ttls.length > 0 ? ttls.reduce((a, b) => a + b, 0) / ttls.length : null;
   // Timing texture: fast+steady stacks differ from slow+jittery ones.
   let profile = 'typical';
   if (mean < 15 && jitter < 5) profile = 'fast-low-jitter';
   else if (mean >= 15 && jitter < mean * 0.3) profile = 'steady';
   else if (jitter >= mean * 0.6) profile = 'high-jitter';
-  const round = (v) => Math.round(v * 100) / 100;
+  const round = v => Math.round(v * 100) / 100;
   return {
     count: list.length,
     meanSynAckMs: round(mean),
@@ -67,10 +69,17 @@ export function handshakeTimingProfile(samples) {
 export function inferOs(samples) {
   const profile = handshakeTimingProfile(samples);
   if (!profile) {
-    return { os: 'unknown', confidence: 0, evidence: [], caveat: 'no usable handshake samples were provided' };
+    return {
+      os: 'unknown',
+      confidence: 0,
+      evidence: [],
+      caveat: 'no usable handshake samples were provided',
+    };
   }
   const evidence = [];
-  evidence.push(`${profile.count} handshake samples: mean SYN-ACK ${profile.meanSynAckMs}ms, jitter ${profile.jitterMs}ms (${profile.profile})`);
+  evidence.push(
+    `${profile.count} handshake samples: mean SYN-ACK ${profile.meanSynAckMs}ms, jitter ${profile.jitterMs}ms (${profile.profile})`
+  );
 
   const hint = profile.meanTtl != null ? ttlOsHint(Math.round(profile.meanTtl)) : null;
   let os = 'unknown';
@@ -96,7 +105,8 @@ export function inferOs(samples) {
     os,
     confidence: Math.round(confidence * 100) / 100,
     evidence,
-    caveat: 'TCP timing alone cannot fingerprint an OS reliably; treat this as a hypothesis to corroborate with banner and behavior evidence.',
+    caveat:
+      'TCP timing alone cannot fingerprint an OS reliably; treat this as a hypothesis to corroborate with banner and behavior evidence.',
   };
 }
 
@@ -107,7 +117,7 @@ export function inferOs(samples) {
  */
 export function inferOsAcrossHosts(hosts) {
   const list = Array.isArray(hosts) ? hosts : [];
-  return list.map((h) => {
+  return list.map(h => {
     const rec = h && typeof h === 'object' ? h : {};
     const result = inferOs(rec.samples);
     return {

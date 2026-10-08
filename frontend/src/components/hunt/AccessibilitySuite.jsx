@@ -56,8 +56,11 @@ export function SeverityBadge({ severity }) {
 export function ContrastBadge({ fg, bg, kind = 'normal' }) {
   const r = meetsWCAG(fg, bg, kind);
   return (
-    <span className={`a11y-contrast ${r.passes ? 'pass' : 'fail'}`} role="img"
-      aria-label={`Contrast ${r.ratio?.toFixed(2) ?? 'unknown'}:1, required ${r.required}:1 — ${r.passes ? 'passes' : 'fails'}`}>
+    <span
+      className={`a11y-contrast ${r.passes ? 'pass' : 'fail'}`}
+      role="img"
+      aria-label={`Contrast ${r.ratio?.toFixed(2) ?? 'unknown'}:1, required ${r.required}:1 — ${r.passes ? 'passes' : 'fails'}`}
+    >
       {r.ratio?.toFixed(2) ?? '—'}:1 {r.passes ? '✓' : '✗'}
     </span>
   );
@@ -66,17 +69,26 @@ export function ContrastBadge({ fg, bg, kind = 'normal' }) {
 /* 50505 — ListboxFindings: semantic listbox with aria-activedescendant. ----- */
 
 export function ListboxFindings({ findings = [], activeId = null, onSelect }) {
-  const activate = (f) => onSelect?.(f);
+  const activate = f => onSelect?.(f);
   return (
-    <div className="a11y-listbox" {...listboxAriaProps({ activeDescendant: activeId && `finding-option-${activeId}`, expanded: true })}>
-      {findings.map((f) => (
+    <div
+      className="a11y-listbox"
+      {...listboxAriaProps({
+        activeDescendant: activeId && `finding-option-${activeId}`,
+        expanded: true,
+      })}
+    >
+      {findings.map(f => (
         <div
           key={f.id}
           className={`a11y-option ${activeId === f.id ? 'active' : ''}`}
           {...findingOptionProps(f, { active: activeId === f.id })}
           onClick={() => activate(f)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(f); }
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              activate(f);
+            }
           }}
           tabIndex={0}
         >
@@ -104,7 +116,9 @@ export function OrderedTimelineList({ steps = [] }) {
     <ol className="a11y-timeline">
       {steps.map((s, i) => (
         <li key={s.n ?? i} className={`a11y-step a11y-step-${s.status || 'pending'}`}>
-          <span aria-hidden="true">{s.status === 'done' ? '✓' : s.status === 'running' ? '▶' : '○'}</span>
+          <span aria-hidden="true">
+            {s.status === 'done' ? '✓' : s.status === 'running' ? '▶' : '○'}
+          </span>
           <span>{s.label}</span>
           <span className="a11y-sr-only">{timelineStepStatusText(s)}</span>
         </li>
@@ -142,7 +156,9 @@ export function AssertiveError({ fieldId, fieldLabel, message }) {
   return (
     <p className="a11y-error" role="alert" aria-live="assertive">
       {assertiveErrorText(fieldLabel, message)}{' '}
-      <a href={`#${fieldId}`} className="a11y-error-link">Go to {fieldLabel}</a>
+      <a href={`#${fieldId}`} className="a11y-error-link">
+        Go to {fieldLabel}
+      </a>
     </p>
   );
 }
@@ -159,15 +175,25 @@ export function FocusModal({ open, onClose, label, children }) {
     const dlg = dialogRef.current;
     const first = dlg?.querySelector('button, [href], input, [tabindex]:not([tabindex="-1"])');
     first?.focus?.();
-    const onKey = (e) => {
-      if (e.key === 'Escape') { onClose?.(); return; }
+    const onKey = e => {
+      if (e.key === 'Escape') {
+        onClose?.();
+        return;
+      }
       if (e.key !== 'Tab' || !dlg) return;
-      const items = [...dlg.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])')]
-        .filter((el) => !el.disabled && el.getClientRects().length);
+      const items = [
+        ...dlg.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])'),
+      ].filter(el => !el.disabled && el.getClientRects().length);
       if (!items.length) return;
-      const firstEl = items[0], lastEl = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
-      else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
+      const firstEl = items[0],
+        lastEl = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
     };
     dlg?.addEventListener('keydown', onKey);
     return () => {
@@ -179,9 +205,17 @@ export function FocusModal({ open, onClose, label, children }) {
   if (!open) return null;
   return (
     <div className="a11y-modal-backdrop">
-      <div className="a11y-modal" role="dialog" aria-modal="true" aria-label={label} ref={dialogRef}>
+      <div
+        className="a11y-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        ref={dialogRef}
+      >
         {children}
-        <button type="button" onClick={onClose}>Close</button>
+        <button type="button" onClick={onClose}>
+          Close
+        </button>
       </div>
     </div>
   );
@@ -195,7 +229,11 @@ export function ToastLiveRegion({ toasts = [] }) {
       {toasts.map((t, i) => (
         <div key={t.id ?? i} className="a11y-toast">
           {t.text}
-          {t.action && <button type="button" onClick={t.action.onClick}>{t.action.label}</button>}
+          {t.action && (
+            <button type="button" onClick={t.action.onClick}>
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -207,13 +245,15 @@ export function ToastLiveRegion({ toasts = [] }) {
 export function ColorBlindPalette() {
   return (
     <div className="a11y-palette">
-      {SEVERITY_PALETTE_CVD.map((p) => (
+      {SEVERITY_PALETTE_CVD.map(p => (
         <div key={p.severity} className="a11y-sw" title={p.note}>
           <span className="a11y-sw-color" style={{ background: p.color }} aria-hidden="true" />
           <span>{p.severity}</span>
         </div>
       ))}
-      <p className="a11y-note">Okabe-Ito inspired — every severity also carries an icon + label (50501).</p>
+      <p className="a11y-note">
+        Okabe-Ito inspired — every severity also carries an icon + label (50501).
+      </p>
     </div>
   );
 }
@@ -225,14 +265,33 @@ export function ChartDataTable({ series = [], caption = 'Data' }) {
   const rows = chartDataTableRows(series);
   return (
     <div className="a11y-chart-table">
-      <button type="button" className="a11y-touch" onClick={() => setShow((s) => !s)} aria-expanded={show}>
+      <button
+        type="button"
+        className="a11y-touch"
+        onClick={() => setShow(s => !s)}
+        aria-expanded={show}
+      >
         {show ? 'Hide' : 'Show'} data table
       </button>
       {show && (
         <table>
           <caption>{caption}</caption>
-          <thead><tr><th scope="col">#</th><th scope="col">Label</th><th scope="col">Value</th></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.n}><td>{r.n}</td><td>{r.label}</td><td>{r.value}</td></tr>)}</tbody>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Label</th>
+              <th scope="col">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.n}>
+                <td>{r.n}</td>
+                <td>{r.label}</td>
+                <td>{r.value}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       )}
     </div>
@@ -243,16 +302,24 @@ export function ChartDataTable({ series = [], caption = 'Data' }) {
 
 export function KeyboardChainGraph({ nodes = [], edges = [], onSelect }) {
   const [current, setCurrent] = useState(nodes[0]?.id ?? null);
-  const onKey = (e) => {
+  const onKey = e => {
     const key = e.key.toLowerCase();
     if (!['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(key)) return;
     e.preventDefault();
     const next = graphArrowNav({ nodes, edges }, current, key);
-    if (next) { setCurrent(next); onSelect?.(next); }
+    if (next) {
+      setCurrent(next);
+      onSelect?.(next);
+    }
   };
   return (
-    <div className="a11y-graph" role="tree" aria-label="Vulnerability chain graph" onKeyDown={onKey}>
-      {nodes.map((n) => (
+    <div
+      className="a11y-graph"
+      role="tree"
+      aria-label="Vulnerability chain graph"
+      onKeyDown={onKey}
+    >
+      {nodes.map(n => (
         <button
           key={n.id}
           type="button"
@@ -260,7 +327,10 @@ export function KeyboardChainGraph({ nodes = [], edges = [], onSelect }) {
           aria-selected={current === n.id}
           tabIndex={current === n.id ? 0 : -1}
           className={`a11y-node ${current === n.id ? 'active' : ''}`}
-          onClick={() => { setCurrent(n.id); onSelect?.(n.id); }}
+          onClick={() => {
+            setCurrent(n.id);
+            onSelect?.(n.id);
+          }}
         >
           {n.label}
         </button>
@@ -287,8 +357,12 @@ export function PrefersContrastDemo({ children }) {
 export function HighContrastFocusDemo() {
   return (
     <div className="a11y-focus-demo">
-      <button type="button" className="a11y-focusable">Tab here — 3px focus outline</button>
-      <a href="#demo" className="a11y-focusable">Focus-visible link</a>
+      <button type="button" className="a11y-focusable">
+        Tab here — 3px focus outline
+      </button>
+      <a href="#demo" className="a11y-focusable">
+        Focus-visible link
+      </a>
     </div>
   );
 }
@@ -302,7 +376,7 @@ export function ReducedMotionToggle() {
       <input
         type="checkbox"
         checked={reduced}
-        onChange={(e) => {
+        onChange={e => {
           setReduced(e.target.checked);
           document.documentElement.classList.toggle('a11y-reduced-motion', e.target.checked);
         }}
@@ -325,16 +399,24 @@ export function LargeTextNotice() {
 /* 50519 — VisualOrderList: DOM order === visual order, verified at runtime. -- */
 
 export function VisualOrderList({ items = [] }) {
-  const ids = items.map((i) => i.id);
+  const ids = items.map(i => i.id);
   const matches = focusOrderMatchesVisual(ids, [...ids]);
   return (
     <div className="a11y-visual-order">
       <ul>
-        {items.map((i) => (
-          <li key={i.id}><button type="button" className="a11y-focusable">{i.label}</button></li>
+        {items.map(i => (
+          <li key={i.id}>
+            <button type="button" className="a11y-focusable">
+              {i.label}
+            </button>
+          </li>
         ))}
       </ul>
-      <span className="a11y-note" role="img" aria-label={`Focus order matches visual order: ${matches ? 'yes' : 'no'}`}>
+      <span
+        className="a11y-note"
+        role="img"
+        aria-label={`Focus order matches visual order: ${matches ? 'yes' : 'no'}`}
+      >
         {matches ? '✓ DOM order = visual order' : '✗ order mismatch'}
       </span>
     </div>

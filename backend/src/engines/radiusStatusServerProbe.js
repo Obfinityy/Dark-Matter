@@ -13,12 +13,42 @@
 
 /** Known RADIUS server fingerprints keyed by disclosed version strings. */
 const RADIUS_VERSION_FINGERPRINTS = [
-  { pattern: /freeradius/i, vendor: 'FreeRADIUS', severity: 'Low', note: 'FreeRADIUS discloses version in Reply-Message or via Status-Server vendor attributes.' },
-  { pattern: /radiator/i, vendor: 'Radiator RADIUS', severity: 'Low', note: 'Radiator RADIUS discloses version strings in responses.' },
-  { pattern: /steel-?belted/i, vendor: 'Steel-Belted RADIUS', severity: 'Low', note: 'Steel-Belted RADIUS (Juniper) discloses product identity.' },
-  { pattern: /microsoft|nps|ias/i, vendor: 'Microsoft NPS/IAS', severity: 'Low', note: 'Microsoft Network Policy Server / IAS fingerprint via attributes.' },
-  { pattern: /cisco/i, vendor: 'Cisco ISE/ACS', severity: 'Low', note: 'Cisco RADIUS server identity disclosed in response attributes.' },
-  { pattern: /navisradius|interlink/i, vendor: 'NavisRADIUS', severity: 'Low', note: 'NavisRADIUS (Interlink) discloses version.' },
+  {
+    pattern: /freeradius/i,
+    vendor: 'FreeRADIUS',
+    severity: 'Low',
+    note: 'FreeRADIUS discloses version in Reply-Message or via Status-Server vendor attributes.',
+  },
+  {
+    pattern: /radiator/i,
+    vendor: 'Radiator RADIUS',
+    severity: 'Low',
+    note: 'Radiator RADIUS discloses version strings in responses.',
+  },
+  {
+    pattern: /steel-?belted/i,
+    vendor: 'Steel-Belted RADIUS',
+    severity: 'Low',
+    note: 'Steel-Belted RADIUS (Juniper) discloses product identity.',
+  },
+  {
+    pattern: /microsoft|nps|ias/i,
+    vendor: 'Microsoft NPS/IAS',
+    severity: 'Low',
+    note: 'Microsoft Network Policy Server / IAS fingerprint via attributes.',
+  },
+  {
+    pattern: /cisco/i,
+    vendor: 'Cisco ISE/ACS',
+    severity: 'Low',
+    note: 'Cisco RADIUS server identity disclosed in response attributes.',
+  },
+  {
+    pattern: /navisradius|interlink/i,
+    vendor: 'NavisRADIUS',
+    severity: 'Low',
+    note: 'NavisRADIUS (Interlink) discloses version.',
+  },
 ];
 
 /**
@@ -52,16 +82,19 @@ export function analyzeStatusServerResponse({
     };
   }
 
-  const codeMeaning = { 2: 'Access-Accept', 3: 'Access-Reject', 11: 'Access-Challenge' }[code] || `code ${code}`;
-  const textAttributes = attributes.filter((a) =>
-    TEXT_ATTRIBUTE_TYPES.has(typeof a.type === 'number' ? a.type : -1) || typeof a.value === 'string',
+  const codeMeaning =
+    { 2: 'Access-Accept', 3: 'Access-Reject', 11: 'Access-Challenge' }[code] || `code ${code}`;
+  const textAttributes = attributes.filter(
+    a =>
+      TEXT_ATTRIBUTE_TYPES.has(typeof a.type === 'number' ? a.type : -1) ||
+      typeof a.value === 'string'
   );
 
   const disclosedVersions = [];
   for (const attr of textAttributes) {
     const value = String(attr.value || '');
     for (const fp of RADIUS_VERSION_FINGERPRINTS) {
-      if (fp.pattern.test(value) && !disclosedVersions.some((d) => d.vendor === fp.vendor)) {
+      if (fp.pattern.test(value) && !disclosedVersions.some(d => d.vendor === fp.vendor)) {
         disclosedVersions.push({
           vendor: fp.vendor,
           severity: fp.severity,
@@ -94,7 +127,8 @@ export function assessVersionStaleness(disclosure = '') {
   const match = disclosure.match(/freeradius[\s-]*(\d+)\.(\d+)\.(\d+)/i);
   if (match) {
     const [, major, minor, patch] = match.map(Number);
-    const stale = major < 3 || (major === 3 && minor < 2) || (major === 3 && minor === 2 && patch < 6);
+    const stale =
+      major < 3 || (major === 3 && minor < 2) || (major === 3 && minor === 2 && patch < 6);
     return {
       assessed: true,
       stale,
@@ -104,7 +138,11 @@ export function assessVersionStaleness(disclosure = '') {
         : `Disclosed FreeRADIUS ${match[0].split(/[\s-]/).pop()} appears recent.`,
     };
   }
-  return { assessed: false, reason: 'No parseable version number in disclosure.', confidence: 'low' };
+  return {
+    assessed: false,
+    reason: 'No parseable version number in disclosure.',
+    confidence: 'low',
+  };
 }
 
 export const RADIUS_STATUS_SERVER_PROBE = {

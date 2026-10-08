@@ -64,7 +64,7 @@ export function parseOpenIdConfiguration(doc) {
   if (unique.size > 1) {
     notes.push(`IdP spans ${unique.size} distinct hosts — each is a separate trust boundary`);
   }
-  if (hosts.some((h) => !h.url.startsWith('https://'))) {
+  if (hosts.some(h => !h.url.startsWith('https://'))) {
     notes.push('Non-HTTPS endpoint present — downgrade/SSRF-adjacent surface worth verifying');
   }
 

@@ -16,7 +16,6 @@ import { loadMemory, appendMessage, getRecentMessages } from './chatMemoryServic
  * Create the brain chat service bound to a ModelRunnerService instance.
  */
 export function createBrainChatService({ modelRunnerService }) {
-
   /**
    * Build the system prompt for a brain based on its role and context.
    */
@@ -24,7 +23,9 @@ export function createBrainChatService({ modelRunnerService }) {
     const base = `You are Infinity AI's ${brainSlot} brain, running locally on the user's machine. You are a helpful, direct AI assistant. Answer in the user's language (match Hindi/Hinglish if they use it). Be concise but complete. No fluff.`;
 
     if (brainSlot === 'hacker') {
-      const huntInfo = context.target ? `You are currently hunting target: ${context.target}. ` : '';
+      const huntInfo = context.target
+        ? `You are currently hunting target: ${context.target}. `
+        : '';
       const findingsInfo = context.findingsCount
         ? `Findings so far: ${context.findingsCount}. `
         : '';
@@ -49,7 +50,9 @@ export function createBrainChatService({ modelRunnerService }) {
   async function queryBrain(brainSlot, messages) {
     const server = modelRunnerService.slotServers?.[brainSlot];
     if (!server) {
-      throw new Error(`BRAIN_NOT_RUNNING: the ${brainSlot} brain is not running. Download and Run it from Models first.`);
+      throw new Error(
+        `BRAIN_NOT_RUNNING: the ${brainSlot} brain is not running. Download and Run it from Models first.`
+      );
     }
 
     const baseUrl = server.baseUrl || `http://127.0.0.1:${server.port}`;
@@ -65,8 +68,8 @@ export function createBrainChatService({ modelRunnerService }) {
           messages,
           temperature: 0.7,
           max_tokens: 2000,
-          stream: false
-        })
+          stream: false,
+        }),
       });
 
       if (!res.ok) {
@@ -100,13 +103,12 @@ export function createBrainChatService({ modelRunnerService }) {
 
     // 3. Build messages: system + recent history + new user message
     const systemPrompt = buildSystemPrompt(brainSlot, mergedContext);
-    const history = getRecentMessages(chatId, 20)
-      .map(m => ({ role: m.role, content: m.content }));
+    const history = getRecentMessages(chatId, 20).map(m => ({ role: m.role, content: m.content }));
 
     const messages = [
       { role: 'system', content: systemPrompt },
       ...history,
-      { role: 'user', content: userMessage }
+      { role: 'user', content: userMessage },
     ];
 
     // 4. Save user message to memory
@@ -137,7 +139,7 @@ export function createBrainChatService({ modelRunnerService }) {
     return {
       hacker: !!servers.hacker,
       vision: !!servers.vision,
-      grounding: !!servers.grounding
+      grounding: !!servers.grounding,
     };
   }
 

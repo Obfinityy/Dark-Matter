@@ -31,7 +31,9 @@ function writeAll(obj) {
 }
 
 export function normalizeGradioUrl(url) {
-  return String(url || '').trim().replace(/\/+$/, '');
+  return String(url || '')
+    .trim()
+    .replace(/\/+$/, '');
 }
 
 /** Saved Kaggle link for a slot, or null. */
@@ -53,9 +55,14 @@ export function getAllKaggleSlots() {
 export function connectKaggleSlot(slot, url, name) {
   if (!VALID_SLOTS.includes(slot)) throw new Error(`Unknown brain slot "${slot}"`);
   const clean = normalizeGradioUrl(url);
-  if (!/^https?:\/\/.+/i.test(clean)) throw new Error('That does not look like a valid http(s) URL.');
+  if (!/^https?:\/\/.+/i.test(clean))
+    throw new Error('That does not look like a valid http(s) URL.');
   const all = readAll();
-  all[slot] = { url: clean, name: String(name || '').trim() || null, connectedAt: new Date().toISOString() };
+  all[slot] = {
+    url: clean,
+    name: String(name || '').trim() || null,
+    connectedAt: new Date().toISOString(),
+  };
   writeAll(all);
   return all[slot];
 }
@@ -73,7 +80,8 @@ export function disconnectKaggleSlot(slot) {
  */
 export async function testGradioLink(url, { timeoutMs = 25000 } = {}) {
   const clean = normalizeGradioUrl(url);
-  if (!/^https?:\/\/.+/i.test(clean)) throw new Error('That does not look like a valid http(s) URL.');
+  if (!/^https?:\/\/.+/i.test(clean))
+    throw new Error('That does not look like a valid http(s) URL.');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -85,7 +93,8 @@ export async function testGradioLink(url, { timeoutMs = 25000 } = {}) {
     if (!res.ok) throw new Error(`Gradio replied HTTP ${res.status}`);
     return 'reachable';
   } catch (err) {
-    if (err?.name === 'AbortError') throw new Error('Timed out — is the Kaggle notebook still running?');
+    if (err?.name === 'AbortError')
+      throw new Error('Timed out — is the Kaggle notebook still running?');
     throw new Error(err.message || 'Could not reach that link from your browser.');
   } finally {
     clearTimeout(timer);
@@ -116,11 +125,12 @@ export async function chatWithGradio(url, prompt, { timeoutMs = 120000 } = {}) {
       if (!res.ok) throw new Error(`Gradio HTTP ${res.status}`);
       const data = await res.json();
       const reply = data?.data?.[0];
-      if (typeof reply !== 'string' || !reply.trim()) throw new Error('Empty reply from the Kaggle brain.');
+      if (typeof reply !== 'string' || !reply.trim())
+        throw new Error('Empty reply from the Kaggle brain.');
       return reply;
     } catch (err) {
       lastErr = err;
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+      if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
     }
   }
   throw new Error(`Kaggle brain failed after 3 attempts: ${lastErr?.message || lastErr}`);
@@ -154,7 +164,7 @@ async function callPredict(baseUrl, prompt, timeoutMs) {
       }
     }
     if (text.includes('event: error')) throw new Error(`Gradio error: ${text.slice(0, 200)}`);
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 2000));
   }
   throw new Error('Timed out waiting for the Kaggle brain.');
 }

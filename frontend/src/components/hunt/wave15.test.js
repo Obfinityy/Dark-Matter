@@ -69,7 +69,7 @@ test('wave-15 registry covers all 40 ideas (50561–50600)', () => {
   assert.equal(WAVE15_IDEAS.length, 40);
   assert.equal(WAVE15_IDEAS[0].id, 50561);
   assert.equal(WAVE15_IDEAS[39].id, 50600);
-  assert.ok(WAVE15_IDEAS.every((i) => i.component && i.module === 'MicroMotion.jsx'));
+  assert.ok(WAVE15_IDEAS.every(i => i.component && i.module === 'MicroMotion.jsx'));
 });
 
 test('easing functions are bounded and monotonic-ish', () => {
@@ -126,7 +126,13 @@ test('thinking-dot wave staggers evenly (50573)', () => {
 });
 
 test('donut segments partition the circle and sweep in order (50577)', () => {
-  const { segments, circumference, total } = donutSegments({ critical: 2, high: 5, medium: 9, low: 14, info: 3 });
+  const { segments, circumference, total } = donutSegments({
+    critical: 2,
+    high: 5,
+    medium: 9,
+    low: 14,
+    info: 3,
+  });
   assert.equal(total, 33);
   assert.equal(segments.length, 5);
   const fracSum = segments.reduce((a, s) => a + s.frac, 0);
@@ -156,7 +162,7 @@ test('shake keyframes honor the 4px / 300ms spec (50597)', () => {
   assert.equal(kf.length, 6);
   assert.equal(kf[0].transform, 'translateX(0)');
   assert.equal(kf[kf.length - 1].transform, 'translateX(0)');
-  assert.ok(kf.some((k) => k.transform.includes(`-${SHAKE_DISTANCE_PX}px`)));
+  assert.ok(kf.some(k => k.transform.includes(`-${SHAKE_DISTANCE_PX}px`)));
   assert.equal(SHAKE_DISTANCE_PX, 4);
   assert.equal(SHAKE_DURATION_MS, 300);
 });
@@ -210,14 +216,32 @@ test('shouldReduceMotion is false in Node (safe default)', () => {
 
 test('CSS contains every mm-* keyframe and the reduced-motion guard', () => {
   const keyframes = [
-    'mm-shimmer-sweep', 'mm-toast-in', 'mm-toast-out', 'mm-skeleton-sweep',
-    'mm-terminal-line', 'mm-dot-pop', 'mm-pill-in', 'mm-pill-out',
-    'mm-dot-wave', 'mm-backdrop-in', 'mm-panel-in', 'mm-donut-sweep',
-    'mm-drop-pulse', 'mm-ring-pulse', 'mm-ribbon-in', 'mm-stagger-in',
-    'mm-node-settle', 'mm-spin', 'mm-float', 'mm-route-in',
-    'mm-badge-pop', 'mm-shake', 'mm-save-hold',
+    'mm-shimmer-sweep',
+    'mm-toast-in',
+    'mm-toast-out',
+    'mm-skeleton-sweep',
+    'mm-terminal-line',
+    'mm-dot-pop',
+    'mm-pill-in',
+    'mm-pill-out',
+    'mm-dot-wave',
+    'mm-backdrop-in',
+    'mm-panel-in',
+    'mm-donut-sweep',
+    'mm-drop-pulse',
+    'mm-ring-pulse',
+    'mm-ribbon-in',
+    'mm-stagger-in',
+    'mm-node-settle',
+    'mm-spin',
+    'mm-float',
+    'mm-route-in',
+    'mm-badge-pop',
+    'mm-shake',
+    'mm-save-hold',
   ];
-  for (const kf of keyframes) assert.ok(css.includes(`@keyframes ${kf}`), `missing @keyframes ${kf}`);
+  for (const kf of keyframes)
+    assert.ok(css.includes(`@keyframes ${kf}`), `missing @keyframes ${kf}`);
   assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
   assert.ok(css.includes('.mm-reduced-motion'));
   // spec values baked into CSS

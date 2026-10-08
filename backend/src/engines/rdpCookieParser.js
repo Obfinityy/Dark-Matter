@@ -18,8 +18,14 @@ export const COOKIE_PREFIXES = {
 
 /** Patterns that indicate an internal hostname or farm leaked in the token. */
 export const INTERNAL_HOST_PATTERNS = [
-  { regex: /([a-z0-9][a-z0-9-]*\.(?:local|lan|intranet|internal|corp|domain|dc\d*))(?:\b|$)/i, class: 'internal-fqdn' },
-  { regex: /\b([A-Z][A-Z0-9-]{2,}|[a-z][a-z0-9-]{2,})-?(?:RDS|TS|SRV|SERVER|DC|APP|WEB)\d*\b/, class: 'hostname-convention' },
+  {
+    regex: /([a-z0-9][a-z0-9-]*\.(?:local|lan|intranet|internal|corp|domain|dc\d*))(?:\b|$)/i,
+    class: 'internal-fqdn',
+  },
+  {
+    regex: /\b([A-Z][A-Z0-9-]{2,}|[a-z][a-z0-9-]{2,})-?(?:RDS|TS|SRV|SERVER|DC|APP|WEB)\d*\b/,
+    class: 'hostname-convention',
+  },
   { regex: /\b\d{1,3}(?:\.\d{1,3}){3}\b/, class: 'ip-literal' },
   { regex: /farm|collection|broker|gateway|session/i, class: 'farm-identifier' },
 ];
@@ -34,14 +40,20 @@ export function parseRdpCookie(cookieValue) {
   const raw = String(cookieValue || '').trim();
   if (!raw) return { valid: false, reason: 'empty cookie value' };
 
-  const parts = raw.split(';').map(p => p.trim()).filter(Boolean);
+  const parts = raw
+    .split(';')
+    .map(p => p.trim())
+    .filter(Boolean);
   const fields = [];
   for (const part of parts) {
     const eq = part.indexOf('=');
     if (eq === -1) {
       fields.push({ key: null, value: part });
     } else {
-      fields.push({ key: part.slice(0, eq).trim().toLowerCase(), value: part.slice(eq + 1).trim() });
+      fields.push({
+        key: part.slice(0, eq).trim().toLowerCase(),
+        value: part.slice(eq + 1).trim(),
+      });
     }
   }
 
@@ -84,7 +96,12 @@ export function extractLeakedIdentifiers(tokens = []) {
     }
     // Heuristic: GUID-like broker tokens identify the session broker family.
     if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(t)) {
-      findings.push({ token: t.slice(0, 120), leaked: 'GUID session identifier', class: 'session-guid', severity: 'Low' });
+      findings.push({
+        token: t.slice(0, 120),
+        leaked: 'GUID session identifier',
+        class: 'session-guid',
+        severity: 'Low',
+      });
     }
   }
   return findings;

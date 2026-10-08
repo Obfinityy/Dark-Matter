@@ -25,20 +25,28 @@ const _wordlistCache = new Map();
 export async function loadWordlist(wordlistPath = DEFAULT_WORDLIST_PATH) {
   if (_wordlistCache.has(wordlistPath)) return _wordlistCache.get(wordlistPath);
   const text = await fs.readFile(wordlistPath, 'utf8');
-  const labels = text.split('\n').map((l) => l.trim().toLowerCase())
-    .filter((l) => l && !l.startsWith('#') && /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(l));
+  const labels = text
+    .split('\n')
+    .map(l => l.trim().toLowerCase())
+    .filter(l => l && !l.startsWith('#') && /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(l));
   _wordlistCache.set(wordlistPath, labels);
   return labels;
 }
 
 /** Build candidate FQDNs for a hostname. Respects `max` to bound cost. */
-export async function buildBruteCandidates(hostname, { wordlistPath = DEFAULT_WORDLIST_PATH, max = 500 } = {}) {
-  const host = String(hostname || '').trim().toLowerCase().replace(/\.$/, '');
+export async function buildBruteCandidates(
+  hostname,
+  { wordlistPath = DEFAULT_WORDLIST_PATH, max = 500 } = {}
+) {
+  const host = String(hostname || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!host || host.includes(' ') || host.includes('/')) {
     throw new Error(`Invalid hostname for DNS brute-force: ${hostname}`);
   }
   const labels = await loadWordlist(wordlistPath);
-  return labels.slice(0, max).map((label) => `${label}.${host}`);
+  return labels.slice(0, max).map(label => `${label}.${host}`);
 }
 
 /** Parse dnsx JSONL output into normalized records. */
@@ -58,17 +66,19 @@ export function parseDnsxJsonLines(raw) {
         cname: obj.cname || [],
         mx: obj.mx || [],
         ns: obj.ns || [],
-        statusCode: obj.status_code ?? null
+        statusCode: obj.status_code ?? null,
       });
-    } catch { /* skip malformed lines */ }
+    } catch {
+      /* skip malformed lines */
+    }
   }
   return { records, count: records.length };
 }
 
 /** Check whether the dnsx binary is on PATH. */
 export function dnsxAvailable() {
-  return new Promise((resolve) => {
-    execFile('dnsx', ['-version'], { timeout: 5000 }, (err) => resolve(!err));
+  return new Promise(resolve => {
+    execFile('dnsx', ['-version'], { timeout: 5000 }, err => resolve(!err));
   });
 }
 
@@ -100,19 +110,37 @@ export async function resolveWithNodeDns(candidates, { concurrency = 20, timeout
       try {
         const [a, cname] = await Promise.all([
           dns.resolve4(host, { ttl: false }).catch(() => []),
-          dns.resolveCname(host).catch(() => [])
+          dns.resolveCname(host).catch(() => []),
         ]);
         if ((a && a.length) || (cname && cname.length)) {
-          records.push({ host, a: a || [], aaaa: [], cname: cname || [], mx: [], ns: [], statusCode: null, via: 'node-dns' });
+          records.push({
+            host,
+            a: a || [],
+            aaaa: [],
+            cname: cname || [],
+            mx: [],
+            ns: [],
+            statusCode: null,
+            via: 'node-dns',
+          });
         }
-      } catch { /* NXDOMAIN etc. — not a hit */ }
+      } catch {
+        /* NXDOMAIN etc. — not a hit */
+      }
     }
   });
   // Give each worker its own overall deadline.
   await Promise.race([
     Promise.all(workers),
-    new Promise((_, rej) => setTimeout(() => rej(new Error('node DNS brute-force timed out')), timeoutMs * Math.ceil(candidates.length / concurrency) + timeoutMs))
-  ]).catch((e) => { if (!/timed out/.test(e.message)) throw e; });
+    new Promise((_, rej) =>
+      setTimeout(
+        () => rej(new Error('node DNS brute-force timed out')),
+        timeoutMs * Math.ceil(candidates.length / concurrency) + timeoutMs
+      )
+    ),
+  ]).catch(e => {
+    if (!/timed out/.test(e.message)) throw e;
+  });
   return { records, count: records.length, via: 'node-dns' };
 }
 
@@ -121,16 +149,14 @@ export async function resolveWithNodeDns(candidates, { concurrency = 20, timeout
  * without needing the real binary:
  *   { dnsx: true } → dnsx path; { dnsx: false } → node-dns path.
  */
-export async function runDnsBrute(hostname, {
-  wordlistPath = DEFAULT_WORDLIST_PATH,
-  max = 500,
-  availability = null,
-  onProgress = null
-} = {}) {
+export async function runDnsBrute(
+  hostname,
+  { wordlistPath = DEFAULT_WORDLIST_PATH, max = 500, availability = null, onProgress = null } = {}
+) {
   const candidates = await buildBruteCandidates(hostname, { wordlistPath, max });
   if (onProgress) onProgress({ stage: 'candidates_built', count: candidates.length });
 
-  const hasDnsx = availability?.dnsx ?? await dnsxAvailable();
+  const hasDnsx = availability?.dnsx ?? (await dnsxAvailable());
   if (hasDnsx) {
     try {
       const parsed = await resolveWithDnsx(candidates);
@@ -146,8 +172,12 @@ export async function runDnsBrute(hostname, {
     return { ...parsed, candidates: candidates.length, method: 'node-dns', degraded: !hasDnsx };
   } catch (error) {
     return {
-      records: [], count: 0, candidates: candidates.length,
-      method: 'none', degraded: 'no_dns', error: error.message
+      records: [],
+      count: 0,
+      candidates: candidates.length,
+      method: 'none',
+      degraded: 'no_dns',
+      error: error.message,
     };
   }
 }

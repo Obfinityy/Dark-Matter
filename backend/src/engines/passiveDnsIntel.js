@@ -22,9 +22,27 @@ function toMs(ts) {
 }
 
 const STAGING_HINTS = [
-  /staging/i, /stage/i, /dev/i, /test/i, /qa/i, /uat/i, /sandbox/i,
-  /demo/i, /beta/i, /preview/i, /internal/i, /temp/i, /tmp/i,
-  /poc/i, /canary/i, /edge/i, /new-/i, /-new/i, /v2/i, /blue/i, /green/i,
+  /staging/i,
+  /stage/i,
+  /dev/i,
+  /test/i,
+  /qa/i,
+  /uat/i,
+  /sandbox/i,
+  /demo/i,
+  /beta/i,
+  /preview/i,
+  /internal/i,
+  /temp/i,
+  /tmp/i,
+  /poc/i,
+  /canary/i,
+  /edge/i,
+  /new-/i,
+  /-new/i,
+  /v2/i,
+  /blue/i,
+  /green/i,
 ];
 
 /**
@@ -62,7 +80,13 @@ export function correlateFirstSeen(records, opts = {}) {
     const last = toMs(r.lastSeen ?? r.firstSeen);
     let entry = byName.get(r.name);
     if (!entry) {
-      entry = { name: r.name, firstSeen: first, lastSeen: last, ips: new Set(), sources: new Set() };
+      entry = {
+        name: r.name,
+        firstSeen: first,
+        lastSeen: last,
+        ips: new Set(),
+        sources: new Set(),
+      };
       byName.set(r.name, entry);
     }
     // Earliest sighting wins across feeds — this is the correlation point.
@@ -87,7 +111,13 @@ export function correlateFirstSeen(records, opts = {}) {
     .map(t => {
       const firstMs = Date.parse(t.firstSeen);
       const score = freshness(firstMs, nowMs) * (t.stagingSuspect ? 1.25 : 1.0);
-      return { name: t.name, firstSeen: t.firstSeen, ageDays: Math.round((nowMs - firstMs) / 86400000), freshnessScore: Math.round(Math.min(1, score) * 100) / 100, stagingSuspect: t.stagingSuspect };
+      return {
+        name: t.name,
+        firstSeen: t.firstSeen,
+        ageDays: Math.round((nowMs - firstMs) / 86400000),
+        freshnessScore: Math.round(Math.min(1, score) * 100) / 100,
+        stagingSuspect: t.stagingSuspect,
+      };
     })
     .filter(h => h.freshnessScore >= 0.5)
     .sort((a, b) => b.freshnessScore - a.freshnessScore);
@@ -119,7 +149,10 @@ export function pivotCoOccurrence(records, targetNames, opts = {}) {
     if (!r || !r.ip || !r.name) continue;
     const name = r.name.toLowerCase();
     let set = ipNames.get(String(r.ip));
-    if (!set) { set = new Set(); ipNames.set(String(r.ip), set); }
+    if (!set) {
+      set = new Set();
+      ipNames.set(String(r.ip), set);
+    }
     set.add(name);
   }
 
@@ -131,7 +164,12 @@ export function pivotCoOccurrence(records, targetNames, opts = {}) {
         .filter(n => !targetSet.has(n))
         .slice(0, maxNamesPerIp)
         .sort();
-      pivotIps.push({ ip, overlap: overlapNames.length, overlapNames: overlapNames.sort(), expandedNames: expanded });
+      pivotIps.push({
+        ip,
+        overlap: overlapNames.length,
+        overlapNames: overlapNames.sort(),
+        expandedNames: expanded,
+      });
     }
   }
   pivotIps.sort((a, b) => b.overlap - a.overlap || a.ip.localeCompare(b.ip));
@@ -159,7 +197,10 @@ export function trackTtlChanges(observations, opts = {}) {
   for (const o of observations || []) {
     if (!o || !o.name) continue;
     let arr = byName.get(o.name);
-    if (!arr) { arr = []; byName.set(o.name, arr); }
+    if (!arr) {
+      arr = [];
+      byName.set(o.name, arr);
+    }
     arr.push({ ttl: Number(o.ttl), ip: o.ip ? String(o.ip) : null, at: toMs(o.seenAt) });
   }
 
@@ -188,7 +229,9 @@ export function trackTtlChanges(observations, opts = {}) {
         reasons.push(`TTL dropped ${c.from}s → ${c.to}s (classic pre-migration cutover)`);
       } else if (c.ipChanged) {
         suspicion += 2;
-        reasons.push(`TTL changed ${c.from}s → ${c.to}s alongside IP change (infrastructure moved)`);
+        reasons.push(
+          `TTL changed ${c.from}s → ${c.to}s alongside IP change (infrastructure moved)`
+        );
       } else if (c.to !== c.from) {
         suspicion += 1;
         reasons.push(`TTL changed ${c.from}s → ${c.to}s`);

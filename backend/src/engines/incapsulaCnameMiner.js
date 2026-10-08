@@ -55,9 +55,16 @@ export function parseIncapsulaHeaders(headers) {
   if (!headers) return out;
 
   const entries = Array.isArray(headers)
-    ? headers.map((line) => {
+    ? headers.map(line => {
         const idx = String(line).indexOf(':');
-        return idx === -1 ? ['', ''] : [String(line).slice(0, idx).trim(), String(line).slice(idx + 1).trim()];
+        return idx === -1
+          ? ['', '']
+          : [
+              String(line).slice(0, idx).trim(),
+              String(line)
+                .slice(idx + 1)
+                .trim(),
+            ];
       })
     : Object.entries(headers);
 
@@ -120,7 +127,7 @@ export function detectIncapsula(hostname, cnameChain = [], headers = {}) {
   const hasCname = edgeHosts.length > 0;
   const hasHeader = headerInfo.viaIncapsula;
   const detected = hasCname || hasHeader;
-  const confidence = (hasCname && hasHeader) ? 'high' : detected ? 'medium' : 'low';
+  const confidence = hasCname && hasHeader ? 'high' : detected ? 'medium' : 'low';
 
   return {
     hostname: host,

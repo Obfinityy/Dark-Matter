@@ -14,31 +14,95 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  WAVE43_CONF_IDEAS, WAVE43_CONF_START, WAVE43_CONF_END,
+  WAVE43_CONF_IDEAS,
+  WAVE43_CONF_START,
+  WAVE43_CONF_END,
   clampScore,
-  flagLowConfidence, sortByConfidence, filterByConfidence, confidenceHistory,
-  uncertaintyNote, crossValidationBadge, manualVerificationPrompt, matrixPosition,
-  prioritizationScore, applyDecay, boostEvents, peerAgreement, calibrationView,
-  thresholdAlert, notificationPayload, snapshotConfidenceSection,
-  confidenceColor, confidenceTooltip, appendAuditLog, autoTriage,
+  flagLowConfidence,
+  sortByConfidence,
+  filterByConfidence,
+  confidenceHistory,
+  uncertaintyNote,
+  crossValidationBadge,
+  manualVerificationPrompt,
+  matrixPosition,
+  prioritizationScore,
+  applyDecay,
+  boostEvents,
+  peerAgreement,
+  calibrationView,
+  thresholdAlert,
+  notificationPayload,
+  snapshotConfidenceSection,
+  confidenceColor,
+  confidenceTooltip,
+  appendAuditLog,
+  autoTriage,
 } from './confidenceCore.js';
 
 import {
-  WAVE43_GOV_IDEAS, WAVE43_GOV_START, WAVE43_GOV_END,
-  disputeScore, confidenceBenchmarks, exportWithConfidence,
-  CONFIDENCE_API_ROUTES, confidencePublicDTO, chatAnswerWithConfidence,
-  multiModelAgreement, needsWorkTray, milestoneBadges, evidenceRequests,
-  evidenceTypeBreakdown, sharingControl, trendAlerts, weightedReportingOrder,
-  explainConfidence, calibrationTraining, mobileConfidenceCard,
-  snapshotConfidenceDiffs, slaForConfidence, groupFindings, overrideScore,
+  WAVE43_GOV_IDEAS,
+  WAVE43_GOV_START,
+  WAVE43_GOV_END,
+  disputeScore,
+  confidenceBenchmarks,
+  exportWithConfidence,
+  CONFIDENCE_API_ROUTES,
+  confidencePublicDTO,
+  chatAnswerWithConfidence,
+  multiModelAgreement,
+  needsWorkTray,
+  milestoneBadges,
+  evidenceRequests,
+  evidenceTypeBreakdown,
+  sharingControl,
+  trendAlerts,
+  weightedReportingOrder,
+  explainConfidence,
+  calibrationTraining,
+  mobileConfidenceCard,
+  snapshotConfidenceDiffs,
+  slaForConfidence,
+  groupFindings,
+  overrideScore,
 } from './confidenceGovernCore.js';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 
 const F = [
-  { id: 'T-1', title: 'SQLi', severity: 'critical', confidence: 88, techniques: ['sqlmap', 'manual'], evidence: [{ type: 'response' }, { type: 'replay' }], history: [{ at: 'a', score: 70, trigger: 'detect' }, { at: 'b', score: 88, trigger: 'replay' }] },
-  { id: 'T-2', title: 'XSS', severity: 'high', confidence: 55, techniques: ['scanner'], evidence: [{ type: 'response' }], history: [{ at: 'a', score: 55, trigger: 'detect' }] },
-  { id: 'T-3', title: 'Header', severity: 'low', confidence: 30, techniques: ['headers'], evidence: [], history: [{ at: 'a', score: 45, trigger: 'detect' }, { at: 'b', score: 30, trigger: 'decay −15: contradicted' }] },
+  {
+    id: 'T-1',
+    title: 'SQLi',
+    severity: 'critical',
+    confidence: 88,
+    techniques: ['sqlmap', 'manual'],
+    evidence: [{ type: 'response' }, { type: 'replay' }],
+    history: [
+      { at: 'a', score: 70, trigger: 'detect' },
+      { at: 'b', score: 88, trigger: 'replay' },
+    ],
+  },
+  {
+    id: 'T-2',
+    title: 'XSS',
+    severity: 'high',
+    confidence: 55,
+    techniques: ['scanner'],
+    evidence: [{ type: 'response' }],
+    history: [{ at: 'a', score: 55, trigger: 'detect' }],
+  },
+  {
+    id: 'T-3',
+    title: 'Header',
+    severity: 'low',
+    confidence: 30,
+    techniques: ['headers'],
+    evidence: [],
+    history: [
+      { at: 'a', score: 45, trigger: 'detect' },
+      { at: 'b', score: 30, trigger: 'decay −15: contradicted' },
+    ],
+  },
 ];
 
 /* --- registry completeness ----------------------------------------------------- */
@@ -53,7 +117,10 @@ test('wave-43 combined registry: 40/40 ideas, ids 51681–51720 contiguous, zero
   const all = [...WAVE43_CONF_IDEAS, ...WAVE43_GOV_IDEAS];
   const ids = all.map(r => r[0]);
   assert.equal(ids.length, 40);
-  assert.deepEqual(ids, Array.from({ length: 40 }, (_, i) => 51681 + i));
+  assert.deepEqual(
+    ids,
+    Array.from({ length: 40 }, (_, i) => 51681 + i)
+  );
   for (const [id, title, desc] of all) {
     assert.ok(title && title.length > 3, `idea ${id} has a title`);
     assert.ok(desc && desc.length > 10, `idea ${id} has a description`);
@@ -78,9 +145,18 @@ test('flagLowConfidence marks below-threshold findings', () => {
 
 test('sortByConfidence + filterByConfidence', () => {
   const s = sortByConfidence(F);
-  assert.deepEqual(s.map(f => f.id), ['T-1', 'T-2', 'T-3']);
-  assert.deepEqual(sortByConfidence(F, { dir: 'asc' }).map(f => f.id), ['T-3', 'T-2', 'T-1']);
-  assert.deepEqual(filterByConfidence(F, 60).map(f => f.id), ['T-1']);
+  assert.deepEqual(
+    s.map(f => f.id),
+    ['T-1', 'T-2', 'T-3']
+  );
+  assert.deepEqual(
+    sortByConfidence(F, { dir: 'asc' }).map(f => f.id),
+    ['T-3', 'T-2', 'T-1']
+  );
+  assert.deepEqual(
+    filterByConfidence(F, 60).map(f => f.id),
+    ['T-1']
+  );
 });
 
 test('confidenceHistory always ends at current score', () => {
@@ -93,7 +169,11 @@ test('confidenceHistory always ends at current score', () => {
 test('uncertaintyNote cites real causes', () => {
   const n = uncertaintyNote(F[2]);
   assert.ok(n.includes('no evidence'), 'missing evidence is named');
-  const ok = uncertaintyNote({ confidence: 95, techniques: ['a', 'b'], evidence: [{ type: 'x' }, { type: 'y' }] });
+  const ok = uncertaintyNote({
+    confidence: 95,
+    techniques: ['a', 'b'],
+    evidence: [{ type: 'x' }, { type: 'y' }],
+  });
   assert.ok(ok.startsWith('Nothing flagged'), 'solid finding gets a clean note');
 });
 
@@ -109,7 +189,12 @@ test('manualVerificationPrompt skips solid findings, guides shaky ones', () => {
 });
 
 test('matrixPosition buckets correctly', () => {
-  assert.deepEqual(matrixPosition(F[0]), { row: 0, col: 0, rowLabel: 'critical', colLabel: 'Certain (80+)' });
+  assert.deepEqual(matrixPosition(F[0]), {
+    row: 0,
+    col: 0,
+    rowLabel: 'critical',
+    colLabel: 'Certain (80+)',
+  });
   assert.equal(matrixPosition(F[2]).colLabel, 'Shaky (<40)');
 });
 
@@ -121,7 +206,10 @@ test('prioritizationScore blends severity and confidence', () => {
 test('applyDecay is deterministic and audited', () => {
   const d = applyDecay(F[1], { contradictedEvidence: 2, reason: 'artifact' });
   assert.equal(d.confidence, 55 - 24);
-  assert.ok(d.history[d.history.length - 1].trigger.includes('decay'), 'decay is in the audit trail');
+  assert.ok(
+    d.history[d.history.length - 1].trigger.includes('decay'),
+    'decay is in the audit trail'
+  );
   // original untouched (immutable)
   assert.equal(F[1].confidence, 55);
 });
@@ -140,7 +228,8 @@ test('peerAgreement handles missing data', () => {
 
 test('calibrationView buckets predicted vs actual', () => {
   const rows = calibrationView([
-    { predicted: 90, outcome: true }, { predicted: 90, outcome: false },
+    { predicted: 90, outcome: true },
+    { predicted: 90, outcome: false },
     { predicted: 50, outcome: true },
   ]);
   const top = rows.find(r => r.label === '80–100');
@@ -185,7 +274,10 @@ test('appendAuditLog is immutable and appends', () => {
 test('autoTriage applies rules', () => {
   assert.equal(autoTriage(F[0], { escalateAt: 80 }).action, 'escalate');
   assert.equal(autoTriage(F[1], { escalateAt: 80, watchAt: 60 }).action, 'hold');
-  assert.equal(autoTriage({ ...F[1], confidence: 65 }, { escalateAt: 80, watchAt: 60 }).action, 'watch');
+  assert.equal(
+    autoTriage({ ...F[1], confidence: 65 }, { escalateAt: 80, watchAt: 60 }).action,
+    'watch'
+  );
 });
 
 /* --- confidenceGovernCore spot checks (51701–51720) ----------------------------- */
@@ -194,11 +286,17 @@ test('disputeScore blends agent 60 / analyst 40, note required', () => {
   const d = disputeScore(F[1], { analystScore: 35, analystNote: 'looks like an error page' });
   assert.equal(d.confidence, Math.round(55 * 0.6 + 35 * 0.4));
   assert.equal(d.disputed, true);
-  assert.throws(() => disputeScore(F[1], { analystScore: 35, analystNote: '  ' }), /requires an analyst note/);
+  assert.throws(
+    () => disputeScore(F[1], { analystScore: 35, analystNote: '  ' }),
+    /requires an analyst note/
+  );
 });
 
 test('confidenceBenchmarks places scores in quartiles', () => {
-  const b = confidenceBenchmarks({ confidence: 88, techniques: ['sqlmap'] }, { sqlmap: { p25: 40, median: 55, p75: 71, n: 100 } });
+  const b = confidenceBenchmarks(
+    { confidence: 88, techniques: ['sqlmap'] },
+    { sqlmap: { p25: 40, median: 55, p75: 71, n: 100 } }
+  );
   assert.equal(b.percentile, 'top quartile');
   assert.equal(confidenceBenchmarks({ confidence: 50 }, {}).percentile, null);
 });
@@ -216,7 +314,19 @@ test('exportWithConfidence embeds scores in json/csv/markdown', () => {
 
 test('confidencePublicDTO whitelists fields', () => {
   const d = confidencePublicDTO(F[0]);
-  assert.deepEqual(Object.keys(d).sort(), ['color', 'confidence', 'crossValidated', 'id', 'severity', 'techniques', 'title', 'updatedAt'].sort());
+  assert.deepEqual(
+    Object.keys(d).sort(),
+    [
+      'color',
+      'confidence',
+      'crossValidated',
+      'id',
+      'severity',
+      'techniques',
+      'title',
+      'updatedAt',
+    ].sort()
+  );
   assert.ok(!('evidence' in d) && !('history' in d), 'internals stay server-side');
   assert.equal(CONFIDENCE_API_ROUTES.length, 5);
 });
@@ -238,7 +348,10 @@ test('needsWorkTray splits on the floor', () => {
 
 test('milestoneBadges earned and next computed', () => {
   const m = milestoneBadges(F[0]);
-  assert.deepEqual(m.badges.map(b => b.id), ['likely', 'validated']);
+  assert.deepEqual(
+    m.badges.map(b => b.id),
+    ['likely', 'validated']
+  );
   assert.equal(m.next.label, 'Confirmed');
   assert.equal(milestoneBadges({ confidence: 20 }).badges.length, 0);
 });
@@ -251,7 +364,10 @@ test('evidenceRequests target gaps only', () => {
 
 test('evidenceTypeBreakdown shares sum to 100', () => {
   const b = evidenceTypeBreakdown(F[0]);
-  assert.equal(b.reduce((s, x) => s + x.share, 0), 100);
+  assert.equal(
+    b.reduce((s, x) => s + x.share, 0),
+    100
+  );
   assert.deepEqual(evidenceTypeBreakdown({ evidence: [] }), []);
 });
 
@@ -276,7 +392,10 @@ test('weightedReportingOrder sorts by severity×confidence', () => {
 
 test('explainConfidence answers "why only X?" with specifics', () => {
   const e = explainConfidence(F[1]);
-  assert.ok(e.points.some(p => p.includes('single technique')), 'single-technique limitation named');
+  assert.ok(
+    e.points.some(p => p.includes('single technique')),
+    'single-technique limitation named'
+  );
   assert.ok(e.summary.includes('55/100'));
 });
 
@@ -299,8 +418,18 @@ test('mobileConfidenceCard is compact and trend-aware', () => {
 
 test('snapshotConfidenceDiffs reports rose/fell/added/removed', () => {
   const d = snapshotConfidenceDiffs(
-    { findings: [{ id: 'a', confidence: 70 }, { id: 'b', confidence: 60 }] },
-    { findings: [{ id: 'a', confidence: 90 }, { id: 'c', confidence: 40 }] },
+    {
+      findings: [
+        { id: 'a', confidence: 70 },
+        { id: 'b', confidence: 60 },
+      ],
+    },
+    {
+      findings: [
+        { id: 'a', confidence: 90 },
+        { id: 'c', confidence: 40 },
+      ],
+    }
   );
   assert.ok(d.some(x => x.id === 'a' && x.change === 'rose' && x.delta === 20));
   assert.ok(d.some(x => x.id === 'b' && x.change === 'removed'));
@@ -340,7 +469,13 @@ test('Wave43.css: zero keyframes, no animation/transition, scoped classes only',
 /* --- no-debris audit ------------------------------------------------------------------- */
 
 test('wave-43 sources carry no unfinished-work or fake-content markers', () => {
-  const files = ['confidenceCore.js', 'confidenceGovernCore.js', 'ConfidenceSuite.jsx', 'ConfidenceGovern.jsx', 'Wave43.css'];
+  const files = [
+    'confidenceCore.js',
+    'confidenceGovernCore.js',
+    'ConfidenceSuite.jsx',
+    'ConfidenceGovern.jsx',
+    'Wave43.css',
+  ];
   for (const f of files) {
     const src = readFileSync(join(DIR, f), 'utf8');
     assert.ok(!/TODO|FIXME|XXX|HACK/i.test(src), 'no todo markers in ' + f);
@@ -355,12 +490,21 @@ test('wave-43 sources carry no unfinished-work or fake-content markers', () => {
 
 test('ConfidenceSuite.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'ConfidenceSuite.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('ConfidenceSuiteGallery'), 'esbuild parsed the suite gallery export');
 });
 
 test('ConfidenceGovern.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'ConfidenceGovern.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
-  assert.ok(out.includes('ConfidenceGovernGallery'), 'esbuild parsed the governance gallery export');
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+  assert.ok(
+    out.includes('ConfidenceGovernGallery'),
+    'esbuild parsed the governance gallery export'
+  );
 });

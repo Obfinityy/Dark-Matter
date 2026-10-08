@@ -63,7 +63,10 @@ export function scoreDocsUrl(loc = '') {
   let score = 0;
   const reasons = [];
   for (const [re, pts, label] of SECTION_SCORES) {
-    if (re.test(loc)) { score += pts; reasons.push(label); }
+    if (re.test(loc)) {
+      score += pts;
+      reasons.push(label);
+    }
   }
   if (/\/blog\/|\/news\/|\/careers\/|\/press\//i.test(loc)) score -= 2;
   return { score, reasons };
@@ -103,6 +106,10 @@ export function mineDevPortalSitemap({ url = '', xml = '', minScore = 2 } = {}) 
 }
 
 export const DEV_PORTAL_MINER = {
-  parseSitemap, parseSitemapIndex, parseUrlBlock, scoreDocsUrl, mineDevPortalSitemap,
+  parseSitemap,
+  parseSitemapIndex,
+  parseUrlBlock,
+  scoreDocsUrl,
+  mineDevPortalSitemap,
 };
 export default DEV_PORTAL_MINER;

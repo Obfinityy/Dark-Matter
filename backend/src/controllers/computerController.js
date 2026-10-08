@@ -1,3 +1,9 @@
+/**
+ * computerController — Express route handlers for computer.
+ * Factory that wires the computer service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { ACTION_TYPES } from '../computer/actionSchema.js';
 import { ScopeEngine } from '../agent/scopeEngine.js';
@@ -26,7 +32,7 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
         enabled: computerAdapter.enabled,
         bridgePath: computerAdapter.bridgePath,
         whitelist: ACTION_TYPES,
-        runtime: computerAdapter.status()
+        runtime: computerAdapter.status(),
       });
     }),
 
@@ -36,7 +42,7 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
       response.json({
         ...probe,
         // Credentials and phone settings must never reach the browser (#74).
-        actions: probe.capabilities?.actions || ACTION_TYPES
+        actions: probe.capabilities?.actions || ACTION_TYPES,
       });
     }),
 
@@ -55,27 +61,31 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
       if (!result.ok) {
         return response.status(result.error?.kind === 'unavailable' ? 503 : 502).json({
           ok: false,
-          error: result.error
+          error: result.error,
         });
       }
       response.json({
         ok: true,
         observation: result.observation,
         // The caller decides whether to persist the base64 blob as evidence.
-        base64: request.body?.includeBase64 === true ? result.output.base64 || null : undefined
+        base64: request.body?.includeBase64 === true ? result.output.base64 || null : undefined,
       });
     }),
 
     /** GET /api/v1/computer/active-window */
     activeWindow: asyncHandler(async (request, response) => {
       const result = await computerAdapter.getActiveWindow();
-      response.status(result.ok ? 200 : 503).json({ ok: result.ok, observation: result.observation, error: result.error });
+      response
+        .status(result.ok ? 200 : 503)
+        .json({ ok: result.ok, observation: result.observation, error: result.error });
     }),
 
     /** GET /api/v1/computer/browser-state */
     browserState: asyncHandler(async (request, response) => {
       const result = await computerAdapter.getBrowserState();
-      response.status(result.ok ? 200 : 503).json({ ok: result.ok, observation: result.observation, error: result.error });
+      response
+        .status(result.ok ? 200 : 503)
+        .json({ ok: result.ok, observation: result.observation, error: result.error });
     }),
 
     /**
@@ -88,7 +98,9 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
     action: asyncHandler(async (request, response) => {
       const { action, assessmentId, approvalGranted = true, channel = null } = request.body || {};
       if (!action) {
-        return response.status(400).json({ error: { code: 'MISSING_ACTION', message: 'An action object is required' } });
+        return response
+          .status(400)
+          .json({ error: { code: 'MISSING_ACTION', message: 'An action object is required' } });
       }
 
       const scopeEngine = await scopeFor(request.user.id, assessmentId);
@@ -96,18 +108,25 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
         return response.status(403).json({
           error: {
             code: 'NO_AUTHORIZATION_CONTEXT',
-            message: 'An assessmentId you own is required — computer actions are only executed within an authorized assessment.'
-          }
+            message:
+              'An assessmentId you own is required — computer actions are only executed within an authorized assessment.',
+          },
         });
       }
 
       const result = await computerAdapter.execute(action, {
         channel: channel || assessmentId,
         scopeEngine,
-        approvalGranted
+        approvalGranted,
       });
 
-      const status = result.ok ? 200 : (result.rejected ? 403 : (result.error?.kind === 'unavailable' ? 503 : 502));
+      const status = result.ok
+        ? 200
+        : result.rejected
+          ? 403
+          : result.error?.kind === 'unavailable'
+            ? 503
+            : 502;
       return response.status(status).json(result);
     }),
 
@@ -135,7 +154,7 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
     repair: asyncHandler(async (request, response) => {
       const { repair, userAuthorized = false } = request.body || {};
       const result = computerAdapter.repair({ repair, userAuthorized });
-      const status = result.repaired ? 200 : (result.requiresAuthorization ? 403 : 422);
+      const status = result.repaired ? 200 : result.requiresAuthorization ? 403 : 422;
       response.status(status).json(result);
     }),
 
@@ -149,7 +168,7 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
       await computerAdapter.events?.publish?.(null, {
         type: 'computer.paused',
         level: 'WARN',
-        message: 'Computer control paused by user — agent will not click/type until resumed'
+        message: 'Computer control paused by user — agent will not click/type until resumed',
       });
       response.json({ ok: true, paused: true });
     }),
@@ -162,9 +181,9 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
       await computerAdapter.events?.publish?.(null, {
         type: 'computer.resumed',
         level: 'INFO',
-        message: 'Computer control resumed by user — agent can click/type again'
+        message: 'Computer control resumed by user — agent can click/type again',
       });
       response.json({ ok: true, paused: false });
-    })
+    }),
   };
 }

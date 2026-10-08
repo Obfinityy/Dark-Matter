@@ -1,3 +1,10 @@
+/**
+ * executor — agent tool execution engine.
+ * Runs registered tools with timeout, sandboxing, and
+ * result capture for the agent loop.
+ * Part of: Infinity AI / Dark-Matter backend (agent tool execution).
+ */
+
 import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
 import { ToolRegistry } from './registry.js';
@@ -18,15 +25,39 @@ export const FALLBACK_TOOLS = Object.freeze({
   nikto: [{ tool: 'nuclei', note: 'nikto failed → nuclei broad sweep as fallback' }],
   katana: [
     { tool: 'gau', note: 'katana failed → gau archive URLs as fallback' },
-    { tool: 'waybackurls', note: 'gau failed → waybackurls as fallback' }
+    { tool: 'waybackurls', note: 'gau failed → waybackurls as fallback' },
   ],
-  nmap: [{ tool: 'naabu', note: 'nmap failed → naabu fast port sweep as fallback', args: ['-silent', '-json', '-top-ports', '1000'] }],
-  naabu: [{ tool: 'nmap', note: 'naabu failed → nmap fast scan as fallback', args: ['-F', '-T4', '-oX', '-'] }],
+  nmap: [
+    {
+      tool: 'naabu',
+      note: 'nmap failed → naabu fast port sweep as fallback',
+      args: ['-silent', '-json', '-top-ports', '1000'],
+    },
+  ],
+  naabu: [
+    {
+      tool: 'nmap',
+      note: 'naabu failed → nmap fast scan as fallback',
+      args: ['-F', '-T4', '-oX', '-'],
+    },
+  ],
   dnsx: [{ tool: 'crtsh', note: 'dnsx failed → crt.sh passive lookup as fallback' }],
-  whatweb: [{ tool: 'httpx', note: 'whatweb failed → httpx tech-detect as fallback', args: ['-silent', '-json', '-tech-detect'] }],
+  whatweb: [
+    {
+      tool: 'httpx',
+      note: 'whatweb failed → httpx tech-detect as fallback',
+      args: ['-silent', '-json', '-tech-detect'],
+    },
+  ],
   ffuf: [{ tool: 'gobuster', note: 'ffuf failed → gobuster as fallback' }],
-  dalfox: [{ tool: 'nuclei', note: 'dalfox failed → nuclei XSS-tagged templates as fallback', args: ['-silent', '-json', '-tags', 'xss'] }],
-  arjun: [{ tool: 'paramspider', note: 'arjun failed → paramspider archive mining as fallback' }]
+  dalfox: [
+    {
+      tool: 'nuclei',
+      note: 'dalfox failed → nuclei XSS-tagged templates as fallback',
+      args: ['-silent', '-json', '-tags', 'xss'],
+    },
+  ],
+  arjun: [{ tool: 'paramspider', note: 'arjun failed → paramspider archive mining as fallback' }],
 });
 
 /** Heuristics for "the tool ran but the output is garbage". */
@@ -34,12 +65,13 @@ export function isGarbageResult(parseResult, rawOutput) {
   const raw = typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput || '');
   if (parseResult && parseResult.success === false) return true;
   if (/command not found|not recognized as an internal/i.test(raw)) return true;
-  if (raw.includes('"status":"kali_required"') || raw.includes('"status": "kali_required"')) return true;
+  if (raw.includes('"status":"kali_required"') || raw.includes('"status": "kali_required"'))
+    return true;
   if (!raw.trim()) return true;
   return false;
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /**
  * ToolExecutor — controlled execution layer between the AI brain and actual tools.
@@ -67,9 +99,14 @@ export class ToolExecutor {
    * Accepts raw wafw00f output or an already-parsed {detected, waf} object.
    */
   applyWafDetection(assessmentId, wafw00fRawOrParsed) {
-    const parsed = typeof wafw00fRawOrParsed === 'string' || wafw00fRawOrParsed?.firewall
-      ? parseWafw00f(typeof wafw00fRawOrParsed === 'string' ? wafw00fRawOrParsed : JSON.stringify(wafw00fRawOrParsed))
-      : wafw00fRawOrParsed;
+    const parsed =
+      typeof wafw00fRawOrParsed === 'string' || wafw00fRawOrParsed?.firewall
+        ? parseWafw00f(
+            typeof wafw00fRawOrParsed === 'string'
+              ? wafw00fRawOrParsed
+              : JSON.stringify(wafw00fRawOrParsed)
+          )
+        : wafw00fRawOrParsed;
     return this.wafState.applyWafDetection(assessmentId, parsed);
   }
 
@@ -88,13 +125,17 @@ export class ToolExecutor {
 
     // 0. G34 WAF-adaptive enforcement: rewrite the request through the
     //    enforced stealth profile BEFORE policy validation.
-    const { request: effectiveRequest, enforced, changes } = this.wafState.enforce(assessmentId, request);
+    const {
+      request: effectiveRequest,
+      enforced,
+      changes,
+    } = this.wafState.enforce(assessmentId, request);
     if (enforced) {
       await this.eventService.publish(assessmentId, {
         type: 'STEALTH_ENFORCED',
         level: 'INFO',
         message: `WAF-adaptive stealth enforced on ${request.tool}: ${changes.join('; ')}`,
-        data: { tool: request.tool, changes }
+        data: { tool: request.tool, changes },
       });
       // Pre-request jitter: timing randomization against WAF rate analysis.
       const jitter = effectiveRequest.meta?.preRequestJitterMs;
@@ -107,14 +148,14 @@ export class ToolExecutor {
     //    default — without it every in-scope tool would fail validation.
     const policy = PolicyValidator.validate(request, opts.scopeEngine || this.scopeEngine, {
       permissionService: this.permissionService,
-      userId
+      userId,
     });
     if (!policy.allowed) {
       await this.eventService.publish(assessmentId, {
         type: 'TOOL_BLOCKED',
         level: 'WARN',
         message: `Policy blocked ${request.tool}: ${policy.reason}`,
-        data: { tool: request.tool, reason: policy.reason }
+        data: { tool: request.tool, reason: policy.reason },
       });
       // Attach the approval record (if the validator created one) so callers
       // — e.g. the detection scan loops — can surface the pending approval
@@ -126,7 +167,9 @@ export class ToolExecutor {
 
     // 2. Deduplication check
     const fingerprint = this.toolExecutionModel.constructor.fingerprint(
-      request.tool, request.target, request.arguments
+      request.tool,
+      request.target,
+      request.arguments
     );
     const existing = await this.toolExecutionModel.findByFingerprint(assessmentId, fingerprint);
     if (existing) {
@@ -134,7 +177,7 @@ export class ToolExecutor {
         type: 'TOOL_DEDUPLICATED',
         level: 'INFO',
         message: `Skipping ${request.tool} — identical execution already completed`,
-        data: { tool: request.tool, existingId: existing.id }
+        data: { tool: request.tool, existingId: existing.id },
       });
       // Return cached result
       const cachedParsed = existing.parsedResults || {};
@@ -144,7 +187,7 @@ export class ToolExecutor {
         aiSummary: existing.aiSummary || summarizeForAI(request.tool, cachedParsed),
         deduplicated: true,
         parseOk: true,
-        rawOutput: typeof existing.rawOutput === 'string' ? existing.rawOutput : ''
+        rawOutput: typeof existing.rawOutput === 'string' ? existing.rawOutput : '',
       };
     }
 
@@ -155,14 +198,14 @@ export class ToolExecutor {
       target: request.target,
       arguments: request.arguments || {},
       riskLevel: tool.riskLevel,
-      timeoutMs: Math.min(request.timeout || tool.timeout, config.toolDefaultTimeoutMs)
+      timeoutMs: Math.min(request.timeout || tool.timeout, config.toolDefaultTimeoutMs),
     });
 
     await this.eventService.publish(assessmentId, {
       type: 'TOOL_STARTED',
       level: 'INFO',
       message: `Executing ${request.tool} against ${request.target}`,
-      data: { tool: request.tool, executionId: execution.id, target: request.target }
+      data: { tool: request.tool, executionId: execution.id, target: request.target },
     });
 
     await this.toolExecutionModel.markStarted(execution.id);
@@ -192,7 +235,7 @@ export class ToolExecutor {
       // 5. Parse result
       const parseResult = parseToolOutput(tool.parser, rawOutput, {
         hostname: request.target,
-        target: request.target
+        target: request.target,
       });
 
       // G34: a wafw00f run automatically arms stealth for the rest of the hunt.
@@ -204,10 +247,12 @@ export class ToolExecutor {
               type: 'WAF_DETECTED',
               level: 'WARN',
               message: `WAF detected (${state.waf}) — stealth profile ENFORCED for remaining tools`,
-              data: { waf: state.waf, method: state.method }
+              data: { waf: state.waf, method: state.method },
             });
           }
-        } catch { /* detection parsing must never break the hunt */ }
+        } catch {
+          /* detection parsing must never break the hunt */
+        }
       }
 
       const parsed = parseResult.result;
@@ -215,28 +260,37 @@ export class ToolExecutor {
 
       // 6. Store
       await this.toolExecutionModel.markCompleted(execution.id, {
-        raw: typeof rawOutput === 'string' ? rawOutput.slice(0, config.toolMaxOutputBytes) : JSON.stringify(rawOutput).slice(0, config.toolMaxOutputBytes),
+        raw:
+          typeof rawOutput === 'string'
+            ? rawOutput.slice(0, config.toolMaxOutputBytes)
+            : JSON.stringify(rawOutput).slice(0, config.toolMaxOutputBytes),
         normalized: parsed,
         parsed,
-        aiSummary
+        aiSummary,
       });
 
       await this.eventService.publish(assessmentId, {
         type: 'TOOL_COMPLETED',
         level: 'INFO',
         message: `${request.tool} completed — ${aiSummary.slice(0, 200)}`,
-        data: { tool: request.tool, executionId: execution.id, summary: aiSummary.slice(0, 500) }
+        data: { tool: request.tool, executionId: execution.id, summary: aiSummary.slice(0, 500) },
       });
 
-      return { execution, parsed, aiSummary, deduplicated: false, parseOk: parseResult.success, rawOutput: typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput) };
-
+      return {
+        execution,
+        parsed,
+        aiSummary,
+        deduplicated: false,
+        parseOk: parseResult.success,
+        rawOutput: typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput),
+      };
     } catch (error) {
       await this.toolExecutionModel.markFailed(execution.id, error.message);
       await this.eventService.publish(assessmentId, {
         type: 'TOOL_FAILED',
         level: 'ERROR',
         message: `${request.tool} failed: ${error.message}`,
-        data: { tool: request.tool, executionId: execution.id, error: error.message }
+        data: { tool: request.tool, executionId: execution.id, error: error.message },
       });
       throw error;
     }
@@ -261,7 +315,10 @@ export class ToolExecutor {
     const tryOnce = async (req, approach) => {
       try {
         const result = await this.execute(assessmentId, userId, req);
-        const garbage = isGarbageResult({ success: result.parseOk !== false }, result.rawOutput || '');
+        const garbage = isGarbageResult(
+          { success: result.parseOk !== false },
+          result.rawOutput || ''
+        );
         return { ok: !garbage, result, garbage, approach };
       } catch (error) {
         return { ok: false, error, approach, policyBlocked: error?.code === 'POLICY_VIOLATION' };
@@ -271,7 +328,11 @@ export class ToolExecutor {
     // Attempt 1: as requested
     let outcome = await tryOnce(request, 'requested');
     attempts.push(outcome);
-    if (outcome.ok) return { ...outcome.result, recovery: { recovered: false, attempts: attempts.map((a) => a.approach) } };
+    if (outcome.ok)
+      return {
+        ...outcome.result,
+        recovery: { recovered: false, attempts: attempts.map(a => a.approach) },
+      };
     if (outcome.policyBlocked) throw outcome.error; // never retry a safety block
 
     // Attempt 2: same tool, simplified args (drop everything but registry defaults)
@@ -279,15 +340,21 @@ export class ToolExecutor {
       const simplified = { ...request, arguments: {} };
       outcome = await tryOnce(simplified, 'simplified-args');
       attempts.push(outcome);
-      await this.eventService.publish(assessmentId, {
-        type: outcome.ok ? 'TOOL_RECOVERED' : 'TOOL_RETRY_FAILED',
-        level: outcome.ok ? 'INFO' : 'WARN',
-        message: outcome.ok
-          ? `${request.tool} recovered with simplified arguments`
-          : `${request.tool} retry with simplified arguments failed: ${outcome.garbage ? 'garbage output' : outcome.error?.message}`,
-        data: { tool: request.tool, approach: 'simplified-args' }
-      }).catch(() => {});
-      if (outcome.ok) return { ...outcome.result, recovery: { recovered: true, attempts: attempts.map((a) => a.approach) } };
+      await this.eventService
+        .publish(assessmentId, {
+          type: outcome.ok ? 'TOOL_RECOVERED' : 'TOOL_RETRY_FAILED',
+          level: outcome.ok ? 'INFO' : 'WARN',
+          message: outcome.ok
+            ? `${request.tool} recovered with simplified arguments`
+            : `${request.tool} retry with simplified arguments failed: ${outcome.garbage ? 'garbage output' : outcome.error?.message}`,
+          data: { tool: request.tool, approach: 'simplified-args' },
+        })
+        .catch(() => {});
+      if (outcome.ok)
+        return {
+          ...outcome.result,
+          recovery: { recovered: true, attempts: attempts.map(a => a.approach) },
+        };
       if (outcome.policyBlocked) throw outcome.error;
     }
 
@@ -298,26 +365,36 @@ export class ToolExecutor {
         tool: fb.tool,
         target: request.target,
         arguments: { args: fb.args || [] },
-        description: fb.note
+        description: fb.note,
       };
       outcome = await tryOnce(fbRequest, `fallback:${fb.tool}`);
       attempts.push(outcome);
-      await this.eventService.publish(assessmentId, {
-        type: outcome.ok ? 'TOOL_RECOVERED' : 'TOOL_RETRY_FAILED',
-        level: outcome.ok ? 'INFO' : 'WARN',
-        message: outcome.ok
-          ? `${request.tool} objective recovered via fallback ${fb.tool}`
-          : `Fallback ${fb.tool} failed: ${outcome.garbage ? 'garbage output' : outcome.error?.message}`,
-        data: { tool: request.tool, fallback: fb.tool }
-      }).catch(() => {});
-      if (outcome.ok) return { ...outcome.result, recovery: { recovered: true, attempts: attempts.map((a) => a.approach) } };
+      await this.eventService
+        .publish(assessmentId, {
+          type: outcome.ok ? 'TOOL_RECOVERED' : 'TOOL_RETRY_FAILED',
+          level: outcome.ok ? 'INFO' : 'WARN',
+          message: outcome.ok
+            ? `${request.tool} objective recovered via fallback ${fb.tool}`
+            : `Fallback ${fb.tool} failed: ${outcome.garbage ? 'garbage output' : outcome.error?.message}`,
+          data: { tool: request.tool, fallback: fb.tool },
+        })
+        .catch(() => {});
+      if (outcome.ok)
+        return {
+          ...outcome.result,
+          recovery: { recovered: true, attempts: attempts.map(a => a.approach) },
+        };
       if (outcome.policyBlocked) throw outcome.error;
     }
 
     const last = attempts[attempts.length - 1];
-    const err = last.error instanceof Error ? last.error
-      : new Error(`${request.tool} produced unusable output after ${attempts.length} approach(es)`);
-    err.recoveryAttempts = attempts.map((a) => a.approach);
+    const err =
+      last.error instanceof Error
+        ? last.error
+        : new Error(
+            `${request.tool} produced unusable output after ${attempts.length} approach(es)`
+          );
+    err.recoveryAttempts = attempts.map(a => a.approach);
     throw err;
   }
 
@@ -342,11 +419,15 @@ export class ToolExecutor {
         baseUrl: args.baseUrl || request.target,
         webProbe: args.webProbe || null,
         timeoutMs: Math.min(request.timeout || tool.timeout, config.toolDefaultTimeoutMs),
-        ...extra
+        ...extra,
       });
       return JSON.stringify(result);
     }
-    throw new AppError(501, `Built-in execution not implemented for ${tool.name}`, 'NOT_IMPLEMENTED');
+    throw new AppError(
+      501,
+      `Built-in execution not implemented for ${tool.name}`,
+      'NOT_IMPLEMENTED'
+    );
   }
 
   /**
@@ -359,7 +440,11 @@ export class ToolExecutor {
   async executePython(args = {}) {
     const code = String(args.code || args.script || '');
     if (!code.trim()) {
-      throw new AppError(400, 'python tool requires `code` (the Python script to run)', 'MISSING_CODE');
+      throw new AppError(
+        400,
+        'python tool requires `code` (the Python script to run)',
+        'MISSING_CODE'
+      );
     }
     if (code.length > 50_000) {
       throw new AppError(400, 'Python script too large (max 50KB)', 'CODE_TOO_LARGE');
@@ -378,20 +463,29 @@ export class ToolExecutor {
 
     try {
       const output = await new Promise((resolve, reject) => {
-        execFile('python3', [scriptPath], {
-          cwd: workdir,
-          timeout: timeoutMs,
-          maxBuffer: 2 * 1024 * 1024, // 2MB cap on captured output
-          env: { ...process.env, PYTHONUNBUFFERED: '1' }
-        }, (error, stdout, stderr) => {
-          const combined = [
-            stdout ? `--- stdout ---\n${stdout}` : '',
-            stderr ? `--- stderr ---\n${stderr}` : '',
-            error ? `--- exit ---\n${error.killed ? 'killed (timeout)' : `code ${error.code}`}` : ''
-          ].filter(Boolean).join('\n');
-          // Resolve even on non-zero exit — the output IS the result.
-          resolve(combined.slice(0, 100_000) || '(no output)');
-        });
+        execFile(
+          'python3',
+          [scriptPath],
+          {
+            cwd: workdir,
+            timeout: timeoutMs,
+            maxBuffer: 2 * 1024 * 1024, // 2MB cap on captured output
+            env: { ...process.env, PYTHONUNBUFFERED: '1' },
+          },
+          (error, stdout, stderr) => {
+            const combined = [
+              stdout ? `--- stdout ---\n${stdout}` : '',
+              stderr ? `--- stderr ---\n${stderr}` : '',
+              error
+                ? `--- exit ---\n${error.killed ? 'killed (timeout)' : `code ${error.code}`}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join('\n');
+            // Resolve even on non-zero exit — the output IS the result.
+            resolve(combined.slice(0, 100_000) || '(no output)');
+          }
+        );
       });
       return output;
     } finally {
@@ -409,12 +503,14 @@ export class ToolExecutor {
     try {
       const response = await fetch(url, {
         headers: { accept: 'application/json', 'user-agent': 'DarkMatter-Agent/2.0' },
-        signal: controller.signal
+        signal: controller.signal,
       });
-      if (!response.ok) throw new AppError(502, `crt.sh returned HTTP ${response.status}`, 'CRTSH_FAILED');
+      if (!response.ok)
+        throw new AppError(502, `crt.sh returned HTTP ${response.status}`, 'CRTSH_FAILED');
       return await response.text();
     } catch (error) {
-      if (error.name === 'AbortError') throw new AppError(504, 'crt.sh lookup timed out', 'CRTSH_TIMEOUT');
+      if (error.name === 'AbortError')
+        throw new AppError(504, 'crt.sh lookup timed out', 'CRTSH_TIMEOUT');
       throw error;
     } finally {
       clearTimeout(timeout);
@@ -429,20 +525,27 @@ export class ToolExecutor {
   async executeManaged(tool, request) {
     const { ensureBinary, MANAGED_TOOLS } = await import('./managedBinaries.js');
     const spec = MANAGED_TOOLS[tool.managedBinary];
-    if (!spec) throw new AppError(400, `Unknown managed tool: ${tool.managedBinary}`, 'UNKNOWN_TOOL');
+    if (!spec)
+      throw new AppError(400, `Unknown managed tool: ${tool.managedBinary}`, 'UNKNOWN_TOOL');
 
     let binary;
     try {
-      binary = await ensureBinary(tool.managedBinary, (p) => {
-        this.eventService.publish(request.assessmentId || 'n/a', {
-          type: 'TOOL_DOWNLOAD',
-          level: 'INFO',
-          message: `${spec.displayName}: ${p.status} ${Math.round((p.progress || 0) * 100)}%`,
-          data: { tool: tool.name, ...p }
-        }).catch(() => {});
+      binary = await ensureBinary(tool.managedBinary, p => {
+        this.eventService
+          .publish(request.assessmentId || 'n/a', {
+            type: 'TOOL_DOWNLOAD',
+            level: 'INFO',
+            message: `${spec.displayName}: ${p.status} ${Math.round((p.progress || 0) * 100)}%`,
+            data: { tool: tool.name, ...p },
+          })
+          .catch(() => {});
       });
     } catch (err) {
-      throw new AppError(502, `Could not fetch ${spec.displayName}: ${err.message}`, 'TOOL_DOWNLOAD_FAILED');
+      throw new AppError(
+        502,
+        `Could not fetch ${spec.displayName}: ${err.message}`,
+        'TOOL_DOWNLOAD_FAILED'
+      );
     }
 
     const args = PolicyValidator.sanitize(tool.name, request.arguments?.args || []);
@@ -451,15 +554,25 @@ export class ToolExecutor {
     const { execFile } = await import('node:child_process');
     const timeout = tool.timeout || config.toolDefaultTimeoutMs;
     return new Promise((resolve, reject) => {
-      execFile(binary, finalArgs, { timeout, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
-        const out = (stdout || '').trim();
-        if (err && !out) {
-          reject(new AppError(502,
-            `${tool.name} failed: ${(stderr || err.message).slice(0, 500)}`, 'TOOL_EXEC_FAILED'));
-        } else {
-          resolve(out);
+      execFile(
+        binary,
+        finalArgs,
+        { timeout, maxBuffer: 64 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          const out = (stdout || '').trim();
+          if (err && !out) {
+            reject(
+              new AppError(
+                502,
+                `${tool.name} failed: ${(stderr || err.message).slice(0, 500)}`,
+                'TOOL_EXEC_FAILED'
+              )
+            );
+          } else {
+            resolve(out);
+          }
         }
-      });
+      );
     });
   }
 
@@ -469,7 +582,7 @@ export class ToolExecutor {
    */
   async _managedArgs(tool, request, args, binary) {
     const out = [...args];
-    const has = (flag) => out.includes(flag);
+    const has = flag => out.includes(flag);
     const target = request.target;
 
     if (tool.managedBinary === 'nuclei') {
@@ -500,7 +613,7 @@ export class ToolExecutor {
       if (!has('-silent')) out.push('-silent');
     } else if (tool.managedBinary === 'dalfox') {
       // dalfox subcommand form: `dalfox url <target> --silence --format json`
-      if (target && out[0] === 'url' && !out.slice(1).some((a) => /^https?:\/\//.test(a))) {
+      if (target && out[0] === 'url' && !out.slice(1).some(a => /^https?:\/\//.test(a))) {
         out.splice(1, 0, target);
       }
     }
@@ -519,14 +632,27 @@ export class ToolExecutor {
     try {
       fs.accessSync(tplDir);
       return; // already have templates
-    } catch { /* download below */ }
+    } catch {
+      /* download below */
+    }
     const { execFile } = await import('node:child_process');
     await new Promise((resolve, reject) => {
-      execFile(binary, ['-update-templates', '-silent', '-nc'], { timeout: 600000 },
+      execFile(
+        binary,
+        ['-update-templates', '-silent', '-nc'],
+        { timeout: 600000 },
         (err, stdout, stderr) => {
-          try { fs.accessSync(tplDir); return resolve(); } catch { /* fall through */ }
-          reject(new Error(`template update failed: ${(stderr || err?.message || '').slice(0, 300)}`));
-        });
+          try {
+            fs.accessSync(tplDir);
+            return resolve();
+          } catch {
+            /* fall through */
+          }
+          reject(
+            new Error(`template update failed: ${(stderr || err?.message || '').slice(0, 300)}`)
+          );
+        }
+      );
     });
   }
 
@@ -543,12 +669,15 @@ export class ToolExecutor {
         status: 'kali_required',
         tool: tool.name,
         message: `Tool ${tool.name} requires a Kali Linux worker. Configure KALI_WORKER_URL in .env.`,
-        target: request.target
+        target: request.target,
       });
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), tool.timeout || config.toolDefaultTimeoutMs);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      tool.timeout || config.toolDefaultTimeoutMs
+    );
     try {
       const response = await fetch(`${workerUrl}/execute`, {
         method: 'POST',
@@ -558,17 +687,22 @@ export class ToolExecutor {
           command: tool.command,
           args: PolicyValidator.sanitize(tool.name, request.arguments?.args || []),
           target: request.target,
-          timeout: tool.timeout
+          timeout: tool.timeout,
         }),
-        signal: controller.signal
+        signal: controller.signal,
       });
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        throw new AppError(502, `Kali worker returned HTTP ${response.status}: ${body.slice(0, 200)}`, 'KALI_WORKER_ERROR');
+        throw new AppError(
+          502,
+          `Kali worker returned HTTP ${response.status}: ${body.slice(0, 200)}`,
+          'KALI_WORKER_ERROR'
+        );
       }
       return await response.text();
     } catch (error) {
-      if (error.name === 'AbortError') throw new AppError(504, `${tool.name} execution timed out`, 'TOOL_TIMEOUT');
+      if (error.name === 'AbortError')
+        throw new AppError(504, `${tool.name} execution timed out`, 'TOOL_TIMEOUT');
       throw error;
     } finally {
       clearTimeout(timeout);
@@ -591,7 +725,7 @@ export class ToolExecutor {
     // Cap parallelism to avoid overwhelming the target or the machine.
     const batch = requests.slice(0, 6);
     const settled = await Promise.allSettled(
-      batch.map((req) => this.execute(assessmentId, userId, req, opts))
+      batch.map(req => this.execute(assessmentId, userId, req, opts))
     );
     return batch.map((request, i) => {
       const s = settled[i];

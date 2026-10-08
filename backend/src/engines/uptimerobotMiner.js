@@ -67,8 +67,12 @@ export function isTargetHost(host, rootDomain) {
 export function classifyMonitor(friendlyName, url = '') {
   const hay = `${friendlyName || ''} ${url || ''}`.toLowerCase();
   if (/(^|[^\w])(api|rest|graphql|gateway|backend)([^\w]|$)/.test(hay)) return 'api';
-  if (/(^|[^\w])(staging|stage|dev|development|test|qa|uat|preview|sandbox|demo)([^\w]|$)/.test(hay)) return 'staging';
-  if (/(^|[^\w])(internal|intranet|corp|vpn|admin|ops|private)([^\w]|$)/.test(hay)) return 'internal';
+  if (
+    /(^|[^\w])(staging|stage|dev|development|test|qa|uat|preview|sandbox|demo)([^\w]|$)/.test(hay)
+  )
+    return 'staging';
+  if (/(^|[^\w])(internal|intranet|corp|vpn|admin|ops|private)([^\w]|$)/.test(hay))
+    return 'internal';
   if (/(^|[^\w])(mail|smtp|imap|pop3|webmail|mx)([^\w]|$)/.test(hay)) return 'mail';
   return 'web';
 }
@@ -92,12 +96,18 @@ export function parseDashboardMonitors(input) {
     // UptimeRobot public pages embed a JSON blob: "monitors":[{...}]
     const m = input.match(/"monitors"\s*:\s*(\[[\s\S]*?\])\s*,?\s*"(?:psp|total)/);
     if (m) {
-      try { monitors = JSON.parse(m[1]); } catch { monitors = []; }
+      try {
+        monitors = JSON.parse(m[1]);
+      } catch {
+        monitors = [];
+      }
     }
     // Fallback: any absolute URLs in the page that look like monitored targets.
     if (!monitors.length) {
-      const urls = [...new Set([...input.matchAll(/https?:\/\/[^\s"'`<>()\[\]{};,]+/gi)].map((x) => x[0]))];
-      monitors = urls.map((u) => ({ friendly_name: hostFromUrl(u), url: u, status: 'unknown' }));
+      const urls = [
+        ...new Set([...input.matchAll(/https?:\/\/[^\s"'`<>()\[\]{};,]+/gi)].map(x => x[0])),
+      ];
+      monitors = urls.map(u => ({ friendly_name: hostFromUrl(u), url: u, status: 'unknown' }));
     }
   }
 
@@ -106,10 +116,12 @@ export function parseDashboardMonitors(input) {
   for (const mon of monitors || []) {
     const friendlyName = String(mon?.friendly_name ?? mon?.name ?? '');
     const url = String(mon?.url ?? mon?.friendlyname ?? '');
-    const host = hostFromUrl(url) || (() => {
-      const mh = friendlyName.match(HOSTNAME_RE);
-      return mh ? normalizeHostname(mh[0]) : '';
-    })();
+    const host =
+      hostFromUrl(url) ||
+      (() => {
+        const mh = friendlyName.match(HOSTNAME_RE);
+        return mh ? normalizeHostname(mh[0]) : '';
+      })();
     if (!host || seen.has(`${host}|${friendlyName}`)) continue;
     seen.add(`${host}|${friendlyName}`);
     out.push({
@@ -145,7 +157,8 @@ export function scoreMonitorRelevance(monitor, rootDomain) {
     const label = root.split('.')[0];
     if (label.length > 2 && h.includes(label)) score = 55;
   }
-  if (score > 0 && (monitor?.kind === 'staging' || monitor?.kind === 'internal')) score = Math.min(100, score + 8);
+  if (score > 0 && (monitor?.kind === 'staging' || monitor?.kind === 'internal'))
+    score = Math.min(100, score + 8);
   return score;
 }
 
@@ -160,7 +173,7 @@ export function scoreMonitorRelevance(monitor, rootDomain) {
 export function rankMonitorsForBrand(input, rootDomain) {
   const monitors = parseDashboardMonitors(input);
   return monitors
-    .map((m) => ({ ...m, score: scoreMonitorRelevance(m, rootDomain) }))
-    .filter((m) => m.score > 0)
+    .map(m => ({ ...m, score: scoreMonitorRelevance(m, rootDomain) }))
+    .filter(m => m.score > 0)
     .sort((a, b) => b.score - a.score || a.host.localeCompare(b.host));
 }

@@ -51,7 +51,11 @@ export function detectSseResponse(headers) {
   if (isEventStream) {
     return { isSse: true, confidence: evidence.length >= 2 ? 'high' : 'medium', evidence };
   }
-  return { isSse: false, confidence: 'low', evidence: evidence.length ? evidence : ['no text/event-stream content-type observed'] };
+  return {
+    isSse: false,
+    confidence: 'low',
+    evidence: evidence.length ? evidence : ['no text/event-stream content-type observed'],
+  };
 }
 
 /**

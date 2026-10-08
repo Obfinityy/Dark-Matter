@@ -13,7 +13,16 @@
  */
 
 /** Canonical list of HTTP methods considered during enumeration. */
-export const ENUMERATED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD', 'TRACE'];
+export const ENUMERATED_METHODS = [
+  'GET',
+  'POST',
+  'PUT',
+  'DELETE',
+  'PATCH',
+  'OPTIONS',
+  'HEAD',
+  'TRACE',
+];
 
 /**
  * Risk rating for a method being accepted by an endpoint.

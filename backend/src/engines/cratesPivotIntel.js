@@ -39,7 +39,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -69,10 +71,13 @@ export function parseCrateJson(crateJson) {
   if (urls.repository) {
     const host = hostFromUrl(urls.repository);
     if (host) {
-      const kind = host.includes('github.com') ? 'github-repo-host'
-        : host.includes('gitlab.com') ? 'gitlab-repo-host'
-        : host.includes('bitbucket.org') ? 'bitbucket-repo-host'
-        : 'repo-host';
+      const kind = host.includes('github.com')
+        ? 'github-repo-host'
+        : host.includes('gitlab.com')
+          ? 'gitlab-repo-host'
+          : host.includes('bitbucket.org')
+            ? 'bitbucket-repo-host'
+            : 'repo-host';
       pushHost(urls.repository, kind, 'crate.repository');
     }
   }
@@ -82,9 +87,21 @@ export function parseCrateJson(crateJson) {
   const pagesSites = [];
   for (const h of hosts) {
     let m = GH_PAGES_RE.exec(h.host);
-    if (m) pagesSites.push({ host: h.host, org: m[1], platform: 'github-pages', provenance: h.provenance });
+    if (m)
+      pagesSites.push({
+        host: h.host,
+        org: m[1],
+        platform: 'github-pages',
+        provenance: h.provenance,
+      });
     m = GL_PAGES_RE.exec(h.host);
-    if (m) pagesSites.push({ host: h.host, org: m[1], platform: 'gitlab-pages', provenance: h.provenance });
+    if (m)
+      pagesSites.push({
+        host: h.host,
+        org: m[1],
+        platform: 'gitlab-pages',
+        provenance: h.provenance,
+      });
   }
 
   return {
@@ -104,7 +121,11 @@ export function parseCrateJson(crateJson) {
 export function pivotOrgFromRepo(parsedCrate) {
   const repo = (parsedCrate && parsedCrate.urls && parsedCrate.urls.repository) || '';
   let path = '';
-  try { path = new URL(repo).pathname.replace(/\.git$/, ''); } catch { return []; }
+  try {
+    path = new URL(repo).pathname.replace(/\.git$/, '');
+  } catch {
+    return [];
+  }
   const parts = path.split('/').filter(Boolean);
   if (parts.length < 2) return [];
   const org = parts[parts.length - 2];

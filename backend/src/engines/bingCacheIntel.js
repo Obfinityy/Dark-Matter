@@ -24,7 +24,11 @@ export function buildBingCacheUrl(url) {
  * @returns {string} Bing search URL.
  */
 export function buildBingSiteUrl(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const params = new URLSearchParams({
     q: `site:${clean}${opts.extra ? ` ${opts.extra}` : ''}`,
     first: String(opts.first ?? 1),
@@ -56,10 +60,18 @@ export function extractAbsoluteUrls(html) {
  * @returns {{ allHosts: string[], inScopeHosts: string[], externalHosts: string[] }}
  */
 export function extractCachedHosts(html, domain) {
-  const apex = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const apex = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const all = new Set();
   for (const u of extractAbsoluteUrls(html)) {
-    try { all.add(new URL(u).hostname.toLowerCase()); } catch { /* skip */ }
+    try {
+      all.add(new URL(u).hostname.toLowerCase());
+    } catch {
+      /* skip */
+    }
   }
   const inScope = [];
   const external = [];

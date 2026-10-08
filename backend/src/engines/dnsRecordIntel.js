@@ -16,7 +16,11 @@ export function parseCaaRecords(records) {
   const parsed = [];
   for (const r of records || []) {
     if (r && typeof r === 'object' && r.tag) {
-      parsed.push({ flags: Number(r.flags ?? 0), tag: String(r.tag).toLowerCase(), value: String(r.value ?? '') });
+      parsed.push({
+        flags: Number(r.flags ?? 0),
+        tag: String(r.tag).toLowerCase(),
+        value: String(r.value ?? ''),
+      });
       continue;
     }
     const m = String(r || '').match(/^\s*(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?\s*$/i);
@@ -59,8 +63,10 @@ export function analyzeCaaGap(caaRecords) {
     gaps.push({
       type: 'wildcards-forbidden-by-cAA',
       severity: 'info',
-      detail: '`issue` policy exists but no `issuewild` record — CAA forbids wildcard issuance. Any wildcard certificate for this domain in CT logs violates the stated policy.',
-      recommendation: 'Monitor CT logs for wildcard certs; a hit here is a policy-violation signal worth investigating.',
+      detail:
+        '`issue` policy exists but no `issuewild` record — CAA forbids wildcard issuance. Any wildcard certificate for this domain in CT logs violates the stated policy.',
+      recommendation:
+        'Monitor CT logs for wildcard certs; a hit here is a policy-violation signal worth investigating.',
     });
   }
 
@@ -68,8 +74,10 @@ export function analyzeCaaGap(caaRecords) {
     gaps.push({
       type: 'issue-unrestricted-wildcards-allowed',
       severity: 'medium',
-      detail: '`issuewild` allows wildcard issuance while exact-name issuance is unrestricted. Policy is loose in both directions.',
-      recommendation: 'Recommend tightening: add explicit `issue` allow-list and restrict `issuewild` to a single managed CA.',
+      detail:
+        '`issuewild` allows wildcard issuance while exact-name issuance is unrestricted. Policy is loose in both directions.',
+      recommendation:
+        'Recommend tightening: add explicit `issue` allow-list and restrict `issuewild` to a single managed CA.',
     });
   }
 
@@ -90,8 +98,10 @@ export function analyzeCaaGap(caaRecords) {
       gaps.push({
         type: 'wildcard-bypass-of-issue-lockdown',
         severity: 'high',
-        detail: '`issue` forbids all issuance (;) yet `issuewild` permits wildcard issuance. This gap lets a CA mint wildcard certs under an otherwise locked-down policy.',
-        recommendation: 'Add `issuewild ";"` to close the gap unless wildcards are explicitly intended.',
+        detail:
+          '`issue` forbids all issuance (;) yet `issuewild` permits wildcard issuance. This gap lets a CA mint wildcard certs under an otherwise locked-down policy.',
+        recommendation:
+          'Add `issuewild ";"` to close the gap unless wildcards are explicitly intended.',
       });
     }
   }
@@ -100,14 +110,15 @@ export function analyzeCaaGap(caaRecords) {
     gaps.push({
       type: 'wildcards-intentionally-blocked',
       severity: 'info',
-      detail: '`issuewild ";"` intentionally blocks wildcard issuance while regular issuance is allowed. This is the hardened configuration.',
+      detail:
+        '`issuewild ";"` intentionally blocks wildcard issuance while regular issuance is allowed. This is the hardened configuration.',
       recommendation: 'None — treat wildcard certs appearing in CT logs as anomalous.',
     });
   }
 
   return {
-    issue: issueCAs.size ? [...issueCAs] : (issueForbids ? ['; (forbidden)'] : []),
-    issuewild: issuewildCAs.size ? [...issuewildCAs] : (wildForbids ? ['; (forbidden)'] : []),
+    issue: issueCAs.size ? [...issueCAs] : issueForbids ? ['; (forbidden)'] : [],
+    issuewild: issuewildCAs.size ? [...issuewildCAs] : wildForbids ? ['; (forbidden)'] : [],
     gaps,
     policyLockedDown: wildForbids,
   };

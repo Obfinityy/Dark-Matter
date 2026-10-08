@@ -15,49 +15,70 @@ import * as TR from './triageCore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const NEW_FILES = [
-  'mobileRound3Core.js', 'triageCore.js',
-  'MobileRound3.jsx', 'TriageSuite.jsx',
-  'Wave51.css', 'wave51.test.js',
+  'mobileRound3Core.js',
+  'triageCore.js',
+  'MobileRound3.jsx',
+  'TriageSuite.jsx',
+  'Wave51.css',
+  'wave51.test.js',
 ];
 const NOW = 1700000000000; // fixed reference time for deterministic tests
 
 describe('mobileRound3Core registry', () => {
   test('lists all 4 mobile round-3 ideas 52001–52004, zero skips', () => {
     assert.equal(R3.WAVE51_MR3_IDEAS.length, 4);
-    const ids = R3.WAVE51_MR3_IDEAS.map((i) => i.id);
+    const ids = R3.WAVE51_MR3_IDEAS.map(i => i.id);
     for (let id = 52001; id <= 52004; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 4, 'no duplicate ids');
-    assert.ok(R3.WAVE51_MR3_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      R3.WAVE51_MR3_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
 describe('triageCore registry', () => {
   test('lists all 36 triage ideas 52005–52040, zero skips', () => {
     assert.equal(TR.WAVE51_TRIAGE_IDEAS.length, 36);
-    const ids = TR.WAVE51_TRIAGE_IDEAS.map((i) => i.id);
+    const ids = TR.WAVE51_TRIAGE_IDEAS.map(i => i.id);
     for (let id = 52005; id <= 52040; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 36, 'no duplicate ids');
-    assert.ok(TR.WAVE51_TRIAGE_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      TR.WAVE51_TRIAGE_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
 describe('mobileRound3Core spot checks', () => {
   test('52001 pinning policy: match = secure, mismatch flagged, expiring cert warned', () => {
-    const ok = R3.evaluatePinningPolicy({
-      host: 'api.example.com',
-      pins: ['sha256/AAA'],
-      presentedPin: 'sha256/AAA',
-      certExpiresAt: NOW + 60 * 86400000,
-    }, NOW);
+    const ok = R3.evaluatePinningPolicy(
+      {
+        host: 'api.example.com',
+        pins: ['sha256/AAA'],
+        presentedPin: 'sha256/AAA',
+        certExpiresAt: NOW + 60 * 86400000,
+      },
+      NOW
+    );
     assert.equal(ok.status, 'secure');
     assert.equal(ok.pinMatch, true);
     assert.equal(ok.expiresInDays, 60);
     assert.equal(ok.expiresSoon, false);
-    const bad = R3.evaluatePinningPolicy({ host: 'api.example.com', pins: ['sha256/AAA'], presentedPin: 'sha256/ZZZ' }, NOW);
+    const bad = R3.evaluatePinningPolicy(
+      { host: 'api.example.com', pins: ['sha256/AAA'], presentedPin: 'sha256/ZZZ' },
+      NOW
+    );
     assert.equal(bad.status, 'pin-mismatch');
-    const soon = R3.evaluatePinningPolicy({
-      host: 'api.example.com', pins: ['sha256/AAA'], presentedPin: 'sha256/AAA', certExpiresAt: NOW + 10 * 86400000,
-    }, NOW);
+    const soon = R3.evaluatePinningPolicy(
+      {
+        host: 'api.example.com',
+        pins: ['sha256/AAA'],
+        presentedPin: 'sha256/AAA',
+        certExpiresAt: NOW + 10 * 86400000,
+      },
+      NOW
+    );
     assert.equal(soon.expiresSoon, true);
     assert.equal(soon.status, 'pin-ok-cert-expiring');
   });
@@ -72,13 +93,13 @@ describe('mobileRound3Core spot checks', () => {
   });
   test('52002 update channels: stable always enrolled, beta opt-in', () => {
     const chans = R3.buildUpdateChannels();
-    const stable = chans.find((c) => c.id === 'stable');
-    const beta = chans.find((c) => c.id === 'beta');
+    const stable = chans.find(c => c.id === 'stable');
+    const beta = chans.find(c => c.id === 'beta');
     assert.equal(stable.optedIn, true);
     assert.equal(beta.optedIn, false);
     assert.equal(beta.optInRequired, true);
     const withBeta = R3.buildUpdateChannels(['beta']);
-    assert.equal(withBeta.find((c) => c.id === 'beta').optedIn, true);
+    assert.equal(withBeta.find(c => c.id === 'beta').optedIn, true);
   });
   test('52002 setChannelOptIn toggles beta, rejects stable', () => {
     const on = R3.setChannelOptIn([], 'beta', true);
@@ -107,17 +128,24 @@ describe('mobileRound3Core spot checks', () => {
     assert.equal(agg.identifiersRetained, false);
   });
   test('52004 end-of-hunt summary counts severity and ranks top findings', () => {
-    const s = R3.buildEndOfHuntSummary({
-      huntId: 'h-1', target: 'shop.example.com', status: 'completed', targets: 2,
-      startedAt: NOW - 95 * 60000, reviewed: 5,
-      findings: [
-        { id: 'f1', title: 'SQLi', severity: 'critical' },
-        { id: 'f2', title: 'XSS', severity: 'high' },
-        { id: 'f3', title: 'Headers', severity: 'low' },
-        { id: 'f4', title: 'Errors', severity: 'info' },
-        { id: 'f5', title: 'CSRF', severity: 'medium' },
-      ],
-    }, NOW);
+    const s = R3.buildEndOfHuntSummary(
+      {
+        huntId: 'h-1',
+        target: 'shop.example.com',
+        status: 'completed',
+        targets: 2,
+        startedAt: NOW - 95 * 60000,
+        reviewed: 5,
+        findings: [
+          { id: 'f1', title: 'SQLi', severity: 'critical' },
+          { id: 'f2', title: 'XSS', severity: 'high' },
+          { id: 'f3', title: 'Headers', severity: 'low' },
+          { id: 'f4', title: 'Errors', severity: 'info' },
+          { id: 'f5', title: 'CSRF', severity: 'medium' },
+        ],
+      },
+      NOW
+    );
     assert.equal(s.totals.findings, 5);
     assert.equal(s.totals.bySeverity.critical, 1);
     assert.equal(s.topFindings[0].severity, 'critical');
@@ -129,10 +157,46 @@ describe('mobileRound3Core spot checks', () => {
 
 describe('triageCore spot checks', () => {
   const SAMPLE = [
-    { id: 'f1', title: 'Stored XSS in comment field', severity: 'high', vulnClass: 'xss', asset: 'web-app', exploitability: 0.8, confidence: 92, authRequired: false },
-    { id: 'f2', title: 'IDOR on /api/orders/{id}', severity: 'critical', vulnClass: 'idor', asset: 'api', exploitability: 0.9, confidence: 85, authRequired: true },
-    { id: 'f3', title: 'Open redirect on /login', severity: 'medium', vulnClass: 'open-redirect', asset: 'web-app', exploitability: 0.4, confidence: 70, authRequired: false },
-    { id: 'f4', title: 'Verbose error disclosure', severity: 'low', vulnClass: 'info-disclosure', asset: 'api', exploitability: 0.2, confidence: 60, authRequired: false },
+    {
+      id: 'f1',
+      title: 'Stored XSS in comment field',
+      severity: 'high',
+      vulnClass: 'xss',
+      asset: 'web-app',
+      exploitability: 0.8,
+      confidence: 92,
+      authRequired: false,
+    },
+    {
+      id: 'f2',
+      title: 'IDOR on /api/orders/{id}',
+      severity: 'critical',
+      vulnClass: 'idor',
+      asset: 'api',
+      exploitability: 0.9,
+      confidence: 85,
+      authRequired: true,
+    },
+    {
+      id: 'f3',
+      title: 'Open redirect on /login',
+      severity: 'medium',
+      vulnClass: 'open-redirect',
+      asset: 'web-app',
+      exploitability: 0.4,
+      confidence: 70,
+      authRequired: false,
+    },
+    {
+      id: 'f4',
+      title: 'Verbose error disclosure',
+      severity: 'low',
+      vulnClass: 'info-disclosure',
+      asset: 'api',
+      exploitability: 0.2,
+      confidence: 60,
+      authRequired: false,
+    },
   ];
 
   test('52005 keyboard queue: j/k navigate, a/d/e decide, unknown key ignored', () => {
@@ -151,7 +215,10 @@ describe('triageCore spot checks', () => {
     assert.equal(top.index, 0);
   });
   test('52006 blended score ranks critical first', () => {
-    assert.equal(TR.blendedTriageScore({ severity: 'critical', exploitability: 1, confidence: 100 }), 1);
+    assert.equal(
+      TR.blendedTriageScore({ severity: 'critical', exploitability: 1, confidence: 100 }),
+      1
+    );
     const ranked = TR.rankInbox(SAMPLE);
     assert.equal(ranked[0].id, 'f2');
     assert.ok(ranked[0].triageScore >= ranked[3].triageScore);
@@ -180,7 +247,7 @@ describe('triageCore spot checks', () => {
   test('52010 evidence preview inlines and caps HTTP pairs at 3', () => {
     const p = TR.buildEvidencePreview({
       id: 'f1',
-      httpExchanges: [1, 2, 3, 4].map((n) => ({ request: `REQ ${n}`, response: `RES ${n}` })),
+      httpExchanges: [1, 2, 3, 4].map(n => ({ request: `REQ ${n}`, response: `RES ${n}` })),
       screenshots: ['a.png'],
     });
     assert.equal(p.inline, true);
@@ -190,7 +257,8 @@ describe('triageCore spot checks', () => {
   test('52011 extractive TL;DR picks two sentences, handles empty text', () => {
     const t = TR.buildExtractiveTldr({
       id: 'f2',
-      description: 'The /api/orders/{id} endpoint returns order records for any authenticated user. It does not verify that the order belongs to the requesting user. An attacker can enumerate order IDs and read other customers\u2019 orders. Fix by adding an ownership check before returning the record.',
+      description:
+        'The /api/orders/{id} endpoint returns order records for any authenticated user. It does not verify that the order belongs to the requesting user. An attacker can enumerate order IDs and read other customers\u2019 orders. Fix by adding an ownership check before returning the record.',
     });
     assert.equal(t.findingId, 'f2');
     assert.equal(t.sentences, 2);
@@ -213,7 +281,9 @@ describe('triageCore spot checks', () => {
     const matched = TR.applySavedFilter(SAMPLE, filters[0]);
     assert.equal(matched.length, 1);
     assert.equal(matched[0].id, 'f2');
-    const none = TR.applySavedFilter(SAMPLE, { criteria: { severity: 'critical', authRequired: false } });
+    const none = TR.applySavedFilter(SAMPLE, {
+      criteria: { severity: 'critical', authRequired: false },
+    });
     assert.equal(none.length, 0);
   });
   test('52014 checklist blocks review until every item is ticked', () => {
@@ -241,11 +311,35 @@ describe('triageCore spot checks', () => {
   });
   test('52017 similar findings rank same-class first', () => {
     const r = TR.findSimilar(
-      { id: 'f1', title: 'Stored XSS in comment field', vulnClass: 'xss', asset: 'web-app', severity: 'high' },
+      {
+        id: 'f1',
+        title: 'Stored XSS in comment field',
+        vulnClass: 'xss',
+        asset: 'web-app',
+        severity: 'high',
+      },
       [
-        { id: 'p1', title: 'XSS in search box', vulnClass: 'xss', asset: 'web-app', severity: 'high' },
-        { id: 'p2', title: 'SQLi in login', vulnClass: 'sqli', asset: 'web-app', severity: 'critical' },
-        { id: 'p3', title: 'XSS in profile bio', vulnClass: 'xss', asset: 'api', severity: 'medium' },
+        {
+          id: 'p1',
+          title: 'XSS in search box',
+          vulnClass: 'xss',
+          asset: 'web-app',
+          severity: 'high',
+        },
+        {
+          id: 'p2',
+          title: 'SQLi in login',
+          vulnClass: 'sqli',
+          asset: 'web-app',
+          severity: 'critical',
+        },
+        {
+          id: 'p3',
+          title: 'XSS in profile bio',
+          vulnClass: 'xss',
+          asset: 'api',
+          severity: 'medium',
+        },
       ]
     );
     assert.equal(r.similar[0].finding.id, 'p1');
@@ -267,8 +361,11 @@ describe('triageCore spot checks', () => {
   test('52019 hover bar exposes four one-click actions', () => {
     const actions = TR.hoverActions({ id: 'f2' });
     assert.equal(actions.length, 4);
-    assert.deepEqual(actions.map((a) => a.id), ['accept', 'false-positive', 'escalate', 'assign']);
-    assert.ok(actions.every((a) => a.findingId === 'f2' && a.enabled));
+    assert.deepEqual(
+      actions.map(a => a.id),
+      ['accept', 'false-positive', 'escalate', 'assign']
+    );
+    assert.ok(actions.every(a => a.findingId === 'f2' && a.enabled));
   });
   test('52020 delegation reassigns with an audit trail', () => {
     const d = TR.delegateFindings([{ id: 'f3' }, { id: 'f4' }], 'aria', 'check f3', NOW);
@@ -290,17 +387,26 @@ describe('triageCore spot checks', () => {
     assert.equal(TR.epssBadge(20).band, 'low');
   });
   test('52023 sensitivity badges flag payment data as high', () => {
-    const pay = TR.sensitivityBadge({ title: 'IDOR exposes order records with card numbers', description: 'Order API leaks card data' });
+    const pay = TR.sensitivityBadge({
+      title: 'IDOR exposes order records with card numbers',
+      description: 'Order API leaks card data',
+    });
     assert.ok(pay.badges.includes('Payment data'));
     assert.equal(pay.level, 'high');
-    const clean = TR.sensitivityBadge({ title: 'Verbose error disclosure', description: 'Stack traces only' });
+    const clean = TR.sensitivityBadge({
+      title: 'Verbose error disclosure',
+      description: 'Stack traces only',
+    });
     assert.equal(clean.level, 'none');
     assert.equal(clean.badges.length, 0);
   });
   test('52024 regulatory tags map card data to PCI DSS, health to HIPAA', () => {
     const pci = TR.regulatoryTags({ title: 'Card numbers exposed', description: 'payment data' });
     assert.ok(pci.tags.includes('PCI DSS'));
-    const hipaa = TR.regulatoryTags({ title: 'Patient portal records', description: 'health data exposed' });
+    const hipaa = TR.regulatoryTags({
+      title: 'Patient portal records',
+      description: 'health data exposed',
+    });
     assert.ok(hipaa.tags.includes('HIPAA'));
     assert.equal(TR.regulatoryTags({ title: 'Banner leak' }).count, 0);
   });
@@ -335,17 +441,29 @@ describe('triageCore spot checks', () => {
     assert.ok(typeof f.voiceNotes[0].recordedAt === 'string');
   });
   test('52029 comments thread with line anchor and mentions', () => {
-    const f = TR.addComment({}, { author: 'aria', body: 'confirm sink', lineRef: 'response:14', mentions: ['kai'] }, NOW);
+    const f = TR.addComment(
+      {},
+      { author: 'aria', body: 'confirm sink', lineRef: 'response:14', mentions: ['kai'] },
+      NOW
+    );
     assert.equal(f.commentCount, 1);
     assert.deepEqual(f.comments[0].mentions, ['kai']);
     assert.equal(f.comments[0].lineRef, 'response:14');
   });
   test('52030 SLA countdown shows remaining time and breach', () => {
-    const ok = TR.slaCountdown({ id: 'f2', severity: 'critical', openedAt: NOW - 3600000 }, null, NOW);
+    const ok = TR.slaCountdown(
+      { id: 'f2', severity: 'critical', openedAt: NOW - 3600000 },
+      null,
+      NOW
+    );
     assert.equal(ok.breached, false);
     assert.equal(ok.display, '3h 0m left');
     assert.equal(ok.slaHours, 4);
-    const breached = TR.slaCountdown({ id: 'f4', severity: 'low', openedAt: NOW - 200 * 3600000 }, null, NOW);
+    const breached = TR.slaCountdown(
+      { id: 'f4', severity: 'low', openedAt: NOW - 200 * 3600000 },
+      null,
+      NOW
+    );
     assert.equal(breached.breached, true);
     assert.match(breached.display, /^breached by /);
   });
@@ -355,11 +473,11 @@ describe('triageCore spot checks', () => {
       { id: 'rule-xss', priority: 'P2', when: { vulnClass: 'xss' } },
     ];
     const routed = TR.applyPriorityRules(SAMPLE, rules);
-    const f2 = routed.find((f) => f.id === 'f2');
+    const f2 = routed.find(f => f.id === 'f2');
     assert.equal(f2.autoPriority, 'P0');
     assert.ok(f2.matchedRules.includes('rule-auth-bypass'));
-    assert.equal(routed.find((f) => f.id === 'f1').autoPriority, 'P2');
-    assert.equal(routed.find((f) => f.id === 'f4').autoPriority, null);
+    assert.equal(routed.find(f => f.id === 'f1').autoPriority, 'P2');
+    assert.equal(routed.find(f => f.id === 'f4').autoPriority, null);
   });
   test('52032 column spec builds and reorders columns', () => {
     const spec = TR.buildColumnSpec([
@@ -390,18 +508,32 @@ describe('triageCore spot checks', () => {
     assert.deepEqual(off.starred, []);
   });
   test('52035 handoff note captures progress and open questions', () => {
-    const h = TR.buildHandoff({
-      from: 'aria', to: 'kai',
-      findings: [{ id: 'f1', triage: 'accepted' }, { id: 'f2' }, { id: 'f3', triage: 'dismissed' }],
-      summary: 'f2 still needs a verdict.',
-      openQuestions: ['Is /api/orders/{id} rate-limited?'],
-    }, NOW);
+    const h = TR.buildHandoff(
+      {
+        from: 'aria',
+        to: 'kai',
+        findings: [
+          { id: 'f1', triage: 'accepted' },
+          { id: 'f2' },
+          { id: 'f3', triage: 'dismissed' },
+        ],
+        summary: 'f2 still needs a verdict.',
+        openQuestions: ['Is /api/orders/{id} rate-limited?'],
+      },
+      NOW
+    );
     assert.deepEqual(h.progress, { total: 3, triaged: 2, remaining: 1 });
     assert.deepEqual(h.findingIds, ['f1', 'f2', 'f3']);
     assert.equal(h.openQuestions.length, 1);
   });
   test('52036 severity override requires a reason and keeps an audit log', () => {
-    const ok = TR.overrideSeverity({ id: 'f3', severity: 'medium' }, 'high', 'confirmed chain', 'aria', NOW);
+    const ok = TR.overrideSeverity(
+      { id: 'f3', severity: 'medium' },
+      'high',
+      'confirmed chain',
+      'aria',
+      NOW
+    );
     assert.equal(ok.overrideApplied, true);
     assert.equal(ok.severity, 'high');
     assert.equal(ok.severityAudit.length, 1);
@@ -412,29 +544,76 @@ describe('triageCore spot checks', () => {
     assert.ok(denied.overrideError.length > 0);
   });
   test('52037 CVSS 3.1 calculator matches official reference scores', () => {
-    const rce = TR.cvss31Score({ av: 'N', ac: 'L', pr: 'N', ui: 'N', scope: 'U', c: 'H', i: 'H', a: 'H' });
+    const rce = TR.cvss31Score({
+      av: 'N',
+      ac: 'L',
+      pr: 'N',
+      ui: 'N',
+      scope: 'U',
+      c: 'H',
+      i: 'H',
+      a: 'H',
+    });
     assert.equal(rce.score, 9.8);
     assert.equal(rce.severity, 'critical');
     assert.equal(rce.vector, 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H');
-    const xss = TR.cvss31Score({ av: 'N', ac: 'L', pr: 'N', ui: 'R', scope: 'C', c: 'L', i: 'L', a: 'N' });
+    const xss = TR.cvss31Score({
+      av: 'N',
+      ac: 'L',
+      pr: 'N',
+      ui: 'R',
+      scope: 'C',
+      c: 'L',
+      i: 'L',
+      a: 'N',
+    });
     assert.equal(xss.score, 6.1);
     assert.equal(xss.severity, 'medium');
-    const none = TR.cvss31Score({ av: 'L', ac: 'H', pr: 'N', ui: 'R', scope: 'U', c: 'N', i: 'N', a: 'N' });
+    const none = TR.cvss31Score({
+      av: 'L',
+      ac: 'H',
+      pr: 'N',
+      ui: 'R',
+      scope: 'U',
+      c: 'N',
+      i: 'N',
+      a: 'N',
+    });
     assert.equal(none.score, 0);
     assert.equal(none.severity, 'none');
   });
   test('52038 impact estimator answers three questions plainly', () => {
-    const crit = TR.estimateImpact({ dataExposed: true, authRequired: false, userInteraction: false });
+    const crit = TR.estimateImpact({
+      dataExposed: true,
+      authRequired: false,
+      userInteraction: false,
+    });
     assert.equal(crit.level, 'critical');
     assert.match(crit.statement, /Critical impact/);
-    const low = TR.estimateImpact({ dataExposed: false, authRequired: true, userInteraction: false });
+    const low = TR.estimateImpact({
+      dataExposed: false,
+      authRequired: true,
+      userInteraction: false,
+    });
     assert.equal(low.level, 'low');
-    const unauth = TR.estimateImpact({ dataExposed: false, authRequired: false, userInteraction: false });
+    const unauth = TR.estimateImpact({
+      dataExposed: false,
+      authRequired: false,
+      userInteraction: false,
+    });
     assert.equal(unauth.level, 'medium', 'unauthenticated reachability is medium, not low');
-    assert.deepEqual(crit.answers, { dataExposed: true, authRequired: false, userInteraction: false });
+    assert.deepEqual(crit.answers, {
+      dataExposed: true,
+      authRequired: false,
+      userInteraction: false,
+    });
   });
   test('52039 affected-user estimate derives exposure from traffic hints', () => {
-    const r = TR.estimateAffectedUsers({ id: 'f2', authRequired: true, traffic: { dailyUsers: 20000, exposedRatio: 0.5 } });
+    const r = TR.estimateAffectedUsers({
+      id: 'f2',
+      authRequired: true,
+      traffic: { dailyUsers: 20000, exposedRatio: 0.5 },
+    });
     assert.equal(r.estimatedUsers, 10000);
     assert.equal(r.band, 'large');
     assert.equal(r.label, '≈10,000 users exposed');
@@ -444,7 +623,13 @@ describe('triageCore spot checks', () => {
     assert.equal(unknown.label, 'exposure unknown');
   });
   test('52040 session autosave round-trips filters, scroll, and cards', () => {
-    const session = { filters: { severity: 'high' }, scrollPosition: 420, openCards: ['f1'], readIds: ['f4'], queueIndex: 2 };
+    const session = {
+      filters: { severity: 'high' },
+      scrollPosition: 420,
+      openCards: ['f1'],
+      readIds: ['f4'],
+      queueIndex: 2,
+    };
     const saved = TR.autosaveSession(session, NOW);
     assert.equal(saved.version, 1);
     assert.ok(typeof saved.savedAt === 'string');
@@ -489,7 +674,7 @@ describe('self audits', () => {
   });
   test('none of the 5 product files contain TODO/FIXME/XXX/mock/simulate/lorem/demo placeholder text', () => {
     const pattern = /\b(todo|fixme|xxx|hack|mock|simulate|lorem|demo)\b/i;
-    for (const f of NEW_FILES.filter((x) => x !== 'wave51.test.js')) {
+    for (const f of NEW_FILES.filter(x => x !== 'wave51.test.js')) {
       const content = readFileSync(join(HERE, f), 'utf8');
       const hit = content.match(pattern);
       assert.ok(!hit, `${f} contains debris marker: "${hit && hit[0]}"`);
@@ -504,11 +689,11 @@ describe('self audits', () => {
   test('Wave51.css uses only scoped prefixes .mr3-* and .tr51-*', () => {
     const css = readFileSync(join(HERE, 'Wave51.css'), 'utf8');
     const classSelectors = css.match(/^\.[a-zA-Z][a-zA-Z0-9_-]*/gm) || [];
-    const rogue = classSelectors.filter((c) => !c.startsWith('.mr3-') && !c.startsWith('.tr51-'));
+    const rogue = classSelectors.filter(c => !c.startsWith('.mr3-') && !c.startsWith('.tr51-'));
     assert.deepEqual(rogue, [], `unscoped selectors: ${rogue.join(', ')}`);
   });
   test('Infinity AI branding only — no other worker name in product files', () => {
-    const productFiles = NEW_FILES.filter((f) => f !== 'wave51.test.js');
+    const productFiles = NEW_FILES.filter(f => f !== 'wave51.test.js');
     for (const f of productFiles) {
       const content = readFileSync(join(HERE, f), 'utf8');
       assert.ok(!/\b[mM]use\b/.test(content), `${f} mentions the forbidden worker name`);

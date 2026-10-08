@@ -31,7 +31,7 @@ export const COMPUTER_STATES = Object.freeze({
   OBSERVATION_FAILED: 'computer_observation_failed',
   ACTION_FAILED: 'computer_action_failed',
   DISCONNECTED: 'computer_disconnected',
-  PERMISSION_REQUIRED: 'computer_permission_required'
+  PERMISSION_REQUIRED: 'computer_permission_required',
 });
 
 /**
@@ -43,45 +43,82 @@ export const COMPUTER_STATES = Object.freeze({
 const ALLOWED_TRANSITIONS = Object.freeze({
   computer_unavailable: ['computer_connected', 'computer_ready', 'computer_disconnected'],
   computer_connected: [
-    'computer_ready', 'computer_busy', 'computer_action_running',
-    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+    'computer_ready',
+    'computer_busy',
+    'computer_action_running',
+    'computer_unavailable',
+    'computer_disconnected',
+    'computer_permission_required',
   ],
   computer_ready: [
-    'computer_busy', 'computer_action_running', 'computer_observing',
-    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+    'computer_busy',
+    'computer_action_running',
+    'computer_observing',
+    'computer_unavailable',
+    'computer_disconnected',
+    'computer_permission_required',
   ],
   computer_busy: [
-    'computer_action_running', 'computer_observing', 'computer_ready',
-    'computer_unavailable', 'computer_disconnected'
+    'computer_action_running',
+    'computer_observing',
+    'computer_ready',
+    'computer_unavailable',
+    'computer_disconnected',
   ],
   computer_action_running: [
-    'computer_observing', 'computer_observation_ready', 'computer_observation_failed',
-    'computer_action_failed', 'computer_busy', 'computer_ready',
-    'computer_unavailable', 'computer_disconnected'
+    'computer_observing',
+    'computer_observation_ready',
+    'computer_observation_failed',
+    'computer_action_failed',
+    'computer_busy',
+    'computer_ready',
+    'computer_unavailable',
+    'computer_disconnected',
   ],
   computer_observing: [
-    'computer_action_running', 'computer_observation_ready', 'computer_observation_failed',
-    'computer_ready', 'computer_unavailable', 'computer_disconnected'
+    'computer_action_running',
+    'computer_observation_ready',
+    'computer_observation_failed',
+    'computer_ready',
+    'computer_unavailable',
+    'computer_disconnected',
   ],
   computer_observation_ready: [
-    'computer_action_running', 'computer_observing', 'computer_busy', 'computer_ready',
-    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+    'computer_action_running',
+    'computer_observing',
+    'computer_busy',
+    'computer_ready',
+    'computer_unavailable',
+    'computer_disconnected',
+    'computer_permission_required',
   ],
   computer_observation_failed: [
-    'computer_observing', 'computer_ready', 'computer_connected', 'computer_action_running',
-    'computer_unavailable', 'computer_disconnected'
+    'computer_observing',
+    'computer_ready',
+    'computer_connected',
+    'computer_action_running',
+    'computer_unavailable',
+    'computer_disconnected',
   ],
   computer_action_failed: [
-    'computer_observing', 'computer_action_running', 'computer_ready', 'computer_connected',
-    'computer_unavailable', 'computer_disconnected', 'computer_permission_required'
+    'computer_observing',
+    'computer_action_running',
+    'computer_ready',
+    'computer_connected',
+    'computer_unavailable',
+    'computer_disconnected',
+    'computer_permission_required',
   ],
   computer_disconnected: ['computer_connected', 'computer_ready', 'computer_unavailable'],
   computer_permission_required: [
-    'computer_ready', 'computer_action_running',
-    'computer_unavailable', 'computer_disconnected'
-  ]
+    'computer_ready',
+    'computer_action_running',
+    'computer_unavailable',
+    'computer_disconnected',
+  ],
 });
 
+/** Computer State. */
 export class ComputerState {
   constructor({ capabilities = null } = {}) {
     this.state = COMPUTER_STATES.UNAVAILABLE;
@@ -117,10 +154,12 @@ export class ComputerState {
   setCapabilities(capabilities, { available, reason = null } = {}) {
     this.capabilities = capabilities || null;
     this.platform = capabilities?.platform || null;
-    this.reason = available ? null : reason || capabilities?.pyautoguiError || 'computer control unavailable';
+    this.reason = available
+      ? null
+      : reason || capabilities?.pyautoguiError || 'computer control unavailable';
     this.transition(available ? COMPUTER_STATES.CONNECTED : COMPUTER_STATES.UNAVAILABLE, {
       reason: this.reason,
-      capabilities
+      capabilities,
     });
     return this.snapshot();
   }
@@ -203,23 +242,27 @@ export class ComputerState {
     const allowed = ALLOWED_TRANSITIONS[previous] || [];
     // Fault-handling edges are always explicit: any state may degrade to
     // disconnected/unavailable when the runtime actually fails.
-    const explicit = allowed.includes(next)
-      || next === COMPUTER_STATES.DISCONNECTED
-      || next === COMPUTER_STATES.UNAVAILABLE;
+    const explicit =
+      allowed.includes(next) ||
+      next === COMPUTER_STATES.DISCONNECTED ||
+      next === COMPUTER_STATES.UNAVAILABLE;
     this.state = next;
     this.emit({
       type: 'computer-state',
       previous,
       state: next,
       explicit,
-      detail: explicit ? detail : { ...detail, warning: `unexpected computer state transition ${previous} → ${next}` },
-      at: new Date().toISOString()
+      detail: explicit
+        ? detail
+        : { ...detail, warning: `unexpected computer state transition ${previous} → ${next}` },
+      at: new Date().toISOString(),
     });
   }
 
   isAvailable() {
-    return this.state !== COMPUTER_STATES.UNAVAILABLE
-      && this.state !== COMPUTER_STATES.DISCONNECTED;
+    return (
+      this.state !== COMPUTER_STATES.UNAVAILABLE && this.state !== COMPUTER_STATES.DISCONNECTED
+    );
   }
 
   get unavailableReason() {
@@ -250,10 +293,10 @@ export class ComputerState {
             pythonVersion: this.capabilities.pythonVersion,
             pyautoguiAvailable: this.capabilities.pyautoguiAvailable,
             pyautoguiError: this.capabilities.pyautoguiError,
-            screenshotDir: this.capabilities.screenshotDir
+            screenshotDir: this.capabilities.screenshotDir,
           }
         : null,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
   }
 }

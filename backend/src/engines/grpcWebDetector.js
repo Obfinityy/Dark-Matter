@@ -16,9 +16,7 @@ const GRPC_WEB_CONTENT_TYPES = [
   'application/grpc-web-text',
 ];
 
-const CANDIDATE_PATHS = [
-  '/grpc', '/grpc-web', '/api/grpc', '/rpc', '/twirp', '/health',
-];
+const CANDIDATE_PATHS = ['/grpc', '/grpc-web', '/api/grpc', '/rpc', '/twirp', '/health'];
 
 /**
  * Candidate gRPC-Web-ish paths under a base URL.
@@ -29,7 +27,7 @@ const CANDIDATE_PATHS = [
 export function grpcWebCandidates(baseUrl, extraPaths = []) {
   if (!baseUrl || typeof baseUrl !== 'string') return [];
   const base = baseUrl.replace(/\/+$/, '');
-  return [...new Set([...CANDIDATE_PATHS, ...extraPaths])].map((p) => `${base}${p}`);
+  return [...new Set([...CANDIDATE_PATHS, ...extraPaths])].map(p => `${base}${p}`);
 }
 
 /**
@@ -39,10 +37,10 @@ export function grpcWebCandidates(baseUrl, extraPaths = []) {
  */
 export function analyzeContentType(contentType = '') {
   const ct = String(contentType).split(';')[0].trim().toLowerCase();
-  const detected = GRPC_WEB_CONTENT_TYPES.some((g) => ct === g);
+  const detected = GRPC_WEB_CONTENT_TYPES.some(g => ct === g);
   return {
     detected,
-    encoding: ct.includes('text') ? 'text' : (detected ? 'proto' : null),
+    encoding: ct.includes('text') ? 'text' : detected ? 'proto' : null,
   };
 }
 
@@ -102,11 +100,14 @@ export async function probeGrpcWeb(url, fetchImpl = globalThis.fetch) {
       body: buildProbeEnvelope(),
     });
     const headers = {};
-    res.headers?.forEach?.((v, k) => { headers[k.toLowerCase()] = v; });
+    res.headers?.forEach?.((v, k) => {
+      headers[k.toLowerCase()] = v;
+    });
     const ct = analyzeContentType(headers['content-type']);
     outcome.detected = ct.detected;
     outcome.encoding = ct.encoding;
-    outcome.grpcStatus = headers['grpc-status'] ?? headers['grpc-message'] != null ? headers['grpc-status'] : null;
+    outcome.grpcStatus =
+      (headers['grpc-status'] ?? headers['grpc-message'] != null) ? headers['grpc-status'] : null;
     outcome.status = res.status;
   } catch (err) {
     outcome.error = err?.message || String(err);
@@ -120,8 +121,10 @@ export async function probeGrpcWeb(url, fetchImpl = globalThis.fetch) {
  * @returns {string|null}
  */
 export function summarizeFindings(probes = []) {
-  const exposed = probes.filter((p) => p.detected);
+  const exposed = probes.filter(p => p.detected);
   if (exposed.length === 0) return null;
-  const lines = exposed.map((p) => `- ${p.url}: gRPC-Web detected (encoding: ${p.encoding || 'unknown'})`);
+  const lines = exposed.map(
+    p => `- ${p.url}: gRPC-Web detected (encoding: ${p.encoding || 'unknown'})`
+  );
   return `gRPC-Web surface detected:\n${lines.join('\n')}\nRecommendation: review method-level authorization and disable server reflection on public endpoints.`;
 }

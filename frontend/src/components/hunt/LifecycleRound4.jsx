@@ -11,12 +11,40 @@ const NOW = 1700000000000;
 const DAY = 24 * 3600000;
 const HOUR = 3600000;
 
-const LF1 = { id: 'f-611', state: 'InRetest', severity: 'high', stateEnteredAt: NOW - 30 * HOUR, evidence: [{ kind: 'fix', name: 'patch.diff' }], retest: { passed: true, id: 'rt-61' }, title: 'Stored XSS in reviews', assetOwner: 'aria', history: [{ to: 'RiskAccepted', at: NOW - 40 * DAY }] };
-const LF2 = { id: 'f-612', state: 'Triaged', severity: 'critical', stateEnteredAt: NOW - 9 * DAY, title: 'SQLi in search', assetOwner: 'kai' };
-const LF3 = { id: 'f-613', state: 'New', severity: 'medium', stateEnteredAt: NOW - 2 * HOUR, title: 'Open redirect', autoTriaged: true };
+const LF1 = {
+  id: 'f-611',
+  state: 'InRetest',
+  severity: 'high',
+  stateEnteredAt: NOW - 30 * HOUR,
+  evidence: [{ kind: 'fix', name: 'patch.diff' }],
+  retest: { passed: true, id: 'rt-61' },
+  title: 'Stored XSS in reviews',
+  assetOwner: 'aria',
+  history: [{ to: 'RiskAccepted', at: NOW - 40 * DAY }],
+};
+const LF2 = {
+  id: 'f-612',
+  state: 'Triaged',
+  severity: 'critical',
+  stateEnteredAt: NOW - 9 * DAY,
+  title: 'SQLi in search',
+  assetOwner: 'kai',
+};
+const LF3 = {
+  id: 'f-613',
+  state: 'New',
+  severity: 'medium',
+  stateEnteredAt: NOW - 2 * HOUR,
+  title: 'Open redirect',
+  autoTriaged: true,
+};
 
-function Note({ children }) { return <p className="lr461-note">{children}</p>; }
-function Mono({ children }) { return <pre className="lr461-mono">{children}</pre>; }
+function Note({ children }) {
+  return <p className="lr461-note">{children}</p>;
+}
+function Mono({ children }) {
+  return <pre className="lr461-mono">{children}</pre>;
+}
 
 /* 52401 — Agent-suggested transitions. */
 export function SuggestedTransitions() {
@@ -25,14 +53,22 @@ export function SuggestedTransitions() {
   return (
     <div className="lr461-card">
       <h3 className="lr461-title">52401 · Agent-suggested transitions</h3>
-      <Note>Finding f-611 (Stored XSS in reviews, currently InRetest with a passing retest) evaluated for next-state suggestions.</Note>
+      <Note>
+        Finding f-611 (Stored XSS in reviews, currently InRetest with a passing retest) evaluated
+        for next-state suggestions.
+      </Note>
       <ul className="lr461-list">
         {suggestions.map((s, i) => (
           <li key={i}>
             <span className="lr461-chip">{s.to}</span>
             <span>{s.reason}</span>
             <div className="lr461-row">
-              <button className="lr461-btn" onClick={() => setApplied(LC4.approveTransition(s, 'bhavesh', NOW))}>Approve</button>
+              <button
+                className="lr461-btn"
+                onClick={() => setApplied(LC4.approveTransition(s, 'bhavesh', NOW))}
+              >
+                Approve
+              </button>
             </div>
           </li>
         ))}
@@ -44,11 +80,16 @@ export function SuggestedTransitions() {
 
 /* 52402 — State diagram visualisation. */
 export function StateDiagramViz() {
-  const states = [{ id: 'New' }, { id: 'Triaged' }, { id: 'InProgress' }, { id: 'Verified', terminal: true }];
+  const states = [
+    { id: 'New' },
+    { id: 'Triaged' },
+    { id: 'InProgress' },
+    { id: 'Verified', terminal: true },
+  ];
   const edges = [
     { from: 'New', to: 'Triaged' },
     { from: 'Triaged', to: 'InProgress' },
-    { from: 'InProgress', to: 'Verified' }
+    { from: 'InProgress', to: 'Verified' },
   ];
   const payload = LC4.stateDiagramPayload(states, edges);
   const nodeCount = (payload.nodes || states).length;
@@ -56,7 +97,10 @@ export function StateDiagramViz() {
   return (
     <div className="lr461-card">
       <h3 className="lr461-title">52402 · State diagram visualisation</h3>
-      <Note>Canonical lifecycle path New → Triaged → InProgress → Verified rendered as a diagram payload.</Note>
+      <Note>
+        Canonical lifecycle path New → Triaged → InProgress → Verified rendered as a diagram
+        payload.
+      </Note>
       <div className="lr461-row">
         <span className="lr461-chip">{nodeCount} nodes</span>
         <span className="lr461-chip">{edgeCount} edges</span>
@@ -75,9 +119,19 @@ export function BulkStateImport() {
     <div className="lr461-card">
       <h3 className="lr461-title">52403 · Bulk state import</h3>
       <Note>Paste finding id, target state, and an optional reason per line, then parse.</Note>
-      <textarea className="lr461-textarea" rows={4} value={csv} onChange={(e) => setCsv(e.target.value)} />
+      <textarea
+        className="lr461-textarea"
+        rows={4}
+        value={csv}
+        onChange={e => setCsv(e.target.value)}
+      />
       <div className="lr461-row">
-        <button className="lr461-btn" onClick={() => setResult(LC4.parseStateImport(csv, [LF1, LF2], NOW))}>Parse import</button>
+        <button
+          className="lr461-btn"
+          onClick={() => setResult(LC4.parseStateImport(csv, [LF1, LF2], NOW))}
+        >
+          Parse import
+        </button>
       </div>
       {result && (
         <>
@@ -100,14 +154,18 @@ export function StateMigrationTool() {
   return (
     <div className="lr461-card">
       <h3 className="lr461-title">52404 · State migration tool</h3>
-      <Note>Previewing remap: InProgress → Fixing, Triaged → Triage across the sample findings.</Note>
+      <Note>
+        Previewing remap: InProgress → Fixing, Triaged → Triage across the sample findings.
+      </Note>
       <div className="lr461-row">
         <span className="lr461-chip">{affected.length} affected</span>
         <span className="lr461-chip">{3 - affected.length} unchanged</span>
       </div>
       <ul className="lr461-list">
         {affected.map((r, i) => (
-          <li key={i}><span className="lr461-chip">{r.id || r.findingId}</span> {r.from} → {r.to}</li>
+          <li key={i}>
+            <span className="lr461-chip">{r.id || r.findingId}</span> {r.from} → {r.to}
+          </li>
         ))}
       </ul>
       <Mono>{JSON.stringify(preview, null, 2)}</Mono>
@@ -123,7 +181,12 @@ export function ArchivedFindingStates() {
       <h3 className="lr461-title">52405 · Archived finding states</h3>
       <Note>Archive f-611 with its full state trail preserved for reporting.</Note>
       <div className="lr461-row">
-        <button className="lr461-btn" onClick={() => setArchived(LC4.archiveFindingWithState(LF1, 'bhavesh', NOW))}>Archive finding</button>
+        <button
+          className="lr461-btn"
+          onClick={() => setArchived(LC4.archiveFindingWithState(LF1, 'bhavesh', NOW))}
+        >
+          Archive finding
+        </button>
       </div>
       {archived && (
         <>
@@ -149,15 +212,27 @@ export function StateSearch() {
       <h3 className="lr461-title">52406 · State search</h3>
       <Note>Search findings by current state or any state they have ever held.</Note>
       <div className="lr461-row">
-        <input className="lr461-input" value={term} onChange={(e) => setTerm(e.target.value)} />
+        <input className="lr461-input" value={term} onChange={e => setTerm(e.target.value)} />
       </div>
       <div className="lr461-row">
-        <span className="lr461-chip">{current.length} currently in {term}</span>
-        <span className="lr461-chip">{ever.length} ever in {term}</span>
+        <span className="lr461-chip">
+          {current.length} currently in {term}
+        </span>
+        <span className="lr461-chip">
+          {ever.length} ever in {term}
+        </span>
       </div>
       <ul className="lr461-list">
-        {current.map((id, i) => <li key={i}><span className="lr461-chip">{id}</span> — current state</li>)}
-        {ever.map((id, i) => <li key={'e' + i}><span className="lr461-chip">{id}</span> — held historically</li>)}
+        {current.map((id, i) => (
+          <li key={i}>
+            <span className="lr461-chip">{id}</span> — current state
+          </li>
+        ))}
+        {ever.map((id, i) => (
+          <li key={'e' + i}>
+            <span className="lr461-chip">{id}</span> — held historically
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -171,15 +246,26 @@ export function StateAssignmentRules() {
   return (
     <div className="lr461-card">
       <h3 className="lr461-title">52407 · State assignment rules</h3>
-      <Note>Rule r-1 routes findings entering InProgress to the asset owner. Firing the event on f-612 below.</Note>
+      <Note>
+        Rule r-1 routes findings entering InProgress to the asset owner. Firing the event on f-612
+        below.
+      </Note>
       <div className="lr461-row">
-        <button className="lr461-btn" onClick={() => setResult(LC4.evaluateAssignmentRules(rules, LF2, event, NOW))}>Fire enterState event</button>
+        <button
+          className="lr461-btn"
+          onClick={() => setResult(LC4.evaluateAssignmentRules(rules, LF2, event, NOW))}
+        >
+          Fire enterState event
+        </button>
       </div>
       {result && (
         <>
           <ul className="lr461-list">
             {(result.assignments || []).map((a, i) => (
-              <li key={i}><span className="lr461-chip">{result.findingId}</span> assigned to {a.assignee} via rule {a.ruleId}</li>
+              <li key={i}>
+                <span className="lr461-chip">{result.findingId}</span> assigned to {a.assignee} via
+                rule {a.ruleId}
+              </li>
             ))}
           </ul>
           <Mono>{JSON.stringify(result, null, 2)}</Mono>
@@ -193,7 +279,7 @@ export function StateAssignmentRules() {
 export function ThroughputLeaderboard() {
   const transitions = [
     { actor: 'aria', to: 'Verified', at: NOW - 2 * DAY, actorOptedIn: true },
-    { actor: 'kai', to: 'Closed', at: NOW - DAY, actorOptedIn: true }
+    { actor: 'kai', to: 'Closed', at: NOW - DAY, actorOptedIn: true },
   ];
   const [anonymize, setAnonymize] = useState(false);
   const board = LC4.throughputLeaderboard(transitions, NOW, { anonymize });
@@ -204,12 +290,19 @@ export function ThroughputLeaderboard() {
       <Note>Ranked by verified transitions over the trailing window.</Note>
       <div className="lr461-row">
         <label>
-          <input type="checkbox" checked={anonymize} onChange={(e) => setAnonymize(e.target.checked)} /> Anonymize actors
+          <input
+            type="checkbox"
+            checked={anonymize}
+            onChange={e => setAnonymize(e.target.checked)}
+          />{' '}
+          Anonymize actors
         </label>
       </div>
       <ul className="lr461-list">
         {rows.map((r, i) => (
-          <li key={i}><span className="lr461-chip">#{i + 1}</span> {r.actor} — {r.closed} transitions closed</li>
+          <li key={i}>
+            <span className="lr461-chip">#{i + 1}</span> {r.actor} — {r.closed} transitions closed
+          </li>
         ))}
       </ul>
       <Mono>{JSON.stringify(board, null, 2)}</Mono>
@@ -228,13 +321,34 @@ export function TransitionComments() {
       <h3 className="lr461-title">52409 · Transition comments</h3>
       <Note>Discussion thread attached to transition t-611.</Note>
       <div className="lr461-row">
-        <input className="lr461-input" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author" />
-        <input className="lr461-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Comment" />
-        <button className="lr461-btn" onClick={() => { const res = LC4.addTransitionComment(threads, 't-611', { author, body: text }, NOW); if (res.ok) setThreads(res.threads); setText(''); }}>Add comment</button>
+        <input
+          className="lr461-input"
+          value={author}
+          onChange={e => setAuthor(e.target.value)}
+          placeholder="Author"
+        />
+        <input
+          className="lr461-input"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="Comment"
+        />
+        <button
+          className="lr461-btn"
+          onClick={() => {
+            const res = LC4.addTransitionComment(threads, 't-611', { author, body: text }, NOW);
+            if (res.ok) setThreads(res.threads);
+            setText('');
+          }}
+        >
+          Add comment
+        </button>
       </div>
       <ul className="lr461-list">
         {thread.map((c, i) => (
-          <li key={i}><span className="lr461-chip">{c.author}</span> {c.body}</li>
+          <li key={i}>
+            <span className="lr461-chip">{c.author}</span> {c.body}
+          </li>
         ))}
       </ul>
     </div>
@@ -250,7 +364,13 @@ export function ScheduledStateReviews() {
       <h3 className="lr461-title">52410 · Scheduled state reviews</h3>
       <Note>Stale-state findings queued for periodic review, led by bhavesh.</Note>
       <table className="lr461-table">
-        <thead><tr><th>Finding</th><th>Review at</th><th>Cadence</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Finding</th>
+            <th>Review at</th>
+            <th>Cadence</th>
+          </tr>
+        </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={i}>
@@ -283,7 +403,12 @@ export function StateDashboardWidgets() {
         {entries.map(([state, count]) => (
           <li key={state}>
             <span className="lr461-chip">{state}</span> {count}
-            <div className="lr461-bar"><div className="lr461-bar-fill" style={{ width: ((Number(count) || 0) / max * 100) + '%' }} /></div>
+            <div className="lr461-bar">
+              <div
+                className="lr461-bar-fill"
+                style={{ width: ((Number(count) || 0) / max) * 100 + '%' }}
+              />
+            </div>
           </li>
         ))}
       </ul>
@@ -291,6 +416,26 @@ export function StateDashboardWidgets() {
   );
 }
 
-export const LR61_GALLERY = [SuggestedTransitions, StateDiagramViz, BulkStateImport, StateMigrationTool, ArchivedFindingStates, StateSearch, StateAssignmentRules, ThroughputLeaderboard, TransitionComments, ScheduledStateReviews, StateDashboardWidgets];
+export const LR61_GALLERY = [
+  SuggestedTransitions,
+  StateDiagramViz,
+  BulkStateImport,
+  StateMigrationTool,
+  ArchivedFindingStates,
+  StateSearch,
+  StateAssignmentRules,
+  ThroughputLeaderboard,
+  TransitionComments,
+  ScheduledStateReviews,
+  StateDashboardWidgets,
+];
 
-export function LifecycleRound4Gallery() { return (<div className="lr461-gallery">{LR61_GALLERY.map((C, i) => <C key={i} />)}</div>); }
+export function LifecycleRound4Gallery() {
+  return (
+    <div className="lr461-gallery">
+      {LR61_GALLERY.map((C, i) => (
+        <C key={i} />
+      ))}
+    </div>
+  );
+}

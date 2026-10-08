@@ -41,7 +41,10 @@ export function hammingDistanceHex(a, b) {
   let dist = 0;
   for (let i = 0; i < x.length; i++) {
     let v = parseInt(x[i], 16) ^ parseInt(y[i], 16);
-    while (v) { dist += v & 1; v >>>= 1; }
+    while (v) {
+      dist += v & 1;
+      v >>>= 1;
+    }
   }
   return dist;
 }
@@ -111,7 +114,7 @@ export function clusterIconReuse(candidates = []) {
     }
   }
   return [...clusters.values()]
-    .filter((c) => c.hostCount > 1)
+    .filter(c => c.hostCount > 1)
     .sort((a, b) => b.hostCount - a.hostCount);
 }
 

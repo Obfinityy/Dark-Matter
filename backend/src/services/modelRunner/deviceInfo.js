@@ -27,7 +27,10 @@ function toGB(bytes) {
 /** Run a command with a short timeout; return stdout or null on any failure. */
 async function tryRun(cmd, args, timeoutMs = 6000) {
   try {
-    const { stdout } = await execFileAsync(cmd, args, { timeout: timeoutMs, maxBuffer: 1024 * 1024 });
+    const { stdout } = await execFileAsync(cmd, args, {
+      timeout: timeoutMs,
+      maxBuffer: 1024 * 1024,
+    });
     return String(stdout || '');
   } catch {
     return null;
@@ -44,10 +47,13 @@ export async function detectGpus() {
   const platform = os.platform();
 
   // NVIDIA (Windows + Linux): the reliable source.
-  const smi = await tryRun('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader,nounits']);
+  const smi = await tryRun('nvidia-smi', [
+    '--query-gpu=name,memory.total',
+    '--format=csv,noheader,nounits',
+  ]);
   if (smi) {
     for (const line of smi.split('\n')) {
-      const [name, memMb] = line.split(',').map((s) => s.trim());
+      const [name, memMb] = line.split(',').map(s => s.trim());
       if (!name) continue;
       const vramGB = Number(memMb) > 0 ? Math.round((Number(memMb) / 1024) * 10) / 10 : null;
       gpus.push({ vendor: 'nvidia', name, vramGB });
@@ -68,14 +74,21 @@ export async function detectGpus() {
           gpus.push({
             vendor: /apple/i.test(name) ? 'apple' : 'other',
             name,
-            vramGB: vramMatch ? Number(vramMatch[1]) : null
+            vramGB: vramMatch ? Number(vramMatch[1]) : null,
           });
         }
-      } catch { /* fall through */ }
+      } catch {
+        /* fall through */
+      }
     }
     // Apple Silicon fallback: unified memory chip, Metal always available.
     if (gpus.length === 0 && os.arch() === 'arm64') {
-      gpus.push({ vendor: 'apple', name: 'Apple Silicon (unified memory)', vramGB: null, unified: true });
+      gpus.push({
+        vendor: 'apple',
+        name: 'Apple Silicon (unified memory)',
+        vramGB: null,
+        unified: true,
+      });
     }
     return gpus;
   }
@@ -86,7 +99,11 @@ export async function detectGpus() {
     if (lspci) {
       const match = lspci.match(/(VGA|3D|Display)[^\n]*(NVIDIA|AMD|Intel)[^\n]*/i);
       if (match) {
-        const vendor = /nvidia/i.test(match[0]) ? 'nvidia' : /amd/i.test(match[0]) ? 'amd' : 'intel';
+        const vendor = /nvidia/i.test(match[0])
+          ? 'nvidia'
+          : /amd/i.test(match[0])
+            ? 'amd'
+            : 'intel';
         gpus.push({ vendor, name: match[0].trim().slice(0, 120), vramGB: null });
       }
     }
@@ -109,10 +126,10 @@ export async function detectDevice() {
     freeRamGB,
     gpus,
     primaryGpu,
-    hasNvidia: gpus.some((g) => g.vendor === 'nvidia'),
+    hasNvidia: gpus.some(g => g.vendor === 'nvidia'),
     // Effective memory llama.cpp can use: VRAM if a discrete NVIDIA GPU with
     // known VRAM exists, else system RAM (CPU offload / unified memory).
-    label: `${os.platform()}-${os.arch()} · ${totalRamGB}GB RAM${primaryGpu ? ` · ${primaryGpu.name}` : ''}`
+    label: `${os.platform()}-${os.arch()} · ${totalRamGB}GB RAM${primaryGpu ? ` · ${primaryGpu.name}` : ''}`,
   };
 }
 
@@ -143,7 +160,7 @@ export function estimateVramFit(model, gpuVramGB) {
     mode: 'partial',
     offloadPct,
     estVramGB: Math.round(usable * 10) / 10,
-    fullNeedGB
+    fullNeedGB,
   };
 }
 
@@ -165,7 +182,7 @@ export function rankModelForDevice(model, device) {
   const vramGB = Number(req.vramGB) || 0;
 
   const usableGpu = (device.gpus || []).find(
-    (g) => g.vendor === 'nvidia' || g.vendor === 'apple' || (g.vendor === 'amd' && g.vramGB)
+    g => g.vendor === 'nvidia' || g.vendor === 'apple' || (g.vendor === 'amd' && g.vramGB)
   );
 
   if (req.gpuRequired && !usableGpu) {
@@ -199,8 +216,8 @@ export function rankModelForDevice(model, device) {
   if (vramGB > 0 && gpuVram && vramGB > gpuVram) {
     reasons.push(
       `Full GPU offload wants ${vramGB}GB VRAM, but the GPU has ${gpuVram}GB — ` +
-      `about ${vramFit.offloadPct}% of layers will stay on the GPU and the rest ` +
-      `run on CPU (slower, and needs more system RAM).`
+        `about ${vramFit.offloadPct}% of layers will stay on the GPU and the rest ` +
+        `run on CPU (slower, and needs more system RAM).`
     );
     return { verdict: 'tight', reasons, vramFit };
   }
@@ -224,5 +241,5 @@ export function rankModelForDevice(model, device) {
 
 /** Rank every library model for the device (for the library endpoint). */
 export function rankLibraryForDevice(library, device) {
-  return library.map((model) => ({ modelId: model.id, ...rankModelForDevice(model, device) }));
+  return library.map(model => ({ modelId: model.id, ...rankModelForDevice(model, device) }));
 }

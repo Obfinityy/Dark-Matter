@@ -11,11 +11,7 @@
 
 const LEGACY_ALGORITHMS = ['ssh-dss'];
 const SHA1_RSA_ALGORITHMS = ['ssh-rsa', 'rsa-sha2-256', 'rsa-sha2-512'];
-const ECDSA_ALGORITHMS = [
-  'ecdsa-sha2-nistp256',
-  'ecdsa-sha2-nistp384',
-  'ecdsa-sha2-nistp521',
-];
+const ECDSA_ALGORITHMS = ['ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521'];
 const MODERN_ALGORITHMS = [
   'ssh-ed25519',
   'sk-ssh-ed25519@openssh.com',
@@ -36,7 +32,7 @@ function classifyAlgorithm(algo = '') {
   if (ECDSA_ALGORITHMS.includes(a)) return 'ecdsa';
   if (MODERN_ALGORITHMS.includes(a)) return 'ed25519';
   if (a.endsWith('-cert-v01@openssh.com')) return 'cert';
-  if (POST_QUANTUM_PREFIXES.some((p) => a.startsWith(p))) return 'post-quantum';
+  if (POST_QUANTUM_PREFIXES.some(p => a.startsWith(p))) return 'post-quantum';
   return 'unknown';
 }
 
@@ -47,7 +43,9 @@ function classifyAlgorithm(algo = '') {
  * @returns {{ era: 'legacy'|'transitional'|'modern'|'unknown', hostKeyTypes: string[], findings: object[], confidence: 'high'|'medium'|'low' }}
  */
 export function analyzeHostKeyAlgorithms(algorithms = []) {
-  const list = (Array.isArray(algorithms) ? algorithms : []).map((a) => String(a).trim()).filter(Boolean);
+  const list = (Array.isArray(algorithms) ? algorithms : [])
+    .map(a => String(a).trim())
+    .filter(Boolean);
   const hostKeyTypes = list.map(classifyAlgorithm);
 
   const hasDss = hostKeyTypes.includes('legacy-dss');
@@ -94,8 +92,10 @@ export function analyzeHostKeyAlgorithms(algorithms = []) {
       type: 'SHA-1 ssh-rsa host key offered',
       severity: 'Medium',
       confidence: 'high',
-      evidence: 'ssh-rsa (SHA-1 signature) offered — vulnerable to chosen-prefix collision forgery in principle.',
-      recommendation: 'Prefer rsa-sha2-256/512 or ssh-ed25519; disable plain ssh-rsa if the client base allows.',
+      evidence:
+        'ssh-rsa (SHA-1 signature) offered — vulnerable to chosen-prefix collision forgery in principle.',
+      recommendation:
+        'Prefer rsa-sha2-256/512 or ssh-ed25519; disable plain ssh-rsa if the client base allows.',
     });
   }
   if (!hasEd25519 && list.length > 0) {
@@ -121,8 +121,10 @@ export function analyzeHostKeyAlgorithms(algorithms = []) {
       type: 'OpenSSH certificate host keys offered',
       severity: 'Info',
       confidence: 'high',
-      evidence: '*-cert-v01@openssh.com algorithms present — server supports certificate-based host authentication.',
-      recommendation: 'Certificates simplify fleet key management; verify CA practices before trusting them.',
+      evidence:
+        '*-cert-v01@openssh.com algorithms present — server supports certificate-based host authentication.',
+      recommendation:
+        'Certificates simplify fleet key management; verify CA practices before trusting them.',
     });
   }
   if (hasPQ) {
@@ -130,18 +132,20 @@ export function analyzeHostKeyAlgorithms(algorithms = []) {
       type: 'Post-quantum hybrid host key offered',
       severity: 'Info',
       confidence: 'medium',
-      evidence: 'sntrup761/mlkem hybrid algorithm present — server experiments with quantum-resistant keys.',
+      evidence:
+        'sntrup761/mlkem hybrid algorithm present — server experiments with quantum-resistant keys.',
       recommendation: 'Track for compatibility; hybrids are still pre-standard on some stacks.',
     });
   }
   if (hostKeyTypes.includes('unknown') && list.length > 0) {
-    const unknowns = list.filter((a) => classifyAlgorithm(a) === 'unknown');
+    const unknowns = list.filter(a => classifyAlgorithm(a) === 'unknown');
     findings.push({
       type: 'Unrecognized host-key algorithms',
       severity: 'Info',
       confidence: 'low',
       evidence: `Unknown tokens: ${unknowns.join(', ')} — possibly vendor-proprietary extensions.`,
-      recommendation: 'Cross-check against vendor documentation; proprietary algorithms warrant extra scrutiny.',
+      recommendation:
+        'Cross-check against vendor documentation; proprietary algorithms warrant extra scrutiny.',
     });
   }
 

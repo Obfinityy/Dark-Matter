@@ -10,27 +10,62 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
-  versionInfoString, parseVersionInfo,
-  filtersToApiQuery, apiQueryToFilters,
-  canCopyImageBytes, validateImageCopyBlob, imageCopyPayload,
-  isSecretField, secretCopyGate, SECRET_REVEAL_WINDOW_MS,
+  versionInfoString,
+  parseVersionInfo,
+  filtersToApiQuery,
+  apiQueryToFilters,
+  canCopyImageBytes,
+  validateImageCopyBlob,
+  imageCopyPayload,
+  isSecretField,
+  secretCopyGate,
+  SECRET_REVEAL_WINDOW_MS,
 } from './copyRound3Core.js';
 import {
-  WAVE23_IDEAS, wave23RegistryComplete,
-  PRINT_BODY_PT, PR_NO_PRINT_CLASS, PR_UNBROKEN_CLASS,
-  INK_SAVER_CLASS, GRAYSCALE_CLASS, DRAFT_CLASS,
-  printHeaderData, pageFooterText, severityPrintLabel,
-  PRINT_HIDDEN_SELECTORS, isHiddenInPrint,
-  expandAwarePrint, createPrintScope, setPrintScope,
-  wrapCodeLines, screenshotFigure, buildPrintToc,
-  linkPrintText, chartPrintLabels, printModeClasses,
-  timelinePrintList, sectionPrintTargets, PRINTABLE_SECTIONS,
-  PRINT_MARGINS, marginFor, DRAFT_WATERMARK_TEXT,
-  filterAwareHeader, CLASSIFICATIONS, classificationLabel,
-  QR_MAX_BYTES, qrEncodeUrl, qrToSvg,
-  splitSummaryColumns, chainGraphToList, auditTrailAppendix,
-  pdfGuidance, sectionPageBreakPlan, remediationChecklistRows,
-  stackedDiff, dashboardOnePager, formatPrintTimestamp, buildGlossary,
+  WAVE23_IDEAS,
+  wave23RegistryComplete,
+  PRINT_BODY_PT,
+  PR_NO_PRINT_CLASS,
+  PR_UNBROKEN_CLASS,
+  INK_SAVER_CLASS,
+  GRAYSCALE_CLASS,
+  DRAFT_CLASS,
+  printHeaderData,
+  pageFooterText,
+  severityPrintLabel,
+  PRINT_HIDDEN_SELECTORS,
+  isHiddenInPrint,
+  expandAwarePrint,
+  createPrintScope,
+  setPrintScope,
+  wrapCodeLines,
+  screenshotFigure,
+  buildPrintToc,
+  linkPrintText,
+  chartPrintLabels,
+  printModeClasses,
+  timelinePrintList,
+  sectionPrintTargets,
+  PRINTABLE_SECTIONS,
+  PRINT_MARGINS,
+  marginFor,
+  DRAFT_WATERMARK_TEXT,
+  filterAwareHeader,
+  CLASSIFICATIONS,
+  classificationLabel,
+  QR_MAX_BYTES,
+  qrEncodeUrl,
+  qrToSvg,
+  splitSummaryColumns,
+  chainGraphToList,
+  auditTrailAppendix,
+  pdfGuidance,
+  sectionPageBreakPlan,
+  remediationChecklistRows,
+  stackedDiff,
+  dashboardOnePager,
+  formatPrintTimestamp,
+  buildGlossary,
 } from './printCore.js';
 
 describe('wave 23 registry', () => {
@@ -38,16 +73,19 @@ describe('wave 23 registry', () => {
     assert.equal(WAVE23_IDEAS.length, 40);
     for (let i = 0; i < 40; i++) assert.equal(WAVE23_IDEAS[i][0], 50881 + i);
     assert.ok(wave23RegistryComplete());
-    const skips = WAVE23_IDEAS.filter((r) => r[2] === 'skip').map((r) => r[0]);
+    const skips = WAVE23_IDEAS.filter(r => r[2] === 'skip').map(r => r[0]);
     assert.deepEqual(skips, [50898, 50914]);
-    const news = WAVE23_IDEAS.filter((r) => r[2] === 'new');
+    const news = WAVE23_IDEAS.filter(r => r[2] === 'new');
     assert.equal(news.length, 38);
   });
 });
 
 describe('50881 version info', () => {
   it('builds the bug-report string', () => {
-    assert.equal(versionInfoString({ version: '2.4.1', build: '8812' }), 'Dark-Matter v2.4.1 (build 8812)');
+    assert.equal(
+      versionInfoString({ version: '2.4.1', build: '8812' }),
+      'Dark-Matter v2.4.1 (build 8812)'
+    );
     assert.equal(versionInfoString({ version: '1.0.0' }), 'Dark-Matter v1.0.0');
   });
   it('rejects bad input', () => {
@@ -59,7 +97,12 @@ describe('50881 version info', () => {
 
 describe('50882 api query', () => {
   it('round-trips filters through query params', () => {
-    const filters = { severity: ['high', 'critical'], status: 'open', q: 'xss <test>', sort: 'severity' };
+    const filters = {
+      severity: ['high', 'critical'],
+      status: 'open',
+      q: 'xss <test>',
+      sort: 'severity',
+    };
     const q = filtersToApiQuery(filters);
     assert.ok(q.includes('severity=high'));
     assert.ok(q.includes('q=xss+%3Ctest%3E') || q.includes('q=xss%20%3Ctest%3E'));
@@ -84,7 +127,10 @@ describe('50883 image bytes', () => {
   });
   it('validates blobs', () => {
     assert.deepEqual(validateImageCopyBlob({ type: 'image/png', size: 120 }).ok, true);
-    assert.equal(validateImageCopyBlob({ type: 'text/plain', size: 10 }).reason, 'unsupported-mime');
+    assert.equal(
+      validateImageCopyBlob({ type: 'text/plain', size: 10 }).reason,
+      'unsupported-mime'
+    );
     assert.equal(validateImageCopyBlob({ type: 'image/png', size: 0 }).reason, 'empty');
     const blob = { type: 'image/png', size: 5 };
     const p = imageCopyPayload(blob);
@@ -101,14 +147,24 @@ describe('50884 secret gate', () => {
     assert.equal(isSecretField(''), false);
   });
   it('gates copy behind an explicit reveal', () => {
-    assert.deepEqual(secretCopyGate({ fieldName: 'title' }), { allowed: true, reason: 'not-secret' });
-    assert.deepEqual(secretCopyGate({ fieldName: 'api_key' }), { allowed: false, reason: 'reveal-required' });
+    assert.deepEqual(secretCopyGate({ fieldName: 'title' }), {
+      allowed: true,
+      reason: 'not-secret',
+    });
+    assert.deepEqual(secretCopyGate({ fieldName: 'api_key' }), {
+      allowed: false,
+      reason: 'reveal-required',
+    });
     const now = Date.now();
     assert.deepEqual(
-      secretCopyGate({ fieldName: 'api_key', revealedAt: now - 1000, now }).reason, 'revealed');
+      secretCopyGate({ fieldName: 'api_key', revealedAt: now - 1000, now }).reason,
+      'revealed'
+    );
     assert.deepEqual(
-      secretCopyGate({ fieldName: 'api_key', revealedAt: now - SECRET_REVEAL_WINDOW_MS - 1, now }).reason,
-      'reveal-expired');
+      secretCopyGate({ fieldName: 'api_key', revealedAt: now - SECRET_REVEAL_WINDOW_MS - 1, now })
+        .reason,
+      'reveal-expired'
+    );
   });
 });
 
@@ -125,8 +181,10 @@ describe('print core basics', () => {
     assert.equal(severityPrintLabel(null), 'UNKNOWN');
   });
   it('print mode classes compose', () => {
-    assert.deepEqual(printModeClasses({ inkSaver: true, grayscale: true, draft: false }),
-      [INK_SAVER_CLASS, GRAYSCALE_CLASS]);
+    assert.deepEqual(printModeClasses({ inkSaver: true, grayscale: true, draft: false }), [
+      INK_SAVER_CLASS,
+      GRAYSCALE_CLASS,
+    ]);
     assert.deepEqual(printModeClasses({}), []);
   });
   it('hidden selectors registry', () => {
@@ -174,10 +232,10 @@ describe('50892 code wrapping', () => {
     const lines = wrapCodeLines('short\n' + 'x'.repeat(200), 90);
     assert.equal(lines[0].wrapped, false);
     assert.equal(lines[0].no, 1);
-    const wrapped = lines.filter((l) => l.no === 2);
+    const wrapped = lines.filter(l => l.no === 2);
     assert.ok(wrapped.length >= 3);
-    assert.ok(wrapped.some((l) => l.continuation));
-    assert.ok(wrapped.every((l) => l.text.length <= 90));
+    assert.ok(wrapped.some(l => l.continuation));
+    assert.ok(wrapped.every(l => l.text.length <= 90));
   });
 });
 
@@ -197,7 +255,10 @@ describe('50894 TOC', () => {
       { id: 'b', title: 'B', lines: 120 },
       { id: 'c', title: 'C', lines: 10 },
     ]);
-    assert.deepEqual(toc.map((t) => t.page), [1, 2, 5]);
+    assert.deepEqual(
+      toc.map(t => t.page),
+      [1, 2, 5]
+    );
   });
 });
 
@@ -208,7 +269,8 @@ describe('50896/50897 links and charts', () => {
   });
   it('chart labels carry values and pct, sorted', () => {
     const rows = chartPrintLabels([
-      { label: 'Low', value: 1 }, { label: 'High', value: 3 },
+      { label: 'Low', value: 1 },
+      { label: 'High', value: 3 },
     ]);
     assert.equal(rows[0].label, 'High');
     assert.equal(rows[0].pct, 75);
@@ -219,15 +281,24 @@ describe('50896/50897 links and charts', () => {
 describe('50901 condensed timeline', () => {
   it('sorts chronologically', () => {
     const rows = timelinePrintList([
-      { ts: 20, label: 'b' }, { ts: 10, label: 'a' },
+      { ts: 20, label: 'b' },
+      { ts: 10, label: 'a' },
     ]);
-    assert.deepEqual(rows.map((r) => r.label), ['a', 'b']);
+    assert.deepEqual(
+      rows.map(r => r.label),
+      ['a', 'b']
+    );
   });
 });
 
 describe('50903/50904 sections and margins', () => {
   it('filters printable sections', () => {
-    const t = sectionPrintTargets({ sections: [{ id: 'findings', title: 'F' }, { id: 'nope', title: 'N' }] });
+    const t = sectionPrintTargets({
+      sections: [
+        { id: 'findings', title: 'F' },
+        { id: 'nope', title: 'N' },
+      ],
+    });
     assert.deepEqual(t, [{ id: 'findings', title: 'F' }]);
     assert.ok(PRINTABLE_SECTIONS.includes('glossary'));
   });
@@ -240,7 +311,10 @@ describe('50903/50904 sections and margins', () => {
 
 describe('50906/50907 headers and classification', () => {
   it('filter-aware header', () => {
-    assert.equal(filterAwareHeader({ total: 42, shown: 7 }), 'printing 7 of 42 findings (filtered)');
+    assert.equal(
+      filterAwareHeader({ total: 42, shown: 7 }),
+      'printing 7 of 42 findings (filtered)'
+    );
     assert.equal(filterAwareHeader({ total: 42, shown: 42 }), 'printing 42 findings');
     assert.equal(filterAwareHeader({ total: 1, shown: 1 }), 'printing 1 finding');
   });
@@ -290,8 +364,21 @@ describe('50908 QR encoder', () => {
   it('format info decodes to EC level L and the chosen mask', () => {
     const qr = qrEncodeUrl('format-check');
     const bits = [
-      [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [8, 7], [8, 8],
-      [7, 8], [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8],
+      [8, 0],
+      [8, 1],
+      [8, 2],
+      [8, 3],
+      [8, 4],
+      [8, 5],
+      [8, 7],
+      [8, 8],
+      [7, 8],
+      [5, 8],
+      [4, 8],
+      [3, 8],
+      [2, 8],
+      [1, 8],
+      [0, 8],
     ].map(([r, c]) => qr.modules[r][c]);
     let raw = 0;
     for (const bit of bits) raw = (raw << 1) | bit;
@@ -323,8 +410,11 @@ describe('50909/50910 summaries and graph lists', () => {
   });
   it('flattens chain graphs to node lists', () => {
     const rows = chainGraphToList(
-      [{ id: 'a', label: 'XSS', kind: 'vuln' }, { id: 'b', label: 'ATO', kind: 'impact' }],
-      [{ from: 'a', to: 'b', label: 'enables' }],
+      [
+        { id: 'a', label: 'XSS', kind: 'vuln' },
+        { id: 'b', label: 'ATO', kind: 'impact' },
+      ],
+      [{ from: 'a', to: 'b', label: 'enables' }]
     );
     assert.equal(rows[0].outgoing[0].to, 'b');
     assert.equal(rows[1].incoming[0].from, 'a');
@@ -334,7 +424,8 @@ describe('50909/50910 summaries and graph lists', () => {
 describe('50912/50913 appendix and pdf guidance', () => {
   it('audit trail sorts by time', () => {
     const rows = auditTrailAppendix([
-      { ts: 5, actor: 'x', action: 'b' }, { ts: 1, actor: 'y', action: 'a' },
+      { ts: 5, actor: 'x', action: 'b' },
+      { ts: 1, actor: 'y', action: 'a' },
     ]);
     assert.equal(rows[0].action, 'a');
   });
@@ -349,7 +440,13 @@ describe('50912/50913 appendix and pdf guidance', () => {
 
 describe('50915/50916/50917 sections, checklists, diffs', () => {
   it('page break plan', () => {
-    const plan = sectionPageBreakPlan([{ severity: 'critical', count: 1 }, { severity: 'high', count: 2 }], true);
+    const plan = sectionPageBreakPlan(
+      [
+        { severity: 'critical', count: 1 },
+        { severity: 'high', count: 2 },
+      ],
+      true
+    );
     assert.equal(plan[0].breakBefore, false);
     assert.equal(plan[1].breakBefore, true);
     assert.equal(sectionPageBreakPlan([{ severity: 'x' }], false)[0].breakBefore, false);
@@ -369,7 +466,11 @@ describe('50915/50916/50917 sections, checklists, diffs', () => {
 
 describe('50918 one-page dashboard', () => {
   it('keeps top-priority widgets, max 8', () => {
-    const widgets = Array.from({ length: 10 }, (_, i) => ({ id: `w${i}`, title: `W${i}`, priority: 10 - i }));
+    const widgets = Array.from({ length: 10 }, (_, i) => ({
+      id: `w${i}`,
+      title: `W${i}`,
+      priority: 10 - i,
+    }));
     const rows = dashboardOnePager(widgets);
     assert.equal(rows.length, 8);
     assert.equal(rows[0].id, 'w9');
@@ -395,11 +496,11 @@ describe('50920 glossary', () => {
     const g = buildGlossary([
       { title: 'Reflected XSS in /search', type: 'XSS', tags: ['SQLI', 'NOPE'] },
     ]);
-    const terms = g.map((t) => t.term);
+    const terms = g.map(t => t.term);
     assert.ok(terms.includes('XSS'));
     assert.ok(terms.includes('SQLI'));
     assert.ok(!terms.includes('NOPE'));
-    assert.ok(g.find((t) => t.term === 'XSS').definition.length > 10);
+    assert.ok(g.find(t => t.term === 'XSS').definition.length > 10);
     assert.deepEqual(terms, [...terms].sort());
   });
 });
@@ -414,7 +515,10 @@ describe('50885 print stylesheet audit', () => {
     assert.ok(css.includes('break-inside: avoid'), 'unbroken cards');
     assert.ok(css.includes('12pt'), '12pt body type');
     assert.ok(css.includes('columns: 2'), 'two-column summaries');
-    assert.ok(css.includes("content: ' (' attr(href) ')'") || css.includes('attr(href)'), 'visible link URLs');
+    assert.ok(
+      css.includes("content: ' (' attr(href) ')'") || css.includes('attr(href)'),
+      'visible link URLs'
+    );
     assert.ok(css.includes('.pr-watermark'), 'draft watermark');
     assert.ok(css.includes('grayscale(1)'), 'grayscale toggle');
   });

@@ -530,6 +530,7 @@ export const MODEL_CATALOG = [
   }
 ];
 
+/** Category groupings for the model catalog. */
 export const MODEL_CATEGORIES = [
   { id: 'hacking', label: 'Hacking Brain', description: 'Uncensored instruct models — the main hacking brain' },
   { id: 'vision', label: 'Vision', description: 'See screenshots and images' },

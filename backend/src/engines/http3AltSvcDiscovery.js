@@ -28,7 +28,7 @@ const PROTOCOL_LABELS = {
   'h3-24': 'HTTP/3 draft-24 (QUIC draft-24)',
   'h3-23': 'HTTP/3 draft-23 (QUIC draft-23)',
   h2: 'HTTP/2 (alternate service)',
-  'h2c': 'HTTP/2 cleartext (alternate service)',
+  h2c: 'HTTP/2 cleartext (alternate service)',
   http1: 'HTTP/1.1 (alternate service)',
   hq: 'HTTP/3 draft interop (hq)',
   quic: 'Google QUIC (gQUIC)',
@@ -68,7 +68,7 @@ export function parseAltSvcEntry(entry) {
   const m = /^([A-Za-z0-9_.-]+)\s*=\s*(?:"([^"]*)"|([^\s;]+))\s*(;.*)?$/.exec(trimmed);
   if (!m) return null;
   const protocolId = m[1];
-  const authority = m[2] !== undefined ? m[2] : (m[3] !== undefined ? m[3] : null);
+  const authority = m[2] !== undefined ? m[2] : m[3] !== undefined ? m[3] : null;
   const paramStr = m[4] || '';
 
   let host = null;
@@ -83,7 +83,10 @@ export function parseAltSvcEntry(entry) {
   }
   let maxAge = null;
   let persist = false;
-  for (const param of paramStr.split(';').map((p) => p.trim()).filter(Boolean)) {
+  for (const param of paramStr
+    .split(';')
+    .map(p => p.trim())
+    .filter(Boolean)) {
     const mm = /^ma\s*=\s*"?(\d+)"?$/i.exec(param);
     if (mm) {
       maxAge = parseInt(mm[1], 10);
@@ -100,7 +103,7 @@ export function parseAltSvcEntry(entry) {
  * @returns {Array<{protocolId: string, authority: string|null, host: string|null, port: number|null, maxAge: number|null, persist: boolean}>}
  */
 export function parseAltSvcHeader(value) {
-  const values = Array.isArray(value) ? value : (typeof value === 'string' ? [value] : []);
+  const values = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
   const entries = [];
   for (const v of values) {
     for (const part of splitTopLevel(v)) {
@@ -134,18 +137,28 @@ export function describeProtocol(protocolId) {
  */
 export function discoverHttp3(value) {
   const allEntries = parseAltSvcHeader(value);
-  const http3Entries = allEntries.filter((e) => e.protocolId === 'h3' || /^h3-/i.test(e.protocolId));
+  const http3Entries = allEntries.filter(e => e.protocolId === 'h3' || /^h3-/i.test(e.protocolId));
   const byProto = new Map();
   for (const e of allEntries) {
-    if (!byProto.has(e.protocolId)) byProto.set(e.protocolId, { protocolId: e.protocolId, description: describeProtocol(e.protocolId), ports: new Set(), maxAge: null });
+    if (!byProto.has(e.protocolId))
+      byProto.set(e.protocolId, {
+        protocolId: e.protocolId,
+        description: describeProtocol(e.protocolId),
+        ports: new Set(),
+        maxAge: null,
+      });
     const p = byProto.get(e.protocolId);
     if (e.port !== null) p.ports.add(e.port);
     if (e.maxAge !== null && (p.maxAge === null || e.maxAge < p.maxAge)) p.maxAge = e.maxAge;
   }
-  const protocols = [...byProto.values()].map((p) => ({ ...p, ports: [...p.ports].sort((a, b) => a - b) }));
-  const summary = http3Entries.length > 0
-    ? `HTTP/3 advertised via ${http3Entries.length} Alt-Svc ${http3Entries.length === 1 ? 'entry' : 'entries'} (${[...new Set(http3Entries.map((e) => e.protocolId))].join(', ')})`
-    : 'no HTTP/3 Alt-Svc advertisement observed';
+  const protocols = [...byProto.values()].map(p => ({
+    ...p,
+    ports: [...p.ports].sort((a, b) => a - b),
+  }));
+  const summary =
+    http3Entries.length > 0
+      ? `HTTP/3 advertised via ${http3Entries.length} Alt-Svc ${http3Entries.length === 1 ? 'entry' : 'entries'} (${[...new Set(http3Entries.map(e => e.protocolId))].join(', ')})`
+      : 'no HTTP/3 Alt-Svc advertisement observed';
   return {
     http3Available: http3Entries.length > 0,
     http3Entries,

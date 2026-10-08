@@ -127,13 +127,25 @@ export function fingerprintWaf(response = {}) {
     let score = 0;
     const evidence = [];
     for (const re of sig.headers || []) {
-      if (headerNames.some((n) => re.test(n))) { score += sig.weight; evidence.push(`header matches ${re}`); }
+      if (headerNames.some(n => re.test(n))) {
+        score += sig.weight;
+        evidence.push(`header matches ${re}`);
+      }
     }
     for (const re of sig.cookies || []) {
-      if (cookieNames.some((n) => re.test(n))) { score += sig.weight; evidence.push(`cookie matches ${re}`); }
+      if (cookieNames.some(n => re.test(n))) {
+        score += sig.weight;
+        evidence.push(`cookie matches ${re}`);
+      }
     }
-    if (sig.server && sig.server.test(server)) { score += sig.weight; evidence.push(`Server header: ${server.slice(0, 80)}`); }
-    if (sig.body && sig.body.test(body)) { score += sig.weight; evidence.push('block-page body marker'); }
+    if (sig.server && sig.server.test(server)) {
+      score += sig.weight;
+      evidence.push(`Server header: ${server.slice(0, 80)}`);
+    }
+    if (sig.body && sig.body.test(body)) {
+      score += sig.weight;
+      evidence.push('block-page body marker');
+    }
     if (score > 0) scores.push({ vendor: sig.vendor, score, evidence });
   }
   scores.sort((a, b) => b.score - a.score);
@@ -161,7 +173,7 @@ export function fingerprintWaf(response = {}) {
  * @param {ResponseMeta[]} responses
  */
 export function fingerprintWafBatch(responses = []) {
-  const per = responses.map((r) => fingerprintWaf(r));
+  const per = responses.map(r => fingerprintWaf(r));
   const votes = new Map();
   for (const p of per) {
     if (!p.vendor) continue;
@@ -169,10 +181,16 @@ export function fingerprintWafBatch(responses = []) {
   }
   const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
   const consensus = ranked.length ? ranked[0][0] : null;
-  const unanimous = ranked.length === 1 && per.every((p) => p.vendor === consensus);
+  const unanimous = ranked.length === 1 && per.every(p => p.vendor === consensus);
   return {
     consensus,
-    confidence: !consensus ? 'none' : unanimous ? 'high' : ranked[0][1] > (ranked[1]?.[1] || 0) ? 'medium' : 'low',
+    confidence: !consensus
+      ? 'none'
+      : unanimous
+        ? 'high'
+        : ranked[0][1] > (ranked[1]?.[1] || 0)
+          ? 'medium'
+          : 'low',
     votes: ranked.map(([vendor, count]) => ({ vendor, count })),
     perResponse: per,
   };
@@ -194,10 +212,15 @@ export function wafFinding(result, targetLabel = 'target') {
     votes: result.votes,
     evidence: result.consensus
       ? `Header/cookie/block-page analysis converges on ${result.consensus} ` +
-        `(${result.votes.map((v) => `${v.vendor}:${v.count}`).join(', ')}).`
+        `(${result.votes.map(v => `${v.vendor}:${v.count}`).join(', ')}).`
       : 'No vendor signature matched the observed responses.',
   };
 }
 
-export const WAF_HEADER_FINGERPRINTER = { fingerprintWaf, fingerprintWafBatch, wafFinding, WAF_SIGNATURES };
+export const WAF_HEADER_FINGERPRINTER = {
+  fingerprintWaf,
+  fingerprintWafBatch,
+  wafFinding,
+  WAF_SIGNATURES,
+};
 export default WAF_HEADER_FINGERPRINTER;

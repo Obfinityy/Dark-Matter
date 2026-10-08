@@ -2,9 +2,13 @@
  * Refinements over the shared .dm-terminal styles: token-driven colors,
  * long-line wrapping without layout breakage, clearer header rhythm. */
 
-.dm-terminal-wrap { min-width: 0; }
+.dm-terminal-wrap {
+  min-width: 0;
+}
 
-.dm-terminal-head { gap: 10px; }
+.dm-terminal-head {
+  gap: 10px;
+}
 
 .dm-terminal-title {
   font-size: 12px;
@@ -14,7 +18,9 @@
   color: var(--text-secondary, #9ca3af);
 }
 
-.dm-term-conn { font-variant-numeric: tabular-nums; }
+.dm-term-conn {
+  font-variant-numeric: tabular-nums;
+}
 
 /* Long tool output wraps instead of forcing horizontal scroll. */
 .dm-term-line {
@@ -49,11 +55,19 @@
 }
 
 @media (max-width: 640px) {
-  .dm-term-tag { display: none; }
-  .dm-term-ts { font-size: 11px; }
-  .dm-terminal { line-height: 1.55; }
+  .dm-term-tag {
+    display: none;
+  }
+  .dm-term-ts {
+    font-size: 11px;
+  }
+  .dm-terminal {
+    line-height: 1.55;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dm-term-line { animation: none; }
+  .dm-term-line {
+    animation: none;
+  }
 }

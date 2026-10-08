@@ -8,7 +8,12 @@
  */
 
 const DAEMON_SIGNATURES = [
-  { name: 'UnrealIRCd', re: /unrealircd|unreal/i, versionRe: /Unreal(\d+|IRCd)/i, confidence: 0.95 },
+  {
+    name: 'UnrealIRCd',
+    re: /unrealircd|unreal/i,
+    versionRe: /Unreal(\d+|IRCd)/i,
+    confidence: 0.95,
+  },
   { name: 'InspIRCd', re: /inspircd/i, confidence: 0.95 },
   { name: 'ircd-hybrid', re: /ircd-hybrid|hybrid/i, confidence: 0.9 },
   { name: 'ircd-seven (Libera)', re: /ircd-seven/i, confidence: 0.9 },
@@ -89,7 +94,7 @@ export function detectIrcDaemon(numerics = {}, raw = '') {
       ? numerics.myinfo.version
       : null;
 
-  const eolFlags = EOL_VERSION_HINTS.filter((h) => h.re.test(text)).map((h) => h.note);
+  const eolFlags = EOL_VERSION_HINTS.filter(h => h.re.test(text)).map(h => h.note);
 
   return {
     daemon,

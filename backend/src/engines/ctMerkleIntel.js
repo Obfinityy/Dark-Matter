@@ -80,7 +80,7 @@ export function analyzeSthTransitions(sths = [], proofs = []) {
   for (let i = 1; i < sths.length; i++) {
     const first = sths[i - 1];
     const second = sths[i];
-    const proof = proofs.find((p) => p.first === first.treeSize && p.second === second.treeSize);
+    const proof = proofs.find(p => p.first === first.treeSize && p.second === second.treeSize);
     const proofSizeOk = proof
       ? proof.proof.length === expectedProofSize(first.treeSize, second.treeSize)
       : null;

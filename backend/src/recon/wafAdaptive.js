@@ -25,7 +25,7 @@ export const STEALTH_PROFILES = Object.freeze({
     rateLimit: 150,
     jitterMs: 0,
     rotateUserAgent: false,
-    lowNoiseTemplatesOnly: false
+    lowNoiseTemplatesOnly: false,
   }),
   'waf-enforced': Object.freeze({
     name: 'waf-enforced',
@@ -34,8 +34,8 @@ export const STEALTH_PROFILES = Object.freeze({
     rateLimit: 10,
     jitterMs: 1200,
     rotateUserAgent: true,
-    lowNoiseTemplatesOnly: true
-  })
+    lowNoiseTemplatesOnly: true,
+  }),
 });
 
 /** Parse wafw00f JSON output → { detected, waf }. Handles -o - -f json shape. */
@@ -50,7 +50,8 @@ export function parseWafw00f(raw) {
       if (waf && !/no waf|none/i.test(String(waf))) {
         return { detected: true, waf: String(waf), method: 'wafw00f' };
       }
-      if (isBehind) return { detected: true, waf: 'generic (wafw00f heuristics)', method: 'wafw00f' };
+      if (isBehind)
+        return { detected: true, waf: 'generic (wafw00f heuristics)', method: 'wafw00f' };
     }
     return { detected: false, waf: null };
   } catch {
@@ -69,13 +70,13 @@ export function enforceOnRequest(request, profile = STEALTH_PROFILES['waf-enforc
   const next = {
     ...request,
     arguments: { ...(request.arguments || {}) },
-    meta: { ...(request.meta || {}), stealthEnforced: true, stealthProfile: profile.name }
+    meta: { ...(request.meta || {}), stealthEnforced: true, stealthProfile: profile.name },
   };
   const args = Array.isArray(next.arguments.args) ? [...next.arguments.args] : [];
   const tool = request.tool;
 
   const setFlag = (flag, value, reason) => {
-    const idx = args.findIndex((a) => a === flag);
+    const idx = args.findIndex(a => a === flag);
     if (idx >= 0) args[idx + 1] = String(value);
     else args.push(flag, String(value));
     changes.push(`${flag} ${value} (${reason})`);
@@ -84,7 +85,7 @@ export function enforceOnRequest(request, profile = STEALTH_PROFILES['waf-enforc
   if (tool === 'nuclei') {
     setFlag('-c', profile.nucleiConcurrency, 'WAF: low concurrency');
     setFlag('-rate-limit', profile.rateLimit, 'WAF: rate limit');
-    if (profile.lowNoiseTemplatesOnly && !args.some((a) => /-tags|-exclude/.test(a))) {
+    if (profile.lowNoiseTemplatesOnly && !args.some(a => /-tags|-exclude/.test(a))) {
       args.push('-exclude-tags', 'intrusive,fuzz,dos');
       changes.push('-exclude-tags intrusive,fuzz,dos (WAF: low-noise templates only)');
     }
@@ -112,8 +113,16 @@ export function enforceOnRequest(request, profile = STEALTH_PROFILES['waf-enforc
   if (profile.rotateUserAgent) {
     const ua = randomUserAgent();
     next.meta.rotatedUserAgent = ua;
-    if (tool === 'nuclei' || tool === 'ffuf' || tool === 'dalfox' || tool === 'sqlmap' || tool === 'nikto') {
-      const idx = args.findIndex((a) => a === '-H' || a === '-header' || a === '--user-agent' || a === '-A');
+    if (
+      tool === 'nuclei' ||
+      tool === 'ffuf' ||
+      tool === 'dalfox' ||
+      tool === 'sqlmap' ||
+      tool === 'nikto'
+    ) {
+      const idx = args.findIndex(
+        a => a === '-H' || a === '-header' || a === '--user-agent' || a === '-A'
+      );
       if (idx >= 0) args[idx + 1] = `User-Agent: ${ua}`;
       else args.push('-H', `User-Agent: ${ua}`);
       changes.push('rotated User-Agent (WAF: identity rotation)');
@@ -140,22 +149,29 @@ export class WafAdaptiveState {
 
   /** Feed a wafw00f (or header-heuristic) result in. Returns the new state. */
   applyWafDetection(assessmentId, wafResult) {
-    const parsed = typeof wafResult === 'string' || wafResult?.firewall
-      ? parseWafw00f(typeof wafResult === 'string' ? wafResult : JSON.stringify(wafResult))
-      : wafResult;
+    const parsed =
+      typeof wafResult === 'string' || wafResult?.firewall
+        ? parseWafw00f(typeof wafResult === 'string' ? wafResult : JSON.stringify(wafResult))
+        : wafResult;
     const state = {
       detected: !!parsed?.detected,
       waf: parsed?.waf || null,
       method: parsed?.method || 'unknown',
       profile: parsed?.detected ? STEALTH_PROFILES['waf-enforced'] : STEALTH_PROFILES.normal,
-      since: new Date().toISOString()
+      since: new Date().toISOString(),
     };
     this.states.set(assessmentId, state);
     return state;
   }
 
   get(assessmentId) {
-    return this.states.get(assessmentId) || { detected: false, waf: null, profile: STEALTH_PROFILES.normal };
+    return (
+      this.states.get(assessmentId) || {
+        detected: false,
+        waf: null,
+        profile: STEALTH_PROFILES.normal,
+      }
+    );
   }
 
   /** Rewrite a request if this assessment is under enforced stealth. */

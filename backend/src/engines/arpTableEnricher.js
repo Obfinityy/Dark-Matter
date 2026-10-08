@@ -106,13 +106,21 @@ export function enrichArpTable({ entries = [], flagVirtual = true } = {}) {
     };
   });
 
-  const virtualHosts = enriched.filter((e) => e.virtualization);
-  const randomized = enriched.filter((e) => e.randomizedHint);
-  const unknown = enriched.filter((e) => e.vendor === 'Unknown' || e.vendor === 'Unknown (locally administered)');
+  const virtualHosts = enriched.filter(e => e.virtualization);
+  const randomized = enriched.filter(e => e.randomizedHint);
+  const unknown = enriched.filter(
+    e => e.vendor === 'Unknown' || e.vendor === 'Unknown (locally administered)'
+  );
 
   const notes = [];
-  if (virtualHosts.length) notes.push(`${virtualHosts.length} virtualized endpoint(s): ${virtualHosts.map((e) => `${e.ip} (${e.vendor})`).join(', ')}`);
-  if (randomized.length) notes.push(`${randomized.length} locally-administered MAC(s) — possible MAC randomization or spoofing: ${randomized.map((e) => e.ip).join(', ')}`);
+  if (virtualHosts.length)
+    notes.push(
+      `${virtualHosts.length} virtualized endpoint(s): ${virtualHosts.map(e => `${e.ip} (${e.vendor})`).join(', ')}`
+    );
+  if (randomized.length)
+    notes.push(
+      `${randomized.length} locally-administered MAC(s) — possible MAC randomization or spoofing: ${randomized.map(e => e.ip).join(', ')}`
+    );
 
   return {
     enriched,

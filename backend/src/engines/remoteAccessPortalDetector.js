@@ -78,28 +78,57 @@ const SSL_VPN_SIGNATURES = [
  * @param {{url?: string, status?: number, headers?: Record<string,string>, setCookies?: string[], body?: string}} input
  * @returns {{detected: boolean, vendor?: string, confidence: 'high'|'medium'|'low'|'none', matches: string[]}}
  */
-export function detectSslVpnPortal({ url = '', status = 0, headers = {}, setCookies = [], body = '' }) {
+export function detectSslVpnPortal({
+  url = '',
+  status = 0,
+  headers = {},
+  setCookies = [],
+  body = '',
+}) {
   let path = '';
-  try { path = new URL(url).pathname; } catch { path = url; }
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url;
+  }
   const cookieHeader = (setCookies || []).join('\n');
-  const headerText = Object.entries(headers || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+  const headerText = Object.entries(headers || {})
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n');
 
   let best = null;
   let bestScore = 0;
   for (const sig of SSL_VPN_SIGNATURES) {
     let score = 0;
     const matches = [];
-    if (sig.paths.some((re) => re.test(path))) { score += sig.weight; matches.push('path'); }
-    if (sig.body && sig.body.test(body || '')) { score += sig.weight; matches.push('body'); }
-    if (sig.cookies.some((re) => re.test(cookieHeader))) { score += sig.weight; matches.push('cookie'); }
-    if (/ssl|vpn/i.test(headerText)) { score += 1; matches.push('header-hint'); }
-    if (score > bestScore) { bestScore = score; best = { sig, matches }; }
+    if (sig.paths.some(re => re.test(path))) {
+      score += sig.weight;
+      matches.push('path');
+    }
+    if (sig.body && sig.body.test(body || '')) {
+      score += sig.weight;
+      matches.push('body');
+    }
+    if (sig.cookies.some(re => re.test(cookieHeader))) {
+      score += sig.weight;
+      matches.push('cookie');
+    }
+    if (/ssl|vpn/i.test(headerText)) {
+      score += 1;
+      matches.push('header-hint');
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = { sig, matches };
+    }
   }
 
-  const confidence = bestScore >= 6 ? 'high' : bestScore >= 3 ? 'medium' : bestScore > 0 ? 'low' : 'none';
+  const confidence =
+    bestScore >= 6 ? 'high' : bestScore >= 3 ? 'medium' : bestScore > 0 ? 'low' : 'none';
   const result = { detected: bestScore > 0, confidence, matches: best ? best.matches : [] };
   if (best) result.vendor = best.sig.vendor;
-  if (status >= 400 && bestScore > 0) result.note = `Non-200 status (${status}) — portal may be redirecting or erroring; treat vendor as provisional.`;
+  if (status >= 400 && bestScore > 0)
+    result.note = `Non-200 status (${status}) — portal may be redirecting or erroring; treat vendor as provisional.`;
   return result;
 }
 
@@ -138,19 +167,36 @@ const CITRIX_GATEWAY_SIGNATURES = {
  * @param {{url?: string, headers?: Record<string,string>, setCookies?: string[], body?: string, icaDiscovered?: boolean}} input
  * @returns {{detected: boolean, confidence: 'high'|'medium'|'low'|'none', indicators: string[], product: string}}
  */
-export function fingerprintCitrixGateway({ url = '', headers = {}, setCookies = [], body = '', icaDiscovered = false }) {
+export function fingerprintCitrixGateway({
+  url = '',
+  headers = {},
+  setCookies = [],
+  body = '',
+  icaDiscovered = false,
+}) {
   let path = '';
-  try { path = new URL(url).pathname; } catch { path = url; }
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url;
+  }
   const cookieHeader = (setCookies || []).join('\n');
-  const headerText = Object.entries(headers || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+  const headerText = Object.entries(headers || {})
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n');
 
   const indicators = [];
-  if (CITRIX_GATEWAY_SIGNATURES.portalPaths.some((re) => re.test(path))) indicators.push('gateway-portal-path');
-  if (CITRIX_GATEWAY_SIGNATURES.authFlowMarkers.some((re) => re.test(path))) indicators.push('auth-flow-endpoint');
-  if (CITRIX_GATEWAY_SIGNATURES.icaMarkers.some((re) => re.test(path))) indicators.push('ica-delivery-path');
-  if (CITRIX_GATEWAY_SIGNATURES.cookies.some((re) => re.test(cookieHeader))) indicators.push('netscaler-session-cookie');
+  if (CITRIX_GATEWAY_SIGNATURES.portalPaths.some(re => re.test(path)))
+    indicators.push('gateway-portal-path');
+  if (CITRIX_GATEWAY_SIGNATURES.authFlowMarkers.some(re => re.test(path)))
+    indicators.push('auth-flow-endpoint');
+  if (CITRIX_GATEWAY_SIGNATURES.icaMarkers.some(re => re.test(path)))
+    indicators.push('ica-delivery-path');
+  if (CITRIX_GATEWAY_SIGNATURES.cookies.some(re => re.test(cookieHeader)))
+    indicators.push('netscaler-session-cookie');
   if (CITRIX_GATEWAY_SIGNATURES.body.test(body || '')) indicators.push('portal-html-signature');
-  if (CITRIX_GATEWAY_SIGNATURES.serverHeaders.some((re) => re.test(headerText))) indicators.push('citrix-server-header');
+  if (CITRIX_GATEWAY_SIGNATURES.serverHeaders.some(re => re.test(headerText)))
+    indicators.push('citrix-server-header');
   if (/x-citrix/i.test(headerText)) indicators.push('citrix-response-header');
   if (icaDiscovered) indicators.push('ica-file-observed');
 
@@ -197,23 +243,38 @@ const F5_BIGIP_SIGNATURES = {
  */
 export function detectF5BigIp({ url = '', status = 0, headers = {}, setCookies = [], body = '' }) {
   let path = '';
-  try { path = new URL(url).pathname; } catch { path = url; }
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url;
+  }
   const cookieHeader = (setCookies || []).join('\n');
-  const headerText = Object.entries(headers || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+  const headerText = Object.entries(headers || {})
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n');
 
   const indicators = [];
   for (const { re, label } of F5_BIGIP_SIGNATURES.cookieFormats) {
-    if (re.test(cookieHeader)) { indicators.push(label); break; }
+    if (re.test(cookieHeader)) {
+      indicators.push(label);
+      break;
+    }
   }
-  if (F5_BIGIP_SIGNATURES.headers.some((re) => re.test(headerText))) indicators.push('f5-response-header');
-  if (F5_BIGIP_SIGNATURES.body.some((re) => re.test(body || ''))) indicators.push('bigip-error-page-signature');
-  if (F5_BIGIP_SIGNATURES.errorPaths.some((re) => re.test(path))) indicators.push('f5-apm-policy-path');
+  if (F5_BIGIP_SIGNATURES.headers.some(re => re.test(headerText)))
+    indicators.push('f5-response-header');
+  if (F5_BIGIP_SIGNATURES.body.some(re => re.test(body || '')))
+    indicators.push('bigip-error-page-signature');
+  if (F5_BIGIP_SIGNATURES.errorPaths.some(re => re.test(path)))
+    indicators.push('f5-apm-policy-path');
   if (status === 503 && /big-?ip/i.test(body || '')) indicators.push('bigip-503-error-page');
 
   let estimatedVersion;
   for (const re of F5_BIGIP_SIGNATURES.versions) {
     const m = (body || '').match(re) || headerText.match(re);
-    if (m) { estimatedVersion = m[1]; break; }
+    if (m) {
+      estimatedVersion = m[1];
+      break;
+    }
   }
 
   const score = indicators.length;
@@ -248,19 +309,34 @@ const GLOBALPROTECT_SIGNATURES = {
  * @param {{url?: string, status?: number, headers?: Record<string,string>, setCookies?: string[], body?: string}} input
  * @returns {{detected: boolean, confidence: 'high'|'medium'|'low'|'none', indicators: string[], preloginEndpoint: boolean}}
  */
-export function detectGlobalProtect({ url = '', status = 0, headers = {}, setCookies = [], body = '' }) {
+export function detectGlobalProtect({
+  url = '',
+  status = 0,
+  headers = {},
+  setCookies = [],
+  body = '',
+}) {
   let path = '';
-  try { path = new URL(url).pathname; } catch { path = url; }
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url;
+  }
   const cookieHeader = (setCookies || []).join('\n');
-  const headerText = Object.entries(headers || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+  const headerText = Object.entries(headers || {})
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n');
 
   const indicators = [];
-  const preloginEndpoint = GLOBALPROTECT_SIGNATURES.preloginPaths.some((re) => re.test(path));
+  const preloginEndpoint = GLOBALPROTECT_SIGNATURES.preloginPaths.some(re => re.test(path));
   if (preloginEndpoint) indicators.push('prelogin-endpoint');
-  if (GLOBALPROTECT_SIGNATURES.portalPaths.some((re) => re.test(path))) indicators.push('portal-login-path');
+  if (GLOBALPROTECT_SIGNATURES.portalPaths.some(re => re.test(path)))
+    indicators.push('portal-login-path');
   if (GLOBALPROTECT_SIGNATURES.body.test(body || '')) indicators.push('portal-html-signature');
-  if (GLOBALPROTECT_SIGNATURES.cookies.some((re) => re.test(cookieHeader))) indicators.push('portal-session-cookie');
-  if (GLOBALPROTECT_SIGNATURES.headers.some((re) => re.test(headerText))) indicators.push('globalprotect-header');
+  if (GLOBALPROTECT_SIGNATURES.cookies.some(re => re.test(cookieHeader)))
+    indicators.push('portal-session-cookie');
+  if (GLOBALPROTECT_SIGNATURES.headers.some(re => re.test(headerText)))
+    indicators.push('globalprotect-header');
 
   const score = preloginEndpoint ? indicators.length + 2 : indicators.length;
   const confidence = score >= 3 ? 'high' : score === 2 ? 'medium' : score === 1 ? 'low' : 'none';
@@ -283,10 +359,22 @@ const ZSCALER_NODE_PATTERNS = {
   ],
   servicePaths: [/\/broker/i, /\/zscloud/i, /\/pbroker/i],
   cityCodes: {
-    ams3: 'Amsterdam', fra3: 'Frankfurt', lhr3: 'London', cdg3: 'Paris',
-    iad2: 'Ashburn', sfo2: 'San Francisco', ord2: 'Chicago', dfw2: 'Dallas',
-    bom3: 'Mumbai', hyd3: 'Hyderabad', maa3: 'Chennai', sin3: 'Singapore',
-    hkg3: 'Hong Kong', nrt3: 'Tokyo', syd3: 'Sydney', gru3: 'São Paulo',
+    ams3: 'Amsterdam',
+    fra3: 'Frankfurt',
+    lhr3: 'London',
+    cdg3: 'Paris',
+    iad2: 'Ashburn',
+    sfo2: 'San Francisco',
+    ord2: 'Chicago',
+    dfw2: 'Dallas',
+    bom3: 'Mumbai',
+    hyd3: 'Hyderabad',
+    maa3: 'Chennai',
+    sin3: 'Singapore',
+    hkg3: 'Hong Kong',
+    nrt3: 'Tokyo',
+    syd3: 'Sydney',
+    gru3: 'São Paulo',
   },
 };
 
@@ -306,13 +394,16 @@ export function mapZscalerNodes({ hostnames = [], dnsRecords = [] }) {
   for (const h of hostnames || []) candidates.push({ host: h, ips: [] });
 
   for (const { host, ips } of candidates) {
-    const key = String(host || '').toLowerCase().trim().replace(/\.$/, '');
+    const key = String(host || '')
+      .toLowerCase()
+      .trim()
+      .replace(/\.$/, '');
     if (!key || seen.has(key)) continue;
     for (const re of ZSCALER_NODE_PATTERNS.cloudHosts) {
       const m = key.match(re);
       if (m) {
         const sub = m[1].toLowerCase();
-        const cityCode = Object.keys(ZSCALER_NODE_PATTERNS.cityCodes).find((c) => sub.startsWith(c));
+        const cityCode = Object.keys(ZSCALER_NODE_PATTERNS.cityCodes).find(c => sub.startsWith(c));
         seen.set(key, {
           host: key,
           cloud: 'Zscaler',
@@ -325,7 +416,7 @@ export function mapZscalerNodes({ hostnames = [], dnsRecords = [] }) {
   }
 
   const nodes = [...seen.values()];
-  const withLoc = nodes.filter((n) => n.location !== 'unmapped-cloud-node').length;
+  const withLoc = nodes.filter(n => n.location !== 'unmapped-cloud-node').length;
   return {
     nodeCount: nodes.length,
     nodes,

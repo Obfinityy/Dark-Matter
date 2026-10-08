@@ -41,18 +41,23 @@ export function groupByAsn(records) {
     group.ips.add(ip);
     if (raw.asnOrg) group.orgs.add(String(raw.asnOrg));
     if (raw.company) group.orgs.add(String(raw.company));
-    const host = String(raw.hostname ?? '').trim().toLowerCase().replace(/\.$/, '');
+    const host = String(raw.hostname ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (host) group.hostnames.add(host);
   }
-  return new Map([...groups.entries()].map(([asn, g]) => [
-    asn,
-    {
+  return new Map(
+    [...groups.entries()].map(([asn, g]) => [
       asn,
-      orgs: [...g.orgs].sort(),
-      ips: [...g.ips].sort(),
-      hostnames: [...g.hostnames].sort(),
-    },
-  ]));
+      {
+        asn,
+        orgs: [...g.orgs].sort(),
+        ips: [...g.ips].sort(),
+        hostnames: [...g.hostnames].sort(),
+      },
+    ])
+  );
 }
 
 /**
@@ -67,20 +72,22 @@ export function groupByAsn(records) {
 export function correlateAsnHostnames(records, seedIps, opts = {}) {
   const groups = groupByAsn(records);
   const seedAsns = new Set();
-  const seedSet = new Set((seedIps ?? []).map((ip) => String(ip).trim()));
+  const seedSet = new Set((seedIps ?? []).map(ip => String(ip).trim()));
   for (const rec of records ?? []) {
     if (seedSet.has(String(rec.ip ?? '').trim())) {
       seedAsns.add(String(rec.asn ?? 'unknown').replace(/^AS/i, 'AS'));
     }
   }
-  const suffixes = (opts.domainSuffixes ?? []).map((s) => s.toLowerCase());
+  const suffixes = (opts.domainSuffixes ?? []).map(s => s.toLowerCase());
   const out = [];
   const seen = new Set();
   for (const asn of seedAsns) {
     const group = groups.get(asn);
     if (!group) continue;
     const seedIp = (records ?? []).find(
-      (r) => seedSet.has(String(r.ip ?? '').trim()) && String(r.asn ?? 'unknown').replace(/^AS/i, 'AS') === asn,
+      r =>
+        seedSet.has(String(r.ip ?? '').trim()) &&
+        String(r.asn ?? 'unknown').replace(/^AS/i, 'AS') === asn
     )?.ip;
     for (const hostname of group.hostnames) {
       if (seen.has(hostname)) continue;
@@ -89,11 +96,14 @@ export function correlateAsnHostnames(records, seedIps, opts = {}) {
         hostname,
         asn,
         seedIp: String(seedIp ?? ''),
-        inScope: suffixes.length === 0 || suffixes.some((s) => hostname === s || hostname.endsWith(`.${s}`)),
+        inScope:
+          suffixes.length === 0 || suffixes.some(s => hostname === s || hostname.endsWith(`.${s}`)),
       });
     }
   }
-  return out.sort((a, b) => Number(b.inScope) - Number(a.inScope) || a.hostname.localeCompare(b.hostname));
+  return out.sort(
+    (a, b) => Number(b.inScope) - Number(a.inScope) || a.hostname.localeCompare(b.hostname)
+  );
 }
 
 /**
@@ -104,19 +114,21 @@ export function correlateAsnHostnames(records, seedIps, opts = {}) {
  * @returns {Array<{asn: string, orgs: string[], ipCount: number, hostnameCount: number, inScopeHosts: string[], score: number}>}
  */
 export function rankAsnGroups(groups, domainSuffixes = []) {
-  const suffixes = domainSuffixes.map((s) => s.toLowerCase());
-  return [...groups.values()].map((g) => {
-    const inScopeHosts = suffixes.length
-      ? g.hostnames.filter((h) => suffixes.some((s) => h === s || h.endsWith(`.${s}`)))
-      : [];
-    const score = g.hostnames.length * 2 + inScopeHosts.length * 10 + g.ips.length;
-    return {
-      asn: g.asn,
-      orgs: g.orgs,
-      ipCount: g.ips.length,
-      hostnameCount: g.hostnames.length,
-      inScopeHosts,
-      score,
-    };
-  }).sort((a, b) => b.score - a.score);
+  const suffixes = domainSuffixes.map(s => s.toLowerCase());
+  return [...groups.values()]
+    .map(g => {
+      const inScopeHosts = suffixes.length
+        ? g.hostnames.filter(h => suffixes.some(s => h === s || h.endsWith(`.${s}`)))
+        : [];
+      const score = g.hostnames.length * 2 + inScopeHosts.length * 10 + g.ips.length;
+      return {
+        asn: g.asn,
+        orgs: g.orgs,
+        ipCount: g.ips.length,
+        hostnameCount: g.hostnames.length,
+        inScopeHosts,
+        score,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 }

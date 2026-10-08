@@ -46,13 +46,18 @@ const DEFAULT_CONFIG = {
 };
 
 export const INFINITY_VOICES = [
-  { id: 'aria', label: 'Aria', gender: 'female', description: 'Warm and friendly — the default avatar voice' },
+  {
+    id: 'aria',
+    label: 'Aria',
+    gender: 'female',
+    description: 'Warm and friendly — the default avatar voice',
+  },
   { id: 'aria2', label: 'Aria Soft', gender: 'female', description: 'Soft and calm female voice' },
   { id: 'kai', label: 'Kai', gender: 'male', description: 'Warm male voice' },
   { id: 'kai2', label: 'Kai Deep', gender: 'male', description: 'Deep, authoritative male voice' },
 ];
 
-const VOICE_IDS = new Set(INFINITY_VOICES.map((v) => v.id));
+const VOICE_IDS = new Set(INFINITY_VOICES.map(v => v.id));
 
 /** Error thrown when no TTS engine can produce audio. Never leaks internals. */
 export class TtsNotAvailableError extends Error {
@@ -77,11 +82,14 @@ export function decodeAudioChunk(chunk) {
     try {
       const buf = Buffer.from(text.replace(/\s+/g, ''), 'base64');
       if (buf.length > 0) return buf;
-    } catch { /* fall through to raw */ }
+    } catch {
+      /* fall through to raw */
+    }
   }
   return Buffer.from(text, 'utf8');
 }
 
+/** Business-logic service for tts. */
 export class TtsService {
   /**
    * @param {object} [opts] — any DEFAULT_CONFIG key; overrides env.
@@ -104,7 +112,7 @@ export class TtsService {
    */
   resolveVoice(voiceId) {
     const id = VOICE_IDS.has(voiceId) ? voiceId : 'aria';
-    const meta = INFINITY_VOICES.find((v) => v.id === id);
+    const meta = INFINITY_VOICES.find(v => v.id === id);
     const female = meta.gender === 'female';
     return {
       preset: id,
@@ -137,7 +145,7 @@ export class TtsService {
     const piperReady = this.config.engine !== 'sidecar' && Boolean(this.config.piperBin);
     return {
       ok: sidecar.ok || (this.config.engine === 'piper' && piperReady),
-      engine: sidecar.ok ? 'chatterbox-sidecar' : (this.config.engine === 'piper' ? 'piper' : 'none'),
+      engine: sidecar.ok ? 'chatterbox-sidecar' : this.config.engine === 'piper' ? 'piper' : 'none',
       url: this.config.url || null,
       detail: { sidecar, piperConfigured: piperReady },
     };
@@ -150,7 +158,9 @@ export class TtsService {
    * @returns {Promise<Buffer>}
    */
   async speak(text, voiceId = 'aria') {
-    const clean = String(text || '').trim().slice(0, 2000);
+    const clean = String(text || '')
+      .trim()
+      .slice(0, 2000);
     if (!clean) throw new TtsNotAvailableError('Nothing to speak: empty text.');
     const voice = this.resolveVoice(voiceId);
 
@@ -159,7 +169,9 @@ export class TtsService {
       try {
         return await this.speakViaSidecar(clean, voice, { stream: false });
       } catch (err) {
-        this.logger.warn?.(`[infinity-tts] sidecar failed (${err.message}) — trying Piper fallback`);
+        this.logger.warn?.(
+          `[infinity-tts] sidecar failed (${err.message}) — trying Piper fallback`
+        );
         if (this.config.engine === 'sidecar') throw err;
       }
     }
@@ -179,7 +191,9 @@ export class TtsService {
    * @returns {AsyncGenerator<Buffer>}
    */
   async *speakStream(text, voiceId = 'aria') {
-    const clean = String(text || '').trim().slice(0, 2000);
+    const clean = String(text || '')
+      .trim()
+      .slice(0, 2000);
     if (!clean) return;
     const voice = this.resolveVoice(voiceId);
 
@@ -188,7 +202,9 @@ export class TtsService {
         yield* this.streamViaSidecar(clean, voice);
         return;
       } catch (err) {
-        this.logger.warn?.(`[infinity-tts] sidecar stream failed (${err.message}) — falling back to buffered audio`);
+        this.logger.warn?.(
+          `[infinity-tts] sidecar stream failed (${err.message}) — falling back to buffered audio`
+        );
         if (this.config.engine === 'sidecar') throw err;
       }
     }
@@ -218,7 +234,10 @@ export class TtsService {
       }),
     });
     if (!res.ok) {
-      const errText = await res.text().catch(() => '').then((t) => t.slice(0, 200));
+      const errText = await res
+        .text()
+        .catch(() => '')
+        .then(t => t.slice(0, 200));
       throw new Error(`sidecar ${res.status}${errText ? `: ${errText}` : ''}`);
     }
     return Buffer.from(await res.arrayBuffer());
@@ -276,8 +295,8 @@ export class TtsService {
     if (!model) {
       throw new TtsNotAvailableError(
         'No TTS engine available: the sidecar is unreachable and no Piper model is configured. ' +
-        'Set INFINITY_TTS_URL (sidecar) or INFINITY_PIPER_MODEL_FEMALE/_MALE (Piper ONNX voice). ' +
-        'See backend/src/voice/README.md.'
+          'Set INFINITY_TTS_URL (sidecar) or INFINITY_PIPER_MODEL_FEMALE/_MALE (Piper ONNX voice). ' +
+          'See backend/src/voice/README.md.'
       );
     }
     // argv array only — never interpolated into a shell string.
@@ -291,19 +310,32 @@ export class TtsService {
       }
       const chunks = [];
       let stderr = '';
-      child.stdout.on('data', (d) => chunks.push(d));
-      child.stderr.on('data', (d) => { stderr += String(d).slice(0, 500); });
-      child.on('error', (err) => {
-        reject(new TtsNotAvailableError(`Piper not found or not executable ("${this.config.piperBin}"): ${err.message}`));
+      child.stdout.on('data', d => chunks.push(d));
+      child.stderr.on('data', d => {
+        stderr += String(d).slice(0, 500);
       });
-      child.on('close', (code) => {
+      child.on('error', err => {
+        reject(
+          new TtsNotAvailableError(
+            `Piper not found or not executable ("${this.config.piperBin}"): ${err.message}`
+          )
+        );
+      });
+      child.on('close', code => {
         if (code === 0 && chunks.length) resolve(Buffer.concat(chunks));
-        else reject(new TtsNotAvailableError(`Piper exited with code ${code}${stderr ? `: ${stderr}` : ''}`));
+        else
+          reject(
+            new TtsNotAvailableError(`Piper exited with code ${code}${stderr ? `: ${stderr}` : ''}`)
+          );
       });
       child.stdin.write(text);
       child.stdin.end();
       setTimeout(() => {
-        try { child.kill('SIGKILL'); } catch { /* already exited */ }
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          /* already exited */
+        }
         reject(new TtsNotAvailableError('Piper timed out.'));
       }, this.config.timeoutMs).unref?.();
     });

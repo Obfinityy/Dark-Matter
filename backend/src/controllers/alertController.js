@@ -1,3 +1,9 @@
+/**
+ * alertController — Express route handlers for alert.
+ * Factory that wires the alert service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**
@@ -13,7 +19,7 @@ export function createAlertController({ alertService }) {
     list: asyncHandler(async (request, response) => {
       const alerts = await alertService.list(request.user.id, {
         unreadOnly: request.query.unreadOnly === 'true',
-        limit: Math.min(Math.max(Number(request.query.limit) || 50, 1), 200)
+        limit: Math.min(Math.max(Number(request.query.limit) || 50, 1), 200),
       });
       response.json({ alerts });
     }),
@@ -23,7 +29,7 @@ export function createAlertController({ alertService }) {
       const alert = await alertService.markRead(request.user.id, request.params.id);
       if (!alert) {
         return response.status(404).json({
-          error: { code: 'ALERT_NOT_FOUND', message: 'No alert with that id.' }
+          error: { code: 'ALERT_NOT_FOUND', message: 'No alert with that id.' },
         });
       }
       response.json({ alert });
@@ -33,6 +39,6 @@ export function createAlertController({ alertService }) {
     markAllRead: asyncHandler(async (request, response) => {
       const result = await alertService.markAllRead(request.user.id);
       response.json(result);
-    })
+    }),
   };
 }

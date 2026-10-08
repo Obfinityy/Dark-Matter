@@ -17,7 +17,9 @@ function localMachineBase() {
   try {
     const url = import.meta.env?.VITE_LOCAL_BACKEND_URL;
     if (url && url.trim()) return url.trim().replace(/\/$/, '');
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'http://localhost:4000';
 }
 
@@ -32,7 +34,7 @@ async function localMachineFetch(path, options = {}) {
   const res = await fetch(url, {
     ...options,
     headers: { ...getAuthHeaders(), ...(options.headers || {}) },
-    credentials: 'include'
+    credentials: 'include',
   });
   if (!res.ok) {
     const err = new Error(`Local machine error: HTTP ${res.status}`);
@@ -44,7 +46,11 @@ async function localMachineFetch(path, options = {}) {
 
 function getAuthHeaders() {
   const jwt = (() => {
-    try { return localStorage.getItem('dm_jwt'); } catch { return null; }
+    try {
+      return localStorage.getItem('dm_jwt');
+    } catch {
+      return null;
+    }
   })();
   const headers = { 'Content-Type': 'application/json' };
   if (jwt) headers['Authorization'] = `Bearer ${jwt}`;
@@ -56,7 +62,7 @@ async function localFetch(path, options = {}) {
   const res = await fetch(url, {
     ...options,
     headers: { ...getAuthHeaders(), ...(options.headers || {}) },
-    credentials: 'include'
+    credentials: 'include',
   });
   if (!res.ok) {
     const err = new Error(`Local backend error: HTTP ${res.status}`);
@@ -96,7 +102,9 @@ export function detectUserOS() {
     const ua = navigator.userAgent || '';
     if (/Win/i.test(ua)) return 'windows';
     if (/Mac/i.test(ua)) return 'macos';
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'linux';
 }
 
@@ -117,7 +125,11 @@ export function userOSLabel() {
 export function downloadEngineLauncher() {
   const os = detectUserOS();
   let site = '';
-  try { site = window.location.origin || ''; } catch { /* ignore */ }
+  try {
+    site = window.location.origin || '';
+  } catch {
+    /* ignore */
+  }
   const url = `${apiBase()}/engine/launcher?os=${os}${site ? `&site=${encodeURIComponent(site)}` : ''}`;
   const a = document.createElement('a');
   a.href = url;
@@ -134,7 +146,7 @@ export function downloadEngineLauncher() {
 export async function downloadModelLocal(modelId, opts = {}) {
   return localFetch(`/model-runner/models/${modelId}/download`, {
     method: 'POST',
-    body: JSON.stringify(opts)
+    body: JSON.stringify(opts),
   });
 }
 
@@ -144,11 +156,15 @@ export async function downloadModelLocal(modelId, opts = {}) {
 export function subscribeToLocalDownloadProgress(modelId, callbacks = {}) {
   const { onEvent, onError } = callbacks;
   const jwt = (() => {
-    try { return localStorage.getItem('dm_jwt'); } catch { return null; }
+    try {
+      return localStorage.getItem('dm_jwt');
+    } catch {
+      return null;
+    }
   })();
   const url = `${localMachineBase()}/api/v1/model-runner/models/${modelId}/download/progress${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
   const es = new EventSource(url);
-  es.onmessage = (event) => {
+  es.onmessage = event => {
     try {
       const data = JSON.parse(event.data);
       if (onEvent) onEvent(data);
@@ -156,7 +172,7 @@ export function subscribeToLocalDownloadProgress(modelId, callbacks = {}) {
       if (onError) onError(e);
     }
   };
-  es.onerror = (err) => {
+  es.onerror = err => {
     if (onError) onError(err);
   };
   return () => es.close();
@@ -181,7 +197,7 @@ export async function cancelLocalDownload() {
 export async function runModelOnLocal(slot, modelId, opts = {}) {
   return localFetch(`/model-runner/slots/${slot}/run`, {
     method: 'POST',
-    body: JSON.stringify({ modelId, ...opts })
+    body: JSON.stringify({ modelId, ...opts }),
   });
 }
 
@@ -198,7 +214,7 @@ export async function runModelOnLocal(slot, modelId, opts = {}) {
 export async function downloadAndRunSlotLocal(slot, modelId) {
   return localFetch(`/model-runner/slots/${slot}/download-and-run`, {
     method: 'POST',
-    body: JSON.stringify(modelId ? { modelId } : {})
+    body: JSON.stringify(modelId ? { modelId } : {}),
   });
 }
 
@@ -247,11 +263,15 @@ export async function downloadEngineLocal() {
 export function subscribeToLocalEngineStream(callbacks = {}) {
   const { onEvent, onError } = callbacks;
   const jwt = (() => {
-    try { return localStorage.getItem('dm_jwt'); } catch { return null; }
+    try {
+      return localStorage.getItem('dm_jwt');
+    } catch {
+      return null;
+    }
   })();
   const url = `${localMachineBase()}/api/v1/model-runner/engine/stream${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
   const es = new EventSource(url);
-  es.onmessage = (event) => {
+  es.onmessage = event => {
     try {
       const data = JSON.parse(event.data);
       if (onEvent) onEvent(data);
@@ -259,7 +279,7 @@ export function subscribeToLocalEngineStream(callbacks = {}) {
       if (onError) onError(e);
     }
   };
-  es.onerror = (err) => {
+  es.onerror = err => {
     if (onError) onError(err);
   };
   return () => es.close();
@@ -279,7 +299,7 @@ export async function pauseDownloadLocal() {
 export async function resumeDownloadLocal(modelId, opts = {}) {
   return localFetch(`/model-runner/models/${modelId}/download`, {
     method: 'POST',
-    body: JSON.stringify({ ...opts, resume: true })
+    body: JSON.stringify({ ...opts, resume: true }),
   });
 }
 
@@ -301,7 +321,7 @@ export async function getLocalRunnerStatus() {
 export async function chatWithBrain(chatId, brain, message, context = {}) {
   return localMachineFetch('/brain-chat', {
     method: 'POST',
-    body: JSON.stringify({ chatId, brain, message, context })
+    body: JSON.stringify({ chatId, brain, message, context }),
   });
 }
 

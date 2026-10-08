@@ -52,18 +52,30 @@ export function analyzeTimestampReply({
       confidence: 'medium',
       severity: 'Info',
       evidence: `Host ${sourceIp} answered the timestamp request but zeroed receive/transmit fields — hardened or non-standard ICMP stack.`,
-      analysis: { sourceIp, responsive: true, fieldsZeroed: true, clockSkewMs: null, utcOffsetHint: null },
+      analysis: {
+        sourceIp,
+        responsive: true,
+        fieldsZeroed: true,
+        clockSkewMs: null,
+        utcOffsetHint: null,
+      },
     };
   }
 
   const transmitDate = timestampToDate(transmitTimestamp, observedAt);
   const skewMs = transmitDate.getTime() - observedAt;
-  const normalizedSkew = skewMs > DAY_MS / 2 ? skewMs - DAY_MS : (skewMs < -DAY_MS / 2 ? skewMs + DAY_MS : skewMs);
+  const normalizedSkew =
+    skewMs > DAY_MS / 2 ? skewMs - DAY_MS : skewMs < -DAY_MS / 2 ? skewMs + DAY_MS : skewMs;
 
   // Rough UTC-offset hint: assume the host's clock is roughly right and the
   // timestamp reflects its local midnight.
-  const localMidnightOffsetMin = Math.round(((observedAt % DAY_MS) - (transmitTimestamp % DAY_MS)) / 60000);
-  const utcOffsetHint = localMidnightOffsetMin !== 0 ? `~${(localMidnightOffsetMin / 60).toFixed(1)}h offset from observer clock` : 'aligned with observer clock';
+  const localMidnightOffsetMin = Math.round(
+    ((observedAt % DAY_MS) - (transmitTimestamp % DAY_MS)) / 60000
+  );
+  const utcOffsetHint =
+    localMidnightOffsetMin !== 0
+      ? `~${(localMidnightOffsetMin / 60).toFixed(1)}h offset from observer clock`
+      : 'aligned with observer clock';
 
   const osNotes = [];
   if (receiveTimestamp === transmitTimestamp && receiveTimestamp !== 0) {
@@ -73,7 +85,9 @@ export function analyzeTimestampReply({
     osNotes.push(`originate zeroed (${osHint}).`);
   }
   if (Math.abs(normalizedSkew) > 60000) {
-    osNotes.push(`Significant clock skew (${Math.round(normalizedSkew / 1000)}s) — useful host fingerprint; NTP likely absent or misconfigured.`);
+    osNotes.push(
+      `Significant clock skew (${Math.round(normalizedSkew / 1000)}s) — useful host fingerprint; NTP likely absent or misconfigured.`
+    );
   }
 
   return {

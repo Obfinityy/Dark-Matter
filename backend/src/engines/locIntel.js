@@ -24,13 +24,20 @@ const resolver = new dns.promises.Resolver();
  * @returns {{latitude:number, longitude:number, altitudeM:number, sizeM:number, horizontalPrecisionM:number, verticalPrecisionM:number, raw:string}|null}
  */
 export function parseLocRecord(rdata) {
-  const m = String(rdata || '').trim().match(
-    /^(\d+)\s+(\d+)\s+([\d.]+)\s+([NSns])\s+(\d+)\s+(\d+)\s+([\d.]+)\s+([EWew])\s+(-?[\d.]+)m?\s+([\d.]+)m?\s+([\d.]+)m?\s+([\d.]+)m?\s*$/
-  );
+  const m = String(rdata || '')
+    .trim()
+    .match(
+      /^(\d+)\s+(\d+)\s+([\d.]+)\s+([NSns])\s+(\d+)\s+(\d+)\s+([\d.]+)\s+([EWew])\s+(-?[\d.]+)m?\s+([\d.]+)m?\s+([\d.]+)m?\s+([\d.]+)m?\s*$/
+    );
   if (!m) return null;
-  const latDeg = Number(m[1]); const latMin = Number(m[2]); const latSec = Number(m[3]);
-  const lonDeg = Number(m[5]); const lonMin = Number(m[6]); const lonSec = Number(m[7]);
-  if (latDeg > 90 || lonDeg > 180 || latMin >= 60 || lonMin >= 60 || latSec >= 60 || lonSec >= 60) return null;
+  const latDeg = Number(m[1]);
+  const latMin = Number(m[2]);
+  const latSec = Number(m[3]);
+  const lonDeg = Number(m[5]);
+  const lonMin = Number(m[6]);
+  const lonSec = Number(m[7]);
+  if (latDeg > 90 || lonDeg > 180 || latMin >= 60 || lonMin >= 60 || latSec >= 60 || lonSec >= 60)
+    return null;
   let latitude = latDeg + latMin / 60 + latSec / 3600;
   if (m[4].toUpperCase() === 'S') latitude = -latitude;
   let longitude = lonDeg + lonMin / 60 + lonSec / 3600;
@@ -54,7 +61,8 @@ export function parseLocRecord(rdata) {
  * @returns {string}
  */
 export function regionLabel(latitude, longitude) {
-  const lat = Number(latitude); const lon = Number(longitude);
+  const lat = Number(latitude);
+  const lon = Number(longitude);
   const hemiNS = lat >= 0 ? 'Northern' : 'Southern';
   let region = 'other';
   if (lat >= 24 && lat <= 72 && lon >= -170 && lon <= -50) region = 'North America';
@@ -74,9 +82,13 @@ export function regionLabel(latitude, longitude) {
  * @returns {{hostname:string, present:boolean, locations:Array, findings:Array<{severity:string,type:string,detail:string}>}}
  */
 export function analyzeLocRecords(hostname, records) {
-  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const host = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const findings = [];
-  const locations = (records || []).map(parseLocRecord).filter(Boolean)
+  const locations = (records || [])
+    .map(parseLocRecord)
+    .filter(Boolean)
     .map(loc => ({ ...loc, region: regionLabel(loc.latitude, loc.longitude) }));
   if (locations.length === 0) return { hostname: host, present: false, locations, findings };
   findings.push({
@@ -103,23 +115,40 @@ export function analyzeLocRecords(hostname, records) {
  * @param {string[]} [hostnames] hostnames to probe
  * @returns {Promise<{domain:string, located:Array, summary:string[]}>}
  */
-export async function geolocateFacilities(domain, hostnames = ['www', 'mail', 'vpn', 'dc', 'hq', 'office', 'colo', 'datacenter']) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+export async function geolocateFacilities(
+  domain,
+  hostnames = ['www', 'mail', 'vpn', 'dc', 'hq', 'office', 'colo', 'datacenter']
+) {
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const targets = [...new Set([...hostnames.map(h => `${h}.${d}`), d])];
   const located = [];
   const summary = [];
-  await Promise.all(targets.map(async (hostname) => {
-    try {
-      const raw = await resolver.resolve(hostname, 'LOC');
-      const analysis = analyzeLocRecords(hostname, raw.map(r => String(r).trim()));
-      if (analysis.present) located.push(analysis);
-    } catch { /* no LOC — not a finding */ }
-  }));
+  await Promise.all(
+    targets.map(async hostname => {
+      try {
+        const raw = await resolver.resolve(hostname, 'LOC');
+        const analysis = analyzeLocRecords(
+          hostname,
+          raw.map(r => String(r).trim())
+        );
+        if (analysis.present) located.push(analysis);
+      } catch {
+        /* no LOC — not a finding */
+      }
+    })
+  );
   located.sort((a, b) => a.hostname.localeCompare(b.hostname));
   if (located.length === 0) {
-    summary.push('No LOC records found on probed hostnames — facility geolocation via DNS is unavailable (expected; LOC is rarely published).');
+    summary.push(
+      'No LOC records found on probed hostnames — facility geolocation via DNS is unavailable (expected; LOC is rarely published).'
+    );
   } else {
-    summary.push(`${located.length} host(s) geolocated via LOC: ${located.map(l => `${l.hostname} → ${l.locations.map(x => `${x.latitude},${x.longitude}`).join('/')}`).join(', ')}.`);
+    summary.push(
+      `${located.length} host(s) geolocated via LOC: ${located.map(l => `${l.hostname} → ${l.locations.map(x => `${x.latitude},${x.longitude}`).join('/')}`).join(', ')}.`
+    );
   }
   return { domain: d, located, summary };
 }

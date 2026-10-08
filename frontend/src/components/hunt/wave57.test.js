@@ -21,8 +21,12 @@ const NOW = 1700000000000;
 
 function registryOk(reg, first, last) {
   assert.equal(reg.length, 20, `expected 20 registry entries, got ${reg.length}`);
-  const ids = reg.map((e) => e.id);
-  assert.deepEqual(ids, Array.from({ length: 20 }, (_, i) => first + i), 'registry ids must be the exact 20-idea range in order');
+  const ids = reg.map(e => e.id);
+  assert.deepEqual(
+    ids,
+    Array.from({ length: 20 }, (_, i) => first + i),
+    'registry ids must be the exact 20-idea range in order'
+  );
   for (const e of reg) {
     assert.ok(typeof e.title === 'string' && e.title.length > 0, `entry ${e.id} needs a title`);
     assert.equal(e.skip, false, `entry ${e.id} must not be skipped`);
@@ -40,16 +44,49 @@ test('WAVE57_COLLAB_IDEAS: 20/20 entries 52261–52280, zero skips', () => {
 });
 
 test('combined coverage: exactly 52241–52280 with no gaps or dupes', () => {
-  const all = [...WAVE57_SHARE_IDEAS.map((e) => e.id), ...WAVE57_COLLAB_IDEAS.map((e) => e.id)];
+  const all = [...WAVE57_SHARE_IDEAS.map(e => e.id), ...WAVE57_COLLAB_IDEAS.map(e => e.id)];
   assert.equal(all.length, 40);
-  assert.deepEqual([...all].sort((a, b) => a - b), Array.from({ length: 40 }, (_, i) => 52241 + i));
+  assert.deepEqual(
+    [...all].sort((a, b) => a - b),
+    Array.from({ length: 40 }, (_, i) => 52241 + i)
+  );
 });
 
 const HUNT = {
-  id: 'hunt-t', target: 't.example.com',
+  id: 'hunt-t',
+  target: 't.example.com',
   findings: [
-    { id: 'f-1', title: 'XSS', severity: 'high', status: 'open', vulnClass: 'xss', cwe: 'CWE-79', target: 't', assignee: 'a', description: 'd1, mail a@example.com, secret=zzz', poc: 'curl x', remediation: 'r1', impact: 'i1', evidence: [{ kind: 'http', summary: 's1', body: 'raw' }], createdAt: NOW - 1000, updatedAt: NOW - 500 },
-    { id: 'f-2', title: 'Low info', severity: 'low', status: 'fixed', vulnClass: 'info', cwe: null, target: 't', description: 'd2', remediation: null, evidence: [], createdAt: NOW - 2000, updatedAt: NOW - 2000 },
+    {
+      id: 'f-1',
+      title: 'XSS',
+      severity: 'high',
+      status: 'open',
+      vulnClass: 'xss',
+      cwe: 'CWE-79',
+      target: 't',
+      assignee: 'a',
+      description: 'd1, mail a@example.com, secret=zzz',
+      poc: 'curl x',
+      remediation: 'r1',
+      impact: 'i1',
+      evidence: [{ kind: 'http', summary: 's1', body: 'raw' }],
+      createdAt: NOW - 1000,
+      updatedAt: NOW - 500,
+    },
+    {
+      id: 'f-2',
+      title: 'Low info',
+      severity: 'low',
+      status: 'fixed',
+      vulnClass: 'info',
+      cwe: null,
+      target: 't',
+      description: 'd2',
+      remediation: null,
+      evidence: [],
+      createdAt: NOW - 2000,
+      updatedAt: NOW - 2000,
+    },
   ],
 };
 
@@ -88,7 +125,10 @@ test('52244 per-finding link scoped to one finding', () => {
 });
 
 test('52245 workspace create + activity event', () => {
-  const ws = S.createWorkspace({ name: 'W', members: [{ email: 'a@x.com', role: 'admin' }] }, NOW).workspace;
+  const ws = S.createWorkspace(
+    { name: 'W', members: [{ email: 'a@x.com', role: 'admin' }] },
+    NOW
+  ).workspace;
   assert.equal(ws.members[0].role, 'admin');
   const r = S.addWorkspaceEvent(ws, { kind: 'share', by: 'a' }, NOW);
   assert.equal(r.workspace.activity.length, 1);
@@ -194,7 +234,11 @@ test('52259 redaction hides secrets, emails, PoC, evidence bodies', () => {
 test('52260 comment threads support replies + resolution', () => {
   let t = S.createCommentThread({ findingId: 'f-1' }, NOW).thread;
   t = S.addThreadComment(t, { author: 'ria', body: 'confirmed' }, NOW).thread;
-  const r = S.addThreadComment(t, { author: 'dev', body: 'fixing', parentId: t.comments[0].id }, NOW);
+  const r = S.addThreadComment(
+    t,
+    { author: 'dev', body: 'fixing', parentId: t.comments[0].id },
+    NOW
+  );
   assert.equal(r.thread.comments.length, 2);
   assert.equal(r.thread.comments[1].parentId, r.thread.comments[0].id);
   assert.equal(S.resolveThread(r.thread, 'ria', NOW).thread.resolved, true);
@@ -203,7 +247,11 @@ test('52260 comment threads support replies + resolution', () => {
 /* ---- collabCore spot-checks (deterministic) ---- */
 test('52261 mentions parsed deduped, notifications built', () => {
   assert.deepEqual(C.parseMentions('hi @ria and @dev, cc @ria'), ['ria', 'dev']);
-  const n = C.buildMentionNotifications(['ria'], { author: 'aria', huntId: 'hunt-t', prefs: { ria: 'slack' } }, NOW);
+  const n = C.buildMentionNotifications(
+    ['ria'],
+    { author: 'aria', huntId: 'hunt-t', prefs: { ria: 'slack' } },
+    NOW
+  );
   assert.equal(n.notifications[0].channel, 'slack');
 });
 
@@ -270,7 +318,8 @@ test('52270 comparison share diffs two runs', () => {
   const r = C.buildComparisonShare(
     { id: 'a', findings: HUNT.findings },
     { id: 'b', findings: [{ id: 'f-1' }, { id: 'f-3' }] },
-    'https://app.example.com', NOW,
+    'https://app.example.com',
+    NOW
   );
   assert.deepEqual(r.share.delta.newFindings, ['f-3']);
   assert.deepEqual(r.share.delta.fixedFindings, ['f-2']);
@@ -278,7 +327,10 @@ test('52270 comparison share diffs two runs', () => {
 });
 
 test('52271 remediation board share excludes finding detail', () => {
-  const r = C.buildRemediationBoardShare({ id: 'b1', columns: [{ name: 'Fix', cards: [{ id: 'c1', title: 'XSS', assignee: 'd' }] }] });
+  const r = C.buildRemediationBoardShare({
+    id: 'b1',
+    columns: [{ name: 'Fix', cards: [{ id: 'c1', title: 'XSS', assignee: 'd' }] }],
+  });
   assert.equal(r.share.columns[0].cards[0].title, 'XSS');
   assert.equal(r.share.columns[0].cards[0].poc, undefined);
 });
@@ -287,7 +339,10 @@ test('52272/52273 triage session + presence reducers', () => {
   let s = C.createTriageSession('hunt-t', ['ria'], NOW).session;
   s = C.joinTriageSession(s, 'dev', NOW).session;
   s = C.leaveTriageSession(s, 'ria').session;
-  assert.deepEqual(s.participants.map((p) => p.handle), ['dev']);
+  assert.deepEqual(
+    s.participants.map(p => p.handle),
+    ['dev']
+  );
   let v = C.presenceReducer([], { type: 'JOIN', handle: 'ria' }, NOW);
   v = C.presenceReducer(v, { type: 'LEAVE', handle: 'ria' }, NOW);
   assert.equal(v.length, 0);
@@ -322,7 +377,10 @@ test('52277 ticket payloads for jira/asana/linear with deep link', () => {
 });
 
 test('52278 share manifest lists what/with-whom/when/permission', () => {
-  const r = C.buildShareManifest([{ token: 't1', withWhom: 'a@x.com', when: NOW, role: 'viewer' }], NOW);
+  const r = C.buildShareManifest(
+    [{ token: 't1', withWhom: 'a@x.com', when: NOW, role: 'viewer' }],
+    NOW
+  );
   assert.equal(r.manifest.entries[0].withWhom, 'a@x.com');
   assert.equal(r.manifest.entries[0].permission, 'viewer');
 });
@@ -341,9 +399,9 @@ test('Wave57.css exists, uses only sh57-/cb57- classes, zero keyframes', () => {
   const css = readFileSync(CSS, 'utf8');
   assert.ok(!/@keyframes/i.test(css), 'zero-animation order: no @keyframes allowed');
   assert.ok(!/animation\s*:/i.test(css), 'zero-animation order: no animation declarations allowed');
-  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map((m) => m[1]);
-  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map((m) => m[1]);
-  const all = new Set([...selectors, ...classSelectors].filter((s) => /^[a-z]/.test(s)));
+  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map(m => m[1]);
+  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map(m => m[1]);
+  const all = new Set([...selectors, ...classSelectors].filter(s => /^[a-z]/.test(s)));
   assert.ok(all.size > 0, 'no class selectors found');
   for (const s of all) {
     assert.ok(s.startsWith('sh57-') || s.startsWith('cb57-'), `unscoped selector: .${s}`);
@@ -352,7 +410,14 @@ test('Wave57.css exists, uses only sh57-/cb57- classes, zero keyframes', () => {
 
 /* ---- Branding-leak audit: no forbidden brand name in wave-57 files ---- */
 test('no branding leak in wave-57 files', () => {
-  const files = ['shareCore.js', 'collabCore.js', 'ShareSuite.jsx', 'CollabSuite.jsx', 'Wave57.css', 'wave57.test.js'];
+  const files = [
+    'shareCore.js',
+    'collabCore.js',
+    'ShareSuite.jsx',
+    'CollabSuite.jsx',
+    'Wave57.css',
+    'wave57.test.js',
+  ];
   const probe = 'M' + 'use'; // self-reference would fail the audit itself
   for (const f of files) {
     const p = join(DIR, f);

@@ -54,20 +54,37 @@ export const GATT_CHARACTERISTICS = {
  * @returns {object} profile { services: [...], deviceName?, vendorHints }
  */
 export function mapGattServices(services = []) {
-  const mapped = services.map((svc) => {
-    const uuid16 = typeof svc.uuid === 'number' ? svc.uuid : (typeof svc.uuid === 'string' && /^(0x)?[0-9a-f]{4}$/i.test(svc.uuid) ? parseInt(svc.uuid, 16) : null);
-    const name = uuid16 != null ? (GATT_SERVICES[uuid16] || null) : null;
-    const chars = (svc.characteristics || []).map((ch) => {
-      const cu16 = typeof ch.uuid === 'number' ? ch.uuid : (typeof ch.uuid === 'string' && /^(0x)?[0-9a-f]{4}$/i.test(ch.uuid) ? parseInt(ch.uuid, 16) : null);
+  const mapped = services.map(svc => {
+    const uuid16 =
+      typeof svc.uuid === 'number'
+        ? svc.uuid
+        : typeof svc.uuid === 'string' && /^(0x)?[0-9a-f]{4}$/i.test(svc.uuid)
+          ? parseInt(svc.uuid, 16)
+          : null;
+    const name = uuid16 != null ? GATT_SERVICES[uuid16] || null : null;
+    const chars = (svc.characteristics || []).map(ch => {
+      const cu16 =
+        typeof ch.uuid === 'number'
+          ? ch.uuid
+          : typeof ch.uuid === 'string' && /^(0x)?[0-9a-f]{4}$/i.test(ch.uuid)
+            ? parseInt(ch.uuid, 16)
+            : null;
       return {
-        uuid: typeof ch.uuid === 'number' ? `0x${ch.uuid.toString(16).padStart(4, '0')}` : String(ch.uuid),
-        name: cu16 != null ? (GATT_CHARACTERISTICS[cu16] || null) : null,
+        uuid:
+          typeof ch.uuid === 'number'
+            ? `0x${ch.uuid.toString(16).padStart(4, '0')}`
+            : String(ch.uuid),
+        name: cu16 != null ? GATT_CHARACTERISTICS[cu16] || null : null,
         properties: Array.isArray(ch.properties) ? ch.properties : [],
       };
     });
     return {
-      uuid: typeof svc.uuid === 'number' ? `0x${svc.uuid.toString(16).padStart(4, '0')}` : String(svc.uuid),
-      name: name || (uuid16 == null ? 'vendor-specific (128-bit)' : `unknown_0x${uuid16.toString(16)}`),
+      uuid:
+        typeof svc.uuid === 'number'
+          ? `0x${svc.uuid.toString(16).padStart(4, '0')}`
+          : String(svc.uuid),
+      name:
+        name || (uuid16 == null ? 'vendor-specific (128-bit)' : `unknown_0x${uuid16.toString(16)}`),
       vendorSpecific: uuid16 == null,
       characteristics: chars,
     };
@@ -93,34 +110,51 @@ export function analyzeGatt(services = []) {
   const profile = mapGattServices(services);
   const findings = [];
 
-  const named = profile.services.filter((s) => !s.vendorSpecific);
-  const vendor = profile.services.filter((s) => s.vendorSpecific);
-  const identified = named.map((s) => s.name);
+  const named = profile.services.filter(s => !s.vendorSpecific);
+  const vendor = profile.services.filter(s => s.vendorSpecific);
+  const identified = named.map(s => s.name);
 
   findings.push({
     type: 'BLE GATT Service Map',
     confidence: 'high',
     cwe: 'CWE-200',
-    evidence: `device exposes ${profile.services.length} primary service(s): ${named.map((s) => `${s.name} (${s.uuid})`).join(', ') || 'none'}${vendor.length ? ` + ${vendor.length} vendor-specific 128-bit service(s): ${vendor.map((s) => s.uuid).join(', ')}` : ''}`,
+    evidence: `device exposes ${profile.services.length} primary service(s): ${named.map(s => `${s.name} (${s.uuid})`).join(', ') || 'none'}${vendor.length ? ` + ${vendor.length} vendor-specific 128-bit service(s): ${vendor.map(s => s.uuid).join(', ')}` : ''}`,
     extra: { serviceCount: profile.services.length, vendorSpecificCount: vendor.length },
   });
 
   // Fingerprint hints from service bundles.
   if (identified.includes('Heart Rate')) {
-    findings.push({ type: 'BLE Device Fingerprint', confidence: 'medium', cwe: null, evidence: 'Heart Rate service (0x180D) present — device is a fitness/wearable class peripheral' });
+    findings.push({
+      type: 'BLE Device Fingerprint',
+      confidence: 'medium',
+      cwe: null,
+      evidence:
+        'Heart Rate service (0x180D) present — device is a fitness/wearable class peripheral',
+    });
   } else if (identified.includes('Automation IO') || identified.includes('Environmental Sensing')) {
-    findings.push({ type: 'BLE Device Fingerprint', confidence: 'medium', cwe: null, evidence: `${identified.filter((n) => /automation|environmental/i.test(n)).join(', ')} present — device is an IoT sensor/actuator class peripheral` });
+    findings.push({
+      type: 'BLE Device Fingerprint',
+      confidence: 'medium',
+      cwe: null,
+      evidence: `${identified.filter(n => /automation|environmental/i.test(n)).join(', ')} present — device is an IoT sensor/actuator class peripheral`,
+    });
   }
   if (vendor.length) {
-    findings.push({ type: 'Vendor-Specific BLE Services', confidence: 'medium', cwe: null, evidence: `${vendor.length} vendor-specific 128-bit GATT service(s) — proprietary control surface; map characteristics for unauthenticated write/notify handles`, extra: { uuids: vendor.map((s) => s.uuid) } });
+    findings.push({
+      type: 'Vendor-Specific BLE Services',
+      confidence: 'medium',
+      cwe: null,
+      evidence: `${vendor.length} vendor-specific 128-bit GATT service(s) — proprietary control surface; map characteristics for unauthenticated write/notify handles`,
+      extra: { uuids: vendor.map(s => s.uuid) },
+    });
   }
 
   // Insecure-characteristic audit.
   for (const svc of profile.services) {
     for (const ch of svc.characteristics) {
-      const props = ch.properties.map((p) => p.toLowerCase());
+      const props = ch.properties.map(p => p.toLowerCase());
       const writable = props.includes('write') || props.includes('write-without-response');
-      const secured = props.some((p) => /authenticated|authorized|encrypted/i.test(p));
+      const secured = props.some(p => /authenticated|authorized|encrypted/i.test(p));
       if (writable && !secured && !svc.vendorSpecific && svc.name !== 'Generic Access') {
         findings.push({
           type: 'Writable BLE Characteristic Without Security',

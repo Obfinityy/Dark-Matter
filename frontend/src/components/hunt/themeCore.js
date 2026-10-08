@@ -40,13 +40,25 @@ export const THEMES = {
     id: 'dark',
     label: 'Dark',
     kind: 'dark',
-    surface: { base: '#0b0e14', raised: '#11151d', overlay: '#171c28', border: '#263046', card: '#121722' },
+    surface: {
+      base: '#0b0e14',
+      raised: '#11151d',
+      overlay: '#171c28',
+      border: '#263046',
+      card: '#121722',
+    },
     text: { primary: '#e9edf5', secondary: '#a9b2c6', muted: '#7c869c' },
     accent: '#8b5cf6',
     severity: { critical: '#f87171', high: '#fb923c', medium: '#facc15', low: '#4ade80' },
     syntax: {
-      bg: '#0d1117', text: '#c9d1d9', keyword: '#c792ea', string: '#9ece6a',
-      number: '#ff9e64', comment: '#7b87a3', func: '#7aa2f7', lineNumber: '#8b96ad',
+      bg: '#0d1117',
+      text: '#c9d1d9',
+      keyword: '#c792ea',
+      string: '#9ece6a',
+      number: '#ff9e64',
+      comment: '#7b87a3',
+      func: '#7aa2f7',
+      lineNumber: '#8b96ad',
     },
     chart: ['#8b5cf6', '#38bdf8', '#4ade80', '#facc15', '#fb923c', '#f472b6'],
     focusRing: '#22d3ee',
@@ -61,13 +73,25 @@ export const THEMES = {
     id: 'light',
     label: 'Light',
     kind: 'light',
-    surface: { base: '#ffffff', raised: '#f4f6fa', overlay: '#eceff5', border: '#d4dae6', card: '#f8fafd' },
+    surface: {
+      base: '#ffffff',
+      raised: '#f4f6fa',
+      overlay: '#eceff5',
+      border: '#d4dae6',
+      card: '#f8fafd',
+    },
     text: { primary: '#141a26', secondary: '#3d4659', muted: '#5b6579' },
     accent: '#6d28d9',
     severity: { critical: '#dc2626', high: '#c2410c', medium: '#a16207', low: '#15803d' },
     syntax: {
-      bg: '#f6f8fb', text: '#24292f', keyword: '#7c3aed', string: '#2f7d32',
-      number: '#b45309', comment: '#6e7781', func: '#1d4ed8', lineNumber: '#5b6579',
+      bg: '#f6f8fb',
+      text: '#24292f',
+      keyword: '#7c3aed',
+      string: '#2f7d32',
+      number: '#b45309',
+      comment: '#6e7781',
+      func: '#1d4ed8',
+      lineNumber: '#5b6579',
     },
     chart: ['#6d28d9', '#0284c7', '#15803d', '#a16207', '#c2410c', '#be185d'],
     focusRing: '#1d4ed8',
@@ -82,13 +106,25 @@ export const THEMES = {
     id: 'dim',
     label: 'Dim',
     kind: 'dark',
-    surface: { base: '#171a21', raised: '#1f232d', overlay: '#262b38', border: '#333a4e', card: '#1c2029' },
+    surface: {
+      base: '#171a21',
+      raised: '#1f232d',
+      overlay: '#262b38',
+      border: '#333a4e',
+      card: '#1c2029',
+    },
     text: { primary: '#dfe4ee', secondary: '#a3adbf', muted: '#7e8799' },
     accent: '#a78bfa',
     severity: { critical: '#fca5a5', high: '#fdba74', medium: '#fde047', low: '#86efac' },
     syntax: {
-      bg: '#191d26', text: '#cdd5e2', keyword: '#c4b5fd', string: '#a3d977',
-      number: '#f5a97f', comment: '#7d889e', func: '#8fb3fa', lineNumber: '#8b96ad',
+      bg: '#191d26',
+      text: '#cdd5e2',
+      keyword: '#c4b5fd',
+      string: '#a3d977',
+      number: '#f5a97f',
+      comment: '#7d889e',
+      func: '#8fb3fa',
+      lineNumber: '#8b96ad',
     },
     chart: ['#a78bfa', '#7dd3fc', '#86efac', '#fde047', '#fdba74', '#f9a8d4'],
     focusRing: '#67e8f9',
@@ -103,13 +139,25 @@ export const THEMES = {
     id: 'high-contrast',
     label: 'High contrast',
     kind: 'hc',
-    surface: { base: '#000000', raised: '#000000', overlay: '#0a0a0a', border: '#ffffff', card: '#000000' },
+    surface: {
+      base: '#000000',
+      raised: '#000000',
+      overlay: '#0a0a0a',
+      border: '#ffffff',
+      card: '#000000',
+    },
     text: { primary: '#ffffff', secondary: '#f2f2f2', muted: '#e0e0e0' },
     accent: '#ffd400',
     severity: { critical: '#ff7a7a', high: '#ffb020', medium: '#ffe14d', low: '#7dff9b' },
     syntax: {
-      bg: '#000000', text: '#ffffff', keyword: '#ffd400', string: '#7dff9b',
-      number: '#ffb020', comment: '#d9d9d9', func: '#7dd3fc', lineNumber: '#e0e0e0',
+      bg: '#000000',
+      text: '#ffffff',
+      keyword: '#ffd400',
+      string: '#7dff9b',
+      number: '#ffb020',
+      comment: '#d9d9d9',
+      func: '#7dd3fc',
+      lineNumber: '#e0e0e0',
     },
     chart: ['#ffd400', '#7dd3fc', '#7dff9b', '#ff7a7a', '#ffb020', '#f9a8d4'],
     focusRing: '#ffff00',
@@ -162,7 +210,13 @@ export function syntaxColorsForTheme(themeId) {
 export function hexToRgb(hex) {
   if (typeof hex !== 'string') throw new TypeError('hex must be a string');
   const h = hex.trim().replace(/^#/, '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const full =
+    h.length === 3
+      ? h
+          .split('')
+          .map(c => c + c)
+          .join('')
+      : h;
   if (!/^[0-9a-fA-F]{6}$/.test(full)) throw new Error(`malformed hex color: ${hex}`);
   return {
     r: parseInt(full.slice(0, 2), 16),
@@ -174,7 +228,7 @@ export function hexToRgb(hex) {
 /** WCAG 2.x relative luminance, 0–1. */
 export function relativeLuminance(hex) {
   const { r, g, b } = hexToRgb(hex);
-  const lin = (c) => {
+  const lin = c => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   };
@@ -239,7 +293,12 @@ export function accentPairing(rawHex, themeId = 'dark') {
   const fallback = (themeById(themeId) || THEMES.dark).accent;
   const hex = isValidHexColor(rawHex) ? rawHex.trim() : fallback;
   const onAccent = bestTextOn(hex);
-  return { accent: hex, onAccent, ratio: contrastRatio(hex, onAccent), grade: contrastGrade(contrastRatio(hex, onAccent)) };
+  return {
+    accent: hex,
+    onAccent,
+    ratio: contrastRatio(hex, onAccent),
+    grade: contrastGrade(contrastRatio(hex, onAccent)),
+  };
 }
 
 /* ---------------------------------------------------------------------------
@@ -295,7 +354,14 @@ function dayOfYear(date) {
  * midnight, or { polarDay: true } / { polarNight: true } above the circles.
  */
 export function sunTimes({ lat, lng, date = new Date(), tzOffsetMin = -date.getTimezoneOffset() }) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
     throw new Error('lat must be -90..90 and lng -180..180');
   }
   const tz = Number.isFinite(tzOffsetMin) ? tzOffsetMin : 0;
@@ -304,9 +370,21 @@ export function sunTimes({ lat, lng, date = new Date(), tzOffsetMin = -date.getT
   const B = ((2 * Math.PI) / 364) * (N - 81);
   const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); // minutes
   const cosH = -Math.tan(lat * DEG) * Math.tan(decl * DEG);
-  const shift = (m) => ((Math.round(m + tz) % 1440) + 1440) % 1440;
-  if (cosH < -1) return { polarDay: true, sunriseMin: shift(0), sunsetMin: shift(1440), solarNoonMin: shift(720) };
-  if (cosH > 1) return { polarNight: true, sunriseMin: shift(0), sunsetMin: shift(0), solarNoonMin: shift(720) };
+  const shift = m => ((Math.round(m + tz) % 1440) + 1440) % 1440;
+  if (cosH < -1)
+    return {
+      polarDay: true,
+      sunriseMin: shift(0),
+      sunsetMin: shift(1440),
+      solarNoonMin: shift(720),
+    };
+  if (cosH > 1)
+    return {
+      polarNight: true,
+      sunriseMin: shift(0),
+      sunsetMin: shift(0),
+      solarNoonMin: shift(720),
+    };
   const ha = Math.acos(Math.min(1, Math.max(-1, cosH))) / DEG; // degrees
   const solarNoonUtcMin = 720 - 4 * lng - eot;
   return {
@@ -317,7 +395,12 @@ export function sunTimes({ lat, lng, date = new Date(), tzOffsetMin = -date.getT
 }
 
 /** True when `date` is after sunset or before sunrise at lat/lng. */
-export function isDarkOutside({ lat, lng, date = new Date(), tzOffsetMin = -date.getTimezoneOffset() }) {
+export function isDarkOutside({
+  lat,
+  lng,
+  date = new Date(),
+  tzOffsetMin = -date.getTimezoneOffset(),
+}) {
   const t = sunTimes({ lat, lng, date, tzOffsetMin });
   if (t.polarDay) return false;
   if (t.polarNight) return true;
@@ -353,7 +436,9 @@ export function makePageThemeStore(storage) {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object') return parsed;
         }
-      } catch { /* corrupted storage → treat as empty */ }
+      } catch {
+        /* corrupted storage → treat as empty */
+      }
     } else {
       const obj = {};
       for (const [k, v] of mem) obj[k] = v;
@@ -364,7 +449,11 @@ export function makePageThemeStore(storage) {
 
   function writeAll(obj) {
     if (backend) {
-      try { backend.setItem(KEY, JSON.stringify(obj)); } catch { /* storage full/blocked */ }
+      try {
+        backend.setItem(KEY, JSON.stringify(obj));
+      } catch {
+        /* storage full/blocked */
+      }
     } else {
       mem.clear();
       for (const [k, v] of Object.entries(obj)) mem.set(k, v);
@@ -448,7 +537,8 @@ export function importThemeJson(text) {
     return { ok: false, error: `Unsupported version (expected ${THEME_EXPORT_VERSION}).` };
   }
   if (!isThemeId(parsed.theme)) return { ok: false, error: `Unknown theme "${parsed.theme}".` };
-  if (!isValidHexColor(parsed.accent)) return { ok: false, error: `Invalid accent color "${parsed.accent}".` };
+  if (!isValidHexColor(parsed.accent))
+    return { ok: false, error: `Invalid accent color "${parsed.accent}".` };
   const pageThemes = parsed.pageThemes || {};
   if (typeof pageThemes !== 'object' || Array.isArray(pageThemes)) {
     return { ok: false, error: 'pageThemes must be an object.' };
@@ -493,10 +583,16 @@ function escapeHtml(s) {
  * recipient's theme. rows: [{ label, value, tone }] where tone is a
  * severity key ('critical'|'high'|'medium'|'low') or null.
  */
-export function themedEmailHtml({ themeId = 'dark', title = 'Hunt summary', preheader = '', rows = [], cta = null } = {}) {
+export function themedEmailHtml({
+  themeId = 'dark',
+  title = 'Hunt summary',
+  preheader = '',
+  rows = [],
+  cta = null,
+} = {}) {
   const t = themeById(themeId) || THEMES.dark;
   const rowHtml = rows
-    .map((r) => {
+    .map(r => {
       const tone = t.severity[r.tone];
       const dot = tone
         ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${tone};margin-right:8px;"></span>`
@@ -507,9 +603,10 @@ export function themedEmailHtml({ themeId = 'dark', title = 'Hunt summary', preh
       </tr>`;
     })
     .join('');
-  const ctaHtml = cta && cta.url
-    ? `<p style="margin:24px 0 0;"><a href="${escapeHtml(cta.url)}" style="display:inline-block;background:${t.accent};color:${bestTextOn(t.accent)};padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">${escapeHtml(cta.label || 'Open hunt')}</a></p>`
-    : '';
+  const ctaHtml =
+    cta && cta.url
+      ? `<p style="margin:24px 0 0;"><a href="${escapeHtml(cta.url)}" style="display:inline-block;background:${t.accent};color:${bestTextOn(t.accent)};padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">${escapeHtml(cta.label || 'Open hunt')}</a></p>`
+      : '';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="color-scheme" content="${t.kind === 'light' ? 'light' : 'dark'}"></head>
 <body style="margin:0;padding:24px;background:${t.surface.base};color:${t.text.primary};font-family:-apple-system,Segoe UI,Roboto,sans-serif;">
 <div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(preheader)}</div>
@@ -527,63 +624,345 @@ export function themedEmailHtml({ themeId = 'dark', title = 'Hunt summary', preh
 
 export const WAVE17_IDEAS = [
   // -- Responsive round 2 (50641–50659) → ResponsiveRound2.jsx ----------------
-  { id: 50641, title: 'Long-press quick menu', status: 'shipped', note: '500ms press-and-hold opens a review-action menu; cancels on move/lift; keyboard context-menu key supported.', component: 'LongPressMenu', module: 'ResponsiveRound2.jsx' },
-  { id: 50642, title: 'Responsive thumbnails', status: 'shipped', note: 'srcset + sizes + lazy loading; distinct from 50607 which was the entrance-cascade animation.', component: 'ResponsiveThumbnail', module: 'ResponsiveRound2.jsx' },
-  { id: 50643, title: 'Print layout override', status: 'shipped', note: 'App-wide @media print: hides chrome, page-break rules, forced light; 50142 only flattened finding cards.', component: 'PrintLayoutOverride', module: 'ResponsiveRound2.jsx' },
-  { id: 50644, title: 'Orientation-safe scroll', status: 'shipped', note: 'Captures scrollY + open-card ids on orientation change and restores after rotate.', component: 'OrientationSafeScroller', module: 'ResponsiveRound2.jsx' },
-  { id: 50645, title: 'Notch safe areas', status: 'shipped', note: 'Generic env(safe-area-inset-*) utility classes; wave 16 used them piecemeal (50611/50620), this generalizes header/footer/bars.', component: 'NotchSafeBars', module: 'ResponsiveRound2.jsx' },
-  { id: 50646, title: 'Hybrid tablet UI', status: 'shipped', note: 'Hover tooltips on (hover:hover) plus 48px touch targets on coarse pointers — both at once on hybrid tablets.', component: 'HybridTabletCard', module: 'ResponsiveRound2.jsx' },
-  { id: 50647, title: 'Collapsed mobile sections', status: 'shipped', note: 'Sections default collapsed under 720px and expanded on desktop; real accordion, not the 50613 timeline.', component: 'CollapsibleMobileSection', module: 'ResponsiveRound2.jsx' },
-  { id: 50648, title: 'OS text-size respect', status: 'shipped', note: 'All type in rem; demo changes the root font size so OS text-size scaling visibly applies. 50633 was fluid 14→16px, this is OS-driven.', component: 'OsTextSizeDemo', module: 'ResponsiveRound2.jsx' },
-  { id: 50649, title: 'Save-Data degradation', status: 'shipped', note: 'Reads navigator.connection Save-Data/effectiveType; tiers full→reduced→minimal disable heavy animation and blur.', component: 'SaveDataBadge', module: 'ResponsiveRound2.jsx' },
-  { id: 50650, title: 'Short mobile empty states', status: 'shipped', note: 'Compact one-line variants for narrow screens; EmptyStates.jsx (50309–50311) ships the full-length ones.', component: 'ShortMobileEmptyState', module: 'ResponsiveRound2.jsx' },
-  { id: 50651, title: 'Swipeable phase carousel', status: 'shipped', note: 'Touch-swipe + buttons + keyboard between hunt phases with dots; distinct from the 50628 landscape stepper.', component: 'SwipeablePhaseCarousel', module: 'ResponsiveRound2.jsx' },
-  { id: 50652, title: 'Mobile tab badge', status: 'shipped', note: 'Live findings count badge on the mobile tab bar, updates as counts change.', component: 'MobileTabBadge', module: 'ResponsiveRound2.jsx' },
-  { id: 50653, title: 'Bottom-sheet modals', status: 'shipped', note: 'Generic modal becomes a drag-to-dismiss bottom sheet under 640px; 50614 was the filter panel only.', component: 'BottomSheetModal', module: 'ResponsiveRound2.jsx' },
-  { id: 50654, title: 'Large touch sliders', status: 'shipped', note: 'Oversized-thumb range slider with step snapping, live readout, full keyboard support.', component: 'LargeTouchSlider', module: 'ResponsiveRound2.jsx' },
-  { id: 50655, title: 'Full-bleed tablet graph', status: 'shipped', note: 'Full-bleed SVG severity graph on tablet landscape with a floating legend overlay.', component: 'FullBleedTabletGraph', module: 'ResponsiveRound2.jsx' },
-  { id: 50656, title: 'Desktop-site toggle', status: 'shipped', note: 'Mobile menu option forces the desktop layout via a persisted body class; reversible.', component: 'DesktopSiteToggle', module: 'ResponsiveRound2.jsx' },
-  { id: 50657, title: 'Responsive focus order', status: 'shipped', note: 'Tab order chips reorder per breakpoint (stacked vs grid); 50519/50466 covered correctness, this is per-layout order.', component: 'ResponsiveFocusOrder', module: 'ResponsiveRound2.jsx' },
-  { id: 50658, title: 'Container-query widgets', status: 'shipped', note: 'Real @container queries resize widgets by their container, not the viewport; 50636 was viewport auto-fit grid.', component: 'ContainerQueryWidget', module: 'ResponsiveRound2.jsx' },
-  { id: 50659, title: 'Tested-width note', status: 'shipped', note: '"Optimized for 360px → 2560px" banner with a real link to the repo issues page for width bugs.', component: 'TestedWidthNote', module: 'ResponsiveRound2.jsx' },
+  {
+    id: 50641,
+    title: 'Long-press quick menu',
+    status: 'shipped',
+    note: '500ms press-and-hold opens a review-action menu; cancels on move/lift; keyboard context-menu key supported.',
+    component: 'LongPressMenu',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50642,
+    title: 'Responsive thumbnails',
+    status: 'shipped',
+    note: 'srcset + sizes + lazy loading; distinct from 50607 which was the entrance-cascade animation.',
+    component: 'ResponsiveThumbnail',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50643,
+    title: 'Print layout override',
+    status: 'shipped',
+    note: 'App-wide @media print: hides chrome, page-break rules, forced light; 50142 only flattened finding cards.',
+    component: 'PrintLayoutOverride',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50644,
+    title: 'Orientation-safe scroll',
+    status: 'shipped',
+    note: 'Captures scrollY + open-card ids on orientation change and restores after rotate.',
+    component: 'OrientationSafeScroller',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50645,
+    title: 'Notch safe areas',
+    status: 'shipped',
+    note: 'Generic env(safe-area-inset-*) utility classes; wave 16 used them piecemeal (50611/50620), this generalizes header/footer/bars.',
+    component: 'NotchSafeBars',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50646,
+    title: 'Hybrid tablet UI',
+    status: 'shipped',
+    note: 'Hover tooltips on (hover:hover) plus 48px touch targets on coarse pointers — both at once on hybrid tablets.',
+    component: 'HybridTabletCard',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50647,
+    title: 'Collapsed mobile sections',
+    status: 'shipped',
+    note: 'Sections default collapsed under 720px and expanded on desktop; real accordion, not the 50613 timeline.',
+    component: 'CollapsibleMobileSection',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50648,
+    title: 'OS text-size respect',
+    status: 'shipped',
+    note: 'All type in rem; demo changes the root font size so OS text-size scaling visibly applies. 50633 was fluid 14→16px, this is OS-driven.',
+    component: 'OsTextSizeDemo',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50649,
+    title: 'Save-Data degradation',
+    status: 'shipped',
+    note: 'Reads navigator.connection Save-Data/effectiveType; tiers full→reduced→minimal disable heavy animation and blur.',
+    component: 'SaveDataBadge',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50650,
+    title: 'Short mobile empty states',
+    status: 'shipped',
+    note: 'Compact one-line variants for narrow screens; EmptyStates.jsx (50309–50311) ships the full-length ones.',
+    component: 'ShortMobileEmptyState',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50651,
+    title: 'Swipeable phase carousel',
+    status: 'shipped',
+    note: 'Touch-swipe + buttons + keyboard between hunt phases with dots; distinct from the 50628 landscape stepper.',
+    component: 'SwipeablePhaseCarousel',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50652,
+    title: 'Mobile tab badge',
+    status: 'shipped',
+    note: 'Live findings count badge on the mobile tab bar, updates as counts change.',
+    component: 'MobileTabBadge',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50653,
+    title: 'Bottom-sheet modals',
+    status: 'shipped',
+    note: 'Generic modal becomes a drag-to-dismiss bottom sheet under 640px; 50614 was the filter panel only.',
+    component: 'BottomSheetModal',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50654,
+    title: 'Large touch sliders',
+    status: 'shipped',
+    note: 'Oversized-thumb range slider with step snapping, live readout, full keyboard support.',
+    component: 'LargeTouchSlider',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50655,
+    title: 'Full-bleed tablet graph',
+    status: 'shipped',
+    note: 'Full-bleed SVG severity graph on tablet landscape with a floating legend overlay.',
+    component: 'FullBleedTabletGraph',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50656,
+    title: 'Desktop-site toggle',
+    status: 'shipped',
+    note: 'Mobile menu option forces the desktop layout via a persisted body class; reversible.',
+    component: 'DesktopSiteToggle',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50657,
+    title: 'Responsive focus order',
+    status: 'shipped',
+    note: 'Tab order chips reorder per breakpoint (stacked vs grid); 50519/50466 covered correctness, this is per-layout order.',
+    component: 'ResponsiveFocusOrder',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50658,
+    title: 'Container-query widgets',
+    status: 'shipped',
+    note: 'Real @container queries resize widgets by their container, not the viewport; 50636 was viewport auto-fit grid.',
+    component: 'ContainerQueryWidget',
+    module: 'ResponsiveRound2.jsx',
+  },
+  {
+    id: 50659,
+    title: 'Tested-width note',
+    status: 'shipped',
+    note: '"Optimized for 360px → 2560px" banner with a real link to the repo issues page for width bugs.',
+    component: 'TestedWidthNote',
+    module: 'ResponsiveRound2.jsx',
+  },
   // -- Theming suite (50660–50680) → ThemeSuite.jsx ---------------------------
-  { id: 50660, title: 'Three core themes', status: 'shipped', note: 'Dark (default), light, high-contrast as first-class themes; full palettes in themeCore THEMES. Extends the basic dark/light data-theme toggle in App.jsx.', component: 'ThemePicker', module: 'ThemeSuite.jsx' },
-  { id: 50661, title: 'OS preference + manual override', status: 'shipped', note: 'Follows prefers-color-scheme until the user picks manually; manual choice persists and wins.', component: 'ThemeProvider', module: 'ThemeSuite.jsx' },
-  { id: 50662, title: 'Sunset auto-switch', status: 'shipped', note: 'Approximate sunrise/sunset from lat/lng switches to dark after sunset; user timezone via their own clock.', component: 'SunsetScheduler', module: 'ThemeSuite.jsx' },
-  { id: 50663, title: 'Per-page theme memory', status: 'shipped', note: 'Report preview can stay light while the app is dark; override stored per page key.', component: 'PerPageThemeMemory', module: 'ThemeSuite.jsx' },
-  { id: 50664, title: 'Per-theme severity mapping', status: 'shipped', note: 'severityForTheme() remaps critical/high/medium/low hues per theme; readout shows chips + ratios.', component: 'ContrastReadout', module: 'ThemeSuite.jsx' },
-  { id: 50665, title: 'Theme preview thumbnails', status: 'shipped', note: 'Live mini hunt-UI previews in settings that recolor with the active theme.', component: 'ThemePreviewThumbnail', module: 'ThemeSuite.jsx' },
-  { id: 50666, title: 'High-contrast surfaces', status: 'shipped', note: 'Pure black/white surfaces, ≥7:1 body text, thick focus rings, zero transparency — enforced in CSS.', component: 'ThemePicker', module: 'ThemeSuite.jsx' },
-  { id: 50667, title: 'Dim intermediate theme', status: 'shipped', note: 'Dim sits between dark and light; OLED true-black toggle additionally flattens dark to pure black.', component: 'DimThemeToggle', module: 'ThemeSuite.jsx' },
-  { id: 50668, title: 'Matched syntax themes', status: 'shipped', note: 'Per-theme token colors for code blocks via syntaxColorsForTheme().', component: 'ThemedCodeBlock', module: 'ThemeSuite.jsx' },
-  { id: 50669, title: 'Theme-aware chart palette', status: 'shipped', note: 'chartPaletteForTheme() keeps chart hues readable per theme; demo bar chart recolors live.', component: 'ThemedChart', module: 'ThemeSuite.jsx' },
-  { id: 50670, title: 'Flash-free 250ms cross-fade', status: 'shipped', note: 'ThemeProvider applies a th-fading class for a 250ms color cross-fade; disabled under prefers-reduced-motion.', component: 'ThemeProvider', module: 'ThemeSuite.jsx' },
-  { id: 50671, title: 'Themed favicon + theme-color meta', status: 'shipped', note: 'ThemeProvider updates <meta name="theme-color"> and swaps a per-theme SVG favicon on change.', component: 'ThemeProvider', module: 'ThemeSuite.jsx' },
-  { id: 50672, title: 'Light print default', status: 'shipped', note: '@media print forces the light palette; configurable to follow-screen via printTheme setting.', component: 'ThemeProvider', module: 'ThemeSuite.jsx' },
-  { id: 50673, title: 'Themed email templates', status: 'shipped', note: 'themedEmailHtml() generates recipient-theme HTML emails with inline styles; live preview included.', component: 'ThemedEmailPreview', module: 'ThemeSuite.jsx' },
-  { id: 50674, title: 'Forced link underlines + card borders', status: 'shipped', note: 'High-contrast forces link underlines and 2px card borders in CSS.', component: 'ThemeProvider', module: 'ThemeSuite.jsx' },
-  { id: 50675, title: 'Accent-color picker', status: 'shipped', note: 'Six presets plus a color wheel; accentPairing() auto-adjusts the on-accent text color for contrast.', component: 'AccentPicker', module: 'ThemeSuite.jsx' },
-  { id: 50676, title: 'Themed logo variants', status: 'shipped', note: 'SVG logo mark recolors per theme via currentColor and theme variables.', component: 'ThemedLogo', module: 'ThemeSuite.jsx' },
-  { id: 50677, title: 'Auto reduced transparency', status: 'shipped', note: 'High-contrast zeroes blur/alpha overlays via CSS; handled by ThemeProvider theme application.', component: 'ThemeProvider', module: 'ThemeSuite.jsx' },
-  { id: 50678, title: 'Code line-number 4.5:1 contrast', status: 'shipped', note: 'Line numbers use the theme lineNumber color, each verified ≥4.5:1 against the code bg in tests.', component: 'ThemedCodeBlock', module: 'ThemeSuite.jsx' },
-  { id: 50679, title: 'Themed skeleton shimmer', status: 'shipped', note: 'Skeleton shimmer keyframes use per-theme base/shimmer colors.', component: 'ThemedSkeleton', module: 'ThemeSuite.jsx' },
-  { id: 50680, title: 'Adaptive focus-ring color', status: 'shipped', note: 'Focus ring var per theme: cyan on dark, deep blue on light, yellow on high-contrast.', component: 'ThemeProvider', module: 'ThemeSuite.jsx' },
+  {
+    id: 50660,
+    title: 'Three core themes',
+    status: 'shipped',
+    note: 'Dark (default), light, high-contrast as first-class themes; full palettes in themeCore THEMES. Extends the basic dark/light data-theme toggle in App.jsx.',
+    component: 'ThemePicker',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50661,
+    title: 'OS preference + manual override',
+    status: 'shipped',
+    note: 'Follows prefers-color-scheme until the user picks manually; manual choice persists and wins.',
+    component: 'ThemeProvider',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50662,
+    title: 'Sunset auto-switch',
+    status: 'shipped',
+    note: 'Approximate sunrise/sunset from lat/lng switches to dark after sunset; user timezone via their own clock.',
+    component: 'SunsetScheduler',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50663,
+    title: 'Per-page theme memory',
+    status: 'shipped',
+    note: 'Report preview can stay light while the app is dark; override stored per page key.',
+    component: 'PerPageThemeMemory',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50664,
+    title: 'Per-theme severity mapping',
+    status: 'shipped',
+    note: 'severityForTheme() remaps critical/high/medium/low hues per theme; readout shows chips + ratios.',
+    component: 'ContrastReadout',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50665,
+    title: 'Theme preview thumbnails',
+    status: 'shipped',
+    note: 'Live mini hunt-UI previews in settings that recolor with the active theme.',
+    component: 'ThemePreviewThumbnail',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50666,
+    title: 'High-contrast surfaces',
+    status: 'shipped',
+    note: 'Pure black/white surfaces, ≥7:1 body text, thick focus rings, zero transparency — enforced in CSS.',
+    component: 'ThemePicker',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50667,
+    title: 'Dim intermediate theme',
+    status: 'shipped',
+    note: 'Dim sits between dark and light; OLED true-black toggle additionally flattens dark to pure black.',
+    component: 'DimThemeToggle',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50668,
+    title: 'Matched syntax themes',
+    status: 'shipped',
+    note: 'Per-theme token colors for code blocks via syntaxColorsForTheme().',
+    component: 'ThemedCodeBlock',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50669,
+    title: 'Theme-aware chart palette',
+    status: 'shipped',
+    note: 'chartPaletteForTheme() keeps chart hues readable per theme; demo bar chart recolors live.',
+    component: 'ThemedChart',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50670,
+    title: 'Flash-free 250ms cross-fade',
+    status: 'shipped',
+    note: 'ThemeProvider applies a th-fading class for a 250ms color cross-fade; disabled under prefers-reduced-motion.',
+    component: 'ThemeProvider',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50671,
+    title: 'Themed favicon + theme-color meta',
+    status: 'shipped',
+    note: 'ThemeProvider updates <meta name="theme-color"> and swaps a per-theme SVG favicon on change.',
+    component: 'ThemeProvider',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50672,
+    title: 'Light print default',
+    status: 'shipped',
+    note: '@media print forces the light palette; configurable to follow-screen via printTheme setting.',
+    component: 'ThemeProvider',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50673,
+    title: 'Themed email templates',
+    status: 'shipped',
+    note: 'themedEmailHtml() generates recipient-theme HTML emails with inline styles; live preview included.',
+    component: 'ThemedEmailPreview',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50674,
+    title: 'Forced link underlines + card borders',
+    status: 'shipped',
+    note: 'High-contrast forces link underlines and 2px card borders in CSS.',
+    component: 'ThemeProvider',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50675,
+    title: 'Accent-color picker',
+    status: 'shipped',
+    note: 'Six presets plus a color wheel; accentPairing() auto-adjusts the on-accent text color for contrast.',
+    component: 'AccentPicker',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50676,
+    title: 'Themed logo variants',
+    status: 'shipped',
+    note: 'SVG logo mark recolors per theme via currentColor and theme variables.',
+    component: 'ThemedLogo',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50677,
+    title: 'Auto reduced transparency',
+    status: 'shipped',
+    note: 'High-contrast zeroes blur/alpha overlays via CSS; handled by ThemeProvider theme application.',
+    component: 'ThemeProvider',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50678,
+    title: 'Code line-number 4.5:1 contrast',
+    status: 'shipped',
+    note: 'Line numbers use the theme lineNumber color, each verified ≥4.5:1 against the code bg in tests.',
+    component: 'ThemedCodeBlock',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50679,
+    title: 'Themed skeleton shimmer',
+    status: 'shipped',
+    note: 'Skeleton shimmer keyframes use per-theme base/shimmer colors.',
+    component: 'ThemedSkeleton',
+    module: 'ThemeSuite.jsx',
+  },
+  {
+    id: 50680,
+    title: 'Adaptive focus-ring color',
+    status: 'shipped',
+    note: 'Focus ring var per theme: cyan on dark, deep blue on light, yellow on high-contrast.',
+    component: 'ThemeProvider',
+    module: 'ThemeSuite.jsx',
+  },
 ];
 
 /** True when every idea 50641–50680 appears exactly once with a valid status. */
 export function wave17RegistryComplete() {
   if (WAVE17_IDEAS.length !== 40) return false;
-  const ids = WAVE17_IDEAS.map((i) => i.id);
+  const ids = WAVE17_IDEAS.map(i => i.id);
   for (let id = 50641; id <= 50680; id += 1) {
-    if (ids.filter((x) => x === id).length !== 1) return false;
+    if (ids.filter(x => x === id).length !== 1) return false;
   }
   return WAVE17_IDEAS.every(
-    (i) =>
+    i =>
       (i.status === 'shipped' || i.status === 'skip') &&
       typeof i.title === 'string' &&
       i.title.length > 0 &&
       typeof i.note === 'string' &&
       i.note.length > 10 &&
-      (i.status === 'skip' ? i.component == null : typeof i.component === 'string' && i.component.length > 0)
+      (i.status === 'skip'
+        ? i.component == null
+        : typeof i.component === 'string' && i.component.length > 0)
   );
 }

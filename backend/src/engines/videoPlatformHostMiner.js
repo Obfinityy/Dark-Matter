@@ -15,9 +15,11 @@
 const VIDEO_PLATFORMS = [
   {
     name: 'Wistia',
-    hostRe: /\b([a-z0-9-]+\.wistia\.com|fast\.wistia\.com|wistia\.com|embedwistia\.akamaihd\.net)\b/i,
+    hostRe:
+      /\b([a-z0-9-]+\.wistia\.com|fast\.wistia\.com|wistia\.com|embedwistia\.akamaihd\.net)\b/i,
     mediaIdRe: /wistia\.com\/(?:embed\/)?medias?\/([a-z0-9]+)/gi,
-    asyncEmbedRe: /["']?videoFoam["']?\s*:\s*["']?true["']?|Wistia\.embed\(\s*["']([a-z0-9]+)["']/gi,
+    asyncEmbedRe:
+      /["']?videoFoam["']?\s*:\s*["']?true["']?|Wistia\.embed\(\s*["']([a-z0-9]+)["']/gi,
   },
   {
     name: 'Vidyard',
@@ -26,7 +28,8 @@ const VIDEO_PLATFORMS = [
   },
   {
     name: 'Vimeo',
-    hostRe: /\b([a-z0-9-]+\.vimeo\.com|player\.vimeo\.com|vimeo\.com|vimeocdn\.com|[a-z0-9-]+\.vimeo-cdn\.[a-z]+\.net)\b/i,
+    hostRe:
+      /\b([a-z0-9-]+\.vimeo\.com|player\.vimeo\.com|vimeo\.com|vimeocdn\.com|[a-z0-9-]+\.vimeo-cdn\.[a-z]+\.net)\b/i,
     mediaIdRe: /(?:player\.)?vimeo\.com\/(?:video\/)?(\d{6,})/gi,
   },
 ];
@@ -88,7 +91,8 @@ export function extractEmbeddedVideos(html = '') {
  */
 export function extractVideoHosts(text = '') {
   const hosts = new Set();
-  const re = /\b([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:wistia\.com|vidyard\.com|vimeo\.com|vimeocdn\.com|vimeo-cdn\.[a-z]+\.net))\b/gi;
+  const re =
+    /\b([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:wistia\.com|vidyard\.com|vimeo\.com|vimeocdn\.com|vimeo-cdn\.[a-z]+\.net))\b/gi;
   let m;
   while ((m = re.exec(String(text))) !== null) hosts.add(m[1].toLowerCase());
   return [...hosts];
@@ -106,7 +110,11 @@ export function mapVideoCnames(cnameRecords = []) {
     const target = String(rec.target).toLowerCase().replace(/\.$/, '');
     const cls = classifyVideoHost(target);
     if (cls) {
-      out.push({ alias: String(rec.name).toLowerCase().replace(/\.$/, ''), platform: cls.platform, host: target });
+      out.push({
+        alias: String(rec.name).toLowerCase().replace(/\.$/, ''),
+        platform: cls.platform,
+        host: target,
+      });
     }
   }
   return out;
@@ -120,7 +128,7 @@ export function mapVideoCnames(cnameRecords = []) {
 export function mineVideoFootprint({ htmlPages = [], cnames = [] } = {}) {
   const videos = (htmlPages || []).flatMap(extractEmbeddedVideos);
   const hostNames = [...new Set((htmlPages || []).flatMap(extractVideoHosts))];
-  const hosts = hostNames.map((h) => ({ host: h, ...classifyVideoHost(h) }));
+  const hosts = hostNames.map(h => ({ host: h, ...classifyVideoHost(h) }));
   const cnameHits = mapVideoCnames(cnames);
   return { videos, hosts, cnameHits };
 }

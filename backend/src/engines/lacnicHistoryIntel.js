@@ -36,7 +36,9 @@ function toEpoch(v) {
 
 /** Normalise an org name for comparison. */
 function normaliseOrg(o) {
-  return String(o || '').trim().toLowerCase();
+  return String(o || '')
+    .trim()
+    .toLowerCase();
 }
 
 /**
@@ -64,10 +66,10 @@ export function buildOwnershipTimelines(entries) {
   const out = [];
   for (const [prefix, events] of byPrefix) {
     events.sort((a, b) => (a.epoch ?? 0) - (b.epoch ?? 0));
-    const transferCount = events.filter((e) => e.event === 'transferred').length;
+    const transferCount = events.filter(e => e.event === 'transferred').length;
     const last = events[events.length - 1];
-    const currentHolder = last.event === 'returned' ? null : (last.toOrg || last.fromOrg || null);
-    const dated = events.filter((e) => e.epoch != null);
+    const currentHolder = last.event === 'returned' ? null : last.toOrg || last.fromOrg || null;
+    const dated = events.filter(e => e.epoch != null);
     out.push({
       prefix,
       events: events.map(({ source, ...rest }) => rest),
@@ -97,11 +99,21 @@ export function orgAcquisitionHistory(entries, targetOrg) {
     const prefix = String(e.prefix || '').trim();
     if (!prefix) continue;
     if (e.toOrg && normaliseOrg(e.toOrg) === target && e.event !== 'returned') {
-      acquired.push({ prefix, date: e.date || null, fromOrg: e.fromOrg ? String(e.fromOrg).trim() : null });
+      acquired.push({
+        prefix,
+        date: e.date || null,
+        fromOrg: e.fromOrg ? String(e.fromOrg).trim() : null,
+      });
     }
-    if ((e.fromOrg && normaliseOrg(e.fromOrg) === target && e.event === 'transferred')
-      || (e.toOrg && normaliseOrg(e.toOrg) === target && e.event === 'returned')) {
-      relinquished.push({ prefix, date: e.date || null, toOrg: e.toOrg && e.event === 'transferred' ? String(e.toOrg).trim() : null });
+    if (
+      (e.fromOrg && normaliseOrg(e.fromOrg) === target && e.event === 'transferred') ||
+      (e.toOrg && normaliseOrg(e.toOrg) === target && e.event === 'returned')
+    ) {
+      relinquished.push({
+        prefix,
+        date: e.date || null,
+        toOrg: e.toOrg && e.event === 'transferred' ? String(e.toOrg).trim() : null,
+      });
     }
   }
   const byDate = (a, b) => (b.date || '').localeCompare(a.date || '');
@@ -149,9 +161,7 @@ export function detectChurnedPrefixes(entries) {
   const out = [];
   for (const t of buildOwnershipTimelines(entries)) {
     if (t.transferCount > 1) {
-      const holders = [...new Set(
-        t.events.flatMap((e) => [e.fromOrg, e.toOrg]).filter(Boolean),
-      )];
+      const holders = [...new Set(t.events.flatMap(e => [e.fromOrg, e.toOrg]).filter(Boolean))];
       out.push({
         prefix: t.prefix,
         transferCount: t.transferCount,

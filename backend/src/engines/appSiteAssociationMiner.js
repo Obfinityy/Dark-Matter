@@ -25,7 +25,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -35,7 +35,9 @@ export function candidateUrls(baseUrl = '') {
  */
 function hostnameOf(raw) {
   try {
-    const cleaned = String(raw).replace(/\{[^}]*\}/g, 'x').trim();
+    const cleaned = String(raw)
+      .replace(/\{[^}]*\}/g, 'x')
+      .trim();
     const u = new URL(cleaned);
     return u.hostname || null;
   } catch {
@@ -58,7 +60,14 @@ function hostnameOf(raw) {
  */
 export function analyzeAppSiteAssociation(content, opts = {}) {
   const source = opts.sourceUrl || null;
-  const empty = { source, apps: [], pathPatterns: [], embeddedUrls: [], linkedHosts: [], rawParse: false };
+  const empty = {
+    source,
+    apps: [],
+    pathPatterns: [],
+    embeddedUrls: [],
+    linkedHosts: [],
+    rawParse: false,
+  };
   const text = typeof content === 'string' ? content : JSON.stringify(content || {});
   let doc;
   try {
@@ -82,22 +91,33 @@ export function analyzeAppSiteAssociation(content, opts = {}) {
       bundleId: rest.length ? rest.join('.') : null,
       kinds: ['universal-links'],
     });
-    const paths = entry.paths || (entry.components && entry.components.map((c) => c['/'] || c['%'])) || [];
+    const paths =
+      entry.paths || (entry.components && entry.components.map(c => c['/'] || c['%'])) || [];
     for (const p of paths) if (p) result.pathPatterns.push(String(p));
   }
   // 2. Flat appIDs list (some publishers ship a top-level "appIDs" array)
   const flat = Array.isArray(doc.appIDs) ? doc.appIDs : Array.isArray(doc.appIds) ? doc.appIds : [];
   for (const appId of flat) {
-    if (result.apps.some((a) => a.appId === String(appId))) continue;
+    if (result.apps.some(a => a.appId === String(appId))) continue;
     const [teamId, ...rest] = String(appId).split('.');
-    result.apps.push({ appId: String(appId), teamId: teamId || null, bundleId: rest.join('.') || null, kinds: ['declared'] });
+    result.apps.push({
+      appId: String(appId),
+      teamId: teamId || null,
+      bundleId: rest.join('.') || null,
+      kinds: ['declared'],
+    });
   }
   // 3. webcredentials apps
   const wc = doc.webcredentials || {};
   for (const appId of wc.apps || []) {
-    if (result.apps.some((a) => a.appId === String(appId))) continue;
+    if (result.apps.some(a => a.appId === String(appId))) continue;
     const [teamId, ...rest] = String(appId).split('.');
-    result.apps.push({ appId: String(appId), teamId: teamId || null, bundleId: rest.join('.') || null, kinds: ['webcredentials'] });
+    result.apps.push({
+      appId: String(appId),
+      teamId: teamId || null,
+      bundleId: rest.join('.') || null,
+      kinds: ['webcredentials'],
+    });
   }
   // 4. Any absolute URLs embedded in the document (comments/configs leak hosts)
   const urlRe = /https?:\/\/[^\s"'<>,}]+/g;
@@ -120,11 +140,11 @@ export function analyzeAppSiteAssociation(content, opts = {}) {
  * @returns {{ totalApps: number, totalHosts: number, hosts: string[], apps: string[] }}
  */
 export function summarizeAnalysis(analysis) {
-  const hosts = [...new Set((analysis.linkedHosts || []).map((h) => h.toLowerCase()))];
+  const hosts = [...new Set((analysis.linkedHosts || []).map(h => h.toLowerCase()))];
   return {
     totalApps: (analysis.apps || []).length,
     totalHosts: hosts.length,
     hosts,
-    apps: (analysis.apps || []).map((a) => a.appId),
+    apps: (analysis.apps || []).map(a => a.appId),
   };
 }

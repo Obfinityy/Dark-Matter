@@ -9,21 +9,60 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  WAVE29_IDEAS, WAVE29_START, WAVE29_END,
-  INTENSITY_LEVELS, STEERING_PRESETS, TARGET_PROFILES,
-  addScopeTarget, removeScopeTarget, switchTargetProfile,
-  injectWordlist, setRateCap, setIntensity, redirectEndpoint,
-  pauseModule, resumeModule, reorderPhases, extendTimeBudget,
-  wrapUp, parseSteeringCommand, reorderPriorities, applyPreset,
-  undoSteering, previewSteering, estimateImpact, logSteering,
-  proposeCoSteering, resolveCoSteering, saveTemplate, applyTemplate,
-  addConditionalRule, evaluateRules, setTimeBoxedFocus,
-  steerFromFinding, steerFromLog, parseSpokenCommand,
-  applyPriorityBoard, buildSteeringApiPayload, validateSteeringApiPayload,
-  applyWhilePaused, needsApproval, agentPushback, suggestSteering,
-  setBandwidthCap, bandwidthRemaining, setStealthMode, setDepthLimit,
-  retestOnChange, dryRun, inheritPriority, setCooldown, cooldownActive,
-  toggleModule, setFocusWindow, focusSplit,
+  WAVE29_IDEAS,
+  WAVE29_START,
+  WAVE29_END,
+  INTENSITY_LEVELS,
+  STEERING_PRESETS,
+  TARGET_PROFILES,
+  addScopeTarget,
+  removeScopeTarget,
+  switchTargetProfile,
+  injectWordlist,
+  setRateCap,
+  setIntensity,
+  redirectEndpoint,
+  pauseModule,
+  resumeModule,
+  reorderPhases,
+  extendTimeBudget,
+  wrapUp,
+  parseSteeringCommand,
+  reorderPriorities,
+  applyPreset,
+  undoSteering,
+  previewSteering,
+  estimateImpact,
+  logSteering,
+  proposeCoSteering,
+  resolveCoSteering,
+  saveTemplate,
+  applyTemplate,
+  addConditionalRule,
+  evaluateRules,
+  setTimeBoxedFocus,
+  steerFromFinding,
+  steerFromLog,
+  parseSpokenCommand,
+  applyPriorityBoard,
+  buildSteeringApiPayload,
+  validateSteeringApiPayload,
+  applyWhilePaused,
+  needsApproval,
+  agentPushback,
+  suggestSteering,
+  setBandwidthCap,
+  bandwidthRemaining,
+  setStealthMode,
+  setDepthLimit,
+  retestOnChange,
+  dryRun,
+  inheritPriority,
+  setCooldown,
+  cooldownActive,
+  toggleModule,
+  setFocusWindow,
+  focusSplit,
 } from './steeringCore.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -56,7 +95,10 @@ test('addScopeTarget ignores duplicates and blanks', () => {
 
 // --- 51122 scope removal ----------------------------------------------------
 test('removeScopeTarget removes and lists graceful halts', () => {
-  const inFlight = [{ id: 1, target: 'x.com/api' }, { id: 2, target: 'y.com/' }];
+  const inFlight = [
+    { id: 1, target: 'x.com/api' },
+    { id: 2, target: 'y.com/' },
+  ];
   const r = removeScopeTarget(['x.com', 'y.com'], inFlight, 'x.com');
   assert.deepEqual(r.scope, ['y.com']);
   assert.equal(r.halting.length, 1);
@@ -110,7 +152,10 @@ test('redirectEndpoint queues endpoint next', () => {
 
 // --- 51128 module pause ---------------------------------------------------------
 test('pauseModule/resumeModule toggle one module only', () => {
-  const mods = [{ name: 'a', paused: false }, { name: 'b', paused: false }];
+  const mods = [
+    { name: 'a', paused: false },
+    { name: 'b', paused: false },
+  ];
   const paused = pauseModule(mods, 'a');
   assert.equal(paused[0].paused, true);
   assert.equal(paused[1].paused, false);
@@ -186,7 +231,10 @@ test('previewSteering describes changes', () => {
 
 // --- 51137 impact ------------------------------------------------------------------------------
 test('estimateImpact returns minutes and requests', () => {
-  const e = estimateImpact({ intensity: 'normal', rateCapRps: 10 }, { type: 'wrap-up', minutes: 10 });
+  const e = estimateImpact(
+    { intensity: 'normal', rateCapRps: 10 },
+    { type: 'wrap-up', minutes: 10 }
+  );
   assert.equal(e.minutes, 10);
   assert.ok(e.requests > 0);
 });
@@ -295,8 +343,13 @@ test('agentPushback warns on risky removals', () => {
 
 // --- 51151 suggestions ----------------------------------------------------------------------------------------------------------------------
 test('suggestSteering proposes based on state', () => {
-  const s = suggestSteering({ findingCount: 5, intensity: 'normal', idleMinutes: 0, noiseComplaints: 0 });
-  assert.ok(s.some((x) => x.level === 'aggressive'));
+  const s = suggestSteering({
+    findingCount: 5,
+    intensity: 'normal',
+    idleMinutes: 0,
+    noiseComplaints: 0,
+  });
+  assert.ok(s.some(x => x.level === 'aggressive'));
   assert.equal(suggestSteering({ findingCount: 0, idleMinutes: 0, noiseComplaints: 0 }).length, 0);
 });
 
@@ -372,8 +425,11 @@ test('Steering.css: scoped classes, zero keyframes', () => {
   assert.ok(!/@keyframes/i.test(css), 'no keyframes allowed');
   // allow only `animation: none` (the reduced-motion guard); strip comments first
   const noComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  const animDecls = [...noComments.matchAll(/animation\s*:\s*([^;]+);/gi)].map((m) => m[1].trim());
-  assert.ok(animDecls.every((v) => v === 'none'), `non-none animations found: ${animDecls.join(', ')}`);
+  const animDecls = [...noComments.matchAll(/animation\s*:\s*([^;]+);/gi)].map(m => m[1].trim());
+  assert.ok(
+    animDecls.every(v => v === 'none'),
+    `non-none animations found: ${animDecls.join(', ')}`
+  );
   const scoped = (css.match(/\.steer29-/g) || []).length;
   assert.ok(scoped > 10, `expected many scoped selectors, got ${scoped}`);
   assert.ok(/prefers-reduced-motion/.test(css), 'reduced-motion guard present');

@@ -1,4 +1,8 @@
-/* infinity.css - DarkMatter Theme implementation */
+/**
+ * infinity.css — the Infinity AI theme implementation.
+ * Core theme layer: color tokens, typography, and component base styles.
+ * Part of: Infinity AI / Dark-Matter frontend (styles).
+ */
 
 .app-root {
   display: flex;
@@ -72,7 +76,11 @@
   border: 1px solid var(--border-light);
   background: var(--surface);
   color: var(--text-secondary);
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .new-chat-btn:hover {
@@ -133,10 +141,15 @@
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: 0.9rem;
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
-.nav-item:hover, .nav-item.active {
+.nav-item:hover,
+.nav-item.active {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
@@ -199,7 +212,7 @@
   filter: blur(80px);
 }
 
-[data-theme="light"] .bg-graphic {
+[data-theme='light'] .bg-graphic {
   display: none;
 }
 
@@ -212,7 +225,9 @@
   z-index: 2;
 }
 
-.nav-links, .nav-actions, .nav-links-small {
+.nav-links,
+.nav-actions,
+.nav-links-small {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -227,7 +242,8 @@
   letter-spacing: 1px;
 }
 
-.nav-links a.active, .nav-links a:hover {
+.nav-links a.active,
+.nav-links a:hover {
   color: var(--text-primary);
 }
 
@@ -297,7 +313,11 @@
   border-radius: var(--radius-md);
   padding: 24px;
   cursor: pointer;
-  transition: opacity var(--transition), color var(--transition), background-color var(--transition), border-color var(--transition);
+  transition:
+    opacity var(--transition),
+    color var(--transition),
+    background-color var(--transition),
+    border-color var(--transition);
   position: relative;
 }
 
@@ -310,8 +330,12 @@
   margin-bottom: 16px;
 }
 
-.text-cyan { color: var(--accent-secondary); }
-.text-pink { color: var(--accent); }
+.text-cyan {
+  color: var(--accent-secondary);
+}
+.text-pink {
+  color: var(--accent);
+}
 
 .suggestion-card h4 {
   font-size: 1.1rem;
@@ -330,7 +354,11 @@
   right: 24px;
   color: var(--text-muted);
   font-size: 1.2rem;
-  transition: opacity var(--transition), color var(--transition), background-color var(--transition), border-color var(--transition);
+  transition:
+    opacity var(--transition),
+    color var(--transition),
+    background-color var(--transition),
+    border-color var(--transition);
 }
 
 .suggestion-card:hover .arrow {
@@ -351,7 +379,7 @@
   background: var(--surface);
   border-radius: var(--radius-lg);
   padding: 16px;
-  
+
   box-shadow: var(--shadow-sm);
   position: relative;
 }
@@ -386,7 +414,11 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .action-btn:hover {
@@ -429,7 +461,11 @@
   font-size: 0.85rem;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .mode-option:hover {
@@ -452,7 +488,11 @@
   background: var(--surface-hover);
   border-radius: 50%;
   color: var(--text-primary);
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .send-btn:not(:disabled):hover {
@@ -614,9 +654,18 @@
   border-radius: 4px;
 }
 
-.finding-item.high .severity { color: var(--danger); background: rgba(239, 68, 68, 0.15); }
-.finding-item.medium .severity { color: var(--warning); background: rgba(245, 158, 11, 0.15); }
-.finding-item.low .severity { color: var(--info); background: rgba(59, 130, 246, 0.15); }
+.finding-item.high .severity {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.15);
+}
+.finding-item.medium .severity {
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.15);
+}
+.finding-item.low .severity {
+  color: var(--info);
+  background: rgba(59, 130, 246, 0.15);
+}
 
 .action-buttons {
   display: flex;
@@ -634,7 +683,11 @@
   border-radius: var(--radius-md);
   font-size: 0.9rem;
   font-weight: 500;
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .secondary-button:hover {
@@ -672,7 +725,11 @@
   border-radius: 50%;
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .icon-button:hover {
@@ -744,7 +801,11 @@
   padding: 12px 24px;
   border-radius: var(--radius-full);
   font-weight: 500;
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .primary-cta:hover {
@@ -763,7 +824,11 @@
   padding: 24px;
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
-  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
   display: flex;
   flex-direction: column;
 }
@@ -800,9 +865,12 @@
 }
 
 .animated-border-box::before {
-  content: "";
+  content: '';
   position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
   border-radius: inherit;
   z-index: -1;
   background: var(--border-light); /* Default fallback */
@@ -815,34 +883,37 @@
 .opaque-bg {
   background: var(--bg-primary); /* ensure totally opaque so border doesn't leak inside */
 }
-[data-theme="light"] .opaque-bg {
+[data-theme='light'] .opaque-bg {
   background: #ffffff; /* solid white */
 }
 
-[data-theme="light"] .animated-border-box::before {
+[data-theme='light'] .animated-border-box::before {
   background: conic-gradient(
-    from var(--angle), 
-    transparent 0deg, 
-    var(--accent) 90deg, 
-    transparent 180deg, 
-    var(--accent-secondary) 270deg, 
+    from var(--angle),
+    transparent 0deg,
+    var(--accent) 90deg,
+    transparent 180deg,
+    var(--accent-secondary) 270deg,
     transparent 360deg
   );
-  
+
   opacity: 1;
 }
 
 @property --angle {
-  syntax: "<angle>";
+  syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
 }
 
 /* Inner overlay ensures the center is clipped out and only the border remains */
 .animated-border-box::after {
-  content: "";
+  content: '';
   position: absolute;
-  top: 0px; left: 0px; right: 0px; bottom: 0px;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
   background: inherit; /* Copies the solid background of the box */
   border-radius: inherit;
   z-index: -1;
@@ -850,7 +921,10 @@
 
 /* Responsive Overrides */
 @media (max-width: 1024px) {
-  .landing-view, .chat-input-container, .chat-messages, .dedicated-page {
+  .landing-view,
+  .chat-input-container,
+  .chat-messages,
+  .dedicated-page {
     padding-left: 5%;
     padding-right: 5%;
   }
@@ -861,9 +935,8 @@
     position: absolute;
     transform: translateX(-100%);
   }
-  
+
   .hero-title {
     font-size: 2.5rem;
   }
 }
-

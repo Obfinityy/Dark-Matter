@@ -17,11 +17,22 @@
 
 /** Default titles that carry no signal and are excluded from clusters. */
 const GENERIC_TITLES = new Set([
-  'index of /', 'directory listing', '403 forbidden', '404 not found',
-  '400 bad request', '500 internal server error', '502 bad gateway',
-  '503 service unavailable', 'default web page', 'welcome to nginx',
-  'apache2 ubuntu default page', 'iis windows server', 'it works!',
-  'test page for the nginx http server', 'site not found', 'parked domain',
+  'index of /',
+  'directory listing',
+  '403 forbidden',
+  '404 not found',
+  '400 bad request',
+  '500 internal server error',
+  '502 bad gateway',
+  '503 service unavailable',
+  'default web page',
+  'welcome to nginx',
+  'apache2 ubuntu default page',
+  'iis windows server',
+  'it works!',
+  'test page for the nginx http server',
+  'site not found',
+  'parked domain',
 ]);
 
 /**
@@ -48,7 +59,8 @@ export function extractHttpTitles(records) {
   for (const record of Array.isArray(records) ? records : []) {
     const ip = (record && (record.ip_str || record.ip)) || 'unknown';
     const candidates = [];
-    if (record && record.http && record.http.title) candidates.push({ title: record.http.title, port: record.port });
+    if (record && record.http && record.http.title)
+      candidates.push({ title: record.http.title, port: record.port });
     for (const d of (record && record.data) || []) {
       if (d && d.http && d.http.title) candidates.push({ title: d.http.title, port: d.port });
     }
@@ -80,7 +92,7 @@ export function clusterByTitle(records) {
   }
   return {
     clusters: [...map.values()]
-      .map((c) => ({ title: c.title, hosts: c.hosts, hostCount: c.seenIps.size }))
+      .map(c => ({ title: c.title, hosts: c.hosts, hostCount: c.seenIps.size }))
       .sort((a, b) => b.hostCount - a.hostCount || a.title.localeCompare(b.title)),
     totalTitles: map.size,
   };
@@ -100,12 +112,16 @@ export function rankTitleClusters(clustered, opts = {}) {
   for (const cluster of clustered.clusters || []) {
     let score = 0;
     const reasons = [];
-    const unexpected = cluster.hosts.filter((h) => !expected.has(h.ip));
+    const unexpected = cluster.hosts.filter(h => !expected.has(h.ip));
     if (expected.size > 0 && unexpected.length > 0) {
       score += 40;
-      reasons.push(`${unexpected.length} of ${cluster.hosts.length} sightings outside known footprint`);
+      reasons.push(
+        `${unexpected.length} of ${cluster.hosts.length} sightings outside known footprint`
+      );
     }
-    if (/\b(admin|dashboard|panel|login|portal|console|phpmyadmin|wp-admin)\b/i.test(cluster.title)) {
+    if (
+      /\b(admin|dashboard|panel|login|portal|console|phpmyadmin|wp-admin)\b/i.test(cluster.title)
+    ) {
       score += 30;
       reasons.push('title indicates administrative surface');
     }

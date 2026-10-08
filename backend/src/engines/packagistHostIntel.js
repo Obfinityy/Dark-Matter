@@ -17,7 +17,9 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  let s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  let s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   if (/^(mailto|tel):/i.test(s)) return null;
   s = s.replace(/^(git\+)?ssh:\/\/(git@)?/i, 'https://').replace(/^git@/i, 'https://');
   const scp = s.match(/^([A-Za-z0-9][A-Za-z0-9.-]*):[\w.~/-]+$/);
@@ -28,7 +30,8 @@ export function toHost(value) {
     const h = u.hostname.toLowerCase();
     if (!h || h === 'localhost') return null;
     if (/\.?packagist\.org$/.test(h)) return null;
-    if (/\.github\.com$/.test(h) || /\.gitlab\.com$/.test(h) || /\.bitbucket\.org$/.test(h)) return null;
+    if (/\.github\.com$/.test(h) || /\.gitlab\.com$/.test(h) || /\.bitbucket\.org$/.test(h))
+      return null;
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(h)) return null;
     return h;
   } catch {
@@ -56,11 +59,15 @@ export function parsePackagistPackageHosts(packagistJson) {
     hits.push({ host, provenance, ...(detail ? { detail } : {}) });
   };
 
-  const doc = (packagistJson && typeof packagistJson === 'object') ? packagistJson : {};
+  const doc = packagistJson && typeof packagistJson === 'object' ? packagistJson : {};
   const packages = doc.packages || {};
   const pkgName = Object.keys(packages)[0] || doc.name || null;
-  const versions = (pkgName && Array.isArray(packages[pkgName])) ? packages[pkgName]
-    : (Array.isArray(doc.versions) ? doc.versions : []);
+  const versions =
+    pkgName && Array.isArray(packages[pkgName])
+      ? packages[pkgName]
+      : Array.isArray(doc.versions)
+        ? doc.versions
+        : [];
 
   for (const v of versions) {
     if (!v || typeof v !== 'object') continue;
@@ -93,7 +100,11 @@ export function parsePackagistPackageHosts(packagistJson) {
         const domain = m[1].toLowerCase();
         if (!/\.?packagist\.org$/.test(domain) && !seen.has(`${domain}|authors.email`)) {
           seen.add(`${domain}|authors.email`);
-          hits.push({ host: domain, provenance: 'authors.email', detail: `contact domain (${email})` });
+          hits.push({
+            host: domain,
+            provenance: 'authors.email',
+            detail: `contact domain (${email})`,
+          });
         }
       }
     }

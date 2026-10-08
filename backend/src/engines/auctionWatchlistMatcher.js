@@ -34,13 +34,25 @@ export function levenshtein(a, b) {
  * @param {string} s
  */
 export function squashed(s) {
-  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
 /** Leet-speak substitutions used to dodge naive brand matching. */
 const LEET_MAP = {
-  0: 'o', 1: 'l', 3: 'e', 4: 'a', 5: 's', 6: 'g', 7: 't', 8: 'b',
-  '@': 'a', $: 's', '!': 'i', '+': 't',
+  0: 'o',
+  1: 'l',
+  3: 'e',
+  4: 'a',
+  5: 's',
+  6: 'g',
+  7: 't',
+  8: 'b',
+  '@': 'a',
+  $: 's',
+  '!': 'i',
+  '+': 't',
 };
 
 /**
@@ -49,7 +61,9 @@ const LEET_MAP = {
  * @returns {string}
  */
 export function normalizeLeet(s) {
-  return String(s || '').toLowerCase().replace(/[01345678@$!+]/g, (c) => LEET_MAP[c] || c);
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[01345678@$!+]/g, c => LEET_MAP[c] || c);
 }
 
 /**
@@ -67,25 +81,37 @@ export function brandMatchSignals(domain, brand) {
 
   const label = d.split('.')[0] || '';
   if (label === b) {
-    signals.push({ signal: 'exact-brand-label', evidence: `auction domain label exactly matches brand "${b}"` });
+    signals.push({
+      signal: 'exact-brand-label',
+      evidence: `auction domain label exactly matches brand "${b}"`,
+    });
     score = Math.max(score, 100);
   }
   if (squashed(label).includes(squashed(b)) && label !== b) {
-    signals.push({ signal: 'separator-embedded-brand', evidence: `brand "${b}" embedded with separators in "${label}"` });
+    signals.push({
+      signal: 'separator-embedded-brand',
+      evidence: `brand "${b}" embedded with separators in "${label}"`,
+    });
     score = Math.max(score, 75);
   }
   const dist = levenshtein(label, b);
   if (dist > 0 && dist <= 2 && label.length >= 4 && b.length >= 4) {
-    signals.push({ signal: 'brand-typo', evidence: `label "${label}" is edit-distance ${dist} from brand "${b}"` });
+    signals.push({
+      signal: 'brand-typo',
+      evidence: `label "${label}" is edit-distance ${dist} from brand "${b}"`,
+    });
     score = Math.max(score, 65);
   }
   // Token-level typo: a hyphen/word-separated token close to the brand
   // (catches "secure-examplle", "login-exampel"). Skipped when the token is
   // the whole label — that case is already covered above.
-  for (const token of label.split(/[^a-z0-9]+/).filter((t) => t.length >= 4 && t !== label)) {
+  for (const token of label.split(/[^a-z0-9]+/).filter(t => t.length >= 4 && t !== label)) {
     const td = levenshtein(token, b);
     if (td > 0 && td <= 2) {
-      signals.push({ signal: 'brand-typo-token', evidence: `token "${token}" in "${label}" is edit-distance ${td} from brand "${b}"` });
+      signals.push({
+        signal: 'brand-typo-token',
+        evidence: `token "${token}" in "${label}" is edit-distance ${td} from brand "${b}"`,
+      });
       score = Math.max(score, 62);
       break;
     }
@@ -93,19 +119,28 @@ export function brandMatchSignals(domain, brand) {
   // Leet-obfuscated brand (examp1e, micr0soft).
   const leetLabel = normalizeLeet(label);
   if (leetLabel !== label && leetLabel.includes(b)) {
-    signals.push({ signal: 'leet-obfuscated-brand', evidence: `brand "${b}" hidden with leet substitutions in "${label}"` });
+    signals.push({
+      signal: 'leet-obfuscated-brand',
+      evidence: `brand "${b}" hidden with leet substitutions in "${label}"`,
+    });
     score = Math.max(score, 68);
   }
   const affixes = ['get', 'try', 'my', 'go', 'hq', 'app', 'pay', 'shop', 'login', 'secure'];
   for (const affix of affixes) {
     if (squashed(label) === squashed(affix + b) || squashed(label) === squashed(b + affix)) {
-      signals.push({ signal: 'affixed-brand', evidence: `brand "${b}" with affix "${affix}" in "${label}"` });
+      signals.push({
+        signal: 'affixed-brand',
+        evidence: `brand "${b}" with affix "${affix}" in "${label}"`,
+      });
       score = Math.max(score, 70);
       break;
     }
   }
   if (/[^\x00-\x7F]/.test(d)) {
-    signals.push({ signal: 'non-ascii-label', evidence: `non-ASCII characters in "${d}" suggest IDN homograph play` });
+    signals.push({
+      signal: 'non-ascii-label',
+      evidence: `non-ASCII characters in "${d}" suggest IDN homograph play`,
+    });
     score = Math.max(score, 55);
   }
   return { score: Math.min(100, score), signals };
@@ -170,11 +205,14 @@ export function matchAuctionListings(listings, brands, opts = {}) {
       brandScore: best.score,
       urgency,
       risk: combined,
-      evidence: best.signals.map((s) => s.evidence).join(' | ') +
+      evidence:
+        best.signals.map(s => s.evidence).join(' | ') +
         (days !== null ? `; expires in ${days} day(s)` : '; expiry date unknown'),
     });
   }
-  matches.sort((a, b) => b.risk - a.risk || (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999));
+  matches.sort(
+    (a, b) => b.risk - a.risk || (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999)
+  );
   return matches;
 }
 
@@ -183,20 +221,21 @@ export function matchAuctionListings(listings, brands, opts = {}) {
  * @param {ReturnType<typeof matchAuctionListings>} matches
  */
 export function summarizeWatchlist(matches) {
-  const urgent = (matches || []).filter((m) => m.risk >= 70);
+  const urgent = (matches || []).filter(m => m.risk >= 70);
   const perBrand = {};
   for (const m of matches || []) perBrand[m.brand] = (perBrand[m.brand] || 0) + 1;
   return {
     total: (matches || []).length,
     urgent: urgent.length,
     perBrand,
-    topTargets: urgent.slice(0, 10).map((m) => ({
+    topTargets: urgent.slice(0, 10).map(m => ({
       domain: m.domain,
       platform: m.platform,
       daysUntilExpiry: m.daysUntilExpiry,
       risk: m.risk,
     })),
-    summary: `${urgent.length} urgent auction target(s) of ${(matches || []).length} brand-matching listings ` +
+    summary:
+      `${urgent.length} urgent auction target(s) of ${(matches || []).length} brand-matching listings ` +
       `need a defensive-bid or takedown decision before expiry.`,
   };
 }

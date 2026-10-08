@@ -12,34 +12,67 @@ import path from 'node:path';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 import {
-  WAVE20_IDEAS, createProgressToast, advanceProgressToast, failProgressToast,
-  UNDO_WINDOW_MS, undoRemainingMs, undoExpired, undoToastPayload,
-  toneSpecForSeverity, hhmmToMinutes, dndActive, DEFAULT_DND_SCHEDULE,
-  isHuntQuiet, toggleHuntQuiet, idleToastState, toastAutoDismissMs,
-  shouldSuppressToast, DUP_WINDOW_MS, unreadBadgeCount, markAllRead,
-  sessionExpiryState, enqueueOfflineAction, drainOfflineQueue,
-  quotaLevel, quotaToastPayload, huntCompleteToast, mentionToast,
-  updateAvailableToast, scheduledHuntToast, permissionChangeToast,
-  learningEventToast, exportReadyToast, FIRST_RUN_STEPS, checklistState,
-  completeChecklistStep, auditToastContrast, copyMicroToastPayload,
-  toastColorsForTheme, resolveToastSeverityColor, currentThemeId,
+  WAVE20_IDEAS,
+  createProgressToast,
+  advanceProgressToast,
+  failProgressToast,
+  UNDO_WINDOW_MS,
+  undoRemainingMs,
+  undoExpired,
+  undoToastPayload,
+  toneSpecForSeverity,
+  hhmmToMinutes,
+  dndActive,
+  DEFAULT_DND_SCHEDULE,
+  isHuntQuiet,
+  toggleHuntQuiet,
+  idleToastState,
+  toastAutoDismissMs,
+  shouldSuppressToast,
+  DUP_WINDOW_MS,
+  unreadBadgeCount,
+  markAllRead,
+  sessionExpiryState,
+  enqueueOfflineAction,
+  drainOfflineQueue,
+  quotaLevel,
+  quotaToastPayload,
+  huntCompleteToast,
+  mentionToast,
+  updateAvailableToast,
+  scheduledHuntToast,
+  permissionChangeToast,
+  learningEventToast,
+  exportReadyToast,
+  FIRST_RUN_STEPS,
+  checklistState,
+  completeChecklistStep,
+  auditToastContrast,
+  copyMicroToastPayload,
+  toastColorsForTheme,
+  resolveToastSeverityColor,
+  currentThemeId,
 } from './toastRound3Core.js';
 import { THEMES } from './themeCore.js';
 import { contrastRatio } from './a11yCore.js';
 import { TOAST_SEVERITY_COLORS } from './dashboardRound2Core.js';
 
-const src = (f) => readFileSync(path.join(here, f), 'utf8');
+const src = f => readFileSync(path.join(here, f), 'utf8');
 
 /* ---------- registry ---------- */
 
 test('WAVE20_IDEAS covers 50761–50800, all 40, with honest skips marked', () => {
   assert.equal(WAVE20_IDEAS.length, 40);
-  const ids = WAVE20_IDEAS.map((i) => i.id);
+  const ids = WAVE20_IDEAS.map(i => i.id);
   for (let id = 50761; id <= 50800; id++) assert.ok(ids.includes(id), `missing ${id}`);
-  const skips = WAVE20_IDEAS.filter((i) => i.status === 'skip');
-  assert.deepEqual(skips.map((s) => s.id), [50762, 50767, 50772]);
-  for (const s of skips) assert.ok(s.skipReason && s.skipReason.length > 5, `skip ${s.id} needs a reason`);
-  assert.equal(WAVE20_IDEAS.filter((i) => i.status === 'new').length, 37);
+  const skips = WAVE20_IDEAS.filter(i => i.status === 'skip');
+  assert.deepEqual(
+    skips.map(s => s.id),
+    [50762, 50767, 50772]
+  );
+  for (const s of skips)
+    assert.ok(s.skipReason && s.skipReason.length > 5, `skip ${s.id} needs a reason`);
+  assert.equal(WAVE20_IDEAS.filter(i => i.status === 'new').length, 37);
 });
 
 /* ---------- 50761 progress toasts ---------- */
@@ -72,7 +105,9 @@ test('undo window: remaining ms and expiry', () => {
   assert.ok(!undoExpired(now - 4999, UNDO_WINDOW_MS, now));
   assert.ok(undoExpired(now - 5000, UNDO_WINDOW_MS, now));
   let undone = false;
-  const p = undoToastPayload('Bulk dismissed', 'restore window', () => { undone = true; });
+  const p = undoToastPayload('Bulk dismissed', 'restore window', () => {
+    undone = true;
+  });
   assert.deepEqual(p.actions, ['undo', 'dismiss']);
   p.onAction('undo');
   assert.ok(undone);
@@ -81,7 +116,9 @@ test('undo window: remaining ms and expiry', () => {
 /* ---------- 50764 severity tones ---------- */
 
 test('tone spec is distinct per severity', () => {
-  const freqs = new Set(['critical', 'high', 'medium', 'low', 'info'].map((s) => toneSpecForSeverity(s).freq));
+  const freqs = new Set(
+    ['critical', 'high', 'medium', 'low', 'info'].map(s => toneSpecForSeverity(s).freq)
+  );
   assert.equal(freqs.size, 5);
   const c = toneSpecForSeverity('critical');
   assert.ok(c.duration >= 0.3 && c.gain > 0);
@@ -103,7 +140,7 @@ test('dndActive handles overnight wrap', () => {
   assert.ok(dndActive(sched, at(23, 30)));
   assert.ok(dndActive(sched, at(2, 0)));
   assert.ok(!dndActive(sched, at(12, 0)));
-  assert.ok(!dndActive(sched, at(7, 0)));   // end boundary is exclusive
+  assert.ok(!dndActive(sched, at(7, 0))); // end boundary is exclusive
   assert.ok(!dndActive({ ...sched, enabled: false }, at(23, 0)));
   const day = { enabled: true, start: '09:00', end: '17:00' };
   assert.ok(dndActive(day, at(12, 0)));
@@ -154,13 +191,34 @@ test('toastAutoDismissMs: critical/error never auto-dismiss', () => {
 
 test('identical toasts within 60s suppress with a merge target', () => {
   const now = 3_000_000;
-  const a = { id: 't1', title: 'Retest queued', body: 'f-1', severity: 'info', createdAt: now - 10_000 };
-  const r = shouldSuppressToast({ title: 'Retest queued', body: 'f-1', severity: 'info' }, [a], DUP_WINDOW_MS, now);
+  const a = {
+    id: 't1',
+    title: 'Retest queued',
+    body: 'f-1',
+    severity: 'info',
+    createdAt: now - 10_000,
+  };
+  const r = shouldSuppressToast(
+    { title: 'Retest queued', body: 'f-1', severity: 'info' },
+    [a],
+    DUP_WINDOW_MS,
+    now
+  );
   assert.ok(r.suppress && r.mergeInto === 't1');
   const old = { ...a, createdAt: now - 120_000 };
-  const r2 = shouldSuppressToast({ title: 'Retest queued', body: 'f-1', severity: 'info' }, [old], DUP_WINDOW_MS, now);
+  const r2 = shouldSuppressToast(
+    { title: 'Retest queued', body: 'f-1', severity: 'info' },
+    [old],
+    DUP_WINDOW_MS,
+    now
+  );
   assert.ok(!r2.suppress);
-  const r3 = shouldSuppressToast({ title: 'Other', body: 'f-1', severity: 'info' }, [a], DUP_WINDOW_MS, now);
+  const r3 = shouldSuppressToast(
+    { title: 'Other', body: 'f-1', severity: 'info' },
+    [a],
+    DUP_WINDOW_MS,
+    now
+  );
   assert.ok(!r3.suppress);
 });
 
@@ -171,7 +229,7 @@ test('unread badges sync with history; mark-all-read clears them', () => {
   assert.equal(unreadBadgeCount(h), 2);
   const marked = markAllRead(h, 9);
   assert.equal(unreadBadgeCount(marked), 0);
-  assert.ok(marked.every((t) => t.readAt));
+  assert.ok(marked.every(t => t.readAt));
 });
 
 /* ---------- 50794 session expiry ---------- */
@@ -196,7 +254,7 @@ test('offline actions queue and drain in order', () => {
   const { drained, queue } = drainOfflineQueue(s.queue);
   assert.equal(drained.length, 2);
   assert.equal(queue.length, 0);
-  drained.forEach((a) => a.run());
+  drained.forEach(a => a.run());
   assert.deepEqual(order, ['a', 'b']);
 });
 
@@ -225,11 +283,15 @@ test('toast emitters carry the right actions', () => {
   assert.deepEqual(men.actions, ['jump', 'dismiss']);
   assert.ok(men.title.includes('Shubham'));
   let reloaded = false;
-  const up = updateAvailableToast('2.4.1', () => { reloaded = true; });
+  const up = updateAvailableToast('2.4.1', () => {
+    reloaded = true;
+  });
   up.onAction('reload');
   assert.ok(reloaded);
   let downloaded = false;
-  const ex = exportReadyToast('report.pdf', () => { downloaded = true; });
+  const ex = exportReadyToast('report.pdf', () => {
+    downloaded = true;
+  });
   assert.deepEqual(ex.actions, ['download', 'dismiss']);
   ex.onAction('download');
   assert.ok(downloaded);
@@ -245,7 +307,10 @@ test('toast emitters carry the right actions', () => {
 
 test('first-run checklist state machine and celebration', () => {
   assert.equal(FIRST_RUN_STEPS.length, 4);
-  assert.deepEqual(FIRST_RUN_STEPS.map((s) => s.id), ['paste-target', 'run-hunt', 'review-finding', 'export-report']);
+  assert.deepEqual(
+    FIRST_RUN_STEPS.map(s => s.id),
+    ['paste-target', 'run-hunt', 'review-finding', 'export-report']
+  );
   let st = checklistState([]);
   assert.equal(st.done, 0);
   assert.equal(st.nextStep.id, 'paste-target');
@@ -304,23 +369,54 @@ test('copy micro-toast payload auto-dismisses in 1.5s', () => {
 test('ToastRound3.jsx exports every wave-20 component/hook', () => {
   const jsx = src('ToastRound3.jsx');
   for (const name of [
-    'ToastProvider', 'useToast', 'ToastCard', // integration surface (imported from ToastCenter)
-    'useProgressToast', 'useDedupedToast', 'useUndoToast', 'useCopyToast',
-    'useConnectionToast', 'useOfflineQueue', 'useToastSoundsSetting', 'useDndSchedule',
-    'usePerHuntQuiet', 'IdleTimeoutWatcher', 'SessionExpiryWatcher', 'QuotaWatcher',
-    'UpdateChecker', 'NotificationCenter', 'DndScheduleSettings', 'ToastSoundsSetting',
-    'PerHuntQuietToggle', 'TestNotificationButton', 'FirstRunChecklist',
-    'ToastLab', 'ToastRound3Gallery', 'WAVE20_IDEAS',
-  ]) assert.ok(jsx.includes(name), `missing export ${name}`);
+    'ToastProvider',
+    'useToast',
+    'ToastCard', // integration surface (imported from ToastCenter)
+    'useProgressToast',
+    'useDedupedToast',
+    'useUndoToast',
+    'useCopyToast',
+    'useConnectionToast',
+    'useOfflineQueue',
+    'useToastSoundsSetting',
+    'useDndSchedule',
+    'usePerHuntQuiet',
+    'IdleTimeoutWatcher',
+    'SessionExpiryWatcher',
+    'QuotaWatcher',
+    'UpdateChecker',
+    'NotificationCenter',
+    'DndScheduleSettings',
+    'ToastSoundsSetting',
+    'PerHuntQuietToggle',
+    'TestNotificationButton',
+    'FirstRunChecklist',
+    'ToastLab',
+    'ToastRound3Gallery',
+    'WAVE20_IDEAS',
+  ])
+    assert.ok(jsx.includes(name), `missing export ${name}`);
 });
 
 test('ToastCenter.jsx carries wave-20 provider behaviors', () => {
   const c = src('ToastCenter.jsx');
   for (const needle of [
-    'updateToast', 'markHistoryRead', 'UndoCountdown', 'toastAutoDismissMs',
-    'playToastTone', 'triggerRef', 'Escape', 'toast-critical', 'toast-dup',
-    'toast-progress', 'toast-sev-label', 'toast-thumb', 'onBodyClick', 'autoExpand',
-  ]) assert.ok(c.includes(needle), `ToastCenter.jsx missing ${needle}`);
+    'updateToast',
+    'markHistoryRead',
+    'UndoCountdown',
+    'toastAutoDismissMs',
+    'playToastTone',
+    'triggerRef',
+    'Escape',
+    'toast-critical',
+    'toast-dup',
+    'toast-progress',
+    'toast-sev-label',
+    'toast-thumb',
+    'onBodyClick',
+    'autoExpand',
+  ])
+    assert.ok(c.includes(needle), `ToastCenter.jsx missing ${needle}`);
 });
 
 test('ToastRound3.css has fade-only reduced motion, above-modal z-index, and new styles', () => {
@@ -328,7 +424,14 @@ test('ToastRound3.css has fade-only reduced motion, above-modal z-index, and new
   assert.ok(css.includes('@keyframes toast-fade'));
   assert.ok(css.includes('prefers-reduced-motion'));
   assert.ok(css.includes('z-index: 20000'));
-  for (const cls of ['.toast-progress', '.toast-undo-count', '.notif-drawer', '.first-run', '.toast-lab', '.toast-finding-detail']) {
+  for (const cls of [
+    '.toast-progress',
+    '.toast-undo-count',
+    '.notif-drawer',
+    '.first-run',
+    '.toast-lab',
+    '.toast-finding-detail',
+  ]) {
     assert.ok(css.includes(cls), `css missing ${cls}`);
   }
 });

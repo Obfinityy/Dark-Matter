@@ -27,46 +27,150 @@ export const WAVE29_END = 51160;
 
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE29_IDEAS = [
-  [51121, 'mid-hunt scope addition', 'Add a subdomain or path to scope with instant agent acknowledgement'],
-  [51122, 'mid-hunt scope removal', 'Pull a target out of scope and halt its in-flight tests gracefully'],
-  [51123, 'target-profile switch', 'Change the assumed target profile (SPA vs API) and retune the plan live'],
-  [51124, 'custom wordlist injection', 'Upload a wordlist mid-hunt that the agent starts using immediately'],
-  [51125, 'live request-rate cap', 'Set a max requests-per-second that throttles the agent on the spot'],
-  [51126, 'scan-intensity dial', 'Move between light, normal, and aggressive testing without restarting'],
-  [51127, 'endpoint redirect', 'Point the agent at a newly discovered endpoint to investigate next'],
+  [
+    51121,
+    'mid-hunt scope addition',
+    'Add a subdomain or path to scope with instant agent acknowledgement',
+  ],
+  [
+    51122,
+    'mid-hunt scope removal',
+    'Pull a target out of scope and halt its in-flight tests gracefully',
+  ],
+  [
+    51123,
+    'target-profile switch',
+    'Change the assumed target profile (SPA vs API) and retune the plan live',
+  ],
+  [
+    51124,
+    'custom wordlist injection',
+    'Upload a wordlist mid-hunt that the agent starts using immediately',
+  ],
+  [
+    51125,
+    'live request-rate cap',
+    'Set a max requests-per-second that throttles the agent on the spot',
+  ],
+  [
+    51126,
+    'scan-intensity dial',
+    'Move between light, normal, and aggressive testing without restarting',
+  ],
+  [
+    51127,
+    'endpoint redirect',
+    'Point the agent at a newly discovered endpoint to investigate next',
+  ],
   [51128, 'module-level pause', 'Pause one module while the rest of the hunt keeps running'],
   [51129, 'phase reordering', 'Drag phases into a new order and the agent adopts the sequence'],
-  [51130, 'time-budget extension', 'Grant the hunt extra hours and watch the plan expand to use them'],
-  [51131, 'wrap-up command', 'Tell the agent to finish within N minutes and get a condensed final sweep'],
-  [51132, 'natural-language steering', 'Plain sentences like "spend more time on the API" that the agent executes'],
+  [
+    51130,
+    'time-budget extension',
+    'Grant the hunt extra hours and watch the plan expand to use them',
+  ],
+  [
+    51131,
+    'wrap-up command',
+    'Tell the agent to finish within N minutes and get a condensed final sweep',
+  ],
+  [
+    51132,
+    'natural-language steering',
+    'Plain sentences like "spend more time on the API" that the agent executes',
+  ],
   [51133, 'drag-and-drop priorities', 'Reorder a visual priority list to reshape the hunt plan'],
-  [51134, 'steering presets', 'One-tap modes like "go wide", "go deep", or "be quiet" that reconfigure the hunt'],
+  [
+    51134,
+    'steering presets',
+    'One-tap modes like "go wide", "go deep", or "be quiet" that reconfigure the hunt',
+  ],
   [51135, 'undo steering', 'Revert your last steering command and restore the previous plan'],
   [51136, 'steering preview', 'See the planned changes before confirming a major redirection'],
-  [51137, 'impact estimate', 'The agent tells you a steering change adds roughly N minutes or M requests'],
+  [
+    51137,
+    'impact estimate',
+    'The agent tells you a steering change adds roughly N minutes or M requests',
+  ],
   [51138, 'steering history log', 'Every redirection recorded with who issued it and what changed'],
   [51139, 'co-steering', 'Teammates propose steering changes that take effect after your approval'],
-  [51140, 'saved steering templates', 'Store redirection patterns per target type and apply them in one click'],
-  [51141, 'conditional steering rules', '"If you find an admin panel, go deep on it" style if-then instructions'],
+  [
+    51140,
+    'saved steering templates',
+    'Store redirection patterns per target type and apply them in one click',
+  ],
+  [
+    51141,
+    'conditional steering rules',
+    '"If you find an admin panel, go deep on it" style if-then instructions',
+  ],
   [51142, 'time-boxed focus', '"Focus the API for the next 30 minutes, then resume the plan"'],
-  [51143, 'steer-from-finding', 'On a finding card, choose "investigate similar areas" to redirect the agent'],
+  [
+    51143,
+    'steer-from-finding',
+    'On a finding card, choose "investigate similar areas" to redirect the agent',
+  ],
   [51144, 'steer-from-log', 'Click any log line and choose "do more of this" or "stop doing this"'],
   [51145, 'spoken redirection', 'Speak redirection commands hands-free during a live hunt'],
-  [51146, 'touch priority board', 'A tablet-friendly board for reprioritizing hunt areas by drag and drop'],
+  [
+    51146,
+    'touch priority board',
+    'A tablet-friendly board for reprioritizing hunt areas by drag and drop',
+  ],
   [51147, 'steering API', 'Programmatic endpoints so external tools can redirect a running hunt'],
-  [51148, 'steer while paused', 'Rearrange the plan during a pause so it resumes with the new strategy'],
-  [51149, 'big-change approval', 'Major redirections require explicit confirmation before the agent acts'],
-  [51150, 'agent pushback', 'The agent warns you when a steering command risks missing better leads'],
-  [51151, 'agent steering suggestions', 'The agent proposes redirections based on what it is seeing, for you to approve'],
+  [
+    51148,
+    'steer while paused',
+    'Rearrange the plan during a pause so it resumes with the new strategy',
+  ],
+  [
+    51149,
+    'big-change approval',
+    'Major redirections require explicit confirmation before the agent acts',
+  ],
+  [
+    51150,
+    'agent pushback',
+    'The agent warns you when a steering command risks missing better leads',
+  ],
+  [
+    51151,
+    'agent steering suggestions',
+    'The agent proposes redirections based on what it is seeing, for you to approve',
+  ],
   [51152, 'bandwidth steering', 'Cap total requests or bandwidth for the remainder of the hunt'],
   [51153, 'stealth steering', 'Switch the hunt to low-noise mode mid-run without losing progress'],
   [51154, 'depth limiter', 'Set how many levels deep crawling or chaining may go from now on'],
-  [51155, 'retest-on-change', 'When the target changes mid-hunt, the agent re-tests affected areas automatically'],
-  [51156, 'steering dry-run', 'Simulate a redirection to preview its effect on the plan before applying it'],
-  [51157, 'priority inheritance (mid-hunt)', 'Boosted priorities automatically apply to newly discovered in-scope assets'],
-  [51158, 'steering cooldown', 'Optional lockout preventing conflicting redirections within a short window'],
-  [51159, 'module enable/disable live', 'Toggle individual testing modules on or off without restarting the hunt'],
-  [51160, 'focus window', 'Define a URL pattern; the agent spends a fixed share of effort inside it'],
+  [
+    51155,
+    'retest-on-change',
+    'When the target changes mid-hunt, the agent re-tests affected areas automatically',
+  ],
+  [
+    51156,
+    'steering dry-run',
+    'Simulate a redirection to preview its effect on the plan before applying it',
+  ],
+  [
+    51157,
+    'priority inheritance (mid-hunt)',
+    'Boosted priorities automatically apply to newly discovered in-scope assets',
+  ],
+  [
+    51158,
+    'steering cooldown',
+    'Optional lockout preventing conflicting redirections within a short window',
+  ],
+  [
+    51159,
+    'module enable/disable live',
+    'Toggle individual testing modules on or off without restarting the hunt',
+  ],
+  [
+    51160,
+    'focus window',
+    'Define a URL pattern; the agent spends a fixed share of effort inside it',
+  ],
 ];
 
 export const INTENSITY_LEVELS = ['light', 'normal', 'aggressive'];
@@ -105,16 +209,16 @@ export function addScopeTarget(scope, target) {
  */
 export function removeScopeTarget(scope, inFlight, target) {
   const clean = String(target || '').trim();
-  const nextScope = scope.filter((t) => t !== clean);
+  const nextScope = scope.filter(t => t !== clean);
   const halting = (inFlight || []).filter(
-    (job) => job && typeof job.target === 'string' && job.target.includes(clean)
+    job => job && typeof job.target === 'string' && job.target.includes(clean)
   );
   const remaining = (inFlight || []).filter(
-    (job) => !(job && typeof job.target === 'string' && job.target.includes(clean))
+    job => !(job && typeof job.target === 'string' && job.target.includes(clean))
   );
   return {
     scope: nextScope,
-    halting: halting.map((j) => ({ ...j, halt: 'graceful' })),
+    halting: halting.map(j => ({ ...j, halt: 'graceful' })),
     remaining,
     removed: scope.length !== nextScope.length,
   };
@@ -188,15 +292,11 @@ export function redirectEndpoint(queue, endpoint) {
 // ---------------------------------------------------------------------------
 /** Pause one module while the rest of the hunt keeps running. */
 export function pauseModule(modules, name) {
-  return (modules || []).map((m) =>
-    m.name === name ? { ...m, paused: true } : m
-  );
+  return (modules || []).map(m => (m.name === name ? { ...m, paused: true } : m));
 }
 /** Resume a paused module. */
 export function resumeModule(modules, name) {
-  return (modules || []).map((m) =>
-    m.name === name ? { ...m, paused: false } : m
-  );
+  return (modules || []).map(m => (m.name === name ? { ...m, paused: false } : m));
 }
 
 // ---------------------------------------------------------------------------
@@ -243,16 +343,22 @@ export function wrapUp(plan, minutes) {
 // 51132 — natural-language steering parser
 // ---------------------------------------------------------------------------
 const NL_PATTERNS = [
-  [/spend more time on (?:the )?(.+)/i, (m) => ({ type: 'boost-area', area: m[1].trim() })],
-  [/focus (?:on )?(?:the )?(.+?) for (?:the next )?(\d+)\s*(?:min|minute)/i, (m) => ({ type: 'time-boxed-focus', area: m[1].trim(), minutes: Number(m[2]) })],
-  [/go (wide|deep|quiet)/i, (m) => ({ type: 'preset', preset: `go-${m[1].toLowerCase()}` })],
+  [/spend more time on (?:the )?(.+)/i, m => ({ type: 'boost-area', area: m[1].trim() })],
+  [
+    /focus (?:on )?(?:the )?(.+?) for (?:the next )?(\d+)\s*(?:min|minute)/i,
+    m => ({ type: 'time-boxed-focus', area: m[1].trim(), minutes: Number(m[2]) }),
+  ],
+  [/go (wide|deep|quiet)/i, m => ({ type: 'preset', preset: `go-${m[1].toLowerCase()}` })],
   [/be quiet/i, () => ({ type: 'preset', preset: 'be-quiet' })],
-  [/pause (?:the )?(.+)/i, (m) => ({ type: 'pause-module', module: m[1].trim() })],
-  [/stop (?:testing )?(?:the )?(.+)/i, (m) => ({ type: 'remove-scope', target: m[1].trim() })],
-  [/add (.+?) to scope/i, (m) => ({ type: 'add-scope', target: m[1].trim() })],
+  [/pause (?:the )?(.+)/i, m => ({ type: 'pause-module', module: m[1].trim() })],
+  [/stop (?:testing )?(?:the )?(.+)/i, m => ({ type: 'remove-scope', target: m[1].trim() })],
+  [/add (.+?) to scope/i, m => ({ type: 'add-scope', target: m[1].trim() })],
   [/slow down/i, () => ({ type: 'set-intensity', level: 'light' })],
   [/speed up/i, () => ({ type: 'set-intensity', level: 'aggressive' })],
-  [/finish (?:in|within) (\d+)\s*(?:min|minute)/i, (m) => ({ type: 'wrap-up', minutes: Number(m[1]) })],
+  [
+    /finish (?:in|within) (\d+)\s*(?:min|minute)/i,
+    m => ({ type: 'wrap-up', minutes: Number(m[1]) }),
+  ],
 ];
 /** Parse a plain-sentence steering command into a structured command. */
 export function parseSteeringCommand(text) {
@@ -282,7 +388,13 @@ export function applyPreset(state, preset) {
   const changes = {
     'go-wide': { intensity: 'light', depthLimit: 2, rateCapRps: 20, focus: 'breadth' },
     'go-deep': { intensity: 'aggressive', depthLimit: 6, rateCapRps: 60, focus: 'depth' },
-    'be-quiet': { intensity: 'light', depthLimit: 2, rateCapRps: 5, stealth: true, focus: 'stealth' },
+    'be-quiet': {
+      intensity: 'light',
+      depthLimit: 2,
+      rateCapRps: 5,
+      stealth: true,
+      focus: 'stealth',
+    },
   }[preset];
   return { ...state, ...changes, activePreset: preset };
 }
@@ -349,7 +461,10 @@ export function estimateImpact(state, command) {
   const perReq = { light: 1, normal: 3, aggressive: 8 }[state.intensity || 'normal'];
   switch (command.type) {
     case 'wrap-up':
-      return { minutes: command.minutes, requests: command.minutes * 60 * (state.rateCapRps || 10) };
+      return {
+        minutes: command.minutes,
+        requests: command.minutes * 60 * (state.rateCapRps || 10),
+      };
     case 'add-scope':
       return { minutes: 15, requests: 15 * 60 * perReq };
     case 'preset':
@@ -386,13 +501,18 @@ export function logSteering(history, entry) {
 export function proposeCoSteering(proposals, proposal) {
   return [
     ...(proposals || []),
-    { id: `cs-${(proposals || []).length + 1}`, by: proposal.by, command: proposal.command, status: 'pending' },
+    {
+      id: `cs-${(proposals || []).length + 1}`,
+      by: proposal.by,
+      command: proposal.command,
+      status: 'pending',
+    },
   ];
 }
 /** Approve (or deny) a pending co-steering proposal. */
 export function resolveCoSteering(proposals, id, approve) {
   let applied = null;
-  const next = (proposals || []).map((p) => {
+  const next = (proposals || []).map(p => {
     if (p.id !== id || p.status !== 'pending') return p;
     applied = approve ? p.command : null;
     return { ...p, status: approve ? 'approved' : 'denied' };
@@ -426,14 +546,15 @@ export function addConditionalRule(rules, rule) {
 /** Evaluate rules against the current hunt context; returns triggered actions. */
 export function evaluateRules(rules, context) {
   return (rules || [])
-    .filter((r) => r.enabled)
-    .filter((r) => {
+    .filter(r => r.enabled)
+    .filter(r => {
       if (r.when === 'finding-type' && context.findingType === r.value) return true;
       if (r.when === 'phase' && context.phase === r.value) return true;
-      if (r.when === 'finding-count>=' && (context.findingCount || 0) >= Number(r.value)) return true;
+      if (r.when === 'finding-count>=' && (context.findingCount || 0) >= Number(r.value))
+        return true;
       return false;
     })
-    .map((r) => ({ ruleId: r.id, action: r.then }));
+    .map(r => ({ ruleId: r.id, action: r.then }));
 }
 
 // ---------------------------------------------------------------------------
@@ -516,7 +637,8 @@ export function validateSteeringApiPayload(payload) {
   if (!payload || typeof payload !== 'object') return { ok: false, error: 'not-an-object' };
   if (payload.op !== 'steer') return { ok: false, error: 'bad-op' };
   if (!payload.huntId) return { ok: false, error: 'missing-huntId' };
-  if (!payload.command || payload.command.type === 'unknown') return { ok: false, error: 'bad-command' };
+  if (!payload.command || payload.command.type === 'unknown')
+    return { ok: false, error: 'bad-command' };
   return { ok: true };
 }
 
@@ -568,13 +690,28 @@ export function agentPushback(state, command) {
 export function suggestSteering(state) {
   const out = [];
   if ((state.findingCount || 0) >= 3 && state.intensity !== 'aggressive') {
-    out.push({ type: 'set-intensity', level: 'aggressive', reason: 'multiple findings — dig deeper', raw: 'agent suggestion: go aggressive' });
+    out.push({
+      type: 'set-intensity',
+      level: 'aggressive',
+      reason: 'multiple findings — dig deeper',
+      raw: 'agent suggestion: go aggressive',
+    });
   }
   if ((state.noiseComplaints || 0) >= 2) {
-    out.push({ type: 'preset', preset: 'be-quiet', reason: 'noise complaints — go quiet', raw: 'agent suggestion: be quiet' });
+    out.push({
+      type: 'preset',
+      preset: 'be-quiet',
+      reason: 'noise complaints — go quiet',
+      raw: 'agent suggestion: be quiet',
+    });
   }
   if (state.idleMinutes >= 20) {
-    out.push({ type: 'boost-area', area: 'unscanned areas', reason: 'hunt gone cold — widen coverage', raw: 'agent suggestion: go wide' });
+    out.push({
+      type: 'boost-area',
+      area: 'unscanned areas',
+      reason: 'hunt gone cold — widen coverage',
+      raw: 'agent suggestion: go wide',
+    });
   }
   return out;
 }
@@ -599,7 +736,12 @@ export function bandwidthRemaining(state) {
 /** Switch to low-noise mode mid-run without losing progress. */
 export function setStealthMode(state, on) {
   if (!on) return { ...state, stealth: false };
-  return { ...state, stealth: true, intensity: 'light', rateCapRps: Math.min(state.rateCapRps || 10, 5) };
+  return {
+    ...state,
+    stealth: true,
+    intensity: 'light',
+    rateCapRps: Math.min(state.rateCapRps || 10, 5),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -617,8 +759,8 @@ export function setDepthLimit(state, levels) {
 /** When the target changes mid-hunt, list affected areas for re-testing. */
 export function retestOnChange(state, changedPaths) {
   const changed = (changedPaths || []).map(String);
-  const affected = (state.testedPaths || []).filter((p) =>
-    changed.some((c) => String(p).startsWith(c) || c.startsWith(String(p)))
+  const affected = (state.testedPaths || []).filter(p =>
+    changed.some(c => String(p).startsWith(c) || c.startsWith(String(p)))
   );
   return { retest: [...new Set(affected)], changed };
 }
@@ -648,7 +790,7 @@ export function dryRun(state, command) {
 export function inheritPriority(state, newAsset) {
   const boosts = state.boostedAreas || [];
   const asset = String(newAsset || '');
-  const inherited = boosts.some((b) => asset.includes(String(b)) || String(b).includes(asset));
+  const inherited = boosts.some(b => asset.includes(String(b)) || String(b).includes(asset));
   return { asset, boosted: inherited, priority: inherited ? 'high' : 'normal' };
 }
 
@@ -671,9 +813,7 @@ export function cooldownActive(state, nowMs) {
 // ---------------------------------------------------------------------------
 /** Toggle individual testing modules on/off without restarting. */
 export function toggleModule(modules, name, on) {
-  return (modules || []).map((m) =>
-    m.name === name ? { ...m, enabled: on !== false } : m
-  );
+  return (modules || []).map(m => (m.name === name ? { ...m, enabled: on !== false } : m));
 }
 
 // ---------------------------------------------------------------------------

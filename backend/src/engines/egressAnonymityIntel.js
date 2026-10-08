@@ -20,13 +20,29 @@
  */
 const CLOUDFLARE_EGRESS_RANGES = [
   // IPv4
-  '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
-  '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20',
-  '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13',
-  '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+  '173.245.48.0/20',
+  '103.21.244.0/22',
+  '103.22.200.0/22',
+  '103.31.4.0/22',
+  '141.101.64.0/18',
+  '108.162.192.0/18',
+  '190.93.240.0/20',
+  '188.114.96.0/20',
+  '197.234.240.0/22',
+  '198.41.128.0/17',
+  '162.158.0.0/15',
+  '104.16.0.0/13',
+  '104.24.0.0/14',
+  '172.64.0.0/13',
+  '131.0.72.0/22',
   // IPv6
-  '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32',
-  '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32',
+  '2400:cb00::/32',
+  '2606:4700::/32',
+  '2803:f800::/32',
+  '2405:b500::/32',
+  '2405:8100::/32',
+  '2a06:98c0::/29',
+  '2c0f:f248::/32',
 ];
 
 /**
@@ -36,13 +52,15 @@ const CLOUDFLARE_EGRESS_RANGES = [
  * @returns {boolean}
  */
 function ipv4InCidr(ip, cidr) {
-  const toInt = (s) => s.split('.').reduce((acc, o) => (acc << 8) + Number(o), 0) >>> 0;
+  const toInt = s => s.split('.').reduce((acc, o) => (acc << 8) + Number(o), 0) >>> 0;
   try {
     const [net, bits] = cidr.split('/');
     if (!/^\d+\.\d+\.\d+\.\d+$/.test(ip) || !/^\d+\.\d+\.\d+\.\d+$/.test(net)) return false;
     const mask = bits === '0' ? 0 : (0xffffffff << (32 - Number(bits))) >>> 0;
     return (toInt(ip) & mask) === (toInt(net) & mask);
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -60,8 +78,10 @@ function expandIPv6(addr) {
     if (parts.length === 1 && left.length !== 8) return null;
     const missing = 8 - left.length - right.length;
     if (missing < 0) return null;
-    return [...left, ...Array(missing).fill('0'), ...right].map((h) => h.padStart(4, '0'));
-  } catch { return null; }
+    return [...left, ...Array(missing).fill('0'), ...right].map(h => h.padStart(4, '0'));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -70,7 +90,9 @@ function expandIPv6(addr) {
  * @returns {string|null} matching range, or null
  */
 export function matchCloudflareRange(ip) {
-  const clean = String(ip || '').trim().toLowerCase();
+  const clean = String(ip || '')
+    .trim()
+    .toLowerCase();
   if (!clean) return null;
   const isV6 = clean.includes(':');
   for (const range of CLOUDFLARE_EGRESS_RANGES) {
@@ -108,7 +130,7 @@ export function mapWarpEgress({ logEntries = [] }) {
       warpEntries.push({ ip, range, user: entry.user, ts: entry.ts, endpoint: entry.endpoint });
     }
   }
-  const uniqueIps = new Set(warpEntries.map((e) => e.ip)).size;
+  const uniqueIps = new Set(warpEntries.map(e => e.ip)).size;
   return {
     total: logEntries.length,
     warpCount: warpEntries.length,
@@ -126,12 +148,20 @@ export function mapWarpEgress({ logEntries = [] }) {
  * new devices.
  */
 const TOR_CONTEXT_RULES = [
-  { name: 'tor-plus-login-failures', weight: 3, test: (e) => e.torExit && (e.failedAttempts || 0) >= 3 },
-  { name: 'tor-plus-new-device', weight: 3, test: (e) => e.torExit && e.newDevice === true },
-  { name: 'tor-plus-password-reset', weight: 2, test: (e) => e.torExit && e.passwordReset === true },
-  { name: 'tor-plus-impossible-travel', weight: 3, test: (e) => e.torExit && e.impossibleTravel === true },
-  { name: 'tor-plus-mfa-failure', weight: 2, test: (e) => e.torExit && e.mfaFailed === true },
-  { name: 'tor-baseline', weight: 1, test: (e) => e.torExit },
+  {
+    name: 'tor-plus-login-failures',
+    weight: 3,
+    test: e => e.torExit && (e.failedAttempts || 0) >= 3,
+  },
+  { name: 'tor-plus-new-device', weight: 3, test: e => e.torExit && e.newDevice === true },
+  { name: 'tor-plus-password-reset', weight: 2, test: e => e.torExit && e.passwordReset === true },
+  {
+    name: 'tor-plus-impossible-travel',
+    weight: 3,
+    test: e => e.torExit && e.impossibleTravel === true,
+  },
+  { name: 'tor-plus-mfa-failure', weight: 2, test: e => e.torExit && e.mfaFailed === true },
+  { name: 'tor-baseline', weight: 1, test: e => e.torExit },
 ];
 
 /**
@@ -144,12 +174,16 @@ const TOR_CONTEXT_RULES = [
  * @returns {{analyzed: number, torSessions: number, flagged: Array<{user?: string, ip?: string, ts?: string, risk: 'critical'|'high'|'medium'|'low', triggers: string[]}>, summary: string}}
  */
 export function correlateTorExits({ loginEvents = [], torExitIps = [] }) {
-  const exits = new Set((torExitIps || []).map((ip) => String(ip).trim().toLowerCase()).filter(Boolean));
+  const exits = new Set(
+    (torExitIps || []).map(ip => String(ip).trim().toLowerCase()).filter(Boolean)
+  );
   const flagged = [];
   let torSessions = 0;
 
   for (const event of loginEvents) {
-    const ip = String(event.ip || '').trim().toLowerCase();
+    const ip = String(event.ip || '')
+      .trim()
+      .toLowerCase();
     const torExit = ip && exits.has(ip);
     if (!torExit) continue;
     torSessions += 1;
@@ -157,7 +191,10 @@ export function correlateTorExits({ loginEvents = [], torExitIps = [] }) {
     const triggers = [];
     let score = 0;
     for (const rule of TOR_CONTEXT_RULES) {
-      if (rule.test({ ...event, torExit })) { triggers.push(rule.name); score += rule.weight; }
+      if (rule.test({ ...event, torExit })) {
+        triggers.push(rule.name);
+        score += rule.weight;
+      }
     }
     const risk = score >= 6 ? 'critical' : score >= 3 ? 'high' : score >= 2 ? 'medium' : 'low';
     flagged.push({ user: event.user, ip: event.ip, ts: event.ts, risk, triggers });
@@ -168,7 +205,7 @@ export function correlateTorExits({ loginEvents = [], torExitIps = [] }) {
     return order[a.risk] - order[b.risk];
   });
 
-  const critical = flagged.filter((f) => f.risk === 'critical').length;
+  const critical = flagged.filter(f => f.risk === 'critical').length;
   return {
     analyzed: loginEvents.length,
     torSessions,

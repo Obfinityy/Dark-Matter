@@ -4,10 +4,15 @@
 import { createBrainChatService } from '../services/brainChatService.js';
 import { loadMemory, clearMemory, listChats } from '../services/chatMemoryService.js';
 
-const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const VALID_BRAINS = ['hacker', 'vision', 'grounding'];
 
+/**
+ * Creates brain chat controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createBrainChatController({ modelRunnerService }) {
   const brainChat = createBrainChatService({ modelRunnerService });
 
@@ -22,17 +27,20 @@ export function createBrainChatController({ modelRunnerService }) {
 
       if (!chatId) {
         return response.status(400).json({
-          error: { code: 'BAD_REQUEST', message: 'chatId is required' }
+          error: { code: 'BAD_REQUEST', message: 'chatId is required' },
         });
       }
       if (!VALID_BRAINS.includes(brain)) {
         return response.status(400).json({
-          error: { code: 'BAD_REQUEST', message: `brain must be one of: ${VALID_BRAINS.join(', ')}` }
+          error: {
+            code: 'BAD_REQUEST',
+            message: `brain must be one of: ${VALID_BRAINS.join(', ')}`,
+          },
         });
       }
       if (!message?.trim()) {
         return response.status(400).json({
-          error: { code: 'BAD_REQUEST', message: 'message is required' }
+          error: { code: 'BAD_REQUEST', message: 'message is required' },
         });
       }
 
@@ -45,8 +53,8 @@ export function createBrainChatController({ modelRunnerService }) {
             error: {
               code: 'BRAIN_NOT_RUNNING',
               message: err.message,
-              brain
-            }
+              brain,
+            },
           });
         }
         throw err;
@@ -81,6 +89,6 @@ export function createBrainChatController({ modelRunnerService }) {
      */
     list: asyncHandler(async (request, response) => {
       response.json({ chats: listChats() });
-    })
+    }),
   };
 }

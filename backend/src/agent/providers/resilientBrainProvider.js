@@ -36,7 +36,12 @@ import { createBrainProvider } from './brainProviderFactory.js';
  *                                 entries (avoids a second call)
  * @returns {Array<{name, provider?, activate?}>}
  */
-export function buildBrainChain({ selection = {}, appConfig = {}, runner = null, downloaded = null }) {
+export function buildBrainChain({
+  selection = {},
+  appConfig = {},
+  runner = null,
+  downloaded = null,
+}) {
   const chain = [];
   const provider = selection.provider || 'phone';
 
@@ -46,20 +51,20 @@ export function buildBrainChain({ selection = {}, appConfig = {}, runner = null,
   if (provider === 'local' && selection.modelId) {
     chain.push({
       name: `local:${selection.modelId}`,
-      provider: makeProvider('local', { model: selection.modelId, runner })
+      provider: makeProvider('local', { model: selection.modelId, runner }),
     });
   } else if (provider === 'gradio' && selection.endpointUrl) {
     chain.push({
       name: 'gradio:remote',
-      provider: makeProvider('gradio', { baseUrl: selection.endpointUrl })
+      provider: makeProvider('gradio', { baseUrl: selection.endpointUrl }),
     });
   } else if (provider === 'ollama') {
     chain.push({
       name: `ollama:${selection.ollamaTag || selection.modelId || 'default'}`,
       provider: makeProvider('ollama', {
         model: selection.ollamaTag || selection.modelId || null,
-        baseUrl: selection.endpointUrl || null
-      })
+        baseUrl: selection.endpointUrl || null,
+      }),
     });
   }
   // 'phone' is always the last link, so it is never duplicated up here.
@@ -70,7 +75,7 @@ export function buildBrainChain({ selection = {}, appConfig = {}, runner = null,
   // take minutes, so it only happens if the primary actually fails.
   if (provider === 'local' && runner && Array.isArray(downloaded)) {
     const others = downloaded
-      .filter((m) => m?.downloaded && m.id && m.id !== selection.modelId)
+      .filter(m => m?.downloaded && m.id && m.id !== selection.modelId)
       .sort((a, b) => (a.sizeGB || Infinity) - (b.sizeGB || Infinity));
     for (const m of others) {
       chain.push({
@@ -78,7 +83,7 @@ export function buildBrainChain({ selection = {}, appConfig = {}, runner = null,
         activate: async () => {
           await runner.run(m.id);
           return makeProvider('local', { model: m.id, runner });
-        }
+        },
       });
     }
   }
@@ -86,11 +91,12 @@ export function buildBrainChain({ selection = {}, appConfig = {}, runner = null,
   // ── Link 3: last connected Kaggle/Colab remote GPU ─────────────────────
   // The URL survives provider switches (brainProviderModel.lastGradioUrl),
   // so a dead local model can fall back to the remote GPU automatically.
-  const remoteUrl = selection.provider === 'gradio' ? selection.endpointUrl : selection.lastGradioUrl;
+  const remoteUrl =
+    selection.provider === 'gradio' ? selection.endpointUrl : selection.lastGradioUrl;
   if (remoteUrl && provider !== 'gradio') {
     chain.push({
       name: 'gradio:remote',
-      provider: makeProvider('gradio', { baseUrl: remoteUrl })
+      provider: makeProvider('gradio', { baseUrl: remoteUrl }),
     });
   }
 
@@ -99,7 +105,7 @@ export function buildBrainChain({ selection = {}, appConfig = {}, runner = null,
 
   // Deduplicate by name (selection could equal a fallback).
   const seen = new Set();
-  return chain.filter((link) => (seen.has(link.name) ? false : (seen.add(link.name), true)));
+  return chain.filter(link => (seen.has(link.name) ? false : (seen.add(link.name), true)));
 }
 
 /**
@@ -115,7 +121,7 @@ export class ResilientBrainProvider {
     this.chain = chain;
     this.activeIndex = 0;
     this.activeProvider = null;
-    this.failed = [];   // names of links that failed, in order
+    this.failed = []; // names of links that failed, in order
     this.failoverLog = []; // { from, to, reason, at }
     this.enabled = true;
   }
@@ -149,7 +155,12 @@ export class ResilientBrainProvider {
     this.activeIndex += 1;
     this.activeProvider = null;
     const to = this.activeName;
-    this.failoverLog.push({ from, to: to || null, reason: String(reason || 'error'), at: new Date().toISOString() });
+    this.failoverLog.push({
+      from,
+      to: to || null,
+      reason: String(reason || 'error'),
+      at: new Date().toISOString(),
+    });
     return this.activeIndex < this.chain.length;
   }
 
@@ -182,18 +193,21 @@ export class ResilientBrainProvider {
         if (!this._advance(`${opName} failed: ${err?.message}`)) break;
       }
     }
-    const tried = this.failoverLog.map((f) => f.from).join(' → ');
+    const tried = this.failoverLog.map(f => f.from).join(' → ');
     throw new Error(
       `All brain fallbacks exhausted (${tried}). Last error: ${lastError?.message || lastError}`
     );
   }
 
   async generate(messages, opts) {
-    return this._withFailover((p) => p.generate(messages, opts), 'generate');
+    return this._withFailover(p => p.generate(messages, opts), 'generate');
   }
 
   async generateStructured(messages, schema, opts) {
-    return this._withFailover((p) => p.generateStructured(messages, schema, opts), 'generateStructured');
+    return this._withFailover(
+      p => p.generateStructured(messages, schema, opts),
+      'generateStructured'
+    );
   }
 
   /**
@@ -222,7 +236,7 @@ export class ResilientBrainProvider {
         if (!this._advance(`stream failed: ${err?.message}`)) break;
       }
     }
-    const tried = this.failoverLog.map((f) => f.from).join(' → ');
+    const tried = this.failoverLog.map(f => f.from).join(' → ');
     throw new Error(
       `All brain fallbacks exhausted (${tried}). Last error: ${lastError?.message || lastError}`
     );
@@ -260,7 +274,7 @@ export class ResilientBrainProvider {
         active: i === this.activeIndex,
         failed: this.failed.includes(link.name),
         reachable,
-        ...(reason ? { reason } : {})
+        ...(reason ? { reason } : {}),
       });
     }
     // Top-level reachable: the ACTIVE link answers. Callers like
@@ -276,7 +290,7 @@ export class ResilientBrainProvider {
       ...(reason ? { reason } : {}),
       degraded: this.failoverLog.length > 0,
       links,
-      failoverLog: this.failoverLog
+      failoverLog: this.failoverLog,
     };
   }
 
@@ -288,9 +302,9 @@ export class ResilientBrainProvider {
       chain: this.chain.map((l, i) => ({
         name: l.name,
         active: i === this.activeIndex,
-        failed: this.failed.includes(l.name)
+        failed: this.failed.includes(l.name),
       })),
-      failoverLog: this.failoverLog
+      failoverLog: this.failoverLog,
     };
   }
 }

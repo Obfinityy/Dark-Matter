@@ -19,7 +19,10 @@
  * @returns {string}
  */
 export function normaliseSan(entry) {
-  return String(entry || '').trim().toLowerCase().replace(/\.+$/, '');
+  return String(entry || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/, '');
 }
 
 /**
@@ -46,7 +49,17 @@ export function parseCertificateRecord(cert) {
 export function rootDomain(host) {
   const parts = normaliseSan(host).split('.').filter(Boolean);
   const two = parts.slice(-2).join('.');
-  const exceptions = new Set(['co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'com.au', 'net.au', 'co.nz', 'co.jp', 'com.br']);
+  const exceptions = new Set([
+    'co.uk',
+    'org.uk',
+    'ac.uk',
+    'gov.uk',
+    'com.au',
+    'net.au',
+    'co.nz',
+    'co.jp',
+    'com.br',
+  ]);
   if (exceptions.has(two) && parts.length >= 3) return parts.slice(-3).join('.');
   return two;
 }
@@ -82,7 +95,7 @@ export function buildSanOverlapGraph(certs, opts = {}) {
   for (let i = 0; i < records.length; i += 1) {
     for (let j = i + 1; j < records.length; j += 1) {
       const setB = new Set(records[j].sans);
-      const shared = records[i].sans.filter((s) => setB.has(s));
+      const shared = records[i].sans.filter(s => setB.has(s));
       const jaccard = sanJaccard(records[i].sans, records[j].sans);
       if (shared.length >= minShared || jaccard >= minJaccard) {
         edges.push({
@@ -94,8 +107,8 @@ export function buildSanOverlapGraph(certs, opts = {}) {
       }
     }
   }
-  const linked = new Set(edges.flatMap((e) => [e.from, e.to]));
-  return { edges, isolated: records.map((r) => r.host).filter((h) => !linked.has(h)) };
+  const linked = new Set(edges.flatMap(e => [e.from, e.to]));
+  return { edges, isolated: records.map(r => r.host).filter(h => !linked.has(h)) };
 }
 
 /**
@@ -109,8 +122,8 @@ export function clusterSiblingDomains(certs, opts = {}) {
   const { minClusterSize = 2 } = opts;
   const records = certs.map(parseCertificateRecord);
   const { edges } = buildSanOverlapGraph(records, opts);
-  const parent = new Map(records.map((r) => [r.host, r.host]));
-  const find = (x) => (parent.get(x) === x ? x : (parent.set(x, find(parent.get(x))), parent.get(x)));
+  const parent = new Map(records.map(r => [r.host, r.host]));
+  const find = x => (parent.get(x) === x ? x : (parent.set(x, find(parent.get(x))), parent.get(x)));
   for (const edge of edges) {
     const a = find(edge.from);
     const b = find(edge.to);
@@ -125,7 +138,7 @@ export function clusterSiblingDomains(certs, opts = {}) {
   const clusters = [];
   for (const members of groups.values()) {
     if (members.length < minClusterSize) continue;
-    const hosts = members.map((m) => m.host);
+    const hosts = members.map(m => m.host);
     const sanCounts = new Map();
     for (const m of members) for (const s of m.sans) sanCounts.set(s, (sanCounts.get(s) || 0) + 1);
     const sharedSans = [...sanCounts.entries()]
@@ -152,7 +165,7 @@ export function clusterSiblingDomains(certs, opts = {}) {
  */
 export function siblingScore(candidateHost, candidateSans, targetHost, targetSans) {
   const target = new Set(targetSans.map(normaliseSan));
-  const shared = candidateSans.map(normaliseSan).filter((s) => target.has(s));
+  const shared = candidateSans.map(normaliseSan).filter(s => target.has(s));
   const sameRoot = rootDomain(candidateHost) === rootDomain(targetHost);
   let score = shared.length * 2;
   if (sameRoot) score += 3;

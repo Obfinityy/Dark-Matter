@@ -36,8 +36,9 @@ export function mapAltSvcPorts(observations = []) {
   let advertisementCount = 0;
   const protocolsSeen = new Set();
 
-  const hostOf = (obs) => {
-    if (typeof obs.host === 'string' && obs.host.trim() !== '') return obs.host.trim().toLowerCase();
+  const hostOf = obs => {
+    if (typeof obs.host === 'string' && obs.host.trim() !== '')
+      return obs.host.trim().toLowerCase();
     if (typeof obs.url === 'string') {
       try {
         return new URL(obs.url).host.toLowerCase();
@@ -94,7 +95,7 @@ export function findAlternatePortAnomalies(mapping) {
 
   for (const [host, protos] of Object.entries(hosts)) {
     for (const [proto, ports] of Object.entries(protos)) {
-      const nonStandard = ports.filter((p) => !STANDARD.has(p));
+      const nonStandard = ports.filter(p => !STANDARD.has(p));
       if (nonStandard.length > 0) {
         anomalies.push({
           kind: 'non-standard-port',

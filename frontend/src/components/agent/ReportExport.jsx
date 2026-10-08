@@ -12,11 +12,20 @@
  */
 import React, { useState } from 'react';
 import { Download, FileText, Printer, Loader2 } from 'lucide-react';
-import { downloadHuntRecordMarkdown, downloadJobReportPdf, getJobVulnerabilityReport } from '../../services/api';
+import {
+  downloadHuntRecordMarkdown,
+  downloadJobReportPdf,
+  getJobVulnerabilityReport,
+} from '../../services/api';
 import './ReportExport.polish.css';
 
 function slugify(value) {
-  return String(value || 'report').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'report';
+  return (
+    String(value || 'report')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'report'
+  );
 }
 
 export function ReportExport({ jobId, recordId = null, target = '' }) {
@@ -88,23 +97,30 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8p
 </style></head><body>`);
       // Minimal markdown → HTML (headings, bold, code, tables, lists).
       const html = md
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
         .replace(/^### (.*)$/gm, '<h3>$1</h3>')
         .replace(/^## (.*)$/gm, '<h2>$1</h2>')
         .replace(/^# (.*)$/gm, '<h1>$1</h1>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/^\|(.+)$/gm, (row) => {
-          const cells = row.slice(1).split('|').map((c) => c.trim());
+        .replace(/^\|(.+)$/gm, row => {
+          const cells = row
+            .slice(1)
+            .split('|')
+            .map(c => c.trim());
           if (/^---/.test(cells[0])) return '';
-          return `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
+          return `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
         })
         .replace(/\n\n/g, '</p><p>')
         .replace(/^(?!<[h|t|p])/gm, '');
       win.document.write(`<p>${html}</p></body></html>`);
       win.document.close();
       win.focus();
-      setTimeout(() => { win.print(); }, 400);
+      setTimeout(() => {
+        win.print();
+      }, 400);
     } catch (err) {
       alert(err.message || 'Could not export the report.');
     } finally {
@@ -114,22 +130,51 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8p
 
   return (
     <div className="dm-report-export" role="group" aria-label="Export report">
-      <button type="button" className="dm-btn-primary" onClick={downloadMd}
-        disabled={Boolean(busy)} aria-busy={busy === 'md'}>
-        {busy === 'md' ? <Loader2 size={15} className="dm-spin" aria-hidden="true" /> : <FileText size={15} aria-hidden="true" />}
+      <button
+        type="button"
+        className="dm-btn-primary"
+        onClick={downloadMd}
+        disabled={Boolean(busy)}
+        aria-busy={busy === 'md'}
+      >
+        {busy === 'md' ? (
+          <Loader2 size={15} className="dm-spin" aria-hidden="true" />
+        ) : (
+          <FileText size={15} aria-hidden="true" />
+        )}
         Markdown
       </button>
-      <button type="button" className="dm-btn-secondary" onClick={downloadPdf}
-        disabled={Boolean(busy)} aria-busy={busy === 'pdf-server'}>
-        {busy === 'pdf-server' ? <Loader2 size={15} className="dm-spin" aria-hidden="true" /> : <FileText size={15} aria-hidden="true" />}
+      <button
+        type="button"
+        className="dm-btn-secondary"
+        onClick={downloadPdf}
+        disabled={Boolean(busy)}
+        aria-busy={busy === 'pdf-server'}
+      >
+        {busy === 'pdf-server' ? (
+          <Loader2 size={15} className="dm-spin" aria-hidden="true" />
+        ) : (
+          <FileText size={15} aria-hidden="true" />
+        )}
         PDF
       </button>
-      <button type="button" className="dm-btn-secondary" onClick={printPdf}
-        disabled={Boolean(busy)} aria-busy={busy === 'pdf'}>
-        {busy === 'pdf' ? <Loader2 size={15} className="dm-spin" aria-hidden="true" /> : <Printer size={15} aria-hidden="true" />}
+      <button
+        type="button"
+        className="dm-btn-secondary"
+        onClick={printPdf}
+        disabled={Boolean(busy)}
+        aria-busy={busy === 'pdf'}
+      >
+        {busy === 'pdf' ? (
+          <Loader2 size={15} className="dm-spin" aria-hidden="true" />
+        ) : (
+          <Printer size={15} aria-hidden="true" />
+        )}
         PDF <span className="dm-btn-hint">(print)</span>
       </button>
-      <span className="dm-export-note"><Download size={12} aria-hidden="true" /> HackerOne / Bugcrowd-ready format</span>
+      <span className="dm-export-note">
+        <Download size={12} aria-hidden="true" /> HackerOne / Bugcrowd-ready format
+      </span>
     </div>
   );
 }

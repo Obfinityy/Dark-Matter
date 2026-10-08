@@ -1,3 +1,9 @@
+/**
+ * reportController — Express route handlers for report.
+ * Factory that wires the report service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 import { streamReportPdf } from '../services/reportPdfService.js';
 
@@ -17,7 +23,15 @@ export function createReportController(reportService, assessmentService) {
     getLatest: asyncHandler(async (request, response) => {
       await assessmentService.get(request.user.id, request.params.id); // ownership check
       const report = await reportService.getLatest(request.params.id);
-      if (!report) return response.status(404).json({ error: { code: 'NO_REPORT', message: 'No report has been generated for this assessment yet.' } });
+      if (!report)
+        return response
+          .status(404)
+          .json({
+            error: {
+              code: 'NO_REPORT',
+              message: 'No report has been generated for this assessment yet.',
+            },
+          });
       response.json(report);
     }),
 
@@ -44,11 +58,18 @@ export function createReportController(reportService, assessmentService) {
       await assessmentService.get(request.user.id, request.params.id); // ownership check
       const options = {};
       if (request.query.severities) {
-        options.severities = String(request.query.severities).split(',').map((s) => s.trim()).filter(Boolean);
+        options.severities = String(request.query.severities)
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
       }
       if (request.query.perFinding === 'true') options.perFinding = true;
       if (request.query.findingId) options.findingId = String(request.query.findingId);
-      const result = await reportService.generateMarkdown(request.user.id, request.params.id, options);
+      const result = await reportService.generateMarkdown(
+        request.user.id,
+        request.params.id,
+        options
+      );
       if (result.perFinding) {
         return response.json(result);
       }
@@ -59,11 +80,19 @@ export function createReportController(reportService, assessmentService) {
     pdf: asyncHandler(async (request, response) => {
       await assessmentService.get(request.user.id, request.params.id); // ownership check
       const report = await reportService.getLatest(request.params.id);
-      if (!report) return response.status(404).json({ error: { code: 'NO_REPORT', message: 'No report has been generated for this assessment yet.' } });
+      if (!report)
+        return response
+          .status(404)
+          .json({
+            error: {
+              code: 'NO_REPORT',
+              message: 'No report has been generated for this assessment yet.',
+            },
+          });
       const filename = `infinity-ai-report-${String(request.params.id).slice(0, 12)}.pdf`;
       response.setHeader('Content-Type', 'application/pdf');
       response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       streamReportPdf(report, response);
-    })
+    }),
   };
 }

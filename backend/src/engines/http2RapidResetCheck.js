@@ -17,13 +17,41 @@
  * @type {Array<{implementation:string, traits:string[], confidence:number}>}
  */
 export const IMPLEMENTATION_SIGNATURES = [
-  { implementation: 'nginx', traits: ['rejects_new_streams_after_max_concurrent', 'immediate_goaway_on_abuse'], confidence: 0.75 },
-  { implementation: 'Apache httpd (mod_http2)', traits: ['tolerant_rst_stream', 'deferred_goaway'], confidence: 0.7 },
-  { implementation: 'Envoy', traits: ['aggressive_stream_limits', 'per_connection_rate_limiting'], confidence: 0.8 },
-  { implementation: 'HAProxy', traits: ['immediate_goaway_on_abuse', 'connection_close_on_excess_resets'], confidence: 0.75 },
-  { implementation: 'IIS / HTTP.sys', traits: ['silent_reset_acceptance', 'no_refused_stream'], confidence: 0.7 },
-  { implementation: 'Node.js http2', traits: ['tolerant_rst_stream', 'no_refused_stream'], confidence: 0.65 },
-  { implementation: 'Caddy', traits: ['immediate_goaway_on_abuse', 'per_connection_rate_limiting'], confidence: 0.7 },
+  {
+    implementation: 'nginx',
+    traits: ['rejects_new_streams_after_max_concurrent', 'immediate_goaway_on_abuse'],
+    confidence: 0.75,
+  },
+  {
+    implementation: 'Apache httpd (mod_http2)',
+    traits: ['tolerant_rst_stream', 'deferred_goaway'],
+    confidence: 0.7,
+  },
+  {
+    implementation: 'Envoy',
+    traits: ['aggressive_stream_limits', 'per_connection_rate_limiting'],
+    confidence: 0.8,
+  },
+  {
+    implementation: 'HAProxy',
+    traits: ['immediate_goaway_on_abuse', 'connection_close_on_excess_resets'],
+    confidence: 0.75,
+  },
+  {
+    implementation: 'IIS / HTTP.sys',
+    traits: ['silent_reset_acceptance', 'no_refused_stream'],
+    confidence: 0.7,
+  },
+  {
+    implementation: 'Node.js http2',
+    traits: ['tolerant_rst_stream', 'no_refused_stream'],
+    confidence: 0.65,
+  },
+  {
+    implementation: 'Caddy',
+    traits: ['immediate_goaway_on_abuse', 'per_connection_rate_limiting'],
+    confidence: 0.7,
+  },
 ];
 
 /**
@@ -49,16 +77,22 @@ export function classifyResetBehavior(obs) {
     evidence.push(`server refused ${refused} streams via REFUSED_STREAM`);
   } else if (acceptanceRate > 0.9) {
     discipline = 'tolerant_rst_stream';
-    evidence.push(`server accepted ${(acceptanceRate * 100).toFixed(1)}% of stream resets without backpressure`);
+    evidence.push(
+      `server accepted ${(acceptanceRate * 100).toFixed(1)}% of stream resets without backpressure`
+    );
   } else if (acceptanceRate > 0) {
     discipline = 'deferred_goaway';
-    evidence.push(`server partially accepted resets (${(acceptanceRate * 100).toFixed(1)}%) before signaling`);
+    evidence.push(
+      `server partially accepted resets (${(acceptanceRate * 100).toFixed(1)}%) before signaling`
+    );
   } else {
     discipline = 'connection_close_on_excess_resets';
     evidence.push('server closed the connection rather than acknowledging resets');
   }
   if (o.avgResetLatencyMs != null && Number(o.avgResetLatencyMs) < 5) {
-    evidence.push(`fast reset acknowledgement (${o.avgResetLatencyMs}ms avg) — aggressive stream accounting`);
+    evidence.push(
+      `fast reset acknowledgement (${o.avgResetLatencyMs}ms avg) — aggressive stream accounting`
+    );
   }
   return { resetAcceptanceRate: acceptanceRate, goawayDiscipline: discipline, evidence };
 }
@@ -75,15 +109,23 @@ export function fingerprintImplementation(classification, serverHeader = null) {
   if (classification.resetAcceptanceRate < 0.2) traits.push('immediate_goaway_on_abuse');
   const results = [];
   for (const sig of IMPLEMENTATION_SIGNATURES) {
-    const matched = sig.traits.filter((t) => traits.includes(t));
+    const matched = sig.traits.filter(t => traits.includes(t));
     if (matched.length === 0) continue;
     let confidence = sig.confidence * (matched.length / sig.traits.length);
-    const reasons = matched.map((t) => `observed trait: ${t.replace(/_/g, ' ')}`);
-    if (serverHeader && serverHeader.toLowerCase().includes(sig.implementation.split(' ')[0].toLowerCase())) {
+    const reasons = matched.map(t => `observed trait: ${t.replace(/_/g, ' ')}`);
+    if (
+      serverHeader &&
+      serverHeader.toLowerCase().includes(sig.implementation.split(' ')[0].toLowerCase())
+    ) {
       confidence = Math.min(0.95, confidence + 0.15);
       reasons.push(`corroborated by Server header: ${serverHeader}`);
     }
-    results.push({ implementation: sig.implementation, confidence, matchedTraits: matched, reasons });
+    results.push({
+      implementation: sig.implementation,
+      confidence,
+      matchedTraits: matched,
+      reasons,
+    });
   }
   return results.sort((a, b) => b.confidence - a.confidence);
 }
@@ -102,7 +144,9 @@ export function assessRapidResetRisk(classification, obs = {}) {
   const sent = Number(obs.resetsSent) || 0;
   if (classification.resetAcceptanceRate > 0.95 && sent >= 20) {
     severity = 'high';
-    reasons.push(`server accepted ${(classification.resetAcceptanceRate * 100).toFixed(1)}% of ${sent} resets with no backpressure`);
+    reasons.push(
+      `server accepted ${(classification.resetAcceptanceRate * 100).toFixed(1)}% of ${sent} resets with no backpressure`
+    );
   } else if (classification.resetAcceptanceRate > 0.8 && sent >= 20) {
     severity = 'medium';
     reasons.push('high reset acceptance without GOAWAY discipline');
@@ -110,6 +154,7 @@ export function assessRapidResetRisk(classification, obs = {}) {
   if (classification.goawayDiscipline === 'tolerant_rst_stream') {
     reasons.push('no stream-limit signaling observed during probe window');
   }
-  if (severity === 'none') reasons.push('server applied backpressure (GOAWAY, REFUSED_STREAM, or connection close)');
+  if (severity === 'none')
+    reasons.push('server applied backpressure (GOAWAY, REFUSED_STREAM, or connection close)');
   return { suspicious: severity !== 'none', severity, reasons };
 }

@@ -18,7 +18,13 @@ import fs from 'node:fs';
  * @returns {Promise<{ bytes:number, totalBytes:number|null, resumed:boolean }>}
  */
 export async function downloadFile(url, destPath, options = {}) {
-  const { headers = {}, onProgress = null, signal = null, resume = true, stallTimeoutMs = 120000 } = options;
+  const {
+    headers = {},
+    onProgress = null,
+    signal = null,
+    resume = true,
+    stallTimeoutMs = 120000,
+  } = options;
 
   let startByte = 0;
   let resumed = false;
@@ -28,7 +34,9 @@ export async function downloadFile(url, destPath, options = {}) {
       startByte = stat.size;
       resumed = true;
     }
-  } catch { /* no partial file */ }
+  } catch {
+    /* no partial file */
+  }
 
   const requestHeaders = { ...headers };
   if (startByte > 0) requestHeaders.Range = `bytes=${startByte}-`;
@@ -79,9 +87,8 @@ export async function downloadFile(url, destPath, options = {}) {
   }
 
   const contentLength = Number(response.headers.get('content-length'));
-  const totalBytes = Number.isFinite(contentLength) && contentLength > 0
-    ? contentLength + startByte
-    : null;
+  const totalBytes =
+    Number.isFinite(contentLength) && contentLength > 0 ? contentLength + startByte : null;
 
   const fileStream = fs.createWriteStream(destPath, { flags: isPartial ? 'a' : 'w' });
   let receivedBytes = startByte;
@@ -93,7 +100,9 @@ export async function downloadFile(url, destPath, options = {}) {
   const resetStallTimer = () => {
     if (stallTimer) clearTimeout(stallTimer);
     stallTimer = setTimeout(() => {
-      readerRef.cancel('Download stalled: no data received for ' + Math.round(stallTimeoutMs / 1000) + 's').catch(() => {});
+      readerRef
+        .cancel('Download stalled: no data received for ' + Math.round(stallTimeoutMs / 1000) + 's')
+        .catch(() => {});
     }, stallTimeoutMs);
     stallTimer.unref?.();
   };
@@ -101,7 +110,7 @@ export async function downloadFile(url, destPath, options = {}) {
 
   try {
     const reader = response.body.getReader();
-    readerRef.cancel = (reason) => reader.cancel(reason);
+    readerRef.cancel = reason => reader.cancel(reason);
     resetStallTimer();
     for (;;) {
       const { done, value } = await reader.read();
@@ -110,13 +119,13 @@ export async function downloadFile(url, destPath, options = {}) {
       receivedBytes += value.byteLength;
       resetStallTimer();
       const ok = fileStream.write(value);
-      if (!ok) await new Promise((resolve) => fileStream.once('drain', resolve));
+      if (!ok) await new Promise(resolve => fileStream.once('drain', resolve));
       onProgress?.(receivedBytes, totalBytes);
     }
   } finally {
     if (stallTimer) clearTimeout(stallTimer);
     await new Promise((resolve, reject) => {
-      fileStream.end((error) => (error ? reject(error) : resolve()));
+      fileStream.end(error => (error ? reject(error) : resolve()));
     });
   }
 

@@ -29,7 +29,7 @@ const K8S_RESPONSE_CLASSES = [
   {
     name: 'kubelet-pod-list',
     description: 'Kubelet read-only port returned a pod listing (PodList shape).',
-    match: (json) => json && json.kind === 'PodList' && Array.isArray(json.items),
+    match: json => json && json.kind === 'PodList' && Array.isArray(json.items),
     severity: 'High',
   },
   {
@@ -41,7 +41,7 @@ const K8S_RESPONSE_CLASSES = [
   {
     name: 'kubelet-metrics',
     description: 'Kubelet /metrics exposed Prometheus metrics.',
-    match: (text) => typeof text === 'string' && /^kubelet_running_containers/m.test(text),
+    match: text => typeof text === 'string' && /^kubelet_running_containers/m.test(text),
     severity: 'Medium',
   },
   {
@@ -74,7 +74,8 @@ const SECRET_REF_PATTERNS = [
   { name: 'secret-env-ref', pattern: /\b(secret|credential)s?\s*[:=]\s*\S+/i },
 ];
 
-const SECRET_NAME_PATTERN = /(api[_-]?key|token|password|passwd|pwd|secret|credential|private[_-]?key|auth)/i;
+const SECRET_NAME_PATTERN =
+  /(api[_-]?key|token|password|passwd|pwd|secret|credential|private[_-]?key|auth)/i;
 
 /**
  * Classify a kubelet probe response (idea 587).
@@ -263,18 +264,17 @@ export function analyzeImageLayers({ configJson = '{}' } = {}) {
 
   const history = config?.history;
   const baseImage =
-    Array.isArray(history) && history.length > 0
-      ? extractBaseImageFromHistory(history)
-      : undefined;
+    Array.isArray(history) && history.length > 0 ? extractBaseImageFromHistory(history) : undefined;
 
   return {
     hostnames: [...hostnames].slice(0, 200),
     secretRefs: [...secretRefs],
     baseImage,
     labels,
-    note: secretRefs.length > 0
-      ? 'Secret references detected. Values are NEVER included in output — flag for remediation.'
-      : undefined,
+    note:
+      secretRefs.length > 0
+        ? 'Secret references detected. Values are NEVER included in output — flag for remediation.'
+        : undefined,
   };
 }
 

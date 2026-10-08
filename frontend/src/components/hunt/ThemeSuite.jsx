@@ -18,7 +18,15 @@
  *
  * State math and palettes live in themeCore.js; styling in ThemeSuite.css.
  */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   THEMES,
   THEME_IDS,
@@ -69,10 +77,11 @@ function accentFor(settingsAccent, themeId) {
 /** Per-theme SVG favicon (data URI) — Infinity mark on the theme surface. */
 function faviconForTheme(themeId) {
   const t = themeById(themeId) || THEMES.dark;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">`
-    + `<rect width="32" height="32" rx="7" fill="${t.surface.base}"/>`
-    + `<text x="16" y="23" font-size="19" text-anchor="middle" fill="${t.accent}" font-family="Georgia,serif">∞</text>`
-    + `</svg>`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +
+    `<rect width="32" height="32" rx="7" fill="${t.surface.base}"/>` +
+    `<text x="16" y="23" font-size="19" text-anchor="middle" fill="${t.accent}" font-family="Georgia,serif">∞</text>` +
+    `</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
@@ -93,14 +102,24 @@ export function ThemeProvider({ children, initialTheme = null }) {
   const [theme, setThemeState] = useState(() =>
     isThemeId(initialTheme) ? initialTheme : isThemeId(stored?.theme) ? stored.theme : 'dark'
   );
-  const [accent, setAccent] = useState(() => accentFor(stored?.accent, isThemeId(stored?.theme) ? stored.theme : 'dark'));
+  const [accent, setAccent] = useState(() =>
+    accentFor(stored?.accent, isThemeId(stored?.theme) ? stored.theme : 'dark')
+  );
   const [osFollow, setOsFollow] = useState(() => stored?.osFollow !== false);
   const [sunsetAuto, setSunsetAuto] = useState(() => stored?.sunsetAuto === true);
-  const [sunsetLat, setSunsetLat] = useState(() => (Number.isFinite(stored?.sunsetLat) ? stored.sunsetLat : 28.6139));
-  const [sunsetLng, setSunsetLng] = useState(() => (Number.isFinite(stored?.sunsetLng) ? stored.sunsetLng : 77.209));
-  const [printTheme, setPrintTheme] = useState(() => (stored?.printTheme === 'follow' ? 'follow' : 'light'));
+  const [sunsetLat, setSunsetLat] = useState(() =>
+    Number.isFinite(stored?.sunsetLat) ? stored.sunsetLat : 28.6139
+  );
+  const [sunsetLng, setSunsetLng] = useState(() =>
+    Number.isFinite(stored?.sunsetLng) ? stored.sunsetLng : 77.209
+  );
+  const [printTheme, setPrintTheme] = useState(() =>
+    stored?.printTheme === 'follow' ? 'follow' : 'light'
+  );
   const [oledBlack, setOledBlack] = useState(() => stored?.oledBlack === true);
-  const [pageThemes, setPageThemes] = useState(() => (stored?.pageThemes && typeof stored.pageThemes === 'object' ? stored.pageThemes : {}));
+  const [pageThemes, setPageThemes] = useState(() =>
+    stored?.pageThemes && typeof stored.pageThemes === 'object' ? stored.pageThemes : {}
+  );
   const [announcement, setAnnouncement] = useState('');
   const fadeTimer = useRef(null);
 
@@ -134,8 +153,10 @@ export function ThemeProvider({ children, initialTheme = null }) {
       try {
         const dark = isDarkOutside({ lat: sunsetLat, lng: sunsetLng, date: new Date() });
         const target = dark ? 'dark' : 'light';
-        setThemeState((prev) => (prev === 'high-contrast' || prev === 'dim' ? prev : target));
-      } catch { /* bad lat/lng — leave the theme alone */ }
+        setThemeState(prev => (prev === 'high-contrast' || prev === 'dim' ? prev : target));
+      } catch {
+        /* bad lat/lng — leave the theme alone */
+      }
     };
     apply();
     const id = setInterval(apply, 5 * 60 * 1000);
@@ -143,7 +164,7 @@ export function ThemeProvider({ children, initialTheme = null }) {
   }, [sunsetAuto, sunsetLat, sunsetLng]);
 
   const applyThemeToDocument = useCallback(
-    (nextTheme) => {
+    nextTheme => {
       if (typeof document === 'undefined') return;
       const root = document.documentElement;
       const reduce =
@@ -157,7 +178,10 @@ export function ThemeProvider({ children, initialTheme = null }) {
       if (!reduce && prev !== nextTheme) {
         root.classList.add('th-fading');
         if (fadeTimer.current) clearTimeout(fadeTimer.current);
-        fadeTimer.current = setTimeout(() => root.classList.remove('th-fading'), TRANSITION_MS + 20);
+        fadeTimer.current = setTimeout(
+          () => root.classList.remove('th-fading'),
+          TRANSITION_MS + 20
+        );
       }
       // Themed theme-color meta (50671).
       const t = themeById(nextTheme) || THEMES.dark;
@@ -187,22 +211,42 @@ export function ThemeProvider({ children, initialTheme = null }) {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify({ theme, accent, osFollow, sunsetAuto, sunsetLat, sunsetLng, printTheme, oledBlack, pageThemes })
+          JSON.stringify({
+            theme,
+            accent,
+            osFollow,
+            sunsetAuto,
+            sunsetLat,
+            sunsetLng,
+            printTheme,
+            oledBlack,
+            pageThemes,
+          })
         );
       }
-    } catch { /* storage blocked — theme still applies for the session */ }
-  }, [theme, accent, osFollow, sunsetAuto, sunsetLat, sunsetLng, printTheme, oledBlack, pageThemes, applyThemeToDocument]);
+    } catch {
+      /* storage blocked — theme still applies for the session */
+    }
+  }, [
+    theme,
+    accent,
+    osFollow,
+    sunsetAuto,
+    sunsetLat,
+    sunsetLng,
+    printTheme,
+    oledBlack,
+    pageThemes,
+    applyThemeToDocument,
+  ]);
 
-  const setTheme = useCallback(
-    (id) => {
-      if (!isThemeId(id)) return;
-      setManualPick(true);
-      setOsFollow(false);
-      setThemeState(id);
-      setAnnouncement(`Theme changed to ${(themeById(id) || {}).label || id}`);
-    },
-    []
-  );
+  const setTheme = useCallback(id => {
+    if (!isThemeId(id)) return;
+    setManualPick(true);
+    setOsFollow(false);
+    setThemeState(id);
+    setAnnouncement(`Theme changed to ${(themeById(id) || {}).label || id}`);
+  }, []);
 
   const followOs = useCallback(() => {
     setManualPick(false);
@@ -243,12 +287,24 @@ export function ThemeProvider({ children, initialTheme = null }) {
       pageThemes,
       setPageTheme: (page, tid) => {
         pageStore.setPageTheme(page, tid);
-        setPageThemes({ ...pageStore.pages().reduce((o, p) => ({ ...o, [p]: pageStore.getPageTheme(p) }), {}) });
+        setPageThemes({
+          ...pageStore.pages().reduce((o, p) => ({ ...o, [p]: pageStore.getPageTheme(p) }), {}),
+        });
       },
-      themeForPage: (page) => pageStore.resolvePageTheme(page, theme),
+      themeForPage: page => pageStore.resolvePageTheme(page, theme),
       exportJson: () =>
-        exportThemeJson({ theme, accent, osFollow, sunsetAuto, sunsetLat, sunsetLng, printTheme, oledBlack, pageThemes }),
-      importJson: (text) => {
+        exportThemeJson({
+          theme,
+          accent,
+          osFollow,
+          sunsetAuto,
+          sunsetLat,
+          sunsetLng,
+          printTheme,
+          oledBlack,
+          pageThemes,
+        }),
+      importJson: text => {
         const res = importThemeJson(text);
         if (res.ok) {
           const s = res.state;
@@ -267,12 +323,30 @@ export function ThemeProvider({ children, initialTheme = null }) {
         return res;
       },
     }),
-    [theme, accent, osFollow, sunsetAuto, sunsetLat, sunsetLng, printTheme, oledBlack, pageThemes, setTheme, followOs, cycle, pairing, pageStore]
+    [
+      theme,
+      accent,
+      osFollow,
+      sunsetAuto,
+      sunsetLat,
+      sunsetLng,
+      printTheme,
+      oledBlack,
+      pageThemes,
+      setTheme,
+      followOs,
+      cycle,
+      pairing,
+      pageStore,
+    ]
   );
 
   return (
     <ThemeContext.Provider value={value}>
-      <div className="th-scope" style={{ '--th-accent': pairing.accent, '--th-on-accent': pairing.onAccent }}>
+      <div
+        className="th-scope"
+        style={{ '--th-accent': pairing.accent, '--th-on-accent': pairing.onAccent }}
+      >
         {children}
         <div className="th-live-region" role="status" aria-live="polite">
           {announcement}
@@ -290,7 +364,7 @@ export function ThemePicker() {
   const { theme, setTheme, followOs, osFollow } = useTheme();
   return (
     <div className="th-picker" role="radiogroup" aria-label="Theme">
-      {THEME_IDS.map((id) => {
+      {THEME_IDS.map(id => {
         const t = THEMES[id];
         const selected = theme === id;
         return (
@@ -334,7 +408,11 @@ export function ThemePreviewThumbnail({ themeId = null, label = null }) {
   const sev = severityForTheme(themeId || 'dark');
   const t = themeById(themeId) || THEMES.dark;
   return (
-    <figure className="th-preview" data-theme={themeId || undefined} aria-label={label || `Preview of the ${t.label} theme`}>
+    <figure
+      className="th-preview"
+      data-theme={themeId || undefined}
+      aria-label={label || `Preview of the ${t.label} theme`}
+    >
       <div className="th-preview-bar">
         <span className="th-preview-dot" />
         <span className="th-preview-dot" />
@@ -367,7 +445,7 @@ export function AccentPicker() {
   return (
     <div className="th-accent">
       <div className="th-accent-row" role="radiogroup" aria-label="Accent color presets">
-        {ACCENT_PRESETS.map((p) => (
+        {ACCENT_PRESETS.map(p => (
           <button
             key={p.id}
             type="button"
@@ -384,7 +462,7 @@ export function AccentPicker() {
           <input
             type="color"
             value={accent}
-            onChange={(e) => setAccent(e.target.value)}
+            onChange={e => setAccent(e.target.value)}
             aria-label="Custom accent color"
           />
           <span aria-hidden="true">🎨</span>
@@ -393,9 +471,15 @@ export function AccentPicker() {
       <p className="th-note">
         Pairing <code>{pairing.accent}</code> on <code>{pairing.onAccent}</code> — ratio{' '}
         {pairing.ratio.toFixed(2)}:1 ({pairing.grade})
-        {pairing.grade === 'fail' || pairing.grade === 'AA-large' ? ' — auto-guard keeps text readable' : ' — passes'}.
+        {pairing.grade === 'fail' || pairing.grade === 'AA-large'
+          ? ' — auto-guard keeps text readable'
+          : ' — passes'}
+        .
       </p>
-      <div className="th-accent-sample" style={{ background: pairing.accent, color: pairing.onAccent }}>
+      <div
+        className="th-accent-sample"
+        style={{ background: pairing.accent, color: pairing.onAccent }}
+      >
         Sample button text on the accent
       </div>
     </div>
@@ -409,7 +493,7 @@ export function AccentPicker() {
 export function ContrastReadout() {
   return (
     <div className="th-readout">
-      {THEME_IDS.map((id) => {
+      {THEME_IDS.map(id => {
         const t = THEMES[id];
         const pairs = [
           ['Body text', t.text.primary, t.surface.base],
@@ -422,29 +506,43 @@ export function ContrastReadout() {
             <h4>{t.label}</h4>
             <div className="th-table-scroll">
               <table>
-              <tbody>
-                {pairs.map(([label, fg, bg]) => {
-                  const ratio = contrastRatio(fg, bg);
-                  const grade = contrastGrade(ratio);
-                  return (
-                    <tr key={label}>
-                      <td>{label}</td>
-                      <td>
-                        <span className="th-swatch" style={{ background: fg }} aria-hidden="true" /> {fg}
-                      </td>
-                      <td>{ratio.toFixed(2)}:1</td>
-                      <td>
-                        <span className={`th-grade th-grade-${grade.toLowerCase().replace('-', '')}`}>{grade}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                <tbody>
+                  {pairs.map(([label, fg, bg]) => {
+                    const ratio = contrastRatio(fg, bg);
+                    const grade = contrastGrade(ratio);
+                    return (
+                      <tr key={label}>
+                        <td>{label}</td>
+                        <td>
+                          <span
+                            className="th-swatch"
+                            style={{ background: fg }}
+                            aria-hidden="true"
+                          />{' '}
+                          {fg}
+                        </td>
+                        <td>{ratio.toFixed(2)}:1</td>
+                        <td>
+                          <span
+                            className={`th-grade th-grade-${grade.toLowerCase().replace('-', '')}`}
+                          >
+                            {grade}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
             <div className="th-sev-row" aria-label={`${t.label} severity hues`}>
               {Object.entries(t.severity).map(([k, color]) => (
-                <span key={k} className="th-sev-chip" style={{ borderColor: color, color }} title={`${k}: ${contrastRatio(color, t.surface.base).toFixed(2)}:1`}>
+                <span
+                  key={k}
+                  className="th-sev-chip"
+                  style={{ borderColor: color, color }}
+                  title={`${k}: ${contrastRatio(color, t.surface.base).toFixed(2)}:1`}
+                >
                   {k} {contrastRatio(color, t.surface.base).toFixed(1)}
                 </span>
               ))}
@@ -461,7 +559,8 @@ export function ContrastReadout() {
 /* ------------------------------------------------------------------ */
 
 export function SunsetScheduler() {
-  const { sunsetAuto, setSunsetAuto, sunsetLat, setSunsetLat, sunsetLng, setSunsetLng, setTheme } = useTheme();
+  const { sunsetAuto, setSunsetAuto, sunsetLat, setSunsetLat, sunsetLng, setSunsetLng, setTheme } =
+    useTheme();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60000);
@@ -477,31 +576,52 @@ export function SunsetScheduler() {
   let darkNow = null;
   try {
     darkNow = isDarkOutside({ lat: sunsetLat, lng: sunsetLng, date: now });
-  } catch { /* shown via err */ }
+  } catch {
+    /* shown via err */
+  }
   return (
     <div className="th-sunset">
       <label className="th-switch">
-        <input type="checkbox" checked={sunsetAuto} onChange={(e) => setSunsetAuto(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={sunsetAuto}
+          onChange={e => setSunsetAuto(e.target.checked)}
+        />
         <span>Auto-switch to dark after sunset</span>
       </label>
       <div className="th-sunset-coords">
         <label>
           Latitude
           <input
-            type="number" step="0.0001" min="-90" max="90" value={sunsetLat}
-            onChange={(e) => setSunsetLat(parseFloat(e.target.value))}
+            type="number"
+            step="0.0001"
+            min="-90"
+            max="90"
+            value={sunsetLat}
+            onChange={e => setSunsetLat(parseFloat(e.target.value))}
             aria-label="Latitude"
           />
         </label>
         <label>
           Longitude
           <input
-            type="number" step="0.0001" min="-180" max="180" value={sunsetLng}
-            onChange={(e) => setSunsetLng(parseFloat(e.target.value))}
+            type="number"
+            step="0.0001"
+            min="-180"
+            max="180"
+            value={sunsetLng}
+            onChange={e => setSunsetLng(parseFloat(e.target.value))}
             aria-label="Longitude"
           />
         </label>
-        <button type="button" className="th-btn" onClick={() => { setSunsetLat(28.6139); setSunsetLng(77.209); }}>
+        <button
+          type="button"
+          className="th-btn"
+          onClick={() => {
+            setSunsetLat(28.6139);
+            setSunsetLng(77.209);
+          }}
+        >
           New Delhi
         </button>
       </div>
@@ -509,21 +629,27 @@ export function SunsetScheduler() {
         <p className="th-error">{err}</p>
       ) : times ? (
         <p className="th-note">
-          Today: sunrise <strong>{times.polarDay ? '—' : formatMinutes(times.sunriseMin)}</strong> · sunset{' '}
-          <strong>{times.polarNight ? '—' : formatMinutes(times.sunsetMin)}</strong>
+          Today: sunrise <strong>{times.polarDay ? '—' : formatMinutes(times.sunriseMin)}</strong> ·
+          sunset <strong>{times.polarNight ? '—' : formatMinutes(times.sunsetMin)}</strong>
           {times.polarDay && ' (polar day)'}
           {times.polarNight && ' (polar night)'}
           {!times.polarDay && !times.polarNight && (
             <>
-              {' '}· it is currently <strong>{darkNow ? 'dark' : 'light'}</strong> outside
+              {' '}
+              · it is currently <strong>{darkNow ? 'dark' : 'light'}</strong> outside
             </>
           )}
           . Times use your device clock, so your own timezone applies.
         </p>
       ) : null}
       <p className="th-note">
-        Manual pick: <button type="button" className="th-btn th-btn-small" onClick={() => setTheme('dark')}>Dark now</button>{' '}
-        <button type="button" className="th-btn th-btn-small" onClick={() => setTheme('light')}>Light now</button>
+        Manual pick:{' '}
+        <button type="button" className="th-btn th-btn-small" onClick={() => setTheme('dark')}>
+          Dark now
+        </button>{' '}
+        <button type="button" className="th-btn th-btn-small" onClick={() => setTheme('light')}>
+          Light now
+        </button>
       </p>
     </div>
   );
@@ -557,10 +683,14 @@ export function ThemeJSONExportImport() {
 
   const applyDraft = () => {
     const res = importJson(draft);
-    setResult(res.ok ? { ok: true, message: `Imported — theme is now ${res.state.theme}.` } : { ok: false, message: res.error });
+    setResult(
+      res.ok
+        ? { ok: true, message: `Imported — theme is now ${res.state.theme}.` }
+        : { ok: false, message: res.error }
+    );
   };
 
-  const onFile = (e) => {
+  const onFile = e => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
     const reader = new FileReader();
@@ -572,26 +702,49 @@ export function ThemeJSONExportImport() {
   return (
     <div className="th-json">
       <div className="th-json-actions">
-        <button type="button" className="th-btn" onClick={download}>Export JSON</button>
-        <button type="button" className="th-btn" onClick={() => fileRef.current && fileRef.current.click()}>
+        <button type="button" className="th-btn" onClick={download}>
+          Export JSON
+        </button>
+        <button
+          type="button"
+          className="th-btn"
+          onClick={() => fileRef.current && fileRef.current.click()}
+        >
           Load file…
         </button>
-        <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFile} hidden aria-label="Load theme JSON file" />
-        <button type="button" className="th-btn th-btn-primary" onClick={applyDraft}>Validate & apply</button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={onFile}
+          hidden
+          aria-label="Load theme JSON file"
+        />
+        <button type="button" className="th-btn th-btn-primary" onClick={applyDraft}>
+          Validate & apply
+        </button>
       </div>
       <textarea
         className="th-json-area"
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={e => setDraft(e.target.value)}
         placeholder='Paste a theme JSON export here, then "Validate & apply".'
         rows={8}
         spellCheck={false}
         aria-label="Theme JSON"
       />
-      {result && <p className={result.ok ? 'th-ok' : 'th-error'}>{result.ok ? result.message || 'Applied.' : result.message}</p>}
+      {result && (
+        <p className={result.ok ? 'th-ok' : 'th-error'}>
+          {result.ok ? result.message || 'Applied.' : result.message}
+        </p>
+      )}
       <details className="th-note">
         <summary>Schema</summary>
-        <code>{'{ version: 1, theme, accent, osFollow, sunsetAuto, sunsetLat, sunsetLng, printTheme, oledBlack, pageThemes }'}</code>
+        <code>
+          {
+            '{ version: 1, theme, accent, osFollow, sunsetAuto, sunsetLat, sunsetLng, printTheme, oledBlack, pageThemes }'
+          }
+        </code>
       </details>
     </div>
   );
@@ -604,13 +757,37 @@ export function ThemeJSONExportImport() {
 export function ThemedLogo({ size = 40 }) {
   return (
     <div className="th-logo-row" aria-label="Logo variants per theme">
-      {THEME_IDS.map((id) => {
+      {THEME_IDS.map(id => {
         const t = THEMES[id];
         return (
           <div key={id} className="th-logo-cell" data-theme={id} title={`${t.label} variant`}>
-            <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label={`Dark Matter logo, ${t.label} variant`}>
-              <rect x="2" y="2" width="44" height="44" rx="11" fill={t.surface.raised} stroke={t.surface.border} strokeWidth="2" />
-              <text x="24" y="33" fontSize="24" textAnchor="middle" fill={t.accent} fontFamily="Georgia,serif">∞</text>
+            <svg
+              width={size}
+              height={size}
+              viewBox="0 0 48 48"
+              role="img"
+              aria-label={`Dark Matter logo, ${t.label} variant`}
+            >
+              <rect
+                x="2"
+                y="2"
+                width="44"
+                height="44"
+                rx="11"
+                fill={t.surface.raised}
+                stroke={t.surface.border}
+                strokeWidth="2"
+              />
+              <text
+                x="24"
+                y="33"
+                fontSize="24"
+                textAnchor="middle"
+                fill={t.accent}
+                fontFamily="Georgia,serif"
+              >
+                ∞
+              </text>
             </svg>
             <span>{t.label}</span>
           </div>
@@ -639,9 +816,11 @@ export function PerPageThemeMemory() {
       <div className="th-page-row">
         <label>
           Page
-          <select value={page} onChange={(e) => setPage(e.target.value)} aria-label="Page">
-            {DEMO_PAGES.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
+          <select value={page} onChange={e => setPage(e.target.value)} aria-label="Page">
+            {DEMO_PAGES.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
             ))}
           </select>
         </label>
@@ -649,19 +828,21 @@ export function PerPageThemeMemory() {
           Theme override
           <select
             value={pageThemes[page] || ''}
-            onChange={(e) => setPageTheme(page, e.target.value || null)}
+            onChange={e => setPageTheme(page, e.target.value || null)}
             aria-label="Theme override"
           >
             <option value="">Follow global ({theme})</option>
-            {THEME_IDS.map((id) => (
-              <option key={id} value={id}>{THEMES[id].label}</option>
+            {THEME_IDS.map(id => (
+              <option key={id} value={id}>
+                {THEMES[id].label}
+              </option>
             ))}
           </select>
         </label>
       </div>
       <p className="th-note">
-        Global theme is <strong>{theme}</strong>. The report preview below keeps its own memory — set it to
-        Light and the rest of the app can stay Dark.
+        Global theme is <strong>{theme}</strong>. The report preview below keeps its own memory —
+        set it to Light and the rest of the app can stay Dark.
       </p>
       <div className="th-report-demo" data-theme={reportTheme}>
         <div className="th-report-head">
@@ -672,8 +853,24 @@ export function PerPageThemeMemory() {
           <div className="th-preview-line" />
           <div className="th-preview-line th-short" />
           <div className="th-preview-chips">
-            <span className="th-preview-chip" style={{ borderColor: severityForTheme(reportTheme).critical, color: severityForTheme(reportTheme).critical }}>critical</span>
-            <span className="th-preview-chip" style={{ borderColor: severityForTheme(reportTheme).low, color: severityForTheme(reportTheme).low }}>low</span>
+            <span
+              className="th-preview-chip"
+              style={{
+                borderColor: severityForTheme(reportTheme).critical,
+                color: severityForTheme(reportTheme).critical,
+              }}
+            >
+              critical
+            </span>
+            <span
+              className="th-preview-chip"
+              style={{
+                borderColor: severityForTheme(reportTheme).low,
+                color: severityForTheme(reportTheme).low,
+              }}
+            >
+              low
+            </span>
           </div>
         </div>
       </div>
@@ -690,8 +887,8 @@ export function DimThemeToggle() {
   return (
     <div className="th-dim">
       <p className="th-note">
-        <strong>Dim</strong> is the intermediate theme between Dark and Light — softer than full dark,
-        easier than light at night.
+        <strong>Dim</strong> is the intermediate theme between Dark and Light — softer than full
+        dark, easier than light at night.
       </p>
       <div className="th-dim-row">
         <button
@@ -703,12 +900,16 @@ export function DimThemeToggle() {
           Use Dim theme
         </button>
         <label className="th-switch" title="Flatten the dark theme to pure black for OLED screens">
-          <input type="checkbox" checked={oledBlack} onChange={(e) => setOledBlack(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={oledBlack}
+            onChange={e => setOledBlack(e.target.checked)}
+          />
           <span>OLED true black (applies to Dark)</span>
         </label>
       </div>
       <div className="th-dim-compare" aria-label="Dark, dim and light compared">
-        {['dark', 'dim', 'light'].map((id) => (
+        {['dark', 'dim', 'light'].map(id => (
           <div key={id} className="th-dim-cell" data-theme={id}>
             <span className="th-dim-swatch" />
             <span>{THEMES[id].label}</span>
@@ -733,14 +934,19 @@ export function ThemeCycleHint() {
           {THEME_ORDER.map((id, i) => (
             <React.Fragment key={id}>
               {i > 0 && <span aria-hidden="true"> → </span>}
-              <span className="th-cycle-chip" data-theme={id}>{THEMES[id].label}</span>
+              <span className="th-cycle-chip" data-theme={id}>
+                {THEMES[id].label}
+              </span>
             </React.Fragment>
           ))}
         </span>
-        <button type="button" className="th-btn th-btn-small" onClick={cycle}>Cycle now</button>
+        <button type="button" className="th-btn th-btn-small" onClick={cycle}>
+          Cycle now
+        </button>
       </p>
       <p className="th-note th-faint">
-        The keyboard binding itself is owned by wave 12 (ShortcutsManager) — this hint never registers a second one.
+        The keyboard binding itself is owned by wave 12 (ShortcutsManager) — this hint never
+        registers a second one.
       </p>
     </div>
   );
@@ -768,10 +974,34 @@ export function ThemedSkeleton({ lines = 3 }) {
 /* ------------------------------------------------------------------ */
 
 const SAMPLE_TOKENS = [
-  [{ t: 'keyword', s: 'function' }, { t: 'text', s: ' ' }, { t: 'func', s: 'scanTarget' }, { t: 'text', s: '(' }, { t: 'text', s: 'url' }, { t: 'text', s: ') {' }],
-  [{ t: 'text', s: '  ' }, { t: 'keyword', s: 'const' }, { t: 'text', s: ' findings = ' }, { t: 'keyword', s: 'await' }, { t: 'text', s: ' hunt(' }, { t: 'string', s: "'https://target.test'" }, { t: 'text', s: ');' }],
-  [{ t: 'text', s: '  ' }, { t: 'comment', s: '// severity is remapped per theme' }],
-  [{ t: 'text', s: '  ' }, { t: 'keyword', s: 'return' }, { t: 'text', s: ' findings.filter(f => f.score >= ' }, { t: 'number', s: '7.0' }, { t: 'text', s: ');' }],
+  [
+    { t: 'keyword', s: 'function' },
+    { t: 'text', s: ' ' },
+    { t: 'func', s: 'scanTarget' },
+    { t: 'text', s: '(' },
+    { t: 'text', s: 'url' },
+    { t: 'text', s: ') {' },
+  ],
+  [
+    { t: 'text', s: '  ' },
+    { t: 'keyword', s: 'const' },
+    { t: 'text', s: ' findings = ' },
+    { t: 'keyword', s: 'await' },
+    { t: 'text', s: ' hunt(' },
+    { t: 'string', s: "'https://target.test'" },
+    { t: 'text', s: ');' },
+  ],
+  [
+    { t: 'text', s: '  ' },
+    { t: 'comment', s: '// severity is remapped per theme' },
+  ],
+  [
+    { t: 'text', s: '  ' },
+    { t: 'keyword', s: 'return' },
+    { t: 'text', s: ' findings.filter(f => f.score >= ' },
+    { t: 'number', s: '7.0' },
+    { t: 'text', s: ');' },
+  ],
   [{ t: 'text', s: '}' }],
 ];
 
@@ -779,7 +1009,11 @@ export function ThemedCodeBlock() {
   const { theme } = useTheme();
   const syn = syntaxColorsForTheme(theme);
   return (
-    <div className="th-codeblock" role="figure" aria-label="Code block with per-theme syntax colors">
+    <div
+      className="th-codeblock"
+      role="figure"
+      aria-label="Code block with per-theme syntax colors"
+    >
       <div className="th-codeblock-head">
         <span>scan.js</span>
         <span className="th-codeblock-theme">{THEMES[theme].label} syntax</span>
@@ -788,9 +1022,13 @@ export function ThemedCodeBlock() {
         <code>
           {SAMPLE_TOKENS.map((line, i) => (
             <span key={i} className="th-code-line">
-              <span className="th-lineno" style={{ color: syn.lineNumber }} aria-hidden="true">{i + 1}</span>
+              <span className="th-lineno" style={{ color: syn.lineNumber }} aria-hidden="true">
+                {i + 1}
+              </span>
               {line.map((tok, j) => (
-                <span key={j} style={{ color: syn[tok.t] || syn.text }}>{tok.s}</span>
+                <span key={j} style={{ color: syn[tok.t] || syn.text }}>
+                  {tok.s}
+                </span>
               ))}
               {'\n'}
             </span>
@@ -815,7 +1053,7 @@ const CHART_DATA = [
 export function ThemedChart() {
   const { theme } = useTheme();
   const palette = chartPaletteForTheme(theme);
-  const max = Math.max(...CHART_DATA.map((d) => d.value));
+  const max = Math.max(...CHART_DATA.map(d => d.value));
   return (
     <div className="th-chart" role="img" aria-label="Hunt phase coverage bar chart">
       {CHART_DATA.map((d, i) => (
@@ -824,7 +1062,10 @@ export function ThemedChart() {
           <div className="th-chart-track">
             <div
               className="th-chart-bar"
-              style={{ width: `${(d.value / max) * 100}%`, background: palette[i % palette.length] }}
+              style={{
+                width: `${(d.value / max) * 100}%`,
+                background: palette[i % palette.length],
+              }}
             />
           </div>
           <span className="th-chart-value">{d.value}</span>
@@ -861,13 +1102,21 @@ export function ThemedEmailPreview() {
       <div className="th-email-row">
         <label>
           Recipient theme
-          <select value={themeId} onChange={(e) => setThemeId(e.target.value)} aria-label="Recipient theme">
-            {THEME_IDS.map((id) => (
-              <option key={id} value={id}>{THEMES[id].label}</option>
+          <select
+            value={themeId}
+            onChange={e => setThemeId(e.target.value)}
+            aria-label="Recipient theme"
+          >
+            {THEME_IDS.map(id => (
+              <option key={id} value={id}>
+                {THEMES[id].label}
+              </option>
             ))}
           </select>
         </label>
-        <span className="th-note">Generated by <code>themedEmailHtml()</code> — inline styles only, email-client safe.</span>
+        <span className="th-note">
+          Generated by <code>themedEmailHtml()</code> — inline styles only, email-client safe.
+        </span>
       </div>
       <iframe title="Themed email preview" srcDoc={html} className="th-email-frame" sandbox="" />
     </div>
@@ -896,52 +1145,88 @@ export function ThemeSuiteGallery() {
         <div className="th-gallery-head">
           <h2>Theming suite (50660–50680)</h2>
           <p className="th-note">
-            Four first-class themes with full palettes. Everything below recolors live — pick a theme
-            above and watch the whole page follow. Present only as Infinity AI.
+            Four first-class themes with full palettes. Everything below recolors live — pick a
+            theme above and watch the whole page follow. Present only as Infinity AI.
           </p>
         </div>
-        <Demo id="50660/50666" title="Three core themes + high contrast"><ThemePicker /></Demo>
-        <Demo id="50661" title="OS preference + manual override">
-          <p className="th-note">The “System” card follows <code>prefers-color-scheme</code>; any manual pick persists and wins.</p>
+        <Demo id="50660/50666" title="Three core themes + high contrast">
+          <ThemePicker />
         </Demo>
-        <Demo id="50675" title="Accent-color picker"><AccentPicker /></Demo>
+        <Demo id="50661" title="OS preference + manual override">
+          <p className="th-note">
+            The “System” card follows <code>prefers-color-scheme</code>; any manual pick persists
+            and wins.
+          </p>
+        </Demo>
+        <Demo id="50675" title="Accent-color picker">
+          <AccentPicker />
+        </Demo>
         <Demo id="50665" title="Theme preview thumbnails">
           <div className="th-preview-grid">
-            {THEME_IDS.map((id) => (
+            {THEME_IDS.map(id => (
               <ThemePreviewThumbnail key={id} themeId={id} />
             ))}
           </div>
         </Demo>
-        <Demo id="50664" title="Per-theme severity mapping + contrast readout"><ContrastReadout /></Demo>
-        <Demo id="50667" title="Dim intermediate theme"><DimThemeToggle /></Demo>
-        <Demo id="50668/50678" title="Matched syntax themes + 4.5:1 line numbers"><ThemedCodeBlock /></Demo>
-        <Demo id="50669" title="Theme-aware chart palette"><ThemedChart /></Demo>
-        <Demo id="50679" title="Themed skeleton shimmer"><ThemedSkeleton lines={4} /></Demo>
-        <Demo id="50676" title="Themed logo variants"><ThemedLogo /></Demo>
-        <Demo id="50662" title="Sunset auto-switch"><SunsetScheduler /></Demo>
-        <Demo id="50663" title="Per-page theme memory"><PerPageThemeMemory /></Demo>
-        <Demo id="50673" title="Themed email templates"><ThemedEmailPreview /></Demo>
+        <Demo id="50664" title="Per-theme severity mapping + contrast readout">
+          <ContrastReadout />
+        </Demo>
+        <Demo id="50667" title="Dim intermediate theme">
+          <DimThemeToggle />
+        </Demo>
+        <Demo id="50668/50678" title="Matched syntax themes + 4.5:1 line numbers">
+          <ThemedCodeBlock />
+        </Demo>
+        <Demo id="50669" title="Theme-aware chart palette">
+          <ThemedChart />
+        </Demo>
+        <Demo id="50679" title="Themed skeleton shimmer">
+          <ThemedSkeleton lines={4} />
+        </Demo>
+        <Demo id="50676" title="Themed logo variants">
+          <ThemedLogo />
+        </Demo>
+        <Demo id="50662" title="Sunset auto-switch">
+          <SunsetScheduler />
+        </Demo>
+        <Demo id="50663" title="Per-page theme memory">
+          <PerPageThemeMemory />
+        </Demo>
+        <Demo id="50673" title="Themed email templates">
+          <ThemedEmailPreview />
+        </Demo>
         <Demo id="50670/50680" title="Flash-free cross-fade + adaptive focus ring">
           <p className="th-note">
-            Switching themes cross-fades over 250ms (disabled under <code>prefers-reduced-motion</code>).
-            Focus ring: <span className="th-focus-word">cyan on dark</span>, deep blue on light, yellow on high-contrast —
-            tab to the button to see it. <button type="button" className="th-btn">Focusable</button>
+            Switching themes cross-fades over 250ms (disabled under{' '}
+            <code>prefers-reduced-motion</code>). Focus ring:{' '}
+            <span className="th-focus-word">cyan on dark</span>, deep blue on light, yellow on
+            high-contrast — tab to the button to see it.{' '}
+            <button type="button" className="th-btn">
+              Focusable
+            </button>
           </p>
         </Demo>
         <Demo id="50671" title="Themed favicon + theme-color meta">
-          <p className="th-note">Watch the browser tab: the favicon and <code>theme-color</code> meta update with each theme.</p>
+          <p className="th-note">
+            Watch the browser tab: the favicon and <code>theme-color</code> meta update with each
+            theme.
+          </p>
         </Demo>
         <Demo id="50672" title="Light print default">
           <PrintThemeSetting />
         </Demo>
         <Demo id="50674/50677" title="High-contrast forced styles">
           <p className="th-note">
-            Pick <strong>High contrast</strong> above: links underline, cards get 2px borders, transparency
-            drops to zero, focus rings go thick yellow.
+            Pick <strong>High contrast</strong> above: links underline, cards get 2px borders,
+            transparency drops to zero, focus rings go thick yellow.
           </p>
         </Demo>
-        <Demo id="cycle" title="Theme cycle hint"><ThemeCycleHint /></Demo>
-        <Demo id="export" title="Theme JSON export / import"><ThemeJSONExportImport /></Demo>
+        <Demo id="cycle" title="Theme cycle hint">
+          <ThemeCycleHint />
+        </Demo>
+        <Demo id="export" title="Theme JSON export / import">
+          <ThemeJSONExportImport />
+        </Demo>
       </div>
     </ThemeProvider>
   );
@@ -954,9 +1239,12 @@ function PrintThemeSetting() {
       <input
         type="checkbox"
         checked={printTheme === 'light'}
-        onChange={(e) => setPrintTheme(e.target.checked ? 'light' : 'follow')}
+        onChange={e => setPrintTheme(e.target.checked ? 'light' : 'follow')}
       />
-      <span>Print always uses the light palette {printTheme === 'light' ? '(on)' : '(following screen theme)'}</span>
+      <span>
+        Print always uses the light palette{' '}
+        {printTheme === 'light' ? '(on)' : '(following screen theme)'}
+      </span>
     </label>
   );
 }

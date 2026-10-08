@@ -15,12 +15,36 @@
  * @type {Array<{implementation:string, profile:{extensions:string, trailers:string, chunkSize:string}, confidence:number}>}
  */
 export const CHUNKED_PROFILES = [
-  { implementation: 'nginx', profile: { extensions: 'ignored', trailers: 'stripped', chunkSize: 'strict' }, confidence: 0.75 },
-  { implementation: 'Apache httpd', profile: { extensions: 'accepted', trailers: 'forwarded', chunkSize: 'lenient' }, confidence: 0.75 },
-  { implementation: 'HAProxy', profile: { extensions: 'rejected', trailers: 'stripped', chunkSize: 'strict' }, confidence: 0.8 },
-  { implementation: 'Envoy', profile: { extensions: 'ignored', trailers: 'forwarded', chunkSize: 'strict' }, confidence: 0.8 },
-  { implementation: 'IIS', profile: { extensions: 'ignored', trailers: 'stripped', chunkSize: 'lenient' }, confidence: 0.7 },
-  { implementation: 'Node.js', profile: { extensions: 'accepted', trailers: 'forwarded', chunkSize: 'lenient' }, confidence: 0.7 },
+  {
+    implementation: 'nginx',
+    profile: { extensions: 'ignored', trailers: 'stripped', chunkSize: 'strict' },
+    confidence: 0.75,
+  },
+  {
+    implementation: 'Apache httpd',
+    profile: { extensions: 'accepted', trailers: 'forwarded', chunkSize: 'lenient' },
+    confidence: 0.75,
+  },
+  {
+    implementation: 'HAProxy',
+    profile: { extensions: 'rejected', trailers: 'stripped', chunkSize: 'strict' },
+    confidence: 0.8,
+  },
+  {
+    implementation: 'Envoy',
+    profile: { extensions: 'ignored', trailers: 'forwarded', chunkSize: 'strict' },
+    confidence: 0.8,
+  },
+  {
+    implementation: 'IIS',
+    profile: { extensions: 'ignored', trailers: 'stripped', chunkSize: 'lenient' },
+    confidence: 0.7,
+  },
+  {
+    implementation: 'Node.js',
+    profile: { extensions: 'accepted', trailers: 'forwarded', chunkSize: 'lenient' },
+    confidence: 0.7,
+  },
 ];
 
 /**
@@ -40,8 +64,10 @@ export function normalizeChunkedProfile(obs) {
     trailers: o.trailerHandling || 'unknown',
     chunkSize: o.chunkSizeParsing || 'unknown',
   };
-  if (o.zeroChunkFraming === 'extra-data') notes.push('server accepted data after the zero-length chunk');
-  if (o.zeroChunkFraming === 'rejected') notes.push('server rejected framing anomalies after zero chunk');
+  if (o.zeroChunkFraming === 'extra-data')
+    notes.push('server accepted data after the zero-length chunk');
+  if (o.zeroChunkFraming === 'rejected')
+    notes.push('server rejected framing anomalies after zero chunk');
   if (o.oversizedChunkStatus === 413) notes.push('server enforces chunk-size limit with 413');
   if (o.oversizedChunkStatus === 400) notes.push('server rejects oversized chunks with 400');
   return { ...profile, notes };
@@ -81,9 +107,11 @@ export function flagChunkedRisks(profile) {
     findings.push('lenient chunk-size parsing with ignored extensions — desync-prone combination');
   }
   if (profile.trailers === 'forwarded' && profile.chunkSize !== 'strict') {
-    findings.push('trailers forwarded with non-strict size parsing — inconsistent framing enforcement');
+    findings.push(
+      'trailers forwarded with non-strict size parsing — inconsistent framing enforcement'
+    );
   }
-  if (profile.notes.some((n) => n.includes('after the zero-length chunk'))) {
+  if (profile.notes.some(n => n.includes('after the zero-length chunk'))) {
     findings.push('data accepted after zero chunk — post-termination parsing ambiguity');
   }
   return { risky: findings.length > 0, findings };

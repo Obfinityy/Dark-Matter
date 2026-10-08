@@ -38,15 +38,27 @@ export const WAVE49_VOICE2_IDEAS = [
 ];
 
 // 51921 — Voice command permissions: destructive commands need an enrolled voice.
-const DESTRUCTIVE_COMMANDS = ['stop hunt', 'delete hunt', 'delete findings', 'purge data', 'terminate agent'];
+const DESTRUCTIVE_COMMANDS = [
+  'stop hunt',
+  'delete hunt',
+  'delete findings',
+  'purge data',
+  'terminate agent',
+];
 export function checkVoicePermission(command, speaker) {
-  const normalized = String(command || '').trim().toLowerCase();
-  const isDestructive = DESTRUCTIVE_COMMANDS.some((d) => normalized.includes(d));
+  const normalized = String(command || '')
+    .trim()
+    .toLowerCase();
+  const isDestructive = DESTRUCTIVE_COMMANDS.some(d => normalized.includes(d));
   if (!isDestructive) return { allowed: true, reason: 'non-destructive command' };
   const enrolled = Boolean(speaker && speaker.enrolled);
   return enrolled
     ? { allowed: true, reason: 'enrolled voice verified', requiresConfirm: true }
-    : { allowed: false, reason: 'destructive command requires an enrolled voice', requiresConfirm: false };
+    : {
+        allowed: false,
+        reason: 'destructive command requires an enrolled voice',
+        requiresConfirm: false,
+      };
 }
 
 // 51922 — Voice audit trail: every voice command appended to an immutable-style hunt log.
@@ -67,16 +79,27 @@ export function selectNoiseProfile(ambientDb) {
   const db = Number(ambientDb);
   if (!Number.isFinite(db)) return { profile: 'auto', gainDb: 0, note: 'unknown environment' };
   if (db < 45) return { profile: 'quiet-room', gainDb: 0, note: 'low noise, full vocabulary' };
-  if (db < 65) return { profile: 'office', gainDb: 6, note: 'noise suppression on, office vocabulary' };
-  if (db < 80) return { profile: 'commute', gainDb: 12, note: 'aggressive suppression, short commands only' };
+  if (db < 65)
+    return { profile: 'office', gainDb: 6, note: 'noise suppression on, office vocabulary' };
+  if (db < 80)
+    return { profile: 'commute', gainDb: 12, note: 'aggressive suppression, short commands only' };
   return { profile: 'construction', gainDb: 18, note: 'max suppression, confirm every command' };
 }
 
 // 51924 — Offline mode: on-device recognition for core commands only.
-const OFFLINE_CORE_COMMANDS = ['pause hunt', 'resume hunt', 'hunt status', 'stop hunt', 'take snapshot', 'pause for ten minutes'];
+const OFFLINE_CORE_COMMANDS = [
+  'pause hunt',
+  'resume hunt',
+  'hunt status',
+  'stop hunt',
+  'take snapshot',
+  'pause for ten minutes',
+];
 export function offlineRecognize(transcript) {
-  const normalized = String(transcript || '').trim().toLowerCase();
-  const match = OFFLINE_CORE_COMMANDS.find((c) => normalized.includes(c));
+  const normalized = String(transcript || '')
+    .trim()
+    .toLowerCase();
+  const match = OFFLINE_CORE_COMMANDS.find(c => normalized.includes(c));
   return match
     ? { recognized: true, command: match, mode: 'on-device', needsNetwork: false }
     : { recognized: false, command: null, mode: 'on-device', needsNetwork: true };
@@ -87,14 +110,30 @@ export function parseChainedCommand(transcript) {
   const parts = String(transcript || '')
     .toLowerCase()
     .split(/\s+(?:and then|then|and)\s+/)
-    .map((p) => p.trim())
+    .map(p => p.trim())
     .filter(Boolean);
   return parts.map((step, i) => ({ order: i + 1, step }));
 }
 
 // 51926 — Voice timers: "pause for ten minutes, then resume" → structured timer.
-const WORD_NUMBERS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60 };
+const WORD_NUMBERS = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  fifteen: 15,
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+};
 export function parseVoiceTimer(transcript) {
   const text = String(transcript || '').toLowerCase();
   const wordMatch = text.match(new RegExp(`\\b(${Object.keys(WORD_NUMBERS).join('|')})\\b`));
@@ -135,14 +174,20 @@ export function buildAccessibilityCommandMap() {
 // 51929 — Command discovery: suggest commands from usage habits.
 export function suggestCommands(usageHistory, limit = 3) {
   const counts = {};
-  (Array.isArray(usageHistory) ? usageHistory : []).forEach((c) => {
+  (Array.isArray(usageHistory) ? usageHistory : []).forEach(c => {
     counts[c] = (counts[c] || 0) + 1;
   });
-  const related = { 'pause hunt': ['resume hunt', 'hunt status'], 'take snapshot': ['export findings', 'hunt status'],
-    'hunt status': ['pause hunt', 'take snapshot'], 'resume hunt': ['pause hunt', 'hunt status'] };
+  const related = {
+    'pause hunt': ['resume hunt', 'hunt status'],
+    'take snapshot': ['export findings', 'hunt status'],
+    'hunt status': ['pause hunt', 'take snapshot'],
+    'resume hunt': ['pause hunt', 'hunt status'],
+  };
   const scored = {};
-  Object.keys(counts).forEach((cmd) => {
-    (related[cmd] || []).forEach((s) => { scored[s] = (scored[s] || 0) + counts[cmd]; });
+  Object.keys(counts).forEach(cmd => {
+    (related[cmd] || []).forEach(s => {
+      scored[s] = (scored[s] || 0) + counts[cmd];
+    });
   });
   return Object.entries(scored)
     .filter(([s]) => !counts[s])
@@ -153,19 +198,27 @@ export function suggestCommands(usageHistory, limit = 3) {
 
 // 51930 — Feedback collection: "was that command right?" tallies yes/no corrections.
 export function recordVoiceFeedback(feedbackLog, command, wasRight) {
-  const entry = { ts: new Date().toISOString(), command: String(command || ''), wasRight: Boolean(wasRight) };
+  const entry = {
+    ts: new Date().toISOString(),
+    command: String(command || ''),
+    wasRight: Boolean(wasRight),
+  };
   const log = [...(Array.isArray(feedbackLog) ? feedbackLog : []), entry];
-  const relevant = log.filter((f) => f.command === entry.command);
-  const accuracy = relevant.length ? relevant.filter((f) => f.wasRight).length / relevant.length : 1;
+  const relevant = log.filter(f => f.command === entry.command);
+  const accuracy = relevant.length ? relevant.filter(f => f.wasRight).length / relevant.length : 1;
   return { log, accuracy: Math.round(accuracy * 100) / 100 };
 }
 
 // 51931 — Emergency stop phrase: exact kill phrase halts everything.
 const KILL_PHRASES = ['stop everything now', 'kill the hunt', 'emergency stop'];
 export function matchEmergencyStop(transcript) {
-  const normalized = String(transcript || '').trim().toLowerCase();
-  const hit = KILL_PHRASES.find((k) => normalized.includes(k));
-  return hit ? { triggered: true, phrase: hit, halt: ['recognition', 'hunt', 'timers'] } : { triggered: false };
+  const normalized = String(transcript || '')
+    .trim()
+    .toLowerCase();
+  const hit = KILL_PHRASES.find(k => normalized.includes(k));
+  return hit
+    ? { triggered: true, phrase: hit, halt: ['recognition', 'hunt', 'timers'] }
+    : { triggered: false };
 }
 
 // 51932 — Whisper mode: low-energy speech boosts gain and shrinks vocabulary.
@@ -197,20 +250,32 @@ export function buildSmartSpeakerIntents() {
 
 // 51935 — Car mode: driver-safe minimal interface.
 export function buildCarModeCommands() {
-  return ['hunt status', 'pause the hunt', 'resume the hunt', 'read new findings', 'stop everything now'];
+  return [
+    'hunt status',
+    'pause the hunt',
+    'resume the hunt',
+    'read new findings',
+    'stop everything now',
+  ];
 }
 
 // 51936 — Meeting mode: discreet status updates (vibration-length coded, text only).
 export function buildMeetingModeUpdate(hunt) {
   const h = hunt || {};
   const line = `${h.name || 'Hunt'}: ${h.status || 'running'}, ${h.findingsCount || 0} findings, ETA ${h.eta || '—'}.`;
-  return { discreetText: line, readAloud: false, vibration: h.status === 'paused' ? 'long' : 'short' };
+  return {
+    discreetText: line,
+    readAloud: false,
+    vibration: h.status === 'paused' ? 'long' : 'short',
+  };
 }
 
 // 51937 — Command analytics: usage ranking from a command log.
 export function rankVoiceCommands(commandLog) {
   const counts = {};
-  (Array.isArray(commandLog) ? commandLog : []).forEach((c) => { counts[c] = (counts[c] || 0) + 1; });
+  (Array.isArray(commandLog) ? commandLog : []).forEach(c => {
+    counts[c] = (counts[c] || 0) + 1;
+  });
   return Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
     .map(([command, count]) => ({ command, count }));
@@ -218,7 +283,9 @@ export function rankVoiceCommands(commandLog) {
 
 // 51938 — Latency display: recognition + execution delay breakdown.
 export function computeVoiceLatency(recognizedAt, startedAt, executedAt) {
-  const r = Number(recognizedAt); const s = Number(startedAt); const e = Number(executedAt);
+  const r = Number(recognizedAt);
+  const s = Number(startedAt);
+  const e = Number(executedAt);
   const recognitionMs = Number.isFinite(r) && Number.isFinite(s) ? Math.max(0, s - r) : 0;
   const executionMs = Number.isFinite(s) && Number.isFinite(e) ? Math.max(0, e - s) : 0;
   return { recognitionMs, executionMs, totalMs: recognitionMs + executionMs };
@@ -227,22 +294,52 @@ export function computeVoiceLatency(recognizedAt, startedAt, executedAt) {
 // 51939 — Text fallback: every voice command ships a typed equivalent.
 export function voiceToTextFallback(transcript) {
   const text = String(transcript || '').trim();
-  return { typed: text, usable: text.length > 0, hint: text.length ? 'press Enter to run' : 'type a command first' };
+  return {
+    typed: text,
+    usable: text.length > 0,
+    hint: text.length ? 'press Enter to run' : 'type a command first',
+  };
 }
 
 // 51940 — Bilingual commands: normalize Hindi/English mixed input.
-const HINDI_COMMAND_WORDS = { roko: 'pause', ruk: 'pause', shuru: 'start', chalu: 'resume', bund: 'stop',
-  sthiti: 'status', khoj: 'findings', raporṭ: 'report', report: 'report', tasveer: 'snapshot' };
+const HINDI_COMMAND_WORDS = {
+  roko: 'pause',
+  ruk: 'pause',
+  shuru: 'start',
+  chalu: 'resume',
+  bund: 'stop',
+  sthiti: 'status',
+  khoj: 'findings',
+  raporṭ: 'report',
+  report: 'report',
+  tasveer: 'snapshot',
+};
 export function normalizeBilingualCommand(transcript) {
-  const normalized = String(transcript || '').toLowerCase().split(/\s+/).map((w) => HINDI_COMMAND_WORDS[w] || w).join(' ');
-  const detected = /[\u0900-\u097F]/.test(transcript) || Object.keys(HINDI_COMMAND_WORDS).some((w) => String(transcript || '').toLowerCase().includes(w));
+  const normalized = String(transcript || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .map(w => HINDI_COMMAND_WORDS[w] || w)
+    .join(' ');
+  const detected =
+    /[\u0900-\u097F]/.test(transcript) ||
+    Object.keys(HINDI_COMMAND_WORDS).some(w =>
+      String(transcript || '')
+        .toLowerCase()
+        .includes(w)
+    );
   return { normalized: normalized.trim(), language: detected ? 'hindi-english-mix' : 'english' };
 }
 
 // 51941 — Voice finding triage: "mark that as false positive" builds the triage action.
 export function buildTriageAction(transcript, findingId) {
   const text = String(transcript || '').toLowerCase();
-  const verdict = /false positive/.test(text) ? 'false-positive' : /true positive/.test(text) ? 'true-positive' : /duplicate/.test(text) ? 'duplicate' : 'needs-review';
+  const verdict = /false positive/.test(text)
+    ? 'false-positive'
+    : /true positive/.test(text)
+      ? 'true-positive'
+      : /duplicate/.test(text)
+        ? 'duplicate'
+        : 'needs-review';
   return { findingId: findingId || null, verdict, source: 'voice' };
 }
 
@@ -272,7 +369,8 @@ export function buildNarrationScript(reportSections) {
   return sections.map((s, i) => ({
     section: i + 1,
     heading: s && s.heading ? String(s.heading) : `Section ${i + 1}`,
-    spoken: `${s && s.heading ? s.heading : `Section ${i + 1}`}. ${s && s.summary ? s.summary : ''}`.trim(),
+    spoken:
+      `${s && s.heading ? s.heading : `Section ${i + 1}`}. ${s && s.summary ? s.summary : ''}`.trim(),
   }));
 }
 
@@ -280,12 +378,13 @@ export function buildNarrationScript(reportSections) {
 export function answerLogQuestion(logs, question) {
   const q = String(question || '').toLowerCase();
   const entries = Array.isArray(logs) ? logs : [];
-  const errors = entries.filter((e) => /error|fail|exception/i.test(String(e.message || e)));
+  const errors = entries.filter(e => /error|fail|exception/i.test(String(e.message || e)));
   if (/why.*fail|what went wrong|error/.test(q) && errors.length) {
     const last = errors[errors.length - 1];
     return { answer: `The most recent failure: ${last.message || last}.`, sources: errors.length };
   }
-  if (/how many/.test(q)) return { answer: `There are ${entries.length} log entries.`, sources: entries.length };
+  if (/how many/.test(q))
+    return { answer: `There are ${entries.length} log entries.`, sources: entries.length };
   return { answer: 'I could not find an answer in the logs.', sources: 0 };
 }
 
@@ -294,9 +393,10 @@ export function answerConfidenceQuestion(finding) {
   const f = finding || {};
   const c = Number(f.confidence);
   const pct = Number.isFinite(c) ? Math.round(c * 100) : null;
-  const spoken = pct === null
-    ? 'No confidence score is recorded for that finding.'
-    : `Confidence is ${pct} percent${f.basis ? `, based on ${f.basis}` : ''}.`;
+  const spoken =
+    pct === null
+      ? 'No confidence score is recorded for that finding.'
+      : `Confidence is ${pct} percent${f.basis ? `, based on ${f.basis}` : ''}.`;
   return { spoken, confidence: pct };
 }
 
@@ -304,8 +404,12 @@ export function answerConfidenceQuestion(finding) {
 export function answerResourceQuery(usage, question) {
   const u = usage || {};
   const q = String(question || '').toLowerCase();
-  if (/spend|cost|budget/.test(q)) return { spoken: `Spend so far: $${Number(u.spend || 0).toFixed(2)} of a $${Number(u.budget || 0).toFixed(2)} budget.` };
-  if (/time|how long/.test(q)) return { spoken: `Elapsed run time: ${u.elapsedMinutes || 0} minutes.` };
+  if (/spend|cost|budget/.test(q))
+    return {
+      spoken: `Spend so far: $${Number(u.spend || 0).toFixed(2)} of a $${Number(u.budget || 0).toFixed(2)} budget.`,
+    };
+  if (/time|how long/.test(q))
+    return { spoken: `Elapsed run time: ${u.elapsedMinutes || 0} minutes.` };
   if (/request|api/.test(q)) return { spoken: `${u.apiCalls || 0} API calls made.` };
   return { spoken: 'Resource summary is not available for that question.' };
 }
@@ -313,9 +417,17 @@ export function answerResourceQuery(usage, question) {
 // 51948 — Team coordination: voice messages attached to hunt events.
 export function attachVoiceMessage(events, eventId, message) {
   const list = Array.isArray(events) ? events : [];
-  const attached = list.map((e) => (e && e.id === eventId
-    ? { ...e, voiceMessages: [...(e.voiceMessages || []), { ts: new Date().toISOString(), message: String(message || '') }] }
-    : e));
+  const attached = list.map(e =>
+    e && e.id === eventId
+      ? {
+          ...e,
+          voiceMessages: [
+            ...(e.voiceMessages || []),
+            { ts: new Date().toISOString(), message: String(message || '') },
+          ],
+        }
+      : e
+  );
   return { events: attached, attachedTo: eventId };
 }
 
@@ -333,6 +445,10 @@ export function sandboxCommand(command) {
 const SENSITIVE_HINTS = ['token', 'secret', 'password', 'api key', 'credential'];
 export function routePrivacyOutput(text) {
   const t = String(text || '');
-  const sensitive = SENSITIVE_HINTS.some((h) => t.toLowerCase().includes(h));
-  return { channel: sensitive ? 'text' : 'speaker', text: t, reason: sensitive ? 'sensitive content detected' : 'safe to read aloud' };
+  const sensitive = SENSITIVE_HINTS.some(h => t.toLowerCase().includes(h));
+  return {
+    channel: sensitive ? 'text' : 'speaker',
+    text: t,
+    reason: sensitive ? 'sensitive content detected' : 'safe to read aloud',
+  };
 }

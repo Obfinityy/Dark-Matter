@@ -24,7 +24,11 @@ export function createPlanLedger() {
     savePlan(plan) {
       counter += 1;
       const version = `v${counter}`;
-      plans.set(version, { version, plan: JSON.parse(JSON.stringify(plan)), createdAt: new Date().toISOString() });
+      plans.set(version, {
+        version,
+        plan: JSON.parse(JSON.stringify(plan)),
+        createdAt: new Date().toISOString(),
+      });
       return version;
     },
     /**
@@ -44,7 +48,11 @@ export function createPlanLedger() {
     listVersions() {
       const counts = {};
       for (const v of hunts.values()) counts[v] = (counts[v] || 0) + 1;
-      return [...plans.values()].map((p) => ({ version: p.version, createdAt: p.createdAt, huntCount: counts[p.version] || 0 }));
+      return [...plans.values()].map(p => ({
+        version: p.version,
+        createdAt: p.createdAt,
+        huntCount: counts[p.version] || 0,
+      }));
     },
     /** @param {string} version @returns {string[]} hunt ids */
     huntsForVersion(version) {

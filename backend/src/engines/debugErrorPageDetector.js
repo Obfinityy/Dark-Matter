@@ -24,7 +24,13 @@ export const DEBUG_SIGNATURES = [
       /<title>.*DisallowedHost.*<\/title>/i,
       /technical_500_response|technical_404_response/i,
     ],
-    leaks: ['settings module path', 'installed apps', 'template context', 'local variables', 'SQL queries'],
+    leaks: [
+      'settings module path',
+      'installed apps',
+      'template context',
+      'local variables',
+      'SQL queries',
+    ],
   },
   {
     framework: 'Laravel',
@@ -47,11 +53,7 @@ export const DEBUG_SIGNATURES = [
   },
   {
     framework: 'Symfony',
-    markers: [
-      /sf-toolbar|symfony.*profiler/i,
-      /_profiler/i,
-      /ExceptionController/i,
-    ],
+    markers: [/sf-toolbar|symfony.*profiler/i, /_profiler/i, /ExceptionController/i],
     leaks: ['profiler token', 'request attributes', 'service container hints'],
   },
   {
@@ -85,14 +87,21 @@ export function detectDebugPage(html) {
   let best = null;
   let bestHits = [];
   for (const sig of DEBUG_SIGNATURES) {
-    const hits = sig.markers.filter((re) => re.test(body)).map((re) => re.source.slice(0, 70));
+    const hits = sig.markers.filter(re => re.test(body)).map(re => re.source.slice(0, 70));
     if (hits.length > bestHits.length) {
       best = sig;
       bestHits = hits;
     }
   }
   if (!best || bestHits.length === 0) {
-    return { isDebug: false, framework: null, confidence: 0, matchedMarkers: [], leakedInternals: [], severity: 'info' };
+    return {
+      isDebug: false,
+      framework: null,
+      confidence: 0,
+      matchedMarkers: [],
+      leakedInternals: [],
+      severity: 'info',
+    };
   }
   const confidence = Math.min(1, 0.45 + bestHits.length * 0.2);
   const interactive = /console is locked|Debugger PIN|eval\(|interactive/i.test(body);
@@ -142,6 +151,8 @@ export function scanErrorPages(pages) {
 export function debugRemediationLine(detection) {
   const d = detection && typeof detection === 'object' ? detection : {};
   const where = d.url ? ` on ${d.url}` : '';
-  return `Debug mode enabled (${d.framework || 'unknown framework'})${where} — severity ${d.severity}; ` +
-    `leaks: ${(d.leakedInternals || []).join(', ') || 'none observed'}. Remediation: disable debug mode in production.`;
+  return (
+    `Debug mode enabled (${d.framework || 'unknown framework'})${where} — severity ${d.severity}; ` +
+    `leaks: ${(d.leakedInternals || []).join(', ') || 'none observed'}. Remediation: disable debug mode in production.`
+  );
 }

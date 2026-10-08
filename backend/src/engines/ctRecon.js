@@ -25,49 +25,169 @@ const MS_PER_DAY = 86400000;
 export const TAKEOVER_QUEUE_SLA_MS = 60000;
 
 const AFFIX_PREFIXES = [
-  'dev', 'test', 'stage', 'staging', 'prod', 'preprod', 'qa', 'uat',
-  'internal', 'corp', 'beta', 'demo', 'new', 'old', 'backup', 'api',
-  'app', 'web', 'mail', 'vpn', 'sso', 'admin', 'sandbox', 'canary',
+  'dev',
+  'test',
+  'stage',
+  'staging',
+  'prod',
+  'preprod',
+  'qa',
+  'uat',
+  'internal',
+  'corp',
+  'beta',
+  'demo',
+  'new',
+  'old',
+  'backup',
+  'api',
+  'app',
+  'web',
+  'mail',
+  'vpn',
+  'sso',
+  'admin',
+  'sandbox',
+  'canary',
 ];
 const AFFIX_SUFFIXES = ['dev', 'test', 'staging', 'prod', 'api', 'app', 'internal', 'backup'];
 
 const COLOR_PALETTE = [
-  'blue', 'green', 'red', 'yellow', 'orange', 'purple', 'black', 'white', 'gray',
+  'blue',
+  'green',
+  'red',
+  'yellow',
+  'orange',
+  'purple',
+  'black',
+  'white',
+  'gray',
 ];
 
 const KEYBOARD_ADJACENCY = {
-  a: ['q', 'w', 's', 'z'], b: ['v', 'g', 'h', 'n'], c: ['x', 'd', 'f', 'v'],
-  d: ['s', 'e', 'r', 'f', 'c', 'x'], e: ['w', 'r', 'd', 's'],
-  f: ['d', 'r', 't', 'g', 'v', 'c'], g: ['f', 't', 'y', 'h', 'b', 'v'],
-  h: ['g', 'y', 'u', 'j', 'n', 'b'], i: ['u', 'o', 'k', 'j'],
-  j: ['h', 'u', 'i', 'k', 'n', 'm'], k: ['j', 'i', 'o', 'l', 'm'],
-  l: ['k', 'o', 'p'], m: ['n', 'j', 'k'], n: ['b', 'h', 'j', 'm'],
-  o: ['i', 'p', 'l', 'k'], p: ['o', 'l'], q: ['w', 'a'],
-  r: ['e', 't', 'f', 'd'], s: ['a', 'w', 'e', 'd', 'x', 'z'],
-  t: ['r', 'y', 'g', 'f'], u: ['y', 'i', 'h', 'j'], v: ['c', 'f', 'g', 'b'],
-  w: ['q', 'e', 'a', 's'], x: ['z', 's', 'd', 'c'], y: ['t', 'u', 'g', 'h'],
+  a: ['q', 'w', 's', 'z'],
+  b: ['v', 'g', 'h', 'n'],
+  c: ['x', 'd', 'f', 'v'],
+  d: ['s', 'e', 'r', 'f', 'c', 'x'],
+  e: ['w', 'r', 'd', 's'],
+  f: ['d', 'r', 't', 'g', 'v', 'c'],
+  g: ['f', 't', 'y', 'h', 'b', 'v'],
+  h: ['g', 'y', 'u', 'j', 'n', 'b'],
+  i: ['u', 'o', 'k', 'j'],
+  j: ['h', 'u', 'i', 'k', 'n', 'm'],
+  k: ['j', 'i', 'o', 'l', 'm'],
+  l: ['k', 'o', 'p'],
+  m: ['n', 'j', 'k'],
+  n: ['b', 'h', 'j', 'm'],
+  o: ['i', 'p', 'l', 'k'],
+  p: ['o', 'l'],
+  q: ['w', 'a'],
+  r: ['e', 't', 'f', 'd'],
+  s: ['a', 'w', 'e', 'd', 'x', 'z'],
+  t: ['r', 'y', 'g', 'f'],
+  u: ['y', 'i', 'h', 'j'],
+  v: ['c', 'f', 'g', 'b'],
+  w: ['q', 'e', 'a', 's'],
+  x: ['z', 's', 'd', 'c'],
+  y: ['t', 'u', 'g', 'h'],
   z: ['a', 's', 'x'],
 };
 
 /** Common homoglyph (look-alike) substitutions used by squatters. */
 const HOMOGLYPHS = {
-  a: ['\u0430'], b: ['\u0185'], c: ['\u0441'], d: ['\u0501'], e: ['\u0435'],
-  g: ['\u0261'], h: ['\u04BB'], i: ['\u0456', '\u0131'], j: ['\u03F3'],
-  k: ['\u03BA'], l: ['\u04CF'], m: ['\u043C'], n: ['\u0578'], o: ['\u043E'],
-  p: ['\u0440'], q: ['\u051B'], r: ['\u0433'], s: ['\u0455'], t: ['\u0442'],
-  u: ['\u057D'], v: ['\u0475'], w: ['\u051D'], x: ['\u0445'], y: ['\u0443'],
-  z: ['\u1D22'], 0: ['\u043E'], 1: ['\u04CF', 'l'], 5: ['\u0455'],
+  a: ['\u0430'],
+  b: ['\u0185'],
+  c: ['\u0441'],
+  d: ['\u0501'],
+  e: ['\u0435'],
+  g: ['\u0261'],
+  h: ['\u04BB'],
+  i: ['\u0456', '\u0131'],
+  j: ['\u03F3'],
+  k: ['\u03BA'],
+  l: ['\u04CF'],
+  m: ['\u043C'],
+  n: ['\u0578'],
+  o: ['\u043E'],
+  p: ['\u0440'],
+  q: ['\u051B'],
+  r: ['\u0433'],
+  s: ['\u0455'],
+  t: ['\u0442'],
+  u: ['\u057D'],
+  v: ['\u0475'],
+  w: ['\u051D'],
+  x: ['\u0445'],
+  y: ['\u0443'],
+  z: ['\u1D22'],
+  0: ['\u043E'],
+  1: ['\u04CF', 'l'],
+  5: ['\u0455'],
 };
 
 const COMMON_PROBE_LABELS = [
-  'www', 'api', 'app', 'admin', 'dev', 'test', 'staging', 'stage', 'prod',
-  'beta', 'demo', 'internal', 'portal', 'dashboard', 'console', 'auth',
-  'login', 'sso', 'vpn', 'mail', 'cdn', 'static', 'assets', 'docs',
-  'support', 'status', 'monitor', 'grafana', 'kibana', 'jenkins', 'git',
-  'jira', 'wiki', 'db', 'cache', 'queue', 'worker', 'cron', 'backup',
-  'legacy', 'old', 'new', 'v1', 'v2', 'mobile', 'm', 'shop', 'pay',
-  'billing', 'webhook', 'hooks', 'events', 'logs', 'metrics', 'tracing',
-  'search', 'cdn2', 'origin', 'edge', 'lb', 'gateway', 'proxy',
+  'www',
+  'api',
+  'app',
+  'admin',
+  'dev',
+  'test',
+  'staging',
+  'stage',
+  'prod',
+  'beta',
+  'demo',
+  'internal',
+  'portal',
+  'dashboard',
+  'console',
+  'auth',
+  'login',
+  'sso',
+  'vpn',
+  'mail',
+  'cdn',
+  'static',
+  'assets',
+  'docs',
+  'support',
+  'status',
+  'monitor',
+  'grafana',
+  'kibana',
+  'jenkins',
+  'git',
+  'jira',
+  'wiki',
+  'db',
+  'cache',
+  'queue',
+  'worker',
+  'cron',
+  'backup',
+  'legacy',
+  'old',
+  'new',
+  'v1',
+  'v2',
+  'mobile',
+  'm',
+  'shop',
+  'pay',
+  'billing',
+  'webhook',
+  'hooks',
+  'events',
+  'logs',
+  'metrics',
+  'tracing',
+  'search',
+  'cdn2',
+  'origin',
+  'edge',
+  'lb',
+  'gateway',
+  'proxy',
 ];
 
 /**
@@ -96,40 +216,21 @@ export function normalizeEntry(raw) {
   const source = leaf && typeof leaf === 'object' ? raw.data || raw : raw;
 
   const id = raw.id ?? raw.cert_index ?? leaf?.serial_number ?? null;
-  const cn =
-    raw.common_name ||
-    leaf?.subject?.CN ||
-    raw.cn ||
-    '';
+  const cn = raw.common_name || leaf?.subject?.CN || raw.cn || '';
   const rawNames =
-    raw.name_value ||
-    leaf?.all_domains ||
-    raw.sans ||
-    raw.domains ||
-    (cn ? [cn] : []);
+    raw.name_value || leaf?.all_domains || raw.sans || raw.domains || (cn ? [cn] : []);
   const sans = [
     ...new Set(
       String(rawNames)
         .split(/[\n,]/)
-        .map((s) => s.trim().toLowerCase().replace(/\.$/, ''))
+        .map(s => s.trim().toLowerCase().replace(/\.$/, ''))
         .filter(Boolean)
     ),
   ];
-  const issuer =
-    raw.issuer_name ||
-    raw.issuer?.name ||
-    leaf?.issuer?.O ||
-    raw.issuer ||
-    '';
-  const notBefore = Date.parse(
-    raw.not_before ?? leaf?.not_before ?? raw.notBefore ?? ''
-  );
-  const notAfter = Date.parse(
-    raw.not_after ?? leaf?.not_after ?? raw.notAfter ?? ''
-  );
-  const loggedAt = Date.parse(
-    raw.entry_timestamp ?? raw.loggedAt ?? raw.seen_at ?? ''
-  );
+  const issuer = raw.issuer_name || raw.issuer?.name || leaf?.issuer?.O || raw.issuer || '';
+  const notBefore = Date.parse(raw.not_before ?? leaf?.not_before ?? raw.notBefore ?? '');
+  const notAfter = Date.parse(raw.not_after ?? leaf?.not_after ?? raw.notAfter ?? '');
+  const loggedAt = Date.parse(raw.entry_timestamp ?? raw.loggedAt ?? raw.seen_at ?? '');
   const isPrecert =
     Boolean(raw.isPrecert) ||
     raw.message_type === 'precertificate_update' ||
@@ -200,7 +301,8 @@ export function buildWatchTerms(brand, options = {}) {
   }
   const maxTyposquats = options.maxTyposquats ?? 120;
   for (const v of typosquatVariants(label)) {
-    if (terms.size >= maxTyposquats + AFFIX_PREFIXES.length * 2 + AFFIX_SUFFIXES.length * 2 + 1) break;
+    if (terms.size >= maxTyposquats + AFFIX_PREFIXES.length * 2 + AFFIX_SUFFIXES.length * 2 + 1)
+      break;
     terms.add(v.variant);
   }
   return [...terms];
@@ -217,7 +319,7 @@ export function matchCertEntry(entry, terms) {
   if (!entry || !Array.isArray(terms) || terms.length === 0) {
     return { entry, matchedNames };
   }
-  const lowerTerms = terms.map((t) => String(t).toLowerCase());
+  const lowerTerms = terms.map(t => String(t).toLowerCase());
   const names = new Set([...(entry.sans || []), entry.cn].filter(Boolean));
   for (const name of names) {
     const bare = name.startsWith('*.') ? name.slice(2) : name;
@@ -242,7 +344,7 @@ export function enqueueWatchHit(queue, hit) {
   const q = Array.isArray(queue) ? [...queue] : [];
   const host = String(hit?.host || '').toLowerCase();
   if (!host) return q;
-  const existing = q.find((h) => h.host === host);
+  const existing = q.find(h => h.host === host);
   if (existing) {
     existing.seenAt = Math.min(existing.seenAt, hit.seenAt || Date.now());
     return q;
@@ -264,7 +366,7 @@ export function enqueueWatchHit(queue, hit) {
  */
 export function markWatchHitChecked(queue, host) {
   const q = Array.isArray(queue) ? [...queue] : [];
-  const item = q.find((h) => h.host === String(host).toLowerCase());
+  const item = q.find(h => h.host === String(host).toLowerCase());
   if (item) item.checked = true;
   return q;
 }
@@ -278,7 +380,7 @@ export function markWatchHitChecked(queue, host) {
  */
 export function dueWatchHits(queue, nowMs = Date.now(), slaMs = TAKEOVER_QUEUE_SLA_MS) {
   if (!Array.isArray(queue)) return [];
-  return queue.filter((h) => !h.checked && nowMs - h.seenAt <= slaMs);
+  return queue.filter(h => !h.checked && nowMs - h.seenAt <= slaMs);
 }
 
 /**
@@ -290,7 +392,7 @@ export function dueWatchHits(queue, nowMs = Date.now(), slaMs = TAKEOVER_QUEUE_S
  */
 export function slaBreachedHits(queue, nowMs = Date.now(), slaMs = TAKEOVER_QUEUE_SLA_MS) {
   if (!Array.isArray(queue)) return [];
-  return queue.filter((h) => !h.checked && nowMs - h.seenAt > slaMs);
+  return queue.filter(h => !h.checked && nowMs - h.seenAt > slaMs);
 }
 
 // ---------------------------------------------------------------------------
@@ -324,7 +426,7 @@ export function findPrelaunchWindows(entries, leafWindowMs = 4 * 3600000) {
     bucket.leaves.sort((a, b) => a.loggedAt - b.loggedAt);
     for (const pre of bucket.precerts) {
       const leaf = bucket.leaves.find(
-        (l) => l.loggedAt >= pre.loggedAt && l.loggedAt - pre.loggedAt <= leafWindowMs
+        l => l.loggedAt >= pre.loggedAt && l.loggedAt - pre.loggedAt <= leafWindowMs
       );
       windows.push({
         host,
@@ -380,11 +482,11 @@ export function extractRotationSeries(hosts) {
       groups.set(key, { kind, parent, prefix, items: [] });
     }
     const g = groups.get(key);
-    if (!g.items.some((it) => it.label === left)) {
+    if (!g.items.some(it => it.label === left)) {
       g.items.push({ label: left, value, host });
     }
   }
-  const series = [...groups.values()].filter((g) => g.items.length >= 2);
+  const series = [...groups.values()].filter(g => g.items.length >= 2);
   for (const g of series) {
     g.items.sort((a, b) =>
       g.kind === 'numeric' ? a.value - b.value : String(a.value).localeCompare(String(b.value))
@@ -405,16 +507,16 @@ export function predictNextRotation(series) {
   }
   const { kind, parent, prefix, items } = series;
   if (kind === 'numeric') {
-    const max = Math.max(...items.map((i) => i.value));
+    const max = Math.max(...items.map(i => i.value));
     return {
       predicted: [`${prefix}${max + 1}.${parent}`, `${prefix}${max + 2}.${parent}`],
       basis: `numeric rotation, max observed ${max}`,
     };
   }
   if (kind === 'color') {
-    const seen = items.map((i) => String(i.value).toLowerCase());
+    const seen = items.map(i => String(i.value).toLowerCase());
     const lastIdx = COLOR_PALETTE.indexOf(seen[seen.length - 1]);
-    const unseen = COLOR_PALETTE.filter((c) => !seen.includes(c));
+    const unseen = COLOR_PALETTE.filter(c => !seen.includes(c));
     const next = COLOR_PALETTE[(lastIdx + 1) % COLOR_PALETTE.length];
     const predicted = [`${prefix}-${next}.${parent}`];
     if (unseen.length > 0 && unseen[0] !== next) {
@@ -423,7 +525,7 @@ export function predictNextRotation(series) {
     return { predicted, basis: `color rotation, last seen ${seen[seen.length - 1]}` };
   }
   if (kind === 'alpha') {
-    const maxCode = Math.max(...items.map((i) => String(i.value).charCodeAt(0)));
+    const maxCode = Math.max(...items.map(i => String(i.value).charCodeAt(0)));
     const next = String.fromCharCode(maxCode + 1);
     if (next > 'z') return { predicted: [], basis: 'alpha rotation exhausted' };
     return {
@@ -574,13 +676,15 @@ export function flagSquats(brand, domains) {
   }
   const homoglyphSet = new Set(
     typosquatVariants(label, { max: 800 })
-      .filter((v) => v.types.includes('homoglyph'))
-      .map((v) => v.variant)
+      .filter(v => v.types.includes('homoglyph'))
+      .map(v => v.variant)
   );
   const flagged = [];
   const seen = new Set();
   for (const raw of domains) {
-    const domain = String(raw || '').toLowerCase().replace(/\.$/, '');
+    const domain = String(raw || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!domain || seen.has(domain)) continue;
     seen.add(domain);
     const labels = domain.split('.');
@@ -635,21 +739,21 @@ export function flagSquats(brand, domains) {
  */
 export function clusterBySanOverlap(entries, targetHosts) {
   if (!Array.isArray(entries) || !Array.isArray(targetHosts)) return [];
-  const targets = new Set(targetHosts.map((h) => String(h).toLowerCase()));
+  const targets = new Set(targetHosts.map(h => String(h).toLowerCase()));
   const indexed = entries
     .map((e, i) => ({ e, idx: i }))
     .filter(({ e }) => e && Array.isArray(e.sans));
 
   // Candidate certs: share >= 2 hosts with the target.
   const candidates = indexed.filter(({ e }) => {
-    const shared = e.sans.filter((s) => targets.has(s.toLowerCase()));
+    const shared = e.sans.filter(s => targets.has(s.toLowerCase()));
     return new Set(shared).size >= 2;
   });
   if (candidates.length === 0) return [];
 
   // Union-find: merge certs sharing any 2+ SANs with each other.
   const parent = new Map(candidates.map(({ idx }) => [idx, idx]));
-  const find = (x) => {
+  const find = x => {
     while (parent.get(x) !== x) {
       parent.set(x, parent.get(parent.get(x)));
       x = parent.get(x);
@@ -658,7 +762,7 @@ export function clusterBySanOverlap(entries, targetHosts) {
   };
   const union = (a, b) => parent.set(find(a), find(b));
   const sanSets = new Map(
-    candidates.map(({ e, idx }) => [idx, new Set(e.sans.map((s) => s.toLowerCase()))])
+    candidates.map(({ e, idx }) => [idx, new Set(e.sans.map(s => s.toLowerCase()))])
   );
   for (let a = 0; a < candidates.length; a++) {
     for (let b = a + 1; b < candidates.length; b++) {
@@ -679,13 +783,13 @@ export function clusterBySanOverlap(entries, targetHosts) {
     clusters.get(root).push(e);
   }
   return [...clusters.values()]
-    .map((certs) => {
+    .map(certs => {
       const allSans = new Set();
       for (const c of certs) for (const s of c.sans) allSans.add(s.toLowerCase());
-      const sharedTargetHosts = [...allSans].filter((s) => targets.has(s));
-      const siblingHosts = [...allSans].filter((s) => !targets.has(s) && !s.startsWith('*.'));
+      const sharedTargetHosts = [...allSans].filter(s => targets.has(s));
+      const siblingHosts = [...allSans].filter(s => !targets.has(s) && !s.startsWith('*.'));
       return {
-        certIds: certs.map((c) => c.id),
+        certIds: certs.map(c => c.id),
         sharedTargetHosts,
         siblingHosts,
         size: certs.length,
@@ -709,7 +813,7 @@ export function clusterBySanOverlap(entries, targetHosts) {
 export function expandWildcardProbes(entries, wordlist = []) {
   if (!Array.isArray(entries)) return [];
   const words = [...new Set([...COMMON_PROBE_LABELS, ...(wordlist || []).map(String)])]
-    .map((w) => w.toLowerCase().trim())
+    .map(w => w.toLowerCase().trim())
     .filter(Boolean);
   const byBase = new Map();
   for (const e of entries || []) {
@@ -771,7 +875,7 @@ export function buildResurrectionList(entries, nowMs = Date.now()) {
     }
   }
   return [...byHost.values()]
-    .map((r) => ({ ...r, daysExpired: Math.floor((nowMs - r.expiredAt) / MS_PER_DAY) }))
+    .map(r => ({ ...r, daysExpired: Math.floor((nowMs - r.expiredAt) / MS_PER_DAY) }))
     .sort((a, b) => b.expiredAt - a.expiredAt);
 }
 
@@ -796,8 +900,8 @@ export function flagIssuerAnomalies(entries, options = {}) {
     burstThreshold = 5,
     burstWindowMs = 3600000,
   } = options;
-  const expected = expectedIssuers.map((s) => String(s).toLowerCase());
-  const isAcme = (issuer) => acmeIssuers.some((re) => re.test(issuer || ''));
+  const expected = expectedIssuers.map(s => String(s).toLowerCase());
+  const isAcme = issuer => acmeIssuers.some(re => re.test(issuer || ''));
   const results = [];
 
   // Burst detection: many certs from one issuer inside a short window.
@@ -811,8 +915,8 @@ export function flagIssuerAnomalies(entries, options = {}) {
   const burstIds = new Set();
   for (const list of byIssuer.values()) {
     const times = list
-      .filter((e) => e.loggedAt > 0 || e.notBefore > 0)
-      .map((e) => ({ t: e.loggedAt > 0 ? e.loggedAt : e.notBefore, e }))
+      .filter(e => e.loggedAt > 0 || e.notBefore > 0)
+      .map(e => ({ t: e.loggedAt > 0 ? e.loggedAt : e.notBefore, e }))
       .sort((a, b) => a.t - b.t);
     for (let i = 0; i < times.length; i++) {
       let count = 0;
@@ -832,7 +936,7 @@ export function flagIssuerAnomalies(entries, options = {}) {
     const flags = [];
     const detail = [];
     const issuer = e.issuer || '';
-    if (expected.length > 0 && !expected.some((exp) => issuer.toLowerCase().includes(exp))) {
+    if (expected.length > 0 && !expected.some(exp => issuer.toLowerCase().includes(exp))) {
       flags.push('unexpected-issuer');
       detail.push(`issuer "${issuer}" not in expected list`);
     }
@@ -840,12 +944,16 @@ export function flagIssuerAnomalies(entries, options = {}) {
       const hour = new Date(e.notBefore).getUTCHours();
       if (!baselineHours.includes(hour)) {
         flags.push('off-schedule-acme');
-        detail.push(`ACME issuance at ${String(hour).padStart(2, '0')}:00 UTC, outside baseline hours`);
+        detail.push(
+          `ACME issuance at ${String(hour).padStart(2, '0')}:00 UTC, outside baseline hours`
+        );
       }
     }
     if (burstIds.has(e)) {
       flags.push('issuance-burst');
-      detail.push(`part of a burst of ${burstThreshold}+ certs from one issuer within ${burstWindowMs / 60000} min`);
+      detail.push(
+        `part of a burst of ${burstThreshold}+ certs from one issuer within ${burstWindowMs / 60000} min`
+      );
     }
     if (flags.length > 0) {
       results.push({

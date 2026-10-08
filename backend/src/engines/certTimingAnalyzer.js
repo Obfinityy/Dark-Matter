@@ -15,15 +15,17 @@ const DAY_MS = 86400000;
  */
 function issuanceIntervals(certs) {
   const times = certs
-    .map((c) => new Date(c.notBefore).getTime())
-    .filter((t) => Number.isFinite(t))
+    .map(c => new Date(c.notBefore).getTime())
+    .filter(t => Number.isFinite(t))
     .sort((a, b) => a - b);
   const intervals = [];
   for (let i = 1; i < times.length; i++) intervals.push((times[i] - times[i - 1]) / DAY_MS);
   return intervals;
 }
 
-function mean(xs) { return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0; }
+function mean(xs) {
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+}
 function stdev(xs) {
   if (xs.length < 2) return 0;
   const m = mean(xs);
@@ -50,14 +52,15 @@ function weekdayDistribution(certs) {
  * @returns {{intervals: Array, stats: Object, automation: Object, events: Array, summary: Object}}
  */
 export function analyzeCertTiming({ certs = [], expectedValidityDays = 90 } = {}) {
-  const clean = certs.filter((c) => c && c.notBefore && !isNaN(new Date(c.notBefore)));
+  const clean = certs.filter(c => c && c.notBefore && !isNaN(new Date(c.notBefore)));
   const intervals = issuanceIntervals(clean);
   const avg = mean(intervals);
   const sd = stdev(intervals);
 
   // Automated pipelines renew on a tight, regular cadence (e.g. 60 days for
   // Let's Encrypt's recommended 30-day-before-expiry renewal).
-  const regularCadence = intervals.length >= 2 && sd < 7 && Math.abs(avg - (expectedValidityDays - 30)) <= 14;
+  const regularCadence =
+    intervals.length >= 2 && sd < 7 && Math.abs(avg - (expectedValidityDays - 30)) <= 14;
   const veryRegular = intervals.length >= 2 && sd < 2;
   // Manual issuance shows irregular gaps and human scheduling (weekdays, office hours).
   const irregular = intervals.length >= 2 && sd > avg * 0.5;
@@ -67,14 +70,19 @@ export function analyzeCertTiming({ certs = [], expectedValidityDays = 90 } = {}
   // Automated renewals happen on weekends too; manual issuance rarely does.
   const humanScheduling = clean.length >= 3 && weekendShare < 0.05 && intervals.length >= 1;
 
-  const issuers = [...new Set(clean.map((c) => String(c.issuer || 'unknown')))];
-  const shortLived = clean.filter((c) => {
-    const nb = new Date(c.notBefore).getTime(), na = new Date(c.notAfter).getTime();
+  const issuers = [...new Set(clean.map(c => String(c.issuer || 'unknown')))];
+  const shortLived = clean.filter(c => {
+    const nb = new Date(c.notBefore).getTime(),
+      na = new Date(c.notAfter).getTime();
     return Number.isFinite(nb) && Number.isFinite(na) && (na - nb) / DAY_MS <= 95;
   }).length;
 
   let automation;
-  if (regularCadence || veryRegular || (shortLived === clean.length && clean.length >= 2 && sd < 14)) {
+  if (
+    regularCadence ||
+    veryRegular ||
+    (shortLived === clean.length && clean.length >= 2 && sd < 14)
+  ) {
     automation = { level: 'automated', confidence: veryRegular ? 'high' : 'medium' };
   } else if (humanScheduling || irregular) {
     automation = { level: 'manual', confidence: humanScheduling ? 'high' : 'medium' };
@@ -88,7 +96,9 @@ export function analyzeCertTiming({ certs = [], expectedValidityDays = 90 } = {}
   const events = [];
   if (intervals.length >= 2) {
     const cadence = avg;
-    const sorted = clean.map((c) => ({ ...c, ts: new Date(c.notBefore).getTime() })).sort((a, b) => a.ts - b.ts);
+    const sorted = clean
+      .map(c => ({ ...c, ts: new Date(c.notBefore).getTime() }))
+      .sort((a, b) => a.ts - b.ts);
     for (let i = 1; i < sorted.length; i++) {
       const gap = (sorted[i].ts - sorted[i - 1].ts) / DAY_MS;
       if (cadence > 7 && gap < cadence * 0.25) {
@@ -107,7 +117,7 @@ export function analyzeCertTiming({ certs = [], expectedValidityDays = 90 } = {}
   const issuerChurn = issuers.length > 1 && clean.length >= 2;
 
   return {
-    intervals: intervals.map((d) => Math.round(d * 100) / 100),
+    intervals: intervals.map(d => Math.round(d * 100) / 100),
     stats: {
       certCount: clean.length,
       meanIntervalDays: Math.round(avg * 100) / 100,
@@ -121,11 +131,12 @@ export function analyzeCertTiming({ certs = [], expectedValidityDays = 90 } = {}
     summary: {
       pipeline: automation.level,
       confidence: automation.confidence,
-      evidence: automation.level === 'automated'
-        ? `Renewals every ~${Math.round(avg)}d (stdev ${Math.round(sd)}d) with ${issuers.join('/')} — consistent with automated ACME-style PKI.`
-        : automation.level === 'manual'
-          ? `Irregular intervals (stdev ${Math.round(sd)}d) and weekday-only issuance — consistent with manual certificate management.`
-          : 'Not enough signal to classify the issuance pipeline.',
+      evidence:
+        automation.level === 'automated'
+          ? `Renewals every ~${Math.round(avg)}d (stdev ${Math.round(sd)}d) with ${issuers.join('/')} — consistent with automated ACME-style PKI.`
+          : automation.level === 'manual'
+            ? `Irregular intervals (stdev ${Math.round(sd)}d) and weekday-only issuance — consistent with manual certificate management.`
+            : 'Not enough signal to classify the issuance pipeline.',
       outOfBandEvents: events.length,
     },
   };

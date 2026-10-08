@@ -56,10 +56,10 @@ export function pivotOnAbuseDomains(rirTexts = [], knownHosts = []) {
       stats.set(domain, (stats.get(domain) || 0) + 1);
     }
   }
-  const hosts = knownHosts.map((h) => h.toLowerCase());
+  const hosts = knownHosts.map(h => h.toLowerCase());
   const results = [];
   for (const [domain, occurrences] of stats.entries()) {
-    const brandHits = hosts.filter((h) => h === domain || h.endsWith(`.${domain}`));
+    const brandHits = hosts.filter(h => h === domain || h.endsWith(`.${domain}`));
     const suggestedPivots = [
       `soc.${domain}`,
       `abuse.${domain}`,
@@ -74,6 +74,8 @@ export function pivotOnAbuseDomains(rirTexts = [], knownHosts = []) {
       suggestedPivots,
     });
   }
-  results.sort((a, b) => (b.matchesKnownBrand - a.matchesKnownBrand) || (b.occurrences - a.occurrences));
+  results.sort(
+    (a, b) => b.matchesKnownBrand - a.matchesKnownBrand || b.occurrences - a.occurrences
+  );
   return results;
 }

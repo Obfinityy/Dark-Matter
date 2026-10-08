@@ -37,12 +37,12 @@ export function walkDsChain(delegationPath) {
   const unsignedCuts = [];
 
   for (const hop of delegationPath || []) {
-    const zone = String(hop?.zone || '').toLowerCase().replace(/\.$/, '');
+    const zone = String(hop?.zone || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!zone) continue;
     const ds = Array.isArray(hop.dsAtParent) ? hop.dsAtParent : [];
-    const keyTags = ds
-      .map(d => Number(d?.keyTag))
-      .filter(n => Number.isFinite(n));
+    const keyTags = ds.map(d => Number(d?.keyTag)).filter(n => Number.isFinite(n));
     const signed = ds.length > 0;
     cuts.push({ zone, signed, dsCount: ds.length, keyTags });
 
@@ -51,10 +51,12 @@ export function walkDsChain(delegationPath) {
       unsignedCuts.push({
         zone,
         nameservers: ns,
-        risk: `Delegation of '${zone}' is unsigned: the parent publishes no DS record, ` +
+        risk:
+          `Delegation of '${zone}' is unsigned: the parent publishes no DS record, ` +
           'so the child namespace has no DNSSEC proof of existence. Delegated subdomains ' +
           'beneath this cut are invisible to validators and commonly drift out of asset inventories.',
-        recommendation: `Enumerate '${zone}' directly (zone transfer attempts, NS-record ` +
+        recommendation:
+          `Enumerate '${zone}' directly (zone transfer attempts, NS-record ` +
           'walking, certificate-transparency logs) — unsigned intermediate cuts are the ' +
           'most likely place to find forgotten delegated subdomains.',
       });
@@ -87,7 +89,9 @@ export function walkDsChain(delegationPath) {
  */
 export function detectEmptyNonTerminals(probes, knownNames = []) {
   const normalized = (probes || []).map(p => ({
-    name: String(p?.name || '').toLowerCase().replace(/\.$/, ''),
+    name: String(p?.name || '')
+      .toLowerCase()
+      .replace(/\.$/, ''),
     rcode: String(p?.rcode ?? '').toUpperCase(),
     answerCount: Number(p?.answerCount ?? 0),
     isApex: Boolean(p?.isApex),
@@ -101,20 +105,19 @@ export function detectEmptyNonTerminals(probes, knownNames = []) {
     const noError = p.rcode === 'NOERROR' || p.rcode === '0';
     if (!noError || p.answerCount > 0) continue;
 
-    const children = known.filter(
-      n => n !== p.name && n.endsWith(`.${p.name}`),
-    );
+    const children = known.filter(n => n !== p.name && n.endsWith(`.${p.name}`));
     results.push({
       name: p.name,
       children,
       confidence: children.length > 0 ? 'high' : 'medium',
-      detail: children.length > 0
-        ? `Empty non-terminal: '${p.name}' holds no records itself but ${children.length} ` +
-          `observed name(s) exist beneath it (${children.slice(0, 5).join(', ')}` +
-          `${children.length > 5 ? ', …' : ''}). Deeper labels are guaranteed to exist — keep drilling.`
-        : `Empty non-terminal candidate: '${p.name}' returned NOERROR with an empty answer ` +
-          'section and is not the zone apex. The server acknowledges the name but owns no ' +
-          'records at it, which strongly implies labels exist below it.',
+      detail:
+        children.length > 0
+          ? `Empty non-terminal: '${p.name}' holds no records itself but ${children.length} ` +
+            `observed name(s) exist beneath it (${children.slice(0, 5).join(', ')}` +
+            `${children.length > 5 ? ', …' : ''}). Deeper labels are guaranteed to exist — keep drilling.`
+          : `Empty non-terminal candidate: '${p.name}' returned NOERROR with an empty answer ` +
+            'section and is not the zone apex. The server acknowledges the name but owns no ' +
+            'records at it, which strongly implies labels exist below it.',
     });
   }
 
@@ -122,9 +125,31 @@ export function detectEmptyNonTerminals(probes, knownNames = []) {
 }
 
 const DEFAULT_DEPTH_WORDLIST = [
-  'internal', 'corp', 'intranet', 'private', 'ops', 'infra', 'mgmt', 'admin',
-  'dev', 'staging', 'test', 'prod', 'legacy', 'dmz', 'vpn', 'core', 'edge',
-  'east', 'west', 'eu', 'us', 'asia', 'dc1', 'dc2', 'az1',
+  'internal',
+  'corp',
+  'intranet',
+  'private',
+  'ops',
+  'infra',
+  'mgmt',
+  'admin',
+  'dev',
+  'staging',
+  'test',
+  'prod',
+  'legacy',
+  'dmz',
+  'vpn',
+  'core',
+  'edge',
+  'east',
+  'west',
+  'eu',
+  'us',
+  'asia',
+  'dc1',
+  'dc2',
+  'az1',
 ];
 
 /**
@@ -146,7 +171,9 @@ const DEFAULT_DEPTH_WORDLIST = [
  * }}
  */
 export function analyzeLabelDepth(probes, zone, wordlist = DEFAULT_DEPTH_WORDLIST) {
-  const apex = String(zone || '').toLowerCase().replace(/\.$/, '');
+  const apex = String(zone || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const existing = (probes || [])
     .filter(p => p?.exists && p?.name)
     .map(p => String(p.name).toLowerCase().replace(/\.$/, ''))
@@ -174,7 +201,8 @@ export function analyzeLabelDepth(probes, zone, wordlist = DEFAULT_DEPTH_WORDLIS
         name: candidate,
         parent,
         depth: maxDepth + 1,
-        reason: `Extends the deepest confirmed branch '${parent}' (depth ${maxDepth}) ` +
+        reason:
+          `Extends the deepest confirmed branch '${parent}' (depth ${maxDepth}) ` +
           `with internal-namespace label '${word}'. Deep nesting like ` +
           'a.b.c.internal.example.com typically marks non-public infrastructure.',
       });

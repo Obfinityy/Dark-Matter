@@ -22,14 +22,15 @@ const FRIENDLY_APP_TITLES = {
   winword: 'Document1 - Microsoft Word',
   write: 'Document - WordPad',
   notepad: 'Untitled - Notepad',
-  'msedge': 'New Tab - Microsoft Edge',
+  msedge: 'New Tab - Microsoft Edge',
   chrome: 'New Tab - Google Chrome',
   firefox: 'New Tab - Mozilla Firefox',
   calc: 'Calculator',
   mspaint: 'Untitled - Paint',
-  explorer: 'File Explorer'
+  explorer: 'File Explorer',
 };
 
+/** Adapter for mock computer. */
 export class MockComputerAdapter {
   constructor({ logger = console, screen = { width: 1920, height: 1080 } } = {}) {
     this.logger = logger;
@@ -55,7 +56,7 @@ export class MockComputerAdapter {
         requested: action || null,
         ok: false,
         error: error.message,
-        rejected: true
+        rejected: true,
       });
       return {
         ok: false,
@@ -64,7 +65,7 @@ export class MockComputerAdapter {
         observation: null,
         error,
         durationMs: Date.now() - started,
-        rejected: true
+        rejected: true,
       };
     }
 
@@ -77,7 +78,7 @@ export class MockComputerAdapter {
       action: approved,
       ok: true,
       observation: observation.summary,
-      durationMs: Date.now() - started
+      durationMs: Date.now() - started,
     };
     this.actionLog.push(entry);
 
@@ -89,7 +90,7 @@ export class MockComputerAdapter {
       error: null,
       durationMs: Date.now() - started,
       rejected: false,
-      simulated: true
+      simulated: true,
     };
   }
 
@@ -97,7 +98,9 @@ export class MockComputerAdapter {
   #simulate(action) {
     switch (action.type) {
       case COMPUTER_ACTIONS.OPEN_APPLICATION: {
-        const name = String(action.params.name || '').toLowerCase().trim();
+        const name = String(action.params.name || '')
+          .toLowerCase()
+          .trim();
         const launched = action.params.name;
         this.activeWindow = FRIENDLY_APP_TITLES[name] || `${launched} - Window`;
         return { launched, activeWindow: this.activeWindow };
@@ -110,7 +113,7 @@ export class MockComputerAdapter {
           height: this.screen.height,
           bytes: this.screen.width * this.screen.height,
           sha256: 'mock-' + '0'.repeat(59),
-          path: null
+          path: null,
         };
       case COMPUTER_ACTIONS.TYPE: {
         const text = action.params.text ?? '';
@@ -121,7 +124,11 @@ export class MockComputerAdapter {
       case COMPUTER_ACTIONS.DOUBLE_CLICK:
         return { x: action.params.x, y: action.params.y };
       case COMPUTER_ACTIONS.MOVE_MOUSE:
-        return { x: action.params.x ?? null, y: action.params.y ?? null, to: action.params.to ?? null };
+        return {
+          x: action.params.x ?? null,
+          y: action.params.y ?? null,
+          to: action.params.to ?? null,
+        };
       case COMPUTER_ACTIONS.PRESS_KEY:
         return { keys: action.params.keys, presses: action.params.presses || 1 };
       case COMPUTER_ACTIONS.HOTKEY:
@@ -145,30 +152,75 @@ export class MockComputerAdapter {
   }
 
   #describe(action, output) {
-    const base = { actionType: action.type, at: new Date().toISOString(), raw: output, visionUsed: false, simulated: true };
+    const base = {
+      actionType: action.type,
+      at: new Date().toISOString(),
+      raw: output,
+      visionUsed: false,
+      simulated: true,
+    };
     switch (action.type) {
       case COMPUTER_ACTIONS.OPEN_APPLICATION:
-        return { ...base, kind: 'application_launch', summary: `Launched application: ${output.launched} (active window: "${output.activeWindow}")`, application: output.launched };
+        return {
+          ...base,
+          kind: 'application_launch',
+          summary: `Launched application: ${output.launched} (active window: "${output.activeWindow}")`,
+          application: output.launched,
+        };
       case COMPUTER_ACTIONS.GET_ACTIVE_WINDOW:
-        return { ...base, kind: 'active_window', summary: `Active window: ${output.title}`, title: output.title, supported: true };
+        return {
+          ...base,
+          kind: 'active_window',
+          summary: `Active window: ${output.title}`,
+          title: output.title,
+          supported: true,
+        };
       case COMPUTER_ACTIONS.SCREENSHOT:
-        return { ...base, kind: 'screenshot', summary: `Screenshot captured (${output.width}x${output.height}) — simulated`, width: output.width, height: output.height };
+        return {
+          ...base,
+          kind: 'screenshot',
+          summary: `Screenshot captured (${output.width}x${output.height}) — simulated`,
+          width: output.width,
+          height: output.height,
+        };
       case COMPUTER_ACTIONS.TYPE:
-        return { ...base, kind: 'input', summary: `Typed ${output.typed} character(s) into "${this.activeWindow}" — simulated` };
+        return {
+          ...base,
+          kind: 'input',
+          summary: `Typed ${output.typed} character(s) into "${this.activeWindow}" — simulated`,
+        };
       case COMPUTER_ACTIONS.SLEEP:
-        return { ...base, kind: 'wait', summary: `Waited ${output.slept}s (simulated, no actual delay)`, seconds: output.slept };
+        return {
+          ...base,
+          kind: 'wait',
+          summary: `Waited ${output.slept}s (simulated, no actual delay)`,
+          seconds: output.slept,
+        };
       case COMPUTER_ACTIONS.NAVIGATE:
-        return { ...base, kind: 'navigation', summary: `Navigated to ${output.navigatedTo} — simulated`, url: output.navigatedTo };
+        return {
+          ...base,
+          kind: 'navigation',
+          summary: `Navigated to ${output.navigatedTo} — simulated`,
+          url: output.navigatedTo,
+        };
       case COMPUTER_ACTIONS.CLIPBOARD_SET:
-        return { ...base, kind: 'clipboard', summary: `Clipboard set (${output.clipboardChars} chars) — simulated` };
+        return {
+          ...base,
+          kind: 'clipboard',
+          summary: `Clipboard set (${output.clipboardChars} chars) — simulated`,
+        };
       default:
-        return { ...base, kind: 'action_result', summary: `Computer action ${action.type} completed — simulated` };
+        return {
+          ...base,
+          kind: 'action_result',
+          summary: `Computer action ${action.type} completed — simulated`,
+        };
     }
   }
 
   /** The full typed text across the session (useful for assertions). */
   get typedText() {
-    return this.typedDocuments.map((d) => d.text).join('\n');
+    return this.typedDocuments.map(d => d.text).join('\n');
   }
 
   status() {
@@ -178,7 +230,7 @@ export class MockComputerAdapter {
       activeWindow: this.activeWindow,
       actionsExecuted: this.actionLog.length,
       screen: this.screen,
-      startedAt: this.startedAt
+      startedAt: this.startedAt,
     };
   }
 

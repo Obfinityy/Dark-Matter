@@ -157,10 +157,19 @@ export function parseListIdentityReply(hexOrBuffer) {
     const nameLength = payload[32];
     const productName = payload.slice(33, 33 + nameLength).toString('latin1');
     result.items.push({
-      typeId, length, protocolVersion, sinFamily, port, ip,
-      vendorId, deviceType, productCode,
+      typeId,
+      length,
+      protocolVersion,
+      sinFamily,
+      port,
+      ip,
+      vendorId,
+      deviceType,
+      productCode,
       revision: `${revisionMajor}.${revisionMinor}`,
-      status, serialNumber, productName,
+      status,
+      serialNumber,
+      productName,
     });
   }
   return result;
@@ -177,7 +186,9 @@ export function describeDevice(parsed = {}) {
   const vendor = VENDOR_IDS[parsed.vendorId] || `Unknown (vendor ID ${parsed.vendorId ?? 'n/a'})`;
   const deviceTypeDescription =
     DEVICE_TYPES[parsed.deviceType] ||
-    (parsed.deviceType === undefined ? 'unknown' : `Vendor-specific (0x${Number(parsed.deviceType).toString(16).padStart(4, '0')})`);
+    (parsed.deviceType === undefined
+      ? 'unknown'
+      : `Vendor-specific (0x${Number(parsed.deviceType).toString(16).padStart(4, '0')})`);
   const notes = [];
   if (parsed.status !== undefined) {
     if (parsed.status & 0x0001) notes.push('Owned (a connection exists to the device).');
@@ -187,7 +198,8 @@ export function describeDevice(parsed = {}) {
     if (parsed.status & 0x0040) notes.push('Major recoverable fault present.');
     if (parsed.status & 0x0080) notes.push('Major unrecoverable fault present.');
   }
-  const confidence = parsed.vendorId !== undefined && parsed.productCode !== undefined ? 'high' : 'low';
+  const confidence =
+    parsed.vendorId !== undefined && parsed.productCode !== undefined ? 'high' : 'low';
   return {
     vendor,
     deviceTypeDescription,
@@ -195,7 +207,9 @@ export function describeDevice(parsed = {}) {
     revision: parsed.revision ?? 'unknown',
     status: parsed.status ?? 'unknown',
     serialNumber:
-      parsed.serialNumber === undefined ? 'unknown' : `0x${parsed.serialNumber.toString(16).padStart(8, '0')}`,
+      parsed.serialNumber === undefined
+        ? 'unknown'
+        : `0x${parsed.serialNumber.toString(16).padStart(8, '0')}`,
     productName: parsed.productName || 'unknown',
     ip: parsed.ip || 'unknown',
     port: parsed.port ?? 'unknown',

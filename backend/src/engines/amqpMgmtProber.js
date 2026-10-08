@@ -32,7 +32,8 @@ export function analyzeMgmtResponse(resp = {}) {
 
   if (status === 404) {
     return {
-      endpoint, status,
+      endpoint,
+      status,
       pluginDetected: false,
       note: 'Management API not found at this path.',
       type: 'AMQP Management Probe',
@@ -41,7 +42,8 @@ export function analyzeMgmtResponse(resp = {}) {
   }
   if (status === 401) {
     return {
-      endpoint, status,
+      endpoint,
+      status,
       pluginDetected: true,
       authenticated: false,
       note: 'Management plugin detected; requires authentication (realm challenge expected).',
@@ -52,7 +54,8 @@ export function analyzeMgmtResponse(resp = {}) {
   }
   if (status === 403) {
     return {
-      endpoint, status,
+      endpoint,
+      status,
       pluginDetected: true,
       authenticated: true,
       note: 'Management plugin detected; credentials valid but lack administrator tag.',
@@ -117,7 +120,11 @@ export function summarizeMgmtScan(responses = []) {
     identities,
     requiresAuth: unauthenticated,
     anyAuthenticated: reachable,
-    perEndpoint: analyzed.map(a => ({ endpoint: a.endpoint, status: a.status, pluginDetected: a.pluginDetected })),
+    perEndpoint: analyzed.map(a => ({
+      endpoint: a.endpoint,
+      status: a.status,
+      pluginDetected: a.pluginDetected,
+    })),
     summary: detected.length
       ? `RabbitMQ management plugin detected (versions: ${versions.join(', ') || 'unknown'}; vhosts: ${vhosts.join(', ') || 'unknown'}).`
       : 'No management plugin detected on checked endpoints.',

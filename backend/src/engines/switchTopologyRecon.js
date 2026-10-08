@@ -64,14 +64,19 @@ export function mapVlanSurface(disclosures) {
     }
     const access = line.match(/^\s*(\S+)\s+access\s+(\d{1,4})\s*$/i);
     if (access) {
-      ports.push({ port: access[1], mode: 'access', nativeVlan: Number(access[2]), allowedVlans: [Number(access[2])] });
+      ports.push({
+        port: access[1],
+        mode: 'access',
+        nativeVlan: Number(access[2]),
+        allowedVlans: [Number(access[2])],
+      });
     }
   }
 
   // Config-snippet style: "interface Gi0/1 / switchport mode trunk / switchport trunk allowed vlan 1-4094"
   const cfgPorts = parseConfigStyle(text);
   for (const p of cfgPorts) {
-    if (!ports.some((x) => x.port === p.port)) ports.push(p);
+    if (!ports.some(x => x.port === p.port)) ports.push(p);
   }
 
   const nativeSeen = {};
@@ -110,7 +115,7 @@ export function mapVlanSurface(disclosures) {
       evidence: `Multiple native VLANs observed: ${detail}. Inconsistent native VLANs on a trunk path are a classic VLAN-hopping precondition.`,
     });
   }
-  const encap = [...new Set([...text.matchAll(TRUNK_ENCAP_RE)].map((m) => m[1].toLowerCase()))];
+  const encap = [...new Set([...text.matchAll(TRUNK_ENCAP_RE)].map(m => m[1].toLowerCase()))];
   return {
     parsed: ports.length > 0,
     ports,
@@ -136,7 +141,8 @@ function expandVlanList(spec) {
     const p = part.trim();
     const m = p.match(/^(\d{1,4})-(\d{1,4})$/);
     if (m) {
-      for (let v = Math.min(+m[1], +m[2]); v <= Math.max(+m[1], +m[2]) && v <= 4094; v++) out.add(v);
+      for (let v = Math.min(+m[1], +m[2]); v <= Math.max(+m[1], +m[2]) && v <= 4094; v++)
+        out.add(v);
     } else if (/^\d{1,4}$/.test(p)) {
       out.add(Number(p));
     }
@@ -166,7 +172,12 @@ function parseConfigStyle(text) {
       port: name[1],
       mode,
       nativeVlan: native ? Number(native) : accessVlan ? Number(accessVlan) : null,
-      allowedVlans: mode === 'trunk' ? expandVlanList(allowed || 'all') : (accessVlan ? [Number(accessVlan)] : []),
+      allowedVlans:
+        mode === 'trunk'
+          ? expandVlanList(allowed || 'all')
+          : accessVlan
+            ? [Number(accessVlan)]
+            : [],
     });
   }
   return ports;
@@ -211,7 +222,9 @@ export function inferStpTopology(samples = []) {
     if (sw.rootBridgeId) {
       const root = String(sw.rootBridgeId).toLowerCase();
       if (b.claimedRoot && b.claimedRoot !== root) {
-        anomalies.push(`Bridge ${id} advertises changing root (${b.claimedRoot} → ${root}) — topology flap or multiple STP domains visible.`);
+        anomalies.push(
+          `Bridge ${id} advertises changing root (${b.claimedRoot} → ${root}) — topology flap or multiple STP domains visible.`
+        );
       }
       b.claimedRoot = root;
     }
@@ -231,16 +244,19 @@ export function inferStpTopology(samples = []) {
   for (const b of Object.values(bridges)) {
     if (b.claimedRoot) rootVotes[b.claimedRoot] = (rootVotes[b.claimedRoot] || 0) + 1;
   }
-  const rootBridge =
-    Object.entries(rootVotes).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  const rootBridge = Object.entries(rootVotes).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   for (const b of Object.values(bridges)) {
     if (b.claimedRoot && rootBridge && b.claimedRoot !== rootBridge) {
-      anomalies.push(`Bridge ${b.bridgeId} claims root ${b.claimedRoot} but consensus root is ${rootBridge} — possible rogue STP device or partitioned domain.`);
+      anomalies.push(
+        `Bridge ${b.bridgeId} claims root ${b.claimedRoot} but consensus root is ${rootBridge} — possible rogue STP device or partitioned domain.`
+      );
     }
   }
   const rootEntry = rootBridge ? bridges[rootBridge] : null;
   if (rootEntry && rootEntry.priority === 32768) {
-    anomalies.push(`Root bridge ${rootBridge} still uses the default priority 32768 — root election looks opportunistic rather than engineered.`);
+    anomalies.push(
+      `Root bridge ${rootBridge} still uses the default priority 32768 — root election looks opportunistic rather than engineered.`
+    );
   }
 
   // Edges: every non-root bridge connects (logically) toward the root.
@@ -248,7 +264,12 @@ export function inferStpTopology(samples = []) {
   for (const b of Object.values(bridges)) {
     b.ports = [...b.ports];
     if (rootBridge && b.bridgeId !== rootBridge && b.claimedRoot === rootBridge) {
-      edges.push({ from: b.bridgeId, to: rootBridge, kind: 'stp-path-to-root', cost: b.rootPathCost });
+      edges.push({
+        from: b.bridgeId,
+        to: rootBridge,
+        kind: 'stp-path-to-root',
+        cost: b.rootPathCost,
+      });
     }
   }
   return {
@@ -282,7 +303,11 @@ export function captureCdpLldpFrames(frames = []) {
     if (!f || typeof f !== 'object') continue;
     const observedOn = f.observedOn || f.interface || 'unknown';
     if (f.protocol === 'cdp') {
-      const a = analyzeCdpFrame({ tlvs: f.tlvs || null, hex: f.hex || null, interface: observedOn });
+      const a = analyzeCdpFrame({
+        tlvs: f.tlvs || null,
+        hex: f.hex || null,
+        interface: observedOn,
+      });
       if (!a.deviceFound) continue;
       const d = a.device;
       const key = `cdp:${d.deviceId || d.platform || 'unknown'}`;
@@ -306,7 +331,11 @@ export function captureCdpLldpFrames(frames = []) {
         capabilities: d.capabilities,
       });
     } else if (f.protocol === 'lldp') {
-      const a = mapLldpNeighbor({ tlvs: f.tlvs || null, hex: f.hex || null, interface: observedOn });
+      const a = mapLldpNeighbor({
+        tlvs: f.tlvs || null,
+        hex: f.hex || null,
+        interface: observedOn,
+      });
       if (!a.neighborFound) continue;
       const n = a.neighbor;
       const key = `lldp:${n.systemName || n.chassisId || 'unknown'}`;
@@ -331,10 +360,10 @@ export function captureCdpLldpFrames(frames = []) {
       });
     }
   }
-  const nodeList = Object.values(nodes).map((n) => ({ ...n, observedOn: [...n.observedOn] }));
+  const nodeList = Object.values(nodes).map(n => ({ ...n, observedOn: [...n.observedOn] }));
   // Dedupe links on from→to→remotePort.
   const seen = new Set();
-  const deduped = links.filter((l) => {
+  const deduped = links.filter(l => {
     const k = `${l.from}|${l.to}|${l.remotePort}`;
     if (seen.has(k)) return false;
     seen.add(k);
@@ -352,7 +381,8 @@ export function captureCdpLldpFrames(frames = []) {
  *  649 — ARP-table host harvesting
  * ------------------------------------------------------------------ */
 
-const ARP_LINE_RE = /^\s*(?:Internet\s+)?(\d{1,3}(?:\.\d{1,3}){3})\s+(?:\d+\s+)?(?:dev\s+\S+\s+lladdr\s+)?([0-9a-fA-F]{2}(?:[:-][0-9a-fA-F]{2}){5}|[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4})\s*(\S+)?/gim;
+const ARP_LINE_RE =
+  /^\s*(?:Internet\s+)?(\d{1,3}(?:\.\d{1,3}){3})\s+(?:\d+\s+)?(?:dev\s+\S+\s+lladdr\s+)?([0-9a-fA-F]{2}(?:[:-][0-9a-fA-F]{2}){5}|[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4})\s*(\S+)?/gim;
 const GATEWAY_CANDIDATES = [/^(\d{1,3}(?:\.\d{1,3}){2}\.)1$/, /^(\d{1,3}(?:\.\d{1,3}){2}\.)254$/];
 
 function normalizeMac(mac) {
@@ -383,13 +413,16 @@ export function harvestArpTable(dumps) {
     if (seen.has(key)) continue;
     seen.add(key);
     const octets = ip.split('.').map(Number);
-    if (octets.some((o) => o < 0 || o > 255)) continue;
+    if (octets.some(o => o < 0 || o > 255)) continue;
     hosts.push({
       ip,
       mac,
-      interface: m[3] && !/^(dynamic|static|complete|incomplete|stale|reachable|delay|probe)$/i.test(m[3]) ? m[3] : '',
+      interface:
+        m[3] && !/^(dynamic|static|complete|incomplete|stale|reachable|delay|probe)$/i.test(m[3])
+          ? m[3]
+          : '',
       vendor: lookupOuiVendor(mac),
-      isGatewaySuspect: GATEWAY_CANDIDATES.some((re) => re.test(ip)),
+      isGatewaySuspect: GATEWAY_CANDIDATES.some(re => re.test(ip)),
     });
   }
   const anomalies = [];
@@ -417,7 +450,7 @@ export function harvestArpTable(dumps) {
       });
     }
   }
-  const subnets = [...new Set(hosts.map((h) => h.ip.split('.').slice(0, 3).join('.') + '.0/24'))];
+  const subnets = [...new Set(hosts.map(h => h.ip.split('.').slice(0, 3).join('.') + '.0/24'))];
   return {
     parsed: hosts.length > 0,
     hosts,
@@ -434,13 +467,15 @@ export function harvestArpTable(dumps) {
 
 const POOL_BLOCK_RE = /ip\s+dhcp\s+pool\s+(\S+)([\s\S]*?)(?=\r?\n\s*ip\s+dhcp\s+pool\b|$)/gi;
 const NETWORK_RE = /network\s+(\d{1,3}(?:\.\d{1,3}){3})\s+(\d{1,3}(?:\.\d{1,3}){3}|\/\d{1,2})/i;
-const EXCLUDED_RE = /ip\s+dhcp\s+excluded-address\s+(\d{1,3}(?:\.\d{1,3}){3})(?:\s+(\d{1,3}(?:\.\d{1,3}){3}))?/gim;
-const BINDING_RE = /^(\d{1,3}(?:\.\d{1,3}){3})\s+([0-9a-fA-F]{2}(?:[:-][0-9a-fA-F]{2}){5}|[0-9a-fA-F]{4}(?:\.[0-9a-fA-F]{4}){2}(?:\.[0-9a-fA-F]{2,4})?)\s+([^\r\n]+)/gim;
+const EXCLUDED_RE =
+  /ip\s+dhcp\s+excluded-address\s+(\d{1,3}(?:\.\d{1,3}){3})(?:\s+(\d{1,3}(?:\.\d{1,3}){3}))?/gim;
+const BINDING_RE =
+  /^(\d{1,3}(?:\.\d{1,3}){3})\s+([0-9a-fA-F]{2}(?:[:-][0-9a-fA-F]{2}){5}|[0-9a-fA-F]{4}(?:\.[0-9a-fA-F]{4}){2}(?:\.[0-9a-fA-F]{2,4})?)\s+([^\r\n]+)/gim;
 
 function ipToInt(ip) {
   const o = String(ip).split('.').map(Number);
-  if (o.length !== 4 || o.some((x) => !Number.isInteger(x) || x < 0 || x > 255)) return null;
-  return ((o[0] * 256 ** 3) + (o[1] * 256 ** 2) + (o[2] * 256) + o[3]) >>> 0;
+  if (o.length !== 4 || o.some(x => !Number.isInteger(x) || x < 0 || x > 255)) return null;
+  return (o[0] * 256 ** 3 + o[1] * 256 ** 2 + o[2] * 256 + o[3]) >>> 0;
 }
 
 function intToIp(n) {
@@ -490,7 +525,7 @@ export function inferDhcpLeasePool(disclosures) {
     const leaseHours = lease
       ? (Number(lease[1]) || 0) + (Number(lease[2]) || 0) / 60 + (Number(lease[3]) || 0) / 3600
       : null;
-    const dns = [...body.matchAll(/dns-server\s+([\d.\s]+)/gi)].map((x) => x[1].trim());
+    const dns = [...body.matchAll(/dns-server\s+([\d.\s]+)/gi)].map(x => x[1].trim());
     const router = body.match(/default-router\s+([\d.]+)/i)?.[1] || null;
     pools.push({
       name,
@@ -507,22 +542,30 @@ export function inferDhcpLeasePool(disclosures) {
     // Cisco prints the DHCP client-id as a type byte + MAC (e.g. 01 + 001b.2aaa.bb01).
     const raw = m[2].replace(/[^0-9a-fA-F]/g, '');
     const macHex = raw.length === 14 && raw.startsWith('01') ? raw.slice(2) : raw;
-    const mac = macHex.length === 12
-      ? macHex.toLowerCase().replace(/(.{2})/g, '$1:').replace(/:$/, '')
-      : normalizeMac(m[2]);
+    const mac =
+      macHex.length === 12
+        ? macHex
+            .toLowerCase()
+            .replace(/(.{2})/g, '$1:')
+            .replace(/:$/, '')
+        : normalizeMac(m[2]);
     bindings.push({ ip: m[1], mac, expiry: m[3].trim() });
   }
   const findings = [];
   for (const pool of pools) {
     if (!pool.range) {
-      findings.push({ severity: 'Info', type: 'Pool without network statement', evidence: `Pool "${pool.name}" has no parseable network — cannot size the pool.` });
+      findings.push({
+        severity: 'Info',
+        type: 'Pool without network statement',
+        evidence: `Pool "${pool.name}" has no parseable network — cannot size the pool.`,
+      });
       continue;
     }
-    const inPool = bindings.filter((b) => {
+    const inPool = bindings.filter(b => {
       const ip = ipToInt(b.ip);
       return ip != null && ip >= pool.range.start + 1 && ip <= pool.range.end - 1;
     });
-    const excludedInPool = excluded.filter((e) => {
+    const excludedInPool = excluded.filter(e => {
       const a = ipToInt(e.from);
       const b = ipToInt(e.to);
       return a != null && b != null && a <= pool.range.end && b >= pool.range.start;

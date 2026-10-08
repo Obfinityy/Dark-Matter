@@ -61,7 +61,7 @@ export function expandNetblock(records, cidr) {
   for (const r of records || []) {
     if (!r || !r.domain || !r.ip) continue;
     const n = ipToInt(String(r.ip));
-    if (n == null || ((n & parsed.mask) >>> 0) !== parsed.network) continue;
+    if (n == null || (n & parsed.mask) >>> 0 !== parsed.network) continue;
     const domain = String(r.domain).toLowerCase().replace(/\.$/, '');
     const key = `${domain}|${r.ip}`;
     if (seen.has(key)) continue;
@@ -112,7 +112,9 @@ export function reverseWhois(records, identity = {}) {
       createdDate: r.createdDate ?? null,
     });
   }
-  return out.sort((a, b) => b.matchedOn.length - a.matchedOn.length || a.domain.localeCompare(b.domain));
+  return out.sort(
+    (a, b) => b.matchedOn.length - a.matchedOn.length || a.domain.localeCompare(b.domain)
+  );
 }
 
 /**

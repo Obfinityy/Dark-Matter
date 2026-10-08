@@ -1,3 +1,9 @@
+/**
+ * reportModel — database model for report.
+ * Schema definition and data-access methods for report records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**
@@ -77,16 +83,13 @@ export class ReportModel {
 
       // Timestamps
       createdAt: now(),
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.insertOne(report);
     return report;
   }
 
   async update(reportId, patch) {
-    await this.collection.updateOne(
-      { id: reportId },
-      { $set: { ...patch, updatedAt: now() } }
-    );
+    await this.collection.updateOne({ id: reportId }, { $set: { ...patch, updatedAt: now() } });
   }
 }

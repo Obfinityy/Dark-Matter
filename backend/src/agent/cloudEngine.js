@@ -17,7 +17,7 @@ export const CLOUD_TESTS = Object.freeze([
     name: 'S3 bucket listing',
     severity: 'medium',
     description: 'Check if S3 bucket allows public listing',
-    urls: (bucket) => [
+    urls: bucket => [
       `https://${bucket}.s3.amazonaws.com/`,
       `https://${bucket}.s3-website-us-east-1.amazonaws.com/`,
     ],
@@ -26,14 +26,14 @@ export const CLOUD_TESTS = Object.freeze([
         return { vulnerable: true, evidence: 'S3 bucket publicly listable' };
       }
       return { vulnerable: false, evidence: '' };
-    }
+    },
   },
   {
     id: 's3_read',
     name: 'S3 public read',
     severity: 'high',
     description: 'Check common sensitive files in public S3 bucket',
-    urls: (bucket) => [
+    urls: bucket => [
       `https://${bucket}.s3.amazonaws.com/.env`,
       `https://${bucket}.s3.amazonaws.com/config.json`,
       `https://${bucket}.s3.amazonaws.com/backup.zip`,
@@ -43,16 +43,14 @@ export const CLOUD_TESTS = Object.freeze([
         return { vulnerable: true, evidence: `Sensitive file publicly readable` };
       }
       return { vulnerable: false, evidence: '' };
-    }
+    },
   },
   {
     id: 'firebase_open',
     name: 'Firebase open database',
     severity: 'critical',
     description: 'Check if Firebase Realtime Database is world-readable',
-    urls: (domain) => [
-      `https://${domain}.firebaseio.com/.json`,
-    ],
+    urls: domain => [`https://${domain}.firebaseio.com/.json`],
     detect: (status, body) => {
       if (status === 200) {
         try {
@@ -60,41 +58,39 @@ export const CLOUD_TESTS = Object.freeze([
           if (data && typeof data === 'object' && Object.keys(data).length > 0) {
             return { vulnerable: true, evidence: 'Firebase database world-readable' };
           }
-        } catch { /* not JSON */ }
+        } catch {
+          /* not JSON */
+        }
       }
       // 401/permission denied = secure
       return { vulnerable: false, evidence: '' };
-    }
+    },
   },
   {
     id: 'azure_blob_list',
     name: 'Azure blob listing',
     severity: 'medium',
     description: 'Check if Azure storage container is publicly listable',
-    urls: (account) => [
-      `https://${account}.blob.core.windows.net/?restype=container&comp=list`,
-    ],
+    urls: account => [`https://${account}.blob.core.windows.net/?restype=container&comp=list`],
     detect: (status, body) => {
       if (status === 200 && body.includes('<EnumerationResults')) {
         return { vulnerable: true, evidence: 'Azure container publicly listable' };
       }
       return { vulnerable: false, evidence: '' };
-    }
+    },
   },
   {
     id: 'gcp_bucket',
     name: 'GCP bucket open',
     severity: 'high',
     description: 'Check if Google Cloud Storage bucket is public',
-    urls: (bucket) => [
-      `https://storage.googleapis.com/${bucket}/`,
-    ],
+    urls: bucket => [`https://storage.googleapis.com/${bucket}/`],
     detect: (status, body) => {
       if (status === 200 && body.includes('<ListBucketResult')) {
         return { vulnerable: true, evidence: 'GCP bucket publicly listable' };
       }
       return { vulnerable: false, evidence: '' };
-    }
+    },
   },
 ]);
 
@@ -124,7 +120,7 @@ export function guessBucketNames(domain) {
  */
 export function findFirebaseProjects(text) {
   const matches = text.matchAll(/([a-z0-9\-]+)\.firebaseio\.com/g);
-  return [...new Set([...matches].map((m) => m[1]))];
+  return [...new Set([...matches].map(m => m[1]))];
 }
 
 /**

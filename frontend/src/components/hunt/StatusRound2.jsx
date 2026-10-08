@@ -13,19 +13,25 @@ import {
   captureSnapshot,
   intentExplanation,
   dependencyDisplay,
-  approachConfidence, confidenceLabel,
+  approachConfidence,
+  confidenceLabel,
   consideredAlternatives,
   moduleStatus,
-  quietModeFilter, QUIET_ON, QUIET_OFF,
+  quietModeFilter,
+  QUIET_ON,
+  QUIET_OFF,
   pushAlertPayload,
   terminalLine,
-  emojiForPhase, STATUS_EMOJI,
+  emojiForPhase,
+  STATUS_EMOJI,
   timeSinceFinding,
   coverageSummary,
   pausedStatus,
   approvalWaitStatus,
-  exportStatusCsv, exportStatusMarkdown,
-  openQaThread, qaReply,
+  exportStatusCsv,
+  exportStatusMarkdown,
+  openQaThread,
+  qaReply,
   flagUncertain,
   forecastPhases,
 } from './statusRound2Core.js';
@@ -43,12 +49,22 @@ export function TabTitleStatus({ phase, action, findingCount }) {
 
 export function StatusApiCard({ huntId, phase, action, progressPct, findingCount }) {
   const [copied, setCopied] = useState(false);
-  const payload = statusApiPayload({ huntId, phase, action, progressPct, findingCount, updatedAtMs: 1728300000000, paused: false });
+  const payload = statusApiPayload({
+    huntId,
+    phase,
+    action,
+    progressPct,
+    findingCount,
+    updatedAtMs: 1728300000000,
+    paused: false,
+  });
   return (
     <div className="st28-card" data-testid="status-api-card">
       <strong>Status API endpoint</strong>
       <pre className="st28-mono">{JSON.stringify(payload, null, 2)}</pre>
-      <button type="button" onClick={() => setCopied(true)}>{copied ? 'Copied' : 'Copy JSON'}</button>
+      <button type="button" onClick={() => setCopied(true)}>
+        {copied ? 'Copied' : 'Copy JSON'}
+      </button>
     </div>
   );
 }
@@ -58,12 +74,19 @@ export function StatusSnapshots({ state }) {
   return (
     <div className="st28-card" data-testid="status-snapshots">
       <strong>Status snapshots</strong>
-      <button type="button" onClick={() => setSnaps(captureSnapshot(state, 1728300000000 + snaps.length * 60000, snaps))}>
+      <button
+        type="button"
+        onClick={() =>
+          setSnaps(captureSnapshot(state, 1728300000000 + snaps.length * 60000, snaps))
+        }
+      >
         Capture snapshot
       </button>
       <ul>
-        {snaps.map((s) => (
-          <li key={s.id}>{new Date(s.capturedAtMs).toISOString()} — {s.phase} ({s.progressPct}%)</li>
+        {snaps.map(s => (
+          <li key={s.id}>
+            {new Date(s.capturedAtMs).toISOString()} — {s.phase} ({s.progressPct}%)
+          </li>
         ))}
       </ul>
     </div>
@@ -98,7 +121,9 @@ export function ApproachConfidence({ score }) {
   return (
     <div className="st28-card" data-testid="approach-confidence">
       <strong>Approach confidence</strong>
-      <p>{confidenceLabel(band)} <span className="st28-badge">{band}</span></p>
+      <p>
+        {confidenceLabel(band)} <span className="st28-badge">{band}</span>
+      </p>
     </div>
   );
 }
@@ -108,8 +133,16 @@ export function ConsideredAlternatives({ action }) {
   return (
     <div className="st28-card" data-testid="considered-alternatives">
       <strong>Considered alternatives</strong>
-      {alts.length === 0 ? <p>None recorded.</p> : (
-        <ul>{alts.map((a, i) => <li key={i}><em>{a.name}</em> — rejected: {a.rejectedBecause}</li>)}</ul>
+      {alts.length === 0 ? (
+        <p>None recorded.</p>
+      ) : (
+        <ul>
+          {alts.map((a, i) => (
+            <li key={i}>
+              <em>{a.name}</em> — rejected: {a.rejectedBecause}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
@@ -121,10 +154,19 @@ export function PerModuleStatus({ modules }) {
   return (
     <div className="st28-card" data-testid="per-module-status">
       <strong>Per-module status</strong>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="module name" aria-label="module name" />
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="module name"
+        aria-label="module name"
+      />
       {res.found ? (
-        <p>{res.name}: {res.status} ({res.progressPct}%) {res.detail}</p>
-      ) : <p>{res.status}</p>}
+        <p>
+          {res.name}: {res.status} ({res.progressPct}%) {res.detail}
+        </p>
+      ) : (
+        <p>{res.status}</p>
+      )}
     </div>
   );
 }
@@ -138,18 +180,28 @@ export function QuietModeToggle({ updates }) {
       <button type="button" onClick={() => setMode(mode === QUIET_ON ? QUIET_OFF : QUIET_ON)}>
         {mode === QUIET_ON ? 'Disable quiet mode' : 'Enable quiet mode'}
       </button>
-      <p>{visible.length} of {(updates || []).length} updates shown</p>
+      <p>
+        {visible.length} of {(updates || []).length} updates shown
+      </p>
     </div>
   );
 }
 
 export function PushAlertsSetup() {
   const [enabled, setEnabled] = useState(false);
-  const sample = pushAlertPayload({ title: 'Phase complete', body: 'Recon finished', kind: 'phase', atMs: 1728300000000, huntId: 'h-1' });
+  const sample = pushAlertPayload({
+    title: 'Phase complete',
+    body: 'Recon finished',
+    kind: 'phase',
+    atMs: 1728300000000,
+    huntId: 'h-1',
+  });
   return (
     <div className="st28-card" data-testid="push-alerts">
       <strong>Push status alerts</strong>
-      <button type="button" onClick={() => setEnabled(!enabled)}>{enabled ? 'Disable' : 'Enable'} push alerts</button>
+      <button type="button" onClick={() => setEnabled(!enabled)}>
+        {enabled ? 'Disable' : 'Enable'} push alerts
+      </button>
       {enabled && <pre className="st28-mono">{JSON.stringify(sample, null, 2)}</pre>}
     </div>
   );
@@ -170,7 +222,9 @@ export function EmojiLegend() {
       <strong>Status emoji legend</strong>
       <ul className="st28-inline">
         {Object.entries(STATUS_EMOJI).map(([phase, emoji]) => (
-          <li key={phase}>{emoji} {phase}</li>
+          <li key={phase}>
+            {emoji} {phase}
+          </li>
         ))}
       </ul>
       <p>Fallback icon: {emojiForPhase('unknown-phase')}</p>
@@ -192,7 +246,9 @@ export function CoverageSummary({ areas }) {
   return (
     <div className="st28-card" data-testid="coverage-summary">
       <strong>Coverage so far</strong>
-      <p>{cov.covered}/{cov.total} areas exercised ({cov.pct}%)</p>
+      <p>
+        {cov.covered}/{cov.total} areas exercised ({cov.pct}%)
+      </p>
       {cov.untouched.length > 0 && <p>Untouched: {cov.untouched.join(', ')}</p>}
     </div>
   );
@@ -225,8 +281,12 @@ export function StatusExport({ history }) {
     <div className="st28-card" data-testid="status-export">
       <strong>Status export</strong>
       <div>
-        <button type="button" onClick={() => setFormat('csv')}>CSV</button>
-        <button type="button" onClick={() => setFormat('markdown')}>Markdown</button>
+        <button type="button" onClick={() => setFormat('csv')}>
+          CSV
+        </button>
+        <button type="button" onClick={() => setFormat('markdown')}>
+          Markdown
+        </button>
       </div>
       <pre className="st28-mono">{output}</pre>
     </div>
@@ -241,11 +301,28 @@ export function StatusQaThread({ statusId }) {
       <strong>Status Q&A thread</strong>
       <ul>
         {thread.exchanges.map((x, i) => (
-          <li key={i}><em>Q:</em> {x.question} <em>A:</em> {x.answer || '(awaiting agent)'}</li>
+          <li key={i}>
+            <em>Q:</em> {x.question} <em>A:</em> {x.answer || '(awaiting agent)'}
+          </li>
         ))}
       </ul>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about this moment" aria-label="question" />
-      <button type="button" onClick={() => { if (q.trim()) { setThread(qaReply(thread, q.trim(), null)); setQ(''); } }}>Ask</button>
+      <input
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        placeholder="Ask about this moment"
+        aria-label="question"
+      />
+      <button
+        type="button"
+        onClick={() => {
+          if (q.trim()) {
+            setThread(qaReply(thread, q.trim(), null));
+            setQ('');
+          }
+        }}
+      >
+        Ask
+      </button>
     </div>
   );
 }
@@ -267,7 +344,10 @@ export function ForecastCard({ plan, currentIdx }) {
       <strong>Upcoming-phase forecast</strong>
       <ol>
         {forecast.map((f, i) => (
-          <li key={i}>{f.phase}{f.note ? ` — ${f.note}` : ''}</li>
+          <li key={i}>
+            {f.phase}
+            {f.note ? ` — ${f.note}` : ''}
+          </li>
         ))}
       </ol>
     </div>
@@ -276,7 +356,10 @@ export function ForecastCard({ plan, currentIdx }) {
 
 export function StatusRound2Gallery() {
   const demo = {
-    phase: 'probe', action: 'testing login form', findingCount: 3, progressPct: 42,
+    phase: 'probe',
+    action: 'testing login form',
+    findingCount: 3,
+    progressPct: 42,
     huntId: 'h-demo',
   };
   const modules = [
@@ -289,7 +372,10 @@ export function StatusRound2Gallery() {
     { kind: 'finding', text: 'XSS found' },
   ];
   const events = [{ atMs: 1728300000000, kind: 'phase', text: 'Recon complete' }];
-  const areas = [{ name: '/login', covered: true }, { name: '/admin', covered: false }];
+  const areas = [
+    { name: '/login', covered: true },
+    { name: '/admin', covered: false },
+  ];
   const history = [{ atMs: 1728300000000, kind: 'phase', phase: 'recon', text: 'Recon complete' }];
   const plan = [{ phase: 'recon' }, { phase: 'crawl' }, { phase: 'probe' }, { phase: 'fuzz' }];
   return (
@@ -300,7 +386,9 @@ export function StatusRound2Gallery() {
       <IntentExplanation action="fuzzing /api/login" goal="find auth bypass" />
       <DependencyDisplay step={{ waitsFor: ['recon results'] }} />
       <ApproachConfidence score={0.82} />
-      <ConsideredAlternatives action={{ alternatives: [{ name: 'manual review', rejectedBecause: 'too slow' }] }} />
+      <ConsideredAlternatives
+        action={{ alternatives: [{ name: 'manual review', rejectedBecause: 'too slow' }] }}
+      />
       <PerModuleStatus modules={modules} />
       <QuietModeToggle updates={updates} />
       <PushAlertsSetup />
@@ -308,7 +396,12 @@ export function StatusRound2Gallery() {
       <EmojiLegend />
       <TimeSinceFinding lastFindingMs={1728299000000} nowMs={1728300000000} />
       <CoverageSummary areas={areas} />
-      <PausedStatusCard frozenPhase="probe" frozenAction="testing login" resumeNext="continue probe queue" pausedAtMs={1728300000000} />
+      <PausedStatusCard
+        frozenPhase="probe"
+        frozenAction="testing login"
+        resumeNext="continue probe queue"
+        pausedAtMs={1728300000000}
+      />
       <ApprovalWaitCard action="run intrusive scan" holder="you" requestedAtMs={1728300000000} />
       <StatusExport history={history} />
       <StatusQaThread statusId="st-1" />

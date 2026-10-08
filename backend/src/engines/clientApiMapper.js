@@ -61,15 +61,24 @@ function clean(s) {
 
 /** Barcode formats recognized by BarcodeDetector.getSupportedFormats(). */
 const BARCODE_FORMATS = [
-  'aztec', 'code_128', 'code_39', 'code_93', 'codabar', 'data_matrix',
-  'datamatrix', 'ean_13', 'ean_8', 'itf', 'pdf417', 'qr_code', 'upc_a', 'upc_e',
+  'aztec',
+  'code_128',
+  'code_39',
+  'code_93',
+  'codabar',
+  'data_matrix',
+  'datamatrix',
+  'ean_13',
+  'ean_8',
+  'itf',
+  'pdf417',
+  'qr_code',
+  'upc_a',
+  'upc_e',
 ];
 
 const BARCODE_USAGE_RE = /new\s+BarcodeDetector\s*\(\s*(?:\{[^}]*\})?/gi;
-const BARCODE_FORMAT_RE = new RegExp(
-  `["'](${BARCODE_FORMATS.join('|')})["']`,
-  'gi'
-);
+const BARCODE_FORMAT_RE = new RegExp(`["'](${BARCODE_FORMATS.join('|')})["']`, 'gi');
 
 /**
  * Map BarcodeDetector usage to the formats a feature scans.
@@ -79,7 +88,7 @@ const BARCODE_FORMAT_RE = new RegExp(
 export function mapBarcodeFormats(jsSource = '') {
   const src = String(jsSource || '');
   const used = BARCODE_USAGE_RE.test(src) || /BarcodeDetector\s*\./.test(src);
-  const formats = collectAll(src, BARCODE_FORMAT_RE).map((f) => f.toLowerCase());
+  const formats = collectAll(src, BARCODE_FORMAT_RE).map(f => f.toLowerCase());
   return { used, formats, formatCount: formats.length };
 }
 
@@ -89,8 +98,16 @@ export function mapBarcodeFormats(jsSource = '') {
 
 /** Media-processing endpoints commonly serving face/text detection results. */
 const SHAPE_API_ENDPOINT_HINTS = [
-  'detect', 'face', 'ocr', 'text-detect', 'shape', 'vision', 'analyze',
-  'liveness', 'biometric', 'document-scan',
+  'detect',
+  'face',
+  'ocr',
+  'text-detect',
+  'shape',
+  'vision',
+  'analyze',
+  'liveness',
+  'biometric',
+  'document-scan',
 ];
 
 const SHAPE_DETECTOR_RE = /new\s+(FaceDetector|TextDetector|BarcodeDetector)\s*\(/gi;
@@ -105,8 +122,8 @@ export function mapShapeDetection(jsSource = '') {
   const src = String(jsSource || '');
   const detectors = collectAll(src, SHAPE_DETECTOR_RE);
   const urls = collectAll(src, FETCH_URL_RE);
-  const endpoints = urls.filter((u) =>
-    SHAPE_API_ENDPOINT_HINTS.some((hint) => u.toLowerCase().includes(hint))
+  const endpoints = urls.filter(u =>
+    SHAPE_API_ENDPOINT_HINTS.some(hint => u.toLowerCase().includes(hint))
   );
   return { detectors, endpoints };
 }
@@ -128,9 +145,9 @@ const XR_ROUTE_HINT_RE = /(xr|ar|vr|immersive|metaverse|scene|glb|gltf|model3d)/
  */
 export function mapWebXRSessionModes(jsSource = '') {
   const src = String(jsSource || '');
-  const requested = collectAll(src, XR_REQUEST_RE).map((m) => m.toLowerCase());
-  const modes = requested.filter((m) => XR_SESSION_MODES.includes(m));
-  const routes = collectAll(src, FETCH_URL_RE).filter((u) => XR_ROUTE_HINT_RE.test(u));
+  const requested = collectAll(src, XR_REQUEST_RE).map(m => m.toLowerCase());
+  const modes = requested.filter(m => XR_SESSION_MODES.includes(m));
+  const routes = collectAll(src, FETCH_URL_RE).filter(u => XR_ROUTE_HINT_RE.test(u));
   return { modes, routes };
 }
 
@@ -138,10 +155,19 @@ export function mapWebXRSessionModes(jsSource = '') {
 // Idea 844 — Gamepad-API feature mapping
 // ---------------------------------------------------------------------------
 
-const GAMEPAD_RE = /navigator\.getGamepads\s*\(|gamepadconnected|gamepaddisconnected|getGamepads\(\)/gi;
+const GAMEPAD_RE =
+  /navigator\.getGamepads\s*\(|gamepadconnected|gamepaddisconnected|getGamepads\(\)/gi;
 const GAMEPAD_GAMING_HINTS = [
-  'game', 'play', 'controller', 'joystick', 'arcade', 'gameroom', 'streaming',
-  'cloud-gaming', 'multiplayer', 'leaderboard',
+  'game',
+  'play',
+  'controller',
+  'joystick',
+  'arcade',
+  'gameroom',
+  'streaming',
+  'cloud-gaming',
+  'multiplayer',
+  'leaderboard',
 ];
 
 /**
@@ -154,8 +180,8 @@ export function mapGamepadFeatures(jsSource = '') {
   const signals = collectAll(src, GAMEPAD_RE, 0);
   const used = signals.length > 0;
   const urls = collectAll(src, FETCH_URL_RE);
-  const gamingFeatures = urls.filter((u) =>
-    GAMEPAD_GAMING_HINTS.some((hint) => u.toLowerCase().includes(hint))
+  const gamingFeatures = urls.filter(u =>
+    GAMEPAD_GAMING_HINTS.some(hint => u.toLowerCase().includes(hint))
   );
   return { used, signals: signals.map(clean), gamingFeatures };
 }
@@ -165,7 +191,8 @@ export function mapGamepadFeatures(jsSource = '') {
 // ---------------------------------------------------------------------------
 
 const MIDI_REQUEST_RE = /navigator\.requestMIDIAccess\s*\(/gi;
-const MIDI_PORT_RE = /midi[\s_]*(?:port|device|input|output)[s]?\s*(?:id|name|label)?\s*[:=]\s*['"`]([^'"`]+)['"`]/gi;
+const MIDI_PORT_RE =
+  /midi[\s_]*(?:port|device|input|output)[s]?\s*(?:id|name|label)?\s*[:=]\s*['"`]([^'"`]+)['"`]/gi;
 const MIDI_METHOD_RE = /\.(inputs|outputs)\s*\.\s*(?:get|values)\s*\(/gi;
 
 /**
@@ -177,7 +204,7 @@ export function enumerateWebMidiPorts(jsSource = '') {
   const src = String(jsSource || '');
   const midiAccessRequested = MIDI_REQUEST_RE.test(src);
   const ports = collectAll(src, MIDI_PORT_RE);
-  const portSources = collectAll(src, MIDI_METHOD_RE).map((p) => p.toLowerCase());
+  const portSources = collectAll(src, MIDI_METHOD_RE).map(p => p.toLowerCase());
   return { midiAccessRequested, ports, portSources };
 }
 
@@ -224,7 +251,8 @@ export function mapWebCodecsEncoders(jsSource = '') {
 // ---------------------------------------------------------------------------
 
 const WEBTRANSPORT_RE = /new\s+WebTransport\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/gi;
-const WEBTRANSPORT_STREAM_RE = /\.(createBidirectionalStream|createUnidirectionalStream|datagrams)(?=\s*[\(.])/gi;
+const WEBTRANSPORT_STREAM_RE =
+  /\.(createBidirectionalStream|createUnidirectionalStream|datagrams)(?=\s*[\(.])/gi;
 
 /**
  * Map WebTransport usage to the real-time endpoints it connects to.
@@ -244,7 +272,8 @@ export function mapWebTransportStreams(jsSource = '') {
 
 const WEBNN_RE = /navigator\.ml\s*\.|MLGraphBuilder|MLContext|computeGraph/gi;
 const WEBNN_MODEL_URL_RE = /(?:model(?:Url)?|weights(?:Url)?)\s*[:=]\s*['"`]([^'"`]{3,400})/gi;
-const WEBNN_FETCH_RE = /fetch\s*\(\s*['"`]([^'"`]*(?:\.bin|\.onnx|\.tflite|\.webnn|model[^'"`]*\.json)[^'"`]*)['"`]/gi;
+const WEBNN_FETCH_RE =
+  /fetch\s*\(\s*['"`]([^'"`]*(?:\.bin|\.onnx|\.tflite|\.webnn|model[^'"`]*\.json)[^'"`]*)['"`]/gi;
 
 /**
  * Extract on-device ML model URLs referenced by WebNN code.
@@ -282,7 +311,7 @@ export function harvestTensorFlowModelUrls(jsSource = '') {
   const hosts = [
     ...new Set(
       modelUrls
-        .map((u) => {
+        .map(u => {
           const m = u.match(/^https?:\/\/([^/:?#]+)/i);
           return m ? m[1].toLowerCase() : null;
         })

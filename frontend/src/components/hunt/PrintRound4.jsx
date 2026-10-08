@@ -127,14 +127,14 @@ export function CrossBrowserPrintNote() {
     <div className="pr4-xbrowser">
       <p>Print stylesheet validated against:</p>
       <ul>
-        {PRINT_CSS_TARGETS.map((t) => (
+        {PRINT_CSS_TARGETS.map(t => (
           <li key={t}>{t}</li>
         ))}
       </ul>
       <label>
         Engine gap note:{' '}
-        <select value={engine} onChange={(e) => setEngine(e.target.value)}>
-          {['Blink', 'Gecko', 'WebKit'].map((e) => (
+        <select value={engine} onChange={e => setEngine(e.target.value)}>
+          {['Blink', 'Gecko', 'WebKit'].map(e => (
             <option key={e}>{e}</option>
           ))}
         </select>
@@ -220,8 +220,18 @@ const DEMO_SCOPE = {
 };
 
 const DEMO_EVENTS = [
-  { time: '07 Oct 2026 18:00', actor: 'a.sharma', action: 'hunt.started', detail: 'target acme.com' },
-  { time: '07 Oct 2026 18:20', actor: 'system', action: 'finding.created', detail: 'XSS on /search' },
+  {
+    time: '07 Oct 2026 18:00',
+    actor: 'a.sharma',
+    action: 'hunt.started',
+    detail: 'target acme.com',
+  },
+  {
+    time: '07 Oct 2026 18:20',
+    actor: 'system',
+    action: 'finding.created',
+    detail: 'XSS on /search',
+  },
 ];
 
 export function PrintRound4Gallery() {
@@ -237,7 +247,7 @@ export function PrintRound4Gallery() {
       <h3>50924 · Full-list print rendering</h3>
       <FullListPrint
         items={[{ title: 'XSS on /search' }, { title: 'IDOR on /api/user' }]}
-        renderRow={(r) => r.title}
+        renderRow={r => r.title}
       />
       <h3>50925 · Shortcut cheat-sheet printout</h3>
       <CheatSheetPrintout shortcuts={DEMO_SHORTCUTS} />

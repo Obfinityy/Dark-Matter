@@ -65,13 +65,13 @@ const THEORETICAL_PHRASES = [
 
 // Concrete artifacts that prove something actually happened.
 const STRONG_EVIDENCE_SIGNALS = [
-  /HTTP\/\d(\.\d)?\s+\d{3}/,          // raw status line
-  /status[:\s]+[1-5]\d{2}\b/i,        // "status: 200"
-  /set-cookie:/i,                     // header artifacts
+  /HTTP\/\d(\.\d)?\s+\d{3}/, // raw status line
+  /status[:\s]+[1-5]\d{2}\b/i, // "status: 200"
+  /set-cookie:/i, // header artifacts
   /location:/i,
-  /\b\d{2,5}\s?ms\b/i,               // timing proof (blind injection)
-  /before[:\s].{0,40}after[:\s]/is,   // state-change narrative
-  /balance|refund|payment|charged/i,  // business-state proof
+  /\b\d{2,5}\s?ms\b/i, // timing proof (blind injection)
+  /before[:\s].{0,40}after[:\s]/is, // state-change narrative
+  /balance|refund|payment|charged/i, // business-state proof
 ];
 
 // Findings that demonstrate real impact on a real user.
@@ -128,14 +128,14 @@ function normalizeLocation(url) {
 
 function hostInAllowedDomains(host, allowedDomains) {
   const h = host.toLowerCase();
-  return allowedDomains.some((d) => {
+  return allowedDomains.some(d => {
     const domain = String(d).toLowerCase().replace(/^\*\./, '');
     return h === domain || h.endsWith(`.${domain}`);
   });
 }
 
 function pathMatches(path, patterns) {
-  return (patterns || []).some((p) =>
+  return (patterns || []).some(p =>
     p instanceof RegExp ? p.test(path) : String(path).startsWith(String(p))
   );
 }
@@ -172,8 +172,11 @@ function checkScope(finding, context) {
       score: 0,
     };
   }
-  if (scope.allowedPaths && scope.allowedPaths.length > 0 &&
-      !pathMatches(url.pathname, scope.allowedPaths)) {
+  if (
+    scope.allowedPaths &&
+    scope.allowedPaths.length > 0 &&
+    !pathMatches(url.pathname, scope.allowedPaths)
+  ) {
     return {
       name: 'scope',
       passed: false,
@@ -185,17 +188,21 @@ function checkScope(finding, context) {
 }
 
 function dedupeKey(finding) {
-  const type = String(finding.type || 'unknown').toLowerCase().trim();
+  const type = String(finding.type || 'unknown')
+    .toLowerCase()
+    .trim();
   const url = parseUrl(finding.url);
   const location = url ? normalizeLocation(url) : String(finding.url || 'unknown').toLowerCase();
-  const param = String(finding.param || finding.parameter || '').toLowerCase().trim();
+  const param = String(finding.param || finding.parameter || '')
+    .toLowerCase()
+    .trim();
   return `${type}|${location}|${param}`;
 }
 
 function checkDuplicate(finding, context) {
   const existing = context.existingFindings || [];
   const key = dedupeKey(finding);
-  const dup = existing.find((e) => dedupeKey(e) === key);
+  const dup = existing.find(e => dedupeKey(e) === key);
   if (dup) {
     return {
       name: 'duplicate',
@@ -204,7 +211,12 @@ function checkDuplicate(finding, context) {
       score: 0,
     };
   }
-  return { name: 'duplicate', passed: true, reason: 'unique finding', score: CHECK_WEIGHTS.duplicate };
+  return {
+    name: 'duplicate',
+    passed: true,
+    reason: 'unique finding',
+    score: CHECK_WEIGHTS.duplicate,
+  };
 }
 
 function checkEvidence(finding) {
@@ -217,7 +229,7 @@ function checkEvidence(finding) {
       score: 0,
     };
   }
-  if (GENERIC_EVIDENCE_LABELS.some((p) => p.test(evidence))) {
+  if (GENERIC_EVIDENCE_LABELS.some(p => p.test(evidence))) {
     return {
       name: 'evidence',
       passed: false,
@@ -225,7 +237,7 @@ function checkEvidence(finding) {
       score: 0,
     };
   }
-  const strongHits = STRONG_EVIDENCE_SIGNALS.filter((p) => p.test(evidence)).length;
+  const strongHits = STRONG_EVIDENCE_SIGNALS.filter(p => p.test(evidence)).length;
   if (strongHits >= 1 && evidence.length >= 80) {
     return {
       name: 'evidence',
@@ -243,7 +255,9 @@ function checkEvidence(finding) {
 }
 
 function checkImpact(finding) {
-  const explicit = String(finding.impact || '').toLowerCase().trim();
+  const explicit = String(finding.impact || '')
+    .toLowerCase()
+    .trim();
   if (explicit === 'theoretical' || explicit === 'none') {
     return {
       name: 'impact',
@@ -253,18 +267,30 @@ function checkImpact(finding) {
     };
   }
   if (['critical', 'high'].includes(explicit)) {
-    return { name: 'impact', passed: true, reason: `declared impact "${explicit}"`, score: CHECK_WEIGHTS.impact };
+    return {
+      name: 'impact',
+      passed: true,
+      reason: `declared impact "${explicit}"`,
+      score: CHECK_WEIGHTS.impact,
+    };
   }
   if (explicit === 'medium') {
     return { name: 'impact', passed: true, reason: 'declared impact "medium"', score: 15 };
   }
   if (explicit === 'low') {
-    return { name: 'impact', passed: true, reason: 'declared impact "low" — real but minor', score: 8 };
+    return {
+      name: 'impact',
+      passed: true,
+      reason: 'declared impact "low" — real but minor',
+      score: 8,
+    };
   }
 
   const haystack = `${finding.title || ''} ${finding.evidence || ''} ${finding.type || ''}`;
-  if (WEAK_FINDING_SIGNALS.some((p) => p.test(haystack)) &&
-      !DEMONSTRATED_IMPACT_SIGNALS.some((p) => p.test(haystack))) {
+  if (
+    WEAK_FINDING_SIGNALS.some(p => p.test(haystack)) &&
+    !DEMONSTRATED_IMPACT_SIGNALS.some(p => p.test(haystack))
+  ) {
     return {
       name: 'impact',
       passed: false,
@@ -272,8 +298,10 @@ function checkImpact(finding) {
       score: 0,
     };
   }
-  if (DEMONSTRATED_IMPACT_SIGNALS.some((p) => p.test(haystack)) &&
-      !THEORETICAL_PHRASES.some((p) => p.test(haystack))) {
+  if (
+    DEMONSTRATED_IMPACT_SIGNALS.some(p => p.test(haystack)) &&
+    !THEORETICAL_PHRASES.some(p => p.test(haystack))
+  ) {
     return {
       name: 'impact',
       passed: true,
@@ -281,7 +309,7 @@ function checkImpact(finding) {
       score: CHECK_WEIGHTS.impact,
     };
   }
-  if (PLAUSIBLE_IMPACT_SIGNALS.some((p) => p.test(haystack))) {
+  if (PLAUSIBLE_IMPACT_SIGNALS.some(p => p.test(haystack))) {
     return {
       name: 'impact',
       passed: true,
@@ -289,8 +317,10 @@ function checkImpact(finding) {
       score: 15,
     };
   }
-  if (THEORETICAL_PHRASES.some((p) => p.test(haystack)) &&
-      !DEMONSTRATED_IMPACT_SIGNALS.some((p) => p.test(haystack))) {
+  if (
+    THEORETICAL_PHRASES.some(p => p.test(haystack)) &&
+    !DEMONSTRATED_IMPACT_SIGNALS.some(p => p.test(haystack))
+  ) {
     return {
       name: 'impact',
       passed: false,
@@ -389,8 +419,14 @@ export function triageFinding(finding = {}, context = {}) {
     checkImpact(f, ctx),
     checkReproducibility(f, ctx),
   ];
-  const score = Math.max(0, Math.min(100, checks.reduce((n, c) => n + (c.score || 0), 0)));
-  return { passed: checks.every((c) => c.passed), checks, score };
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      checks.reduce((n, c) => n + (c.score || 0), 0)
+    )
+  );
+  return { passed: checks.every(c => c.passed), checks, score };
 }
 
 /**
@@ -413,8 +449,18 @@ export async function triageFindingAsync(finding = {}, context = {}) {
       const reproduced = result === true || (result && result.reproduced === true);
       checks.push(
         reproduced
-          ? { name: 'reproducibility', passed: true, reason: 'async re-run reproduced the finding', score: CHECK_WEIGHTS.reproducibility }
-          : { name: 'reproducibility', passed: false, reason: 'async re-run did NOT reproduce the finding', score: 0 }
+          ? {
+              name: 'reproducibility',
+              passed: true,
+              reason: 'async re-run reproduced the finding',
+              score: CHECK_WEIGHTS.reproducibility,
+            }
+          : {
+              name: 'reproducibility',
+              passed: false,
+              reason: 'async re-run did NOT reproduce the finding',
+              score: 0,
+            }
       );
     } catch (err) {
       checks.push({
@@ -428,8 +474,14 @@ export async function triageFindingAsync(finding = {}, context = {}) {
     checks.push(checkReproducibility(f, ctx));
   }
 
-  const score = Math.max(0, Math.min(100, checks.reduce((n, c) => n + (c.score || 0), 0)));
-  return { passed: checks.every((c) => c.passed), checks, score };
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      checks.reduce((n, c) => n + (c.score || 0), 0)
+    )
+  );
+  return { passed: checks.every(c => c.passed), checks, score };
 }
 
 /**
@@ -450,7 +502,7 @@ export function triageBatch(findings = [], context = {}) {
       passed.push(finding);
       seen.push(finding);
     } else {
-      rejected.push({ finding, failedChecks: result.checks.filter((c) => !c.passed) });
+      rejected.push({ finding, failedChecks: result.checks.filter(c => !c.passed) });
     }
   }
   return { passed, rejected };
@@ -472,7 +524,7 @@ export async function triageBatchAsync(findings = [], context = {}) {
       passed.push(finding);
       seen.push(finding);
     } else {
-      rejected.push({ finding, failedChecks: result.checks.filter((c) => !c.passed) });
+      rejected.push({ finding, failedChecks: result.checks.filter(c => !c.passed) });
     }
   }
   return { passed, rejected };

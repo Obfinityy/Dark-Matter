@@ -18,8 +18,18 @@ const SERVER_TOKENS = [
 ];
 
 const KNOWN_CAPS = new Set([
-  'TOP', 'USER', 'UIDL', 'SASL', 'RESP-CODES', 'PIPELINING', 'STLS',
-  'IMPLEMENTATION', 'LOGIN-DELAY', 'EXPIRE', 'LANG', 'UTF8',
+  'TOP',
+  'USER',
+  'UIDL',
+  'SASL',
+  'RESP-CODES',
+  'PIPELINING',
+  'STLS',
+  'IMPLEMENTATION',
+  'LOGIN-DELAY',
+  'EXPIRE',
+  'LANG',
+  'UTF8',
 ]);
 
 /**
@@ -30,9 +40,9 @@ const KNOWN_CAPS = new Set([
 export function parsePop3Capa(block = '') {
   return String(block)
     .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith('+OK') && !l.startsWith('-ERR') && l !== '.')
-    .map((l) => {
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('+OK') && !l.startsWith('-ERR') && l !== '.')
+    .map(l => {
       const [name, ...args] = l.split(/\s+/);
       return { name, args, known: KNOWN_CAPS.has(name.toUpperCase()) };
     });
@@ -45,13 +55,16 @@ export function parsePop3Capa(block = '') {
  */
 export function identifyPop3Server(data = {}) {
   const banner = String(data.banner || '');
-  const impl = (data.capa || []).find((c) => c.name.toUpperCase() === 'IMPLEMENTATION');
+  const impl = (data.capa || []).find(c => c.name.toUpperCase() === 'IMPLEMENTATION');
   const implText = impl ? impl.args.join(' ') : '';
   const haystack = `${banner} ${implText}`;
 
   let best = null;
   for (const sig of SERVER_TOKENS) {
-    if (sig.re.test(haystack)) { best = { name: sig.name, confidence: sig.confidence }; break; }
+    if (sig.re.test(haystack)) {
+      best = { name: sig.name, confidence: sig.confidence };
+      break;
+    }
   }
 
   return {
@@ -68,7 +81,7 @@ export function identifyPop3Server(data = {}) {
  * @returns {{score: number, issues: string[], stlsAvailable: boolean}}
  */
 export function scorePop3Posture(capa = [], implicitTls = false) {
-  const names = new Set(capa.map((c) => String(c.name).toUpperCase()));
+  const names = new Set(capa.map(c => String(c.name).toUpperCase()));
   const issues = [];
   let score = 100;
 
@@ -81,9 +94,11 @@ export function scorePop3Posture(capa = [], implicitTls = false) {
     issues.push('USER capability present without TLS; plaintext USER/PASS accepted.');
     score -= 30;
   }
-  const unknown = capa.filter((c) => !KNOWN_CAPS.has(String(c.name).toUpperCase())).map((c) => c.name);
+  const unknown = capa.filter(c => !KNOWN_CAPS.has(String(c.name).toUpperCase())).map(c => c.name);
   if (unknown.length > 0) {
-    issues.push(`Unknown capability tokens leaked: ${unknown.join(', ')} (implementation detail disclosure).`);
+    issues.push(
+      `Unknown capability tokens leaked: ${unknown.join(', ')} (implementation detail disclosure).`
+    );
     score -= 10;
   }
 

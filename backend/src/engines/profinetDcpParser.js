@@ -74,7 +74,7 @@ function toBuffer(hexOrBuffer) {
 }
 
 function macToString(buf) {
-  return [...buf].map((b) => b.toString(16).padStart(2, '0')).join(':');
+  return [...buf].map(b => b.toString(16).padStart(2, '0')).join(':');
 }
 
 function ipv4From(buf) {
@@ -82,7 +82,10 @@ function ipv4From(buf) {
 }
 
 function decodeAscii(buf) {
-  const t = buf.toString('latin1').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+  const t = buf
+    .toString('latin1')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .trim();
   return t.length > 0 ? t : 'unknown';
 }
 
@@ -96,8 +99,14 @@ function decodeAscii(buf) {
 export function parseDcpIdentifyResponse(hexOrBuffer) {
   const buf = toBuffer(hexOrBuffer);
   const parsed = {
-    srcMac: 'unknown', dstMac: 'unknown', frameId: 0, serviceId: 0,
-    serviceType: 0, xid: 0, blocks: [], blockData: {},
+    srcMac: 'unknown',
+    dstMac: 'unknown',
+    frameId: 0,
+    serviceId: 0,
+    serviceType: 0,
+    xid: 0,
+    blocks: [],
+    blockData: {},
   };
   if (buf.length < 24) return parsed;
   parsed.dstMac = macToString(buf.slice(0, 6));
@@ -117,7 +126,10 @@ export function parseDcpIdentifyResponse(hexOrBuffer) {
     const data = buf.slice(offset + 6, Math.min(offset + 6 + blockLength, end));
     const key = `${option}/${suboption}`;
     const block = {
-      option, suboption, blockLength, blockInfo,
+      option,
+      suboption,
+      blockLength,
+      blockInfo,
       name: BLOCK_NAMES[key] || `Option ${option} / Suboption ${suboption}`,
       dataHex: data.toString('hex'),
     };
@@ -164,20 +176,26 @@ export function summarizeDcpDevice(parsed = {}) {
   const bd = parsed.blockData || {};
   const vendor =
     bd.vendorId !== undefined
-      ? PROFINET_VENDORS[bd.vendorId] || `Unknown (vendor ID 0x${bd.vendorId.toString(16).padStart(4, '0')})`
+      ? PROFINET_VENDORS[bd.vendorId] ||
+        `Unknown (vendor ID 0x${bd.vendorId.toString(16).padStart(4, '0')})`
       : 'unknown';
   const options = bd.deviceOptions || [];
   // MRP (Media Redundancy Protocol) shows up as device option 3/0x40-class;
   // presence of any option 4 suboption is a practical MRP-capability hint.
-  const mrpCapable = options.some((o) => o.split('/')[0] === '4');
-  const confidence = bd.stationName && bd.stationName !== 'unknown' && bd.ip ? 'high'
-    : bd.stationName || bd.ip ? 'medium' : 'low';
+  const mrpCapable = options.some(o => o.split('/')[0] === '4');
+  const confidence =
+    bd.stationName && bd.stationName !== 'unknown' && bd.ip
+      ? 'high'
+      : bd.stationName || bd.ip
+        ? 'medium'
+        : 'low';
   return {
     stationName: bd.stationName || 'unknown',
     ip: bd.ip || 'unknown',
     mac: parsed.srcMac || 'unknown',
     vendor,
-    deviceId: bd.deviceId === undefined ? 'unknown' : `0x${bd.deviceId.toString(16).padStart(4, '0')}`,
+    deviceId:
+      bd.deviceId === undefined ? 'unknown' : `0x${bd.deviceId.toString(16).padStart(4, '0')}`,
     deviceRole: bd.deviceRole || 'unknown',
     mrpCapable,
     subnet: bd.subnet || 'unknown',

@@ -17,13 +17,7 @@ const DOCKER_API_VERSION_PATTERN = /"ApiVersion"\s*:\s*"(\d+\.\d+)"/i;
 
 const DOCKER_ENDPOINT_HINTS = ['/version', '/info', '/_ping', '/containers/json'];
 
-const DOCKER_MANDATORY_FIELDS = [
-  '"Platform"',
-  '"ApiVersion"',
-  '"Components"',
-  '"Os"',
-  '"Arch"',
-];
+const DOCKER_MANDATORY_FIELDS = ['"Platform"', '"ApiVersion"', '"Components"', '"Os"', '"Arch"'];
 
 /**
  * Parse Docker version metadata out of an API response body.
@@ -56,7 +50,7 @@ export function parseDockerApiResponse(body) {
  */
 export function scoreDockerFingerprint(body) {
   const text = String(body || '');
-  const fields = DOCKER_MANDATORY_FIELDS.filter((f) => text.includes(f));
+  const fields = DOCKER_MANDATORY_FIELDS.filter(f => text.includes(f));
   let score = fields.length;
 
   if (/docker/i.test(text)) score += 1;
@@ -96,19 +90,31 @@ export function checkDockerApi({ url = '', status = 0, headers = {}, body = '' }
   // /info discloses kernel, containers, and storage driver details
   if (exposedPath === '/info' && status === 200 && /"Containers"\s*:\s*\d+/i.test(text)) {
     confidence = 'high';
-    evidence.push('The /info endpoint discloses live daemon state (containers, storage driver, kernel).');
+    evidence.push(
+      'The /info endpoint discloses live daemon state (containers, storage driver, kernel).'
+    );
   }
 
   if (score >= 4) {
     confidence = 'high';
-    evidence.push(`Response contains ${fields.length} Docker Remote API signature fields (${fields.join(', ')}).`);
+    evidence.push(
+      `Response contains ${fields.length} Docker Remote API signature fields (${fields.join(', ')}).`
+    );
   } else if (score >= 2) {
     confidence = 'medium';
-    evidence.push(`Response contains Docker API signature fields: ${fields.join(', ') || 'version markers'}.`);
+    evidence.push(
+      `Response contains Docker API signature fields: ${fields.join(', ') || 'version markers'}.`
+    );
   }
 
-  if (parsed.version) evidence.push(`Disclosed Engine version: ${parsed.version} (API ${parsed.apiVersion || 'unknown'}).`);
-  if (parsed.os || parsed.arch) evidence.push(`Disclosed host platform: ${[parsed.os, parsed.arch].filter(Boolean).join('/')}.`);
+  if (parsed.version)
+    evidence.push(
+      `Disclosed Engine version: ${parsed.version} (API ${parsed.apiVersion || 'unknown'}).`
+    );
+  if (parsed.os || parsed.arch)
+    evidence.push(
+      `Disclosed host platform: ${[parsed.os, parsed.arch].filter(Boolean).join('/')}.`
+    );
 
   const detected = confidence === 'high' || (status === 200 && score >= 3);
 
@@ -133,5 +139,10 @@ export function checkDockerApi({ url = '', status = 0, headers = {}, body = '' }
   };
 }
 
-export const DOCKER_API_PROBER = { checkDockerApi, parseDockerApiResponse, scoreDockerFingerprint, DOCKER_ENDPOINT_HINTS };
+export const DOCKER_API_PROBER = {
+  checkDockerApi,
+  parseDockerApiResponse,
+  scoreDockerFingerprint,
+  DOCKER_ENDPOINT_HINTS,
+};
 export default DOCKER_API_PROBER;

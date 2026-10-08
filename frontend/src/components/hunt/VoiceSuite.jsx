@@ -1,19 +1,59 @@
-// Infinity AI — Wave 48 (ideas 51896–51920): voice control components.
-// Purely presentational, export-only (not mounted anywhere). Data flows from
-// voiceCore pure functions over sample transcripts — no mic, no TTS side
-// effects; spoken text goes through the existing Infinity Voice layer.
+/**
+ * Infinity AI — Wave 48 (ideas 51896–51920): voice control components.
+ * Purely presentational, export-only (not mounted anywhere). Data flows from
+ * voiceCore pure functions over sample transcripts — no mic, no TTS side
+ * effects; spoken text goes through the existing Infinity Voice layer.
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
 import {
-  parsePauseResume, statusAnswer, parseSteering, spokenApproval, parseTestCommand,
-  findingBriefing, parseStrategyChange, etaAnswer, detectLanguage, pushToTalkSession,
-  wakeWordConfig, isWakeWord, logVoiceCommand, searchCommandHistory, confirmationPrompt,
-  resolveVoiceShortcut, registerVoiceShortcut, feedbackTone, errorRecovery, voiceHelpList,
-  voiceHelpText, parseMultiHuntSwitch, parseSnapshotRequest, parseExplanationRequest,
-  dictateNote, voiceChatTurn, interruptionSignal, duckingPolicy, verifyVoiceProfile,
+  parsePauseResume,
+  statusAnswer,
+  parseSteering,
+  spokenApproval,
+  parseTestCommand,
+  findingBriefing,
+  parseStrategyChange,
+  etaAnswer,
+  detectLanguage,
+  pushToTalkSession,
+  wakeWordConfig,
+  isWakeWord,
+  logVoiceCommand,
+  searchCommandHistory,
+  confirmationPrompt,
+  resolveVoiceShortcut,
+  registerVoiceShortcut,
+  feedbackTone,
+  errorRecovery,
+  voiceHelpList,
+  voiceHelpText,
+  parseMultiHuntSwitch,
+  parseSnapshotRequest,
+  parseExplanationRequest,
+  dictateNote,
+  voiceChatTurn,
+  interruptionSignal,
+  duckingPolicy,
+  verifyVoiceProfile,
   enrollVoiceProfile,
 } from './voiceCore.js';
 
-const SAMPLE_HUNT = { id: 'h1', name: 'API hunt', status: 'running', findings: [{ severity: 'critical', title: 'SQLi in search' }, { severity: 'critical', title: 'Auth bypass' }, { severity: 'high', title: 'Verbose errors' }], etaMs: Date.now() + 3600000 };
-const SAMPLE_HUNTS = [SAMPLE_HUNT, { id: 'h2', name: 'Web hunt', client: 'acme', status: 'running' }];
+const SAMPLE_HUNT = {
+  id: 'h1',
+  name: 'API hunt',
+  status: 'running',
+  findings: [
+    { severity: 'critical', title: 'SQLi in search' },
+    { severity: 'critical', title: 'Auth bypass' },
+    { severity: 'high', title: 'Verbose errors' },
+  ],
+  etaMs: Date.now() + 3600000,
+};
+const SAMPLE_HUNTS = [
+  SAMPLE_HUNT,
+  { id: 'h2', name: 'Web hunt', client: 'acme', status: 'running' },
+];
 
 const Card = ({ title, children }) => (
   <div className="vc48-card">
@@ -22,7 +62,10 @@ const Card = ({ title, children }) => (
   </div>
 );
 const Row = ({ k, v }) => (
-  <div className="vc48-row"><span className="vc48-k">{k}</span><span className="vc48-v">{v}</span></div>
+  <div className="vc48-row">
+    <span className="vc48-k">{k}</span>
+    <span className="vc48-v">{v}</span>
+  </div>
 );
 
 // 51896
@@ -115,7 +158,10 @@ export const AlwaysListening = () => {
   return (
     <Card title="Always-listening mode">
       <Row k="Wake words" v={c.wakeWords.join(', ')} />
-      <Row k='"hey infinity, pause"' v={isWakeWord('hey infinity, pause the hunt', c) ? 'wake detected' : 'not detected'} />
+      <Row
+        k='"hey infinity, pause"'
+        v={isWakeWord('hey infinity, pause the hunt', c) ? 'wake detected' : 'not detected'}
+      />
     </Card>
   );
 };
@@ -127,7 +173,7 @@ export const CommandHistory = () => {
   return (
     <Card title="Voice command history">
       <Row k="Logged" v={h.length} />
-      <Row k="Languages" v={h.map((e) => e.language).join(', ')} />
+      <Row k="Languages" v={h.map(e => e.language).join(', ')} />
       <Row k='Search "pause"' v={hits.length} />
     </Card>
   );
@@ -145,7 +191,10 @@ export const VoiceConfirmation = () => {
 };
 // 51909
 export const VoiceShortcutList = () => {
-  let s = registerVoiceShortcut([], 'start my morning sweep', ['resume all hunts', 'read me the new criticals']);
+  let s = registerVoiceShortcut([], 'start my morning sweep', [
+    'resume all hunts',
+    'read me the new criticals',
+  ]);
   const r = resolveVoiceShortcut('start my morning sweep', s);
   return (
     <Card title="Voice shortcuts">
@@ -163,7 +212,11 @@ export const FeedbackTones = () => (
 );
 // 51911
 export const ErrorRecovery = () => {
-  const r = errorRecovery('paws the hunt', ['pause the hunt', 'resume the hunt', 'what are you doing?']);
+  const r = errorRecovery('paws the hunt', [
+    'pause the hunt',
+    'resume the hunt',
+    'what are you doing?',
+  ]);
   return (
     <Card title="Voice error recovery">
       <div className="vc48-say">{r.text}</div>
@@ -250,7 +303,10 @@ export const VoiceProfiles = () => {
   const stranger = verifyVoiceProfile({ speakerId: 's9' }, p);
   return (
     <Card title="Voice profiles">
-      <Row k="Bhavesh" v={v.recognized ? `recognized · sensitive: ${v.sensitiveCommandsAllowed}` : 'unknown'} />
+      <Row
+        k="Bhavesh"
+        v={v.recognized ? `recognized · sensitive: ${v.sensitiveCommandsAllowed}` : 'unknown'}
+      />
       <Row k="Stranger" v={stranger.recognized ? 'recognized' : 'not recognized'} />
     </Card>
   );
@@ -258,10 +314,30 @@ export const VoiceProfiles = () => {
 
 export const VoiceSuiteGallery = () => (
   <div className="vc48-gallery">
-    <VoicePauseResume /><VoiceStatus /><VoiceSteering /><SpokenApprovals /><DictatedTests />
-    <VoiceBriefings /><VoiceStrategy /><VoiceEta /><VoiceLanguage /><PushToTalk />
-    <AlwaysListening /><CommandHistory /><VoiceConfirmation /><VoiceShortcutList /><FeedbackTones />
-    <ErrorRecovery /><VoiceHelp /><VoiceMultiHuntSwitch /><VoiceSnapshots /><VoiceExplanations />
-    <VoiceNotes /><VoiceChatMode /><VoiceInterruption /><VolumeDucking /><VoiceProfiles />
+    <VoicePauseResume />
+    <VoiceStatus />
+    <VoiceSteering />
+    <SpokenApprovals />
+    <DictatedTests />
+    <VoiceBriefings />
+    <VoiceStrategy />
+    <VoiceEta />
+    <VoiceLanguage />
+    <PushToTalk />
+    <AlwaysListening />
+    <CommandHistory />
+    <VoiceConfirmation />
+    <VoiceShortcutList />
+    <FeedbackTones />
+    <ErrorRecovery />
+    <VoiceHelp />
+    <VoiceMultiHuntSwitch />
+    <VoiceSnapshots />
+    <VoiceExplanations />
+    <VoiceNotes />
+    <VoiceChatMode />
+    <VoiceInterruption />
+    <VolumeDucking />
+    <VoiceProfiles />
   </div>
 );

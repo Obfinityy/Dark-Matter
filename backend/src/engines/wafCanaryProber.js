@@ -120,9 +120,16 @@ export function classifyProbe(result, baseline = null) {
   const status = result.status;
 
   const challengeMarkers = [/captcha/i, /cf-chl-/, /challenge/i, /please verify/i, /incapsula/i];
-  const blockMarkers = [/blocked/i, /forbidden/i, /access denied/i, /request rejected/i, /waf/i, /incident id/i];
-  const isChallenge = challengeMarkers.some((re) => re.test(body));
-  const looksBlocked = blockMarkers.some((re) => re.test(body));
+  const blockMarkers = [
+    /blocked/i,
+    /forbidden/i,
+    /access denied/i,
+    /request rejected/i,
+    /waf/i,
+    /incident id/i,
+  ];
+  const isChallenge = challengeMarkers.some(re => re.test(body));
+  const looksBlocked = blockMarkers.some(re => re.test(body));
 
   let verdict;
   if (isChallenge) {
@@ -137,16 +144,23 @@ export function classifyProbe(result, baseline = null) {
   } else if (baseline && status !== baseline.status) {
     verdict = 'anomalous';
     signals.push(`status ${status} differs from baseline ${baseline.status}`);
-  } else if (baseline && result.rttMs != null && baseline.rttMs != null && result.rttMs > baseline.rttMs * 3) {
+  } else if (
+    baseline &&
+    result.rttMs != null &&
+    baseline.rttMs != null &&
+    result.rttMs > baseline.rttMs * 3
+  ) {
     verdict = 'logged';
-    signals.push(`RTT ${result.rttMs}ms is >3x baseline ${baseline.rttMs}ms — possible async logging/inspection`);
+    signals.push(
+      `RTT ${result.rttMs}ms is >3x baseline ${baseline.rttMs}ms — possible async logging/inspection`
+    );
   } else {
     verdict = 'passed';
     signals.push('indistinguishable from baseline');
   }
 
-  const confidence = verdict === 'passed' ? 'high'
-    : (isChallenge || looksBlocked) ? 'high' : 'medium';
+  const confidence =
+    verdict === 'passed' ? 'high' : isChallenge || looksBlocked ? 'high' : 'medium';
   return { verdict, signals, confidence };
 }
 
@@ -156,16 +170,27 @@ export function classifyProbe(result, baseline = null) {
  * @param {ProbeResult[]} results - Captured results, same order or matched by id.
  */
 export function mapWafBehavior(plan = [], results = []) {
-  const byId = new Map(results.map((r) => [r.id, r]));
+  const byId = new Map(results.map(r => [r.id, r]));
   const baseline = byId.get('baseline') || null;
   const mapped = [];
   for (const probe of plan) {
     const res = byId.get(probe.id);
     if (!res) {
-      mapped.push({ id: probe.id, verdict: 'anomalous', signals: ['no captured response'], confidence: 'low', note: probe.note });
+      mapped.push({
+        id: probe.id,
+        verdict: 'anomalous',
+        signals: ['no captured response'],
+        confidence: 'low',
+        note: probe.note,
+      });
       continue;
     }
-    mapped.push({ id: probe.id, note: probe.note, status: res.status, ...classifyProbe(res, baseline) });
+    mapped.push({
+      id: probe.id,
+      note: probe.note,
+      status: res.status,
+      ...classifyProbe(res, baseline),
+    });
   }
   const counts = {};
   for (const m of mapped) counts[m.verdict] = (counts[m.verdict] || 0) + 1;
@@ -193,8 +218,14 @@ export function canaryFinding(behavior, targetLabel = 'target') {
     confidence: behavior.summary.total >= 5 ? 'high' : 'medium',
     strictness: behavior.summary.strictness,
     counts: behavior.counts,
-    probes: behavior.mapped.map((m) => ({ id: m.id, verdict: m.verdict, status: m.status, signals: m.signals })),
-    evidence: 'All probes were inert canaries; no attack payload was sent. ' +
+    probes: behavior.mapped.map(m => ({
+      id: m.id,
+      verdict: m.verdict,
+      status: m.status,
+      signals: m.signals,
+    })),
+    evidence:
+      'All probes were inert canaries; no attack payload was sent. ' +
       `${behavior.summary.blocking} of ${behavior.summary.total} canary probes were blocked or challenged.`,
   };
 }

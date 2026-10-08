@@ -23,7 +23,10 @@ import { normalizeNuclei, normalizeSqlmap, normalizeDalfox } from '../tools/find
  */
 export function isToolUnavailableOutput(rawOutput) {
   const s = typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput || '');
-  return /"status"\s*:\s*"kali_required"/.test(s) || /command not found|not recognized as an internal/i.test(s);
+  return (
+    /"status"\s*:\s*"kali_required"/.test(s) ||
+    /command not found|not recognized as an internal/i.test(s)
+  );
 }
 
 function unavailable(tool, why) {
@@ -32,7 +35,7 @@ function unavailable(tool, why) {
     tool,
     findings: [],
     degraded: true,
-    note: `Tool unavailable: ${why}. No fake findings generated — the hunt continues with other techniques.`
+    note: `Tool unavailable: ${why}. No fake findings generated — the hunt continues with other techniques.`,
   };
 }
 
@@ -43,7 +46,7 @@ function needsApproval(tool, approval) {
     findings: [],
     degraded: false,
     approval: approval ? { id: approval.id, tool: approval.tool, target: approval.target } : null,
-    note: `Permission required before running ${tool} (approval${approval ? ` ${approval.id}` : ''} pending).`
+    note: `Permission required before running ${tool} (approval${approval ? ` ${approval.id}` : ''} pending).`,
   };
 }
 
@@ -54,7 +57,7 @@ function policyBlocked(tool, error) {
     tool,
     findings: [],
     degraded: false,
-    note: `Policy blocked ${tool}: ${error?.message || 'blocked'} — this is final, not an approval flow.`
+    note: `Policy blocked ${tool}: ${error?.message || 'blocked'} — this is final, not an approval flow.`,
   };
 }
 
@@ -64,7 +67,8 @@ function classifyBlocked(tool, error) {
 }
 
 /** Run one request through the registry executor; classify the outcome. */
-async function runOnce(executor, assessmentId, userId, request) {  try {
+async function runOnce(executor, assessmentId, userId, request) {
+  try {
     const result = await executor.execute(assessmentId, userId, request);
     const raw = result.rawOutput || '';
     if (isToolUnavailableOutput(raw)) return { kind: 'unavailable', raw };
@@ -103,7 +107,7 @@ export function selectNucleiTags(techs = []) {
   const tags = new Set();
   for (const tech of techs) {
     for (const [re, list] of NUCLEI_TECH_TAGS) {
-      if (re.test(String(tech))) list.forEach((t) => tags.add(t));
+      if (re.test(String(tech))) list.forEach(t => tags.add(t));
     }
   }
   if (!tags.size) return ['misconfig', 'exposure'];
@@ -111,7 +115,11 @@ export function selectNucleiTags(techs = []) {
 }
 
 /** Full nuclei arg list for a template-selected scan. Target rides in request.target. */
-export function buildNucleiArgs({ tags = [], severity = 'medium,high,critical', extraArgs = [] } = {}) {
+export function buildNucleiArgs({
+  tags = [],
+  severity = 'medium,high,critical',
+  extraArgs = [],
+} = {}) {
   const args = ['-silent', '-json'];
   if (tags.length) args.push('-tags', tags.join(','));
   args.push('-severity', severity);
@@ -122,9 +130,12 @@ export function buildNucleiArgs({ tags = [], severity = 'medium,high,critical', 
  * nuclei loop: pick templates from the tech fingerprint, scan, normalize.
  * @returns { status: 'ran'|'tool-unavailable'|'needs-approval', findings, templateTags, ... }
  */
-export async function nucleiLoop(executor, assessmentId, userId, {
-  target, techs = [], severity, extraArgs = [], description = null
-} = {}) {
+export async function nucleiLoop(
+  executor,
+  assessmentId,
+  userId,
+  { target, techs = [], severity, extraArgs = [], description = null } = {}
+) {
   if (!target) throw new Error('nucleiLoop requires a target');
   const tags = selectNucleiTags(techs);
   const request = {
@@ -132,17 +143,25 @@ export async function nucleiLoop(executor, assessmentId, userId, {
     target,
     arguments: { args: buildNucleiArgs({ tags, severity, extraArgs }) },
     description: description || `nuclei vulnerability scan (templates: ${tags.join(', ')})`,
-    meta: { templateTags: tags, loop: 'nuclei' }
+    meta: { templateTags: tags, loop: 'nuclei' },
   };
   const out = await runOnce(executor, assessmentId, userId, request);
   if (out.kind === 'unavailable') {
-    return unavailable('nuclei', 'nuclei binary not on the execution path and no Kali worker configured');
+    return unavailable(
+      'nuclei',
+      'nuclei binary not on the execution path and no Kali worker configured'
+    );
   }
   if (out.kind === 'blocked') return classifyBlocked('nuclei', out.error);
   const findings = normalizeNuclei(out.raw);
   return {
-    status: 'ran', tool: 'nuclei', target, findings, templateTags: tags, degraded: false,
-    note: `nuclei scan completed (${tags.join(', ')} templates) — ${findings.length} finding(s)`
+    status: 'ran',
+    tool: 'nuclei',
+    target,
+    findings,
+    templateTags: tags,
+    degraded: false,
+    note: `nuclei scan completed (${tags.join(', ')} templates) — ${findings.length} finding(s)`,
   };
 }
 
@@ -155,9 +174,13 @@ export async function nucleiLoop(executor, assessmentId, userId, {
  */
 export function buildSqlmapBooleanArgs(param, extraArgs = []) {
   return [
-    '--batch', '--level=1', '--risk=1', '--random-agent',
-    '-p', String(param),
-    '--technique=B'
+    '--batch',
+    '--level=1',
+    '--risk=1',
+    '--random-agent',
+    '-p',
+    String(param),
+    '--technique=B',
   ].concat(extraArgs || []);
 }
 
@@ -166,12 +189,21 @@ export function buildSqlmapBooleanArgs(param, extraArgs = []) {
  * sqlmap is permission-gated (destructive tool) — in "ask" mode each param
  * confirm returns needs-approval instead of running silently.
  */
-export async function sqlmapLoop(executor, assessmentId, userId, { url, params = [], extraArgs = [] } = {}) {
+export async function sqlmapLoop(
+  executor,
+  assessmentId,
+  userId,
+  { url, params = [], extraArgs = [] } = {}
+) {
   if (!url) throw new Error('sqlmapLoop requires a url');
   if (!params.length) {
     return {
-      status: 'skipped', tool: 'sqlmap', findings: [], degraded: false, perParam: [],
-      note: 'sqlmap skipped: no parameters discovered — nothing to boolean-confirm'
+      status: 'skipped',
+      tool: 'sqlmap',
+      findings: [],
+      degraded: false,
+      perParam: [],
+      note: 'sqlmap skipped: no parameters discovered — nothing to boolean-confirm',
     };
   }
   const perParam = [];
@@ -181,11 +213,17 @@ export async function sqlmapLoop(executor, assessmentId, userId, { url, params =
       target: url,
       arguments: { args: buildSqlmapBooleanArgs(param, extraArgs) },
       description: `sqlmap boolean-based confirm on parameter '${param}'`,
-      meta: { param, technique: 'boolean-based', loop: 'sqlmap' }
+      meta: { param, technique: 'boolean-based', loop: 'sqlmap' },
     };
     const out = await runOnce(executor, assessmentId, userId, request);
     if (out.kind === 'unavailable') {
-      perParam.push({ param, ...unavailable('sqlmap', 'sqlmap binary not on the execution path and no Kali worker configured') });
+      perParam.push({
+        param,
+        ...unavailable(
+          'sqlmap',
+          'sqlmap binary not on the execution path and no Kali worker configured'
+        ),
+      });
       continue;
     }
     if (out.kind === 'blocked') {
@@ -195,22 +233,28 @@ export async function sqlmapLoop(executor, assessmentId, userId, { url, params =
     const parsed = normalizeSqlmap(out.raw);
     const findings = Array.isArray(parsed) ? parsed : parsed.findings;
     perParam.push({
-      param, status: 'ran', findings, degraded: false,
+      param,
+      status: 'ran',
+      findings,
+      degraded: false,
       negative: !Array.isArray(parsed) && parsed.negative === true,
       note: findings.length
         ? `boolean-based SQLi CONFIRMED on '${param}' (${findings.length} technique(s))`
-        : `parameter '${param}' not injectable via boolean technique`
+        : `parameter '${param}' not injectable via boolean technique`,
     });
   }
-  const findings = perParam.flatMap((p) => p.findings || []);
-  const anyUnavailable = perParam.some((p) => p.status === 'tool-unavailable');
-  const anyApproval = perParam.some((p) => p.status === 'needs-approval');
+  const findings = perParam.flatMap(p => p.findings || []);
+  const anyUnavailable = perParam.some(p => p.status === 'tool-unavailable');
+  const anyApproval = perParam.some(p => p.status === 'needs-approval');
   return {
     status: anyUnavailable && findings.length === 0 && !anyApproval ? 'tool-unavailable' : 'ran',
-    tool: 'sqlmap', findings, perParam, degraded: anyUnavailable,
+    tool: 'sqlmap',
+    findings,
+    perParam,
+    degraded: anyUnavailable,
     note: anyApproval
       ? 'sqlmap confirm blocked pending user approval'
-      : `sqlmap boolean confirm over ${params.length} param(s) — ${findings.length} confirmed finding(s)`
+      : `sqlmap boolean confirm over ${params.length} param(s) — ${findings.length} confirmed finding(s)`,
   };
 }
 
@@ -233,20 +277,28 @@ export async function dalfoxLoop(executor, assessmentId, userId, { url, extraArg
     target: url,
     arguments: { args: buildDalfoxArgs(extraArgs) },
     description: 'dalfox XSS scan (reflected + stored detection)',
-    meta: { scanKinds: ['reflected', 'stored'], loop: 'dalfox' }
+    meta: { scanKinds: ['reflected', 'stored'], loop: 'dalfox' },
   };
   const out = await runOnce(executor, assessmentId, userId, request);
   if (out.kind === 'unavailable') {
-    return unavailable('dalfox', 'dalfox binary not on the execution path and no Kali worker configured');
+    return unavailable(
+      'dalfox',
+      'dalfox binary not on the execution path and no Kali worker configured'
+    );
   }
   if (out.kind === 'blocked') return classifyBlocked('dalfox', out.error);
   const findings = normalizeDalfox(out.raw);
-  const reflected = findings.filter((f) => f.type === 'reflected-xss' || f.type === 'dom-xss');
-  const stored = findings.filter((f) => f.type === 'stored-xss');
+  const reflected = findings.filter(f => f.type === 'reflected-xss' || f.type === 'dom-xss');
+  const stored = findings.filter(f => f.type === 'stored-xss');
   return {
-    status: 'ran', tool: 'dalfox', target: url, findings, degraded: false,
-    reflected: reflected.length, stored: stored.length,
-    note: `dalfox scan completed — ${reflected.length} reflected/DOM, ${stored.length} stored finding(s)`
+    status: 'ran',
+    tool: 'dalfox',
+    target: url,
+    findings,
+    degraded: false,
+    reflected: reflected.length,
+    stored: stored.length,
+    note: `dalfox scan completed — ${reflected.length} reflected/DOM, ${stored.length} stored finding(s)`,
   };
 }
 
@@ -258,9 +310,13 @@ export async function dalfoxLoop(executor, assessmentId, userId, { url, extraArg
  */
 export async function runDetectionLoop(executor, assessmentId, userId, loop, opts = {}) {
   switch (loop) {
-    case 'nuclei': return nucleiLoop(executor, assessmentId, userId, opts);
-    case 'sqlmap': return sqlmapLoop(executor, assessmentId, userId, opts);
-    case 'dalfox': return dalfoxLoop(executor, assessmentId, userId, opts);
-    default: throw new Error(`Unknown detection loop: ${loop} (expected nuclei|sqlmap|dalfox)`);
+    case 'nuclei':
+      return nucleiLoop(executor, assessmentId, userId, opts);
+    case 'sqlmap':
+      return sqlmapLoop(executor, assessmentId, userId, opts);
+    case 'dalfox':
+      return dalfoxLoop(executor, assessmentId, userId, opts);
+    default:
+      throw new Error(`Unknown detection loop: ${loop} (expected nuclei|sqlmap|dalfox)`);
   }
 }

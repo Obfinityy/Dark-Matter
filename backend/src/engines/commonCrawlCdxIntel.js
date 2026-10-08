@@ -16,7 +16,11 @@ const CDX_BASE = 'https://index.commoncrawl.org';
  * @returns {string} Full CDX query URL.
  */
 export function buildCdxQueryUrl(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const params = new URLSearchParams({
     url: `*.${clean}`,
     output: opts.output || 'json',
@@ -42,7 +46,10 @@ export function buildCdxQueryUrls(domain, indexes = []) {
   const urls = [];
   for (const idx of indexes) {
     const u = buildCdxQueryUrl(domain, { index: idx });
-    if (!seen.has(u)) { seen.add(u); urls.push(u); }
+    if (!seen.has(u)) {
+      seen.add(u);
+      urls.push(u);
+    }
   }
   return urls;
 }
@@ -72,7 +79,9 @@ export function parseCdxLines(raw) {
           filename: o.filename || '',
         });
       }
-    } catch { /* skip malformed lines */ }
+    } catch {
+      /* skip malformed lines */
+    }
   }
   return records;
 }
@@ -84,11 +93,19 @@ export function parseCdxLines(raw) {
  * @returns {{ subdomains: string[], hosts: Array<{ host, firstSeen, lastSeen, urls: number }> }}
  */
 export function extractSubdomains(records, domain) {
-  const apex = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const apex = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const map = new Map();
   for (const r of records || []) {
     let host = '';
-    try { host = new URL(String(r.original)).hostname.toLowerCase(); } catch { continue; }
+    try {
+      host = new URL(String(r.original)).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
     if (!host.endsWith(`.${apex}`) || host === apex) continue;
     if (!map.has(host)) map.set(host, { firstSeen: r.timestamp, lastSeen: r.timestamp, urls: 0 });
     const e = map.get(host);

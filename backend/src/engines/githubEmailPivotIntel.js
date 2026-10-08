@@ -14,12 +14,39 @@
  */
 
 const FREEMAIL = new Set([
-  'gmail.com', 'googlemail.com', 'yahoo.com', 'ymail.com', 'hotmail.com',
-  'outlook.com', 'live.com', 'msn.com', 'aol.com', 'icloud.com', 'me.com',
-  'mac.com', 'protonmail.com', 'proton.me', 'pm.me', 'tutanota.com',
-  'fastmail.com', 'zoho.com', 'gmx.com', 'gmx.de', 'mail.com', 'yandex.com',
-  'yandex.ru', 'qq.com', '163.com', '126.com', 'sina.com', 'naver.com',
-  'daum.net', 'rediffmail.com', 'inbox.com', 'hushmail.com', 'mail.ru',
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'ymail.com',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'msn.com',
+  'aol.com',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'protonmail.com',
+  'proton.me',
+  'pm.me',
+  'tutanota.com',
+  'fastmail.com',
+  'zoho.com',
+  'gmx.com',
+  'gmx.de',
+  'mail.com',
+  'yandex.com',
+  'yandex.ru',
+  'qq.com',
+  '163.com',
+  '126.com',
+  'sina.com',
+  'naver.com',
+  'daum.net',
+  'rediffmail.com',
+  'inbox.com',
+  'hushmail.com',
+  'mail.ru',
   'users.noreply.github.com',
 ]);
 
@@ -73,7 +100,9 @@ export function extractEmailsFromApiCommits(payload) {
       { src: c.commit?.committer, login: c.committer?.login ?? null },
     ];
     for (const { src, login } of candidates) {
-      const email = String(src?.email || '').trim().toLowerCase();
+      const email = String(src?.email || '')
+        .trim()
+        .toLowerCase();
       if (!email || !email.includes('@') || seen.has(email)) continue;
       seen.add(email);
       authors.push({ name: src?.name ?? null, email, login });
@@ -98,12 +127,17 @@ export function extractEmailsFromApiCommits(payload) {
  * @returns {Array<{ domain: string, authors: number, confidence: number, evidence: string[] }>}
  */
 export function pivotDomainsFromEmails(authors, primaryDomain) {
-  const primary = String(primaryDomain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const primary = String(primaryDomain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   const primaryToken = primary.split('.').slice(0, -1).join('.');
   const byDomain = new Map();
 
   for (const a of authors || []) {
-    const email = String(a?.email || '').toLowerCase().trim();
+    const email = String(a?.email || '')
+      .toLowerCase()
+      .trim();
     const at = email.lastIndexOf('@');
     if (at < 0) continue;
     const domain = email.slice(at + 1);
@@ -118,7 +152,11 @@ export function pivotDomainsFromEmails(authors, primaryDomain) {
   for (const [domain, entry] of byDomain) {
     let score = 0.35;
     const token = domain.split('.').slice(0, -1).join('.');
-    if (primaryToken && token && (token === primaryToken || token.includes(primaryToken) || primaryToken.includes(token))) {
+    if (
+      primaryToken &&
+      token &&
+      (token === primaryToken || token.includes(primaryToken) || primaryToken.includes(token))
+    ) {
       score += 0.25;
     }
     const extraAuthors = Math.max(0, entry.names.size - 1);

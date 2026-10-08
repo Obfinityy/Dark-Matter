@@ -49,7 +49,11 @@ export function extractRedirectChains(raw, startUrl = '') {
     const loc = b.headers.location;
     if (loc) {
       let to = loc;
-      try { to = new URL(loc, from || undefined).toString(); } catch { /* keep raw */ }
+      try {
+        to = new URL(loc, from || undefined).toString();
+      } catch {
+        /* keep raw */
+      }
       hops.push({ from, to, status: b.status });
       from = to;
     }
@@ -60,7 +64,9 @@ export function extractRedirectChains(raw, startUrl = '') {
       try {
         const host = new URL(u).hostname.toLowerCase();
         if (host) hosts.add(host);
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
   }
   return { chains: hops.length ? [{ hops }] : [], redirectHosts: [...hosts].sort() };
@@ -76,7 +82,10 @@ export function extractWarcHosts(raw) {
   const blocks = splitHeaderBlocks(raw).map(parseHeaderBlock);
   const hits = new Map();
   const add = (host, source) => {
-    host = String(host || '').trim().toLowerCase().replace(/^\./, '');
+    host = String(host || '')
+      .trim()
+      .toLowerCase()
+      .replace(/^\./, '');
     if (!host) return;
     if (!hits.has(host)) hits.set(host, new Set());
     hits.get(host).add(source);
@@ -85,7 +94,9 @@ export function extractWarcHosts(raw) {
     try {
       const host = new URL(u, 'http://placeholder').hostname.toLowerCase();
       if (host && host !== 'placeholder') add(host, source);
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
   for (const b of blocks) {
     const h = b.headers;
@@ -117,5 +128,11 @@ export function extractWarcHosts(raw) {
 export function mineWarcHeaders(raw, startUrl = '') {
   const { chains, redirectHosts } = extractRedirectChains(raw, startUrl);
   const { hosts, hostHits } = extractWarcHosts(raw);
-  return { redirectChains: chains, redirectHosts, hosts, hostHits, provenance: 'common-crawl warc headers' };
+  return {
+    redirectChains: chains,
+    redirectHosts,
+    hosts,
+    hostHits,
+    provenance: 'common-crawl warc headers',
+  };
 }

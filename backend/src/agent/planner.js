@@ -1,3 +1,10 @@
+/**
+ * Planner — task planning for the agent.
+ * Decomposes high-level objectives into ordered, executable
+ * steps with dependency tracking.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { config } from '../config.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { DECISION_SCHEMA_PROMPT } from './decisionSchema.js';
@@ -53,13 +60,15 @@ export class Planner {
     const stack = (context.technologies || []).join('+') || 'unknown';
     const suggested = new Set(this.learningEngine.suggestTechniques(stack, 10));
     if (!suggested.size) return sequence;
-    const score = (step) =>
-      [...suggested].some((t) => t === step.tool || t.endsWith(`::${step.tool}`)) ? 0 : 1;
+    const score = step =>
+      [...suggested].some(t => t === step.tool || t.endsWith(`::${step.tool}`)) ? 0 : 1;
     return [...sequence].sort((a, b) => score(a) - score(b));
   }
 
   buildSystemPrompt() {
-    const tools = ToolRegistry.list().map(t => `  - ${t.name} (${t.category}): ${t.description} [risk: ${t.riskLevel}]`).join('\n');
+    const tools = ToolRegistry.list()
+      .map(t => `  - ${t.name} (${t.category}): ${t.description} [risk: ${t.riskLevel}]`)
+      .join('\n');
     return `You are an elite bug bounty security researcher and authorized penetration tester.
 You are conducting an authorized security assessment. You have explicit written authorization.
 
@@ -103,9 +112,11 @@ ${DECISION_SCHEMA_PROMPT}`;
           const userMessage = this.buildUserMessage(context, lastResult);
           const messages = [
             { role: 'system', content: this.systemPrompt },
-            { role: 'user', content: userMessage }
+            { role: 'user', content: userMessage },
           ];
-          const decision = await this.phoneAi.generateStructured(messages, null, { temperature: 0.3 });
+          const decision = await this.phoneAi.generateStructured(messages, null, {
+            temperature: 0.3,
+          });
           if (decision) return decision;
         }
       } catch (error) {
@@ -122,13 +133,31 @@ ${DECISION_SCHEMA_PROMPT}`;
   /** Route to the correct API format based on provider type. */
   async callProvider(provider, context, lastResult) {
     if (provider.id === 'gemini') {
-      return this.callGemini(provider.apiKey, provider.model, provider.baseUrl, context, lastResult);
+      return this.callGemini(
+        provider.apiKey,
+        provider.model,
+        provider.baseUrl,
+        context,
+        lastResult
+      );
     }
     if (provider.id === 'anthropic') {
-      return this.callAnthropic(provider.apiKey, provider.model, provider.baseUrl, context, lastResult);
+      return this.callAnthropic(
+        provider.apiKey,
+        provider.model,
+        provider.baseUrl,
+        context,
+        lastResult
+      );
     }
     // OpenAI-compatible: openai, grok, deepseek, openrouter
-    return this.callOpenAICompatible(provider.apiKey, provider.model, provider.baseUrl, context, lastResult);
+    return this.callOpenAICompatible(
+      provider.apiKey,
+      provider.model,
+      provider.baseUrl,
+      context,
+      lastResult
+    );
   }
 
   /** Gemini API call. */
@@ -140,15 +169,13 @@ ${DECISION_SCHEMA_PROMPT}`;
       headers: { 'content-type': 'application/json' },
       signal: AbortSignal.timeout(45_000),
       body: JSON.stringify({
-        contents: [
-          { role: 'user', parts: [{ text: `${this.systemPrompt}\n\n${userMessage}` }] }
-        ],
+        contents: [{ role: 'user', parts: [{ text: `${this.systemPrompt}\n\n${userMessage}` }] }],
         generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 2000,
-          responseMimeType: 'application/json'
-        }
-      })
+          responseMimeType: 'application/json',
+        },
+      }),
     });
 
     if (!response.ok) {
@@ -171,19 +198,19 @@ ${DECISION_SCHEMA_PROMPT}`;
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'authorization': `Bearer ${apiKey}`
+        authorization: `Bearer ${apiKey}`,
       },
       signal: AbortSignal.timeout(45_000),
       body: JSON.stringify({
         model,
         messages: [
           { role: 'system', content: this.systemPrompt },
-          { role: 'user', content: userMessage }
+          { role: 'user', content: userMessage },
         ],
         temperature: 0.3,
         max_tokens: 2000,
-        response_format: { type: 'json_object' }
-      })
+        response_format: { type: 'json_object' },
+      }),
     });
 
     if (!response.ok) {
@@ -207,18 +234,16 @@ ${DECISION_SCHEMA_PROMPT}`;
       headers: {
         'content-type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
       },
       signal: AbortSignal.timeout(45_000),
       body: JSON.stringify({
         model,
         max_tokens: 2000,
         system: this.systemPrompt,
-        messages: [
-          { role: 'user', content: userMessage }
-        ],
-        temperature: 0.3
-      })
+        messages: [{ role: 'user', content: userMessage }],
+        temperature: 0.3,
+      }),
     });
 
     if (!response.ok) {
@@ -281,7 +306,9 @@ ${DECISION_SCHEMA_PROMPT}`;
     const learning = this.learningSection(context);
     if (learning) parts.push(learning);
 
-    parts.push('\n## Your Task\nAnalyze the current state and decide the next safe, in-scope action. Respond with the JSON decision object.');
+    parts.push(
+      '\n## Your Task\nAnalyze the current state and decide the next safe, in-scope action. Respond with the JSON decision object.'
+    );
     return parts.join('\n');
   }
 
@@ -296,20 +323,56 @@ ${DECISION_SCHEMA_PROMPT}`;
 
     // Standard recon sequence
     const sequence = [
-      { tool: 'crtsh', phase: 'passive_recon', reason: 'Start with passive certificate transparency lookup' },
-      { tool: 'subfinder', phase: 'subdomain_enumeration', reason: 'Enumerate subdomains using multiple passive sources' },
-      { tool: 'assetfinder', phase: 'subdomain_enumeration', reason: 'Find additional related domains and subdomains' },
+      {
+        tool: 'crtsh',
+        phase: 'passive_recon',
+        reason: 'Start with passive certificate transparency lookup',
+      },
+      {
+        tool: 'subfinder',
+        phase: 'subdomain_enumeration',
+        reason: 'Enumerate subdomains using multiple passive sources',
+      },
+      {
+        tool: 'assetfinder',
+        phase: 'subdomain_enumeration',
+        reason: 'Find additional related domains and subdomains',
+      },
       { tool: 'gau', phase: 'endpoint_discovery', reason: 'Discover known URLs from web archives' },
-      { tool: 'waybackurls', phase: 'endpoint_discovery', reason: 'Fetch historical URLs from Wayback Machine' },
-      { tool: 'httpx', phase: 'http_discovery', reason: 'Probe discovered subdomains for live HTTP services' },
-      { tool: 'dnsx', phase: 'dns_enumeration', reason: 'DNS resolution for discovered subdomains' },
+      {
+        tool: 'waybackurls',
+        phase: 'endpoint_discovery',
+        reason: 'Fetch historical URLs from Wayback Machine',
+      },
+      {
+        tool: 'httpx',
+        phase: 'http_discovery',
+        reason: 'Probe discovered subdomains for live HTTP services',
+      },
+      {
+        tool: 'dnsx',
+        phase: 'dns_enumeration',
+        reason: 'DNS resolution for discovered subdomains',
+      },
       { tool: 'naabu', phase: 'active_recon', reason: 'Port scanning for open services' },
       { tool: 'whatweb', phase: 'technology_detection', reason: 'Technology fingerprinting' },
       { tool: 'wafw00f', phase: 'technology_detection', reason: 'WAF detection' },
-      { tool: 'katana', phase: 'endpoint_discovery', reason: 'Crawl web application for endpoints' },
-      { tool: 'nuclei', phase: 'vulnerability_detection', reason: 'Template-based vulnerability scanning' },
+      {
+        tool: 'katana',
+        phase: 'endpoint_discovery',
+        reason: 'Crawl web application for endpoints',
+      },
+      {
+        tool: 'nuclei',
+        phase: 'vulnerability_detection',
+        reason: 'Template-based vulnerability scanning',
+      },
       { tool: 'subzy', phase: 'vulnerability_detection', reason: 'Subdomain takeover detection' },
-      { tool: 'nikto', phase: 'vulnerability_detection', reason: 'Web server misconfiguration scanning' }
+      {
+        tool: 'nikto',
+        phase: 'vulnerability_detection',
+        reason: 'Web server misconfiguration scanning',
+      },
     ];
 
     // Past hunts' confirmed findings bias future tool priority (I50).
@@ -328,7 +391,7 @@ ${DECISION_SCHEMA_PROMPT}`;
             tool: step.tool,
             target,
             arguments: {},
-            description: step.reason
+            description: step.reason,
           },
           reason: learningNote
             ? `${step.reason} (prioritized: past hunts on this stack succeeded with related techniques)`
@@ -336,7 +399,7 @@ ${DECISION_SCHEMA_PROMPT}`;
           expected_information_gain: `New ${step.phase} data`,
           scope_check: true,
           risk_check: true,
-          phase: step.phase
+          phase: step.phase,
         };
       }
     }
@@ -352,7 +415,7 @@ ${DECISION_SCHEMA_PROMPT}`;
       expected_information_gain: 'None — generating report',
       scope_check: true,
       risk_check: true,
-      phase: 'completed'
+      phase: 'completed',
     };
   }
 }

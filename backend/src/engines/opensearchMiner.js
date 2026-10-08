@@ -27,7 +27,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -59,15 +59,22 @@ function hostnameOf(raw) {
 export function analyzeOpenSearch(content, opts = {}) {
   const source = opts.sourceUrl || null;
   const result = {
-    source, shortName: null, description: null, searchUrls: [],
-    images: [], contact: null, tags: [], hosts: [], rawParse: false,
+    source,
+    shortName: null,
+    description: null,
+    searchUrls: [],
+    images: [],
+    contact: null,
+    tags: [],
+    hosts: [],
+    rawParse: false,
   };
   const text = String(content || '');
   if (!/<OpenSearchDescription[\s>]/i.test(text) && !/<Url[\s>]/i.test(text)) return result;
   result.rawParse = true;
   const hosts = new Set();
 
-  const pick = (re) => {
+  const pick = re => {
     const m = text.match(re);
     return m ? m[1].trim() : null;
   };
@@ -84,7 +91,7 @@ export function analyzeOpenSearch(content, opts = {}) {
     if (!template) continue;
     const host = hostnameOf(template);
     if (host) hosts.add(host.toLowerCase());
-    const parameters = [...template.matchAll(/\{([^}=]+)(?:=[^}]*)?\}/g)].map((p) => p[1]);
+    const parameters = [...template.matchAll(/\{([^}=]+)(?:=[^}]*)?\}/g)].map(p => p[1]);
     result.searchUrls.push({ type, template, host: host ? host.toLowerCase() : null, parameters });
   }
   for (const m of text.matchAll(/<Image\b[^>]*>([^<]*)<\/Image>/gi)) {
@@ -106,6 +113,8 @@ export function analyzeOpenSearch(content, opts = {}) {
  * @returns {string[]} external search hosts
  */
 export function externalSearchHosts(analysis, targetHost = '') {
-  const base = String(targetHost).toLowerCase().replace(/^www\./, '');
-  return (analysis.hosts || []).filter((h) => h !== base && !h.endsWith(`.${base}`));
+  const base = String(targetHost)
+    .toLowerCase()
+    .replace(/^www\./, '');
+  return (analysis.hosts || []).filter(h => h !== base && !h.endsWith(`.${base}`));
 }

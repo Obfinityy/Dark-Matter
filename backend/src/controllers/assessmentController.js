@@ -1,3 +1,9 @@
+/**
+ * assessmentController — Express route handlers for assessment.
+ * Factory that wires the assessment service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler } from '../core/utils.js';
 
 /**
@@ -65,14 +71,19 @@ export function createAssessmentController(assessmentService, eventService) {
     /** GET /api/v1/assessments/:id/tool-executions — get tool execution history */
     toolExecutions: asyncHandler(async (request, response) => {
       await assessmentService.get(request.user.id, request.params.id); // ownership check
-      const executions = await request.app.locals.services.toolExecutionModel.list(request.params.id);
+      const executions = await request.app.locals.services.toolExecutionModel.list(
+        request.params.id
+      );
       response.json({ executions });
     }),
 
     /** POST /api/v1/assessments/:id/chat — send a chat message */
     chat: asyncHandler(async (request, response) => {
       const message = request.body?.message;
-      if (!message) return response.status(400).json({ error: { code: 'MISSING_MESSAGE', message: 'Message is required' } });
+      if (!message)
+        return response
+          .status(400)
+          .json({ error: { code: 'MISSING_MESSAGE', message: 'Message is required' } });
       const result = await assessmentService.chat(request.user.id, request.params.id, message);
       response.json(result);
     }),
@@ -84,11 +95,11 @@ export function createAssessmentController(assessmentService, eventService) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no'
+        'X-Accel-Buffering': 'no',
       });
       response.flushHeaders?.();
 
-      const send = (event) => {
+      const send = event => {
         response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       };
 
@@ -103,6 +114,6 @@ export function createAssessmentController(assessmentService, eventService) {
         clearInterval(heartbeat);
         unsubscribe();
       });
-    })
+    }),
   };
 }

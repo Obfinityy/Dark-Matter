@@ -1,3 +1,9 @@
+/**
+ * localModelService — local Model service.
+ * Encapsulates local Model business logic used by controllers and workers.
+ * Part of: Infinity AI / Dark-Matter backend (local model management).
+ */
+
 import { spawnSync } from 'node:child_process';
 import { MODEL_LIBRARY, getLibraryEntry, getDefaultEntry } from './modelLibrary.js';
 import { validateCustomTag } from '../../models/customModelModel.js';
@@ -19,7 +25,13 @@ import { validateCustomTag } from '../../models/customModelModel.js';
  * model name never comes from raw user input into the Ollama API.
  */
 export class LocalModelService {
-  constructor({ config, brainProviderModel, customModelModel = null, onActivate = null, logger = console } = {}) {
+  constructor({
+    config,
+    brainProviderModel,
+    customModelModel = null,
+    onActivate = null,
+    logger = console,
+  } = {}) {
     const host = (config?.ollama?.host || process.env.OLLAMA_HOST || '127.0.0.1').trim();
     const port = Number(config?.ollama?.port || process.env.OLLAMA_PORT || 11434);
     this.apiBase = (config?.ollama?.apiBaseUrl || `http://${host}:${port}/api`).replace(/\/$/, '');
@@ -39,7 +51,13 @@ export class LocalModelService {
     try {
       const result = spawnSync('ollama', ['--version'], { timeout: 5000, encoding: 'utf-8' });
       if (result.status === 0) {
-        return { installed: true, version: String(result.stdout || '').trim().split('\n')[0] || null };
+        return {
+          installed: true,
+          version:
+            String(result.stdout || '')
+              .trim()
+              .split('\n')[0] || null,
+        };
       }
       return { installed: false, version: null };
     } catch {
@@ -50,7 +68,9 @@ export class LocalModelService {
   /** Is the Ollama API reachable? */
   async detectApi() {
     try {
-      const response = await fetch(`${this.apiBase}/version`, { signal: AbortSignal.timeout(4000) });
+      const response = await fetch(`${this.apiBase}/version`, {
+        signal: AbortSignal.timeout(4000),
+      });
       if (!response.ok) return { running: false, version: null };
       const body = await response.json().catch(() => null);
       return { running: true, version: body?.version || null };
@@ -64,11 +84,11 @@ export class LocalModelService {
       const response = await fetch(`${this.apiBase}/tags`, { signal: AbortSignal.timeout(8000) });
       if (!response.ok) return [];
       const body = await response.json().catch(() => null);
-      return (body?.models || []).map((m) => ({
+      return (body?.models || []).map(m => ({
         name: m.name,
         size: m.size || 0,
         digest: m.digest || null,
-        modifiedAt: m.modified_at || null
+        modifiedAt: m.modified_at || null,
       }));
     } catch {
       return [];
@@ -87,17 +107,19 @@ export class LocalModelService {
       Promise.resolve(this.detectBinary()),
       this.detectApi(),
       this.listInstalled(),
-      this.brainProviderModel ? this.brainProviderModel.getSelection(userId) : { provider: 'phone', modelId: null }
+      this.brainProviderModel
+        ? this.brainProviderModel.getSelection(userId)
+        : { provider: 'phone', modelId: null },
     ]);
 
-    const installedByTag = new Map(installed.map((m) => [m.name, m]));
-    const models = MODEL_LIBRARY.map((entry) => {
+    const installedByTag = new Map(installed.map(m => [m.name, m]));
+    const models = MODEL_LIBRARY.map(entry => {
       const found = installedByTag.get(entry.ollamaTag);
       return {
         ...entry,
         installed: Boolean(found),
         ready: Boolean(found),
-        sizeBytes: found ? found.size : null
+        sizeBytes: found ? found.size : null,
       };
     });
 
@@ -105,7 +127,7 @@ export class LocalModelService {
     let customModels = [];
     if (this.customModelModel) {
       const custom = await this.customModelModel.list();
-      customModels = custom.map((record) => {
+      customModels = custom.map(record => {
         const found = installedByTag.get(record.tag);
         return {
           id: `custom:${record.id}`,
@@ -119,7 +141,7 @@ export class LocalModelService {
           ready: Boolean(found),
           sizeBytes: found ? found.size : null,
           pulling: this.pullState?.status === 'pulling' && this.pullState?.ollamaTag === record.tag,
-          addedAt: record.addedAt
+          addedAt: record.addedAt,
         };
       });
     }
@@ -129,21 +151,26 @@ export class LocalModelService {
         binaryInstalled: binary.installed,
         binaryVersion: binary.version,
         apiRunning: api.running,
-        apiVersion: api.version
+        apiVersion: api.version,
       },
       models,
       customModels,
       diskUsageBytes: installed.reduce((sum, m) => sum + (m.size || 0), 0),
-      installedCount: models.filter((m) => m.installed).length + customModels.filter((m) => m.installed).length,
+      installedCount:
+        models.filter(m => m.installed).length + customModels.filter(m => m.installed).length,
       active: {
         provider: selection.provider,
         modelId: selection.modelId,
         ollamaTag: selection.ollamaTag,
-        label: selection.provider === 'ollama'
-          ? (getLibraryEntry(selection.modelId)?.name || (await this.resolveCustomLabel(selection.modelId)) || selection.ollamaTag || 'local model')
-          : 'Phone (local Gemma)'
+        label:
+          selection.provider === 'ollama'
+            ? getLibraryEntry(selection.modelId)?.name ||
+              (await this.resolveCustomLabel(selection.modelId)) ||
+              selection.ollamaTag ||
+              'local model'
+            : 'Phone (local Gemma)',
       },
-      pull: this.pullState ? this.describePull() : null
+      pull: this.pullState ? this.describePull() : null,
     };
   }
 
@@ -155,29 +182,30 @@ export class LocalModelService {
 
   installGuide() {
     return {
-      message: 'Ollama runs the agent’s brain on your own machine. One-time download, then fully offline — private, no API cost.',
+      message:
+        'Ollama runs the agent’s brain on your own machine. One-time download, then fully offline — private, no API cost.',
       steps: [
         {
           os: 'linux',
           title: 'Linux',
           commands: ['curl -fsSL https://ollama.com/install.sh | sh', 'ollama serve'],
-          note: 'The service usually starts automatically after install.'
+          note: 'The service usually starts automatically after install.',
         },
         {
           os: 'macos',
           title: 'macOS',
           commands: ['brew install ollama', 'ollama serve'],
-          note: 'Or download the app from https://ollama.com/download'
+          note: 'Or download the app from https://ollama.com/download',
         },
         {
           os: 'windows',
           title: 'Windows',
           commands: [],
-          note: 'Download the installer from https://ollama.com/download and run it.'
-        }
+          note: 'Download the installer from https://ollama.com/download and run it.',
+        },
       ],
       verify: 'ollama --version',
-      downloadUrl: 'https://ollama.com/download'
+      downloadUrl: 'https://ollama.com/download',
     };
   }
 
@@ -201,8 +229,13 @@ export class LocalModelService {
       completedBytes: completed,
       // A finished pull is 100% even when the daemon never sent full byte
       // accounting (e.g. cached layers report no totals).
-      percent: status === 'success' ? 100 : (total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0),
-      error: error || null
+      percent:
+        status === 'success'
+          ? 100
+          : total > 0
+            ? Math.min(100, Math.round((completed / total) * 100))
+            : 0,
+      error: error || null,
     };
   }
 
@@ -257,7 +290,7 @@ export class LocalModelService {
     const pull = await this.beginPull({
       modelId: `custom:${record.id}`,
       ollamaTag: record.tag,
-      name: record.label
+      name: record.label,
     });
     return { customModel: record, pull };
   }
@@ -282,12 +315,12 @@ export class LocalModelService {
       status: 'pulling',
       startedAt: new Date().toISOString(),
       digests: new Map(),
-      error: null
+      error: null,
     };
     this.emitPull();
 
     // Run the long download in the background; progress flows via listeners.
-    this.runPull({ modelId, ollamaTag, name }).catch((error) => {
+    this.runPull({ modelId, ollamaTag, name }).catch(error => {
       this.logger.error?.('[local-model] pull failed:', error.message);
     });
     return this.describePull();
@@ -298,7 +331,7 @@ export class LocalModelService {
       const response = await fetch(`${this.apiBase}/pull`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model: entry.ollamaTag, stream: true })
+        body: JSON.stringify({ model: entry.ollamaTag, stream: true }),
       });
       if (!response.ok || !response.body) {
         throw new Error(`Ollama pull rejected the model (HTTP ${response.status})`);
@@ -349,7 +382,7 @@ export class LocalModelService {
     if (!this.pullState || this.pullState.status !== 'success') {
       // The stream ended without an explicit success line — verify via /api/tags.
       const installed = await this.listInstalled();
-      const found = installed.some((m) => m.name === entry.ollamaTag);
+      const found = installed.some(m => m.name === entry.ollamaTag);
       if (!found) {
         throw new Error('Pull stream ended before the model was ready');
       }
@@ -400,7 +433,9 @@ export class LocalModelService {
     }
     await this.deleteFromOllama(entry.ollamaTag);
     // If the removed model was the active brain, fall back to the phone.
-    const selection = this.brainProviderModel ? await this.brainProviderModel.getSelection(userId) : null;
+    const selection = this.brainProviderModel
+      ? await this.brainProviderModel.getSelection(userId)
+      : null;
     if (selection?.provider === 'ollama' && selection?.modelId === modelId) {
       await this.deactivate(userId);
     }
@@ -422,7 +457,9 @@ export class LocalModelService {
     }
     await this.deleteFromOllama(record.tag);
     await this.customModelModel.remove(customId);
-    const selection = this.brainProviderModel ? await this.brainProviderModel.getSelection(userId) : null;
+    const selection = this.brainProviderModel
+      ? await this.brainProviderModel.getSelection(userId)
+      : null;
     if (selection?.provider === 'ollama' && selection?.modelId === `custom:${customId}`) {
       await this.deactivate(userId);
     }
@@ -439,7 +476,7 @@ export class LocalModelService {
     const response = await fetch(`${this.apiBase}/delete`, {
       method: 'DELETE',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: ollamaTag })
+      body: JSON.stringify({ model: ollamaTag }),
     });
     if (!response.ok) {
       const error = new Error(`Ollama could not remove the model (HTTP ${response.status})`);
@@ -459,7 +496,11 @@ export class LocalModelService {
     let resolved = null; // { modelId, ollamaTag, name }
     const libraryEntry = getLibraryEntry(modelId);
     if (libraryEntry) {
-      resolved = { modelId: libraryEntry.id, ollamaTag: libraryEntry.ollamaTag, name: libraryEntry.name };
+      resolved = {
+        modelId: libraryEntry.id,
+        ollamaTag: libraryEntry.ollamaTag,
+        name: libraryEntry.name,
+      };
     } else if (String(modelId).startsWith('custom:') && this.customModelModel) {
       const record = await this.customModelModel.get(String(modelId).slice('custom:'.length));
       if (record) {
@@ -472,7 +513,7 @@ export class LocalModelService {
       throw error;
     }
     const installed = await this.listInstalled();
-    if (!installed.some((m) => m.name === resolved.ollamaTag)) {
+    if (!installed.some(m => m.name === resolved.ollamaTag)) {
       const error = new Error(`"${resolved.name}" is not downloaded yet — pull it first`);
       error.code = 'MODEL_NOT_INSTALLED';
       throw error;
@@ -480,10 +521,14 @@ export class LocalModelService {
     const selection = await this.brainProviderModel.setSelection(userId, {
       provider: 'ollama',
       modelId: resolved.modelId,
-      ollamaTag: resolved.ollamaTag
+      ollamaTag: resolved.ollamaTag,
     });
     if (this.onActivate) {
-      await this.onActivate(userId, { provider: 'ollama', modelId: resolved.modelId, ollamaTag: resolved.ollamaTag });
+      await this.onActivate(userId, {
+        provider: 'ollama',
+        modelId: resolved.modelId,
+        ollamaTag: resolved.ollamaTag,
+      });
     }
     return { active: selection, model: resolved };
   }

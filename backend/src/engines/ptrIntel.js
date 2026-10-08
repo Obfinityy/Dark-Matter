@@ -54,14 +54,22 @@ export function parseCidr(cidr) {
 export function sweepCoverageStats(prefixes) {
   return (Array.isArray(prefixes) ? prefixes : []).map(p => {
     const parsed = parseCidr(p?.cidr);
-    if (!parsed) return { cidr: p?.cidr ?? null, size: null, queried: 0, coveragePct: 0, unqueriedNote: 'invalid CIDR' };
+    if (!parsed)
+      return {
+        cidr: p?.cidr ?? null,
+        size: null,
+        queried: 0,
+        coveragePct: 0,
+        unqueriedNote: 'invalid CIDR',
+      };
     const queried = new Set((p.queriedIps || []).filter(isValidIpv4)).size;
     return {
       cidr: p.cidr,
       size: parsed.size,
       queried,
       coveragePct: parsed.size > 0 ? Math.round((queried / parsed.size) * 10000) / 100 : 0,
-      unqueriedNote: queried < parsed.size ? `${parsed.size - queried} address(es) not swept` : 'fully swept',
+      unqueriedNote:
+        queried < parsed.size ? `${parsed.size - queried} address(es) not swept` : 'fully swept',
     };
   });
 }
@@ -73,7 +81,11 @@ export function sweepCoverageStats(prefixes) {
  * @returns {string[]} tokens.
  */
 export function tokenizePtrHostname(hostname) {
-  return String(hostname || '').trim().toLowerCase().split(/[-_.]/).filter(Boolean);
+  return String(hostname || '')
+    .trim()
+    .toLowerCase()
+    .split(/[-_.]/)
+    .filter(Boolean);
 }
 
 /**
@@ -86,20 +98,36 @@ export function tokenizePtrHostname(hostname) {
  * @returns {{ hostname: string, template: string, numericSlots: number[] }}
  */
 export function inferPtrTemplate(hostname, opts = {}) {
-  const norm = String(hostname || '').trim().toLowerCase();
+  const norm = String(hostname || '')
+    .trim()
+    .toLowerCase();
   const regionTokens = new Set((opts.regionTokens || []).map(String));
   const labels = norm.split('.');
   const templated = labels.map(label => {
     const toks = label.split(/[-_]/).filter(Boolean);
     return toks
-      .map(t => (/^\d+$/.test(t) ? '{n}' : regionTokens.has(t) ? t : /^[a-z]+$/.test(t) ? t : (/[a-z]/i.test(t) ? '{w}' : t)))
+      .map(t =>
+        /^\d+$/.test(t)
+          ? '{n}'
+          : regionTokens.has(t)
+            ? t
+            : /^[a-z]+$/.test(t)
+              ? t
+              : /[a-z]/i.test(t)
+                ? '{w}'
+                : t
+      )
       .join('-');
   });
   const numericSlots = [];
   labels.forEach((label, li) => {
-    label.split(/[-_]/).filter(Boolean).forEach((t, ti) => {
-      if (/^\d+$/.test(t)) numericSlots.push({ labelIndex: li, tokenIndex: ti, value: Number(t), width: t.length });
-    });
+    label
+      .split(/[-_]/)
+      .filter(Boolean)
+      .forEach((t, ti) => {
+        if (/^\d+$/.test(t))
+          numericSlots.push({ labelIndex: li, tokenIndex: ti, value: Number(t), width: t.length });
+      });
   });
   return { hostname: norm, template: templated.join('.'), numericSlots };
 }
@@ -114,7 +142,9 @@ export function inferPtrTemplate(hostname, opts = {}) {
 export function clusterPtrNames(ptrHostnames, opts = {}) {
   const clusters = new Map();
   for (const h of Array.isArray(ptrHostnames) ? ptrHostnames : []) {
-    const norm = String(h || '').trim().toLowerCase();
+    const norm = String(h || '')
+      .trim()
+      .toLowerCase();
     if (!norm) continue;
     const { template } = inferPtrTemplate(norm, opts);
     if (!clusters.has(template)) clusters.set(template, { template, members: [] });
@@ -149,14 +179,22 @@ export function findNumericGaps(members) {
     for (const [slotKey, values] of slotMap) {
       const sorted = [...values].sort((a, b) => a - b);
       if (sorted.length < 2) continue;
-      const low = sorted[0]; const high = sorted[sorted.length - 1];
+      const low = sorted[0];
+      const high = sorted[sorted.length - 1];
       const observed = new Set(sorted);
       const missingNums = [];
       for (let n = low; n <= high; n++) {
         if (!observed.has(n)) missingNums.push(n);
       }
       if (missingNums.length > 0) {
-        gaps.push({ template, slot: slotKey, missing: missingNums, low, high, observedCount: sorted.length });
+        gaps.push({
+          template,
+          slot: slotKey,
+          missing: missingNums,
+          low,
+          high,
+          observedCount: sorted.length,
+        });
       }
     }
   }
@@ -173,14 +211,17 @@ export function findNumericGaps(members) {
  */
 export function predictUnlistedHosts(ptrHostnames, opts = {}) {
   const extrapolate = Number.isFinite(opts.extrapolate) ? Math.max(0, opts.extrapolate) : 3;
-  const observed = new Set((Array.isArray(ptrHostnames) ? ptrHostnames : []).map(h => String(h).trim().toLowerCase()));
+  const observed = new Set(
+    (Array.isArray(ptrHostnames) ? ptrHostnames : []).map(h => String(h).trim().toLowerCase())
+  );
   const predicted = new Set();
   const gaps = findNumericGaps([...observed]);
   for (const gap of gaps) {
     const numbers = [...gap.missing];
     for (let i = 1; i <= extrapolate; i++) numbers.push(gap.high + i);
     for (const n of numbers) {
-      const filled = gap.template.replace('{n}', String(n).padStart(2, '0'))
+      const filled = gap.template
+        .replace('{n}', String(n).padStart(2, '0'))
         .replace(/\{n\}/g, String(n));
       if (!observed.has(filled)) predicted.add(filled);
     }
@@ -199,17 +240,27 @@ export function predictUnlistedHosts(ptrHostnames, opts = {}) {
 export function analyzeSweepYield(sweep) {
   const notes = [];
   const records = Array.isArray(sweep?.ptrRecords) ? sweep.ptrRecords : [];
-  const hostnames = [...new Set(
-    records.map(r => String(r?.hostname || '').trim().toLowerCase()).filter(Boolean),
-  )];
+  const hostnames = [
+    ...new Set(
+      records
+        .map(r =>
+          String(r?.hostname || '')
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    ),
+  ];
   const clusters = clusterPtrNames(hostnames);
   const templates = clusters.map(c => c.template);
   const numericTotal = hostnames.reduce((acc, h) => acc + (/\d/.test(h) ? 1 : 0), 0);
   const machineRatio = hostnames.length > 0 ? numericTotal / hostnames.length : 0;
   const curatedScore = Math.round((1 - machineRatio) * 100);
   if (hostnames.length === 0) notes.push('no PTR hostnames collected — sweep may have failed');
-  if (clusters.length > 0 && clusters[0].count >= 5) notes.push(`dominant naming template: ${clusters[0].template}`);
-  if (curatedScore >= 60) notes.push('naming looks curated — named services likely worth deeper probing');
+  if (clusters.length > 0 && clusters[0].count >= 5)
+    notes.push(`dominant naming template: ${clusters[0].template}`);
+  if (curatedScore >= 60)
+    notes.push('naming looks curated — named services likely worth deeper probing');
   if (curatedScore < 40) notes.push('naming looks machine-generated — bulk infrastructure');
   return {
     cidr: sweep?.cidr ?? null,

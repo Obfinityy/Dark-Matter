@@ -18,7 +18,7 @@ const POISON_OID = '1.3.6.1.4.1.11129.2.4.3';
  */
 export function isPoisonedPrecert(cert = {}) {
   const exts = cert.extensions || [];
-  return exts.some((e) => e.oid === POISON_OID);
+  return exts.some(e => e.oid === POISON_OID);
 }
 
 /**
@@ -29,12 +29,12 @@ export function isPoisonedPrecert(cert = {}) {
  * @returns {{ precert, finalCert, timingGapMs }[]}
  */
 export function linkPrecertsToFinal(certs = []) {
-  const fingerprint = (c) => {
-      const sans = [...(c.san || [])].sort().join(',');
-      return [c.issuer, c.subject, sans, c.publicKeySha256].join('|');
-    };
+  const fingerprint = c => {
+    const sans = [...(c.san || [])].sort().join(',');
+    return [c.issuer, c.subject, sans, c.publicKeySha256].join('|');
+  };
   const precerts = certs.filter(isPoisonedPrecert);
-  const finals = certs.filter((c) => !isPoisonedPrecert(c));
+  const finals = certs.filter(c => !isPoisonedPrecert(c));
   const byFp = new Map();
   for (const f of finals) {
     const fp = fingerprint(f);
@@ -63,17 +63,17 @@ export function linkPrecertsToFinal(certs = []) {
  * @returns {{ serial, earliestSct, sctCount, logs: string[] }[]}
  */
 export function issuanceTiming(certs = []) {
-  return certs.map((c) => {
+  return certs.map(c => {
     const scts = c.scts || [];
     const times = scts
-      .map((s) => new Date(s.timestamp).getTime())
+      .map(s => new Date(s.timestamp).getTime())
       .filter(Number.isFinite)
       .sort((a, b) => a - b);
     return {
       serial: c.serial || null,
       earliestSct: times.length ? new Date(times[0]).toISOString() : null,
       sctCount: scts.length,
-      logs: [...new Set(scts.map((s) => s.logId))],
+      logs: [...new Set(scts.map(s => s.logId))],
     };
   });
 }

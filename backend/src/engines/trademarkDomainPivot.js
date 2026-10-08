@@ -14,8 +14,22 @@
 
 /** TLDs commonly used for defensive/brand-protection registrations. */
 const DEFENSIVE_TLDS = [
-  'com', 'net', 'org', 'io', 'co', 'ai', 'app', 'dev', 'cloud',
-  'security', 'tech', 'inc', 'llc', 'shop', 'store', 'online',
+  'com',
+  'net',
+  'org',
+  'io',
+  'co',
+  'ai',
+  'app',
+  'dev',
+  'cloud',
+  'security',
+  'tech',
+  'inc',
+  'llc',
+  'shop',
+  'store',
+  'online',
 ];
 
 /**
@@ -59,7 +73,10 @@ export function defensiveDomainCandidates(record, tlds = DEFENSIVE_TLDS) {
   const out = [];
   for (const variant of variants) {
     for (const tld of tlds || []) {
-      out.push({ domain: `${variant}.${tld}`, pattern: variant === base ? 'concat' : variant === hyphenated ? 'hyphen' : 'affix' });
+      out.push({
+        domain: `${variant}.${tld}`,
+        pattern: variant === base ? 'concat' : variant === hyphenated ? 'hyphen' : 'affix',
+      });
     }
   }
   return out;
@@ -90,7 +107,12 @@ export function pivotTrademarkRecords(records, tlds) {
       for (const c of defensiveDomainCandidates(r, tlds)) {
         if (seen.has(c.domain)) continue;
         seen.add(c.domain);
-        domains.push({ domain: c.domain, pattern: c.pattern, mark: r.mark, serial: r.serial || null });
+        domains.push({
+          domain: c.domain,
+          pattern: c.pattern,
+          mark: r.mark,
+          serial: r.serial || null,
+        });
       }
     }
     result.push({ owner, marks, domains });
@@ -105,7 +127,7 @@ export function pivotTrademarkRecords(records, tlds) {
  */
 export function rankDefensiveCandidates(candidates = []) {
   return candidates
-    .map((c) => {
+    .map(c => {
       let priority = 0;
       const tld = c.domain.split('.').pop();
       if (tld === 'com') priority += 30;

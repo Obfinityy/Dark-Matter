@@ -17,7 +17,9 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  const s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  const s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`;
   try {
     const u = new URL(withScheme);
@@ -91,7 +93,9 @@ export function parseGitlabCiHosts(ymlText) {
   // variables: KEY: <url-ish> — only values that look like URLs or hosts
   const varSection = text.match(/^\s*variables:\s*$(.*?)(?=^\S|\Z)/gims);
   if (varSection) {
-    for (const m of varSection[0].matchAll(/^\s*[A-Za-z_][A-Za-z0-9_]*:\s*['"]?([^\s'"]+)['"]?\s*$/gm)) {
+    for (const m of varSection[0].matchAll(
+      /^\s*[A-Za-z_][A-Za-z0-9_]*:\s*['"]?([^\s'"]+)['"]?\s*$/gm
+    )) {
       const v = m[1];
       if (/^https?:\/\//i.test(v) || /^([a-z0-9-]+\.)+[a-z]{2,}(:\d+)?(\/|$)/i.test(v)) {
         const host = toHost(v);

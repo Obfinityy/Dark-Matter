@@ -22,7 +22,10 @@
 export const MDNS_SERVICE_TYPES = {
   '_http._tcp': { description: 'HTTP web server', risk: 'may expose management UI' },
   '_https._tcp': { description: 'HTTPS web server', risk: 'may expose management UI over TLS' },
-  '_printer._tcp': { description: 'Printer (LPR/LPD or IPP)', risk: 'printer admin panels often unauthenticated' },
+  '_printer._tcp': {
+    description: 'Printer (LPR/LPD or IPP)',
+    risk: 'printer admin panels often unauthenticated',
+  },
   '_ipp._tcp': { description: 'IPP printing', risk: 'IPP attributes can leak device info' },
   '_ssh._tcp': { description: 'SSH', risk: 'remote shell exposure on LAN' },
   '_sftp-ssh._tcp': { description: 'SFTP over SSH', risk: 'file-transfer exposure' },
@@ -52,7 +55,10 @@ export const MDNS_SERVICE_TYPES = {
  * @returns {string}
  */
 export function normalizeServiceType(raw = '') {
-  return String(raw).trim().toLowerCase().replace(/\.local\.?$/, '');
+  return String(raw)
+    .trim()
+    .toLowerCase()
+    .replace(/\.local\.?$/, '');
 }
 
 /**
@@ -82,31 +88,49 @@ export function enumerateMdnsServiceTypes(input = {}) {
     if (m) addType(m[1], adv);
   }
 
-  const serviceTypes = [...byType.entries()].map(([serviceType, instances]) => {
-    const known = MDNS_SERVICE_TYPES[serviceType] || { description: 'Unrecognized service type', risk: 'unknown — investigate' };
-    return {
-      serviceType,
-      description: known.description,
-      risk: known.risk,
-      instanceCount: instances.size,
-      instances: [...instances],
-    };
-  }).sort((a, b) => b.instanceCount - a.instanceCount);
+  const serviceTypes = [...byType.entries()]
+    .map(([serviceType, instances]) => {
+      const known = MDNS_SERVICE_TYPES[serviceType] || {
+        description: 'Unrecognized service type',
+        risk: 'unknown — investigate',
+      };
+      return {
+        serviceType,
+        description: known.description,
+        risk: known.risk,
+        instanceCount: instances.size,
+        instances: [...instances],
+      };
+    })
+    .sort((a, b) => b.instanceCount - a.instanceCount);
 
   // Flag services that are security-relevant for the authorized assessment.
   const interestingServices = serviceTypes
-    .filter((s) => /_telnet\._tcp|_ftp\._tcp|_vnc\._tcp|_smb\._tcp|_afpovertcp\._tcp|_nfs\._tcp|_rdp\._tcp/.test(s.serviceType))
-    .map((s) => s.serviceType);
+    .filter(s =>
+      /_telnet\._tcp|_ftp\._tcp|_vnc\._tcp|_smb\._tcp|_afpovertcp\._tcp|_nfs\._tcp|_rdp\._tcp/.test(
+        s.serviceType
+      )
+    )
+    .map(s => s.serviceType);
 
   return {
     type: 'mDNS Service-Type Enumeration',
     confidence: serviceTypes.length > 0 ? 'high' : 'low',
     serviceTypes,
     interestingServices,
-    evidence: serviceTypes.length === 0
-      ? 'No mDNS service types observed.'
-      : `${serviceTypes.length} service type(s) observed: ` + serviceTypes.map((s) => `${s.serviceType} (${s.instanceCount} instance${s.instanceCount === 1 ? '' : 's'})`).join(', ')
-        + (interestingServices.length ? `. Security-relevant: ${interestingServices.join(', ')}.` : '. No high-risk service types seen.'),
+    evidence:
+      serviceTypes.length === 0
+        ? 'No mDNS service types observed.'
+        : `${serviceTypes.length} service type(s) observed: ` +
+          serviceTypes
+            .map(
+              s =>
+                `${s.serviceType} (${s.instanceCount} instance${s.instanceCount === 1 ? '' : 's'})`
+            )
+            .join(', ') +
+          (interestingServices.length
+            ? `. Security-relevant: ${interestingServices.join(', ')}.`
+            : '. No high-risk service types seen.'),
   };
 }
 
@@ -119,16 +143,21 @@ export function mapServiceLandscape(input = {}) {
   const hosts = new Map();
   for (const row of input.instances || []) {
     const host = String(row.host || row.instance || 'unknown').trim();
-    if (!hosts.has(host)) hosts.set(host, { host, address: row.address || null, services: new Set() });
+    if (!hosts.has(host))
+      hosts.set(host, { host, address: row.address || null, services: new Set() });
     hosts.get(host).services.add(normalizeServiceType(row.serviceType));
     if (row.address && !hosts.get(host).address) hosts.get(host).address = row.address;
   }
-  const hostList = [...hosts.values()].map((h) => ({ ...h, services: [...h.services].sort() }));
+  const hostList = [...hosts.values()].map(h => ({ ...h, services: [...h.services].sort() }));
   return {
     type: 'mDNS Service Landscape',
     hosts: hostList,
-    evidence: hostList.length === 0
-      ? 'No mDNS instances observed.'
-      : `${hostList.length} host(s) advertising mDNS services: ` + hostList.map((h) => `${h.host}${h.address ? ` (${h.address})` : ''} → ${h.services.join(', ')}`).join('; '),
+    evidence:
+      hostList.length === 0
+        ? 'No mDNS instances observed.'
+        : `${hostList.length} host(s) advertising mDNS services: ` +
+          hostList
+            .map(h => `${h.host}${h.address ? ` (${h.address})` : ''} → ${h.services.join(', ')}`)
+            .join('; '),
   };
 }

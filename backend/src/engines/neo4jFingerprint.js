@@ -18,15 +18,9 @@ export const NEO4J_DEFAULT_PORTS = {
   httpsBrowser: 7473,
 };
 
-const NEO4J_BODY_MARKERS = [
-  /neo4j\s+browser/i,
-  /window\.NEO4J/i,
-  /"neo4j"/i,
-];
+const NEO4J_BODY_MARKERS = [/neo4j\s+browser/i, /window\.NEO4J/i, /"neo4j"/i];
 
-const NEO4J_HEADER_MARKERS = [
-  /neo4j/i,
-];
+const NEO4J_HEADER_MARKERS = [/neo4j/i];
 
 /**
  * Analyze an HTTP response for Neo4j Browser / HTTP API evidence.
@@ -42,12 +36,15 @@ export function analyzeNeo4jHttp(response = {}) {
   const body = String(response.body || '');
   const matched = [];
 
-  if (/<title>\s*neo4j\s+browser\s*<\/title>/i.test(body)) matched.push({ signal: 'html_title', detail: '<title>Neo4j Browser</title>' });
+  if (/<title>\s*neo4j\s+browser\s*<\/title>/i.test(body))
+    matched.push({ signal: 'html_title', detail: '<title>Neo4j Browser</title>' });
   for (const re of NEO4J_BODY_MARKERS) {
-    if (re.test(body) && !matched.some((m) => m.signal === 'html_title')) matched.push({ signal: 'body_marker', detail: String(re) });
+    if (re.test(body) && !matched.some(m => m.signal === 'html_title'))
+      matched.push({ signal: 'body_marker', detail: String(re) });
   }
   for (const [hk, hv] of Object.entries(headers)) {
-    if (NEO4J_HEADER_MARKERS.some((re) => re.test(hk) || re.test(hv))) matched.push({ signal: 'header_marker', detail: `${hk}: ${hv.slice(0, 80)}` });
+    if (NEO4J_HEADER_MARKERS.some(re => re.test(hk) || re.test(hv)))
+      matched.push({ signal: 'header_marker', detail: `${hk}: ${hv.slice(0, 80)}` });
   }
   const wwwAuth = headers['www-authenticate'] || '';
   const authHint = /realm="?neo4j"?/i.test(wwwAuth) ? 'Neo4j auth realm advertised' : null;
@@ -55,7 +52,8 @@ export function analyzeNeo4jHttp(response = {}) {
 
   const detected = matched.length > 0;
   let confidence = 'none';
-  if (matched.some((m) => m.signal === 'html_title' || m.signal === 'auth_realm')) confidence = 'high';
+  if (matched.some(m => m.signal === 'html_title' || m.signal === 'auth_realm'))
+    confidence = 'high';
   else if (matched.length > 0) confidence = 'medium';
 
   return {
@@ -88,15 +86,16 @@ export function analyzeNeo4jHttp(response = {}) {
 export function interpretBoltHandshake(handshake = {}) {
   const hex = String(handshake.serverVersionHex || '').replace(/^0x/i, '');
   const agreed = hex.length === 8 ? parseInt(hex, 16) : null;
-  const major = agreed !== null && !Number.isNaN(agreed) ? ((agreed >>> 16) & 0xff) : null;
-  const minor = agreed !== null && !Number.isNaN(agreed) ? ((agreed >>> 8) & 0xff) : null;
+  const major = agreed !== null && !Number.isNaN(agreed) ? (agreed >>> 16) & 0xff : null;
+  const minor = agreed !== null && !Number.isNaN(agreed) ? (agreed >>> 8) & 0xff : null;
   return {
     valid: agreed !== null,
     agreedVersion: agreed !== null ? `${major}.${minor}` : null,
     raw: handshake.serverVersionHex || null,
-    note: agreed === null
-      ? 'No usable server handshake bytes supplied.'
-      : 'A Bolt server answered the handshake — consistent with a Neo4j (or Bolt-compatible) database on this port.',
+    note:
+      agreed === null
+        ? 'No usable server handshake bytes supplied.'
+        : 'A Bolt server answered the handshake — consistent with a Neo4j (or Bolt-compatible) database on this port.',
   };
 }
 
@@ -107,8 +106,9 @@ export function interpretBoltHandshake(handshake = {}) {
  * @returns {string|null} version like "5.12.0" or null
  */
 export function extractNeo4jVersion(body = '') {
-  const m = String(body).match(/neo4j[\s\/_-]?version["'\s:]+(\d+\.\d+\.\d+)/i)
-    || String(body).match(/"version"\s*:\s*"(\d+\.\d+\.\d+)"/);
+  const m =
+    String(body).match(/neo4j[\s\/_-]?version["'\s:]+(\d+\.\d+\.\d+)/i) ||
+    String(body).match(/"version"\s*:\s*"(\d+\.\d+\.\d+)"/);
   return m ? m[1] : null;
 }
 

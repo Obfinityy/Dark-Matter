@@ -32,7 +32,7 @@ function q(token) {
 export function buildZoomEyeDorks(stack = [], scope = {}) {
   const { cidrs = [], org = '', country = '' } = scope;
   const scopeParts = [
-    ...cidrs.map((c) => `cidr:"${q(c)}"`),
+    ...cidrs.map(c => `cidr:"${q(c)}"`),
     org ? `org:"${q(org)}"` : '',
     country ? `country:"${q(country)}"` : '',
   ].filter(Boolean);
@@ -52,11 +52,17 @@ export function buildZoomEyeDorks(stack = [], scope = {}) {
     });
   }
   // Deployment-hygiene dorks that catch unlisted/staging instances of the stack.
-  const productTerms = stack.map((f) => f.product).filter(Boolean);
+  const productTerms = stack.map(f => f.product).filter(Boolean);
   if (productTerms.length) {
-    const term = productTerms.map((p) => `"${q(p)}"`).join(' ');
-    dorks.push({ label: 'hygiene:default-title', dork: `title:"Welcome" ${term}${scopeSuffix}`.trim() });
-    dorks.push({ label: 'hygiene:staging-subdomain', dork: `hostname:"staging" ${term}${scopeSuffix}`.trim() });
+    const term = productTerms.map(p => `"${q(p)}"`).join(' ');
+    dorks.push({
+      label: 'hygiene:default-title',
+      dork: `title:"Welcome" ${term}${scopeSuffix}`.trim(),
+    });
+    dorks.push({
+      label: 'hygiene:staging-subdomain',
+      dork: `hostname:"staging" ${term}${scopeSuffix}`.trim(),
+    });
   }
   return { dorks };
 }
@@ -71,7 +77,7 @@ export function buildZoomEyeDorks(stack = [], scope = {}) {
 export function rankZoomEyeRecord(record = {}, stack = []) {
   let score = 0;
   const matchedStack = [];
-  const lc = (v) => String(v || '').toLowerCase();
+  const lc = v => String(v || '').toLowerCase();
   for (const fp of stack) {
     if (!fp || !fp.product) continue;
     let part = 0;
@@ -116,19 +122,20 @@ export function discoverZoomEyeHosts(records = [], stack = [], options = {}) {
       score,
       confidence,
       alreadyKnown: known.has(String(rec.ip)),
-      evidence: `ZoomEye record for ${rec.ip} matches stack fingerprint ` +
+      evidence:
+        `ZoomEye record for ${rec.ip} matches stack fingerprint ` +
         `(${matchedStack.join(', ') || 'none'}) with score ${score}.`,
     });
   }
   candidates.sort((a, b) => b.score - a.score);
   return {
     candidates,
-    unlisted: candidates.filter((c) => !c.alreadyKnown),
+    unlisted: candidates.filter(c => !c.alreadyKnown),
     stats: {
       records: records.length,
       candidates: candidates.length,
-      unlisted: candidates.filter((c) => !c.alreadyKnown).length,
-      highConfidence: candidates.filter((c) => c.confidence === 'high').length,
+      unlisted: candidates.filter(c => !c.alreadyKnown).length,
+      highConfidence: candidates.filter(c => c.confidence === 'high').length,
     },
   };
 }
@@ -143,13 +150,24 @@ export function zoomeyeFinding(result) {
     severity: result.stats.highConfidence ? 'Low' : 'Info',
     confidence: result.stats.candidates >= 2 ? 'high' : 'medium',
     stats: result.stats,
-    topCandidates: result.unlisted.slice(0, 15).map((c) => ({
-      ip: c.ip, port: c.port, hostname: c.hostname, app: c.app, score: c.score, confidence: c.confidence,
+    topCandidates: result.unlisted.slice(0, 15).map(c => ({
+      ip: c.ip,
+      port: c.port,
+      hostname: c.hostname,
+      app: c.app,
+      score: c.score,
+      confidence: c.confidence,
     })),
-    evidence: `${result.stats.records} ZoomEye record(s) ranked; ` +
+    evidence:
+      `${result.stats.records} ZoomEye record(s) ranked; ` +
       `${result.stats.unlisted} not present in the operator's known asset list.`,
   };
 }
 
-export const ZOOMEYE_DORK_DISCOVERY = { buildZoomEyeDorks, rankZoomEyeRecord, discoverZoomEyeHosts, zoomeyeFinding };
+export const ZOOMEYE_DORK_DISCOVERY = {
+  buildZoomEyeDorks,
+  rankZoomEyeRecord,
+  discoverZoomEyeHosts,
+  zoomeyeFinding,
+};
 export default ZOOMEYE_DORK_DISCOVERY;

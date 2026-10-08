@@ -20,13 +20,16 @@
  * @returns {string|null} email address or null when not parseable
  */
 export function mboxToEmail(mboxDname) {
-  const clean = String(mboxDname || '').trim().replace(/\.$/, '');
+  const clean = String(mboxDname || '')
+    .trim()
+    .replace(/\.$/, '');
   if (!clean || clean === '.') return null;
   const labels = clean.split('.');
   if (labels.length < 3) return null;
   const local = labels[0];
   const domain = labels.slice(1).join('.');
-  if (!/^[A-Za-z0-9._%+-]+$/.test(local) || !/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(domain)) return null;
+  if (!/^[A-Za-z0-9._%+-]+$/.test(local) || !/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(domain))
+    return null;
   return `${local}@${domain}`;
 }
 
@@ -38,7 +41,9 @@ export function mboxToEmail(mboxDname) {
  * @returns {{mbox:string, moreInfo:string, email:string|null, listed:boolean}|null}
  */
 export function parseRpRecord(rdata) {
-  const parts = String(rdata || '').trim().split(/\s+/);
+  const parts = String(rdata || '')
+    .trim()
+    .split(/\s+/);
   if (parts.length < 2) return null;
   const mbox = parts[0].replace(/\.$/, '').toLowerCase();
   const moreInfo = parts[1].replace(/\.$/, '').toLowerCase();
@@ -54,9 +59,26 @@ export function parseRpRecord(rdata) {
  * @returns {'role-account'|'named-person'|'unknown'}
  */
 export function classifyContact(email) {
-  const local = String(email || '').split('@')[0].toLowerCase();
+  const local = String(email || '')
+    .split('@')[0]
+    .toLowerCase();
   if (!local) return 'unknown';
-  const roleNames = ['hostmaster', 'admin', 'administrator', 'webmaster', 'postmaster', 'noc', 'security', 'abuse', 'info', 'support', 'ops', 'sysadmin', 'dns', 'network'];
+  const roleNames = [
+    'hostmaster',
+    'admin',
+    'administrator',
+    'webmaster',
+    'postmaster',
+    'noc',
+    'security',
+    'abuse',
+    'info',
+    'support',
+    'ops',
+    'sysadmin',
+    'dns',
+    'network',
+  ];
   if (roleNames.includes(local)) return 'role-account';
   if (/^[a-z]+\.[a-z]+$/.test(local) || /^[a-z]{2,}[0-9]{0,4}$/.test(local)) return 'named-person';
   return 'unknown';
@@ -71,16 +93,27 @@ export function classifyContact(email) {
  * @returns {{domain:string, present:boolean, contacts:Array<{email:string|null, moreInfo:string, kind:string}>, findings:Array<{severity:string,type:string,detail:string}>}}
  */
 export function mineRpContacts(domain, records) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const findings = [];
-  const parsed = (records || []).map(parseRpRecord).filter(Boolean).filter(p => p.listed);
+  const parsed = (records || [])
+    .map(parseRpRecord)
+    .filter(Boolean)
+    .filter(p => p.listed);
   const seen = new Set();
   const contacts = [];
   for (const p of parsed) {
     const key = `${p.email || p.mbox}|${p.moreInfo}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    contacts.push({ email: p.email, mbox: p.mbox, moreInfo: p.moreInfo, kind: classifyContact(p.email) });
+    contacts.push({
+      email: p.email,
+      mbox: p.mbox,
+      moreInfo: p.moreInfo,
+      kind: classifyContact(p.email),
+    });
   }
   if (contacts.length === 0) return { domain: d, present: false, contacts, findings };
   findings.push({

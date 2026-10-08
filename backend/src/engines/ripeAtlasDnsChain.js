@@ -24,7 +24,10 @@ const INTERNAL_CNAME_RE = /\b(intra|internal|corp|local|lan|dc\d*|mgmt)\b/i;
  * @returns {{ qname, hops: Array<{ from, to, type }>, terminal: string[] }}
  */
 export function traceDnsChain(qname, answers = []) {
-  const norm = (s) => String(s || '').toLowerCase().replace(/\.$/, '');
+  const norm = s =>
+    String(s || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
   const hops = [];
   const terminal = [];
   let current = norm(qname);
@@ -33,7 +36,7 @@ export function traceDnsChain(qname, answers = []) {
   let guard = 0;
   while (guard++ < 64) {
     const idx = remaining.findIndex(
-      (a) => norm(a.name) === current && /^CNAME$/i.test(String(a.type || '')),
+      a => norm(a.name) === current && /^CNAME$/i.test(String(a.type || ''))
     );
     if (idx === -1) break;
     const [cname] = remaining.splice(idx, 1);
@@ -64,9 +67,13 @@ export function traceDnsChain(qname, answers = []) {
  * @returns {Array<{ qname, hiddenHops: Array<{ from, to, reason }>, hopCount, terminal: string[] }>}
  */
 export function uncoverHiddenCnames(chains = [], brandDomain = '') {
-  const brand = String(brandDomain || '').toLowerCase().replace(/\.$/, '');
-  const inBrand = (name) => {
-    const n = String(name || '').toLowerCase().replace(/\.$/, '');
+  const brand = String(brandDomain || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
+  const inBrand = name => {
+    const n = String(name || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     return brand && (n === brand || n.endsWith(`.${brand}`));
   };
   const out = [];
@@ -74,7 +81,9 @@ export function uncoverHiddenCnames(chains = [], brandDomain = '') {
     if (!c) continue;
     const hiddenHops = [];
     for (const h of c.hops || []) {
-      const to = String(h.to || '').toLowerCase().replace(/\.$/, '');
+      const to = String(h.to || '')
+        .toLowerCase()
+        .replace(/\.$/, '');
       if (inBrand(to)) continue;
       const reasons = ['leaves-brand-zone'];
       if (SUSPICIOUS_CNAME_RE.test(to)) reasons.push('third-party-provider');
