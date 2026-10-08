@@ -131,6 +131,14 @@ export class ModelRunnerService {
       error.code = 'NOT_DOWNLOADED';
       throw error;
     }
+    // Multimodal brains MUST have their vision projector on disk or the
+    // runner loads them text-only (screenshots invisible). Refuse to start
+    // rather than silently running a blind "vision" brain.
+    if (model.hfMmproj && !this.isMmprojDownloaded(model)) {
+      const error = new Error(`"${model.name}" vision projector is not downloaded yet — download it first`);
+      error.code = 'NOT_DOWNLOADED';
+      throw error;
+    }
     // If this slot already runs this model, return it.
     const existing = this.slotServers[slot];
     if (existing && existing.modelId === modelId) {
@@ -156,9 +164,10 @@ export class ModelRunnerService {
     );
 
     // koboldcpp flags (not llama-server): --model, --port, --host,
-    // --contextsize, --gpulayers, --quiet.
+    // --contextsize, --gpulayers, --quiet, --mmproj.
     const gpuLayers = device?.hasNvidia ? 99 : 0;
-    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers });
+    const mmprojPath = model.hfMmproj ? this.mmprojFilePath(model) : null;
+    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers, mmprojPath });
     this.logger.info?.(`[model-runner] starting ${model.name} for slot "${slot}" on 127.0.0.1:${port} via ${RUNNER_DISPLAY_NAME}`);
 
     const child = spawn(spawnArgv[0], spawnArgv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -297,8 +306,9 @@ export class ModelRunnerService {
     const quant = options.quant || 'Q4_K_M';
     this.slotSetup[slot] = (async () => {
       try {
-        // Phase 1: model download (skipped when already on disk).
-        if (!this.preferredQuant(model, quant)) {
+        // Phase 1: model download (skipped when fully on disk — GGUF AND
+        // vision projector for multimodal brains).
+        if (!this.isModelReady(model, quant)) {
           await this.startDownload(modelId, { quant });
           await this._awaitDownloadDone(modelId, quant);
         }
@@ -423,6 +433,44 @@ export class ModelRunnerService {
     return path.join(modelsDir(this.dataDir), safeId, `${safeId}${suffix}.gguf`);
   }
 
+  // ── Vision projector (.mmproj) ───────────────────────────────────────
+  // Multimodal brains (Qwen2.5-VL, OS-Atlas, UI-TARS) ship their vision
+  // encoder as a separate projector file. The runner MUST receive it via
+  // --mmproj, otherwise the brain loads text-only and screenshots are
+  // invisible to it. Text-only models (e.g. the hacker brain) have no
+  // hfMmproj and skip all of this.
+
+  /** On-disk path of the model's vision projector (null when the model has none). */
+  mmprojFilePath(model) {
+    if (!model?.hfMmproj) return null;
+    const safeId = String(model.id).replace(/[^a-zA-Z0-9._-]/g, '_');
+    return path.join(modelsDir(this.dataDir), safeId, `${safeId}.mmproj.gguf`);
+  }
+
+  /** Download URL for the model's vision projector (null when none). Extracted
+   * as a method so tests can point it at a local fixture server. */
+  mmprojDownloadUrl(model) {
+    if (!model?.hfMmproj) return null;
+    const repo = sanitizeHfPart(model.hfRepo || model.repo, 'repo');
+    return hfDownloadUrl(repo, sanitizeHfPart(model.hfMmproj, 'mmproj'));
+  }
+
+  /** Is the vision projector on disk? (true when the model needs none) */
+  isMmprojDownloaded(model) {
+    if (!model?.hfMmproj) return true;
+    try {
+      const stat = fs.statSync(this.mmprojFilePath(model));
+      return stat.size > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Fully ready for one-click run: GGUF present AND projector present (when needed). */
+  isModelReady(model, quant = 'Q4_K_M') {
+    return this.preferredQuant(model, quant) != null && this.isMmprojDownloaded(model);
+  }
+
   /**
    * Validate a quantization choice for a model.
    * @returns { quant, file, sizeGB } — the concrete file to download.
@@ -495,7 +543,10 @@ export class ModelRunnerService {
     const device = await this.getDevice();
     return this.allModels().map((model) => ({
       ...model,
-      downloaded: this.isDownloaded(model),
+      // "downloaded" means fully runnable: GGUF on disk AND the vision
+      // projector for multimodal brains (a vision brain without its .mmproj
+      // would run blind, so it must not show as ready).
+      downloaded: this.isModelReady(model),
       downloadedQuants: this.downloadedQuants(model),
       downloadedBytes: this.downloadedBytes(model),
       running: this.running?.modelId === model.id,
@@ -552,6 +603,56 @@ export class ModelRunnerService {
   }
 
   /**
+   * Download the model's vision projector (.mmproj) for multimodal brains.
+   * Awaited inline (not fire-and-forget): the file is small (~0.3–1 GB) and
+   * must be on disk before the GGUF transfer starts. Progress flows through
+   * the same download SSE events the UI already polls.
+   * @throws on failure (downloadState is left in the error state).
+   */
+  async _downloadVisionProjector(model) {
+    const url = this.mmprojDownloadUrl(model);
+    const destPath = this.mmprojFilePath(model);
+    if (!url || !destPath) return;
+    fs.mkdirSync(path.dirname(destPath), { recursive: true });
+    const controller = new AbortController();
+    this.downloadState = {
+      status: 'downloading', modelId: model.id, quant: 'mmproj', sizeGB: null,
+      name: `${model.name} (vision projector)`, url,
+      receivedBytes: 0, totalBytes: null, error: null
+    };
+    this.emitDownload();
+    try {
+      const { bytes } = await downloadFile(url, destPath, {
+        signal: controller.signal,
+        onProgress: (receivedBytes, totalBytes) => {
+          this.downloadState = {
+            status: 'downloading', modelId: model.id, quant: 'mmproj', sizeGB: null,
+            name: `${model.name} (vision projector)`, url,
+            receivedBytes, totalBytes, error: null
+          };
+          this.emitDownload();
+        }
+      });
+      this.downloadState = {
+        status: 'done', modelId: model.id, quant: 'mmproj', sizeGB: null,
+        name: `${model.name} (vision projector)`, url,
+        receivedBytes: bytes, totalBytes: bytes, error: null
+      };
+      this.emitDownload();
+    } catch (error) {
+      const cancelled = controller.signal.aborted;
+      this.downloadState = {
+        status: cancelled ? 'cancelled' : 'error', modelId: model.id, quant: 'mmproj',
+        sizeGB: null, name: `${model.name} (vision projector)`, url,
+        receivedBytes: 0, totalBytes: null,
+        error: cancelled ? 'Cancelled by user' : `Vision projector download failed: ${error.message}`
+      };
+      this.emitDownload();
+      throw error;
+    }
+  }
+
+  /**
    * Start downloading a model's GGUF. Returns immediately; progress flows
    * through onDownloadProgress / describeDownload. Only one at a time.
    * @param {string} modelId
@@ -565,6 +666,12 @@ export class ModelRunnerService {
       throw error;
     }
     const { quant: q, sizeGB } = this.resolveQuant(model, quant);
+    // Multimodal brains need their vision projector (.mmproj) BEFORE the run —
+    // download it first (small file) so a failure surfaces before the
+    // multi-GB GGUF transfer starts.
+    if (model.hfMmproj && !this.isMmprojDownloaded(model)) {
+      await this._downloadVisionProjector(model);
+    }
     if (this.isDownloaded(model, q)) return { alreadyDownloaded: true, modelId, quant: q };
     if (this.downloadState?.status === 'downloading') {
       const error = new Error('Another download is already in progress');
@@ -808,6 +915,14 @@ export class ModelRunnerService {
       error.code = 'NOT_DOWNLOADED';
       throw error;
     }
+    // Multimodal brains MUST have their vision projector on disk or the
+    // runner loads them text-only (screenshots invisible). Refuse to start
+    // rather than silently running a blind "vision" brain.
+    if (model.hfMmproj && !this.isMmprojDownloaded(model)) {
+      const error = new Error(`"${model.name}" vision projector is not downloaded yet — download it first`);
+      error.code = 'NOT_DOWNLOADED';
+      throw error;
+    }
     // Adopt a server orphaned by a backend restart instead of double-spawning.
     await this._reattachIfOrphaned();
     if (this.running) {
@@ -831,9 +946,10 @@ export class ModelRunnerService {
     );
 
     // koboldcpp flags (not llama-server): --model, --port, --host,
-    // --contextsize, --gpulayers, --quiet.
+    // --contextsize, --gpulayers, --quiet, --mmproj.
     const gpuLayers = device?.hasNvidia ? 99 : 0;
-    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers });
+    const mmprojPath = model.hfMmproj ? this.mmprojFilePath(model) : null;
+    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers, mmprojPath });
     this.logger.info?.(`[model-runner] starting ${model.name} on 127.0.0.1:${port} (context ${contextSize}) via ${RUNNER_DISPLAY_NAME}`);
 
     const child = spawn(spawnArgv[0], spawnArgv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });

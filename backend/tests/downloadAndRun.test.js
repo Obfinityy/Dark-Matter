@@ -46,6 +46,7 @@ describe('downloadAndRunForSlot validation', () => {
     const svc = new ModelRunnerService({ dataDir: '/tmp/dar-test', logger: { info() {}, warn() {} } });
     // Stub the heavy parts: pretend the model is downloaded and run succeeds.
     svc.preferredQuant = () => 'Q4_K_M';
+    svc.isMmprojDownloaded = () => true; // pretend the vision projector is on disk
     let runs = 0;
     svc.runForSlot = async () => { runs++; return { started: true }; };
     const a = svc.downloadAndRunForSlot('hacker', 'qwen3-8b-abliterated');
@@ -60,6 +61,7 @@ describe('downloadAndRunForSlot validation', () => {
   test('records setup errors instead of crashing', async () => {
     const svc = new ModelRunnerService({ dataDir: '/tmp/dar-test', logger: { info() {}, warn() {} } });
     svc.preferredQuant = () => 'Q4_K_M';
+    svc.isMmprojDownloaded = () => true; // pretend the vision projector is on disk
     svc.runForSlot = async () => { throw new Error('boom'); };
     svc.downloadAndRunForSlot('grounding', 'os-atlas-7b');
     await svc.slotSetup.grounding.catch(() => {});

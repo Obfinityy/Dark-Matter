@@ -93,10 +93,13 @@ function binaryNameForAsset(asset) {
 /**
  * CLI args to launch the Runner headless with a model.
  * koboldcpp flags (see `koboldcpp --help`): --model, --port, --host,
- * --contextsize, --gpulayers, --threads, --quiet.
+ * --contextsize, --gpulayers, --quiet, --mmproj.
+ * @param {string} [mmprojPath] — vision projector for multimodal models
+ *   (Qwen2.5-VL / OS-Atlas / UI-TARS). Omit for text-only models. WITHOUT it
+ *   a vision model loads text-only and screenshots are invisible to it.
  */
-export function buildSpawnArgs({ binaryPath, modelPath, port, contextSize = 8192, gpuLayers = 0 }) {
-  return [
+export function buildSpawnArgs({ binaryPath, modelPath, port, contextSize = 8192, gpuLayers = 0, mmprojPath = null }) {
+  const args = [
     binaryPath,
     '--model', modelPath,
     '--port', String(port),
@@ -105,6 +108,8 @@ export function buildSpawnArgs({ binaryPath, modelPath, port, contextSize = 8192
     '--gpulayers', String(gpuLayers),
     '--quiet'
   ];
+  if (mmprojPath) args.push('--mmproj', mmprojPath);
+  return args;
 }
 
 /** Poll the Runner's OpenAI-compatible API until it answers, or time out. */
@@ -245,14 +250,14 @@ export class InfinityRunner {
    * process once /v1/models answers. Rejects when the binary exits early or
    * never becomes healthy.
    */
-  async spawnWithModel({ modelPath, port, contextSize = 8192, gpuLayers = 0, modelName = 'model' }) {
+  async spawnWithModel({ modelPath, port, contextSize = 8192, gpuLayers = 0, modelName = 'model', mmprojPath = null }) {
     const binary = this.binaryPath();
     if (!binary) {
       const error = new Error(`${RUNNER_DISPLAY_NAME} is not downloaded yet`);
       error.code = 'RUNNER_MISSING';
       throw error;
     }
-    const args = buildSpawnArgs({ binaryPath: binary, modelPath, port, contextSize, gpuLayers });
+    const args = buildSpawnArgs({ binaryPath: binary, modelPath, port, contextSize, gpuLayers, mmprojPath });
     // buildSpawnArgs returns [binary, ...flags]; spawn needs them split.
     const child = spawn(args[0], args.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
     const baseUrl = `http://127.0.0.1:${port}`;

@@ -302,6 +302,9 @@ export const MODEL_LIBRARY = Object.freeze([
     brainSlotLabel: 'Grounding (Coordinates)',
     hfRepo: 'Mungert/UI-TARS-1.5-7B-GGUF',
     hfFile: 'UI-TARS-1.5-7B-q4_k_m.gguf',
+    // Vision projector — required for the runner to accept screenshots.
+    // Verified against the Hugging Face API (2026-10-08).
+    hfMmproj: 'UI-TARS-1.5-7B-f16.mmproj',
     sizeGB: 4.4,
     contextWindow: 4096,
     uncensored: true,
@@ -322,6 +325,9 @@ export const MODEL_LIBRARY = Object.freeze([
     brainSlotLabel: 'Grounding (Coordinates)',
     hfRepo: 'mradermacher/OS-Atlas-Base-7B-GGUF',
     hfFile: 'OS-Atlas-Base-7B.Q4_K_M.gguf',
+    // Vision projector — required for the runner to accept screenshots.
+    // Verified against the Hugging Face API (2026-10-08).
+    hfMmproj: 'OS-Atlas-Base-7B.mmproj-fp16.gguf',
     sizeGB: 4.5,
     contextWindow: 4096,
     uncensored: true,
@@ -346,6 +352,11 @@ export const MODEL_LIBRARY = Object.freeze([
     brainSlotLabel: 'Vision Brain',
     hfRepo: 'mradermacher/Qwen2.5-VL-7B-Instruct-abliterated-GGUF',
     hfFile: 'Qwen2.5-VL-7B-Instruct-abliterated.Q4_K_M.gguf',
+    // Vision projector: WITHOUT this file the runner loads the model text-only
+    // and screenshots are invisible to the brain. Downloaded alongside hfFile
+    // and passed to the runner as --mmproj. Filename verified against the
+    // Hugging Face API (2026-10-08) — case-sensitive, copied verbatim.
+    hfMmproj: 'Qwen2.5-VL-7B-Instruct-abliterated.mmproj-Q8_0.gguf',
     sizeGB: 4.9,
     contextWindow: 8192,
     uncensored: true,
