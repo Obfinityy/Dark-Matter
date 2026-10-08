@@ -3,6 +3,8 @@ brag-output-infinity-ad
 
 # Runtime artifacts (computer screenshots, generated reports/data)
 data/
+# ...but NOT the frontend's static data modules
+!frontend/src/data/
 # Project-local virtualenv for the computer bridge (keeps pyautogui out of system Python)
 .venv/
 

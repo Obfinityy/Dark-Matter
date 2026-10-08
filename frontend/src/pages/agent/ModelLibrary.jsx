@@ -41,7 +41,11 @@ import {
   Gauge,
   ShieldCheck,
   Network,
+  CircleHelp,
+  Copy,
+  Check,
 } from 'lucide-react';
+import { getKaggleCell } from '../../data/kaggleCells';
 import {
   getRunnerStatus,
   cancelRunnerDownload,
@@ -451,6 +455,8 @@ function BrainSlotCard({
   const kaggle = sources[slotId]?.source === 'kaggle' ? sources[slotId] : null;
   const server = slotServers?.[slotId] || null; // running server for this slot
   const [tab, setTab] = useState(source); // 'local' | 'kaggle'
+  const [cellOpen, setCellOpen] = useState(false); // Kaggle one-cell "?" modal
+  const [cellCopied, setCellCopied] = useState(false);
 
   // Keep tab in sync when source changes from elsewhere
   useEffect(() => {
@@ -524,7 +530,76 @@ function BrainSlotCard({
         >
           <Cloud size={15} /> Kaggle Link
         </button>
+        <button
+          className="sg-btn sg-btn-ghost sg-btn-sm ml-kaggle-help"
+          onClick={() => { setCellCopied(false); setCellOpen(true); }}
+          title="Show the one-cell Kaggle notebook setup for this brain"
+          aria-label={`Show Kaggle setup cell for ${slot.label}`}
+        >
+          <CircleHelp size={15} />
+        </button>
       </div>
+
+      {/* ── KAGGLE one-cell setup modal ("?") ── */}
+      {cellOpen && (() => {
+        const spec = getKaggleCell(slotId);
+        if (!spec) return null;
+        const copyCell = async () => {
+          try {
+            await navigator.clipboard.writeText(spec.cell);
+            setCellCopied(true);
+            setTimeout(() => setCellCopied(false), 2000);
+          } catch {
+            /* clipboard unavailable — user can select manually */
+          }
+        };
+        return (
+          <div className="modal-overlay" onClick={() => setCellOpen(false)}>
+            <div
+              className="modal-content ml-cell-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${spec.title} Kaggle setup`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div>
+                  <h3 className="modal-title">{spec.title} — one-cell Kaggle setup</h3>
+                  <p className="modal-subtitle sg-small">
+                    Model: <code>{spec.modelId}</code> · Input: {spec.kind}
+                  </p>
+                </div>
+                <button
+                  className="sg-btn sg-btn-ghost sg-btn-sm"
+                  onClick={() => setCellOpen(false)}
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="modal-body">
+                <ol className="sg-small ml-cell-steps">
+                  {spec.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+                <div className="ml-cell-head">
+                  <strong className="sg-small">The cell — copy everything:</strong>
+                  <button className="sg-btn sg-btn-primary sg-btn-sm" onClick={copyCell}>
+                    {cellCopied ? <Check size={14} /> : <Copy size={14} />}
+                    {cellCopied ? 'Copied!' : 'Copy cell'}
+                  </button>
+                </div>
+                <pre className="ml-cell-code"><code>{spec.cell}</code></pre>
+                <p className="sg-tiny ml-kaggle-hint">
+                  The link stays live while the Kaggle notebook keeps running. If it
+                  stops responding, re-run the cell and paste the fresh link here.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── LOCAL: all models for this slot ── */}
       {tab === 'local' && (

@@ -652,3 +652,50 @@
     animation: none;
   }
 }
+
+/* ── Kaggle one-cell "?" modal ─────────────────────────────── */
+.ml-kaggle-help {
+  margin-left: 4px;
+  padding: 6px 8px;
+}
+.ml-cell-modal {
+  max-width: 720px;
+  width: calc(100vw - 48px);
+  max-height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+}
+.ml-cell-modal .modal-body {
+  overflow-y: auto;
+}
+.ml-cell-steps {
+  margin: 0 0 14px 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.5;
+}
+.ml-cell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.ml-cell-code {
+  background: #0b0e14;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow: auto;
+  max-height: 46vh;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre;
+  margin: 0 0 10px;
+}
+.ml-cell-code code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #d7e0ee;
+}
