@@ -15,18 +15,17 @@ import {
 } from '../src/tools/managedBinaries.js';
 
 describe('managed tool catalog', () => {
-  test('covers nuclei, subfinder and katana with rebranded display names', () => {
-    for (const name of ['nuclei', 'subfinder', 'katana']) {
+  test('covers all six tools with rebranded display names', () => {
+    for (const name of ['nuclei', 'subfinder', 'katana', 'httpx', 'naabu', 'dalfox']) {
       assert.ok(MANAGED_TOOLS[name], `${name} missing from catalog`);
       assert.ok(MANAGED_TOOLS[name].displayName.startsWith('Infinity'),
         `${name} display name must be rebranded, got: ${MANAGED_TOOLS[name].displayName}`);
-      assert.ok(MANAGED_TOOLS[name].repo.startsWith('projectdiscovery/'));
       assert.match(MANAGED_TOOLS[name].version, /^v\d/);
     }
     // Upstream names never leak into product-facing display names.
     const names = Object.values(MANAGED_TOOLS).map((t) => t.displayName.toLowerCase());
     for (const n of names) {
-      assert.ok(!n.includes('nuclei') && !n.includes('subfinder') && !n.includes('katana'));
+      assert.ok(!/nuclei|subfinder|katana|httpx|naabu|dalfox/.test(n), `leak in: ${n}`);
     }
   });
 });
@@ -60,6 +59,30 @@ describe('assetUrl', () => {
       assetUrl('katana', 'darwin', 'arm64'),
       'https://github.com/projectdiscovery/katana/releases/download/v1.8.0/katana_1.8.0_macOS_arm64.zip'
     );
+    assert.equal(
+      assetUrl('httpx', 'linux', 'x64'),
+      'https://github.com/projectdiscovery/httpx/releases/download/v1.12.0/httpx_1.12.0_linux_amd64.zip'
+    );
+    assert.equal(
+      assetUrl('naabu', 'win32', 'x64'),
+      'https://github.com/projectdiscovery/naabu/releases/download/v2.6.1/naabu_2.6.1_windows_amd64.zip'
+    );
+  });
+
+  test('dalfox uses its own naming (tar.gz on posix, zip on windows)', () => {
+    assert.equal(
+      assetUrl('dalfox', 'linux', 'x64'),
+      'https://github.com/hahwul/dalfox/releases/download/v3.2.4/dalfox-v3.2.4-linux-x86_64.tar.gz'
+    );
+    assert.equal(
+      assetUrl('dalfox', 'darwin', 'arm64'),
+      'https://github.com/hahwul/dalfox/releases/download/v3.2.4/dalfox-v3.2.4-macos-aarch64.tar.gz'
+    );
+    assert.equal(
+      assetUrl('dalfox', 'win32', 'x64'),
+      'https://github.com/hahwul/dalfox/releases/download/v3.2.4/dalfox-v3.2.4-windows-x86_64.zip'
+    );
+    assert.throws(() => assetUrl('dalfox', 'linux', 'ppc64'), /Unsupported arch/);
   });
 
   test('unknown tool throws', () => {
@@ -81,7 +104,7 @@ describe('binaryPath', () => {
 describe('describeTools', () => {
   test('reports catalog without downloading anything', () => {
     const tools = describeTools();
-    assert.equal(tools.length, 3);
+    assert.equal(tools.length, 6);
     for (const t of tools) {
       assert.ok(t.name && t.displayName && t.version);
       assert.equal(typeof t.installed, 'boolean');

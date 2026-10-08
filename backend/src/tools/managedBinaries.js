@@ -25,34 +25,70 @@ const execFileAsync = promisify(execFile);
 
 /**
  * Managed tool catalog. `version` is pinned for reproducibility; `asset`
- * builds the exact release-asset filename for a platform.
+ * builds the exact release-asset filename for a Node (platform, arch) pair.
  * `binary` is the executable name inside the downloaded archive.
  */
+const pdAsset = (tool, versionNoV) => (platform, arch) => {
+  const p = releasePlatform(platform, arch);
+  return `${tool}_${versionNoV}_${p.os}_${p.arch}.zip`;
+};
+
 export const MANAGED_TOOLS = {
   nuclei: {
     repo: 'projectdiscovery/nuclei',
     version: 'v3.11.1',
     // asset filenames strip the leading "v": nuclei_3.11.1_linux_amd64.zip
-    asset: (p) => `nuclei_${p.versionNoV}_${p.os}_${p.arch}.zip`,
-    binary: (p) => (p.os === 'windows' ? 'nuclei.exe' : 'nuclei'),
+    asset: pdAsset('nuclei', '3.11.1'),
+    binary: (platform) => (platform === 'win32' ? 'nuclei.exe' : 'nuclei'),
     displayName: 'Infinity Scanner',
     description: 'Template-based vulnerability scanner (10k+ checks)',
   },
   subfinder: {
     repo: 'projectdiscovery/subfinder',
     version: 'v2.17.0',
-    asset: (p) => `subfinder_${p.versionNoV}_${p.os}_${p.arch}.zip`,
-    binary: (p) => (p.os === 'windows' ? 'subfinder.exe' : 'subfinder'),
+    asset: pdAsset('subfinder', '2.17.0'),
+    binary: (platform) => (platform === 'win32' ? 'subfinder.exe' : 'subfinder'),
     displayName: 'Infinity Recon',
     description: 'Passive subdomain enumeration from 30+ sources',
   },
   katana: {
     repo: 'projectdiscovery/katana',
     version: 'v1.8.0',
-    asset: (p) => `katana_${p.versionNoV}_${p.os}_${p.arch}.zip`,
-    binary: (p) => (p.os === 'windows' ? 'katana.exe' : 'katana'),
+    asset: pdAsset('katana', '1.8.0'),
+    binary: (platform) => (platform === 'win32' ? 'katana.exe' : 'katana'),
     displayName: 'Infinity Crawler',
     description: 'JS-aware web crawler for endpoint discovery',
+  },
+  httpx: {
+    repo: 'projectdiscovery/httpx',
+    version: 'v1.12.0',
+    asset: pdAsset('httpx', '1.12.0'),
+    binary: (platform) => (platform === 'win32' ? 'httpx.exe' : 'httpx'),
+    displayName: 'Infinity Probe',
+    description: 'Fast HTTP probing — status codes, titles, technologies',
+  },
+  naabu: {
+    repo: 'projectdiscovery/naabu',
+    version: 'v2.6.1',
+    asset: pdAsset('naabu', '2.6.1'),
+    binary: (platform) => (platform === 'win32' ? 'naabu.exe' : 'naabu'),
+    displayName: 'Infinity Portscan',
+    description: 'Fast port scanner for open-port discovery',
+  },
+  dalfox: {
+    repo: 'hahwul/dalfox',
+    version: 'v3.2.4',
+    // dalfox naming: dalfox-v3.2.4-linux-x86_64.tar.gz (zip on Windows)
+    asset: (platform, arch) => {
+      const os = platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux';
+      const a = arch === 'x64' ? 'x86_64' : arch === 'arm64' ? 'aarch64' : null;
+      if (!a) throw new Error(`Unsupported arch for dalfox: ${arch}`);
+      const ext = platform === 'win32' ? 'zip' : 'tar.gz';
+      return `dalfox-v3.2.4-${os}-${a}.${ext}`;
+    },
+    binary: (platform) => (platform === 'win32' ? 'dalfox.exe' : 'dalfox'),
+    displayName: 'Infinity XSS-Prover',
+    description: 'XSS scanning and parameter analysis with proof-of-concept',
   },
 };
 
@@ -81,16 +117,14 @@ export function toolDir(name) {
 export function assetUrl(name, platform = process.platform, arch = process.arch) {
   const spec = MANAGED_TOOLS[name];
   if (!spec) throw new Error(`Unknown managed tool: ${name}`);
-  const p = { ...releasePlatform(platform, arch), versionNoV: spec.version.replace(/^v/, '') };
-  return `https://github.com/${spec.repo}/releases/download/${spec.version}/${spec.asset(p)}`;
+  return `https://github.com/${spec.repo}/releases/download/${spec.version}/${spec.asset(platform, arch)}`;
 }
 
 /** Expected on-disk path of the extracted binary. */
 export function binaryPath(name, platform = process.platform, arch = process.arch) {
   const spec = MANAGED_TOOLS[name];
   if (!spec) throw new Error(`Unknown managed tool: ${name}`);
-  const p = releasePlatform(platform, arch);
-  return path.join(toolDir(name), spec.binary(p));
+  return path.join(toolDir(name), spec.binary(platform));
 }
 
 export function isInstalled(name) {
@@ -103,16 +137,19 @@ export function isInstalled(name) {
   }
 }
 
-async function extractZip(zipPath, destDir) {
+async function extractArchive(archivePath, destDir) {
   fs.mkdirSync(destDir, { recursive: true });
+  const isTar = archivePath.endsWith('.tar.gz') || archivePath.endsWith('.tgz');
   if (process.platform === 'win32') {
     // PowerShell is always present on modern Windows.
     await execFileAsync('powershell', [
       '-NoProfile', '-NonInteractive', '-Command',
-      `Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${destDir}'`,
+      `Expand-Archive -Force -Path '${archivePath}' -DestinationPath '${destDir}'`,
     ], { timeout: 120000 });
+  } else if (isTar) {
+    await execFileAsync('tar', ['-xzf', archivePath, '-C', destDir], { timeout: 120000 });
   } else {
-    await execFileAsync('unzip', ['-o', '-q', zipPath, '-d', destDir], { timeout: 120000 });
+    await execFileAsync('unzip', ['-o', '-q', archivePath, '-d', destDir], { timeout: 120000 });
   }
 }
 
@@ -133,16 +170,17 @@ export async function ensureBinary(name, onProgress = null) {
     const dir = toolDir(name);
     fs.mkdirSync(dir, { recursive: true });
     const url = assetUrl(name);
-    const zipPath = path.join(dir, `${name}.zip`);
+    const archiveName = url.split('/').pop();
+    const archivePath = path.join(dir, archiveName);
     const report = onProgress || (() => {});
     report({ tool: name, status: 'downloading', progress: 0 });
-    await downloadFile(url, zipPath, {
+    await downloadFile(url, archivePath, {
       onProgress: (received, total) =>
         report({ tool: name, status: 'downloading', progress: total ? received / total : 0 }),
     });
     report({ tool: name, status: 'extracting', progress: 1 });
-    await extractZip(zipPath, dir);
-    try { fs.unlinkSync(zipPath); } catch { /* keep going */ }
+    await extractArchive(archivePath, dir);
+    try { fs.unlinkSync(archivePath); } catch { /* keep going */ }
     const bin = binaryPath(name);
     if (process.platform !== 'win32') {
       try { fs.chmodSync(bin, 0o755); } catch { /* ignore */ }

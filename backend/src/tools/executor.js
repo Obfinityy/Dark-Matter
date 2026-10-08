@@ -492,6 +492,17 @@ export class ToolExecutor {
       if (!has('-jsonl')) out.push('-jsonl');
       if (!has('-silent')) out.push('-silent');
       if (!has('-nc')) out.push('-nc');
+    } else if (tool.managedBinary === 'httpx') {
+      if (target && !has('-u') && !has('-l')) out.push('-u', target);
+      if (!has('-silent')) out.push('-silent');
+    } else if (tool.managedBinary === 'naabu') {
+      if (target && !has('-host') && !has('-l')) out.push('-host', target);
+      if (!has('-silent')) out.push('-silent');
+    } else if (tool.managedBinary === 'dalfox') {
+      // dalfox subcommand form: `dalfox url <target> --silence --format json`
+      if (target && out[0] === 'url' && !out.slice(1).some((a) => /^https?:\/\//.test(a))) {
+        out.splice(1, 0, target);
+      }
     }
     return out;
   }

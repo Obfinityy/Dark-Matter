@@ -38,6 +38,36 @@ but their licenses are respected here in full.
 - In the product UI this capability is presented exclusively as "Infinity Crawler".
 - Copyright: ProjectDiscovery contributors.
 
+## httpx — the "Infinity Probe" HTTP-probing engine
+
+- Project: httpx — https://github.com/projectdiscovery/httpx
+- License: MIT — https://github.com/projectdiscovery/httpx/blob/main/LICENSE.md
+- What we use: at runtime, the local backend downloads the official httpx
+  release binary for the user's OS from
+  https://github.com/projectdiscovery/httpx/releases.
+- In the product UI this capability is presented exclusively as "Infinity Probe".
+- Copyright: ProjectDiscovery contributors.
+
+## naabu — the "Infinity Portscan" port-scanning engine
+
+- Project: naabu — https://github.com/projectdiscovery/naabu
+- License: MIT — https://github.com/projectdiscovery/naabu/blob/main/LICENSE.md
+- What we use: at runtime, the local backend downloads the official naabu
+  release binary for the user's OS from
+  https://github.com/projectdiscovery/naabu/releases.
+- In the product UI this capability is presented exclusively as "Infinity Portscan".
+- Copyright: ProjectDiscovery contributors.
+
+## dalfox — the "Infinity XSS-Prover" XSS engine
+
+- Project: dalfox — https://github.com/hahwul/dalfox
+- License: MIT — https://github.com/hahwul/dalfox/blob/main/LICENSE
+- What we use: at runtime, the local backend downloads the official dalfox
+  release binary for the user's OS from
+  https://github.com/hahwul/dalfox/releases.
+- In the product UI this capability is presented exclusively as "Infinity XSS-Prover".
+- Copyright: hahwul and dalfox contributors.
+
 ## koboldcpp — the "Infinity AI Runner" engine
 
 - Project: koboldcpp — https://github.com/LostRuins/koboldcpp

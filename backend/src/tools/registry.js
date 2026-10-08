@@ -94,7 +94,8 @@ const TOOL_DEFINITIONS = [
     outputFormat: 'json',
     riskLevel: 'low',
     requiresAuthorization: true,
-    requiresKali: true,
+    requiresKali: true, // fallback only — managed binary runs locally first
+    managedBinary: 'httpx',
     timeout: 180_000,
     command: 'httpx',
     defaultArgs: ['-silent', '-json', '-status-code', '-title', '-tech-detect', '-follow-redirects'],
@@ -156,7 +157,8 @@ const TOOL_DEFINITIONS = [
     outputFormat: 'text',
     riskLevel: 'medium',
     requiresAuthorization: true,
-    requiresKali: true,
+    requiresKali: true, // fallback only — managed binary runs locally first
+    managedBinary: 'naabu',
     timeout: 180_000,
     command: 'naabu',
     defaultArgs: ['-silent', '-json'],
@@ -374,7 +376,8 @@ const TOOL_DEFINITIONS = [
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
-    requiresKali: true,
+    requiresKali: true, // fallback only — managed binary runs locally first
+    managedBinary: 'dalfox',
     timeout: 300_000,
     command: 'dalfox',
     defaultArgs: ['url', '--silence', '--format', 'json'],
