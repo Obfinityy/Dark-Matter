@@ -1,0 +1,161 @@
+/**
+ * Wave66.css — Infinity AI · Dark-Matter · Wave 66
+ * Scoped styles for post-hunt email trigger & delivery galleries (.w66a-)
+ * and email content & operations galleries (.w66b-).
+ * Zero keyframes, transitions, or animations per the zero-animation order.
+ * No globals, no override hacks.
+ */
+
+.w66a-gallery,
+.w66b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w66a-card,
+.w66b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w66a-title,
+.w66b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w66a-note,
+.w66b-note {
+  font-size: 11px;
+  color: #8b93a7;
+  margin-bottom: 8px;
+}
+
+.w66a-subject,
+.w66b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #c7cde0;
+  margin-bottom: 8px;
+}
+
+.w66a-kv,
+.w66b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid #1f2430;
+}
+
+.w66a-kv:last-child,
+.w66b-kv:last-child {
+  border-bottom: none;
+}
+
+.w66a-k,
+.w66b-k {
+  color: #8b93a7;
+}
+
+.w66a-v,
+.w66b-v {
+  color: #d5dae7;
+  text-align: right;
+  word-break: break-word;
+}
+
+.w66a-row,
+.w66b-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.w66a-rowtext,
+.w66b-rowtext {
+  color: #d5dae7;
+}
+
+.w66a-badge,
+.w66b-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a3348;
+  color: #c7cde0;
+  white-space: nowrap;
+}
+
+.w66a-badge-danger,
+.w66b-badge-danger {
+  background: #4c1d1d;
+  color: #fca5a5;
+}
+
+.w66a-badge-warn,
+.w66b-badge-warn {
+  background: #4a3418;
+  color: #fcd34d;
+}
+
+.w66a-badge-ok,
+.w66b-badge-ok {
+  background: #134e2a;
+  color: #86efac;
+}
+
+.w66a-badge-info,
+.w66b-badge-info {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.w66a-pre,
+.w66b-pre {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #aab2c8;
+  background: #0f1320;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.w66a-spark {
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: #93c5fd;
+  margin: 4px 0 8px;
+}
+
+.w66a-mailprev,
+.w66b-mailprev {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px dashed #3a4152;
+  border-radius: 6px;
+  background: #0f1320;
+}
+
+.w66b-code {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #93c5fd;
+  background: #0f1320;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
