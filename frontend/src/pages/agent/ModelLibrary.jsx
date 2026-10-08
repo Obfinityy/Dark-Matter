@@ -30,7 +30,8 @@ import {
   stopRunnerModel,
   runModelFile, subscribeToModelProgress,
   getBrainChain, getBrainSlots,
-  getSlotServers, runSlotServer, stopSlotServer,
+  getSlotSources, connectSlotKaggle, disconnectSlotKaggle,
+  testRemoteModel, getSlotServers, runSlotServer, stopSlotServer,
   tryApi
 } from '../../services/api';
 import { MODEL_CATALOG } from '../../data/modelCatalog';
@@ -44,10 +45,6 @@ import {
   getLocalSlotServers,
   downloadAndRunSlotLocal,
   getSlotSetupStatusLocal,
-  getSlotSourcesLocal,
-  connectSlotKaggleLocal,
-  disconnectSlotKaggleLocal,
-  testRemoteModelLocal,
   getLocalRunnerStatus,
   removeModelLocal,
   downloadEngineLocal,
@@ -814,7 +811,7 @@ export function ModelLibrary() {
         tryApi(getRunnerStatus()),
         tryApi(getBrainChain()),
         tryApi(getBrainSlots()),
-        tryApi(getSlotSourcesLocal()),
+        tryApi(getSlotSources()),
         tryApi(getSlotServers())
       ]);
       const errors = [st, chain, slots, sources, servers]
@@ -860,7 +857,7 @@ export function ModelLibrary() {
     setKaggleBusy(`${slot}-test`);
     setKaggleMsg((m) => ({ ...m, [slot]: null }));
     try {
-      const res = await testRemoteModelLocal(url);
+      const res = await testRemoteModel(url);
       setKaggleMsg((m) => ({ ...m, [slot]: { ok: true, text: `Link OK — replied "${res.probe || 'ok'}" in the live test.` } }));
     } catch (err) {
       setKaggleMsg((m) => ({ ...m, [slot]: { ok: false, text: err.message || 'Could not reach that link.' } }));
@@ -875,7 +872,7 @@ export function ModelLibrary() {
     setKaggleBusy(slot);
     setKaggleMsg((m) => ({ ...m, [slot]: null }));
     try {
-      const data = await connectSlotKaggleLocal(slot, url, (kaggleNames[slot] || '').trim() || undefined);
+      const data = await connectSlotKaggle(slot, url, (kaggleNames[slot] || '').trim() || undefined);
       if (data?.slotSources) setSlotSources(data.slotSources);
       setKaggleMsg((m) => ({ ...m, [slot]: { ok: true, text: 'Connected — this slot now thinks on your Kaggle GPU.' } }));
     } catch (err) {
@@ -888,7 +885,7 @@ export function ModelLibrary() {
   const disconnectSlotKaggleHandler = async (slot) => {
     setKaggleBusy(slot);
     try {
-      const data = await disconnectSlotKaggleLocal(slot);
+      const data = await disconnectSlotKaggle(slot);
       if (data?.slotSources) setSlotSources(data.slotSources);
     } catch (err) {
       setError(err.message);
