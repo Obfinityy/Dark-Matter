@@ -99,6 +99,7 @@ import {
   formatBrowserRam,
 } from '../../services/deviceDetect';
 import { getApiBase, getBackendUrl } from '../../services/backendMode';
+import { localServiceUrl } from '../../lib/apiBase';
 import { SpotlightCard } from '../../components/fx/SpotlightCard';
 import { ElectricBorder } from '../../components/fx/ElectricBorder';
 import { RunnerStatusCard } from '../../components/agent/RunnerStatusCard';
@@ -1606,7 +1607,7 @@ export function ModelLibrary() {
         [model.category]: {
           modelId,
           port: result.port,
-          baseUrl: result.baseUrl || `http://localhost:${result.port}`,
+          baseUrl: result.baseUrl || localServiceUrl(result.port),
         },
       }));
       // Also save as active brain (frontend state).

@@ -1,21 +1,22 @@
 /**
  * Backend connection — ONE rule, no switcher.
  *
- *   VITE_BACKEND_URL is set (frontend/.env, or the Vercel project env) → use it.
- *   Not set → http://localhost:4000 (the local backend).
+ * The backend origin is resolved once by frontend/src/lib/apiBase.js
+ * (VITE_API_BASE_URL, then the legacy VITE_BACKEND_URL, then the local
+ * development backend) and shared by every module that talks to the
+ * backend. This module keeps the long-standing helper API on top of that
+ * single source of truth.
  *
- * There is no Localhost/Cloud toggle anymore. The backend URL is decided
- * once, at build time, from the environment — never from Settings UI state.
+ * There is no Localhost/Cloud toggle. The backend URL is decided once, at
+ * build time, from the environment — never from Settings UI state.
  */
+import { API_BASE_URL, API_BASE_URL_SOURCE, DEFAULT_BACKEND_URL } from '../lib/apiBase.js';
 
-const ENV_BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || '').trim().replace(/\/+$/, '');
-
-/** Fallback when VITE_BACKEND_URL is not set: the user's own machine. */
-export const DEFAULT_BACKEND_URL = 'http://localhost:4000';
+export { DEFAULT_BACKEND_URL };
 
 /** The backend origin (no /api/v1 suffix). */
 export function getBackendUrl() {
-  return ENV_BACKEND_URL || DEFAULT_BACKEND_URL;
+  return API_BASE_URL;
 }
 
 /** Full API base: <origin>/api/v1 */
@@ -33,9 +34,9 @@ export function isLocalBackend() {
   }
 }
 
-/** Where the active URL came from: 'env' (VITE_BACKEND_URL) or 'default'. */
+/** Where the active URL came from: 'env' (environment) or 'default'. */
 export function getBackendUrlSource() {
-  return ENV_BACKEND_URL ? 'env' : 'default';
+  return API_BASE_URL_SOURCE;
 }
 
 /** Quick connectivity check against the configured backend. */

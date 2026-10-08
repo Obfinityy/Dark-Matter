@@ -31,6 +31,7 @@ import { createVmControlLoop } from '../../agent/vmControlLoop';
 import * as runnerApi from '../../services/vmRunnerApi';
 import { vmHealth, vmStatus } from '../../services/vmRunnerApi';
 import { getVmEndpoint, setVmEndpoint, isVmConnectable } from '../../services/vmEndpoint';
+import { LOCAL_RUNNER_BASE_URL } from '../../lib/apiBase';
 import './VmControl.css';
 
 const QUICK_QUESTIONS = [
@@ -278,7 +279,7 @@ export function VmControlPanel() {
               id="vm-runner-url"
               value={customUrl}
               onChange={(e) => setCustomUrl(e.target.value)}
-              placeholder="http://127.0.0.1:4100"
+              placeholder={LOCAL_RUNNER_BASE_URL}
               aria-label="Custom VM runner URL"
               spellCheck={false}
             />

@@ -585,9 +585,9 @@ AGENT: ${String(answer.reply).slice(0, 1500)}`,
   /**
    * Brain-powered ask: when the user's question is NOT a simple status query,
    * the AI agent itself understands and answers — no hardcoded intent rules.
-   * "jo zyada bounty de sake wo bugs dikha" → the agent reasons over findings
-   * and answers intelligently. "har vulnerability ka alag report bana" →
-   * the agent generates them.
+   * A request such as "show the bugs with the highest bounty potential" →
+   * the agent reasons over findings and answers intelligently; "make a
+   * separate report for each vulnerability" → the agent generates them.
    *
    * Falls back to the rule-based reply if the brain is unavailable.
    */

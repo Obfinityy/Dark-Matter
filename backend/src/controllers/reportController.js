@@ -50,7 +50,7 @@ export function createReportController(reportService, assessmentService) {
 
     /** GET /api/v1/assessments/:id/report.md — HackerOne-style industry markdown report
      * Query params (flexible, as the user asks):
-     *   ?severities=high,critical  — only these severities ("sirf high wali do")
+     *   ?severities=high,critical  — only these severities (e.g. "only the high ones")
      *   ?perFinding=true           — one standalone report per vulnerability
      *   ?findingId=xxx             — report for a single finding only
      */
