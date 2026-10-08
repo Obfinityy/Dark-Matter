@@ -43,6 +43,8 @@ import {
   runModelOnLocal,
   stopSlotOnLocal,
   getLocalSlotServers,
+  downloadAndRunSlotLocal,
+  getSlotSetupStatusLocal,
   getLocalRunnerStatus,
   removeModelLocal,
   downloadEngineLocal,
@@ -310,10 +312,10 @@ function ModelCard({ model, download, busyModel, engineReady, onDownload, onRun,
  * - Hacker: Hunt only
  */
 function BrainSlotCard({
-  slotId, slot, sources, slotServers,
+  slotId, slot, sources, slotServers, slotSetup,
   download, downloadedIds, engineReady, slotBusy, kaggleBusy, kaggleMsg,
   onDownload, onCancelDownload, onPauseDownload, onResumeDownload,
-  onRemove, onRunSlot, onStopSlot,
+  onRemove, onRunSlot, onStopSlot, onDownloadAndRun,
   onKaggleConnect, onKaggleDisconnect, onKaggleTest,
   kaggleUrl, setKaggleUrl, kaggleName, setKaggleName
 }) {
@@ -351,6 +353,22 @@ function BrainSlotCard({
           <span className="sg-pill sg-pill-go" title={server.baseUrl || 'Running on localhost'}>
             <span className="sg-pulse-dot" /> Running{server.port ? ` :${server.port}` : ''}
           </span>
+        ) : slotSetup?.[slotId] === 'setting-up' ? (
+          <span className="sg-pill" title="Downloading the brain model and starting it — watch progress below">
+            <Loader2 size={13} className="sg-spin" /> Setting up…
+          </span>
+        ) : slotSetup?.[slotId] === 'error' ? (
+          <span className="sg-pill sg-pill-bad" title="Setup failed — press Download & Run to retry">
+            Setup failed
+          </span>
+        ) : source === 'local' ? (
+          <button
+            className="sg-btn sg-btn-primary sg-btn-sm"
+            onClick={() => onDownloadAndRun(slotId)}
+            title={`One click: download the ${slot.label} brain model and run it on your machine`}
+          >
+            <Download size={14} /> Download & Run
+          </button>
         ) : (
           <span className="sg-pill ml-slot-unset">Not set</span>
         )}
@@ -876,15 +894,22 @@ export function ModelLibrary() {
     }
   };
 
-  // Run a slot's model on its own localhost port
+  // Run a slot's model on its own localhost port — ALWAYS the device backend
+  // (localhost), never the cloud backend. Models live on the user's machine.
   const runSlotHandler = async (slot, modelId) => {
     setSlotBusy(`${slot}-run`);
     setError('');
     try {
-      const data = await runSlotServer(slot, modelId);
-      // Refresh servers + assignments
-      const servers = await getSlotServers().catch(() => null);
-      if (servers?.slotServers) setSlotServers(servers.slotServers);
+      const data = await runModelOnLocal(slot, modelId);
+      // Refresh servers + assignments from the device backend
+      const servers = await getLocalSlotServers().catch(() => null);
+      if (servers) {
+        setSlotServers({
+          vision: servers.vision || null,
+          grounding: servers.grounding || null,
+          hacker: servers.hacker || servers.hacking || null
+        });
+      }
       if (data?.slot) {
         setSlotAssignments((a) => ({ ...a, [slot]: modelId }));
       }
@@ -893,6 +918,46 @@ export function ModelLibrary() {
       setError(err.message || `Could not run model for ${slot} slot.`);
     } finally {
       setSlotBusy(null);
+    }
+  };
+
+  // ONE-CLICK brain setup: download the slot's default model (when missing)
+  // then run it — a single button press. Progress shows via the download SSE
+  // events; the slot flips to Running when the brain is up.
+  const [slotSetup, setSlotSetup] = useState({ vision: 'idle', grounding: 'idle', hacker: 'idle' });
+
+  const refreshSlotSetup = async () => {
+    if (!localBackendUp) return;
+    try {
+      const st = await getSlotSetupStatusLocal();
+      if (st?.setup) setSlotSetup(st.setup);
+    } catch { /* ignore */ }
+  };
+
+  // While any slot is setting up, poll setup status + servers until done.
+  useEffect(() => {
+    const anySettingUp = Object.values(slotSetup).includes('setting-up');
+    if (!anySettingUp || !localBackendUp) return;
+    const id = setInterval(async () => {
+      await refreshSlotSetup();
+      await refreshSlotServers();
+    }, 3000);
+    return () => clearInterval(id);
+  }, [slotSetup, localBackendUp]);
+
+  const downloadAndRunHandler = async (slot) => {
+    setError('');
+    if (!localBackendUp) {
+      setError('Your Dark Matter backend is not running on this device yet. Start it, then press Download & Run.');
+      return;
+    }
+    try {
+      const res = await downloadAndRunSlotLocal(slot);
+      if (res?.alreadyRunning) return;
+      setSlotSetup((s) => ({ ...s, [slot]: 'setting-up' }));
+      refreshSlotSetup();
+    } catch (err) {
+      setError(err.message || `Could not set up the ${slot} brain.`);
     }
   };
 
@@ -1095,6 +1160,10 @@ export function ModelLibrary() {
 
   useEffect(() => {
     if (localBackendUp) refreshSlotServers();
+  }, [localBackendUp]);
+
+  useEffect(() => {
+    if (localBackendUp) refreshSlotSetup();
   }, [localBackendUp]);
 
   const run = async (modelId, opts) => {
@@ -1348,6 +1417,7 @@ export function ModelLibrary() {
                 slot={slot}
                 sources={slotSources}
                 slotServers={slotServers}
+                slotSetup={slotSetup}
                 download={download}
                 downloadedIds={downloadedIds}
                 engineReady={engineReady}
@@ -1361,6 +1431,7 @@ export function ModelLibrary() {
                 onRemove={removeLocal}
                 onRunSlot={runSlotHandler}
                 onStopSlot={stopSlotHandler}
+                onDownloadAndRun={downloadAndRunHandler}
                 onKaggleConnect={connectSlotKaggleHandler}
                 onKaggleDisconnect={disconnectSlotKaggleHandler}
                 onKaggleTest={testSlotKaggle}

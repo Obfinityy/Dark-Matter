@@ -478,6 +478,31 @@ export function getModelsBySlot(slot) {
  * - grounding: Hunt + Control (local coordinates, e.g. UI-TARS)
  * - hacker: Hunt only (local uncensored strategy brain)
  */
+
+/**
+ * One-click defaults: the model each brain slot downloads + runs when the
+ * user presses the slot's single "Download & Run" button. Chosen for a
+ * typical machine (7–8B, uncensored where the role needs it):
+ * - vision: Qwen2.5-VL 7B abliterated (sees images, uncensored)
+ * - grounding: OS-Atlas 7B (purpose-built UI coordinate model)
+ * - hacker: Qwen3 8B abliterated (uncensored reasoning strategist)
+ */
+export const DEFAULT_SLOT_MODELS = {
+  vision: 'qwen25-vl-7b-abliterated',
+  grounding: 'os-atlas-7b',
+  hacker: 'qwen3-8b-abliterated',
+};
+
+/** The default model entry for a brain slot (null when unknown). */
+export function getDefaultModelForSlot(slot) {
+  const id = DEFAULT_SLOT_MODELS[slot];
+  if (!id) return null;
+  // Prefer the slot-specific listing (the library lists some models twice:
+  // once per tier, once per brain slot).
+  return MODEL_LIBRARY.find((m) => m.id === id && m.brainSlot === slot)
+    || MODEL_LIBRARY.find((m) => m.id === id)
+    || null;
+}
 export const BRAIN_SLOTS = {
   vision: {
     label: 'Vision Brain',

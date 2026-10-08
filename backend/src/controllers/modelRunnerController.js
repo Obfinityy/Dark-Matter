@@ -438,6 +438,55 @@ export function createModelRunnerController({ modelRunnerService, brainProviderM
     }),
 
     /**
+     * POST /api/v1/model-runner/slots/:slot/download-and-run { modelId?, quant? }
+     * ONE-CLICK brain setup: downloads the model when missing, then runs it
+     * for the slot. Returns 202 immediately; progress arrives over the
+     * existing download/run SSE events. When modelId is omitted the slot's
+     * default model is used.
+     */
+    downloadAndRunSlot: asyncHandler(async (request, response) => {
+      const { slot } = request.params;
+      let { modelId, quant } = request.body || {};
+      if (!modelId) {
+        const { getDefaultModelForSlot } = await import('../services/modelRunner/modelLibrary.js');
+        const def = getDefaultModelForSlot(slot);
+        if (!def) {
+          return response.status(400).json({
+            error: { code: 'BAD_REQUEST', message: `No default model for slot "${slot}" — pass modelId` }
+          });
+        }
+        modelId = def.id;
+      }
+      try {
+        const result = modelRunnerService.downloadAndRunForSlot(slot, modelId, {
+          ...(quant ? { quant } : {})
+        });
+        // Record the slot assignment so Hunt/Control/Chat resolve it.
+        const userId = request.user?.id || null;
+        if (userId && brainProviderModel) {
+          try { await brainProviderModel.setSlotAssignment(userId, slot, modelId); } catch { /* non-fatal */ }
+        }
+        response.status(202).json(result);
+      } catch (error) {
+        response.status(downloadErrorStatus(error)).json({
+          error: { code: error.code || 'RUN_FAILED', message: error.message }
+        });
+      }
+    }),
+
+    /**
+     * GET /api/v1/model-runner/slots/setup-status
+     * Per-slot one-click setup state: idle | setting-up | running | error.
+     */
+    slotSetupStatus: asyncHandler(async (request, response) => {
+      response.json({
+        setup: modelRunnerService.describeSlotSetup(),
+        errors: modelRunnerService.slotSetupError || {},
+        defaults: (await import('../services/modelRunner/modelLibrary.js')).DEFAULT_SLOT_MODELS
+      });
+    }),
+
+    /**
      * POST /api/v1/model-runner/slots/:slot/stop
      * Stop the server running for a specific brain slot.
      */

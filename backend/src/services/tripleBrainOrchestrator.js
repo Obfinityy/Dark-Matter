@@ -32,6 +32,7 @@
 import { LocalLlamaProvider } from '../agent/providers/localLlamaProvider.js';
 import { GradioProvider } from '../agent/providers/gradioProvider.js';
 import { stripThinkingTags } from '../agent/providers/phoneLocalProvider.js';
+import { stageForPhase, techniquesForStage, owaspCoverage } from '../agent/methodology.js';
 
 export const BRAIN_SLOTS = ['vision', 'grounding', 'hacker'];
 
@@ -63,6 +64,10 @@ const STRATEGY_SCHEMA = {
         }
       }
     },
+    // Direct orders from the hacking brain to the other two brains.
+    // Vision only sees, grounding only clicks — both obey these verbatim.
+    visionInstruction: { type: 'string', description: 'Concrete order for the vision brain, e.g. "Screenshot the login page and list every input field and button." Empty when the vision brain is not needed this step.' },
+    groundingInstruction: { type: 'string', description: 'Concrete order for the grounding brain, e.g. "Return coordinates for the Submit button." Empty when no click is needed this step.' },
     done: { type: 'boolean' }
   }
 };
@@ -288,18 +293,52 @@ export class TripleBrainOrchestrator {
       `Stage: ${stage}`,
       findings.length ? `Findings so far:\n${findings.map((f) => `- [${f.severity || '?'}] ${f.title || f.type}: ${(f.description || '').slice(0, 300)}`).join('\n')}` : 'Findings so far: none',
       observations.length ? `Latest observations:\n${observations.slice(-3).map((o) => `- ${String(o).slice(0, 500)}`).join('\n')}` : 'Latest observations: none',
-      history.length ? `Recent actions:\n${history.slice(-5).map((h) => `- ${typeof h === 'string' ? h : JSON.stringify(h).slice(0, 200)}`).join('\n')}` : 'Recent actions: none'
+      history.length ? `Recent actions:\n${history.slice(-5).map((h) => `- ${typeof h === 'string' ? h : JSON.stringify(h).slice(0, 200)}`).join('\n')}` : 'Recent actions: none',
+      this._methodologyBlock(stage, findings, history)
     ].join('\n\n');
 
     const strategy = await provider.generateStructured(
       [
-        { role: 'system', content: HACKER_SYSTEM + (degraded ? '\n(Note: you are the vision model covering for the missing hacker brain — keep reasoning simple and safe.)' : '') },
+        { role: 'system', content: HACKER_SYSTEM + (degraded ? '\n(Note: you are the vision model covering for the missing hacker brain — keep reasoning simple and safe.)' : '') + '\n\nYou command two subordinate brains. Every step, give each a concrete order via visionInstruction and groundingInstruction (or leave one empty when that brain is not needed). They execute your orders verbatim — be specific.' },
         { role: 'user', content: `Authorized bug-bounty hunt context:\n\n${contextBlock}\n\nPropose the single next step. Chain weak signals into attack paths where the evidence supports it.` }
       ],
       STRATEGY_SCHEMA,
       { timeout: this.timeoutMs }
     );
     return { ok: true, degraded, source, strategy: this._normalizeStrategy(strategy) };
+  }
+
+  /**
+   * Elite-hunter methodology context for the hacking brain: the current
+   * methodology stage, its untried techniques, and OWASP categories with no
+   * confirmed coverage yet — so the brain works a real methodology instead
+   * of probing at random.
+   */
+  _methodologyBlock(stage, findings = [], history = []) {
+    try {
+      const methStage = stageForPhase(stage);
+      const tried = new Set(
+        history.map((h) => String(typeof h === 'string' ? h : h?.summary || '').toLowerCase())
+      );
+      const techniques = techniquesForStage(methStage)
+        .filter((t) => ![...tried].some((h) => h.includes(t.id.replace(/-/g, ' ')) || h.includes(t.id)))
+        .map((t) => `${t.name}: ${t.description}`);
+      const coverage = owaspCoverage(findings);
+      const uncovered = (coverage?.uncovered || [])
+        .map((c) => (typeof c === 'string' ? c : c?.name || c?.id))
+        .filter(Boolean);
+      const lines = [
+        `Elite methodology — current stage: ${methStage}.`,
+        techniques.length
+          ? `Untried techniques for this stage (prefer these):\n${techniques.slice(0, 6).map((t) => `- ${t}`).join('\n')}`
+          : 'All known techniques for this stage have been tried — escalate to chaining or the next stage.',
+      ];
+      if (uncovered.length) lines.push(`OWASP categories with NO confirmed finding yet: ${uncovered.slice(0, 5).join(', ')}.`);
+      lines.push('Do NOT repeat a tried technique without a genuinely new angle.');
+      return lines.join('\n');
+    } catch {
+      return '';
+    }
   }
 
   /**
@@ -368,14 +407,19 @@ export class TripleBrainOrchestrator {
 
   /**
    * Full think → see → act cycle for one agent step.
-   * @param {object} options — { imageBase64?, mime?, target, stage?, observations?, findings?, history?, hint? }
+   * @param {object} options — { imageBase64?, mime?, target, stage?, observations?, findings?, history?, hint?, brainOrders? }
+   * brainOrders: the hacking brain's orders from the PREVIOUS step
+   * ({ vision, grounding }) — vision obeys the vision order when seeing,
+   * grounding obeys the grounding order when acting.
    */
   async observeThinkAct(options = {}) {
     const missing = this.logBrainStatus();
     const { imageBase64 = null, mime = 'image/png', hint = '' } = options;
+    const prevOrders = options.brainOrders || {};
 
-    // 1. SEE
-    const seen = imageBase64 ? await this.see({ imageBase64, mime, hint }) : { ok: false, reason: 'no screenshot' };
+    // 1. SEE — guided by the hacking brain's vision order from last step.
+    const seeHint = prevOrders.vision || hint;
+    const seen = imageBase64 ? await this.see({ imageBase64, mime, hint: seeHint }) : { ok: false, reason: 'no screenshot' };
     const observations = [
       ...(options.observations || []),
       ...(seen.ok ? [seen.description] : [])
@@ -384,9 +428,12 @@ export class TripleBrainOrchestrator {
     // 2. THINK
     const thought = await this.think({ ...options, observations });
 
-    // 3. ACT — only when the strategy names a concrete UI target.
+    // 3. ACT — the hacking brain's grounding order names the UI target.
+    // Falls back to the structured targetElement when no order was given.
     let grounded = null;
-    const targetElement = thought.strategy?.nextAction?.targetElement;
+    const strategy = thought.strategy || {};
+    const orderElement = (strategy.groundingInstruction || '').trim();
+    const targetElement = orderElement || strategy.nextAction?.targetElement;
     if (thought.ok && targetElement) {
       grounded = await this.act({ element: targetElement, imageBase64, mime });
     }
@@ -425,6 +472,9 @@ export class TripleBrainOrchestrator {
         rationale: typeof nextAction.rationale === 'string' ? nextAction.rationale : ''
       },
       vulnChains: Array.isArray(raw.vulnChains) ? raw.vulnChains : [],
+      // Direct orders to the subordinate brains (may be empty strings).
+      visionInstruction: typeof raw.visionInstruction === 'string' ? raw.visionInstruction : '',
+      groundingInstruction: typeof raw.groundingInstruction === 'string' ? raw.groundingInstruction : '',
       done: raw.done === true
     };
   }

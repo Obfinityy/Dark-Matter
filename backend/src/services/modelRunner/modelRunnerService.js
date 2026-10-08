@@ -97,6 +97,11 @@ export class ModelRunnerService {
     // Per-brain-slot servers: { vision: {...}, grounding: {...}, hacker: {...} }
     // Each brain slot runs on its OWN localhost port simultaneously.
     this.slotServers = {};
+    // Watchdog: live child processes per slot + restart backoff state.
+    // A brain that dies on its own is restarted automatically so a hunt
+    // resumes without the user touching anything.
+    this.slotChildren = {};
+    this.slotRestarts = {};
     this.runListeners = new Set();
   }
 
@@ -186,6 +191,8 @@ export class ModelRunnerService {
     }
 
     this.logger.info?.(`[model-runner] ${model.name} (slot ${slot}) healthy at ${baseUrl}`);
+    // Watchdog: restart this brain automatically if it dies on its own.
+    this._watchSlotChild(slot, child, { modelId, quant, contextSize });
     return { started: true, slot, ...serverInfo };
   }
 
@@ -194,7 +201,11 @@ export class ModelRunnerService {
     const server = this.slotServers[slot];
     if (!server) return { stopped: false, slot };
     const { modelId, pid } = server;
+    // Intentional stop — the watchdog must NOT restart it.
+    server.stopping = true;
     delete this.slotServers[slot];
+    delete this.slotChildren[slot];
+    delete this.slotRestarts[slot];
     this.emitRun();
     try {
       if (pid) process.kill(pid, 'SIGTERM');
@@ -207,9 +218,140 @@ export class ModelRunnerService {
     return { stopped: true, slot, modelId };
   }
 
+  /**
+   * Watchdog for a brain-slot child process. When the process dies WITHOUT an
+   * intentional stop, the brain is restarted automatically (up to 3 attempts
+   * with backoff) so a running hunt resumes on its own. Gives up after 3
+   * crashes and records the failure for the UI.
+   */
+  _watchSlotChild(slot, child, runOpts) {
+    this.slotChildren[slot] = child;
+    child.on('exit', (code, signal) => {
+      // Not the current child for this slot (stopped or reassigned) — ignore.
+      if (this.slotChildren[slot] !== child) return;
+      delete this.slotChildren[slot];
+      const server = this.slotServers[slot];
+      // Intentional stop, or slot already reassigned — not a crash.
+      if (!server || server.stopping) return;
+      this.logger.warn?.(`[model-runner] brain "${slot}" died unexpectedly (code ${code}, signal ${signal}) — restarting`);
+      const attempts = (this.slotRestarts[slot] || 0) + 1;
+      this.slotRestarts[slot] = attempts;
+      if (attempts > 3) {
+        this.logger.warn?.(`[model-runner] brain "${slot}" crashed 3 times — giving up`);
+        delete this.slotServers[slot];
+        delete this.slotRestarts[slot];
+        this.slotSetupError = this.slotSetupError || {};
+        this.slotSetupError[slot] = {
+          message: `The ${slot} brain crashed repeatedly and was stopped. Press Download & Run to try again.`,
+          at: new Date().toISOString()
+        };
+        this.emitRun();
+        return;
+      }
+      const delayMs = Math.min(2000 * attempts, 8000);
+      setTimeout(async () => {
+        // Slot may have been stopped/reassigned while we waited.
+        if (!this.slotServers[slot] || this.slotServers[slot].stopping) return;
+        try {
+          await this.runForSlot(slot, runOpts.modelId, { quant: runOpts.quant, contextSize: runOpts.contextSize });
+          delete this.slotRestarts[slot];
+          this.logger.info?.(`[model-runner] brain "${slot}" restarted after crash (attempt ${attempts})`);
+        } catch (error) {
+          this.logger.warn?.(`[model-runner] brain "${slot}" restart failed: ${error.message}`);
+        }
+      }, delayMs);
+    });
+  }
+
   /** Get the running server info for a slot (null when not running). */
   getSlotServer(slot) {
     return this.slotServers[slot] || null;
+  }
+
+  /**
+   * One-click brain setup: download the model if needed, then run it for the
+   * slot. Fire-and-forget — progress flows through the existing download SSE
+   * events; the slot server appears via the run events when ready.
+   * Concurrent calls for the same slot dedupe to one setup task.
+   * @returns {object} { accepted: true, slot, modelId, alreadyRunning? }
+   */
+  downloadAndRunForSlot(slot, modelId, options = {}) {
+    if (!['vision', 'grounding', 'hacker'].includes(slot)) {
+      const error = new Error(`Unknown brain slot "${slot}"`);
+      error.code = 'UNKNOWN_SLOT';
+      throw error;
+    }
+    const model = this.findModel(modelId);
+    if (!model) {
+      const error = new Error(`Unknown model "${modelId}"`);
+      error.code = 'UNKNOWN_MODEL';
+      throw error;
+    }
+    // Already running this exact model? Nothing to do.
+    const existing = this.slotServers[slot];
+    if (existing && existing.modelId === modelId) return { accepted: true, slot, modelId, alreadyRunning: true };
+    // Setup already in flight for this slot? Dedupe.
+    if (this.slotSetup?.[slot]) return { accepted: true, slot, modelId, alreadySettingUp: true };
+
+    if (!this.slotSetup) this.slotSetup = {};
+    const quant = options.quant || 'Q4_K_M';
+    this.slotSetup[slot] = (async () => {
+      try {
+        // Phase 1: model download (skipped when already on disk).
+        if (!this.preferredQuant(model, quant)) {
+          await this.startDownload(modelId, { quant });
+          await this._awaitDownloadDone(modelId, quant);
+        }
+        // Phase 2: run it for the slot (also downloads the Runner binary).
+        await this.runForSlot(slot, modelId, options);
+        this.logger.info?.(`[model-runner] one-click setup complete for slot "${slot}" (${modelId})`);
+      } catch (error) {
+        this.logger.warn?.(`[model-runner] one-click setup failed for slot "${slot}": ${error.message}`);
+        this.slotSetupError = this.slotSetupError || {};
+        this.slotSetupError[slot] = { message: error.message, at: new Date().toISOString() };
+        this.emitRun();
+      } finally {
+        delete this.slotSetup[slot];
+        this.emitRun();
+      }
+    })();
+    // Don't let an unhandled rejection crash the process; errors are caught above.
+    this.slotSetup[slot].catch(() => {});
+    this.emitRun();
+    return { accepted: true, slot, modelId };
+  }
+
+  /** Slot setup status for the UI: { vision: 'idle'|'setting-up'|'running'|'error', ... }. */
+  describeSlotSetup() {
+    const out = {};
+    for (const slot of ['vision', 'grounding', 'hacker']) {
+      if (this.slotSetup?.[slot]) out[slot] = 'setting-up';
+      else if (this.slotServers[slot]) out[slot] = 'running';
+      else if (this.slotSetupError?.[slot]) out[slot] = 'error';
+      else out[slot] = 'idle';
+    }
+    return out;
+  }
+
+  /** Clear a recorded slot-setup error (e.g. when the user retries). */
+  clearSlotSetupError(slot) {
+    if (this.slotSetupError) delete this.slotSetupError[slot];
+  }
+
+  /** Wait until the model download reaches a terminal state. */
+  async _awaitDownloadDone(modelId, quant) {
+    for (;;) {
+      const s = this.downloadState;
+      if (!s || s.modelId !== modelId) {
+        // Download state moved on — check the file directly.
+        if (this.preferredQuant(this.findModel(modelId), quant)) return;
+        throw new Error('Download was interrupted before completing.');
+      }
+      if (s.status === 'done') return;
+      if (s.status === 'error') throw new Error(s.error || 'Model download failed.');
+      if (s.status === 'cancelled') throw new Error('Model download was cancelled.');
+      await new Promise((r) => setTimeout(r, 1000));
+    }
   }
 
   /** All running slot servers: { vision: {...}|null, grounding: {...}|null, hacker: {...}|null } */

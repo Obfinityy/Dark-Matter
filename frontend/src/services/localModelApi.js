@@ -186,6 +186,32 @@ export async function runModelOnLocal(slot, modelId, opts = {}) {
 }
 
 /**
+ * ONE-CLICK brain setup on the local backend: downloads the slot's model when
+ * missing, then runs it. Returns 202 immediately; progress arrives over the
+ * download SSE events and the slot server appears when ready.
+ * Omit modelId to use the slot's default brain model.
+ *
+ * @param {string} slot - 'vision' | 'grounding' | 'hacker'
+ * @param {string} [modelId]
+ * @returns {Promise<{accepted, slot, modelId, alreadyRunning?, alreadySettingUp?}>}
+ */
+export async function downloadAndRunSlotLocal(slot, modelId) {
+  return localFetch(`/model-runner/slots/${slot}/download-and-run`, {
+    method: 'POST',
+    body: JSON.stringify(modelId ? { modelId } : {})
+  });
+}
+
+/**
+ * Per-slot one-click setup state from the local backend.
+ * @returns {Promise<{setup: {vision, grounding, hacker}, errors, defaults}>}
+ * setup values: 'idle' | 'setting-up' | 'running' | 'error'
+ */
+export async function getSlotSetupStatusLocal() {
+  return localFetch('/model-runner/slots/setup-status');
+}
+
+/**
  * Stop a model running on a slot.
  */
 export async function stopSlotOnLocal(slot) {

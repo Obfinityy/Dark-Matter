@@ -152,7 +152,7 @@ export class TripleBrainHuntAdapter {
       reason: `${prefix}: ${hypothesis || action.rationale || 'proposing the next step'}`,
       expectedOutcome: action.rationale || 'New evidence about the target',
       confidence: 0.8,
-      methodologyStage: 'vulnerability_detection',
+      methodologyStage: (context.job?.phase) || 'vulnerability_detection',
       hypotheses: Array.isArray(strategy?.vulnChains)
         ? strategy.vulnChains.map((vc) => ({
             hypothesis: vc.chain,
@@ -163,6 +163,13 @@ export class TripleBrainHuntAdapter {
         : [],
       memoryNotes: [],
       brainSource: degraded,
+      // Direct orders from the hacking brain to the subordinate brains.
+      // The see/act loop executes these verbatim: vision only sees,
+      // grounding only clicks.
+      brainOrders: {
+        vision: typeof strategy?.visionInstruction === 'string' ? strategy.visionInstruction : '',
+        grounding: typeof strategy?.groundingInstruction === 'string' ? strategy.groundingInstruction : '',
+      },
     };
 
     const toolDecision = (name) => ({

@@ -205,6 +205,7 @@ export function createRoutes({ controllers }) {
   // ─── Local memory (infinite, on user's disk) + ZIP transfer ─────────
   router.get('/memory/stats', controllers.memory.stats);
   router.get('/memory/export', controllers.memory.exportZip);
+  router.get('/memory/jobs/:jobId/export', controllers.memory.exportHuntZip);
   router.post('/memory/import', controllers.memory.importZip);
   router.delete('/model-runner/models/:modelId', controllers.modelRunner.deleteModel);
   router.post('/model-runner/custom', controllers.modelRunner.addCustom);
@@ -212,7 +213,9 @@ export function createRoutes({ controllers }) {
   router.post('/model-runner/stop', controllers.modelRunner.stop);
   // Per-slot servers: each brain slot runs on its own localhost port.
   router.get('/model-runner/slots/servers', controllers.modelRunner.getSlotServers);
+  router.get('/model-runner/slots/setup-status', controllers.modelRunner.slotSetupStatus);
   router.post('/model-runner/slots/:slot/run', controllers.modelRunner.runSlot);
+  router.post('/model-runner/slots/:slot/download-and-run', controllers.modelRunner.downloadAndRunSlot);
   router.post('/model-runner/slots/:slot/stop', controllers.modelRunner.stopSlot);
   router.get('/model-runner/brain-chain', controllers.modelRunner.brainChain);
 

@@ -87,3 +87,32 @@
   .sg-terminal-body { font-size: 0.72rem; max-height: 180px; }
   .sg-terminal-head { padding: var(--sg-2); }
 }
+
+/* Terminal filter buttons */
+.sg-terminal-filters { display: inline-flex; gap: 4px; margin-left: 8px; }
+.sg-terminal-filter {
+  font-size: 0.68rem; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--sg-line-soft); background: transparent;
+  color: var(--sg-text-3); cursor: pointer; min-height: 28px;
+}
+.sg-terminal-filter-on { border-color: #9fe8c1; color: #9fe8c1; }
+
+/* Mid-hunt chat input at the bottom of the terminal */
+.sg-terminal-ask {
+  display: flex; gap: 8px; padding: 8px 12px;
+  border-top: 1px solid var(--sg-line-soft); background: #0a0c14;
+}
+.sg-terminal-ask input {
+  flex: 1; background: #11141f; border: 1px solid var(--sg-line-soft);
+  border-radius: 8px; color: #d7e3d0; font-size: 0.82rem;
+  padding: 8px 12px; min-height: 40px; outline: none;
+}
+.sg-terminal-ask input:focus { border-color: #9fe8c1; }
+.sg-terminal-ask input::placeholder { color: #5b6478; }
+.sg-terminal-ask button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; min-height: 40px; border-radius: 8px; cursor: pointer;
+  border: 1px solid #9fe8c1; background: rgba(159, 232, 193, 0.12); color: #9fe8c1;
+}
+.sg-terminal-ask button:disabled { opacity: 0.4; cursor: default; }
+.sg-terminal-chat { color: #9fe8c1; }
