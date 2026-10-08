@@ -121,6 +121,9 @@ export class MongoDatabase {
       this.collection('evidence').createIndex({ assessmentId: 1, fingerprint: 1 }),
       // Job-scoped events (the autonomous terminal + replay)
       this.collection('events').createIndex({ scanId: 1, timestamp: -1 }),
+      // Per-account encrypted Kaggle brain links (owner order, 8 Oct 2026):
+      // one document per user, keyed by userId.
+      this.collection('brain_links').createIndex({ userId: 1 }, { unique: true }),
       // InfiniteChat computer tasks
       this.collection('computer_tasks').createIndex({ id: 1 }, { unique: true }),
       this.collection('computer_tasks').createIndex({
