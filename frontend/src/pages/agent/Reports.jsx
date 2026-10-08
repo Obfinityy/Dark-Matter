@@ -17,6 +17,7 @@ import { listHuntRecords } from '../../services/api';
 import { owaspCoverage } from '../../utils/owaspCoverage';
 import { CoverageMeter } from '../../components/agent/CoverageMeter';
 import { CvssBadge } from '../../components/agent/CvssBadge';
+import './Reports.css';
 
 export function Reports() {
   const [records, setRecords] = useState([]);
@@ -33,8 +34,8 @@ export function Reports() {
   if (loading) {
     return (
       <div className="dm-container">
-        <div className="dm-center dm-mt-8" role="status" aria-live="polite">
-          <Loader2 size={18} aria-hidden="true" />
+        <div className="dm-reports-loading" role="status" aria-live="polite">
+          <Loader2 size={18} aria-hidden="true" className="sg-spin" />
           <p className="dm-muted">Loading past reports…</p>
         </div>
       </div>
@@ -43,19 +44,10 @@ export function Reports() {
 
   return (
     <div className="dm-container">
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 16,
-          flexWrap: 'wrap',
-          marginBottom: 24,
-        }}
-      >
-        <div className="dm-page-head" style={{ marginBottom: 0 }}>
+      <header className="dm-reports-head">
+        <div className="dm-page-head">
           <h1 className="dm-page-title">
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            <span className="dm-reports-title">
               <History size={26} aria-hidden="true" /> Past reports
             </span>
           </h1>
@@ -64,10 +56,10 @@ export function Reports() {
             same target later returns these instantly.
           </p>
         </div>
-        <Link to="/agent" className="dm-btn dm-btn-primary" style={{ flexShrink: 0 }}>New hunt</Link>
+        <Link to="/agent" className="dm-btn dm-btn-primary">New hunt</Link>
       </header>
 
-      <div className="dm-notice" style={{ marginBottom: 24 }}>
+      <div className="dm-notice dm-reports-notice">
         <ShieldCheck size={16} className="dm-notice-icon" aria-hidden="true" />
         <span>
           <strong style={{ color: 'var(--dm-text)' }}>Report already exists for a target?</strong>{' '}
@@ -78,15 +70,15 @@ export function Reports() {
 
       {records.length === 0 ? (
         <div className="dm-empty">
-          <div className="dm-empty-icon">
-            <FileText size={28} aria-hidden="true" />
+          <div className="dm-empty-icon-lucide">
+            <FileText size={24} aria-hidden="true" />
           </div>
           <h2 className="dm-empty-title">No completed hunts yet</h2>
           <p className="dm-empty-sub">Your reports will live here.</p>
           <Link to="/agent" className="dm-btn dm-btn-primary">Start your first hunt</Link>
         </div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} aria-label="Past hunt reports">
+        <ul className="dm-reports-list" aria-label="Past hunt reports">
           {records.map((record) => {
             const summary = record.summary || {};
             const findings = Array.isArray(record.findings) ? record.findings : [];
@@ -95,23 +87,22 @@ export function Reports() {
               .sort((a, b) => sevRank(b.severity) - sevRank(a.severity))
               .slice(0, 3);
             return (
-              <li key={record.id} style={{ marginBottom: 8 }}>
+              <li key={record.id}>
                 <Link
                   to={`/agent/reports/${record.id}`}
-                  className="dm-row"
-                  style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
+                  className="dm-row dm-reports-row"
                   aria-label={`Report for ${record.target}${summary.totalFindings != null ? `, ${summary.totalFindings} findings` : ''}`}
                 >
                   <div className="dm-row-main">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, minWidth: 0 }}>
-                      <code className="dm-row-title" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                    <div className="dm-reports-row-top">
+                      <code className="dm-row-title">
                         {record.target}
                       </code>
                       <span className="dm-badge">v{record.version || 1}</span>
                     </div>
                     <p className="dm-row-sub">
                       {record.completedAt && (
-                        <time dateTime={record.completedAt} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <time dateTime={record.completedAt} className="dm-reports-time">
                           <CalendarDays size={12} aria-hidden="true" />
                           {new Date(record.completedAt).toLocaleDateString()}
                         </time>
@@ -120,14 +111,14 @@ export function Reports() {
                       {summary.totalFindings != null && `${summary.totalFindings} findings`}
                     </p>
                     {top.length > 0 && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      <div className="dm-reports-badges">
                         {top.map((f) => (
                           <CvssBadge key={f.id || f.title} finding={f} />
                         ))}
                       </div>
                     )}
                     {findings.length > 0 && (
-                      <div style={{ marginTop: 8 }}>
+                      <div className="dm-reports-coverage">
                         <CoverageMeter coverage={coverage} />
                       </div>
                     )}

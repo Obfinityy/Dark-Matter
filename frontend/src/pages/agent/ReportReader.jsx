@@ -19,6 +19,14 @@ import { CvssBadge } from '../../components/agent/CvssBadge';
 import { owaspCoverage } from '../../utils/owaspCoverage';
 import './ReportReader.css';
 
+const SEV_BADGE = {
+  critical: 'dm-badge dm-badge-red',
+  high: 'dm-badge dm-badge-gold',
+  medium: 'dm-badge',
+  low: 'dm-badge',
+  informational: 'dm-badge',
+};
+
 function slugify(value) {
   return String(value || 'finding').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'finding';
 }
@@ -144,7 +152,7 @@ function MarkdownBody({ markdown }) {
     blocks.push(<p key={key++}><Inline text={para.join(' ')} /></p>);
   }
 
-  return <article className="sg-markdown-body">{blocks}</article>;
+  return <article className="dm-markdown-body">{blocks}</article>;
 }
 
 function FindingCard({ recordId, finding }) {
@@ -166,26 +174,26 @@ function FindingCard({ recordId, finding }) {
   };
 
   return (
-    <div className="sg-finding-card">
-      <div className="sg-finding-head">
-        <strong>{finding.title || 'Untitled finding'}</strong>
+    <div className="dm-card dm-finding-card">
+      <div className="dm-finding-head">
+        <strong className="dm-finding-title">{finding.title || 'Untitled finding'}</strong>
         <CvssBadge finding={finding} />
       </div>
-      {finding.cvss?.vector && <code className="sg-cvss-vector">{finding.cvss.vector}</code>}
-      {finding.description && <p className="sg-body">{finding.description}</p>}
-      <div className="sg-finding-actions">
-        <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => grab('poc', 'curl', 'poc')}>
+      {finding.cvss?.vector && <code className="dm-finding-vector">{finding.cvss.vector}</code>}
+      {finding.description && <p className="dm-card-sub dm-finding-desc">{finding.description}</p>}
+      <div className="dm-finding-actions">
+        <button className="dm-btn dm-btn-ghost dm-btn-sm" disabled={busy} onClick={() => grab('poc', 'curl', 'poc')}>
           {busy === 'poc' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <FlaskConical size={13} aria-hidden="true" />} PoC
         </button>
-        <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => grab('repro', 'curl', 'curl')}>
+        <button className="dm-btn dm-btn-ghost dm-btn-sm" disabled={busy} onClick={() => grab('repro', 'curl', 'curl')}>
           {busy === 'curl' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <Download size={13} aria-hidden="true" />} repro.sh
         </button>
-        <button className="sg-btn sg-btn-ghost sg-btn-sm" disabled={busy} onClick={() => grab('repro', 'python', 'py')}>
+        <button className="dm-btn dm-btn-ghost dm-btn-sm" disabled={busy} onClick={() => grab('repro', 'python', 'py')}>
           {busy === 'py' ? <Loader2 size={13} className="sg-spin" aria-hidden="true" /> : <Download size={13} aria-hidden="true" />} repro.py
         </button>
       </div>
-      {error && <p className="sg-finding-error" role="alert">{error}</p>}
-      <p className="sg-poc-note">Proof-only artifacts — they demonstrate the flaw without exfiltration or state changes.</p>
+      {error && <p className="dm-finding-error" role="alert">{error}</p>}
+      <p className="dm-hint dm-finding-note">Proof-only artifacts — they demonstrate the flaw without exfiltration or state changes.</p>
     </div>
   );
 }
@@ -218,16 +226,29 @@ export function ReportReader() {
     return () => { cancelled = true; };
   }, [id]);
 
-  if (loading) return <div className="sg-loading-box" role="status"><Loader2 size={18} className="sg-spin" aria-hidden="true" /> Loading report…</div>;
+  if (loading) {
+    return (
+      <div className="dm-container">
+        <div className="dm-reader-loading" role="status" aria-live="polite">
+          <Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading report…
+        </div>
+      </div>
+    );
+  }
 
   if (error || !record) {
     return (
-      <div className="sg-report-reader">
-        <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} aria-hidden="true" /> Past reports</Link>
-        <div className="sg-page-error" role="alert">
-          <ShieldAlert size={18} aria-hidden="true" />
-          <h2>Couldn't load this report</h2>
-          <p>{error || 'Report not found.'}</p>
+      <div className="dm-container dm-reader">
+        <Link to="/agent/reports" className="dm-btn dm-btn-ghost dm-btn-sm dm-reader-back">
+          <ArrowLeft size={14} aria-hidden="true" /> Past reports
+        </Link>
+        <div className="dm-empty dm-reader-error" role="alert">
+          <div className="dm-empty-icon-lucide">
+            <ShieldAlert size={24} aria-hidden="true" />
+          </div>
+          <h2 className="dm-empty-title">Couldn't load this report</h2>
+          <p className="dm-empty-sub">{error || 'Report not found.'}</p>
+          <Link to="/agent/reports" className="dm-btn dm-btn-secondary">Back to past reports</Link>
         </div>
       </div>
     );
@@ -237,27 +258,41 @@ export function ReportReader() {
   const coverage = owaspCoverage(findings);
 
   return (
-    <div className="sg-report-reader">
-      <Link to="/agent/reports" className="sg-btn sg-btn-ghost sg-btn-sm"><ArrowLeft size={14} aria-hidden="true" /> Past reports</Link>
+    <div className="dm-container dm-reader">
+      <Link to="/agent/reports" className="dm-btn dm-btn-ghost dm-btn-sm dm-reader-back">
+        <ArrowLeft size={14} aria-hidden="true" /> Past reports
+      </Link>
 
-      <div className="sg-notice">
-        <ShieldCheck size={16} aria-hidden="true" />
-        <span><strong>Report already exists for this target — showing the saved report</strong> (v{record.version || 1}). Pasting this target again returns this same report instantly. Start a new hunt from the Hunt AI page for a fresh run.</span>
+      <div className="dm-notice dm-notice-gold dm-reader-notice">
+        <ShieldCheck size={16} className="dm-notice-icon" aria-hidden="true" />
+        <span>
+          <strong style={{ color: 'var(--dm-text)' }}>Report already exists for this target — showing the saved report</strong>{' '}
+          (v{record.version || 1}). Pasting this target again returns this same report instantly.
+          Start a new hunt from the Hunt AI page for a fresh run.
+        </span>
       </div>
 
-      <div className="sg-reader-top">
+      <div className="dm-reader-top">
         <ReportExport jobId={record.jobId || record.id} recordId={record.id} target={record.target || ''} />
       </div>
 
-      <header className="sg-reader-head">
-        <h1>{record.target}</h1>
-        <div className="sg-reader-meta">
-          <span className="sg-pill">v{record.version || 1}</span>
-          {record.completedAt && <span>Hunted {new Date(record.completedAt).toLocaleString()}</span>}
+      <header className="dm-page-head dm-reader-head">
+        <h1 className="dm-reader-title">{record.target}</h1>
+        <div className="dm-reader-meta">
+          <span className="dm-badge">v{record.version || 1}</span>
+          {record.completedAt && (
+            <time dateTime={record.completedAt} className="dm-muted">
+              Hunted {new Date(record.completedAt).toLocaleString()}
+            </time>
+          )}
           {record.severitySummary && (
-            <span className="sg-reader-sevs">
+            <span className="dm-reader-sevs">
               {Object.entries(record.severitySummary).map(([sev, count]) => (
-                count > 0 && <span key={sev} className={`sg-pill ${sev === 'critical' ? 'sg-pill-danger' : sev === 'high' ? 'sg-pill-warn' : ''}`}>{sev} {count}</span>
+                count > 0 && (
+                  <span key={sev} className={SEV_BADGE[String(sev).toLowerCase()] || 'dm-badge'}>
+                    {sev} {count}
+                  </span>
+                )
               ))}
             </span>
           )}
@@ -265,10 +300,12 @@ export function ReportReader() {
       </header>
 
       {findings.length > 0 && (
-        <section className="sg-reader-section" aria-labelledby="sg-findings-heading">
-          <h2 className="sg-h2" id="sg-findings-heading">Findings ({findings.length})</h2>
+        <section className="dm-section dm-reader-section" aria-labelledby="dm-findings-heading">
+          <div className="dm-section-head">
+            <h2 className="dm-section-title" id="dm-findings-heading">Findings ({findings.length})</h2>
+          </div>
           <CoverageMeter coverage={coverage} />
-          <div className="sg-finding-list">
+          <div className="dm-reader-findings">
             {findings.map((f) => (
               <FindingCard key={f.id || f.title} recordId={record.id} finding={f} />
             ))}
@@ -279,9 +316,11 @@ export function ReportReader() {
       {markdown ? (
         <MarkdownBody markdown={markdown} />
       ) : (
-        <div className="sg-empty-state" role="status">
-          <FileWarning size={28} aria-hidden="true" />
-          <p>No Markdown report was archived for this hunt — its findings summary above is the record.</p>
+        <div className="dm-empty dm-reader-no-markdown" role="status">
+          <div className="dm-empty-icon-lucide">
+            <FileWarning size={24} aria-hidden="true" />
+          </div>
+          <p className="dm-empty-sub">No Markdown report was archived for this hunt — its findings summary above is the record.</p>
         </div>
       )}
     </div>

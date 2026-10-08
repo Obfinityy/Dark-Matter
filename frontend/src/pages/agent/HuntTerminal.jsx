@@ -16,21 +16,25 @@ function lineText(ev) {
  * HuntTerminal — live terminal view of what the agent is doing.
  * Backfills from the job activity log, then streams live SSE events.
  * Auto-scroll sticks to the bottom only while the user is already there;
- * a "Latest" jump button appears when they scroll up to inspect output.
+ * a "Latest" jump button appears when they scroll up to inspect output,
+ * with a badge counting the lines that arrived meanwhile.
  */
 export function HuntTerminal({ jobId }) {
   const [lines, setLines] = useState([]);
   const [follow, setFollow] = useState(true);
+  const [unseen, setUnseen] = useState(0);
   const bodyRef = useRef(null);
+  const followRef = useRef(true);
   const [reducedMotion] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
 
   const push = useCallback((incoming) => {
-    setLines((prev) => {
-      const next = [...prev, ...(Array.isArray(incoming) ? incoming : [incoming])];
-      return next.slice(-400);
-    });
+    const items = Array.isArray(incoming) ? incoming : [incoming];
+    setLines((prev) => [...prev, ...items].slice(-400));
+    // Lines that stream in while the user is scrolled up are counted so
+    // the "Latest" button can say how much was missed.
+    if (!followRef.current) setUnseen((n) => n + items.length);
   }, []);
 
   useEffect(() => {
@@ -53,7 +57,15 @@ export function HuntTerminal({ jobId }) {
   const checkFollow = useCallback(() => {
     const el = bodyRef.current;
     if (!el) return;
-    setFollow(el.scrollHeight - el.scrollTop - el.clientHeight < 40);
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    followRef.current = atBottom;
+    setFollow(atBottom);
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    followRef.current = true;
+    setFollow(true);
+    setUnseen(0);
   }, []);
 
   useEffect(() => {
@@ -76,10 +88,14 @@ export function HuntTerminal({ jobId }) {
           <button
             type="button"
             className="sg-terminal-jump"
-            onClick={() => setFollow(true)}
-            aria-label="Jump to latest terminal output"
+            onClick={jumpToLatest}
+            aria-label={
+              unseen > 0
+                ? `Jump to latest terminal output, ${unseen} new ${unseen === 1 ? 'line' : 'lines'} missed`
+                : 'Jump to latest terminal output'
+            }
           >
-            <ArrowDown size={13} aria-hidden="true" /> Latest
+            <ArrowDown size={13} aria-hidden="true" /> Latest{unseen > 0 && ` · ${unseen} new`}
           </button>
         )}
       </div>
