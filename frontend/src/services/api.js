@@ -1376,7 +1376,10 @@ export const apiClient = {
   // Infinity AI Billing (Razorpay)
   getBillingStatus,
   createBillingOrder,
-  verifyBillingPayment
+  verifyBillingPayment,
+  createTopupOrder,
+  verifyTopupPayment,
+  getCreditBalance
 };
 
 /** Billing status: is Razorpay live? Returns { configured, keyId, tiers }. */
@@ -1403,4 +1406,25 @@ export function verifyBillingPayment({ orderId, paymentId, signature, tierId }) 
 /** The caller's server-side subscription (survives localStorage clears). */
 export function getBillingSubscription() {
   return request('/billing/subscription');
+}
+
+/** Create a Razorpay order for an Infinity Credits top-up (whole rupees). */
+export function createTopupOrder(amountInr) {
+  return request('/billing/topup/order', {
+    method: 'POST',
+    body: JSON.stringify({ amountInr }),
+  });
+}
+
+/** Verify a completed top-up payment server-side and credit the wallet. */
+export function verifyTopupPayment({ orderId, paymentId, signature }) {
+  return request('/billing/topup/verify', {
+    method: 'POST',
+    body: JSON.stringify({ orderId, paymentId, signature }),
+  });
+}
+
+/** The caller's Infinity Credits balance in INR. */
+export function getCreditBalance() {
+  return request('/billing/balance');
 }

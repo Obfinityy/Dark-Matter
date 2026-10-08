@@ -1,16 +1,21 @@
 /**
- * Account — who you are, your tier, and the way out.
+ * Account — who you are, your credits, and the way out.
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Crown, ShieldCheck, LogOut } from 'lucide-react';
+import { Wallet, ShieldCheck, LogOut } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
-import { getReservedTier } from './Premium';
+import { getCreditBalance } from '../../services/api.js';
 import { getPermissionMode, PERMISSION_LABELS } from '../../services/permissions';
 
 export function Account() {
   const { user, logout } = useAuth();
-  const reservedTier = getReservedTier();
+  const [credits, setCredits] = useState(null);
+  useEffect(() => {
+    getCreditBalance()
+      .then((r) => setCredits(typeof r?.creditBalanceInr === 'number' ? r.creditBalanceInr : 0))
+      .catch(() => setCredits(null));
+  }, []);
   const permissionMode = getPermissionMode();
   const initial = (user?.username || user?.name || user?.email || '?').charAt(0).toUpperCase();
 
@@ -78,19 +83,19 @@ export function Account() {
         ))}
       </section>
 
-      {/* ── Plan ── */}
-      <section className="dm-card" aria-label="Plan">
+      {/* ── Credits ── */}
+      <section className="dm-card" aria-label="Infinity Credits">
         <h2 className="dm-card-title">
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Crown size={18} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" /> Plan
+            <Wallet size={18} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" /> Infinity Credits
           </span>
         </h2>
         <p className="dm-card-sub">
-          {reservedTier
-            ? <>Your <strong style={{ textTransform: 'capitalize', color: 'var(--dm-text)' }}>{reservedTier}</strong> tier is reserved — billing goes live soon.</>
-            : <>You're on the <strong style={{ color: 'var(--dm-text)' }}>Free</strong> tier.</>}
+          {credits === null
+            ? <>Your balance is unavailable right now.</>
+            : <>You have <strong style={{ color: 'var(--dm-text)' }}>₹{Number(credits).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong> in Infinity Credits.</>}
         </p>
-        <Link to="/agent/premium" className="dm-btn dm-btn-secondary">View Premium tiers →</Link>
+        <Link to="/agent/premium" className="dm-btn dm-btn-secondary">Top up credits →</Link>
       </section>
 
       {/* ── Agent permissions ── */}
