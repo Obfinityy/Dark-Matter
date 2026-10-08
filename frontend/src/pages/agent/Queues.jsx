@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layers, Pause, Play, Trash2, Plus, Loader2, AlertTriangle, ChevronRight, CalendarClock } from 'lucide-react';
+import './Queues.css';
 import { listQueues, createQueue, pauseQueue, resumeQueue, deleteQueue } from '../../services/api';
 
 export function Queues() {
@@ -55,22 +56,22 @@ export function Queues() {
     finally { setActing(false); }
   };
 
-  if (loading) return <div className="dm-page-loading"><Loader2 size={18} className="dm-spin" /> Loading queues…</div>;
+  if (loading) return <div className="dm-page-loading" role="status"><Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading queues…</div>;
 
   return (
     <div className="dm-queues">
-      <header className="dm-page-head">
-        <div>
-          <h1><Layers size={22} /> Target queues</h1>
+      <header className="dm-queues-head">
+        <div className="dm-page-head">
+          <h1><Layers size={22} aria-hidden="true" /> Target queues</h1>
           <p>Line up targets — the agent works through them in order, sharing the pool fairly with your other hunts.</p>
         </div>
-        <Link to="/agent/schedules" className="dm-btn-ghost"><CalendarClock size={13} /> Scheduled hunts</Link>
+        <Link to="/agent/schedules" className="dm-btn-ghost"><CalendarClock size={13} aria-hidden="true" /> Scheduled hunts</Link>
       </header>
 
-      {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {error && <div className="dm-form-error" role="alert"><AlertTriangle size={14} aria-hidden="true" /> {error}</div>}
 
       <form className="dm-card dm-queue-form" onSubmit={create}>
-        <h3><Plus size={15} /> New queue</h3>
+        <h3><Plus size={15} aria-hidden="true" /> New queue</h3>
         <label className="dm-form-label">
           Queue name
           <input
@@ -95,7 +96,7 @@ export function Queues() {
           <span className="dm-form-hint" id="queue-targets-hint">One target per line — the agent works through them top to bottom.</span>
         </label>
         <button type="submit" className="dm-btn-primary" disabled={busy}>
-          {busy ? <Loader2 size={15} className="dm-spin" /> : <Plus size={15} />} Create queue
+          {busy ? <Loader2 size={15} aria-hidden="true" className="sg-spin" /> : <Plus size={15} aria-hidden="true" />} Create queue
         </button>
       </form>
 
@@ -144,14 +145,14 @@ export function Queues() {
                     onClick={() => act(() => resumeQueue(queue.id))}
                     aria-label={`Resume queue ${queueName}`}
                     disabled={acting}
-                  ><Play size={13} /> Resume</button>
+                  ><Play size={13} aria-hidden="true" /> Resume</button>
                 ) : (
                   <button
                     className="dm-btn-ghost"
                     onClick={() => act(() => pauseQueue(queue.id))}
                     aria-label={`Pause queue ${queueName}`}
                     disabled={acting}
-                  ><Pause size={13} /> Pause</button>
+                  ><Pause size={13} aria-hidden="true" /> Pause</button>
                 )}
                 <button
                   className="dm-btn-ghost dm-danger"
@@ -161,11 +162,11 @@ export function Queues() {
                     if (window.confirm('Delete this queue? Completed hunt history is kept.')) act(() => deleteQueue(queue.id));
                   }}
                 >
-                  <Trash2 size={13} /> Delete
+                  <Trash2 size={13} aria-hidden="true" /> Delete
                 </button>
                 {queue.currentJobId && (
                   <Link to={`/agent/hunt/${queue.currentJobId}`} className="dm-card-link">
-                    Watch live hunt <ChevronRight size={13} />
+                    Watch live hunt <ChevronRight size={13} aria-hidden="true" />
                   </Link>
                 )}
               </div>

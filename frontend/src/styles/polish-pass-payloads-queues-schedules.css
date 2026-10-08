@@ -1,28 +1,7 @@
 
 /* ════════════════ POLISH PASS — PayloadLibrary / Queues / Schedules ════════════════ */
 
-/* Staggered list entrance */
-
-/* Payload cards — hover lift, top-3 rank distinction */
-.dm-payload-card {
-  transition: border-color 0.18s ease;
-}
-.dm-payload-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(52, 211, 153, 0.35);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-}
-.dm-payload-list > :nth-child(2) .dm-payload-rank { color: #a7f3d0; }
-.dm-payload-list > :nth-child(3) .dm-payload-rank { color: #6ee7b7; }
-
-/* Labelled filter fields (44px targets on mobile) */
-.dm-filter-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 170px; }
-.dm-filter-field > span {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--dm-faint);
-}
-.dm-filter-field input { min-height: 44px; }
-.dm-filter-row .dm-btn-secondary { min-height: 44px; align-self: flex-end; }
+/* (dead payload-card/filter-field rules from the pre-redesign pass removed 8 Oct 2026 — no JSX references them; PayloadLibrary now uses its own stylesheet) */
 
 /* Labelled form rows */
 .dm-form-label {
