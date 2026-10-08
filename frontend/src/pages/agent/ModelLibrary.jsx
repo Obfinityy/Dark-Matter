@@ -458,6 +458,16 @@ function BrainSlotCard({
   const [cellOpen, setCellOpen] = useState(false); // Kaggle one-cell "?" modal
   const [cellCopied, setCellCopied] = useState(false);
 
+  // Escape closes the Kaggle cell modal — common sense, always available.
+  useEffect(() => {
+    if (!cellOpen) return;
+    const onKey = e => {
+      if (e.key === 'Escape') setCellOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cellOpen]);
+
   // Keep tab in sync when source changes from elsewhere
   useEffect(() => {
     setTab(source);
@@ -570,11 +580,12 @@ function BrainSlotCard({
                   </p>
                 </div>
                 <button
-                  className="sg-btn sg-btn-ghost sg-btn-sm"
+                  className="sg-btn sg-btn-ghost sg-btn-sm ml-cell-close"
                   onClick={() => setCellOpen(false)}
                   aria-label="Close"
                 >
                   <X size={16} />
+                  <span>Close</span>
                 </button>
               </div>
               <div className="modal-body">
@@ -595,6 +606,14 @@ function BrainSlotCard({
                   The link stays live while the Kaggle notebook keeps running. If it
                   stops responding, re-run the cell and paste the fresh link here.
                 </p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="sg-btn sg-btn-primary"
+                  onClick={() => setCellOpen(false)}
+                >
+                  Done
+                </button>
               </div>
             </div>
           </div>

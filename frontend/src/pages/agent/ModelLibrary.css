@@ -699,3 +699,10 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: #d7e0ee;
 }
+
+.ml-cell-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
