@@ -170,7 +170,20 @@ export class ToolExecutor {
     try {
       // 4. Execute
       let rawOutput;
-      if (tool.requiresKali) {
+      if (tool.managedBinary) {
+        // Managed open-source binary (nuclei/subfinder/katana): download the
+        // official release on first use and run it on the user's own machine.
+        // Falls back to the Kali worker only if the download itself fails.
+        try {
+          rawOutput = await this.executeManaged(tool, request);
+        } catch (err) {
+          if (tool.requiresKali && config.kaliWorkerUrl && err.code === 'TOOL_DOWNLOAD_FAILED') {
+            rawOutput = await this.executeOnKali(tool, request);
+          } else {
+            throw err;
+          }
+        }
+      } else if (tool.requiresKali) {
         rawOutput = await this.executeOnKali(tool, request);
       } else {
         rawOutput = await this.executeBuiltIn(tool, request);
@@ -406,6 +419,104 @@ export class ToolExecutor {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  /**
+   * Run a managed open-source binary (nuclei / subfinder / katana) on the
+   * user's own machine. The official release is downloaded on first use via
+   * managedBinaries.js — no Kali box, no manual install.
+   */
+  async executeManaged(tool, request) {
+    const { ensureBinary, MANAGED_TOOLS } = await import('./managedBinaries.js');
+    const spec = MANAGED_TOOLS[tool.managedBinary];
+    if (!spec) throw new AppError(400, `Unknown managed tool: ${tool.managedBinary}`, 'UNKNOWN_TOOL');
+
+    let binary;
+    try {
+      binary = await ensureBinary(tool.managedBinary, (p) => {
+        this.eventService.publish(request.assessmentId || 'n/a', {
+          type: 'TOOL_DOWNLOAD',
+          level: 'INFO',
+          message: `${spec.displayName}: ${p.status} ${Math.round((p.progress || 0) * 100)}%`,
+          data: { tool: tool.name, ...p }
+        }).catch(() => {});
+      });
+    } catch (err) {
+      throw new AppError(502, `Could not fetch ${spec.displayName}: ${err.message}`, 'TOOL_DOWNLOAD_FAILED');
+    }
+
+    const args = PolicyValidator.sanitize(tool.name, request.arguments?.args || []);
+    const finalArgs = await this._managedArgs(tool, request, args, binary);
+
+    const { execFile } = await import('node:child_process');
+    const timeout = tool.timeout || config.toolDefaultTimeoutMs;
+    return new Promise((resolve, reject) => {
+      execFile(binary, finalArgs, { timeout, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
+        const out = (stdout || '').trim();
+        if (err && !out) {
+          reject(new AppError(502,
+            `${tool.name} failed: ${(stderr || err.message).slice(0, 500)}`, 'TOOL_EXEC_FAILED'));
+        } else {
+          resolve(out);
+        }
+      });
+    });
+  }
+
+  /**
+   * Per-tool argument shaping for managed binaries: guarantee the target flag
+   * and machine-readable output the parsers expect.
+   */
+  async _managedArgs(tool, request, args, binary) {
+    const out = [...args];
+    const has = (flag) => out.includes(flag);
+    const target = request.target;
+
+    if (tool.managedBinary === 'nuclei') {
+      await this._ensureNucleiTemplates(binary);
+      if (target && !has('-u') && !has('-l')) out.push('-u', target);
+      // JSON lines for the 'jsonlines' parser (nuclei v3: -jsonl, not -json).
+      const jsonIdx = out.indexOf('-json');
+      if (jsonIdx !== -1) out.splice(jsonIdx, 1);
+      if (!has('-jsonl')) out.push('-jsonl');
+      if (!has('-silent')) out.push('-silent');
+      if (!has('-nc')) out.push('-nc');
+    } else if (tool.managedBinary === 'subfinder') {
+      if (target && !has('-d')) out.push('-d', target);
+      if (!has('-silent')) out.push('-silent');
+      if (!has('-nc')) out.push('-nc');
+    } else if (tool.managedBinary === 'katana') {
+      if (target && !has('-u') && !has('-l')) out.push('-u', target);
+      const jsonIdx = out.indexOf('-json');
+      if (jsonIdx !== -1) out.splice(jsonIdx, 1);
+      if (!has('-jsonl')) out.push('-jsonl');
+      if (!has('-silent')) out.push('-silent');
+      if (!has('-nc')) out.push('-nc');
+    }
+    return out;
+  }
+
+  /**
+   * Nuclei needs its template library before the first scan. Downloads once
+   * to ~/nuclei-templates (upstream default); skips when already present.
+   */
+  async _ensureNucleiTemplates(binary) {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const tplDir = path.join(os.homedir(), 'nuclei-templates');
+    try {
+      fs.accessSync(tplDir);
+      return; // already have templates
+    } catch { /* download below */ }
+    const { execFile } = await import('node:child_process');
+    await new Promise((resolve, reject) => {
+      execFile(binary, ['-update-templates', '-silent', '-nc'], { timeout: 600000 },
+        (err, stdout, stderr) => {
+          try { fs.accessSync(tplDir); return resolve(); } catch { /* fall through */ }
+          reject(new Error(`template update failed: ${(stderr || err?.message || '').slice(0, 300)}`));
+        });
+    });
   }
 
   /**

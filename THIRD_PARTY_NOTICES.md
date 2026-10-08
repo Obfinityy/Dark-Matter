@@ -6,6 +6,38 @@ but their licenses are respected here in full.
 
 ---
 
+## nuclei — the "Infinity Scanner" vulnerability engine
+
+- Project: nuclei — https://github.com/projectdiscovery/nuclei
+- License: MIT — https://github.com/projectdiscovery/nuclei/blob/main/LICENSE.md
+- What we use: at runtime, the local backend downloads the official nuclei
+  release binary for the user's OS from
+  https://github.com/projectdiscovery/nuclei/releases and its template library
+  via `nuclei -update-templates` (https://github.com/projectdiscovery/nuclei-templates,
+  also MIT) — we do not modify or redistribute either ourselves.
+- In the product UI this capability is presented exclusively as "Infinity Scanner".
+- Copyright: ProjectDiscovery contributors.
+
+## subfinder — the "Infinity Recon" subdomain engine
+
+- Project: subfinder — https://github.com/projectdiscovery/subfinder
+- License: MIT — https://github.com/projectdiscovery/subfinder/blob/main/LICENSE.md
+- What we use: at runtime, the local backend downloads the official subfinder
+  release binary for the user's OS from
+  https://github.com/projectdiscovery/subfinder/releases.
+- In the product UI this capability is presented exclusively as "Infinity Recon".
+- Copyright: ProjectDiscovery contributors.
+
+## katana — the "Infinity Crawler" endpoint-discovery engine
+
+- Project: katana — https://github.com/projectdiscovery/katana
+- License: MIT — https://github.com/projectdiscovery/katana/blob/main/LICENSE.md
+- What we use: at runtime, the local backend downloads the official katana
+  release binary for the user's OS from
+  https://github.com/projectdiscovery/katana/releases.
+- In the product UI this capability is presented exclusively as "Infinity Crawler".
+- Copyright: ProjectDiscovery contributors.
+
 ## koboldcpp — the "Infinity AI Runner" engine
 
 - Project: koboldcpp — https://github.com/LostRuins/koboldcpp

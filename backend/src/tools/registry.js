@@ -33,7 +33,8 @@ const TOOL_DEFINITIONS = [
     outputFormat: 'text',
     riskLevel: 'none',
     requiresAuthorization: false,
-    requiresKali: true,
+    requiresKali: true, // fallback only — managed binary runs locally first
+    managedBinary: 'subfinder',
     timeout: 120_000,
     command: 'subfinder',
     defaultArgs: ['-silent'],
@@ -185,7 +186,8 @@ const TOOL_DEFINITIONS = [
     outputFormat: 'text',
     riskLevel: 'low',
     requiresAuthorization: true,
-    requiresKali: true,
+    requiresKali: true, // fallback only — managed binary runs locally first
+    managedBinary: 'katana',
     timeout: 180_000,
     command: 'katana',
     defaultArgs: ['-silent', '-json', '-depth', '3'],
@@ -217,7 +219,8 @@ const TOOL_DEFINITIONS = [
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
-    requiresKali: true,
+    requiresKali: true, // fallback only — managed binary runs locally first
+    managedBinary: 'nuclei',
     timeout: 600_000,
     command: 'nuclei',
     defaultArgs: ['-silent', '-json', '-severity', 'info,low,medium,high,critical'],
