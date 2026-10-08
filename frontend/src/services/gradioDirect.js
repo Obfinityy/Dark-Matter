@@ -131,7 +131,8 @@ async function callPredict(baseUrl, prompt, timeoutMs) {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     signal: AbortSignal.timeout(Math.min(timeoutMs, 60000)),
-    body: JSON.stringify({ data: [{ text: prompt, files: [] }, null] }),
+    // gr.Interface with a single Textbox input takes data: [text].
+    body: JSON.stringify({ data: [prompt] }),
   });
   if (!callRes.ok) throw new Error(`predict HTTP ${callRes.status}`);
   const { event_id } = await callRes.json();
