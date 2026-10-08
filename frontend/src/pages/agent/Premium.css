@@ -1,0 +1,103 @@
+/* ════════════════ POLISH PASS — Premium (Infinity Credits) ════════════════
+ * Extracted inline styles into the dm-* elegant system. Pure polish: the
+ * Razorpay flow and wallet logic are untouched. */
+
+/* ── Balance card ── */
+.dm-prem-balance {
+  margin-bottom: var(--dm-6);
+}
+.dm-prem-balance-row {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-3);
+}
+.dm-prem-balance-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--dm-r);
+  background: var(--dm-gold-glow);
+  border: 1px solid var(--dm-gold-border);
+  color: var(--dm-gold-soft);
+  flex-shrink: 0;
+}
+.dm-prem-balance-label {
+  margin: 0;
+}
+.dm-prem-balance-value {
+  margin: 0;
+  font-size: var(--dm-text-3xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dm-2);
+}
+.dm-prem-note {
+  margin: var(--dm-4) 0 0;
+  font-size: var(--dm-text-sm);
+  display: flex;
+  gap: var(--dm-2);
+}
+.dm-prem-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Top-up ── */
+.dm-prem-quick-row {
+  display: flex;
+  gap: var(--dm-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--dm-3);
+}
+.dm-prem-amount-row {
+  display: flex;
+  gap: var(--dm-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dm-prem-amount-label {
+  font-size: var(--dm-text-sm);
+}
+.dm-prem-amount-input {
+  width: 140px;
+  padding: var(--dm-2) var(--dm-3);
+  border-radius: var(--dm-r);
+  border: 1px solid var(--dm-border, #2a2a2a);
+  background: var(--dm-bg-2, transparent);
+  color: inherit;
+  font-size: var(--dm-text-base);
+  font-family: var(--dm-font);
+}
+.dm-prem-amount-input:focus-visible {
+  outline: 2px solid var(--dm-gold);
+  outline-offset: 1px;
+  border-color: var(--dm-gold-border);
+}
+.dm-prem-error {
+  font-size: var(--dm-text-sm);
+  color: var(--dm-red);
+  margin: var(--dm-3) 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dm-2);
+}
+
+/* ── Narrow screens: comfortable 44px tap targets, full-width CTA ── */
+@media (max-width: 430px) {
+  .dm-prem-quick-row .dm-btn {
+    min-height: 44px;
+    flex: 1 1 calc(50% - var(--dm-2));
+  }
+  .dm-prem-amount-input {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .dm-prem-amount-row .dm-btn-primary {
+    flex: 1 1 100%;
+    min-height: 48px;
+  }
+}
