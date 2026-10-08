@@ -1,0 +1,172 @@
+/**
+ * Wave58.css — Infinity AI · Dark-Matter · Wave 58
+ * Scoped styles for the sharing round-3 & platform submission components:
+ *  - share round 3 (.sr358-*)
+ *  - platform submit (.ps58-*)
+ * Zero animations: no keyframe rules by design (zero-animation order).
+ */
+
+/* ---- Share round 3 (.sr358-*) ---- */
+
+.sr358-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.sr358-card {
+  border: 1px solid #2b3a55;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #141a26;
+  color: #eef1f8;
+}
+
+.sr358-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #93c5fd;
+}
+
+.sr358-note {
+  font-size: 0.85rem;
+  color: #c3cbdd;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.sr358-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #a5b4d4;
+  background: #0f1420;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.sr358-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.sr358-btn {
+  background: #2b4a7f;
+  color: #f2f5fc;
+  border: 1px solid #3b5d99;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.sr358-btn:hover {
+  background: #35598f;
+}
+
+.sr358-chip {
+  background: #1b2436;
+  color: #cfe0ff;
+  border: 1px solid #33415e;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.sr358-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.sr358-list li {
+  margin: 0.35rem 0;
+}
+
+/* ---- Platform submit (.ps58-*) ---- */
+
+.ps58-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.ps58-card {
+  border: 1px solid #3a2f55;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #161226;
+  color: #eeebf8;
+}
+
+.ps58-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #c4b5fd;
+}
+
+.ps58-note {
+  font-size: 0.85rem;
+  color: #c3cbdd;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ps58-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #b3a8d4;
+  background: #0f0c1e;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ps58-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.ps58-btn {
+  background: #4a3a7f;
+  color: #f2f0fc;
+  border: 1px solid #5d4d99;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.ps58-btn:hover {
+  background: #594a8f;
+}
+
+.ps58-chip {
+  background: #1e1a36;
+  color: #dccfff;
+  border: 1px solid #3f3560;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.ps58-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.ps58-list li {
+  margin: 0.35rem 0;
+}
