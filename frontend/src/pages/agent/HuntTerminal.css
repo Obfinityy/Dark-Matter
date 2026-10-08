@@ -24,6 +24,7 @@
   letter-spacing: 0.04em;
   color: var(--sg-text-3);
   border-bottom: 1px solid var(--sg-line-soft);
+  user-select: none;
 }
 /* Live pulse dot — decorative. */
 .sg-terminal-dot {
@@ -33,7 +34,7 @@
   
 }
 
-/* Blinking block cursor in the idle prompt. */
+/* Block cursor in the idle prompt. It stays static — no decorative animation. */
 .sg-terminal-cursor {
   display: inline-block; width: 7px; height: 13px;
   margin: 0 4px 0 6px; vertical-align: -2px;
