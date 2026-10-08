@@ -1,0 +1,46 @@
+/* RunnerStatusCard — calm, functional. No decoration. */
+.runner-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border, #232a38);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: var(--card, #141821);
+}
+.runner-checking { color: var(--muted, #9aa4b5); font-size: 14px; }
+.runner-pulse {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--muted, #9aa4b5);
+  animation: runner-blink 1.2s ease-in-out infinite;
+}
+@keyframes runner-blink { 50% { opacity: 0.3; } }
+.runner-connected { border-color: rgba(62, 207, 111, 0.45); }
+.runner-dot.ok {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #3ecf6f; box-shadow: 0 0 8px #3ecf6f; flex: none;
+}
+.runner-setup { border-color: rgba(224, 166, 62, 0.5); align-items: flex-start; }
+.runner-dot.amber {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #e0a63e; box-shadow: 0 0 8px #e0a63e; flex: none; margin-top: 4px;
+}
+.runner-missing { align-items: flex-start; flex-direction: column; }
+.runner-text { display: flex; flex-direction: column; gap: 4px; }
+.runner-text strong { font-size: 15px; }
+.runner-text span { color: var(--muted, #9aa4b5); font-size: 13.5px; line-height: 1.45; }
+.runner-steps { margin: 8px 0 4px; padding-left: 20px; color: var(--muted, #9aa4b5); font-size: 13.5px; }
+.runner-steps li { margin: 3px 0; }
+.runner-download-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 11px 18px;
+  border-radius: 9px;
+  background: #d4a94e;
+  color: #1a1408;
+  font-weight: 650;
+  font-size: 14.5px;
+  text-decoration: none;
+}
+.runner-download-btn:hover { filter: brightness(1.08); }

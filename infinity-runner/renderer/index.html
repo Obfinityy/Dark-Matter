@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Infinity AI Runner</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <img src="../assets/icon.png" alt="" class="logo" />
+      <div>
+        <h1>Infinity AI Runner</h1>
+        <p class="sub">Dark Matter &middot; by Obfinity &middot; <span id="version"></span></p>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Status</h2>
+      <div class="row"><span class="dot" id="dot-runner"></span><span>Runner</span><b id="txt-runner">…</b></div>
+      <div class="row"><span class="dot" id="dot-vm"></span><span>Kali sandbox VM</span><b id="txt-vm">…</b></div>
+      <div class="row"><span class="dot" id="dot-poller"></span><span>24/7 hunt agent</span><b id="txt-poller">…</b></div>
+      <div class="actions">
+        <button id="btn-toggle" class="primary">Stop</button>
+        <button id="btn-open">Open Dark Matter</button>
+      </div>
+      <p class="hint" id="status-hint"></p>
+    </section>
+
+    <section class="card" id="setup-card">
+      <h2>First-time setup</h2>
+      <div id="setup-steps"></div>
+      <div class="actions setup-actions">
+        <button id="btn-setup-qemu" class="hidden">Install QEMU</button>
+        <button id="btn-setup-whpx" class="hidden">Enable acceleration</button>
+        <button id="btn-setup-kali" class="hidden primary">Download Kali (~3 GB)</button>
+      </div>
+      <div id="setup-progress" class="hidden">
+        <div class="bar"><div id="setup-bar"></div></div>
+        <p id="setup-detail" class="hint"></p>
+      </div>
+      <p class="error hidden" id="setup-error"></p>
+    </section>
+
+    <section class="card">
+      <h2>Account</h2>
+      <div id="account-signed">
+        <div class="row"><span>Signed in as</span><b id="account-email"></b></div>
+        <button id="btn-signout" class="ghost">Sign out</button>
+      </div>
+      <form id="account-form" class="hidden">
+        <p class="hint">Sign in so the 24/7 hunt agent can pick up your hunts.</p>
+        <input id="in-email" type="email" placeholder="Email" autocomplete="username" required />
+        <input id="in-pass" type="password" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit" class="primary" id="btn-signin">Sign in</button>
+        <p class="error hidden" id="signin-error"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <label class="check">
+        <input type="checkbox" id="chk-autostart" />
+        Start automatically when I sign in to Windows
+      </label>
+      <button id="btn-logs" class="ghost">View logs</button>
+    </section>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>

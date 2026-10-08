@@ -1,0 +1,59 @@
+# electron-builder config — Infinity AI Runner (Windows x64, NSIS one-click installer)
+#
+# Build on a Windows machine (or CI with a Windows runner):
+#   cd infinity-runner && npm install && npm run dist
+# Output: dist/Infinity-AI-Runner-Setup.exe
+#
+# The installer bundles Electron's own Node runtime — the user never needs
+# node/npm. Both bundled services (vm-runner, agent-poller) run inside
+# Electron utility processes via utilityProcess.fork().
+
+appId: ai.infinity.runner
+productName: Infinity AI Runner
+copyright: Copyright © 2026 Obfinity
+
+directories:
+  output: dist
+  buildResources: assets
+
+files:
+  - main/
+  - renderer/
+  - assets/icon.png
+  - package.json
+
+# 7za is a native binary: it cannot run from inside app.asar, so unpack it.
+asarUnpack:
+  - "**/7zip-bin/**/*"
+
+extraResources:
+  # Bundled services (populated by `npm run prepare-resources`):
+  # node_modules are installed with --omit=dev so only runtime deps ship.
+  # NOTE: `from` points at build-resources/ (not each service dir) because
+  # electron-builder unconditionally skips a top-level `node_modules` directly
+  # under `from` (app-builder-lib/out/util/filter.js). One level up, the
+  # relative path is `vm-runner/node_modules`, which is copied normally.
+  - from: build-resources
+    to: .
+    filter:
+      - "**/*"
+      - "!**/tests{,/**/*}"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: assets/icon.ico
+  # Stable asset name (no version) so the website can link the "latest"
+  # installer with a fixed URL:
+  # https://github.com/Obfinityy/Dark-Matter/releases/latest/download/Infinity-AI-Runner-Setup.exe
+  artifactName: Infinity-AI-Runner-Setup.${ext}
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Infinity AI Runner
+  # Silent-ish one-click flow: install → launch → tray icon. No wizard pages.

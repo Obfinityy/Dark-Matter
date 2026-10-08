@@ -34,6 +34,7 @@ import { Avatar } from '../../components/fx/Avatar';
 import { BrainGate } from '../../components/BrainGate';
 import { CrewPanel } from '../../components/agent/CrewPanel';
 import { VmControlPanel } from '../../components/agent/VmControlPanel';
+import { RunnerStatusCard } from '../../components/agent/RunnerStatusCard';
 import { speak } from '../../services/voice';
 import { MicButton, VoiceModeToggle } from '../../components/agent/VoiceInput';
 import { useVoiceConversation } from '../../hooks/useVoiceConversation';
@@ -1107,6 +1108,9 @@ function BuildPane({ mode, setMode }) {
 function ControlPane() {
   return (
     <>
+      {/* Infinity AI Runner: one-click desktop companion. Auto-detects the
+          local runner; prompts to download it when missing. */}
+      <RunnerStatusCard />
       {/* Infinity Crew: persistent AI coworkers with their own computers.
           Rendered above the VM panel — that flow is untouched. */}
       <CrewPanel />

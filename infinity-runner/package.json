@@ -1,0 +1,24 @@
+{
+  "description": "One-click desktop companion for Dark Matter (by Obfinity): runs the local Kali VM sandbox and the 24/7 hunt agent on your own PC. No terminal, no setup.",
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "main": "main/main.js",
+  "name": "infinity-ai-runner",
+  "private": true,
+  "productName": "Infinity AI Runner",
+  "scripts": {
+    "dist": "npm run make-icon && npm run prepare-resources && electron-builder --win nsis --x64 --publish never",
+    "dist:dir": "npm run make-icon && npm run prepare-resources && electron-builder --dir --publish never",
+    "make-icon": "node scripts/make-icon.mjs",
+    "prepare-resources": "node scripts/prepare-resources.mjs",
+    "start": "electron .",
+    "test": "node --test tests/*.test.js"
+  },
+  "type": "commonjs",
+  "version": "1.0.0",
+  "dependencies": {
+    "7zip-bin": "^5.2.0"
+  }
+}
