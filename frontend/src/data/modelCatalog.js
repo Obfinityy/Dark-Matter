@@ -32,28 +32,6 @@ export const MODEL_CATALOG = [
     "categoryLabel": "Hacking Brain"
   },
   {
-    "id": "qwen3-8b-abliterated",
-    "name": "Qwen3 8B Abliterated",
-    "params": "8B",
-    "quant": "Q4_K_M",
-    "tier": "lightweight",
-    "tierLabel": "Lightweight",
-    "hfRepo": "bartowski/mlabonne_Qwen3-8B-abliterated-GGUF",
-    "hfFile": "mlabonne_Qwen3-8B-abliterated-Q4_K_M.gguf",
-    "sizeGB": 4.7,
-    "sizeBytes": 5027784288,
-    "contextWindow": 32768,
-    "uncensored": true,
-    "requirements": {
-      "ramGB": 8,
-      "vramGB": 0,
-      "gpuRequired": false
-    },
-    "description": "Uncensored (abliterated) Qwen3 8B — strong reasoning for its size, 32k context, runs on CPU.",
-    "category": "hacking",
-    "categoryLabel": "Hacking Brain"
-  },
-  {
     "id": "qwen3-14b-abliterated",
     "name": "Qwen3 14B Abliterated",
     "params": "14B",

@@ -47,24 +47,6 @@ export const MODEL_LIBRARY = Object.freeze([
     description:
       'Uncensored Dolphin fine-tune of Llama 3.1 8B — fast, runs on CPU, good for quick triage and chat.',
   },
-  {
-    id: 'qwen3-8b-abliterated',
-    name: 'Qwen3 8B Abliterated',
-    params: '8B',
-    quant: 'Q4_K_M',
-    tier: 'lightweight',
-    tierLabel: 'Lightweight',
-    hfRepo: 'bartowski/mlabonne_Qwen3-8B-abliterated-GGUF',
-    hfFile: 'mlabonne_Qwen3-8B-abliterated-Q4_K_M.gguf',
-    sizeGB: 4.7,
-    sizeBytes: 5027784288, // exact size verified from HuggingFace download (1 Oct 2026)
-    contextWindow: 32768,
-    uncensored: true,
-    requirements: { ramGB: 8, vramGB: 0, gpuRequired: false },
-    description:
-      'Uncensored (abliterated) Qwen3 8B — strong reasoning for its size, 32k context, runs on CPU.',
-  },
-
   // ── 14B · Balanced ─────────────────────────────────────────────────
   {
     id: 'qwen3-14b-abliterated',

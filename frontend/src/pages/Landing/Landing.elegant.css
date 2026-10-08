@@ -215,3 +215,18 @@
     text-align: center;
   }
 }
+
+/* ── Landing CTAs ────────────────────────────────────────────────
+ * --dm-accent is only defined inside .dm-shell (agent console), so the
+ * generic .dm-btn-primary gradient is invalid here and renders with no
+ * background (unreadable dark-on-dark text). The landing uses the gold
+ * brand — define the CTA explicitly. */
+.dm-landing .dm-btn-primary {
+  background: linear-gradient(135deg, #d4a94e 0%, #a77d28 100%);
+  color: #1a1206;
+  box-shadow: 0 4px 22px rgba(212, 169, 78, 0.28);
+}
+.dm-landing .dm-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px rgba(212, 169, 78, 0.42);
+}
