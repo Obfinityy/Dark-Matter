@@ -233,9 +233,26 @@ export class AgentWorker {
   async getTripleBrainOrchestratorForJob(job) {
     if (!this.brainProviderModel || !job?.userId) return null;
     const selection = await this.brainProviderModel.getSelection(job.userId);
+    // Per-job Kaggle brains (connected browser-direct to Gradio by the user).
+    // These take precedence over the stored selection: the hunting brain's
+    // thinking comes from Kaggle, everything else runs on the local machine.
+    const kaggleBrains = job?.kaggleBrains;
+    const slotSources = { ...(selection?.slotSources || {}) };
+    if (kaggleBrains && typeof kaggleBrains === 'object') {
+      for (const [slot, entry] of Object.entries(kaggleBrains)) {
+        if (!entry?.url) continue;
+        slotSources[slot] = {
+          source: 'kaggle',
+          kaggleUrl: entry.url,
+          kaggleName: entry.name || null,
+          model: `kaggle:${slot}`,
+          sourceLabel: 'Kaggle (browser-connected)'
+        };
+      }
+    }
     return createTripleBrainOrchestrator({
       runner: this.modelRunnerService || null,
-      selection,
+      selection: { ...selection, slotSources },
       appConfig: this.appConfig || {},
       logger: this.logger || console
     });

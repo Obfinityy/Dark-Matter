@@ -31,6 +31,26 @@ export const RECOVERABLE_JOB_STATES = Object.freeze(['queued', 'starting', 'runn
 /** Terminal states — never resumed automatically. */
 export const TERMINAL_JOB_STATES = Object.freeze(['completed', 'failed', 'cancelled']);
 
+/** Brain slots that may use a Kaggle link. */
+const KAGGLE_SLOTS = ['vision', 'grounding', 'hacker'];
+
+/**
+ * Sanitize per-job Kaggle brains: { slot: {url, name} }.
+ * Only http(s) Gradio URLs survive; anything else is dropped.
+ */
+export function sanitizeKaggleBrains(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const out = {};
+  for (const slot of KAGGLE_SLOTS) {
+    const entry = input[slot];
+    if (!entry || typeof entry !== 'object') continue;
+    const url = String(entry.url || '').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\/.+/i.test(url)) continue;
+    out[slot] = { url: url.slice(0, 500), name: String(entry.name || '').slice(0, 100) || null };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 export class AgentJobModel {
   constructor(database) {
     this.collection = database.collection('agent_jobs');
@@ -41,7 +61,7 @@ export class AgentJobModel {
   }
 
   /** Create a job in `queued` state. Persisted before the worker is dispatched. */
-  async create({ userId, assessmentId, conversationId = null, target, scope, objective, mode = 'AUTONOMOUS' }) {
+  async create({ userId, assessmentId, conversationId = null, target, scope, objective, mode = 'AUTONOMOUS', kaggleBrains = null }) {
     const timestamp = now();
     const job = {
       id: id('job'),
@@ -51,6 +71,10 @@ export class AgentJobModel {
       target,
       scope: scope || { included: [], excluded: [] },
       objective: String(objective || '').slice(0, 2000),
+      // Kaggle brains for this hunt: { hacker: {url, name}, ... } — the
+      // browser connected these links directly to Gradio (no backend).
+      // The hunt's think step uses them; everything else runs locally.
+      kaggleBrains: sanitizeKaggleBrains(kaggleBrains),
 
       status: 'queued',
       phase: 'initializing',

@@ -56,7 +56,7 @@ export class JobManager {
    * Create a durable job. Returns as soon as the job row exists; the worker
    * picks it up on the next tick.
    */
-  async createJob({ userId, assessmentId, target, scope, objective, conversationId = null }) {
+  async createJob({ userId, assessmentId, target, scope, objective, conversationId = null, kaggleBrains = null }) {
     // Hunt-start intake: accept a bare "target.com" and normalize it to a
     // full URL once, here, so every hunt origin (manual, queue, schedule)
     // stores the same canonical target. Invalid values keep the raw input —
@@ -73,7 +73,8 @@ export class JobManager {
       conversationId,
       target: normalizedTarget,
       scope,
-      objective
+      objective,
+      kaggleBrains
     });
 
     await this.assessmentModel.setStatus(assessmentId, 'planning').catch?.(() => {});

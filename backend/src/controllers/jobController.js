@@ -72,7 +72,10 @@ export function createJobController({ jobManager, assessmentService, eventServic
         // point every probe at the wrong port.
         target: created.assessment.targetUrl || created.assessment.targetHostname,
         scope: created.assessment.scope,
-        objective: input.message || `Assess ${created.assessment.targetHostname}`
+        objective: input.message || `Assess ${created.assessment.targetHostname}`,
+        // Kaggle brains connected in the browser (frontend-direct Gradio).
+        // The hunt's think step uses these; everything else runs locally.
+        kaggleBrains: input.kaggleBrains || null
       });
 
       // 202: accepted, running in the background. Deliberately no long-lived request.

@@ -545,9 +545,26 @@ export function subscribeToAssessmentEvents(assessmentId, { onOpen, onEvent, onE
 
 // ─── Autonomous Bug Bounty Agent (persistent jobs) ────────────────
 
+import { getAllKaggleSlots } from './gradioDirect';
+
 /** Create an autonomous assessment job. Returns as soon as the job is queued. */
 export function createJob(payload) {
-  return request('/jobs', { method: 'POST', body: JSON.stringify(payload) });
+  // Attach browser-connected Kaggle brains (frontend-direct Gradio links).
+  // The hunt's think step uses these; everything else runs on the local machine.
+  const kaggleBrains = {};
+  try {
+    const slots = getAllKaggleSlots();
+    for (const [slot, entry] of Object.entries(slots)) {
+      if (entry?.url) {
+        kaggleBrains[slot] = { url: entry.url, name: entry.name || null };
+      }
+    }
+  } catch {
+    // localStorage unavailable — hunt proceeds with local/server brains.
+  }
+  const body = { ...payload };
+  if (Object.keys(kaggleBrains).length) body.kaggleBrains = kaggleBrains;
+  return request('/jobs', { method: 'POST', body: JSON.stringify(body) });
 }
 
 /** List this user's autonomous jobs. */

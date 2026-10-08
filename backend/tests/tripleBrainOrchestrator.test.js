@@ -420,4 +420,63 @@ describe('agentWorker wiring', () => {
     const fakeThis2 = { brainProviderModel: { getSelection: async () => ({}) }, modelRunnerService: null, appConfig: {}, logger: quiet };
     assert.equal(await AgentWorker.prototype.getTripleBrainOrchestratorForJob.call(fakeThis2, {}), null);
   });
+
+  it('merges job kaggleBrains into slotSources (hacking brain thinks via Kaggle)', async () => {
+    const { AgentWorker } = await import('../src/jobs/agentWorker.js');
+    const fakeSelection = { provider: 'local', slotSources: {} };
+    const fakeThis = {
+      brainProviderModel: { getSelection: async () => fakeSelection },
+      modelRunnerService: null,
+      appConfig: {},
+      logger: quiet
+    };
+    const job = {
+      userId: 'u1',
+      kaggleBrains: { hacker: { url: 'https://abc123.gradio.live', name: 'my-hacker' } }
+    };
+    const orchestrator = await AgentWorker.prototype.getTripleBrainOrchestratorForJob.call(fakeThis, job);
+    assert.ok(orchestrator instanceof TripleBrainOrchestrator);
+    // The hacker slot resolves to a Kaggle-backed provider.
+    const resolved = orchestrator.resolveSlot('hacker');
+    assert.equal(resolved.source, 'kaggle');
+    assert.ok(resolved.provider);
+  });
+
+  it('ignores job kaggleBrains entries without a URL', async () => {
+    const { AgentWorker } = await import('../src/jobs/agentWorker.js');
+    const fakeSelection = { provider: 'local', slotSources: {} };
+    const fakeThis = {
+      brainProviderModel: { getSelection: async () => fakeSelection },
+      modelRunnerService: null,
+      appConfig: {},
+      logger: quiet
+    };
+    const job = { userId: 'u1', kaggleBrains: { hacker: { url: '', name: 'x' } } };
+    const orchestrator = await AgentWorker.prototype.getTripleBrainOrchestratorForJob.call(fakeThis, job);
+    const resolved = orchestrator.resolveSlot('hacker');
+    assert.notEqual(resolved.source, 'kaggle');
+  });
+});
+
+// ---------------------------------------------------------------- sanitizeKaggleBrains
+
+describe('sanitizeKaggleBrains', () => {
+  it('keeps valid https Gradio URLs per slot and drops the rest', async () => {
+    const { sanitizeKaggleBrains } = await import('../src/models/agentJobModel.js');
+    const out = sanitizeKaggleBrains({
+      hacker: { url: 'https://abc123.gradio.live/', name: 'h' },
+      vision: { url: 'not-a-url' },
+      grounding: { url: 'https://xyz.gradio.live' },
+      bogus: { url: 'https://evil.example.com' }
+    });
+    assert.deepEqual(Object.keys(out).sort(), ['grounding', 'hacker']);
+    assert.equal(out.hacker.url, 'https://abc123.gradio.live');
+  });
+
+  it('returns null for empty/invalid input', async () => {
+    const { sanitizeKaggleBrains } = await import('../src/models/agentJobModel.js');
+    assert.equal(sanitizeKaggleBrains(null), null);
+    assert.equal(sanitizeKaggleBrains({}), null);
+    assert.equal(sanitizeKaggleBrains({ hacker: { url: 'ftp://x' } }), null);
+  });
 });
