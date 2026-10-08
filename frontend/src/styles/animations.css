@@ -11,6 +11,31 @@
   animation-delay: 300ms;
 }
 
+/* ── Polish-pass staggered entrances ──
+   .dm-list-in / .dm-polish-in are applied by JSX with an inline animationDelay
+   for the staggered card effect. Fill mode `backwards` (not `both`) so the
+   hover lift transforms on those same elements keep working after entry. */
+@keyframes dm-list-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.dm-list-in,
+.dm-polish-in {
+  animation: dm-list-in 0.45s ease backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dm-list-in,
+  .dm-polish-in {
+    animation: none;
+  }
+}
+
 /* Skeleton loading */
 .skeleton {
   background: linear-gradient(
