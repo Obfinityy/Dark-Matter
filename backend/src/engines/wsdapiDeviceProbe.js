@@ -36,9 +36,18 @@ function tagText(xml, tag) {
  * @param {{ envelope: string, sourceIp?: string, metadataVersion?: number }} input
  * @returns {{ deviceFound: boolean, type, confidence, evidence, metadata?, deviceClass? }}
  */
-export function analyzeWsdProbeMatch({ envelope = '', sourceIp = 'unknown', metadataVersion = null }) {
+export function analyzeWsdProbeMatch({
+  envelope = '',
+  sourceIp = 'unknown',
+  metadataVersion = null,
+}) {
   if (!envelope || typeof envelope !== 'string') {
-    return { deviceFound: false, type: 'No WSDAPI Data', confidence: 'none', evidence: 'No envelope supplied.' };
+    return {
+      deviceFound: false,
+      type: 'No WSDAPI Data',
+      confidence: 'none',
+      evidence: 'No envelope supplied.',
+    };
   }
 
   const metadata = {
@@ -65,15 +74,22 @@ export function analyzeWsdProbeMatch({ envelope = '', sourceIp = 'unknown', meta
   );
 
   if (!deviceFound) {
-    return { deviceFound: false, type: 'No WSDAPI Data', confidence: 'none', evidence: 'Envelope contained no device metadata.' };
+    return {
+      deviceFound: false,
+      type: 'No WSDAPI Data',
+      confidence: 'none',
+      evidence: 'Envelope contained no device metadata.',
+    };
   }
 
   const joinedTypes = deviceTypes.join(' ');
   const classHit = DEVICE_TYPE_CLASSES.find(({ pattern }) => pattern.test(joinedTypes));
   const deviceClass = classHit ? classHit.deviceClass : 'Unknown device';
 
-  const disclosed = Object.entries(metadata).filter(([, v]) => v).map(([k]) => k);
-  const sensitive = disclosed.filter((k) =>
+  const disclosed = Object.entries(metadata)
+    .filter(([, v]) => v)
+    .map(([k]) => k);
+  const sensitive = disclosed.filter(k =>
     ['serialNumber', 'firmwareVersion', 'presentationUrl'].includes(k)
   );
 

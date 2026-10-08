@@ -5,6 +5,7 @@
  * scheduled-hunt starts, and queue advances. One document per alert.
  */
 
+/** Database model for alert. */
 export class AlertModel {
   constructor(database) {
     this.collection = database.collection('alerts');

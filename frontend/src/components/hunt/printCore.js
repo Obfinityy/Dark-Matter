@@ -40,7 +40,12 @@ export const WAVE23_IDEAS = [
   [50895, 'Unbroken cards', 'new'],
   [50896, 'Visible link URLs', 'new'],
   [50897, 'Labeled chart values', 'new'],
-  [50898, 'Forced light print', 'skip', 'already live: ThemeSuite.css @media print + wave-17 50643'],
+  [
+    50898,
+    'Forced light print',
+    'skip',
+    'already live: ThemeSuite.css @media print + wave-17 50643',
+  ],
   [50899, 'Ink-saving print', 'new'],
   [50900, 'Grayscale print toggle', 'new'],
   [50901, 'Condensed timeline print', 'new'],
@@ -66,7 +71,7 @@ export const WAVE23_IDEAS = [
 ];
 
 export function wave23RegistryComplete() {
-  return WAVE23_IDEAS.length === 40 && WAVE23_IDEAS.every((r) => r.length >= 3);
+  return WAVE23_IDEAS.length === 40 && WAVE23_IDEAS.every(r => r.length >= 3);
 }
 
 /* 50885 — dedicated print stylesheet ------------------------------------ */
@@ -80,7 +85,12 @@ export const DRAFT_CLASS = 'pr-draft'; // 50905
 
 /* 50886 — print page header --------------------------------------------- */
 
-export function printHeaderData({ brand = 'Infinity AI · Dark-Matter', target, dateRange, printedAt } = {}) {
+export function printHeaderData({
+  brand = 'Infinity AI · Dark-Matter',
+  target,
+  dateRange,
+  printedAt,
+} = {}) {
   return {
     brand,
     target: target || '—',
@@ -92,7 +102,13 @@ export function printHeaderData({ brand = 'Infinity AI · Dark-Matter', target, 
 /* 50887 — page-number footer -------------------------------------------- */
 
 export function pageFooterText(page, total) {
-  if (!Number.isInteger(page) || !Number.isInteger(total) || page < 1 || total < 1 || page > total) {
+  if (
+    !Number.isInteger(page) ||
+    !Number.isInteger(total) ||
+    page < 1 ||
+    total < 1 ||
+    page > total
+  ) {
     return null;
   }
   return `Page ${page} of ${total}`;
@@ -101,7 +117,11 @@ export function pageFooterText(page, total) {
 /* 50888 — text-labeled severity ----------------------------------------- */
 
 const SEVERITY_PRINT_LABELS = {
-  critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW', info: 'INFO',
+  critical: 'CRITICAL',
+  high: 'HIGH',
+  medium: 'MEDIUM',
+  low: 'LOW',
+  info: 'INFO',
 };
 
 export function severityPrintLabel(severity) {
@@ -129,7 +149,7 @@ export function isHiddenInPrint(selector) {
 
 export function expandAwarePrint(cards = [], expandedIds = []) {
   const expanded = new Set(expandedIds);
-  return cards.map((c) => ({
+  return cards.map(c => ({
     id: c.id,
     title: c.title,
     mode: expanded.has(c.id) ? 'full' : 'summary',
@@ -140,7 +160,14 @@ export function expandAwarePrint(cards = [], expandedIds = []) {
 /* 50891 — print-scope toggle + dialog state ------------------------------ */
 
 export function createPrintScope() {
-  return { scope: 'view', margins: 'normal', grayscale: false, inkSaver: false, sectionBreaks: false, draft: false };
+  return {
+    scope: 'view',
+    margins: 'normal',
+    grayscale: false,
+    inkSaver: false,
+    sectionBreaks: false,
+    draft: false,
+  };
 }
 
 export function setPrintScope(state, patch = {}) {
@@ -192,7 +219,7 @@ const TOC_PAGE_LINES = 45;
 
 export function buildPrintToc(sections = []) {
   let page = 1;
-  return sections.map((s) => {
+  return sections.map(s => {
     const startPage = page;
     const lines = Math.max(1, Number(s.lines) || 1);
     page += Math.ceil(lines / TOC_PAGE_LINES);
@@ -213,7 +240,7 @@ export function linkPrintText(text, href) {
 export function chartPrintLabels(segments = []) {
   const total = segments.reduce((a, s) => a + (Number(s.value) || 0), 0);
   return segments
-    .map((s) => ({
+    .map(s => ({
       label: s.label,
       value: Number(s.value) || 0,
       pct: total > 0 ? Math.round(((Number(s.value) || 0) / total) * 1000) / 10 : 0,
@@ -236,21 +263,27 @@ export function printModeClasses({ inkSaver, grayscale, draft } = {}) {
 export function timelinePrintList(events = []) {
   return [...events]
     .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-    .map((e) => ({ ts: e.ts, label: e.label, detail: e.detail || '' }));
+    .map(e => ({ ts: e.ts, label: e.label, detail: e.detail || '' }));
 }
 
 /* 50903 — per-section printing ---------------------------------------------- */
 
 export const PRINTABLE_SECTIONS = [
-  'executive-summary', 'findings', 'timeline', 'chain-graph',
-  'audit-trail', 'glossary', 'remediation-checklist', 'dashboard-snapshot',
+  'executive-summary',
+  'findings',
+  'timeline',
+  'chain-graph',
+  'audit-trail',
+  'glossary',
+  'remediation-checklist',
+  'dashboard-snapshot',
 ];
 
 export function sectionPrintTargets(report = {}) {
   const sections = Array.isArray(report.sections) ? report.sections : [];
   return sections
-    .filter((s) => PRINTABLE_SECTIONS.includes(s.id))
-    .map((s) => ({ id: s.id, title: s.title || s.id }));
+    .filter(s => PRINTABLE_SECTIONS.includes(s.id))
+    .map(s => ({ id: s.id, title: s.title || s.id }));
 }
 
 /* 50904 — configurable margins ---------------------------------------------- */
@@ -392,11 +425,11 @@ function qrInterleave(dataCWs, version) {
     }
   }
   const out = [];
-  const maxData = Math.max(...dataBlocks.map((b) => b.length));
+  const maxData = Math.max(...dataBlocks.map(b => b.length));
   for (let i = 0; i < maxData; i++) {
     for (const b of dataBlocks) if (i < b.length) out.push(b[i]);
   }
-  const maxEc = Math.max(...ecBlocks.map((b) => b.length));
+  const maxEc = Math.max(...ecBlocks.map(b => b.length));
   for (let i = 0; i < maxEc; i++) {
     for (const b of ecBlocks) if (i < b.length) out.push(b[i]);
   }
@@ -405,7 +438,7 @@ function qrInterleave(dataCWs, version) {
 
 const QR_MASKS = [
   (r, c) => (r + c) % 2 === 0,
-  (r) => r % 2 === 0,
+  r => r % 2 === 0,
   (_, c) => c % 3 === 0,
   (r, c) => (r + c) % 3 === 0,
   (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
@@ -415,14 +448,40 @@ const QR_MASKS = [
 ];
 
 const FORMAT_POS_TOP = [
-  [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [8, 7], [8, 8],
-  [7, 8], [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8],
+  [8, 0],
+  [8, 1],
+  [8, 2],
+  [8, 3],
+  [8, 4],
+  [8, 5],
+  [8, 7],
+  [8, 8],
+  [7, 8],
+  [5, 8],
+  [4, 8],
+  [3, 8],
+  [2, 8],
+  [1, 8],
+  [0, 8],
 ];
 
 function formatPosSplit(n) {
   return [
-    [n - 1, 8], [n - 2, 8], [n - 3, 8], [n - 4, 8], [n - 5, 8], [n - 6, 8], [n - 7, 8],
-    [8, n - 8], [8, n - 7], [8, n - 6], [8, n - 5], [8, n - 4], [8, n - 3], [8, n - 2], [8, n - 1],
+    [n - 1, 8],
+    [n - 2, 8],
+    [n - 3, 8],
+    [n - 4, 8],
+    [n - 5, 8],
+    [n - 6, 8],
+    [n - 7, 8],
+    [8, n - 8],
+    [8, n - 7],
+    [8, n - 6],
+    [8, n - 5],
+    [8, n - 4],
+    [8, n - 3],
+    [8, n - 2],
+    [8, n - 1],
   ];
 }
 
@@ -445,7 +504,10 @@ function qrPenalty(modules) {
     let run = 1;
     for (let c = 1; c < n; c++) {
       if (modules[r][c] === modules[r][c - 1]) run++;
-      else { if (run >= 5) penalty += 3 + (run - 5); run = 1; }
+      else {
+        if (run >= 5) penalty += 3 + (run - 5);
+        run = 1;
+      }
     }
     if (run >= 5) penalty += 3 + (run - 5);
   }
@@ -453,7 +515,10 @@ function qrPenalty(modules) {
     let run = 1;
     for (let r = 1; r < n; r++) {
       if (modules[r][c] === modules[r - 1][c]) run++;
-      else { if (run >= 5) penalty += 3 + (run - 5); run = 1; }
+      else {
+        if (run >= 5) penalty += 3 + (run - 5);
+        run = 1;
+      }
     }
     if (run >= 5) penalty += 3 + (run - 5);
   }
@@ -461,7 +526,8 @@ function qrPenalty(modules) {
   for (let r = 0; r < n - 1; r++) {
     for (let c = 0; c < n - 1; c++) {
       const v = modules[r][c];
-      if (modules[r][c + 1] === v && modules[r + 1][c] === v && modules[r + 1][c + 1] === v) penalty += 3;
+      if (modules[r][c + 1] === v && modules[r + 1][c] === v && modules[r + 1][c + 1] === v)
+        penalty += 3;
     }
   }
   // Rule 3: finder-like patterns
@@ -474,7 +540,7 @@ function qrPenalty(modules) {
     }
   }
   for (let c = 0; c < n; c++) {
-    const col = modules.map((row) => row[c]);
+    const col = modules.map(row => row[c]);
     for (let r = 0; r <= n - 11; r++) {
       if (matchAt(col, r, pat1) || matchAt(col, r, pat2)) penalty += 40;
     }
@@ -501,12 +567,15 @@ export function qrEncodeUrl(text) {
 
   // Build base matrix: -1 = unset, 1 = function dark, 0 = function light
   const base = Array.from({ length: n }, () => new Array(n).fill(-1));
-  const place = (r, c, v) => { base[r][c] = v ? 1 : 0; };
+  const place = (r, c, v) => {
+    base[r][c] = v ? 1 : 0;
+  };
 
   const finder = (r0, c0) => {
     for (let dr = -1; dr <= 7; dr++) {
       for (let dc = -1; dc <= 7; dc++) {
-        const r = r0 + dr, c = c0 + dc;
+        const r = r0 + dr,
+          c = c0 + dc;
         if (r < 0 || c < 0 || r >= n || c >= n) continue;
         if (dr === -1 || dr === 7 || dc === -1 || dc === 7) place(r, c, 0);
         else {
@@ -517,7 +586,9 @@ export function qrEncodeUrl(text) {
       }
     }
   };
-  finder(0, 0); finder(0, n - 7); finder(n - 7, 0);
+  finder(0, 0);
+  finder(0, n - 7);
+  finder(n - 7, 0);
 
   // Timing patterns
   for (let i = 8; i < n - 8; i++) {
@@ -541,7 +612,10 @@ export function qrEncodeUrl(text) {
 
   // Dark module + reserve format areas
   place(n - 8, 8, 1);
-  const reserve = (coords) => coords.forEach(([r, c]) => { if (base[r][c] === -1) base[r][c] = 0; });
+  const reserve = coords =>
+    coords.forEach(([r, c]) => {
+      if (base[r][c] === -1) base[r][c] = 0;
+    });
   reserve(FORMAT_POS_TOP);
   reserve(formatPosSplit(n));
 
@@ -572,15 +646,19 @@ export function qrEncodeUrl(text) {
   // Try all masks, pick lowest penalty
   let best = null;
   for (let mask = 0; mask < 8; mask++) {
-    const m = base.map((row) => row.slice());
+    const m = base.map(row => row.slice());
     dataCells.forEach(([r, c], i) => {
       m[r][c] = dataBits[i] ^ (QR_MASKS[mask](r, c) ? 1 : 0);
     });
     const fmt = qrFormatBits(mask);
     const bits = [];
     for (let i = 14; i >= 0; i--) bits.push((fmt >> i) & 1);
-    FORMAT_POS_TOP.forEach(([r, c], i) => { m[r][c] = bits[i]; });
-    formatPosSplit(n).forEach(([r, c], i) => { m[r][c] = bits[i]; });
+    FORMAT_POS_TOP.forEach(([r, c], i) => {
+      m[r][c] = bits[i];
+    });
+    formatPosSplit(n).forEach(([r, c], i) => {
+      m[r][c] = bits[i];
+    });
     const score = qrPenalty(m);
     if (!best || score < best.score) best = { score, modules: m, mask };
   }
@@ -605,7 +683,7 @@ export function qrToSvg(modules, { cell = 4, margin = 4, dark = '#000', light = 
 /* 50909 — two-column summaries ---------------------------------------------- */
 
 export function splitSummaryColumns(paragraphs = []) {
-  const paras = paragraphs.filter((p) => String(p || '').trim());
+  const paras = paragraphs.filter(p => String(p || '').trim());
   const total = paras.reduce((a, p) => a + p.length, 0);
   const left = [];
   let acc = 0;
@@ -620,12 +698,14 @@ export function splitSummaryColumns(paragraphs = []) {
 /* 50910 — graph-as-list print ------------------------------------------------- */
 
 export function chainGraphToList(nodes = [], edges = []) {
-  return nodes.map((node) => ({
+  return nodes.map(node => ({
     id: node.id,
     label: node.label || node.id,
     kind: node.kind || 'node',
-    incoming: edges.filter((e) => e.to === node.id).map((e) => ({ from: e.from, label: e.label || '' })),
-    outgoing: edges.filter((e) => e.from === node.id).map((e) => ({ to: e.to, label: e.label || '' })),
+    incoming: edges
+      .filter(e => e.to === node.id)
+      .map(e => ({ from: e.from, label: e.label || '' })),
+    outgoing: edges.filter(e => e.from === node.id).map(e => ({ to: e.to, label: e.label || '' })),
   }));
 }
 
@@ -634,7 +714,7 @@ export function chainGraphToList(nodes = [], edges = []) {
 export function auditTrailAppendix(events = []) {
   return [...events]
     .sort((a, b) => (a.ts || 0) - (b.ts || 0))
-    .map((e) => ({ ts: e.ts, actor: e.actor || 'system', action: e.action || '' }));
+    .map(e => ({ ts: e.ts, actor: e.actor || 'system', action: e.action || '' }));
 }
 
 /* 50913 — save-as-PDF guidance -------------------------------------------------- */
@@ -678,7 +758,7 @@ export function sectionPageBreakPlan(groups = [], enabled = false) {
 /* 50916 — printable checklists ------------------------------------------------------ */
 
 export function remediationChecklistRows(items = []) {
-  return items.map((it) => ({
+  return items.map(it => ({
     id: it.id,
     text: it.text || '',
     box: '☐', // always empty on paper — field use (50916)
@@ -693,7 +773,12 @@ export function stackedDiff(before, after) {
   let pre = 0;
   while (pre < b.length && pre < a.length && b[pre] === a[pre]) pre++;
   let suf = 0;
-  while (suf < b.length - pre && suf < a.length - pre && b[b.length - 1 - suf] === a[a.length - 1 - suf]) suf++;
+  while (
+    suf < b.length - pre &&
+    suf < a.length - pre &&
+    b[b.length - 1 - suf] === a[a.length - 1 - suf]
+  )
+    suf++;
   return {
     changed: pre + suf < Math.max(b.length, a.length),
     before: b.slice(pre, b.length - suf),
@@ -709,7 +794,7 @@ export function dashboardOnePager(widgets = [], maxWidgets = 8) {
   return [...widgets]
     .sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0))
     .slice(0, maxWidgets)
-    .map((w) => ({ id: w.id, title: w.title, summary: w.summary || '' }));
+    .map(w => ({ id: w.id, title: w.title, summary: w.summary || '' }));
 }
 
 /* 50919 — labeled timezones ----------------------------------------------------------------- */
@@ -725,11 +810,17 @@ export function formatPrintTimestamp(ts, timeZone = 'UTC') {
     tz = 'UTC';
   }
   const dtf = new Intl.DateTimeFormat('en-GB', {
-    timeZone: tz, day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: tz,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   });
   const short = new Intl.DateTimeFormat('en', { timeZone: tz, timeZoneName: 'short' })
-    .formatToParts(date).find((p) => p.type === 'timeZoneName');
+    .formatToParts(date)
+    .find(p => p.type === 'timeZoneName');
   const abbr = short ? short.value : tz;
   return `${dtf.format(date)} ${abbr} (${tz})`;
 }
@@ -753,9 +844,12 @@ const GLOSSARY_DEFS = {
 
 export function buildGlossary(findings = []) {
   const terms = new Map();
-  const scan = (text) => {
+  const scan = text => {
     if (!text) return;
-    const words = String(text).toUpperCase().match(/\b[A-Z]{2,6}\b/g) || [];
+    const words =
+      String(text)
+        .toUpperCase()
+        .match(/\b[A-Z]{2,6}\b/g) || [];
     for (const w of words) {
       if (GLOSSARY_DEFS[w] && !terms.has(w)) terms.set(w, GLOSSARY_DEFS[w]);
     }

@@ -11,6 +11,12 @@ function inScope(name, hostname) {
   return name === hostname || name.endsWith(`.${hostname}`);
 }
 
+/**
+ * Parse Crtsh.
+ * @param {*} rawOutput
+ * @param {*} context
+ * @returns {*} Result.
+ */
 export function parseCrtsh(rawOutput, context = {}) {
   try {
     const records = typeof rawOutput === 'string' ? JSON.parse(rawOutput) : rawOutput;
@@ -19,17 +25,21 @@ export function parseCrtsh(rawOutput, context = {}) {
     const hostname = context.hostname || '';
     const names = records.flatMap(record => [
       record.common_name,
-      ...(String(record.name_value || '').split('\n'))
+      ...String(record.name_value || '').split('\n'),
     ]);
 
     const subdomains = unique(
-      names.map(name => String(name || '').replace(/^\*\./, '').replace(/\.$/, ''))
-    ).filter(name => hostname ? (inScope(name, hostname) && name !== hostname) : Boolean(name));
+      names.map(name =>
+        String(name || '')
+          .replace(/^\*\./, '')
+          .replace(/\.$/, '')
+      )
+    ).filter(name => (hostname ? inScope(name, hostname) && name !== hostname : Boolean(name)));
 
     return {
       subdomains,
       totalCerts: records.length,
-      uniqueSubdomains: subdomains.length
+      uniqueSubdomains: subdomains.length,
     };
   } catch (error) {
     return { subdomains: [], error: error.message };

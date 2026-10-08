@@ -16,15 +16,32 @@ const UI = { N: 0.85, R: 0.62 };
 const CIA = { H: 0.56, L: 0.22, N: 0 };
 
 const LONG_TO_SHORT = {
-  attackVector: 'AV', attackComplexity: 'AC', privilegesRequired: 'PR',
-  userInteraction: 'UI', scope: 'S', confidentiality: 'C', integrity: 'I', availability: 'A',
-  network: 'N', adjacent: 'A', local: 'L', physical: 'P',
-  low: 'L', high: 'H', none: 'N', required: 'R', unchanged: 'U', changed: 'C'
+  attackVector: 'AV',
+  attackComplexity: 'AC',
+  privilegesRequired: 'PR',
+  userInteraction: 'UI',
+  scope: 'S',
+  confidentiality: 'C',
+  integrity: 'I',
+  availability: 'A',
+  network: 'N',
+  adjacent: 'A',
+  local: 'L',
+  physical: 'P',
+  low: 'L',
+  high: 'H',
+  none: 'N',
+  required: 'R',
+  unchanged: 'U',
+  changed: 'C',
 };
 
 function short(value) {
   if (value === null || value === undefined) return null;
-  const key = String(value).trim().toLowerCase().replace(/[^a-z]/g, '');
+  const key = String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
   return LONG_TO_SHORT[key] || String(value).trim().toUpperCase().slice(0, 1).toUpperCase();
 }
 
@@ -77,7 +94,7 @@ export function cvssBaseScore(input = {}) {
       score: Math.round(score * 10) / 10,
       rating: ratingFor(score),
       vector: metrics.vector || null,
-      metrics
+      metrics,
     };
   }
 
@@ -92,8 +109,10 @@ export function cvssBaseScore(input = {}) {
   const i = CIA[get('I', 'integrity')] ?? null;
   const a = CIA[get('A', 'availability')] ?? null;
 
-  if ([av, ac, pr, ui, c, i, a].some((v) => v === null) || !s) {
-    throw new Error('cvssMetrics is missing required base metrics (need AV/AC/PR/UI/S/C/I/A or a vector/baseScore)');
+  if ([av, ac, pr, ui, c, i, a].some(v => v === null) || !s) {
+    throw new Error(
+      'cvssMetrics is missing required base metrics (need AV/AC/PR/UI/S/C/I/A or a vector/baseScore)'
+    );
   }
 
   const iscBase = 1 - (1 - c) * (1 - i) * (1 - a);
@@ -109,10 +128,11 @@ export function cvssBaseScore(input = {}) {
   }
   if (impact <= 0) score = 0;
 
-  const vector = metrics.vector ||
+  const vector =
+    metrics.vector ||
     `CVSS:3.1/AV:${get('AV', 'attackVector')}/AC:${get('AC', 'attackComplexity')}` +
-    `/PR:${get('PR', 'privilegesRequired')}/UI:${get('UI', 'userInteraction')}/S:${s}` +
-    `/C:${get('C', 'confidentiality')}/I:${get('I', 'integrity')}/A:${get('A', 'availability')}`;
+      `/PR:${get('PR', 'privilegesRequired')}/UI:${get('UI', 'userInteraction')}/S:${s}` +
+      `/C:${get('C', 'confidentiality')}/I:${get('I', 'integrity')}/A:${get('A', 'availability')}`;
 
   return { score, rating: ratingFor(score), vector, metrics };
 }
@@ -124,12 +144,18 @@ const SEVERITY_RATING = {
   low: 'Low',
   info: 'Informational',
   informational: 'Informational',
-  none: 'None'
+  none: 'None',
 };
 
 /** Map a plain severity label to a display rating (fallback when no metrics). */
 export function severityToRating(severity) {
-  return SEVERITY_RATING[String(severity || '').toLowerCase().trim()] || 'Informational';
+  return (
+    SEVERITY_RATING[
+      String(severity || '')
+        .toLowerCase()
+        .trim()
+    ] || 'Informational'
+  );
 }
 
 /**
@@ -142,25 +168,25 @@ export function severityToRating(severity) {
  * defaults so a human analyst can refine them in the report.
  */
 const DEFAULT_METRICS_BY_TYPE = {
-  xss_reflected:  { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
-  xss:            { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
-  xss_stored:     { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
-  xss_dom:        { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
-  sqli:           { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
-  sql_injection:  { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
-  ssrf:           { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'C', C: 'H', I: 'L', A: 'L' },
-  idor:           { AV: 'N', AC: 'L', PR: 'L', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'N' },
+  xss_reflected: { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  xss: { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  xss_stored: { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  xss_dom: { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+  sqli: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  sql_injection: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  ssrf: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'C', C: 'H', I: 'L', A: 'L' },
+  idor: { AV: 'N', AC: 'L', PR: 'L', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'N' },
   broken_access_control: { AV: 'N', AC: 'L', PR: 'L', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'N' },
-  lfi:            { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' },
+  lfi: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' },
   path_traversal: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' },
   'path-traversal': { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' },
   command_injection: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
-  rce:            { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
-  csrf:           { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'U', C: 'L', I: 'L', A: 'N' },
-  open_redirect:  { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'U', C: 'L', I: 'L', A: 'N' },
-  xxe:            { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'L', A: 'L' },
-  ssti:           { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
-  template_injection: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' }
+  rce: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  csrf: { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'U', C: 'L', I: 'L', A: 'N' },
+  open_redirect: { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'U', C: 'L', I: 'L', A: 'N' },
+  xxe: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'L', A: 'L' },
+  ssti: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+  template_injection: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
 };
 
 /**
@@ -183,7 +209,9 @@ export function applyCvss(finding = {}) {
     }
   }
   // 2. Type-based defaults.
-  const type = String(finding.type || finding.vulnType || '').toLowerCase().trim();
+  const type = String(finding.type || finding.vulnType || '')
+    .toLowerCase()
+    .trim();
   for (const [key, metrics] of Object.entries(DEFAULT_METRICS_BY_TYPE)) {
     if (type === key || type.includes(key)) {
       const scored = cvssBaseScore(metrics);
@@ -197,7 +225,7 @@ export function applyCvss(finding = {}) {
     vector: null,
     metrics: null,
     source: 'severity',
-    note: 'No CVSS metrics for this finding type — rating derived from the severity label.'
+    note: 'No CVSS metrics for this finding type — rating derived from the severity label.',
   };
 }
 
@@ -206,5 +234,5 @@ export function applyCvss(finding = {}) {
  * @returns {Array} findings with .cvss = { score, rating, vector, source }
  */
 export function applyCvssToAll(findings = []) {
-  return findings.map((finding) => ({ ...finding, cvss: applyCvss(finding) }));
+  return findings.map(finding => ({ ...finding, cvss: applyCvss(finding) }));
 }

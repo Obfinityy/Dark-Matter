@@ -15,12 +15,48 @@
  * @type {Array<{combination:string, interim100:boolean, rejects417:boolean, behavior:string, confidence:number}>}
  */
 export const CONTINUE_PROFILES = [
-  { combination: 'nginx origin', interim100: true, rejects417: false, behavior: 'sends 100 promptly, then reads body', confidence: 0.7 },
-  { combination: 'Apache httpd origin', interim100: true, rejects417: true, behavior: 'sends 100 or 417 based on handler acceptance', confidence: 0.7 },
-  { combination: 'AWS ALB frontend', interim100: false, rejects417: false, behavior: 'consumes body without interim 100', confidence: 0.75 },
-  { combination: 'Cloudflare edge', interim100: true, rejects417: false, behavior: 'edge terminates handshake, 100 always sent', confidence: 0.75 },
-  { combination: 'IIS origin', interim100: false, rejects417: true, behavior: 'no interim response; 417 when body disallowed', confidence: 0.7 },
-  { combination: 'Go net/http origin', interim100: true, rejects417: false, behavior: 'automatic 100 on first body read', confidence: 0.65 },
+  {
+    combination: 'nginx origin',
+    interim100: true,
+    rejects417: false,
+    behavior: 'sends 100 promptly, then reads body',
+    confidence: 0.7,
+  },
+  {
+    combination: 'Apache httpd origin',
+    interim100: true,
+    rejects417: true,
+    behavior: 'sends 100 or 417 based on handler acceptance',
+    confidence: 0.7,
+  },
+  {
+    combination: 'AWS ALB frontend',
+    interim100: false,
+    rejects417: false,
+    behavior: 'consumes body without interim 100',
+    confidence: 0.75,
+  },
+  {
+    combination: 'Cloudflare edge',
+    interim100: true,
+    rejects417: false,
+    behavior: 'edge terminates handshake, 100 always sent',
+    confidence: 0.75,
+  },
+  {
+    combination: 'IIS origin',
+    interim100: false,
+    rejects417: true,
+    behavior: 'no interim response; 417 when body disallowed',
+    confidence: 0.7,
+  },
+  {
+    combination: 'Go net/http origin',
+    interim100: true,
+    rejects417: false,
+    behavior: 'automatic 100 on first body read',
+    confidence: 0.65,
+  },
 ];
 
 /**
@@ -56,10 +92,14 @@ export function classifyHandshake(obs) {
   }
   if (o.serverWaitedFor100 === false && o.interim100Received === false && o.bodyConsumed) {
     anomaly = true;
-    evidence.push('client sent body without server invitation — frontend may not forward Expect semantics');
+    evidence.push(
+      'client sent body without server invitation — frontend may not forward Expect semantics'
+    );
   }
   if (o.waitBeforeBodyMs != null && o.waitBeforeBodyMs > 3000 && o.interim100Received) {
-    evidence.push(`long pre-body wait (${o.waitBeforeBodyMs}ms) despite interim 100 — possible chained proxy`);
+    evidence.push(
+      `long pre-body wait (${o.waitBeforeBodyMs}ms) despite interim 100 — possible chained proxy`
+    );
   }
   return { handshake, evidence, anomaly };
 }
@@ -79,7 +119,8 @@ export function fingerprintContinueStack(classification) {
     if (p.rejects417 === rejected) score += 1;
     if (score === 0) continue;
     let confidence = p.confidence * (score / 2);
-    if (classification.anomaly && p.combination.includes('frontend')) confidence = Math.min(0.9, confidence + 0.1);
+    if (classification.anomaly && p.combination.includes('frontend'))
+      confidence = Math.min(0.9, confidence + 0.1);
     results.push({ combination: p.combination, confidence, reason: p.behavior });
   }
   return results.sort((a, b) => b.confidence - a.confidence);
@@ -92,8 +133,8 @@ export function fingerprintContinueStack(classification) {
  */
 export function summarizeContinueBehavior(classifications) {
   const list = Array.isArray(classifications) ? classifications : [];
-  const handshakes = [...new Set(list.map((c) => c.handshake))];
-  const anomalies = list.filter((c) => c.anomaly).length;
+  const handshakes = [...new Set(list.map(c => c.handshake))];
+  const anomalies = list.filter(c => c.anomaly).length;
   const consistent = handshakes.length <= 1;
   const summary = consistent
     ? `uniform ${handshakes[0] || 'unknown'} behavior across ${list.length} endpoints`

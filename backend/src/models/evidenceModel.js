@@ -1,3 +1,9 @@
+/**
+ * evidenceModel — database model for evidence.
+ * Schema definition and data-access methods for evidence records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import crypto from 'node:crypto';
 import { id, now } from '../core/utils.js';
 
@@ -16,9 +22,10 @@ export const EVIDENCE_KINDS = Object.freeze([
   'screenshot',
   'computer_observation',
   'terminal_output',
-  'file'
+  'file',
 ]);
 
+/** Database model for evidence. */
 export class EvidenceModel {
   constructor(database) {
     this.collection = database.collection('evidence');
@@ -28,7 +35,16 @@ export class EvidenceModel {
    * Deterministic identity for an evidence artifact so the same observation
    * captured twice does not inflate a report.
    */
-  static fingerprint({ kind, assessmentId, asset, endpoint, sha256, toolExecutionId, request, response }) {
+  static fingerprint({
+    kind,
+    assessmentId,
+    asset,
+    endpoint,
+    sha256,
+    toolExecutionId,
+    request,
+    response,
+  }) {
     const payload = JSON.stringify({
       kind,
       assessmentId,
@@ -37,7 +53,7 @@ export class EvidenceModel {
       sha256: sha256 || null,
       toolExecutionId: toolExecutionId || null,
       request: request || null,
-      response: response ? String(response).slice(0, 500) : null
+      response: response ? String(response).slice(0, 500) : null,
     });
     return crypto.createHash('sha256').update(payload).digest('hex').slice(0, 16);
   }
@@ -46,7 +62,7 @@ export class EvidenceModel {
     const fingerprint = EvidenceModel.fingerprint(input);
     const existing = await this.collection.findOne({
       assessmentId: input.assessmentId,
-      fingerprint
+      fingerprint,
     });
     if (existing) return { evidence: existing, deduplicated: true };
 
@@ -70,7 +86,7 @@ export class EvidenceModel {
       artifactPath: input.artifactPath || null,
       metadata: input.metadata || {},
       capturedAt: input.capturedAt || now(),
-      createdAt: now()
+      createdAt: now(),
     };
     await this.collection.insertOne(record);
     return { evidence: record, deduplicated: false };
@@ -94,7 +110,10 @@ export class EvidenceModel {
 
   async linkToFinding(findingId, evidenceIds = []) {
     for (const evidenceId of evidenceIds) {
-      await this.collection.updateOne({ id: evidenceId }, { $set: { findingId, updatedAt: now() } });
+      await this.collection.updateOne(
+        { id: evidenceId },
+        { $set: { findingId, updatedAt: now() } }
+      );
     }
   }
 

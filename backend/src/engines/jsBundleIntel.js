@@ -19,17 +19,26 @@
 
 const URL_RE = /\bhttps?:\/\/[^\s"'<>\\\];,)]+/gi;
 const HOST_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/gi;
-const API_PATH_RE = /\B\/(?:api|v\d+(?:\.\d+)?|graphql|rest|internal|admin|auth|oauth|webhook|hooks|debug|health|metrics|actuator|swagger|openapi|docs|console|portal|staging|dev|test)(?:\/[a-z0-9_.~!$&'()*+,;=\-:@%{}[\]]*)*/gi;
+const API_PATH_RE =
+  /\B\/(?:api|v\d+(?:\.\d+)?|graphql|rest|internal|admin|auth|oauth|webhook|hooks|debug|health|metrics|actuator|swagger|openapi|docs|console|portal|staging|dev|test)(?:\/[a-z0-9_.~!$&'()*+,;=\-:@%{}[\]]*)*/gi;
 
 /** Hosts that are noise in every JS bundle and must be filtered out. */
 const NOISE_HOSTS = new Set([
-  'localhost', '127.0.0.1', 'w3.org', 'www.w3.org', 'schema.org',
-  'json-schema.org', 'ietf.org', 'apache.org', 'mozilla.org',
+  'localhost',
+  '127.0.0.1',
+  'w3.org',
+  'www.w3.org',
+  'schema.org',
+  'json-schema.org',
+  'ietf.org',
+  'apache.org',
+  'mozilla.org',
 ]);
 
 const CHUNK_FILENAME_RE = /([a-z0-9_~.-]+\.chunk\.js|[a-z0-9_~.-]*\.[0-9a-f]{8,32}\.(?:js|css))/gi;
 const PUBLIC_PATH_RE = /__webpack_require__\.p\s*=\s*["']([^"']+)["']/;
-const JSONP_FN_RE = /(?:jsonpScriptSrc|__webpack_require__\.u|chunkId)\s*[=:]\s*function[^{]*\{[^}]{0,400}/gi;
+const JSONP_FN_RE =
+  /(?:jsonpScriptSrc|__webpack_require__\.u|chunkId)\s*[=:]\s*function[^{]*\{[^}]{0,400}/gi;
 
 /**
  * Normalize a host candidate.
@@ -97,9 +106,12 @@ export function extractBundleHosts(bundle, opts = {}) {
   }
   out.apiPaths = [...pathSet].sort();
 
-  const constRe = /(?:const|let|var)\s+([A-Za-z_$][\w$]*(?:_URL|_HOST|_ENDPOINT|_API|BASE_URL|API_URL|HOST|ENDPOINT))\s*=\s*["']([^"']+)["']/g;
+  const constRe =
+    /(?:const|let|var)\s+([A-Za-z_$][\w$]*(?:_URL|_HOST|_ENDPOINT|_API|BASE_URL|API_URL|HOST|ENDPOINT))\s*=\s*["']([^"']+)["']/g;
   for (const m of bundle.matchAll(constRe)) {
-    const h = hostFromJsUrl(m[2]) || (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(m[2]) ? normalizeJsHost(m[2]) : null);
+    const h =
+      hostFromJsUrl(m[2]) ||
+      (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(m[2]) ? normalizeJsHost(m[2]) : null);
     if (h) out.hostConstants.push({ name: m[1], host: h });
   }
   return out;
@@ -114,7 +126,14 @@ export function extractBundleHosts(bundle, opts = {}) {
  * @returns {{version: number|null, fileTree: string[], sources: string[], sourceHosts: string[], embeddedUrls: string[], hasSourcesContent: boolean}}
  */
 export function parseSourceMap(map) {
-  const empty = { version: null, fileTree: [], sources: [], sourceHosts: [], embeddedUrls: [], hasSourcesContent: false };
+  const empty = {
+    version: null,
+    fileTree: [],
+    sources: [],
+    sourceHosts: [],
+    embeddedUrls: [],
+    hasSourcesContent: false,
+  };
   let doc = map;
   if (typeof map === 'string') {
     try {
@@ -125,7 +144,7 @@ export function parseSourceMap(map) {
   }
   if (!doc || typeof doc !== 'object') return empty;
 
-  const sources = Array.isArray(doc.sources) ? doc.sources.filter((s) => typeof s === 'string') : [];
+  const sources = Array.isArray(doc.sources) ? doc.sources.filter(s => typeof s === 'string') : [];
   const tree = new Set();
   const hosts = new Set();
   const urls = new Set();
@@ -154,7 +173,10 @@ export function parseSourceMap(map) {
         const raw = u[0].replace(/[),;.!?]+$/, '');
         urls.add(raw);
         const h = hostFromJsUrl(raw);
-        if (h) { hosts.add(h); commentHostsFound++; }
+        if (h) {
+          hosts.add(h);
+          commentHostsFound++;
+        }
       }
     }
   }
@@ -166,7 +188,7 @@ export function parseSourceMap(map) {
     sources,
     sourceHosts: [...hosts].sort(),
     embeddedUrls: [...urls].sort(),
-    hasSourcesContent: contents.some((c) => typeof c === 'string' && c.length > 0),
+    hasSourcesContent: contents.some(c => typeof c === 'string' && c.length > 0),
   };
 }
 
@@ -195,7 +217,11 @@ export function harvestWebpackChunks(text, baseUrl) {
       const ppClean = out.publicPath.replace(/\/+$/, '') + '/';
       if (/^https?:\/\//i.test(ppClean)) url = ppClean + file;
       else if (baseUrl) {
-        try { url = new URL(ppClean + file, baseUrl).href; } catch { url = null; }
+        try {
+          url = new URL(ppClean + file, baseUrl).href;
+        } catch {
+          url = null;
+        }
       }
     }
     out.chunks.push({ file, url });

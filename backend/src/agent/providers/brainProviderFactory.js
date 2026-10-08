@@ -24,14 +24,22 @@ import { GradioProvider } from './gradioProvider.js';
 
 export const BRAIN_PROVIDERS = ['phone', 'ollama', 'local', 'gradio'];
 
-export function createBrainProvider(provider, appConfig = {}, { model = null, baseUrl = null, runner = null, slot = null } = {}) {
+/**
+ * Creates brain provider.
+ * @returns {*} Result.
+ */
+export function createBrainProvider(
+  provider,
+  appConfig = {},
+  { model = null, baseUrl = null, runner = null, slot = null } = {}
+) {
   if (provider === 'local') {
     return new LocalLlamaProvider({ runner, slot });
   }
   if (provider === 'ollama') {
     return new OllamaProvider({
       baseUrl: baseUrl || appConfig?.ollama?.baseUrl || 'http://127.0.0.1:11434/v1',
-      model: model || appConfig?.ollama?.model || 'huihui_ai/qwen3-abliterated:30b'
+      model: model || appConfig?.ollama?.model || 'huihui_ai/qwen3-abliterated:30b',
     });
   }
   if (provider === 'gradio') {
@@ -52,7 +60,7 @@ export function createBrainProvider(provider, appConfig = {}, { model = null, ba
 export const FEATURE_SLOTS = {
   hunt: ['vision', 'grounding', 'hacker'],
   chat: ['vision'],
-  control: ['vision', 'grounding']
+  control: ['vision', 'grounding'],
 };
 
 /**
@@ -70,7 +78,10 @@ export function createSlotBrainProvider(slot, selection, { appConfig = {}, runne
   const slotSource = selection?.slotSources?.[slot];
   // Kaggle source for this slot → Gradio provider on the slot's link.
   if (slotSource?.source === 'kaggle' && slotSource?.kaggleUrl) {
-    return new GradioProvider({ baseUrl: slotSource.kaggleUrl, model: slotSource.kaggleName || slot });
+    return new GradioProvider({
+      baseUrl: slotSource.kaggleUrl,
+      model: slotSource.kaggleName || slot,
+    });
   }
   // Local source → slot-aware local provider (slot's own port).
   const modelId = slotSource?.modelId || selection?.slotAssignments?.[slot] || null;
@@ -81,7 +92,7 @@ export function createSlotBrainProvider(slot, selection, { appConfig = {}, runne
   return createBrainProvider(selection?.provider || 'phone', appConfig, {
     model: selection?.modelId,
     baseUrl: selection?.endpointUrl,
-    runner
+    runner,
   });
 }
 

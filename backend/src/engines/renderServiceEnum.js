@@ -19,9 +19,28 @@ export const RENDER_NAME_RE = /^[a-z][a-z0-9-]{1,38}[a-z0-9]$/;
 
 export const RENDER_NAME_PREFIXES = ['app', 'web', 'api', 'my'];
 export const RENDER_NAME_SUFFIXES = [
-  'app', 'web', 'api', 'staging', 'stage', 'prod', 'production', 'dev',
-  'development', 'test', 'qa', 'uat', 'demo', 'beta', 'v1', 'v2',
-  'site', 'portal', 'dashboard', 'backend', 'frontend', 'service',
+  'app',
+  'web',
+  'api',
+  'staging',
+  'stage',
+  'prod',
+  'production',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'demo',
+  'beta',
+  'v1',
+  'v2',
+  'site',
+  'portal',
+  'dashboard',
+  'backend',
+  'frontend',
+  'service',
 ];
 
 /**
@@ -56,7 +75,7 @@ export function generateRenderServiceNames(brand, options = {}) {
   const slug = slugifyBrand(brand);
   if (!slug) return [];
   const out = new Set();
-  const add = (name) => {
+  const add = name => {
     if (out.size >= maxNames) return;
     if (RENDER_NAME_RE.test(name)) out.add(name);
   };
@@ -84,7 +103,9 @@ export function renderServiceUrl(serviceName) {
  * @returns {string|null}
  */
 export function serviceNameFromHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (h === RENDER_SERVICE_DOMAIN || !h.endsWith(`.${RENDER_SERVICE_DOMAIN}`)) return null;
   const label = h.slice(0, -(RENDER_SERVICE_DOMAIN.length + 1));
   return label || null;
@@ -102,13 +123,16 @@ export function parseRenderDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target) continue;
     const serviceName = serviceNameFromHost(target);
     if (serviceName) {
       hits.push({
         recordName: String(rec?.name || ''),
-        target, serviceName,
+        target,
+        serviceName,
       });
     }
   }
@@ -124,7 +148,9 @@ export function parseRenderDnsHints(records = []) {
 export function parseRenderCertHints(sans = []) {
   const hits = [];
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     const serviceName = serviceNameFromHost(san);
     if (serviceName) hits.push({ san: String(raw), serviceName });
   }
@@ -137,6 +163,8 @@ export function parseRenderCertHints(sans = []) {
  * @returns {boolean}
  */
 export function isRenderHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   return h === RENDER_SERVICE_DOMAIN || h.endsWith(`.${RENDER_SERVICE_DOMAIN}`);
 }

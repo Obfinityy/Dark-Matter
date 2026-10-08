@@ -22,8 +22,18 @@ export const PAGES_VERIFICATION_TXT = '_gitlab-pages-verification-code';
 
 /** Common project names used for GitLab Pages sites. */
 export const PAGES_PROJECT_NAMES = [
-  'pages', 'docs', 'blog', 'status', 'developer', 'developers', 'engineering',
-  'handbook', 'site', 'www', 'app', 'marketing',
+  'pages',
+  'docs',
+  'blog',
+  'status',
+  'developer',
+  'developers',
+  'engineering',
+  'handbook',
+  'site',
+  'www',
+  'app',
+  'marketing',
 ];
 
 /**
@@ -59,7 +69,9 @@ export function slugify(name) {
  * @returns {{namespace: string, project: string|null, kind: 'namespace-site'|'project-site'}|null}
  */
 export function parseGitlabIoHost(host, options = {}) {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const m = h.match(/^(.+)\.gitlab\.io$/);
   if (!m) return null;
   const labels = m[1].split('.');
@@ -83,7 +95,9 @@ export function parseGitlabIoHost(host, options = {}) {
  * @returns {string} verification code or ''
  */
 export function parseVerificationRecord(txtValue) {
-  const v = String(txtValue || '').trim().replace(/^"|"$/g, '');
+  const v = String(txtValue || '')
+    .trim()
+    .replace(/^"|"$/g, '');
   // Codes are `gitlab-pages-verification-code=<hex/token>` or a bare token.
   const m = v.match(/^(?:gitlab-pages-verification-code=)?([a-z0-9]{16,})$/i);
   return m ? m[1] : '';
@@ -98,9 +112,13 @@ export function parseVerificationRecord(txtValue) {
  * @returns {{verified: boolean, code: string|null, record: string|null}}
  */
 export function checkPagesVerification(txtRecords, domain) {
-  const d = String(domain || '').toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   for (const rec of txtRecords || []) {
-    const name = String(rec?.name || '').toLowerCase().replace(/\.$/, '');
+    const name = String(rec?.name || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (name === `${PAGES_VERIFICATION_TXT}.${d}` || name === PAGES_VERIFICATION_TXT) {
       const code = parseVerificationRecord(rec?.value);
       if (code) return { verified: true, code, record: name };
@@ -117,7 +135,9 @@ export function checkPagesVerification(txtRecords, domain) {
  * @returns {string[]} unique candidate slugs
  */
 export function brandNamespaceCandidates(brand) {
-  const label = String(brand || '').toLowerCase().split('.')[0];
+  const label = String(brand || '')
+    .toLowerCase()
+    .split('.')[0];
   const base = slugify(label);
   const out = new Set();
   if (base) {
@@ -200,12 +220,14 @@ export function correlateResolutions(resolutions, brand) {
   const namespaces = brandNamespaceCandidates(brand);
   const out = [];
   for (const r of resolutions || []) {
-    const host = String(r?.host || '').toLowerCase().replace(/\.$/, '');
+    const host = String(r?.host || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const parsed = parseGitlabIoHost(host);
     const verification = checkPagesVerification(r?.txt || [], host);
     if (!parsed && !verification.verified) continue;
     const namespace = parsed ? parsed.namespace : null;
-    const brandMatch = namespaces.some((n) => (namespace || '').includes(n) || host.includes(n));
+    const brandMatch = namespaces.some(n => (namespace || '').includes(n) || host.includes(n));
     out.push({
       host,
       kind: parsed ? parsed.kind : 'custom-domain',
@@ -214,5 +236,7 @@ export function correlateResolutions(resolutions, brand) {
       brandMatch,
     });
   }
-  return out.sort((a, b) => Number(b.brandMatch) - Number(a.brandMatch) || a.host.localeCompare(b.host));
+  return out.sort(
+    (a, b) => Number(b.brandMatch) - Number(a.brandMatch) || a.host.localeCompare(b.host)
+  );
 }

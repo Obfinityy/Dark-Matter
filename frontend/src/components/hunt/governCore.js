@@ -38,46 +38,150 @@ export const WAVE30_END = 51200;
 
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE30_IDEAS = [
-  [51161, 'de-emphasize findings class', 'Tell the agent a finding category is out of interest and watch it adapt'],
+  [
+    51161,
+    'de-emphasize findings class',
+    'Tell the agent a finding category is out of interest and watch it adapt',
+  ],
   [51162, 'steering via findings feed', 'Bulk-select findings and choose "find more like these"'],
-  [51163, 'hunt persona switch', 'Change the agent testing persona live (cautious auditor vs aggressive hunter)'],
-  [51164, 'checkpoint steering', 'Set plan checkpoints where the agent must check in before continuing'],
-  [51165, 'steering analytics', 'See which of your redirections led to findings, improving future steering'],
-  [51166, 'emergency re-scope', 'One command narrows the hunt to a single critical asset instantly'],
+  [
+    51163,
+    'hunt persona switch',
+    'Change the agent testing persona live (cautious auditor vs aggressive hunter)',
+  ],
+  [
+    51164,
+    'checkpoint steering',
+    'Set plan checkpoints where the agent must check in before continuing',
+  ],
+  [
+    51165,
+    'steering analytics',
+    'See which of your redirections led to findings, improving future steering',
+  ],
+  [
+    51166,
+    'emergency re-scope',
+    'One command narrows the hunt to a single critical asset instantly',
+  ],
   [51167, 'steering command aliases', 'Define shorthand commands mapped to complex redirections'],
   [51168, 'scheduled steering', 'Queue a redirection to apply at a future time or phase boundary'],
-  [51169, 'steering conflict resolver', 'A merge view reconciles conflicting teammate steering commands'],
-  [51170, 'agent autonomy slider', 'Dial how much the agent may self-redirect versus awaiting your steering'],
-  [51171, 'steering notification feed', 'A dedicated feed showing every plan change and its trigger'],
+  [
+    51169,
+    'steering conflict resolver',
+    'A merge view reconciles conflicting teammate steering commands',
+  ],
+  [
+    51170,
+    'agent autonomy slider',
+    'Dial how much the agent may self-redirect versus awaiting your steering',
+  ],
+  [
+    51171,
+    'steering notification feed',
+    'A dedicated feed showing every plan change and its trigger',
+  ],
   [51172, 'post-steering summary', 'After each redirection, a one-line summary of the new plan'],
-  [51173, 'inline approval cards', 'Sensitive actions arrive as approve/deny cards with full context attached'],
-  [51174, 'action risk labels', 'Every approval shows a clear risk level: safe, cautious, or destructive'],
-  [51175, 'approval detail drawer', 'Expand any request to see exact requests, targets, and expected side effects'],
-  [51176, 'one-tap approve/deny', 'Big unambiguous buttons designed for fast decisions under time pressure'],
-  [51177, 'bulk approval queue', 'Review and decide on multiple pending actions in one focused screen'],
+  [
+    51173,
+    'inline approval cards',
+    'Sensitive actions arrive as approve/deny cards with full context attached',
+  ],
+  [
+    51174,
+    'action risk labels',
+    'Every approval shows a clear risk level: safe, cautious, or destructive',
+  ],
+  [
+    51175,
+    'approval detail drawer',
+    'Expand any request to see exact requests, targets, and expected side effects',
+  ],
+  [
+    51176,
+    'one-tap approve/deny',
+    'Big unambiguous buttons designed for fast decisions under time pressure',
+  ],
+  [
+    51177,
+    'bulk approval queue',
+    'Review and decide on multiple pending actions in one focused screen',
+  ],
   [51178, 'approval timeouts', 'Pending actions auto-deny or auto-pause after a configurable wait'],
   [51179, 'approve-with-limits', 'Approve an action but cap its scope, rate, or duration'],
-  [51180, 'always-allow rules', 'Pre-approve categories of safe actions so they never interrupt the hunt'],
+  [
+    51180,
+    'always-allow rules',
+    'Pre-approve categories of safe actions so they never interrupt the hunt',
+  ],
   [51181, 'always-deny rules', 'Permanently forbid action categories for this hunt or all hunts'],
-  [51182, 'approval delegation (mid-hunt)', 'Route specific approval types to a teammate automatically'],
-  [51183, 'step-up authentication (mid-hunt)', 'Destructive approvals require a second confirmation factor'],
-  [51184, 'approval audit trail (mid-hunt)', 'Who approved what, when, and with what context, immutably logged'],
-  [51185, 'pending-action countdown', 'See how long each request has waited and what the agent is doing meanwhile'],
-  [51186, 'agent waits gracefully', 'While awaiting approval, the agent works on unrelated safe tasks'],
-  [51187, 'approval templates (mid-hunt)', 'Prebuilt policies like paranoid, balanced, permissive applied per hunt'],
-  [51188, 'destructive-action sandbox preview', 'See a simulated outcome before approving a risky action'],
+  [
+    51182,
+    'approval delegation (mid-hunt)',
+    'Route specific approval types to a teammate automatically',
+  ],
+  [
+    51183,
+    'step-up authentication (mid-hunt)',
+    'Destructive approvals require a second confirmation factor',
+  ],
+  [
+    51184,
+    'approval audit trail (mid-hunt)',
+    'Who approved what, when, and with what context, immutably logged',
+  ],
+  [
+    51185,
+    'pending-action countdown',
+    'See how long each request has waited and what the agent is doing meanwhile',
+  ],
+  [
+    51186,
+    'agent waits gracefully',
+    'While awaiting approval, the agent works on unrelated safe tasks',
+  ],
+  [
+    51187,
+    'approval templates (mid-hunt)',
+    'Prebuilt policies like paranoid, balanced, permissive applied per hunt',
+  ],
+  [
+    51188,
+    'destructive-action sandbox preview',
+    'See a simulated outcome before approving a risky action',
+  ],
   [51189, 'reversible-action badges', 'Approvals mark which actions can be rolled back afterwards'],
   [51190, 'approval on mobile', 'Approve or deny from your phone with the same context as desktop'],
   [51191, 'voice approvals', 'Speak "approved" with voice verification for hands-free decisions'],
-  [51192, 'approval expiry (mid-hunt)', 'Approvals apply only to the specific instance requested, never blanket future ones'],
+  [
+    51192,
+    'approval expiry (mid-hunt)',
+    'Approvals apply only to the specific instance requested, never blanket future ones',
+  ],
   [51193, 'request-more-info button', 'Ask the agent to justify a request before you decide'],
-  [51194, 'approval analytics (mid-hunt)', 'Track your approval patterns to auto-suggest smarter defaults'],
+  [
+    51194,
+    'approval analytics (mid-hunt)',
+    'Track your approval patterns to auto-suggest smarter defaults',
+  ],
   [51195, 'emergency deny-all', 'One button that denies every pending request and pauses the hunt'],
   [51196, 'approval chat thread', 'Discuss a pending action with the agent before deciding'],
-  [51197, 'side-effect estimator', 'The agent lists likely side effects of the action it is requesting'],
-  [51198, 'rollback plan attached', 'Destructive requests include the agent plan to undo changes if needed'],
+  [
+    51197,
+    'side-effect estimator',
+    'The agent lists likely side effects of the action it is requesting',
+  ],
+  [
+    51198,
+    'rollback plan attached',
+    'Destructive requests include the agent plan to undo changes if needed',
+  ],
   [51199, 'approval notifications', 'Push, email, or SMS alerts the moment an approval is needed'],
-  [51200, 'quiet approval batching', 'Non-urgent requests grouped into a digest instead of interrupting you'],
+  [
+    51200,
+    'quiet approval batching',
+    'Non-urgent requests grouped into a digest instead of interrupting you',
+  ],
 ];
 
 export const HUNT_PERSONAS = ['cautious-auditor', 'balanced', 'aggressive-hunter'];
@@ -92,7 +196,9 @@ export const APPROVAL_TEMPLATES = ['paranoid', 'balanced', 'permissive'];
  * de-emphasis map plus the plan adaptation the agent applies.
  */
 export function deemphasizeFindingsClass(deemphasized, category) {
-  const cat = String(category || '').trim().toLowerCase();
+  const cat = String(category || '')
+    .trim()
+    .toLowerCase();
   if (!cat) return { deemphasized, adaptation: null };
   if (deemphasized.includes(cat)) return { deemphasized, adaptation: null };
   const next = [...deemphasized, cat];
@@ -164,8 +270,8 @@ export function addCheckpoint(checkpoints, phase, note) {
 
 /** Mark the checkpoint for a phase as reached (awaiting check-in). */
 export function reachCheckpoint(checkpoints, phase) {
-  return checkpoints.map((c) =>
-    c.phase === phase && c.status === 'pending' ? { ...c, status: 'awaiting-checkin' } : c,
+  return checkpoints.map(c =>
+    c.phase === phase && c.status === 'pending' ? { ...c, status: 'awaiting-checkin' } : c
   );
 }
 
@@ -177,13 +283,13 @@ export function reachCheckpoint(checkpoints, phase) {
  * command; returns per-command attribution stats.
  */
 export function steeringAnalytics(commands, findings) {
-  return (commands || []).map((cmd) => {
-    const after = (findings || []).filter((f) => f.foundAfter === cmd.id);
+  return (commands || []).map(cmd => {
+    const after = (findings || []).filter(f => f.foundAfter === cmd.id);
     return {
       commandId: cmd.id,
       label: cmd.label,
       findingsAttributed: after.length,
-      topSeverity: after.map((f) => f.severity).sort()[0] || null,
+      topSeverity: after.map(f => f.severity).sort()[0] || null,
     };
   });
 }
@@ -198,7 +304,7 @@ export function emergencyRescope(plan, asset) {
     ...plan,
     scope: [asset],
     mode: 'emergency-focus',
-    pausedModules: (plan.modules || []).filter((m) => m !== 'critical-path'),
+    pausedModules: (plan.modules || []).filter(m => m !== 'critical-path'),
     note: `Emergency re-scope: all effort on ${asset}`,
   };
 }
@@ -229,7 +335,7 @@ export function scheduleSteering(queue, command, at) {
 
 /** Return the commands whose trigger time/phase has arrived. */
 export function dueSteering(queue, nowOrPhase) {
-  return queue.filter((q) => q.status === 'scheduled' && q.at <= nowOrPhase);
+  return queue.filter(q => q.status === 'scheduled' && q.at <= nowOrPhase);
 }
 
 // ---------------------------------------------------------------------------
@@ -349,14 +455,19 @@ export function decideApproval(card, decision, actor) {
 export function bulkDecide(cards, decisions) {
   let approved = 0;
   let denied = 0;
-  const next = cards.map((c) => {
+  const next = cards.map(c => {
     const d = decisions[c.id];
     if (c.status !== 'pending' || !['approved', 'denied'].includes(d)) return c;
     if (d === 'approved') approved++;
     else denied++;
     return { ...c, status: d };
   });
-  return { cards: next, approved, denied, remaining: next.filter((c) => c.status === 'pending').length };
+  return {
+    cards: next,
+    approved,
+    denied,
+    remaining: next.filter(c => c.status === 'pending').length,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -368,7 +479,7 @@ export function bulkDecide(cards, decisions) {
  */
 export function applyApprovalTimeouts(cards, nowMs, limitMs, onTimeout) {
   const action = onTimeout === 'auto-pause' ? 'paused' : 'denied';
-  return cards.map((c) => {
+  return cards.map(c => {
     if (c.status !== 'pending') return c;
     const waited = nowMs - (c.requestedAt || 0);
     return waited > limitMs ? { ...c, status: action, timeoutMs: waited } : c;
@@ -396,17 +507,24 @@ export function approveWithLimits(card, limits) {
 /** Add a standing rule; returns updated rule set. */
 export function addStandingRule(rules, kind, category, scope) {
   if (!['allow', 'deny'].includes(kind)) return rules;
-  const cat = String(category || '').trim().toLowerCase();
+  const cat = String(category || '')
+    .trim()
+    .toLowerCase();
   if (!cat) return rules;
-  return [...rules.filter((r) => !(r.kind === kind && r.category === cat)), { kind, category: cat, scope: scope || 'hunt' }];
+  return [
+    ...rules.filter(r => !(r.kind === kind && r.category === cat)),
+    { kind, category: cat, scope: scope || 'hunt' },
+  ];
 }
 
 /** Check a request against standing rules; returns allow/deny/null. */
 export function checkStandingRules(rules, category) {
-  const cat = String(category || '').trim().toLowerCase();
-  const deny = rules.find((r) => r.kind === 'deny' && r.category === cat);
+  const cat = String(category || '')
+    .trim()
+    .toLowerCase();
+  const deny = rules.find(r => r.kind === 'deny' && r.category === cat);
   if (deny) return 'deny';
-  const allow = rules.find((r) => r.kind === 'allow' && r.category === cat);
+  const allow = rules.find(r => r.kind === 'allow' && r.category === cat);
   if (allow) return 'allow';
   return null;
 }
@@ -453,8 +571,8 @@ export function auditApproval(trail, entry) {
 /** For each pending card: how long it waited + what the agent did meanwhile. */
 export function pendingCountdowns(cards, nowMs, agentActivity) {
   return cards
-    .filter((c) => c.status === 'pending')
-    .map((c) => ({
+    .filter(c => c.status === 'pending')
+    .map(c => ({
       id: c.id,
       waitedMs: Math.max(0, nowMs - (c.requestedAt || 0)),
       agentMeanwhile: (agentActivity || {})[c.id] || 'idle',
@@ -466,16 +584,26 @@ export function pendingCountdowns(cards, nowMs, agentActivity) {
 // ---------------------------------------------------------------------------
 /** Pick safe background tasks the agent can do while blocked on approval. */
 export function gracefulWaitTasks(tasks) {
-  return (tasks || []).filter((t) => t.safe && !t.needsApproval);
+  return (tasks || []).filter(t => t.safe && !t.needsApproval);
 }
 
 // ---------------------------------------------------------------------------
 // 51187 — approval templates
 // ---------------------------------------------------------------------------
 const TEMPLATE_POLICIES = {
-  paranoid: { autoAllow: [], autoDeny: ['destructive'], timeoutMs: 60000, timeoutAction: 'auto-deny' },
+  paranoid: {
+    autoAllow: [],
+    autoDeny: ['destructive'],
+    timeoutMs: 60000,
+    timeoutAction: 'auto-deny',
+  },
   balanced: { autoAllow: ['safe'], autoDeny: [], timeoutMs: 300000, timeoutAction: 'auto-pause' },
-  permissive: { autoAllow: ['safe', 'cautious'], autoDeny: [], timeoutMs: 900000, timeoutAction: 'auto-pause' },
+  permissive: {
+    autoAllow: ['safe', 'cautious'],
+    autoDeny: [],
+    timeoutMs: 900000,
+    timeoutAction: 'auto-pause',
+  },
 };
 
 /** Apply a named policy template to the hunt. */
@@ -508,7 +636,9 @@ export function sandboxPreview(action) {
 // ---------------------------------------------------------------------------
 /** Badge text for a card based on reversibility. */
 export function reversibleBadge(card) {
-  return card.reversible ? { text: 'reversible', tone: 'good' } : { text: 'irreversible', tone: 'warn' };
+  return card.reversible
+    ? { text: 'reversible', tone: 'good' }
+    : { text: 'irreversible', tone: 'warn' };
 }
 
 // ---------------------------------------------------------------------------
@@ -528,7 +658,9 @@ export function mobileApprovalPayload(card) {
  * Returns the decision or null when verification is missing.
  */
 export function parseVoiceApproval(transcript, voiceVerified) {
-  const t = String(transcript || '').trim().toLowerCase();
+  const t = String(transcript || '')
+    .trim()
+    .toLowerCase();
   if (!voiceVerified) return null;
   if (t === 'approved' || t === 'approve') return 'approved';
   if (t === 'denied' || t === 'deny') return 'denied';
@@ -548,7 +680,11 @@ export function approvalScopeNote(card) {
 // ---------------------------------------------------------------------------
 /** Flag a card as needing justification before a decision. */
 export function requestMoreInfo(card, question) {
-  return { ...card, status: 'needs-info', infoQuestion: String(question || 'Please justify this request.') };
+  return {
+    ...card,
+    status: 'needs-info',
+    infoQuestion: String(question || 'Please justify this request.'),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -572,7 +708,12 @@ export function approvalAnalytics(decisions) {
       category,
       ...s,
       approvalRate: Number(rate.toFixed(2)),
-      suggestion: rate === 1 && total >= 3 ? 'always-allow candidate' : rate === 0 && total >= 3 ? 'always-deny candidate' : 'no change',
+      suggestion:
+        rate === 1 && total >= 3
+          ? 'always-allow candidate'
+          : rate === 0 && total >= 3
+            ? 'always-deny candidate'
+            : 'no change',
     };
   });
 }
@@ -583,7 +724,9 @@ export function approvalAnalytics(decisions) {
 /** Deny every pending request and pause the hunt in one action. */
 export function emergencyDenyAll(cards) {
   return {
-    cards: cards.map((c) => (c.status === 'pending' ? { ...c, status: 'denied', reason: 'emergency-deny-all' } : c)),
+    cards: cards.map(c =>
+      c.status === 'pending' ? { ...c, status: 'denied', reason: 'emergency-deny-all' } : c
+    ),
     huntPaused: true,
   };
 }
@@ -603,10 +746,12 @@ export function approvalChatThread(thread, author, message) {
 /** List the agent's estimated side effects for a requested action. */
 export function estimateSideEffects(action) {
   const effects = [];
-  if ((action.targets || []).length) effects.push(`${action.targets.length} target(s) will receive requests`);
+  if ((action.targets || []).length)
+    effects.push(`${action.targets.length} target(s) will receive requests`);
   if (action.writesData) effects.push('writes data to the target');
   if (action.estimatedRps > 10) effects.push('high request rate — may trigger rate limiting');
-  if (action.risk === 'destructive') effects.push('destructive: changes may not be fully reversible');
+  if (action.risk === 'destructive')
+    effects.push('destructive: changes may not be fully reversible');
   if (!effects.length) effects.push('no significant side effects expected');
   return effects;
 }
@@ -618,9 +763,11 @@ export function estimateSideEffects(action) {
 export function rollbackPlan(action) {
   return {
     actionId: action.id,
-    steps: (action.targets || []).map((t) => `restore ${t} from pre-action snapshot`),
+    steps: (action.targets || []).map(t => `restore ${t} from pre-action snapshot`),
     verified: !!action.reversible,
-    note: action.reversible ? 'Rollback verified possible' : 'Rollback not guaranteed — approve with care',
+    note: action.reversible
+      ? 'Rollback verified possible'
+      : 'Rollback not guaranteed — approve with care',
   };
 }
 
@@ -631,8 +778,8 @@ const NOTIFY_CHANNELS = ['push', 'email', 'sms'];
 
 /** Build notification payloads for the enabled channels. */
 export function approvalNotifications(card, channels) {
-  const use = (channels || []).filter((c) => NOTIFY_CHANNELS.includes(c));
-  return use.map((channel) => ({
+  const use = (channels || []).filter(c => NOTIFY_CHANNELS.includes(c));
+  return use.map(channel => ({
     channel,
     cardId: card.id,
     title: `Approval needed: ${card.title}`,
@@ -648,7 +795,7 @@ export function approvalNotifications(card, channels) {
  * digest delivered later.
  */
 export function batchApprovals(cards) {
-  const urgent = cards.filter((c) => c.status === 'pending' && c.risk === 'destructive');
-  const digest = cards.filter((c) => c.status === 'pending' && c.risk !== 'destructive');
+  const urgent = cards.filter(c => c.status === 'pending' && c.risk === 'destructive');
+  const digest = cards.filter(c => c.status === 'pending' && c.risk !== 'destructive');
   return { interruptNow: urgent, digest };
 }

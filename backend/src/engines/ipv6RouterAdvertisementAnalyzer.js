@@ -45,7 +45,7 @@ export function parseRouterAdvertisement(ra) {
   if (!ra || typeof ra.sourceIp !== 'string') {
     throw new Error('parseRouterAdvertisement: ra.sourceIp is required');
   }
-  const prefixes = (ra.prefixes || []).map((p) => ({
+  const prefixes = (ra.prefixes || []).map(p => ({
     prefix: p.prefix,
     onLink: !!p.onLink,
     autonomous: !!p.autonomous,
@@ -65,8 +65,8 @@ export function parseRouterAdvertisement(ra) {
     retransTimerMs: ra.retransTimerMs ?? 0,
     mtu: ra.mtu ?? null,
     prefixes,
-    dnsServers: (ra.rdnss || []).map((r) => ({ address: r.address, lifetime: r.lifetime ?? 0 })),
-    dnsSearchList: (ra.dnssl || []).map((d) => ({ domain: d.domain, lifetime: d.lifetime ?? 0 })),
+    dnsServers: (ra.rdnss || []).map(r => ({ address: r.address, lifetime: r.lifetime ?? 0 })),
+    dnsSearchList: (ra.dnssl || []).map(d => ({ domain: d.domain, lifetime: d.lifetime ?? 0 })),
     seenAt: ra.seenAt ?? Date.now(),
   };
 }
@@ -88,7 +88,9 @@ export function analyzeRouterAdvertisements(advertisements = [], options = {}) {
     for (const px of p.prefixes) {
       if (!r.prefixes.has(px.prefix)) r.prefixes.set(px.prefix, px);
     }
-    r.dnsServers = [...new Map([...(r.dnsServers || []), ...p.dnsServers].map((d) => [d.address, d])).values()];
+    r.dnsServers = [
+      ...new Map([...(r.dnsServers || []), ...p.dnsServers].map(d => [d.address, d])).values(),
+    ];
   }
 
   const allPrefixes = new Map();
@@ -102,7 +104,7 @@ export function analyzeRouterAdvertisements(advertisements = [], options = {}) {
   // Rogue-RA detection: unexpected router, or hop-limit != 255 tamper, or
   // conflicting prefixes / default-router claims.
   const anomalies = [];
-  const expected = new Set(expectedRouters.map((e) => e.toLowerCase()));
+  const expected = new Set(expectedRouters.map(e => e.toLowerCase()));
   for (const [router, r] of routers) {
     if (expected.size && !expected.has(router.toLowerCase())) {
       anomalies.push({
@@ -145,10 +147,11 @@ export function analyzeRouterAdvertisements(advertisements = [], options = {}) {
   }
 
   const dnsServers = [];
-  for (const [, r] of routers) for (const d of r.dnsServers || []) dnsServers.push({ ...d, announcedBy: r.router });
+  for (const [, r] of routers)
+    for (const d of r.dnsServers || []) dnsServers.push({ ...d, announcedBy: r.router });
 
   return {
-    routers: [...routers.values()].map((r) => ({
+    routers: [...routers.values()].map(r => ({
       router: r.router,
       mac: r.mac,
       isDefaultRouter: r.isDefaultRouter,
@@ -165,7 +168,7 @@ export function analyzeRouterAdvertisements(advertisements = [], options = {}) {
       routerCount: routers.size,
       prefixCount: allPrefixes.size,
       dnsServerCount: dnsServers.length,
-      slaacPrefixes: [...allPrefixes.values()].filter((p) => p.slaacEnabled).length,
+      slaacPrefixes: [...allPrefixes.values()].filter(p => p.slaacEnabled).length,
     },
   };
 }
@@ -175,20 +178,25 @@ export function analyzeRouterAdvertisements(advertisements = [], options = {}) {
  * @param {ReturnType<typeof analyzeRouterAdvertisements>} result
  */
 export function raFinding(result) {
-  const high = result.anomalies.filter((a) => a.severity === 'High');
+  const high = result.anomalies.filter(a => a.severity === 'High');
   return {
     title: `IPv6 router-advertisement analysis — ${result.stats.routerCount} router(s), ${result.stats.prefixCount} prefix(es)`,
     severity: high.length ? 'High' : 'Info',
     confidence: result.stats.routerCount ? 'high' : 'low',
-    dhcpMode: result.routers.map((r) => r.dhcpMode),
-    slaacPrefixes: result.prefixes.filter((p) => p.slaacEnabled).map((p) => p.prefix),
-    dnsServers: result.dnsServers.map((d) => d.address),
+    dhcpMode: result.routers.map(r => r.dhcpMode),
+    slaacPrefixes: result.prefixes.filter(p => p.slaacEnabled).map(p => p.prefix),
+    dnsServers: result.dnsServers.map(d => d.address),
     anomalies: result.anomalies,
-    evidence: `${result.stats.routerCount} distinct RA source(s); ` +
+    evidence:
+      `${result.stats.routerCount} distinct RA source(s); ` +
       `${result.stats.slaacPrefixes} SLAAC-capable prefix(es); ` +
       `${result.anomalies.length} anomalie(s) flagged.`,
   };
 }
 
-export const IPV6_RA_ANALYZER = { parseRouterAdvertisement, analyzeRouterAdvertisements, raFinding };
+export const IPV6_RA_ANALYZER = {
+  parseRouterAdvertisement,
+  analyzeRouterAdvertisements,
+  raFinding,
+};
 export default IPV6_RA_ANALYZER;

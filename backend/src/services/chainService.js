@@ -54,17 +54,12 @@ function isComplementary(catA, catB) {
   const a = normalizeCategory(catA);
   const b = normalizeCategory(catB);
   if (!a || !b || a === b) return false;
-  return COMPLEMENTARY.some(
-    ([x, y]) => (x === a && y === b) || (x === b && y === a)
-  );
+  return COMPLEMENTARY.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 }
 
 function assetOf(finding) {
   return (
-    finding.target ||
-    finding.endpoint ||
-    (finding.metadata && finding.metadata.asset) ||
-    'target'
+    finding.target || finding.endpoint || (finding.metadata && finding.metadata.asset) || 'target'
   );
 }
 
@@ -92,10 +87,10 @@ function chainNarrative(a, b, asset) {
  */
 function suggestChains(findings, existingChains = []) {
   const confirmed = (findings || []).filter(
-    (f) => f.status === 'confirmed' && f.category !== 'vulnerability-chain'
+    f => f.status === 'confirmed' && f.category !== 'vulnerability-chain'
   );
   const seen = new Set(
-    (existingChains || []).flatMap((c) => (c.metadata && c.metadata.chainOf) || [])
+    (existingChains || []).flatMap(c => (c.metadata && c.metadata.chainOf) || [])
   );
 
   const candidates = [];
@@ -145,7 +140,7 @@ function buildBrainChain({ jobId, chain, findingsById }) {
   if (ids.length < 2) {
     throw new Error('A chain must reference at least two findings (chainOf).');
   }
-  const parts = ids.map((id) => {
+  const parts = ids.map(id => {
     const f = findingsById.get(id);
     if (!f) throw new Error(`Chain references unknown finding: ${id}`);
     if (String(f.jobId || f.assessmentId) !== String(jobId)) {
@@ -157,33 +152,29 @@ function buildBrainChain({ jobId, chain, findingsById }) {
     return f;
   });
 
-  const severity = parts
-    .map((p) => p.severity)
-    .reduce((acc, s) => escalate(acc, s), 'low');
+  const severity = parts.map(p => p.severity).reduce((acc, s) => escalate(acc, s), 'low');
 
   return {
     id: randomUUID(),
     category: 'vulnerability-chain',
-    title: chain.title || `Chained: ${parts.map((p) => p.title || p.category).join(' → ')}`,
+    title: chain.title || `Chained: ${parts.map(p => p.title || p.category).join(' → ')}`,
     severity,
     description: chain.description || chainNarrative(parts[0], parts[1], assetOf(parts[0])),
     target: chain.target || parts[0].target || null,
     endpoint: chain.endpoint || parts[0].endpoint || null,
-    reproductionSteps: chain.reproductionSteps || parts.flatMap((p) => p.reproductionSteps || []),
-    impact: chain.impact || `Combined impact of ${parts.length} chained findings — rated ${severity.toUpperCase()}.`,
-    remediation: chain.remediation || 'Remediate each chained finding per its individual report; fixing any one link breaks the chain.',
+    reproductionSteps: chain.reproductionSteps || parts.flatMap(p => p.reproductionSteps || []),
+    impact:
+      chain.impact ||
+      `Combined impact of ${parts.length} chained findings — rated ${severity.toUpperCase()}.`,
+    remediation:
+      chain.remediation ||
+      'Remediate each chained finding per its individual report; fixing any one link breaks the chain.',
     metadata: {
       chainOf: ids,
       autoSuggested: false,
-      componentSeverities: parts.map((p) => p.severity),
+      componentSeverities: parts.map(p => p.severity),
     },
   };
 }
 
-export {
-  suggestChains,
-  buildBrainChain,
-  isComplementary,
-  escalate,
-  COMPLEMENTARY,
-};
+export { suggestChains, buildBrainChain, isComplementary, escalate, COMPLEMENTARY };

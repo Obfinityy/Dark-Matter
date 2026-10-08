@@ -10,12 +10,13 @@ class LongGenerationStore {
   }
 
   async save(record) {
-    const existing = await this.database.collection('lc_generations').findOne({ generationId: record.generationId });
+    const existing = await this.database
+      .collection('lc_generations')
+      .findOne({ generationId: record.generationId });
     if (existing) {
-      await this.database.collection('lc_generations').updateOne(
-        { generationId: record.generationId },
-        { $set: record }
-      );
+      await this.database
+        .collection('lc_generations')
+        .updateOne({ generationId: record.generationId }, { $set: record });
     } else {
       await this.database.collection('lc_generations').insertOne(record);
     }

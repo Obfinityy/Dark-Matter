@@ -17,7 +17,9 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  const s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  const s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`;
   try {
     const u = new URL(withScheme);
@@ -82,7 +84,9 @@ export function parseGoModuleHosts(goModText) {
     if (host) add(host, 'replace', `${m[1]} => ${target}`);
   }
 
-  for (const m of text.matchAll(/^\s*(?:GOPROXY|GOSUMDB|GONOSUMCHECKDB|GONOSUMDB|GOPRIVATE|GONOPROXY)\s*=\s*['"]?([^\s'"]+)['"]?/gim)) {
+  for (const m of text.matchAll(
+    /^\s*(?:GOPROXY|GOSUMDB|GONOSUMCHECKDB|GONOSUMDB|GOPRIVATE|GONOPROXY)\s*=\s*['"]?([^\s'"]+)['"]?/gim
+  )) {
     for (const part of m[1].split(',').map(s => s.trim())) {
       if (!part || /^(off|direct|none)$/i.test(part)) continue;
       const host = toHost(part);

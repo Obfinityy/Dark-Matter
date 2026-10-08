@@ -12,13 +12,23 @@
 
 const MC_HOST_RES = [
   { re: /\.mailchi\.mp$/i, kind: 'mailchimp-landing', note: 'Mailchimp landing page (mailchi.mp)' },
-  { re: /\.list-manage\.com$/i, kind: 'list-manage', note: 'Mailchimp list-manage (signup/archive) host' },
+  {
+    re: /\.list-manage\.com$/i,
+    kind: 'list-manage',
+    note: 'Mailchimp list-manage (signup/archive) host',
+  },
   { re: /\.mailchimp\.com$/i, kind: 'mailchimp', note: 'Mailchimp platform host' },
-  { re: /\.campaign-archive\.com$/i, kind: 'campaign-archive', note: 'Mailchimp campaign archive host' },
+  {
+    re: /\.campaign-archive\.com$/i,
+    kind: 'campaign-archive',
+    note: 'Mailchimp campaign archive host',
+  },
 ];
-const MC_HOSTNAME_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:mailchi\.mp|list-manage\.com|mailchimp\.com|campaign-archive\.com)\b/gi;
+const MC_HOSTNAME_RE =
+  /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:mailchi\.mp|list-manage\.com|mailchimp\.com|campaign-archive\.com)\b/gi;
 // Mailchimp embedded form action: https://xxx.us14.list-manage.com/subscribe/post?u=<uid>&amp;id=<listid>
-const MC_FORM_RE = /https?:\/\/([a-z0-9.-]+\.list-manage\.com)\/subscribe\/post\?u=([a-f0-9]+)(?:&(?:amp;)?id=([a-f0-9]+))?/i;
+const MC_FORM_RE =
+  /https?:\/\/([a-z0-9.-]+\.list-manage\.com)\/subscribe\/post\?u=([a-f0-9]+)(?:&(?:amp;)?id=([a-f0-9]+))?/i;
 
 /**
  * Normalize a hostname: lowercase, strip trailing dot, port, and scheme.
@@ -89,8 +99,11 @@ export function extractMailchimpHosts(pageSource = '', cnameTargets = []) {
   const form = extractMailchimpForm(pageSource);
 
   return [...byHost.values()]
-    .map((e) => ({
-      host: e.host, kind: e.kind, note: e.note, sources: [...e.sources].sort(),
+    .map(e => ({
+      host: e.host,
+      kind: e.kind,
+      note: e.note,
+      sources: [...e.sources].sort(),
       accountUid: form && form.host === e.host ? form.accountUid : '',
       listId: form && form.host === e.host ? form.listId : '',
     }))
@@ -122,25 +135,27 @@ export function detectMailchimp(pageSource = '') {
  */
 export function scoreMailchimpHosts(hosts = [], rootDomain = '') {
   const brand = normalizeHostname(rootDomain).split('.')[0];
-  return (hosts || []).map((h) => {
-    let score = 25;
-    const reasons = ['Mailchimp-hosted page'];
-    if (brand && h.host.includes(brand)) {
-      score += 40;
-      reasons.push(`hostname references brand "${brand}"`);
-    }
-    if (h.kind === 'mailchimp-landing') {
-      score += 10;
-      reasons.push('dedicated landing page host');
-    }
-    if (h.accountUid || h.listId) {
-      score += 15;
-      reasons.push('list/account identifiers attributable');
-    }
-    if (h.sources.length > 1) {
-      score += 10;
-      reasons.push(`confirmed via ${h.sources.join(' + ')}`);
-    }
-    return { host: h.host, score: Math.min(100, score), reasons };
-  }).sort((a, b) => b.score - a.score);
+  return (hosts || [])
+    .map(h => {
+      let score = 25;
+      const reasons = ['Mailchimp-hosted page'];
+      if (brand && h.host.includes(brand)) {
+        score += 40;
+        reasons.push(`hostname references brand "${brand}"`);
+      }
+      if (h.kind === 'mailchimp-landing') {
+        score += 10;
+        reasons.push('dedicated landing page host');
+      }
+      if (h.accountUid || h.listId) {
+        score += 15;
+        reasons.push('list/account identifiers attributable');
+      }
+      if (h.sources.length > 1) {
+        score += 10;
+        reasons.push(`confirmed via ${h.sources.join(' + ')}`);
+      }
+      return { host: h.host, score: Math.min(100, score), reasons };
+    })
+    .sort((a, b) => b.score - a.score);
 }

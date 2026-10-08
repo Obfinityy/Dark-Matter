@@ -38,37 +38,37 @@ export const WAF_BYPASS_TECHNIQUES = Object.freeze([
   {
     name: 'Case variation',
     description: 'Mix case in payload: <ScRiPt> instead of <script>',
-    applies: ['xss']
+    applies: ['xss'],
   },
   {
     name: 'Encoding',
     description: 'URL/HTML/Unicode encode payload characters',
-    applies: ['xss', 'sqli']
+    applies: ['xss', 'sqli'],
   },
   {
     name: 'Comment injection',
     description: 'SQL: /**/ instead of spaces; XSS: <!-- --> breaks',
-    applies: ['sqli', 'xss']
+    applies: ['sqli', 'xss'],
   },
   {
     name: 'HTTP method swap',
     description: 'Try PUT/PATCH instead of POST — WAF rules may only cover POST',
-    applies: ['sqli', 'xss', 'idor']
+    applies: ['sqli', 'xss', 'idor'],
   },
   {
     name: 'Content-Type confusion',
     description: 'Send JSON as text/plain or vice versa',
-    applies: ['sqli', 'xss']
+    applies: ['sqli', 'xss'],
   },
   {
     name: 'Parameter pollution',
     description: 'Split payload across duplicate params: ?q=<&q=script>',
-    applies: ['xss', 'sqli']
+    applies: ['xss', 'sqli'],
   },
   {
     name: 'Header injection point',
     description: 'Move payload to headers (User-Agent, Referer) — less inspected',
-    applies: ['xss', 'sqli']
+    applies: ['xss', 'sqli'],
   },
 ]);
 
@@ -76,11 +76,11 @@ export const WAF_BYPASS_TECHNIQUES = Object.freeze([
  * Detect WAF from response headers and body.
  */
 export function detectWaf(headers = {}, body = '') {
-  const headerNames = Object.keys(headers).map((h) => h.toLowerCase());
+  const headerNames = Object.keys(headers).map(h => h.toLowerCase());
   const bodyStr = String(body).slice(0, 5000);
 
   for (const sig of WAF_SIGNATURES) {
-    if (sig.headers?.some((h) => headerNames.includes(h.toLowerCase()))) {
+    if (sig.headers?.some(h => headerNames.includes(h.toLowerCase()))) {
       return { detected: true, waf: sig.name, method: 'header' };
     }
     if (sig.body && sig.body.test(bodyStr)) {
@@ -121,7 +121,7 @@ export class RateLimitTracker {
     const now = Date.now();
     this.requestTimes.push(now);
     // Keep last minute
-    this.requestTimes = this.requestTimes.filter((t) => now - t < 60000);
+    this.requestTimes = this.requestTimes.filter(t => now - t < 60000);
 
     if (status === 429) {
       this.consecutive429s++;
@@ -148,7 +148,7 @@ export class RateLimitTracker {
 
   requestsPerMinute() {
     const now = Date.now();
-    return this.requestTimes.filter((t) => now - t < 60000).length;
+    return this.requestTimes.filter(t => now - t < 60000).length;
   }
 }
 
@@ -158,13 +158,13 @@ export class RateLimitTracker {
 export function stealthHeaders(extra = {}) {
   return {
     'User-Agent': randomUserAgent(),
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept-Encoding': 'gzip, deflate',
-    'DNT': '1',
-    'Connection': 'keep-alive',
+    DNT: '1',
+    Connection: 'keep-alive',
     'Upgrade-Insecure-Requests': '1',
-    ...extra
+    ...extra,
   };
 }
 
@@ -172,7 +172,5 @@ export function stealthHeaders(extra = {}) {
  * Suggest bypass techniques for a blocked payload type.
  */
 export function suggestBypasses(vulnType) {
-  return WAF_BYPASS_TECHNIQUES.filter((t) =>
-    t.applies.includes(vulnType.toLowerCase())
-  );
+  return WAF_BYPASS_TECHNIQUES.filter(t => t.applies.includes(vulnType.toLowerCase()));
 }

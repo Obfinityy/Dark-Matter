@@ -10,6 +10,7 @@
  *     createdAt }
  */
 
+/** Database model for target queue. */
 export class TargetQueueModel {
   constructor(database) {
     this.collection = database.collection('target_queues');

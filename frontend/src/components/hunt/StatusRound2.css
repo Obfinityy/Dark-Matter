@@ -41,7 +41,7 @@
   font-size: 12px;
 }
 
-.st28-card button[aria-pressed="true"] {
+.st28-card button[aria-pressed='true'] {
   border-color: var(--accent, #4f8cff);
   font-weight: 600;
 }
@@ -51,7 +51,7 @@
   cursor: default;
 }
 
-.st28-card input[type="text"],
+.st28-card input[type='text'],
 .st28-card input:not([type]) {
   padding: 6px 10px;
   border-radius: 6px;
@@ -62,7 +62,7 @@
   margin-right: 6px;
 }
 
-.st28-card input[type="range"] {
+.st28-card input[type='range'] {
   width: 100%;
   margin: 8px 0;
 }

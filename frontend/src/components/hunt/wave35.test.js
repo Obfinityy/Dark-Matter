@@ -7,26 +7,45 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE35A_START, WAVE35A_END, WAVE35A_IDEAS,
-  recordStrategyEvent, findingsPerHour, liveEffectivenessScores,
-  pushStrategyState, rollbackOneClick,
-  annotateStrategy, annotationsFor,
+  WAVE35A_START,
+  WAVE35A_END,
+  WAVE35A_IDEAS,
+  recordStrategyEvent,
+  findingsPerHour,
+  liveEffectivenessScores,
+  pushStrategyState,
+  rollbackOneClick,
+  annotateStrategy,
+  annotationsFor,
   parseStrategyChatCommand,
-  segmentStrategyTimeline, strategyColor,
-  attributeFinding, strategyReportLines,
-  MARKETPLACE_PRESETS, previewMarketplacePreset, installMarketplacePreset,
+  segmentStrategyTimeline,
+  strategyColor,
+  attributeFinding,
+  strategyReportLines,
+  MARKETPLACE_PRESETS,
+  previewMarketplacePreset,
+  installMarketplacePreset,
   simulateStrategy,
-  FOCUS_AREAS, applyFocusAreas,
+  FOCUS_AREAS,
+  applyFocusAreas,
   excludeFromStrategy,
-  startTimebox, timeboxRemainingMs, timeboxExpired,
-  startStrategyVote, castStrategyVote, strategyVoteTally,
+  startTimebox,
+  timeboxRemainingMs,
+  timeboxExpired,
+  startStrategyVote,
+  castStrategyVote,
+  strategyVoteTally,
   diffStrategy,
   retestModePreset,
   learnStrategies,
-  isBusinessHour, quietHoursDowngrade,
+  isBusinessHour,
+  quietHoursDowngrade,
   estimateStrategyCost,
-  requestStrategyApproval, decideStrategyApproval, pendingStrategyApprovals,
-  chainStrategies, advanceStrategyChain,
+  requestStrategyApproval,
+  decideStrategyApproval,
+  pendingStrategyApprovals,
+  chainStrategies,
+  advanceStrategyChain,
   checkStrategyPerformance,
   personalizeStrategy,
   explainStrategyFit,
@@ -35,24 +54,59 @@ import {
   ensureFairCoverage,
   strategyChangeTiming,
   digestStrategyUpdates,
-  ROLLBACK_WINDOW_MS, rollbackWindowOpen, undoStrategyChange,
-  tagStrategySegment, strategySegmentsByTag,
+  ROLLBACK_WINDOW_MS,
+  rollbackWindowOpen,
+  undoStrategyChange,
+  tagStrategySegment,
+  strategySegmentsByTag,
   correlateStrategyFindings,
   exportStrategyJourney,
   parseVoiceStrategyCommand,
   mobileStrategyPicker,
-  GUARDRAIL_PRESETS, enforceGuardrailPreset,
+  GUARDRAIL_PRESETS,
+  enforceGuardrailPreset,
   buildRetrospective,
   recommendStrategies,
 } from './strategyRound3Core.js';
 import {
-  WAVE35B_START, WAVE35B_END, WAVE35B_IDEAS,
-  explainFinding, eli5Explanation, executiveSummary, findingAnalogy, explainFindingAll,
+  WAVE35B_START,
+  WAVE35B_END,
+  WAVE35B_IDEAS,
+  explainFinding,
+  eli5Explanation,
+  executiveSummary,
+  findingAnalogy,
+  explainFindingAll,
 } from './explainabilityCore.js';
 
 const NOW = 1728220000000;
-const BASE = { name: 'Balanced', focus: 'balanced', aggression: 'balanced', allocation: { recon: 20, 'surface-map': 15, 'tech-fingerprint': 10, 'auth-deep': 20, 'business-logic': 20, 'exploit-chain': 15 } };
-const AGGRO = { ...BASE, name: 'Aggro', focus: 'depth', aggression: 'aggressive', allocation: { recon: 10, 'surface-map': 10, 'tech-fingerprint': 10, 'auth-deep': 25, 'business-logic': 25, 'exploit-chain': 20 } };
+const BASE = {
+  name: 'Balanced',
+  focus: 'balanced',
+  aggression: 'balanced',
+  allocation: {
+    recon: 20,
+    'surface-map': 15,
+    'tech-fingerprint': 10,
+    'auth-deep': 20,
+    'business-logic': 20,
+    'exploit-chain': 15,
+  },
+};
+const AGGRO = {
+  ...BASE,
+  name: 'Aggro',
+  focus: 'depth',
+  aggression: 'aggressive',
+  allocation: {
+    recon: 10,
+    'surface-map': 10,
+    'tech-fingerprint': 10,
+    'auth-deep': 25,
+    'business-logic': 25,
+    'exploit-chain': 20,
+  },
+};
 
 // --- registry completeness -----------------------------------------------------
 
@@ -61,7 +115,8 @@ test('strategy round 3 registry covers 51361–51396 with zero skips', () => {
   assert.equal(WAVE35A_END, 51396);
   assert.equal(WAVE35A_IDEAS.length, 36);
   const ids = WAVE35A_IDEAS.map(([id]) => id);
-  for (let i = WAVE35A_START; i <= WAVE35A_END; i++) assert.ok(ids.includes(i), `missing idea ${i}`);
+  for (let i = WAVE35A_START; i <= WAVE35A_END; i++)
+    assert.ok(ids.includes(i), `missing idea ${i}`);
   assert.equal(new Set(ids).size, 36, 'no duplicate ids');
 });
 
@@ -108,16 +163,27 @@ test('strategy annotations are recorded and retrievable', () => {
 // --- 51364 chat commands -------------------------------------------------------------
 
 test('chat commands parse into strategy actions', () => {
-  assert.deepEqual(parseStrategyChatCommand('switch to depth mode'), { action: 'switch', target: 'depth' });
-  assert.deepEqual(parseStrategyChatCommand('try breadth for 30 minutes'), { action: 'timebox', target: 'breadth', minutes: 30 });
-  assert.deepEqual(parseStrategyChatCommand('roll back to previous strategy'), { action: 'rollback' });
+  assert.deepEqual(parseStrategyChatCommand('switch to depth mode'), {
+    action: 'switch',
+    target: 'depth',
+  });
+  assert.deepEqual(parseStrategyChatCommand('try breadth for 30 minutes'), {
+    action: 'timebox',
+    target: 'breadth',
+    minutes: 30,
+  });
+  assert.deepEqual(parseStrategyChatCommand('roll back to previous strategy'), {
+    action: 'rollback',
+  });
   assert.equal(parseStrategyChatCommand('hello there'), null);
 });
 
 // --- 51365 timeline ---------------------------------------------------------------------
 
 test('strategy timeline segments are color-coded with durations', () => {
-  const segs = segmentStrategyTimeline([{ strategy: 'X', focus: 'depth', from: NOW - 3_600_000, to: NOW }]);
+  const segs = segmentStrategyTimeline([
+    { strategy: 'X', focus: 'depth', from: NOW - 3_600_000, to: NOW },
+  ]);
   assert.equal(segs[0].color, strategyColor('depth'));
   assert.equal(segs[0].durationMin, 60);
 });
@@ -162,7 +228,10 @@ test('focus areas reweight the allocation', () => {
   const before = BASE.allocation['auth-deep'];
   const w = applyFocusAreas(BASE, ['auth']);
   assert.ok(w.allocation['auth-deep'] > before);
-  assert.equal(Object.values(w.allocation).reduce((s, v) => s + v, 0), 100);
+  assert.equal(
+    Object.values(w.allocation).reduce((s, v) => s + v, 0),
+    100
+  );
   assert.deepEqual(w.focusAreas, ['auth']);
   assert.deepEqual(applyFocusAreas(BASE, []).allocation, BASE.allocation);
 });
@@ -173,7 +242,13 @@ test('exclusions rule out phases with a warning when too few remain', () => {
   const r = excludeFromStrategy(BASE, ['exploit-chain']);
   assert.ok(!r.phasesRemaining.includes('exploit-chain'));
   assert.equal(r.warning, '');
-  const r2 = excludeFromStrategy(BASE, ['recon', 'surface-map', 'tech-fingerprint', 'auth-deep', 'business-logic']);
+  const r2 = excludeFromStrategy(BASE, [
+    'recon',
+    'surface-map',
+    'tech-fingerprint',
+    'auth-deep',
+    'business-logic',
+  ]);
   assert.ok(r2.warning.length > 0);
 });
 
@@ -202,7 +277,7 @@ test('teammate voting reaches a verdict at quorum', () => {
 
 test('diff view shows added/removed phases and weight deltas', () => {
   const d = diffStrategy(BASE, AGGRO);
-  assert.ok(d.weightChanges.some((w) => w.phase === 'auth-deep' && w.delta === 5));
+  assert.ok(d.weightChanges.some(w => w.phase === 'auth-deep' && w.delta === 5));
   assert.ok(d.priorityChanges);
 });
 
@@ -282,7 +357,11 @@ test('performance alerts fire below threshold only', () => {
 // --- 51381 personalization ---------------------------------------------------------------------------------------------------------------------------------------------
 
 test('personalization adapts allocation to preferences', () => {
-  const p = personalizeStrategy(BASE, { preferredPhases: ['auth-deep'], avoidPhases: ['recon'], defaultDepth: 90 });
+  const p = personalizeStrategy(BASE, {
+    preferredPhases: ['auth-deep'],
+    avoidPhases: ['recon'],
+    defaultDepth: 90,
+  });
   assert.ok(p.allocation['auth-deep'] > BASE.allocation['auth-deep']);
   assert.ok(p.allocation['recon'] < BASE.allocation['recon']);
   assert.ok(p.personalized);
@@ -311,7 +390,9 @@ test('strategy migration validates the target hunt', () => {
   const ok = migrateStrategy(AGGRO, { id: 'h-1', status: 'done' }, { id: 'h-2', assets: ['a'] });
   assert.ok(ok.ok && ok.record.assets === 1);
   assert.ok(!migrateStrategy(AGGRO, { id: 'h-1' }, { id: 'h-2', assets: [] }).ok);
-  assert.ok(!migrateStrategy(AGGRO, { id: 'h-1', status: 'archived' }, { id: 'h-2', assets: ['a'] }).ok);
+  assert.ok(
+    !migrateStrategy(AGGRO, { id: 'h-1', status: 'archived' }, { id: 'h-2', assets: ['a'] }).ok
+  );
 });
 
 // --- 51385 fairness ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -332,7 +413,13 @@ test('strategy changes wait for phase boundaries outside safe phases', () => {
 // --- 51387 digest --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('notification digest batches recent updates', () => {
-  const d = digestStrategyUpdates([{ kind: 'switch', at: NOW - 60_000 }, { kind: 'old', at: NOW - 9_000_000 }], NOW);
+  const d = digestStrategyUpdates(
+    [
+      { kind: 'switch', at: NOW - 60_000 },
+      { kind: 'old', at: NOW - 9_000_000 },
+    ],
+    NOW
+  );
   assert.equal(d.count, 1);
   assert.ok(d.summary.includes('switch'));
 });
@@ -368,7 +455,10 @@ test('correlation groups findings by producing strategy', () => {
 // --- 51391 export -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('strategy journey exports as a markdown appendix', () => {
-  const md = exportStrategyJourney([{ strategy: 'Wide net', durationMin: 60 }], [{ strategy: 'Wide net', text: 'why' }]);
+  const md = exportStrategyJourney(
+    [{ strategy: 'Wide net', durationMin: 60 }],
+    [{ strategy: 'Wide net', text: 'why' }]
+  );
   assert.ok(md.includes('# Strategy journey'));
   assert.ok(md.includes('why'));
 });
@@ -376,8 +466,14 @@ test('strategy journey exports as a markdown appendix', () => {
 // --- 51392 voice -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('voice commands map to strategy actions', () => {
-  assert.deepEqual(parseVoiceStrategyCommand('roll back the strategy'), { action: 'rollback', target: null });
-  assert.deepEqual(parseVoiceStrategyCommand('switch to depth mode'), { action: 'switch', target: 'depth' });
+  assert.deepEqual(parseVoiceStrategyCommand('roll back the strategy'), {
+    action: 'rollback',
+    target: null,
+  });
+  assert.deepEqual(parseVoiceStrategyCommand('switch to depth mode'), {
+    action: 'switch',
+    target: 'depth',
+  });
   assert.equal(parseVoiceStrategyCommand('play music'), null);
 });
 
@@ -414,20 +510,42 @@ test('retrospective grades the hunt and writes lessons', () => {
 
 test('recommendation engine ranks past strategies deterministically', () => {
   const hunts = [
-    { strategy: 'Auth hammer', targetType: 'saas', findings: 12, hours: 3, endedAt: NOW - 86_400_000 },
+    {
+      strategy: 'Auth hammer',
+      targetType: 'saas',
+      findings: 12,
+      hours: 3,
+      endedAt: NOW - 86_400_000,
+    },
     { strategy: 'Wide net', targetType: 'saas', findings: 4, hours: 4, endedAt: NOW - 86_400_000 },
   ];
   const recs = recommendStrategies(hunts, { targetType: 'saas', now: NOW });
   assert.equal(recs.length, 2);
   assert.equal(recs[0].strategy, 'Auth hammer');
   assert.ok(recs[0].reason.length > 0);
-  assert.deepEqual(recommendStrategies(hunts, { targetType: 'saas', now: NOW }), recs, 'deterministic');
+  assert.deepEqual(
+    recommendStrategies(hunts, { targetType: 'saas', now: NOW }),
+    recs,
+    'deterministic'
+  );
 });
 
 // --- explainability 51397–51400 -----------------------------------------------------------------------------------------------------------------------
 
-const SQLI = { id: 'F-101', type: 'sql-injection', severity: 'critical', title: 'SQL injection', location: '/api/search?q=' };
-const UNKNOWN = { id: 'F-900', type: 'zero-day-xyz', severity: 'medium', title: 'Unknown oddity', location: '/weird' };
+const SQLI = {
+  id: 'F-101',
+  type: 'sql-injection',
+  severity: 'critical',
+  title: 'SQL injection',
+  location: '/api/search?q=',
+};
+const UNKNOWN = {
+  id: 'F-900',
+  type: 'zero-day-xyz',
+  severity: 'medium',
+  title: 'Unknown oddity',
+  location: '/weird',
+};
 
 test('51397 explain-this-finding gives a plain-language explanation', () => {
   const e = explainFinding(SQLI);

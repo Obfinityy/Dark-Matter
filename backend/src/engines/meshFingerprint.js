@@ -18,21 +18,24 @@ export const MESH_MTLS_SIGNATURES = [
     alpn: [/^istio-peer-exchange$/i, /^istio$/i],
     certSubject: [/O=cluster\.local/i],
     spiffe: [/^spiffe:\/\/cluster\.local\//i],
-    notes: 'Istio sidecars negotiate the istio-peer-exchange ALPN and carry SPIFFE IDs under cluster.local.',
+    notes:
+      'Istio sidecars negotiate the istio-peer-exchange ALPN and carry SPIFFE IDs under cluster.local.',
   },
   {
     mesh: 'Linkerd',
     alpn: [/^linkerd$/i, /^l5d/i],
     certSubject: [/linkerd/i],
     spiffe: [/^spiffe:\/\/[\w.-]+\/(ns|deploymentaccount)\/[\w.-]+\/serviceaccount\//i],
-    notes: 'Linkerd proxies use identity.io-issued mTLS; trust anchors reference the identity controller.',
+    notes:
+      'Linkerd proxies use identity.io-issued mTLS; trust anchors reference the identity controller.',
   },
   {
     mesh: 'Consul Connect',
     alpn: [/^consul-connect$/i],
     certSubject: [/consul/i],
     spiffe: [/^spiffe:\/\/[\w.-]+\/ns\/[\w.-]+\/dc\/[\w.-]+\/svc\//i],
-    notes: 'Consul Connect uses SPIFFE IDs shaped like ns/<namespace>/dc/<datacenter>/svc/<service>.',
+    notes:
+      'Consul Connect uses SPIFFE IDs shaped like ns/<namespace>/dc/<datacenter>/svc/<service>.',
   },
 ];
 
@@ -79,12 +82,7 @@ const LINKERD_IDENTITY_MARKERS = [
  * Consul Connect CA endpoint paths and response markers.
  */
 const CONSUL_CA_PATHS = ['/v1/connect/ca/roots', '/v1/connect/ca/leaf/'];
-const CONSUL_CA_MARKERS = [
-  /"TrustDomain"/,
-  /"RootCerts"/,
-  /"ActiveRootID"/,
-  /"IntermediateCerts"/,
-];
+const CONSUL_CA_MARKERS = [/"TrustDomain"/, /"RootCerts"/, /"ActiveRootID"/, /"IntermediateCerts"/];
 
 /** Well-known service-mesh component ports used to contextualize findings. */
 export const MESH_PORT_HINTS = {
@@ -111,7 +109,12 @@ export const MESH_PORT_HINTS = {
  * @returns {{ mesh, confidence, evidence[] }}
  */
 export function fingerprintMeshMtls(handshake = {}) {
-  const { alpnProtocols = [], cipherSuites = [], serverCertificate = {}, tlsVersion = '' } = handshake;
+  const {
+    alpnProtocols = [],
+    cipherSuites = [],
+    serverCertificate = {},
+    tlsVersion = '',
+  } = handshake;
   const cert = {
     subject: serverCertificate.subject || '',
     issuer: serverCertificate.issuer || '',
@@ -121,34 +124,34 @@ export function fingerprintMeshMtls(handshake = {}) {
 
   for (const sig of MESH_MTLS_SIGNATURES) {
     const hits = [];
-    if (alpnProtocols.some((p) => sig.alpn.some((re) => re.test(p)))) {
+    if (alpnProtocols.some(p => sig.alpn.some(re => re.test(p)))) {
       hits.push(`ALPN matches ${sig.mesh}`);
     }
-    if ([cert.subject, cert.issuer].some((s) => sig.certSubject.some((re) => re.test(s)))) {
+    if ([cert.subject, cert.issuer].some(s => sig.certSubject.some(re => re.test(s)))) {
       hits.push('certificate subject/issuer matches');
     }
-    if (cert.sanUris.some((u) => sig.spiffe.some((re) => re.test(u)))) {
+    if (cert.sanUris.some(u => sig.spiffe.some(re => re.test(u)))) {
       hits.push('SPIFFE SAN matches mesh shape');
     }
     if (hits.length > 0) {
-      evidence.push(...hits.map((h) => `${sig.mesh}: ${h}`));
+      evidence.push(...hits.map(h => `${sig.mesh}: ${h}`));
     }
   }
 
   if (evidence.length === 0) {
     return { mesh: 'unknown', confidence: 'none', evidence: [] };
   }
-  const scored = MESH_MTLS_SIGNATURES.map((sig) => ({
+  const scored = MESH_MTLS_SIGNATURES.map(sig => ({
     mesh: sig.mesh,
-    score: evidence.filter((e) => e.startsWith(sig.mesh)).length,
+    score: evidence.filter(e => e.startsWith(sig.mesh)).length,
   })).sort((a, b) => b.score - a.score);
   const best = scored[0];
   const confidence = best.score >= 3 ? 'high' : best.score === 2 ? 'medium' : 'low';
   return {
     mesh: best.mesh,
     confidence,
-    evidence: evidence.filter((e) => e.startsWith(best.mesh)),
-    notes: MESH_MTLS_SIGNATURES.find((s) => s.mesh === best.mesh).notes,
+    evidence: evidence.filter(e => e.startsWith(best.mesh)),
+    notes: MESH_MTLS_SIGNATURES.find(s => s.mesh === best.mesh).notes,
     context: { tlsVersion, cipherCount: cipherSuites.length },
   };
 }
@@ -163,7 +166,7 @@ export function fingerprintMeshMtls(handshake = {}) {
 export function detectEnvoyAdmin(response = {}) {
   const { url = '', status = 0, body = '' } = response;
   const text = String(body);
-  const markers = ENVOY_ADMIN_MARKERS.filter((re) => re.test(text));
+  const markers = ENVOY_ADMIN_MARKERS.filter(re => re.test(text));
   const exposed = status === 200 && markers.length > 0;
 
   const exposure = {
@@ -176,7 +179,7 @@ export function detectEnvoyAdmin(response = {}) {
   return {
     exposed,
     confidence: markers.length >= 3 ? 'high' : markers.length >= 1 ? 'medium' : 'none',
-    evidence: markers.map((re) => `Envoy admin marker: ${re.source}`),
+    evidence: markers.map(re => `Envoy admin marker: ${re.source}`),
     exposure,
     severity: exposed ? 'High' : 'None',
     note: exposed
@@ -211,7 +214,9 @@ export function probeIstioPilot(response = {}) {
   const debugMatches = text.match(/\/debug\/[a-z]+/gi);
   if (debugMatches) debugEndpoints.push(...new Set(debugMatches));
 
-  const versionMatch = text.match(/(?:istio(?:d)?[/\s:-]|"version"\s*:\s*")[vV]?(\d+\.\d+(?:\.\d+)?)/i);
+  const versionMatch = text.match(
+    /(?:istio(?:d)?[/\s:-]|"version"\s*:\s*")[vV]?(\d+\.\d+(?:\.\d+)?)/i
+  );
   const version = versionMatch ? versionMatch[1] : null;
   if (version) evidence.push(`Istio version disclosed: ${version}`);
 
@@ -247,8 +252,11 @@ export function probeLinkerdIdentity(response = {}) {
   }
 
   const trustAnchorExposed =
-    /BEGIN (EC )?PRIVATE KEY/i.test(text) === false && /-----BEGIN CERTIFICATE-----/.test(text) && LINKERD_IDENTITY_MARKERS.some((re) => re.test(text));
-  if (trustAnchorExposed) evidence.push('Linkerd trust-anchor certificate material disclosed in response');
+    /BEGIN (EC )?PRIVATE KEY/i.test(text) === false &&
+    /-----BEGIN CERTIFICATE-----/.test(text) &&
+    LINKERD_IDENTITY_MARKERS.some(re => re.test(text));
+  if (trustAnchorExposed)
+    evidence.push('Linkerd trust-anchor certificate material disclosed in response');
 
   const detected = status === 200 && evidence.length > 0;
   return {
@@ -280,10 +288,10 @@ export function probeConsulConnectCa(caResponse = {}, url = '') {
   }
   const text = JSON.stringify(data);
   const evidence = [];
-  const isPath = CONSUL_CA_PATHS.some((p) => String(url).includes(p));
-  const markers = CONSUL_CA_MARKERS.filter((re) => re.test(text));
+  const isPath = CONSUL_CA_PATHS.some(p => String(url).includes(p));
+  const markers = CONSUL_CA_MARKERS.filter(re => re.test(text));
   if (isPath) evidence.push(`Consul Connect CA endpoint path: ${url}`);
-  markers.forEach((re) => evidence.push(`Consul CA marker: ${re.source}`));
+  markers.forEach(re => evidence.push(`Consul CA marker: ${re.source}`));
 
   const roots = Array.isArray(data.RootCerts) ? data.RootCerts : [];
   const activeRootId = data.ActiveRootID || null;
@@ -297,9 +305,10 @@ export function probeConsulConnectCa(caResponse = {}, url = '') {
     rotationInProgress,
     confidence: markers.length >= 3 ? 'high' : markers.length >= 1 ? 'medium' : 'none',
     evidence,
-    clusterInfo: markers.length > 0
-      ? { trustDomain: data.TrustDomain || null, activeRootId, rootCount: roots.length }
-      : null,
+    clusterInfo:
+      markers.length > 0
+        ? { trustDomain: data.TrustDomain || null, activeRootId, rootCount: roots.length }
+        : null,
   };
 }
 
@@ -331,6 +340,6 @@ export function enumerateSpiffeIds(documents = []) {
     }
   }
 
-  const trustDomains = [...new Set(identities.map((i) => i.trustDomain))];
+  const trustDomains = [...new Set(identities.map(i => i.trustDomain))];
   return { identities, trustDomains, count: identities.length };
 }

@@ -61,15 +61,15 @@ export function useSearchEscape({ query = '', filters = {}, onQueryChange, onFil
   const [internal, setInternal] = useState(() => initialEscapeSearchState({ query, filters }));
   // keep snapshot up to date if the parent drives query from elsewhere
   useEffect(() => {
-    setInternal((s) => escapeSearchReducer(s, { type: 'SET_QUERY', query }));
+    setInternal(s => escapeSearchReducer(s, { type: 'SET_QUERY', query }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
   useEffect(() => {
-    setInternal((s) => escapeSearchReducer(s, { type: 'SET_FILTERS', filters }));
+    setInternal(s => escapeSearchReducer(s, { type: 'SET_FILTERS', filters }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
-  const onKeyDown = (e) => {
+  const onKeyDown = e => {
     if (e.key !== 'Escape') return;
     const next = escapeSearchReducer(internal, { type: 'ESCAPE' });
     if (next !== internal) {
@@ -138,7 +138,9 @@ export function useRetainedSearch(namespace, { debounceMs = 200 } = {}) {
  * scored by label match (prefix > substring > token match).
  */
 export function searchChainNodes(nodes = [], query = '', limit = 20) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!q) return nodes.slice(0, limit);
   const tokens = q.split(/\s+/);
   const scored = [];
@@ -149,7 +151,7 @@ export function searchChainNodes(nodes = [], query = '', limit = 20) {
     if (label.startsWith(q)) score = 3;
     else if (label.includes(q)) score = 2;
     else {
-      const hits = tokens.filter((t) => label.includes(t)).length;
+      const hits = tokens.filter(t => label.includes(t)).length;
       if (hits === 0) continue;
       score = 1 + hits / tokens.length;
     }
@@ -158,7 +160,7 @@ export function searchChainNodes(nodes = [], query = '', limit = 20) {
   return scored
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map((s) => s.node);
+    .map(s => s.node);
 }
 
 /* ------------------------------------------------------------------ */
@@ -178,15 +180,14 @@ const MODEL_SYNONYMS = {
  * Each entry: { id, name, provider, slot, kind: 'model'|'plugin', tags[] }.
  */
 export function searchModels(entries = [], query = '', limit = 50) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!q) return entries.slice(0, limit);
   const terms = [q, ...(MODEL_SYNONYMS[q] ?? [])];
   const scored = [];
   for (const m of entries) {
-    const hay = [
-      m.name, m.id, m.provider, m.slot, m.kind,
-      ...(Array.isArray(m.tags) ? m.tags : []),
-    ]
+    const hay = [m.name, m.id, m.provider, m.slot, m.kind, ...(Array.isArray(m.tags) ? m.tags : [])]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
@@ -203,7 +204,7 @@ export function searchModels(entries = [], query = '', limit = 50) {
   return scored
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map((s) => s.entry);
+    .map(s => s.entry);
 }
 
 /* ------------------------------------------------------------------ */

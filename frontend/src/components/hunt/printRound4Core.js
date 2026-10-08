@@ -114,9 +114,12 @@ export function duplexPadPages(pageCount) {
  */
 export function scopeAppendixData({ inScope = [], outOfScope = [], exclusions = [] }) {
   const rows = [];
-  for (const t of inScope) rows.push({ kind: 'in-scope', target: t.target || t, note: t.note || '' });
-  for (const t of outOfScope) rows.push({ kind: 'out-of-scope', target: t.target || t, note: t.note || '' });
-  for (const e of exclusions) rows.push({ kind: 'exclusion', target: e.rule || e, note: e.reason || '' });
+  for (const t of inScope)
+    rows.push({ kind: 'in-scope', target: t.target || t, note: t.note || '' });
+  for (const t of outOfScope)
+    rows.push({ kind: 'out-of-scope', target: t.target || t, note: t.note || '' });
+  for (const e of exclusions)
+    rows.push({ kind: 'exclusion', target: e.rule || e, note: e.reason || '' });
   return rows;
 }
 
@@ -169,7 +172,8 @@ export const PRINT_CSS_TARGETS = ['Chrome 120+', 'Edge 120+', 'Firefox 121+', 'S
 export function printCssSupportNote(engine) {
   const notes = {
     Blink: '@page size + margin boxes supported; use -webkit-print-color-adjust: exact.',
-    Gecko: '@page margin boxes partially supported; avoid position: fixed footers, use repeating thead.',
+    Gecko:
+      '@page margin boxes partially supported; avoid position: fixed footers, use repeating thead.',
     WebKit: 'ignores @page :left/:right; duplex mirrors via manual even-page padding only.',
   };
   return notes[engine] || 'no engine-specific print gaps recorded';
@@ -181,7 +185,7 @@ export function printCssSupportNote(engine) {
 
 /** Shape notification/audit events into compliance-evidence rows. */
 export function complianceHistoryRows(events) {
-  return (Array.isArray(events) ? events : []).map((e) => ({
+  return (Array.isArray(events) ? events : []).map(e => ({
     time: e.time || e.timestamp || '',
     actor: e.actor || 'system',
     action: e.action || e.type || '',

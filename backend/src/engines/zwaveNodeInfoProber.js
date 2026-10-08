@@ -60,16 +60,18 @@ export const HIGH_VALUE_CLASSES = new Set([0x62, 0x63, 0x94]);
  * @returns {object} node info or `{ valid: false, reason }`
  */
 export function parseNodeInfoFrame(frame = {}) {
-  if (!frame || frame.cmdClass !== 0x01) return { valid: false, reason: 'not a node-information frame (cmdClass != 0x01)' };
+  if (!frame || frame.cmdClass !== 0x01)
+    return { valid: false, reason: 'not a node-information frame (cmdClass != 0x01)' };
   const b = Buffer.isBuffer(frame.payload) ? frame.payload : Buffer.from(frame.payload || []);
-  if (b.length < 2) return { valid: false, reason: 'NIF payload too short for device-class fields' };
-  const commandClasses = [...b.slice(2)].map((cc) => ({
+  if (b.length < 2)
+    return { valid: false, reason: 'NIF payload too short for device-class fields' };
+  const commandClasses = [...b.slice(2)].map(cc => ({
     id: cc,
     name: ZWAVE_COMMAND_CLASSES[cc] || `unknown_0x${cc.toString(16)}`,
     highValue: HIGH_VALUE_CLASSES.has(cc),
   }));
-  const s2 = commandClasses.some((c) => c.id === 0x9b);
-  const s0 = commandClasses.some((c) => c.id === 0x98);
+  const s2 = commandClasses.some(c => c.id === 0x9b);
+  const s0 = commandClasses.some(c => c.id === 0x98);
   return {
     valid: true,
     nodeId: frame.nodeId,
@@ -91,29 +93,33 @@ export function analyzeNodeInfoFrames(frames = []) {
   for (const f of frames) {
     const node = parseNodeInfoFrame(f);
     if (!node.valid) continue;
-    const names = node.commandClasses.map((c) => c.name).join(', ');
+    const names = node.commandClasses.map(c => c.name).join(', ');
     findings.push({
       type: 'Z-Wave Node Enumerated',
       confidence: 'high',
       cwe: 'CWE-200',
       evidence: `node ${node.nodeId} advertises device class 0x${node.genericDeviceClass.toString(16)}/0x${node.specificDeviceClass.toString(16)} with command classes: ${names}; security: ${node.security}`,
-      extra: { nodeId: node.nodeId, security: node.security, commandClasses: node.commandClasses.map((c) => c.id) },
+      extra: {
+        nodeId: node.nodeId,
+        security: node.security,
+        commandClasses: node.commandClasses.map(c => c.id),
+      },
     });
-    const highValue = node.commandClasses.filter((c) => c.highValue);
+    const highValue = node.commandClasses.filter(c => c.highValue);
     if (highValue.length && node.security === 'none') {
       findings.push({
         type: 'High-Value Z-Wave Node Without Security',
         confidence: 'high',
         cwe: 'CWE-319',
-        evidence: `node ${node.nodeId} exposes ${highValue.map((c) => c.name).join(', ')} with NO security command class — control traffic is unauthenticated/cleartext on this node`,
-        extra: { nodeId: node.nodeId, classes: highValue.map((c) => c.name) },
+        evidence: `node ${node.nodeId} exposes ${highValue.map(c => c.name).join(', ')} with NO security command class — control traffic is unauthenticated/cleartext on this node`,
+        extra: { nodeId: node.nodeId, classes: highValue.map(c => c.name) },
       });
     } else if (highValue.length && node.security === 'S0') {
       findings.push({
         type: 'High-Value Z-Wave Node Using Legacy S0',
         confidence: 'medium',
         cwe: 'CWE-327',
-        evidence: `node ${node.nodeId} protects ${highValue.map((c) => c.name).join(', ')} with legacy S0 only (network key shared across all S0 nodes) — recommend upgrading to S2`,
+        evidence: `node ${node.nodeId} protects ${highValue.map(c => c.name).join(', ')} with legacy S0 only (network key shared across all S0 nodes) — recommend upgrading to S2`,
       });
     }
   }
@@ -122,7 +128,8 @@ export function analyzeNodeInfoFrames(frames = []) {
       type: 'No Z-Wave Node Info Observed',
       confidence: 'low',
       cwe: null,
-      evidence: 'no valid node-information frames in the provided set — network quiet or frames not captured',
+      evidence:
+        'no valid node-information frames in the provided set — network quiet or frames not captured',
     });
   }
   return findings;

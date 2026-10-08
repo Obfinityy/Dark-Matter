@@ -14,12 +14,42 @@
  * @type {Array<{framework:string, canonicalizes:boolean, preservesCustom:boolean, notes:string}>}
  */
 export const CASE_SIGNATURES = [
-  { framework: 'Go net/http', canonicalizes: true, preservesCustom: false, notes: 'canonical MIME header key form' },
-  { framework: 'Node.js (Express/Fastify)', canonicalizes: false, preservesCustom: true, notes: 'headers lowercased on parse, custom names preserved' },
-  { framework: 'Python (Django/Werkzeug)', canonicalizes: true, preservesCustom: false, notes: 'WSGI environ keys uppercased with HTTP_ prefix' },
-  { framework: 'Java (Servlet/Tomcat)', canonicalizes: false, preservesCustom: true, notes: 'case-insensitive lookup, original case preserved in iteration' },
-  { framework: '.NET (Kestrel)', canonicalizes: false, preservesCustom: true, notes: 'case-insensitive dictionary, insertion order kept' },
-  { framework: 'Ruby (Rack/Puma)', canonicalizes: true, preservesCustom: false, notes: 'rack input downcases to HTTP_* convention' },
+  {
+    framework: 'Go net/http',
+    canonicalizes: true,
+    preservesCustom: false,
+    notes: 'canonical MIME header key form',
+  },
+  {
+    framework: 'Node.js (Express/Fastify)',
+    canonicalizes: false,
+    preservesCustom: true,
+    notes: 'headers lowercased on parse, custom names preserved',
+  },
+  {
+    framework: 'Python (Django/Werkzeug)',
+    canonicalizes: true,
+    preservesCustom: false,
+    notes: 'WSGI environ keys uppercased with HTTP_ prefix',
+  },
+  {
+    framework: 'Java (Servlet/Tomcat)',
+    canonicalizes: false,
+    preservesCustom: true,
+    notes: 'case-insensitive lookup, original case preserved in iteration',
+  },
+  {
+    framework: '.NET (Kestrel)',
+    canonicalizes: false,
+    preservesCustom: true,
+    notes: 'case-insensitive dictionary, insertion order kept',
+  },
+  {
+    framework: 'Ruby (Rack/Puma)',
+    canonicalizes: true,
+    preservesCustom: false,
+    notes: 'rack input downcases to HTTP_* convention',
+  },
 ];
 
 /**
@@ -44,7 +74,11 @@ export function analyzeCaseHandling(observations) {
       const sent = String(o.header || '');
       const echoed = String(o.echoedCase);
       // canonical form: X-Custom-Header style
-      const canonical = sent.toLowerCase().split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+      const canonical = sent
+        .toLowerCase()
+        .split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join('-');
       if (echoed === canonical) {
         canonicalHits += 1;
         evidence.push(`${o.header}: server rewrote ${o.sentCase} case to canonical form`);

@@ -87,7 +87,11 @@ export function cancelDownload(modelId) {
   const dl = activeDownloads.get(modelId);
   if (dl) {
     dl.cancelled = true;
-    try { dl.controller.abort(); } catch { /* ignore */ }
+    try {
+      dl.controller.abort();
+    } catch {
+      /* ignore */
+    }
     activeDownloads.delete(modelId);
     return true;
   }

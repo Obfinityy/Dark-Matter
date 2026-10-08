@@ -18,7 +18,12 @@ const resolver = new dns.promises.Resolver();
 
 /** SSH host-key algorithms per RFC 4255 / RFC 6594. */
 export const SSHFP_ALGORITHMS = {
-  0: 'reserved', 1: 'RSA', 2: 'DSS', 3: 'ECDSA', 4: 'Ed25519', 6: 'Ed448',
+  0: 'reserved',
+  1: 'RSA',
+  2: 'DSS',
+  3: 'ECDSA',
+  4: 'Ed25519',
+  6: 'Ed448',
 };
 
 /** SSHFP fingerprint (hash) types per RFC 4255 / RFC 6594. */
@@ -39,18 +44,31 @@ export function parseSshfpRecord(rdata) {
     fingerprintType = Number(rdata.fingerprintType);
     fingerprint = String(rdata.fingerprint || '').replace(/[^0-9a-fA-F]/g, '');
   } else {
-    const parts = String(rdata || '').trim().split(/\s+/);
+    const parts = String(rdata || '')
+      .trim()
+      .split(/\s+/);
     if (parts.length < 3) return null;
     algorithm = Number(parts[0]);
     fingerprintType = Number(parts[1]);
-    fingerprint = parts.slice(2).join('').replace(/[^0-9a-fA-F]/g, '');
+    fingerprint = parts
+      .slice(2)
+      .join('')
+      .replace(/[^0-9a-fA-F]/g, '');
   }
-  if (!Number.isInteger(algorithm) || !Number.isInteger(fingerprintType) || !fingerprint) return null;
+  if (!Number.isInteger(algorithm) || !Number.isInteger(fingerprintType) || !fingerprint)
+    return null;
   const algorithmName = SSHFP_ALGORITHMS[algorithm] || `unknown(${algorithm})`;
   const fingerprintTypeName = SSHFP_FP_TYPES[fingerprintType] || `unknown(${fingerprintType})`;
   const expectedLen = fingerprintType === 1 ? 40 : fingerprintType === 2 ? 64 : 0;
   const valid = expectedLen === 0 || fingerprint.length === expectedLen;
-  return { algorithm, algorithmName, fingerprintType, fingerprintTypeName, fingerprint: fingerprint.toLowerCase(), valid };
+  return {
+    algorithm,
+    algorithmName,
+    fingerprintType,
+    fingerprintTypeName,
+    fingerprint: fingerprint.toLowerCase(),
+    valid,
+  };
 }
 
 /**
@@ -61,7 +79,9 @@ export function parseSshfpRecord(rdata) {
  * @returns {{hostname:string, offersSsh:boolean, keyTypes:string[], findings:Array<{severity:string,type:string,detail:string}>}}
  */
 export function analyzeSshfpRecords(hostname, records) {
-  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const host = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const findings = [];
   const parsed = (records || []).map(parseSshfpRecord).filter(Boolean);
   if (parsed.length === 0) return { hostname: host, offersSsh: false, keyTypes: [], findings };
@@ -104,23 +124,49 @@ export function analyzeSshfpRecords(hostname, records) {
  * @param {string[]} [hostnames] hostnames to probe (defaults to common prefixes)
  * @returns {Promise<{domain:string, sshHosts:Array, summary:string[]}>}
  */
-export async function harvestSshfpHosts(domain, hostnames = ['www', 'mail', 'vpn', 'ssh', 'git', 'server', 'gateway', 'remote', 'dev', 'staging', ' Bastion'.trim().toLowerCase()]) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+export async function harvestSshfpHosts(
+  domain,
+  hostnames = [
+    'www',
+    'mail',
+    'vpn',
+    'ssh',
+    'git',
+    'server',
+    'gateway',
+    'remote',
+    'dev',
+    'staging',
+    ' Bastion'.trim().toLowerCase(),
+  ]
+) {
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const targets = [...new Set([...hostnames.map(h => `${h}.${d}`), d])];
   const sshHosts = [];
   const summary = [];
-  await Promise.all(targets.map(async (hostname) => {
-    try {
-      const raw = await resolver.resolve(hostname, 'SSHFP');
-      const analysis = analyzeSshfpRecords(hostname, raw);
-      if (analysis.offersSsh) sshHosts.push(analysis);
-    } catch { /* no SSHFP — not a finding */ }
-  }));
+  await Promise.all(
+    targets.map(async hostname => {
+      try {
+        const raw = await resolver.resolve(hostname, 'SSHFP');
+        const analysis = analyzeSshfpRecords(hostname, raw);
+        if (analysis.offersSsh) sshHosts.push(analysis);
+      } catch {
+        /* no SSHFP — not a finding */
+      }
+    })
+  );
   sshHosts.sort((a, b) => a.hostname.localeCompare(b.hostname));
   if (sshHosts.length === 0) {
-    summary.push('No SSHFP records found on probed hostnames — SSH services on this domain are not DNS-advertised (normal; SSH may still exist).');
+    summary.push(
+      'No SSHFP records found on probed hostnames — SSH services on this domain are not DNS-advertised (normal; SSH may still exist).'
+    );
   } else {
-    summary.push(`${sshHosts.length} host(s) advertise SSH via SSHFP: ${sshHosts.map(h => `${h.hostname} (${h.keyTypes.join('/')})`).join(', ')} — fingerprint each for version, auth methods and host-key rotation status.`);
+    summary.push(
+      `${sshHosts.length} host(s) advertise SSH via SSHFP: ${sshHosts.map(h => `${h.hostname} (${h.keyTypes.join('/')})`).join(', ')} — fingerprint each for version, auth methods and host-key rotation status.`
+    );
   }
   return { domain: d, sshHosts, summary };
 }

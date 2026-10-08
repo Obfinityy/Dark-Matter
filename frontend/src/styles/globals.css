@@ -1,16 +1,96 @@
+/**
+ * globals.css — the global stylesheet.
+ * Imports design tokens, auth styles, and theme layers, then applies base
+ * resets (box-sizing, margins) shared by the whole application.
+ * Part of: Infinity AI / Dark-Matter frontend (styles).
+ */
 @import './variables.css';
 @import './auth.css';
 @import './infinity.css';
-*{box-sizing:border-box;margin:0;padding:0}
-html,body,#root{min-width:320px;min-height:100%;width:100%}
-html{background:var(--bg-primary)}
-body{background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans);line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-::selection{background:rgba(212,169,78,.22);color:var(--text-primary)}
-a{color:var(--accent);text-decoration:none;transition:color var(--transition-fast)} a:hover{color:var(--accent-hover)}
-::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-track{background:var(--bg-primary)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:var(--radius-full)}
-h1,h2,h3,h4,h5,h6{color:var(--text-primary);font-family:var(--font-heading);font-weight:600;line-height:1.2;letter-spacing:-.02em}
-button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent-secondary);outline-offset:2px}
-input,textarea,select{font-family:inherit}
-#root{display:flex;min-height:100vh}
-.typing-dot{display:inline-block;font-size:24px;line-height:10px}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  width: 100%;
+}
+html {
+  background: var(--bg-primary);
+}
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection {
+  background: rgba(212, 169, 78, 0.22);
+  color: var(--text-primary);
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--accent-hover);
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 2px;
+}
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+#root {
+  display: flex;
+  min-height: 100vh;
+}
+.typing-dot {
+  display: inline-block;
+  font-size: 24px;
+  line-height: 10px;
+}

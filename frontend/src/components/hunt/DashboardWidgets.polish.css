@@ -14,15 +14,25 @@
   background: var(--surface, #17171c);
   box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.2));
   padding: 16px;
-  
+
   transition: border-color var(--transition-fast, 0.15s ease);
 }
 
-.dbw-grid > .dbw-widget:nth-child(2) { animation-delay: 0.05s; }
-.dbw-grid > .dbw-widget:nth-child(3) { animation-delay: 0.1s; }
-.dbw-grid > .dbw-widget:nth-child(4) { animation-delay: 0.15s; }
-.dbw-grid > .dbw-widget:nth-child(5) { animation-delay: 0.2s; }
-.dbw-grid > .dbw-widget:nth-child(6) { animation-delay: 0.25s; }
+.dbw-grid > .dbw-widget:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.dbw-grid > .dbw-widget:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.dbw-grid > .dbw-widget:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.dbw-grid > .dbw-widget:nth-child(5) {
+  animation-delay: 0.2s;
+}
+.dbw-grid > .dbw-widget:nth-child(6) {
+  animation-delay: 0.25s;
+}
 
 .dbw-head {
   align-items: center;
@@ -63,7 +73,9 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  transition: border-color var(--transition-fast, 0.15s ease), background-color var(--transition-fast, 0.15s ease);
+  transition:
+    border-color var(--transition-fast, 0.15s ease),
+    background-color var(--transition-fast, 0.15s ease);
 }
 
 .dbw-mini:hover {

@@ -47,7 +47,7 @@ export function parseCidr(cidr) {
   const mask = Number(maskStr);
   const base = ipToInt(ip);
   if (base === null || !Number.isInteger(mask) || mask < 0 || mask > 32) return null;
-  const maskInt = mask === 0 ? 0 : (~((1 << (32 - mask)) - 1)) >>> 0;
+  const maskInt = mask === 0 ? 0 : ~((1 << (32 - mask)) - 1) >>> 0;
   return { network: (base & maskInt) >>> 0, mask };
 }
 
@@ -62,7 +62,7 @@ export function cidrContains(inner, outer) {
   const o = parseCidr(outer);
   if (!i || !o || o.mask > i.mask) return false;
   const shift = 32 - o.mask;
-  return (i.network >>> shift) === (o.network >>> shift);
+  return i.network >>> shift === o.network >>> shift;
 }
 
 /**
@@ -72,8 +72,8 @@ export function cidrContains(inner, outer) {
  */
 export function buildPrefixTree(prefixes) {
   const parsed = (prefixes ?? [])
-    .map((p) => ({ ...p, cidr: parseCidr(p.prefix) }))
-    .filter((p) => p.cidr);
+    .map(p => ({ ...p, cidr: parseCidr(p.prefix) }))
+    .filter(p => p.cidr);
   const parents = new Map();
   const orphans = [];
 
@@ -94,7 +94,7 @@ export function buildPrefixTree(prefixes) {
     }
   }
 
-  const roots = orphans.map((o) => ({
+  const roots = orphans.map(o => ({
     prefix: o.prefix,
     asn: o.asn,
     children: (parents.get(o.prefix) ?? []).sort(),
@@ -125,7 +125,7 @@ export function expandPrefixTree(prefixes, opts = {}) {
     const children = [];
     for (let i = 0; i < count; i += 1) {
       const net = (parsed.network + i * step) >>> 0;
-      const dotted = [3, 2, 1, 0].map((s) => (net >>> (s * 8)) & 255).join('.');
+      const dotted = [3, 2, 1, 0].map(s => (net >>> (s * 8)) & 255).join('.');
       children.push(`${dotted}/${childMask}`);
     }
     out.push({ parent: p.prefix, asn: p.asn, children });

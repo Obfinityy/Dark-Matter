@@ -16,8 +16,14 @@
  */
 export const RATE_LIMIT_HEADER_FAMILIES = [
   { family: 'ietf-draft', names: ['ratelimit-limit', 'ratelimit-remaining', 'ratelimit-reset'] },
-  { family: 'x-ratelimit', names: ['x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset'] },
-  { family: 'x-rate-limit', names: ['x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset'] },
+  {
+    family: 'x-ratelimit',
+    names: ['x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset'],
+  },
+  {
+    family: 'x-rate-limit',
+    names: ['x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset'],
+  },
   { family: 'retry-after', names: ['retry-after'] },
 ];
 
@@ -130,13 +136,21 @@ export function identifyRateLimitGateway(headers) {
   for (const [k, v] of Object.entries(headers)) lower[k.toLowerCase()] = String(v);
   const hits = [];
   for (const sig of GATEWAY_RATE_LIMIT_SIGNATURES) {
-    const matched = sig.markers.filter((m) => m in lower);
+    const matched = sig.markers.filter(m => m in lower);
     if (matched.length > 0) {
-      hits.push({ product: sig.product, confidence: sig.confidence, note: sig.note, matchedMarkers: matched });
+      hits.push({
+        product: sig.product,
+        confidence: sig.confidence,
+        note: sig.note,
+        matchedMarkers: matched,
+      });
     }
   }
   const rank = { high: 3, medium: 2, low: 1 };
-  return hits.sort((a, b) => rank[b.confidence] - rank[a.confidence] || b.matchedMarkers.length - a.matchedMarkers.length);
+  return hits.sort(
+    (a, b) =>
+      rank[b.confidence] - rank[a.confidence] || b.matchedMarkers.length - a.matchedMarkers.length
+  );
 }
 
 /**
@@ -157,7 +171,8 @@ export function analyzeRateLimit(obs) {
   } else {
     parts.push('no rate-limit headers observed');
   }
-  if (gateways.length > 0) parts.push(`likely gateway: ${gateways[0].product} (${gateways[0].confidence} confidence)`);
+  if (gateways.length > 0)
+    parts.push(`likely gateway: ${gateways[0].product} (${gateways[0].confidence} confidence)`);
   if (throttled) parts.push('response indicates active throttling (429 or Retry-After)');
   return { parsed, gateways, throttled, summary: parts.join('; ') + '.' };
 }

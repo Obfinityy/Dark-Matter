@@ -7,6 +7,11 @@
  *  - Overly permissive methods/headers
  */
 
+/**
+ * Check C O R S.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function checkCORS({ url, headers = {}, requestOrigin = 'https://evil.com' } = {}) {
   if (!headers || typeof headers !== 'object') headers = {};
   const h = {};
@@ -29,7 +34,8 @@ export function checkCORS({ url, headers = {}, requestOrigin = 'https://evil.com
       severity: 'High',
       confidence: 'high',
       cwe: 'CWE-942',
-      evidence: 'Access-Control-Allow-Origin: * with Allow-Credentials: true — any site can read authenticated responses.',
+      evidence:
+        'Access-Control-Allow-Origin: * with Allow-Credentials: true — any site can read authenticated responses.',
     };
   }
 

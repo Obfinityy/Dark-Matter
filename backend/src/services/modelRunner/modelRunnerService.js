@@ -63,12 +63,15 @@ async function waitForHealth(baseUrl, timeoutMs = 240000) {
     try {
       const response = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(4000) });
       if (response.ok) return true;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     if (Date.now() - start > timeoutMs) return false;
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 800));
   }
 }
 
+/** Business-logic service for model runner. */
 export class ModelRunnerService {
   constructor({ dataDir, logger = console } = {}) {
     this.dataDir = dataDir || defaultDataDir();
@@ -135,7 +138,9 @@ export class ModelRunnerService {
     // runner loads them text-only (screenshots invisible). Refuse to start
     // rather than silently running a blind "vision" brain.
     if (model.hfMmproj && !this.isMmprojDownloaded(model)) {
-      const error = new Error(`"${model.name}" vision projector is not downloaded yet — download it first`);
+      const error = new Error(
+        `"${model.name}" vision projector is not downloaded yet — download it first`
+      );
       error.code = 'NOT_DOWNLOADED';
       throw error;
     }
@@ -144,9 +149,13 @@ export class ModelRunnerService {
     if (existing && existing.modelId === modelId) {
       // Verify it's still alive
       try {
-        const res = await fetch(`${existing.baseUrl}/v1/models`, { signal: AbortSignal.timeout(3000) });
+        const res = await fetch(`${existing.baseUrl}/v1/models`, {
+          signal: AbortSignal.timeout(3000),
+        });
         if (res.ok) return { alreadyRunning: true, slot, ...existing };
-      } catch { /* dead — restart below */ }
+      } catch {
+        /* dead — restart below */
+      }
     }
     // Stop any existing server for this slot first.
     if (existing) await this.stopSlot(slot);
@@ -158,33 +167,48 @@ export class ModelRunnerService {
     const ggufPath = this.modelFilePath(model, quant);
 
     const maxCtx = Number(model.contextWindow) > 0 ? Number(model.contextWindow) : 32768;
-    const contextSize = Math.min(
-      Math.max(Math.floor(options.contextSize || 8192), 1024),
-      maxCtx
-    );
+    const contextSize = Math.min(Math.max(Math.floor(options.contextSize || 8192), 1024), maxCtx);
 
     // koboldcpp flags (not llama-server): --model, --port, --host,
     // --contextsize, --gpulayers, --quiet, --mmproj.
     const gpuLayers = device?.hasNvidia ? 99 : 0;
     const mmprojPath = model.hfMmproj ? this.mmprojFilePath(model) : null;
-    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers, mmprojPath });
-    this.logger.info?.(`[model-runner] starting ${model.name} for slot "${slot}" on 127.0.0.1:${port} via ${RUNNER_DISPLAY_NAME}`);
+    const spawnArgv = buildSpawnArgs({
+      binaryPath,
+      modelPath: ggufPath,
+      port,
+      contextSize,
+      gpuLayers,
+      mmprojPath,
+    });
+    this.logger.info?.(
+      `[model-runner] starting ${model.name} for slot "${slot}" on 127.0.0.1:${port} via ${RUNNER_DISPLAY_NAME}`
+    );
 
     const child = spawn(spawnArgv[0], spawnArgv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
     const baseUrl = `http://127.0.0.1:${port}`;
     const serverInfo = {
-      slot, modelId: model.id, name: model.name, quant, pid: child.pid, port, baseUrl,
-      contextSize, startedAt: new Date().toISOString()
+      slot,
+      modelId: model.id,
+      name: model.name,
+      quant,
+      pid: child.pid,
+      port,
+      baseUrl,
+      contextSize,
+      startedAt: new Date().toISOString(),
     };
     this.slotServers[slot] = serverInfo;
     this.emitRun();
 
     let stderrTail = '';
-    child.stderr.on('data', (d) => { stderrTail = `${stderrTail}${d}`.slice(-2000); });
-    const earlyExit = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+    child.stderr.on('data', d => {
+      stderrTail = `${stderrTail}${d}`.slice(-2000);
+    });
+    const earlyExit = new Promise(resolve => child.on('exit', code => resolve(code)));
     const exited = await Promise.race([
-      earlyExit.then((code) => ({ exited: true, code })),
-      waitForHealth(baseUrl).then((healthy) => ({ exited: false, healthy }))
+      earlyExit.then(code => ({ exited: true, code })),
+      waitForHealth(baseUrl).then(healthy => ({ exited: false, healthy })),
     ]);
 
     if (exited.exited || exited.healthy === false) {
@@ -193,7 +217,11 @@ export class ModelRunnerService {
         : `${RUNNER_DISPLAY_NAME} did not become healthy in time`;
       delete this.slotServers[slot];
       this.emitRun();
-      try { child.kill(); } catch { /* ignore */ }
+      try {
+        child.kill();
+      } catch {
+        /* ignore */
+      }
       const error = new Error(reason);
       error.code = 'RUN_FAILED';
       throw error;
@@ -218,11 +246,15 @@ export class ModelRunnerService {
     this.emitRun();
     try {
       if (pid) process.kill(pid, 'SIGTERM');
-    } catch { /* already gone */ }
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    } catch {
+      /* already gone */
+    }
+    await new Promise(resolve => setTimeout(resolve, 800));
     try {
       if (pid) process.kill(pid, 'SIGKILL');
-    } catch { /* gone */ }
+    } catch {
+      /* gone */
+    }
     this.logger.info?.(`[model-runner] stopped slot "${slot}" model ${modelId}`);
     return { stopped: true, slot, modelId };
   }
@@ -242,7 +274,9 @@ export class ModelRunnerService {
       const server = this.slotServers[slot];
       // Intentional stop, or slot already reassigned — not a crash.
       if (!server || server.stopping) return;
-      this.logger.warn?.(`[model-runner] brain "${slot}" died unexpectedly (code ${code}, signal ${signal}) — restarting`);
+      this.logger.warn?.(
+        `[model-runner] brain "${slot}" died unexpectedly (code ${code}, signal ${signal}) — restarting`
+      );
       const attempts = (this.slotRestarts[slot] || 0) + 1;
       this.slotRestarts[slot] = attempts;
       if (attempts > 3) {
@@ -252,7 +286,7 @@ export class ModelRunnerService {
         this.slotSetupError = this.slotSetupError || {};
         this.slotSetupError[slot] = {
           message: `The ${slot} brain crashed repeatedly and was stopped. Press Download & Run to try again.`,
-          at: new Date().toISOString()
+          at: new Date().toISOString(),
         };
         this.emitRun();
         return;
@@ -262,9 +296,14 @@ export class ModelRunnerService {
         // Slot may have been stopped/reassigned while we waited.
         if (!this.slotServers[slot] || this.slotServers[slot].stopping) return;
         try {
-          await this.runForSlot(slot, runOpts.modelId, { quant: runOpts.quant, contextSize: runOpts.contextSize });
+          await this.runForSlot(slot, runOpts.modelId, {
+            quant: runOpts.quant,
+            contextSize: runOpts.contextSize,
+          });
           delete this.slotRestarts[slot];
-          this.logger.info?.(`[model-runner] brain "${slot}" restarted after crash (attempt ${attempts})`);
+          this.logger.info?.(
+            `[model-runner] brain "${slot}" restarted after crash (attempt ${attempts})`
+          );
         } catch (error) {
           this.logger.warn?.(`[model-runner] brain "${slot}" restart failed: ${error.message}`);
         }
@@ -298,7 +337,8 @@ export class ModelRunnerService {
     }
     // Already running this exact model? Nothing to do.
     const existing = this.slotServers[slot];
-    if (existing && existing.modelId === modelId) return { accepted: true, slot, modelId, alreadyRunning: true };
+    if (existing && existing.modelId === modelId)
+      return { accepted: true, slot, modelId, alreadyRunning: true };
     // Setup already in flight for this slot? Dedupe.
     if (this.slotSetup?.[slot]) return { accepted: true, slot, modelId, alreadySettingUp: true };
 
@@ -314,9 +354,13 @@ export class ModelRunnerService {
         }
         // Phase 2: run it for the slot (also downloads the Runner binary).
         await this.runForSlot(slot, modelId, options);
-        this.logger.info?.(`[model-runner] one-click setup complete for slot "${slot}" (${modelId})`);
+        this.logger.info?.(
+          `[model-runner] one-click setup complete for slot "${slot}" (${modelId})`
+        );
       } catch (error) {
-        this.logger.warn?.(`[model-runner] one-click setup failed for slot "${slot}": ${error.message}`);
+        this.logger.warn?.(
+          `[model-runner] one-click setup failed for slot "${slot}": ${error.message}`
+        );
         this.slotSetupError = this.slotSetupError || {};
         this.slotSetupError[slot] = { message: error.message, at: new Date().toISOString() };
         this.emitRun();
@@ -360,7 +404,7 @@ export class ModelRunnerService {
       if (s.status === 'done') return;
       if (s.status === 'error') throw new Error(s.error || 'Model download failed.');
       if (s.status === 'cancelled') throw new Error('Model download was cancelled.');
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
 
@@ -383,7 +427,7 @@ export class ModelRunnerService {
       const raw = fs.readFileSync(this.customModelsPath(), 'utf8');
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        this.customModels = parsed.filter((m) => m && typeof m.id === 'string');
+        this.customModels = parsed.filter(m => m && typeof m.id === 'string');
         // Keep the sequence ahead of any persisted custom-N id.
         for (const m of this.customModels) {
           const n = Number(String(m.id).replace('custom-', ''));
@@ -422,7 +466,7 @@ export class ModelRunnerService {
   }
 
   findModel(modelId) {
-    return this.allModels().find((m) => m.id === modelId) || null;
+    return this.allModels().find(m => m.id === modelId) || null;
   }
 
   modelFilePath(model, quant = 'Q4_K_M') {
@@ -477,11 +521,19 @@ export class ModelRunnerService {
    */
   resolveQuant(model, quant) {
     const q = quant || 'Q4_K_M';
-    const entry = model.quants?.[q]
-      || (q === 'Q4_K_M' ? { file: model.hfFile || model.file || `${model.id || 'model'}.gguf`, sizeGB: model.sizeGB } : null);
+    const entry =
+      model.quants?.[q] ||
+      (q === 'Q4_K_M'
+        ? {
+            file: model.hfFile || model.file || `${model.id || 'model'}.gguf`,
+            sizeGB: model.sizeGB,
+          }
+        : null);
     if (!entry?.file) {
       const available = model.quants ? Object.keys(model.quants).join(', ') : 'Q4_K_M';
-      const error = new Error(`Quantization "${q}" is not available for "${model.name}" (available: ${available})`);
+      const error = new Error(
+        `Quantization "${q}" is not available for "${model.name}" (available: ${available})`
+      );
       error.code = 'UNKNOWN_QUANT';
       throw error;
     }
@@ -522,14 +574,16 @@ export class ModelRunnerService {
   /** Quants of this model that are fully on disk. */
   downloadedQuants(model) {
     const available = model.quants ? Object.keys(model.quants) : ['Q4_K_M'];
-    return available.filter((q) => this.isDownloaded(model, q));
+    return available.filter(q => this.isDownloaded(model, q));
   }
 
   /** Quant to run: explicit choice wins, else Q4_K_M, else any downloaded quant. */
   preferredQuant(model, quant) {
     if (quant) {
       if (!this.isDownloaded(model, quant)) {
-        const error = new Error(`"${model.name}" ${quant} is not downloaded yet — download it first`);
+        const error = new Error(
+          `"${model.name}" ${quant} is not downloaded yet — download it first`
+        );
         error.code = 'NOT_DOWNLOADED';
         throw error;
       }
@@ -541,7 +595,7 @@ export class ModelRunnerService {
 
   async library() {
     const device = await this.getDevice();
-    return this.allModels().map((model) => ({
+    return this.allModels().map(model => ({
       ...model,
       // "downloaded" means fully runnable: GGUF on disk AND the vision
       // projector for multimodal brains (a vision brain without its .mmproj
@@ -550,7 +604,7 @@ export class ModelRunnerService {
       downloadedQuants: this.downloadedQuants(model),
       downloadedBytes: this.downloadedBytes(model),
       running: this.running?.modelId === model.id,
-      compatibility: rankModelForDevice(model, device)
+      compatibility: rankModelForDevice(model, device),
     }));
   }
 
@@ -566,10 +620,16 @@ export class ModelRunnerService {
       running: this.running ? { ...this.running } : null,
       // Per-slot servers: each brain slot on its own localhost port.
       slotServers: this.describeSlotServers(),
-      models: (await this.library()).map((m) => ({
-        id: m.id, name: m.name, params: m.params, tier: m.tier, sizeGB: m.sizeGB,
-        downloaded: m.downloaded, running: m.running, compatibility: m.compatibility
-      }))
+      models: (await this.library()).map(m => ({
+        id: m.id,
+        name: m.name,
+        params: m.params,
+        tier: m.tier,
+        sizeGB: m.sizeGB,
+        downloaded: m.downloaded,
+        running: m.running,
+        compatibility: m.compatibility,
+      })),
     };
   }
 
@@ -583,7 +643,11 @@ export class ModelRunnerService {
   emitDownload() {
     const snapshot = this.downloadState ? { ...this.downloadState } : { status: 'idle' };
     for (const listener of this.downloadListeners) {
-      try { listener(snapshot); } catch { /* ignore */ }
+      try {
+        listener(snapshot);
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -616,9 +680,15 @@ export class ModelRunnerService {
     fs.mkdirSync(path.dirname(destPath), { recursive: true });
     const controller = new AbortController();
     this.downloadState = {
-      status: 'downloading', modelId: model.id, quant: 'mmproj', sizeGB: null,
-      name: `${model.name} (vision projector)`, url,
-      receivedBytes: 0, totalBytes: null, error: null
+      status: 'downloading',
+      modelId: model.id,
+      quant: 'mmproj',
+      sizeGB: null,
+      name: `${model.name} (vision projector)`,
+      url,
+      receivedBytes: 0,
+      totalBytes: null,
+      error: null,
     };
     this.emitDownload();
     try {
@@ -626,26 +696,45 @@ export class ModelRunnerService {
         signal: controller.signal,
         onProgress: (receivedBytes, totalBytes) => {
           this.downloadState = {
-            status: 'downloading', modelId: model.id, quant: 'mmproj', sizeGB: null,
-            name: `${model.name} (vision projector)`, url,
-            receivedBytes, totalBytes, error: null
+            status: 'downloading',
+            modelId: model.id,
+            quant: 'mmproj',
+            sizeGB: null,
+            name: `${model.name} (vision projector)`,
+            url,
+            receivedBytes,
+            totalBytes,
+            error: null,
           };
           this.emitDownload();
-        }
+        },
       });
       this.downloadState = {
-        status: 'done', modelId: model.id, quant: 'mmproj', sizeGB: null,
-        name: `${model.name} (vision projector)`, url,
-        receivedBytes: bytes, totalBytes: bytes, error: null
+        status: 'done',
+        modelId: model.id,
+        quant: 'mmproj',
+        sizeGB: null,
+        name: `${model.name} (vision projector)`,
+        url,
+        receivedBytes: bytes,
+        totalBytes: bytes,
+        error: null,
       };
       this.emitDownload();
     } catch (error) {
       const cancelled = controller.signal.aborted;
       this.downloadState = {
-        status: cancelled ? 'cancelled' : 'error', modelId: model.id, quant: 'mmproj',
-        sizeGB: null, name: `${model.name} (vision projector)`, url,
-        receivedBytes: 0, totalBytes: null,
-        error: cancelled ? 'Cancelled by user' : `Vision projector download failed: ${error.message}`
+        status: cancelled ? 'cancelled' : 'error',
+        modelId: model.id,
+        quant: 'mmproj',
+        sizeGB: null,
+        name: `${model.name} (vision projector)`,
+        url,
+        receivedBytes: 0,
+        totalBytes: null,
+        error: cancelled
+          ? 'Cancelled by user'
+          : `Vision projector download failed: ${error.message}`,
       };
       this.emitDownload();
       throw error;
@@ -686,8 +775,15 @@ export class ModelRunnerService {
     const controller = new AbortController();
     this.downloadAbort = controller;
     this.downloadState = {
-      status: 'downloading', modelId: model.id, quant: q, sizeGB, name: model.name, url,
-      receivedBytes: this.downloadedBytes(model, q), totalBytes: null, error: null
+      status: 'downloading',
+      modelId: model.id,
+      quant: q,
+      sizeGB,
+      name: model.name,
+      url,
+      receivedBytes: this.downloadedBytes(model, q),
+      totalBytes: null,
+      error: null,
     };
     this.emitDownload();
 
@@ -699,20 +795,35 @@ export class ModelRunnerService {
         this.downloadState.receivedBytes = receivedBytes;
         this.downloadState.totalBytes = totalBytes;
         this.emitDownload();
-      }
+      },
     }).then(
       ({ bytes }) => {
-        this.downloadState = { status: 'done', modelId: model.id, quant: q, sizeGB, name: model.name, url, receivedBytes: bytes, totalBytes: bytes, error: null };
+        this.downloadState = {
+          status: 'done',
+          modelId: model.id,
+          quant: q,
+          sizeGB,
+          name: model.name,
+          url,
+          receivedBytes: bytes,
+          totalBytes: bytes,
+          error: null,
+        };
         this.downloadAbort = null;
         this.emitDownload();
       },
-      (error) => {
+      error => {
         const cancelled = controller.signal.aborted;
         this.downloadState = {
           status: cancelled ? 'cancelled' : 'error',
-          modelId: model.id, quant: q, sizeGB, name: model.name, url,
-          receivedBytes: this.downloadedBytes(model, q), totalBytes: null,
-          error: cancelled ? 'Cancelled by user' : error.message
+          modelId: model.id,
+          quant: q,
+          sizeGB,
+          name: model.name,
+          url,
+          receivedBytes: this.downloadedBytes(model, q),
+          totalBytes: null,
+          error: cancelled ? 'Cancelled by user' : error.message,
         };
         this.downloadAbort = null;
         this.emitDownload();
@@ -742,7 +853,12 @@ export class ModelRunnerService {
     }
     if (state && state.status === 'downloading') {
       state.status = 'paused';
-      return { paused: true, modelId: state.modelId, receivedBytes: state.receivedBytes || 0, totalBytes: state.totalBytes || null };
+      return {
+        paused: true,
+        modelId: state.modelId,
+        receivedBytes: state.receivedBytes || 0,
+        totalBytes: state.totalBytes || null,
+      };
     }
     return { paused: false };
   }
@@ -761,11 +877,13 @@ export class ModelRunnerService {
     }
     try {
       fs.rmSync(path.dirname(this.modelFilePath(model)), { recursive: true, force: true });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     // For user-added custom models, deleting also removes the library entry
     // (otherwise a dead entry would linger in the UI).
     if (model.custom) {
-      this.customModels = this.customModels.filter((m) => m.id !== model.id);
+      this.customModels = this.customModels.filter(m => m.id !== model.id);
       this._saveCustomModels();
     }
     return { deleted: true, modelId };
@@ -786,7 +904,8 @@ export class ModelRunnerService {
     // Optional user-supplied RAM requirement (GB); falls back to a safe 8GB
     // when omitted so the compatibility ranking stays conservative.
     const ramNeed = Number(ramGB);
-    const ramGBValue = Number.isFinite(ramNeed) && ramNeed > 0 ? Math.min(Math.round(ramNeed * 10) / 10, 512) : 8;
+    const ramGBValue =
+      Number.isFinite(ramNeed) && ramNeed > 0 ? Math.min(Math.round(ramNeed * 10) / 10, 512) : 8;
     const url = hfDownloadUrl(cleanRepo, cleanFile);
     let sizeGB = null;
     let sizeBytes = null;
@@ -807,7 +926,9 @@ export class ModelRunnerService {
     this.customSeq += 1;
     const model = {
       id: `custom-${this.customSeq}`,
-      name: (typeof name === 'string' && name.trim().slice(0, 80)) || `${cleanRepo.split('/')[1] || cleanRepo}`,
+      name:
+        (typeof name === 'string' && name.trim().slice(0, 80)) ||
+        `${cleanRepo.split('/')[1] || cleanRepo}`,
       params: 'custom',
       quant: /Q4_K_M/i.test(cleanFile) ? 'Q4_K_M' : 'GGUF',
       tier: 'custom',
@@ -820,7 +941,7 @@ export class ModelRunnerService {
       uncensored: null, // unknown — user's own choice
       custom: true,
       requirements: { ramGB: ramGBValue, vramGB: 0, gpuRequired: false },
-      description: `User-added model from Hugging Face: ${cleanRepo}`
+      description: `User-added model from Hugging Face: ${cleanRepo}`,
     };
     this.customModels.push(model);
     this._saveCustomModels();
@@ -837,7 +958,11 @@ export class ModelRunnerService {
   emitRun() {
     const snapshot = this.running ? { ...this.running } : null;
     for (const listener of this.runListeners) {
-      try { listener(snapshot); } catch { /* ignore */ }
+      try {
+        listener(snapshot);
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -862,7 +987,12 @@ export class ModelRunnerService {
       const file = this.runStatePath();
       fs.mkdirSync(path.dirname(file), { recursive: true });
       if (this.running) fs.writeFileSync(file, JSON.stringify(this.running));
-      else try { fs.unlinkSync(file); } catch { /* already gone */ }
+      else
+        try {
+          fs.unlinkSync(file);
+        } catch {
+          /* already gone */
+        }
     } catch (error) {
       this.logger?.warn?.(`[model-runner] could not persist run state: ${error.message}`);
     }
@@ -871,7 +1001,12 @@ export class ModelRunnerService {
   /** Is this pid alive? */
   _pidAlive(pid) {
     if (!pid) return false;
-    try { process.kill(pid, 0); return true; } catch { return false; }
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -883,16 +1018,29 @@ export class ModelRunnerService {
   async _reattachIfOrphaned() {
     if (this.running) return true;
     let saved = null;
-    try { saved = JSON.parse(fs.readFileSync(this.runStatePath(), 'utf8')); } catch { return false; }
-    if (!saved?.port || !saved?.baseUrl) return false;
-    if (!this._pidAlive(saved.pid)) { this._writeRunState(); return false; }
     try {
-      const response = await fetch(`${saved.baseUrl}/v1/models`, { signal: AbortSignal.timeout(4000) });
+      saved = JSON.parse(fs.readFileSync(this.runStatePath(), 'utf8'));
+    } catch {
+      return false;
+    }
+    if (!saved?.port || !saved?.baseUrl) return false;
+    if (!this._pidAlive(saved.pid)) {
+      this._writeRunState();
+      return false;
+    }
+    try {
+      const response = await fetch(`${saved.baseUrl}/v1/models`, {
+        signal: AbortSignal.timeout(4000),
+      });
       if (!response.ok) return false;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
     this.running = saved;
     this.emitRun();
-    this.logger.info?.(`[model-runner] re-attached to surviving model server ${saved.name} at ${saved.baseUrl}`);
+    this.logger.info?.(
+      `[model-runner] re-attached to surviving model server ${saved.name} at ${saved.baseUrl}`
+    );
     return true;
   }
 
@@ -919,7 +1067,9 @@ export class ModelRunnerService {
     // runner loads them text-only (screenshots invisible). Refuse to start
     // rather than silently running a blind "vision" brain.
     if (model.hfMmproj && !this.isMmprojDownloaded(model)) {
-      const error = new Error(`"${model.name}" vision projector is not downloaded yet — download it first`);
+      const error = new Error(
+        `"${model.name}" vision projector is not downloaded yet — download it first`
+      );
       error.code = 'NOT_DOWNLOADED';
       throw error;
     }
@@ -940,33 +1090,46 @@ export class ModelRunnerService {
     // (and a sane floor). Bigger context = more KV-cache RAM — the UI shows
     // the model's max so the user can decide.
     const maxCtx = Number(model.contextWindow) > 0 ? Number(model.contextWindow) : 32768;
-    const contextSize = Math.min(
-      Math.max(Math.floor(options.contextSize || 8192), 1024),
-      maxCtx
-    );
+    const contextSize = Math.min(Math.max(Math.floor(options.contextSize || 8192), 1024), maxCtx);
 
     // koboldcpp flags (not llama-server): --model, --port, --host,
     // --contextsize, --gpulayers, --quiet, --mmproj.
     const gpuLayers = device?.hasNvidia ? 99 : 0;
     const mmprojPath = model.hfMmproj ? this.mmprojFilePath(model) : null;
-    const spawnArgv = buildSpawnArgs({ binaryPath, modelPath: ggufPath, port, contextSize, gpuLayers, mmprojPath });
-    this.logger.info?.(`[model-runner] starting ${model.name} on 127.0.0.1:${port} (context ${contextSize}) via ${RUNNER_DISPLAY_NAME}`);
+    const spawnArgv = buildSpawnArgs({
+      binaryPath,
+      modelPath: ggufPath,
+      port,
+      contextSize,
+      gpuLayers,
+      mmprojPath,
+    });
+    this.logger.info?.(
+      `[model-runner] starting ${model.name} on 127.0.0.1:${port} (context ${contextSize}) via ${RUNNER_DISPLAY_NAME}`
+    );
 
     const child = spawn(spawnArgv[0], spawnArgv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
     const baseUrl = `http://127.0.0.1:${port}`;
     this.running = {
-      modelId: model.id, name: model.name, quant, pid: child.pid, port, baseUrl,
+      modelId: model.id,
+      name: model.name,
+      quant,
+      pid: child.pid,
+      port,
+      baseUrl,
       contextSize,
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
     };
     this.emitRun();
 
     let stderrTail = '';
-    child.stderr.on('data', (d) => { stderrTail = `${stderrTail}${d}`.slice(-2000); });
-    const earlyExit = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+    child.stderr.on('data', d => {
+      stderrTail = `${stderrTail}${d}`.slice(-2000);
+    });
+    const earlyExit = new Promise(resolve => child.on('exit', code => resolve(code)));
     const exited = await Promise.race([
-      earlyExit.then((code) => ({ exited: true, code })),
-      waitForHealth(baseUrl).then((healthy) => ({ exited: false, healthy }))
+      earlyExit.then(code => ({ exited: true, code })),
+      waitForHealth(baseUrl).then(healthy => ({ exited: false, healthy })),
     ]);
 
     if (exited.exited || exited.healthy === false) {
@@ -976,7 +1139,11 @@ export class ModelRunnerService {
       this.running = null;
       this._writeRunState();
       this.emitRun();
-      try { child.kill(); } catch { /* ignore */ }
+      try {
+        child.kill();
+      } catch {
+        /* ignore */
+      }
       const error = new Error(reason);
       error.code = 'RUN_FAILED';
       throw error;
@@ -1015,7 +1182,7 @@ export class ModelRunnerService {
       name: model.name,
       endpoint: this.endpoint(),
       activatedAt: new Date().toISOString(),
-      userId: userId || null
+      userId: userId || null,
     };
     try {
       const file = this.activeBrainPath();
@@ -1026,9 +1193,16 @@ export class ModelRunnerService {
     }
     let selection = null;
     if (brainProviderModel && userId) {
-      selection = await brainProviderModel.setSelection(userId, { provider: 'local', modelId: model.id });
+      selection = await brainProviderModel.setSelection(userId, {
+        provider: 'local',
+        modelId: model.id,
+      });
     }
-    try { await onBrainSwitched?.(userId); } catch { /* best effort */ }
+    try {
+      await onBrainSwitched?.(userId);
+    } catch {
+      /* best effort */
+    }
     return { active: true, record, selection };
   }
 
@@ -1055,12 +1229,16 @@ export class ModelRunnerService {
     this.emitRun();
     try {
       if (pid) process.kill(pid, 'SIGTERM');
-    } catch { /* already gone */ }
+    } catch {
+      /* already gone */
+    }
     // Give it a moment, then force-kill if needed.
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 800));
     try {
       if (pid) process.kill(pid, 'SIGKILL');
-    } catch { /* gone */ }
+    } catch {
+      /* gone */
+    }
     this.logger.info?.(`[model-runner] stopped model ${modelId}`);
     return { stopped: true, modelId };
   }

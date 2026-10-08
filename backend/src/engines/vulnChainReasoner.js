@@ -29,30 +29,73 @@ const RANK_SEVERITY = ['info', 'low', 'medium', 'high', 'critical'];
 // Each canonical class lists every spelling a detector, the brain, or a human
 // might use. Matching is substring-based on the normalized haystack.
 const CLASS_ALIASES = {
-  'xss': ['xss', 'cross-site scripting', 'cross site scripting', 'stored xss', 'reflected xss', 'dom xss', 'dom-based xss'],
-  'csrf': ['csrf', 'cross-site request forgery', 'xsrf'],
-  'idor': ['idor', 'insecure direct object reference', 'bola', 'broken object level authorization'],
-  'sqli': ['sqli', 'sql injection', 'sql-injection', 'blind sqli'],
-  'ssrf': ['ssrf', 'server-side request forgery', 'server side request forgery'],
+  xss: [
+    'xss',
+    'cross-site scripting',
+    'cross site scripting',
+    'stored xss',
+    'reflected xss',
+    'dom xss',
+    'dom-based xss',
+  ],
+  csrf: ['csrf', 'cross-site request forgery', 'xsrf'],
+  idor: ['idor', 'insecure direct object reference', 'bola', 'broken object level authorization'],
+  sqli: ['sqli', 'sql injection', 'sql-injection', 'blind sqli'],
+  ssrf: ['ssrf', 'server-side request forgery', 'server side request forgery'],
   'open-redirect': ['open redirect', 'open-redirect', 'unvalidated redirect', 'open redirection'],
-  'xxe': ['xxe', 'xml external entity'],
-  'lfi': ['lfi', 'local file inclusion', 'path traversal', 'directory traversal', 'file inclusion'],
-  'rce': ['rce', 'remote code execution', 'os command injection', 'command injection', 'code execution'],
-  'ssti': ['ssti', 'server-side template injection', 'template injection'],
+  xxe: ['xxe', 'xml external entity'],
+  lfi: ['lfi', 'local file inclusion', 'path traversal', 'directory traversal', 'file inclusion'],
+  rce: [
+    'rce',
+    'remote code execution',
+    'os command injection',
+    'command injection',
+    'code execution',
+  ],
+  ssti: ['ssti', 'server-side template injection', 'template injection'],
   'auth-bypass': ['auth bypass', 'authentication bypass', 'broken authentication', 'login bypass'],
-  'info-disclosure': ['info disclosure', 'information disclosure', 'sensitive data exposure', 'data exposure', 'verbose error', 'stack trace', 'debug info'],
-  'session-weakness': ['session fixation', 'weak session', 'insecure session', 'session management', 'missing httponly', 'httponly'],
+  'info-disclosure': [
+    'info disclosure',
+    'information disclosure',
+    'sensitive data exposure',
+    'data exposure',
+    'verbose error',
+    'stack trace',
+    'debug info',
+  ],
+  'session-weakness': [
+    'session fixation',
+    'weak session',
+    'insecure session',
+    'session management',
+    'missing httponly',
+    'httponly',
+  ],
   'jwt-weakness': ['jwt', 'jwt none', 'alg=none', 'weak jwt', 'none algorithm'],
   'cors-misconfig': ['cors misconfiguration', 'cors', 'wildcard cors', 'permissive cors'],
-  'clickjacking': ['clickjacking', 'ui redressing', 'missing x-frame-options', 'frame-options'],
-  'rate-limit': ['rate limit', 'rate-limit', 'missing rate limiting', 'no rate limit', 'brute force'],
+  clickjacking: ['clickjacking', 'ui redressing', 'missing x-frame-options', 'frame-options'],
+  'rate-limit': [
+    'rate limit',
+    'rate-limit',
+    'missing rate limiting',
+    'no rate limit',
+    'brute force',
+  ],
   'subdomain-takeover': ['subdomain takeover', 'dangling dns', 'dangling cname'],
   'oauth-weakness': ['oauth misconfiguration', 'oauth flow', 'oauth'],
   'mfa-bypass': ['mfa bypass', '2fa bypass', 'multi-factor bypass', 'mfa'],
   'mass-assignment': ['mass assignment', 'mass-assignment', 'auto-binding', 'parameter binding'],
   'host-header': ['host header', 'host header injection', 'host header poisoning'],
   'password-reset': ['password reset', 'reset poisoning', 'reset token'],
-  'api-key-leak': ['api key', 'api-key', 'secret leak', 'exposed secret', 'hardcoded secret', 'hardcoded credential', 'leaked credential'],
+  'api-key-leak': [
+    'api key',
+    'api-key',
+    'secret leak',
+    'exposed secret',
+    'hardcoded secret',
+    'hardcoded credential',
+    'leaked credential',
+  ],
   'graphql-introspection': ['graphql introspection', 'graphql'],
   'websocket-hijack': ['websocket hijacking', 'cswsh', 'cross-site websocket', 'websocket'],
   'cache-poison': ['cache poisoning', 'web cache poisoning'],
@@ -63,14 +106,23 @@ const CLASS_ALIASES = {
   'email-verify-bypass': ['email verification bypass', 'email verification', 'email verify'],
   'payment-tamper': ['payment tampering', 'price tampering', 'price manipulation'],
   'race-condition': ['race condition', 'toctou', 'race-condition'],
-  'broken-access-control': ['broken access control', 'missing function level access control', 'vertical privilege', 'privilege escalation', 'forced browsing'],
+  'broken-access-control': [
+    'broken access control',
+    'missing function level access control',
+    'vertical privilege',
+    'privilege escalation',
+    'forced browsing',
+  ],
   's3-exposure': ['s3', 's3 bucket', 'open bucket', 'public bucket'],
   'redis-exposure': ['redis', 'internal redis'],
   'cloud-metadata': ['cloud metadata', 'metadata service', 'instance metadata'],
 };
 
 function normalizeText(value) {
-  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 /**
@@ -139,7 +191,8 @@ const CHAIN_GRAPH = [
     name: 'XSS → session token theft',
     requires: ['xss', 'session-weakness'],
     provides: 'stolen-session',
-    impact: 'Attacker script runs in the victim browser and reads the session cookie (missing HttpOnly / weak flags).',
+    impact:
+      'Attacker script runs in the victim browser and reads the session cookie (missing HttpOnly / weak flags).',
     severity: 'high',
     needsUserInteraction: true,
     steps: [
@@ -166,7 +219,8 @@ const CHAIN_GRAPH = [
     name: 'XSS + missing CSRF protection → silent account takeover',
     requires: ['xss', 'csrf'],
     provides: 'account-takeover',
-    impact: 'CSRF changes the victim email/password while XSS keeps a persistent backdoor — silent, full takeover.',
+    impact:
+      'CSRF changes the victim email/password while XSS keeps a persistent backdoor — silent, full takeover.',
     severity: 'critical',
     needsUserInteraction: true,
     steps: [
@@ -180,7 +234,8 @@ const CHAIN_GRAPH = [
     name: 'Open redirect + OAuth weakness → authorization code theft',
     requires: ['open-redirect', 'oauth-weakness'],
     provides: 'account-takeover',
-    impact: 'OAuth authorization code leaks to the attacker domain → token exchange → account takeover.',
+    impact:
+      'OAuth authorization code leaks to the attacker domain → token exchange → account takeover.',
     severity: 'critical',
     needsUserInteraction: true,
     steps: [
@@ -194,7 +249,8 @@ const CHAIN_GRAPH = [
     name: 'Host-header injection + password reset → reset token theft',
     requires: ['host-header', 'password-reset'],
     provides: 'account-takeover',
-    impact: 'Poisoned Host header makes the reset email link point at the attacker → token theft → takeover.',
+    impact:
+      'Poisoned Host header makes the reset email link point at the attacker → token theft → takeover.',
     severity: 'critical',
     needsUserInteraction: true,
     steps: [
@@ -208,7 +264,8 @@ const CHAIN_GRAPH = [
     name: 'Email-verification bypass + IDOR → any-account takeover',
     requires: ['email-verify-bypass', 'idor'],
     provides: 'account-takeover',
-    impact: 'Change the account email to an attacker address via IDOR, skip verification, reset the password.',
+    impact:
+      'Change the account email to an attacker address via IDOR, skip verification, reset the password.',
     severity: 'critical',
     needsUserInteraction: false,
     steps: [
@@ -235,7 +292,8 @@ const CHAIN_GRAPH = [
     name: 'MFA bypass + leaked credentials → full compromise',
     requires: ['mfa-bypass', 'api-key-leak'],
     provides: 'account-takeover',
-    impact: 'Leaked credentials plus an MFA bypass (response manipulation / missing step) = full login.',
+    impact:
+      'Leaked credentials plus an MFA bypass (response manipulation / missing step) = full login.',
     severity: 'critical',
     needsUserInteraction: false,
     steps: [
@@ -249,7 +307,8 @@ const CHAIN_GRAPH = [
     name: 'Information disclosure → username / object enumeration',
     requires: ['info-disclosure'],
     provides: 'enumerated-targets',
-    impact: 'Verbose errors or data exposure reveal valid usernames, ids, or internal paths to aim the next hop at.',
+    impact:
+      'Verbose errors or data exposure reveal valid usernames, ids, or internal paths to aim the next hop at.',
     severity: 'medium',
     needsUserInteraction: false,
     steps: [
@@ -289,7 +348,8 @@ const CHAIN_GRAPH = [
     name: 'IDOR + information disclosure → targeted data breach',
     requires: ['idor', 'info-disclosure'],
     provides: 'data-exfiltration',
-    impact: 'IDOR gives the handle, disclosure gives the map — targeted extraction of other users records.',
+    impact:
+      'IDOR gives the handle, disclosure gives the map — targeted extraction of other users records.',
     severity: 'high',
     needsUserInteraction: false,
     steps: [
@@ -302,7 +362,8 @@ const CHAIN_GRAPH = [
     name: 'IDOR + missing rate limiting → automated mass harvesting',
     requires: ['idor', 'rate-limit'],
     provides: 'data-exfiltration',
-    impact: 'No throttling on an IDOR endpoint turns a manual flaw into an automated harvest of all records.',
+    impact:
+      'No throttling on an IDOR endpoint turns a manual flaw into an automated harvest of all records.',
     severity: 'critical',
     needsUserInteraction: false,
     steps: [
@@ -312,10 +373,11 @@ const CHAIN_GRAPH = [
   },
   {
     id: 'sqli-authbypass',
-    name: "SQLi → authentication bypass",
+    name: 'SQLi → authentication bypass',
     requires: ['sqli'],
     provides: 'authenticated-foothold',
-    impact: "Classic `' OR '1'='1` style bypass (or UNION-based) logs the attacker in as an arbitrary user.",
+    impact:
+      "Classic `' OR '1'='1` style bypass (or UNION-based) logs the attacker in as an arbitrary user.",
     severity: 'high',
     needsUserInteraction: false,
     steps: [
@@ -328,7 +390,8 @@ const CHAIN_GRAPH = [
     name: 'SQLi → file read → source and secret extraction',
     requires: ['sqli', 'lfi'],
     provides: 'data-exfiltration',
-    impact: 'LOAD_FILE / INTO OUTFILE style primitives pull source code, configs, and secrets off the server.',
+    impact:
+      'LOAD_FILE / INTO OUTFILE style primitives pull source code, configs, and secrets off the server.',
     severity: 'critical',
     needsUserInteraction: false,
     steps: [
@@ -355,7 +418,8 @@ const CHAIN_GRAPH = [
     name: 'File upload + path traversal → web shell (RCE)',
     requires: ['file-upload', 'lfi'],
     provides: 'rce',
-    impact: 'Traversal writes the uploaded payload outside the upload dir — a web shell on the server.',
+    impact:
+      'Traversal writes the uploaded payload outside the upload dir — a web shell on the server.',
     severity: 'critical',
     needsUserInteraction: false,
     steps: [
@@ -394,7 +458,8 @@ const CHAIN_GRAPH = [
     name: 'SSRF + information disclosure → internal network pivot',
     requires: ['ssrf', 'info-disclosure'],
     provides: 'internal-pivot',
-    impact: 'SSRF reaches internal services; disclosed banners/paths map the network for the next hop.',
+    impact:
+      'SSRF reaches internal services; disclosed banners/paths map the network for the next hop.',
     severity: 'high',
     needsUserInteraction: false,
     steps: [
@@ -420,7 +485,8 @@ const CHAIN_GRAPH = [
     name: 'Permissive CORS + XSS → cross-origin data theft',
     requires: ['cors-misconfig', 'xss'],
     provides: 'data-exfiltration',
-    impact: 'Wildcard CORS with credentials plus XSS lets the attacker read authenticated API responses cross-origin.',
+    impact:
+      'Wildcard CORS with credentials plus XSS lets the attacker read authenticated API responses cross-origin.',
     severity: 'high',
     needsUserInteraction: true,
     steps: [
@@ -447,7 +513,8 @@ const CHAIN_GRAPH = [
     name: 'Subdomain takeover + session weakness → session hijack',
     requires: ['subdomain-takeover', 'session-weakness'],
     provides: 'account-takeover',
-    impact: 'Taken-over subdomain sits inside the parent cookie scope — session cookies flow to the attacker.',
+    impact:
+      'Taken-over subdomain sits inside the parent cookie scope — session cookies flow to the attacker.',
     severity: 'high',
     needsUserInteraction: true,
     steps: [
@@ -488,7 +555,8 @@ const CHAIN_GRAPH = [
     name: 'Broken access control + IDOR → admin function abuse',
     requires: ['broken-access-control', 'idor'],
     provides: 'privilege-escalation',
-    impact: 'Missing function-level checks let a low-priv user call admin endpoints on arbitrary objects.',
+    impact:
+      'Missing function-level checks let a low-priv user call admin endpoints on arbitrary objects.',
     severity: 'high',
     needsUserInteraction: false,
     steps: [
@@ -527,7 +595,8 @@ const CHAIN_GRAPH = [
     name: 'WebSocket hijack + CSRF → real-time impersonation',
     requires: ['websocket-hijack', 'csrf'],
     provides: 'account-takeover',
-    impact: 'Cross-site WebSocket hijacking opens an authenticated socket as the victim — act in real time.',
+    impact:
+      'Cross-site WebSocket hijacking opens an authenticated socket as the victim — act in real time.',
     severity: 'high',
     needsUserInteraction: true,
     steps: [
@@ -540,7 +609,8 @@ const CHAIN_GRAPH = [
     name: 'Exposed S3 bucket + leaked API key → supply-chain / service impersonation',
     requires: ['s3-exposure', 'api-key-leak'],
     provides: 'data-exfiltration',
-    impact: 'Public bucket contents plus leaked keys let the attacker impersonate backend services.',
+    impact:
+      'Public bucket contents plus leaked keys let the attacker impersonate backend services.',
     severity: 'high',
     needsUserInteraction: false,
     steps: [
@@ -553,7 +623,8 @@ const CHAIN_GRAPH = [
     name: 'Prototype pollution + XSS → client-side takeover',
     requires: ['prototype-pollution', 'xss'],
     provides: 'account-takeover',
-    impact: 'Polluted prototypes subvert client logic; XSS delivers the payload — full client compromise.',
+    impact:
+      'Polluted prototypes subvert client logic; XSS delivers the payload — full client compromise.',
     severity: 'high',
     needsUserInteraction: true,
     steps: [
@@ -579,7 +650,7 @@ const CHAIN_GRAPH = [
 const OUTCOME_LABELS = {
   'account-takeover': 'Account takeover',
   'data-exfiltration': 'Data exfiltration',
-  'rce': 'Remote code execution',
+  rce: 'Remote code execution',
   'privilege-escalation': 'Privilege escalation',
   'internal-pivot': 'Internal network pivot',
 };
@@ -631,7 +702,7 @@ export function reasonChains(findings = [], opts = {}) {
       for (const rule of CHAIN_GRAPH) {
         if (state.applied.includes(rule.id)) continue;
         if (state.depth >= maxHops) continue;
-        const satisfied = rule.requires.every((r) => state.facts.has(r));
+        const satisfied = rule.requires.every(r => state.facts.has(r));
         if (!satisfied) continue;
 
         const applied = [...state.applied, rule.id];
@@ -657,7 +728,7 @@ export function reasonChains(findings = [], opts = {}) {
 }
 
 function buildChain(asset, classMap, appliedRuleIds, opts) {
-  const rules = appliedRuleIds.map((id) => CHAIN_GRAPH.find((r) => r.id === id));
+  const rules = appliedRuleIds.map(id => CHAIN_GRAPH.find(r => r.id === id));
   const terminal = rules[rules.length - 1];
 
   // Collect the concrete findings backing every consumed vulnerability class.
@@ -676,9 +747,7 @@ function buildChain(asset, classMap, appliedRuleIds, opts) {
   for (const cls of consumedClasses) {
     const candidates = classMap.get(cls) || [];
     // Prefer the highest-confidence finding per class.
-    const best = candidates
-      .slice()
-      .sort((a, b) => findingConfidence(b) - findingConfidence(a))[0];
+    const best = candidates.slice().sort((a, b) => findingConfidence(b) - findingConfidence(a))[0];
     if (!best) return null; // Should not happen, but never invent a link.
     if (!usedFindingIds.has(best.id)) {
       usedFindingIds.add(best.id);
@@ -701,28 +770,42 @@ function buildChain(asset, classMap, appliedRuleIds, opts) {
   // escalates one step when it combines ≥2 distinct base classes.
   const terminalRank = SEVERITY_RANK[terminal.severity] ?? 2;
   const escalationBonus = consumedClasses.size >= 2 ? 1 : 0;
-  const severity = RANK_SEVERITY[Math.min(4, terminalRank + (terminalRank < 4 ? 0 : 0) + (escalationBonus && terminalRank < 3 ? escalationBonus : 0))];
+  const severity =
+    RANK_SEVERITY[
+      Math.min(
+        4,
+        terminalRank +
+          (terminalRank < 4 ? 0 : 0) +
+          (escalationBonus && terminalRank < 3 ? escalationBonus : 0)
+      )
+    ];
 
   const steps = [];
   rules.forEach((rule, i) => {
     steps.push(`Hop ${i + 1} — ${rule.name}:`);
-    rule.steps.forEach((s) => steps.push(`  • ${s}`));
+    rule.steps.forEach(s => steps.push(`  • ${s}`));
   });
 
   const assumptions = [];
-  if (rules.some((r) => r.needsUserInteraction)) {
-    assumptions.push('Requires victim interaction (victim must click/visit a crafted link or page).');
+  if (rules.some(r => r.needsUserInteraction)) {
+    assumptions.push(
+      'Requires victim interaction (victim must click/visit a crafted link or page).'
+    );
   }
-  if (usedFindings.some((f) => String(f.status || '').toLowerCase() !== 'confirmed')) {
-    assumptions.push('One or more links are not yet confirmed — validate each finding before relying on the chain.');
+  if (usedFindings.some(f => String(f.status || '').toLowerCase() !== 'confirmed')) {
+    assumptions.push(
+      'One or more links are not yet confirmed — validate each finding before relying on the chain.'
+    );
   }
 
   const chainSeverityRank = SEVERITY_RANK[severity] ?? 2;
-  const maxInputRank = Math.max(...usedFindings.map((f) => SEVERITY_RANK[severityOf(f)] ?? 0));
+  const maxInputRank = Math.max(...usedFindings.map(f => SEVERITY_RANK[severityOf(f)] ?? 0));
   const escalation = Math.max(0, chainSeverityRank - maxInputRank);
-  const score = Math.round((chainSeverityRank * 10 + escalation * 6 + confidence * 8 - rules.length) * 100) / 100;
+  const score =
+    Math.round((chainSeverityRank * 10 + escalation * 6 + confidence * 8 - rules.length) * 100) /
+    100;
 
-  const hopNames = rules.map((r) => r.name).join(' → ');
+  const hopNames = rules.map(r => r.name).join(' → ');
   return {
     id: `chain-${terminal.id}`,
     name: terminal.name,
@@ -735,7 +818,7 @@ function buildChain(asset, classMap, appliedRuleIds, opts) {
     hopNames,
     asset,
     steps,
-    findings: usedFindings.map((f) => ({
+    findings: usedFindings.map(f => ({
       id: f.id,
       title: f.title || f.category,
       category: f.category,
@@ -746,7 +829,8 @@ function buildChain(asset, classMap, appliedRuleIds, opts) {
     impact: terminal.impact,
     remediation:
       'Break any single link to kill this chain — but remediate every linked finding: ' +
-      usedFindings.map((f) => `"${f.title || f.category}"`).join(', ') + '.',
+      usedFindings.map(f => `"${f.title || f.category}"`).join(', ') +
+      '.',
   };
 }
 
@@ -755,12 +839,8 @@ function buildChain(asset, classMap, appliedRuleIds, opts) {
  */
 export function explainChain(chain) {
   if (!chain) return '';
-  const hopList = chain.findings
-    .map((f) => `"${f.title}" (${f.severity})`)
-    .join(' + ');
-  const assume = chain.assumptions.length
-    ? ` Assumptions: ${chain.assumptions.join(' ')}`
-    : '';
+  const hopList = chain.findings.map(f => `"${f.title}" (${f.severity})`).join(' + ');
+  const assume = chain.assumptions.length ? ` Assumptions: ${chain.assumptions.join(' ')}` : '';
   return (
     `${chain.name} on ${chain.asset}: chaining ${hopList} yields ` +
     `${chain.outcomeLabel} — rated ${String(chain.severity).toUpperCase()} ` +

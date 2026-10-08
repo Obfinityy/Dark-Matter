@@ -32,10 +32,25 @@ export function normalizeOnypheAsset(r) {
   }
   return {
     ip,
-    asn: r.asn != null ? String(r.asn).replace(/^AS/i, '') : (r.asnumber != null ? String(r.asnumber) : null),
-    org: typeof r.organization === 'string' ? r.organization.trim().toLowerCase() : (typeof r.org === 'string' ? r.org.trim().toLowerCase() : null),
+    asn:
+      r.asn != null
+        ? String(r.asn).replace(/^AS/i, '')
+        : r.asnumber != null
+          ? String(r.asnumber)
+          : null,
+    org:
+      typeof r.organization === 'string'
+        ? r.organization.trim().toLowerCase()
+        : typeof r.org === 'string'
+          ? r.org.trim().toLowerCase()
+          : null,
     city: typeof r.city === 'string' ? r.city.trim().toLowerCase() : null,
-    country: typeof r.country === 'string' ? r.country.trim().toUpperCase() : (typeof r.country_code === 'string' ? r.country_code.trim().toUpperCase() : null),
+    country:
+      typeof r.country === 'string'
+        ? r.country.trim().toUpperCase()
+        : typeof r.country_code === 'string'
+          ? r.country_code.trim().toUpperCase()
+          : null,
     ports: [...ports].sort((a, b) => a - b),
   };
 }
@@ -72,12 +87,32 @@ export function expandByGeoAsn(signature, candidates) {
     if (!n) continue;
     let score = 0;
     const matchedOn = [];
-    if (n.org && signature.orgs.has(n.org)) { score += 40; matchedOn.push(`org:${n.org}`); }
-    if (n.asn && signature.asns.has(n.asn)) { score += 25; matchedOn.push(`asn:${n.asn}`); }
-    if (n.city && signature.cities.has(n.city)) { score += 15; matchedOn.push(`city:${n.city}`); }
-    if (n.country && signature.countries.has(n.country)) { score += 5; matchedOn.push(`country:${n.country}`); }
+    if (n.org && signature.orgs.has(n.org)) {
+      score += 40;
+      matchedOn.push(`org:${n.org}`);
+    }
+    if (n.asn && signature.asns.has(n.asn)) {
+      score += 25;
+      matchedOn.push(`asn:${n.asn}`);
+    }
+    if (n.city && signature.cities.has(n.city)) {
+      score += 15;
+      matchedOn.push(`city:${n.city}`);
+    }
+    if (n.country && signature.countries.has(n.country)) {
+      score += 5;
+      matchedOn.push(`country:${n.country}`);
+    }
     if (score > 0) {
-      rows.push({ ip: n.ip, score, matchedOn, asn: n.asn, org: n.org, city: n.city, country: n.country });
+      rows.push({
+        ip: n.ip,
+        score,
+        matchedOn,
+        asn: n.asn,
+        org: n.org,
+        city: n.city,
+        country: n.country,
+      });
     }
   }
   return rows.sort((a, b) => b.score - a.score || a.ip.localeCompare(b.ip));
@@ -93,7 +128,8 @@ export function summarizeGeoDistribution(expanded) {
   const map = new Map();
   for (const e of Array.isArray(expanded) ? expanded : []) {
     const key = `${e.asn || 'unknown'}|${e.country || 'unknown'}`;
-    if (!map.has(key)) map.set(key, { asn: e.asn || 'unknown', country: e.country || 'unknown', count: 0, ips: [] });
+    if (!map.has(key))
+      map.set(key, { asn: e.asn || 'unknown', country: e.country || 'unknown', count: 0, ips: [] });
     const b = map.get(key);
     b.count += 1;
     b.ips.push(e.ip);

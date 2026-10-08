@@ -12,7 +12,9 @@
   min-width: 44px;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   right: calc(20px + env(safe-area-inset-right, 0px));
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .mc-help-fab:hover {
@@ -30,7 +32,9 @@
 
 /* Article cards: clearer hover affordance + rhythm. */
 .mc-help-item {
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .mc-help-item:hover {
@@ -46,7 +50,9 @@
 
 /* Vote thumbs: visible focus + 44px tap targets on touch devices. */
 .mc-vote-btn {
-  transition: opacity var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .mc-vote-btn:focus-visible {

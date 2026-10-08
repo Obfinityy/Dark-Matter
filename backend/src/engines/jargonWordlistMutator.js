@@ -20,7 +20,7 @@ export function leetVariants(term) {
   const t = String(term || '').toLowerCase();
   if (!t) return [];
   const out = new Set();
-  const full = [...t].map((c) => LEET_MAP[c] || c).join('');
+  const full = [...t].map(c => LEET_MAP[c] || c).join('');
   if (full !== t) out.add(full);
   for (let i = 0; i < t.length; i++) {
     const swapped = LEET_MAP[t[i]];
@@ -33,12 +33,14 @@ export function leetVariants(term) {
  * Common abbreviations: first letters of multi-word jargon, vowel removal.
  */
 export function abbreviate(term) {
-  const t = String(term || '').toLowerCase().trim();
+  const t = String(term || '')
+    .toLowerCase()
+    .trim();
   if (!t) return [];
   const out = new Set();
   const words = t.split(/[\s_-]+/).filter(Boolean);
   if (words.length > 1) {
-    out.add(words.map((w) => w[0]).join('')); // initials
+    out.add(words.map(w => w[0]).join('')); // initials
     out.add(words.join(''));
   }
   const noVowels = t.replace(/[aeiou]/g, '');
@@ -50,15 +52,12 @@ export function abbreviate(term) {
  * Combine a jargon term with a base word across separators and orders.
  */
 export function combineJargonBase(jargon, base) {
-  const j = String(jargon || '').toLowerCase().replace(/[\s_]+/g, '-');
+  const j = String(jargon || '')
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-');
   const b = String(base || '').toLowerCase();
   if (!j || !b || j === b) return [];
-  return [
-    `${j}-${b}`, `${b}-${j}`,
-    `${j}${b}`, `${b}${j}`,
-    `${j}_${b}`, `${b}_${j}`,
-    `${j}.${b}`,
-  ];
+  return [`${j}-${b}`, `${b}-${j}`, `${j}${b}`, `${b}${j}`, `${j}_${b}`, `${b}_${j}`, `${j}.${b}`];
 }
 
 /**
@@ -70,8 +69,8 @@ export function combineJargonBase(jargon, base) {
  * @returns {string[]} deduped mutated wordlist
  */
 export function mutateWordlist(baseWordlist = [], jargon = [], options = {}) {
-  const base = [...new Set(baseWordlist.map((w) => String(w).toLowerCase().trim()).filter(Boolean))];
-  const terms = [...new Set(jargon.map((w) => String(w).toLowerCase().trim()).filter(Boolean))];
+  const base = [...new Set(baseWordlist.map(w => String(w).toLowerCase().trim()).filter(Boolean))];
+  const terms = [...new Set(jargon.map(w => String(w).toLowerCase().trim()).filter(Boolean))];
   const maxSize = options.maxSize ?? 5000;
   const out = new Set(base);
 
@@ -107,10 +106,10 @@ export function mutateWordlist(baseWordlist = [], jargon = [], options = {}) {
  * @param {string[]} jargon
  */
 export function prioritizeJargonEntries(wordlist = [], jargon = []) {
-  const terms = jargon.map((t) => String(t).toLowerCase());
-  const scored = wordlist.map((w) => {
+  const terms = jargon.map(t => String(t).toLowerCase());
+  const scored = wordlist.map(w => {
     const low = String(w).toLowerCase();
-    const hits = terms.filter((t) => t && low.includes(t)).length;
+    const hits = terms.filter(t => t && low.includes(t)).length;
     return { entry: w, jargonHits: hits };
   });
   return scored.sort((a, b) => b.jargonHits - a.jargonHits);

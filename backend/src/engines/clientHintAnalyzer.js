@@ -15,18 +15,47 @@
  * Framework/CDN fingerprint signatures keyed on requested hint sets.
  */
 const HINT_STACK_SIGNATURES = [
-  { stack: 'vercel-nextjs', hints: ['sec-ch-viewport-width', 'sec-ch-dpr', 'dpr', 'width', 'viewport-width'], note: 'Next.js Image Optimization requests viewport/DPR hints.' },
-  { stack: 'cloudflare', hints: ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform'], note: 'Cloudflare edge commonly forwards UA client hints.' },
-  { stack: 'shopify', hints: ['sec-ch-dpr', 'dpr', 'width'], note: 'Shopify storefronts request DPR/width for responsive images.' },
-  { stack: 'akamai-imaging', hints: ['sec-ch-dpr', 'sec-ch-viewport-width', 'sec-ch-width'], note: 'Akamai Image & Video Manager hint set.' },
-  { stack: 'wordpress-jetpack', hints: ['dpr', 'width', 'viewport-width'], note: 'Jetpack Photon/Site Accelerator legacy hint set.' },
-  { stack: 'generic-cdn-imaging', hints: ['sec-ch-dpr', 'sec-ch-width'], note: 'Generic image-CDN hint set.' },
+  {
+    stack: 'vercel-nextjs',
+    hints: ['sec-ch-viewport-width', 'sec-ch-dpr', 'dpr', 'width', 'viewport-width'],
+    note: 'Next.js Image Optimization requests viewport/DPR hints.',
+  },
+  {
+    stack: 'cloudflare',
+    hints: ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform'],
+    note: 'Cloudflare edge commonly forwards UA client hints.',
+  },
+  {
+    stack: 'shopify',
+    hints: ['sec-ch-dpr', 'dpr', 'width'],
+    note: 'Shopify storefronts request DPR/width for responsive images.',
+  },
+  {
+    stack: 'akamai-imaging',
+    hints: ['sec-ch-dpr', 'sec-ch-viewport-width', 'sec-ch-width'],
+    note: 'Akamai Image & Video Manager hint set.',
+  },
+  {
+    stack: 'wordpress-jetpack',
+    hints: ['dpr', 'width', 'viewport-width'],
+    note: 'Jetpack Photon/Site Accelerator legacy hint set.',
+  },
+  {
+    stack: 'generic-cdn-imaging',
+    hints: ['sec-ch-dpr', 'sec-ch-width'],
+    note: 'Generic image-CDN hint set.',
+  },
 ];
 
 const DEPRECATED_HINTS = new Set(['dpr', 'width', 'viewport-width', 'device-memory']);
 const HIGH_ENTROPY_HINTS = new Set([
-  'sec-ch-ua-full-version-list', 'sec-ch-ua-full-version', 'sec-ch-ua-arch',
-  'sec-ch-ua-bitness', 'sec-ch-ua-model', 'sec-ch-ua-wow64', 'sec-ch-prefers-color-scheme',
+  'sec-ch-ua-full-version-list',
+  'sec-ch-ua-full-version',
+  'sec-ch-ua-arch',
+  'sec-ch-ua-bitness',
+  'sec-ch-ua-model',
+  'sec-ch-ua-wow64',
+  'sec-ch-prefers-color-scheme',
 ]);
 
 /**
@@ -38,7 +67,7 @@ export function parseHintHeader(headerValue) {
   if (typeof headerValue !== 'string' || headerValue.trim() === '') return [];
   return headerValue
     .split(',')
-    .map((t) => t.trim().toLowerCase().replace(/^"|"$/g, ''))
+    .map(t => t.trim().toLowerCase().replace(/^"|"$/g, ''))
     .filter(Boolean);
 }
 
@@ -65,11 +94,13 @@ export function parseClientHintHeaders(headers = {}) {
  * @returns {{stack: string, confidence: number, matched: string[], note: string}[]}
  */
 export function fingerprintHintStack(acceptCH = []) {
-  const hints = new Set((Array.isArray(acceptCH) ? acceptCH : []).map((x) => String(x).toLowerCase()));
+  const hints = new Set(
+    (Array.isArray(acceptCH) ? acceptCH : []).map(x => String(x).toLowerCase())
+  );
   if (hints.size === 0) return [];
   const scored = [];
   for (const sig of HINT_STACK_SIGNATURES) {
-    const matched = sig.hints.filter((x) => hints.has(x));
+    const matched = sig.hints.filter(x => hints.has(x));
     if (matched.length === 0) continue;
     const confidence = Math.min(95, Math.round((matched.length / sig.hints.length) * 100));
     scored.push({ stack: sig.stack, confidence, matched, note: sig.note });
@@ -87,28 +118,58 @@ export function assessHintPosture(parsed = {}) {
   const acceptCH = Array.isArray(parsed.acceptCH) ? parsed.acceptCH : [];
   const criticalCH = Array.isArray(parsed.criticalCH) ? parsed.criticalCH : [];
 
-  const deprecated = acceptCH.filter((x) => DEPRECATED_HINTS.has(x));
+  const deprecated = acceptCH.filter(x => DEPRECATED_HINTS.has(x));
   if (deprecated.length > 0) {
-    findings.push({ code: 'deprecated-hints', severity: 'low', detail: `Deprecated hints requested: ${deprecated.join(', ')} — migrate to Sec-CH-* equivalents.` });
+    findings.push({
+      code: 'deprecated-hints',
+      severity: 'low',
+      detail: `Deprecated hints requested: ${deprecated.join(', ')} — migrate to Sec-CH-* equivalents.`,
+    });
   }
-  const highEntropy = acceptCH.filter((x) => HIGH_ENTROPY_HINTS.has(x));
+  const highEntropy = acceptCH.filter(x => HIGH_ENTROPY_HINTS.has(x));
   if (highEntropy.length > 0) {
-    findings.push({ code: 'high-entropy-hints', severity: 'medium', detail: `High-entropy hints requested (${highEntropy.join(', ')}) — increases fingerprinting surface; ensure a privacy review.` });
+    findings.push({
+      code: 'high-entropy-hints',
+      severity: 'medium',
+      detail: `High-entropy hints requested (${highEntropy.join(', ')}) — increases fingerprinting surface; ensure a privacy review.`,
+    });
   }
   if (criticalCH.length > 3) {
-    findings.push({ code: 'critical-ch-broad', severity: 'low', detail: `Critical-CH lists ${criticalCH.length} hints — clients without them get a retry round-trip; keep critical sets minimal.` });
+    findings.push({
+      code: 'critical-ch-broad',
+      severity: 'low',
+      detail: `Critical-CH lists ${criticalCH.length} hints — clients without them get a retry round-trip; keep critical sets minimal.`,
+    });
   }
   if (parsed.lifetimeSec !== null && parsed.lifetimeSec > 0 && parsed.lifetimeSec < 86400) {
-    findings.push({ code: 'short-hint-lifetime', severity: 'info', detail: `Accept-CH-Lifetime is ${parsed.lifetimeSec}s (<24h) — hints re-negotiate often.` });
+    findings.push({
+      code: 'short-hint-lifetime',
+      severity: 'info',
+      detail: `Accept-CH-Lifetime is ${parsed.lifetimeSec}s (<24h) — hints re-negotiate often.`,
+    });
   }
-  if (/ch-ua/i.test(parsed.permissionsPolicy || '') && !/self/.test(parsed.permissionsPolicy || '')) {
-    findings.push({ code: 'permissions-policy-restrictive', severity: 'info', detail: 'Permissions-Policy restricts client-hints delegation.' });
+  if (
+    /ch-ua/i.test(parsed.permissionsPolicy || '') &&
+    !/self/.test(parsed.permissionsPolicy || '')
+  ) {
+    findings.push({
+      code: 'permissions-policy-restrictive',
+      severity: 'info',
+      detail: 'Permissions-Policy restricts client-hints delegation.',
+    });
   }
   if (acceptCH.length === 0) {
-    findings.push({ code: 'no-client-hints', severity: 'info', detail: 'No Accept-CH advertised — no fingerprinting signal from client hints.' });
+    findings.push({
+      code: 'no-client-hints',
+      severity: 'info',
+      detail: 'No Accept-CH advertised — no fingerprinting signal from client hints.',
+    });
   }
 
-  const penalty = findings.reduce((sum, f) => sum + (f.severity === 'medium' ? 20 : f.severity === 'low' ? 10 : 2), 0);
+  const penalty = findings.reduce(
+    (sum, f) => sum + (f.severity === 'medium' ? 20 : f.severity === 'low' ? 10 : 2),
+    0
+  );
   return { findings, privacyScore: Math.max(0, 100 - penalty) };
 }
 

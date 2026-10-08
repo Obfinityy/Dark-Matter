@@ -75,7 +75,9 @@ function RouteTitle() {
   useEffect(() => {
     const segment = pathname.replace(/^\/agent\/?/, '').split('/')[0];
     document.title = `${ROUTE_TITLES[segment] ?? 'Dark Matter'} · Dark Matter`;
-    return () => { document.title = 'Dark Matter'; };
+    return () => {
+      document.title = 'Dark Matter';
+    };
   }, [pathname]);
   return null;
 }
@@ -87,19 +89,136 @@ export function AgentConsole() {
         <AgentShell>
           <RouteTitle />
           <Routes>
-            <Route index element={<Page><PageErrorBoundary pageName="Agent home"><AgentHome /></PageErrorBoundary></Page>} />
-            <Route path="hunt/:jobId" element={<Page><PageErrorBoundary pageName="Hunt AI"><HuntView /></PageErrorBoundary></Page>} />
-            <Route path="infinity" element={<Page><PageErrorBoundary pageName="Infinity AI"><InfinityAI /></PageErrorBoundary></Page>} />
-            <Route path="settings" element={<Page><PageErrorBoundary pageName="Settings"><Settings /></PageErrorBoundary></Page>} />
-            <Route path="reports" element={<Page><PageErrorBoundary pageName="Reports"><Reports /></PageErrorBoundary></Page>} />
-            <Route path="reports/:id" element={<Page><PageErrorBoundary pageName="Report"><ReportReader /></PageErrorBoundary></Page>} />
-            <Route path="models" element={<Page><PageErrorBoundary pageName="Models"><ModelLibrary /></PageErrorBoundary></Page>} />
-            <Route path="library" element={<Page><PageErrorBoundary pageName="Payload library"><PayloadLibrary /></PageErrorBoundary></Page>} />
-            <Route path="plugins" element={<Page><PageErrorBoundary pageName="Plugins"><Plugins /></PageErrorBoundary></Page>} />
-            <Route path="premium" element={<Page><PageErrorBoundary pageName="Premium"><Premium /></PageErrorBoundary></Page>} />
-            <Route path="account" element={<Page><PageErrorBoundary pageName="Account"><Account /></PageErrorBoundary></Page>} />
-            <Route path="queues" element={<Page><PageErrorBoundary pageName="Queues"><Queues /></PageErrorBoundary></Page>} />
-            <Route path="schedules" element={<Page><PageErrorBoundary pageName="Schedules"><Schedules /></PageErrorBoundary></Page>} />
+            <Route
+              index
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Agent home">
+                    <AgentHome />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="hunt/:jobId"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Hunt AI">
+                    <HuntView />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="infinity"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Infinity AI">
+                    <InfinityAI />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Settings">
+                    <Settings />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Reports">
+                    <Reports />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="reports/:id"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Report">
+                    <ReportReader />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="models"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Models">
+                    <ModelLibrary />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="library"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Payload library">
+                    <PayloadLibrary />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="plugins"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Plugins">
+                    <Plugins />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="premium"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Premium">
+                    <Premium />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="account"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Account">
+                    <Account />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="queues"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Queues">
+                    <Queues />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="schedules"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Schedules">
+                    <Schedules />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
             <Route path="*" element={<Navigate to="/agent" replace />} />
           </Routes>
         </AgentShell>

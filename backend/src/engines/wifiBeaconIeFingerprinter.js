@@ -64,7 +64,7 @@ export const RSN_AKMS = {
  * @returns {string} fingerprint signature, e.g. '0-1-3-5-7-48-50-221'
  */
 export function ieOrderSignature(ies = []) {
-  return ies.map((ie) => Number(ie.id)).join('-');
+  return ies.map(ie => Number(ie.id)).join('-');
 }
 
 /**
@@ -107,7 +107,9 @@ export function extractVendorOuis(ies = []) {
     if (Number(ie.id) !== 221 || !ie.data) continue;
     const b = Buffer.isBuffer(ie.data) ? ie.data : Buffer.from(ie.data);
     if (b.length < 4) continue;
-    out.push(`${b[0].toString(16).padStart(2, '0')}:${b[1].toString(16).padStart(2, '0')}:${b[2].toString(16).padStart(2, '0')}:${b[3]}`);
+    out.push(
+      `${b[0].toString(16).padStart(2, '0')}:${b[1].toString(16).padStart(2, '0')}:${b[2].toString(16).padStart(2, '0')}:${b[3]}`
+    );
   }
   return out;
 }
@@ -144,12 +146,16 @@ export function analyzeBeacon(beacon = {}, known = {}) {
   }
 
   // RSN analysis.
-  const rsn = ies.find((ie) => Number(ie.id) === 48 && ie.data);
+  const rsn = ies.find(ie => Number(ie.id) === 48 && ie.data);
   if (rsn) {
     const parsed = parseRsnIe(rsn.data);
     if (parsed.valid) {
-      const weakCiphers = parsed.pairwiseCiphers.filter((c) => c === 'TKIP' || c.startsWith('WEP'));
-      if (weakCiphers.length || parsed.groupCipher === 'TKIP' || parsed.groupCipher.startsWith('WEP')) {
+      const weakCiphers = parsed.pairwiseCiphers.filter(c => c === 'TKIP' || c.startsWith('WEP'));
+      if (
+        weakCiphers.length ||
+        parsed.groupCipher === 'TKIP' ||
+        parsed.groupCipher.startsWith('WEP')
+      ) {
         findings.push({
           type: 'Weak Wi-Fi Cipher Suite',
           confidence: 'high',
@@ -157,7 +163,7 @@ export function analyzeBeacon(beacon = {}, known = {}) {
           evidence: `BSSID ${beacon.bssid || '?'} advertises legacy ciphers (group: ${parsed.groupCipher}; pairwise: ${parsed.pairwiseCiphers.join(', ')}) — TKIP/WEP are broken; require CCMP/GCMP`,
         });
       }
-      if (parsed.akms.includes('PSK') && !parsed.akms.some((a) => a === 'SAE' || a === '802.1X')) {
+      if (parsed.akms.includes('PSK') && !parsed.akms.some(a => a === 'SAE' || a === '802.1X')) {
         findings.push({
           type: 'WPA2-PSK Only (No SAE/802.1X)',
           confidence: 'medium',
@@ -166,7 +172,12 @@ export function analyzeBeacon(beacon = {}, known = {}) {
         });
       }
       if (parsed.akms.includes('OWE')) {
-        findings.push({ type: 'Opportunistic Wireless Encryption', confidence: 'medium', cwe: null, evidence: `BSSID ${beacon.bssid || '?'} offers OWE (open network with encryption)` });
+        findings.push({
+          type: 'Opportunistic Wireless Encryption',
+          confidence: 'medium',
+          cwe: null,
+          evidence: `BSSID ${beacon.bssid || '?'} offers OWE (open network with encryption)`,
+        });
       }
     }
   } else {
@@ -179,7 +190,7 @@ export function analyzeBeacon(beacon = {}, known = {}) {
   }
 
   // WPS flag.
-  if (ouis.some((o) => o.startsWith('00:50:f2:4'))) {
+  if (ouis.some(o => o.startsWith('00:50:f2:4'))) {
     findings.push({
       type: 'WPS Advertised',
       confidence: 'medium',

@@ -37,7 +37,10 @@ function attrOf(attrs, name) {
  */
 function collectTags(xml, localName) {
   const out = [];
-  const re = new RegExp(`<(?:[\\w-]+:)?${localName}\\b([^>]*?)(?:/>|>([\\s\\S]*?)</(?:[\\w-]+:)?${localName}>)`, 'gi');
+  const re = new RegExp(
+    `<(?:[\\w-]+:)?${localName}\\b([^>]*?)(?:/>|>([\\s\\S]*?)</(?:[\\w-]+:)?${localName}>)`,
+    'gi'
+  );
   let m;
   while ((m = re.exec(xml)) !== null) {
     out.push({ attrs: m[1] || '', body: m[2] || '' });
@@ -69,12 +72,18 @@ function hostOf(url) {
  * }}
  */
 export function parseSamlMetadata(xml) {
-  const invalid = (error) => ({
-    entityId: null, roles: [], endpoints: [], nameIdFormats: [],
-    certificateCount: 0, valid: false, error,
+  const invalid = error => ({
+    entityId: null,
+    roles: [],
+    endpoints: [],
+    nameIdFormats: [],
+    certificateCount: 0,
+    valid: false,
+    error,
   });
   if (!xml || typeof xml !== 'string') return invalid('not a string');
-  if (!/<(?:[\w-]+:)?EntityDescriptor\b/i.test(xml)) return invalid('no EntityDescriptor element found');
+  if (!/<(?:[\w-]+:)?EntityDescriptor\b/i.test(xml))
+    return invalid('no EntityDescriptor element found');
 
   const entityTag = collectTags(xml, 'EntityDescriptor')[0];
   const entityId = entityTag ? attrOf(entityTag.attrs, 'entityID') : null;
@@ -82,8 +91,24 @@ export function parseSamlMetadata(xml) {
   const roles = [];
   const endpoints = [];
   const roleSpecs = [
-    ['IDPSSODescriptor', 'IdP', [['SingleSignOnService', 'SSO'], ['SingleLogoutService', 'SLO'], ['ArtifactResolutionService', 'Artifact']]],
-    ['SPSSODescriptor', 'SP', [['AssertionConsumerService', 'ACS'], ['SingleLogoutService', 'SLO'], ['ArtifactResolutionService', 'Artifact']]],
+    [
+      'IDPSSODescriptor',
+      'IdP',
+      [
+        ['SingleSignOnService', 'SSO'],
+        ['SingleLogoutService', 'SLO'],
+        ['ArtifactResolutionService', 'Artifact'],
+      ],
+    ],
+    [
+      'SPSSODescriptor',
+      'SP',
+      [
+        ['AssertionConsumerService', 'ACS'],
+        ['SingleLogoutService', 'SLO'],
+        ['ArtifactResolutionService', 'Artifact'],
+      ],
+    ],
   ];
   for (const [tag, role, services] of roleSpecs) {
     const descriptors = collectTags(xml, tag);
@@ -106,7 +131,7 @@ export function parseSamlMetadata(xml) {
   }
 
   const nameIdFormats = collectTags(xml, 'NameIDFormat')
-    .map((t) => t.body.trim())
+    .map(t => t.body.trim())
     .filter(Boolean);
   const certificateCount = collectTags(xml, 'X509Certificate').length;
 
@@ -130,14 +155,20 @@ export function extractSamlHosts(parsed) {
   const map = new Map();
   for (const ep of (parsed && parsed.endpoints) || []) {
     if (!ep.host) continue;
-    if (!map.has(ep.host)) map.set(ep.host, { host: ep.host, roles: new Set(), services: new Set(), endpointCount: 0 });
+    if (!map.has(ep.host))
+      map.set(ep.host, { host: ep.host, roles: new Set(), services: new Set(), endpointCount: 0 });
     const e = map.get(ep.host);
     e.roles.add(ep.role);
     e.services.add(ep.service);
     e.endpointCount += 1;
   }
   return [...map.values()]
-    .map((e) => ({ host: e.host, roles: [...e.roles].sort(), services: [...e.services].sort(), endpointCount: e.endpointCount }))
+    .map(e => ({
+      host: e.host,
+      roles: [...e.roles].sort(),
+      services: [...e.services].sort(),
+      endpointCount: e.endpointCount,
+    }))
     .sort((a, b) => b.endpointCount - a.endpointCount || a.host.localeCompare(b.host));
 }
 
@@ -150,13 +181,16 @@ export function classifySamlEntity(parsed) {
   const p = parsed || {};
   const roles = p.roles || [];
   const endpoints = p.endpoints || [];
-  const sso = endpoints.filter((e) => e.service === 'SSO').length;
-  const acs = endpoints.filter((e) => e.service === 'ACS').length;
-  const classification = roles.includes('IdP') && roles.includes('SP')
-    ? 'hybrid IdP+SP'
-    : roles.includes('IdP') ? 'Identity Provider (IdP)'
-      : roles.includes('SP') ? 'Service Provider (SP)'
-        : 'unknown';
+  const sso = endpoints.filter(e => e.service === 'SSO').length;
+  const acs = endpoints.filter(e => e.service === 'ACS').length;
+  const classification =
+    roles.includes('IdP') && roles.includes('SP')
+      ? 'hybrid IdP+SP'
+      : roles.includes('IdP')
+        ? 'Identity Provider (IdP)'
+        : roles.includes('SP')
+          ? 'Service Provider (SP)'
+          : 'unknown';
   return {
     entityId: p.entityId || null,
     classification,

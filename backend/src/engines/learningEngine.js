@@ -14,13 +14,14 @@
 /**
  * Record the outcome of a hunt for future learning.
  */
-export function recordHuntOutcome(store, {
-  target, techStack = [], findings = [], durationMs = 0, falsePositives = 0,
-}) {
+export function recordHuntOutcome(
+  store,
+  { target, techStack = [], findings = [], durationMs = 0, falsePositives = 0 }
+) {
   const entry = {
     target,
     techStack,
-    findingTypes: findings.map((f) => f.type),
+    findingTypes: findings.map(f => f.type),
     findingCount: findings.length,
     falsePositives,
     durationMs,
@@ -37,8 +38,8 @@ export function recordHuntOutcome(store, {
  * Returns ordered list of { check, hitRate }.
  */
 export function suggestChecks(store, techStack = []) {
-  const relevant = store.filter((h) =>
-    h.techStack.some((t) => techStack.map((x) => x.toLowerCase()).includes(t.toLowerCase()))
+  const relevant = store.filter(h =>
+    h.techStack.some(t => techStack.map(x => x.toLowerCase()).includes(t.toLowerCase()))
   );
   if (relevant.length === 0) {
     // No history — default priority order.
@@ -80,11 +81,14 @@ export function recordFalsePositive(fpStore, { type, urlPattern, reason }) {
  */
 export function isKnownFalsePositive(fpStore, finding = {}) {
   return fpStore.some(
-    (fp) => fp.type === finding.type && String(finding.url || '').includes(fp.urlPattern || '')
+    fp => fp.type === finding.type && String(finding.url || '').includes(fp.urlPattern || '')
   );
 }
 
 export const LEARNING_ENGINE = {
-  recordHuntOutcome, suggestChecks, recordFalsePositive, isKnownFalsePositive,
+  recordHuntOutcome,
+  suggestChecks,
+  recordFalsePositive,
+  isKnownFalsePositive,
 };
 export default LEARNING_ENGINE;

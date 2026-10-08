@@ -34,11 +34,19 @@ export const WAVE40_FS_IDEAS = [
   [51572, 'strategy pivot proposals', 'The agent suggests a strategy change with its reasoning'],
   [51573, 'resource check-ins', '"I\'m using a lot of requests; should I slow down?"'],
   [51574, 'time check-ins', '"30 minutes left on the budget — how should I spend it?"'],
-  [51575, 'credential requests', 'The agent asks for login credentials when auth testing would help'],
+  [
+    51575,
+    'credential requests',
+    'The agent asks for login credentials when auth testing would help',
+  ],
   [51576, 'context questions', '"Is this staging or production?" asked before risky steps'],
   [51577, 'business-context questions', 'The agent asks what matters most to prioritize impact'],
   [51578, 'false-positive checks', '"This might be a false positive — want me to verify?"'],
-  [51579, 'exploit-depth questions', '"I\'ve confirmed the issue; should I demonstrate full impact?"'],
+  [
+    51579,
+    'exploit-depth questions',
+    '"I\'ve confirmed the issue; should I demonstrate full impact?"',
+  ],
   [51580, 'report-scope questions', '"Should low-severity items go in the main report?"'],
 ];
 
@@ -59,8 +67,11 @@ function clamp(n, lo, hi) {
 
 export function escHtml(s) {
   return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 let promptSeq = 0;
@@ -73,7 +84,9 @@ export function newPrompt(kind, title, body, options, urgency) {
   promptSeq += 1;
   return {
     id: 'P-' + String(promptSeq).padStart(4, '0'),
-    kind, title, body,
+    kind,
+    title,
+    body,
     options: (options || []).map(o => ({ key: o.key, label: o.label, hint: o.hint || '' })),
     urgency: ['low', 'normal', 'high', 'urgent'].includes(urgency) ? urgency : 'normal',
     status: 'open',
@@ -94,8 +107,11 @@ export function snoozePrompt(prompt, untilMs) {
 
 export function promptSummary(prompt) {
   return {
-    id: prompt.id, kind: prompt.kind, title: prompt.title,
-    status: prompt.status, urgency: prompt.urgency,
+    id: prompt.id,
+    kind: prompt.kind,
+    title: prompt.title,
+    status: prompt.status,
+    urgency: prompt.urgency,
     answered: prompt.status === 'answered',
   };
 }
@@ -111,16 +127,21 @@ export function watermarkText(viewer, findingId) {
 export function watermarkStyle(viewer) {
   const h = djb2(viewer);
   return {
-    rotationDeg: -18 + (h % 12),           // -18..-7 deg
-    opacity: 0.05 + ((h >> 4) % 5) * 0.01,  // 0.05..0.09
-    fontSizePx: 64 + (h % 24),              // 64..87 px
+    rotationDeg: -18 + (h % 12), // -18..-7 deg
+    opacity: 0.05 + ((h >> 4) % 5) * 0.01, // 0.05..0.09
+    fontSizePx: 64 + (h % 24), // 64..87 px
   };
 }
 
 export function embedWatermark(html, viewer, findingId) {
-  return String(html || '') +
-    '<div class="fs40-watermark" data-viewer="' + escHtml(viewer) + '">' +
-    escHtml(watermarkText(viewer, findingId)) + '</div>';
+  return (
+    String(html || '') +
+    '<div class="fs40-watermark" data-viewer="' +
+    escHtml(viewer) +
+    '">' +
+    escHtml(watermarkText(viewer, findingId)) +
+    '</div>'
+  );
 }
 
 /* --- 51562 finding to ticket ------------------------------------------------- */
@@ -143,20 +164,37 @@ export function ticketPayload(finding, system, opts) {
   const f = finding || {};
   const sys = String(system || '').toLowerCase();
   const o = opts || {};
-  const title = '[' + String(f.severity || 'medium').toUpperCase() + '] ' +
-    String(f.title || 'Untitled finding') + ' — ' + String(f.asset || 'unknown asset');
-  const labels = ['infinity-ai', String(f.type || 'finding'), 'severity-' + String(f.severity || 'medium').toLowerCase()];
+  const title =
+    '[' +
+    String(f.severity || 'medium').toUpperCase() +
+    '] ' +
+    String(f.title || 'Untitled finding') +
+    ' — ' +
+    String(f.asset || 'unknown asset');
+  const labels = [
+    'infinity-ai',
+    String(f.type || 'finding'),
+    'severity-' + String(f.severity || 'medium').toLowerCase(),
+  ];
   if (sys === 'linear') {
     return {
-      system: 'linear', title, description: findingMarkdown(f),
-      labels: labels.slice(0, 3), priority: linearPriority(f.severity),
-      teamId: o.teamId || null, projectId: o.projectId || null,
+      system: 'linear',
+      title,
+      description: findingMarkdown(f),
+      labels: labels.slice(0, 3),
+      priority: linearPriority(f.severity),
+      teamId: o.teamId || null,
+      projectId: o.projectId || null,
     };
   }
   return {
-    system: 'jira', title, description: findingMarkdown(f),
-    labels, priority: jiraPriority(f.severity),
-    projectKey: o.projectKey || 'SEC', issueType: 'Bug',
+    system: 'jira',
+    title,
+    description: findingMarkdown(f),
+    labels,
+    priority: jiraPriority(f.severity),
+    projectKey: o.projectKey || 'SEC',
+    issueType: 'Bug',
   };
 }
 
@@ -179,7 +217,7 @@ export function findingMarkdown(f) {
 /** Deterministic external ticket reference for a finding. */
 export function ticketRef(finding, system) {
   const sys = String(system || '').toLowerCase() === 'linear' ? 'LIN' : 'SEC';
-  return sys + '-' + String(djb2(finding && finding.id ? finding.id + sys : sys) % 90000 + 10000);
+  return sys + '-' + String((djb2(finding && finding.id ? finding.id + sys : sys) % 90000) + 10000);
 }
 
 export function linkTicket(findingId, ticket, linkedAtMs) {
@@ -199,7 +237,7 @@ export function shouldAutoPost(finding, prefs) {
   const p = prefs || {};
   if (p.disabled) return false;
   const order = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
-  const sev = order[String(finding && finding.severity || 'info').toLowerCase()] || 0;
+  const sev = order[String((finding && finding.severity) || 'info').toLowerCase()] || 0;
   const min = order[String(p.minSeverity || 'critical').toLowerCase()] ?? 4;
   if (sev < min) return false;
   if (p.mutedFindingIds && p.mutedFindingIds.includes(finding && finding.id)) return false;
@@ -208,9 +246,17 @@ export function shouldAutoPost(finding, prefs) {
 
 export function chatPostText(finding) {
   const f = finding || {};
-  return '🚨 *' + String(f.severity || 'medium').toUpperCase() + '* — ' + String(f.title || 'New finding') +
-    ' on `' + String(f.asset || '?') + '` (confidence ' +
-    String(f.confidence != null ? f.confidence + '%' : 'n/a') + ')';
+  return (
+    '🚨 *' +
+    String(f.severity || 'medium').toUpperCase() +
+    '* — ' +
+    String(f.title || 'New finding') +
+    ' on `' +
+    String(f.asset || '?') +
+    '` (confidence ' +
+    String(f.confidence != null ? f.confidence + '%' : 'n/a') +
+    ')'
+  );
 }
 
 /** Channel message block payload (Slack/Teams/Discord compatible shape). No network. */
@@ -236,12 +282,32 @@ export function retrospectivePrompts(hunt) {
   const h = hunt || {};
   const findings = h.findings || [];
   const prompts = [
-    { key: 'most-valuable', question: 'Which finding mattered most to you?', kind: 'pick', findingIds: findings.map(f => f.id) },
-    { key: 'false-positives', question: 'Were any of these findings false positives?', kind: 'multi-pick', findingIds: findings.map(f => f.id) },
+    {
+      key: 'most-valuable',
+      question: 'Which finding mattered most to you?',
+      kind: 'pick',
+      findingIds: findings.map(f => f.id),
+    },
+    {
+      key: 'false-positives',
+      question: 'Were any of these findings false positives?',
+      kind: 'multi-pick',
+      findingIds: findings.map(f => f.id),
+    },
     { key: 'missed', question: 'Did the hunt miss anything you expected to find?', kind: 'text' },
-    { key: 'depth', question: 'Should the next hunt go deeper on any technique?', kind: 'pick', options: ['recon', 'injection', 'auth', 'logic', 'none'] },
+    {
+      key: 'depth',
+      question: 'Should the next hunt go deeper on any technique?',
+      kind: 'pick',
+      options: ['recon', 'injection', 'auth', 'logic', 'none'],
+    },
   ];
-  if (h.goal) prompts.push({ key: 'goal', question: 'Did this hunt serve the goal "' + String(h.goal) + '"?', kind: 'yes-no' });
+  if (h.goal)
+    prompts.push({
+      key: 'goal',
+      question: 'Did this hunt serve the goal "' + String(h.goal) + '"?',
+      kind: 'yes-no',
+    });
   return prompts;
 }
 
@@ -264,8 +330,12 @@ export function digDeeperPrompt(finding) {
   return newPrompt(
     'dig-deeper',
     'Dig deeper into this finding?',
-    'Found "' + String(f.title || 'a finding') + '" on ' + String(f.asset || 'the target') +
-      ' (confidence ' + String(f.confidence != null ? f.confidence + '%' : 'n/a') +
+    'Found "' +
+      String(f.title || 'a finding') +
+      '" on ' +
+      String(f.asset || 'the target') +
+      ' (confidence ' +
+      String(f.confidence != null ? f.confidence + '%' : 'n/a') +
       '). I can chase it further — check exploitability, affected endpoints, and blast radius.',
     [
       { key: 'dig', label: 'Dig deeper', hint: 'follow-up tests on this finding' },
@@ -290,21 +360,29 @@ export function scopeScore(asset) {
   const a = String(asset || '');
   let score = 10;
   if (/admin|internal|staging|dev|api/i.test(a)) score += 25;
-  if (/\.(corp|internal|local)$/i.test(a) || a.includes('10.') || a.includes('192.168.')) score += 15;
+  if (/\.(corp|internal|local)$/i.test(a) || a.includes('10.') || a.includes('192.168.'))
+    score += 15;
   score += djb2(a) % 10;
   return clamp(score, 0, 100);
 }
 
 export function scopeSuggestion(newAssets, opts) {
   const o = opts || {};
-  const ranked = (newAssets || []).map(a => ({ asset: String(a), score: scopeScore(a) }))
+  const ranked = (newAssets || [])
+    .map(a => ({ asset: String(a), score: scopeScore(a) }))
     .sort((x, y) => y.score - x.score);
   return newPrompt(
     'scope-expansion',
     'Add newly discovered assets to scope?',
-    'I discovered ' + ranked.length + ' asset' + (ranked.length === 1 ? '' : 's') +
-      ' during recon' + (o.source ? ' (' + String(o.source) + ')' : '') +
-      '. Top candidate: ' + (ranked[0] ? ranked[0].asset + ' (score ' + ranked[0].score + ')' : 'none') + '.',
+    'I discovered ' +
+      ranked.length +
+      ' asset' +
+      (ranked.length === 1 ? '' : 's') +
+      ' during recon' +
+      (o.source ? ' (' + String(o.source) + ')' : '') +
+      '. Top candidate: ' +
+      (ranked[0] ? ranked[0].asset + ' (score ' + ranked[0].score + ')' : 'none') +
+      '.',
     [
       { key: 'add-all', label: 'Add all in scope', hint: ranked.length + ' assets' },
       { key: 'add-top', label: 'Add top pick only', hint: ranked[0] ? ranked[0].asset : 'none' },
@@ -320,8 +398,15 @@ export function techniqueProposal(currentTechnique, suggested, reason) {
   return newPrompt(
     'technique-proposal',
     'Try ' + String(suggested || 'another technique') + ' next?',
-    'I noticed ' + String(reason || 'something interesting while running ' + String(currentTechnique || 'the current technique')) +
-      '. Should I switch to ' + String(suggested || 'a different technique') + '?',
+    'I noticed ' +
+      String(
+        reason ||
+          'something interesting while running ' +
+            String(currentTechnique || 'the current technique')
+      ) +
+      '. Should I switch to ' +
+      String(suggested || 'a different technique') +
+      '?',
     [
       { key: 'try', label: 'Try it', hint: 'one-tap approval' },
       { key: 'later', label: 'Queue for later' },
@@ -334,13 +419,20 @@ export function techniqueProposal(currentTechnique, suggested, reason) {
 /* --- 51568 priority check-ins ------------------------------------------------ */
 
 export function priorityCheckin(leadA, leadB) {
-  const a = leadA || {}, b = leadB || {};
+  const a = leadA || {},
+    b = leadB || {};
   return newPrompt(
     'priority-checkin',
     'Which lead matters more to you?',
-    'Two leads are competing for attention: (1) ' + String(a.title || 'lead A') +
-      ' [' + String(a.severity || '?') + '] vs (2) ' + String(b.title || 'lead B') +
-      ' [' + String(b.severity || '?') + '].',
+    'Two leads are competing for attention: (1) ' +
+      String(a.title || 'lead A') +
+      ' [' +
+      String(a.severity || '?') +
+      '] vs (2) ' +
+      String(b.title || 'lead B') +
+      ' [' +
+      String(b.severity || '?') +
+      '].',
     [
       { key: 'a', label: String(a.title || 'Lead A').slice(0, 48) },
       { key: 'b', label: String(b.title || 'Lead B').slice(0, 48) },
@@ -353,7 +445,10 @@ export function priorityCheckin(leadA, leadB) {
 /* --- 51569 ambiguity clarifications ------------------------------------------ */
 
 export function ambiguityPrompt(question, interpretations) {
-  const list = (interpretations || []).map((t, i) => ({ key: 'opt' + (i + 1), label: String(t).slice(0, 64) }));
+  const list = (interpretations || []).map((t, i) => ({
+    key: 'opt' + (i + 1),
+    label: String(t).slice(0, 64),
+  }));
   return newPrompt(
     'ambiguity',
     'Quick clarification',
@@ -373,7 +468,13 @@ export function riskConfirmation(action, riskScore, threshold) {
     ...newPrompt(
       'risk-confirmation',
       needs ? 'Confirm before crossing the risk threshold' : 'Risk note',
-      '"' + String(action || 'this action') + '" scores ' + r + '/10 risk against your threshold of ' + t + '.',
+      '"' +
+        String(action || 'this action') +
+        '" scores ' +
+        r +
+        '/10 risk against your threshold of ' +
+        t +
+        '.',
       [
         { key: 'proceed', label: 'Proceed anyway' },
         { key: 'safer', label: 'Use the safer variant' },
@@ -390,13 +491,18 @@ export function riskConfirmation(action, riskScore, threshold) {
 /* --- 51571 finding triage questions ------------------------------------------ */
 
 export function triageQuestion(finding, candidateDup) {
-  const f = finding || {}, d = candidateDup || {};
+  const f = finding || {},
+    d = candidateDup || {};
   return newPrompt(
     'triage-question',
     'Merge these as duplicates?',
-    'This looks like a duplicate of #' + String(d.seq != null ? d.seq : d.id || '?') +
-      ' ("' + String(d.title || 'another finding') + '"). Merge "' +
-      String(f.title || 'this finding') + '" into it?',
+    'This looks like a duplicate of #' +
+      String(d.seq != null ? d.seq : d.id || '?') +
+      ' ("' +
+      String(d.title || 'another finding') +
+      '"). Merge "' +
+      String(f.title || 'this finding') +
+      '" into it?',
     [
       { key: 'merge', label: 'Merge them' },
       { key: 'keep', label: 'Keep separate' },
@@ -411,8 +517,13 @@ export function pivotProposal(current, proposed, reasoning) {
   return newPrompt(
     'strategy-pivot',
     'Pivot the hunt strategy?',
-    'Current: ' + String(current || 'default') + '. Proposed: ' + String(proposed || 'alternative') +
-      '. Reasoning: ' + String(reasoning || 'early results suggest a better fit') + '.',
+    'Current: ' +
+      String(current || 'default') +
+      '. Proposed: ' +
+      String(proposed || 'alternative') +
+      '. Reasoning: ' +
+      String(reasoning || 'early results suggest a better fit') +
+      '.',
     [
       { key: 'pivot', label: 'Pivot now' },
       { key: 'finish', label: 'Finish current first' },
@@ -441,7 +552,9 @@ export function resourceCheckin(usage) {
       ],
       pct >= 90 ? 'high' : 'normal'
     ),
-    requestsPerMin: rpm, budgetPerMin: budget, pctUsed: pct,
+    requestsPerMin: rpm,
+    budgetPerMin: budget,
+    pctUsed: pct,
   };
 }
 
@@ -456,8 +569,12 @@ export function timeCheckin(elapsedMs, budgetMs) {
     ...newPrompt(
       'time-checkin',
       'How should I spend the remaining budget?',
-      Math.round(remaining / 60000) + ' minutes left of a ' + Math.round(b / 60000) +
-        '-minute budget (' + pct + '% used).',
+      Math.round(remaining / 60000) +
+        ' minutes left of a ' +
+        Math.round(b / 60000) +
+        '-minute budget (' +
+        pct +
+        '% used).',
       [
         { key: 'depth', label: 'Go deeper on findings' },
         { key: 'breadth', label: 'Chase more coverage' },
@@ -465,7 +582,8 @@ export function timeCheckin(elapsedMs, budgetMs) {
       ],
       pct >= 75 ? 'high' : 'normal'
     ),
-    remainingMs: remaining, pctUsed: pct,
+    remainingMs: remaining,
+    pctUsed: pct,
   };
 }
 
@@ -475,8 +593,10 @@ export function credentialRequest(scope, reason) {
   return newPrompt(
     'credential-request',
     'Credentials would help here',
-    'Authenticated testing of ' + String(scope || 'the target') +
-      ' would help: ' + String(reason || 'several checks need a logged-in session') +
+    'Authenticated testing of ' +
+      String(scope || 'the target') +
+      ' would help: ' +
+      String(reason || 'several checks need a logged-in session') +
       '. Share credentials and I will use them only for this hunt (never stored in logs).',
     [
       { key: 'provide', label: 'I will provide' },
@@ -493,13 +613,20 @@ export const KNOWN_ENVIRONMENTS = ['production', 'staging', 'development', 'unkn
 
 export function contextQuestion(field, known) {
   const f = String(field || 'environment');
-  const options = f === 'environment'
-    ? KNOWN_ENVIRONMENTS.map(e => ({ key: e, label: e[0].toUpperCase() + e.slice(1) }))
-    : [{ key: 'yes', label: 'Yes' }, { key: 'no', label: 'No' }];
+  const options =
+    f === 'environment'
+      ? KNOWN_ENVIRONMENTS.map(e => ({ key: e, label: e[0].toUpperCase() + e.slice(1) }))
+      : [
+          { key: 'yes', label: 'Yes' },
+          { key: 'no', label: 'No' },
+        ];
   return newPrompt(
     'context-question',
     'Quick context check',
-    'Is this ' + f + ' ' + String(known || 'staging or production') +
+    'Is this ' +
+      f +
+      ' ' +
+      String(known || 'staging or production') +
       '? I ask before any step that could disturb the target.',
     options,
     'high'
@@ -514,7 +641,9 @@ export function businessContextQuestion(assets) {
     'business-context',
     'What matters most to the business?',
     'To prioritize impact, tell me which of these assets matters most to the business.',
-    list.length ? list.concat([{ key: 'all-equal', label: 'All equal' }]) : [{ key: 'all-equal', label: 'All equal' }],
+    list.length
+      ? list.concat([{ key: 'all-equal', label: 'All equal' }])
+      : [{ key: 'all-equal', label: 'All equal' }],
     'normal'
   );
 }
@@ -526,8 +655,12 @@ export function fpCheckQuestion(finding) {
   return newPrompt(
     'false-positive-check',
     'This might be a false positive — verify?',
-    '"' + String(f.title || 'A finding') + '" looks suspicious but could be a false positive ' +
-      '(confidence ' + String(f.confidence != null ? f.confidence + '%' : 'n/a') + '). Want me to verify it?',
+    '"' +
+      String(f.title || 'A finding') +
+      '" looks suspicious but could be a false positive ' +
+      '(confidence ' +
+      String(f.confidence != null ? f.confidence + '%' : 'n/a') +
+      '). Want me to verify it?',
     [
       { key: 'verify', label: 'Verify it' },
       { key: 'dismiss', label: 'Mark false positive' },
@@ -544,7 +677,8 @@ export function exploitDepthQuestion(finding) {
   return newPrompt(
     'exploit-depth',
     'Demonstrate full impact?',
-    'I have confirmed "' + String(f.title || 'the issue') +
+    'I have confirmed "' +
+      String(f.title || 'the issue') +
       '". Should I demonstrate full impact with a safe proof-of-concept?',
     [
       { key: 'full', label: 'Demonstrate impact' },
@@ -559,12 +693,19 @@ export function exploitDepthQuestion(finding) {
 export function reportScopeQuestion(findings) {
   const list = findings || [];
   const order = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
-  const lowCount = list.filter(f => (order[String(f.severity || '').toLowerCase()] ?? 0) <= 1).length;
+  const lowCount = list.filter(
+    f => (order[String(f.severity || '').toLowerCase()] ?? 0) <= 1
+  ).length;
   return newPrompt(
     'report-scope',
     'Should low-severity items go in the main report?',
-    'There ' + (lowCount === 1 ? 'is 1' : 'are ' + lowCount) + ' low/info-severity item' +
-      (lowCount === 1 ? '' : 's') + ' out of ' + list.length + ' findings.',
+    'There ' +
+      (lowCount === 1 ? 'is 1' : 'are ' + lowCount) +
+      ' low/info-severity item' +
+      (lowCount === 1 ? '' : 's') +
+      ' out of ' +
+      list.length +
+      ' findings.',
     [
       { key: 'include', label: 'Include everything' },
       { key: 'appendix', label: 'Appendix only' },

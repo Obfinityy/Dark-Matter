@@ -23,7 +23,9 @@ const NATS_MONITOR_PATHS = ['/varz', '/connz', '/routez', '/jsz', '/gatewayz', '
 export function parseNatsVarz(payload) {
   let data = payload;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch {
+    try {
+      data = JSON.parse(data);
+    } catch {
       return { valid: false, reason: 'payload is not valid JSON' };
     }
   }
@@ -40,7 +42,9 @@ export function parseNatsVarz(payload) {
     memBytes: data.mem || null,
     connections: data.connections ?? null,
     routes: data.routes ?? null,
-    jetstream: data.jetstream ? { enabled: true, apiLevel: data.jetstream.api_level ?? null } : { enabled: false },
+    jetstream: data.jetstream
+      ? { enabled: true, apiLevel: data.jetstream.api_level ?? null }
+      : { enabled: false },
     clusterName: data.cluster?.name || null,
   };
 }
@@ -49,7 +53,11 @@ export function parseNatsVarz(payload) {
 export function parseUptime(uptime) {
   const m = String(uptime).match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?/);
   if (!m) return null;
-  return (parseInt(m[1] || '0', 10) * 3600) + (parseInt(m[2] || '0', 10) * 60) + Math.round(parseFloat(m[3] || '0'));
+  return (
+    parseInt(m[1] || '0', 10) * 3600 +
+    parseInt(m[2] || '0', 10) * 60 +
+    Math.round(parseFloat(m[3] || '0'))
+  );
 }
 
 /**
@@ -67,12 +75,15 @@ export function analyzeNatsMonitoring(response = {}) {
   const signals = [];
   const path = String(response.path || '');
 
-  if (NATS_MONITOR_PATHS.some((p) => path === p || path.endsWith(p))) {
+  if (NATS_MONITOR_PATHS.some(p => path === p || path.endsWith(p))) {
     signals.push({ signal: 'monitor_path', detail: path });
   }
   const varz = parseNatsVarz(body);
   if (varz.valid) {
-    signals.push({ signal: 'varz_json', detail: `NATS ${varz.version} (${varz.serverName || varz.serverId.slice(0, 8)}…)` });
+    signals.push({
+      signal: 'varz_json',
+      detail: `NATS ${varz.version} (${varz.serverName || varz.serverId.slice(0, 8)}…)`,
+    });
   }
   if (/nats-server/i.test(headers.server || '')) {
     signals.push({ signal: 'server_header', detail: headers.server.slice(0, 80) });

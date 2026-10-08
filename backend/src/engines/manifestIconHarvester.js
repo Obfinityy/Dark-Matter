@@ -14,7 +14,11 @@
  */
 export function parseManifest(manifestJson = '') {
   let data;
-  try { data = JSON.parse(manifestJson); } catch { return null; }
+  try {
+    data = JSON.parse(manifestJson);
+  } catch {
+    return null;
+  }
   if (!data || typeof data !== 'object') return null;
   return {
     name: data.name || null,
@@ -35,9 +39,15 @@ export function parseManifest(manifestJson = '') {
 export function harvestIcon(icon = {}, manifestUrl = '') {
   const rawSrc = String(icon.src || '');
   let src = rawSrc;
-  try { src = new URL(rawSrc, manifestUrl).href; } catch { /* keep raw */ }
+  try {
+    src = new URL(rawSrc, manifestUrl).href;
+  } catch {
+    /* keep raw */
+  }
   const sizes = String(icon.sizes || '').trim();
-  const purpose = String(icon.purpose || 'any').toLowerCase().trim();
+  const purpose = String(icon.purpose || 'any')
+    .toLowerCase()
+    .trim();
   let pixelSize = 0;
   const m = /(\d+)\s*x\s*(\d+)/i.exec(sizes);
   if (m) pixelSize = Math.min(parseInt(m[1], 10), parseInt(m[2], 10));
@@ -59,8 +69,11 @@ export function harvestIcon(icon = {}, manifestUrl = '') {
 export function harvestManifestIcons(manifestJson = '', manifestUrl = '') {
   const manifest = parseManifest(manifestJson);
   if (!manifest) return null;
-  const icons = manifest.icons.map((i) => harvestIcon(i, manifestUrl));
-  const largest = icons.reduce((best, cur) => (cur.pixelSize > (best?.pixelSize || 0) ? cur : best), null);
+  const icons = manifest.icons.map(i => harvestIcon(i, manifestUrl));
+  const largest = icons.reduce(
+    (best, cur) => (cur.pixelSize > (best?.pixelSize || 0) ? cur : best),
+    null
+  );
   return {
     identity: {
       name: manifest.name,
@@ -70,7 +83,7 @@ export function harvestManifestIcons(manifestJson = '', manifestUrl = '') {
     },
     icons,
     largest,
-    maskable: icons.some((i) => i.purpose.includes('maskable')),
+    maskable: icons.some(i => i.purpose.includes('maskable')),
     count: icons.length,
   };
 }

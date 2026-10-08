@@ -14,15 +14,20 @@
 /* Motion primitives                                                  */
 /* ------------------------------------------------------------------ */
 
-.mm-ease-out { transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
-.mm-ease-in-out { transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
-.mm-spring { transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+.mm-ease-out {
+  transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+}
+.mm-ease-in-out {
+  transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+.mm-spring {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
 /* 50590 — focus-ring draw: 120ms outline-offset transition */
 .mm-focusable {
   outline: 2px solid transparent;
   outline-offset: 2px;
-  
 }
 .mm-focusable:focus-visible {
   outline-color: var(--accent);
@@ -33,7 +38,9 @@
 /* 50561 — self-drawing checkmark                                      */
 /* ------------------------------------------------------------------ */
 
-.mm-checkmark.mm-drawn path { stroke-dashoffset: 0 !important; }
+.mm-checkmark.mm-drawn path {
+  stroke-dashoffset: 0 !important;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50562 — pill hover scale (1.05 + soft shadow)                       */
@@ -47,7 +54,6 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  
 }
 .mm-pill:hover {
   transform: scale(1.05);
@@ -58,7 +64,9 @@
 /* 50563 — button press feedback (0.97 for 80ms)                       */
 /* ------------------------------------------------------------------ */
 
-.mm-pressable:active { transform: scale(0.97); }
+.mm-pressable:active {
+  transform: scale(0.97);
+}
 .mm-pressable:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -68,18 +76,46 @@
 /* 50564 — sliding tab indicator                                       */
 /* ------------------------------------------------------------------ */
 
-.mm-tabs { position: relative; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
-.mm-tab { position: relative; padding: 8px 14px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px; z-index: 1; min-height: 44px; border-radius: var(--radius-sm); transition: color 160ms ease-out, background 160ms ease-out; white-space: nowrap; }
-.mm-tab:hover { color: var(--text-primary); background: var(--surface-hover); }
-.mm-tab.mm-tab-active { color: var(--text-primary); }
-.mm-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mm-tabs {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.mm-tab {
+  position: relative;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  z-index: 1;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  transition:
+    color 160ms ease-out,
+    background 160ms ease-out;
+  white-space: nowrap;
+}
+.mm-tab:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.mm-tab.mm-tab-active {
+  color: var(--text-primary);
+}
+.mm-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .mm-tab-glider {
   position: absolute;
   bottom: 0;
   height: 2px;
   background: var(--accent);
   border-radius: 2px;
-  
 }
 
 /* ------------------------------------------------------------------ */
@@ -88,15 +124,22 @@
 
 .mm-chevron {
   display: inline-block;
-  
 }
-.mm-chevron.mm-open { transform: rotate(180deg); }
+.mm-chevron.mm-open {
+  transform: rotate(180deg);
+}
 
 /* ------------------------------------------------------------------ */
 /* 50567 — progress shimmer sweep (indeterminate → determinate)        */
 /* ------------------------------------------------------------------ */
 
-.mm-progress { position: relative; height: 6px; border-radius: 3px; background: var(--bg-tertiary); overflow: hidden; }
+.mm-progress {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
 .mm-progress-fill {
   height: 100%;
   background: var(--accent);
@@ -107,15 +150,22 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent);
-  
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 55%, transparent),
+    transparent
+  );
 }
 
 /* ------------------------------------------------------------------ */
 /* 50568 — toast slide-fade (enter up+fade, exit collapse+slide)        */
 /* ------------------------------------------------------------------ */
 
-.mm-toast {  overflow: hidden; box-shadow: var(--shadow-md); }
+.mm-toast {
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
 
 /* ------------------------------------------------------------------ */
 /* 50569 — diagonal skeleton sweep (1.2s loop)                         */
@@ -131,8 +181,12 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--text-secondary) 18%, transparent) 50%, transparent 70%);
-  
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    color-mix(in srgb, var(--text-secondary) 18%, transparent) 50%,
+    transparent 70%
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -143,22 +197,33 @@
 /* 50571 — timeline dot pop (scale bounce on arrival)                  */
 /* ------------------------------------------------------------------ */
 
-.mm-timeline-dot {  transform-origin: center; }
+.mm-timeline-dot {
+  transform-origin: center;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50572 — filter-pill morph (scale in on add, collapse before fade)  */
 /* ------------------------------------------------------------------ */
 
-.mm-pill-out {  overflow: hidden; white-space: nowrap; }
+.mm-pill-out {
+  overflow: hidden;
+  white-space: nowrap;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50573 — thinking-dot wave (three staggered dots)                    */
 /* ------------------------------------------------------------------ */
 
-.mm-thinking { display: inline-flex; gap: 6px; align-items: center; }
+.mm-thinking {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
 .mm-thinking-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--text-secondary);
-  
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-secondary);
 }
 
 /* ------------------------------------------------------------------ */
@@ -178,7 +243,12 @@
 /* 50576 — confidence fill ease                                        */
 /* ------------------------------------------------------------------ */
 
-.mm-confidence-track { height: 8px; border-radius: 4px; background: var(--bg-tertiary); overflow: hidden; }
+.mm-confidence-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
 .mm-confidence-fill {
   height: 100%;
   border-radius: 4px;
@@ -190,7 +260,6 @@
 /* ------------------------------------------------------------------ */
 
 .mm-donut-seg {
-  
   transform-origin: center;
   transform-box: fill-box;
 }
@@ -199,45 +268,73 @@
 /* 50578 — drop-zone pulse (animated dashed border on drag hover)      */
 /* ------------------------------------------------------------------ */
 
-.mm-dropzone { border: 2px dashed var(--border); border-radius: var(--radius-md); transition: border-color 160ms ease-out; }
-.mm-dropzone:hover { border-color: var(--text-muted); }
+.mm-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 160ms ease-out;
+}
+.mm-dropzone:hover {
+  border-color: var(--text-muted);
+}
 .mm-dropzone.mm-drag-over {
   border-style: dashed;
-  
 }
-.mm-dropzone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mm-dropzone:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50579 — spring toggles                                              */
 /* ------------------------------------------------------------------ */
 
 .mm-toggle {
-  width: 44px; height: 24px; border-radius: 999px; background: var(--surface-active);
-  border: 1px solid var(--border); cursor: pointer; position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-active);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
   transition: background 200ms ease-out;
 }
-.mm-toggle:hover { border-color: var(--accent); }
-.mm-toggle.mm-on { background: var(--accent); border-color: var(--accent); }
-.mm-toggle-knob {
-  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
-  border-radius: 50%; background: #fff;
-  
+.mm-toggle:hover {
+  border-color: var(--accent);
 }
-.mm-toggle.mm-on .mm-toggle-knob { transform: translateX(20px) scale(1.08); }
-.mm-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mm-toggle.mm-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.mm-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+}
+.mm-toggle.mm-on .mm-toggle-knob {
+  transform: translateX(20px) scale(1.08);
+}
+.mm-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50581 — completion ring pulse                                       */
 /* ------------------------------------------------------------------ */
 
-.mm-completion-ring {  border-radius: 999px; }
+.mm-completion-ring {
+  border-radius: 999px;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50582 — gauge needle sweep (900ms ease-in-out)                      */
 /* ------------------------------------------------------------------ */
 
 .mm-gauge-needle {
-  
   transform-origin: bottom center;
 }
 
@@ -246,11 +343,16 @@
 /* ------------------------------------------------------------------ */
 
 .mm-ribbon {
-  position: absolute; top: 10px; right: -2px;
-  background: var(--warning); color: #0f172a;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.06em;
-  padding: 3px 10px; border-radius: 4px 0 0 4px;
-  
+  position: absolute;
+  top: 10px;
+  right: -2px;
+  background: var(--warning);
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 4px 0 0 4px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -258,7 +360,6 @@
 /* ------------------------------------------------------------------ */
 
 .mm-stagger {
-  
   animation-fill-mode: both;
 }
 
@@ -266,14 +367,18 @@
 /* 50585 — theme cross-fade (250ms)                                    */
 /* ------------------------------------------------------------------ */
 
-.mm-theme-fade { transition: background-color 250ms ease-out, color 250ms ease-out, border-color 250ms ease-out; }
+.mm-theme-fade {
+  transition:
+    background-color 250ms ease-out,
+    color 250ms ease-out,
+    border-color 250ms ease-out;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50586 — graph node settle (spring into place)                       */
 /* ------------------------------------------------------------------ */
 
 .mm-graph-node {
-  
   animation-fill-mode: both;
 }
 
@@ -281,37 +386,58 @@
 /* 50587 — copy-button morph (flip to checkmark, 120ms)                */
 /* ------------------------------------------------------------------ */
 
-.mm-copy-btn { position: relative; transition: border-color 160ms ease-out; }
-.mm-copy-btn:hover { border-color: var(--accent); }
+.mm-copy-btn {
+  position: relative;
+  transition: border-color 160ms ease-out;
+}
+.mm-copy-btn:hover {
+  border-color: var(--accent);
+}
 .mm-copy-icon {
   display: inline-block;
   transition: opacity 120ms ease-out;
 }
-.mm-copy-btn.mm-copied .mm-copy-icon { transform: rotateY(90deg); opacity: 0; }
+.mm-copy-btn.mm-copied .mm-copy-icon {
+  transform: rotateY(90deg);
+  opacity: 0;
+}
 .mm-copy-check {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  transform: rotateY(-90deg); opacity: 0;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform: rotateY(-90deg);
+  opacity: 0;
   transition: opacity 120ms ease-out;
 }
-.mm-copy-btn.mm-copied .mm-copy-check { transform: rotateY(0); opacity: 1; }
+.mm-copy-btn.mm-copied .mm-copy-check {
+  transform: rotateY(0);
+  opacity: 1;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50588 — dual-ring spinner (0.8s/rev)                                */
 /* ------------------------------------------------------------------ */
 
-.mm-dual-spinner { position: relative; width: 34px; height: 34px; }
+.mm-dual-spinner {
+  position: relative;
+  width: 34px;
+  height: 34px;
+}
 .mm-dual-spinner::before,
 .mm-dual-spinner::after {
-  content: ''; position: absolute; border-radius: 50%;
+  content: '';
+  position: absolute;
+  border-radius: 50%;
   border: 3px solid transparent;
 }
 .mm-dual-spinner::before {
-  inset: 0; border-top-color: var(--accent);
-  
+  inset: 0;
+  border-top-color: var(--accent);
 }
 .mm-dual-spinner::after {
-  inset: 7px; border-bottom-color: var(--accent-secondary);
-  
+  inset: 7px;
+  border-bottom-color: var(--accent-secondary);
 }
 
 /* ------------------------------------------------------------------ */
@@ -323,7 +449,6 @@
 /* ------------------------------------------------------------------ */
 
 .mm-sticky-bar {
-  
   border-bottom: 1px solid transparent;
 }
 .mm-sticky-bar.mm-scrolled {
@@ -339,7 +464,9 @@
 /* 50593 — badge count pop (scale bounce on increment)                 */
 /* ------------------------------------------------------------------ */
 
-.mm-badge-pop {  display: inline-block; }
+.mm-badge-pop {
+  display: inline-block;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50594 — height-animated reasoning (no jump)                         */
@@ -347,34 +474,53 @@
 
 .mm-reasoning {
   overflow: hidden;
-  
 }
 
 /* ------------------------------------------------------------------ */
 /* 50595 — scrubber handle grow on hover                               */
 /* ------------------------------------------------------------------ */
 
-.mm-scrubber-handle:hover { transform: scale(1.35); }
-.mm-scrubber-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.mm-scrubber-handle:hover {
+  transform: scale(1.35);
+}
+.mm-scrubber-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50596 — chip fill wipe (left-to-right color wipe)                   */
 /* ------------------------------------------------------------------ */
 
 .mm-wipe-chip {
-  position: relative; overflow: hidden; isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   transition: border-color 160ms ease-out;
 }
-.mm-wipe-chip:hover { border-color: var(--accent); }
-.mm-wipe-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.mm-wipe-chip::before {
-  content: ''; position: absolute; inset: 0; z-index: -1;
-  background: var(--accent);
-  transform: scaleX(0); transform-origin: left;
-  
+.mm-wipe-chip:hover {
+  border-color: var(--accent);
 }
-.mm-wipe-chip.mm-active::before { transform: scaleX(1); }
-.mm-wipe-chip.mm-active { color: #fff; border-color: var(--accent); }
+.mm-wipe-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.mm-wipe-chip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.mm-wipe-chip.mm-active::before {
+  transform: scaleX(1);
+}
+.mm-wipe-chip.mm-active {
+  color: #fff;
+  border-color: var(--accent);
+}
 
 /* ------------------------------------------------------------------ */
 /* 50597 — invalid-input shake (4px, 300ms)                            */
@@ -389,44 +535,70 @@
 /* ------------------------------------------------------------------ */
 
 .mm-sidebar {
-  
-  overflow: hidden; white-space: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .mm-sidebar .mm-sidebar-label {
   transition: opacity 180ms ease-out;
   opacity: 1;
 }
-.mm-sidebar.mm-collapsed .mm-sidebar-label { opacity: 0; }
+.mm-sidebar.mm-collapsed .mm-sidebar-label {
+  opacity: 0;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50600 — thumbnail zoom hover (1.08 + expand overlay fade)           */
 /* ------------------------------------------------------------------ */
 
-.mm-thumb { position: relative; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.mm-thumb {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
 .mm-thumb img {
-  display: block; width: 100%; height: 100%; object-fit: cover;
-  
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
-.mm-thumb:hover img { transform: scale(1.08); }
+.mm-thumb:hover img {
+  transform: scale(1.08);
+}
 .mm-thumb-overlay {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  background: rgba(2, 6, 23, 0.45); color: #e2e8f0; font-size: 12px; font-weight: 600;
-  opacity: 0; transition: opacity 240ms ease-out;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 6, 23, 0.45);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
 }
-.mm-thumb:hover .mm-thumb-overlay { opacity: 1; }
+.mm-thumb:hover .mm-thumb-overlay {
+  opacity: 1;
+}
 
 /* ------------------------------------------------------------------ */
 /* 50580 — smooth auto-scroll (with user-interrupt detection)          */
 /* ------------------------------------------------------------------ */
 
-.mm-smooth-scroll { scroll-behavior: smooth; }
+.mm-smooth-scroll {
+  scroll-behavior: smooth;
+}
 
 /* ------------------------------------------------------------------ */
 /* Touch targets: 44px minimum on coarse pointers                      */
 /* ------------------------------------------------------------------ */
 
 @media (pointer: coarse) {
-  .mm-tab, .mm-wipe-chip, .mm-copy-btn { min-height: 44px; }
+  .mm-tab,
+  .mm-wipe-chip,
+  .mm-copy-btn {
+    min-height: 44px;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -434,29 +606,66 @@
 /* ------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-  .mm-motion, .mm-motion *,
-  .mm-pill, .mm-checkmark path, .mm-tabs .mm-tab-glider, .mm-chevron,
-  .mm-progress-fill, .mm-toast, .mm-skeleton::after, .mm-terminal-line,
-  .mm-timeline-dot, .mm-thinking-dot, .mm-card, .mm-backdrop, .mm-panel,
-  .mm-confidence-fill, .mm-donut-seg, .mm-dropzone.mm-drag-over,
-  .mm-toggle-knob, .mm-completion-ring, .mm-gauge-needle, .mm-ribbon,
-  .mm-stagger, .mm-theme-fade, .mm-graph-node, .mm-copy-icon, .mm-copy-check,
-  .mm-dual-spinner::before, .mm-dual-spinner::after, .mm-float,
-  .mm-sticky-bar, .mm-route, .mm-badge-pop, .mm-reasoning,
-  .mm-scrubber-handle, .mm-wipe-chip::before, .mm-focusable {
+  .mm-motion,
+  .mm-motion *,
+  .mm-pill,
+  .mm-checkmark path,
+  .mm-tabs .mm-tab-glider,
+  .mm-chevron,
+  .mm-progress-fill,
+  .mm-toast,
+  .mm-skeleton::after,
+  .mm-terminal-line,
+  .mm-timeline-dot,
+  .mm-thinking-dot,
+  .mm-card,
+  .mm-backdrop,
+  .mm-panel,
+  .mm-confidence-fill,
+  .mm-donut-seg,
+  .mm-dropzone.mm-drag-over,
+  .mm-toggle-knob,
+  .mm-completion-ring,
+  .mm-gauge-needle,
+  .mm-ribbon,
+  .mm-stagger,
+  .mm-theme-fade,
+  .mm-graph-node,
+  .mm-copy-icon,
+  .mm-copy-check,
+  .mm-dual-spinner::before,
+  .mm-dual-spinner::after,
+  .mm-float,
+  .mm-sticky-bar,
+  .mm-route,
+  .mm-badge-pop,
+  .mm-reasoning,
+  .mm-scrubber-handle,
+  .mm-wipe-chip::before,
+  .mm-focusable {
     animation: none !important;
     transition: none !important;
   }
-  .mm-smooth-scroll { scroll-behavior: auto !important; }
+  .mm-smooth-scroll {
+    scroll-behavior: auto !important;
+  }
 }
-.mm-reduced-motion .mm-motion, .mm-reduced-motion .mm-motion *,
-.mm-reduced-motion .mm-pill, .mm-reduced-motion .mm-checkmark path,
-.mm-reduced-motion .mm-chevron, .mm-reduced-motion .mm-card,
-.mm-reduced-motion .mm-toast, .mm-reduced-motion .mm-skeleton::after,
-.mm-reduced-motion .mm-timeline-dot, .mm-reduced-motion .mm-thinking-dot,
-.mm-reduced-motion .mm-completion-ring, .mm-reduced-motion .mm-float,
-.mm-reduced-motion .mm-route, .mm-reduced-motion .mm-badge-pop,
-.mm-reduced-motion .mm-scrubber-handle, .mm-reduced-motion .mm-graph-node {
+.mm-reduced-motion .mm-motion,
+.mm-reduced-motion .mm-motion *,
+.mm-reduced-motion .mm-pill,
+.mm-reduced-motion .mm-checkmark path,
+.mm-reduced-motion .mm-chevron,
+.mm-reduced-motion .mm-card,
+.mm-reduced-motion .mm-toast,
+.mm-reduced-motion .mm-skeleton::after,
+.mm-reduced-motion .mm-timeline-dot,
+.mm-reduced-motion .mm-thinking-dot,
+.mm-reduced-motion .mm-completion-ring,
+.mm-reduced-motion .mm-float,
+.mm-reduced-motion .mm-route,
+.mm-reduced-motion .mm-badge-pop,
+.mm-reduced-motion .mm-scrubber-handle,
+.mm-reduced-motion .mm-graph-node {
   animation: none !important;
   transition: none !important;
 }

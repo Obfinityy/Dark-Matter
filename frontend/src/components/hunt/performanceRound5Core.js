@@ -40,13 +40,21 @@ export function resetTempIds() {
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE25_IDEAS = [
   [50961, 'font-display swap', 'Text renders immediately while custom fonts load'],
-  [50962, 'optimistic tab switches', 'Cached tab content shows instantly, refresh runs in background'],
+  [
+    50962,
+    'optimistic tab switches',
+    'Cached tab content shows instantly, refresh runs in background',
+  ],
   [50963, 'ghost action buttons', 'Buttons look disabled until data arrives, then activate'],
   [50964, 'bandwidth-aware thumbnail quality', 'Low bandwidth gets lower-resolution thumbnails'],
   [50965, 'local-echo presence', 'Collaborator avatars render from local echo before server echo'],
   [50966, 'debounced note autosave', 'Notes autosave after 500ms idle with saved indicator'],
   [50967, 'predictive dialog preload', 'Hovering Export preloads the export dialog code'],
-  [50968, 'shift-free first finding', 'First finding arrives with no layout shift from empty state'],
+  [
+    50968,
+    'shift-free first finding',
+    'First finding arrives with no layout shift from empty state',
+  ],
   [50969, 'optimistic retry', 'Retry shows "retrying…" immediately on failed steps'],
   [50970, 'websocket-first updates', 'Live updates prefer WebSocket, invisible HTTP-poll fallback'],
   [50971, 'offline mutation queue', 'Offline actions queue locally, replay in order on reconnect'],
@@ -54,7 +62,11 @@ export const WAVE25_IDEAS = [
   [50973, 'chunked evidence streaming', 'Long evidence streams in 50-line chunks'],
   [50974, 'memoized finding cards', 'Cards re-render only when their own finding changes'],
   [50975, 'optimistic re-grade', 'Severity pills recolor instantly, audit log writes async'],
-  [50976, 'descriptive loading copy', 'Loading copy describes real progress, e.g. "indexing 1,204 findings…"'],
+  [
+    50976,
+    'descriptive loading copy',
+    'Loading copy describes real progress, e.g. "indexing 1,204 findings…"',
+  ],
   [50977, 'instant back navigation', 'Back restores scroll position and open cards from cache'],
   [50978, 'optimistic widget refresh', 'Old widget data stays visible under an "updating" shimmer'],
   [50979, 'deduplicated in-flight requests', 'Identical in-flight API calls share one response'],
@@ -62,10 +74,22 @@ export const WAVE25_IDEAS = [
   [50981, 'lazy chain-graph init', 'Graph canvas initializes only when its tab opens'],
   [50982, 'ssr fallback text', 'Core triage content renders even if client JS partially fails'],
   [50983, 'optimistic file attach', 'Attachment thumbnails appear before upload completes'],
-  [50984, 'smart polling backoff', 'Polling slows to 30s while tab hidden, resumes instantly on return'],
-  [50985, 'perceived-complete state', '"Done" shows when the last phase finishes, before report finalization'],
+  [
+    50984,
+    'smart polling backoff',
+    'Polling slows to 30s while tab hidden, resumes instantly on return',
+  ],
+  [
+    50985,
+    'perceived-complete state',
+    '"Done" shows when the last phase finishes, before report finalization',
+  ],
   [50986, 'optimistic sla badges', 'SLA badges update the moment a finding status changes'],
-  [50987, 'immutable avatar urls', 'Cached avatars use immutable URLs to avoid re-download flicker'],
+  [
+    50987,
+    'immutable avatar urls',
+    'Cached avatars use immutable URLs to avoid re-download flicker',
+  ],
   [50988, 'cross-faded preset switches', 'Filter presets cross-fade between result sets'],
   [50989, 'optimistic watch toggles', 'Target watch bells flip state immediately on toggle'],
   [50990, 'route bundle budgets', 'Each route stays under 200KB gzipped, enforced in CI'],
@@ -201,8 +225,8 @@ export function localEchoPresence(userId, userName) {
 
 /** Merge a server echo into presence: replaces the local echo for the same user. */
 export function mergeServerEcho(presenceList, serverEcho) {
-  return presenceList.map((p) =>
-    p.id === serverEcho.id ? { ...serverEcho, source: 'server', echoId: p.echoId } : p,
+  return presenceList.map(p =>
+    p.id === serverEcho.id ? { ...serverEcho, source: 'server', echoId: p.echoId } : p
   );
 }
 
@@ -229,12 +253,15 @@ export function shouldAutosave(nowMs, lastChangeMs, lastSaveMs) {
 export function autosaveState(dirty, saving, savedAt) {
   if (saving) return { status: 'saving', label: 'Saving…' };
   if (dirty) return { status: 'dirty', label: 'Unsaved changes' };
-  return { status: 'saved', label: savedAt ? `Saved ${formatClock(savedAt)}` : 'All changes saved' };
+  return {
+    status: 'saved',
+    label: savedAt ? `Saved ${formatClock(savedAt)}` : 'All changes saved',
+  };
 }
 
 function formatClock(ts) {
   const d = new Date(ts);
-  const p = (n) => String(n).padStart(2, '0');
+  const p = n => String(n).padStart(2, '0');
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
@@ -285,8 +312,11 @@ export function optimisticRetry(step, retryCall) {
     optimistic,
     commit: () =>
       retryCall().then(
-        (result) => ({ step: { ...optimistic, status: 'running', label: 'Running' }, result }),
-        (err) => ({ step: { ...step, status: 'failed', attempt: optimistic.attempt, lastError: String(err) }, error: err }),
+        result => ({ step: { ...optimistic, status: 'running', label: 'Running' }, result }),
+        err => ({
+          step: { ...step, status: 'failed', attempt: optimistic.attempt, lastError: String(err) },
+          error: err,
+        })
       ),
   };
 }
@@ -300,7 +330,9 @@ export function optimisticRetry(step, retryCall) {
  * wsReady: boolean — the actual socket state from the component.
  */
 export function pickTransport(wsReady) {
-  return wsReady ? { transport: 'ws', fallback: null } : { transport: 'http-poll', fallback: 'invisible' };
+  return wsReady
+    ? { transport: 'ws', fallback: null }
+    : { transport: 'http-poll', fallback: 'invisible' };
 }
 
 /** Downgrade live → fallback without any UI flash: same event shape. */
@@ -348,7 +380,7 @@ export async function replayMutationQueue(queue, send) {
  * messages: [{ id }...]; lastSeenId: last id the collaborator saw.
  */
 export function seenWatermark(messages, lastSeenId) {
-  const idx = messages.findIndex((m) => m.id === lastSeenId);
+  const idx = messages.findIndex(m => m.id === lastSeenId);
   return { afterIndex: idx, label: idx >= 0 ? 'Seen' : 'Not seen yet' };
 }
 
@@ -375,7 +407,12 @@ export function chunkEvidence(text) {
 
 export function streamProgress(chunksShown, chunksTotal) {
   const pct = chunksTotal === 0 ? 100 : Math.round((chunksShown / chunksTotal) * 100);
-  return { chunksShown, chunksTotal, pct, label: `Streaming evidence… ${chunksShown}/${chunksTotal} chunks` };
+  return {
+    chunksShown,
+    chunksTotal,
+    pct,
+    label: `Streaming evidence… ${chunksShown}/${chunksTotal} chunks`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -387,7 +424,14 @@ export function streamProgress(chunksShown, chunksTotal) {
  * Only the finding's own data + selection state participate.
  */
 export function cardMemoProps(finding, selected, expanded) {
-  return { id: finding.id, rev: finding.rev ?? 0, severity: finding.severity, status: finding.status, selected, expanded };
+  return {
+    id: finding.id,
+    rev: finding.rev ?? 0,
+    severity: finding.severity,
+    status: finding.status,
+    selected,
+    expanded,
+  };
 }
 
 /** Comparator: skip re-render unless these props changed. */
@@ -411,9 +455,14 @@ export function optimisticRegrade(finding, newSeverity, auditWrite) {
   return {
     optimistic,
     commit: () =>
-      auditWrite({ findingId: finding.id, from: finding.severity, to: newSeverity, at: Date.now() }).then(
+      auditWrite({
+        findingId: finding.id,
+        from: finding.severity,
+        to: newSeverity,
+        at: Date.now(),
+      }).then(
         () => ({ finding: { ...optimistic, regrading: false }, audited: true }),
-        (err) => ({ finding, audited: false, error: String(err) }),
+        err => ({ finding, audited: false, error: String(err) })
       ),
   };
 }
@@ -470,8 +519,12 @@ export function widgetRefresh(widget, refreshCall) {
     optimistic,
     commit: () =>
       refreshCall().then(
-        (data) => ({ widget: { ...optimistic, data, updating: false, shimmer: false, updatedAt: Date.now() } }),
-        (err) => ({ widget: { ...widget, updating: false, shimmer: false, refreshError: String(err) } }),
+        data => ({
+          widget: { ...optimistic, data, updating: false, shimmer: false, updatedAt: Date.now() },
+        }),
+        err => ({
+          widget: { ...widget, updating: false, shimmer: false, refreshError: String(err) },
+        })
       ),
   };
 }
@@ -497,14 +550,19 @@ export function dedupedRequest(inflight, key, fetcher) {
 
 /** Title applies instantly in header + sidebar; server commit follows. */
 export function optimisticHuntRename(hunts, huntId, newTitle, commit) {
-  const prev = hunts.find((h) => h.id === huntId);
-  const optimistic = hunts.map((h) => (h.id === huntId ? { ...h, title: newTitle, renaming: true } : h));
+  const prev = hunts.find(h => h.id === huntId);
+  const optimistic = hunts.map(h =>
+    h.id === huntId ? { ...h, title: newTitle, renaming: true } : h
+  );
   return {
     optimistic,
     commit: () =>
       commit(huntId, newTitle).then(
-        () => ({ hunts: optimistic.map((h) => (h.id === huntId ? { ...h, renaming: false } : h)), ok: true }),
-        (err) => ({ hunts, ok: false, revertedTo: prev ? prev.title : null, error: String(err) }),
+        () => ({
+          hunts: optimistic.map(h => (h.id === huntId ? { ...h, renaming: false } : h)),
+          ok: true,
+        }),
+        err => ({ hunts, ok: false, revertedTo: prev ? prev.title : null, error: String(err) })
       ),
   };
 }
@@ -533,10 +591,16 @@ export function graphInitDone(state, nodeCount) {
  * Escapes user text; no script needed.
  */
 export function ssrFallbackText(title, findings) {
-  const esc = (s) =>
-    String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const esc = s =>
+    String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   const rows = findings
-    .map((f) => `      <li><strong>[${esc(f.severity)}]</strong> ${esc(f.title)} — ${esc(f.status)}</li>`)
+    .map(
+      f => `      <li><strong>[${esc(f.severity)}]</strong> ${esc(f.title)} — ${esc(f.status)}</li>`
+    )
     .join('\n');
   return [
     '<div class="perf5-ssr-fallback">',
@@ -594,7 +658,7 @@ export function resumePolling(visible) {
 
 /** "Done" shows when the last phase finishes — report finalization may still run. */
 export function perceivedHuntStatus(phases, reportFinalizing) {
-  const allDone = phases.every((p) => p.status === 'done');
+  const allDone = phases.every(p => p.status === 'done');
   if (!allDone) return { label: 'Running', tone: 'active' };
   if (reportFinalizing) return { label: 'Done', tone: 'done', note: 'Finalizing report…' };
   return { label: 'Done', tone: 'done', note: null };
@@ -614,7 +678,9 @@ export function optimisticSlaBadge(finding, nowMs = Date.now()) {
   const breached = finding.status === 'open' && remainingH < 0;
   const tone = breached ? 'breached' : remainingH < hours * 0.25 ? 'at-risk' : 'on-track';
   return {
-    text: breached ? `SLA breached (${Math.round(-remainingH)}h over)` : `${Math.max(0, Math.round(remainingH))}h left`,
+    text: breached
+      ? `SLA breached (${Math.round(-remainingH)}h over)`
+      : `${Math.max(0, Math.round(remainingH))}h left`,
     tone,
   };
 }
@@ -658,14 +724,14 @@ export function presetSwitchSettled(switchState) {
 // ---------------------------------------------------------------------------
 
 export function optimisticWatchToggle(targets, targetId, commit) {
-  const prev = targets.find((t) => t.id === targetId);
-  const optimistic = targets.map((t) => (t.id === targetId ? { ...t, watched: !t.watched } : t));
+  const prev = targets.find(t => t.id === targetId);
+  const optimistic = targets.map(t => (t.id === targetId ? { ...t, watched: !t.watched } : t));
   return {
     optimistic,
     commit: () =>
       commit(targetId, !prev.watched).then(
         () => ({ targets: optimistic, ok: true }),
-        (err) => ({ targets, ok: false, error: String(err) }),
+        err => ({ targets, ok: false, error: String(err) })
       ),
   };
 }
@@ -678,7 +744,7 @@ export const ROUTE_BUNDLE_BUDGET_KB = 200;
 
 /** CI check: every route chunk must stay under budget (gzipped bytes). */
 export function checkBundleBudgets(routeSizes) {
-  return routeSizes.map((r) => ({
+  return routeSizes.map(r => ({
     route: r.route,
     kb: Math.round((r.gzipBytes / 1024) * 10) / 10,
     budgetKb: ROUTE_BUNDLE_BUDGET_KB,
@@ -687,7 +753,7 @@ export function checkBundleBudgets(routeSizes) {
 }
 
 export function bundleBudgetFailed(results) {
-  return results.filter((r) => !r.pass);
+  return results.filter(r => !r.pass);
 }
 
 // ---------------------------------------------------------------------------
@@ -706,7 +772,7 @@ export function inlineCriticalCss(criticalRules) {
 const CRITICAL_HINTS = ['header', 'hero', 'nav', 'skeleton', 'toolbar', 'banner'];
 export function isCriticalSelector(selector) {
   const s = selector.toLowerCase();
-  return CRITICAL_HINTS.some((h) => s.includes(h));
+  return CRITICAL_HINTS.some(h => s.includes(h));
 }
 
 // ---------------------------------------------------------------------------
@@ -764,13 +830,13 @@ function percentile(sorted, p) {
 
 /** p50/p95 of click-to-ack times — the product's perceived-latency metric. */
 export function latencyStats(samples) {
-  const times = samples.map((s) => s.ackMs).sort((a, b) => a - b);
+  const times = samples.map(s => s.ackMs).sort((a, b) => a - b);
   return {
     n: times.length,
     p50: percentile(times, 0.5),
     p95: percentile(times, 0.95),
     budgetMs: 100,
-    withinBudget: times.filter((t) => t <= 100).length,
+    withinBudget: times.filter(t => t <= 100).length,
   };
 }
 
@@ -819,13 +885,16 @@ export function swStrategy(cacheHit, maxAgeMs, ageMs) {
 
 /** Steps check off the instant the user acts; confirm follows async. */
 export function optimisticCheck(steps, stepId, confirm) {
-  const optimistic = steps.map((s) => (s.id === stepId ? { ...s, done: true, pending: true } : s));
+  const optimistic = steps.map(s => (s.id === stepId ? { ...s, done: true, pending: true } : s));
   return {
     optimistic,
     commit: () =>
       confirm(stepId).then(
-        () => ({ steps: optimistic.map((s) => (s.id === stepId ? { ...s, pending: false } : s)), ok: true }),
-        (err) => ({ steps, ok: false, error: String(err) }),
+        () => ({
+          steps: optimistic.map(s => (s.id === stepId ? { ...s, pending: false } : s)),
+          ok: true,
+        }),
+        err => ({ steps, ok: false, error: String(err) })
       ),
   };
 }
@@ -882,6 +951,11 @@ export function fastPathHunt(target, reconCache) {
           skipRecon: true,
           reason: 'Reusing cached recon — rescans only new surface',
         }
-      : { subdomains: [], techStack: [], skipRecon: false, reason: 'No cached recon for this target' },
+      : {
+          subdomains: [],
+          techStack: [],
+          skipRecon: false,
+          reason: 'No cached recon for this target',
+        },
   };
 }

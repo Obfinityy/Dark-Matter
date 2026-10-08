@@ -74,7 +74,8 @@ export function analyzeBootstrapProbe(probe = {}) {
       type: 'LwM2M Bootstrap Server Unreachable',
       confidence: 'medium',
       cwe: null,
-      evidence: 'bootstrap request received no response — server down, firewalled, or not an LwM2M bootstrap endpoint',
+      evidence:
+        'bootstrap request received no response — server down, firewalled, or not an LwM2M bootstrap endpoint',
     });
     return findings;
   }
@@ -88,17 +89,20 @@ export function analyzeBootstrapProbe(probe = {}) {
   });
 
   const objects = probe.discoveredObjects || [];
-  const ids = new Set(objects.map((o) => o.objectId));
+  const ids = new Set(objects.map(o => o.objectId));
   if (ids.has(LWM2M_SECURITY_OBJECT)) {
     findings.push({
       type: 'Security Object Disclosed in Bootstrap',
       confidence: 'high',
       cwe: 'CWE-200',
-      evidence: 'bootstrap exchange exposed Security object (0) instances — reveals server URIs, PSK hints and bootstrap parameters; treat as sensitive inventory data',
+      evidence:
+        'bootstrap exchange exposed Security object (0) instances — reveals server URIs, PSK hints and bootstrap parameters; treat as sensitive inventory data',
     });
   }
 
-  const named = objects.slice(0, 10).map((o) => `${o.objectId}${o.instanceId != null ? `/${o.instanceId}` : ''} (${o.objectName})`);
+  const named = objects
+    .slice(0, 10)
+    .map(o => `${o.objectId}${o.instanceId != null ? `/${o.instanceId}` : ''} (${o.objectName})`);
   if (named.length) {
     findings.push({
       type: 'LwM2M Object Listing',

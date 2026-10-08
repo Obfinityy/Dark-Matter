@@ -1,31 +1,76 @@
-// confidenceGovernCore.js — Infinity AI · wave 43 (ideas 51701–51720)
-// Pure logic for the confidence governance & depth suite: disputes, benchmarks,
-// export/API, agreement, floors, badges, evidence requests, sharing controls,
-// trend alerts, reporting order, explanations, calibration training, mobile,
-// snapshot diffs, SLAs, grouping, and analyst overrides.
-// Companionship: pairs with confidenceCore.js (display & triage, 51681–51700).
-
-import { clampScore, confidenceColor, confidenceTooltip, sortByConfidence, confidenceHistory } from './confidenceCore.js';
+/**
+ * confidenceGovernCore.js — Infinity AI · wave 43 (ideas 51701–51720)
+ * Pure logic for the confidence governance & depth suite: disputes, benchmarks,
+ * export/API, agreement, floors, badges, evidence requests, sharing controls,
+ * trend alerts, reporting order, explanations, calibration training, mobile,
+ * snapshot diffs, SLAs, grouping, and analyst overrides.
+ * Companionship: pairs with confidenceCore.js (display & triage, 51681–51700).
+ *
+ * Part of: Infinity AI / Dark-Matter frontend (hunt operations).
+ */
+import {
+  clampScore,
+  confidenceColor,
+  confidenceTooltip,
+  sortByConfidence,
+  confidenceHistory,
+} from './confidenceCore.js';
 
 export const WAVE43_GOV_START = 51701;
 export const WAVE43_GOV_END = 51720;
 
 export const WAVE43_GOV_IDEAS = [
   [51701, 'Confidence dispute', 'Challenge a score and the agent re-evaluates with your input.'],
-  [51702, 'Confidence benchmarks', 'Compare a finding’s score against typical scores for its class.'],
+  [
+    51702,
+    'Confidence benchmarks',
+    'Compare a finding’s score against typical scores for its class.',
+  ],
   [51703, 'Confidence export', 'Scores included in every finding export format.'],
   [51704, 'Confidence API', 'Programmatic access to live confidence data.'],
-  [51705, 'Confidence in chat answers', 'The agent states its confidence when discussing findings.'],
-  [51706, 'Multi-model agreement', 'When brains disagree, both confidence scores shown side by side.'],
+  [
+    51705,
+    'Confidence in chat answers',
+    'The agent states its confidence when discussing findings.',
+  ],
+  [
+    51706,
+    'Multi-model agreement',
+    'When brains disagree, both confidence scores shown side by side.',
+  ],
   [51707, 'Confidence floor setting', 'Findings below the floor stay in a “needs work” tray.'],
-  [51708, 'Confidence milestone badges', '“Validated” and “confirmed” badges earned as scores rise.'],
-  [51709, 'Confidence-driven evidence requests', 'Low scores trigger the agent to gather more proof automatically.'],
-  [51710, 'Confidence by evidence type', 'See which evidence kinds (screenshot, response, replay) back the score.'],
-  [51711, 'Confidence sharing controls', 'Choose whether clients see raw scores or simplified labels.'],
+  [
+    51708,
+    'Confidence milestone badges',
+    '“Validated” and “confirmed” badges earned as scores rise.',
+  ],
+  [
+    51709,
+    'Confidence-driven evidence requests',
+    'Low scores trigger the agent to gather more proof automatically.',
+  ],
+  [
+    51710,
+    'Confidence by evidence type',
+    'See which evidence kinds (screenshot, response, replay) back the score.',
+  ],
+  [
+    51711,
+    'Confidence sharing controls',
+    'Choose whether clients see raw scores or simplified labels.',
+  ],
   [51712, 'Confidence trend alerts', 'Warned when a finding’s confidence drops sharply.'],
-  [51713, 'Confidence-weighted reporting', 'Report sections ordered by a blend of severity and confidence.'],
+  [
+    51713,
+    'Confidence-weighted reporting',
+    'Report sections ordered by a blend of severity and confidence.',
+  ],
   [51714, 'Confidence explanations', '“Why is this only 62?” answered with specifics.'],
-  [51715, 'Confidence calibration training', 'The agent improves scoring from your triage feedback.'],
+  [
+    51715,
+    'Confidence calibration training',
+    'The agent improves scoring from your triage feedback.',
+  ],
   [51716, 'Confidence in mobile view', 'Scores and trends fully visible on phones.'],
   [51717, 'Confidence snapshot diffs', 'See which scores changed between report snapshots.'],
   [51718, 'Confidence-based SLAs', 'Triage deadlines scale with confidence level.'],
@@ -48,7 +93,11 @@ export function disputeScore(finding, { analystScore, analystNote }) {
     disputed: true,
     history: [
       ...(finding.history || []),
-      { at: 'now', score: next, trigger: `dispute: analyst said ${analyst} (${String(analystNote).trim()}) → re-evaluated ${current} → ${next}` },
+      {
+        at: 'now',
+        score: next,
+        trigger: `dispute: analyst said ${analyst} (${String(analystNote).trim()}) → re-evaluated ${current} → ${next}`,
+      },
     ],
   };
 }
@@ -60,44 +109,95 @@ export function confidenceBenchmarks(finding, classStats) {
   const s = classStats?.[cls];
   const score = clampScore(finding.confidence);
   if (!s) return { class: cls, percentile: null, note: 'No benchmark data for this class yet.' };
-  const pct = score <= s.p25 ? 'bottom quartile' : score <= s.median ? 'below median' : score <= s.p75 ? 'above median' : 'top quartile';
-  return { class: cls, percentile: pct, median: s.median, n: s.n, note: `${score} is ${pct} for ${cls} (median ${s.median}, n=${s.n}).` };
+  const pct =
+    score <= s.p25
+      ? 'bottom quartile'
+      : score <= s.median
+        ? 'below median'
+        : score <= s.p75
+          ? 'above median'
+          : 'top quartile';
+  return {
+    class: cls,
+    percentile: pct,
+    median: s.median,
+    n: s.n,
+    note: `${score} is ${pct} for ${cls} (median ${s.median}, n=${s.n}).`,
+  };
 }
 
 // 51703 — export findings with scores embedded, in real formats
 export function exportWithConfidence(findings, format = 'json') {
-  const rows = sortByConfidence(findings).map((f) => ({
-    id: f.id, title: f.title, severity: f.severity, confidence: clampScore(f.confidence),
-    techniques: [...new Set(f.techniques || [])], evidenceTypes: [...new Set((f.evidence || []).map((e) => e.type))],
+  const rows = sortByConfidence(findings).map(f => ({
+    id: f.id,
+    title: f.title,
+    severity: f.severity,
+    confidence: clampScore(f.confidence),
+    techniques: [...new Set(f.techniques || [])],
+    evidenceTypes: [...new Set((f.evidence || []).map(e => e.type))],
   }));
-  if (format === 'json') return JSON.stringify({ exportedAt: new Date().toISOString(), findings: rows }, null, 2);
+  if (format === 'json')
+    return JSON.stringify({ exportedAt: new Date().toISOString(), findings: rows }, null, 2);
   if (format === 'csv') {
-    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const esc = v => `"${String(v).replace(/"/g, '""')}"`;
     const lines = ['id,title,severity,confidence,techniques,evidence_types'];
-    for (const r of rows) lines.push([r.id, esc(r.title), r.severity, r.confidence, esc(r.techniques.join('|')), esc(r.evidenceTypes.join('|'))].join(','));
+    for (const r of rows)
+      lines.push(
+        [
+          r.id,
+          esc(r.title),
+          r.severity,
+          r.confidence,
+          esc(r.techniques.join('|')),
+          esc(r.evidenceTypes.join('|')),
+        ].join(',')
+      );
     return lines.join('\n');
   }
   if (format === 'markdown') {
     const head = '| ID | Title | Severity | Confidence |\n|---|---|---|---|\n';
-    return `# Finding confidence export\n\n${head}${rows.map((r) => `| ${r.id} | ${r.title} | ${r.severity} | ${r.confidence} |`).join('\n')}\n`;
+    return `# Finding confidence export\n\n${head}${rows.map(r => `| ${r.id} | ${r.title} | ${r.severity} | ${r.confidence} |`).join('\n')}\n`;
   }
   throw new Error(`unsupported export format: ${format}`);
 }
 
 // 51704 — programmatic access: route descriptors + whitelisted public DTO
 export const CONFIDENCE_API_ROUTES = [
-  { method: 'GET', path: '/api/v1/confidence/:findingId', desc: 'Live confidence score + history for one finding' },
-  { method: 'GET', path: '/api/v1/confidence', desc: 'List scores with severity/confidence filters (?min=, ?severity=)' },
-  { method: 'POST', path: '/api/v1/confidence/:findingId/dispute', desc: 'File a score dispute (analyst note required)' },
-  { method: 'POST', path: '/api/v1/confidence/:findingId/override', desc: 'Analyst override (score + required note)' },
-  { method: 'GET', path: '/api/v1/confidence/calibration', desc: 'Predicted-vs-actual calibration buckets' },
+  {
+    method: 'GET',
+    path: '/api/v1/confidence/:findingId',
+    desc: 'Live confidence score + history for one finding',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/confidence',
+    desc: 'List scores with severity/confidence filters (?min=, ?severity=)',
+  },
+  {
+    method: 'POST',
+    path: '/api/v1/confidence/:findingId/dispute',
+    desc: 'File a score dispute (analyst note required)',
+  },
+  {
+    method: 'POST',
+    path: '/api/v1/confidence/:findingId/override',
+    desc: 'Analyst override (score + required note)',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/confidence/calibration',
+    desc: 'Predicted-vs-actual calibration buckets',
+  },
 ];
 
 export function confidencePublicDTO(finding) {
   // Whitelist: internals (raw prompts, brain weights) never leave the server.
   return {
-    id: finding.id, title: finding.title, severity: finding.severity,
-    confidence: clampScore(finding.confidence), color: confidenceColor(finding.confidence),
+    id: finding.id,
+    title: finding.title,
+    severity: finding.severity,
+    confidence: clampScore(finding.confidence),
+    color: confidenceColor(finding.confidence),
     techniques: [...new Set(finding.techniques || [])],
     crossValidated: new Set(finding.techniques || []).size >= 2,
     updatedAt: finding.history?.length ? finding.history[finding.history.length - 1].at : null,
@@ -125,7 +225,10 @@ export function multiModelAgreement(a, b) {
     right: { model: b.model || 'brain-b', score: sb },
     gap,
     agreement: gap <= 10 ? 'agree' : gap <= 25 ? 'partial' : 'disagree',
-    note: gap <= 10 ? 'Both brains agree — score is trustworthy.' : `Brains differ by ${gap} points — treat ${Math.min(sa, sb)} as the conservative read.`,
+    note:
+      gap <= 10
+        ? 'Both brains agree — score is trustworthy.'
+        : `Brains differ by ${gap} points — treat ${Math.min(sa, sb)} as the conservative read.`,
   };
 }
 
@@ -134,8 +237,8 @@ export function needsWorkTray(findings, floor = 60) {
   const f = clampScore(floor);
   return {
     floor: f,
-    ready: findings.filter((x) => clampScore(x.confidence) >= f),
-    needsWork: findings.filter((x) => clampScore(x.confidence) < f),
+    ready: findings.filter(x => clampScore(x.confidence) >= f),
+    needsWork: findings.filter(x => clampScore(x.confidence) < f),
   };
 }
 
@@ -146,19 +249,41 @@ export function milestoneBadges(finding) {
   if (s >= 60) badges.push({ id: 'likely', label: 'Likely', earnedAt: 'score ≥ 60' });
   if (s >= 80) badges.push({ id: 'validated', label: 'Validated', earnedAt: 'score ≥ 80' });
   if (s >= 95) badges.push({ id: 'confirmed', label: 'Confirmed', earnedAt: 'score ≥ 95' });
-  return { badges, next: s >= 95 ? null : { label: s >= 80 ? 'Confirmed' : s >= 60 ? 'Validated' : 'Likely', needs: (s >= 80 ? 95 : s >= 60 ? 80 : 60) - s } };
+  return {
+    badges,
+    next:
+      s >= 95
+        ? null
+        : {
+            label: s >= 80 ? 'Confirmed' : s >= 60 ? 'Validated' : 'Likely',
+            needs: (s >= 80 ? 95 : s >= 60 ? 80 : 60) - s,
+          },
+  };
 }
 
 // 51709 — low scores auto-generate evidence requests
 export function evidenceRequests(finding) {
   const s = clampScore(finding.confidence);
-  const types = new Set((finding.evidence || []).map((e) => e.type));
+  const types = new Set((finding.evidence || []).map(e => e.type));
   if (s >= 75) return { needed: false, requests: [] };
   const requests = [];
-  if (!types.has('replay')) requests.push({ kind: 'replay', detail: 'Re-run the exploit steps and capture each response.' });
-  if (!types.has('screenshot')) requests.push({ kind: 'screenshot', detail: 'Capture the vulnerable state visually.' });
-  if (!types.has('response')) requests.push({ kind: 'response', detail: 'Save the raw HTTP response proving the indicator.' });
-  if (new Set(finding.techniques || []).size < 2) requests.push({ kind: 'second-technique', detail: 'Confirm with an independent technique or tool.' });
+  if (!types.has('replay'))
+    requests.push({
+      kind: 'replay',
+      detail: 'Re-run the exploit steps and capture each response.',
+    });
+  if (!types.has('screenshot'))
+    requests.push({ kind: 'screenshot', detail: 'Capture the vulnerable state visually.' });
+  if (!types.has('response'))
+    requests.push({
+      kind: 'response',
+      detail: 'Save the raw HTTP response proving the indicator.',
+    });
+  if (new Set(finding.techniques || []).size < 2)
+    requests.push({
+      kind: 'second-technique',
+      detail: 'Confirm with an independent technique or tool.',
+    });
   return { needed: requests.length > 0, requests };
 }
 
@@ -187,7 +312,14 @@ export function trendAlerts(finding, { dropPoints = 15 } = {}) {
   for (let i = 1; i < pts.length; i += 1) {
     const d = pts[i - 1].score - pts[i].score;
     if (d >= dropPoints) {
-      alerts.push({ at: pts[i].at, drop: d, from: pts[i - 1].score, to: pts[i].score, trigger: pts[i].trigger, message: `Confidence fell ${d} points — re-check this finding.` });
+      alerts.push({
+        at: pts[i].at,
+        drop: d,
+        from: pts[i - 1].score,
+        to: pts[i].score,
+        trigger: pts[i].trigger,
+        message: `Confidence fell ${d} points — re-check this finding.`,
+      });
     }
   }
   return alerts;
@@ -197,7 +329,7 @@ export function trendAlerts(finding, { dropPoints = 15 } = {}) {
 export function weightedReportingOrder(findings) {
   const w = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
   return [...findings]
-    .map((f) => ({ ...f, reportWeight: (w[f.severity] ?? 0) * 25 + clampScore(f.confidence) * 0.75 }))
+    .map(f => ({ ...f, reportWeight: (w[f.severity] ?? 0) * 25 + clampScore(f.confidence) * 0.75 }))
     .sort((a, b) => b.reportWeight - a.reportWeight);
 }
 
@@ -208,12 +340,24 @@ export function explainConfidence(finding) {
   const ev = finding.evidence || [];
   const points = [];
   points.push(`Score is ${s}/100.`);
-  points.push(techs.length >= 2 ? `Raised by ${techs.length} independent techniques (${techs.join(', ')}).` : `Limited by a single technique (${techs[0] || 'none recorded'}).`);
-  points.push(ev.length === 0 ? 'No evidence captured yet — the biggest drag on the score.' : `${ev.length} evidence item${ev.length > 1 ? 's' : ''}: ${[...new Set(ev.map((e) => e.type))].join(', ')}.`);
+  points.push(
+    techs.length >= 2
+      ? `Raised by ${techs.length} independent techniques (${techs.join(', ')}).`
+      : `Limited by a single technique (${techs[0] || 'none recorded'}).`
+  );
+  points.push(
+    ev.length === 0
+      ? 'No evidence captured yet — the biggest drag on the score.'
+      : `${ev.length} evidence item${ev.length > 1 ? 's' : ''}: ${[...new Set(ev.map(e => e.type))].join(', ')}.`
+  );
   const drops = (finding.history || []).filter((h, i, a) => i > 0 && h.score < a[i - 1].score);
-  if (drops.length) points.push(`Score fell before (${drops.map((d) => d.trigger).join('; ')}).`);
+  if (drops.length) points.push(`Score fell before (${drops.map(d => d.trigger).join('; ')}).`);
   if (finding.disputed) points.push('An analyst disputed the score, which tempered it.');
-  points.push(s >= 80 ? 'To push higher: add a replay or a second technique.' : 'To push higher: capture the missing evidence kinds above.');
+  points.push(
+    s >= 80
+      ? 'To push higher: add a replay or a second technique.'
+      : 'To push higher: capture the missing evidence kinds above.'
+  );
   return { score: s, points, summary: points.join(' ') };
 }
 
@@ -221,18 +365,23 @@ export function explainConfidence(finding) {
 export function calibrationTraining(feedback) {
   // feedback: [{ finding, analystSaidTrue: boolean }]
   const adj = { techniqueBonus: 0, evidenceBonus: 0, decayPenalty: 0, notes: [] };
-  let over = 0; let under = 0;
+  let over = 0;
+  let under = 0;
   for (const f of feedback) {
     const s = clampScore(f.finding.confidence);
-    if (s >= 70 && !f.analystSaidTrue) over += 1;      // agent overconfident
-    if (s < 60 && f.analystSaidTrue) under += 1;       // agent underconfident
+    if (s >= 70 && !f.analystSaidTrue) over += 1; // agent overconfident
+    if (s < 60 && f.analystSaidTrue) under += 1; // agent underconfident
   }
   if (over > under) {
     adj.decayPenalty = over - under;
-    adj.notes.push(`Agent was overconfident on ${over} findings — increasing decay penalty by ${adj.decayPenalty}.`);
+    adj.notes.push(
+      `Agent was overconfident on ${over} findings — increasing decay penalty by ${adj.decayPenalty}.`
+    );
   } else if (under > over) {
     adj.evidenceBonus = under - over;
-    adj.notes.push(`Agent undervalued ${under} true findings — raising the evidence bonus by ${adj.evidenceBonus}.`);
+    adj.notes.push(
+      `Agent undervalued ${under} true findings — raising the evidence bonus by ${adj.evidenceBonus}.`
+    );
   } else {
     adj.notes.push('Calibration is balanced — no weight changes.');
   }
@@ -245,8 +394,10 @@ export function mobileConfidenceCard(finding) {
   const first = pts[0]?.score ?? clampScore(finding.confidence);
   const last = pts[pts.length - 1].score;
   return {
-    id: finding.id, title: finding.title,
-    confidence: last, color: confidenceColor(last),
+    id: finding.id,
+    title: finding.title,
+    confidence: last,
+    color: confidenceColor(last),
     trend: last > first ? 'up' : last < first ? 'down' : 'flat',
     meaning: confidenceTooltip(last),
     tapTarget: 'opens full confidence detail',
@@ -255,16 +406,24 @@ export function mobileConfidenceCard(finding) {
 
 // 51717 — which scores changed between two snapshots
 export function snapshotConfidenceDiffs(snapA, snapB) {
-  const a = new Map((snapA.findings || []).map((f) => [f.id, clampScore(f.confidence)]));
+  const a = new Map((snapA.findings || []).map(f => [f.id, clampScore(f.confidence)]));
   const diffs = [];
   for (const f of snapB.findings || []) {
     const before = a.get(f.id);
     const now = clampScore(f.confidence);
     if (before === undefined) diffs.push({ id: f.id, change: 'added', from: null, to: now });
-    else if (before !== now) diffs.push({ id: f.id, change: now > before ? 'rose' : 'fell', from: before, to: now, delta: now - before });
+    else if (before !== now)
+      diffs.push({
+        id: f.id,
+        change: now > before ? 'rose' : 'fell',
+        from: before,
+        to: now,
+        delta: now - before,
+      });
   }
   for (const f of snapA.findings || []) {
-    if (!(snapB.findings || []).some((x) => x.id === f.id)) diffs.push({ id: f.id, change: 'removed', from: clampScore(f.confidence), to: null });
+    if (!(snapB.findings || []).some(x => x.id === f.id))
+      diffs.push({ id: f.id, change: 'removed', from: clampScore(f.confidence), to: null });
   }
   return diffs;
 }
@@ -273,7 +432,15 @@ export function snapshotConfidenceDiffs(snapA, snapB) {
 export function slaForConfidence(score) {
   const s = clampScore(score);
   const hours = s >= 90 ? 4 : s >= 80 ? 8 : s >= 60 ? 24 : s >= 40 ? 72 : 168;
-  return { score: s, hours, label: `Triage within ${hours}h`, rationale: s >= 80 ? 'High-confidence findings need fast human eyes.' : 'Lower confidence allows a longer evidence-gathering window.' };
+  return {
+    score: s,
+    hours,
+    label: `Triage within ${hours}h`,
+    rationale:
+      s >= 80
+        ? 'High-confidence findings need fast human eyes.'
+        : 'Lower confidence allows a longer evidence-gathering window.',
+  };
 }
 
 // 51719 — cluster findings into certain / likely / unproven buckets
@@ -300,7 +467,11 @@ export function overrideScore(finding, score, note) {
     overridden: true,
     history: [
       ...(finding.history || []),
-      { at: new Date().toISOString(), score: next, trigger: `analyst override → ${next}: ${String(note).trim()}` },
+      {
+        at: new Date().toISOString(),
+        score: next,
+        trigger: `analyst override → ${next}: ${String(note).trim()}`,
+      },
     ],
   };
 }

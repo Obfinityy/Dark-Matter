@@ -40,7 +40,7 @@ export function normalizeAppLabel(label) {
 export function extractRecordApps(record) {
   const apps = [];
   const seen = new Set();
-  const add = (label) => {
+  const add = label => {
     const a = normalizeAppLabel(label);
     if (!a) return;
     const key = `${a.name}@${a.version}`;
@@ -49,7 +49,13 @@ export function extractRecordApps(record) {
     apps.push(a);
   };
   if (!record) return { ip: 'unknown', port: null, apps };
-  for (const field of [record.app, record.apps, record.component, record.components, record.device]) {
+  for (const field of [
+    record.app,
+    record.apps,
+    record.component,
+    record.components,
+    record.device,
+  ]) {
     if (!field) continue;
     if (Array.isArray(field)) field.forEach(add);
     else add(field);
@@ -70,7 +76,8 @@ export function mapAppDeployments(records) {
     const { ip, port, apps } = extractRecordApps(record);
     for (const a of apps) {
       const key = `${a.name}@${a.version}`;
-      if (!map.has(key)) map.set(key, { name: a.name, version: a.version, hosts: [], seen: new Set() });
+      if (!map.has(key))
+        map.set(key, { name: a.name, version: a.version, hosts: [], seen: new Set() });
       const e = map.get(key);
       const hostKey = `${ip}|${port}`;
       if (!e.seen.has(hostKey)) {
@@ -81,7 +88,7 @@ export function mapAppDeployments(records) {
   }
   return {
     inventory: [...map.values()]
-      .map((e) => ({ name: e.name, version: e.version, hosts: e.hosts, hostCount: e.seen.size }))
+      .map(e => ({ name: e.name, version: e.version, hosts: e.hosts, hostCount: e.seen.size }))
       .sort((a, b) => b.hostCount - a.hostCount || a.name.localeCompare(b.name)),
     totalRecords: list.length,
   };
@@ -107,7 +114,7 @@ export function scoreStackMatches(mapped, records, targetStack) {
     let score = 0;
     const matched = [];
     for (const s of stack) {
-      const hit = apps.find((a) => a.name === s.name);
+      const hit = apps.find(a => a.name === s.name);
       if (!hit) continue;
       const rarity = 1 / (1 + Math.log1p(freq.get(s.name) || 1)); // rare apps weigh more
       if (s.version && hit.version === s.version) {
@@ -119,7 +126,13 @@ export function scoreStackMatches(mapped, records, targetStack) {
       }
     }
     if (matched.length > 0) {
-      rows.push({ ip, port, score, matchedApps: matched, apps: apps.map((a) => (a.version ? `${a.name} ${a.version}` : a.name)) });
+      rows.push({
+        ip,
+        port,
+        score,
+        matchedApps: matched,
+        apps: apps.map(a => (a.version ? `${a.name} ${a.version}` : a.name)),
+      });
     }
   }
   return rows.sort((a, b) => b.score - a.score || a.ip.localeCompare(b.ip));

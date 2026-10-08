@@ -1,47 +1,132 @@
 /* ToastCenter.css — wave 19 (ideas 50755–50760) */
 
 .toast-center {
-  position: fixed; z-index: 9600; display: flex; flex-direction: column; gap: 10px;
-  max-width: min(380px, calc(100vw - 32px)); pointer-events: none;
+  position: fixed;
+  z-index: 9600;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
 }
-.toast-bottom-right { right: 16px; bottom: 16px; }
-.toast-bottom-center { left: 50%; transform: translateX(-50%); bottom: 16px; }
-.toast-top-right { right: 16px; top: 16px; }
+.toast-bottom-right {
+  right: 16px;
+  bottom: 16px;
+}
+.toast-bottom-center {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 16px;
+}
+.toast-top-right {
+  right: 16px;
+  top: 16px;
+}
 
 .toast-card {
-  pointer-events: auto; background: #0d1420; border: 1px solid #2a3b55;
-  border-left: 4px solid #4da3ff; border-radius: 10px; padding: 12px 14px;
-  color: #dbe4f0; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  
+  pointer-events: auto;
+  background: #0d1420;
+  border: 1px solid #2a3b55;
+  border-left: 4px solid #4da3ff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #dbe4f0;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
-.toast-persistent { border-left-width: 5px; }
-.toast-requires-ack { background: #141021; }
+.toast-persistent {
+  border-left-width: 5px;
+}
+.toast-requires-ack {
+  background: #141021;
+}
 
-.toast-head { display: flex; align-items: center; gap: 8px; }
-.toast-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.toast-title { flex: 1; font-size: 13px; font-weight: 600; }
-.toast-x { background: none; border: none; color: #66788f; cursor: pointer; font-size: 12px; padding: 2px 4px; }
-.toast-x:hover { color: #dbe4f0; }
+.toast-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.toast-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+.toast-x {
+  background: none;
+  border: none;
+  color: #66788f;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+.toast-x:hover {
+  color: #dbe4f0;
+}
 
-.toast-body { margin: 6px 0 0; font-size: 12px; color: #9fb2cc; }
+.toast-body {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #9fb2cc;
+}
 
-.toast-expand-list { margin: 8px 0 0; padding: 0 0 0 18px; font-size: 11px; color: #66788f; }
+.toast-expand-list {
+  margin: 8px 0 0;
+  padding: 0 0 0 18px;
+  font-size: 11px;
+  color: #66788f;
+}
 
-.toast-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.toast-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
 .toast-action {
-  background: #162032; border: 1px solid #2a3b55; color: #dbe4f0;
-  border-radius: 7px; padding: 5px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+  background: #162032;
+  border: 1px solid #2a3b55;
+  color: #dbe4f0;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.toast-action:hover { border-color: #4da3ff; }
-.toast-ack { border-color: #ff8a3d; color: #ff8a3d; }
-.toast-ack:hover { border-color: #ff8a3d; background: #ff8a3d22; }
+.toast-action:hover {
+  border-color: #4da3ff;
+}
+.toast-ack {
+  border-color: #ff8a3d;
+  color: #ff8a3d;
+}
+.toast-ack:hover {
+  border-color: #ff8a3d;
+  background: #ff8a3d22;
+}
 
 .toast-more {
-  pointer-events: auto; background: #162032; border: 1px solid #2a3b55; color: #9fb2cc;
-  border-radius: 999px; padding: 6px 14px; font-size: 12px; cursor: pointer; align-self: center;
+  pointer-events: auto;
+  background: #162032;
+  border: 1px solid #2a3b55;
+  color: #9fb2cc;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  align-self: center;
 }
-.toast-more:hover { color: #dbe4f0; border-color: #4da3ff; }
+.toast-more:hover {
+  color: #dbe4f0;
+  border-color: #4da3ff;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .toast-card { animation: none; }
+  .toast-card {
+    animation: none;
+  }
 }

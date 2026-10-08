@@ -1,3 +1,9 @@
+/**
+ * App — the root application shell.
+ * Sets up client-side routing, authentication providers, and the main
+ * layout (navigation, protected routes, global styles).
+ * Part of: Infinity AI / Dark-Matter frontend (app shell).
+ */
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -44,15 +50,23 @@ const PrivacyPolicyPage = () => (
   <LegalPage title="Privacy Policy" updated="October 2026">
     <section>
       <h2 className="sg-h2">1. Data Collection</h2>
-      <p className="sg-body">We collect minimal data necessary for autonomous security assessments. This includes target definitions and findings.</p>
+      <p className="sg-body">
+        We collect minimal data necessary for autonomous security assessments. This includes target
+        definitions and findings.
+      </p>
     </section>
     <section>
       <h2 className="sg-h2">2. Data Usage</h2>
-      <p className="sg-body">Data is used strictly to provide the security agent service. We do not sell your data.</p>
+      <p className="sg-body">
+        Data is used strictly to provide the security agent service. We do not sell your data.
+      </p>
     </section>
     <section>
       <h2 className="sg-h2">3. Data Security</h2>
-      <p className="sg-body">All findings are encrypted at rest and in transit. Reports are generated dynamically and purged based on your data retention settings.</p>
+      <p className="sg-body">
+        All findings are encrypted at rest and in transit. Reports are generated dynamically and
+        purged based on your data retention settings.
+      </p>
     </section>
   </LegalPage>
 );
@@ -61,15 +75,24 @@ const TermsConditionsPage = () => (
   <LegalPage title="Terms & Conditions" updated="October 2026">
     <section>
       <h2 className="sg-h2">1. Acceptable Use</h2>
-      <p className="sg-body">You must only test systems you own or are explicitly authorized to assess. Unauthorized use of this autonomous agent is strictly prohibited.</p>
+      <p className="sg-body">
+        You must only test systems you own or are explicitly authorized to assess. Unauthorized use
+        of this autonomous agent is strictly prohibited.
+      </p>
     </section>
     <section>
       <h2 className="sg-h2">2. Liability</h2>
-      <p className="sg-body">Dark Matter is provided &ldquo;as is&rdquo;. We are not responsible for any damage caused by automated actions on misconfigured targets.</p>
+      <p className="sg-body">
+        Dark Matter is provided &ldquo;as is&rdquo;. We are not responsible for any damage caused by
+        automated actions on misconfigured targets.
+      </p>
     </section>
     <section>
       <h2 className="sg-h2">3. Account Termination</h2>
-      <p className="sg-body">We reserve the right to terminate accounts that violate our acceptable use policy immediately.</p>
+      <p className="sg-body">
+        We reserve the right to terminate accounts that violate our acceptable use policy
+        immediately.
+      </p>
     </section>
   </LegalPage>
 );
@@ -85,8 +108,22 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<PublicRoute><Login initialMode="signin" /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><Login initialMode="signup" /></PublicRoute>} />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login initialMode="signin" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <Login initialMode="signup" />
+              </PublicRoute>
+            }
+          />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsConditionsPage />} />
           {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
@@ -95,7 +132,14 @@ export default function App() {
           <Route path="/landing" element={<Landing />} />
           {/* Root: must be logged in — unauthenticated users go to login.
               (Security: no anonymous access to the app.) */}
-          <Route path="/" element={<ProtectedRoute><Navigate to="/agent" replace /></ProtectedRoute>} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/agent" replace />
+              </ProtectedRoute>
+            }
+          />
           {/* Unknown top-level routes get a real 404 page, not a silent redirect. */}
           <Route path="/*" element={<NotFoundPage />} />
         </Routes>

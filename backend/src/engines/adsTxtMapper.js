@@ -11,10 +11,7 @@
  */
 
 /** Well-known locations of the ads.txt file. */
-export const CANDIDATE_PATHS = [
-  '/ads.txt',
-  '/.well-known/ads.txt',
-];
+export const CANDIDATE_PATHS = ['/ads.txt', '/.well-known/ads.txt'];
 
 /**
  * Build candidate file URLs for a target.
@@ -24,7 +21,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -59,18 +56,27 @@ export function parseAdsTxt(content) {
       }
       return;
     }
-    const parts = line.split(',').map((p) => p.trim());
+    const parts = line.split(',').map(p => p.trim());
     if (parts.length < 3) return;
     const [domain, publisherId, relationship, certAuthorityId] = parts;
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain)) return;
-    records.push({ domain: domain.toLowerCase(), publisherId, relationship: relationship.toUpperCase(), certAuthorityId: certAuthorityId || null, line: idx + 1 });
+    records.push({
+      domain: domain.toLowerCase(),
+      publisherId,
+      relationship: relationship.toUpperCase(),
+      certAuthorityId: certAuthorityId || null,
+      line: idx + 1,
+    });
     sellerHosts.add(domain.toLowerCase());
   });
 
   for (const key of ['SUBDOMAIN', 'SUBDOMAINS', 'OWNERDOMAIN', 'MANAGERDOMAIN']) {
     for (const v of declarations[key] || []) {
-      const d = v.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-      d.forEach((h) => sellerHosts.add(h));
+      const d = v
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean);
+      d.forEach(h => sellerHosts.add(h));
     }
   }
 

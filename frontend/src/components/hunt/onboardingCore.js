@@ -59,12 +59,36 @@ export const WAVE21_IDEAS = [
 /* ------------------------------------------------------------------ */
 
 export const COACH_MARK_STEPS = [
-  { id: 'target', title: 'Pick a target', body: 'Paste any URL above to start a hunt. We only touch what you authorize.' },
-  { id: 'launch', title: 'Launch the hunt', body: 'One click starts the agent loop — recon, probing, and analysis.' },
-  { id: 'timeline', title: 'Watch the timeline', body: 'Every agent action streams here in real time. Click any step to inspect it.' },
-  { id: 'findings', title: 'Review findings', body: 'Findings land here with severity, confidence, and evidence attached.' },
-  { id: 'chat', title: 'Ask the agent', body: 'Mid-hunt, ask anything — "why is this critical?" works great.' },
-  { id: 'report', title: 'Export the report', body: 'One click exports PDF or Markdown with every PoC included.' },
+  {
+    id: 'target',
+    title: 'Pick a target',
+    body: 'Paste any URL above to start a hunt. We only touch what you authorize.',
+  },
+  {
+    id: 'launch',
+    title: 'Launch the hunt',
+    body: 'One click starts the agent loop — recon, probing, and analysis.',
+  },
+  {
+    id: 'timeline',
+    title: 'Watch the timeline',
+    body: 'Every agent action streams here in real time. Click any step to inspect it.',
+  },
+  {
+    id: 'findings',
+    title: 'Review findings',
+    body: 'Findings land here with severity, confidence, and evidence attached.',
+  },
+  {
+    id: 'chat',
+    title: 'Ask the agent',
+    body: 'Mid-hunt, ask anything — "why is this critical?" works great.',
+  },
+  {
+    id: 'report',
+    title: 'Export the report',
+    body: 'One click exports PDF or Markdown with every PoC included.',
+  },
 ];
 
 /** Fresh tour state. `stepIndex` is 0-based; -1 means not started. */
@@ -133,7 +157,11 @@ export function shouldShowHint(hintId, seenIds, tipsEnabled = true) {
 /** 50803 — suggest the first search operator for an empty query. */
 export function suggestFirstOperator(query) {
   if (query && String(query).trim().length > 0) return null;
-  return { operator: 'sev:critical', label: 'Try sev:critical', hint: 'Operators filter findings fast — sev:, status:, tool: and more.' };
+  return {
+    operator: 'sev:critical',
+    label: 'Try sev:critical',
+    hint: 'Operators filter findings fast — sev:, status:, tool: and more.',
+  };
 }
 
 /** 50810 — teach combining severity + status. */
@@ -235,7 +263,7 @@ export const ONBOARDING_STEPS = [
 export function checklistProgress(doneIds) {
   const done = new Set(doneIds || []);
   const total = ONBOARDING_STEPS.length;
-  const doneCount = ONBOARDING_STEPS.filter((s) => done.has(s.id)).length;
+  const doneCount = ONBOARDING_STEPS.filter(s => done.has(s.id)).length;
   return {
     done: doneCount,
     total,
@@ -248,7 +276,7 @@ export function checklistProgress(doneIds) {
 /** Mark one checklist step complete (pure — returns new id list). */
 export function completeChecklistStep(doneIds, stepId) {
   const set = new Set(doneIds || []);
-  if (ONBOARDING_STEPS.some((s) => s.id === stepId)) set.add(stepId);
+  if (ONBOARDING_STEPS.some(s => s.id === stepId)) set.add(stepId);
   return [...set];
 }
 
@@ -331,7 +359,7 @@ export function setTipsEnabled(prefs, enabled) {
  */
 export function mergeHintState(local, remote) {
   const seen = new Set([...(local?.seenIds || []), ...(remote?.seenIds || [])]);
-  const tipsEnabled = (local?.tipsEnabled !== false) && (remote?.tipsEnabled !== false);
+  const tipsEnabled = local?.tipsEnabled !== false && remote?.tipsEnabled !== false;
   const updatedAt = Math.max(local?.updatedAt || 0, remote?.updatedAt || 0);
   return { seenIds: [...seen], tipsEnabled, updatedAt };
 }
@@ -343,9 +371,21 @@ export function mergeHintState(local, remote) {
 /** 50808 — PDF vs Markdown choice walkthrough steps. */
 export function exportWalkthroughSteps() {
   return [
-    { id: 'choose', title: 'Pick a format', body: 'PDF is for sharing with stakeholders; Markdown is for tickets and docs.' },
-    { id: 'pdf', title: 'PDF', body: 'Paginated, branded, print-ready — best for reports you send out.' },
-    { id: 'md', title: 'Markdown', body: 'Plain text with PoC blocks — pastes cleanly into Jira, GitHub, Notion.' },
+    {
+      id: 'choose',
+      title: 'Pick a format',
+      body: 'PDF is for sharing with stakeholders; Markdown is for tickets and docs.',
+    },
+    {
+      id: 'pdf',
+      title: 'PDF',
+      body: 'Paginated, branded, print-ready — best for reports you send out.',
+    },
+    {
+      id: 'md',
+      title: 'Markdown',
+      body: 'Plain text with PoC blocks — pastes cleanly into Jira, GitHub, Notion.',
+    },
   ];
 }
 
@@ -360,7 +400,11 @@ export function shouldNudgeShortcut(mouseReviewCount, seenIds) {
 }
 
 export function shortcutNudgeCopy() {
-  return { title: 'Faster reviews', body: "You've reviewed 5 findings with the mouse — press R to review the next one from the keyboard.", shortcut: 'R' };
+  return {
+    title: 'Faster reviews',
+    body: "You've reviewed 5 findings with the mouse — press R to review the next one from the keyboard.",
+    shortcut: 'R',
+  };
 }
 
 /** 50824 — after the 3rd manual run, suggest scheduling. */
@@ -408,7 +452,11 @@ export function roleOnboardingPath(role) {
     researcher: {
       role: 'researcher',
       headline: 'Built for deep dives',
-      firstTasks: ['Run a hunt on a staging target', 'Triage with sev:critical', 'Export PoCs as Markdown'],
+      firstTasks: [
+        'Run a hunt on a staging target',
+        'Triage with sev:critical',
+        'Export PoCs as Markdown',
+      ],
     },
     executive: {
       role: 'executive',
@@ -439,9 +487,17 @@ export function modelsPageHint() {
 /** 50815 — dashboard widget tour steps. */
 export function widgetTourSteps() {
   return [
-    { id: 'drag', title: 'Drag to rearrange', body: 'Grab any widget header to move it around the grid.' },
+    {
+      id: 'drag',
+      title: 'Drag to rearrange',
+      body: 'Grab any widget header to move it around the grid.',
+    },
     { id: 'expand', title: 'Click to expand', body: 'Click a widget to open its full view.' },
-    { id: 'gallery', title: 'Add more', body: 'The gallery has 20+ widgets — charts, queues, tickers.' },
+    {
+      id: 'gallery',
+      title: 'Add more',
+      body: 'The gallery has 20+ widgets — charts, queues, tickers.',
+    },
   ];
 }
 
@@ -450,8 +506,16 @@ export function widgetTourSteps() {
 /* ------------------------------------------------------------------ */
 
 const WEAK_TARGET_PATTERNS = [
-  { re: /^https?:\/\/[^/]+\/?$/, label: 'bare domain', suggestion: 'Try a path with real surface, e.g. /login, /api, /search.' },
-  { re: /example\.com|test\.com|localhost/i, label: 'placeholder host', suggestion: 'That looks like a placeholder — paste the real target.' },
+  {
+    re: /^https?:\/\/[^/]+\/?$/,
+    label: 'bare domain',
+    suggestion: 'Try a path with real surface, e.g. /login, /api, /search.',
+  },
+  {
+    re: /example\.com|test\.com|localhost/i,
+    label: 'placeholder host',
+    suggestion: 'That looks like a placeholder — paste the real target.',
+  },
 ];
 
 /** 50816 — pasting a low-surface URL suggests stronger alternatives. */
@@ -487,11 +551,16 @@ export function dripEmailSchedule(optedIn, signupMs) {
 /** 50822 — 30-second video snippet descriptor for complex flows. */
 export function videoSnippetSpec(flowId) {
   const library = {
-    'chain-review': { src: '/videos/chain-review-30s.mp4', caption: 'Reviewing chained findings (0:30)' },
-    'export': { src: '/videos/export-30s.mp4', caption: 'Exporting reports (0:30)' },
-    'triage': { src: '/videos/triage-30s.mp4', caption: 'Triage with filters (0:30)' },
+    'chain-review': {
+      src: '/videos/chain-review-30s.mp4',
+      caption: 'Reviewing chained findings (0:30)',
+    },
+    export: { src: '/videos/export-30s.mp4', caption: 'Exporting reports (0:30)' },
+    triage: { src: '/videos/triage-30s.mp4', caption: 'Triage with filters (0:30)' },
   };
-  return library[flowId] || { src: `/videos/${flowId}-30s.mp4`, caption: `${flowId} walkthrough (0:30)` };
+  return (
+    library[flowId] || { src: `/videos/${flowId}-30s.mp4`, caption: `${flowId} walkthrough (0:30)` }
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -528,7 +597,7 @@ export function tipOfTheDay(dateStr, tips = POWER_TIPS) {
 /** 50833 — one "did you know" per help-panel visit, rotating. */
 export function rotatingHelpTip(visitCount, tips = POWER_TIPS) {
   if (!tips.length) return null;
-  const idx = (Math.max(0, visitCount | 0)) % tips.length;
+  const idx = Math.max(0, visitCount | 0) % tips.length;
   return { tip: tips[idx], visit: visitCount | 0 };
 }
 
@@ -544,7 +613,11 @@ export function voiceCommandHint(isMobile) {
 
 /** 50830 — keyboard shortcut onboarding. */
 export function a11yShortcutHint() {
-  return { title: 'Keyboard first', body: 'Press Shift+? anytime for the full keyboard shortcut list.', shortcut: 'Shift+?' };
+  return {
+    title: 'Keyboard first',
+    body: 'Press Shift+? anytime for the full keyboard shortcut list.',
+    shortcut: 'Shift+?',
+  };
 }
 
 /** 50834 — after first export, suggest Slack automation. */

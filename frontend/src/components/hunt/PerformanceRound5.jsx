@@ -91,7 +91,9 @@ export function FontDisplaySwap() {
   return (
     <div className="perf5-card">
       <h4>Font-display swap</h4>
-      <p className="perf5-fontdemo">Text renders instantly — the custom font swaps in when ready, never blocking.</p>
+      <p className="perf5-fontdemo">
+        Text renders instantly — the custom font swaps in when ready, never blocking.
+      </p>
       <pre className="perf5-pre">{css}</pre>
     </div>
   );
@@ -106,19 +108,33 @@ export function OptimisticTabs() {
     tabs: { findings: { content: '42 findings loaded', stale: true } },
     refreshing: false,
   });
-  const openTab = (tabId) => {
+  const openTab = tabId => {
     const next = optimisticTabSwitch(st, tabId, () => Promise.resolve('fresh data'));
     setSt({ activeTab: next.activeTab, tabs: next.tabs, refreshing: next.refreshing });
     if (next.refreshing) {
-      setTimeout(() => setSt((s) => ({ ...tabRefreshDone({ ...s, refreshing: s.refreshing, tabs: s.tabs }, tabId, '42 findings (fresh)') })), 900);
+      setTimeout(
+        () =>
+          setSt(s => ({
+            ...tabRefreshDone(
+              { ...s, refreshing: s.refreshing, tabs: s.tabs },
+              tabId,
+              '42 findings (fresh)'
+            ),
+          })),
+        900
+      );
     }
   };
   return (
     <div className="perf5-card">
       <h4>Optimistic tab switches</h4>
       <div className="perf5-tabs">
-        {['findings', 'timeline'].map((t) => (
-          <button key={t} className={st.activeTab === t ? 'perf5-tab active' : 'perf5-tab'} onClick={() => openTab(t)}>
+        {['findings', 'timeline'].map(t => (
+          <button
+            key={t}
+            className={st.activeTab === t ? 'perf5-tab active' : 'perf5-tab'}
+            onClick={() => openTab(t)}
+          >
             {t}
           </button>
         ))}
@@ -147,7 +163,9 @@ export function GhostActionButtons() {
       <button className={b.className} disabled={b.disabled} aria-disabled={b.ariaDisabled}>
         {b.label}
       </button>
-      <p className="perf5-note">Button is ghosted until the analysis payload arrives, then activates instantly.</p>
+      <p className="perf5-note">
+        Button is ghosted until the analysis payload arrives, then activates instantly.
+      </p>
     </div>
   );
 }
@@ -163,19 +181,29 @@ export function BandwidthAwareThumbs() {
     <div className="perf5-card">
       <h4>Bandwidth-aware thumbnails</h4>
       <div className="perf5-row">
-        {['slow-2g', '2g', '3g', '4g'].map((et) => (
-          <button key={et} className={effectiveType === et ? 'perf5-chip on' : 'perf5-chip'} onClick={() => setEffectiveType(et)}>
+        {['slow-2g', '2g', '3g', '4g'].map(et => (
+          <button
+            key={et}
+            className={effectiveType === et ? 'perf5-chip on' : 'perf5-chip'}
+            onClick={() => setEffectiveType(et)}
+          >
             {et}
           </button>
         ))}
         <label className="perf5-check">
-          <input type="checkbox" checked={saveData} onChange={(e) => setSaveData(e.target.checked)} /> Data Saver
+          <input type="checkbox" checked={saveData} onChange={e => setSaveData(e.target.checked)} />{' '}
+          Data Saver
         </label>
       </div>
       <p className="perf5-note">
-        Tier: <strong>{quality}</strong> → <code>{qualityThumbUrl('/evidence/shot-1.png', quality)}</code>
+        Tier: <strong>{quality}</strong> →{' '}
+        <code>{qualityThumbUrl('/evidence/shot-1.png', quality)}</code>
       </p>
-      <div className="perf5-thumb" style={{ backgroundImage: `url(/evidence/shot-1.png)` }} aria-label="Evidence thumbnail preview" />
+      <div
+        className="perf5-thumb"
+        style={{ backgroundImage: `url(/evidence/shot-1.png)` }}
+        aria-label="Evidence thumbnail preview"
+      />
     </div>
   );
 }
@@ -187,24 +215,29 @@ export function LocalEchoPresence() {
   const [people, setPeople] = useState([]);
   const join = () => {
     const echo = localEchoPresence(`u${people.length + 1}`, `Hunter ${people.length + 1}`);
-    setPeople((p) => [...p, echo]);
+    setPeople(p => [...p, echo]);
     // Server echo arrives ~1s later; dedupe replaces the local echo.
     setTimeout(() => {
-      setPeople((p) => mergeServerEcho(p, { id: echo.id, name: echo.name }));
+      setPeople(p => mergeServerEcho(p, { id: echo.id, name: echo.name }));
     }, 1000);
   };
   return (
     <div className="perf5-card">
       <h4>Local-echo presence</h4>
-      <button className="perf5-btn" onClick={join}>Join hunt</button>
+      <button className="perf5-btn" onClick={join}>
+        Join hunt
+      </button>
       <div className="perf5-avatars">
-        {people.map((p) => (
+        {people.map(p => (
           <span key={p.echoId} className="perf5-avatar" title={`${p.name} (${p.source} echo)`}>
             {p.name[0]}
           </span>
         ))}
       </div>
-      <p className="perf5-note">Avatars render from the local echo instantly; the server echo replaces them without duplication.</p>
+      <p className="perf5-note">
+        Avatars render from the local echo instantly; the server echo replaces them without
+        duplication.
+      </p>
     </div>
   );
 }
@@ -217,7 +250,7 @@ export function DebouncedNoteAutosave() {
   const [status, setStatus] = useState(autosaveState(false, false, null));
   const lastChange = useRef(0);
   const lastSave = useRef(0);
-  const onChange = (e) => {
+  const onChange = e => {
     setText(e.target.value);
     lastChange.current = Date.now();
     setStatus(autosaveState(true, false, lastSave.current || null));
@@ -237,8 +270,16 @@ export function DebouncedNoteAutosave() {
   return (
     <div className="perf5-card">
       <h4>Debounced note autosave</h4>
-      <textarea className="perf5-textarea" value={text} onChange={onChange} placeholder="Type a finding note — saves 500ms after you stop typing…" rows={3} />
-      <p className="perf5-note">Status: <strong>{status.label}</strong> (idle threshold {AUTOSAVE_IDLE_MS}ms)</p>
+      <textarea
+        className="perf5-textarea"
+        value={text}
+        onChange={onChange}
+        placeholder="Type a finding note — saves 500ms after you stop typing…"
+        rows={3}
+      />
+      <p className="perf5-note">
+        Status: <strong>{status.label}</strong> (idle threshold {AUTOSAVE_IDLE_MS}ms)
+      </p>
     </div>
   );
 }
@@ -256,16 +297,25 @@ export function PredictiveDialogPreload() {
   return (
     <div className="perf5-card">
       <h4>Predictive dialog preload</h4>
-      <button className="perf5-btn" onMouseEnter={hover} onFocus={hover} onClick={() => setOpened(true)}>
+      <button
+        className="perf5-btn"
+        onMouseEnter={hover}
+        onFocus={hover}
+        onClick={() => setOpened(true)}
+      >
         Export report
       </button>
       <p className="perf5-note">
-        {preloaded.export ? 'ExportDialog module preloaded on hover — opens with zero wait.' : 'Hover the button to preload the dialog code.'}
+        {preloaded.export
+          ? 'ExportDialog module preloaded on hover — opens with zero wait.'
+          : 'Hover the button to preload the dialog code.'}
       </p>
       {opened && (
         <div className="perf5-dialog" role="dialog" aria-label="Export dialog">
           Export dialog {preloaded.export ? '(preloaded ⚡)' : '(loaded on demand)'}
-          <button className="perf5-btn" onClick={() => setOpened(false)}>Close</button>
+          <button className="perf5-btn" onClick={() => setOpened(false)}>
+            Close
+          </button>
         </div>
       )}
     </div>
@@ -279,7 +329,11 @@ export function ShiftFreeFirstFinding() {
   const [items, setItems] = useState([]);
   const slot = shiftFreeSlot(96);
   const receive = () => {
-    const applied = applyFirstFinding(slot, { id: 'f1', title: 'SQL injection in /api/search', severity: 'high' });
+    const applied = applyFirstFinding(slot, {
+      id: 'f1',
+      title: 'SQL injection in /api/search',
+      severity: 'high',
+    });
     setItems(applied.items);
   };
   return (
@@ -289,12 +343,16 @@ export function ShiftFreeFirstFinding() {
         {items.length === 0 ? (
           <span className="perf5-empty">Waiting for first finding — slot reserved</span>
         ) : (
-          items.map((f) => (
-            <div key={f.id} className="perf5-finding">[{f.severity}] {f.title}</div>
+          items.map(f => (
+            <div key={f.id} className="perf5-finding">
+              [{f.severity}] {f.title}
+            </div>
           ))
         )}
       </div>
-      <button className="perf5-btn" onClick={receive}>Simulate first finding</button>
+      <button className="perf5-btn" onClick={receive}>
+        Simulate first finding
+      </button>
     </div>
   );
 }
@@ -303,9 +361,17 @@ export function ShiftFreeFirstFinding() {
 // 50969 — Optimistic retry
 // ---------------------------------------------------------------------------
 export function OptimisticRetry() {
-  const [step, setStep] = useState({ id: 's1', status: 'failed', label: 'Subdomain scan failed', attempt: 1 });
+  const [step, setStep] = useState({
+    id: 's1',
+    status: 'failed',
+    label: 'Subdomain scan failed',
+    attempt: 1,
+  });
   const retry = () => {
-    const { optimistic, commit } = optimisticRetry(step, () => new Promise((res) => setTimeout(res, 1100)));
+    const { optimistic, commit } = optimisticRetry(
+      step,
+      () => new Promise(res => setTimeout(res, 1100))
+    );
     setStep(optimistic);
     commit().then(({ step: next }) => setStep(next));
   };
@@ -313,9 +379,14 @@ export function OptimisticRetry() {
     <div className="perf5-card">
       <h4>Optimistic retry</h4>
       <div className="perf5-step">
-        {step.label} <span className="perf5-mini">(attempt {step.attempt}, {step.status})</span>
+        {step.label}{' '}
+        <span className="perf5-mini">
+          (attempt {step.attempt}, {step.status})
+        </span>
         {step.status === 'failed' && (
-          <button className="perf5-btn" onClick={retry}>Retry</button>
+          <button className="perf5-btn" onClick={retry}>
+            Retry
+          </button>
         )}
       </div>
     </div>
@@ -331,18 +402,28 @@ export function WebSocketFirstUpdates() {
   const transport = pickTransport(wsReady);
   const pushEvent = () => {
     const ev = transportEvent({ id: nextTempId('ev'), text: 'New finding detected' }, transport);
-    setEvents((e) => [...e.slice(-4), ev]);
+    setEvents(e => [...e.slice(-4), ev]);
   };
   return (
     <div className="perf5-card">
       <h4>WebSocket-first updates</h4>
       <label className="perf5-check">
-        <input type="checkbox" checked={wsReady} onChange={(e) => setWsReady(e.target.checked)} /> WebSocket connected
+        <input type="checkbox" checked={wsReady} onChange={e => setWsReady(e.target.checked)} />{' '}
+        WebSocket connected
       </label>
-      <p className="perf5-note">Active transport: <strong>{transport.transport}</strong>{transport.fallback ? ` (${transport.fallback} fallback)` : ''}</p>
-      <button className="perf5-btn" onClick={pushEvent}>Simulate live event</button>
+      <p className="perf5-note">
+        Active transport: <strong>{transport.transport}</strong>
+        {transport.fallback ? ` (${transport.fallback} fallback)` : ''}
+      </p>
+      <button className="perf5-btn" onClick={pushEvent}>
+        Simulate live event
+      </button>
       <ul className="perf5-list">
-        {events.map((e) => <li key={e.id}>{e.text} <span className="perf5-mini">via {e.via}</span></li>)}
+        {events.map(e => (
+          <li key={e.id}>
+            {e.text} <span className="perf5-mini">via {e.via}</span>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -355,31 +436,49 @@ export function OfflineMutationQueue() {
   const [online, setOnline] = useState(false);
   const [queue, setQueue] = useState([]);
   const [log, setLog] = useState([]);
-  const addOp = (op) => {
+  const addOp = op => {
     if (online) {
-      setLog((l) => [...l, `${op} → sent live`]);
+      setLog(l => [...l, `${op} → sent live`]);
     } else {
-      setQueue((q) => enqueueMutation(q, op, { at: Date.now() }));
+      setQueue(q => enqueueMutation(q, op, { at: Date.now() }));
     }
   };
   const reconnect = async () => {
     setOnline(true);
-    const { done, leftover } = await replayMutationQueue(queue, async (item) => ({ sent: item.op }));
-    setLog((l) => [...l, ...done.map((d) => `${d.result.sent} → replayed in order`)]);
+    const { done, leftover } = await replayMutationQueue(queue, async item => ({ sent: item.op }));
+    setLog(l => [...l, ...done.map(d => `${d.result.sent} → replayed in order`)]);
     setQueue(leftover);
   };
   return (
     <div className="perf5-card">
       <h4>Offline mutation queue</h4>
       <div className="perf5-row">
-        <button className="perf5-btn" onClick={() => addOp('triage f-12')}>Triage</button>
-        <button className="perf5-btn" onClick={() => addOp('comment f-12')}>Comment</button>
-        <button className="perf5-btn" onClick={() => addOp('assign f-13')}>Assign</button>
-        {!online && <button className="perf5-btn primary" onClick={reconnect}>Reconnect + replay</button>}
-        {online && <button className="perf5-btn" onClick={() => setOnline(false)}>Go offline</button>}
+        <button className="perf5-btn" onClick={() => addOp('triage f-12')}>
+          Triage
+        </button>
+        <button className="perf5-btn" onClick={() => addOp('comment f-12')}>
+          Comment
+        </button>
+        <button className="perf5-btn" onClick={() => addOp('assign f-13')}>
+          Assign
+        </button>
+        {!online && (
+          <button className="perf5-btn primary" onClick={reconnect}>
+            Reconnect + replay
+          </button>
+        )}
+        {online && (
+          <button className="perf5-btn" onClick={() => setOnline(false)}>
+            Go offline
+          </button>
+        )}
       </div>
       <p className="perf5-note">Status: {online ? 'online' : `offline — ${queue.length} queued`}</p>
-      <ul className="perf5-list">{log.slice(-4).map((l, i) => <li key={i}>{l}</li>)}</ul>
+      <ul className="perf5-list">
+        {log.slice(-4).map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -388,12 +487,16 @@ export function OfflineMutationQueue() {
 // 50972 — Optimistic read receipts
 // ---------------------------------------------------------------------------
 export function OptimisticReadReceipts() {
-  const msgs = [{ id: 'm1', text: 'Found XSS in profile page' }, { id: 'm2', text: 'Confirming with PoC…' }, { id: 'm3', text: 'PoC confirmed ✓' }];
+  const msgs = [
+    { id: 'm1', text: 'Found XSS in profile page' },
+    { id: 'm2', text: 'Confirming with PoC…' },
+    { id: 'm3', text: 'PoC confirmed ✓' },
+  ];
   const [wm, setWm] = useState(seenWatermark(msgs, 'm1'));
   const advance = () => {
     const nextId = msgs[Math.min(wm.afterIndex + 1, msgs.length - 1)].id;
     setWm(seenWatermark(msgs, nextId));
-    setTimeout(() => setWm((w) => confirmWatermark(w, w.afterIndex)), 600);
+    setTimeout(() => setWm(w => confirmWatermark(w, w.afterIndex)), 600);
   };
   return (
     <div className="perf5-card">
@@ -404,7 +507,9 @@ export function OptimisticReadReceipts() {
           {i === wm.afterIndex && <span className="perf5-seen"> ✓ {wm.label}</span>}
         </div>
       ))}
-      <button className="perf5-btn" onClick={advance}>Advance seen watermark</button>
+      <button className="perf5-btn" onClick={advance}>
+        Advance seen watermark
+      </button>
     </div>
   );
 }
@@ -413,7 +518,13 @@ export function OptimisticReadReceipts() {
 // 50973 — Chunked evidence streaming
 // ---------------------------------------------------------------------------
 export function ChunkedEvidenceStream() {
-  const full = useMemo(() => Array.from({ length: 135 }, (_, i) => `line ${i + 1}: GET /api/users?page=${i} 200 OK`).join('\n'), []);
+  const full = useMemo(
+    () =>
+      Array.from({ length: 135 }, (_, i) => `line ${i + 1}: GET /api/users?page=${i} 200 OK`).join(
+        '\n'
+      ),
+    []
+  );
   const chunks = useMemo(() => chunkEvidence(full), [full]);
   const [shown, setShown] = useState(0);
   const streaming = useRef(false);
@@ -425,16 +536,25 @@ export function ChunkedEvidenceStream() {
     const t = setInterval(() => {
       i += 1;
       setShown(i);
-      if (i >= chunks.length) { clearInterval(t); streaming.current = false; }
+      if (i >= chunks.length) {
+        clearInterval(t);
+        streaming.current = false;
+      }
     }, 180);
   };
   const p = streamProgress(shown, chunks.length);
   return (
     <div className="perf5-card">
       <h4>Chunked evidence streaming</h4>
-      <button className="perf5-btn" onClick={start}>Stream 135-line evidence</button>
-      <p className="perf5-note">{p.label} — {EVIDENCE_CHUNK_LINES} lines/chunk</p>
-      <div className="perf5-bar"><div className="perf5-barfill" style={{ width: `${p.pct}%` }} /></div>
+      <button className="perf5-btn" onClick={start}>
+        Stream 135-line evidence
+      </button>
+      <p className="perf5-note">
+        {p.label} — {EVIDENCE_CHUNK_LINES} lines/chunk
+      </p>
+      <div className="perf5-bar">
+        <div className="perf5-barfill" style={{ width: `${p.pct}%` }} />
+      </div>
       <pre className="perf5-pre scroll">{chunks.slice(0, shown).join('\n')}</pre>
     </div>
   );
@@ -455,21 +575,42 @@ export function MemoizedFindingCards() {
   const [renders, setRenders] = useState(0);
   const [tick, setTick] = useState(0);
   const [sel, setSel] = useState(null);
-  const findings = useMemo(() => [
-    { id: 'f1', rev: 3, severity: 'high', status: 'open' },
-    { id: 'f2', rev: 1, severity: 'medium', status: 'open' },
-    { id: 'f3', rev: 2, severity: 'low', status: 'triaged' },
-  ], []);
-  const cards = useMemo(() => findings.map((f) => cardMemoProps(f, sel === f.id, false)), [findings, sel]);
+  const findings = useMemo(
+    () => [
+      { id: 'f1', rev: 3, severity: 'high', status: 'open' },
+      { id: 'f2', rev: 1, severity: 'medium', status: 'open' },
+      { id: 'f3', rev: 2, severity: 'low', status: 'triaged' },
+    ],
+    []
+  );
+  const cards = useMemo(
+    () => findings.map(f => cardMemoProps(f, sel === f.id, false)),
+    [findings, sel]
+  );
   return (
     <div className="perf5-card">
       <h4>Memoized finding cards</h4>
       <div className="perf5-row">
-        <button className="perf5-btn" onClick={() => { setTick(tick + 1); setRenders(renders + 1); }}>Unrelated parent re-render</button>
-        <button className="perf5-btn" onClick={() => setSel(sel === 'f2' ? null : 'f2')}>Toggle f2 selection</button>
+        <button
+          className="perf5-btn"
+          onClick={() => {
+            setTick(tick + 1);
+            setRenders(renders + 1);
+          }}
+        >
+          Unrelated parent re-render
+        </button>
+        <button className="perf5-btn" onClick={() => setSel(sel === 'f2' ? null : 'f2')}>
+          Toggle f2 selection
+        </button>
       </div>
-      {cards.map((c) => <MemoCard key={c.id} props={c} />)}
-      <p className="perf5-note">Parent renders: {renders} · card props are referentially stable (sameCard comparator) so cards skip re-render unless their own data changes.</p>
+      {cards.map(c => (
+        <MemoCard key={c.id} props={c} />
+      ))}
+      <p className="perf5-note">
+        Parent renders: {renders} · card props are referentially stable (sameCard comparator) so
+        cards skip re-render unless their own data changes.
+      </p>
     </div>
   );
 }
@@ -478,10 +619,18 @@ export function MemoizedFindingCards() {
 // 50975 — Optimistic re-grade
 // ---------------------------------------------------------------------------
 export function OptimisticRegrade() {
-  const [finding, setFinding] = useState({ id: 'f7', severity: 'medium', title: 'Open redirect on /goto' });
+  const [finding, setFinding] = useState({
+    id: 'f7',
+    severity: 'medium',
+    title: 'Open redirect on /goto',
+  });
   const [audit, setAudit] = useState('No audit entries yet.');
-  const regrade = (sev) => {
-    const { optimistic, commit } = optimisticRegrade(finding, sev, async (e) => `audit: ${e.from}→${e.to} @ ${new Date(e.at).toISOString()}`);
+  const regrade = sev => {
+    const { optimistic, commit } = optimisticRegrade(
+      finding,
+      sev,
+      async e => `audit: ${e.from}→${e.to} @ ${new Date(e.at).toISOString()}`
+    );
     setFinding(optimistic); // pill recolors instantly
     commit().then(({ finding: next, audited, error }) => {
       setFinding(next);
@@ -491,10 +640,15 @@ export function OptimisticRegrade() {
   return (
     <div className="perf5-card">
       <h4>Optimistic re-grade</h4>
-      <span className={`perf5-pill ${finding.severity}${finding.regrading ? ' pending' : ''}`}>{finding.severity}{finding.regrading ? ' …' : ''}</span>
+      <span className={`perf5-pill ${finding.severity}${finding.regrading ? ' pending' : ''}`}>
+        {finding.severity}
+        {finding.regrading ? ' …' : ''}
+      </span>
       <div className="perf5-row">
-        {['low', 'medium', 'high', 'critical'].map((s) => (
-          <button key={s} className="perf5-chip" onClick={() => regrade(s)}>{s}</button>
+        {['low', 'medium', 'high', 'critical'].map(s => (
+          <button key={s} className="perf5-chip" onClick={() => regrade(s)}>
+            {s}
+          </button>
         ))}
       </div>
       <p className="perf5-note">{audit}</p>
@@ -510,18 +664,26 @@ export function DescriptiveLoadingCopy() {
   const [done, setDone] = useState(0);
   const total = 1204;
   useEffect(() => {
-    const t = setInterval(() => setDone((d) => (d >= total ? 0 : d + 137)), 400);
+    const t = setInterval(() => setDone(d => (d >= total ? 0 : d + 137)), 400);
     return () => clearInterval(t);
   }, []);
   return (
     <div className="perf5-card">
       <h4>Descriptive loading copy</h4>
       <div className="perf5-row">
-        {['indexing', 'fetching', 'analyzing', 'rendering'].map((s) => (
-          <button key={s} className={stage === s ? 'perf5-chip on' : 'perf5-chip'} onClick={() => setStage(s)}>{s}</button>
+        {['indexing', 'fetching', 'analyzing', 'rendering'].map(s => (
+          <button
+            key={s}
+            className={stage === s ? 'perf5-chip on' : 'perf5-chip'}
+            onClick={() => setStage(s)}
+          >
+            {s}
+          </button>
         ))}
       </div>
-      <p className="perf5-note"><strong>{descriptiveLoadingCopy(stage, Math.min(done, total), total)}</strong></p>
+      <p className="perf5-note">
+        <strong>{descriptiveLoadingCopy(stage, Math.min(done, total), total)}</strong>
+      </p>
     </div>
   );
 }
@@ -550,15 +712,24 @@ export function InstantBackNavigation() {
       {view === 'list' ? (
         <>
           <p className="perf5-note">Open cards: {openCards.join(', ')}</p>
-          <button className="perf5-btn" onClick={openDetail}>Open finding detail →</button>
+          <button className="perf5-btn" onClick={openDetail}>
+            Open finding detail →
+          </button>
         </>
       ) : (
         <>
           <p className="perf5-note">Finding detail view…</p>
-          <button className="perf5-btn" onClick={() => setLast(goBack())}>← Back (restore from cache)</button>
+          <button className="perf5-btn" onClick={() => setLast(goBack())}>
+            ← Back (restore from cache)
+          </button>
         </>
       )}
-      {last && <p className="perf5-note">Restored: scrollY={last.scrollY}, cards={last.openCardIds.join(',')}, from cache: {String(last.restored)}</p>}
+      {last && (
+        <p className="perf5-note">
+          Restored: scrollY={last.scrollY}, cards={last.openCardIds.join(',')}, from cache:{' '}
+          {String(last.restored)}
+        </p>
+      )}
     </div>
   );
 }
@@ -567,7 +738,11 @@ export function InstantBackNavigation() {
 // 50978 — Optimistic widget refresh
 // ---------------------------------------------------------------------------
 export function OptimisticWidgetRefresh() {
-  const [widget, setWidget] = useState({ id: 'w1', data: { hunts: 3, findings: 128 }, updating: false });
+  const [widget, setWidget] = useState({
+    id: 'w1',
+    data: { hunts: 3, findings: 128 },
+    updating: false,
+  });
   const refresh = () => {
     const { optimistic, commit } = widgetRefresh(widget, async () => ({ hunts: 4, findings: 141 }));
     setWidget(optimistic);
@@ -581,7 +756,9 @@ export function OptimisticWidgetRefresh() {
         <div>Findings: {widget.data.findings}</div>
         {widget.updating && <div className="perf5-shimmer">updating…</div>}
       </div>
-      <button className="perf5-btn" onClick={refresh}>Refresh</button>
+      <button className="perf5-btn" onClick={refresh}>
+        Refresh
+      </button>
     </div>
   );
 }
@@ -592,21 +769,35 @@ export function OptimisticWidgetRefresh() {
 export function DeduplicatedRequests() {
   const inflight = useRef(new Map());
   const [log, setLog] = useState([]);
-  const fetchHunt = (id) => {
+  const fetchHunt = id => {
     let networkCalls = 0;
-    const fetcher = () => { networkCalls += 1; return new Promise((res) => setTimeout(() => res({ id, calls: networkCalls }), 600)); };
+    const fetcher = () => {
+      networkCalls += 1;
+      return new Promise(res => setTimeout(() => res({ id, calls: networkCalls }), 600));
+    };
     // Fire three identical calls — they must share one network flight.
     const r1 = dedupedRequest(inflight.current, `hunt:${id}`, fetcher);
     const r2 = dedupedRequest(inflight.current, `hunt:${id}`, fetcher);
     const r3 = dedupedRequest(inflight.current, `hunt:${id}`, fetcher);
-    setLog((l) => [...l, `shared flags: ${[r1.shared, r2.shared, r3.shared].join(', ')} (expect false, true, true)`]);
-    r1.promise.then((d) => setLog((l) => [...l, `resolved hunt ${d.id} — network flights: ${d.calls} (expect 1)`]));
+    setLog(l => [
+      ...l,
+      `shared flags: ${[r1.shared, r2.shared, r3.shared].join(', ')} (expect false, true, true)`,
+    ]);
+    r1.promise.then(d =>
+      setLog(l => [...l, `resolved hunt ${d.id} — network flights: ${d.calls} (expect 1)`])
+    );
   };
   return (
     <div className="perf5-card">
       <h4>Deduplicated in-flight requests</h4>
-      <button className="perf5-btn" onClick={() => fetchHunt(42)}>Fetch hunt 42 ×3 at once</button>
-      <ul className="perf5-list">{log.map((l, i) => <li key={i}>{l}</li>)}</ul>
+      <button className="perf5-btn" onClick={() => fetchHunt(42)}>
+        Fetch hunt 42 ×3 at once
+      </button>
+      <ul className="perf5-list">
+        {log.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -621,7 +812,9 @@ export function OptimisticHuntRename() {
   ]);
   const [editing, setEditing] = useState('Acme Corp — weekly sweep');
   const rename = () => {
-    const { optimistic, commit } = optimisticHuntRename(hunts, 'h1', editing, async () => ({ ok: true }));
+    const { optimistic, commit } = optimisticHuntRename(hunts, 'h1', editing, async () => ({
+      ok: true,
+    }));
     setHunts(optimistic);
     setTimeout(() => commit().then(({ hunts: next }) => setHunts(next)), 800);
   };
@@ -629,10 +822,19 @@ export function OptimisticHuntRename() {
     <div className="perf5-card">
       <h4>Optimistic hunt rename</h4>
       <div className="perf5-row">
-        <input className="perf5-input" value={editing} onChange={(e) => setEditing(e.target.value)} />
-        <button className="perf5-btn" onClick={rename}>Rename</button>
+        <input className="perf5-input" value={editing} onChange={e => setEditing(e.target.value)} />
+        <button className="perf5-btn" onClick={rename}>
+          Rename
+        </button>
       </div>
-      <p className="perf5-note">Header: <strong>{hunts[0].title}{hunts[0].renaming ? ' …' : ''}</strong> · Sidebar: <strong>{hunts[0].title}</strong></p>
+      <p className="perf5-note">
+        Header:{' '}
+        <strong>
+          {hunts[0].title}
+          {hunts[0].renaming ? ' …' : ''}
+        </strong>{' '}
+        · Sidebar: <strong>{hunts[0].title}</strong>
+      </p>
     </div>
   );
 }
@@ -647,7 +849,7 @@ export function LazyChainGraph() {
     const next = lazyGraphInit(graph, tabOpen);
     if (next.initialized && next.status === 'initializing') {
       setGraph(next);
-      const t = setTimeout(() => setGraph((g) => graphInitDone(g, 23)), 900);
+      const t = setTimeout(() => setGraph(g => graphInitDone(g, 23)), 900);
       return () => clearTimeout(t);
     }
     if (JSON.stringify(next) !== JSON.stringify(graph)) setGraph(next);
@@ -656,10 +858,13 @@ export function LazyChainGraph() {
   return (
     <div className="perf5-card">
       <h4>Lazy chain-graph init</h4>
-      <button className="perf5-btn" onClick={() => setTabOpen(!tabOpen)}>{tabOpen ? 'Close' : 'Open'} chain-graph tab</button>
+      <button className="perf5-btn" onClick={() => setTabOpen(!tabOpen)}>
+        {tabOpen ? 'Close' : 'Open'} chain-graph tab
+      </button>
       <p className="perf5-note">
         Status: <strong>{graph.status}</strong>
-        {graph.status === 'ready' && ` — 23 nodes rendered (canvas initialized once, only when the tab opened)`}
+        {graph.status === 'ready' &&
+          ` — 23 nodes rendered (canvas initialized once, only when the tab opened)`}
       </p>
     </div>
   );
@@ -678,12 +883,16 @@ export function SsrFallbackText() {
     <div className="perf5-card">
       <h4>SSR fallback text</h4>
       <label className="perf5-check">
-        <input type="checkbox" checked={jsBroken} onChange={(e) => setJsBroken(e.target.checked)} /> Simulate partial JS failure
+        <input type="checkbox" checked={jsBroken} onChange={e => setJsBroken(e.target.checked)} />{' '}
+        Simulate partial JS failure
       </label>
       {jsBroken ? (
         <div dangerouslySetInnerHTML={{ __html: ssrFallbackText('Hunt: Acme Corp', findings) }} />
       ) : (
-        <p className="perf5-note">Live app running — the static snapshot below is what search engines / no-JS clients still see:</p>
+        <p className="perf5-note">
+          Live app running — the static snapshot below is what search engines / no-JS clients still
+          see:
+        </p>
       )}
       <pre className="perf5-pre">{ssrFallbackText('Hunt: Acme Corp', findings)}</pre>
     </div>
@@ -695,25 +904,37 @@ export function SsrFallbackText() {
 // ---------------------------------------------------------------------------
 export function OptimisticFileAttach() {
   const [atts, setAtts] = useState([]);
-  const attach = (e) => {
+  const attach = e => {
     const f = e.target.files[0];
     if (!f) return;
     const att = optimisticAttachment(f.name, f.size, f.type);
-    setAtts((a) => [...a, att]);
+    setAtts(a => [...a, att]);
     // Upload completes later; thumbnail was already visible.
-    setTimeout(() => setAtts((a) => a.map((x) => (x.id === att.id ? attachmentUploadDone(x, `https://cdn.example/att/${encodeURIComponent(f.name)}`) : x))), 1400);
+    setTimeout(
+      () =>
+        setAtts(a =>
+          a.map(x =>
+            x.id === att.id
+              ? attachmentUploadDone(x, `https://cdn.example/att/${encodeURIComponent(f.name)}`)
+              : x
+          )
+        ),
+      1400
+    );
   };
   return (
     <div className="perf5-card">
       <h4>Optimistic file attach</h4>
       <input type="file" onChange={attach} className="perf5-input" />
       <div className="perf5-atts">
-        {atts.map((a) => (
+        {atts.map(a => (
           <div key={a.id} className={`perf5-att${a.placeholder ? ' placeholder' : ''}`}>
             <span className="perf5-atticon">📎</span>
             <div>
               <div>{a.name}</div>
-              <div className="perf5-mini">{a.placeholder ? 'uploading… thumbnail shown instantly' : 'uploaded ✓'}</div>
+              <div className="perf5-mini">
+                {a.placeholder ? 'uploading… thumbnail shown instantly' : 'uploaded ✓'}
+              </div>
             </div>
           </div>
         ))}
@@ -730,17 +951,19 @@ export function SmartPollingBackoff() {
   const [ticks, setTicks] = useState(0);
   useEffect(() => {
     const iv = pollInterval(hidden);
-    const t = setInterval(() => setTicks((x) => x + 1), Math.min(iv, 2000)); // demo runs faster
+    const t = setInterval(() => setTicks(x => x + 1), Math.min(iv, 2000)); // demo runs faster
     return () => clearInterval(t);
   }, [hidden]);
   const resumed = resumePolling(!hidden);
   return (
     <div className="perf5-card">
       <h4>Smart polling backoff</h4>
-      <button className="perf5-btn" onClick={() => setHidden(!hidden)}>{hidden ? 'Tab visible' : 'Simulate tab hidden'}</button>
+      <button className="perf5-btn" onClick={() => setHidden(!hidden)}>
+        {hidden ? 'Tab visible' : 'Simulate tab hidden'}
+      </button>
       <p className="perf5-note">
-        Interval: <strong>{hidden ? POLL_HIDDEN_MS : POLL_ACTIVE_MS}ms</strong> ·
-        on return: {resumed.pollNow ? 'poll immediately ⚡' : 'waiting'} · ticks: {ticks}
+        Interval: <strong>{hidden ? POLL_HIDDEN_MS : POLL_ACTIVE_MS}ms</strong> · on return:{' '}
+        {resumed.pollNow ? 'poll immediately ⚡' : 'waiting'} · ticks: {ticks}
       </p>
     </div>
   );
@@ -756,7 +979,10 @@ export function PerceivedCompleteState() {
   return (
     <div className="perf5-card">
       <h4>Perceived-complete state</h4>
-      <div className="perf5-done">Hunt status: <strong>{s.label}</strong> {s.note && <span className="perf5-mini">{s.note}</span>}</div>
+      <div className="perf5-done">
+        Hunt status: <strong>{s.label}</strong>{' '}
+        {s.note && <span className="perf5-mini">{s.note}</span>}
+      </div>
       <button className="perf5-btn" onClick={() => setReportFinalizing(!reportFinalizing)}>
         {reportFinalizing ? 'Finish report finalization' : 'Re-run finalization'}
       </button>
@@ -768,21 +994,38 @@ export function PerceivedCompleteState() {
 // 50986 — Optimistic SLA badges
 // ---------------------------------------------------------------------------
 export function OptimisticSlaBadges() {
-  const [finding, setFinding] = useState({ severity: 'critical', status: 'open', createdAt: Date.now() - 20 * 3600000 });
+  const [finding, setFinding] = useState({
+    severity: 'critical',
+    status: 'open',
+    createdAt: Date.now() - 20 * 3600000,
+  });
   const badge = optimisticSlaBadge(finding);
   return (
     <div className="perf5-card">
       <h4>Optimistic SLA badges</h4>
       <span className={`perf5-sla ${badge.tone}`}>{badge.text}</span>
       <div className="perf5-row">
-        {['critical', 'high', 'medium', 'low'].map((s) => (
-          <button key={s} className="perf5-chip" onClick={() => setFinding((f) => ({ ...f, severity: s }))}>{s}</button>
+        {['critical', 'high', 'medium', 'low'].map(s => (
+          <button
+            key={s}
+            className="perf5-chip"
+            onClick={() => setFinding(f => ({ ...f, severity: s }))}
+          >
+            {s}
+          </button>
         ))}
-        <button className="perf5-btn" onClick={() => setFinding((f) => ({ ...f, status: f.status === 'open' ? 'triaged' : 'open' }))}>
+        <button
+          className="perf5-btn"
+          onClick={() =>
+            setFinding(f => ({ ...f, status: f.status === 'open' ? 'triaged' : 'open' }))
+          }
+        >
           Toggle status
         </button>
       </div>
-      <p className="perf5-note">Badge derives from the new severity instantly — no server round-trip.</p>
+      <p className="perf5-note">
+        Badge derives from the new severity instantly — no server round-trip.
+      </p>
     </div>
   );
 }
@@ -797,8 +1040,13 @@ export function ImmutableAvatarUrls() {
     <div className="perf5-card">
       <h4>Immutable avatar URLs</h4>
       <code className="perf5-code">{url}</code>
-      <p className="perf5-note">Cache-Control: <code>{'public, max-age=31536000, immutable'}</code> — the URL only changes when the avatar changes, so browsers never re-download it.</p>
-      <button className="perf5-btn" onClick={() => setVersion(`v${Date.now() % 100000}`)}>Change avatar (new version)</button>
+      <p className="perf5-note">
+        Cache-Control: <code>{'public, max-age=31536000, immutable'}</code> — the URL only changes
+        when the avatar changes, so browsers never re-download it.
+      </p>
+      <button className="perf5-btn" onClick={() => setVersion(`v${Date.now() % 100000}`)}>
+        Change avatar (new version)
+      </button>
     </div>
   );
 }
@@ -812,21 +1060,29 @@ export function CrossFadedPresetSwitches() {
     recent: ['Missing CSP header', 'Verbose error pages', 'Weak TLS cipher'],
   };
   const [sw, setSw] = useState(presetSwitch('recent', 'recent', presets.recent));
-  const switchTo = (name) => {
+  const switchTo = name => {
     const next = presetSwitch(sw.to, name, presets[name]);
     setSw(next);
-    setTimeout(() => setSw((s) => presetSwitchSettled(s)), 450);
+    setTimeout(() => setSw(s => presetSwitchSettled(s)), 450);
   };
   return (
     <div className="perf5-card">
       <h4>Cross-faded preset switches</h4>
       <div className="perf5-row">
-        {Object.keys(presets).map((p) => (
-          <button key={p} className={sw.to === p ? 'perf5-chip on' : 'perf5-chip'} onClick={() => switchTo(p)}>{p}</button>
+        {Object.keys(presets).map(p => (
+          <button
+            key={p}
+            className={sw.to === p ? 'perf5-chip on' : 'perf5-chip'}
+            onClick={() => switchTo(p)}
+          >
+            {p}
+          </button>
         ))}
       </div>
       <ul className="perf5-list">
-        {sw.results.map((r) => <li key={r}>{r}</li>)}
+        {sw.results.map(r => (
+          <li key={r}>{r}</li>
+        ))}
       </ul>
     </div>
   );
@@ -840,7 +1096,7 @@ export function OptimisticWatchToggles() {
     { id: 't1', name: 'acme.com', watched: true },
     { id: 't2', name: 'beta.io', watched: false },
   ]);
-  const toggle = (id) => {
+  const toggle = id => {
     const { optimistic, commit } = optimisticWatchToggle(targets, id, async () => ({ ok: true }));
     setTargets(optimistic); // bell flips immediately
     commit().then(({ targets: next }) => setTargets(next));
@@ -848,10 +1104,15 @@ export function OptimisticWatchToggles() {
   return (
     <div className="perf5-card">
       <h4>Optimistic watch toggles</h4>
-      {targets.map((t) => (
+      {targets.map(t => (
         <div key={t.id} className="perf5-row">
           <span>{t.name}</span>
-          <button className={`perf5-bell${t.watched ? ' on' : ''}`} onClick={() => toggle(t.id)} aria-pressed={t.watched} aria-label={`Watch ${t.name}`}>
+          <button
+            className={`perf5-bell${t.watched ? ' on' : ''}`}
+            onClick={() => toggle(t.id)}
+            aria-pressed={t.watched}
+            aria-label={`Watch ${t.name}`}
+          >
             {t.watched ? '🔔' : '🔕'}
           </button>
         </div>
@@ -875,18 +1136,32 @@ export function RouteBundleBudgets() {
     <div className="perf5-card">
       <h4>Route bundle budgets</h4>
       <table className="perf5-table">
-        <thead><tr><th>Route</th><th>gzip</th><th>Budget</th><th>CI</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Route</th>
+            <th>gzip</th>
+            <th>Budget</th>
+            <th>CI</th>
+          </tr>
+        </thead>
         <tbody>
-          {results.map((r) => (
+          {results.map(r => (
             <tr key={r.route}>
-              <td>{r.route}</td><td>{r.kb} KB</td><td>{r.budgetKb} KB</td>
-              <td className={r.pass ? 'perf5-pass' : 'perf5-fail'}>{r.pass ? 'PASS ✓' : 'FAIL ✗'}</td>
+              <td>{r.route}</td>
+              <td>{r.kb} KB</td>
+              <td>{r.budgetKb} KB</td>
+              <td className={r.pass ? 'perf5-pass' : 'perf5-fail'}>
+                {r.pass ? 'PASS ✓' : 'FAIL ✗'}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="perf5-note">
-        {failed.length ? `${failed.length} route(s) over budget — CI fails the build.` : 'All routes under budget.'} Budget constant: {ROUTE_BUNDLE_BUDGET_KB}KB.
+        {failed.length
+          ? `${failed.length} route(s) over budget — CI fails the build.`
+          : 'All routes under budget.'}{' '}
+        Budget constant: {ROUTE_BUNDLE_BUDGET_KB}KB.
       </p>
     </div>
   );
@@ -896,14 +1171,22 @@ export function RouteBundleBudgets() {
 // 50991 — Inlined critical CSS
 // ---------------------------------------------------------------------------
 export function InlinedCriticalCss() {
-  const selectors = ['.app-header', '.hero-title', '.skeleton-row', '.sidebar-link', '.footer-note'];
+  const selectors = [
+    '.app-header',
+    '.hero-title',
+    '.skeleton-row',
+    '.sidebar-link',
+    '.footer-note',
+  ];
   const critical = selectors.filter(isCriticalSelector);
-  const block = inlineCriticalCss(critical.map((s) => `${s} { /* … */ }`));
+  const block = inlineCriticalCss(critical.map(s => `${s} { /* … */ }`));
   return (
     <div className="perf5-card">
       <h4>Inlined critical CSS</h4>
       <div className="perf5-critdemo">
-        <div className="perf5-critdemo-header">First paint is styled instantly — critical CSS rides in the &lt;head&gt;.</div>
+        <div className="perf5-critdemo-header">
+          First paint is styled instantly — critical CSS rides in the &lt;head&gt;.
+        </div>
       </div>
       <p className="perf5-note">Critical selectors: {critical.join(', ')}</p>
       <pre className="perf5-pre">{block}</pre>
@@ -917,7 +1200,10 @@ export function InlinedCriticalCss() {
 export function OptimisticPagination() {
   const [items, setItems] = useState(['finding 1', 'finding 2', 'finding 3']);
   const [page, setPage] = useState(1);
-  const [prefetched, setPrefetched] = useState({ items: ['finding 4', 'finding 5', 'finding 6'], hasMore: true });
+  const [prefetched, setPrefetched] = useState({
+    items: ['finding 4', 'finding 5', 'finding 6'],
+    hasMore: true,
+  });
   const [loading, setLoading] = useState(false);
   const loadMore = () => {
     const r = optimisticAppend(items, prefetched, page); // instant
@@ -926,17 +1212,30 @@ export function OptimisticPagination() {
     setLoading(true);
     // Prefetch the next page in the background.
     setTimeout(() => {
-      setPrefetched({ items: [`finding ${r.page * 3 + 1}`, `finding ${r.page * 3 + 2}`], hasMore: r.page < 4 });
+      setPrefetched({
+        items: [`finding ${r.page * 3 + 1}`, `finding ${r.page * 3 + 2}`],
+        hasMore: r.page < 4,
+      });
       setLoading(false);
     }, 800);
   };
   return (
     <div className="perf5-card">
       <h4>Optimistic pagination</h4>
-      <ul className="perf5-list">{items.map((i) => <li key={i}>{i}</li>)}</ul>
-      {shouldPrefetchPage(prefetched.hasMore, loading) && <span className="perf5-mini">prefetching next page in background…</span>}
+      <ul className="perf5-list">
+        {items.map(i => (
+          <li key={i}>{i}</li>
+        ))}
+      </ul>
+      {shouldPrefetchPage(prefetched.hasMore, loading) && (
+        <span className="perf5-mini">prefetching next page in background…</span>
+      )}
       <button className="perf5-btn" onClick={loadMore} disabled={loading || !prefetched.hasMore}>
-        {loading ? 'Loading…' : prefetched.hasMore ? 'Load more (instant from prefetch)' : 'No more'}
+        {loading
+          ? 'Loading…'
+          : prefetched.hasMore
+            ? 'Load more (instant from prefetch)'
+            : 'No more'}
       </button>
     </div>
   );
@@ -955,7 +1254,7 @@ export function TimeSlicedRendering() {
     let off = 0;
     const t = setInterval(() => {
       const s = nextSlice(all, off, 60);
-      setRendered((r) => [...r, ...s.slice]);
+      setRendered(r => [...r, ...s.slice]);
       off = s.nextOffset;
       if (s.done) clearInterval(t);
     }, 90);
@@ -963,10 +1262,23 @@ export function TimeSlicedRendering() {
   return (
     <div className="perf5-card">
       <h4>Time-sliced rendering</h4>
-      <button className="perf5-btn" onClick={start}>Render 300 rows in slices</button>
-      <p className="perf5-note">{rendered.length}/{all.length} rows — each 60-row slice yields so the UI stays responsive.</p>
-      <div className="perf5-bar"><div className="perf5-barfill" style={{ width: `${(rendered.length / all.length) * 100}%` }} /></div>
-      <div className="perf5-sliced">{rendered.slice(-6).map((r) => <div key={r}>{r}</div>)}</div>
+      <button className="perf5-btn" onClick={start}>
+        Render 300 rows in slices
+      </button>
+      <p className="perf5-note">
+        {rendered.length}/{all.length} rows — each 60-row slice yields so the UI stays responsive.
+      </p>
+      <div className="perf5-bar">
+        <div
+          className="perf5-barfill"
+          style={{ width: `${(rendered.length / all.length) * 100}%` }}
+        />
+      </div>
+      <div className="perf5-sliced">
+        {rendered.slice(-6).map(r => (
+          <div key={r}>{r}</div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -980,16 +1292,19 @@ export function PerceivedLatencyAnalytics() {
     const t0 = performance.now();
     requestAnimationFrame(() => {
       const ack = Math.round(performance.now() - t0);
-      setSamples((s) => recordAckSample(s, ack, 'ack-demo'));
+      setSamples(s => recordAckSample(s, ack, 'ack-demo'));
     });
   };
   const stats = latencyStats(samples);
   return (
     <div className="perf5-card">
       <h4>Perceived-latency analytics</h4>
-      <button className="perf5-btn" onClick={click}>Click me (measures click→ack)</button>
+      <button className="perf5-btn" onClick={click}>
+        Click me (measures click→ack)
+      </button>
       <p className="perf5-note">
-        n={stats.n} · p50={stats.p50}ms · p95={stats.p95}ms · within 100ms budget: {stats.withinBudget}/{stats.n}
+        n={stats.n} · p50={stats.p50}ms · p95={stats.p95}ms · within 100ms budget:{' '}
+        {stats.withinBudget}/{stats.n}
       </p>
     </div>
   );
@@ -1002,9 +1317,9 @@ export function OptimisticToastUndo() {
   const [items, setItems] = useState(['finding A', 'finding B']);
   const [undoStack, setUndoStack] = useState([]);
   const [toast, setToast] = useState(null);
-  const dismiss = (item) => {
-    setItems((list) => list.filter((i) => i !== item));
-    setUndoStack((s) => pushUndo(s, `dismiss ${item}`, () => setItems((list) => [...list, item])));
+  const dismiss = item => {
+    setItems(list => list.filter(i => i !== item));
+    setUndoStack(s => pushUndo(s, `dismiss ${item}`, () => setItems(list => [...list, item])));
     setToast(item);
   };
   const undo = () => {
@@ -1016,15 +1331,26 @@ export function OptimisticToastUndo() {
   return (
     <div className="perf5-card">
       <h4>Optimistic toast undo</h4>
-      {items.map((i) => (
-        <div key={i} className="perf5-row"><span>{i}</span><button className="perf5-btn" onClick={() => dismiss(i)}>Dismiss</button></div>
+      {items.map(i => (
+        <div key={i} className="perf5-row">
+          <span>{i}</span>
+          <button className="perf5-btn" onClick={() => dismiss(i)}>
+            Dismiss
+          </button>
+        </div>
       ))}
       {toast && (
         <div className="perf5-toast" role="status">
-          Dismissed {toast} <button className="perf5-btn" onClick={undo}>Undo</button>
+          Dismissed {toast}{' '}
+          <button className="perf5-btn" onClick={undo}>
+            Undo
+          </button>
         </div>
       )}
-      <p className="perf5-note">Undo applies from the local stack instantly — the server confirm follows. Stack depth: {undoStack.length}.</p>
+      <p className="perf5-note">
+        Undo applies from the local stack instantly — the server confirm follows. Stack depth:{' '}
+        {undoStack.length}.
+      </p>
     </div>
   );
 }
@@ -1039,10 +1365,18 @@ export function ServiceWorkerAssetCache() {
   return (
     <div className="perf5-card">
       <h4>Service-worker asset cache</h4>
-      <p className="perf5-note">Cache: <code>{SW_CACHE_NAME}</code> · strategy for fresh entry: <strong>{strategy}</strong></p>
-      <ul className="perf5-list">{manifest.map((m) => <li key={m}>{m}</li>)}</ul>
+      <p className="perf5-note">
+        Cache: <code>{SW_CACHE_NAME}</code> · strategy for fresh entry: <strong>{strategy}</strong>
+      </p>
+      <ul className="perf5-list">
+        {manifest.map(m => (
+          <li key={m}>{m}</li>
+        ))}
+      </ul>
       <button className="perf5-btn" onClick={() => setRegistered(true)}>
-        {registered ? 'Service worker active ✓ — repeat visits are instant' : 'Register service worker'}
+        {registered
+          ? 'Service worker active ✓ — repeat visits are instant'
+          : 'Register service worker'}
       </button>
     </div>
   );
@@ -1057,7 +1391,7 @@ export function OptimisticChecklist() {
     { id: 'c2', label: 'Run your first hunt', done: false },
     { id: 'c3', label: 'Triage a finding', done: false },
   ]);
-  const complete = (id) => {
+  const complete = id => {
     const { optimistic, commit } = optimisticCheck(steps, id, async () => ({ ok: true }));
     setSteps(optimistic); // checks off instantly
     setTimeout(() => commit().then(({ steps: next }) => setSteps(next)), 700);
@@ -1065,9 +1399,14 @@ export function OptimisticChecklist() {
   return (
     <div className="perf5-card">
       <h4>Optimistic checklist</h4>
-      {steps.map((s) => (
+      {steps.map(s => (
         <label key={s.id} className="perf5-check">
-          <input type="checkbox" checked={s.done} onChange={() => complete(s.id)} disabled={s.done} />
+          <input
+            type="checkbox"
+            checked={s.done}
+            onChange={() => complete(s.id)}
+            disabled={s.done}
+          />
           {s.label} {s.pending && <span className="perf5-mini">confirming…</span>}
         </label>
       ))}
@@ -1080,15 +1419,21 @@ export function OptimisticChecklist() {
 // ---------------------------------------------------------------------------
 export function PreloadedUserSettings() {
   const stored = { theme: 'light', density: 'compact' };
-  const { settings, preloaded } = preloadSettings(stored, { theme: 'dark', density: 'comfortable' });
+  const { settings, preloaded } = preloadSettings(stored, {
+    theme: 'dark',
+    density: 'comfortable',
+  });
   const [theme, setTheme] = useState(settings.theme);
   return (
     <div className={`perf5-card ${firstRenderThemeClass({ theme })}`}>
       <h4>Preloaded user settings</h4>
       <p className="perf5-note">
-        Settings {preloaded ? 'loaded at login' : 'fell back to defaults'} — first render already matches: theme=<strong>{theme}</strong>, density=<strong>{settings.density}</strong>
+        Settings {preloaded ? 'loaded at login' : 'fell back to defaults'} — first render already
+        matches: theme=<strong>{theme}</strong>, density=<strong>{settings.density}</strong>
       </p>
-      <button className="perf5-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>Toggle theme</button>
+      <button className="perf5-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+        Toggle theme
+      </button>
     </div>
   );
 }
@@ -1097,18 +1442,23 @@ export function PreloadedUserSettings() {
 // 50999 — Optimistic reactions
 // ---------------------------------------------------------------------------
 export function OptimisticReactions() {
-  const [comment, setComment] = useState({ id: 'c1', text: 'Great catch on the SSRF chain!', reactions: { '👍': 2 }, reactedBy: [] });
-  const react = (emoji) => {
+  const [comment, setComment] = useState({
+    id: 'c1',
+    text: 'Great catch on the SSRF chain!',
+    reactions: { '👍': 2 },
+    reactedBy: [],
+  });
+  const react = emoji => {
     const next = optimisticReact(comment, emoji, 'me');
     setComment(next); // count increments instantly
-    setTimeout(() => setComment((c) => confirmReaction(c)), 600);
+    setTimeout(() => setComment(c => confirmReaction(c)), 600);
   };
   return (
     <div className="perf5-card">
       <h4>Optimistic reactions</h4>
       <p>{comment.text}</p>
       <div className="perf5-row">
-        {['👍', '🎯', '🔥'].map((e) => (
+        {['👍', '🎯', '🔥'].map(e => (
           <button key={e} className="perf5-chip" onClick={() => react(e)}>
             {e} {comment.reactions[e] || 0}
           </button>
@@ -1132,16 +1482,29 @@ export function FastPathRepeatHunts() {
     <div className="perf5-card">
       <h4>Fast-path repeat hunts</h4>
       <div className="perf5-row">
-        <input className="perf5-input" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="target domain" />
+        <input
+          className="perf5-input"
+          value={target}
+          onChange={e => setTarget(e.target.value)}
+          placeholder="target domain"
+        />
       </div>
       <p className="perf5-note">
         {plan.prefilled ? (
-          <>⚡ Cached recon found — pre-filled {plan.config.subdomains.length} subdomains ({plan.config.subdomains.join(', ')}), tech: {plan.config.techStack.join(', ')}. {plan.config.reason}.</>
+          <>
+            ⚡ Cached recon found — pre-filled {plan.config.subdomains.length} subdomains (
+            {plan.config.subdomains.join(', ')}), tech: {plan.config.techStack.join(', ')}.{' '}
+            {plan.config.reason}.
+          </>
         ) : (
-          <>No cached recon for <strong>{target}</strong> — full recon will run.</>
+          <>
+            No cached recon for <strong>{target}</strong> — full recon will run.
+          </>
         )}
       </p>
-      <button className="perf5-btn primary">Start hunt{plan.prefilled ? ' (fast path)' : ''}</button>
+      <button className="perf5-btn primary">
+        Start hunt{plan.prefilled ? ' (fast path)' : ''}
+      </button>
     </div>
   );
 }
@@ -1150,26 +1513,46 @@ export function FastPathRepeatHunts() {
 // Gallery — all 40 ideas in one reference view
 // ---------------------------------------------------------------------------
 const SECTIONS = [
-  ['FontDisplaySwap', FontDisplaySwap], ['OptimisticTabs', OptimisticTabs],
-  ['GhostActionButtons', GhostActionButtons], ['BandwidthAwareThumbs', BandwidthAwareThumbs],
-  ['LocalEchoPresence', LocalEchoPresence], ['DebouncedNoteAutosave', DebouncedNoteAutosave],
-  ['PredictiveDialogPreload', PredictiveDialogPreload], ['ShiftFreeFirstFinding', ShiftFreeFirstFinding],
-  ['OptimisticRetry', OptimisticRetry], ['WebSocketFirstUpdates', WebSocketFirstUpdates],
-  ['OfflineMutationQueue', OfflineMutationQueue], ['OptimisticReadReceipts', OptimisticReadReceipts],
-  ['ChunkedEvidenceStream', ChunkedEvidenceStream], ['MemoizedFindingCards', MemoizedFindingCards],
-  ['OptimisticRegrade', OptimisticRegrade], ['DescriptiveLoadingCopy', DescriptiveLoadingCopy],
-  ['InstantBackNavigation', InstantBackNavigation], ['OptimisticWidgetRefresh', OptimisticWidgetRefresh],
-  ['DeduplicatedRequests', DeduplicatedRequests], ['OptimisticHuntRename', OptimisticHuntRename],
-  ['LazyChainGraph', LazyChainGraph], ['SsrFallbackText', SsrFallbackText],
-  ['OptimisticFileAttach', OptimisticFileAttach], ['SmartPollingBackoff', SmartPollingBackoff],
-  ['PerceivedCompleteState', PerceivedCompleteState], ['OptimisticSlaBadges', OptimisticSlaBadges],
-  ['ImmutableAvatarUrls', ImmutableAvatarUrls], ['CrossFadedPresetSwitches', CrossFadedPresetSwitches],
-  ['OptimisticWatchToggles', OptimisticWatchToggles], ['RouteBundleBudgets', RouteBundleBudgets],
-  ['InlinedCriticalCss', InlinedCriticalCss], ['OptimisticPagination', OptimisticPagination],
-  ['TimeSlicedRendering', TimeSlicedRendering], ['PerceivedLatencyAnalytics', PerceivedLatencyAnalytics],
-  ['OptimisticToastUndo', OptimisticToastUndo], ['ServiceWorkerAssetCache', ServiceWorkerAssetCache],
-  ['OptimisticChecklist', OptimisticChecklist], ['PreloadedUserSettings', PreloadedUserSettings],
-  ['OptimisticReactions', OptimisticReactions], ['FastPathRepeatHunts', FastPathRepeatHunts],
+  ['FontDisplaySwap', FontDisplaySwap],
+  ['OptimisticTabs', OptimisticTabs],
+  ['GhostActionButtons', GhostActionButtons],
+  ['BandwidthAwareThumbs', BandwidthAwareThumbs],
+  ['LocalEchoPresence', LocalEchoPresence],
+  ['DebouncedNoteAutosave', DebouncedNoteAutosave],
+  ['PredictiveDialogPreload', PredictiveDialogPreload],
+  ['ShiftFreeFirstFinding', ShiftFreeFirstFinding],
+  ['OptimisticRetry', OptimisticRetry],
+  ['WebSocketFirstUpdates', WebSocketFirstUpdates],
+  ['OfflineMutationQueue', OfflineMutationQueue],
+  ['OptimisticReadReceipts', OptimisticReadReceipts],
+  ['ChunkedEvidenceStream', ChunkedEvidenceStream],
+  ['MemoizedFindingCards', MemoizedFindingCards],
+  ['OptimisticRegrade', OptimisticRegrade],
+  ['DescriptiveLoadingCopy', DescriptiveLoadingCopy],
+  ['InstantBackNavigation', InstantBackNavigation],
+  ['OptimisticWidgetRefresh', OptimisticWidgetRefresh],
+  ['DeduplicatedRequests', DeduplicatedRequests],
+  ['OptimisticHuntRename', OptimisticHuntRename],
+  ['LazyChainGraph', LazyChainGraph],
+  ['SsrFallbackText', SsrFallbackText],
+  ['OptimisticFileAttach', OptimisticFileAttach],
+  ['SmartPollingBackoff', SmartPollingBackoff],
+  ['PerceivedCompleteState', PerceivedCompleteState],
+  ['OptimisticSlaBadges', OptimisticSlaBadges],
+  ['ImmutableAvatarUrls', ImmutableAvatarUrls],
+  ['CrossFadedPresetSwitches', CrossFadedPresetSwitches],
+  ['OptimisticWatchToggles', OptimisticWatchToggles],
+  ['RouteBundleBudgets', RouteBundleBudgets],
+  ['InlinedCriticalCss', InlinedCriticalCss],
+  ['OptimisticPagination', OptimisticPagination],
+  ['TimeSlicedRendering', TimeSlicedRendering],
+  ['PerceivedLatencyAnalytics', PerceivedLatencyAnalytics],
+  ['OptimisticToastUndo', OptimisticToastUndo],
+  ['ServiceWorkerAssetCache', ServiceWorkerAssetCache],
+  ['OptimisticChecklist', OptimisticChecklist],
+  ['PreloadedUserSettings', PreloadedUserSettings],
+  ['OptimisticReactions', OptimisticReactions],
+  ['FastPathRepeatHunts', FastPathRepeatHunts],
 ];
 
 export function PerformanceRound5Gallery() {

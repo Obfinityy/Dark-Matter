@@ -23,7 +23,7 @@ export const COMPAT_ORDER = { ready: 0, tight: 1, risky: 2, blocked: 3 };
  * @param {() => string|null} getGpuString — returns the UNMASKED_RENDERER_WEBGL string
  */
 export function detectBrowserDevice(
-  nav = (typeof navigator !== 'undefined' ? navigator : {}),
+  nav = typeof navigator !== 'undefined' ? navigator : {},
   getGpuString = defaultGetGpuString
 ) {
   const cores = Number(nav?.hardwareConcurrency);
@@ -40,7 +40,7 @@ export function detectBrowserDevice(
     ramGB,
     ramCapped,
     gpu: gpu || null,
-    hasGpu: Boolean(gpu && !/swiftshader|llvmpipe|software|basic render/i.test(gpu))
+    hasGpu: Boolean(gpu && !/swiftshader|llvmpipe|software|basic render/i.test(gpu)),
   };
 }
 
@@ -69,7 +69,7 @@ export function browserBudget(device) {
     return {
       maxModelGB: null,
       verdict:
-        'Could not read this device\u2019s RAM from the browser — models are listed smallest-first; start with an 8B.'
+        'Could not read this device\u2019s RAM from the browser — models are listed smallest-first; start with an 8B.',
     };
   }
   const maxModelGB = Math.max(0, Math.floor(ramGB * 0.8 - 1.5));
@@ -132,7 +132,7 @@ export function rankModelForBrowser(model, device) {
   if (!deviceRam) {
     return {
       verdict: (model.sizeGB || 0) <= 5 ? 'ready' : 'tight',
-      reasons: ['Browser did not expose RAM — ranked by model size only.']
+      reasons: ['Browser did not expose RAM — ranked by model size only.'],
     };
   }
 
@@ -166,15 +166,21 @@ export function rankModelForBrowser(model, device) {
   }
 
   if (ramRatio > 0.6) {
-    reasons.push(`Will use ~${ramGB} GB of ${deviceRam} GB RAM — runs, but avoid heavy apps alongside it.`);
+    reasons.push(
+      `Will use ~${ramGB} GB of ${deviceRam} GB RAM — runs, but avoid heavy apps alongside it.`
+    );
     return { verdict: 'tight', reasons };
   }
 
-  reasons.push(vramGB === 0 ? 'Runs comfortably on CPU — no GPU required.' : 'Fits comfortably in this device\u2019s memory.');
+  reasons.push(
+    vramGB === 0
+      ? 'Runs comfortably on CPU — no GPU required.'
+      : 'Fits comfortably in this device\u2019s memory.'
+  );
   return { verdict: 'ready', reasons };
 }
 
-const isCompatibleVerdict = (verdict) => verdict === 'ready' || verdict === 'tight';
+const isCompatibleVerdict = verdict => verdict === 'ready' || verdict === 'tight';
 
 /**
  * Sort models for the catalog: compatible (ready → tight) ON TOP, then
@@ -184,9 +190,13 @@ const isCompatibleVerdict = (verdict) => verdict === 'ready' || verdict === 'tig
  */
 export function sortModelsByBrowserCompat(models, device) {
   return [...models]
-    .map((model) => {
+    .map(model => {
       const compat = rankModelForBrowser(model, device);
-      return { ...model, browserCompat: compat, browserCompatible: isCompatibleVerdict(compat.verdict) };
+      return {
+        ...model,
+        browserCompat: compat,
+        browserCompatible: isCompatibleVerdict(compat.verdict),
+      };
     })
     .sort((a, b) => {
       const order = COMPAT_ORDER[a.browserCompat.verdict] - COMPAT_ORDER[b.browserCompat.verdict];

@@ -35,7 +35,12 @@ const SDK_SIGNATURES = [
     vendor: 'Stripe',
     category: 'payments',
     markers: ['js.stripe.com', 'Stripe.setPublishableKey', '__stripe-js__', 'stripe-js/pure'],
-    endpoints: ['https://api.stripe.com', 'https://js.stripe.com', 'https://m.stripe.com', 'https://r.stripe.com'],
+    endpoints: [
+      'https://api.stripe.com',
+      'https://js.stripe.com',
+      'https://m.stripe.com',
+      'https://r.stripe.com',
+    ],
   },
   {
     name: 'Twilio SDK',
@@ -109,7 +114,12 @@ const SDK_SIGNATURES = [
     name: 'LaunchDarkly JS client',
     vendor: 'LaunchDarkly',
     category: 'flags',
-    markers: ['launchdarkly', 'ldclient-js', 'app.launchdarkly.com', 'clientstream.launchdarkly.com'],
+    markers: [
+      'launchdarkly',
+      'ldclient-js',
+      'app.launchdarkly.com',
+      'clientstream.launchdarkly.com',
+    ],
     endpoints: [
       'https://app.launchdarkly.com',
       'https://clientstream.launchdarkly.com',
@@ -161,13 +171,10 @@ export function detectSdk(js) {
   const lowered = src.toLowerCase();
   const hits = [];
   for (const sig of SDK_SIGNATURES) {
-    const found = sig.markers.filter((m) => lowered.includes(m.toLowerCase()));
+    const found = sig.markers.filter(m => lowered.includes(m.toLowerCase()));
     if (found.length === 0) continue;
     // Distinctive host markers (contain a dot + tld-ish) count double.
-    const weight = found.reduce(
-      (n, m) => n + (/[a-z0-9]\.[a-z]{2,}/i.test(m) ? 2 : 1),
-      0
-    );
+    const weight = found.reduce((n, m) => n + (/[a-z0-9]\.[a-z]{2,}/i.test(m) ? 2 : 1), 0);
     if (found.length >= 2 || weight >= 2) {
       hits.push({
         name: sig.name,
@@ -234,7 +241,7 @@ export function extractSdkVersions(js) {
 function inferLibrary(src, index) {
   const window = src.slice(Math.max(0, index - 400), index).toLowerCase();
   for (const sig of SDK_SIGNATURES) {
-    if (sig.markers.some((m) => window.includes(m.toLowerCase()))) return sig.name;
+    if (sig.markers.some(m => window.includes(m.toLowerCase()))) return sig.name;
   }
   return 'unknown';
 }
@@ -247,8 +254,12 @@ function inferLibrary(src, index) {
  * @returns {number} -1 | 0 | 1
  */
 export function compareVersions(a, b) {
-  const pa = String(a).split(/[.+_-]/).map((x) => (isNaN(x) ? x : Number(x)));
-  const pb = String(b).split(/[.+_-]/).map((x) => (isNaN(x) ? x : Number(x)));
+  const pa = String(a)
+    .split(/[.+_-]/)
+    .map(x => (isNaN(x) ? x : Number(x)));
+  const pb = String(b)
+    .split(/[.+_-]/)
+    .map(x => (isNaN(x) ? x : Number(x)));
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const x = pa[i] ?? 0;
     const y = pb[i] ?? 0;
@@ -282,9 +293,15 @@ export const KNOWN_CURRENT_SDKS = {
  * @returns {Array<{library:string,pinned:string,latestKnown:string,status:'outdated'|'current'|'unknown-library'}>}
  */
 export function analyzeSdkFreshness(pins) {
-  return pins.map((p) => {
+  return pins.map(p => {
     const latest = KNOWN_CURRENT_SDKS[p.library];
-    if (!latest) return { library: p.library, pinned: p.version, latestKnown: null, status: 'unknown-library' };
+    if (!latest)
+      return {
+        library: p.library,
+        pinned: p.version,
+        latestKnown: null,
+        status: 'unknown-library',
+      };
     const cmp = compareVersions(p.version, latest);
     return {
       library: p.library,
@@ -364,7 +381,11 @@ export function findFeatureFlagEndpoints(text) {
     }
     for (const host of svc.hosts) {
       if (src.toLowerCase().includes(host)) {
-        const kind = host.includes('stream') ? 'streaming' : host.includes('event') || host.includes('logx') ? 'events' : 'sdk-host';
+        const kind = host.includes('stream')
+          ? 'streaming'
+          : host.includes('event') || host.includes('logx')
+            ? 'events'
+            : 'sdk-host';
         push(svc.service, kind, `https://${host}`);
       }
     }
@@ -393,8 +414,8 @@ export function auditBundledSdks(js) {
     detected,
     versions,
     freshness,
-    outdatedCount: freshness.filter((f) => f.status === 'outdated').length,
+    outdatedCount: freshness.filter(f => f.status === 'outdated').length,
     flagServices: findFeatureFlagEndpoints(js),
-    thirdPartyHosts: [...new Set(detected.flatMap((d) => d.knownEndpoints))],
+    thirdPartyHosts: [...new Set(detected.flatMap(d => d.knownEndpoints))],
   };
 }

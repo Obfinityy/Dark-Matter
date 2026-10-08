@@ -35,7 +35,13 @@ function hostOf(value) {
 export function parseHostMeta(xml = '') {
   const notes = [];
   if (typeof xml !== 'string' || !/<XRD\b/i.test(xml)) {
-    return { valid: false, links: [], uniqueHosts: [], lrddTemplates: [], notes: ['Not an XRD document'] };
+    return {
+      valid: false,
+      links: [],
+      uniqueHosts: [],
+      lrddTemplates: [],
+      notes: ['Not an XRD document'],
+    };
   }
 
   const links = [];
@@ -63,7 +69,9 @@ export function parseHostMeta(xml = '') {
 
   if (links.length === 0) notes.push('XRD present but no Link elements found');
   if (lrddTemplates.length > 0) {
-    notes.push(`LRDD template(s) found — profile-service host(s) resolvable by substituting the subject: ${[...unique].join(', ')}`);
+    notes.push(
+      `LRDD template(s) found — profile-service host(s) resolvable by substituting the subject: ${[...unique].join(', ')}`
+    );
   }
 
   return { valid: true, links, uniqueHosts: [...unique], lrddTemplates, notes };
@@ -75,7 +83,9 @@ export function parseHostMeta(xml = '') {
  * @returns {string}
  */
 export function hostMetaUrl(domain) {
-  const clean = String(domain).replace(/^https?:\/\//, '').split('/')[0];
+  const clean = String(domain)
+    .replace(/^https?:\/\//, '')
+    .split('/')[0];
   return `https://${clean}/.well-known/host-meta`;
 }
 

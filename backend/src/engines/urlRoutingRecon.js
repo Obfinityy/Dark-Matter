@@ -30,10 +30,34 @@
  * @type {string[]}
  */
 export const REDIRECT_PARAM_NAMES = [
-  'next', 'return', 'returnurl', 'return_url', 'redirect', 'redirect_to',
-  'redirectto', 'redirect_uri', 'redir', 'url', 'target', 'to', 'dest',
-  'destination', 'continue', 'continue_to', 'r', 'ref', 'referer', 'referrer',
-  'callback', 'goto', 'go', 'forward', 'fwd', 'jump', 'link', 'u',
+  'next',
+  'return',
+  'returnurl',
+  'return_url',
+  'redirect',
+  'redirect_to',
+  'redirectto',
+  'redirect_uri',
+  'redir',
+  'url',
+  'target',
+  'to',
+  'dest',
+  'destination',
+  'continue',
+  'continue_to',
+  'r',
+  'ref',
+  'referer',
+  'referrer',
+  'callback',
+  'goto',
+  'go',
+  'forward',
+  'fwd',
+  'jump',
+  'link',
+  'u',
 ];
 
 /**
@@ -41,9 +65,24 @@ export const REDIRECT_PARAM_NAMES = [
  * @type {string[]}
  */
 export const SHORTENER_DOMAINS = [
-  'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'buff.ly',
-  'rebrand.ly', 'cutt.ly', 'shorte.st', 'adf.ly', 'rb.gy', 't.ly',
-  'tiny.cc', 'shorturl.at', 's.id', 'dub.sh', 'bitly.com',
+  'bit.ly',
+  'tinyurl.com',
+  't.co',
+  'goo.gl',
+  'ow.ly',
+  'is.gd',
+  'buff.ly',
+  'rebrand.ly',
+  'cutt.ly',
+  'shorte.st',
+  'adf.ly',
+  'rb.gy',
+  't.ly',
+  'tiny.cc',
+  'shorturl.at',
+  's.id',
+  'dub.sh',
+  'bitly.com',
 ];
 
 /**
@@ -68,7 +107,12 @@ export const AFFILIATE_NETWORKS = [
  * @type {string[]}
  */
 export const UTM_PARAM_NAMES = [
-  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+  'utm_id',
 ];
 
 /**
@@ -78,13 +122,29 @@ export const UTM_PARAM_NAMES = [
 export const SESSION_ID_PATTERNS = [
   { name: 'PHPSESSID', pattern: /(?:^|[?&;])phpsessid=([^&;/?#]+)/i, kind: 'either' },
   { name: 'JSESSIONID', pattern: /(?:^|[?&;/])jsessionid=([^&;/?#]+)/i, kind: 'either' },
-  { name: 'ASP.NET SessionID', pattern: /(?:^|[?&;/])aspsessionid[a-z]*=([^&;/?#]+)/i, kind: 'either' },
-  { name: 'ASP.NET_SessionId cookie-in-url', pattern: /(?:^|[?&;/])asp\.net_sessionid=([^&;/?#]+)/i, kind: 'either' },
+  {
+    name: 'ASP.NET SessionID',
+    pattern: /(?:^|[?&;/])aspsessionid[a-z]*=([^&;/?#]+)/i,
+    kind: 'either',
+  },
+  {
+    name: 'ASP.NET_SessionId cookie-in-url',
+    pattern: /(?:^|[?&;/])asp\.net_sessionid=([^&;/?#]+)/i,
+    kind: 'either',
+  },
   { name: 'sessionid', pattern: /(?:^|[?&;/])sessionid=([^&;/?#]+)/i, kind: 'either' },
   { name: 'sessid', pattern: /(?:^|[?&;/])sessid=([^&;/?#]+)/i, kind: 'either' },
   { name: 'sid', pattern: /(?:^|[?&;/])sid=([A-Za-z0-9+/=_-]{8,})/i, kind: 'either' },
-  { name: 'token', pattern: /(?:^|[?&;/])(?:session_?token|auth_?token)=([^&;/?#]+)/i, kind: 'either' },
-  { name: 'path-embedded id', pattern: /\/[Ss](?:ession)?[_-]?[Ii][Dd]?[\/=]([A-Za-z0-9_-]{8,})/, kind: 'path' },
+  {
+    name: 'token',
+    pattern: /(?:^|[?&;/])(?:session_?token|auth_?token)=([^&;/?#]+)/i,
+    kind: 'either',
+  },
+  {
+    name: 'path-embedded id',
+    pattern: /\/[Ss](?:ession)?[_-]?[Ii][Dd]?[\/=]([A-Za-z0-9_-]{8,})/,
+    kind: 'path',
+  },
 ];
 
 /**
@@ -95,7 +155,12 @@ export const SESSION_ID_PATTERNS = [
 export const ENCODED_CHAR_MAP = [
   { char: 'A', encoded: '%41', doubleEncoded: '%2541', description: 'uppercase letter' },
   { char: 'a', encoded: '%61', doubleEncoded: '%2561', description: 'lowercase letter' },
-  { char: '~', encoded: '%7E', doubleEncoded: '%257E', description: 'tilde (unreserved per RFC 3986)' },
+  {
+    char: '~',
+    encoded: '%7E',
+    doubleEncoded: '%257E',
+    description: 'tilde (unreserved per RFC 3986)',
+  },
   { char: '.', encoded: '%2E', doubleEncoded: '%252E', description: 'dot' },
   { char: '-', encoded: '%2D', doubleEncoded: '%252D', description: 'hyphen' },
   { char: ' ', encoded: '%20', doubleEncoded: '%2520', description: 'space' },
@@ -133,7 +198,9 @@ function safeHost(value, baseUrl = '') {
   // Protocol-relative or schemeless host ("example.com/path").
   const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed)
     ? trimmed
-    : trimmed.startsWith('//') ? `https:${trimmed}` : `https://${trimmed}`;
+    : trimmed.startsWith('//')
+      ? `https:${trimmed}`
+      : `https://${trimmed}`;
   try {
     const host = new URL(withScheme).hostname.toLowerCase();
     if (!host || host.includes(' ')) return null;
@@ -157,7 +224,7 @@ function locationPath(loc) {
   }
 }
 
-const stripTrailing = (s) => String(s || '').replace(/\/+$/, '') || '/';
+const stripTrailing = s => String(s || '').replace(/\/+$/, '') || '/';
 
 /**
  * Parse the query string of a URL into a lowercase-keyed map (no throw).
@@ -253,9 +320,13 @@ export function findShortenerLinks(urls = []) {
   for (const url of urls) {
     if (typeof url !== 'string') continue;
     let parsed;
-    try { parsed = new URL(url); } catch { continue; }
+    try {
+      parsed = new URL(url);
+    } catch {
+      continue;
+    }
     const host = parsed.hostname.toLowerCase();
-    const match = SHORTENER_DOMAINS.find((d) => host === d || host.endsWith(`.${d}`));
+    const match = SHORTENER_DOMAINS.find(d => host === d || host.endsWith(`.${d}`));
     if (!match) continue;
     const code = parsed.pathname.split('/').filter(Boolean).join('/') || '';
     out.push({ url, shortener: match, code });
@@ -274,7 +345,7 @@ export function findShortenerLinks(urls = []) {
  * @returns {{url: string, shortener: string, code: string, method: string, action: string}[]}
  */
 export function buildExpansionPlan(links = []) {
-  return (links || []).map((l) => ({
+  return (links || []).map(l => ({
     url: l.url,
     shortener: l.shortener,
     code: l.code,
@@ -316,10 +387,14 @@ export function mapAffiliateLinks(urls = []) {
   for (const url of urls) {
     if (typeof url !== 'string') continue;
     let parsed;
-    try { parsed = new URL(url); } catch { continue; }
+    try {
+      parsed = new URL(url);
+    } catch {
+      continue;
+    }
     const host = parsed.hostname.toLowerCase();
     for (const net of AFFILIATE_NETWORKS) {
-      const domain = net.domains.find((d) => host === d || host.endsWith(`.${d}`));
+      const domain = net.domains.find(d => host === d || host.endsWith(`.${d}`));
       if (domain) {
         out.push({ url, network: net.network, affiliateDomain: domain });
         break;
@@ -358,8 +433,12 @@ export function summarizeAffiliateNetworks(mapped = []) {
  */
 export function extractUtmParams(url = '') {
   const blank = {
-    utm_source: '', utm_medium: '', utm_campaign: '',
-    utm_term: '', utm_content: '', utm_id: '',
+    utm_source: '',
+    utm_medium: '',
+    utm_campaign: '',
+    utm_term: '',
+    utm_content: '',
+    utm_id: '',
   };
   if (typeof url !== 'string') return blank;
   const params = queryParams(url);
@@ -401,7 +480,11 @@ export function inferCampaignInfrastructure(urls = []) {
     const g = groups.get(key);
     g.linkCount += 1;
     let host = null;
-    try { host = new URL(url).hostname.toLowerCase(); } catch { /* ignore */ }
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      /* ignore */
+    }
     if (host && !g.landingHosts.includes(host)) g.landingHosts.push(host);
     if (utm.utm_term && !g.terms.includes(utm.utm_term)) g.terms.push(utm.utm_term);
     if (utm.utm_content && !g.contents.includes(utm.utm_content)) g.contents.push(utm.utm_content);
@@ -412,7 +495,11 @@ export function inferCampaignInfrastructure(urls = []) {
   for (const c of campaigns) {
     for (const h of c.landingHosts) infra.add(h);
     const src = c.source.toLowerCase();
-    if (/(google|facebook|fb|instagram|tiktok|linkedin|twitter|x\.com|bing|newsletter|email)/.test(src)) {
+    if (
+      /(google|facebook|fb|instagram|tiktok|linkedin|twitter|x\.com|bing|newsletter|email)/.test(
+        src
+      )
+    ) {
       infra.add(`ad-network:${c.source}`);
     }
   }
@@ -448,7 +535,9 @@ export function detectSessionIds(urls = []) {
       let location = 'query';
       try {
         const parsed = new URL(url);
-        const inQuery = parsed.search.includes(value) || parsed.search.toLowerCase().includes(sig.name.toLowerCase().replace(/[^a-z]/g, ''));
+        const inQuery =
+          parsed.search.includes(value) ||
+          parsed.search.toLowerCase().includes(sig.name.toLowerCase().replace(/[^a-z]/g, ''));
         location = inQuery ? 'query' : 'path';
       } catch {
         location = url.includes('?') ? 'query' : 'path';
@@ -496,25 +585,38 @@ export function planSlashProbes(path = '') {
  * @returns {{slashHandling: 'adds'|'removes'|'none'|'inconsistent'|'unknown', redirectMap: {from: string, to: string|null, status: number}[], frameworkHint: string|null, note: string}}
  */
 export function analyzeSlashRedirects(path = '', observations = []) {
-  const redirectMap = (observations || []).map((o) => ({
+  const redirectMap = (observations || []).map(o => ({
     from: o.path,
     to: o.location || null,
     status: o.status,
   }));
   if (redirectMap.length === 0) {
-    return { slashHandling: 'unknown', redirectMap, frameworkHint: null, note: 'no observations recorded' };
+    return {
+      slashHandling: 'unknown',
+      redirectMap,
+      frameworkHint: null,
+      note: 'no observations recorded',
+    };
   }
-  const adds = redirectMap.some((r) => {
+  const adds = redirectMap.some(r => {
     const toPath = locationPath(r.to);
-    return toPath && stripTrailing(toPath) === stripTrailing(r.from)
-      && toPath.endsWith('/') && !String(r.from).endsWith('/');
+    return (
+      toPath &&
+      stripTrailing(toPath) === stripTrailing(r.from) &&
+      toPath.endsWith('/') &&
+      !String(r.from).endsWith('/')
+    );
   });
-  const removes = redirectMap.some((r) => {
+  const removes = redirectMap.some(r => {
     const toPath = locationPath(r.to);
-    return toPath && stripTrailing(toPath) === stripTrailing(r.from)
-      && !toPath.endsWith('/') && String(r.from).endsWith('/');
+    return (
+      toPath &&
+      stripTrailing(toPath) === stripTrailing(r.from) &&
+      !toPath.endsWith('/') &&
+      String(r.from).endsWith('/')
+    );
   });
-  const anyRedirect = redirectMap.some((r) => r.to && [301, 302, 307, 308].includes(r.status));
+  const anyRedirect = redirectMap.some(r => r.to && [301, 302, 307, 308].includes(r.status));
   let slashHandling = 'none';
   if (adds && removes) slashHandling = 'inconsistent';
   else if (adds) slashHandling = 'adds';
@@ -522,9 +624,12 @@ export function analyzeSlashRedirects(path = '', observations = []) {
   else if (!anyRedirect) slashHandling = 'none';
 
   let frameworkHint = null;
-  if (slashHandling === 'adds') frameworkHint = 'Django/Flask-style (APPEND_SLASH-like canonicalization)';
-  else if (slashHandling === 'removes') frameworkHint = 'Express-style (strict-routing slash trimming)';
-  else if (slashHandling === 'inconsistent') frameworkHint = 'mixed layers — possible reverse-proxy in front of app server';
+  if (slashHandling === 'adds')
+    frameworkHint = 'Django/Flask-style (APPEND_SLASH-like canonicalization)';
+  else if (slashHandling === 'removes')
+    frameworkHint = 'Express-style (strict-routing slash trimming)';
+  else if (slashHandling === 'inconsistent')
+    frameworkHint = 'mixed layers — possible reverse-proxy in front of app server';
 
   return {
     slashHandling,
@@ -549,14 +654,22 @@ export function planCaseProbes(path = '') {
   const p = String(path || '');
   if (!p) return [];
   const variants = new Map();
-  const add = (label, v) => { if (v !== p && !variants.has(v)) variants.set(v, label); };
+  const add = (label, v) => {
+    if (v !== p && !variants.has(v)) variants.set(v, label);
+  };
   add('lowercase', p.toLowerCase());
   add('uppercase', p.toUpperCase());
-  const swap = p.split('').map((c) => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join('');
+  const swap = p
+    .split('')
+    .map(c => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()))
+    .join('');
   add('swapped-case', swap);
   // Capitalize each path segment — catches case-insensitive routers that
   // canonicalize only the first letter.
-  const capSeg = p.split('/').map((s) => (s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s)).join('/');
+  const capSeg = p
+    .split('/')
+    .map(s => (s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s))
+    .join('/');
   add('capitalized-segments', capSeg);
   return [...variants.entries()].map(([v, label]) => ({ label, path: v }));
 }
@@ -601,13 +714,15 @@ export function analyzeCaseResponses(path = '', responses = []) {
     }
   }
   let caseSensitive = null;
-  if (allNotFound) caseSensitive = true; // router rejects every variant
+  if (allNotFound)
+    caseSensitive = true; // router rejects every variant
   else if (allSameAsOriginal) caseSensitive = false; // router normalizes case
-  const fingerprint = caseSensitive === false
-    ? 'case-insensitive routing (Windows/IIS-style or normalizing router)'
-    : caseSensitive === true
-      ? 'case-sensitive routing (Linux/nginx-style strict match)'
-      : 'mixed case behavior — layered routing or per-route rules';
+  const fingerprint =
+    caseSensitive === false
+      ? 'case-insensitive routing (Windows/IIS-style or normalizing router)'
+      : caseSensitive === true
+        ? 'case-sensitive routing (Linux/nginx-style strict match)'
+        : 'mixed case behavior — layered routing or per-route rules';
   return { caseSensitive, behavior, hiddenRouteHints, fingerprint };
 }
 
@@ -624,7 +739,7 @@ export function analyzeCaseResponses(path = '', responses = []) {
 export function planEncodingProbes(path = '') {
   const p = String(path || '');
   if (!p) return [];
-  return ENCODED_CHAR_MAP.map((e) => ({
+  return ENCODED_CHAR_MAP.map(e => ({
     label: `encoded-${e.description}`,
     // Encode the first path character of the base path to observe normalization.
     path: p.charAt(0) === '/' ? `/${e.encoded}${p.slice(2)}` : `${e.encoded}${p.slice(1)}`,
@@ -647,7 +762,7 @@ export function planEncodingProbes(path = '') {
 export function analyzeNormalization(probes = [], observations = []) {
   const notes = [];
   const normalizedChars = [];
-  const byLabel = new Map((observations || []).map((o) => [o.label, o]));
+  const byLabel = new Map((observations || []).map(o => [o.label, o]));
   let decoded = 0;
   let total = 0;
   for (const probe of probes || []) {
@@ -691,13 +806,25 @@ export function analyzeNormalization(probes = [], observations = []) {
  */
 export function planDoubleEncodingProbes(path = '', char = 'A') {
   const p = String(path || '');
-  const entry = ENCODED_CHAR_MAP.find((e) => e.char === char) || ENCODED_CHAR_MAP[0];
+  const entry = ENCODED_CHAR_MAP.find(e => e.char === char) || ENCODED_CHAR_MAP[0];
   if (!p) return [];
   const rest = p.charAt(0) === '/' ? p.slice(2) : p.slice(1);
   const prefix = p.charAt(0) === '/' ? '/' : '';
   return [
-    { label: `single-encoded-${entry.description}`, path: `${prefix}${entry.encoded}${rest}`, encoding: 'single', char: entry.char, encoded: entry.encoded },
-    { label: `double-encoded-${entry.description}`, path: `${prefix}${entry.doubleEncoded}${rest}`, encoding: 'double', char: entry.char, encoded: entry.encoded },
+    {
+      label: `single-encoded-${entry.description}`,
+      path: `${prefix}${entry.encoded}${rest}`,
+      encoding: 'single',
+      char: entry.char,
+      encoded: entry.encoded,
+    },
+    {
+      label: `double-encoded-${entry.description}`,
+      path: `${prefix}${entry.doubleEncoded}${rest}`,
+      encoding: 'double',
+      char: entry.char,
+      encoded: entry.encoded,
+    },
   ];
 }
 
@@ -712,7 +839,7 @@ export function planDoubleEncodingProbes(path = '', char = 'A') {
  */
 export function analyzeDoubleEncoding(probes = [], observations = []) {
   const notes = [];
-  const byLabel = new Map((observations || []).map((o) => [o.label, o]));
+  const byLabel = new Map((observations || []).map(o => [o.label, o]));
   let single = null;
   let dbl = null;
   for (const probe of probes || []) {
@@ -720,7 +847,8 @@ export function analyzeDoubleEncoding(probes = [], observations = []) {
     if (!obs) continue;
     if (probe.encoding === 'single') single = obs;
     else dbl = obs;
-    if (obs.servedPath) notes.push(`${probe.label}: server acted on '${obs.servedPath}' (status ${obs.status})`);
+    if (obs.servedPath)
+      notes.push(`${probe.label}: server acted on '${obs.servedPath}' (status ${obs.status})`);
   }
   if (!single || !dbl) {
     return {
@@ -735,22 +863,25 @@ export function analyzeDoubleEncoding(probes = [], observations = []) {
   // The double-encoded sequence (e.g. %2541) must be fully gone from the
   // served path AND the literal char present — a single decode would leave
   // the once-encoded form (%41) behind.
-  const probeChar = (probes || []).find((pr) => pr.encoding === 'double')?.char || 'A';
+  const probeChar = (probes || []).find(pr => pr.encoding === 'double')?.char || 'A';
   const doubleDecoded = Boolean(
-    dbl.servedPath
-      && dbl.servedPath.includes(probeChar)
-      && !/%25/i.test(dbl.servedPath)
-      && dbl.status === 200,
+    dbl.servedPath &&
+    dbl.servedPath.includes(probeChar) &&
+    !/%25/i.test(dbl.servedPath) &&
+    dbl.status === 200
   );
   const singleRejected = single.status === 400 || single.status === 404;
   let interpretation;
   let wafFingerprintHint = null;
   if (doubleDecoded && !singleRejected) {
     interpretation = 'stack decodes more than once — layered normalization (proxy/WAF + app)';
-    wafFingerprintHint = 'double-decoding layer present: WAF may inspect a different encoding layer than the app routes on';
+    wafFingerprintHint =
+      'double-decoding layer present: WAF may inspect a different encoding layer than the app routes on';
   } else if (doubleDecoded) {
-    interpretation = 'double-encoded form accepted while single form rejected — asymmetric normalization across layers';
-    wafFingerprintHint = 'possible WAF bypass surface via encoding asymmetry (verify manually in scope)';
+    interpretation =
+      'double-encoded form accepted while single form rejected — asymmetric normalization across layers';
+    wafFingerprintHint =
+      'possible WAF bypass surface via encoding asymmetry (verify manually in scope)';
   } else {
     interpretation = 'no double decoding — single normalization pass';
   }
@@ -775,7 +906,10 @@ export function planSemicolonProbes(path = '') {
   return [
     { label: 'semicolon-param', path: `${p};probe=1` },
     { label: 'semicolon-empty-param', path: `${p};` },
-    { label: 'semicolon-mid-path', path: p.includes('/') ? `${p.replace(/\/([^/]*)$/, ';probe=1/$1')}` : `${p};probe=1` },
+    {
+      label: 'semicolon-mid-path',
+      path: p.includes('/') ? `${p.replace(/\/([^/]*)$/, ';probe=1/$1')}` : `${p};probe=1`,
+    },
     { label: 'semicolon-jsessionid-style', path: `${p};id=abc123` },
   ];
 }
@@ -792,18 +926,31 @@ export function planSemicolonProbes(path = '') {
 export function analyzeSemicolonResponses(path = '', responses = []) {
   const perProbe = {};
   if (!responses || responses.length === 0) {
-    return { behavior: 'unknown', layerSplit: false, details: 'no observations recorded', perProbe };
+    return {
+      behavior: 'unknown',
+      layerSplit: false,
+      details: 'no observations recorded',
+      perProbe,
+    };
   }
   const statuses = new Set();
   let sawRedirect = false;
   let sawServed = false;
   for (const r of responses) {
     statuses.add(r.status);
-    if ([301, 302, 307, 308].includes(r.status)) { perProbe[r.label] = 'redirected'; sawRedirect = true; }
-    else if (r.status === 200) { perProbe[r.label] = 'served'; sawServed = true; }
-    else if (r.status === 404) { perProbe[r.label] = 'not-found'; }
-    else if (r.status === 400) { perProbe[r.label] = 'rejected'; }
-    else { perProbe[r.label] = `status-${r.status}`; }
+    if ([301, 302, 307, 308].includes(r.status)) {
+      perProbe[r.label] = 'redirected';
+      sawRedirect = true;
+    } else if (r.status === 200) {
+      perProbe[r.label] = 'served';
+      sawServed = true;
+    } else if (r.status === 404) {
+      perProbe[r.label] = 'not-found';
+    } else if (r.status === 400) {
+      perProbe[r.label] = 'rejected';
+    } else {
+      perProbe[r.label] = `status-${r.status}`;
+    }
   }
   let behavior = 'unified';
   let layerSplit = false;
@@ -811,13 +958,16 @@ export function analyzeSemicolonResponses(path = '', responses = []) {
   if (statuses.size > 1) {
     behavior = 'split';
     layerSplit = true;
-    details = 'semicolon segments are handled differently across probes — routing layers disagree on the resource identity';
+    details =
+      'semicolon segments are handled differently across probes — routing layers disagree on the resource identity';
   } else if (sawRedirect) {
     behavior = 'redirect';
-    details = 'semicolon variants are canonicalized via redirect — router strips or normalizes the segment';
+    details =
+      'semicolon variants are canonicalized via redirect — router strips or normalizes the segment';
   } else if (sawServed) {
     behavior = 'unified';
-    details = 'all semicolon variants serve the same resource — segment ignored or stripped uniformly';
+    details =
+      'all semicolon variants serve the same resource — segment ignored or stripped uniformly';
   } else {
     behavior = 'ignored';
     details = 'semicolon variants are uniformly rejected/not found — segment not routed';

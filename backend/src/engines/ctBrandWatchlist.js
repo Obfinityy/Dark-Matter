@@ -34,7 +34,9 @@ const CONFUSABLES = {
 export function buildWatchlist(brands = []) {
   const matchers = [];
   for (const b of brands) {
-    const term = String(b || '').trim().toLowerCase();
+    const term = String(b || '')
+      .trim()
+      .toLowerCase();
     if (!term) continue;
     const slug = term.replace(/[^a-z0-9]+/g, '');
     if (!slug) continue;
@@ -56,9 +58,11 @@ export function buildWatchlist(brands = []) {
  * @returns {{matched: boolean, term: string|null, kind: 'exact-brand'|'contains-brand'|'punycode'|'wildcard-brand'|'none'}}
  */
 export function classifyCertName(certName, watchlist = []) {
-  const raw = String(certName || '').toLowerCase().replace(/^\*\./, '');
+  const raw = String(certName || '')
+    .toLowerCase()
+    .replace(/^\*\./, '');
   if (!raw) return { matched: false, term: null, kind: 'none' };
-  const isPuny = raw.split('.').some((label) => label.startsWith('xn--'));
+  const isPuny = raw.split('.').some(label => label.startsWith('xn--'));
   for (const w of watchlist) {
     if (w.rxExact.test(raw)) {
       return { matched: true, term: w.term, kind: 'exact-brand' };
@@ -67,7 +71,11 @@ export function classifyCertName(certName, watchlist = []) {
       return { matched: true, term: w.term, kind: 'punycode' };
     }
     if (w.rxContains.test(raw)) {
-      return { matched: true, term: w.term, kind: String(certName).startsWith('*.') ? 'wildcard-brand' : 'contains-brand' };
+      return {
+        matched: true,
+        term: w.term,
+        kind: String(certName).startsWith('*.') ? 'wildcard-brand' : 'contains-brand',
+      };
     }
   }
   return { matched: false, term: null, kind: 'none' };
@@ -111,7 +119,9 @@ export function checkCtEntries(entries = [], watchlist = [], seenSerials = new S
  * @returns {string[]} mutated slugs
  */
 export function confusableVariants(slug, limit = 40) {
-  const base = String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const base = String(slug || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
   const out = new Set();
   for (let i = 0; i < base.length && out.size < limit; i++) {
     const ch = base[i];

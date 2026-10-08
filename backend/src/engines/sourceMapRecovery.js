@@ -74,10 +74,12 @@ export function parseSourceMap(mapJson) {
   return {
     file: typeof data.file === 'string' ? data.file : null,
     sources: data.sources.map(String),
-    sourcesContent: data.sources.map((_, i) => (typeof sourcesContent[i] === 'string' ? sourcesContent[i] : null)),
+    sourcesContent: data.sources.map((_, i) =>
+      typeof sourcesContent[i] === 'string' ? sourcesContent[i] : null
+    ),
     names: Array.isArray(data.names) ? data.names.map(String) : [],
     mappings: data.mappings,
-    hasSourcesContent: sourcesContent.some((s) => typeof s === 'string'),
+    hasSourcesContent: sourcesContent.some(s => typeof s === 'string'),
   };
 }
 
@@ -104,7 +106,7 @@ export function summarizeSourceMap(map) {
   if (!map) return null;
   return {
     sources: map.sources.length,
-    recoverable: map.sourcesContent.filter((s) => s != null).length,
+    recoverable: map.sourcesContent.filter(s => s != null).length,
     names: map.names.length,
     file: map.file,
   };
@@ -155,14 +157,21 @@ export function parseMappingsLine(line) {
     i = genColD.next;
     const segment = { genCol };
     if (i < seg.length) {
-      const d1 = decodeVlq(seg, i); src += d1.value; i = d1.next;
-      const d2 = decodeVlq(seg, i); srcLine += d2.value; i = d2.next;
-      const d3 = decodeVlq(seg, i); srcCol += d3.value; i = d3.next;
+      const d1 = decodeVlq(seg, i);
+      src += d1.value;
+      i = d1.next;
+      const d2 = decodeVlq(seg, i);
+      srcLine += d2.value;
+      i = d2.next;
+      const d3 = decodeVlq(seg, i);
+      srcCol += d3.value;
+      i = d3.next;
       segment.src = src;
       segment.srcLine = srcLine;
       segment.srcCol = srcCol;
       if (i < seg.length) {
-        const d4 = decodeVlq(seg, i); name += d4.value;
+        const d4 = decodeVlq(seg, i);
+        name += d4.value;
         segment.name = name;
       }
     }

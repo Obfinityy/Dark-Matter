@@ -21,7 +21,7 @@ const PROVIDERS = [
     name: 'Zendesk',
     targetRe: /(^|\.)zendesk\.com$/i,
     danglingRe: /there.+no.+help.?center here|no.+such.+account|this help center|404/i,
-    danglingMarkers: ['There\'s no help center here', 'No help desk found'],
+    danglingMarkers: ["There's no help center here", 'No help desk found'],
   },
   {
     name: 'Freshdesk',
@@ -74,7 +74,7 @@ const PROVIDERS = [
  */
 export function identifyProvider(target = '') {
   const t = String(target).toLowerCase().replace(/\.$/, '');
-  return PROVIDERS.find((p) => p.targetRe.test(t)) || null;
+  return PROVIDERS.find(p => p.targetRe.test(t)) || null;
 }
 
 /**
@@ -83,28 +83,44 @@ export function identifyProvider(target = '') {
  * @returns {{name: string, target: string, provider: string|null, verdict: 'active'|'dangling'|'external'|'unresolved', evidence: string[]}}
  */
 export function auditCname(record = {}) {
-  const name = String(record.name || '').toLowerCase().replace(/\.$/, '');
-  const target = String(record.target || '').toLowerCase().replace(/\.$/, '');
+  const name = String(record.name || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
+  const target = String(record.target || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const provider = identifyProvider(target);
   const probe = record.probe || {};
   const evidence = [];
 
   if (!provider) {
-    return { name, target, provider: null, verdict: 'external', evidence: ['Target is outside known SaaS helpdesk space.'] };
+    return {
+      name,
+      target,
+      provider: null,
+      verdict: 'external',
+      evidence: ['Target is outside known SaaS helpdesk space.'],
+    };
   }
   if (probe.resolves === false) {
     evidence.push('CNAME target does not resolve — possible stale record.');
     return { name, target, provider: provider.name, verdict: 'unresolved', evidence };
   }
   const body = String(probe.body || '');
-  const markerHit = provider.danglingMarkers.find((m) => body.includes(m));
+  const markerHit = provider.danglingMarkers.find(m => body.includes(m));
   if (markerHit || provider.danglingRe.test(body)) {
-    evidence.push(`Vendor fingerprint indicates missing tenant: "${markerHit || 'dangling pattern match'}".`);
-    evidence.push(`Recommendation: verify tenant absence with the vendor, then report as dangling DNS.`);
+    evidence.push(
+      `Vendor fingerprint indicates missing tenant: "${markerHit || 'dangling pattern match'}".`
+    );
+    evidence.push(
+      `Recommendation: verify tenant absence with the vendor, then report as dangling DNS.`
+    );
     return { name, target, provider: provider.name, verdict: 'dangling', evidence };
   }
   if (probe.status && probe.status >= 200 && probe.status < 400) {
-    evidence.push(`Target resolves to ${provider.name} and returns HTTP ${probe.status} — tenant appears active.`);
+    evidence.push(
+      `Target resolves to ${provider.name} and returns HTTP ${probe.status} — tenant appears active.`
+    );
     return { name, target, provider: provider.name, verdict: 'active', evidence };
   }
   evidence.push('Inconclusive probe data — manual review advised.');

@@ -65,7 +65,7 @@ const REDACTED_VALUE_PATTERN = /^\*{2,}$/;
 export function mapActuatorExposure({ baseUrl, probes = [] } = {}) {
   const exposed = [];
   for (const probe of probes) {
-    const known = ACTUATOR_ENDPOINTS.find((e) => e.path === probe.path);
+    const known = ACTUATOR_ENDPOINTS.find(e => e.path === probe.path);
     if (!known) continue;
     if (probe.status >= 200 && probe.status < 400) {
       exposed.push({ path: probe.path, status: probe.status, tier: known.tier, note: known.note });
@@ -75,10 +75,16 @@ export function mapActuatorExposure({ baseUrl, probes = [] } = {}) {
   const tierRank = { safe: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const maxTier = exposed.reduce((m, e) => (tierRank[e.tier] > tierRank[m] ? e.tier : m), 'safe');
 
-  const isSpring = exposed.some((e) => e.path === '/actuator' || e.path === '/actuator/health');
+  const isSpring = exposed.some(e => e.path === '/actuator' || e.path === '/actuator/health');
   const confidence = isSpring ? 'high' : exposed.length > 0 ? 'medium' : 'low';
 
-  const severityByTier = { safe: 'Info', low: 'Info', medium: 'Low', high: 'Medium', critical: 'High' };
+  const severityByTier = {
+    safe: 'Info',
+    low: 'Info',
+    medium: 'Low',
+    high: 'Medium',
+    critical: 'High',
+  };
 
   return {
     detected: exposed.length > 0,
@@ -128,14 +134,14 @@ export function testEnvRedaction({ url, status = 0, headers = {}, body = '' } = 
   for (const source of sources) {
     const props = (source && source.properties) || {};
     for (const key of Object.keys(props)) {
-      if (!SENSITIVE_KEY_PATTERNS.some((p) => p.test(key))) continue;
+      if (!SENSITIVE_KEY_PATTERNS.some(p => p.test(key))) continue;
       const value = props[key] && typeof props[key] === 'object' ? props[key].value : props[key];
       const redacted = REDACTED_VALUE_PATTERN.test(String(value ?? ''));
       sensitive.push({ key, source: source.name || 'unknown', redacted });
     }
   }
 
-  const unredacted = sensitive.filter((s) => !s.redacted);
+  const unredacted = sensitive.filter(s => !s.redacted);
   const classification =
     sensitive.length === 0
       ? 'no-sensitive-keys'
@@ -146,7 +152,11 @@ export function testEnvRedaction({ url, status = 0, headers = {}, body = '' } = 
           : 'unredacted';
 
   const severity =
-    classification === 'unredacted' ? 'High' : classification === 'partially-redacted' ? 'Medium' : 'Low';
+    classification === 'unredacted'
+      ? 'High'
+      : classification === 'partially-redacted'
+        ? 'Medium'
+        : 'Low';
 
   return {
     detected: true,
@@ -154,7 +164,7 @@ export function testEnvRedaction({ url, status = 0, headers = {}, body = '' } = 
     url,
     status,
     redaction: classification,
-    sensitiveKeys: sensitive.map((s) => ({ key: s.key, source: s.source, redacted: s.redacted })),
+    sensitiveKeys: sensitive.map(s => ({ key: s.key, source: s.source, redacted: s.redacted })),
     unredactedCount: unredacted.length,
     confidence: 'high',
     severity,

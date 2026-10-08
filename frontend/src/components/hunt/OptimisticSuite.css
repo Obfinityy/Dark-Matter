@@ -181,7 +181,7 @@
 .opt-skeleton {
   background: linear-gradient(90deg, #16233a 25%, #22344f 50%, #16233a 75%);
   background-size: 200% 100%;
-  
+
   border-radius: 4px;
   margin: 0.35rem 0;
 }
@@ -202,9 +202,14 @@
   position: absolute;
   inset: 0;
   border-radius: 8px;
-  background: linear-gradient(90deg, transparent 25%, rgba(147, 197, 253, 0.12) 50%, transparent 75%);
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(147, 197, 253, 0.12) 50%,
+    transparent 75%
+  );
   background-size: 200% 100%;
-  
+
   pointer-events: none;
 }
 

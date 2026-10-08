@@ -72,7 +72,10 @@ export function parseInstatusPage(page = {}, rootDomain) {
         seen.add(h);
         if (!(h === root || h.endsWith(`.${root}`) || h.includes(root))) continue;
         results.push({
-          page: pageName, host: h, service: name, kind,
+          page: pageName,
+          host: h,
+          service: name,
+          kind,
           status: String(item?.status || ''),
           relevance: scoreInstatusHost(h, root),
         });

@@ -51,13 +51,13 @@ export function sameAsPreviousFp(finding, previousMarking, markedBy, now = Date.
 
 // 52102 — FP review queue: dedicated queue of pending FP decisions for leads.
 export function buildFpReviewQueue(markings) {
-  const pending = (markings || []).filter((m) =>
-    ['pending-second-review', 'disputed', 'likely-fp'].includes(String(m.status || '')),
+  const pending = (markings || []).filter(m =>
+    ['pending-second-review', 'disputed', 'likely-fp'].includes(String(m.status || ''))
   );
   const rank = { disputed: 0, 'pending-second-review': 1, 'likely-fp': 2 };
   const sevRank = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
   return pending
-    .map((m) => ({
+    .map(m => ({
       findingId: m.findingId,
       title: m.title,
       status: m.status,
@@ -67,9 +67,10 @@ export function buildFpReviewQueue(markings) {
     }))
     .sort(
       (a, b) =>
-        (rank[String(a.status)] - rank[String(b.status)]) ||
-        ((sevRank[String(a.severity || '').toLowerCase()] ?? 9) - (sevRank[String(b.severity || '').toLowerCase()] ?? 9)) ||
-        (Number(a.markedAt || 0) - Number(b.markedAt || 0)),
+        rank[String(a.status)] - rank[String(b.status)] ||
+        (sevRank[String(a.severity || '').toLowerCase()] ?? 9) -
+          (sevRank[String(b.severity || '').toLowerCase()] ?? 9) ||
+        Number(a.markedAt || 0) - Number(b.markedAt || 0)
     );
 }
 
@@ -81,9 +82,15 @@ export function importFpDecisions(rows, reasonMap) {
   const rejected = [];
   for (const row of rows || []) {
     const r = row || {};
-    if (!r.findingId) { rejected.push({ row: r, reason: 'missing findingId' }); continue; }
+    if (!r.findingId) {
+      rejected.push({ row: r, reason: 'missing findingId' });
+      continue;
+    }
     const mapped = map[String(r.externalReason || '')];
-    if (!mapped) { rejected.push({ row: r, reason: `unmapped external reason "${r.externalReason}"` }); continue; }
+    if (!mapped) {
+      rejected.push({ row: r, reason: `unmapped external reason "${r.externalReason}"` });
+      continue;
+    }
     imported.push({
       findingId: r.findingId,
       reasonId: mapped,
@@ -99,14 +106,23 @@ export function importFpDecisions(rows, reasonMap) {
 // 52104 — FP custom reason fields: admins extend the reason taxonomy.
 export function extendReasonTaxonomy(baseReasons, customReasons) {
   const base = Array.isArray(baseReasons) ? baseReasons : [];
-  const ids = new Set(base.map((r) => String(r.id)));
+  const ids = new Set(base.map(r => String(r.id)));
   const added = [];
   const rejected = [];
   for (const c of customReasons || []) {
-    const id = String((c || {}).id || '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    const id = String((c || {}).id || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-');
     const label = String((c || {}).label || '').trim();
-    if (!id || !label) { rejected.push({ ...c, reason: 'id and label required' }); continue; }
-    if (ids.has(id)) { rejected.push({ ...c, reason: `id "${id}" already exists` }); continue; }
+    if (!id || !label) {
+      rejected.push({ ...c, reason: 'id and label required' });
+      continue;
+    }
+    if (ids.has(id)) {
+      rejected.push({ ...c, reason: `id "${id}" already exists` });
+      continue;
+    }
     ids.add(id);
     added.push({ id, label, custom: true });
   }
@@ -131,7 +147,14 @@ export function notifyHuntOwnerPayload(decision, owner) {
 
 // 52106 — FP changelog per finding: every mark/unmark/reason-edit/dispute in
 // the finding's history.
-export const FP_CHANGELOG_EVENTS = ['marked-fp', 'unmarked-fp', 'reason-edited', 'dispute-opened', 'dispute-resolved', 'downgraded'];
+export const FP_CHANGELOG_EVENTS = [
+  'marked-fp',
+  'unmarked-fp',
+  'reason-edited',
+  'dispute-opened',
+  'dispute-resolved',
+  'downgraded',
+];
 export function logFpChange(history, eventType, actor, details, now = Date.now()) {
   if (!FP_CHANGELOG_EVENTS.includes(String(eventType))) {
     return { history: history || [], ok: false, reason: `unknown event type "${eventType}"` };
@@ -148,7 +171,12 @@ export function fpChangelogSummary(history) {
   const h = history || [];
   const counts = {};
   for (const e of h) counts[String(e.event)] = (counts[String(e.event)] || 0) + 1;
-  return { total: h.length, counts, firstAt: h.length ? h[0].at : null, lastAt: h.length ? h[h.length - 1].at : null };
+  return {
+    total: h.length,
+    counts,
+    firstAt: h.length ? h[0].at : null,
+    lastAt: h.length ? h[h.length - 1].at : null,
+  };
 }
 
 // 52107 — Screenshot attach on FP justification: proof attached to dismissal.
@@ -162,13 +190,16 @@ export function attachScreenshot(marking, file) {
   if (Number(f.sizeBytes || 0) > 5 * 1024 * 1024) {
     return { ...m, ok: false, reason: 'screenshot over 5 MB' };
   }
-  const shots = [...(m.screenshots || []), {
-    name: String(f.name || 'screenshot'),
-    mimeType: f.mimeType,
-    sizeBytes: Number(f.sizeBytes || 0),
-    caption: String(f.caption || ''),
-    attachedAt: f.attachedAt != null ? Number(f.attachedAt) : Date.now(),
-  }];
+  const shots = [
+    ...(m.screenshots || []),
+    {
+      name: String(f.name || 'screenshot'),
+      mimeType: f.mimeType,
+      sizeBytes: Number(f.sizeBytes || 0),
+      caption: String(f.caption || ''),
+      attachedAt: f.attachedAt != null ? Number(f.attachedAt) : Date.now(),
+    },
+  ];
   return { ...m, ok: true, screenshots: shots };
 }
 
@@ -180,19 +211,30 @@ export function markLikelyFp(finding, probability, now = Date.now()) {
     ...f,
     ok: true,
     status: 'likely-fp',
-    likelyFp: { probability: Number(probability), markedAt: Number(now), confirmedBy: null, confirmedAt: null },
+    likelyFp: {
+      probability: Number(probability),
+      markedAt: Number(now),
+      confirmedBy: null,
+      confirmedAt: null,
+    },
   };
 }
 export function confirmLikelyFp(marking, confirmedBy, isFp, justification, now = Date.now()) {
   const m = marking || {};
-  if (String(m.status || '') !== 'likely-fp') return { ...m, ok: false, reason: 'not in likely-fp state' };
+  if (String(m.status || '') !== 'likely-fp')
+    return { ...m, ok: false, reason: 'not in likely-fp state' };
   const base = { ...m };
   delete base.ok;
   return {
     ...base,
     ok: true,
     status: isFp ? 'false-positive' : 'open',
-    likelyFp: { ...(m.likelyFp || {}), confirmedBy: String(confirmedBy || 'unknown'), confirmedAt: Number(now), justification: String(justification || '') },
+    likelyFp: {
+      ...(m.likelyFp || {}),
+      confirmedBy: String(confirmedBy || 'unknown'),
+      confirmedAt: Number(now),
+      justification: String(justification || ''),
+    },
   };
 }
 
@@ -202,7 +244,10 @@ export function exportTrainingData(labeledFindings) {
   const skipped = [];
   for (const f of labeledFindings || []) {
     const g = f || {};
-    if (g.isFalsePositive !== true && g.isFalsePositive !== false) { skipped.push({ findingId: g.findingId, reason: 'no label' }); continue; }
+    if (g.isFalsePositive !== true && g.isFalsePositive !== false) {
+      skipped.push({ findingId: g.findingId, reason: 'no label' });
+      continue;
+    }
     rows.push({
       finding_id: String(g.findingId || ''),
       signature: String(g.signature || g.vulnClass || ''),
@@ -213,21 +258,32 @@ export function exportTrainingData(labeledFindings) {
       reason_id: String(g.reasonId || ''),
     });
   }
-  return { format: 'jsonl', rows, skipped, fpCount: rows.filter((r) => r.label === 'FP').length, tpCount: rows.filter((r) => r.label === 'TP').length };
+  return {
+    format: 'jsonl',
+    rows,
+    skipped,
+    fpCount: rows.filter(r => r.label === 'FP').length,
+    tpCount: rows.filter(r => r.label === 'TP').length,
+  };
 }
 
 // 52110 — FP stats on team dashboard: this week's count, top reasons,
 // dismissals pending second review.
 export function dashboardFpStats(decisions, now = Date.now()) {
   const weekAgo = Number(now) - 7 * 86400e3;
-  const week = (decisions || []).filter((d) => Number(d.markedAt || 0) >= weekAgo);
+  const week = (decisions || []).filter(d => Number(d.markedAt || 0) >= weekAgo);
   const byReason = {};
   for (const d of week) {
     const r = String(d.reasonId || 'unspecified');
     byReason[r] = (byReason[r] || 0) + 1;
   }
-  const topReasons = Object.entries(byReason).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([reasonId, count]) => ({ reasonId, count }));
-  const pendingSecondReview = (decisions || []).filter((d) => String(d.status || '') === 'pending-second-review').length;
+  const topReasons = Object.entries(byReason)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([reasonId, count]) => ({ reasonId, count }));
+  const pendingSecondReview = (decisions || []).filter(
+    d => String(d.status || '') === 'pending-second-review'
+  ).length;
   return { weekCount: week.length, topReasons, pendingSecondReview, generatedAt: Number(now) };
 }
 
@@ -236,14 +292,15 @@ export function reviewerFpAnalytics(decisions) {
   const byReviewer = {};
   for (const d of decisions || []) {
     const who = String(d.markedBy || 'unknown');
-    if (!byReviewer[who]) byReviewer[who] = { reviewer: who, dismissals: 0, overturned: 0, upheld: 0 };
+    if (!byReviewer[who])
+      byReviewer[who] = { reviewer: who, dismissals: 0, overturned: 0, upheld: 0 };
     byReviewer[who].dismissals += 1;
     const res = String((d.dispute || {}).resolution || '');
     if (res === 'overturned') byReviewer[who].overturned += 1;
     if (res === 'upheld') byReviewer[who].upheld += 1;
   }
   return Object.values(byReviewer)
-    .map((r) => ({
+    .map(r => ({
       ...r,
       overturnRate: r.dismissals ? Math.round((r.overturned / r.dismissals) * 1000) / 1000 : 0,
       upheldRate: r.dismissals ? Math.round((r.upheld / r.dismissals) * 1000) / 1000 : 0,
@@ -253,25 +310,45 @@ export function reviewerFpAnalytics(decisions) {
 
 // 52112 — FP review calibration sessions: joint-review sample workflow.
 export function planCalibrationSession(decisions, sampleSize = 10, now = Date.now()) {
-  const pool = (decisions || []).filter((d) => d.isFalsePositive === true || String(d.status || '') === 'false-positive');
-  const sorted = [...pool].sort((a, b) => String(a.findingId || '').localeCompare(String(b.findingId || '')));
+  const pool = (decisions || []).filter(
+    d => d.isFalsePositive === true || String(d.status || '') === 'false-positive'
+  );
+  const sorted = [...pool].sort((a, b) =>
+    String(a.findingId || '').localeCompare(String(b.findingId || ''))
+  );
   const sample = sorted.slice(0, Math.max(1, Number(sampleSize)));
   return {
     sessionId: `cal-${Number(now)}`,
     scheduledAt: Number(now),
     sampleSize: sample.length,
-    items: sample.map((d) => ({ findingId: d.findingId, title: d.title, reasonId: d.reasonId, markedBy: d.markedBy, verdicts: [] })),
+    items: sample.map(d => ({
+      findingId: d.findingId,
+      title: d.title,
+      reasonId: d.reasonId,
+      markedBy: d.markedBy,
+      verdicts: [],
+    })),
     status: 'planned',
   };
 }
 export function recordCalibrationVerdict(session, findingId, reviewer, agree, note) {
   const s = session || {};
-  const items = (s.items || []).map((it) =>
+  const items = (s.items || []).map(it =>
     String(it.findingId) === String(findingId)
-      ? { ...it, verdicts: [...(it.verdicts || []), { reviewer: String(reviewer || 'unknown'), agree: Boolean(agree), note: String(note || '') }] }
-      : it,
+      ? {
+          ...it,
+          verdicts: [
+            ...(it.verdicts || []),
+            {
+              reviewer: String(reviewer || 'unknown'),
+              agree: Boolean(agree),
+              note: String(note || ''),
+            },
+          ],
+        }
+      : it
   );
-  const voted = items.filter((it) => (it.verdicts || []).length > 0);
+  const voted = items.filter(it => (it.verdicts || []).length > 0);
   return { ...s, items, status: voted.length === items.length ? 'complete' : 'in-progress' };
 }
 export function calibrationAgreement(session) {
@@ -279,30 +356,43 @@ export function calibrationAgreement(session) {
   let agree = 0;
   let total = 0;
   for (const it of items) {
-    for (const v of it.verdicts || []) { total += 1; if (v.agree) agree += 1; }
+    for (const v of it.verdicts || []) {
+      total += 1;
+      if (v.agree) agree += 1;
+    }
   }
-  return { votes: total, agree, agreementRate: total ? Math.round((agree / total) * 1000) / 1000 : 0 };
+  return {
+    votes: total,
+    agree,
+    agreementRate: total ? Math.round((agree / total) * 1000) / 1000 : 0,
+  };
 }
 
 // 52113 — FP impact on agent scoring: FP rates feed the per-engine scorecard.
 export function agentFpScorecard(decisions, engines) {
   const eng = engines || {};
-  return Object.entries(eng).map(([engineId, meta]) => {
-    const produced = (decisions || []).filter((d) => String(d.engine || '') === engineId);
-    const fps = produced.filter((d) => d.isFalsePositive === true || String(d.status || '') === 'false-positive');
-    const overturned = fps.filter((d) => String((d.dispute || {}).resolution || '') === 'overturned');
-    const fpRate = produced.length ? Math.round((fps.length / produced.length) * 1000) / 1000 : 0;
-    return {
-      engineId,
-      model: (meta || {}).model || 'unknown',
-      version: (meta || {}).version || 'unknown',
-      findings: produced.length,
-      falsePositives: fps.length,
-      fpRate,
-      overturned: overturned.length,
-      qualityScore: Math.round((1 - fpRate) * 1000) / 1000,
-    };
-  }).sort((a, b) => b.qualityScore - a.qualityScore);
+  return Object.entries(eng)
+    .map(([engineId, meta]) => {
+      const produced = (decisions || []).filter(d => String(d.engine || '') === engineId);
+      const fps = produced.filter(
+        d => d.isFalsePositive === true || String(d.status || '') === 'false-positive'
+      );
+      const overturned = fps.filter(
+        d => String((d.dispute || {}).resolution || '') === 'overturned'
+      );
+      const fpRate = produced.length ? Math.round((fps.length / produced.length) * 1000) / 1000 : 0;
+      return {
+        engineId,
+        model: (meta || {}).model || 'unknown',
+        version: (meta || {}).version || 'unknown',
+        findings: produced.length,
+        falsePositives: fps.length,
+        fpRate,
+        overturned: overturned.length,
+        qualityScore: Math.round((1 - fpRate) * 1000) / 1000,
+      };
+    })
+    .sort((a, b) => b.qualityScore - a.qualityScore);
 }
 
 // 52114 — FP pattern clustering: group similar dismissals by signature
@@ -313,7 +403,7 @@ export function signatureTokens(rec) {
     String(`${r.signature || ''} ${r.endpoint || ''} ${r.reasonId || ''}`)
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .filter((t) => t.length > 2),
+      .filter(t => t.length > 2)
   );
 }
 export function jaccardSimilarity(a, b) {
@@ -341,12 +431,17 @@ export function clusterFpPatterns(fpRecords, threshold = 0.4) {
     if (!placed) clusters.push({ id: clusters.length + 1, centroid: toks, members: [r] });
   }
   return clusters
-    .map((c) => ({
+    .map(c => ({
       clusterId: c.id,
       size: c.members.length,
-      members: c.members.map((m) => ({ findingId: m.findingId, signature: m.signature, endpoint: m.endpoint, reasonId: m.reasonId })),
-      topReason: mostCommon(c.members.map((m) => String(m.reasonId || 'unspecified'))),
-      representativeSignature: mostCommon(c.members.map((m) => String(m.signature || 'unknown'))),
+      members: c.members.map(m => ({
+        findingId: m.findingId,
+        signature: m.signature,
+        endpoint: m.endpoint,
+        reasonId: m.reasonId,
+      })),
+      topReason: mostCommon(c.members.map(m => String(m.reasonId || 'unspecified'))),
+      representativeSignature: mostCommon(c.members.map(m => String(m.signature || 'unknown'))),
     }))
     .sort((a, b) => b.size - a.size);
 }
@@ -359,28 +454,39 @@ function mostCommon(values) {
 
 // 52115 — FP audit export for compliance: who/when/why rows.
 export function buildFpAuditExport(decisions, exportedBy, now = Date.now()) {
-  const rows = (decisions || []).map((d) => ({
+  const rows = (decisions || []).map(d => ({
     finding_id: String(d.findingId || ''),
     decision: 'false-positive',
     reason_id: String(d.reasonId || 'unspecified'),
     justification: String(d.justification || ''),
     marked_by: String(d.markedBy || 'unknown'),
     marked_at: d.markedAt != null ? Number(d.markedAt) : null,
-    dispute: d.dispute ? { by: d.dispute.challengedBy, resolution: d.dispute.resolution || 'open' } : null,
+    dispute: d.dispute
+      ? { by: d.dispute.challengedBy, resolution: d.dispute.resolution || 'open' }
+      : null,
     screenshots: Array.isArray(d.screenshots) ? d.screenshots.length : 0,
   }));
   return {
     generatedBy: String(exportedBy || 'unknown'),
     generatedAt: Number(now),
     rowCount: rows.length,
-    columns: ['finding_id', 'decision', 'reason_id', 'justification', 'marked_by', 'marked_at', 'dispute', 'screenshots'],
+    columns: [
+      'finding_id',
+      'decision',
+      'reason_id',
+      'justification',
+      'marked_by',
+      'marked_at',
+      'dispute',
+      'screenshots',
+    ],
     rows,
   };
 }
 
 // 52116 — FP by detection engine: filter analytics by producing engine.
 export function filterFpByEngine(decisions, engineId) {
-  return (decisions || []).filter((d) => String(d.engine || '') === String(engineId));
+  return (decisions || []).filter(d => String(d.engine || '') === String(engineId));
 }
 export function fpRatesByEngine(decisions) {
   const byEngine = {};
@@ -388,16 +494,23 @@ export function fpRatesByEngine(decisions) {
     const e = String(d.engine || 'unknown');
     if (!byEngine[e]) byEngine[e] = { engine: e, findings: 0, fps: 0 };
     byEngine[e].findings += 1;
-    if (d.isFalsePositive === true || String(d.status || '') === 'false-positive') byEngine[e].fps += 1;
+    if (d.isFalsePositive === true || String(d.status || '') === 'false-positive')
+      byEngine[e].fps += 1;
   }
   return Object.values(byEngine)
-    .map((r) => ({ ...r, fpRate: r.findings ? Math.round((r.fps / r.findings) * 1000) / 1000 : 0 }))
+    .map(r => ({ ...r, fpRate: r.findings ? Math.round((r.fps / r.findings) * 1000) / 1000 : 0 }))
     .sort((a, b) => b.fpRate - a.fpRate);
 }
 
 // 52117 — FP comment threads: discuss a dismissal before it becomes final.
 export function newFpThread(findingId, openedBy, now = Date.now()) {
-  return { findingId: String(findingId), openedBy: String(openedBy || 'unknown'), openedAt: Number(now), status: 'open', comments: [] };
+  return {
+    findingId: String(findingId),
+    openedBy: String(openedBy || 'unknown'),
+    openedAt: Number(now),
+    status: 'open',
+    comments: [],
+  };
 }
 export function addFpComment(thread, author, text, now = Date.now()) {
   const t = thread || {};
@@ -407,14 +520,27 @@ export function addFpComment(thread, author, text, now = Date.now()) {
   return { ...t, ok: true, comments: [...(t.comments || []), comment] };
 }
 export function closeFpThread(thread, closedBy, now = Date.now()) {
-  return { ...(thread || {}), ok: true, status: 'closed', closedBy: String(closedBy || 'unknown'), closedAt: Number(now) };
+  return {
+    ...(thread || {}),
+    ok: true,
+    status: 'closed',
+    closedBy: String(closedBy || 'unknown'),
+    closedAt: Number(now),
+  };
 }
 
 // 52118 — "Not a vuln but hardening note" middle state: dismiss as FP but
 // keep a hardening recommendation attached.
-export function dismissWithHardeningNote(finding, reasonId, hardeningNote, markedBy, now = Date.now()) {
+export function dismissWithHardeningNote(
+  finding,
+  reasonId,
+  hardeningNote,
+  markedBy,
+  now = Date.now()
+) {
   const f = finding || {};
-  if (!String(hardeningNote || '').trim()) return { ...f, ok: false, reason: 'hardening note required' };
+  if (!String(hardeningNote || '').trim())
+    return { ...f, ok: false, reason: 'hardening note required' };
   return {
     ...f,
     ok: true,
@@ -433,7 +559,8 @@ export function downgradeSeverity(finding, toSeverity, reason, markedBy, now = D
   const f = finding || {};
   const from = String(f.severity || 'medium').toLowerCase();
   const to = String(toSeverity || '').toLowerCase();
-  if (!SEV_ORDER.includes(to)) return { ...f, ok: false, reason: `unknown severity "${toSeverity}"` };
+  if (!SEV_ORDER.includes(to))
+    return { ...f, ok: false, reason: `unknown severity "${toSeverity}"` };
   if (SEV_ORDER.indexOf(to) >= SEV_ORDER.indexOf(from)) {
     return { ...f, ok: false, reason: 'downgrade target must be lower than current severity' };
   }
@@ -443,18 +570,32 @@ export function downgradeSeverity(finding, toSeverity, reason, markedBy, now = D
     ok: true,
     severity: to,
     status: 'severity-downgraded',
-    downgrade: { from, to, reason: String(reason), markedBy: String(markedBy || 'unknown'), at: Number(now) },
+    downgrade: {
+      from,
+      to,
+      reason: String(reason),
+      markedBy: String(markedBy || 'unknown'),
+      at: Number(now),
+    },
   };
 }
 
 // 52120 — FP notification digest controls: choose which FP events notify.
-export const FP_NOTIFY_EVENTS = ['fp-marked', 'fp-disputed', 'fp-overturned', 'fp-expiring', 'digest-weekly', 'owner-alert'];
+export const FP_NOTIFY_EVENTS = [
+  'fp-marked',
+  'fp-disputed',
+  'fp-overturned',
+  'fp-expiring',
+  'digest-weekly',
+  'owner-alert',
+];
 export function fpDigestControls(events, prefs) {
   const p = prefs || {};
-  return (events || []).map((e) => {
+  return (events || []).map(e => {
     const id = String(e);
     const setting = p[id];
-    const enabled = setting === true || (setting == null && ['fp-disputed', 'digest-weekly'].includes(id));
+    const enabled =
+      setting === true || (setting == null && ['fp-disputed', 'digest-weekly'].includes(id));
     return { event: id, enabled, known: FP_NOTIFY_EVENTS.includes(id) };
   });
 }

@@ -58,7 +58,10 @@ function parseBlock(lines, start, baseIndent) {
       const itemIndent = ind;
       const rest = trimmed.slice(2).trim();
       const kv = rest.match(/^([^:]+):\s*(.*)$/);
-      if (!kv || !kv[1].trim()) { i++; continue; }
+      if (!kv || !kv[1].trim()) {
+        i++;
+        continue;
+      }
       const obj = {};
       const key = kv[1].trim();
       if (kv[2] === '') {
@@ -73,7 +76,10 @@ function parseBlock(lines, start, baseIndent) {
       while (i < lines.length && indentOf(lines[i]) > itemIndent) {
         const cline = lines[i].trim();
         const ckv = cline.match(/^([^:]+):\s*(.*)$/);
-        if (!ckv) { i++; continue; }
+        if (!ckv) {
+          i++;
+          continue;
+        }
         const ckey = ckv[1].trim();
         if (ckv[2] === '') {
           const [child, next] = parseBlock(lines, i + 1, indentOf(lines[i]) + 2);
@@ -87,7 +93,10 @@ function parseBlock(lines, start, baseIndent) {
       node.push(obj);
     } else {
       const kv = trimmed.match(/^([^:]+):\s*(.*)$/);
-      if (!kv) { i++; continue; }
+      if (!kv) {
+        i++;
+        continue;
+      }
       const key = kv[1].trim();
       if (kv[2] === '') {
         const [child, next] = parseBlock(lines, i + 1, ind + 2);
@@ -114,7 +123,9 @@ function parseBlock(lines, start, baseIndent) {
  * }}
  */
 export function extractDependabotHosts(yamlText, targetDomain = '') {
-  const scope = String(targetDomain || '').trim().toLowerCase();
+  const scope = String(targetDomain || '')
+    .trim()
+    .toLowerCase();
   const doc = parseSimpleYaml(yamlText);
   const registries = [];
   const updates = [];
@@ -137,7 +148,11 @@ export function extractDependabotHosts(yamlText, targetDomain = '') {
     const hasSecret = Object.keys(reg).some(k => /secret|token|password|key/i.test(k));
     if (url) {
       let host = '';
-      try { host = new URL(url).hostname.toLowerCase(); } catch { host = url; }
+      try {
+        host = new URL(url).hostname.toLowerCase();
+      } catch {
+        host = url;
+      }
       registries.push({
         type,
         url,
@@ -159,10 +174,27 @@ export function extractDependabotHosts(yamlText, targetDomain = '') {
     if (seen.has(url)) continue;
     seen.add(url);
     let host = '';
-    try { host = new URL(url).hostname.toLowerCase(); } catch { continue; }
-    registries.push({ type: null, url, host, inScope: !!scope && (host === scope || host.endsWith(`.${scope}`)), secretReferenced: false, registryName: null });
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
+    registries.push({
+      type: null,
+      url,
+      host,
+      inScope: !!scope && (host === scope || host.endsWith(`.${scope}`)),
+      secretReferenced: false,
+      registryName: null,
+    });
   }
 
-  const internalHosts = [...new Set(registries.map(r => r.host).filter(h => h && !/^(registry\.)?(npmjs|docker\.io|pypi|rubygems|nuget|maven)/.test(h)))].sort();
+  const internalHosts = [
+    ...new Set(
+      registries
+        .map(r => r.host)
+        .filter(h => h && !/^(registry\.)?(npmjs|docker\.io|pypi|rubygems|nuget|maven)/.test(h))
+    ),
+  ].sort();
   return { registries, internalHosts, updates };
 }

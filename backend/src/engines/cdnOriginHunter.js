@@ -19,10 +19,20 @@
  * are origin candidates.
  */
 const CDN_EDGE_INDICATORS = [
-  /cloudfront\.net$/i, /cloudflare\.net$/i, /fastly\.net$/i, /akamaihd\.net$/i,
-  /akamaized\.net$/i, /edgesuite\.net$/i, /edgekey\.net$/i, /cdn77\.org$/i,
-  /keycdn\.com$/i, /stackpathdns\.com$/i, /cdn\.verizon\.com$/i,
-  /azureedge\.net$/i, /azurefd\.net$/i, /hwcdn\.net$/i,
+  /cloudfront\.net$/i,
+  /cloudflare\.net$/i,
+  /fastly\.net$/i,
+  /akamaihd\.net$/i,
+  /akamaized\.net$/i,
+  /edgesuite\.net$/i,
+  /edgekey\.net$/i,
+  /cdn77\.org$/i,
+  /keycdn\.com$/i,
+  /stackpathdns\.com$/i,
+  /cdn\.verizon\.com$/i,
+  /azureedge\.net$/i,
+  /azurefd\.net$/i,
+  /hwcdn\.net$/i,
 ];
 
 /**
@@ -30,9 +40,16 @@ const CDN_EDGE_INDICATORS = [
  * non-origin mail hosting rather than the web origin.
  */
 const THIRDPARTY_MAIL_HOSTS = [
-  /google\.com$/i, /googlemail\.com$/i, /outlook\.com$/i, /hotmail\.com$/i,
-  /protection\.outlook\.com$/i, /messagelabs\.com$/i, /mimecast\.com$/i,
-  /proofpoint\.com$/i, /barracuda\.com$/i, /secureserver\.net$/i,
+  /google\.com$/i,
+  /googlemail\.com$/i,
+  /outlook\.com$/i,
+  /hotmail\.com$/i,
+  /protection\.outlook\.com$/i,
+  /messagelabs\.com$/i,
+  /mimecast\.com$/i,
+  /proofpoint\.com$/i,
+  /barracuda\.com$/i,
+  /secureserver\.net$/i,
 ];
 
 /**
@@ -41,7 +58,7 @@ const THIRDPARTY_MAIL_HOSTS = [
  * @returns {boolean}
  */
 export function isCdnEdgeHost(host) {
-  return CDN_EDGE_INDICATORS.some((re) => re.test(String(host || '')));
+  return CDN_EDGE_INDICATORS.some(re => re.test(String(host || '')));
 }
 
 /**
@@ -51,7 +68,7 @@ export function isCdnEdgeHost(host) {
  * @returns {boolean}
  */
 export function isThirdPartyMailHost(host) {
-  return THIRDPARTY_MAIL_HOSTS.some((re) => re.test(String(host || '')));
+  return THIRDPARTY_MAIL_HOSTS.some(re => re.test(String(host || '')));
 }
 
 /**
@@ -65,8 +82,10 @@ export function isThirdPartyMailHost(host) {
 export function discoverOriginViaMx({ mxRecords = [], domain = '' }) {
   const candidates = [];
   for (const rec of mxRecords) {
-    const host = String(rec.host || '').trim().replace(/\.$/, '');
-    const ips = (rec.resolvedIps || []).map((i) => String(i).trim()).filter(Boolean);
+    const host = String(rec.host || '')
+      .trim()
+      .replace(/\.$/, '');
+    const ips = (rec.resolvedIps || []).map(i => String(i).trim()).filter(Boolean);
     if (!host || ips.length === 0) continue;
     if (isCdnEdgeHost(host)) continue;
     if (isThirdPartyMailHost(host)) continue;
@@ -79,7 +98,7 @@ export function discoverOriginViaMx({ mxRecords = [], domain = '' }) {
     domain,
     candidates,
     summary: candidates.length
-      ? `${candidates.length} MX-derived origin candidate(s) for ${domain || 'the domain'}: ${candidates.map((c) => c.mxHost).join(', ')}.`
+      ? `${candidates.length} MX-derived origin candidate(s) for ${domain || 'the domain'}: ${candidates.map(c => c.mxHost).join(', ')}.`
       : `No origin candidates found in MX records for ${domain || 'the domain'}.`,
   };
 }
@@ -117,7 +136,7 @@ export function parseSpfRecord(spf) {
  * @returns {{domain?: string, spfFound: boolean, directIps: string[], includes: string[], allMechanism?: string, summary: string}}
  */
 export function discoverOriginViaSpf({ txtRecords = [], domain = '' }) {
-  const spfTexts = (txtRecords || []).map((t) => String(t)).filter((t) => /^v=spf1/i.test(t.trim()));
+  const spfTexts = (txtRecords || []).map(t => String(t)).filter(t => /^v=spf1/i.test(t.trim()));
   const directIps = [];
   const includes = [];
   let allMechanism;
@@ -148,14 +167,19 @@ export function discoverOriginViaSpf({ txtRecords = [], domain = '' }) {
  * @returns {{domain?: string, candidates: Array<{ip: string, lastSeen?: string, reason: string}>, summary: string}}
  */
 export function discoverOriginViaDnsHistory({ historySnapshots = [], currentA = [], domain = '' }) {
-  const current = new Set((currentA || []).map((i) => String(i).trim()).filter(Boolean));
+  const current = new Set((currentA || []).map(i => String(i).trim()).filter(Boolean));
   const seen = new Map(); // ip -> lastSeen date
-  const sorted = [...historySnapshots].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const sorted = [...historySnapshots].sort((a, b) =>
+    String(a.date || '').localeCompare(String(b.date || ''))
+  );
 
   let cdnCutoverIndex = -1;
   for (const snap of sorted) {
     // A snapshot is "post-CDN" if any of its A records match current ones.
-    if ((snap.aRecords || []).some((ip) => current.has(String(ip).trim()))) { cdnCutoverIndex = sorted.indexOf(snap); break; }
+    if ((snap.aRecords || []).some(ip => current.has(String(ip).trim()))) {
+      cdnCutoverIndex = sorted.indexOf(snap);
+      break;
+    }
   }
 
   const preCdn = cdnCutoverIndex > 0 ? sorted.slice(0, cdnCutoverIndex) : sorted;
@@ -169,14 +193,15 @@ export function discoverOriginViaDnsHistory({ historySnapshots = [], currentA = 
   const candidates = [...seen.entries()].map(([ip, lastSeen]) => ({
     ip,
     lastSeen,
-    reason: 'Appeared in DNS history before the current (CDN) A records and is no longer advertised — likely the pre-CDN origin IP.',
+    reason:
+      'Appeared in DNS history before the current (CDN) A records and is no longer advertised — likely the pre-CDN origin IP.',
   }));
 
   return {
     domain,
     candidates,
     summary: candidates.length
-      ? `${candidates.length} pre-CDN origin candidate IP(s) from DNS history for ${domain || 'the domain'}: ${candidates.map((c) => c.ip).join(', ')}.`
+      ? `${candidates.length} pre-CDN origin candidate IP(s) from DNS history for ${domain || 'the domain'}: ${candidates.map(c => c.ip).join(', ')}.`
       : `No pre-CDN A records found in DNS history for ${domain || 'the domain'}.`,
   };
 }

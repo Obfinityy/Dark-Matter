@@ -8,48 +8,87 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE25_IDEAS, WAVE25_START, WAVE25_END,
-  FONT_DISPLAY_VALUE, fontFaceBlock,
-  optimisticTabSwitch, tabRefreshDone,
+  WAVE25_IDEAS,
+  WAVE25_START,
+  WAVE25_END,
+  FONT_DISPLAY_VALUE,
+  fontFaceBlock,
+  optimisticTabSwitch,
+  tabRefreshDone,
   ghostButtonState,
-  pickThumbnailQuality, qualityThumbUrl, THUMB_QUALITY_WIDTHS,
-  localEchoPresence, mergeServerEcho, resetPresenceEcho,
-  AUTOSAVE_IDLE_MS, shouldAutosave, autosaveState,
-  predictivePreload, DIALOG_MODULES,
-  shiftFreeSlot, applyFirstFinding,
+  pickThumbnailQuality,
+  qualityThumbUrl,
+  THUMB_QUALITY_WIDTHS,
+  localEchoPresence,
+  mergeServerEcho,
+  resetPresenceEcho,
+  AUTOSAVE_IDLE_MS,
+  shouldAutosave,
+  autosaveState,
+  predictivePreload,
+  DIALOG_MODULES,
+  shiftFreeSlot,
+  applyFirstFinding,
   optimisticRetry,
-  pickTransport, transportEvent,
-  enqueueMutation, replayMutationQueue,
-  seenWatermark, confirmWatermark,
-  EVIDENCE_CHUNK_LINES, chunkEvidence, streamProgress,
-  cardMemoProps, sameCard,
+  pickTransport,
+  transportEvent,
+  enqueueMutation,
+  replayMutationQueue,
+  seenWatermark,
+  confirmWatermark,
+  EVIDENCE_CHUNK_LINES,
+  chunkEvidence,
+  streamProgress,
+  cardMemoProps,
+  sameCard,
   optimisticRegrade,
-  formatCount, descriptiveLoadingCopy,
-  snapshotView, restoreView,
+  formatCount,
+  descriptiveLoadingCopy,
+  snapshotView,
+  restoreView,
   widgetRefresh,
   dedupedRequest,
   optimisticHuntRename,
-  lazyGraphInit, graphInitDone,
+  lazyGraphInit,
+  graphInitDone,
   ssrFallbackText,
-  optimisticAttachment, attachmentUploadDone,
-  POLL_ACTIVE_MS, POLL_HIDDEN_MS, pollInterval, resumePolling,
+  optimisticAttachment,
+  attachmentUploadDone,
+  POLL_ACTIVE_MS,
+  POLL_HIDDEN_MS,
+  pollInterval,
+  resumePolling,
   perceivedHuntStatus,
-  SLA_HOURS, optimisticSlaBadge,
-  immutableAvatarUrl, AVATAR_CACHE_CONTROL,
-  presetSwitch, presetSwitchSettled,
+  SLA_HOURS,
+  optimisticSlaBadge,
+  immutableAvatarUrl,
+  AVATAR_CACHE_CONTROL,
+  presetSwitch,
+  presetSwitchSettled,
   optimisticWatchToggle,
-  ROUTE_BUNDLE_BUDGET_KB, checkBundleBudgets, bundleBudgetFailed,
-  inlineCriticalCss, isCriticalSelector,
-  optimisticAppend, shouldPrefetchPage,
+  ROUTE_BUNDLE_BUDGET_KB,
+  checkBundleBudgets,
+  bundleBudgetFailed,
+  inlineCriticalCss,
+  isCriticalSelector,
+  optimisticAppend,
+  shouldPrefetchPage,
   nextSlice,
-  recordAckSample, latencyStats,
-  pushUndo, popUndo,
-  SW_CACHE_NAME, precacheManifest, swStrategy,
+  recordAckSample,
+  latencyStats,
+  pushUndo,
+  popUndo,
+  SW_CACHE_NAME,
+  precacheManifest,
+  swStrategy,
   optimisticCheck,
-  preloadSettings, firstRenderThemeClass,
-  optimisticReact, confirmReaction,
+  preloadSettings,
+  firstRenderThemeClass,
+  optimisticReact,
+  confirmReaction,
   fastPathHunt,
-  nextTempId, resetTempIds,
+  nextTempId,
+  resetTempIds,
 } from './performanceRound5Core.js';
 
 describe('wave 25 registry completeness', () => {
@@ -74,7 +113,11 @@ describe('50961 font-display swap', () => {
 
 describe('50962 optimistic tab switches', () => {
   it('shows cached content instantly and flags background refresh', () => {
-    const st = { activeTab: 'a', tabs: { b: { content: 'cached B', stale: true } }, refreshing: false };
+    const st = {
+      activeTab: 'a',
+      tabs: { b: { content: 'cached B', stale: true } },
+      refreshing: false,
+    };
     const next = optimisticTabSwitch(st, 'b', () => Promise.resolve());
     assert.equal(next.activeTab, 'b');
     assert.equal(next.instantContent, 'cached B');
@@ -191,7 +234,7 @@ describe('50971 offline mutation queue', () => {
     q = enqueueMutation(q, 'triage', {});
     q = enqueueMutation(q, 'comment', {});
     const sent = [];
-    const { done, leftover } = await replayMutationQueue(q, async (item) => {
+    const { done, leftover } = await replayMutationQueue(q, async item => {
       sent.push(item.op);
       return 'ok';
     });
@@ -201,7 +244,9 @@ describe('50971 offline mutation queue', () => {
   });
   it('keeps failed items for the next attempt', async () => {
     const q = enqueueMutation([], 'triage', {});
-    const { leftover } = await replayMutationQueue(q, async () => { throw new Error('down'); });
+    const { leftover } = await replayMutationQueue(q, async () => {
+      throw new Error('down');
+    });
     assert.equal(leftover.length, 1);
     assert.equal(leftover[0].attempts, 1);
   });
@@ -286,7 +331,10 @@ describe('50979 deduplicated in-flight requests', () => {
   it('shares one flight for identical keys', async () => {
     const inflight = new Map();
     let calls = 0;
-    const fetcher = async () => { calls += 1; return 'data'; };
+    const fetcher = async () => {
+      calls += 1;
+      return 'data';
+    };
     const r1 = dedupedRequest(inflight, 'k', fetcher);
     const r2 = dedupedRequest(inflight, 'k', fetcher);
     assert.equal(r1.shared, false);
@@ -327,7 +375,9 @@ describe('50981 lazy chain-graph init', () => {
 
 describe('50982 ssr fallback text', () => {
   it('renders escaped static triage content', () => {
-    const html = ssrFallbackText('Hunt <A>', [{ severity: 'high', title: 'XSS <img>', status: 'open' }]);
+    const html = ssrFallbackText('Hunt <A>', [
+      { severity: 'high', title: 'XSS <img>', status: 'open' },
+    ]);
     assert.ok(html.includes('Hunt &lt;A&gt;'));
     assert.ok(html.includes('XSS &lt;img&gt;'));
     assert.ok(html.includes('static snapshot'));
@@ -476,8 +526,10 @@ describe('50995 optimistic toast undo', () => {
   it('undoes from the local stack without waiting for the server', () => {
     let items = ['a'];
     let stack = [];
-    stack = pushUndo(stack, 'dismiss a', () => { items = [...items, 'a']; });
-    items = items.filter((i) => i !== 'a');
+    stack = pushUndo(stack, 'dismiss a', () => {
+      items = [...items, 'a'];
+    });
+    items = items.filter(i => i !== 'a');
     assert.deepEqual(items, []);
     const { rest, reverted } = popUndo(stack);
     assert.deepEqual(rest, []);
@@ -511,7 +563,10 @@ describe('50997 optimistic checklist', () => {
 
 describe('50998 preloaded user settings', () => {
   it('first render matches stored preferences, no theme flash', () => {
-    const { settings, preloaded } = preloadSettings({ theme: 'light' }, { theme: 'dark', density: 'comfortable' });
+    const { settings, preloaded } = preloadSettings(
+      { theme: 'light' },
+      { theme: 'dark', density: 'comfortable' }
+    );
     assert.equal(settings.theme, 'light');
     assert.equal(settings.density, 'comfortable');
     assert.equal(preloaded, true);

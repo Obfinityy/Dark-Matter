@@ -79,9 +79,9 @@ export function pivotFromSeed(graph, seedDomain, opts = {}) {
   for (const n of visitedNames.keys()) {
     for (const ip of nameToIps.get(n) || []) ipSet.add(ip);
   }
-  const ips = [...ipSet].map((ip) => ({
+  const ips = [...ipSet].map(ip => ({
     ip,
-    names: [...(ipToNames.get(ip) || [])].filter((n) => visitedNames.has(n)),
+    names: [...(ipToNames.get(ip) || [])].filter(n => visitedNames.has(n)),
   }));
   return { names, ips };
 }

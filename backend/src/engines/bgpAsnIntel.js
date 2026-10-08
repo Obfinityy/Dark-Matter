@@ -25,7 +25,11 @@ export function enumerateOrgPrefixes(routes, targetAsns) {
   const byPrefix = new Map();
   for (const r of routes || []) {
     if (!r || !r.prefix) continue;
-    const path = String(r.asPath || '').trim().split(/\s+/).map(Number).filter(Number.isFinite);
+    const path = String(r.asPath || '')
+      .trim()
+      .split(/\s+/)
+      .map(Number)
+      .filter(Number.isFinite);
     const originAs = path.length ? path[path.length - 1] : null;
     if (originAs === null || !targets.has(originAs)) continue;
     let entry = byPrefix.get(r.prefix);
@@ -58,11 +62,18 @@ export function detectMoas(routes) {
   const byPrefix = new Map();
   for (const r of routes || []) {
     if (!r || !r.prefix) continue;
-    const path = String(r.asPath || '').trim().split(/\s+/).map(Number).filter(Number.isFinite);
+    const path = String(r.asPath || '')
+      .trim()
+      .split(/\s+/)
+      .map(Number)
+      .filter(Number.isFinite);
     if (!path.length) continue;
     const originAs = path[path.length - 1];
     let entry = byPrefix.get(r.prefix);
-    if (!entry) { entry = { prefix: r.prefix, originAses: new Set(), origins: [] }; byPrefix.set(r.prefix, entry); }
+    if (!entry) {
+      entry = { prefix: r.prefix, originAses: new Set(), origins: [] };
+      byPrefix.set(r.prefix, entry);
+    }
     if (!entry.originAses.has(originAs)) {
       entry.originAses.add(originAs);
       entry.origins.push({ originAs, asPath: r.asPath, collector: r.collector ?? null });
@@ -83,7 +94,10 @@ export function detectMoas(routes) {
       reason: `Prefix announced from ${ases.length} origin ASes (${ases.join(', ')}) — possible cloud migration or hijack attempt`,
     });
   }
-  return anomalies.sort((a, b) => b.suspicion - a.suspicion || a.prefix.localeCompare(b.prefix, undefined, { numeric: true }));
+  return anomalies.sort(
+    (a, b) =>
+      b.suspicion - a.suspicion || a.prefix.localeCompare(b.prefix, undefined, { numeric: true })
+  );
 }
 
 /**
@@ -97,7 +111,10 @@ function parseIrrObjects(text) {
   for (const rawLine of String(text || '').split('\n')) {
     const line = rawLine.replace(/\r$/, '');
     if (line.trim() === '') {
-      if (current) { objects.push(current); current = null; }
+      if (current) {
+        objects.push(current);
+        current = null;
+      }
       continue;
     }
     const m = line.match(/^\s*([\w-]+)\s*:\s*(.*)$/);
@@ -150,12 +167,24 @@ export function mineIrrObjects(irrText, targetAsns) {
         for (const m of v.match(hostnameRx) || []) hostnames.add(m.toLowerCase());
       }
     }
-    for (const field of ['admin-c', 'tech-c', 'notify', 'mnt-by', 'e-mail', 'email', 'abuse-mailbox']) {
+    for (const field of [
+      'admin-c',
+      'tech-c',
+      'notify',
+      'mnt-by',
+      'e-mail',
+      'email',
+      'abuse-mailbox',
+    ]) {
       for (const v of a[field] || []) contacts.add(v);
     }
     const peeringText = [
-      ...(a['import'] || []), ...(a['export'] || []), ...(a['peer'] || []),
-      ...(a['members'] || []), ...(a['mp-import'] || []), ...(a['mp-export'] || []),
+      ...(a['import'] || []),
+      ...(a['export'] || []),
+      ...(a['peer'] || []),
+      ...(a['members'] || []),
+      ...(a['mp-import'] || []),
+      ...(a['mp-export'] || []),
     ].join(' ');
     for (const m of peeringText.match(/\bAS(\d{1,10})\b/gi) || []) {
       const asn = Number(m.replace(/^AS/i, ''));
@@ -245,7 +274,8 @@ export function decodeBgpCommunities(routes) {
       if (WELL_KNOWN_COMMUNITIES.has(community)) {
         entry.kind = 'well-known';
         entry.meaning = WELL_KNOWN_COMMUNITIES.get(community);
-        if (community === '65535:666') edgeHints.add('prefix marked BLACKHOLE — edge scrubbing/mitigation path');
+        if (community === '65535:666')
+          edgeHints.add('prefix marked BLACKHOLE — edge scrubbing/mitigation path');
       } else {
         const parts = community.split(':').map(Number);
         const allNumeric = parts.every(Number.isFinite);

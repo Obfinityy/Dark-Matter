@@ -24,14 +24,15 @@ const KIND_STYLE = {
   computer: 'dm-term-computer',
   report: 'dm-term-report',
   system: 'dm-term-system',
-  chat: 'dm-term-chat'
+  chat: 'dm-term-chat',
 };
 
 function classifyEvent(event) {
   const t = event.__sseType || event.type || '';
   if (t.startsWith('brain.')) return 'brain';
   if (t.startsWith('tool.')) return 'tool';
-  if (t.startsWith('finding.') || t.startsWith('observation.') || t.startsWith('hypothesis.')) return 'finding';
+  if (t.startsWith('finding.') || t.startsWith('observation.') || t.startsWith('hypothesis.'))
+    return 'finding';
   if (t.startsWith('computer.') || t.startsWith('browser.')) return 'computer';
   if (t.startsWith('report.')) return 'report';
   if (t.startsWith('agent.chat')) return 'chat';
@@ -41,7 +42,11 @@ function classifyEvent(event) {
 function eventToLine(event) {
   const kind = classifyEvent(event);
   const ts = event.at || event.timestamp || new Date().toISOString();
-  const text = event.message || event.data?.message || event.summary || JSON.stringify(event.data || event).slice(0, 200);
+  const text =
+    event.message ||
+    event.data?.message ||
+    event.summary ||
+    JSON.stringify(event.data || event).slice(0, 200);
   // Stable fallback id: the same event fetched twice (activity backfill vs SSE
   // history replay) must map to the same id so duplicates can be dropped.
   const fallbackId = `evt-${event.__sseType || event.type || '?'}-${ts}-${text.slice(0, 48)}`;
@@ -50,7 +55,7 @@ function eventToLine(event) {
     at: ts,
     kind,
     type: event.__sseType || event.type || 'event',
-    text: String(text)
+    text: String(text),
   };
 }
 
@@ -60,7 +65,7 @@ function activityToLine(entry, index) {
     at: entry.at || entry.createdAt,
     kind: entry.kind === 'finding' ? 'finding' : entry.kind === 'tool' ? 'tool' : 'system',
     type: entry.kind || 'activity',
-    text: entry.message || entry.text || ''
+    text: entry.message || entry.text || '',
   };
 }
 
@@ -69,7 +74,7 @@ export function HackerTerminal({
   subscribe = subscribeToJobEvents,
   fetchActivity = getJobActivity,
   fetchHistory = getJobEventHistory,
-  height = 420
+  height = 420,
 }) {
   const [lines, setLines] = useState([]);
   const [connected, setConnected] = useState(false);
@@ -82,7 +87,7 @@ export function HackerTerminal({
   // overlap, so without this the terminal shows every early event twice.
   const seenIdsRef = useRef(new Set());
 
-  const pushLines = useCallback((newLines) => {
+  const pushLines = useCallback(newLines => {
     const fresh = [];
     for (const line of newLines) {
       if (seenIdsRef.current.has(line.id)) continue;
@@ -90,7 +95,7 @@ export function HackerTerminal({
       fresh.push(line);
     }
     if (!fresh.length) return;
-    setLines((prev) => {
+    setLines(prev => {
       const merged = [...prev, ...fresh];
       // Keep chronological — history replays can arrive after live lines.
       merged.sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
@@ -105,19 +110,23 @@ export function HackerTerminal({
     seenIdsRef.current = new Set();
     lastEventIdRef.current = null;
     fetchActivity(jobId, 300)
-      .then((body) => {
+      .then(body => {
         if (cancelled) return;
         const activity = body?.activity || body || [];
         pushLines(activity.map(activityToLine));
       })
-      .catch(() => { /* terminal stays empty rather than crashing the page */ });
-    return () => { cancelled = true; };
+      .catch(() => {
+        /* terminal stays empty rather than crashing the page */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [jobId, fetchActivity, pushLines]);
 
   // Live stream with history backfill on (re)connect.
   useEffect(() => {
     let cancelled = false;
-    const onEvent = (event) => {
+    const onEvent = event => {
       if (cancelled) return;
       if (event.id) lastEventIdRef.current = event.id;
       pushLines([eventToLine(event)]);
@@ -130,14 +139,21 @@ export function HackerTerminal({
         const body = await fetchHistory(jobId, { after: lastEventIdRef.current || undefined });
         const events = body?.events || [];
         if (!cancelled && events.length) pushLines(events.map(eventToLine));
-      } catch { /* non-fatal */ }
+      } catch {
+        /* non-fatal */
+      }
     };
     const unsubscribe = subscribe(jobId, {
       onOpen,
       onEvent,
-      onError: () => { if (!cancelled) setConnected(false); }
+      onError: () => {
+        if (!cancelled) setConnected(false);
+      },
     });
-    return () => { cancelled = true; unsubscribe?.(); };
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [jobId, subscribe, fetchHistory, pushLines]);
 
   // Auto-scroll to the bottom unless the user scrolled up to read.
@@ -181,10 +197,8 @@ export function HackerTerminal({
         aria-live="off"
         tabIndex={0}
       >
-        {lines.length === 0 && (
-          <div className="dm-term-empty">waiting for the agent to speak…</div>
-        )}
-        {lines.map((line) => {
+        {lines.length === 0 && <div className="dm-term-empty">waiting for the agent to speak…</div>}
+        {lines.map(line => {
           const when = line.at ? new Date(line.at) : null;
           const valid = when instanceof Date && !Number.isNaN(when.getTime());
           const clock = valid ? when.toLocaleTimeString('en-GB', { hour12: false }) : '--:--:--';
@@ -197,7 +211,9 @@ export function HackerTerminal({
               >
                 {clock}
               </time>
-              <span className="dm-term-tag" aria-hidden="true">{line.type}</span>
+              <span className="dm-term-tag" aria-hidden="true">
+                {line.type}
+              </span>
               <span className="dm-term-text">{line.text}</span>
             </div>
           );

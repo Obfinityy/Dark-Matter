@@ -73,15 +73,26 @@ const HONEYPOT_SIGNATURES = [
  * Flag a captured banner if it matches a known honeypot signature.
  * @param {{host?: string, port?: number, service?: string, banner: string}} input
  */
-export function flagHoneypotBanner({ host = null, port = null, service = 'unknown', banner = '' } = {}) {
+export function flagHoneypotBanner({
+  host = null,
+  port = null,
+  service = 'unknown',
+  banner = '',
+} = {}) {
   const text = String(banner || '');
   if (!text.trim()) {
-    return { flagged: false, confidence: 'none', reason: 'Empty banner — nothing to evaluate.', banner: '' };
+    return {
+      flagged: false,
+      confidence: 'none',
+      reason: 'Empty banner — nothing to evaluate.',
+      banner: '',
+    };
   }
 
   for (const sig of HONEYPOT_SIGNATURES) {
     if (sig.pattern.test(text)) {
-      const serviceMatch = sig.service === 'any' || sig.service === service || service === 'unknown';
+      const serviceMatch =
+        sig.service === 'any' || sig.service === service || service === 'unknown';
       return {
         flagged: true,
         tool: sig.tool,
@@ -99,7 +110,8 @@ export function flagHoneypotBanner({ host = null, port = null, service = 'unknow
   // Heuristic: banners that advertise EOL/placeholder software on a port
   // where it makes no sense are decoy-shaped.
   const anomalies = [];
-  if (/test|demo|example\.com/i.test(text)) anomalies.push('banner contains placeholder/test strings');
+  if (/test|demo|example\.com/i.test(text))
+    anomalies.push('banner contains placeholder/test strings');
   if (text.length > 2000) anomalies.push('unusually long banner (banner-bloat is a decoy tell)');
 
   return {

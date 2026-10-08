@@ -27,11 +27,7 @@ export const TELESCOPE_SIGNATURES = [
   /meta name="telescope"/i,
 ];
 
-export const SYMFONY_PROFILER_PATHS = [
-  '/_profiler',
-  '/_profiler/search',
-  '/_wdt',
-];
+export const SYMFONY_PROFILER_PATHS = ['/_profiler', '/_profiler/search', '/_wdt'];
 
 export const SYMFONY_SIGNATURES = [
   /Symfony Profiler/i,
@@ -62,10 +58,14 @@ export const PHPINFO_VERSION_PATTERNS = [
  */
 export function detectLaravelTelescope({ url = '', status = 0, headers = {}, body = '' }) {
   const text = String(body || '');
-  const matched = TELESCOPE_SIGNATURES.filter((re) => re.test(text));
+  const matched = TELESCOPE_SIGNATURES.filter(re => re.test(text));
   const detected = status === 200 && matched.length > 0;
   if (!detected) {
-    return { detected: false, service: 'Laravel Telescope', reason: 'No Telescope dashboard signature in response' };
+    return {
+      detected: false,
+      service: 'Laravel Telescope',
+      reason: 'No Telescope dashboard signature in response',
+    };
   }
   return {
     detected: true,
@@ -87,11 +87,17 @@ export function detectLaravelTelescope({ url = '', status = 0, headers = {}, bod
 export function detectSymfonyProfiler({ url = '', status = 0, headers = {}, body = '' }) {
   const text = String(body || '');
   const headerText = JSON.stringify(headers || '');
-  const matched = SYMFONY_SIGNATURES.filter((re) => re.test(text) || re.test(headerText));
-  const debugToken = /(?:X-Debug-Token:\s*|"?x-debug-token"?\s*"?\s*:\s*"?)([a-f0-9]{13})/i.exec(headerText);
+  const matched = SYMFONY_SIGNATURES.filter(re => re.test(text) || re.test(headerText));
+  const debugToken = /(?:X-Debug-Token:\s*|"?x-debug-token"?\s*"?\s*:\s*"?)([a-f0-9]{13})/i.exec(
+    headerText
+  );
   const detected = (status === 200 && matched.length > 0) || Boolean(debugToken);
   if (!detected) {
-    return { detected: false, service: 'Symfony Profiler', reason: 'No Symfony profiler signature in response' };
+    return {
+      detected: false,
+      service: 'Symfony Profiler',
+      reason: 'No Symfony profiler signature in response',
+    };
   }
   const wdt = /_wdt\/([a-f0-9]{13})/i.exec(text);
   return {
@@ -114,18 +120,22 @@ export function detectSymfonyProfiler({ url = '', status = 0, headers = {}, body
  */
 export function detectPhpInfo({ url = '', status = 0, headers = {}, body = '' }) {
   const text = String(body || '');
-  const matched = PHPINFO_SIGNATURES.filter((re) => re.test(text));
+  const matched = PHPINFO_SIGNATURES.filter(re => re.test(text));
   if (!(status === 200 && matched.length >= 2)) {
     return { detected: false, service: 'phpinfo', reason: 'No phpinfo page signature in response' };
   }
   let version = null;
   for (const re of PHPINFO_VERSION_PATTERNS) {
     const m = re.exec(text);
-    if (m) { version = m[1]; break; }
+    if (m) {
+      version = m[1];
+      break;
+    }
   }
   const modules = [];
   for (const mod of ['curl', 'openssl', 'mysqli', 'mbstring', 'gd', 'redis', 'imagick']) {
-    if (new RegExp(`<h2[^>]*>${mod}<\\/h2>|<td[^>]*>${mod}<\\/td>`, 'i').test(text)) modules.push(mod);
+    if (new RegExp(`<h2[^>]*>${mod}<\\/h2>|<td[^>]*>${mod}<\\/td>`, 'i').test(text))
+      modules.push(mod);
   }
   return {
     detected: true,

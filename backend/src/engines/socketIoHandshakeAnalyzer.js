@@ -9,10 +9,30 @@
  */
 
 const SOCKET_IO_VERSION_HINTS = [
-  { min: 4, max: 4, markers: [/socket\.io\/4\./i, /socket\.io-client@4/i, /\/socket\.io\.min\.js\?v=4/i], label: 'Socket.IO v4.x' },
-  { min: 3, max: 3, markers: [/socket\.io\/3\./i, /socket\.io-client@3/i], label: 'Socket.IO v3.x' },
-  { min: 2, max: 2, markers: [/socket\.io\/2\./i, /socket\.io-client@2/i, /socket\.io\.js/i], label: 'Socket.IO v2.x' },
-  { min: 1, max: 1, markers: [/socket\.io\/1\./i, /socket\.io-client@1/i], label: 'Socket.IO v1.x' },
+  {
+    min: 4,
+    max: 4,
+    markers: [/socket\.io\/4\./i, /socket\.io-client@4/i, /\/socket\.io\.min\.js\?v=4/i],
+    label: 'Socket.IO v4.x',
+  },
+  {
+    min: 3,
+    max: 3,
+    markers: [/socket\.io\/3\./i, /socket\.io-client@3/i],
+    label: 'Socket.IO v3.x',
+  },
+  {
+    min: 2,
+    max: 2,
+    markers: [/socket\.io\/2\./i, /socket\.io-client@2/i, /socket\.io\.js/i],
+    label: 'Socket.IO v2.x',
+  },
+  {
+    min: 1,
+    max: 1,
+    markers: [/socket\.io\/1\./i, /socket\.io-client@1/i],
+    label: 'Socket.IO v1.x',
+  },
 ];
 
 // Known-vulnerable Socket.IO ranges (defensive reference — check, don't exploit).
@@ -45,7 +65,7 @@ export function extractClientVersions(scriptSource = '') {
 export function fingerprintVersion(scriptSource = '') {
   const src = String(scriptSource);
   for (const hint of SOCKET_IO_VERSION_HINTS) {
-    if (hint.markers.some((re) => re.test(src))) {
+    if (hint.markers.some(re => re.test(src))) {
       return { label: hint.label, major: hint.min, confidence: 'medium' };
     }
   }
@@ -55,7 +75,11 @@ export function fingerprintVersion(scriptSource = '') {
     return { label: `Socket.IO v${major}.x`, major, confidence: 'high' };
   }
   const ioCall = /\bio\s*\(/.test(src) || /io\.connect\s*\(/.test(src);
-  return { label: ioCall ? 'Socket.IO (version unknown)' : null, major: null, confidence: ioCall ? 'low' : 'none' };
+  return {
+    label: ioCall ? 'Socket.IO (version unknown)' : null,
+    major: null,
+    confidence: ioCall ? 'low' : 'none',
+  };
 }
 
 function compareVersions(a, b) {
@@ -73,7 +97,11 @@ function compareVersions(a, b) {
  * @param {{scriptSource?: string, pollingPath?: string, upgradeObserved?: boolean}} obs
  * @returns {{version: object, transport: string, upgradePath: string|null, hardeningNotes: string[]}}
  */
-export function analyzeHandshake({ scriptSource = '', pollingPath = '', upgradeObserved = false } = {}) {
+export function analyzeHandshake({
+  scriptSource = '',
+  pollingPath = '',
+  upgradeObserved = false,
+} = {}) {
   const version = fingerprintVersion(scriptSource);
   const notes = [];
   let transport = 'polling';

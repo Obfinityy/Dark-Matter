@@ -24,12 +24,20 @@ export const WAVE35A_END = 51396;
 /** Registry of the 36 strategy-round-3 ideas — completeness is testable. */
 export const WAVE35A_IDEAS = [
   [51361, 'strategy effectiveness score', 'Findings-per-hour under each strategy, tracked live'],
-  [51362, 'strategy rollback (mid-hunt)', 'One click returns to the previous strategy with hunt state intact'],
+  [
+    51362,
+    'strategy rollback (mid-hunt)',
+    'One click returns to the previous strategy with hunt state intact',
+  ],
   [51363, 'strategy annotations', 'Note why you chose a strategy, for the final report'],
   [51364, 'strategy chat commands', '"Switch to depth mode" works from chat, voice, or buttons'],
   [51365, 'strategy timeline', 'Hunt timeline color-coded by active strategy per segment'],
   [51366, 'strategy-based reporting', 'The final report notes which strategy found each finding'],
-  [51367, 'strategy presets marketplace', 'Community-shared strategies you can preview and install'],
+  [
+    51367,
+    'strategy presets marketplace',
+    'Community-shared strategies you can preview and install',
+  ],
   [51368, 'strategy simulator', 'Test strategies against historical hunt data before going live'],
   [51369, 'strategy focus areas', 'Pick 2–3 focus areas; the optimizer weights them'],
   [51370, 'strategy exclusions', 'Rule out techniques or areas under the new strategy explicitly'],
@@ -40,32 +48,67 @@ export const WAVE35A_IDEAS = [
   [51375, 'strategy learning', 'The agent remembers which strategies worked on similar targets'],
   [51376, 'strategy quiet hours', 'Aggressive strategies auto-downgrade during business hours'],
   [51377, 'strategy cost estimator', 'Projected requests, time, and spend under the new strategy'],
-  [51378, 'strategy approval flow', 'Major strategy changes routed through approval like sensitive actions'],
+  [
+    51378,
+    'strategy approval flow',
+    'Major strategy changes routed through approval like sensitive actions',
+  ],
   [51379, 'strategy chaining', 'Queue "breadth now, depth later, retest at the end" as a sequence'],
-  [51380, 'strategy performance alerts', 'Warned when the current strategy underperforms its forecast'],
-  [51381, 'strategy personalization', 'Strategies adapt to your historical preferences automatically'],
+  [
+    51380,
+    'strategy performance alerts',
+    'Warned when the current strategy underperforms its forecast',
+  ],
+  [
+    51381,
+    'strategy personalization',
+    'Strategies adapt to your historical preferences automatically',
+  ],
   [51382, 'strategy explainability', '"Why is depth mode better here?" answered with evidence'],
   [51383, 'strategy snapshots', 'Capture the strategy state alongside report snapshots'],
   [51384, 'strategy migration', 'Apply a working strategy from one hunt to another live hunt'],
   [51385, 'strategy fairness', 'All in-scope assets get minimum coverage under any strategy'],
-  [51386, 'strategy pause points', 'Strategy changes only apply at safe phase boundaries if you prefer'],
+  [
+    51386,
+    'strategy pause points',
+    'Strategy changes only apply at safe phase boundaries if you prefer',
+  ],
   [51387, 'strategy notifications digest', 'Batch strategy updates instead of interrupting you'],
   [51388, 'strategy rollback window', 'A grace period after each change to undo with one click'],
   [51389, 'strategy tags', 'Label strategy segments for filtering in analytics later'],
   [51390, 'strategy vs findings correlation', 'Which strategy produced each finding, visualized'],
-  [51391, 'strategy export to report', 'The strategy journey included as a report appendix automatically'],
+  [
+    51391,
+    'strategy export to report',
+    'The strategy journey included as a report appendix automatically',
+  ],
   [51392, 'strategy voice control', 'Switch strategies hands-free with voice commands'],
   [51393, 'strategy mobile control', 'Change strategy from the phone with a simplified picker'],
-  [51394, 'strategy guardrail presets', '"Never go aggressive on prod" rules enforced automatically'],
+  [
+    51394,
+    'strategy guardrail presets',
+    '"Never go aggressive on prod" rules enforced automatically',
+  ],
   [51395, 'strategy retrospectives', 'Post-hunt review of strategy decisions and their outcomes'],
-  [51396, 'strategy recommendation engine (mid-hunt)', 'ML-driven suggestions based on thousands of past hunts'],
+  [
+    51396,
+    'strategy recommendation engine (mid-hunt)',
+    'ML-driven suggestions based on thousands of past hunts',
+  ],
 ];
 
 /**
  * Strategy shape: { name, focus, allocation: { <phaseId>: weight },
  *   aggression: 'calm' | 'balanced' | 'aggressive' }
  */
-export const PHASE_IDS = ['recon', 'surface-map', 'tech-fingerprint', 'auth-deep', 'business-logic', 'exploit-chain'];
+export const PHASE_IDS = [
+  'recon',
+  'surface-map',
+  'tech-fingerprint',
+  'auth-deep',
+  'business-logic',
+  'exploit-chain',
+];
 
 /** Color per strategy focus for the color-coded timeline (idea 51365). */
 export const STRATEGY_COLORS = {
@@ -93,19 +136,19 @@ export function recordStrategyEvent(events, strategyName, findingId, now) {
 /** Findings-per-hour for one strategy inside a trailing window. */
 export function findingsPerHour(events, strategyName, windowMs, now) {
   const cutoff = now - windowMs;
-  const hits = events.filter((e) => e.strategy === strategyName && e.at >= cutoff);
+  const hits = events.filter(e => e.strategy === strategyName && e.at >= cutoff);
   const hours = Math.max(windowMs / 3_600_000, 1 / 60);
   return hits.length / hours;
 }
 
 /** Live per-strategy effectiveness table, best first. */
 export function liveEffectivenessScores(events, now, windowMs = 3_600_000) {
-  const names = [...new Set(events.map((e) => e.strategy))];
+  const names = [...new Set(events.map(e => e.strategy))];
   return names
-    .map((strategy) => ({
+    .map(strategy => ({
       strategy,
       findingsPerHour: findingsPerHour(events, strategy, windowMs, now),
-      findings: events.filter((e) => e.strategy === strategy && e.at >= now - windowMs).length,
+      findings: events.filter(e => e.strategy === strategy && e.at >= now - windowMs).length,
     }))
     .sort((a, b) => b.findingsPerHour - a.findingsPerHour);
 }
@@ -134,7 +177,7 @@ export function annotateStrategy(annotations, strategyName, text, now) {
 }
 
 export function annotationsFor(annotations, strategyName) {
-  return annotations.filter((a) => a.strategy === strategyName);
+  return annotations.filter(a => a.strategy === strategyName);
 }
 
 // --- 51364 chat commands -------------------------------------------------------
@@ -145,14 +188,21 @@ export function annotationsFor(annotations, strategyName) {
  * "try breadth for 30 minutes" → { action: 'timebox', target: 'breadth', minutes: 30 }
  */
 export function parseStrategyChatCommand(text) {
-  const t = String(text || '').toLowerCase().trim();
+  const t = String(text || '')
+    .toLowerCase()
+    .trim();
   if (!t) return null;
-  const target = /depth/.test(t) ? 'depth'
-    : /breadth/.test(t) ? 'breadth'
-    : /retest/.test(t) ? 'retest'
-    : /balanced/.test(t) ? 'balanced'
-    : /aggressive/.test(t) ? 'aggressive'
-    : null;
+  const target = /depth/.test(t)
+    ? 'depth'
+    : /breadth/.test(t)
+      ? 'breadth'
+      : /retest/.test(t)
+        ? 'retest'
+        : /balanced/.test(t)
+          ? 'balanced'
+          : /aggressive/.test(t)
+            ? 'aggressive'
+            : null;
   const minutesMatch = t.match(/for\s+(\d+)\s*(min|minutes?)/) || t.match(/timebox[^0-9]*(\d+)/);
   const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : null;
   if (/rollback|previous strategy|go back/.test(t)) return { action: 'rollback' };
@@ -165,7 +215,7 @@ export function parseStrategyChatCommand(text) {
 // --- 51365 strategy timeline ----------------------------------------------------
 
 export function segmentStrategyTimeline(segments) {
-  return segments.map((s) => ({
+  return segments.map(s => ({
     ...s,
     color: strategyColor(s.focus || 'custom'),
     durationMin: Math.max(0, Math.round((s.to - s.from) / 60_000)),
@@ -180,7 +230,7 @@ export function attributeFinding(attribution, findingId, strategyName) {
 }
 
 export function strategyReportLines(findings, attribution) {
-  return findings.map((f) => {
+  return findings.map(f => {
     const s = attribution[f.id];
     return s
       ? `${f.id} (${f.severity || 'unknown'}) — found under "${s}" strategy`
@@ -191,19 +241,89 @@ export function strategyReportLines(findings, attribution) {
 // --- 51367 presets marketplace ----------------------------------------------------
 
 export const MARKETPLACE_PRESETS = [
-  { id: 'api-first-blitz', name: 'API-first blitz', author: 'huntfox', downloads: 1240, rating: 4.6, tags: ['api', 'saas'], focus: 'depth', allocation: { recon: 10, 'surface-map': 15, 'tech-fingerprint': 20, 'auth-deep': 15, 'business-logic': 30, 'exploit-chain': 10 }, description: 'Deep on API surface and business logic for SaaS targets.' },
-  { id: 'auth-hammer', name: 'Auth hammer', author: 'nullbyte', downloads: 860, rating: 4.8, tags: ['auth'], focus: 'depth', allocation: { recon: 10, 'surface-map': 10, 'tech-fingerprint': 10, 'auth-deep': 45, 'business-logic': 15, 'exploit-chain': 10 }, description: 'All weight on auth: sessions, JWTs, IDOR, privilege paths.' },
-  { id: 'wide-net', name: 'Wide net', author: 'reconowl', downloads: 2100, rating: 4.4, tags: ['recon'], focus: 'breadth', allocation: { recon: 30, 'surface-map': 30, 'tech-fingerprint': 20, 'auth-deep': 5, 'business-logic': 10, 'exploit-chain': 5 }, description: 'Maximum coverage for new targets before going deep.' },
-  { id: 'retest-sweep', name: 'Retest sweep', author: 'verifylabs', downloads: 540, rating: 4.7, tags: ['retest'], focus: 'retest', allocation: { recon: 5, 'surface-map': 10, 'tech-fingerprint': 5, 'auth-deep': 20, 'business-logic': 40, 'exploit-chain': 20 }, description: 'Verifies fixes and hunts regressions, no new recon.' },
+  {
+    id: 'api-first-blitz',
+    name: 'API-first blitz',
+    author: 'huntfox',
+    downloads: 1240,
+    rating: 4.6,
+    tags: ['api', 'saas'],
+    focus: 'depth',
+    allocation: {
+      recon: 10,
+      'surface-map': 15,
+      'tech-fingerprint': 20,
+      'auth-deep': 15,
+      'business-logic': 30,
+      'exploit-chain': 10,
+    },
+    description: 'Deep on API surface and business logic for SaaS targets.',
+  },
+  {
+    id: 'auth-hammer',
+    name: 'Auth hammer',
+    author: 'nullbyte',
+    downloads: 860,
+    rating: 4.8,
+    tags: ['auth'],
+    focus: 'depth',
+    allocation: {
+      recon: 10,
+      'surface-map': 10,
+      'tech-fingerprint': 10,
+      'auth-deep': 45,
+      'business-logic': 15,
+      'exploit-chain': 10,
+    },
+    description: 'All weight on auth: sessions, JWTs, IDOR, privilege paths.',
+  },
+  {
+    id: 'wide-net',
+    name: 'Wide net',
+    author: 'reconowl',
+    downloads: 2100,
+    rating: 4.4,
+    tags: ['recon'],
+    focus: 'breadth',
+    allocation: {
+      recon: 30,
+      'surface-map': 30,
+      'tech-fingerprint': 20,
+      'auth-deep': 5,
+      'business-logic': 10,
+      'exploit-chain': 5,
+    },
+    description: 'Maximum coverage for new targets before going deep.',
+  },
+  {
+    id: 'retest-sweep',
+    name: 'Retest sweep',
+    author: 'verifylabs',
+    downloads: 540,
+    rating: 4.7,
+    tags: ['retest'],
+    focus: 'retest',
+    allocation: {
+      recon: 5,
+      'surface-map': 10,
+      'tech-fingerprint': 5,
+      'auth-deep': 20,
+      'business-logic': 40,
+      'exploit-chain': 20,
+    },
+    description: 'Verifies fixes and hunts regressions, no new recon.',
+  },
 ];
 
 export function previewMarketplacePreset(id) {
-  return MARKETPLACE_PRESETS.find((p) => p.id === id) || null;
+  return MARKETPLACE_PRESETS.find(p => p.id === id) || null;
 }
 
 export function installMarketplacePreset(installedIds, id) {
-  if (!previewMarketplacePreset(id)) return { ok: false, installed: installedIds, reason: 'unknown preset' };
-  if (installedIds.includes(id)) return { ok: false, installed: installedIds, reason: 'already installed' };
+  if (!previewMarketplacePreset(id))
+    return { ok: false, installed: installedIds, reason: 'unknown preset' };
+  if (installedIds.includes(id))
+    return { ok: false, installed: installedIds, reason: 'already installed' };
   return { ok: true, installed: [...installedIds, id], reason: '' };
 }
 
@@ -215,8 +335,8 @@ export function installMarketplacePreset(installedIds, id) {
  * same focus; falls back to the global average.
  */
 export function simulateStrategy(history, proposedFocus, estHours) {
-  const same = history.filter((h) => h.strategyFocus === proposedFocus && h.hours > 0);
-  const pool = same.length > 0 ? same : history.filter((h) => h.hours > 0);
+  const same = history.filter(h => h.strategyFocus === proposedFocus && h.hours > 0);
+  const pool = same.length > 0 ? same : history.filter(h => h.hours > 0);
   if (pool.length === 0) return { projectedFindings: 0, basis: 'no history', confidence: 'low' };
   const fph = pool.reduce((s, h) => s + h.findings / h.hours, 0) / pool.length;
   return {
@@ -240,7 +360,7 @@ const FOCUS_PHASE_MAP = {
 };
 
 export function applyFocusAreas(strategy, focusAreas) {
-  const picked = focusAreas.filter((a) => FOCUS_AREAS.includes(a)).slice(0, 3);
+  const picked = focusAreas.filter(a => FOCUS_AREAS.includes(a)).slice(0, 3);
   if (picked.length === 0) return strategy;
   const boost = {};
   for (const area of picked) {
@@ -264,7 +384,7 @@ export function applyFocusAreas(strategy, focusAreas) {
 export function excludeFromStrategy(strategy, exclusions) {
   const current = Array.isArray(strategy.exclusions) ? strategy.exclusions : [];
   const merged = [...new Set([...current, ...exclusions])];
-  const remainingPhases = PHASE_IDS.filter((p) => !merged.includes(p));
+  const remainingPhases = PHASE_IDS.filter(p => !merged.includes(p));
   return {
     strategy: { ...strategy, exclusions: merged },
     phasesRemaining: remainingPhases,
@@ -275,7 +395,13 @@ export function excludeFromStrategy(strategy, exclusions) {
 // --- 51371 timeboxing --------------------------------------------------------------------
 
 export function startTimebox(strategyName, minutes, now) {
-  return { strategyName, minutes, startedAt: now, endsAt: now + minutes * 60_000, status: 'active' };
+  return {
+    strategyName,
+    minutes,
+    startedAt: now,
+    endsAt: now + minutes * 60_000,
+    status: 'active',
+  };
 }
 
 export function timeboxRemainingMs(timebox, now) {
@@ -289,7 +415,14 @@ export function timeboxExpired(timebox, now) {
 // --- 51372 voting -------------------------------------------------------------------------
 
 export function startStrategyVote(proposal, voters, now) {
-  return { id: `vote-${now}`, proposal, voters: [...voters], votes: {}, status: 'open', startedAt: now };
+  return {
+    id: `vote-${now}`,
+    proposal,
+    voters: [...voters],
+    votes: {},
+    status: 'open',
+    startedAt: now,
+  };
 }
 
 export function castStrategyVote(vote, voter, choice) {
@@ -299,8 +432,8 @@ export function castStrategyVote(vote, voter, choice) {
 }
 
 export function strategyVoteTally(vote) {
-  const approve = Object.values(vote.votes).filter((v) => v === 'approve').length;
-  const reject = Object.values(vote.votes).filter((v) => v === 'reject').length;
+  const approve = Object.values(vote.votes).filter(v => v === 'approve').length;
+  const reject = Object.values(vote.votes).filter(v => v === 'reject').length;
   const quorum = Math.ceil(vote.voters.length / 2);
   if (approve + reject < quorum) return { approve, reject, result: 'open' };
   return { approve, reject, result: approve > reject ? 'approved' : 'rejected' };
@@ -309,18 +442,27 @@ export function strategyVoteTally(vote) {
 // --- 51373 diff view ------------------------------------------------------------------------
 
 export function diffStrategy(current, proposed) {
-  const phasesAdded = Object.keys(proposed.allocation || {}).filter((p) => !(p in (current.allocation || {})));
-  const phasesRemoved = Object.keys(current.allocation || {}).filter((p) => !(p in (proposed.allocation || {})));
+  const phasesAdded = Object.keys(proposed.allocation || {}).filter(
+    p => !(p in (current.allocation || {}))
+  );
+  const phasesRemoved = Object.keys(current.allocation || {}).filter(
+    p => !(p in (proposed.allocation || {}))
+  );
   const weightChanges = [];
   for (const p of Object.keys(current.allocation || {})) {
     const from = current.allocation[p];
     const to = (proposed.allocation || {})[p];
-    if (to !== undefined && to !== from) weightChanges.push({ phase: p, from, to, delta: to - from });
+    if (to !== undefined && to !== from)
+      weightChanges.push({ phase: p, from, to, delta: to - from });
   }
-  const rank = (alloc) => Object.entries(alloc || {}).sort((a, b) => b[1] - a[1]).map(([p]) => p);
-  const priorityChanges = rank(proposed.allocation).join(',') !== rank(current.allocation).join(',')
-    ? { from: rank(current.allocation).slice(0, 3), to: rank(proposed.allocation).slice(0, 3) }
-    : null;
+  const rank = alloc =>
+    Object.entries(alloc || {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([p]) => p);
+  const priorityChanges =
+    rank(proposed.allocation).join(',') !== rank(current.allocation).join(',')
+      ? { from: rank(current.allocation).slice(0, 3), to: rank(proposed.allocation).slice(0, 3) }
+      : null;
   return { phasesAdded, phasesRemoved, weightChanges, priorityChanges };
 }
 
@@ -331,7 +473,14 @@ export function retestModePreset() {
     name: 'Retest mode',
     focus: 'retest',
     aggression: 'balanced',
-    allocation: { recon: 5, 'surface-map': 10, 'tech-fingerprint': 5, 'auth-deep': 20, 'business-logic': 40, 'exploit-chain': 20 },
+    allocation: {
+      recon: 5,
+      'surface-map': 10,
+      'tech-fingerprint': 5,
+      'auth-deep': 20,
+      'business-logic': 40,
+      'exploit-chain': 20,
+    },
     rules: ['verify-fixes-first', 'regression-sweep', 'no-new-recon', 'fixed-findings-only-scope'],
   };
 }
@@ -339,7 +488,7 @@ export function retestModePreset() {
 // --- 51375 learning -----------------------------------------------------------------------------
 
 export function learnStrategies(pastHunts, targetType) {
-  const similar = pastHunts.filter((h) => h.targetType === targetType && h.hours > 0);
+  const similar = pastHunts.filter(h => h.targetType === targetType && h.hours > 0);
   const byStrategy = {};
   for (const h of similar) {
     if (!byStrategy[h.strategy]) byStrategy[h.strategy] = { findings: 0, hours: 0, hunts: 0 };
@@ -369,8 +518,16 @@ export function quietHoursDowngrade(strategy, now) {
   if (strategy.aggression !== 'aggressive' || !isBusinessHour(now)) {
     return { downgraded: false, strategy, reason: '' };
   }
-  const downgraded = { ...strategy, aggression: 'balanced', name: `${strategy.name} (quiet-hours)` };
-  return { downgraded: true, strategy: downgraded, reason: 'aggressive strategy auto-downgraded during business hours' };
+  const downgraded = {
+    ...strategy,
+    aggression: 'balanced',
+    name: `${strategy.name} (quiet-hours)`,
+  };
+  return {
+    downgraded: true,
+    strategy: downgraded,
+    reason: 'aggressive strategy auto-downgraded during business hours',
+  };
 }
 
 // --- 51377 cost estimator -----------------------------------------------------------------------------
@@ -403,7 +560,15 @@ export function estimateStrategyCost(strategy, estHours) {
 // --- 51378 approval flow --------------------------------------------------------------------------------
 
 export function requestStrategyApproval(change, requestedBy, now) {
-  return { id: `sra-${now}`, change, requestedBy, status: 'pending', at: now, decidedAt: null, decidedBy: null };
+  return {
+    id: `sra-${now}`,
+    change,
+    requestedBy,
+    status: 'pending',
+    at: now,
+    decidedAt: null,
+    decidedBy: null,
+  };
 }
 
 export function decideStrategyApproval(request, approved, decidedBy, now) {
@@ -412,7 +577,7 @@ export function decideStrategyApproval(request, approved, decidedBy, now) {
 }
 
 export function pendingStrategyApprovals(requests) {
-  return requests.filter((r) => r.status === 'pending');
+  return requests.filter(r => r.status === 'pending');
 }
 
 // --- 51379 chaining ----------------------------------------------------------------------------------------
@@ -455,25 +620,29 @@ export function personalizeStrategy(base, prefs) {
     const depthPhases = ['auth-deep', 'business-logic', 'exploit-chain'];
     const breadthPhases = ['recon', 'surface-map', 'tech-fingerprint'];
     const shift = (prefs.defaultDepth - 50) / 50; // -1..1
-    for (const p of depthPhases) if (p in allocation) allocation[p] = Math.max(0, allocation[p] + shift * 8);
-    for (const p of breadthPhases) if (p in allocation) allocation[p] = Math.max(0, allocation[p] - shift * 8);
+    for (const p of depthPhases)
+      if (p in allocation) allocation[p] = Math.max(0, allocation[p] + shift * 8);
+    for (const p of breadthPhases)
+      if (p in allocation) allocation[p] = Math.max(0, allocation[p] - shift * 8);
   }
   const total = Object.values(allocation).reduce((s, v) => s + v, 0) || 1;
   const normalized = {};
-  for (const [k, v] of Object.entries(allocation)) normalized[k] = Math.max(0, Math.round((v / total) * 100));
+  for (const [k, v] of Object.entries(allocation))
+    normalized[k] = Math.max(0, Math.round((v / total) * 100));
   return { ...base, allocation: normalized, personalized: true };
 }
 
 // --- 51382 explainability (why this strategy?) --------------------------------------------------------------------
 
 export function explainStrategyFit(strategy, evidence) {
-  const lines = evidence.map((e) => `• ${e.fact} (${e.supports})`);
+  const lines = evidence.map(e => `• ${e.fact} (${e.supports})`);
   return {
     headline: `"${strategy.name}" fits here because:`,
     evidence: lines,
-    summary: lines.length > 0
-      ? `Based on ${evidence.length} live signals, "${strategy.name}" is the best fit right now.`
-      : `No live signals yet — "${strategy.name}" is the default choice.`,
+    summary:
+      lines.length > 0
+        ? `Based on ${evidence.length} live signals, "${strategy.name}" is the best fit right now.`
+        : `No live signals yet — "${strategy.name}" is the default choice.`,
   };
 }
 
@@ -544,14 +713,15 @@ export function strategyChangeTiming(currentPhase) {
 
 export function digestStrategyUpdates(updates, now) {
   const windowMs = 15 * 60_000;
-  const recent = updates.filter((u) => now - u.at <= windowMs);
+  const recent = updates.filter(u => now - u.at <= windowMs);
   return {
     count: recent.length,
     window: '15m',
     items: recent,
-    summary: recent.length === 0
-      ? 'No strategy updates in the last 15 minutes.'
-      : `${recent.length} strategy update(s) in the last 15 minutes: ${recent.map((u) => u.kind).join(', ')}`,
+    summary:
+      recent.length === 0
+        ? 'No strategy updates in the last 15 minutes.'
+        : `${recent.length} strategy update(s) in the last 15 minutes: ${recent.map(u => u.kind).join(', ')}`,
   };
 }
 
@@ -591,7 +761,10 @@ export function correlateStrategyFindings(findings, attribution) {
     if (!byStrategy[s]) byStrategy[s] = [];
     byStrategy[s].push(f.id);
   }
-  const counts = Object.entries(byStrategy).map(([strategy, ids]) => ({ strategy, count: ids.length }));
+  const counts = Object.entries(byStrategy).map(([strategy, ids]) => ({
+    strategy,
+    count: ids.length,
+  }));
   counts.sort((a, b) => b.count - a.count);
   return { byStrategy, counts, top: counts[0] || null };
 }
@@ -602,7 +775,7 @@ export function exportStrategyJourney(segments, annotations) {
   const lines = ['# Strategy journey', ''];
   for (const s of segments) {
     lines.push(`## ${s.strategy} (${s.durationMin ?? '?'} min)`);
-    const notes = (annotations || []).filter((a) => a.strategy === s.strategy);
+    const notes = (annotations || []).filter(a => a.strategy === s.strategy);
     for (const n of notes) lines.push(`- ${n.text}`);
     lines.push('');
   }
@@ -637,7 +810,7 @@ export function parseVoiceStrategyCommand(text) {
 // --- 51393 mobile control ---------------------------------------------------------------------------------------------------------------------
 
 export function mobileStrategyPicker(strategies) {
-  return strategies.map((s) => ({
+  return strategies.map(s => ({
     name: s.name,
     oneLine: `${s.focus} · ${Object.keys(s.allocation || {}).length} phases`,
     tapAction: `apply:${s.name}`,
@@ -665,14 +838,23 @@ export function enforceGuardrailPreset(strategy, presetId, hunt) {
   const preset = GUARDRAIL_PRESETS[presetId];
   if (!preset) return { ok: false, violations: ['unknown guardrail preset'] };
   const violations = [];
-  if (presetId === 'never-aggressive-on-prod' && hunt.env === 'prod' && strategy.aggression === 'aggressive') {
+  if (
+    presetId === 'never-aggressive-on-prod' &&
+    hunt.env === 'prod' &&
+    strategy.aggression === 'aggressive'
+  ) {
     violations.push('aggressive strategy blocked on prod');
   }
   if (presetId === 'budget-capped' && typeof hunt.budget === 'number') {
     const cost = estimateStrategyCost(strategy, hunt.estHours || 4);
-    if (cost.estSpend > hunt.budget) violations.push(`projected spend ${cost.estSpend} exceeds budget ${hunt.budget}`);
+    if (cost.estSpend > hunt.budget)
+      violations.push(`projected spend ${cost.estSpend} exceeds budget ${hunt.budget}`);
   }
-  if (presetId === 'no-scope-expansion' && Array.isArray(strategy.extraAssets) && strategy.extraAssets.length > 0) {
+  if (
+    presetId === 'no-scope-expansion' &&
+    Array.isArray(strategy.extraAssets) &&
+    strategy.extraAssets.length > 0
+  ) {
     violations.push('strategy adds assets outside scope');
   }
   return { ok: violations.length === 0, violations };
@@ -681,18 +863,25 @@ export function enforceGuardrailPreset(strategy, presetId, hunt) {
 // --- 51395 retrospectives ----------------------------------------------------------------------------------------------------------------------------
 
 export function buildRetrospective(decisions, outcomes) {
-  const lessons = decisions.map((d) => {
-    const o = outcomes.find((x) => x.strategy === d.strategy);
+  const lessons = decisions.map(d => {
+    const o = outcomes.find(x => x.strategy === d.strategy);
     if (!o) return `"${d.strategy}" — outcome unknown; keep tracking.`;
     const hit = o.findingsPerHour >= (d.forecastFph || 0);
     return `"${d.strategy}" ${hit ? 'beat' : 'missed'} its forecast (${o.findingsPerHour.toFixed(2)} vs ${String(d.forecastFph ?? '?')} findings/hr) — ${hit ? 'use again on similar targets.' : 'reconsider next time.'}`;
   });
-  const scored = outcomes.filter((o) => o.findingsPerHour > 0).length;
+  const scored = outcomes.filter(o => o.findingsPerHour > 0).length;
   return {
     decisions,
     outcomes,
     lessons,
-    grade: outcomes.length === 0 ? 'n/a' : scored / outcomes.length >= 0.75 ? 'strong' : scored / outcomes.length >= 0.4 ? 'mixed' : 'weak',
+    grade:
+      outcomes.length === 0
+        ? 'n/a'
+        : scored / outcomes.length >= 0.75
+          ? 'strong'
+          : scored / outcomes.length >= 0.4
+            ? 'mixed'
+            : 'weak',
   };
 }
 
@@ -700,18 +889,26 @@ export function buildRetrospective(decisions, outcomes) {
 
 export function recommendStrategies(pastHunts, liveState) {
   const scored = pastHunts
-    .filter((h) => h.hours > 0)
-    .map((h) => {
+    .filter(h => h.hours > 0)
+    .map(h => {
       const fph = h.findings / h.hours;
       const typeMatch = h.targetType === liveState.targetType ? 0.3 : 0;
-      const recent = Math.max(0, 0.1 - (liveState.now - h.endedAt) / (30 * 24 * 3_600_000) * 0.1);
-      return { strategy: h.strategy, score: Math.round((0.6 * fph + typeMatch + recent) * 100) / 100, findingsPerHour: Math.round(fph * 100) / 100, basis: `${h.targetType} target` };
+      const recent = Math.max(0, 0.1 - ((liveState.now - h.endedAt) / (30 * 24 * 3_600_000)) * 0.1);
+      return {
+        strategy: h.strategy,
+        score: Math.round((0.6 * fph + typeMatch + recent) * 100) / 100,
+        findingsPerHour: Math.round(fph * 100) / 100,
+        basis: `${h.targetType} target`,
+      };
     })
     .sort((a, b) => b.score - a.score);
   const top = [];
   for (const s of scored) {
-    if (!top.some((t) => t.strategy === s.strategy)) top.push(s);
+    if (!top.some(t => t.strategy === s.strategy)) top.push(s);
     if (top.length === 3) break;
   }
-  return top.map((t) => ({ ...t, reason: `scored ${t.score} from ${t.basis} (${t.findingsPerHour} findings/hr)` }));
+  return top.map(t => ({
+    ...t,
+    reason: `scored ${t.score} from ${t.basis} (${t.findingsPerHour} findings/hr)`,
+  }));
 }

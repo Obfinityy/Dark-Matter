@@ -8,47 +8,76 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE26_IDEAS, WAVE26_START, WAVE26_END,
-  nextMessageId, resetMessageIds,
-  optimisticShareLink, confirmShareLink, SHARE_PENDING, SHARE_ACTIVE,
-  shouldRecalcResize, resizePlan, RESIZE_DEBOUNCE_MS,
+  WAVE26_IDEAS,
+  WAVE26_START,
+  WAVE26_END,
+  nextMessageId,
+  resetMessageIds,
+  optimisticShareLink,
+  confirmShareLink,
+  SHARE_PENDING,
+  SHARE_ACTIVE,
+  shouldRecalcResize,
+  resizePlan,
+  RESIZE_DEBOUNCE_MS,
   instantFocus,
-  latencyStats, latencyGrade, latencySelfTestReport,
-  DOCK_PINNED, DOCK_COLLAPSED, toggleDock, dockLayout,
-  messageContext, withMessageContext,
+  latencyStats,
+  latencyGrade,
+  latencySelfTestReport,
+  DOCK_PINNED,
+  DOCK_COLLAPSED,
+  toggleDock,
+  dockLayout,
+  messageContext,
+  withMessageContext,
   questionChips,
   tuneFromReactions,
   searchConversation,
-  threadReply, threadMessages,
-  presenceBadge, PRESENCE_LABELS,
+  threadReply,
+  threadMessages,
+  presenceBadge,
+  PRESENCE_LABELS,
   switchChatLanguage,
   voiceNoteToMessage,
   attachFile,
   exportTranscript,
-  pinAnswer, unpinAnswer, pinnedRail,
+  pinAnswer,
+  unpinAnswer,
+  pinnedRail,
   suggestFollowUps,
   condenseAnswer,
-  parseSlashCommand, SLASH_COMMANDS,
-  extractFindingIds, findingInlineCard,
-  enqueueOfflineMessage, flushOfflineQueue,
+  parseSlashCommand,
+  SLASH_COMMANDS,
+  extractFindingIds,
+  findingInlineCard,
+  enqueueOfflineMessage,
+  flushOfflineQueue,
   typingState,
-  splitChatPanes, routeToPane,
-  selectTone, withTone,
+  splitChatPanes,
+  routeToPane,
+  selectTone,
+  withTone,
   parseMentions,
   chatToReportNote,
-  citeClaim, answerWithCitations,
+  citeClaim,
+  answerWithCitations,
   filterMessages,
-  quietHoursActive, shouldDeliverMessage,
+  quietHoursActive,
+  shouldDeliverMessage,
   testRequestWizard,
-  confidenceLevel, confidenceMeter,
+  confidenceLevel,
+  confidenceMeter,
   timelineReplay,
   inviteTeammate,
   annotateScreenshot,
-  needsClarification, clarifyingQuestion,
+  needsClarification,
+  clarifyingQuestion,
   chatKeybindings,
   translationJob,
-  approvalCard, resolveApproval,
-  parseScopeEdit, scopeEditConfirmation,
+  approvalCard,
+  resolveApproval,
+  parseScopeEdit,
+  scopeEditConfirmation,
   chatDigest,
 } from './chatCore.js';
 
@@ -171,7 +200,10 @@ describe('51008 reply reactions tune verbosity/depth', () => {
 
 describe('51009 conversation search', () => {
   it('finds matches with snippets', () => {
-    const msgs = [{ id: 'a', text: 'the subdomain scan finished' }, { id: 'b', text: 'nothing here' }];
+    const msgs = [
+      { id: 'a', text: 'the subdomain scan finished' },
+      { id: 'b', text: 'nothing here' },
+    ];
     const r = searchConversation(msgs, 'subdomain');
     assert.equal(r.length, 1);
     assert.equal(r[0].messageId, 'a');
@@ -229,7 +261,7 @@ describe('51015 transcript export', () => {
   it('produces markdown with timestamps + phase markers', () => {
     const md = exportTranscript(
       [{ author: 'agent', text: 'hi', at: 0, context: { phase: 'recon' } }],
-      { huntId: 'h1', phase: 'recon', scope: 'ex.com' },
+      { huntId: 'h1', phase: 'recon', scope: 'ex.com' }
     );
     assert.ok(md.includes('# Hunt chat transcript — h1'));
     assert.ok(md.includes('[recon]'));
@@ -261,8 +293,16 @@ describe('51018 auto-condense', () => {
 
 describe('51019 slash commands', () => {
   it('parses known commands with args', () => {
-    assert.deepEqual(parseSlashCommand('/pause'), { command: '/pause', action: 'pause', arg: null });
-    assert.deepEqual(parseSlashCommand('/focus F-123'), { command: '/focus', action: 'focus', arg: 'F-123' });
+    assert.deepEqual(parseSlashCommand('/pause'), {
+      command: '/pause',
+      action: 'pause',
+      arg: null,
+    });
+    assert.deepEqual(parseSlashCommand('/focus F-123'), {
+      command: '/focus',
+      action: 'focus',
+      arg: 'F-123',
+    });
     assert.equal(parseSlashCommand('/nope').action, 'unknown');
     assert.equal(parseSlashCommand('hello'), null);
     assert.ok(SLASH_COMMANDS['/status']);
@@ -283,8 +323,11 @@ describe('51021 offline queue', () => {
     let q = enqueueOfflineMessage([], 'one', 1);
     q = enqueueOfflineMessage(q, 'two', 2);
     const { deliverable, queue } = flushOfflineQueue(q);
-    assert.deepEqual(deliverable.map((m) => m.text), ['one', 'two']);
-    assert.ok(queue.every((m) => m.delivered));
+    assert.deepEqual(
+      deliverable.map(m => m.text),
+      ['one', 'two']
+    );
+    assert.ok(queue.every(m => m.delivered));
   });
 });
 
@@ -405,7 +448,10 @@ describe('51033 teammate invites', () => {
 
 describe('51034 screenshot annotation', () => {
   it('clamps regions to 0..1 and drops empties', () => {
-    const a = annotateScreenshot([{ x: -1, y: 0.5, w: 2, h: 0.2, label: 'btn' }, { x: 0.1, y: 0.1, w: 0, h: 0.1 }]);
+    const a = annotateScreenshot([
+      { x: -1, y: 0.5, w: 2, h: 0.2, label: 'btn' },
+      { x: 0.1, y: 0.1, w: 0, h: 0.1 },
+    ]);
     assert.equal(a.regionCount, 1);
     assert.equal(a.regions[0].x, 0);
     assert.equal(a.regions[0].w, 1);
@@ -415,14 +461,17 @@ describe('51034 screenshot annotation', () => {
 describe('51035 clarification-first', () => {
   it('flags vague requests and asks precisely', () => {
     assert.equal(needsClarification('do it'), true);
-    assert.equal(needsClarification('run nuclei with the sqli template against api.example.com/login'), false);
+    assert.equal(
+      needsClarification('run nuclei with the sqli template against api.example.com/login'),
+      false
+    );
     assert.ok(clarifyingQuestion('expand the scope').length > 10);
   });
 });
 
 describe('51036 keyboard shortcuts', () => {
   it('covers send/search/pin/react/thread', () => {
-    const actions = chatKeybindings().map((b) => b.action);
+    const actions = chatKeybindings().map(b => b.action);
     for (const a of ['send', 'search', 'pin', 'react', 'thread']) assert.ok(actions.includes(a));
   });
 });

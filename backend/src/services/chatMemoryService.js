@@ -24,12 +24,16 @@ const MAX_MESSAGES = 200;
 function ensureDir() {
   try {
     fs.mkdirSync(MEMORY_DIR, { recursive: true });
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function memoryPath(chatId) {
   // Sanitize chatId to prevent path traversal
-  const safe = String(chatId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  const safe = String(chatId || '')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 64);
   if (!safe) throw new Error('Invalid chatId');
   return path.join(MEMORY_DIR, `${safe}.json`);
 }
@@ -40,7 +44,7 @@ function blankMemory(chatId) {
     messages: [],
     context: {},
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -77,7 +81,7 @@ export function appendMessage(chatId, role, content, extra = {}) {
     role,
     content: String(content || ''),
     timestamp: new Date().toISOString(),
-    ...extra
+    ...extra,
   });
   return saveMemory(chatId, mem);
 }
@@ -109,7 +113,8 @@ export function clearMemory(chatId) {
 export function listChats() {
   ensureDir();
   try {
-    return fs.readdirSync(MEMORY_DIR)
+    return fs
+      .readdirSync(MEMORY_DIR)
       .filter(f => f.endsWith('.json'))
       .map(f => f.slice(0, -5));
   } catch {

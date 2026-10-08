@@ -169,8 +169,7 @@ export function checkJenkinsScriptConsole({ url = '', status = 0, headers = {}, 
   const headerNames = Object.keys(headers || {}).join(' ');
 
   const isScriptEndpoint = /\/(script|scriptText)(\?|$)/.test(url);
-  const hasConsoleUi =
-    /Script Console/i.test(text) && /groovy/i.test(text.toLowerCase());
+  const hasConsoleUi = /Script Console/i.test(text) && /groovy/i.test(text.toLowerCase());
   const isJenkins = /x-(jenkins|hudson)/i.test(headerNames) || /jenkins/i.test(headerNames);
 
   if (isScriptEndpoint && status === 200 && (hasConsoleUi || isJenkins)) {
@@ -193,7 +192,8 @@ export function checkJenkinsScriptConsole({ url = '', status = 0, headers = {}, 
       confidence: 'medium',
       severity: 'Low',
       cwe: 'CWE-200',
-      evidence: 'Response identifies a Jenkins instance, but no exposed script console was confirmed.',
+      evidence:
+        'Response identifies a Jenkins instance, but no exposed script console was confirmed.',
     };
   }
 
@@ -227,7 +227,7 @@ export function checkGitLabRunner({ url = '', status = 0, headers = {}, body = '
   // /api/v4/version discloses the exact GitLab version on some setups.
   if (url.includes('/api/v4/version') && status === 200) {
     version = extractConsoleVersion(
-      CONSOLE_SIGNATURES.find((s) => s.service === 'GitLab Runner'),
+      CONSOLE_SIGNATURES.find(s => s.service === 'GitLab Runner'),
       text
     );
     if (version) {
@@ -240,10 +240,14 @@ export function checkGitLabRunner({ url = '', status = 0, headers = {}, body = '
   const isRegistrationEndpoint = /\/(api\/v\d+\/runners|admin\/runners)/i.test(url);
   if (isRegistrationEndpoint) {
     if (status === 401 || status === 403) {
-      evidence.push(`Runner registration endpoint ${url} exists but requires authentication (HTTP ${status}).`);
+      evidence.push(
+        `Runner registration endpoint ${url} exists but requires authentication (HTTP ${status}).`
+      );
     } else if (status === 200) {
       confidence = 'high';
-      evidence.push(`Runner registration endpoint ${url} responded with HTTP 200 — review its access control.`);
+      evidence.push(
+        `Runner registration endpoint ${url} responded with HTTP 200 — review its access control.`
+      );
     }
   }
 

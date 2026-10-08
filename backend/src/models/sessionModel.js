@@ -1,3 +1,10 @@
+/**
+ * sessionModel — database model for session.
+ * Schema definition and data-access methods for session records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
+/** Database model for session. */
 export class SessionModel {
   constructor(database) {
     this.collection = database.collection('sessions');

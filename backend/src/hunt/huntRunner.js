@@ -27,7 +27,14 @@ import { LiveReport } from './liveReport.js';
  * @param {object} [opts.logger]
  * @returns {Promise<{ hunt, report, steps }>}
  */
-export async function runHunt({ huntId, target, brain = null, runner = {}, hooks = {}, logger = console }) {
+export async function runHunt({
+  huntId,
+  target,
+  brain = null,
+  runner = {},
+  hooks = {},
+  logger = console,
+}) {
   const planner = new TripleBrainPlanner({ brain, logger });
   const toolRunner = createToolRunner({ logger, ...(runner || {}) });
   const report = new LiveReport({ huntId, target, logger });
@@ -35,29 +42,38 @@ export async function runHunt({ huntId, target, brain = null, runner = {}, hooks
   const hunt = await planner.createHunt({ id: huntId, target });
   logger.info?.(`[huntRunner] hunt ${huntId} started on ${target} (Infinity AI)`);
 
-  const runTool = async (spec) => {
+  const runTool = async spec => {
     const lines = [];
     const res = await toolRunner.runTool(spec.tool, spec.targets, {
       profile: spec.profile || 'fast',
-      onFinding: (rec) => {
+      onFinding: rec => {
         const finding = {
           title: rec.title || `${spec.tool} observation`,
           severity: rec.severity || 'informational',
           target: rec.target || rec.url || rec.host || '',
-          description: rec.description || `${spec.tool} reported: ${JSON.stringify(rec.raw || {}).slice(0, 500)}`,
+          description:
+            rec.description ||
+            `${spec.tool} reported: ${JSON.stringify(rec.raw || {}).slice(0, 500)}`,
           evidence: rec.evidence || JSON.stringify(rec.raw || {}).slice(0, 1500),
           source: spec.tool,
           templateId: rec.templateId,
           confidence: 'medium',
         };
-        report.addFinding(finding).then((stored) => {
+        report.addFinding(finding).then(stored => {
           if (stored) hooks.onFinding?.(stored);
         });
       },
       onRecord: hooks.onRecord,
     });
-    report.recordStage({ tool: spec.tool, records: res.records.length, findings: res.findings.length, skipped: res.skipped });
-    lines.push(`TOOL ${spec.tool}: ${res.records.length} records, ${res.findings.length} findings${res.skipped ? ' (binary absent — skipped)' : ''}.`);
+    report.recordStage({
+      tool: spec.tool,
+      records: res.records.length,
+      findings: res.findings.length,
+      skipped: res.skipped,
+    });
+    lines.push(
+      `TOOL ${spec.tool}: ${res.records.length} records, ${res.findings.length} findings${res.skipped ? ' (binary absent — skipped)' : ''}.`
+    );
     return lines.join('\n');
   };
 
@@ -72,7 +88,9 @@ export async function runHunt({ huntId, target, brain = null, runner = {}, hooks
   }
 
   if (!done) {
-    logger.warn?.(`[huntRunner] hunt ${huntId} hit maxSteps=${maxSteps}; state persisted, resume with resumeHunt()`);
+    logger.warn?.(
+      `[huntRunner] hunt ${huntId} hit maxSteps=${maxSteps}; state persisted, resume with resumeHunt()`
+    );
   }
   const finalHunt = await planner.loadHunt(huntId);
   return { hunt: finalHunt, report, steps };
@@ -81,31 +99,43 @@ export async function runHunt({ huntId, target, brain = null, runner = {}, hooks
 /**
  * Resume an interrupted hunt from persisted state.
  */
-export async function resumeHunt({ huntId, brain = null, runner = {}, hooks = {}, logger = console }) {
+export async function resumeHunt({
+  huntId,
+  brain = null,
+  runner = {},
+  hooks = {},
+  logger = console,
+}) {
   const planner = new TripleBrainPlanner({ brain, logger });
   const report = await LiveReport.load({ huntId, logger });
   const hunt = await planner.loadHunt(huntId);
-  logger.info?.(`[huntRunner] resumed hunt ${huntId} at stage ${hunt.stage} with ${hunt.findings.length} findings`);
+  logger.info?.(
+    `[huntRunner] resumed hunt ${huntId} at stage ${hunt.stage} with ${hunt.findings.length} findings`
+  );
   // Continue stepping with the same wiring as runHunt.
   return runHuntContinuation({ planner, report, hunt, runner, hooks, logger });
 }
 
 async function runHuntContinuation({ planner, report, hunt, runner, hooks, logger }) {
   const toolRunner = createToolRunner({ logger, ...(runner || {}) });
-  const runTool = async (spec) => {
+  const runTool = async spec => {
     const res = await toolRunner.runTool(spec.tool, spec.targets, {
       profile: spec.profile || 'fast',
-      onFinding: (rec) => {
-        report.addFinding({
-          title: rec.title || `${spec.tool} observation`,
-          severity: rec.severity || 'informational',
-          target: rec.target || rec.url || rec.host || '',
-          description: rec.description || '',
-          evidence: rec.evidence || '',
-          source: spec.tool,
-          templateId: rec.templateId,
-          confidence: 'medium',
-        }).then((stored) => { if (stored) hooks.onFinding?.(stored); });
+      onFinding: rec => {
+        report
+          .addFinding({
+            title: rec.title || `${spec.tool} observation`,
+            severity: rec.severity || 'informational',
+            target: rec.target || rec.url || rec.host || '',
+            description: rec.description || '',
+            evidence: rec.evidence || '',
+            source: spec.tool,
+            templateId: rec.templateId,
+            confidence: 'medium',
+          })
+          .then(stored => {
+            if (stored) hooks.onFinding?.(stored);
+          });
       },
     });
     return `TOOL ${spec.tool}: ${res.records.length} records, ${res.findings.length} findings.`;

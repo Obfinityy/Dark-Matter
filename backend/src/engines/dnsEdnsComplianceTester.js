@@ -27,12 +27,16 @@ export function profileEdnsCompliance(exchange = {}) {
     signals.push('No EDNS response version observed; server may ignore EDNS (legacy behavior).');
     gradeScore -= 30;
   } else if (Number(r.ednsVersion) > Number(q.ednsVersion)) {
-    signals.push('Server echoed a higher EDNS version than requested; version negotiation anomaly.');
+    signals.push(
+      'Server echoed a higher EDNS version than requested; version negotiation anomaly.'
+    );
     gradeScore -= 20;
   }
 
   if (r.truncated === true) {
-    signals.push('Response truncated (TC bit); client should retry over TCP — resolver honors truncation.');
+    signals.push(
+      'Response truncated (TC bit); client should retry over TCP — resolver honors truncation.'
+    );
   }
 
   if (q.doBit && r.doEchoed === false) {
@@ -95,7 +99,8 @@ export function fingerprintResolverByEdns(profile = {}) {
 export function scoreDowngradeSusceptibility(profile = {}) {
   const notes = [...(profile.signals || [])];
   const risk = profile.grade === 'F' ? 'high' : profile.grade === 'C' ? 'medium' : 'low';
-  if (risk !== 'low') notes.push('EDNS non-compliance can let an attacker force plaintext/unsigned fallback.');
+  if (risk !== 'low')
+    notes.push('EDNS non-compliance can let an attacker force plaintext/unsigned fallback.');
   return { risk, notes };
 }
 

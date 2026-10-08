@@ -13,7 +13,8 @@
 
 const FQ_NAME_RE = /^([a-zA-Z][\w.]*)\.([A-Za-z][\w]*)$/;
 const HOSTY_TOKEN_RE = /[a-z0-9]+(?:[.-][a-z0-9]+)+/gi;
-const SIGNAL_RE = /\b(internal|corp|staging|stage|dev|test|qa|prod|private|legacy|v\d+|beta|alpha)\b/i;
+const SIGNAL_RE =
+  /\b(internal|corp|staging|stage|dev|test|qa|prod|private|legacy|v\d+|beta|alpha)\b/i;
 
 /** Parse grpcurl-style `list` output text into service entries. */
 export function parseReflectionList(text = '') {
@@ -75,7 +76,11 @@ export function normalizeMethodList(input) {
     for (const line of input.split('\n')) {
       const t = line.trim();
       if (!t || t.startsWith('#')) continue;
-      if (FQ_NAME_RE.test(t)) { current = { service: t, methods: [] }; out.push(current); continue; }
+      if (FQ_NAME_RE.test(t)) {
+        current = { service: t, methods: [] };
+        out.push(current);
+        continue;
+      }
       if (current && /^[A-Za-z][\w]*$/.test(t)) current.methods.push(t);
     }
     return out;
@@ -92,10 +97,17 @@ export function normalizeMethodList(input) {
  */
 export function mineGrpcReflection({ target = '', listing = '' } = {}) {
   const services = Array.isArray(listing)
-    ? listing.map(s => ({ fullName: typeof s === 'string' ? s : s.fullName })).filter(s => s.fullName)
+    ? listing
+        .map(s => ({ fullName: typeof s === 'string' ? s : s.fullName }))
+        .filter(s => s.fullName)
     : parseReflectionList(listing);
   if (!services.length) {
-    return { target, type: 'gRPC Reflection Service Listing', confidence: 'none', error: 'No services parsed — reflection may be disabled' };
+    return {
+      target,
+      type: 'gRPC Reflection Service Listing',
+      confidence: 'none',
+      error: 'No services parsed — reflection may be disabled',
+    };
   }
   const tokens = extractHostTokens(services);
   const flagged = flagSensitiveServices(services);
@@ -114,7 +126,11 @@ export function mineGrpcReflection({ target = '', listing = '' } = {}) {
 }
 
 export const GRPC_REFLECTION_MINER = {
-  parseReflectionList, splitServiceName, extractHostTokens, flagSensitiveServices,
-  normalizeMethodList, mineGrpcReflection,
+  parseReflectionList,
+  splitServiceName,
+  extractHostTokens,
+  flagSensitiveServices,
+  normalizeMethodList,
+  mineGrpcReflection,
 };
 export default GRPC_REFLECTION_MINER;

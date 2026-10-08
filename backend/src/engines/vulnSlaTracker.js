@@ -53,9 +53,9 @@ export function trackVuln(vuln = {}, now = Date.now()) {
  * Track a batch. Returns { results, summary }.
  */
 export function trackVulnSla(vulns = [], now = Date.now()) {
-  const results = vulns.map((v) => trackVuln(v, now));
-  const count = (s) => results.filter((r) => r.state === s).length;
-  const open = results.filter((r) => !r.state.startsWith('closed'));
+  const results = vulns.map(v => trackVuln(v, now));
+  const count = s => results.filter(r => r.state === s).length;
+  const open = results.filter(r => !r.state.startsWith('closed'));
   const summary = {
     total: results.length,
     open: open.length,
@@ -65,6 +65,7 @@ export function trackVulnSla(vulns = [], now = Date.now()) {
     closedOnTime: count('closed-on-time'),
     closedLate: count('closed-late'),
   };
-  summary.breachRatePct = open.length === 0 ? 0 : Math.round((summary.breached / open.length) * 100);
+  summary.breachRatePct =
+    open.length === 0 ? 0 : Math.round((summary.breached / open.length) * 100);
   return { results, summary };
 }

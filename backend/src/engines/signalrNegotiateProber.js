@@ -13,9 +13,21 @@
  */
 
 const COMMON_HUB_PATHS = [
-  '/chathub', '/hub', '/hubs/chat', '/signalr', '/signalr/hubs',
-  '/notificationHub', '/notifications', '/live', '/realtime', '/updates',
-  '/messageHub', '/events', '/stream', '/ws', '/socket'
+  '/chathub',
+  '/hub',
+  '/hubs/chat',
+  '/signalr',
+  '/signalr/hubs',
+  '/notificationHub',
+  '/notifications',
+  '/live',
+  '/realtime',
+  '/updates',
+  '/messageHub',
+  '/events',
+  '/stream',
+  '/ws',
+  '/socket',
 ];
 
 const KNOWN_TRANSPORTS = ['WebSockets', 'ServerSentEvents', 'LongPolling'];
@@ -30,7 +42,7 @@ export function negotiateCandidates(baseUrl, hubPaths = []) {
   if (!baseUrl || typeof baseUrl !== 'string') return [];
   const base = baseUrl.replace(/\/+$/, '');
   const paths = [...new Set([...COMMON_HUB_PATHS, ...hubPaths])];
-  return paths.map((p) => `${base}${p.startsWith('/') ? p : `/${p}`}/negotiate?negotiateVersion=1`);
+  return paths.map(p => `${base}${p.startsWith('/') ? p : `/${p}`}/negotiate?negotiateVersion=1`);
 }
 
 /**
@@ -41,12 +53,19 @@ export function negotiateCandidates(baseUrl, hubPaths = []) {
  */
 export function analyzeNegotiateResponse(body, headers = {}) {
   const result = {
-    detected: false, connectionId: null, negotiateVersion: null,
-    transports: [], serverHint: null,
+    detected: false,
+    connectionId: null,
+    negotiateVersion: null,
+    transports: [],
+    serverHint: null,
   };
   let data = body;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch { return result; }
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return result;
+    }
   }
   if (!data || typeof data !== 'object') return result;
   if (!data.connectionToken && !data.connectionId && !data.availableTransports) return result;
@@ -55,8 +74,8 @@ export function analyzeNegotiateResponse(body, headers = {}) {
   result.negotiateVersion = data.negotiateVersion ?? null;
   result.transports = Array.isArray(data.availableTransports)
     ? data.availableTransports
-        .map((t) => (typeof t === 'string' ? t : t.transport))
-        .filter((t) => KNOWN_TRANSPORTS.includes(t))
+        .map(t => (typeof t === 'string' ? t : t.transport))
+        .filter(t => KNOWN_TRANSPORTS.includes(t))
     : [];
   const server = String(headers.server || headers.Server || '').toLowerCase();
   if (server.includes('asp.net')) result.serverHint = 'ASP.NET SignalR / ASP.NET Core SignalR';
@@ -80,7 +99,9 @@ export async function probeNegotiateEndpoint(url, fetchImpl = globalThis.fetch) 
       body: JSON.stringify({ protocol: 'json', version: 1 }),
     });
     const headers = {};
-    res.headers?.forEach?.((v, k) => { headers[k.toLowerCase()] = v; });
+    res.headers?.forEach?.((v, k) => {
+      headers[k.toLowerCase()] = v;
+    });
     const text = await res.text();
     const analysis = analyzeNegotiateResponse(text, headers);
     Object.assign(outcome, analysis, { status: res.status });
@@ -96,9 +117,9 @@ export async function probeNegotiateEndpoint(url, fetchImpl = globalThis.fetch) 
  * @returns {string|null} human-readable finding, or null when nothing exposed
  */
 export function summarizeFindings(probes = []) {
-  const exposed = probes.filter((p) => p.detected);
+  const exposed = probes.filter(p => p.detected);
   if (exposed.length === 0) return null;
-  const lines = exposed.map((p) => {
+  const lines = exposed.map(p => {
     const transports = p.transports.length ? p.transports.join(', ') : 'unknown';
     return `- ${p.url}: SignalR negotiate exposed (transports: ${transports}${p.negotiateVersion != null ? `, negotiateVersion ${p.negotiateVersion}` : ''}${p.serverHint ? `, ${p.serverHint}` : ''})`;
   });

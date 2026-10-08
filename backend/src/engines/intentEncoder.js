@@ -12,7 +12,10 @@ export const INTENT_VOCABULARY = [
   { cls: 'xss', patterns: [/\bxss\b/i, /cross.site.script/i] },
   { cls: 'ssrf', patterns: [/\bssrf\b/i] },
   { cls: 'idor', patterns: [/\bidor\b/i] },
-  { cls: 'auth-bypass', patterns: [/auth.{0,10}(bypass|break)/i, /broken\s?auth/i, /login\s?bypass/i] },
+  {
+    cls: 'auth-bypass',
+    patterns: [/auth.{0,10}(bypass|break)/i, /broken\s?auth/i, /login\s?bypass/i],
+  },
   { cls: 'csrf', patterns: [/\bcsrf\b/i] },
   { cls: 'open-redirect', patterns: [/open\s?redirect/i] },
   { cls: 'info-leak', patterns: [/info(rmation)?\s?(leak|disclosure)/i, /sensitive\s?data/i] },
@@ -28,7 +31,13 @@ export function encodeIntent(goal = '') {
   const text = String(goal);
   const objectives = {};
   for (const { cls, patterns } of INTENT_VOCABULARY) {
-    if (patterns.some((p) => { p.lastIndex = 0; return p.test(text); })) objectives[cls] = 1;
+    if (
+      patterns.some(p => {
+        p.lastIndex = 0;
+        return p.test(text);
+      })
+    )
+      objectives[cls] = 1;
   }
   const exclusive = /\bonly\b/i.test(text) || /\bjust\b/i.test(text);
   if (!Object.keys(objectives).length) {

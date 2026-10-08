@@ -32,11 +32,13 @@ export function suggestRecovery({ action = null, error = null, observation = nul
   if (kind === 'unavailable' || kind === 'timeout') {
     strategies.push({
       strategy: 'reconnect_and_wait',
-      detail: 'The computer runtime is unreachable. Persist the current job state, keep the job in a waiting state, and retry the connection before replanning — do not invent a new plan from a stale screen.'
+      detail:
+        'The computer runtime is unreachable. Persist the current job state, keep the job in a waiting state, and retry the connection before replanning — do not invent a new plan from a stale screen.',
     });
     strategies.push({
       strategy: 'fall_back_to_tools',
-      detail: 'While the desktop is unreachable, continue the assessment with the API/network tool layer; resume computer actions once the runtime reconnects.'
+      detail:
+        'While the desktop is unreachable, continue the assessment with the API/network tool layer; resume computer actions once the runtime reconnects.',
     });
     return strategies;
   }
@@ -45,7 +47,7 @@ export function suggestRecovery({ action = null, error = null, observation = nul
   if (kind === 'rejected') {
     strategies.push({
       strategy: 'choose_different_action',
-      detail: `The action was rejected by policy/validation (${error?.message || 'no detail'}). Choose a different, whitelisted action — never retry the exact rejected attempt.`
+      detail: `The action was rejected by policy/validation (${error?.message || 'no detail'}). Choose a different, whitelisted action — never retry the exact rejected attempt.`,
     });
     return strategies;
   }
@@ -53,7 +55,8 @@ export function suggestRecovery({ action = null, error = null, observation = nul
   if (kind === 'awaiting_approval' || kind === 'permission_required') {
     strategies.push({
       strategy: 'request_permission',
-      detail: 'The action needs explicit user approval. Pause the computer loop, surface the pending action in the activity feed, and continue with non-interactive work meanwhile.'
+      detail:
+        'The action needs explicit user approval. Pause the computer loop, surface the pending action in the activity feed, and continue with non-interactive work meanwhile.',
     });
     return strategies;
   }
@@ -62,46 +65,58 @@ export function suggestRecovery({ action = null, error = null, observation = nul
   if (type === 'click' || type === 'double_click') {
     strategies.push({
       strategy: 'scroll_and_observe',
-      detail: 'The click target may be off-screen or obscured. Scroll the window, take a fresh observation, then retry the click at updated coordinates.'
+      detail:
+        'The click target may be off-screen or obscured. Scroll the window, take a fresh observation, then retry the click at updated coordinates.',
     });
     strategies.push({
       strategy: 'retry_adjusted_coordinates',
-      detail: 'Nudge the click coordinates toward the visible element and retry once. If it fails again, observe and replan instead of clicking blindly.'
+      detail:
+        'Nudge the click coordinates toward the visible element and retry once. If it fails again, observe and replan instead of clicking blindly.',
     });
   } else if (type === 'navigate') {
     strategies.push({
       strategy: 'verify_url_and_retry',
-      detail: 'Re-check the target URL (typos, missing scheme), then navigate again and confirm the page title in the follow-up observation.'
+      detail:
+        'Re-check the target URL (typos, missing scheme), then navigate again and confirm the page title in the follow-up observation.',
     });
     strategies.push({
       strategy: 'navigate_back',
-      detail: 'If the browser landed on the wrong page, navigate back to the last known-good URL before trying a different route.'
+      detail:
+        'If the browser landed on the wrong page, navigate back to the last known-good URL before trying a different route.',
     });
   } else if (type === 'open_application') {
     strategies.push({
       strategy: 'try_application_alias',
-      detail: 'Try a known alias for the application (e.g. "notepad" → "Notepad", "chrome" → "Google Chrome") or open it via the system launcher.'
+      detail:
+        'Try a known alias for the application (e.g. "notepad" → "Notepad", "chrome" → "Google Chrome") or open it via the system launcher.',
     });
     strategies.push({
       strategy: 'verify_application_present',
-      detail: 'Take a fresh observation first — the application may already be open, in which case switch to it instead of launching again.'
+      detail:
+        'Take a fresh observation first — the application may already be open, in which case switch to it instead of launching again.',
     });
   } else if (type === 'type') {
     strategies.push({
       strategy: 'click_target_first',
-      detail: 'The keystrokes may have gone nowhere. Click the target input field to focus it, observe, then type again.'
+      detail:
+        'The keystrokes may have gone nowhere. Click the target input field to focus it, observe, then type again.',
     });
-  } else if (type === 'screenshot' || type === 'get_active_window' || type === 'get_browser_state') {
+  } else if (
+    type === 'screenshot' ||
+    type === 'get_active_window' ||
+    type === 'get_browser_state'
+  ) {
     strategies.push({
       strategy: 'retry_observation',
-      detail: 'The observation itself failed. Wait briefly and retry the observation once before replanning — the screen state is unknown right now.'
+      detail:
+        'The observation itself failed. Wait briefly and retry the observation once before replanning — the screen state is unknown right now.',
     });
   }
 
   // Universal fallback: never replan blind.
   strategies.push({
     strategy: 'observe_and_replan',
-    detail: `Take a fresh observation of the current screen state${observation?.summary ? ` (last known: "${observation.summary.slice(0, 120)}")` : ''} and replan from reality, not from the failed attempt.`
+    detail: `Take a fresh observation of the current screen state${observation?.summary ? ` (last known: "${observation.summary.slice(0, 120)}")` : ''} and replan from reality, not from the failed attempt.`,
   });
 
   return strategies;

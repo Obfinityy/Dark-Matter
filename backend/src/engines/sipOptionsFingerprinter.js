@@ -22,7 +22,22 @@ const VENDOR_SIGNATURES = [
   { vendor: 'Genesys', re: /genesys/i, confidence: 'medium' },
 ];
 
-const ALLOW_METHODS = ['INVITE', 'ACK', 'CANCEL', 'BYE', 'OPTIONS', 'REGISTER', 'INFO', 'PRACK', 'UPDATE', 'SUBSCRIBE', 'NOTIFY', 'PUBLISH', 'REFER', 'MESSAGE'];
+const ALLOW_METHODS = [
+  'INVITE',
+  'ACK',
+  'CANCEL',
+  'BYE',
+  'OPTIONS',
+  'REGISTER',
+  'INFO',
+  'PRACK',
+  'UPDATE',
+  'SUBSCRIBE',
+  'NOTIFY',
+  'PUBLISH',
+  'REFER',
+  'MESSAGE',
+];
 
 /**
  * Parse raw SIP response text into { statusCode, headers }.
@@ -56,13 +71,22 @@ export function parseSipResponse(raw = '') {
  */
 export function fingerprintSipOptions({ response = '', headers = null, statusCode = null } = {}) {
   const parsed = headers
-    ? { headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])), statusCode: statusCode || 0 }
+    ? {
+        headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])),
+        statusCode: statusCode || 0,
+      }
     : parseSipResponse(response);
 
   const h = parsed.headers;
   const server = h.server || h['user-agent'] || '';
-  const allow = (h.allow || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
-  const supported = (h.supported || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const allow = (h.allow || '')
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+  const supported = (h.supported || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
 
   let vendor = 'Unknown';
   let confidence = 'low';
@@ -76,8 +100,8 @@ export function fingerprintSipOptions({ response = '', headers = null, statusCod
     }
   }
 
-  const knownMethods = allow.filter((m) => ALLOW_METHODS.includes(m));
-  const unknownMethods = allow.filter((m) => !ALLOW_METHODS.includes(m));
+  const knownMethods = allow.filter(m => ALLOW_METHODS.includes(m));
+  const unknownMethods = allow.filter(m => !ALLOW_METHODS.includes(m));
 
   const findings = [
     {
@@ -85,7 +109,8 @@ export function fingerprintSipOptions({ response = '', headers = null, statusCod
       severity: 'Info',
       confidence,
       evidence: `${evidence} | status ${parsed.statusCode}; Allow: ${allow.join(', ') || 'absent'}; Supported: ${supported.join(', ') || 'absent'}.`,
-      recommendation: 'Version banners aid targeted testing; strip or genericize Server headers on public interfaces.',
+      recommendation:
+        'Version banners aid targeted testing; strip or genericize Server headers on public interfaces.',
     },
   ];
 
@@ -95,7 +120,8 @@ export function fingerprintSipOptions({ response = '', headers = null, statusCod
       severity: 'Low',
       confidence: 'medium',
       evidence: `Allow header is "${h.allow || '(missing)'}" — expected INVITE/BYE on a SIP endpoint.`,
-      recommendation: 'Confirm the device class; missing methods may indicate a stripped-down or non-standard stack.',
+      recommendation:
+        'Confirm the device class; missing methods may indicate a stripped-down or non-standard stack.',
     });
   }
 
@@ -105,7 +131,8 @@ export function fingerprintSipOptions({ response = '', headers = null, statusCod
       severity: 'Info',
       confidence: 'medium',
       evidence: `Advertised unknown methods: ${unknownMethods.join(', ')}.`,
-      recommendation: 'Custom methods can hide proprietary attack surface; review vendor documentation.',
+      recommendation:
+        'Custom methods can hide proprietary attack surface; review vendor documentation.',
     });
   }
 

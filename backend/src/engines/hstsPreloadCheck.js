@@ -27,7 +27,10 @@ export function parseHsts(headerValue) {
     const trimmed = part.trim();
     if (!trimmed) continue;
     const eq = trimmed.indexOf('=');
-    const name = (eq === -1 ? trimmed : trimmed.slice(0, eq)).trim().toLowerCase().replace(/-/g, '');
+    const name = (eq === -1 ? trimmed : trimmed.slice(0, eq))
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, '');
     const value = eq === -1 ? '' : trimmed.slice(eq + 1).trim();
     if (name === 'maxage') {
       const age = parseInt(value, 10);
@@ -51,12 +54,18 @@ export function preloadReadiness(parsed) {
   const missing = [];
   const notes = [];
   if (!parsed || !parsed.valid) {
-    return { eligible: false, score: 0, missing: ['no valid Strict-Transport-Security header'], notes };
+    return {
+      eligible: false,
+      score: 0,
+      missing: ['no valid Strict-Transport-Security header'],
+      notes,
+    };
   }
   if (parsed.maxAge < 31536000) missing.push('max-age below 31536000 (one year)');
   if (!parsed.includeSubDomains) missing.push('includeSubDomains directive absent');
   if (!parsed.preload) missing.push('preload directive absent');
-  if (parsed.maxAge >= 63072000) notes.push('long max-age (two years or more) indicates deliberate hardening');
+  if (parsed.maxAge >= 63072000)
+    notes.push('long max-age (two years or more) indicates deliberate hardening');
   if (parsed.maxAge < 86400) notes.push('very short max-age suggests a trial rollout of HSTS');
   const score = Math.max(0, 100 - missing.length * 30);
   return { eligible: missing.length === 0, score, missing, notes };

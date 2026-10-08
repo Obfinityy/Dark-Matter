@@ -58,20 +58,40 @@
  */
 const SOFTWARE_CATALOG = [
   { token: 'OpenSSH', vendor: 'OpenBSD Project', family: 'OpenSSH', confidence: 'high' },
-  { token: 'HPN', vendor: 'Pittsburgh Supercomputing Center (OpenSSH patch)', family: 'OpenSSH (HPN-SSH)', confidence: 'medium' },
+  {
+    token: 'HPN',
+    vendor: 'Pittsburgh Supercomputing Center (OpenSSH patch)',
+    family: 'OpenSSH (HPN-SSH)',
+    confidence: 'medium',
+  },
   { token: 'Dropbear', vendor: 'Matt Johnston', family: 'Dropbear', confidence: 'high' },
   { token: 'libssh', vendor: 'libssh project', family: 'libssh', confidence: 'high' },
   { token: 'paramiko', vendor: 'Paramiko project', family: 'paramiko', confidence: 'high' },
   { token: 'PuTTY', vendor: 'Simon Tatham', family: 'PuTTY', confidence: 'high' },
   { token: 'WinSCP', vendor: 'Martin Prikryl', family: 'WinSCP', confidence: 'high' },
   { token: 'MobaSSH', vendor: 'Mobatek', family: 'MobaXterm/MobaSSH', confidence: 'high' },
-  { token: 'Tectia', vendor: 'SSH Communications Security', family: 'Tectia Server', confidence: 'high' },
-  { token: 'SSH Secure Shell', vendor: 'SSH Communications Security', family: 'Tectia Server', confidence: 'medium' },
+  {
+    token: 'Tectia',
+    vendor: 'SSH Communications Security',
+    family: 'Tectia Server',
+    confidence: 'high',
+  },
+  {
+    token: 'SSH Secure Shell',
+    vendor: 'SSH Communications Security',
+    family: 'Tectia Server',
+    confidence: 'medium',
+  },
   { token: 'VShell', vendor: 'VanDyke Software', family: 'VShell', confidence: 'high' },
   { token: 'Bitvise', vendor: 'Bitvise Limited', family: 'Bitvise SSH Server', confidence: 'high' },
   { token: 'WinSSHD', vendor: 'Bitvise Limited', family: 'Bitvise SSH Server', confidence: 'high' },
   { token: 'FlowSsh', vendor: 'Bitvise Limited', family: 'FlowSsh (library)', confidence: 'high' },
-  { token: 'WeOnlyDo', vendor: 'WeOnlyDo Software', family: 'WeOnlyDo (freeSSHd)', confidence: 'high' },
+  {
+    token: 'WeOnlyDo',
+    vendor: 'WeOnlyDo Software',
+    family: 'WeOnlyDo (freeSSHd)',
+    confidence: 'high',
+  },
   { token: 'Cisco-', vendor: 'Cisco Systems', family: 'Cisco IOS / ASA', confidence: 'high' },
   { token: 'ROSSSH', vendor: 'MikroTik', family: 'RouterOS', confidence: 'high' },
   { token: 'Huawei', vendor: 'Huawei', family: 'VRP', confidence: 'high' },
@@ -80,9 +100,24 @@ const SOFTWARE_CATALOG = [
   { token: 'Fortinet', vendor: 'Fortinet', family: 'FortiOS', confidence: 'medium' },
   { token: 'AsyncOS', vendor: 'Cisco Systems', family: 'AsyncOS (ESA/WSA)', confidence: 'high' },
   { token: 'NETSCREEN', vendor: 'Juniper Networks', family: 'ScreenOS', confidence: 'high' },
-  { token: 'RomSShell', vendor: 'Allegro Software (OEM)', family: 'RomSShell (embedded)', confidence: 'medium' },
-  { token: 'GlobalScape', vendor: 'GlobalScape (HelpSystems)', family: 'CuteFTP / EFT', confidence: 'high' },
-  { token: 'sshlib', vendor: 'GlobalScape (HelpSystems)', family: 'CuteFTP / EFT (sshlib)', confidence: 'medium' },
+  {
+    token: 'RomSShell',
+    vendor: 'Allegro Software (OEM)',
+    family: 'RomSShell (embedded)',
+    confidence: 'medium',
+  },
+  {
+    token: 'GlobalScape',
+    vendor: 'GlobalScape (HelpSystems)',
+    family: 'CuteFTP / EFT',
+    confidence: 'high',
+  },
+  {
+    token: 'sshlib',
+    vendor: 'GlobalScape (HelpSystems)',
+    family: 'CuteFTP / EFT (sshlib)',
+    confidence: 'medium',
+  },
   { token: 'Serv-U', vendor: 'SolarWinds', family: 'Serv-U', confidence: 'high' },
   { token: 'Titan', vendor: 'South River Technologies', family: 'Titan FTP', confidence: 'high' },
   { token: 'CerberusFTP', vendor: 'Cerberus LLC', family: 'Cerberus FTP', confidence: 'high' },
@@ -91,17 +126,27 @@ const SOFTWARE_CATALOG = [
   { token: 'Sysax', vendor: 'Codeorigin', family: 'Sysax Multi Server', confidence: 'high' },
   { token: 'Xlight', vendor: 'Xlight Network', family: 'Xlight FTP', confidence: 'high' },
   { token: 'CoreFTP', vendor: 'CoreFTP', family: 'Core FTP Server', confidence: 'high' },
-  { token: 'IP*Works', vendor: '/n software', family: "IP*Works! SSH", confidence: 'high' },
-  { token: 'IpSsh', vendor: '/n software', family: "IP*Works! SSH", confidence: 'medium' },
+  { token: 'IP*Works', vendor: '/n software', family: 'IP*Works! SSH', confidence: 'high' },
+  { token: 'IpSsh', vendor: '/n software', family: 'IP*Works! SSH', confidence: 'medium' },
   { token: 'cryptlib', vendor: 'Peter Gutmann', family: 'cryptlib', confidence: 'high' },
   { token: 'PGP', vendor: 'Symantec / PGP Corporation', family: 'PGP', confidence: 'medium' },
   { token: 'wolfSSH', vendor: 'wolfSSL', family: 'wolfSSH', confidence: 'high' },
   { token: 'JSch', vendor: 'JCraft', family: 'JSch (library)', confidence: 'high' },
   { token: 'Sun_SSH', vendor: 'Oracle', family: 'SunSSH (Solaris)', confidence: 'high' },
   { token: 'SunSSH', vendor: 'Oracle', family: 'SunSSH (Solaris)', confidence: 'high' },
-  { token: 'cowrie', vendor: 'Honeypot (deception)', family: 'Cowrie honeypot', confidence: 'high' },
+  {
+    token: 'cowrie',
+    vendor: 'Honeypot (deception)',
+    family: 'Cowrie honeypot',
+    confidence: 'high',
+  },
   { token: 'Kippo', vendor: 'Honeypot (deception)', family: 'Kippo honeypot', confidence: 'high' },
-  { token: 'HonSSH', vendor: 'Honeypot (deception)', family: 'HonSSH honeypot', confidence: 'medium' },
+  {
+    token: 'HonSSH',
+    vendor: 'Honeypot (deception)',
+    family: 'HonSSH honeypot',
+    confidence: 'medium',
+  },
 ];
 
 const HONEYPOT_TOKENS = ['cowrie', 'kippo', 'honssh', 'honeypot', 'deception'];
@@ -129,7 +174,10 @@ export function parseVersionString(str = '') {
   let version = null;
   const digitIdx = softwareToken.search(/\d/);
   if (digitIdx > 0) {
-    software = softwareToken.slice(0, digitIdx).replace(/[_-]+$/, '').replace(/[_-]?release$/i, '');
+    software = softwareToken
+      .slice(0, digitIdx)
+      .replace(/[_-]+$/, '')
+      .replace(/[_-]?release$/i, '');
     version = softwareToken.slice(digitIdx);
     if (!software) software = softwareToken;
   }
@@ -202,33 +250,47 @@ export function flagAnomalies(str = '') {
   }
   const parsed = parseVersionString(raw);
   if (!parsed.valid) {
-    notes.push(`Malformed identification string: "${raw.slice(0, 80)}" does not match SSH-<proto>-<software> grammar.`);
+    notes.push(
+      `Malformed identification string: "${raw.slice(0, 80)}" does not match SSH-<proto>-<software> grammar.`
+    );
     return notes;
   }
   if (parsed.proto === '1.99') {
-    notes.push('Protocol "1.99" advertised — server claims both SSH-1 and SSH-2 compatibility; SSH-1 support is a legacy weakness.');
+    notes.push(
+      'Protocol "1.99" advertised — server claims both SSH-1 and SSH-2 compatibility; SSH-1 support is a legacy weakness.'
+    );
   } else if (/^1\./.test(parsed.proto)) {
     notes.push(`Protocol "${parsed.proto}" advertised — SSH-1-only server; critically outdated.`);
   } else if (parsed.proto !== '2.0') {
-    notes.push(`Unexpected protocol version "${parsed.proto}" — expected "2.0" (or "1.99" for dual-stack).`);
+    notes.push(
+      `Unexpected protocol version "${parsed.proto}" — expected "2.0" (or "1.99" for dual-stack).`
+    );
   }
   const lowered = raw.toLowerCase();
   for (const token of HONEYPOT_TOKENS) {
     if (lowered.includes(token)) {
-      notes.push(`Honeypot-like token "${token}" present in identification string — treat as deception infrastructure, not a real target.`);
+      notes.push(
+        `Honeypot-like token "${token}" present in identification string — treat as deception infrastructure, not a real target.`
+      );
       break;
     }
   }
   if (!parsed.software) {
     notes.push('Software token is empty — non-standard server that hides its implementation.');
   } else if (!parsed.version) {
-    notes.push(`Software "${parsed.software}" advertises no version — version-stripped banner (hardened or evasive).`);
+    notes.push(
+      `Software "${parsed.software}" advertises no version — version-stripped banner (hardened or evasive).`
+    );
   }
   if (raw.length > 255) {
-    notes.push(`Identification string is ${raw.length} bytes — exceeds the RFC 4253 255-byte limit.`);
+    notes.push(
+      `Identification string is ${raw.length} bytes — exceeds the RFC 4253 255-byte limit.`
+    );
   }
   if (/[^\x20-\x7e\r\n]/.test(raw)) {
-    notes.push('Identification string contains non-printable characters — possible banner-spoofing or encoding anomaly.');
+    notes.push(
+      'Identification string contains non-printable characters — possible banner-spoofing or encoding anomaly.'
+    );
   }
   return notes;
 }

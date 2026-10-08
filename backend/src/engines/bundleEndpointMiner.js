@@ -14,10 +14,12 @@
  */
 
 /** Quoted string literal that looks like a path or URL. */
-const PATH_LITERAL_RE = /(['"`])((?:https?:\/\/[^\s'"`\\]+|\/[a-zA-Z0-9_\-\/.{}:@?&=+%~!$'()*,;[\]]+))\1/g;
+const PATH_LITERAL_RE =
+  /(['"`])((?:https?:\/\/[^\s'"`\\]+|\/[a-zA-Z0-9_\-\/.{}:@?&=+%~!$'()*,;[\]]+))\1/g;
 
 /** Bare path tokens without quotes (common inside comments). */
-const BARE_PATH_RE = /(?:^|[\s(,;=:>"']|\()((?:https?:\/\/[^\s"'<>]+|\/(?:[a-zA-Z0-9_\-\/.{}@?&=+%~]+)))/g;
+const BARE_PATH_RE =
+  /(?:^|[\s(,;=:>"']|\()((?:https?:\/\/[^\s"'<>]+|\/(?:[a-zA-Z0-9_\-\/.{}@?&=+%~]+)))/g;
 
 /**
  * Extract unquoted path tokens from comment text, where endpoints are
@@ -40,8 +42,14 @@ export function extractBarePaths(text) {
 
 /** Noise paths that appear in every bundle and reveal nothing. */
 const NOISE_PATHS = new Set([
-  '/', '/favicon.ico', '/robots.txt', '/manifest.json', '/__webpack_hmr',
-  '/sockjs-node', '/browser-sync', '/_next/static',
+  '/',
+  '/favicon.ico',
+  '/robots.txt',
+  '/manifest.json',
+  '/__webpack_hmr',
+  '/sockjs-node',
+  '/browser-sync',
+  '/_next/static',
 ]);
 
 /**
@@ -110,7 +118,8 @@ export function harvestCommentedEndpoints(bundle) {
 }
 
 /** Conditions that are statically false — the body never executes. */
-const DEAD_CONDITION_RE = /\b(?:if|while)\s*\(\s*(?:false|!1|!0\s*===\s*1|0|void\s+0|undefined)\s*\)/g;
+const DEAD_CONDITION_RE =
+  /\b(?:if|while)\s*\(\s*(?:false|!1|!0\s*===\s*1|0|void\s+0|undefined)\s*\)/g;
 
 /**
  * Extract the brace-balanced block starting at the given opening brace.

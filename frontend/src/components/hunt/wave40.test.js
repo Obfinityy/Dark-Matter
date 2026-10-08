@@ -14,14 +14,32 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  WAVE40_FS_IDEAS, WAVE40_FS_START, WAVE40_FS_END,
-  watermarkText, watermarkStyle, embedWatermark, escHtml,
-  TICKET_SYSTEMS, ticketPayload, ticketRef, linkTicket, jiraPriority, linearPriority,
-  CHAT_CHANNELS, shouldAutoPost, chatMessage,
-  retrospectivePrompts, retrospectiveSummary,
-  newPrompt, answerPrompt, snoozePrompt, promptSummary,
-  digDeeperPrompt, digDeeperPlan,
-  scopeScore, scopeSuggestion,
+  WAVE40_FS_IDEAS,
+  WAVE40_FS_START,
+  WAVE40_FS_END,
+  watermarkText,
+  watermarkStyle,
+  embedWatermark,
+  escHtml,
+  TICKET_SYSTEMS,
+  ticketPayload,
+  ticketRef,
+  linkTicket,
+  jiraPriority,
+  linearPriority,
+  CHAT_CHANNELS,
+  shouldAutoPost,
+  chatMessage,
+  retrospectivePrompts,
+  retrospectiveSummary,
+  newPrompt,
+  answerPrompt,
+  snoozePrompt,
+  promptSummary,
+  digDeeperPrompt,
+  digDeeperPlan,
+  scopeScore,
+  scopeSuggestion,
   techniqueProposal,
   priorityCheckin,
   ambiguityPrompt,
@@ -31,7 +49,8 @@ import {
   resourceCheckin,
   timeCheckin,
   credentialRequest,
-  KNOWN_ENVIRONMENTS, contextQuestion,
+  KNOWN_ENVIRONMENTS,
+  contextQuestion,
   businessContextQuestion,
   fpCheckQuestion,
   exploitDepthQuestion,
@@ -39,15 +58,29 @@ import {
 } from './findingShareCore.js';
 
 import {
-  WAVE40_SQ_IDEAS, WAVE40_SQ_START, WAVE40_SQ_END,
+  WAVE40_SQ_IDEAS,
+  WAVE40_SQ_START,
+  WAVE40_SQ_END,
   URGENCY_ORDER,
-  createQueue, enqueue, dequeueNext, duePrompts, triageOrder,
-  snoozeUntil, snoozeByMinutes, isSnoozed, wakeSnoozed, queueSummary,
-  defaultInterruptPrefs, learnInterruptionPref, interruptionMode,
+  createQueue,
+  enqueue,
+  dequeueNext,
+  duePrompts,
+  triageOrder,
+  snoozeUntil,
+  snoozeByMinutes,
+  isSnoozed,
+  wakeSnoozed,
+  queueSummary,
+  defaultInterruptPrefs,
+  learnInterruptionPref,
+  interruptionMode,
   handoffQuestion,
   retestProposal,
   collaborationPrompt,
-  learningQuestion, recordLearningAnswer, learningSummary,
+  learningQuestion,
+  recordLearningAnswer,
+  learningSummary,
   assumptionDisclosure,
   planReviewPrompt,
   checkpointQuestion,
@@ -57,15 +90,32 @@ import {
   evidenceQuestion,
   timingQuestion,
   parallelismQuestion,
-  DATA_HANDLING_OPTIONS, dataHandlingQuestion,
+  DATA_HANDLING_OPTIONS,
+  dataHandlingQuestion,
   disclosureQuestion,
-  steeringFeedbackRequest, recordSteeringFeedback, steeringFeedbackSummary,
+  steeringFeedbackRequest,
+  recordSteeringFeedback,
+  steeringFeedbackSummary,
   goalAlignmentCheck,
 } from './steeringQueueCore.js';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
-const F1 = { id: 'F-1', title: 'Stored XSS in chat', type: 'xss', severity: 'high', confidence: 87, asset: 'app.example.com/chat' };
-const F2 = { id: 'F-2', title: 'Missing CSP header', type: 'headers', severity: 'low', confidence: 95, asset: '/' };
+const F1 = {
+  id: 'F-1',
+  title: 'Stored XSS in chat',
+  type: 'xss',
+  severity: 'high',
+  confidence: 87,
+  asset: 'app.example.com/chat',
+};
+const F2 = {
+  id: 'F-2',
+  title: 'Missing CSP header',
+  type: 'headers',
+  severity: 'low',
+  confidence: 95,
+  asset: '/',
+};
 
 /* --- registry completeness --------------------------------------------------- */
 
@@ -74,7 +124,8 @@ test('wave-40 share registry: 20/20 ideas, zero skips', () => {
   assert.equal(WAVE40_FS_END, 51580);
   assert.equal(WAVE40_FS_IDEAS.length, 20);
   const ids = WAVE40_FS_IDEAS.map(r => r[0]);
-  for (let n = WAVE40_FS_START; n <= WAVE40_FS_END; n++) assert.ok(ids.includes(n), 'missing idea ' + n);
+  for (let n = WAVE40_FS_START; n <= WAVE40_FS_END; n++)
+    assert.ok(ids.includes(n), 'missing idea ' + n);
   for (const [, name, desc] of WAVE40_FS_IDEAS) {
     assert.ok(name && name.length > 2, 'empty name');
     assert.ok(desc && desc.length > 5, 'empty desc for ' + name);
@@ -86,7 +137,8 @@ test('wave-40 steering registry: 20/20 ideas, zero skips', () => {
   assert.equal(WAVE40_SQ_END, 51600);
   assert.equal(WAVE40_SQ_IDEAS.length, 20);
   const ids = WAVE40_SQ_IDEAS.map(r => r[0]);
-  for (let n = WAVE40_SQ_START; n <= WAVE40_SQ_END; n++) assert.ok(ids.includes(n), 'missing idea ' + n);
+  for (let n = WAVE40_SQ_START; n <= WAVE40_SQ_END; n++)
+    assert.ok(ids.includes(n), 'missing idea ' + n);
   for (const [, name, desc] of WAVE40_SQ_IDEAS) {
     assert.ok(name && name.length > 2, 'empty name');
     assert.ok(desc && desc.length > 5, 'empty desc for ' + name);
@@ -146,7 +198,12 @@ test('retrospective prompts + summary', () => {
   const prompts = retrospectivePrompts({ findings: [F1, F2], goal: 'max coverage' });
   assert.ok(prompts.some(p => p.key === 'most-valuable'));
   assert.ok(prompts.some(p => p.key === 'goal'));
-  const sum = retrospectiveSummary({ 'most-valuable': 'F-1', 'false-positives': ['F-2'], missed: 'auth', depth: 'injection' });
+  const sum = retrospectiveSummary({
+    'most-valuable': 'F-1',
+    'false-positives': ['F-2'],
+    missed: 'auth',
+    depth: 'injection',
+  });
   assert.equal(sum.answeredCount, 4);
   assert.equal(sum.mostValuableId, 'F-1');
   assert.deepEqual(sum.flaggedFpIds, ['F-2']);
@@ -208,7 +265,10 @@ test('resource, time, credential, context, business prompts', () => {
   const cr = credentialRequest('target', 'need session');
   assert.ok(cr.options.some(o => o.key === 'provide'));
   const cq = contextQuestion('environment', null);
-  assert.deepEqual(cq.options.map(o => o.key), KNOWN_ENVIRONMENTS);
+  assert.deepEqual(
+    cq.options.map(o => o.key),
+    KNOWN_ENVIRONMENTS
+  );
   const bc = businessContextQuestion(['/a']);
   assert.ok(bc.options.some(o => o.key === '/a'));
 });
@@ -275,7 +335,10 @@ test('checkpoint, anomaly, coverage, tool, evidence, timing, parallelism prompts
 
 test('data-handling, disclosure, steering feedback, goal alignment', () => {
   const dh = dataHandlingQuestion(F1);
-  assert.deepEqual(dh.options.map(o => o.key), DATA_HANDLING_OPTIONS);
+  assert.deepEqual(
+    dh.options.map(o => o.key),
+    DATA_HANDLING_OPTIONS
+  );
   assert.equal(dh.urgency, 'urgent');
   const dc = disclosureQuestion(F1, 'mid-hunt');
   assert.equal(dc.urgency, 'urgent');
@@ -290,7 +353,17 @@ test('data-handling, disclosure, steering feedback, goal alignment', () => {
 /* --- 51599/51600 queue ------------------------------------------------------------ */
 
 test('queue: enqueue, due, triage order, dequeue, snooze, wake', () => {
-  const mk = (id, urgency) => ({ id, kind: 'k', title: id, body: '', options: [], urgency, status: 'open', answerKey: null, snoozedUntilMs: null });
+  const mk = (id, urgency) => ({
+    id,
+    kind: 'k',
+    title: id,
+    body: '',
+    options: [],
+    urgency,
+    status: 'open',
+    answerKey: null,
+    snoozedUntilMs: null,
+  });
   let q = createQueue();
   q = enqueue(q, mk('low-q', 'low'));
   q = enqueue(q, mk('urgent-q', 'urgent'));
@@ -325,7 +398,13 @@ test('Wave40.css: zero keyframes', () => {
 /* --- no-debris audit ----------------------------------------------------------------- */
 
 test('wave-40 sources carry no unfinished-work or fake-content markers', async () => {
-  const files = ['findingShareCore.js', 'steeringQueueCore.js', 'FindingShare.jsx', 'SteeringQueue.jsx', 'Wave40.css'];
+  const files = [
+    'findingShareCore.js',
+    'steeringQueueCore.js',
+    'FindingShare.jsx',
+    'SteeringQueue.jsx',
+    'Wave40.css',
+  ];
   for (const f of files) {
     const src = readFileSync(join(DIR, f), 'utf8');
     assert.ok(!/\bTODO\b|\bFIXME\b/i.test(src), 'no TODO/FIXME in ' + f);
@@ -339,12 +418,18 @@ test('wave-40 sources carry no unfinished-work or fake-content markers', async (
 
 test('FindingShare.jsx parses clean via esbuild', async () => {
   const jsxPath = join(DIR, 'FindingShare.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('FindingShareGallery'), 'esbuild parsed the share gallery export');
 });
 
 test('SteeringQueue.jsx parses clean via esbuild', async () => {
   const jsxPath = join(DIR, 'SteeringQueue.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('SteeringQueueGallery'), 'esbuild parsed the steering gallery export');
 });

@@ -12,27 +12,68 @@ import path from 'node:path';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 import {
-  WAVE21_IDEAS, COACH_MARK_STEPS, ONBOARDING_STEPS, POWER_TIPS,
-  createTourState, startTour, nextTourStep, prevTourStep, skipTour,
-  resumeTour, tourProgress, shouldShowHint, suggestFirstOperator,
-  filterComboTip, chatExampleQuestions, deepLinkHowTo, chainExplainer,
-  fpDismissalGuide, explainConfidence, zeroResultsRecovery, printHint,
-  timelineClickTip, checklistProgress, completeChecklistStep,
-  celebrationState, graduateChecklist, sampleHuntSpec, sandboxConfig,
-  dismissHint, setTipsEnabled, mergeHintState, exportWalkthroughSteps,
-  shouldNudgeShortcut, shortcutNudgeCopy, shouldSuggestSchedule,
-  shouldSuggestInvite, daysBetween, shouldShowWelcomeBack, welcomeBackCopy,
-  roleOnboardingPath, widgetTourSteps, weakTargetCheck, dripEmailSchedule,
-  videoSnippetSpec, hashString, tipOfTheDay, rotatingHelpTip,
-  voiceCommandHint, a11yShortcutHint, slackIntegrationHint, modelsPageHint,
-  paywallExplainer, postHuntRatingPrompt, darkModeHint, pocMarkdown,
+  WAVE21_IDEAS,
+  COACH_MARK_STEPS,
+  ONBOARDING_STEPS,
+  POWER_TIPS,
+  createTourState,
+  startTour,
+  nextTourStep,
+  prevTourStep,
+  skipTour,
+  resumeTour,
+  tourProgress,
+  shouldShowHint,
+  suggestFirstOperator,
+  filterComboTip,
+  chatExampleQuestions,
+  deepLinkHowTo,
+  chainExplainer,
+  fpDismissalGuide,
+  explainConfidence,
+  zeroResultsRecovery,
+  printHint,
+  timelineClickTip,
+  checklistProgress,
+  completeChecklistStep,
+  celebrationState,
+  graduateChecklist,
+  sampleHuntSpec,
+  sandboxConfig,
+  dismissHint,
+  setTipsEnabled,
+  mergeHintState,
+  exportWalkthroughSteps,
+  shouldNudgeShortcut,
+  shortcutNudgeCopy,
+  shouldSuggestSchedule,
+  shouldSuggestInvite,
+  daysBetween,
+  shouldShowWelcomeBack,
+  welcomeBackCopy,
+  roleOnboardingPath,
+  widgetTourSteps,
+  weakTargetCheck,
+  dripEmailSchedule,
+  videoSnippetSpec,
+  hashString,
+  tipOfTheDay,
+  rotatingHelpTip,
+  voiceCommandHint,
+  a11yShortcutHint,
+  slackIntegrationHint,
+  modelsPageHint,
+  paywallExplainer,
+  postHuntRatingPrompt,
+  darkModeHint,
+  pocMarkdown,
 } from './onboardingCore.js';
 
 /* ---------------- registry ---------------- */
 
 test('WAVE21_IDEAS covers 50801–50840 exactly, all new', () => {
   assert.equal(WAVE21_IDEAS.length, 40);
-  const ids = WAVE21_IDEAS.map((i) => i.id).sort((a, b) => a - b);
+  const ids = WAVE21_IDEAS.map(i => i.id).sort((a, b) => a - b);
   for (let n = 50801; n <= 50840; n++) assert.ok(ids.includes(n), `missing idea ${n}`);
   for (const idea of WAVE21_IDEAS) {
     assert.equal(idea.status, 'new', `idea ${idea.id} should be new`);
@@ -118,7 +159,7 @@ test('checklistProgress reports "N of M" honestly', () => {
   assert.equal(p.label, '3 of 7 steps done');
   assert.equal(p.percent, 43);
   assert.equal(p.complete, false);
-  const full = checklistProgress(ONBOARDING_STEPS.map((s) => s.id));
+  const full = checklistProgress(ONBOARDING_STEPS.map(s => s.id));
   assert.equal(full.complete, true);
   assert.equal(full.percent, 100);
 });
@@ -132,7 +173,7 @@ test('completeChecklistStep is idempotent and ignores unknown ids', () => {
 
 test('celebrationState only celebrates a complete checklist', () => {
   assert.equal(celebrationState(checklistProgress([])).celebrate, false);
-  const full = celebrationState(checklistProgress(ONBOARDING_STEPS.map((s) => s.id)));
+  const full = celebrationState(checklistProgress(ONBOARDING_STEPS.map(s => s.id)));
   assert.equal(full.celebrate, true);
   assert.match(full.title, /set/i);
 });
@@ -140,7 +181,10 @@ test('celebrationState only celebrates a complete checklist', () => {
 test('graduateChecklist archives only when complete', () => {
   const partial = graduateChecklist(['target'], []);
   assert.equal(partial.graduated, false);
-  const full = graduateChecklist(ONBOARDING_STEPS.map((s) => s.id), []);
+  const full = graduateChecklist(
+    ONBOARDING_STEPS.map(s => s.id),
+    []
+  );
   assert.equal(full.graduated, true);
   assert.equal(full.tips.length, 1);
 });
@@ -169,7 +213,7 @@ test('dismissHint accumulates ids', () => {
 test('mergeHintState: dismissals union, opt-out wins', () => {
   const merged = mergeHintState(
     { seenIds: ['a'], tipsEnabled: true, updatedAt: 1 },
-    { seenIds: ['b'], tipsEnabled: false, updatedAt: 2 },
+    { seenIds: ['b'], tipsEnabled: false, updatedAt: 2 }
   );
   assert.ok(merged.seenIds.includes('a') && merged.seenIds.includes('b'));
   assert.equal(merged.tipsEnabled, false);
@@ -215,7 +259,7 @@ test('roleOnboardingPath returns researcher/executive tracks', () => {
   const r = roleOnboardingPath('researcher');
   assert.equal(r.firstTasks.length, 3);
   const e = roleOnboardingPath('executive');
-  assert.ok(e.firstTasks.some((t) => /dashboard/i.test(t)));
+  assert.ok(e.firstTasks.some(t => /dashboard/i.test(t)));
   assert.equal(roleOnboardingPath('unknown').role, 'researcher');
 });
 
@@ -238,7 +282,10 @@ test('dripEmailSchedule sends 3 emails over the first week when opted in', () =>
   assert.deepEqual(dripEmailSchedule(false, Date.now()), []);
   const sched = dripEmailSchedule(true, 1000);
   assert.equal(sched.length, 3);
-  assert.deepEqual(sched.map((s) => s.day), [0, 3, 7]);
+  assert.deepEqual(
+    sched.map(s => s.day),
+    [0, 3, 7]
+  );
   assert.ok(sched[2].sendAt > sched[0].sendAt);
 });
 
@@ -302,9 +349,13 @@ test('voiceCommandHint only fires on mobile', () => {
 
 test('pocMarkdown formats a complete block', () => {
   const md = pocMarkdown({
-    title: 'SQLi', severity: 'critical', confidence: 0.91,
-    target: 'https://demo/shop/login', huntId: 'h1',
-    poc: "' OR 1=1--", remediation: 'Use parameterized queries.',
+    title: 'SQLi',
+    severity: 'critical',
+    confidence: 0.91,
+    target: 'https://demo/shop/login',
+    huntId: 'h1',
+    poc: "' OR 1=1--",
+    remediation: 'Use parameterized queries.',
   });
   assert.match(md, /## SQLi — CRITICAL/);
   assert.match(md, /confidence 91%/);
@@ -322,7 +373,13 @@ test('pocMarkdown tolerates missing fields', () => {
 /* ---------------- source-file presence audit ---------------- */
 
 test('wave 21 source files exist and are substantive', () => {
-  for (const f of ['onboardingCore.js', 'OnboardingTour.jsx', 'OnboardingHints.jsx', 'Onboarding.css', 'wave21.test.js']) {
+  for (const f of [
+    'onboardingCore.js',
+    'OnboardingTour.jsx',
+    'OnboardingHints.jsx',
+    'Onboarding.css',
+    'wave21.test.js',
+  ]) {
     const p = path.join(here, f);
     assert.ok(existsSync(p), `missing ${f}`);
     assert.ok(readFileSync(p, 'utf8').length > 2000, `${f} looks stubbed`);

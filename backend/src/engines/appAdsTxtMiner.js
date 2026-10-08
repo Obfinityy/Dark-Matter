@@ -13,10 +13,7 @@
 import { parseAdsTxt } from './adsTxtMapper.js';
 
 /** Well-known locations of the app-ads.txt file. */
-export const CANDIDATE_PATHS = [
-  '/app-ads.txt',
-  '/.well-known/app-ads.txt',
-];
+export const CANDIDATE_PATHS = ['/app-ads.txt', '/.well-known/app-ads.txt'];
 
 /**
  * Build candidate file URLs for a target.
@@ -26,7 +23,7 @@ export const CANDIDATE_PATHS = [
 export function candidateUrls(baseUrl = '') {
   const origin = String(baseUrl).replace(/\/+$/, '');
   if (!origin) return [];
-  return CANDIDATE_PATHS.map((p) => `${origin}${p}`);
+  return CANDIDATE_PATHS.map(p => `${origin}${p}`);
 }
 
 /**
@@ -59,7 +56,9 @@ export function analyzeAppAdsTxt(content, opts = {}) {
       seen.add(url);
       let store = 'other';
       let appId = null;
-      const apple = url.match(/apps\.apple\.com\/[^/]*\/app\/[^/]*\/(id\d+)/i) || url.match(/apps\.apple\.com\/[^/]*\/(id\d+)/i);
+      const apple =
+        url.match(/apps\.apple\.com\/[^/]*\/app\/[^/]*\/(id\d+)/i) ||
+        url.match(/apps\.apple\.com\/[^/]*\/(id\d+)/i);
       const google = url.match(/play\.google\.com\/store\/apps\/details\?id=([a-zA-Z0-9._]+)/i);
       if (apple) {
         store = 'apple';
@@ -72,7 +71,9 @@ export function analyzeAppAdsTxt(content, opts = {}) {
         try {
           const host = new URL(url).hostname.toLowerCase();
           if (/\.(com|net|org|io|app|dev)$/i.test(host)) developerDomains.add(host);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
       appStoreLinks.push({ url, store, appId });
     }

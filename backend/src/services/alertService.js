@@ -17,7 +17,13 @@
 
 import { randomUUID } from 'node:crypto';
 
-const ALERT_TYPES = ['critical_finding', 'hunt_complete', 'hunt_started', 'queue_advanced', 'schedule_due'];
+const ALERT_TYPES = [
+  'critical_finding',
+  'hunt_complete',
+  'hunt_started',
+  'queue_advanced',
+  'schedule_due',
+];
 
 class AlertService {
   constructor({ alertModel, eventService, logger }) {
@@ -55,10 +61,12 @@ class AlertService {
 
     // Live push inside the app.
     if (this.eventService && jobId) {
-      await this.eventService.publish(jobId, {
-        type: 'ALERT_RAISED',
-        alert: { id: alert.id, type, title, body, createdAt: alert.createdAt },
-      }).catch((err) => this.logger.warn('[alert] event publish failed', err.message));
+      await this.eventService
+        .publish(jobId, {
+          type: 'ALERT_RAISED',
+          alert: { id: alert.id, type, title, body, createdAt: alert.createdAt },
+        })
+        .catch(err => this.logger.warn('[alert] event publish failed', err.message));
     }
 
     // External channels (webhook etc.). Best-effort.
@@ -93,7 +101,11 @@ class AlertService {
   }
 
   async notifyHuntComplete({ userId, job, stats }) {
-    const parts = [`${stats.total} confirmed`, `${stats.critical} critical`, `${stats.high} high`].join(', ');
+    const parts = [
+      `${stats.total} confirmed`,
+      `${stats.critical} critical`,
+      `${stats.high} high`,
+    ].join(', ');
     return this.notify({
       userId,
       type: 'hunt_complete',

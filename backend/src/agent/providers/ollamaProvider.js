@@ -24,10 +24,11 @@ function normalizeConfig(input = {}) {
   const baseUrl = String(input.baseUrl || `http://${host}:${port}/v1`).replace(/\/$/, '');
   return {
     baseUrl: baseUrl.endsWith('/v1') ? baseUrl : `${baseUrl}/v1`,
-    model
+    model,
   };
 }
 
+/** AI model provider: ollama. */
 export class OllamaProvider {
   constructor(config = {}) {
     const { baseUrl, model } = normalizeConfig(config);
@@ -47,19 +48,42 @@ export class OllamaProvider {
       const response = await fetch(`${this.baseUrl}/models`, { signal: AbortSignal.timeout(5000) });
       const latencyMs = Date.now() - start;
       if (!response.ok) {
-        return { provider: 'OllamaProvider', enabled: true, reachable: false, modelInstalled: false, reason: `HTTP ${response.status}`, latencyMs };
+        return {
+          provider: 'OllamaProvider',
+          enabled: true,
+          reachable: false,
+          modelInstalled: false,
+          reason: `HTTP ${response.status}`,
+          latencyMs,
+        };
       }
       let actualModel = this.model;
       let modelInstalled = false;
       try {
         const body = await response.json();
-        const names = (body?.data || []).map((m) => m.id);
+        const names = (body?.data || []).map(m => m.id);
         modelInstalled = names.includes(this.model);
         if (!modelInstalled && names.length > 0) actualModel = names[0];
-      } catch { /* model list is advisory */ }
-      return { provider: 'OllamaProvider', enabled: true, reachable: true, model: actualModel, modelInstalled, latencyMs };
+      } catch {
+        /* model list is advisory */
+      }
+      return {
+        provider: 'OllamaProvider',
+        enabled: true,
+        reachable: true,
+        model: actualModel,
+        modelInstalled,
+        latencyMs,
+      };
     } catch (error) {
-      return { provider: 'OllamaProvider', enabled: true, reachable: false, modelInstalled: false, reason: error.message, latencyMs: Date.now() - start };
+      return {
+        provider: 'OllamaProvider',
+        enabled: true,
+        reachable: false,
+        modelInstalled: false,
+        reason: error.message,
+        latencyMs: Date.now() - start,
+      };
     }
   }
 
@@ -73,8 +97,8 @@ export class OllamaProvider {
         messages: Array.isArray(messages) ? messages : [],
         temperature: options.temperature ?? 0.3,
         max_tokens: options.maxTokens ?? 4000,
-        stream: false
-      })
+        stream: false,
+      }),
     });
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
@@ -92,8 +116,8 @@ export class OllamaProvider {
         ...(Array.isArray(messages) ? messages : []),
         {
           role: 'system',
-          content: `You must respond with valid JSON matching this schema: ${JSON.stringify(schema)}. Output ONLY the JSON object, no other text.`
-        }
+          content: `You must respond with valid JSON matching this schema: ${JSON.stringify(schema)}. Output ONLY the JSON object, no other text.`,
+        },
       ],
       { ...options, temperature: options.temperature ?? 0.1 }
     );
@@ -116,8 +140,8 @@ export class OllamaProvider {
         messages: Array.isArray(messages) ? messages : [],
         temperature: options.temperature ?? 0.3,
         max_tokens: options.maxTokens ?? 4000,
-        stream: true
-      })
+        stream: true,
+      }),
     });
     if (!response.ok) {
       const errText = await response.text().catch(() => '');

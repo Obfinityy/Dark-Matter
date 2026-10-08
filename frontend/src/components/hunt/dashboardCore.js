@@ -14,7 +14,7 @@ export function normalizeSparkline(values) {
   const min = Math.min(...values);
   const max = Math.max(...values);
   if (max === min) return values.map(() => 0.5);
-  return values.map((v) => (v - min) / (max - min));
+  return values.map(v => (v - min) / (max - min));
 }
 
 /** Week-over-week delta: { deltaPct, direction } — direction: 'up'|'down'|'flat'. */
@@ -52,8 +52,8 @@ export function formatBytes(bytes) {
 /** Shape running hunts for the widget: id, target host, phase label, progress 0-1. */
 export function activeHuntsModel(hunts) {
   return (hunts || [])
-    .filter((h) => h.status === 'running' || h.status === 'paused')
-    .map((h) => ({
+    .filter(h => h.status === 'running' || h.status === 'paused')
+    .map(h => ({
       id: h.id,
       host: safeHost(h.targetUrl),
       phase: h.phase || 'recon',
@@ -89,7 +89,7 @@ export function severityDonutSegments(findings) {
     if (counts[s] !== undefined) counts[s] += 1;
   }
   const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-  return SEVERITIES.map((sev) => ({
+  return SEVERITIES.map(sev => ({
     severity: sev,
     count: counts[sev],
     // Conic-gradient stop in percent — the widget turns these into a ring.
@@ -104,7 +104,7 @@ export function severityDonutSegments(findings) {
 
 /** countsByDay: array of {day: '2026-10-01', count}. Returns spark + WoW delta. */
 export function weeklyFindingsModel(countsByDay) {
-  const days = (countsByDay || []).map((d) => d.count);
+  const days = (countsByDay || []).map(d => d.count);
   const thisWeek = days.slice(-7).reduce((a, b) => a + b, 0);
   const lastWeek = days.slice(-14, -7).reduce((a, b) => a + b, 0);
   return {
@@ -134,7 +134,12 @@ export function throughputModel(hunts, now = new Date()) {
     if (idx >= 0 && idx < 30) buckets[idx] += 1;
   }
   const total = buckets.reduce((a, b) => a + b, 0);
-  return { buckets, total, avgPerDay: Math.round((total / 30) * 10) / 10, max: Math.max(...buckets, 0) };
+  return {
+    buckets,
+    total,
+    avgPerDay: Math.round((total / 30) * 10) / 10,
+    max: Math.max(...buckets, 0),
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -145,10 +150,15 @@ const SEV_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
 
 export function needsReviewModel(findings, limit = 5) {
   return (findings || [])
-    .filter((f) => !f.reviewed && !f.falsePositive)
+    .filter(f => !f.reviewed && !f.falsePositive)
     .sort((a, b) => (SEV_RANK[b.severity] || 0) - (SEV_RANK[a.severity] || 0))
     .slice(0, limit)
-    .map((f) => ({ id: f.id, title: f.title, severity: f.severity, host: safeHost(f.url || f.targetUrl) }));
+    .map(f => ({
+      id: f.id,
+      title: f.title,
+      severity: f.severity,
+      host: safeHost(f.url || f.targetUrl),
+    }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -167,9 +177,10 @@ export function topVulnerableTargetsModel(findings, priorCriticals = {}) {
   return Object.values(byHost)
     .sort((a, b) => b.critical - a.critical || b.total - a.total)
     .slice(0, 8)
-    .map((t) => {
+    .map(t => {
       const prev = priorCriticals[t.host];
-      const trend = prev == null ? 'new' : t.critical > prev ? 'up' : t.critical < prev ? 'down' : 'flat';
+      const trend =
+        prev == null ? 'new' : t.critical > prev ? 'up' : t.critical < prev ? 'down' : 'flat';
       return { ...t, trend };
     });
 }
@@ -208,12 +219,12 @@ export function agentActivityHeatmap(events, now = new Date()) {
  */
 export function timeToFirstFindingModel(hunts) {
   const durs = (hunts || [])
-    .map((h) => {
+    .map(h => {
       if (!h.startedAt || !h.firstFindingAt) return null;
       const ms = new Date(h.firstFindingAt) - new Date(h.startedAt);
       return ms > 0 ? ms : null;
     })
-    .filter((v) => v != null);
+    .filter(v => v != null);
   if (durs.length === 0) return { avgMs: null, trend: 'flat', sample: 0 };
   const avg = durs.reduce((a, b) => a + b, 0) / durs.length;
   const half = Math.max(1, Math.floor(durs.length / 2));
@@ -222,7 +233,8 @@ export function timeToFirstFindingModel(hunts) {
   const rAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
   const oAvg = older.length ? older.reduce((a, b) => a + b, 0) / older.length : rAvg;
   // For time-to-first-finding, DOWN is good.
-  const trend = Math.abs(rAvg - oAvg) / Math.max(oAvg, 1) < 0.05 ? 'flat' : rAvg < oAvg ? 'down' : 'up';
+  const trend =
+    Math.abs(rAvg - oAvg) / Math.max(oAvg, 1) < 0.05 ? 'flat' : rAvg < oAvg ? 'down' : 'up';
   return { avgMs: Math.round(avg), trend, sample: durs.length };
 }
 
@@ -253,7 +265,7 @@ function sampleBuckets(total, fp) {
   const buckets = new Array(30).fill(0);
   if (total === 0) return buckets;
   const share = fp / total;
-  for (let i = 0; i < 30; i += 1) buckets[i] = share * (0.7 + 0.3 * ((i * 7) % 5) / 4);
+  for (let i = 0; i < 30; i += 1) buckets[i] = share * (0.7 + (0.3 * ((i * 7) % 5)) / 4);
   return buckets;
 }
 
@@ -263,8 +275,13 @@ function sampleBuckets(total, fp) {
 
 export function reportReadyModel(hunts) {
   return (hunts || [])
-    .filter((h) => (h.status === 'completed' || h.status === 'done') && !h.reportGenerated)
-    .map((h) => ({ id: h.id, host: safeHost(h.targetUrl), findings: h.findingCount || 0, completedAt: h.completedAt }));
+    .filter(h => (h.status === 'completed' || h.status === 'done') && !h.reportGenerated)
+    .map(h => ({
+      id: h.id,
+      host: safeHost(h.targetUrl),
+      findings: h.findingCount || 0,
+      completedAt: h.completedAt,
+    }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -273,11 +290,11 @@ export function reportReadyModel(hunts) {
 
 export function upcomingSchedulesModel(schedules, now = new Date()) {
   return (schedules || [])
-    .map((s) => ({ ...s, atMs: new Date(s.nextRunAt).getTime() }))
-    .filter((s) => !Number.isNaN(s.atMs) && s.atMs > now.getTime())
+    .map(s => ({ ...s, atMs: new Date(s.nextRunAt).getTime() }))
+    .filter(s => !Number.isNaN(s.atMs) && s.atMs > now.getTime())
     .sort((a, b) => a.atMs - b.atMs)
     .slice(0, 5)
-    .map((s) => ({
+    .map(s => ({
       id: s.id,
       name: s.name,
       host: safeHost(s.targetUrl),
@@ -293,7 +310,7 @@ export function upcomingSchedulesModel(schedules, now = new Date()) {
 const HEALTH_DOT = { healthy: 'green', degraded: 'amber', down: 'red' };
 
 export function integrationHealthModel(providers) {
-  return (providers || []).map((p) => ({
+  return (providers || []).map(p => ({
     name: p.name,
     status: p.status,
     dot: HEALTH_DOT[p.status] || 'amber',
@@ -309,9 +326,9 @@ export function integrationHealthModel(providers) {
 export function learningAppliedModel(entries, now = new Date()) {
   const weekAgo = now.getTime() - 7 * 86400000;
   return (entries || [])
-    .filter((e) => new Date(e.learnedAt).getTime() >= weekAgo)
+    .filter(e => new Date(e.learnedAt).getTime() >= weekAgo)
     .slice(0, 10)
-    .map((e) => ({ rule: e.rule, example: e.example, huntsImproved: e.huntsImproved || 0 }));
+    .map(e => ({ rule: e.rule, example: e.example, huntsImproved: e.huntsImproved || 0 }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -322,9 +339,11 @@ export function storageUsageModel({ evidenceBytes = 0, snapshotBytes = 0, quotaB
   const used = evidenceBytes + snapshotBytes;
   const pct = quotaBytes > 0 ? Math.min(100, (used / quotaBytes) * 100) : 0;
   const suggestion =
-    pct >= 90 ? 'Quota nearly full — run cleanup of old snapshots and evidence.'
-    : pct >= 70 ? 'Usage is high — consider archiving old evidence.'
-    : 'Usage is healthy.';
+    pct >= 90
+      ? 'Quota nearly full — run cleanup of old snapshots and evidence.'
+      : pct >= 70
+        ? 'Usage is high — consider archiving old evidence.'
+        : 'Usage is healthy.';
   return {
     evidence: formatBytes(evidenceBytes),
     snapshots: formatBytes(snapshotBytes),
@@ -341,7 +360,7 @@ export function storageUsageModel({ evidenceBytes = 0, snapshotBytes = 0, quotaB
 
 export function teamLeaderboardModel(members) {
   return (members || [])
-    .filter((m) => m.optIn !== false)
+    .filter(m => m.optIn !== false)
     .sort((a, b) => (b.confirmedFindings || 0) - (a.confirmedFindings || 0))
     .map((m, i) => ({ rank: i + 1, name: m.name, confirmedFindings: m.confirmedFindings || 0 }));
 }
@@ -352,10 +371,13 @@ export function teamLeaderboardModel(members) {
 
 const DEFAULT_SLA_HOURS = { critical: 24, high: 72, medium: 168, low: 720 };
 
-export function slaRiskModel(findings, { slaHoursBySev = DEFAULT_SLA_HOURS, now = new Date() } = {}) {
+export function slaRiskModel(
+  findings,
+  { slaHoursBySev = DEFAULT_SLA_HOURS, now = new Date() } = {}
+) {
   const rows = (findings || [])
-    .filter((f) => !f.resolved && f.createdAt)
-    .map((f) => {
+    .filter(f => !f.resolved && f.createdAt)
+    .map(f => {
       const sev = String(f.severity || 'low').toLowerCase();
       const slaHours = slaHoursBySev[sev] ?? DEFAULT_SLA_HOURS.low;
       const deadline = new Date(f.createdAt).getTime() + slaHours * 3600000;
@@ -365,7 +387,8 @@ export function slaRiskModel(findings, { slaHoursBySev = DEFAULT_SLA_HOURS, now 
         title: f.title,
         severity: sev,
         remainingMs: remaining,
-        countdown: remaining < 0 ? `overdue by ${formatCountdown(-remaining)}` : formatCountdown(remaining),
+        countdown:
+          remaining < 0 ? `overdue by ${formatCountdown(-remaining)}` : formatCountdown(remaining),
         urgency: remaining < 0 ? 0 : remaining < slaHours * 3600000 * 0.25 ? 1 : 2,
       };
     })

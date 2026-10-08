@@ -17,7 +17,9 @@
  * IPv4 helpers for prefix arithmetic (documented: IPv4 only).
  */
 function ipv4ToInt(ip) {
-  const parts = String(ip || '').trim().split('.');
+  const parts = String(ip || '')
+    .trim()
+    .split('.');
   if (parts.length !== 4) return null;
   let n = 0;
   for (const p of parts) {
@@ -34,23 +36,23 @@ function parsePrefix(prefix) {
   const addr = ipv4ToInt(m[1]);
   const len = Number(m[2]);
   if (addr === null || len > 32) return null;
-  const mask = len === 0 ? 0 : (0xffffffff - (2 ** (32 - len)) + 1) >>> 0;
+  const mask = len === 0 ? 0 : (0xffffffff - 2 ** (32 - len) + 1) >>> 0;
   return { network: (addr & mask) >>> 0, len };
 }
 
 /** True when `covering` (a less-specific prefix) contains `inner`. */
 function prefixCovers(covering, inner) {
   if (!covering || !inner || covering.len > inner.len) return false;
-  const mask = covering.len === 0 ? 0 : (0xffffffff - (2 ** (32 - covering.len)) + 1) >>> 0;
-  return ((inner.network & mask) >>> 0) === covering.network;
+  const mask = covering.len === 0 ? 0 : (0xffffffff - 2 ** (32 - covering.len) + 1) >>> 0;
+  return (inner.network & mask) >>> 0 === covering.network;
 }
 
 /** Split a whitespace/comma separated AS path into integer ASNs. */
 function parseAsPath(asPath) {
   return String(asPath || '')
     .split(/[\s,]+/)
-    .map((a) => Number(a))
-    .filter((a) => Number.isInteger(a) && a > 0);
+    .map(a => Number(a))
+    .filter(a => Number.isInteger(a) && a > 0);
 }
 
 /**
@@ -85,11 +87,12 @@ export function detectOriginHijack({ prefix, announcements = [], baseline = {} }
     }
     if (a.collector) entry.seenBy.add(String(a.collector));
     if (a.asPath) entry.paths.push(String(a.asPath));
-    if (a.observedAt && (!entry.firstSeen || a.observedAt < entry.firstSeen)) entry.firstSeen = a.observedAt;
+    if (a.observedAt && (!entry.firstSeen || a.observedAt < entry.firstSeen))
+      entry.firstSeen = a.observedAt;
   }
 
   const alerts = [];
-  const newOrigins = [...byOrigin.keys()].filter((asn) => !known.has(asn));
+  const newOrigins = [...byOrigin.keys()].filter(asn => !known.has(asn));
   const simultaneous = newOrigins.length >= 2;
 
   for (const asn of newOrigins) {
@@ -102,7 +105,9 @@ export function detectOriginHijack({ prefix, announcements = [], baseline = {} }
         severity: 'info',
         seenBy,
         firstSeen: entry.firstSeen,
-        reasons: ['Origin AS is in the baseline authorized set — expected migration, not an attack.'],
+        reasons: [
+          'Origin AS is in the baseline authorized set — expected migration, not an attack.',
+        ],
       });
       continue;
     }
@@ -147,12 +152,16 @@ export function detectOriginHijack({ prefix, announcements = [], baseline = {} }
     });
   }
 
-  alerts.sort((a, b) => ({ high: 0, medium: 1, low: 2, info: 3 }[a.severity] ?? 4) - (({ high: 0, medium: 1, low: 2, info: 3 }[b.severity]) ?? 4));
+  alerts.sort(
+    (a, b) =>
+      (({ high: 0, medium: 1, low: 2, info: 3 })[a.severity] ?? 4) -
+      ({ high: 0, medium: 1, low: 2, info: 3 }[b.severity] ?? 4)
+  );
 
   return {
     prefix: target,
     alerts,
-    allClear: alerts.filter((a) => a.severity !== 'info' && a.severity !== 'low').length === 0,
+    allClear: alerts.filter(a => a.severity !== 'info' && a.severity !== 'low').length === 0,
     summary: alerts.length
       ? `${alerts.length} origin anomalie(s) for ${target}; highest severity: ${alerts[0].severity}.`
       : `No unexpected origin changes for ${target}.`,
@@ -174,8 +183,13 @@ export function detectOriginHijack({ prefix, announcements = [], baseline = {} }
  */
 export function flagRpkiInvalid({ announcements = [], roas = [] } = {}) {
   const parsedRoas = (roas || [])
-    .map((r) => ({ ...r, parsed: parsePrefix(r.prefix), asn: Number(r.asn), maxLength: Number(r.maxLength) }))
-    .filter((r) => r.parsed && Number.isInteger(r.asn));
+    .map(r => ({
+      ...r,
+      parsed: parsePrefix(r.prefix),
+      asn: Number(r.asn),
+      maxLength: Number(r.maxLength),
+    }))
+    .filter(r => r.parsed && Number.isInteger(r.asn));
 
   const results = [];
   for (const a of announcements || []) {
@@ -184,7 +198,7 @@ export function flagRpkiInvalid({ announcements = [], roas = [] } = {}) {
     const originAs = Number(a.originAs);
     if (!ann || !Number.isInteger(originAs)) continue;
 
-    const covering = parsedRoas.filter((r) => prefixCovers(r.parsed, ann));
+    const covering = parsedRoas.filter(r => prefixCovers(r.parsed, ann));
     if (!covering.length) {
       results.push({
         prefix: a.prefix,
@@ -226,13 +240,14 @@ export function flagRpkiInvalid({ announcements = [], roas = [] } = {}) {
     });
   }
 
-  const invalid = results.filter((r) => r.state === 'invalid');
+  const invalid = results.filter(r => r.state === 'invalid');
   return {
     results,
     invalid,
-    summary: `${results.length} announcement(s) validated: ${invalid.length} invalid, ` +
-      `${results.filter((r) => r.state === 'not-found').length} not-found, ` +
-      `${results.filter((r) => r.state === 'valid').length} valid.`,
+    summary:
+      `${results.length} announcement(s) validated: ${invalid.length} invalid, ` +
+      `${results.filter(r => r.state === 'not-found').length} not-found, ` +
+      `${results.filter(r => r.state === 'valid').length} valid.`,
   };
 }
 
@@ -253,10 +268,10 @@ export function flagRpkiInvalid({ announcements = [], roas = [] } = {}) {
 export function analyzeLgPaths({ prefix, paths = [] } = {}) {
   const target = String(prefix || '');
   const parsed = (paths || [])
-    .map((p) => ({ lg: String(p && p.lg || 'unknown'), asns: parseAsPath(p && p.asPath) }))
-    .filter((p) => p.asns.length >= 2);
+    .map(p => ({ lg: String((p && p.lg) || 'unknown'), asns: parseAsPath(p && p.asPath) }))
+    .filter(p => p.asns.length >= 2);
 
-  const origins = new Set(parsed.map((p) => p.asns[p.asns.length - 1]));
+  const origins = new Set(parsed.map(p => p.asns[p.asns.length - 1]));
   const neighborCounts = new Map();
   const transit = new Set();
   const uniquePaths = new Set();
@@ -327,8 +342,8 @@ export function buildTopology({ traces = [] } = {}) {
 
   for (const t of traces || []) {
     const vantage = String((t && t.vantage) || 'unknown');
-    const hops = ((t && t.hops) || []).filter((h) => h && h.ip);
-    hops.forEach((h) => {
+    const hops = ((t && t.hops) || []).filter(h => h && h.ip);
+    hops.forEach(h => {
       nodeFor(String(h.ip), vantage);
       const key = `${vantage}|${h.ttl}`;
       if (!perVantageTtl.has(key)) perVantageTtl.set(key, new Set());
@@ -358,18 +373,32 @@ export function buildTopology({ traces = [] } = {}) {
   for (const [key, ips] of perVantageTtl) {
     if (ips.size > 1) {
       const [vantage, ttl] = key.split('|');
-      multipath.push({ vantage, ttl: Number(ttl), ips: [...ips], detail: 'Multiple next-hops at the same TTL — equal-cost multi-path.' });
+      multipath.push({
+        vantage,
+        ttl: Number(ttl),
+        ips: [...ips],
+        detail: 'Multiple next-hops at the same TTL — equal-cost multi-path.',
+      });
     }
   }
 
   return {
-    nodes: [...nodes.values()].map((n) => ({ ip: n.ip, observedBy: [...n.observedBy], degree: n.degree })),
-    edges: [...edges.values()].map((e) => ({ from: e.from, to: e.to, count: e.count, observedBy: [...e.observedBy] })),
+    nodes: [...nodes.values()].map(n => ({
+      ip: n.ip,
+      observedBy: [...n.observedBy],
+      degree: n.degree,
+    })),
+    edges: [...edges.values()].map(e => ({
+      from: e.from,
+      to: e.to,
+      count: e.count,
+      observedBy: [...e.observedBy],
+    })),
     multipath,
     stats: {
       routerCount: nodes.size,
       edgeCount: edges.size,
-      vantageCount: new Set((traces || []).map((t) => String((t && t.vantage) || 'unknown'))).size,
+      vantageCount: new Set((traces || []).map(t => String((t && t.vantage) || 'unknown'))).size,
       multipathCount: multipath.length,
     },
   };
@@ -396,29 +425,32 @@ export function inferMpls({ traces = [] } = {}) {
 
   for (const t of traces || []) {
     const vantage = String((t && t.vantage) || 'unknown');
-    const hops = ((t && t.hops) || []).filter((h) => h && Number.isFinite(Number(h.ttl)));
+    const hops = ((t && t.hops) || []).filter(h => h && Number.isFinite(Number(h.ttl)));
     hops.sort((a, b) => a.ttl - b.ttl);
 
     for (const h of hops) {
       if (Array.isArray(h.labelStack) && h.labelStack.length) {
-        const labels = h.labelStack.map((l) => Number(l.label));
+        const labels = h.labelStack.map(l => Number(l.label));
         const implicitNull = labels.includes(3);
-        const explicitNull = labels.some((l) => l === 0 || l === 2);
+        const explicitNull = labels.some(l => l === 0 || l === 2);
         labelStacks.push({
           vantage,
           ttl: h.ttl,
           ip: h.ip || null,
           depth: labels.length,
           labels,
-          bottomOfStack: h.labelStack[h.labelStack.length - 1] && h.labelStack[h.labelStack.length - 1].s === 1,
+          bottomOfStack:
+            h.labelStack[h.labelStack.length - 1] && h.labelStack[h.labelStack.length - 1].s === 1,
         });
         indicators.push({
           type: 'explicit-label-stack',
           vantage,
           at: `ttl ${h.ttl}${h.ip ? ` (${h.ip})` : ''}`,
-          detail: `RFC 4950 label stack of depth ${labels.length}` +
+          detail:
+            `RFC 4950 label stack of depth ${labels.length}` +
             (implicitNull ? '; implicit-null (label 3) — penultimate-hop popping in use' : '') +
-            (explicitNull ? '; explicit-null label observed on the wire' : '') + '.',
+            (explicitNull ? '; explicit-null label observed on the wire' : '') +
+            '.',
         });
       }
     }
@@ -436,8 +468,8 @@ export function inferMpls({ traces = [] } = {}) {
     }
   }
 
-  const explicit = indicators.filter((i) => i.type === 'explicit-label-stack').length;
-  const gaps = indicators.filter((i) => i.type === 'ttl-propagation-gap').length;
+  const explicit = indicators.filter(i => i.type === 'explicit-label-stack').length;
+  const gaps = indicators.filter(i => i.type === 'ttl-propagation-gap').length;
   const mplsLikely = explicit > 0 || gaps > 0;
   const confidence = explicit > 0 ? 'high' : gaps > 0 ? 'medium' : 'low';
 

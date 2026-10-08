@@ -34,7 +34,7 @@
  * }}
  */
 export function characteriseWildcard(probes) {
-  const usable = probes.filter((p) => p.status === 'NOERROR' || p.status === 'NXDOMAIN');
+  const usable = probes.filter(p => p.status === 'NOERROR' || p.status === 'NXDOMAIN');
   const result = {
     isWildcard: false,
     wildcardType: 'none',
@@ -46,7 +46,7 @@ export function characteriseWildcard(probes) {
   if (usable.length === 0) return result;
 
   const synthesized = usable.filter(
-    (p) => p.status === 'NOERROR' && p.answers && p.answers.length > 0,
+    p => p.status === 'NOERROR' && p.answers && p.answers.length > 0
   );
   result.synthesisRate = Math.round((synthesized.length / usable.length) * 1000) / 1000;
   if (result.synthesisRate < 0.8) return result;
@@ -56,7 +56,10 @@ export function characteriseWildcard(probes) {
   const keyToAnswers = new Map();
   for (const p of synthesized) {
     const key = p.answers
-      .map((a) => `${String(a.type).toUpperCase()}:${String(a.value).trim().toLowerCase().replace(/\.+$/, '')}`)
+      .map(
+        a =>
+          `${String(a.type).toUpperCase()}:${String(a.value).trim().toLowerCase().replace(/\.+$/, '')}`
+      )
       .sort()
       .join('|');
     keyCounts.set(key, (keyCounts.get(key) || 0) + 1);
@@ -68,11 +71,11 @@ export function characteriseWildcard(probes) {
   const consistency = sigCount / synthesized.length;
 
   result.isWildcard = consistency >= 0.8;
-  result.signature = (keyToAnswers.get(sigKey) || []).map((a) => ({
+  result.signature = (keyToAnswers.get(sigKey) || []).map(a => ({
     type: String(a.type).toUpperCase(),
     value: String(a.value).trim().toLowerCase().replace(/\.+$/, ''),
   }));
-  const types = new Set(result.signature.map((a) => a.type));
+  const types = new Set(result.signature.map(a => a.type));
   result.wildcardType = types.size === 0 ? 'none' : types.size > 1 ? 'MIXED' : [...types][0];
   result.confidence = Math.round(result.synthesisRate * consistency * 1000) / 1000;
   return result;
@@ -89,16 +92,22 @@ export function characteriseWildcard(probes) {
  */
 export function matchesWildcardSignature(result, signature) {
   if (!signature || signature.length === 0) return false;
-  const answers = (result.answers || []).map((a) => ({
+  const answers = (result.answers || []).map(a => ({
     type: String(a.type).toUpperCase(),
     value: String(a.value).trim().toLowerCase().replace(/\.+$/, ''),
   }));
   if (answers.length === 0) return false;
-  const norm = (list) => list.map((a) => `${a.type}:${a.value}`).sort().join('|');
-  const sigNorm = norm(signature.map((a) => ({
-    type: String(a.type).toUpperCase(),
-    value: String(a.value).trim().toLowerCase().replace(/\.+$/, ''),
-  })));
+  const norm = list =>
+    list
+      .map(a => `${a.type}:${a.value}`)
+      .sort()
+      .join('|');
+  const sigNorm = norm(
+    signature.map(a => ({
+      type: String(a.type).toUpperCase(),
+      value: String(a.value).trim().toLowerCase().replace(/\.+$/, ''),
+    }))
+  );
   // Wildcard-synthesized A/AAAA answers may rotate through a small IP pool:
   // accept single-type IP-only answers whose values are all in the signature pool.
   const sigByType = new Map();
@@ -107,11 +116,11 @@ export function matchesWildcardSignature(result, signature) {
     if (!sigByType.has(t)) sigByType.set(t, new Set());
     sigByType.get(t).add(String(a.value).trim().toLowerCase().replace(/\.+$/, ''));
   }
-  const answerTypes = new Set(answers.map((a) => a.type));
+  const answerTypes = new Set(answers.map(a => a.type));
   if (answerTypes.size === 1) {
     const t = [...answerTypes][0];
     if ((t === 'A' || t === 'AAAA') && sigByType.has(t)) {
-      return answers.every((a) => sigByType.get(t).has(a.value));
+      return answers.every(a => sigByType.get(t).has(a.value));
     }
   }
   return norm(answers) === sigNorm;
@@ -130,10 +139,10 @@ export function filterWildcardFalsePositives(bruteResults, wildcard) {
   const real = [];
   if (!wildcard || !wildcard.isWildcard) {
     return {
-      real: bruteResults.filter((r) => r.status === 'NOERROR'),
+      real: bruteResults.filter(r => r.status === 'NOERROR'),
       filtered: bruteResults
-        .filter((r) => r.status !== 'NOERROR')
-        .map((r) => ({ host: r.host, reason: `non-answer status ${r.status}` })),
+        .filter(r => r.status !== 'NOERROR')
+        .map(r => ({ host: r.host, reason: `non-answer status ${r.status}` })),
       wildcardDetected: false,
     };
   }

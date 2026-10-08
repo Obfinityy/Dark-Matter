@@ -23,7 +23,7 @@ const TOOL_DEFINITIONS = [
     requiresAuthorization: false,
     requiresKali: false,
     timeout: 30_000,
-    parser: 'crtsh'
+    parser: 'crtsh',
   },
   {
     name: 'subfinder',
@@ -38,7 +38,7 @@ const TOOL_DEFINITIONS = [
     timeout: 120_000,
     command: 'subfinder',
     defaultArgs: ['-silent'],
-    parser: 'lines'
+    parser: 'lines',
   },
   {
     name: 'amass-passive',
@@ -52,7 +52,7 @@ const TOOL_DEFINITIONS = [
     timeout: 300_000,
     command: 'amass',
     defaultArgs: ['enum', '-passive'],
-    parser: 'lines'
+    parser: 'lines',
   },
   {
     name: 'assetfinder',
@@ -66,7 +66,7 @@ const TOOL_DEFINITIONS = [
     timeout: 60_000,
     command: 'assetfinder',
     defaultArgs: ['--subs-only'],
-    parser: 'lines'
+    parser: 'lines',
   },
 
   // --- DNS ---
@@ -82,7 +82,7 @@ const TOOL_DEFINITIONS = [
     timeout: 120_000,
     command: 'dnsx',
     defaultArgs: ['-silent', '-json', '-a', '-aaaa', '-cname', '-mx', '-ns'],
-    parser: 'jsonlines'
+    parser: 'jsonlines',
   },
 
   // --- HTTP Probing ---
@@ -98,8 +98,15 @@ const TOOL_DEFINITIONS = [
     managedBinary: 'httpx',
     timeout: 180_000,
     command: 'httpx',
-    defaultArgs: ['-silent', '-json', '-status-code', '-title', '-tech-detect', '-follow-redirects'],
-    parser: 'jsonlines'
+    defaultArgs: [
+      '-silent',
+      '-json',
+      '-status-code',
+      '-title',
+      '-tech-detect',
+      '-follow-redirects',
+    ],
+    parser: 'jsonlines',
   },
 
   // --- Technology Detection ---
@@ -115,7 +122,7 @@ const TOOL_DEFINITIONS = [
     timeout: 60_000,
     command: 'whatweb',
     defaultArgs: ['--aggression=1', '--log-json=-'],
-    parser: 'json'
+    parser: 'json',
   },
 
   // --- Content Discovery ---
@@ -131,7 +138,7 @@ const TOOL_DEFINITIONS = [
     timeout: 300_000,
     command: 'ffuf',
     defaultArgs: ['-mc', '200,301,302,307,401,403', '-json', '-s'],
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'gobuster',
@@ -145,7 +152,7 @@ const TOOL_DEFINITIONS = [
     timeout: 300_000,
     command: 'gobuster',
     defaultArgs: ['dir', '--no-error', '-q'],
-    parser: 'lines'
+    parser: 'lines',
   },
 
   // --- Port Scanning ---
@@ -162,7 +169,7 @@ const TOOL_DEFINITIONS = [
     timeout: 180_000,
     command: 'naabu',
     defaultArgs: ['-silent', '-json'],
-    parser: 'jsonlines'
+    parser: 'jsonlines',
   },
   {
     name: 'nmap',
@@ -176,7 +183,7 @@ const TOOL_DEFINITIONS = [
     timeout: 600_000,
     command: 'nmap',
     defaultArgs: ['-sV', '-sC', '-oX', '-'],
-    parser: 'nmap_xml'
+    parser: 'nmap_xml',
   },
 
   // --- Web Crawling ---
@@ -193,7 +200,7 @@ const TOOL_DEFINITIONS = [
     timeout: 180_000,
     command: 'katana',
     defaultArgs: ['-silent', '-json', '-depth', '3'],
-    parser: 'jsonlines'
+    parser: 'jsonlines',
   },
 
   // --- JavaScript Analysis ---
@@ -209,7 +216,7 @@ const TOOL_DEFINITIONS = [
     timeout: 60_000,
     command: 'linkfinder',
     defaultArgs: ['-o', 'cli'],
-    parser: 'lines'
+    parser: 'lines',
   },
 
   // --- Vulnerability Scanning ---
@@ -226,7 +233,7 @@ const TOOL_DEFINITIONS = [
     timeout: 600_000,
     command: 'nuclei',
     defaultArgs: ['-silent', '-json', '-severity', 'info,low,medium,high,critical'],
-    parser: 'jsonlines'
+    parser: 'jsonlines',
   },
   {
     name: 'nikto',
@@ -240,7 +247,7 @@ const TOOL_DEFINITIONS = [
     timeout: 300_000,
     command: 'nikto',
     defaultArgs: ['-Format', 'json', '-output', '-'],
-    parser: 'json'
+    parser: 'json',
   },
 
   // --- Parameter Discovery ---
@@ -256,7 +263,7 @@ const TOOL_DEFINITIONS = [
     timeout: 120_000,
     command: 'arjun',
     defaultArgs: ['--json'],
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'paramspider',
@@ -270,7 +277,7 @@ const TOOL_DEFINITIONS = [
     timeout: 120_000,
     command: 'paramspider',
     defaultArgs: [],
-    parser: 'lines'
+    parser: 'lines',
   },
 
   // --- URL Discovery ---
@@ -286,7 +293,7 @@ const TOOL_DEFINITIONS = [
     timeout: 120_000,
     command: 'gau',
     defaultArgs: [],
-    parser: 'lines'
+    parser: 'lines',
   },
   {
     name: 'waybackurls',
@@ -300,7 +307,7 @@ const TOOL_DEFINITIONS = [
     timeout: 120_000,
     command: 'waybackurls',
     defaultArgs: [],
-    parser: 'lines'
+    parser: 'lines',
   },
 
   // --- WAF Detection ---
@@ -316,7 +323,7 @@ const TOOL_DEFINITIONS = [
     timeout: 60_000,
     command: 'wafw00f',
     defaultArgs: ['-o', '-', '-f', 'json'],
-    parser: 'json'
+    parser: 'json',
   },
 
   // --- Subdomain Takeover ---
@@ -332,7 +339,7 @@ const TOOL_DEFINITIONS = [
     timeout: 120_000,
     command: 'subzy',
     defaultArgs: ['run', '--hide_fails'],
-    parser: 'json'
+    parser: 'json',
   },
 
   // --- Certificate Analysis ---
@@ -348,7 +355,7 @@ const TOOL_DEFINITIONS = [
     timeout: 60_000,
     command: 'sslscan',
     defaultArgs: [],
-    parser: 'generic'
+    parser: 'generic',
   },
 
   // --- CORS ---
@@ -364,7 +371,7 @@ const TOOL_DEFINITIONS = [
     timeout: 60_000,
     command: 'cors',
     defaultArgs: [],
-    parser: 'json'
+    parser: 'json',
   },
 
   // --- XSS ---
@@ -381,7 +388,7 @@ const TOOL_DEFINITIONS = [
     timeout: 300_000,
     command: 'dalfox',
     defaultArgs: ['url', '--silence', '--format', 'json'],
-    parser: 'json'
+    parser: 'json',
   },
 
   // --- SQL Injection ---
@@ -397,7 +404,7 @@ const TOOL_DEFINITIONS = [
     timeout: 600_000,
     command: 'sqlmap',
     defaultArgs: ['--batch', '--level=1', '--risk=1', '--random-agent'],
-    parser: 'generic'
+    parser: 'generic',
   },
   // --- Custom Scripting (the agent's own hands) ---
   // The agent writes Python to do what no pre-built tool can: custom payload
@@ -408,14 +415,15 @@ const TOOL_DEFINITIONS = [
   {
     name: 'python',
     category: 'custom_scripting',
-    description: 'Run a custom Python 3 script on the user machine. Use for: custom payload crafting, response parsing, data correlation, proof-of-concept validation, anything no pre-built tool covers. Input is Python code; stdout/stderr are returned. Network access in the script must stay inside the authorized target scope.',
+    description:
+      'Run a custom Python 3 script on the user machine. Use for: custom payload crafting, response parsing, data correlation, proof-of-concept validation, anything no pre-built tool covers. Input is Python code; stdout/stderr are returned. Network access in the script must stay inside the authorized target scope.',
     inputType: 'code',
     outputFormat: 'text',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 120_000,
-    parser: 'generic'
+    parser: 'generic',
   },
   // --- Built-in HTTP probes (no binaries, no Kali) ---
   // Real detection tools implemented in src/tools/builtin/httpProbes.js. They
@@ -425,62 +433,67 @@ const TOOL_DEFINITIONS = [
   {
     name: 'web_probe',
     category: 'http_discovery',
-    description: 'Fetch the target homepage: status, headers, tech hints, forms, links, query params, endpoints. Passive-ish recon that maps the attack surface.',
+    description:
+      'Fetch the target homepage: status, headers, tech hints, forms, links, query params, endpoints. Passive-ish recon that maps the attack surface.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'low',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 30_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'xss_probe',
     category: 'vulnerability_detection',
-    description: 'Reflected XSS detection: injects unique script markers into discovered query params/forms and verifies unescaped reflection. Real HTTP, safe markers.',
+    description:
+      'Reflected XSS detection: injects unique script markers into discovered query params/forms and verifies unescaped reflection. Real HTTP, safe markers.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'sqli_probe',
     category: 'vulnerability_detection',
-    description: 'SQL injection detection: login auth-bypass (\' OR \'1\'=\'1), error-based quote probe, and boolean-blind probes on discovered id params. Real HTTP.',
+    description:
+      "SQL injection detection: login auth-bypass (' OR '1'='1), error-based quote probe, and boolean-blind probes on discovered id params. Real HTTP.",
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'stored_xss_probe',
     category: 'vulnerability_detection',
-    description: 'Stored XSS detection: persists a unique script marker via comment/guestbook endpoints and verifies it renders unescaped for later visitors. Real HTTP.',
+    description:
+      'Stored XSS detection: persists a unique script marker via comment/guestbook endpoints and verifies it renders unescaped for later visitors. Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'idor_probe',
     category: 'vulnerability_detection',
-    description: 'IDOR detection: requests /resource/:id style endpoints for multiple ids without auth and diffs sensitive-field disclosure. Real HTTP.',
+    description:
+      'IDOR detection: requests /resource/:id style endpoints for multiple ids without auth and diffs sensitive-field disclosure. Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
+    parser: 'json',
   },
   // --- Advanced vulnerability-class probes (src/tools/builtin/advProbes.js) ---
   // Same honesty contract as the probes above: real HTTP against the
@@ -488,87 +501,94 @@ const TOOL_DEFINITIONS = [
   {
     name: 'jwt_attack_probe',
     category: 'vulnerability_detection',
-    description: 'JWT attack detection: none-alg acceptance, weak HMAC secret brute-force (privilege-escalated re-sign), kid path-traversal error proof, jku header injection with callback proof. Needs a token (auto-acquired from the login endpoint or caller-supplied). Real HTTP.',
+    description:
+      'JWT attack detection: none-alg acceptance, weak HMAC secret brute-force (privilege-escalated re-sign), kid path-traversal error proof, jku header injection with callback proof. Needs a token (auto-acquired from the login endpoint or caller-supplied). Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 120_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'ssti_probe',
     category: 'vulnerability_detection',
-    description: 'SSTI detection: math-evaluation payloads (Jinja2/Twig {{ }}, FreeMarker ${ }/#{}, ERB <%= %>, Thymeleaf, Smarty) into discovered params/forms; finding only when the computed value returns without the raw payload. Real HTTP.',
+    description:
+      'SSTI detection: math-evaluation payloads (Jinja2/Twig {{ }}, FreeMarker ${ }/#{}, ERB <%= %>, Thymeleaf, Smarty) into discovered params/forms; finding only when the computed value returns without the raw payload. Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'xxe_probe',
     category: 'vulnerability_detection',
-    description: 'XXE detection: posts XML with external entities to XML endpoints; finding only on observed callback fetch (server resolved the entity), file:/// content disclosure, or explicit file-read errors. Real HTTP.',
+    description:
+      'XXE detection: posts XML with external entities to XML endpoints; finding only on observed callback fetch (server resolved the entity), file:/// content disclosure, or explicit file-read errors. Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 90_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'graphql_probe',
     category: 'vulnerability_detection',
-    description: 'GraphQL probing: endpoint detection, introspection query, field-suggestion schema leak, query batching, GET-based queries. Findings grounded in actual GraphQL response shapes. Real HTTP.',
+    description:
+      'GraphQL probing: endpoint detection, introspection query, field-suggestion schema leak, query batching, GET-based queries. Findings grounded in actual GraphQL response shapes. Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'websocket_probe',
     category: 'vulnerability_detection',
-    description: 'WebSocket security: raw-socket upgrade handshakes testing missing Origin validation (CSWSH), forged cross-site Origin acceptance, and unauthenticated upgrades (when authToken supplied). Finding only on an actual 101. Real sockets.',
+    description:
+      'WebSocket security: raw-socket upgrade handshakes testing missing Origin validation (CSWSH), forged cross-site Origin acceptance, and unauthenticated upgrades (when authToken supplied). Finding only on an actual 101. Real sockets.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'medium',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'race_condition_probe',
     category: 'vulnerability_detection',
-    description: 'Race condition detection: fires N parallel state-changing requests (coupon/transfer endpoints) and checks the outcome against a caller-supplied expectation (maxSuccess/maxTotalDelta + optional stateCheck). Finding only when the limit is observably exceeded. Real HTTP.',
+    description:
+      'Race condition detection: fires N parallel state-changing requests (coupon/transfer endpoints) and checks the outcome against a caller-supplied expectation (maxSuccess/maxTotalDelta + optional stateCheck). Finding only when the limit is observably exceeded. Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'high',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 120_000,
-    parser: 'json'
+    parser: 'json',
   },
   {
     name: 'secrets_in_js_probe',
     category: 'vulnerability_detection',
-    description: 'Secrets-in-JS: fetches same-origin JS bundles, scans for high-confidence secret patterns (AWS/Stripe/GitHub/Slack/Google keys, private key blocks, high-entropy key=value). Evidence is redacted. Real HTTP.',
+    description:
+      'Secrets-in-JS: fetches same-origin JS bundles, scans for high-confidence secret patterns (AWS/Stripe/GitHub/Slack/Google keys, private key blocks, high-entropy key=value). Evidence is redacted. Real HTTP.',
     inputType: 'url',
     outputFormat: 'json',
     riskLevel: 'low',
     requiresAuthorization: true,
     requiresKali: false,
     timeout: 60_000,
-    parser: 'json'
-  }
+    parser: 'json',
+  },
 ];
 
 /** Frozen lookup maps built at module load time. */
@@ -613,5 +633,5 @@ export const ToolRegistry = {
   /** Get risk level. */
   riskLevel(toolName) {
     return byName.get(toolName)?.riskLevel || 'unknown';
-  }
+  },
 };

@@ -90,9 +90,18 @@
   letter-spacing: 0.04em;
 }
 
-.qn41-urgency-fyi { background: rgba(14, 165, 233, 0.18); color: #7dd3fc; }
-.qn41-urgency-decision-needed { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
-.qn41-urgency-blocking { background: rgba(239, 68, 68, 0.20); color: #fca5a5; }
+.qn41-urgency-fyi {
+  background: rgba(14, 165, 233, 0.18);
+  color: #7dd3fc;
+}
+.qn41-urgency-decision-needed {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+.qn41-urgency-blocking {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
 
 .qn41-input {
   background: #141527;
@@ -202,7 +211,7 @@
 
 .sn41-btn {
   border: 1px solid rgba(16, 185, 129, 0.35);
-  background: rgba(16, 185, 129, 0.10);
+  background: rgba(16, 185, 129, 0.1);
   color: #d1f4e4;
   border-radius: 8px;
   padding: 6px 10px;
@@ -211,7 +220,7 @@
 }
 
 .sn41-btn-picked {
-  background: rgba(16, 185, 129, 0.30);
+  background: rgba(16, 185, 129, 0.3);
   border-color: #10b981;
   color: #ffffff;
 }
@@ -310,9 +319,18 @@
   letter-spacing: 0.04em;
 }
 
-.sn41-state-draft { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
-.sn41-state-validating { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
-.sn41-state-confirmed { background: rgba(16, 185, 129, 0.22); color: #6ee7b7; }
+.sn41-state-draft {
+  background: rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+}
+.sn41-state-validating {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+.sn41-state-confirmed {
+  background: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+}
 
 .sn41-watermark {
   border: 1px dashed rgba(16, 185, 129, 0.45);

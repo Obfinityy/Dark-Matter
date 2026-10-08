@@ -42,13 +42,9 @@ export function normalizeIpv6(addr) {
   const headParts = head ? head.split(':').filter(Boolean) : [];
   const tailParts = tail ? tail.split(':').filter(Boolean) : [];
   const missing = 8 - headParts.length - tailParts.length;
-  const parts = [
-    ...headParts,
-    ...Array(Math.max(0, missing)).fill('0'),
-    ...tailParts,
-  ];
+  const parts = [...headParts, ...Array(Math.max(0, missing)).fill('0'), ...tailParts];
   if (parts.length !== 8) return lower; // not a plain address; return as-is
-  return parts.map((p) => p.padStart(4, '0')).join(':');
+  return parts.map(p => p.padStart(4, '0')).join(':');
 }
 
 /**
@@ -61,7 +57,7 @@ export function analyzeNeighborSweep(observations = [], options = {}) {
   const { targetPrefix = '', flapWindowMs = 30000 } = options;
   const byIp = new Map();
 
-  const touch = (ip) => {
+  const touch = ip => {
     const key = normalizeIpv6(ip);
     if (!byIp.has(key)) {
       byIp.set(key, {
@@ -123,8 +119,8 @@ export function analyzeNeighborSweep(observations = [], options = {}) {
     dadConflicts,
     stats: {
       totalObserved: byIp.size,
-      live: hosts.filter((h) => h.state === 'live').length,
-      silent: hosts.filter((h) => h.state === 'silent').length,
+      live: hosts.filter(h => h.state === 'live').length,
+      silent: hosts.filter(h => h.state === 'silent').length,
       flapping: flapCandidates,
     },
   };
@@ -136,7 +132,7 @@ export function analyzeNeighborSweep(observations = [], options = {}) {
  * @param {string} scopeLabel - Human-readable scope label, e.g. 'fd00::/64'.
  */
 export function sweepFinding(result, scopeLabel = 'observed segment') {
-  const liveIps = result.hosts.filter((h) => h.state === 'live').map((h) => h.ip);
+  const liveIps = result.hosts.filter(h => h.state === 'live').map(h => h.ip);
   const confidence = liveIps.length >= 3 ? 'high' : liveIps.length >= 1 ? 'medium' : 'low';
   return {
     title: `IPv6 neighbor-discovery sweep — ${liveIps.length} live host(s) on ${scopeLabel}`,
@@ -148,7 +144,8 @@ export function sweepFinding(result, scopeLabel = 'observed segment') {
       dadConflicts: result.dadConflicts,
       flapping: result.stats.flapping,
     },
-    evidence: `${result.stats.live} host(s) answered neighbor solicitations; ` +
+    evidence:
+      `${result.stats.live} host(s) answered neighbor solicitations; ` +
       `${result.stats.silent} solicited target(s) stayed silent; ` +
       `${result.routers.length} router(s) advertised.`,
   };

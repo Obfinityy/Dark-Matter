@@ -14,6 +14,12 @@ import { memoryStats } from '../engines/localMemory.js';
 import { exportMemoryZip, importMemoryZip } from '../engines/memoryTransfer.js';
 import { FileMemory } from '../agent/memory/fileMemory.js';
 
+/**
+ * Stats.
+ * @param {*} req
+ * @param {*} res
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function stats(req, res) {
   try {
     res.json({ ok: true, memory: memoryStats() });
@@ -22,6 +28,12 @@ export async function stats(req, res) {
   }
 }
 
+/**
+ * Export Zip.
+ * @param {*} req
+ * @param {*} res
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function exportZip(req, res) {
   try {
     const { path: zipPath, format } = await exportMemoryZip();
@@ -31,13 +43,23 @@ export async function exportZip(req, res) {
     const stream = fs.createReadStream(zipPath);
     stream.pipe(res);
     stream.on('close', () => {
-      try { fs.unlinkSync(zipPath); } catch { /* temp cleanup */ }
+      try {
+        fs.unlinkSync(zipPath);
+      } catch {
+        /* temp cleanup */
+      }
     });
   } catch (err) {
     res.status(500).json({ error: { code: 'MEMORY_EXPORT_FAILED', message: err.message } });
   }
 }
 
+/**
+ * Import Zip.
+ * @param {*} req
+ * @param {*} res
+ * @returns {Promise<*>} Resolves when complete.
+ */
 export async function importZip(req, res) {
   try {
     // Accept a raw ZIP body (Content-Type: application/zip) — no multer needed.
@@ -47,13 +69,13 @@ export async function importZip(req, res) {
     const buf = Buffer.concat(chunks);
     if (!buf.length) {
       return res.status(400).json({
-        error: { code: 'EMPTY_UPLOAD', message: 'Upload a memory ZIP file.' }
+        error: { code: 'EMPTY_UPLOAD', message: 'Upload a memory ZIP file.' },
       });
     }
     // Basic ZIP magic check.
     if (buf[0] !== 0x50 || buf[1] !== 0x4b) {
       return res.status(400).json({
-        error: { code: 'NOT_A_ZIP', message: 'That file is not a ZIP archive.' }
+        error: { code: 'NOT_A_ZIP', message: 'That file is not a ZIP archive.' },
       });
     }
     const tmp = path.join(os.tmpdir(), `dm-memory-import-${Date.now()}.zip`);
@@ -62,7 +84,11 @@ export async function importZip(req, res) {
       const result = await importMemoryZip(tmp);
       res.json({ ok: true, ...result });
     } finally {
-      try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+      try {
+        fs.unlinkSync(tmp);
+      } catch {
+        /* ignore */
+      }
     }
   } catch (err) {
     res.status(500).json({ error: { code: 'MEMORY_IMPORT_FAILED', message: err.message } });
@@ -78,10 +104,13 @@ export async function exportHuntZip(req, res) {
     const dir = mem.memoryDirFor(userId, jobId);
     if (!fs.existsSync(dir)) {
       return res.status(404).json({
-        error: { code: 'NO_MEMORY', message: 'This hunt has no saved memory yet.' }
+        error: { code: 'NO_MEMORY', message: 'This hunt has no saved memory yet.' },
       });
     }
-    const out = path.join(os.tmpdir(), `darkmatter-hunt-${String(jobId).replace(/[^a-zA-Z0-9_-]/g, '_')}.zip`);
+    const out = path.join(
+      os.tmpdir(),
+      `darkmatter-hunt-${String(jobId).replace(/[^a-zA-Z0-9_-]/g, '_')}.zip`
+    );
     const { execFile } = await import('node:child_process');
     const { promisify } = await import('node:util');
     const execFileAsync = promisify(execFile);
@@ -90,7 +119,13 @@ export async function exportHuntZip(req, res) {
     res.setHeader('Content-Type', 'application/zip');
     const stream = fs.createReadStream(out);
     stream.pipe(res);
-    stream.on('close', () => { try { fs.unlinkSync(out); } catch { /* ignore */ } });
+    stream.on('close', () => {
+      try {
+        fs.unlinkSync(out);
+      } catch {
+        /* ignore */
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: { code: 'HUNT_EXPORT_FAILED', message: err.message } });
   }

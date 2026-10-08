@@ -2,7 +2,8 @@
  * Scoped to .cf43-* (display & triage) and .cg43-* (governance & depth).
  * Standing zero-animation order honored: no keyframe rules anywhere. */
 
-.cf43-card, .cg43-card {
+.cf43-card,
+.cg43-card {
   border: 1px solid #1f2937;
   border-radius: 10px;
   padding: 12px 14px;
@@ -11,13 +12,15 @@
   color: #e5e7eb;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
-.cf43-card h4, .cg43-card h4 {
+.cf43-card h4,
+.cg43-card h4 {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 600;
   color: #93c5fd;
 }
-.cf43-row, .cg43-row {
+.cf43-row,
+.cg43-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -25,13 +28,19 @@
   border-top: 1px solid #111827;
   font-size: 13px;
 }
-.cf43-tiny, .cg43-tiny {
+.cf43-tiny,
+.cg43-tiny {
   font-size: 11.5px;
   color: #9ca3af;
   padding: 2px 0;
 }
-.cf43-empty { font-size: 12px; color: #6b7280; font-style: italic; }
-.cf43-score, .cg43-score {
+.cf43-empty {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+.cf43-score,
+.cg43-score {
   display: inline-block;
   min-width: 30px;
   text-align: center;
@@ -41,7 +50,9 @@
   border-radius: 999px;
   padding: 2px 8px;
 }
-.cg43-score { background: #38bdf8; }
+.cg43-score {
+  background: #38bdf8;
+}
 .cf43-flag {
   font-size: 12.5px;
   padding: 5px 8px;
@@ -53,7 +64,8 @@
   align-items: center;
   gap: 8px;
 }
-.cf43-note, .cg43-note {
+.cf43-note,
+.cg43-note {
   font-size: 12.5px;
   padding: 6px 9px;
   margin: 5px 0;
@@ -61,9 +73,15 @@
   border-left: 3px solid #38bdf8;
   border-radius: 4px;
 }
-.cf43-note ul { margin: 6px 0 2px 16px; padding: 0; }
-.cf43-note li { margin: 2px 0; }
-.cf43-btn, .cg43-btn {
+.cf43-note ul {
+  margin: 6px 0 2px 16px;
+  padding: 0;
+}
+.cf43-note li {
+  margin: 2px 0;
+}
+.cf43-btn,
+.cg43-btn {
   font-size: 12px;
   background: #1e3a8a;
   color: #dbeafe;
@@ -73,7 +91,8 @@
   cursor: pointer;
   margin: 4px 4px 4px 0;
 }
-.cf43-input, .cg43-input {
+.cf43-input,
+.cg43-input {
   font-size: 12px;
   background: #111827;
   color: #e5e7eb;
@@ -82,9 +101,20 @@
   padding: 4px 8px;
   margin: 4px;
 }
-.cf43-spark { width: 100%; height: 64px; background: #0f172a; border-radius: 6px; margin: 6px 0; }
-.cf43-matrix { border-collapse: collapse; font-size: 11.5px; margin-top: 6px; }
-.cf43-matrix th, .cf43-matrix td {
+.cf43-spark {
+  width: 100%;
+  height: 64px;
+  background: #0f172a;
+  border-radius: 6px;
+  margin: 6px 0;
+}
+.cf43-matrix {
+  border-collapse: collapse;
+  font-size: 11.5px;
+  margin-top: 6px;
+}
+.cf43-matrix th,
+.cf43-matrix td {
   border: 1px solid #1f2937;
   padding: 4px 8px;
   text-align: center;
@@ -97,14 +127,21 @@
   border-radius: 999px;
   margin: 2px;
 }
-.cf43-badge-ok, .cf43-badge-warn {
+.cf43-badge-ok,
+.cf43-badge-warn {
   font-size: 11px;
   font-weight: 600;
   border-radius: 999px;
   padding: 2px 9px;
 }
-.cf43-badge-ok { background: #14532d; color: #bbf7d0; }
-.cf43-badge-warn { background: #451a03; color: #fed7aa; }
+.cf43-badge-ok {
+  background: #14532d;
+  color: #bbf7d0;
+}
+.cf43-badge-warn {
+  background: #451a03;
+  color: #fed7aa;
+}
 .cf43-pill {
   font-size: 11px;
   font-weight: 700;
@@ -112,10 +149,21 @@
   border-radius: 4px;
   padding: 2px 8px;
 }
-.cf43-escalate, .cg43-watch { background: #7f1d1d; color: #fecaca; }
-.cf43-watch { background: #78350f; color: #fde68a; }
-.cf43-hold { background: #1f2937; color: #9ca3af; }
-.cf43-alert, .cg43-alert {
+.cf43-escalate,
+.cg43-watch {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+.cf43-watch {
+  background: #78350f;
+  color: #fde68a;
+}
+.cf43-hold {
+  background: #1f2937;
+  color: #9ca3af;
+}
+.cf43-alert,
+.cg43-alert {
   font-size: 12.5px;
   padding: 6px 9px;
   margin: 5px 0;
@@ -124,7 +172,12 @@
   border-radius: 4px;
   color: #fecaca;
 }
-.cf43-legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.cf43-legend {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
 .cf43-chip {
   font-size: 11.5px;
   font-weight: 600;
@@ -132,7 +185,9 @@
   border-radius: 999px;
   padding: 3px 10px;
 }
-.cf43-chip-space { margin-right: 6px; }
+.cf43-chip-space {
+  margin-right: 6px;
+}
 .cg43-pre {
   font-size: 11px;
   background: #0f172a;
@@ -150,7 +205,12 @@
   padding: 8px 10px;
   margin: 6px 0;
 }
-.cg43-duo { display: flex; gap: 18px; font-size: 13px; margin: 6px 0; }
+.cg43-duo {
+  display: flex;
+  gap: 18px;
+  font-size: 13px;
+  margin: 6px 0;
+}
 .cg43-badge {
   font-size: 11px;
   font-weight: 600;
@@ -175,4 +235,8 @@
   margin: 6px 0;
   font-size: 12px;
 }
-.cg43-group { font-size: 12.5px; padding: 4px 0; border-top: 1px solid #111827; }
+.cg43-group {
+  font-size: 12.5px;
+  padding: 4px 0;
+  border-top: 1px solid #111827;
+}

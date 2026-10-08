@@ -28,7 +28,7 @@ export function mineAnnouncedPrefixes(apiResponse = {}) {
     else v4++;
     prefixes.push({
       prefix,
-      timelines: (p.timelines || []).map((t) => ({
+      timelines: (p.timelines || []).map(t => ({
         starttime: t.starttime || null,
         endtime: t.endtime || null,
       })),
@@ -54,14 +54,14 @@ export function summarizeRoutingHistory(apiResponse = {}) {
   for (const o of byOrigin) {
     if (!o || !o.prefix) continue;
     const origins = o.origins || [];
-    const originAses = origins.map((x) => Number(x.asn)).filter(Number.isFinite);
+    const originAses = origins.map(x => Number(x.asn)).filter(Number.isFinite);
     const announcementCount = origins.length;
-    const times = origins.flatMap((x) => [x.starttime, x.endtime]).filter(Boolean).sort();
+    const times = origins
+      .flatMap(x => [x.starttime, x.endtime])
+      .filter(Boolean)
+      .sort();
     // Churn score: announcements + origin diversity, normalized 0-100.
-    const churnScore = Math.min(
-      100,
-      Math.round(announcementCount * 4 + originAses.length * 12),
-    );
+    const churnScore = Math.min(100, Math.round(announcementCount * 4 + originAses.length * 12));
     out.push({
       prefix: String(o.prefix),
       originAses,

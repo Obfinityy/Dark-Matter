@@ -1,5 +1,5 @@
 /**
- * Login — DarkMatter "Singularity" auth experience.
+ * Login — Infinity AI "Singularity" auth experience.
  *
  * Split layout: left brand panel (logo, positioning, proof points),
  * right sign-in / create-account card. One field accepts username or email.
@@ -8,13 +8,34 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import Logo from '../../components/brand/Logo';
-import { Mail, Lock, AtSign, User, AlertTriangle, Crosshair, FileCheck2, BrainCircuit } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  AtSign,
+  User,
+  AlertTriangle,
+  Crosshair,
+  FileCheck2,
+  BrainCircuit,
+} from 'lucide-react';
 import './Login.css';
 
 const PROOFS = [
-  { icon: Crosshair, title: 'Autonomous hunting', text: 'Paste a target. The agent recons, probes and reasons — on its own.' },
-  { icon: BrainCircuit, title: 'Thinks out loud', text: 'Watch it reason in plain language, and ask it anything mid-hunt.' },
-  { icon: FileCheck2, title: 'Proof, not noise', text: 'Every finding ships with evidence and a ready-to-send report.' },
+  {
+    icon: Crosshair,
+    title: 'Autonomous hunting',
+    text: 'Paste a target. The agent recons, probes and reasons — on its own.',
+  },
+  {
+    icon: BrainCircuit,
+    title: 'Thinks out loud',
+    text: 'Watch it reason in plain language, and ask it anything mid-hunt.',
+  },
+  {
+    icon: FileCheck2,
+    title: 'Proof, not noise',
+    text: 'Every finding ships with evidence and a ready-to-send report.',
+  },
 ];
 
 export function Login() {
@@ -30,7 +51,7 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const submit = async (e) => {
+  const submit = async e => {
     e.preventDefault();
     setBusy(true);
     setError('');
@@ -38,7 +59,12 @@ export function Login() {
       if (mode === 'login') {
         await login({ login: loginId, password });
       } else {
-        await register({ email: email.trim(), username: username.trim() || undefined, name: name.trim(), password });
+        await register({
+          email: email.trim(),
+          username: username.trim() || undefined,
+          name: name.trim(),
+          password,
+        });
       }
       navigate(location.state?.from || '/agent', { replace: true });
     } catch (err) {
@@ -55,16 +81,20 @@ export function Login() {
         <div className="sg-auth-brand-inner">
           <Logo size={44} withWordmark />
           <h1 className="sg-display">
-            The agent that finds what<br />others <span className="sg-gradient-text">can't see.</span>
+            The agent that finds what
+            <br />
+            others <span className="sg-gradient-text">can't see.</span>
           </h1>
           <p className="sg-body sg-auth-lede">
-            Dark Matter is an autonomous security agent. Point it at a target and it
-            hunts: recon, analysis, proof - while you watch it think.
+            Dark Matter is an autonomous security agent. Point it at a target and it hunts: recon,
+            analysis, proof - while you watch it think.
           </p>
           <div className="sg-auth-proofs">
             {PROOFS.map(({ icon: Icon, title, text }) => (
               <div key={title} className="sg-auth-proof">
-                <span className="sg-auth-proof-icon"><Icon size={18} strokeWidth={1.8} /></span>
+                <span className="sg-auth-proof-icon">
+                  <Icon size={18} strokeWidth={1.8} />
+                </span>
                 <div>
                   <div className="sg-h3 sg-auth-proof-title">{title}</div>
                   <div className="sg-small">{text}</div>
@@ -76,8 +106,12 @@ export function Login() {
             Only test systems you own or are authorized to assess.
             <br />
             <br />
-            <a className="sg-auth-legal" href="/privacy-policy">Privacy Policy</a>
-            <a className="sg-auth-legal" href="/terms">Terms &amp; Conditions</a>
+            <a className="sg-auth-legal" href="/privacy-policy">
+              Privacy Policy
+            </a>
+            <a className="sg-auth-legal" href="/terms">
+              Terms &amp; Conditions
+            </a>
           </p>
         </div>
         <div className="sg-auth-glow" aria-hidden />
@@ -86,62 +120,111 @@ export function Login() {
       {/* Form panel */}
       <main className="sg-auth-form-wrap">
         <div className="sg-auth-card sg-card">
-          <div className="sg-auth-mobile-brand"><Logo size={38} withWordmark /></div>
+          <div className="sg-auth-mobile-brand">
+            <Logo size={38} withWordmark />
+          </div>
 
           <div className="sg-auth-tabs" role="tablist" aria-label="Sign in or create account">
-            {(['login', 'register']).map((m) => (
+            {['login', 'register'].map(m => (
               <button
-                key={m} type="button" role="tab" id={`sg-auth-tab-${m}`}
-                aria-selected={mode === m} aria-controls="sg-auth-panel"
+                key={m}
+                type="button"
+                role="tab"
+                id={`sg-auth-tab-${m}`}
+                aria-selected={mode === m}
+                aria-controls="sg-auth-panel"
                 className={mode === m ? 'active' : ''}
-                onClick={() => { setMode(m); setError(''); }}
+                onClick={() => {
+                  setMode(m);
+                  setError('');
+                }}
               >
                 {m === 'login' ? 'Sign in' : 'Create account'}
               </button>
             ))}
           </div>
 
-          <form onSubmit={submit} className="sg-stack" id="sg-auth-panel" role="tabpanel" aria-labelledby={`sg-auth-tab-${mode}`}>
+          <form
+            onSubmit={submit}
+            className="sg-stack"
+            id="sg-auth-panel"
+            role="tabpanel"
+            aria-labelledby={`sg-auth-tab-${mode}`}
+          >
             {mode === 'login' ? (
               <div>
-                <label className="sg-label" htmlFor="sg-login-id">Username or email</label>
+                <label className="sg-label" htmlFor="sg-login-id">
+                  Username or email
+                </label>
                 <div className="sg-field">
                   <User size={16} className="sg-field-icon" />
-                  <input id="sg-login-id" className="sg-input sg-field-input"
-                    value={loginId} onChange={(e) => setLoginId(e.target.value)}
+                  <input
+                    id="sg-login-id"
+                    className="sg-input sg-field-input"
+                    value={loginId}
+                    onChange={e => setLoginId(e.target.value)}
                     placeholder="nightowl  or  you@example.com"
-                    autoComplete="username" required />
+                    autoComplete="username"
+                    required
+                  />
                 </div>
               </div>
             ) : (
               <>
                 <div>
-                  <label className="sg-label" htmlFor="sg-reg-email">Email</label>
+                  <label className="sg-label" htmlFor="sg-reg-email">
+                    Email
+                  </label>
                   <div className="sg-field">
                     <Mail size={16} className="sg-field-icon" />
-                    <input id="sg-reg-email" type="email" className="sg-input sg-field-input"
-                      value={email} onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com" autoComplete="email" required />
+                    <input
+                      id="sg-reg-email"
+                      type="email"
+                      className="sg-input sg-field-input"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      required
+                    />
                   </div>
                 </div>
                 <div className="sg-grid-2 sg-auth-grid">
                   <div>
-                    <label className="sg-label" htmlFor="sg-reg-user">Username</label>
+                    <label className="sg-label" htmlFor="sg-reg-user">
+                      Username
+                    </label>
                     <div className="sg-field">
                       <AtSign size={16} className="sg-field-icon" />
-                      <input id="sg-reg-user" className="sg-input sg-field-input"
+                      <input
+                        id="sg-reg-user"
+                        className="sg-input sg-field-input"
                         value={username}
-                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                        placeholder="nightowl" autoComplete="username" minLength={3} maxLength={30} />
+                        onChange={e =>
+                          setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))
+                        }
+                        placeholder="nightowl"
+                        autoComplete="username"
+                        minLength={3}
+                        maxLength={30}
+                      />
                     </div>
                   </div>
                   <div>
-                    <label className="sg-label" htmlFor="sg-reg-name">Display name</label>
+                    <label className="sg-label" htmlFor="sg-reg-name">
+                      Display name
+                    </label>
                     <div className="sg-field">
                       <User size={16} className="sg-field-icon" />
-                      <input id="sg-reg-name" className="sg-input sg-field-input"
-                        value={name} onChange={(e) => setName(e.target.value)}
-                        placeholder="Night Owl" autoComplete="name" required />
+                      <input
+                        id="sg-reg-name"
+                        className="sg-input sg-field-input"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        placeholder="Night Owl"
+                        autoComplete="name"
+                        required
+                      />
                     </div>
                   </div>
                 </div>
@@ -149,14 +232,22 @@ export function Login() {
             )}
 
             <div>
-              <label className="sg-label" htmlFor="sg-pass">Password</label>
+              <label className="sg-label" htmlFor="sg-pass">
+                Password
+              </label>
               <div className="sg-field">
                 <Lock size={16} className="sg-field-icon" />
-                <input id="sg-pass" type="password" className="sg-input sg-field-input"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
+                <input
+                  id="sg-pass"
+                  type="password"
+                  className="sg-input sg-field-input"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  required minLength={8} />
+                  required
+                  minLength={8}
+                />
               </div>
             </div>
 
@@ -166,17 +257,35 @@ export function Login() {
               </div>
             )}
 
-            <button type="submit" className="sg-btn sg-btn-primary sg-btn-lg sg-auth-submit" disabled={busy}>
-              {busy && <span className="sg-spin sg-auth-spinner" aria-hidden="true">◌</span>}
+            <button
+              type="submit"
+              className="sg-btn sg-btn-primary sg-btn-lg sg-auth-submit"
+              disabled={busy}
+            >
+              {busy && (
+                <span className="sg-spin sg-auth-spinner" aria-hidden="true">
+                  ◌
+                </span>
+              )}
               {mode === 'login' ? 'Sign in to Dark Matter' : 'Create my account'}
             </button>
           </form>
 
           <p className="sg-small sg-auth-switch">
             {mode === 'login' ? (
-              <>New to Dark Matter? <button type="button" onClick={() => setMode('register')}>Create an account</button></>
+              <>
+                New to Dark Matter?{' '}
+                <button type="button" onClick={() => setMode('register')}>
+                  Create an account
+                </button>
+              </>
             ) : (
-              <>Already have an account? <button type="button" onClick={() => setMode('login')}>Sign in</button></>
+              <>
+                Already have an account?{' '}
+                <button type="button" onClick={() => setMode('login')}>
+                  Sign in
+                </button>
+              </>
             )}
           </p>
         </div>

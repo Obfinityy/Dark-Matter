@@ -14,7 +14,11 @@
  * @returns {string[]} Search URLs, one per results page.
  */
 export function buildYandexSiteUrls(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const urls = [];
   const pages = opts.pages ?? 3;
   for (let p = 0; p < pages; p++) {
@@ -37,7 +41,9 @@ export function extractYandexResultUrls(html) {
   const urls = new Set();
   const text = String(html || '');
   // Yandex wraps result links in <a class="... OrganicTitle-Link ..."> or Link_theme_outer
-  for (const m of text.matchAll(/<a[^>]*class="[^"]*(?:OrganicTitle-Link|Link_theme_outer|Typo_text-l)[^"]*"[^>]*href="([^"]+)"/gi)) {
+  for (const m of text.matchAll(
+    /<a[^>]*class="[^"]*(?:OrganicTitle-Link|Link_theme_outer|Typo_text-l)[^"]*"[^>]*href="([^"]+)"/gi
+  )) {
     const href = m[1];
     if (/^https?:\/\//i.test(href)) urls.add(href);
   }
@@ -56,11 +62,19 @@ export function extractYandexResultUrls(html) {
  * @returns {Array<{ host, urlCount: number, urls: string[] }>}
  */
 export function extractYandexHosts(html, domain) {
-  const apex = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const apex = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const map = new Map();
   for (const u of extractYandexResultUrls(html)) {
     let host = '';
-    try { host = new URL(u).hostname.toLowerCase(); } catch { continue; }
+    try {
+      host = new URL(u).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
     if (host !== apex && !host.endsWith(`.${apex}`)) continue;
     if (!map.has(host)) map.set(host, new Set());
     map.get(host).add(u);

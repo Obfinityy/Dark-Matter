@@ -50,15 +50,25 @@ export function Account() {
             {initial}
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '1.125rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div
+              style={{
+                fontSize: '1.125rem',
+                fontWeight: 700,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {user?.username || user?.name || 'Agent'}
             </div>
-            <div className="dm-muted" style={{ fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div
+              className="dm-muted"
+              style={{ fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
               {user?.email || ''}
             </div>
           </div>
         </div>
-        {rows.map((r) => (
+        {rows.map(r => (
           <div
             key={r.label}
             style={{
@@ -70,8 +80,17 @@ export function Account() {
               borderTop: '1px solid var(--dm-border-soft)',
             }}
           >
-            <span className="dm-muted" style={{ fontSize: '0.875rem', flexShrink: 0 }}>{r.label}</span>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, wordBreak: 'break-all', textAlign: 'right' }}>
+            <span className="dm-muted" style={{ fontSize: '0.875rem', flexShrink: 0 }}>
+              {r.label}
+            </span>
+            <span
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                wordBreak: 'break-all',
+                textAlign: 'right',
+              }}
+            >
               {r.value}
             </span>
           </div>
@@ -86,11 +105,23 @@ export function Account() {
           </span>
         </h2>
         <p className="dm-card-sub">
-          {reservedTier
-            ? <>Your <strong style={{ textTransform: 'capitalize', color: 'var(--dm-text)' }}>{reservedTier}</strong> tier is reserved — billing goes live soon.</>
-            : <>You're on the <strong style={{ color: 'var(--dm-text)' }}>Free</strong> tier.</>}
+          {reservedTier ? (
+            <>
+              Your{' '}
+              <strong style={{ textTransform: 'capitalize', color: 'var(--dm-text)' }}>
+                {reservedTier}
+              </strong>{' '}
+              tier is reserved — billing goes live soon.
+            </>
+          ) : (
+            <>
+              You're on the <strong style={{ color: 'var(--dm-text)' }}>Free</strong> tier.
+            </>
+          )}
         </p>
-        <Link to="/agent/premium" className="dm-btn dm-btn-secondary">View Premium tiers →</Link>
+        <Link to="/agent/premium" className="dm-btn dm-btn-secondary">
+          View Premium tiers →
+        </Link>
       </section>
 
       {/* ── Agent permissions ── */}
@@ -101,9 +132,12 @@ export function Account() {
           </span>
         </h2>
         <p className="dm-card-sub">
-          Current mode: <strong style={{ color: 'var(--dm-text)' }}>{PERMISSION_LABELS[permissionMode]}</strong>
+          Current mode:{' '}
+          <strong style={{ color: 'var(--dm-text)' }}>{PERMISSION_LABELS[permissionMode]}</strong>
         </p>
-        <Link to="/agent/settings" className="dm-btn dm-btn-secondary">Change in Settings →</Link>
+        <Link to="/agent/settings" className="dm-btn dm-btn-secondary">
+          Change in Settings →
+        </Link>
       </section>
 
       <div className="dm-mt-6">

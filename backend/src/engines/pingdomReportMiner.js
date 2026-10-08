@@ -66,10 +66,12 @@ export function isTargetHost(host, rootDomain) {
 export function classifyCheck(checkName) {
   const hay = String(checkName || '').toLowerCase();
   if (/(^|[^\w])(api|rest|graphql|endpoint|gateway)([^\w]|$)/.test(hay)) return 'api';
-  if (/(^|[^\w])(transaction|checkout|signup|login|payment|journey)([^\w]|$)/.test(hay)) return 'transaction';
+  if (/(^|[^\w])(transaction|checkout|signup|login|payment|journey)([^\w]|$)/.test(hay))
+    return 'transaction';
   if (/(^|[^\w])(staging|stage|dev|test|qa|uat|preview)([^\w]|$)/.test(hay)) return 'staging';
   if (/(^|[^\w])(internal|intranet|corp|vpn|admin|private)([^\w]|$)/.test(hay)) return 'internal';
-  if (/(^|[^\w])(mail|smtp|imap|pop3|webmail|mx|dns|udp|tcp|ping)([^\w]|$)/.test(hay)) return 'mail';
+  if (/(^|[^\w])(mail|smtp|imap|pop3|webmail|mx|dns|udp|tcp|ping)([^\w]|$)/.test(hay))
+    return 'mail';
   return 'web';
 }
 
@@ -117,14 +119,23 @@ export function extractReportChecks(input) {
   } else if (typeof input === 'string') {
     const m = input.match(/"checks"\s*:\s*(\[[\s\S]*?\])\s*,?\s*"(?:summary|totals|uptime)/);
     if (m) {
-      try { checks = JSON.parse(m[1]); } catch { checks = []; }
+      try {
+        checks = JSON.parse(m[1]);
+      } catch {
+        checks = [];
+      }
     }
     if (!checks.length) {
       // Fallback: rows with a check name cell followed by a host cell.
-      const rowRe = /<tr[^>]*>[\s\S]*?<td[^>]*class=["'][^"']*check-name[^"']*["'][^>]*>([\s\S]*?)<\/td>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/gi;
+      const rowRe =
+        /<tr[^>]*>[\s\S]*?<td[^>]*class=["'][^"']*check-name[^"']*["'][^>]*>([\s\S]*?)<\/td>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/gi;
       let rm;
       while ((rm = rowRe.exec(input)) !== null) {
-        const strip = (s) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        const strip = s =>
+          s
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
         checks.push({ name: strip(rm[1]), host: strip(rm[2]) });
       }
     }
@@ -161,7 +172,8 @@ export function scoreCheckRelevance(check, rootDomain) {
     const label = root.split('.')[0];
     if (label.length > 2 && h.includes(label)) score = 55;
   }
-  if (score > 0 && (check?.kind === 'staging' || check?.kind === 'internal')) score = Math.min(100, score + 8);
+  if (score > 0 && (check?.kind === 'staging' || check?.kind === 'internal'))
+    score = Math.min(100, score + 8);
   return score;
 }
 
@@ -175,7 +187,7 @@ export function scoreCheckRelevance(check, rootDomain) {
  */
 export function extractBrandHosts(input, rootDomain) {
   return extractReportChecks(input)
-    .map((c) => ({ ...c, score: scoreCheckRelevance(c, rootDomain) }))
-    .filter((c) => c.score > 0)
+    .map(c => ({ ...c, score: scoreCheckRelevance(c, rootDomain) }))
+    .filter(c => c.score > 0)
     .sort((a, b) => b.score - a.score || a.host.localeCompare(b.host));
 }

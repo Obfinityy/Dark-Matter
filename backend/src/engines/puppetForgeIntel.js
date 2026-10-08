@@ -30,7 +30,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -44,7 +46,10 @@ export function parseModuleMetadataJson(metadataJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(meta.source, 'source-repo', 'metadata.source');
@@ -54,14 +59,19 @@ export function parseModuleMetadataJson(metadataJson) {
   for (const dep of meta.dependencies || []) {
     if (dep && dep.name && dep.name.includes('/')) {
       const user = dep.name.split('/')[0];
-      add(forgeModuleUrl(user, dep.name.split('/')[1]), 'dependency-module-host', `metadata.dependencies[${dep.name}]`);
+      add(
+        forgeModuleUrl(user, dep.name.split('/')[1]),
+        'dependency-module-host',
+        `metadata.dependencies[${dep.name}]`
+      );
     }
   }
 
   return { name: meta.name || null, author: meta.author || null, hosts };
 }
 
-const MANIFEST_HOST_RE = /\b(server|master|fileserver|puppetdb_server|report_server|ca_server|node_terminus|storeconfigs_backend)\s*=>\s*['"]([^'"]+)['"]/gi;
+const MANIFEST_HOST_RE =
+  /\b(server|master|fileserver|puppetdb_server|report_server|ca_server|node_terminus|storeconfigs_backend)\s*=>\s*['"]([^'"]+)['"]/gi;
 const URL_RE = /(https?:\/\/[^\s"'<>()]+)/g;
 const PUPPET_URL_RE = /puppet:\/\/\/([^'"\s]+)/gi;
 const PUPPET_HOST_URL_RE = /puppet:\/\/([^/'"\s]+)/gi;
@@ -80,7 +90,8 @@ export function parseManifestText(manifestText) {
   MANIFEST_HOST_RE.lastIndex = 0;
   while ((m = MANIFEST_HOST_RE.exec(text))) {
     const value = m[2].trim();
-    const host = hostFromUrl(value) || (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(value) ? value.toLowerCase() : null);
+    const host =
+      hostFromUrl(value) || (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(value) ? value.toLowerCase() : null);
     if (host && !seen.has(host)) {
       seen.add(host);
       hosts.push({ host, kind: 'puppet-config-host', provenance: `manifest.${m[1]}` });
@@ -90,13 +101,19 @@ export function parseManifestText(manifestText) {
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text))) {
     const host = hostFromUrl(m[1]);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'manifest-url', provenance: 'manifest/url' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'manifest-url', provenance: 'manifest/url' });
+    }
   }
 
   PUPPET_HOST_URL_RE.lastIndex = 0;
   while ((m = PUPPET_HOST_URL_RE.exec(text))) {
     const host = m[1].toLowerCase();
-    if (!seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'fileserver-host', provenance: 'puppet://host' }); }
+    if (!seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'fileserver-host', provenance: 'puppet://host' });
+    }
   }
 
   const puppetPaths = [];
@@ -117,7 +134,10 @@ export function analyzePuppetModule(metadataJson, manifestText) {
   const merged = [...meta.hosts];
   const seen = new Set(meta.hosts.map(h => h.host));
   for (const h of manifest.hosts) {
-    if (!seen.has(h.host)) { seen.add(h.host); merged.push(h); }
+    if (!seen.has(h.host)) {
+      seen.add(h.host);
+      merged.push(h);
+    }
   }
   return { name: meta.name, author: meta.author, puppetPaths: manifest.puppetPaths, hosts: merged };
 }

@@ -65,7 +65,8 @@ export function SeverityPillTooltip({ severity = 'info', count }) {
       aria-describedby={`hpx-sev-${key}`}
     >
       <span className="hpx-pill" style={{ borderColor: info.color, color: info.color }}>
-        {info.label}{typeof count === 'number' ? ` · ${count}` : ''}
+        {info.label}
+        {typeof count === 'number' ? ` · ${count}` : ''}
       </span>
       {open && (
         <span className="hpx-tooltip" role="tooltip" id={`hpx-sev-${key}`}>
@@ -91,15 +92,19 @@ export function ConfidenceScorePopover({ score }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = e => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onClick = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onClick);
     return () => {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onClick);
     };
-  }, [open ]);
+  }, [open]);
   return (
     <span className="hpx-pop-wrap" ref={ref}>
       <span className="hpx-score">{typeof score === 'number' ? `${Math.round(score)}%` : '—'}</span>
@@ -108,7 +113,7 @@ export function ConfidenceScorePopover({ score }) {
         className="hpx-info-btn"
         aria-label="How is the confidence score computed?"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(v => !v)}
       >
         ⓘ
       </button>
@@ -117,11 +122,15 @@ export function ConfidenceScorePopover({ score }) {
           <strong>How confidence is computed</strong>
           <span>The 0–100% score blends three signals:</span>
           <ul>
-            {CONFIDENCE_FACTORS.map((f) => (
-              <li key={f.label}><strong>{f.label}:</strong> {f.desc}</li>
+            {CONFIDENCE_FACTORS.map(f => (
+              <li key={f.label}>
+                <strong>{f.label}:</strong> {f.desc}
+              </li>
             ))}
           </ul>
-          <span className="hpx-pop-note">Above 80% is usually report-ready; below 50% deserves a manual look.</span>
+          <span className="hpx-pop-note">
+            Above 80% is usually report-ready; below 50% deserves a manual look.
+          </span>
         </span>
       )}
     </span>
@@ -145,13 +154,13 @@ export function TargetInputFormatHelp() {
         type="button"
         className="hpx-format-toggle"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(v => !v)}
       >
         {open ? '▾ Hide accepted formats' : '▸ What can I hunt?'}
       </button>
       {open && (
         <ul className="hpx-format-list">
-          {TARGET_FORMATS.map((f) => (
+          {TARGET_FORMATS.map(f => (
             <li key={f.format}>
               <code className="hpx-code">{f.format}</code>
               <span className="hpx-format-desc">{f.desc}</span>
@@ -166,10 +175,26 @@ export function TargetInputFormatHelp() {
 /* 50398 — phase tooltips ------------------------------------------------------------ */
 
 const PHASE_INFO = {
-  recon: { name: 'Recon', duration: '~2–5 min', desc: 'Maps subdomains, tech stack, and attack surface.' },
-  scan: { name: 'Scan', duration: '~5–20 min', desc: 'Probes endpoints for SQLi, XSS, SSRF, IDOR and more.' },
-  verify: { name: 'Verify', duration: '~3–10 min', desc: 'Replays findings to weed out false positives.' },
-  exploit: { name: 'Exploit', duration: '~5–15 min', desc: 'Builds minimal proof-of-concept requests.' },
+  recon: {
+    name: 'Recon',
+    duration: '~2–5 min',
+    desc: 'Maps subdomains, tech stack, and attack surface.',
+  },
+  scan: {
+    name: 'Scan',
+    duration: '~5–20 min',
+    desc: 'Probes endpoints for SQLi, XSS, SSRF, IDOR and more.',
+  },
+  verify: {
+    name: 'Verify',
+    duration: '~3–10 min',
+    desc: 'Replays findings to weed out false positives.',
+  },
+  exploit: {
+    name: 'Exploit',
+    duration: '~5–15 min',
+    desc: 'Builds minimal proof-of-concept requests.',
+  },
   report: { name: 'Report', duration: '~1–3 min', desc: 'Writes the professional bounty report.' },
 };
 
@@ -177,7 +202,7 @@ export function PhaseTooltips({ phases = Object.keys(PHASE_INFO), activePhase })
   const [openKey, setOpenKey] = useState(null);
   return (
     <div className="hpx-phases" role="list" aria-label="Hunt pipeline phases">
-      {phases.map((key) => {
+      {phases.map(key => {
         const info = PHASE_INFO[key] || { name: key, duration: '—', desc: 'Pipeline phase.' };
         const open = openKey === key;
         return (
@@ -214,8 +239,12 @@ export function RiskScoreBreakdownPopover({ score, factors = [] }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = e => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onClick = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onClick);
     return () => {
@@ -223,33 +252,42 @@ export function RiskScoreBreakdownPopover({ score, factors = [] }) {
       document.removeEventListener('mousedown', onClick);
     };
   }, [open]);
-  const max = Math.max(1, ...factors.map((f) => f.points));
+  const max = Math.max(1, ...factors.map(f => f.points));
   return (
     <span className="hpx-pop-wrap" ref={ref}>
       <button
         type="button"
         className="hpx-whats-this"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(v => !v)}
       >
         Risk {typeof score === 'number' ? score.toFixed(1) : '—'} · what&rsquo;s this?
       </button>
       {open && (
-        <span className="hpx-popover hpx-popover-wide" role="dialog" aria-label="Risk score breakdown">
+        <span
+          className="hpx-popover hpx-popover-wide"
+          role="dialog"
+          aria-label="Risk score breakdown"
+        >
           <strong>What makes up this risk score</strong>
           {factors.length === 0 && <span>No factor data for this finding yet.</span>}
           <ul className="hpx-factor-list">
-            {factors.map((f) => (
+            {factors.map(f => (
               <li key={f.label}>
                 <span className="hpx-factor-label">{f.label}</span>
                 <span className="hpx-factor-track">
-                  <span className="hpx-factor-fill" style={{ width: `${Math.round((f.points / max) * 100)}%` }} />
+                  <span
+                    className="hpx-factor-fill"
+                    style={{ width: `${Math.round((f.points / max) * 100)}%` }}
+                  />
                 </span>
                 <span className="hpx-factor-points">+{f.points}</span>
               </li>
             ))}
           </ul>
-          <span className="hpx-pop-note">Factors add up to the 0–10 score; severity bands follow CVSS-style cutoffs.</span>
+          <span className="hpx-pop-note">
+            Factors add up to the 0–10 score; severity bands follow CVSS-style cutoffs.
+          </span>
         </span>
       )}
     </span>
@@ -273,23 +311,37 @@ export function FirstHoverCoachMarks({ marks = [], onDismissAll }) {
   const [index, setIndex] = useState(0);
   if (seen || marks.length === 0) return null;
   const mark = marks[Math.min(index, marks.length - 1)];
-  const dismiss = (persist) => {
+  const dismiss = persist => {
     if (persist) {
-      try { window.localStorage.setItem(COACH_KEY, '1'); } catch { /* storage unavailable */ }
+      try {
+        window.localStorage.setItem(COACH_KEY, '1');
+      } catch {
+        /* storage unavailable */
+      }
     }
     setSeen(true);
     if (onDismissAll) onDismissAll(persist);
   };
   return (
     <div className="hpx-coach" role="dialog" aria-label="Quick tour tip">
-      <span className="hpx-coach-step">{Math.min(index + 1, marks.length)} of {marks.length}</span>
+      <span className="hpx-coach-step">
+        {Math.min(index + 1, marks.length)} of {marks.length}
+      </span>
       <strong className="hpx-coach-title">{mark.title}</strong>
       <p className="hpx-coach-body">{mark.body}</p>
       <div className="rsz-actions hpx-coach-actions">
         {index < marks.length - 1 ? (
-          <button type="button" className="rsz-btn rsz-primary" onClick={() => setIndex((i) => i + 1)}>Next</button>
+          <button
+            type="button"
+            className="rsz-btn rsz-primary"
+            onClick={() => setIndex(i => i + 1)}
+          >
+            Next
+          </button>
         ) : (
-          <button type="button" className="rsz-btn rsz-primary" onClick={() => dismiss(false)}>Got it</button>
+          <button type="button" className="rsz-btn rsz-primary" onClick={() => dismiss(false)}>
+            Got it
+          </button>
         )}
         <button type="button" className="rsz-btn rsz-secondary" onClick={() => dismiss(true)}>
           Don&rsquo;t show again
@@ -308,4 +360,6 @@ export const HELP_EXPLAIN_IDEAS = [
   { idea: 50400, name: 'FirstHoverCoachMarks' },
 ];
 
-export default function HelpExplainIdeas() { return null; }
+export default function HelpExplainIdeas() {
+  return null;
+}

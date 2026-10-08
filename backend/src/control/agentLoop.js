@@ -32,7 +32,7 @@ import {
   CONTROL_LIMITS,
   adaptLegacyBridge,
   executeControlAction,
-  validateControlAction
+  validateControlAction,
 } from './actions.js';
 
 /** Default step budget for one Control command. */
@@ -45,24 +45,33 @@ const MAX_CONSECUTIVE_PLAN_FAILURES = 3;
 export const STATUS = Object.freeze({
   LOOKING: 'Infinity is looking at your screen…',
   THINKING: 'Infinity is deciding the next step…',
-  FINDING: (description) => `Infinity is finding "${description}" on your screen…`,
+  FINDING: description => `Infinity is finding "${description}" on your screen…`,
   VERIFYING: 'Infinity is checking the result…',
   RETHINKING: 'Infinity is reconsidering the plan…',
-  DONE: 'Infinity finished the task.'
+  DONE: 'Infinity finished the task.',
 });
 
 /** Present-tense label for "Infinity is <label>…" status lines. */
 export function actionLabel(action) {
   switch (action?.type) {
-    case CONTROL_ACTIONS.CLICK: return 'clicking';
-    case CONTROL_ACTIONS.DOUBLE_CLICK: return 'double-clicking';
-    case CONTROL_ACTIONS.TYPE: return 'typing';
-    case CONTROL_ACTIONS.PRESS: return 'pressing keys';
-    case CONTROL_ACTIONS.SCROLL: return 'scrolling';
-    case CONTROL_ACTIONS.DRAG: return 'dragging';
-    case CONTROL_ACTIONS.WAIT: return 'waiting';
-    case CONTROL_ACTIONS.SCREENSHOT: return 'taking a screenshot';
-    default: return 'working';
+    case CONTROL_ACTIONS.CLICK:
+      return 'clicking';
+    case CONTROL_ACTIONS.DOUBLE_CLICK:
+      return 'double-clicking';
+    case CONTROL_ACTIONS.TYPE:
+      return 'typing';
+    case CONTROL_ACTIONS.PRESS:
+      return 'pressing keys';
+    case CONTROL_ACTIONS.SCROLL:
+      return 'scrolling';
+    case CONTROL_ACTIONS.DRAG:
+      return 'dragging';
+    case CONTROL_ACTIONS.WAIT:
+      return 'waiting';
+    case CONTROL_ACTIONS.SCREENSHOT:
+      return 'taking a screenshot';
+    default:
+      return 'working';
   }
 }
 
@@ -82,8 +91,8 @@ async function callStructuredJson(brain, messages, schema, label) {
       ...messages,
       {
         role: 'system',
-        content: `Respond with ONLY valid JSON matching this schema, no prose:\n${schemaText}`
-      }
+        content: `Respond with ONLY valid JSON matching this schema, no prose:\n${schemaText}`,
+      },
     ]);
   }
   const generate = brain?.generate || brain?.complete;
@@ -92,7 +101,10 @@ async function callStructuredJson(brain, messages, schema, label) {
   }
   const raw = await generate.call(brain, [
     ...messages,
-    { role: 'system', content: `Respond with ONLY valid JSON matching this schema:\n${schemaText}` }
+    {
+      role: 'system',
+      content: `Respond with ONLY valid JSON matching this schema:\n${schemaText}`,
+    },
   ]);
   const text = typeof raw === 'string' ? raw : String(raw?.text ?? raw ?? '');
   const match = text.match(/\{[\s\S]*\}/);
@@ -105,10 +117,10 @@ const PLANNER_SCHEMA = {
   action: {
     type: 'click | doubleClick | type | press | scroll | drag | wait | screenshot',
     params: 'action parameters; point actions use 0–1000 normalized x/y',
-    description: 'for point actions: natural-language description of the target element'
+    description: 'for point actions: natural-language description of the target element',
   },
   summary: 'when done: one sentence on what was accomplished',
-  reason: 'when aborting, or why this action was chosen'
+  reason: 'when aborting, or why this action was chosen',
 };
 
 const PLANNER_SYSTEM = `You are Infinity AI's control planner. You see the user's screen and decide the NEXT SINGLE desktop action to move toward the instruction.
@@ -135,21 +147,27 @@ export function createVisionPlanner(brain) {
         : [];
       const historyText = (history || [])
         .slice(-8)
-        .map((s) => `step ${s.index + 1}: ${s.action?.type} ${s.ok ? 'OK' : 'FAILED'}${s.error ? ` (${s.error})` : ''}`)
+        .map(
+          s =>
+            `step ${s.index + 1}: ${s.action?.type} ${s.ok ? 'OK' : 'FAILED'}${s.error ? ` (${s.error})` : ''}`
+        )
         .join('\n');
       const messages = [
         { role: 'system', content: PLANNER_SYSTEM },
         {
           role: 'user',
           content: [
-            { type: 'text', text: `Instruction: ${instruction}\nStep ${stepIndex + 1}.\nRecent history:\n${historyText || '(none yet)'}\nDecide the next single action.` },
-            ...imagePart
-          ]
-        }
+            {
+              type: 'text',
+              text: `Instruction: ${instruction}\nStep ${stepIndex + 1}.\nRecent history:\n${historyText || '(none yet)'}\nDecide the next single action.`,
+            },
+            ...imagePart,
+          ],
+        },
       ];
       const raw = await callStructuredJson(brain, messages, PLANNER_SCHEMA, 'planner');
       return normalizePlannerDecision(raw);
-    }
+    },
   };
 }
 
@@ -162,12 +180,17 @@ export function normalizePlannerDecision(raw) {
   if (!raw || typeof raw !== 'object') {
     return { decision: 'abort', reason: 'The planner returned an unreadable decision.' };
   }
-  const decision = String(raw.decision || '').toLowerCase().trim();
+  const decision = String(raw.decision || '')
+    .toLowerCase()
+    .trim();
   if (decision === 'done') {
     return { decision: 'done', summary: String(raw.summary || 'Task completed.').slice(0, 500) };
   }
   if (decision === 'abort') {
-    return { decision: 'abort', reason: String(raw.reason || 'The planner aborted the task.').slice(0, 500) };
+    return {
+      decision: 'abort',
+      reason: String(raw.reason || 'The planner aborted the task.').slice(0, 500),
+    };
   }
   if (decision === 'act' && raw.action && typeof raw.action === 'object') {
     return { decision: 'act', action: raw.action, reason: String(raw.reason || '').slice(0, 500) };
@@ -178,7 +201,7 @@ export function normalizePlannerDecision(raw) {
 const GROUNDER_SCHEMA = {
   x: 'number 0–1000, horizontal position of the element center (origin top-left)',
   y: 'number 0–1000, vertical position of the element center (origin top-left)',
-  confidence: 'low | medium | high'
+  confidence: 'low | medium | high',
 };
 
 const GROUNDER_SYSTEM = `You are Infinity AI's grounding model. Given a screenshot and a natural-language description of a UI element, return ONLY JSON {x, y, confidence} with the element center in 0–1000 normalized coordinates (origin top-left). If the element is not visible, return {"x": -1, "y": -1, "confidence": "low"}.`;
@@ -199,19 +222,25 @@ export function createGroundingGrounder(brain) {
           role: 'user',
           content: [
             { type: 'text', text: `Locate this UI element: "${description}"` },
-            ...imagePart
-          ]
-        }
+            ...imagePart,
+          ],
+        },
       ];
       const raw = await callStructuredJson(brain, messages, GROUNDER_SCHEMA, 'grounder');
       const x = Number(raw?.x);
       const y = Number(raw?.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 ||
-          x > CONTROL_LIMITS.COORD_MAX || y > CONTROL_LIMITS.COORD_MAX) {
+      if (
+        !Number.isFinite(x) ||
+        !Number.isFinite(y) ||
+        x < 0 ||
+        y < 0 ||
+        x > CONTROL_LIMITS.COORD_MAX ||
+        y > CONTROL_LIMITS.COORD_MAX
+      ) {
         return null;
       }
       return { x: Math.round(x), y: Math.round(y) };
-    }
+    },
   };
 }
 
@@ -229,14 +258,17 @@ export function createGroundingGrounder(brain) {
  * @param {AbortSignal} [deps.signal] aborts the loop when triggered (Stop button)
  * @returns {Promise<object>} { ok, instruction, summary, steps, events, ... }
  */
-export async function runControlAgent(instruction, {
-  planner = null,
-  grounder = null,
-  bridge = null,
-  onEvent = () => {},
-  maxSteps = DEFAULT_MAX_STEPS,
-  signal = null
-} = {}) {
+export async function runControlAgent(
+  instruction,
+  {
+    planner = null,
+    grounder = null,
+    bridge = null,
+    onEvent = () => {},
+    maxSteps = DEFAULT_MAX_STEPS,
+    signal = null,
+  } = {}
+) {
   const started = Date.now();
   const events = [];
   const steps = [];
@@ -245,7 +277,11 @@ export async function runControlAgent(instruction, {
   const emit = (type, message, extra = {}) => {
     const event = { type, message, at: new Date().toISOString(), ...extra };
     events.push(event);
-    try { onEvent(event); } catch { /* listener errors must not break the loop */ }
+    try {
+      onEvent(event);
+    } catch {
+      /* listener errors must not break the loop */
+    }
   };
 
   const finish = (ok, summary, extra = {}) => ({
@@ -258,7 +294,7 @@ export async function runControlAgent(instruction, {
     durationMs: Date.now() - started,
     stoppedEarly: !ok,
     maxStepsHit: Boolean(extra.maxStepsHit),
-    simulated: Boolean(extra.simulated)
+    simulated: Boolean(extra.simulated),
   });
 
   if (!text) {
@@ -270,9 +306,10 @@ export async function runControlAgent(instruction, {
     return finish(false, 'Control needs a planner brain, a grounding brain and a screen bridge.');
   }
 
-  const screen = (typeof bridge.screenshot === 'function' && typeof bridge.execute === 'function')
-    ? bridge
-    : adaptLegacyBridge(bridge);
+  const screen =
+    typeof bridge.screenshot === 'function' && typeof bridge.execute === 'function'
+      ? bridge
+      : adaptLegacyBridge(bridge);
 
   let shots = 0;
   let screenshot;
@@ -318,7 +355,10 @@ export async function runControlAgent(instruction, {
     }
     if (decision.decision === 'done') {
       emit('status', STATUS.DONE);
-      return finish(true, decision.summary || 'Task completed.', { screenshotsTaken: shots, simulated: screenshot.simulated });
+      return finish(true, decision.summary || 'Task completed.', {
+        screenshotsTaken: shots,
+        simulated: screenshot.simulated,
+      });
     }
 
     // ── VALIDATE ──
@@ -329,7 +369,7 @@ export async function runControlAgent(instruction, {
         action: decision.action || null,
         ok: false,
         error: validation.errors.join('; '),
-        observation: null
+        observation: null,
       });
       emit('status', STATUS.RETHINKING, { step: stepIndex, error: validation.errors.join('; ') });
       continue; // replan next iteration with the failure in history
@@ -337,23 +377,29 @@ export async function runControlAgent(instruction, {
     let action = validation.action;
 
     // ── GROUND ── point actions described in words need 0–1000 coordinates
-    if (COORDINATE_ACTIONS.includes(action.type) &&
-        (action.params.x == null || action.params.y == null)) {
+    if (
+      COORDINATE_ACTIONS.includes(action.type) &&
+      (action.params.x == null || action.params.y == null)
+    ) {
       const description = action.description || 'the target element';
       emit('status', STATUS.FINDING(description));
       let coords = null;
       try {
         coords = await grounder.ground({ description, screenshot });
-      } catch { /* treated as a miss below */ }
+      } catch {
+        /* treated as a miss below */
+      }
       if (!coords) {
         steps.push({
           index: stepIndex,
           action,
           ok: false,
           error: `Grounding failed: "${description}" is not visible on screen`,
-          observation: null
+          observation: null,
         });
-        emit('status', `Infinity could not find "${description}" — trying a different approach…`, { step: stepIndex });
+        emit('status', `Infinity could not find "${description}" — trying a different approach…`, {
+          step: stepIndex,
+        });
         continue; // replan: the planner sees the miss and picks another strategy
       }
       action = { ...action, params: { ...action.params, x: coords.x, y: coords.y } };
@@ -365,7 +411,7 @@ export async function runControlAgent(instruction, {
     try {
       result = await executeControlAction(action, screen, {
         width: screenshot.width,
-        height: screenshot.height
+        height: screenshot.height,
       });
     } catch (err) {
       result = { ok: false, error: { message: err?.message || 'execution threw' } };
@@ -376,12 +422,15 @@ export async function runControlAgent(instruction, {
       action,
       ok: result.ok === true,
       error: result.error?.message || null,
-      observation: result.observation?.summary || null
+      observation: result.observation?.summary || null,
     });
-    emit('step', result.ok === true
-      ? `Infinity completed step ${stepIndex + 1}.`
-      : `Step ${stepIndex + 1} did not work — Infinity will try another way.`,
-      { step: stepIndex, ok: result.ok === true });
+    emit(
+      'step',
+      result.ok === true
+        ? `Infinity completed step ${stepIndex + 1}.`
+        : `Step ${stepIndex + 1} did not work — Infinity will try another way.`,
+      { step: stepIndex, ok: result.ok === true }
+    );
 
     // ── VERIFY (re-observe) ── the next THINK sees this fresh screenshot
     emit('status', STATUS.VERIFYING);

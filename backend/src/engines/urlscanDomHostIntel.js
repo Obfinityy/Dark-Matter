@@ -27,13 +27,17 @@ export function extractHostsFromText(text) {
   const urlRe = /(?:https?:)?\/\/(?:[A-Za-z0-9_-]+\.)+[A-Za-z]{2,}(?::\d{1,5})?(?=[/"'\s<>?#]|$)/g;
   let m;
   while ((m = urlRe.exec(text)) !== null) {
-    const host = m[0].replace(/^(?:https?:)?\/\//, '').split(/[:/]/)[0].toLowerCase();
+    const host = m[0]
+      .replace(/^(?:https?:)?\/\//, '')
+      .split(/[:/]/)[0]
+      .toLowerCase();
     if (host && host.includes('.')) hosts.add(host);
   }
   const quotedRe = /["']((?:[A-Za-z0-9_-]+\.)+[A-Za-z]{2,})["']/g;
   while ((m = quotedRe.exec(text)) !== null) {
     const host = m[1].toLowerCase();
-    if (!/^(png|jpg|jpeg|gif|svg|css|js|json|woff2?|ttf|ico)$/.test(host.split('.').pop())) hosts.add(host);
+    if (!/^(png|jpg|jpeg|gif|svg|css|js|json|woff2?|ttf|ico)$/.test(host.split('.').pop()))
+      hosts.add(host);
   }
   return [...hosts];
 }
@@ -49,7 +53,9 @@ export function extractHostsFromText(text) {
 export function extractHostsFromDom(domHtml) {
   if (typeof domHtml !== 'string' || !domHtml) return { hosts: [], bySource: [] };
   const bySource = [];
-  const record = (source, hosts) => { if (hosts.length) bySource.push({ source, hosts }); };
+  const record = (source, hosts) => {
+    if (hosts.length) bySource.push({ source, hosts });
+  };
 
   const attrRe = /(?:src|href|action|data-src|poster|cite)\s*=\s*["']([^"']+)["']/gi;
   let m;
@@ -57,14 +63,18 @@ export function extractHostsFromDom(domHtml) {
   while ((m = attrRe.exec(domHtml)) !== null) attrVals.push(m[1]);
   record('attributes', [...new Set(attrVals.flatMap(extractHostsFromText))]);
 
-  record('scripts', [...new Set(
-    [...domHtml.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].flatMap((x) => extractHostsFromText(x[1]))
-  )]);
+  record('scripts', [
+    ...new Set(
+      [...domHtml.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].flatMap(x =>
+        extractHostsFromText(x[1])
+      )
+    ),
+  ]);
 
-  const comments = [...domHtml.matchAll(/<!--([\s\S]*?)-->/g)].map((x) => x[1]).join('\n');
+  const comments = [...domHtml.matchAll(/<!--([\s\S]*?)-->/g)].map(x => x[1]).join('\n');
   record('comments', extractHostsFromText(comments));
 
-  const hosts = [...new Set(bySource.flatMap((s) => s.hosts))].sort();
+  const hosts = [...new Set(bySource.flatMap(s => s.hosts))].sort();
   return { hosts, bySource };
 }
 
@@ -79,15 +89,22 @@ export function extractHostsFromRequests(requests = []) {
   const counts = new Map();
   let totalRequests = 0;
   for (const r of requests) {
-    const url = typeof r === 'string' ? r
-      : (r && r.request && typeof r.request.url === 'string' ? r.request.url
-        : (r && typeof r.url === 'string' ? r.url : null));
+    const url =
+      typeof r === 'string'
+        ? r
+        : r && r.request && typeof r.request.url === 'string'
+          ? r.request.url
+          : r && typeof r.url === 'string'
+            ? r.url
+            : null;
     if (!url) continue;
     totalRequests++;
     try {
       const host = new URL(url).hostname.toLowerCase();
       if (host) counts.set(host, (counts.get(host) || 0) + 1);
-    } catch { /* skip malformed */ }
+    } catch {
+      /* skip malformed */
+    }
   }
   const hosts = [...counts.entries()]
     .map(([host, requestCount]) => ({ host, requestCount }))
@@ -105,8 +122,10 @@ export function extractHostsFromRequests(requests = []) {
  * @returns {{inScope: {host: string, inDom: boolean, inRequests: boolean, requestCount: number}[], newCount: number}}
  */
 export function combineHosts(domResult = {}, reqResult = {}, targetDomain = '') {
-  const target = String(targetDomain || '').trim().toLowerCase();
-  const reqHosts = new Map((reqResult.hosts || []).map((h) => [h.host, h.requestCount]));
+  const target = String(targetDomain || '')
+    .trim()
+    .toLowerCase();
+  const reqHosts = new Map((reqResult.hosts || []).map(h => [h.host, h.requestCount]));
   const domHosts = new Set(domResult.hosts || []);
   const all = new Set([...domHosts, ...reqHosts.keys()]);
   const inScope = [];
@@ -120,8 +139,13 @@ export function combineHosts(domResult = {}, reqResult = {}, targetDomain = '') 
       requestCount: reqHosts.get(host) || 0,
     });
   }
-  inScope.sort((a, b) => Number(b.inDom && b.inRequests) - Number(a.inDom && a.inRequests) || b.requestCount - a.requestCount || a.host.localeCompare(b.host));
-  const newCount = inScope.filter((h) => h.host !== target).length;
+  inScope.sort(
+    (a, b) =>
+      Number(b.inDom && b.inRequests) - Number(a.inDom && a.inRequests) ||
+      b.requestCount - a.requestCount ||
+      a.host.localeCompare(b.host)
+  );
+  const newCount = inScope.filter(h => h.host !== target).length;
   return { inScope, newCount };
 }
 

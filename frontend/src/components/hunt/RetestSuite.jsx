@@ -7,9 +7,16 @@ import React, { useState } from 'react';
 import * as C from './retestCore.js';
 
 const SAMPLE_FINDING = {
-  id: 'f-101', title: 'Reflected XSS on /search', severity: 'high', vulnClass: 'xss',
-  target: 'shop', status: 'open', evidenceStrength: 'strong', assignee: 'ria',
-  endpoint: '/search', retestHistory: [],
+  id: 'f-101',
+  title: 'Reflected XSS on /search',
+  severity: 'high',
+  vulnClass: 'xss',
+  target: 'shop',
+  status: 'open',
+  evidenceStrength: 'strong',
+  assignee: 'ria',
+  endpoint: '/search',
+  retestHistory: [],
 };
 
 function sampleRequest() {
@@ -23,10 +30,19 @@ export function PerFindingRetestRequest() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52123 · Per-finding retest request</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.requestRetest(SAMPLE_FINDING, { requestedBy: 'ria' }, 1700000000000))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(C.requestRetest(SAMPLE_FINDING, { requestedBy: 'ria' }, 1700000000000))
+        }
+      >
         Request retest for {SAMPLE_FINDING.id}
       </button>
-      {res && res.ok && <p className="rt54-note">queued: {res.request.id} · priority {res.request.priority}</p>}
+      {res && res.ok && (
+        <p className="rt54-note">
+          queued: {res.request.id} · priority {res.request.priority}
+        </p>
+      )}
     </div>
   );
 }
@@ -37,10 +53,19 @@ export function RetestAfterFixDeployed() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52124 · Retest after fix deployed</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.autoQueueOnFixDeployed(SAMPLE_FINDING, { ref: 'deploy-42' }, 1700000000000))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(C.autoQueueOnFixDeployed(SAMPLE_FINDING, { ref: 'deploy-42' }, 1700000000000))
+        }
+      >
         Mark fix deployed
       </button>
-      {res && res.ok && <p className="rt54-note">auto-queued {res.request.id} · trigger {res.request.trigger}</p>}
+      {res && res.ok && (
+        <p className="rt54-note">
+          auto-queued {res.request.id} · trigger {res.request.trigger}
+        </p>
+      )}
     </div>
   );
 }
@@ -51,10 +76,19 @@ export function RetestMutatedPayloads() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52125 · Retest with mutated payloads</h3>
-      <button className="rt54-btn" onClick={() => setPayloads(C.buildMutatedPayloads('<script>alert(1)</script>', 4))}>
+      <button
+        className="rt54-btn"
+        onClick={() => setPayloads(C.buildMutatedPayloads('<script>alert(1)</script>', 4))}
+      >
         Generate mutations
       </button>
-      <ul className="rt54-list">{payloads.map((p, i) => <li key={i} className="rt54-mono">{p}</li>)}</ul>
+      <ul className="rt54-list">
+        {payloads.map((p, i) => (
+          <li key={i} className="rt54-mono">
+            {p}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -65,23 +99,44 @@ export function ScheduledRetest() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52126 · Scheduled retest</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.scheduleRetest(sampleRequest(), 1700000000000 + 86400000, 1700000000000))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(C.scheduleRetest(sampleRequest(), 1700000000000 + 86400000, 1700000000000))
+        }
+      >
         Schedule +24h
       </button>
-      {res && res.ok && <p className="rt54-note">scheduled at {new Date(res.request.scheduledAt).toISOString()} · {res.request.reminders.length} reminders</p>}
+      {res && res.ok && (
+        <p className="rt54-note">
+          scheduled at {new Date(res.request.scheduledAt).toISOString()} ·{' '}
+          {res.request.reminders.length} reminders
+        </p>
+      )}
     </div>
   );
 }
 
 /* 52127 — Retest queue dashboard. */
 export function RetestQueueDashboard() {
-  const queue = [sampleRequest(), sampleRequest()].map((r, i) => ({ ...r, status: i === 0 ? 'running' : 'queued' }));
+  const queue = [sampleRequest(), sampleRequest()].map((r, i) => ({
+    ...r,
+    status: i === 0 ? 'running' : 'queued',
+  }));
   const s = C.queueSummary(queue, 1700000000000);
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52127 · Retest queue dashboard</h3>
-      <p className="rt54-note">total {s.total} · pending {s.pending} · running {s.running} · ETA {Math.round(s.etaMs / 60000)} min</p>
-      <p className="rt54-note">by status: {Object.entries(s.byStatus).map(([k, v]) => `${k}:${v}`).join(' ')}</p>
+      <p className="rt54-note">
+        total {s.total} · pending {s.pending} · running {s.running} · ETA{' '}
+        {Math.round(s.etaMs / 60000)} min
+      </p>
+      <p className="rt54-note">
+        by status:{' '}
+        {Object.entries(s.byStatus)
+          .map(([k, v]) => `${k}:${v}`)
+          .join(' ')}
+      </p>
     </div>
   );
 }
@@ -92,10 +147,22 @@ export function RetestScopePicker() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52128 · Retest scope picker</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.applyScopePicker(sampleRequest(), { endpoints: ['/search', '/login'], payloadClasses: ['xss'] }))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(
+            C.applyScopePicker(sampleRequest(), {
+              endpoints: ['/search', '/login'],
+              payloadClasses: ['xss'],
+            })
+          )
+        }
+      >
         Apply scope
       </button>
-      {res && res.ok && <p className="rt54-note">endpoints: {res.request.scope.endpoints.join(', ')}</p>}
+      {res && res.ok && (
+        <p className="rt54-note">endpoints: {res.request.scope.endpoints.join(', ')}</p>
+      )}
     </div>
   );
 }
@@ -107,19 +174,28 @@ export function RetestReportDiff() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52129 · Retest report diff</h3>
-      <p className="rt54-note">fix scenario: {d.verdict} · {d.note}</p>
-      <p className="rt54-note">persist scenario: {d2.verdict} · {d2.note}</p>
+      <p className="rt54-note">
+        fix scenario: {d.verdict} · {d.note}
+      </p>
+      <p className="rt54-note">
+        persist scenario: {d2.verdict} · {d2.note}
+      </p>
     </div>
   );
 }
 
 /* 52130 — Retest cost estimate. */
 export function RetestCostEstimate() {
-  const e = C.estimateRetestCost({ ...sampleRequest(), options: { depth: 'deep', brain: 'vision' } });
+  const e = C.estimateRetestCost({
+    ...sampleRequest(),
+    options: { depth: 'deep', brain: 'vision' },
+  });
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52130 · Retest cost estimate</h3>
-      <p className="rt54-note">{e.computeUnits} compute units · ~{e.estimatedMinutes} min</p>
+      <p className="rt54-note">
+        {e.computeUnits} compute units · ~{e.estimatedMinutes} min
+      </p>
     </div>
   );
 }
@@ -128,13 +204,20 @@ export function RetestCostEstimate() {
 export function RetestPriorityLevels() {
   const [order, setOrder] = useState([]);
   const run = () => {
-    const q = ['low', 'urgent', 'normal'].map((p, i) => ({ ...sampleRequest(), id: `rt-p${i}`, priority: p, requestedAt: 1700000000000 + i }));
-    setOrder(C.prioritizeQueue(q).map((r) => r.priority));
+    const q = ['low', 'urgent', 'normal'].map((p, i) => ({
+      ...sampleRequest(),
+      id: `rt-p${i}`,
+      priority: p,
+      requestedAt: 1700000000000 + i,
+    }));
+    setOrder(C.prioritizeQueue(q).map(r => r.priority));
   };
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52131 · Retest priority levels</h3>
-      <button className="rt54-btn" onClick={run}>Prioritize</button>
+      <button className="rt54-btn" onClick={run}>
+        Prioritize
+      </button>
       {order.length > 0 && <p className="rt54-note">order: {order.join(' → ')}</p>}
     </div>
   );
@@ -147,8 +230,14 @@ export function TriageQuickRetest() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52132 · One-click retest from triage</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.triageQuickRetest(thin, 1700000000000))}>Quick retest</button>
-      {res && res.ok && <p className="rt54-note">trigger: {res.request.trigger} · {res.request.id}</p>}
+      <button className="rt54-btn" onClick={() => setRes(C.triageQuickRetest(thin, 1700000000000))}>
+        Quick retest
+      </button>
+      {res && res.ok && (
+        <p className="rt54-note">
+          trigger: {res.request.trigger} · {res.request.id}
+        </p>
+      )}
     </div>
   );
 }
@@ -156,11 +245,15 @@ export function TriageQuickRetest() {
 /* 52133 — "Needs more evidence" auto-retest. */
 export function ThinEvidenceAutoRetest() {
   const r = C.autoRetestThinEvidence(
-    [{ ...SAMPLE_FINDING, evidenceStrength: 'thin' }, SAMPLE_FINDING], 1700000000000);
+    [{ ...SAMPLE_FINDING, evidenceStrength: 'thin' }, SAMPLE_FINDING],
+    1700000000000
+  );
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52133 · Thin-evidence auto-retest</h3>
-      <p className="rt54-note">{r.queued.length} auto-queued · {r.skipped} skipped</p>
+      <p className="rt54-note">
+        {r.queued.length} auto-queued · {r.skipped} skipped
+      </p>
     </div>
   );
 }
@@ -171,8 +264,14 @@ export function RetestDifferentBrain() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52134 · Retest with a different brain</h3>
-      {C.RETEST_BRAINS.filter((b) => b.id !== 'default').map((b) => (
-        <button key={b.id} className="rt54-btn" onClick={() => setRes(C.retestWithBrain(sampleRequest(), b.id))}>{b.label}</button>
+      {C.RETEST_BRAINS.filter(b => b.id !== 'default').map(b => (
+        <button
+          key={b.id}
+          className="rt54-btn"
+          onClick={() => setRes(C.retestWithBrain(sampleRequest(), b.id))}
+        >
+          {b.label}
+        </button>
       ))}
       {res && res.ok && <p className="rt54-note">second opinion via {res.request.options.brain}</p>}
     </div>
@@ -186,7 +285,9 @@ export function RetestStealthToggle() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52135 · Retest stealth-mode toggle</h3>
-      <button className="rt54-btn" onClick={() => setOn(!on)}>{on ? 'Disable stealth' : 'Enable stealth'}</button>
+      <button className="rt54-btn" onClick={() => setOn(!on)}>
+        {on ? 'Disable stealth' : 'Enable stealth'}
+      </button>
       <p className="rt54-note">stealth: {String(r.options.stealth)}</p>
     </div>
   );
@@ -194,13 +295,21 @@ export function RetestStealthToggle() {
 
 /* 52136 — Retest concurrency limits. */
 export function RetestConcurrencyLimits() {
-  const c = C.checkConcurrency('shop', [
-    { target: 'shop', status: 'running' }, { target: 'shop', status: 'running' }, { target: 'blog', status: 'running' },
-  ], 2);
+  const c = C.checkConcurrency(
+    'shop',
+    [
+      { target: 'shop', status: 'running' },
+      { target: 'shop', status: 'running' },
+      { target: 'blog', status: 'running' },
+    ],
+    2
+  );
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52136 · Retest concurrency limits</h3>
-      <p className="rt54-note">{c.active}/{c.cap} active on {c.target} · allowed: {String(c.allowed)}</p>
+      <p className="rt54-note">
+        {c.active}/{c.cap} active on {c.target} · allowed: {String(c.allowed)}
+      </p>
       {c.reason && <p className="rt54-note">{c.reason}</p>}
     </div>
   );
@@ -220,11 +329,23 @@ export function RetestCompletionNotifications() {
 
 /* 52138 — Retest history per finding. */
 export function RetestHistoryPerFinding() {
-  const f = C.appendRetestHistory(SAMPLE_FINDING, { id: 'att-1', at: 1700000000000, payload: '<script>', outcome: 'ok', verdict: 'fixed' });
+  const f = C.appendRetestHistory(SAMPLE_FINDING, {
+    id: 'att-1',
+    at: 1700000000000,
+    payload: '<script>',
+    outcome: 'ok',
+    verdict: 'fixed',
+  });
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52138 · Retest history per finding</h3>
-      <ul className="rt54-list">{f.retestHistory.map((h) => <li key={h.attemptId} className="rt54-note">{h.attemptId} · {h.verdict}</li>)}</ul>
+      <ul className="rt54-list">
+        {f.retestHistory.map(h => (
+          <li key={h.attemptId} className="rt54-note">
+            {h.attemptId} · {h.verdict}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -236,7 +357,10 @@ export function RetestSlaTracking() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52139 · Retest SLA tracking</h3>
-      <p className="rt54-note">target {s.targetMs / 3600000}h · elapsed {(s.elapsedMs / 3600000).toFixed(1)}h · breached: {String(s.breached)}</p>
+      <p className="rt54-note">
+        target {s.targetMs / 3600000}h · elapsed {(s.elapsedMs / 3600000).toFixed(1)}h · breached:{' '}
+        {String(s.breached)}
+      </p>
     </div>
   );
 }
@@ -247,7 +371,18 @@ export function BulkRetestRequests() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52140 · Bulk retest requests</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.bulkRequestRetests([SAMPLE_FINDING, { ...SAMPLE_FINDING, id: 'f-102' }], { priority: 'urgent' }, 1700000000000))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(
+            C.bulkRequestRetests(
+              [SAMPLE_FINDING, { ...SAMPLE_FINDING, id: 'f-102' }],
+              { priority: 'urgent' },
+              1700000000000
+            )
+          )
+        }
+      >
         Queue 2 retests
       </button>
       {res && <p className="rt54-note">{res.count} requests queued</p>}
@@ -259,25 +394,42 @@ export function BulkRetestRequests() {
 export function RetestRequestTemplates() {
   const [res, setRes] = useState(null);
   const run = () => {
-    const saved = C.saveRetestTemplate([], 'Prod stealth', { stealth: true, priority: 'urgent' }, 1700000000000);
+    const saved = C.saveRetestTemplate(
+      [],
+      'Prod stealth',
+      { stealth: true, priority: 'urgent' },
+      1700000000000
+    );
     setRes(C.applyRetestTemplate(SAMPLE_FINDING, saved.template, {}, 1700000000000));
   };
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52141 · Retest request templates</h3>
-      <button className="rt54-btn" onClick={run}>Save + apply template</button>
-      {res && res.ok && <p className="rt54-note">template {res.request.templateId} → {res.request.id}</p>}
+      <button className="rt54-btn" onClick={run}>
+        Save + apply template
+      </button>
+      {res && res.ok && (
+        <p className="rt54-note">
+          template {res.request.templateId} → {res.request.id}
+        </p>
+      )}
     </div>
   );
 }
 
 /* 52142 — Retest on deploy webhook. */
 export function RetestDeployWebhook() {
-  const r = C.deployWebhookTrigger([SAMPLE_FINDING], { id: 'dep-1', target: 'shop', ref: 'abc123' }, 1700000000000);
+  const r = C.deployWebhookTrigger(
+    [SAMPLE_FINDING],
+    { id: 'dep-1', target: 'shop', ref: 'abc123' },
+    1700000000000
+  );
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52142 · Retest on deploy webhook</h3>
-      <p className="rt54-note">deploy dep-1 matched {r.matched} findings → {r.requests.length} retests</p>
+      <p className="rt54-note">
+        deploy dep-1 matched {r.matched} findings → {r.requests.length} retests
+      </p>
     </div>
   );
 }
@@ -292,8 +444,14 @@ export function RetestApprovalWorkflow() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52143 · Retest approval workflow</h3>
-      <button className="rt54-btn" onClick={run}>Request + approve</button>
-      {res && <p className="rt54-note">decision: {res.approval.decision} · status {res.request.status}</p>}
+      <button className="rt54-btn" onClick={run}>
+        Request + approve
+      </button>
+      {res && (
+        <p className="rt54-note">
+          decision: {res.approval.decision} · status {res.request.status}
+        </p>
+      )}
     </div>
   );
 }
@@ -305,20 +463,27 @@ export function RetestBudgetCaps() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52144 · Retest budget caps</h3>
-      <p className="rt54-note">40/100: {ok.state} · {ok.message}</p>
-      <p className="rt54-note">85/100: {warn.state} · {warn.message}</p>
+      <p className="rt54-note">
+        40/100: {ok.state} · {ok.message}
+      </p>
+      <p className="rt54-note">
+        85/100: {warn.state} · {warn.message}
+      </p>
     </div>
   );
 }
 
 /* 52145 — Retest evidence refresh. */
 export function RetestEvidenceRefresh() {
-  const a = C.refreshRetestEvidence({ id: 'att-1', evidence: [{ kind: 'snippet', body: 'old' }] },
-    [{ kind: 'http', label: 'fresh response', body: '200 OK — no reflection' }]);
+  const a = C.refreshRetestEvidence({ id: 'att-1', evidence: [{ kind: 'snippet', body: 'old' }] }, [
+    { kind: 'http', label: 'fresh response', body: '200 OK — no reflection' },
+  ]);
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52145 · Retest evidence refresh</h3>
-      <p className="rt54-note">{a.evidence.length} fresh items · stale PoC replaced: {String(a.stalePoCReplaced)}</p>
+      <p className="rt54-note">
+        {a.evidence.length} fresh items · stale PoC replaced: {String(a.stalePoCReplaced)}
+      </p>
     </div>
   );
 }
@@ -332,7 +497,9 @@ export function RetestCrossEnvironment() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52146 · Retest across environments</h3>
-      <p className="rt54-note">{c.verdict}: {c.note}</p>
+      <p className="rt54-note">
+        {c.verdict}: {c.note}
+      </p>
     </div>
   );
 }
@@ -345,7 +512,9 @@ export function OffHoursRetestWindows() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52147 · Off-hours retest windows</h3>
-      <p className="rt54-note">Sat 02:30 UTC in window: {String(inside)} · Wed 12:00 UTC in window: {String(outside)}</p>
+      <p className="rt54-note">
+        Sat 02:30 UTC in window: {String(inside)} · Wed 12:00 UTC in window: {String(outside)}
+      </p>
     </div>
   );
 }
@@ -356,14 +525,20 @@ export function RetestRateLimitAwareness() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52148 · Retest rate-limit awareness</h3>
-      <p className="rt54-note">backoff {b.delayMs} ms · {b.reason}</p>
+      <p className="rt54-note">
+        backoff {b.delayMs} ms · {b.reason}
+      </p>
     </div>
   );
 }
 
 /* 52149 — Retest dry-run preview. */
 export function RetestDryRunPreview() {
-  const r = { ...sampleRequest(), originalPayload: '<img src=x onerror=alert(1)>', scope: { endpoints: ['/search'] } };
+  const r = {
+    ...sampleRequest(),
+    originalPayload: '<img src=x onerror=alert(1)>',
+    scope: { endpoints: ['/search'] },
+  };
   const p = C.dryRunPreview(r);
   return (
     <div className="rt54-card">
@@ -379,10 +554,19 @@ export function RetestAuthenticatedSession() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52150 · Retest with authenticated session</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.attachAuthSession(sampleRequest(), { id: 'sess-7', principal: 'tester' }))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(C.attachAuthSession(sampleRequest(), { id: 'sess-7', principal: 'tester' }))
+        }
+      >
         Attach session sess-7
       </button>
-      {res && res.ok && <p className="rt54-note">session {res.request.auth.sessionId} · {res.request.auth.principal}</p>}
+      {res && res.ok && (
+        <p className="rt54-note">
+          session {res.request.auth.sessionId} · {res.request.auth.principal}
+        </p>
+      )}
     </div>
   );
 }
@@ -396,8 +580,16 @@ export function RetestSessionReplay() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52151 · Retest session replay</h3>
-      <p className="rt54-note">{plan.total} steps · deterministic: {String(plan.deterministic)}</p>
-      <ul className="rt54-list">{plan.steps.map((s) => <li key={s.order} className="rt54-mono">{s.order}. {s.method} {s.url}</li>)}</ul>
+      <p className="rt54-note">
+        {plan.total} steps · deterministic: {String(plan.deterministic)}
+      </p>
+      <ul className="rt54-list">
+        {plan.steps.map(s => (
+          <li key={s.order} className="rt54-mono">
+            {s.order}. {s.method} {s.url}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -408,7 +600,9 @@ export function RetestParameterSweep() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52152 · Retest parameter sweep</h3>
-      <p className="rt54-note">sweeping {s.count} params: {s.swept.join(', ')}</p>
+      <p className="rt54-note">
+        sweeping {s.count} params: {s.swept.join(', ')}
+      </p>
     </div>
   );
 }
@@ -420,10 +614,16 @@ export function RetestDepthSetting() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52153 · Retest depth setting</h3>
-      {Object.keys(C.RETEST_DEPTHS).map((m) => (
-        <button key={m} className="rt54-btn" onClick={() => setMode(m)}>{m}</button>
+      {Object.keys(C.RETEST_DEPTHS).map(m => (
+        <button key={m} className="rt54-btn" onClick={() => setMode(m)}>
+          {m}
+        </button>
       ))}
-      {cfg.ok && <p className="rt54-note">{cfg.config.label} · max {cfg.config.maxRequests} requests</p>}
+      {cfg.ok && (
+        <p className="rt54-note">
+          {cfg.config.label} · max {cfg.config.maxRequests} requests
+        </p>
+      )}
     </div>
   );
 }
@@ -434,7 +634,18 @@ export function RetestEngineSelection() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52154 · Retest engine selection</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.selectRetestEngines(sampleRequest(), ['vulnDetector'], ['vulnDetector', 'chainBuilder']))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(
+            C.selectRetestEngines(
+              sampleRequest(),
+              ['vulnDetector'],
+              ['vulnDetector', 'chainBuilder']
+            )
+          )
+        }
+      >
         Use vulnDetector only
       </button>
       {res && res.ok && <p className="rt54-note">engines: {res.request.engines.join(', ')}</p>}
@@ -444,7 +655,11 @@ export function RetestEngineSelection() {
 
 /* 52155 — Retest execution logs. */
 export function RetestExecutionLogs() {
-  const a = C.appendRetestLog({ id: 'att-1' }, { step: 'send', detail: 'GET /search?q=<script>' }, 1700000000000);
+  const a = C.appendRetestLog(
+    { id: 'att-1' },
+    { step: 'send', detail: 'GET /search?q=<script>' },
+    1700000000000
+  );
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52155 · Retest execution logs</h3>
@@ -455,7 +670,12 @@ export function RetestExecutionLogs() {
 
 /* 52156 — Retest failure alerts. */
 export function RetestFailureAlerts() {
-  const a = C.buildFailureAlert(sampleRequest(), { kind: 'target-down', message: 'connection refused' }, ['ria'], 1700000000000);
+  const a = C.buildFailureAlert(
+    sampleRequest(),
+    { kind: 'target-down', message: 'connection refused' },
+    ['ria'],
+    1700000000000
+  );
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52156 · Retest failure alerts</h3>
@@ -471,10 +691,20 @@ export function RetestAssignment() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52157 · Retest assignment</h3>
-      <button className="rt54-btn" onClick={() => setRes(C.assignRetest(sampleRequest(), 'sam', 1700000000000 + 86400000, 1700000000000))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setRes(C.assignRetest(sampleRequest(), 'sam', 1700000000000 + 86400000, 1700000000000))
+        }
+      >
         Assign to sam
       </button>
-      {res && res.ok && <p className="rt54-note">assignee {res.request.assignee} · due {new Date(res.request.dueAt).toISOString().slice(0, 10)}</p>}
+      {res && res.ok && (
+        <p className="rt54-note">
+          assignee {res.request.assignee} · due{' '}
+          {new Date(res.request.dueAt).toISOString().slice(0, 10)}
+        </p>
+      )}
     </div>
   );
 }
@@ -486,19 +716,32 @@ export function RetestVsRegression() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52158 · Retest vs regression distinction</h3>
-      <p className="rt54-note">{a.label} → {a.workflow}</p>
-      <p className="rt54-note">{b.label} → {b.workflow}</p>
+      <p className="rt54-note">
+        {a.label} → {a.workflow}
+      </p>
+      <p className="rt54-note">
+        {b.label} → {b.workflow}
+      </p>
     </div>
   );
 }
 
 /* 52159 — "Still vulnerable" escalation. */
 export function StillVulnerableEscalation() {
-  const e = C.escalateStillVulnerable(sampleRequest(), { ...SAMPLE_FINDING, assignee: 'ria' }, 'mgr-dev', 1700000000000);
+  const e = C.escalateStillVulnerable(
+    sampleRequest(),
+    { ...SAMPLE_FINDING, assignee: 'ria' },
+    'mgr-dev',
+    1700000000000
+  );
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52159 · "Still vulnerable" escalation</h3>
-      {e.ok && <p className="rt54-note">{e.escalation.reason} → {e.escalation.escalatedTo.join(', ')}</p>}
+      {e.ok && (
+        <p className="rt54-note">
+          {e.escalation.reason} → {e.escalation.escalatedTo.join(', ')}
+        </p>
+      )}
     </div>
   );
 }
@@ -509,11 +752,20 @@ export function VerificationCertificate() {
   return (
     <div className="rt54-card">
       <h3 className="rt54-title">52160 · Verification certificate</h3>
-      <button className="rt54-btn" onClick={() => setCert(C.issueVerificationCertificate(SAMPLE_FINDING, 'fixed', 'infinity-ai', 1700000000000))}>
+      <button
+        className="rt54-btn"
+        onClick={() =>
+          setCert(
+            C.issueVerificationCertificate(SAMPLE_FINDING, 'fixed', 'infinity-ai', 1700000000000)
+          )
+        }
+      >
         Issue certificate
       </button>
       {cert && cert.ok && (
-        <p className="rt54-note">verified fixed on {cert.certificate.verifiedFixedOn} · sig {cert.certificate.signature}</p>
+        <p className="rt54-note">
+          verified fixed on {cert.certificate.verifiedFixedOn} · sig {cert.certificate.signature}
+        </p>
       )}
     </div>
   );

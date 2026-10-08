@@ -43,7 +43,8 @@ export function mapIsolationHeaders(headers = {}) {
   if (profile === 'fully-isolated') {
     appTypeHint = 'high-performance app (WASM / video / game / editor) — SharedArrayBuffer-capable';
   } else if (coep === 'require-corp') {
-    appTypeHint = 'resource-embedding controls in place; likely media-heavy or embedding-sensitive app';
+    appTypeHint =
+      'resource-embedding controls in place; likely media-heavy or embedding-sensitive app';
   } else if (coop === 'same-origin-allow-popups') {
     appTypeHint = 'OAuth / SSO popup flows likely (opener preserved for popups)';
   } else if (coop === 'same-origin') {

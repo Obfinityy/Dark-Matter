@@ -25,8 +25,16 @@ export const SYS_KEYS = [
 
 /** Topic patterns considered sensitive in authorized assessments. */
 export const SENSITIVE_TOPIC_PATTERNS = [
-  { pattern: /password|passwd|credential|secret|token|apikey|api_key/i, class: 'credentials', severity: 'High' },
-  { pattern: /cmd|command|exec|shell|reboot|reset|firmware|ota|update/i, class: 'control', severity: 'Medium' },
+  {
+    pattern: /password|passwd|credential|secret|token|apikey|api_key/i,
+    class: 'credentials',
+    severity: 'High',
+  },
+  {
+    pattern: /cmd|command|exec|shell|reboot|reset|firmware|ota|update/i,
+    class: 'control',
+    severity: 'Medium',
+  },
   { pattern: /location|gps|lat|lon|position/i, class: 'location', severity: 'Medium' },
   { pattern: /payment|billing|card|ssn/i, class: 'pii', severity: 'High' },
 ];
@@ -48,7 +56,8 @@ export const VERSION_PATTERNS = [
  */
 export function analyzeEnumeratedTopics(topics = []) {
   if (!Array.isArray(topics)) topics = [];
-  const normalized = topics.map(t => typeof t === 'string' ? { topic: t } : t)
+  const normalized = topics
+    .map(t => (typeof t === 'string' ? { topic: t } : t))
     .filter(t => t && typeof t.topic === 'string');
 
   const sysTopics = [];
@@ -65,7 +74,12 @@ export function analyzeEnumeratedTopics(topics = []) {
         if (topic === vk.key && t.payload !== undefined) {
           for (const vp of VERSION_PATTERNS) {
             const m = String(t.payload).match(vp.regex);
-            if (m) versionHits.push({ broker: vp.broker, version: m[1], evidence: `${topic} = "${t.payload}"` });
+            if (m)
+              versionHits.push({
+                broker: vp.broker,
+                version: m[1],
+                evidence: `${topic} = "${t.payload}"`,
+              });
           }
         }
       }
@@ -87,7 +101,14 @@ export function analyzeEnumeratedTopics(topics = []) {
     namespaces[head] = (namespaces[head] || 0) + 1;
   }
 
-  const exposure = sysTopics.length > 0 ? 'high' : sensitive.length > 0 ? 'medium' : appTopics.length > 0 ? 'low' : 'none';
+  const exposure =
+    sysTopics.length > 0
+      ? 'high'
+      : sensitive.length > 0
+        ? 'medium'
+        : appTopics.length > 0
+          ? 'low'
+          : 'none';
 
   return {
     totalTopics: normalized.length,

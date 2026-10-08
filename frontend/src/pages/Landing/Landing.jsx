@@ -5,8 +5,15 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  ArrowRight, Check, Link2, Search,
-  FileCheck, Lock, ShieldCheck, Brain, Eye
+  ArrowRight,
+  Check,
+  Link2,
+  Search,
+  FileCheck,
+  Lock,
+  ShieldCheck,
+  Brain,
+  Eye,
 } from 'lucide-react';
 import Logo from '../../components/brand/Logo';
 import './Landing.elegant.css';
@@ -34,7 +41,12 @@ function Nav() {
   return (
     <nav className="dm-nav">
       <div className="dm-nav-inner">
-        <button type="button" className="dm-nav-brand" onClick={() => navigate('/')} aria-label="Dark Matter home">
+        <button
+          type="button"
+          className="dm-nav-brand"
+          onClick={() => navigate('/')}
+          aria-label="Dark Matter home"
+        >
           <Logo size={28} />
           <span>Dark Matter</span>
         </button>
@@ -42,8 +54,20 @@ function Nav() {
           <a href="#how">How it works</a>
           <a href="#brains">The brains</a>
           <a href="#pricing">Pricing</a>
-          <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={() => navigate('/login')}>Sign in</button>
-          <button type="button" className="dm-btn dm-btn-primary dm-btn-sm" onClick={() => navigate('/agent')}>Start hunting</button>
+          <button
+            type="button"
+            className="dm-btn dm-btn-ghost dm-btn-sm"
+            onClick={() => navigate('/login')}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            className="dm-btn dm-btn-primary dm-btn-sm"
+            onClick={() => navigate('/agent')}
+          >
+            Start hunting
+          </button>
         </div>
       </div>
     </nav>
@@ -53,7 +77,7 @@ function Nav() {
 function Hero() {
   const navigate = useNavigate();
   const [url, setUrl] = React.useState('');
-  const start = (e) => {
+  const start = e => {
     e.preventDefault();
     navigate('/agent');
   };
@@ -62,19 +86,23 @@ function Hero() {
       <div className="dm-hero-inner">
         <span className="dm-badge dm-badge-gold">Autonomous bug-bounty agent</span>
         <h1>
-          Paste a link.<br />
+          Paste a link.
+          <br />
           <span className="dm-hero-accent">AI hunts the bugs.</span>
         </h1>
         <p className="dm-hero-sub">
-          Dark Matter reconnoiters your target, finds vulnerabilities, proves each one
-          with a working PoC, and writes the report — autonomously.
+          Dark Matter reconnoiters your target, finds vulnerabilities, proves each one with a
+          working PoC, and writes the report — autonomously.
         </p>
         <form className="dm-hero-form" onSubmit={start}>
           <div className="dm-hero-input-wrap">
             <Link2 size={18} className="dm-hero-input-icon" />
             <input
-              type="url" value={url} onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://your-website.com" aria-label="Target website URL"
+              type="url"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://your-website.com"
+              aria-label="Target website URL"
               className="dm-input dm-hero-input"
             />
           </div>
@@ -104,7 +132,9 @@ function HowItWorks() {
                 <s.icon size={20} className="dm-step-icon" />
               </div>
               <h3 className="dm-card-title">{s.title}</h3>
-              <p className="dm-card-sub" style={{ margin: 0 }}>{s.text}</p>
+              <p className="dm-card-sub" style={{ margin: 0 }}>
+                {s.text}
+              </p>
             </div>
           ))}
         </div>
@@ -116,20 +146,35 @@ function HowItWorks() {
 function Brains() {
   const brains = [
     { icon: Eye, name: 'Vision Brain', desc: 'Sees your screen. Reads UI, understands context.' },
-    { icon: Brain, name: 'Hacking Brain', desc: 'Thinks like a hunter. Chains small vulns into big ones.' },
-    { icon: ShieldCheck, name: 'Grounding Brain', desc: 'Acts precisely. Clicks, types, navigates with pixel accuracy.' },
+    {
+      icon: Brain,
+      name: 'Hacking Brain',
+      desc: 'Thinks like a hunter. Chains small vulns into big ones.',
+    },
+    {
+      icon: ShieldCheck,
+      name: 'Grounding Brain',
+      desc: 'Acts precisely. Clicks, types, navigates with pixel accuracy.',
+    },
   ];
   return (
     <section className="dm-section-block dm-section-alt" id="brains">
       <div className="dm-container-narrow">
         <h2 className="dm-h2">Three brains, one hunter</h2>
-        <p className="dm-section-sub">Each brain runs on your own machine. Nothing leaves your computer.</p>
+        <p className="dm-section-sub">
+          Each brain runs on your own machine. Nothing leaves your computer.
+        </p>
         <div className="dm-grid-3">
-          {brains.map((b) => (
+          {brains.map(b => (
             <div key={b.name} className="dm-card dm-center">
-              <b.icon size={28} style={{ color: 'var(--dm-gold-soft)', marginBottom: 'var(--dm-3)' }} />
+              <b.icon
+                size={28}
+                style={{ color: 'var(--dm-gold-soft)', marginBottom: 'var(--dm-3)' }}
+              />
               <h3 className="dm-card-title">{b.name}</h3>
-              <p className="dm-card-sub" style={{ margin: 0 }}>{b.desc}</p>
+              <p className="dm-card-sub" style={{ margin: 0 }}>
+                {b.desc}
+              </p>
             </div>
           ))}
         </div>
@@ -147,7 +192,11 @@ function CTA() {
         <p className="dm-section-sub" style={{ marginBottom: 'var(--dm-6)' }}>
           Open the console and see Hunt AI think, probe, validate, and report — in real time.
         </p>
-        <button type="button" className="dm-btn dm-btn-primary dm-btn-lg" onClick={() => navigate('/agent')}>
+        <button
+          type="button"
+          className="dm-btn dm-btn-primary dm-btn-lg"
+          onClick={() => navigate('/agent')}
+        >
           Open live hunt <ArrowRight size={18} />
         </button>
       </div>
@@ -158,9 +207,30 @@ function CTA() {
 function Pricing() {
   const navigate = useNavigate();
   const tiers = [
-    { name: 'Free', price: '₹0', period: 'forever', features: ['3 hunts / month', 'Community feed', 'Standard reports'], cta: 'Start free', featured: false },
-    { name: 'Pro', price: '₹1,699', period: '/ month', features: ['Unlimited hunts', 'Priority AI brain', 'PoC replay + PDF', 'API access'], cta: 'Go Pro', featured: true },
-    { name: 'Infinity', price: 'Custom', period: '', features: ['Team workspaces', 'SSO + audit log', 'Dedicated infra', 'SLA support'], cta: 'Contact us', featured: false },
+    {
+      name: 'Free',
+      price: '₹0',
+      period: 'forever',
+      features: ['3 hunts / month', 'Community feed', 'Standard reports'],
+      cta: 'Start free',
+      featured: false,
+    },
+    {
+      name: 'Pro',
+      price: '₹1,699',
+      period: '/ month',
+      features: ['Unlimited hunts', 'Priority AI brain', 'PoC replay + PDF', 'API access'],
+      cta: 'Go Pro',
+      featured: true,
+    },
+    {
+      name: 'Infinity',
+      price: 'Custom',
+      period: '',
+      features: ['Team workspaces', 'SSO + audit log', 'Dedicated infra', 'SLA support'],
+      cta: 'Contact us',
+      featured: false,
+    },
   ];
   return (
     <section className="dm-section-block" id="pricing">
@@ -168,22 +238,67 @@ function Pricing() {
         <h2 className="dm-h2">Pricing</h2>
         <p className="dm-section-sub">Start free. Scale when the bounties roll in.</p>
         <div className="dm-grid-3">
-          {tiers.map((t) => (
+          {tiers.map(t => (
             <div
               key={t.name}
               className="dm-card"
-              style={t.featured ? { borderColor: 'var(--dm-gold-border)', background: 'var(--dm-gold-glow)' } : undefined}
+              style={
+                t.featured
+                  ? { borderColor: 'var(--dm-gold-border)', background: 'var(--dm-gold-glow)' }
+                  : undefined
+              }
             >
-              {t.featured && <span className="dm-badge dm-badge-gold" style={{ marginBottom: 'var(--dm-3)' }}>Most popular</span>}
+              {t.featured && (
+                <span className="dm-badge dm-badge-gold" style={{ marginBottom: 'var(--dm-3)' }}>
+                  Most popular
+                </span>
+              )}
               <h3 className="dm-card-title">{t.name}</h3>
-              <p style={{ fontSize: 'var(--dm-text-3xl)', fontWeight: 700, margin: 'var(--dm-2) 0', letterSpacing: '-0.02em' }}>
+              <p
+                style={{
+                  fontSize: 'var(--dm-text-3xl)',
+                  fontWeight: 700,
+                  margin: 'var(--dm-2) 0',
+                  letterSpacing: '-0.02em',
+                }}
+              >
                 {t.price}
-                {t.period && <span style={{ fontSize: 'var(--dm-text-sm)', fontWeight: 400, color: 'var(--dm-muted)' }}>{t.period}</span>}
+                {t.period && (
+                  <span
+                    style={{
+                      fontSize: 'var(--dm-text-sm)',
+                      fontWeight: 400,
+                      color: 'var(--dm-muted)',
+                    }}
+                  >
+                    {t.period}
+                  </span>
+                )}
               </p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 var(--dm-5)', display: 'grid', gap: 'var(--dm-2)' }}>
-                {t.features.map((f) => (
-                  <li key={f} style={{ display: 'flex', gap: 'var(--dm-2)', fontSize: 'var(--dm-text-sm)', color: 'var(--dm-text-2)' }}>
-                    <Check size={15} style={{ color: 'var(--dm-gold-soft)', flexShrink: 0, marginTop: '2px' }} /> {f}
+              <ul
+                style={{
+                  listStyle: 'none',
+                  padding: 0,
+                  margin: '0 0 var(--dm-5)',
+                  display: 'grid',
+                  gap: 'var(--dm-2)',
+                }}
+              >
+                {t.features.map(f => (
+                  <li
+                    key={f}
+                    style={{
+                      display: 'flex',
+                      gap: 'var(--dm-2)',
+                      fontSize: 'var(--dm-text-sm)',
+                      color: 'var(--dm-text-2)',
+                    }}
+                  >
+                    <Check
+                      size={15}
+                      style={{ color: 'var(--dm-gold-soft)', flexShrink: 0, marginTop: '2px' }}
+                    />{' '}
+                    {f}
                   </li>
                 ))}
               </ul>
@@ -206,13 +321,19 @@ function Footer() {
   return (
     <footer className="dm-footer">
       <div className="dm-footer-inner">
-        <span className="dm-nav-brand"><Logo size={22} /> Dark Matter</span>
+        <span className="dm-nav-brand">
+          <Logo size={22} /> Dark Matter
+        </span>
         <span className="dm-muted" style={{ fontSize: 'var(--dm-text-sm)' }}>
           Autonomous bug-bounty hunting. Test only authorized targets.
         </span>
         <span style={{ display: 'flex', gap: 'var(--dm-4)' }}>
-          <Link to="/privacy-policy" className="dm-footer-link">Privacy</Link>
-          <Link to="/terms" className="dm-footer-link">Terms</Link>
+          <Link to="/privacy-policy" className="dm-footer-link">
+            Privacy
+          </Link>
+          <Link to="/terms" className="dm-footer-link">
+            Terms
+          </Link>
         </span>
       </div>
     </footer>

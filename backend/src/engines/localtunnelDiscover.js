@@ -118,7 +118,7 @@ export function discoverLocaltunnels({ source = 'unknown', text = '' } = {}) {
     cliHints,
     evidence:
       (findings.length
-        ? `Found ${findings.length} localtunnel URL(s) in ${source}: ${findings.map((f) => f.url).join('; ')}. `
+        ? `Found ${findings.length} localtunnel URL(s) in ${source}: ${findings.map(f => f.url).join('; ')}. `
         : `No localtunnel URLs found in ${source}. `) +
       (cliHints.ports.length
         ? `localtunnel CLI hints reference local port(s): ${cliHints.ports.join(', ')}` +

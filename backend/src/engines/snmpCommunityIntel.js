@@ -50,12 +50,30 @@ function classifyProbe(probe) {
     };
   }
   if (outcome === 'badCommunity') {
-    return { community, accepted: false, isDefault, confidence: 'high', evidence: `Agent rejected "${community}" with authentication failure — community validation present.` };
+    return {
+      community,
+      accepted: false,
+      isDefault,
+      confidence: 'high',
+      evidence: `Agent rejected "${community}" with authentication failure — community validation present.`,
+    };
   }
   if (outcome === 'noSuchName') {
-    return { community, accepted: false, isDefault, confidence: 'medium', evidence: `Agent responded with noSuchName for "${community}" — SNMPv1 error handling observed, agent reachable.` };
+    return {
+      community,
+      accepted: false,
+      isDefault,
+      confidence: 'medium',
+      evidence: `Agent responded with noSuchName for "${community}" — SNMPv1 error handling observed, agent reachable.`,
+    };
   }
-  return { community, accepted: false, isDefault, confidence: 'low', evidence: `No response to "${community}" — agent silent or filtered.` };
+  return {
+    community,
+    accepted: false,
+    isDefault,
+    confidence: 'low',
+    evidence: `No response to "${community}" — agent silent or filtered.`,
+  };
 }
 
 /**
@@ -66,8 +84,8 @@ function classifyProbe(probe) {
  */
 export function classifySnmpExposure({ target = 'unknown', probes = [], version = '2c' }) {
   const findings = (probes || []).map(classifyProbe);
-  const accepted = findings.filter((f) => f.accepted);
-  const defaultAccepted = accepted.filter((f) => f.isDefault);
+  const accepted = findings.filter(f => f.accepted);
+  const defaultAccepted = accepted.filter(f => f.isDefault);
 
   if (defaultAccepted.length) {
     return {
@@ -76,7 +94,7 @@ export function classifySnmpExposure({ target = 'unknown', probes = [], version 
       confidence: 'high',
       severity: 'Medium',
       cwe: 'CWE-798',
-      evidence: `SNMPv${version} agent at ${target} accepts default community string(s): ${defaultAccepted.map((f) => `"${f.community}"`).join(', ')}.`,
+      evidence: `SNMPv${version} agent at ${target} accepts default community string(s): ${defaultAccepted.map(f => `"${f.community}"`).join(', ')}.`,
       details: { target, version, accepted: defaultAccepted, totalProbes: probes.length },
     };
   }

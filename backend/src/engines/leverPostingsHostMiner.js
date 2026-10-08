@@ -53,7 +53,9 @@ function collectHosts(value, out) {
 export function mineLeverPostings(apiResponse, orgSlug = '') {
   const postings = Array.isArray(apiResponse)
     ? apiResponse
-    : (apiResponse && Array.isArray(apiResponse.data) ? apiResponse.data : []);
+    : apiResponse && Array.isArray(apiResponse.data)
+      ? apiResponse.data
+      : [];
 
   const allHosts = new Set();
   const applicationHosts = new Set();
@@ -66,12 +68,20 @@ export function mineLeverPostings(apiResponse, orgSlug = '') {
 
     for (const key of ['applyUrl', 'hostedUrl', 'url']) {
       if (typeof p[key] === 'string') {
-        try { applicationHosts.add(new URL(p[key]).hostname.toLowerCase()); } catch { /* ignore */ }
+        try {
+          applicationHosts.add(new URL(p[key]).hostname.toLowerCase());
+        } catch {
+          /* ignore */
+        }
       }
     }
     for (const key of ['companyLogoUrl', 'logoUrl', 'imageUrl']) {
       if (typeof p[key] === 'string') {
-        try { mediaHosts.add(new URL(p[key]).hostname.toLowerCase()); } catch { /* ignore */ }
+        try {
+          mediaHosts.add(new URL(p[key]).hostname.toLowerCase());
+        } catch {
+          /* ignore */
+        }
       }
     }
     const loc = p.categories && p.categories.location;
@@ -94,10 +104,14 @@ export function mineLeverPostings(apiResponse, orgSlug = '') {
  * @returns {boolean}
  */
 export function isLeverPostingsResponse(data) {
-  const postings = Array.isArray(data) ? data : (data && data.data);
+  const postings = Array.isArray(data) ? data : data && data.data;
   if (!Array.isArray(postings) || postings.length === 0) return false;
   const first = postings[0];
-  return !!(first && typeof first === 'object' && ('id' in first || 'text' in first || 'hostedUrl' in first));
+  return !!(
+    first &&
+    typeof first === 'object' &&
+    ('id' in first || 'text' in first || 'hostedUrl' in first)
+  );
 }
 
 export const LEVER_MINER = {

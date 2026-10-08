@@ -46,9 +46,14 @@ export function parseBacnetHeader(buf) {
   return {
     valid: true,
     bvlcFunction,
-    bvlcFunctionName: bvlcFunction === 0x0a ? 'unicast-npdu' : bvlcFunction === 0x0b ? 'broadcast-npdu' : `unknown_0x${bvlcFunction.toString(16)}`,
+    bvlcFunctionName:
+      bvlcFunction === 0x0a
+        ? 'unicast-npdu'
+        : bvlcFunction === 0x0b
+          ? 'broadcast-npdu'
+          : `unknown_0x${bvlcFunction.toString(16)}`,
     npduVersion: npci >> 4,
-    apduOffset: npduOffset + 2 + (((npci & 0x20) !== 0) ? 2 : 0) + (((npci & 0x08) !== 0) ? 1 : 0),
+    apduOffset: npduOffset + 2 + ((npci & 0x20) !== 0 ? 2 : 0) + ((npci & 0x08) !== 0 ? 1 : 0),
   };
 }
 
@@ -62,30 +67,39 @@ export function parseIAm(apdu) {
   const b = Buffer.isBuffer(apdu) ? apdu : Buffer.from(apdu || []);
   if (b.length < 2) return { valid: false, reason: 'APDU too short' };
   if ((b[0] & 0xf0) !== 0x10) return { valid: false, reason: 'not an unconfirmed-request APDU' };
-  if (b[1] !== 0x00) return { valid: false, reason: `not an I-Am service (choice 0x${b[1].toString(16)})` };
+  if (b[1] !== 0x00)
+    return { valid: false, reason: `not an I-Am service (choice 0x${b[1].toString(16)})` };
   let off = 2;
   const readObjectId = () => {
     if (off + 4 > b.length) return null;
-    const raw = b.readUInt32BE(off); off += 4;
+    const raw = b.readUInt32BE(off);
+    off += 4;
     return { objectType: raw >>> 22, instance: raw & 0x3fffff };
   };
   const readUnsigned = () => {
     if (off + 2 > b.length) return null;
-    const tag = b[off]; const len = tag & 0x07; off += 1;
+    const tag = b[off];
+    const len = tag & 0x07;
+    off += 1;
     let v = 0;
-    for (let i = 0; i < len && off < b.length; i++) { v = (v << 8) | b[off]; off += 1; }
+    for (let i = 0; i < len && off < b.length; i++) {
+      v = (v << 8) | b[off];
+      off += 1;
+    }
     return v;
   };
   // Tag 0xC4 (context 0): device object identifier
   if (b[off] !== 0xc4) return { valid: false, reason: 'I-Am missing device object identifier' };
   off += 1;
   const deviceId = readObjectId();
-  if (!deviceId || deviceId.objectType !== 8) return { valid: false, reason: 'I-Am device object identifier malformed' };
+  if (!deviceId || deviceId.objectType !== 8)
+    return { valid: false, reason: 'I-Am device object identifier malformed' };
   if (b[off] !== 0x22) return { valid: false, reason: 'I-Am missing max APDU field' };
   const maxApdu = readUnsigned();
   if (b[off] !== 0x91) return { valid: false, reason: 'I-Am missing segmentation field' };
   off += 1;
-  const segmentation = b[off] & 0x0f; off += 1;
+  const segmentation = b[off] & 0x0f;
+  off += 1;
   if (b[off] !== 0x21) return { valid: false, reason: 'I-Am missing vendor ID field' };
   const vendorId = readUnsigned();
   return {
@@ -105,12 +119,12 @@ export function parseIAm(apdu) {
  * @returns {object} inventory summary
  */
 export function summarizeBacnetDevices(devices = []) {
-  const list = (Array.isArray(devices) ? devices : []).filter((d) => d && d.valid);
+  const list = (Array.isArray(devices) ? devices : []).filter(d => d && d.valid);
   const byVendor = {};
   for (const d of list) byVendor[d.vendorName] = (byVendor[d.vendorName] || 0) + 1;
   return {
     deviceCount: list.length,
-    devices: list.map((d) => ({
+    devices: list.map(d => ({
       deviceInstance: d.deviceInstance,
       vendor: d.vendorName,
       maxApdu: d.maxApdu,

@@ -1,3 +1,9 @@
+/**
+ * agentStateModel — database model for agent State.
+ * Schema definition and data-access methods for agent State records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**
@@ -10,7 +16,7 @@ export class AgentStateModel {
   }
 
   async get(assessmentId, userId) {
-    return this.collection.findOne({ assessmentId, ...(userId ? {userId} : {}) });
+    return this.collection.findOne({ assessmentId, ...(userId ? { userId } : {}) });
   }
 
   async initialize(assessmentId, userId, target, scope) {
@@ -60,17 +66,14 @@ export class AgentStateModel {
       // Metadata
       createdAt: now(),
       updatedAt: now(),
-      lastCheckpointAt: null
+      lastCheckpointAt: null,
     };
     await this.collection.insertOne(state);
     return state;
   }
 
   async update(assessmentId, patch) {
-    await this.collection.updateOne(
-      { assessmentId },
-      { $set: { ...patch, updatedAt: now() } }
-    );
+    await this.collection.updateOne({ assessmentId }, { $set: { ...patch, updatedAt: now() } });
   }
 
   async checkpoint(assessmentId) {
@@ -119,9 +122,13 @@ export class AgentStateModel {
       {
         $push: {
           completedActions: { ...action, completedAt: now() },
-          investigationHistory: { action: action.description || action.tool, timestamp: now(), result: action.resultSummary || 'completed' }
+          investigationHistory: {
+            action: action.description || action.tool,
+            timestamp: now(),
+            result: action.resultSummary || 'completed',
+          },
         },
-        $set: { updatedAt: now() }
+        $set: { updatedAt: now() },
       }
     );
   }
@@ -131,7 +138,7 @@ export class AgentStateModel {
       { assessmentId },
       {
         $push: { failedActions: { ...action, failedAt: now() } },
-        $set: { updatedAt: now() }
+        $set: { updatedAt: now() },
       }
     );
   }
@@ -145,7 +152,7 @@ export class AgentStateModel {
       evidenceFor: [],
       evidenceAgainst: [],
       testsPerformed: [],
-      createdAt: now()
+      createdAt: now(),
     };
     await this.collection.updateOne(
       { assessmentId },
@@ -184,11 +191,13 @@ export class AgentStateModel {
       technologies: state.technologies.slice(0, 20),
       openPorts: state.openPorts.slice(0, 30),
       recentObservations: state.observations.slice(-15),
-      activeHypotheses: state.hypotheses.filter(h => h.status === 'INVESTIGATING' || h.status === 'UNTESTED').slice(0, 10),
+      activeHypotheses: state.hypotheses
+        .filter(h => h.status === 'INVESTIGATING' || h.status === 'UNTESTED')
+        .slice(0, 10),
       findings: state.findings.slice(0, 20),
       completedToolNames: state.completedActions.map(a => a.tool).filter(Boolean),
       failedToolNames: state.failedActions.map(a => a.tool).filter(Boolean),
-      lastActions: state.investigationHistory.slice(-10)
+      lastActions: state.investigationHistory.slice(-10),
     };
   }
 }

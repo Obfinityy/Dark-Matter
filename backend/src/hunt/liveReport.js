@@ -33,18 +33,78 @@ const EFFORT_COST = { low: 1, medium: 2, high: 3 };
  * impact: expected risk reduction if applied.
  */
 export const REMEDIATION_CATALOG = [
-  { match: /sql injection|sqli/i, fix: 'Use parameterized queries / prepared statements everywhere; enforce least-privilege DB accounts.', effort: 'medium', impact: 'high' },
-  { match: /xss|cross-?site scripting/i, fix: 'Apply context-aware output encoding; adopt a strict Content-Security-Policy.', effort: 'medium', impact: 'high' },
-  { match: /cors/i, fix: 'Replace wildcard/reflective origins with an explicit allowlist; never combine credentials with "*".', effort: 'low', impact: 'medium' },
-  { match: /secret|token|password|api key|credential/i, fix: 'Revoke exposed secrets, rotate them, and move to a managed secrets store; scan history.', effort: 'low', impact: 'high' },
-  { match: /takeover/i, fix: 'Remove dangling DNS records or reclaim the external service; monitor for reappearance.', effort: 'low', impact: 'high' },
-  { match: /ssrf|server-?side request forgery/i, fix: 'Allowlist outbound destinations; block cloud metadata endpoints; validate and sanitize URLs.', effort: 'medium', impact: 'high' },
-  { match: /idor|broken access control|authorization/i, fix: 'Enforce server-side authorization checks on every object reference; use indirect references.', effort: 'medium', impact: 'high' },
-  { match: /jwt/i, fix: 'Validate signature with a strong algorithm allowlist (no "none"); set short expirations; verify claims.', effort: 'low', impact: 'medium' },
-  { match: /security header|missing header|hsts|x-frame|content-security/i, fix: 'Deploy baseline security headers (HSTS, X-Frame-Options/frame-ancestors, CSP, Referrer-Policy).', effort: 'low', impact: 'medium' },
-  { match: /outdated|old version|vulnerable version|eol/i, fix: 'Upgrade to a supported release and establish a patch cadence.', effort: 'medium', impact: 'high' },
-  { match: /exposed|directory listing|backup|\.git|\.env/i, fix: 'Remove the exposed artifact from the web root; block sensitive paths at the edge.', effort: 'low', impact: 'medium' },
-  { match: /open redirect/i, fix: 'Validate redirect targets against an allowlist; use relative URLs.', effort: 'low', impact: 'low' },
+  {
+    match: /sql injection|sqli/i,
+    fix: 'Use parameterized queries / prepared statements everywhere; enforce least-privilege DB accounts.',
+    effort: 'medium',
+    impact: 'high',
+  },
+  {
+    match: /xss|cross-?site scripting/i,
+    fix: 'Apply context-aware output encoding; adopt a strict Content-Security-Policy.',
+    effort: 'medium',
+    impact: 'high',
+  },
+  {
+    match: /cors/i,
+    fix: 'Replace wildcard/reflective origins with an explicit allowlist; never combine credentials with "*".',
+    effort: 'low',
+    impact: 'medium',
+  },
+  {
+    match: /secret|token|password|api key|credential/i,
+    fix: 'Revoke exposed secrets, rotate them, and move to a managed secrets store; scan history.',
+    effort: 'low',
+    impact: 'high',
+  },
+  {
+    match: /takeover/i,
+    fix: 'Remove dangling DNS records or reclaim the external service; monitor for reappearance.',
+    effort: 'low',
+    impact: 'high',
+  },
+  {
+    match: /ssrf|server-?side request forgery/i,
+    fix: 'Allowlist outbound destinations; block cloud metadata endpoints; validate and sanitize URLs.',
+    effort: 'medium',
+    impact: 'high',
+  },
+  {
+    match: /idor|broken access control|authorization/i,
+    fix: 'Enforce server-side authorization checks on every object reference; use indirect references.',
+    effort: 'medium',
+    impact: 'high',
+  },
+  {
+    match: /jwt/i,
+    fix: 'Validate signature with a strong algorithm allowlist (no "none"); set short expirations; verify claims.',
+    effort: 'low',
+    impact: 'medium',
+  },
+  {
+    match: /security header|missing header|hsts|x-frame|content-security/i,
+    fix: 'Deploy baseline security headers (HSTS, X-Frame-Options/frame-ancestors, CSP, Referrer-Policy).',
+    effort: 'low',
+    impact: 'medium',
+  },
+  {
+    match: /outdated|old version|vulnerable version|eol/i,
+    fix: 'Upgrade to a supported release and establish a patch cadence.',
+    effort: 'medium',
+    impact: 'high',
+  },
+  {
+    match: /exposed|directory listing|backup|\.git|\.env/i,
+    fix: 'Remove the exposed artifact from the web root; block sensitive paths at the edge.',
+    effort: 'low',
+    impact: 'medium',
+  },
+  {
+    match: /open redirect/i,
+    fix: 'Validate redirect targets against an allowlist; use relative URLs.',
+    effort: 'low',
+    impact: 'low',
+  },
 ];
 
 export const GENERIC_FIX = {
@@ -60,10 +120,10 @@ function now() {
 /** Match a finding to catalog remediation entries. */
 export function remediationFor(finding) {
   const hay = `${finding.title || ''} ${finding.description || ''} ${finding.templateId || ''}`;
-  const hits = REMEDIATION_CATALOG.filter((c) => c.match.test(hay));
+  const hits = REMEDIATION_CATALOG.filter(c => c.match.test(hay));
   const base = hits.length ? hits : [GENERIC_FIX];
   const explicit = (finding.remediation || '').trim();
-  return base.map((b) => ({
+  return base.map(b => ({
     fix: explicit && !hits.length ? explicit : b.fix,
     detail: explicit && hits.length ? explicit : '',
     effort: b.effort,
@@ -79,7 +139,7 @@ function scoreFix(entry, finding) {
   const sevW = SEVERITY_WEIGHT[String(finding.severity || 'informational').toLowerCase()] ?? 0.5;
   const impactW = { high: 3, medium: 2, low: 1 }[entry.impact] ?? 2;
   const effortC = EFFORT_COST[entry.effort] ?? 2;
-  return Number((((sevW + impactW) / effortC)).toFixed(2));
+  return Number(((sevW + impactW) / effortC).toFixed(2));
 }
 
 /**
@@ -108,7 +168,11 @@ export class LiveReport {
 
   /** Dedupe key: same weakness on the same target is one finding. */
   dedupeKey(f) {
-    return `${String(f.title || '').toLowerCase().trim()}|${String(f.target || '').toLowerCase().trim()}`;
+    return `${String(f.title || '')
+      .toLowerCase()
+      .trim()}|${String(f.target || '')
+      .toLowerCase()
+      .trim()}`;
   }
 
   /**
@@ -121,11 +185,15 @@ export class LiveReport {
     const key = this.dedupeKey(finding);
     if (this._seen.has(key)) {
       // Merge new evidence into the existing finding instead of duplicating.
-      const existing = this.findings.find((f) => this.dedupeKey(f) === key);
-      if (existing && finding.evidence && !existing.evidence.includes(finding.evidence.slice(0, 80))) {
+      const existing = this.findings.find(f => this.dedupeKey(f) === key);
+      if (
+        existing &&
+        finding.evidence &&
+        !existing.evidence.includes(finding.evidence.slice(0, 80))
+      ) {
         existing.evidence = `${existing.evidence}\n${finding.evidence}`.slice(0, 3000);
         this.updatedAt = now();
-        await this.save().catch((e) => this.logger.warn?.(`[liveReport] save failed: ${e.message}`));
+        await this.save().catch(e => this.logger.warn?.(`[liveReport] save failed: ${e.message}`));
       }
       return null;
     }
@@ -135,7 +203,7 @@ export class LiveReport {
     finding.remediationSteps = remediationFor(finding);
     this.findings.push(finding);
     this.updatedAt = now();
-    await this.save().catch((e) => this.logger.warn?.(`[liveReport] save failed: ${e.message}`));
+    await this.save().catch(e => this.logger.warn?.(`[liveReport] save failed: ${e.message}`));
     return finding;
   }
 
@@ -170,7 +238,7 @@ export class LiveReport {
     return {
       total: this.findings.length,
       ...counts,
-      validated: this.findings.filter((f) => f.confidence === 'high').length,
+      validated: this.findings.filter(f => f.confidence === 'high').length,
     };
   }
 
@@ -189,14 +257,19 @@ export class LiveReport {
         `Automated defensive assessment of ${this.target} by Infinity AI. ` +
         `${this.findings.length} finding(s) recorded so far. ` +
         `Recommended fixes are ranked by expected risk reduction per unit of effort.`,
-      findings: this.findings.map((f) => ({
+      findings: this.findings.map(f => ({
         title: f.title,
         severity: f.severity,
         cvss: f.cvss || undefined,
         description: f.description,
         impact: `Severity: ${f.severity}. Confidence: ${f.confidence}.`,
-        reproductionSteps: f.reproductionSteps || ['Observed during automated assessment (see evidence).'],
-        remediation: (f.remediationSteps || []).map((r) => `[${r.effort} effort / ${r.impact} impact] ${r.fix}${r.detail ? ` — ${r.detail}` : ''}`),
+        reproductionSteps: f.reproductionSteps || [
+          'Observed during automated assessment (see evidence).',
+        ],
+        remediation: (f.remediationSteps || []).map(
+          r =>
+            `[${r.effort} effort / ${r.impact} impact] ${r.fix}${r.detail ? ` — ${r.detail}` : ''}`
+        ),
         evidence: f.evidence ? [f.evidence] : [],
         poc: f.safeValidation || '',
       })),
@@ -217,12 +290,20 @@ export class LiveReport {
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(
       this.reportFile(),
-      JSON.stringify({
-        huntId: this.huntId, target: this.target, product: 'Infinity AI',
-        startedAt: this.startedAt, updatedAt: this.updatedAt,
-        findings: this.findings, stages: this.stages,
-      }, null, 2),
-      'utf8',
+      JSON.stringify(
+        {
+          huntId: this.huntId,
+          target: this.target,
+          product: 'Infinity AI',
+          startedAt: this.startedAt,
+          updatedAt: this.updatedAt,
+          findings: this.findings,
+          stages: this.stages,
+        },
+        null,
+        2
+      ),
+      'utf8'
     );
   }
 

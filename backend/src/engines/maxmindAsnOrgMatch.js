@@ -53,7 +53,7 @@ export function editDistance(a = '', b = '') {
       curr[j] = Math.min(
         prev[j] + 1,
         curr[j - 1] + 1,
-        prev[j - 1] + (s[i - 1] === t[j - 1] ? 0 : 1),
+        prev[j - 1] + (s[i - 1] === t[j - 1] ? 0 : 1)
       );
     }
     [prev, curr] = [curr, prev];

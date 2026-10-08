@@ -4,15 +4,21 @@
  */
 
 function normalizeDomain(value) {
-  let v = String(value || '').trim().toLowerCase().replace(/^www\./, '').replace(/\.$/, '');
+  let v = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, '')
+    .replace(/\.$/, '');
   // job.target may be a full URL (queue/schedule hunts) or a bare hostname.
   // Reduce URLs to host[:port] so scope checks compare like with like.
   // The port is kept: 127.0.0.1:4555 and 127.0.0.1:9000 are different scopes.
   // Default ports are folded away so http://host ≡ http://host:80.
   let scheme = '';
   const schemeMatch = v.match(/^([a-z][a-z0-9+.-]*):\/\/([^/?#]+)/);
-  if (schemeMatch) { scheme = schemeMatch[1]; v = schemeMatch[2]; }
-  else v = v.split('/')[0];
+  if (schemeMatch) {
+    scheme = schemeMatch[1];
+    v = schemeMatch[2];
+  } else v = v.split('/')[0];
   if ((scheme === 'http' && v.endsWith(':80')) || (scheme === 'https' && v.endsWith(':443'))) {
     v = v.slice(0, v.lastIndexOf(':'));
   }
@@ -47,6 +53,7 @@ export function scopeEntryCovers(entry, hostport) {
   return true;
 }
 
+/** Scope Engine engine. */
 export class ScopeEngine {
   constructor(scope, targetHostname) {
     this.targetHostname = normalizeDomain(targetHostname);
@@ -59,8 +66,8 @@ export class ScopeEngine {
     const normalized = normalizeDomain(domain);
     if (!normalized) return false;
     // Excluded entries win, then an included entry must cover the host[:port].
-    if (this.excluded.some((ex) => scopeEntryCovers(ex, normalized))) return false;
-    return this.included.some((inc) => scopeEntryCovers(inc, normalized));
+    if (this.excluded.some(ex => scopeEntryCovers(ex, normalized))) return false;
+    return this.included.some(inc => scopeEntryCovers(inc, normalized));
   }
 
   /** Check if a URL is inside the authorized scope. */
@@ -111,7 +118,7 @@ export class ScopeEngine {
     return {
       target: this.targetHostname,
       included: [...this.included],
-      excluded: [...this.excluded]
+      excluded: [...this.excluded],
     };
   }
 }

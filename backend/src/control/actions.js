@@ -14,11 +14,7 @@
  * branded (see agentLoop.js for the status copy).
  */
 
-import {
-  ALLOWED_KEYS,
-  COMPUTER_ACTIONS,
-  normalizeKeyName
-} from '../computer/actionSchema.js';
+import { ALLOWED_KEYS, COMPUTER_ACTIONS, normalizeKeyName } from '../computer/actionSchema.js';
 
 /** Actions the control loop may request. */
 export const CONTROL_ACTIONS = Object.freeze({
@@ -29,7 +25,7 @@ export const CONTROL_ACTIONS = Object.freeze({
   SCROLL: 'scroll',
   DRAG: 'drag',
   WAIT: 'wait',
-  SCREENSHOT: 'screenshot'
+  SCREENSHOT: 'screenshot',
 });
 
 export const CONTROL_ACTION_TYPES = Object.freeze(Object.values(CONTROL_ACTIONS));
@@ -37,7 +33,7 @@ export const CONTROL_ACTION_TYPES = Object.freeze(Object.values(CONTROL_ACTIONS)
 /** Actions whose target is a screen point the grounder must locate (0–1000 space). */
 export const COORDINATE_ACTIONS = Object.freeze([
   CONTROL_ACTIONS.CLICK,
-  CONTROL_ACTIONS.DOUBLE_CLICK
+  CONTROL_ACTIONS.DOUBLE_CLICK,
 ]);
 
 /** Defensive limits applied before anything reaches the bridge. */
@@ -52,17 +48,19 @@ export const CONTROL_LIMITS = Object.freeze({
   /** Longest single wait. */
   MAX_WAIT_MS: 30_000,
   /** Longest key chord (e.g. ctrl+shift+t). */
-  MAX_KEYS: 4
+  MAX_KEYS: 4,
 });
 
 /** Characters type() may emit; control keys must go through press(). */
 const TYPEABLE = /^[\x20-\x7E\n\r\t\u00A0-\u024F\u0900-\u097F ]*$/;
 
 function isNormalizedCoord(value) {
-  return typeof value === 'number' &&
+  return (
+    typeof value === 'number' &&
     Number.isFinite(value) &&
     value >= CONTROL_LIMITS.COORD_MIN &&
-    value <= CONTROL_LIMITS.COORD_MAX;
+    value <= CONTROL_LIMITS.COORD_MAX
+  );
 }
 
 function checkCoords(params, keys, errors) {
@@ -71,8 +69,8 @@ function checkCoords(params, keys, errors) {
     if (!isNormalizedCoord(value)) {
       errors.push(
         `"${key}" must be a number between ${CONTROL_LIMITS.COORD_MIN} and ` +
-        `${CONTROL_LIMITS.COORD_MAX} (normalized screen coordinates); ` +
-        `received ${JSON.stringify(value)}`
+          `${CONTROL_LIMITS.COORD_MAX} (normalized screen coordinates); ` +
+          `received ${JSON.stringify(value)}`
       );
     }
   }
@@ -100,8 +98,10 @@ export function validateControlAction(action) {
   if (!CONTROL_ACTION_TYPES.includes(action.type)) {
     return {
       valid: false,
-      errors: [`Unknown control action "${action.type}". Allowed: ${CONTROL_ACTION_TYPES.join(', ')}`],
-      action: null
+      errors: [
+        `Unknown control action "${action.type}". Allowed: ${CONTROL_ACTION_TYPES.join(', ')}`,
+      ],
+      action: null,
     };
   }
 
@@ -112,8 +112,11 @@ export function validateControlAction(action) {
   switch (action.type) {
     case CONTROL_ACTIONS.CLICK:
     case CONTROL_ACTIONS.DOUBLE_CLICK: {
-      const wantsGrounding = (params.x == null && params.y == null) &&
-        typeof action.description === 'string' && action.description.trim().length > 0;
+      const wantsGrounding =
+        params.x == null &&
+        params.y == null &&
+        typeof action.description === 'string' &&
+        action.description.trim().length > 0;
       if (wantsGrounding) {
         // Description-only: the loop's grounder resolves 0–1000 coordinates.
         out.params = {};
@@ -144,12 +147,10 @@ export function validateControlAction(action) {
       const list = Array.isArray(raw) ? raw : [raw];
       if (list.length === 0 || list.length > CONTROL_LIMITS.MAX_KEYS) {
         errors.push(`press requires 1–${CONTROL_LIMITS.MAX_KEYS} key names`);
-      } else if (list.some((k) => typeof k !== 'string' || !k.trim())) {
+      } else if (list.some(k => typeof k !== 'string' || !k.trim())) {
         errors.push('press key names must be non-empty strings');
       } else {
-        const bad = list
-          .map(normalizeKeyName)
-          .filter((k) => !ALLOWED_KEYS.has(k));
+        const bad = list.map(normalizeKeyName).filter(k => !ALLOWED_KEYS.has(k));
         if (bad.length) errors.push(`press received unsupported key(s): ${bad.join(', ')}`);
       }
       if (!errors.length) out.params = { keys: list.map(normalizeKeyName) };
@@ -176,7 +177,7 @@ export function validateControlAction(action) {
           fromX: Math.round(params.fromX),
           fromY: Math.round(params.fromY),
           toX: Math.round(params.toX),
-          toY: Math.round(params.toY)
+          toY: Math.round(params.toY),
         };
       }
       break;
@@ -221,7 +222,7 @@ export function coordsToPixels(x, y, width, height) {
   const clamp = (v, max) => Math.min(Math.max(Math.round(v), 0), max);
   return {
     x: clamp((x / CONTROL_LIMITS.COORD_MAX) * w, w - 1),
-    y: clamp((y / CONTROL_LIMITS.COORD_MAX) * h, h - 1)
+    y: clamp((y / CONTROL_LIMITS.COORD_MAX) * h, h - 1),
   };
 }
 
@@ -243,7 +244,7 @@ export async function executeControlAction(action, bridge, screen = {}) {
       output: null,
       observation: null,
       error: { message: validation.errors.join('; '), kind: 'rejected' },
-      rejected: true
+      rejected: true,
     };
   }
 
@@ -258,12 +259,15 @@ export async function executeControlAction(action, bridge, screen = {}) {
       action: null,
       output: null,
       observation: null,
-      error: { message: `${type} has no coordinates — ground its description first`, kind: 'rejected' },
-      rejected: true
+      error: {
+        message: `${type} has no coordinates — ground its description first`,
+        kind: 'rejected',
+      },
+      rejected: true,
     };
   }
 
-  const dispatch = (computerAction) =>
+  const dispatch = computerAction =>
     bridge.execute({ ...computerAction, reason: reason || computerAction.reason });
 
   try {
@@ -281,7 +285,7 @@ export async function executeControlAction(action, bridge, screen = {}) {
       case CONTROL_ACTIONS.PRESS:
         return await dispatch({
           type: params.keys.length === 1 ? COMPUTER_ACTIONS.PRESS_KEY : COMPUTER_ACTIONS.HOTKEY,
-          params: { keys: params.keys }
+          params: { keys: params.keys },
         });
       case CONTROL_ACTIONS.SCROLL:
         return await dispatch({ type: COMPUTER_ACTIONS.SCROLL, params: { amount: params.amount } });
@@ -297,7 +301,10 @@ export async function executeControlAction(action, bridge, screen = {}) {
         return await dispatch({ type: COMPUTER_ACTIONS.MOVE_MOUSE, params: to });
       }
       case CONTROL_ACTIONS.WAIT:
-        return await dispatch({ type: COMPUTER_ACTIONS.SLEEP, params: { seconds: params.ms / 1000 } });
+        return await dispatch({
+          type: COMPUTER_ACTIONS.SLEEP,
+          params: { seconds: params.ms / 1000 },
+        });
       case CONTROL_ACTIONS.SCREENSHOT:
         return await dispatch({ type: COMPUTER_ACTIONS.SCREENSHOT, params: {} });
       default:
@@ -307,7 +314,7 @@ export async function executeControlAction(action, bridge, screen = {}) {
           output: null,
           observation: null,
           error: { message: `Unsupported control action "${type}"`, kind: 'rejected' },
-          rejected: true
+          rejected: true,
         };
     }
   } catch (err) {
@@ -317,7 +324,7 @@ export async function executeControlAction(action, bridge, screen = {}) {
       output: null,
       observation: null,
       error: { message: err?.message || 'bridge threw', kind: 'error' },
-      rejected: false
+      rejected: false,
     };
   }
 }
@@ -339,11 +346,11 @@ export function adaptLegacyBridge(adapter) {
         width: Number.isFinite(output.width) ? output.width : 1920,
         height: Number.isFinite(output.height) ? output.height : 1080,
         imageBase64: output.imageBase64 || output.base64Png || output.pngBase64 || null,
-        simulated: Boolean(res.simulated)
+        simulated: Boolean(res.simulated),
       };
     },
     async execute(action) {
       return adapter.execute(action);
-    }
+    },
   };
 }

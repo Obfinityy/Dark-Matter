@@ -31,7 +31,10 @@
   cursor: wait;
 }
 
-.dm-btn-hint { font-weight: 400; opacity: 0.75; }
+.dm-btn-hint {
+  font-weight: 400;
+  opacity: 0.75;
+}
 
 .dm-export-note {
   display: inline-flex;
@@ -47,10 +50,15 @@
     flex: 1 1 100%;
     min-height: 48px;
   }
-  .dm-export-note { flex: 1 1 100%; justify-content: center; }
+  .dm-export-note {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dm-report-export .dm-btn-primary,
-  .dm-report-export .dm-btn-secondary { transition: none; }
+  .dm-report-export .dm-btn-secondary {
+    transition: none;
+  }
 }

@@ -13,9 +13,25 @@
  */
 
 const HIDDEN_HINTS = [
-  /staging/i, /stage/i, /\bdev\b/i, /development/i, /test/i, /\bqa\b/i,
-  /uat/i, /sandbox/i, /internal/i, /intranet/i, /corp/i, /vpn/i,
-  /admin/i, /ops/i, /backup/i, /legacy/i, /old/i, /beta/i, /preview/i,
+  /staging/i,
+  /stage/i,
+  /\bdev\b/i,
+  /development/i,
+  /test/i,
+  /\bqa\b/i,
+  /uat/i,
+  /sandbox/i,
+  /internal/i,
+  /intranet/i,
+  /corp/i,
+  /vpn/i,
+  /admin/i,
+  /ops/i,
+  /backup/i,
+  /legacy/i,
+  /old/i,
+  /beta/i,
+  /preview/i,
 ];
 
 /**
@@ -41,7 +57,7 @@ export function searchPattern(records, pattern) {
     re = new RegExp(`^${glob}$`, 'i');
   }
   return (records || [])
-    .filter((r) => r && r.rrname && re.test(String(r.rrname).replace(/\.$/, '')))
+    .filter(r => r && r.rrname && re.test(String(r.rrname).replace(/\.$/, '')))
     .sort((a, b) => String(a.rrname).localeCompare(String(b.rrname)));
 }
 
@@ -65,7 +81,7 @@ export function findHiddenStaging(records, domain, opts = {}) {
     if (!r || !r.rrname) continue;
     const name = String(r.rrname).toLowerCase().replace(/\.$/, '');
     if (name !== apex && !name.endsWith(`.${apex}`)) continue;
-    const matched = hints.filter((h) => h.test(name)).map((h) => String(h));
+    const matched = hints.filter(h => h.test(name)).map(h => String(h));
     if (matched.length === 0) continue;
     const key = `${name}|${r.rrtype || ''}`;
     if (seen.has(key)) continue;

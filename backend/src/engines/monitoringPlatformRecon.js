@@ -48,7 +48,8 @@ const PLATFORM_SIGNATURES = [
     ui: /"kbn-version"|kbn-name|\/bundles\/kibana|\bElastic\b/i,
     headers: /kbn-version|kbn-name/i,
     versionEndpoints: ['/app/home', '/api/spaces/space', '/api/status'],
-    versionPattern: /"version"\s*:\s*{\s*"number"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"|"kbn-version"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"/i,
+    versionPattern:
+      /"version"\s*:\s*{\s*"number"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"|"kbn-version"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"/i,
     loginFlow: /\/login|\/spaces\/enter/i,
   },
   {
@@ -56,7 +57,8 @@ const PLATFORM_SIGNATURES = [
     ui: /Jupyter\s*(Notebook|Hub|Lab)|jupyter\.org/i,
     headers: /x-jupyterhub-version|jupyter/i,
     versionEndpoints: ['/tree', '/login', '/hub/login'],
-    versionPattern: /"version"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"|x-jupyterhub-version:\s*(\d+\.\d+\.\d+)/i,
+    versionPattern:
+      /"version"\s*:\s*"(\d+\.\d+\.\d+[^"]*)"|x-jupyterhub-version:\s*(\d+\.\d+\.\d+)/i,
     loginFlow: /\/(login|hub\/login)/i,
   },
   {
@@ -108,10 +110,12 @@ export function analyzeLoginFlow({ url = '', status = 0, headers = {}, body = ''
   const lowered = url.toLowerCase();
 
   const hasPasswordField = /type\s*=\s*["']password["']/i.test(text);
-  const hasTokenField = /name\s*=\s*["'](?:token|auth[_-]?token|api[_-]?token)["']/i.test(text)
-    || /token\s+or\s+password|paste\s+your\s+token/i.test(text);
+  const hasTokenField =
+    /name\s*=\s*["'](?:token|auth[_-]?token|api[_-]?token)["']/i.test(text) ||
+    /token\s+or\s+password|paste\s+your\s+token/i.test(text);
   const hasUsernameField = /name\s*=\s*["'](?:username|user|login|email)["']/i.test(text);
-  const redirectToLogin = status >= 300 && status < 400 && /login|auth-sign-in|account\/login/i.test(location);
+  const redirectToLogin =
+    status >= 300 && status < 400 && /login|auth-sign-in|account\/login/i.test(location);
   const issuesSessionCookie = /session|splunkweb_csrf|user-id|icingaweb2|_xsrf/i.test(setCookie);
 
   const flow = [];
@@ -216,7 +220,7 @@ export function detectMonitoringPlatform({ url = '', status = 0, headers = {}, b
  * @returns {object} structured finding
  */
 export function checkAirflowVersionExposure({ url = '', status = 0, body = '' }) {
-  const sig = PLATFORM_SIGNATURES.find((s) => s.service === 'Apache Airflow');
+  const sig = PLATFORM_SIGNATURES.find(s => s.service === 'Apache Airflow');
   const text = String(body || '');
   const version = extractPlatformVersion(sig, text);
 
@@ -270,7 +274,7 @@ export function parseKibanaSpaces(payload) {
     return { detected: false, spaces: [], reason: 'No spaces found in payload.' };
   }
 
-  const spaces = list.map((s) => ({
+  const spaces = list.map(s => ({
     id: String(s.id || ''),
     name: String(s.name || ''),
     description: String(s.description || ''),
@@ -278,18 +282,20 @@ export function parseKibanaSpaces(payload) {
     disabledFeatures: Array.isArray(s.disabledFeatures) ? s.disabledFeatures.map(String) : [],
   }));
 
-  const revealing = spaces.filter((s) => s.name && !['default', 'default space'].includes(s.name.toLowerCase()));
+  const revealing = spaces.filter(
+    s => s.name && !['default', 'default space'].includes(s.name.toLowerCase())
+  );
 
   return {
     detected: true,
     service: 'Kibana',
     spaces,
     spaceCount: spaces.length,
-    revealingNames: revealing.map((s) => s.name),
+    revealingNames: revealing.map(s => s.name),
     severity: revealing.length ? 'Low' : 'Info',
     cwe: 'CWE-200',
     evidence: revealing.length
-      ? `${revealing.length} non-default space name(s) disclosed: ${revealing.map((s) => s.name).join(', ')}.`
+      ? `${revealing.length} non-default space name(s) disclosed: ${revealing.map(s => s.name).join(', ')}.`
       : `${spaces.length} space(s) found; only the default space is exposed.`,
   };
 }
@@ -302,10 +308,13 @@ export function parseKibanaSpaces(payload) {
  */
 export function checkJupyterServer({ url = '', status = 0, headers = {}, body = '' }) {
   const text = String(body || '');
-  const hubVersion = String(headers['x-jupyterhub-version'] || headers['X-JupyterHub-Version'] || '');
+  const hubVersion = String(
+    headers['x-jupyterhub-version'] || headers['X-JupyterHub-Version'] || ''
+  );
   const flow = analyzeLoginFlow({ url, status, headers, body });
 
-  const isJupyter = /jupyter/i.test(text) || /jupyter/i.test(Object.keys(headers || {}).join(' ')) || hubVersion;
+  const isJupyter =
+    /jupyter/i.test(text) || /jupyter/i.test(Object.keys(headers || {}).join(' ')) || hubVersion;
 
   if (!isJupyter) {
     return { detected: false, service: 'Jupyter', reason: 'No Jupyter fingerprint matched.' };
@@ -316,7 +325,7 @@ export function checkJupyterServer({ url = '', status = 0, headers = {}, body = 
   if (hubVersion) evidence.push(`JupyterHub version disclosed via header: ${hubVersion}.`);
   if (/\/hub\//i.test(url)) evidence.push('URL belongs to a JupyterHub deployment (multi-user).');
 
-  const sig = PLATFORM_SIGNATURES.find((s) => s.service === 'Jupyter');
+  const sig = PLATFORM_SIGNATURES.find(s => s.service === 'Jupyter');
   const version = extractPlatformVersion(sig, text, headers) || hubVersion || null;
 
   return {

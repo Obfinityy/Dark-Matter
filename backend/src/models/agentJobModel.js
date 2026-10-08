@@ -1,3 +1,9 @@
+/**
+ * agentJobModel — database model for agent Job.
+ * Schema definition and data-access methods for agent Job records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import crypto from 'node:crypto';
 import { id, now } from '../core/utils.js';
 
@@ -22,11 +28,17 @@ export const JOB_STATES = Object.freeze([
   'resuming',
   'completed',
   'failed',
-  'cancelled'
+  'cancelled',
 ]);
 
 /** States that a booting worker must pick back up. */
-export const RECOVERABLE_JOB_STATES = Object.freeze(['queued', 'starting', 'running', 'waiting', 'resuming']);
+export const RECOVERABLE_JOB_STATES = Object.freeze([
+  'queued',
+  'starting',
+  'running',
+  'waiting',
+  'resuming',
+]);
 
 /** Terminal states — never resumed automatically. */
 export const TERMINAL_JOB_STATES = Object.freeze(['completed', 'failed', 'cancelled']);
@@ -44,13 +56,16 @@ export function sanitizeKaggleBrains(input) {
   for (const slot of KAGGLE_SLOTS) {
     const entry = input[slot];
     if (!entry || typeof entry !== 'object') continue;
-    const url = String(entry.url || '').trim().replace(/\/+$/, '');
+    const url = String(entry.url || '')
+      .trim()
+      .replace(/\/+$/, '');
     if (!/^https?:\/\/.+/i.test(url)) continue;
     out[slot] = { url: url.slice(0, 500), name: String(entry.name || '').slice(0, 100) || null };
   }
   return Object.keys(out).length ? out : null;
 }
 
+/** Database model for agent job. */
 export class AgentJobModel {
   constructor(database) {
     this.collection = database.collection('agent_jobs');
@@ -61,7 +76,16 @@ export class AgentJobModel {
   }
 
   /** Create a job in `queued` state. Persisted before the worker is dispatched. */
-  async create({ userId, assessmentId, conversationId = null, target, scope, objective, mode = 'AUTONOMOUS', kaggleBrains = null }) {
+  async create({
+    userId,
+    assessmentId,
+    conversationId = null,
+    target,
+    scope,
+    objective,
+    mode = 'AUTONOMOUS',
+    kaggleBrains = null,
+  }) {
     const timestamp = now();
     const job = {
       id: id('job'),
@@ -87,7 +111,7 @@ export class AgentJobModel {
         phases: [],
         completedSteps: [],
         pendingSteps: [],
-        updatedAt: timestamp
+        updatedAt: timestamp,
       },
 
       // ── Progress / observability ─────────────────────────────────────
@@ -126,7 +150,7 @@ export class AgentJobModel {
       startedAt: null,
       completedAt: null,
       pausedAt: null,
-      resumedAt: null
+      resumedAt: null,
     };
 
     await this.collection.insertOne(job);
@@ -202,10 +226,10 @@ export class AgentJobModel {
             at: now(),
             kind: entry.kind || 'info',
             message: String(entry.message || '').slice(0, 2000),
-            detail: entry.detail || null
-          }
+            detail: entry.detail || null,
+          },
         },
-        $set: { updatedAt: now() }
+        $set: { updatedAt: now() },
       }
     );
   }
@@ -219,10 +243,10 @@ export class AgentJobModel {
             at: now(),
             message: String(error?.message || error || 'unknown error').slice(0, 1000),
             kind: error?.kind || null,
-            fatal: Boolean(error?.fatal)
-          }
+            fatal: Boolean(error?.fatal),
+          },
         },
-        $set: { updatedAt: now() }
+        $set: { updatedAt: now() },
       }
     );
   }
@@ -241,7 +265,15 @@ export class AgentJobModel {
     const leaseExpiresAt = new Date(Date.now() + leaseMs).toISOString();
     await this.collection.updateOne(
       { id: jobId },
-      { $set: { lease, leaseExpiresAt, workerStartedAt, heartbeatAt: timestamp, updatedAt: timestamp } }
+      {
+        $set: {
+          lease,
+          leaseExpiresAt,
+          workerStartedAt,
+          heartbeatAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }
     );
     return this.get(jobId);
   }
@@ -254,17 +286,26 @@ export class AgentJobModel {
   }
 
   async requestPause(jobId) {
-    await this.collection.updateOne({ id: jobId }, { $set: { pauseRequested: true, updatedAt: now() } });
+    await this.collection.updateOne(
+      { id: jobId },
+      { $set: { pauseRequested: true, updatedAt: now() } }
+    );
     return this.get(jobId);
   }
 
   async clearPause(jobId) {
-    await this.collection.updateOne({ id: jobId }, { $set: { pauseRequested: false, updatedAt: now() } });
+    await this.collection.updateOne(
+      { id: jobId },
+      { $set: { pauseRequested: false, updatedAt: now() } }
+    );
     return this.get(jobId);
   }
 
   async requestCancel(jobId) {
-    await this.collection.updateOne({ id: jobId }, { $set: { cancelRequested: true, updatedAt: now() } });
+    await this.collection.updateOne(
+      { id: jobId },
+      { $set: { cancelRequested: true, updatedAt: now() } }
+    );
     return this.get(jobId);
   }
 
@@ -277,8 +318,8 @@ export class AgentJobModel {
         $set: {
           checkpoint: { ...checkpoint, at: timestamp },
           lastCommittedAction: checkpoint.lastCommittedAction || null,
-          updatedAt: timestamp
-        }
+          updatedAt: timestamp,
+        },
       }
     );
   }

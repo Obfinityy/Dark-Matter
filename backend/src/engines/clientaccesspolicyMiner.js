@@ -19,7 +19,12 @@ const DOMAIN_RE = /<domain\b[^>]*?(?:uri|domain)\s*=\s*"([^"]+)"/gi;
 export function parseClientAccessPolicy(xml = '') {
   const notes = [];
   if (typeof xml !== 'string' || !xml.includes('<access-policy')) {
-    return { found: false, domains: [], allowCredentials: false, notes: ['Not a clientaccesspolicy.xml document'] };
+    return {
+      found: false,
+      domains: [],
+      allowCredentials: false,
+      notes: ['Not a clientaccesspolicy.xml document'],
+    };
   }
 
   const domains = new Set();
@@ -32,10 +37,14 @@ export function parseClientAccessPolicy(xml = '') {
   const allowCredentials = /allow-credentials\s*=\s*"?true"?/i.test(xml);
 
   if (domains.has('*')) {
-    notes.push('Wildcard domain grants cross-domain access to ANY origin — review authorization scope.');
+    notes.push(
+      'Wildcard domain grants cross-domain access to ANY origin — review authorization scope.'
+    );
   }
   if (domains.size === 0) {
-    notes.push('Policy present but no domain attributes found — may deny all cross-domain requests.');
+    notes.push(
+      'Policy present but no domain attributes found — may deny all cross-domain requests.'
+    );
   }
 
   return {
@@ -52,7 +61,9 @@ export function parseClientAccessPolicy(xml = '') {
  * @returns {string}
  */
 export function clientAccessPolicyUrl(host) {
-  const clean = String(host).replace(/^https?:\/\//, '').split('/')[0];
+  const clean = String(host)
+    .replace(/^https?:\/\//, '')
+    .split('/')[0];
   return `https://${clean}/clientaccesspolicy.xml`;
 }
 
@@ -78,5 +89,9 @@ export function scorePolicy(parsed) {
   return { score: Math.min(score, 100), reasons };
 }
 
-export const CLIENTACCESSPOLICY_MINER = { parseClientAccessPolicy, clientAccessPolicyUrl, scorePolicy };
+export const CLIENTACCESSPOLICY_MINER = {
+  parseClientAccessPolicy,
+  clientAccessPolicyUrl,
+  scorePolicy,
+};
 export default CLIENTACCESSPOLICY_MINER;

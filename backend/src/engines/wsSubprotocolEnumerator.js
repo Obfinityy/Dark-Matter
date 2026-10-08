@@ -33,7 +33,10 @@ export function extractOfferedSubprotocols(scriptSource = '') {
     const arg = m[1].trim();
     // String literal offer: new WebSocket(url, 'proto')
     const single = /^['"]([^'"]+)['"]$/.exec(arg);
-    if (single) { offers.add(single[1]); continue; }
+    if (single) {
+      offers.add(single[1]);
+      continue;
+    }
     // Array offer: new WebSocket(url, ['a', 'b'])
     const arr = /^\[([^\]]*)\]$/.exec(arg);
     if (arr) {
@@ -62,10 +65,10 @@ export function fingerprintSubprotocol(subprotocol = '') {
  * @returns {{offers: Array<{name: string, framework: string}>, serverSelected: string|null, framework: string}}
  */
 export function analyzeHandshake({ offers = [], serverSelected = null } = {}) {
-  const mapped = offers.map((name) => ({ name, framework: fingerprintSubprotocol(name) }));
+  const mapped = offers.map(name => ({ name, framework: fingerprintSubprotocol(name) }));
   const framework = serverSelected
     ? fingerprintSubprotocol(serverSelected)
-    : (mapped.find((o) => o.framework !== 'unknown-custom')?.framework || 'unknown-custom');
+    : mapped.find(o => o.framework !== 'unknown-custom')?.framework || 'unknown-custom';
   return { offers: mapped, serverSelected, framework };
 }
 

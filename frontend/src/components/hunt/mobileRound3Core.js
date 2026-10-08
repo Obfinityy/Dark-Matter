@@ -52,7 +52,7 @@ const UPDATE_CHANNELS = [
 ];
 export function buildUpdateChannels(optIns) {
   const opted = Array.isArray(optIns) ? optIns : [];
-  return UPDATE_CHANNELS.map((c) => ({
+  return UPDATE_CHANNELS.map(c => ({
     ...c,
     optedIn: c.id === 'stable' ? true : opted.includes(c.id),
     optInRequired: c.id !== 'stable',
@@ -61,7 +61,7 @@ export function buildUpdateChannels(optIns) {
 
 // 52002 — Mobile update channel: opt in or out of a beta channel (stable is mandatory).
 export function setChannelOptIn(optIns, channelId, optIn) {
-  const known = UPDATE_CHANNELS.some((c) => c.id === channelId);
+  const known = UPDATE_CHANNELS.some(c => c.id === channelId);
   const current = Array.isArray(optIns) ? optIns.slice() : [];
   if (!known || channelId === 'stable') return { optIns: current, applied: false };
   const set = new Set(current);
@@ -72,15 +72,18 @@ export function setChannelOptIn(optIns, channelId, optIn) {
 
 // 52003 — Mobile usage analytics: privacy-safe aggregation (no identifiers retained).
 export function aggregateUsageAnalytics(events) {
-  const list = (Array.isArray(events) ? events : []).map((e) => e || {});
-  const sessions = new Set(list.map((e) => e.sessionId).filter(Boolean)).size;
+  const list = (Array.isArray(events) ? events : []).map(e => e || {});
+  const sessions = new Set(list.map(e => e.sessionId).filter(Boolean)).size;
   const screenViews = {};
   const featureUses = {};
   let totalDurationMs = 0;
   for (const e of list) {
-    if (e.type === 'screen_view' && e.screen) screenViews[e.screen] = (screenViews[e.screen] || 0) + 1;
-    if (e.type === 'feature_use' && e.feature) featureUses[e.feature] = (featureUses[e.feature] || 0) + 1;
-    if (e.type === 'session_end' && Number.isFinite(Number(e.durationMs))) totalDurationMs += Number(e.durationMs);
+    if (e.type === 'screen_view' && e.screen)
+      screenViews[e.screen] = (screenViews[e.screen] || 0) + 1;
+    if (e.type === 'feature_use' && e.feature)
+      featureUses[e.feature] = (featureUses[e.feature] || 0) + 1;
+    if (e.type === 'session_end' && Number.isFinite(Number(e.durationMs)))
+      totalDurationMs += Number(e.durationMs);
   }
   return {
     events: list.length,
@@ -110,10 +113,14 @@ export function buildEndOfHuntSummary(hunt, now = Date.now()) {
   const startedAt = Number(h.startedAt || now);
   const durationMinutes = Math.max(0, Math.round((now - startedAt) / 60000));
   const topFindings = findings
-    .filter((f) => f)
+    .filter(f => f)
     .sort((a, b) => sevRank(a.severity) - sevRank(b.severity))
     .slice(0, 3)
-    .map((f) => ({ id: f.id || null, title: String(f.title || 'Untitled'), severity: String(f.severity || 'info') }));
+    .map(f => ({
+      id: f.id || null,
+      title: String(f.title || 'Untitled'),
+      severity: String(f.severity || 'info'),
+    }));
   const reviewed = Number(h.reviewed || 0);
   return {
     huntId: h.huntId || null,

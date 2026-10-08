@@ -64,11 +64,15 @@ export function cosineSimilarity(a, b) {
  * @returns {number} Jaccard-style overlap in [0,1]
  */
 export function paletteOverlap(a = [], b = []) {
-  const norm = (c) => String(c || '').trim().toLowerCase().replace(/^#/, '');
+  const norm = c =>
+    String(c || '')
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, '');
   const setA = new Set(a.map(norm).filter(Boolean));
   const setB = new Set(b.map(norm).filter(Boolean));
   if (setA.size === 0 && setB.size === 0) return 0.5;
-  const inter = [...setA].filter((c) => setB.has(c)).length;
+  const inter = [...setA].filter(c => setB.has(c)).length;
   const union = new Set([...setA, ...setB]).size;
   return union === 0 ? 0 : inter / union;
 }
@@ -77,12 +81,15 @@ export function paletteOverlap(a = [], b = []) {
  * Compare font family lists (case-insensitive, generic families ignored).
  */
 export function fontOverlap(a = [], b = []) {
-  const norm = (s) => String(s || '').trim().toLowerCase();
+  const norm = s =>
+    String(s || '')
+      .trim()
+      .toLowerCase();
   const generic = new Set(['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'system-ui']);
-  const setA = new Set(a.map(norm).filter((x) => x && !generic.has(x)));
-  const setB = new Set(b.map(norm).filter((x) => x && !generic.has(x)));
+  const setA = new Set(a.map(norm).filter(x => x && !generic.has(x)));
+  const setB = new Set(b.map(norm).filter(x => x && !generic.has(x)));
   if (setA.size === 0 && setB.size === 0) return 0.5;
-  const inter = [...setA].filter((x) => setB.has(x)).length;
+  const inter = [...setA].filter(x => setB.has(x)).length;
   const union = new Set([...setA, ...setB]).size;
   return union === 0 ? 0 : inter / union;
 }
@@ -103,9 +110,16 @@ export function compareLayouts(target = {}, suspect = {}) {
 
   let verdict = 'dissimilar';
   let severity = 'low';
-  if (score >= 0.85) { verdict = 'likely-impersonation'; severity = 'high'; }
-  else if (score >= 0.65) { verdict = 'suspicious-resemblance'; severity = 'medium'; }
-  else if (score >= 0.45) { verdict = 'weak-resemblance'; severity = 'low'; }
+  if (score >= 0.85) {
+    verdict = 'likely-impersonation';
+    severity = 'high';
+  } else if (score >= 0.65) {
+    verdict = 'suspicious-resemblance';
+    severity = 'medium';
+  } else if (score >= 0.45) {
+    verdict = 'weak-resemblance';
+    severity = 'low';
+  }
 
   const evidence = [
     { signal: 'structural-similarity', value: Number(structural.toFixed(4)) },
@@ -130,9 +144,9 @@ export function compareLayouts(target = {}, suspect = {}) {
  */
 export function sweepSuspects(target = {}, suspects = []) {
   return suspects
-    .filter((s) => s && s.features)
-    .map((s) => ({ host: s.host, ...compareLayouts(target, s.features) }))
-    .filter((r) => r.verdict !== 'dissimilar')
+    .filter(s => s && s.features)
+    .map(s => ({ host: s.host, ...compareLayouts(target, s.features) }))
+    .filter(r => r.verdict !== 'dissimilar')
     .sort((a, b) => b.score - a.score);
 }
 

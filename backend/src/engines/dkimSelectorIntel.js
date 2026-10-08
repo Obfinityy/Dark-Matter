@@ -22,12 +22,44 @@ const resolver = new dns.promises.Resolver();
  * @type {string[]}
  */
 export const COMMON_DKIM_SELECTORS = [
-  'default', 'dkim', 'mail', 'selector1', 'selector2', 's1', 's2',
-  'google', 'k1', 'k2', 'mxvault', 'everlytickey1', 'everlytickey2',
-  'cm', 'mandrill', 'mailgun', 'sendgrid', 'amazonses', 'dkim1',
-  'dkim2', 'proofpoint', 'mimecast', 'zoho', 'yandex', 'postmark',
-  'sparkpost', 'message', 'email', 'sig1', 'sig2', 'key1', 'key2',
-  'protonmail', 'fastmail', 'tutanota', 'outlook', 'o365', 'ms365',
+  'default',
+  'dkim',
+  'mail',
+  'selector1',
+  'selector2',
+  's1',
+  's2',
+  'google',
+  'k1',
+  'k2',
+  'mxvault',
+  'everlytickey1',
+  'everlytickey2',
+  'cm',
+  'mandrill',
+  'mailgun',
+  'sendgrid',
+  'amazonses',
+  'dkim1',
+  'dkim2',
+  'proofpoint',
+  'mimecast',
+  'zoho',
+  'yandex',
+  'postmark',
+  'sparkpost',
+  'message',
+  'email',
+  'sig1',
+  'sig2',
+  'key1',
+  'key2',
+  'protonmail',
+  'fastmail',
+  'tutanota',
+  'outlook',
+  'o365',
+  'ms365',
 ];
 
 /**
@@ -78,7 +110,10 @@ export function estimateRsaKeyBits(p) {
           for (let j = 0; j < lenBytes; j++) len = (len << 8) | bytes[off++];
         }
         const start = off;
-        if (bytes[start] === 0x00) { off++; len--; }
+        if (bytes[start] === 0x00) {
+          off++;
+          len--;
+        }
         if (len > 64 && len < 1024 && start + len <= bytes.length) {
           const bits = len * 8;
           if (bits > best) best = bits;
@@ -87,7 +122,7 @@ export function estimateRsaKeyBits(p) {
     }
     if (best > 0) return best;
     // Fallback: raw DER length heuristic for SubjectPublicKeyInfo RSA keys.
-    const approx = Math.round((bytes.length - 40) * 8 / 8);
+    const approx = Math.round(((bytes.length - 40) * 8) / 8);
     return approx >= 512 ? approx : null;
   } catch {
     return null;
@@ -151,25 +186,39 @@ export function analyzeDkimSelector(domain, selector, txtRecords) {
  * @returns {Promise<{domain:string, discovered:Array, summary:string[]}>}
  */
 export async function discoverDkimSelectors(domain, selectors = COMMON_DKIM_SELECTORS) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const discovered = [];
   const summary = [];
-  await Promise.all(selectors.map(async (selector) => {
-    const name = `${selector}._domainkey.${d}`;
-    try {
-      const txt = await resolver.resolveTxt(name);
-      const joined = txt.map(chunks => chunks.join(''));
-      const analysis = analyzeDkimSelector(d, selector, joined);
-      if (analysis.present) discovered.push(analysis);
-    } catch { /* selector not published — not a finding */ }
-  }));
+  await Promise.all(
+    selectors.map(async selector => {
+      const name = `${selector}._domainkey.${d}`;
+      try {
+        const txt = await resolver.resolveTxt(name);
+        const joined = txt.map(chunks => chunks.join(''));
+        const analysis = analyzeDkimSelector(d, selector, joined);
+        if (analysis.present) discovered.push(analysis);
+      } catch {
+        /* selector not published — not a finding */
+      }
+    })
+  );
   discovered.sort((a, b) => a.selector.localeCompare(b.selector));
   if (discovered.length === 0) {
-    summary.push('No DKIM selectors from the common list are published — the domain may use unpublished selectors or no DKIM at all (check DMARC policy for p=none vs reject).');
+    summary.push(
+      'No DKIM selectors from the common list are published — the domain may use unpublished selectors or no DKIM at all (check DMARC policy for p=none vs reject).'
+    );
   } else {
-    summary.push(`${discovered.length} DKIM selector(s) discovered: ${discovered.map(x => x.selector).join(', ')} — each selector is a mail-signing key worth key-strength and rotation review.`);
+    summary.push(
+      `${discovered.length} DKIM selector(s) discovered: ${discovered.map(x => x.selector).join(', ')} — each selector is a mail-signing key worth key-strength and rotation review.`
+    );
     const weak = discovered.filter(x => (x.keyBits ?? Infinity) < 1024);
-    if (weak.length) summary.push(`WEAK KEYS: ${weak.map(x => `${x.selector} (~${x.keyBits} bits)`).join(', ')} — factorable keys break the domain's DMARC story.`);
+    if (weak.length)
+      summary.push(
+        `WEAK KEYS: ${weak.map(x => `${x.selector} (~${x.keyBits} bits)`).join(', ')} — factorable keys break the domain's DMARC story.`
+      );
   }
   return { domain: d, discovered, summary };
 }

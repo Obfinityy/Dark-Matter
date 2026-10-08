@@ -12,7 +12,9 @@
 
 /** Netlogon secure-channel types (MS-NRPC). */
 const SECURE_CHANNEL_TYPES = {
-  2: 'Workstation', 4: 'Server', 6: 'DomainController',
+  2: 'Workstation',
+  4: 'Server',
+  6: 'DomainController',
 };
 
 /** Notable Netlogon negotiate flags (MS-NRPC §3.1.4.2). */
@@ -72,7 +74,8 @@ export function analyzeNetlogonBehavior({
   const flags = decodeNetlogonFlags(negotiateFlags);
   const channelType = SECURE_CHANNEL_TYPES[secureChannelType] || `unknown(${secureChannelType})`;
   const modernCrypto = flags.includes('NETLOGON_NEG_AES_SHA2');
-  const strongKey = flags.includes('NETLOGON_NEG_STRONGKEY') || flags.includes('NETLOGON_NEG_128BIT');
+  const strongKey =
+    flags.includes('NETLOGON_NEG_STRONGKEY') || flags.includes('NETLOGON_NEG_128BIT');
 
   const findings = [];
   if (!modernCrypto) {

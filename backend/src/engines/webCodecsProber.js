@@ -18,7 +18,14 @@
 const BROWSER_CODEC_PROFILES = [
   {
     family: 'chromium',
-    video: ['avc1.42E01E', 'avc1.640028', 'hev1.1.6.L93.B0', 'vp8', 'vp09.00.10.08', 'av01.0.05M.08'],
+    video: [
+      'avc1.42E01E',
+      'avc1.640028',
+      'hev1.1.6.L93.B0',
+      'vp8',
+      'vp09.00.10.08',
+      'av01.0.05M.08',
+    ],
     audio: ['mp4a.40.2', 'mp4a.40.5', 'opus', 'flac'],
     note: 'Chromium ships broad codec support incl. AV1 and HEVC (platform-dependent).',
   },
@@ -36,7 +43,14 @@ const BROWSER_CODEC_PROFILES = [
   },
   {
     family: 'edge-chromium',
-    video: ['avc1.42E01E', 'avc1.640028', 'hev1.1.6.L93.B0', 'vp8', 'vp09.00.10.08', 'av01.0.05M.08'],
+    video: [
+      'avc1.42E01E',
+      'avc1.640028',
+      'hev1.1.6.L93.B0',
+      'vp8',
+      'vp09.00.10.08',
+      'av01.0.05M.08',
+    ],
     audio: ['mp4a.40.2', 'mp4a.40.5', 'opus', 'flac', 'ec-3'],
     note: 'Edge (Chromium) adds Dolby codecs (EC-3/AC-4) on Windows.',
   },
@@ -77,18 +91,23 @@ export function normalizeSupportMatrix(report = {}) {
  * @returns {{family: string, confidence: number, note: string}[]}
  */
 export function fingerprintBrowserStack(matrix = {}) {
-  const video = new Set((Array.isArray(matrix.video) ? matrix.video : []).map((c) => c.toLowerCase()));
-  const audio = new Set((Array.isArray(matrix.audio) ? matrix.audio : []).map((c) => c.toLowerCase()));
+  const video = new Set(
+    (Array.isArray(matrix.video) ? matrix.video : []).map(c => c.toLowerCase())
+  );
+  const audio = new Set(
+    (Array.isArray(matrix.audio) ? matrix.audio : []).map(c => c.toLowerCase())
+  );
   const scored = [];
   for (const p of BROWSER_CODEC_PROFILES) {
-    const pv = p.video.map((c) => c.toLowerCase());
-    const pa = p.audio.map((c) => c.toLowerCase());
-    const vHits = pv.filter((c) => video.has(c)).length;
-    const aHits = pa.filter((c) => audio.has(c)).length;
+    const pv = p.video.map(c => c.toLowerCase());
+    const pa = p.audio.map(c => c.toLowerCase());
+    const vHits = pv.filter(c => video.has(c)).length;
+    const aHits = pa.filter(c => audio.has(c)).length;
     const vRecall = pv.length ? vHits / pv.length : 0;
     const aRecall = pa.length ? aHits / pa.length : 0;
-    const confidence = Math.round(((vRecall * 0.7 + aRecall * 0.3)) * 100);
-    if (confidence > 0) scored.push({ family: p.family, confidence: Math.min(95, confidence), note: p.note });
+    const confidence = Math.round((vRecall * 0.7 + aRecall * 0.3) * 100);
+    if (confidence > 0)
+      scored.push({ family: p.family, confidence: Math.min(95, confidence), note: p.note });
   }
   return scored.sort((a, b) => b.confidence - a.confidence);
 }
@@ -102,12 +121,15 @@ export function classifyHardwareAcceleration(matrix = {}) {
   const video = Array.isArray(matrix.video) ? matrix.video : [];
   const hw = new Set(Array.isArray(matrix.hwAccelerated) ? matrix.hwAccelerated : []);
   const sw = new Set(Array.isArray(matrix.swOnly) ? matrix.swOnly : []);
-  const hwCount = video.filter((c) => hw.has(c)).length;
-  const swCount = video.filter((c) => sw.has(c)).length;
+  const hwCount = video.filter(c => hw.has(c)).length;
+  const swCount = video.filter(c => sw.has(c)).length;
   const unknownCount = video.length - hwCount - swCount;
-  const posture = hwCount >= Math.ceil(video.length / 2) && video.length > 0
-    ? 'hardware-accelerated'
-    : swCount > hwCount ? 'software-decode-heavy' : 'mixed-or-unknown';
+  const posture =
+    hwCount >= Math.ceil(video.length / 2) && video.length > 0
+      ? 'hardware-accelerated'
+      : swCount > hwCount
+        ? 'software-decode-heavy'
+        : 'mixed-or-unknown';
   return { hwCount, swCount, unknownCount, posture };
 }
 
@@ -122,18 +144,19 @@ export function scoreFingerprintUniqueness(matrix = {}) {
   const audio = Array.isArray(matrix.audio) ? matrix.audio : [];
   const total = video.length + audio.length;
   // Rare codecs (HEVC variants, EC-3, AV1 profiles) add more bits than baseline H.264/AAC.
-  const rare = [...video, ...audio].filter((c) => /hev1|hvc1|ec-3|ac-4|av01|vp09/i.test(c)).length;
+  const rare = [...video, ...audio].filter(c => /hev1|hvc1|ec-3|ac-4|av01|vp09/i.test(c)).length;
   const baseline = total - rare;
   const bits = Math.round((baseline * 0.5 + rare * 2.2) * 10) / 10;
   const uniqueness = bits >= 12 ? 'high' : bits >= 6 ? 'medium' : 'low';
   return {
     bits,
     uniqueness,
-    note: uniqueness === 'high'
-      ? 'Codec combination is distinctive — strong browser-stack signal.'
-      : uniqueness === 'medium'
-        ? 'Codec combination is moderately identifying.'
-        : 'Codec combination is common — weak signal on its own.',
+    note:
+      uniqueness === 'high'
+        ? 'Codec combination is distinctive — strong browser-stack signal.'
+        : uniqueness === 'medium'
+          ? 'Codec combination is moderately identifying.'
+          : 'Codec combination is common — weak signal on its own.',
   };
 }
 

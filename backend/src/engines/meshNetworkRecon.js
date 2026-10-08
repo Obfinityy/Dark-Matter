@@ -59,8 +59,7 @@ export function parseNebulaCert(cert) {
   const subnets = Array.isArray(details.subnets) ? details.subnets.map(String) : [];
   if (!name && ips.length === 0) return empty;
 
-  const issuer =
-    obj.issuer?.fingerprint || details.issuer || obj.issuer || '';
+  const issuer = obj.issuer?.fingerprint || details.issuer || obj.issuer || '';
   const notBefore = details.not_before || details.notBefore || null;
   const notAfter = details.not_after || details.notAfter || null;
   let durationDays = null;
@@ -122,7 +121,7 @@ export function mineNebulaCerts(certs = []) {
     meshSummary: {
       nodeCount: nodes.length,
       groupCount: Object.keys(groupIndex).length,
-      issuerCount: new Set(nodes.map((n) => n.issuer).filter(Boolean)).size,
+      issuerCount: new Set(nodes.map(n => n.issuer).filter(Boolean)).size,
     },
   };
 }
@@ -156,14 +155,16 @@ export function detectWireGuardPeerLeaks(text, source = '') {
   if (sections.length === 0) {
     return { found: false, grade: 'none', peers: [], evidence: '' };
   }
-  const endpoints = [...body.matchAll(WG_ENDPOINT_RE)].map((m) => m[1]);
-  const publicKeys = [...body.matchAll(WG_PUBKEY_RE)].map((m) => m[1]);
-  const allowedIps = [...body.matchAll(WG_ALLOWEDIPS_RE)].map((m) => m[1]);
+  const endpoints = [...body.matchAll(WG_ENDPOINT_RE)].map(m => m[1]);
+  const publicKeys = [...body.matchAll(WG_PUBKEY_RE)].map(m => m[1]);
+  const allowedIps = [...body.matchAll(WG_ALLOWEDIPS_RE)].map(m => m[1]);
 
   // Split per-peer blocks: text between [Peer] markers.
   const blocks = body.split(/^\s*\[Peer\]\s*$/gim).slice(1);
-  const endpointInBlock = (block) => [...block.matchAll(/^\s*Endpoint\s*=\s*([^\s#;]+)\s*$/gim)].map((m) => m[1]);
-  const allowedInBlock = (block) => [...block.matchAll(/^\s*AllowedIPs\s*=\s*([^\s#;]+)\s*$/gim)].map((m) => m[1]);
+  const endpointInBlock = block =>
+    [...block.matchAll(/^\s*Endpoint\s*=\s*([^\s#;]+)\s*$/gim)].map(m => m[1]);
+  const allowedInBlock = block =>
+    [...block.matchAll(/^\s*AllowedIPs\s*=\s*([^\s#;]+)\s*$/gim)].map(m => m[1]);
   const pubkeyInBlock = /^\s*PublicKey\s*=\s*[A-Za-z0-9+/=]{43,44}\s*$/gim;
   const peers = blocks.map((block, i) => {
     pubkeyInBlock.lastIndex = 0; // /g regexes are stateful — reset before each test
@@ -208,11 +209,7 @@ const HEADSCALE_API_PATHS = [
   '/api/v1/debug',
 ];
 
-const HEADSCALE_BODY_SIGS = [
-  /headscale/i,
-  /tailscale.{0,40}headscale/i,
-  /"headscale"/i,
-];
+const HEADSCALE_BODY_SIGS = [/headscale/i, /tailscale.{0,40}headscale/i, /"headscale"/i];
 
 const HEADSCALE_HEADER_SIGS = [
   { header: 'x-headscale-version', weight: 3 },
@@ -225,8 +222,8 @@ const HEADSCALE_ADMIN_HINT = /(headscale-admin|hskey|headscale[\w-]*oidc|oidc[\w
 
 /** Match an observed path against a known API prefix on segment boundaries. */
 function pathMatchesApi(observedPaths, apiPaths) {
-  return (observedPaths || []).filter((p) =>
-    apiPaths.some((api) => p === api || p.startsWith(`${api}/`) || p.startsWith(`${api}?`))
+  return (observedPaths || []).filter(p =>
+    apiPaths.some(api => p === api || p.startsWith(`${api}/`) || p.startsWith(`${api}?`))
   );
 }
 
@@ -292,11 +289,7 @@ const NETMAKER_API_PATHS = [
   '/api/hosts',
 ];
 
-const NETMAKER_BODY_SIGS = [
-  /netmaker/i,
-  /"netmaker-version"/i,
-  /netclient/i,
-];
+const NETMAKER_BODY_SIGS = [/netmaker/i, /"netmaker-version"/i, /netclient/i];
 
 const NETMAKER_HEADER_SIGS = [
   { header: 'server', pattern: /netmaker/i, weight: 2 },
@@ -400,7 +393,7 @@ export function mapInnernetCidr(config) {
     mapped: true,
     networks,
     overlaps,
-    peerCount: peers.length || new Set(networks.flatMap((n) => n.peers)).size,
+    peerCount: peers.length || new Set(networks.flatMap(n => n.peers)).size,
     totalAddresses: networks.reduce((sum, n) => sum + cidrSize(n.cidr), 0),
   };
 }
@@ -426,7 +419,7 @@ function parseInnernetToml(text) {
     if (arrayMatch) {
       value = arrayMatch[1]
         .split(',')
-        .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+        .map(s => s.trim().replace(/^["']|["']$/g, ''))
         .filter(Boolean);
     }
     if (section && section.startsWith('networks.')) {
@@ -444,13 +437,15 @@ function parseInnernetToml(text) {
 
 /** Convert an IPv4 CIDR to a [start, end] integer range; null if invalid. */
 function cidrRange(cidr) {
-  const m = String(cidr).trim().match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
+  const m = String(cidr)
+    .trim()
+    .match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
   if (!m) return null;
   const octets = m[1].split('.').map(Number);
-  if (octets.some((o) => o < 0 || o > 255)) return null;
+  if (octets.some(o => o < 0 || o > 255)) return null;
   const prefix = Number(m[2]);
   if (prefix < 0 || prefix > 32) return null;
-  const ip = ((octets[0] * 256 ** 3) + (octets[1] * 256 ** 2) + (octets[2] * 256) + octets[3]) >>> 0;
+  const ip = (octets[0] * 256 ** 3 + octets[1] * 256 ** 2 + octets[2] * 256 + octets[3]) >>> 0;
   const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
   const start = (ip & mask) >>> 0;
   const end = (start | (~mask >>> 0)) >>> 0;

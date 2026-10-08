@@ -31,7 +31,11 @@ export const WAVE56_FMT_IDEAS = [
 const SEVERITY_ORDER = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
 
 function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function summarize(findings) {
@@ -42,18 +46,31 @@ function summarize(findings) {
 
 /* 52201 — DOCX payload model builder. */
 export function buildDocxModel(hunt, now = Date.now()) {
-  if (!hunt || !Array.isArray(hunt.findings)) return { ok: false, reason: 'hunt with findings array required' };
+  if (!hunt || !Array.isArray(hunt.findings))
+    return { ok: false, reason: 'hunt with findings array required' };
   const sections = [
     { kind: 'cover', title: 'Security Assessment Report', target: hunt.target },
     { kind: 'summary', ...summarize(hunt.findings) },
-    ...hunt.findings.map((f) => ({ kind: 'finding', id: f.id, heading: f.title, severity: f.severity, body: f.description, poc: f.poc || null, remediation: f.remediation || null })),
+    ...hunt.findings.map(f => ({
+      kind: 'finding',
+      id: f.id,
+      heading: f.title,
+      severity: f.severity,
+      body: f.description,
+      poc: f.poc || null,
+      remediation: f.remediation || null,
+    })),
   ];
-  return { ok: true, docx: { format: 'docx', editable: true, target: hunt.target, generatedAt: now, sections } };
+  return {
+    ok: true,
+    docx: { format: 'docx', editable: true, target: hunt.target, generatedAt: now, sections },
+  };
 }
 
 /* 52202 — Nessus-style XML builder. */
 export function buildNessusXml(hunt, now = Date.now()) {
-  if (!hunt || !Array.isArray(hunt.findings)) return { ok: false, reason: 'hunt with findings array required' };
+  if (!hunt || !Array.isArray(hunt.findings))
+    return { ok: false, reason: 'hunt with findings array required' };
   const hosts = {};
   for (const f of hunt.findings) {
     const h = f.target || hunt.target || 'unknown';
@@ -77,13 +94,15 @@ export function buildNessusXml(hunt, now = Date.now()) {
 
 /* 52203 — JUnit XML for CI. */
 export function buildJUnitXml(hunt, now = Date.now()) {
-  if (!hunt || !Array.isArray(hunt.findings)) return { ok: false, reason: 'hunt with findings array required' };
-  const failures = hunt.findings.filter((f) => f.severity === 'critical' || f.severity === 'high');
+  if (!hunt || !Array.isArray(hunt.findings))
+    return { ok: false, reason: 'hunt with findings array required' };
+  const failures = hunt.findings.filter(f => f.severity === 'critical' || f.severity === 'high');
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="dark-matter-hunt-${esc(hunt.id)}" tests="${hunt.findings.length}" failures="${failures.length}" timestamp="${new Date(now).toISOString()}">\n`;
   for (const f of hunt.findings) {
     const failed = f.severity === 'critical' || f.severity === 'high';
     xml += ` <testcase classname="${esc(f.vulnClass || 'finding')}" name="${esc(f.id)} ${esc(f.title)}">\n`;
-    if (failed) xml += `  <failure message="${esc(f.severity)} finding">${esc(f.description)}</failure>\n`;
+    if (failed)
+      xml += `  <failure message="${esc(f.severity)} finding">${esc(f.description)}</failure>\n`;
     xml += ' </testcase>\n';
   }
   xml += '</testsuite>';
@@ -95,11 +114,12 @@ export function selectFilteredSubset(findings, filter = {}) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
   const { severity, status, vulnClass, target } = filter;
   const subset = findings.filter(
-    (f) =>
-      (!severity || (Array.isArray(severity) ? severity.includes(f.severity) : f.severity === severity)) &&
+    f =>
+      (!severity ||
+        (Array.isArray(severity) ? severity.includes(f.severity) : f.severity === severity)) &&
       (!status || f.status === status) &&
       (!vulnClass || f.vulnClass === vulnClass) &&
-      (!target || f.target === target),
+      (!target || f.target === target)
   );
   return { ok: true, subset, total: findings.length, filter };
 }
@@ -108,33 +128,59 @@ export function selectFilteredSubset(findings, filter = {}) {
 export function exportSelectedOnly(findings, selectedIds) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
   const ids = Array.isArray(selectedIds) ? selectedIds : [];
-  const picked = ids.map((id) => findings.find((f) => f.id === id)).filter(Boolean);
+  const picked = ids.map(id => findings.find(f => f.id === id)).filter(Boolean);
   return { ok: true, findings: picked, requested: ids.length, resolved: picked.length };
 }
 
 /* 52206 — Triage-state-aware enricher. */
 export function enrichWithTriage(findings, triage = {}) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
-  const enriched = findings.map((f) => {
+  const enriched = findings.map(f => {
     const t = triage[f.id] || {};
-    return { ...f, triage: { decision: t.decision || 'pending', reviewer: t.reviewer || null, decidedAt: t.decidedAt || null } };
+    return {
+      ...f,
+      triage: {
+        decision: t.decision || 'pending',
+        reviewer: t.reviewer || null,
+        decidedAt: t.decidedAt || null,
+      },
+    };
   });
   return { ok: true, findings: enriched };
 }
 
 /* 52207 — FP appendix builder. */
 export function buildFpAppendix(dismissedFindings) {
-  if (!Array.isArray(dismissedFindings)) return { ok: false, reason: 'dismissed findings array required' };
-  const entries = dismissedFindings.map((f) => ({ id: f.id, title: f.title, severity: f.severity, reason: f.fpReason || f.dismissalReason || 'no reason recorded', dismissedBy: f.dismissedBy || null, dismissedAt: f.dismissedAt || null }));
-  return { ok: true, appendix: { title: 'Dismissed findings (false positives)', entries, count: entries.length } };
+  if (!Array.isArray(dismissedFindings))
+    return { ok: false, reason: 'dismissed findings array required' };
+  const entries = dismissedFindings.map(f => ({
+    id: f.id,
+    title: f.title,
+    severity: f.severity,
+    reason: f.fpReason || f.dismissalReason || 'no reason recorded',
+    dismissedBy: f.dismissedBy || null,
+    dismissedAt: f.dismissedAt || null,
+  }));
+  return {
+    ok: true,
+    appendix: { title: 'Dismissed findings (false positives)', entries, count: entries.length },
+  };
 }
 
 /* 52208 — Remediation-status enricher. */
 export function enrichRemediationStatus(findings, statusMap = {}) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
-  const enriched = findings.map((f) => {
+  const enriched = findings.map(f => {
     const s = statusMap[f.id] || {};
-    return { ...f, remediationStatus: { state: s.state || 'not-started', assignee: s.assignee || f.assignee || null, verification: s.verification || null, updatedAt: s.updatedAt || null } };
+    return {
+      ...f,
+      remediationStatus: {
+        state: s.state || 'not-started',
+        assignee: s.assignee || f.assignee || null,
+        verification: s.verification || null,
+        updatedAt: s.updatedAt || null,
+      },
+    };
   });
   return { ok: true, findings: enriched };
 }
@@ -142,22 +188,43 @@ export function enrichRemediationStatus(findings, statusMap = {}) {
 /* 52209 — Schedule evaluator. */
 export function evaluateSchedule(schedules, now = Date.now()) {
   if (!Array.isArray(schedules)) return { ok: false, reason: 'schedules array required' };
-  const due = schedules.filter((s) => typeof s.nextRunAt === 'number' && s.nextRunAt <= now);
-  const upcoming = schedules.filter((s) => typeof s.nextRunAt === 'number' && s.nextRunAt > now).sort((a, b) => a.nextRunAt - b.nextRunAt);
+  const due = schedules.filter(s => typeof s.nextRunAt === 'number' && s.nextRunAt <= now);
+  const upcoming = schedules
+    .filter(s => typeof s.nextRunAt === 'number' && s.nextRunAt > now)
+    .sort((a, b) => a.nextRunAt - b.nextRunAt);
   return { ok: true, due, upcoming, evaluatedAt: now };
 }
 
 /* 52210 — S3 / Drive delivery descriptor. */
 export function buildDeliveryDescriptor(destination) {
-  if (!destination || !destination.kind) return { ok: false, reason: 'destination {kind} required' };
+  if (!destination || !destination.kind)
+    return { ok: false, reason: 'destination {kind} required' };
   const kind = destination.kind;
   if (kind === 's3') {
-    if (!destination.bucket || !destination.key) return { ok: false, reason: 's3 needs bucket + key' };
-    return { ok: true, descriptor: { kind, bucket: destination.bucket, key: destination.key, region: destination.region || 'us-east-1', acl: destination.acl || 'private' } };
+    if (!destination.bucket || !destination.key)
+      return { ok: false, reason: 's3 needs bucket + key' };
+    return {
+      ok: true,
+      descriptor: {
+        kind,
+        bucket: destination.bucket,
+        key: destination.key,
+        region: destination.region || 'us-east-1',
+        acl: destination.acl || 'private',
+      },
+    };
   }
   if (kind === 'drive') {
     if (!destination.folderId) return { ok: false, reason: 'drive needs folderId' };
-    return { ok: true, descriptor: { kind, folderId: destination.folderId, filename: destination.filename || 'report.pdf', shareWith: destination.shareWith || [] } };
+    return {
+      ok: true,
+      descriptor: {
+        kind,
+        folderId: destination.folderId,
+        filename: destination.filename || 'report.pdf',
+        shareWith: destination.shareWith || [],
+      },
+    };
   }
   return { ok: false, reason: `unsupported destination kind: ${kind}` };
 }
@@ -166,12 +233,20 @@ export function buildDeliveryDescriptor(destination) {
 export function buildApiExportRequest(opts) {
   if (!opts || !opts.format) return { ok: false, reason: 'format required' };
   const allowed = ['pdf', 'docx', 'csv', 'json', 'sarif', 'nessus', 'junit', 'html', 'md', 'stix'];
-  if (!allowed.includes(opts.format)) return { ok: false, reason: `unsupported format: ${opts.format}` };
+  if (!allowed.includes(opts.format))
+    return { ok: false, reason: `unsupported format: ${opts.format}` };
   return {
     ok: true,
     request: {
-      method: 'POST', path: '/api/v1/exports',
-      body: { format: opts.format, huntId: opts.huntId || null, filter: opts.filter || {}, language: opts.language || 'en', redacted: !!opts.redacted },
+      method: 'POST',
+      path: '/api/v1/exports',
+      body: {
+        format: opts.format,
+        huntId: opts.huntId || null,
+        filter: opts.filter || {},
+        language: opts.language || 'en',
+        redacted: !!opts.redacted,
+      },
     },
   };
 }
@@ -181,7 +256,13 @@ export function templateStore(templates = {}, action) {
   if (!action || !action.type) return { ok: false, reason: 'action {type} required' };
   if (action.type === 'save') {
     if (!action.name || !action.config) return { ok: false, reason: 'save needs name + config' };
-    return { ok: true, templates: { ...templates, [action.name]: { ...action.config, savedAt: action.now ?? Date.now() } } };
+    return {
+      ok: true,
+      templates: {
+        ...templates,
+        [action.name]: { ...action.config, savedAt: action.now ?? Date.now() },
+      },
+    };
   }
   if (action.type === 'apply') {
     const t = templates[action.name];
@@ -195,21 +276,33 @@ export function templateStore(templates = {}, action) {
 /* 52213 — Multi-language export descriptor. */
 export const EXPORT_LANGUAGES = ['en', 'hi', 'es', 'fr', 'de', 'pt'];
 export function buildLanguageDescriptor(lang) {
-  if (!EXPORT_LANGUAGES.includes(lang)) return { ok: false, reason: `unsupported language: ${lang}`, supported: EXPORT_LANGUAGES };
+  if (!EXPORT_LANGUAGES.includes(lang))
+    return { ok: false, reason: `unsupported language: ${lang}`, supported: EXPORT_LANGUAGES };
   return { ok: true, language: { code: lang, direction: 'ltr', templateKey: `report.${lang}` } };
 }
 
 /* 52214 — Redaction function. */
 const REDACT_PATTERNS = [
-  { name: 'secret-key', re: /(?<=[a-zA-Z0-9_-]{4})([a-zA-Z0-9_-]{20,})/g, mask: (m) => m.slice(0, 4) + '…[redacted]' },
-  { name: 'email', re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, mask: () => '[email redacted]' },
+  {
+    name: 'secret-key',
+    re: /(?<=[a-zA-Z0-9_-]{4})([a-zA-Z0-9_-]{20,})/g,
+    mask: m => m.slice(0, 4) + '…[redacted]',
+  },
+  {
+    name: 'email',
+    re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g,
+    mask: () => '[email redacted]',
+  },
   { name: 'ipv4', re: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, mask: () => '[ip redacted]' },
 ];
 export function redactForExport(text, { redactPayloads = true } = {}) {
   let out = String(text ?? '');
   const redactions = [];
   for (const p of REDACT_PATTERNS) {
-    out = out.replace(p.re, (m) => { redactions.push(p.name); return p.mask(m); });
+    out = out.replace(p.re, m => {
+      redactions.push(p.name);
+      return p.mask(m);
+    });
   }
   if (redactPayloads) {
     const before = out.length;
@@ -223,7 +316,7 @@ export function redactForExport(text, { redactPayloads = true } = {}) {
 export function filterBySeverityThreshold(findings, threshold = 'medium') {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
   const min = SEVERITY_ORDER[threshold] ?? 2;
-  const subset = findings.filter((f) => (SEVERITY_ORDER[f.severity] ?? 0) >= min);
+  const subset = findings.filter(f => (SEVERITY_ORDER[f.severity] ?? 0) >= min);
   return { ok: true, findings: subset, threshold, kept: subset.length, total: findings.length };
 }
 
@@ -231,37 +324,80 @@ export function filterBySeverityThreshold(findings, threshold = 'medium') {
 export function selectDelta(findings, since) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
   if (typeof since !== 'number') return { ok: false, reason: 'since timestamp required' };
-  const fresh = findings.filter((f) => (f.createdAt ?? 0) > since || (f.updatedAt ?? 0) > since);
+  const fresh = findings.filter(f => (f.createdAt ?? 0) > since || (f.updatedAt ?? 0) > since);
   return { ok: true, findings: fresh, since, count: fresh.length };
 }
 
 /* 52217 — PoC bundle ZIP manifest builder. */
 export function buildPocZipManifest(findings, now = Date.now()) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
-  const withPoc = findings.filter((f) => f.poc);
-  const files = withPoc.map((f) => ({ path: `poc/${f.id}/curl.sh`, findingId: f.id, kind: 'poc', hasPython: Boolean(f.pocPython) }));
-  return { ok: true, manifest: { archive: `poc-bundle-${now}.zip`, files, findingCount: withPoc.length, skippedWithoutPoc: findings.length - withPoc.length } };
+  const withPoc = findings.filter(f => f.poc);
+  const files = withPoc.map(f => ({
+    path: `poc/${f.id}/curl.sh`,
+    findingId: f.id,
+    kind: 'poc',
+    hasPython: Boolean(f.pocPython),
+  }));
+  return {
+    ok: true,
+    manifest: {
+      archive: `poc-bundle-${now}.zip`,
+      files,
+      findingCount: withPoc.length,
+      skippedWithoutPoc: findings.length - withPoc.length,
+    },
+  };
 }
 
 /* 52218 — Evidence manifest builder. */
 export function buildEvidenceManifest(findings) {
   if (!Array.isArray(findings)) return { ok: false, reason: 'findings array required' };
   const rows = [];
-  for (const f of findings) for (const e of f.evidence || []) rows.push({ findingId: f.id, kind: e.kind || 'unknown', summary: e.summary || '', hash: e.hash || null });
-  return { ok: true, manifest: { rows, total: rows.length }, csv: ['finding_id,kind,summary,hash', ...rows.map((r) => [r.findingId, r.kind, JSON.stringify(r.summary), r.hash || ''].join(','))].join('\n') };
+  for (const f of findings)
+    for (const e of f.evidence || [])
+      rows.push({
+        findingId: f.id,
+        kind: e.kind || 'unknown',
+        summary: e.summary || '',
+        hash: e.hash || null,
+      });
+  return {
+    ok: true,
+    manifest: { rows, total: rows.length },
+    csv: [
+      'finding_id,kind,summary,hash',
+      ...rows.map(r => [r.findingId, r.kind, JSON.stringify(r.summary), r.hash || ''].join(',')),
+    ].join('\n'),
+  };
 }
 
 /* 52219 — Audit-log exporter. */
 export function exportAuditLog(events, now = Date.now()) {
   if (!Array.isArray(events)) return { ok: false, reason: 'events array required' };
-  const rows = events.map((e) => ({ at: e.at ?? null, actor: e.actor || 'unknown', action: e.action || 'unknown', target: e.target || null }));
-  const csv = ['at,actor,action,target', ...rows.map((r) => [r.at ?? '', r.actor, JSON.stringify(r.action), r.target ?? ''].join(','))].join('\n');
+  const rows = events.map(e => ({
+    at: e.at ?? null,
+    actor: e.actor || 'unknown',
+    action: e.action || 'unknown',
+    target: e.target || null,
+  }));
+  const csv = [
+    'at,actor,action,target',
+    ...rows.map(r => [r.at ?? '', r.actor, JSON.stringify(r.action), r.target ?? ''].join(',')),
+  ].join('\n');
   return { ok: true, events: rows, csv, count: rows.length, exportedAt: now };
 }
 
 /* 52220 — Comment-thread exporter. */
 export function exportCommentThreads(threads) {
   if (!Array.isArray(threads)) return { ok: false, reason: 'threads array required' };
-  const out = threads.map((t) => ({ findingId: t.findingId, comments: (t.comments || []).map((c) => ({ author: c.author || 'unknown', at: c.at || null, body: c.body || '' })), count: (t.comments || []).length }));
+  const out = threads.map(t => ({
+    findingId: t.findingId,
+    comments: (t.comments || []).map(c => ({
+      author: c.author || 'unknown',
+      at: c.at || null,
+      body: c.body || '',
+    })),
+    count: (t.comments || []).length,
+  }));
   return { ok: true, threads: out, totalComments: out.reduce((n, t) => n + t.count, 0) };
 }

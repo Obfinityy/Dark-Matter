@@ -73,7 +73,9 @@ export function ResilienceState({
       aria-label={title}
     >
       {illustration && (
-        <div className="rsz-illustration" aria-hidden="true">{illustration}</div>
+        <div className="rsz-illustration" aria-hidden="true">
+          {illustration}
+        </div>
       )}
       <h3 className="rsz-title">{title}</h3>
       {description && <p className="rsz-desc">{description}</p>}
@@ -83,7 +85,7 @@ export function ResilienceState({
             type="button"
             className="rsz-details-toggle"
             aria-expanded={showDetails}
-            onClick={() => setShowDetails((v) => !v)}
+            onClick={() => setShowDetails(v => !v)}
           >
             {showDetails ? 'Hide details' : 'Show details'}
           </button>
@@ -93,12 +95,22 @@ export function ResilienceState({
       {(primary || secondary) && (
         <div className="rsz-actions">
           {primary && (
-            <button type="button" className="rsz-btn rsz-primary" onClick={primary.onClick} disabled={primary.disabled}>
+            <button
+              type="button"
+              className="rsz-btn rsz-primary"
+              onClick={primary.onClick}
+              disabled={primary.disabled}
+            >
               {primary.label}
             </button>
           )}
           {secondary && (
-            <button type="button" className="rsz-btn rsz-secondary" onClick={secondary.onClick} disabled={secondary.disabled}>
+            <button
+              type="button"
+              className="rsz-btn rsz-secondary"
+              onClick={secondary.onClick}
+              disabled={secondary.disabled}
+            >
               {secondary.label}
             </button>
           )}
@@ -111,7 +123,12 @@ export function ResilienceState({
 
 /* 50361 — version-mismatch banner ---------------------------------------- */
 
-export function VersionMismatchBanner({ frontendVersion, backendVersion, onCheckAgain, onDismiss }) {
+export function VersionMismatchBanner({
+  frontendVersion,
+  backendVersion,
+  onCheckAgain,
+  onDismiss,
+}) {
   const v = compareVersions(frontendVersion, backendVersion);
   if (!v.drift) return null;
   return (
@@ -146,7 +163,9 @@ export function MaintenanceModePage({ estimatedReturnAt, statusUrl, onNotifyMe }
     >
       {valid && (
         <div className="rsz-countdown" role="timer" aria-label="Estimated time remaining">
-          {remaining > 0 ? `Back in about ${formatRetryCountdown(remaining)}` : 'Should be back any moment…'}
+          {remaining > 0
+            ? `Back in about ${formatRetryCountdown(remaining)}`
+            : 'Should be back any moment…'}
         </div>
       )}
       {statusUrl && (
@@ -159,7 +178,10 @@ export function MaintenanceModePage({ estimatedReturnAt, statusUrl, onNotifyMe }
           type="button"
           className="rsz-btn rsz-primary"
           disabled={notified}
-          onClick={() => { setNotified(true); if (onNotifyMe) onNotifyMe(); }}
+          onClick={() => {
+            setNotified(true);
+            if (onNotifyMe) onNotifyMe();
+          }}
         >
           {notified ? '✓ We’ll notify you' : 'Notify me when we’re back'}
         </button>
@@ -224,9 +246,11 @@ export function OfflineQueueBanner({ queuedCount, queuedActions = [], onSyncNow,
             type="button"
             className="rsz-details-toggle"
             aria-expanded={expanded}
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => setExpanded(v => !v)}
           >
-            {expanded ? 'Hide queued actions' : `Show ${queuedActions.length} queued action${queuedActions.length === 1 ? '' : 's'}`}
+            {expanded
+              ? 'Hide queued actions'
+              : `Show ${queuedActions.length} queued action${queuedActions.length === 1 ? '' : 's'}`}
           </button>
           {expanded && (
             <ul className="rsz-list">
@@ -261,16 +285,24 @@ export class CardErrorBoundary extends Component {
     if (!failed) return children;
     return (
       <div className="rsz rsz-compact rsz-tone-error rsz-card-error" role="alert">
-        <div className="rsz-illustration" aria-hidden="true">🧱</div>
-        <h3 className="rsz-title">{cardTitle ? `“${cardTitle}” couldn't render` : 'This card couldn’t render'}</h3>
+        <div className="rsz-illustration" aria-hidden="true">
+          🧱
+        </div>
+        <h3 className="rsz-title">
+          {cardTitle ? `“${cardTitle}” couldn't render` : 'This card couldn’t render'}
+        </h3>
         <p className="rsz-desc">
           One bad card won't take down the list. The rest of your findings are untouched.
         </p>
         {error && <pre className="rsz-details">{String(error.message || error)}</pre>}
         <div className="rsz-actions">
-          <button type="button" className="rsz-btn rsz-primary" onClick={this.reset}>Retry this card</button>
+          <button type="button" className="rsz-btn rsz-primary" onClick={this.reset}>
+            Retry this card
+          </button>
           {onRemove && (
-            <button type="button" className="rsz-btn rsz-secondary" onClick={onRemove}>Remove card</button>
+            <button type="button" className="rsz-btn rsz-secondary" onClick={onRemove}>
+              Remove card
+            </button>
           )}
         </div>
       </div>
@@ -283,15 +315,21 @@ export class CardErrorBoundary extends Component {
 export function TimelineGapMarker({ gapStart, gapEnd, onBackfill, onDismiss }) {
   return (
     <div className="rsz-gap" role="note">
-      <span className="rsz-gap-dot" aria-hidden="true">⋯</span>
+      <span className="rsz-gap-dot" aria-hidden="true">
+        ⋯
+      </span>
       <span>{timelineGapLabel({ gapStart, gapEnd })}</span>
       <span className="rsz-gap-sub">Connection dropped — these events never arrived.</span>
       <span className="rsz-gap-actions">
         {onBackfill && (
-          <button type="button" className="rsz-mini-btn" onClick={onBackfill}>Backfill</button>
+          <button type="button" className="rsz-mini-btn" onClick={onBackfill}>
+            Backfill
+          </button>
         )}
         {onDismiss && (
-          <button type="button" className="rsz-mini-btn rsz-mini-quiet" onClick={onDismiss}>Dismiss</button>
+          <button type="button" className="rsz-mini-btn rsz-mini-quiet" onClick={onDismiss}>
+            Dismiss
+          </button>
         )}
       </span>
     </div>
@@ -300,10 +338,18 @@ export function TimelineGapMarker({ gapStart, gapEnd, onBackfill, onDismiss }) {
 
 /* 50367 — PoC-replay failure diff ------------------------------------------ */
 
-export function PocReplayFailureDiff({ expectedOutput, actualOutput, onReportFlaky, onRetryReplay }) {
+export function PocReplayFailureDiff({
+  expectedOutput,
+  actualOutput,
+  onReportFlaky,
+  onRetryReplay,
+}) {
   const [expanded, setExpanded] = useState(false);
   const [reported, setReported] = useState(false);
-  const rows = useMemo(() => diffLinesToView(expectedOutput, actualOutput), [expectedOutput, actualOutput]);
+  const rows = useMemo(
+    () => diffLinesToView(expectedOutput, actualOutput),
+    [expectedOutput, actualOutput]
+  );
   return (
     <ResilienceState
       compact
@@ -311,19 +357,28 @@ export function PocReplayFailureDiff({ expectedOutput, actualOutput, onReportFla
       title="PoC replay didn't reproduce"
       description={`The proof-of-concept behaved differently on replay. ${diffSummary(rows)}. This usually means the target state changed — or the check is flaky.`}
       primary={onRetryReplay && { label: 'Replay again', onClick: onRetryReplay }}
-      secondary={onReportFlaky && { label: reported ? '✓ Reported as flaky' : 'Report as flaky', onClick: () => { setReported(true); onReportFlaky(); }, disabled: reported }}
+      secondary={
+        onReportFlaky && {
+          label: reported ? '✓ Reported as flaky' : 'Report as flaky',
+          onClick: () => {
+            setReported(true);
+            onReportFlaky();
+          },
+          disabled: reported,
+        }
+      }
     >
       <button
         type="button"
         className="rsz-details-toggle"
         aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => setExpanded(v => !v)}
       >
         {expanded ? 'Hide expected-vs-actual diff' : 'Show expected-vs-actual diff'}
       </button>
       {expanded && (
         <div className="rsz-diff" role="table" aria-label="Expected versus actual output">
-          {rows.map((r) => (
+          {rows.map(r => (
             <div key={r.line} className={`rsz-diff-row ${r.same ? '' : 'rsz-diff-changed'}`}>
               <span className="rsz-diff-line">{r.line}</span>
               <span className="rsz-diff-expected">{r.expected || '∅'}</span>
@@ -372,15 +427,27 @@ export function MicBlockedError({ onRequestMic, onUseText }) {
 export function AvatarFallbackPortrait({ displayName, onRetry }) {
   const initials = String(displayName || '?')
     .split(/\s+/)
-    .map((w) => w[0])
+    .map(w => w[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
   return (
-    <div className="rsz-avatar-fallback" role="img" aria-label={`${displayName || 'User'} avatar unavailable`}>
-      <span className="rsz-avatar-initials" aria-hidden="true">{initials}</span>
+    <div
+      className="rsz-avatar-fallback"
+      role="img"
+      aria-label={`${displayName || 'User'} avatar unavailable`}
+    >
+      <span className="rsz-avatar-initials" aria-hidden="true">
+        {initials}
+      </span>
       {onRetry && (
-        <button type="button" className="rsz-mini-btn" onClick={onRetry} title="Retry avatar load" aria-label="Retry avatar load">
+        <button
+          type="button"
+          className="rsz-mini-btn"
+          onClick={onRetry}
+          title="Retry avatar load"
+          aria-label="Retry avatar load"
+        >
           ↻
         </button>
       )}
@@ -413,7 +480,13 @@ export function StaleIndexNotice({ indexedAt, onReindex, onDismiss }) {
 
 /* 50372 — impossible filter combination -------------------------------------- */
 
-export function ImpossibleFilterCombination({ filters = [], conflictingPair, suggestion, onApplySuggestion, onClearFilters }) {
+export function ImpossibleFilterCombination({
+  filters = [],
+  conflictingPair,
+  suggestion,
+  onApplySuggestion,
+  onClearFilters,
+}) {
   const m = buildFilterConflictMessage({ filters, conflictingPair, suggestion });
   return (
     <ResilienceState
@@ -450,8 +523,8 @@ export function ScheduledHuntFailure({ scheduleName, failedAt, reason, onRunNow,
 
 export function WebhookFailureLog({ deliveries = [], onRedeliver }) {
   const [pendingId, setPendingId] = useState(null);
-  const failures = deliveries.filter((d) => d.status === 'failed');
-  const handleRedeliver = (id) => {
+  const failures = deliveries.filter(d => d.status === 'failed');
+  const handleRedeliver = id => {
     setPendingId(id);
     Promise.resolve(onRedeliver(id)).finally(() => setPendingId(null));
   };
@@ -464,13 +537,15 @@ export function WebhookFailureLog({ deliveries = [], onRedeliver }) {
           : `${failures.length} deliver${failures.length === 1 ? 'y' : 'ies'} failed — redeliver them below.`}
       </p>
       <ul className="rsz-webhook-list">
-        {deliveries.map((d) => (
+        {deliveries.map(d => (
           <li key={d.id} className={`rsz-webhook-row rsz-webhook-${d.status}`}>
             <span className="rsz-webhook-status" aria-hidden="true">
               {d.status === 'failed' ? '🔴' : d.status === 'pending' ? '🟡' : '🟢'}
             </span>
             <span className="rsz-webhook-event">{d.event || d.id}</span>
-            <span className="rsz-webhook-time">{d.attemptedAt ? new Date(d.attemptedAt).toLocaleTimeString() : ''}</span>
+            <span className="rsz-webhook-time">
+              {d.attemptedAt ? new Date(d.attemptedAt).toLocaleTimeString() : ''}
+            </span>
             {d.status === 'failed' && onRedeliver && (
               <button
                 type="button"
@@ -500,21 +575,28 @@ export function BulkActionPartialFailure({ results = [], actionVerb, onRetryFail
       illustration="🧺"
       title="Some items didn't go through"
       description={s.headline}
-      primary={onRetryFailed && { label: `Retry ${s.failed} failed`, onClick: () => onRetryFailed(s.failures) }}
+      primary={
+        onRetryFailed && {
+          label: `Retry ${s.failed} failed`,
+          onClick: () => onRetryFailed(s.failures),
+        }
+      }
       secondary={onDismiss && { label: 'Dismiss', onClick: onDismiss }}
     >
       <button
         type="button"
         className="rsz-details-toggle"
         aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => setExpanded(v => !v)}
       >
         {expanded ? 'Hide per-item reasons' : `Show ${s.failed} reason${s.failed === 1 ? '' : 's'}`}
       </button>
       {expanded && (
         <ul className="rsz-list rsz-list-left">
-          {s.failures.map((f) => (
-            <li key={f.id}><strong>{f.label}:</strong> {f.reason}</li>
+          {s.failures.map(f => (
+            <li key={f.id}>
+              <strong>{f.label}:</strong> {f.reason}
+            </li>
           ))}
         </ul>
       )}
@@ -538,13 +620,19 @@ export function CommentDraftPreservation({ draft, onRetryPost, onDiscard }) {
       illustration="💬"
       title="Your comment wasn't lost"
       description="Posting failed, but your draft is preserved below exactly as you wrote it. Edit it or retry."
-      primary={onRetryPost && { label: posting ? 'Posting…' : 'Retry post', onClick: handleRetry, disabled: posting || !text.trim() }}
+      primary={
+        onRetryPost && {
+          label: posting ? 'Posting…' : 'Retry post',
+          onClick: handleRetry,
+          disabled: posting || !text.trim(),
+        }
+      }
       secondary={onDiscard && { label: 'Discard draft', onClick: onDiscard }}
     >
       <textarea
         className="rsz-textarea"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={e => setText(e.target.value)}
         rows={4}
         aria-label="Preserved comment draft"
       />
@@ -563,7 +651,7 @@ export function ThemeAssetFallback({ themeName, failedAssets = [], onReloadTheme
       illustration="🎨"
       title="Theme assets fell back to default"
       description={`Some assets for the "${themeName || 'custom'}" theme failed to load, so the default theme is active. Your layout and data are unaffected.`}
-      details={failedAssets.length ? failedAssets.map((a) => `• ${a}`).join('\n') : undefined}
+      details={failedAssets.length ? failedAssets.map(a => `• ${a}`).join('\n') : undefined}
       primary={onReloadTheme && { label: 'Reload theme', onClick: onReloadTheme }}
       secondary={onDismiss && { label: 'Keep default theme', onClick: onDismiss }}
     />
@@ -590,15 +678,21 @@ export function PrintFallback({ onDownloadPdf }) {
 /* 50379 — clipboard-denied fallback -------------------------------------------------------- */
 
 export function ClipboardDeniedFallback({ text, onClose }) {
-  const selectAll = (e) => {
+  const selectAll = e => {
     e.target.select();
   };
   return (
-    <div className="rsz-modal-backdrop" role="dialog" aria-modal="true" aria-label="Copy text manually">
+    <div
+      className="rsz-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Copy text manually"
+    >
       <div className="rsz-modal">
         <h3 className="rsz-title">Clipboard access was blocked</h3>
         <p className="rsz-desc">
-          Your browser denied clipboard access. Select the text below and copy it manually (Ctrl/Cmd+C).
+          Your browser denied clipboard access. Select the text below and copy it manually
+          (Ctrl/Cmd+C).
         </p>
         <textarea
           className="rsz-textarea rsz-textarea-readonly"
@@ -610,7 +704,11 @@ export function ClipboardDeniedFallback({ text, onClose }) {
           aria-label="Text to copy manually"
         />
         <div className="rsz-actions">
-          {onClose && <button type="button" className="rsz-btn rsz-primary" onClick={onClose}>Done</button>}
+          {onClose && (
+            <button type="button" className="rsz-btn rsz-primary" onClick={onClose}>
+              Done
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -619,7 +717,12 @@ export function ClipboardDeniedFallback({ text, onClose }) {
 
 /* 50380 — shortcut-conflict warning ----------------------------------------------------------- */
 
-export function ShortcutConflictWarning({ newBinding, existingAction, onOverwrite, onKeepExisting }) {
+export function ShortcutConflictWarning({
+  newBinding,
+  existingAction,
+  onOverwrite,
+  onKeepExisting,
+}) {
   return (
     <ResilienceState
       compact
@@ -687,10 +790,15 @@ export function TimezoneWarning({ userTimezone, detectedTimezone, onSwitchTimezo
       illustration="🌍"
       title="Timezone looks off"
       description={m.message}
-      primary={onSwitchTimezone && {
-        label: `Switch to ${detectedTimezone}`,
-        onClick: () => { setSwitched(true); onSwitchTimezone(detectedTimezone); },
-      }}
+      primary={
+        onSwitchTimezone && {
+          label: `Switch to ${detectedTimezone}`,
+          onClick: () => {
+            setSwitched(true);
+            onSwitchTimezone(detectedTimezone);
+          },
+        }
+      }
       secondary={onDismiss && { label: `Keep ${userTimezone}`, onClick: onDismiss }}
     />
   );
@@ -699,18 +807,26 @@ export function TimezoneWarning({ userTimezone, detectedTimezone, onSwitchTimezo
 /* 50383 — aria-label dev overlay --------------------------------------------------------------------------- */
 
 export function AriaLabelDevOverlay({ issues = [], onLocate }) {
-  const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
+  const isDev =
+    typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
   if (!isDev || issues.length === 0) return null;
   return (
     <div className="rsz-dev-overlay" role="complementary" aria-label="Accessibility dev overlay">
-      <h4 className="rsz-dev-title">⚠️ {issues.length} element{issues.length === 1 ? '' : 's'} missing accessible names (dev only)</h4>
+      <h4 className="rsz-dev-title">
+        ⚠️ {issues.length} element{issues.length === 1 ? '' : 's'} missing accessible names (dev
+        only)
+      </h4>
       <ul className="rsz-dev-list">
         {issues.map((issue, i) => (
           <li key={i}>
             <code className="rsz-code">{issue.selector || issue.tag || `element ${i + 1}`}</code>
-            <span className="rsz-dev-hint">{issue.hint || 'Add an aria-label or visible text.'}</span>
+            <span className="rsz-dev-hint">
+              {issue.hint || 'Add an aria-label or visible text.'}
+            </span>
             {onLocate && (
-              <button type="button" className="rsz-mini-btn" onClick={() => onLocate(issue)}>Locate</button>
+              <button type="button" className="rsz-mini-btn" onClick={() => onLocate(issue)}>
+                Locate
+              </button>
             )}
           </li>
         ))}
@@ -721,15 +837,28 @@ export function AriaLabelDevOverlay({ issues = [], onLocate }) {
 
 /* 50384 — deleted-finding deep link ------------------------------------------------------------------------------ */
 
-export function DeletedFindingDeepLink({ findingTitle, huntTitle, removedReason, onBackToHunt, onBrowseFindings }) {
+export function DeletedFindingDeepLink({
+  findingTitle,
+  huntTitle,
+  removedReason,
+  onBackToHunt,
+  onBrowseFindings,
+}) {
   return (
     <ResilienceState
       illustration="🗑️"
       title="This finding was removed"
-      description={removedReason
-        ? `“${findingTitle || 'This finding'}” was removed: ${removedReason}. The link you followed no longer points anywhere.`
-        : `“${findingTitle || 'This finding'}” was removed, so this link no longer points anywhere.`}
-      primary={onBackToHunt && { label: huntTitle ? `Back to “${huntTitle}”` : 'Back to the hunt', onClick: onBackToHunt }}
+      description={
+        removedReason
+          ? `“${findingTitle || 'This finding'}” was removed: ${removedReason}. The link you followed no longer points anywhere.`
+          : `“${findingTitle || 'This finding'}” was removed, so this link no longer points anywhere.`
+      }
+      primary={
+        onBackToHunt && {
+          label: huntTitle ? `Back to “${huntTitle}”` : 'Back to the hunt',
+          onClick: onBackToHunt,
+        }
+      }
       secondary={onBrowseFindings && { label: 'Browse all findings', onClick: onBrowseFindings }}
     />
   );
@@ -737,7 +866,14 @@ export function DeletedFindingDeepLink({ findingTitle, huntTitle, removedReason,
 
 /* 50385 — concurrent-edit merge UI ---------------------------------------------------------------------------------- */
 
-export function ConcurrentEditMergeUI({ fieldName, mine, theirs, authorName, onResolve, onCancel }) {
+export function ConcurrentEditMergeUI({
+  fieldName,
+  mine,
+  theirs,
+  authorName,
+  onResolve,
+  onCancel,
+}) {
   const [choice, setChoice] = useState('mine');
   const [edited, setEdited] = useState(null);
   const resolved = edited !== null ? edited : choice === 'mine' ? mine : theirs;
@@ -745,36 +881,62 @@ export function ConcurrentEditMergeUI({ fieldName, mine, theirs, authorName, onR
     <div className="rsz rsz-merge" role="dialog" aria-label="Resolve conflicting edits">
       <h3 className="rsz-title">Conflicting edits{fieldName ? ` in “${fieldName}”` : ''}</h3>
       <p className="rsz-desc">
-        {authorName ? `${authorName} saved changes` : 'Someone saved changes'} while you were editing.
-        Pick a side, or edit the merged result directly.
+        {authorName ? `${authorName} saved changes` : 'Someone saved changes'} while you were
+        editing. Pick a side, or edit the merged result directly.
       </p>
       <div className="rsz-merge-cols">
         <div className="rsz-merge-col">
           <label className="rsz-merge-label">
-            <input type="radio" name="rsz-merge-choice" checked={choice === 'mine'} onChange={() => { setChoice('mine'); setEdited(null); }} />
+            <input
+              type="radio"
+              name="rsz-merge-choice"
+              checked={choice === 'mine'}
+              onChange={() => {
+                setChoice('mine');
+                setEdited(null);
+              }}
+            />
             Your version
           </label>
           <pre className="rsz-merge-text">{mine}</pre>
         </div>
         <div className="rsz-merge-col">
           <label className="rsz-merge-label">
-            <input type="radio" name="rsz-merge-choice" checked={choice === 'theirs'} onChange={() => { setChoice('theirs'); setEdited(null); }} />
+            <input
+              type="radio"
+              name="rsz-merge-choice"
+              checked={choice === 'theirs'}
+              onChange={() => {
+                setChoice('theirs');
+                setEdited(null);
+              }}
+            />
             Their version
           </label>
           <pre className="rsz-merge-text">{theirs}</pre>
         </div>
       </div>
-      <label className="rsz-merge-label" htmlFor="rsz-merge-final">Merged result</label>
+      <label className="rsz-merge-label" htmlFor="rsz-merge-final">
+        Merged result
+      </label>
       <textarea
         id="rsz-merge-final"
         className="rsz-textarea"
         rows={5}
         value={resolved}
-        onChange={(e) => setEdited(e.target.value)}
+        onChange={e => setEdited(e.target.value)}
       />
       <div className="rsz-actions">
-        {onResolve && <button type="button" className="rsz-btn rsz-primary" onClick={() => onResolve(resolved)}>Save merged version</button>}
-        {onCancel && <button type="button" className="rsz-btn rsz-secondary" onClick={onCancel}>Cancel</button>}
+        {onResolve && (
+          <button type="button" className="rsz-btn rsz-primary" onClick={() => onResolve(resolved)}>
+            Save merged version
+          </button>
+        )}
+        {onCancel && (
+          <button type="button" className="rsz-btn rsz-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   );
@@ -782,10 +944,25 @@ export function ConcurrentEditMergeUI({ fieldName, mine, theirs, authorName, onR
 
 /* 50386 — snapshot-restore failure ----------------------------------------------------------------------------------------- */
 
-export function SnapshotRestoreFailure({ snapshotName, corruptReason, salvageable = {}, onStartFresh, onExportSalvage }) {
+export function SnapshotRestoreFailure({
+  snapshotName,
+  corruptReason,
+  salvageable = {},
+  onStartFresh,
+  onExportSalvage,
+}) {
   const salvageKeys = Object.keys(salvageable);
   const exportSalvage = () => {
-    const blob = new Blob([JSON.stringify({ snapshot: snapshotName, exportedAt: new Date().toISOString(), data: salvageable }, null, 2)], { type: 'application/json' });
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          { snapshot: snapshotName, exportedAt: new Date().toISOString(), data: salvageable },
+          null,
+          2
+        ),
+      ],
+      { type: 'application/json' }
+    );
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -800,7 +977,9 @@ export function SnapshotRestoreFailure({ snapshotName, corruptReason, salvageabl
     <ResilienceState
       illustration="💥"
       title={`Snapshot “${snapshotName || 'backup'}” is corrupted`}
-      description={corruptReason || 'The snapshot failed integrity checks and cannot be restored as-is.'}
+      description={
+        corruptReason || 'The snapshot failed integrity checks and cannot be restored as-is.'
+      }
       primary={onStartFresh && { label: 'Start fresh', onClick: onStartFresh }}
     >
       {salvageKeys.length > 0 && (
@@ -824,12 +1003,12 @@ export function DesktopBridgeDisconnect({ attempts = 0, lastError, onRetryNow, o
   useEffect(() => {
     if (!auto) return undefined;
     if (remaining <= 0) {
-      setAttempt((a) => a + 1);
+      setAttempt(a => a + 1);
       setRemaining(reconnectDelayMs(attempt + 1));
       if (onRetryNow) onRetryNow(attempt + 1);
       return undefined;
     }
-    const t = setInterval(() => setRemaining((r) => Math.max(0, r - 1000)), 1000);
+    const t = setInterval(() => setRemaining(r => Math.max(0, r - 1000)), 1000);
     return () => clearInterval(t);
   }, [remaining, auto, attempt, onRetryNow]);
   const steps = ['Detect bridge', 'Restart local service', 'Re-pair session'];
@@ -838,29 +1017,47 @@ export function DesktopBridgeDisconnect({ attempts = 0, lastError, onRetryNow, o
     <ResilienceState
       illustration="🔌"
       title="Desktop bridge disconnected"
-      description={lastError || 'The desktop runtime stopped responding. The reconnect wizard will walk through recovery.'}
+      description={
+        lastError ||
+        'The desktop runtime stopped responding. The reconnect wizard will walk through recovery.'
+      }
     >
       <ol className="rsz-steps">
         {steps.map((s, i) => (
-          <li key={s} className={i < activeStep ? 'rsz-step-done' : i === activeStep ? 'rsz-step-active' : ''}>
-            {i < activeStep ? '✓ ' : ''}{s}
+          <li
+            key={s}
+            className={i < activeStep ? 'rsz-step-done' : i === activeStep ? 'rsz-step-active' : ''}
+          >
+            {i < activeStep ? '✓ ' : ''}
+            {s}
           </li>
         ))}
       </ol>
       <p className="rsz-hint" role="timer">
-        {auto ? `Retrying in ${formatRetryCountdown(remaining)} (attempt ${attempt + 1})…` : 'Auto-retry paused.'}
+        {auto
+          ? `Retrying in ${formatRetryCountdown(remaining)} (attempt ${attempt + 1})…`
+          : 'Auto-retry paused.'}
       </p>
       <div className="rsz-actions">
         {onRetryNow && (
-          <button type="button" className="rsz-btn rsz-primary" onClick={() => { setAuto(false); onRetryNow(attempt + 1); }}>
+          <button
+            type="button"
+            className="rsz-btn rsz-primary"
+            onClick={() => {
+              setAuto(false);
+              onRetryNow(attempt + 1);
+            }}
+          >
             Retry now
           </button>
         )}
-        <button type="button" className="rsz-btn rsz-secondary" onClick={() => setAuto((v) => !v)}>
+        <button type="button" className="rsz-btn rsz-secondary" onClick={() => setAuto(v => !v)}>
           {auto ? 'Pause auto-retry' : 'Resume auto-retry'}
         </button>
         {onGiveUp && (
-          <button type="button" className="rsz-btn rsz-secondary" onClick={onGiveUp}>Stop trying</button>
+          <button type="button" className="rsz-btn rsz-secondary" onClick={onGiveUp}>
+            Stop trying
+          </button>
         )}
       </div>
     </ResilienceState>
@@ -869,7 +1066,13 @@ export function DesktopBridgeDisconnect({ attempts = 0, lastError, onRetryNow, o
 
 /* 50388 — inference-timeout option ----------------------------------------------------------------------------------------------------- */
 
-export function InferenceTimeoutOption({ waitedSeconds = 0, modelName, onSimplifiedRetry, onWaitLonger, onCancel }) {
+export function InferenceTimeoutOption({
+  waitedSeconds = 0,
+  modelName,
+  onSimplifiedRetry,
+  onWaitLonger,
+  onCancel,
+}) {
   const [waiting, setWaiting] = useState(false);
   return (
     <ResilienceState
@@ -878,14 +1081,22 @@ export function InferenceTimeoutOption({ waitedSeconds = 0, modelName, onSimplif
       title="The brain is taking too long"
       description={`${modelName || 'The model'} hasn't answered after ${waitedSeconds}s. Retry with a simplified prompt (faster, slightly less thorough), or keep waiting.`}
       primary={onSimplifiedRetry && { label: 'Retry simplified', onClick: onSimplifiedRetry }}
-      secondary={onWaitLonger && {
-        label: waiting ? 'Waiting…' : 'Wait 60s more',
-        disabled: waiting,
-        onClick: () => { setWaiting(true); onWaitLonger(); setTimeout(() => setWaiting(false), 60000); },
-      }}
+      secondary={
+        onWaitLonger && {
+          label: waiting ? 'Waiting…' : 'Wait 60s more',
+          disabled: waiting,
+          onClick: () => {
+            setWaiting(true);
+            onWaitLonger();
+            setTimeout(() => setWaiting(false), 60000);
+          },
+        }
+      }
     >
       {onCancel && (
-        <button type="button" className="rsz-details-toggle" onClick={onCancel}>Cancel this inference</button>
+        <button type="button" className="rsz-details-toggle" onClick={onCancel}>
+          Cancel this inference
+        </button>
       )}
     </ResilienceState>
   );
@@ -893,7 +1104,13 @@ export function InferenceTimeoutOption({ waitedSeconds = 0, modelName, onSimplif
 
 /* 50389 — disk-quota warning ---------------------------------------------------------------------------------------------------------------- */
 
-export function DiskQuotaWarning({ usedBytes, quotaBytes, breakdown = [], onOpenCleanup, onDismiss }) {
+export function DiskQuotaWarning({
+  usedBytes,
+  quotaBytes,
+  breakdown = [],
+  onOpenCleanup,
+  onDismiss,
+}) {
   const a = diskQuotaAdvice({ usedBytes, quotaBytes, breakdown });
   const sorted = [...breakdown].sort((x, y) => y.bytes - x.bytes);
   return (
@@ -907,12 +1124,14 @@ export function DiskQuotaWarning({ usedBytes, quotaBytes, breakdown = [], onOpen
     >
       {sorted.length > 0 && (
         <div className="rsz-quota-bars" role="img" aria-label={`Storage ${a.pct}% full`}>
-          {sorted.map((b) => {
+          {sorted.map(b => {
             const pct = quotaBytes > 0 ? Math.max(2, Math.round((b.bytes / quotaBytes) * 100)) : 0;
             return (
               <div key={b.label} className="rsz-quota-row">
                 <span className="rsz-quota-label">{b.label}</span>
-                <span className="rsz-quota-track"><span className="rsz-quota-fill" style={{ width: `${pct}%` }} /></span>
+                <span className="rsz-quota-track">
+                  <span className="rsz-quota-fill" style={{ width: `${pct}%` }} />
+                </span>
                 <span className="rsz-quota-size">{formatBytes(b.bytes)}</span>
               </div>
             );
@@ -954,11 +1173,16 @@ export function ExpiredShareLink({ expiresAt, sharedTitle, onRequestNewLink, onG
       illustration="🔗"
       title="This share link has expired"
       description={`${s.message}${sharedTitle ? ` It pointed to “${sharedTitle}”.` : ''} Links expire for security — request a fresh one below.`}
-      primary={onRequestNewLink && {
-        label: requested ? '✓ Request sent' : 'Request a new link',
-        disabled: requested,
-        onClick: () => { setRequested(true); onRequestNewLink(); },
-      }}
+      primary={
+        onRequestNewLink && {
+          label: requested ? '✓ Request sent' : 'Request a new link',
+          disabled: requested,
+          onClick: () => {
+            setRequested(true);
+            onRequestNewLink();
+          },
+        }
+      }
       secondary={onGoHome && { label: 'Back to hunts', onClick: onGoHome }}
     />
   );
@@ -988,10 +1212,15 @@ export function InvalidRegexNotice({ pattern, error }) {
   if (!error) return null;
   return (
     <p className="rsz-inline rsz-inline-error" role="alert">
-      <strong>Invalid regular expression{p.position !== null ? ` (near character ${p.position})` : ''}:</strong>{' '}
+      <strong>
+        Invalid regular expression{p.position !== null ? ` (near character ${p.position})` : ''}:
+      </strong>{' '}
       {p.reason}
       {pattern && (
-        <span className="rsz-inline-example"> Pattern: <code>{pattern}</code></span>
+        <span className="rsz-inline-example">
+          {' '}
+          Pattern: <code>{pattern}</code>
+        </span>
       )}
       {p.position !== null && pattern && (
         <span className="rsz-regex-caret" aria-hidden="true">

@@ -17,37 +17,46 @@
 export const ERROR_SHAPE_SIGNATURES = [
   {
     framework: 'FastAPI (Starlette)',
-    match: (b) => Array.isArray(b.detail) && b.detail.every((d) => d && typeof d === 'object' && 'loc' in d && 'msg' in d && 'type' in d),
+    match: b =>
+      Array.isArray(b.detail) &&
+      b.detail.every(d => d && typeof d === 'object' && 'loc' in d && 'msg' in d && 'type' in d),
     note: 'FastAPI validation errors: {"detail":[{"loc":[...],"msg":"...","type":"..."}]}.',
   },
   {
     framework: 'Django REST Framework',
-    match: (b) => typeof b.detail === 'string' && Object.keys(b).length <= 3,
+    match: b => typeof b.detail === 'string' && Object.keys(b).length <= 3,
     note: 'DRF error shape: {"detail":"..."} for 404/403/401 responses.',
   },
   {
     framework: 'Spring Boot',
-    match: (b) => 'timestamp' in b && 'status' in b && 'error' in b && 'path' in b,
+    match: b => 'timestamp' in b && 'status' in b && 'error' in b && 'path' in b,
     note: 'Spring Boot WhiteLabel shape: {"timestamp","status","error","message","path"}.',
   },
   {
     framework: 'Laravel',
-    match: (b) => typeof b.message === 'string' && ('exception' in b || 'file' in b || 'trace' in b),
+    match: b => typeof b.message === 'string' && ('exception' in b || 'file' in b || 'trace' in b),
     note: 'Laravel debug shape: {"message","exception","file","line","trace"}.',
   },
   {
     framework: 'NestJS',
-    match: (b) => typeof b.statusCode === 'number' && typeof b.message !== 'undefined' && typeof b.error === 'string',
+    match: b =>
+      typeof b.statusCode === 'number' &&
+      typeof b.message !== 'undefined' &&
+      typeof b.error === 'string',
     note: 'NestJS HttpException shape: {"statusCode","message","error"}.',
   },
   {
     framework: 'Hapi',
-    match: (b) => typeof b.statusCode === 'number' && typeof b.error === 'string' && typeof b.message === 'string' && !('status' in b),
+    match: b =>
+      typeof b.statusCode === 'number' &&
+      typeof b.error === 'string' &&
+      typeof b.message === 'string' &&
+      !('status' in b),
     note: 'Hapi Boom shape: {"statusCode","error","message"}.',
   },
   {
     framework: 'Ruby on Rails (API mode)',
-    match: (b) => Array.isArray(b.errors) && b.errors.every((e) => e && typeof e === 'object'),
+    match: b => Array.isArray(b.errors) && b.errors.every(e => e && typeof e === 'object'),
     note: 'Rails API error shape: {"errors":[{...}]} (often from active_model_serializers).',
   },
   {
@@ -57,12 +66,12 @@ export const ERROR_SHAPE_SIGNATURES = [
   },
   {
     framework: 'Go (Echo)',
-    match: (b) => typeof b.message === 'string' && Object.keys(b).length === 1,
+    match: b => typeof b.message === 'string' && Object.keys(b).length === 1,
     note: 'Echo default shape: {"message":"..."} with a single key.',
   },
   {
     framework: 'ASP.NET Core',
-    match: (b) => typeof b.title === 'string' && typeof b.status === 'number' && 'traceId' in b,
+    match: b => typeof b.title === 'string' && typeof b.status === 'number' && 'traceId' in b,
     note: 'ASP.NET Core ProblemDetails shape: {"type","title","status","traceId"}.',
   },
 ];
@@ -95,11 +104,15 @@ export function fingerprintErrorShape(obs) {
   const raw = typeof o.body === 'string' ? o.body : '';
   const hits = [];
   if (isHtml) {
-    const express = ERROR_SHAPE_SIGNATURES.find((s) => s.framework.startsWith('Express'));
+    const express = ERROR_SHAPE_SIGNATURES.find(s => s.framework.startsWith('Express'));
     if (express && express.match(null, raw)) {
       hits.push({ framework: express.framework, confidence: 'high', note: express.note });
     } else {
-      hits.push({ framework: 'unknown (HTML error page)', confidence: 'low', note: 'Non-JSON error page — framework renders HTML errors by default.' });
+      hits.push({
+        framework: 'unknown (HTML error page)',
+        confidence: 'low',
+        note: 'Non-JSON error page — framework renders HTML errors by default.',
+      });
     }
     return hits;
   }
@@ -117,7 +130,11 @@ export function fingerprintErrorShape(obs) {
   const headers = o.headers || {};
   const server = Object.entries(headers).find(([k]) => k.toLowerCase() === 'server');
   if (server && /gunicorn|uvicorn/i.test(String(server[1]))) {
-    hits.push({ framework: 'Python WSGI/ASGI server (Gunicorn/Uvicorn)', confidence: 'medium', note: 'Server banner corroborates a Python REST stack.' });
+    hits.push({
+      framework: 'Python WSGI/ASGI server (Gunicorn/Uvicorn)',
+      confidence: 'medium',
+      note: 'Server banner corroborates a Python REST stack.',
+    });
   }
   return hits;
 }
@@ -139,12 +156,19 @@ export function aggregateFrameworkVotes(observations) {
   }
   const entries = Object.entries(votes).sort((a, b) => b[1] - a[1]);
   if (entries.length === 0) {
-    return { framework: null, confidence: 'none', votes, notes: ['no recognizable error shapes in the supplied observations'] };
+    return {
+      framework: null,
+      confidence: 'none',
+      votes,
+      notes: ['no recognizable error shapes in the supplied observations'],
+    };
   }
   const [framework, count] = entries[0];
   const confidence = count >= 3 ? 'high' : count === 2 ? 'medium' : 'low';
   if (entries.length > 1 && entries[1][1] === count) {
-    notes.push('multiple frameworks tied on votes — the API may sit behind a gateway that rewrites errors');
+    notes.push(
+      'multiple frameworks tied on votes — the API may sit behind a gateway that rewrites errors'
+    );
   } else {
     notes.push(`${count} of ${list.length} error observation(s) matched ${framework}`);
   }

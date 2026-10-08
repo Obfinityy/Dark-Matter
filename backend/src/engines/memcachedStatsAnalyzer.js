@@ -26,7 +26,7 @@ export function parseMemcachedStats(text) {
     const m = /^STAT\s+(\S+)\s+(.+?)\s*$/.exec(rawLine);
     if (!m) continue;
     const v = m[2].trim();
-    stats[m[1]] = /^-?\d+$/.test(v) ? parseInt(v, 10) : (/^-?\d*\.\d+$/.test(v) ? parseFloat(v) : v);
+    stats[m[1]] = /^-?\d+$/.test(v) ? parseInt(v, 10) : /^-?\d*\.\d+$/.test(v) ? parseFloat(v) : v;
   }
   return stats;
 }
@@ -46,7 +46,7 @@ export function parseMemcachedSlabs(text) {
     if (!slabs.has(id)) slabs.set(id, { slabClass: id });
     slabs.get(id)[m[2]] = parseInt(m[3], 10);
   }
-  return [...slabs.values()].map((s) => ({
+  return [...slabs.values()].map(s => ({
     slabClass: s.slabClass,
     chunkSize: s.chunk_size || 0,
     chunksPerPage: s.chunks_per_page || 0,
@@ -69,43 +69,66 @@ export function analyzeMemcachedStats({ statsText = '', slabsText = '' } = {}) {
   const version = String(s.version || 'unknown');
   findings.push(`Memcached ${version}.`);
   if (MEMCACHED_EOL_REGEX.test(version)) {
-    findings.push(`HIGH: Memcached ${version} is outdated and misses security fixes — upgrade to a supported 1.6.x release.`);
+    findings.push(
+      `HIGH: Memcached ${version} is outdated and misses security fixes — upgrade to a supported 1.6.x release.`
+    );
   }
 
   const uptime = Number(s.uptime || 0);
-  findings.push(`Uptime: ${(uptime / 86400).toFixed(1)} day(s); PID ${s.pid ?? '?'} on ${s.pointer_size ? `${s.pointer_size}-bit` : 'unknown'} build.`);
+  findings.push(
+    `Uptime: ${(uptime / 86400).toFixed(1)} day(s); PID ${s.pid ?? '?'} on ${s.pointer_size ? `${s.pointer_size}-bit` : 'unknown'} build.`
+  );
 
   const hits = Number(s.get_hits || 0);
   const misses = Number(s.get_misses || 0);
   const hitRatio = hits + misses > 0 ? hits / (hits + misses) : null;
-  if (hitRatio !== null) findings.push(`Cache hit ratio: ${(hitRatio * 100).toFixed(1)}% (${hits} hits / ${misses} misses).`);
+  if (hitRatio !== null)
+    findings.push(
+      `Cache hit ratio: ${(hitRatio * 100).toFixed(1)}% (${hits} hits / ${misses} misses).`
+    );
 
   const bytes = Number(s.bytes || 0);
   const limit = Number(s.limit_maxbytes || 0);
   const memoryPressure = limit > 0 ? bytes / limit : null;
-  if (memoryPressure !== null) findings.push(`Memory pressure: ${(memoryPressure * 100).toFixed(1)}% of ${limit} bytes used.`);
+  if (memoryPressure !== null)
+    findings.push(`Memory pressure: ${(memoryPressure * 100).toFixed(1)}% of ${limit} bytes used.`);
 
   const evictions = Number(s.evictions || 0);
-  if (evictions > 0) findings.push(`${evictions} eviction(s) recorded — working set exceeds available memory at times.`);
+  if (evictions > 0)
+    findings.push(
+      `${evictions} eviction(s) recorded — working set exceeds available memory at times.`
+    );
   const reclaimed = Number(s.reclaimed || 0);
   if (reclaimed > 0) findings.push(`${reclaimed} expired item(s) reclaimed for new writes.`);
 
   const currItems = Number(s.curr_items || 0);
   const totalItems = Number(s.total_items || 0);
-  findings.push(`Items: ${currItems} current / ${totalItems} stored since restart; connections: ${s.curr_connections ?? '?'} current, ${s.total_connections ?? '?'} total.`);
+  findings.push(
+    `Items: ${currItems} current / ${totalItems} stored since restart; connections: ${s.curr_connections ?? '?'} current, ${s.total_connections ?? '?'} total.`
+  );
 
   const usage = { hitRatio, memoryPressure, evictions, currItems, totalItems, uptimeSec: uptime };
   let profile = 'unknown';
-  if (currItems > 10000 && hitRatio !== null && hitRatio > 0.8) profile = 'hot cache (high hit ratio, large working set)';
+  if (currItems > 10000 && hitRatio !== null && hitRatio > 0.8)
+    profile = 'hot cache (high hit ratio, large working set)';
   else if (currItems > 1000 && evictions === 0) profile = 'stable object store (no evictions)';
-  else if (totalItems > 0 && currItems < totalItems * 0.1) profile = 'high-churn / session-like workload (most items expired or evicted)';
+  else if (totalItems > 0 && currItems < totalItems * 0.1)
+    profile = 'high-churn / session-like workload (most items expired or evicted)';
   else if (currItems === 0) profile = 'idle or freshly restarted';
   findings.push(`Usage profile: ${profile}.`);
 
-  const slabWaste = slabs.reduce((n, sl) => n + Math.max(0, sl.totalChunks - sl.usedChunks) * sl.chunkSize, 0);
-  if (slabs.length > 0) findings.push(`${slabs.length} slab classe(s); ~${slabWaste} bytes allocated but unused across slabs.`);
+  const slabWaste = slabs.reduce(
+    (n, sl) => n + Math.max(0, sl.totalChunks - sl.usedChunks) * sl.chunkSize,
+    0
+  );
+  if (slabs.length > 0)
+    findings.push(
+      `${slabs.length} slab classe(s); ~${slabWaste} bytes allocated but unused across slabs.`
+    );
 
-  findings.push('NOTE: the Memcached text protocol has no authentication — any host that can reach the port can read and write cached data.');
+  findings.push(
+    'NOTE: the Memcached text protocol has no authentication — any host that can reach the port can read and write cached data.'
+  );
 
   return {
     fingerprint: { version, outdated: MEMCACHED_EOL_REGEX.test(version), pid: s.pid ?? null },
@@ -116,5 +139,9 @@ export function analyzeMemcachedStats({ statsText = '', slabsText = '' } = {}) {
   };
 }
 
-export const MEMCACHED_STATS_ANALYZER = { parseMemcachedStats, parseMemcachedSlabs, analyzeMemcachedStats };
+export const MEMCACHED_STATS_ANALYZER = {
+  parseMemcachedStats,
+  parseMemcachedSlabs,
+  analyzeMemcachedStats,
+};
 export default MEMCACHED_STATS_ANALYZER;

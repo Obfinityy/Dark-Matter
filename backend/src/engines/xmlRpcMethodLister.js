@@ -10,7 +10,12 @@
  */
 
 const CANDIDATE_PATHS = [
-  '/xmlrpc.php', '/xmlrpc', '/RPC2', '/api/xmlrpc', '/xml-rpc', '/rpc/xmlrpc',
+  '/xmlrpc.php',
+  '/xmlrpc',
+  '/RPC2',
+  '/api/xmlrpc',
+  '/xml-rpc',
+  '/rpc/xmlrpc',
 ];
 
 /**
@@ -22,7 +27,7 @@ const CANDIDATE_PATHS = [
 export function xmlRpcCandidates(baseUrl, extraPaths = []) {
   if (!baseUrl || typeof baseUrl !== 'string') return [];
   const base = baseUrl.replace(/\/+$/, '');
-  return [...new Set([...CANDIDATE_PATHS, ...extraPaths])].map((p) => `${base}${p}`);
+  return [...new Set([...CANDIDATE_PATHS, ...extraPaths])].map(p => `${base}${p}`);
 }
 
 /**
@@ -71,7 +76,8 @@ export function categorizeMethods(methods = []) {
   for (const name of methods) {
     const lower = name.toLowerCase();
     if (lower.startsWith('system.')) groups.system.push(name);
-    else if (/admin|config|setting|backup|delete|upload|exec|debug/i.test(name)) groups.admin.push(name);
+    else if (/admin|config|setting|backup|delete|upload|exec|debug/i.test(name))
+      groups.admin.push(name);
     else groups.other.push(name);
   }
   return groups;
@@ -106,9 +112,9 @@ export async function probeMethodListing(url, fetchImpl = globalThis.fetch) {
  * @returns {string|null}
  */
 export function summarizeFindings(probes = []) {
-  const exposed = probes.filter((p) => p.exposed);
+  const exposed = probes.filter(p => p.exposed);
   if (exposed.length === 0) return null;
-  const lines = exposed.map((p) => {
+  const lines = exposed.map(p => {
     const groups = categorizeMethods(p.methods);
     return `- ${p.url}: XML-RPC method listing exposed (${p.methods.length} methods; system: ${groups.system.length}, sensitive-looking: ${groups.admin.length})`;
   });

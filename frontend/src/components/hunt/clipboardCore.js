@@ -164,7 +164,7 @@ export function stripTimestamps(logText) {
   // Removes leading "[2026-10-07 18:00:00] " style timestamps.
   return String(logText || '')
     .split('\n')
-    .map((line) => line.replace(/^\[[^\]]{8,32}\]\s*/, ''))
+    .map(line => line.replace(/^\[[^\]]{8,32}\]\s*/, ''))
     .join('\n');
 }
 
@@ -186,7 +186,7 @@ export function rowsToCsv(rows, headers) {
   const lines = [head.map(csvCell).join(',')];
   for (const row of rows) {
     const obj = Array.isArray(row) ? Object.fromEntries(head.map((h, i) => [h, row[i]])) : row;
-    lines.push(head.map((h) => csvCell(obj[h])).join(','));
+    lines.push(head.map(h => csvCell(obj[h])).join(','));
   }
   return lines.join('\r\n');
 }
@@ -236,7 +236,10 @@ export function isRevealWindowOpen(revealedAt, now = Date.now()) {
 /* ------------------------------------------------------------------ */
 
 export function diagnosticsBundle({ errorId, stack, env } = {}) {
-  const stackExcerpt = String(stack || '').split('\n').slice(0, 5).join('\n');
+  const stackExcerpt = String(stack || '')
+    .split('\n')
+    .slice(0, 5)
+    .join('\n');
   const envText = env
     ? Object.entries(env)
         .map(([k, v]) => `${k}=${v}`)
@@ -332,7 +335,7 @@ export function huntSummaryText({ name, findings = [], duration } = {}) {
     return acc;
   }, {});
   const parts = Object.entries(counts).map(([sev, n]) => `${n} ${sev}`);
-  const crit = findings.filter((f) => String(f.severity).toLowerCase() === 'critical').length;
+  const crit = findings.filter(f => String(f.severity).toLowerCase() === 'critical').length;
   const head = `Hunt ${name || 'unnamed'}: ${findings.length} findings${parts.length ? ` (${parts.join(', ')})` : ''}`;
   const tail = crit > 0 ? ` — ${crit} critical need attention.` : '.';
   return head + tail + (duration ? ` Duration: ${duration}.` : '');
@@ -399,7 +402,7 @@ export function citationAppend(text, { huntId, at } = {}) {
 /* ------------------------------------------------------------------ */
 
 export function assetListText(assets) {
-  return (assets || []).map((a) => String(a)).join('\n');
+  return (assets || []).map(a => String(a)).join('\n');
 }
 
 /* ------------------------------------------------------------------ */
@@ -429,7 +432,7 @@ export function retestDiffText({ before, after, context = 3 } = {}) {
 export function shortcutText(binding) {
   return String(binding || '')
     .split('+')
-    .map((p) => p.trim())
+    .map(p => p.trim())
     .filter(Boolean)
     .join('+');
 }
@@ -577,8 +580,8 @@ export function escapeRegex(literal) {
 
 export function multiBlockCombine(blocks) {
   return (blocks || [])
-    .filter((b) => b && b.selected)
-    .map((b) => b.text)
+    .filter(b => b && b.selected)
+    .map(b => b.text)
     .join('\n\n---\n\n');
 }
 
@@ -591,7 +594,7 @@ export function accessibleTableText(rows, headers) {
   const lines = [`headers: ${head.join(' | ')}`];
   for (const row of rows) {
     const obj = Array.isArray(row) ? Object.fromEntries(head.map((h, i) => [h, row[i]])) : row;
-    lines.push(head.map((h) => `${h}: ${obj[h] ?? ''}`).join(' | '));
+    lines.push(head.map(h => `${h}: ${obj[h] ?? ''}`).join(' | '));
   }
   return lines.join('\n');
 }
@@ -604,7 +607,7 @@ export const COPY_RATE_LIMIT = 10; // copies per second
 export const COPY_RATE_WINDOW_MS = 1000;
 
 export function copyRateGuard(timestamps, now = Date.now()) {
-  const recent = (timestamps || []).filter((t) => now - t < COPY_RATE_WINDOW_MS);
+  const recent = (timestamps || []).filter(t => now - t < COPY_RATE_WINDOW_MS);
   const allowed = recent.length < COPY_RATE_LIMIT;
   return {
     allowed,

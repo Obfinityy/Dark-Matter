@@ -59,7 +59,8 @@ export function netblockSummary(mined) {
   const groups = new Map();
   for (const [ip, entry] of mined || []) {
     const block = entry.netname || (entry.asn != null ? `AS${entry.asn}` : 'unknown');
-    if (!groups.has(block)) groups.set(block, { asn: entry.asn ?? null, ips: [], names: new Set() });
+    if (!groups.has(block))
+      groups.set(block, { asn: entry.asn ?? null, ips: [], names: new Set() });
     const g = groups.get(block);
     g.ips.push(ip);
     for (const n of entry.names) g.names.add(n);

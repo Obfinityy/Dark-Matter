@@ -19,7 +19,9 @@
  * @returns {{count:number, mean:number, median:number, p95:number, min:number, max:number, stddev:number, iqr:number}|null}
  */
 export function timingStats(samples) {
-  const values = (Array.isArray(samples) ? samples : []).filter((v) => typeof v === 'number' && v >= 0);
+  const values = (Array.isArray(samples) ? samples : []).filter(
+    v => typeof v === 'number' && v >= 0
+  );
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const n = sorted.length;
@@ -29,11 +31,16 @@ export function timingStats(samples) {
   const variance = sorted.reduce((s, v) => s + (v - mean) * (v - mean), 0) / n;
   const q1 = sorted[Math.floor(n * 0.25)];
   const q3 = sorted[Math.floor(n * 0.75)];
-  const round = (v) => Math.round(v * 100) / 100;
+  const round = v => Math.round(v * 100) / 100;
   return {
-    count: n, mean: round(mean), median: round(median), p95: round(p95),
-    min: round(sorted[0]), max: round(sorted[n - 1]),
-    stddev: round(Math.sqrt(variance)), iqr: round(q3 - q1),
+    count: n,
+    mean: round(mean),
+    median: round(median),
+    p95: round(p95),
+    min: round(sorted[0]),
+    max: round(sorted[n - 1]),
+    stddev: round(Math.sqrt(variance)),
+    iqr: round(q3 - q1),
   };
 }
 
@@ -45,8 +52,9 @@ export function timingStats(samples) {
  */
 export function detectBimodalLatency(samples) {
   const stats = timingStats(samples);
-  if (!stats || stats.count < 8) return { bimodal: false, fastCluster: null, slowCluster: null, separationMs: 0 };
-  const values = samples.filter((v) => typeof v === 'number' && v >= 0).sort((a, b) => a - b);
+  if (!stats || stats.count < 8)
+    return { bimodal: false, fastCluster: null, slowCluster: null, separationMs: 0 };
+  const values = samples.filter(v => typeof v === 'number' && v >= 0).sort((a, b) => a - b);
   // Split at the largest gap between consecutive sorted samples: a true
   // cache-vs-origin split shows a clear empty band between the two modes.
   let splitAt = -1;
@@ -67,7 +75,7 @@ export function detectBimodalLatency(samples) {
   const slowMean = slow.reduce((s, v) => s + v, 0) / slow.length;
   const separation = slowMean - fastMean;
   const bimodal = separation > Math.max(50, stats.stddev * 2);
-  const round = (v) => Math.round(v * 100) / 100;
+  const round = v => Math.round(v * 100) / 100;
   return {
     bimodal,
     fastCluster: { count: fast.length, mean: round(fastMean) },
@@ -83,10 +91,16 @@ export function detectBimodalLatency(samples) {
  * @returns {{correlated:boolean, pearsonR:number, slopeMsPerKb:number, interpretation:string}}
  */
 export function detectSizeCorrelation(observations) {
-  const pairs = (Array.isArray(observations) ? observations : [])
-    .filter((o) => o && typeof o.size === 'number' && typeof o.timeMs === 'number');
+  const pairs = (Array.isArray(observations) ? observations : []).filter(
+    o => o && typeof o.size === 'number' && typeof o.timeMs === 'number'
+  );
   if (pairs.length < 5) {
-    return { correlated: false, pearsonR: 0, slopeMsPerKb: 0, interpretation: 'insufficient samples for correlation analysis' };
+    return {
+      correlated: false,
+      pearsonR: 0,
+      slopeMsPerKb: 0,
+      interpretation: 'insufficient samples for correlation analysis',
+    };
   }
   const n = pairs.length;
   const meanX = pairs.reduce((s, p) => s + p.size, 0) / n;
@@ -119,7 +133,8 @@ export function detectSizeCorrelation(observations) {
  */
 export function inferBackendProfile(stats) {
   const notes = [];
-  if (!stats) return { profile: 'unknown', backendHint: 'unknown', notes: ['no timing samples available'] };
+  if (!stats)
+    return { profile: 'unknown', backendHint: 'unknown', notes: ['no timing samples available'] };
   let profile;
   let backendHint;
   if (stats.median < 8 && stats.p95 < 25) {
@@ -136,7 +151,8 @@ export function inferBackendProfile(stats) {
     backendHint = 'heavy per-request work — possible database round-trips or cold starts';
   }
   notes.push(`median ${stats.median}ms, p95 ${stats.p95}ms over ${stats.count} samples`);
-  if (stats.stddev > stats.median) notes.push('high variance relative to median — inconsistent backend work per request');
+  if (stats.stddev > stats.median)
+    notes.push('high variance relative to median — inconsistent backend work per request');
   return { profile, backendHint, notes };
 }
 
@@ -147,14 +163,16 @@ export function inferBackendProfile(stats) {
  */
 export function inferServiceProfile(endpoints) {
   const list = Array.isArray(endpoints) ? endpoints : [];
-  return list.map((ep) => {
+  return list.map(ep => {
     const rec = ep && typeof ep === 'object' ? ep : {};
     const stats = timingStats(rec.samples);
     return {
       endpoint: typeof rec.endpoint === 'string' ? rec.endpoint : '/',
       stats,
       bimodal: detectBimodalLatency(rec.samples),
-      sizeCorrelation: Array.isArray(rec.sizeObservations) ? detectSizeCorrelation(rec.sizeObservations) : null,
+      sizeCorrelation: Array.isArray(rec.sizeObservations)
+        ? detectSizeCorrelation(rec.sizeObservations)
+        : null,
       profile: inferBackendProfile(stats),
     };
   });

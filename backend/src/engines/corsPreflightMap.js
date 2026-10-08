@@ -22,7 +22,8 @@ export function classifyPreflight(obs) {
   const endpoint = o.endpoint || 'unknown';
   const allowOrigin = o.allowOrigin != null ? String(o.allowOrigin).trim() : null;
   const requestOrigin = o.requestOrigin != null ? String(o.requestOrigin).trim() : null;
-  const allowCredentials = o.allowCredentials != null ? String(o.allowCredentials).trim().toLowerCase() : null;
+  const allowCredentials =
+    o.allowCredentials != null ? String(o.allowCredentials).trim().toLowerCase() : null;
   const misconfigurations = [];
   const fingerprintHints = [];
   let policy;
@@ -32,36 +33,57 @@ export function classifyPreflight(obs) {
   } else if (allowOrigin === '*') {
     policy = allowCredentials === 'true' ? 'wildcard-with-credentials' : 'wildcard';
     if (allowCredentials === 'true') {
-      misconfigurations.push('Access-Control-Allow-Origin: * combined with Allow-Credentials: true — browsers reject this, and any origin-trusting proxy in front may be abused');
+      misconfigurations.push(
+        'Access-Control-Allow-Origin: * combined with Allow-Credentials: true — browsers reject this, and any origin-trusting proxy in front may be abused'
+      );
     }
   } else if (requestOrigin && allowOrigin === requestOrigin) {
     policy = allowCredentials === 'true' ? 'reflected-origin-with-credentials' : 'reflected-origin';
-    misconfigurations.push('Origin is reflected verbatim — verify the allow-list; arbitrary-origin reflection enables credential theft');
+    misconfigurations.push(
+      'Origin is reflected verbatim — verify the allow-list; arbitrary-origin reflection enables credential theft'
+    );
   } else if (allowOrigin.toLowerCase() === 'null') {
     policy = 'null-origin-allowed';
-    misconfigurations.push('The literal "null" origin is allowed — sandboxed iframes and redirects can present a null origin');
+    misconfigurations.push(
+      'The literal "null" origin is allowed — sandboxed iframes and redirects can present a null origin'
+    );
   } else {
     policy = 'allow-listed-origin';
   }
 
   const allowMethods = (o.allowMethods || '').toUpperCase();
   if (/\b(TRACE|TRACK|CONNECT)\b/.test(allowMethods)) {
-    misconfigurations.push('Dangerous HTTP methods advertised in Access-Control-Allow-Methods: ' + o.allowMethods);
+    misconfigurations.push(
+      'Dangerous HTTP methods advertised in Access-Control-Allow-Methods: ' + o.allowMethods
+    );
   }
   const vary = (o.vary || '').toLowerCase();
-  if ((policy === 'reflected-origin' || policy === 'reflected-origin-with-credentials') && !/\borigin\b/.test(vary)) {
-    misconfigurations.push('Reflected Origin without Vary: Origin — caches may poison CORS responses across origins');
+  if (
+    (policy === 'reflected-origin' || policy === 'reflected-origin-with-credentials') &&
+    !/\borigin\b/.test(vary)
+  ) {
+    misconfigurations.push(
+      'Reflected Origin without Vary: Origin — caches may poison CORS responses across origins'
+    );
   }
 
   // Framework hints from characteristic header combinations.
   const allowHeaders = (o.allowHeaders || '').toLowerCase();
-  if (/x-requested-with/.test(allowHeaders) && /content-type/.test(allowHeaders) && /accept/.test(allowHeaders)) {
+  if (
+    /x-requested-with/.test(allowHeaders) &&
+    /content-type/.test(allowHeaders) &&
+    /accept/.test(allowHeaders)
+  ) {
     fingerprintHints.push('Express cors-middleware style default Allow-Headers set');
   }
   if (/x-csrf-token|xsrf/.test(allowHeaders)) {
     fingerprintHints.push('CSRF-token aware stack (Rails/Laravel style CORS configuration)');
   }
-  if (allowMethods.includes('PATCH') && allowMethods.includes('DELETE') && policy.startsWith('reflected')) {
+  if (
+    allowMethods.includes('PATCH') &&
+    allowMethods.includes('DELETE') &&
+    policy.startsWith('reflected')
+  ) {
     fingerprintHints.push('Permissive framework-default CORS (Spring/Django-cors-headers style)');
   }
 
@@ -114,9 +136,19 @@ export function mapCorsBehavior(observations) {
 export function summarizeCorsPosture(corsMap) {
   const counts = corsMap.policyCounts || {};
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  const risky = (counts['reflected-origin'] || 0) + (counts['reflected-origin-with-credentials'] || 0)
-    + (counts['wildcard-with-credentials'] || 0) + (counts['null-origin-allowed'] || 0);
-  const verdict = corsMap.misconfigurations.length > 0 ? 'misconfigured' : risky > 0 ? 'permissive' : total === 0 ? 'unknown' : 'restrictive';
+  const risky =
+    (counts['reflected-origin'] || 0) +
+    (counts['reflected-origin-with-credentials'] || 0) +
+    (counts['wildcard-with-credentials'] || 0) +
+    (counts['null-origin-allowed'] || 0);
+  const verdict =
+    corsMap.misconfigurations.length > 0
+      ? 'misconfigured'
+      : risky > 0
+        ? 'permissive'
+        : total === 0
+          ? 'unknown'
+          : 'restrictive';
   const summary =
     verdict === 'misconfigured'
       ? `${corsMap.misconfigurations.length} CORS misconfiguration(s) across ${total} mapped endpoint(s).`

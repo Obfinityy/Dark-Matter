@@ -12,17 +12,17 @@
  * SMTP reply-code severity for enumeration posture.
  */
 const POSTURE_BY_CODE = {
-  250: 'enumerable',        // positive completion — address confirmed
-  251: 'enumerable',        // user not local; will forward — address confirmed
-  252: 'ambiguous',         // cannot VRFY user, but may deliver — no oracle
-  550: 'resistant',         // user not found — could still be an oracle
-  551: 'ambiguous',         // user not local — partial disclosure
+  250: 'enumerable', // positive completion — address confirmed
+  251: 'enumerable', // user not local; will forward — address confirmed
+  252: 'ambiguous', // cannot VRFY user, but may deliver — no oracle
+  550: 'resistant', // user not found — could still be an oracle
+  551: 'ambiguous', // user not local — partial disclosure
   552: 'ambiguous',
   553: 'resistant',
-  500: 'disabled',          // command not recognized — VRFY/EXPN off
-  501: 'disabled',          // syntax error — probe rejected
-  502: 'disabled',          // command not implemented
-  503: 'disabled',          // bad command sequence — probe rejected
+  500: 'disabled', // command not recognized — VRFY/EXPN off
+  501: 'disabled', // syntax error — probe rejected
+  502: 'disabled', // command not implemented
+  503: 'disabled', // bad command sequence — probe rejected
   504: 'disabled',
 };
 
@@ -41,7 +41,9 @@ const ADDRESS_PATTERNS = [
  */
 export function classifyVrfyReply(reply = {}) {
   const code = Number(reply.code) || 0;
-  const posture = POSTURE_BY_CODE[code] || (code >= 200 && code < 300 ? 'enumerable' : code >= 500 ? 'disabled' : 'ambiguous');
+  const posture =
+    POSTURE_BY_CODE[code] ||
+    (code >= 200 && code < 300 ? 'enumerable' : code >= 500 ? 'disabled' : 'ambiguous');
   return {
     command: reply.command || 'VRFY',
     target: String(reply.target || ''),
@@ -78,35 +80,37 @@ export function detectEnumerationOracle(validReply = {}, invalidReply = {}) {
  */
 export function summarizeEnumerationSession(session = []) {
   const classified = session.map(classifyVrfyReply);
-  const vrfy = classified.filter((c) => c.command === 'VRFY');
-  const expn = classified.filter((c) => c.command === 'EXPN');
-  const confirmed = vrfy.filter((c) => c.disclosesExistence).map((c) => c.target);
-  const disabledCount = classified.filter((c) => c.posture === 'disabled').length;
-  const posture = confirmed.length > 0
-    ? 'enumerable'
-    : disabledCount === classified.length && classified.length > 0
-      ? 'disabled'
-      : 'ambiguous';
+  const vrfy = classified.filter(c => c.command === 'VRFY');
+  const expn = classified.filter(c => c.command === 'EXPN');
+  const confirmed = vrfy.filter(c => c.disclosesExistence).map(c => c.target);
+  const disabledCount = classified.filter(c => c.posture === 'disabled').length;
+  const posture =
+    confirmed.length > 0
+      ? 'enumerable'
+      : disabledCount === classified.length && classified.length > 0
+        ? 'disabled'
+        : 'ambiguous';
 
-  const addressPatterns = ADDRESS_PATTERNS.map((p) => ({
+  const addressPatterns = ADDRESS_PATTERNS.map(p => ({
     name: p.name,
     note: p.note,
-    confirmed: classified.some((c) => p.re.test(c.target) && c.disclosesExistence),
+    confirmed: classified.some(c => p.re.test(c.target) && c.disclosesExistence),
   }));
 
   return {
     posture,
     commandsEnabled: {
-      vrfy: vrfy.some((c) => c.posture !== 'disabled'),
-      expn: expn.some((c) => c.posture !== 'disabled'),
+      vrfy: vrfy.some(c => c.posture !== 'disabled'),
+      expn: expn.some(c => c.posture !== 'disabled'),
     },
     addressesConfirmed: [...new Set(confirmed)],
     addressPatterns,
-    summary: posture === 'enumerable'
-      ? `Server confirms recipient addresses via VRFY/EXPN (${confirmed.length} confirmed). User enumeration is possible.`
-      : posture === 'disabled'
-        ? 'VRFY/EXPN are disabled or rejected; no user enumeration oracle observed.'
-        : 'VRFY/EXPN behavior is ambiguous; further controlled checks needed before concluding.',
+    summary:
+      posture === 'enumerable'
+        ? `Server confirms recipient addresses via VRFY/EXPN (${confirmed.length} confirmed). User enumeration is possible.`
+        : posture === 'disabled'
+          ? 'VRFY/EXPN are disabled or rejected; no user enumeration oracle observed.'
+          : 'VRFY/EXPN behavior is ambiguous; further controlled checks needed before concluding.',
   };
 }
 

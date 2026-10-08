@@ -15,32 +15,44 @@ import * as FPI from './fpImpactCore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const NEW_FILES = [
-  'retestCore.js', 'fpImpactCore.js',
-  'RetestSuite.jsx', 'FPImpact.jsx',
-  'Wave54.css', 'wave54.test.js',
+  'retestCore.js',
+  'fpImpactCore.js',
+  'RetestSuite.jsx',
+  'FPImpact.jsx',
+  'Wave54.css',
+  'wave54.test.js',
 ];
 const NOW = 1700000000000; // fixed reference time for deterministic tests
 
 describe('fpImpactCore registry', () => {
   test('lists FP ideas 52121–52122, zero skips', () => {
     assert.equal(FPI.WAVE54_FP_IDEAS.length, 2);
-    const ids = FPI.WAVE54_FP_IDEAS.map((i) => i.id);
+    const ids = FPI.WAVE54_FP_IDEAS.map(i => i.id);
     for (let id = 52121; id <= 52122; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 2, 'no duplicate ids');
-    assert.ok(FPI.WAVE54_FP_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      FPI.WAVE54_FP_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
 describe('retestCore registry', () => {
   test('lists all 38 retest ideas 52123–52160, zero skips', () => {
     assert.equal(RT.WAVE54_RETEST_IDEAS.length, 38);
-    const ids = RT.WAVE54_RETEST_IDEAS.map((i) => i.id);
+    const ids = RT.WAVE54_RETEST_IDEAS.map(i => i.id);
     for (let id = 52123; id <= 52160; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 38, 'no duplicate ids');
-    assert.ok(RT.WAVE54_RETEST_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      RT.WAVE54_RETEST_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
   test('combined wave-54 registries cover 40/40 ideas 52121–52160', () => {
-    const ids = new Set([...FPI.WAVE54_FP_IDEAS.map((i) => i.id), ...RT.WAVE54_RETEST_IDEAS.map((i) => i.id)]);
+    const ids = new Set([
+      ...FPI.WAVE54_FP_IDEAS.map(i => i.id),
+      ...RT.WAVE54_RETEST_IDEAS.map(i => i.id),
+    ]);
     assert.equal(ids.size, 40);
     for (let id = 52121; id <= 52160; id++) assert.ok(ids.has(id), `missing idea ${id}`);
   });
@@ -55,7 +67,9 @@ describe('fpImpactCore spot checks', () => {
     ];
     const sim = FPI.simulateFpRuleImpact(
       { id: 'r1', name: 'dismiss shop xss', matcher: { vulnClass: 'xss', target: 'shop' } },
-      open, NOW);
+      open,
+      NOW
+    );
     assert.equal(sim.affectedCount, 1);
     assert.equal(sim.openCount, 3);
     assert.equal(sim.affectedFindings[0].findingId, 'f1');
@@ -64,14 +78,24 @@ describe('fpImpactCore spot checks', () => {
   test('52121 simulator warns on critical findings', () => {
     const sim = FPI.simulateFpRuleImpact(
       { id: 'r2', name: 'dismiss all shop', matcher: { target: 'shop' } },
-      [{ id: 'f2', vulnClass: 'sqli', target: 'shop', severity: 'critical' }], NOW);
+      [{ id: 'f2', vulnClass: 'sqli', target: 'shop', severity: 'critical' }],
+      NOW
+    );
     assert.ok(sim.warning, 'warning expected for critical');
   });
   test('52122 exportFpBundle exports with evidence, rejects evidence-less', () => {
-    const exp = FPI.exportFpBundle([
-      { findingId: 'f1', markedBy: 'ria', reasonId: 'expected-behavior', evidence: [{ kind: 'http', body: 'ok' }] },
-      { findingId: 'f2', reasonId: 'x', evidence: [] },
-    ], NOW);
+    const exp = FPI.exportFpBundle(
+      [
+        {
+          findingId: 'f1',
+          markedBy: 'ria',
+          reasonId: 'expected-behavior',
+          evidence: [{ kind: 'http', body: 'ok' }],
+        },
+        { findingId: 'f2', reasonId: 'x', evidence: [] },
+      ],
+      NOW
+    );
     assert.equal(exp.exported, 1);
     assert.equal(exp.rejected, 1);
     assert.equal(exp.bundles[0].evidenceCount, 1);
@@ -111,10 +135,13 @@ describe('retestCore spot checks', () => {
     assert.equal(ok.request.status, 'scheduled');
   });
   test('52127 queueSummary counts and ETA', () => {
-    const s = RT.queueSummary([
-      { id: 'a', status: 'queued', requestedAt: NOW - 5, requestedBy: 'ria' },
-      { id: 'b', status: 'running', requestedAt: NOW - 4, requestedBy: 'ria' },
-    ], NOW);
+    const s = RT.queueSummary(
+      [
+        { id: 'a', status: 'queued', requestedAt: NOW - 5, requestedBy: 'ria' },
+        { id: 'b', status: 'running', requestedAt: NOW - 4, requestedBy: 'ria' },
+      ],
+      NOW
+    );
     assert.equal(s.total, 2);
     assert.equal(s.pending, 1);
     assert.equal(s.running, 1);
@@ -126,9 +153,21 @@ describe('retestCore spot checks', () => {
     assert.ok(ok.ok);
   });
   test('52129 diffRetestReport verdicts', () => {
-    assert.equal(RT.diffRetestReport({ id: 'f1', severity: 'high' }, { stillVulnerable: false }).verdict, 'fixed');
-    assert.equal(RT.diffRetestReport({ id: 'f1', severity: 'high' }, { stillVulnerable: true }).verdict, 'still-vulnerable');
-    assert.equal(RT.diffRetestReport({ id: 'f1', severity: 'high' }, { stillVulnerable: true, behaviorChanged: true }).verdict, 'changed-behavior');
+    assert.equal(
+      RT.diffRetestReport({ id: 'f1', severity: 'high' }, { stillVulnerable: false }).verdict,
+      'fixed'
+    );
+    assert.equal(
+      RT.diffRetestReport({ id: 'f1', severity: 'high' }, { stillVulnerable: true }).verdict,
+      'still-vulnerable'
+    );
+    assert.equal(
+      RT.diffRetestReport(
+        { id: 'f1', severity: 'high' },
+        { stillVulnerable: true, behaviorChanged: true }
+      ).verdict,
+      'changed-behavior'
+    );
   });
   test('52130 estimateRetestCost scales with depth', () => {
     const shallow = RT.estimateRetestCost({ id: 'r1', options: { depth: 'shallow' } });
@@ -137,15 +176,25 @@ describe('retestCore spot checks', () => {
   });
   test('52131 prioritizeQueue orders urgent first', () => {
     RT.__resetRetestSeq();
-    const q = ['low', 'urgent', 'normal'].map((p, i) => ({ id: `x${i}`, priority: p, requestedAt: NOW }));
-    assert.deepEqual(RT.prioritizeQueue(q).map((r) => r.priority), ['urgent', 'normal', 'low']);
+    const q = ['low', 'urgent', 'normal'].map((p, i) => ({
+      id: `x${i}`,
+      priority: p,
+      requestedAt: NOW,
+    }));
+    assert.deepEqual(
+      RT.prioritizeQueue(q).map(r => r.priority),
+      ['urgent', 'normal', 'low']
+    );
     assert.equal(RT.setRetestPriority({ id: 'r1' }, 'bogus').ok, false);
   });
   test('52132/52133 triage quick retest and thin-evidence auto-retest', () => {
     const quick = RT.triageQuickRetest({ id: 'f1', evidenceStrength: 'thin' }, NOW);
     assert.ok(quick.ok);
     assert.equal(RT.triageQuickRetest({ id: 'f1', evidenceStrength: 'strong' }, NOW).ok, false);
-    const auto = RT.autoRetestThinEvidence([{ id: 'f1', evidenceStrength: 'thin', status: 'open' }], NOW);
+    const auto = RT.autoRetestThinEvidence(
+      [{ id: 'f1', evidenceStrength: 'thin', status: 'open' }],
+      NOW
+    );
     assert.equal(auto.queued.length, 1);
     assert.equal(auto.queued[0].trigger, 'auto-thin-evidence');
   });
@@ -159,7 +208,14 @@ describe('retestCore spot checks', () => {
     assert.equal(RT.setStealthMode({ id: 'r1' }, false).request.options.stealth, false);
   });
   test('52136 checkConcurrency enforces cap', () => {
-    const c = RT.checkConcurrency('shop', [{ target: 'shop', status: 'running' }, { target: 'shop', status: 'running' }], 2);
+    const c = RT.checkConcurrency(
+      'shop',
+      [
+        { target: 'shop', status: 'running' },
+        { target: 'shop', status: 'running' },
+      ],
+      2
+    );
     assert.equal(c.allowed, false);
     assert.ok(c.reason);
     const free = RT.checkConcurrency('shop', [{ target: 'shop', status: 'running' }], 2);
@@ -182,7 +238,11 @@ describe('retestCore spot checks', () => {
     const req = { id: 'r1', requestedAt: NOW - 5 * 3600000, status: 'running' };
     const s = RT.slaStatus(req, { severity: 'critical' }, NOW);
     assert.equal(s.breached, true);
-    const fresh = RT.slaStatus({ id: 'r2', requestedAt: NOW, status: 'running' }, { severity: 'low' }, NOW);
+    const fresh = RT.slaStatus(
+      { id: 'r2', requestedAt: NOW, status: 'running' },
+      { severity: 'low' },
+      NOW
+    );
     assert.equal(fresh.breached, false);
   });
   test('52140 bulkRequestRetests queues N requests', () => {
@@ -199,8 +259,13 @@ describe('retestCore spot checks', () => {
   });
   test('52142 deployWebhookTrigger matches target', () => {
     const r = RT.deployWebhookTrigger(
-      [{ id: 'f1', target: 'shop', status: 'open' }, { id: 'f2', target: 'blog', status: 'open' }],
-      { id: 'd1', target: 'shop', ref: 'abc' }, NOW);
+      [
+        { id: 'f1', target: 'shop', status: 'open' },
+        { id: 'f2', target: 'blog', status: 'open' },
+      ],
+      { id: 'd1', target: 'shop', ref: 'abc' },
+      NOW
+    );
     assert.equal(r.matched, 1);
     assert.equal(r.requests[0].trigger, 'deploy-webhook');
   });
@@ -220,13 +285,25 @@ describe('retestCore spot checks', () => {
     assert.equal(RT.checkRetestBudget(100, 100, NOW).state, 'blocked');
   });
   test('52145 refreshRetestEvidence replaces PoC', () => {
-    const a = RT.refreshRetestEvidence({ id: 'a1', evidence: [{ body: 'old' }] }, [{ body: 'new' }]);
+    const a = RT.refreshRetestEvidence({ id: 'a1', evidence: [{ body: 'old' }] }, [
+      { body: 'new' },
+    ]);
     assert.equal(a.evidence.length, 1);
     assert.equal(a.stalePoCReplaced, true);
   });
   test('52146 compareEnvironments consistent/divergent', () => {
-    assert.equal(RT.compareEnvironments({ staging: { verdict: 'fixed' }, production: { verdict: 'fixed' } }).verdict, 'consistent');
-    assert.equal(RT.compareEnvironments({ staging: { verdict: 'fixed' }, production: { verdict: 'still-vulnerable' } }).verdict, 'divergent');
+    assert.equal(
+      RT.compareEnvironments({ staging: { verdict: 'fixed' }, production: { verdict: 'fixed' } })
+        .verdict,
+      'consistent'
+    );
+    assert.equal(
+      RT.compareEnvironments({
+        staging: { verdict: 'fixed' },
+        production: { verdict: 'still-vulnerable' },
+      }).verdict,
+      'divergent'
+    );
   });
   test('52147 inRetestWindow respects days/hours', () => {
     const w = [{ days: [6, 0], startHour: 1, endHour: 5 }];
@@ -240,10 +317,14 @@ describe('retestCore spot checks', () => {
     assert.ok(RT.backoffForRetest(2).delayMs > RT.backoffForRetest(1).delayMs);
   });
   test('52149 dryRunPreview sends nothing', () => {
-    const p = RT.dryRunPreview({ id: 'r1', originalPayload: '<x>', scope: { endpoints: ['/a', '/b'] } });
+    const p = RT.dryRunPreview({
+      id: 'r1',
+      originalPayload: '<x>',
+      scope: { endpoints: ['/a', '/b'] },
+    });
     assert.equal(p.dryRun, true);
     assert.ok(p.totalRequests > 0);
-    assert.ok(p.wouldSend.every((s) => s.method && s.endpoint));
+    assert.ok(p.wouldSend.every(s => s.method && s.endpoint));
   });
   test('52150 attachAuthSession requires a session', () => {
     assert.equal(RT.attachAuthSession({ id: 'r1' }, null).ok, false);
@@ -252,9 +333,15 @@ describe('retestCore spot checks', () => {
     assert.equal(ok.request.auth.sessionId, 's1');
   });
   test('52151 buildReplayPlan orders steps', () => {
-    const p = RT.buildReplayPlan([{ method: 'GET', url: '/a' }, { method: 'POST', url: '/b' }]);
+    const p = RT.buildReplayPlan([
+      { method: 'GET', url: '/a' },
+      { method: 'POST', url: '/b' },
+    ]);
     assert.equal(p.total, 2);
-    assert.deepEqual(p.steps.map((s) => s.order), [1, 2]);
+    assert.deepEqual(
+      p.steps.map(s => s.order),
+      [1, 2]
+    );
   });
   test('52152 parameterSweep dedupes', () => {
     const s = RT.parameterSweep('q', ['query', 'q']);
@@ -280,16 +367,30 @@ describe('retestCore spot checks', () => {
     assert.ok(RT.assignRetest({ id: 'r1' }, 'sam', NOW + 1000, NOW).ok);
   });
   test('52158 classifyRetestWork distinguishes kinds', () => {
-    assert.equal(RT.classifyRetestWork({ id: 'r1', kind: 'retest' }).workflow, 'targeted-verification-workflow');
-    assert.equal(RT.classifyRetestWork({ id: 'r2', kind: 'regression' }).workflow, 'full-hunt-workflow');
+    assert.equal(
+      RT.classifyRetestWork({ id: 'r1', kind: 'retest' }).workflow,
+      'targeted-verification-workflow'
+    );
+    assert.equal(
+      RT.classifyRetestWork({ id: 'r2', kind: 'regression' }).workflow,
+      'full-hunt-workflow'
+    );
   });
   test('52159 escalateStillVulnerable targets assignee and manager', () => {
-    const e = RT.escalateStillVulnerable({ id: 'r1' }, { id: 'f1', assignee: 'ria', severity: 'high' }, 'mgr', NOW);
+    const e = RT.escalateStillVulnerable(
+      { id: 'r1' },
+      { id: 'f1', assignee: 'ria', severity: 'high' },
+      'mgr',
+      NOW
+    );
     assert.ok(e.ok);
     assert.deepEqual(e.escalation.escalatedTo, ['ria', 'mgr']);
   });
   test('52160 issueVerificationCertificate only for fixed', () => {
-    assert.equal(RT.issueVerificationCertificate({ id: 'f1' }, 'still-vulnerable', 'infinity-ai', NOW).ok, false);
+    assert.equal(
+      RT.issueVerificationCertificate({ id: 'f1' }, 'still-vulnerable', 'infinity-ai', NOW).ok,
+      false
+    );
     const c = RT.issueVerificationCertificate({ id: 'f1' }, 'fixed', 'infinity-ai', NOW);
     assert.ok(c.ok);
     assert.equal(c.certificate.verifiedFixedOn, '2023-11-14');
@@ -330,7 +431,7 @@ describe('self audits', () => {
   });
   test('none of the 5 product files contain TODO/FIXME/XXX/mock/simulate/lorem/demo placeholder text', () => {
     const pattern = /\b(todo|fixme|xxx|hack|mock|simulate|lorem|demo)\b/i;
-    for (const f of NEW_FILES.filter((x) => x !== 'wave54.test.js')) {
+    for (const f of NEW_FILES.filter(x => x !== 'wave54.test.js')) {
       const content = readFileSync(join(HERE, f), 'utf8');
       const hit = content.match(pattern);
       assert.ok(!hit, `${f} contains debris marker: "${hit && hit[0]}"`);
@@ -345,11 +446,11 @@ describe('self audits', () => {
   test('Wave54.css uses only scoped prefixes .rt54-* and .fpi54-*', () => {
     const css = readFileSync(join(HERE, 'Wave54.css'), 'utf8');
     const classSelectors = css.match(/^\.[a-zA-Z][a-zA-Z0-9_-]*/gm) || [];
-    const rogue = classSelectors.filter((c) => !c.startsWith('.rt54-') && !c.startsWith('.fpi54-'));
+    const rogue = classSelectors.filter(c => !c.startsWith('.rt54-') && !c.startsWith('.fpi54-'));
     assert.deepEqual(rogue, [], `unscoped selectors: ${rogue.join(', ')}`);
   });
   test('Infinity AI branding only — no other worker name in product files', () => {
-    const productFiles = NEW_FILES.filter((f) => f !== 'wave54.test.js');
+    const productFiles = NEW_FILES.filter(f => f !== 'wave54.test.js');
     for (const f of productFiles) {
       const content = readFileSync(join(HERE, f), 'utf8');
       assert.ok(!/\b[mM]use\b/.test(content), `${f} mentions the forbidden worker name`);
@@ -358,7 +459,10 @@ describe('self audits', () => {
   test('RetestSuite.jsx exports one component per idea 52123–52160', () => {
     const src = readFileSync(join(HERE, 'RetestSuite.jsx'), 'utf8');
     for (let id = 52123; id <= 52160; id++) {
-      assert.ok(new RegExp(`\\/\\* ${id} —`).test(src), `RetestSuite.jsx missing component comment for idea ${id}`);
+      assert.ok(
+        new RegExp(`\\/\\* ${id} —`).test(src),
+        `RetestSuite.jsx missing component comment for idea ${id}`
+      );
     }
   });
 });

@@ -14,10 +14,7 @@ const VAULT_VERSION_PATTERNS = [
   /vault[\s-]*v?(\d+\.\d+\.\d+[-\w.]*)/i,
 ];
 
-const VAULT_UI_PATTERNS = [
-  /<title>\s*Vault\s*<\/title>/i,
-  /hashicorp[\s-]*vault/i,
-];
+const VAULT_UI_PATTERNS = [/<title>\s*Vault\s*<\/title>/i, /hashicorp[\s-]*vault/i];
 
 const VAULT_ENDPOINT_HINTS = [
   '/v1/sys/seal-status',

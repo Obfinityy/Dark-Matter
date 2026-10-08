@@ -13,7 +13,9 @@
  * Canonicalize HTTP header names for fingerprinting.
  */
 function canonHeaderName(name) {
-  return String(name || '').trim().toLowerCase();
+  return String(name || '')
+    .trim()
+    .toLowerCase();
 }
 
 /**
@@ -39,7 +41,7 @@ export function computeJA4H({ headers = [], cookies = [] } = {}) {
   const values = entries.map(([, v]) => String(v ?? '')).join('|');
 
   const cookieNames = Array.isArray(cookies)
-    ? cookies.map((c) => String(c).split('=')[0].trim().toLowerCase()).filter(Boolean)
+    ? cookies.map(c => String(c).split('=')[0].trim().toLowerCase()).filter(Boolean)
     : [];
   const sortedCookies = [...cookieNames].sort().join(',');
 
@@ -80,7 +82,8 @@ export const CDN_WAF_SIGNATURES = [
     provider: 'Cloudflare',
     type: 'CDN/WAF',
     markers: [
-      { header: 'cf-ray' }, { header: 'cf-cache-status' },
+      { header: 'cf-ray' },
+      { header: 'cf-cache-status' },
       { header: 'server', value: /cloudflare/i },
       { header: '__cf_bm', cookie: true },
     ],
@@ -89,7 +92,8 @@ export const CDN_WAF_SIGNATURES = [
     provider: 'Akamai',
     type: 'CDN',
     markers: [
-      { header: 'akamai-grn' }, { header: 'x-akamai-request-id' },
+      { header: 'akamai-grn' },
+      { header: 'x-akamai-request-id' },
       { header: 'x-akamai-transformed' },
       { header: 'server', value: /akamaighost|akamai/i },
     ],
@@ -98,7 +102,8 @@ export const CDN_WAF_SIGNATURES = [
     provider: 'Fastly',
     type: 'CDN',
     markers: [
-      { header: 'x-fastly-request-id' }, { header: 'fastly-restarts' },
+      { header: 'x-fastly-request-id' },
+      { header: 'fastly-restarts' },
       { header: 'via', value: /varnish|fastly/i },
       { header: 'server', value: /varnish/i },
     ],
@@ -107,7 +112,8 @@ export const CDN_WAF_SIGNATURES = [
     provider: 'AWS CloudFront',
     type: 'CDN',
     markers: [
-      { header: 'x-amz-cf-id' }, { header: 'x-amz-cf-pop' },
+      { header: 'x-amz-cf-id' },
+      { header: 'x-amz-cf-pop' },
       { header: 'via', value: /cloudfront/i },
     ],
   },
@@ -117,31 +123,29 @@ export const CDN_WAF_SIGNATURES = [
     markers: [
       { header: 'x-cdn', value: /imperva|incapsula/i },
       { header: 'x-iinfo' },
-      { cookiePrefix: 'incap_ses_' }, { cookiePrefix: 'visid_incap_' },
+      { cookiePrefix: 'incap_ses_' },
+      { cookiePrefix: 'visid_incap_' },
     ],
   },
   {
     provider: 'F5 BIG-IP ASM',
     type: 'WAF',
     markers: [
-      { cookie: 'ts01' }, { cookie: 'f5_st' }, { cookie: 'bigipserver' },
+      { cookie: 'ts01' },
+      { cookie: 'f5_st' },
+      { cookie: 'bigipserver' },
       { header: 'x-waf-event-id' },
     ],
   },
   {
     provider: 'AWS WAF (ALB/CloudFront)',
     type: 'WAF',
-    markers: [
-      { cookie: 'awselb' }, { cookie: 'awselb2' },
-      { header: 'x-amzn-waf-action' },
-    ],
+    markers: [{ cookie: 'awselb' }, { cookie: 'awselb2' }, { header: 'x-amzn-waf-action' }],
   },
   {
     provider: 'Sucuri',
     type: 'WAF',
-    markers: [
-      { header: 'x-sucuri-cache' }, { header: 'x-sucuri-id' },
-    ],
+    markers: [{ header: 'x-sucuri-cache' }, { header: 'x-sucuri-id' }],
   },
   {
     provider: 'StackPath',
@@ -177,7 +181,7 @@ export const CDN_WAF_SIGNATURES = [
 export function identifyCdnWaf({ headers = [], cookies = [], knownFingerprints = {} } = {}) {
   const entries = Array.isArray(headers) ? headers : Object.entries(headers || {});
   const headerMap = new Map(entries.map(([k, v]) => [canonHeaderName(k), String(v ?? '')]));
-  const cookieSet = new Set((cookies || []).map((c) => String(c).split('=')[0].trim().toLowerCase()));
+  const cookieSet = new Set((cookies || []).map(c => String(c).split('=')[0].trim().toLowerCase()));
 
   const ja4h = computeJA4H({ headers: entries, cookies: [...cookieSet] });
   const matches = [];
@@ -199,7 +203,7 @@ export function identifyCdnWaf({ headers = [], cookies = [], knownFingerprints =
       }
       if (m.cookiePrefix) {
         const prefix = String(m.cookiePrefix).toLowerCase();
-        const hit = [...cookieSet].find((c) => c.startsWith(prefix));
+        const hit = [...cookieSet].find(c => c.startsWith(prefix));
         if (hit) {
           score += 2;
           evidence.push(`cookie prefix ${m.cookiePrefix}* (${hit})`);

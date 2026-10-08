@@ -5,21 +5,85 @@
  */
 import React, { useMemo, useState } from 'react';
 import {
-  detectStalls, shareLink, watermark, offlineCache,
-  summarizeRange, diffToolOutputs, shortcutMap, navigateLog,
-  saveView, applyView, promoteToFinding, executionGraph,
-  logSentiment, replaySandbox, fnv1a, integrityHash, verifyIntegrity,
-  mergeStreams, densityFilter, densityLevels, foldRepeats,
-  voiceNarration, exportSchedule, crossHuntCompare, answerFromLogs,
+  detectStalls,
+  shareLink,
+  watermark,
+  offlineCache,
+  summarizeRange,
+  diffToolOutputs,
+  shortcutMap,
+  navigateLog,
+  saveView,
+  applyView,
+  promoteToFinding,
+  executionGraph,
+  logSentiment,
+  replaySandbox,
+  fnv1a,
+  integrityHash,
+  verifyIntegrity,
+  mergeStreams,
+  densityFilter,
+  densityLevels,
+  foldRepeats,
+  voiceNarration,
+  exportSchedule,
+  crossHuntCompare,
+  answerFromLogs,
 } from './logObservCore.js';
 
 const DEMO_LINES = [
-  { id: 'l1', ts: 1728220000000, level: 'info', module: 'recon', text: 'Starting subdomain enumeration for target.example.com' },
-  { id: 'l2', ts: 1728220005000, level: 'info', module: 'recon', text: 'Found 12 subdomains via certificate transparency' },
-  { id: 'l3', ts: 1728220010000, level: 'error', module: 'scanner', text: 'Connection refused on port 8443', tool: 'portscan', durationMs: 120 },
-  { id: 'l4', ts: 1728220015000, level: 'error', module: 'scanner', text: 'Connection refused on port 8443', tool: 'portscan', durationMs: 110 },
-  { id: 'l5', ts: 1728220500000, level: 'error', module: 'scanner', text: 'Connection refused on port 8443', tool: 'portscan', durationMs: 115 },
-  { id: 'l6', ts: 1728220505000, level: 'finding', module: 'detector', text: 'XSS candidate on /search?q= — reflected without encoding', findingId: 'F-101', tool: 'vulnDetector', durationMs: 840 },
+  {
+    id: 'l1',
+    ts: 1728220000000,
+    level: 'info',
+    module: 'recon',
+    text: 'Starting subdomain enumeration for target.example.com',
+  },
+  {
+    id: 'l2',
+    ts: 1728220005000,
+    level: 'info',
+    module: 'recon',
+    text: 'Found 12 subdomains via certificate transparency',
+  },
+  {
+    id: 'l3',
+    ts: 1728220010000,
+    level: 'error',
+    module: 'scanner',
+    text: 'Connection refused on port 8443',
+    tool: 'portscan',
+    durationMs: 120,
+  },
+  {
+    id: 'l4',
+    ts: 1728220015000,
+    level: 'error',
+    module: 'scanner',
+    text: 'Connection refused on port 8443',
+    tool: 'portscan',
+    durationMs: 110,
+  },
+  {
+    id: 'l5',
+    ts: 1728220500000,
+    level: 'error',
+    module: 'scanner',
+    text: 'Connection refused on port 8443',
+    tool: 'portscan',
+    durationMs: 115,
+  },
+  {
+    id: 'l6',
+    ts: 1728220505000,
+    level: 'finding',
+    module: 'detector',
+    text: 'XSS candidate on /search?q= — reflected without encoding',
+    findingId: 'F-101',
+    tool: 'vulnDetector',
+    durationMs: 840,
+  },
 ];
 
 /* 51261 — Stall detection */
@@ -30,12 +94,24 @@ export function StallDetection({ lines }) {
     <div className="lo32-card">
       <h4>Stall detection</h4>
       <div className="lo32-row">
-        <input type="range" min={10000} max={300000} step={10000} value={threshold}
-          onChange={(e) => setThreshold(Number(e.target.value))} aria-label="Stall threshold" />
+        <input
+          type="range"
+          min={10000}
+          max={300000}
+          step={10000}
+          value={threshold}
+          onChange={e => setThreshold(Number(e.target.value))}
+          aria-label="Stall threshold"
+        />
         <span className="lo32-dim">gap &gt; {Math.round(threshold / 1000)}s</span>
       </div>
       <ul className="lo32-list">
-        {stalls.map((s, i) => <li key={i}><span className="lo32-badge">stall</span> {Math.round(s.gapMs / 1000)}s between {s.afterLineId} → {s.beforeLineId}</li>)}
+        {stalls.map((s, i) => (
+          <li key={i}>
+            <span className="lo32-badge">stall</span> {Math.round(s.gapMs / 1000)}s between{' '}
+            {s.afterLineId} → {s.beforeLineId}
+          </li>
+        ))}
       </ul>
       {stalls.length === 0 && <p className="lo32-dim">No stalls detected.</p>}
     </div>
@@ -48,7 +124,9 @@ export function LogSharing({ huntId }) {
   return (
     <div className="lo32-card">
       <h4>Log sharing links</h4>
-      <button className="lo32-btn" onClick={() => setLink(shareLink(huntId))}>Create read-only link</button>
+      <button className="lo32-btn" onClick={() => setLink(shareLink(huntId))}>
+        Create read-only link
+      </button>
       {link && <p className="lo32-dim">{link.url} (read-only)</p>}
     </div>
   );
@@ -71,7 +149,9 @@ export function OfflineCache({ lines }) {
   return (
     <div className="lo32-card">
       <h4>Offline log cache</h4>
-      <button className="lo32-btn" onClick={() => setCache(offlineCache(lines))}>Cache for offline</button>
+      <button className="lo32-btn" onClick={() => setCache(offlineCache(lines))}>
+        Cache for offline
+      </button>
       {cache && <p className="lo32-dim">{cache.count} lines cached — browsable offline</p>}
     </div>
   );
@@ -85,11 +165,21 @@ export function LogSummarizer({ lines }) {
     <div className="lo32-card">
       <h4>Log summarizer</h4>
       <div className="lo32-row">
-        <input type="range" min={1} max={Math.max(1, lines.length)} value={Math.min(n, lines.length)}
-          onChange={(e) => setN(Number(e.target.value))} aria-label="Summary length" />
+        <input
+          type="range"
+          min={1}
+          max={Math.max(1, lines.length)}
+          value={Math.min(n, lines.length)}
+          onChange={e => setN(Number(e.target.value))}
+          aria-label="Summary length"
+        />
         <span className="lo32-dim">top {summary.length} lines</span>
       </div>
-      <ul className="lo32-list">{summary.map((l) => <li key={l.id}>{l.text}</li>)}</ul>
+      <ul className="lo32-list">
+        {summary.map(l => (
+          <li key={l.id}>{l.text}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -100,10 +190,21 @@ export function OutputDiff({ a, b }) {
   return (
     <div className="lo32-card">
       <h4>Tool output diffing</h4>
-      <p><span className="lo32-badge">+{d.addedCount}</span> <span className="lo32-badge">−{d.removedCount}</span></p>
+      <p>
+        <span className="lo32-badge">+{d.addedCount}</span>{' '}
+        <span className="lo32-badge">−{d.removedCount}</span>
+      </p>
       <div className="lo32-log">
-        {d.added.map((l, i) => <div key={`a${i}`} className="lo32-added">+ {l.text}</div>)}
-        {d.removed.map((l, i) => <div key={`r${i}`} className="lo32-removed">− {l.text}</div>)}
+        {d.added.map((l, i) => (
+          <div key={`a${i}`} className="lo32-added">
+            + {l.text}
+          </div>
+        ))}
+        {d.removed.map((l, i) => (
+          <div key={`r${i}`} className="lo32-removed">
+            − {l.text}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -114,22 +215,40 @@ export function LogKeyboardNav({ lines }) {
   const [pos, setPos] = useState(-1);
   const [kind, setKind] = useState('error');
   const map = shortcutMap();
-  const jump = (dir) => {
+  const jump = dir => {
     const id = navigateLog(lines, pos, kind, dir, []);
-    if (id) setPos(lines.findIndex((l) => l.id === id));
+    if (id) setPos(lines.findIndex(l => l.id === id));
   };
   const current = pos >= 0 ? lines[pos] : null;
   return (
     <div className="lo32-card">
       <h4>Keyboard navigation</h4>
       <div className="lo32-row">
-        {['error', 'finding', 'bookmark'].map((k) => (
-          <button key={k} className={`lo32-btn ${kind === k ? 'lo32-btn-active' : ''}`} onClick={() => setKind(k)}>{k}</button>))}
-        <button className="lo32-btn" onClick={() => jump(-1)}>← prev</button>
-        <button className="lo32-btn" onClick={() => jump(1)}>next →</button>
+        {['error', 'finding', 'bookmark'].map(k => (
+          <button
+            key={k}
+            className={`lo32-btn ${kind === k ? 'lo32-btn-active' : ''}`}
+            onClick={() => setKind(k)}
+          >
+            {k}
+          </button>
+        ))}
+        <button className="lo32-btn" onClick={() => jump(-1)}>
+          ← prev
+        </button>
+        <button className="lo32-btn" onClick={() => jump(1)}>
+          next →
+        </button>
       </div>
-      <p className="lo32-dim">shortcuts: {map.nextError} next error · {map.nextFinding} next finding · {map.nextBookmark} next bookmark · {map.followTail} follow tail</p>
-      {current && <p><span className="lo32-badge">{current.id}</span> {current.text}</p>}
+      <p className="lo32-dim">
+        shortcuts: {map.nextError} next error · {map.nextFinding} next finding · {map.nextBookmark}{' '}
+        next bookmark · {map.followTail} follow tail
+      </p>
+      {current && (
+        <p>
+          <span className="lo32-badge">{current.id}</span> {current.text}
+        </p>
+      )}
     </div>
   );
 }
@@ -145,20 +264,39 @@ export function CustomViews({ lines }) {
     <div className="lo32-card">
       <h4>Custom log views</h4>
       <div className="lo32-row">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="view name…" aria-label="View name" />
-        <select value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level filter">
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="view name…"
+          aria-label="View name"
+        />
+        <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Level filter">
           <option value="">any level</option>
           <option value="error">error</option>
           <option value="warn">warn</option>
           <option value="info">info</option>
         </select>
-        <button className="lo32-btn" onClick={() => name && setViews((v) => saveView(v, name, { level: level || undefined }))}>Save view</button>
+        <button
+          className="lo32-btn"
+          onClick={() => name && setViews(v => saveView(v, name, { level: level || undefined }))}
+        >
+          Save view
+        </button>
       </div>
       <div className="lo32-row">
-        {Object.keys(views).map((v) => (
-          <button key={v} className={`lo32-btn ${active === v ? 'lo32-btn-active' : ''}`} onClick={() => setActive(active === v ? null : v)}>{v}</button>))}
+        {Object.keys(views).map(v => (
+          <button
+            key={v}
+            className={`lo32-btn ${active === v ? 'lo32-btn-active' : ''}`}
+            onClick={() => setActive(active === v ? null : v)}
+          >
+            {v}
+          </button>
+        ))}
       </div>
-      <p className="lo32-dim">{shown.length} of {lines.length} lines{active ? ` (view: ${active})` : ''}</p>
+      <p className="lo32-dim">
+        {shown.length} of {lines.length} lines{active ? ` (view: ${active})` : ''}
+      </p>
     </div>
   );
 }
@@ -171,17 +309,31 @@ export function PromoteToFinding({ lines }) {
     <div className="lo32-card">
       <h4>Log-to-finding promotion</h4>
       <div className="lo32-row">
-        <select value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Line to promote">
+        <select value={sel} onChange={e => setSel(e.target.value)} aria-label="Line to promote">
           <option value="">pick a line…</option>
-          {lines.map((l) => <option key={l.id} value={l.id}>{l.id}</option>)}
+          {lines.map(l => (
+            <option key={l.id} value={l.id}>
+              {l.id}
+            </option>
+          ))}
         </select>
-        <button className="lo32-btn" onClick={() => {
-          const l = lines.find((x) => x.id === sel);
-          if (l) setDrafts((d) => [...d, promoteToFinding(l)]);
-        }}>Promote to draft finding</button>
+        <button
+          className="lo32-btn"
+          onClick={() => {
+            const l = lines.find(x => x.id === sel);
+            if (l) setDrafts(d => [...d, promoteToFinding(l)]);
+          }}
+        >
+          Promote to draft finding
+        </button>
       </div>
       <ul className="lo32-list">
-        {drafts.map((d, i) => <li key={i}><span className="lo32-badge">draft</span> {d.title} <span className="lo32-dim">({d.evidence.length} evidence)</span></li>)}
+        {drafts.map((d, i) => (
+          <li key={i}>
+            <span className="lo32-badge">draft</span> {d.title}{' '}
+            <span className="lo32-dim">({d.evidence.length} evidence)</span>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -192,12 +344,19 @@ export function ExecGraph({ lines }) {
   const g = useMemo(() => executionGraph(lines), [lines]);
   return (
     <div className="lo32-card">
-      <h4>Execution graph ({g.nodes.length} nodes, {g.edges.length} edges)</h4>
+      <h4>
+        Execution graph ({g.nodes.length} nodes, {g.edges.length} edges)
+      </h4>
       <div className="lo32-graph">
-        {g.nodes.map((n) => (
-          <span key={n.id} className={`lo32-gnode lo32-gnode-${n.level}`} title={`${n.tool} — ${n.durationMs ?? '?'}ms`}>
+        {g.nodes.map(n => (
+          <span
+            key={n.id}
+            className={`lo32-gnode lo32-gnode-${n.level}`}
+            title={`${n.tool} — ${n.durationMs ?? '?'}ms`}
+          >
             {n.tool}
-          </span>))}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -209,7 +368,9 @@ export function LogSentiment({ lines }) {
   return (
     <div className="lo32-card">
       <h4>Log sentiment</h4>
-      <p>Phase mood: <span className={`lo32-badge lo32-sentiment-${s}`}>{s}</span></p>
+      <p>
+        Phase mood: <span className={`lo32-badge lo32-sentiment-${s}`}>{s}</span>
+      </p>
     </div>
   );
 }
@@ -220,12 +381,21 @@ export function ReplaySandbox({ request }) {
   return (
     <div className="lo32-card">
       <h4>Request replay sandbox</h4>
-      <button className="lo32-btn" onClick={() => setPlan(replaySandbox(request))}>Prepare sandbox replay</button>
+      <button className="lo32-btn" onClick={() => setPlan(replaySandbox(request))}>
+        Prepare sandbox replay
+      </button>
       {plan && (
         <div>
           <pre className="lo32-pre">{plan.curl}</pre>
-          <ul className="lo32-list">{plan.warnings.map((w, i) => <li key={i} className="lo32-dim">{w}</li>)}</ul>
-        </div>)}
+          <ul className="lo32-list">
+            {plan.warnings.map((w, i) => (
+              <li key={i} className="lo32-dim">
+                {w}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -237,8 +407,12 @@ export function IntegrityHash({ lines }) {
   return (
     <div className="lo32-card">
       <h4>Log integrity hash</h4>
-      <p className="lo32-dim">head: <code>{head}</code> · {chain.length} chained lines</p>
-      <button className="lo32-btn" onClick={() => setOk(verifyIntegrity(lines, chain))}>Verify chain</button>
+      <p className="lo32-dim">
+        head: <code>{head}</code> · {chain.length} chained lines
+      </p>
+      <button className="lo32-btn" onClick={() => setOk(verifyIntegrity(lines, chain))}>
+        Verify chain
+      </button>
       {ok != null && <p>{ok ? '✅ Chain intact' : '❌ Tampering detected'}</p>}
     </div>
   );
@@ -252,7 +426,11 @@ export function StreamMerge({ streams }) {
       <h4>Parallel stream merge ({merged.length} lines)</h4>
       <div className="lo32-log">
         {merged.slice(0, 12).map((l, i) => (
-          <div key={i}><span className="lo32-agentdot" style={{ background: l.color }} />[{l.agentName}] {l.text}</div>))}
+          <div key={i}>
+            <span className="lo32-agentdot" style={{ background: l.color }} />[{l.agentName}]{' '}
+            {l.text}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -267,10 +445,19 @@ export function DensityControl({ lines }) {
     <div className="lo32-card">
       <h4>Log density control</h4>
       <div className="lo32-row" role="radiogroup" aria-label="Density">
-        {levels.map((lv) => (
-          <button key={lv} className={`lo32-btn ${level === lv ? 'lo32-btn-active' : ''}`} onClick={() => setLevel(lv)}>{lv}</button>))}
+        {levels.map(lv => (
+          <button
+            key={lv}
+            className={`lo32-btn ${level === lv ? 'lo32-btn-active' : ''}`}
+            onClick={() => setLevel(lv)}
+          >
+            {lv}
+          </button>
+        ))}
       </div>
-      <p className="lo32-dim">{shown.length} of {lines.length} lines at “{level}”</p>
+      <p className="lo32-dim">
+        {shown.length} of {lines.length} lines at “{level}”
+      </p>
     </div>
   );
 }
@@ -283,14 +470,26 @@ export function SmartFolding({ lines }) {
     <div className="lo32-card">
       <h4>Smart log folding</h4>
       <div className="lo32-log">
-        {folded.map((f, i) => f.type === 'fold' ? (
-          <div key={i}>
-            <button className="lo32-link" onClick={() => setExpanded((e) => ({ ...e, [i]: !e[i] }))}>
-              {expanded[i] ? '▾' : '▸'} repeated {f.count}× — {String(f.text).slice(0, 50)}
-            </button>
-            {expanded[i] && f.ids.map((id) => <div key={id} className="lo32-dim">· {f.text}</div>)}
-          </div>
-        ) : <div key={i}>{f.text}</div>)}
+        {folded.map((f, i) =>
+          f.type === 'fold' ? (
+            <div key={i}>
+              <button
+                className="lo32-link"
+                onClick={() => setExpanded(e => ({ ...e, [i]: !e[i] }))}
+              >
+                {expanded[i] ? '▾' : '▸'} repeated {f.count}× — {String(f.text).slice(0, 50)}
+              </button>
+              {expanded[i] &&
+                f.ids.map(id => (
+                  <div key={id} className="lo32-dim">
+                    · {f.text}
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <div key={i}>{f.text}</div>
+          )
+        )}
       </div>
     </div>
   );
@@ -303,9 +502,16 @@ export function VoiceNarration({ lines }) {
   return (
     <div className="lo32-card">
       <h4>Log voice narration</h4>
-      <button className="lo32-btn" onClick={() => setSpeaking((s) => !s)}>{speaking ? 'Stop' : 'Narrate key events'}</button>
+      <button className="lo32-btn" onClick={() => setSpeaking(s => !s)}>
+        {speaking ? 'Stop' : 'Narrate key events'}
+      </button>
       {speaking && (
-        <ul className="lo32-list">{script.map((t, i) => <li key={i}>🔊 {t}</li>)}</ul>)}
+        <ul className="lo32-list">
+          {script.map((t, i) => (
+            <li key={i}>🔊 {t}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -317,7 +523,11 @@ export function ExportScheduling({ phases }) {
     <div className="lo32-card">
       <h4>Log export scheduling</h4>
       <ul className="lo32-list">
-        {plan.map((p) => <li key={p.id}>{p.phase} → {p.format} @ {p.destination} <span className="lo32-dim">({p.trigger})</span></li>)}
+        {plan.map(p => (
+          <li key={p.id}>
+            {p.phase} → {p.format} @ {p.destination} <span className="lo32-dim">({p.trigger})</span>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -329,7 +539,11 @@ export function CrossHuntCompare({ a, b }) {
   return (
     <div className="lo32-card">
       <h4>Cross-hunt log compare</h4>
-      <p><span className="lo32-badge">{c.sharedLines} shared</span> <span className="lo32-badge">{c.onlyInA} only A</span> <span className="lo32-badge">{c.onlyInB} only B</span></p>
+      <p>
+        <span className="lo32-badge">{c.sharedLines} shared</span>{' '}
+        <span className="lo32-badge">{c.onlyInA} only A</span>{' '}
+        <span className="lo32-badge">{c.onlyInB} only B</span>
+      </p>
     </div>
   );
 }
@@ -342,17 +556,29 @@ export function LogQA({ lines }) {
     <div className="lo32-card">
       <h4>Log-based Q&A</h4>
       <div className="lo32-row">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="why did the login test fail?" aria-label="Question" />
-        <button className="lo32-btn" onClick={() => setRes(answerFromLogs(q, lines))}>Ask</button>
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder="why did the login test fail?"
+          aria-label="Question"
+        />
+        <button className="lo32-btn" onClick={() => setRes(answerFromLogs(q, lines))}>
+          Ask
+        </button>
       </div>
       {res && (
         <div>
           <p>{res.answer}</p>
           <ul className="lo32-list">
-            {res.evidence.map((e, i) => <li key={i} className="lo32-dim">[{e.lineId}] {e.text}</li>)}
+            {res.evidence.map((e, i) => (
+              <li key={i} className="lo32-dim">
+                [{e.lineId}] {e.text}
+              </li>
+            ))}
           </ul>
           {!res.grounded && <p className="lo32-dim">Try different keywords.</p>}
-        </div>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -377,11 +603,20 @@ export function LogObservExtrasGallery() {
       <PromoteToFinding lines={DEMO_LINES} />
       <ExecGraph lines={DEMO_LINES} />
       <LogSentiment lines={DEMO_LINES} />
-      <ReplaySandbox request={{ method: 'POST', url: 'https://target.example.com/api/login', headers: { 'Content-Type': 'application/json' }, body: { user: 'test' } }} />
+      <ReplaySandbox
+        request={{
+          method: 'POST',
+          url: 'https://target.example.com/api/login',
+          headers: { 'Content-Type': 'application/json' },
+          body: { user: 'test' },
+        }}
+      />
       <IntegrityHash lines={DEMO_LINES} />
       <StreamMerge streams={streams} />
       <DensityControl lines={DEMO_LINES} />
-      <SmartFolding lines={[...DEMO_LINES.slice(0, 2), ...DEMO_LINES.slice(2, 5), ...DEMO_LINES.slice(2, 5)]} />
+      <SmartFolding
+        lines={[...DEMO_LINES.slice(0, 2), ...DEMO_LINES.slice(2, 5), ...DEMO_LINES.slice(2, 5)]}
+      />
       <VoiceNarration lines={DEMO_LINES} />
       <ExportScheduling phases={[{ name: 'recon' }, { name: 'detection', format: 'text' }]} />
       <CrossHuntCompare a={DEMO_LINES.slice(0, 4)} b={DEMO_LINES.slice(2, 6)} />

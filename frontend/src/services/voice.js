@@ -102,7 +102,7 @@ export function playWavWithLipSync(wavBytes, onAmplitude, signal) {
 
     ctx.decodeAudioData(
       wavBytes,
-      (audioBuf) => {
+      audioBuf => {
         const src = ctx.createBufferSource();
         src.buffer = audioBuf;
         const analyser = ctx.createAnalyser();
@@ -134,15 +134,23 @@ export function playWavWithLipSync(wavBytes, onAmplitude, signal) {
         };
         src.onended = done;
         if (signal) {
-          signal.addEventListener('abort', () => {
-            try { src.stop(); } catch { /* ignore */ }
-            done();
-            reject(new DOMException('aborted', 'AbortError'));
-          }, { once: true });
+          signal.addEventListener(
+            'abort',
+            () => {
+              try {
+                src.stop();
+              } catch {
+                /* ignore */
+              }
+              done();
+              reject(new DOMException('aborted', 'AbortError'));
+            },
+            { once: true }
+          );
         }
         src.start();
       },
-      (err) => {
+      err => {
         ctx.close().catch(() => {});
         reject(err);
       }
@@ -155,7 +163,7 @@ export function playWavWithLipSync(wavBytes, onAmplitude, signal) {
  * isn't available. Robotic, but always works.
  */
 export function speakWithBrowser(text, opts = {}) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const clean = cleanForSpeech(text);
     if (!clean || !('speechSynthesis' in window)) return resolve();
     const { onAmplitude = null, signal = null, rate = 1 } = opts;
@@ -175,10 +183,14 @@ export function speakWithBrowser(text, opts = {}) {
     utter.onend = stop;
     utter.onerror = stop;
     if (signal) {
-      signal.addEventListener('abort', () => {
-        window.speechSynthesis.cancel();
-        stop();
-      }, { once: true });
+      signal.addEventListener(
+        'abort',
+        () => {
+          window.speechSynthesis.cancel();
+          stop();
+        },
+        { once: true }
+      );
     }
     window.speechSynthesis.speak(utter);
   });

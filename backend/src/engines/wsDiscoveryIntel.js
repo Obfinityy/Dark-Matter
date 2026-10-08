@@ -94,9 +94,13 @@ export function parseProbeMatch(match) {
     metadataVersion = mdv !== null && mdv !== '' && !Number.isNaN(Number(mdv)) ? Number(mdv) : null;
     endpointReference = firstTag(match, 'Address');
   } else if (match && typeof match === 'object') {
-    xAddrs = (Array.isArray(match.xAddrs) ? match.xAddrs : [match.xAddrs]).filter(Boolean).map(String);
+    xAddrs = (Array.isArray(match.xAddrs) ? match.xAddrs : [match.xAddrs])
+      .filter(Boolean)
+      .map(String);
     types = (Array.isArray(match.types) ? match.types : [match.types]).filter(Boolean).map(String);
-    scopes = (Array.isArray(match.scopes) ? match.scopes : [match.scopes]).filter(Boolean).map(String);
+    scopes = (Array.isArray(match.scopes) ? match.scopes : [match.scopes])
+      .filter(Boolean)
+      .map(String);
     metadataVersion = match.metadataVersion != null ? Number(match.metadataVersion) : null;
     endpointReference = match.endpointReference || match.epr || null;
   } else {
@@ -134,8 +138,10 @@ export function mineProbeMatches(matches) {
     if (!rec) continue;
     const key = rec.endpointReference || rec.xAddrs.slice().sort().join('|');
     const existing = byEpr.get(key);
-    const isFresher = !existing
-      || (rec.metadataVersion != null && (existing.metadataVersion == null || rec.metadataVersion > existing.metadataVersion));
+    const isFresher =
+      !existing ||
+      (rec.metadataVersion != null &&
+        (existing.metadataVersion == null || rec.metadataVersion > existing.metadataVersion));
     if (isFresher) byEpr.set(key, rec);
   }
 
@@ -145,9 +151,10 @@ export function mineProbeMatches(matches) {
     for (const s of rec.scopes) scopeCounts.set(s, (scopeCounts.get(s) || 0) + 1);
   }
 
-  const tally = (map, label) => [...map.entries()]
-    .map(([name, count]) => ({ [label]: name, count }))
-    .sort((a, b) => b.count - a.count);
+  const tally = (map, label) =>
+    [...map.entries()]
+      .map(([name, count]) => ({ [label]: name, count }))
+      .sort((a, b) => b.count - a.count);
 
   return {
     endpoints: [...byEpr.values()],
@@ -170,14 +177,22 @@ export function flagInterestingEndpoints(endpoints) {
   for (const ep of endpoints || []) {
     for (const url of ep.xAddrs || []) {
       let parsed = null;
-      try { parsed = new URL(url); } catch { continue; }
+      try {
+        parsed = new URL(url);
+      } catch {
+        continue;
+      }
       const flags = [];
       const host = parsed.hostname.toLowerCase();
-      if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|fd[0-9a-f]{0,2}:|\.local$)/i.test(host)
-        || host.endsWith('.local') || host === 'localhost') {
+      if (
+        /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|fd[0-9a-f]{0,2}:|\.local$)/i.test(host) ||
+        host.endsWith('.local') ||
+        host === 'localhost'
+      ) {
         flags.push('private-or-linklocal-hostname');
       }
-      if (parsed.port && !['80', '443'].includes(parsed.port)) flags.push(`non-standard-port:${parsed.port}`);
+      if (parsed.port && !['80', '443'].includes(parsed.port))
+        flags.push(`non-standard-port:${parsed.port}`);
       if (/admin|mgmt|config|debug|test/i.test(url)) flags.push('suspicious-path-keyword');
       if (flags.length > 0) out.push({ host, xAddrs: [url], flags });
     }

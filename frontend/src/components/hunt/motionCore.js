@@ -69,7 +69,7 @@ export function clamp01(v) {
  * `segments` = array of { path: string, length: number } in draw order.
  */
 export function checkmarkDrawProps(segments) {
-  return segments.map((seg) => ({
+  return segments.map(seg => ({
     path: seg.path,
     strokeDasharray: `${seg.length}`,
     // Start fully hidden (offset = length), animate to 0 via CSS transition.
@@ -318,50 +318,140 @@ export function reasoningHeightStyle(contentHeightPx, open) {
 // ---------------------------------------------------------------------------
 
 export const WAVE15_IDEAS = [
-  { id: 50561, title: 'Self-drawing checkmark', component: 'SelfDrawingCheckmark', module: 'MicroMotion.jsx' },
+  {
+    id: 50561,
+    title: 'Self-drawing checkmark',
+    component: 'SelfDrawingCheckmark',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50562, title: 'Pill hover scale', component: 'HoverPill', module: 'MicroMotion.jsx' },
-  { id: 50563, title: 'Button press feedback', component: 'PressButton', module: 'MicroMotion.jsx' },
-  { id: 50564, title: 'Sliding tab indicator', component: 'SlidingTabs', module: 'MicroMotion.jsx' },
+  {
+    id: 50563,
+    title: 'Button press feedback',
+    component: 'PressButton',
+    module: 'MicroMotion.jsx',
+  },
+  {
+    id: 50564,
+    title: 'Sliding tab indicator',
+    component: 'SlidingTabs',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50565, title: 'Chevron rotation', component: 'RotatingChevron', module: 'MicroMotion.jsx' },
   { id: 50566, title: 'Stat count-up', component: 'CountUpStat', module: 'MicroMotion.jsx' },
-  { id: 50567, title: 'Progress shimmer sweep', component: 'ShimmerProgress', module: 'MicroMotion.jsx' },
+  {
+    id: 50567,
+    title: 'Progress shimmer sweep',
+    component: 'ShimmerProgress',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50568, title: 'Toast slide-fade', component: 'SlideFadeToast', module: 'MicroMotion.jsx' },
-  { id: 50569, title: 'Diagonal skeleton sweep', component: 'DiagonalSkeleton', module: 'MicroMotion.jsx' },
+  {
+    id: 50569,
+    title: 'Diagonal skeleton sweep',
+    component: 'DiagonalSkeleton',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50570, title: 'Terminal line fade', component: 'TerminalLine', module: 'MicroMotion.jsx' },
   { id: 50571, title: 'Timeline dot pop', component: 'TimelineDot', module: 'MicroMotion.jsx' },
   { id: 50572, title: 'Filter-pill morph', component: 'MorphPill', module: 'MicroMotion.jsx' },
   { id: 50573, title: 'Thinking-dot wave', component: 'ThinkingDots', module: 'MicroMotion.jsx' },
   { id: 50574, title: 'Card hover lift', component: 'LiftCard', module: 'MicroMotion.jsx' },
   { id: 50575, title: 'Modal scale-in', component: 'ScaleModal', module: 'MicroMotion.jsx' },
-  { id: 50576, title: 'Confidence fill ease', component: 'ConfidenceFill', module: 'MicroMotion.jsx' },
+  {
+    id: 50576,
+    title: 'Confidence fill ease',
+    component: 'ConfidenceFill',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50577, title: 'Donut segment sweep', component: 'DonutSweep', module: 'MicroMotion.jsx' },
   { id: 50578, title: 'Drop-zone pulse', component: 'PulseDropZone', module: 'MicroMotion.jsx' },
   { id: 50579, title: 'Spring toggles', component: 'SpringToggle', module: 'MicroMotion.jsx' },
-  { id: 50580, title: 'Smooth auto-scroll', component: 'SmoothScroller', module: 'MicroMotion.jsx' },
-  { id: 50581, title: 'Completion ring pulse', component: 'CompletionRing', module: 'MicroMotion.jsx' },
+  {
+    id: 50580,
+    title: 'Smooth auto-scroll',
+    component: 'SmoothScroller',
+    module: 'MicroMotion.jsx',
+  },
+  {
+    id: 50581,
+    title: 'Completion ring pulse',
+    component: 'CompletionRing',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50582, title: 'Gauge needle sweep', component: 'GaugeNeedle', module: 'MicroMotion.jsx' },
   { id: 50583, title: 'Ribbon slide-in', component: 'NewRibbon', module: 'MicroMotion.jsx' },
-  { id: 50584, title: 'Staggered search results', component: 'StaggerList', module: 'MicroMotion.jsx' },
+  {
+    id: 50584,
+    title: 'Staggered search results',
+    component: 'StaggerList',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50585, title: 'Theme cross-fade', component: 'ThemeCrossFader', module: 'MicroMotion.jsx' },
   { id: 50586, title: 'Graph node settle', component: 'SettlingNodes', module: 'MicroMotion.jsx' },
-  { id: 50587, title: 'Copy-button morph', component: 'MorphCopyButton', module: 'MicroMotion.jsx' },
-  { id: 50588, title: 'Dual-ring spinner', component: 'DualRingSpinner', module: 'MicroMotion.jsx' },
-  { id: 50589, title: 'Floating empty illustration', component: 'FloatingIllustration', module: 'MicroMotion.jsx' },
+  {
+    id: 50587,
+    title: 'Copy-button morph',
+    component: 'MorphCopyButton',
+    module: 'MicroMotion.jsx',
+  },
+  {
+    id: 50588,
+    title: 'Dual-ring spinner',
+    component: 'DualRingSpinner',
+    module: 'MicroMotion.jsx',
+  },
+  {
+    id: 50589,
+    title: 'Floating empty illustration',
+    component: 'FloatingIllustration',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50590, title: 'Focus-ring draw', component: 'FocusRingDemo', module: 'MicroMotion.jsx' },
-  { id: 50591, title: 'Sticky-bar shadow', component: 'StickyFilterBar', module: 'MicroMotion.jsx' },
+  {
+    id: 50591,
+    title: 'Sticky-bar shadow',
+    component: 'StickyFilterBar',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50592, title: 'Route fade-rise', component: 'RouteFadeRise', module: 'MicroMotion.jsx' },
   { id: 50593, title: 'Badge count pop', component: 'PopBadge', module: 'MicroMotion.jsx' },
-  { id: 50594, title: 'Height-animated reasoning', component: 'AnimatedReasoning', module: 'MicroMotion.jsx' },
-  { id: 50595, title: 'Scrubber handle grow', component: 'GrowingScrubber', module: 'MicroMotion.jsx' },
+  {
+    id: 50594,
+    title: 'Height-animated reasoning',
+    component: 'AnimatedReasoning',
+    module: 'MicroMotion.jsx',
+  },
+  {
+    id: 50595,
+    title: 'Scrubber handle grow',
+    component: 'GrowingScrubber',
+    module: 'MicroMotion.jsx',
+  },
   { id: 50596, title: 'Chip fill wipe', component: 'WipeChip', module: 'MicroMotion.jsx' },
   { id: 50597, title: 'Invalid-input shake', component: 'ShakeInput', module: 'MicroMotion.jsx' },
-  { id: 50598, title: 'Save checkmark draw', component: 'SaveCheckmark', module: 'MicroMotion.jsx' },
-  { id: 50599, title: 'Sidebar width animation', component: 'AnimatedSidebar', module: 'MicroMotion.jsx' },
-  { id: 50600, title: 'Thumbnail zoom hover', component: 'ZoomThumbnail', module: 'MicroMotion.jsx' },
+  {
+    id: 50598,
+    title: 'Save checkmark draw',
+    component: 'SaveCheckmark',
+    module: 'MicroMotion.jsx',
+  },
+  {
+    id: 50599,
+    title: 'Sidebar width animation',
+    component: 'AnimatedSidebar',
+    module: 'MicroMotion.jsx',
+  },
+  {
+    id: 50600,
+    title: 'Thumbnail zoom hover',
+    component: 'ZoomThumbnail',
+    module: 'MicroMotion.jsx',
+  },
 ];
 
 export function wave15RegistryComplete() {
-  const ids = WAVE15_IDEAS.map((i) => i.id);
+  const ids = WAVE15_IDEAS.map(i => i.id);
   const expected = Array.from({ length: 40 }, (_, k) => 50561 + k);
-  return expected.every((id) => ids.includes(id)) && ids.length === 40;
+  return expected.every(id => ids.includes(id)) && ids.length === 40;
 }

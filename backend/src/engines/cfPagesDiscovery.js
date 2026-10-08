@@ -19,13 +19,35 @@ export const PAGES_DEV_APEX = 'pages.dev';
 
 /** Common branch prefixes used in Cloudflare Pages preview deployments. */
 export const PAGES_BRANCH_PREFIXES = [
-  'staging', 'develop', 'dev', 'main', 'master', 'preview', 'qa', 'release', 'canary',
+  'staging',
+  'develop',
+  'dev',
+  'main',
+  'master',
+  'preview',
+  'qa',
+  'release',
+  'canary',
 ];
 
 /** Common context suffixes for project-name guessing. */
 export const PAGES_CONTEXT_SUFFIXES = [
-  'staging', 'stage', 'dev', 'development', 'test', 'qa', 'uat', 'preview',
-  'demo', 'beta', 'canary', 'app', 'web', 'site', 'docs', 'blog',
+  'staging',
+  'stage',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'preview',
+  'demo',
+  'beta',
+  'canary',
+  'app',
+  'web',
+  'site',
+  'docs',
+  'blog',
 ];
 
 /**
@@ -48,7 +70,9 @@ export function slugify(name) {
  * @returns {string[]} unique slug tokens, longest first
  */
 export function brandTokens(brand) {
-  const label = String(brand || '').toLowerCase().split('.')[0];
+  const label = String(brand || '')
+    .toLowerCase()
+    .split('.')[0];
   const base = slugify(label);
   const tokens = new Set();
   if (base) tokens.add(base);
@@ -72,7 +96,9 @@ export function brandTokens(brand) {
  * @returns {{project: string, branch: string|null, kind: 'production'|'branch-preview'|'unique-preview'}|null}
  */
 export function parsePagesDevHost(host) {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const m = h.match(/^(.+)\.pages\.dev$/);
   if (!m) return null;
   const parts = m[1].split('.');
@@ -99,9 +125,13 @@ export function parsePagesDevHost(host) {
  * @returns {'pages-dev'|'pages-custom-domain'|'unrelated'}
  */
 export function classifyPagesHost(host, cnameTarget = '') {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (parsePagesDevHost(h)) return 'pages-dev';
-  const target = String(cnameTarget || '').toLowerCase().replace(/\.$/, '');
+  const target = String(cnameTarget || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (target && (target === PAGES_DEV_APEX || target.endsWith(`.${PAGES_DEV_APEX}`))) {
     return 'pages-custom-domain';
   }
@@ -151,8 +181,12 @@ export function generatePagesNames(brand) {
 export function mapCustomDomains(resolutions) {
   const out = [];
   for (const r of resolutions || []) {
-    const host = String(r?.host || '').toLowerCase().replace(/\.$/, '');
-    const cname = String(r?.cname || '').toLowerCase().replace(/\.$/, '');
+    const host = String(r?.host || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
+    const cname = String(r?.cname || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const direct = parsePagesDevHost(host);
     if (direct) {
       out.push({ host, cname, project: direct.project, kind: 'pages-dev' });

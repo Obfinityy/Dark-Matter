@@ -18,8 +18,12 @@ const HOSTNAME_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/
 
 /** Zoom platform hosts that are never target infrastructure. */
 export const ZOOM_PLATFORM_HOSTS = [
-  'zoom.us', 'api.zoom.us', 'marketplace.zoom.us', 'developers.zoom.us',
-  'zoom.com', 'zoomgov.com',
+  'zoom.us',
+  'api.zoom.us',
+  'marketplace.zoom.us',
+  'developers.zoom.us',
+  'zoom.com',
+  'zoomgov.com',
 ];
 
 /**
@@ -32,7 +36,11 @@ export function classifyZoomMarketplaceHost(host, field = '') {
   const h = normalizeHostname(host);
   const f = String(field || '').toLowerCase();
   if (/redirect|callback|oauth|authorized/.test(f)) return 'oauthRedirect';
-  if (/webhook|notification|event|deauthorization|endpoint/.test(f) || /(^|[.-])hook([.-]|$)/.test(h)) return 'webhook';
+  if (
+    /webhook|notification|event|deauthorization|endpoint/.test(f) ||
+    /(^|[.-])hook([.-]|$)/.test(h)
+  )
+    return 'webhook';
   if (/support|contact/.test(f)) return 'support';
   if (/developer|publisher|vendor|company|website/.test(f)) return 'developer';
   if (/doc|guide|privacy|terms/.test(f)) return 'documentation';
@@ -69,7 +77,12 @@ export function parseZoomMarketplaceListing(listing = {}) {
   if (listing?.redirectUrl) note(hostFromUrl(listing.redirectUrl), 'redirectUrl');
   if (listing?.redirect_uri) note(hostFromUrl(listing.redirect_uri), 'redirect_uri');
 
-  for (const field of ['webhookUrl', 'eventNotificationEndpointUrl', 'deauthorizationEndpointUrl', 'dataComplianceEndpointUrl']) {
+  for (const field of [
+    'webhookUrl',
+    'eventNotificationEndpointUrl',
+    'deauthorizationEndpointUrl',
+    'dataComplianceEndpointUrl',
+  ]) {
     if (listing?.[field]) note(hostFromUrl(listing[field]), field);
   }
   for (const field of ['supportUrl', 'developerUrl', 'privacyPolicyUrl', 'termsUrl']) {
@@ -104,7 +117,9 @@ export function mineZoomMarketplaceListings(listings = [], rootDomain) {
   for (const listing of listings || []) {
     for (const f of parseZoomMarketplaceListing(listing)) {
       const related = f.host === root || f.host.endsWith(`.${root}`) || f.host.includes(root);
-      const devHit = String(listing?.developer || '').toLowerCase().includes(brand);
+      const devHit = String(listing?.developer || '')
+        .toLowerCase()
+        .includes(brand);
       if (related || devHit) out.push(f);
     }
   }

@@ -66,7 +66,7 @@ export function visualDistance(a, b, opts = {}) {
  */
 export function pairwiseDistances(captures, opts = {}) {
   const list = Array.isArray(captures) ? captures : [];
-  const hostnames = list.map((c) => (c && typeof c.hostname === 'string' ? c.hostname : 'unknown'));
+  const hostnames = list.map(c => (c && typeof c.hostname === 'string' ? c.hostname : 'unknown'));
   const matrix = list.map(() => list.map(() => 0));
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
@@ -114,11 +114,12 @@ export function clusterVhosts(captures, opts = {}) {
   return clusters
     .map((c, i) => ({
       id: i + 1,
-      hostnames: c.members.map((m) => m.hostname),
+      hostnames: c.members.map(m => m.hostname),
       size: c.members.length,
-      cohesion: c.distances.length > 0
-        ? Math.round((c.distances.reduce((s, d) => s + d, 0) / c.distances.length) * 1000) / 1000
-        : 0,
+      cohesion:
+        c.distances.length > 0
+          ? Math.round((c.distances.reduce((s, d) => s + d, 0) / c.distances.length) * 1000) / 1000
+          : 0,
     }))
     .sort((x, y) => y.size - x.size || x.id - y.id);
 }
@@ -131,13 +132,21 @@ export function clusterVhosts(captures, opts = {}) {
  */
 export function distinctApplications(clusters) {
   const list = Array.isArray(clusters) ? clusters : [];
-  const singletons = list.filter((c) => c.size === 1).flatMap((c) => c.hostnames);
+  const singletons = list.filter(c => c.size === 1).flatMap(c => c.hostnames);
   const review = [];
   for (const c of list) {
     if (c.size === 1) {
-      review.push({ clusterId: c.id, reason: 'unique page — possible distinct virtual host', hostnames: c.hostnames });
+      review.push({
+        clusterId: c.id,
+        reason: 'unique page — possible distinct virtual host',
+        hostnames: c.hostnames,
+      });
     } else if (c.cohesion > 0.2) {
-      review.push({ clusterId: c.id, reason: 'loose cluster — mixed content may hide another vhost', hostnames: c.hostnames });
+      review.push({
+        clusterId: c.id,
+        reason: 'loose cluster — mixed content may hide another vhost',
+        hostnames: c.hostnames,
+      });
     }
   }
   return { distinctApplications: list.length, singletons, review };
@@ -152,6 +161,14 @@ export function clusteringSummary(clusters) {
   const list = Array.isArray(clusters) ? clusters : [];
   if (list.length === 0) return 'No screenshots were available to cluster.';
   const total = list.reduce((s, c) => s + c.size, 0);
-  return `${total} hostname(s) grouped into ${list.length} visual cluster(s): ` +
-    list.map((c) => `#${c.id} (${c.size}: ${c.hostnames.slice(0, 3).join(', ')}${c.hostnames.length > 3 ? ', …' : ''})`).join('; ') + '.';
+  return (
+    `${total} hostname(s) grouped into ${list.length} visual cluster(s): ` +
+    list
+      .map(
+        c =>
+          `#${c.id} (${c.size}: ${c.hostnames.slice(0, 3).join(', ')}${c.hostnames.length > 3 ? ', …' : ''})`
+      )
+      .join('; ') +
+    '.'
+  );
 }

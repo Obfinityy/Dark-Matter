@@ -17,7 +17,9 @@
  */
 export function toHost(value) {
   if (!value) return null;
-  const s = String(value).trim().replace(/^['"]|['"]$/g, '');
+  const s = String(value)
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`;
   try {
     const u = new URL(withScheme);

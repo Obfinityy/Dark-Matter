@@ -44,12 +44,14 @@ export function validateCustomTag(raw) {
   if (!TAG_PATTERN.test(tag)) {
     return {
       valid: false,
-      error: 'Invalid model tag. Use an Ollama tag like "llama3:8b" or "namespace/model:tag", or a HuggingFace reference like "hf.co/bartowski/model-GGUF".'
+      error:
+        'Invalid model tag. Use an Ollama tag like "llama3:8b" or "namespace/model:tag", or a HuggingFace reference like "hf.co/bartowski/model-GGUF".',
     };
   }
   return { valid: true, tag };
 }
 
+/** Database model for custom model. */
 export class CustomModelModel {
   constructor(database) {
     this.collection = database.collection('custom_models');
@@ -84,7 +86,7 @@ export class CustomModelModel {
       label: labelForTag(check.tag),
       kind: kindForTag(check.tag),
       addedBy,
-      addedAt: now()
+      addedAt: now(),
     };
     await this.collection.insertOne(record);
     return { ...record };

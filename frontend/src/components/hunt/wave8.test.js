@@ -32,7 +32,7 @@ function extractEmptyStateIdeas(src) {
   const block = src.match(/export const EMPTY_STATE_IDEAS = \[([\s\S]*?)\];/);
   assert.ok(block, 'EMPTY_STATE_IDEAS registry not found in source');
   const entries = [...block[1].matchAll(/\{\s*idea:\s*(\d+),\s*name:\s*'([^']+)'\s*\}/g)].map(
-    (m) => ({ idea: Number(m[1]), name: m[2] })
+    m => ({ idea: Number(m[1]), name: m[2] })
   );
   return { EMPTY_STATE_IDEAS: entries };
 }
@@ -107,9 +107,30 @@ test('50282: respects limit', () => {
 /* ---------- 50285: models-page incremental search -------------------- */
 
 const MODELS = [
-  { id: 'qwen-vl', name: 'Qwen2.5-VL', provider: 'Kaggle', slot: 'vision', kind: 'model', tags: ['multimodal'] },
-  { id: 'hydra-x', name: 'Hydra', provider: 'kali', slot: 'hacker', kind: 'plugin', tags: ['bruteforce'] },
-  { id: 'kokoro', name: 'Kokoro-82M', provider: 'builtin', slot: 'tts', kind: 'model', tags: ['voice'] },
+  {
+    id: 'qwen-vl',
+    name: 'Qwen2.5-VL',
+    provider: 'Kaggle',
+    slot: 'vision',
+    kind: 'model',
+    tags: ['multimodal'],
+  },
+  {
+    id: 'hydra-x',
+    name: 'Hydra',
+    provider: 'kali',
+    slot: 'hacker',
+    kind: 'plugin',
+    tags: ['bruteforce'],
+  },
+  {
+    id: 'kokoro',
+    name: 'Kokoro-82M',
+    provider: 'builtin',
+    slot: 'tts',
+    kind: 'model',
+    tags: ['voice'],
+  },
 ];
 
 test('50285: empty query returns all', () => {
@@ -139,9 +160,9 @@ test('50285: no match returns empty', () => {
 function memStore() {
   const m = new Map();
   return {
-    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    getItem: k => (m.has(k) ? m.get(k) : null),
     setItem: (k, v) => m.set(k, v),
-    removeItem: (k) => m.delete(k),
+    removeItem: k => m.delete(k),
   };
 }
 
@@ -166,8 +187,8 @@ test('50287: empty value clears', () => {
 
 test('registries cover 50281–50320 with unique idea numbers', () => {
   const covered = new Set([
-    ...SEARCH_REFINE_IDEAS.map((e) => e.idea),
-    ...EMPTY_STATE_IDEAS.map((e) => e.idea),
+    ...SEARCH_REFINE_IDEAS.map(e => e.idea),
+    ...EMPTY_STATE_IDEAS.map(e => e.idea),
   ]);
   // 50283/50284/50286/50288/50289 live in wave 7's SearchSuite (merged #65)
   const waved7 = new Set([50283, 50284, 50286, 50288, 50289]);
@@ -175,7 +196,7 @@ test('registries cover 50281–50320 with unique idea numbers', () => {
     assert.ok(covered.has(i) || waved7.has(i), `idea ${i} uncovered`);
   }
   assert.equal(
-    new Set([...SEARCH_REFINE_IDEAS, ...EMPTY_STATE_IDEAS].map((e) => e.idea)).size,
+    new Set([...SEARCH_REFINE_IDEAS, ...EMPTY_STATE_IDEAS].map(e => e.idea)).size,
     SEARCH_REFINE_IDEAS.length + EMPTY_STATE_IDEAS.length,
     'duplicate idea numbers'
   );
@@ -184,10 +205,7 @@ test('registries cover 50281–50320 with unique idea numbers', () => {
 test('EmptyStates.jsx exports all 31 named components', () => {
   const src = fs.readFileSync(path.join(here, 'EmptyStates.jsx'), 'utf8');
   for (const { name } of EMPTY_STATE_IDEAS) {
-    assert.ok(
-      new RegExp(`export function ${name}\\b`).test(src),
-      `missing export: ${name}`
-    );
+    assert.ok(new RegExp(`export function ${name}\\b`).test(src), `missing export: ${name}`);
   }
 });
 

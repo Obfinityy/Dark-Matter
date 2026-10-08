@@ -37,7 +37,8 @@ export function murmurHash3(data, seed = 31) {
   const nblocks = Math.floor(len / 4);
 
   for (let i = 0; i < nblocks; i++) {
-    let k1 = bytes[i * 4] | (bytes[i * 4 + 1] << 8) | (bytes[i * 4 + 2] << 16) | (bytes[i * 4 + 3] << 24);
+    let k1 =
+      bytes[i * 4] | (bytes[i * 4 + 1] << 8) | (bytes[i * 4 + 2] << 16) | (bytes[i * 4 + 3] << 24);
     k1 = Math.imul(k1, c1);
     k1 = (k1 << 15) | (k1 >>> 17);
     k1 = Math.imul(k1, c2);
@@ -49,8 +50,10 @@ export function murmurHash3(data, seed = 31) {
   let k1 = 0;
   const tail = nblocks * 4;
   switch (len & 3) {
-    case 3: k1 ^= bytes[tail + 2] << 16; // falls through
-    case 2: k1 ^= bytes[tail + 1] << 8; // falls through
+    case 3:
+      k1 ^= bytes[tail + 2] << 16; // falls through
+    case 2:
+      k1 ^= bytes[tail + 1] << 8; // falls through
     case 1:
       k1 ^= bytes[tail];
       k1 = Math.imul(k1, c1);
@@ -137,5 +140,11 @@ export function identifyService(bytes) {
   };
 }
 
-export const FAVICON_ID = { murmurHash3, hashFavicon, identifyService, registerFaviconSignature, listSignatures };
+export const FAVICON_ID = {
+  murmurHash3,
+  hashFavicon,
+  identifyService,
+  registerFaviconSignature,
+  listSignatures,
+};
 export default FAVICON_ID;

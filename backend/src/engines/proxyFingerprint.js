@@ -23,38 +23,39 @@ const INTERNAL_HOST_PATTERNS = [
   /gateway/i,
 ];
 
-const PRIVATE_IP = /(?:^|[^0-9.])(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(?![0-9.])/g;
+const PRIVATE_IP =
+  /(?:^|[^0-9.])(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(?![0-9.])/g;
 
 const SOCKS_VERSION_TABLE = [
   {
     version: 'SOCKS4',
     description: '0x00 0x5A — request granted (SOCKS4/SOCKS4a reply)',
-    test: (b) => b.length >= 2 && b[0] === 0x00 && b[1] === 0x5a,
+    test: b => b.length >= 2 && b[0] === 0x00 && b[1] === 0x5a,
   },
   {
     version: 'SOCKS4',
     description: '0x00 0x5B — request rejected (SOCKS4 reply)',
-    test: (b) => b.length >= 2 && b[0] === 0x00 && b[1] === 0x5b,
+    test: b => b.length >= 2 && b[0] === 0x00 && b[1] === 0x5b,
   },
   {
     version: 'SOCKS4',
     description: '0x00 0x5C — identd/auth failure (SOCKS4 reply)',
-    test: (b) => b.length >= 2 && b[0] === 0x00 && b[1] === 0x5c,
+    test: b => b.length >= 2 && b[0] === 0x00 && b[1] === 0x5c,
   },
   {
     version: 'SOCKS5',
     description: '0x05 0x00 — method selection accepted, no auth required',
-    test: (b) => b.length >= 2 && b[0] === 0x05 && b[1] === 0x00,
+    test: b => b.length >= 2 && b[0] === 0x05 && b[1] === 0x00,
   },
   {
     version: 'SOCKS5',
     description: '0x05 0x02 — method selection accepted, username/password auth',
-    test: (b) => b.length >= 2 && b[0] === 0x05 && b[1] === 0x02,
+    test: b => b.length >= 2 && b[0] === 0x05 && b[1] === 0x02,
   },
   {
     version: 'SOCKS5',
     description: '0x05 0xFF — no acceptable auth method (endpoint reachable)',
-    test: (b) => b.length >= 2 && b[0] === 0x05 && b[1] === 0xff,
+    test: b => b.length >= 2 && b[0] === 0x05 && b[1] === 0xff,
   },
 ];
 
@@ -100,32 +101,34 @@ export function analyzeWPAD(pacText) {
   const findProxyForUrl = isPac;
   if (isPac) evidence.push('FindProxyForURL() defined — valid PAC file.');
 
-  const stringLiterals = [...text.matchAll(/["']([^"']{2,120})["']/g)].map((m) => m[1]);
+  const stringLiterals = [...text.matchAll(/["']([^"']{2,120})["']/g)].map(m => m[1]);
 
   const internalHosts = [
-    ...new Set(
-      stringLiterals.filter((s) => INTERNAL_HOST_PATTERNS.some((p) => p.test(s))),
-    ),
+    ...new Set(stringLiterals.filter(s => INTERNAL_HOST_PATTERNS.some(p => p.test(s)))),
   ];
-  if (internalHosts.length) evidence.push(`Internal-style hostnames referenced: ${internalHosts.slice(0, 8).join(', ')}.`);
+  if (internalHosts.length)
+    evidence.push(`Internal-style hostnames referenced: ${internalHosts.slice(0, 8).join(', ')}.`);
 
-  const internalIps = [...new Set([...text.matchAll(PRIVATE_IP)].map((m) => m[1]))];
-  if (internalIps.length) evidence.push(`Private IP literals referenced: ${internalIps.slice(0, 8).join(', ')}.`);
+  const internalIps = [...new Set([...text.matchAll(PRIVATE_IP)].map(m => m[1]))];
+  if (internalIps.length)
+    evidence.push(`Private IP literals referenced: ${internalIps.slice(0, 8).join(', ')}.`);
 
   const proxyHosts = [
     ...new Set(
-      [...text.matchAll(/PROXY\s+([a-zA-Z0-9_.-]+)(?::(\d+))?/gi)].map((m) =>
-        m[2] ? `${m[1]}:${m[2]}` : m[1],
-      ),
+      [...text.matchAll(/PROXY\s+([a-zA-Z0-9_.-]+)(?::(\d+))?/gi)].map(m =>
+        m[2] ? `${m[1]}:${m[2]}` : m[1]
+      )
     ),
   ];
-  if (proxyHosts.length) evidence.push(`Explicit proxy endpoints in PAC: ${proxyHosts.slice(0, 8).join(', ')}.`);
+  if (proxyHosts.length)
+    evidence.push(`Explicit proxy endpoints in PAC: ${proxyHosts.slice(0, 8).join(', ')}.`);
 
   const directPatterns = [
-    ...new Set([...text.matchAll(/shExpMatch\([^,]+,\s*["']([^"']+)["']\)/gi)].map((m) => m[1])),
+    ...new Set([...text.matchAll(/shExpMatch\([^,]+,\s*["']([^"']+)["']\)/gi)].map(m => m[1])),
   ];
   if (/["']DIRECT["']/i.test(text)) evidence.push('DIRECT branch present — bypass rules defined.');
-  if (/SOCKS/i.test(text)) evidence.push('SOCKS directive present — SOCKS infrastructure advertised.');
+  if (/SOCKS/i.test(text))
+    evidence.push('SOCKS directive present — SOCKS infrastructure advertised.');
 
   return {
     isPac,
@@ -162,7 +165,9 @@ export function detectProxyAutoConfig(hints = {}) {
   }
   if (wpadDatFetched) {
     infrastructure.push('wpad-dat');
-    evidence.push(`wpad.dat retrievable${wpadDatUrl ? ` at ${wpadDatUrl}` : ''} — PAC infrastructure live.`);
+    evidence.push(
+      `wpad.dat retrievable${wpadDatUrl ? ` at ${wpadDatUrl}` : ''} — PAC infrastructure live.`
+    );
   }
 
   return {
@@ -180,9 +185,7 @@ export function detectProxyAutoConfig(hints = {}) {
  * @returns {{version:string|null, authMethod:string|null, description:string|null, evidence:string}}
  */
 export function probeSocksVersion(responseBytes) {
-  const b = Array.isArray(responseBytes)
-    ? responseBytes
-    : Array.from(responseBytes || []);
+  const b = Array.isArray(responseBytes) ? responseBytes : Array.from(responseBytes || []);
   for (const sig of SOCKS_VERSION_TABLE) {
     if (sig.test(b)) {
       const authMethod =
@@ -191,7 +194,10 @@ export function probeSocksVersion(responseBytes) {
         version: sig.version,
         authMethod,
         description: sig.description,
-        evidence: `Response bytes [${b.slice(0, 4).map((x) => `0x${x.toString(16).padStart(2, '0')}`).join(', ')}] → ${sig.description}.`,
+        evidence: `Response bytes [${b
+          .slice(0, 4)
+          .map(x => `0x${x.toString(16).padStart(2, '0')}`)
+          .join(', ')}] → ${sig.description}.`,
       };
     }
   }
@@ -199,7 +205,12 @@ export function probeSocksVersion(responseBytes) {
     version: null,
     authMethod: null,
     description: null,
-    evidence: `Response bytes [${b.slice(0, 4).map((x) => `0x${x.toString(16).padStart(2, '0')}`).join(', ') || 'empty'}] match no known SOCKS greeting signature.`,
+    evidence: `Response bytes [${
+      b
+        .slice(0, 4)
+        .map(x => `0x${x.toString(16).padStart(2, '0')}`)
+        .join(', ') || 'empty'
+    }] match no known SOCKS greeting signature.`,
   };
 }
 
@@ -213,7 +224,7 @@ export function probeSocksVersion(responseBytes) {
  */
 export function analyzeProxyHeaders(headers = {}) {
   const lower = Object.fromEntries(
-    Object.entries(headers).map(([k, v]) => [String(k).toLowerCase(), String(v)]),
+    Object.entries(headers).map(([k, v]) => [String(k).toLowerCase(), String(v)])
   );
   const evidence = [];
   const proxyMarkers = [];
@@ -227,8 +238,13 @@ export function analyzeProxyHeaders(headers = {}) {
 
   const xff = lower['x-forwarded-for'];
   if (xff) {
-    hops = xff.split(',').map((h) => h.trim()).filter(Boolean);
-    evidence.push(`X-Forwarded-For chain of ${hops.length} hop(s): ${hops.slice(0, 8).join(' → ')}.`);
+    hops = xff
+      .split(',')
+      .map(h => h.trim())
+      .filter(Boolean);
+    evidence.push(
+      `X-Forwarded-For chain of ${hops.length} hop(s): ${hops.slice(0, 8).join(' → ')}.`
+    );
   }
   const via = lower['via'];
   if (via) evidence.push(`Via header reveals intermediaries: ${via}.`);
@@ -236,11 +252,12 @@ export function analyzeProxyHeaders(headers = {}) {
   if (forwarded) evidence.push(`RFC 7239 Forwarded header present: ${forwarded}.`);
 
   const topologyHints = [];
-  const allValues = proxyMarkers.map((m) => m.value).join(' ');
-  for (const ip of [...allValues.matchAll(PRIVATE_IP)].map((m) => m[1])) {
+  const allValues = proxyMarkers.map(m => m.value).join(' ');
+  for (const ip of [...allValues.matchAll(PRIVATE_IP)].map(m => m[1])) {
     topologyHints.push(`Private IP ${ip} leaks internal addressing in proxy headers.`);
   }
-  if (hops.length > 1) topologyHints.push(`${hops.length} proxy hops suggest chained proxy topology.`);
+  if (hops.length > 1)
+    topologyHints.push(`${hops.length} proxy hops suggest chained proxy topology.`);
 
   const proxyDetected = proxyMarkers.length > 0;
   if (!proxyDetected) evidence.push('No known proxy-added headers observed.');
@@ -271,7 +288,9 @@ export function detectTransparentProxy(input = {}) {
   if (observedTtl !== null && observedTtl < baseline) {
     const delta = baseline - observedTtl;
     score += 2;
-    evidence.push(`TTL ${observedTtl} is ${delta} below the expected ${baseline} (${osHint}) — extra hop(s) between target and observer.`);
+    evidence.push(
+      `TTL ${observedTtl} is ${delta} below the expected ${baseline} (${osHint}) — extra hop(s) between target and observer.`
+    );
   } else if (observedTtl !== null) {
     evidence.push(`TTL ${observedTtl} matches expected ${baseline} — no TTL anomaly.`);
   }

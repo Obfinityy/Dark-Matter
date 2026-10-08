@@ -1,9 +1,16 @@
+/**
+ * contextBudgetManager — context budget management.
+ * Tracks token usage across chunks, prompts, and outputs to stay
+ * within model context limits.
+ * Part of: Infinity AI / Dark-Matter backend (long-context processing).
+ */
+
 import {
   estimateTokens,
   estimateMessageTokens,
   estimateMessagesTokens,
   modelContextCapacity,
-  reservedOutputTokens
+  reservedOutputTokens,
 } from './tokens.js';
 
 /**
@@ -52,7 +59,7 @@ export class ContextBudgetManager {
       taskState = null,
       retrievedBlocks = [],
       recentMessages = [],
-      userRequest = ''
+      userRequest = '',
     } = parts;
 
     const options = arguments[1] || {};
@@ -69,7 +76,7 @@ export class ContextBudgetManager {
       recent: 0,
       request: 0,
       droppedRetrieved: 0,
-      droppedRecent: 0
+      droppedRecent: 0,
     };
 
     const messages = [];
@@ -87,13 +94,16 @@ export class ContextBudgetManager {
     let requestMsg = { role: 'user', content: safeUserRequest };
     usage.request = estimateMessageTokens(requestMsg);
 
-    const minimumOverhead = usage.system + 16 /* task header etc */;
+    const minimumOverhead = usage.system + 16; /* task header etc */
     const maxAllowedForRequest = Math.max(500, available - minimumOverhead);
 
     if (usage.request > maxAllowedForRequest) {
       const targetChars = Math.floor(maxAllowedForRequest * 3.2); // ~3.2 chars per token
       const half = Math.max(200, Math.floor(targetChars / 2));
-      safeUserRequest = safeUserRequest.slice(0, half) + `\n\n[... Prompt auto-compacted (${userRequest.length} chars) to fit model context window ...]\n\n` + safeUserRequest.slice(-half);
+      safeUserRequest =
+        safeUserRequest.slice(0, half) +
+        `\n\n[... Prompt auto-compacted (${userRequest.length} chars) to fit model context window ...]\n\n` +
+        safeUserRequest.slice(-half);
       requestMsg = { role: 'user', content: safeUserRequest };
       usage.request = estimateMessageTokens(requestMsg);
       usage.compactedRequest = true;
@@ -104,7 +114,10 @@ export class ContextBudgetManager {
     if (taskState) {
       let content = taskState;
       let cost = estimateTokens(content) + 4;
-      const taskCeiling = Math.max(0, Math.min(available - usage.request, Math.floor(available * 0.25)));
+      const taskCeiling = Math.max(
+        0,
+        Math.min(available - usage.request, Math.floor(available * 0.25))
+      );
       if (cost > taskCeiling) {
         // Hard-compact task state rather than dropping it entirely.
         content = content.slice(0, Math.max(0, taskCeiling * 3));
@@ -123,7 +136,7 @@ export class ContextBudgetManager {
     const includedRetrieved = [];
     let remaining = available - usage.request - usage.system - usage.taskState;
     for (const block of retrievedBlocks) {
-      const cost = estimateTokens(block.content) + 24 /* citation header */;
+      const cost = estimateTokens(block.content) + 24; /* citation header */
       if (cost > remaining) {
         usage.droppedRetrieved += 1;
         continue;
@@ -150,11 +163,11 @@ export class ContextBudgetManager {
     // Assemble: system, taskState, [retrieved as user-context block], recent..., request
     if (includedRetrieved.length > 0) {
       const blockText = includedRetrieved
-        .map((b) => `--- [${b.label}] (source: ${b.id}) ---\n${b.content}`)
+        .map(b => `--- [${b.label}] (source: ${b.id}) ---\n${b.content}`)
         .join('\n\n');
       messages.push({
         role: 'system',
-        content: `[RETRIEVED CONTEXT — cite sources when using this material]\n\n${blockText}`
+        content: `[RETRIEVED CONTEXT — cite sources when using this material]\n\n${blockText}`,
       });
     }
 

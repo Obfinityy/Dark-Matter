@@ -40,7 +40,11 @@ export function isPunycode(domain) {
  */
 export function toPunycode(domain) {
   try {
-    const ascii = domainToASCII(String(domain || '').trim().toLowerCase());
+    const ascii = domainToASCII(
+      String(domain || '')
+        .trim()
+        .toLowerCase()
+    );
     return ascii || null;
   } catch {
     return null;
@@ -98,7 +102,9 @@ export function visualDeceptiveness(a, b) {
  *   sorted by deceptiveness, highest first
  */
 export function enumeratePunycodeSquats(brandDomain, opts = {}) {
-  const parts = String(brandDomain || '').toLowerCase().split('.');
+  const parts = String(brandDomain || '')
+    .toLowerCase()
+    .split('.');
   if (parts.length < 2) return [];
   const brandLabel = parts.slice(0, -1).join('.');
   const tld = parts[parts.length - 1];
@@ -132,7 +138,7 @@ export function scorePunycodeCandidate(candidateAscii, brandLabel) {
   const candidateLabel = unicode.split('.')[0] || '';
   const deceptiveness = visualDeceptiveness(candidateLabel, brandLabel);
   const scripts = scriptsInDomain(unicode);
-  const foreign = scripts.some((s) => ['Cyrillic', 'Greek', 'Armenian'].includes(s));
+  const foreign = scripts.some(s => ['Cyrillic', 'Greek', 'Armenian'].includes(s));
   const risk = Math.round(deceptiveness * 0.8 + (foreign ? 20 : 0));
   return {
     ascii,
@@ -140,7 +146,8 @@ export function scorePunycodeCandidate(candidateAscii, brandLabel) {
     deceptiveness,
     scripts,
     risk: Math.min(100, risk),
-    evidence: `punycode form ${ascii} decodes to "${unicode}" ` +
+    evidence:
+      `punycode form ${ascii} decodes to "${unicode}" ` +
       `(scripts: ${scripts.join(', ')}); visual similarity to brand label ` +
       `"${brandLabel}" is ${deceptiveness}/100`,
   };
@@ -153,10 +160,8 @@ export function scorePunycodeCandidate(candidateAscii, brandLabel) {
  * @returns scored findings, highest risk first
  */
 export function rankPunycodeFindings(candidates, brandLabel) {
-  const unique = [...new Set((candidates || []).map((d) => String(d).toLowerCase()))];
-  return unique
-    .map((c) => scorePunycodeCandidate(c, brandLabel))
-    .sort((a, b) => b.risk - a.risk);
+  const unique = [...new Set((candidates || []).map(d => String(d).toLowerCase()))];
+  return unique.map(c => scorePunycodeCandidate(c, brandLabel)).sort((a, b) => b.risk - a.risk);
 }
 
 export const PUNYCODE_VARIANT_ENUMERATOR = {

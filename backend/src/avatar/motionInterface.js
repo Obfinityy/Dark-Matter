@@ -61,7 +61,9 @@ export class LifelikeAvatarSession {
    */
   // eslint-disable-next-line no-unused-vars
   async startSession(avatarImage) {
-    throw new Error('LifelikeAvatarSession.startSession is not implemented — phase 2 sidecar required.');
+    throw new Error(
+      'LifelikeAvatarSession.startSession is not implemented — phase 2 sidecar required.'
+    );
   }
 
   /**
@@ -75,7 +77,9 @@ export class LifelikeAvatarSession {
    */
   // eslint-disable-next-line no-unused-vars
   async renderFrame(emotion, audioChunk) {
-    throw new Error('LifelikeAvatarSession.renderFrame is not implemented — phase 2 sidecar required.');
+    throw new Error(
+      'LifelikeAvatarSession.renderFrame is not implemented — phase 2 sidecar required.'
+    );
   }
 
   /**
@@ -83,7 +87,9 @@ export class LifelikeAvatarSession {
    * @returns {Promise<void>}
    */
   async stopSession() {
-    throw new Error('LifelikeAvatarSession.stopSession is not implemented — phase 2 sidecar required.');
+    throw new Error(
+      'LifelikeAvatarSession.stopSession is not implemented — phase 2 sidecar required.'
+    );
   }
 }
 
@@ -147,8 +153,8 @@ export function createMotionDriver(kind = 'noop', options = {}) {
     const baseUrl = options.baseUrl || process.env.AVATAR_SIDECAR_URL || '';
     throw new Error(
       `The LivePortrait+MuseTalk sidecar is not implemented in this build (phase 2). ` +
-      `Configure AVATAR_SIDECAR_URL=${baseUrl || '<sidecar-url>'} once the sidecar exists. ` +
-      `See backend/src/avatar/README.md for the plan.`
+        `Configure AVATAR_SIDECAR_URL=${baseUrl || '<sidecar-url>'} once the sidecar exists. ` +
+        `See backend/src/avatar/README.md for the plan.`
     );
   }
   throw new Error(`Unknown motion driver kind: ${kind}`);

@@ -135,17 +135,33 @@ export function harvestHttpsRecord(owner, rdata) {
   // AliasMode: priority 0, target is the alias target (RFC 9460 §2.4.1).
   const aliasMode = split.priority === 0;
   const target = aliasMode ? split.target : split.target === '.' ? null : split.target;
-  const alpn = params.alpn && typeof params.alpn === 'string'
-    ? params.alpn.split(',').map((s) => s.trim()).filter(Boolean)
-    : [];
+  const alpn =
+    params.alpn && typeof params.alpn === 'string'
+      ? params.alpn
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+      : [];
   const port = params.port !== undefined && params.port !== true ? Number(params.port) : null;
   const ipv4hint = params.ipv4hint ? splitIpHints(params.ipv4hint).v4 : [];
   const ipv6hint = params.ipv6hint ? splitIpHints(params.ipv6hint).v6 : [];
-  const mandatory = params.mandatory && typeof params.mandatory === 'string'
-    ? params.mandatory.split(',').map((s) => s.trim()).filter(Boolean)
-    : [];
-  const known = new Set(['alpn', 'port', 'ipv4hint', 'ipv6hint', 'ech', 'mandatory', 'no-default-alpn']);
-  const otherParams = Object.keys(params).filter((k) => !known.has(k));
+  const mandatory =
+    params.mandatory && typeof params.mandatory === 'string'
+      ? params.mandatory
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+      : [];
+  const known = new Set([
+    'alpn',
+    'port',
+    'ipv4hint',
+    'ipv6hint',
+    'ech',
+    'mandatory',
+    'no-default-alpn',
+  ]);
+  const otherParams = Object.keys(params).filter(k => !known.has(k));
   // Candidate service endpoints: alias target + hinted IPs.
   const endpoints = [];
   if (target) endpoints.push(target);
@@ -183,11 +199,11 @@ export function harvestHttpsRecords(records) {
     if (h) parsed.push(h);
   }
   const aliasChains = parsed
-    .filter((p) => p.aliasMode && p.target)
-    .map((p) => ({ owner: p.owner, aliasTarget: p.target }));
+    .filter(p => p.aliasMode && p.target)
+    .map(p => ({ owner: p.owner, aliasTarget: p.target }));
   const endpointSet = new Set();
   for (const p of parsed) for (const e of p.endpoints) endpointSet.add(e);
-  const echHosts = parsed.filter((p) => p.echPresent).map((p) => p.owner);
+  const echHosts = parsed.filter(p => p.echPresent).map(p => p.owner);
   return {
     records: parsed,
     aliasChains,
@@ -231,17 +247,37 @@ export function extractEchConfigs(echBase64) {
   try {
     bytes = Buffer.from(echBase64.trim(), 'base64');
   } catch {
-    return [{ configId: null, kemId: null, kemName: 'unknown', publicName: null, error: 'invalid base64' }];
+    return [
+      {
+        configId: null,
+        kemId: null,
+        kemName: 'unknown',
+        publicName: null,
+        error: 'invalid base64',
+      },
+    ];
   }
   // ECHConfigList is length-prefixed.
   if (bytes.length < 2) {
-    return [{ configId: null, kemId: null, kemName: 'unknown', publicName: null, error: 'truncated ECHConfigList' }];
+    return [
+      {
+        configId: null,
+        kemId: null,
+        kemName: 'unknown',
+        publicName: null,
+        error: 'truncated ECHConfigList',
+      },
+    ];
   }
   const listLen = bytes.readUInt16BE(0);
   let offset = 2;
   const end = Math.min(2 + listLen, bytes.length);
   const configs = [];
-  const KEM_NAMES = { 16: 'DHKEM(X25519,HKDF-SHA256)', 17: 'DHKEM(P-256,HKDF-SHA256)', 18: 'DHKEM(P-521,HKDF-SHA256)' };
+  const KEM_NAMES = {
+    16: 'DHKEM(X25519,HKDF-SHA256)',
+    17: 'DHKEM(P-256,HKDF-SHA256)',
+    18: 'DHKEM(P-521,HKDF-SHA256)',
+  };
   while (offset < end) {
     const entry = {
       configId: null,
@@ -256,7 +292,7 @@ export function extractEchConfigs(echBase64) {
       entry.kemId = bytes.readUInt16BE(offset + 1);
       entry.kemName = KEM_NAMES[entry.kemId] || `kem-${entry.kemId}`;
       offset += 3;
-      const readOpaque = (lenBytes) => {
+      const readOpaque = lenBytes => {
         if (offset + lenBytes > bytes.length) throw new Error('truncated length prefix');
         const len = lenBytes === 1 ? bytes.readUInt8(offset) : bytes.readUInt16BE(offset);
         offset += lenBytes;
@@ -344,7 +380,7 @@ export function extractEchFromRecords(records) {
     summary: {
       echHosts: hosts.length,
       configsParsed: hosts.reduce((n, h) => n + h.configs.length, 0),
-      parseErrors: hosts.reduce((n, h) => n + h.configs.filter((c) => c.error).length, 0),
+      parseErrors: hosts.reduce((n, h) => n + h.configs.filter(c => c.error).length, 0),
       uniqueBackendAliases: aliasSet.size,
     },
   };
@@ -447,7 +483,10 @@ export function parseCaaRecord(rdata) {
   const tag = m[2].toLowerCase();
   const rawValue = m[3].trim();
   // Value format: `ca-name[; param=value[; ...]]` (RFC 8659 §4.1.1).
-  const segments = rawValue.split(';').map((s) => s.trim()).filter(Boolean);
+  const segments = rawValue
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean);
   const ca = segments.length ? segments[0] : '';
   const params = {};
   for (const seg of segments.slice(1)) {
@@ -480,7 +519,9 @@ export function inferCaaPolicy(records) {
     const parsed = parseCaaRecord(rec.rdata);
     if (!parsed) continue;
     if (parsed.flags === 128) {
-      criticalFlags.push(`${rec.owner}: ${parsed.tag} (issuer must understand tag or refuse issuance)`);
+      criticalFlags.push(
+        `${rec.owner}: ${parsed.tag} (issuer must understand tag or refuse issuance)`
+      );
     }
     const entry = {
       owner: rec.owner,
@@ -488,7 +529,10 @@ export function inferCaaPolicy(records) {
       ca: parsed.ca,
       accountUri: parsed.params.accounturi || null,
       validationMethods: parsed.params.validationmethods
-        ? parsed.params.validationmethods.split(',').map((s) => s.trim()).filter(Boolean)
+        ? parsed.params.validationmethods
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
         : [],
     };
     if (entry.accountUri) accountUris.add(entry.accountUri);
@@ -509,11 +553,13 @@ export function inferCaaPolicy(records) {
   const policyGaps = [];
   if (trustedCAs.size > 0 && issuewildCAs.size === 0) {
     policyGaps.push(
-      'No issuewild records: wildcard issuance falls back to the `issue` CA set — wildcards may be issued by any CA trusted in `issue`.',
+      'No issuewild records: wildcard issuance falls back to the `issue` CA set — wildcards may be issued by any CA trusted in `issue`.'
     );
   }
   if (trustedCAs.size === 0) {
-    policyGaps.push('No `issue` records: any public CA may issue certificates for this zone (no CAA restriction).');
+    policyGaps.push(
+      'No `issue` records: any public CA may issue certificates for this zone (no CAA restriction).'
+    );
   }
   return {
     trustedCAs: [...trustedCAs].sort(),

@@ -45,7 +45,7 @@ export function buildResourceMonitor(usage) {
 
 // 51982 — Multi-hunt switcher payload: switch the active hunt on mobile.
 export function buildHuntSwitcher(hunts, activeId) {
-  const list = (Array.isArray(hunts) ? hunts : []).map((h) => ({
+  const list = (Array.isArray(hunts) ? hunts : []).map(h => ({
     id: h.id,
     name: String(h.name || 'Unnamed hunt'),
     status: h.status || 'unknown',
@@ -85,11 +85,14 @@ const LANGUAGE_PACKS = [
   { id: 'ar', label: 'Arabic', rtl: true },
 ];
 export function listLanguagePacks(currentId) {
-  return LANGUAGE_PACKS.map((p) => ({ ...p, selected: p.id === currentId }));
+  return LANGUAGE_PACKS.map(p => ({ ...p, selected: p.id === currentId }));
 }
 export function selectLanguage(currentId, languageId) {
-  const pack = LANGUAGE_PACKS.find((p) => p.id === languageId);
-  return { language: pack || LANGUAGE_PACKS.find((p) => p.id === currentId) || LANGUAGE_PACKS[0], changed: Boolean(pack) };
+  const pack = LANGUAGE_PACKS.find(p => p.id === languageId);
+  return {
+    language: pack || LANGUAGE_PACKS.find(p => p.id === currentId) || LANGUAGE_PACKS[0],
+    changed: Boolean(pack),
+  };
 }
 
 // 51986 — Quiet-hours evaluator: decide whether now is a quiet hour.
@@ -101,7 +104,11 @@ export function evaluateQuietHours(nowDate, schedule) {
   const start = Number(s.startHour ?? 22);
   const end = Number(s.endHour ?? 7);
   const inWindow = start <= end ? hour >= start && hour < end : hour >= start || hour < end;
-  return { quiet: inWindow, reason: inWindow ? 'inside quiet window' : 'outside quiet window', hour };
+  return {
+    quiet: inWindow,
+    reason: inWindow ? 'inside quiet window' : 'outside quiet window',
+    hour,
+  };
 }
 
 // 51987 — Emergency controls spec: kill-switch + deny-all reachable in <= 2 taps.
@@ -136,10 +143,19 @@ export function buildDeepLink(target) {
   const parts = [];
   if (t.view) parts.push(String(t.view));
   if (t.huntId) parts.push(String(t.huntId));
-  const query = t.params && typeof t.params === 'object'
-    ? '?' + Object.entries(t.params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
-    : '';
-  return { url: 'darkmatter:/' + parts.join('/') + query, view: t.view || null, huntId: t.huntId || null, valid: Boolean(t.view) };
+  const query =
+    t.params && typeof t.params === 'object'
+      ? '?' +
+        Object.entries(t.params)
+          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+          .join('&')
+      : '';
+  return {
+    url: 'darkmatter:/' + parts.join('/') + query,
+    view: t.view || null,
+    huntId: t.huntId || null,
+    valid: Boolean(t.view),
+  };
 }
 
 // 51990 — Biometric approval gate: approve sensitive actions with biometrics.
@@ -151,8 +167,16 @@ export function evaluateBiometricApproval(request) {
   return {
     approved,
     action: approved ? r.action : null,
-    auditTrail: approved ? [{ action: r.action, ts: new Date().toISOString(), method: 'biometric' }] : [],
-    reason: !enrolled ? 'biometric not enrolled' : !matched ? 'biometric did not match' : approved ? 'approved' : 'no action',
+    auditTrail: approved
+      ? [{ action: r.action, ts: new Date().toISOString(), method: 'biometric' }]
+      : [],
+    reason: !enrolled
+      ? 'biometric not enrolled'
+      : !matched
+        ? 'biometric did not match'
+        : approved
+          ? 'approved'
+          : 'no action',
   };
 }
 
@@ -191,7 +215,7 @@ export function buildReportExportDescriptor(huntId, format) {
 export function normalizeTeamChatMessage(raw) {
   const text = String(raw == null ? '' : raw).trim();
   if (!text) return { empty: true, text: '', mentions: [], isCommand: false };
-  const mentions = [...text.matchAll(/@([a-zA-Z0-9_.-]+)/g)].map((m) => m[1]);
+  const mentions = [...text.matchAll(/@([a-zA-Z0-9_.-]+)/g)].map(m => m[1]);
   const isCommand = text.startsWith('/');
   const [cmd, ...rest] = text.slice(1).split(/\s+/);
   return {
@@ -222,11 +246,13 @@ const SHORTCUT_INTENTS = [
   { id: 'new-snapshot', phrase: 'Take a snapshot', action: 'snapshot' },
 ];
 export function listShortcutIntents() {
-  return SHORTCUT_INTENTS.map((s) => ({ ...s }));
+  return SHORTCUT_INTENTS.map(s => ({ ...s }));
 }
 export function matchShortcutIntent(phrase) {
   const q = String(phrase || '').toLowerCase();
-  return SHORTCUT_INTENTS.find((s) => q.includes(s.phrase.toLowerCase()) || q.includes(s.action)) || null;
+  return (
+    SHORTCUT_INTENTS.find(s => q.includes(s.phrase.toLowerCase()) || q.includes(s.action)) || null
+  );
 }
 
 // 51996 — Focus-mode filter: only urgent items during focus mode.
@@ -234,8 +260,15 @@ export function applyFocusMode(items, focus) {
   const list = Array.isArray(items) ? items : [];
   const f = focus || {};
   if (!f.enabled) return { items: list, filtered: false, count: list.length };
-  const urgent = list.filter((it) => it && (it.urgent === true || String(it.severity || '').toLowerCase() === 'critical'));
-  return { items: urgent, filtered: true, hiddenCount: list.length - urgent.length, count: urgent.length };
+  const urgent = list.filter(
+    it => it && (it.urgent === true || String(it.severity || '').toLowerCase() === 'critical')
+  );
+  return {
+    items: urgent,
+    filtered: true,
+    hiddenCount: list.length - urgent.length,
+    count: urgent.length,
+  };
 }
 
 // 51997 — Glanceable complications payload: watch-face complications.
@@ -245,7 +278,11 @@ export function buildComplicationsPayload(hunt) {
     complications: [
       { slot: 'corner', type: 'status', value: String(h.status || 'unknown') },
       { slot: 'bezel', type: 'findings', value: Number(h.findingsCount || 0) },
-      { slot: 'inline', type: 'eta', value: h.etaMinutes == null ? '—' : `${Number(h.etaMinutes)}m` },
+      {
+        slot: 'inline',
+        type: 'eta',
+        value: h.etaMinutes == null ? '—' : `${Number(h.etaMinutes)}m`,
+      },
     ],
     updatedAt: new Date().toISOString(),
   };

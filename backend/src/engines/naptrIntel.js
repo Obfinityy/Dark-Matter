@@ -31,10 +31,14 @@ export function parseNaptrRecord(rdata) {
       flags: String(rdata.flags || '').toLowerCase(),
       service: String(rdata.service || '').toLowerCase(),
       regexp: String(rdata.regexp || ''),
-      replacement: String(rdata.replacement || '').replace(/\.$/, '').toLowerCase(),
+      replacement: String(rdata.replacement || '')
+        .replace(/\.$/, '')
+        .toLowerCase(),
     };
   }
-  const m = String(rdata || '').trim().match(/^(\d+)\s+(\d+)\s+"([^"]*)"\s+"([^"]*)"\s+"([^"]*)"\s+(\S+)\s*$/);
+  const m = String(rdata || '')
+    .trim()
+    .match(/^(\d+)\s+(\d+)\s+"([^"]*)"\s+"([^"]*)"\s+"([^"]*)"\s+(\S+)\s*$/);
   if (!m) return null;
   return {
     order: Number(m[1]),
@@ -69,9 +73,14 @@ export function classifyNaptrService(service) {
  * @returns {{domain:string, present:boolean, services:Array<{service:string,class:string,flags:string,replacement:string}>, findings:Array<{severity:string,type:string,detail:string}>}}
  */
 export function analyzeNaptrRecords(domain, records) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const findings = [];
-  const parsed = (records || []).map(parseNaptrRecord).filter(Boolean)
+  const parsed = (records || [])
+    .map(parseNaptrRecord)
+    .filter(Boolean)
     .sort((a, b) => a.order - b.order || a.preference - b.preference);
   const services = parsed.map(p => ({
     service: p.service,
@@ -86,7 +95,11 @@ export function analyzeNaptrRecords(domain, records) {
     type: 'naptr-services-published',
     detail: `${d} publishes ${parsed.length} NAPTR record(s): ${[...new Set(services.map(s => s.class))].join(', ')} — each replacement hostname is a telephony/VoIP service in scope for SIP security review.`,
   });
-  const sipTargets = new Set(parsed.filter(p => /^(sip|sips)\+/.test(p.service) && p.replacement !== '.').map(p => p.replacement));
+  const sipTargets = new Set(
+    parsed
+      .filter(p => /^(sip|sips)\+/.test(p.service) && p.replacement !== '.')
+      .map(p => p.replacement)
+  );
   if (sipTargets.size > 0) {
     findings.push({
       severity: 'info',
@@ -113,12 +126,16 @@ export function analyzeNaptrRecords(domain, records) {
  * @returns {Promise<{domain:string, present:boolean, services:Array, findings:Array}>}
  */
 export async function discoverNaptrServices(domain) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   let raw = [];
   try {
     raw = await resolver.resolve(d, 'NAPTR');
   } catch (err) {
-    if (err && err.code !== 'ENODATA' && err.code !== 'ENOTFOUND' && err.code !== 'SERVFAIL') throw err;
+    if (err && err.code !== 'ENODATA' && err.code !== 'ENOTFOUND' && err.code !== 'SERVFAIL')
+      throw err;
   }
   return analyzeNaptrRecords(d, raw);
 }

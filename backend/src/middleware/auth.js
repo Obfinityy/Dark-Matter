@@ -1,12 +1,35 @@
+/**
+ * auth — authentication middleware.
+ * Verifies bearer tokens / sessions and attaches the user
+ * context to incoming requests.
+ * Part of: Infinity AI / Dark-Matter backend (Express middleware).
+ */
+
 import { getSessionToken } from './requestContext.js';
 
+/**
+ * Require Auth.
+ * @param {*} request
+ * @param {*} response
+ * @param {*} next
+ * @returns {*} Result.
+ */
 export function requireAuth(request, response, next) {
   if (!request.user) {
-    return response.status(401).json({ error: { code: 'AUTH_REQUIRED', message: 'Create an account or sign in to continue.' } });
+    return response
+      .status(401)
+      .json({
+        error: { code: 'AUTH_REQUIRED', message: 'Create an account or sign in to continue.' },
+      });
   }
   return next();
 }
 
+/**
+ * Attach Auth.
+ * @param {*} authService
+ * @returns {*} Result.
+ */
 export function attachAuth(authService) {
   return async (request, response, next) => {
     try {

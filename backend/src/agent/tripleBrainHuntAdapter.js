@@ -40,6 +40,7 @@ function normalizeTarget(job) {
   return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
 }
 
+/** Adapter for triple brain hunt. */
 export class TripleBrainHuntAdapter {
   constructor({ orchestrator, deterministic = null, logger = console } = {}) {
     if (!orchestrator) throw new Error('TripleBrainHuntAdapter requires an orchestrator');
@@ -107,7 +108,10 @@ export class TripleBrainHuntAdapter {
 
   static statusLabel(decision) {
     const type = decision?.nextAction?.type;
-    const src = decision?.brainSource === 'triple-degraded' ? 'Triple-brain (vision covering hacker)' : 'Triple-brain (hacker slot)';
+    const src =
+      decision?.brainSource === 'triple-degraded'
+        ? 'Triple-brain (vision covering hacker)'
+        : 'Triple-brain (hacker slot)';
     switch (type) {
       case 'tool':
         return `${src}: running ${decision.nextAction.name}…`;
@@ -127,11 +131,14 @@ export class TripleBrainHuntAdapter {
   }
 
   sanitizeTool(name) {
-    const clean = String(name || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const clean = String(name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '');
     if (SAFE_TOOLS.has(clean)) return clean;
     this.logger?.warn?.(
       `[triple-brain-adapter] hacker brain requested unknown tool "${name}" — ` +
-      `falling back to web_probe (allowlist: ${[...SAFE_TOOLS].join(', ')})`
+        `falling back to web_probe (allowlist: ${[...SAFE_TOOLS].join(', ')})`
     );
     return 'web_probe';
   }
@@ -152,9 +159,9 @@ export class TripleBrainHuntAdapter {
       reason: `${prefix}: ${hypothesis || action.rationale || 'proposing the next step'}`,
       expectedOutcome: action.rationale || 'New evidence about the target',
       confidence: 0.8,
-      methodologyStage: (context.job?.phase) || 'vulnerability_detection',
+      methodologyStage: context.job?.phase || 'vulnerability_detection',
       hypotheses: Array.isArray(strategy?.vulnChains)
-        ? strategy.vulnChains.map((vc) => ({
+        ? strategy.vulnChains.map(vc => ({
             hypothesis: vc.chain,
             status: 'open',
             evidence: (vc.steps || []).join(' → '),
@@ -168,11 +175,12 @@ export class TripleBrainHuntAdapter {
       // grounding only clicks.
       brainOrders: {
         vision: typeof strategy?.visionInstruction === 'string' ? strategy.visionInstruction : '',
-        grounding: typeof strategy?.groundingInstruction === 'string' ? strategy.groundingInstruction : '',
+        grounding:
+          typeof strategy?.groundingInstruction === 'string' ? strategy.groundingInstruction : '',
       },
     };
 
-    const toolDecision = (name) => ({
+    const toolDecision = name => ({
       ...base,
       nextAction: {
         type: 'tool',
@@ -216,7 +224,9 @@ export class TripleBrainHuntAdapter {
               text: action.text || null,
             },
             target,
-            description: action.rationale || `Hacker brain: ${action.kind} ${action.targetElement || ''}`.trim(),
+            description:
+              action.rationale ||
+              `Hacker brain: ${action.kind} ${action.targetElement || ''}`.trim(),
           },
         };
       case 'report':
@@ -232,7 +242,10 @@ export class TripleBrainHuntAdapter {
           ...base,
           reason: `${prefix}: done — ${hypothesis || 'objectives satisfied'}`,
           expectedOutcome: 'Hunt complete',
-          nextAction: { type: 'complete', reason: hypothesis || 'Hacker brain signaled completion.' },
+          nextAction: {
+            type: 'complete',
+            reason: hypothesis || 'Hacker brain signaled completion.',
+          },
         };
       default:
         // Unknown / empty strategy: safest useful move is a recon probe.
@@ -259,15 +272,17 @@ export class TripleBrainHuntAdapter {
   async decide(context = {}) {
     const job = context.job || {};
     const target = normalizeTarget(job);
-    const observations = (context.recentObservations || []).map((o) =>
-      typeof o === 'string' ? o : String(o?.summary || o?.text || o?.message || JSON.stringify(o)).slice(0, 500)
+    const observations = (context.recentObservations || []).map(o =>
+      typeof o === 'string'
+        ? o
+        : String(o?.summary || o?.text || o?.message || JSON.stringify(o)).slice(0, 500)
     );
-    const findings = (context.findings || []).map((f) => ({
+    const findings = (context.findings || []).map(f => ({
       severity: f?.severity || '?',
       title: f?.title || f?.type || 'finding',
       description: String(f?.description || '').slice(0, 300),
     }));
-    const history = (context.recentCycles || []).map((h) =>
+    const history = (context.recentCycles || []).map(h =>
       typeof h === 'string' ? h : String(h?.summary || JSON.stringify(h)).slice(0, 200)
     );
 
@@ -288,7 +303,11 @@ export class TripleBrainHuntAdapter {
     }
     if (res.strategy?.done) {
       return {
-        decision: this.strategyToDecision({ ...res.strategy, nextAction: { kind: 'done' } }, context, res),
+        decision: this.strategyToDecision(
+          { ...res.strategy, nextAction: { kind: 'done' } },
+          context,
+          res
+        ),
       };
     }
     return { decision: this.strategyToDecision(res.strategy, context, res) };

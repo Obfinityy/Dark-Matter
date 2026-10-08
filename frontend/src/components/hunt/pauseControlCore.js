@@ -25,37 +25,85 @@ export const WAVE33_END = 51320;
 
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE33_IDEAS = [
-  [51281, 'live artifact gallery', 'Screenshots, responses, and files the agent captured, browsable as they arrive'],
+  [
+    51281,
+    'live artifact gallery',
+    'Screenshots, responses, and files the agent captured, browsable as they arrive',
+  ],
   [51282, 'log access roles', 'Control which teammates can see raw logs versus summaries'],
   [51283, 'log retention policies', 'Auto-archive or purge logs per your compliance schedule'],
-  [51284, 'one-click incident package', 'Bundle logs, findings, and timeline into a shareable evidence pack'],
-  [51285, 'instant pause button', 'Freeze all agent activity within a second, with visual confirmation'],
-  [51286, 'graceful pause', 'Finish the in-flight request before pausing to avoid half-written state'],
+  [
+    51284,
+    'one-click incident package',
+    'Bundle logs, findings, and timeline into a shareable evidence pack',
+  ],
+  [
+    51285,
+    'instant pause button',
+    'Freeze all agent activity within a second, with visual confirmation',
+  ],
+  [
+    51286,
+    'graceful pause',
+    'Finish the in-flight request before pausing to avoid half-written state',
+  ],
   [51287, 'pause with reason', 'Tag each pause with a reason for the hunt record'],
-  [51288, 'resume exactly', 'Pick up precisely where the hunt stopped — no repeated or skipped steps'],
+  [
+    51288,
+    'resume exactly',
+    'Pick up precisely where the hunt stopped — no repeated or skipped steps',
+  ],
   [51289, 'pause scheduling', 'Set the hunt to pause automatically at a future time'],
   [51290, 'pause on finding', 'Auto-pause when a finding above a severity threshold appears'],
   [51291, 'pause on approval', 'Auto-pause while any sensitive-action approval is pending'],
-  [51292, 'abort with confirmation', 'A two-step abort that shows what will be discarded before you commit'],
+  [
+    51292,
+    'abort with confirmation',
+    'A two-step abort that shows what will be discarded before you commit',
+  ],
   [51293, 'abort-and-archive', 'Stop the hunt and immediately archive everything collected so far'],
-  [51294, 'soft abort', 'Stop new actions but let the agent finish writing findings and the report'],
+  [
+    51294,
+    'soft abort',
+    'Stop new actions but let the agent finish writing findings and the report',
+  ],
   [51295, 'pause per module', 'Freeze one testing module while others continue'],
   [51296, 'global pause all hunts', 'One command pauses every running hunt in your workspace'],
   [51297, 'pause state indicator', 'An unmistakable banner showing the hunt is paused and why'],
   [51298, 'resume checklist', 'Before resuming, see what will run next and confirm'],
   [51299, 'auto-resume timer', 'Pause for N minutes and resume automatically'],
-  [51300, 'pause during stealth', 'Pausing also halts all network traffic instantly for sensitive windows'],
+  [
+    51300,
+    'pause during stealth',
+    'Pausing also halts all network traffic instantly for sensitive windows',
+  ],
   [51301, 'abort reason codes', 'Categorize why hunts were aborted for later analysis'],
   [51302, 'pause notifications', 'Teammates get notified when a shared hunt is paused or resumed'],
-  [51303, 'resume from checkpoint', 'Roll back to an earlier checkpoint instead of the exact pause point'],
+  [
+    51303,
+    'resume from checkpoint',
+    'Roll back to an earlier checkpoint instead of the exact pause point',
+  ],
   [51304, 'pause API', 'External systems can pause or resume hunts programmatically'],
-  [51305, 'pause heat indicator', 'Shows how "hot" the pause is: mid-exploit pauses flagged for review'],
+  [
+    51305,
+    'pause heat indicator',
+    'Shows how "hot" the pause is: mid-exploit pauses flagged for review',
+  ],
   [51306, 'resume dry-run', 'Preview the next 5 actions before actually resuming'],
   [51307, 'abort impact summary', 'What findings, coverage, and time are lost if you abort now'],
-  [51308, 'pause-and-chat', 'While paused, chat freely with the agent about strategy before resuming'],
+  [
+    51308,
+    'pause-and-chat',
+    'While paused, chat freely with the agent about strategy before resuming',
+  ],
   [51309, 'conditional auto-resume', 'Resume automatically when a condition you set becomes true'],
   [51310, 'pause templates', 'Named pause reasons reused across hunts for consistent records'],
-  [51311, 'hunt hibernation (mid-hunt)', 'Deep-freeze a hunt for days with full state preserved on disk'],
+  [
+    51311,
+    'hunt hibernation (mid-hunt)',
+    'Deep-freeze a hunt for days with full state preserved on disk',
+  ],
   [51312, 'wake-on-finding', 'A hibernated hunt wakes if the target changes in a watched way'],
   [51313, 'pause cost display', 'Shows idle resource cost while a hunt sits paused'],
   [51314, 'resume with new instructions', 'Attach fresh steering commands that apply on resume'],
@@ -70,8 +118,14 @@ export const WAVE33_IDEAS = [
 // --- pause state machine -----------------------------------------------------
 
 export const HUNT_STATUSES = [
-  'running', 'draining', 'paused', 'finishing', 'aborted', 'archived',
-  'hibernating', 'reporting',
+  'running',
+  'draining',
+  'paused',
+  'finishing',
+  'aborted',
+  'archived',
+  'hibernating',
+  'reporting',
 ];
 
 /** Fresh hunt control state. `modules` is a list of testing module ids. */
@@ -87,7 +141,7 @@ export function createHuntControl(huntId, modules = []) {
     inFlight: 0,
     networkHalted: false,
     screenLocked: false,
-    modules: Object.fromEntries((modules || []).map((m) => [m, { paused: false }])),
+    modules: Object.fromEntries((modules || []).map(m => [m, { paused: false }])),
     nextActions: [],
     completedSteps: 0,
     scheduledPauseAt: null,
@@ -201,7 +255,12 @@ export function schedulePause(ctrl, atMs) {
 
 /** True when the scheduled pause time has arrived and the hunt is running. */
 export function scheduledPauseDue(ctrl, now) {
-  return !!ctrl && ctrl.status === 'running' && ctrl.scheduledPauseAt != null && now >= ctrl.scheduledPauseAt;
+  return (
+    !!ctrl &&
+    ctrl.status === 'running' &&
+    ctrl.scheduledPauseAt != null &&
+    now >= ctrl.scheduledPauseAt
+  );
 }
 
 /** Apply a due scheduled pause (same mechanics as instant pause). */
@@ -217,7 +276,7 @@ const SEVERITY_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 
 /** True when a finding's severity meets/exceeds the pause threshold. */
 export function shouldPauseOnFinding(threshold, finding) {
-  const rank = (s) => SEVERITY_RANK[String(s || '').toLowerCase()] ?? -1;
+  const rank = s => SEVERITY_RANK[String(s || '').toLowerCase()] ?? -1;
   return rank(finding && finding.severity) >= rank(threshold) && rank(threshold) >= 0;
 }
 
@@ -254,7 +313,8 @@ export function prepareAbort(ctrl) {
     willKeepTimeline: true,
     queuedActions: (ctrl.nextActions || []).length,
     token: `abort-${ctrl.huntId}-${ctrl.completedSteps}-${inFlight}`,
-    summary: `Aborting will discard ${inFlight} in-flight action(s) and ` +
+    summary:
+      `Aborting will discard ${inFlight} in-flight action(s) and ` +
       `${(ctrl.nextActions || []).length} queued action(s). Findings and timeline are kept.`,
   };
 }
@@ -312,23 +372,23 @@ export function setModulePaused(ctrl, moduleId, paused) {
 
 export function pausedModules(ctrl) {
   if (!ctrl || !ctrl.modules) return [];
-  return Object.keys(ctrl.modules).filter((m) => ctrl.modules[m].paused);
+  return Object.keys(ctrl.modules).filter(m => ctrl.modules[m].paused);
 }
 
 // --- 51296 global pause all hunts --------------------------------------------
 
 /** One command pauses every running hunt in the workspace. */
 export function pauseAllHunts(controls, { by, now } = {}) {
-  return (controls || []).map((c) => (c.status === 'running'
-    ? instantPause(c, { reason: 'global', by: by || 'operator', now })
-    : c));
+  return (controls || []).map(c =>
+    c.status === 'running' ? instantPause(c, { reason: 'global', by: by || 'operator', now }) : c
+  );
 }
 
 /** Resume every hunt paused by the global pause. */
 export function resumeAllHunts(controls, { now } = {}) {
-  return (controls || []).map((c) => (c.status === 'paused' && c.pauseReason === 'global'
-    ? resume(c, { now })
-    : c));
+  return (controls || []).map(c =>
+    c.status === 'paused' && c.pauseReason === 'global' ? resume(c, { now }) : c
+  );
 }
 
 // --- 51297 pause state indicator ---------------------------------------------
@@ -348,15 +408,27 @@ export function pauseBanner(ctrl) {
   }
   if (s === 'draining') {
     return {
-      show: true, tone: 'draining', title: 'PAUSING…',
+      show: true,
+      tone: 'draining',
+      title: 'PAUSING…',
       detail: `Finishing ${ctrl.inFlight || 0} in-flight action(s) before the pause takes effect.`,
     };
   }
   if (s === 'hibernating') {
-    return { show: true, tone: 'hibernating', title: 'HUNT HIBERNATING', detail: 'Deep-frozen. Full state preserved on disk.' };
+    return {
+      show: true,
+      tone: 'hibernating',
+      title: 'HUNT HIBERNATING',
+      detail: 'Deep-frozen. Full state preserved on disk.',
+    };
   }
   if (s === 'aborted' || s === 'archived') {
-    return { show: true, tone: 'ended', title: s === 'aborted' ? 'HUNT ABORTED' : 'HUNT ARCHIVED', detail: describeAbortCode(ctrl.abortCode) };
+    return {
+      show: true,
+      tone: 'ended',
+      title: s === 'aborted' ? 'HUNT ABORTED' : 'HUNT ARCHIVED',
+      detail: describeAbortCode(ctrl.abortCode),
+    };
   }
   return { show: false };
 }
@@ -367,15 +439,23 @@ export function pauseBanner(ctrl) {
 export function resumeChecklist(ctrl) {
   if (!ctrl) return [];
   const items = [];
-  items.push({ id: 'step', label: `Resume from step ${ctrl.completedSteps + 1} — no steps repeated or skipped` });
+  items.push({
+    id: 'step',
+    label: `Resume from step ${ctrl.completedSteps + 1} — no steps repeated or skipped`,
+  });
   (ctrl.nextActions || []).slice(0, 4).forEach((a, i) => {
     items.push({ id: `action-${i}`, label: `Next action: ${a}` });
   });
-  if (ctrl.networkHalted) items.push({ id: 'net', label: 'Network traffic will resume (stealth pause lifted)' });
+  if (ctrl.networkHalted)
+    items.push({ id: 'net', label: 'Network traffic will resume (stealth pause lifted)' });
   if (ctrl.newInstructions && ctrl.newInstructions.length) {
-    items.push({ id: 'instr', label: `${ctrl.newInstructions.length} new instruction(s) will apply on resume` });
+    items.push({
+      id: 'instr',
+      label: `${ctrl.newInstructions.length} new instruction(s) will apply on resume`,
+    });
   }
-  if (!items.length) items.push({ id: 'idle', label: 'Nothing queued — the agent will plan the next step' });
+  if (!items.length)
+    items.push({ id: 'idle', label: 'Nothing queued — the agent will plan the next step' });
   return items;
 }
 
@@ -390,7 +470,9 @@ export function scheduleAutoResume(ctrl, minutes, now) {
 
 /** True when the auto-resume timer has fired while paused. */
 export function autoResumeDue(ctrl, now) {
-  return !!ctrl && ctrl.status === 'paused' && ctrl.autoResumeAt != null && now >= ctrl.autoResumeAt;
+  return (
+    !!ctrl && ctrl.status === 'paused' && ctrl.autoResumeAt != null && now >= ctrl.autoResumeAt
+  );
 }
 
 export function applyAutoResume(ctrl, now) {
@@ -433,18 +515,22 @@ export function pauseNotifications(prev, next) {
   if (!prev || !next || prev.status === next.status) return [];
   const who = next.pausedBy || next.resumedBy || 'operator';
   if (next.status === 'paused') {
-    return [{
-      to: 'team',
-      kind: 'paused',
-      text: `Hunt ${next.huntId} paused by ${who} — ${describePauseReason(next.pauseReason)}`,
-    }];
+    return [
+      {
+        to: 'team',
+        kind: 'paused',
+        text: `Hunt ${next.huntId} paused by ${who} — ${describePauseReason(next.pauseReason)}`,
+      },
+    ];
   }
   if (next.status === 'running' && prev.status === 'paused') {
-    return [{
-      to: 'team',
-      kind: 'resumed',
-      text: `Hunt ${next.huntId} resumed by ${who}`,
-    }];
+    return [
+      {
+        to: 'team',
+        kind: 'resumed',
+        text: `Hunt ${next.huntId} resumed by ${who}`,
+      },
+    ];
   }
   return [];
 }
@@ -467,7 +553,7 @@ export function createCheckpoint(ctrl, label, now) {
 /** Roll back to an earlier checkpoint instead of the exact pause point. */
 export function resumeFromCheckpoint(ctrl, checkpointId, { now } = {}) {
   if (!ctrl) return ctrl;
-  const cp = (ctrl.checkpoints || []).find((c) => c.id === checkpointId);
+  const cp = (ctrl.checkpoints || []).find(c => c.id === checkpointId);
   if (!cp) return ctrl;
   const resumed = resume(ctrl, { now });
   return {
@@ -486,7 +572,9 @@ export function resumeFromCheckpoint(ctrl, checkpointId, { now } = {}) {
  * "resume dry-run", "abort", "status".
  */
 export function parsePauseCommand(input) {
-  const text = String(input || '').trim().toLowerCase();
+  const text = String(input || '')
+    .trim()
+    .toLowerCase();
   if (!text) return { error: 'empty command' };
   let m = text.match(/^pause\s+(\d+)\s*m$/);
   if (m) return { action: 'pause-timed', minutes: parseInt(m[1], 10) };
@@ -508,9 +596,11 @@ export function parsePauseCommand(input) {
  */
 export function pauseHeat(ctrl) {
   if (!ctrl) return { level: 'cool', label: 'Cool', review: false };
-  const hot = (ctrl.inFlight || 0) > 0 && /exploit|payload|sensitive/i.test(
-    (ctrl.nextActions || []).join(' ') + ' ' + (ctrl.pauseNote || ''),
-  );
+  const hot =
+    (ctrl.inFlight || 0) > 0 &&
+    /exploit|payload|sensitive/i.test(
+      (ctrl.nextActions || []).join(' ') + ' ' + (ctrl.pauseNote || '')
+    );
   const warm = (ctrl.inFlight || 0) > 0;
   if (hot) return { level: 'hot', label: 'Hot — mid-exploit pause', review: true };
   if (warm) return { level: 'warm', label: 'Warm — actions were in flight', review: false };
@@ -535,16 +625,17 @@ export function resumeDryRun(ctrl) {
 export function abortImpact(ctrl, { findings = [], coveragePct = 0, startedAt = 0, now = 0 } = {}) {
   const minutesInvested = Math.max(0, Math.round((now - startedAt) / 60_000));
   const inFlight = (ctrl && ctrl.inFlight) || 0;
-  const queued = (ctrl && ctrl.nextActions ? ctrl.nextActions.length : 0);
+  const queued = ctrl && ctrl.nextActions ? ctrl.nextActions.length : 0;
   return {
     findingsDrafted: findings.length,
     inFlightLost: inFlight,
     queuedLost: queued,
     coverageAtAbortPct: coveragePct,
     minutesInvested,
-    note: inFlight + queued > 0
-      ? `${inFlight + queued} action(s) will not run; drafted findings are kept.`
-      : 'No actions pending — nothing is lost beyond the remaining plan.',
+    note:
+      inFlight + queued > 0
+        ? `${inFlight + queued} action(s) will not run; drafted findings are kept.`
+        : 'No actions pending — nothing is lost beyond the remaining plan.',
   };
 }
 
@@ -605,18 +696,27 @@ export function applyPauseTemplate(ctrl, name, { by, now }) {
 /** Deep-freeze a hunt: full state preserved as a JSON-safe snapshot. */
 export function hibernate(ctrl, { now } = {}) {
   if (!ctrl || !['paused', 'running'].includes(ctrl.status)) return ctrl;
-  const snapshot = JSON.parse(JSON.stringify({
-    ...ctrl,
-    status: 'hibernating',
-    hibernatedAt: now,
-  }));
+  const snapshot = JSON.parse(
+    JSON.stringify({
+      ...ctrl,
+      status: 'hibernating',
+      hibernatedAt: now,
+    })
+  );
   return snapshot;
 }
 
 /** Wake a hibernated hunt back to paused (operator then resumes). */
 export function wakeFromHibernation(snapshot, { now } = {}) {
   if (!snapshot || snapshot.status !== 'hibernating') return snapshot;
-  return { ...snapshot, status: 'paused', pausedAt: now, wokenAt: now, pauseReason: 'manual', pauseNote: 'Woken from hibernation' };
+  return {
+    ...snapshot,
+    status: 'paused',
+    pausedAt: now,
+    wokenAt: now,
+    pauseReason: 'manual',
+    pauseNote: 'Woken from hibernation',
+  };
 }
 
 // --- 51312 wake-on-finding ---------------------------------------------------
@@ -624,7 +724,7 @@ export function wakeFromHibernation(snapshot, { now } = {}) {
 /** A hibernated hunt wakes if the target changes in a watched way. */
 export function shouldWake(watched, changes) {
   if (!watched || !changes) return false;
-  return watched.some((w) => changes.includes(w));
+  return watched.some(w => changes.includes(w));
 }
 
 // --- 51313 pause cost display ------------------------------------------------
@@ -690,7 +790,11 @@ export function resumeApprovalTimers(ctrl) {
 export function checkResumeConflicts(ctrl, currentFingerprint) {
   if (!ctrl) return [];
   const warnings = [];
-  if (ctrl.targetFingerprint && currentFingerprint && ctrl.targetFingerprint !== currentFingerprint) {
+  if (
+    ctrl.targetFingerprint &&
+    currentFingerprint &&
+    ctrl.targetFingerprint !== currentFingerprint
+  ) {
     warnings.push({
       id: 'target-changed',
       severity: 'high',
@@ -740,20 +844,18 @@ export function recordPauseEvent(log, event) {
 /** Aggregate pause analytics: totals, by-reason counts, avg pause length. */
 export function pauseAnalytics(log) {
   const events = log || [];
-  const pauses = events.filter((e) => e.kind === 'paused');
-  const resumes = events.filter((e) => e.kind === 'resumed');
+  const pauses = events.filter(e => e.kind === 'paused');
+  const resumes = events.filter(e => e.kind === 'resumed');
   const byReason = {};
-  pauses.forEach((p) => {
+  pauses.forEach(p => {
     byReason[p.reason] = (byReason[p.reason] || 0) + 1;
   });
   const durations = [];
   for (let i = 0; i < pauses.length; i += 1) {
-    const r = resumes.find((x) => x.at > pauses[i].at);
+    const r = resumes.find(x => x.at > pauses[i].at);
     if (r) durations.push(r.at - pauses[i].at);
   }
-  const avgMs = durations.length
-    ? durations.reduce((a, b) => a + b, 0) / durations.length
-    : 0;
+  const avgMs = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
   return {
     totalPauses: pauses.length,
     totalResumes: resumes.length,
@@ -804,16 +906,16 @@ export function applyRetentionPolicy(lines, policy, now) {
   if (policy === 'archive-now') return { live: [], archived: all, purged: [] };
   if (policy === 'purge-pii') {
     return {
-      live: all.filter((l) => !l.pii),
+      live: all.filter(l => !l.pii),
       archived: [],
-      purged: all.filter((l) => l.pii),
+      purged: all.filter(l => l.pii),
     };
   }
   if (cutoffDays != null) {
     const cutoff = now - cutoffDays * DAY;
     return {
-      live: all.filter((l) => l.ts >= cutoff),
-      archived: all.filter((l) => l.ts < cutoff),
+      live: all.filter(l => l.ts >= cutoff),
+      archived: all.filter(l => l.ts < cutoff),
       purged: [],
     };
   }
@@ -863,7 +965,7 @@ export function addArtifact(gallery, artifact) {
 /** Filter the gallery by type and/or free-text query. */
 export function filterArtifacts(gallery, { type, query } = {}) {
   const q = String(query || '').toLowerCase();
-  return (gallery || []).filter((a) => {
+  return (gallery || []).filter(a => {
     if (type && type !== 'all' && a.type !== type) return false;
     if (q && !`${a.title} ${a.type}`.toLowerCase().includes(q)) return false;
     return true;
@@ -872,8 +974,8 @@ export function filterArtifacts(gallery, { type, query } = {}) {
 
 export function artifactCounts(gallery) {
   const counts = { all: (gallery || []).length };
-  ARTIFACT_TYPES.forEach((t) => {
-    counts[t] = (gallery || []).filter((a) => a.type === t).length;
+  ARTIFACT_TYPES.forEach(t => {
+    counts[t] = (gallery || []).filter(a => a.type === t).length;
   });
   return counts;
 }

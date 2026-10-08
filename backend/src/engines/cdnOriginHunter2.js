@@ -39,25 +39,43 @@ const KNOWN_CDN_HOSTS = [
 ];
 
 const ORIGIN_HINT_NAMES = [
-  'origin', 'direct', 'backend', 'internal', 'private', 'real', 'bypass',
-  'app-origin', 'web-origin', 'api-origin', 'origin-', 'true-', 'uncdn',
-  'node', 'server', 'webserver', 'ingress', 'proxy-origin', 'edge-bypass',
+  'origin',
+  'direct',
+  'backend',
+  'internal',
+  'private',
+  'real',
+  'bypass',
+  'app-origin',
+  'web-origin',
+  'api-origin',
+  'origin-',
+  'true-',
+  'uncdn',
+  'node',
+  'server',
+  'webserver',
+  'ingress',
+  'proxy-origin',
+  'edge-bypass',
 ];
 
-const ORIGIN_IP_PATTERN = /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/;
-const INTERNAL_HOSTNAME_PATTERN = /\b(?:internal|intranet|corp|lan|private|staging|dev|prod|backend|origin|db|db-[\w.-]+|srv[\w.-]*|host[\w.-]*|ip-[\w.-]+|ec2-[\w.-]+)\.[\w.-]+\b/i;
+const ORIGIN_IP_PATTERN =
+  /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/;
+const INTERNAL_HOSTNAME_PATTERN =
+  /\b(?:internal|intranet|corp|lan|private|staging|dev|prod|backend|origin|db|db-[\w.-]+|srv[\w.-]*|host[\w.-]*|ip-[\w.-]+|ec2-[\w.-]+)\.[\w.-]+\b/i;
 
 const ERROR_PAGE_LEAK_SIGNATURES = [
   {
     name: 'origin-ip-leak',
     description: 'Error page discloses a bare origin IPv4 address.',
-    match: (body) => ORIGIN_IP_PATTERN.test(body) ? [ORIGIN_IP_PATTERN.exec(body)[0]] : [],
+    match: body => (ORIGIN_IP_PATTERN.test(body) ? [ORIGIN_IP_PATTERN.exec(body)[0]] : []),
     severity: 'High',
   },
   {
     name: 'internal-hostname-leak',
     description: 'Error page discloses an internal-looking hostname.',
-    match: (body) => {
+    match: body => {
       const m = body.match(INTERNAL_HOSTNAME_PATTERN);
       return m ? [m[0]] : [];
     },
@@ -66,19 +84,24 @@ const ERROR_PAGE_LEAK_SIGNATURES = [
   {
     name: 'nginx-version-leak',
     description: 'Error page reveals nginx version/build on origin.',
-    match: (body) => /nginx\/[\d.]+/i.test(body) ? ['nginx-version'] : [],
+    match: body => (/nginx\/[\d.]+/i.test(body) ? ['nginx-version'] : []),
     severity: 'Low',
   },
   {
     name: 'apache-version-leak',
     description: 'Error page reveals Apache version/build on origin.',
-    match: (body) => /Apache\/[\d.]+/i.test(body) ? ['apache-version'] : [],
+    match: body => (/Apache\/[\d.]+/i.test(body) ? ['apache-version'] : []),
     severity: 'Low',
   },
   {
     name: 'cloud-provider-error-leak',
     description: 'Error page matches a cloud-provider origin stack fingerprint.',
-    match: (body) => /(AWS ELB|Amazon Route 53|Google Cloud Load Balancer|Azure Front Door|OCI Load Balancer)/i.test(body) ? ['provider-error-fingerprint'] : [],
+    match: body =>
+      /(AWS ELB|Amazon Route 53|Google Cloud Load Balancer|Azure Front Door|OCI Load Balancer)/i.test(
+        body
+      )
+        ? ['provider-error-fingerprint']
+        : [],
     severity: 'Medium',
   },
 ];
@@ -89,7 +112,7 @@ const ERROR_PAGE_LEAK_SIGNATURES = [
  * @returns {boolean}
  */
 export function isKnownCdnHost(hostname = '') {
-  return KNOWN_CDN_HOSTS.some((re) => re.test(hostname.trim()));
+  return KNOWN_CDN_HOSTS.some(re => re.test(hostname.trim()));
 }
 
 /**
@@ -120,7 +143,7 @@ function scoreOriginHint(hostname = '') {
  * @returns {{ candidates: Array<{hostname, score, reason}>, total }}
  */
 export function discoverOriginViaCertSans({ sanList = [], cdnHostnames = [] } = {}) {
-  const cdnSet = new Set(cdnHostnames.map((h) => String(h).toLowerCase()));
+  const cdnSet = new Set(cdnHostnames.map(h => String(h).toLowerCase()));
   const candidates = [];
   for (const san of sanList) {
     const hostname = String(san).trim().toLowerCase().replace(/^\*\./, '');
@@ -154,7 +177,11 @@ export function discoverOriginViaFaviconHash({ targetHash = '', candidates = [] 
   const matches = [];
   if (normalized) {
     for (const cand of candidates) {
-      if (String(cand.faviconHash || '').trim().toLowerCase() === normalized) {
+      if (
+        String(cand.faviconHash || '')
+          .trim()
+          .toLowerCase() === normalized
+      ) {
         matches.push({
           ip: String(cand.ip),
           confidence:
@@ -212,7 +239,9 @@ export function discoverOriginViaErrorPages({ statusCode = 0, body = '', headers
 export function discoverOriginViaSshfp({ sshfpRecords = [], targetHostname = '' } = {}) {
   const byHost = new Map();
   for (const rec of sshfpRecords) {
-    const host = String(rec.hostname || '').trim().toLowerCase();
+    const host = String(rec.hostname || '')
+      .trim()
+      .toLowerCase();
     if (!host) continue;
     if (!byHost.has(host)) byHost.set(host, new Set());
     byHost.get(host).add(Number(rec.algorithm) || 0);

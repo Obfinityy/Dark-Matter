@@ -21,8 +21,12 @@ const NOW = 1700000000000;
 
 function registryOk(reg, first, count) {
   assert.equal(reg.length, count, `expected ${count} registry entries, got ${reg.length}`);
-  const ids = reg.map((e) => e.id);
-  assert.deepEqual(ids, Array.from({ length: count }, (_, i) => first + i), 'registry ids must be the exact idea range in order');
+  const ids = reg.map(e => e.id);
+  assert.deepEqual(
+    ids,
+    Array.from({ length: count }, (_, i) => first + i),
+    'registry ids must be the exact idea range in order'
+  );
   for (const e of reg) {
     assert.ok(typeof e.title === 'string' && e.title.length > 0, `entry ${e.id} needs a title`);
     assert.equal(e.skip, false, `entry ${e.id} must not be skipped`);
@@ -40,29 +44,74 @@ test('WAVE58_PS_IDEAS: 21/21 entries 52300–52320, zero skips', () => {
 });
 
 test('combined coverage: exactly 52281–52320 with no gaps or dupes', () => {
-  const all = [...WAVE58_SR3_IDEAS.map((e) => e.id), ...WAVE58_PS_IDEAS.map((e) => e.id)];
+  const all = [...WAVE58_SR3_IDEAS.map(e => e.id), ...WAVE58_PS_IDEAS.map(e => e.id)];
   assert.equal(all.length, 40);
-  assert.deepEqual([...all].sort((a, b) => a - b), Array.from({ length: 40 }, (_, i) => 52281 + i));
+  assert.deepEqual(
+    [...all].sort((a, b) => a - b),
+    Array.from({ length: 40 }, (_, i) => 52281 + i)
+  );
 });
 
 const HUNT = {
-  id: 'hunt-t', target: 't.example.com',
+  id: 'hunt-t',
+  target: 't.example.com',
   findings: [
-    { id: 'f-1', title: 'Stored XSS', severity: 'high', status: 'open', vulnClass: 'xss', endpoint: 'https://t.example.com/reviews', description: 'review body not encoded', impact: 'session theft', poc: 'curl x', remediation: 'encode', evidence: [] },
-    { id: 'f-2', title: 'IDOR', severity: 'critical', status: 'open', vulnClass: 'idor', endpoint: 'https://t.example.com/orders/1', description: 'ids enumerable', impact: 'data exposure', evidence: [] },
-    { id: 'f-3', title: 'Missing CSP', severity: 'low', status: 'fixed', vulnClass: 'config', endpoint: 'https://t.example.com/', description: 'no csp', evidence: [] },
+    {
+      id: 'f-1',
+      title: 'Stored XSS',
+      severity: 'high',
+      status: 'open',
+      vulnClass: 'xss',
+      endpoint: 'https://t.example.com/reviews',
+      description: 'review body not encoded',
+      impact: 'session theft',
+      poc: 'curl x',
+      remediation: 'encode',
+      evidence: [],
+    },
+    {
+      id: 'f-2',
+      title: 'IDOR',
+      severity: 'critical',
+      status: 'open',
+      vulnClass: 'idor',
+      endpoint: 'https://t.example.com/orders/1',
+      description: 'ids enumerable',
+      impact: 'data exposure',
+      evidence: [],
+    },
+    {
+      id: 'f-3',
+      title: 'Missing CSP',
+      severity: 'low',
+      status: 'fixed',
+      vulnClass: 'config',
+      endpoint: 'https://t.example.com/',
+      description: 'no csp',
+      evidence: [],
+    },
   ],
 };
 
 const FINDING = {
-  id: 'f-60', title: 'Stored XSS in product reviews', severity: 'high', cvss: 8.2,
-  vulnClass: 'xss', status: 'open', target: 'shop',
+  id: 'f-60',
+  title: 'Stored XSS in product reviews',
+  severity: 'high',
+  cvss: 8.2,
+  vulnClass: 'xss',
+  status: 'open',
+  target: 'shop',
   endpoint: 'https://shop.example.com/reviews',
   description: 'The review body is rendered without output encoding.',
   impact: null,
   poc: 'curl -X POST https://shop.example.com/reviews -d "body=<script>alert(1)</script>"',
-  pocPython: 'import requests\nrequests.post("https://shop.example.com/reviews", data={"body": "x"})',
-  pocTrace: ['Log in as any user', 'Post a review with body <script>alert(1)</script>', 'View the product page'],
+  pocPython:
+    'import requests\nrequests.post("https://shop.example.com/reviews", data={"body": "x"})',
+  pocTrace: [
+    'Log in as any user',
+    'Post a review with body <script>alert(1)</script>',
+    'View the product page',
+  ],
   evidence: [{ kind: 'screenshot', name: 'xss.png', sizeBytes: 184320, caption: 'alert fired' }],
   remediation: 'Encode review output.',
   references: ['https://owasp.org/www-community/attacks/xss/'],
@@ -70,11 +119,15 @@ const FINDING = {
 
 /* ---- shareRound3Core spot-checks (deterministic) ---- */
 test('52281 agreement lifecycle: draft -> active on both accepts, scope enforced', () => {
-  const agr = R.createCollabAgreement({
-    huntId: 'hunt-t', scope: 'findings-triage',
-    parties: [{ email: 'a@x.com' }, { email: 'b@x.com' }],
-    allowedSeverities: ['critical', 'high'],
-  }, NOW).agreement;
+  const agr = R.createCollabAgreement(
+    {
+      huntId: 'hunt-t',
+      scope: 'findings-triage',
+      parties: [{ email: 'a@x.com' }, { email: 'b@x.com' }],
+      allowedSeverities: ['critical', 'high'],
+    },
+    NOW
+  ).agreement;
   assert.equal(agr.status, 'draft');
   const a1 = R.acceptAgreement(agr, 'a@x.com', NOW).agreement;
   assert.equal(a1.status, 'draft');
@@ -83,14 +136,21 @@ test('52281 agreement lifecycle: draft -> active on both accepts, scope enforced
   assert.equal(a2.allAccepted, true);
   assert.equal(R.checkAgreementScope(a2.agreement, HUNT.findings[0]).allowed, true);
   assert.equal(R.checkAgreementScope(a2.agreement, HUNT.findings[2]).allowed, false);
-  assert.equal(R.createCollabAgreement({ huntId: 'hunt-t', parties: [{ email: 'a@x.com' }] }, NOW).ok, false);
+  assert.equal(
+    R.createCollabAgreement({ huntId: 'hunt-t', parties: [{ email: 'a@x.com' }] }, NOW).ok,
+    false
+  );
 });
 
 test('52282 multi-team share: per-team filtered views + separate comment spaces', () => {
-  const r = R.shareToTeams(HUNT, [
-    { teamId: 'red', teamName: 'Red', minSeverity: 'high' },
-    { teamId: 'blue', teamName: 'Blue' },
-  ], NOW);
+  const r = R.shareToTeams(
+    HUNT,
+    [
+      { teamId: 'red', teamName: 'Red', minSeverity: 'high' },
+      { teamId: 'blue', teamName: 'Blue' },
+    ],
+    NOW
+  );
   assert.equal(r.ok, true);
   const red = R.getTeamView(r.share, 'red').team;
   const blue = R.getTeamView(r.share, 'blue').team;
@@ -102,7 +162,10 @@ test('52282 multi-team share: per-team filtered views + separate comment spaces'
 });
 
 test('52283 notification reducer: add, accept, decline, dismiss', () => {
-  const n = R.createNotification({ to: 'd@x.com', type: 'share-invite', from: 'aria' }, NOW).notification;
+  const n = R.createNotification(
+    { to: 'd@x.com', type: 'share-invite', from: 'aria' },
+    NOW
+  ).notification;
   assert.equal(R.createNotification({ to: 'd@x.com', type: 'bogus' }, NOW).ok, false);
   let s = R.notificationReducer([], { type: 'NOTIF_ADD', notification: n });
   s = R.notificationReducer(s, { type: 'NOTIF_READ', id: n.id });
@@ -128,7 +191,12 @@ test('52284 link preview payload: title, severity counts, risk score', () => {
 });
 
 test('52285 notion/confluence live-embed descriptors', () => {
-  const notion = R.buildLiveEmbed(HUNT, 'notion', { baseUrl: 'https://app.example.com' }, NOW).embed;
+  const notion = R.buildLiveEmbed(
+    HUNT,
+    'notion',
+    { baseUrl: 'https://app.example.com' },
+    NOW
+  ).embed;
   assert.equal(notion.kind, 'embed-block');
   assert.ok(notion.src.includes('/embed/hunts/hunt-t'));
   const conf = R.buildLiveEmbed(HUNT, 'confluence', {}, NOW).embed;
@@ -165,23 +233,44 @@ test('52288 expiry extension keeps the token, revoked links rejected', () => {
 });
 
 test('52289 approval workflow: approve, no double transition, expiry', () => {
-  const req = R.createApprovalRequest({ huntId: 'hunt-t', requestedBy: 'aria', owner: 'bhavesh' }, NOW).request;
+  const req = R.createApprovalRequest(
+    { huntId: 'hunt-t', requestedBy: 'aria', owner: 'bhavesh' },
+    NOW
+  ).request;
   assert.equal(req.state, 'requested');
   const ok = R.approvalReducer(req, { type: 'APPROVE', by: 'bhavesh' }, NOW + 1);
   assert.equal(ok.request.state, 'approved');
   assert.equal(R.approvalReducer(ok.request, { type: 'APPROVE' }, NOW + 2).ok, false);
-  const stale = R.createApprovalRequest({ huntId: 'hunt-t', requestedBy: 'aria', owner: 'bhavesh', ttlMs: 0 }, NOW - 1000).request;
+  const stale = R.createApprovalRequest(
+    { huntId: 'hunt-t', requestedBy: 'aria', owner: 'bhavesh', ttlMs: 0 },
+    NOW - 1000
+  ).request;
   const expired = R.approvalReducer(stale, { type: 'APPROVE' }, NOW);
   assert.equal(expired.request.state, 'expired');
 });
 
 test('52290 delegated sharing grants: granted actions allowed, others denied', () => {
-  const g = R.grantDelegatedShare({ grantor: 'bhavesh', grantee: 'aria', actions: ['share-view'], expiresAt: NOW + 1000, huntIds: ['hunt-t'] }, NOW).grant;
+  const g = R.grantDelegatedShare(
+    {
+      grantor: 'bhavesh',
+      grantee: 'aria',
+      actions: ['share-view'],
+      expiresAt: NOW + 1000,
+      huntIds: ['hunt-t'],
+    },
+    NOW
+  ).grant;
   assert.equal(R.canDelegateShare(g, 'share-view', 'hunt-t', NOW).allowed, true);
   assert.equal(R.canDelegateShare(g, 'share-manage', 'hunt-t', NOW).allowed, false);
   assert.equal(R.canDelegateShare(g, 'share-view', 'other', NOW).allowed, false);
   assert.equal(R.canDelegateShare(g, 'share-view', 'hunt-t', NOW + 2000).allowed, false);
-  assert.equal(R.grantDelegatedShare({ grantor: 'a', grantee: 'b', actions: ['delete-everything'], expiresAt: NOW + 1 }, NOW).ok, false);
+  assert.equal(
+    R.grantDelegatedShare(
+      { grantor: 'a', grantee: 'b', actions: ['delete-everything'], expiresAt: NOW + 1 },
+      NOW
+    ).ok,
+    false
+  );
 });
 
 test('52291 quota evaluator: remaining counts, exhaustion, unlimited', () => {
@@ -211,7 +300,11 @@ test('52292 slug validator rules + unique generator', () => {
 });
 
 test('52293 branded page descriptor carries logo and colors', () => {
-  const r = R.buildBrandedPage({ name: 'Acme', primaryColor: '#e11d48', logo: 'https://ac.me/logo.png' });
+  const r = R.buildBrandedPage({
+    name: 'Acme',
+    primaryColor: '#e11d48',
+    logo: 'https://ac.me/logo.png',
+  });
   assert.equal(r.ok, true);
   assert.equal(r.page.brand.name, 'Acme');
   assert.equal(r.page.brand.primaryColor, '#e11d48');
@@ -221,7 +314,11 @@ test('52293 branded page descriptor carries logo and colors', () => {
 });
 
 test('52294 team dashboard aggregates hunts, teams, findings', () => {
-  const share = R.shareToTeams(HUNT, [{ teamId: 'red' }, { teamId: 'blue', minSeverity: 'high' }], NOW).share;
+  const share = R.shareToTeams(
+    HUNT,
+    [{ teamId: 'red' }, { teamId: 'blue', minSeverity: 'high' }],
+    NOW
+  ).share;
   const r = R.aggregateTeamDashboard([share, share], NOW);
   assert.equal(r.ok, true);
   assert.equal(r.dashboard.totals.hunts, 2);
@@ -278,7 +375,10 @@ test('52298 print spec excludes evidence bodies, paginates', () => {
 });
 
 test('52299 access request: requested -> routed -> approved', () => {
-  const req = R.requestAccess({ huntId: 'hunt-t', requester: 'client@x.com', owner: 'bhavesh' }, NOW).request;
+  const req = R.requestAccess(
+    { huntId: 'hunt-t', requester: 'client@x.com', owner: 'bhavesh' },
+    NOW
+  ).request;
   assert.equal(req.state, 'requested');
   const routed = R.accessRequestReducer(req, { type: 'ROUTE' }, NOW + 1).request;
   assert.equal(routed.state, 'routed');
@@ -362,18 +462,32 @@ test('52306 copyable report preserves markdown structure', () => {
 
 test('52307 approval gate: exact-payload hash check, tamper blocked, zero sends', () => {
   const payload = P.buildHackerOneDraft(FINDING).draft;
-  const sub = P.createSubmission({ platform: 'hackerone', finding: FINDING, payload }, NOW).submission;
+  const sub = P.createSubmission(
+    { platform: 'hackerone', finding: FINDING, payload },
+    NOW
+  ).submission;
   assert.equal(sub.state, 'draft');
   assert.equal(sub.networkCalls, 0);
   const pending = P.submissionReducer(sub, { type: 'REQUEST_APPROVAL' }, NOW + 1).submission;
   assert.equal(pending.state, 'pending-approval');
   const tampered = { ...pending, payload: { ...pending.payload, title: 'changed' } };
-  assert.equal(P.submissionReducer(tampered, { type: 'APPROVE', payloadHash: pending.payloadHash }, NOW + 2).reason,
-    'payload mutated after review was requested — re-request approval');
-  const approved = P.submissionReducer(pending, { type: 'APPROVE', by: 'bhavesh', payloadHash: pending.payloadHash }, NOW + 2).submission;
+  assert.equal(
+    P.submissionReducer(tampered, { type: 'APPROVE', payloadHash: pending.payloadHash }, NOW + 2)
+      .reason,
+    'payload mutated after review was requested — re-request approval'
+  );
+  const approved = P.submissionReducer(
+    pending,
+    { type: 'APPROVE', by: 'bhavesh', payloadHash: pending.payloadHash },
+    NOW + 2
+  ).submission;
   assert.equal(approved.state, 'approved');
   assert.equal(approved.approvals[0].by, 'bhavesh');
-  const sent = P.submissionReducer(approved, { type: 'MARK_SENT', payloadHash: pending.payloadHash }, NOW + 3).submission;
+  const sent = P.submissionReducer(
+    approved,
+    { type: 'MARK_SENT', payloadHash: pending.payloadHash },
+    NOW + 3
+  ).submission;
   assert.equal(sent.state, 'submitted');
   assert.equal(sent.networkCalls, 0);
   assert.equal(P.createSubmission({ platform: 'nope', finding: FINDING, payload }, NOW).ok, false);
@@ -383,7 +497,8 @@ test('52308 status tracker: draft to paid in order, illegal jumps blocked', () =
   let t = P.createSubmissionTracker('f-60', 'bugcrowd', NOW).tracker;
   assert.equal(t.state, 'draft');
   assert.equal(P.draftStatusReducer(t, { to: 'triaged' }, NOW).ok, false); // no skip
-  for (const to of ['submitted', 'triaged', 'resolved']) t = P.draftStatusReducer(t, { to }, NOW).tracker;
+  for (const to of ['submitted', 'triaged', 'resolved'])
+    t = P.draftStatusReducer(t, { to }, NOW).tracker;
   assert.equal(t.state, 'resolved');
   assert.equal(t.history.length, 4);
   const paid = P.draftStatusReducer(t, { to: 'paid', payout: 750 }, NOW).tracker;
@@ -402,13 +517,29 @@ test('52309 checklist passes complete finding, flags missing title', () => {
   assert.equal(bad.passed, false);
   assert.ok(bad.failed.includes('title-under-140-chars'));
   assert.equal(P.runChecklist(FINDING, 'nope').ok, false);
-  for (const p of P.PLATFORMS) assert.ok(P.runChecklist(FINDING, p).results.length > 0, `${p} needs checks`);
+  for (const p of P.PLATFORMS)
+    assert.ok(P.runChecklist(FINDING, p).results.length > 0, `${p} needs checks`);
 });
 
 test('52310 duplicate check flags near-duplicate from history', () => {
-  const r = P.checkDuplicates(FINDING,
-    [{ id: 'f-01', title: 'Stored XSS in product reviews', description: 'review body not encoded', asset: 'shop.example.com' }],
-    [{ id: 'd-9', title: 'Reflected XSS on search', description: 'search param reflected', asset: 'other.example.com' }],
+  const r = P.checkDuplicates(
+    FINDING,
+    [
+      {
+        id: 'f-01',
+        title: 'Stored XSS in product reviews',
+        description: 'review body not encoded',
+        asset: 'shop.example.com',
+      },
+    ],
+    [
+      {
+        id: 'd-9',
+        title: 'Reflected XSS on search',
+        description: 'search param reflected',
+        asset: 'other.example.com',
+      },
+    ]
   );
   assert.equal(r.ok, true);
   assert.equal(r.likelyDuplicate, true);
@@ -423,7 +554,10 @@ test('52311 scope validation: in-scope, out-of-scope exclusion', () => {
   const inScope = P.validateScope(FINDING, { inScope: ['shop.example.com'] });
   assert.equal(inScope.inScope, true);
   assert.equal(inScope.asset, 'https://shop.example.com/reviews');
-  const out = P.validateScope(FINDING, { inScope: ['shop.example.com'], outOfScope: ['shop.example.com/reviews'] });
+  const out = P.validateScope(FINDING, {
+    inScope: ['shop.example.com'],
+    outOfScope: ['shop.example.com/reviews'],
+  });
   assert.equal(out.inScope, false);
   const missing = P.validateScope(FINDING, { inScope: ['other.example.com'] });
   assert.equal(missing.inScope, false);
@@ -445,7 +579,10 @@ test('52313 PoC manifest lists curl + python + evidence files', () => {
   const r = P.buildPocManifest(FINDING);
   assert.equal(r.ok, true);
   assert.equal(r.count, 3);
-  assert.deepEqual(r.manifest.map((m) => m.kind), ['curl', 'python', 'evidence']);
+  assert.deepEqual(
+    r.manifest.map(m => m.kind),
+    ['curl', 'python', 'evidence']
+  );
   assert.ok(r.manifest[0].name.includes('f-60'));
   const empty = P.buildPocManifest({ id: 'f-x' });
   assert.equal(empty.count, 0);
@@ -464,7 +601,10 @@ test('52314 screenshot pack totals size and enforces cap', () => {
 });
 
 test('52315 video PoC descriptor flags oversize files', () => {
-  const r = P.buildVideoPoC({ path: '/tmp/xss-poc.mp4', sizeBytes: 180 * 1024 * 1024, durationSec: 96 }, { maxBytes: 100 * 1024 * 1024 });
+  const r = P.buildVideoPoC(
+    { path: '/tmp/xss-poc.mp4', sizeBytes: 180 * 1024 * 1024, durationSec: 96 },
+    { maxBytes: 100 * 1024 * 1024 }
+  );
   assert.equal(r.ok, true);
   assert.equal(r.video.withinLimit, false);
   assert.equal(r.video.format, 'mp4');
@@ -487,9 +627,9 @@ test('52316 CVSS translator maps score with explanation', () => {
 test('52317 CWE auto-tagging matches vuln class keywords', () => {
   const r = P.tagCwe(FINDING);
   assert.equal(r.ok, true);
-  assert.ok(r.cwes.some((c) => c.id === 'CWE-79'));
+  assert.ok(r.cwes.some(c => c.id === 'CWE-79'));
   const sqli = P.tagCwe({ id: 'f-y', title: 'Blind SQL injection in login', vulnClass: 'sqli' });
-  assert.ok(sqli.cwes.some((c) => c.id === 'CWE-89'));
+  assert.ok(sqli.cwes.some(c => c.id === 'CWE-89'));
   const none = P.tagCwe({ id: 'f-z', title: 'Typo in footer', description: 'cosmetic' });
   assert.equal(none.cwes.length, 0);
 });
@@ -519,7 +659,12 @@ test('52320 impact generator uses vuln-class template', () => {
   assert.equal(r.ok, true);
   assert.equal(r.templated, true);
   assert.ok(r.impact.includes('JavaScript'));
-  const generic = P.generateImpact({ id: 'f-x', severity: 'medium', vulnClass: 'weird', endpoint: 'https://e/x' });
+  const generic = P.generateImpact({
+    id: 'f-x',
+    severity: 'medium',
+    vulnClass: 'weird',
+    endpoint: 'https://e/x',
+  });
   assert.equal(generic.templated, false);
   assert.equal(P.generateImpact({}).ok, false);
 });
@@ -530,9 +675,9 @@ test('Wave58.css exists, uses only sr358-/ps58- classes, zero keyframes', () => 
   const css = readFileSync(CSS, 'utf8');
   assert.ok(!/@keyframes/i.test(css), 'zero-animation order: no @keyframes allowed');
   assert.ok(!/animation\s*:/i.test(css), 'zero-animation order: no animation declarations allowed');
-  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map((m) => m[1]);
-  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map((m) => m[1]);
-  const all = new Set([...selectors, ...classSelectors].filter((s) => /^[a-z]/.test(s)));
+  const selectors = [...css.matchAll(/\.([a-zA-Z0-9_-]+)\s*[{,]/g)].map(m => m[1]);
+  const classSelectors = [...css.matchAll(/^\.([a-z0-9][a-z0-9-]*)/gim)].map(m => m[1]);
+  const all = new Set([...selectors, ...classSelectors].filter(s => /^[a-z]/.test(s)));
   assert.ok(all.size > 0, 'no class selectors found');
   for (const s of all) {
     assert.ok(s.startsWith('sr358-') || s.startsWith('ps58-'), `unscoped selector: .${s}`);
@@ -541,7 +686,14 @@ test('Wave58.css exists, uses only sr358-/ps58- classes, zero keyframes', () => 
 
 /* ---- Branding-leak audit: no forbidden brand name in wave-58 files ---- */
 test('no branding leak in wave-58 files', () => {
-  const files = ['shareRound3Core.js', 'platformSubmitCore.js', 'ShareRound3.jsx', 'PlatformSubmit.jsx', 'Wave58.css', 'wave58.test.js'];
+  const files = [
+    'shareRound3Core.js',
+    'platformSubmitCore.js',
+    'ShareRound3.jsx',
+    'PlatformSubmit.jsx',
+    'Wave58.css',
+    'wave58.test.js',
+  ];
   const probe = 'M' + 'use'; // self-reference would fail the audit itself
   for (const f of files) {
     const p = join(DIR, f);
@@ -553,7 +705,14 @@ test('no branding leak in wave-58 files', () => {
 
 /* ---- No-debris audit: no leftover scaffolding words in wave-58 files ---- */
 test('no debris markers in wave-58 files', () => {
-  const files = ['shareRound3Core.js', 'platformSubmitCore.js', 'ShareRound3.jsx', 'PlatformSubmit.jsx', 'Wave58.css', 'wave58.test.js'];
+  const files = [
+    'shareRound3Core.js',
+    'platformSubmitCore.js',
+    'ShareRound3.jsx',
+    'PlatformSubmit.jsx',
+    'Wave58.css',
+    'wave58.test.js',
+  ];
   const debris = new RegExp(['T' + 'ODO', 'mo' + 'ck', 'lo' + 'rem'].join('|'), 'i');
   for (const f of files) {
     const body = readFileSync(join(DIR, f), 'utf8');

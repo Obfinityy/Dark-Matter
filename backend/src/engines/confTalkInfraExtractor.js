@@ -13,16 +13,60 @@
 
 const HOSTNAME_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b/gi;
 const URL_RE = /https?:\/\/([a-z0-9.-]+)(?::\d+)?(?:\/[^\s"'<>]*)?/gi;
-const IP_RE = /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/g;
+const IP_RE =
+  /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/g;
 
 const INFRA_TERMS = [
-  'kubernetes', 'k8s', 'docker', 'terraform', 'ansible', 'jenkins', 'argocd',
-  'kafka', 'rabbitmq', 'redis', 'postgres', 'mysql', 'mongodb', 'cassandra',
-  'elasticsearch', 'snowflake', 'bigquery', 'redshift', 'datadog', 'splunk',
-  'grafana', 'prometheus', 'vault', 'consul', 'istio', 'envoy', 'nginx',
-  'haproxy', 'aws', 'azure', 'gcp', 'cloudfront', 'route53', 'vpc', 'eks',
-  'ecs', 'fargate', 'lambda', 'sqs', 'sns', 'dynamodb', 'rds', 'aurora',
-  'active directory', 'ldap', 'siem', 'soar', 'waf', 'cdn', 'service mesh',
+  'kubernetes',
+  'k8s',
+  'docker',
+  'terraform',
+  'ansible',
+  'jenkins',
+  'argocd',
+  'kafka',
+  'rabbitmq',
+  'redis',
+  'postgres',
+  'mysql',
+  'mongodb',
+  'cassandra',
+  'elasticsearch',
+  'snowflake',
+  'bigquery',
+  'redshift',
+  'datadog',
+  'splunk',
+  'grafana',
+  'prometheus',
+  'vault',
+  'consul',
+  'istio',
+  'envoy',
+  'nginx',
+  'haproxy',
+  'aws',
+  'azure',
+  'gcp',
+  'cloudfront',
+  'route53',
+  'vpc',
+  'eks',
+  'ecs',
+  'fargate',
+  'lambda',
+  'sqs',
+  'sns',
+  'dynamodb',
+  'rds',
+  'aurora',
+  'active directory',
+  'ldap',
+  'siem',
+  'soar',
+  'waf',
+  'cdn',
+  'service mesh',
 ];
 
 const ARCHITECTURE_CUES = [
@@ -88,7 +132,11 @@ export function extractTalkIps(text) {
       found.set(m[0], { internal, evidence: snippet(t, m.index) });
     }
   }
-  return [...found.entries()].map(([ip, v]) => ({ ip, internal: v.internal, evidence: v.evidence }));
+  return [...found.entries()].map(([ip, v]) => ({
+    ip,
+    internal: v.internal,
+    evidence: v.evidence,
+  }));
 }
 
 /**
@@ -110,12 +158,15 @@ export function extractTalkInfraTerms(text) {
  */
 export function extractArchitectureMentions(text) {
   const t = String(text || '');
-  const sentences = t.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.length > 20);
+  const sentences = t
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 20);
   const mentions = [];
   for (const s of sentences) {
-    const cue = ARCHITECTURE_CUES.find((re) => re.test(s));
+    const cue = ARCHITECTURE_CUES.find(re => re.test(s));
     if (cue) {
-      const terms = INFRA_TERMS.filter((term) => s.toLowerCase().includes(term));
+      const terms = INFRA_TERMS.filter(term => s.toLowerCase().includes(term));
       mentions.push({ sentence: s.slice(0, 300), matchedCue: String(cue), infraTerms: terms });
     }
   }

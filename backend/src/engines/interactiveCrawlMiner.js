@@ -68,7 +68,8 @@ export function harvestModalLinks(html = '') {
   }
 
   // role="dialog" / role="alertdialog" containers
-  const roleRe = /<([a-z][a-z0-9]*)\b([^>]*\brole\s*=\s*["'](?:dialog|alertdialog)["'][^>]*)>([\s\S]*?)<\/\1>/gi;
+  const roleRe =
+    /<([a-z][a-z0-9]*)\b([^>]*\brole\s*=\s*["'](?:dialog|alertdialog)["'][^>]*)>([\s\S]*?)<\/\1>/gi;
   while ((m = roleRe.exec(text)) !== null) {
     const key = `role:${m.index}`;
     if (seen.has(key)) continue;
@@ -81,7 +82,8 @@ export function harvestModalLinks(html = '') {
   }
 
   // Class-convention modals: .modal, .dialog, .popup, .overlay-panel
-  const classRe = /<([a-z][a-z0-9]*)\b([^>]*\bclass\s*=\s*["'][^"']*\b(modal|dialog|popup|lightbox)\b[^"']*["'][^>]*)>([\s\S]*?)<\/\1>/gi;
+  const classRe =
+    /<([a-z][a-z0-9]*)\b([^>]*\bclass\s*=\s*["'][^"']*\b(modal|dialog|popup|lightbox)\b[^"']*["'][^>]*)>([\s\S]*?)<\/\1>/gi;
   while ((m = classRe.exec(text)) !== null) {
     const key = `class:${m.index}`;
     if (seen.has(key)) continue;
@@ -156,13 +158,19 @@ export function planAccordionExpansion(html = '') {
     const heading = /<summary\b[^>]*>([\s\S]*?)<\/summary>/i.exec(m[2]);
     sections.push({
       target: id ? `#${id[1]}` : 'details',
-      title: heading ? heading[1].replace(/<[^>]+>/g, '').trim().slice(0, 80) : '',
+      title: heading
+        ? heading[1]
+            .replace(/<[^>]+>/g, '')
+            .trim()
+            .slice(0, 80)
+        : '',
       body: m[2],
     });
   }
 
   // Class-convention accordions: .accordion-item / .accordion-panel
-  const itemRe = /<([a-z][a-z0-9]*)\b([^>]*\bclass\s*=\s*["'][^"']*\baccordion[-_ ]?item\b[^"']*["'][^>]*)>([\s\S]*?)<\/\1>/gi;
+  const itemRe =
+    /<([a-z][a-z0-9]*)\b([^>]*\bclass\s*=\s*["'][^"']*\baccordion[-_ ]?item\b[^"']*["'][^>]*)>([\s\S]*?)<\/\1>/gi;
   while ((m = itemRe.exec(text)) !== null) {
     const id = idRe.exec(m[2] || '');
     sections.push({
@@ -173,10 +181,11 @@ export function planAccordionExpansion(html = '') {
   }
 
   // Sections likely to hold endpoints/API references go first.
-  const score = (s) => (/api|endpoint|download|export|webhook|integration|docs/i.test(s.body) ? 0 : 1);
+  const score = s =>
+    /api|endpoint|download|export|webhook|integration|docs/i.test(s.body) ? 0 : 1;
   sections.sort((a, b) => score(a) - score(b));
 
-  return sections.map((s) => ({
+  return sections.map(s => ({
     action: 'expand',
     target: s.target,
     reason: s.title
@@ -201,7 +210,8 @@ export function mineCarouselUrls(html = '') {
 
   // 1. Index every carousel/slider container opening tag.
   const containers = [];
-  const containerOpenRe = /<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*["'][^"']*\b(carousel|slider|swiper|slideshow)(?![-\w])[^"']*["'][^>]*>/gi;
+  const containerOpenRe =
+    /<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*["'][^"']*\b(carousel|slider|swiper|slideshow)(?![-\w])[^"']*["'][^>]*>/gi;
   let cm;
   while ((cm = containerOpenRe.exec(text)) !== null) {
     const id = /id\s*=\s*["']([^"']+)["']/i.exec(cm[0]);
@@ -213,7 +223,8 @@ export function mineCarouselUrls(html = '') {
   }
 
   // 2. Find every slide element and attribute it to the nearest preceding container.
-  const slideRe = /<([a-z][a-z0-9]*)\b([^>]*\bclass\s*=\s*["'][^"']*\b(slide|carousel-item|swiper-slide|slide-item)\b[^"']*["'][^>]*)>([\s\S]*?)<\/\1>/gi;
+  const slideRe =
+    /<([a-z][a-z0-9]*)\b([^>]*\bclass\s*=\s*["'][^"']*\b(slide|carousel-item|swiper-slide|slide-item)\b[^"']*["'][^>]*)>([\s\S]*?)<\/\1>/gi;
   let sm;
   while ((sm = slideRe.exec(text)) !== null) {
     let owner = null;
@@ -346,9 +357,10 @@ export function planVirtualListScroll(listMeta = {}) {
   const knownHeight = rowHeight > 0 && viewportHeight > 0;
   const totalHeight = knownHeight ? total * rowHeight : 0;
   // Oversample: each pass covers a viewport; add margin for row recycling.
-  const passes = knownHeight && viewportHeight > 0
-    ? Math.min(Math.ceil(totalHeight / viewportHeight) + 2, total + 2)
-    : Math.min(Math.ceil(total / Math.max(rendered, 1)) + 2, total + 2);
+  const passes =
+    knownHeight && viewportHeight > 0
+      ? Math.min(Math.ceil(totalHeight / viewportHeight) + 2, total + 2)
+      : Math.min(Math.ceil(total / Math.max(rendered, 1)) + 2, total + 2);
 
   plan.push({
     action: 'scroll_to_top',
@@ -435,7 +447,7 @@ export function traverseShadowRoots(node, path = '') {
   const results = [];
   if (!node || typeof node !== 'object') return results;
 
-  const label = node.id ? `#${node.id}` : (node.tag || 'node');
+  const label = node.id ? `#${node.id}` : node.tag || 'node';
   const here = path ? `${path} > ${label}` : label;
 
   for (const url of node.links || []) {

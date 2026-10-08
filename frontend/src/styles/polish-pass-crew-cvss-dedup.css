@@ -19,42 +19,71 @@
 /* keyframes live in singularity.css */
 
 /* ── CrewPanel: staggered card entrance ── */
-.sg-crew-card:active { transform: scale(0.985); }
+.sg-crew-card:active {
+  transform: scale(0.985);
+}
 .sg-crew-card .sg-chip-x {
-  min-width: 40px; min-height: 40px; border-radius: 10px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
 }
 .sg-crew-card .sg-chip-x:focus-visible {
-  outline: 2px solid rgba(129, 140, 248, 0.6); outline-offset: 2px;
+  outline: 2px solid rgba(129, 140, 248, 0.6);
+  outline-offset: 2px;
 }
 
 /* ── CrewPanel: event rows share one icon-rail rhythm ── */
 .sg-crew-thinking,
 .sg-crew-notice,
 .sg-crew-obs summary {
-  display: flex; align-items: center; gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .sg-crew-thinking svg,
 .sg-crew-notice svg,
-.sg-crew-obs summary svg { flex: 0 0 auto; }
-.sg-crew-empty-events {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 34px 12px; color: var(--sg-text-3);
+.sg-crew-obs summary svg {
+  flex: 0 0 auto;
 }
-.sg-crew-empty-events svg { opacity: 0.6; }
+.sg-crew-empty-events {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 12px;
+  color: var(--sg-text-3);
+}
+.sg-crew-empty-events svg {
+  opacity: 0.6;
+}
 
 /* ── CrewPanel: touch targets on small screens ── */
 @media (max-width: 560px) {
-  .sg-crew-tool { min-height: 44px; }
-  .sg-crew-list { grid-template-columns: 1fr; }
-  .sg-crew-chat { padding: 14px; }
-  .sg-crew-events { max-height: 360px; }
+  .sg-crew-tool {
+    min-height: 44px;
+  }
+  .sg-crew-list {
+    grid-template-columns: 1fr;
+  }
+  .sg-crew-chat {
+    padding: 14px;
+  }
+  .sg-crew-events {
+    max-height: 360px;
+  }
 }
 
 /* ── Reduced motion: everything resolves to its final state ── */
 @media (prefers-reduced-motion: reduce) {
   .dm-dedup-banner,
   .sg-crew-card-enter,
-  .sg-crew-thinking { animation: none; }
-  .sg-crew-card:active { transform: none; }
-  .sg-pill-danger .dot { animation: none; }
+  .sg-crew-thinking {
+    animation: none;
+  }
+  .sg-crew-card:active {
+    transform: none;
+  }
+  .sg-pill-danger .dot {
+    animation: none;
+  }
 }

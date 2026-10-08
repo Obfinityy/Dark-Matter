@@ -53,8 +53,10 @@ export const DNP3_DEVICE_ATTRS = {
  */
 export function parseDnp3LinkHeader(buf) {
   const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf || []);
-  if (b.length < 10) return { valid: false, reason: 'frame too short for DNP3 link header (10 bytes)' };
-  if (b[0] !== 0x05 || b[1] !== 0x64) return { valid: false, reason: 'missing DNP3 start bytes 0x05 0x64' };
+  if (b.length < 10)
+    return { valid: false, reason: 'frame too short for DNP3 link header (10 bytes)' };
+  if (b[0] !== 0x05 || b[1] !== 0x64)
+    return { valid: false, reason: 'missing DNP3 start bytes 0x05 0x64' };
   const length = b[2];
   const control = b[3];
   return {
@@ -105,7 +107,7 @@ export function parseDnp3AppHeader(apdu) {
  */
 export function parseDeviceAttributes(attributes = []) {
   const labeled = {};
-  for (const attr of (Array.isArray(attributes) ? attributes : [])) {
+  for (const attr of Array.isArray(attributes) ? attributes : []) {
     const name = DNP3_DEVICE_ATTRS[attr.variation] || `variation_${attr.variation}`;
     labeled[name] = String(attr.value ?? '');
   }
@@ -127,7 +129,10 @@ export function parseDeviceAttributes(attributes = []) {
 export function assessDnp3Exposure(evidence = {}) {
   const findings = [];
   if (evidence.portOpen) {
-    findings.push({ level: 'high', text: 'DNP3 (:20000) reachable — the protocol has no built-in authentication without Secure Authentication (SAv5/SAv6).' });
+    findings.push({
+      level: 'high',
+      text: 'DNP3 (:20000) reachable — the protocol has no built-in authentication without Secure Authentication (SAv5/SAv6).',
+    });
   }
   const da = evidence.deviceAttributes;
   if (da && da.valid) {
@@ -136,7 +141,7 @@ export function assessDnp3Exposure(evidence = {}) {
       text: `Outstation identifies as ${da.manufacturer || 'unknown vendor'}${da.model ? ` / ${da.model}` : ''} — use for asset inventory and advisory mapping.`,
     });
   }
-  const score = findings.some((f) => f.level === 'high') ? 8 : findings.length ? 3 : 0;
+  const score = findings.some(f => f.level === 'high') ? 8 : findings.length ? 3 : 0;
   return {
     detected: findings.length > 0,
     score,

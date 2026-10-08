@@ -21,24 +21,40 @@ export const WAVE41_SN_END = 51640;
 export const WAVE41_SN_IDEAS = [
   [51621, 'one-click snapshot', 'Capture a full report draft at any moment mid-hunt'],
   [51622, 'scheduled snapshots', 'Auto-generate snapshots at intervals you configure'],
-  [51623, 'snapshot comparison (mid-hunt)', 'Diff any two snapshots to see how the hunt progressed'],
+  [
+    51623,
+    'snapshot comparison (mid-hunt)',
+    'Diff any two snapshots to see how the hunt progressed',
+  ],
   [51624, 'snapshot timeline', 'All snapshots arranged on a scrubbable timeline'],
-  [51625, 'snapshot sharing', 'Send a snapshot link to stakeholders without exposing live controls'],
+  [
+    51625,
+    'snapshot sharing',
+    'Send a snapshot link to stakeholders without exposing live controls',
+  ],
   [51626, 'snapshot PDF export', 'Download any snapshot as a polished PDF instantly'],
-  [51627, 'snapshot annotations (mid-hunt)', 'Add your notes on top of a snapshot for stakeholders'],
+  [
+    51627,
+    'snapshot annotations (mid-hunt)',
+    'Add your notes on top of a snapshot for stakeholders',
+  ],
   [51628, 'snapshot watermarking', 'Snapshots stamped with draft status and generation time'],
-  [51629, 'snapshot deltas', 'Each snapshot highlights what\'s new since the previous one'],
+  [51629, 'snapshot deltas', "Each snapshot highlights what's new since the previous one"],
   [51630, 'executive snapshot mode', 'A one-page business summary generated mid-hunt'],
   [51631, 'technical snapshot mode', 'Full evidence detail for engineering audiences'],
-  [51632, 'snapshot subscriptions', 'Stakeholders auto-receive new snapshots as they\'re taken'],
-  [51633, 'snapshot approval', 'Mark a snapshot as reviewed before it\'s shared externally'],
+  [51632, 'snapshot subscriptions', "Stakeholders auto-receive new snapshots as they're taken"],
+  [51633, 'snapshot approval', "Mark a snapshot as reviewed before it's shared externally"],
   [51634, 'snapshot retention', 'Old snapshots auto-archived per your policy'],
   [51635, 'snapshot search', 'Find any snapshot by date, finding, or note'],
   [51636, 'snapshot templates', 'Your branded layout applied to every snapshot'],
   [51637, 'snapshot language options', 'Generate snapshots in any supported language'],
   [51638, 'live snapshot preview', 'See the draft report updating in real time as findings land'],
   [51639, 'snapshot completeness meter', 'How close the snapshot is to a final-report standard'],
-  [51640, 'snapshot finding states', 'Findings marked draft, validating, or confirmed within snapshots'],
+  [
+    51640,
+    'snapshot finding states',
+    'Findings marked draft, validating, or confirmed within snapshots',
+  ],
 ];
 
 /** Sanctioned finding states inside a snapshot (idea 51640). */
@@ -75,7 +91,12 @@ export function escHtml(s) {
 /* --- 51621 one-click snapshot ------------------------------------------------------ */
 
 export function snapshotId(huntId, takenAtMs) {
-  return 'SNP-' + fnv1a(String(huntId) + '|' + String(takenAtMs)).toString(16).padStart(8, '0');
+  return (
+    'SNP-' +
+    fnv1a(String(huntId) + '|' + String(takenAtMs))
+      .toString(16)
+      .padStart(8, '0')
+  );
 }
 
 export function takeSnapshot(hunt, takenAtMs) {
@@ -150,7 +171,9 @@ export function diffSnapshots(a, b) {
   const changed = sb.findings.filter(f => {
     if (!idsA.has(f.id)) return false;
     const prev = mapA.get(f.id);
-    return (prev.severity !== f.severity) || (prev.confidence !== f.confidence) || (prev.title !== f.title);
+    return (
+      prev.severity !== f.severity || prev.confidence !== f.confidence || prev.title !== f.title
+    );
   });
   return {
     fromId: sa.id || null,
@@ -167,7 +190,8 @@ export function diffSnapshots(a, b) {
 /* --- 51624 snapshot timeline ------------------------------------------------------------------------ */
 
 export function snapshotTimeline(snapshots) {
-  const list = (Array.isArray(snapshots) ? snapshots : []).slice()
+  const list = (Array.isArray(snapshots) ? snapshots : [])
+    .slice()
     .sort((x, y) => (x.takenAtMs || 0) - (y.takenAtMs || 0));
   return list.map((s, i) => ({
     id: s.id,
@@ -183,7 +207,9 @@ export function snapshotTimeline(snapshots) {
 
 export function shareSnapshotLink(snapshot, audience) {
   const s = snapshot || {};
-  const token = fnv1a(String(s.id) + '|' + String(audience)).toString(16).padStart(8, '0');
+  const token = fnv1a(String(s.id) + '|' + String(audience))
+    .toString(16)
+    .padStart(8, '0');
   return {
     snapshotId: s.id || null,
     audience: String(audience || 'stakeholder'),
@@ -218,12 +244,14 @@ export function annotateSnapshot(snapshot, note, author, atMs) {
   const annotations = Array.isArray(s.annotations) ? s.annotations : [];
   return {
     ...s,
-    annotations: annotations.concat([{
-      id: 'ANN-' + fnv1a(String(note) + '|' + String(atMs)).toString(16),
-      note: String(note || ''),
-      author: String(author || 'owner'),
-      atMs: Number(atMs) || 0,
-    }]),
+    annotations: annotations.concat([
+      {
+        id: 'ANN-' + fnv1a(String(note) + '|' + String(atMs)).toString(16),
+        note: String(note || ''),
+        author: String(author || 'owner'),
+        atMs: Number(atMs) || 0,
+      },
+    ]),
   };
 }
 
@@ -245,7 +273,10 @@ export function snapshotWatermark(text, style) {
 
 export function applySnapshotWatermark(snapshot, watermark, atMs) {
   const s = { ...(snapshot || {}) };
-  return { ...s, watermark: { ...(watermark || snapshotWatermark()), appliedAtMs: Number(atMs) || 0 } };
+  return {
+    ...s,
+    watermark: { ...(watermark || snapshotWatermark()), appliedAtMs: Number(atMs) || 0 },
+  };
 }
 
 /* --- 51629 snapshot deltas ----------------------------------------------------------------------------------------------------------- */
@@ -254,13 +285,22 @@ export function snapshotDeltas(snapshot, previousSnapshot) {
   const diff = diffSnapshots(previousSnapshot || { findings: [] }, snapshot || { findings: [] });
   const current = snapshot || {};
   const byId = new Map((current.findings || []).map(f => [f.id, f]));
-  const highlights = diff.addedIds.map(id => {
-    const f = byId.get(id) || {};
-    return { id, kind: 'new-finding', title: f.title || id, severity: f.severity || 'info' };
-  }).concat(diff.changedIds.map(id => {
-    const f = byId.get(id) || {};
-    return { id, kind: 'updated-finding', title: f.title || id, severity: f.severity || 'info' };
-  }));
+  const highlights = diff.addedIds
+    .map(id => {
+      const f = byId.get(id) || {};
+      return { id, kind: 'new-finding', title: f.title || id, severity: f.severity || 'info' };
+    })
+    .concat(
+      diff.changedIds.map(id => {
+        const f = byId.get(id) || {};
+        return {
+          id,
+          kind: 'updated-finding',
+          title: f.title || id,
+          severity: f.severity || 'info',
+        };
+      })
+    );
   return {
     snapshotId: current.id || null,
     previousId: (previousSnapshot || {}).id || null,
@@ -275,8 +315,12 @@ export function snapshotDeltas(snapshot, previousSnapshot) {
 export function executiveSummary(snapshot) {
   const s = snapshot || {};
   const findings = Array.isArray(s.findings) ? s.findings : [];
-  const criticals = findings.filter(f => ['critical', 'high'].includes(String(f.severity || '').toLowerCase()));
-  const topRisks = criticals.slice(0, 5).map(f => ({ id: f.id, title: f.title, severity: f.severity }));
+  const criticals = findings.filter(f =>
+    ['critical', 'high'].includes(String(f.severity || '').toLowerCase())
+  );
+  const topRisks = criticals
+    .slice(0, 5)
+    .map(f => ({ id: f.id, title: f.title, severity: f.severity }));
   return {
     snapshotId: s.id || null,
     mode: 'executive',
@@ -284,9 +328,13 @@ export function executiveSummary(snapshot) {
     headline: criticals.length + ' high-impact issues found on ' + (s.target || 'target'),
     topRisks,
     businessImpact: criticals.length
-      ? 'Immediate review recommended: ' + criticals.length + ' findings carry business-critical exposure.'
+      ? 'Immediate review recommended: ' +
+        criticals.length +
+        ' findings carry business-critical exposure.'
       : 'No business-critical exposure detected so far.',
-    nextSteps: criticals.length ? ['Triage the top risks', 'Schedule remediation'] : ['Continue monitoring'],
+    nextSteps: criticals.length
+      ? ['Triage the top risks', 'Schedule remediation']
+      : ['Continue monitoring'],
   };
 }
 
@@ -305,10 +353,12 @@ export function technicalSummary(snapshot) {
       severity: f.severity || 'info',
       confidence: f.confidence != null ? f.confidence : null,
       evidence: f.evidence || f.details || 'pending',
-      asset: f.asset || (s.target || ''),
+      asset: f.asset || s.target || '',
       state: (s.stateOverrides || {})[f.id] || 'draft',
     })),
-    techniqueNotes: findings.length ? 'Evidence captured per finding; states reflect validation progress.' : 'No findings captured yet.',
+    techniqueNotes: findings.length
+      ? 'Evidence captured per finding; states reflect validation progress.'
+      : 'No findings captured yet.',
   };
 }
 
@@ -319,12 +369,14 @@ export function subscribeSnapshot(subs, contact) {
   const c = contact || {};
   const id = 'SUB-' + fnv1a(String(c.email || '') + '|' + String(c.role || '')).toString(16);
   if (list.some(s => s.id === id)) return list;
-  return list.concat([{
-    id,
-    email: String(c.email || ''),
-    role: String(c.role || 'stakeholder'),
-    active: true,
-  }]);
+  return list.concat([
+    {
+      id,
+      email: String(c.email || ''),
+      role: String(c.role || 'stakeholder'),
+      active: true,
+    },
+  ]);
 }
 
 export function notifySnapshotSubscribers(subs, snapshot) {
@@ -375,12 +427,24 @@ export function applySnapshotRetention(snapshots, policy, nowMs) {
 
 export function searchSnapshots(snapshots, query) {
   const list = Array.isArray(snapshots) ? snapshots : [];
-  const needle = String(query || '').trim().toLowerCase();
+  const needle = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!needle) return [];
   return list.filter(s => {
     const notes = (s.annotations || []).map(a => a.note).join(' ');
     const titles = (s.findings || []).map(f => f.title).join(' ');
-    const hay = ((s.id || '') + ' ' + (s.target || '') + ' ' + titles + ' ' + notes + ' ' + new Date(s.takenAtMs || 0).toISOString().slice(0, 10)).toLowerCase();
+    const hay = (
+      (s.id || '') +
+      ' ' +
+      (s.target || '') +
+      ' ' +
+      titles +
+      ' ' +
+      notes +
+      ' ' +
+      new Date(s.takenAtMs || 0).toISOString().slice(0, 10)
+    ).toLowerCase();
     return hay.includes(needle);
   });
 }
@@ -388,9 +452,21 @@ export function searchSnapshots(snapshots, query) {
 /* --- 51636 snapshot templates ------------------------------------------------------------------------------------------------------------------------------------------------------- */
 
 export const SNAPSHOT_TEMPLATES = {
-  standard: { header: 'Infinity AI · Hunt Snapshot', accent: '#7c6cff', footer: 'Generated by Infinity AI' },
-  executive: { header: 'Executive Security Brief', accent: '#0ea5e9', footer: 'Confidential — Infinity AI' },
-  branded: { header: 'Infinity AI · {org}', accent: '#10b981', footer: 'Infinity AI security report' },
+  standard: {
+    header: 'Infinity AI · Hunt Snapshot',
+    accent: '#7c6cff',
+    footer: 'Generated by Infinity AI',
+  },
+  executive: {
+    header: 'Executive Security Brief',
+    accent: '#0ea5e9',
+    footer: 'Confidential — Infinity AI',
+  },
+  branded: {
+    header: 'Infinity AI · {org}',
+    accent: '#10b981',
+    footer: 'Infinity AI security report',
+  },
 };
 
 export function applySnapshotTemplate(templateKey, fields) {
@@ -409,9 +485,24 @@ export function applySnapshotTemplate(templateKey, fields) {
 
 export function snapshotLanguageLabels() {
   return {
-    en: { snapshot: 'Snapshot', findings: 'Findings', executiveSummary: 'Executive summary', generatedAt: 'Generated at' },
-    hi: { snapshot: 'स्नैपशॉट', findings: 'निष्कर्ष', executiveSummary: 'कार्यकारी सारांश', generatedAt: 'निर्माण समय' },
-    es: { snapshot: 'Instantánea', findings: 'Hallazgos', executiveSummary: 'Resumen ejecutivo', generatedAt: 'Generado el' },
+    en: {
+      snapshot: 'Snapshot',
+      findings: 'Findings',
+      executiveSummary: 'Executive summary',
+      generatedAt: 'Generated at',
+    },
+    hi: {
+      snapshot: 'स्नैपशॉट',
+      findings: 'निष्कर्ष',
+      executiveSummary: 'कार्यकारी सारांश',
+      generatedAt: 'निर्माण समय',
+    },
+    es: {
+      snapshot: 'Instantánea',
+      findings: 'Hallazgos',
+      executiveSummary: 'Resumen ejecutivo',
+      generatedAt: 'Generado el',
+    },
   };
 }
 
@@ -442,12 +533,20 @@ export function snapshotCompleteness(snapshot) {
   const checks = [
     { key: 'has-target', label: 'Target recorded', met: !!s.target },
     { key: 'has-findings', label: 'Findings captured', met: findings.length > 0 },
-    { key: 'evidence-complete', label: 'All findings carry evidence', met: findings.length > 0 && findings.every(f => f.evidence || f.details) },
-    { key: 'states-set', label: 'Finding states assigned', met: findings.length > 0 && findings.every(f => (s.stateOverrides || {})[f.id] || f.state) },
+    {
+      key: 'evidence-complete',
+      label: 'All findings carry evidence',
+      met: findings.length > 0 && findings.every(f => f.evidence || f.details),
+    },
+    {
+      key: 'states-set',
+      label: 'Finding states assigned',
+      met: findings.length > 0 && findings.every(f => (s.stateOverrides || {})[f.id] || f.state),
+    },
     { key: 'reviewed', label: 'Snapshot reviewed', met: !!s.approved },
   ];
   const met = checks.filter(c => c.met).length;
-  const pct = Math.round(met / checks.length * 100);
+  const pct = Math.round((met / checks.length) * 100);
   return {
     pct,
     met,
@@ -472,7 +571,7 @@ export function markFindingState(snapshot, findingId, state) {
 export function findingsByState(snapshot) {
   const s = snapshot || {};
   const byState = { draft: [], validating: [], confirmed: [] };
-  for (const f of (s.findings || [])) {
+  for (const f of s.findings || []) {
     const st = (s.stateOverrides || {})[f.id] || f.state || 'draft';
     (byState[st] || byState.draft).push(f.id);
   }

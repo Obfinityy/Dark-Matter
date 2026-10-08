@@ -12,7 +12,8 @@
  * (from `GET /repos/{owner}/{repo}/contents/CNAME` or a repo inventory).
  */
 
-const DNS_LABEL_RE = /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$/;
+const DNS_LABEL_RE =
+  /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$/;
 
 /**
  * Validate that a hostname is syntactically a legal DNS name.
@@ -24,7 +25,11 @@ const DNS_LABEL_RE = /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z
  * @returns {boolean}
  */
 export function isValidDnsHostname(host) {
-  return DNS_LABEL_RE.test(String(host || '').trim().toLowerCase());
+  return DNS_LABEL_RE.test(
+    String(host || '')
+      .trim()
+      .toLowerCase()
+  );
 }
 
 /**
@@ -38,7 +43,10 @@ export function isValidDnsHostname(host) {
  * @returns {{ host: string }|null}
  */
 export function parseCnameFile(content) {
-  const lines = String(content || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const lines = String(content || '')
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean);
   if (lines.length !== 1) return null;
   let host = lines[0].replace(/\.$/, '').toLowerCase();
   // Reject URL-shaped or whitespace-containing values — not a bare hostname.
@@ -60,7 +68,10 @@ export function parseCnameFile(content) {
  * }}
  */
 export function mineCnameFiles(cnameFiles, targetDomain) {
-  const scope = String(targetDomain || '').trim().toLowerCase().replace(/^\*\./, '');
+  const scope = String(targetDomain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\*\./, '');
   const mappings = [];
   const invalid = [];
 
@@ -100,13 +111,15 @@ export function flagStaleCnameTargets(mappings, dnsAnswers = {}) {
     const pointsAtPages = answers.some(a => a.endsWith('.github.io') || a.endsWith('.github.io.'));
     if (answers.length === 0) {
       findings.push({
-        host, repo,
+        host,
+        repo,
         signal: 'cname-target-nxdomain',
         detail: `CNAME host '${host}' has no DNS answers — a dangling Pages custom domain is a subdomain-takeover candidate. Verify with the asset owner before any further testing.`,
       });
     } else if (!pointsAtPages) {
       findings.push({
-        host, repo,
+        host,
+        repo,
         signal: 'cname-not-pointing-at-pages',
         detail: `CNAME host '${host}' no longer resolves to GitHub Pages infrastructure (answers: ${answers.join(', ')}). If the Pages site was removed, the domain may be claimable elsewhere.`,
       });

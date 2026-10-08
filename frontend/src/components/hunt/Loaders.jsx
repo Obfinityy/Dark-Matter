@@ -11,7 +11,14 @@ import './Loaders.css';
 export function DeterminateProgressBar({ value = 0, etaText = '', label = '', className = '' }) {
   const pct = Math.max(0, Math.min(100, value));
   return (
-    <div className={`hl-progress ${className}`} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label || 'Progress'}>
+    <div
+      className={`hl-progress ${className}`}
+      role="progressbar"
+      aria-valuenow={Math.round(pct)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label || 'Progress'}
+    >
       {(label || etaText) && (
         <div className="hl-progress-meta">
           {label && <span className="hl-progress-label">{label}</span>}
@@ -37,7 +44,13 @@ export function BarberPoleLoader({ label = 'Analyzing target…', className = ''
 }
 
 /** 50012 — Start Hunt button: spinner morphs into the phase label once hunting. */
-export function StartButtonMorphingSpinner({ phase = null, idleLabel = 'Start Hunt', onClick, disabled = false, className = '' }) {
+export function StartButtonMorphingSpinner({
+  phase = null,
+  idleLabel = 'Start Hunt',
+  onClick,
+  disabled = false,
+  className = '',
+}) {
   return (
     <button
       type="button"
@@ -59,15 +72,18 @@ export function StartButtonMorphingSpinner({ phase = null, idleLabel = 'Start Hu
 
 /** 50016 — Engine warm-up checklist: engines light up green as each readies. */
 export function EngineWarmupChecklist({ engines = [], className = '' }) {
-  const items = engines.length > 0 ? engines : [
-    { name: 'Recon engine', ready: false },
-    { name: 'Vulnerability detector', ready: false },
-    { name: 'PoC generator', ready: false },
-  ];
+  const items =
+    engines.length > 0
+      ? engines
+      : [
+          { name: 'Recon engine', ready: false },
+          { name: 'Vulnerability detector', ready: false },
+          { name: 'PoC generator', ready: false },
+        ];
   return (
     <div className={`hl-warmup ${className}`} role="status" aria-label="Warming up engines">
       <span className="hl-warmup-title">Warming up engines</span>
-      {items.map((e) => (
+      {items.map(e => (
         <div key={e.name} className={`hl-warmup-row ${e.ready ? 'hl-ready' : ''}`}>
           <span className="hl-warmup-dot" aria-hidden="true" />
           <span>{e.name}</span>
@@ -81,7 +97,11 @@ export function EngineWarmupChecklist({ engines = [], className = '' }) {
 /** 50018 — Blurred domain placeholder while the target preview iframe loads. */
 export function TargetPreviewIframeLoader({ hostname = 'target', className = '' }) {
   return (
-    <div className={`hl-iframe-ph ${className}`} role="status" aria-label={`Loading preview of ${hostname}`}>
+    <div
+      className={`hl-iframe-ph ${className}`}
+      role="status"
+      aria-label={`Loading preview of ${hostname}`}
+    >
       <div className="hl-iframe-blur" aria-hidden="true">
         <div className="hl-iframe-bar" />
         <div className="hl-iframe-lines" />
@@ -101,7 +121,14 @@ export function OptimisticQueuedHuntCard({ target = '', onCancel, className = ''
         {target && <span className="hl-queue-target">{target}</span>}
       </div>
       {onCancel && (
-        <button type="button" className="hl-queue-cancel" onClick={onCancel} aria-label="Cancel queued hunt">✕</button>
+        <button
+          type="button"
+          className="hl-queue-cancel"
+          onClick={onCancel}
+          aria-label="Cancel queued hunt"
+        >
+          ✕
+        </button>
       )}
     </div>
   );
@@ -126,7 +153,9 @@ export function ExportOverlayWithCancel({ label = 'Generating PDF…', onCancel,
       <span className="hl-mini-spinner hl-spinner-lg" aria-hidden="true" />
       <span>{label}</span>
       {onCancel && (
-        <button type="button" className="hl-export-cancel" onClick={onCancel}>Cancel</button>
+        <button type="button" className="hl-export-cancel" onClick={onCancel}>
+          Cancel
+        </button>
       )}
     </div>
   );
@@ -138,7 +167,14 @@ export function UrlAnalyzingState({ onCancel, className = '' }) {
     <div className={`hl-url-analyzing ${className}`} role="status" aria-label="Analyzing URL">
       <div className="hl-url-shimmer" aria-hidden="true" />
       {onCancel && (
-        <button type="button" className="hl-url-cancel" onClick={onCancel} aria-label="Cancel analysis">✕</button>
+        <button
+          type="button"
+          className="hl-url-cancel"
+          onClick={onCancel}
+          aria-label="Cancel analysis"
+        >
+          ✕
+        </button>
       )}
     </div>
   );
@@ -146,17 +182,25 @@ export function UrlAnalyzingState({ onCancel, className = '' }) {
 
 /** 50029 — Per-phase loading bars inside the timeline tracker. */
 export function PerPhaseLoadingBars({ phases = [], className = '' }) {
-  const items = phases.length > 0 ? phases : [
-    { name: 'Recon', progress: 0 }, { name: 'Testing', progress: 0 },
-    { name: 'Chaining', progress: 0 }, { name: 'Reporting', progress: 0 },
-  ];
+  const items =
+    phases.length > 0
+      ? phases
+      : [
+          { name: 'Recon', progress: 0 },
+          { name: 'Testing', progress: 0 },
+          { name: 'Chaining', progress: 0 },
+          { name: 'Reporting', progress: 0 },
+        ];
   return (
     <div className={`hl-phases ${className}`} role="status" aria-label="Phase progress">
-      {items.map((p) => (
+      {items.map(p => (
         <div key={p.name} className="hl-phase-row">
           <span className="hl-phase-name">{p.name}</span>
           <div className="hl-progress-track hl-phase-track">
-            <div className="hl-progress-fill" style={{ width: `${Math.max(0, Math.min(100, p.progress))}%` }} />
+            <div
+              className="hl-progress-fill"
+              style={{ width: `${Math.max(0, Math.min(100, p.progress))}%` }}
+            />
           </div>
           <span className="hl-phase-pct">{Math.round(p.progress)}%</span>
         </div>
@@ -166,14 +210,21 @@ export function PerPhaseLoadingBars({ phases = [], className = '' }) {
 }
 
 /** 50031 — Resume-from-snapshot loader: snapshot restore progress. */
-export function ResumeFromSnapshotLoader({ progress = 0, stage = 'Restoring hunt snapshot…', className = '' }) {
+export function ResumeFromSnapshotLoader({
+  progress = 0,
+  stage = 'Restoring hunt snapshot…',
+  className = '',
+}) {
   return (
     <div className={`hl-resume ${className}`} role="status" aria-label={stage}>
       <span className="hl-mini-spinner" aria-hidden="true" />
       <div className="hl-resume-body">
         <span>{stage}</span>
         <div className="hl-progress-track">
-          <div className="hl-progress-fill" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+          <div
+            className="hl-progress-fill"
+            style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+          />
         </div>
       </div>
       <span className="hl-progress-pct">{Math.round(progress)}%</span>
@@ -182,7 +233,13 @@ export function ResumeFromSnapshotLoader({ progress = 0, stage = 'Restoring hunt
 }
 
 /** 50033 — Filter chip with a tiny spinner while re-querying. */
-export function FilterChipSpinner({ label = 'Filter', loading = true, onClick, active = false, className = '' }) {
+export function FilterChipSpinner({
+  label = 'Filter',
+  loading = true,
+  onClick,
+  active = false,
+  className = '',
+}) {
   return (
     <button
       type="button"
@@ -202,7 +259,11 @@ export function InlineStatusDots({ text = 'Working', className = '' }) {
   return (
     <span className={`hl-status-dots ${className}`} role="status" aria-label={text}>
       {text}
-      <span className="hl-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
+      <span className="hl-dots" aria-hidden="true">
+        <i>.</i>
+        <i>.</i>
+        <i>.</i>
+      </span>
     </span>
   );
 }
@@ -210,7 +271,11 @@ export function InlineStatusDots({ text = 'Working', className = '' }) {
 /** 50037 — Spinner inside the saved-search dropdown while searches fetch. */
 export function SavedSearchDropdownLoader({ className = '' }) {
   return (
-    <div className={`hl-dropdown-loader ${className}`} role="status" aria-label="Loading saved searches">
+    <div
+      className={`hl-dropdown-loader ${className}`}
+      role="status"
+      aria-label="Loading saved searches"
+    >
       <span className="hl-mini-spinner" aria-hidden="true" />
       <span>Loading saved searches…</span>
     </div>
@@ -221,10 +286,19 @@ export function SavedSearchDropdownLoader({ className = '' }) {
 export function ZipExportProgressBar({ done = 0, total = 0, className = '' }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
-    <div className={`hl-zip ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Exporting memory ZIP">
+    <div
+      className={`hl-zip ${className}`}
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Exporting memory ZIP"
+    >
       <div className="hl-progress-meta">
         <span className="hl-progress-label">Packing memory ZIP</span>
-        <span className="hl-progress-eta">{done} / {total} files</span>
+        <span className="hl-progress-eta">
+          {done} / {total} files
+        </span>
       </div>
       <div className="hl-progress-track">
         <div className="hl-progress-fill" style={{ width: `${pct}%` }} />
@@ -238,18 +312,29 @@ export function ZipExportProgressBar({ done = 0, total = 0, className = '' }) {
 /** 50041 — Reconnecting banner with retry countdown. */
 export function ReconnectingBanner({ secondsLeft = 5, onRetryNow, className = '' }) {
   return (
-    <div className={`hl-reconnect ${className}`} role="alert" aria-label="Connection lost, reconnecting">
+    <div
+      className={`hl-reconnect ${className}`}
+      role="alert"
+      aria-label="Connection lost, reconnecting"
+    >
       <span className="hl-mini-spinner" aria-hidden="true" />
       <span>Reconnecting… retrying in {Math.max(0, Math.ceil(secondsLeft))}s</span>
       {onRetryNow && (
-        <button type="button" className="hl-reconnect-btn" onClick={onRetryNow}>Retry now</button>
+        <button type="button" className="hl-reconnect-btn" onClick={onRetryNow}>
+          Retry now
+        </button>
       )}
     </div>
   );
 }
 
 /** 50045 — Pause/resume button with inline spinner during the state transition. */
-export function PauseButtonTransitionSpinner({ paused = false, transitioning = false, onToggle, className = '' }) {
+export function PauseButtonTransitionSpinner({
+  paused = false,
+  transitioning = false,
+  onToggle,
+  className = '',
+}) {
   return (
     <button
       type="button"
@@ -261,7 +346,9 @@ export function PauseButtonTransitionSpinner({ paused = false, transitioning = f
       {transitioning ? (
         <span className="hl-mini-spinner" aria-hidden="true" />
       ) : (
-        <span className="hl-pause-icon" aria-hidden="true">{paused ? '▶' : '❚❚'}</span>
+        <span className="hl-pause-icon" aria-hidden="true">
+          {paused ? '▶' : '❚❚'}
+        </span>
       )}
       {paused ? 'Resume' : 'Pause'}
     </button>
@@ -283,8 +370,17 @@ export function AskAgentTypingIndicator({ className = '' }) {
 export function BulkActionProgressBar({ action = 'Working', done = 0, total = 0, className = '' }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
-    <div className={`hl-bulk ${className}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={action}>
-      <span className="hl-bulk-label">{action}… {done}/{total}</span>
+    <div
+      className={`hl-bulk ${className}`}
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={action}
+    >
+      <span className="hl-bulk-label">
+        {action}… {done}/{total}
+      </span>
       <div className="hl-progress-track">
         <div className="hl-progress-fill" style={{ width: `${pct}%` }} />
       </div>
@@ -295,18 +391,31 @@ export function BulkActionProgressBar({ action = 'Working', done = 0, total = 0,
 /** 50053 — Catch-up state for reopening a hunt with 500+ missed events. */
 export function CatchUpLoadingState({ missed = 0, onJumpToLatest, className = '' }) {
   return (
-    <div className={`hl-catchup ${className}`} role="status" aria-label="Catching up on missed events">
+    <div
+      className={`hl-catchup ${className}`}
+      role="status"
+      aria-label="Catching up on missed events"
+    >
       <span className="hl-mini-spinner" aria-hidden="true" />
       <span>Catching up… {missed > 0 ? `${missed} missed events` : ''}</span>
       {onJumpToLatest && (
-        <button type="button" className="hl-catchup-btn" onClick={onJumpToLatest}>Jump to latest</button>
+        <button type="button" className="hl-catchup-btn" onClick={onJumpToLatest}>
+          Jump to latest
+        </button>
       )}
     </div>
   );
 }
 
 /** 50055 — Severity filter counts show inline spinners while aggregations compute. */
-export function SeverityCountSpinner({ severity = 'High', loading = true, count = null, active = false, onClick, className = '' }) {
+export function SeverityCountSpinner({
+  severity = 'High',
+  loading = true,
+  count = null,
+  active = false,
+  onClick,
+  className = '',
+}) {
   return (
     <button
       type="button"

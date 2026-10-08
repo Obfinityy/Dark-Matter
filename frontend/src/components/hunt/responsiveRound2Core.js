@@ -74,7 +74,13 @@ export function hasFineHover() {
 export function hybridUiMode({ width, coarse = hasCoarsePointer(), hover = hasFineHover() } = {}) {
   if (coarse && hover) return 'hybrid';
   if (coarse) return 'touch';
-  if (Number.isFinite(width) && isTabletWidth(width) && (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)) return 'hybrid';
+  if (
+    Number.isFinite(width) &&
+    isTabletWidth(width) &&
+    typeof navigator !== 'undefined' &&
+    navigator.maxTouchPoints > 0
+  )
+    return 'hybrid';
   return 'mouse';
 }
 
@@ -124,7 +130,11 @@ export function effectiveConnectionType() {
  * blur, big shadows), 'minimal' (also drop decorative media).
  * A manual `forced` tier overrides detection (used by the demo toggle).
  */
-export function degradeTier({ saveData = saveDataEnabled(), effectiveType = effectiveConnectionType(), forced = null } = {}) {
+export function degradeTier({
+  saveData = saveDataEnabled(),
+  effectiveType = effectiveConnectionType(),
+  forced = null,
+} = {}) {
   if (forced === 'reduced' || forced === 'minimal') return forced;
   if (saveData) return effectiveType === '4g' ? 'reduced' : 'minimal';
   if (effectiveType === 'slow-2g' || effectiveType === '2g') return 'minimal';
@@ -200,7 +210,9 @@ export function makeScrollPreserver() {
       if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
         try {
           window.scrollTo(snapshot.x, snapshot.y);
-        } catch { /* scroll restore is best-effort */ }
+        } catch {
+          /* scroll restore is best-effort */
+        }
       }
       return { x: snapshot.x, y: snapshot.y, openCardIds: [...snapshot.openCardIds] };
     },
@@ -224,7 +236,7 @@ export function makeDesktopSiteStore(storage) {
   return {
     enabled() {
       try {
-        const raw = backend ? backend.getItem(KEY) : mem.get(KEY) ?? null;
+        const raw = backend ? backend.getItem(KEY) : (mem.get(KEY) ?? null);
         return raw === '1';
       } catch {
         return false;
@@ -234,7 +246,9 @@ export function makeDesktopSiteStore(storage) {
       try {
         if (backend) backend.setItem(KEY, on ? '1' : '0');
         else mem.set(KEY, on ? '1' : '0');
-      } catch { /* storage blocked — toggle still applies for the session */ }
+      } catch {
+        /* storage blocked — toggle still applies for the session */
+      }
     },
   };
 }

@@ -45,8 +45,8 @@ export function detectDriftSnippet(html = '') {
   const loadRe = /drift[t]?\s*\.\s*load\s*\(\s*["']([a-z0-9]{6,})["']/gi;
   while ((m = loadRe.exec(text)) !== null) snippetIds.add(m[1]);
 
-  const hasDriftLoad = /drift[t]?\s*\.\s*load\s*\(/i.test(text) ||
-    /window\.(drift|driftt)\b/i.test(text);
+  const hasDriftLoad =
+    /drift[t]?\s*\.\s*load\s*\(/i.test(text) || /window\.(drift|driftt)\b/i.test(text);
 
   return {
     detected: endpoints.size > 0 || hasDriftLoad || snippetIds.size > 0,
@@ -94,6 +94,6 @@ export function extractDriftHosts(text = '') {
 export function enumerateDriftFootprint({ htmlPages = [], cnames = [] } = {}) {
   const pages = (htmlPages || []).map(detectDriftSnippet);
   const cnameHits = findDriftCnames(cnames);
-  const snippetIds = [...new Set(pages.flatMap((p) => p.snippetIds))];
+  const snippetIds = [...new Set(pages.flatMap(p => p.snippetIds))];
   return { pages, cnameHits, snippetIds };
 }

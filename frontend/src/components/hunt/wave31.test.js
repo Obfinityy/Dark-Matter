@@ -6,17 +6,50 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE31_START, WAVE31_END, WAVE31_IDEAS,
-  searchApprovals, inheritPolicies, scopeAllows, pendingApprovalsCount,
-  dualControlStatus, slaStatus, buildHint, parseChatDecision,
-  inApprovalWindow, fatigueLevel, checkTargetLists, validateReasonCode,
-  filterSelfDenials, isSimulationMode, isApprovalExpired, canRevoke,
-  applyCrossHuntRules, buildDigest, needsLegalSignoff, confidenceBand,
-  suggestAlternative, shortcutMap, queueOfflineDecision, flushOfflineQueue,
-  predictDecision, insurancePlan, ceremonyEntry, monitoringState,
-  formatLogLine, filterByLevel, groupByModule, searchLogs, expandLine,
-  redactPayloads, applyHighlightRules, errorOnlyView, exportLogs,
-  inspectRequest, formatResponse, playbackSpeeds, playbackSchedule,
+  WAVE31_START,
+  WAVE31_END,
+  WAVE31_IDEAS,
+  searchApprovals,
+  inheritPolicies,
+  scopeAllows,
+  pendingApprovalsCount,
+  dualControlStatus,
+  slaStatus,
+  buildHint,
+  parseChatDecision,
+  inApprovalWindow,
+  fatigueLevel,
+  checkTargetLists,
+  validateReasonCode,
+  filterSelfDenials,
+  isSimulationMode,
+  isApprovalExpired,
+  canRevoke,
+  applyCrossHuntRules,
+  buildDigest,
+  needsLegalSignoff,
+  confidenceBand,
+  suggestAlternative,
+  shortcutMap,
+  queueOfflineDecision,
+  flushOfflineQueue,
+  predictDecision,
+  insurancePlan,
+  ceremonyEntry,
+  monitoringState,
+  formatLogLine,
+  filterByLevel,
+  groupByModule,
+  searchLogs,
+  expandLine,
+  redactPayloads,
+  applyHighlightRules,
+  errorOnlyView,
+  exportLogs,
+  inspectRequest,
+  formatResponse,
+  playbackSpeeds,
+  playbackSchedule,
 } from './governanceCore.js';
 
 const T0 = 1728220000000;
@@ -39,8 +72,22 @@ test('registry covers all 40 ideas 51201–51240, zero skips', () => {
 
 test('searchApprovals finds by action/target/decider/reason', () => {
   const h = [
-    { id: '1', action: 'active-scan', target: '/api/users', decision: 'approve', decider: 'Asha', reasonCode: 'recon' },
-    { id: '2', action: 'exploit', target: '/api/admin', decision: 'deny', decider: 'Ravi', reasonCode: 'risky' },
+    {
+      id: '1',
+      action: 'active-scan',
+      target: '/api/users',
+      decision: 'approve',
+      decider: 'Asha',
+      reasonCode: 'recon',
+    },
+    {
+      id: '2',
+      action: 'exploit',
+      target: '/api/admin',
+      decision: 'deny',
+      decider: 'Ravi',
+      reasonCode: 'risky',
+    },
   ];
   assert.equal(searchApprovals(h, 'exploit').length, 1);
   assert.equal(searchApprovals(h, 'ASHA').length, 1);
@@ -71,7 +118,10 @@ test('scopeAllows matches exact scope and sub-paths only', () => {
 // --- 51204 watermark ----------------------------------------------------------
 
 test('pendingApprovalsCount counts only pending', () => {
-  assert.equal(pendingApprovalsCount([{ status: 'pending' }, { status: 'approved' }, { status: 'pending' }]), 2);
+  assert.equal(
+    pendingApprovalsCount([{ status: 'pending' }, { status: 'approved' }, { status: 'pending' }]),
+    2
+  );
   assert.equal(pendingApprovalsCount([]), 0);
 });
 
@@ -135,7 +185,10 @@ test('fatigueLevel escalates with decision density', () => {
 // --- 51211/51212 target lists ---------------------------------------------------
 
 test('checkTargetLists: forbidden wins over pre-approved', () => {
-  assert.equal(checkTargetLists('prod-db.internal', ['prod-db.internal'], ['prod-db.internal']), 'forbidden');
+  assert.equal(
+    checkTargetLists('prod-db.internal', ['prod-db.internal'], ['prod-db.internal']),
+    'forbidden'
+  );
   assert.equal(checkTargetLists('staging.internal', ['staging.internal'], []), 'pre-approved');
   assert.equal(checkTargetLists('other.io', [], []), 'needs-approval');
 });
@@ -236,8 +289,11 @@ test('offline queue queues and flushes in order', () => {
   let q = queueOfflineDecision([], { id: 'b', decision: 'deny', queuedAt: 2 });
   q = queueOfflineDecision(q, { id: 'a', decision: 'approve', queuedAt: 1 });
   const { applied, remaining } = flushOfflineQueue(q);
-  assert.deepEqual(applied.map((d) => d.id), ['a', 'b']);
-  assert.ok(applied.every((d) => d.synced));
+  assert.deepEqual(
+    applied.map(d => d.id),
+    ['a', 'b']
+  );
+  assert.ok(applied.every(d => d.synced));
   assert.deepEqual(remaining, []);
 });
 
@@ -265,14 +321,27 @@ test('insurancePlan covers snapshot items', () => {
 // --- 51227 ceremony ----------------------------------------------------------------------------------------------------------------
 
 test('ceremonyEntry formats a formal record', () => {
-  const e = ceremonyEntry({ id: 'c1', action: 'scan', target: '/a', decision: 'approve', decider: 'X', at: T0, reasonCode: 'r' });
+  const e = ceremonyEntry({
+    id: 'c1',
+    action: 'scan',
+    target: '/a',
+    decision: 'approve',
+    decider: 'X',
+    at: T0,
+    reasonCode: 'r',
+  });
   assert.ok(e.includes('CEREMONY c1') && e.includes('decision=approve') && e.includes('reason=r'));
 });
 
 // --- 51228 post-approval monitoring ----------------------------------------------------------------------------------------------------------------
 
 test('monitoringState arms kill switch for destructive running actions', () => {
-  const s = monitoringState({ type: 'exploit', target: '/a', actionState: 'running', risk: 'destructive' });
+  const s = monitoringState({
+    type: 'exploit',
+    target: '/a',
+    actionState: 'running',
+    risk: 'destructive',
+  });
   assert.ok(s.watching && s.killSwitchArmed);
   const s2 = monitoringState({ type: 'scan', target: '/a', actionState: 'done', risk: 'safe' });
   assert.ok(!s2.watching && !s2.killSwitchArmed);
@@ -288,9 +357,7 @@ test('formatLogLine includes ms timestamp, level, module', () => {
 // --- 51230 level filter ----------------------------------------------------------------------------------------------------------------------------------------
 
 test('filterByLevel keeps at-or-above severity', () => {
-  const lines = [
-    { level: 'debug' }, { level: 'info' }, { level: 'warning' }, { level: 'error' },
-  ];
+  const lines = [{ level: 'debug' }, { level: 'info' }, { level: 'warning' }, { level: 'error' }];
   assert.equal(filterByLevel(lines, 'warning').length, 2);
   assert.equal(filterByLevel(lines, 'debug').length, 4);
 });
@@ -365,7 +432,13 @@ test('exportLogs supports json and text', () => {
 // --- 51238 request inspector -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 test('inspectRequest summarizes outgoing requests', () => {
-  const r = inspectRequest({ method: 'POST', url: 'https://x.test/a', headers: { a: 'b' }, body: 'y'.repeat(500), at: T0 });
+  const r = inspectRequest({
+    method: 'POST',
+    url: 'https://x.test/a',
+    headers: { a: 'b' },
+    body: 'y'.repeat(500),
+    at: T0,
+  });
   assert.equal(r.method, 'POST');
   assert.equal(r.bodyPreview.length, 200);
 });
@@ -387,8 +460,14 @@ test('playbackSpeeds are 1x/4x/16x and schedule scales delays', () => {
   const lines = [{ at: T0 }, { at: T0 + 16000 }, { at: T0 + 32000 }];
   const s1 = playbackSchedule(lines, 1);
   const s4 = playbackSchedule(lines, 4);
-  assert.deepEqual(s1.map((s) => s.delayMs), [0, 16000, 32000]);
-  assert.deepEqual(s4.map((s) => s.delayMs), [0, 4000, 8000]);
+  assert.deepEqual(
+    s1.map(s => s.delayMs),
+    [0, 16000, 32000]
+  );
+  assert.deepEqual(
+    s4.map(s => s.delayMs),
+    [0, 4000, 8000]
+  );
   assert.deepEqual(playbackSchedule([], 4), []);
 });
 

@@ -53,20 +53,27 @@ export function mapChannelsV3(doc = {}) {
   const operations = doc.operations && typeof doc.operations === 'object' ? doc.operations : {};
   for (const [opId, operation] of Object.entries(operations)) {
     if (!operation || typeof operation !== 'object') continue;
-    const channelRef = operation.channel && typeof operation.channel === 'object'
-      ? operation.channel
-      : null;
-    const channelId = channelRef ? channelRef['$ref']?.split('/').pop() ?? null : null;
-    const address = channelId && channels[channelId] ? channels[channelId].address ?? channelId : channelId;
+    const channelRef =
+      operation.channel && typeof operation.channel === 'object' ? operation.channel : null;
+    const channelId = channelRef ? (channelRef['$ref']?.split('/').pop() ?? null) : null;
+    const address =
+      channelId && channels[channelId] ? (channels[channelId].address ?? channelId) : channelId;
     const messages = Array.isArray(operation.messages)
-      ? operation.messages.map((m) => (m && typeof m === 'object' ? m.name ?? null : m)).filter(Boolean)
+      ? operation.messages
+          .map(m => (m && typeof m === 'object' ? (m.name ?? null) : m))
+          .filter(Boolean)
       : [];
     out.push({
       channel: address ?? '(unknown)',
-      direction: operation.action === 'send' ? 'publish' : operation.action === 'receive' ? 'subscribe' : operation.action ?? '(unknown)',
+      direction:
+        operation.action === 'send'
+          ? 'publish'
+          : operation.action === 'receive'
+            ? 'subscribe'
+            : (operation.action ?? '(unknown)'),
       operationId: opId,
       message: messages[0] ?? null,
-      bindings: channelId && channels[channelId] ? channels[channelId].bindings ?? {} : {},
+      bindings: channelId && channels[channelId] ? (channels[channelId].bindings ?? {}) : {},
     });
   }
   return out;
@@ -158,7 +165,7 @@ export function analyzeAsyncApi({ url = '', document = null } = {}) {
   const version = detectVersion(doc);
   const channels = version === '3.x' ? mapChannelsV3(doc) : mapChannelsV2(doc);
   const protocols = protocolMix(channels);
-  const uniqueChannels = new Set(channels.map((c) => c.channel)).size;
+  const uniqueChannels = new Set(channels.map(c => c.channel)).size;
 
   return {
     type: 'AsyncAPI Channel Mapping',

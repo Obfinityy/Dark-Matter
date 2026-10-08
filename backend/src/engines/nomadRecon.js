@@ -15,10 +15,7 @@ const NOMAD_VERSION_PATTERNS = [
   /nomad[\s-]v?(\d+\.\d+\.\d+[-\w.]*)/i,
 ];
 
-const NOMAD_UI_PATTERNS = [
-  /<title>\s*Nomad\s*<\/title>/i,
-  /hashicorp[\s-]*nomad/i,
-];
+const NOMAD_UI_PATTERNS = [/<title>\s*Nomad\s*<\/title>/i, /hashicorp[\s-]*nomad/i];
 
 const NOMAD_ENDPOINT_HINTS = [
   '/v1/agent/self',
@@ -64,7 +61,9 @@ export function checkNomad({ url = '', status = 0, headers = {}, body = '' }) {
   let disclosesConfig = false;
   if (/"member"\s*:\s*\{[^}]*"Addr"/i.test(text) || /"config"\s*:\s*\{/i.test(text)) {
     disclosesConfig = true;
-    evidence.push('Response contains Nomad agent self metadata (datacenter, bind address, ACL state).');
+    evidence.push(
+      'Response contains Nomad agent self metadata (datacenter, bind address, ACL state).'
+    );
     confidence = 'high';
   }
 

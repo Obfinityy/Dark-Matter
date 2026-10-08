@@ -1,7 +1,18 @@
+/**
+ * routes — top-level Express router.
+ * Mounts all API controllers under their versioned paths.
+ * Part of: Infinity AI / Dark-Matter backend (Express route definitions).
+ */
+
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../core/utils.js';
 
+/**
+ * Creates routes.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createRoutes({ controllers }) {
   const router = Router();
   router.get('/health', controllers.health.health);
@@ -19,7 +30,7 @@ export function createRoutes({ controllers }) {
   router.use(controllers.auth.attach);
 
   router.use(requireAuth);
-  
+
   // Authenticated routes below
   router.post('/infinite/chat', controllers.infiniteChat.chat);
   router.get('/infinite/chat/:conversationId', controllers.infiniteChat.getHistory);
@@ -27,17 +38,32 @@ export function createRoutes({ controllers }) {
   // ─── Infinity Long-Context Engine ─────────────────────────────────
   router.post('/infinite/ingest', controllers.infiniteChat.ingest);
   router.get('/infinite/ingest/:conversationId/:inputId', controllers.infiniteChat.getIngestion);
-  router.post('/infinite/ingest/:conversationId/:inputId/resume', controllers.infiniteChat.resumeIngestion);
+  router.post(
+    '/infinite/ingest/:conversationId/:inputId/resume',
+    controllers.infiniteChat.resumeIngestion
+  );
   router.post('/infinite/search/:conversationId', controllers.infiniteChat.searchChunks);
-  router.get('/infinite/chunk/:conversationId/:inputId/:chunkRef', controllers.infiniteChat.getChunk);
-  router.post('/infinite/summarize/:conversationId/:inputId', controllers.infiniteChat.summarizeDocument);
+  router.get(
+    '/infinite/chunk/:conversationId/:inputId/:chunkRef',
+    controllers.infiniteChat.getChunk
+  );
+  router.post(
+    '/infinite/summarize/:conversationId/:inputId',
+    controllers.infiniteChat.summarizeDocument
+  );
 
   // ─── Long Generation Engine ───────────────────────────────────────
   router.post('/infinite/generations', controllers.infiniteChat.startGeneration);
   router.get('/infinite/generations', controllers.infiniteChat.listGenerations);
   router.get('/infinite/generations/:generationId', controllers.infiniteChat.getGeneration);
-  router.post('/infinite/generations/:generationId/cancel', controllers.infiniteChat.cancelGeneration);
-  router.post('/infinite/generations/:generationId/resume', controllers.infiniteChat.resumeGeneration);
+  router.post(
+    '/infinite/generations/:generationId/cancel',
+    controllers.infiniteChat.cancelGeneration
+  );
+  router.post(
+    '/infinite/generations/:generationId/resume',
+    controllers.infiniteChat.resumeGeneration
+  );
 
   // ─── Infinity AI modes (plan / build / control) ──────────────────────
   router.post('/infinite/plan', controllers.infiniteChat.plan);
@@ -55,7 +81,7 @@ export function createRoutes({ controllers }) {
   router.get('/billing/subscription', controllers.billing.subscription);
   router.post('/billing/order', controllers.billing.createOrder);
   router.post('/billing/verify', controllers.billing.verify);
-  
+
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
   router.put('/auth/password', controllers.auth.changePassword);
@@ -113,10 +139,13 @@ export function createRoutes({ controllers }) {
   router.get('/jobs/:id/diary', controllers.jobs.diary);
 
   // ─── Recursive self-learning — the agent's evolution stats (local-only) ──
-  router.get('/agent/evolution', asyncHandler(async (req, res) => {
-    const { getEvolutionStats } = await import('../engines/recursiveLearner.js');
-    res.json({ ok: true, evolution: getEvolutionStats() });
-  }));
+  router.get(
+    '/agent/evolution',
+    asyncHandler(async (req, res) => {
+      const { getEvolutionStats } = await import('../engines/recursiveLearner.js');
+      res.json({ ok: true, evolution: getEvolutionStats() });
+    })
+  );
 
   // ─── Hunt records — report history (hybrid storage: DB artifacts) ──
   // Completed hunts' final reports, versioned per target. Powers target
@@ -200,7 +229,10 @@ export function createRoutes({ controllers }) {
   // Per-slot source: local model or Kaggle/Colab link per slot.
   router.get('/model-runner/brain-slots/sources', controllers.modelRunner.getSlotSources);
   router.post('/model-runner/brain-slots/kaggle', controllers.modelRunner.connectSlotKaggle);
-  router.delete('/model-runner/brain-slots/kaggle/:slot', controllers.modelRunner.disconnectSlotKaggle);
+  router.delete(
+    '/model-runner/brain-slots/kaggle/:slot',
+    controllers.modelRunner.disconnectSlotKaggle
+  );
 
   // ─── Local memory (infinite, on user's disk) + ZIP transfer ─────────
   router.get('/memory/stats', controllers.memory.stats);
@@ -215,7 +247,10 @@ export function createRoutes({ controllers }) {
   router.get('/model-runner/slots/servers', controllers.modelRunner.getSlotServers);
   router.get('/model-runner/slots/setup-status', controllers.modelRunner.slotSetupStatus);
   router.post('/model-runner/slots/:slot/run', controllers.modelRunner.runSlot);
-  router.post('/model-runner/slots/:slot/download-and-run', controllers.modelRunner.downloadAndRunSlot);
+  router.post(
+    '/model-runner/slots/:slot/download-and-run',
+    controllers.modelRunner.downloadAndRunSlot
+  );
   router.post('/model-runner/slots/:slot/stop', controllers.modelRunner.stopSlot);
   router.get('/model-runner/brain-chain', controllers.modelRunner.brainChain);
 

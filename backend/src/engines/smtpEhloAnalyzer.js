@@ -34,15 +34,45 @@
 const BANNER_SIGNATURES = [
   { re: /postfix/i, server: 'Postfix', versionRe: /postfix[\s/-]*([\d.]+)/i, confidence: 'high' },
   { re: /exim\s+([\d.]+)/i, server: 'Exim', versionRe: /exim\s+([\d.]+)/i, confidence: 'high' },
-  { re: /\bsendmail\s+([\d.]+)/i, server: 'Sendmail', versionRe: /\bsendmail\s+([\d.]+)/i, confidence: 'high' },
-  { re: /microsoft esmtp mail service/i, server: 'Microsoft Exchange', versionRe: /version:\s*([\d.]+)/i, confidence: 'high' },
-  { re: /opensmtpd/i, server: 'OpenSMTPD', versionRe: /opensmtpd[\s/-]*([\d.]+)/i, confidence: 'high' },
+  {
+    re: /\bsendmail\s+([\d.]+)/i,
+    server: 'Sendmail',
+    versionRe: /\bsendmail\s+([\d.]+)/i,
+    confidence: 'high',
+  },
+  {
+    re: /microsoft esmtp mail service/i,
+    server: 'Microsoft Exchange',
+    versionRe: /version:\s*([\d.]+)/i,
+    confidence: 'high',
+  },
+  {
+    re: /opensmtpd/i,
+    server: 'OpenSMTPD',
+    versionRe: /opensmtpd[\s/-]*([\d.]+)/i,
+    confidence: 'high',
+  },
   { re: /gsmtp/i, server: 'Gmail (Google)', versionRe: null, confidence: 'high' },
   { re: /zimbra/i, server: 'Zimbra', versionRe: /zimbra[\s/-]*([\d.]+)/i, confidence: 'high' },
-  { re: /hmailserver/i, server: 'hMailServer', versionRe: /hmailserver[\s/-]*([\d.]+)/i, confidence: 'high' },
+  {
+    re: /hmailserver/i,
+    server: 'hMailServer',
+    versionRe: /hmailserver[\s/-]*([\d.]+)/i,
+    confidence: 'high',
+  },
   { re: /mdaemon/i, server: 'MDaemon', versionRe: /mdaemon[\s/-]*([\d.]+)/i, confidence: 'high' },
-  { re: /communigate pro/i, server: 'CommuniGate Pro', versionRe: /communigate pro[\s/-]*([\d.]+)/i, confidence: 'high' },
-  { re: /kerio connect/i, server: 'Kerio Connect', versionRe: /kerio connect[\s/-]*([\d.]+)/i, confidence: 'high' },
+  {
+    re: /communigate pro/i,
+    server: 'CommuniGate Pro',
+    versionRe: /communigate pro[\s/-]*([\d.]+)/i,
+    confidence: 'high',
+  },
+  {
+    re: /kerio connect/i,
+    server: 'Kerio Connect',
+    versionRe: /kerio connect[\s/-]*([\d.]+)/i,
+    confidence: 'high',
+  },
   { re: /haraka/i, server: 'Haraka', versionRe: null, confidence: 'medium' },
   { re: /lotus domino|domino/i, server: 'HCL Domino', versionRe: null, confidence: 'medium' },
 ];
@@ -68,7 +98,9 @@ export function parseCapabilities(ehloLines = []) {
 
 /** Capability keyword (first token, upper-cased) of a capability string. */
 function capKeyword(cap) {
-  return String(cap || '').split(/\s+/)[0].toUpperCase();
+  return String(cap || '')
+    .split(/\s+/)[0]
+    .toUpperCase();
 }
 
 /**
@@ -118,9 +150,21 @@ export function analyzeEhloResponse(bannerLine = '', ehloLines = []) {
     }
   }
   if (server === 'Unknown') {
-    const postfixOrder = ['PIPELINING', 'SIZE', 'ETRN', 'STARTTLS', 'ENHANCEDSTATUSCODES', '8BITMIME', 'DSN'];
-    const idx = (k) => keywords.indexOf(k);
-    const ordered = postfixOrder.every((k, i) => i === 0 || (idx(k) !== -1 && idx(postfixOrder[i - 1]) !== -1 && idx(postfixOrder[i - 1]) < idx(k)));
+    const postfixOrder = [
+      'PIPELINING',
+      'SIZE',
+      'ETRN',
+      'STARTTLS',
+      'ENHANCEDSTATUSCODES',
+      '8BITMIME',
+      'DSN',
+    ];
+    const idx = k => keywords.indexOf(k);
+    const ordered = postfixOrder.every(
+      (k, i) =>
+        i === 0 ||
+        (idx(k) !== -1 && idx(postfixOrder[i - 1]) !== -1 && idx(postfixOrder[i - 1]) < idx(k))
+    );
     if (ordered && keywords.includes('PIPELINING') && keywords.includes('ENHANCEDSTATUSCODES')) {
       quirks.push('Postfix-style PIPELINING..DSN ordering');
       server = 'Postfix (likely)';
@@ -173,7 +217,8 @@ export function assessExposure(capabilities = []) {
       type: 'No STARTTLS advertised — plaintext mail possible',
       severity: 'Medium',
       confidence: 'high',
-      evidence: 'STARTTLS absent from EHLO capabilities; mail may traverse the network unencrypted.',
+      evidence:
+        'STARTTLS absent from EHLO capabilities; mail may traverse the network unencrypted.',
       recommendation: 'Enable STARTTLS with a valid certificate; consider MTA-STS/DANE.',
     });
   }
@@ -186,14 +231,15 @@ export function assessExposure(capabilities = []) {
       recommendation: 'Restrict ETRN to authenticated peers or disable it.',
     });
   }
-  const authLine = caps.find((c) => capKeyword(c) === 'AUTH') || '';
+  const authLine = caps.find(c => capKeyword(c) === 'AUTH') || '';
   if (/PLAIN|LOGIN/i.test(authLine) && !keywords.includes('STARTTLS')) {
     findings.push({
       type: 'Weak AUTH mechanisms without STARTTLS',
       severity: 'High',
       confidence: 'high',
       evidence: `AUTH advertises ${authLine} but STARTTLS is absent — credentials would cross the wire in cleartext.`,
-      recommendation: 'Require STARTTLS before AUTH, or restrict AUTH PLAIN/LOGIN to encrypted sessions only.',
+      recommendation:
+        'Require STARTTLS before AUTH, or restrict AUTH PLAIN/LOGIN to encrypted sessions only.',
     });
   }
   if (keywords.includes('X-EXPS')) {

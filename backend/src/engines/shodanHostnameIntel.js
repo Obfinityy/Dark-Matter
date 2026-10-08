@@ -23,7 +23,11 @@
 export function normalizeHostname(name) {
   if (!name || typeof name !== 'string') return null;
   const clean = name.trim().toLowerCase().replace(/\.$/, '');
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,}$/.test(clean)) {
+  if (
+    !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,}$/.test(
+      clean
+    )
+  ) {
     return null;
   }
   return clean;
@@ -67,7 +71,13 @@ export function aggregateShodanHostnames(records) {
     if (record && record.asn) asns.add(String(record.asn));
     for (const entry of extractRecordHostnames(record)) {
       if (!map.has(entry.hostname)) {
-        map.set(entry.hostname, { hostname: entry.hostname, ips: new Set(), asns: new Set(), ports: new Set(), records: 0 });
+        map.set(entry.hostname, {
+          hostname: entry.hostname,
+          ips: new Set(),
+          asns: new Set(),
+          ports: new Set(),
+          records: 0,
+        });
       }
       const agg = map.get(entry.hostname);
       agg.ips.add(entry.ip);
@@ -78,7 +88,7 @@ export function aggregateShodanHostnames(records) {
   }
   return {
     hostnames: [...map.values()]
-      .map((e) => ({
+      .map(e => ({
         hostname: e.hostname,
         ips: [...e.ips].sort(),
         asns: [...e.asns].sort(),
@@ -109,9 +119,11 @@ export function flagNotableHostnames(aggregated, opts = {}) {
     const inScope = root !== '' && (h === root || h.endsWith(`.${root}`));
     if (inScope) flags.push('in-scope-domain');
     if (inScope && entry.records === 1) flags.push('single-record — possible forgotten asset');
-    if (entry.ips.length >= 5) flags.push(`shared across ${entry.ips.length} IPs — fleet or shared hosting`);
+    if (entry.ips.length >= 5)
+      flags.push(`shared across ${entry.ips.length} IPs — fleet or shared hosting`);
     if (/^(mail|mx|vpn|owa|rdp|citrix|rds)/i.test(h)) flags.push('remote-access indicator');
-    if (/\b(dev|staging|test|qa|uat|demo|beta)\b/i.test(h)) flags.push('non-production environment');
+    if (/\b(dev|staging|test|qa|uat|demo|beta)\b/i.test(h))
+      flags.push('non-production environment');
     if (flags.length > 0) {
       out.push({ hostname: h, flags, ips: entry.ips, records: entry.records });
     }

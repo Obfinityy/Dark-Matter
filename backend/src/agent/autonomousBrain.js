@@ -1,16 +1,23 @@
+/**
+ * AutonomousBrain — fully autonomous agent brain.
+ * Long-horizon reasoning with error recovery, context-window
+ * management, and provider failover.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { config } from '../config.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { PhoneLocalProvider } from './providers/phoneLocalProvider.js';
 import { localAIQueue } from './providers/localAiQueue.js';
 import {
   AUTONOMOUS_DECISION_SCHEMA_PROMPT,
-  validateAutonomousDecision
+  validateAutonomousDecision,
 } from './autonomousDecisionSchema.js';
 import { COMPUTER_ACTION_PROMPT } from '../computer/actionSchema.js';
 import {
   estimateTokens,
   modelContextCapacity,
-  reservedOutputTokens
+  reservedOutputTokens,
 } from '../services/longContext/tokens.js';
 
 /**
@@ -38,10 +45,12 @@ import {
  */
 
 /** Errors from the phone that mean "this prompt does not fit the window". */
-const CONTEXT_WINDOW_PATTERN = /tokenization failed|prompt too long|context (length|window|overflow)|too many tokens|CONTEXT_WINDOW_EXCEEDED/i;
+const CONTEXT_WINDOW_PATTERN =
+  /tokenization failed|prompt too long|context (length|window|overflow)|too many tokens|CONTEXT_WINDOW_EXCEEDED/i;
 
 /** Errors that mean "the phone cannot answer right now" (not a prompt problem). */
-const UNAVAILABLE_PATTERN = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed|socket hang up|Empty Phone AI response|50[2349]|42[89]/i;
+const UNAVAILABLE_PATTERN =
+  /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed|socket hang up|Empty Phone AI response|50[2349]|42[89]/i;
 
 /**
  * The phone serialises generations, so a busy signal is a normal, transient
@@ -50,14 +59,29 @@ const UNAVAILABLE_PATTERN = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed|socke
  */
 const BUSY_PATTERN = /42[89]|already in progress|too many requests|rate limit|\bbusy\b/i;
 
+/**
+ * Returns whether context window error.
+ * @param {*} error
+ * @returns {*} Result.
+ */
 export function isContextWindowError(error) {
   return CONTEXT_WINDOW_PATTERN.test(String(error?.message || ''));
 }
 
+/**
+ * Returns whether unavailable error.
+ * @param {*} error
+ * @returns {*} Result.
+ */
 export function isUnavailableError(error) {
   return !isContextWindowError(error) && UNAVAILABLE_PATTERN.test(String(error?.message || ''));
 }
 
+/**
+ * Returns whether busy error.
+ * @param {*} error
+ * @returns {*} Result.
+ */
 export function isBusyError(error) {
   return BUSY_PATTERN.test(String(error?.message || ''));
 }
@@ -71,6 +95,7 @@ export function truncateToTokens(text, maxTokens) {
   return `${text.slice(0, half)}\n\n[... memory truncated to fit the model context window ...]\n\n${text.slice(-half)}`;
 }
 
+/** Error thrown for local ai unavailable failures. */
 export class LocalAiUnavailableError extends Error {
   constructor(message, { kind = 'unreachable', detail = null } = {}) {
     super(message);
@@ -81,6 +106,7 @@ export class LocalAiUnavailableError extends Error {
   }
 }
 
+/** Error thrown for brain decision failures. */
 export class BrainDecisionError extends Error {
   constructor(message, { raw = null, errors = [] } = {}) {
     super(message);
@@ -91,6 +117,7 @@ export class BrainDecisionError extends Error {
   }
 }
 
+/** Autonomous Brain. */
 export class AutonomousBrain {
   constructor({
     memory,
@@ -98,7 +125,7 @@ export class AutonomousBrain {
     computer = null,
     provider = null,
     queue = localAIQueue,
-    configOverride = {}
+    configOverride = {},
   } = {}) {
     this.memory = memory;
     this.eventService = eventService;
@@ -110,8 +137,10 @@ export class AutonomousBrain {
       // A decision is a small JSON object: keep the output reservation modest so
       // most of the finite window is available for real context.
       maxTokens: Number(configOverride.maxTokens || process.env.AGENT_BRAIN_MAX_TOKENS || 700),
-      decisionRetries: Number(configOverride.decisionRetries ?? process.env.AGENT_BRAIN_RETRIES ?? 2),
-      memoryBudgetTokens: Number(process.env.AGENT_BRAIN_MEMORY_TOKENS || 1400)
+      decisionRetries: Number(
+        configOverride.decisionRetries ?? process.env.AGENT_BRAIN_RETRIES ?? 2
+      ),
+      memoryBudgetTokens: Number(process.env.AGENT_BRAIN_MEMORY_TOKENS || 1400),
     };
     this.capacity = Number(configOverride.capacity || modelContextCapacity());
     this.outputReserve = Number(configOverride.outputReserve || reservedOutputTokens());
@@ -130,7 +159,7 @@ export class AutonomousBrain {
       return {
         available: false,
         reason: 'LOCAL AI UNAVAILABLE — PHONE_AI_ENABLED is not true',
-        provider: this.provider.constructor.name
+        provider: this.provider.constructor.name,
       };
     }
     const health = await this.provider.healthCheck();
@@ -140,10 +169,16 @@ export class AutonomousBrain {
         available: false,
         reason: `LOCAL AI UNAVAILABLE — ${health.reason || 'phone model unreachable'}`,
         provider: this.provider.constructor.name,
-        detail: health
+        detail: health,
       };
     }
-    return { available: true, reason: null, provider: this.provider.constructor.name, model: health.model, detail: health };
+    return {
+      available: true,
+      reason: null,
+      provider: this.provider.constructor.name,
+      model: health.model,
+      detail: health,
+    };
   }
 
   // ── Context construction (requirement #61) ────────────────────────────
@@ -155,10 +190,13 @@ export class AutonomousBrain {
   buildSystemPrompt({ compact = false } = {}) {
     const registry = ToolRegistry.list();
     const tools = compact
-      ? registry.map((tool) => tool.name).join(', ')
+      ? registry.map(tool => tool.name).join(', ')
       : registry
-        .map((tool) => `  - ${tool.name} (${tool.category}, risk: ${tool.riskLevel})${tool.requiresKali ? ' [needs Kali worker]' : ''}: ${tool.description}`)
-        .join('\n');
+          .map(
+            tool =>
+              `  - ${tool.name} (${tool.category}, risk: ${tool.riskLevel})${tool.requiresKali ? ' [needs Kali worker]' : ''}: ${tool.description}`
+          )
+          .join('\n');
 
     const computerSection = compact
       ? `COMPUTER ACTIONS (whitelisted, scope-checked): screenshot, click, double_click, move_mouse, type, press_key, hotkey, scroll, sleep, open_application, navigate, get_active_window, get_browser_state.\nThere is no shell action — terminal work goes through registry tools.`
@@ -269,14 +307,19 @@ ${schemaSection}`;
     // Pre-empt the failure instead of discovering it: if the detailed prompt
     // plus a workable memory budget would not fit, start compact.
     const fullTokens = estimateTokens(this.buildSystemPrompt({ compact: false }));
-    const useCompact = compact || (fullTokens + 600 > this.promptBudget);
-    const system = useCompact ? this.buildSystemPrompt({ compact: true }) : this.buildSystemPrompt({ compact: false });
+    const useCompact = compact || fullTokens + 600 > this.promptBudget;
+    const system = useCompact
+      ? this.buildSystemPrompt({ compact: true })
+      : this.buildSystemPrompt({ compact: false });
     const systemTokens = estimateTokens(system);
     const wasCompacted = compact;
 
     // Memory gets whatever is left after the system block and a request reserve.
     const remaining = this.promptBudget - systemTokens - 420; // 420 ≈ the non-memory part of the user message
-    const budget = Math.max(160, Math.min(memoryBudget ?? this.settings.memoryBudgetTokens, remaining));
+    const budget = Math.max(
+      160,
+      Math.min(memoryBudget ?? this.settings.memoryBudgetTokens, remaining)
+    );
     const memoryContext = context.memoryContext
       ? truncateToTokens(context.memoryContext, budget)
       : context.memoryContext;
@@ -292,7 +335,7 @@ ${schemaSection}`;
       total: systemTokens + userTokens,
       memoryBudget: budget,
       compact: useCompact,
-      compactedByBudget: useCompact && !wasCompacted
+      compactedByBudget: useCompact && !wasCompacted,
     };
 
     return { system, user, diagnostics: this.lastPromptDiagnostics };
@@ -306,7 +349,15 @@ ${schemaSection}`;
     return this.buildUserMessageSync(context);
   }
 
-  buildUserMessageSync({ job, memoryContext, recentObservations = [], toolResults = [], findings = [], computerStatus = null, userInstruction = null }) {
+  buildUserMessageSync({
+    job,
+    memoryContext,
+    recentObservations = [],
+    toolResults = [],
+    findings = [],
+    computerStatus = null,
+    userInstruction = null,
+  }) {
     const parts = [];
     parts.push('## AUTHORIZED SCOPE');
     parts.push(`Target: ${job.target}`);
@@ -331,13 +382,19 @@ ${schemaSection}`;
       parts.push(`State: ${computerStatus.state}`);
       parts.push(`Available: ${computerStatus.available}`);
       if (computerStatus.reason) parts.push(`Reason: ${computerStatus.reason}`);
-      if (computerStatus.screen) parts.push(`Screen: ${computerStatus.screen.width}x${computerStatus.screen.height}`);
+      if (computerStatus.screen)
+        parts.push(`Screen: ${computerStatus.screen.width}x${computerStatus.screen.height}`);
       if (computerStatus.inputSimulation === false) {
-        parts.push(`DEGRADED: input simulation is unavailable (${computerStatus.capabilities?.pyautoguiError || 'pyautogui missing'}). click/type/press_key/screenshot will fail — prefer registry tools or URL navigation.`);
+        parts.push(
+          `DEGRADED: input simulation is unavailable (${computerStatus.capabilities?.pyautoguiError || 'pyautogui missing'}). click/type/press_key/screenshot will fail — prefer registry tools or URL navigation.`
+        );
       }
-      if (computerStatus.lastObservation?.summary) parts.push(`Last observation: ${computerStatus.lastObservation.summary}`);
+      if (computerStatus.lastObservation?.summary)
+        parts.push(`Last observation: ${computerStatus.lastObservation.summary}`);
       if (computerStatus.visionCapable === false) {
-        parts.push('Note: you are a TEXT model. Screenshots are captured and stored as evidence, but you cannot see them — reason from textual observations only.');
+        parts.push(
+          'Note: you are a TEXT model. Screenshots are captured and stored as evidence, but you cannot see them — reason from textual observations only.'
+        );
       }
     }
 
@@ -349,7 +406,9 @@ ${schemaSection}`;
     if (findings.length) {
       parts.push('\n## CONFIRMED FINDINGS (stored)');
       for (const finding of findings.slice(0, 10)) {
-        parts.push(`  - [${finding.status}] ${finding.title} (${finding.severity}) @ ${finding.affectedAsset || 'n/a'}`);
+        parts.push(
+          `  - [${finding.status}] ${finding.title} (${finding.severity}) @ ${finding.affectedAsset || 'n/a'}`
+        );
       }
     }
 
@@ -361,28 +420,37 @@ ${schemaSection}`;
         const status = h.status || 'open';
         parts.push(`  - [${status}] "${h.text}" (confidence: ${h.confidence ?? '?'})`);
         if (h.evidence) parts.push(`      evidence so far: ${String(h.evidence).slice(0, 200)}`);
-        if (h.nextTest) parts.push(`      discriminating test: ${String(h.nextTest).slice(0, 200)}`);
+        if (h.nextTest)
+          parts.push(`      discriminating test: ${String(h.nextTest).slice(0, 200)}`);
       }
       parts.push('  RULE: when evidence is ambiguous, keep 2-3 competing hypotheses OPEN.');
       parts.push('  Design ONE action that discriminates between them (kills at least one).');
-      parts.push('  Mark a hypothesis "confirmed" only with stored evidence, "killed" when disproven.');
+      parts.push(
+        '  Mark a hypothesis "confirmed" only with stored evidence, "killed" when disproven.'
+      );
     } else {
       parts.push('\n## ACTIVE HYPOTHESES');
       parts.push('  (none yet — when you spot something suspicious, open 2-3 competing hypotheses');
-      parts.push('   instead of chasing the first idea. Use the "hypothesis" action type to register them.)');
+      parts.push(
+        '   instead of chasing the first idea. Use the "hypothesis" action type to register them.)'
+      );
     }
 
     if (toolResults.length) {
       parts.push('\n## RELEVANT TOOL RESULTS');
       for (const result of toolResults.slice(0, 6)) {
-        parts.push(`  - ${result.tool} @ ${result.target}: ${String(result.summary || '').slice(0, 600)}`);
+        parts.push(
+          `  - ${result.tool} @ ${result.target}: ${String(result.summary || '').slice(0, 600)}`
+        );
       }
     }
 
     if (recentObservations.length) {
       parts.push('\n## RECENT OBSERVATIONS (oldest → newest)');
       for (const observation of recentObservations.slice(-12)) {
-        parts.push(`  - [${observation.kind || 'observation'}] ${String(observation.summary || '').slice(0, 400)}`);
+        parts.push(
+          `  - [${observation.kind || 'observation'}] ${String(observation.summary || '').slice(0, 400)}`
+        );
       }
     }
 
@@ -392,7 +460,9 @@ ${schemaSection}`;
     }
 
     parts.push('\n## YOUR TASK');
-    parts.push('Choose the single next action. Be concrete and in-scope. Reply with the JSON decision object only.');
+    parts.push(
+      'Choose the single next action. Be concrete and in-scope. Reply with the JSON decision object only.'
+    );
     return parts.join('\n');
   }
 
@@ -402,7 +472,7 @@ ${schemaSection}`;
     }
     const lines = [];
     for (const phase of plan.phases || []) {
-      const done = (phase.steps || []).filter((step) => step.status === 'done').length;
+      const done = (phase.steps || []).filter(step => step.status === 'done').length;
       lines.push(`  ${phase.name}: ${done}/${(phase.steps || []).length} steps done`);
       for (const step of phase.steps || []) {
         lines.push(`    ${step.status === 'done' ? '[x]' : '[ ]'} ${step.step}`);
@@ -423,7 +493,10 @@ ${schemaSection}`;
   async decide(context) {
     const health = await this.health();
     if (!health.available) {
-      throw new LocalAiUnavailableError(health.reason, { kind: 'unreachable', detail: health.detail });
+      throw new LocalAiUnavailableError(health.reason, {
+        kind: 'unreachable',
+        detail: health.detail,
+      });
     }
 
     const attempts = this.settings.decisionRetries + 1;
@@ -439,18 +512,22 @@ ${schemaSection}`;
         type: 'brain.thinking',
         level: 'INFO',
         message: `Local AI (${health.model || 'phone gemma'}) reasoning — ~${diagnostics.total} prompt tokens of ${this.promptBudget} available${compact ? ' (compacted prompt)' : ''}`,
-        data: { ...diagnostics, queue: this.queue.stats?.() || null }
+        data: { ...diagnostics, queue: this.queue.stats?.() || null },
       });
 
       let raw = null;
       try {
         // The queue is a phone-hardware scheduler; jobs wait, they are not dropped.
         raw = await this.queue.enqueue(
-          () => this.provider.generateStructured(
-            [{ role: 'system', content: system }, { role: 'user', content: user }],
-            null,
-            { temperature: this.settings.temperature, maxTokens: this.settings.maxTokens }
-          ),
+          () =>
+            this.provider.generateStructured(
+              [
+                { role: 'system', content: system },
+                { role: 'user', content: user },
+              ],
+              null,
+              { temperature: this.settings.temperature, maxTokens: this.settings.maxTokens }
+            ),
           context.job?.id || 'agent-brain'
         );
       } catch (error) {
@@ -466,7 +543,7 @@ ${schemaSection}`;
             type: 'brain.thinking',
             level: 'WARN',
             message: `Local model rejected the prompt as too long — compacting context (memory budget → ${memoryBudget} tokens) and retrying`,
-            data: { error: String(error.message).slice(0, 300) }
+            data: { error: String(error.message).slice(0, 300) },
           });
           continue;
         }
@@ -488,7 +565,7 @@ ${schemaSection}`;
         // disabled by configuration, reject computer_action decisions here so
         // the retry loop below forces the brain onto registry tools instead
         // of looping on a dead layer.
-        computerActionAllowed: context.computerStatus?.available !== false
+        computerActionAllowed: context.computerStatus?.available !== false,
       });
       if (validation.valid) {
         return {
@@ -497,7 +574,7 @@ ${schemaSection}`;
           provider: this.provider.constructor.name,
           model: health.model,
           estimatedTokens: diagnostics.total,
-          diagnostics
+          diagnostics,
         };
       }
 
@@ -509,7 +586,7 @@ ${schemaSection}`;
         type: 'brain.decision',
         level: 'WARN',
         message: `Rejected malformed decision (attempt ${attempt + 1}): ${validation.errors.join('; ')}`,
-        data: { errors: validation.errors }
+        data: { errors: validation.errors },
       });
 
       // A retry is cheaper and more likely to succeed with a slimmer prompt.
@@ -520,7 +597,10 @@ ${schemaSection}`;
     if (sawContextError) {
       throw new LocalAiUnavailableError(
         `LOCAL AI UNAVAILABLE — the local model's context window (${this.capacity} tokens) is too small for the current prompt even after compaction: ${lastError?.message || 'context_window'}`,
-        { kind: 'context_window', detail: { capacity: this.capacity, diagnostics: this.lastPromptDiagnostics } }
+        {
+          kind: 'context_window',
+          detail: { capacity: this.capacity, diagnostics: this.lastPromptDiagnostics },
+        }
       );
     }
 
@@ -535,7 +615,10 @@ ${schemaSection}`;
   async answerQuestion({ job, question, memoryContext = '', findings = [] }) {
     const health = await this.health();
     if (!health.available) {
-      throw new LocalAiUnavailableError(health.reason, { kind: 'unreachable', detail: health.detail });
+      throw new LocalAiUnavailableError(health.reason, {
+        kind: 'unreachable',
+        detail: health.detail,
+      });
     }
 
     const system = `You are DARKMATTER, an autonomous authorized bug-bounty agent.
@@ -551,17 +634,21 @@ Rules:
       `AUTHORIZED SCOPE: ${(job.scope?.included || [job.target]).join(', ')}`,
       `CURRENT OBJECTIVE: ${job.currentObjective || job.objective}`,
       findings.length
-        ? `FINDINGS:\n${findings.map((f) => `  - [${f.status}] ${f.title} (${f.severity}) @ ${f.affectedAsset || 'n/a'}`).join('\n')}`
+        ? `FINDINGS:\n${findings.map(f => `  - [${f.status}] ${f.title} (${f.severity}) @ ${f.affectedAsset || 'n/a'}`).join('\n')}`
         : 'FINDINGS: none stored',
       memoryContext,
-      `QUESTION: ${String(question).slice(0, 2000)}`
+      `QUESTION: ${String(question).slice(0, 2000)}`,
     ];
 
     const text = await this.queue.enqueue(
-      () => this.provider.generate(
-        [{ role: 'system', content: system }, { role: 'user', content: userParts.join('\n\n') }],
-        { temperature: 0.3, maxTokens: 1200 }
-      ),
+      () =>
+        this.provider.generate(
+          [
+            { role: 'system', content: system },
+            { role: 'user', content: userParts.join('\n\n') },
+          ],
+          { temperature: 0.3, maxTokens: 1200 }
+        ),
       `${job.id}:ask`
     );
 
@@ -584,7 +671,9 @@ Rules:
       case 'tool':
         return `Planning next validation step… (${decision.nextAction.name})`;
       case 'parallel_tools': {
-        const names = (decision.nextAction.tools || decision.nextAction.parallelTools || []).map((t) => t.name).join(', ');
+        const names = (decision.nextAction.tools || decision.nextAction.parallelTools || [])
+          .map(t => t.name)
+          .join(', ');
         return `Running parallel recon (${names})…`;
       }
       case 'computer_action':

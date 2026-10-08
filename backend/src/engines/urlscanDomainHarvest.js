@@ -44,13 +44,23 @@ export function extractScanUrls(scan) {
   if (!scan || typeof scan !== 'object') return [];
   const urls = [];
   const seen = new Set();
-  const push = (u) => { if (typeof u === 'string' && u && !seen.has(u)) { seen.add(u); urls.push(u); } };
+  const push = u => {
+    if (typeof u === 'string' && u && !seen.has(u)) {
+      seen.add(u);
+      urls.push(u);
+    }
+  };
   const payload = scan.result && typeof scan.result === 'object' ? scan.result : scan;
-  if (typeof payload.page === 'object' && payload.page && typeof payload.page.url === 'string') push(payload.page.url);
+  if (typeof payload.page === 'object' && payload.page && typeof payload.page.url === 'string')
+    push(payload.page.url);
   for (const req of payload.requests || []) {
     const reqObj = typeof req === 'string' ? { request: { url: req } } : req;
-    const u = reqObj.request && typeof reqObj.request === 'object' ? reqObj.request.url
-      : (typeof reqObj.url === 'string' ? reqObj.url : null);
+    const u =
+      reqObj.request && typeof reqObj.request === 'object'
+        ? reqObj.request.url
+        : typeof reqObj.url === 'string'
+          ? reqObj.url
+          : null;
     push(u);
   }
   for (const t of payload.transactions || []) {
@@ -68,7 +78,9 @@ export function extractScanUrls(scan) {
  * @returns {{subdomains: {host: string, hits: number}[], endpoints: {host: string, paths: string[]}[], scanCount: number, urlCount: number}}
  */
 export function harvestDomainPages(scans, targetDomain) {
-  const target = String(targetDomain || '').trim().toLowerCase();
+  const target = String(targetDomain || '')
+    .trim()
+    .toLowerCase();
   const hostHits = new Map();
   const hostPaths = new Map();
   let urlCount = 0;
@@ -118,7 +130,10 @@ export function interestingEndpoints(endpoints = []) {
   for (const e of endpoints) {
     for (const p of e.paths || []) {
       for (const [re, reason] of patterns) {
-        if (re.test(p)) { out.push({ host: e.host, path: p, reason }); break; }
+        if (re.test(p)) {
+          out.push({ host: e.host, path: p, reason });
+          break;
+        }
       }
     }
   }
@@ -136,9 +151,10 @@ export function urlscanHarvestReport(result = {}, interesting = []) {
   const newSubdomains = (result.subdomains || []).length;
   const endpointsFound = (result.endpoints || []).reduce((n, e) => n + (e.paths || []).length, 0);
   const interestingCount = interesting.length;
-  const summary = newSubdomains === 0 && endpointsFound === 0
-    ? `Harvested ${result.urlCount || 0} URL(s) from ${result.scanCount || 0} urlscan.io scan(s); no new target subdomains or endpoints found.`
-    : `urlscan.io harvesting across ${result.scanCount || 0} scan(s) found ${newSubdomains} new subdomain(s) and ${endpointsFound} endpoint path(s), ${interestingCount} flagged as interesting.`;
+  const summary =
+    newSubdomains === 0 && endpointsFound === 0
+      ? `Harvested ${result.urlCount || 0} URL(s) from ${result.scanCount || 0} urlscan.io scan(s); no new target subdomains or endpoints found.`
+      : `urlscan.io harvesting across ${result.scanCount || 0} scan(s) found ${newSubdomains} new subdomain(s) and ${endpointsFound} endpoint path(s), ${interestingCount} flagged as interesting.`;
   return { newSubdomains, endpointsFound, interesting: interestingCount, summary };
 }
 

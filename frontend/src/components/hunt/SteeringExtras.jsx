@@ -43,16 +43,22 @@ export function ConditionalRules({ context, onTrigger }) {
   return (
     <div className="steer29-card" data-testid="conditional-rules">
       <h4>If-then steering rules</h4>
-      <input value={value} onChange={(e) => setValue(e.target.value)} aria-label="Condition value" />
-      <select value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Condition type">
+      <input value={value} onChange={e => setValue(e.target.value)} aria-label="Condition value" />
+      <select value={when} onChange={e => setWhen(e.target.value)} aria-label="Condition type">
         <option value="finding-type">finding type is</option>
         <option value="phase">phase is</option>
         <option value="finding-count>=">finding count ≥</option>
       </select>
-      <input value={then} onChange={(e) => setThen(e.target.value)} aria-label="Then action" />
+      <input value={then} onChange={e => setThen(e.target.value)} aria-label="Then action" />
       <button onClick={add}>Add rule</button>
       <button onClick={run}>Evaluate now</button>
-      <ul>{rules.map((r) => <li key={r.id}>if {r.when} {r.value} → {r.then}</li>)}</ul>
+      <ul>
+        {rules.map(r => (
+          <li key={r.id}>
+            if {r.when} {r.value} → {r.then}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -64,10 +70,20 @@ export function TimeBoxedFocus({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="time-boxed-focus">
       <h4>Time-boxed focus</h4>
-      <input value={area} onChange={(e) => setArea(e.target.value)} aria-label="Focus area" />
-      <input type="number" value={minutes} min="1" onChange={(e) => setMinutes(Number(e.target.value))} aria-label="Minutes" />
+      <input value={area} onChange={e => setArea(e.target.value)} aria-label="Focus area" />
+      <input
+        type="number"
+        value={minutes}
+        min="1"
+        onChange={e => setMinutes(Number(e.target.value))}
+        aria-label="Minutes"
+      />
       <button onClick={() => onChange(setTimeBoxedFocus(state, area, minutes))}>Focus now</button>
-      {state.focusActive && <p className="steer29-ack">Focusing {state.focusArea} for {state.focusMinutes} min, then resuming plan.</p>}
+      {state.focusActive && (
+        <p className="steer29-ack">
+          Focusing {state.focusArea} for {state.focusMinutes} min, then resuming plan.
+        </p>
+      )}
     </div>
   );
 }
@@ -78,7 +94,13 @@ export function SteerFromFinding({ finding, onSteer }) {
   return (
     <div className="steer29-card" data-testid="steer-from-finding">
       <h4>Finding: {finding.title || finding.id}</h4>
-      <button onClick={() => { const c = steerFromFinding(finding); onSteer(c); setMsg(`Redirecting: investigate similar areas`); }}>
+      <button
+        onClick={() => {
+          const c = steerFromFinding(finding);
+          onSteer(c);
+          setMsg(`Redirecting: investigate similar areas`);
+        }}
+      >
         Investigate similar areas
       </button>
       {msg && <p className="steer29-ack">{msg}</p>}
@@ -112,9 +134,18 @@ export function SpokenRedirect({ onCommand }) {
   return (
     <div className="steer29-card" data-testid="spoken-redirect">
       <h4>Spoken redirection</h4>
-      <input value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Speak: 'go deep on the API'" aria-label="Voice transcript" />
+      <input
+        value={transcript}
+        onChange={e => setTranscript(e.target.value)}
+        placeholder="Speak: 'go deep on the API'"
+        aria-label="Voice transcript"
+      />
       <button onClick={send}>Apply voice command</button>
-      {parsed && <p>Heard → <code>{parsed.type}</code> (via voice)</p>}
+      {parsed && (
+        <p>
+          Heard → <code>{parsed.type}</code> (via voice)
+        </p>
+      )}
     </div>
   );
 }
@@ -133,8 +164,16 @@ export function TouchPriorityBoard({ priorities, onChange }) {
       {priorities.map((p, i) => (
         <div key={String(p)} className="steer29-board-item">
           <span>{p}</span>
-          <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">▲</button>
-          <button onClick={() => move(i, 1)} disabled={i === priorities.length - 1} aria-label="Move down">▼</button>
+          <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
+            ▲
+          </button>
+          <button
+            onClick={() => move(i, 1)}
+            disabled={i === priorities.length - 1}
+            aria-label="Move down"
+          >
+            ▼
+          </button>
         </div>
       ))}
     </div>
@@ -147,15 +186,25 @@ export function SteeringApiDocs({ huntId }) {
   const [result, setResult] = useState(null);
   const build = () => {
     let command;
-    try { command = JSON.parse(cmdJson); } catch { command = { type: 'unknown' }; }
+    try {
+      command = JSON.parse(cmdJson);
+    } catch {
+      command = { type: 'unknown' };
+    }
     const payload = buildSteeringApiPayload(command, huntId);
     setResult(validateSteeringApiPayload(payload));
   };
   return (
     <div className="steer29-card" data-testid="steering-api">
       <h4>Steering API</h4>
-      <p><code>POST /api/v1/hunts/{'{id}'}/steer</code></p>
-      <textarea value={cmdJson} onChange={(e) => setCmdJson(e.target.value)} aria-label="Command JSON" />
+      <p>
+        <code>POST /api/v1/hunts/{'{id}'}/steer</code>
+      </p>
+      <textarea
+        value={cmdJson}
+        onChange={e => setCmdJson(e.target.value)}
+        aria-label="Command JSON"
+      />
       <button onClick={build}>Validate payload</button>
       {result && <p>{result.ok ? 'Payload valid ✓' : `Invalid: ${result.error}`}</p>}
     </div>
@@ -169,9 +218,18 @@ export function PausedSteering({ plan, onChange }) {
     <div className="steer29-card" data-testid="paused-steering">
       <h4>Steer while paused</h4>
       <p>Status: {plan.paused ? 'paused' : 'running'}</p>
-      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Strategy note" aria-label="Strategy note" />
-      <button onClick={() => onChange(applyWhilePaused(plan, { strategyNote: note }))}>Stage for resume</button>
-      {plan.resumeWithNewStrategy && <p className="steer29-ack">Will resume with the new strategy.</p>}
+      <input
+        value={note}
+        onChange={e => setNote(e.target.value)}
+        placeholder="Strategy note"
+        aria-label="Strategy note"
+      />
+      <button onClick={() => onChange(applyWhilePaused(plan, { strategyNote: note }))}>
+        Stage for resume
+      </button>
+      {plan.resumeWithNewStrategy && (
+        <p className="steer29-ack">Will resume with the new strategy.</p>
+      )}
     </div>
   );
 }
@@ -182,7 +240,9 @@ export function ApprovalGate({ command, onApprove, onDeny }) {
   return (
     <div className="steer29-card steer29-dialog" data-testid="approval-gate">
       <h4>Big change — confirm</h4>
-      <p>This is a major redirection: <code>{command.type}</code></p>
+      <p>
+        This is a major redirection: <code>{command.type}</code>
+      </p>
       <button onClick={() => onApprove(command)}>Approve &amp; apply</button>
       <button onClick={onDeny}>Deny</button>
     </div>
@@ -193,7 +253,11 @@ export function ApprovalGate({ command, onApprove, onDeny }) {
 export function PushbackWarning({ state, command }) {
   const warning = agentPushback(state, command);
   if (!warning) return null;
-  return <p className="steer29-warn" data-testid="pushback-warning">Agent pushback: {warning}</p>;
+  return (
+    <p className="steer29-warn" data-testid="pushback-warning">
+      Agent pushback: {warning}
+    </p>
+  );
 }
 
 /* 51151 — agent steering suggestions */
@@ -220,7 +284,13 @@ export function BandwidthCap({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="bandwidth-cap">
       <h4>Bandwidth cap</h4>
-      <input type="number" value={cap} min="100" onChange={(e) => setCap(Number(e.target.value))} aria-label="Max requests" />
+      <input
+        type="number"
+        value={cap}
+        min="100"
+        onChange={e => setCap(Number(e.target.value))}
+        aria-label="Max requests"
+      />
       <button onClick={() => onChange(setBandwidthCap(state, cap))}>Set cap</button>
       {remaining !== null && <p>{remaining} requests remaining</p>}
     </div>
@@ -246,7 +316,14 @@ export function DepthLimiter({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="depth-limiter">
       <h4>Crawl depth limit: {levels}</h4>
-      <input type="range" min="0" max="10" value={levels} onChange={(e) => setLevels(Number(e.target.value))} aria-label="Depth limit" />
+      <input
+        type="range"
+        min="0"
+        max="10"
+        value={levels}
+        onChange={e => setLevels(Number(e.target.value))}
+        aria-label="Depth limit"
+      />
       <button onClick={() => onChange(setDepthLimit(state, levels))}>Apply</button>
     </div>
   );
@@ -259,9 +336,15 @@ export function RetestOnChange({ state }) {
   return (
     <div className="steer29-card" data-testid="retest-on-change">
       <h4>Retest on target change</h4>
-      <input value={changed} onChange={(e) => setChanged(e.target.value)} aria-label="Changed path" />
-      <button onClick={() => setResult(retestOnChange(state, [changed]))}>Find affected areas</button>
-      {result && <p>{result.retest.length} area(s) queued for re-test: {result.retest.join(', ') || 'none'}</p>}
+      <input value={changed} onChange={e => setChanged(e.target.value)} aria-label="Changed path" />
+      <button onClick={() => setResult(retestOnChange(state, [changed]))}>
+        Find affected areas
+      </button>
+      {result && (
+        <p>
+          {result.retest.length} area(s) queued for re-test: {result.retest.join(', ') || 'none'}
+        </p>
+      )}
     </div>
   );
 }
@@ -270,11 +353,13 @@ export function RetestOnChange({ state }) {
 export function DryRunView({ state }) {
   const [text, setText] = useState('go deep');
   const [sim, setSim] = useState(null);
-  const { parseSteeringCommand: parse } = { parseSteeringCommand: (t) => ({ type: 'preset', preset: 'go-deep', raw: t }) };
+  const { parseSteeringCommand: parse } = {
+    parseSteeringCommand: t => ({ type: 'preset', preset: 'go-deep', raw: t }),
+  };
   return (
     <div className="steer29-card" data-testid="dry-run">
       <h4>Steering dry-run</h4>
-      <input value={text} onChange={(e) => setText(e.target.value)} aria-label="Dry-run command" />
+      <input value={text} onChange={e => setText(e.target.value)} aria-label="Dry-run command" />
       <button onClick={() => setSim(dryRun(state, parse(text)))}>Simulate</button>
       {sim && (
         <div>
@@ -295,9 +380,14 @@ export function PriorityInheritance({ state }) {
   return (
     <div className="steer29-card" data-testid="priority-inheritance">
       <h4>Priority inheritance</h4>
-      <input value={asset} onChange={(e) => setAsset(e.target.value)} aria-label="New asset" />
+      <input value={asset} onChange={e => setAsset(e.target.value)} aria-label="New asset" />
       <button onClick={() => setResult(inheritPriority(state, asset))}>Check</button>
-      {result && <p>{result.asset}: priority {result.priority}{result.boosted ? ' (inherited boost)' : ''}</p>}
+      {result && (
+        <p>
+          {result.asset}: priority {result.priority}
+          {result.boosted ? ' (inherited boost)' : ''}
+        </p>
+      )}
     </div>
   );
 }
@@ -309,8 +399,16 @@ export function CooldownIndicator({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="steering-cooldown">
       <h4>Steering cooldown</h4>
-      <input type="number" value={secs} min="0" onChange={(e) => setSecs(Number(e.target.value))} aria-label="Cooldown seconds" />
-      <button onClick={() => onChange(setCooldown({ ...state, now: Date.now() }, secs))}>Set lockout</button>
+      <input
+        type="number"
+        value={secs}
+        min="0"
+        onChange={e => setSecs(Number(e.target.value))}
+        aria-label="Cooldown seconds"
+      />
+      <button onClick={() => onChange(setCooldown({ ...state, now: Date.now() }, secs))}>
+        Set lockout
+      </button>
       <p>{active ? 'Cooldown active — steering locked' : 'No cooldown — steering allowed'}</p>
     </div>
   );
@@ -321,9 +419,13 @@ export function ModuleToggleGrid({ modules, onChange }) {
   return (
     <div className="steer29-card" data-testid="module-toggles">
       <h4>Modules (live toggle)</h4>
-      {modules.map((m) => (
+      {modules.map(m => (
         <label key={m.name}>
-          <input type="checkbox" checked={m.enabled !== false} onChange={(e) => onChange(toggleModule(modules, m.name, e.target.checked))} />
+          <input
+            type="checkbox"
+            checked={m.enabled !== false}
+            onChange={e => onChange(toggleModule(modules, m.name, e.target.checked))}
+          />
           {m.name}
         </label>
       ))}
@@ -339,10 +441,23 @@ export function FocusWindowEditor({ state, onChange }) {
   return (
     <div className="steer29-card" data-testid="focus-window">
       <h4>Focus window</h4>
-      <input value={pattern} onChange={(e) => setPattern(e.target.value)} aria-label="URL pattern" />
-      <input type="range" min="5" max="95" value={share} onChange={(e) => setShare(Number(e.target.value))} aria-label="Effort share percent" />
-      <button onClick={() => onChange(setFocusWindow(state, pattern, share))}>Apply {share}% focus</button>
-      {!split.unfocused && <p>{split.inside}% inside {split.pattern}, {split.outside}% outside</p>}
+      <input value={pattern} onChange={e => setPattern(e.target.value)} aria-label="URL pattern" />
+      <input
+        type="range"
+        min="5"
+        max="95"
+        value={share}
+        onChange={e => setShare(Number(e.target.value))}
+        aria-label="Effort share percent"
+      />
+      <button onClick={() => onChange(setFocusWindow(state, pattern, share))}>
+        Apply {share}% focus
+      </button>
+      {!split.unfocused && (
+        <p>
+          {split.inside}% inside {split.pattern}, {split.outside}% outside
+        </p>
+      )}
     </div>
   );
 }
@@ -350,8 +465,13 @@ export function FocusWindowEditor({ state, onChange }) {
 /** Gallery showcasing the steering advanced layer. */
 export function SteeringExtrasGallery() {
   const [state, setState] = useState({
-    intensity: 'normal', rateCapRps: 10, findingCount: 4, phase: 'fuzzing',
-    coveragePct: 30, testedPaths: ['/api/v1', '/api/v2/users'], boostedAreas: ['api'],
+    intensity: 'normal',
+    rateCapRps: 10,
+    findingCount: 4,
+    phase: 'fuzzing',
+    coveragePct: 30,
+    testedPaths: ['/api/v1', '/api/v2/users'],
+    boostedAreas: ['api'],
     modules: [
       { name: 'crawler', enabled: true, paused: false },
       { name: 'apiFuzz', enabled: true, paused: false },
@@ -360,20 +480,35 @@ export function SteeringExtrasGallery() {
   });
   const [priorities, setPriorities] = useState(['api', 'auth', 'uploads']);
   const [triggered, setTriggered] = useState([]);
-  const apply = (cmd) => setState((s) => ({ ...s, lastCommand: cmd.type }));
+  const apply = cmd => setState(s => ({ ...s, lastCommand: cmd.type }));
   return (
     <div className="steer29-gallery" data-testid="steering-extras-gallery">
-      <ConditionalRules context={{ findingType: 'xss', phase: 'fuzzing', findingCount: 5 }} onTrigger={setTriggered} />
-      {triggered.length > 0 && <p className="steer29-ack">Triggered: {triggered.map((t) => t.action).join(', ')}</p>}
+      <ConditionalRules
+        context={{ findingType: 'xss', phase: 'fuzzing', findingCount: 5 }}
+        onTrigger={setTriggered}
+      />
+      {triggered.length > 0 && (
+        <p className="steer29-ack">Triggered: {triggered.map(t => t.action).join(', ')}</p>
+      )}
       <TimeBoxedFocus state={state} onChange={setState} />
-      <SteerFromFinding finding={{ id: 'F-12', title: 'Reflected XSS', type: 'xss', area: '/search' }} onSteer={apply} />
+      <SteerFromFinding
+        finding={{ id: 'F-12', title: 'Reflected XSS', type: 'xss', area: '/search' }}
+        onSteer={apply}
+      />
       <SteerFromLog logLine="[apiFuzz] testing /api/v2/users" onSteer={apply} />
       <SpokenRedirect onCommand={apply} />
       <TouchPriorityBoard priorities={priorities} onChange={setPriorities} />
       <SteeringApiDocs huntId="hunt-1" />
-      <PausedSteering plan={state.plan} onChange={(p) => setState((s) => ({ ...s, plan: p }))} />
-      <ApprovalGate command={{ type: 'remove-scope', target: 'old.example.com' }} onApprove={apply} onDeny={() => {}} />
-      <PushbackWarning state={state} command={{ type: 'remove-scope', target: 'api.example.com' }} />
+      <PausedSteering plan={state.plan} onChange={p => setState(s => ({ ...s, plan: p }))} />
+      <ApprovalGate
+        command={{ type: 'remove-scope', target: 'old.example.com' }}
+        onApprove={apply}
+        onDeny={() => {}}
+      />
+      <PushbackWarning
+        state={state}
+        command={{ type: 'remove-scope', target: 'api.example.com' }}
+      />
       <SuggestionCards state={state} onApply={apply} />
       <BandwidthCap state={state} onChange={setState} />
       <StealthToggle state={state} onChange={setState} />
@@ -382,7 +517,10 @@ export function SteeringExtrasGallery() {
       <DryRunView state={state} />
       <PriorityInheritance state={state} />
       <CooldownIndicator state={state} onChange={setState} />
-      <ModuleToggleGrid modules={state.modules} onChange={(m) => setState((s) => ({ ...s, modules: m }))} />
+      <ModuleToggleGrid
+        modules={state.modules}
+        onChange={m => setState(s => ({ ...s, modules: m }))}
+      />
       <FocusWindowEditor state={state} onChange={setState} />
     </div>
   );

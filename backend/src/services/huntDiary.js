@@ -11,7 +11,13 @@
 const SEVERITY_RANK = { critical: 5, high: 4, medium: 3, low: 2, info: 1, informational: 1 };
 
 function severityRank(severity) {
-  return SEVERITY_RANK[String(severity || '').toLowerCase().trim()] ?? 0;
+  return (
+    SEVERITY_RANK[
+      String(severity || '')
+        .toLowerCase()
+        .trim()
+    ] ?? 0
+  );
 }
 
 /** Critical-first ordering for findings boards and exports. */
@@ -32,7 +38,7 @@ function atOf(item) {
  */
 export async function buildDiary(sources = {}, userId, jobId) {
   const entries = [];
-  const push = (entry) => {
+  const push = entry => {
     if (entry && entry.title) entries.push({ detail: null, ...entry });
   };
 
@@ -44,10 +50,12 @@ export async function buildDiary(sources = {}, userId, jobId) {
         at: atOf(item),
         kind: item.kind || 'activity',
         title: item.message || item.title || 'Activity',
-        detail: item.data ? summarizeData(item.data) : null
+        detail: item.data ? summarizeData(item.data) : null,
       });
     }
-  } catch { /* activity is best-effort */ }
+  } catch {
+    /* activity is best-effort */
+  }
 
   // 2. Reasoning cycles — the persisted thinking loop (thought → action → outcome).
   try {
@@ -57,17 +65,26 @@ export async function buildDiary(sources = {}, userId, jobId) {
         at: cycle.createdAt,
         kind: 'thought',
         title: `Step ${cycle.stepNumber}: ${cycle.thought || cycle.objective || 'reasoning'}`,
-        detail: [
-          cycle.plan ? `Plan: ${cycle.plan}` : null,
-          cycle.actionSummary ? `Action: ${cycle.actionSummary}` : null,
-          cycle.expectedOutcome ? `Expected: ${cycle.expectedOutcome}` : null,
-          cycle.verification ? `Outcome: ${cycle.verification.outcome || 'verified'}${cycle.verification.reason ? ` — ${cycle.verification.reason}` : ''}` : null,
-          cycle.adaptation ? `Adapted: ${cycle.adaptation.nextObjective || cycle.adaptation.nextReason || ''}` : null,
-          cycle.learning ? `Lesson: ${cycle.learning}` : null
-        ].filter(Boolean).join('\n') || null
+        detail:
+          [
+            cycle.plan ? `Plan: ${cycle.plan}` : null,
+            cycle.actionSummary ? `Action: ${cycle.actionSummary}` : null,
+            cycle.expectedOutcome ? `Expected: ${cycle.expectedOutcome}` : null,
+            cycle.verification
+              ? `Outcome: ${cycle.verification.outcome || 'verified'}${cycle.verification.reason ? ` — ${cycle.verification.reason}` : ''}`
+              : null,
+            cycle.adaptation
+              ? `Adapted: ${cycle.adaptation.nextObjective || cycle.adaptation.nextReason || ''}`
+              : null,
+            cycle.learning ? `Lesson: ${cycle.learning}` : null,
+          ]
+            .filter(Boolean)
+            .join('\n') || null,
       });
     }
-  } catch { /* thinking loop is best-effort */ }
+  } catch {
+    /* thinking loop is best-effort */
+  }
 
   // 3. Computer actions — what the agent's hands actually did.
   try {
@@ -77,10 +94,12 @@ export async function buildDiary(sources = {}, userId, jobId) {
         at: atOf(action),
         kind: 'computer',
         title: `Computer: ${action.type || action.actionType || 'action'}`,
-        detail: action.summary || action.reason || null
+        detail: action.summary || action.reason || null,
       });
     }
-  } catch { /* computer trace is best-effort */ }
+  } catch {
+    /* computer trace is best-effort */
+  }
 
   // 4. Findings — confirmed vulnerabilities, critical first in spirit.
   try {
@@ -90,10 +109,12 @@ export async function buildDiary(sources = {}, userId, jobId) {
         at: atOf(finding),
         kind: 'finding',
         title: `Found: ${finding.title} [${String(finding.severity || 'info').toUpperCase()}]`,
-        detail: finding.description ? String(finding.description).slice(0, 300) : null
+        detail: finding.description ? String(finding.description).slice(0, 300) : null,
       });
     }
-  } catch { /* findings are best-effort */ }
+  } catch {
+    /* findings are best-effort */
+  }
 
   entries.sort((a, b) => String(a.at || '').localeCompare(String(b.at || '')));
   return entries;

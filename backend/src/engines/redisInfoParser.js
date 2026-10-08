@@ -64,7 +64,7 @@ export function extractKeyspace(info) {
   const dbs = [];
   for (const [db, val] of Object.entries(ks)) {
     if (!/^db\d+$/i.test(db) || typeof val !== 'string') continue;
-    const parts = Object.fromEntries(val.split(',').map((p) => p.split('=')));
+    const parts = Object.fromEntries(val.split(',').map(p => p.split('=')));
     dbs.push({
       db,
       keys: parseInt(parts.keys || '0', 10),
@@ -81,7 +81,7 @@ export function extractKeyspace(info) {
  * @returns {{fingerprint, configuration, keyspace, findings, confidence}}
  */
 export function analyzeRedisInfo(info) {
-  const parsed = typeof info === 'string' ? parseRedisInfo(info) : (info || {});
+  const parsed = typeof info === 'string' ? parseRedisInfo(info) : info || {};
   const server = parsed.server || {};
   const findings = [];
 
@@ -90,16 +90,20 @@ export function analyzeRedisInfo(info) {
   const os = String(server.os || 'unknown');
   findings.push(`Redis ${version} (${mode} mode) on ${os}.`);
 
-  const eol = REDIS_EOL.find((e) => e.regex.test(version));
+  const eol = REDIS_EOL.find(e => e.regex.test(version));
   if (eol) findings.push(`HIGH: ${eol.label} is end-of-life and receives no security fixes.`);
 
   const protectedMode = String(server.protected_mode ?? parsed.protection ?? '');
   const bind = String(server.bind || '');
   if (/^no$/i.test(protectedMode)) {
-    findings.push('HIGH: protected_mode is "no" — the instance accepts connections without the loopback safeguard.');
+    findings.push(
+      'HIGH: protected_mode is "no" — the instance accepts connections without the loopback safeguard.'
+    );
   }
   if (/(^|\s)0\.0\.0\.0(\s|$)/.test(bind) || /(^|\s)::(\s|$)/.test(bind)) {
-    findings.push(`MEDIUM: server binds to all interfaces (${bind || 'bind not shown'}); combined with no auth this is remotely reachable.`);
+    findings.push(
+      `MEDIUM: server binds to all interfaces (${bind || 'bind not shown'}); combined with no auth this is remotely reachable.`
+    );
   }
 
   const role = String((parsed.replication || {}).role || 'unknown');
@@ -110,22 +114,33 @@ export function analyzeRedisInfo(info) {
   const stats = parsed.stats || {};
   const hits = parseInt(stats.keyspace_hits || '0', 10);
   const misses = parseInt(stats.keyspace_misses || '0', 10);
-  const hitRatio = hits + misses > 0 ? (hits / (hits + misses)) : null;
+  const hitRatio = hits + misses > 0 ? hits / (hits + misses) : null;
   const keyspace = extractKeyspace(parsed);
   const totalKeys = keyspace.reduce((n, d) => n + d.keys, 0);
   findings.push(`Keyspace: ${totalKeys} key(s) across ${keyspace.length} database(s).`);
 
   const clients = parsed.clients || {};
-  findings.push(`Uptime: ${server.uptime_in_days ?? '?'} day(s); connected clients: ${clients.connected_clients ?? '?'}.`);
+  findings.push(
+    `Uptime: ${server.uptime_in_days ?? '?'} day(s); connected clients: ${clients.connected_clients ?? '?'}.`
+  );
 
   const persistence = parsed.persistence || {};
-  if (String(persistence.aof_enabled) === '0' && String(persistence.rdb_changes_since_last_save) !== '') {
+  if (
+    String(persistence.aof_enabled) === '0' &&
+    String(persistence.rdb_changes_since_last_save) !== ''
+  ) {
     findings.push('RDB snapshotting state captured; AOF disabled.');
   }
 
   return {
     fingerprint: { version, mode, os, eol: Boolean(eol) },
-    configuration: { protectedMode, bind, role, hitRatio, connectedClients: clients.connected_clients ?? null },
+    configuration: {
+      protectedMode,
+      bind,
+      role,
+      hitRatio,
+      connectedClients: clients.connected_clients ?? null,
+    },
     keyspace,
     totalKeys,
     findings,
@@ -133,5 +148,11 @@ export function analyzeRedisInfo(info) {
   };
 }
 
-export const REDIS_INFO_PARSER = { parseRedisInfo, extractKeyspace, analyzeRedisInfo, coerceInfoValue, REDIS_EOL };
+export const REDIS_INFO_PARSER = {
+  parseRedisInfo,
+  extractKeyspace,
+  analyzeRedisInfo,
+  coerceInfoValue,
+  REDIS_EOL,
+};
 export default REDIS_INFO_PARSER;

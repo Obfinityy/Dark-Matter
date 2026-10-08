@@ -12,11 +12,14 @@
 const VERSION_RE = /(?:^|\s)(?:v|version\s*)?(\d{1,3}\.\d{1,3}(?:\.\d{1,3})?)/gim;
 const DATE_RE = /\b(20\d{2}[-/.](?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01]))\b/;
 const URL_RE = /https?:\/\/[^\s"'`<>()\]]+/gi;
-const PATH_RE = /`?\s*((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)\s*`?/g;
+const PATH_RE =
+  /`?\s*((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)\s*`?/g;
 const HOST_RE = /^https?:\/\/([^/:?#]+)/i;
 
-const NEW_RE = /\b(add(?:ed|ing|s)?|new|introduc(?:ed|ing|es)|support(?:s|ed)?|launch(?:ed|es)?|now supports?)\b/i;
-const DEPRECATE_RE = /\b(deprecat(?:ed|ing|es|ion)|obsolete|retire[sd]?|remov(?:ed|ing|es)|drop(?:ped|ping|s)?|sunset|eol|discontinu)/i;
+const NEW_RE =
+  /\b(add(?:ed|ing|s)?|new|introduc(?:ed|ing|es)|support(?:s|ed)?|launch(?:ed|es)?|now supports?)\b/i;
+const DEPRECATE_RE =
+  /\b(deprecat(?:ed|ing|es|ion)|obsolete|retire[sd]?|remov(?:ed|ing|es)|drop(?:ped|ping|s)?|sunset|eol|discontinu)/i;
 
 /** Classify a changelog line as announcing something new, retiring, or neutral. */
 export function classifyLine(line = '') {
@@ -75,7 +78,10 @@ export function mineSdkChangelog({ url = '', text = '', sdk = '' } = {}) {
   const versions = blocks.map(b => {
     const { urls, routes } = extractEndpointMentions(b.text);
     const date = (b.text.match(DATE_RE) || [])[0] || null;
-    const lines = b.text.split('\n').map(l => l.trim()).filter(Boolean);
+    const lines = b.text
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
     const newLines = lines.filter(l => classifyLine(l) === 'new');
     const retiringLines = lines.filter(l => classifyLine(l) === 'retiring');
     return {
@@ -90,8 +96,12 @@ export function mineSdkChangelog({ url = '', text = '', sdk = '' } = {}) {
   });
 
   const allHosts = [...new Set(versions.flatMap(v => v.hosts))];
-  const newEndpoints = versions.flatMap(v => v.newEndpointUrls.map(u => ({ version: v.version, url: u })));
-  const retiring = versions.flatMap(v => v.retiringMentions.map(t => ({ version: v.version, text: t })));
+  const newEndpoints = versions.flatMap(v =>
+    v.newEndpointUrls.map(u => ({ version: v.version, url: u }))
+  );
+  const retiring = versions.flatMap(v =>
+    v.retiringMentions.map(t => ({ version: v.version, text: t }))
+  );
 
   return {
     url,
@@ -107,6 +117,10 @@ export function mineSdkChangelog({ url = '', text = '', sdk = '' } = {}) {
 }
 
 export const SDK_CHANGELOG_MINER = {
-  splitVersionBlocks, classifyLine, extractEndpointMentions, hostOf, mineSdkChangelog,
+  splitVersionBlocks,
+  classifyLine,
+  extractEndpointMentions,
+  hostOf,
+  mineSdkChangelog,
 };
 export default SDK_CHANGELOG_MINER;

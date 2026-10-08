@@ -13,18 +13,62 @@
 // Supports both "Notepad khol de" and "khol de Notepad" word orders.
 const ACTION_PATTERNS = [
   // Open applications (safe local actions via computer control)
-  { pattern: /(notepad).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(notepad)/i, action: 'open_app', app: 'notepad', safe: true },
-  { pattern: /(calculator|calc).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(calculator|calc)/i, action: 'open_app', app: 'calculator', safe: true },
-  { pattern: /(edge|browser|chrome).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(edge|browser|chrome)/i, action: 'open_app', app: 'browser', safe: true },
-  { pattern: /(whatsapp).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(whatsapp)/i, action: 'open_app', app: 'whatsapp', safe: true },
-  { pattern: /(youtube).*?(?:khol\s*de|open|launch)|(?:khol\s*de|open).*?(youtube)/i, action: 'open_url', url: 'https://youtube.com', safe: true },
+  {
+    pattern:
+      /(notepad).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(notepad)/i,
+    action: 'open_app',
+    app: 'notepad',
+    safe: true,
+  },
+  {
+    pattern:
+      /(calculator|calc).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(calculator|calc)/i,
+    action: 'open_app',
+    app: 'calculator',
+    safe: true,
+  },
+  {
+    pattern:
+      /(edge|browser|chrome).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(edge|browser|chrome)/i,
+    action: 'open_app',
+    app: 'browser',
+    safe: true,
+  },
+  {
+    pattern:
+      /(whatsapp).*?(?:khol\s*de|open|launch|start)|(?:khol\s*de|open|launch|start).*?(whatsapp)/i,
+    action: 'open_app',
+    app: 'whatsapp',
+    safe: true,
+  },
+  {
+    pattern: /(youtube).*?(?:khol\s*de|open|launch)|(?:khol\s*de|open).*?(youtube)/i,
+    action: 'open_url',
+    url: 'https://youtube.com',
+    safe: true,
+  },
 
   // Messaging (requires confirmation — external action)
-  { pattern: /(?:message|msg|send).*(?:kar\s*de|bhej\s*de|send)/i, action: 'send_message', safe: false, needsConfirm: true },
+  {
+    pattern: /(?:message|msg|send).*(?:kar\s*de|bhej\s*de|send)/i,
+    action: 'send_message',
+    safe: false,
+    needsConfirm: true,
+  },
 
   // System actions (require confirmation)
-  { pattern: /(?:shutdown|restart|band\s*kar\s*de)/i, action: 'system', safe: false, needsConfirm: true },
-  { pattern: /(?:delete|erase|mita\s*de)\s+(.*)/i, action: 'delete', safe: false, needsConfirm: true },
+  {
+    pattern: /(?:shutdown|restart|band\s*kar\s*de)/i,
+    action: 'system',
+    safe: false,
+    needsConfirm: true,
+  },
+  {
+    pattern: /(?:delete|erase|mita\s*de)\s+(.*)/i,
+    action: 'delete',
+    safe: false,
+    needsConfirm: true,
+  },
 ];
 
 // Chat patterns — these are NEVER actions
@@ -55,7 +99,7 @@ export function parseIntent(message) {
         params: { ...rest, match: match.slice(1) },
         needsConfirm: rest.needsConfirm || false,
         safe: rest.safe !== false,
-        originalText: text
+        originalText: text,
       };
     }
   }
@@ -78,7 +122,7 @@ export function checkActionScope(intent, userId) {
     return {
       allowed: false,
       reason: 'NEEDS_CONFIRM',
-      message: 'Ye action bahar ki duniya ko affect karega. Confirm karo to execute karunga.'
+      message: 'Ye action bahar ki duniya ko affect karega. Confirm karo to execute karunga.',
     };
   }
 
@@ -95,5 +139,5 @@ export const ACTION_TYPES = {
   OPEN_URL: 'open_url',
   SEND_MESSAGE: 'send_message',
   SYSTEM: 'system',
-  DELETE: 'delete'
+  DELETE: 'delete',
 };

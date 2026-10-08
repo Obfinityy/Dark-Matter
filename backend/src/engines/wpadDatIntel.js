@@ -53,7 +53,8 @@ export function extractWpadUrlPatterns(wpadText) {
     seen.add(pattern);
     out.push({
       pattern,
-      detail: `WPAD matches URLs against '${pattern}' — wildcard URL patterns in proxy ` +
+      detail:
+        `WPAD matches URLs against '${pattern}' — wildcard URL patterns in proxy ` +
         'logic enumerate internal web namespaces (intranet apps, consoles, portals).',
     });
   }
@@ -77,8 +78,9 @@ export function extractWpadTimeGates(wpadText) {
     out.push({
       kind: m[1],
       args: m[2].replace(/\s+/g, ' ').trim(),
-      detail: `${m[1]}(${m[2].replace(/\s+/g, ' ').trim()}) gates proxying on time — ` +
-        'discloses the organization\'s operating hours and GMT offset conventions.',
+      detail:
+        `${m[1]}(${m[2].replace(/\s+/g, ' ').trim()}) gates proxying on time — ` +
+        "discloses the organization's operating hours and GMT offset conventions.",
     });
   }
   return out;
@@ -136,27 +138,43 @@ export function analyzeWpadDat(wpadText) {
 
   const findings = [];
   if (internalHosts.length) {
-    findings.push(`${internalHosts.length} internal host(s) leaked via WPAD: ` +
-      `${internalHosts.slice(0, 12).join(', ')}${internalHosts.length > 12 ? ` (+${internalHosts.length - 12} more)` : ''} — ` +
-      'WPAD is served to every client, so these names are the organization\'s own intranet map.');
+    findings.push(
+      `${internalHosts.length} internal host(s) leaked via WPAD: ` +
+        `${internalHosts.slice(0, 12).join(', ')}${internalHosts.length > 12 ? ` (+${internalHosts.length - 12} more)` : ''} — ` +
+        "WPAD is served to every client, so these names are the organization's own intranet map."
+    );
   }
   if (domains.length) {
-    findings.push(`Internal domain(s) named in WPAD logic: ${domains.join(', ')} — ` +
-      'AD/internal domain names seed subdomain enumeration and Kerberos recon.');
+    findings.push(
+      `Internal domain(s) named in WPAD logic: ${domains.join(', ')} — ` +
+        'AD/internal domain names seed subdomain enumeration and Kerberos recon.'
+    );
   }
   if (pac.proxyEndpoints.length) {
-    findings.push(`Proxy endpoint(s): ${pac.proxyEndpoints.map(e => `${e.scheme} ${e.raw}`).join(', ')}.`);
+    findings.push(
+      `Proxy endpoint(s): ${pac.proxyEndpoints.map(e => `${e.scheme} ${e.raw}`).join(', ')}.`
+    );
   }
   if (pac.subnets.length) {
-    findings.push(`Private subnet(s): ${pac.subnets.map(s => `${s.network}/${s.mask}`).join(', ')}.`);
+    findings.push(
+      `Private subnet(s): ${pac.subnets.map(s => `${s.network}/${s.mask}`).join(', ')}.`
+    );
   }
   if (urlPatterns.length) {
-    findings.push(`${urlPatterns.length} URL pattern(s) enumerate internal web namespaces: ` +
-      `${urlPatterns.slice(0, 6).map(p => `'${p.pattern}'`).join(', ')}${urlPatterns.length > 6 ? '…' : ''}.`);
+    findings.push(
+      `${urlPatterns.length} URL pattern(s) enumerate internal web namespaces: ` +
+        `${urlPatterns
+          .slice(0, 6)
+          .map(p => `'${p.pattern}'`)
+          .join(', ')}${urlPatterns.length > 6 ? '…' : ''}.`
+    );
   }
   if (timeGates.length) {
-    findings.push(`${timeGates.length} time gate(s) disclose operating windows: ` +
-      timeGates.map(t => `${t.kind}(${t.args})`).join(', ') + '.');
+    findings.push(
+      `${timeGates.length} time gate(s) disclose operating windows: ` +
+        timeGates.map(t => `${t.kind}(${t.args})`).join(', ') +
+        '.'
+    );
   }
 
   return {

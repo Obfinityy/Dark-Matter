@@ -3,7 +3,15 @@
  * The agent must produce structured decisions, not free-form text.
  */
 
-const VALID_ACTION_TYPES = ['tool_execution', 'observation', 'hypothesis', 'finding', 'phase_change', 'complete', 'pause'];
+const VALID_ACTION_TYPES = [
+  'tool_execution',
+  'observation',
+  'hypothesis',
+  'finding',
+  'phase_change',
+  'complete',
+  'pause',
+];
 
 /**
  * Validate a structured agent decision.
@@ -25,7 +33,9 @@ export function validateDecision(decision) {
   } else {
     const action = decision.selected_action;
     if (!VALID_ACTION_TYPES.includes(action.type)) {
-      errors.push(`Invalid action type: ${action.type}. Must be one of: ${VALID_ACTION_TYPES.join(', ')}`);
+      errors.push(
+        `Invalid action type: ${action.type}. Must be one of: ${VALID_ACTION_TYPES.join(', ')}`
+      );
     }
     if (action.type === 'tool_execution') {
       if (!action.tool) errors.push('tool_execution requires a tool name');

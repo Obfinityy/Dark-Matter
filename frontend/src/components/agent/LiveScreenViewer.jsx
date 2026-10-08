@@ -42,7 +42,7 @@ const ACTION_LABELS = {
   navigate: { label: '🌐 Navigating', tone: 'nav' },
   get_active_window: { label: '👁️ Checking active window', tone: 'observe' },
   get_browser_state: { label: '👁️ Checking browser', tone: 'observe' },
-  sleep: { label: '⏳ Waiting', tone: 'wait' }
+  sleep: { label: '⏳ Waiting', tone: 'wait' },
 };
 
 function describeAction(event) {
@@ -62,11 +62,7 @@ function describeAction(event) {
   return { text: `${label}${detail}`, tone: entry?.tone || null };
 }
 
-export function LiveScreenViewer({
-  assessmentId,
-  subscribe,
-  initialPaused = false
-}) {
+export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = false }) {
   const [screenshot, setScreenshot] = useState(null);
   const [paused, setPaused] = useState(initialPaused);
   const [actions, setActions] = useState([]);
@@ -89,12 +85,10 @@ export function LiveScreenViewer({
         </div>
         <div className="dm-screen-empty">
           🖥️ Live screen needs the <strong>local backend</strong> — remove{' '}
-          <code>VITE_BACKEND_URL</code> from <code>.env</code> and run{' '}
-          <code>npm start</code> in <code>backend/</code> to watch the agent on your own machine.
+          <code>VITE_BACKEND_URL</code> from <code>.env</code> and run <code>npm start</code> in{' '}
+          <code>backend/</code> to watch the agent on your own machine.
           <br />
-          <span className="dm-screen-footnote">
-            (Remote screen viewing comes later.)
-          </span>
+          <span className="dm-screen-footnote">(Remote screen viewing comes later.)</span>
         </div>
       </div>
     );
@@ -116,7 +110,9 @@ export function LiveScreenViewer({
         failCount.current = 0;
       } else if (result.error) {
         failCount.current += 1;
-        setError(failCount.current >= 3 ? 'unavailable' : (result.error.message || 'Screenshot unavailable'));
+        setError(
+          failCount.current >= 3 ? 'unavailable' : result.error.message || 'Screenshot unavailable'
+        );
       }
     } catch (e) {
       failCount.current += 1;
@@ -136,7 +132,7 @@ export function LiveScreenViewer({
   // Listen for computer action events to narrate what the agent is doing.
   useEffect(() => {
     if (!subscribe || !assessmentId) return;
-    const onEvent = (event) => {
+    const onEvent = event => {
       const t = event.__sseType || event.type || '';
       if (t.startsWith('computer.') || t === 'action' || t === 'observation') {
         const described = describeAction(event);
@@ -144,9 +140,9 @@ export function LiveScreenViewer({
           id: event.id || `ca-${Date.now()}-${Math.random()}`,
           at: event.at || new Date().toISOString(),
           text: described.text,
-          tone: described.tone
+          tone: described.tone,
         };
-        setActions((prev) => [...prev.slice(-49), line]);
+        setActions(prev => [...prev.slice(-49), line]);
       }
       if (t === 'computer.paused') setPaused(true);
       if (t === 'computer.resumed') setPaused(false);
@@ -184,7 +180,11 @@ export function LiveScreenViewer({
         </span>
         <div className="dm-screen-controls">
           {paused ? (
-            <button type="button" className="dm-btn dm-btn-primary dm-btn-sm" onClick={handleResume}>
+            <button
+              type="button"
+              className="dm-btn dm-btn-primary dm-btn-sm"
+              onClick={handleResume}
+            >
               <Play size={13} aria-hidden="true" /> Resume control
             </button>
           ) : (
@@ -192,7 +192,12 @@ export function LiveScreenViewer({
               <Pause size={13} aria-hidden="true" /> Pause control
             </button>
           )}
-          <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={fetchScreenshot} disabled={loading}>
+          <button
+            type="button"
+            className="dm-btn dm-btn-ghost dm-btn-sm"
+            onClick={fetchScreenshot}
+            disabled={loading}
+          >
             <Camera size={13} aria-hidden="true" /> {loading ? '…' : 'Refresh'}
           </button>
         </div>
@@ -207,7 +212,7 @@ export function LiveScreenViewer({
             alt="Agent's live screen (read-only)"
             className="dm-screen-img"
             draggable={false}
-            onDragStart={(e) => e.preventDefault()}
+            onDragStart={e => e.preventDefault()}
           />
         ) : (
           <div className="dm-screen-empty">
@@ -221,7 +226,11 @@ export function LiveScreenViewer({
                 <button
                   type="button"
                   className="dm-btn dm-btn-ghost dm-btn-sm lsv-retry"
-                  onClick={() => { failCount.current = 0; setError(null); fetchScreenshot(); }}
+                  onClick={() => {
+                    failCount.current = 0;
+                    setError(null);
+                    fetchScreenshot();
+                  }}
                 >
                   Retry
                 </button>
@@ -231,7 +240,11 @@ export function LiveScreenViewer({
             )}
           </div>
         )}
-        {paused && <div className="dm-screen-paused-overlay" role="status">⏸ computer control paused</div>}
+        {paused && (
+          <div className="dm-screen-paused-overlay" role="status">
+            ⏸ computer control paused
+          </div>
+        )}
       </div>
 
       <div className="dm-screen-note">
@@ -244,14 +257,17 @@ export function LiveScreenViewer({
         {actions.length === 0 ? (
           <div className="dm-screen-actions-empty">waiting for the agent to act…</div>
         ) : (
-          actions.slice(-8).reverse().map((a) => (
-            <div key={a.id} className={`dm-screen-action-line${a.tone ? ` tone-${a.tone}` : ''}`}>
-              <time className="dm-term-ts" dateTime={a.at}>
-                {new Date(a.at).toLocaleTimeString('en-GB', { hour12: false })}
-              </time>
-              <span>{a.text}</span>
-            </div>
-          ))
+          actions
+            .slice(-8)
+            .reverse()
+            .map(a => (
+              <div key={a.id} className={`dm-screen-action-line${a.tone ? ` tone-${a.tone}` : ''}`}>
+                <time className="dm-term-ts" dateTime={a.at}>
+                  {new Date(a.at).toLocaleTimeString('en-GB', { hour12: false })}
+                </time>
+                <span>{a.text}</span>
+              </div>
+            ))
         )}
       </div>
     </div>

@@ -18,7 +18,7 @@ function extractIdeas(src, varName) {
   const block = src.match(new RegExp(`export const ${varName} = \\[([\\s\\S]*?)\\];`));
   assert.ok(block, `${varName} registry not found in source`);
   return [...block[1].matchAll(/\{\s*idea:\s*(\d+),\s*name:\s*'([^']+)',\s*in:\s*'([^']+)'/g)].map(
-    (m) => ({ idea: Number(m[1]), name: m[2], in: m[3] })
+    m => ({ idea: Number(m[1]), name: m[2], in: m[3] })
   );
 }
 
@@ -30,10 +30,11 @@ test('registry covers ideas 50441–50480 exactly', () => {
     'WAVE12_IDEAS'
   );
   assert.equal(ideas.length, 40);
-  const nums = ideas.map((i) => i.idea).sort((a, b) => a - b);
+  const nums = ideas.map(i => i.idea).sort((a, b) => a - b);
   for (let n = 50441; n <= 50480; n++) assert.ok(nums.includes(n), `missing idea ${n}`);
   assert.equal(new Set(nums).size, 40, 'duplicate idea numbers');
-  for (const i of ideas) assert.ok(i.in && i.in.length > 3, `idea ${i.idea} has no implementation mapping`);
+  for (const i of ideas)
+    assert.ok(i.in && i.in.length > 3, `idea ${i.idea} has no implementation mapping`);
 });
 
 test('exactly 3 ideas are SKIP-marked as already-live in wave 6', () => {
@@ -41,9 +42,9 @@ test('exactly 3 ideas are SKIP-marked as already-live in wave 6', () => {
     fs.readFileSync(path.join(here, 'shortcutsCore.js'), 'utf8'),
     'WAVE12_IDEAS'
   );
-  const skips = ideas.filter((i) => i.in.startsWith('SKIP:'));
-  assert.deepEqual(skips.map((i) => i.idea).sort(), [50449, 50464, 50469]);
-  const rest = ideas.filter((i) => !i.in.startsWith('SKIP:'));
+  const skips = ideas.filter(i => i.in.startsWith('SKIP:'));
+  assert.deepEqual(skips.map(i => i.idea).sort(), [50449, 50464, 50469]);
+  const rest = ideas.filter(i => !i.in.startsWith('SKIP:'));
   assert.equal(rest.length, 37);
   for (const i of rest) assert.ok(!/SKIP/.test(i.in), `idea ${i.idea} wrongly marked SKIP`);
 });
@@ -51,23 +52,23 @@ test('exactly 3 ideas are SKIP-marked as already-live in wave 6', () => {
 /* Shortcut registry sanity ------------------------------------------------- */
 
 test('SHORTCUTS: unique ids, valid idea numbers, existing flags honest', () => {
-  const ids = core.SHORTCUTS.map((s) => s.id);
+  const ids = core.SHORTCUTS.map(s => s.id);
   assert.equal(new Set(ids).size, ids.length, 'duplicate shortcut ids');
   for (const s of core.SHORTCUTS) {
     assert.ok(s.keys && s.keys.length, `${s.id} has no keys`);
     assert.ok(s.idea >= 50441 && s.idea <= 50480, `${s.id} idea out of range`);
     assert.ok(s.label && s.group, `${s.id} missing label/group`);
   }
-  const existing = core.SHORTCUTS.filter((s) => s.existing);
-  assert.deepEqual(existing.map((s) => s.idea).sort(), [50449, 50464, 50469]);
+  const existing = core.SHORTCUTS.filter(s => s.existing);
+  assert.deepEqual(existing.map(s => s.idea).sort(), [50449, 50464, 50469]);
 });
 
 test('every keyboard-driven idea 50441–50480 has at least one fresh binding', () => {
   // Component-only ideas (no keystroke of their own) are exempt — they are
   // still implemented, just not as bindings:
   const COMPONENT_ONLY = new Set([50441, 50442, 50443, 50444, 50465, 50466, 50467, 50468]);
-  const fresh = core.SHORTCUTS.filter((s) => !s.existing);
-  const covered = new Set(fresh.map((s) => s.idea));
+  const fresh = core.SHORTCUTS.filter(s => !s.existing);
+  const covered = new Set(fresh.map(s => s.idea));
   for (let n = 50441; n <= 50480; n++) {
     if ([50449, 50464, 50469].includes(n)) continue; // covered by `existing` entries
     if (COMPONENT_ONLY.has(n)) continue; // covered by components, verified in registry test
@@ -90,17 +91,17 @@ test('normalizeKeyEvent: single keys, modifiers, special keys', () => {
   assert.equal(n({ key: 'F', ctrlKey: true, shiftKey: true }), 'ctrl+shift+f');
   assert.equal(n({ key: '1', altKey: true }), 'alt+1');
   assert.equal(n({ key: 'd', ctrlKey: true }), 'ctrl+d');
-  assert.equal(n({ key: '.', }), '.');
+  assert.equal(n({ key: '.' }), '.');
 });
 
 test('matchBinding matches registry bindings incl. cmd+k alias', () => {
-  const palette = core.SHORTCUTS.find((s) => s.id === 'command-palette');
+  const palette = core.SHORTCUTS.find(s => s.id === 'command-palette');
   assert.ok(core.matchBinding(palette, { key: 'k', ctrlKey: true }));
   assert.ok(core.matchBinding(palette, { key: 'k', metaKey: true }));
-  const sheet = core.SHORTCUTS.find((s) => s.id === 'cheat-sheet');
+  const sheet = core.SHORTCUTS.find(s => s.id === 'cheat-sheet');
   assert.ok(core.matchBinding(sheet, { key: '?', shiftKey: true }));
   assert.ok(!core.matchBinding(sheet, { key: '?' })); // plain ? is wave-6's
-  const dup = core.SHORTCUTS.find((s) => s.id === 'duplicate-hunt');
+  const dup = core.SHORTCUTS.find(s => s.id === 'duplicate-hunt');
   assert.ok(core.matchBinding(dup, { key: 'd', ctrlKey: true }));
   assert.ok(!core.matchBinding(dup, { key: 'd' })); // plain d toggles density instead
 });
@@ -129,7 +130,7 @@ test('SequenceTracker: g-prefix sequences match, timeout resets', async () => {
   assert.equal(r.id, null); // unknown second key
   // timeout clears a pending prefix
   t.feed('g');
-  await new Promise((res) => setTimeout(res, 50));
+  await new Promise(res => setTimeout(res, 50));
   r = t.feed('h');
   assert.equal(r.id, null); // prefix expired — plain 'h' is not a sequence
   t.dispose();
@@ -146,7 +147,7 @@ test('TIPS non-empty and pickTip cycles deterministically', () => {
 
 test('tip state round-trips through injected storage', () => {
   const mem = new Map();
-  const store = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v) };
+  const store = { getItem: k => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v) };
   const s0 = core.getTipState(store);
   assert.deepEqual(s0, { visits: 0, dismissed: false, neverShow: false });
   core.setTipState(store, { visits: 3, dismissed: false, neverShow: true });
@@ -176,9 +177,17 @@ test('simulateToggleCopy distinguishes mock vs real', () => {
 });
 
 test('markdownPoC renders a formatted finding document', () => {
-  const md = core.markdownPoC({ title: 'SQLi in search', severity: 'high', confidence: 92, host: 'app.test', poc: "' OR 1=1--" });
+  const md = core.markdownPoC({
+    title: 'SQLi in search',
+    severity: 'high',
+    confidence: 92,
+    host: 'app.test',
+    poc: "' OR 1=1--",
+  });
   assert.ok(md.startsWith('## SQLi in search'));
-  assert.ok(md.includes('Severity: high') && md.includes('Confidence: 92%') && md.includes('Host: app.test'));
+  assert.ok(
+    md.includes('Severity: high') && md.includes('Confidence: 92%') && md.includes('Host: app.test')
+  );
   assert.ok(md.includes('### Proof of concept') && md.includes("' OR 1=1--"));
   const empty = core.markdownPoC({});
   assert.ok(empty.includes('Untitled finding') && empty.includes('No PoC recorded'));
@@ -192,9 +201,9 @@ test('undoToastText narrates the revert', () => {
 /* Cheat-sheet search + key display (50445) ----------------------------------- */
 
 test('filterShortcuts finds by label, key, and group', () => {
-  assert.ok(core.filterShortcuts('zen').some((s) => s.id === 'toggle-zen'));
-  assert.ok(core.filterShortcuts('ctrl+shift+f').some((s) => s.id === 'global-search'));
-  assert.ok(core.filterShortcuts('timeline').every((s) => s.group === 'Timeline'));
+  assert.ok(core.filterShortcuts('zen').some(s => s.id === 'toggle-zen'));
+  assert.ok(core.filterShortcuts('ctrl+shift+f').some(s => s.id === 'global-search'));
+  assert.ok(core.filterShortcuts('timeline').every(s => s.group === 'Timeline'));
   assert.equal(core.filterShortcuts('').length, core.SHORTCUTS.length);
   assert.equal(core.filterShortcuts('zzzz-no-match').length, 0);
 });
@@ -209,10 +218,20 @@ test('keyDisplay renders human labels', () => {
 /* Component export presence -------------------------------------------------- */
 
 const EXPECTED_EXPORTS = [
-  'ShortcutsProvider', 'useShortcuts', 'ensureLogicalTabOrder',
-  'RotatingTipsBar', 'VerifiedCheckmark', 'ShareLinkExplainer', 'SimulateToggleTip',
-  'ShortcutCheatSheet', 'FocusTrap', 'SkipLinks', 'TimelineKeyNav',
-  'QuickActionMenu', 'ExportViewPicker', 'ToastStack',
+  'ShortcutsProvider',
+  'useShortcuts',
+  'ensureLogicalTabOrder',
+  'RotatingTipsBar',
+  'VerifiedCheckmark',
+  'ShareLinkExplainer',
+  'SimulateToggleTip',
+  'ShortcutCheatSheet',
+  'FocusTrap',
+  'SkipLinks',
+  'TimelineKeyNav',
+  'QuickActionMenu',
+  'ExportViewPicker',
+  'ToastStack',
 ];
 
 test('ShortcutsManager.jsx exports all wave-12 components', () => {

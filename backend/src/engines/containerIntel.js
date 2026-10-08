@@ -28,9 +28,25 @@ const LIBRARY_NAMESPACE = 'library';
 
 /** Tokens that commonly encode environment in image names. */
 const ENV_TOKENS = [
-  'prod', 'production', 'staging', 'stage', 'dev', 'development',
-  'test', 'testing', 'qa', 'uat', 'sandbox', 'demo', 'canary', 'beta',
-  'internal', 'infra', 'edge', 'dr', 'backup',
+  'prod',
+  'production',
+  'staging',
+  'stage',
+  'dev',
+  'development',
+  'test',
+  'testing',
+  'qa',
+  'uat',
+  'sandbox',
+  'demo',
+  'canary',
+  'beta',
+  'internal',
+  'infra',
+  'edge',
+  'dr',
+  'backup',
 ];
 
 /**
@@ -107,7 +123,10 @@ export function mineOrgNamespace(imageRefs, org) {
  * @returns {{service: string, environment: string|null}}
  */
 export function decodeImageName(name) {
-  const tokens = (name || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const tokens = (name || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
   let environment = null;
   const serviceTokens = [];
   for (const t of tokens) {
@@ -125,21 +144,66 @@ export function decodeImageName(name) {
 
 /** TLD-like suffixes that are actually file extensions, not DNS names. */
 const FILE_EXTENSION_TLDS = new Set([
-  'tgz', 'gz', 'zip', 'tar', 'bz2', 'xz', '7z', 'rar', 'deb', 'rpm',
-  'exe', 'msi', 'dmg', 'pkg', 'apk', 'jar', 'war', 'whl', 'gem',
-  'png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'pdf', 'md',
-  'txt', 'log', 'json', 'yaml', 'yml', 'toml', 'lock', 'sh', 'py', 'js',
+  'tgz',
+  'gz',
+  'zip',
+  'tar',
+  'bz2',
+  'xz',
+  '7z',
+  'rar',
+  'deb',
+  'rpm',
+  'exe',
+  'msi',
+  'dmg',
+  'pkg',
+  'apk',
+  'jar',
+  'war',
+  'whl',
+  'gem',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'svg',
+  'ico',
+  'webp',
+  'pdf',
+  'md',
+  'txt',
+  'log',
+  'json',
+  'yaml',
+  'yml',
+  'toml',
+  'lock',
+  'sh',
+  'py',
+  'js',
 ]);
 
 const HOSTNAME_RE = /\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b/g;
 
 /** Host suffixes that are noise in build logs (public registries, base images). */
 const BUILD_LOG_NOISE = new Set([
-  'docker.io', 'index.docker.io', 'registry.hub.docker.com',
-  'ghcr.io', 'gcr.io', 'registry-1.docker.io', 'auth.docker.io',
-  'proxy.golang.org', 'registry.npmjs.org', 'pypi.org', 'files.pythonhosted.org',
-  'archive.ubuntu.com', 'security.ubuntu.com', 'deb.debian.org',
-  'alpine', 'busybox',
+  'docker.io',
+  'index.docker.io',
+  'registry.hub.docker.com',
+  'ghcr.io',
+  'gcr.io',
+  'registry-1.docker.io',
+  'auth.docker.io',
+  'proxy.golang.org',
+  'registry.npmjs.org',
+  'pypi.org',
+  'files.pythonhosted.org',
+  'archive.ubuntu.com',
+  'security.ubuntu.com',
+  'deb.debian.org',
+  'alpine',
+  'busybox',
 ]);
 
 /**

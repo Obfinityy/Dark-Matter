@@ -34,7 +34,11 @@ export function parseIntegrity(tag = '') {
  */
 export function analyzeSriGaps(pageUrl, html = '') {
   let pageHost = '';
-  try { pageHost = new URL(pageUrl).hostname.toLowerCase(); } catch { /* ignore */ }
+  try {
+    pageHost = new URL(pageUrl).hostname.toLowerCase();
+  } catch {
+    /* ignore */
+  }
   const findings = [];
   const tagRe = /<(script|link)\b[^>]*>/gi;
   const srcRe = /\b(?:src|href)\s*=\s*["']([^"']+)["']/i;
@@ -48,9 +52,17 @@ export function analyzeSriGaps(pageUrl, html = '') {
     const srcMatch = srcRe.exec(tag);
     if (!srcMatch) continue; // inline script — not SRI-relevant
     let url = srcMatch[1].trim();
-    try { url = new URL(url, pageUrl).href; } catch { /* keep raw */ }
+    try {
+      url = new URL(url, pageUrl).href;
+    } catch {
+      /* keep raw */
+    }
     let host = '';
-    try { host = new URL(url).hostname.toLowerCase(); } catch { /* ignore */ }
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      /* ignore */
+    }
     if (!host || host === pageHost || TRUSTED_FIRST_PARTY.has(host)) continue;
     const sri = parseIntegrity(tag);
     const weakAlgo = sri.present && (sri.algorithm === 'sha1' || sri.algorithm === 'md5');
@@ -71,8 +83,10 @@ export function analyzeSriGaps(pageUrl, html = '') {
  * @returns {{total: number, missing: number, weak: number, covered: number, verdict: string}}
  */
 export function summarizeSri(findings = []) {
-  const missing = findings.filter((f) => !f.sri.present).length;
-  const weak = findings.filter((f) => f.sri.present && (f.sri.algorithm === 'sha1' || f.sri.algorithm === 'md5')).length;
+  const missing = findings.filter(f => !f.sri.present).length;
+  const weak = findings.filter(
+    f => f.sri.present && (f.sri.algorithm === 'sha1' || f.sri.algorithm === 'md5')
+  ).length;
   const covered = findings.length - missing - weak;
   let verdict = 'good';
   if (missing > 0) verdict = 'poor';

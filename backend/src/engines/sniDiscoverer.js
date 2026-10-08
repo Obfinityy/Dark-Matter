@@ -14,7 +14,10 @@
 
 /** Normalize a hostname for comparison. */
 export function normalizeHost(host) {
-  return String(host || '').trim().toLowerCase().replace(/\.$/, '');
+  return String(host || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
 }
 
 /** Check whether a certificate SAN list covers a given SNI value. */
@@ -27,7 +30,8 @@ export function sanCoversSni(sans = [], sni) {
     if (san.startsWith('*.')) {
       const suffix = san.slice(2).split('.');
       // Wildcard covers exactly one label: *.example.com matches a.example.com
-      if (labels.length === suffix.length + 1 && labels.slice(1).join('.') === suffix.join('.')) return true;
+      if (labels.length === suffix.length + 1 && labels.slice(1).join('.') === suffix.join('.'))
+        return true;
     }
   }
   return false;
@@ -51,7 +55,7 @@ export function certIdentity(cert = {}) {
  * @returns {{vhosts: Array, defaultVhost: Object|null, wildcard: Object|null, summary: Object}}
  */
 export function discoverVhosts({ probes = [] } = {}) {
-  const usable = probes.filter((p) => p && p.connected && p.cert);
+  const usable = probes.filter(p => p && p.connected && p.cert);
   const groups = new Map();
   for (const p of usable) {
     const id = certIdentity(p.cert);
@@ -65,8 +69,8 @@ export function discoverVhosts({ probes = [] } = {}) {
 
   // The default vhost is the certificate served for SNIs it does not cover.
   for (const g of certGroups) {
-    const uncovered = g.snis.filter((s) => !sanCoversSni(g.cert.sans || [], s));
-    const covered = g.snis.filter((s) => sanCoversSni(g.cert.sans || [], s));
+    const uncovered = g.snis.filter(s => !sanCoversSni(g.cert.sans || [], s));
+    const covered = g.snis.filter(s => sanCoversSni(g.cert.sans || [], s));
     if (uncovered.length > 0 && covered.length === 0) {
       defaultVhost = {
         cert: g.cert,
@@ -87,7 +91,7 @@ export function discoverVhosts({ probes = [] } = {}) {
   // Wildcard detection: one cert covering many distinct probed hostnames.
   let wildcard = null;
   for (const g of certGroups) {
-    const wildcards = (g.cert.sans || []).filter((s) => normalizeHost(s).startsWith('*.'));
+    const wildcards = (g.cert.sans || []).filter(s => normalizeHost(s).startsWith('*.'));
     if (wildcards.length && g.snis.length >= 3) {
       wildcard = { cert: g.cert, patterns: wildcards, probedCount: g.snis.length };
     }
@@ -95,7 +99,7 @@ export function discoverVhosts({ probes = [] } = {}) {
 
   // JA4S divergence: same IP returning different server stacks per SNI
   // suggests SNI-based routing to different backends.
-  const ja4sSet = new Set(usable.map((p) => p.ja4s).filter(Boolean));
+  const ja4sSet = new Set(usable.map(p => p.ja4s).filter(Boolean));
   const divergentStacks = ja4sSet.size > 1;
 
   return {
@@ -130,9 +134,31 @@ export function buildSniCandidates(seedHost, extraPrefixes = []) {
   const sub = parts.slice(0, -2).join('.');
 
   const prefixes = [
-    'www', 'api', 'admin', 'dev', 'staging', 'test', 'portal', 'app', 'vpn',
-    'mail', 'ftp', 'blog', 'shop', 'cdn', 'static', 'assets', 'internal',
-    'beta', 'demo', 'old', 'new', 'secure', 'login', 'auth', 'sso',
+    'www',
+    'api',
+    'admin',
+    'dev',
+    'staging',
+    'test',
+    'portal',
+    'app',
+    'vpn',
+    'mail',
+    'ftp',
+    'blog',
+    'shop',
+    'cdn',
+    'static',
+    'assets',
+    'internal',
+    'beta',
+    'demo',
+    'old',
+    'new',
+    'secure',
+    'login',
+    'auth',
+    'sso',
     ...extraPrefixes,
   ];
 

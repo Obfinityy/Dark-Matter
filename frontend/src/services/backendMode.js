@@ -56,7 +56,7 @@ export async function testBackendConnection(timeoutMs = 10000) {
       ok: false,
       message: isLocalBackend()
         ? 'Localhost backend is unreachable. Run `npm start` in backend/ and try again.'
-        : `Backend at ${getBackendUrl()} is unreachable. Check the URL and try again.`
+        : `Backend at ${getBackendUrl()} is unreachable. Check the URL and try again.`,
     };
   }
 }

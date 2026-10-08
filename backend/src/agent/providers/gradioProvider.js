@@ -47,6 +47,7 @@ function messagesToPrompt(messages = []) {
   return parts.join('\n\n');
 }
 
+/** AI model provider: gradio. */
 export class GradioProvider {
   constructor({ baseUrl, model = 'qwen3-8b', timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     this.baseUrl = normalizeBaseUrl(baseUrl);
@@ -55,7 +56,9 @@ export class GradioProvider {
     this.enabled = true;
   }
 
-  get providerName() { return 'GradioProvider'; }
+  get providerName() {
+    return 'GradioProvider';
+  }
 
   async healthCheck() {
     const start = Date.now();
@@ -66,13 +69,21 @@ export class GradioProvider {
       });
       const latencyMs = Date.now() - start;
       if (!res.ok) {
-        return { provider: 'GradioProvider', enabled: true, reachable: false, latencyMs, reason: `HTTP ${res.status} — Gradio link may have expired. Restart your Kaggle notebook for a fresh link.` };
+        return {
+          provider: 'GradioProvider',
+          enabled: true,
+          reachable: false,
+          latencyMs,
+          reason: `HTTP ${res.status} — Gradio link may have expired. Restart your Kaggle notebook for a fresh link.`,
+        };
       }
       let mode = '';
       try {
         const cfg = await res.json();
         mode = cfg?.mode || '';
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       return {
         provider: 'GradioProvider',
         enabled: true,
@@ -110,7 +121,11 @@ export class GradioProvider {
           return await this._callPredict(prompt, timeout);
         } catch (predictErr) {
           // Fall back to old API
-          if (process.env.DM_DEBUG_GRADIO) console.log('[gradio] predict failed, trying legacy chat:', predictErr.message.slice(0, 100));
+          if (process.env.DM_DEBUG_GRADIO)
+            console.log(
+              '[gradio] predict failed, trying legacy chat:',
+              predictErr.message.slice(0, 100)
+            );
         }
         // Legacy API: /gradio_api/api/chat
         const url = `${this.baseUrl}/gradio_api/api/chat`;
@@ -132,7 +147,7 @@ export class GradioProvider {
         return reply;
       } catch (err) {
         lastErr = err;
-        if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
       }
     }
     throw new Error(`Remote model failed after 3 attempts: ${lastErr?.message || lastErr}`);
@@ -179,7 +194,7 @@ export class GradioProvider {
       if (text.includes('event: error')) {
         throw new Error(`Gradio predict error: ${text.slice(0, 200)}`);
       }
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 2000));
     }
     throw new Error('Gradio predict timed out waiting for result');
   }
@@ -188,9 +203,7 @@ export class GradioProvider {
     const prompt = messagesToPrompt(messages);
     // Hint the token budget so long reasoning doesn't starve the answer.
     const maxTokens = options.maxTokens ?? 2000;
-    const budgetHint = maxTokens < 800
-      ? '\n\n[Keep your answer concise.]'
-      : '';
+    const budgetHint = maxTokens < 800 ? '\n\n[Keep your answer concise.]' : '';
     const reply = await this.chatOnce(prompt + budgetHint, {
       timeoutMs: options.timeout || this.timeoutMs,
       maxTokens,

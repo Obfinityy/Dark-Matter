@@ -50,7 +50,7 @@ export function extractUrls(text) {
  */
 export function isNgrokHost(hostname) {
   const host = String(hostname || '').toLowerCase();
-  return NGROK_HOST_RES.some((re) => re.test(host));
+  return NGROK_HOST_RES.some(re => re.test(host));
 }
 
 /**
@@ -104,7 +104,7 @@ export function detectNgrokLeftovers({ source = 'unknown', text = '' } = {}) {
     agentConfigLeak: agentConfig.hasAuthtoken,
     evidence:
       (findings.length
-        ? `Found ${findings.length} hardcoded ngrok tunnel URL(s) in ${source}: ${findings.map((f) => f.url).join('; ')}. `
+        ? `Found ${findings.length} hardcoded ngrok tunnel URL(s) in ${source}: ${findings.map(f => f.url).join('; ')}. `
         : `No ngrok tunnel URLs found in ${source}. `) +
       (agentConfig.hasAuthtoken
         ? 'An ngrok agent authtoken appears to be present in the text (value redacted) — rotate it immediately.'

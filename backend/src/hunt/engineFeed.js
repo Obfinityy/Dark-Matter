@@ -39,7 +39,10 @@ export async function loadEngineModule(name) {
 /** List all engine module names available on disk. */
 export async function listEngines() {
   const files = await fs.readdir(ENGINES_DIR);
-  return files.filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3)).sort();
+  return files
+    .filter(f => f.endsWith('.js'))
+    .map(f => f.slice(0, -3))
+    .sort();
 }
 
 /**
@@ -73,21 +76,34 @@ export async function runEngineTask(moduleName, fnName, args) {
  */
 const RECON_SWEEP = [
   // Host/domain level
-  ['eliteRecon', 'subdomainCandidates', (i) => [i.domain, i.extraSubdomains || []]],
+  ['eliteRecon', 'subdomainCandidates', i => [i.domain, i.extraSubdomains || []]],
   // HTTP response level
-  ['eliteRecon', 'fingerprintTech', (i) => [i.httpResponse || {}]],
-  ['eliteRecon', 'scoreEndpoint', (i) => [i.path || '/', i.statusCode || 0, i.contentLength || 0]],
-  ['secretScanner', 'scanForSecrets', (i) => [i.bodyText || '']],
-  ['secretScanner', 'extractJsUrls', (i) => [i.bodyText || '', i.url || '']],
-  ['jwtAnalyzer', 'extractJWTs', (i) => [i.bodyText || '']],
-  ['vulnDetector', 'scanResponse', (i) => [{ url: i.url || '', body: i.bodyText || '', headers: i.headers || {} }, {}]],
-  ['vulnDetector', 'detectSSRFParams', (i) => [i.url || '']],
-  ['vulnDetector', 'detectIDORParams', (i) => [i.url || '']],
-  ['corsChecker', 'checkCORS', (i) => [{ url: i.url || '', headers: i.headers || {} }]],
-  ['paramMiner', 'mineParams', (i) => [i.url || '']],
-  ['takeoverChecker', 'checkTakeover', (i) => [{
-    subdomain: i.host || '', cname: i.cname || '', httpBody: i.bodyText || '', httpStatus: i.statusCode || 0,
-  }]],
+  ['eliteRecon', 'fingerprintTech', i => [i.httpResponse || {}]],
+  ['eliteRecon', 'scoreEndpoint', i => [i.path || '/', i.statusCode || 0, i.contentLength || 0]],
+  ['secretScanner', 'scanForSecrets', i => [i.bodyText || '']],
+  ['secretScanner', 'extractJsUrls', i => [i.bodyText || '', i.url || '']],
+  ['jwtAnalyzer', 'extractJWTs', i => [i.bodyText || '']],
+  [
+    'vulnDetector',
+    'scanResponse',
+    i => [{ url: i.url || '', body: i.bodyText || '', headers: i.headers || {} }, {}],
+  ],
+  ['vulnDetector', 'detectSSRFParams', i => [i.url || '']],
+  ['vulnDetector', 'detectIDORParams', i => [i.url || '']],
+  ['corsChecker', 'checkCORS', i => [{ url: i.url || '', headers: i.headers || {} }]],
+  ['paramMiner', 'mineParams', i => [i.url || '']],
+  [
+    'takeoverChecker',
+    'checkTakeover',
+    i => [
+      {
+        subdomain: i.host || '',
+        cname: i.cname || '',
+        httpBody: i.bodyText || '',
+        httpStatus: i.statusCode || 0,
+      },
+    ],
+  ],
 ];
 
 /**
@@ -110,15 +126,15 @@ export async function runReconSweep(input = {}, opts = {}) {
     }
     const call = Array.isArray(args)
       ? (async () => {
-        const m = await loadEngineModule(mod);
-        const f = m[fn] ?? m.default?.[fn];
-        if (typeof f !== 'function') throw new Error(`no export "${fn}"`);
-        return f(...args);
-      })()
-      : runEngineTask(mod, fn, args).then((r) => {
-        if (!r.ok) throw new Error(r.error);
-        return r.result;
-      });
+          const m = await loadEngineModule(mod);
+          const f = m[fn] ?? m.default?.[fn];
+          if (typeof f !== 'function') throw new Error(`no export "${fn}"`);
+          return f(...args);
+        })()
+      : runEngineTask(mod, fn, args).then(r => {
+          if (!r.ok) throw new Error(r.error);
+          return r.result;
+        });
     try {
       const result = await withTimeout(call, timeoutMs);
       results.push({ engine: mod, fn, ok: true, result: truncateResult(result) });
@@ -153,9 +169,10 @@ function withTimeout(promise, ms) {
 /** Keep persisted evidence small: cap strings/arrays in engine results. */
 function truncateResult(value, depth = 0) {
   if (depth > 3) return '[truncated]';
-  if (typeof value === 'string') return value.length > 2000 ? `${value.slice(0, 2000)}…[truncated]` : value;
+  if (typeof value === 'string')
+    return value.length > 2000 ? `${value.slice(0, 2000)}…[truncated]` : value;
   if (Array.isArray(value)) {
-    return value.slice(0, 50).map((v) => truncateResult(v, depth + 1));
+    return value.slice(0, 50).map(v => truncateResult(v, depth + 1));
   }
   if (value && typeof value === 'object') {
     const out = {};

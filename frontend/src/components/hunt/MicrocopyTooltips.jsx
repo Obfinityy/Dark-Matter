@@ -63,12 +63,12 @@ export function SmartTooltip({ text, children, position = 'top', className = '' 
   const idRef = useRef(`mc-tip-${Math.random().toString(36).slice(2, 9)}`);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => {
+    const onKey = e => {
       if (e.key === 'Escape') setOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open ]);
+  }, [open]);
   return (
     <span
       className={`mc-tip-wrap ${className}`}
@@ -94,10 +94,10 @@ export function HelpPopover({ title, trigger, children }) {
   const boxRef = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e) => {
+    const onDoc = e => {
       if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
     };
-    const onKey = (e) => {
+    const onKey = e => {
       if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
@@ -106,14 +106,14 @@ export function HelpPopover({ title, trigger, children }) {
       document.removeEventListener('mousedown', onDoc);
       window.removeEventListener('keydown', onKey);
     };
-  }, [open ]);
+  }, [open]);
   return (
     <span className="mc-pop-wrap" ref={boxRef}>
       <button
         type="button"
         className="mc-pop-trigger"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(v => !v)}
       >
         {trigger}
       </button>
@@ -121,7 +121,12 @@ export function HelpPopover({ title, trigger, children }) {
         <span className="mc-pop" role="dialog" aria-label={title}>
           <span className="mc-pop-head">
             <strong>{title}</strong>
-            <button type="button" className="mc-pop-x" onClick={() => setOpen(false)} aria-label="Close">
+            <button
+              type="button"
+              className="mc-pop-x"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+            >
               ×
             </button>
           </span>
@@ -137,7 +142,12 @@ export function HelpPopover({ title, trigger, children }) {
 export function PauseButtonTooltip({ onPause, paused }) {
   return (
     <SmartTooltip text={PAUSE_TOOLTIP}>
-      <button type="button" className="mc-btn" onClick={onPause} aria-label={paused ? 'Resume hunt' : 'Pause hunt'}>
+      <button
+        type="button"
+        className="mc-btn"
+        onClick={onPause}
+        aria-label={paused ? 'Resume hunt' : 'Pause hunt'}
+      >
         {paused ? '▶' : '⏸'}
       </button>
     </SmartTooltip>
@@ -161,7 +171,9 @@ export function ShortcutTooltip({ label, shortcut, children }) {
 export function ChainIconTooltip() {
   return (
     <SmartTooltip text={CHAIN_ICON_TOOLTIP}>
-      <span className="mc-icon" aria-label="Finding relationships">🔗</span>
+      <span className="mc-icon" aria-label="Finding relationships">
+        🔗
+      </span>
     </SmartTooltip>
   );
 }
@@ -181,7 +193,10 @@ export function EtaTooltip({ eta, huntsUsed }) {
 export function FalsePositiveTagExplainer({ signals = [] }) {
   const info = fpTagExplainer(signals);
   return (
-    <HelpPopover title={info.title} trigger={<span className="mc-fp-tag">false-positive suspect ⓘ</span>}>
+    <HelpPopover
+      title={info.title}
+      trigger={<span className="mc-fp-tag">false-positive suspect ⓘ</span>}
+    >
       <ul className="mc-list">
         {info.signals.map((s, i) => (
           <li key={i}>
@@ -199,7 +214,7 @@ export function FalsePositiveTagExplainer({ signals = [] }) {
 export function CvssBreakdown({ initialVector = 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H' }) {
   const [metrics, setMetrics] = useState(() => parseCvss31Vector(initialVector));
   const result = cvss31Score(metrics);
-  const set = (k, v) => setMetrics((m) => ({ ...m, [k]: v }));
+  const set = (k, v) => setMetrics(m => ({ ...m, [k]: v }));
   return (
     <div className="mc-cvss">
       <div className="mc-cvss-score">
@@ -210,8 +225,12 @@ export function CvssBreakdown({ initialVector = 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:
         {Object.entries(CVSS31_METRICS).map(([k, meta]) => (
           <label key={k} className="mc-cvss-row">
             <span title={meta.label}>{k}</span>
-            <select value={metrics[k]} onChange={(e) => set(k, e.target.value)} aria-label={meta.label}>
-              {meta.options.map((o) => (
+            <select
+              value={metrics[k]}
+              onChange={e => set(k, e.target.value)}
+              aria-label={meta.label}
+            >
+              {meta.options.map(o => (
                 <option key={o} value={o}>
                   {o} — {meta.help[o]}
                 </option>
@@ -240,7 +259,7 @@ export function TierBadgeTooltip({ tier = 'Infinity' }) {
 export function ScopeInputGuidance() {
   return (
     <ul className="mc-scope-guide">
-      {SCOPE_GUIDANCE.map((g) => (
+      {SCOPE_GUIDANCE.map(g => (
         <li key={g.format}>
           <strong>{g.format}:</strong> <code>{g.example}</code> — {g.note}
         </li>
@@ -263,7 +282,14 @@ export function WorkerLaneTooltip({ lane = 'worker-1', children }) {
 
 export function WhyLink({ ruleId }) {
   return (
-    <HelpPopover title="Why am I seeing this?" trigger={<button type="button" className="mc-why">why?</button>}>
+    <HelpPopover
+      title="Why am I seeing this?"
+      trigger={
+        <button type="button" className="mc-why">
+          why?
+        </button>
+      }
+    >
       <p>{triggerRuleText(ruleId)}</p>
     </HelpPopover>
   );
@@ -279,7 +305,9 @@ export function SnapshotTooltip({ savedAt }) {
   }, [savedAt]);
   return (
     <SmartTooltip text={label}>
-      <span className="mc-icon" aria-label="Snapshot">📸</span>
+      <span className="mc-icon" aria-label="Snapshot">
+        📸
+      </span>
     </SmartTooltip>
   );
 }
@@ -289,7 +317,7 @@ export function SnapshotTooltip({ savedAt }) {
 export function CronHelper({ value, onChange }) {
   const [expr, setExpr] = useState(value || '0 9 * * 1');
   const shown = value !== undefined ? value : expr;
-  const update = (v) => {
+  const update = v => {
     if (onChange) onChange(v);
     else setExpr(v);
   };
@@ -298,7 +326,7 @@ export function CronHelper({ value, onChange }) {
       <input
         className="mc-input"
         value={shown}
-        onChange={(e) => update(e.target.value)}
+        onChange={e => update(e.target.value)}
         placeholder="0 9 * * 1"
         aria-label="Cron schedule"
         spellCheck={false}
@@ -322,7 +350,14 @@ export function DedupTooltip({ mergedCount, ruleName }) {
 
 export function ScrubberHelpPopover() {
   return (
-    <HelpPopover title="Timeline scrubber" trigger={<button type="button" className="mc-btn">?</button>}>
+    <HelpPopover
+      title="Timeline scrubber"
+      trigger={
+        <button type="button" className="mc-btn">
+          ?
+        </button>
+      }
+    >
       <ul className="mc-list">
         {SCRUBBER_HELP.map((h, i) => (
           <li key={i}>
@@ -362,7 +397,7 @@ export function AskAgentExamples({ onPick }) {
   return (
     <div className="mc-examples">
       <span className="mc-examples-label">Try:</span>
-      {ASK_AGENT_EXAMPLES.map((q) => (
+      {ASK_AGENT_EXAMPLES.map(q => (
         <button key={q} type="button" className="mc-chip" onClick={() => onPick && onPick(q)}>
           {q}
         </button>
@@ -379,7 +414,7 @@ export function TargetInputWithHelp({ value, onChange, onSubmit }) {
   const shown = value !== undefined ? value : val;
   const check = validateTargetInput(shown);
   const showError = touched && !check.ok;
-  const update = (v) => {
+  const update = v => {
     if (onChange) onChange(v);
     else setVal(v);
   };
@@ -388,9 +423,9 @@ export function TargetInputWithHelp({ value, onChange, onSubmit }) {
       <input
         className={`mc-input ${showError ? 'mc-input-error' : ''}`}
         value={shown}
-        onChange={(e) => update(e.target.value)}
+        onChange={e => update(e.target.value)}
         onBlur={() => setTouched(true)}
-        onKeyDown={(e) => {
+        onKeyDown={e => {
           if (e.key === 'Enter' && onSubmit) onSubmit(shown);
         }}
         placeholder="https://example.com"
@@ -411,9 +446,16 @@ export function TargetInputWithHelp({ value, onChange, onSubmit }) {
 
 export function ExportFormatTooltip() {
   return (
-    <HelpPopover title="Which format?" trigger={<button type="button" className="mc-btn">Export ▾</button>}>
+    <HelpPopover
+      title="Which format?"
+      trigger={
+        <button type="button" className="mc-btn">
+          Export ▾
+        </button>
+      }
+    >
       <ul className="mc-list">
-        {EXPORT_FORMATS.map((f) => (
+        {EXPORT_FORMATS.map(f => (
           <li key={f.format}>
             <strong>{f.format}:</strong> {f.tradeoff}
           </li>
@@ -455,7 +497,7 @@ export function CollaboratorAvatar({ user }) {
 export function ConfidenceSlider({ value = 70, onChange }) {
   const [v, setV] = useState(value);
   const shown = onChange ? value : v;
-  const update = (n) => {
+  const update = n => {
     if (onChange) onChange(n);
     else setV(n);
   };
@@ -468,7 +510,7 @@ export function ConfidenceSlider({ value = 70, onChange }) {
           min={0}
           max={100}
           value={shown}
-          onChange={(e) => update(Number(e.target.value))}
+          onChange={e => update(Number(e.target.value))}
           aria-label="Minimum confidence"
         />
       </label>
@@ -518,8 +560,16 @@ export function WhatHappensNext({ current = 0 }) {
       <p className="mc-stepper-title">What happens next</p>
       <ol className="mc-steps">
         {HUNT_PHASE_PREVIEWS.map((p, i) => (
-          <li key={p.phase} className={i === active ? 'mc-step-active' : i < active ? 'mc-step-done' : ''}>
-            <button type="button" className="mc-step-btn" onClick={() => setActive(i)} aria-current={i === active}>
+          <li
+            key={p.phase}
+            className={i === active ? 'mc-step-active' : i < active ? 'mc-step-done' : ''}
+          >
+            <button
+              type="button"
+              className="mc-step-btn"
+              onClick={() => setActive(i)}
+              aria-current={i === active}
+            >
               <span className="mc-step-n">{i + 1}</span> {p.phase}
             </button>
           </li>
@@ -555,7 +605,7 @@ export function TerminalCopyButton({ text, withTimestamps = true, onToggle }) {
         <input
           type="checkbox"
           checked={ts}
-          onChange={(e) => {
+          onChange={e => {
             setTs(e.target.checked);
             if (onToggle) onToggle(e.target.checked);
           }}
@@ -584,7 +634,7 @@ export function ThemeHoverPreviews({ themes = THEME_PREVIEWS, onSelect }) {
   const [preview, setPreview] = useState(null);
   return (
     <div className="mc-themes">
-      {themes.map((t) => (
+      {themes.map(t => (
         <span
           key={t.name}
           className="mc-theme-swatch"
@@ -594,8 +644,11 @@ export function ThemeHoverPreviews({ themes = THEME_PREVIEWS, onSelect }) {
           onFocus={() => setPreview(t)}
           onBlur={() => setPreview(null)}
           onClick={() => onSelect && onSelect(t)}
-          onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && onSelect) { e.preventDefault(); onSelect(t); }
+          onKeyDown={e => {
+            if ((e.key === 'Enter' || e.key === ' ') && onSelect) {
+              e.preventDefault();
+              onSelect(t);
+            }
           }}
           role="button"
           aria-label={`Preview ${t.name} theme`}
@@ -653,7 +706,7 @@ export function WidgetHelpAffordance() {
 export function HuntabilityMeter({ value, onChange }) {
   const [target, setTarget] = useState(value || '');
   const shown = value !== undefined ? value : target;
-  const update = (v) => {
+  const update = v => {
     if (onChange) onChange(v);
     else setTarget(v);
   };
@@ -663,7 +716,7 @@ export function HuntabilityMeter({ value, onChange }) {
       <input
         className="mc-input"
         value={shown}
-        onChange={(e) => update(e.target.value)}
+        onChange={e => update(e.target.value)}
         placeholder="https://example.com"
         aria-label="Target URL huntability check"
         spellCheck={false}
@@ -711,7 +764,7 @@ export function BellTooltip({ notifications = [] }) {
 export function DiffLegendTooltip() {
   return (
     <span className="mc-diff-legend">
-      {DIFF_LEGEND.map((d) => (
+      {DIFF_LEGEND.map(d => (
         <SmartTooltip key={d.kind} text={d.text}>
           <span className="mc-diff-chip">
             <span className="mc-diff-swatch" style={{ background: d.color }} />
@@ -728,18 +781,18 @@ export function DiffLegendTooltip() {
 export function DropZoneHints({ accept, maxBytes, onFiles }) {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef(null);
-  const handleFiles = (files) => {
+  const handleFiles = files => {
     if (onFiles) onFiles([...files]);
   };
   return (
     <div
       className={`mc-dropzone ${drag ? 'mc-dropzone-drag' : ''}`}
-      onDragOver={(e) => {
+      onDragOver={e => {
         e.preventDefault();
         setDrag(true);
       }}
       onDragLeave={() => setDrag(false)}
-      onDrop={(e) => {
+      onDrop={e => {
         e.preventDefault();
         setDrag(false);
         handleFiles(e.dataTransfer.files);
@@ -747,8 +800,11 @@ export function DropZoneHints({ accept, maxBytes, onFiles }) {
       onClick={() => inputRef.current?.click()}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); }
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
       }}
       aria-label="File drop zone"
     >
@@ -760,7 +816,7 @@ export function DropZoneHints({ accept, maxBytes, onFiles }) {
         hidden
         multiple
         accept={Array.isArray(accept) ? accept.join(',') : undefined}
-        onChange={(e) => handleFiles(e.target.files)}
+        onChange={e => handleFiles(e.target.files)}
       />
     </div>
   );

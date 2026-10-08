@@ -92,7 +92,7 @@ export function LongPressMenu({ findingId = 'DM-4821', title = 'Reflected XSS in
     setMenu({ x: clientX - rect.left, y: clientY - rect.top });
   };
 
-  const onPointerDown = (e) => {
+  const onPointerDown = e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     start.current = { x: e.clientX, y: e.clientY, t: Date.now() };
     timer.current = setTimeout(() => {
@@ -102,18 +102,18 @@ export function LongPressMenu({ findingId = 'DM-4821', title = 'Reflected XSS in
     }, LONG_PRESS_MS);
   };
 
-  const onPointerMove = (e) => {
+  const onPointerMove = e => {
     if (!start.current) return;
     if (longPressMoved(e.clientX - start.current.x, e.clientY - start.current.y)) cancel();
   };
 
-  const onContextMenu = (e) => {
+  const onContextMenu = e => {
     e.preventDefault(); // keyboard (Shift+F10 / menu key) and right-click both land here
     cancel();
     openAt(e.clientX || 40, e.clientY || 40);
   };
 
-  const choose = (action) => {
+  const choose = action => {
     setLastAction(action.id === 'copy' ? `Copied ${findingId}` : `${action.label} — ${findingId}`);
     setMenu(null);
     if (cardRef.current) cardRef.current.focus();
@@ -121,10 +121,10 @@ export function LongPressMenu({ findingId = 'DM-4821', title = 'Reflected XSS in
 
   useEffect(() => {
     if (!menu) return undefined;
-    const onKey = (e) => {
+    const onKey = e => {
       if (e.key === 'Escape') setMenu(null);
     };
-    const onDown = (e) => {
+    const onDown = e => {
       if (cardRef.current && !cardRef.current.contains(e.target)) setMenu(null);
     };
     document.addEventListener('keydown', onKey);
@@ -156,9 +156,19 @@ export function LongPressMenu({ findingId = 'DM-4821', title = 'Reflected XSS in
       <p className="r2-longpress-title">{title}</p>
       <p className="r2-hint">Press and hold ({LONG_PRESS_MS}ms) for the quick menu</p>
       {menu && (
-        <div className="r2-quickmenu" role="menu" style={{ left: Math.min(menu.x, 120), top: menu.y + 8 }}>
-          {QUICK_ACTIONS.map((a) => (
-            <button key={a.id} type="button" role="menuitem" className="r2-quickmenu-item" onClick={() => choose(a)}>
+        <div
+          className="r2-quickmenu"
+          role="menu"
+          style={{ left: Math.min(menu.x, 120), top: menu.y + 8 }}
+        >
+          {QUICK_ACTIONS.map(a => (
+            <button
+              key={a.id}
+              type="button"
+              role="menuitem"
+              className="r2-quickmenu-item"
+              onClick={() => choose(a)}
+            >
               {a.label}
             </button>
           ))}
@@ -178,7 +188,7 @@ export function LongPressMenu({ findingId = 'DM-4821', title = 'Reflected XSS in
 /* ------------------------------------------------------------------ */
 
 export function ResponsiveThumbnail({ sources, alt, aspect = '16 / 9' }) {
-  const srcSet = sources.map((s) => `${s.src} ${s.w}w`).join(', ');
+  const srcSet = sources.map(s => `${s.src} ${s.w}w`).join(', ');
   const fallback = sources.length ? sources[Math.min(1, sources.length - 1)].src : '';
   return (
     <img
@@ -195,10 +205,11 @@ export function ResponsiveThumbnail({ sources, alt, aspect = '16 / 9' }) {
 }
 
 function svgThumb(w, h, bg, label) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`
-    + `<rect width="${w}" height="${h}" fill="${bg}"/>`
-    + `<text x="${w / 2}" y="${h / 2}" font-size="${Math.round(h / 5)}" text-anchor="middle" fill="#ffffff" font-family="sans-serif">${label} ${w}w</text>`
-    + `</svg>`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
+    `<rect width="${w}" height="${h}" fill="${bg}"/>` +
+    `<text x="${w / 2}" y="${h / 2}" font-size="${Math.round(h / 5)}" text-anchor="middle" fill="#ffffff" font-family="sans-serif">${label} ${w}w</text>` +
+    `</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
@@ -215,8 +226,9 @@ export function ResponsiveThumbnailDemo() {
     <div className="r2-thumb-demo">
       <ResponsiveThumbnail sources={sources} alt="Evidence screenshot, responsive thumbnail" />
       <p className="r2-note">
-        One <code>img</code> with <code>srcset</code>/<code>sizes</code> + <code>loading="lazy"</code> — the
-        browser picks 320/640/960w. Resize the window and watch the network panel.
+        One <code>img</code> with <code>srcset</code>/<code>sizes</code> +{' '}
+        <code>loading="lazy"</code> — the browser picks 320/640/960w. Resize the window and watch
+        the network panel.
       </p>
     </div>
   );
@@ -244,17 +256,30 @@ export function PrintLayoutOverride() {
         <header className="r2-print-head">
           <p className="r2-print-kicker">Dark Matter · Obfinity</p>
           <h4>Hunt #4821 — Executive report</h4>
-          <p className="r2-print-meta">target.test · 3 findings · printed {new Date().toLocaleDateString()}</p>
+          <p className="r2-print-meta">
+            target.test · 3 findings · printed {new Date().toLocaleDateString()}
+          </p>
         </header>
         <section className="r2-print-finding">
-          <h5>DM-4821 — Reflected XSS in search param <span className="r2-sev">high</span></h5>
-          <p>Unescaped reflection of the <code>q</code> parameter in <code>/search</code>. Fix: context-aware output encoding.</p>
+          <h5>
+            DM-4821 — Reflected XSS in search param <span className="r2-sev">high</span>
+          </h5>
+          <p>
+            Unescaped reflection of the <code>q</code> parameter in <code>/search</code>. Fix:
+            context-aware output encoding.
+          </p>
         </section>
         <section className="r2-print-finding">
-          <h5>DM-4819 — Open redirect on login <span className="r2-sev">medium</span></h5>
-          <p><code>next</code> parameter accepts arbitrary hosts. Fix: allow-list redirect targets.</p>
+          <h5>
+            DM-4819 — Open redirect on login <span className="r2-sev">medium</span>
+          </h5>
+          <p>
+            <code>next</code> parameter accepts arbitrary hosts. Fix: allow-list redirect targets.
+          </p>
         </section>
-        <footer className="r2-print-foot">Page <span className="r2-page-num" /> — generated by Dark Matter</footer>
+        <footer className="r2-print-foot">
+          Page <span className="r2-page-num" /> — generated by Dark Matter
+        </footer>
       </article>
     </div>
   );
@@ -266,8 +291,16 @@ export function PrintLayoutOverride() {
 
 const SCROLL_CARDS = [
   { id: 'a', title: 'Recon sweep', body: '42 subdomains enumerated, 11 live hosts fingerprinted.' },
-  { id: 'b', title: 'Vuln scan', body: '3 findings: 1 high, 1 medium, 1 low. PoCs generated for all.' },
-  { id: 'c', title: 'Report draft', body: 'Executive summary + remediation table ready for review.' },
+  {
+    id: 'b',
+    title: 'Vuln scan',
+    body: '3 findings: 1 high, 1 medium, 1 low. PoCs generated for all.',
+  },
+  {
+    id: 'c',
+    title: 'Report draft',
+    body: 'Executive summary + remediation table ready for review.',
+  },
 ];
 
 export function OrientationSafeScroller() {
@@ -277,7 +310,9 @@ export function OrientationSafeScroller() {
   const [events, setEvents] = useState([]);
   const openRef = useRef(open);
   openRef.current = open;
-  const geomRef = useRef(typeof window !== 'undefined' ? scrollGeometryKey(window.innerWidth, window.innerHeight) : '');
+  const geomRef = useRef(
+    typeof window !== 'undefined' ? scrollGeometryKey(window.innerWidth, window.innerHeight) : ''
+  );
 
   useEffect(() => {
     const onResize = () => {
@@ -285,12 +320,22 @@ export function OrientationSafeScroller() {
       if (key.split(':')[1] !== geomRef.current.split(':')[1]) {
         // Orientation actually changed — capture scroll + open cards, restore after layout settles.
         const snap = preserver.current.capture(openRef.current);
-        setEvents((e) => [`Captured scrollY=${Math.round(snap.y)} + open cards [${snap.openCardIds.join(', ')}]`, ...e].slice(0, 4));
+        setEvents(e =>
+          [
+            `Captured scrollY=${Math.round(snap.y)} + open cards [${snap.openCardIds.join(', ')}]`,
+            ...e,
+          ].slice(0, 4)
+        );
         setTimeout(() => {
           const restored = preserver.current.restore();
           if (restored) {
             setOpen(restored.openCardIds);
-            setEvents((e) => [`Restored scrollY=${Math.round(restored.y)} + reopened [${restored.openCardIds.join(', ')}]`, ...e].slice(0, 4));
+            setEvents(e =>
+              [
+                `Restored scrollY=${Math.round(restored.y)} + reopened [${restored.openCardIds.join(', ')}]`,
+                ...e,
+              ].slice(0, 4)
+            );
           }
         }, 350);
       }
@@ -304,14 +349,22 @@ export function OrientationSafeScroller() {
     };
   }, []);
 
-  const toggle = (id) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
+  const toggle = id => setOpen(o => (o.includes(id) ? o.filter(x => x !== id) : [...o, id]));
 
   return (
     <div className="r2-orient">
-      <p className="r2-note">Rotate the device (or resize across the portrait/landscape boundary) — scroll position and open cards survive.</p>
-      {SCROLL_CARDS.map((c) => (
+      <p className="r2-note">
+        Rotate the device (or resize across the portrait/landscape boundary) — scroll position and
+        open cards survive.
+      </p>
+      {SCROLL_CARDS.map(c => (
         <div key={c.id} className="r2-orient-card">
-          <button type="button" className="r2-orient-head" onClick={() => toggle(c.id)} aria-expanded={open.includes(c.id)}>
+          <button
+            type="button"
+            className="r2-orient-head"
+            onClick={() => toggle(c.id)}
+            aria-expanded={open.includes(c.id)}
+          >
             {c.title}
             <span aria-hidden="true">{open.includes(c.id) ? '▾' : '▸'}</span>
           </button>
@@ -336,17 +389,23 @@ export function OrientationSafeScroller() {
 export function NotchSafeBars() {
   return (
     <div className="r2-notch-demo">
-      <div className="r2-notch-header">Hunt #4821 <span className="r2-notch-tag">safe-area top</span></div>
+      <div className="r2-notch-header">
+        Hunt #4821 <span className="r2-notch-tag">safe-area top</span>
+      </div>
       <div className="r2-notch-body">
         <p className="r2-note">
-          Header and bottom bar pad with <code>env(safe-area-inset-*)</code> so notches, punch-holes and
-          home indicators never cover controls. Wave 16 used these piecemeal — these utility classes
-          generalize them.
+          Header and bottom bar pad with <code>env(safe-area-inset-*)</code> so notches, punch-holes
+          and home indicators never cover controls. Wave 16 used these piecemeal — these utility
+          classes generalize them.
         </p>
       </div>
       <div className="r2-notch-bottombar">
-        <button type="button" className="r2-btn">Pause</button>
-        <button type="button" className="r2-btn r2-btn-primary">New hunt</button>
+        <button type="button" className="r2-btn">
+          Pause
+        </button>
+        <button type="button" className="r2-btn r2-btn-primary">
+          New hunt
+        </button>
         <span className="r2-notch-tag">safe-area bottom</span>
       </div>
     </div>
@@ -366,19 +425,26 @@ export function HybridTabletCard() {
   return (
     <div className="r2-hybrid">
       <p className="r2-note">
-        Detected input mode: <strong>{mode}</strong> (coarse pointer: {String(hasCoarsePointer())}, hover:{' '}
-        {String(hasFineHover())}). Hybrid devices get hover tooltips <em>and</em> 48px touch targets at once.
+        Detected input mode: <strong>{mode}</strong> (coarse pointer: {String(hasCoarsePointer())},
+        hover: {String(hasFineHover())}). Hybrid devices get hover tooltips <em>and</em> 48px touch
+        targets at once.
       </p>
       <div className="r2-hybrid-card">
         <div className="r2-hybrid-main">
           <h4>DM-4821 — Reflected XSS</h4>
           <p>Severity high · confidence 0.92</p>
         </div>
-        <span className="r2-tooltip-wrap" tabIndex={0} aria-label="More info: CVSS 7.5, reflected via the q parameter">
+        <span
+          className="r2-tooltip-wrap"
+          tabIndex={0}
+          aria-label="More info: CVSS 7.5, reflected via the q parameter"
+        >
           <button type="button" className="r2-touch-btn" aria-label="Finding details">
             i
           </button>
-          <span className="r2-tooltip" role="tooltip">CVSS 7.5 · reflected via the <code>q</code> parameter · PoC ready</span>
+          <span className="r2-tooltip" role="tooltip">
+            CVSS 7.5 · reflected via the <code>q</code> parameter · PoC ready
+          </span>
         </span>
       </div>
     </div>
@@ -390,7 +456,11 @@ export function HybridTabletCard() {
 /* ------------------------------------------------------------------ */
 
 const SECTIONS = [
-  { id: 's1', title: 'Findings (3)', body: 'DM-4821 high · DM-4819 medium · DM-4817 low. All have PoCs.' },
+  {
+    id: 's1',
+    title: 'Findings (3)',
+    body: 'DM-4821 high · DM-4819 medium · DM-4817 low. All have PoCs.',
+  },
   { id: 's2', title: 'Timeline', body: 'Recon 4m → Scan 8m → PoC 2m. Finished 11:02 IST.' },
   { id: 's3', title: 'Exports', body: 'PDF, Markdown and JSON exports are ready.' },
 ];
@@ -399,20 +469,28 @@ export function CollapsibleMobileSection() {
   const width = useViewportWidth();
   const mobile = isMobileWidth(width);
   const [explicit, setExplicit] = useState(null); // null = follow breakpoint default
-  const isOpen = (id) => (explicit ? explicit.includes(id) : !mobile);
-  const toggle = (id) =>
-    setExplicit((prev) => {
-      const base = prev || (mobile ? [] : SECTIONS.map((s) => s.id));
-      return base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+  const isOpen = id => (explicit ? explicit.includes(id) : !mobile);
+  const toggle = id =>
+    setExplicit(prev => {
+      const base = prev || (mobile ? [] : SECTIONS.map(s => s.id));
+      return base.includes(id) ? base.filter(x => x !== id) : [...base, id];
     });
   return (
     <div className="r2-collapse">
       <p className="r2-note">
-        {mobile ? 'Mobile layout — sections start collapsed.' : 'Desktop layout — sections start expanded.'} (current: {width}px)
+        {mobile
+          ? 'Mobile layout — sections start collapsed.'
+          : 'Desktop layout — sections start expanded.'}{' '}
+        (current: {width}px)
       </p>
-      {SECTIONS.map((s) => (
+      {SECTIONS.map(s => (
         <div key={s.id} className="r2-collapse-sec">
-          <button type="button" className="r2-collapse-head" onClick={() => toggle(s.id)} aria-expanded={isOpen(s.id)}>
+          <button
+            type="button"
+            className="r2-collapse-head"
+            onClick={() => toggle(s.id)}
+            aria-expanded={isOpen(s.id)}
+          >
             {s.title}
             <span aria-hidden="true">{isOpen(s.id) ? '▾' : '▸'}</span>
           </button>
@@ -437,22 +515,46 @@ export function OsTextSizeDemo() {
       if (typeof document !== 'undefined') document.documentElement.style.fontSize = '';
     };
   }, [rootPx]);
-  const step = (d) => setRootPx((p) => clampRootFontSize(p + d));
+  const step = d => setRootPx(p => clampRootFontSize(p + d));
   return (
     <div className="r2-textsize">
       <p className="r2-note">
-        All type in this suite is <code>rem</code>-based, so the OS text-size setting (which changes the root
-        font size) scales everything. Simulate it:
+        All type in this suite is <code>rem</code>-based, so the OS text-size setting (which changes
+        the root font size) scales everything. Simulate it:
       </p>
       <div className="r2-textsize-controls">
-        <button type="button" className="r2-btn" onClick={() => step(-2)} aria-label="Decrease text size">A−</button>
-        <span className="r2-textsize-value" aria-live="polite">{rootPx}px root</span>
-        <button type="button" className="r2-btn" onClick={() => step(2)} aria-label="Increase text size">A+</button>
-        <button type="button" className="r2-btn" onClick={() => setRootPx(ROOT_FONT_DEFAULT_PX)}>Reset</button>
+        <button
+          type="button"
+          className="r2-btn"
+          onClick={() => step(-2)}
+          aria-label="Decrease text size"
+        >
+          A−
+        </button>
+        <span className="r2-textsize-value" aria-live="polite">
+          {rootPx}px root
+        </span>
+        <button
+          type="button"
+          className="r2-btn"
+          onClick={() => step(2)}
+          aria-label="Increase text size"
+        >
+          A+
+        </button>
+        <button type="button" className="r2-btn" onClick={() => setRootPx(ROOT_FONT_DEFAULT_PX)}>
+          Reset
+        </button>
       </div>
-      <p className="r2-textsize-sample">The quick brown fox — body copy at 1rem scales with the root.</p>
-      <p className="r2-textsize-sample r2-small">Small print at 0.8125rem still scales proportionally.</p>
-      <p className="r2-note r2-faint">Range clamped to {ROOT_FONT_MIN_PX}–{ROOT_FONT_MAX_PX}px.</p>
+      <p className="r2-textsize-sample">
+        The quick brown fox — body copy at 1rem scales with the root.
+      </p>
+      <p className="r2-textsize-sample r2-small">
+        Small print at 0.8125rem still scales proportionally.
+      </p>
+      <p className="r2-note r2-faint">
+        Range clamped to {ROOT_FONT_MIN_PX}–{ROOT_FONT_MAX_PX}px.
+      </p>
     </div>
   );
 }
@@ -482,7 +584,11 @@ export function SaveDataBadge() {
       </p>
       <label className="r2-row-label">
         Simulate
-        <select value={forced} onChange={(e) => setForced(e.target.value)} aria-label="Simulate network tier">
+        <select
+          value={forced}
+          onChange={e => setForced(e.target.value)}
+          aria-label="Simulate network tier"
+        >
           <option value="auto">Auto (detected)</option>
           <option value="full">Full</option>
           <option value="reduced">Reduced</option>
@@ -501,10 +607,17 @@ export function SaveDataBadge() {
 /* ShortMobileEmptyState (50650)                                       */
 /* ------------------------------------------------------------------ */
 
-export function ShortMobileEmptyState({ icon = '◌', line = 'No findings yet.', actionLabel = 'Start hunt', onAction }) {
+export function ShortMobileEmptyState({
+  icon = '◌',
+  line = 'No findings yet.',
+  actionLabel = 'Start hunt',
+  onAction,
+}) {
   return (
     <div className="r2-short-empty" role="status">
-      <span className="r2-short-empty-icon" aria-hidden="true">{icon}</span>
+      <span className="r2-short-empty-icon" aria-hidden="true">
+        {icon}
+      </span>
       <p>{line}</p>
       {actionLabel && (
         <button type="button" className="r2-btn r2-btn-small" onClick={onAction}>
@@ -530,18 +643,18 @@ export function SwipeablePhaseCarousel() {
   const [index, setIndex] = useState(0);
   const touchX = useRef(null);
 
-  const go = (i) => setIndex(clampCarouselIndex(i, pages));
+  const go = i => setIndex(clampCarouselIndex(i, pages));
 
-  const onTouchStart = (e) => {
+  const onTouchStart = e => {
     touchX.current = e.touches[0].clientX;
   };
-  const onTouchEnd = (e) => {
+  const onTouchEnd = e => {
     if (touchX.current == null) return;
     const dx = e.changedTouches[0].clientX - touchX.current;
     go(carouselIndexAfterSwipe(index, dx, pages));
     touchX.current = null;
   };
-  const onKeyDown = (e) => {
+  const onKeyDown = e => {
     if (e.key === 'ArrowLeft') go(index - 1);
     if (e.key === 'ArrowRight') go(index + 1);
   };
@@ -556,9 +669,18 @@ export function SwipeablePhaseCarousel() {
       onKeyDown={onKeyDown}
     >
       <div className="r2-carousel-viewport" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <div className="r2-carousel-track" style={{ transform: `translateX(${carouselOffsetPct(index)}%)` }}>
+        <div
+          className="r2-carousel-track"
+          style={{ transform: `translateX(${carouselOffsetPct(index)}%)` }}
+        >
           {PHASES.map((p, i) => (
-            <div key={p.id} className="r2-carousel-page" role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${pages}: ${p.title}`}>
+            <div
+              key={p.id}
+              className="r2-carousel-page"
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${pages}: ${p.title}`}
+            >
               <h4>{p.title}</h4>
               <p>{p.detail}</p>
             </div>
@@ -566,7 +688,13 @@ export function SwipeablePhaseCarousel() {
         </div>
       </div>
       <div className="r2-carousel-nav">
-        <button type="button" className="r2-btn r2-btn-small" onClick={() => go(index - 1)} disabled={index === 0} aria-label="Previous phase">
+        <button
+          type="button"
+          className="r2-btn r2-btn-small"
+          onClick={() => go(index - 1)}
+          disabled={index === 0}
+          aria-label="Previous phase"
+        >
           ←
         </button>
         <div className="r2-carousel-dots" role="tablist" aria-label="Phases">
@@ -582,11 +710,19 @@ export function SwipeablePhaseCarousel() {
             />
           ))}
         </div>
-        <button type="button" className="r2-btn r2-btn-small" onClick={() => go(index + 1)} disabled={index === pages - 1} aria-label="Next phase">
+        <button
+          type="button"
+          className="r2-btn r2-btn-small"
+          onClick={() => go(index + 1)}
+          disabled={index === pages - 1}
+          aria-label="Next phase"
+        >
           →
         </button>
       </div>
-      <p className="r2-note">Swipe, arrow keys, dots or buttons — {index + 1} of {pages}.</p>
+      <p className="r2-note">
+        Swipe, arrow keys, dots or buttons — {index + 1} of {pages}.
+      </p>
     </div>
   );
 }
@@ -609,14 +745,14 @@ export function MobileTabBadge({ startCount = 3 }) {
 
   useEffect(() => {
     if (!live) return undefined;
-    const id = setInterval(() => setCount((c) => (c >= 9 ? 3 : c + 1)), 4000);
+    const id = setInterval(() => setCount(c => (c >= 9 ? 3 : c + 1)), 4000);
     return () => clearInterval(id);
   }, [live]);
 
   return (
     <div className="r2-tabbar-demo">
       <nav className="r2-tabbar" aria-label="Mobile tabs">
-        {TABS.map((t) => (
+        {TABS.map(t => (
           <button
             key={t.id}
             type="button"
@@ -635,7 +771,11 @@ export function MobileTabBadge({ startCount = 3 }) {
       </nav>
       <p className="r2-note">
         Live findings count on the tab badge.
-        <button type="button" className="r2-btn r2-btn-small r2-note-btn" onClick={() => setLive((v) => !v)}>
+        <button
+          type="button"
+          className="r2-btn r2-btn-small r2-note-btn"
+          onClick={() => setLive(v => !v)}
+        >
           {live ? 'Pause live' : 'Resume live'}
         </button>
       </p>
@@ -650,7 +790,9 @@ export function MobileTabBadge({ startCount = 3 }) {
 export function BottomSheetModal({ title = 'Filter findings', children }) {
   const [open, setOpen] = useState(false);
   const [dragY, setDragY] = useState(0);
-  const [sheet, setSheet] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 640 : true));
+  const [sheet, setSheet] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 640 : true
+  );
   const dragStart = useRef(null);
   const closeRef = useRef(null);
   const openerRef = useRef(null);
@@ -666,7 +808,7 @@ export function BottomSheetModal({ title = 'Filter findings', children }) {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     if (closeRef.current) closeRef.current.focus();
-    const onKey = (e) => {
+    const onKey = e => {
       if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('keydown', onKey);
@@ -675,13 +817,13 @@ export function BottomSheetModal({ title = 'Filter findings', children }) {
       document.removeEventListener('keydown', onKey);
       if (openerRef.current) openerRef.current.focus();
     };
-  }, [open ]);
+  }, [open]);
 
-  const onTouchStart = (e) => {
+  const onTouchStart = e => {
     if (!sheet) return;
     dragStart.current = e.touches[0].clientY;
   };
-  const onTouchMove = (e) => {
+  const onTouchMove = e => {
     if (!sheet || dragStart.current == null) return;
     const dy = e.touches[0].clientY - dragStart.current;
     setDragY(Math.max(0, dy));
@@ -705,7 +847,7 @@ export function BottomSheetModal({ title = 'Filter findings', children }) {
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
             style={sheet && dragY ? { transform: `translateY(${dragY}px)` } : undefined}
           >
             {sheet && (
@@ -721,18 +863,34 @@ export function BottomSheetModal({ title = 'Filter findings', children }) {
             )}
             <div className="r2-modal-head">
               <h4>{title}</h4>
-              <button ref={closeRef} type="button" className="r2-btn r2-btn-small" onClick={() => setOpen(false)} aria-label="Close dialog">
+              <button
+                ref={closeRef}
+                type="button"
+                className="r2-btn r2-btn-small"
+                onClick={() => setOpen(false)}
+                aria-label="Close dialog"
+              >
                 ✕
               </button>
             </div>
             <div className="r2-modal-body">
               {children || (
                 <>
-                  <label className="r2-check"><input type="checkbox" defaultChecked /> Critical</label>
-                  <label className="r2-check"><input type="checkbox" defaultChecked /> High</label>
-                  <label className="r2-check"><input type="checkbox" /> Medium</label>
-                  <label className="r2-check"><input type="checkbox" /> Low</label>
-                  <p className="r2-note">{sheet ? 'Drag the handle down to dismiss.' : 'Centered modal on wide screens.'}</p>
+                  <label className="r2-check">
+                    <input type="checkbox" defaultChecked /> Critical
+                  </label>
+                  <label className="r2-check">
+                    <input type="checkbox" defaultChecked /> High
+                  </label>
+                  <label className="r2-check">
+                    <input type="checkbox" /> Medium
+                  </label>
+                  <label className="r2-check">
+                    <input type="checkbox" /> Low
+                  </label>
+                  <p className="r2-note">
+                    {sheet ? 'Drag the handle down to dismiss.' : 'Centered modal on wide screens.'}
+                  </p>
                 </>
               )}
             </div>
@@ -751,16 +909,16 @@ export function LargeTouchSlider({ min = 0, max = 10, step = 0.5, label = 'Minim
   const [value, setValue] = useState(7);
   const trackRef = useRef(null);
 
-  const setFromClientX = (clientX) => {
+  const setFromClientX = clientX => {
     const rect = trackRef.current.getBoundingClientRect();
     const ratio = (clientX - rect.left) / rect.width;
     setValue(sliderValueAt({ min, max, step, ratio }));
   };
 
-  const onPointerDown = (e) => {
+  const onPointerDown = e => {
     e.currentTarget.setPointerCapture(e.pointerId);
     setFromClientX(e.clientX);
-    const move = (ev) => setFromClientX(ev.clientX);
+    const move = ev => setFromClientX(ev.clientX);
     const up = () => {
       e.currentTarget.removeEventListener('pointermove', move);
       e.currentTarget.removeEventListener('pointerup', up);
@@ -769,9 +927,15 @@ export function LargeTouchSlider({ min = 0, max = 10, step = 0.5, label = 'Minim
     e.currentTarget.addEventListener('pointerup', up);
   };
 
-  const onKeyDown = (e) => {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setValue((v) => sliderValueAt({ min, max, step, ratio: sliderRatioFor({ min, max, value: v + step }) }));
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setValue((v) => sliderValueAt({ min, max, step, ratio: sliderRatioFor({ min, max, value: v - step }) }));
+  const onKeyDown = e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp')
+      setValue(v =>
+        sliderValueAt({ min, max, step, ratio: sliderRatioFor({ min, max, value: v + step }) })
+      );
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')
+      setValue(v =>
+        sliderValueAt({ min, max, step, ratio: sliderRatioFor({ min, max, value: v - step }) })
+      );
     if (e.key === 'Home') setValue(min);
     if (e.key === 'End') setValue(max);
   };
@@ -781,7 +945,9 @@ export function LargeTouchSlider({ min = 0, max = 10, step = 0.5, label = 'Minim
     <div className="r2-slider">
       <div className="r2-slider-head">
         <span id="r2-slider-label">{label}</span>
-        <output htmlFor="r2-slider-track" aria-live="polite">{value.toFixed(1)}</output>
+        <output htmlFor="r2-slider-track" aria-live="polite">
+          {value.toFixed(1)}
+        </output>
       </div>
       <div
         id="r2-slider-track"
@@ -819,14 +985,21 @@ export function LargeTouchSlider({ min = 0, max = 10, step = 0.5, label = 'Minim
 /* ------------------------------------------------------------------ */
 
 const GRAPH_BARS = [
-  { label: 'Mon', v: 4 }, { label: 'Tue', v: 7 }, { label: 'Wed', v: 3 },
-  { label: 'Thu', v: 9 }, { label: 'Fri', v: 6 }, { label: 'Sat', v: 2 }, { label: 'Sun', v: 5 },
+  { label: 'Mon', v: 4 },
+  { label: 'Tue', v: 7 },
+  { label: 'Wed', v: 3 },
+  { label: 'Thu', v: 9 },
+  { label: 'Fri', v: 6 },
+  { label: 'Sat', v: 2 },
+  { label: 'Sun', v: 5 },
 ];
 
 export function FullBleedTabletGraph() {
   const width = useViewportWidth();
-  const tabletLandscape = isTabletWidth(width) && orientationOf(width, typeof window !== 'undefined' ? window.innerHeight : 800) === 'landscape';
-  const max = Math.max(...GRAPH_BARS.map((b) => b.v));
+  const tabletLandscape =
+    isTabletWidth(width) &&
+    orientationOf(width, typeof window !== 'undefined' ? window.innerHeight : 800) === 'landscape';
+  const max = Math.max(...GRAPH_BARS.map(b => b.v));
   return (
     <div className="r2-graph-wrap">
       <p className="r2-note">
@@ -835,22 +1008,35 @@ export function FullBleedTabletGraph() {
           : 'Full-bleed + floating legend apply on tablet landscape (720–1023px, landscape).'}
       </p>
       <div className="r2-graph-bleed">
-        <svg viewBox="0 0 700 220" className="r2-graph-svg" role="img" aria-label="Findings per day bar chart">
+        <svg
+          viewBox="0 0 700 220"
+          className="r2-graph-svg"
+          role="img"
+          aria-label="Findings per day bar chart"
+        >
           {GRAPH_BARS.map((b, i) => {
             const h = (b.v / max) * 150;
             const x = 40 + i * 90;
             return (
               <g key={b.label}>
                 <rect x={x} y={180 - h} width={52} height={h} rx={6} className="r2-graph-bar" />
-                <text x={x + 26} y={202} textAnchor="middle" className="r2-graph-label">{b.label}</text>
-                <text x={x + 26} y={170 - h} textAnchor="middle" className="r2-graph-value">{b.v}</text>
+                <text x={x + 26} y={202} textAnchor="middle" className="r2-graph-label">
+                  {b.label}
+                </text>
+                <text x={x + 26} y={170 - h} textAnchor="middle" className="r2-graph-value">
+                  {b.v}
+                </text>
               </g>
             );
           })}
         </svg>
         <div className="r2-graph-legend">
-          <span><i className="r2-legend-dot" /> Findings / day</span>
-          <span><i className="r2-legend-dot r2-peak" /> Peak: Thu (9)</span>
+          <span>
+            <i className="r2-legend-dot" /> Findings / day
+          </span>
+          <span>
+            <i className="r2-legend-dot r2-peak" /> Peak: Thu (9)
+          </span>
         </div>
       </div>
     </div>
@@ -885,15 +1071,25 @@ export function DesktopSiteToggle() {
   return (
     <div className="r2-desktop-toggle">
       <div className="r2-mobile-menu">
-        <button type="button" className="r2-btn" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-label="Mobile menu">
+        <button
+          type="button"
+          className="r2-btn"
+          onClick={() => setMenuOpen(o => !o)}
+          aria-expanded={menuOpen}
+          aria-label="Mobile menu"
+        >
           ☰ Menu
         </button>
         {menuOpen && (
           <div className="r2-menu-pop" role="menu">
-            <button type="button" role="menuitem" className="r2-menu-item">Hunts</button>
-            <button type="button" role="menuitem" className="r2-menu-item">Reports</button>
+            <button type="button" role="menuitem" className="r2-menu-item">
+              Hunts
+            </button>
+            <button type="button" role="menuitem" className="r2-menu-item">
+              Reports
+            </button>
             <label className="r2-menu-item r2-check">
-              <input type="checkbox" checked={forced} onChange={(e) => setForced(e.target.checked)} />
+              <input type="checkbox" checked={forced} onChange={e => setForced(e.target.checked)} />
               Desktop site
             </label>
           </div>
@@ -905,7 +1101,9 @@ export function DesktopSiteToggle() {
         <div className="r2-viewport-col">Side rail</div>
       </div>
       <p className="r2-note">
-        {effective ? 'Desktop layout forced (3 columns) — toggle is persisted.' : 'Responsive layout — enable “Desktop site” in the menu to force 3 columns.'}
+        {effective
+          ? 'Desktop layout forced (3 columns) — toggle is persisted.'
+          : 'Responsive layout — enable “Desktop site” in the menu to force 3 columns.'}
       </p>
     </div>
   );
@@ -921,8 +1119,8 @@ export function ResponsiveFocusOrder() {
   return (
     <div className="r2-focusorder">
       <p className="r2-note">
-        Tab order follows the visual layout: <strong>{viewportKind(width)}</strong> ({width}px). The chips below
-        are the real tab sequence for this width.
+        Tab order follows the visual layout: <strong>{viewportKind(width)}</strong> ({width}px). The
+        chips below are the real tab sequence for this width.
       </p>
       <ol className="r2-focusorder-list">
         {order.map((region, i) => (
@@ -931,7 +1129,9 @@ export function ResponsiveFocusOrder() {
           </li>
         ))}
       </ol>
-      <p className="r2-note r2-faint">Correctness is proven by 50519/50466 — this is the per-layout order they validate.</p>
+      <p className="r2-note r2-faint">
+        Correctness is proven by 50519/50466 — this is the per-layout order they validate.
+      </p>
     </div>
   );
 }
@@ -957,13 +1157,18 @@ export function ContainerQueryWidget() {
     <div className="r2-cq">
       <p className="r2-note">
         Widgets resize by their <em>container</em>, not the viewport — drag the width slider. Real{' '}
-        <code>@container</code> queries{supported ? '' : ' (unsupported here — JS fallback active)'}.
+        <code>@container</code> queries{supported ? '' : ' (unsupported here — JS fallback active)'}
+        .
       </p>
       <label className="r2-row-label">
         Container width
         <input
-          type="range" min={280} max={900} step={10} value={wrapPx}
-          onChange={(e) => setWrapPx(Number(e.target.value))}
+          type="range"
+          min={280}
+          max={900}
+          step={10}
+          value={wrapPx}
+          onChange={e => setWrapPx(Number(e.target.value))}
           aria-label="Container width in pixels"
         />
         <span>{wrapPx}px</span>
@@ -973,7 +1178,7 @@ export function ContainerQueryWidget() {
           className="r2-cq-grid"
           style={supported ? undefined : { gridTemplateColumns: `repeat(${fallbackCols}, 1fr)` }}
         >
-          {CQ_WIDGETS.map((w) => (
+          {CQ_WIDGETS.map(w => (
             <div key={w.id} className="r2-cq-widget">
               <strong>{w.title}</strong>
               <span>{w.body}</span>
@@ -982,7 +1187,9 @@ export function ContainerQueryWidget() {
         </div>
       </div>
       <p className="r2-note r2-faint">
-        {supported ? 'Native @container queries in use.' : `Fallback: ${fallbackCols} column(s) at ${wrapPx}px.`}
+        {supported
+          ? 'Native @container queries in use.'
+          : `Fallback: ${fallbackCols} column(s) at ${wrapPx}px.`}
       </p>
     </div>
   );
@@ -995,7 +1202,9 @@ export function ContainerQueryWidget() {
 export function TestedWidthNote() {
   return (
     <div className="r2-tested" role="note">
-      <span className="r2-tested-badge" aria-hidden="true">✓</span>
+      <span className="r2-tested-badge" aria-hidden="true">
+        ✓
+      </span>
       <p>
         <strong>{testedWidthLabel()}.</strong> Found a layout break outside that range?{' '}
         <a href="https://github.com/Obfinityy/Dark-Matter/issues" target="_blank" rel="noreferrer">
@@ -1031,31 +1240,80 @@ export function ResponsiveRound2Gallery() {
           The second responsive pass — everything wave 16 left out. Present only as Infinity AI.
         </p>
       </div>
-      <Demo id="50641" title="Long-press quick menu"><LongPressMenu /></Demo>
-      <Demo id="50642" title="Responsive thumbnails"><ResponsiveThumbnailDemo /></Demo>
-      <Demo id="50643" title="Print layout override"><PrintLayoutOverride /></Demo>
-      <Demo id="50644" title="Orientation-safe scroll"><OrientationSafeScroller /></Demo>
-      <Demo id="50645" title="Notch safe areas"><NotchSafeBars /></Demo>
-      <Demo id="50646" title="Hybrid tablet UI"><HybridTabletCard /></Demo>
-      <Demo id="50647" title="Collapsed mobile sections"><CollapsibleMobileSection /></Demo>
-      <Demo id="50648" title="OS text-size respect"><OsTextSizeDemo /></Demo>
-      <Demo id="50649" title="Save-Data degradation"><SaveDataBadge /></Demo>
+      <Demo id="50641" title="Long-press quick menu">
+        <LongPressMenu />
+      </Demo>
+      <Demo id="50642" title="Responsive thumbnails">
+        <ResponsiveThumbnailDemo />
+      </Demo>
+      <Demo id="50643" title="Print layout override">
+        <PrintLayoutOverride />
+      </Demo>
+      <Demo id="50644" title="Orientation-safe scroll">
+        <OrientationSafeScroller />
+      </Demo>
+      <Demo id="50645" title="Notch safe areas">
+        <NotchSafeBars />
+      </Demo>
+      <Demo id="50646" title="Hybrid tablet UI">
+        <HybridTabletCard />
+      </Demo>
+      <Demo id="50647" title="Collapsed mobile sections">
+        <CollapsibleMobileSection />
+      </Demo>
+      <Demo id="50648" title="OS text-size respect">
+        <OsTextSizeDemo />
+      </Demo>
+      <Demo id="50649" title="Save-Data degradation">
+        <SaveDataBadge />
+      </Demo>
       <Demo id="50650" title="Short mobile empty states">
         <div className="r2-empty-row">
-          <ShortMobileEmptyState icon="◎" line="No findings yet — run a hunt to populate this list." onAction={() => setEmptyCount((c) => c + 1)} />
-          <ShortMobileEmptyState icon="▭" line="No exports yet." actionLabel="Export report" onAction={() => setEmptyCount((c) => c + 1)} />
+          <ShortMobileEmptyState
+            icon="◎"
+            line="No findings yet — run a hunt to populate this list."
+            onAction={() => setEmptyCount(c => c + 1)}
+          />
+          <ShortMobileEmptyState
+            icon="▭"
+            line="No exports yet."
+            actionLabel="Export report"
+            onAction={() => setEmptyCount(c => c + 1)}
+          />
         </div>
-        {emptyCount > 0 && <p className="r2-note" role="status">Action pressed {emptyCount} time(s).</p>}
+        {emptyCount > 0 && (
+          <p className="r2-note" role="status">
+            Action pressed {emptyCount} time(s).
+          </p>
+        )}
       </Demo>
-      <Demo id="50651" title="Swipeable phase carousel"><SwipeablePhaseCarousel /></Demo>
-      <Demo id="50652" title="Mobile tab badge"><MobileTabBadge /></Demo>
-      <Demo id="50653" title="Bottom-sheet modals"><BottomSheetModal /></Demo>
-      <Demo id="50654" title="Large touch sliders"><LargeTouchSlider /></Demo>
-      <Demo id="50655" title="Full-bleed tablet graph"><FullBleedTabletGraph /></Demo>
-      <Demo id="50656" title="Desktop-site toggle"><DesktopSiteToggle /></Demo>
-      <Demo id="50657" title="Responsive focus order"><ResponsiveFocusOrder /></Demo>
-      <Demo id="50658" title="Container-query widgets"><ContainerQueryWidget /></Demo>
-      <Demo id="50659" title="Tested-width note"><TestedWidthNote /></Demo>
+      <Demo id="50651" title="Swipeable phase carousel">
+        <SwipeablePhaseCarousel />
+      </Demo>
+      <Demo id="50652" title="Mobile tab badge">
+        <MobileTabBadge />
+      </Demo>
+      <Demo id="50653" title="Bottom-sheet modals">
+        <BottomSheetModal />
+      </Demo>
+      <Demo id="50654" title="Large touch sliders">
+        <LargeTouchSlider />
+      </Demo>
+      <Demo id="50655" title="Full-bleed tablet graph">
+        <FullBleedTabletGraph />
+      </Demo>
+      <Demo id="50656" title="Desktop-site toggle">
+        <DesktopSiteToggle />
+      </Demo>
+      <Demo id="50657" title="Responsive focus order">
+        <ResponsiveFocusOrder />
+      </Demo>
+      <Demo id="50658" title="Container-query widgets">
+        <ContainerQueryWidget />
+      </Demo>
+      <Demo id="50659" title="Tested-width note">
+        <TestedWidthNote />
+      </Demo>
     </div>
   );
 }

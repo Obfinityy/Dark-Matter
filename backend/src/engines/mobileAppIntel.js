@@ -20,13 +20,20 @@
 const URL_RE = /\b(?:https?|wss?|ftp):\/\/[^\s"'<>\\\]]+/gi;
 const HOST_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/gi;
 const IPV4_RE = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
-const SOCKET_RE = /\b(?:tcp|udp|mqtt|mqtts|amqp|amqps|coap|coaps|stomp|xmpp|rtsp|rtmp|smtp|smpts|imap|pop3|grpc):\/\/[^\s"'<>\\\]]+/gi;
+const SOCKET_RE =
+  /\b(?:tcp|udp|mqtt|mqtts|amqp|amqps|coap|coaps|stomp|xmpp|rtsp|rtmp|smtp|smpts|imap|pop3|grpc):\/\/[^\s"'<>\\\]]+/gi;
 const PORT_RE = /:(\d{2,5})\b/;
 
 /** Hosts that are noise in every mobile bundle and must be filtered out. */
 const NOISE_HOSTS = new Set([
-  'localhost', '127.0.0.1', 'schemas.android.com', 'www.w3.org',
-  'apache.org', 'opensource.org', 'github.com', 'gradle.org',
+  'localhost',
+  '127.0.0.1',
+  'schemas.android.com',
+  'www.w3.org',
+  'apache.org',
+  'opensource.org',
+  'github.com',
+  'gradle.org',
 ]);
 
 /**
@@ -40,7 +47,7 @@ export function normalizeHost(host) {
   if (NOISE_HOSTS.has(h)) return null;
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
     const octets = h.split('.').map(Number);
-    if (octets.some((o) => o > 255)) return null;
+    if (octets.some(o => o > 255)) return null;
     if (h === '0.0.0.0' || h === '255.255.255.255') return null;
   }
   return h;
@@ -162,7 +169,14 @@ export function parseNetworkSecurityConfig(xml) {
       const attrs = d[1] || '';
       const includeSub = /includeSubdomains\s*=\s*["']true["']/i.test(attrs);
       const domain = normalizeHost(d[2].trim());
-      if (domain) domains.push({ domain, includeSubdomains: includeSub, cleartextPermitted: cleartext, pins, expiration });
+      if (domain)
+        domains.push({
+          domain,
+          includeSubdomains: includeSub,
+          cleartextPermitted: cleartext,
+          pins,
+          expiration,
+        });
     }
   }
   return { domains };
@@ -182,7 +196,7 @@ export function parseOkHttpCertificatePinner(text) {
   for (const m of text.matchAll(re)) {
     const host = normalizeHost(m[1]);
     if (!host) continue;
-    const pins = [...m[2].matchAll(/"([^"]+)"/g)].map((p) => p[1]).filter((p) => /^sha256\//.test(p));
+    const pins = [...m[2].matchAll(/"([^"]+)"/g)].map(p => p[1]).filter(p => /^sha256\//.test(p));
     out.push({ host, pins });
   }
   return out;
@@ -197,13 +211,14 @@ export function parseOkHttpCertificatePinner(text) {
 export function parseTrustKitConfig(text) {
   const out = [];
   if (!text || typeof text !== 'string') return out;
-  const re = /["']?([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,63})["']?\s*[:=]\s*\{[^}]*?(?:pin|publicKeyHashes|pins)[^}]*?\}/gi;
+  const re =
+    /["']?([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,63})["']?\s*[:=]\s*\{[^}]*?(?:pin|publicKeyHashes|pins)[^}]*?\}/gi;
   for (const m of text.matchAll(re)) {
     const host = normalizeHost(m[1]);
     if (!host) continue;
     const pins = [...m[0].matchAll(/"((?:sha256\/)?[A-Za-z0-9+/=]{20,})"/g)]
-      .map((p) => p[1])
-      .filter((p) => /sha256\//.test(p) || /^[A-Za-z0-9+/=]{40,}$/.test(p));
+      .map(p => p[1])
+      .filter(p => /sha256\//.test(p) || /^[A-Za-z0-9+/=]{40,}$/.test(p));
     out.push({ host, pins: [...new Set(pins)] });
   }
   return out;
@@ -255,25 +270,31 @@ export function parseIosPlist(plist) {
 
   // Scan the whole plist for NSExceptionDomains entries directly: a domain-like
   // <key> followed by a <dict> whose contents mention NSException keys.
-  const domainRe = /<key>([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,63})<\/key>\s*<dict>([\s\S]*?)(?:<\/dict>|$)/gi;
+  const domainRe =
+    /<key>([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,63})<\/key>\s*<dict>([\s\S]*?)(?:<\/dict>|$)/gi;
   for (const m of plist.matchAll(domainRe)) {
     const domain = normalizeHost(m[1].trim());
     if (!domain) continue;
     const cfg = m[2];
     if (!/NSException|NSTemporaryException|NSIncludesSubdomains/i.test(cfg)) continue;
-    const allowsInsecure = /<key>NSExceptionAllowsInsecureHTTPLoads<\/key>\s*<true\/>/i.test(cfg)
-      || /<key>NSTemporaryExceptionAllowsInsecureHTTPLoads<\/key>\s*<true\/>/i.test(cfg);
+    const allowsInsecure =
+      /<key>NSExceptionAllowsInsecureHTTPLoads<\/key>\s*<true\/>/i.test(cfg) ||
+      /<key>NSTemporaryExceptionAllowsInsecureHTTPLoads<\/key>\s*<true\/>/i.test(cfg);
     const includesSub = /<key>NSIncludesSubdomains<\/key>\s*<true\/>/i.test(cfg);
     const tls = cfg.match(/<key>NSExceptionMinimumTLSVersion<\/key>\s*<string>([^<]+)<\/string>/i);
     out.atsExceptions.push({
-      domain, allowsInsecureLoads: allowsInsecure, includesSubdomains: includesSub,
+      domain,
+      allowsInsecureLoads: allowsInsecure,
+      includesSubdomains: includesSub,
       minimumTLS: tls ? tls[1].trim() : null,
     });
   }
 
   const urlTypes = plist.match(/<key>CFBundleURLTypes<\/key>\s*<array>([\s\S]*?)<\/array>/i);
   if (urlTypes) {
-    for (const m of urlTypes[1].matchAll(/<key>CFBundleURLSchemes<\/key>\s*<array>([\s\S]*?)(?:<\/array>|$)/gi)) {
+    for (const m of urlTypes[1].matchAll(
+      /<key>CFBundleURLSchemes<\/key>\s*<array>([\s\S]*?)(?:<\/array>|$)/gi
+    )) {
       for (const s of m[1].matchAll(/<string>([^<]+)<\/string>/g)) out.urlSchemes.push(s[1].trim());
     }
   }
@@ -294,18 +315,40 @@ export function parseIosPlist(plist) {
  * @returns {{host: string, score: number, reasons: string[]}[]}
  */
 export function rankMobileHosts(hosts) {
-  const interesting = ['api', 'staging', 'stage', 'dev', 'test', 'qa', 'uat', 'internal', 'beta', 'preprod', 'sandbox', 'admin'];
+  const interesting = [
+    'api',
+    'staging',
+    'stage',
+    'dev',
+    'test',
+    'qa',
+    'uat',
+    'internal',
+    'beta',
+    'preprod',
+    'sandbox',
+    'admin',
+  ];
   return [...new Set(hosts)]
     .filter(Boolean)
-    .map((host) => {
+    .map(host => {
       const lower = host.toLowerCase();
       const reasons = [];
       let score = 1;
       for (const kw of interesting) {
-        if (lower.includes(kw)) { score += 3; reasons.push(`contains '${kw}'`); }
+        if (lower.includes(kw)) {
+          score += 3;
+          reasons.push(`contains '${kw}'`);
+        }
       }
-      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) { score += 2; reasons.push('bare IPv4 address'); }
-      if (PORT_RE.test(host)) { score += 1; reasons.push('explicit port'); }
+      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+        score += 2;
+        reasons.push('bare IPv4 address');
+      }
+      if (PORT_RE.test(host)) {
+        score += 1;
+        reasons.push('explicit port');
+      }
       return { host, score, reasons };
     })
     .sort((a, b) => b.score - a.score || a.host.localeCompare(b.host));

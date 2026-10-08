@@ -36,17 +36,45 @@ export function resetMessageIds() {
 
 /** Registry of all 40 ideas in this wave — completeness is testable. */
 export const WAVE26_IDEAS = [
-  [51001, 'optimistic share links', 'Share link appears instantly while permissions sync afterward'],
-  [51002, 'debounced resize handling', 'Window-resize recalculations debounce to avoid layout jank'],
+  [
+    51001,
+    'optimistic share links',
+    'Share link appears instantly while permissions sync afterward',
+  ],
+  [
+    51002,
+    'debounced resize handling',
+    'Window-resize recalculations debounce to avoid layout jank',
+  ],
   [51003, 'instant keyboard focus', 'Focus moves instantly even while a card detail still loads'],
-  [51004, 'latency self-test', 'Settings include an honest interaction-latency self-test with reported results'],
+  [
+    51004,
+    'latency self-test',
+    'Settings include an honest interaction-latency self-test with reported results',
+  ],
   [51005, 'pinned chat dock', 'Collapsible chat panel docked beside the live hunt timeline'],
-  [51006, 'context-aware replies', 'Every message carries hunt phase + scope for state-aware answers'],
-  [51007, 'dynamic question chips', 'Quick-ask buttons refresh automatically as the hunt phase changes'],
+  [
+    51006,
+    'context-aware replies',
+    'Every message carries hunt phase + scope for state-aware answers',
+  ],
+  [
+    51007,
+    'dynamic question chips',
+    'Quick-ask buttons refresh automatically as the hunt phase changes',
+  ],
   [51008, 'reply reactions', 'Reactions on answers silently tune verbosity and technical depth'],
   [51009, 'conversation search', 'Full-text search across hunt chat with jump-to-context'],
-  [51010, 'threaded follow-ups', 'Reply-in-thread drills deeper without derailing main conversation'],
-  [51011, 'agent presence badge', 'Live thinking/acting/idle/waiting indicator synced to execution loop'],
+  [
+    51010,
+    'threaded follow-ups',
+    'Reply-in-thread drills deeper without derailing main conversation',
+  ],
+  [
+    51011,
+    'agent presence badge',
+    'Live thinking/acting/idle/waiting indicator synced to execution loop',
+  ],
   [51012, 'mid-chat language switch', 'Reply language changes mid-hunt without restarting'],
   [51013, 'voice-note questions', 'Spoken questions transcribe into chat as the message record'],
   [51014, 'chat file attachments', 'Dropped files are referenced in the next reasoning step'],
@@ -65,16 +93,32 @@ export const WAVE26_IDEAS = [
   [51027, 'cited answers', 'Factual claims link to the supporting log line or finding'],
   [51028, 'chat message filters', 'Views for questions, steering commands, explanations only'],
   [51029, 'chat quiet hours', 'Proactive messages muted in a window; critical alerts stay on'],
-  [51030, 'guided test-request flow', 'Chat wizard turns "try X on Y" into a validated queued test'],
+  [
+    51030,
+    'guided test-request flow',
+    'Chat wizard turns "try X on Y" into a validated queued test',
+  ],
   [51031, 'answer confidence meter', 'Subtle confidence indicator on uncertain replies'],
-  [51032, 'timeline-synced replay', 'Conversation replays chronologically with the execution timeline'],
+  [
+    51032,
+    'timeline-synced replay',
+    'Conversation replays chronologically with the execution timeline',
+  ],
   [51033, 'teammate chat invites', 'Teammates join hunt chat with role-based permissions'],
   [51034, 'screenshot annotation', 'Sketched regions on screenshots feed agent reasoning'],
-  [51035, 'clarification-first behavior', 'Ambiguous requests get one precise question, not a guess'],
+  [
+    51035,
+    'clarification-first behavior',
+    'Ambiguous requests get one precise question, not a guess',
+  ],
   [51036, 'keyboard-first chat', 'Full keyboard nav for send, search, pin, react'],
   [51037, 'one-tap translation', 'Any agent message translates instantly to another language'],
   [51038, 'approval cards in chat', 'Approve/deny cards for sensitive actions inside conversation'],
-  [51039, 'natural-language scope edits', '"also include the API subdomain" confirmed before expanding'],
+  [
+    51039,
+    'natural-language scope edits',
+    '"also include the API subdomain" confirmed before expanding',
+  ],
   [51040, 'on-demand chat digest', '"summarize the last hour" → phases, tests, findings digest'],
 ];
 
@@ -153,9 +197,14 @@ function percentile(sorted, p) {
 
 /** Honest interaction-latency stats from measured samples (ms). */
 export function latencyStats(samples) {
-  const xs = (samples || []).filter((n) => Number.isFinite(n) && n >= 0).sort((a, b) => a - b);
+  const xs = (samples || []).filter(n => Number.isFinite(n) && n >= 0).sort((a, b) => a - b);
   if (!xs.length) return { count: 0, p50: 0, p95: 0, max: 0 };
-  return { count: xs.length, p50: percentile(xs, 50), p95: percentile(xs, 95), max: xs[xs.length - 1] };
+  return {
+    count: xs.length,
+    p50: percentile(xs, 50),
+    p95: percentile(xs, 95),
+    max: xs[xs.length - 1],
+  };
 }
 
 export function latencyGrade(p95Ms) {
@@ -187,7 +236,12 @@ export function toggleDock(state) {
 export function dockLayout(dockState, viewportWidth) {
   const open = dockState === DOCK_PINNED;
   const dockWidth = open ? Math.min(380, Math.floor(viewportWidth * 0.32)) : 48;
-  return { dockState, dockWidth, feedWidth: Math.max(0, viewportWidth - dockWidth), overlaysFeed: false };
+  return {
+    dockState,
+    dockWidth,
+    feedWidth: Math.max(0, viewportWidth - dockWidth),
+    overlaysFeed: false,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -209,9 +263,21 @@ export function withMessageContext(message, phase, scope) {
 /* ------------------------------------------------------------------ */
 
 export const PHASE_QUESTION_CHIPS = {
-  recon: ['what changed in the last 10 minutes?', 'any new subdomains?', 'show the attack surface summary'],
-  scanning: ['which tests are running now?', 'any findings so far?', 'what is the current coverage?'],
-  exploitation: ['what succeeded?', 'show proof of the critical finding', 'what should I verify manually?'],
+  recon: [
+    'what changed in the last 10 minutes?',
+    'any new subdomains?',
+    'show the attack surface summary',
+  ],
+  scanning: [
+    'which tests are running now?',
+    'any findings so far?',
+    'what is the current coverage?',
+  ],
+  exploitation: [
+    'what succeeded?',
+    'show proof of the critical finding',
+    'what should I verify manually?',
+  ],
   reporting: ['draft the executive summary', 'list unresolved findings', 'what is left to test?'],
   default: ['where are we?', 'what changed recently?', 'what should I look at?'],
 };
@@ -234,10 +300,16 @@ export function tuneFromReactions(reactions) {
   let verbosity = 1;
   let depth = 1;
   for (const r of rs) {
-    if (r === 'thumbs-down') { verbosity = Math.max(0, verbosity - 1); depth = Math.max(0, depth - 1); }
-    else if (r === 'thumbs-up') { verbosity = Math.min(2, verbosity + 0); }
-    else if (r === 'mind-blown' || r === 'eyes') { depth = Math.min(2, depth + 1); }
-    else if (r === 'zzz' || r === 'yawn') { verbosity = Math.max(0, verbosity - 1); }
+    if (r === 'thumbs-down') {
+      verbosity = Math.max(0, verbosity - 1);
+      depth = Math.max(0, depth - 1);
+    } else if (r === 'thumbs-up') {
+      verbosity = Math.min(2, verbosity + 0);
+    } else if (r === 'mind-blown' || r === 'eyes') {
+      depth = Math.min(2, depth + 1);
+    } else if (r === 'zzz' || r === 'yawn') {
+      verbosity = Math.max(0, verbosity - 1);
+    }
   }
   return { verbosity, depth };
 }
@@ -248,7 +320,9 @@ export function tuneFromReactions(reactions) {
 
 /** Full-text search with a context snippet per match. */
 export function searchConversation(messages, query) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!q) return [];
   const out = [];
   (messages || []).forEach((m, index) => {
@@ -256,7 +330,10 @@ export function searchConversation(messages, query) {
     const at = text.toLowerCase().indexOf(q);
     if (at >= 0) {
       const start = Math.max(0, at - 24);
-      const snippet = (start > 0 ? '…' : '') + text.slice(start, at + q.length + 24) + (at + q.length + 24 < text.length ? '…' : '');
+      const snippet =
+        (start > 0 ? '…' : '') +
+        text.slice(start, at + q.length + 24) +
+        (at + q.length + 24 < text.length ? '…' : '');
       out.push({ messageId: m.id, index, snippet });
     }
   });
@@ -269,11 +346,18 @@ export function searchConversation(messages, query) {
 
 export function threadReply(parentId, text, author, nowMs) {
   if (!parentId || !text) return null;
-  return { id: nextMessageId('msg'), parentId, text, author: author || 'you', at: nowMs, thread: true };
+  return {
+    id: nextMessageId('msg'),
+    parentId,
+    text,
+    author: author || 'you',
+    at: nowMs,
+    thread: true,
+  };
 }
 
 export function threadMessages(messages, parentId) {
-  return (messages || []).filter((m) => m.parentId === parentId);
+  return (messages || []).filter(m => m.parentId === parentId);
 }
 
 /* ------------------------------------------------------------------ */
@@ -288,11 +372,15 @@ export const PRESENCE_WAITING = 'waiting';
 /** Map the execution loop state to a human presence label. */
 export function presenceBadge(execState) {
   switch (execState) {
-    case 'reasoning': return PRESENCE_THINKING;
+    case 'reasoning':
+      return PRESENCE_THINKING;
     case 'tool-call':
-    case 'executing': return PRESENCE_ACTING;
-    case 'awaiting-user': return PRESENCE_WAITING;
-    default: return PRESENCE_IDLE;
+    case 'executing':
+      return PRESENCE_ACTING;
+    case 'awaiting-user':
+      return PRESENCE_WAITING;
+    default:
+      return PRESENCE_IDLE;
   }
 }
 
@@ -359,7 +447,7 @@ export function exportTranscript(messages, huntMeta) {
     `Phase: ${meta.phase || 'n/a'} · Scope: ${meta.scope || 'n/a'}`,
     '',
   ];
-  (messages || []).forEach((m) => {
+  (messages || []).forEach(m => {
     const when = m.at != null ? new Date(m.at).toISOString() : 'n/a';
     const phase = m.context && m.context.phase ? ` [${m.context.phase}]` : '';
     lines.push(`**${m.author || 'unknown'}** · ${when}${phase}`);
@@ -385,7 +473,7 @@ export function unpinAnswer(message) {
 }
 
 export function pinnedRail(messages) {
-  return (messages || []).filter((m) => m.pinned);
+  return (messages || []).filter(m => m.pinned);
 }
 
 /* ------------------------------------------------------------------ */
@@ -471,7 +559,10 @@ export function findingInlineCard(findingId, baseUrl, huntId) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
   return {
     findingId,
-    href: base && huntId ? `${base}/hunts/${encodeURIComponent(huntId)}?finding=${encodeURIComponent(findingId)}` : `#finding-${encodeURIComponent(findingId)}`,
+    href:
+      base && huntId
+        ? `${base}/hunts/${encodeURIComponent(huntId)}?finding=${encodeURIComponent(findingId)}`
+        : `#finding-${encodeURIComponent(findingId)}`,
     status: 'live',
   };
 }
@@ -490,8 +581,8 @@ export function enqueueOfflineMessage(queue, text, nowMs) {
 /** On reconnect: mark everything deliverable, preserving order. */
 export function flushOfflineQueue(queue) {
   const q = Array.isArray(queue) ? queue : [];
-  const deliverable = q.filter((m) => !m.delivered);
-  const rest = q.map((m) => ({ ...m, delivered: true }));
+  const deliverable = q.filter(m => !m.delivered);
+  const rest = q.map(m => ({ ...m, delivered: true }));
   return { deliverable, queue: rest };
 }
 
@@ -515,7 +606,9 @@ export function splitChatPanes() {
 }
 
 export function routeToPane(panes, paneId, message) {
-  return (panes || []).map((p) => (p.id === paneId ? { ...p, messages: [...p.messages, message] } : p));
+  return (panes || []).map(p =>
+    p.id === paneId ? { ...p, messages: [...p.messages, message] } : p
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -560,7 +653,7 @@ export function chatToReportNote(selected, huntId) {
   const msgs = (selected || []).filter(Boolean);
   if (!msgs.length) return '';
   const lines = [`## Chat notes — hunt ${huntId || 'n/a'}`, ''];
-  msgs.forEach((m) => {
+  msgs.forEach(m => {
     lines.push(`- **${m.author || 'unknown'}**: ${String(m.text || '').slice(0, 280)}`);
   });
   return lines.join('\n');
@@ -594,7 +687,7 @@ export function filterMessages(messages, filter) {
   const f = MESSAGE_FILTERS.includes(filter) ? filter : 'all';
   if (f === 'all') return (messages || []).slice();
   const want = f === 'questions' ? 'question' : f === 'commands' ? 'command' : 'explanation';
-  return (messages || []).filter((m) => m.kind === want);
+  return (messages || []).filter(m => m.kind === want);
 }
 
 /* ------------------------------------------------------------------ */
@@ -666,8 +759,8 @@ export function confidenceMeter(score) {
 /** Merge chat + execution events chronologically for replay. */
 export function timelineReplay(messages, events) {
   const items = [];
-  (messages || []).forEach((m) => items.push({ at: m.at || 0, kind: 'message', ref: m }));
-  (events || []).forEach((e) => items.push({ at: e.at || 0, kind: 'event', ref: e }));
+  (messages || []).forEach(m => items.push({ at: m.at || 0, kind: 'message', ref: m }));
+  (events || []).forEach(e => items.push({ at: e.at || 0, kind: 'event', ref: e }));
   items.sort((a, b) => a.at - b.at);
   return items;
 }
@@ -695,8 +788,8 @@ export function inviteTeammate(email, role) {
  */
 export function annotateScreenshot(regions) {
   const rs = (regions || [])
-    .filter((r) => r && r.w > 0 && r.h > 0)
-    .map((r) => ({
+    .filter(r => r && r.w > 0 && r.h > 0)
+    .map(r => ({
       x: Math.min(1, Math.max(0, r.x || 0)),
       y: Math.min(1, Math.max(0, r.y || 0)),
       w: Math.min(1, Math.max(0, r.w)),
@@ -720,7 +813,7 @@ const VAGUE_PATTERNS = [
 export function needsClarification(request) {
   const t = String(request || '').trim();
   if (t.length < 4) return true;
-  return VAGUE_PATTERNS.some((re) => re.test(t));
+  return VAGUE_PATTERNS.some(re => re.test(t));
 }
 
 export function clarifyingQuestion(request) {
@@ -761,7 +854,12 @@ export function translationJob(messageId, targetLang) {
 
 export function approvalCard(action, detail) {
   if (!action) return null;
-  return { id: nextMessageId('approval'), action: String(action), detail: String(detail || ''), status: 'pending' };
+  return {
+    id: nextMessageId('approval'),
+    action: String(action),
+    detail: String(detail || ''),
+    status: 'pending',
+  };
 }
 
 export function resolveApproval(card, approved, nowMs) {
@@ -804,11 +902,11 @@ export function scopeEditConfirmation(edit) {
 /** "summarize the last hour" → phases, tests, findings in one digest. */
 export function chatDigest(messages, windowMs, nowMs) {
   const cutoff = nowMs - windowMs;
-  const recent = (messages || []).filter((m) => (m.at || 0) >= cutoff);
-  const phases = [...new Set(recent.map((m) => (m.context && m.context.phase) || 'unknown'))];
+  const recent = (messages || []).filter(m => (m.at || 0) >= cutoff);
+  const phases = [...new Set(recent.map(m => (m.context && m.context.phase) || 'unknown'))];
   const findings = new Set();
-  recent.forEach((m) => extractFindingIds(m.text).forEach((id) => findings.add(id)));
-  const tests = recent.filter((m) => /test/i.test(m.text || '')).length;
+  recent.forEach(m => extractFindingIds(m.text).forEach(id => findings.add(id)));
+  const tests = recent.filter(m => /test/i.test(m.text || '')).length;
   return {
     windowMs,
     messageCount: recent.length,

@@ -49,12 +49,15 @@ export function extractPortalBranding(html = '') {
   const text = String(html || '');
   const titleM = text.match(/<title[^>]*>([^<]{1,200})<\/title>/i);
   const hostM = text.match(/https?:\/\/([a-z0-9-]+\.freshdesk\.com)/i);
-  const usesFreshworksWidget = /freshworks[_-]?widget|fw-widget|freshdesk\.com\/support\/widget/i.test(text);
+  const usesFreshworksWidget =
+    /freshworks[_-]?widget|fw-widget|freshdesk\.com\/support\/widget/i.test(text);
   let brandName = null;
   if (titleM) {
-    brandName = titleM[1]
-      .replace(/(support|help\s*center|knowledge\s*base|portal|helpdesk)/gi, '')
-      .replace(/[-|–—:()[\]]/g, ' ').trim() || null;
+    brandName =
+      titleM[1]
+        .replace(/(support|help\s*center|knowledge\s*base|portal|helpdesk)/gi, '')
+        .replace(/[-|–—:()[\]]/g, ' ')
+        .trim() || null;
   }
   return {
     title: titleM ? titleM[1].trim() : null,
@@ -85,12 +88,12 @@ export function extractFreshdeskReferences(text = '') {
 export function mapFreshdeskFootprint({ cnames = [], htmlPages = [], orgKeywords = [] } = {}) {
   const tenants = mapFreshdeskCnames(cnames);
   const branding = (htmlPages || []).map(extractPortalBranding);
-  const keywords = (orgKeywords || []).map((k) => String(k).toLowerCase());
+  const keywords = (orgKeywords || []).map(k => String(k).toLowerCase());
   let orgMatchScore = 0;
   if (keywords.length) {
     for (const b of branding) {
       const hay = `${b.title || ''} ${b.brandName || ''}`.toLowerCase();
-      if (keywords.some((k) => k && hay.includes(k))) orgMatchScore += 1;
+      if (keywords.some(k => k && hay.includes(k))) orgMatchScore += 1;
     }
   }
   return { tenants, branding, orgMatchScore };

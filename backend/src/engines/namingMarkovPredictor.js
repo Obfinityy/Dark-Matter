@@ -26,7 +26,9 @@ export function trainNamingModel(labels = [], order = 3) {
   const END = '\u0003';
 
   for (const raw of labels) {
-    const label = String(raw || '').toLowerCase().trim();
+    const label = String(raw || '')
+      .toLowerCase()
+      .trim();
     if (!label) continue;
     const seq = label + END;
     for (const ch of label) alphabet.add(ch);
@@ -40,7 +42,7 @@ export function trainNamingModel(labels = [], order = 3) {
       transitions[gram][next] = (transitions[gram][next] || 0) + 1;
     }
   }
-  return { order: o, transitions, starts, alphabet: [...alphabet].filter((c) => c !== END) };
+  return { order: o, transitions, starts, alphabet: [...alphabet].filter(c => c !== END) };
 }
 
 /**
@@ -51,7 +53,9 @@ export function trainNamingModel(labels = [], order = 3) {
 export function scoreLabelLikelihood(model, label) {
   if (!model || !model.transitions) return -Infinity;
   const END = '\u0003';
-  const s = String(label || '').toLowerCase().trim();
+  const s = String(label || '')
+    .toLowerCase()
+    .trim();
   if (!s) return -Infinity;
   const seq = s + END;
   const o = model.order;
@@ -76,8 +80,8 @@ export function scoreLabelLikelihood(model, label) {
  */
 export function rankCandidatesByLikelihood(model, candidates = []) {
   return candidates
-    .map((c) => ({ label: String(c), score: scoreLabelLikelihood(model, c) }))
-    .filter((r) => r.score !== -Infinity)
+    .map(c => ({ label: String(c), score: scoreLabelLikelihood(model, c) }))
+    .filter(r => r.score !== -Infinity)
     .sort((a, b) => b.score - a.score);
 }
 
@@ -85,7 +89,7 @@ export function rankCandidatesByLikelihood(model, candidates = []) {
  * Minimal seeded PRNG (mulberry32) for reproducible generation.
  */
 function seededRandom(seed) {
-  let t = (seed >>> 0) || 1;
+  let t = seed >>> 0 || 1;
   return function next() {
     t += 0x6d2b79f5;
     let r = Math.imul(t ^ (t >>> 15), t | 1);
@@ -125,9 +129,7 @@ export function generateNamingCandidates(model, options = {}) {
   let guard = 0;
   while (out.size < count && guard < count * 40) {
     guard++;
-    let gram = startKeys.length
-      ? startKeys[Math.floor(rand() * startKeys.length)]
-      : '';
+    let gram = startKeys.length ? startKeys[Math.floor(rand() * startKeys.length)] : '';
     gram = gram.padStart(o, '\u0002');
     let label = gram.replace(/\u0002/g, '');
     while (label.length < maxLength) {
@@ -156,10 +158,12 @@ export function predictSubdomains(knownLabels = [], domain = '', options = {}) {
     count: options.count ?? 50,
     seed: options.seed ?? 42,
   });
-  const known = new Set(knownLabels.map((l) => String(l).toLowerCase()));
-  const ranked = rankCandidatesByLikelihood(model, labels).filter((r) => !known.has(r.label));
-  const base = String(domain || '').toLowerCase().replace(/\.$/, '');
-  return ranked.map((r) => ({
+  const known = new Set(knownLabels.map(l => String(l).toLowerCase()));
+  const ranked = rankCandidatesByLikelihood(model, labels).filter(r => !known.has(r.label));
+  const base = String(domain || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
+  return ranked.map(r => ({
     label: r.label,
     likelihood: Number(r.score.toFixed(4)),
     fqdn: base ? `${r.label}.${base}` : r.label,

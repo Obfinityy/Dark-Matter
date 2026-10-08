@@ -38,7 +38,9 @@
 import { estimateTokens } from '../services/longContext/tokens.js';
 
 export const DEFAULT_SUMMARY_EVERY_STEPS = Number(process.env.HUNT_SUMMARY_EVERY_STEPS || 25);
-export const DEFAULT_VARIABLE_BUDGET_TOKENS = Number(process.env.HUNT_CONTEXT_VARIABLE_TOKENS || 3000);
+export const DEFAULT_VARIABLE_BUDGET_TOKENS = Number(
+  process.env.HUNT_CONTEXT_VARIABLE_TOKENS || 3000
+);
 export const DEFAULT_HOT_BUDGET_TOKENS = Number(process.env.HUNT_CONTEXT_HOT_TOKENS || 1200);
 export const HOT_ITEM_MAX_TOKENS = 160;
 
@@ -60,6 +62,7 @@ export function truncateItem(text, maxTokens) {
   return `${str.slice(0, half)}\n[…truncated…]\n${str.slice(-half)}`;
 }
 
+/** Manages hunt context lifecycle and state. */
 export class HuntContextManager {
   constructor({
     activityModel = null,
@@ -97,7 +100,16 @@ export class HuntContextManager {
    *   Every list is newest-first-truncated to its budget; the TOTAL never
    *   exceeds variableBudgetTokens.
    */
-  async buildStepContext(job, { findings = [], recentCycles = [], learnedHints = '', variableBudgetTokens = null, hotBudgetTokens = null } = {}) {
+  async buildStepContext(
+    job,
+    {
+      findings = [],
+      recentCycles = [],
+      learnedHints = '',
+      variableBudgetTokens = null,
+      hotBudgetTokens = null,
+    } = {}
+  ) {
     const variableBudget = variableBudgetTokens || this.variableBudgetTokens;
     const warmBudget = Math.floor(variableBudget * WARM_SHARE);
     const findingsBudget = Math.floor(variableBudget * FINDINGS_SHARE);
@@ -107,10 +119,7 @@ export class HuntContextManager {
       variableBudget - warmBudget - findingsBudget - cyclesBudget
     );
 
-    const warmSummary = truncateItem(
-      (job.huntSummary && job.huntSummary.text) || '',
-      warmBudget
-    );
+    const warmSummary = truncateItem((job.huntSummary && job.huntSummary.text) || '', warmBudget);
 
     const budgetedFindings = [];
     let findingsTokens = 0;
@@ -150,8 +159,12 @@ export class HuntContextManager {
       hotTokens += cost;
     }
 
-    const total = estimateTokens(warmSummary) + findingsTokens + cyclesTokens + hotTokens
-      + estimateTokens(learnedHints || '');
+    const total =
+      estimateTokens(warmSummary) +
+      findingsTokens +
+      cyclesTokens +
+      hotTokens +
+      estimateTokens(learnedHints || '');
 
     return {
       hotObservations,
@@ -202,12 +215,17 @@ export class HuntContextManager {
       try {
         text = await brain.summarizeText({
           previousSummary: previous,
-          newActivity: agedOut.slice(-120).map((a) => `[${a.kind || 'event'}] ${a.message || a.text || ''}`),
-          focus: 'bug-bounty hunt progress: techniques tried and their outcomes, assets discovered, findings confirmed, open hypotheses',
+          newActivity: agedOut
+            .slice(-120)
+            .map(a => `[${a.kind || 'event'}] ${a.message || a.text || ''}`),
+          focus:
+            'bug-bounty hunt progress: techniques tried and their outcomes, assets discovered, findings confirmed, open hypotheses',
           job: { target: job.target, stepCount },
         });
       } catch (error) {
-        this.logger.warn?.(`[hunt-context] brain summarization failed, using extractive fallback: ${error.message}`);
+        this.logger.warn?.(
+          `[hunt-context] brain summarization failed, using extractive fallback: ${error.message}`
+        );
       }
     }
     if (!text) {
@@ -252,10 +270,17 @@ export class HuntContextManager {
       }
       lines.push(
         `- Techniques tried (${tried.length}): ` +
-        tried.slice(-15).map((t) => `${t.techniqueId || t} (${t.verification || '?'})`).join(', ') +
-        (tried.length > 15 ? ` …and ${tried.length - 15} earlier` : '')
+          tried
+            .slice(-15)
+            .map(t => `${t.techniqueId || t} (${t.verification || '?'})`)
+            .join(', ') +
+          (tried.length > 15 ? ` …and ${tried.length - 15} earlier` : '')
       );
-      lines.push(`- Outcomes: ${Object.entries(byOutcome).map(([k, v]) => `${v}× ${k}`).join(', ')}`);
+      lines.push(
+        `- Outcomes: ${Object.entries(byOutcome)
+          .map(([k, v]) => `${v}× ${k}`)
+          .join(', ')}`
+      );
     } else {
       lines.push('- Techniques tried: none yet');
     }
@@ -264,7 +289,11 @@ export class HuntContextManager {
     if (assets.length) {
       const kinds = {};
       for (const a of assets) kinds[a.kind || 'unknown'] = (kinds[a.kind || 'unknown'] || 0) + 1;
-      lines.push(`- Assets discovered (${assets.length}): ${Object.entries(kinds).map(([k, v]) => `${v} ${k}`).join(', ')}`);
+      lines.push(
+        `- Assets discovered (${assets.length}): ${Object.entries(kinds)
+          .map(([k, v]) => `${v} ${k}`)
+          .join(', ')}`
+      );
     }
 
     const findingsCount = job.findingsCount || 0;
@@ -272,9 +301,9 @@ export class HuntContextManager {
 
     // Open hypotheses: the newest few, quoted verbatim.
     const hypotheses = agedOut
-      .filter((a) => a.kind === 'decision' || a.kind === 'brain')
+      .filter(a => a.kind === 'decision' || a.kind === 'brain')
       .slice(-3)
-      .map((a) => String(a.message || a.text || '').slice(0, 140));
+      .map(a => String(a.message || a.text || '').slice(0, 140));
     if (hypotheses.length) {
       lines.push(`- Recent thinking: ${hypotheses.join(' | ')}`);
     }

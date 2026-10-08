@@ -12,11 +12,27 @@
  */
 
 const PODCAST_HOST_PATTERNS = [
-  'megaphone.fm', 'libsyn.com', 'buzzsprout.com', 'transistor.fm',
-  'anchor.fm', 'podbean.com', 'spreaker.com', 'omny.fm', 'art19.com',
-  'simplecast.com', 'captivate.fm', 'redcircle.com', 'rss.com',
-  'podtrac.com', 'blubrry.com', 'pinecast.com', 'fireside.fm',
-  'whooshkaa.com', 'acast.com', 'audioboom.com', 'soundcloud.com',
+  'megaphone.fm',
+  'libsyn.com',
+  'buzzsprout.com',
+  'transistor.fm',
+  'anchor.fm',
+  'podbean.com',
+  'spreaker.com',
+  'omny.fm',
+  'art19.com',
+  'simplecast.com',
+  'captivate.fm',
+  'redcircle.com',
+  'rss.com',
+  'podtrac.com',
+  'blubrry.com',
+  'pinecast.com',
+  'fireside.fm',
+  'whooshkaa.com',
+  'acast.com',
+  'audioboom.com',
+  'soundcloud.com',
 ];
 
 /**
@@ -48,7 +64,10 @@ export function extractChannelMedia(rssXml = '') {
   const linkM = t.match(/<channel>[\s\S]*?<link>([^<]+)<\/link>/i);
   const images = new Set();
   for (const tag of ['itunes:image', 'image']) {
-    const re = new RegExp(`<${tag}[^>]*(?:href|url)="([^"]+)"[^>]*>|<${tag}>\\s*<url>([^<]+)<\\/url>`, 'gi');
+    const re = new RegExp(
+      `<${tag}[^>]*(?:href|url)="([^"]+)"[^>]*>|<${tag}>\\s*<url>([^<]+)<\\/url>`,
+      'gi'
+    );
     let m;
     while ((m = re.exec(t)) !== null) images.add((m[1] || m[2] || '').trim());
   }
@@ -81,7 +100,7 @@ export function identifyPodcastPlatforms(hosts = []) {
   const out = [];
   for (const h of hosts || []) {
     const host = String(h).toLowerCase();
-    const hit = PODCAST_HOST_PATTERNS.find((p) => host === p || host.endsWith(`.${p}`));
+    const hit = PODCAST_HOST_PATTERNS.find(p => host === p || host.endsWith(`.${p}`));
     if (hit) out.push({ host, platform: hit });
   }
   return out;
@@ -95,10 +114,12 @@ export function identifyPodcastPlatforms(hosts = []) {
 export function extractPodcastFootprint(feeds = []) {
   const enclosures = (feeds || []).flatMap(extractEnclosures);
   const channelInfo = (feeds || []).map(extractChannelMedia);
-  const mediaHosts = [...new Set([
-    ...enclosures.flatMap((e) => extractHostsFromUrls(e.url)),
-    ...channelInfo.flatMap((c) => c.images.flatMap(extractHostsFromUrls)),
-  ])];
+  const mediaHosts = [
+    ...new Set([
+      ...enclosures.flatMap(e => extractHostsFromUrls(e.url)),
+      ...channelInfo.flatMap(c => c.images.flatMap(extractHostsFromUrls)),
+    ]),
+  ];
   const platforms = identifyPodcastPlatforms(mediaHosts);
   return { enclosures, mediaHosts, platforms, channelInfo };
 }

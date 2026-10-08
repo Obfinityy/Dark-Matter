@@ -43,12 +43,19 @@ export function expandGraph(seeds, adjacency = {}, opts = {}) {
     nodes.push(current);
     if (current.depth >= maxDepth) continue;
     for (const neighbor of adjacency[current.host] ?? []) {
-      const target = String(neighbor.target ?? '').trim().toLowerCase();
+      const target = String(neighbor.target ?? '')
+        .trim()
+        .toLowerCase();
       if (!target) continue;
       edges.push({ from: current.host, to: target, relation: neighbor.relation ?? 'unknown' });
       if (!seen.has(target) && nodes.length + queue.length < maxNodes) {
         seen.add(target);
-        queue.push({ host: target, depth: current.depth + 1, via: current.host, relation: neighbor.relation ?? 'unknown' });
+        queue.push({
+          host: target,
+          depth: current.depth + 1,
+          via: current.host,
+          relation: neighbor.relation ?? 'unknown',
+        });
       }
     }
   }
@@ -73,7 +80,7 @@ export function rankGraphNodes(edges) {
     }
   }
   return [...score.values()]
-    .map((s) => ({ host: s.host, score: s.score, relations: [...s.relations].sort() }))
+    .map(s => ({ host: s.host, score: s.score, relations: [...s.relations].sort() }))
     .sort((a, b) => b.score - a.score);
 }
 

@@ -24,14 +24,15 @@
  * @returns {{cn:string|null, sans:string[], issuer:string|null, expires:string|null}}
  */
 export function parseShodanCert(sslBlock) {
-  if (!sslBlock || typeof sslBlock !== 'object') return { cn: null, sans: [], issuer: null, expires: null };
+  if (!sslBlock || typeof sslBlock !== 'object')
+    return { cn: null, sans: [], issuer: null, expires: null };
   const cert = sslBlock.cert || {};
   const subject = cert.subject || {};
   const issuer = cert.issuer || {};
   let cn = subject.CN || subject.commonName || null;
   if (cn && typeof cn !== 'string') cn = null;
   const sans = [];
-  const pushSan = (v) => {
+  const pushSan = v => {
     if (typeof v === 'string' && v.includes('.') && !v.includes(' ')) sans.push(v.toLowerCase());
   };
   for (const ext of cert.extensions || []) {
@@ -44,7 +45,7 @@ export function parseShodanCert(sslBlock) {
   for (const v of sslBlock.subject_alt_names || cert.subject_alt_names || []) pushSan(v);
   // Also accept the parsed section Shodan exposes under ssl.cert.parsed
   for (const v of (cert.parsed && cert.parsed.subject_alt_names) || []) pushSan(v);
-  const uniqueSans = [...new Set(sans)].filter((s) => !s.startsWith('*.') || s.length > 2);
+  const uniqueSans = [...new Set(sans)].filter(s => !s.startsWith('*.') || s.length > 2);
   const expires = cert.expires || sslBlock.expires || null;
   const issuerName = issuer.CN || issuer.O || issuer.commonName || issuer.organizationName || null;
   return { cn, sans: uniqueSans, issuer: issuerName, expires };
@@ -63,7 +64,14 @@ export function harvestShodanCertSubjects(records) {
   const list = Array.isArray(records) ? records : [];
   const ensure = (name, type) => {
     if (!map.has(name)) {
-      map.set(name, { name, type, ips: new Set(), ports: new Set(), issuers: new Set(), expired: false });
+      map.set(name, {
+        name,
+        type,
+        ips: new Set(),
+        ports: new Set(),
+        issuers: new Set(),
+        expired: false,
+      });
     }
     return map.get(name);
   };
@@ -81,19 +89,23 @@ export function harvestShodanCertSubjects(records) {
       const isExpired = cert.expires ? new Date(cert.expires).getTime() < Date.now() : false;
       if (cert.cn) {
         const e = ensure(cert.cn.toLowerCase(), 'cn');
-        e.ips.add(ip); if (port) e.ports.add(port); if (cert.issuer) e.issuers.add(cert.issuer);
+        e.ips.add(ip);
+        if (port) e.ports.add(port);
+        if (cert.issuer) e.issuers.add(cert.issuer);
         if (isExpired) e.expired = true;
       }
       for (const san of cert.sans) {
         const e = ensure(san, 'san');
-        e.ips.add(ip); if (port) e.ports.add(port); if (cert.issuer) e.issuers.add(cert.issuer);
+        e.ips.add(ip);
+        if (port) e.ports.add(port);
+        if (cert.issuer) e.issuers.add(cert.issuer);
         if (isExpired) e.expired = true;
       }
     }
   }
   return {
     subjects: [...map.values()]
-      .map((e) => ({
+      .map(e => ({
         name: e.name,
         type: e.type,
         ips: [...e.ips].sort(),
@@ -121,7 +133,8 @@ export function scopeCertSubjects(harvested, opts = {}) {
   const other = [];
   for (const s of harvested.subjects || []) {
     const n = s.name;
-    const isInternal = /(\.local|\.internal|\.lan|\.corp|\.intranet)$/i.test(n) ||
+    const isInternal =
+      /(\.local|\.internal|\.lan|\.corp|\.intranet)$/i.test(n) ||
       !/\.[a-z]{2,}$/i.test(n) ||
       /^[\d.]+$/.test(n);
     if (root && (n === root || n.endsWith(`.${root}`) || n === `*.${root}`)) {

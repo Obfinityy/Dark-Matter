@@ -28,14 +28,14 @@
 
 /** Service query names mapped to the idea that introduced them. */
 export const KNOWN_SRV_SERVICES = {
-  '_ldap._tcp':  { idea: '00077', label: 'LDAP directory service' },
+  '_ldap._tcp': { idea: '00077', label: 'LDAP directory service' },
   '_ldaps._tcp': { idea: '00077', label: 'LDAP over TLS' },
   '_kerberos._tcp': { idea: '00078', label: 'Kerberos KDC' },
   '_kerberos._udp': { idea: '00078', label: 'Kerberos KDC (UDP)' },
-  '_kpasswd._tcp':  { idea: '00078', label: 'Kerberos password change' },
-  '_kpasswd._udp':  { idea: '00078', label: 'Kerberos password change (UDP)' },
-  '_sip._tcp':  { idea: '00079', label: 'SIP VoIP (TCP)' },
-  '_sip._udp':  { idea: '00079', label: 'SIP VoIP (UDP)' },
+  '_kpasswd._tcp': { idea: '00078', label: 'Kerberos password change' },
+  '_kpasswd._udp': { idea: '00078', label: 'Kerberos password change (UDP)' },
+  '_sip._tcp': { idea: '00079', label: 'SIP VoIP (TCP)' },
+  '_sip._udp': { idea: '00079', label: 'SIP VoIP (UDP)' },
   '_sips._tcp': { idea: '00079', label: 'SIP over TLS' },
   '_xmpp-server._tcp': { idea: '00080', label: 'XMPP server-to-server' },
   '_xmpp-client._tcp': { idea: '00080', label: 'XMPP client-to-server' },
@@ -61,9 +61,7 @@ export function parseSrvLine(line) {
     };
   }
   if (typeof line !== 'string') return null;
-  const m = line.trim().match(
-    /^(\S+)\s+\d+\s+IN\s+SRV\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\.?$/i,
-  );
+  const m = line.trim().match(/^(\S+)\s+\d+\s+IN\s+SRV\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\.?$/i);
   if (!m) return null;
   return {
     name: m[1].replace(/\.$/, ''),
@@ -96,7 +94,9 @@ export function parseSrvBatch(lines) {
  * @returns {{service: string|null, proto: string|null, domain: string}}
  */
 export function splitSrvName(name) {
-  const labels = String(name || '').replace(/\.$/, '').split('.');
+  const labels = String(name || '')
+    .replace(/\.$/, '')
+    .split('.');
   if (labels.length < 3 || !labels[0].startsWith('_')) {
     return { service: null, proto: null, domain: labels.join('.') };
   }
@@ -115,7 +115,7 @@ export function splitSrvName(name) {
  * @returns {Record<string, {label: string, idea: string, hosts: SrvRecord[], uniqueTargets: string[]}>}
  */
 export function harvestServiceHosts(records, services = Object.keys(KNOWN_SRV_SERVICES)) {
-  const wanted = new Set(services.map((s) => s.toLowerCase()));
+  const wanted = new Set(services.map(s => s.toLowerCase()));
   const out = {};
   for (const rec of records || []) {
     const { service, proto } = splitSrvName(rec.name);
@@ -155,11 +155,17 @@ export function analyzeSrvTopology(records) {
   const targetToServices = new Map();
 
   const DEFAULT_PORTS = {
-    '_ldap._tcp': 389, '_ldaps._tcp': 636,
-    '_kerberos._tcp': 88, '_kerberos._udp': 88,
-    '_kpasswd._tcp': 464, '_kpasswd._udp': 464,
-    '_sip._tcp': 5060, '_sip._udp': 5060, '_sips._tcp': 5061,
-    '_xmpp-server._tcp': 5269, '_xmpp-client._tcp': 5222,
+    '_ldap._tcp': 389,
+    '_ldaps._tcp': 636,
+    '_kerberos._tcp': 88,
+    '_kerberos._udp': 88,
+    '_kpasswd._tcp': 464,
+    '_kpasswd._udp': 464,
+    '_sip._tcp': 5060,
+    '_sip._udp': 5060,
+    '_sips._tcp': 5061,
+    '_xmpp-server._tcp': 5269,
+    '_xmpp-client._tcp': 5222,
   };
 
   for (const [key, svc] of Object.entries(byService)) {
@@ -215,13 +221,16 @@ export function analyzeSrvTopology(records) {
  */
 export function buildAuthInfraMap(records) {
   const harvested = harvestServiceHosts(records, [
-    '_ldap._tcp', '_ldaps._tcp',
-    '_kerberos._tcp', '_kerberos._udp',
-    '_kpasswd._tcp', '_kpasswd._udp',
+    '_ldap._tcp',
+    '_ldaps._tcp',
+    '_kerberos._tcp',
+    '_kerberos._udp',
+    '_kpasswd._tcp',
+    '_kpasswd._udp',
   ]);
-  const pick = (keys) => {
+  const pick = keys => {
     const set = new Set();
-    for (const k of keys) for (const t of (harvested[k]?.uniqueTargets || [])) set.add(t);
+    for (const k of keys) for (const t of harvested[k]?.uniqueTargets || []) set.add(t);
     return [...set].sort();
   };
   const directoryHosts = pick(['_ldap._tcp', '_ldaps._tcp']);
@@ -229,7 +238,7 @@ export function buildAuthInfraMap(records) {
   const kpasswdHosts = pick(['_kpasswd._tcp', '_kpasswd._udp']);
   const all = new Set([...directoryHosts, ...kdcHosts, ...kpasswdHosts]);
   const sharedHosts = [...all].filter(
-    (h) => [directoryHosts, kdcHosts, kpasswdHosts].filter((l) => l.includes(h)).length > 1,
+    h => [directoryHosts, kdcHosts, kpasswdHosts].filter(l => l.includes(h)).length > 1
   );
   return { directoryHosts, kdcHosts, kpasswdHosts, sharedHosts };
 }

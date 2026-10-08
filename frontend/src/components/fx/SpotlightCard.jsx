@@ -19,7 +19,7 @@ export function SpotlightCard({
 }) {
   const ref = useRef(null);
 
-  const onMove = useCallback((e) => {
+  const onMove = useCallback(e => {
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();

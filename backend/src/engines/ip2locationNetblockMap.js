@@ -22,9 +22,7 @@ import { normalizeOrgName, scoreOrgAgainstBrand } from './maxmindAsnOrgMatch.js'
  * @returns {{ matched: Array<{ network, organization, tier, score }>, unmatched: Array<{ network, organization }>, stats: { scanned, matched } }}
  */
 export function mapNetblocksToOrgs(rows = [], brand, knownAliases = []) {
-  const aliases = new Set(
-    (knownAliases || []).map((a) => normalizeOrgName(a)).filter(Boolean),
-  );
+  const aliases = new Set((knownAliases || []).map(a => normalizeOrgName(a)).filter(Boolean));
   const matched = [];
   const unmatched = [];
   let scanned = 0;
@@ -62,14 +60,10 @@ export function mapNetblocksToOrgs(rows = [], brand, knownAliases = []) {
  * @returns {Array<{ network, organization, signals: string[], confidence }>} sorted by confidence
  */
 export function detectHiddenAcquisitions(unmatched = [], signals = {}, enrichedRows = []) {
-  const adminDomains = new Set(
-    (signals.adminDomains || []).map((d) => String(d).toLowerCase()),
-  );
-  const knownAsns = new Set(
-    (signals.knownAsns || []).map(Number).filter(Number.isFinite),
-  );
+  const adminDomains = new Set((signals.adminDomains || []).map(d => String(d).toLowerCase()));
+  const knownAsns = new Set((signals.knownAsns || []).map(Number).filter(Number.isFinite));
   const keywords = (signals.productKeywords || [])
-    .map((k) => String(k).toLowerCase())
+    .map(k => String(k).toLowerCase())
     .filter(Boolean);
 
   const meta = new Map();

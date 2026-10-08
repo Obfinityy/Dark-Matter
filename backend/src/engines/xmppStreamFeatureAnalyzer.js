@@ -56,12 +56,12 @@ const WEAK_SASL = new Set(['PLAIN', 'LOGIN', 'DIGEST-MD5']);
  */
 export function parseStreamFeatures(xml = '') {
   const text = String(xml);
-  const mechanisms = [...text.matchAll(/<mechanism>([^<]+)<\/mechanism>/gi)].map((m) => m[1].toUpperCase());
-  const features = [
-    ...text.matchAll(/xmlns=['"]([^'"]+)['"]/gi),
-  ]
-    .map((m) => m[1])
-    .filter((ns) => !/stream$|client$|jabber:client/.test(ns));
+  const mechanisms = [...text.matchAll(/<mechanism>([^<]+)<\/mechanism>/gi)].map(m =>
+    m[1].toUpperCase()
+  );
+  const features = [...text.matchAll(/xmlns=['"]([^'"]+)['"]/gi)]
+    .map(m => m[1])
+    .filter(ns => !/stream$|client$|jabber:client/.test(ns));
   const starttls = /starttls/i.test(text);
   const bind = /xmpp-bind/.test(text);
   const from = (text.match(/<stream:features[^>]*from=['"]([^'"]+)['"]/i) || [])[1] || null;
@@ -85,12 +85,14 @@ export function fingerprintXmppServer(parsed = {}, serverId = '') {
   const candidates = [];
 
   for (const sig of SERVER_SIGNATURES) {
-    const featHits = sig.features.filter((re) => features.some((f) => re.test(f))).length;
-    const idHit = sig.idHints.some((re) => re.test(serverId));
+    const featHits = sig.features.filter(re => features.some(f => re.test(f))).length;
+    const idHit = sig.idHints.some(re => re.test(serverId));
     if (featHits === 0 && !idHit) continue;
     candidates.push({
       name: sig.name,
-      confidence: idHit ? Math.min(0.95, sig.confidence + 0.1) : sig.confidence * (0.6 + 0.4 * (featHits / sig.features.length)),
+      confidence: idHit
+        ? Math.min(0.95, sig.confidence + 0.1)
+        : sig.confidence * (0.6 + 0.4 * (featHits / sig.features.length)),
     });
   }
 
@@ -98,7 +100,7 @@ export function fingerprintXmppServer(parsed = {}, serverId = '') {
   return {
     best: candidates.length > 0 ? candidates[0].name : null,
     confidence: candidates.length > 0 ? Number(candidates[0].confidence.toFixed(2)) : 0,
-    candidates: candidates.map((c) => c.name),
+    candidates: candidates.map(c => c.name),
   };
 }
 
@@ -113,16 +115,20 @@ export function scoreXmppPosture(parsed = {}, tlsActive = false) {
   let score = 100;
 
   if (!parsed.starttls && !tlsActive) {
-    issues.push('STARTTLS not offered and connection is plaintext; credentials traverse unencrypted.');
+    issues.push(
+      'STARTTLS not offered and connection is plaintext; credentials traverse unencrypted.'
+    );
     score -= 60;
   }
-  const weak = (parsed.mechanisms || []).filter((m) => WEAK_SASL.has(m));
+  const weak = (parsed.mechanisms || []).filter(m => WEAK_SASL.has(m));
   if (weak.length > 0 && !tlsActive) {
     issues.push(`Weak SASL mechanisms on plaintext: ${weak.join(', ')}.`);
     score -= 30;
   }
   if (!parsed.bind) {
-    issues.push('Resource binding feature not advertised (unusual for a client-to-server endpoint).');
+    issues.push(
+      'Resource binding feature not advertised (unusual for a client-to-server endpoint).'
+    );
     score -= 10;
   }
 

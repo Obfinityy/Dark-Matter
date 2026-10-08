@@ -15,37 +15,51 @@ import * as MW from './mobileWatchCore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const NEW_FILES = [
-  'mobileRound2Core.js', 'mobileWatchCore.js',
-  'MobileRound2.jsx', 'MobileWatch.jsx',
-  'Wave50.css', 'wave50.test.js',
+  'mobileRound2Core.js',
+  'mobileWatchCore.js',
+  'MobileRound2.jsx',
+  'MobileWatch.jsx',
+  'Wave50.css',
+  'wave50.test.js',
 ];
 
 describe('mobileRound2Core registry', () => {
   test('lists all 20 mobile round-2 ideas 51961–51980, zero skips', () => {
     assert.equal(R2.WAVE50_MR2_IDEAS.length, 20);
-    const ids = R2.WAVE50_MR2_IDEAS.map((i) => i.id);
+    const ids = R2.WAVE50_MR2_IDEAS.map(i => i.id);
     for (let id = 51961; id <= 51980; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 20, 'no duplicate ids');
-    assert.ok(R2.WAVE50_MR2_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      R2.WAVE50_MR2_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
 describe('mobileWatchCore registry', () => {
   test('lists all 20 mobile watch ideas 51981–52000, zero skips', () => {
     assert.equal(MW.WAVE50_MW_IDEAS.length, 20);
-    const ids = MW.WAVE50_MW_IDEAS.map((i) => i.id);
+    const ids = MW.WAVE50_MW_IDEAS.map(i => i.id);
     for (let id = 51981; id <= 52000; id++) assert.ok(ids.includes(id), `missing idea ${id}`);
     assert.equal(new Set(ids).size, 20, 'no duplicate ids');
-    assert.ok(MW.WAVE50_MW_IDEAS.every((i) => i.title && i.title.length > 0), 'every idea has a title');
+    assert.ok(
+      MW.WAVE50_MW_IDEAS.every(i => i.title && i.title.length > 0),
+      'every idea has a title'
+    );
   });
 });
 
 describe('mobileRound2Core spot checks', () => {
   test('51961 normalizeSnapshot compacts findings and counts severity', () => {
-    const s = R2.normalizeSnapshot({ huntId: 'h1', status: 'running', findings: [
-      { id: 'a', title: 'XSS', severity: 'high' }, { id: 'b', title: 'Open redirect', severity: 'high' },
-      { id: 'c', title: 'Info', severity: 'info' },
-    ]});
+    const s = R2.normalizeSnapshot({
+      huntId: 'h1',
+      status: 'running',
+      findings: [
+        { id: 'a', title: 'XSS', severity: 'high' },
+        { id: 'b', title: 'Open redirect', severity: 'high' },
+        { id: 'c', title: 'Info', severity: 'info' },
+      ],
+    });
     assert.equal(s.summary.findings, 3);
     assert.equal(s.summary.severity.high, 2);
     assert.equal(s.topFindings.length, 3);
@@ -71,13 +85,17 @@ describe('mobileRound2Core spot checks', () => {
   test('51964 biometric gate locks when unenrolled', () => {
     const locked = R2.evaluateBiometricGate({ requireBiometric: true, biometricEnrolled: false });
     assert.equal(locked.locked, true);
-    const open = R2.evaluateBiometricGate({ requireBiometric: true, biometricEnrolled: true, biometricUnlock: true });
+    const open = R2.evaluateBiometricGate({
+      requireBiometric: true,
+      biometricEnrolled: true,
+      biometricUnlock: true,
+    });
     assert.equal(open.locked, false);
     assert.equal(open.method, 'biometric');
   });
   test('51965 quick actions include pause/status/snapshot', () => {
     const qa = R2.buildQuickActions({ status: 'running', canEscalate: true });
-    assert.ok(qa.actions.map((a) => a.id).includes('snapshot'));
+    assert.ok(qa.actions.map(a => a.id).includes('snapshot'));
     assert.equal(qa.count, 4);
   });
   test('51966 night theme tokens meet contrast floor', () => {
@@ -87,7 +105,10 @@ describe('mobileRound2Core spot checks', () => {
     assert.ok(t.severity.critical);
   });
   test('51967 data saver redacts secrets and strips evidence', () => {
-    const out = R2.applyDataSaver({ title: 'x', token: 'abc', evidence: 'big' }, { redactSecrets: true, stripEvidence: true });
+    const out = R2.applyDataSaver(
+      { title: 'x', token: 'abc', evidence: 'big' },
+      { redactSecrets: true, stripEvidence: true }
+    );
     assert.equal(out.payload.token, '[redacted]');
     assert.ok(!('evidence' in out.payload));
     assert.equal(out.dataSaver, true);
@@ -138,7 +159,7 @@ describe('mobileRound2Core spot checks', () => {
   });
   test('51978 strategy picker selects valid strategies', () => {
     const opts = R2.listStrategyOptions('stealth');
-    assert.equal(opts.filter((o) => o.selected).length, 1);
+    assert.equal(opts.filter(o => o.selected).length, 1);
     assert.equal(R2.selectStrategy('balanced', 'aggressive').selected, 'aggressive');
     assert.equal(R2.selectStrategy('balanced', 'nope').selected, 'balanced');
   });
@@ -148,7 +169,10 @@ describe('mobileRound2Core spot checks', () => {
     assert.equal(R2.buildTestRequest(null, 'xss', 'https://a.example/').valid, false);
   });
   test('51980 confidence view bands and averages', () => {
-    const v = R2.buildConfidenceView([{ id: 'a', title: 'S', confidence: 90 }, { id: 'b', title: 'O', confidence: 30 }]);
+    const v = R2.buildConfidenceView([
+      { id: 'a', title: 'S', confidence: 90 },
+      { id: 'b', title: 'O', confidence: 30 },
+    ]);
     assert.equal(v.findings[0].band, 'high');
     assert.equal(v.findings[1].band, 'low');
     assert.equal(v.average, 60);
@@ -157,7 +181,12 @@ describe('mobileRound2Core spot checks', () => {
 
 describe('mobileWatchCore spot checks', () => {
   test('51981 resource monitor flags over-budget and strained cpu', () => {
-    const r = MW.buildResourceMonitor({ cpuPercent: 95, memoryMb: 800, costUsd: 12, budgetUsd: 10 });
+    const r = MW.buildResourceMonitor({
+      cpuPercent: 95,
+      memoryMb: 800,
+      costUsd: 12,
+      budgetUsd: 10,
+    });
     assert.equal(r.overBudget, true);
     assert.equal(r.health, 'strained');
   });
@@ -178,21 +207,29 @@ describe('mobileWatchCore spot checks', () => {
   });
   test('51985 language pack selection', () => {
     const packs = MW.listLanguagePacks('hi');
-    assert.ok(packs.find((p) => p.id === 'hi').selected);
+    assert.ok(packs.find(p => p.id === 'hi').selected);
     assert.equal(MW.selectLanguage('en', 'ar').language.rtl, true);
     assert.equal(MW.selectLanguage('en', 'xx').changed, false);
   });
   test('51986 quiet hours across midnight', () => {
-    const night = MW.evaluateQuietHours(new Date(2026, 9, 8, 23), { enabled: true, startHour: 22, endHour: 7 });
+    const night = MW.evaluateQuietHours(new Date(2026, 9, 8, 23), {
+      enabled: true,
+      startHour: 22,
+      endHour: 7,
+    });
     assert.equal(night.quiet, true);
-    const day = MW.evaluateQuietHours(new Date(2026, 9, 8, 12), { enabled: true, startHour: 22, endHour: 7 });
+    const day = MW.evaluateQuietHours(new Date(2026, 9, 8, 12), {
+      enabled: true,
+      startHour: 22,
+      endHour: 7,
+    });
     assert.equal(day.quiet, false);
   });
   test('51987 emergency controls within two taps', () => {
     const e = MW.buildEmergencyControls();
     assert.equal(e.withinTwoTaps, true);
-    assert.ok(e.controls.every((c) => c.taps <= 2));
-    assert.ok(e.controls.some((c) => c.id === 'kill-switch'));
+    assert.ok(e.controls.every(c => c.taps <= 2));
+    assert.ok(e.controls.some(c => c.id === 'kill-switch'));
   });
   test('51988 handoff payload validates hunt id', () => {
     assert.equal(MW.buildHandoffPayload({ huntId: 'h1' }).valid, true);
@@ -205,16 +242,30 @@ describe('mobileWatchCore spot checks', () => {
     assert.equal(MW.buildDeepLink({}).valid, false);
   });
   test('51990 biometric approval requires match', () => {
-    const ok = MW.evaluateBiometricApproval({ biometricEnrolled: true, biometricMatch: true, action: 'approve:x' });
+    const ok = MW.evaluateBiometricApproval({
+      biometricEnrolled: true,
+      biometricMatch: true,
+      action: 'approve:x',
+    });
     assert.equal(ok.approved, true);
     assert.equal(ok.auditTrail.length, 1);
-    assert.equal(MW.evaluateBiometricApproval({ biometricEnrolled: true, biometricMatch: false, action: 'approve:x' }).approved, false);
+    assert.equal(
+      MW.evaluateBiometricApproval({
+        biometricEnrolled: true,
+        biometricMatch: false,
+        action: 'approve:x',
+      }).approved,
+      false
+    );
   });
   test('51991 mobile hunt creation validates target and authorization', () => {
     const r = MW.buildMobileHuntCreation({ target: 'shop.example', authorized: true });
     assert.equal(r.valid, true);
     assert.equal(MW.buildMobileHuntCreation({ target: '', authorized: true }).valid, false);
-    assert.equal(MW.buildMobileHuntCreation({ target: 'shop.example', authorized: false }).valid, false);
+    assert.equal(
+      MW.buildMobileHuntCreation({ target: 'shop.example', authorized: false }).valid,
+      false
+    );
   });
   test('51992 report export descriptor falls back to pdf', () => {
     const d = MW.buildReportExportDescriptor('h1', 'docx');
@@ -229,7 +280,9 @@ describe('mobileWatchCore spot checks', () => {
     assert.equal(MW.normalizeTeamChatMessage('   ').empty, true);
   });
   test('51994 calendar sync payload counts events', () => {
-    const c = MW.buildCalendarSyncPayload([{ title: 'Recon done', startsAt: '2026-10-08T14:00:00Z' }]);
+    const c = MW.buildCalendarSyncPayload([
+      { title: 'Recon done', startsAt: '2026-10-08T14:00:00Z' },
+    ]);
     assert.equal(c.count, 1);
     assert.equal(c.provider, 'system-calendar');
   });
@@ -261,11 +314,26 @@ describe('mobileWatchCore spot checks', () => {
     assert.equal(MW.buildFeedbackReport({ huntId: 'h1', rating: 3, notes: '' }).valid, false);
   });
   test('52000 performance budget fails on slow render', () => {
-    const ok = MW.checkPerformanceBudget({ findings: 1000, renderMs: 80, memoryMb: 100, virtualized: true });
+    const ok = MW.checkPerformanceBudget({
+      findings: 1000,
+      renderMs: 80,
+      memoryMb: 100,
+      virtualized: true,
+    });
     assert.equal(ok.withinBudget, true);
-    const bad = MW.checkPerformanceBudget({ findings: 1000, renderMs: 400, memoryMb: 100, virtualized: true });
+    const bad = MW.checkPerformanceBudget({
+      findings: 1000,
+      renderMs: 400,
+      memoryMb: 100,
+      virtualized: true,
+    });
     assert.equal(bad.withinBudget, false);
-    const noVirt = MW.checkPerformanceBudget({ findings: 1000, renderMs: 80, memoryMb: 100, virtualized: false });
+    const noVirt = MW.checkPerformanceBudget({
+      findings: 1000,
+      renderMs: 80,
+      memoryMb: 100,
+      virtualized: false,
+    });
     assert.equal(noVirt.withinBudget, false);
   });
 });
@@ -297,7 +365,7 @@ describe('JSX parse check', () => {
 describe('no-debris audit', () => {
   test('none of the 5 product files contain TODO/FIXME/mock/demo placeholder text', () => {
     const pattern = /\b(todo|fixme|xxx|hack|mock|lorem|demo)\b/i;
-    for (const f of NEW_FILES.filter((x) => x !== 'wave50.test.js')) {
+    for (const f of NEW_FILES.filter(x => x !== 'wave50.test.js')) {
       const content = readFileSync(join(HERE, f), 'utf8');
       const hit = content.match(pattern);
       assert.ok(!hit, `${f} contains debris marker: "${hit && hit[0]}"`);
@@ -312,11 +380,11 @@ describe('no-debris audit', () => {
   test('Wave50.css uses only scoped prefixes .mr2-* and .mw50-*', () => {
     const css = readFileSync(join(HERE, 'Wave50.css'), 'utf8');
     const classSelectors = css.match(/^\.[a-zA-Z][a-zA-Z0-9_-]*/gm) || [];
-    const rogue = classSelectors.filter((c) => !c.startsWith('.mr2-') && !c.startsWith('.mw50-'));
+    const rogue = classSelectors.filter(c => !c.startsWith('.mr2-') && !c.startsWith('.mw50-'));
     assert.deepEqual(rogue, [], `unscoped selectors: ${rogue.join(', ')}`);
   });
   test('Infinity AI branding only — no other worker name in product files', () => {
-    const productFiles = NEW_FILES.filter((f) => f !== 'wave50.test.js');
+    const productFiles = NEW_FILES.filter(f => f !== 'wave50.test.js');
     for (const f of productFiles) {
       const content = readFileSync(join(HERE, f), 'utf8');
       assert.ok(!/\b[mM]use\b/.test(content), `${f} mentions the forbidden worker name`);

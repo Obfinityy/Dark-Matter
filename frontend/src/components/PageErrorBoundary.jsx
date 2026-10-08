@@ -22,8 +22,15 @@ export class PageErrorBoundary extends Component {
   componentDidCatch(error, info) {
     // Log for diagnostics; the UI shows the friendly fallback.
     try {
-      console.error('[PageErrorBoundary]', this.props.pageName || 'page', error, info?.componentStack);
-    } catch { /* ignore */ }
+      console.error(
+        '[PageErrorBoundary]',
+        this.props.pageName || 'page',
+        error,
+        info?.componentStack
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   render() {
@@ -36,11 +43,13 @@ export class PageErrorBoundary extends Component {
           <span className="sg-eb-icon" aria-hidden="true">
             <AlertTriangle size={22} />
           </span>
-          <h2 className="sg-eb-title" id="sg-eb-title">{pageName} ran into a problem</h2>
+          <h2 className="sg-eb-title" id="sg-eb-title">
+            {pageName} ran into a problem
+          </h2>
         </div>
         <p className="sg-small sg-eb-copy">
-          Something went wrong while showing {pageName}. Your other pages are fine —
-          this error is contained here.
+          Something went wrong while showing {pageName}. Your other pages are fine — this error is
+          contained here.
         </p>
         <details className="sg-small sg-eb-details">
           <summary>Technical details</summary>

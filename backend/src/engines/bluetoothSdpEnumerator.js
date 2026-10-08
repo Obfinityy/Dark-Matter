@@ -96,7 +96,8 @@ export function enumerateSdpRecords(records = []) {
       type: 'No SDP Records Parsed',
       confidence: 'low',
       cwe: null,
-      evidence: 'no valid SDP service records in the provided set — device refused enumeration or records were not captured',
+      evidence:
+        'no valid SDP service records in the provided set — device refused enumeration or records were not captured',
     });
   }
   return findings;
@@ -109,13 +110,18 @@ export function enumerateSdpRecords(records = []) {
  * @returns {object} { stackHint, confidence, evidence }
  */
 export function fingerprintBtStack(records = []) {
-  const classes = records.map((r) => Number(r.serviceClassId));
-  const names = records.map((r) => BT_SERVICE_CLASSES[Number(r.serviceClassId)]).filter(Boolean);
+  const classes = records.map(r => Number(r.serviceClassId));
+  const names = records.map(r => BT_SERVICE_CLASSES[Number(r.serviceClassId)]).filter(Boolean);
   let stackHint = 'unknown';
   let confidence = 'low';
   // Heuristic service bundles seen on common stacks.
-  if (classes.includes(0x112e)) { stackHint = 'stack advertises Device Identification profile (modern smartphone/OS stack)'; confidence = 'medium'; }
-  else if (names.length && names.every((n) => /obex|serial|dial-up/i.test(n))) { stackHint = 'legacy embedded/IoT stack (OBEX + serial-era profiles only)'; confidence = 'medium'; }
+  if (classes.includes(0x112e)) {
+    stackHint = 'stack advertises Device Identification profile (modern smartphone/OS stack)';
+    confidence = 'medium';
+  } else if (names.length && names.every(n => /obex|serial|dial-up/i.test(n))) {
+    stackHint = 'legacy embedded/IoT stack (OBEX + serial-era profiles only)';
+    confidence = 'medium';
+  }
   return {
     stackHint,
     confidence,

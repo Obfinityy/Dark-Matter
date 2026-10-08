@@ -18,7 +18,10 @@
  * @returns {string}
  */
 function normDomain(d) {
-  return String(d || '').trim().toLowerCase().replace(/\.$/, '');
+  return String(d || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
 }
 
 /**
@@ -69,13 +72,19 @@ export function filterByOrgSignals(expanded, seedSignals = {}, opts = {}) {
   for (const e of expanded || []) {
     let score = 0;
     const signals = [];
-    if (seedSignals.org && e.org && String(e.org).toLowerCase() === String(seedSignals.org).toLowerCase()) {
-      score += 3; signals.push('same-hosting-org');
+    if (
+      seedSignals.org &&
+      e.org &&
+      String(e.org).toLowerCase() === String(seedSignals.org).toLowerCase()
+    ) {
+      score += 3;
+      signals.push('same-hosting-org');
     }
     if (seedSignals.asn != null && e.asn != null && String(e.asn) === String(seedSignals.asn)) {
-      score += 2; signals.push('same-asn');
+      score += 2;
+      signals.push('same-asn');
     }
-    const nsOverlap = (e.nameservers || []).map(normDomain).filter((ns) => seedNs.has(ns));
+    const nsOverlap = (e.nameservers || []).map(normDomain).filter(ns => seedNs.has(ns));
     if (nsOverlap.length > 0) {
       score += nsOverlap.length >= 2 ? 2 : 1;
       signals.push(`shared-nameserver:${nsOverlap.slice(0, 3).join(',')}`);
@@ -97,10 +106,10 @@ export function filterByOrgSignals(expanded, seedSignals = {}, opts = {}) {
 export function expandAndRank(records, seedIp, seedSignals = {}, opts = {}) {
   const expanded = expandReverseIp(records, seedIp, opts);
   const ranked = filterByOrgSignals(expanded, seedSignals, opts);
-  const rankedSet = new Set(ranked.map((r) => r.domain));
+  const rankedSet = new Set(ranked.map(r => r.domain));
   return {
     total: expanded.length,
     ranked,
-    unranked: expanded.filter((e) => !rankedSet.has(e.domain)).map((e) => e.domain),
+    unranked: expanded.filter(e => !rankedSet.has(e.domain)).map(e => e.domain),
   };
 }

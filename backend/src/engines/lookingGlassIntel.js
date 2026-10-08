@@ -59,9 +59,15 @@ export function extractPrefixes(text) {
  */
 export function parseBgpRoutes(text) {
   const records = new Map();
-  const ensure = (prefix) => {
+  const ensure = prefix => {
     if (!records.has(prefix)) {
-      records.set(prefix, { prefix, nextHops: new Set(), asPath: [], originAs: null, bestPath: false });
+      records.set(prefix, {
+        prefix,
+        nextHops: new Set(),
+        asPath: [],
+        originAs: null,
+        bestPath: false,
+      });
     }
     return records.get(prefix);
   };
@@ -72,10 +78,13 @@ export function parseBgpRoutes(text) {
       const rec = ensure(prefix);
       const nh = /\bvia\s+([0-9a-fA-F.:]+)/i.exec(line);
       if (nh && nh[1]) rec.nextHops.add(nh[1].toLowerCase());
-      const path = /\bas-?path\s+\[([0-9\s,]+)\]/i.exec(line)
-        || /(?:^|\s)(\d+(?:\s+\d+){1,})\s*$/.exec(line);
+      const path =
+        /\bas-?path\s+\[([0-9\s,]+)\]/i.exec(line) || /(?:^|\s)(\d+(?:\s+\d+){1,})\s*$/.exec(line);
       if (path && path[1]) {
-        const hops = path[1].split(/[\s,]+/).map(Number).filter((n) => Number.isFinite(n));
+        const hops = path[1]
+          .split(/[\s,]+/)
+          .map(Number)
+          .filter(n => Number.isFinite(n));
         if (hops.length > 0) {
           rec.asPath = hops;
           rec.originAs = hops[hops.length - 1];
@@ -83,10 +92,11 @@ export function parseBgpRoutes(text) {
       }
       const origin = /\borigin\s+(?:as)?(\d+)/i.exec(line);
       if (origin && origin[1]) rec.originAs = Number(origin[1]);
-      if (/^\s*[*>]?\s*[a-z]?\s*[0-9a-fA-F.:]+\//.test(line) || /\bbest\b/i.test(line)) rec.bestPath = true;
+      if (/^\s*[*>]?\s*[a-z]?\s*[0-9a-fA-F.:]+\//.test(line) || /\bbest\b/i.test(line))
+        rec.bestPath = true;
     }
   }
-  return [...records.values()].map((r) => ({ ...r, nextHops: [...r.nextHops] }));
+  return [...records.values()].map(r => ({ ...r, nextHops: [...r.nextHops] }));
 }
 
 /**
@@ -101,7 +111,7 @@ export function prefixContains(outer, inner) {
   const oBits = BigInt(oLen || 0);
   const iBits = BigInt(iLen || 0);
   if (iBits < oBits) return false;
-  const toBig = (addr) => {
+  const toBig = addr => {
     if (addr.includes(':')) {
       const expanded = expandIpv6(addr);
       return expanded.split(':').reduce((acc, h) => (acc << 16n) + BigInt(parseInt(h, 16)), 0n);
@@ -124,7 +134,7 @@ function expandIpv6(addr) {
   const h = head ? head.split(':') : [];
   const t = tail ? tail.split(':') : [];
   const missing = 8 - h.length - t.length;
-  return [...h, ...Array(missing).fill('0'), ...t].map((x) => x.padStart(4, '0')).join(':');
+  return [...h, ...Array(missing).fill('0'), ...t].map(x => x.padStart(4, '0')).join(':');
 }
 
 /**
@@ -141,11 +151,11 @@ export function diffAnnouncedVsScanned(announcedPrefixes, scannedPrefixes) {
   const unscanned = [];
   const covered = [];
   for (const a of announced) {
-    if (scanned.some((s) => s === a || prefixContains(s, a))) covered.push(a);
+    if (scanned.some(s => s === a || prefixContains(s, a))) covered.push(a);
     else unscanned.push(a);
   }
-  const coveragePct = announced.length === 0 ? 100
-    : Math.round((covered.length / announced.length) * 1000) / 10;
+  const coveragePct =
+    announced.length === 0 ? 100 : Math.round((covered.length / announced.length) * 1000) / 10;
   return { unscanned, covered, coveragePct };
 }
 
@@ -163,7 +173,11 @@ export function inventoryByOriginAs(routes) {
     byAs.get(key).add(r.prefix);
   }
   return [...byAs.entries()]
-    .map(([asn, set]) => ({ asn: asn === 'unknown' ? null : asn, prefixes: [...set].sort(), count: set.size }))
+    .map(([asn, set]) => ({
+      asn: asn === 'unknown' ? null : asn,
+      prefixes: [...set].sort(),
+      count: set.size,
+    }))
     .sort((a, b) => b.count - a.count);
 }
 

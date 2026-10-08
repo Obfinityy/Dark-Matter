@@ -16,10 +16,34 @@
 
 /** Keywords attackers prepend/append to brands in phishing domains. */
 export const DECEPTIVE_KEYWORDS = [
-  'login', 'signin', 'sign-in', 'verify', 'verification', 'secure', 'security',
-  'account', 'accounts', 'update', 'support', 'help', 'wallet', 'billing',
-  'payment', 'payments', 'password', 'reset', 'confirm', 'auth', 'authenticate',
-  'official', 'portal', 'service', 'services', 'online', 'app', 'admin',
+  'login',
+  'signin',
+  'sign-in',
+  'verify',
+  'verification',
+  'secure',
+  'security',
+  'account',
+  'accounts',
+  'update',
+  'support',
+  'help',
+  'wallet',
+  'billing',
+  'payment',
+  'payments',
+  'password',
+  'reset',
+  'confirm',
+  'auth',
+  'authenticate',
+  'official',
+  'portal',
+  'service',
+  'services',
+  'online',
+  'app',
+  'admin',
 ];
 
 /**
@@ -27,8 +51,18 @@ export const DECEPTIVE_KEYWORDS = [
  * matching (examp1e, paypa1, micr0soft).
  */
 const LEET_MAP = {
-  0: 'o', 1: 'l', 3: 'e', 4: 'a', 5: 's', 6: 'g', 7: 't', 8: 'b',
-  '@': 'a', $: 's', '!': 'i', '+': 't',
+  0: 'o',
+  1: 'l',
+  3: 'e',
+  4: 'a',
+  5: 's',
+  6: 'g',
+  7: 't',
+  8: 'b',
+  '@': 'a',
+  $: 's',
+  '!': 'i',
+  '+': 't',
 };
 
 /**
@@ -37,7 +71,9 @@ const LEET_MAP = {
  * @returns {string}
  */
 export function normalizeLeet(s) {
-  return String(s || '').toLowerCase().replace(/[01345678@$!+]/g, (c) => LEET_MAP[c] || c);
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[01345678@$!+]/g, c => LEET_MAP[c] || c);
 }
 
 /**
@@ -46,7 +82,11 @@ export function normalizeLeet(s) {
  * @returns {string}
  */
 export function normalizeDomain(domain) {
-  return String(domain || '').toLowerCase().trim().replace(/\.$/, '').replace(/^www\./, '');
+  return String(domain || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\.$/, '')
+    .replace(/^www\./, '');
 }
 
 /**
@@ -92,9 +132,13 @@ export function squatSignals(domain, brand) {
   }
   if (d.includes(b)) {
     if (label === b) {
-      signals.push({ signal: 'exact-brand-label', evidence: `leftmost label equals brand "${b}"`, weight: 40 });
+      signals.push({
+        signal: 'exact-brand-label',
+        evidence: `leftmost label equals brand "${b}"`,
+        weight: 40,
+      });
     } else {
-      const keyword = DECEPTIVE_KEYWORDS.find((k) => label.includes(k));
+      const keyword = DECEPTIVE_KEYWORDS.find(k => label.includes(k));
       if (keyword) {
         signals.push({
           signal: 'deceptive-keyword',
@@ -130,10 +174,11 @@ export function squatSignals(domain, brand) {
     // the substring match (catches examp1e, paypa1, micr0soft).
     const leetLabel = normalizeLeet(label);
     if (leetLabel !== label && leetLabel.includes(b)) {
-      const keyword = DECEPTIVE_KEYWORDS.find((k) => leetLabel.includes(k));
+      const keyword = DECEPTIVE_KEYWORDS.find(k => leetLabel.includes(k));
       signals.push({
         signal: 'leet-obfuscated-brand',
-        evidence: `brand "${b}" hidden with leet substitutions in "${label}"` +
+        evidence:
+          `brand "${b}" hidden with leet substitutions in "${label}"` +
           (keyword ? ` alongside deceptive keyword "${keyword}"` : ''),
         weight: keyword ? 55 : 40,
       });
@@ -159,7 +204,7 @@ export function classifyDomain(domain, portfolio = {}) {
   const d = normalizeDomain(domain);
   const org = new Set((portfolio.orgDomains || []).map(normalizeDomain));
   const defensive = new Set((portfolio.defensiveDomains || []).map(normalizeDomain));
-  const brands = (portfolio.brands || []).map((b) => String(b).toLowerCase());
+  const brands = (portfolio.brands || []).map(b => String(b).toLowerCase());
 
   if (org.has(d)) {
     return { domain: d, classification: 'org-primary', confidence: 1, signals: [] };
@@ -180,7 +225,12 @@ export function classifyDomain(domain, portfolio = {}) {
   if (signals.length) {
     const totalWeight = signals.reduce((s, x) => s + x.weight, 0);
     const confidence = Math.min(0.95, 0.45 + totalWeight / 200);
-    return { domain: d, classification: 'attacker-squat', confidence: Math.round(confidence * 100) / 100, signals };
+    return {
+      domain: d,
+      classification: 'attacker-squat',
+      confidence: Math.round(confidence * 100) / 100,
+      signals,
+    };
   }
   return { domain: d, classification: 'unrelated', confidence: 0.9, signals: [] };
 }
@@ -195,8 +245,11 @@ export function mapPortfolio(domains, portfolio = {}) {
   const unique = [...new Set((domains || []).map(normalizeDomain))].filter(Boolean);
   const priority = { 'attacker-squat': 0, unrelated: 1, defensive: 2, 'org-primary': 3 };
   return unique
-    .map((d) => classifyDomain(d, portfolio))
-    .sort((a, b) => priority[a.classification] - priority[b.classification] || b.confidence - a.confidence);
+    .map(d => classifyDomain(d, portfolio))
+    .sort(
+      (a, b) =>
+        priority[a.classification] - priority[b.classification] || b.confidence - a.confidence
+    );
 }
 
 /**
@@ -208,16 +261,17 @@ export function triageSummary(findings) {
   for (const f of findings || []) {
     byClass[f.classification] = (byClass[f.classification] || 0) + 1;
   }
-  const squats = (findings || []).filter((f) => f.classification === 'attacker-squat');
+  const squats = (findings || []).filter(f => f.classification === 'attacker-squat');
   return {
     total: (findings || []).length,
     byClass,
-    topSquats: squats.slice(0, 10).map((s) => ({
+    topSquats: squats.slice(0, 10).map(s => ({
       domain: s.domain,
       confidence: s.confidence,
-      evidence: s.signals.map((x) => x.evidence).join(' | '),
+      evidence: s.signals.map(x => x.evidence).join(' | '),
     })),
-    summary: `${squats.length} suspected attacker squat(s) need takedown review; ` +
+    summary:
+      `${squats.length} suspected attacker squat(s) need takedown review; ` +
       `${byClass.defensive || 0} defensive and ${byClass['org-primary'] || 0} org domains confirmed safe.`,
   };
 }

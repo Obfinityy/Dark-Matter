@@ -1,3 +1,10 @@
+/**
+ * AgentBrain — core reasoning brain.
+ * Drives the perceive–plan–act loop: interprets observations,
+ * selects actions, and tracks goals.
+ * Part of: Infinity AI / Dark-Matter backend (autonomous AI agent (reasoning, planning, memory)).
+ */
+
 import { config } from '../config.js';
 import { validateDecision } from './decisionSchema.js';
 
@@ -18,7 +25,15 @@ import { validateDecision } from './decisionSchema.js';
  * The frontend observes progress through SSE events.
  */
 export class AgentBrain {
-  constructor({ stateManager, planner, toolExecutor, scopeEngine, eventService, assessmentModel, findingModel }) {
+  constructor({
+    stateManager,
+    planner,
+    toolExecutor,
+    scopeEngine,
+    eventService,
+    assessmentModel,
+    findingModel,
+  }) {
     this.stateManager = stateManager;
     this.planner = planner;
     this.toolExecutor = toolExecutor;
@@ -42,18 +57,24 @@ export class AgentBrain {
     this.runningAssessments.set(assessmentId, { abortController });
 
     // Run the loop in the background — not blocking the HTTP response
-    this.runLoop(assessmentId, userId, abortController.signal).catch(error => {
-      console.error(`Agent loop crashed for ${assessmentId}:`, error.message);
-      this.assessmentModel.setStatus(assessmentId, 'failed', { error: error.message }).catch(() => {});
-      this.eventService.publish(assessmentId, {
-        type: 'AGENT_CRASHED',
-        level: 'ERROR',
-        message: `Agent loop crashed: ${error.message}`,
-        data: { error: error.message }
-      }).catch(() => {});
-    }).finally(() => {
-      this.runningAssessments.delete(assessmentId);
-    });
+    this.runLoop(assessmentId, userId, abortController.signal)
+      .catch(error => {
+        console.error(`Agent loop crashed for ${assessmentId}:`, error.message);
+        this.assessmentModel
+          .setStatus(assessmentId, 'failed', { error: error.message })
+          .catch(() => {});
+        this.eventService
+          .publish(assessmentId, {
+            type: 'AGENT_CRASHED',
+            level: 'ERROR',
+            message: `Agent loop crashed: ${error.message}`,
+            data: { error: error.message },
+          })
+          .catch(() => {});
+      })
+      .finally(() => {
+        this.runningAssessments.delete(assessmentId);
+      });
 
     return { status: 'started' };
   }
@@ -78,7 +99,7 @@ export class AgentBrain {
       await this.eventService.publish(assessmentId, {
         type: 'ASSESSMENT_PAUSED',
         level: 'INFO',
-        message: 'Assessment paused — checkpoint saved'
+        message: 'Assessment paused — checkpoint saved',
       });
     }
     return stopped;
@@ -94,7 +115,7 @@ export class AgentBrain {
     await this.eventService.publish(assessmentId, {
       type: 'ASSESSMENT_RESUMED',
       level: 'INFO',
-      message: 'Assessment resumed from checkpoint'
+      message: 'Assessment resumed from checkpoint',
     });
 
     return this.start(assessmentId, userId);
@@ -116,7 +137,8 @@ export class AgentBrain {
     // No artificial step ceiling: the loop ends on `complete`, on a real
     // failure, or when the job is stopped. AGENT_MAX_ITERATIONS=0 means
     // unlimited; a positive value is an operator-chosen cap, not a quota.
-    const maxIterations = config.agentMaxIterations > 0 ? config.agentMaxIterations : Number.POSITIVE_INFINITY;
+    const maxIterations =
+      config.agentMaxIterations > 0 ? config.agentMaxIterations : Number.POSITIVE_INFINITY;
     const budgetLabel = Number.isFinite(maxIterations) ? String(maxIterations) : '∞';
 
     while (!signal.aborted && iteration < maxIterations) {
@@ -127,7 +149,7 @@ export class AgentBrain {
         type: 'AGENT_DECISION',
         level: 'INFO',
         message: `Agent iteration ${iteration}/${budgetLabel} — analyzing state...`,
-        data: { iteration, maxIterations: budgetLabel }
+        data: { iteration, maxIterations: budgetLabel },
       });
 
       // 1. Load compressed context
@@ -147,7 +169,7 @@ export class AgentBrain {
           type: 'AGENT_DECISION',
           level: 'WARN',
           message: `Planner error: ${error.message} — retrying next iteration`,
-          data: { error: error.message }
+          data: { error: error.message },
         });
         await this.delay(signal);
         continue;
@@ -161,7 +183,7 @@ export class AgentBrain {
           type: 'AGENT_DECISION',
           level: 'WARN',
           message: `Invalid decision format — ${validation.errors.join(', ')}`,
-          data: { errors: validation.errors }
+          data: { errors: validation.errors },
         });
         await this.delay(signal);
         continue;
@@ -175,8 +197,8 @@ export class AgentBrain {
         data: {
           action: decision.selected_action,
           reason: decision.reason,
-          phase: decision.phase
-        }
+          phase: decision.phase,
+        },
       });
 
       // 5. Handle phase change
@@ -200,7 +222,7 @@ export class AgentBrain {
       } else if (action.type === 'hypothesis') {
         await this.stateManager.addHypothesis(assessmentId, {
           hypothesis: action.description,
-          type: action.category || 'general'
+          type: action.category || 'general',
         });
         lastAiSummary = `Hypothesis created: ${action.description}`;
       } else if (action.type === 'finding') {
@@ -219,7 +241,7 @@ export class AgentBrain {
         await this.assessmentModel.update(assessmentId, {
           assetsDiscovered: updatedContext.subdomainCount,
           endpointsDiscovered: updatedContext.endpointCount,
-          iterationCount: iteration
+          iterationCount: iteration,
         });
       }
 
@@ -242,7 +264,7 @@ export class AgentBrain {
         tool: action.tool,
         target: action.target,
         arguments: action.arguments || {},
-        timeout: action.timeout
+        timeout: action.timeout,
       });
 
       // Update agent state with parsed results
@@ -252,7 +274,7 @@ export class AgentBrain {
         target: action.target,
         description: action.description,
         resultSummary: result.aiSummary?.slice(0, 200),
-        deduplicated: result.deduplicated
+        deduplicated: result.deduplicated,
       });
 
       // Increment tools counter
@@ -261,12 +283,11 @@ export class AgentBrain {
       }
 
       return result.aiSummary;
-
     } catch (error) {
       await this.stateManager.recordFailedAction(assessmentId, {
         tool: action.tool,
         target: action.target,
-        error: error.message
+        error: error.message,
       });
       return `Tool ${action.tool} failed: ${error.message}`;
     }
@@ -280,7 +301,7 @@ export class AgentBrain {
       type: 'ASSESSMENT_COMPLETED',
       level: 'INFO',
       message: `Assessment completed — ${reason}`,
-      data: { reason }
+      data: { reason },
     });
   }
 
@@ -291,7 +312,7 @@ export class AgentBrain {
       type: 'ASSESSMENT_FAILED',
       level: 'ERROR',
       message: `Assessment failed: ${reason}`,
-      data: { reason }
+      data: { reason },
     });
   }
 
@@ -303,14 +324,14 @@ export class AgentBrain {
       category: action.category || 'uncategorized',
       description: action.details || action.description,
       affectedAsset: action.target,
-      confidence: action.confidence || 0.5
+      confidence: action.confidence || 0.5,
     });
     await this.assessmentModel.incrementCounters(assessmentId, { findingsCount: 1 });
     await this.eventService.publish(assessmentId, {
       type: 'FINDING_CREATED',
       level: 'WARN',
       message: `Potential finding: ${finding.title}`,
-      data: { findingId: finding.id, severity: finding.severity }
+      data: { findingId: finding.id, severity: finding.severity },
     });
     return finding;
   }
@@ -320,7 +341,14 @@ export class AgentBrain {
     return new Promise(resolve => {
       if (signal.aborted) return resolve();
       const timer = setTimeout(resolve, config.agentIterationDelayMs);
-      signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        { once: true }
+      );
     });
   }
 }

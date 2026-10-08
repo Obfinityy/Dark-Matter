@@ -15,18 +15,42 @@
 
 /** Netlify apex/CNAME targets that prove a host is Netlify-deployed. */
 export const NETLIFY_CNAME_TARGETS = [
-  'netlify.app', 'netlify.com', 'netlify.global', 'netlify-edge.global',
+  'netlify.app',
+  'netlify.com',
+  'netlify.global',
+  'netlify-edge.global',
 ];
 
 /** Common Netlify deploy-context subdomains / name suffixes. */
 export const NETLIFY_CONTEXT_SUFFIXES = [
-  'staging', 'stage', 'dev', 'development', 'test', 'qa', 'uat', 'preview',
-  'demo', 'beta', 'canary', 'prod', 'production', 'app', 'web', 'site',
+  'staging',
+  'stage',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'preview',
+  'demo',
+  'beta',
+  'canary',
+  'prod',
+  'production',
+  'app',
+  'web',
+  'site',
 ];
 
 /** Netlify branch-deploy subdomain prefixes (branch.<site>.netlify.app). */
 export const NETLIFY_BRANCH_PREFIXES = [
-  'staging', 'develop', 'dev', 'main', 'master', 'preview', 'qa', 'release',
+  'staging',
+  'develop',
+  'dev',
+  'main',
+  'master',
+  'preview',
+  'qa',
+  'release',
 ];
 
 /**
@@ -52,7 +76,9 @@ export function slugify(name) {
  * @returns {string[]} unique slug tokens, longest first
  */
 export function brandTokens(brand) {
-  const label = String(brand || '').toLowerCase().split('.')[0];
+  const label = String(brand || '')
+    .toLowerCase()
+    .split('.')[0];
   const base = slugify(label);
   const tokens = new Set();
   if (base) tokens.add(base);
@@ -111,7 +137,9 @@ export function generateSiteNames(brand, options = {}) {
  * @returns {{isNetlify: boolean, target: string, kind: 'apex'|'site'|null}}
  */
 export function parseCnameTarget(cnameTarget) {
-  const target = String(cnameTarget || '').toLowerCase().replace(/\.$/, '');
+  const target = String(cnameTarget || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   if (!target) return { isNetlify: false, target: '', kind: null };
   for (const apex of NETLIFY_CNAME_TARGETS) {
     if (target === apex || target.endsWith(`.${apex}`)) {
@@ -128,7 +156,9 @@ export function parseCnameTarget(cnameTarget) {
  * @returns {{site: string, context: 'deploy-preview'|'branch-deploy'|'production'|null, branch: string|null}|null}
  */
 export function extractSiteNameFromHost(host) {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const m = h.match(/^(.+)\.netlify\.app$/);
   if (!m) return null;
   const slug = m[1];
@@ -151,12 +181,14 @@ export function correlateResolutions(resolutions, brand) {
   const tokens = brandTokens(brand);
   const out = [];
   for (const r of resolutions || []) {
-    const host = String(r?.host || '').toLowerCase().replace(/\.$/, '');
+    const host = String(r?.host || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const parsed = parseCnameTarget(r?.cname);
     if (!parsed.isNetlify && !/\.netlify\.app$/.test(host)) continue;
     const siteInfo = extractSiteNameFromHost(host);
-    const site = siteInfo ? siteInfo.site : (parsed.isNetlify ? slugify(host.split('.')[0]) : null);
-    const brandMatch = tokens.some((t) => (site || '').includes(t) || host.includes(t));
+    const site = siteInfo ? siteInfo.site : parsed.isNetlify ? slugify(host.split('.')[0]) : null;
+    const brandMatch = tokens.some(t => (site || '').includes(t) || host.includes(t));
     out.push({
       host,
       cname: parsed.target,
@@ -165,5 +197,7 @@ export function correlateResolutions(resolutions, brand) {
       brandMatch,
     });
   }
-  return out.sort((a, b) => Number(b.brandMatch) - Number(a.brandMatch) || a.host.localeCompare(b.host));
+  return out.sort(
+    (a, b) => Number(b.brandMatch) - Number(a.brandMatch) || a.host.localeCompare(b.host)
+  );
 }

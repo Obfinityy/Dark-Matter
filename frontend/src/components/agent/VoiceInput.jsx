@@ -64,7 +64,9 @@ export function MicButton({
         type="button"
         className={`voice-mic-btn${rec.listening ? ' voice-mic-listening' : ''} ${className}`}
         onClick={rec.toggle}
-        title={title || (rec.listening ? 'Stop listening' : 'Voice input — speak instead of typing')}
+        title={
+          title || (rec.listening ? 'Stop listening' : 'Voice input — speak instead of typing')
+        }
         aria-label={rec.listening ? 'Stop voice input' : 'Start voice input'}
         aria-pressed={rec.listening}
         disabled={disabled}
@@ -98,7 +100,11 @@ export function VoiceModeToggle({ active, onToggle, disabled = false, className 
       className={`voice-mode-btn${active ? ' voice-mode-active' : ''} ${className}`}
       onClick={onToggle}
       disabled={disabled}
-      title={active ? 'Stop the voice conversation' : 'Talk hands-free — I listen, reply, and listen again'}
+      title={
+        active
+          ? 'Stop the voice conversation'
+          : 'Talk hands-free — I listen, reply, and listen again'
+      }
       aria-label={active ? 'Stop voice conversation' : 'Start voice conversation'}
       aria-pressed={active}
     >

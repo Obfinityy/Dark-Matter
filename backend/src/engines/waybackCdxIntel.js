@@ -17,7 +17,11 @@ const CDX_BASE = 'https://web.archive.org/cdx/search/cdx';
  * @returns {string} Full CDX API URL.
  */
 export function buildWaybackCdxUrl(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const params = new URLSearchParams({
     url: `*.${clean}`,
     output: opts.output || 'json',
@@ -40,12 +44,18 @@ export function buildWaybackCdxUrl(domain, opts = {}) {
  */
 export function parseWaybackCdx(raw) {
   let arr;
-  try { arr = JSON.parse(String(raw || '').trim()); } catch { return []; }
+  try {
+    arr = JSON.parse(String(raw || '').trim());
+  } catch {
+    return [];
+  }
   if (!Array.isArray(arr) || arr.length < 2) return [];
   const header = arr[0].map(h => String(h).toLowerCase());
   return arr.slice(1).map(row => {
     const rec = {};
-    header.forEach((h, i) => { rec[h] = row[i] ?? ''; });
+    header.forEach((h, i) => {
+      rec[h] = row[i] ?? '';
+    });
     return {
       timestamp: rec.timestamp || '',
       original: rec.original || '',
@@ -65,9 +75,19 @@ export function extractHosts(records) {
   const map = new Map();
   for (const r of records || []) {
     let host = '';
-    try { host = new URL(String(r.original)).hostname.toLowerCase(); } catch { continue; }
+    try {
+      host = new URL(String(r.original)).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
     if (!host) continue;
-    if (!map.has(host)) map.set(host, { captures: 0, firstSeen: r.timestamp, lastSeen: r.timestamp, statuses: new Set() });
+    if (!map.has(host))
+      map.set(host, {
+        captures: 0,
+        firstSeen: r.timestamp,
+        lastSeen: r.timestamp,
+        statuses: new Set(),
+      });
     const e = map.get(host);
     e.captures += 1;
     if (r.timestamp && (!e.firstSeen || r.timestamp < e.firstSeen)) e.firstSeen = r.timestamp;
@@ -75,7 +95,13 @@ export function extractHosts(records) {
     if (r.statuscode) e.statuses.add(String(r.statuscode));
   }
   return [...map.entries()]
-    .map(([host, v]) => ({ host, captures: v.captures, firstSeen: v.firstSeen, lastSeen: v.lastSeen, statuses: [...v.statuses].sort() }))
+    .map(([host, v]) => ({
+      host,
+      captures: v.captures,
+      firstSeen: v.firstSeen,
+      lastSeen: v.lastSeen,
+      statuses: [...v.statuses].sort(),
+    }))
     .sort((a, b) => b.captures - a.captures);
 }
 

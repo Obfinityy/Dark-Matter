@@ -39,12 +39,17 @@ export function analyzeMqttWebsocket(response = {}) {
 
   const protocols = String(headers['sec-websocket-protocol'] || '');
   if (response.status === 101 && /mqtt/i.test(protocols)) {
-    signals.push({ signal: 'ws_upgrade_mqtt', detail: `101 with Sec-WebSocket-Protocol: ${protocols.slice(0, 60)}` });
+    signals.push({
+      signal: 'ws_upgrade_mqtt',
+      detail: `101 with Sec-WebSocket-Protocol: ${protocols.slice(0, 60)}`,
+    });
   }
   if (COMMON_MQTT_WS_PATHS.includes(path)) {
     signals.push({ signal: 'known_mqtt_ws_path', detail: path });
   }
-  const matchedBroker = BROKER_PATH_HINTS.find((b) => b.markers.some((re) => re.test(body) || re.test(headers.server || '')));
+  const matchedBroker = BROKER_PATH_HINTS.find(b =>
+    b.markers.some(re => re.test(body) || re.test(headers.server || ''))
+  );
   if (matchedBroker) {
     signals.push({ signal: 'broker_marker', detail: matchedBroker.broker });
   }
@@ -54,7 +59,7 @@ export function analyzeMqttWebsocket(response = {}) {
 
   const detected = signals.length > 0;
   let confidence = 'none';
-  if (signals.some((s) => s.signal === 'ws_upgrade_mqtt')) confidence = 'high';
+  if (signals.some(s => s.signal === 'ws_upgrade_mqtt')) confidence = 'high';
   else if (signals.length > 0) confidence = 'medium';
 
   return {

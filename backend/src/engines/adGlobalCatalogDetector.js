@@ -72,17 +72,17 @@ export function detectGlobalCatalog({
  * @returns {Object} Aggregate GC map.
  */
 export function mapGlobalCatalogs(observations = []) {
-  const hosts = observations.map((o) => ({
+  const hosts = observations.map(o => ({
     server: o.server || 'unknown',
     port: o.port || 3268,
     isGlobalCatalog: !!(o.portOpen && o.isGlobalCatalogReady),
   }));
-  const confirmed = hosts.filter((h) => h.isGlobalCatalog);
+  const confirmed = hosts.filter(h => h.isGlobalCatalog);
   return {
     type: 'AD Global Catalog Map',
     confidence: 'medium',
     hosts,
-    evidence: `${confirmed.length} confirmed Global Catalog(s) across ${hosts.length} probed host(s): ${confirmed.map((h) => h.server).join(', ') || 'none'}.`,
+    evidence: `${confirmed.length} confirmed Global Catalog(s) across ${hosts.length} probed host(s): ${confirmed.map(h => h.server).join(', ') || 'none'}.`,
   };
 }
 

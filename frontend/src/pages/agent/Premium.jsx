@@ -21,12 +21,7 @@ const TIERS = [
     price: 0,
     inrPrice: 0,
     tagline: 'Taste the hunt.',
-    features: [
-      '2 hunts per month',
-      'Community models',
-      'Payload library access',
-      'Standard queue',
-    ],
+    features: ['2 hunts per month', 'Community models', 'Payload library access', 'Standard queue'],
   },
   {
     id: 'low',
@@ -112,7 +107,7 @@ const ACTIVE_KEY = 'dm.activeTier';
 export function getReservedTier() {
   try {
     const id = window.localStorage.getItem(RESERVED_KEY);
-    return TIERS.some((t) => t.id === id) ? id : null;
+    return TIERS.some(t => t.id === id) ? id : null;
   } catch {
     return null;
   }
@@ -122,7 +117,7 @@ export function getReservedTier() {
 export function getActiveTier() {
   try {
     const id = window.localStorage.getItem(ACTIVE_KEY);
-    return TIERS.some((t) => t.id === id) ? id : null;
+    return TIERS.some(t => t.id === id) ? id : null;
   } catch {
     return null;
   }
@@ -148,8 +143,7 @@ const POPULAR_STYLE = {
 function TierCard({ tier, active, reserved, onChoose }) {
   const isActive = active === tier.id;
   const isReserved = reserved === tier.id;
-  const priceLabel =
-    tier.inrPrice === 0 ? 'Free' : `₹${tier.inrPrice.toLocaleString('en-IN')}`;
+  const priceLabel = tier.inrPrice === 0 ? 'Free' : `₹${tier.inrPrice.toLocaleString('en-IN')}`;
 
   let ctaClass = 'dm-btn dm-btn-secondary dm-btn-block';
   let ctaLabel = tier.price === 0 ? 'Start free' : `Choose ${tier.name}`;
@@ -200,7 +194,8 @@ function TierCard({ tier, active, reserved, onChoose }) {
         </span>
         {tier.inrPrice > 0 && (
           <span className="dm-muted" style={{ fontSize: 'var(--dm-text-sm)' }}>
-            {' '}/month
+            {' '}
+            /month
           </span>
         )}
       </p>
@@ -214,7 +209,7 @@ function TierCard({ tier, active, reserved, onChoose }) {
           flex: 1,
         }}
       >
-        {tier.features.map((f) => (
+        {tier.features.map(f => (
           <li
             key={f}
             style={{
@@ -234,7 +229,12 @@ function TierCard({ tier, active, reserved, onChoose }) {
           </li>
         ))}
       </ul>
-      <button className={ctaClass} onClick={() => onChoose(tier)} disabled={isActive} aria-label={ariaLabel}>
+      <button
+        className={ctaClass}
+        onClick={() => onChoose(tier)}
+        disabled={isActive}
+        aria-label={ariaLabel}
+      >
         {isActive || isReserved ? (
           <>
             <Check size={14} aria-hidden="true" /> {ctaLabel}
@@ -244,12 +244,19 @@ function TierCard({ tier, active, reserved, onChoose }) {
         )}
       </button>
       {isActive && (
-        <p className="dm-muted dm-mt-2" style={{ fontSize: 'var(--dm-text-xs)', textAlign: 'center' }}>
-          Your <strong className="dm-text-2">{tier.name}</strong> plan is active. Hunt like an elite.
+        <p
+          className="dm-muted dm-mt-2"
+          style={{ fontSize: 'var(--dm-text-xs)', textAlign: 'center' }}
+        >
+          Your <strong className="dm-text-2">{tier.name}</strong> plan is active. Hunt like an
+          elite.
         </p>
       )}
       {!isActive && isReserved && (
-        <p className="dm-muted dm-mt-2" style={{ fontSize: 'var(--dm-text-xs)', textAlign: 'center' }}>
+        <p
+          className="dm-muted dm-mt-2"
+          style={{ fontSize: 'var(--dm-text-xs)', textAlign: 'center' }}
+        >
           Tier reserved — open it to complete payment.
         </p>
       )}
@@ -267,15 +274,21 @@ export function Premium() {
   const modalRef = useRef(null);
 
   useEffect(() => {
-    getBillingStatus().then((s) => setBillingLive(Boolean(s?.configured))).catch(() => {});
+    getBillingStatus()
+      .then(s => setBillingLive(Boolean(s?.configured)))
+      .catch(() => {});
     // Server-side plan wins: if the user paid on another device/browser,
     // restore their active tier from the backend.
     getBillingSubscription()
-      .then((r) => {
+      .then(r => {
         const tierId = r?.subscription?.tierId;
-        if (tierId && TIERS.some((t) => t.id === tierId)) {
+        if (tierId && TIERS.some(t => t.id === tierId)) {
           setActive(tierId);
-          try { window.localStorage.setItem(ACTIVE_KEY, tierId); } catch { /* ignore */ }
+          try {
+            window.localStorage.setItem(ACTIVE_KEY, tierId);
+          } catch {
+            /* ignore */
+          }
         }
       })
       .catch(() => {});
@@ -285,19 +298,25 @@ export function Premium() {
   useEffect(() => {
     if (!pending) return;
     setPayError('');
-    const onKey = (e) => { if (e.key === 'Escape') setPending(null); };
+    const onKey = e => {
+      if (e.key === 'Escape') setPending(null);
+    };
     document.addEventListener('keydown', onKey);
     modalRef.current?.focus();
     return () => document.removeEventListener('keydown', onKey);
   }, [pending]);
 
-  const reserve = (tier) => {
+  const reserve = tier => {
     setReserved(tier.id);
-    try { window.localStorage.setItem(RESERVED_KEY, tier.id); } catch { /* ignore */ }
+    try {
+      window.localStorage.setItem(RESERVED_KEY, tier.id);
+    } catch {
+      /* ignore */
+    }
     setPending(null);
   };
 
-  const payForTier = async (tier) => {
+  const payForTier = async tier => {
     setPaying(true);
     setPayError('');
     try {
@@ -311,7 +330,7 @@ export function Premium() {
         name: 'Dark Matter',
         description: `${tier.name} — monthly`,
         theme: { color: '#d4a94e' },
-        handler: async (resp) => {
+        handler: async resp => {
           try {
             const result = await verifyBillingPayment({
               orderId: resp.razorpay_order_id,
@@ -321,7 +340,11 @@ export function Premium() {
             });
             if (result?.ok) {
               setActive(tier.id);
-              try { window.localStorage.setItem(ACTIVE_KEY, tier.id); } catch { /* ignore */ }
+              try {
+                window.localStorage.setItem(ACTIVE_KEY, tier.id);
+              } catch {
+                /* ignore */
+              }
               setPending(null);
             } else {
               setPayError(result?.error || 'Payment verification failed');
@@ -356,7 +379,7 @@ export function Premium() {
         </header>
 
         <div className="dm-grid-3">
-          {TIERS.map((tier) => (
+          {TIERS.map(tier => (
             <TierCard
               key={tier.id}
               tier={tier}
@@ -389,7 +412,7 @@ export function Premium() {
             role="dialog"
             aria-modal="true"
             aria-label={`${pending.name} tier checkout`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
             ref={modalRef}
             tabIndex={-1}
             style={{
@@ -407,7 +430,14 @@ export function Premium() {
             >
               <X size={16} aria-hidden="true" />
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dm-3)', marginBottom: 'var(--dm-4)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--dm-3)',
+                marginBottom: 'var(--dm-4)',
+              }}
+            >
               <span
                 style={{
                   display: 'inline-flex',
@@ -436,7 +466,8 @@ export function Premium() {
             {pending.price === 0 ? (
               <>
                 <p className="dm-card-sub">
-                  The <strong className="dm-text-2">Free</strong> tier needs no payment — start hunting right away.
+                  The <strong className="dm-text-2">Free</strong> tier needs no payment — start
+                  hunting right away.
                 </p>
                 <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap' }}>
                   <button className="dm-btn dm-btn-primary" onClick={() => reserve(pending)}>
@@ -450,11 +481,18 @@ export function Premium() {
             ) : billingLive ? (
               <>
                 <p className="dm-card-sub">
-                  Pay securely via Razorpay (UPI, cards, netbanking). Test mode — no real
-                  money moves.
+                  Pay securely via Razorpay (UPI, cards, netbanking). Test mode — no real money
+                  moves.
                 </p>
                 {payError && (
-                  <p role="alert" style={{ fontSize: 'var(--dm-text-sm)', color: 'var(--dm-red)', margin: '0 0 var(--dm-3)' }}>
+                  <p
+                    role="alert"
+                    style={{
+                      fontSize: 'var(--dm-text-sm)',
+                      color: 'var(--dm-red)',
+                      margin: '0 0 var(--dm-3)',
+                    }}
+                  >
                     {payError}
                   </p>
                 )}
@@ -464,9 +502,15 @@ export function Premium() {
                     onClick={() => payForTier(pending)}
                     disabled={paying}
                   >
-                    {paying ? 'Opening checkout…' : `Pay ₹${pending.inrPrice.toLocaleString('en-IN')}/month`}
+                    {paying
+                      ? 'Opening checkout…'
+                      : `Pay ₹${pending.inrPrice.toLocaleString('en-IN')}/month`}
                   </button>
-                  <button className="dm-btn dm-btn-ghost" onClick={() => setPending(null)} disabled={paying}>
+                  <button
+                    className="dm-btn dm-btn-ghost"
+                    onClick={() => setPending(null)}
+                    disabled={paying}
+                  >
                     Not now
                   </button>
                 </div>
@@ -475,9 +519,11 @@ export function Premium() {
               <>
                 <p className="dm-card-sub">
                   Billing isn't live yet, so you can't pay for{' '}
-                  <strong className="dm-text-2">₹{pending.inrPrice.toLocaleString('en-IN')}/month</strong> today.
-                  Reserve the <strong className="dm-text-2">{pending.name}</strong> tier now and we'll
-                  notify you the moment payments open.
+                  <strong className="dm-text-2">
+                    ₹{pending.inrPrice.toLocaleString('en-IN')}/month
+                  </strong>{' '}
+                  today. Reserve the <strong className="dm-text-2">{pending.name}</strong> tier now
+                  and we'll notify you the moment payments open.
                 </p>
                 <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap' }}>
                   <button className="dm-btn dm-btn-primary" onClick={() => reserve(pending)}>

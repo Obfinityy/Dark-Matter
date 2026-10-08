@@ -14,7 +14,8 @@ import crypto from 'node:crypto';
 import { normalizeTargetUrl } from '../models/targetModel.js';
 
 // Query parameters that identify the *visit*, never the *target*. Stripped before hashing.
-const TRACKING_PARAM = /^(utm_[a-z_]+|fbclid|gclid|gclsrc|dclid|msclkid|mc_cid|mc_eid|igshid|_ga|_gl|ref|source|campaignid|adid)$/i;
+const TRACKING_PARAM =
+  /^(utm_[a-z_]+|fbclid|gclid|gclsrc|dclid|msclkid|mc_cid|mc_eid|igshid|_ga|_gl|ref|source|campaignid|adid)$/i;
 
 /**
  * Canonical string for a target URL. Throws the same AppError as

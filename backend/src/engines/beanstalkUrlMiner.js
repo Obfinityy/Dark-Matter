@@ -19,20 +19,55 @@
 /** Elastic Beanstalk public domain suffix. */
 export const BEANSTALK_DOMAIN = 'elasticbeanstalk.com';
 /** Matches a full Beanstalk environment hostname, capturing env + region. */
-export const BEANSTALK_HOST_RE = /^([a-z0-9][a-z0-9-]{0,60}[a-z0-9])\.([a-z]{2}-[a-z]+-\d)\.elasticbeanstalk\.com$/;
+export const BEANSTALK_HOST_RE =
+  /^([a-z0-9][a-z0-9-]{0,60}[a-z0-9])\.([a-z]{2}-[a-z]+-\d)\.elasticbeanstalk\.com$/;
 
 export const AWS_REGIONS = [
-  'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
-  'eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-central-1', 'eu-north-1',
-  'ap-south-1', 'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1',
-  'ap-northeast-2', 'sa-east-1', 'ca-central-1', 'af-south-1', 'me-south-1',
+  'us-east-1',
+  'us-east-2',
+  'us-west-1',
+  'us-west-2',
+  'eu-west-1',
+  'eu-west-2',
+  'eu-west-3',
+  'eu-central-1',
+  'eu-north-1',
+  'ap-south-1',
+  'ap-southeast-1',
+  'ap-southeast-2',
+  'ap-northeast-1',
+  'ap-northeast-2',
+  'sa-east-1',
+  'ca-central-1',
+  'af-south-1',
+  'me-south-1',
 ];
 
 export const BEANSTALK_ENV_PREFIXES = ['app', 'web', 'api', 'my'];
 export const BEANSTALK_ENV_SUFFIXES = [
-  'app', 'web', 'api', 'staging', 'stage', 'prod', 'production', 'dev',
-  'development', 'test', 'qa', 'uat', 'demo', 'beta', 'v1', 'v2',
-  'site', 'portal', 'dashboard', 'backend', 'frontend', 'service', 'env',
+  'app',
+  'web',
+  'api',
+  'staging',
+  'stage',
+  'prod',
+  'production',
+  'dev',
+  'development',
+  'test',
+  'qa',
+  'uat',
+  'demo',
+  'beta',
+  'v1',
+  'v2',
+  'site',
+  'portal',
+  'dashboard',
+  'backend',
+  'frontend',
+  'service',
+  'env',
 ];
 
 /**
@@ -90,7 +125,9 @@ export function generateBeanstalkUrls(brand, options = {}) {
  * @returns {{hostname: string, envName: string, region: string}|null}
  */
 export function parseBeanstalkHostname(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const m = h.match(BEANSTALK_HOST_RE);
   if (!m) return null;
   return { hostname: h, envName: m[1], region: m[2] };
@@ -102,7 +139,9 @@ export function parseBeanstalkHostname(hostname) {
  * @returns {boolean}
  */
 export function isBeanstalkHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  const h = String(hostname || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   return h === BEANSTALK_DOMAIN || h.endsWith(`.${BEANSTALK_DOMAIN}`);
 }
 
@@ -119,7 +158,9 @@ export function parseBeanstalkDnsHints(records = []) {
   for (const rec of records || []) {
     const type = String(rec?.type || '').toUpperCase();
     if (!['CNAME', 'ALIAS', 'ANAME'].includes(type)) continue;
-    const target = String(rec?.value || '').toLowerCase().replace(/\.$/, '');
+    const target = String(rec?.value || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!target || !isBeanstalkHost(target)) continue;
     const parsed = parseBeanstalkHostname(target);
     hits.push({
@@ -141,7 +182,9 @@ export function parseBeanstalkDnsHints(records = []) {
 export function parseBeanstalkCertHints(sans = []) {
   const hits = [];
   for (const raw of sans || []) {
-    const san = String(raw || '').toLowerCase().replace(/^\*\./, '');
+    const san = String(raw || '')
+      .toLowerCase()
+      .replace(/^\*\./, '');
     if (!san || !isBeanstalkHost(san)) continue;
     const parsed = parseBeanstalkHostname(san);
     hits.push({

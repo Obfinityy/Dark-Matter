@@ -1,3 +1,9 @@
+/**
+ * jobController — Express route handlers for job.
+ * Factory that wires the job service into REST endpoints.
+ * Part of: Infinity AI / Dark-Matter backend (HTTP API controllers).
+ */
+
 import { asyncHandler, extractUrl } from '../core/utils.js';
 import { fingerprintTarget } from '../services/targetFingerprint.js';
 import { buildDiary, sortFindingsCriticalFirst } from '../services/huntDiary.js';
@@ -16,7 +22,19 @@ import { streamReportPdf } from '../services/reportPdfService.js';
  * instantly (deduped: true) — the agent only runs when the user explicitly
  * passes forceNew: true ("Start new hunt").
  */
-export function createJobController({ jobManager, assessmentService, eventService, computerAdapter = null, computerActionModel = null, reasoningCycleModel = null, huntRecordModel = null, reportService = null, findingModel = null, agentStateModel = null, evidenceModel = null }) {
+export function createJobController({
+  jobManager,
+  assessmentService,
+  eventService,
+  computerAdapter = null,
+  computerActionModel = null,
+  reasoningCycleModel = null,
+  huntRecordModel = null,
+  reportService = null,
+  findingModel = null,
+  agentStateModel = null,
+  evidenceModel = null,
+}) {
   return {
     /** POST /api/v1/jobs — create an autonomous assessment job */
     create: asyncHandler(async (request, response) => {
@@ -27,8 +45,9 @@ export function createJobController({ jobManager, assessmentService, eventServic
         return response.status(400).json({
           error: {
             code: 'AUTHORIZATION_REQUIRED',
-            message: 'Confirm that you are authorized to test this target before starting an autonomous assessment.'
-          }
+            message:
+              'Confirm that you are authorized to test this target before starting an autonomous assessment.',
+          },
         });
       }
 
@@ -48,7 +67,8 @@ export function createJobController({ jobManager, assessmentService, eventServic
               deduped: true,
               target: canonical,
               huntRecord: full,
-              message: 'This target was already hunted — returning the existing report. Start a new hunt to run the agent again.'
+              message:
+                'This target was already hunted — returning the existing report. Start a new hunt to run the agent again.',
             });
           }
         } catch {
@@ -57,7 +77,10 @@ export function createJobController({ jobManager, assessmentService, eventServic
       }
 
       // Create/reuse the assessment WITHOUT starting the legacy in-request brain.
-      const created = await assessmentService.createFromTarget(userId, { ...input, deferStart: true });
+      const created = await assessmentService.createFromTarget(userId, {
+        ...input,
+        deferStart: true,
+      });
       if (created.status !== 'assessment_created') {
         return response.status(200).json(created);
       }
@@ -75,7 +98,7 @@ export function createJobController({ jobManager, assessmentService, eventServic
         objective: input.message || `Assess ${created.assessment.targetHostname}`,
         // Kaggle brains connected in the browser (frontend-direct Gradio).
         // The hunt's think step uses these; everything else runs locally.
-        kaggleBrains: input.kaggleBrains || null
+        kaggleBrains: input.kaggleBrains || null,
       });
 
       // 202: accepted, running in the background. Deliberately no long-lived request.
@@ -86,7 +109,7 @@ export function createJobController({ jobManager, assessmentService, eventServic
         target: job.target,
         scope: job.scope,
         jobStatus: job.status,
-        startedAt: job.startedAt || job.createdAt
+        startedAt: job.startedAt || job.createdAt,
       });
     }),
 
@@ -94,7 +117,7 @@ export function createJobController({ jobManager, assessmentService, eventServic
     list: asyncHandler(async (request, response) => {
       const jobs = await jobManager.list(request.user.id);
       response.json({
-        jobs: jobs.map((job) => ({
+        jobs: jobs.map(job => ({
           id: job.id,
           assessmentId: job.assessmentId,
           target: job.target,
@@ -112,8 +135,8 @@ export function createJobController({ jobManager, assessmentService, eventServic
           startedAt: job.startedAt || job.createdAt,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
-          completedAt: job.completedAt
-        }))
+          completedAt: job.completedAt,
+        })),
       });
     }),
 
@@ -159,9 +182,10 @@ export function createJobController({ jobManager, assessmentService, eventServic
     }),
 
     /** GET /api/v1/jobs/:id/events/history — replayable event history */
-    eventHistory: asyncHandler(async (request, response) => {      const result = await jobManager.listEvents(request.user.id, request.params.id, {
+    eventHistory: asyncHandler(async (request, response) => {
+      const result = await jobManager.listEvents(request.user.id, request.params.id, {
         afterId: request.query.after || null,
-        limit: Math.min(Number(request.query.limit || 500), 2000)
+        limit: Math.min(Number(request.query.limit || 500), 2000),
       });
       response.json(result);
     }),
@@ -174,18 +198,18 @@ export function createJobController({ jobManager, assessmentService, eventServic
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no'
+        'X-Accel-Buffering': 'no',
       });
       response.flushHeaders?.();
 
-      const send = (event) => {
+      const send = event => {
         response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       };
 
       // 1. Replay what happened while the browser was closed.
       const history = await eventService.list(job.id);
       const lastEventId = request.header('last-event-id');
-      const startIndex = lastEventId ? history.findIndex((event) => event.id === lastEventId) + 1 : 0;
+      const startIndex = lastEventId ? history.findIndex(event => event.id === lastEventId) + 1 : 0;
       history.slice(Math.max(0, startIndex)).forEach(send);
 
       // 2. Then attach live.
@@ -221,14 +245,19 @@ export function createJobController({ jobManager, assessmentService, eventServic
     ask: asyncHandler(async (request, response) => {
       const question = request.body?.message;
       if (!question) {
-        return response.status(400).json({ error: { code: 'MISSING_MESSAGE', message: 'Message is required' } });
+        return response
+          .status(400)
+          .json({ error: { code: 'MISSING_MESSAGE', message: 'Message is required' } });
       }
       const answer = await jobManager.askBrain(request.user.id, request.params.id, question);
       // The avatar reacts to every reply: a deterministic emotion (no ML)
       // chosen from the reply text + detected intent. Rendered with
       // CSS/SVG states on the frontend — never emoji.
       if (answer && typeof answer === 'object') {
-        answer.emotion = pickEmotion(answer.reply, { intent: answer.intent, hasFindings: (answer.findingCount || 0) > 0 });
+        answer.emotion = pickEmotion(answer.reply, {
+          intent: answer.intent,
+          hasFindings: (answer.findingCount || 0) > 0,
+        });
       }
       response.json(answer);
     }),
@@ -246,7 +275,10 @@ export function createJobController({ jobManager, assessmentService, eventServic
       const report = reportService ? await reportService.getLatest(job.assessmentId) : null;
       if (!report) {
         return response.status(404).json({
-          error: { code: 'REPORT_NOT_READY', message: 'The final report is generated when the hunt completes.' }
+          error: {
+            code: 'REPORT_NOT_READY',
+            message: 'The final report is generated when the hunt completes.',
+          },
         });
       }
       response.json({ report });
@@ -258,7 +290,10 @@ export function createJobController({ jobManager, assessmentService, eventServic
       const report = reportService ? await reportService.getLatest(job.assessmentId) : null;
       if (!report) {
         return response.status(404).json({
-          error: { code: 'REPORT_NOT_READY', message: 'The final report is generated when the hunt completes.' }
+          error: {
+            code: 'REPORT_NOT_READY',
+            message: 'The final report is generated when the hunt completes.',
+          },
         });
       }
       const filename = `infinity-ai-hunt-${String(request.params.id).slice(0, 12)}.pdf`;
@@ -270,7 +305,9 @@ export function createJobController({ jobManager, assessmentService, eventServic
     /** GET /api/v1/jobs/:id/attack-surface — live map from the agent's state */
     attackSurface: asyncHandler(async (request, response) => {
       const job = await jobManager.requireJob(request.user.id, request.params.id);
-      const state = agentStateModel ? await agentStateModel.get(job.assessmentId).catch(() => null) : null;
+      const state = agentStateModel
+        ? await agentStateModel.get(job.assessmentId).catch(() => null)
+        : null;
       response.json({
         attackSurface: {
           subdomains: state?.subdomains || [],
@@ -278,8 +315,8 @@ export function createJobController({ jobManager, assessmentService, eventServic
           parameters: state?.parameters || [],
           technologies: state?.technologies || [],
           openPorts: state?.openPorts || [],
-          updatedAt: state?.updatedAt || null
-        }
+          updatedAt: state?.updatedAt || null,
+        },
       });
     }),
 
@@ -294,8 +331,10 @@ export function createJobController({ jobManager, assessmentService, eventServic
           reasoningCycleModel,
           computerActionModel,
           // findingModel.list() is keyed by assessmentId, not jobId.
-          findingModel: findingModel ? { list: async () => findingModel.list(job.assessmentId) } : null,
-          evidenceModel
+          findingModel: findingModel
+            ? { list: async () => findingModel.list(job.assessmentId) }
+            : null,
+          evidenceModel,
         },
         request.user.id,
         job.id
@@ -319,8 +358,8 @@ export function createJobController({ jobManager, assessmentService, eventServic
           assessmentId: job.assessmentId,
           jobId: job.id,
           jobStatus: job.status,
-        }
+        },
       });
-    })
+    }),
   };
 }

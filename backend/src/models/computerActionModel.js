@@ -1,3 +1,9 @@
+/**
+ * computerActionModel — database model for computer Action.
+ * Schema definition and data-access methods for computer Action records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**
@@ -19,7 +25,15 @@ export class ComputerActionModel {
   }
 
   /** Persist the action *before* it runs, so an interrupted action is still on record. */
-  async record({ jobId, assessmentId, userId, action, params = {}, expectedOutcome = null, decision = null }) {
+  async record({
+    jobId,
+    assessmentId,
+    userId,
+    action,
+    params = {},
+    expectedOutcome = null,
+    decision = null,
+  }) {
     const entry = {
       id: id('caction'),
       jobId,
@@ -33,7 +47,7 @@ export class ComputerActionModel {
         ? {
             objective: decision.objective || null,
             reason: decision.reason || null,
-            expectedOutcome: decision.expectedOutcome || null
+            expectedOutcome: decision.expectedOutcome || null,
           }
         : null,
       status: 'started',
@@ -51,22 +65,25 @@ export class ComputerActionModel {
       startedAt: now(),
       finishedAt: null,
       createdAt: now(),
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.insertOne(entry);
     return entry;
   }
 
-  async markFinished(recordId, {
-    ok,
-    output = null,
-    observation = null,
-    followUpObservation = null,
-    outcomeCheck = null,
-    error = null,
-    durationMs = null,
-    recoveryAdvice = []
-  } = {}) {
+  async markFinished(
+    recordId,
+    {
+      ok,
+      output = null,
+      observation = null,
+      followUpObservation = null,
+      outcomeCheck = null,
+      error = null,
+      durationMs = null,
+      recoveryAdvice = [],
+    } = {}
+  ) {
     await this.collection.updateOne(
       { id: recordId },
       {
@@ -81,8 +98,8 @@ export class ComputerActionModel {
           durationMs,
           recoveryAdvice,
           finishedAt: now(),
-          updatedAt: now()
-        }
+          updatedAt: now(),
+        },
       }
     );
   }
@@ -98,10 +115,10 @@ export class ComputerActionModel {
             objective: decision.objective || null,
             reason: decision.reason || null,
             nextActionType: decision.nextAction?.type || decision.action?.type || null,
-            status: decision.status || null
+            status: decision.status || null,
           },
-          updatedAt: now()
-        }
+          updatedAt: now(),
+        },
       }
     );
   }

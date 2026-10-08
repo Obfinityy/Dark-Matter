@@ -39,7 +39,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -51,7 +53,14 @@ function hostFromUrl(url) {
  */
 export function parseModuleVersionJson(versionJson) {
   const mods = (versionJson && versionJson.modules) || [];
-  const root = mods.find(m => (m.root && (m.root.path === '' || m.root.path === undefined)) || mods.length === 1 && m.path === '') || mods[0] || {};
+  const root =
+    mods.find(
+      m =>
+        (m.root && (m.root.path === '' || m.root.path === undefined)) ||
+        (mods.length === 1 && m.path === '')
+    ) ||
+    mods[0] ||
+    {};
   const r = root.root || root;
   const hosts = [];
   const seen = new Set();
@@ -59,12 +68,17 @@ export function parseModuleVersionJson(versionJson) {
     if (value == null) return;
     const str = String(value);
     const host = hostFromUrl(str);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); return; }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+      return;
+    }
     // Bare hostnames inside descriptions (e.g. "API at api.example.com").
     for (const m of str.matchAll(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi)) {
       const h = m[0].toLowerCase();
       if (!seen.has(h) && !/^(example|test|localhost|internal)\./i.test(h)) {
-        seen.add(h); hosts.push({ host: h, kind, provenance });
+        seen.add(h);
+        hosts.push({ host: h, kind, provenance });
       }
     }
   };
@@ -82,10 +96,12 @@ export function parseModuleVersionJson(versionJson) {
   }
 
   for (const input of r.inputs || []) {
-    if (input && input.description) add(input.description, 'input-description-host', `input.${input.name}.description`);
+    if (input && input.description)
+      add(input.description, 'input-description-host', `input.${input.name}.description`);
   }
   for (const output of r.outputs || []) {
-    if (output && output.description) add(output.description, 'output-description-host', `output.${output.name}.description`);
+    if (output && output.description)
+      add(output.description, 'output-description-host', `output.${output.name}.description`);
   }
 
   return { source, hosts };
@@ -93,7 +109,8 @@ export function parseModuleVersionJson(versionJson) {
 
 const PROVIDER_RE = /\bprovider\s+"([^"]+)"\s*\{([\s\S]*?)\n\}/g;
 const BACKEND_RE = /\bbackend\s+"([^"]+)"\s*\{([\s\S]*?)\n\}/g;
-const ENDPOINT_RE = /\b(endpoint|endpoints?|server|host|hostname|url|api_url|base_url|management_url|identity_endpoint|storage_endpoint)\s*=\s*"([^"]+)"/gi;
+const ENDPOINT_RE =
+  /\b(endpoint|endpoints?|server|host|hostname|url|api_url|base_url|management_url|identity_endpoint|storage_endpoint)\s*=\s*"([^"]+)"/gi;
 const URL_IN_STRING_RE = /"(https?:\/\/[^"\s]+)"/g;
 
 /**
@@ -109,7 +126,10 @@ export function parseTerraformText(tfText) {
     if (!value) return;
     const str = String(value).replace(/\$[{\(]/, '');
     const host = hostFromUrl(str);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   const providers = [];

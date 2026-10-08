@@ -118,7 +118,7 @@ export function detectCatcherLeftovers({ source = 'unknown', text = '' } = {}) {
     confidence: unique.length ? 'high' : 'low',
     findings: unique,
     evidence: unique.length
-      ? `Found ${unique.length} temporary webhook-catcher URL(s) in ${source}: ${unique.map((f) => `${f.url} (${f.catcherService}, severity ${f.severity})`).join('; ')}. ` +
+      ? `Found ${unique.length} temporary webhook-catcher URL(s) in ${source}: ${unique.map(f => `${f.url} (${f.catcherService}, severity ${f.severity})`).join('; ')}. ` +
         'Catcher URLs in shipped artefacts reveal debug infrastructure and may leak live events to third parties.'
       : `No temporary webhook-catcher URLs found in ${source}.`,
   };

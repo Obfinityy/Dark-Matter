@@ -14,25 +14,37 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  WAVE41_QN_IDEAS, WAVE41_QN_START, WAVE41_QN_END, URGENCY_LABELS,
+  WAVE41_QN_IDEAS,
+  WAVE41_QN_START,
+  WAVE41_QN_END,
+  URGENCY_LABELS,
   escHtml as qnEscHtml,
-  questionId, labelUrgency,
-  newQuestion, answerQuestion,
+  questionId,
+  labelUrgency,
+  newQuestion,
+  answerQuestion,
   batchQuestions,
-  createAutoAnswerRule, applyAutoAnswerRules,
-  recordQuestion, questionHistory,
-  recordAnswerOutcome, answerOutcomeAnalytics,
-  quietModeQueue, deliverQuietQueue,
+  createAutoAnswerRule,
+  applyAutoAnswerRules,
+  recordQuestion,
+  questionHistory,
+  recordAnswerOutcome,
+  answerOutcomeAnalytics,
+  quietModeQueue,
+  deliverQuietQueue,
   voiceAskedDescriptor,
   mobileQuestionCard,
   escalateQuestion,
   questionTiming,
   questionPreview,
   multiOptionQuestion,
-  QUESTION_TEMPLATES, applyQuestionTemplate,
+  QUESTION_TEMPLATES,
+  applyQuestionTemplate,
   fatigueGuard,
-  logQuestion, questionAuditLog,
-  learnFromAnswer, learningConfidence,
+  logQuestion,
+  questionAuditLog,
+  learnFromAnswer,
+  learningConfidence,
   emergencyBreakthrough,
   delegateQuestion,
   confidenceDisplay,
@@ -40,28 +52,40 @@ import {
 } from './questionCore.js';
 
 import {
-  WAVE41_SN_IDEAS, WAVE41_SN_START, WAVE41_SN_END, FINDING_STATES,
+  WAVE41_SN_IDEAS,
+  WAVE41_SN_START,
+  WAVE41_SN_END,
+  FINDING_STATES,
   escHtml as snEscHtml,
-  snapshotId, takeSnapshot,
-  scheduleSnapshot, dueScheduledSnapshots, advanceSchedule,
+  snapshotId,
+  takeSnapshot,
+  scheduleSnapshot,
+  dueScheduledSnapshots,
+  advanceSchedule,
   diffSnapshots,
   snapshotTimeline,
   shareSnapshotLink,
   pdfExportDescriptor,
   annotateSnapshot,
-  snapshotWatermark, applySnapshotWatermark,
+  snapshotWatermark,
+  applySnapshotWatermark,
   snapshotDeltas,
   executiveSummary,
   technicalSummary,
-  subscribeSnapshot, notifySnapshotSubscribers,
-  approveSnapshot, shareableExternally,
+  subscribeSnapshot,
+  notifySnapshotSubscribers,
+  approveSnapshot,
+  shareableExternally,
   applySnapshotRetention,
   searchSnapshots,
-  SNAPSHOT_TEMPLATES, applySnapshotTemplate,
-  snapshotLanguageLabels, labelForLanguage,
+  SNAPSHOT_TEMPLATES,
+  applySnapshotTemplate,
+  snapshotLanguageLabels,
+  labelForLanguage,
   livePreviewDescriptor,
   snapshotCompleteness,
-  markFindingState, findingsByState,
+  markFindingState,
+  findingsByState,
 } from './snapshotCore.js';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
@@ -122,13 +146,27 @@ test('batchQuestions: blocking stays standalone, rest digest', () => {
 
 test('auto-answer rules match and record hits', () => {
   const rule = createAutoAnswerRule('dig deeper', 'yes', 'standing preference');
-  const q = newQuestion('dig-deeper', 'Dig deeper here?', '', [{ key: 'yes', label: 'Yes' }, { key: 'no', label: 'No' }], 'fyi', 1000);
+  const q = newQuestion(
+    'dig-deeper',
+    'Dig deeper here?',
+    '',
+    [
+      { key: 'yes', label: 'Yes' },
+      { key: 'no', label: 'No' },
+    ],
+    'fyi',
+    1000
+  );
   const { question, ruleId } = applyAutoAnswerRules(q, [rule], 2000);
   assert.equal(ruleId, rule.id);
   assert.equal(question.status, 'answered');
   assert.equal(question.answerKey, 'yes');
   assert.equal(question.autoAnswered, true);
-  const nomatch = applyAutoAnswerRules(newQuestion('scope', 'Other?', '', [{ key: 'ok', label: 'OK' }], 'fyi', 1000), [rule], 2000);
+  const nomatch = applyAutoAnswerRules(
+    newQuestion('scope', 'Other?', '', [{ key: 'ok', label: 'OK' }], 'fyi', 1000),
+    [rule],
+    2000
+  );
   assert.equal(nomatch.ruleId, null);
 });
 
@@ -158,7 +196,14 @@ test('quiet mode queue and delivery', () => {
 });
 
 test('voice descriptor, mobile card, escalation', () => {
-  const b = newQuestion('emergency', 'Critical?', 'RCE confirmed.', [{ key: 'ack', label: 'Ack' }], 'blocking', 1000);
+  const b = newQuestion(
+    'emergency',
+    'Critical?',
+    'RCE confirmed.',
+    [{ key: 'ack', label: 'Ack' }],
+    'blocking',
+    1000
+  );
   const v = voiceAskedDescriptor(b, 'kai');
   assert.equal(v.voice, 'kai');
   assert.equal(v.priority, 'high');
@@ -181,19 +226,55 @@ test('question timing holds non-boundary questions', () => {
   const nowT = questionTiming(q, 'scan-complete', 2000);
   assert.equal(nowT.atBoundary, true);
   assert.equal(nowT.askNow, true);
-  const urgentNow = questionTiming(newQuestion('d', 'U?', '', [], 'blocking', 1000), 'injection-testing', 2000);
+  const urgentNow = questionTiming(
+    newQuestion('d', 'U?', '', [], 'blocking', 1000),
+    'injection-testing',
+    2000
+  );
   assert.equal(urgentNow.askNow, true);
 });
 
 test('previews, multi-option guard, templates', () => {
-  const q = newQuestion('e', 'Q?', '', [{ key: 'a', label: 'A' }, { key: 'b', label: 'B' }], 'fyi', 1000);
+  const q = newQuestion(
+    'e',
+    'Q?',
+    '',
+    [
+      { key: 'a', label: 'A' },
+      { key: 'b', label: 'B' },
+    ],
+    'fyi',
+    1000
+  );
   const pv = questionPreview(q, { a: 'Will do A-thing' });
   assert.equal(pv.options[0].previewText, 'Will do A-thing');
   assert.ok(pv.options[1].previewText.includes('continue'));
-  const mq = multiOptionQuestion('Pick', 'Body', [{ key: 'a', label: 'A' }, { key: 'b', label: 'B' }, { key: 'c', label: 'C' }], 'decision-needed');
+  const mq = multiOptionQuestion(
+    'Pick',
+    'Body',
+    [
+      { key: 'a', label: 'A' },
+      { key: 'b', label: 'B' },
+      { key: 'c', label: 'C' },
+    ],
+    'decision-needed'
+  );
   assert.equal(mq.options.length, 3);
   assert.throws(() => multiOptionQuestion('Bad', 'x', [{ key: 'a', label: 'A' }], 'fyi'));
-  assert.throws(() => multiOptionQuestion('Bad', 'x', [{ key: 'a', label: 'A' }, { key: 'b', label: 'B' }, { key: 'c', label: 'C' }, { key: 'd', label: 'D' }, { key: 'e', label: 'E' }], 'fyi'));
+  assert.throws(() =>
+    multiOptionQuestion(
+      'Bad',
+      'x',
+      [
+        { key: 'a', label: 'A' },
+        { key: 'b', label: 'B' },
+        { key: 'c', label: 'C' },
+        { key: 'd', label: 'D' },
+        { key: 'e', label: 'E' },
+      ],
+      'fyi'
+    )
+  );
   const t = applyQuestionTemplate('socratic', { title: 'T', context: 'ctx', ask: 'go?' });
   assert.ok(t.body.includes('Before I continue'));
   const keys = Object.keys(QUESTION_TEMPLATES);
@@ -209,11 +290,21 @@ test('fatigue guard, audit log, delegation', () => {
   assert.equal(g2.remaining, 3);
   let log = [];
   log = logQuestion(log, { id: 'l1', questionId: 'Q-1', action: 'asked', detail: 'd', atMs: 1000 });
-  log = logQuestion(log, { id: 'l2', questionId: 'Q-1', action: 'answered', detail: 'e', atMs: 2000 });
+  log = logQuestion(log, {
+    id: 'l2',
+    questionId: 'Q-1',
+    action: 'answered',
+    detail: 'e',
+    atMs: 2000,
+  });
   const rows = questionAuditLog(log);
   assert.equal(rows.length, 2);
   assert.ok(rows[0].line.includes('asked'));
-  const d = delegateQuestion(newQuestion('scope', 'S?', '', [], 'decision-needed', 1000), 'meera', 'scope owner');
+  const d = delegateQuestion(
+    newQuestion('scope', 'S?', '', [], 'decision-needed', 1000),
+    'meera',
+    'scope owner'
+  );
   assert.equal(d.status, 'delegated');
   assert.equal(d.delegatedTo, 'meera');
 });
@@ -228,13 +319,24 @@ test('learning, emergency breakthrough, confidence display, post-hunt review', (
   assert.equal(brk.isQuietHour, true);
   assert.equal(brk.breaksThrough, true);
   assert.equal(brk.delivery, 'interrupt');
-  const plain = emergencyBreakthrough(newQuestion('fyi-q', 'F?', '', [], 'fyi', 1000), Date.UTC(2026, 9, 8, 2, 0, 0), { start: 22, end: 7 });
+  const plain = emergencyBreakthrough(
+    newQuestion('fyi-q', 'F?', '', [], 'fyi', 1000),
+    Date.UTC(2026, 9, 8, 2, 0, 0),
+    { start: 22, end: 7 }
+  );
   assert.equal(plain.breaksThrough, false);
   assert.equal(plain.delivery, 'silent-queue');
-  const cd = confidenceDisplay([{ key: 'a', label: 'A', confidence: 50 }, { key: 'b', label: 'B', confidence: 50 }]);
+  const cd = confidenceDisplay([
+    { key: 'a', label: 'A', confidence: 50 },
+    { key: 'b', label: 'B', confidence: 50 },
+  ]);
   assert.equal(cd.agentLean, 'a');
   assert.equal(cd.options[0].bar, 50);
-  const answered = answerQuestion(newQuestion('r', 'R?', '', [{ key: 'y', label: 'Y' }], 'blocking', 1000), 'y', 2000);
+  const answered = answerQuestion(
+    newQuestion('r', 'R?', '', [{ key: 'y', label: 'Y' }], 'blocking', 1000),
+    'y',
+    2000
+  );
   const review = postHuntReview({ questions: [answered] });
   assert.equal(review.totalQuestions, 1);
   assert.equal(review.decisionsMade, 1);
@@ -245,10 +347,26 @@ test('learning, emergency breakthrough, confidence display, post-hunt review', (
 /* --- snapshot core spot checks ----------------------------------------------------- */
 
 const SN_HUNT = {
-  id: 'H-1', target: 'app.example.com', phase: 'in-progress',
+  id: 'H-1',
+  target: 'app.example.com',
+  phase: 'in-progress',
   findings: [
-    { id: 'F-1', title: 'Stored XSS', type: 'xss', severity: 'high', confidence: 80, evidence: 'payload stored' },
-    { id: 'F-2', title: 'Weak headers', type: 'headers', severity: 'low', confidence: 95, evidence: 'no CSP' },
+    {
+      id: 'F-1',
+      title: 'Stored XSS',
+      type: 'xss',
+      severity: 'high',
+      confidence: 80,
+      evidence: 'payload stored',
+    },
+    {
+      id: 'F-2',
+      title: 'Weak headers',
+      type: 'headers',
+      severity: 'low',
+      confidence: 95,
+      evidence: 'no CSP',
+    },
   ],
 };
 
@@ -281,8 +399,22 @@ test('diffSnapshots reports added/removed/changed', () => {
   const bHunt = {
     ...SN_HUNT,
     findings: [
-      { id: 'F-1', title: 'Stored XSS', type: 'xss', severity: 'critical', confidence: 80, evidence: 'payload stored' },
-      { id: 'F-3', title: 'IDOR', type: 'idor', severity: 'high', confidence: 90, evidence: 'enum ids' },
+      {
+        id: 'F-1',
+        title: 'Stored XSS',
+        type: 'xss',
+        severity: 'critical',
+        confidence: 80,
+        evidence: 'payload stored',
+      },
+      {
+        id: 'F-3',
+        title: 'IDOR',
+        type: 'idor',
+        severity: 'high',
+        confidence: 90,
+        evidence: 'enum ids',
+      },
     ],
   };
   const b = takeSnapshot(bHunt, 2000);
@@ -323,7 +455,23 @@ test('annotations and watermark attach deterministically', () => {
 
 test('deltas headline and executive/technical summaries', () => {
   const prev = takeSnapshot(SN_HUNT, 1000);
-  const cur = takeSnapshot({ ...SN_HUNT, findings: [...SN_HUNT.findings, { id: 'F-9', title: 'New', type: 'sqli', severity: 'critical', confidence: 70, evidence: 'error-based' }] }, 2000);
+  const cur = takeSnapshot(
+    {
+      ...SN_HUNT,
+      findings: [
+        ...SN_HUNT.findings,
+        {
+          id: 'F-9',
+          title: 'New',
+          type: 'sqli',
+          severity: 'critical',
+          confidence: 70,
+          evidence: 'error-based',
+        },
+      ],
+    },
+    2000
+  );
   const d = snapshotDeltas(cur, prev);
   assert.ok(d.headline.includes('1 new'));
   assert.equal(d.highlights[0].kind, 'new-finding');
@@ -404,7 +552,13 @@ test('Wave41.css: zero keyframes, scoped classes only', () => {
 /* --- no-debris audit ------------------------------------------------------------------- */
 
 test('wave-41 sources carry no unfinished-work or fake-content markers', () => {
-  const files = ['questionCore.js', 'snapshotCore.js', 'QuestionSuite.jsx', 'SnapshotSuite.jsx', 'Wave41.css'];
+  const files = [
+    'questionCore.js',
+    'snapshotCore.js',
+    'QuestionSuite.jsx',
+    'SnapshotSuite.jsx',
+    'Wave41.css',
+  ];
   for (const f of files) {
     const src = readFileSync(join(DIR, f), 'utf8');
     assert.ok(!/\bTODO\b|\bFIXME\b/i.test(src), 'no TODO/FIXME in ' + f);
@@ -418,12 +572,18 @@ test('wave-41 sources carry no unfinished-work or fake-content markers', () => {
 
 test('QuestionSuite.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'QuestionSuite.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('QuestionSuiteGallery'), 'esbuild parsed the question gallery export');
 });
 
 test('SnapshotSuite.jsx parses clean via esbuild', () => {
   const jsxPath = join(DIR, 'SnapshotSuite.jsx');
-  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], { encoding: 'utf8', timeout: 30000 });
+  const out = execFileSync('npx', ['--no-install', 'esbuild', '--loader:.jsx=jsx', jsxPath], {
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.ok(out.includes('SnapshotSuiteGallery'), 'esbuild parsed the snapshot gallery export');
 });

@@ -60,13 +60,13 @@ export function Plugins() {
         <header className="dm-page-head">
           <h1 className="dm-page-title">Plugins</h1>
           <p className="dm-page-sub">
-            Extend the agent. Models, payload packs, and integrations —
-            everything plugs into the same brain.
+            Extend the agent. Models, payload packs, and integrations — everything plugs into the
+            same brain.
           </p>
         </header>
 
         <div className="dm-grid-3">
-          {FAMILIES.map((f) => (
+          {FAMILIES.map(f => (
             <article
               key={f.id}
               className={`dm-card plugins-card${f.disabled ? ' plugins-card-disabled' : ''}`}
@@ -80,13 +80,11 @@ export function Plugins() {
                   {f.status}
                 </span>
               </div>
-              <h3 className="dm-card-title" id={`plugins-${f.id}-name`}>{f.name}</h3>
-              <p className="dm-card-sub plugins-tagline">
-                {f.tagline}
-              </p>
-              <p className="dm-muted plugins-desc">
-                {f.description}
-              </p>
+              <h3 className="dm-card-title" id={`plugins-${f.id}-name`}>
+                {f.name}
+              </h3>
+              <p className="dm-card-sub plugins-tagline">{f.tagline}</p>
+              <p className="dm-muted plugins-desc">{f.description}</p>
               {f.to ? (
                 <Link
                   to={f.to}

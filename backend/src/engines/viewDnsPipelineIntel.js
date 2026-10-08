@@ -29,12 +29,17 @@
 export function mergeToolOutputs({ reverseIp = [], ipHistory = [], portScan = [] } = {}) {
   const assets = new Map();
 
-  const ensure = (ip) => {
+  const ensure = ip => {
     let asset = assets.get(ip);
     if (!asset) {
       asset = {
-        ip, hostnames: new Set(), openPorts: new Set(), services: new Set(),
-        sources: new Set(), firstSeen: null, lastSeen: null,
+        ip,
+        hostnames: new Set(),
+        openPorts: new Set(),
+        services: new Set(),
+        sources: new Set(),
+        firstSeen: null,
+        lastSeen: null,
       };
       assets.set(ip, asset);
     }
@@ -54,10 +59,16 @@ export function mergeToolOutputs({ reverseIp = [], ipHistory = [], portScan = []
   for (const row of ipHistory) {
     if (!row?.ip) continue;
     const asset = ensure(String(row.ip).trim());
-    const host = String(row.host ?? '').trim().toLowerCase();
+    const host = String(row.host ?? '')
+      .trim()
+      .toLowerCase();
     if (host) asset.hostnames.add(host);
-    if (typeof row.firstSeen === 'number') asset.firstSeen = asset.firstSeen == null ? row.firstSeen : Math.min(asset.firstSeen, row.firstSeen);
-    if (typeof row.lastSeen === 'number') asset.lastSeen = asset.lastSeen == null ? row.lastSeen : Math.max(asset.lastSeen, row.lastSeen);
+    if (typeof row.firstSeen === 'number')
+      asset.firstSeen =
+        asset.firstSeen == null ? row.firstSeen : Math.min(asset.firstSeen, row.firstSeen);
+    if (typeof row.lastSeen === 'number')
+      asset.lastSeen =
+        asset.lastSeen == null ? row.lastSeen : Math.max(asset.lastSeen, row.lastSeen);
     asset.sources.add('ip-history');
   }
 
@@ -73,7 +84,7 @@ export function mergeToolOutputs({ reverseIp = [], ipHistory = [], portScan = []
     asset.sources.add('port-scan');
   }
 
-  return [...assets.values()].map((a) => ({
+  return [...assets.values()].map(a => ({
     ip: a.ip,
     hostnames: [...a.hostnames].sort(),
     openPorts: [...a.openPorts].sort((x, y) => x - y),
@@ -85,7 +96,9 @@ export function mergeToolOutputs({ reverseIp = [], ipHistory = [], portScan = []
 }
 
 /** Ports/services that raise the priority of an asset during a hunt. */
-const HIGH_VALUE_PORTS = new Set([22, 3389, 5985, 6379, 27017, 9200, 5601, 8080, 8443, 9090, 2375, 2376]);
+const HIGH_VALUE_PORTS = new Set([
+  22, 3389, 5985, 6379, 27017, 9200, 5601, 8080, 8443, 9090, 2375, 2376,
+]);
 
 /**
  * Prioritize merged assets for hunt scheduling.
@@ -95,28 +108,30 @@ const HIGH_VALUE_PORTS = new Set([22, 3389, 5985, 6379, 27017, 9200, 5601, 8080,
  * @returns {Array<object & {priority: number, reason: string[]}>}
  */
 export function prioritizeAssets(assets) {
-  return (assets ?? []).map((asset) => {
-    let priority = 0;
-    const reason = [];
-    if (asset.sources.length > 1) {
-      priority += (asset.sources.length - 1) * 10;
-      reason.push(`corroborated by ${asset.sources.length} tools`);
-    }
-    if (asset.openPorts.length) {
-      priority += asset.openPorts.length * 3;
-      reason.push(`${asset.openPorts.length} open ports`);
-    }
-    const hot = asset.openPorts.filter((p) => HIGH_VALUE_PORTS.has(p));
-    if (hot.length) {
-      priority += hot.length * 15;
-      reason.push(`high-value ports: ${hot.join(', ')}`);
-    }
-    if (asset.hostnames.length > 1) {
-      priority += (asset.hostnames.length - 1) * 2;
-      reason.push(`${asset.hostnames.length} hostnames`);
-    }
-    return { ...asset, priority, reason };
-  }).sort((a, b) => b.priority - a.priority);
+  return (assets ?? [])
+    .map(asset => {
+      let priority = 0;
+      const reason = [];
+      if (asset.sources.length > 1) {
+        priority += (asset.sources.length - 1) * 10;
+        reason.push(`corroborated by ${asset.sources.length} tools`);
+      }
+      if (asset.openPorts.length) {
+        priority += asset.openPorts.length * 3;
+        reason.push(`${asset.openPorts.length} open ports`);
+      }
+      const hot = asset.openPorts.filter(p => HIGH_VALUE_PORTS.has(p));
+      if (hot.length) {
+        priority += hot.length * 15;
+        reason.push(`high-value ports: ${hot.join(', ')}`);
+      }
+      if (asset.hostnames.length > 1) {
+        priority += (asset.hostnames.length - 1) * 2;
+        reason.push(`${asset.hostnames.length} hostnames`);
+      }
+      return { ...asset, priority, reason };
+    })
+    .sort((a, b) => b.priority - a.priority);
 }
 
 /**
@@ -134,7 +149,9 @@ export function findRetiredAssets(reverseIp = [], ipHistory = []) {
   const retired = [];
   const seenPairs = new Set();
   for (const row of ipHistory) {
-    const host = String(row.host ?? '').trim().toLowerCase();
+    const host = String(row.host ?? '')
+      .trim()
+      .toLowerCase();
     const key = `${row.ip}|${host}`;
     if (!host || currentNames.has(host) || seenPairs.has(key)) continue;
     seenPairs.add(key);

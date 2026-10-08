@@ -63,11 +63,11 @@ export function parseDmarcJson(jsonText) {
   try {
     const doc = JSON.parse(jsonText);
     const rep = doc.feedback || doc;
-    const rows = (rep.records || []).map((r) => ({
+    const rows = (rep.records || []).map(r => ({
       sourceIp: r?.row?.source_ip ?? null,
       count: Number(r?.row?.count ?? 0),
       disposition: r?.row?.policy_evaluated?.disposition ?? null,
-      spfResult: r?.row?.policy_evaluated?.spf ?? (r?.auth_results?.spf?.[0]?.result ?? null),
+      spfResult: r?.row?.policy_evaluated?.spf ?? r?.auth_results?.spf?.[0]?.result ?? null,
       spfDomain: r?.auth_results?.spf?.[0]?.domain ?? null,
       dkimResult: r?.auth_results?.dkim?.[0]?.result ?? null,
       dkimDomain: r?.auth_results?.dkim?.[0]?.domain ?? null,
@@ -103,8 +103,10 @@ function isAuthFailure(row) {
 export function findUnauthorizedSenders(report, options = {}) {
   if (!report || !Array.isArray(report.rows)) return [];
   const authorizedIps = new Set((options.authorizedIps || []).map(String));
-  const authorizedDomains = new Set((options.authorizedDomains || []).map((d) => String(d).toLowerCase()));
-  const brandDomains = (options.brandDomains || []).map((d) => String(d).toLowerCase());
+  const authorizedDomains = new Set(
+    (options.authorizedDomains || []).map(d => String(d).toLowerCase())
+  );
+  const brandDomains = (options.brandDomains || []).map(d => String(d).toLowerCase());
   const byIp = new Map();
 
   for (const row of report.rows) {
@@ -132,9 +134,9 @@ export function findUnauthorizedSenders(report, options = {}) {
   }
 
   return [...byIp.values()]
-    .map((e) => {
-      const claimsBrand = [...e.claimedHeaderFrom].some((h) =>
-        brandDomains.some((b) => h.toLowerCase() === b || h.toLowerCase().endsWith(`.${b}`))
+    .map(e => {
+      const claimsBrand = [...e.claimedHeaderFrom].some(h =>
+        brandDomains.some(b => h.toLowerCase() === b || h.toLowerCase().endsWith(`.${b}`))
       );
       return {
         type: 'unauthorized-sender',

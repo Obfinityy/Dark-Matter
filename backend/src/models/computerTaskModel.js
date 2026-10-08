@@ -1,3 +1,9 @@
+/**
+ * computerTaskModel — database model for computer Task.
+ * Schema definition and data-access methods for computer Task records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { id, now } from '../core/utils.js';
 
 /**
@@ -14,35 +20,52 @@ import { id, now } from '../core/utils.js';
  */
 
 export const TASK_STATES = Object.freeze([
-  'queued',        // created, not yet claimed by the worker
+  'queued', // created, not yet claimed by the worker
   'understanding', // interpreting the instruction in conversation context
-  'planning',      // brain produced/refreshed a plan
-  'executing',     // a computer action is in flight
-  'observing',     // observing the desktop after an action
-  'verifying',     // checking the observed result against the goal
-  'continue',      // loop decision: another action round is needed
-  'ask_user',      // the brain needs information from the human
-  'waiting_ai',    // local phone AI busy/unreachable — queued, retried
+  'planning', // brain produced/refreshed a plan
+  'executing', // a computer action is in flight
+  'observing', // observing the desktop after an action
+  'verifying', // checking the observed result against the goal
+  'continue', // loop decision: another action round is needed
+  'ask_user', // the brain needs information from the human
+  'waiting_ai', // local phone AI busy/unreachable — queued, retried
   'waiting_computer', // computer runtime unavailable — queued, retried
   'paused',
   'resuming',
   'completed',
   'failed',
-  'cancelled'
+  'cancelled',
 ]);
 
 export const ACTIVE_TASK_STATES = Object.freeze([
-  'queued', 'understanding', 'planning', 'executing', 'observing', 'verifying',
-  'continue', 'waiting_ai', 'waiting_computer', 'resuming'
+  'queued',
+  'understanding',
+  'planning',
+  'executing',
+  'observing',
+  'verifying',
+  'continue',
+  'waiting_ai',
+  'waiting_computer',
+  'resuming',
 ]);
 
 export const RECOVERABLE_TASK_STATES = Object.freeze([
-  'queued', 'understanding', 'planning', 'executing', 'observing', 'verifying',
-  'continue', 'waiting_ai', 'waiting_computer', 'resuming'
+  'queued',
+  'understanding',
+  'planning',
+  'executing',
+  'observing',
+  'verifying',
+  'continue',
+  'waiting_ai',
+  'waiting_computer',
+  'resuming',
 ]);
 
 export const TERMINAL_TASK_STATES = Object.freeze(['completed', 'failed', 'cancelled']);
 
+/** Database model for computer task. */
 export class ComputerTaskModel {
   constructor(database) {
     this.collection = database.collection('computer_tasks');
@@ -63,7 +86,7 @@ export class ComputerTaskModel {
       continuationOf: Boolean(previousTaskId),
 
       status: 'queued',
-      phase: 'understanding',       // understanding | planning | executing | observing | verifying | finalizing
+      phase: 'understanding', // understanding | planning | executing | observing | verifying | finalizing
       goal: String(instruction || '').slice(0, 5000),
       plan: [],
       planUpdatedAt: null,
@@ -75,13 +98,13 @@ export class ComputerTaskModel {
       lastAction: null,
       lastActionResult: null,
       lastObservation: null,
-      generatedContent: null,       // e.g. the leave application the brain wrote
-      verificationStatus: 'pending',// pending | verified | failed
+      generatedContent: null, // e.g. the leave application the brain wrote
+      verificationStatus: 'pending', // pending | verified | failed
       completedActions: [],
 
       // ── Progress / observability ─────────────────────────────────────
       stepCount: 0,
-      brainStatus: 'idle',          // idle | thinking | decided | waiting | stopped
+      brainStatus: 'idle', // idle | thinking | decided | waiting | stopped
       computerStatus: null,
       errors: [],
       waitingReason: null,
@@ -92,7 +115,7 @@ export class ComputerTaskModel {
 
       // ── Controls ─────────────────────────────────────────────────────
       cancelRequested: false,
-      answer: null,                 // pending ask_user question
+      answer: null, // pending ask_user question
       answerReceivedAt: null,
 
       // ── Worker lease (duplicate-execution guard) ─────────────────────
@@ -110,7 +133,7 @@ export class ComputerTaskModel {
       updatedAt: timestamp,
       startedAt: null,
       completedAt: null,
-      cancelledAt: null
+      cancelledAt: null,
     };
 
     await this.collection.insertOne(task);
@@ -186,10 +209,10 @@ export class ComputerTaskModel {
             kind: entry.kind || 'info',
             icon: entry.icon || null,
             message: String(entry.message || '').slice(0, 2000),
-            detail: entry.detail || null
-          }
+            detail: entry.detail || null,
+          },
         },
-        $set: { updatedAt: now() }
+        $set: { updatedAt: now() },
       }
     );
   }
@@ -203,10 +226,10 @@ export class ComputerTaskModel {
             at: now(),
             message: String(error?.message || error || 'unknown error').slice(0, 1000),
             kind: error?.kind || null,
-            fatal: Boolean(error?.fatal)
-          }
+            fatal: Boolean(error?.fatal),
+          },
         },
-        $set: { updatedAt: now() }
+        $set: { updatedAt: now() },
       }
     );
   }
@@ -217,7 +240,7 @@ export class ComputerTaskModel {
       { id: taskId },
       {
         $push: { completedActions: { ...entry, at: now() } },
-        $set: { updatedAt: now() }
+        $set: { updatedAt: now() },
       }
     );
   }
@@ -235,7 +258,15 @@ export class ComputerTaskModel {
     const leaseExpiresAt = new Date(Date.now() + leaseMs).toISOString();
     await this.collection.updateOne(
       { id: taskId },
-      { $set: { lease, leaseExpiresAt, workerStartedAt, heartbeatAt: timestamp, updatedAt: timestamp } }
+      {
+        $set: {
+          lease,
+          leaseExpiresAt,
+          workerStartedAt,
+          heartbeatAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }
     );
     return this.get(taskId);
   }
@@ -248,7 +279,10 @@ export class ComputerTaskModel {
   }
 
   async requestCancel(taskId) {
-    await this.collection.updateOne({ id: taskId }, { $set: { cancelRequested: true, updatedAt: now() } });
+    await this.collection.updateOne(
+      { id: taskId },
+      { $set: { cancelRequested: true, updatedAt: now() } }
+    );
     return this.get(taskId);
   }
 
@@ -262,8 +296,8 @@ export class ComputerTaskModel {
           answerReceivedAt: now(),
           status: 'resuming',
           cancelRequested: false,
-          updatedAt: now()
-        }
+          updatedAt: now(),
+        },
       }
     );
     return this.get(taskId);
@@ -278,8 +312,8 @@ export class ComputerTaskModel {
         $set: {
           checkpoint: { ...checkpoint, at: timestamp },
           lastCommittedAction: checkpoint.lastCommittedAction || null,
-          updatedAt: timestamp
-        }
+          updatedAt: timestamp,
+        },
       }
     );
   }

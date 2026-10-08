@@ -22,15 +22,60 @@
  * @type {Array<{generator: string, test: RegExp, confidence: string, note: string}>}
  */
 const GENERATOR_SIGNATURES = [
-  { generator: 'Django', test: /^[a-z0-9]{32}$/, confidence: 'medium', note: 'Django session keys are 32 lowercase alphanumerics' },
-  { generator: 'Laravel', test: /^[A-Za-z0-9]{40}$/, confidence: 'medium', note: 'Laravel session IDs are 40 alphanumerics (SHA-1 derived)' },
-  { generator: 'Ruby on Rails / Rack', test: /^[a-f0-9]{32}$/, confidence: 'medium', note: 'Rack session IDs are 32 hex chars (SecureRandom.hex(16))' },
-  { generator: 'Apache Tomcat', test: /^[A-F0-9]{32}$/i, confidence: 'low', note: 'Tomcat JSESSIONID values are 32 hex chars; case-insensitive match' },
-  { generator: 'ASP.NET', test: /^[a-z0-5]{24}$/, confidence: 'high', note: 'ASP.NET SessionIDManager emits 24 chars from a-z0-5' },
-  { generator: 'express-session (Node.js)', test: /^[A-Za-z0-9_-]{24}$/, confidence: 'medium', note: 'express-session default uid-safe IDs are 24 URL-safe chars' },
-  { generator: 'PHP', test: /^[a-zA-Z0-9]{26,32}$/, confidence: 'low', note: 'PHP default session IDs are 26-32 alphanumerics' },
-  { generator: 'UUID v4 (custom)', test: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, confidence: 'high', note: 'RFC 4122 version-4 UUID shape' },
-  { generator: 'Java UUID (custom)', test: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, confidence: 'medium', note: 'UUID-shaped token without v4 markers' },
+  {
+    generator: 'Django',
+    test: /^[a-z0-9]{32}$/,
+    confidence: 'medium',
+    note: 'Django session keys are 32 lowercase alphanumerics',
+  },
+  {
+    generator: 'Laravel',
+    test: /^[A-Za-z0-9]{40}$/,
+    confidence: 'medium',
+    note: 'Laravel session IDs are 40 alphanumerics (SHA-1 derived)',
+  },
+  {
+    generator: 'Ruby on Rails / Rack',
+    test: /^[a-f0-9]{32}$/,
+    confidence: 'medium',
+    note: 'Rack session IDs are 32 hex chars (SecureRandom.hex(16))',
+  },
+  {
+    generator: 'Apache Tomcat',
+    test: /^[A-F0-9]{32}$/i,
+    confidence: 'low',
+    note: 'Tomcat JSESSIONID values are 32 hex chars; case-insensitive match',
+  },
+  {
+    generator: 'ASP.NET',
+    test: /^[a-z0-5]{24}$/,
+    confidence: 'high',
+    note: 'ASP.NET SessionIDManager emits 24 chars from a-z0-5',
+  },
+  {
+    generator: 'express-session (Node.js)',
+    test: /^[A-Za-z0-9_-]{24}$/,
+    confidence: 'medium',
+    note: 'express-session default uid-safe IDs are 24 URL-safe chars',
+  },
+  {
+    generator: 'PHP',
+    test: /^[a-zA-Z0-9]{26,32}$/,
+    confidence: 'low',
+    note: 'PHP default session IDs are 26-32 alphanumerics',
+  },
+  {
+    generator: 'UUID v4 (custom)',
+    test: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    confidence: 'high',
+    note: 'RFC 4122 version-4 UUID shape',
+  },
+  {
+    generator: 'Java UUID (custom)',
+    test: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    confidence: 'medium',
+    note: 'UUID-shaped token without v4 markers',
+  },
 ];
 
 /**
@@ -80,9 +125,11 @@ export function shannonEntropyPerChar(value) {
  */
 export function guessGenerator(value) {
   if (!value || typeof value !== 'string') return [];
-  return GENERATOR_SIGNATURES
-    .filter((sig) => sig.test.test(value))
-    .map((sig) => ({ generator: sig.generator, confidence: sig.confidence, note: sig.note }));
+  return GENERATOR_SIGNATURES.filter(sig => sig.test.test(value)).map(sig => ({
+    generator: sig.generator,
+    confidence: sig.confidence,
+    note: sig.note,
+  }));
 }
 
 /**
@@ -97,9 +144,14 @@ export function guessGenerator(value) {
  */
 export function analyzeSessionId(value) {
   const empty = {
-    valueLength: 0, alphabetSize: 0, alphabetClasses: [],
-    shannonBitsPerChar: 0, capacityBits: 0,
-    generatorGuesses: [], strength: 'invalid', flags: ['empty or non-string input'],
+    valueLength: 0,
+    alphabetSize: 0,
+    alphabetClasses: [],
+    shannonBitsPerChar: 0,
+    capacityBits: 0,
+    generatorGuesses: [],
+    strength: 'invalid',
+    flags: ['empty or non-string input'],
   };
   if (!value || typeof value !== 'string') return empty;
 
@@ -144,7 +196,7 @@ export function analyzeSessionId(value) {
  * }}
  */
 export function batchAnalyzeSessionIds(values) {
-  const list = Array.isArray(values) ? values.filter((v) => typeof v === 'string') : [];
+  const list = Array.isArray(values) ? values.filter(v => typeof v === 'string') : [];
   const analyzed = list.map((v, index) => ({ index, value: v, analysis: analyzeSessionId(v) }));
   const strengths = {};
   const genHits = new Map();
@@ -154,17 +206,25 @@ export function batchAnalyzeSessionIds(values) {
       genHits.set(g.generator, (genHits.get(g.generator) || 0) + 1);
     }
   }
-  const lengths = analyzed.map((a) => a.value.length);
+  const lengths = analyzed.map(a => a.value.length);
   return {
     count: list.length,
     uniqueCount: new Set(list).size,
     duplicates: new Set(list).size < list.length,
-    lengths: { min: lengths.length ? Math.min(...lengths) : 0, max: lengths.length ? Math.max(...lengths) : 0 },
+    lengths: {
+      min: lengths.length ? Math.min(...lengths) : 0,
+      max: lengths.length ? Math.max(...lengths) : 0,
+    },
     strengths,
     weakest: analyzed
-      .filter((a) => a.analysis.strength === 'weak')
+      .filter(a => a.analysis.strength === 'weak')
       .slice(0, 10)
-      .map((a) => ({ index: a.index, value: a.value, strength: a.analysis.strength, flags: a.analysis.flags })),
+      .map(a => ({
+        index: a.index,
+        value: a.value,
+        strength: a.analysis.strength,
+        flags: a.analysis.flags,
+      })),
     commonGenerators: [...genHits.entries()]
       .map(([generator, hits]) => ({ generator, hits }))
       .sort((a, b) => b.hits - a.hits),

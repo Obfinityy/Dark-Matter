@@ -22,7 +22,12 @@ export const TAKEOVER_SERVICES = Object.freeze([
   { name: 'Shopify', cname: /myshopify\.com$/, check: 'myshopify.com', severity: 'high' },
   { name: 'Zendesk', cname: /zendesk\.com$/, check: 'zendesk.com', severity: 'medium' },
   { name: 'Freshdesk', cname: /freshdesk\.com$/, check: 'freshdesk.com', severity: 'medium' },
-  { name: 'HelpScout', cname: /helpscoutdocs\.com$/, check: 'helpscoutdocs.com', severity: 'medium' },
+  {
+    name: 'HelpScout',
+    cname: /helpscoutdocs\.com$/,
+    check: 'helpscoutdocs.com',
+    severity: 'medium',
+  },
   { name: 'Tumblr', cname: /tumblr\.com$/, check: 'tumblr.com', severity: 'medium' },
   { name: 'WordPress', cname: /wordpress\.com$/, check: 'wordpress.com', severity: 'medium' },
   { name: 'Bitbucket', cname: /bitbucket\.io$/, check: 'bitbucket.io', severity: 'high' },
@@ -51,7 +56,7 @@ export const TAKEOVER_SERVICES = Object.freeze([
 export function matchTakeoverService(cname) {
   if (!cname) return null;
   const lower = cname.toLowerCase().replace(/\.$/, '');
-  return TAKEOVER_SERVICES.find((s) => s.cname.test(lower)) || null;
+  return TAKEOVER_SERVICES.find(s => s.cname.test(lower)) || null;
 }
 
 /**
@@ -68,10 +73,10 @@ export function validateTakeoverHttp(service, httpStatus, httpBody) {
 
   const danglingIndicators = [
     /there isn't a github pages site here/i,
-    /no such app/i,                                    // Heroku
-    /noSuchBucket/i,                                  // S3
-    /the specified bucket does not exist/i,           // S3
-    /project not found/i,                             // Vercel/Netlify
+    /no such app/i, // Heroku
+    /noSuchBucket/i, // S3
+    /the specified bucket does not exist/i, // S3
+    /project not found/i, // Vercel/Netlify
     /not found/i,
     /doesn.?t exist/i,
   ];
@@ -82,7 +87,7 @@ export function validateTakeoverHttp(service, httpStatus, httpBody) {
         vulnerable: true,
         evidence: `Dangling CNAME to ${service.name}: service returns "${pattern.source.slice(0, 40)}"`,
         service: service.name,
-        severity: service.severity
+        severity: service.severity,
       };
     }
   }
@@ -93,7 +98,7 @@ export function validateTakeoverHttp(service, httpStatus, httpBody) {
       vulnerable: true,
       evidence: `Dangling CNAME to ${service.name}: target does not resolve (NXDOMAIN)`,
       service: service.name,
-      severity: service.severity
+      severity: service.severity,
     };
   }
 
@@ -112,8 +117,8 @@ export function takeoverPoc(service, subdomain) {
       `3. SAFE PoC: Create a test page on ${service.name} with a canary string`,
       `   (e.g. "darkmatter-poc-${Date.now()}") — do NOT deface or impersonate`,
       `4. If your canary appears on ${subdomain} → takeover confirmed`,
-      `5. Report immediately. Do NOT leave the canary up.`
+      `5. Report immediately. Do NOT leave the canary up.`,
     ],
-    safetyNote: 'Canary only. Never host phishing or malicious content. Report and clean up.'
+    safetyNote: 'Canary only. Never host phishing or malicious content. Report and clean up.',
   };
 }

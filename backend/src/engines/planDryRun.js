@@ -13,7 +13,10 @@
  */
 export function syntheticTargetGraph({ hosts = 3, pathsPerHost = 12, seed = 42 } = {}) {
   let s = seed;
-  const rand = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+  const rand = () => {
+    s = (s * 1103515245 + 12345) % 2147483648;
+    return s / 2147483648;
+  };
   const nodes = [];
   const edges = [];
   let id = 0;
@@ -23,7 +26,12 @@ export function syntheticTargetGraph({ hosts = 3, pathsPerHost = 12, seed = 42 }
     let prev = hostId;
     for (let p = 0; p < pathsPerHost; p++) {
       const pid = id++;
-      nodes.push({ id: pid, kind: 'path', label: `/p${h}-${p}`, depth: 1 + Math.floor(rand() * 3) });
+      nodes.push({
+        id: pid,
+        kind: 'path',
+        label: `/p${h}-${p}`,
+        depth: 1 + Math.floor(rand() * 3),
+      });
       edges.push([prev, pid]);
       prev = pid;
     }
@@ -50,7 +58,7 @@ export function dryRunPlan(plan = { modules: [] }, graph = syntheticTargetGraph(
       if ((i * affinity + (mod.actions || []).length) % 4 < 2) hits.add(n.id);
     });
     perModule[mod.id || 'unknown'] = hits.size;
-    hits.forEach((id) => covered.add(id));
+    hits.forEach(id => covered.add(id));
   }
   return {
     coverage: totalNodes ? Math.round((covered.size / totalNodes) * 1000) / 1000 : 0,

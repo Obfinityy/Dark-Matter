@@ -33,7 +33,11 @@ export const WAVE34A_IDEAS = [
   [51330, 'abort cascade control', 'Choose whether aborting affects linked hunts or just this one'],
   [51331, 'pause state export', 'Download the frozen state for audit or transfer'],
   [51332, 'resume notes', 'Attach a note explaining why the hunt is resuming now'],
-  [51333, 'pause button placement', 'The pause control stays visible and reachable on every hunt screen'],
+  [
+    51333,
+    'pause button placement',
+    'The pause control stays visible and reachable on every hunt screen',
+  ],
   [51334, 'abort requires reason', 'A mandatory reason that feeds hunt retrospectives'],
   [51335, 'pause-and-snapshot', 'Automatically capture a report snapshot at the moment of pausing'],
   [51336, 'resume speed ramp', 'Optionally resume at reduced request rate, ramping back up'],
@@ -90,14 +94,18 @@ export function applyVoiceCommand(state, parsed, now) {
   switch (parsed.action) {
     case 'pause':
       if (next.paused) return { state: next, accepted: false, note: 'already paused' };
-      next.paused = true; next.pausedAt = now; next.pauseVia = 'voice';
+      next.paused = true;
+      next.pausedAt = now;
+      next.pauseVia = 'voice';
       return { state: next, accepted: true, note: 'paused via voice' };
     case 'resume':
       if (!next.paused) return { state: next, accepted: false, note: 'not paused' };
-      next.paused = false; next.resumedAt = now;
+      next.paused = false;
+      next.resumedAt = now;
       return { state: next, accepted: true, note: 'resumed via voice' };
     case 'abort':
-      next.abortArmed = true; next.abortArmedAt = now;
+      next.abortArmed = true;
+      next.abortArmedAt = now;
       return { state: next, accepted: false, note: 'abort armed — confirm in UI' };
     case 'status':
       return { state: next, accepted: true, note: next.paused ? 'paused' : 'running' };
@@ -141,12 +149,12 @@ export function pauseWithInheritance(parentId, subHuntIds, now) {
 
 /** Resume side of inheritance: only unpauses sub-hunts paused via the parent. */
 export function resumeWithInheritance(tree, now) {
-  return (tree || []).map((n) => (n.inheritedFrom ? { ...n, paused: false, resumedAt: now } : n));
+  return (tree || []).map(n => (n.inheritedFrom ? { ...n, paused: false, resumedAt: now } : n));
 }
 
 /** Which sub-hunts inherited their pause from a given parent. */
 export function inheritedPausees(tree, parentId) {
-  return (tree || []).filter((n) => n.inheritedFrom === parentId).map((n) => n.huntId);
+  return (tree || []).filter(n => n.inheritedFrom === parentId).map(n => n.huntId);
 }
 
 // --- 51324 resume ordering -----------------------------------------------------
@@ -161,14 +169,16 @@ export const RESUME_ORDERS = ['priority', 'fifo', 'largest-first', 'quickest-fir
  */
 export function orderResume(queue, strategy = 'priority') {
   const rows = (queue || []).map((h, i) => ({ ...h, _i: i }));
-  const key = {
-    priority: (h) => [-h.priority, h.pausedAt],
-    fifo: (h) => [h.pausedAt],
-    'largest-first': (h) => [-(h.findings || 0), h.pausedAt],
-    'quickest-first': (h) => [(h.remainingPhases || 0), h.pausedAt],
-  }[strategy] || ((h) => [h.pausedAt]);
+  const key =
+    {
+      priority: h => [-h.priority, h.pausedAt],
+      fifo: h => [h.pausedAt],
+      'largest-first': h => [-(h.findings || 0), h.pausedAt],
+      'quickest-first': h => [h.remainingPhases || 0, h.pausedAt],
+    }[strategy] || (h => [h.pausedAt]);
   rows.sort((a, b) => {
-    const ka = key(a); const kb = key(b);
+    const ka = key(a);
+    const kb = key(b);
     for (let i = 0; i < ka.length; i += 1) {
       if (ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
     }
@@ -191,9 +201,11 @@ export function queueApprovalWhilePaused(queue, approval) {
  * Returns { executed, remaining } — remaining holds anything still gated.
  */
 export function drainApprovalQueue(queue, gate) {
-  const executed = []; const remaining = [];
+  const executed = [];
+  const remaining = [];
   for (const a of queue || []) {
-    if (gate && !gate(a)) remaining.push(a); else executed.push({ ...a, executed: true });
+    if (gate && !gate(a)) remaining.push(a);
+    else executed.push({ ...a, executed: true });
   }
   return { executed, remaining };
 }
@@ -207,17 +219,19 @@ export function drainApprovalQueue(queue, gate) {
 export function abortSummary(hunt) {
   const h = hunt || {};
   const phases = h.phases || [];
-  const done = phases.filter((p) => p.status === 'done').length;
+  const done = phases.filter(p => p.status === 'done').length;
   return {
     huntId: h.huntId || h.id || 'unknown',
     target: h.target || '',
     findings: (h.findings || []).length,
-    criticalFindings: (h.findings || []).filter((f) => f.severity === 'critical').length,
+    criticalFindings: (h.findings || []).filter(f => f.severity === 'critical').length,
     coverage: phases.length ? Math.round((done / phases.length) * 100) : 0,
     phasesDone: done,
     phasesTotal: phases.length,
-    elapsedMin: h.startedAt ? Math.max(0, Math.round(((h.now || Date.now()) - h.startedAt) / 60000)) : 0,
-    modulesActive: (h.modules || []).filter((m) => m.active).length,
+    elapsedMin: h.startedAt
+      ? Math.max(0, Math.round(((h.now || Date.now()) - h.startedAt) / 60000))
+      : 0,
+    modulesActive: (h.modules || []).filter(m => m.active).length,
     artifacts: h.artifactCount || 0,
     irreversible: true,
   };
@@ -245,12 +259,12 @@ export function pauseToSteer(hunt, now) {
  * non-done phases, drops the rest.
  */
 export function reducedScope(phases, keepTop = 3) {
-  const remaining = (phases || []).filter((p) => p.status !== 'done');
+  const remaining = (phases || []).filter(p => p.status !== 'done');
   const sorted = [...remaining].sort((a, b) => (b.priority || 0) - (a.priority || 0));
-  const kept = new Set(sorted.slice(0, keepTop).map((p) => p.id));
+  const kept = new Set(sorted.slice(0, keepTop).map(p => p.id));
   return {
-    kept: sorted.filter((p) => kept.has(p.id)),
-    dropped: sorted.filter((p) => !kept.has(p.id)),
+    kept: sorted.filter(p => kept.has(p.id)),
+    dropped: sorted.filter(p => !kept.has(p.id)),
   };
 }
 
@@ -302,7 +316,7 @@ export function exportPauseState(hunt, now) {
     paused: !!h.paused,
     pausedAt: h.pausedAt || null,
     pauseReason: h.pauseReason || null,
-    phaseStatuses: (h.phases || []).map((p) => ({ id: p.id, status: p.status })),
+    phaseStatuses: (h.phases || []).map(p => ({ id: p.id, status: p.status })),
     findingsCount: (h.findings || []).length,
     checkpoints: h.checkpoints || [],
   };
@@ -356,8 +370,10 @@ export function validateAbortReason(reason) {
   const errors = [];
   if (!reason || typeof reason !== 'object') errors.push('reason is required');
   else {
-    if (!ABORT_REASON_CODES.includes(reason.code)) errors.push(`code must be one of: ${ABORT_REASON_CODES.join(', ')}`);
-    if (!reason.detail || String(reason.detail).trim().length < 8) errors.push('detail must be at least 8 characters');
+    if (!ABORT_REASON_CODES.includes(reason.code))
+      errors.push(`code must be one of: ${ABORT_REASON_CODES.join(', ')}`);
+    if (!reason.detail || String(reason.detail).trim().length < 8)
+      errors.push('detail must be at least 8 characters');
   }
   return { ok: errors.length === 0, errors };
 }
@@ -371,15 +387,20 @@ export function validateAbortReason(reason) {
 export function snapshotOnPause(hunt, now) {
   const h = hunt || {};
   const findings = h.findings || [];
-  const sev = (s) => findings.filter((f) => f.severity === s).length;
+  const sev = s => findings.filter(f => f.severity === s).length;
   return {
     snapshotAt: now,
     huntId: h.huntId || h.id || 'unknown',
     target: h.target || '',
     findingsTotal: findings.length,
-    bySeverity: { critical: sev('critical'), high: sev('high'), medium: sev('medium'), low: sev('low') },
-    topFindings: findings.slice(0, 5).map((f) => ({ title: f.title, severity: f.severity })),
-    phases: (h.phases || []).map((p) => ({ id: p.id, status: p.status })),
+    bySeverity: {
+      critical: sev('critical'),
+      high: sev('high'),
+      medium: sev('medium'),
+      low: sev('low'),
+    },
+    topFindings: findings.slice(0, 5).map(f => ({ title: f.title, severity: f.severity })),
+    phases: (h.phases || []).map(p => ({ id: p.id, status: p.status })),
   };
 }
 
@@ -400,7 +421,8 @@ export function rampRate(baseRpm, elapsedMin, rampMinutes = 10, startPct = 25) {
 /** The full ramp curve (one entry per minute) for display. */
 export function rampCurve(baseRpm, rampMinutes = 10, startPct = 25) {
   const curve = [];
-  for (let m = 0; m <= rampMinutes; m += 1) curve.push({ minute: m, rpm: rampRate(baseRpm, m, rampMinutes, startPct) });
+  for (let m = 0; m <= rampMinutes; m += 1)
+    curve.push({ minute: m, rpm: rampRate(baseRpm, m, rampMinutes, startPct) });
   return curve;
 }
 
@@ -415,7 +437,9 @@ export function pauseDiscussion(pauseEvent) {
     pausedBy: pauseEvent.pausedBy || 'unknown',
     pausedAt: pauseEvent.pausedAt || null,
     reason: pauseEvent.reason || '',
-    participants: [...new Set([pauseEvent.pausedBy, ...(pauseEvent.watchers || [])].filter(Boolean))],
+    participants: [
+      ...new Set([pauseEvent.pausedBy, ...(pauseEvent.watchers || [])].filter(Boolean)),
+    ],
     comments: [],
     discussionOpen: true,
   };
@@ -450,15 +474,20 @@ export function isInPauseWindow(calendar, localDay, localHour) {
 
 export function addPauseWindow(calendar, window) {
   const cal = [...(calendar || [])];
-  cal.push({ days: [...(window.days || [])], startHour: window.startHour, endHour: window.endHour, label: window.label || '' });
+  cal.push({
+    days: [...(window.days || [])],
+    startHour: window.startHour,
+    endHour: window.endHour,
+    label: window.label || '',
+  });
   return cal;
 }
 
 /** Human description of a window, e.g. "Mon–Fri 09:00–18:00". */
 export function describePauseWindow(w) {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const ds = (w.days || []).map((d) => days[d]).join(',');
-  const hh = (h) => `${String(h).padStart(2, '0')}:00`;
+  const ds = (w.days || []).map(d => days[d]).join(',');
+  const hh = h => `${String(h).padStart(2, '0')}:00`;
   return `${ds} ${hh(w.startHour)}–${hh(w.endHour)}${w.label ? ` (${w.label})` : ''}`;
 }
 
@@ -469,11 +498,13 @@ export function describePauseWindow(w) {
  * frozen target fingerprint with the fresh one.
  */
 export function diffPauseState(before, after) {
-  const b = before || {}; const a = after || {};
+  const b = before || {};
+  const a = after || {};
   const changes = [];
   const keys = new Set([...Object.keys(b), ...Object.keys(a)]);
   for (const k of keys) {
-    const bv = JSON.stringify(b[k]); const av = JSON.stringify(a[k]);
+    const bv = JSON.stringify(b[k]);
+    const av = JSON.stringify(a[k]);
     if (bv !== av) changes.push({ field: k, before: b[k], after: a[k] });
   }
   return { changed: changes.length > 0, changeCount: changes.length, changes };
@@ -493,16 +524,20 @@ export function indexAbortedHunt(index, hunt) {
     target: hunt.target || '',
     abortedAt: hunt.abortedAt || null,
     abortReason: (hunt.abortReason && hunt.abortReason.code) || 'other',
-    findings: (hunt.findings || []).map((f) => ({ title: f.title, severity: f.severity })),
+    findings: (hunt.findings || []).map(f => ({ title: f.title, severity: f.severity })),
   });
   return idx;
 }
 
 export function searchAbortedHunts(index, query) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
   if (!q) return [];
-  return (index || []).filter((h) =>
-    h.target.toLowerCase().includes(q)
-    || h.abortReason.toLowerCase().includes(q)
-    || h.findings.some((f) => f.title.toLowerCase().includes(q)));
+  return (index || []).filter(
+    h =>
+      h.target.toLowerCase().includes(q) ||
+      h.abortReason.toLowerCase().includes(q) ||
+      h.findings.some(f => f.title.toLowerCase().includes(q))
+  );
 }

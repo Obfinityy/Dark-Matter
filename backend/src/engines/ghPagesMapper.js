@@ -44,7 +44,10 @@ export function slugify(name) {
  * @returns {string} normalized custom domain
  */
 export function parseCnameFile(cnameContent) {
-  const raw = String(cnameContent || '').trim().split(/\s+/)[0] || '';
+  const raw =
+    String(cnameContent || '')
+      .trim()
+      .split(/\s+/)[0] || '';
   if (!raw) return '';
   return raw
     .toLowerCase()
@@ -67,7 +70,9 @@ export function parseCnameFile(cnameContent) {
  * @returns {{user: string, kind: 'user-site'}|null}
  */
 export function parseGithubIoHost(host) {
-  const h = String(host || '').toLowerCase().replace(/\.$/, '');
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/\.$/, '');
   const m = h.match(/^([a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?)\.github\.io$/);
   if (!m) return null;
   return { user: m[1], kind: 'user-site' };
@@ -114,7 +119,19 @@ export function mapCustomDomain({ customDomain, user, repo, cnameContent = '' })
  * @returns {{host: string, user: string, kind: 'user-site'|'project-site', path: string}[]}
  */
 export function generatePagesHosts(users, options = {}) {
-  const { projectRepos = ['docs', 'blog', 'status', 'developer', 'developers', 'engineering', 'handbook', 'site', 'www'] } = options;
+  const {
+    projectRepos = [
+      'docs',
+      'blog',
+      'status',
+      'developer',
+      'developers',
+      'engineering',
+      'handbook',
+      'site',
+      'www',
+    ],
+  } = options;
   const out = [];
   const seen = new Set();
   for (const raw of users || []) {
@@ -123,7 +140,12 @@ export function generatePagesHosts(users, options = {}) {
     seen.add(user);
     out.push({ host: `${user}.github.io`, user, kind: 'user-site', path: '/' });
     for (const repo of projectRepos) {
-      out.push({ host: `${user}.github.io`, user, kind: 'project-site', path: `/${slugify(repo)}/` });
+      out.push({
+        host: `${user}.github.io`,
+        user,
+        kind: 'project-site',
+        path: `/${slugify(repo)}/`,
+      });
     }
   }
   return out;
@@ -137,7 +159,9 @@ export function generatePagesHosts(users, options = {}) {
  * @returns {string[]} unique candidate slugs
  */
 export function brandUserCandidates(brand) {
-  const label = String(brand || '').toLowerCase().split('.')[0];
+  const label = String(brand || '')
+    .toLowerCase()
+    .split('.')[0];
   const base = slugify(label);
   const out = new Set();
   if (base) {
@@ -152,7 +176,7 @@ export function brandUserCandidates(brand) {
       if (part.length > 2) out.add(part);
     }
   }
-  return [...out].filter((s) => s.length <= 39);
+  return [...out].filter(s => s.length <= 39);
 }
 
 /**

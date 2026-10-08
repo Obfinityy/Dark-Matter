@@ -3,6 +3,7 @@
  * Sits between the agent brain and MongoDB.
  */
 
+/** Manages state lifecycle and state. */
 export class StateManager {
   constructor({ agentStateModel, assessmentModel, eventService }) {
     this.agentStateModel = agentStateModel;
@@ -17,7 +18,7 @@ export class StateManager {
       type: 'AGENT_STARTED',
       level: 'INFO',
       message: 'Agent state initialized',
-      data: { target, scope }
+      data: { target, scope },
     });
     return state;
   }
@@ -41,8 +42,12 @@ export class StateManager {
 
     // Extract items that look like URLs
     if (parsedResult.items?.length) {
-      const urls = parsedResult.items.filter(item => typeof item === 'string' && /^https?:\/\//i.test(item));
-      const domains = parsedResult.items.filter(item => typeof item === 'string' && !item.includes('://') && item.includes('.'));
+      const urls = parsedResult.items.filter(
+        item => typeof item === 'string' && /^https?:\/\//i.test(item)
+      );
+      const domains = parsedResult.items.filter(
+        item => typeof item === 'string' && !item.includes('://') && item.includes('.')
+      );
 
       if (urls.length) await this.agentStateModel.addEndpoints(assessmentId, urls);
       if (domains.length) await this.agentStateModel.addSubdomains(assessmentId, domains);
@@ -55,7 +60,10 @@ export class StateManager {
       for (const item of parsedResult.items) {
         if (item.url) endpoints.push(item.url);
         if (item.tech) techs.push(...(Array.isArray(item.tech) ? item.tech : [item.tech]));
-        if (item.technologies) techs.push(...(Array.isArray(item.technologies) ? item.technologies : [item.technologies]));
+        if (item.technologies)
+          techs.push(
+            ...(Array.isArray(item.technologies) ? item.technologies : [item.technologies])
+          );
       }
       if (endpoints.length) await this.agentStateModel.addEndpoints(assessmentId, endpoints);
       if (techs.length) await this.agentStateModel.addTechnologies(assessmentId, techs);
@@ -65,7 +73,7 @@ export class StateManager {
     await this.agentStateModel.addObservation(assessmentId, {
       tool: toolName,
       type: 'tool_result',
-      summary: `${toolName} returned ${JSON.stringify(parsedResult).length} bytes of structured data`
+      summary: `${toolName} returned ${JSON.stringify(parsedResult).length} bytes of structured data`,
     });
   }
 
@@ -90,7 +98,7 @@ export class StateManager {
       type: 'CHECKPOINT_SAVED',
       level: 'INFO',
       message: `State checkpoint saved${phase ? ` — phase: ${phase}` : ''}`,
-      data: { phase }
+      data: { phase },
     });
   }
 
@@ -102,7 +110,7 @@ export class StateManager {
       type: 'PHASE_CHANGED',
       level: 'INFO',
       message: `Investigation phase changed to: ${phase}`,
-      data: { phase }
+      data: { phase },
     });
   }
 
@@ -118,7 +126,7 @@ export class StateManager {
       type: 'HYPOTHESIS_CREATED',
       level: 'INFO',
       message: `New hypothesis: ${hypothesis.hypothesis || hypothesis.description || 'unnamed'}`,
-      data: { hypothesisId: hyp.id }
+      data: { hypothesisId: hyp.id },
     });
     return hyp;
   }

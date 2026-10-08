@@ -1,3 +1,9 @@
+/**
+ * brainProviderModel — database model for brain Provider.
+ * Schema definition and data-access methods for brain Provider records.
+ * Part of: Infinity AI / Dark-Matter backend (database models).
+ */
+
 import { now } from '../core/utils.js';
 import { BRAIN_PROVIDERS } from '../agent/providers/brainProviderFactory.js';
 
@@ -26,7 +32,7 @@ const DEFAULT_SELECTION = Object.freeze({
   ollamaTag: null,
   endpointUrl: null,
   lastGradioUrl: null,
-  updatedAt: null
+  updatedAt: null,
 });
 
 /**
@@ -54,6 +60,7 @@ export function validateEndpointUrl(raw) {
   return url.toString().replace(/\/$/, '');
 }
 
+/** Database model for brain provider. */
 export class BrainProviderModel {
   constructor(database) {
     this.collection = database.collection('brain_provider');
@@ -76,7 +83,7 @@ export class BrainProviderModel {
       // Per-slot source: { vision: { source: 'local'|'kaggle', modelId?, kaggleUrl?, kaggleName? }, ... }
       // A slot runs on Kaggle remote GPU or a local model — user's choice per slot.
       slotSources: doc.slotSources || {},
-      updatedAt: doc.updatedAt || null
+      updatedAt: doc.updatedAt || null,
     };
   }
 
@@ -118,7 +125,7 @@ export class BrainProviderModel {
       source: 'kaggle',
       kaggleUrl: validatedUrl,
       kaggleName: name || 'Kaggle GPU',
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.updateOne(
       { userId },
@@ -142,7 +149,7 @@ export class BrainProviderModel {
     slotSources[slot] = {
       source: 'local',
       modelId: prev.modelId || doc?.slotAssignments?.[slot] || null,
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.updateOne(
       { userId },
@@ -165,13 +172,16 @@ export class BrainProviderModel {
     if (!BRAIN_PROVIDERS.includes(provider)) {
       throw new Error(`Unknown brain provider "${provider}"`);
     }
-    const validatedUrl = provider === 'ollama' || provider === 'gradio' ? validateEndpointUrl(endpointUrl) : null;
+    const validatedUrl =
+      provider === 'ollama' || provider === 'gradio' ? validateEndpointUrl(endpointUrl) : null;
     // Preserve a previously connected Gradio URL across switches (local/API/…).
     let lastGradioUrl = null;
     try {
       const prev = await this.collection.findOne({ userId });
       lastGradioUrl = prev?.lastGradioUrl || prev?.endpointUrl || null;
-    } catch { /* first selection — nothing to preserve */ }
+    } catch {
+      /* first selection — nothing to preserve */
+    }
     if (provider === 'gradio' && validatedUrl) lastGradioUrl = validatedUrl;
     const record = {
       userId,
@@ -180,7 +190,7 @@ export class BrainProviderModel {
       ollamaTag: provider === 'ollama' ? ollamaTag : null,
       endpointUrl: validatedUrl,
       lastGradioUrl,
-      updatedAt: now()
+      updatedAt: now(),
     };
     await this.collection.updateOne({ userId }, { $set: record }, { upsert: true });
     return this.getSelection(userId);

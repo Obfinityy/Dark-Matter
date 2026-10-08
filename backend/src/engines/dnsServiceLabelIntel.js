@@ -19,47 +19,166 @@
  * to its service and the intelligence it yields.
  */
 export const UNDERSCORE_SERVICE_MAP = {
-  '_dmarc': { service: 'DMARC', category: 'email-security', intel: 'Email authentication policy; reporting addresses (rua/ruf) often point at security-team mailboxes.' },
-  '_acme-challenge': { service: 'ACME (certificate issuance)', category: 'pki', intel: 'DNS-01 challenge label — leftover TXT tokens reveal which hosts recently requested certificates.' },
-  '_github-challenge': { service: 'GitHub Pages', category: 'hosting', intel: 'Domain verification for GitHub Pages — the parent host is (or was) served from GitHub Pages.' },
-  '_atlassian-domain-verification': { service: 'Atlassian Cloud', category: 'saas', intel: 'Confirms an Atlassian Cloud tenancy tied to this domain.' },
-  '_gitlab-pages-verification': { service: 'GitLab Pages', category: 'hosting', intel: 'Domain verification for GitLab Pages hosting.' },
-  '_amazonses': { service: 'Amazon SES', category: 'email', intel: 'Authorizes Amazon SES to send mail for the domain — confirms AWS mail infrastructure.' },
-  '_mailgun': { service: 'Mailgun', category: 'email', intel: 'Mailgun sending authorization — exposes mail-provider integration.' },
-  '_sendgrid': { service: 'SendGrid', category: 'email', intel: 'SendGrid sending authorization — exposes mail-provider integration.' },
-  '_mandrill': { service: 'Mandrill', category: 'email', intel: 'Mandrill sending authorization — exposes mail-provider integration.' },
-  '_hubspot': { service: 'HubSpot', category: 'marketing', intel: 'HubSpot domain connection — marketing-site linkage.' },
-  '_mta-sts': { service: 'MTA-STS', category: 'email-security', intel: 'Mail transport security policy host.' },
-  '_smtp._tls': { service: 'TLS-RPT / DANE', category: 'email-security', intel: 'TLS reporting endpoint for mail.' },
-  '_dmarc-report': { service: 'DMARC reporting', category: 'email-security', intel: 'Aggregate DMARC report destination.' },
-  '_autodiscover': { service: 'Microsoft Exchange', category: 'email', intel: 'Exchange Autodiscover — confirms Microsoft 365 / Exchange tenancy.' },
-  '_sip._tcp': { service: 'SIP', category: 'voip', intel: 'SIP service location — VoIP infrastructure.' },
-  '_sip._tls': { service: 'SIP/TLS', category: 'voip', intel: 'SIP-over-TLS endpoint — VoIP infrastructure.' },
-  '_sipfederationtls': { service: 'Microsoft Teams federation', category: 'voip', intel: 'Teams/Skype federation endpoint — confirms Microsoft 365 voice.' },
-  '_caldav': { service: 'CalDAV', category: 'collaboration', intel: 'Calendar service endpoint.' },
-  '_carddav': { service: 'CardDAV', category: 'collaboration', intel: 'Contacts service endpoint.' },
-  '_jabber': { service: 'XMPP', category: 'messaging', intel: 'XMPP/Jabber endpoint.' },
-  '_xmpp-server': { service: 'XMPP server', category: 'messaging', intel: 'XMPP server federation endpoint.' },
-  '_matrix': { service: 'Matrix', category: 'messaging', intel: 'Matrix homeserver federation marker.' },
-  '_pki-validation': { service: 'Certificate validation', category: 'pki', intel: 'Generic CA domain-validation label — a CA recently validated this domain.' },
-  '_digicert': { service: 'DigiCert', category: 'pki', intel: 'DigiCert validation marker.' },
-  '_comodoca': { service: 'Sectigo/Comodo', category: 'pki', intel: 'Sectigo domain-control validation marker.' },
-  '_zerossl': { service: 'ZeroSSL', category: 'pki', intel: 'ZeroSSL validation marker.' },
-  '_globalsign': { service: 'GlobalSign', category: 'pki', intel: 'GlobalSign validation marker.' },
-  '_dnsauth': { service: 'DNS-based validation', category: 'pki', intel: 'Generic DNS ownership-validation label.' },
-  '_cf-custom-hostname': { service: 'Cloudflare', category: 'cdn', intel: 'Cloudflare custom-hostname (SSL for SaaS) verification.' },
-  '_herokussl': { service: 'Heroku', category: 'hosting', intel: 'Heroku SSL endpoint verification.' },
-  '_netlify': { service: 'Netlify', category: 'hosting', intel: 'Netlify domain verification.' },
-  '_vercel': { service: 'Vercel', category: 'hosting', intel: 'Vercel domain verification.' },
-  '_webflow': { service: 'Webflow', category: 'hosting', intel: 'Webflow domain verification.' },
-  '_apple-challenge': { service: 'Apple', category: 'vendor', intel: 'Apple domain verification (Business Manager / Wallet).' },
-  '_statuspage': { service: 'Atlassian Statuspage', category: 'saas', intel: 'Statuspage verification — confirms a public status page.' },
-  '_cisco-uds': { service: 'Cisco UDS', category: 'voip', intel: 'Cisco Unified Data Service marker.' },
-  '_kerberos': { service: 'Kerberos', category: 'auth', intel: 'Kerberos service location — on-prem identity infrastructure.' },
-  '_ldap': { service: 'LDAP', category: 'auth', intel: 'LDAP service location — directory infrastructure.' },
-  '_ntp': { service: 'NTP', category: 'infra', intel: 'Time-service location record.' },
-  '_stun': { service: 'STUN', category: 'voip', intel: 'STUN server marker for WebRTC/VoIP.' },
-  '_turn': { service: 'TURN', category: 'voip', intel: 'TURN relay marker for WebRTC/VoIP.' },
+  _dmarc: {
+    service: 'DMARC',
+    category: 'email-security',
+    intel:
+      'Email authentication policy; reporting addresses (rua/ruf) often point at security-team mailboxes.',
+  },
+  '_acme-challenge': {
+    service: 'ACME (certificate issuance)',
+    category: 'pki',
+    intel:
+      'DNS-01 challenge label — leftover TXT tokens reveal which hosts recently requested certificates.',
+  },
+  '_github-challenge': {
+    service: 'GitHub Pages',
+    category: 'hosting',
+    intel:
+      'Domain verification for GitHub Pages — the parent host is (or was) served from GitHub Pages.',
+  },
+  '_atlassian-domain-verification': {
+    service: 'Atlassian Cloud',
+    category: 'saas',
+    intel: 'Confirms an Atlassian Cloud tenancy tied to this domain.',
+  },
+  '_gitlab-pages-verification': {
+    service: 'GitLab Pages',
+    category: 'hosting',
+    intel: 'Domain verification for GitLab Pages hosting.',
+  },
+  _amazonses: {
+    service: 'Amazon SES',
+    category: 'email',
+    intel: 'Authorizes Amazon SES to send mail for the domain — confirms AWS mail infrastructure.',
+  },
+  _mailgun: {
+    service: 'Mailgun',
+    category: 'email',
+    intel: 'Mailgun sending authorization — exposes mail-provider integration.',
+  },
+  _sendgrid: {
+    service: 'SendGrid',
+    category: 'email',
+    intel: 'SendGrid sending authorization — exposes mail-provider integration.',
+  },
+  _mandrill: {
+    service: 'Mandrill',
+    category: 'email',
+    intel: 'Mandrill sending authorization — exposes mail-provider integration.',
+  },
+  _hubspot: {
+    service: 'HubSpot',
+    category: 'marketing',
+    intel: 'HubSpot domain connection — marketing-site linkage.',
+  },
+  '_mta-sts': {
+    service: 'MTA-STS',
+    category: 'email-security',
+    intel: 'Mail transport security policy host.',
+  },
+  '_smtp._tls': {
+    service: 'TLS-RPT / DANE',
+    category: 'email-security',
+    intel: 'TLS reporting endpoint for mail.',
+  },
+  '_dmarc-report': {
+    service: 'DMARC reporting',
+    category: 'email-security',
+    intel: 'Aggregate DMARC report destination.',
+  },
+  _autodiscover: {
+    service: 'Microsoft Exchange',
+    category: 'email',
+    intel: 'Exchange Autodiscover — confirms Microsoft 365 / Exchange tenancy.',
+  },
+  '_sip._tcp': {
+    service: 'SIP',
+    category: 'voip',
+    intel: 'SIP service location — VoIP infrastructure.',
+  },
+  '_sip._tls': {
+    service: 'SIP/TLS',
+    category: 'voip',
+    intel: 'SIP-over-TLS endpoint — VoIP infrastructure.',
+  },
+  _sipfederationtls: {
+    service: 'Microsoft Teams federation',
+    category: 'voip',
+    intel: 'Teams/Skype federation endpoint — confirms Microsoft 365 voice.',
+  },
+  _caldav: { service: 'CalDAV', category: 'collaboration', intel: 'Calendar service endpoint.' },
+  _carddav: { service: 'CardDAV', category: 'collaboration', intel: 'Contacts service endpoint.' },
+  _jabber: { service: 'XMPP', category: 'messaging', intel: 'XMPP/Jabber endpoint.' },
+  '_xmpp-server': {
+    service: 'XMPP server',
+    category: 'messaging',
+    intel: 'XMPP server federation endpoint.',
+  },
+  _matrix: {
+    service: 'Matrix',
+    category: 'messaging',
+    intel: 'Matrix homeserver federation marker.',
+  },
+  '_pki-validation': {
+    service: 'Certificate validation',
+    category: 'pki',
+    intel: 'Generic CA domain-validation label — a CA recently validated this domain.',
+  },
+  _digicert: { service: 'DigiCert', category: 'pki', intel: 'DigiCert validation marker.' },
+  _comodoca: {
+    service: 'Sectigo/Comodo',
+    category: 'pki',
+    intel: 'Sectigo domain-control validation marker.',
+  },
+  _zerossl: { service: 'ZeroSSL', category: 'pki', intel: 'ZeroSSL validation marker.' },
+  _globalsign: { service: 'GlobalSign', category: 'pki', intel: 'GlobalSign validation marker.' },
+  _dnsauth: {
+    service: 'DNS-based validation',
+    category: 'pki',
+    intel: 'Generic DNS ownership-validation label.',
+  },
+  '_cf-custom-hostname': {
+    service: 'Cloudflare',
+    category: 'cdn',
+    intel: 'Cloudflare custom-hostname (SSL for SaaS) verification.',
+  },
+  _herokussl: {
+    service: 'Heroku',
+    category: 'hosting',
+    intel: 'Heroku SSL endpoint verification.',
+  },
+  _netlify: { service: 'Netlify', category: 'hosting', intel: 'Netlify domain verification.' },
+  _vercel: { service: 'Vercel', category: 'hosting', intel: 'Vercel domain verification.' },
+  _webflow: { service: 'Webflow', category: 'hosting', intel: 'Webflow domain verification.' },
+  '_apple-challenge': {
+    service: 'Apple',
+    category: 'vendor',
+    intel: 'Apple domain verification (Business Manager / Wallet).',
+  },
+  _statuspage: {
+    service: 'Atlassian Statuspage',
+    category: 'saas',
+    intel: 'Statuspage verification — confirms a public status page.',
+  },
+  '_cisco-uds': {
+    service: 'Cisco UDS',
+    category: 'voip',
+    intel: 'Cisco Unified Data Service marker.',
+  },
+  _kerberos: {
+    service: 'Kerberos',
+    category: 'auth',
+    intel: 'Kerberos service location — on-prem identity infrastructure.',
+  },
+  _ldap: {
+    service: 'LDAP',
+    category: 'auth',
+    intel: 'LDAP service location — directory infrastructure.',
+  },
+  _ntp: { service: 'NTP', category: 'infra', intel: 'Time-service location record.' },
+  _stun: { service: 'STUN', category: 'voip', intel: 'STUN server marker for WebRTC/VoIP.' },
+  _turn: { service: 'TURN', category: 'voip', intel: 'TURN relay marker for WebRTC/VoIP.' },
 };
 
 /**
@@ -84,7 +203,9 @@ export function mineUnderscoreLabels(records) {
   const byCategory = {};
 
   for (const r of records || []) {
-    const name = String(r?.name || '').toLowerCase().replace(/\.$/, '');
+    const name = String(r?.name || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     if (!name) continue;
     const labels = name.split('.');
     const underIdx = labels.findIndex(l => l.startsWith('_'));
@@ -94,8 +215,11 @@ export function mineUnderscoreLabels(records) {
     // e.g. `_smtp._tls.example.com` → `_smtp._tls`.
     const prefix = labels.slice(underIdx, underIdx + 2).join('.');
     const single = labels[underIdx];
-    const key = UNDERSCORE_SERVICE_MAP[prefix] ? prefix
-      : UNDERSCORE_SERVICE_MAP[single] ? single : null;
+    const key = UNDERSCORE_SERVICE_MAP[prefix]
+      ? prefix
+      : UNDERSCORE_SERVICE_MAP[single]
+        ? single
+        : null;
     const data = String(r?.data ?? '');
 
     if (key) {
@@ -114,7 +238,8 @@ export function mineUnderscoreLabels(records) {
       unknownLabels.push({
         name,
         label: labels.slice(underIdx).join('.'),
-        detail: `Unrecognized underscore label '${single}' under '${name}' — a custom or ` +
+        detail:
+          `Unrecognized underscore label '${single}' under '${name}' — a custom or ` +
           'less-common service marker. Investigate the record data; bespoke underscore ' +
           'labels frequently belong to internal tooling with verbose verification strings.',
       });
@@ -155,7 +280,9 @@ export function analyzeAcmeResidue(records) {
   const hits = [];
 
   for (const r of records || []) {
-    const name = String(r?.name || '').toLowerCase().replace(/\.$/, '');
+    const name = String(r?.name || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const m = name.match(/^_acme-challenge\.(.+)$/);
     if (!m) continue;
     if (String(r?.type || 'TXT').toUpperCase() !== 'TXT') continue;
@@ -165,7 +292,8 @@ export function analyzeAcmeResidue(records) {
     hits.push({
       host: m[1],
       token,
-      detail: `ACME DNS-01 residue: '${m[1]}' published a challenge token, proving a recent ` +
+      detail:
+        `ACME DNS-01 residue: '${m[1]}' published a challenge token, proving a recent ` +
         'certificate request for that exact host. Hosts that request certificates are ' +
         'hosts the organization actively operates — pivot this name into subdomain ' +
         'enumeration and CT-log searches.',
@@ -191,7 +319,9 @@ export function checkGitHubChallenge(records) {
   const hits = [];
 
   for (const r of records || []) {
-    const name = String(r?.name || '').toLowerCase().replace(/\.$/, '');
+    const name = String(r?.name || '')
+      .toLowerCase()
+      .replace(/\.$/, '');
     const m = name.match(/^_github-challenge\.(.+)$/);
     if (!m) continue;
     if (String(r?.type || 'TXT').toUpperCase() !== 'TXT') continue;
@@ -201,9 +331,11 @@ export function checkGitHubChallenge(records) {
     hits.push({
       host: m[1],
       token,
-      pagesSignal: `Domain-verification token for GitHub Pages found at '${name}': the owner ` +
+      pagesSignal:
+        `Domain-verification token for GitHub Pages found at '${name}': the owner ` +
         `proved control of '${m[1]}' to GitHub, so this host is Pages-backed (or was at verification time).`,
-      recommendation: `Resolve '${m[1]}' and check for a *.github.io CNAME or Pages content. ` +
+      recommendation:
+        `Resolve '${m[1]}' and check for a *.github.io CNAME or Pages content. ` +
         'Enumerate the backing repository and any published paths — Pages sites routinely ' +
         'expose internal documentation, API specs, and staging builds.',
     });

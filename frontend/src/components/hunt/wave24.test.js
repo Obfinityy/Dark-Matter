@@ -8,27 +8,61 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WAVE24_IDEAS, wave24RegistryComplete,
-  preparedByLine, DUPLEX_MARGINS, duplexMarginCss, duplexPadPages,
-  scopeAppendixData, scopeAppendixTitle, fullListPrint,
-  cheatSheetPrintout, PRINT_CSS_TARGETS, printCssSupportNote,
-  complianceHistoryRows, printerButtonProps, printFallbackNote,
+  WAVE24_IDEAS,
+  wave24RegistryComplete,
+  preparedByLine,
+  DUPLEX_MARGINS,
+  duplexMarginCss,
+  duplexPadPages,
+  scopeAppendixData,
+  scopeAppendixTitle,
+  fullListPrint,
+  cheatSheetPrintout,
+  PRINT_CSS_TARGETS,
+  printCssSupportNote,
+  complianceHistoryRows,
+  printerButtonProps,
+  printFallbackNote,
   PR4_PREPARED_BY_CLASS,
 } from './printRound4Core.js';
 import {
-  ACK_BUDGET_MS, ackWithinBudget,
-  nextTempId, resetTempIds, applyOptimistic,
-  optimisticStatusChange, instantHuntRow,
-  optimisticCommentDraft, markCommentSent,
-  instantCachedFilter, loaderKind, SKELETON_THRESHOLD_MS,
-  shouldPrefetch, HOVER_PREFETCH_MS, SEARCH_DEBOUNCE_MS, debounce,
-  virtualWindow, evidenceImageSrc, progressivePreview,
-  toggleBookmark, routeChunkName, createSnapshotStore,
-  swrWidgetState, reorderList, THEME_SWITCH_DELAY_MS,
-  shouldPrefetchPdf, optimisticBulkReview, clientSort,
-  dedupeBatch, flipPauseResume, priorityOrder,
-  canIdlePreload, dismissNotification, buildSearchIndex,
-  appendStepLog, dismissFindingAsFp, DEFERRED_MODULES,
+  ACK_BUDGET_MS,
+  ackWithinBudget,
+  nextTempId,
+  resetTempIds,
+  applyOptimistic,
+  optimisticStatusChange,
+  instantHuntRow,
+  optimisticCommentDraft,
+  markCommentSent,
+  instantCachedFilter,
+  loaderKind,
+  SKELETON_THRESHOLD_MS,
+  shouldPrefetch,
+  HOVER_PREFETCH_MS,
+  SEARCH_DEBOUNCE_MS,
+  debounce,
+  virtualWindow,
+  evidenceImageSrc,
+  progressivePreview,
+  toggleBookmark,
+  routeChunkName,
+  createSnapshotStore,
+  swrWidgetState,
+  reorderList,
+  THEME_SWITCH_DELAY_MS,
+  shouldPrefetchPdf,
+  optimisticBulkReview,
+  clientSort,
+  dedupeBatch,
+  flipPauseResume,
+  priorityOrder,
+  canIdlePreload,
+  dismissNotification,
+  buildSearchIndex,
+  appendStepLog,
+  dismissFindingAsFp,
+  DEFERRED_MODULES,
   coreInteractiveReady,
 } from './optimisticCore.js';
 
@@ -37,13 +71,17 @@ describe('wave 24 registry', () => {
     assert.equal(WAVE24_IDEAS.length, 40);
     for (let i = 0; i < 40; i++) assert.equal(WAVE24_IDEAS[i][0], 50921 + i);
     assert.ok(wave24RegistryComplete());
-    assert.ok(WAVE24_IDEAS.every((e) => e[2] === 'new'));
+    assert.ok(WAVE24_IDEAS.every(e => e[2] === 'new'));
   });
 });
 
 describe('50921 prepared-by line', () => {
   it('includes reviewer name, role and date', () => {
-    const line = preparedByLine({ reviewer: 'A. Sharma', role: 'Lead reviewer', date: new Date('2026-10-07') });
+    const line = preparedByLine({
+      reviewer: 'A. Sharma',
+      role: 'Lead reviewer',
+      date: new Date('2026-10-07'),
+    });
     assert.ok(line.includes('A. Sharma'));
     assert.ok(line.includes('Lead reviewer'));
     assert.ok(line.includes('2026'));
@@ -77,7 +115,10 @@ describe('50923 scope appendix', () => {
       exclusions: [{ rule: 'No DoS', reason: 'availability' }],
     });
     assert.equal(rows.length, 3);
-    assert.deepEqual(rows.map((r) => r.kind), ['in-scope', 'out-of-scope', 'exclusion']);
+    assert.deepEqual(
+      rows.map(r => r.kind),
+      ['in-scope', 'out-of-scope', 'exclusion']
+    );
     assert.ok(scopeAppendixTitle('acme').includes('acme'));
   });
 });
@@ -200,7 +241,7 @@ describe('50932 optimistic comments', () => {
 
 describe('50933 instant cached filtering', () => {
   it('filters cached findings without a network trip', () => {
-    const out = instantCachedFilter([{ s: 'a' }, { s: 'b' }], (f) => f.s === 'a');
+    const out = instantCachedFilter([{ s: 'a' }, { s: 'b' }], f => f.s === 'a');
     assert.equal(out.length, 1);
   });
 });
@@ -229,7 +270,7 @@ describe('50936 debounced local search', () => {
     d();
     d();
     d();
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise(r => setTimeout(r, 60));
     assert.equal(calls, 1);
     assert.equal(SEARCH_DEBOUNCE_MS, 150);
   });
@@ -237,7 +278,13 @@ describe('50936 debounced local search', () => {
 
 describe('50937/50938 virtualized windows', () => {
   it('returns the visible window with padding', () => {
-    const w = virtualWindow({ total: 10000, rowHeight: 48, scrollTop: 4800, viewportHeight: 600, overscan: 5 });
+    const w = virtualWindow({
+      total: 10000,
+      rowHeight: 48,
+      scrollTop: 4800,
+      viewportHeight: 600,
+      overscan: 5,
+    });
     assert.ok(w.start < 100 && w.end > 100 && w.end < 200);
     assert.equal(w.totalHeight, 480000);
     assert.ok(w.topPad > 0 && w.bottomPad > 0);
@@ -252,8 +299,14 @@ describe('50937/50938 virtualized windows', () => {
 
 describe('50939 lazy evidence images', () => {
   it('uses placeholder until in view', () => {
-    assert.equal(evidenceImageSrc({ src: 'full.png', placeholder: 'blur.png', inView: false }), 'blur.png');
-    assert.equal(evidenceImageSrc({ src: 'full.png', placeholder: 'blur.png', inView: true }), 'full.png');
+    assert.equal(
+      evidenceImageSrc({ src: 'full.png', placeholder: 'blur.png', inView: false }),
+      'blur.png'
+    );
+    assert.equal(
+      evidenceImageSrc({ src: 'full.png', placeholder: 'blur.png', inView: true }),
+      'full.png'
+    );
   });
 });
 
@@ -334,10 +387,10 @@ describe('50948 optimistic bulk review', () => {
       { id: 'b', status: 'triaged' },
     ];
     const { updated, rollback } = optimisticBulkReview(items);
-    assert.ok(updated.every((f) => f.status === 'reviewed' && f._optimistic));
+    assert.ok(updated.every(f => f.status === 'reviewed' && f._optimistic));
     const back = rollback();
-    assert.equal(back.find((f) => f.id === 'a').status, 'new');
-    assert.equal(back.find((f) => f.id === 'b').status, 'triaged');
+    assert.equal(back.find(f => f.id === 'a').status, 'new');
+    assert.equal(back.find(f => f.id === 'b').status, 'triaged');
     assert.ok(!('_optimistic' in back[0]));
   });
 });
@@ -345,8 +398,14 @@ describe('50948 optimistic bulk review', () => {
 describe('50949 client-side filter/sort', () => {
   it('sorts locally both directions, nulls last', () => {
     const items = [{ v: 3 }, { v: null }, { v: 1 }, { v: 2 }];
-    assert.deepEqual(clientSort(items, 'v').map((i) => i.v), [1, 2, 3, null]);
-    assert.deepEqual(clientSort(items, 'v', 'desc').map((i) => i.v), [3, 2, 1, null]);
+    assert.deepEqual(
+      clientSort(items, 'v').map(i => i.v),
+      [1, 2, 3, null]
+    );
+    assert.deepEqual(
+      clientSort(items, 'v', 'desc').map(i => i.v),
+      [3, 2, 1, null]
+    );
   });
 });
 
@@ -366,10 +425,12 @@ describe('50952 optimistic pause/resume', () => {
 
 describe('50954 priority content loading', () => {
   it('titles and severity load before thumbnails', () => {
-    assert.deepEqual(
-      priorityOrder(['thumbnail', 'evidence', 'title', 'severity']),
-      ['title', 'severity', 'evidence', 'thumbnail']
-    );
+    assert.deepEqual(priorityOrder(['thumbnail', 'evidence', 'title', 'severity']), [
+      'title',
+      'severity',
+      'evidence',
+      'thumbnail',
+    ]);
   });
 });
 
@@ -384,10 +445,7 @@ describe('50955 idle-time preloading', () => {
 
 describe('50956 optimistic dismissal', () => {
   it('badge decrements instantly, returns the dismissed item', () => {
-    const { list, dismissed } = dismissNotification(
-      [{ id: 'n1' }, { id: 'n2' }],
-      'n1'
-    );
+    const { list, dismissed } = dismissNotification([{ id: 'n1' }, { id: 'n2' }], 'n1');
     assert.equal(list.length, 1);
     assert.equal(dismissed.id, 'n1');
   });
@@ -397,13 +455,16 @@ describe('50957 worker-thread search index', () => {
   it('ranks prefix matches first, requires all tokens', () => {
     const idx = buildSearchIndex(
       [{ title: 'xss in login form' }, { title: 'login csrf token' }, { title: 'sql injection' }],
-      (d) => d.title
+      d => d.title
     );
     assert.equal(idx.size, 3);
     const hits = idx.search('login');
     assert.equal(hits.length, 2);
     assert.equal(hits[0].title, 'login csrf token'); // prefix match wins
-    assert.deepEqual(idx.search('login xss').map((d) => d.title), ['xss in login form']);
+    assert.deepEqual(
+      idx.search('login xss').map(d => d.title),
+      ['xss in login form']
+    );
     assert.deepEqual(idx.search('zzz'), []);
     assert.deepEqual(idx.search(''), []);
   });

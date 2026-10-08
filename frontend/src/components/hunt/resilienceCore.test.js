@@ -33,8 +33,11 @@ test('registry covers all 34 resilience ideas 50361–50394', () => {
   assert.equal(RESILIENCE_STATE_IDEAS.length, 34);
   assert.equal(RESILIENCE_STATE_IDEAS[0].idea, 50361);
   assert.equal(RESILIENCE_STATE_IDEAS[33].idea, 50394);
-  const nums = RESILIENCE_STATE_IDEAS.map((e) => e.idea);
-  assert.deepEqual(nums, Array.from({ length: 34 }, (_, i) => 50361 + i));
+  const nums = RESILIENCE_STATE_IDEAS.map(e => e.idea);
+  assert.deepEqual(
+    nums,
+    Array.from({ length: 34 }, (_, i) => 50361 + i)
+  );
 });
 
 test('formatBytes scales units', () => {
@@ -145,10 +148,13 @@ test('summarizeBulkResult reports X of Y — Z failed', () => {
 });
 
 test('aggregateCsvErrors groups and builds a report', () => {
-  const a = aggregateCsvErrors([
-    { row: 2, column: 'target', value: 'htp://x', message: 'Invalid URL' },
-    { row: 5, column: 'target', value: '', message: 'Missing value' },
-  ], 'targets.csv');
+  const a = aggregateCsvErrors(
+    [
+      { row: 2, column: 'target', value: 'htp://x', message: 'Invalid URL' },
+      { row: 5, column: 'target', value: '', message: 'Missing value' },
+    ],
+    'targets.csv'
+  );
   assert.equal(a.count, 2);
   assert.equal(a.byColumn.target, 2);
   assert.match(a.reportText, /targets\.csv/);
@@ -159,7 +165,10 @@ test('detectTimezoneMismatch flags drift only', () => {
   const hit = detectTimezoneMismatch({ userTimezone: 'Asia/Kolkata', detectedTimezone: 'UTC' });
   assert.equal(hit.mismatched, true);
   assert.match(hit.message, /Asia\/Kolkata/);
-  assert.equal(detectTimezoneMismatch({ userTimezone: 'UTC', detectedTimezone: 'UTC' }).mismatched, false);
+  assert.equal(
+    detectTimezoneMismatch({ userTimezone: 'UTC', detectedTimezone: 'UTC' }).mismatched,
+    false
+  );
 });
 
 test('reconnectDelayMs backs off exponentially, capped', () => {
@@ -191,7 +200,9 @@ test('shareLinkStatus detects expiry', () => {
 });
 
 test('duplicateHuntMessage references the existing hunt', () => {
-  const m = duplicateHuntMessage({ existingHunt: { title: 'Shop scan', target: 'shop.example.com' } });
+  const m = duplicateHuntMessage({
+    existingHunt: { title: 'Shop scan', target: 'shop.example.com' },
+  });
   assert.match(m.detail, /Shop scan/);
   assert.match(m.detail, /shop\.example\.com/);
 });

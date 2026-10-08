@@ -35,7 +35,9 @@
   line-height: 1.6;
 }
 
-.ml-sub b { color: #e9d5ff; }
+.ml-sub b {
+  color: #e9d5ff;
+}
 
 /* Brain slot cards get the spotlight treatment */
 .ml-slot {
@@ -44,8 +46,12 @@
 }
 
 @media (max-width: 640px) {
-  .ml-title { font-size: 1.5rem; }
-  .ml-new { padding: var(--sg-4) var(--sg-3) var(--sg-8); }
+  .ml-title {
+    font-size: 1.5rem;
+  }
+  .ml-new {
+    padding: var(--sg-4) var(--sg-3) var(--sg-8);
+  }
 }
 
 /* ── Category filter tabs (Vision / Hacker Brain / Grounding) ── */
@@ -62,27 +68,65 @@
   text-align: left;
   padding: var(--sg-2) var(--sg-3);
   min-height: 44px;
-  transition: border-color var(--sg-fast), background var(--sg-fast);
+  transition:
+    border-color var(--sg-fast),
+    background var(--sg-fast);
 }
-.ml-cat-tab:hover { transform: translateY(-1px); }
-.ml-cat-tab-text { display: flex; flex-direction: column; gap: 2px; }
-.ml-cat-tab-text small { opacity: 0.65; font-weight: 400; font-size: 0.78rem; max-width: 260px; }
+.ml-cat-tab:hover {
+  transform: translateY(-1px);
+}
+.ml-cat-tab-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ml-cat-tab-text small {
+  opacity: 0.65;
+  font-weight: 400;
+  font-size: 0.78rem;
+  max-width: 260px;
+}
 
 /* ── Brain assignments panel (fixed wiring + live slot status) ── */
-.ml-assignments { margin-bottom: var(--sg-5); }
+.ml-assignments {
+  margin-bottom: var(--sg-5);
+}
 .ml-assign-row {
   margin-bottom: var(--sg-3);
   padding: var(--sg-3) var(--sg-4);
 }
-.ml-assign-head { display: flex; align-items: center; gap: var(--sg-2); margin-bottom: var(--sg-2); }
-.ml-assign-icon { font-size: 20px; }
-.ml-assign-desc { color: var(--sg-text-2); }
-.ml-assign-slots { display: flex; flex-wrap: wrap; gap: var(--sg-2); margin-bottom: var(--sg-2); }
-.ml-assign-notes { margin-bottom: 0; color: var(--sg-text-2); }
-.ml-assign-row .sg-alert { display: flex; align-items: center; gap: var(--sg-2); }
+.ml-assign-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sg-2);
+  margin-bottom: var(--sg-2);
+}
+.ml-assign-icon {
+  font-size: 20px;
+}
+.ml-assign-desc {
+  color: var(--sg-text-2);
+}
+.ml-assign-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sg-2);
+  margin-bottom: var(--sg-2);
+}
+.ml-assign-notes {
+  margin-bottom: 0;
+  color: var(--sg-text-2);
+}
+.ml-assign-row .sg-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--sg-2);
+}
 
 /* Category badge on model cards */
-.sg-pill-cat { border-color: color-mix(in srgb, #8b5cf6 45%, transparent); }
+.sg-pill-cat {
+  border-color: color-mix(in srgb, #8b5cf6 45%, transparent);
+}
 
 /* Device-fit count badge on category tabs */
 .ml-cat-fit {
@@ -97,20 +141,38 @@
 }
 
 /* Collapsed heavy-models expander on a single category tab */
-.ml-heavy-collapse { margin-top: var(--sg-4); }
-.ml-heavy-toggle { width: 100%; justify-content: center; min-height: 44px; }
+.ml-heavy-collapse {
+  margin-top: var(--sg-4);
+}
+.ml-heavy-toggle {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+}
 
 @media (max-width: 640px) {
-  .ml-cat-tab { flex: 1 1 46%; }
-  .ml-cat-tab-text small { display: none; }
+  .ml-cat-tab {
+    flex: 1 1 46%;
+  }
+  .ml-cat-tab-text small {
+    display: none;
+  }
 }
 
 @media (max-width: 390px) {
-  .ml-cat-tabs { gap: var(--sg-1); }
-  .ml-cat-tab { flex: 1 1 100%; }
-  .ml-title { font-size: 1.35rem; }
+  .ml-cat-tabs {
+    gap: var(--sg-1);
+  }
+  .ml-cat-tab {
+    flex: 1 1 100%;
+  }
+  .ml-title {
+    font-size: 1.35rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ml-cat-tab:hover { transform: none; }
+  .ml-cat-tab:hover {
+    transform: none;
+  }
 }

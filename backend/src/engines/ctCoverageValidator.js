@@ -54,7 +54,7 @@ export function crossValidateCoverage(logResults = {}) {
     for (let j = i + 1; j < logNames.length; j++) {
       const a = perLog[logNames[i]];
       const b = perLog[logNames[j]];
-      const inter = [...a].filter((k) => b.has(k)).length;
+      const inter = [...a].filter(k => b.has(k)).length;
       const union = new Set([...a, ...b]).size;
       jaccard[`${logNames[i]}~${logNames[j]}`] = union ? inter / union : 0;
     }
@@ -64,15 +64,19 @@ export function crossValidateCoverage(logResults = {}) {
   for (let i = 0; i < logNames.length; i++) {
     for (let j = 0; j < logNames.length; j++) {
       if (i === j) continue;
-      const onlyIn = [...perLog[logNames[i]]].filter((k) => !perLog[logNames[j]].has(k));
+      const onlyIn = [...perLog[logNames[i]]].filter(k => !perLog[logNames[j]].has(k));
       if (onlyIn.length) {
-        gaps.push({ pair: `${logNames[i]} vs ${logNames[j]}`, onlyIn: logNames[i], count: onlyIn.length });
+        gaps.push({
+          pair: `${logNames[i]} vs ${logNames[j]}`,
+          onlyIn: logNames[i],
+          count: onlyIn.length,
+        });
       }
     }
   }
 
   return {
-    logCoverage: logNames.map((log) => ({ log, certCount: perLog[log].size })),
+    logCoverage: logNames.map(log => ({ log, certCount: perLog[log].size })),
     singleLogCerts,
     jaccard,
     gaps,

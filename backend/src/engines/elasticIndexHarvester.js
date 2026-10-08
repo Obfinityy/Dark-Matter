@@ -12,19 +12,51 @@
 
 /** Index-name patterns mapped to sensitivity and a human-readable reason. */
 export const INDEX_SENSITIVITY_PATTERNS = [
-  { regex: /credential|passwd|password|secret/i, sensitivity: 'high', reason: 'credential/secret material' },
-  { regex: /payment|card|billing|invoice|transaction/i, sensitivity: 'high', reason: 'payment/financial records' },
-  { regex: /ssn|passport|national.?id/i, sensitivity: 'high', reason: 'government identity numbers' },
+  {
+    regex: /credential|passwd|password|secret/i,
+    sensitivity: 'high',
+    reason: 'credential/secret material',
+  },
+  {
+    regex: /payment|card|billing|invoice|transaction/i,
+    sensitivity: 'high',
+    reason: 'payment/financial records',
+  },
+  {
+    regex: /ssn|passport|national.?id/i,
+    sensitivity: 'high',
+    reason: 'government identity numbers',
+  },
   { regex: /medical|patient|health|diagnos/i, sensitivity: 'high', reason: 'health records' },
   { regex: /salary|payroll|employee|hr-/i, sensitivity: 'high', reason: 'HR/payroll data' },
-  { regex: /user|account|customer|client|member/i, sensitivity: 'high', reason: 'user/account records' },
-  { regex: /auth|login|session|token|oauth|mfa|2fa/i, sensitivity: 'high', reason: 'authentication/session state' },
-  { regex: /private|confidential|restricted/i, sensitivity: 'high', reason: 'explicitly restricted data' },
-  { regex: /backup|dump|snapshot|archive/i, sensitivity: 'medium', reason: 'backup/dump copies (often over-permissioned)' },
+  {
+    regex: /user|account|customer|client|member/i,
+    sensitivity: 'high',
+    reason: 'user/account records',
+  },
+  {
+    regex: /auth|login|session|token|oauth|mfa|2fa/i,
+    sensitivity: 'high',
+    reason: 'authentication/session state',
+  },
+  {
+    regex: /private|confidential|restricted/i,
+    sensitivity: 'high',
+    reason: 'explicitly restricted data',
+  },
+  {
+    regex: /backup|dump|snapshot|archive/i,
+    sensitivity: 'medium',
+    reason: 'backup/dump copies (often over-permissioned)',
+  },
   { regex: /log/i, sensitivity: 'medium', reason: 'logs (may contain tokens, IPs, PII)' },
   { regex: /mail|message|chat|comment/i, sensitivity: 'medium', reason: 'communications content' },
   { regex: /order|cart|shipment/i, sensitivity: 'medium', reason: 'order/fulfilment data' },
-  { regex: /^\./, sensitivity: 'medium', reason: 'system index (cluster internals, security config, monitoring)' },
+  {
+    regex: /^\./,
+    sensitivity: 'medium',
+    reason: 'system index (cluster internals, security config, monitoring)',
+  },
   { regex: /test|dev|staging|sample/i, sensitivity: 'low', reason: 'non-production-looking index' },
 ];
 
@@ -36,13 +68,15 @@ export const INDEX_SENSITIVITY_PATTERNS = [
  */
 export function parseCatIndices(input) {
   if (Array.isArray(input)) {
-    return input.map((r) => ({
-      index: String(r.index || ''),
-      health: r.health ?? null,
-      status: r.status ?? null,
-      docs: r['docs.count'] != null ? parseInt(r['docs.count'], 10) : null,
-      size: r['store.size'] ?? null,
-    })).filter((r) => r.index);
+    return input
+      .map(r => ({
+        index: String(r.index || ''),
+        health: r.health ?? null,
+        status: r.status ?? null,
+        docs: r['docs.count'] != null ? parseInt(r['docs.count'], 10) : null,
+        size: r['store.size'] ?? null,
+      }))
+      .filter(r => r.index);
   }
   const out = [];
   if (typeof input !== 'string') return out;
@@ -52,9 +86,17 @@ export function parseCatIndices(input) {
     // Text table columns: health status index uuid pri rep docs.count docs.deleted store.size pri.store.size
     const cols = line.split(/\s+/);
     if (cols.length < 3) continue;
-    let health = null, status = null, idx = 0;
-    if (/^(green|yellow|red)$/i.test(cols[0])) { health = cols[0]; idx = 1; }
-    if (/^(open|close)$/i.test(cols[idx])) { status = cols[idx]; idx += 1; }
+    let health = null,
+      status = null,
+      idx = 0;
+    if (/^(green|yellow|red)$/i.test(cols[0])) {
+      health = cols[0];
+      idx = 1;
+    }
+    if (/^(open|close)$/i.test(cols[idx])) {
+      status = cols[idx];
+      idx += 1;
+    }
     const index = cols[idx];
     if (!index || /^(health|status)$/i.test(index)) continue; // header row
     const docs = cols[idx + 4] && /^\d+$/.test(cols[idx + 4]) ? parseInt(cols[idx + 4], 10) : null;
@@ -79,7 +121,12 @@ export function classifyIndexName(name) {
     }
   }
   if (reasons.length === 0) reasons.push('No sensitivity markers in the index name.');
-  return { index: name, sensitivity, reasons, confidence: sensitivity === 'low' ? 'medium' : 'high' };
+  return {
+    index: name,
+    sensitivity,
+    reasons,
+    confidence: sensitivity === 'low' ? 'medium' : 'high',
+  };
 }
 
 /**
@@ -89,28 +136,42 @@ export function classifyIndexName(name) {
  */
 export function harvestIndexNames(input) {
   const parsed = parseCatIndices(input);
-  const indices = parsed.map((r) => ({ ...r, ...classifyIndexName(r.index) }));
-  const high = indices.filter((i) => i.sensitivity === 'high');
-  const medium = indices.filter((i) => i.sensitivity === 'medium');
+  const indices = parsed.map(r => ({ ...r, ...classifyIndexName(r.index) }));
+  const high = indices.filter(i => i.sensitivity === 'high');
+  const medium = indices.filter(i => i.sensitivity === 'medium');
   const totalDocs = indices.reduce((n, i) => n + (i.docs || 0), 0);
   const findings = [];
-  findings.push(`${indices.length} indice(s) listed, ~${totalDocs.toLocaleString('en-US')} documents in total.`);
-  if (high.length > 0) findings.push(`HIGH: ${high.length} index name(s) suggest sensitive data: ${high.map((i) => i.index).join(', ')}.`);
-  if (medium.length > 0) findings.push(`MEDIUM: ${medium.length} index name(s) merit review: ${medium.map((i) => i.index).join(', ')}.`);
-  const closed = indices.filter((i) => i.status === 'close');
-  if (closed.length > 0) findings.push(`${closed.length} closed indice(s) — not searchable but still stored on disk.`);
-  const red = indices.filter((i) => i.health === 'red');
+  findings.push(
+    `${indices.length} indice(s) listed, ~${totalDocs.toLocaleString('en-US')} documents in total.`
+  );
+  if (high.length > 0)
+    findings.push(
+      `HIGH: ${high.length} index name(s) suggest sensitive data: ${high.map(i => i.index).join(', ')}.`
+    );
+  if (medium.length > 0)
+    findings.push(
+      `MEDIUM: ${medium.length} index name(s) merit review: ${medium.map(i => i.index).join(', ')}.`
+    );
+  const closed = indices.filter(i => i.status === 'close');
+  if (closed.length > 0)
+    findings.push(`${closed.length} closed indice(s) — not searchable but still stored on disk.`);
+  const red = indices.filter(i => i.health === 'red');
   if (red.length > 0) findings.push(`${red.length} indice(s) report RED health.`);
   findings.push('Names only — no document contents were read.');
   return {
     total: indices.length,
     indices,
-    highSensitivity: high.map((i) => i.index),
+    highSensitivity: high.map(i => i.index),
     summary: `${indices.length} indices: ${high.length} high-sensitivity, ${medium.length} medium-sensitivity by name.`,
     findings,
     confidence: indices.length > 0 ? 'high' : 'low',
   };
 }
 
-export const ELASTIC_INDEX_HARVESTER = { parseCatIndices, classifyIndexName, harvestIndexNames, INDEX_SENSITIVITY_PATTERNS };
+export const ELASTIC_INDEX_HARVESTER = {
+  parseCatIndices,
+  classifyIndexName,
+  harvestIndexNames,
+  INDEX_SENSITIVITY_PATTERNS,
+};
 export default ELASTIC_INDEX_HARVESTER;

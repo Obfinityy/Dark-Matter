@@ -16,7 +16,12 @@ import dns from 'node:dns';
 const resolver = new dns.promises.Resolver();
 
 /** TLSA certificate usage values (RFC 6698 §2.1.1). */
-export const TLSA_USAGE = { 0: 'CA constraint', 1: 'service certificate constraint', 2: 'trust anchor assertion', 3: 'domain-issued certificate' };
+export const TLSA_USAGE = {
+  0: 'CA constraint',
+  1: 'service certificate constraint',
+  2: 'trust anchor assertion',
+  3: 'domain-issued certificate',
+};
 
 /** TLSA selector values (RFC 6698 §2.1.2). */
 export const TLSA_SELECTOR = { 0: 'full certificate', 1: 'SubjectPublicKeyInfo' };
@@ -47,21 +52,43 @@ export const COMMON_TLSA_SERVICES = [
  * @returns {{usage:number, usageName:string, selector:number, selectorName:string, matchingType:number, matchingTypeName:string, data:string, valid:boolean}|null}
  */
 export function parseTlsaRecord(rdata) {
-  const parts = String(rdata || '').trim().split(/\s+/);
+  const parts = String(rdata || '')
+    .trim()
+    .split(/\s+/);
   if (parts.length < 4) return null;
   const usage = Number(parts[0]);
   const selector = Number(parts[1]);
   const matchingType = Number(parts[2]);
-  const data = parts.slice(3).join('').replace(/[^0-9a-fA-F]/g, '');
+  const data = parts
+    .slice(3)
+    .join('')
+    .replace(/[^0-9a-fA-F]/g, '');
   if (![usage, selector, matchingType].every(Number.isInteger)) return null;
-  if (usage < 0 || usage > 3 || selector < 0 || selector > 1 || matchingType < 0 || matchingType > 2) return null;
+  if (
+    usage < 0 ||
+    usage > 3 ||
+    selector < 0 ||
+    selector > 1 ||
+    matchingType < 0 ||
+    matchingType > 2
+  )
+    return null;
   if (!data) return null;
   const usageName = TLSA_USAGE[usage] || `unknown(${usage})`;
   const selectorName = TLSA_SELECTOR[selector] || `unknown(${selector})`;
   const matchingTypeName = TLSA_MATCHING[matchingType] || `unknown(${matchingType})`;
   const expectedLen = matchingType === 0 ? 0 : matchingType === 1 ? 64 : 128;
   const valid = expectedLen === 0 ? true : data.length === expectedLen;
-  return { usage, usageName, selector, selectorName, matchingType, matchingTypeName, data: data.toLowerCase(), valid };
+  return {
+    usage,
+    usageName,
+    selector,
+    selectorName,
+    matchingType,
+    matchingTypeName,
+    data: data.toLowerCase(),
+    valid,
+  };
 }
 
 /**
@@ -113,7 +140,10 @@ export function analyzeTlsaRecords(hostname, port, proto, records) {
  * @returns {Promise<{domain:string, services:Array, summary:string[]}>}
  */
 export async function mapTlsaServices(domain, hostnames = null) {
-  const d = String(domain || '').trim().toLowerCase().replace(/\.$/, '');
+  const d = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
   const hosts = hostnames || [d, `www.${d}`, `mail.${d}`, `smtp.${d}`, `mx.${d}`];
   const services = [];
   const summary = [];
@@ -123,19 +153,32 @@ export async function mapTlsaServices(domain, hostnames = null) {
       probes.push({ host, ...svc });
     }
   }
-  await Promise.all(probes.map(async (probe) => {
-    const name = `_${probe.port}._${probe.proto}.${probe.host}`;
-    try {
-      const raw = await resolver.resolve(name, 'TLSA');
-      const analysis = analyzeTlsaRecords(probe.host, probe.port, probe.proto, raw.map(r => String(r).trim()));
-      if (analysis.daneDeployed) services.push(analysis);
-    } catch { /* no TLSA — not a finding */ }
-  }));
+  await Promise.all(
+    probes.map(async probe => {
+      const name = `_${probe.port}._${probe.proto}.${probe.host}`;
+      try {
+        const raw = await resolver.resolve(name, 'TLSA');
+        const analysis = analyzeTlsaRecords(
+          probe.host,
+          probe.port,
+          probe.proto,
+          raw.map(r => String(r).trim())
+        );
+        if (analysis.daneDeployed) services.push(analysis);
+      } catch {
+        /* no TLSA — not a finding */
+      }
+    })
+  );
   services.sort((a, b) => a.name.localeCompare(b.name));
   if (services.length === 0) {
-    summary.push('No TLSA records found on probed services — DANE is not deployed here; TLS trust rests entirely on the public CA ecosystem.');
+    summary.push(
+      'No TLSA records found on probed services — DANE is not deployed here; TLS trust rests entirely on the public CA ecosystem.'
+    );
   } else {
-    summary.push(`${services.length} DANE-protected service endpoint(s): ${services.map(s => s.name).join(', ')} — verify each pinned certificate against the live handshake and watch for rotation drift.`);
+    summary.push(
+      `${services.length} DANE-protected service endpoint(s): ${services.map(s => s.name).join(', ')} — verify each pinned certificate against the live handshake and watch for rotation drift.`
+    );
   }
   return { domain: d, services, summary };
 }

@@ -18,9 +18,21 @@
 /** Risky export-option markers worth flagging. */
 export const RISKY_EXPORT_MARKERS = [
   { pattern: /\*/, issue: 'Wildcard client — export mountable from any host', severity: 'High' },
-  { pattern: /no_root_squash/i, issue: 'no_root_squash — remote root keeps root privileges on the share', severity: 'Critical' },
-  { pattern: /insecure/i, issue: 'insecure — allows connections from unprivileged ports', severity: 'Medium' },
-  { pattern: /\bro\b/i, issue: 'read-only export (lower risk, still information disclosure)', severity: 'Low' },
+  {
+    pattern: /no_root_squash/i,
+    issue: 'no_root_squash — remote root keeps root privileges on the share',
+    severity: 'Critical',
+  },
+  {
+    pattern: /insecure/i,
+    issue: 'insecure — allows connections from unprivileged ports',
+    severity: 'Medium',
+  },
+  {
+    pattern: /\bro\b/i,
+    issue: 'read-only export (lower risk, still information disclosure)',
+    severity: 'Low',
+  },
 ];
 
 /**
@@ -36,7 +48,10 @@ export function parseExportList(text = '') {
     if (!trimmed || /^export list/i.test(trimmed)) continue;
     const m = trimmed.match(/^(\S+)\s+(.*)$/);
     if (!m) continue;
-    const clients = m[2].split(/[,\s]+/).map((c) => c.trim()).filter(Boolean);
+    const clients = m[2]
+      .split(/[,\s]+/)
+      .map(c => c.trim())
+      .filter(Boolean);
     exports.push({ path: m[1], clients });
   }
   return exports;
@@ -49,7 +64,9 @@ export function parseExportList(text = '') {
  */
 export function analyzeNfsExports(input = {}) {
   const exports = Array.isArray(input.exports) ? input.exports : parseExportList(input.raw || '');
-  const worldExports = exports.filter((e) => e.clients.some((c) => c === '*' || /\(/.test(c) && c.startsWith('*'))).map((e) => e.path);
+  const worldExports = exports
+    .filter(e => e.clients.some(c => c === '*' || (/\(/.test(c) && c.startsWith('*'))))
+    .map(e => e.path);
   const riskyExports = [];
   for (const exp of exports) {
     const blob = exp.clients.join(' ');
@@ -59,13 +76,23 @@ export function analyzeNfsExports(input = {}) {
       }
     }
     // Bare '*' with no options is still world-mountable.
-    if (exp.clients.includes('*') && !riskyExports.some((r) => r.path === exp.path && /Wildcard/.test(r.issue))) {
-      riskyExports.push({ path: exp.path, issue: 'Wildcard client — export mountable from any host', severity: 'High' });
+    if (
+      exp.clients.includes('*') &&
+      !riskyExports.some(r => r.path === exp.path && /Wildcard/.test(r.issue))
+    ) {
+      riskyExports.push({
+        path: exp.path,
+        issue: 'Wildcard client — export mountable from any host',
+        severity: 'High',
+      });
     }
   }
 
-  const worst = riskyExports.some((r) => r.severity === 'Critical') ? 'critical'
-    : riskyExports.some((r) => r.severity === 'High') ? 'high' : 'low';
+  const worst = riskyExports.some(r => r.severity === 'Critical')
+    ? 'critical'
+    : riskyExports.some(r => r.severity === 'High')
+      ? 'high'
+      : 'low';
 
   return {
     type: 'NFS Export-List Analysis',
@@ -75,10 +102,13 @@ export function analyzeNfsExports(input = {}) {
     riskyExports,
     shareMap: exports,
     severity: worst,
-    evidence: exports.length === 0
-      ? 'No exports listed (empty list or export query refused).'
-      : `${exports.length} export(s) visible: ${exports.map((e) => `${e.path} → ${e.clients.join(', ')}`).join('; ')}`
-        + (riskyExports.length ? `. Risky: ${riskyExports.map((r) => `${r.path}: ${r.issue} [${r.severity}]`).join('; ')}` : '. No risky export options detected.'),
+    evidence:
+      exports.length === 0
+        ? 'No exports listed (empty list or export query refused).'
+        : `${exports.length} export(s) visible: ${exports.map(e => `${e.path} → ${e.clients.join(', ')}`).join('; ')}` +
+          (riskyExports.length
+            ? `. Risky: ${riskyExports.map(r => `${r.path}: ${r.issue} [${r.severity}]`).join('; ')}`
+            : '. No risky export options detected.'),
   };
 }
 
@@ -100,6 +130,8 @@ export function guessNfsServerStack(input = {}) {
   return {
     serverGuess,
     confidence: serverGuess ? 'medium' : 'low',
-    evidence: serverGuess ? `Stack markers suggest ${serverGuess} (NFS versions: ${versions.join(', ') || 'unknown'}).` : 'No distinctive stack markers in export data.',
+    evidence: serverGuess
+      ? `Stack markers suggest ${serverGuess} (NFS versions: ${versions.join(', ') || 'unknown'}).`
+      : 'No distinctive stack markers in export data.',
   };
 }

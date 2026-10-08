@@ -31,18 +31,20 @@ export function extractIoCs(text) {
     try {
       const h = new URL(m.replace(/[.,;:!?]+$/, '')).hostname.toLowerCase();
       if (h) domains.add(h);
-    } catch { /* skip malformed URLs */ }
+    } catch {
+      /* skip malformed URLs */
+    }
   }
   for (const m of src.match(DOMAIN_RE) || []) domains.add(m.toLowerCase());
   const ips = new Set();
   for (const m of src.match(IPV4_RE) || []) {
-    if (m.split('.').every((o) => Number(o) <= 255)) ips.add(m);
+    if (m.split('.').every(o => Number(o) <= 255)) ips.add(m);
   }
   const hashes = new Set();
   for (const re of [MD5_RE, SHA1_RE, SHA256_RE]) {
     for (const m of src.match(re) || []) hashes.add(m.toLowerCase());
   }
-  const cves = new Set((src.match(CVE_RE) || []).map((c) => c.toUpperCase()));
+  const cves = new Set((src.match(CVE_RE) || []).map(c => c.toUpperCase()));
   return {
     domains: [...domains],
     urls: [...new Set(src.match(URL_RE) || [])],
@@ -123,13 +125,13 @@ export function clusterAttackerInfrastructure(pivots) {
   for (const p of pivots || []) {
     for (const ip of p.ips) {
       const e = byIp.get(ip) || { domains: new Set(), reports: new Set() };
-      p.attackerDomains.forEach((d) => e.domains.add(d));
+      p.attackerDomains.forEach(d => e.domains.add(d));
       e.reports.add(p.reportId || p.title);
       byIp.set(ip, e);
     }
     for (const h of p.hashes) {
       const e = byHash.get(h) || { domains: new Set(), reports: new Set() };
-      p.attackerDomains.forEach((d) => e.domains.add(d));
+      p.attackerDomains.forEach(d => e.domains.add(d));
       e.reports.add(p.reportId || p.title);
       byHash.set(h, e);
     }
@@ -137,12 +139,22 @@ export function clusterAttackerInfrastructure(pivots) {
   const clusters = [];
   for (const [ip, e] of byIp) {
     if (e.domains.size >= 1) {
-      clusters.push({ key: ip, kind: 'shared-ip', domains: [...e.domains], reports: [...e.reports] });
+      clusters.push({
+        key: ip,
+        kind: 'shared-ip',
+        domains: [...e.domains],
+        reports: [...e.reports],
+      });
     }
   }
   for (const [h, e] of byHash) {
     if (e.domains.size >= 2) {
-      clusters.push({ key: h, kind: 'shared-hash', domains: [...e.domains], reports: [...e.reports] });
+      clusters.push({
+        key: h,
+        kind: 'shared-hash',
+        domains: [...e.domains],
+        reports: [...e.reports],
+      });
     }
   }
   clusters.sort((a, b) => b.domains.length - a.domains.length);
@@ -156,7 +168,7 @@ export function clusterAttackerInfrastructure(pivots) {
  * @param {{brand?: string, orgDomains?: string[]}} [opts]
  */
 export function buildTakedownCandidates(pivots, opts = {}) {
-  const org = new Set((opts.orgDomains || []).map((d) => String(d).toLowerCase()));
+  const org = new Set((opts.orgDomains || []).map(d => String(d).toLowerCase()));
   const brand = String(opts.brand || '').toLowerCase();
   const byDomain = new Map();
   for (const p of pivots || []) {

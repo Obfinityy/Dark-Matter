@@ -37,20 +37,36 @@
 
 /* ── Entrance: header first, then staggered content columns ── */
 @keyframes hunt-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .hunt-new .sg-hunt-head,
 .hunt-new .sg-hunt-main-col > *,
 .hunt-new .sg-hunt-side > * {
   animation: hunt-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.hunt-new .sg-hunt-main-col > *:nth-child(2) { animation-delay: 0.07s; }
-.hunt-new .sg-hunt-main-col > *:nth-child(3) { animation-delay: 0.14s; }
-.hunt-new .sg-hunt-main-col > *:nth-child(n+4) { animation-delay: 0.21s; }
-.hunt-new .sg-hunt-side > *:nth-child(n+2) { animation-delay: 0.12s; }
+.hunt-new .sg-hunt-main-col > *:nth-child(2) {
+  animation-delay: 0.07s;
+}
+.hunt-new .sg-hunt-main-col > *:nth-child(3) {
+  animation-delay: 0.14s;
+}
+.hunt-new .sg-hunt-main-col > *:nth-child(n + 4) {
+  animation-delay: 0.21s;
+}
+.hunt-new .sg-hunt-side > *:nth-child(n + 2) {
+  animation-delay: 0.12s;
+}
 @media (prefers-reduced-motion: reduce) {
   .hunt-new .sg-hunt-head,
   .hunt-new .sg-hunt-main-col > *,
-  .hunt-new .sg-hunt-side > * { animation: none; }
+  .hunt-new .sg-hunt-side > * {
+    animation: none;
+  }
 }

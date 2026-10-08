@@ -18,7 +18,7 @@ function extractIdeas(src, varName) {
   const block = src.match(new RegExp(`export const ${varName} = \\[([\\s\\S]*?)\\];`));
   assert.ok(block, `${varName} registry not found in source`);
   return [...block[1].matchAll(/\{\s*idea:\s*(\d+),\s*name:\s*'([^']+)',\s*in:\s*'([^']+)'/g)].map(
-    (m) => ({ idea: Number(m[1]), name: m[2], in: m[3] })
+    m => ({ idea: Number(m[1]), name: m[2], in: m[3] })
   );
 }
 
@@ -30,10 +30,11 @@ test('registry covers ideas 50401–50440 exactly', () => {
     'WAVE11_IDEAS'
   );
   assert.equal(ideas.length, 40);
-  const nums = ideas.map((i) => i.idea).sort((a, b) => a - b);
+  const nums = ideas.map(i => i.idea).sort((a, b) => a - b);
   for (let n = 50401; n <= 50440; n++) assert.ok(nums.includes(n), `missing idea ${n}`);
   assert.equal(new Set(nums).size, 40, 'duplicate idea numbers');
-  for (const i of ideas) assert.ok(i.in && i.in.length > 3, `idea ${i.idea} has no implementation mapping`);
+  for (const i of ideas)
+    assert.ok(i.in && i.in.length > 3, `idea ${i.idea} has no implementation mapping`);
 });
 
 /* 50403 shortcut tooltips --------------------------------------------------- */
@@ -65,19 +66,55 @@ test('fpTagExplainer expands signals', () => {
 test('cvss31Score matches known vectors', () => {
   // AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H -> 9.0 Critical (hand-verified:
   // ISCBase 0.9148, impact 6.047, exploitability 2.224, roundup(1.08*8.271))
-  const r1 = core.cvss31Score({ AV: 'N', AC: 'H', PR: 'N', UI: 'N', S: 'C', C: 'H', I: 'H', A: 'H' });
+  const r1 = core.cvss31Score({
+    AV: 'N',
+    AC: 'H',
+    PR: 'N',
+    UI: 'N',
+    S: 'C',
+    C: 'H',
+    I: 'H',
+    A: 'H',
+  });
   assert.equal(r1.score, 9.0);
   assert.equal(r1.severity, 'Critical');
   // Classic worst case -> 10.0 Critical
-  const r2 = core.cvss31Score({ AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'C', C: 'H', I: 'H', A: 'H' });
+  const r2 = core.cvss31Score({
+    AV: 'N',
+    AC: 'L',
+    PR: 'N',
+    UI: 'N',
+    S: 'C',
+    C: 'H',
+    I: 'H',
+    A: 'H',
+  });
   assert.equal(r2.score, 10.0);
   assert.equal(r2.severity, 'Critical');
   // Scope-unchanged partial -> 7.5 High (hand-verified: roundup(7.4823))
-  const r3 = core.cvss31Score({ AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'N', A: 'N' });
+  const r3 = core.cvss31Score({
+    AV: 'N',
+    AC: 'L',
+    PR: 'N',
+    UI: 'N',
+    S: 'U',
+    C: 'H',
+    I: 'N',
+    A: 'N',
+  });
   assert.equal(r3.score, 7.5);
   assert.equal(r3.severity, 'High');
   // All none -> 0.0 None
-  const r4 = core.cvss31Score({ AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'N', I: 'N', A: 'N' });
+  const r4 = core.cvss31Score({
+    AV: 'N',
+    AC: 'L',
+    PR: 'N',
+    UI: 'N',
+    S: 'U',
+    C: 'N',
+    I: 'N',
+    A: 'N',
+  });
   assert.equal(r4.score, 0.0);
   assert.equal(r4.severity, 'None');
 });
@@ -138,7 +175,11 @@ test('trackingParamHint detects utm params', () => {
 /* 50420 fix-oriented validation --------------------------------------------------------------------- */
 
 test('validateTargetInput explains the fix', () => {
-  assert.deepEqual(core.validateTargetInput(''), { ok: false, error: 'Target is empty.', fix: 'Paste a full URL, e.g. https://example.com' });
+  assert.deepEqual(core.validateTargetInput(''), {
+    ok: false,
+    error: 'Target is empty.',
+    fix: 'Paste a full URL, e.g. https://example.com',
+  });
   const noScheme = core.validateTargetInput('example.com');
   assert.equal(noScheme.ok, false);
   assert.match(noScheme.fix, /Add https:\/\//);
@@ -152,7 +193,10 @@ test('validateTargetInput explains the fix', () => {
 /* 50423 collaborators ------------------------------------------------------------------------------- */
 
 test('collaboratorLine formats name, role, action', () => {
-  assert.equal(core.collaboratorLine({ name: 'Ava', role: 'editor', lastAction: 'flagged FP' }), 'Ava (editor) — last: flagged FP');
+  assert.equal(
+    core.collaboratorLine({ name: 'Ava', role: 'editor', lastAction: 'flagged FP' }),
+    'Ava (editor) — last: flagged FP'
+  );
   assert.equal(core.collaboratorLine({}), 'Unknown (viewer)');
 });
 
@@ -268,16 +312,45 @@ test('helpDocsFor returns per-page docs', () => {
 /* JSX export presence (parse source; CSS is not node-importable) --------------------------------------------------------------- */
 
 const EXPECTED_COMPONENTS = [
-  'SmartTooltip', 'PauseButtonTooltip', 'EmptyPocHint', 'ShortcutTooltip',
-  'ChainIconTooltip', 'EtaTooltip', 'FalsePositiveTagExplainer', 'CvssBreakdown',
-  'TierBadgeTooltip', 'ScopeInputGuidance', 'WorkerLaneTooltip', 'WhyLink',
-  'SnapshotTooltip', 'CronHelper', 'DedupTooltip', 'ScrubberHelpPopover',
-  'ModelSlotTooltips', 'TrackingParamHint', 'AskAgentExamples', 'TargetInputWithHelp',
-  'ExportFormatTooltip', 'ComplianceBadge', 'CollaboratorAvatar', 'ConfidenceSlider',
-  'FindingsBadgeTooltip', 'RegenerateHint', 'ArchivedHuntTooltip', 'WhatHappensNext',
-  'TerminalCopyButton', 'GlossaryTerm', 'ThemeHoverPreviews', 'BulkActionHint',
-  'SlaBadgeTooltip', 'WidgetHelpAffordance', 'HuntabilityMeter', 'BellTooltip',
-  'DiffLegendTooltip', 'DropZoneHints', 'AvatarMoodTooltip',
+  'SmartTooltip',
+  'PauseButtonTooltip',
+  'EmptyPocHint',
+  'ShortcutTooltip',
+  'ChainIconTooltip',
+  'EtaTooltip',
+  'FalsePositiveTagExplainer',
+  'CvssBreakdown',
+  'TierBadgeTooltip',
+  'ScopeInputGuidance',
+  'WorkerLaneTooltip',
+  'WhyLink',
+  'SnapshotTooltip',
+  'CronHelper',
+  'DedupTooltip',
+  'ScrubberHelpPopover',
+  'ModelSlotTooltips',
+  'TrackingParamHint',
+  'AskAgentExamples',
+  'TargetInputWithHelp',
+  'ExportFormatTooltip',
+  'ComplianceBadge',
+  'CollaboratorAvatar',
+  'ConfidenceSlider',
+  'FindingsBadgeTooltip',
+  'RegenerateHint',
+  'ArchivedHuntTooltip',
+  'WhatHappensNext',
+  'TerminalCopyButton',
+  'GlossaryTerm',
+  'ThemeHoverPreviews',
+  'BulkActionHint',
+  'SlaBadgeTooltip',
+  'WidgetHelpAffordance',
+  'HuntabilityMeter',
+  'BellTooltip',
+  'DiffLegendTooltip',
+  'DropZoneHints',
+  'AvatarMoodTooltip',
 ];
 
 test('MicrocopyTooltips.jsx exports all 40 components (38 idea components + SmartTooltip/HelpPopover base)', () => {

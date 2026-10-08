@@ -70,7 +70,9 @@ export function analyzeIcmpTimestampReply(reply = {}) {
       clockSkewMs: null,
       osHint: 'linux-bsd-family',
       timezoneHint: null,
-      notes: ['No ICMP timestamp reply — Linux/BSD-family kernels commonly ignore type-13 requests.'],
+      notes: [
+        'No ICMP timestamp reply — Linux/BSD-family kernels commonly ignore type-13 requests.',
+      ],
     };
   }
 
@@ -83,7 +85,9 @@ export function analyzeIcmpTimestampReply(reply = {}) {
     notes.push('Reply carries zero timestamps — non-conformant or stub implementation.');
   } else if (transmitMs > 0 && receiveMs === 0) {
     osHint = 'embedded-legacy';
-    notes.push('Transmit-only reply is typical of embedded/legacy stacks (printers, old appliances).');
+    notes.push(
+      'Transmit-only reply is typical of embedded/legacy stacks (printers, old appliances).'
+    );
   } else if (Math.abs(transmitMs - receiveMs) < 1000) {
     osHint = 'windows-like';
     notes.push('Receive and transmit timestamps nearly equal — behavior seen in Windows stacks.');
@@ -101,7 +105,9 @@ export function analyzeIcmpTimestampReply(reply = {}) {
     const sign = hours > 0 ? '+' : '-';
     const hh = String(Math.abs(hours)).padStart(2, '0');
     timezoneHint = `${sign}${hh}:00`;
-    notes.push(`Clock is ~${Math.abs(hours)}h off UTC on a whole-hour boundary — legacy stack may return local time (hint: UTC${sign}${Math.abs(hours)}).`);
+    notes.push(
+      `Clock is ~${Math.abs(hours)}h off UTC on a whole-hour boundary — legacy stack may return local time (hint: UTC${sign}${Math.abs(hours)}).`
+    );
   }
 
   return { responded: true, clockSkewMs, osHint, timezoneHint, notes };
@@ -128,13 +134,15 @@ export function analyzeAddressMaskReply(reply = {}) {
       hint: 'No address-mask reply — expected of modern stacks (RFC 950 behavior removed).',
     };
   }
-  const octets = String(mask).split('.').map((o) => Number(o));
-  const valid = octets.length === 4 && octets.every((o) => Number.isInteger(o) && o >= 0 && o <= 255);
+  const octets = String(mask)
+    .split('.')
+    .map(o => Number(o));
+  const valid = octets.length === 4 && octets.every(o => Number.isInteger(o) && o >= 0 && o <= 255);
   let prefixLength = null;
   if (valid) {
-    const bits = octets.map((o) => o.toString(2).padStart(8, '0')).join('');
+    const bits = octets.map(o => o.toString(2).padStart(8, '0')).join('');
     const contiguous = /^1*0*$/.test(bits);
-    prefixLength = contiguous ? (bits.match(/^1*/)[0].length) : null;
+    prefixLength = contiguous ? bits.match(/^1*/)[0].length : null;
   }
   let addressClass = null;
   if (prefixLength === 8) addressClass = 'A (legacy classful)';
@@ -165,17 +173,19 @@ export function analyzeAddressMaskReply(reply = {}) {
  * @returns {{synCookies: boolean, confidence: 'high'|'medium'|'low', kernelHint: string, loadHint: string, evidence: object, notes: string[]}}
  */
 export function detectSynCookies(obs = {}) {
-  const synKinds = new Set((obs.synOptions || []).map((o) => o.kind));
-  const ackKinds = new Set((obs.synAckOptions || []).map((o) => o.kind));
+  const synKinds = new Set((obs.synOptions || []).map(o => o.kind));
+  const ackKinds = new Set((obs.synAckOptions || []).map(o => o.kind));
   const statefulKinds = [TCP_OPT.WINDOW_SCALE, TCP_OPT.SACK_PERMITTED, TCP_OPT.TIMESTAMPS];
-  const requested = statefulKinds.filter((k) => synKinds.has(k));
-  const echoed = requested.filter((k) => ackKinds.has(k));
-  const missing = requested.filter((k) => !ackKinds.has(k));
+  const requested = statefulKinds.filter(k => synKinds.has(k));
+  const echoed = requested.filter(k => ackKinds.has(k));
+  const missing = requested.filter(k => !ackKinds.has(k));
   const notes = [];
 
   const mssMatchesTable = obs.synAckMss != null && SYN_COOKIE_MSS_TABLE.includes(obs.synAckMss);
   if (mssMatchesTable) {
-    notes.push(`SYN-ACK MSS ${obs.synAckMss} matches the Linux SYN-cookie MSS table — Linux-like kernel.`);
+    notes.push(
+      `SYN-ACK MSS ${obs.synAckMss} matches the Linux SYN-cookie MSS table — Linux-like kernel.`
+    );
   }
 
   let synCookies = false;
@@ -183,9 +193,13 @@ export function detectSynCookies(obs = {}) {
   if (requested.length > 0 && missing.length === requested.length) {
     synCookies = true;
     confidence = mssMatchesTable ? 'high' : 'medium';
-    notes.push(`Offered options [${requested.join(', ')}] all dropped in SYN-ACK — server kept no state (SYN cookies active).`);
+    notes.push(
+      `Offered options [${requested.join(', ')}] all dropped in SYN-ACK — server kept no state (SYN cookies active).`
+    );
   } else if (missing.length > 0) {
-    notes.push(`Partial option echo [missing: ${missing.join(', ')}] — inconclusive; middlebox may be normalizing.`);
+    notes.push(
+      `Partial option echo [missing: ${missing.join(', ')}] — inconclusive; middlebox may be normalizing.`
+    );
   } else {
     notes.push('Negotiated options echoed normally — no SYN-cookie evidence.');
   }
@@ -214,7 +228,7 @@ export function detectSynCookies(obs = {}) {
  * @returns {{supported: boolean, hasCookie: boolean, cookieHex: string|null, cookieLength: number, stackHint: string, notes: string[]}}
  */
 export function mapTcpFastOpen(obs = {}) {
-  const tfo = (obs.synAckOptions || []).find((o) => o.kind === TCP_OPT.FAST_OPEN) || null;
+  const tfo = (obs.synAckOptions || []).find(o => o.kind === TCP_OPT.FAST_OPEN) || null;
   const notes = [];
   const supported = tfo !== null;
   const cookieHex = tfo && tfo.data ? String(tfo.data).replace(/^0x/i, '') : null;
@@ -222,9 +236,13 @@ export function mapTcpFastOpen(obs = {}) {
   const hasCookie = cookieLength >= 4 && cookieLength <= 16;
 
   if (supported && hasCookie) {
-    notes.push(`Server issued a ${cookieLength}-byte TFO cookie — 0-RTT resumption available on this endpoint.`);
+    notes.push(
+      `Server issued a ${cookieLength}-byte TFO cookie — 0-RTT resumption available on this endpoint.`
+    );
   } else if (supported) {
-    notes.push('TFO option present without a cookie — support confirmed, cookie not issued for this handshake.');
+    notes.push(
+      'TFO option present without a cookie — support confirmed, cookie not issued for this handshake.'
+    );
   } else if (obs.requested) {
     notes.push('TFO requested but option absent in SYN-ACK — no TFO support on this endpoint.');
   }
@@ -258,20 +276,27 @@ export function isGreasedQuicVersion(v) {
  * @returns {{endpoint: string|null, versions: Array<{version:number, hex:string, name:string, family:string, modern:boolean}>, stackHint: string, modern: boolean}}
  */
 export function mapQuicVersionNegotiation(obs = {}) {
-  const versions = (obs.versions || []).map((v) => {
+  const versions = (obs.versions || []).map(v => {
     const known = QUIC_VERSIONS.get(v >>> 0);
     const hex = `0x${(v >>> 0).toString(16).padStart(8, '0')}`;
     if (known) return { version: v >>> 0, hex, ...known };
     if (isGreasedQuicVersion(v >>> 0)) {
-      return { version: v >>> 0, hex, name: 'Reserved (GREASE, RFC 9287)', family: 'grease', modern: true };
+      return {
+        version: v >>> 0,
+        hex,
+        name: 'Reserved (GREASE, RFC 9287)',
+        family: 'grease',
+        modern: true,
+      };
     }
     return { version: v >>> 0, hex, name: 'Unknown version', family: 'unknown', modern: false };
   });
 
-  const families = new Set(versions.map((v) => v.family));
+  const families = new Set(versions.map(v => v.family));
   let stackHint = 'no QUIC versions observed';
   if (families.has('google')) stackHint = 'Google gQUIC legacy (Q0xx) — 2016-era stack';
-  else if (families.has('ietf-draft')) stackHint = '2020-era draft stack (quiche/Chromium draft-27..34)';
+  else if (families.has('ietf-draft'))
+    stackHint = '2020-era draft stack (quiche/Chromium draft-27..34)';
   else if (families.has('ietf')) stackHint = 'modern RFC 9000 stack';
   if (families.has('grease')) stackHint += ' + GREASE-capable (Chromium-family)';
 
@@ -279,7 +304,7 @@ export function mapQuicVersionNegotiation(obs = {}) {
     endpoint: obs.endpoint ?? null,
     versions,
     stackHint,
-    modern: versions.some((v) => v.modern),
+    modern: versions.some(v => v.modern),
   };
 }
 
@@ -312,7 +337,7 @@ export function correlateAltSvc(obs = {}) {
     });
   }
 
-  const probes = new Map((obs.quicProbes || []).map((p) => [p.port, p]));
+  const probes = new Map((obs.quicProbes || []).map(p => [p.port, p]));
   const correlations = [];
   const seen = new Set();
 
@@ -330,11 +355,12 @@ export function correlateAltSvc(obs = {}) {
       reachable: probe ? probe.reachable : null,
       negotiatedVersion: probe && probe.negotiatedVersion != null ? probe.negotiatedVersion : null,
       status,
-      note: status === 'advertised-unreachable'
-        ? 'Advertises HTTP/3 but QUIC handshake failed — stale advertisement or filtered UDP.'
-        : status === 'confirmed'
-          ? 'Alt-Svc advertisement matches a live QUIC endpoint.'
-          : 'Advertised but not yet probed — schedule a QUIC handshake.',
+      note:
+        status === 'advertised-unreachable'
+          ? 'Advertises HTTP/3 but QUIC handshake failed — stale advertisement or filtered UDP.'
+          : status === 'confirmed'
+            ? 'Alt-Svc advertisement matches a live QUIC endpoint.'
+            : 'Advertised but not yet probed — schedule a QUIC handshake.',
     });
   }
   for (const [port, probe] of probes) {
@@ -370,11 +396,25 @@ export function scoreServiceIdentity(signals = {}) {
   const votes = [];
   for (const [signal, weight] of Object.entries(weights)) {
     const s = signals[signal];
-    if (s && s.candidate) votes.push({ signal, weight, candidate: String(s.candidate), confidence: Number(s.confidence) || 0 });
+    if (s && s.candidate)
+      votes.push({
+        signal,
+        weight,
+        candidate: String(s.candidate),
+        confidence: Number(s.confidence) || 0,
+      });
   }
   const notes = [];
   if (votes.length === 0) {
-    return { service: null, version: null, score: 0, confidence: 'low', agreement: '0/0', breakdown: [], notes: ['No identity signals provided.'] };
+    return {
+      service: null,
+      version: null,
+      score: 0,
+      confidence: 'low',
+      agreement: '0/0',
+      breakdown: [],
+      notes: ['No identity signals provided.'],
+    };
   }
 
   const support = new Map();
@@ -384,16 +424,18 @@ export function scoreServiceIdentity(signals = {}) {
   }
   const winner = [...support.entries()].sort((a, b) => b[1] - a[1])[0][0];
   const totalWeight = votes.reduce((sum, v) => sum + v.weight, 0);
-  const agreeing = votes.filter((v) => v.candidate === winner).length;
+  const agreeing = votes.filter(v => v.candidate === winner).length;
   const score = Math.round((100 * support.get(winner)) / totalWeight);
   const confidence = score >= 75 ? 'high' : score >= 45 ? 'medium' : 'low';
   if (agreeing < votes.length) {
-    notes.push(`${votes.length - agreeing} signal(s) disagree with "${winner}" — treat the banner with suspicion.`);
+    notes.push(
+      `${votes.length - agreeing} signal(s) disagree with "${winner}" — treat the banner with suspicion.`
+    );
   } else {
     notes.push(`All ${votes.length} signal(s) agree on "${winner}".`);
   }
 
-  const breakdown = votes.map((v) => ({
+  const breakdown = votes.map(v => ({
     signal: v.signal,
     candidate: v.candidate,
     weight: v.weight,
@@ -403,7 +445,10 @@ export function scoreServiceIdentity(signals = {}) {
 
   return {
     service: winner,
-    version: signals.banner && signals.banner.candidate === winner ? (signals.banner.version ?? null) : null,
+    version:
+      signals.banner && signals.banner.candidate === winner
+        ? (signals.banner.version ?? null)
+        : null,
     score,
     confidence,
     agreement: `${agreeing}/${votes.length}`,

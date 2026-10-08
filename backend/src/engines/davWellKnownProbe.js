@@ -31,10 +31,17 @@ export function interpretDavProbe(probe = {}, service = 'caldav') {
   const status = probe.status || 0;
 
   if (!probe.url) {
-    return { found: false, service, davHost: null, status, evidence: '', notes: ['Empty probe result'] };
+    return {
+      found: false,
+      service,
+      davHost: null,
+      status,
+      evidence: '',
+      notes: ['Empty probe result'],
+    };
   }
 
-  const chain = [probe.url, ...redirects.map((r) => r.location), probe.finalUrl].filter(Boolean);
+  const chain = [probe.url, ...redirects.map(r => r.location), probe.finalUrl].filter(Boolean);
   let davHost = null;
   try {
     davHost = new URL(probe.finalUrl || probe.url).hostname;
@@ -43,7 +50,11 @@ export function interpretDavProbe(probe = {}, service = 'caldav') {
   }
 
   const startHost = (() => {
-    try { return new URL(probe.url).hostname; } catch { return null; }
+    try {
+      return new URL(probe.url).hostname;
+    } catch {
+      return null;
+    }
   })();
 
   const evidence = `GET ${probe.url} → ${status}${redirects.length ? `, ${redirects.length} redirect(s)` : ''} → ${probe.finalUrl || probe.url}`;
@@ -52,11 +63,15 @@ export function interpretDavProbe(probe = {}, service = 'caldav') {
   if (redirects.length > 0 || probe.finalUrl) {
     found = true;
     if (davHost && startHost && davHost !== startHost) {
-      notes.push(`${service} handled on separate host ${davHost} — groupware infrastructure mapped`);
+      notes.push(
+        `${service} handled on separate host ${davHost} — groupware infrastructure mapped`
+      );
     }
   } else if (status === 200 || status === 401 || status === 207 || status === 405) {
     found = true;
-    notes.push(`${service} endpoint responds directly on target host (status ${status}) — DAV service likely present`);
+    notes.push(
+      `${service} endpoint responds directly on target host (status ${status}) — DAV service likely present`
+    );
   }
 
   if (status === 404) {

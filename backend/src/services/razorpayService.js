@@ -38,9 +38,9 @@ function apiRequest(method, path, body = null) {
         },
         timeout: 20000,
       },
-      (res) => {
+      res => {
         let data = '';
-        res.on('data', (c) => (data += c));
+        res.on('data', c => (data += c));
         res.on('end', () => {
           let parsed = null;
           try {
@@ -66,6 +66,10 @@ export function publicKeyId() {
   return credentials().keyId || null;
 }
 
+/**
+ * Returns whether configured.
+ * @returns {*} Result.
+ */
 export function isConfigured() {
   return credentials().configured;
 }

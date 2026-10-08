@@ -58,11 +58,27 @@ export const DHCP_CLIENT_FINGERPRINTS = [
 
 /** Known server fingerprints from OFFER/ACK option sets. */
 export const DHCP_SERVER_FINGERPRINTS = [
-  { name: 'ISC dhcpd', markers: ['option 51 (lease time) present', 'server-id option 54'], vendorRe: null },
-  { name: 'dnsmasq', markers: ['compact option set', 'option 51 + 58 + 59 typical'], vendorRe: null },
-  { name: 'Windows Server DHCP', markers: ['MSFT vendor options', 'option 43 vendor-encapsulated'], vendorRe: /MSFT/i },
+  {
+    name: 'ISC dhcpd',
+    markers: ['option 51 (lease time) present', 'server-id option 54'],
+    vendorRe: null,
+  },
+  {
+    name: 'dnsmasq',
+    markers: ['compact option set', 'option 51 + 58 + 59 typical'],
+    vendorRe: null,
+  },
+  {
+    name: 'Windows Server DHCP',
+    markers: ['MSFT vendor options', 'option 43 vendor-encapsulated'],
+    vendorRe: /MSFT/i,
+  },
   { name: 'Kea DHCP', markers: ['option 51', 'option 54'], vendorRe: null },
-  { name: 'Cisco IOS DHCP', markers: ['option 51', 'option 1', 'option 3', 'option 6'], vendorRe: /cisco/i },
+  {
+    name: 'Cisco IOS DHCP',
+    markers: ['option 51', 'option 1', 'option 3', 'option 6'],
+    vendorRe: /cisco/i,
+  },
 ];
 
 /**
@@ -94,8 +110,16 @@ export function fingerprintDhcpClient(message = {}) {
   for (const fp of DHCP_CLIENT_FINGERPRINTS) {
     let score = optionOrderScore(prl, fp.paramRequestList);
     if (fp.vendorRe && fp.vendorRe.test(vendor)) score = Math.min(1, score + 0.25);
-    if (fp.match === 'exact-order' && score === 1 && JSON.stringify(prl) !== JSON.stringify(fp.paramRequestList)) score = 0.9;
-    if (score > bestScore) { bestScore = score; best = fp; }
+    if (
+      fp.match === 'exact-order' &&
+      score === 1 &&
+      JSON.stringify(prl) !== JSON.stringify(fp.paramRequestList)
+    )
+      score = 0.9;
+    if (score > bestScore) {
+      bestScore = score;
+      best = fp;
+    }
   }
 
   const confidence = bestScore >= 0.95 ? 'high' : bestScore >= 0.6 ? 'medium' : 'low';
@@ -103,7 +127,9 @@ export function fingerprintDhcpClient(message = {}) {
     `Parameter Request List (opt 55): [${prl.join(', ')}]`,
     vendor ? `Vendor class (opt 60): "${vendor}"` : 'no vendor class (opt 60)',
     message.hostname ? `Hostname (opt 12): "${message.hostname}"` : 'no hostname (opt 12)',
-    best ? `best match: ${best.name} (order score ${bestScore.toFixed(2)})` : 'no known client fingerprint matched',
+    best
+      ? `best match: ${best.name} (order score ${bestScore.toFixed(2)})`
+      : 'no known client fingerprint matched',
   ].join('; ');
 
   return {
@@ -135,7 +161,8 @@ export function fingerprintDhcpServer(message = {}) {
   let serverGuess = null;
   if (/MSFT/i.test(vendor) || options.includes(43)) serverGuess = 'Windows Server DHCP';
   else if (/cisco/i.test(vendor)) serverGuess = 'Cisco IOS DHCP';
-  else if (options.includes(51) && options.includes(54) && options.length <= 6) serverGuess = 'dnsmasq';
+  else if (options.includes(51) && options.includes(54) && options.length <= 6)
+    serverGuess = 'dnsmasq';
   else if (options.includes(51) && options.includes(54)) serverGuess = 'ISC dhcpd / Kea DHCP';
 
   return {

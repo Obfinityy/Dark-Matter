@@ -25,7 +25,7 @@ export class MockToolRunner {
       at: new Date().toISOString(),
       tool: step?.tool || null,
       codeChars: code.length,
-      reason: step?.reason || null
+      reason: step?.reason || null,
     });
 
     return {
@@ -34,13 +34,13 @@ export class MockToolRunner {
       output: {
         stdout: `[simulated] ${step?.tool} accepted ${code.length} chars of code — validated against the tool schema, logged, and NOT executed.`,
         stderr: '',
-        exitCode: 0
+        exitCode: 0,
       },
       observation: `Tool "${step?.tool}" step validated and logged (simulated) — code is never executed through this endpoint`,
       error: null,
       durationMs: Date.now() - started,
       rejected: false,
-      simulated: true
+      simulated: true,
     };
   }
 

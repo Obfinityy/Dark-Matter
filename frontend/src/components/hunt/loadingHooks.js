@@ -29,7 +29,7 @@ export function useRotatingCopy(messages = [], intervalMs = 2200, active = true)
   useEffect(() => {
     if (!active || messages.length === 0) return undefined;
     setIndex(0);
-    const t = setInterval(() => setIndex((i) => (i + 1) % messages.length), intervalMs);
+    const t = setInterval(() => setIndex(i => (i + 1) % messages.length), intervalMs);
     return () => clearInterval(t);
   }, [active, intervalMs, messages.length]);
   return messages.length === 0 ? '' : messages[index % messages.length];
@@ -41,12 +41,13 @@ export function useRotatingCopy(messages = [], intervalMs = 2200, active = true)
  */
 export function useReducedMotion() {
   const [reduced, setReduced] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () =>
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = (e) => setReduced(e.matches);
+    const onChange = e => setReduced(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
@@ -128,8 +129,8 @@ export function usePersistentProgress(key, initial = {}) {
       return initial;
     }
   });
-  const update = (patch) => {
-    setState((prev) => {
+  const update = patch => {
+    setState(prev => {
       const next = { ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) };
       try {
         if (typeof window !== 'undefined') window.localStorage.setItem(key, JSON.stringify(next));

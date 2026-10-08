@@ -25,7 +25,11 @@ export function buildUkwaTimemapUrl(url) {
  * @returns {string} Calendar browse URL.
  */
 export function buildUkwaCalendarUrl(domain) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   return `${UKWA_SEARCH_BASE}/http://${clean}*/`;
 }
 
@@ -36,7 +40,11 @@ export function buildUkwaCalendarUrl(domain) {
  * @returns {string[]} Search URLs, one per page.
  */
 export function buildUkwaSearchUrls(domain, opts = {}) {
-  const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const clean = String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
   const urls = [];
   const pages = opts.pages ?? 3;
   const pageSize = opts.pageSize ?? 50;
@@ -61,14 +69,27 @@ export function parseUkwaSolrResponse(raw) {
   let obj;
   try {
     obj = typeof raw === 'string' ? JSON.parse(String(raw).trim()) : raw;
-  } catch { return []; }
+  } catch {
+    return [];
+  }
   const docs = (obj && obj.response && obj.response.docs) || [];
   return docs
     .map(d => {
       const url = d.url || (d.id || '').split('/').slice(-1)[0] || '';
       let host = '';
-      try { host = new URL(String(url).startsWith('http') ? url : `http://${url}`).hostname.toLowerCase(); } catch { /* skip */ }
-      return { url: String(url), title: d.title || '', crawlDate: d.crawl_date || d.tstamp || '', host };
+      try {
+        host = new URL(
+          String(url).startsWith('http') ? url : `http://${url}`
+        ).hostname.toLowerCase();
+      } catch {
+        /* skip */
+      }
+      return {
+        url: String(url),
+        title: d.title || '',
+        crawlDate: d.crawl_date || d.tstamp || '',
+        host,
+      };
     })
     .filter(r => r.url);
 }
@@ -102,7 +123,11 @@ export function mineUkwaHosts(solrRaw, timemapRaw, domain) {
   const hostSet = new Set();
   for (const d of documents) if (d.host) hostSet.add(d.host);
   for (const c of captures) {
-    try { hostSet.add(new URL(c.uri).hostname.toLowerCase()); } catch { /* skip */ }
+    try {
+      hostSet.add(new URL(c.uri).hostname.toLowerCase());
+    } catch {
+      /* skip */
+    }
   }
   return {
     domain: String(domain).trim().toLowerCase(),

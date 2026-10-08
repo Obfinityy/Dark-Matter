@@ -29,12 +29,18 @@
 
 /** Normalise a zone name: lowercase, no trailing dot. */
 function normaliseZone(z) {
-  return String(z || '').trim().toLowerCase().replace(/\.+$/, '');
+  return String(z || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/, '');
 }
 
 /** Normalise a hostname: lowercase, no trailing dot. */
 function normaliseHost(h) {
-  return String(h || '').trim().toLowerCase().replace(/\.+$/, '');
+  return String(h || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/, '');
 }
 
 /**
@@ -101,7 +107,7 @@ export function findDistinctDelegations(records, rootZone) {
   const tree = buildDelegationTree(records);
   const root = normaliseZone(rootZone);
   const rootNs = new Set((tree.get(root) || { ns: [] }).ns);
-  const suffixes = (names) => names.map((n) => n.split('.').slice(-2).join('.'));
+  const suffixes = names => names.map(n => n.split('.').slice(-2).join('.'));
   const rootSuffixes = new Set(suffixes([...rootNs]));
   const out = [];
   for (const entry of enumerateDelegations(records, root)) {
@@ -109,12 +115,18 @@ export function findDistinctDelegations(records, rootZone) {
     const parentZone = entry.zone.split('.').slice(1).join('.');
     const parentNs = (tree.get(parentZone) || { ns: [] }).ns;
     if (entry.ns.length === 0) {
-      out.push({ zone: entry.zone, depth: entry.depth, ns: [], parentNs, reason: 'delegation-without-NS-data' });
+      out.push({
+        zone: entry.zone,
+        depth: entry.depth,
+        ns: [],
+        parentNs,
+        reason: 'delegation-without-NS-data',
+      });
       continue;
     }
-    const sharesSuffix = entry.ns.some((ns) => {
+    const sharesSuffix = entry.ns.some(ns => {
       const sfx = ns.split('.').slice(-2).join('.');
-      return rootSuffixes.has(sfx) || parentNs.some((p) => p.split('.').slice(-2).join('.') === sfx);
+      return rootSuffixes.has(sfx) || parentNs.some(p => p.split('.').slice(-2).join('.') === sfx);
     });
     if (!sharesSuffix) {
       out.push({

@@ -10,12 +10,19 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Server, Check, Loader2, Cpu, ShieldCheck, X } from 'lucide-react';
 import {
-  getBackendUrl, getBackendUrlSource, isLocalBackend, testBackendConnection
+  getBackendUrl,
+  getBackendUrlSource,
+  isLocalBackend,
+  testBackendConnection,
 } from '../../services/backendMode';
 import {
-  getPermissionMode, setPermissionMode,
-  syncPermissionModeToServer, loadPermissionModeFromServer,
-  PERMISSION_MODES, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS,
+  getPermissionMode,
+  setPermissionMode,
+  syncPermissionModeToServer,
+  loadPermissionModeFromServer,
+  PERMISSION_MODES,
+  PERMISSION_LABELS,
+  PERMISSION_DESCRIPTIONS,
 } from '../../services/permissions';
 import { getProviders } from '../../services/api';
 
@@ -30,16 +37,20 @@ export function Settings() {
   const backendSource = getBackendUrlSource(); // 'env' | 'default'
 
   const refreshProviders = () => {
-    getProviders().then(setProviders).catch(() => {});
+    getProviders()
+      .then(setProviders)
+      .catch(() => {});
   };
 
   useEffect(() => {
     refreshProviders();
     // Pull the server-side mode (if any) into localStorage on load.
-    loadPermissionModeFromServer().then((mode) => setPermissionModeState(mode)).catch(() => {});
+    loadPermissionModeFromServer()
+      .then(mode => setPermissionModeState(mode))
+      .catch(() => {});
   }, []);
 
-  const choosePermissionMode = async (newMode) => {
+  const choosePermissionMode = async newMode => {
     if (newMode === permissionMode || syncingPerms) return;
     setPermissionMode(newMode); // localStorage — the UI source of truth
     setPermissionModeState(newMode);
@@ -86,8 +97,8 @@ export function Settings() {
             <div className="dm-muted settings-backend-src">
               {backendSource === 'env'
                 ? 'from VITE_BACKEND_URL in .env'
-                : 'default — set VITE_BACKEND_URL in .env to point elsewhere'}
-              {' '}· {isLocalBackend() ? 'your machine' : 'remote backend'}
+                : 'default — set VITE_BACKEND_URL in .env to point elsewhere'}{' '}
+              · {isLocalBackend() ? 'your machine' : 'remote backend'}
             </div>
           </div>
           <Check size={16} style={{ color: 'var(--dm-green)', flexShrink: 0 }} aria-hidden="true" />
@@ -112,9 +123,15 @@ export function Settings() {
               style={{ color: testResult.ok ? 'var(--dm-green)' : 'var(--dm-red)' }}
             >
               {/* No emoji inside the live region — screen readers get plain words. */}
-              {testResult.ok
-                ? (<><Check size={15} aria-hidden="true" /> Connection OK — </>)
-                : (<><X size={15} aria-hidden="true" /> Connection failed — </>)}
+              {testResult.ok ? (
+                <>
+                  <Check size={15} aria-hidden="true" /> Connection OK —{' '}
+                </>
+              ) : (
+                <>
+                  <X size={15} aria-hidden="true" /> Connection failed —{' '}
+                </>
+              )}
               {testResult.message}
             </p>
           )}
@@ -128,9 +145,7 @@ export function Settings() {
             <Cpu size={18} aria-hidden="true" /> Brain
           </span>
         </h2>
-        <p className="dm-card-sub">
-          The same brain powers both Hunt AI and Infinity AI.
-        </p>
+        <p className="dm-card-sub">The same brain powers both Hunt AI and Infinity AI.</p>
         {providers ? (
           <div>
             <p style={{ margin: '0 0 4px', fontSize: '0.95rem' }}>
@@ -144,7 +159,9 @@ export function Settings() {
           <p className="dm-muted">Loading…</p>
         )}
         <div className="dm-mt-4">
-          <Link to="/agent/models" className="dm-btn dm-btn-secondary">Open Models →</Link>
+          <Link to="/agent/models" className="dm-btn dm-btn-secondary">
+            Open Models →
+          </Link>
         </div>
       </section>
 
@@ -156,11 +173,11 @@ export function Settings() {
           </span>
         </h2>
         <p className="dm-card-sub">
-          How much freedom does the agent get? This is honored by every worker —
-          hunt engine, computer control, and tool runners.
+          How much freedom does the agent get? This is honored by every worker — hunt engine,
+          computer control, and tool runners.
         </p>
         <div className="dm-grid-2" role="group" aria-label="Agent permission mode">
-          {[PERMISSION_MODES.ASK, PERMISSION_MODES.FULL].map((m) => {
+          {[PERMISSION_MODES.ASK, PERMISSION_MODES.FULL].map(m => {
             const active = permissionMode === m;
             return (
               <button
@@ -184,18 +201,21 @@ export function Settings() {
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
                   <ShieldCheck size={20} aria-hidden="true" /> {PERMISSION_LABELS[m]}
-                  {active && <Check size={16} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" />}
+                  {active && (
+                    <Check size={16} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" />
+                  )}
                 </span>
-                <span className="dm-muted" style={{ fontSize: '0.8rem', fontWeight: 400, lineHeight: 1.5 }}>
+                <span
+                  className="dm-muted"
+                  style={{ fontSize: '0.8rem', fontWeight: 400, lineHeight: 1.5 }}
+                >
                   {PERMISSION_DESCRIPTIONS[m]}
                 </span>
               </button>
             );
           })}
         </div>
-        {syncingPerms && (
-          <p className="dm-hint">Syncing with backend…</p>
-        )}
+        {syncingPerms && <p className="dm-hint">Syncing with backend…</p>}
       </section>
     </div>
   );

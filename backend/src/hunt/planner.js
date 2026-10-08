@@ -57,23 +57,47 @@ export const TASK_STATUS = Object.freeze(['pending', 'active', 'done', 'skipped'
 /** Default deterministic task templates per stage (used when the brain is unreachable). */
 const DETERMINISTIC_TASKS = {
   recon: [
-    { title: 'Enumerate subdomains (passive sources)', kind: 'engine', engine: ['eliteRecon', 'subdomainCandidates'] },
-    { title: 'Fingerprint web technologies', kind: 'engine', engine: ['eliteRecon', 'fingerprintTech'] },
+    {
+      title: 'Enumerate subdomains (passive sources)',
+      kind: 'engine',
+      engine: ['eliteRecon', 'subdomainCandidates'],
+    },
+    {
+      title: 'Fingerprint web technologies',
+      kind: 'engine',
+      engine: ['eliteRecon', 'fingerprintTech'],
+    },
     { title: 'Sweep passive recon engines', kind: 'sweep' },
     { title: 'Probe live hosts and technologies (external scanner)', kind: 'tool', tool: 'httpx' },
     { title: 'Crawl application endpoints (external scanner)', kind: 'tool', tool: 'katana' },
   ],
   vuln: [
-    { title: 'Scan HTTP responses for known weakness patterns', kind: 'engine', engine: ['vulnDetector', 'scanResponse'] },
-    { title: 'Check for exposed secrets in responses', kind: 'engine', engine: ['secretScanner', 'scanForSecrets'] },
+    {
+      title: 'Scan HTTP responses for known weakness patterns',
+      kind: 'engine',
+      engine: ['vulnDetector', 'scanResponse'],
+    },
+    {
+      title: 'Check for exposed secrets in responses',
+      kind: 'engine',
+      engine: ['secretScanner', 'scanForSecrets'],
+    },
     { title: 'Check CORS misconfigurations', kind: 'engine', engine: ['corsChecker', 'checkCORS'] },
-    { title: 'Check subdomain takeover indicators', kind: 'engine', engine: ['takeoverChecker', 'checkTakeover'] },
+    {
+      title: 'Check subdomain takeover indicators',
+      kind: 'engine',
+      engine: ['takeoverChecker', 'checkTakeover'],
+    },
     { title: 'Template-based vulnerability scan (external scanner)', kind: 'tool', tool: 'nuclei' },
   ],
   poc: [
     { title: 'Validate findings against evidence (safe checks only)', kind: 'validate' },
     { title: 'Filter false positives', kind: 'engine', engine: ['fpFilter', 'filterBatch'] },
-    { title: 'Score and prioritize findings', kind: 'engine', engine: ['riskScorer', 'prioritize'] },
+    {
+      title: 'Score and prioritize findings',
+      kind: 'engine',
+      engine: ['riskScorer', 'prioritize'],
+    },
     { title: 'Identify finding chains', kind: 'engine', engine: ['chainBuilder', 'findChains'] },
   ],
   report: [
@@ -153,7 +177,13 @@ export class TripleBrainPlanner {
    * @param {number} [opts.maxEvidenceTokens] — token cap for evidence fed back to the brain (default 4000)
    * @param {number} [opts.maxTasksPerStage] — safety bound on tasks per stage (default 25)
    */
-  constructor({ brain = null, dataDir = DEFAULT_DATA_DIR, logger = console, maxEvidenceTokens = 4000, maxTasksPerStage = 25 } = {}) {
+  constructor({
+    brain = null,
+    dataDir = DEFAULT_DATA_DIR,
+    logger = console,
+    maxEvidenceTokens = 4000,
+    maxTasksPerStage = 25,
+  } = {}) {
     this.brain = brain;
     this.dataDir = dataDir;
     this.logger = logger;
@@ -190,7 +220,7 @@ export class TripleBrainPlanner {
       scope: scope || { targets: [String(target)], notes: 'authorized scope' },
       stage: 'recon',
       huntState: initialHuntState(),
-      tasks: DETERMINISTIC_TASKS.recon.map((t) => newTask(t, 'recon')),
+      tasks: DETERMINISTIC_TASKS.recon.map(t => newTask(t, 'recon')),
       findings: [],
       evidence: [],
       createdAt: now(),
@@ -198,7 +228,12 @@ export class TripleBrainPlanner {
       metadata,
       product: 'Infinity AI',
     };
-    hunt.huntState = safeTransition(hunt.huntState, 'recon', { nextIntent: 'Seed recon task tree' }, this.logger);
+    hunt.huntState = safeTransition(
+      hunt.huntState,
+      'recon',
+      { nextIntent: 'Seed recon task tree' },
+      this.logger
+    );
     await this.persist(hunt);
     return hunt;
   }
@@ -215,7 +250,7 @@ export class TripleBrainPlanner {
   async listHunts() {
     try {
       const entries = await fs.readdir(this.dataDir, { withFileTypes: true });
-      return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+      return entries.filter(e => e.isDirectory()).map(e => e.name);
     } catch {
       return [];
     }
@@ -227,7 +262,10 @@ export class TripleBrainPlanner {
     if (!this.brain) throw new Error('brain unavailable');
     const messages = [
       { role: 'system', content: system },
-      { role: 'user', content: typeof userPayload === 'string' ? userPayload : JSON.stringify(userPayload) },
+      {
+        role: 'user',
+        content: typeof userPayload === 'string' ? userPayload : JSON.stringify(userPayload),
+      },
     ];
     if (typeof this.brain.generateStructured === 'function') {
       return this.brain.generateStructured(messages, null, { temperature: 0.2, maxTokens: 1500 });
@@ -244,12 +282,15 @@ export class TripleBrainPlanner {
     try {
       const proposal = await this.brainJson(REASONER_SYSTEM, state);
       if (proposal && proposal.complete) return { complete: true };
-      const task = newTask({
-        title: String(proposal.title || 'Untitled task').slice(0, 200),
-        kind: proposal.kind || 'engine',
-        engine: proposal.engine || null,
-        tool: proposal.tool || null,
-      }, PTT_STAGES.includes(proposal.stage) ? proposal.stage : hunt.stage);
+      const task = newTask(
+        {
+          title: String(proposal.title || 'Untitled task').slice(0, 200),
+          kind: proposal.kind || 'engine',
+          engine: proposal.engine || null,
+          tool: proposal.tool || null,
+        },
+        PTT_STAGES.includes(proposal.stage) ? proposal.stage : hunt.stage
+      );
       task.rationale = String(proposal.rationale || '').slice(0, 500);
       if (proposal.advanceStage) task._advanceStage = true;
       return task;
@@ -261,17 +302,29 @@ export class TripleBrainPlanner {
 
   /** Deterministic reasoner: next pending task, or seed the next stage. */
   reasonDeterministic(hunt) {
-    const pending = hunt.tasks.find((t) => t.stage === hunt.stage && t.status === 'pending');
+    const pending = hunt.tasks.find(t => t.stage === hunt.stage && t.status === 'pending');
     if (pending) {
-      const task = { ...pending, status: 'active', attempts: pending.attempts + 1, updatedAt: now() };
+      const task = {
+        ...pending,
+        status: 'active',
+        attempts: pending.attempts + 1,
+        updatedAt: now(),
+      };
       return task;
     }
     // No pending tasks left in this stage → seed the next stage.
     const idx = PTT_STAGES.indexOf(hunt.stage);
     if (idx < PTT_STAGES.length - 1) {
       const next = PTT_STAGES[idx + 1];
-      const seeded = DETERMINISTIC_TASKS[next].map((t) => newTask(t, next));
-      const first = { ...seeded[0], status: 'active', attempts: 1, updatedAt: now(), _advanceStage: true, _seededSiblings: seeded.slice(1) };
+      const seeded = DETERMINISTIC_TASKS[next].map(t => newTask(t, next));
+      const first = {
+        ...seeded[0],
+        status: 'active',
+        attempts: 1,
+        updatedAt: now(),
+        _advanceStage: true,
+        _seededSiblings: seeded.slice(1),
+      };
       first.rationale = `Deterministic advance: ${hunt.stage} exhausted, moving to ${next}.`;
       return first;
     }
@@ -327,7 +380,10 @@ export class TripleBrainPlanner {
       try {
         const messages = [
           { role: 'system', content: SUMMARIZER_SYSTEM },
-          { role: 'user', content: `Compress the following to at most ~${maxTokens} tokens:\n\n${input.slice(0, 60000)}` },
+          {
+            role: 'user',
+            content: `Compress the following to at most ~${maxTokens} tokens:\n\n${input.slice(0, 60000)}`,
+          },
         ];
         const out = String(await this.brain.generate(messages, { temperature: 0.1, maxTokens }));
         if (estimateTokens(out) <= Math.ceil(maxTokens * 1.2)) return out;
@@ -344,7 +400,7 @@ export class TripleBrainPlanner {
     return {
       target: hunt.target,
       stage: hunt.stage,
-      taskCounts: countBy(hunt.tasks, (t) => `${t.stage}:${t.status}`),
+      taskCounts: countBy(hunt.tasks, t => `${t.stage}:${t.status}`),
       findings: hunt.findings.length,
       evidenceDigest: this.summarizeEvidence(hunt, 1200),
     };
@@ -352,7 +408,7 @@ export class TripleBrainPlanner {
 
   summarizeEvidence(hunt, maxTokens) {
     const chunks = [];
-    for (const t of hunt.tasks.filter((t) => t.status === 'done').slice(-8)) {
+    for (const t of hunt.tasks.filter(t => t.status === 'done').slice(-8)) {
       if (t.findings?.length) chunks.push(`${t.title}: ${t.findings.length} finding(s)`);
       const ev = (t.evidence || []).slice(-2).join(' | ');
       if (ev) chunks.push(`${t.title} — ${ev.slice(0, 300)}`);
@@ -380,7 +436,7 @@ export class TripleBrainPlanner {
     }
 
     // Merge the proposed task into the tree (or activate the existing one).
-    let task = hunt.tasks.find((t) => t.id === proposed.id);
+    let task = hunt.tasks.find(t => t.id === proposed.id);
     if (!task) {
       if (proposed._seededSiblings) {
         for (const sib of proposed._seededSiblings) hunt.tasks.push(sib);
@@ -407,16 +463,26 @@ export class TripleBrainPlanner {
     task.updatedAt = now();
     if (summary) task.evidence.push(summary);
     for (const f of findings) {
-      const finding = { ...f, id: `f${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`, taskId: task.id, foundAt: now() };
+      const finding = {
+        ...f,
+        id: `f${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`,
+        taskId: task.id,
+        foundAt: now(),
+      };
       task.findings.push(finding);
       hunt.findings.push(finding);
     }
     hunt.updatedAt = now();
-    hunt.huntState = safeTransition(hunt.huntState, STAGE_TO_HUNT_STATUS[hunt.stage] || 'recon', {
-      lastAction: task.title,
-      lastOutcome: summary ? summary.slice(0, 200) : 'completed',
-      stepsTaken: (hunt.huntState.stepsTaken || 0) + 1,
-    }, this.logger);
+    hunt.huntState = safeTransition(
+      hunt.huntState,
+      STAGE_TO_HUNT_STATUS[hunt.stage] || 'recon',
+      {
+        lastAction: task.title,
+        lastOutcome: summary ? summary.slice(0, 200) : 'completed',
+        stepsTaken: (hunt.huntState.stepsTaken || 0) + 1,
+      },
+      this.logger
+    );
 
     await this.persist(hunt);
     return { hunt, task, done: false };
@@ -436,22 +502,35 @@ export class TripleBrainPlanner {
       if (task.kind === 'sweep') {
         const input = sweepInputFor(hunt);
         const results = await runReconSweep(input, { logger: this.logger });
-        const hits = results.filter((r) => r.ok);
-        return `RECON SWEEP: ${hits.length}/${results.length} engines returned data.\n` +
-          hits.map((r) => `- ${r.engine}.${r.fn}: ${JSON.stringify(r.result).slice(0, 1500)}`).join('\n').slice(0, 20000);
+        const hits = results.filter(r => r.ok);
+        return (
+          `RECON SWEEP: ${hits.length}/${results.length} engines returned data.\n` +
+          hits
+            .map(r => `- ${r.engine}.${r.fn}: ${JSON.stringify(r.result).slice(0, 1500)}`)
+            .join('\n')
+            .slice(0, 20000)
+        );
       }
       if (task.kind === 'validate') {
         // SAFE validation only: confirm evidence the engines/tools already observed.
-        const checks = (g.checks || []).slice(0, 20).map((c) => `- ${c.findingId}: ${c.method} (${c.safeEvidence || 'evidence on file'})`);
+        const checks = (g.checks || [])
+          .slice(0, 20)
+          .map(c => `- ${c.findingId}: ${c.method} (${c.safeEvidence || 'evidence on file'})`);
         return `SAFE VALIDATION CHECKS (non-intrusive, evidence-based):\n${checks.join('\n') || '- no checks proposed'}`;
       }
       if (task.kind === 'report') {
         const analysis = await analyzeFindings(hunt.findings);
-        return `REPORT ASSEMBLY:\n- findings: ${hunt.findings.length}\n` +
-          `- prioritized: ${(analysis.prioritized || []).length}\n- chains: ${(analysis.chains || []).length}`;
+        return (
+          `REPORT ASSEMBLY:\n- findings: ${hunt.findings.length}\n` +
+          `- prioritized: ${(analysis.prioritized || []).length}\n- chains: ${(analysis.chains || []).length}`
+        );
       }
       if (task.kind === 'tool') {
-        const spec = { tool: g.tool || task.tool, targets: g.targets || [hunt.target], profile: g.profile || 'fast' };
+        const spec = {
+          tool: g.tool || task.tool,
+          targets: g.targets || [hunt.target],
+          profile: g.profile || 'fast',
+        };
         if (typeof hooks.runTool === 'function') {
           return await hooks.runTool(spec, hunt, task);
         }
@@ -468,7 +547,12 @@ export class TripleBrainPlanner {
     if (!PTT_STAGES.includes(nextStage)) return;
     hunt.stage = nextStage;
     const status = STAGE_TO_HUNT_STATUS[nextStage];
-    hunt.huntState = safeTransition(hunt.huntState, status, { nextIntent: `Entering ${nextStage} stage` }, this.logger);
+    hunt.huntState = safeTransition(
+      hunt.huntState,
+      status,
+      { nextIntent: `Entering ${nextStage} stage` },
+      this.logger
+    );
     await this.persist(hunt);
   }
 
@@ -476,7 +560,12 @@ export class TripleBrainPlanner {
     hunt.stage = 'report';
     hunt.completedAt = now();
     hunt.updatedAt = now();
-    hunt.huntState = safeTransition(hunt.huntState, 'complete', { lastOutcome: `${hunt.findings.length} findings recorded` }, this.logger);
+    hunt.huntState = safeTransition(
+      hunt.huntState,
+      'complete',
+      { lastOutcome: `${hunt.findings.length} findings recorded` },
+      this.logger
+    );
     await this.persist(hunt);
     return hunt;
   }
@@ -506,10 +595,11 @@ function extractiveSummary(text, maxTokens) {
   const budget = Math.max(64, Math.floor(maxTokens * 3.5));
   if (s.length <= budget) return s;
   const lines = s.split('\n');
-  const KEYWORDS = /(vuln|vulnerab|cve|critical|high severity|finding|exposed|secret|token|password|misconfig|takeover|cors|inject|xss|sqli|ssrf|idor|jwt|error|failed|timeout|discovered|found|matched)/i;
+  const KEYWORDS =
+    /(vuln|vulnerab|cve|critical|high severity|finding|exposed|secret|token|password|misconfig|takeover|cors|inject|xss|sqli|ssrf|idor|jwt|error|failed|timeout|discovered|found|matched)/i;
   const scored = lines
-    .map((line, i) => ({ line, i, score: KEYWORDS.test(line) ? 2 : (line.trim() ? 1 : 0) }))
-    .filter((l) => l.score > 0)
+    .map((line, i) => ({ line, i, score: KEYWORDS.test(line) ? 2 : line.trim() ? 1 : 0 }))
+    .filter(l => l.score > 0)
     .sort((a, b) => b.score - a.score || a.i - b.i);
   const head = Math.floor(budget * 0.25);
   const tail = Math.floor(budget * 0.15);
@@ -548,7 +638,10 @@ function extractiveFindings(compressed) {
       if (findings.length >= 25) break;
     }
   }
-  return { findings, summary: `Extractive parse: ${findings.length} candidate finding(s) from tool output.` };
+  return {
+    findings,
+    summary: `Extractive parse: ${findings.length} candidate finding(s) from tool output.`,
+  };
 }
 
 /** Strip anything that looks like an attack payload from brain-generated params. */
@@ -557,7 +650,9 @@ function sanitizeGenerated(params, task) {
   if (task.kind === 'tool') {
     return {
       tool: String(p.tool || task.tool || '').slice(0, 40),
-      targets: Array.isArray(p.targets) ? p.targets.map((t) => String(t).slice(0, 200)).slice(0, 50) : [],
+      targets: Array.isArray(p.targets)
+        ? p.targets.map(t => String(t).slice(0, 200)).slice(0, 50)
+        : [],
       profile: p.profile === 'standard' ? 'standard' : 'fast',
     };
   }
@@ -571,7 +666,7 @@ function sanitizeGenerated(params, task) {
   if (task.kind === 'validate') {
     const checks = Array.isArray(p.checks) ? p.checks : [];
     return {
-      checks: checks.slice(0, 20).map((c) => ({
+      checks: checks.slice(0, 20).map(c => ({
         findingId: String(c.findingId || '').slice(0, 80),
         method: String(c.method || '').slice(0, 200),
         safeEvidence: String(c.safeEvidence || '').slice(0, 500),
@@ -583,9 +678,11 @@ function sanitizeGenerated(params, task) {
 
 function sanitizeFindings(findings) {
   const SEV = new Set(['critical', 'high', 'medium', 'low', 'informational']);
-  return findings.slice(0, 100).map((f) => ({
+  return findings.slice(0, 100).map(f => ({
     title: String(f.title || 'Untitled finding').slice(0, 200),
-    severity: SEV.has(String(f.severity).toLowerCase()) ? String(f.severity).toLowerCase() : 'informational',
+    severity: SEV.has(String(f.severity).toLowerCase())
+      ? String(f.severity).toLowerCase()
+      : 'informational',
     target: String(f.target || '').slice(0, 200),
     description: String(f.description || '').slice(0, 2000),
     evidence: String(f.evidence || '').slice(0, 2000),
@@ -597,10 +694,11 @@ function sanitizeFindings(findings) {
 /** Deterministic execution params when the brain is unreachable. */
 function deterministicParams(hunt, task) {
   if (task.kind === 'tool') return { tool: task.tool, targets: [hunt.target], profile: 'fast' };
-  if (task.kind === 'engine' && task.engine) return { module: task.engine[0], fn: task.engine[1], args: engineArgsFor(hunt, task, {}) };
+  if (task.kind === 'engine' && task.engine)
+    return { module: task.engine[0], fn: task.engine[1], args: engineArgsFor(hunt, task, {}) };
   if (task.kind === 'validate') {
     return {
-      checks: hunt.findings.slice(0, 20).map((f) => ({
+      checks: hunt.findings.slice(0, 20).map(f => ({
         findingId: f.id || f.title,
         method: 'evidence cross-check (non-intrusive)',
         safeEvidence: (f.evidence || '').slice(0, 200),
@@ -621,11 +719,22 @@ function engineArgsFor(hunt, task, generated) {
   if (sig === 'eliteRecon.subdomainCandidates') return [merged.domain, []];
   if (sig === 'secretScanner.scanForSecrets') return merged.bodyText || '';
   if (sig === 'vulnDetector.scanResponse') {
-    return [{ url: merged.url || '', body: merged.bodyText || '', headers: merged.headers || {} }, {}];
+    return [
+      { url: merged.url || '', body: merged.bodyText || '', headers: merged.headers || {} },
+      {},
+    ];
   }
-  if (sig === 'corsChecker.checkCORS') return [{ url: merged.url || '', headers: merged.headers || {} }];
+  if (sig === 'corsChecker.checkCORS')
+    return [{ url: merged.url || '', headers: merged.headers || {} }];
   if (sig === 'takeoverChecker.checkTakeover') {
-    return [{ subdomain: merged.host || '', cname: merged.cname || '', httpBody: merged.bodyText || '', httpStatus: 0 }];
+    return [
+      {
+        subdomain: merged.host || '',
+        cname: merged.cname || '',
+        httpBody: merged.bodyText || '',
+        httpStatus: 0,
+      },
+    ];
   }
   if (sig === 'fpFilter.filterBatch' || sig === 'riskScorer.prioritize') return hunt.findings;
   if (sig === 'chainBuilder.findChains') return hunt.findings;

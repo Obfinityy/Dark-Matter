@@ -10,7 +10,11 @@
  */
 
 const AKAMAI_PATTERNS = [
-  { re: /\.edgesuite\.net$/i, kind: 'edgesuite', note: 'classic Akamai edge property (static content)' },
+  {
+    re: /\.edgesuite\.net$/i,
+    kind: 'edgesuite',
+    note: 'classic Akamai edge property (static content)',
+  },
   { re: /\.edgekey\.net$/i, kind: 'edgekey', note: 'Akamai edge property with TLS (HTTPS)' },
   { re: /\.akamaized\.net$/i, kind: 'akamaized', note: 'Akamai media/delivery property' },
   { re: /\.akamaiedge\.net$/i, kind: 'akamaiedge', note: 'Akamai edge property' },
@@ -80,7 +84,9 @@ export function extractAkamaiEdgeHosts(records = []) {
     });
   }
 
-  return results.sort((a, b) => a.query.localeCompare(b.query) || a.edgeHost.localeCompare(b.edgeHost));
+  return results.sort(
+    (a, b) => a.query.localeCompare(b.query) || a.edgeHost.localeCompare(b.edgeHost)
+  );
 }
 
 /**
@@ -94,14 +100,24 @@ export function groupByEdgeProperty(mined = []) {
   const byEdge = new Map();
   for (const m of mined || []) {
     if (!byEdge.has(m.edgeHost)) {
-      byEdge.set(m.edgeHost, { edgeHost: m.edgeHost, kind: m.kind, fronts: new Set(), recordTypes: new Set() });
+      byEdge.set(m.edgeHost, {
+        edgeHost: m.edgeHost,
+        kind: m.kind,
+        fronts: new Set(),
+        recordTypes: new Set(),
+      });
     }
     const entry = byEdge.get(m.edgeHost);
     if (m.query) entry.fronts.add(m.query);
     if (m.recordType) entry.recordTypes.add(m.recordType);
   }
   return [...byEdge.values()]
-    .map((e) => ({ edgeHost: e.edgeHost, kind: e.kind, fronts: [...e.fronts].sort(), recordTypes: [...e.recordTypes].sort() }))
+    .map(e => ({
+      edgeHost: e.edgeHost,
+      kind: e.kind,
+      fronts: [...e.fronts].sort(),
+      recordTypes: [...e.recordTypes].sort(),
+    }))
     .sort((a, b) => b.fronts.length - a.fronts.length || a.edgeHost.localeCompare(b.edgeHost));
 }
 
@@ -114,7 +130,7 @@ export function groupByEdgeProperty(mined = []) {
  * @returns {{edgeHost: string, score: number}[]}
  */
 export function scoreAkamaiProperties(groups = []) {
-  const scored = (groups || []).map((g) => {
+  const scored = (groups || []).map(g => {
     let score = 20;
     if (g.kind === 'edgekey') score += 30;
     if (g.kind === 'edgesuite') score += 20;

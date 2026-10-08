@@ -28,7 +28,9 @@ function hostFromUrl(url) {
     const u = new URL(String(url || '').trim());
     if (!/^https?:$/.test(u.protocol)) return null;
     return u.hostname.toLowerCase();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -42,7 +44,10 @@ export function parseConnectDescriptor(descriptorJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   add(d.baseUrl, 'app-base-url', 'descriptor.baseUrl');
@@ -59,7 +64,11 @@ export function parseConnectDescriptor(descriptorJson) {
     }
     for (const [k, v] of Object.entries(node)) {
       if ((k === 'url' || k === 'webhookUrl' || k === 'location') && typeof v === 'string') {
-        const kind = /webhook/i.test(k) ? 'app-webhook-host' : /location/i.test(k) ? 'app-module-location' : 'app-module-url';
+        const kind = /webhook/i.test(k)
+          ? 'app-webhook-host'
+          : /location/i.test(k)
+            ? 'app-module-location'
+            : 'app-module-url';
         add(v, kind, `descriptor.modules.${path}.${k}`);
       } else if (typeof v === 'object') {
         walkModules(v, path ? `${path}.${k}` : k);
@@ -69,7 +78,8 @@ export function parseConnectDescriptor(descriptorJson) {
   walkModules(d.modules, 'modules');
 
   for (const lh of d.lifecycle || d.lifeCycle || []) {
-    if (lh && lh.url) add(lh.url, 'lifecycle-webhook', `descriptor.lifecycle.${lh.event || 'event'}`);
+    if (lh && lh.url)
+      add(lh.url, 'lifecycle-webhook', `descriptor.lifecycle.${lh.event || 'event'}`);
   }
 
   return {
@@ -80,7 +90,8 @@ export function parseConnectDescriptor(descriptorJson) {
   };
 }
 
-const FORGE_KEY_RE = /^\s{0,12}(id|name|key|homepage|website|url)\s*:\s*["']?([^"'\n]+)["']?\s*$/gim;
+const FORGE_KEY_RE =
+  /^\s{0,12}(id|name|key|homepage|website|url)\s*:\s*["']?([^"'\n]+)["']?\s*$/gim;
 const URL_RE = /(https?:\/\/[^\s"'<>()]+)/g;
 
 /**
@@ -94,7 +105,10 @@ export function parseForgeManifest(forgeManifestYaml) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
 
   let m;
@@ -109,7 +123,10 @@ export function parseForgeManifest(forgeManifestYaml) {
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text))) {
     const host = hostFromUrl(m[1]);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'manifest-url', provenance: 'manifest/url' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'manifest-url', provenance: 'manifest/url' });
+    }
   }
 
   // Remotes: `remotes: - key: name url: https://...`
@@ -117,7 +134,10 @@ export function parseForgeManifest(forgeManifestYaml) {
   let r;
   while ((r = remoteRe.exec(text))) {
     const host = hostFromUrl(r[1]);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind: 'forge-remote', provenance: 'manifest.remotes' }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind: 'forge-remote', provenance: 'manifest.remotes' });
+    }
   }
 
   return { appId: fields.id || null, name: fields.name || null, hosts };
@@ -134,7 +154,10 @@ export function parseVendorProfile(vendorJson) {
   const seen = new Set();
   const add = (value, kind, provenance) => {
     const host = hostFromUrl(value);
-    if (host && !seen.has(host)) { seen.add(host); hosts.push({ host, kind, provenance }); }
+    if (host && !seen.has(host)) {
+      seen.add(host);
+      hosts.push({ host, kind, provenance });
+    }
   };
   add(v.website, 'vendor-website', 'vendor.website');
   add(v.supportUrl || v.support_url, 'vendor-support', 'vendor.supportUrl');

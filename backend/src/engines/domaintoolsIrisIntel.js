@@ -20,7 +20,10 @@ const EDGE_WEIGHTS = { ip: 3, email: 2, nameserver: 1 };
  * @returns {string}
  */
 function norm(v) {
-  return String(v || '').trim().toLowerCase().replace(/\.$/, '');
+  return String(v || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, '');
 }
 
 /**
@@ -122,7 +125,9 @@ export function pivotFromDomain(graph, seedDomain, opts = {}) {
   return [...visited.entries()]
     .filter(([d]) => d !== seed)
     .map(([domain, v]) => ({ domain, ...v }))
-    .sort((a, b) => a.hops - b.hops || b.bestWeight - a.bestWeight || a.domain.localeCompare(b.domain));
+    .sort(
+      (a, b) => a.hops - b.hops || b.bestWeight - a.bestWeight || a.domain.localeCompare(b.domain)
+    );
 }
 
 /**
@@ -137,12 +142,10 @@ export function pivotFromDomain(graph, seedDomain, opts = {}) {
  */
 export function strongestPivots(graph, opts = {}) {
   const limit = opts.limit ?? 25;
-  return (graph.edges || [])
-    .slice(0, limit)
-    .map((e) => ({
-      a: e.a,
-      b: e.b,
-      via: e.via.map((v) => `${v.type}:${v.value}`),
-      weight: e.weight,
-    }));
+  return (graph.edges || []).slice(0, limit).map(e => ({
+    a: e.a,
+    b: e.b,
+    via: e.via.map(v => `${v.type}:${v.value}`),
+    weight: e.weight,
+  }));
 }

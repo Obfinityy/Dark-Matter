@@ -31,54 +31,199 @@ export const WRITE_METHODS = ['POST', 'PUT', 'PATCH'];
  */
 export const MASS_ASSIGNMENT_PAYLOADS = [
   // ── Role / privilege escalation ──────────────────────────────
-  { field: 'role', values: ['admin'], impact: 'Self-promotion to administrator role', severity: 'high' },
-  { field: 'user_role', values: ['admin'], impact: 'Self-promotion to administrator role', severity: 'high' },
-  { field: 'userRole', values: ['admin'], impact: 'Self-promotion to administrator role', severity: 'high' },
-  { field: 'roleid', values: [1], impact: 'Numeric role promotion (PortSwigger roleid pattern)', severity: 'high' },
+  {
+    field: 'role',
+    values: ['admin'],
+    impact: 'Self-promotion to administrator role',
+    severity: 'high',
+  },
+  {
+    field: 'user_role',
+    values: ['admin'],
+    impact: 'Self-promotion to administrator role',
+    severity: 'high',
+  },
+  {
+    field: 'userRole',
+    values: ['admin'],
+    impact: 'Self-promotion to administrator role',
+    severity: 'high',
+  },
+  {
+    field: 'roleid',
+    values: [1],
+    impact: 'Numeric role promotion (PortSwigger roleid pattern)',
+    severity: 'high',
+  },
   { field: 'role_id', values: [1], impact: 'Numeric role promotion', severity: 'high' },
   { field: 'isAdmin', values: [true], impact: 'Administrator flag enabled', severity: 'high' },
   { field: 'is_admin', values: [true], impact: 'Administrator flag enabled', severity: 'high' },
   { field: 'admin', values: [true], impact: 'Administrator flag enabled', severity: 'high' },
-  { field: 'isStaff', values: [true], impact: 'Staff flag enabled (often unlocks admin panels)', severity: 'high' },
-  { field: 'is_staff', values: [true], impact: 'Staff flag enabled (often unlocks admin panels)', severity: 'high' },
+  {
+    field: 'isStaff',
+    values: [true],
+    impact: 'Staff flag enabled (often unlocks admin panels)',
+    severity: 'high',
+  },
+  {
+    field: 'is_staff',
+    values: [true],
+    impact: 'Staff flag enabled (often unlocks admin panels)',
+    severity: 'high',
+  },
   { field: 'isSuperuser', values: [true], impact: 'Superuser flag enabled', severity: 'high' },
   { field: 'is_superuser', values: [true], impact: 'Superuser flag enabled', severity: 'high' },
-  { field: 'privilege', values: ['admin'], impact: 'Privilege field overwritten', severity: 'high' },
-  { field: 'privileges', values: ['admin'], impact: 'Privilege list overwritten', severity: 'high' },
+  {
+    field: 'privilege',
+    values: ['admin'],
+    impact: 'Privilege field overwritten',
+    severity: 'high',
+  },
+  {
+    field: 'privileges',
+    values: ['admin'],
+    impact: 'Privilege list overwritten',
+    severity: 'high',
+  },
   { field: 'accessLevel', values: ['admin'], impact: 'Access level raised', severity: 'high' },
   { field: 'access_level', values: ['admin'], impact: 'Access level raised', severity: 'high' },
   { field: 'permission', values: ['admin'], impact: 'Permission overwritten', severity: 'high' },
   { field: 'permissions', values: ['*'], impact: 'Wildcard permission granted', severity: 'high' },
-  { field: 'userType', values: ['admin'], impact: 'Account type changed to admin', severity: 'high' },
-  { field: 'user_type', values: ['admin'], impact: 'Account type changed to admin', severity: 'high' },
-  { field: 'accountType', values: ['admin'], impact: 'Account type changed to admin', severity: 'high' },
-  { field: 'account_type', values: ['admin'], impact: 'Account type changed to admin', severity: 'high' },
-  { field: 'group', values: ['admin'], impact: 'Group membership changed to admin group', severity: 'high' },
+  {
+    field: 'userType',
+    values: ['admin'],
+    impact: 'Account type changed to admin',
+    severity: 'high',
+  },
+  {
+    field: 'user_type',
+    values: ['admin'],
+    impact: 'Account type changed to admin',
+    severity: 'high',
+  },
+  {
+    field: 'accountType',
+    values: ['admin'],
+    impact: 'Account type changed to admin',
+    severity: 'high',
+  },
+  {
+    field: 'account_type',
+    values: ['admin'],
+    impact: 'Account type changed to admin',
+    severity: 'high',
+  },
+  {
+    field: 'group',
+    values: ['admin'],
+    impact: 'Group membership changed to admin group',
+    severity: 'high',
+  },
 
   // ── Verification / status bypass ─────────────────────────────
-  { field: 'isVerified', values: [true], impact: 'Identity verification bypassed', severity: 'medium' },
-  { field: 'is_verified', values: [true], impact: 'Identity verification bypassed', severity: 'medium' },
-  { field: 'verified', values: [true], impact: 'Identity verification bypassed', severity: 'medium' },
-  { field: 'emailVerified', values: [true], impact: 'Email verification bypassed', severity: 'medium' },
-  { field: 'email_verified', values: [true], impact: 'Email verification bypassed', severity: 'medium' },
+  {
+    field: 'isVerified',
+    values: [true],
+    impact: 'Identity verification bypassed',
+    severity: 'medium',
+  },
+  {
+    field: 'is_verified',
+    values: [true],
+    impact: 'Identity verification bypassed',
+    severity: 'medium',
+  },
+  {
+    field: 'verified',
+    values: [true],
+    impact: 'Identity verification bypassed',
+    severity: 'medium',
+  },
+  {
+    field: 'emailVerified',
+    values: [true],
+    impact: 'Email verification bypassed',
+    severity: 'medium',
+  },
+  {
+    field: 'email_verified',
+    values: [true],
+    impact: 'Email verification bypassed',
+    severity: 'medium',
+  },
   { field: 'approved', values: [true], impact: 'Approval workflow bypassed', severity: 'medium' },
   { field: 'isApproved', values: [true], impact: 'Approval workflow bypassed', severity: 'medium' },
 
   // ── Plan / billing manipulation ──────────────────────────────
-  { field: 'plan', values: ['premium'], impact: 'Subscription plan upgraded without payment', severity: 'medium' },
-  { field: 'subscription', values: ['premium'], impact: 'Subscription upgraded without payment', severity: 'medium' },
-  { field: 'tier', values: ['enterprise'], impact: 'Tier upgraded without payment', severity: 'medium' },
-  { field: 'isPremium', values: [true], impact: 'Premium features unlocked without payment', severity: 'medium' },
-  { field: 'is_premium', values: [true], impact: 'Premium features unlocked without payment', severity: 'medium' },
-  { field: 'credits', values: [999999], impact: 'Account credit balance inflated', severity: 'medium' },
+  {
+    field: 'plan',
+    values: ['premium'],
+    impact: 'Subscription plan upgraded without payment',
+    severity: 'medium',
+  },
+  {
+    field: 'subscription',
+    values: ['premium'],
+    impact: 'Subscription upgraded without payment',
+    severity: 'medium',
+  },
+  {
+    field: 'tier',
+    values: ['enterprise'],
+    impact: 'Tier upgraded without payment',
+    severity: 'medium',
+  },
+  {
+    field: 'isPremium',
+    values: [true],
+    impact: 'Premium features unlocked without payment',
+    severity: 'medium',
+  },
+  {
+    field: 'is_premium',
+    values: [true],
+    impact: 'Premium features unlocked without payment',
+    severity: 'medium',
+  },
+  {
+    field: 'credits',
+    values: [999999],
+    impact: 'Account credit balance inflated',
+    severity: 'medium',
+  },
   { field: 'balance', values: [999999], impact: 'Account balance inflated', severity: 'medium' },
 
   // ── Tenant / organization crossing ───────────────────────────
-  { field: 'tenantId', values: ['probe-tenant'], impact: 'Tenant association overwritten (cross-tenant risk)', severity: 'medium' },
-  { field: 'tenant_id', values: ['probe-tenant'], impact: 'Tenant association overwritten (cross-tenant risk)', severity: 'medium' },
-  { field: 'orgId', values: ['probe-org'], impact: 'Organization association overwritten', severity: 'medium' },
-  { field: 'organizationId', values: ['probe-org'], impact: 'Organization association overwritten', severity: 'medium' },
-  { field: 'teamId', values: ['probe-team'], impact: 'Team association overwritten', severity: 'medium' },
+  {
+    field: 'tenantId',
+    values: ['probe-tenant'],
+    impact: 'Tenant association overwritten (cross-tenant risk)',
+    severity: 'medium',
+  },
+  {
+    field: 'tenant_id',
+    values: ['probe-tenant'],
+    impact: 'Tenant association overwritten (cross-tenant risk)',
+    severity: 'medium',
+  },
+  {
+    field: 'orgId',
+    values: ['probe-org'],
+    impact: 'Organization association overwritten',
+    severity: 'medium',
+  },
+  {
+    field: 'organizationId',
+    values: ['probe-org'],
+    impact: 'Organization association overwritten',
+    severity: 'medium',
+  },
+  {
+    field: 'teamId',
+    values: ['probe-team'],
+    impact: 'Team association overwritten',
+    severity: 'medium',
+  },
 ];
 
 /** Response wrappers elite APIs commonly nest user objects under. */
@@ -96,7 +241,9 @@ function normalizeBody(body) {
     try {
       const parsed = JSON.parse(body);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
-    } catch { /* not JSON — unsupported */ }
+    } catch {
+      /* not JSON — unsupported */
+    }
   }
   return null;
 }
@@ -111,7 +258,9 @@ function parseResponseBody(body) {
     try {
       const parsed = JSON.parse(body);
       if (parsed && typeof parsed === 'object') return parsed;
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   return null;
 }
@@ -120,7 +269,7 @@ function parseResponseBody(body) {
  * Loose value comparison: true ≈ "true" ≈ 1, case-insensitive strings.
  */
 function valuesEqual(a, b) {
-  const norm = (v) => {
+  const norm = v => {
     if (v === true) return 'true';
     if (v === false) return 'false';
     if (v == null) return '';
@@ -178,7 +327,10 @@ export function checkFieldAccepted(responseBody, field, value) {
   const text = String(responseBody || '');
   const keyRe = new RegExp(`["']${field}["']\\s*[:=]`, 'i');
   if (keyRe.test(text)) {
-    const valRe = new RegExp(`["']${field}["']\\s*[:=]\\s*["']?${String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+    const valRe = new RegExp(
+      `["']${field}["']\\s*[:=]\\s*["']?${String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+      'i'
+    );
     return { matched: valRe.test(text), keyPresent: true };
   }
   return { matched: false, keyPresent: false };
@@ -192,16 +344,8 @@ export function checkFieldAccepted(responseBody, field, value) {
  * Returns [] for non-write methods or unsupported body types.
  */
 export function buildMassAssignmentProbes(baseRequest = {}, options = {}) {
-  const {
-    method = 'POST',
-    url = '',
-    body = {},
-    headers = {},
-  } = baseRequest;
-  const {
-    payloads = MASS_ASSIGNMENT_PAYLOADS,
-    methods = WRITE_METHODS,
-  } = options;
+  const { method = 'POST', url = '', body = {}, headers = {} } = baseRequest;
+  const { payloads = MASS_ASSIGNMENT_PAYLOADS, methods = WRITE_METHODS } = options;
 
   const m = String(method).toUpperCase();
   if (!methods.includes(m)) return [];
@@ -305,9 +449,12 @@ export async function testMassAssignment(target = {}, httpClient, options = {}) 
 
   if (!WRITE_METHODS.includes(method)) {
     return {
-      method, url, skipped: true,
+      method,
+      url,
+      skipped: true,
       reason: `Mass assignment applies to write endpoints; got ${method}.`,
-      probes: 0, findings: [],
+      probes: 0,
+      findings: [],
     };
   }
 
@@ -317,7 +464,10 @@ export async function testMassAssignment(target = {}, httpClient, options = {}) 
   let baseResponse = null;
   try {
     baseResponse = await httpClient({
-      method, url, headers: { ...(target.headers || {}) }, body: target.body,
+      method,
+      url,
+      headers: { ...(target.headers || {}) },
+      body: target.body,
     });
   } catch (err) {
     baseResponse = { error: err?.message || String(err) };
@@ -338,7 +488,9 @@ export async function testMassAssignment(target = {}, httpClient, options = {}) 
             headers: { ...(target.verify.headers || target.headers || {}) },
           });
           persisted = checkFieldAccepted(vres.body, probe.field, probe.value).matched;
-        } catch { /* verification is best-effort; reflection still counts */ }
+        } catch {
+          /* verification is best-effort; reflection still counts */
+        }
       }
       probeResponses.push({ ...probe, response, persisted });
     } catch (err) {
@@ -349,7 +501,9 @@ export async function testMassAssignment(target = {}, httpClient, options = {}) 
 
   const findings = analyzeMassAssignment(baseResponse, probeResponses, options);
   return {
-    method, url, skipped: false,
+    method,
+    url,
+    skipped: false,
     probes: probes.length,
     findings,
     baseStatus: baseResponse?.status,

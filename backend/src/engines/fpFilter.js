@@ -11,16 +11,13 @@
  */
 
 const BENIGN_BODY_PATTERNS = [
-  /example\.com/i,           // documentation examples
-  /lorem ipsum/i,            // placeholder text
-  /<title>404/i,             // plain 404 pages
+  /example\.com/i, // documentation examples
+  /lorem ipsum/i, // placeholder text
+  /<title>404/i, // plain 404 pages
   /under construction/i,
 ];
 
-const BENIGN_URL_PATTERNS = [
-  /\/static\//i,
-  /\.(css|js|png|jpg|gif|svg|woff2?)(\?|$)/i,
-];
+const BENIGN_URL_PATTERNS = [/\/static\//i, /\.(css|js|png|jpg|gif|svg|woff2?)(\?|$)/i];
 
 /**
  * Check if a finding is likely a false positive.
@@ -32,9 +29,7 @@ export function filterFinding(finding = {}, existingFindings = []) {
   }
 
   // 2. Duplicate detection.
-  const dup = existingFindings.find(
-    (e) => e.type === finding.type && e.url === finding.url
-  );
+  const dup = existingFindings.find(e => e.type === finding.type && e.url === finding.url);
   if (dup) {
     return { passed: false, reason: `duplicate of finding ${dup.id || 'existing'}` };
   }

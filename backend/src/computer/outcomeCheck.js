@@ -13,14 +13,50 @@
  */
 
 const STOPWORDS = new Set([
-  'the', 'a', 'an', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'with',
-  'is', 'are', 'was', 'were', 'be', 'been', 'it', 'its', 'that', 'this',
-  'should', 'will', 'after', 'then', 'when', 'by', 'as', 'at', 'from'
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'to',
+  'of',
+  'in',
+  'on',
+  'for',
+  'with',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'been',
+  'it',
+  'its',
+  'that',
+  'this',
+  'should',
+  'will',
+  'after',
+  'then',
+  'when',
+  'by',
+  'as',
+  'at',
+  'from',
 ]);
 
 const FAILURE_SIGNALS = [
-  'failed', 'failure', 'error', 'unavailable', 'timed out', 'timeout',
-  'rejected', 'not found', 'could not', 'unable to', 'denied'
+  'failed',
+  'failure',
+  'error',
+  'unavailable',
+  'timed out',
+  'timeout',
+  'rejected',
+  'not found',
+  'could not',
+  'unable to',
+  'denied',
 ];
 
 function significantTokens(text) {
@@ -28,7 +64,7 @@ function significantTokens(text) {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter((token) => token.length > 2 && !STOPWORDS.has(token));
+    .filter(token => token.length > 2 && !STOPWORDS.has(token));
 }
 
 /**
@@ -43,7 +79,11 @@ function significantTokens(text) {
  *   matched=false → the observation contradicts it (or the action failed)
  *   matched=null  → cannot tell from a text observation; the brain decides
  */
-export function checkOutcome({ expectedOutcome = null, observation = null, followUpObservation = null } = {}) {
+export function checkOutcome({
+  expectedOutcome = null,
+  observation = null,
+  followUpObservation = null,
+} = {}) {
   if (!expectedOutcome || !String(expectedOutcome).trim()) {
     return { matched: null, reason: 'no expected outcome was stated for this action' };
   }
@@ -60,12 +100,12 @@ export function checkOutcome({ expectedOutcome = null, observation = null, follo
 
   // An explicit failure signal anywhere in the observation contradicts any
   // positive expectation — except when the expectation itself predicted failure.
-  const expectsFailure = FAILURE_SIGNALS.some((signal) => expected.toLowerCase().includes(signal));
-  const observedFailure = FAILURE_SIGNALS.some((signal) => observed.includes(signal));
+  const expectsFailure = FAILURE_SIGNALS.some(signal => expected.toLowerCase().includes(signal));
+  const observedFailure = FAILURE_SIGNALS.some(signal => observed.includes(signal));
   if (observedFailure && !expectsFailure) {
     return {
       matched: false,
-      reason: `observation reports a failure ("${observedText.slice(0, 160)}") while the expected outcome was "${expected}"`
+      reason: `observation reports a failure ("${observedText.slice(0, 160)}") while the expected outcome was "${expected}"`,
     };
   }
 
@@ -73,23 +113,23 @@ export function checkOutcome({ expectedOutcome = null, observation = null, follo
   if (expectedTokens.length === 0) {
     return { matched: null, reason: 'expected outcome carries no comparable keywords' };
   }
-  const hits = expectedTokens.filter((token) => observed.includes(token));
+  const hits = expectedTokens.filter(token => observed.includes(token));
   const ratio = hits.length / expectedTokens.length;
 
   if (hits.length === 0) {
     return {
       matched: false,
-      reason: `none of the expected keywords (${expectedTokens.join(', ')}) appear in the observation "${observedText.slice(0, 160)}"`
+      reason: `none of the expected keywords (${expectedTokens.join(', ')}) appear in the observation "${observedText.slice(0, 160)}"`,
     };
   }
   if (ratio >= 0.5) {
     return {
       matched: true,
-      reason: `observation supports the expectation (matched: ${hits.join(', ')})`
+      reason: `observation supports the expectation (matched: ${hits.join(', ')})`,
     };
   }
   return {
     matched: null,
-    reason: `partial match only (${hits.join(', ')}); a text observation cannot confirm "${expected}" — treat as uncertain`
+    reason: `partial match only (${hits.join(', ')}); a text observation cannot confirm "${expected}" — treat as uncertain`,
   };
 }

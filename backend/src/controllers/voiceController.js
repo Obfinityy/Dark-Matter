@@ -10,20 +10,35 @@
  */
 
 const VOICES = [
-  { id: 'aria', label: 'Aria', gender: 'female', description: 'Warm and friendly — the default avatar voice' },
+  {
+    id: 'aria',
+    label: 'Aria',
+    gender: 'female',
+    description: 'Warm and friendly — the default avatar voice',
+  },
   { id: 'aria2', label: 'Aria Soft', gender: 'female', description: 'Soft and calm female voice' },
   { id: 'kai', label: 'Kai', gender: 'male', description: 'Warm male voice' },
   { id: 'kai2', label: 'Kai Deep', gender: 'male', description: 'Deep, authoritative male voice' },
 ];
 
+/**
+ * Creates voice controller.
+ * @param {object} options - Named options.
+ * @returns {*} Result.
+ */
 export function createVoiceController({ voiceManager }) {
-  const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+  const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
   return {
     /** GET /api/v1/voice/health */
     health: asyncHandler(async (request, response) => {
       const h = await voiceManager.health();
-      response.json({ ok: true, service: 'infinity-voice', ready: !!(h.ok && h.ready), voices: VOICES.map((v) => v.id) });
+      response.json({
+        ok: true,
+        service: 'infinity-voice',
+        ready: !!(h.ok && h.ready),
+        voices: VOICES.map(v => v.id),
+      });
     }),
 
     /** GET /api/v1/voice/voices */
@@ -39,12 +54,16 @@ export function createVoiceController({ voiceManager }) {
     speak: asyncHandler(async (request, response) => {
       const { text, voice = 'aria' } = request.body || {};
       if (!text || typeof text !== 'string' || !text.trim()) {
-        return response.status(400).json({ error: { code: 'BAD_REQUEST', message: 'text is required' } });
+        return response
+          .status(400)
+          .json({ error: { code: 'BAD_REQUEST', message: 'text is required' } });
       }
       if (text.length > 2000) {
-        return response.status(400).json({ error: { code: 'BAD_REQUEST', message: 'text too long (max 2000 chars)' } });
+        return response
+          .status(400)
+          .json({ error: { code: 'BAD_REQUEST', message: 'text too long (max 2000 chars)' } });
       }
-      const voiceIds = VOICES.map((v) => v.id);
+      const voiceIds = VOICES.map(v => v.id);
       const v = voiceIds.includes(voice) ? voice : 'aria';
       try {
         const wav = await voiceManager.speak(text.trim(), v);
@@ -61,9 +80,10 @@ export function createVoiceController({ voiceManager }) {
         response.status(code).json({
           error: {
             code: code === 503 ? 'VOICE_NOT_INSTALLED' : 'VOICE_FAILED',
-            message: code === 503
-              ? 'Infinity Voice is not installed on this machine yet. Run: pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r backend/voice/requirements.txt'
-              : msg.slice(0, 300),
+            message:
+              code === 503
+                ? 'Infinity Voice is not installed on this machine yet. Run: pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r backend/voice/requirements.txt'
+                : msg.slice(0, 300),
           },
         });
       }

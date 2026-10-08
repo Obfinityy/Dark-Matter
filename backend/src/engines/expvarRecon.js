@@ -84,9 +84,11 @@ export function mineExpvar({ url, status = 0, headers = {}, body = '' } = {}) {
   }
 
   const keys = Object.keys(parsed);
-  const interesting = keys.filter((k) => Object.prototype.hasOwnProperty.call(INTERESTING_VARS, k));
+  const interesting = keys.filter(k => Object.prototype.hasOwnProperty.call(INTERESTING_VARS, k));
   const customVars = keys.filter(
-    (k) => !['cmdline', 'memstats'].includes(k) && !Object.prototype.hasOwnProperty.call(INTERESTING_VARS, k),
+    k =>
+      !['cmdline', 'memstats'].includes(k) &&
+      !Object.prototype.hasOwnProperty.call(INTERESTING_VARS, k)
   );
 
   // Service identity from cmdline[0] (binary path).
@@ -120,7 +122,9 @@ export function mineExpvar({ url, status = 0, headers = {}, body = '' } = {}) {
 
   // Runtime fingerprint from memstats keys present.
   const memstatsKeys =
-    parsed.memstats && typeof parsed.memstats === 'object' ? Object.keys(parsed.memstats).length : 0;
+    parsed.memstats && typeof parsed.memstats === 'object'
+      ? Object.keys(parsed.memstats).length
+      : 0;
 
   return {
     detected: true,
@@ -130,9 +134,11 @@ export function mineExpvar({ url, status = 0, headers = {}, body = '' } = {}) {
     serviceName,
     goVersion,
     dependencies: dependencies.slice(0, 50),
-    customVars: customVars.slice(0, 50).map((k) => ({ name: k, meaning: 'application-published expvar' })),
+    customVars: customVars
+      .slice(0, 50)
+      .map(k => ({ name: k, meaning: 'application-published expvar' })),
     memstatsFields: memstatsKeys,
-    interestingVars: interesting.map((k) => ({ name: k, meaning: INTERESTING_VARS[k] })),
+    interestingVars: interesting.map(k => ({ name: k, meaning: INTERESTING_VARS[k] })),
     confidence: goVersion || dependencies.length > 0 ? 'high' : 'medium',
     severity: goVersion || dependencies.length > 0 || customVars.length > 0 ? 'Low' : 'Info',
     cwe: 'CWE-200',

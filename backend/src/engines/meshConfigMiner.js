@@ -48,10 +48,14 @@ export function identifyMesh({ headers = {}, body = '' } = {}) {
     indicators.push(`Server header: ${serverHdr}`);
     confidence = 'high';
   }
-  if (/istio/i.test(h['x-envoy-upstream-service-time'] ?? '') || /istio/i.test(text.slice(0, 2000))) {
+  if (
+    /istio/i.test(h['x-envoy-upstream-service-time'] ?? '') ||
+    /istio/i.test(text.slice(0, 2000))
+  ) {
     indicators.push('Istio markers present');
   }
-  const versionMatch = text.match(/"version"\s*:\s*"([^"]+)"/) || serverHdr.match(/envoy\/([\d.]+)/i);
+  const versionMatch =
+    text.match(/"version"\s*:\s*"([^"]+)"/) || serverHdr.match(/envoy\/([\d.]+)/i);
   if (versionMatch) {
     version = versionMatch[1];
     indicators.push(`version: ${version}`);
@@ -112,7 +116,8 @@ export function extractListenerAddresses(body) {
   const out = [];
   const seen = new Set();
   const text = String(body || '');
-  const re = /"name"\s*:\s*"([^"]+)"[\s\S]{0,400}?"address"\s*:\s*"([^"]+)"\s*,\s*"port_value"\s*:\s*(\d+)/g;
+  const re =
+    /"name"\s*:\s*"([^"]+)"[\s\S]{0,400}?"address"\s*:\s*"([^"]+)"\s*,\s*"port_value"\s*:\s*(\d+)/g;
   let m;
   re.lastIndex = 0;
   while ((m = re.exec(text)) !== null) {
@@ -134,7 +139,7 @@ export function extractListenerAddresses(body) {
 export function assessExposure({ path, status, body = '', headers = {} } = {}) {
   const text = String(body || '');
   if (status === 200 && text.length > 50) {
-    const critical = ['/config_dump', '/certs', '/clusters'].some((p) => path.includes(p));
+    const critical = ['/config_dump', '/certs', '/clusters'].some(p => path.includes(p));
     return {
       exposed: true,
       severity: critical ? 'High' : 'Medium',
@@ -144,9 +149,17 @@ export function assessExposure({ path, status, body = '', headers = {} } = {}) {
     };
   }
   if (status === 403 || status === 401) {
-    return { exposed: false, severity: 'None', reason: `Admin path ${path} is access-controlled (HTTP ${status}).` };
+    return {
+      exposed: false,
+      severity: 'None',
+      reason: `Admin path ${path} is access-controlled (HTTP ${status}).`,
+    };
   }
-  return { exposed: false, severity: 'None', reason: `Admin path ${path} not reachable (HTTP ${status}).` };
+  return {
+    exposed: false,
+    severity: 'None',
+    reason: `Admin path ${path} not reachable (HTTP ${status}).`,
+  };
 }
 
 /**
@@ -156,13 +169,13 @@ export function assessExposure({ path, status, body = '', headers = {} } = {}) {
  * @returns {{ type: string, software: string, version: string|null, exposed: object[], upstreamHosts: object[], listenerAddresses: object[], confidence: string, evidence: string }}
  */
 export function analyzeMeshResponses({ probes = [] } = {}) {
-  const first = probes.find((p) => p.status === 200 && p.body) || probes[0] || {};
+  const first = probes.find(p => p.status === 200 && p.body) || probes[0] || {};
   const identity = identifyMesh({ headers: first.headers, body: first.body });
-  const exposed = probes.map((p) => ({ path: p.path, ...assessExposure(p) }));
-  const bodies = probes.map((p) => String(p.body || '')).join('\n');
+  const exposed = probes.map(p => ({ path: p.path, ...assessExposure(p) }));
+  const bodies = probes.map(p => String(p.body || '')).join('\n');
   const upstreamHosts = extractUpstreamHosts(bodies);
   const listenerAddresses = extractListenerAddresses(bodies);
-  const exposedCount = exposed.filter((e) => e.exposed).length;
+  const exposedCount = exposed.filter(e => e.exposed).length;
 
   return {
     type: 'Service-Mesh Sidecar Config Leak Mining',
@@ -174,7 +187,12 @@ export function analyzeMeshResponses({ probes = [] } = {}) {
     confidence: exposedCount > 0 ? 'high' : identity.confidence,
     evidence:
       exposedCount > 0
-        ? `${exposedCount} mesh admin endpoint(s) exposed (${exposed.filter((e) => e.exposed).map((e) => e.path).join(', ')}): ${upstreamHosts.length} upstream host(s) and ${listenerAddresses.length} listener(s) recovered from config data.`
+        ? `${exposedCount} mesh admin endpoint(s) exposed (${exposed
+            .filter(e => e.exposed)
+            .map(e => e.path)
+            .join(
+              ', '
+            )}): ${upstreamHosts.length} upstream host(s) and ${listenerAddresses.length} listener(s) recovered from config data.`
         : 'No mesh admin endpoints appear exposed in the supplied responses.',
   };
 }

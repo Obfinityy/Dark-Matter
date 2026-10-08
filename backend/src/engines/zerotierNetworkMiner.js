@@ -44,7 +44,7 @@ export function hasZeroTierContext(text, index, window = 80) {
   const start = Math.max(0, index - window);
   const end = Math.min(text.length, index + window);
   const slice = text.slice(start, end);
-  return ZEROTIER_CONTEXT_RES.some((re) => re.test(slice));
+  return ZEROTIER_CONTEXT_RES.some(re => re.test(slice));
 }
 
 /**
@@ -121,7 +121,7 @@ export function mineZeroTierNetworks({ source = 'unknown', text = '' } = {}) {
   return {
     type: 'ZeroTier Network-ID Mining',
     confidence: found ? 'high' : 'low',
-    networks: networks.map((n) => ({
+    networks: networks.map(n => ({
       networkId: n.networkId,
       context: n.context,
       severity: 'low',
@@ -132,9 +132,11 @@ export function mineZeroTierNetworks({ source = 'unknown', text = '' } = {}) {
     nodeAddresses,
     joinCommands,
     evidence: found
-      ? `Mined ${networks.length} ZeroTier network ID(s) from ${source}: ${networks.map((n) => n.networkId).join(', ')}` +
+      ? `Mined ${networks.length} ZeroTier network ID(s) from ${source}: ${networks.map(n => n.networkId).join(', ')}` +
         (nodeAddresses.length ? `; ${nodeAddresses.length} node address(es) noted` : '') +
-        (joinCommands.length ? `; ${joinCommands.length} join command(s) reference these networks` : '') +
+        (joinCommands.length
+          ? `; ${joinCommands.length} join command(s) reference these networks`
+          : '') +
         '.'
       : `No ZeroTier network IDs found in ${source}.`,
   };

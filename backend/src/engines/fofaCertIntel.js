@@ -30,7 +30,10 @@ export function certIdentityKey(cert) {
     return s ? `subject:${s}` : null;
   }
   const fp = cert.fingerprint || cert.sha256 || cert.fingerprint_sha256;
-  if (fp) return `fp:${String(fp).toLowerCase().replace(/[^a-f0-9]/g, '')}`;
+  if (fp)
+    return `fp:${String(fp)
+      .toLowerCase()
+      .replace(/[^a-f0-9]/g, '')}`;
   const cn = (cert.subject_cn || cert.cn || cert.subject || '').toString().toLowerCase();
   const issuer = (cert.issuer_cn || cert.issuer || '').toString().toLowerCase();
   if (!cn) return null;
@@ -55,8 +58,8 @@ export function extractRecordCerts(record) {
   for (const cert of certs) {
     const key = certIdentityKey(cert);
     if (!key) continue;
-    const cn = typeof cert === 'string' ? cert : (cert.subject_cn || cert.cn || cert.subject || null);
-    const issuer = typeof cert === 'string' ? null : (cert.issuer_cn || cert.issuer || null);
+    const cn = typeof cert === 'string' ? cert : cert.subject_cn || cert.cn || cert.subject || null;
+    const issuer = typeof cert === 'string' ? null : cert.issuer_cn || cert.issuer || null;
     out.push({ key, cn, issuer, ip, port });
   }
   return out;
@@ -88,7 +91,7 @@ export function groupByCertificate(records) {
   }
   return {
     groups: [...map.values()]
-      .map((g) => ({
+      .map(g => ({
         key: g.key,
         cn: g.cn,
         issuers: [...g.issuers].sort(),
@@ -112,7 +115,7 @@ export function pivotFromSeed(grouped, seedIp) {
   const out = [];
   const seen = new Set();
   for (const g of grouped.groups || []) {
-    if (!g.hosts.some((h) => h.ip === seedIp)) continue;
+    if (!g.hosts.some(h => h.ip === seedIp)) continue;
     for (const h of g.hosts) {
       if (h.ip === seedIp) continue;
       const key = `${h.ip}|${h.port}|${g.key}`;

@@ -18,8 +18,14 @@ const HOSTNAME_RE = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\b/
 
 /** Slack platform hosts that are never target infrastructure. */
 export const SLACK_PLATFORM_HOSTS = [
-  'slack.com', 'api.slack.com', 'slackhq.com', 'slack-files.com',
-  'slack-core.com', 'slack-imgs.com', 'slack-redir.net', 'slack-edge.com',
+  'slack.com',
+  'api.slack.com',
+  'slackhq.com',
+  'slack-files.com',
+  'slack-core.com',
+  'slack-imgs.com',
+  'slack-redir.net',
+  'slack-edge.com',
 ];
 
 /**
@@ -32,7 +38,11 @@ export function classifySlackAppHost(host, field = '') {
   const h = normalizeHostname(host);
   const f = String(field || '').toLowerCase();
   if (/redirect|callback|oauth|authorized/.test(f)) return 'redirect';
-  if (/webhook|event|subscription|request_url|slash/.test(f) || /(^|[.-])(hook|hooks)([.-]|$)/.test(h)) return 'webhook';
+  if (
+    /webhook|event|subscription|request_url|slash/.test(f) ||
+    /(^|[.-])(hook|hooks)([.-]|$)/.test(h)
+  )
+    return 'webhook';
   if (/support|contact/.test(f)) return 'support';
   if (/privacy|policy|terms|doc/.test(f)) return 'documentation';
   return 'other';
@@ -99,7 +109,9 @@ export function mineSlackAppListings(listings = [], rootDomain) {
   for (const listing of listings || []) {
     for (const f of parseSlackAppListing(listing)) {
       const related = f.host === root || f.host.endsWith(`.${root}`) || f.host.includes(root);
-      const devHit = String(listing?.developer || '').toLowerCase().includes(brand);
+      const devHit = String(listing?.developer || '')
+        .toLowerCase()
+        .includes(brand);
       if (related || devHit) out.push(f);
     }
   }

@@ -65,13 +65,22 @@ export function parseMbap(buf) {
  */
 export function parseDeviceIdentification(pdu) {
   const b = Buffer.isBuffer(pdu) ? pdu : Buffer.from(pdu || []);
-  if (b.length < 6) return { valid: false, reason: 'PDU too short for device identification response' };
+  if (b.length < 6)
+    return { valid: false, reason: 'PDU too short for device identification response' };
   if (b[0] === (0x2b | 0x80)) {
     const code = b[1];
-    return { valid: true, exception: true, exceptionCode: code, exceptionName: MODBUS_EXCEPTIONS[code] || `unknown_0x${code.toString(16)}` };
+    return {
+      valid: true,
+      exception: true,
+      exceptionCode: code,
+      exceptionName: MODBUS_EXCEPTIONS[code] || `unknown_0x${code.toString(16)}`,
+    };
   }
   if (b[0] !== 0x2b || b[1] !== 0x0e) {
-    return { valid: false, reason: 'not a Read Device Identification response (expected 0x2B/0x0E)' };
+    return {
+      valid: false,
+      reason: 'not a Read Device Identification response (expected 0x2B/0x0E)',
+    };
   }
   const objects = {};
   const count = b[5];
@@ -103,7 +112,10 @@ export function parseDeviceIdentification(pdu) {
 export function assessModbusExposure(evidence = {}) {
   const findings = [];
   if (evidence.portOpen) {
-    findings.push({ level: 'high', text: 'Modbus TCP (:502) reachable — unauthenticated protocol; any reachable function is exposed.' });
+    findings.push({
+      level: 'high',
+      text: 'Modbus TCP (:502) reachable — unauthenticated protocol; any reachable function is exposed.',
+    });
   }
   const id = evidence.identification;
   if (id && id.valid && !id.exception) {
@@ -113,7 +125,7 @@ export function assessModbusExposure(evidence = {}) {
       identification: id.objects,
     });
   }
-  const score = findings.some((f) => f.level === 'high') ? 8 : findings.length ? 3 : 0;
+  const score = findings.some(f => f.level === 'high') ? 8 : findings.length ? 3 : 0;
   return {
     detected: findings.length > 0,
     score,

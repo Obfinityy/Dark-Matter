@@ -43,11 +43,17 @@ export function extractBalanced(text, startIndex) {
   for (let i = startIndex; i < text.length; i++) {
     const ch = text[i];
     if (inStr) {
-      if (ch === '\\') { i++; continue; }
+      if (ch === '\\') {
+        i++;
+        continue;
+      }
       if (ch === inStr) inStr = null;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === '`') { inStr = ch; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') {
+      inStr = ch;
+      continue;
+    }
     if (ch === open) depth++;
     else if (ch === close) {
       depth--;
@@ -64,7 +70,7 @@ export function extractBalanced(text, startIndex) {
  */
 function dedupeProbes(probes) {
   const seen = new Set();
-  return probes.filter((p) => {
+  return probes.filter(p => {
     if (seen.has(p.url)) return false;
     seen.add(p.url);
     return true;
@@ -87,7 +93,10 @@ export function normalizeDotSegments(path) {
   const output = [];
   for (const seg of input) {
     if (seg === '' || seg === '.') continue;
-    if (seg === '..') { output.pop(); continue; }
+    if (seg === '..') {
+      output.pop();
+      continue;
+    }
     output.push(seg);
   }
   return '/' + output.join('/');
@@ -162,8 +171,17 @@ export function analyzeDotSegmentResponses(path, baselineStatus, responses = [])
     else if (r.status === 404) behavior = 'not-found';
     else if (r.status === 400 || r.status === 414) behavior = 'rejected';
     else behavior = 'differential-status';
-    variants.push({ url: r.url, status: r.status, location: r.location || null, expectedNormalized: expected, behavior });
-    if (behavior === 'differential-status' || (behavior === 'same-as-baseline' && r.status === 200 && baselineStatus !== 200)) {
+    variants.push({
+      url: r.url,
+      status: r.status,
+      location: r.location || null,
+      expectedNormalized: expected,
+      behavior,
+    });
+    if (
+      behavior === 'differential-status' ||
+      (behavior === 'same-as-baseline' && r.status === 200 && baselineStatus !== 200)
+    ) {
       findings.push({
         type: 'path-normalization-differential',
         severity: r.status === 200 && baselineStatus !== 200 ? 'medium' : 'info',
@@ -191,7 +209,7 @@ export function analyzeDotSegmentResponses(path, baselineStatus, responses = [])
  */
 function utf8PercentEncode(s) {
   return Array.from(new TextEncoder().encode(s))
-    .map((b) => '%' + b.toString(16).padStart(2, '0'))
+    .map(b => '%' + b.toString(16).padStart(2, '0'))
     .join('');
 }
 
@@ -201,24 +219,37 @@ function utf8PercentEncode(s) {
  * @returns {string}
  */
 function toFullwidth(s) {
-  return String(s).replace(/[!-~]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0xfee0));
+  return String(s).replace(/[!-~]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0xfee0));
 }
 
 const UNICODE_TRANSFORMS = [
-  { label: 'overlong-slash', technique: 'overlong-utf8', apply: (p) => p.replace(/\//g, '%c0%af') },
-  { label: 'overlong-dot', technique: 'overlong-utf8', apply: (p) => p.replace(/\./g, '%c0%ae') },
-  { label: 'iis-unicode-slash', technique: 'unicode-escape', apply: (p) => p.replace(/\//g, '%u002f') },
-  { label: 'iis-unicode-dot', technique: 'unicode-escape', apply: (p) => p.replace(/\./g, '%u002e') },
-  { label: 'fullwidth-slash', technique: 'fullwidth', apply: (p) => p.split('/').join(utf8PercentEncode('／')) },
+  { label: 'overlong-slash', technique: 'overlong-utf8', apply: p => p.replace(/\//g, '%c0%af') },
+  { label: 'overlong-dot', technique: 'overlong-utf8', apply: p => p.replace(/\./g, '%c0%ae') },
   {
-    label: 'fullwidth-last-segment', technique: 'fullwidth',
-    apply: (p) => {
+    label: 'iis-unicode-slash',
+    technique: 'unicode-escape',
+    apply: p => p.replace(/\//g, '%u002f'),
+  },
+  { label: 'iis-unicode-dot', technique: 'unicode-escape', apply: p => p.replace(/\./g, '%u002e') },
+  {
+    label: 'fullwidth-slash',
+    technique: 'fullwidth',
+    apply: p => p.split('/').join(utf8PercentEncode('／')),
+  },
+  {
+    label: 'fullwidth-last-segment',
+    technique: 'fullwidth',
+    apply: p => {
       const segs = p.split('/');
       segs[segs.length - 1] = utf8PercentEncode(toFullwidth(segs[segs.length - 1] || ''));
       return segs.join('/');
     },
   },
-  { label: 'mixed-encoded-slash', technique: 'mixed-encoding', apply: (p) => p.replace(/\//g, '%2f') },
+  {
+    label: 'mixed-encoded-slash',
+    technique: 'mixed-encoding',
+    apply: p => p.replace(/\//g, '%2f'),
+  },
 ];
 
 /**
@@ -229,7 +260,11 @@ const UNICODE_TRANSFORMS = [
 export function planUnicodePathProbes(path) {
   if (typeof path !== 'string' || !path.trim()) return [];
   const p = pathOnly(path.trim());
-  const probes = UNICODE_TRANSFORMS.map((t) => ({ label: t.label, url: t.apply(p), technique: t.technique }));
+  const probes = UNICODE_TRANSFORMS.map(t => ({
+    label: t.label,
+    url: t.apply(p),
+    technique: t.technique,
+  }));
   return dedupeProbes(probes);
 }
 
@@ -283,7 +318,8 @@ export const HPP_MARK_SECOND = 'dmhpplast';
  * @returns {{label:string,url:string,variant:string}[]}
  */
 export function planParameterPollutionProbes(url, paramName) {
-  if (typeof url !== 'string' || !url.trim() || typeof paramName !== 'string' || !paramName.trim()) return [];
+  if (typeof url !== 'string' || !url.trim() || typeof paramName !== 'string' || !paramName.trim())
+    return [];
   const base = String(url).split(/[?#]/)[0];
   const p = paramName.trim();
   const A = HPP_MARK_FIRST;
@@ -291,7 +327,11 @@ export function planParameterPollutionProbes(url, paramName) {
   return [
     { label: 'baseline', url: `${base}?${p}=${A}`, variant: 'baseline' },
     { label: 'duplicate', url: `${base}?${p}=${A}&${p}=${B}`, variant: 'duplicate' },
-    { label: 'duplicate-reversed', url: `${base}?${p}=${B}&${p}=${A}`, variant: 'duplicate-reversed' },
+    {
+      label: 'duplicate-reversed',
+      url: `${base}?${p}=${B}&${p}=${A}`,
+      variant: 'duplicate-reversed',
+    },
     { label: 'array-bracket', url: `${base}?${p}[]=${A}&${p}[]=${B}`, variant: 'array-bracket' },
     { label: 'semicolon-separated', url: `${base}?${p}=${A};${p}=${B}`, variant: 'semicolon' },
   ];
@@ -317,8 +357,8 @@ export function analyzeParameterPollutionResponses(url, paramName, responses = [
   let mergeBehavior = 'unknown';
   let confidence = 'low';
 
-  const val = (r) => (typeof r.observed === 'string' ? r.observed : null);
-  const isReject = (r) => [400, 422].includes(r.status);
+  const val = r => (typeof r.observed === 'string' ? r.observed : null);
+  const isReject = r => [400, 422].includes(r.status);
 
   if (isReject(dup)) {
     mergeBehavior = 'rejects-duplicates';
@@ -337,7 +377,7 @@ export function analyzeParameterPollutionResponses(url, paramName, responses = [
     confidence = 'medium';
   }
 
-  const perVariant = (responses || []).map((r) => ({
+  const perVariant = (responses || []).map(r => ({
     label: r.label,
     variant: r.variant,
     status: r.status,
@@ -361,11 +401,31 @@ export function analyzeParameterPollutionResponses(url, paramName, responses = [
 /* ------------------------------------------------------------------ */
 
 const ARRAY_SYNTAX_FINGERPRINTS = [
-  { name: 'PHP', syntaxes: ['bracket', 'named-index', 'duplicate-comma'], evidence: 'Honors param[] and param[name] syntaxes.' },
-  { name: 'Ruby on Rails', syntaxes: ['bracket', 'indexed', 'named-index'], evidence: 'Honors param[], param[0], and param[name] syntaxes.' },
-  { name: 'Node.js (qs)', syntaxes: ['bracket', 'indexed', 'named-index'], evidence: 'Honors qs-style bracket/indexed syntaxes.' },
-  { name: 'ASP.NET', syntaxes: ['indexed', 'duplicate'], evidence: 'Honors param[0] indexed syntax.' },
-  { name: 'Java (Spring)', syntaxes: ['duplicate'], evidence: 'Treats repeated params as multi-value without bracket syntax.' },
+  {
+    name: 'PHP',
+    syntaxes: ['bracket', 'named-index', 'duplicate-comma'],
+    evidence: 'Honors param[] and param[name] syntaxes.',
+  },
+  {
+    name: 'Ruby on Rails',
+    syntaxes: ['bracket', 'indexed', 'named-index'],
+    evidence: 'Honors param[], param[0], and param[name] syntaxes.',
+  },
+  {
+    name: 'Node.js (qs)',
+    syntaxes: ['bracket', 'indexed', 'named-index'],
+    evidence: 'Honors qs-style bracket/indexed syntaxes.',
+  },
+  {
+    name: 'ASP.NET',
+    syntaxes: ['indexed', 'duplicate'],
+    evidence: 'Honors param[0] indexed syntax.',
+  },
+  {
+    name: 'Java (Spring)',
+    syntaxes: ['duplicate'],
+    evidence: 'Treats repeated params as multi-value without bracket syntax.',
+  },
 ];
 
 /**
@@ -375,7 +435,8 @@ const ARRAY_SYNTAX_FINGERPRINTS = [
  * @returns {{label:string,url:string,syntax:string}[]}
  */
 export function planArrayParamProbes(url, paramName) {
-  if (typeof url !== 'string' || !url.trim() || typeof paramName !== 'string' || !paramName.trim()) return [];
+  if (typeof url !== 'string' || !url.trim() || typeof paramName !== 'string' || !paramName.trim())
+    return [];
   const base = String(url).split(/[?#]/)[0];
   const p = paramName.trim();
   return [
@@ -399,25 +460,31 @@ export function planArrayParamProbes(url, paramName) {
 export function analyzeArrayParamResponses(url, paramName, responses = []) {
   const supported = [];
   for (const r of responses || []) {
-    if (r.parsedAs === 'array' || (r.syntax === 'duplicate' && (r.parsedAs === 'comma' || r.parsedAs === 'array'))) {
+    if (
+      r.parsedAs === 'array' ||
+      (r.syntax === 'duplicate' && (r.parsedAs === 'comma' || r.parsedAs === 'array'))
+    ) {
       supported.push(r.syntax === 'duplicate' ? 'duplicate-comma' : r.syntax);
     } else if (r.syntax === 'duplicate' && r.parsedAs === 'scalar') {
       supported.push('duplicate');
     }
   }
   const supportedSyntaxes = [...new Set(supported)];
-  const likelyBackends = ARRAY_SYNTAX_FINGERPRINTS
-    .map((fp) => {
-      const hits = fp.syntaxes.filter((s) => supportedSyntaxes.includes(s));
-      if (hits.length === 0) return null;
-      return {
-        name: fp.name,
-        confidence: hits.length >= fp.syntaxes.length ? 'high' : hits.length >= 2 ? 'medium' : 'low',
-        evidence: `${fp.evidence} Matched: ${hits.join(', ')}.`,
-      };
-    })
+  const likelyBackends = ARRAY_SYNTAX_FINGERPRINTS.map(fp => {
+    const hits = fp.syntaxes.filter(s => supportedSyntaxes.includes(s));
+    if (hits.length === 0) return null;
+    return {
+      name: fp.name,
+      confidence: hits.length >= fp.syntaxes.length ? 'high' : hits.length >= 2 ? 'medium' : 'low',
+      evidence: `${fp.evidence} Matched: ${hits.join(', ')}.`,
+    };
+  })
     .filter(Boolean)
-    .sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.confidence] - { high: 0, medium: 1, low: 2 }[b.confidence]));
+    .sort(
+      (a, b) =>
+        ({ high: 0, medium: 1, low: 2 })[a.confidence] -
+        { high: 0, medium: 1, low: 2 }[b.confidence]
+    );
   return { url, param: paramName, supportedSyntaxes, likelyBackends };
 }
 
@@ -457,7 +524,7 @@ function fieldsFromObjectLiteral(objLiteral) {
   let m;
   while ((m = keyRe.exec(inner)) !== null) {
     const name = m[1];
-    if (fields.some((f) => f.name === name)) continue;
+    if (fields.some(f => f.name === name)) continue;
     // Grab a short value token after the colon for type inference.
     const rest = inner.slice(m.index + m[0].length, m.index + m[0].length + 40);
     fields.push({ name, type: inferLiteralType(rest), required: true, constraints: [] });
@@ -467,14 +534,17 @@ function fieldsFromObjectLiteral(objLiteral) {
 
 const SCHEMA_LIB_PATTERNS = [
   {
-    lib: 'zod', callRe: /z\.object\s*\(/g,
-    parseField: (decl) => {
+    lib: 'zod',
+    callRe: /z\.object\s*\(/g,
+    parseField: decl => {
       const typeMatch = decl.match(/z\.(\w+)\s*\(/);
       const type = typeMatch ? typeMatch[1] : 'unknown';
       const required = !/\.optional\s*\(/.test(decl);
       const constraints = [];
-      const min = decl.match(/\.min\s*\(\s*(\d+)/); if (min) constraints.push(`min:${min[1]}`);
-      const max = decl.match(/\.max\s*\(\s*(\d+)/); if (max) constraints.push(`max:${max[1]}`);
+      const min = decl.match(/\.min\s*\(\s*(\d+)/);
+      if (min) constraints.push(`min:${min[1]}`);
+      const max = decl.match(/\.max\s*\(\s*(\d+)/);
+      if (max) constraints.push(`max:${max[1]}`);
       if (/\.email\s*\(/.test(decl)) constraints.push('email');
       if (/\.url\s*\(/.test(decl)) constraints.push('url');
       if (/\.uuid\s*\(/.test(decl)) constraints.push('uuid');
@@ -483,27 +553,33 @@ const SCHEMA_LIB_PATTERNS = [
     },
   },
   {
-    lib: 'yup', callRe: /yup\.object\s*\(/g,
-    parseField: (decl) => {
+    lib: 'yup',
+    callRe: /yup\.object\s*\(/g,
+    parseField: decl => {
       const typeMatch = decl.match(/yup\.(\w+)\s*\(/);
       const type = typeMatch ? typeMatch[1] : 'unknown';
       const required = /\.required\s*\(/.test(decl);
       const constraints = [];
-      const min = decl.match(/\.min\s*\(\s*(\d+)/); if (min) constraints.push(`min:${min[1]}`);
-      const max = decl.match(/\.max\s*\(\s*(\d+)/); if (max) constraints.push(`max:${max[1]}`);
+      const min = decl.match(/\.min\s*\(\s*(\d+)/);
+      if (min) constraints.push(`min:${min[1]}`);
+      const max = decl.match(/\.max\s*\(\s*(\d+)/);
+      if (max) constraints.push(`max:${max[1]}`);
       if (/\.email\s*\(/.test(decl)) constraints.push('email');
       return { type, required, constraints };
     },
   },
   {
-    lib: 'joi', callRe: /Joi\.object\s*\(/g,
-    parseField: (decl) => {
+    lib: 'joi',
+    callRe: /Joi\.object\s*\(/g,
+    parseField: decl => {
       const typeMatch = decl.match(/Joi\.(\w+)\s*\(/);
       const type = typeMatch ? typeMatch[1] : 'unknown';
       const required = /\.required\s*\(/.test(decl);
       const constraints = [];
-      const min = decl.match(/\.min\s*\(\s*(\d+)/); if (min) constraints.push(`min:${min[1]}`);
-      const max = decl.match(/\.max\s*\(\s*(\d+)/); if (max) constraints.push(`max:${max[1]}`);
+      const min = decl.match(/\.min\s*\(\s*(\d+)/);
+      if (min) constraints.push(`min:${min[1]}`);
+      const max = decl.match(/\.max\s*\(\s*(\d+)/);
+      if (max) constraints.push(`max:${max[1]}`);
       if (/\.email\s*\(/.test(decl)) constraints.push('email');
       return { type, required, constraints };
     },
@@ -524,11 +600,17 @@ function takeFieldDecl(inner, from) {
   for (let i = from; i < inner.length; i++) {
     const ch = inner[i];
     if (inStr) {
-      if (ch === '\\') { i++; continue; }
+      if (ch === '\\') {
+        i++;
+        continue;
+      }
       if (ch === inStr) inStr = null;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === '`') { inStr = ch; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') {
+      inStr = ch;
+      continue;
+    }
     if (ch === '(' || ch === '[' || ch === '{') depth++;
     else if (ch === ')' || ch === ']' || ch === '}') depth--;
     else if (ch === ',' && depth === 0) return inner.slice(from, i);
@@ -548,7 +630,7 @@ function fieldsFromSchemaLiteral(objLiteral, parseField) {
   let m;
   while ((m = keyRe.exec(inner)) !== null) {
     const name = m[1];
-    if (fields.some((f) => f.name === name)) continue;
+    if (fields.some(f => f.name === name)) continue;
     const decl = takeFieldDecl(inner, m.index + m[0].length);
     const parsed = parseField(decl);
     fields.push({ name, ...parsed });
@@ -568,7 +650,7 @@ export function inferJsonSchemaFromClientCode(jsSource) {
   const src = jsSource;
   const schemas = [];
   const seen = new Set();
-  const push = (entry) => {
+  const push = entry => {
     const key = `${entry.method}|${entry.url}|${entry.source}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -594,7 +676,8 @@ export function inferJsonSchemaFromClientCode(jsSource) {
       const objIdx = afterParen.search(/\{/);
       if (objIdx !== -1) {
         const literal = extractBalanced(afterParen, objIdx);
-        if (literal) push({ method, url, fields: fieldsFromObjectLiteral(literal), source: 'fetch-body' });
+        if (literal)
+          push({ method, url, fields: fieldsFromObjectLiteral(literal), source: 'fetch-body' });
       }
     }
   }
@@ -608,7 +691,8 @@ export function inferJsonSchemaFromClientCode(jsSource) {
     const braceIdx = after.search(/\{/);
     if (braceIdx === -1) continue;
     const literal = extractBalanced(after, braceIdx);
-    if (literal) push({ method, url, fields: fieldsFromObjectLiteral(literal), source: 'axios-body' });
+    if (literal)
+      push({ method, url, fields: fieldsFromObjectLiteral(literal), source: 'axios-body' });
   }
 
   // zod / yup / joi schema objects
@@ -619,21 +703,37 @@ export function inferJsonSchemaFromClientCode(jsSource) {
       if (openIdx === -1) continue;
       const literal = extractBalanced(src, openIdx);
       if (!literal) continue;
-      push({ method: 'UNKNOWN', url: null, fields: fieldsFromSchemaLiteral(literal, lib.parseField), source: `${lib.lib}-schema` });
+      push({
+        method: 'UNKNOWN',
+        url: null,
+        fields: fieldsFromSchemaLiteral(literal, lib.parseField),
+        source: `${lib.lib}-schema`,
+      });
     }
   }
 
   // Manual presence checks: if (!body.email) / body.email === undefined
   const manualFields = new Map();
-  const manualRe = /(?:if\s*\(\s*!?\s*(?:body|data|payload)\.([A-Za-z_$][\w$]*)|(?:body|data|payload)\.([A-Za-z_$][\w$]*)\s*(?:===?|!==?)\s*undefined)/g;
+  const manualRe =
+    /(?:if\s*\(\s*!?\s*(?:body|data|payload)\.([A-Za-z_$][\w$]*)|(?:body|data|payload)\.([A-Za-z_$][\w$]*)\s*(?:===?|!==?)\s*undefined)/g;
   while ((m = manualRe.exec(src)) !== null) {
     const name = m[1] || m[2];
     if (name && !manualFields.has(name)) {
-      manualFields.set(name, { name, type: 'unknown', required: true, constraints: ['presence-checked'] });
+      manualFields.set(name, {
+        name,
+        type: 'unknown',
+        required: true,
+        constraints: ['presence-checked'],
+      });
     }
   }
   if (manualFields.size > 0) {
-    push({ method: 'UNKNOWN', url: null, fields: [...manualFields.values()], source: 'manual-checks' });
+    push({
+      method: 'UNKNOWN',
+      url: null,
+      fields: [...manualFields.values()],
+      source: 'manual-checks',
+    });
   }
 
   return schemas;
@@ -687,13 +787,18 @@ export function analyzeMultipartForms(htmlSource) {
     const taRe = /<textarea\b([^>]*)>/gi;
     let tm;
     while ((tm = taRe.exec(fm[2])) !== null) {
-      fields.push({ name: htmlAttr('<x ' + tm[1] + '>', 'name'), type: 'textarea', accept: null, multiple: false });
+      fields.push({
+        name: htmlAttr('<x ' + tm[1] + '>', 'name'),
+        type: 'textarea',
+        accept: null,
+        multiple: false,
+      });
     }
     forms.push({
       action: htmlAttr('<x ' + openTag + '>', 'action'),
       method: (htmlAttr('<x ' + openTag + '>', 'method') || 'POST').toUpperCase(),
       fields,
-      fileInputCount: fields.filter((f) => f.type === 'file').length,
+      fileInputCount: fields.filter(f => f.type === 'file').length,
     });
   }
   return forms;
@@ -710,7 +815,7 @@ export function analyzeMultipartForms(htmlSource) {
 export function planMultipartProbes(formSpec) {
   if (!formSpec || typeof formSpec !== 'object') return [];
   const boundary = '----dmprobeBoundary';
-  const fileField = (formSpec.fields || []).find((f) => f.type === 'file');
+  const fileField = (formSpec.fields || []).find(f => f.type === 'file');
   const fieldName = (fileField && fileField.name) || 'file';
   const part =
     `------dmprobeBoundary\r\nContent-Disposition: form-data; name="${fieldName}"; filename="probe.txt"\r\n` +
@@ -721,7 +826,8 @@ export function planMultipartProbes(formSpec) {
       technique: 'boundary-quoting',
       contentTypeHeader: `multipart/form-data; boundary="${boundary}"`,
       bodySketch: part,
-      expectation: 'Strict parsers accept quoted boundaries; rejection indicates a naive split-based parser.',
+      expectation:
+        'Strict parsers accept quoted boundaries; rejection indicates a naive split-based parser.',
     },
     {
       label: 'lf-line-endings',
@@ -749,7 +855,8 @@ export function planMultipartProbes(formSpec) {
       technique: 'truncation',
       contentTypeHeader: `multipart/form-data; boundary=${boundary}`,
       bodySketch: part.replace(/------dmprobeBoundary--\r\n$/, ''),
-      expectation: 'Acceptance of a truncated body indicates the parser does not validate termination.',
+      expectation:
+        'Acceptance of a truncated body indicates the parser does not validate termination.',
     },
   ];
 }
@@ -762,10 +869,30 @@ const CHUNKED_PROTOCOL_HINTS = [
   // `generic: true` marks broad words (chunk, chunkSize, slice) that are shared
   // across upload libraries; they get a distance penalty so protocol-specific
   // markers (tus.Upload, Upload-Offset, resumable.js, Content-Range) win ties.
-  { protocol: 'tus', generic: false, patterns: [/\btus\b/i, /upload-offset/i, /upload-length/i, /tus-resumable/i] },
-  { protocol: 'content-range', generic: false, patterns: [/content-range/i, /x-upload-content-length/i] },
+  {
+    protocol: 'tus',
+    generic: false,
+    patterns: [/\btus\b/i, /upload-offset/i, /upload-length/i, /tus-resumable/i],
+  },
+  {
+    protocol: 'content-range',
+    generic: false,
+    patterns: [/content-range/i, /x-upload-content-length/i],
+  },
   { protocol: 'resumablejs', generic: false, patterns: [/resumable\.js/i, /resumablejs/i] },
-  { protocol: 'custom-chunked', generic: true, patterns: [/\bchunk\b/i, /chunkSize/i, /chunk-size/i, /\.slice\s*\(/, /blob\.slice/i, /upload-chunk/i, /appendChunk/i] },
+  {
+    protocol: 'custom-chunked',
+    generic: true,
+    patterns: [
+      /\bchunk\b/i,
+      /chunkSize/i,
+      /chunk-size/i,
+      /\.slice\s*\(/,
+      /blob\.slice/i,
+      /upload-chunk/i,
+      /appendChunk/i,
+    ],
+  },
 ];
 
 const URL_LITERAL_RE = /['"`](\/[A-Za-z0-9_\-./?=&%{}]+|https?:\/\/[^\s'"`]+)['"`]/g;
@@ -792,7 +919,10 @@ export function discoverChunkedUploadEndpoints(jsSource) {
     let bestDist = Infinity;
     for (const hint of CHUNKED_PROTOCOL_HINTS) {
       for (const pattern of hint.patterns) {
-        const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+        const re = new RegExp(
+          pattern.source,
+          pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g'
+        );
         let pm;
         while ((pm = re.exec(ctx)) !== null) {
           const dist = Math.abs(pm.index - urlPos) * (hint.generic ? 3 : 1);
@@ -806,7 +936,11 @@ export function discoverChunkedUploadEndpoints(jsSource) {
     }
     if (best && !seen.has(url)) {
       seen.add(url);
-      found.push({ url, protocol: best.protocol, evidence: `URL appears within 400 chars of chunked-upload indicator /${best.pattern}/.` });
+      found.push({
+        url,
+        protocol: best.protocol,
+        evidence: `URL appears within 400 chars of chunked-upload indicator /${best.pattern}/.`,
+      });
     }
   }
   return found;
@@ -817,11 +951,22 @@ export function discoverChunkedUploadEndpoints(jsSource) {
 /* ------------------------------------------------------------------ */
 
 const SIGNALING_KEYWORDS = [
-  'signal', 'signaling', 'socket.io', 'peerjs', 'peer', 'webrtc', 'rtc',
-  'RTCPeerConnection', 'datachannel', 'offer', 'answer', 'icecandidate',
+  'signal',
+  'signaling',
+  'socket.io',
+  'peerjs',
+  'peer',
+  'webrtc',
+  'rtc',
+  'RTCPeerConnection',
+  'datachannel',
+  'offer',
+  'answer',
+  'icecandidate',
 ];
 
-const WS_URL_RE = /['"`](wss?:\/\/[^\s'"`]+|https?:\/\/[^\s'"`]+\/(?:socket\.io|signal|signaling|peer)[^\s'"`]*|https?:\/\/[^\s'"`]+)['"`]/gi;
+const WS_URL_RE =
+  /['"`](wss?:\/\/[^\s'"`]+|https?:\/\/[^\s'"`]+\/(?:socket\.io|signal|signaling|peer)[^\s'"`]*|https?:\/\/[^\s'"`]+)['"`]/gi;
 
 /**
  * Extract WebRTC signaling server URLs from client JS.
@@ -842,11 +987,20 @@ export function extractSignalingUrls(jsSource) {
     const end = Math.min(jsSource.length, m.index + m[0].length + 300);
     const ctx = jsSource.slice(start, end);
     const lower = ctx.toLowerCase();
-    const keywords = SIGNALING_KEYWORDS.filter((k) => lower.includes(k.toLowerCase()));
+    const keywords = SIGNALING_KEYWORDS.filter(k => lower.includes(k.toLowerCase()));
     if (keywords.length === 0) continue;
     seen.add(url);
-    const kind = /^wss?:/i.test(url) ? 'websocket' : /socket\.io/i.test(url + ctx) ? 'socket.io' : 'http';
-    found.push({ url, kind, keywords: [...new Set(keywords)], context: ctx.slice(0, 160).replace(/\s+/g, ' ') });
+    const kind = /^wss?:/i.test(url)
+      ? 'websocket'
+      : /socket\.io/i.test(url + ctx)
+        ? 'socket.io'
+        : 'http';
+    found.push({
+      url,
+      kind,
+      keywords: [...new Set(keywords)],
+      context: ctx.slice(0, 160).replace(/\s+/g, ' '),
+    });
   }
   return found;
 }
@@ -882,8 +1036,8 @@ export function harvestIceServers(jsSource) {
       }
     }
     if (urls.length === 0) continue;
-    const stunUrls = urls.filter((u) => /^stun:/i.test(u));
-    const turnUrls = urls.filter((u) => /^turns?:/i.test(u));
+    const stunUrls = urls.filter(u => /^stun:/i.test(u));
+    const turnUrls = urls.filter(u => /^turns?:/i.test(u));
     const exposesCredentials = /credential\s*:/i.test(block) || /username\s*:/i.test(block);
     configs.push({
       urls: [...new Set(urls)],
@@ -902,7 +1056,19 @@ export function harvestIceServers(jsSource) {
 /* Idea 820 — DataChannel label cataloging                            */
 /* ------------------------------------------------------------------ */
 
-const DATACHANNEL_FEATURE_HINTS = ['chat', 'message', 'file', 'transfer', 'control', 'screen', 'video', 'audio', 'game', 'sync', 'notify'];
+const DATACHANNEL_FEATURE_HINTS = [
+  'chat',
+  'message',
+  'file',
+  'transfer',
+  'control',
+  'screen',
+  'video',
+  'audio',
+  'game',
+  'sync',
+  'notify',
+];
 
 /**
  * Catalog RTCDataChannel labels created in client JS to map P2P features.
@@ -933,12 +1099,15 @@ export function catalogDataChannelLabels(jsSource) {
         };
       }
     }
-    const ctx = jsSource.slice(Math.max(0, m.index - 200), Math.min(jsSource.length, m.index + 200)).toLowerCase();
+    const ctx = jsSource
+      .slice(Math.max(0, m.index - 200), Math.min(jsSource.length, m.index + 200))
+      .toLowerCase();
     const lowerLabel = label.toLowerCase();
     // Prefer a hint found in the label itself; fall back to surrounding context.
-    const likelyFeature = DATACHANNEL_FEATURE_HINTS.find((h) => lowerLabel.includes(h))
-      || DATACHANNEL_FEATURE_HINTS.find((h) => ctx.includes(h))
-      || null;
+    const likelyFeature =
+      DATACHANNEL_FEATURE_HINTS.find(h => lowerLabel.includes(h)) ||
+      DATACHANNEL_FEATURE_HINTS.find(h => ctx.includes(h)) ||
+      null;
     labels.push({
       label,
       options,

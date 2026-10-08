@@ -1,5 +1,5 @@
 /**
- * AgentShell — DarkMatter "Singularity" app chrome.
+ * AgentShell — Infinity AI "Singularity" app chrome.
  *
  * Top navbar: ONLY the two primary destinations — Hunt and Infinity AI
  * (+ live status pill). Per-mode LEFT SIDEBAR below it:
@@ -18,8 +18,20 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Crosshair, Sparkles, Settings, Plus, LibraryBig, Blocks, Crown,
-  UserRound, Menu, X, MessageSquare, RefreshCw, Bell, GitCompareArrows
+  Crosshair,
+  Sparkles,
+  Settings,
+  Plus,
+  LibraryBig,
+  Blocks,
+  Crown,
+  UserRound,
+  Menu,
+  X,
+  MessageSquare,
+  RefreshCw,
+  Bell,
+  GitCompareArrows,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { listJobs, listAlerts } from '../../services/api';
@@ -29,7 +41,13 @@ import './AgentShell.css';
 import './AgentShell.elegant.css';
 
 const TOP_TABS = [
-  { to: '/agent', label: 'Hunt AI', icon: Crosshair, end: true, hint: 'Autonomous bug-bounty agent' },
+  {
+    to: '/agent',
+    label: 'Hunt AI',
+    icon: Crosshair,
+    end: true,
+    hint: 'Autonomous bug-bounty agent',
+  },
   { to: '/agent/infinity', label: 'Infinity AI', icon: Sparkles, hint: 'Autonomous coding agent' },
 ];
 
@@ -37,14 +55,33 @@ export function StatusPill({ status, thinking = false }) {
   const s = String(status || 'unknown').toLowerCase();
   let label = s.charAt(0).toUpperCase() + s.slice(1);
   let cls = '';
-  if (s === 'running' && thinking) { label = 'Thinking'; cls = 'sg-pill-info'; }
-  else if (s === 'running') { label = 'Hunting'; cls = 'sg-pill-go'; }
-  else if (s === 'completed') { label = 'Done'; cls = ''; }
-  else if (s === 'queued') { label = 'Queued'; cls = 'sg-pill-info'; }
-  else if (s === 'paused') { label = 'Paused'; cls = 'sg-pill-warn'; }
-  else if (s === 'failed') { label = 'Failed'; cls = 'sg-pill-danger'; }
-  else if (s === 'cancelled') { label = 'Cancelled'; cls = ''; }
-  return <span className={`sg-pill ${cls}`}>{(s === 'running') && <span className="dot" />} {label}</span>;
+  if (s === 'running' && thinking) {
+    label = 'Thinking';
+    cls = 'sg-pill-info';
+  } else if (s === 'running') {
+    label = 'Hunting';
+    cls = 'sg-pill-go';
+  } else if (s === 'completed') {
+    label = 'Done';
+    cls = '';
+  } else if (s === 'queued') {
+    label = 'Queued';
+    cls = 'sg-pill-info';
+  } else if (s === 'paused') {
+    label = 'Paused';
+    cls = 'sg-pill-warn';
+  } else if (s === 'failed') {
+    label = 'Failed';
+    cls = 'sg-pill-danger';
+  } else if (s === 'cancelled') {
+    label = 'Cancelled';
+    cls = '';
+  }
+  return (
+    <span className={`sg-pill ${cls}`}>
+      {s === 'running' && <span className="dot" />} {label}
+    </span>
+  );
 }
 
 function useLiveStats() {
@@ -56,12 +93,17 @@ function useLiveStats() {
         const jobsBody = await listJobs({ status: 'running', limit: 50 }).catch(() => null);
         if (cancelled) return;
         const jobs = jobsBody?.jobs || [];
-        setRunning(jobs.filter((j) => String(j.status).toLowerCase() === 'running').length);
-      } catch { /* degrades silently */ }
+        setRunning(jobs.filter(j => String(j.status).toLowerCase() === 'running').length);
+      } catch {
+        /* degrades silently */
+      }
     };
     poll();
     const id = setInterval(poll, 30000);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
   return { running };
 }
@@ -109,14 +151,23 @@ function HuntHistory({ onNavigate, refreshKey }) {
   const [jobs, setJobs] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    listJobs().then((body) => {
-      if (cancelled) return;
-      const list = (body?.jobs || []).slice().sort(
-        (a, b) => new Date(b.updatedAt || b.startedAt || 0) - new Date(a.updatedAt || a.startedAt || 0)
-      );
-      setJobs(list.slice(0, 15));
-    }).catch(() => { if (!cancelled) setJobs([]); });
-    return () => { cancelled = true; };
+    listJobs()
+      .then(body => {
+        if (cancelled) return;
+        const list = (body?.jobs || [])
+          .slice()
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt || b.startedAt || 0) - new Date(a.updatedAt || a.startedAt || 0)
+          );
+        setJobs(list.slice(0, 15));
+      })
+      .catch(() => {
+        if (!cancelled) setJobs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   if (jobs === null) {
@@ -127,7 +178,7 @@ function HuntHistory({ onNavigate, refreshKey }) {
   }
   return (
     <ul className="sg-side-list">
-      {jobs.map((job) => {
+      {jobs.map(job => {
         const status = String(job.status || 'unknown').toLowerCase();
         return (
           <li key={job.id}>
@@ -138,7 +189,8 @@ function HuntHistory({ onNavigate, refreshKey }) {
                   {job.target || 'Untitled hunt'}
                 </span>
                 <span className="sg-side-hist-meta">
-                  {status}{job.findingsCount ? ` · ${job.findingsCount} findings` : ''}
+                  {status}
+                  {job.findingsCount ? ` · ${job.findingsCount} findings` : ''}
                   {job.startedAt ? ` · ${timeAgo(job.startedAt)}` : ''}
                 </span>
               </span>
@@ -166,7 +218,7 @@ function ChatHistory({ onNavigate, refreshKey }) {
   }
   return (
     <ul className="sg-side-list">
-      {convs.map((c) => (
+      {convs.map(c => (
         <li key={c.id}>
           <Link
             to="/agent/infinity"
@@ -176,8 +228,13 @@ function ChatHistory({ onNavigate, refreshKey }) {
           >
             <MessageSquare size={14} className="sg-side-hist-icon" />
             <span className="sg-side-hist-main">
-              <span className="sg-side-hist-target" title={c.title}>{c.title}</span>
-              <span className="sg-side-hist-meta">{c.mode}{c.updatedAt ? ` · ${timeAgo(c.updatedAt)}` : ''}</span>
+              <span className="sg-side-hist-target" title={c.title}>
+                {c.title}
+              </span>
+              <span className="sg-side-hist-meta">
+                {c.mode}
+                {c.updatedAt ? ` · ${timeAgo(c.updatedAt)}` : ''}
+              </span>
             </span>
           </Link>
         </li>
@@ -207,12 +264,17 @@ function useUnreadAlerts() {
         const body = await listAlerts(true).catch(() => null);
         if (cancelled) return;
         const alerts = body?.alerts || [];
-        setUnread(alerts.filter((a) => !a.read).length);
-      } catch { /* degrades silently */ }
+        setUnread(alerts.filter(a => !a.read).length);
+      } catch {
+        /* degrades silently */
+      }
     };
     poll();
     const id = setInterval(poll, 30000);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
   return unread;
 }
@@ -227,8 +289,8 @@ export function AgentShell({ children }) {
   const [sidebarClosed, setSidebarClosed] = useState(false);
   const [histTick, setHistTick] = useState(0);
 
-  const isInfinity = location.pathname === '/agent/infinity' ||
-    location.pathname.startsWith('/agent/infinity/');
+  const isInfinity =
+    location.pathname === '/agent/infinity' || location.pathname.startsWith('/agent/infinity/');
   const refreshKey = `${location.pathname}${location.key}:${histTick}`;
 
   // Close the drawer on every navigation.
@@ -239,18 +301,29 @@ export function AgentShell({ children }) {
   // Lock body scroll while the drawer is open on mobile.
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [drawerOpen]);
 
   // Keyboard shortcuts: Alt+1 Hunt, Alt+2 Infinity AI, Esc closes the drawer.
   // Never hijack keys while the user is typing.
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') { setDrawerOpen(false); return; }
+    const onKey = e => {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+        return;
+      }
       const tag = (e.target?.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
-      if (e.altKey && e.key === '1') { e.preventDefault(); navigate('/agent'); }
-      if (e.altKey && e.key === '2') { e.preventDefault(); navigate('/agent/infinity'); }
+      if (e.altKey && e.key === '1') {
+        e.preventDefault();
+        navigate('/agent');
+      }
+      if (e.altKey && e.key === '2') {
+        e.preventDefault();
+        navigate('/agent/infinity');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -271,7 +344,10 @@ export function AgentShell({ children }) {
   ];
   const infinityLinks = [
     {
-      to: '/agent/infinity', label: 'New Chat', icon: Plus, primary: true,
+      to: '/agent/infinity',
+      label: 'New Chat',
+      icon: Plus,
+      primary: true,
       state: { fresh: Date.now() },
     },
     { to: '/agent/library', label: 'Library', icon: LibraryBig },
@@ -289,25 +365,30 @@ export function AgentShell({ children }) {
       </div>
 
       <nav className="sg-side-nav" aria-label={isInfinity ? 'Infinity AI' : 'Hunt AI'}>
-        {modeLinks.map(({ to, label, icon: Icon, end, primary, state }) => (
+        {modeLinks.map(({ to, label, icon: Icon, end, primary, state }) =>
           primary ? (
             <button
               key={label}
               className="sg-side-new"
-              onClick={() => { navigate(to, state ? { state } : undefined); closeDrawer(); }}
+              onClick={() => {
+                navigate(to, state ? { state } : undefined);
+                closeDrawer();
+              }}
             >
               <Icon size={16} strokeWidth={2.2} /> {label}
             </button>
           ) : (
             <NavLink
-              key={to} to={to} end={end}
+              key={to}
+              to={to}
+              end={end}
               onClick={closeDrawer}
               className={({ isActive }) => `sg-side-item${isActive ? ' active' : ''}`}
             >
               <Icon size={17} strokeWidth={1.9} /> <span>{label}</span>
             </NavLink>
           )
-        ))}
+        )}
       </nav>
 
       <SidebarSection
@@ -315,7 +396,7 @@ export function AgentShell({ children }) {
         action={
           <button
             className="sg-side-refresh"
-            onClick={() => setHistTick((t) => t + 1)}
+            onClick={() => setHistTick(t => t + 1)}
             title="Refresh list"
             aria-label="Refresh list"
           >
@@ -323,9 +404,11 @@ export function AgentShell({ children }) {
           </button>
         }
       >
-        {isInfinity
-          ? <ChatHistory onNavigate={closeDrawer} refreshKey={refreshKey} />
-          : <HuntHistory onNavigate={closeDrawer} refreshKey={refreshKey} />}
+        {isInfinity ? (
+          <ChatHistory onNavigate={closeDrawer} refreshKey={refreshKey} />
+        ) : (
+          <HuntHistory onNavigate={closeDrawer} refreshKey={refreshKey} />
+        )}
         {!isInfinity && (
           <Link to="/agent/compare" className="sg-side-compare" onClick={closeDrawer}>
             <GitCompareArrows size={14} /> Compare hunts
@@ -335,25 +418,32 @@ export function AgentShell({ children }) {
 
       <div className="sg-side-foot">
         <NavLink
-          to="/agent/premium" onClick={closeDrawer}
+          to="/agent/premium"
+          onClick={closeDrawer}
           className={({ isActive }) => `sg-side-item sg-side-premium${isActive ? ' active' : ''}`}
         >
           <Crown size={17} strokeWidth={1.9} /> <span>Premium</span>
         </NavLink>
         <NavLink
-          to="/agent/settings" onClick={closeDrawer}
+          to="/agent/settings"
+          onClick={closeDrawer}
           className={({ isActive }) => `sg-side-item${isActive ? ' active' : ''}`}
         >
           <Settings size={17} strokeWidth={1.9} /> <span>Settings</span>
         </NavLink>
         <NavLink
-          to="/agent/account" onClick={closeDrawer}
+          to="/agent/account"
+          onClick={closeDrawer}
           className={({ isActive }) => `sg-side-item${isActive ? ' active' : ''}`}
         >
           <UserRound size={17} strokeWidth={1.9} /> <span>Account</span>
         </NavLink>
-        <button className="sg-side-signout" onClick={logout}>Sign out</button>
-        <div className="sg-side-hint" title="Keyboard shortcuts">Alt+1 Hunt AI · Alt+2 Infinity AI</div>
+        <button className="sg-side-signout" onClick={logout}>
+          Sign out
+        </button>
+        <div className="sg-side-hint" title="Keyboard shortcuts">
+          Alt+1 Hunt AI · Alt+2 Infinity AI
+        </div>
       </div>
     </div>
   );
@@ -366,11 +456,15 @@ export function AgentShell({ children }) {
         onClick={closeDrawer}
         aria-hidden="true"
       />
-      <aside id="sg-sidebar" className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`} aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt AI menu'}>
+      <aside
+        id="sg-sidebar"
+        className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`}
+        aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt AI menu'}
+      >
         {sidebar}
       </aside>
 
-        <main className="sg-main">
+      <main className="sg-main">
         {/* Top navbar — ONLY the two primary destinations. */}
         <header className="sg-topbar">
           <div className="sg-topbar-left">
@@ -398,7 +492,10 @@ export function AgentShell({ children }) {
             <nav className="sg-tabs" aria-label="Primary">
               {TOP_TABS.map(({ to, label, icon: Icon, end, hint }) => (
                 <NavLink
-                  key={to} to={to} end={end} title={hint}
+                  key={to}
+                  to={to}
+                  end={end}
+                  title={hint}
                   className={({ isActive }) => `sg-tab${isActive ? ' active' : ''}`}
                 >
                   <Icon size={16} strokeWidth={2} />
@@ -410,7 +507,9 @@ export function AgentShell({ children }) {
           </div>
           <div className="sg-topbar-right">
             <Link
-              to="/agent/alerts" className="sg-bell" title="Alerts"
+              to="/agent/alerts"
+              className="sg-bell"
+              title="Alerts"
               aria-label={`Alerts${unread > 0 ? `, ${unread} unread` : ''}`}
             >
               <Bell size={18} strokeWidth={1.9} />
