@@ -11,6 +11,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Brain, Package, Plug, ArrowRight } from 'lucide-react';
+import './Plugins.css';
 
 const FAMILIES = [
   {
@@ -68,66 +69,39 @@ export function Plugins() {
           {FAMILIES.map((f) => (
             <article
               key={f.id}
-              className="dm-card"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                opacity: f.disabled ? 0.72 : 1,
-              }}
+              className={`dm-card plugins-card${f.disabled ? ' plugins-card-disabled' : ''}`}
+              aria-labelledby={`plugins-${f.id}-name`}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 'var(--dm-4)',
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 44,
-                    height: 44,
-                    borderRadius: 'var(--dm-r)',
-                    background: 'var(--dm-surface-2)',
-                    border: '1px solid var(--dm-border)',
-                    color: 'var(--dm-gold-soft)',
-                  }}
-                >
+              <div className="plugins-card-head">
+                <span className="plugins-icon" aria-hidden="true">
                   <f.icon size={22} />
                 </span>
                 <span className={`dm-badge ${f.status === 'Live' ? 'dm-badge-green' : ''}`}>
                   {f.status}
                 </span>
               </div>
-              <h3 className="dm-card-title">{f.name}</h3>
-              <p className="dm-card-sub" style={{ marginBottom: 'var(--dm-2)' }}>
+              <h3 className="dm-card-title" id={`plugins-${f.id}-name`}>{f.name}</h3>
+              <p className="dm-card-sub plugins-tagline">
                 {f.tagline}
               </p>
-              <p
-                className="dm-muted"
-                style={{
-                  fontSize: 'var(--dm-text-sm)',
-                  lineHeight: 1.6,
-                  margin: '0 0 var(--dm-6)',
-                  flex: 1,
-                }}
-              >
+              <p className="dm-muted plugins-desc">
                 {f.description}
               </p>
               {f.to ? (
                 <Link
                   to={f.to}
-                  className="dm-btn dm-btn-secondary"
+                  className="dm-btn dm-btn-secondary plugins-cta"
                   aria-label={`${f.cta} — ${f.name}`}
                 >
                   {f.cta} <ArrowRight size={15} aria-hidden="true" />
                 </Link>
               ) : (
-                <button className="dm-btn dm-btn-ghost" disabled title="Coming soon">
+                <button
+                  className="dm-btn dm-btn-ghost plugins-cta"
+                  disabled
+                  title="Coming soon"
+                  aria-label={`${f.name} — coming soon`}
+                >
                   {f.cta}
                 </button>
               )}
