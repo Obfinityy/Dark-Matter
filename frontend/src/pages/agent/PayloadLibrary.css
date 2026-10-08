@@ -1,0 +1,109 @@
+/* PayloadLibrary — extracted component styles (polish pass, round 5).
+ *
+ * Previously every visual detail here lived in inline style={} props.
+ * Moving them into classes keeps the design tokens in one place and the
+ * JSX readable, with no visual or behavioural change.
+ */
+
+/* ── Alert notices (auth-expired / backend-down) ─────────────────────────── */
+.dm-pl-notice {
+  margin-bottom: var(--dm-4);
+}
+
+.dm-pl-notice-alert {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.dm-pl-notice-title {
+  display: block;
+  margin-bottom: var(--dm-1);
+}
+
+.dm-pl-notice-text {
+  margin: 0 0 var(--dm-3);
+  font-size: var(--dm-text-sm);
+}
+
+/* ── Stat cards ──────────────────────────────────────────────────────────── */
+.dm-pl-stats {
+  margin-bottom: var(--dm-4);
+}
+
+.dm-pl-stat-value {
+  font-size: var(--dm-text-2xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dm-pl-stat-label {
+  font-size: var(--dm-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Filter row ──────────────────────────────────────────────────────────── */
+.dm-pl-filters {
+  margin-bottom: var(--dm-4);
+}
+
+.dm-pl-filters-row {
+  display: flex;
+  gap: var(--dm-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.dm-pl-filter-icon {
+  padding-bottom: 12px;
+  flex: 0 0 auto;
+}
+
+.dm-pl-filter-field {
+  margin-bottom: 0;
+  flex: 1 1 160px;
+}
+
+.dm-pl-filters .dm-btn {
+  min-height: 44px;
+}
+
+/* ── Result count line (announced via aria-live on the element) ───────────── */
+.dm-pl-result-count {
+  font-size: var(--dm-text-sm);
+  margin: 0 0 var(--dm-4);
+}
+
+/* ── Payload leaderboard list ────────────────────────────────────────────── */
+.dm-pl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dm-pl-rank {
+  font-size: var(--dm-text-sm);
+  font-weight: 700;
+  min-width: 40px;
+  color: var(--dm-gold-soft);
+  flex: 0 0 auto;
+}
+
+.dm-pl-code {
+  display: block;
+  font-size: var(--dm-text-sm);
+  color: var(--dm-text);
+  word-break: break-all;
+  margin: 0 0 4px;
+  font-family: var(--dm-font-mono, monospace);
+}
+
+.dm-pl-meta {
+  display: flex;
+  gap: var(--dm-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.dm-pl-meta-text {
+  font-size: var(--dm-text-xs);
+}

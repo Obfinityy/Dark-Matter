@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Loader2, TrendingUp, Filter, Unplug, ShieldCheck } from 'lucide-react';
+import './PayloadLibrary.css';
 import { listPayloads, getPayloadLibraryStats, tryApi } from '../../services/api';
 import {
   getApiBase, getBackendUrl
@@ -61,7 +62,7 @@ export function PayloadLibrary() {
           </header>
           <div className="dm-notice" role="status" aria-label="Loading payload library">
             <span className="dm-notice-icon" aria-hidden="true">
-              <Loader2 size={18} style={{ animation: 'none' }} />
+              <Loader2 size={18} aria-hidden="true" className="sg-spin" />
             </span>
             Loading the payload library…
           </div>
@@ -81,13 +82,13 @@ export function PayloadLibrary() {
         </header>
 
         {authExpired && (
-          <div className="dm-notice" role="alert" style={{ marginBottom: 'var(--dm-4)', borderColor: 'rgba(248, 113, 113, 0.35)' }}>
+          <div className="dm-notice dm-pl-notice dm-pl-notice-alert" role="alert">
             <span className="dm-notice-icon" aria-hidden="true"><ShieldCheck size={18} /></span>
             <div>
-              <strong className="dm-text-2" style={{ display: 'block', marginBottom: 'var(--dm-1)' }}>
+              <strong className="dm-text-2 dm-pl-notice-title">
                 Session expired
               </strong>
-              <p style={{ margin: '0 0 var(--dm-3)', fontSize: 'var(--dm-text-sm)' }}>
+              <p className="dm-pl-notice-text">
                 Your sign-in has expired. Please sign in again to load the payload library.
               </p>
               <button
@@ -101,13 +102,13 @@ export function PayloadLibrary() {
         )}
 
         {backendDown && !authExpired && (
-          <div className="dm-notice" role="alert" style={{ marginBottom: 'var(--dm-4)', borderColor: 'rgba(248, 113, 113, 0.35)' }}>
+          <div className="dm-notice dm-pl-notice dm-pl-notice-alert" role="alert">
             <span className="dm-notice-icon" aria-hidden="true"><Unplug size={18} /></span>
             <div>
-              <strong className="dm-text-2" style={{ display: 'block', marginBottom: 'var(--dm-1)' }}>
+              <strong className="dm-text-2 dm-pl-notice-title">
                 Backend unreachable
               </strong>
-              <p style={{ margin: '0 0 var(--dm-3)', fontSize: 'var(--dm-text-sm)' }}>
+              <p className="dm-pl-notice-text">
                 Payloads can't load because the backend isn't responding at{' '}
                 <code>{getApiBase()}</code>.{' '}
                 The backend is <code>{getBackendUrl()}</code> — set <code>VITE_BACKEND_URL</code> in{' '}
@@ -124,55 +125,48 @@ export function PayloadLibrary() {
         )}
 
         {stats && (
-          <div className="dm-grid-4" aria-label="Library statistics" style={{ marginBottom: 'var(--dm-4)' }}>
+          <div className="dm-grid-4 dm-pl-stats" aria-label="Library statistics">
             <div className="dm-card dm-center">
-              <div style={{ fontSize: 'var(--dm-text-2xl)', fontWeight: 700 }}>
+              <div className="dm-pl-stat-value">
                 {stats.totalPayloads ?? payloads.length}
               </div>
-              <div className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div className="dm-muted dm-pl-stat-label">
                 payloads
               </div>
             </div>
             <div className="dm-card dm-center">
-              <div style={{ fontSize: 'var(--dm-text-2xl)', fontWeight: 700 }}>
+              <div className="dm-pl-stat-value">
                 {stats.totalAttempts ?? '—'}
               </div>
-              <div className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div className="dm-muted dm-pl-stat-label">
                 attempts
               </div>
             </div>
             <div className="dm-card dm-center">
-              <div style={{ fontSize: 'var(--dm-text-2xl)', fontWeight: 700 }}>
+              <div className="dm-pl-stat-value">
                 {stats.successRate != null ? `${Math.round(stats.successRate * 100)}%` : '—'}
               </div>
-              <div className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div className="dm-muted dm-pl-stat-label">
                 success rate
               </div>
             </div>
             <div className="dm-card dm-center">
-              <div style={{ fontSize: 'var(--dm-text-2xl)', fontWeight: 700 }}>
+              <div className="dm-pl-stat-value">
                 {stats.techniques ?? '—'}
               </div>
-              <div className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div className="dm-muted dm-pl-stat-label">
                 techniques
               </div>
             </div>
           </div>
         )}
 
-        <div className="dm-card" role="search" style={{ marginBottom: 'var(--dm-4)' }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: 'var(--dm-3)',
-              alignItems: 'flex-end',
-              flexWrap: 'wrap',
-            }}
-          >
-            <span className="dm-muted" aria-hidden="true" style={{ paddingBottom: 12 }}>
+        <div className="dm-card dm-pl-filters" role="search">
+          <div className="dm-pl-filters-row">
+            <span className="dm-muted dm-pl-filter-icon" aria-hidden="true">
               <Filter size={16} />
             </span>
-            <div className="dm-field" style={{ marginBottom: 0, flex: '1 1 160px' }}>
+            <div className="dm-field dm-pl-filter-field">
               <label className="dm-label" htmlFor="payload-filter-technique">Technique</label>
               <input
                 id="payload-filter-technique"
@@ -182,13 +176,12 @@ export function PayloadLibrary() {
                 value={technique}
                 onChange={(e) => setTechnique(e.target.value)}
                 placeholder="e.g. xss"
-                aria-label="Filter by technique"
               />
               <datalist id="payload-techniques">
                 {techniqueOptions.map((t) => <option key={t} value={t} />)}
               </datalist>
             </div>
-            <div className="dm-field" style={{ marginBottom: 0, flex: '1 1 160px' }}>
+            <div className="dm-field dm-pl-filter-field">
               <label className="dm-label" htmlFor="payload-filter-category">Category</label>
               <input
                 id="payload-filter-category"
@@ -197,14 +190,13 @@ export function PayloadLibrary() {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. web"
-                aria-label="Filter by category"
               />
             </div>
             <button className="dm-btn dm-btn-secondary" onClick={refresh}>Apply</button>
           </div>
         </div>
 
-        <p className="dm-muted" role="status" aria-live="polite" style={{ fontSize: 'var(--dm-text-sm)', margin: '0 0 var(--dm-4)' }}>
+        <p className="dm-muted dm-pl-result-count" role="status" aria-live="polite">
           {payloads.length === 0
             ? 'No payloads to show'
             : `Showing ${payloads.length} payload${payloads.length === 1 ? '' : 's'}${filterLabel ? ` matching ${filterLabel}` : ''}`}
@@ -217,39 +209,22 @@ export function PayloadLibrary() {
             <p className="dm-empty-sub">No payloads recorded yet — the library learns as the agent hunts.</p>
           </div>
         ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Top payloads by success rate">
+          <ul className="dm-pl-list" aria-label="Top payloads by success rate">
             {payloads.map((payload, i) => {
               const rate = payload.successRate != null ? Math.round(payload.successRate * 100) : null;
               return (
                 <li key={payload.id || i} className="dm-row">
-                  <span
-                    className="dm-muted"
-                    aria-hidden="true"
-                    style={{
-                      fontSize: 'var(--dm-text-sm)',
-                      fontWeight: 700,
-                      minWidth: 40,
-                      color: 'var(--dm-gold-soft)',
-                    }}
-                  >
+                  <span className="dm-muted dm-pl-rank" aria-hidden="true">
                     #{i + 1}
                   </span>
                   <div className="dm-row-main">
-                    <code
-                      style={{
-                        display: 'block',
-                        fontSize: 'var(--dm-text-sm)',
-                        color: 'var(--dm-text)',
-                        wordBreak: 'break-all',
-                        marginBottom: 4,
-                      }}
-                    >
+                    <code className="dm-pl-code">
                       {payload.payload || payload.value}
                     </code>
-                    <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div className="dm-pl-meta">
                       {payload.technique && <span className="dm-badge">{payload.technique}</span>}
                       {payload.category && (
-                        <span className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)' }}>
+                        <span className="dm-muted dm-pl-meta-text">
                           {payload.category}
                         </span>
                       )}
@@ -262,7 +237,7 @@ export function PayloadLibrary() {
                         </span>
                       )}
                       {payload.uses != null && (
-                        <span className="dm-muted" style={{ fontSize: 'var(--dm-text-xs)' }}>
+                        <span className="dm-muted dm-pl-meta-text">
                           {payload.uses} uses
                         </span>
                       )}
