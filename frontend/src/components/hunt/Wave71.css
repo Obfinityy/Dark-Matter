@@ -1,0 +1,157 @@
+/**
+ * Wave71.css — Infinity AI · Dark-Matter · Wave 71
+ * Scoped styles for the bulk actions round 2 gallery
+ * (w71a-) and the round 3 plus post-hunt Q&A gallery (w71b-).
+ * Static layout only. No globals, no override hacks.
+ */
+
+.w71a-gallery,
+.w71b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w71a-card,
+.w71b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w71a-title,
+.w71b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w71a-note,
+.w71b-note {
+  font-size: 11px;
+  color: #8b93a7;
+  margin-bottom: 8px;
+}
+
+.w71a-subject,
+.w71b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #c7cde0;
+  margin-bottom: 8px;
+}
+
+.w71a-kv,
+.w71b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid #1f2430;
+}
+
+.w71a-kv:last-child,
+.w71b-kv:last-child {
+  border-bottom: none;
+}
+
+.w71a-k,
+.w71b-k {
+  color: #8b93a7;
+}
+
+.w71a-v,
+.w71b-v {
+  color: #d5dae7;
+  text-align: right;
+  word-break: break-word;
+}
+
+.w71a-row,
+.w71b-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.w71a-badge,
+.w71b-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a3348;
+  color: #c7cde0;
+  white-space: nowrap;
+}
+
+.w71a-badge-danger,
+.w71b-badge-danger {
+  background: #4c1d1d;
+  color: #fca5a5;
+}
+
+.w71a-badge-warn,
+.w71b-badge-warn {
+  background: #4a3418;
+  color: #fcd34d;
+}
+
+.w71a-badge-ok,
+.w71b-badge-ok {
+  background: #134e2a;
+  color: #86efac;
+}
+
+.w71a-badge-info,
+.w71b-badge-info {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.w71a-presig,
+.w71b-presig {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #aab2c8;
+  background: #0f1320;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.w71a-link,
+.w71b-link {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #93c5fd;
+  background: #0f1320;
+  padding: 6px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+  margin-top: 8px;
+}
+
+.w71a-bar,
+.w71b-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #1f2430;
+  margin-top: 8px;
+}
+
+.w71a-bar-fill,
+.w71b-bar-fill {
+  height: 8px;
+  border-radius: 999px;
+  background: #3b82f6;
+}
