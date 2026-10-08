@@ -74,7 +74,7 @@ GET  /api/v1/computer-tasks            # Control mode tasks
 POST /api/v1/computer-tasks            # Create control task
 GET  /api/v1/computer-tasks/:id/events # SSE event stream (?accessToken=)
 POST /api/v1/jobs                      # Start bug bounty hunt
-POST /api/v1/jobs/:id/ask              # Mid-hunt chat ("kya kar raha hai?")
+POST /api/v1/jobs/:id/ask              # Mid-hunt chat ("what are you doing?")
 GET  /api/v1/infinite/chat             # Infinity AI chat
 GET  /api/v1/voice/health              # Infinity Voice status
 GET  /api/v1/voice/voices              # Available voices (aria, aria2, kai, kai2)

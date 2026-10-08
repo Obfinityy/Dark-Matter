@@ -13,15 +13,16 @@
  *  - when the hunt hasn't started or data is missing, the reply says so
  *    plainly instead of guessing.
  *
- * The reply language is warm Hinglish-friendly plain language (Roman script),
- * like a friendly assistant — never robotic. Intent detection understands
- * both Hinglish ("kya kar raha hai?") and English ("what are you doing?").
+ * The reply language is warm, Hinglish-friendly plain language (Roman
+ * script), like a friendly assistant — never robotic. Intent detection
+ * understands both Hinglish and English phrasings of the same question.
  */
 
 import { sortFindingsCriticalFirst } from './huntDiary.js';
 
 // ── Intent detection ──────────────────────────────────────────────────────
-// Ordered: more specific intents first ("band kar de" must beat "kyun ruka").
+// Ordered: more specific intents first (a "stop" command must beat a
+// "why did it stop" question).
 
 const INTENT_RULES = [
   // destructive command — answered with guidance, never executed from chat

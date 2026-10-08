@@ -55,7 +55,7 @@ export function classifyComputerInstruction(message, latestTask = null) {
       text
     );
   // Bare math ("25*25") opens the calculator — but NOT when the message is a
-  // *question* about math ("2+2 kitna hota hai?"). Those go to chat.
+  // *question* about math ("what is 2+2?"). Those go to chat.
   const isMathQuestion =
     /[?？]/.test(text) ||
     /\b(kitna|kya|kaise|what|how|why|kyun|explain|batao|bataye)\b/i.test(text);
