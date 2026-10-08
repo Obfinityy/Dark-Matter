@@ -1,0 +1,150 @@
+/* ════════════════ POLISH PASS — AgentCharacter (dm-* migration) ════════════════
+ * The agent's visible presence: a hexagonal core with orbiting rings.
+ * Idle  → breathes slowly.  Working → rings spin, telemetry dots pulse.
+ * Listening → gold glow pulse. All motion honors prefers-reduced-motion.
+ * Migrated from the legacy sg-* classes to the dm-* elegant system. */
+
+.dm-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--dm-2);
+  padding: var(--dm-4) var(--dm-3) var(--dm-3);
+  margin-bottom: var(--dm-3);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--dm-border-soft);
+  border-radius: var(--dm-r-lg);
+  animation: dm-polish-in 0.45s ease backwards;
+}
+
+.dm-char-svg {
+  width: 104px;
+  height: 104px;
+  color: var(--dm-muted);
+  transition: color 0.3s ease;
+}
+
+/* Idle: slow breathe on the whole figure. */
+.dm-char.idle .dm-char-svg {
+  animation: dm-char-breathe 4.5s ease-in-out infinite;
+}
+
+@keyframes dm-char-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.045); }
+}
+
+/* Working: gold figure, orbiting rings spin, telemetry dots pulse. */
+.dm-char.working .dm-char-svg {
+  color: var(--dm-gold);
+}
+.dm-char-orbit {
+  transform-origin: 60px 60px;
+}
+.dm-char.working .dm-char-orbit-outer {
+  animation: dm-char-spin 3.2s linear infinite;
+}
+.dm-char.working .dm-char-orbit-inner {
+  animation: dm-char-spin 5s linear infinite reverse;
+}
+@keyframes dm-char-spin {
+  to { transform: rotate(360deg); }
+}
+
+.dm-char-core-glow {
+  transform-origin: 60px 60px;
+}
+.dm-char.working .dm-char-core-glow {
+  animation: dm-char-breathe 2.4s ease-in-out infinite;
+}
+
+.dm-char-core-hex {
+  transform-origin: 60px 60px;
+}
+
+.dm-char-tdot {
+  opacity: 0.18;
+}
+.dm-char.working .dm-char-tdot {
+  animation: dm-char-tdot-pulse 1.2s ease-in-out infinite;
+}
+.dm-char.working .dm-char-tdot-2 {
+  animation-delay: 0.2s;
+}
+.dm-char.working .dm-char-tdot-3 {
+  animation-delay: 0.4s;
+}
+@keyframes dm-char-tdot-pulse {
+  0%, 100% { opacity: 0.18; }
+  50%      { opacity: 1; }
+}
+
+/* Listening: gold glow pulse around the core. */
+.dm-char.listening .dm-char-svg {
+  color: var(--dm-gold-soft);
+}
+.dm-char.listening .dm-char-core-glow {
+  animation: dm-char-glow-pulse 1.6s ease-in-out infinite;
+}
+@keyframes dm-char-glow-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.08); }
+}
+
+/* ── Status label ── */
+.dm-char-label {
+  display: flex;
+  justify-content: center;
+}
+.dm-char-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dm-2);
+  font-size: var(--dm-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--dm-muted);
+}
+.dm-char-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--dm-r-full);
+  background: var(--dm-muted);
+  flex-shrink: 0;
+}
+.dm-char-state.on {
+  color: var(--dm-text);
+}
+.dm-char-state.on .dm-char-live-dot {
+  background: var(--dm-green);
+  animation: dm-char-livedot 1.8s ease-in-out infinite;
+}
+@keyframes dm-char-livedot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
+  50%      { box-shadow: 0 0 10px 2px rgba(52, 211, 153, 0.7); }
+}
+.dm-char-state.listening {
+  color: var(--dm-gold-soft);
+}
+.dm-char-state.listening .dm-char-live-dot {
+  background: var(--dm-gold-soft);
+}
+
+/* ── Reduced motion: calm everything down ── */
+@media (prefers-reduced-motion: reduce) {
+  .dm-char,
+  .dm-char-svg,
+  .dm-char-orbit,
+  .dm-char-core-glow,
+  .dm-char-core-hex,
+  .dm-char-tdot,
+  .dm-char-live-dot {
+    animation: none !important;
+  }
+  .dm-char,
+  .dm-char-svg {
+    opacity: 1;
+    transform: none;
+  }
+}

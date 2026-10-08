@@ -5,6 +5,7 @@
  * Part of: Infinity AI / Dark-Matter frontend (pages).
  */
 import React from 'react';
+import './AgentCharacter.css';
 
 /**
  * AgentCharacter — the visible presence of the hunting agent.
@@ -15,13 +16,13 @@ export function AgentCharacter({ active = false, listening = false, status = 'Id
   const accessibleStatus = listening ? `${status} — listening` : status;
   return (
     <div
-      className={`sg-agent-char${active ? ' working' : ' idle'}${listening ? ' listening' : ''}`}
+      className={`dm-char${active ? ' working' : ' idle'}${listening ? ' listening' : ''}`}
       role="status"
       aria-label={`Agent status: ${accessibleStatus}`}
     >
-      <svg className="sg-agent-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+      <svg className="dm-char-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
         <circle
-          className="sg-orbit sg-orbit-outer"
+          className="dm-char-orbit dm-char-orbit-outer"
           cx="60"
           cy="60"
           r="52"
@@ -32,7 +33,7 @@ export function AgentCharacter({ active = false, listening = false, status = 'Id
           opacity="0.35"
         />
         <circle
-          className="sg-orbit sg-orbit-inner"
+          className="dm-char-orbit dm-char-orbit-inner"
           cx="60"
           cy="60"
           r="42"
@@ -42,11 +43,11 @@ export function AgentCharacter({ active = false, listening = false, status = 'Id
           strokeDasharray="4 10"
           opacity="0.25"
         />
-        <g className="sg-core-glow">
+        <g className="dm-char-core-glow">
           <circle cx="60" cy="60" r="26" fill="currentColor" opacity="0.12" />
         </g>
         <polygon
-          className="sg-core-hex"
+          className="dm-char-core-hex"
           points="60,38 79,49 79,71 60,82 41,71 41,49"
           fill="none"
           stroke="currentColor"
@@ -54,15 +55,14 @@ export function AgentCharacter({ active = false, listening = false, status = 'Id
         />
         <circle cx="60" cy="60" r="6" fill="currentColor" opacity="0.9" />
         <g fill="currentColor">
-          <circle className="sg-tdot sg-tdot-1" cx="48" cy="96" r="2.5" />
-          <circle className="sg-tdot sg-tdot-2" cx="60" cy="96" r="2.5" />
-          <circle className="sg-tdot sg-tdot-3" cx="72" cy="96" r="2.5" />
+          <circle className="dm-char-tdot dm-char-tdot-1" cx="48" cy="96" r="2.5" />
+          <circle className="dm-char-tdot dm-char-tdot-2" cx="60" cy="96" r="2.5" />
+          <circle className="dm-char-tdot dm-char-tdot-3" cx="72" cy="96" r="2.5" />
         </g>
       </svg>
-      <div className="sg-agent-char-label">
-        <span className={`sg-agent-state${active ? ' on' : ''}${listening ? ' listening' : ''}`}>
-          <span className="visually-hidden">Agent status: </span>
-          <span className="sg-live-dot" aria-hidden="true" />
+      <div className="dm-char-label">
+        <span className={`dm-char-state${active ? ' on' : ''}${listening ? ' listening' : ''}`}>
+          <span className="dm-char-live-dot" aria-hidden="true" />
           {status}
         </span>
       </div>
