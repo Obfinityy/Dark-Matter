@@ -39,8 +39,8 @@ function Gate({ children }) {
   if (loading) {
     return (
       <div className="dm-auth-page">
-        <div className="dm-page-loading" role="status" aria-label="Signing in">
-          <Loader2 size={18} className="dm-spin" aria-hidden="true" /> Signing you in…
+        <div className="dm-page-loading" role="status">
+          <Loader2 size={18} className="sg-spin" aria-hidden="true" /> Signing you in…
         </div>
       </div>
     );

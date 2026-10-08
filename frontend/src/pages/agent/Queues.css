@@ -1,0 +1,46 @@
+/* Queues — extracted component styles (polish pass, round 5).
+ *
+ * The .dm-queues wrapper class was previously undefined; it now owns the
+ * page's vertical rhythm, and the header gets a proper title + action row
+ * so the "Scheduled hunts" link sits beside the heading instead of
+ * dangling below it.
+ */
+
+/* ── Page container (rendered inside AgentConsole's .dm-page) ─────────────── */
+.dm-queues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dm-4);
+}
+
+/* ── Header: title block + action link side by side ───────────────────────── */
+.dm-queues-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--dm-4);
+  flex-wrap: wrap;
+}
+
+.dm-queues-head .dm-page-head {
+  margin-bottom: 0;
+  flex: 1 1 260px;
+}
+
+.dm-queues-head .dm-btn-ghost {
+  align-self: center;
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+
+/* ── New-queue form ───────────────────────────────────────────────────────── */
+.dm-queue-form .dm-btn-primary {
+  min-height: 44px;
+}
+
+/* ── Small screens: full-width create CTA, header stacks naturally ────────── */
+@media (max-width: 768px) {
+  .dm-queue-form .dm-btn-primary {
+    width: 100%;
+  }
+}
