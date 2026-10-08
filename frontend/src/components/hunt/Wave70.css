@@ -1,0 +1,142 @@
+/**
+ * Wave70.css — Infinity AI · Dark-Matter · Wave 70
+ * Scoped styles for the finding lifecycle and bulk actions
+ * gallery part 1 (w70a-) and part 2 (w70b-). Zero keyframes
+ * or animated properties. No globals, no override hacks.
+ */
+
+.w70a-gallery,
+.w70b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w70a-card,
+.w70b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w70a-title,
+.w70b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w70a-note,
+.w70b-note {
+  font-size: 11px;
+  color: #8b93a7;
+  margin-bottom: 8px;
+}
+
+.w70a-subject,
+.w70b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #c7cde0;
+  margin-bottom: 8px;
+}
+
+.w70a-kv,
+.w70b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid #1f2430;
+}
+
+.w70a-kv:last-child,
+.w70b-kv:last-child {
+  border-bottom: none;
+}
+
+.w70a-k,
+.w70b-k {
+  color: #8b93a7;
+}
+
+.w70a-v,
+.w70b-v {
+  color: #d5dae7;
+  text-align: right;
+  word-break: break-word;
+}
+
+.w70a-row,
+.w70b-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.w70a-badge,
+.w70b-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a3348;
+  color: #c7cde0;
+  white-space: nowrap;
+}
+
+.w70a-badge-danger,
+.w70b-badge-danger {
+  background: #4c1d1d;
+  color: #fca5a5;
+}
+
+.w70a-badge-warn,
+.w70b-badge-warn {
+  background: #4a3418;
+  color: #fcd34d;
+}
+
+.w70a-badge-ok,
+.w70b-badge-ok {
+  background: #134e2a;
+  color: #86efac;
+}
+
+.w70a-badge-info,
+.w70b-badge-info {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.w70a-presig,
+.w70b-presig {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #aab2c8;
+  background: #0f1320;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.w70a-link,
+.w70b-link {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #93c5fd;
+  background: #0f1320;
+  padding: 6px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+  margin-top: 8px;
+}
