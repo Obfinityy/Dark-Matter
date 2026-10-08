@@ -171,7 +171,7 @@ export class VmManager {
    * state 'booting'; the guest handshake completes in the background and
    * GET /vm/status reports 'running' once the guest agent answers.
    */
-  async start({ sessionId, cpus = 2, memoryMiB = 2048, target = null }) {
+  async start({ sessionId, cpus = 2, memoryMiB = 2048, diskBytes, target = null }) {
     validateSessionId(sessionId);
     if (!this.qemuPath) {
       const err = new Error('qemu_missing: QEMU is not installed — see GET /doctor');
@@ -214,6 +214,9 @@ export class VmManager {
     // A retried start reuses the existing overlay — never wipes it.
     if (!(await this.fileExists(overlayPath))) {
       await this.createOverlay(goldenImagePath, overlayPath);
+      if (diskBytes !== undefined && diskBytes !== null) {
+        await this.resizeOverlay(overlayPath, diskBytes);
+      }
     }
 
     const sessionToken = generateToken();
@@ -304,6 +307,20 @@ export class VmManager {
     }
   }
 
+  /** Grow a fresh overlay to diskBytes (accepts qemu-img size syntax). */
+  async resizeOverlay(overlayPath, diskBytes) {
+    const size = String(diskBytes).trim();
+    if (!/^\d+[KMGTP]?$/i.test(size)) {
+      throw new Error(`diskBytes must be a positive integer size like 32212254720 or 30G, got: ${diskBytes}`);
+    }
+    const qemuImg = this.qemuImgPath();
+    if (!qemuImg) throw new Error('qemu-img not found next to the QEMU binary');
+    try {
+      await execFileAsync(qemuImg, ['resize', overlayPath, size], { timeout: 120000 });
+    } catch (err) {
+      throw new Error(`failed to resize session overlay disk: ${err.message}`);
+    }
+  }
   /** Poll the guest agent until it answers (or the boot timeout elapses). */
   async waitForGuest(record) {
     const deadline = Date.now() + BOOT_TIMEOUT_MS;
