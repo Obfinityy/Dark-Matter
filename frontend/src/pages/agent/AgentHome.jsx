@@ -26,6 +26,16 @@ export function AgentHome() {
   const navigate = useNavigate();
   const [target, setTarget] = useState('');
   const [authConfirmed, setAuthConfirmed] = useState(false);
+  // Where the hunt runs: 'backend' (this backend's worker) or 'agent'
+  // (your agent machine / Oracle VM via the agent poller — runs 24/7 even
+  // with the browser closed). Persisted per browser.
+  const [executor, setExecutor] = useState(() => {
+    try {
+      return localStorage.getItem('dm_hunt_executor') === 'agent' ? 'agent' : 'backend';
+    } catch {
+      return 'backend';
+    }
+  });
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
   const [dedup, setDedup] = useState(null);
@@ -65,6 +75,7 @@ export function AgentHome() {
         target: clean,
         targetUrl: clean,
         authorizationConfirmed: true,
+        executor,
         ...(forceNew ? { forceNew: true } : {}),
       });
       if (res?.deduped) {
@@ -150,6 +161,42 @@ export function AgentHome() {
                 {starting ? 'Starting…' : 'Start hunt'}
               </button>
             </div>
+            <label
+              style={{
+                display: 'flex',
+                gap: 'var(--dm-2)',
+                alignItems: 'center',
+                fontSize: 'var(--dm-text-sm)',
+                color: 'var(--dm-text-2)',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ whiteSpace: 'nowrap' }}>Run on:</span>
+              <select
+                value={executor}
+                onChange={e => {
+                  const v = e.target.value === 'agent' ? 'agent' : 'backend';
+                  setExecutor(v);
+                  try {
+                    localStorage.setItem('dm_hunt_executor', v);
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+                style={{
+                  background: 'var(--dm-surface-2)',
+                  color: 'var(--dm-text-1)',
+                  border: '1px solid var(--dm-border)',
+                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  fontSize: 'var(--dm-text-sm)',
+                }}
+                aria-label="Where the hunt runs"
+              >
+                <option value="backend">This backend</option>
+                <option value="agent">My agent machine (24/7)</option>
+              </select>
+            </label>
             <label
               style={{
                 display: 'flex',

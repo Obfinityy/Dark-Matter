@@ -661,6 +661,23 @@ export function listJobs() {
   return request('/jobs');
 }
 
+/** ─── Per-account Kaggle brain links (encrypted at rest, backend) ───
+ * Saved once from the Models page; the agent poller fetches them with the
+ * user's token so hunts run 24/7 without the browser open. The browser
+ * localStorage copy remains the default/offline path.
+ */
+export function getAccountBrainLinks() {
+  return request('/brain-links');
+}
+
+export function saveAccountBrainLinks(links) {
+  return request('/brain-links', { method: 'POST', body: JSON.stringify({ links }) });
+}
+
+export function deleteAccountBrainLink(slot) {
+  return request(`/brain-links/${encodeURIComponent(slot)}`, { method: 'DELETE' });
+}
+
 /** Full job state snapshot — the rehydration call after a refresh or reopen. */
 export function getJobState(jobId) {
   return request(`/jobs/${encodeURIComponent(jobId)}`);
@@ -1486,6 +1503,9 @@ export const apiClient = {
   // Autonomous Bug Bounty Agent
   createJob,
   listJobs,
+  getAccountBrainLinks,
+  saveAccountBrainLinks,
+  deleteAccountBrainLink,
   getJobState,
   getJobActivity,
   getJobPosture,

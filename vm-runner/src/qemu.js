@@ -185,6 +185,7 @@ export function buildQemuArgs({
   memoryMiB = 2048,
   guestPort,
   vncPort,
+  qmpPort,
   sessionToken,
   serialLogPath,
 }) {
@@ -228,5 +229,11 @@ export function buildQemuArgs({
     `127.0.0.1:${vncDisplay}`,
     '-serial',
     `file:${serialLogPath}`,
+    // QMP monitor for snapshots (savevm/loadvm) and introspection.
+    // TCP loopback only (unix sockets are unreliable in QEMU-on-Windows);
+    // never exposed off-host. qmpPort is allocated per session.
+    ...(Number.isInteger(qmpPort) && qmpPort > 0
+      ? ['-qmp', `tcp:127.0.0.1:${qmpPort},server=on,wait=off`]
+      : []),
   ];
 }

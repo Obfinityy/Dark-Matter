@@ -318,6 +318,36 @@ export function attachVmRoutes(app, { manager, execSessions, vmHome }) {
     res.json(await manager.stop(sessionId));
   });
 
+  // ── VM snapshots (pause/resume) ──────────────────────────────────
+  // savevm/loadvm freeze and restore the exact machine state (RAM+devices)
+  // so a hunt can pause and continue precisely where it left off.
+  app.post('/vm/snapshot', auth, async (req, res) => {
+    try {
+      const { name } = req.body || {};
+      res.json(await manager.snapshotSave(req.session.sessionId, name || 'hunt'));
+    } catch (err) {
+      return sendError(res, 500, 'snapshot_failed', err.message);
+    }
+  });
+
+  app.post('/vm/snapshot/load', auth, async (req, res) => {
+    try {
+      const { name } = req.body || {};
+      res.json(await manager.snapshotLoad(req.session.sessionId, name || 'hunt'));
+    } catch (err) {
+      return sendError(res, 500, 'snapshot_load_failed', err.message);
+    }
+  });
+
+  app.delete('/vm/snapshot', auth, async (req, res) => {
+    try {
+      const { name } = req.body || req.query || {};
+      res.json(await manager.snapshotDelete(req.session.sessionId, name || 'hunt'));
+    } catch (err) {
+      return sendError(res, 500, 'snapshot_delete_failed', err.message);
+    }
+  });
+
   app.post('/vm/exec', auth, async (req, res) => {
     try {
       const { command, cwd, timeoutMs = 120000 } = req.body || {};

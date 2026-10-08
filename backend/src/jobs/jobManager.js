@@ -79,6 +79,7 @@ export class JobManager {
     objective,
     conversationId = null,
     kaggleBrains = null,
+    executor = 'backend',
   }) {
     // Hunt-start intake: accept a bare "target.com" and normalize it to a
     // full URL once, here, so every hunt origin (manual, queue, schedule)
@@ -98,6 +99,10 @@ export class JobManager {
       scope,
       objective,
       kaggleBrains,
+      // 'backend' = this backend's AgentWorker runs it.
+      // 'agent'   = an external agent poller (user's machine / Oracle VM)
+      //             claims it; the backend only queues + stores results.
+      executor: executor === 'agent' ? 'agent' : 'backend',
     });
 
     await this.assessmentModel.setStatus(assessmentId, 'planning').catch?.(() => {});
@@ -142,6 +147,19 @@ export class JobManager {
   async admit(jobId) {
     const job = await this.jobModel.get(jobId);
     if (!job) return { status: 'not_found' };
+    // Agent-executor jobs are NEVER run by this backend's worker. They wait
+    // for an external agent poller (user's machine / Oracle VM) to claim
+    // them via POST /jobs/:id/claim. The backend is pure orchestration here:
+    // it queues the job and stores results — it never pushes commands.
+    if (job.executor === 'agent') {
+      await this.publish(job.id, {
+        type: 'job.awaiting_agent',
+        level: 'INFO',
+        message: 'Hunt queued for your agent machine — it will pick this up automatically',
+        data: { jobId: job.id },
+      });
+      return { status: 'awaiting_agent' };
+    }
     if (this.canRunNow(job)) {
       return this.startRun(job);
     }
@@ -312,6 +330,47 @@ export class JobManager {
   }
 
   /**
+   * Claim a job for external agent execution (agent poller on the user's
+   * machine / Oracle VM). The poller PULLS work — the backend never pushes
+   * commands. Only jobs created with executor 'agent' can be claimed, and
+   * only by their owner. The lease guards against double-execution if the
+   * poller restarts mid-hunt.
+   */
+  async claimForAgent(userId, jobId, { pollerId } = {}) {
+    const job = await this.requireJob(userId, jobId);
+    if (job.executor !== 'agent') {
+      const error = new Error('This job is executed by the backend, not by an external agent');
+      error.status = 409;
+      error.code = 'NOT_AGENT_JOB';
+      throw error;
+    }
+    if (job.status !== 'queued') {
+      const error = new Error(`Job cannot be claimed in status "${job.status}"`);
+      error.status = 409;
+      error.code = 'NOT_CLAIMABLE';
+      throw error;
+    }
+    const lease = `poller_${String(pollerId || 'agent').slice(0, 24)}_${Date.now().toString(36)}`;
+    await this.jobModel.claim(jobId, {
+      lease,
+      leaseMs: Number(process.env.AGENT_POLLER_LEASE_MS || 120_000),
+      workerStartedAt: new Date().toISOString(),
+    });
+    await this.jobModel.transition(jobId, 'running', {
+      brainStatus: 'agent_running',
+      agentPollerId: String(pollerId || 'agent').slice(0, 64),
+    });
+    await this.assessmentModel.setStatus(job.assessmentId, 'running').catch?.(() => {});
+    await this.publish(jobId, {
+      type: 'job.claimed',
+      level: 'INFO',
+      message: 'Agent machine picked up the hunt — running 24/7 until it finishes',
+      data: { jobId, pollerId: pollerId || 'agent' },
+    });
+    return { status: 'claimed', jobId, lease };
+  }
+
+  /**
    * Resume an interrupted/recoverable job. State and memory are reloaded by the
    * worker; old actions are not replayed.
    */
@@ -442,6 +501,39 @@ export class JobManager {
 
   async list(userId) {
     return this.jobModel.listByUser(userId);
+  }
+
+  /**
+   * Post a progress event to a job's event stream (used by the external
+   * agent poller to stream hunt progress back to the backend, so the user
+   * sees live updates when they reopen the browser). Only the job owner
+   * (via their token) can post. Event types are namespaced — the poller
+   * may only emit `agent.*` types, never core lifecycle types.
+   */
+  async postAgentEvent(userId, jobId, { type, level, message, data } = {}) {
+    const job = await this.requireJob(userId, jobId);
+    const safeType = String(type || 'agent.log');
+    if (!safeType.startsWith('agent.')) {
+      const error = new Error('Agent events must use the "agent.*" namespace');
+      error.status = 400;
+      error.code = 'BAD_EVENT_TYPE';
+      throw error;
+    }
+    const event = await this.publish(jobId, {
+      type: safeType,
+      level: ['DEBUG', 'INFO', 'WARN', 'ERROR'].includes(level) ? level : 'INFO',
+      message: String(message || '').slice(0, 2000),
+      data: data && typeof data === 'object' ? data : null,
+    });
+    // Keep the job's lightweight progress fields fresh for list views.
+    try {
+      await this.jobModel.update(jobId, {
+        lastObservation: String(message || '').slice(0, 500) || job.lastObservation,
+      });
+    } catch {
+      /* non-fatal */
+    }
+    return event;
   }
 
   /**

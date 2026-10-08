@@ -99,6 +99,10 @@ export function createJobController({
         // Kaggle brains connected in the browser (frontend-direct Gradio).
         // The hunt's think step uses these; everything else runs locally.
         kaggleBrains: input.kaggleBrains || null,
+        // Executor: 'backend' (default — the Render/local backend worker runs
+        // it) or 'agent' (an external agent poller on the user's machine /
+        // Oracle VM claims it and runs it there; the backend only queues).
+        executor: input.executor === 'agent' ? 'agent' : 'backend',
       });
 
       // 202: accepted, running in the background. Deliberately no long-lived request.
@@ -122,6 +126,7 @@ export function createJobController({
           assessmentId: job.assessmentId,
           target: job.target,
           status: job.status,
+          executor: job.executor || 'backend',
           phase: job.phase,
           objective: job.currentObjective || job.objective,
           stepCount: job.stepCount,
@@ -190,10 +195,24 @@ export function createJobController({
       response.json(result);
     }),
 
+    /**
+     * POST /api/v1/jobs/:id/events { type, level, message, data } — the
+     * agent poller streams hunt progress. Types are restricted to the
+     * `agent.*` namespace; only the job owner can post.
+     */
+    postEvent: asyncHandler(async (request, response) => {
+      const event = await jobManager.postAgentEvent(request.user.id, request.params.id, {
+        type: request.body?.type,
+        level: request.body?.level,
+        message: request.body?.message,
+        data: request.body?.data,
+      });
+      response.status(201).json({ event });
+    }),
+
     /** GET /api/v1/jobs/:id/events — SSE stream with replay from Last-Event-ID */
     events: asyncHandler(async (request, response) => {
       const job = await jobManager.requireJob(request.user.id, request.params.id);
-
       response.status(200).set({
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -225,6 +244,18 @@ export function createJobController({
 
     pause: asyncHandler(async (request, response) => {
       response.json(await jobManager.pause(request.user.id, request.params.id));
+    }),
+
+    /**
+     * POST /api/v1/jobs/:id/claim — the agent poller claims an
+     * executor='agent' job. The poller PULLS work; the backend never pushes
+     * commands and never routes computer-control.
+     */
+    claim: asyncHandler(async (request, response) => {
+      const result = await jobManager.claimForAgent(request.user.id, request.params.id, {
+        pollerId: request.body?.pollerId,
+      });
+      response.json(result);
     }),
 
     continue: asyncHandler(async (request, response) => {

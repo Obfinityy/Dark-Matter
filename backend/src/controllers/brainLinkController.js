@@ -1,0 +1,66 @@
+/**
+ * brainLinkController — per-account Kaggle brain links (encrypted at rest).
+ *
+ * The user pastes their 3 Kaggle Gradio links once; they are saved against
+ * their ACCOUNT so the agent machine (dedicated box / Oracle free-tier VM)
+ * can fetch them 24/7 via the agent poller without the browser open.
+ *
+ * Security: auth required on every route; users only ever see their OWN
+ * links. Gradio URLs are bearer tokens — they are encrypted at rest
+ * (see brainLinkStore.js) and never logged here.
+ */
+import { brainLinkStore as defaultBrainLinkStore } from '../services/brainLinkStore.js';
+import { VALID_BRAIN_SLOTS } from '../services/brainLinkStore.js';
+
+export function createBrainLinkController({ brainLinkStore } = {}) {
+  const store = brainLinkStore || defaultBrainLinkStore;
+
+  const userIdOf = (req) => String(req.user?.id || req.user?._id || 'anonymous');
+
+  return {
+    /**
+     * GET /brain-links — the caller's saved brain links.
+     * Returns { links: { slot: { url, name, updatedAt } } }.
+     * The URLs belong to the caller; the agent poller uses this same
+     * endpoint with the user's token.
+     */
+    list(req, res) {
+      try {
+        const links = store.getLinks(userIdOf(req));
+        res.json({ links });
+      } catch (err) {
+        res.status(500).json({ error: err?.message || 'Failed to read brain links' });
+      }
+    },
+
+    /**
+     * POST /brain-links { links: { slot: { url, name? } } }
+     * Saves (or replaces) brain links. A slot value of null deletes it.
+     * Only valid brain slots are accepted; invalid URLs are rejected.
+     */
+    save(req, res) {
+      try {
+        const { links } = req.body || {};
+        const saved = store.saveLinks(userIdOf(req), links);
+        res.json({ ok: true, links: saved });
+      } catch (err) {
+        const status = /Invalid|Unknown/.test(err?.message || '') ? 400 : 500;
+        res.status(status).json({ error: err?.message || 'Failed to save brain links' });
+      }
+    },
+
+    /** DELETE /brain-links/:slot — remove one slot's link. */
+    remove(req, res) {
+      try {
+        const slot = String(req.params.slot || '').toLowerCase();
+        if (!VALID_BRAIN_SLOTS.includes(slot)) {
+          return res.status(400).json({ error: `Unknown brain slot "${slot}"` });
+        }
+        const removed = store.deleteSlot(userIdOf(req), slot);
+        res.json({ ok: true, removed });
+      } catch (err) {
+        res.status(500).json({ error: err?.message || 'Failed to delete brain link' });
+      }
+    },
+  };
+}

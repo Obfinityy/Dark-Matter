@@ -22,6 +22,7 @@ import { promisify } from 'node:util';
 import { buildQemuArgs, assertQemuSafePath } from './qemu.js';
 import { GuestClient } from './guestClient.js';
 import { generateToken } from './token.js';
+import { qmpSaveVm, qmpLoadVm, qmpDeleteVm } from './qmp.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -29,6 +30,7 @@ export const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const BOOT_TIMEOUT_MS = Number.parseInt(process.env.INFINITY_VM_RUNNER_BOOT_TIMEOUT_MS || '240000', 10);
 const GUEST_PORT_BASE = 14100;
 const VNC_PORT_BASE = 15900;
+const QMP_PORT_BASE = 17500;
 
 /** Default VM home: %USERPROFILE%\DarkMatter\vm on Windows. */
 export function resolveVmHome() {
@@ -163,7 +165,8 @@ export class VmManager {
       }
       if (!vncPort) throw new Error('no free VNC port in range 5900-5999');
     }
-    return { guestPort, vncPort };
+    const qmpPort = await findFreePort(QMP_PORT_BASE);
+    return { guestPort, vncPort, qmpPort };
   }
 
   /**
@@ -220,7 +223,7 @@ export class VmManager {
     }
 
     const sessionToken = generateToken();
-    const { guestPort, vncPort } = await this.allocatePorts();
+    const { guestPort, vncPort, qmpPort } = await this.allocatePorts();
     const args = buildQemuArgs({
       accel: this.accel,
       sessionId,
@@ -231,6 +234,7 @@ export class VmManager {
       memoryMiB: Math.max(1024, Math.min(32768, Number(memoryMiB) || 2048)),
       guestPort,
       vncPort,
+      qmpPort,
       sessionToken,
       serialLogPath,
     });
@@ -247,6 +251,7 @@ export class VmManager {
       pid: child.pid,
       guestPort,
       vncPort,
+      qmpPort,
       sessionToken,
       target: target || null,
       cpus,
@@ -425,5 +430,41 @@ export class VmManager {
     record.detail = null;
     await this.writeSession(record);
     return { ok: true };
+  }
+
+  /**
+   * Save a named VM snapshot (RAM + device state) via QMP.
+   * Used for hunt pause/resume: freeze the exact machine state, restore later.
+   */
+  async snapshotSave(sessionId, name) {
+    validateSessionId(sessionId);
+    const record = await this.getSession(sessionId);
+    if (!record) throw new Error('session not found');
+    if (!record.qmpPort) throw new Error('QMP not available for this session (started before QMP support)');
+    if (!pidAlive(record.pid)) throw new Error('VM is not running');
+    const snapName = await qmpSaveVm(record.qmpPort, name);
+    return { ok: true, snapshot: snapName, sessionId };
+  }
+
+  /** Restore a named VM snapshot via QMP. */
+  async snapshotLoad(sessionId, name) {
+    validateSessionId(sessionId);
+    const record = await this.getSession(sessionId);
+    if (!record) throw new Error('session not found');
+    if (!record.qmpPort) throw new Error('QMP not available for this session (started before QMP support)');
+    if (!pidAlive(record.pid)) throw new Error('VM is not running');
+    const snapName = await qmpLoadVm(record.qmpPort, name);
+    return { ok: true, snapshot: snapName, sessionId };
+  }
+
+  /** Delete a named VM snapshot via QMP. */
+  async snapshotDelete(sessionId, name) {
+    validateSessionId(sessionId);
+    const record = await this.getSession(sessionId);
+    if (!record) throw new Error('session not found');
+    if (!record.qmpPort) throw new Error('QMP not available for this session (started before QMP support)');
+    if (!pidAlive(record.pid)) throw new Error('VM is not running');
+    const snapName = await qmpDeleteVm(record.qmpPort, name);
+    return { ok: true, snapshot: snapName, sessionId };
   }
 }

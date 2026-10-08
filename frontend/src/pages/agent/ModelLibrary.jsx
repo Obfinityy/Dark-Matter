@@ -57,6 +57,9 @@ import {
   runSlotServer,
   stopSlotServer,
   tryApi,
+  getAccountBrainLinks,
+  saveAccountBrainLinks,
+  deleteAccountBrainLink,
 } from '../../services/api';
 import {
   getAllKaggleSlots,
@@ -437,6 +440,7 @@ function BrainSlotCard({
   onKaggleConnect,
   onKaggleDisconnect,
   onKaggleTest,
+  onKaggleSaveToAccount,
   kaggleUrl,
   setKaggleUrl,
   kaggleName,
@@ -755,6 +759,19 @@ function BrainSlotCard({
                     <Zap size={14} />
                   )}
                   Connect to this slot
+                </button>
+                <button
+                  className="sg-btn sg-btn-sm"
+                  onClick={() => onKaggleSaveToAccount(slotId)}
+                  disabled={kaggleBusy === `${slotId}-save`}
+                  title="Save this link to your account (encrypted) so your agent machine can use it 24/7"
+                >
+                  {kaggleBusy === `${slotId}-save` ? (
+                    <Loader2 size={14} className="sg-spin" />
+                  ) : (
+                    <Cloud size={14} />
+                  )}
+                  Save to my account
                 </button>
               </div>
               {kaggleMsg?.[slotId] && (
@@ -1117,6 +1134,38 @@ export function ModelLibrary() {
       }));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setKaggleBusy(null);
+    }
+  };
+
+  // Save this slot's Kaggle link to the user's ACCOUNT (encrypted at rest).
+  // The agent machine fetches it with the account token, so hunts run 24/7
+  // without the browser open. The browser-local copy stays as the default.
+  const saveKaggleToAccountHandler = async slot => {
+    const entry = getAllKaggleSlots()[slot];
+    if (!entry?.url) {
+      setKaggleMsg(m => ({
+        ...m,
+        [slot]: { ok: false, text: 'Connect the link in this browser first, then save it to your account.' },
+      }));
+      return;
+    }
+    setKaggleBusy(`${slot}-save`);
+    try {
+      await saveAccountBrainLinks({ [slot]: { url: entry.url, name: entry.name || null } });
+      setKaggleMsg(m => ({
+        ...m,
+        [slot]: {
+          ok: true,
+          text: 'Saved to your account (encrypted) — your agent machine can now use it 24/7.',
+        },
+      }));
+    } catch (err) {
+      setKaggleMsg(m => ({
+        ...m,
+        [slot]: { ok: false, text: err.message || 'Could not save to your account.' },
+      }));
     } finally {
       setKaggleBusy(null);
     }
@@ -1743,6 +1792,7 @@ export function ModelLibrary() {
                 onKaggleConnect={connectSlotKaggleHandler}
                 onKaggleDisconnect={disconnectSlotKaggleHandler}
                 onKaggleTest={testSlotKaggle}
+                onKaggleSaveToAccount={saveKaggleToAccountHandler}
                 kaggleUrl={kaggleUrls[slotId] || ''}
                 setKaggleUrl={v => setKaggleUrls(m => ({ ...m, [slotId]: v }))}
                 kaggleName={kaggleNames[slotId] || ''}

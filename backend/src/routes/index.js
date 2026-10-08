@@ -86,6 +86,13 @@ export function createRoutes({ controllers }) {
   router.post('/billing/topup/order', controllers.billing.createTopupOrder);
   router.post('/billing/topup/verify', controllers.billing.verifyTopup);
 
+  // ─── Per-account Kaggle brain links (encrypted at rest) ─────────────
+  // Saved once from the Models page; the agent poller fetches them with the
+  // user's token so hunts run 24/7 without the browser open.
+  router.get('/brain-links', controllers.brainLinks.list);
+  router.post('/brain-links', controllers.brainLinks.save);
+  router.delete('/brain-links/:slot', controllers.brainLinks.remove);
+
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
   router.put('/auth/password', controllers.auth.changePassword);
@@ -127,8 +134,10 @@ export function createRoutes({ controllers }) {
   router.get('/jobs/:id', controllers.jobs.get);
   router.get('/jobs/:id/activity', controllers.jobs.activity);
   router.get('/jobs/:id/events', controllers.jobs.events);
+  router.post('/jobs/:id/events', controllers.jobs.postEvent);
   router.get('/jobs/:id/events/history', controllers.jobs.eventHistory);
   router.post('/jobs/:id/pause', controllers.jobs.pause);
+  router.post('/jobs/:id/claim', controllers.jobs.claim);
   router.post('/jobs/:id/continue', controllers.jobs.continue);
   router.post('/jobs/:id/resume', controllers.jobs.resume);
   router.post('/jobs/:id/cancel', controllers.jobs.cancel);

@@ -85,6 +85,7 @@ export class AgentJobModel {
     objective,
     mode = 'AUTONOMOUS',
     kaggleBrains = null,
+    executor = 'backend',
   }) {
     const timestamp = now();
     const job = {
@@ -95,6 +96,9 @@ export class AgentJobModel {
       target,
       scope: scope || { included: [], excluded: [] },
       objective: String(objective || '').slice(0, 2000),
+      // Executor: 'backend' (this backend's AgentWorker) or 'agent'
+      // (external agent poller on the user's machine / Oracle VM).
+      executor: executor === 'agent' ? 'agent' : 'backend',
       // Kaggle brains for this hunt: { hacker: {url, name}, ... } — the
       // browser connected these links directly to Gradio (no backend).
       // The hunt's think step uses them; everything else runs locally.
