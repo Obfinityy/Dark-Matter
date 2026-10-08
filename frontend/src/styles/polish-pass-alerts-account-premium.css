@@ -3,6 +3,15 @@
 /* ── Shared entrance (staggered lists) ── */
 
 /* ── Alerts ── */
+.dm-head-links {
+  flex-wrap: wrap;
+}
+.dm-alert.type-hunt_complete {
+  border-left: 3px solid rgba(52, 211, 153, 0.8);
+}
+.dm-alert.type-hunt_started {
+  border-left: 3px solid var(--dm-warn);
+}
 .dm-alert {
   transition: border-color 0.18s ease;
 }

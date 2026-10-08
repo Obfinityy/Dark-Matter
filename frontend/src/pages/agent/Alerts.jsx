@@ -49,7 +49,7 @@ export function Alerts() {
   if (loading)
     return (
       <div className="dm-page-loading" role="status" aria-live="polite">
-        <Loader2 size={18} className="dm-spin" /> Loading alerts…
+        <Loader2 size={18} className="sg-spin" /> Loading alerts…
       </div>
     );
 
@@ -91,7 +91,7 @@ export function Alerts() {
 
       {alerts.length === 0 ? (
         <div className="dm-empty-state">
-          <Bell size={28} />
+          <Bell size={28} aria-hidden="true" />
           <p>{unreadOnly ? 'Nothing unread. All quiet.' : 'No alerts yet.'}</p>
         </div>
       ) : (
