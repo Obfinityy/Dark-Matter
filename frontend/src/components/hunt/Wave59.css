@@ -1,0 +1,173 @@
+/**
+ * Wave59.css — Infinity AI · Dark-Matter · Wave 59
+ * Scoped styles for the post-hunt submission & lifecycle components:
+ *  - post-submit (.psn59-*)
+ *  - lifecycle (.lc59-*)
+ * Zero animations: no keyframe rules by design (zero-animation order).
+ */
+
+/* ---- Post-submit (.psn59-*) ---- */
+
+.psn59-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.psn59-card {
+  border: 1px solid #2f3a4d;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #131a24;
+  color: #eef1f8;
+}
+
+.psn59-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #7dd3fc;
+}
+
+.psn59-note {
+  font-size: 0.85rem;
+  color: #c3cbdd;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.psn59-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #a5b4d4;
+  background: #0e1420;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.psn59-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.psn59-btn {
+  background: #1e4a5f;
+  color: #f2f5fc;
+  border: 1px solid #2d5f78;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.psn59-btn:hover {
+  background: #285a73;
+}
+
+.psn59-chip {
+  background: #16222e;
+  color: #cfeaff;
+  border: 1px solid #2a3f52;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.psn59-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.psn59-list li {
+  margin: 0.35rem 0;
+}
+
+/* ---- Lifecycle (.lc59-*) ---- */
+
+.lc59-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.lc59-card {
+  border: 1px solid #3d3548;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #181423;
+  color: #efeafb;
+}
+
+.lc59-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #e9d5ff;
+}
+
+.lc59-note {
+  font-size: 0.85rem;
+  color: #c9c2dd;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.lc59-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #c0b2d9;
+  background: #110d1c;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.lc59-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.lc59-btn {
+  background: #4a3560;
+  color: #f5f0fc;
+  border: 1px solid #5d4478;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.lc59-btn:hover {
+  background: #584270;
+}
+
+.lc59-chip {
+  background: #221a33;
+  color: #e3d5ff;
+  border: 1px solid #443559;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.lc59-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.lc59-list li {
+  margin: 0.35rem 0;
+}
