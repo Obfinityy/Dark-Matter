@@ -22,7 +22,7 @@
  * except the WS query string the runner requires.
  */
 
-import { getVmEndpoint } from './vmEndpoint';
+import { getVmEndpoint } from './vmEndpoint.js';
 
 /** Session token store — module memory only. Cleared on stop / page unload. */
 const tokenBySession = new Map();
