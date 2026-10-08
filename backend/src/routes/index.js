@@ -53,8 +53,11 @@ export function createRoutes({ controllers }) {
   // ─── Infinity AI Billing (Razorpay) ────────────────────────────────
   router.get('/billing/status', controllers.billing.status);
   router.get('/billing/subscription', controllers.billing.subscription);
+  router.get('/billing/balance', controllers.billing.balance);
   router.post('/billing/order', controllers.billing.createOrder);
   router.post('/billing/verify', controllers.billing.verify);
+  router.post('/billing/topup/order', controllers.billing.createTopupOrder);
+  router.post('/billing/topup/verify', controllers.billing.verifyTopup);
   
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
