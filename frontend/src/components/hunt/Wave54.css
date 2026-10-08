@@ -1,0 +1,127 @@
+/**
+ * Wave54.css — Infinity AI · Dark-Matter · Wave 54
+ * Scoped styles for the retest suite (.rt54-) and FP impact tooling
+ * (.fpi54-). Zero keyframes, transitions, and animations by order.
+ */
+
+.rt54-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.rt54-card {
+  background: #101322;
+  border: 1px solid #232741;
+  border-radius: 10px;
+  padding: 16px 18px;
+  color: #dfe3f5;
+}
+
+.rt54-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: #9fb2ff;
+}
+
+.rt54-btn {
+  background: #2a3050;
+  color: #eef1ff;
+  border: 1px solid #3d4470;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 4px 6px 4px 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.rt54-btn:hover {
+  background: #343b63;
+}
+
+.rt54-note {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0;
+  color: #c3c9e6;
+}
+
+.rt54-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+}
+
+.rt54-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: #0a0c17;
+  border: 1px solid #1d2138;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 4px 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.fpi54-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.fpi54-card {
+  background: #12141f;
+  border: 1px solid #262b45;
+  border-radius: 10px;
+  padding: 16px 18px;
+  color: #e4e7f7;
+}
+
+.fpi54-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: #ffd59f;
+}
+
+.fpi54-btn {
+  background: #3a2f4d;
+  color: #fff3e6;
+  border: 1px solid #52406e;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 4px 6px 4px 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.fpi54-btn:hover {
+  background: #473a5e;
+}
+
+.fpi54-note {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0;
+  color: #cfd4ee;
+}
+
+.fpi54-result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed #3d4470;
+  border-radius: 8px;
+  background: #0c0e19;
+}
+
+.fpi54-warning {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ff9d9d;
+  margin: 6px 0;
+}
