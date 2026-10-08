@@ -8,7 +8,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Server, Check, Loader2, Cpu, ShieldCheck } from 'lucide-react';
+import { Server, Check, Loader2, Cpu, ShieldCheck, X } from 'lucide-react';
 import {
   getBackendUrl, getBackendUrlSource, isLocalBackend, testBackendConnection
 } from '../../services/backendMode';
@@ -82,8 +82,8 @@ export function Settings() {
         <div className="dm-notice" role="status" aria-label="Active backend">
           <Server size={16} className="dm-notice-icon" aria-hidden="true" />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <code style={{ wordBreak: 'break-all' }}>{backendUrl}</code>
-            <div className="dm-muted" style={{ fontSize: '0.8rem', marginTop: 4 }}>
+            <code className="settings-backend-url">{backendUrl}</code>
+            <div className="dm-muted settings-backend-src">
               {backendSource === 'env'
                 ? 'from VITE_BACKEND_URL in .env'
                 : 'default — set VITE_BACKEND_URL in .env to point elsewhere'}
@@ -100,21 +100,22 @@ export function Settings() {
         )}
         <div className="dm-mt-4">
           <button className="dm-btn dm-btn-secondary" onClick={testNow} disabled={testing}>
-            {testing ? <Loader2 size={15} aria-hidden="true" /> : null}
+            {/* The spinner is the product's one allowed animation — it must spin while testing. */}
+            {testing ? <Loader2 size={15} aria-hidden="true" className="sg-spin" /> : null}
             Test connection
           </button>
         </div>
         <div aria-live="polite">
           {testResult && (
             <p
-              className="dm-mt-4"
-              style={{
-                margin: '16px 0 0',
-                fontSize: '0.875rem',
-                color: testResult.ok ? 'var(--dm-green)' : 'var(--dm-red)',
-              }}
+              className="dm-mt-4 settings-test-result"
+              style={{ color: testResult.ok ? 'var(--dm-green)' : 'var(--dm-red)' }}
             >
-              {testResult.ok ? '✅' : '❌'} {testResult.message}
+              {/* No emoji inside the live region — screen readers get plain words. */}
+              {testResult.ok
+                ? (<><Check size={15} aria-hidden="true" /> Connection OK — </>)
+                : (<><X size={15} aria-hidden="true" /> Connection failed — </>)}
+              {testResult.message}
             </p>
           )}
         </div>

@@ -1,0 +1,52 @@
+/* Polish pass — Models library (round 5), Plugins, Settings.
+ *
+ * Rulebook honored: no new animations (product runs animation-free), only the
+ * loading spinner is allowed motion. Accessibility + visual-consistency fixes.
+ */
+
+/* ── Legacy sg-* buttons never got a focus ring (dm-btn has one in
+ * elegant.css). Add it so keyboard users can see where they are on the
+ * Models page and in brain-slot cards. ── */
+.sg-btn:focus-visible,
+.ml-cat-tab:focus-visible {
+  outline: 2px solid var(--sg-accent, #22d3ee);
+  outline-offset: 2px;
+}
+
+/* Verdict badge: keep icon + label glued, no layout jump when reasons wrap. */
+.sg-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Settings page ── */
+.settings-backend-url {
+  word-break: break-all;
+}
+
+.settings-backend-src {
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+/* Connection test result (aria-live): icon + words on one line, no emoji. */
+.settings-test-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+
+/* ── Permission-mode cards (Settings) ── */
+@media (max-width: 390px) {
+  /* dm-grid-2 already collapses to 1 column; keep the big tap targets. */
+  .settings-test-result {
+    font-size: 0.8125rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The sg-spin loader already no-ops under reduced motion (singularity.css).
+   * Nothing else here moves, so there is nothing to disable. */
+}
