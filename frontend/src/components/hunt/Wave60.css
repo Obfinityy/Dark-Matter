@@ -1,0 +1,185 @@
+/**
+ * Wave60.css — Infinity AI · Dark-Matter · Wave 60
+ * Scoped styles for the finding-lifecycle governance & integration components:
+ *  - governance (.lg60-*)
+ *  - sync (.ls60-*)
+ * Zero animations: no keyframe rules by design (zero-animation order).
+ */
+
+/* ---- Lifecycle governance (.lg60-*) ---- */
+
+.lg60-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.lg60-card {
+  border: 1px solid #33475e;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #141b26;
+  color: #eef3fa;
+}
+
+.lg60-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #93c5fd;
+}
+
+.lg60-note {
+  font-size: 0.85rem;
+  color: #c3ccdf;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.lg60-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #aab6d4;
+  background: #0f1522;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.lg60-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.lg60-btn {
+  background: #1d3a52;
+  color: #f2f6fd;
+  border: 1px solid #2c5371;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.lg60-btn:hover {
+  background: #274b68;
+}
+
+.lg60-chip {
+  background: #16212f;
+  color: #cfe4fb;
+  border: 1px solid #2b435c;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.lg60-input {
+  background: #0f1522;
+  color: #eef3fa;
+  border: 1px solid #2b435c;
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.5rem 0;
+}
+
+.lg60-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.lg60-list li {
+  margin: 0.35rem 0;
+}
+
+/* ---- Lifecycle sync (.ls60-*) ---- */
+
+.ls60-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.ls60-card {
+  border: 1px solid #4a3b5e;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #191423;
+  color: #f1ecfa;
+}
+
+.ls60-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #d8b4fe;
+}
+
+.ls60-note {
+  font-size: 0.85rem;
+  color: #c9c0de;
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ls60-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #c0aede;
+  background: #120e1d;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ls60-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.ls60-btn {
+  background: #3d2c55;
+  color: #f6f1fd;
+  border: 1px solid #54406f;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.ls60-btn:hover {
+  background: #4d396c;
+}
+
+.ls60-chip {
+  background: #1f1729;
+  color: #e6d8fb;
+  border: 1px solid #443256;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.ls60-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.ls60-list li {
+  margin: 0.35rem 0;
+}
