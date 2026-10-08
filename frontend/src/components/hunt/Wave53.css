@@ -1,0 +1,146 @@
+/* Wave53.css — Infinity AI · Dark-Matter · Wave 53
+ * Scoped styles for the FP lifecycle round 3 (.fpl53-*) and FP governance
+ * (.fpg53-*) galleries. No keyframes, no transitions, no animations.
+ */
+
+.fpl53-gallery,
+.fpg53-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.fpl53-card {
+  border: 1px solid #2a4a3a;
+  border-radius: 10px;
+  padding: 16px;
+  background: #141f18;
+  color: #e8e8f0;
+}
+
+.fpg53-card {
+  border: 1px solid #4a3a2a;
+  border-radius: 10px;
+  padding: 16px;
+  background: #1f1814;
+  color: #e8e8f0;
+}
+
+.fpl53-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #a5e8c3;
+}
+
+.fpg53-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8c9a5;
+}
+
+.fpl53-note,
+.fpg53-note {
+  margin: 8px 0;
+  font-size: 13px;
+  color: #b9b9c9;
+}
+
+.fpl53-item,
+.fpg53-item {
+  font-size: 13px;
+  color: #cfcfdd;
+  margin-bottom: 4px;
+}
+
+.fpl53-row,
+.fpg53-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.fpl53-label,
+.fpg53-label {
+  font-size: 13px;
+  color: #d5d5e3;
+  min-width: 70px;
+}
+
+.fpl53-btn,
+.fpg53-btn {
+  background: #24303f;
+  color: #e8e8f0;
+  border: 1px solid #3a4a5f;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.fpl53-btn:hover,
+.fpg53-btn:hover {
+  background: #2f3d52;
+}
+
+.fpl53-input,
+.fpg53-input {
+  background: #0e0e16;
+  color: #e8e8f0;
+  border: 1px solid #3a3a4a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  flex: 1;
+}
+
+.fpl53-badge {
+  display: inline-block;
+  background: #3a2a12;
+  color: #ffd98a;
+  border: 1px solid #6a4a22;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fpl53-bar {
+  flex: 1;
+  height: 10px;
+  background: #22222e;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.fpl53-bar .fpl53-fill {
+  height: 100%;
+  background: #5ac88a;
+}
+
+.fpl53-hot .fpl53-fill {
+  background: #e86a5a;
+}
+
+.fpl53-warm .fpl53-fill {
+  background: #e8c45a;
+}
+
+.fpl53-cool .fpl53-fill {
+  background: #5a9ae8;
+}
+
+.fpg53-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  cursor: pointer;
+}
+
+.fpg53-check .fpg53-label {
+  min-width: 0;
+}
