@@ -1,0 +1,63 @@
+/* Plugins — extension directory cards.
+ *
+ * Cards use the dm-* system from elegant.css; this file only handles the
+ * Plugins-specific layout (icon medallion, tagline/desc rhythm, full-width
+ * footer CTAs). No animations here — the product runs animation-free.
+ */
+
+.plugins-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.plugins-card:hover,
+.plugins-card:focus-within {
+  border-color: var(--dm-gold-border);
+}
+
+.plugins-card-disabled {
+  opacity: 0.72;
+}
+
+/* Icon medallion + status badge row */
+.plugins-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--dm-4);
+}
+
+.plugins-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--dm-r);
+  background: var(--dm-surface-2);
+  border: 1px solid var(--dm-border);
+  color: var(--dm-gold-soft);
+}
+
+/* Text rhythm: tagline tight, description fills remaining space so every
+ * card's CTA lands on the same baseline in the 3-up grid. */
+.plugins-tagline {
+  margin-bottom: var(--dm-2);
+}
+
+.plugins-desc {
+  font-size: var(--dm-text-sm);
+  line-height: 1.6;
+  margin: 0 0 var(--dm-6);
+  flex: 1;
+}
+
+/* Full-width footer CTA — equal visual weight across all three cards. */
+.plugins-cta {
+  align-self: stretch;
+  justify-content: center;
+}
+
+.plugins-cta:disabled {
+  cursor: not-allowed;
+}
