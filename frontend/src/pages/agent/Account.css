@@ -1,0 +1,89 @@
+/* ════════════════ Account — profile / credits / permissions / sign out ════════════════
+   Polish pass (8 Oct 2026): all inline styles extracted here; avatar keeps the
+   gold-on-dark identity; rows stack on narrow screens; CTAs reach 44px on mobile. */
+
+.dm-account-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.dm-account-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  background: var(--dm-gold-glow);
+  border: 1px solid var(--dm-gold-border);
+  color: var(--dm-gold-soft);
+  flex-shrink: 0;
+  user-select: none;
+}
+.dm-account-identity {
+  min-width: 0;
+}
+.dm-account-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dm-account-email {
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dm-account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--dm-border-soft);
+}
+.dm-account-row-label {
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+.dm-account-row-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  word-break: break-all;
+  text-align: right;
+}
+.dm-account-section-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dm-account-strong {
+  color: var(--dm-text);
+}
+
+@media (max-width: 560px) {
+  .dm-account-profile {
+    gap: 12px;
+  }
+  .dm-account-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+  }
+  .dm-account-row {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .dm-account-row-value {
+    text-align: left;
+  }
+  .dm-account .dm-btn {
+    min-height: 44px;
+  }
+}
