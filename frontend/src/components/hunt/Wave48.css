@@ -1,0 +1,65 @@
+/* Infinity AI — Wave 48: fleet ops (.fo48-) + voice control (.vc48-) styles.
+   Scoped prefixes only. Zero keyframes / animations / transitions per the
+   zero-animation order. */
+
+.fo48-gallery, .vc48-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.fo48-card, .vc48-card {
+  background: #101418;
+  border: 1px solid #232b33;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.fo48-card-title, .vc48-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #d7dee6;
+  margin-bottom: 8px;
+}
+
+.fo48-card-body, .vc48-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fo48-row, .vc48-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.fo48-k, .vc48-k {
+  color: #8b96a3;
+  flex: 0 0 auto;
+  max-width: 55%;
+}
+
+.fo48-v, .vc48-v {
+  color: #e6ebf1;
+  text-align: right;
+  word-break: break-word;
+}
+
+.fo48-dim {
+  color: #6b7684;
+  font-size: 12px;
+}
+
+.vc48-say {
+  font-size: 13px;
+  color: #cfe3d4;
+  background: #0d1512;
+  border-left: 3px solid #3fa65a;
+  padding: 8px 10px;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.5;
+}
