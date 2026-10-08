@@ -2,8 +2,9 @@
  * actionIntent.js — parse "do X" vs "tell me X" intents from Infinity AI chat.
  *
  * The avatar distinguishes:
- *   - CHAT: "1+1 kitna hota hai?", "yeh kya hai?" → conversational answer
- *   - ACTION: "Notepad khol de", "WhatsApp khol de aur message kar de" → execute
+ *   - CHAT: questions such as "what is 1+1?" → conversational answer
+ *   - ACTION: commands such as "open Notepad" → executed (Hinglish phrasing
+ *     is understood as well)
  *
  * Actions are scope-checked: only safe, authorized operations execute.
  * Destructive or external actions require explicit user confirmation.

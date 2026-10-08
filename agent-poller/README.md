@@ -43,7 +43,7 @@ node src/index.js
    machine connected, jobs are created with `executor: 'agent'`).
 2. The poller claims the job within ~30s and starts the Kali VM.
 3. Progress streams back as events — reopen the browser anytime to watch,
-   chat mid-hunt ("bhai kitna hua?"), or view the live VM screen.
+   chat mid-hunt ("how far along is it?"), or view the live VM screen.
 4. Pause from the browser → the poller saves a VM snapshot and stops;
    Continue → it restores the snapshot and resumes exactly where it left off.
 5. On completion the PDF report lands in your account (existing pipeline).

@@ -446,24 +446,24 @@ The local language model assisted with hypothesis generation and triage; all con
    * a bounty: summary, severity, CVSS, steps to reproduce, impact, remediation.
    * Every claim is backed by stored evidence — no fabricated findings.
    *
-   * Flexible output (user asked: "jaise main maangu vaise report"):
+   * Flexible output (reports shaped exactly as the user asks):
    * @param {object} [options]
    * @param {string[]} [options.severities] — only include these severities
-   *   (e.g. ['high','critical'] for "sirf high wali report do")
+   *   (e.g. ['high','critical'] to report only high-severity findings)
    * @param {boolean} [options.perFinding] — return one markdown per finding
-   *   instead of a single combined report ("ek-ek vulnerability alag-alag")
+   *   instead of a single combined report
    * @param {string} [options.findingId] — report for a single finding only
    */
   async generateMarkdown(userId, assessmentId, options = {}) {
     const base = await this.generate(userId, assessmentId);
     let findings = base.detailedFindings || [];
 
-    // Severity filter: "sirf high/critical wali do"
+    // Severity filter: keep only the requested severities
     if (options.severities?.length) {
       const wanted = new Set(options.severities.map(s => String(s).toLowerCase()));
       findings = findings.filter(f => wanted.has(String(f.severity).toLowerCase()));
     }
-    // Single finding: "is wali ka alag report do"
+    // Single finding: report for one finding only
     if (options.findingId) {
       findings = findings.filter(f => f.id === options.findingId);
     }
