@@ -1,0 +1,183 @@
+/* Wave49.css — Infinity AI · Dark-Matter · Wave 49
+ * Scoped styles for the voice round-2 (.vr2-*) and mobile suite (.ms49-*) galleries.
+ * No keyframes, no transitions, no animations.
+ */
+
+.vr2-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.vr2-card {
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  padding: 16px;
+  background: #14141f;
+  color: #e8e8f0;
+}
+
+.vr2-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #9fd0ff;
+}
+
+.vr2-input {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px solid #3a3a4a;
+  border-radius: 6px;
+  background: #0f0f18;
+  color: #e8e8f0;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.vr2-btn {
+  margin: 4px 8px 4px 0;
+  padding: 8px 14px;
+  border: 1px solid #3a3a4a;
+  border-radius: 6px;
+  background: #23233a;
+  color: #e8e8f0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vr2-result {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #c9f2c7;
+}
+
+.vr2-note {
+  margin: 6px 0;
+  font-size: 12px;
+  color: #9a9ab0;
+}
+
+.vr2-check {
+  display: block;
+  margin: 6px 0;
+  font-size: 13px;
+  color: #e8e8f0;
+}
+
+.vr2-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d8d8e8;
+}
+
+.vr2-item {
+  margin-bottom: 4px;
+}
+
+.ms49-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.ms49-card {
+  border: 1px solid #2a2a3a;
+  border-radius: 12px;
+  padding: 16px;
+  background: #14141f;
+  color: #e8e8f0;
+}
+
+.ms49-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffd09f;
+}
+
+.ms49-input {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 10px 12px;
+  border: 1px solid #3a3a4a;
+  border-radius: 8px;
+  background: #0f0f18;
+  color: #e8e8f0;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.ms49-btn {
+  margin: 4px 8px 4px 0;
+  padding: 10px 16px;
+  border: 1px solid #3a3a4a;
+  border-radius: 8px;
+  background: #23233a;
+  color: #e8e8f0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ms49-bigbtn {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  border: none;
+  border-radius: 12px;
+  background: #7a2d2d;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ms49-result {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #c9f2c7;
+}
+
+.ms49-note {
+  margin: 6px 0;
+  font-size: 12px;
+  color: #9a9ab0;
+}
+
+.ms49-check {
+  display: block;
+  margin: 6px 0;
+  font-size: 13px;
+  color: #e8e8f0;
+}
+
+.ms49-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d8d8e8;
+}
+
+.ms49-item {
+  margin-bottom: 4px;
+}
+
+.ms49-logline {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.ms49-eta {
+  font-size: 22px;
+  font-weight: 700;
+}
