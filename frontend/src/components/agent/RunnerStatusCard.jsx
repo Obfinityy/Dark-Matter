@@ -3,8 +3,8 @@
  *
  * Auto-detects the desktop Runner on this PC (http://127.0.0.1:4100/health):
  *   - Runner up   → green "connected" state, nothing for the user to do.
- *   - Runner down → "Download Infinity AI Runner" prompt (one-click Windows
- *                   installer; no terminal, no setup).
+ *   - Runner down → "Download Infinity AI Runner" prompt (starter ZIP:
+ *                   extract, double-click Start-Runner; no terminal, no setup).
  *
  * No manual URL entry anywhere — detection is automatic.
  */
@@ -72,7 +72,7 @@ export function RunnerStatusCard() {
         <div className="runner-text">
           <strong>Runner connected — one-time setup needed</strong>
           <span>
-            Open the <b>Infinity AI Runner</b> window from your system tray (near the clock)
+            Keep the <b>Start-Runner</b> window open
             {missing.length ? ` — still needed: ${missing.join(', ')}` : ''}. It sets
             everything up by itself; no technical steps for you.
           </span>
@@ -90,8 +90,8 @@ export function RunnerStatusCard() {
           agent in the background. No terminal, no setup.
         </span>
         <ol className="runner-steps">
-          <li>Download and run the installer</li>
-          <li>It starts automatically and lives in your system tray</li>
+          <li>Download the ZIP below and extract it anywhere</li>
+          <li>Double-click <b>Start-Runner</b> and keep its window open</li>
           <li>Come back here — this card turns green</li>
         </ol>
       </div>

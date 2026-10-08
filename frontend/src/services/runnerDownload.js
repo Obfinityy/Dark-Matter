@@ -1,21 +1,22 @@
 /**
  * runnerDownload.js — Infinity AI Runner (desktop companion) helpers.
  *
- * The Runner is a one-click Windows installer (system tray app) that runs the
- * local Kali VM sandbox + the 24/7 hunt agent on the user's own PC — no
- * terminal, no setup. The website auto-detects it at http://127.0.0.1:4100
+ * The Runner is a one-click Windows starter that runs the local Kali VM
+ * sandbox + the 24/7 hunt agent on the user's own PC — no terminal, no
+ * setup. The website auto-detects it at http://127.0.0.1:4100
  * and shows a "Download Runner" prompt when it isn't there.
  *
- * The installer is published as a GitHub Release asset with a STABLE name
- * (no version in the filename — see infinity-runner/electron-builder.yml),
- * so this "latest" URL never changes:
+ * The starter is published as a GitHub Release asset with a STABLE name
+ * (no version in the filename), so this "latest" URL never changes.
+ * The ZIP contains the runner sources + Start-Runner.bat, which fetches
+ * portable Node.js automatically on first run (no admin, no system install).
  */
 
 export const RUNNER_VERSION = '1.0.0';
 
-/** Stable download URL for the Windows installer (GitHub Releases, latest). */
+/** Stable download URL for the Windows starter ZIP (GitHub Releases, latest). */
 export const RUNNER_DOWNLOAD_URL =
-  'https://github.com/Obfinityy/Dark-Matter/releases/latest/download/Infinity-AI-Runner-Setup.exe';
+  'https://github.com/Obfinityy/Dark-Matter/releases/latest/download/Infinity-AI-Runner-Windows.zip';
 
 /** Where the local Runner serves its API (the VM sandbox host). */
 export const RUNNER_LOCAL_URL = 'http://127.0.0.1:4100';
