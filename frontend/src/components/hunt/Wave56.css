@@ -1,0 +1,194 @@
+/**
+ * Wave56.css — Infinity AI · Dark-Matter · Wave 56
+ * Scoped styles for the report-export-round-2 components:
+ *  - export formats  (.exf56-*)
+ *  - export ops      (.exo56-*)
+ * Zero animations: no keyframe rules by design (zero-animation order).
+ */
+
+/* ---- Export formats (.exf56-*) ---- */
+
+.exf56-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.exf56-card {
+  border: 1px solid #3b2d12;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #1c1810;
+  color: #f1ecdf;
+}
+
+.exf56-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #fcd34d;
+}
+
+.exf56-note {
+  font-size: 0.85rem;
+  color: #d6ccb6;
+  margin: 0.5rem 0;
+}
+
+.exf56-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.exf56-list li {
+  margin: 0.35rem 0;
+}
+
+.exf56-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.exf56-btn {
+  border: 1px solid #b45309;
+  background: #b45309;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.exf56-btn-ghost {
+  background: transparent;
+  color: #fcd34d;
+}
+
+.exf56-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #3b2d12;
+  border-radius: 6px;
+  background: #100d07;
+  color: #f1ecdf;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.exf56-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #d6ccb6;
+  margin-right: 0.75rem;
+}
+
+.exf56-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #d6ccb6;
+  white-space: pre-wrap;
+  background: #100d07;
+  border-radius: 6px;
+  padding: 0.6rem;
+  margin: 0.5rem 0 0;
+  overflow-x: auto;
+}
+
+/* ---- Export ops (.exo56-*) ---- */
+
+.exo56-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.exo56-card {
+  border: 1px solid #172a3a;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: #0f1720;
+  color: #e6edf3;
+}
+
+.exo56-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+  color: #7dd3fc;
+}
+
+.exo56-note {
+  font-size: 0.85rem;
+  color: #bcc9d6;
+  margin: 0.5rem 0;
+}
+
+.exo56-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.exo56-list li {
+  margin: 0.35rem 0;
+}
+
+.exo56-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.exo56-btn {
+  border: 1px solid #0284c7;
+  background: #0284c7;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.exo56-btn-ghost {
+  background: transparent;
+  color: #7dd3fc;
+}
+
+.exo56-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #172a3a;
+  border-radius: 6px;
+  background: #0a1016;
+  color: #e6edf3;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.exo56-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #bcc9d6;
+}
+
+.exo56-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #bcc9d6;
+  white-space: pre-wrap;
+  background: #0a1016;
+  border-radius: 6px;
+  padding: 0.6rem;
+  margin: 0.5rem 0 0;
+  overflow-x: auto;
+}
