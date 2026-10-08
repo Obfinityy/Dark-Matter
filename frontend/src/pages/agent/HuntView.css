@@ -108,7 +108,6 @@
    `.sg-hunt-actions .sg-active` rule (VoiceModeToggle renders
    `voice-mode-active`, never `sg-active`). */
 
-/* ── AgentCharacter: the visible presence of the hunting agent ── */
 
 /* ── Grid ── */
 .sg-hunt-grid {
@@ -222,93 +221,6 @@
 @media (prefers-reduced-motion: reduce) {
   .sg-tabpanel {
     animation: none;
-  }
-}
-
-/* ── AgentCharacter: the visible presence of the hunting agent ── */
-.sg-agent-char {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sg-2);
-  padding: var(--sg-4) var(--sg-3) var(--sg-3);
-  margin-bottom: var(--sg-3);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--sg-line-soft);
-  border-radius: var(--sg-radius-lg);
-}
-.sg-agent-svg {
-  width: 104px;
-  height: 104px;
-}
-.sg-core-glow {
-  transform-origin: 60px 60px;
-}
-
-.sg-orbit {
-  transform-origin: 60px 60px;
-}
-.sg-agent-char.working .sg-orbit-outer {
-  animation-duration: 3.2s;
-}
-.sg-agent-char.working .sg-orbit-inner {
-  animation-duration: 5s;
-}
-
-.sg-core-hex {
-  transform-origin: 60px 60px;
-}
-.sg-tdot {
-  opacity: 0.18;
-}
-.sg-agent-char.working .sg-tdot-2 {
-  animation-delay: 0.2s;
-}
-.sg-agent-char.working .sg-tdot-3 {
-  animation-delay: 0.4s;
-}
-
-.sg-agent-char-label {
-  display: flex;
-  justify-content: center;
-}
-.sg-agent-state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sg-2);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--sg-text-3);
-}
-.sg-agent-state .sg-live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--sg-text-3);
-}
-.sg-agent-state.on {
-  color: var(--sg-text);
-}
-.sg-agent-state.on .sg-live-dot {
-  background: var(--sg-go);
-  box-shadow: 0 0 10px var(--sg-go);
-}
-
-/* Calm everything down for users who prefer reduced motion. */
-@media (prefers-reduced-motion: reduce) {
-  .sg-agent-char,
-  .sg-agent-char .sg-orbit,
-  .sg-agent-char .sg-core-glow,
-  .sg-agent-char .sg-core-hex,
-  .sg-agent-char .sg-tdot,
-  .sg-agent-state.on .sg-live-dot {
-    animation: none !important;
-  }
-  .sg-agent-char {
-    opacity: 1;
-    transform: none;
   }
 }
 
@@ -435,25 +347,6 @@
   .sg-status-panel .sg-btn-sm {
     min-height: 44px;
   }
-}
-
-/* Voice conversation: the agent glyph pulses while listening (danger tone). */
-.sg-agent-char.listening .sg-core-glow circle {
-  fill: var(--sg-danger);
-}
-
-/* The status label's dot joins in — listening is visible and screen-readable. */
-.sg-agent-state.listening .sg-live-dot {
-  background: var(--sg-danger);
-  box-shadow: 0 0 10px var(--sg-danger);
-}
-.sg-agent-state.listening {
-  color: var(--sg-text);
-}
-
-.sg-agent-char.listening .sg-orbit-outer {
-  stroke: var(--sg-danger);
-  animation-duration: 1.6s;
 }
 
 /* -- Hunt-view Infinity AI avatar (inline + tap-to-talk) ----------------- */

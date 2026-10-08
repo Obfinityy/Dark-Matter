@@ -6,12 +6,13 @@
  * mode is free and unmetered; credits are reserved for future Cloud-mode usage.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Wallet, PlusCircle, Info } from 'lucide-react';
+import { Wallet, PlusCircle, Info, Loader2 } from 'lucide-react';
 import {
   getBillingStatus,
   createTopupOrder,
   verifyTopupPayment,
 } from '../../services/api.js';
+import './Premium.css';
 
 /** Deprecated: the tier system was removed in favour of Infinity Credits top-ups. */
 export function getReservedTier() {
@@ -136,34 +137,24 @@ export function Premium() {
         </header>
 
         {/* ── Balance ── */}
-        <section className="dm-card" aria-label="Credit balance" style={{ marginBottom: 'var(--dm-6)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dm-3)' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 44,
-                height: 44,
-                borderRadius: 'var(--dm-r)',
-                background: 'var(--dm-gold-glow)',
-                border: '1px solid var(--dm-gold-border)',
-                color: 'var(--dm-gold-soft)',
-                flexShrink: 0,
-              }}
-              aria-hidden="true"
-            >
+        <section className="dm-card dm-prem-balance" aria-label="Credit balance">
+          <div className="dm-prem-balance-row">
+            <span className="dm-prem-balance-icon" aria-hidden="true">
               <Wallet size={22} />
             </span>
             <div>
-              <p className="dm-card-sub" style={{ margin: 0 }}>Infinity Credits</p>
-              <p style={{ margin: 0, fontSize: 'var(--dm-text-3xl)', fontWeight: 700, letterSpacing: '-0.02em' }}>
-                {loading ? '…' : formatInr(balance)}
+              <p className="dm-card-sub dm-prem-balance-label">Infinity Credits</p>
+              <p className="dm-prem-balance-value" aria-live="polite">
+                {loading ? (
+                  <Loader2 size={22} className="sg-spin" aria-label="Loading balance" />
+                ) : (
+                  formatInr(balance)
+                )}
               </p>
             </div>
           </div>
-          <p className="dm-muted" style={{ margin: 'var(--dm-4) 0 0', fontSize: 'var(--dm-text-sm)', display: 'flex', gap: 'var(--dm-2)' }}>
-            <Info size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
+          <p className="dm-muted dm-prem-note">
+            <Info size={14} aria-hidden="true" />
             Local VM mode is free and unmetered. Your credits are kept safe for Cloud mode, where usage is metered per minute.
           </p>
         </section>
@@ -176,7 +167,7 @@ export function Premium() {
           </p>
           {billingLive ? (
             <>
-              <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap', marginBottom: 'var(--dm-3)' }}>
+              <div className="dm-prem-quick-row">
                 {QUICK_AMOUNTS.map((q) => (
                   <button
                     key={q}
@@ -189,8 +180,8 @@ export function Premium() {
                   </button>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 'var(--dm-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-                <label htmlFor="topup-amount" className="dm-muted" style={{ fontSize: 'var(--dm-text-sm)' }}>
+              <div className="dm-prem-amount-row">
+                <label htmlFor="topup-amount" className="dm-muted dm-prem-amount-label">
                   Amount (₹)
                 </label>
                 <input
@@ -202,15 +193,7 @@ export function Premium() {
                   onChange={(e) => setAmount(e.target.value)}
                   disabled={paying}
                   aria-invalid={amount !== '' && !amountValid}
-                  style={{
-                    width: 140,
-                    padding: 'var(--dm-2) var(--dm-3)',
-                    borderRadius: 'var(--dm-r)',
-                    border: '1px solid var(--dm-border, #2a2a2a)',
-                    background: 'var(--dm-bg-2, transparent)',
-                    color: 'inherit',
-                    fontSize: 'var(--dm-text-base)',
-                  }}
+                  className="dm-prem-amount-input"
                 />
                 <button
                   className="dm-btn dm-btn-primary"
@@ -222,7 +205,7 @@ export function Premium() {
                 </button>
               </div>
               {payError && (
-                <p role="alert" style={{ fontSize: 'var(--dm-text-sm)', color: 'var(--dm-red)', margin: 'var(--dm-3) 0 0' }}>
+                <p className="dm-prem-error" role="alert">
                   {payError}
                 </p>
               )}
