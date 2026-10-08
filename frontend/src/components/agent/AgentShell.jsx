@@ -265,7 +265,7 @@ export function AgentShell({ children }) {
   }, [location.pathname]);
 
   const huntLinks = [
-    { to: '/agent', label: 'New Hunt AI', icon: Plus, end: true, primary: true },
+    { to: '/agent', label: 'New Hunt', icon: Plus, end: true, primary: true },
     { to: '/agent/library', label: 'Library', icon: LibraryBig },
     { to: '/agent/plugins', label: 'Plugins', icon: Blocks },
   ];
