@@ -1,0 +1,142 @@
+/**
+ * Wave69.css — Infinity AI · Dark-Matter · Wave 69
+ * Scoped styles for the finding lifecycle gallery part 1 (w69a-)
+ * and part 2 (w69b-). Zero keyframes or animated properties.
+ * No globals, no override hacks.
+ */
+
+.w69a-gallery,
+.w69b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w69a-card,
+.w69b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w69a-title,
+.w69b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w69a-note,
+.w69b-note {
+  font-size: 11px;
+  color: #8b93a7;
+  margin-bottom: 8px;
+}
+
+.w69a-subject,
+.w69b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #c7cde0;
+  margin-bottom: 8px;
+}
+
+.w69a-kv,
+.w69b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid #1f2430;
+}
+
+.w69a-kv:last-child,
+.w69b-kv:last-child {
+  border-bottom: none;
+}
+
+.w69a-k,
+.w69b-k {
+  color: #8b93a7;
+}
+
+.w69a-v,
+.w69b-v {
+  color: #d5dae7;
+  text-align: right;
+  word-break: break-word;
+}
+
+.w69a-row,
+.w69b-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.w69a-badge,
+.w69b-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a3348;
+  color: #c7cde0;
+  white-space: nowrap;
+}
+
+.w69a-badge-danger,
+.w69b-badge-danger {
+  background: #4c1d1d;
+  color: #fca5a5;
+}
+
+.w69a-badge-warn,
+.w69b-badge-warn {
+  background: #4a3418;
+  color: #fcd34d;
+}
+
+.w69a-badge-ok,
+.w69b-badge-ok {
+  background: #134e2a;
+  color: #86efac;
+}
+
+.w69a-badge-info,
+.w69b-badge-info {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.w69a-presig,
+.w69b-presig {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #aab2c8;
+  background: #0f1320;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.w69a-link,
+.w69b-link {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #93c5fd;
+  background: #0f1320;
+  padding: 6px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+  margin-top: 8px;
+}
