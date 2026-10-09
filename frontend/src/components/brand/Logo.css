@@ -1,0 +1,31 @@
+/* Logo — Dark Matter brand mark (the owner's gold emblem).
+ *
+ * Layout geometry lives here (previously inline styles, and the `.dm-logo`
+ * class had no rules at all). The numeric `size` prop feeds `--dm-logo-size`
+ * via a single inline custom property so the emblem and wordmark scale
+ * together. Colours come from the design tokens in styles/variables.css, so
+ * the wordmark stays legible in both themes — the old
+ * `var(--dm-text, #fff)` fallback always resolved to white.
+ */
+
+.dm-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1;
+  user-select: none;
+}
+
+.dm-logo img {
+  border-radius: 50%;
+  display: block;
+  flex-shrink: 0;
+}
+
+.dm-logo-wordmark {
+  font-weight: 800;
+  font-size: calc(var(--dm-logo-size, 36px) * 0.52);
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #fff);
+  white-space: nowrap;
+}

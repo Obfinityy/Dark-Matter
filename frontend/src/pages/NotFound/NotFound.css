@@ -43,6 +43,16 @@
   -webkit-text-stroke: 1px var(--border);
   user-select: none;
   pointer-events: none;
+  animation: nf-drift 12s ease-in-out infinite alternate;
+}
+
+@keyframes nf-drift {
+  from {
+    transform: translate(-50%, -50%) translateY(-6px);
+  }
+  to {
+    transform: translate(-50%, -50%) translateY(6px);
+  }
 }
 
 /* Slow radar sweep — a quiet brand nod to "Infinity AI hunts bugs". */
@@ -76,6 +86,13 @@
     color-mix(in srgb, var(--accent) 22%, transparent),
     transparent 25%
   );
+  animation: nf-sweep 9s linear infinite;
+}
+
+@keyframes nf-sweep {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .nf-card {
@@ -90,6 +107,18 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-md);
+  animation: nf-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes nf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .nf-badge {
@@ -146,7 +175,9 @@
   text-decoration: none;
   transition:
     border-color var(--transition-fast),
-    background var(--transition-fast);
+    background var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .nf-btn:focus-visible {
@@ -199,7 +230,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nf-card {
+  .nf-card,
+  .nf-giant {
     animation: none;
   }
   .nf-radar::after {

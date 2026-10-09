@@ -6,7 +6,7 @@
  * with a status dot, a normalised one-decimal score, and an accessible
  * label for screen readers.
  */
-import React from 'react';
+import './CvssBadge.css';
 
 const SEV_CLASS = {
   critical: 'sg-pill-danger',
@@ -35,7 +35,7 @@ export function CvssBadge({ finding }) {
 
   return (
     <span
-      className={`sg-pill ${cls}`}
+      className={`sg-pill cvss-badge ${cls}`}
       title={cvss.vector || `Severity: ${severity} (no CVSS vector recorded)`}
       aria-label={srLabel}
     >
