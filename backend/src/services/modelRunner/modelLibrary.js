@@ -518,8 +518,10 @@ export const BRAIN_SLOTS = {
   grounding: {
     label: 'Grounding (Coordinates)',
     icon: '🎯',
-    description: 'Finds UI elements and returns x,y coordinates. Used by Hunt and Control.',
+    description:
+      'Optional — finds UI elements and returns x,y coordinates. Used by Hunt and Control. When empty, the Vision brain handles click coordinates.',
     usedBy: ['hunt', 'control'],
+    optional: true,
   },
   hacker: {
     label: 'Hacking Brain',

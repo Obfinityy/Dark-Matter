@@ -270,6 +270,75 @@ describe('createBrowserDirectBrains', () => {
 });
 
 /* ------------------------------------------------------------------ */
+/* optional grounding: vision fallback                                   */
+/* ------------------------------------------------------------------ */
+
+describe('optional grounding (vision fallback)', () => {
+  test('vision-only setup builds a vision-fallback grounding adapter', () => {
+    const brains = createBrowserDirectBrains({
+      vision: { generate: async () => '{"x": 400, "y": 300, "confidence": 0.8}' },
+    });
+    assert.ok(brains.vision, 'vision adapter present');
+    assert.ok(brains.grounding, 'grounding falls back to vision');
+    assert.equal(brains.grounding.source, 'vision-fallback');
+  });
+
+  test('fallback parses coordinates from vision prose', async () => {
+    const brains = createBrowserDirectBrains({
+      vision: { generate: async () => 'The button is at {"x": 500, "y": 250}' },
+    });
+    const r = await brains.grounding.generateStructured([{ role: 'user', content: 'find it' }], {});
+    assert.deepEqual(r, { x: 500, y: 250, confidence: null });
+  });
+
+  test('fallback keeps confidence when the vision brain provides it', async () => {
+    const brains = createBrowserDirectBrains({
+      vision: { generate: async () => '{"x": 10, "y": 20, "confidence": 0.6}' },
+    });
+    const r = await brains.grounding.generateStructured([], {});
+    assert.deepEqual(r, { x: 10, y: 20, confidence: 0.6 });
+  });
+
+  test('dedicated grounding wins when both brains are connected', () => {
+    const brains = createBrowserDirectBrains({
+      vision: { generate: async () => '{"x": 9, "y": 9}' },
+      grounding: { generate: async () => '{"x": 1, "y": 2}' },
+    });
+    assert.equal(brains.grounding.source, 'grounding');
+  });
+
+  test('dedicated ready provider passes through untouched', () => {
+    const grounding = { generateStructured: async () => ({ x: 1, y: 2 }) };
+    const brains = createBrowserDirectBrains({
+      vision: { generate: async () => '{"x": 9, "y": 9}' },
+      grounding,
+    });
+    assert.equal(brains.grounding, grounding);
+  });
+
+  test('no vision and no grounding leaves grounding null', () => {
+    const brains = createBrowserDirectBrains({ hacker: { generate: async () => 'x' } });
+    assert.equal(brains.vision, null);
+    assert.equal(brains.grounding, null);
+  });
+
+  test('fallback rejects vision prose without coordinates', async () => {
+    const brains = createBrowserDirectBrains({
+      vision: { generate: async () => 'I cannot see any button on this screen' },
+    });
+    await assert.rejects(() => brains.grounding.generateStructured([], {}), /no coordinates/);
+  });
+
+  test('fallback clamps out-of-range coordinates into 0-1000 space', async () => {
+    const brains = createBrowserDirectBrains({
+      vision: { generate: async () => '{"x": 5000, "y": -20}' },
+    });
+    const r = await brains.grounding.generateStructured([], {});
+    assert.deepEqual(r, { x: 1000, y: 0, confidence: null });
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* createVmControlLoop state machine                                     */
 /* ------------------------------------------------------------------ */
 

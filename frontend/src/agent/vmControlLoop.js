@@ -37,6 +37,8 @@
  *                        { type:'image_url', image_url:{ url:'data:image/jpeg;base64,...' } } ] }
  *   brains.grounding { generateStructured(messages, schema, { timeoutMs }) }
  *                      -> Promise<{ x, y, confidence? }>  (0–1000 space)
+ *                      OPTIONAL: when absent, the Vision brain doubles as
+ *                      grounder (source reported as 'vision-fallback').
  *
  * Runner API contract (what the UI workstream passes as `runnerApi`):
  *   exec({ sessionId, command, cwd?, timeoutMs? })
@@ -416,6 +418,7 @@ function adaptGroundingSlot(spec) {
   const textGen = adaptTextSlot(spec, 'grounding');
   if (!textGen) return null;
   return {
+    source: 'grounding',
     async generateStructured(messages, _schema, { timeoutMs } = {}) {
       const prompt = `${flattenMessages(messages)}\n\nReply with ONLY a JSON object: {"x": <0-1000>, "y": <0-1000>, "confidence": <0-1>}.`;
       const raw = await textGen.generate([{ role: 'user', content: prompt }], { timeoutMs });
@@ -432,15 +435,45 @@ function adaptGroundingSlot(spec) {
 }
 
 /**
+ * Vision-fallback grounding adapter — used when the user has NOT connected a
+ * dedicated Grounding brain. The Vision brain (Qwen2.5-VL class) returns
+ * coordinates natively; precision is lower than a purpose-built grounding
+ * model, but Control keeps working with two brains instead of three (and a
+ * Kaggle setup burns ~1/3 less free GPU quota). Mirrors the backend fallback
+ * in infinityModes.js (groundingBrain || visionBrain).
+ */
+function createVisionGroundingFallback(visionAdapter) {
+  return {
+    source: 'vision-fallback',
+    async generateStructured(messages, _schema, { timeoutMs } = {}) {
+      const raw = await visionAdapter.generate(messages, { timeoutMs });
+      const obj = extractJsonObject(raw);
+      if (!obj) throw new Error(`vision fallback returned no coordinates: ${String(raw).slice(0, 200)}`);
+      const x = clampCoord(obj.x);
+      const y = clampCoord(obj.y);
+      if (x === null || y === null) throw new Error(`vision fallback returned unusable coordinates: ${JSON.stringify(obj).slice(0, 200)}`);
+      let confidence = Number(obj.confidence);
+      if (!Number.isFinite(confidence)) confidence = null;
+      return { x, y, confidence };
+    },
+  };
+}
+
+/**
  * Build the brains contract from browser-direct slot specs.
  * Each slot: a ready provider | { kind:'gradio', url } | { kind:'localChat', baseUrl, modelId }.
- * Missing slots are null — the loop degrades gracefully and reports it.
+ * The Grounding slot is OPTIONAL: a dedicated grounding brain wins, otherwise
+ * the Vision brain doubles as grounder. Missing slots are null — the loop
+ * degrades gracefully and reports it.
  */
 export function createBrowserDirectBrains({ hacker, vision, grounding } = {}) {
+  const visionAdapter = adaptVisionSlot(vision);
+  const groundingAdapter =
+    adaptGroundingSlot(grounding) || (visionAdapter ? createVisionGroundingFallback(visionAdapter) : null);
   return {
     hacker: adaptTextSlot(hacker, 'hacker'),
-    vision: adaptVisionSlot(vision),
-    grounding: adaptGroundingSlot(grounding),
+    vision: visionAdapter,
+    grounding: groundingAdapter,
   };
 }
 
@@ -570,7 +603,7 @@ export function createVmControlLoop({ runnerApi, brains, sessionId, onEvent, opt
 
   async function resolveClickCoords(action) {
     if (action.x != null && action.y != null) return { x: action.x, y: action.y, source: 'hacker' };
-    if (!brains?.grounding) throw new Error('grounding brain unavailable and the hacking brain gave no coordinates');
+    if (!brains?.grounding) throw new Error('grounding unavailable: connect a Vision or Grounding brain on the Models page so clicks can be resolved');
     const shot = await runnerApi.screenshot({ sessionId, width: 1280 });
     if (!shot?.base64) throw new Error('runner returned no screenshot bytes for grounding');
     const dataUrl = `data:${shot.mime || 'image/jpeg'};base64,${shot.base64}`;
@@ -588,7 +621,7 @@ export function createVmControlLoop({ runnerApi, brains, sessionId, onEvent, opt
       { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' }, confidence: { type: 'number' } } },
       { timeoutMs: brainTimeoutMs }
     );
-    return { x: located.x, y: located.y, source: 'grounding', confidence: located.confidence ?? null };
+    return { x: located.x, y: located.y, source: brains.grounding.source || 'grounding', confidence: located.confidence ?? null };
   }
 
   // -- action execution -----------------------------------------------------

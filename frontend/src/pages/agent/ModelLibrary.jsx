@@ -1861,8 +1861,9 @@ export function ModelLibrary() {
             <strong>Brain Slots — three brains, each with local + Kaggle options</strong>
             <p>
               <b>Hunt AI</b> uses all three brains. <b>Infinity Chat</b> uses only Vision.
-              <b> Control</b> uses Vision + Grounding. Each slot runs on a local model
-              <b> or</b> its own Kaggle link — your choice per slot.
+              <b> Control</b> uses Vision + Grounding — Grounding is optional: when its
+              slot is empty, the Vision brain handles click coordinates. Each slot runs
+              on a local model <b> or</b> its own Kaggle link — your choice per slot.
             </p>
           </div>
         </div>
