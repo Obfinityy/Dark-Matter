@@ -1,0 +1,102 @@
+/**
+ * Wave98.css — Infinity AI · Wave 98
+ * Scoped styles for the experiment governance and skill intelligence galleries (w98a- / w98b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w98a-gallery,
+.w98b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w98a-card,
+.w98b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w98a-title,
+.w98b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w98a-note,
+.w98b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w98a-kv,
+.w98b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w98a-k,
+.w98b-k { opacity: 0.7; }
+
+.w98a-v,
+.w98b-v { font-weight: 600; text-align: right; }
+
+.w98a-row,
+.w98b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w98a-badge,
+.w98b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w98a-badge-info,
+.w98b-badge-info { background: #1c2433; }
+
+.w98a-bar-row,
+.w98b-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.w98a-bar,
+.w98b-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #1c2433;
+}
+
+.w98a-bar-fill,
+.w98b-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.w98a-field,
+.w98b-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  margin: 8px 0;
+}
