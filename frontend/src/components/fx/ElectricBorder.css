@@ -41,19 +41,13 @@
   );
 
   filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.5));
-  /* Rotates the plasma arcs around the border. */
-  animation: eb-rotate 8s linear infinite;
+  /* NOTE (owner order, zero decorative animations): the plasma arcs stay
+     static — no infinite rotation. */
 }
 
-@keyframes eb-rotate {
-  to {
-    --eb-angle: 360deg;
-  }
-}
-
-/* @property makes --eb-angle animatable. Browsers without @property support
-   (or @keyframes on custom properties) degrade gracefully to a static
-   plasma border — still correct, just not rotating. */
+/* @property keeps --eb-angle registered for the static gradient stops.
+   Browsers without @property support degrade gracefully to a plain
+   static border. */
 @property --eb-angle {
   syntax: '<angle>';
   initial-value: 0deg;
