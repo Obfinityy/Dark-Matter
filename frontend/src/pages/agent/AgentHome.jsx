@@ -193,7 +193,7 @@ export function AgentHome() {
                 }}
                 aria-label="Where the hunt runs"
               >
-                <option value="backend">This device</option>
+                <option value="backend">My Device</option>
                 <option value="agent">My agent machine (24/7)</option>
               </select>
             </label>

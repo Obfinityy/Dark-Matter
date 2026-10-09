@@ -180,6 +180,7 @@ const CATEGORY_TABS = [
     icon: '🎯',
     label: 'Grounding',
     role: 'Turns decisions into exact click coordinates',
+    optional: true,
   },
 ];
 
@@ -486,7 +487,18 @@ function BrainSlotCard({
           {slot.icon}
         </span>
         <div className="ml-slot-head-text">
-          <strong className="ml-slot-title">{slot.label}</strong>
+          <strong className="ml-slot-title">
+            {slot.label}
+            {slot.optional && (
+              <span
+                className="sg-pill"
+                style={{ marginLeft: '8px', fontSize: '11px', background: 'var(--dm-surface-3)', color: 'var(--dm-text-2)' }}
+                title="This brain is optional — hunts work without it"
+              >
+                Optional
+              </span>
+            )}
+          </strong>
           <div className="sg-small ml-slot-desc">{slot.description}</div>
           <div className="sg-small ml-slot-usedby">Used by: {(slot.usedBy || []).join(', ')}</div>
         </div>
