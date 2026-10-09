@@ -1,0 +1,69 @@
+/**
+ * Wave94.css — Infinity AI · Wave 94
+ * Scoped styles for the prompt governance and strategy recommendation galleries (w94a- / w94b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w94a-gallery,
+.w94b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w94a-card,
+.w94b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w94a-title,
+.w94b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w94a-note,
+.w94b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w94a-kv,
+.w94b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w94a-k,
+.w94b-k { opacity: 0.7; }
+
+.w94a-v,
+.w94b-v { font-weight: 600; text-align: right; }
+
+.w94a-row,
+.w94b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w94a-badge,
+.w94b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w94a-badge-info,
+.w94b-badge-info { background: #1c2433; }
