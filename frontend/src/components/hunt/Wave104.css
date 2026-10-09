@@ -1,0 +1,111 @@
+/**
+ * Wave104.css — Infinity AI · Wave 104
+ * Scoped styles for the target dashboard and sharing galleries (w104a- / w104b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w104a-gallery,
+.w104b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w104a-card,
+.w104b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w104a-title,
+.w104b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w104a-note,
+.w104b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w104a-kv,
+.w104b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w104a-k,
+.w104b-k { opacity: 0.7; }
+
+.w104a-v,
+.w104b-v { font-weight: 600; text-align: right; }
+
+.w104a-row,
+.w104b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w104a-badge,
+.w104b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w104a-badge-info,
+.w104b-badge-info { background: #1c2433; }
+
+.w104a-bar-row,
+.w104b-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.w104a-bar,
+.w104b-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #1c2433;
+}
+
+.w104a-bar-fill,
+.w104b-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.w104a-field,
+.w104b-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  margin: 8px 0;
+}
+
+.w104a-badge-good,
+.w104b-badge-good { background: #14291c; }
+
+.w104a-badge-warn,
+.w104b-badge-warn { background: #33240f; }
+
+.w104a-badge-high,
+.w104b-badge-high { background: #33141c; }
