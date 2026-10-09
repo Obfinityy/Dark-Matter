@@ -4,6 +4,7 @@
   border-radius: var(--radius-xl, 20px);
   padding: 1.5px;
   isolation: isolate;
+  min-width: 0; /* keep long content from blowing out grid/flex tracks */
 }
 
 .eb-border {
@@ -22,6 +23,8 @@
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
+  /* Smooth the active<->inactive toggle instead of snapping the gradient. */
+  transition: background 0.45s ease, filter 0.45s ease;
 }
 
 .eb-active .eb-border {
@@ -38,6 +41,14 @@
   );
 
   filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.5));
+  /* Rotates the plasma arcs around the border. */
+  animation: eb-rotate 8s linear infinite;
+}
+
+@keyframes eb-rotate {
+  to {
+    --eb-angle: 360deg;
+  }
 }
 
 /* @property makes --eb-angle animatable. Browsers without @property support

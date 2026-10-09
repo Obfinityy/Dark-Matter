@@ -2,7 +2,6 @@
  * BentoGrid — asymmetric editorial grid where every tile carries a
  * cursor-following spotlight. Original implementation.
  */
-import React from 'react';
 import { SpotlightCard } from './SpotlightCard';
 import './BentoGrid.css';
 
