@@ -1,0 +1,307 @@
+/* Wave108A.css — stylesheet for Wave108A (risk scoring, ideas 54281-54290).
+   Branding: Infinity AI / Dark Matter only. */
+
+.wave108 {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  max-width: 960px;
+  margin: 0 auto;
+  color: #e8e8ee;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.wave108-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 0.75rem;
+}
+
+.wave108-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+}
+
+.wave108-sub {
+  margin: 0;
+  color: #9aa0b4;
+  font-size: 0.85rem;
+}
+
+.wave108-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.wave108-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.02rem;
+}
+
+.wave108-btn {
+  background: #6d5cff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+}
+
+.wave108-btn:hover {
+  background: #5a4ae0;
+}
+
+.wave108-btn-ghost {
+  background: transparent;
+  border: 1px solid #6d5cff;
+  color: #cfc9ff;
+}
+
+.wave108-btn-ghost:hover {
+  background: rgba(109, 92, 255, 0.15);
+}
+
+.wave108-input {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #e8e8ee;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+  width: 220px;
+}
+
+.wave108-input-narrow {
+  width: 90px;
+}
+
+.wave108-select {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #e8e8ee;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+}
+
+.wave108-muted {
+  color: #9aa0b4;
+  font-size: 0.85rem;
+}
+
+.wave108-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+.wave108-list li {
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+}
+
+.wave108-list code,
+.wave108-pre code,
+.wave108-muted code {
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.8rem;
+}
+
+.wave108-pre {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.78rem;
+  overflow-x: auto;
+  color: #cfd4e3;
+}
+
+.wave108-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+/* Score badges (54283) */
+.wave108-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.wave108-badge-critical {
+  color: #ff6b6b;
+  background: rgba(255, 77, 77, 0.14);
+  border-color: rgba(255, 77, 77, 0.45);
+}
+
+.wave108-badge-high {
+  color: #ffa94d;
+  background: rgba(255, 169, 77, 0.12);
+  border-color: rgba(255, 169, 77, 0.45);
+}
+
+.wave108-badge-medium {
+  color: #ffd43b;
+  background: rgba(255, 212, 59, 0.1);
+  border-color: rgba(255, 212, 59, 0.4);
+}
+
+.wave108-badge-low {
+  color: #69db7c;
+  background: rgba(105, 219, 124, 0.1);
+  border-color: rgba(105, 219, 124, 0.4);
+}
+
+.wave108-badge-unknown {
+  color: #9aa0b4;
+  background: rgba(154, 160, 180, 0.1);
+  border-color: rgba(154, 160, 180, 0.4);
+}
+
+.wave108-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.wave108-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Sortable score table (54282) */
+.wave108-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.wave108-table th,
+.wave108-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wave108-th-btn {
+  background: none;
+  border: none;
+  color: #cfc9ff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.wave108-th-btn:hover {
+  color: #fff;
+}
+
+/* Jump alert banner (54281) */
+.wave108-alert {
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+  margin-top: 0.6rem;
+}
+
+.wave108-alert-up {
+  background: rgba(255, 77, 77, 0.1);
+  border: 1px solid rgba(255, 77, 77, 0.45);
+  color: #ff9d9d;
+}
+
+.wave108-alert-down {
+  background: rgba(105, 219, 124, 0.08);
+  border: 1px solid rgba(105, 219, 124, 0.4);
+  color: #a6e8b3;
+}
+
+/* What-if checks (54285) */
+.wave108-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+}
+
+/* Weight sliders (54288) */
+.wave108-weight-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.wave108-weight-label {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.wave108-weight-row input[type="range"] {
+  flex: 1;
+  accent-color: #6d5cff;
+}
+
+/* Model version block (54286) */
+.wave108-version {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.wave108-version p {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+}
+
+/* Predictor bar (54290) */
+.wave108-prediction {
+  margin-top: 0.6rem;
+}
+
+.wave108-bar {
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.wave108-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6d5cff, #b197ff);
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 640px) {
+  .wave108 {
+    padding: 0.75rem;
+  }
+  .wave108-table th,
+  .wave108-table td {
+    padding: 0.4rem 0.3rem;
+  }
+}
