@@ -1,0 +1,169 @@
+/**
+ * Wave75.css — Infinity AI · Dark-Matter · Wave 75
+ * Scoped styles for the template ecosystem gallery (w75a-)
+ * and the template operations gallery (w75b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w75a-gallery,
+.w75b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w75a-card,
+.w75b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w75a-title,
+.w75b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w75a-subtitle,
+.w75b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w75a-note,
+.w75b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w75a-kv,
+.w75b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w75a-k,
+.w75b-k {
+  color: #9aa3b2;
+}
+
+.w75a-v,
+.w75b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w75a-row,
+.w75b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w75a-badge,
+.w75b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w75a-badge-ok,
+.w75b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w75a-badge-warn,
+.w75b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w75a-badge-danger,
+.w75b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w75a-badge-info,
+.w75b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w75a-bar,
+.w75b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w75a-bar-fill,
+.w75b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w75a-link,
+.w75b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w75a-presig,
+.w75b-presig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w75a-subject,
+.w75b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-top: 6px;
+}
+
+.w75a-pre,
+.w75b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
