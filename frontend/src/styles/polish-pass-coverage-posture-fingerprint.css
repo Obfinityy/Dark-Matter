@@ -7,6 +7,11 @@
  * progressbar + valuetext, tabular numerals, "N of 10 categories" foot, chip hover
  * lift + staggered entrance, var-based timing, honest 0% hint. why: numbers need
  * context and a11y; chips reward hover with feedback.
+ * refresh pass (9 Oct): chip stagger was dead (animation-delay without an
+ * animation-name — fixed); --sg-med was referenced but never defined, so the
+ * fill transition silently dropped (token now defined in variables.css); chip
+ * hover transform snapped (added to the transition); the 0% empty state got a
+ * radar icon + aria-live.
  */
 
 /* ── CoverageMeter ── */
@@ -29,7 +34,9 @@
   color: var(--sg-text-3);
 }
 .sg-coverage-cats .sg-pill-info {
+  animation: dm-list-in 0.45s ease backwards;
   transition:
+    transform var(--sg-fast),
     border-color var(--sg-fast),
     background var(--sg-fast);
 
@@ -60,6 +67,14 @@
   font-size: 0.78rem;
   line-height: 1.5;
   color: var(--sg-text-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sg-coverage-empty svg {
+  flex: none;
+  color: var(--sg-text-3);
+  opacity: 0.7;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -76,7 +91,11 @@
  * name. change: true SVG progress ring, token-based grade colours (A→--sg-go,
  * C→--sg-warn, F→--sg-danger), severity dot-chips, shimmer skeleton while loading,
  * role=img + aria-label. why: a score deserves a real ring; chips scan faster than
- * joined text; loading state is honest instead of silent. */
+ * joined text; loading state is honest instead of silent.
+ * refresh pass (9 Oct): B/D grade and high/low severity were still raw hex —
+ * moved to --sg-lime / --sg-orange tokens; ring hover-scale snapped (transition
+ * added); score updates jumped (stroke-dashoffset transition added); skeleton
+ * was fully static (shimmer keyframes + reduced-motion guard). */
 .sg-posture {
   display: flex;
   align-items: center;
@@ -87,6 +106,7 @@
   width: 64px;
   height: 64px;
   flex: 0 0 auto;
+  transition: transform var(--sg-fast);
 }
 .sg-posture:hover .sg-posture-ringwrap {
   transform: scale(1.04);
@@ -105,6 +125,7 @@
   fill: none;
   stroke-width: 6;
   stroke-linecap: round;
+  transition: stroke-dashoffset var(--sg-med);
 }
 .sg-posture-score {
   position: absolute;
@@ -179,7 +200,16 @@
   color: var(--sg-text-3);
 }
 
-/* loading skeleton */
+/* loading skeleton — gentle shimmer so "loading" reads as alive, not dead */
+@keyframes sg-skel-shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 .sg-posture-loading {
   pointer-events: none;
 }
@@ -189,6 +219,7 @@
   border-radius: 50%;
   flex: 0 0 auto;
   border: 6px solid rgba(255, 255, 255, 0.07);
+  animation: sg-skel-shimmer 1.8s ease-in-out infinite;
 }
 .sg-posture-skel-line {
   display: block;
@@ -196,6 +227,7 @@
   height: 10px;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.07);
+  animation: sg-skel-shimmer 1.8s ease-in-out infinite;
 }
 .sg-posture-skel-line + .sg-posture-skel-line {
   width: 64px;
