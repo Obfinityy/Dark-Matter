@@ -1,0 +1,102 @@
+/**
+ * Wave100.css — Infinity AI · Wave 100
+ * Scoped styles for the debrief delivery galleries (w100a- / w100b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w100a-gallery,
+.w100b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w100a-card,
+.w100b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w100a-title,
+.w100b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w100a-note,
+.w100b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w100a-kv,
+.w100b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w100a-k,
+.w100b-k { opacity: 0.7; }
+
+.w100a-v,
+.w100b-v { font-weight: 600; text-align: right; }
+
+.w100a-row,
+.w100b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w100a-badge,
+.w100b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w100a-badge-info,
+.w100b-badge-info { background: #1c2433; }
+
+.w100a-bar-row,
+.w100b-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.w100a-bar,
+.w100b-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #1c2433;
+}
+
+.w100a-bar-fill,
+.w100b-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.w100a-field,
+.w100b-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  margin: 8px 0;
+}
