@@ -1,0 +1,166 @@
+/**
+ * Wave82.css — Infinity AI · Wave 82
+ * Scoped styles for the coverage deep-dive gallery (w82a-)
+ * and the coverage intelligence gallery (w82b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w82a-gallery,
+.w82b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w82a-card,
+.w82b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w82a-title,
+.w82b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w82a-subtitle,
+.w82b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w82a-note,
+.w82b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w82a-kv,
+.w82b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w82a-k,
+.w82b-k {
+  color: #9aa3b2;
+}
+
+.w82a-v,
+.w82b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w82a-row,
+.w82b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w82a-badge,
+.w82b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w82a-badge-ok,
+.w82b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w82a-badge-warn,
+.w82b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w82a-badge-danger,
+.w82b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w82a-badge-info,
+.w82b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w82a-bar,
+.w82b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w82a-bar-fill,
+.w82b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w82a-link,
+.w82b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w82a-pre,
+.w82b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w82a-cell,
+.w82b-cell {
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  background: #10131a;
+}
+
+.w82a-cell-dark,
+.w82b-cell-dark {
+  border-color: #4a2326;
+}
+
+.w82a-cell-covered,
+.w82b-cell-covered {
+  border-color: #1e3a2a;
+}
