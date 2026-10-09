@@ -29,7 +29,7 @@ export function createBrainLinkController({ brainLinkStore } = {}) {
     async list(req, res) {
       try {
         const links = await store.getLinks(userIdOf(req));
-        res.json({ links });
+        res.json({ links, keyStable: !store.isEphemeralKey });
       } catch (err) {
         res.status(500).json({ error: err?.message || 'Failed to read brain links' });
       }
@@ -44,7 +44,7 @@ export function createBrainLinkController({ brainLinkStore } = {}) {
       try {
         const { links } = req.body || {};
         const saved = await store.saveLinks(userIdOf(req), links);
-        res.json({ ok: true, links: saved });
+        res.json({ ok: true, links: saved, keyStable: !store.isEphemeralKey });
       } catch (err) {
         const status = /Invalid|Unknown/.test(err?.message || '') ? 400 : 500;
         res.status(status).json({ error: err?.message || 'Failed to save brain links' });

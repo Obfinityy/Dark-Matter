@@ -20,9 +20,11 @@
  * has no document for a user but the file does, the file's data is imported
  * into Mongo once (best-effort).
  *
- * If BRAIN_LINKS_KEY is unset, an ephemeral key is generated and a loud
- * warning is printed — links will NOT survive a restart in that mode.
- * Set a stable key in production (see backend/.env.example).
+ * If BRAIN_LINKS_KEY is unset, the key is derived from JWT_SECRET via
+ * HKDF-SHA256 (stable across restarts, zero extra config). Only when neither
+ * secret is set does it fall back to an ephemeral key with a loud warning —
+ * links will NOT survive a restart in that mode. Set BRAIN_LINKS_KEY
+ * explicitly in production for the strongest posture (see backend/.env.example).
  */
 
 import crypto from 'node:crypto';
@@ -38,7 +40,21 @@ export const BRAIN_LINKS_COLLECTION = 'brain_links';
 
 export const VALID_BRAIN_SLOTS = ['vision', 'grounding', 'hacker'];
 
-/** Resolve the 32-byte AES key from env, or generate an ephemeral one. */
+/** Resolve the 32-byte AES key.
+ *
+ * Priority:
+ *  1. BRAIN_LINKS_KEY env (64-char hex or 44-char base64) — explicit, best.
+ *  2. Derived from JWT_SECRET via HKDF-SHA256 — stable across restarts with
+ *     zero extra env vars. The derivation keeps this encryption key
+ *     cryptographically separate from the JWT signing key.
+ *  3. Ephemeral random key — loud warning; saved links will NOT survive a
+ *     restart. Only when neither secret is set (in which case auth sessions
+ *     are broken too).
+ *
+ * Note: every store instance derives the SAME key from the same inputs, so
+ * the file-backed and Mongo-backed stores stay mutually readable (the old
+ * ephemeral path gave each instance a different random key).
+ */
 function resolveKey() {
   const raw = (process.env.BRAIN_LINKS_KEY || '').trim();
   if (raw) {
@@ -52,16 +68,27 @@ function resolveKey() {
         buf = null;
       }
     }
-    if (buf && buf.length === 32) return { key: buf, ephemeral: false };
+    if (buf && buf.length === 32) return { key: buf, ephemeral: false, source: 'env' };
     console.warn(
-      '[brain-links] BRAIN_LINKS_KEY is set but is not 32 bytes (hex/base64) — using ephemeral key. Links will not survive restart.'
-    );
-  } else {
-    console.warn(
-      '[brain-links] BRAIN_LINKS_KEY is not set — using an ephemeral key. Set a stable 32-byte key or saved links will be lost on restart.'
+      '[brain-links] BRAIN_LINKS_KEY is set but is not 32 bytes (hex/base64) — trying JWT_SECRET fallback.'
     );
   }
-  return { key: crypto.randomBytes(32), ephemeral: true };
+  const jwtSecret = (process.env.JWT_SECRET || '').trim();
+  if (jwtSecret) {
+    const key = crypto.hkdfSync(
+      'sha256',
+      Buffer.from(jwtSecret, 'utf8'),
+      'dark-matter-brain-links-v1',
+      '',
+      32
+    );
+    return { key, ephemeral: false, source: 'jwt-secret' };
+  }
+  console.warn(
+    '[brain-links] No BRAIN_LINKS_KEY or JWT_SECRET set — using an ephemeral key. ' +
+      'Saved links will NOT survive a restart. Set BRAIN_LINKS_KEY (or JWT_SECRET) to fix this.'
+  );
+  return { key: crypto.randomBytes(32), ephemeral: true, source: 'ephemeral' };
 }
 
 /** AES-256-GCM encrypt. Returns "iv:tag:ciphertext" (hex). */
@@ -151,7 +178,7 @@ function decryptSlots(key, slots) {
  * @param {{ filePath?: string }} [opts]
  */
 export function createBrainLinkStore({ filePath = DEFAULT_FILE } = {}) {
-  const { key, ephemeral } = resolveKey();
+  const { key, ephemeral, source: keySource } = resolveKey();
   let data = loadFromFile(filePath); // { userId: { slot: { urlEnc, name, updatedAt } } }
 
   function persist() {
@@ -171,6 +198,8 @@ export function createBrainLinkStore({ filePath = DEFAULT_FILE } = {}) {
   return {
     /** Whether the encryption key is ephemeral (dev warning surface). */
     isEphemeralKey: ephemeral,
+    /** Where the key came from: 'env' | 'jwt-secret' | 'ephemeral'. */
+    keySource,
 
     /** All decrypted brain links for a user: { slot: { url, name, updatedAt } }. */
     getLinks(userId) {
@@ -238,7 +267,7 @@ export function createBrainLinkStore({ filePath = DEFAULT_FILE } = {}) {
  * (both expose `.collection(name)`).
  */
 export function createMongoBrainLinkStore({ database = null, filePath = DEFAULT_FILE } = {}) {
-  const { key, ephemeral } = resolveKey();
+  const { key, ephemeral, source: keySource } = resolveKey();
   const fallback = createBrainLinkStore({ filePath });
   let mongoHealthy = true;
   let indexEnsured = false;
@@ -318,6 +347,8 @@ export function createMongoBrainLinkStore({ database = null, filePath = DEFAULT_
   return {
     /** Whether the encryption key is ephemeral (dev warning surface). */
     isEphemeralKey: ephemeral,
+    /** Where the key came from: 'env' | 'jwt-secret' | 'ephemeral'. */
+    keySource,
 
     /** All decrypted brain links for a user: { slot: { url, name, updatedAt } }. */
     async getLinks(userId) {

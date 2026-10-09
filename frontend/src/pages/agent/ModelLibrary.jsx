@@ -447,6 +447,7 @@ function BrainSlotCard({
   onKaggleDisconnect,
   onKaggleTest,
   onKaggleSaveToAccount,
+  accountLinks,
   kaggleUrl,
   setKaggleUrl,
   kaggleName,
@@ -869,6 +870,15 @@ function BrainSlotCard({
                   )}
                   Save to my account
                 </button>
+                {accountLinks?.[slotId]?.url && (
+                  <span
+                    className="sg-tiny"
+                    style={{ color: 'var(--dm-success, #34d399)', whiteSpace: 'nowrap' }}
+                    title={`Saved to your account${accountLinks[slotId].updatedAt ? ` on ${new Date(accountLinks[slotId].updatedAt).toLocaleString()}` : ''}`}
+                  >
+                    ✓ Saved to account
+                  </span>
+                )}
               </div>
               {kaggleMsg?.[slotId] && (
                 <div
@@ -1059,6 +1069,10 @@ export function ModelLibrary() {
   const [kaggleNames, setKaggleNames] = useState({}); // { vision: 'My Kaggle', ... }
   const [kaggleBusy, setKaggleBusy] = useState(null); // slotId | `${slotId}-test`
   const [kaggleMsg, setKaggleMsg] = useState({}); // { slotId: { ok, text } }
+  // Links saved to the user's ACCOUNT (backend, encrypted) — fetched on load
+  // so the user can SEE what is saved, not just trust the success message.
+  const [accountLinks, setAccountLinks] = useState(null); // { vision: {url, name, updatedAt}, ... } | null
+  const [accountKeyStable, setAccountKeyStable] = useState(true);
   const progressUnsub = useRef(null);
   // Category filter for the catalog tabs (all | vision | hacking | grounding).
   const [catFilter, setCatFilter] = useState('all');
@@ -1103,12 +1117,13 @@ export function ModelLibrary() {
     try {
       // Model list comes from the frontend catalog (no backend needed).
       // Brain slots/status still use the backend when available.
-      const [st, chain, slots, sources, servers] = await Promise.all([
+      const [st, chain, slots, sources, servers, acct] = await Promise.all([
         tryApi(getRunnerStatus()),
         tryApi(getBrainChain()),
         tryApi(getBrainSlots()),
         tryApi(getSlotSources()),
         tryApi(getSlotServers()),
+        tryApi(getAccountBrainLinks()),
       ]);
       const errors = [st, chain, slots, sources, servers].map(r => r.error).filter(Boolean);
       // Backend status: only for brain slots etc. Models always show (frontend catalog).
@@ -1122,6 +1137,10 @@ export function ModelLibrary() {
       if (slots.data?.slots) setBrainSlots(slots.data.slots);
       if (sources.data?.slotSources) setSlotSources(sources.data.slotSources);
       if (servers.data?.slotServers) setSlotServers(servers.data.slotServers);
+      if (acct.data?.links) {
+        setAccountLinks(acct.data.links);
+        if (typeof acct.data.keyStable === 'boolean') setAccountKeyStable(acct.data.keyStable);
+      }
       if (st.data) {
         setStatus(st.data);
         const dl = st.data.download;
@@ -1249,13 +1268,20 @@ export function ModelLibrary() {
     }
     setKaggleBusy(`${slot}-save`);
     try {
-      await saveAccountBrainLinks({ [slot]: { url: entry.url, name: entry.name || null } });
+      const res = await saveAccountBrainLinks({ [slot]: { url: entry.url, name: entry.name || null } });
+      if (res?.links) setAccountLinks(res.links);
+      if (typeof res?.keyStable === 'boolean') setAccountKeyStable(res.keyStable);
       setKaggleMsg(m => ({
         ...m,
-        [slot]: {
-          ok: true,
-          text: 'Saved to your account (encrypted) — your agent machine can now use it 24/7.',
-        },
+        [slot]: res?.keyStable === false
+          ? {
+              ok: true,
+              text: 'Saved, but this server forgets account links on restart (no stable key configured) — they are safe in this browser.',
+            }
+          : {
+              ok: true,
+              text: 'Saved to your account (encrypted) — your agent machine can now use it 24/7.',
+            },
       }));
     } catch (err) {
       setKaggleMsg(m => ({
@@ -1895,6 +1921,7 @@ export function ModelLibrary() {
                 onKaggleDisconnect={disconnectSlotKaggleHandler}
                 onKaggleTest={testSlotKaggle}
                 onKaggleSaveToAccount={saveKaggleToAccountHandler}
+                accountLinks={accountLinks}
                 kaggleUrl={kaggleUrls[slotId] || ''}
                 setKaggleUrl={v => setKaggleUrls(m => ({ ...m, [slotId]: v }))}
                 kaggleName={kaggleNames[slotId] || ''}
