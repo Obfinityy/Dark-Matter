@@ -1,0 +1,102 @@
+/**
+ * Wave102.css — Infinity AI · Wave 102
+ * Scoped styles for the target onboarding tail and scope suite galleries (w102a- / w102b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w102a-gallery,
+.w102b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w102a-card,
+.w102b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w102a-title,
+.w102b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w102a-note,
+.w102b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w102a-kv,
+.w102b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w102a-k,
+.w102b-k { opacity: 0.7; }
+
+.w102a-v,
+.w102b-v { font-weight: 600; text-align: right; }
+
+.w102a-row,
+.w102b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w102a-badge,
+.w102b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w102a-badge-info,
+.w102b-badge-info { background: #1c2433; }
+
+.w102a-bar-row,
+.w102b-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.w102a-bar,
+.w102b-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #1c2433;
+}
+
+.w102a-bar-fill,
+.w102b-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.w102a-field,
+.w102b-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  margin: 8px 0;
+}
