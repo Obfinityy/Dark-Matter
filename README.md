@@ -1,8 +1,24 @@
-# Infinity AI — Autonomous Bug-Bounty & Coding Agent
+# Dark Matter — Autonomous Bug-Bounty Agent
 
 > **Paste a link. The agent hunts. You get the report.**
 
-Infinity AI is an autonomous AI security researcher for authorized bug-bounty hunting, plus an AI coding companion — in one app. It reasons like a human hunter (reconnaissance, attack-surface mapping, hypothesis testing, controlled validation) and delivers professional, submission-ready reports.
+Dark Matter by **Obfinity** is an autonomous AI security researcher for authorized bug-bounty hunting. It reasons like an elite human hunter — reconnaissance, attack-surface mapping, hypothesis testing, vulnerability chaining, controlled validation — and delivers professional, submission-ready PDF reports.
+
+**Hunt AI** — Paste a URL you own or a bug-bounty program link. The agent autonomously:
+- Understands the target and scope by itself (HackerOne, Bugcrowd, Intigriti, or direct URLs)
+- Maps the attack surface (subdomain enum, live-host probing, JS-aware crawling, port scanning)
+- Tests real security hypotheses (XSS, SQLi, IDOR, SSRF, and 12,000+ more via community templates)
+- Chains small weaknesses into high-impact attack paths, like an elite hunter
+- Validates findings with working proof-of-concepts
+- Generates submission-ready PDF reports — on demand, even mid-hunt
+
+**Infinity AI** — Your AI companion with four modes:
+- **Chat** — Ask anything, debug, brainstorm
+- **Plan** — Get step-by-step build plans
+- **Build** — The agent reads and edits real files
+- **Control** — Command your computer (see the screen, click, type)
+
+**Infinity Voice** — Neural text-to-speech with real lip-sync on the avatar.
 
 [![Status](https://img.shields.io/badge/Status-Production-blue)](#)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2018-61dafb)](#)
@@ -28,12 +44,29 @@ Infinity AI is an autonomous AI security researcher for authorized bug-bounty hu
 
 ---
 
+## How It Thinks
+
+**Triple-brain architecture** — three specialized models, each on your machine:
+
+| Brain | Role | Rule |
+|-------|------|------|
+| **Hacking** | The sole decision-maker. Strategizes, chains vulnerabilities, writes reports. | Thinks — never clicks |
+| **Vision** | Sees screenshots, returns exactly the data the hacker asked for. | Sees — never decides |
+| **Grounding** | Converts element descriptions to screen coordinates. | Clicks — never decides |
+
+**Message queue** — the remote GPU handles one message at a time (FIFO). The hunt loop, mid-hunt chat, and background workers can all talk to the brain simultaneously without overlap or corruption.
+
+**Unlimited thinking** — a rolling brain-written summary compresses aging history every K steps, so the agent reasons coherently at step 500 exactly as at step 5. Long outputs auto-continue from truncation points.
+
+**Task decomposition** — complex objectives are split into independent sub-tasks (parallel tool runs + focused analyses), then synthesized into one conclusion — the same plan → delegate → synthesize pattern a human operator uses.
+
 ## Architecture
 
 ```
 ┌──────────┐     ┌──────────┐     ┌──────────────┐
 │ Frontend │────▶│ Backend  │────▶│   MongoDB    │
-│ (Vercel) │     │ (Render) │     │   (Atlas)    │
+│(Cloudflare│     │ (Render) │     │   (Atlas)    │
+│  Pages)  │     │          │     │              │
 └──────────┘     └──────────┘     └──────────────┘
      │                 │
      │                 ▼
@@ -46,12 +79,13 @@ Infinity AI is an autonomous AI security researcher for authorized bug-bounty hu
      ▼
 ┌──────────────────────────────────┐
 │   YOUR LOCAL MACHINE             │
-│   (localhost:4000)               │
 │                                  │
-│   • Inference engine (llama.cpp) │
-│   • Vision Brain (sees screen)   │
-│   • Grounding Brain (clicks)     │
-│   • Hacking Brain (finds vulns)  │
+│   • Hacking brain (thinks)       │
+│   • Vision brain (sees)          │
+│   • Grounding brain (clicks)     │
+│   • Kali Linux VM (acts)         │
+│   • Recon tools (nmap, nuclei…)  │
+│   • Infinity Voice (speaks)      │
 │                                  │
 │   Models NEVER leave your        │
 │   computer.                      │
@@ -139,9 +173,11 @@ Every directory carries a short `README.md` explaining what lives there and why.
 
 - **Frontend:** React 18, React Router, Vite, Lucide icons
 - **Backend:** Node.js (ESM), Express, MongoDB
-- **AI:** Local GGUF models via llama.cpp; Kaggle Gradio vision link; cloud APIs
-- **Voice:** Kokoro-82M neural TTS (Apache-2.0), CPU-friendly
-- **Deploy:** Vercel (frontend), Render (backend)
+- **AI:** Triple-brain (hacker/vision/grounding) — local GGUF via llama.cpp or Kaggle Gradio GPU links
+- **Security tools:** nuclei, subfinder, httpx, katana, naabu, dalfox, ffuf (auto-downloaded, MIT)
+- **Voice:** Infinity Voice neural TTS (Kokoro-82M default, VoxCPM2 premium), CPU-friendly
+- **Reports:** Brain-written sections → pdfkit professional PDF
+- **Deploy:** Cloudflare Pages (frontend, auto-deploy), Render (backend)
 
 ---
 
@@ -160,5 +196,5 @@ Private — Obfinity. All rights reserved.
 ---
 
 <p align="center">
-  Built by <b>Infinity AI</b> — <i>hunt smarter, not harder.</i>
+  Built by <b>Obfinity</b> — Dark Matter <i>hunts smarter, not harder.</i>
 </p>

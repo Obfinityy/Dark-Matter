@@ -144,7 +144,54 @@ node --test tests/*.test.js    # Unit tests (261 pass individually)
 - **Idea bank**: `ideas/IDEAS_10000*.md` (100,004 ideas) is the long-term roadmap. Implement ideas continuously in small verified batches, referencing idea numbers in commits/PRs.
 - **Security**: Hunt only authorized targets. No destructive testing. Minimal PoCs.
 
-## Current Status (3 Oct 2026)
+## Current Status (9 Oct 2026)
+
+### Triple-Brain Architecture (production)
+- **Hacker brain** (sole decision-maker) → **Vision brain** (sees only) → **Grounding brain** (clicks only)
+- Each slot: local model OR Kaggle Gradio link, resolved per-call by `tripleBrainOrchestrator.js`
+- `observeThinkAct` loop: see → think → act, with `visionInstruction`/`groundingInstruction` orders
+- **Vision delegation with expected output**: hacking brain sets `visionExpectedOutput` — exactly what data to bring back (e.g. "list of input names and button labels"). Vision returns exactly that; hacker processes it.
+
+### Brain Message Queue (9 Oct 2026)
+- **Problem**: 4–5 concurrent messages (hunt loop + mid-hunt chat + poller) all hit the one Kaggle GPU → VRAM contention, timeouts, failures.
+- **Fix** (`backend/src/agent/providers/gradioProvider.js`): per-endpoint FIFO queue. One inference at a time per GPU, first-in-first-out, no overlap, no input/output mixing. Errors never jam the queue. Different endpoints run independently.
+- **Tests**: `backend/tests/gradioQueue.test.js` (4 tests: no-overlap, failure-resilience, endpoint-independence, drain).
+
+### Brain-Written PDF Reports (9 Oct 2026)
+- **Problem**: 8B model can't write a full report in one shot (context limit).
+- **Fix** (`backend/src/services/htmlReportService.js`): report planned as sections; brain writes ONE section per call (executive summary, methodology, per-finding deep dives, attack chains, remediation). Critical/high findings get their own sections; lower ones grouped.
+- **Unlimited output**: `_generateWithContinuation` detects truncation (mid-sentence, unclosed tags) and auto-continues from the exact cutoff point, deduping overlap. Sections can be arbitrarily long.
+- **PDF** (`backend/src/services/brainReportPdf.js`): pdfkit renderer converts brain HTML fragments to submission-quality PDF — cover page, severity color badges, tables, code blocks, page numbers. No 170MB Chromium download (puppeteer rejected).
+- **On-demand**: `POST /api/v1/jobs/:id/report.html` → 202 + generationId (works MID-HUNT); `GET /api/v1/jobs/:id/report.html/:generationId` → status or PDF download.
+- **Tests**: `backend/tests/htmlReportService.test.js` (5), `backend/tests/brainReportPdf.test.js` (5).
+
+### TaskDecomposer — works like the operator (9 Oct 2026)
+- `backend/src/agent/taskDecomposer.js`: plan → delegate → synthesize.
+- Brain breaks a complex objective into 2–6 independent sub-tasks (analyze | tool).
+- Tools run in parallel; brain analyses go through the FIFO queue; results synthesized into one conclusion with key facts and next steps.
+- One delegation level only (workers never spawn workers). Failures don't kill synthesis.
+- **Tests**: `backend/tests/taskDecomposer.test.js` (4 tests).
+
+### Recon Tools (integrated, download-on-demand)
+- `subfinder`, `httpx`, `katana`, `naabu`, `nuclei`, `dalfox`, `ffuf` — registered in `backend/src/tools/registry.js`, binaries auto-downloaded from official GitHub releases via `backend/src/tools/managedBinaries.js` (`~/.darkmatter/tools/`).
+- Brain sees all tools in its system prompt; `parallel_tools` decision runs independent tools concurrently; `FALLBACK_TOOLS` in `executor.js` retries with alternatives on failure.
+- UI branding: "Infinity Scanner", "Infinity Recon", "Infinity Crawler" — never upstream names. Licenses in `THIRD_PARTY_NOTICES.md`.
+
+### Unlimited Thinking (rolling context)
+- `huntContextManager.maybeRefreshSummary`: every K steps, the brain compresses aging history into a rolling summary (extractive fallback). The brain never loses track at step 500.
+- Token-budgeted context per step: HOT (recent) + WARM (summary) + COLD (file memory).
+
+### UI Controls (verified present)
+- HuntView: Pause/Resume buttons; `POST /jobs/:id/pause`, `/jobs/:id/resume`
+- Mid-hunt chat: `ChatDock.jsx` ("ask the brain anything mid-hunt")
+- VM screen: `VmScreen.jsx` (noVNC) + Terminal: `VmTerminal.jsx` (xterm.js)
+- Hunt memory: per-hunt isolated, local device only, ZIP export/import
+
+### Still needs the owner's machines
+- Windows runner E2E (Start-Runner.bat → Kali download → VM boot → noVNC handshake)
+- Live Gradio → hunt loop E2E; live Razorpay payment; BRAIN_LINKS_KEY on Render
+
+## Legacy status (3 Oct 2026, kept for history)
 
 - ✅ 7 elite engines built and tested
 - ✅ Gradio 6.x predict API support

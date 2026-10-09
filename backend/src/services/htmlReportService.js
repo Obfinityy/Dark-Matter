@@ -22,6 +22,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { renderBrainReportPdf } from './brainReportPdf.js';
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'informational'];
 const SEVERITY_COLORS = {
@@ -66,8 +67,7 @@ function sortFindings(findings = []) {
 }
 
 /** Compact one-line summary of a finding for brain prompts (keeps context small). */
-function findingDigest(f) {
-  return [
+function findingDigest(f) {  return [
     `Title: ${f.title || f.type || 'Untitled'}`,
     `Severity: ${f.severity || 'unknown'}`,
     `Category: ${f.category || 'uncategorized'}`,
@@ -81,8 +81,7 @@ function findingDigest(f) {
     .join('\n');
 }
 
-const FRAGMENT_SYSTEM = [
-  'You are the report writer for Infinity AI, an autonomous bug-bounty agent.',
+const FRAGMENT_SYSTEM = [  'You are the report writer for Infinity AI, an autonomous bug-bounty agent.',
   'Write ONLY the HTML fragment for the requested report section.',
   'Rules: use semantic HTML only (h2, h3, p, ul, ol, li, table, tr, th, td, strong, em, code, pre, blockquote).',
   'No <html>, <head>, <body>, <script>, <style>, or <iframe> tags — just the section content.',
@@ -90,6 +89,39 @@ const FRAGMENT_SYSTEM = [
   'Base every claim on the finding data provided. Never invent vulnerabilities.',
   'Be concise and professional — this reads like a real pentest report.',
 ].join('\n');
+
+/**
+ * Detect a truncated brain reply: ends mid-sentence, mid-tag, or mid-word
+ * with no terminal punctuation — the model hit its token budget.
+ */
+export function isTruncated(text) {
+  const t = String(text || '').trim();
+  if (t.length < 200) return false; // too short to be a cutoff
+  // Unclosed HTML tags strongly suggest truncation.
+  const opens = (t.match(/<(h2|h3|p|ul|ol|li|table|tr|td|th|pre|blockquote)\b/gi) || []).length;
+  const closes = (t.match(/<\/(h2|h3|p|ul|ol|li|table|tr|td|th|pre|blockquote)>/gi) || []).length;
+  if (opens > closes) return true;
+  // Ends mid-sentence: last char is not terminal punctuation.
+  const last = t.slice(-1);
+  if (!/[.!?»:”"']/.test(last)) return true;
+  return false;
+}
+
+/**
+ * Remove overlap when stitching a continuation: if the continuation starts
+ * by repeating the tail of what we have, drop the repeated part.
+ */
+export function dedupeOverlap(existing, continuation) {
+  const a = String(existing || '');
+  let b = String(continuation || '').trim();
+  // Try decreasing overlap windows from the tail of `a`.
+  const maxWindow = Math.min(200, Math.floor(a.length / 2), b.length);
+  for (let w = maxWindow; w >= 20; w--) {
+    const tail = a.slice(-w);
+    if (b.startsWith(tail)) return b.slice(w);
+  }
+  return b;
+}
 
 /** HtmlReportService — chunked, brain-written HTML reports. */
 export class HtmlReportService {
@@ -155,6 +187,13 @@ export class HtmlReportService {
     return fs.readFile(gen.filePath, 'utf8');
   }
 
+  /** Get the rendered PDF bytes (null when not ready or render failed). */
+  async getPdf(generationId) {
+    const gen = this.generations.get(generationId);
+    if (!gen || gen.status !== 'done' || !gen.pdfPath) return null;
+    return fs.readFile(gen.pdfPath);
+  }
+
   // ── generation pipeline ────────────────────────────────────────────
 
   async _runGeneration(gen, { findings, brain, huntContext }) {
@@ -201,6 +240,20 @@ export class HtmlReportService {
     const filePath = path.join(this.reportDir, `${gen.id}.html`);
     await fs.writeFile(filePath, fullHtml, 'utf8');
     gen.filePath = filePath;
+    // Render the professional PDF via pdfkit (submission-quality).
+    try {
+      const pdfBytes = await renderBrainReportPdf({
+        target: gen.target,
+        findings,
+        fragments,
+      });
+      const pdfPath = path.join(this.reportDir, `${gen.id}.pdf`);
+      await fs.writeFile(pdfPath, pdfBytes);
+      gen.pdfPath = pdfPath;
+      this.logger.info?.(`[html-report] PDF rendered ${gen.id}: ${pdfBytes.length} bytes`);
+    } catch (err) {
+      this.logger.warn?.(`[html-report] PDF render failed for ${gen.id}: ${err.message} — HTML still available`);
+    }
     gen.status = 'done';
     gen.finishedAt = new Date().toISOString();
     gen.progress.currentSection = 'complete';
@@ -231,8 +284,7 @@ export class HtmlReportService {
   }
 
   /** One focused brain call per narrative section — small prompt, small output. */
-  async _brainSection(brain, section, { findings, target, huntContext }) {
-    const counts = {};
+  async _brainSection(brain, section, { findings, target, huntContext }) {    const counts = {};
     for (const f of findings) {
       const s = String(f.severity || 'informational').toLowerCase();
       counts[s] = (counts[s] || 0) + 1;
@@ -266,13 +318,7 @@ export class HtmlReportService {
     }
     const prompt = `${contextLines.join('\n')}\n\nTask: ${task}`;
     try {
-      const out = await brain.generate(
-        [
-          { role: 'system', content: FRAGMENT_SYSTEM },
-          { role: 'user', content: prompt },
-        ],
-        { maxTokens: 1500, timeout: 180000 }
-      );
+      const out = await this._generateWithContinuation(brain, prompt);
       const text = String(out || '').trim();
       if (!text) throw new Error('empty brain reply');
       return text;
@@ -280,6 +326,38 @@ export class HtmlReportService {
       this.logger.warn?.(`[html-report] brain section "${section.key}" failed: ${err.message} — using fallback`);
       return this._fallbackSection(section, { findings });
     }
+  }
+
+  /**
+   * Generate a section with automatic continuation ("unlimited output").
+   * Small models stop mid-reply when they hit their token budget. We detect
+   * truncation and ask the brain to continue EXACTLY where it left off,
+   * stitching the parts together — so a section can be arbitrarily long.
+   */
+  async _generateWithContinuation(brain, prompt, maxRounds = 4) {
+    let full = await this._singleGenerate(brain, prompt);
+    for (let round = 1; round < maxRounds; round++) {
+      if (!isTruncated(full)) break;
+      const tail = full.slice(-400);
+      this.logger.info?.(`[html-report] section truncated — requesting continuation (round ${round})`);
+      const more = await this._singleGenerate(
+        brain,
+        `Continue EXACTLY where you left off. Do not repeat anything, do not summarize, just continue the HTML fragment.\n\nYour output so far ended with:\n…${tail}\n\nContinue:`
+      );
+      full += dedupeOverlap(full, more);
+    }
+    return full;
+  }
+
+  async _singleGenerate(brain, prompt) {
+    const out = await brain.generate(
+      [
+        { role: 'system', content: FRAGMENT_SYSTEM },
+        { role: 'user', content: prompt },
+      ],
+      { maxTokens: 1500, timeout: 180000 }
+    );
+    return String(out || '').trim();
   }
 
   /** Deterministic sections need no brain call. */

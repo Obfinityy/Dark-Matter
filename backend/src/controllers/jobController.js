@@ -371,7 +371,7 @@ export function createJobController({
 
     /**
      * GET /api/v1/jobs/:id/report.html/:generationId — poll status, or
-     * download the finished HTML report.
+     * download the finished brain-written PDF report.
      */
     reportHtmlGet: asyncHandler(async (request, response) => {
       await jobManager.requireJob(request.user.id, request.params.id);
@@ -389,16 +389,16 @@ export function createJobController({
       if (status.status !== 'done') {
         return response.json(status);
       }
-      const html = await htmlReportService.getHtml(request.params.generationId);
-      if (!html) {
+      const pdf = await htmlReportService.getPdf(request.params.generationId);
+      if (!pdf) {
         return response.status(404).json({
           error: { code: 'REPORT_MISSING', message: 'Report file is no longer available.' },
         });
       }
-      const filename = `infinity-ai-report-${String(request.params.id).slice(0, 12)}.html`;
-      response.setHeader('Content-Type', 'text/html; charset=utf-8');
+      const filename = `infinity-ai-report-${String(request.params.id).slice(0, 12)}.pdf`;
+      response.setHeader('Content-Type', 'application/pdf');
       response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      response.send(html);
+      response.send(pdf);
     }),
 
     /** GET /api/v1/jobs/:id/attack-surface — live map from the agent's state */

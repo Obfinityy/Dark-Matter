@@ -74,6 +74,11 @@ const STRATEGY_SCHEMA = {
       description:
         'Concrete order for the vision brain, e.g. "Screenshot the login page and list every input field and button." Empty when the vision brain is not needed this step.',
     },
+    visionExpectedOutput: {
+      type: 'string',
+      description:
+        'EXACTLY what data the vision brain must bring back, e.g. "A list of all input field names and their types, plus the button labels." The vision brain returns this and nothing else.',
+    },
     groundingInstruction: {
       type: 'string',
       description:
@@ -351,7 +356,7 @@ export class TripleBrainOrchestrator {
             (degraded
               ? '\n(Note: you are the vision model covering for the missing hacker brain — keep reasoning simple and safe.)'
               : '') +
-            '\n\nYou command two subordinate brains. Every step, give each a concrete order via visionInstruction and groundingInstruction (or leave one empty when that brain is not needed). They execute your orders verbatim — be specific.',
+            '\n\nYou command two subordinate brains. Every step, give each a concrete order via visionInstruction and groundingInstruction (or leave one empty when that brain is not needed). They execute your orders verbatim — be specific. When you need data back from vision, ALSO set visionExpectedOutput to describe EXACTLY what to return (e.g. "the list of input names and button labels") — vision will bring back exactly that.',
         },
         {
           role: 'user',
@@ -405,26 +410,29 @@ export class TripleBrainOrchestrator {
 
   /**
    * SEE — the vision brain describes a screenshot.
-   * @param {object} options — { imageBase64, mime?, hint? }
+   * @param {object} options — { imageBase64, mime?, hint?, expectedOutput? }
+   * expectedOutput: the hacking brain's explicit demand — "bring me THIS data".
+   * The vision brain returns exactly that, so the hacker can process it.
    * @returns {Promise<{ ok, description?, reason? }>}
    */
-  async see({ imageBase64, mime = 'image/png', hint = '' } = {}) {
+  async see({ imageBase64, mime = 'image/png', hint = '', expectedOutput = '' } = {}) {
     const { provider, source } = this.resolveSlot('vision');
     if (!provider) {
       this._warnMissingOnce('vision');
       return { ok: false, reason: 'vision brain missing — no model running for the vision slot' };
     }
     if (!imageBase64) return { ok: false, reason: 'no screenshot provided' };
+    const taskLine = `Describe this screenshot for a security analyst.${hint ? ` Focus: ${hint}` : ''}`;
+    const outputLine = expectedOutput?.trim()
+      ? `\n\nYou MUST return exactly this output and nothing else:\n${expectedOutput.trim()}`
+      : '';
     const text = await provider.generate(
       [
         { role: 'system', content: VISION_SYSTEM },
         {
           role: 'user',
           content: [
-            {
-              type: 'text',
-              text: `Describe this screenshot for a security analyst.${hint ? ` Focus: ${hint}` : ''}`,
-            },
+            { type: 'text', text: `${taskLine}${outputLine}` },
             imagePart(imageBase64, mime),
           ],
         },
@@ -494,9 +502,11 @@ export class TripleBrainOrchestrator {
     const prevOrders = options.brainOrders || {};
 
     // 1. SEE — guided by the hacking brain's vision order from last step.
+    // The expected output tells vision EXACTLY what data to bring back.
     const seeHint = prevOrders.vision || hint;
+    const expectedOutput = prevOrders.visionExpectedOutput || '';
     const seen = imageBase64
-      ? await this.see({ imageBase64, mime, hint: seeHint })
+      ? await this.see({ imageBase64, mime, hint: seeHint, expectedOutput })
       : { ok: false, reason: 'no screenshot' };
     const observations = [...(options.observations || []), ...(seen.ok ? [seen.description] : [])];
 
@@ -557,6 +567,8 @@ export class TripleBrainOrchestrator {
       vulnChains: Array.isArray(raw.vulnChains) ? raw.vulnChains : [],
       // Direct orders to the subordinate brains (may be empty strings).
       visionInstruction: typeof raw.visionInstruction === 'string' ? raw.visionInstruction : '',
+      visionExpectedOutput:
+        typeof raw.visionExpectedOutput === 'string' ? raw.visionExpectedOutput : '',
       groundingInstruction:
         typeof raw.groundingInstruction === 'string' ? raw.groundingInstruction : '',
       done: raw.done === true,
