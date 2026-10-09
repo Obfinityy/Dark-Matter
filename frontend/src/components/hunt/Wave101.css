@@ -1,0 +1,102 @@
+/**
+ * Wave101.css — Infinity AI · Wave 101
+ * Scoped styles for the debrief closeout and target onboarding galleries (w101a- / w101b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w101a-gallery,
+.w101b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w101a-card,
+.w101b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w101a-title,
+.w101b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w101a-note,
+.w101b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w101a-kv,
+.w101b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w101a-k,
+.w101b-k { opacity: 0.7; }
+
+.w101a-v,
+.w101b-v { font-weight: 600; text-align: right; }
+
+.w101a-row,
+.w101b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w101a-badge,
+.w101b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w101a-badge-info,
+.w101b-badge-info { background: #1c2433; }
+
+.w101a-bar-row,
+.w101b-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.w101a-bar,
+.w101b-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #1c2433;
+}
+
+.w101a-bar-fill,
+.w101b-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.w101a-field,
+.w101b-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  margin: 8px 0;
+}
