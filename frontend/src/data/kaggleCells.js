@@ -221,7 +221,7 @@ demo.launch(share=True, debug=False, show_error=True,
   vision: {
     slot: 'vision',
     title: 'Vision Brain',
-    modelId: 'martossien/qwen_2.5_vl_7b_uncensored_comfy_ready',
+    modelId: 'huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated',
     kind: 'text + image in → text out',
     steps: [
       'Kaggle.com → Create → New Notebook, accelerator = GPU T4 x2 (free).',
@@ -231,16 +231,12 @@ demo.launch(share=True, debug=False, show_error=True,
     cell: `# ============================================================
 # DARK MATTER · VISION BRAIN — KAGGLE + T4 + GRADIO
 # SINGLE CELL / CLEAN SERVER
-# (cell style by owner — model swapped to the uncensored pick;
-#  change MODEL_NAME back to "Qwen/Qwen2.5-VL-7B-Instruct" if you
-#  ever want the stock model)
+# Model: huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated
+# (uncensored Qwen2.5-VL, full transformers support)
 # ============================================================
 
-import os
 import sys
-import gc
 import time
-import signal
 import subprocess
 
 print("============================================================")
@@ -267,8 +263,7 @@ except:
 time.sleep(2)
 
 # ------------------------------------------------------------
-# ------------------------------------------------------------
-# 2. INSTALL ONLY MISSING PACKAGES
+# 2. INSTALL ONLY MISSING / TOO-OLD PACKAGES
 # ------------------------------------------------------------
 print("Checking required packages (needs internet)...")
 
@@ -305,6 +300,28 @@ def _ensure_packages(pkgs):
 
 _ensure_packages(["transformers", "accelerate", "qwen-vl-utils", "gradio"])
 
+# Qwen2.5-VL needs transformers >= 4.49. Kaggle images sometimes ship
+# an older one, which fails with "unrecognized model / processor".
+# Upgrade only when too old.
+try:
+    from packaging.version import Version
+    import transformers
+    if Version(transformers.__version__) < Version("4.49.0"):
+        print(f"transformers {transformers.__version__} is too old "
+              f"for Qwen2.5-VL - upgrading...")
+        r = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", "-U",
+             "transformers>=4.49.0"])
+        if r.returncode != 0:
+            raise RuntimeError("transformers upgrade failed.")
+        print("transformers upgraded - RESTART this cell run "
+              "(Kaggle: Runtime -> Restart and run all) so the new "
+              "version loads.")
+        raise SystemExit(0)
+    print("transformers", transformers.__version__, "- OK for Qwen2.5-VL.")
+except ImportError:
+    pass  # packaging not present; assume pip gave us a fresh copy
+
 
 # ------------------------------------------------------------
 # 3. IMPORTS
@@ -337,7 +354,7 @@ print("Precision:", DTYPE)
 # ------------------------------------------------------------
 # 6. LOAD MODEL
 # ------------------------------------------------------------
-MODEL_NAME = "martossien/qwen_2.5_vl_7b_uncensored_comfy_ready"
+MODEL_NAME = "huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated"
 
 print("\\nLoading:")
 print(MODEL_NAME)
