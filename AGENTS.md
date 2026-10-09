@@ -191,6 +191,10 @@ node --test tests/*.test.js    # Unit tests (261 pass individually)
 - Windows runner E2E (Start-Runner.bat → Kali download → VM boot → noVNC handshake)
 - Live Gradio → hunt loop E2E; live Razorpay payment; BRAIN_LINKS_KEY on Render
 
+### Hunt engines from VFS bounty (10 Oct 2026)
+- **tempMailProvider.js** (`backend/src/engines/`): disposable email for hunter test-account creation — mail.tm API (free, no signup): createAccount → token, listMessages/getMessage, extractVerificationCode (4-8 digit), extractLinks, waitForMessage with injectable pollFn. 15s abort timeout on all calls. Fallback when it fails: ask the user for an email. Tests: `tests/tempMailProvider.test.js` (mocked fetch, 15 tests).
+- **hardeningDetector.js** (`backend/src/engines/`): detects POST-INCIDENT hardening signals in client-side code (blocked-filename-fragment lists, magic-byte signature checks, MIME/extension allowlists, multi-extension rejection, devtools blocking) and scores 0-100. Score ≥70 → 'heavily-hardened' → recommendation: deprioritize the vector, only test server-side with coordination. Don't waste requests on bypasses the dev team already blocked. Tests: `tests/hardeningDetector.test.js` (VFS-style patterns → heavily-hardened; minimal code → basic/none, 9 tests).
+
 ## Legacy status (3 Oct 2026, kept for history)
 
 - ✅ 7 elite engines built and tested
