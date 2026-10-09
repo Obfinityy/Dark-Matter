@@ -1,0 +1,13 @@
+/* CvssBadge — severity pill with the CVSS score.
+ *
+ * The shared pill chrome lives in styles/singularity.css (`.sg-pill`); this
+ * file carries only the badge's own refinements:
+ *  - tabular-nums so the one-decimal score digits never reflow as findings
+ *    of different severities sit side by side on the board;
+ *  - cursor: default — the badge is informational, not a control.
+ */
+
+.cvss-badge {
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
