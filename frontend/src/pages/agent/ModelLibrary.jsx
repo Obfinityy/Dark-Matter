@@ -453,6 +453,8 @@ function BrainSlotCard({
   setKaggleUrl,
   kaggleName,
   setKaggleName,
+  groundingEnabled,
+  onToggleGrounding,
 }) {
   const source = sources[slotId]?.source || 'local';
   const kaggle = sources[slotId]?.source === 'kaggle' ? sources[slotId] : null;
@@ -489,14 +491,22 @@ function BrainSlotCard({
         <div className="ml-slot-head-text">
           <strong className="ml-slot-title">
             {slot.label}
-            {slot.optional && (
-              <span
+            {slotId === 'grounding' && (
+              <button
+                onClick={onToggleGrounding}
                 className="sg-pill"
-                style={{ marginLeft: '8px', fontSize: '11px', background: 'var(--dm-surface-3)', color: 'var(--dm-text-2)' }}
-                title="This brain is optional — hunts work without it"
+                style={{
+                  marginLeft: '8px', fontSize: '11px', cursor: 'pointer', border: '1px solid var(--dm-border)',
+                  background: groundingEnabled ? 'var(--dm-surface-3)' : 'transparent',
+                  color: groundingEnabled ? 'var(--dm-text-1)' : 'var(--dm-text-2)',
+                  opacity: groundingEnabled ? 1 : 0.6,
+                }}
+                title={groundingEnabled
+                  ? 'Grounding is ON — click to disable (Vision will handle coordinates)'
+                  : 'Grounding is OFF — click to enable'}
               >
-                Optional
-              </span>
+                {groundingEnabled ? '● Enabled' : '○ Disabled'}
+              </button>
             )}
           </strong>
           <div className="sg-small ml-slot-desc">{slot.description}</div>
@@ -1345,6 +1355,22 @@ export function ModelLibrary() {
   // events; the slot flips to Running when the brain is up.
   const [slotSetup, setSlotSetup] = useState({ vision: 'idle', grounding: 'idle', hacker: 'idle' });
 
+  // Grounding enable/disable toggle — persisted per device. When disabled,
+  // hunts skip grounding entirely and Vision handles coordinates.
+  const [groundingEnabled, setGroundingEnabled] = useState(() => {
+    try {
+      const v = localStorage.getItem('dm-grounding-enabled');
+      return v === null ? true : v === '1';
+    } catch { return true; }
+  });
+  const toggleGrounding = () => {
+    setGroundingEnabled(prev => {
+      const next = !prev;
+      try { localStorage.setItem('dm-grounding-enabled', next ? '1' : '0'); } catch {}
+      return next;
+    });
+  };
+
   const refreshSlotSetup = async () => {
     if (!localBackendUp) return;
     try {
@@ -1938,6 +1964,8 @@ export function ModelLibrary() {
                 setKaggleUrl={v => setKaggleUrls(m => ({ ...m, [slotId]: v }))}
                 kaggleName={kaggleNames[slotId] || ''}
                 setKaggleName={v => setKaggleNames(m => ({ ...m, [slotId]: v }))}
+                groundingEnabled={groundingEnabled}
+                onToggleGrounding={toggleGrounding}
               />
             ))}
           </div>
