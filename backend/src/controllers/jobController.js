@@ -34,6 +34,8 @@ export function createJobController({
   findingModel = null,
   agentStateModel = null,
   evidenceModel = null,
+  htmlReportService = null,
+  resolveHackerBrain = null,
 }) {
   return {
     /** POST /api/v1/jobs — create an autonomous assessment job */
@@ -331,6 +333,72 @@ export function createJobController({
       response.setHeader('Content-Type', 'application/pdf');
       response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       streamReportPdf(report, response);
+    }),
+
+    /**
+     * POST /api/v1/jobs/:id/report.html — start an on-demand HTML report.
+     * Works mid-hunt: the report reflects findings known SO FAR. The hacking
+     * brain writes it section-by-section (small model, chunked generation).
+     * Returns { generationId } — poll GET below for progress/download.
+     */
+    reportHtmlStart: asyncHandler(async (request, response) => {
+      const job = await jobManager.requireJob(request.user.id, request.params.id);
+      if (!htmlReportService) {
+        return response.status(503).json({
+          error: { code: 'REPORT_UNAVAILABLE', message: 'HTML report service is not configured.' },
+        });
+      }
+      const findings = findingModel ? await findingModel.list(job.assessmentId) : [];
+      const brain = typeof resolveHackerBrain === 'function' ? await resolveHackerBrain(job) : null;
+      const state = agentStateModel
+        ? await agentStateModel.get(job.assessmentId).catch(() => null)
+        : null;
+      const generationId = htmlReportService.startGeneration({
+        jobId: job.id,
+        userId: request.user.id,
+        target: job.target || job.targetUrl || state?.target || null,
+        findings,
+        brain,
+        huntContext: { startedAt: job.createdAt || state?.startedAt || null },
+      });
+      response.status(202).json({
+        generationId,
+        status: 'generating',
+        findingsCount: findings.length,
+        brainAvailable: !!brain,
+      });
+    }),
+
+    /**
+     * GET /api/v1/jobs/:id/report.html/:generationId — poll status, or
+     * download the finished HTML report.
+     */
+    reportHtmlGet: asyncHandler(async (request, response) => {
+      await jobManager.requireJob(request.user.id, request.params.id);
+      if (!htmlReportService) {
+        return response.status(503).json({
+          error: { code: 'REPORT_UNAVAILABLE', message: 'HTML report service is not configured.' },
+        });
+      }
+      const status = htmlReportService.getStatus(request.params.generationId);
+      if (status.status === 'not_found') {
+        return response.status(404).json({
+          error: { code: 'GENERATION_NOT_FOUND', message: 'Unknown report generation id.' },
+        });
+      }
+      if (status.status !== 'done') {
+        return response.json(status);
+      }
+      const html = await htmlReportService.getHtml(request.params.generationId);
+      if (!html) {
+        return response.status(404).json({
+          error: { code: 'REPORT_MISSING', message: 'Report file is no longer available.' },
+        });
+      }
+      const filename = `infinity-ai-report-${String(request.params.id).slice(0, 12)}.html`;
+      response.setHeader('Content-Type', 'text/html; charset=utf-8');
+      response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      response.send(html);
     }),
 
     /** GET /api/v1/jobs/:id/attack-surface — live map from the agent's state */

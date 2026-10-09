@@ -147,6 +147,8 @@ export function createRoutes({ controllers }) {
   router.get('/jobs/:id/findings', controllers.jobs.findings);
   router.get('/jobs/:id/vulnerability-report', controllers.jobs.vulnerabilityReport);
   router.get('/jobs/:id/report.pdf', controllers.jobs.reportPdf);
+  router.post('/jobs/:id/report.html', controllers.jobs.reportHtmlStart);
+  router.get('/jobs/:id/report.html/:generationId', controllers.jobs.reportHtmlGet);
   router.get('/jobs/:id/attack-surface', controllers.jobs.attackSurface);
   router.get('/jobs/:id/posture', controllers.jobs.posture);
   router.get('/jobs/:id/diary', controllers.jobs.diary);

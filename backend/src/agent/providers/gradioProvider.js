@@ -20,6 +20,53 @@ import { stripThinkingTags, parseLenientJson } from './phoneLocalProvider.js';
 
 const DEFAULT_TIMEOUT_MS = 300000; // 5 min — GPU inference + queue wait
 
+// ── Per-endpoint FIFO message queue ──────────────────────────────────────
+// A Kaggle/Colab GPU runs ONE model. If 4–5 messages arrive at once and all
+// fire concurrently, they compete for the same VRAM → timeouts, OOM kills,
+// garbled replies. So every GradioProvider instance sharing the same
+// endpoint URL funnels through ONE fifo queue: a single promise chain per
+// baseUrl. One request in flight at a time, first-in-first-out, no overlap,
+// no input/output mixing. Errors never jam the queue — the chain continues.
+const endpointQueues = new Map(); // baseUrl -> Promise (chain tail)
+const endpointQueueDepth = new Map(); // baseUrl -> number waiting (observability)
+
+function enqueueForEndpoint(baseUrl, task) {
+  const tail = endpointQueues.get(baseUrl) || Promise.resolve();
+  endpointQueueDepth.set(baseUrl, (endpointQueueDepth.get(baseUrl) || 0) + 1);
+  const enqueuedAt = Date.now();
+  const next = tail.then(
+    async () => {
+      const waitedMs = Date.now() - enqueuedAt;
+      if (waitedMs > 5000 && process.env.DM_DEBUG_GRADIO) {
+        console.log(`[gradio] queue wait ${waitedMs}ms for ${baseUrl}`);
+      }
+      try {
+        return await task();
+      } finally {
+        endpointQueueDepth.set(baseUrl, Math.max(0, (endpointQueueDepth.get(baseUrl) || 1) - 1));
+      }
+    },
+    // If the previous task rejected, still run — one failure must not
+    // wedge every later message.
+    async () => {
+      try {
+        return await task();
+      } finally {
+        endpointQueueDepth.set(baseUrl, Math.max(0, (endpointQueueDepth.get(baseUrl) || 1) - 1));
+      }
+    }
+  );
+  // Store a non-rejecting tail so the chain survives failures; return the
+  // real result promise to the caller.
+  endpointQueues.set(baseUrl, next.catch(() => {}));
+  return next;
+}
+
+/** How many messages are currently waiting for a Gradio endpoint (diagnostics). */
+export function gradioQueueDepth(baseUrl) {
+  return endpointQueueDepth.get(baseUrl) || 0;
+}
+
 function normalizeBaseUrl(raw) {
   if (!raw || typeof raw !== 'string') throw new Error('Gradio URL is required');
   let url = raw.trim().replace(/\/+$/, '');
@@ -110,8 +157,17 @@ export class GradioProvider {
    * Supports both old (/gradio_api/api/chat) and new (/gradio_api/call/predict)
    * Gradio APIs. Newer notebooks use predict with MultimodalData format.
    * Gradio share links occasionally drop a connection; retry 3 times.
+   *
+   * Every call goes through the per-endpoint FIFO queue: the remote GPU
+   * handles ONE message at a time, so concurrent callers (hunt loop,
+   * mid-hunt chat, agent poller) can never overlap and corrupt each other.
    */
-  async chatOnce(prompt, { timeoutMs, maxTokens } = {}) {
+  async chatOnce(prompt, opts = {}) {
+    return enqueueForEndpoint(this.baseUrl, () => this._chatOnceUnqueued(prompt, opts));
+  }
+
+  /** The actual HTTP exchange — always invoked via the FIFO queue. */
+  async _chatOnceUnqueued(prompt, { timeoutMs, maxTokens } = {}) {
     const timeout = timeoutMs || this.timeoutMs;
     let lastErr = null;
     for (let attempt = 1; attempt <= 3; attempt++) {

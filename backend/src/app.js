@@ -31,6 +31,7 @@ import { SubdomainService } from './services/subdomainService.js';
 import { AuthService } from './services/authService.js';
 import { AssessmentService } from './services/assessmentService.js';
 import { ReportService } from './services/reportService.js';
+import { createHtmlReportService } from './services/htmlReportService.js';
 import { StateManager } from './agent/stateManager.js';
 import { Planner } from './agent/planner.js';
 import { AgentBrain } from './agent/brain.js';
@@ -245,6 +246,9 @@ export async function createApp({ database } = {}) {
     eventService,
     evidenceModel,
   });
+
+  // On-demand HTML reports, written chunk-by-chunk by the hacking brain.
+  const htmlReportService = createHtmlReportService({});
 
   // ─── Computer Control (Open-Interface "hands") ───────────────────
   // The adapter owns the Python bridge process. It never calls an LLM: the
@@ -599,6 +603,17 @@ export async function createApp({ database } = {}) {
           findingModel,
           agentStateModel,
           evidenceModel,
+          htmlReportService,
+          // Resolve the hacking brain for on-demand HTML reports.
+          resolveHackerBrain: async job => {
+            try {
+              const orch = await agentWorker?.getTripleBrainOrchestratorForJob(job);
+              const { provider } = orch?.resolveSlot('hacker') || {};
+              return provider || null;
+            } catch {
+              return null;
+            }
+          },
         }),
         huntRecords: createHuntRecordController({ huntRecordModel }),
         alerts: createAlertController({ alertService }),
