@@ -1,0 +1,69 @@
+/**
+ * Wave90.css — Infinity AI · Wave 90
+ * Scoped styles for the cluster intelligence galleries (w90a- / w90b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w90a-gallery,
+.w90b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w90a-card,
+.w90b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w90a-title,
+.w90b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w90a-note,
+.w90b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w90a-kv,
+.w90b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w90a-k,
+.w90b-k { opacity: 0.7; }
+
+.w90a-v,
+.w90b-v { font-weight: 600; text-align: right; }
+
+.w90a-row,
+.w90b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w90a-badge,
+.w90b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w90a-badge-info,
+.w90b-badge-info { background: #1c2433; }
