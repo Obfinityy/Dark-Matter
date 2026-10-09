@@ -23,6 +23,7 @@ import './styles/polish-pass-export-avatar-bento.css';
 import './styles/polish-pass-spotlight-home-hunt.css';
 import './styles/polish-pass-errorboundary.css';
 import './styles/polish-pass-models-plugins-settings.css';
+import './styles/polish-pass-hunt-status.css';
 import './styles/ui-refactor.css';
 import './styles/animations.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
