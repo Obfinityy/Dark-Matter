@@ -1,0 +1,169 @@
+/**
+ * Wave76.css — Infinity AI · Dark-Matter · Wave 76
+ * Scoped styles for the template sharing gallery (w76a-)
+ * and the hunt learning gallery (w76b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w76a-gallery,
+.w76b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w76a-card,
+.w76b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w76a-title,
+.w76b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w76a-subtitle,
+.w76b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w76a-note,
+.w76b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w76a-kv,
+.w76b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w76a-k,
+.w76b-k {
+  color: #9aa3b2;
+}
+
+.w76a-v,
+.w76b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w76a-row,
+.w76b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w76a-badge,
+.w76b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w76a-badge-ok,
+.w76b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w76a-badge-warn,
+.w76b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w76a-badge-danger,
+.w76b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w76a-badge-info,
+.w76b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w76a-bar,
+.w76b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w76a-bar-fill,
+.w76b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w76a-link,
+.w76b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w76a-presig,
+.w76b-presig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w76a-subject,
+.w76b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-top: 6px;
+}
+
+.w76a-pre,
+.w76b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
