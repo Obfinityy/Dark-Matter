@@ -1,0 +1,169 @@
+/**
+ * Wave78.css — Infinity AI · Dark-Matter · Wave 78
+ * Scoped styles for the stack effectiveness round 3 gallery (w78a-)
+ * and the strategy analytics gallery (w78b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w78a-gallery,
+.w78b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w78a-card,
+.w78b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w78a-title,
+.w78b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w78a-subtitle,
+.w78b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w78a-note,
+.w78b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w78a-kv,
+.w78b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w78a-k,
+.w78b-k {
+  color: #9aa3b2;
+}
+
+.w78a-v,
+.w78b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w78a-row,
+.w78b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w78a-badge,
+.w78b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w78a-badge-ok,
+.w78b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w78a-badge-warn,
+.w78b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w78a-badge-danger,
+.w78b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w78a-badge-info,
+.w78b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w78a-bar,
+.w78b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w78a-bar-fill,
+.w78b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w78a-link,
+.w78b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w78a-presig,
+.w78b-presig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w78a-subject,
+.w78b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-top: 6px;
+}
+
+.w78a-pre,
+.w78b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
