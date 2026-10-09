@@ -1,0 +1,121 @@
+/**
+ * Wave88.css — Infinity AI · Wave 88
+ * Scoped styles for the knowledge base gallery (w88a-)
+ * and the KB governance + failure analysis gallery (w88b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w88a-gallery,
+.w88b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w88a-card,
+.w88b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w88a-title,
+.w88b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w88a-note,
+.w88b-note {
+  font-size: 11px;
+  color: #9aa3b2;
+  margin-bottom: 8px;
+}
+
+.w88a-kv,
+.w88b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.w88a-k,
+.w88b-k {
+  color: #9aa3b2;
+}
+
+.w88a-v,
+.w88b-v {
+  color: #e6e9f0;
+  text-align: right;
+  word-break: break-word;
+}
+
+.w88a-row,
+.w88b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.w88a-badge,
+.w88b-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #2a2f3a;
+  color: #9aa3b2;
+}
+
+.w88a-badge-info,
+.w88b-badge-info {
+  color: #7dd3fc;
+  border-color: #164e63;
+}
+
+.w88a-badge-ok,
+.w88b-badge-ok {
+  color: #86efac;
+  border-color: #14532d;
+}
+
+.w88a-badge-warn,
+.w88b-badge-warn {
+  color: #fcd34d;
+  border-color: #713f12;
+}
+
+.w88a-subtitle,
+.w88b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w88a-list,
+.w88b-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #c6cdd9;
+}
+
+.w88a-empty,
+.w88b-empty {
+  font-size: 12px;
+  color: #9aa3b2;
+  font-style: italic;
+  padding: 8px 0;
+}
