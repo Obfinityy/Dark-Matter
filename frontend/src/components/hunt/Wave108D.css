@@ -1,0 +1,395 @@
+/* Wave108D.css — shared stylesheet for Wave108D (notes & collaboration, ideas 54311-54320).
+   Branding: Infinity AI / Dark Matter only. */
+
+.wave108d {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  max-width: 960px;
+  margin: 0 auto;
+  color: #e8e8ee;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.wave108d-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 0.75rem;
+}
+
+.wave108d-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+}
+
+.wave108d-sub {
+  margin: 0 0 0.6rem;
+  color: #9aa0b4;
+  font-size: 0.85rem;
+}
+
+.wave108d-viewer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wave108d-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.wave108d-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.02rem;
+}
+
+.wave108d-btn {
+  background: #6d5cff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.wave108d-btn:hover {
+  background: #5a4ae0;
+}
+
+.wave108d-btn-ghost {
+  background: transparent;
+  border: 1px solid #6d5cff;
+  color: #cfc9ff;
+}
+
+.wave108d-btn-ghost:hover {
+  background: rgba(109, 92, 255, 0.15);
+}
+
+.wave108d-btn-sm {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.wave108d-input,
+.wave108d-select {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #e8e8ee;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.4rem;
+  width: 220px;
+}
+
+.wave108d-select {
+  width: auto;
+}
+
+.wave108d-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #e8e8ee;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  margin-bottom: 0.5rem;
+  resize: vertical;
+}
+
+.wave108d-muted {
+  color: #9aa0b4;
+  font-size: 0.85rem;
+}
+
+.wave108d-faint {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.wave108d-warn {
+  color: #ff9d9d;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+.wave108d-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+.wave108d-list li {
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+.wave108d-list code,
+.wave108d-muted code {
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.8rem;
+}
+
+.wave108d-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.wave108d-form {
+  margin-top: 0.75rem;
+}
+
+/* notes overview */
+.wave108d-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.wave108d-note-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.wave108d-note-card:hover {
+  border-color: rgba(109, 92, 255, 0.6);
+}
+
+.wave108d-note-card-active {
+  border-color: #6d5cff;
+  box-shadow: 0 0 0 1px #6d5cff;
+}
+
+.wave108d-note-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.wave108d-badges {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.wave108d-badge {
+  font-size: 0.72rem;
+  background: rgba(109, 92, 255, 0.18);
+  border: 1px solid rgba(109, 92, 255, 0.5);
+  color: #cfc9ff;
+  border-radius: 20px;
+  padding: 0.1rem 0.55rem;
+}
+
+.wave108d-badge-private {
+  background: rgba(255, 180, 84, 0.12);
+  border-color: rgba(255, 180, 84, 0.5);
+  color: #ffcf8f;
+}
+
+.wave108d-badge-locked {
+  background: rgba(255, 120, 120, 0.12);
+  border-color: rgba(255, 120, 120, 0.5);
+  color: #ff9d9d;
+}
+
+/* attachments */
+.wave108d-attach {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.wave108d-attach-name {
+  font-weight: 600;
+}
+
+/* snippet blocks + syntax tokens */
+.wave108d-pre {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.78rem;
+  overflow-x: auto;
+  color: #cfd4e3;
+  margin: 0 0 0.75rem;
+}
+
+.wave108d-snippet-lang {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9aa0b4;
+  margin-bottom: 0.4rem;
+}
+
+.wave108d-tok-plain { color: #cfd4e3; }
+.wave108d-tok-comment { color: #6b7280; font-style: italic; }
+.wave108d-tok-string { color: #8fd18f; }
+.wave108d-tok-flag { color: #7cc7ff; }
+.wave108d-tok-keyword { color: #c9a7ff; font-weight: 600; }
+
+/* checklists */
+.wave108d-progress {
+  position: relative;
+  height: 1.4rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 0.6rem;
+}
+
+.wave108d-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6d5cff, #8f7bff);
+  transition: width 0.25s ease;
+}
+
+.wave108d-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #e8e8ee;
+}
+
+.wave108d-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.wave108d-done {
+  text-decoration: line-through;
+  color: #9aa0b4;
+}
+
+/* mentions */
+.wave108d-mention {
+  background: rgba(124, 199, 255, 0.15);
+  border: 1px solid rgba(124, 199, 255, 0.5);
+  color: #7cc7ff;
+  border-radius: 20px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* comments */
+.wave108d-comment {
+  border-left: 3px solid #6d5cff;
+  padding-left: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.wave108d-comment p {
+  margin: 0.25rem 0 0.4rem;
+}
+
+.wave108d-comment-resolved {
+  border-left-color: #3ddc84;
+  opacity: 0.85;
+}
+
+/* version history */
+.wave108d-rev {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.wave108d-diff {
+  margin-top: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.wave108d-diff-add { color: #8fd18f; }
+.wave108d-diff-del { color: #ff9d9d; }
+.wave108d-diff-same { color: #6b7280; }
+
+/* search */
+.wave108d-hit {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.wave108d-snippet {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+}
+
+.wave108d-mark {
+  background: rgba(109, 92, 255, 0.45);
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 0.15rem;
+}
+
+/* tags */
+.wave108d-tags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.wave108d-tag {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 0.1rem 0.55rem;
+  color: #cfd4e3;
+}
+
+.wave108d-authorship {
+  font-size: 1rem;
+  margin: 0 0 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .wave108d {
+    padding: 0.75rem;
+  }
+  .wave108d-input {
+    width: 100%;
+  }
+  .wave108d-rev {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
