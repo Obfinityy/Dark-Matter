@@ -1,0 +1,166 @@
+/**
+ * Wave85.css — Infinity AI · Wave 85
+ * Scoped styles for the replay learning gallery (w85a-)
+ * and the replay community gallery (w85b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w85a-gallery,
+.w85b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w85a-card,
+.w85b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w85a-title,
+.w85b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w85a-subtitle,
+.w85b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w85a-note,
+.w85b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w85a-kv,
+.w85b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w85a-k,
+.w85b-k {
+  color: #9aa3b2;
+}
+
+.w85a-v,
+.w85b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w85a-row,
+.w85b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w85a-badge,
+.w85b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w85a-badge-ok,
+.w85b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w85a-badge-warn,
+.w85b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w85a-badge-danger,
+.w85b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w85a-badge-info,
+.w85b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w85a-bar,
+.w85b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w85a-bar-fill,
+.w85b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w85a-link,
+.w85b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w85a-pre,
+.w85b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w85a-cell,
+.w85b-cell {
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  background: #10131a;
+}
+
+.w85a-cell-dark,
+.w85b-cell-dark {
+  border-color: #4a2326;
+}
+
+.w85a-cell-covered,
+.w85b-cell-covered {
+  border-color: #1e3a2a;
+}
