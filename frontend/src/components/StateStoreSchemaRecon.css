@@ -1,0 +1,125 @@
+/* StateStoreSchemaRecon.css — Wave 921, ideas 951–960 demo component styles.
+ * Scoped under .w921d-* only. No keyframes/animations (owner rule). */
+
+.w921d-root {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  color: #e8e8e8;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.w921d-title {
+  font-size: 1.4rem;
+  margin: 0 0 4px;
+  color: #f5d67b;
+}
+
+.w921d-sub {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  color: #9a9a9a;
+  line-height: 1.5;
+}
+
+.w921d-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #111;
+  color: #d7d7d7;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.w921d-input:focus {
+  outline: 1px solid #f5d67b;
+  border-color: #f5d67b;
+}
+
+.w921d-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (min-width: 760px) {
+  .w921d-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .w921d-section:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.w921d-section {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.w921d-section-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  color: #f5d67b;
+}
+
+.w921d-count {
+  display: inline-block;
+  min-width: 22px;
+  text-align: center;
+  font-size: 0.75rem;
+  background: #2a2a2a;
+  color: #e8e8e8;
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.w921d-section-body {
+  font-size: 0.85rem;
+}
+
+.w921d-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.w921d-list li {
+  padding: 6px 10px;
+  background: #1d1d1d;
+  border: 1px solid #2e2e2e;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.w921d-line {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.w921d-mono {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.w921d-dim {
+  color: #8f8f8f;
+}
+
+.w921d-empty {
+  color: #6f6f6f;
+  font-style: italic;
+  margin: 4px 0;
+}
