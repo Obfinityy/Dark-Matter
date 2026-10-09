@@ -1,0 +1,111 @@
+/**
+ * Wave105.css — Infinity AI · Wave 105
+ * Scoped styles for the target health-check and health-intelligence galleries (w105a- / w105b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w105a-gallery,
+.w105b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w105a-card,
+.w105b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w105a-title,
+.w105b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w105a-note,
+.w105b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w105a-kv,
+.w105b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w105a-k,
+.w105b-k { opacity: 0.7; }
+
+.w105a-v,
+.w105b-v { font-weight: 600; text-align: right; }
+
+.w105a-row,
+.w105b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w105a-badge,
+.w105b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w105a-badge-info,
+.w105b-badge-info { background: #1c2433; }
+
+.w105a-bar-row,
+.w105b-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.w105a-bar,
+.w105b-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #1c2433;
+}
+
+.w105a-bar-fill,
+.w105b-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.w105a-field,
+.w105b-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  margin: 8px 0;
+}
+
+.w105a-badge-good,
+.w105b-badge-good { background: #14291c; }
+
+.w105a-badge-warn,
+.w105b-badge-warn { background: #33240f; }
+
+.w105a-badge-high,
+.w105b-badge-high { background: #33141c; }
