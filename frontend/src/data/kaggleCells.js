@@ -61,17 +61,44 @@ except:
 time.sleep(2)
 
 # ------------------------------------------------------------
-# 2. INSTALL ONLY REQUIRED PACKAGES
 # ------------------------------------------------------------
-print("Installing required packages...")
+# 2. INSTALL ONLY MISSING PACKAGES
+# ------------------------------------------------------------
+print("Checking required packages (needs internet)...")
 
 # IMPORTANT: Do NOT upgrade torch here.
 # Kaggle already has the CUDA-compatible PyTorch stack.
-subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "-U",
-     "transformers", "accelerate", "gradio"],
-    check=True
-)
+
+def _ensure_packages(pkgs):
+    """Install only the packages that are missing. If pip fails it is
+    almost always because the notebook has no internet:
+    Kaggle right sidebar -> Settings -> Internet -> ON, then re-run."""
+    import importlib
+    mod_map = {"qwen-vl-utils": "qwen_vl_utils", "pillow": "PIL"}
+    missing = []
+    for pkg in pkgs:
+        try:
+            importlib.import_module(mod_map.get(pkg, pkg.replace("-", "_")))
+        except ImportError:
+            missing.append(pkg)
+    if not missing:
+        print("All required packages already present - skipping pip.")
+        return
+    print("Installing missing packages:", ", ".join(missing))
+    r = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-q", "-U"] + missing)
+    if r.returncode != 0:
+        print("\\n" + "=" * 60)
+        print("PIP INSTALL FAILED.")
+        print("Most likely cause: this Kaggle notebook has NO internet.")
+        print("Fix: right sidebar -> Settings -> Internet -> ON,")
+        print("then press Run on this cell again.")
+        print("=" * 60)
+        raise RuntimeError(
+            "pip install failed - turn notebook Internet ON and re-run.")
+
+_ensure_packages(["transformers", "accelerate", "gradio"])
+
 
 # ------------------------------------------------------------
 # 3. IMPORTS
@@ -240,17 +267,44 @@ except:
 time.sleep(2)
 
 # ------------------------------------------------------------
-# 2. INSTALL ONLY REQUIRED PACKAGES
 # ------------------------------------------------------------
-print("Installing required packages...")
+# 2. INSTALL ONLY MISSING PACKAGES
+# ------------------------------------------------------------
+print("Checking required packages (needs internet)...")
 
 # IMPORTANT: Do NOT upgrade torch here.
 # Kaggle already has the CUDA-compatible PyTorch stack.
-subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "-U",
-     "transformers", "accelerate", "qwen-vl-utils", "gradio"],
-    check=True
-)
+
+def _ensure_packages(pkgs):
+    """Install only the packages that are missing. If pip fails it is
+    almost always because the notebook has no internet:
+    Kaggle right sidebar -> Settings -> Internet -> ON, then re-run."""
+    import importlib
+    mod_map = {"qwen-vl-utils": "qwen_vl_utils", "pillow": "PIL"}
+    missing = []
+    for pkg in pkgs:
+        try:
+            importlib.import_module(mod_map.get(pkg, pkg.replace("-", "_")))
+        except ImportError:
+            missing.append(pkg)
+    if not missing:
+        print("All required packages already present - skipping pip.")
+        return
+    print("Installing missing packages:", ", ".join(missing))
+    r = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-q", "-U"] + missing)
+    if r.returncode != 0:
+        print("\\n" + "=" * 60)
+        print("PIP INSTALL FAILED.")
+        print("Most likely cause: this Kaggle notebook has NO internet.")
+        print("Fix: right sidebar -> Settings -> Internet -> ON,")
+        print("then press Run on this cell again.")
+        print("=" * 60)
+        raise RuntimeError(
+            "pip install failed - turn notebook Internet ON and re-run.")
+
+_ensure_packages(["transformers", "accelerate", "qwen-vl-utils", "gradio"])
+
 
 # ------------------------------------------------------------
 # 3. IMPORTS
@@ -443,17 +497,44 @@ except:
 time.sleep(2)
 
 # ------------------------------------------------------------
-# 2. INSTALL ONLY REQUIRED PACKAGES
 # ------------------------------------------------------------
-print("Installing required packages...")
+# 2. INSTALL ONLY MISSING PACKAGES
+# ------------------------------------------------------------
+print("Checking required packages (needs internet)...")
 
 # IMPORTANT: Do NOT upgrade torch here.
 # Kaggle already has the CUDA-compatible PyTorch stack.
-subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "-U",
-     "transformers", "accelerate", "gradio", "pillow"],
-    check=True
-)
+
+def _ensure_packages(pkgs):
+    """Install only the packages that are missing. If pip fails it is
+    almost always because the notebook has no internet:
+    Kaggle right sidebar -> Settings -> Internet -> ON, then re-run."""
+    import importlib
+    mod_map = {"qwen-vl-utils": "qwen_vl_utils", "pillow": "PIL"}
+    missing = []
+    for pkg in pkgs:
+        try:
+            importlib.import_module(mod_map.get(pkg, pkg.replace("-", "_")))
+        except ImportError:
+            missing.append(pkg)
+    if not missing:
+        print("All required packages already present - skipping pip.")
+        return
+    print("Installing missing packages:", ", ".join(missing))
+    r = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-q", "-U"] + missing)
+    if r.returncode != 0:
+        print("\\n" + "=" * 60)
+        print("PIP INSTALL FAILED.")
+        print("Most likely cause: this Kaggle notebook has NO internet.")
+        print("Fix: right sidebar -> Settings -> Internet -> ON,")
+        print("then press Run on this cell again.")
+        print("=" * 60)
+        raise RuntimeError(
+            "pip install failed - turn notebook Internet ON and re-run.")
+
+_ensure_packages(["transformers", "accelerate", "gradio", "pillow"])
+
 
 # ------------------------------------------------------------
 # 3. IMPORTS
