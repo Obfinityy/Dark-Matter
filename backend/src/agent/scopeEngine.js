@@ -59,6 +59,12 @@ export class ScopeEngine {
     this.targetHostname = normalizeDomain(targetHostname);
     this.included = (scope?.included || [this.targetHostname]).map(normalizeDomain);
     this.excluded = (scope?.excluded || []).map(normalizeDomain);
+    // Bounty-program action rules (Elite Hunter): { allowed: [], forbidden: [] }
+    // from scopeRuleParser.parseScopeRules(). Forbidden wins.
+    this.actionRules = scope?.scopeRules || null;
+    this.program = scope?.program
+      ? { platform: scope.programPlatform, program: scope.program, url: scope.programUrl }
+      : null;
   }
 
   /** Check if a hostname/domain is inside the authorized scope. */
@@ -119,6 +125,42 @@ export class ScopeEngine {
       target: this.targetHostname,
       included: [...this.included],
       excluded: [...this.excluded],
+      ...(this.program ? { program: this.program } : {}),
+      ...(this.actionRules
+        ? { actionRules: { allowed: this.actionRules.allowed, forbidden: this.actionRules.forbidden } }
+        : {}),
+    };
+  }
+
+  /**
+   * Check whether a tool/action is permitted under the program's rules.
+   * Maps tool names to canonical action ids; unknown tools default to allow
+   * (the program didn't mention them).
+   */
+  isActionPermitted(toolName) {
+    if (!this.actionRules) return { permitted: true, reason: 'no program rules' };
+    const actionId = TOOL_TO_ACTION[toolName] || toolName;
+    if (this.actionRules.forbidden?.includes(actionId)) {
+      return { permitted: false, reason: `forbidden by program rules: ${actionId}` };
+    }
+    return {
+      permitted: true,
+      reason: this.actionRules.allowed?.includes(actionId) ? 'explicitly allowed' : 'not mentioned (default allow)',
     };
   }
 }
+
+/** Map tool names to scopeRuleParser canonical action ids. */
+const TOOL_TO_ACTION = {
+  subfinder: 'subdomain-bruteforce',
+  'amass-passive': 'subdomain-bruteforce',
+  assetfinder: 'subdomain-bruteforce',
+  naabu: 'port-scanning',
+  nmap: 'port-scanning',
+  nuclei: 'automated-scanning',
+  nikto: 'automated-scanning',
+  ffuf: 'dir-bruteforce',
+  gobuster: 'dir-bruteforce',
+  arjun: 'fuzzing',
+  dalfox: 'fuzzing',
+};

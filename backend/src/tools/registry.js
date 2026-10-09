@@ -589,6 +589,35 @@ const TOOL_DEFINITIONS = [
     timeout: 60_000,
     parser: 'json',
   },
+  // --- Web intelligence (Elite Hunter: the brain uses the web like a human) ---
+  // No API keys — DuckDuckGo HTML endpoint. Read-only: search results and
+  // public pages (CVEs, exploit writeups, docs). Never touches hunt targets.
+  {
+    name: 'web_search',
+    category: 'web_intelligence',
+    description:
+      'Search the web like a human hunter: look up CVEs, exploit techniques, bypass methods, technology docs, error messages. Input: { query, maxResults? }. Returns title/url/snippet results.',
+    inputType: 'query',
+    outputFormat: 'json',
+    riskLevel: 'none',
+    requiresAuthorization: false,
+    requiresKali: false,
+    timeout: 30_000,
+    parser: 'json',
+  },
+  {
+    name: 'web_fetch',
+    category: 'web_intelligence',
+    description:
+      'Fetch a public web page as readable text (CVE details, exploit writeup, documentation). Input: { url }. Read-only, no credentials sent.',
+    inputType: 'url',
+    outputFormat: 'json',
+    riskLevel: 'none',
+    requiresAuthorization: false,
+    requiresKali: false,
+    timeout: 30_000,
+    parser: 'json',
+  },
 ];
 
 /** Frozen lookup maps built at module load time. */

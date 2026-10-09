@@ -8,6 +8,7 @@ import { assert } from '../core/errors.js';
 import { extractUrl, normalizeUrlCandidate } from '../core/utils.js';
 import { normalizeTargetUrl, normalizeScope } from '../models/targetModel.js';
 import { ScopeEngine } from '../agent/scopeEngine.js';
+import { detectProgramUrl, resolveProgramScope } from './programScopeService.js';
 
 /**
  * AssessmentService — orchestrates the full assessment lifecycle.
@@ -53,9 +54,44 @@ export class AssessmentService {
    */
   async createFromTarget(userId, input) {
     // 1. Resolve target URL
-    const targetUrl = input.targetUrl || extractUrl(input.message);
+    let targetUrl = input.targetUrl || extractUrl(input.message);
     if (!targetUrl) {
       return { status: 'needs_target', message: 'Please provide an HTTP or HTTPS target URL.' };
+    }
+
+    // 1a. Bounty program page? Resolve it into real in-scope targets + rules.
+    //     The user pastes e.g. https://hackerone.com/shopify and the agent
+    //     understands the program's scope by itself.
+    const program = detectProgramUrl(targetUrl);
+    if (program && input.authorizationConfirmed === true) {
+      try {
+        const resolved = await resolveProgramScope(targetUrl);
+        targetUrl = resolved.primaryTarget;
+        input.scope = {
+          ...(input.scope || {}),
+          included: resolved.included,
+          excluded: resolved.excluded,
+          programUrl: targetUrl,
+          programPlatform: resolved.platform,
+          program: resolved.program,
+          scopeRules: resolved.rules,
+          scopeText: resolved.scopeText.slice(0, 4000),
+        };
+        await this.eventService?.publish?.('program-scope', {
+          type: 'PROGRAM_SCOPE_RESOLVED',
+          level: 'INFO',
+          message: `Program scope resolved (${resolved.platform}/${resolved.program}): ${resolved.included.length} in-scope, ${resolved.excluded.length} excluded`,
+          data: { platform: resolved.platform, included: resolved.included.length },
+        }).catch(() => {});
+      } catch (err) {
+        // Program fetch failed — fall through and treat the pasted URL as a
+        // direct target so the hunt can still proceed.
+        await this.eventService?.publish?.('program-scope', {
+          type: 'PROGRAM_SCOPE_FAILED',
+          level: 'WARN',
+          message: `Could not read program scope (${err.message}); using pasted URL as direct target.`,
+        }).catch(() => {});
+      }
     }
     if (input.authorizationConfirmed !== true) {
       return {

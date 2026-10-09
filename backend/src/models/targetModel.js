@@ -85,7 +85,10 @@ export function normalizeScope(url, scope = {}) {
     'Target is excluded by scope',
     'TARGET_EXCLUDED'
   );
-  return { included, excluded };
+  // Preserve program-scope metadata (programUrl, scopeRules, …) so the agent
+  // can reason about the bounty program's rules downstream.
+  const { included: _i, excluded: _e, ...extra } = scope || {};
+  return { included, excluded, ...extra };
 }
 
 /** Database model for target. */

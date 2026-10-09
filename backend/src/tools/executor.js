@@ -13,6 +13,7 @@ import { parseToolOutput, summarizeForAI } from './parsers/index.js';
 import { WafAdaptiveState, parseWafw00f } from '../recon/wafAdaptive.js';
 import { HTTP_PROBES } from './builtin/httpProbes.js';
 import { ADV_PROBES } from './builtin/advProbes.js';
+import { webSearch, webFetch } from './builtin/webSearch.js';
 import { permissionService as defaultPermissionService } from '../services/permissionService.js';
 
 /**
@@ -163,6 +164,23 @@ export class ToolExecutor {
       const blocked = new AppError(403, policy.reason, 'POLICY_VIOLATION');
       if (policy.approval) blocked.approval = policy.approval;
       throw blocked;
+    }
+
+    // 1b. Bounty-program action rules (Elite Hunter): if the hunt came from a
+    //     program page, honor its forbidden actions (e.g. "no automated
+    //     scanning"). Forbidden wins; unmentioned tools default to allow.
+    const scopeEngine = opts.scopeEngine || this.scopeEngine;
+    if (typeof scopeEngine?.isActionPermitted === 'function') {
+      const actionCheck = scopeEngine.isActionPermitted(request.tool);
+      if (!actionCheck.permitted) {
+        await this.eventService.publish(assessmentId, {
+          type: 'TOOL_BLOCKED',
+          level: 'WARN',
+          message: `Program rules blocked ${request.tool}: ${actionCheck.reason}`,
+          data: { tool: request.tool, reason: actionCheck.reason },
+        });
+        throw new AppError(403, actionCheck.reason, 'PROGRAM_RULE_VIOLATION');
+      }
     }
 
     // 2. Deduplication check
@@ -405,6 +423,18 @@ export class ToolExecutor {
     }
     if (tool.name === 'python') {
       return this.executePython(request.arguments);
+    }
+    // Web intelligence (Elite Hunter): the brain searches/reads the public
+    // web like a human hunter. Read-only, no API keys, never touches targets.
+    if (tool.name === 'web_search') {
+      const args = request.arguments || {};
+      const results = await webSearch(args.query || args.q, args.maxResults);
+      return JSON.stringify({ query: args.query || args.q, results });
+    }
+    if (tool.name === 'web_fetch') {
+      const args = request.arguments || {};
+      const page = await webFetch(args.url || request.target);
+      return JSON.stringify(page);
     }
     // Built-in HTTP detection probes (src/tools/builtin/httpProbes.js and
     // advProbes.js): real HTTP against the authorized target, normalized

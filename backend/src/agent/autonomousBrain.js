@@ -365,6 +365,22 @@ ${schemaSection}`;
     parts.push(`Excluded: ${(job.scope?.excluded || []).join(', ') || 'none'}`);
     parts.push(`Authorization: confirmed by the account owner (userId ${job.userId})`);
 
+    // Bounty-program context (Elite Hunter): the user pasted a program page
+    // and the agent resolved its scope itself. The brain must honor the
+    // program's rules like a human hunter would.
+    if (job.scope?.program) {
+      parts.push(`\n## BOUNTY PROGRAM (${job.scope.programPlatform}/${job.scope.program})`);
+      parts.push(`Program page: ${job.scope.programUrl}`);
+      if (job.scope.scopeRules?.forbidden?.length) {
+        parts.push(`FORBIDDEN by program rules — NEVER do these: ${job.scope.scopeRules.forbidden.join(', ')}`);
+      }
+      if (job.scope.scopeRules?.allowed?.length) {
+        parts.push(`Explicitly allowed: ${job.scope.scopeRules.allowed.join(', ')}`);
+      }
+      parts.push('Think like an elite bug bounty hunter: find high-impact vulnerabilities,');
+      parts.push('chain small findings into bigger ones, and respect the program scope strictly.');
+    }
+
     parts.push('\n## CURRENT OBJECTIVE');
     parts.push(job.currentObjective || job.objective || 'Assess the target');
 
