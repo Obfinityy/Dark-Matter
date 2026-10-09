@@ -1,0 +1,169 @@
+/**
+ * Wave80.css — Infinity AI · Dark-Matter · Wave 80
+ * Scoped styles for the strategy remix gallery (w80a-)
+ * and the TTF deep analytics gallery (w80b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w80a-gallery,
+.w80b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w80a-card,
+.w80b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w80a-title,
+.w80b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w80a-subtitle,
+.w80b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w80a-note,
+.w80b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w80a-kv,
+.w80b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w80a-k,
+.w80b-k {
+  color: #9aa3b2;
+}
+
+.w80a-v,
+.w80b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w80a-row,
+.w80b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w80a-badge,
+.w80b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w80a-badge-ok,
+.w80b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w80a-badge-warn,
+.w80b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w80a-badge-danger,
+.w80b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w80a-badge-info,
+.w80b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w80a-bar,
+.w80b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w80a-bar-fill,
+.w80b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w80a-link,
+.w80b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w80a-presig,
+.w80b-presig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w80a-subject,
+.w80b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-top: 6px;
+}
+
+.w80a-pre,
+.w80b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
