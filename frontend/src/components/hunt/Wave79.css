@@ -1,0 +1,169 @@
+/**
+ * Wave79.css — Infinity AI · Dark-Matter · Wave 79
+ * Scoped styles for the strategy analytics round 2 gallery (w79a-)
+ * and the strategy governance gallery (w79b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w79a-gallery,
+.w79b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w79a-card,
+.w79b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w79a-title,
+.w79b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w79a-subtitle,
+.w79b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w79a-note,
+.w79b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w79a-kv,
+.w79b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w79a-k,
+.w79b-k {
+  color: #9aa3b2;
+}
+
+.w79a-v,
+.w79b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w79a-row,
+.w79b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w79a-badge,
+.w79b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w79a-badge-ok,
+.w79b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w79a-badge-warn,
+.w79b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w79a-badge-danger,
+.w79b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w79a-badge-info,
+.w79b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w79a-bar,
+.w79b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w79a-bar-fill,
+.w79b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w79a-link,
+.w79b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w79a-presig,
+.w79b-presig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w79a-subject,
+.w79b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-top: 6px;
+}
+
+.w79a-pre,
+.w79b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
