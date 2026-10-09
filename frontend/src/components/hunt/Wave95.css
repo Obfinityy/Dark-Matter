@@ -1,0 +1,69 @@
+/**
+ * Wave95.css — Infinity AI · Wave 95
+ * Scoped styles for the recommendation depth and knowledge forgetting galleries (w95a- / w95b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w95a-gallery,
+.w95b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w95a-card,
+.w95b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w95a-title,
+.w95b-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.w95a-note,
+.w95b-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.w95a-kv,
+.w95b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.w95a-k,
+.w95b-k { opacity: 0.7; }
+
+.w95a-v,
+.w95b-v { font-weight: 600; text-align: right; }
+
+.w95a-row,
+.w95b-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.w95a-badge,
+.w95b-badge {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #2a2f3a;
+}
+
+.w95a-badge-info,
+.w95b-badge-info { background: #1c2433; }
