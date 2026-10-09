@@ -1,0 +1,169 @@
+/**
+ * Wave77.css — Infinity AI · Dark-Matter · Wave 77
+ * Scoped styles for the hunt learning gallery (w77a-)
+ * and the stack effectiveness gallery (w77b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w77a-gallery,
+.w77b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w77a-card,
+.w77b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w77a-title,
+.w77b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w77a-subtitle,
+.w77b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w77a-note,
+.w77b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w77a-kv,
+.w77b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w77a-k,
+.w77b-k {
+  color: #9aa3b2;
+}
+
+.w77a-v,
+.w77b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w77a-row,
+.w77b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w77a-badge,
+.w77b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w77a-badge-ok,
+.w77b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w77a-badge-warn,
+.w77b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w77a-badge-danger,
+.w77b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w77a-badge-info,
+.w77b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w77a-bar,
+.w77b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w77a-bar-fill,
+.w77b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w77a-link,
+.w77b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w77a-presig,
+.w77b-presig {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w77a-subject,
+.w77b-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-top: 6px;
+}
+
+.w77a-pre,
+.w77b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
