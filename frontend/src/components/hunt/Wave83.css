@@ -1,0 +1,166 @@
+/**
+ * Wave83.css — Infinity AI · Wave 83
+ * Scoped styles for the coverage benchmarks gallery (w83a-)
+ * and the lessons and retrospectives gallery (w83b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w83a-gallery,
+.w83b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w83a-card,
+.w83b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w83a-title,
+.w83b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w83a-subtitle,
+.w83b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w83a-note,
+.w83b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w83a-kv,
+.w83b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w83a-k,
+.w83b-k {
+  color: #9aa3b2;
+}
+
+.w83a-v,
+.w83b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w83a-row,
+.w83b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w83a-badge,
+.w83b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w83a-badge-ok,
+.w83b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w83a-badge-warn,
+.w83b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w83a-badge-danger,
+.w83b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w83a-badge-info,
+.w83b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w83a-bar,
+.w83b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w83a-bar-fill,
+.w83b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w83a-link,
+.w83b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w83a-pre,
+.w83b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w83a-cell,
+.w83b-cell {
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  background: #10131a;
+}
+
+.w83a-cell-dark,
+.w83b-cell-dark {
+  border-color: #4a2326;
+}
+
+.w83a-cell-covered,
+.w83b-cell-covered {
+  border-color: #1e3a2a;
+}
