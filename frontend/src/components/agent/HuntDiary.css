@@ -1,0 +1,82 @@
+/**
+ * HuntDiary.css — co-located polish for the hunt diary timeline.
+ *
+ * The base timeline layout lives in styles/agent.css. This file adds only
+ * what the component owns:
+ *  - consumes --diary-kind (set per entry by the JSX) so the rail dot and
+ *    the kind badge actually tint per entry kind — finding red, hypothesis
+ *    violet, tool amber, etc. (previously the variable was dead);
+ *  - staggered entrance (dm-list-in keyframes from styles/animations.css;
+ *    JSX supplies the per-entry animationDelay);
+ *  - a spinning loader for the loading state;
+ *  - calm hover affordance on cards, safe wrapping on narrow screens,
+ *  - prefers-reduced-motion silences the entrance.
+ */
+
+/* ── Per-kind tint: dot picks up the entry kind color ── */
+.dm-diary-entry .dm-diary-dot {
+  background: var(--diary-kind, var(--dm-accent));
+  box-shadow: 0 0 12px
+    color-mix(in srgb, var(--diary-kind, var(--dm-accent)) 65%, transparent);
+}
+
+.dm-diary-entry .dm-diary-kind {
+  color: var(--diary-kind, var(--dm-accent-bright));
+  background: color-mix(
+    in srgb,
+    var(--diary-kind, var(--dm-accent-bright)) 13%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--diary-kind, var(--dm-accent-bright)) 30%, transparent);
+}
+
+/* ── Entrance: staggered fade-up, driven by JSX animationDelay ── */
+.dm-diary-in {
+  animation: dm-list-in var(--sg-med) both;
+}
+
+/* ── Loading spinner ── */
+.dm-diary-spinner {
+  color: var(--dm-accent-bright);
+}
+
+/* ── Card: calm hover, safe wrapping ── */
+.dm-diary-card {
+  transition:
+    border-color var(--sg-fast),
+    background var(--sg-fast);
+  min-width: 0;
+}
+
+.dm-diary-card:hover {
+  border-color: var(--dm-border);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dm-diary-card header {
+  flex-wrap: wrap;
+}
+
+.dm-diary-card h4 {
+  overflow-wrap: anywhere;
+}
+
+.dm-diary-card p {
+  overflow-wrap: anywhere;
+}
+
+.dm-diary-card code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ── Reduced motion: entries resolve to their final state ── */
+@media (prefers-reduced-motion: reduce) {
+  .dm-diary-in {
+    animation: none;
+  }
+  .dm-diary-card:hover {
+    background: rgba(0, 0, 0, 0.22);
+  }
+}
