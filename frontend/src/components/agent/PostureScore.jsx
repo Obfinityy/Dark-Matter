@@ -11,15 +11,15 @@ import { getJobPosture } from '../../services/api';
 
 const GRADE_COLORS = {
   A: 'var(--sg-go)',
-  B: '#a3e635',
+  B: 'var(--sg-lime)',
   C: 'var(--sg-warn)',
-  D: '#fb923c',
+  D: 'var(--sg-orange)',
   F: 'var(--sg-danger)',
 };
 
 const SEVERITY_COLORS = {
   critical: 'var(--sg-danger)',
-  high: '#fb923c',
+  high: 'var(--sg-orange)',
   medium: 'var(--sg-warn)',
   low: 'var(--sg-info)',
 };
