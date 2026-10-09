@@ -1,0 +1,121 @@
+/* SsrHydrationSurface.css — scoped demo styles (w921b- prefix). No animations. */
+
+.w921b-root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #e8e8e8;
+  background: #101014;
+}
+
+.w921b-header {
+  margin-bottom: 16px;
+}
+
+.w921b-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #f2c94c;
+}
+
+.w921b-sub {
+  margin: 0;
+  font-size: 13px;
+  color: #a9a9b3;
+}
+
+.w921b-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 180px;
+  padding: 12px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  color: #e8e8e8;
+  background: #17171c;
+  border: 1px solid #2c2c34;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.w921b-actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 20px;
+  flex-wrap: wrap;
+}
+
+.w921b-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8e8e8;
+  background: #23232b;
+  border: 1px solid #34343e;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.w921b-btn-primary {
+  color: #141414;
+  background: #f2c94c;
+  border-color: #f2c94c;
+}
+
+.w921b-results {
+  display: grid;
+  gap: 12px;
+}
+
+.w921b-section {
+  background: #17171c;
+  border: 1px solid #2c2c34;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.w921b-section-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f2c94c;
+}
+
+.w921b-count {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 7px;
+  margin-left: 6px;
+  font-size: 12px;
+  text-align: center;
+  color: #141414;
+  background: #f2c94c;
+  border-radius: 999px;
+}
+
+.w921b-section-body {
+  font-size: 13px;
+}
+
+.w921b-note {
+  margin: 0 0 8px;
+  color: #a9a9b3;
+}
+
+.w921b-json {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 280px;
+  overflow: auto;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #c9e1c9;
+  background: #101014;
+  border: 1px solid #26262e;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
