@@ -1,0 +1,166 @@
+/**
+ * Wave86.css — Infinity AI · Wave 86
+ * Scoped styles for the benchmark gallery (w86a-)
+ * and the benchmark operations gallery (w86b-).
+ * Static layout only. No globals, no forced overrides.
+ */
+
+.w86a-gallery,
+.w86b-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.w86a-card,
+.w86b-card {
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  padding: 12px;
+  background: #141821;
+}
+
+.w86a-title,
+.w86b-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6e9f0;
+  margin-bottom: 4px;
+}
+
+.w86a-subtitle,
+.w86b-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9aa3b2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 4px;
+}
+
+.w86a-note,
+.w86b-note {
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.w86a-kv,
+.w86b-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.w86a-k,
+.w86b-k {
+  color: #9aa3b2;
+}
+
+.w86a-v,
+.w86b-v {
+  color: #e6e9f0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.w86a-row,
+.w86b-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.w86a-badge,
+.w86b-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #2a2f3a;
+  color: #e6e9f0;
+  background: #1b2029;
+}
+
+.w86a-badge-ok,
+.w86b-badge-ok {
+  color: #57d38c;
+  border-color: #1e3a2a;
+}
+
+.w86a-badge-warn,
+.w86b-badge-warn {
+  color: #f0b35e;
+  border-color: #4a3a1e;
+}
+
+.w86a-badge-danger,
+.w86b-badge-danger {
+  color: #f2777a;
+  border-color: #4a2326;
+}
+
+.w86a-badge-info,
+.w86b-badge-info {
+  color: #7ab3f0;
+  border-color: #24405e;
+}
+
+.w86a-bar,
+.w86b-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #222833;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.w86a-bar-fill,
+.w86b-bar-fill {
+  height: 100%;
+  background: #3f7dd9;
+}
+
+.w86a-link,
+.w86b-link {
+  color: #7ab3f0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.w86a-pre,
+.w86b-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #c8cfdb;
+  background: #10131a;
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.w86a-cell,
+.w86b-cell {
+  border: 1px solid #222833;
+  border-radius: 6px;
+  padding: 8px;
+  background: #10131a;
+}
+
+.w86a-cell-dark,
+.w86b-cell-dark {
+  border-color: #4a2326;
+}
+
+.w86a-cell-covered,
+.w86b-cell-covered {
+  border-color: #1e3a2a;
+}
