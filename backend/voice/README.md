@@ -21,6 +21,17 @@ python3 -m venv .venv
 The first time the avatar speaks, the ~300MB voice model downloads
 automatically from Hugging Face (one time only, then cached).
 
+### Premium voice quality (optional)
+
+For studio-quality 48kHz speech with best-in-class Hindi:
+
+```bash
+.venv/bin/pip install voxcpm
+```
+
+First run downloads ~9.5GB (one-time). The engine auto-detects VoxCPM2
+and uses it; otherwise it falls back to the standard voice. No config change needed.
+
 ## How it works
 
 - Backend auto-starts the voice service on the first `/api/v1/voice/speak` call

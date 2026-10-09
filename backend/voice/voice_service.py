@@ -4,7 +4,8 @@ Infinity Voice — Dark-Matter's built-in neural voice engine.
 Converts text to natural human-like speech, fully offline, zero API cost.
 Powers the Infinity AI avatar's spoken replies.
 
-Internal engine: Kokoro-82M (Apache-2.0, 82M params, CPU-friendly).
+Internal engine: VoxCPM2 (Apache-2.0, 2B params, 48kHz studio quality)
+with Kokoro-82M as automatic fallback when VoxCPM2 isn't installed.
 Exposed to the platform only as "Infinity Voice" — the underlying
 engine is an implementation detail, never user-facing.
 
@@ -41,7 +42,15 @@ for _key in ('no_proxy', 'NO_PROXY'):
 
 PORT = int(os.environ.get('INFINITY_VOICE_PORT', '4120'))
 
-# Friendly voice names → Kokoro voice IDs. Never expose Kokoro IDs externally.
+# Friendly voice names → VoxCPM2 voice-design descriptions.
+# Never expose engine internals externally.
+VOICE_DESIGN = {
+    'aria': '(A warm and friendly young woman)',
+    'aria2': '(A soft and calm young woman, gentle tone)',
+    'kai': '(A warm young man)',
+    'kai2': '(A deep, authoritative middle-aged man)',
+}
+# Fallback: friendly names → Kokoro voice IDs (used only when VoxCPM2 missing).
 VOICE_MAP = {
     'aria': 'af_heart',   # warm female — default avatar voice
     'aria2': 'af_bella',  # soft female
@@ -52,22 +61,36 @@ DEFAULT_VOICE = 'aria'
 
 _pipeline = None
 _pipeline_lock = threading.Lock()
+_engine = None  # 'voxcpm2' or 'kokoro'
 
 
 def get_pipeline():
-    """Lazy-load Kokoro once; thread-safe."""
-    global _pipeline
+    """Lazy-load VoxCPM2 (preferred) or Kokoro (fallback); thread-safe."""
+    global _pipeline, _engine
     if _pipeline is not None:
         return _pipeline
     with _pipeline_lock:
         if _pipeline is not None:
             return _pipeline
-        log.info('Loading neural voice engine (first run downloads ~300MB)...')
+        # Try VoxCPM2 first — studio-quality 48kHz, Hindi-capable.
+        try:
+            from voxcpm import VoxCPM
+            log.info('Loading VoxCPM2 voice engine (first run downloads ~9.5GB)...')
+            _pipeline = VoxCPM.from_pretrained("openbmb/VoxCPM2", load_denoiser=False)
+            _engine = 'voxcpm2'
+            log.info('VoxCPM2 voice engine ready.')
+            return _pipeline
+        except ImportError:
+            log.info('VoxCPM2 not installed, falling back to Kokoro.')
+        except Exception as e:
+            log.warning(f'VoxCPM2 load failed ({e}), falling back to Kokoro.')
+        # Fallback: Kokoro-82M (lightweight, CPU-friendly).
+        log.info('Loading Kokoro voice engine (first run downloads ~300MB)...')
         try:
             from kokoro import KPipeline
-            # 'a' = American English; works well for Hinglish too (Latin script).
             _pipeline = KPipeline(lang_code='a')
-            log.info('Voice engine ready.')
+            _engine = 'kokoro'
+            log.info('Kokoro voice engine ready (fallback).')
         except Exception as e:
             log.error(f'Failed to load voice engine: {e}')
             raise
@@ -75,22 +98,33 @@ def get_pipeline():
 
 
 def synthesize(text, voice='aria'):
-    """Text → WAV bytes (24kHz mono 16-bit)."""
+    """Text → WAV bytes (48kHz mono 16-bit via VoxCPM2, 24kHz via Kokoro)."""
     import numpy as np
     import soundfile as sf
 
     pipeline = get_pipeline()
-    kokoro_voice = VOICE_MAP.get(voice, VOICE_MAP[DEFAULT_VOICE])
 
-    # Kokoro handles long text by chunking internally via the generator.
+    if _engine == 'voxcpm2':
+        design = VOICE_DESIGN.get(voice, VOICE_DESIGN[DEFAULT_VOICE])
+        # Voice-design mode: description prefix creates a consistent voice.
+        wav = pipeline.generate(
+            text=f"{design}{text}",
+            cfg_value=2.0,
+            inference_timesteps=10,
+        )
+        buf = io.BytesIO()
+        sf.write(buf, wav, 48000, format='WAV', subtype='PCM_16')
+        buf.seek(0)
+        return buf.read()
+
+    # Kokoro fallback path.
+    kokoro_voice = VOICE_MAP.get(voice, VOICE_MAP[DEFAULT_VOICE])
     chunks = []
     generator = pipeline(text, voice=kokoro_voice)
     for _, _, audio in generator:
         chunks.append(audio)
-
     if not chunks:
         raise RuntimeError('Engine produced no audio')
-
     full = np.concatenate(chunks)
     buf = io.BytesIO()
     sf.write(buf, full, 24000, format='WAV', subtype='PCM_16')
@@ -117,7 +151,7 @@ class Handler(BaseHTTPRequestHandler):
                 ready = True
             except Exception:
                 ready = False
-            self._json({'ok': True, 'ready': ready, 'voices': list(VOICE_MAP.keys())})
+            self._json({'ok': True, 'ready': ready, 'voices': list(VOICE_MAP.keys()), 'engine': _engine or 'none'})
         else:
             self._json({'error': 'not found'}, 404)
 
