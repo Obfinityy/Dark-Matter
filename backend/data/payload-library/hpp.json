@@ -1,0 +1,119 @@
+[
+  {
+    "id": "hpp-1",
+    "title": "Methodology",
+    "payload": "/app?debug=false&debug=true",
+    "context": "Methodology",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-2",
+    "title": "Methodology",
+    "payload": "/transfer?amount=1&amount=5000",
+    "context": "Methodology",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-3",
+    "title": "Parameter Pollution Table",
+    "payload": "r.URL.Query().Get(\"param\")",
+    "context": "Parameter Pollution Table",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-4",
+    "title": "Parameter Pollution Table",
+    "payload": "r.URL.Query()[\"param\"]",
+    "context": "Parameter Pollution Table",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-5",
+    "title": "Parameter Pollution Payloads",
+    "payload": "param=value1&param=value2",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-6",
+    "title": "Parameter Pollution Payloads",
+    "payload": "param[]=value1",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-7",
+    "title": "Parameter Pollution Payloads",
+    "payload": "param[]=value1&param[]=value2",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-8",
+    "title": "Parameter Pollution Payloads",
+    "payload": "param[]=value1&param=value2",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-9",
+    "title": "Parameter Pollution Payloads",
+    "payload": "param=value1&param[]=value2",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-10",
+    "title": "Parameter Pollution Payloads",
+    "payload": "param=value1%26other=value2",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-11",
+    "title": "Parameter Pollution Payloads",
+    "payload": "param[key1]=value1&param[key2]=value2",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-12",
+    "title": "Parameter Pollution Payloads",
+    "payload": "\"test\": \"user\",",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  },
+  {
+    "id": "hpp-13",
+    "title": "Parameter Pollution Payloads",
+    "payload": "\"test\": \"admin\"",
+    "context": "Parameter Pollution Payloads",
+    "tags": [
+      "hpp"
+    ]
+  }
+]

