@@ -41,7 +41,6 @@ export function DedupBanner({ result, onView, onNewHunt, onDismiss }) {
         className="dm-dedup-close"
         onClick={onDismiss}
         aria-label="Dismiss banner"
-        title="Dismiss"
       >
         <X size={16} aria-hidden="true" />
       </button>
