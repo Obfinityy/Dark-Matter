@@ -59,7 +59,8 @@ export function HuntStatusPanel({ job, jobId, onJobChanged }) {
           return (
             <li
               key={s}
-              className={`sg-stage${i < stageIndex ? ' sg-done' : ''}${i === stageIndex ? ' sg-current' : ''}`}
+              className={`sg-stage dm-list-in${i < stageIndex ? ' sg-done' : ''}${i === stageIndex ? ' sg-current' : ''}`}
+              style={{ animationDelay: `${i * 70}ms` }}
               title={s}
               aria-label={`${s} — ${state}`}
               aria-current={i === stageIndex ? 'step' : undefined}

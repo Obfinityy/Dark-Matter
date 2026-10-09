@@ -4,6 +4,7 @@
  * with the covered category IDs as chips.
  */
 import React from 'react';
+import { Radar } from 'lucide-react';
 import './CoverageMeter.css';
 
 export function CoverageMeter({ coverage }) {
@@ -48,7 +49,8 @@ export function CoverageMeter({ coverage }) {
         </div>
       )}
       {pct === 0 && (
-        <p className="sg-coverage-empty">
+        <p className="sg-coverage-empty" aria-live="polite">
+          <Radar size={14} aria-hidden="true" />
           No confirmed findings yet — coverage grows as the hunt validates findings.
         </p>
       )}

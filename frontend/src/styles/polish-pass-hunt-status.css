@@ -1,0 +1,51 @@
+/* ════════════════ POLISH PASS — HuntStatusPanel ════════════════
+ *
+ * Design notes
+ * ── HuntStatusPanel ── weak: the methodology stepper was fully static — the
+ * current-stage dot never moved, so the "live" hunt felt frozen; stage items had
+ * no hover feedback; the strip popped in with the page. change: breathing pulse
+ * on the current dot, hover lift (opacity + dot scale) on each stage, and a
+ * staggered dm-list-in entrance. why: the stepper is the hunt's heartbeat — it
+ * should visibly track a running hunt without demanding attention.
+ */
+
+/* Breathing pulse on the live stage dot. */
+@keyframes sg-stage-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 6px var(--sg-cyan);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--sg-cyan), 0 0 4px var(--sg-cyan);
+  }
+}
+.sg-stage {
+  transition: opacity var(--sg-fast);
+}
+.sg-stage:hover {
+  opacity: 1;
+}
+.sg-stage:hover .sg-stage-dot {
+  transform: scale(1.25);
+}
+.sg-stage-dot {
+  transition: transform var(--sg-fast);
+}
+.sg-stage.sg-current .sg-stage-dot {
+  background: var(--sg-cyan);
+  box-shadow: 0 0 8px var(--sg-cyan);
+  animation: sg-stage-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-stage.sg-current .sg-stage-dot {
+    animation: none;
+  }
+  .sg-stage,
+  .sg-stage-dot {
+    transition: none;
+  }
+  .sg-stage:hover .sg-stage-dot {
+    transform: none;
+  }
+}
