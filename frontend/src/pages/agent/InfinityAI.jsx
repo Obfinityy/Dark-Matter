@@ -1208,7 +1208,7 @@ export function InfinityAI() {
         {/* Mode content — each mode gated on its required local brains */}
         <div className="dm-inf-body">
           {mode === 'control' ? (
-            <BrainGate required={['vision', 'grounding']} featureName="Control mode">
+            <BrainGate required={['vision']} featureName="Control mode">
               <ControlPane key="control" />
             </BrainGate>
           ) : mode === 'plan' ? (

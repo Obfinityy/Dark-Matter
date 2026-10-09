@@ -1,18 +1,22 @@
 /**
- * BrainGate — lets the user see the normal view immediately. The local-brain
+ * BrainGate — lets the user see the normal view immediately. The brain
  * check runs silently in the background. Only when the user actually tries to
  * use the feature (submit / Enter) do we verify: if a required brain isn't
- * running on their machine, the action is held and a warning panel appears
+ * ready on their machine, the action is held and a warning panel appears
  * with a shortcut to Models. No warning is ever shown at page open.
  *
- * Hunt needs: vision + grounding + hacker (all 3)
+ * A brain counts as ready when its local model is running OR a Kaggle link
+ * is connected for its slot (Models page).
+ *
+ * Hunt needs: vision + hacker (grounding is optional — vision doubles as grounder)
  * Infinity AI Chat/Plan/Build needs: vision
- * Infinity AI Control needs: vision + grounding
+ * Infinity AI Control needs: vision (+ grounding optional)
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Brain, AlertTriangle, ArrowRight, X } from 'lucide-react';
 import { getRunningBrains } from '../services/localModelApi';
+import { getAllKaggleSlots } from '../services/gradioDirect';
 import './BrainGate.css';
 
 const BRAIN_LABELS = {
@@ -21,20 +25,41 @@ const BRAIN_LABELS = {
   hacker: 'Hacking Brain',
 };
 
+/** A slot is ready when its local model runs or a Kaggle link is connected. */
+function slotReady(localRunning, kaggleSlots, slot) {
+  if (localRunning && localRunning[slot]) return true;
+  try {
+    const entry = kaggleSlots && kaggleSlots[slot];
+    return !!(entry && entry.url);
+  } catch {
+    return false;
+  }
+}
+
 export function BrainGate({ required = [], featureName = 'this feature', children }) {
   const [brains, setBrains] = useState(null); // null = not yet known
   const [warnVisible, setWarnVisible] = useState(false);
 
   const refresh = useCallback(async () => {
+    let running = null;
     try {
-      const running = await getRunningBrains();
-      setBrains(running);
-      return running;
+      running = await getRunningBrains();
     } catch {
-      const none = { vision: false, grounding: false, hacker: false };
-      setBrains(none);
-      return none;
+      running = { vision: false, grounding: false, hacker: false };
     }
+    let kaggle = null;
+    try {
+      kaggle = getAllKaggleSlots();
+    } catch {
+      kaggle = null;
+    }
+    const merged = {
+      vision: slotReady(running, kaggle, 'vision'),
+      grounding: slotReady(running, kaggle, 'grounding'),
+      hacker: slotReady(running, kaggle, 'hacker'),
+    };
+    setBrains(merged);
+    return merged;
   }, []);
 
   // Silent background check — never blocks the view.
@@ -91,12 +116,11 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
             </button>
           </div>
           <p className="brain-gate-copy">
-            <b>{featureName}</b> needs {missing.map(b => BRAIN_LABELS[b]).join(', ')} running on
-            your computer.
+            <b>{featureName}</b> needs {missing.map(b => BRAIN_LABELS[b]).join(', ')} ready.
           </p>
           <p className="sg-small brain-gate-hint">
-            Models run on your local machine — download them once from Models, press Run, and they
-            stay ready.
+            Run a local model from Models, or connect a Kaggle link for each missing brain —
+            then come back and hit enter again.
           </p>
           <div className="brain-gate-missing">
             {missing.map(b => (

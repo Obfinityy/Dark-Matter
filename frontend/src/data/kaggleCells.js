@@ -18,7 +18,7 @@ export const KAGGLE_CELLS = {
   hacker: {
     slot: 'hacker',
     title: 'Hacking Brain',
-    modelId: 'huihui-ai/Qwen3-8B-abliterated',
+    modelId: 'huihui-ai/Huihui-Qwen3-8B-abliterated-v2',
     kind: 'text in → text out',
     steps: [
       'Kaggle.com → Create → New Notebook, accelerator = GPU T4 x2 (free).',
@@ -130,7 +130,7 @@ print("Precision:", DTYPE)
 # ------------------------------------------------------------
 # 6. LOAD MODEL (uncensored security strategist)
 # ------------------------------------------------------------
-MODEL_NAME = "huihui-ai/Qwen3-8B-abliterated"
+MODEL_NAME = "huihui-ai/Huihui-Qwen3-8B-abliterated-v2"
 
 print("\\nLoading:")
 print(MODEL_NAME)

@@ -26,9 +26,9 @@ export function AgentHome() {
   const navigate = useNavigate();
   const [target, setTarget] = useState('');
   const [authConfirmed, setAuthConfirmed] = useState(false);
-  // Where the hunt runs: 'backend' (this backend's worker) or 'agent'
-  // (your agent machine / Oracle VM via the agent poller — runs 24/7 even
-  // with the browser closed). Persisted per browser.
+  // Where the hunt runs: 'backend' (this device's backend worker + local VM)
+  // or 'agent' (your agent machine / Oracle VM via the agent poller — runs
+  // 24/7 even with the browser closed). Persisted per browser.
   const [executor, setExecutor] = useState(() => {
     try {
       return localStorage.getItem('dm_hunt_executor') === 'agent' ? 'agent' : 'backend';
@@ -121,7 +121,7 @@ export function AgentHome() {
 
       {/* ── Hunt input ── */}
       <section className="dm-card" style={{ marginBottom: 'var(--dm-8)' }}>
-        <BrainGate required={['vision', 'grounding', 'hacker']} featureName="Hunt AI">
+        <BrainGate required={['vision', 'hacker']} featureName="Hunt AI">
           <form onSubmit={startHunt}>
             <div className="dm-hunt-row">
               <div style={{ position: 'relative', flex: 1 }}>
@@ -193,7 +193,7 @@ export function AgentHome() {
                 }}
                 aria-label="Where the hunt runs"
               >
-                <option value="backend">This backend</option>
+                <option value="backend">This device</option>
                 <option value="agent">My agent machine (24/7)</option>
               </select>
             </label>
