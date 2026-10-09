@@ -127,3 +127,46 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+---
+
+## PayloadsAllTheThings — the "Payload Library" payload dataset
+
+- Project: PayloadsAllTheThings — https://github.com/swisskyrepo/PayloadsAllTheThings
+- License: MIT (full text reproduced below, as the license requires).
+- What we use: curated payload strings extracted from the project's category
+  READMEs (XSS, SQLi, Command Injection, SSRF, SSTI, XXE, LDAP/NoSQL/XPATH
+  injection, Open Redirect, CRLF/CSV injection, GraphQL, Prototype Pollution,
+  HPP, CORS, Clickjacking, file upload, request smuggling, web cache
+  deception, SSI) into structured JSON datasets shipped under
+  backend/data/payload-library/. A copy of the license is kept at
+  third_party/payloads-all-the-things/LICENSE.
+- Scope: data only. Dark Matter never auto-attacks or exploit-fires payloads
+  from this dataset; payloads are suggested for the user's own authorized
+  targets only, and every hunt keeps the authorized-targets-only guardrails.
+- In the product UI this capability is presented exclusively as "Payload
+  Library". Original project names never appear in user-visible strings.
+
+```
+MIT License
+
+Copyright (c) 2019 Swissky
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

@@ -30,6 +30,7 @@ import {
   RefreshCw,
   Mic,
   MessageCircle,
+  Library,
 } from 'lucide-react';
 import {
   getJobState,
@@ -46,6 +47,7 @@ import {
 import { BrainChat } from '../../components/BrainChat';
 import { LiveScreenViewer } from '../../components/agent/LiveScreenViewer';
 import { FindingsBoard } from '../../components/agent/FindingsBoard';
+import { PayloadLibraryPanel } from '../../components/hunt/PayloadLibraryPanel';
 import { HuntDiary } from '../../components/agent/HuntDiary';
 import { AttackSurfaceMap } from '../../components/agent/AttackSurfaceMap';
 import { FingerprintCard } from '../../components/agent/FingerprintCard';
@@ -90,7 +92,7 @@ export function HuntView() {
   // ArrowLeft/Right/Home/End move between tabs (WAI-ARIA tablist pattern).
   const tabIds = useRef({});
   const onTabsKeyDown = e => {
-    const order = ['findings', 'diary', 'surface', 'chat'];
+    const order = ['findings', 'diary', 'surface', 'chat', 'payloads'];
     const i = order.indexOf(tab);
     if (i === -1) return;
     let next = null;
@@ -322,6 +324,7 @@ export function HuntView() {
                 { id: 'diary', label: 'Diary', icon: BookOpen },
                 { id: 'surface', label: 'Attack surface', icon: MapIcon },
                 { id: 'chat', label: 'Chat', icon: MessageCircle },
+                { id: 'payloads', label: 'Payload Library', icon: Library },
               ].map(({ id, label, icon: Icon, count }) => (
                 <button
                   key={id}
@@ -375,6 +378,7 @@ export function HuntView() {
                   currentStep={job?.currentStep}
                 />
               )}
+              {tab === 'payloads' && <PayloadLibraryPanel />}
             </div>
           </section>
         </div>

@@ -84,6 +84,7 @@ import { AgentWorker } from './jobs/agentWorker.js';
 import { JobManager } from './jobs/jobManager.js';
 import { AlertModel } from './models/alertModel.js';
 import { PayloadLibraryModel } from './models/payloadLibraryModel.js';
+import { PayloadLibraryService } from './services/payloadLibraryService.js';
 import { HuntScheduleModel } from './models/huntScheduleModel.js';
 import { TargetQueueModel } from './models/targetQueueModel.js';
 import { HuntRecordModel } from './models/huntRecordModel.js';
@@ -180,6 +181,7 @@ export async function createApp({ database } = {}) {
   // ─── Hunt-support models (alerts, payload learning, schedules, queues) ──
   const alertModel = new AlertModel(database);
   const payloadLibraryModel = new PayloadLibraryModel(database);
+  const payloadLibraryService = new PayloadLibraryService();
   const huntScheduleModel = new HuntScheduleModel(database);
   const targetQueueModel = new TargetQueueModel(database);
   // ─── Hunt records: the DB side of hybrid storage ──────────────────────
@@ -352,6 +354,7 @@ export async function createApp({ database } = {}) {
     alertService,
     targetQueueService: null, // assigned after the queue service is built below
     payloadLibraryModel,
+    payloadLibraryService,
     brainProviderModel,
     huntContextManager,
     appConfig: config,
@@ -601,7 +604,7 @@ export async function createApp({ database } = {}) {
         alerts: createAlertController({ alertService }),
         queues: createQueueController({ targetQueueService, targetQueueModel }),
         schedules: createScheduleController({ huntScheduler, huntScheduleModel }),
-        payloadLibrary: createPayloadLibraryController({ payloadLibraryModel }),
+        payloadLibrary: createPayloadLibraryController({ payloadLibraryModel, payloadLibraryService }),
         localModels: createLocalModelController({ localModelService, agentWorker }),
         modelRunner: createModelRunnerController({
           modelRunnerService,

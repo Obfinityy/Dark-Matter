@@ -187,9 +187,13 @@ export function createRoutes({ controllers }) {
   router.patch('/schedules/:id', controllers.schedules.update);
   router.delete('/schedules/:id', controllers.schedules.remove);
 
-  // ─── Payload library — self-learning payloads ─────────────────────
+  // ─── Payload library — self-learning payloads + curated dataset ───
+  // NOTE: /categories and /search MUST be registered before /:category.
   router.get('/payload-library', controllers.payloadLibrary.list);
+  router.get('/payload-library/categories', controllers.payloadLibrary.categories);
+  router.get('/payload-library/search', controllers.payloadLibrary.search);
   router.get('/payload-library/stats', controllers.payloadLibrary.stats);
+  router.get('/payload-library/:category', controllers.payloadLibrary.catalog);
 
   // ─── Computer Control (Open-Interface adapter) ──────────────────
   router.get('/computer', controllers.computer.status);

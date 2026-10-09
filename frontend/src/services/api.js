@@ -1637,3 +1637,23 @@ export function verifyTopupPayment({ orderId, paymentId, signature }) {
 export function getCreditBalance() {
   return request('/billing/balance');
 }
+
+/* ─── Payload Library — curated payload datasets for authorized testing ─── */
+
+/** List payload categories with payload counts. */
+export function getPayloadLibraryCategories() {
+  return request('/payload-library/categories');
+}
+
+/** Paged payloads for one category slug. */
+export function getPayloadLibraryCategory(category, { limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return request(`/payload-library/${encodeURIComponent(category)}?${params}`);
+}
+
+/** Full-text search across all payload datasets. */
+export function searchPayloadLibrary(query, limit = 50) {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  return request(`/payload-library/search?${params}`);
+}
+

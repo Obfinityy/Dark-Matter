@@ -79,6 +79,7 @@ export class AgentWorker {
     alertService = null,
     targetQueueService = null,
     payloadLibraryModel = null,
+    payloadLibraryService = null,
     brainProviderModel = null,
     huntContextManager = null,
     appConfig = null,
@@ -109,6 +110,7 @@ export class AgentWorker {
     this.alertService = alertService;
     this.targetQueueService = targetQueueService;
     this.payloadLibraryModel = payloadLibraryModel;
+    this.payloadLibraryService = payloadLibraryService;
     this.brainProviderModel = brainProviderModel;
     this.huntContextManager = huntContextManager;
     this.appConfig = appConfig;
@@ -632,6 +634,30 @@ export class AgentWorker {
             proven
               .map(h => `- [${h.technique}] "${h.payload.slice(0, 120)}" (${h.successes}× success)`)
               .join('\n');
+        }
+      }
+      // --- Curated Payload Library: concrete payload shapes for the vuln
+      // classes this stage targets, so the brain tests real-world syntax.
+      // Data only — the hunt pipeline still decides what (if anything) to
+      // send, and only against the user's own authorized targets.
+      if (this.payloadLibraryService) {
+        const techniqueToCategory = {
+          'xss-probe': 'xss', 'xss-exploit': 'xss',
+          'sqli-probe': 'sqli', 'sqli-exploit': 'sqli',
+          'ssrf-probe': 'ssrf', 'file-upload-probe': 'file-upload',
+          'rce-probe': 'command-injection',
+        };
+        const stageTechniques = techniquesForStage(methodologyStage).map(t => t.id);
+        const wanted = [...new Set(stageTechniques.map(t => techniqueToCategory[t]).filter(Boolean))].slice(0, 3);
+        const libraryHints = [];
+        for (const category of wanted) {
+          const payloads = await this.payloadLibraryService.payloadsFor(category, { limit: 2 });
+          for (const p of payloads) libraryHints.push({ category, payload: p.payload });
+        }
+        if (libraryHints.length) {
+          learnedHints +=
+            '\nPAYLOAD LIBRARY (curated payload shapes for this stage — adapt to the target, authorized targets only):\n' +
+            libraryHints.map(h => `- [${h.category}] ${String(h.payload).slice(0, 140)}`).join('\n');
         }
       }
       // --- Cross-hunt memory (idea #2): what did past hunts on THIS or
