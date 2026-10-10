@@ -597,6 +597,7 @@ export async function createApp({ database } = {}) {
         billing: createBillingController({ userModel }),
         brainLinks: createBrainLinkController({
           brainLinkStore,
+          brainProviderModel,
         }),
         jobs: createJobController({
           jobManager,

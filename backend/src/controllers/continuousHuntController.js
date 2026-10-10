@@ -30,6 +30,35 @@ import { resolveHackingBrain } from '../services/huntChatBrain.js';
 import { brainLinkStore as defaultBrainLinkStore } from '../services/brainLinkStore.js';
 
 /**
+ * Guard a brain provider with a per-call timeout so a dead/hung brain fails
+ * FAST and the hunt falls back to its deterministic checklist instead of
+ * blocking a tick for tens of minutes (provider default: 5 min x 3 attempts).
+ */
+function withBrainTimeout(provider, ms = 120000) {
+  const race = (promise, what) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`brain ${what} timed out after ${ms}ms`)), ms)
+      ),
+    ]);
+  return {
+    async generate(messages, options = {}) {
+      return race(provider.generate(messages, options), 'generate');
+    },
+    async generateStructured(messages, schema, options = {}) {
+      if (typeof provider.generateStructured === 'function') {
+        return race(provider.generateStructured(messages, schema, options), 'generateStructured');
+      }
+      const text = await race(provider.generate(messages, options), 'generate');
+      const match = String(text).match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('brain returned no JSON');
+      return JSON.parse(match[0]);
+    },
+  };
+}
+
+/**
  * Build a brain-driven planner from the user's saved brain links (if any).
  * Returns null when the hacking brain isn't configured — the loop then runs
  * its deterministic checklist (honest fallback, never a fake brain).
@@ -61,7 +90,8 @@ function makePlannerForUser(brainDeps = {}) {
     });
     if (!resolved?.provider) return null;
     logger?.info?.('[continuousHunt] wiring hacking brain into hunt planner (kaggle).');
-    return new TripleBrainPlanner({ brain: resolved.provider, dataDir, logger });
+    const brain = withBrainTimeout(resolved.provider);
+    return new TripleBrainPlanner({ brain, dataDir, logger });
   };
 }
 
