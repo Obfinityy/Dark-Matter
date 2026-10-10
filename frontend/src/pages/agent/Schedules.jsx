@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { CalendarClock, Plus, Trash2, Loader2, AlertTriangle, Pause, Play } from 'lucide-react';
+import '../../styles/kinetic-data.css';
 import { listSchedules, createSchedule, updateSchedule, deleteSchedule } from '../../services/api';
 
 const CADENCES = [
@@ -72,19 +73,25 @@ export function Schedules() {
 
   if (loading)
     return (
-      <div className="dm-page-loading">
+      <div className="dm-page-loading kda-page">
         <Loader2 size={18} className="sg-spin" /> Loading schedules…
       </div>
     );
 
   return (
-    <div className="dm-schedules">
-      <header className="dm-page-head">
+    <div className="dm-schedules kda-page">
+      <header className="dm-page-head kda-head">
         <div>
-          <h1>
-            <CalendarClock size={22} /> Scheduled hunts
+          <h1 className="kda-title">
+            <CalendarClock size={22} />{' '}
+            <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+              Scheduled
+            </span>{' '}
+            <span className="kda-w" style={{ '--kda-d': '90ms' }}>
+              hunts
+            </span>
           </h1>
-          <p>
+          <p className="kda-sub" style={{ '--kda-d': '220ms' }}>
             Set it and forget it — the agent hunts on cadence and alerts you when each run starts
             and finishes.
           </p>
@@ -154,15 +161,15 @@ export function Schedules() {
         {schedules.map((schedule, i) => (
           <div
             key={schedule.id}
-            className={`dm-card dm-schedule-card dm-list-in ${schedule.enabled ? '' : 'disabled'}`}
+            className={`dm-card dm-schedule-card kda-card kda-rise ${schedule.enabled ? '' : 'disabled'}`}
             style={{ animationDelay: `${Math.min(i, 10) * 60}ms` }}
           >
             <div className="dm-schedule-head">
               <div>
-                <strong>{schedule.name || schedule.target}</strong>
+                <strong className="kda-card-title">{schedule.name || schedule.target}</strong>
                 <code className="dm-schedule-target">{schedule.target}</code>
               </div>
-              <span className={`dm-job-status ${schedule.enabled ? 'st-running' : 'st-paused'}`}>
+              <span className={`dm-job-status kda-status ${schedule.enabled ? 'st-running' : 'st-paused'}`}>
                 {schedule.enabled ? schedule.cadence : 'disabled'}
               </span>
             </div>
