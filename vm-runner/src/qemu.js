@@ -98,10 +98,22 @@ export async function detectWhpx(platform = detectPlatform()) {
     return { enabled: null, detail: 'not a Windows host' };
   }
   try {
-    const ps =
-      'powershell -NoProfile -NonInteractive -Command ' +
-      '"(Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform).State"';
-    const { stdout } = await execFileAsync('cmd.exe', ['/c', ps], { timeout: 15000 });
+    // NOTE: spawn powershell.exe directly with an argv array — never via
+    // `cmd.exe /c`, whose quote-stripping rules mangle the -Command string
+    // (cmd treats the parentheses as special chars and PowerShell ends up
+    // echoing the command text instead of executing it).
+    const { stdout } = await execFileAsync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        '(Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform).State',
+      ],
+      { timeout: 15000 }
+    );
     const state = stdout.trim().toLowerCase();
     if (state === 'enabled') return { enabled: true, detail: 'HypervisorPlatform feature is enabled' };
     if (state === 'enablepending')
