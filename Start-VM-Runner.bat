@@ -44,20 +44,26 @@ if not exist "node_modules" (
 )
 echo  [OK] Dependencies ready
 
-REM --- Check QEMU ---
+REM --- Check QEMU (PATH + common install location) ---
 where qemu-system-x86_64 >nul 2>nul
 if %errorlevel% neq 0 (
-    echo.
-    echo  [WARNING] QEMU nahi mila!
-    echo  Kali VM chalane ke liye QEMU chahiye:
-    echo    1. https://www.qemu.org/download/ se QEMU for Windows install karo
-    echo    2. "Windows Hypervisor Platform" Windows Features me enable karo
-    echo    3. Ye script dobara chalao
-    echo.
-    pause
-    exit /b 1
+    if exist "C:\Program Files\qemu\qemu-system-x86_64.exe" (
+        echo  [OK] QEMU mila (C:\Program Files\qemu)
+        set "PATH=C:\Program Files\qemu;%PATH%"
+    ) else (
+        echo.
+        echo  [WARNING] QEMU nahi mila!
+        echo  Kali VM chalane ke liye QEMU chahiye:
+        echo    1. https://www.qemu.org/download/ se QEMU for Windows install karo
+        echo    2. "Windows Hypervisor Platform" Windows Features me enable karo
+        echo    3. Ye script dobara chalao
+        echo.
+        pause
+        exit /b 1
+    )
+) else (
+    echo  [OK] QEMU mila
 )
-echo  [OK] QEMU mila
 
 echo.
 echo  ============================================================
