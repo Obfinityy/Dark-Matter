@@ -44,6 +44,10 @@ import {
   CircleHelp,
   Copy,
   Check,
+  Sparkles,
+  Eye,
+  Brain,
+  Crosshair,
 } from 'lucide-react';
 import { getKaggleCell } from '../../data/kaggleCells';
 import {
@@ -106,6 +110,7 @@ import { RunnerStatusCard } from '../../components/agent/RunnerStatusCard';
 import './ModelLibrary.css';
 import './ModelLibraryNew.css';
 import './ModelLibrary.elegant.css';
+import '../../styles/kinetic-data.css';
 
 function ProgressBar({ value, label }) {
   const pct = Math.round(value * 100);
@@ -162,22 +167,22 @@ const CTX_CHOICES = [4096, 8192, 16384, 32768, 65536, 131072];
  * role in plain words so the user knows which models belong where.
  */
 const CATEGORY_TABS = [
-  { id: 'all', icon: '✨', label: 'All models', role: 'Everything in the library' },
+  { id: 'all', icon: Sparkles, label: 'All models', role: 'Everything in the library' },
   {
     id: 'vision',
-    icon: '👁️',
+    icon: Eye,
     label: 'Vision',
     role: 'Sees the screen, decides where to click and what to do',
   },
   {
     id: 'hacking',
-    icon: '🧠',
+    icon: Brain,
     label: 'Hacker Brain',
     role: 'The thinking/strategy brain — chains vulnerabilities like a human',
   },
   {
     id: 'grounding',
-    icon: '🎯',
+    icon: Crosshair,
     label: 'Grounding',
     role: 'Turns decisions into exact click coordinates',
     optional: true,
@@ -225,9 +230,9 @@ function ModelCard({
   // ── VRAM-fit estimate from the backend ranker (knows real VRAM) ──
   const vramFit = model.compatibility?.vramFit || null;
   return (
-    <div className={`sg-card sg-card-pad sg-model-card ${model.running ? 'active' : ''}`}>
+    <div className={`sg-card sg-card-pad sg-model-card kda-card ${model.running ? 'active' : ''}`}>
       <div className="sg-model-top">
-        <h3>{model.name}</h3>
+        <h3 className="kda-card-title">{model.name}</h3>
         <VerdictBadge compatibility={compat} />
       </div>
       <div className="sg-model-badges">
@@ -1793,10 +1798,17 @@ export function ModelLibrary() {
   };
 
   return (
-    <div className="ml-new">
-      <div className="ml-head">
-        <h2 className="ml-title">Model Library</h2>
-        <p className="ml-sub">
+    <div className="ml-new kda-page">
+      <div className="ml-head kda-head">
+        <h2 className="ml-title kda-title">
+          <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+            Model
+          </span>{' '}
+          <span className="kda-w" style={{ '--kda-d': '90ms' }}>
+            Library
+          </span>
+        </h2>
+        <p className="ml-sub kda-sub" style={{ '--kda-d': '220ms' }}>
           Every model here is <b>uncensored</b>. Pick one, press <b>Download</b>, then <b>Run</b> —
           it starts on localhost and becomes the active brain for Hunt AI and Infinity AI.
         </p>
@@ -2078,7 +2090,7 @@ export function ModelLibrary() {
             title={t.role}
           >
             <span aria-hidden="true" className="ml-tab-icon">
-              {t.icon}
+              <t.icon size={15} />
             </span>
             <span className="ml-cat-tab-text">
               <strong>
@@ -2097,7 +2109,7 @@ export function ModelLibrary() {
       </div>
 
       {/* Model catalog: compatible ON TOP, incompatible BELOW */}
-      <div className="sg-h2">
+      <div className="sg-h2 kda-sec-title">
         {catFilter === 'all'
           ? `Runs on your device (${compatibleModels.length})`
           : `${CATEGORY_TABS.find(t => t.id === catFilter)?.label} — fits your device (${compatibleModels.length})`}
@@ -2134,7 +2146,7 @@ export function ModelLibrary() {
               fits this device; on "All" the full ranked view stays visible. */}
           {heavyModels.length > 0 && catFilter === 'all' && (
             <>
-              <div className="sg-h2 ml-sec-h2">
+              <div className="sg-h2 ml-sec-h2 kda-sec-title">
                 Too heavy for this device ({heavyModels.length})
               </div>
               <p className="sg-small">
@@ -2182,7 +2194,7 @@ export function ModelLibrary() {
       )}
 
       {/* Custom model */}
-      <div className="sg-h2 ml-sec-h2-lg">Your own model</div>
+      <div className="sg-h2 ml-sec-h2-lg kda-sec-title">Your own model</div>
       <form className="sg-custom-form" onSubmit={addCustom}>
         <h4>
           <Plus size={15} /> Add any public Hugging Face GGUF

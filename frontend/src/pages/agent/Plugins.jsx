@@ -11,6 +11,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Brain, Package, Plug, ArrowRight } from 'lucide-react';
+import '../../styles/kinetic-data.css';
 import './Plugins.css';
 
 const FAMILIES = [
@@ -55,21 +56,26 @@ const FAMILIES = [
 
 export function Plugins() {
   return (
-    <div className="dm-page">
+    <div className="dm-page kda-page">
       <div className="dm-container">
-        <header className="dm-page-head">
-          <h1 className="dm-page-title">Plugins</h1>
-          <p className="dm-page-sub">
+        <header className="dm-page-head kda-head">
+          <h1 className="dm-page-title kda-title">
+            <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+              Plugins
+            </span>
+          </h1>
+          <p className="dm-page-sub kda-sub" style={{ '--kda-d': '220ms' }}>
             Extend the agent. Models, payload packs, and integrations — everything plugs into the
             same brain.
           </p>
         </header>
 
-        <div className="dm-grid-3">
-          {FAMILIES.map(f => (
+        <div className="dm-grid-3 kda-grid">
+          {FAMILIES.map((f, i) => (
             <article
               key={f.id}
-              className={`dm-card plugins-card${f.disabled ? ' plugins-card-disabled' : ''}`}
+              className={`dm-card plugins-card kda-card kda-rise${f.disabled ? ' plugins-card-disabled' : ''}`}
+              style={{ animationDelay: `${i * 90}ms` }}
               aria-labelledby={`plugins-${f.id}-name`}
             >
               <div className="plugins-card-head">
@@ -80,7 +86,7 @@ export function Plugins() {
                   {f.status}
                 </span>
               </div>
-              <h3 className="dm-card-title" id={`plugins-${f.id}-name`}>
+              <h3 className="dm-card-title kda-card-title" id={`plugins-${f.id}-name`}>
                 {f.name}
               </h3>
               <p className="dm-card-sub plugins-tagline">{f.tagline}</p>

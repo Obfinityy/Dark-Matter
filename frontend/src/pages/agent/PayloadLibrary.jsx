@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, TrendingUp, Filter, Unplug, ShieldCheck } from 'lucide-react';
 import './PayloadLibrary.css';
+import '../../styles/kinetic-data.css';
 import { listPayloads, getPayloadLibraryStats, tryApi } from '../../services/api';
 import { getApiBase, getBackendUrl } from '../../services/backendMode';
 
@@ -58,11 +59,18 @@ export function PayloadLibrary() {
 
   if (loading) {
     return (
-      <div className="dm-page">
+      <div className="dm-page kda-page">
         <div className="dm-container">
-          <header className="dm-page-head">
-            <h1 className="dm-page-title">Payload library</h1>
-            <p className="dm-page-sub">
+          <header className="dm-page-head kda-head">
+            <h1 className="dm-page-title kda-title">
+              <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+                Payload
+              </span>{' '}
+              <span className="kda-w" style={{ '--kda-d': '90ms' }}>
+                library
+              </span>
+            </h1>
+            <p className="dm-page-sub kda-sub" style={{ '--kda-d': '220ms' }}>
               Self-learning: payloads that worked rise to the top and get suggested first in future
               hunts.
             </p>
@@ -79,11 +87,18 @@ export function PayloadLibrary() {
   }
 
   return (
-    <div className="dm-page">
+    <div className="dm-page kda-page">
       <div className="dm-container">
-        <header className="dm-page-head">
-          <h1 className="dm-page-title">Payload library</h1>
-          <p className="dm-page-sub">
+        <header className="dm-page-head kda-head">
+          <h1 className="dm-page-title kda-title">
+            <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+              Payload
+            </span>{' '}
+            <span className="kda-w" style={{ '--kda-d': '90ms' }}>
+              library
+            </span>
+          </h1>
+          <p className="dm-page-sub kda-sub" style={{ '--kda-d': '220ms' }}>
             Self-learning: payloads that worked rise to the top and get suggested first in future
             hunts.
           </p>
@@ -143,7 +158,7 @@ export function PayloadLibrary() {
         )}
 
         {stats && (
-          <div className="dm-grid-4 dm-pl-stats" aria-label="Library statistics">
+          <div className="dm-grid-4 dm-pl-stats kda-grid kda-grid-4" aria-label="Library statistics">
             <div className="dm-card dm-center">
               <div className="dm-pl-stat-value">{stats.totalPayloads ?? payloads.length}</div>
               <div className="dm-muted dm-pl-stat-label">payloads</div>
@@ -230,12 +245,16 @@ export function PayloadLibrary() {
               const rate =
                 payload.successRate != null ? Math.round(payload.successRate * 100) : null;
               return (
-                <li key={payload.id || i} className="dm-row">
+                <li
+                  key={payload.id || i}
+                  className="dm-row kda-card kda-rise"
+                  style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
+                >
                   <span className="dm-muted dm-pl-rank" aria-hidden="true">
                     #{i + 1}
                   </span>
                   <div className="dm-row-main">
-                    <code className="dm-pl-code">{payload.payload || payload.value}</code>
+                    <code className="dm-pl-code kda-card-title">{payload.payload || payload.value}</code>
                     <div className="dm-pl-meta">
                       {payload.technique && <span className="dm-badge">{payload.technique}</span>}
                       {payload.category && (

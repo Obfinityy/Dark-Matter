@@ -17,6 +17,7 @@ import { listHuntRecords } from '../../services/api';
 import { owaspCoverage } from '../../utils/owaspCoverage';
 import { CoverageMeter } from '../../components/agent/CoverageMeter';
 import { CvssBadge } from '../../components/agent/CvssBadge';
+import '../../styles/kinetic-data.css';
 import './Reports.css';
 
 export function Reports() {
@@ -33,7 +34,7 @@ export function Reports() {
 
   if (loading) {
     return (
-      <div className="dm-container">
+      <div className="dm-container kda-page">
         <div className="dm-reports-loading" role="status" aria-live="polite">
           <Loader2 size={18} aria-hidden="true" className="sg-spin" />
           <p className="dm-muted">Loading past reports…</p>
@@ -43,20 +44,26 @@ export function Reports() {
   }
 
   return (
-    <div className="dm-container">
+    <div className="dm-container kda-page">
       <header className="dm-reports-head">
-        <div className="dm-page-head">
-          <h1 className="dm-page-title">
+        <div className="dm-page-head kda-head">
+          <h1 className="dm-page-title kda-title">
             <span className="dm-reports-title">
-              <History size={26} aria-hidden="true" /> Past reports
+              <History size={26} aria-hidden="true" />{' '}
+              <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+                Past
+              </span>{' '}
+              <span className="kda-w" style={{ '--kda-d': '90ms' }}>
+                reports
+              </span>
             </span>
           </h1>
-          <p className="dm-page-sub">
+          <p className="dm-page-sub kda-sub" style={{ '--kda-d': '220ms' }}>
             Every completed hunt, archived. Re-open or re-download any report — pasting the same
             target later returns these instantly.
           </p>
         </div>
-        <Link to="/agent" className="dm-btn dm-btn-primary">
+        <Link to="/agent" className="dm-btn dm-btn-primary kda-cta">
           New hunt
         </Link>
       </header>
@@ -83,7 +90,7 @@ export function Reports() {
         </div>
       ) : (
         <ul className="dm-reports-list" aria-label="Past hunt reports">
-          {records.map(record => {
+          {records.map((record, i) => {
             const summary = record.summary || {};
             const findings = Array.isArray(record.findings) ? record.findings : [];
             const coverage = owaspCoverage(findings);
@@ -91,15 +98,15 @@ export function Reports() {
               .sort((a, b) => sevRank(b.severity) - sevRank(a.severity))
               .slice(0, 3);
             return (
-              <li key={record.id}>
+              <li key={record.id} className="kda-rise" style={{ animationDelay: `${Math.min(i, 12) * 55}ms` }}>
                 <Link
                   to={`/agent/reports/${record.id}`}
-                  className="dm-row dm-reports-row"
+                  className="dm-row dm-reports-row kda-card"
                   aria-label={`Report for ${record.target}${summary.totalFindings != null ? `, ${summary.totalFindings} findings` : ''}`}
                 >
                   <div className="dm-row-main">
                     <div className="dm-reports-row-top">
-                      <code className="dm-row-title">{record.target}</code>
+                      <code className="dm-row-title kda-card-title">{record.target}</code>
                       <span className="dm-badge">v{record.version || 1}</span>
                     </div>
                     <p className="dm-row-sub">
