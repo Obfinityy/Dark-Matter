@@ -65,6 +65,7 @@ import { CrewWorker } from './jobs/crewWorker.js';
 import { createVoiceController } from './controllers/voiceController.js';
 import { createBillingController } from './controllers/billingController.js';
 import { createBrainLinkController } from './controllers/brainLinkController.js';
+import { createVmController } from './controllers/vmController.js';
 import { createMongoBrainLinkStore } from './services/brainLinkStore.js';
 import { VoiceManager } from './services/voiceManager.js';
 import { AgentJobModel } from './models/agentJobModel.js';
@@ -599,6 +600,7 @@ export async function createApp({ database } = {}) {
           brainLinkStore,
           brainProviderModel,
         }),
+        vm: createVmController(),
         jobs: createJobController({
           jobManager,
           assessmentService,

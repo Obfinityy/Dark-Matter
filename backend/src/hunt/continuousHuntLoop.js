@@ -83,6 +83,9 @@ export const LOOP_TRANSITIONS = Object.freeze({
 
 /** True when `to` is a legal move out of `from`. */
 export function isValidTransition(from, to) {
+  // Staying in place is always valid — a phase may need multiple ticks
+  // (e.g. RECON → RECON when the planner schedules more recon work).
+  if (from === to) return true;
   return Boolean(LOOP_TRANSITIONS[from]?.includes(to));
 }
 

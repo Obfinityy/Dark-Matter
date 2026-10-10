@@ -93,6 +93,17 @@ export function createRoutes({ controllers }) {
   router.post('/brain-links', controllers.brainLinks.save);
   router.delete('/brain-links/:slot', controllers.brainLinks.remove);
 
+  // Local VM control — proxies to the VM Runner on this machine (127.0.0.1:4100).
+  // The runner hosts the Kali sandbox VM; the backend never runs VM code itself.
+  router.get('/vm/health', controllers.vm.health);
+  router.get('/vm/doctor', controllers.vm.doctor);
+  router.post('/vm/start', controllers.vm.start);
+  router.get('/vm/status', controllers.vm.status);
+  router.post('/vm/stop', controllers.vm.stop);
+  router.post('/vm/screenshot', controllers.vm.screenshot);
+  router.post('/vm/exec', controllers.vm.exec);
+  router.post('/vm/input', controllers.vm.input);
+
   router.get('/auth/me', controllers.auth.me);
   router.put('/auth/me', controllers.auth.updateProfile);
   router.put('/auth/password', controllers.auth.changePassword);
