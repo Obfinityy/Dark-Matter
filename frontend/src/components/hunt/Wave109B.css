@@ -1,0 +1,23 @@
+/* Wave109B.css — stylesheet for Wave109B (annotation & capture, ideas 54331-54340).
+   Branding: Infinity AI / Dark Matter only. */
+
+.wave109 { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; max-width: 960px; margin: 0 auto; color: #e8e8ee; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wave109-head { border-bottom: 1px solid rgba(255, 255, 255, 0.12); padding-bottom: 0.75rem; }
+.wave109-title { margin: 0 0 0.25rem; font-size: 1.35rem; letter-spacing: 0.02em; }
+.wave109-sub { margin: 0; color: #9aa0b4; font-size: 0.85rem; }
+.wave109-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 1rem 1.25rem; }
+.wave109-card h3 { margin: 0 0 0.6rem; font-size: 1.02rem; }
+.wave109-ideas { margin: 0; padding-left: 1.1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.2rem 1rem; font-size: 0.82rem; color: #c6cbdd; }
+.wave109-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.wave109-input { flex: 1 1 220px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; color: #e8e8ee; padding: 0.45rem 0.7rem; font-size: 0.85rem; }
+.wave109-btn { background: #6d5cff; color: #fff; border: none; border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.85rem; cursor: pointer; }
+.wave109-btn:hover { background: #7d6dff; }
+.wave109-btn:focus-visible { outline: 2px solid #9d92ff; outline-offset: 2px; }
+.wave109-btn-ghost { background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); }
+.wave109-muted { color: #9aa0b4; font-size: 0.82rem; }
+.wave109-pre { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 0.7rem; font-size: 0.78rem; white-space: pre-wrap; max-height: 220px; overflow: auto; margin: 0.4rem 0 0; }
+
+@media (max-width: 640px) {
+  .wave109 { padding: 0.9rem; }
+  .wave109-ideas { grid-template-columns: 1fr; }
+}
