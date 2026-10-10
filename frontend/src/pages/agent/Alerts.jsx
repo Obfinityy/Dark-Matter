@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, CheckCheck, Loader2, ChevronRight } from 'lucide-react';
+import '../../styles/kinetic-data.css';
 import { listAlerts, markAlertRead, markAllAlertsRead } from '../../services/api';
 
 const TYPE_LABEL = {
@@ -48,7 +49,7 @@ export function Alerts() {
 
   if (loading)
     return (
-      <div className="dm-page-loading" role="status" aria-live="polite">
+      <div className="dm-page-loading kda-page" role="status" aria-live="polite">
         <Loader2 size={18} className="sg-spin" /> Loading alerts…
       </div>
     );
@@ -56,18 +57,23 @@ export function Alerts() {
   const unreadCount = alerts.filter(a => !a.read).length;
 
   return (
-    <div className="dm-alerts">
-      <header className="dm-page-head">
+    <div className="dm-alerts kda-page">
+      <header className="dm-page-head kda-head">
         <div>
-          <h1>
-            <Bell size={22} /> Alerts
+          <h1 className="kda-title">
+            <Bell size={22} />{' '}
+            <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+              Alerts
+            </span>
             {unreadCount > 0 && (
               <span className="dm-alert-count" aria-label={`${unreadCount} unread`}>
                 {unreadCount} unread
               </span>
             )}
           </h1>
-          <p>Critical findings and hunt lifecycle events, the moment they happen.</p>
+          <p className="kda-sub" style={{ '--kda-d': '220ms' }}>
+            Critical findings and hunt lifecycle events, the moment they happen.
+          </p>
         </div>
         <div className="dm-head-links">
           <label className="dm-check-inline">
@@ -99,13 +105,13 @@ export function Alerts() {
           {alerts.map((alert, i) => (
             <li
               key={alert.id}
-              className={`dm-alert dm-polish-in ${alert.read ? 'read' : 'unread'} type-${alert.type}`}
+              className={`dm-alert kda-card kda-rise ${alert.read ? 'read' : 'unread'} type-${alert.type}`}
               style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
             >
               {!alert.read && <span className="dm-alert-unread-dot" aria-hidden="true" />}
               <div className="dm-alert-main">
                 <span className="dm-alert-type">{TYPE_LABEL[alert.type] || alert.type}</span>
-                <strong>{alert.title}</strong>
+                <strong className="kda-card-title">{alert.title}</strong>
                 {alert.body && <p>{alert.body}</p>}
                 <span className="dm-alert-time">
                   {alert.createdAt ? new Date(alert.createdAt).toLocaleString() : ''}
