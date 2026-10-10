@@ -22,6 +22,33 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Follow button: icon + text inline, keeps its target even in the slim head. */
+.dm-term-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+.dm-term-follow svg {
+  flex: none;
+}
+
+/* Subtle entrance so fast streams stay followable; the reduced-motion
+ * guard below turns it off. */
+@keyframes dm-term-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.dm-term-line {
+  animation: dm-term-in 0.22s ease-out;
+}
+
 /* Long tool output wraps instead of forcing horizontal scroll. */
 .dm-term-line {
   min-width: 0;
@@ -63,6 +90,9 @@
   }
   .dm-terminal {
     line-height: 1.55;
+  }
+  .dm-term-follow {
+    min-height: 44px;
   }
 }
 

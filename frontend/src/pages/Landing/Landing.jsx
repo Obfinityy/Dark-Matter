@@ -20,7 +20,6 @@ import {
 import Logo from '../../components/brand/Logo';
 import { KineticHeading, Reveal, Marquee } from '../../components/kinetic/Kinetic';
 import '../../styles/kinetic-core.css';
-import './Landing.elegant.css';
 
 const STEPS = [
   {
@@ -117,6 +116,8 @@ function Hero() {
               onChange={e => setUrl(e.target.value)}
               placeholder="https://your-website.com"
               aria-label="Target website URL"
+              autoComplete="url"
+              enterKeyHint="go"
               className="ktx-hero-input"
             />
           </div>
