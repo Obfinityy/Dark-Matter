@@ -17,7 +17,7 @@
  * dependencies, no audio leaves the device for our servers.
  */
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Mic, MicOff, Square } from 'lucide-react';
 import { useSpeechRecognition, detectSpeechLang } from '../../hooks/useSpeechRecognition';
 import './VoiceInput.css';
@@ -85,7 +85,7 @@ export function MicButton({
         </span>
       )}
       {rec.error === 'no-speech' && (
-        <span className="voice-mic-caption" role="status">
+        <span className="voice-mic-caption" role="status" aria-live="polite">
           Didn't catch that — try again.
         </span>
       )}

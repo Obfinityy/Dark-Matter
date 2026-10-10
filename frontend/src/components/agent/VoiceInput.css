@@ -64,8 +64,22 @@
   inset: -4px;
   border-radius: var(--radius-lg);
   border: 2px solid color-mix(in srgb, var(--danger) 60%, transparent);
-
   pointer-events: none;
+  /* The listening ring radiates outward and fades — the only cue that
+   * the mic is hot while dictating. This animation was never declared,
+   * so the ring sat frozen; keyframes below make it real. */
+  animation: voice-mic-pulse 1.8s ease-out infinite;
+}
+
+@keyframes voice-mic-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.38);
+  }
 }
 
 /* Live interim transcript + status captions, floating above the button. */
