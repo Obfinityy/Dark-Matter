@@ -89,3 +89,76 @@
     transition: none;
   }
 }
+
+/* ── Round-2 refresh (10 Oct): search affordance + touch clear button ──
+ * Design notes — weak: the input had no visual search affordance (a bare box);
+ * mobile users had no way to clear the query (Escape is desktop-only); arrow-
+ * keying moved the highlight without scrolling it into view, so keyboard users
+ * lost the active option inside the max-height listbox. change: a leading Search
+ * icon (pointer-events none), an × clear button that appears with text (focuses
+ * the input after clearing), and the active option scrolls into view with
+ * block:'nearest' on every arrow move. why: a combobox you can't see into or
+ * clear on touch isn't finished. */
+
+/* The icon + clear button sit inside the field; the input keeps its own
+ * .cg-input rules from the base + polish stylesheets. */
+.cg-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.cg-search-icon {
+  position: absolute;
+  left: 12px;
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+  flex: none;
+}
+.cg-input-wrap .cg-input {
+  padding-left: 34px;
+  padding-right: 38px;
+}
+.cg-clear {
+  position: absolute;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+.cg-clear:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.cg-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.cg-clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (pointer: coarse) {
+  .cg-clear {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cg-clear {
+    transition: none;
+  }
+}
