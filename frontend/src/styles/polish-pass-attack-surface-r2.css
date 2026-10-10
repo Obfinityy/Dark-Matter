@@ -1,0 +1,117 @@
+/* ════════════════ POLISH PASS — AttackSurfaceMap (round-2 refresh) ════════════════
+ *
+ * Design notes
+ * ── weak: the loading state was bare "Mapping the attack surface…" text (the same
+ * bare-ellipsis problem fixed on Premium's balance loader in round5_run6), and the
+ * 5-panel grid popped in with a layout shift when the first surface arrived.
+ * change: loading now renders a skeleton grid that mirrors the real panel layout
+ * (icon chip, title bar, count pill, three row bars), so data lands without a
+ * shift; the status text moves to a visually-hidden string for screen readers.
+ * why: this map updates live as the hunt progresses — loading should feel calm
+ * and honest, never broken.
+ *
+ * ── weak: every list item carried tabIndex={0} yet did nothing on keyboard
+ * (no click or key handlers) — a pure tab-stop tax for keyboard users.
+ * change: tabIndex removed; items stay readable list content. why: focus must
+ * mean actionable.
+ *
+ * ── weak: the "Last updated" timestamp ticked with proportional figures,
+ * jittering each update. change: tabular-nums. why: live tickers shouldn't
+ * visually dance.
+ *
+ * Skeleton shimmer reuses the sg-skel-shimmer keyframes defined in
+ * polish-pass-coverage-posture-fingerprint.css (same file family, loaded before).
+ */
+
+/* Global visually-hidden utility (the layout.css copy is never bundled —
+ * nothing imports layout.css — so polish CSS re-declares it here where it is
+ * guaranteed to load via App.jsx). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Skeleton loading state ── */
+.dm-surface-skel-panel {
+  pointer-events: none;
+}
+.dm-surface-skel-panel:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--dm-border-soft);
+}
+.dm-skel {
+  display: block;
+  height: 11px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  animation: sg-skel-shimmer 1.8s ease-in-out infinite;
+  margin-bottom: 10px;
+}
+.dm-surface-skel-panel header {
+  margin-bottom: 14px;
+}
+.dm-surface-skel-panel header .dm-skel {
+  margin-bottom: 0;
+}
+.dm-skel-ic {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  animation: sg-skel-shimmer 1.8s ease-in-out infinite;
+}
+.dm-skel-t {
+  flex: 1;
+  min-width: 0;
+  height: 12px;
+}
+.dm-skel-c {
+  width: 38px;
+  height: 20px;
+  border-radius: 999px;
+}
+.dm-skel-r1 {
+  width: 92%;
+}
+.dm-skel-r2 {
+  width: 74%;
+}
+.dm-skel-r3 {
+  width: 84%;
+  margin-bottom: 0;
+}
+/* A gentle shimmer wave across the five skeleton panels. (The visually-hidden
+ * status span is child 1, so the panels are children 2–6.) */
+.dm-surface-map .dm-surface-skel-panel:nth-child(3) .dm-skel {
+  animation-delay: 120ms;
+}
+.dm-surface-map .dm-surface-skel-panel:nth-child(4) .dm-skel {
+  animation-delay: 240ms;
+}
+.dm-surface-map .dm-surface-skel-panel:nth-child(5) .dm-skel {
+  animation-delay: 360ms;
+}
+.dm-surface-map .dm-surface-skel-panel:nth-child(6) .dm-skel {
+  animation-delay: 480ms;
+}
+
+/* ── Live timestamp stability ── */
+.dm-surface-updated {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-skel,
+  .dm-skel-ic {
+    animation: none;
+  }
+}

@@ -36,7 +36,6 @@ function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {
                   ? item
                   : item?.id || item?.path || item?.url || item?.name || i
               }
-              tabIndex={0}
               title={typeof item === 'string' ? item : undefined}
             >
               {renderItem ? renderItem(item) : String(item)}
@@ -53,11 +52,31 @@ function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {
   );
 }
 
+function SurfaceSkeleton() {
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map(i => (
+        <section key={i} className="dm-surface-panel dm-surface-skel-panel" aria-hidden="true">
+          <header>
+            <span className="dm-surface-icon dm-skel-ic" />
+            <span className="dm-skel dm-skel-t" />
+            <span className="dm-skel dm-skel-c" />
+          </header>
+          <span className="dm-skel dm-skel-r1" />
+          <span className="dm-skel dm-skel-r2" />
+          <span className="dm-skel dm-skel-r3" />
+        </section>
+      ))}
+    </>
+  );
+}
+
 export function AttackSurfaceMap({ surface = {}, loading = false }) {
   if (loading)
     return (
-      <div className="dm-surface-loading" role="status">
-        Mapping the attack surface…
+      <div className="dm-surface-map" role="status" aria-label="Mapping the attack surface">
+        <span className="visually-hidden">Mapping the attack surface…</span>
+        <SurfaceSkeleton />
       </div>
     );
 
