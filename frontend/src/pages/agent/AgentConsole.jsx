@@ -105,12 +105,15 @@ export function AgentConsole() {
                 </Page>
               }
             />
+            {/* The Hunt AI page is the continuous-hunt console (new /hunts/* API):
+                terminal + chat + voice as the hero. `hunt-live/:huntId` stays
+                as an alias for older links. */}
             <Route
-              path="hunt/:jobId"
+              path="hunt/:huntId"
               element={
                 <Page>
                   <PageErrorBoundary pageName="Hunt AI">
-                    <HuntView />
+                    <ContinuousHuntConsole />
                   </PageErrorBoundary>
                 </Page>
               }
@@ -121,6 +124,17 @@ export function AgentConsole() {
                 <Page>
                   <PageErrorBoundary pageName="Continuous hunt">
                     <ContinuousHuntConsole />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            {/* Legacy single-sweep jobs (old /jobs API) keep their own view. */}
+            <Route
+              path="hunt-job/:jobId"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Hunt AI">
+                    <HuntView />
                   </PageErrorBoundary>
                 </Page>
               }

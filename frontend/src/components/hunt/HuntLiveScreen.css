@@ -1,0 +1,73 @@
+/* HuntLiveScreen — agent presence panel inside the continuous-hunt console. */
+
+.hls-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hls-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dm-muted, #8a8f9e);
+  line-height: 1.5;
+}
+
+.hls-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--dm-border, #262a35);
+  border-radius: 12px;
+  background: var(--dm-surface, #14161c);
+}
+
+.hls-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--dm-surface-2, #1c1f28);
+  color: var(--dm-accent, #e8b34b);
+}
+
+.hls-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--dm-text, #f2f3f5);
+}
+
+.hls-copy {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--dm-muted, #a7adbb);
+  max-width: 56ch;
+}
+
+.hls-steps {
+  margin: 2px 0 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--dm-text, #e6e8ec);
+}
+
+.hls-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.hls-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

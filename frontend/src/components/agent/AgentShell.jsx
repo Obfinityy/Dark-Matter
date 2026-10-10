@@ -183,7 +183,7 @@ function HuntHistory({ onNavigate, refreshKey }) {
         const status = String(job.status || 'unknown').toLowerCase();
         return (
           <li key={job.id}>
-            <NavLink to={`/agent/hunt/${job.id}`} className="sg-side-hist" onClick={onNavigate}>
+            <NavLink to={`/agent/hunt-job/${job.id}`} className="sg-side-hist" onClick={onNavigate}>
               <span className={`sg-dot ${STATUS_DOT[status] || ''}`} />
               <span className="sg-side-hist-main">
                 <span className="sg-side-hist-target" title={job.target}>
@@ -333,7 +333,12 @@ export function AgentShell({ children }) {
   const closeDrawer = () => setDrawerOpen(false);
 
   const title = React.useMemo(() => {
-    if (location.pathname.startsWith('/agent/hunt/')) return 'Active Hunt';
+    if (
+      location.pathname.startsWith('/agent/hunt/') ||
+      location.pathname.startsWith('/agent/hunt-live/') ||
+      location.pathname.startsWith('/agent/hunt-job/')
+    )
+      return 'Active Hunt';
     if (location.pathname.startsWith('/agent/reports/')) return 'Report';
     return TITLES[location.pathname] || 'Dark Matter';
   }, [location.pathname]);

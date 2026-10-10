@@ -119,7 +119,7 @@ export function Alerts() {
               </div>
               <div className="dm-alert-actions">
                 {alert.jobId && (
-                  <Link to={`/agent/hunt/${alert.jobId}`} className="dm-btn-ghost">
+                  <Link to={`/agent/hunt-job/${alert.jobId}`} className="dm-btn-ghost">
                     Open hunt <ChevronRight size={13} />
                   </Link>
                 )}

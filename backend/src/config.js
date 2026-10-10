@@ -131,6 +131,19 @@ export const config = {
     // simultaneous hunts per user. Overflow waits in a fair round-robin queue.
     maxConcurrent: Number(process.env.HUNT_MAX_CONCURRENT || 4),
     maxPerUser: Number(process.env.HUNT_MAX_PER_USER || 2),
+    // In-process hunt execution. The local backend (user's own machine) runs
+    // hunts in-process — that IS the sanctioned local path. The cloud
+    // backend (Render) is orchestration ONLY: brains/computer control never
+    // run there, so in-process execution is disabled and new hunts park in a
+    // truthful `queued` state with waitingReason 'waiting for your agent
+    // machine' until the user's agent machine (agent poller) claims them.
+    // AGENT_LOCAL_EXECUTION=0 forces orchestration mode; =1 forces local
+    // mode; unset auto-detects via the RENDER env var (set by Render).
+    localExecution: (() => {
+      if (process.env.AGENT_LOCAL_EXECUTION === '0') return false;
+      if (process.env.AGENT_LOCAL_EXECUTION === '1') return true;
+      return !process.env.RENDER;
+    })(),
   },
 
   // --- Computer Control (Open-Interface adapter) ---

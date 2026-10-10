@@ -273,8 +273,9 @@ export function createJobController({
     }),
 
     /** POST /api/v1/jobs/:id/ask — talk to the agent about the running job.
-     * Uses the brain-powered path: simple status questions get fast rule-based
-     * answers, everything else is understood and answered by the AI agent itself. */
+     * Always brain-routed: the hacking brain answers with live job context.
+     * When the brain is unreachable the reply is the honest unavailable
+     * message — never a template. */
     ask: asyncHandler(async (request, response) => {
       const question = request.body?.message;
       if (!question) {
