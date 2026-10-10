@@ -38,6 +38,7 @@ import { RunnerStatusCard } from '../../components/agent/RunnerStatusCard';
 import { speak } from '../../services/voice';
 import { MicButton, VoiceModeToggle } from '../../components/agent/VoiceInput';
 import { useVoiceConversation } from '../../hooks/useVoiceConversation';
+import '../../styles/kinetic-chat.css';
 
 /* ── Page-local styles: chat layout pieces the dm-* system doesn't cover.
  * Uses only dm- design tokens. Zero decorative animation. ─────────── */
@@ -323,7 +324,7 @@ function ModeDropdown({ mode, setMode }) {
         title="Switch mode"
       >
         <ActiveIcon size={15} />
-        <span className="dm-mode-dd-label">{active.label}</span>
+        <span className="dm-mode-dd-label kch-mode-label">{active.label}</span>
         <ChevronDown size={14} className={open ? 'dm-caret-up' : ''} />
       </button>
       {open && (
@@ -620,9 +621,18 @@ function ChatPane({
     onStateChange: s => onAvatarState?.(s),
   });
 
+  // Fresh conversation (welcome message only) → kinetic empty-state hero.
+  // Purely presentational: same text, staged reveal. No logic changes.
+  const isFresh =
+    !loadingHistory && !sending && messages.length === 1 && messages[0].role === 'assistant';
+
   return (
-    <>
-      <div className="dm-chat-messages">
+    <div className="kch-chat">
+      <div
+        className="dm-chat-messages kch-chat-col"
+        role="log"
+        aria-label="Infinity AI conversation"
+      >
         {loadingHistory ? (
           <div className="dm-msg dm-msg-assistant">
             <span className="dm-msg-avatar" aria-hidden="true">
@@ -631,6 +641,23 @@ function ChatPane({
             <div className="dm-bubble">
               <Loader2 size={15} className="dm-spin" /> Loading conversation…
             </div>
+          </div>
+        ) : isFresh ? (
+          <div className="kch-empty">
+            <h2 className="kch-empty-headline">
+              <span className="kch-sr-only">What can I help with?</span>
+              {['What', 'can', 'I', 'help', 'with?'].map((w, i) => (
+                <span
+                  key={w}
+                  aria-hidden="true"
+                  className="kch-word"
+                  style={{ '--kch-d': `${i * 80}ms` }}
+                >
+                  {w}
+                </span>
+              ))}
+            </h2>
+            <p className="kch-empty-sub">{messages[0].text}</p>
           </div>
         ) : (
           messages.map((m, i) => (
@@ -651,6 +678,7 @@ function ChatPane({
               <Bot size={15} />
             </span>
             <div className="dm-bubble">
+              <span className="kch-shimmer" aria-hidden="true" />
               <span className="dm-typing" role="status" aria-label="Infinity AI is typing">
                 <span />
                 <span />
@@ -661,56 +689,60 @@ function ChatPane({
         )}
         <div ref={bottomRef} />
       </div>
-      <AttachChips files={files} onRemove={removeFile} />
-      {voiceMode && (
-        <div className="dm-voice-status" role="status" aria-live="polite">
-          <span className="dm-voice-dot" aria-hidden="true" />
-          {!voiceConvo.supported
-            ? 'Voice input isn\u2019t supported in this browser \u2014 try Chrome or Edge'
-            : voiceConvo.processing
-              ? 'Replying…'
-              : voiceConvo.listening
-                ? voiceConvo.interim
-                  ? `Heard: “${voiceConvo.interim}…”`
-                  : 'Listening — speak now'
-                : 'Voice chat on'}
+      <div className="kch-dock">
+        <div className="kch-dock-inner">
+          <AttachChips files={files} onRemove={removeFile} />
+          {voiceMode && (
+            <div className="dm-voice-status" role="status" aria-live="polite">
+              <span className="dm-voice-dot" aria-hidden="true" />
+              {!voiceConvo.supported
+                ? 'Voice input isn\u2019t supported in this browser \u2014 try Chrome or Edge'
+                : voiceConvo.processing
+                  ? 'Replying…'
+                  : voiceConvo.listening
+                    ? voiceConvo.interim
+                      ? `Heard: “${voiceConvo.interim}…”`
+                      : 'Listening — speak now'
+                    : 'Voice chat on'}
+            </div>
+          )}
+          <div className="dm-composer kch-composer">
+            <ModeDropdown mode={mode} setMode={setMode} />
+            <AttachButton onPick={addFiles} />
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && send()}
+              placeholder="Message Infinity AI…"
+              aria-label="Message Infinity AI"
+              disabled={sending}
+            />
+            <MicButton
+              onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
+              className="dm-icon-btn"
+              disabled={sending || voiceMode}
+              onListeningChange={listening => {
+                if (!voiceModeRef.current) onAvatarState?.(listening ? 'listening' : 'idle');
+              }}
+            />
+            <VoiceModeToggle
+              active={voiceMode}
+              onToggle={toggleVoiceMode}
+              disabled={sending && !voiceMode}
+            />
+            <button
+              type="button"
+              className="dm-icon-btn dm-icon-btn-primary"
+              onClick={send}
+              disabled={sending || (!input.trim() && !files.length)}
+              aria-label="Send"
+            >
+              {sending ? <Loader2 size={17} className="dm-spin" /> : <Send size={17} />}
+            </button>
+          </div>
         </div>
-      )}
-      <div className="dm-composer">
-        <ModeDropdown mode={mode} setMode={setMode} />
-        <AttachButton onPick={addFiles} />
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && send()}
-          placeholder="Message Infinity AI…"
-          aria-label="Message Infinity AI"
-          disabled={sending}
-        />
-        <MicButton
-          onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
-          className="dm-icon-btn"
-          disabled={sending || voiceMode}
-          onListeningChange={listening => {
-            if (!voiceModeRef.current) onAvatarState?.(listening ? 'listening' : 'idle');
-          }}
-        />
-        <VoiceModeToggle
-          active={voiceMode}
-          onToggle={toggleVoiceMode}
-          disabled={sending && !voiceMode}
-        />
-        <button
-          type="button"
-          className="dm-icon-btn dm-icon-btn-primary"
-          onClick={send}
-          disabled={sending || (!input.trim() && !files.length)}
-          aria-label="Send"
-        >
-          {sending ? <Loader2 size={17} className="dm-spin" /> : <Send size={17} />}
-        </button>
       </div>
-    </>
+    </div>
   );
 }
 
