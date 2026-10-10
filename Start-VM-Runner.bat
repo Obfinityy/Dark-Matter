@@ -44,26 +44,47 @@ if not exist "node_modules" (
 )
 echo  [OK] Dependencies ready
 
-REM --- Check QEMU (PATH + common install location) ---
+REM --- Check QEMU (PATH + common install locations) ---
+REM Search order matches vm-runner/src/qemu.js: env override, %ProgramFiles%\qemu, PATH.
+set "QEMU_BIN="
 where qemu-system-x86_64 >nul 2>nul
-if %errorlevel% neq 0 (
-    if exist "C:\Program Files\qemu\qemu-system-x86_64.exe" (
-        echo  [OK] QEMU mila (C:\Program Files\qemu)
-        set "PATH=C:\Program Files\qemu;%PATH%"
-    ) else (
-        echo.
-        echo  [WARNING] QEMU nahi mila!
-        echo  Kali VM chalane ke liye QEMU chahiye:
-        echo    1. https://www.qemu.org/download/ se QEMU for Windows install karo
-        echo    2. "Windows Hypervisor Platform" Windows Features me enable karo
-        echo    3. Ye script dobara chalao
-        echo.
-        pause
-        exit /b 1
-    )
-) else (
-    echo  [OK] QEMU mila
+if %errorlevel% equ 0 set "QEMU_BIN=on PATH"
+
+if not defined QEMU_BIN if defined INFINITY_VM_RUNNER_QEMU_DIR if exist "%INFINITY_VM_RUNNER_QEMU_DIR%\qemu-system-x86_64.exe" (
+    set "QEMU_BIN=%INFINITY_VM_RUNNER_QEMU_DIR%\qemu-system-x86_64.exe"
+    set "PATH=%INFINITY_VM_RUNNER_QEMU_DIR%;%PATH%"
 )
+if not defined QEMU_BIN if exist "%ProgramFiles%\qemu\qemu-system-x86_64.exe" (
+    set "QEMU_BIN=%ProgramFiles%\qemu\qemu-system-x86_64.exe"
+    set "PATH=%ProgramFiles%\qemu;%PATH%"
+)
+if not defined QEMU_BIN if defined ProgramW6432 if exist "%ProgramW6432%\qemu\qemu-system-x86_64.exe" (
+    set "QEMU_BIN=%ProgramW6432%\qemu\qemu-system-x86_64.exe"
+    set "PATH=%ProgramW6432%\qemu;%PATH%"
+)
+if not defined QEMU_BIN if exist "C:\Program Files\qemu\qemu-system-x86_64.exe" (
+    set "QEMU_BIN=C:\Program Files\qemu\qemu-system-x86_64.exe"
+    set "PATH=C:\Program Files\qemu;%PATH%"
+)
+
+if not defined QEMU_BIN (
+    echo.
+    echo  [WARNING] QEMU nahi mila!
+    echo  Ye locations check ki gayin:
+    echo    - PATH ^(where qemu-system-x86_64^)
+    echo    - %ProgramFiles%\qemu
+    echo    - C:\Program Files\qemu
+    if defined INFINITY_VM_RUNNER_QEMU_DIR echo    - %INFINITY_VM_RUNNER_QEMU_DIR% ^(INFINITY_VM_RUNNER_QEMU_DIR env^)
+    echo.
+    echo  Kali VM chalane ke liye QEMU chahiye:
+    echo    1. https://www.qemu.org/download/ se QEMU for Windows install karo
+    echo    2. "Windows Hypervisor Platform" Windows Features me enable karo
+    echo    3. Ye script dobara chalao
+    echo.
+    pause
+    exit /b 1
+)
+echo  [OK] QEMU mila: %QEMU_BIN%
 
 echo.
 echo  ============================================================
