@@ -1,0 +1,377 @@
+/* ═══════════════════════════════════════════════════════════════════
+   kinetic-data.css — kinetic-type theme for the library / data pages.
+   (Reports, ReportReader, ModelLibrary, PayloadLibrary, Plugins, Queues,
+   Schedules, Alerts, AgentCharacter — part of the #292 redesign.)
+
+   ALL classes here are namespaced `kda-`. This file is imported by each
+   page component AFTER its own CSS so these rules win ties deliberately.
+   Visual / placement layer only: no behavior, no layout contracts changed.
+
+   Motion language
+   ───────────────
+   • Page titles reveal word-by-word (staggered rise, `.kda-w`).
+   • Subtitles and header actions follow on a short delay (staggered beat).
+   • Card / row entrances rise once (`.kda-rise`, delay via inline style).
+   • Card titles gain weight on card hover / focus-within (kinetic type).
+   • Body copy stays calm: generous measure, quiet color, steady rhythm.
+   • prefers-reduced-motion: EVERYTHING stills — no exceptions.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Page scope ─────────────────────────────────────────────────── */
+.kda-page {
+  --kda-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ── Kinetic page header ──────────────────────────────────────────
+   Markup pattern:
+     <header class="… kda-head">
+       <h1 class="… kda-title">
+         <span class="kda-w" style="--kda-d:0ms">Word</span>
+         <span class="kda-w" style="--kda-d:90ms">word</span>
+       </h1>
+       <p class="… kda-sub" style="--kda-d:220ms">…</p>
+   Icons sit OUTSIDE the word spans; screen readers hear plain text. */
+.kda-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--dm-4, 16px);
+  margin-bottom: var(--dm-6, 24px);
+}
+
+.kda-title {
+  position: relative;
+  display: inline-block;
+  font-family: var(--dm-font-display, var(--dm-font, inherit));
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  margin: 0;
+  padding-bottom: 0.22em; /* room for the kinetic underline */
+}
+
+/* Kinetic underline: sweeps in after the words land. */
+.kda-title::after {
+  content: "";
+  position: absolute;
+  left: 0.06em;
+  bottom: 0;
+  width: 2.6em;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--dm-gold-deep, #a8842f), var(--dm-gold-soft, #e8c876));
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: kda-bar 0.7s var(--kda-ease-out) 0.55s both;
+}
+
+.kda-w {
+  display: inline-block;
+  animation: kda-rise 0.65s var(--kda-ease-out) both;
+  animation-delay: var(--kda-d, 0ms);
+  will-change: transform, opacity;
+}
+
+.kda-sub {
+  animation: kda-fade-up 0.6s var(--kda-ease-out) both;
+  animation-delay: var(--kda-d, 240ms);
+  max-width: 62ch;
+  line-height: 1.65;
+}
+
+/* Header call-to-action (e.g. "New hunt") arrives last in the beat. */
+.kda-cta {
+  animation: kda-fade-up 0.55s var(--kda-ease-out) both;
+  animation-delay: var(--kda-d, 340ms);
+  flex-shrink: 0;
+}
+
+@keyframes kda-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.55em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kda-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kda-bar {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* ── Card / row entrance ──────────────────────────────────────────
+   Add `kda-rise` + an inline `animation-delay` (e.g. from the row index)
+   to stagger lists without touching data flow. */
+.kda-rise {
+  animation: kda-fade-up 0.5s var(--kda-ease-out) both;
+}
+
+/* ── Kinetic cards ────────────────────────────────────────────────
+   `.kda-card`  — the interactive surface (lift + gold edge on hover).
+   `.kda-card-title` — the title inside it: weight swells on card
+   hover / focus-within, eases back on leave. Calm otherwise. */
+.kda-card {
+  transition:
+    transform 0.25s var(--kda-ease-out),
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.kda-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--dm-gold-border, rgba(212, 169, 78, 0.32));
+  box-shadow: var(--dm-shadow, 0 4px 16px rgba(0, 0, 0, 0.4));
+}
+
+.kda-card-title {
+  transition:
+    font-weight 0.25s ease,
+    letter-spacing 0.25s ease,
+    color 0.25s ease;
+}
+
+.kda-card:hover .kda-card-title,
+.kda-card:focus-within .kda-card-title {
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--dm-gold-soft, #e8c876);
+}
+
+/* ── Responsive grids (3→2→1, explicit at 1280 / 768 / 390) ─────── */
+.kda-grid {
+  display: grid;
+  gap: var(--dm-4, 16px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kda-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .kda-grid,
+  .kda-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .kda-grid,
+  .kda-grid-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Reading typography (ReportReader) ────────────────────────────
+   Typography-first: generous measure, clear hierarchy, calm rhythm.
+   Applied alongside the existing markdown-body class. */
+.kda-prose {
+  max-width: 72ch;
+  font-size: 1.02rem;
+  line-height: 1.78;
+  color: var(--dm-text-2, #b8b6b0);
+  overflow-wrap: break-word;
+}
+
+.kda-prose > *:first-child {
+  margin-top: 0;
+}
+
+.kda-prose h1,
+.kda-prose h2,
+.kda-prose h3 {
+  color: var(--dm-text, #f5f4f0);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin: 1.9em 0 0.65em;
+  text-wrap: balance;
+}
+
+.kda-prose h1 {
+  font-size: 1.65rem;
+}
+.kda-prose h2 {
+  font-size: 1.38rem;
+}
+.kda-prose h3 {
+  font-size: 1.14rem;
+}
+
+.kda-prose p {
+  margin: 0 0 1.15em;
+}
+
+.kda-prose ul,
+.kda-prose ol {
+  margin: 0 0 1.25em;
+  padding-left: 1.5em;
+}
+
+.kda-prose li {
+  margin-bottom: 0.45em;
+}
+
+.kda-prose li::marker {
+  color: var(--dm-gold, #d4a94e);
+}
+
+.kda-prose blockquote {
+  margin: 0 0 1.25em;
+  padding: 0.4em 0 0.4em 1.1em;
+  border-left: 3px solid var(--dm-gold-border, rgba(212, 169, 78, 0.32));
+  color: var(--dm-text-2, #b8b6b0);
+  font-style: italic;
+}
+
+.kda-prose blockquote p {
+  margin-bottom: 0.6em;
+}
+
+.kda-prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--dm-gold-glow, rgba(212, 169, 78, 0.14));
+  border: 1px solid var(--dm-border-soft, rgba(255, 255, 255, 0.05));
+  border-radius: 6px;
+  padding: 0.12em 0.42em;
+  color: var(--dm-gold-soft, #e8c876);
+  overflow-wrap: break-word;
+}
+
+.kda-prose pre {
+  margin: 0 0 1.4em;
+  padding: var(--dm-4, 16px);
+  background: var(--dm-bg-2, #111114);
+  border: 1px solid var(--dm-border, rgba(255, 255, 255, 0.09));
+  border-radius: var(--dm-r-lg, 14px);
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.kda-prose pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--dm-text-2, #b8b6b0);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.kda-prose hr {
+  border: 0;
+  border-top: 1px solid var(--dm-border, rgba(255, 255, 255, 0.09));
+  margin: 2em 0;
+}
+
+.kda-prose strong {
+  color: var(--dm-text, #f5f4f0);
+  font-weight: 700;
+}
+
+/* ── Status hierarchy (Queues / Schedules / Alerts) ───────────────
+   Status reads first: heavier weight, wider tracking, live dot pulse. */
+.kda-status {
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: capitalize;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  white-space: nowrap;
+}
+
+.kda-status::before {
+  content: "";
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* ── Safe horizontal scroll (tables / wide rows never break the page) */
+.kda-scroll-x {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Section titles inside kda pages: quiet kinetic beat ─────────── */
+.kda-sec-title {
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  animation: kda-fade-up 0.55s var(--kda-ease-out) both;
+  animation-delay: var(--kda-d, 120ms);
+}
+
+/* ── Focus visibility (a11y) ─────────────────────────────────────── */
+.kda-page :focus-visible {
+  outline: 2px solid var(--dm-gold, #d4a94e);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Tap targets: ≥44px on touch widths ──────────────────────────── */
+@media (max-width: 768px) {
+  .kda-page button,
+  .kda-page .dm-btn,
+  .kda-page .sg-btn,
+  .kda-page .dm-btn-ghost,
+  .kda-page .dm-btn-primary,
+  .kda-page .dm-btn-secondary,
+  .kda-page select,
+  .kda-page input[type="checkbox"],
+  .kda-page input[type="radio"] {
+    min-height: 44px;
+  }
+  .kda-page input[type="checkbox"],
+  .kda-page input[type="radio"] {
+    min-width: 44px;
+  }
+}
+
+/* ── AgentCharacter: still the orbits for reduced motion ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  .kda-char *,
+  .kda-char *::before,
+  .kda-char *::after {
+    animation: none !important;
+  }
+}
+
+/* ── prefers-reduced-motion: disable / still ALL kda motion ────────
+   `both` fill mode above means: with animation:none, elements render
+   in their natural (visible) state — nothing gets stuck invisible. */
+@media (prefers-reduced-motion: reduce) {
+  .kda-page *,
+  .kda-page *::before,
+  .kda-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .kda-page .kda-card:hover {
+    transform: none;
+  }
+}
