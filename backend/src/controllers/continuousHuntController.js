@@ -25,6 +25,40 @@ import { LiveReport } from '../hunt/liveReport.js';
 import { buildReportPdf } from '../services/pdfReportWriter.js';
 import { tallyFor } from '../services/vulnTallyService.js';
 import { startHunt, getLiveLoop, subscribeBus, answerChat } from '../hunt/continuousHuntManager.js';
+import { TripleBrainPlanner } from '../hunt/planner.js';
+import { resolveHackingBrain } from '../services/huntChatBrain.js';
+import { brainLinkStore as defaultBrainLinkStore } from '../services/brainLinkStore.js';
+
+/**
+ * Build a brain-driven planner from the user's saved brain links (if any).
+ * Returns null when the hacking brain isn't configured — the loop then runs
+ * its deterministic checklist (honest fallback, never a fake brain).
+ */
+async function plannerForUser(userId, { dataDir, logger } = {}) {
+  if (!userId) return null;
+  let links = null;
+  try {
+    links = await defaultBrainLinkStore.getLinks(userId);
+  } catch {
+    return null;
+  }
+  const hackerUrl = links?.hacker?.url;
+  if (!hackerUrl) return null;
+  const resolved = resolveHackingBrain({
+    selection: {
+      slotSources: {
+        hacker: {
+          source: 'kaggle',
+          kaggleUrl: hackerUrl,
+          kaggleName: links.hacker.name || 'hacker',
+        },
+      },
+    },
+  });
+  if (!resolved?.provider) return null;
+  logger?.info?.('[continuousHunt] wiring hacking brain into hunt planner (kaggle).');
+  return new TripleBrainPlanner({ brain: resolved.provider, dataDir, logger });
+}
 
 /** Live loops, keyed by huntId. Survives across requests in-process. */
 const LIVE_LOOPS = new Map();
@@ -202,16 +236,20 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
         });
       }
       try {
+        // Wire the user's hacking brain into the hunt when configured; otherwise
+        // the loop runs its deterministic checklist (honest fallback).
+        const planner = await plannerForUser(request.user?.id, { dataDir, logger }).catch(() => null);
         const { huntId, loop } = await startHunt({
           target,
           executor: request.body?.executor || 'local',
-          deps: { dataDir },
+          deps: { dataDir, planner },
           logger,
         });
         const snap = loop.snapshot();
         return response.status(201).json({
           ok: true,
           huntId,
+          brainDriven: Boolean(planner),
           hunt: {
             id: huntId,
             target,
