@@ -119,19 +119,23 @@ Every field should be healthy and `problems` should be an empty array:
 
 ### Step 7 — First boot: install the in-guest agent (one-time)
 
+QEMU's built-in VNC server does not support clipboard sharing, so
+copy-paste from Windows into the VM will not work. Copy-paste **inside**
+the VM (Firefox → terminal) works fine — use that:
+
 1. Start a session: `POST http://127.0.0.1:4100/vm/start` with
    `{ "sessionId": "first-boot" }` → returns a `sessionToken`.
-2. Open the VM display (via the app's noVNC view, or any VNC client to the
-   reported `vncPort`).
+2. Open the VM display (any VNC client to the reported `vncPort`, no
+   password).
 3. Log in as `kali` / `kali`.
-4. Run the provisioner once:
-   ```bash
-   sudo bash /path/to/provision/install-guestd.sh
-   ```
-   (The script is in `vm-runner/provision/` in this repository — copy it into
-   the VM, e.g. via the shared clipboard or `curl` from a local file share.)
-5. The guest agent (`guestd`) starts automatically on subsequent boots. Stop
-   the session: `POST /vm/stop`.
+4. In the VM, open **Firefox** and go to:
+   `github.com/Obfinityy/Dark-Matter/blob/main/vm-runner/provision/first-boot.sh`
+5. Copy the 3 commands from that file (Ctrl+A, Ctrl+C in Firefox) and paste
+   them into the VM terminal (Ctrl+Shift+V). Takes 2–3 minutes (installs
+   packages).
+6. The guest agent (`guestd`) starts automatically; the runner detects it
+   within ~30 seconds. No VM restart needed. Stop the session:
+   `POST /vm/stop`.
 
 Later sessions boot the golden image with a throwaway per-session overlay
 disk, so the base image is never modified.
