@@ -1,9 +1,14 @@
 /**
  * Premium — Infinity Credits top-up with live Razorpay billing.
  *
- * No tiers: you add any whole-rupee amount (min ₹10) and the backend credits
- * your Infinity Credits wallet after Razorpay verifies the payment. Local VM
- * mode is free and unmetered; credits are reserved for future Cloud-mode usage.
+ * Kinetic redesign (issue #292): pricing is instantly scannable (hero balance
+ * card, quick-amount chips), the pay button is unmissable. No tiers: any
+ * whole-rupee amount (min ₹10); the backend credits your Infinity Credits
+ * wallet after Razorpay verifies the payment. Local VM mode is free and
+ * unmetered; credits are reserved for future Cloud-mode usage.
+ *
+ * All billing logic, the Razorpay flow and the deprecated tier exports are
+ * untouched — only markup placement and classes changed.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Wallet, PlusCircle, Info, Loader2 } from 'lucide-react';
@@ -12,7 +17,7 @@ import {
   createTopupOrder,
   verifyTopupPayment,
 } from '../../services/api.js';
-import './Premium.css';
+import '../../styles/kinetic-acct.css';
 
 /** Deprecated: the tier system was removed in favour of Infinity Credits top-ups. */
 export function getReservedTier() {
@@ -42,6 +47,24 @@ const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
 function formatInr(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+}
+
+/** Kinetic letter spans for a title string. Parent must carry aria-label. */
+function kineticLetters(text) {
+  let i = 0;
+  return text.split(' ').map((word, wi, words) => (
+    <span key={wi} className="kac-word" aria-hidden="true">
+      {word.split('').map(ch => {
+        const idx = i++;
+        return (
+          <span key={idx} className="kac-ch" style={{ '--kac-i': idx }} aria-hidden="true">
+            {ch}
+          </span>
+        );
+      })}
+      {wi < words.length - 1 ? ' ' : null}
+    </span>
+  ));
 }
 
 export function Premium() {
@@ -127,96 +150,100 @@ export function Premium() {
   };
 
   return (
-    <div className="dm-page">
-      <div className="dm-container">
-        <header className="dm-page-head">
-          <h1 className="dm-page-title">Infinity Credits</h1>
-          <p className="dm-page-sub">
-            Pay-as-you-go credit for future Cloud-mode hunts. Local VM mode stays free and unmetered.
-          </p>
-        </header>
+    <div className="kac-page">
+      <header className="kac-head">
+        <h1 className="kac-title" aria-label="Infinity Credits">
+          {kineticLetters('Infinity Credits')}
+        </h1>
+        <p className="kac-sub">
+          Pay-as-you-go credit for future Cloud-mode hunts. Local VM mode stays free and unmetered.
+        </p>
+      </header>
 
-        {/* ── Balance ── */}
-        <section className="dm-card dm-prem-balance" aria-label="Credit balance">
-          <div className="dm-prem-balance-row">
-            <span className="dm-prem-balance-icon" aria-hidden="true">
-              <Wallet size={22} />
-            </span>
-            <div>
-              <p className="dm-card-sub dm-prem-balance-label">Infinity Credits</p>
-              <p className="dm-prem-balance-value" aria-live="polite">
-                {loading ? (
-                  <Loader2 size={22} className="sg-spin" aria-label="Loading balance" />
-                ) : (
-                  formatInr(balance)
-                )}
-              </p>
-            </div>
+      {/* ── Balance hero ── */}
+      <section className="kac-card kac-in" style={{ '--kac-i': 1 }} aria-label="Credit balance">
+        <div className="kac-prem-hero">
+          <span className="kac-prem-icon" aria-hidden="true">
+            <Wallet size={24} />
+          </span>
+          <div>
+            <p className="kac-muted kac-prem-label">Infinity Credits</p>
+            <p className="kac-prem-value" aria-live="polite">
+              {loading ? (
+                <Loader2 size={24} className="sg-spin" aria-label="Loading balance" />
+              ) : (
+                formatInr(balance)
+              )}
+            </p>
           </div>
-          <p className="dm-muted dm-prem-note">
-            <Info size={14} aria-hidden="true" />
-            Local VM mode is free and unmetered. Your credits are kept safe for Cloud mode, where usage is metered per minute.
-          </p>
-        </section>
+        </div>
+        <p className="kac-prem-note">
+          <Info size={15} aria-hidden="true" />
+          Local VM mode is free and unmetered. Your credits are kept safe for Cloud mode, where usage is metered per minute.
+        </p>
+      </section>
 
-        {/* ── Top-up ── */}
-        <section className="dm-card" aria-label="Top up credits">
-          <h2 className="dm-card-title">Top up</h2>
-          <p className="dm-card-sub">
-            Add any whole-rupee amount (minimum ₹{TOPUP_MIN}). Payment is processed securely via Razorpay — UPI, cards, netbanking.
-          </p>
-          {billingLive ? (
-            <>
-              <div className="dm-prem-quick-row">
-                {QUICK_AMOUNTS.map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    className={`dm-btn dm-btn-sm ${parsedAmount === q ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
-                    onClick={() => setAmount(String(q))}
-                    disabled={paying}
-                  >
-                    ₹{q.toLocaleString('en-IN')}
-                  </button>
-                ))}
-              </div>
-              <div className="dm-prem-amount-row">
-                <label htmlFor="topup-amount" className="dm-muted dm-prem-amount-label">
-                  Amount (₹)
-                </label>
-                <input
-                  id="topup-amount"
-                  type="number"
-                  min={TOPUP_MIN}
-                  step={1}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  disabled={paying}
-                  aria-invalid={amount !== '' && !amountValid}
-                  className="dm-prem-amount-input"
-                />
+      {/* ── Top-up ── */}
+      <section className="kac-card kac-in" style={{ '--kac-i': 2 }} aria-label="Top up credits">
+        <h2 className="kac-h" style={{ '--kac-i': 2 }}>
+          <PlusCircle size={18} aria-hidden="true" /> Top up
+        </h2>
+        <p className="kac-body">
+          Add any whole-rupee amount (minimum ₹{TOPUP_MIN}). Payment is processed securely via Razorpay — UPI, cards, netbanking.
+        </p>
+        {billingLive ? (
+          <>
+            <div className="kac-chips" role="group" aria-label="Quick amounts">
+              {QUICK_AMOUNTS.map((q) => (
                 <button
-                  className="dm-btn dm-btn-primary"
-                  onClick={topUp}
+                  key={q}
+                  type="button"
+                  className={`kac-chip${parsedAmount === q ? ' kac-chip-on' : ''}`}
+                  aria-pressed={parsedAmount === q}
+                  onClick={() => setAmount(String(q))}
                   disabled={paying}
                 >
-                  <PlusCircle size={16} aria-hidden="true" />
-                  {paying ? 'Opening checkout…' : `Top up${amountValid ? ` ${formatInr(parsedAmount)}` : ''}`}
+                  ₹{q.toLocaleString('en-IN')}
                 </button>
-              </div>
-              {payError && (
-                <p className="dm-prem-error" role="alert">
-                  {payError}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="dm-card-sub">
-              Billing isn't live yet — top-ups open as soon as Razorpay is connected. Your balance will appear here automatically.
-            </p>
-          )}
-        </section>
-      </div>
+              ))}
+            </div>
+            <div className="kac-amount-row">
+              <label htmlFor="kac-topup-amount" className="kac-amount-label">
+                Amount (₹)
+              </label>
+              <input
+                id="kac-topup-amount"
+                type="number"
+                min={TOPUP_MIN}
+                step={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={paying}
+                aria-invalid={amount !== '' && !amountValid}
+                className="kac-amount-input"
+              />
+              <button
+                type="button"
+                className="kac-btn kac-btn-primary kac-btn-lg"
+                onClick={topUp}
+                disabled={paying}
+              >
+                <PlusCircle size={17} aria-hidden="true" />
+                {paying ? 'Opening checkout…' : `Top up${amountValid ? ` ${formatInr(parsedAmount)}` : ''}`}
+              </button>
+            </div>
+            {payError && (
+              <p className="kac-error" role="alert" style={{ marginTop: 16 }}>
+                {payError}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="kac-body">
+            Billing isn&apos;t live yet — top-ups open as soon as Razorpay is connected. Your balance will appear here automatically.
+          </p>
+        )}
+      </section>
     </div>
   );
 }
