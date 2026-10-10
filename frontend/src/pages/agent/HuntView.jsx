@@ -63,6 +63,7 @@ import { ElectricBorder } from '../../components/fx/ElectricBorder';
 import { VoiceModeToggle } from '../../components/agent/VoiceInput';
 import './HuntViewNew.css';
 import './HuntView.css';
+import '../../styles/kinetic-hunt.css';
 
 const ACTIVE_STATUSES = ['running', 'resuming', 'waiting', 'created'];
 
@@ -236,19 +237,56 @@ export function HuntView() {
             <Link to="/agent" className="sg-btn sg-btn-quiet" aria-label="Back to home">
               <ChevronLeft size={15} />
             </Link>
-            <h1 className="hunt-title">Live hunt</h1>
+            <h1 className="hunt-title khu-hero-title">
+              {/* Kinetic word-stagger reveal — same text, split for animation. */}
+              {['Live', 'hunt'].map((word, i) => (
+                <React.Fragment key={word}>
+                  <span className="khu-w" style={{ '--khu-d': `${i * 90}ms` }}>
+                    {word}
+                  </span>
+                  {i === 0 ? ' ' : ''}
+                </React.Fragment>
+              ))}
+            </h1>
+            {/* key={status} replays the sheen sweep on every status change;
+                a motion accent for the status heading. */}
             {active ? (
               <ElectricBorder active={true}>
-                <StatusPill status={status} thinking={thinking} />
+                <span key={status} className="khu-status-key">
+                  <StatusPill status={status} thinking={thinking} />
+                </span>
               </ElectricBorder>
             ) : (
-              <StatusPill status={status} thinking={thinking} />
+              <span key={status} className="khu-status-key">
+                <StatusPill status={status} thinking={thinking} />
+              </span>
             )}
           </div>
           <span className="sg-target-line">{job?.target || job?.targetHostname || jobId}</span>
+          {/* Screen-reader live region: announces hunt status updates as SSE
+              events patch the header state. Visual users get the ticker. */}
+          <span className="visually-hidden" role="status">
+            Hunt status: {status}
+            {job?.currentObjective ? `. Current objective: ${job.currentObjective}` : ''}
+          </span>
           {job?.currentObjective && <p className="sg-hunt-sub">{job.currentObjective}</p>}
+          {/* Live-status marquee accent — decorative (aria-hidden); the live
+              region above carries the accessible announcement. */}
+          {active && (
+            <div className="khu-ticker" aria-hidden="true">
+              <div className="khu-ticker-track">
+                {[0, 1].map(n => (
+                  <span key={n}>
+                    <span className="khu-ticker-dot" />
+                    Live · {job?.phase || job?.currentPhase || status} ·{' '}
+                    {job?.target || job?.targetHostname || jobId}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="sg-hunt-actions">
+        <div className="sg-hunt-actions khu-actions">
           <VoiceModeToggle
             active={voiceMode}
             onToggle={() => setVoiceMode(v => !v)}
@@ -314,7 +352,7 @@ export function HuntView() {
 
           <section>
             <div
-              className="sg-tabs"
+              className="sg-tabs khu-tabs"
               role="tablist"
               aria-label="Hunt panels"
               onKeyDown={onTabsKeyDown}
@@ -362,10 +400,11 @@ export function HuntView() {
               </button>
             </div>
             <div
+              key={tab}
               id={`sg-panel-${tab}`}
               role="tabpanel"
               aria-labelledby={`sg-tab-${tab}`}
-              className="sg-tabpanel"
+              className="sg-tabpanel khu-tabpanel-in"
             >
               {tab === 'findings' && <FindingsBoard findings={findings} explainer={explainer} />}
               {tab === 'diary' && <HuntDiary entries={diary} />}

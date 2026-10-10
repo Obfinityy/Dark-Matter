@@ -21,6 +21,7 @@ import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { BrainGate } from '../../components/BrainGate';
+import '../../styles/kinetic-hunt.css';
 
 export function AgentHome() {
   const navigate = useNavigate();
@@ -110,8 +111,20 @@ export function AgentHome() {
         <span className="dm-badge dm-badge-gold" style={{ marginBottom: 'var(--dm-4)' }}>
           Autonomous bug bounty
         </span>
-        <h1 className="dm-page-title" style={{ fontSize: 'var(--dm-text-4xl)', maxWidth: '640px' }}>
-          Point me at a target. I'll hunt it down.
+        <h1
+          className="dm-page-title khu-hero-title"
+          style={{ fontSize: 'var(--dm-text-4xl)', maxWidth: '640px' }}
+        >
+          {/* Kinetic word-stagger reveal. Text content is identical — words
+              are split into spans purely for the entrance animation. */}
+          {"Point me at a target. I'll hunt it down.".split(' ').map((word, i, words) => (
+            <React.Fragment key={i}>
+              <span className="khu-w" style={{ '--khu-d': `${i * 65}ms` }}>
+                {word}
+              </span>
+              {i < words.length - 1 ? ' ' : ''}
+            </React.Fragment>
+          ))}
         </h1>
         <p className="dm-page-sub">
           The agent maps the attack surface, tests real hypotheses, and hands you a submission-ready
@@ -119,11 +132,12 @@ export function AgentHome() {
         </p>
       </header>
 
-      {/* ── Hunt input ── */}
-      <section className="dm-card" style={{ marginBottom: 'var(--dm-8)' }}>
+      {/* ── Hunt input — the hero action: target input is the single most
+          prominent element; mode/executor + auth stay secondary below it. */}
+      <section className="dm-card khu-launch" style={{ marginBottom: 'var(--dm-8)' }}>
         <BrainGate required={['vision', 'hacker']} featureName="Hunt AI">
           <form onSubmit={startHunt}>
-            <div className="dm-hunt-row">
+            <div className="dm-hunt-row khu-launch-row">
               <div style={{ position: 'relative', flex: 1 }}>
                 <Crosshair
                   size={18}
@@ -261,8 +275,12 @@ export function AgentHome() {
           { n: runningCount, label: 'Hunts live now', live: runningCount > 0 },
           { n: doneCount, label: 'Hunts completed' },
           { n: totalFindings, label: 'Findings so far' },
-        ].map(({ n, label, live }) => (
-          <div key={label} className="dm-card dm-center" style={{ padding: 'var(--dm-5)' }}>
+        ].map(({ n, label, live }, i) => (
+          <div
+            key={label}
+            className="dm-card dm-center khu-stat"
+            style={{ padding: 'var(--dm-5)', '--khu-d': `${i * 80}ms` }}
+          >
             <div
               style={{
                 fontSize: 'var(--dm-text-3xl)',
@@ -277,18 +295,7 @@ export function AgentHome() {
             >
               {n}
               {live ? <span className="visually-hidden">live now</span> : null}
-              {live && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: 'var(--dm-green)',
-                    display: 'inline-block',
-                  }}
-                />
-              )}
+              {live && <span className="khu-live-dot" aria-hidden="true" />}
             </div>
             <div style={{ fontSize: 'var(--dm-text-sm)', color: 'var(--dm-muted)' }}>{label}</div>
           </div>
@@ -299,7 +306,7 @@ export function AgentHome() {
       <div className="dm-grid-2" style={{ alignItems: 'start' }}>
         <section className="dm-card">
           <div className="dm-section-head">
-            <h2 className="dm-section-title">Recent hunts</h2>
+            <h2 className="dm-section-title khu-section-title">Recent hunts</h2>
             {jobs.length > 0 && (
               <Link to="/agent/reports" className="dm-section-link">
                 View all <ArrowRight size={14} style={{ verticalAlign: '-2px' }} />
@@ -342,12 +349,16 @@ export function AgentHome() {
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 'var(--dm-2)' }}>
-              {jobs.slice(0, 6).map(job => (
+              {jobs.slice(0, 6).map((job, i) => (
                 <Link
                   key={job.id}
                   to={`/agent/hunt/${job.id}`}
-                  className="dm-row"
-                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  className="dm-row khu-row-in"
+                  style={{
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    '--khu-d': `${Math.min(i, 5) * 55}ms`,
+                  }}
                 >
                   <div className="dm-row-main">
                     <p className="dm-row-title">{job.target || job.targetHostname || job.id}</p>
@@ -366,7 +377,7 @@ export function AgentHome() {
 
         <div style={{ display: 'grid', gap: 'var(--dm-4)' }}>
           <section className="dm-card">
-            <h3 className="dm-card-title">Past reports</h3>
+            <h3 className="dm-card-title khu-section-title">Past reports</h3>
             <p className="dm-card-sub">
               Every completed hunt is archived with a submission-ready report.
             </p>
@@ -376,7 +387,7 @@ export function AgentHome() {
           </section>
 
           <section className="dm-card">
-            <h3 className="dm-card-title">How it works</h3>
+            <h3 className="dm-card-title khu-section-title">How it works</h3>
             <div style={{ display: 'grid', gap: 'var(--dm-3)', marginTop: 'var(--dm-3)' }}>
               {[
                 ['Paste a URL you own', 'The agent takes it from there.'],
