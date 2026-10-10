@@ -104,6 +104,20 @@ export async function detectWhpx(platform = detectPlatform()) {
     const { stdout } = await execFileAsync('cmd.exe', ['/c', ps], { timeout: 15000 });
     const state = stdout.trim().toLowerCase();
     if (state === 'enabled') return { enabled: true, detail: 'HypervisorPlatform feature is enabled' };
+    if (state === 'enablepending')
+      return {
+        enabled: false,
+        detail:
+          'Windows Hypervisor Platform is ticked but a reboot is still pending. ' +
+          'Restart Windows, then restart the VM Runner.',
+      };
+    if (state === 'disablepending')
+      return {
+        enabled: false,
+        detail:
+          'Windows Hypervisor Platform is being disabled (reboot pending). ' +
+          'Re-enable it in "Turn Windows features on or off", reboot, then restart the VM Runner.',
+      };
     return {
       enabled: false,
       detail:
