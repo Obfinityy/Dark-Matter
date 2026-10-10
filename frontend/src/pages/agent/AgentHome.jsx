@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Target,
 } from 'lucide-react';
-import { createJob, listJobs } from '../../services/api';
+import { createJob, listJobs, startContinuousHunt, getHuntState } from '../../services/api';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
@@ -42,6 +42,25 @@ export function AgentHome() {
   const [dedup, setDedup] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
+  // Hunt mode: 'standard' (single sweep) or 'continuous' (non-stop hunt
+  // loop until force-stopped — issue #298). Persisted per browser.
+  const [mode, setMode] = useState(() => {
+    try {
+      return localStorage.getItem('dm_hunt_mode') === 'continuous' ? 'continuous' : 'standard';
+    } catch {
+      return 'standard';
+    }
+  });
+  // Continuous-hunt boot sequence: 'idle' | 'starting' | 'vm_booting'.
+  const [bootStage, setBootStage] = useState('idle');
+  const [bootHuntId, setBootHuntId] = useState(null);
+  const bootCancelled = React.useRef(false);
+
+  useEffect(() => {
+    return () => {
+      bootCancelled.current = true;
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -72,6 +91,41 @@ export function AgentHome() {
     setError('');
     setDedup(null);
     try {
+      if (mode === 'continuous') {
+        // Continuous autonomous hunt (issue #298): brains already passed the
+        // BrainGate check above (it holds the submit when a brain is missing),
+        // then the hunt starts and the VM boots before the loop arms.
+        setBootStage('starting');
+        bootCancelled.current = false;
+        const res = await startContinuousHunt({ target: clean, executor });
+        const hunt = res?.hunt || res;
+        const huntId = hunt?.id || res?.huntId;
+        if (!huntId) {
+          setError('The hunt was created but no hunt id came back.');
+          setBootStage('idle');
+          return;
+        }
+        setBootHuntId(huntId);
+        setBootStage('vm_booting');
+        // Wait for the loop to be contactable (driven by the hunt state —
+        // there is no separate VM status endpoint on the hunts API).
+        const deadline = Date.now() + 30000;
+        let ready = false;
+        while (!ready && Date.now() < deadline && !bootCancelled.current) {
+          try {
+            const { hunt: h } = await getHuntState(huntId);
+            if (String(h?.status || '').toLowerCase() === 'running') ready = true;
+          } catch {
+            /* the loop may arm before state is queryable — keep waiting */
+          }
+          if (!ready) await new Promise(r => setTimeout(r, 2000));
+        }
+        // Even if the VM isn't ready yet, the console keeps showing the boot
+        // indicator and the loop picks up live — never leave the user stuck.
+        if (!bootCancelled.current)
+          navigate(`/agent/hunt-live/${huntId}`, { state: { target: clean } });
+        return;
+      }
       const res = await createJob({
         target: clean,
         targetUrl: clean,
@@ -136,7 +190,107 @@ export function AgentHome() {
           prominent element; mode/executor + auth stay secondary below it. */}
       <section className="dm-card khu-launch" style={{ marginBottom: 'var(--dm-8)' }}>
         <BrainGate required={['vision', 'hacker']} featureName="Hunt AI">
+          {bootStage !== 'idle' ? (
+            /* Continuous-hunt boot sequence: brain check already passed
+               (BrainGate holds the submit when a brain is missing), so this
+               panel walks through hunt start → VM boot → console. */
+            <div role="status" aria-label="Starting continuous hunt">
+              <ol
+                style={{
+                  listStyle: 'none',
+                  margin: 0,
+                  padding: 0,
+                  display: 'grid',
+                  gap: 'var(--dm-2)',
+                }}
+              >
+                <li style={{ display: 'flex', gap: 'var(--dm-2)', alignItems: 'center' }}>
+                  <ShieldCheck size={16} style={{ color: 'var(--dm-green)' }} />
+                  <span>Brains ready — hacking + vision online</span>
+                </li>
+                <li style={{ display: 'flex', gap: 'var(--dm-2)', alignItems: 'center' }}>
+                  {bootStage === 'starting' ? (
+                    <Loader2
+                      size={16}
+                      aria-hidden="true"
+                      style={{ animation: 'spin 1s linear infinite' }}
+                    />
+                  ) : (
+                    <ShieldCheck size={16} style={{ color: 'var(--dm-green)' }} />
+                  )}
+                  <span>Hunt started — arming the loop…</span>
+                </li>
+                {bootStage === 'vm_booting' && (
+                  <li style={{ display: 'flex', gap: 'var(--dm-2)', alignItems: 'center' }}>
+                    <Loader2
+                      size={16}
+                      aria-hidden="true"
+                      style={{ animation: 'spin 1s linear infinite' }}
+                    />
+                    <span>
+                      VM: starting…
+                      {bootHuntId ? ` (hunt ${bootHuntId.slice(0, 8)})` : ''}
+                    </span>
+                  </li>
+                )}
+              </ol>
+              <p
+                style={{
+                  fontSize: 'var(--dm-text-sm)',
+                  color: 'var(--dm-muted)',
+                  marginTop: 'var(--dm-3)',
+                  marginBottom: 0,
+                }}
+              >
+                Opening the live hunt console…
+              </p>
+            </div>
+          ) : (
           <form onSubmit={startHunt}>
+            <div
+              role="radiogroup"
+              aria-label="Hunt mode"
+              style={{
+                display: 'flex',
+                gap: 'var(--dm-2)',
+                marginBottom: 'var(--dm-3)',
+                flexWrap: 'wrap',
+              }}
+            >
+              {[
+                { id: 'standard', label: 'Standard hunt' },
+                { id: 'continuous', label: 'Continuous hunt' },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === id}
+                  className={`dm-btn dm-btn-sm${mode === id ? ' dm-btn-primary' : ' dm-btn-secondary'}`}
+                  onClick={() => {
+                    setMode(id);
+                    try {
+                      localStorage.setItem('dm_hunt_mode', id);
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              {mode === 'continuous' && (
+                <span
+                  style={{
+                    fontSize: 'var(--dm-text-sm)',
+                    color: 'var(--dm-muted)',
+                    alignSelf: 'center',
+                  }}
+                >
+                  Hunts non-stop until you force-stop it.
+                </span>
+              )}
+            </div>
             <div className="dm-hunt-row khu-launch-row">
               <div style={{ position: 'relative', flex: 1 }}>
                 <Crosshair
@@ -172,7 +326,7 @@ export function AgentHome() {
                     style={{ animation: 'spin 1s linear infinite' }}
                   />
                 )}
-                {starting ? 'Starting…' : 'Start hunt'}
+                {starting ? 'Starting…' : mode === 'continuous' ? 'Start continuous hunt' : 'Start hunt'}
               </button>
             </div>
             <label
@@ -238,6 +392,7 @@ export function AgentHome() {
               </span>
             </label>
           </form>
+          )}
         </BrainGate>
 
         {error && (

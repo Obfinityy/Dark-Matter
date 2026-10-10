@@ -1004,6 +1004,160 @@ export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEven
   };
 }
 
+// ─── Continuous autonomous hunts (issue #298) ───────────────────────
+// New-style hunts: the user pastes a target and hits Enter; the agent hunts
+// non-stop (understanding → recon → testing → research → deep_testing →
+// replan → …) until the user force-stops it. Force stop is the ONLY terminal
+// action — pause/resume freeze and restore the full loop state.
+
+/** Start a continuous hunt. Returns the hunt record (may include VM boot info). */
+export function startContinuousHunt({ target, executor } = {}) {
+  return request('/hunts', {
+    method: 'POST',
+    body: JSON.stringify({
+      target,
+      targetUrl: target,
+      authorizationConfirmed: true,
+      ...(executor ? { executor } : {}),
+    }),
+  });
+}
+
+/** Current state of a continuous hunt: loop state, tick, tally, findings.
+ * Backed by GET /hunts/:id/tally (read-only). Normalized to a hunt-shaped
+ * record so the console works the same before and after the backend adds a
+ * dedicated state endpoint. */
+export async function getHuntState(huntId) {
+  const body = await request(`/hunts/${encodeURIComponent(huntId)}/tally`);
+  const loopState = String(body?.state || 'UNDERSTANDING').toUpperCase();
+  return {
+    hunt: {
+      id: body?.huntId || huntId,
+      status:
+        loopState === 'PAUSED'
+          ? 'paused'
+          : loopState === 'FORCE_STOPPED'
+            ? 'force_stopped'
+            : 'running',
+      loopState,
+      tick: body?.tick ?? 0,
+      findingsCount: body?.findings ?? 0,
+      tally: body?.tally || null,
+    },
+    tally: body?.tally || null,
+    raw: body,
+  };
+}
+
+/** Pause the hunt — the loop freezes with its full state preserved. */
+export function pauseHunt(huntId) {
+  return request(`/hunts/${encodeURIComponent(huntId)}/pause`, { method: 'POST' });
+}
+
+/** Resume a paused hunt from the exact frozen state. */
+export function resumeHunt(huntId) {
+  return request(`/hunts/${encodeURIComponent(huntId)}/resume`, { method: 'POST' });
+}
+
+/**
+ * Force-stop a continuous hunt — the ONLY way to end one. Cannot be undone.
+ * The backend requires explicit user intent, so the confirm body rides along.
+ */
+export function forceStopHunt(huntId) {
+  return request(`/hunts/${encodeURIComponent(huntId)}/force-stop`, {
+    method: 'POST',
+    body: JSON.stringify({ confirmed: true }),
+  });
+}
+
+/**
+ * Mid-hunt chat — the reply is grounded in the live loop context
+ * (current state, findings so far, last objective). The loop keeps running.
+ */
+export function askHunt(huntId, message) {
+  return request(`/hunts/${encodeURIComponent(huntId)}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+}
+
+/**
+ * Generate a report snapshot WITHOUT stopping the hunt, and download the PDF.
+ * Returns the PDF Blob — the caller triggers the browser download.
+ */
+export async function reportHuntSnapshot(huntId) {
+  const jwt = getStoredJwt();
+  const response = await fetch(
+    `${apiBase()}/hunts/${encodeURIComponent(huntId)}/report-snapshot`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/pdf',
+        ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+      },
+      credentials: 'include',
+    }
+  );
+  if (!response.ok)
+    throw new ApiError(
+      'Could not generate the report snapshot.',
+      response.status,
+      'SNAPSHOT_FAILED'
+    );
+  return response.blob();
+}
+
+/**
+ * Subscribe to a continuous hunt's live event stream via SSE.
+ * Core events: `activity` (terminal lines), `vuln_tally`
+ * ({critical,high,medium,low,info,total}), `think.trace` (think-aloud
+ * humanRecon/researchFallback entries), plus hunt/VM lifecycle events.
+ */
+export function subscribeToHuntEvents(huntId, { onOpen, onEvent, onError, lastEventId } = {}) {
+  // EventSource cannot set headers — the JWT rides as ?accessToken=.
+  const url = sseUrl(
+    `/hunts/${encodeURIComponent(huntId)}/events`,
+    lastEventId ? { lastEventId } : null
+  );
+  const source = new EventSource(url, { withCredentials: true });
+
+  const handleEvent = event => {
+    try {
+      onEvent?.({ ...JSON.parse(event.data), __sseType: event.type });
+    } catch {
+      onError?.(new ApiError('Received an invalid hunt event.', 0, 'INVALID_EVENT'));
+    }
+  };
+
+  const eventTypes = [
+    'hunt.created',
+    'hunt.started',
+    'hunt.vm_booting',
+    'hunt.vm_ready',
+    'hunt.state_changed',
+    'hunt.paused',
+    'hunt.resumed',
+    'hunt.force_stopped',
+    'activity',
+    'vuln_tally',
+    'think.trace',
+    'finding.created',
+    'finding.updated',
+    'hunt.chat',
+  ];
+
+  eventTypes.forEach(type => source.addEventListener(type, handleEvent));
+  source.onmessage = handleEvent;
+  source.onopen = () => onOpen?.();
+  source.onerror = () =>
+    onError?.(new ApiError('Hunt event stream was interrupted.', 0, 'EVENT_STREAM_ERROR'));
+
+  return () => {
+    eventTypes.forEach(type => source.removeEventListener(type, handleEvent));
+    source.close();
+  };
+}
+
 // ─── Autonomous Agent: hunt detail ──────────────────────────────────
 
 /** Findings board data — already sorted critical-first by the backend. */
@@ -1516,6 +1670,15 @@ export const apiClient = {
   cancelJob,
   askJob,
   subscribeToJobEvents,
+  // Continuous autonomous hunts (issue #298)
+  startContinuousHunt,
+  getHuntState,
+  pauseHunt,
+  resumeHunt,
+  forceStopHunt,
+  askHunt,
+  reportHuntSnapshot,
+  subscribeToHuntEvents,
   // Hunt detail
   getJobFindings,
   getJobVulnerabilityReport,
