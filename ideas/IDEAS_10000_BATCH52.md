@@ -520,7 +520,7 @@ Batch 52 covers ten fresh capability frontiers: API gateway & schema-governance 
 141505. **Client-Side Price Tamper Resistance Audit** — verify the checkout total is recomputed server-side from catalog prices rather than trusting any amount the browser submits, since client-supplied totals are trivially editable.
 141506. **Cart Total Integrity Reconciliation Check** — confirm line items, discounts, taxes, and shipping are re-derived from canonical data at charge time, catching desync bugs where the displayed price differs from the billed price.
 141507. **Currency Swap Pricing Arbitrage Detector** — test whether switching the billing currency between quote and charge changes the effective amount paid, which would let a buyer pick the cheapest FX conversion path.
-141508. **Negative Quantity Cart Injection Test** — submit negative line-item quantities and verify the order engine rejects them, since accepted negatives can drive the total below zero or create store credit.
+141508. **Negative Line-Item Quantity Guard** — submit negative line-item quantities and verify the order engine rejects them, since accepted negatives can drive the total below zero or create store credit.
 141509. **Decimal Precision Rounding Drift Review** — check that per-line rounding is applied consistently and sums to the charged total, because mixed rounding strategies leak cents at scale that attackers can farm.
 141510. **Checkout Session Amount Fixation Check** — verify a payment session created for one amount cannot be replayed to settle a different cart, which would allow price substitution after authorization.
 141511. **Price Override API Field Audit** — probe order-creation endpoints for undocumented amount or unit_price fields and confirm they are ignored, since hidden writable fields are a classic tamper vector.
@@ -530,24 +530,24 @@ Batch 52 covers ten fresh capability frontiers: API gateway & schema-governance 
 141515. **Coupon Single-Use Replay Guard** — verify single-use coupons are atomically marked redeemed before the response returns, since race conditions let the same code discount two concurrent checkouts.
 141516. **Coupon Stacking Policy Enforcement Test** — attempt to combine coupons flagged as non-stackable and confirm the engine rejects the combination, catching logic gaps that compound discounts to zero or below.
 141517. **Expired Coupon Time-Boundary Check** — redeem coupons exactly at and just after expiry and verify server-side timestamps govern, since client clocks or timezone tricks often extend validity.
-141518. **Coupon Minimum-Spend Bypass Review** — test whether minimum-cart thresholds are re-validated at charge time after items are removed, which would let a buyer qualify then drop the filler items.
-141519. **Hidden Coupon Code Enumeration Guard** — check that coupon lookup endpoints do not confirm or deny codes in a way that enables brute-forcing, and that rate limits stop systematic guessing.
+141518. **Coupon Spend-Threshold Evasion Check** — test whether minimum-cart thresholds are re-validated at charge time after items are removed, which would let a buyer qualify then drop the filler items.
+141519. **Hidden Discount Code Discovery Guard** — check that coupon lookup endpoints do not confirm or deny codes in a way that enables brute-forcing, and that rate limits stop systematic guessing.
 141520. **Public Coupon Leak Detection Sweep** — scan public sources for leaked internal promo codes and verify high-value ones are rotated or restricted, since leaked codes spread fast and erode revenue.
 141521. **Coupon Per-User Limit Enforcement Audit** — verify per-account redemption caps are tracked by canonical account identity rather than session or email variants, catching alias-based reuse.
-141522. **Referral Self-Referral Loop Detector** — test whether an account can refer itself through disposable emails or device resets, and confirm identity-linking rules block the reward payout.
+141522. **Self-Referral Reward Fraud Detector** — test whether an account can refer itself through disposable emails or device resets, and confirm identity-linking rules block the reward payout.
 141523. **Referral Farming Velocity Monitor** — flag accounts generating statistically impossible referral rates and verify the program pauses payouts pending review, since bot farms industrialize referral abuse.
 141524. **Referral Reward Premature Payout Check** — confirm referral credits are released only after the referred user completes a qualifying paid action, not at signup, which would otherwise pay for fake accounts.
 141525. **Affiliate Cookie Stuffing Exposure Review** — check that affiliate attribution cannot be injected via forged click records or parameter replay, protecting the program from credit theft.
-141526. **Gift Card Balance Enumeration Guard** — verify gift-card balance lookups require a full secret and resist sequential guessing, since enumerable codes turn the balance checker into a theft tool.
-141527. **Gift Card Double-Spend Race Test** — redeem the same gift card from two concurrent sessions and confirm the ledger debits exactly once, catching missing row-level locking.
-141528. **Promotional Credit Expiry Enforcement Audit** — verify promo credits expire on schedule and cannot be revived by timezone manipulation or balance transfers, which would otherwise make them permanent.
+141526. **Gift Card Secret Harvesting Guard** — verify gift-card balance lookups require a full secret and resist sequential guessing, since enumerable codes turn the balance checker into a theft tool.
+141527. **Gift Card Concurrent Redemption Race Test** — redeem the same gift card from two concurrent sessions and confirm the ledger debits exactly once, catching missing row-level locking.
+141528. **Promo Balance Expiry Policy Audit** — verify promo credits expire on schedule and cannot be revived by timezone manipulation or balance transfers, which would otherwise make them permanent.
 141529. **Store Credit Negative Balance Guard** — test refund and adjustment flows for paths that drive a wallet balance negative, since negative balances are often exploitable as free credit.
 141530. **Credit Transfer Between Accounts Review** — check whether store credit can be moved between accounts without both-party consent, which enables laundering of fraudulently obtained balances.
 141531. **Webhook Signature Verification Audit** — verify every payment webhook handler validates the provider's HMAC signature on the raw body before acting, since unsigned handlers accept forged payment confirmations.
 141532. **Webhook Replay Attack Guard** — check that event IDs are deduplicated with a persistent store so a captured webhook cannot be replayed to double-credit an account.
 141533. **Webhook Timestamp Freshness Check** — verify handlers reject events with stale timestamps, closing the window for delayed-replay attacks on time-sensitive billing actions.
 141534. **Webhook Secret Rotation Readiness Review** — confirm the system can hold two active signing secrets during rotation without dropping valid events, since single-secret rotation causes either outages or verification gaps.
-141535. **Out-of-Order Webhook Sequencing Test** — deliver payment events out of order and verify the ledger reaches the correct final state, catching state-machine bugs triggered by provider retries.
+141535. **Webhook Delivery Order Resilience Test** — deliver payment events out of order and verify the ledger reaches the correct final state, catching state-machine bugs triggered by provider retries.
 141536. **Webhook Endpoint Authentication Scope Check** — verify webhook URLs are unguessable and carry no session privileges, since a leaked endpoint that accepts state changes is a direct ledger-write primitive.
 141537. **Provider Failover Event Consistency Audit** — test that switching between payment providers mid-flow does not double-record or drop charges, keeping a single source of truth during failover.
 141538. **Test-Mode Event Leakage Guard** — verify sandbox or test-mode webhooks can never mutate production billing state, since environment confusion has historically credited real accounts.
@@ -558,16 +558,16 @@ Batch 52 covers ten fresh capability frontiers: API gateway & schema-governance 
 141543. **Retry Storm Backoff Verification** — confirm failed-payment retries use exponential backoff with jitter rather than tight loops, since retry storms can multiply charges and trigger provider rate limits.
 141544. **Partial Capture Amount Integrity Check** — verify partial captures cannot exceed the authorized amount in aggregate across multiple captures, closing a path to overcharging a single authorization.
 141545. **Payment Intent Reuse Guard** — test whether a confirmed payment intent can be attached to a second order, which would let one authorization pay for two purchases.
-141546. **Refund Ledger Double-Entry Consistency Audit** — verify every refund writes balanced debit and credit entries that tie back to the original charge, catching silent ledger drift.
+141546. **Refund Double-Entry Ledger Reconciliation** — verify every refund writes balanced debit and credit entries that tie back to the original charge, catching silent ledger drift.
 141547. **Refund-to-Different-Card Policy Check** — confirm refunds route to the original payment method unless a verified exception workflow runs, since redirecting refunds is a classic cash-out path.
 141548. **Duplicate Refund Race Detector** — issue two concurrent refunds against the same charge and verify the total refunded never exceeds the captured amount.
-141549. **Refund Window Abuse Monitor** — flag accounts with statistically abnormal refund rates and verify the system throttles or reviews them, since serial refunding is a low-risk theft pattern.
+141549. **Serial Refunding Pattern Detector** — flag accounts with statistically abnormal refund rates and verify the system throttles or reviews them, since serial refunding is a low-risk theft pattern.
 141550. **Chargeback Evidence Integrity Audit** — verify dispute evidence bundles are assembled from immutable transaction records rather than editable fields, so representment cannot be undermined by post-hoc edits.
 141551. **Subscription State-Machine Drift Detector** — reconcile subscription statuses between the billing provider and the local database on a schedule, catching webhooks that were missed or applied out of order.
-141552. **Mid-Cycle Upgrade Proration Accuracy Test** — verify upgrades compute prorated charges from the canonical plan catalog and remaining time, since proration math bugs systematically over- or under-bill.
+141552. **Plan Upgrade Proration Math Audit** — verify upgrades compute prorated charges from the canonical plan catalog and remaining time, since proration math bugs systematically over- or under-bill.
 141553. **Downgrade Credit Timing Review** — confirm downgrade credits are applied at the documented billing boundary rather than immediately as withdrawable credit, closing an upgrade-downgrade arbitrage loop.
-141554. **Trial-to-Paid Conversion Consent Audit** — verify trials convert to paid plans only with explicit, recorded consent and a clear charge notification, catching dark-pattern auto-conversions.
-141555. **Grace Period Abuse Detector** — monitor accounts cycling through repeated grace periods without ever paying and verify the policy limits consecutive grace grants.
+141554. **Trial Conversion Consent Record Check** — verify trials convert to paid plans only with explicit, recorded consent and a clear charge notification, catching dark-pattern auto-conversions.
+141555. **Grace Cycle Exploitation Monitor** — monitor accounts cycling through repeated grace periods without ever paying and verify the policy limits consecutive grace grants.
 141556. **Dunning Sequence Integrity Check** — confirm failed-payment dunning emails reflect the true outstanding balance and retry count, since stale dunning content confuses customers and support.
 141557. **Subscription Pause Billing Freeze Test** — verify paused subscriptions accrue no charges and resume at the correct billing date, catching pause logic that bills silently in the background.
 141558. **Seat-Based License Count Enforcement Audit** — verify active seats are counted from real provisioned users rather than self-reported numbers, since under-counting is the standard way seat licenses are abused.
@@ -586,14 +586,14 @@ Batch 52 covers ten fresh capability frontiers: API gateway & schema-governance 
 141571. **Multi-Currency Settlement Reconciliation Check** — verify settled amounts match authorized amounts after FX conversion within documented tolerance, catching provider-side conversion drift.
 141572. **FX Rounding Policy Consistency Audit** — confirm currency conversions use a single documented rounding rule end to end, since mixed rules create penny discrepancies that compound across volume.
 141573. **Saved Card Tokenization Scope Review** — verify stored payment tokens are merchant-scoped and cannot be replayed against other merchants, closing a token-reuse theft path.
-141574. **Payment Method Enumeration Guard** — check that adding or listing payment methods does not reveal whether a card number is valid or already on file for another account, which would aid card testing.
+141574. **Stored Card Detail Harvesting Guard** — check that adding or listing payment methods does not reveal whether a card number is valid or already on file for another account, which would aid card testing.
 141575. **Card Testing Velocity Detector** — flag rapid small-amount authorization attempts from a single source and verify the gateway blocks them, since card testers probe with micro-charges.
-141576. **3-D Secure Liability Shift Verification** — confirm liability-shift records are stored per transaction and surfaced in disputes, so the business can prove authentication actually occurred.
-141577. **SCA Exemption Abuse Monitor** — track low-value and transaction-risk-analysis exemptions for abnormal concentration, catching merchants or attackers routing fraud through exemption paths.
+141576. **3DS Liability Evidence Recorder Check** — confirm liability-shift records are stored per transaction and surfaced in disputes, so the business can prove authentication actually occurred.
+141577. **SCA Exemption Concentration Tracker** — track low-value and transaction-risk-analysis exemptions for abnormal concentration, catching merchants or attackers routing fraud through exemption paths.
 141578. **Stored Credential Consent Record Audit** — verify merchant-initiated transactions carry a recorded customer mandate with amount limits, since missing mandates make recurring charges indefensible in disputes.
 141579. **Micro-Deposit Verification Replay Guard** — test whether bank-account micro-deposit verification codes can be reused or brute-forced, which would let an attacker link someone else's account.
 141580. **Billing Portal Session Privilege Review** — verify the self-service billing portal cannot reach admin-only actions like manual adjustments or other customers' invoices through parameter tampering.
-141581. **Manual Adjustment Approval Workflow Audit** — confirm credits, discounts, and write-offs above a threshold require a second approver and leave an immutable audit entry, since unilateral adjustments enable insider fraud.
+141581. **Billing Adjustment Dual-Control Audit** — confirm credits, discounts, and write-offs above a threshold require a second approver and leave an immutable audit entry, since unilateral adjustments enable insider fraud.
 141582. **Billing Support Social Engineering Guardrails** — verify support tools require step-up verification before changing payment methods or issuing refunds, limiting what a persuaded agent can do.
 141583. **PCI Log Redaction Verification Sweep** — scan application logs, error trackers, and webhooks for full PANs, CVVs, or secrets and confirm redaction is enforced at the logging layer.
 141584. **Sandbox Key Production Leakage Check** — verify test or sandbox API keys cannot authenticate against production endpoints, since leaked test keys in client bundles are common.
