@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useRef, useState } from 'react';
+import { Search, SearchX, X } from 'lucide-react';
 import { searchModels } from './searchRefine.js';
 import './ModelsPageSearch.css';
 import './ModelsPageSearch.polish.css';
@@ -16,6 +17,7 @@ export function ModelsSearchBox({
   entries = [],
   onResults,
   placeholder = 'Search models & plugins…',
+  resultsId,
 }) {
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
@@ -30,7 +32,7 @@ export function ModelsSearchBox({
   return (
     <div className="mp-search" role="search">
       <span className="mp-icon" aria-hidden="true">
-        ⌕
+        <Search size={18} />
       </span>
       <input
         ref={inputRef}
@@ -42,7 +44,7 @@ export function ModelsSearchBox({
           if (e.key === 'Escape') handle('');
         }}
         aria-label="Search models and plugins"
-        aria-controls="mp-results-grid"
+        aria-controls={resultsId}
       />
       {query && (
         <button
@@ -51,7 +53,7 @@ export function ModelsSearchBox({
           onClick={() => handle('')}
           aria-label="Clear models search"
         >
-          ✕
+          <X size={15} />
         </button>
       )}
       <span className="mp-count" aria-live="polite">
@@ -69,9 +71,10 @@ export function ModelsSearchGrid({ entries = [], renderEntry, emptyHint }) {
   const [visible, setVisible] = useState(entries);
   return (
     <div className="mp-grid-wrap">
-      <ModelsSearchBox entries={entries} onResults={setVisible} />
+      <ModelsSearchBox entries={entries} onResults={setVisible} resultsId="mp-results-grid" />
       {visible.length === 0 ? (
         <div className="mp-no-results">
+          <SearchX size={30} aria-hidden="true" className="mp-empty-icon" />
           <p>No models or plugins match your search.</p>
           {emptyHint ?? (
             <p className="mp-hint">Try “vision”, “hacker”, “tts”, or a provider name.</p>

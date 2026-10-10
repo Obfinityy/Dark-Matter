@@ -16,6 +16,9 @@
 }
 .mp-icon {
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 .mp-input {
   background: transparent;
@@ -93,10 +96,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0; /* reliable ellipsis inside the flex head */
+  flex: 1;
 }
 .mp-kind {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent);
+}
+/* Per-kind tints — the component already emits `kind-<entry.kind>`, so a
+ * plugin reads as blue and a dataset as green at a glance. Unknown kinds
+ * fall back to the gold default above. */
+.mp-kind.kind-model {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+.mp-kind.kind-plugin {
+  background: color-mix(in srgb, var(--info) 16%, transparent);
+  color: var(--info);
+}
+.mp-kind.kind-dataset {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+}
+.mp-kind.kind-tool {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+}
+
+.mp-empty-icon {
+  color: var(--text-muted);
+  margin-bottom: 12px;
 }
 .mp-provider,
 .mp-slot {
