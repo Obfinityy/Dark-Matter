@@ -8,6 +8,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TerminalSquare, ArrowDown, Send } from 'lucide-react';
 import { getJobActivity, subscribeToJobEvents, askJob } from '../../services/api';
 import './HuntTerminal.css';
+import '../../styles/kinetic-hunt.css';
 
 function lineText(ev) {
   if (typeof ev === 'string') return ev;
@@ -128,8 +129,8 @@ export function HuntTerminal({ jobId }) {
     filter === 'all' ? lines : lines.filter(l => l.kind === filter || l.kind === 'chat');
 
   return (
-    <section className="sg-terminal" aria-label="Hunt terminal">
-      <div className="sg-terminal-head">
+    <section className="sg-terminal khu-term" aria-label="Hunt terminal">
+      <div className="sg-terminal-head khu-term-head">
         <span className="sg-terminal-dot" aria-hidden="true" />
         <TerminalSquare size={13} aria-hidden="true" />
         <span>Live terminal</span>
@@ -138,7 +139,7 @@ export function HuntTerminal({ jobId }) {
             <button
               key={f}
               type="button"
-              className={`sg-terminal-filter${filter === f ? ' sg-terminal-filter-on' : ''}`}
+              className={`sg-terminal-filter khu-filter${filter === f ? ' sg-terminal-filter-on' : ''}`}
               onClick={() => setFilter(f)}
               aria-pressed={filter === f}
             >
@@ -178,7 +179,7 @@ export function HuntTerminal({ jobId }) {
         {visibleLines.map((l, i) => (
           <div
             key={i}
-            className={`sg-terminal-line${l.kind === 'chat' ? ' sg-terminal-chat' : ''}`}
+            className={`sg-terminal-line khu-term-line${l.kind === 'chat' ? ' sg-terminal-chat' : ''}`}
           >
             {l.text}
           </div>
@@ -186,7 +187,7 @@ export function HuntTerminal({ jobId }) {
       </div>
       {/* Mid-hunt chat: talk to the hacking brain without pausing the hunt. */}
       <form
-        className="sg-terminal-ask"
+        className="sg-terminal-ask khu-ask"
         onSubmit={e => {
           e.preventDefault();
           sendQuestion();

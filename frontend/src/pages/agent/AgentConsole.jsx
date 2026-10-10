@@ -33,6 +33,7 @@ import { Account } from './Account';
 import { Queues } from './Queues';
 import { Schedules } from './Schedules';
 import { Loader2 } from 'lucide-react';
+import '../../styles/kinetic-hunt.css';
 
 function Gate({ children }) {
   const { user, loading } = useAuth();
@@ -40,7 +41,8 @@ function Gate({ children }) {
     return (
       <div className="dm-auth-page">
         <div className="dm-page-loading" role="status">
-          <Loader2 size={18} className="sg-spin" aria-hidden="true" /> Signing you in…
+          <Loader2 size={18} className="sg-spin" aria-hidden="true" />{' '}
+          <span className="khu-gate-text">Signing you in…</span>
         </div>
       </div>
     );
@@ -49,8 +51,11 @@ function Gate({ children }) {
   return children;
 }
 
+/* Kinetic page transition: every route mounts a fresh .khu-page, so the
+ * fade-rise entrance replays on navigation. Visual only — no routing or
+ * rendering behaviour changes. */
 function Page({ children }) {
-  return <div className="dm-page">{children}</div>;
+  return <div className="dm-page khu-page">{children}</div>;
 }
 
 /* Route-level document titles — orientation in the tab bar and for
