@@ -5,7 +5,9 @@
  * live attack-surface stats (subdomains, endpoints, open ports), and scope.
  * The "what we know" card at the top of every hunt.
  *
- * Props: { job, surface } — job from GET /jobs/:id, surface from attack-surface
+ * Props: { job, surface, loading } — job from GET /jobs/:id, surface from attack-surface.
+ * loading renders a shimmer skeleton matching the card layout (no "unknown
+ * target" placeholder lies while the job is still arriving).
  */
 import React from 'react';
 import { Fingerprint, Lock, Server, Globe, Network } from 'lucide-react';
@@ -13,7 +15,31 @@ import './FingerprintCard.polish.css';
 
 const techName = t => (typeof t === 'string' ? t : t?.name || t?.version || '');
 
-export function FingerprintCard({ job = {}, surface = {} }) {
+export function FingerprintCard({ job = {}, surface = {}, loading = false }) {
+  if (loading)
+    return (
+      <section
+        className="dm-fingerprint dm-fingerprint-loading"
+        role="status"
+        aria-label="Loading target fingerprint"
+      >
+        <span className="visually-hidden">Loading target fingerprint…</span>
+        <header aria-hidden="true">
+          <span className="dm-fp-skel dm-fp-skel-icon" />
+          <span className="dm-fp-skel dm-fp-skel-title" />
+        </header>
+        <div className="dm-fp-skel dm-fp-skel-target" aria-hidden="true" />
+        <div className="dm-fingerprint-grid" aria-hidden="true">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i}>
+              <span className="dm-fp-skel dm-fp-skel-line" />
+              <span className="dm-fp-skel dm-fp-skel-line dm-fp-skel-short" />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+
   const target = job.target || job.targetHostname || 'unknown target';
   const technologies = (surface.technologies || []).map(techName).filter(Boolean);
   const openPorts = (surface.openPorts || [])
