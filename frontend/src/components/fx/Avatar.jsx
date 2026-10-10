@@ -16,7 +16,7 @@
  * Variants: 'male' | 'female'. Switchable at runtime.
  * No external assets, no WebGL — pure SVG + CSS, GPU-cheap.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useId } from 'react';
 import './Avatar.css';
 
 const EMOTIONS = ['happy', 'angry', 'surprised', 'thinking', 'neutral'];
@@ -39,6 +39,10 @@ export function Avatar({
 }) {
   const [blink, setBlink] = useState(false);
   const blinkTimer = useRef(null);
+  // Unique gradient ids — multiple Avatars of the same gender can share a page
+  // (avatar in chat + fullscreen overlay), and duplicate SVG ids break fills.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const gid = name => `av-${name}-${gender}-${uid}`;
 
   // Natural blinking every 3–6 seconds
   useEffect(() => {
@@ -148,25 +152,25 @@ export function Avatar({
       role="img"
       aria-label={`${isFemale ? 'Female' : 'Male'} Infinity AI assistant, ${state}, feeling ${mood}`}
     >
-      <svg viewBox="0 0 200 200" className="avatar-svg">
+      <svg viewBox="0 0 200 200" className="avatar-svg" aria-hidden="true" focusable="false">
         <defs>
-          <radialGradient id={`av-skin-${gender}`} cx="50%" cy="38%" r="75%">
+          <radialGradient id={gid('skin')} cx="50%" cy="38%" r="75%">
             <stop offset="0%" stopColor={isFemale ? '#ffd9c4' : '#e8b88f'} />
             <stop offset="70%" stopColor={isFemale ? '#f2b596' : '#d19a6b'} />
             <stop offset="100%" stopColor={isFemale ? '#dd9578' : '#b57e52'} />
           </radialGradient>
-          <radialGradient id={`av-hair-${gender}`} cx="50%" cy="30%" r="80%">
+          <radialGradient id={gid('hair')} cx="50%" cy="30%" r="80%">
             <stop offset="0%" stopColor={isFemale ? '#4a2c1a' : '#2b1d12'} />
             <stop offset="100%" stopColor={isFemale ? '#241207' : '#120b06'} />
           </radialGradient>
-          <linearGradient id={`av-bg-${gender}`} x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={gid('bg')} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#1a0b2e" />
             <stop offset="100%" stopColor="#0a0418" />
           </linearGradient>
         </defs>
 
         {/* Backdrop aura */}
-        <circle cx="100" cy="100" r="96" fill={`url(#av-bg-${gender})`} />
+        <circle cx="100" cy="100" r="96" fill={`url(#${gid('bg')})`} />
         <circle
           cx="100"
           cy="100"
@@ -190,28 +194,28 @@ export function Avatar({
           {isFemale ? (
             <path
               d="M38 95 Q36 30 100 26 Q164 30 162 95 L158 150 Q150 168 138 162 L142 100 Q140 58 100 56 Q60 58 58 100 L62 162 Q50 168 42 150 Z"
-              fill={`url(#av-hair-${gender})`}
+              fill={`url(#${gid('hair')})`}
             />
           ) : (
             <path
               d="M44 88 Q44 34 100 32 Q156 34 156 88 L152 72 Q148 48 100 46 Q52 48 48 72 Z"
-              fill={`url(#av-hair-${gender})`}
+              fill={`url(#${gid('hair')})`}
             />
           )}
 
           {/* Face */}
-          <ellipse cx="100" cy="108" rx="52" ry="62" fill={`url(#av-skin-${gender})`} />
+          <ellipse cx="100" cy="108" rx="52" ry="62" fill={`url(#${gid('skin')})`} />
 
           {/* Hair front */}
           {isFemale ? (
             <path
               d="M48 92 Q50 44 100 42 Q150 44 152 92 Q140 66 128 62 Q132 74 128 78 Q118 58 100 58 Q82 58 72 78 Q68 74 72 62 Q60 66 48 92 Z"
-              fill={`url(#av-hair-${gender})`}
+              fill={`url(#${gid('hair')})`}
             />
           ) : (
             <path
               d="M50 84 Q54 44 100 42 Q146 44 150 84 Q138 60 120 58 Q124 68 120 70 Q110 54 100 56 Q90 54 80 70 Q76 68 80 58 Q62 60 50 84 Z"
-              fill={`url(#av-hair-${gender})`}
+              fill={`url(#${gid('hair')})`}
             />
           )}
 

@@ -18,27 +18,134 @@
   border-radius: 50%;
 }
 
-/* Gentle breathing */
-.avatar-head {
+/* Gentle breathing (idle) — subtle vertical drift + swell. */
+@keyframes avatar-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.012);
+  }
+}
+.avatar-idle .avatar-head {
+  animation: avatar-breathe 4.5s ease-in-out infinite;
+  transform-box: view-box;
   transform-origin: 100px 110px;
 }
 
 /* Thinking: eyes drift, head tilts slightly */
+@keyframes avatar-think-drift {
+  0%,
+  100% {
+    transform: rotate(0deg) translateX(0);
+  }
+  25% {
+    transform: rotate(-1.2deg) translateX(-2px);
+  }
+  75% {
+    transform: rotate(1.2deg) translateX(2px);
+  }
+}
+.avatar-thinking .avatar-head {
+  animation: avatar-think-drift 6s ease-in-out infinite;
+  transform-box: view-box;
+  transform-origin: 100px 110px;
+}
 
 /* Speaking: subtle bounce */
-
-/* ── Emotions (CSS/SVG only — never emoji) ──────────────────────────────
-
-/* Angry: slow, tense side-to-side sway */
-
-/* Surprised: one quick pop when the emotion lands */
-
-/* Thinking: keep the existing thoughtful drift (defined above) */
+@keyframes avatar-speak-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+.avatar-speaking .avatar-head {
+  animation: avatar-speak-bounce 0.55s ease-in-out infinite;
+  transform-box: view-box;
+  transform-origin: 100px 110px;
+}
 
 /* Listening: lean in */
+@keyframes avatar-listen-lean {
+  0%,
+  100% {
+    transform: translateY(1.5px) scale(1.01);
+  }
+  50% {
+    transform: translateY(3px) scale(1.015);
+  }
+}
+.avatar-listening .avatar-head {
+  animation: avatar-listen-lean 3s ease-in-out infinite;
+  transform-box: view-box;
+  transform-origin: 100px 110px;
+}
+
+/* ── Emotions (CSS/SVG only — never emoji) ──────────────────────────────
+ * Emotion motion plays on the wrapper so it never fights the head's
+ * state animation. */
+
+/* Angry: slow, tense side-to-side sway */
+@keyframes avatar-angry-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-1.4deg);
+  }
+}
+.avatar-emotion-angry {
+  animation: avatar-angry-sway 4.5s ease-in-out infinite;
+}
+
+/* Surprised: one quick pop when the emotion lands */
+@keyframes avatar-surprised-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+.avatar-emotion-surprised {
+  animation: avatar-surprised-pop 1.8s ease-in-out infinite;
+}
+
+/* Happy: gentle warm bob */
+@keyframes avatar-happy-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+.avatar-emotion-happy {
+  animation: avatar-happy-bob 2.6s ease-in-out infinite;
+}
 
 /* Aura pulse */
+@keyframes avatar-aura-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+}
 .avatar-aura {
+  animation: avatar-aura-pulse 3s ease-in-out infinite;
+  transform-box: view-box;
   transform-origin: 100px 100px;
 }
 
