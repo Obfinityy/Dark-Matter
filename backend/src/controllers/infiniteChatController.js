@@ -810,7 +810,12 @@ export function createInfiniteChatController({
           .status(503)
           .json({ error: { message: 'Infinity modes are not configured on this backend.' } });
       }
-      const ws = infinityModes.workspace;
+      // Per-user sandbox: each user's build-mode files live under
+      // agent-workspace/<userId>/ so users can never see each other's work.
+      const ws =
+        typeof infinityModes.workspaceFor === 'function'
+          ? infinityModes.workspaceFor(userId)
+          : infinityModes.workspace;
 
       if (action === 'create') {
         if (!brief || !String(brief).trim()) {

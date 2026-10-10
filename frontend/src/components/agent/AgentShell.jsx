@@ -175,7 +175,7 @@ function HuntHistory({ onNavigate, refreshKey }) {
     return <div className="sg-side-empty">Loading hunts…</div>;
   }
   if (jobs.length === 0) {
-    return <div className="sg-side-empty">No hunts yet - start your first one above.</div>;
+    return <div className="sg-side-empty">No hunts yet — start your first one above.</div>;
   }
   return (
     <ul className="sg-side-list">
@@ -215,7 +215,7 @@ function ChatHistory({ onNavigate, refreshKey }) {
   }, [refreshKey]);
 
   if (convs.length === 0) {
-    return <div className="sg-side-empty">No chats yet - say hello above.</div>;
+    return <div className="sg-side-empty">No chats yet — say hello above.</div>;
   }
   return (
     <ul className="sg-side-list">

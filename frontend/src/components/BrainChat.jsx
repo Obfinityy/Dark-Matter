@@ -7,7 +7,7 @@
  *
  * Each hunt has its own chatId → its own isolated memory on the local device.
  */
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Send, Loader2, Brain } from 'lucide-react';
 import { chatWithBrain, getChatMemory } from '../services/localModelApi';
 import './BrainChat.css';
@@ -80,7 +80,7 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
       ]);
     } catch (err) {
       const msg = err.message?.includes('BRAIN_NOT_RUNNING')
-        ? 'Hacking Brain is not running. Go to Models, download and Run it first.'
+        ? 'Hacking Brain is not running. Go to Models, download and run it first.'
         : `Brain error: ${err.message}`;
       setError(msg);
       // Remove the user message on failure so they can retry
@@ -96,7 +96,7 @@ export function BrainChat({ huntId, target, findingsCount, currentStep }) {
       <div className="brain-chat-head">
         <Brain size={16} aria-hidden="true" />
         <strong>Chat with Hacking Brain</strong>
-        <span className="sg-small brain-chat-hint">ask anything, anytime</span>
+        <span className="sg-small brain-chat-hint">Ask anything, anytime</span>
       </div>
 
       <div className="brain-chat-messages" role="log" aria-label="Hacking Brain conversation">

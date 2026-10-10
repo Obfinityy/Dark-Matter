@@ -96,7 +96,10 @@ export function createComputerController({ computerAdapter, assessmentModel }) {
      * whitelist is rejected before it reaches the bridge (#8, #37).
      */
     action: asyncHandler(async (request, response) => {
-      const { action, assessmentId, approvalGranted = true, channel = null } = request.body || {};
+      // approvalGranted defaults to false: the permission gate in the adapter
+      // requires an EXPLICIT true. Defaulting to true would silently bypass
+      // user approval for computer actions.
+      const { action, assessmentId, approvalGranted = false, channel = null } = request.body || {};
       if (!action) {
         return response
           .status(400)

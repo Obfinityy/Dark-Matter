@@ -12,6 +12,7 @@ import {
   isConfigured as razorpayIsConfigured,
 } from '../services/razorpayService.js';
 import { creditStore as defaultCreditStore } from '../services/creditStore.js';
+import { processedPaymentsStore as defaultProcessedPaymentsStore } from '../services/processedPaymentsStore.js';
 
 /** Authoritative tier prices (INR paise). Frontend amounts are ignored. */
 const TIER_PRICES = {
@@ -35,10 +36,11 @@ function validTopupAmount(amountInr) {
   );
 }
 
-export function createBillingController({ userModel, creditStore, razorpay } = {}) {
+export function createBillingController({ userModel, creditStore, razorpay, processedPayments } = {}) {
   // Injectables (used by unit tests): fall back to the real Razorpay service
   // and the default local credit store.
   const store = creditStore || defaultCreditStore;
+  const processed = processedPayments || defaultProcessedPaymentsStore;
   const rz = razorpay || {
     createOrder: razorpayCreateOrder,
     verifySignature: razorpayVerifySignature,
@@ -166,12 +168,33 @@ export function createBillingController({ userModel, creditStore, razorpay } = {
      * POST /billing/topup/verify { orderId, paymentId, signature }
      * Verifies the HMAC signature, double-checks the payment with Razorpay,
      * then credits the exact captured amount to the user's wallet.
+     *
+     * Replay protection: every credited paymentId is recorded in the
+     * processed-payments ledger. Replaying a previously verified tuple
+     * returns the original result (HTTP 200, duplicate: true) WITHOUT
+     * crediting again.
      */
     async verifyTopup(req, res) {
       try {
         const { orderId, paymentId, signature } = req.body || {};
+        if (!paymentId) {
+          return res.status(400).json({ ok: false, error: 'paymentId is required' });
+        }
         if (!rz.verifySignature({ orderId, paymentId, signature })) {
           return res.status(400).json({ ok: false, error: 'Signature mismatch' });
+        }
+        // Idempotency first: a paymentId that was already credited must
+        // never credit again, no matter how often it is replayed.
+        const prior = processed.get(paymentId);
+        if (prior) {
+          return res.json({
+            ok: true,
+            orderId: prior.orderId || orderId,
+            paymentId,
+            creditedInr: prior.creditedInr || 0,
+            creditBalanceInr: balanceOf(req),
+            duplicate: true,
+          });
         }
         const payment = await rz.fetchPayment(paymentId);
         if (payment?.status !== 'captured' && payment?.status !== 'authorized') {
@@ -190,11 +213,25 @@ export function createBillingController({ userModel, creditStore, razorpay } = {
         const userId = req.user?.id || req.user?._id || 'anonymous';
         const creditedInr = creditedPaise / 100;
         let creditBalanceInr = null;
+        let credited = false;
         try {
           creditBalanceInr = store.addCreditsInr(String(userId), creditedInr);
+          credited = true;
         } catch (err) {
           // Payment verified — never fail the response on a persistence hiccup.
           console.warn('[billing] credit store persist failed:', err?.message);
+        }
+        // Record the paymentId AFTER a successful credit. If the credit
+        // failed, the payment stays unrecorded so a retry can still credit
+        // it (the user really paid). If the credit succeeded, the record
+        // makes any replay idempotent. Both writes are synchronous, so the
+        // crash window between them is negligible.
+        if (credited) {
+          try {
+            processed.add(paymentId, { orderId, userId: String(userId), creditedInr });
+          } catch (err) {
+            console.warn('[billing] processed-payment persist failed:', err?.message);
+          }
         }
         res.json({ ok: true, orderId, paymentId, creditedInr, creditBalanceInr });
       } catch (err) {

@@ -74,7 +74,7 @@ export function Schedules() {
   if (loading)
     return (
       <div className="dm-page-loading kda-page">
-        <Loader2 size={18} className="sg-spin" /> Loading schedules…
+        <Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading schedules…
       </div>
     );
 
@@ -88,7 +88,7 @@ export function Schedules() {
               Scheduled
             </span>{' '}
             <span className="kda-w" style={{ '--kda-d': '90ms' }}>
-              hunts
+              Hunts
             </span>
           </h1>
           <p className="kda-sub" style={{ '--kda-d': '220ms' }}>
@@ -170,7 +170,9 @@ export function Schedules() {
                 <code className="dm-schedule-target">{schedule.target}</code>
               </div>
               <span className={`dm-job-status kda-status ${schedule.enabled ? 'st-running' : 'st-paused'}`}>
-                {schedule.enabled ? schedule.cadence : 'disabled'}
+                {schedule.enabled
+                  ? CADENCES.find(c => c.id === schedule.cadence)?.label || schedule.cadence
+                  : 'Disabled'}
               </span>
             </div>
             <p className="dm-card-hint">

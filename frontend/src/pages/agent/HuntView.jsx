@@ -6,8 +6,8 @@
  *   │ Header: target + plain-language status + actions │  Character   │
  *   ├─────────────────────────────────────────────────┤  HuntChat    │
  *   │ Fingerprint card                                │  Panel       │
- *   │ Live terminal                                   │  ("agent se  │
- *   │ Tabs: Findings | Diary | Attack surface          │   baat karo")│
+ *   │ Live terminal                                   │  ("talk to   │
+ *   │ Tabs: Findings | Diary | Attack surface          │   the agent") │
  *   └─────────────────────────────────────────────────┴──────────────┘
  *
  * State rehydrates from GET /jobs/:id on mount (refresh-safe); live updates

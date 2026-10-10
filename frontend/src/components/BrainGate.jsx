@@ -12,7 +12,7 @@
  * Infinity AI Chat/Plan/Build needs: vision
  * Infinity AI Control needs: vision (+ grounding optional)
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Brain, AlertTriangle, ArrowRight, X } from 'lucide-react';
 import { getRunningBrains } from '../services/localModelApi';
@@ -120,7 +120,7 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
           </p>
           <p className="sg-small brain-gate-hint">
             Run a local model from Models, or connect a Kaggle link for each missing brain —
-            then come back and hit enter again.
+            then return and press Enter again.
           </p>
           <div className="brain-gate-missing">
             {missing.map(b => (

@@ -67,7 +67,7 @@ export function PayloadLibrary() {
                 Payload
               </span>{' '}
               <span className="kda-w" style={{ '--kda-d': '90ms' }}>
-                library
+                Library
               </span>
             </h1>
             <p className="dm-page-sub kda-sub" style={{ '--kda-d': '220ms' }}>
@@ -95,7 +95,7 @@ export function PayloadLibrary() {
               Payload
             </span>{' '}
             <span className="kda-w" style={{ '--kda-d': '90ms' }}>
-              library
+              Library
             </span>
           </h1>
           <p className="dm-page-sub kda-sub" style={{ '--kda-d': '220ms' }}>

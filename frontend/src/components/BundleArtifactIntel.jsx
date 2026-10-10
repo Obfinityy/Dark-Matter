@@ -92,6 +92,7 @@ export default function BundleArtifactIntel() {
         rows={10}
         spellCheck={false}
         placeholder="Paste HTML or JS bundle text here…"
+        aria-label="HTML or JS bundle text to analyse"
       />
       <div className="w921c-grid">
         <Section title="941 · SWC transform artifacts">
@@ -209,19 +210,19 @@ export default function BundleArtifactIntel() {
         </Section>
       </div>
       <style>{`
-        .w921c-root { padding: 24px; max-width: 1080px; margin: 0 auto; color: #e6e6e6; font-family: inherit; }
+        .w921c-root { padding: 24px; max-width: 1080px; margin: 0 auto; color: var(--text-primary); font-family: inherit; }
         .w921c-title { font-size: 22px; margin: 0 0 6px; }
-        .w921c-sub { margin: 0 0 16px; color: #9a9a9a; font-size: 14px; }
-        .w921c-input { width: 100%; box-sizing: border-box; background: #111; color: #d8d8d8; border: 1px solid #333; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; resize: vertical; }
+        .w921c-sub { margin: 0 0 16px; color: var(--text-muted); font-size: 14px; }
+        .w921c-input { width: 100%; box-sizing: border-box; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; resize: vertical; }
         .w921c-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 16px; }
-        .w921c-section { background: #161616; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; }
-        .w921c-section-title { font-size: 14px; margin: 0 0 10px; color: #f0c75e; }
+        .w921c-section { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+        .w921c-section-title { font-size: 14px; margin: 0 0 10px; color: var(--accent); }
         .w921c-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
         .w921c-item { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
-        .w921c-key { color: #8f8f8f; min-width: 96px; }
-        .w921c-val { color: #e0e0e0; word-break: break-word; }
+        .w921c-key { color: var(--text-muted); min-width: 96px; }
+        .w921c-val { color: var(--text-primary); word-break: break-word; }
         .w921c-mono { font-family: monospace; }
-        .w921c-empty { color: #6f6f6f; font-size: 13px; margin: 0; }
+        .w921c-empty { color: var(--text-muted); font-size: 13px; margin: 0; }
       `}</style>
     </div>
   );

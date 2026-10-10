@@ -64,8 +64,24 @@ export async function importZip(req, res) {
   try {
     // Accept a raw ZIP body (Content-Type: application/zip) — no multer needed.
     // The frontend sends the file bytes directly.
+    //
+    // Upload cap (256 MB): reject oversized bodies up front via Content-Length
+    // and enforce the cap while streaming, so a malicious client cannot OOM
+    // the server by sending an unbounded body.
+    const MAX_IMPORT_BYTES = 256 * 1024 * 1024;
+    const tooLarge = () =>
+      res.status(413).json({
+        error: { code: 'UPLOAD_TOO_LARGE', message: 'Memory ZIP exceeds the 256 MB limit.' },
+      });
+    const declared = Number(req.headers?.['content-length']);
+    if (Number.isFinite(declared) && declared > MAX_IMPORT_BYTES) return tooLarge();
     const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
+    let total = 0;
+    for await (const chunk of req) {
+      total += chunk.length;
+      if (total > MAX_IMPORT_BYTES) return tooLarge();
+      chunks.push(chunk);
+    }
     const buf = Buffer.concat(chunks);
     if (!buf.length) {
       return res.status(400).json({

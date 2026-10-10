@@ -13,8 +13,31 @@
   border: 1px solid color-mix(in srgb, var(--sg-warn) 45%, transparent);
 }
 
-.brain-gate-dismiss {
+/* Icon-button base: `.sg-icon-btn` is not defined in the shared stylesheets,
+ * so the dismiss button carries its own minimal, token-driven styling. */
+.brain-gate-dismiss.sg-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--sg-radius-sm);
+  background: transparent;
+  color: var(--sg-text-2);
+  cursor: pointer;
   flex-shrink: 0;
+}
+
+.brain-gate-dismiss.sg-icon-btn:hover {
+  color: var(--sg-text);
+  background: var(--sg-surface-2);
+}
+
+.brain-gate-dismiss.sg-icon-btn:focus-visible {
+  outline: 2px solid var(--sg-accent);
+  outline-offset: 2px;
 }
 
 .brain-gate-head {

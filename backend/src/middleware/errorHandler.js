@@ -41,7 +41,19 @@ export function errorHandler(error, request, response, next) {
       error: { code: error.code || 'REQUEST_FAILED', message: error.message || 'Request failed' },
     });
   }
-  request.log?.error?.(error);
+  if (request.log?.error) {
+    request.log.error(error);
+  } else {
+    // No request-scoped logger is attached in this deployment — fall back to
+    // stderr so 500s are never silently swallowed. Format:
+    // [ERROR] <ISO timestamp> <METHOD> <URL> <message> <stack>
+    const stamp = new Date().toISOString();
+    const method = request?.method || '-';
+    const url = request?.originalUrl || request?.url || '-';
+    const message = error?.message || String(error);
+    const stack = error?.stack ? `\n${error.stack}` : '';
+    console.error(`[ERROR] ${stamp} ${method} ${url} ${message}${stack}`);
+  }
   return response
     .status(500)
     .json({ error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } });

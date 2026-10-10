@@ -495,7 +495,9 @@ export class OpenInterfaceAdapter {
    */
   async execute(
     action,
-    { channel = null, scopeEngine = null, approvalGranted = true, markAsObservation = false } = {}
+    // approvalGranted defaults to false and the gate below requires an
+    // explicit `true` — a missing/undefined value must never authorize.
+    { channel = null, scopeEngine = null, approvalGranted = false, markAsObservation = false } = {}
   ) {
     const started = Date.now();
 

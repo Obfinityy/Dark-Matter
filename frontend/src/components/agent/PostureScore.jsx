@@ -6,7 +6,7 @@
  * Renders a true score ring + grade + severity chips. Shows a skeleton while
  * loading; degrades to nothing when the backend has no posture yet.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getJobPosture } from '../../services/api';
 
 const GRADE_COLORS = {
@@ -117,7 +117,7 @@ export function PostureScore({ jobId }) {
               </span>
             ))
           ) : (
-            <span className="sg-posture-none">no findings yet</span>
+            <span className="sg-posture-none">No findings yet</span>
           )}
         </span>
       </div>

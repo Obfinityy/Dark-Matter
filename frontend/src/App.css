@@ -19,8 +19,6 @@
   max-width: 800px;
 }
 
-/* Subtle entrance — scoped keyframes so this file never depends on an
-
 /* Back link — 44px tap target, visible focus ring, token-driven colors. */
 .legal-back {
   display: inline-flex;
@@ -71,10 +69,4 @@
 
 .legal-page section p {
   margin: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .legal-enter {
-    animation: none;
-  }
 }

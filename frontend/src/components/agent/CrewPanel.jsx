@@ -8,7 +8,7 @@
  * Everything here calls the real backend (POST /api/v1/crew + SSE).
  * No mock UI, no simulated runs.
  */
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Users,
   Plus,

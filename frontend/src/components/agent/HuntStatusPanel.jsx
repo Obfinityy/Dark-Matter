@@ -6,7 +6,7 @@
  * Worker 6 mounts the AgentChat panel separately — this component owns only
  * status + posture so the two insertions never collide.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Pause, Play, Loader2, Layers } from 'lucide-react';
 import { pauseJob, continueJob } from '../../services/api';

@@ -3,7 +3,6 @@
  * Shows the percent of OWASP categories with at least one confirmed finding,
  * with the covered category IDs as chips.
  */
-import React from 'react';
 import { Radar } from 'lucide-react';
 import './CoverageMeter.css';
 

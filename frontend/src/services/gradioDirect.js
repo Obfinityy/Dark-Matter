@@ -104,11 +104,14 @@ export async function testGradioLink(url, { timeoutMs = 25000 } = {}) {
 /**
  * Chat with a Kaggle brain STRAIGHT from the browser.
  * Tries the Gradio 6.x predict API first, falls back to the legacy chat API.
+ * Retries with exponential backoff (1s, 2s, 4s, 8s, 16s — max 5 attempts).
+ * 4xx errors are not retried (they will not succeed on retry).
  */
 export async function chatWithGradio(url, prompt, { timeoutMs = 120000 } = {}) {
   const clean = normalizeGradioUrl(url);
   let lastErr = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       try {
         return await callPredict(clean, prompt, timeoutMs);
@@ -122,6 +125,10 @@ export async function chatWithGradio(url, prompt, { timeoutMs = 120000 } = {}) {
         signal: AbortSignal.timeout(timeoutMs),
         body: JSON.stringify({ data: [prompt, []] }),
       });
+      if (res.status >= 400 && res.status < 500) {
+        // Client error — retrying will not help.
+        throw new Error(`Gradio HTTP ${res.status} (not retrying client error)`);
+      }
       if (!res.ok) throw new Error(`Gradio HTTP ${res.status}`);
       const data = await res.json();
       const reply = data?.data?.[0];
@@ -130,10 +137,16 @@ export async function chatWithGradio(url, prompt, { timeoutMs = 120000 } = {}) {
       return reply;
     } catch (err) {
       lastErr = err;
-      if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
+      // Don't retry client errors — they are deterministic failures.
+      if (/not retrying client error/.test(err?.message || '')) break;
+      if (attempt < maxAttempts) {
+        // Exponential backoff: 1s, 2s, 4s, 8s, capped at 30s.
+        const delayMs = Math.min(1000 * 2 ** (attempt - 1), 30000);
+        await new Promise(r => setTimeout(r, delayMs));
+      }
     }
   }
-  throw new Error(`Kaggle brain failed after 3 attempts: ${lastErr?.message || lastErr}`);
+  throw new Error(`Kaggle brain failed after ${maxAttempts} attempts: ${lastErr?.message || lastErr}`);
 }
 
 async function callPredict(baseUrl, prompt, timeoutMs) {

@@ -93,6 +93,7 @@ export default function ClientArtifactIntel() {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         spellCheck={false}
+        aria-label="Client bundle, test file or config text to analyse"
       />
       <div className="w961c-grid">
         <Section title="961 · AJV schemas">
@@ -147,18 +148,18 @@ export default function ClientArtifactIntel() {
         </Section>
       </div>
       <style>{`
-        .w961c-root { padding: 24px; max-width: 1080px; margin: 0 auto; color: #e6e6e6; font-family: inherit; }
+        .w961c-root { padding: 24px; max-width: 1080px; margin: 0 auto; color: var(--text-primary); font-family: inherit; }
         .w961c-title { font-size: 22px; margin: 0 0 6px; }
-        .w961c-sub { margin: 0 0 16px; color: #9a9a9a; font-size: 14px; }
-        .w961c-input { width: 100%; box-sizing: border-box; background: #111; color: #d8d8d8; border: 1px solid #333; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; resize: vertical; }
+        .w961c-sub { margin: 0 0 16px; color: var(--text-muted); font-size: 14px; }
+        .w961c-input { width: 100%; box-sizing: border-box; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; resize: vertical; }
         .w961c-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 16px; }
-        .w961c-section { background: #161616; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; }
-        .w961c-section-title { font-size: 14px; margin: 0 0 10px; color: #f0c75e; }
+        .w961c-section { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+        .w961c-section-title { font-size: 14px; margin: 0 0 10px; color: var(--accent); }
         .w961c-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
         .w961c-item { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
-        .w961c-val { color: #e0e0e0; word-break: break-word; }
+        .w961c-val { color: var(--text-primary); word-break: break-word; }
         .w961c-mono { font-family: monospace; }
-        .w961c-empty { color: #6f6f6f; font-size: 13px; margin: 0; }
+        .w961c-empty { color: var(--text-muted); font-size: 13px; margin: 0; }
       `}</style>
     </div>
   );

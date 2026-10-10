@@ -20,6 +20,8 @@
  * the exported API.
  */
 
+import { randomBytes } from 'crypto';
+
 const VALID_MODES = new Set(['ask', 'full']);
 const APPROVAL_TTL_MS = 15 * 60 * 1000;
 
@@ -35,7 +37,6 @@ export class PermissionService {
     this.modes = new Map(); // userId → 'ask' | 'full'
     this.approvals = new Map(); // approvalId → record
     this.auditLog = []; // every destructive decision, both modes
-    this._seq = 0;
   }
 
   /** Current mode for a user. Defaults to "ask" (safest). */
@@ -106,7 +107,9 @@ export class PermissionService {
       };
 
     const approval = {
-      id: `apr_${Date.now().toString(36)}_${(++this._seq).toString(36)}`,
+      // Unpredictable ID: the old Date.now()+sequence scheme was guessable,
+      // letting one user resolve another user's pending approval.
+      id: `apr_${randomBytes(16).toString('hex')}`,
       userId,
       action,
       tool,
@@ -127,6 +130,14 @@ export class PermissionService {
     const a = this.approvals.get(approvalId);
     if (!a) throw new Error(`Unknown approval: ${approvalId}`);
     if (a.status !== 'pending') throw new Error(`Approval ${approvalId} is already ${a.status}`);
+    // Ownership check: only the user who owns the approval may resolve it.
+    // Without this, predictable IDs would let one user approve another's actions.
+    if (userId !== null && userId !== undefined && String(a.userId) !== String(userId)) {
+      const err = new Error('Forbidden: approval belongs to a different user');
+      err.code = 'FORBIDDEN';
+      err.status = 403;
+      throw err;
+    }
     a.status = approved ? 'approved' : 'denied';
     a.decidedAt = Date.now();
     a.decidedBy = userId;

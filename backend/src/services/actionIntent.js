@@ -90,7 +90,15 @@ export function parseIntent(message) {
 
   const text = message.trim();
 
-  // Check action patterns first
+  // Check chat patterns FIRST — questions and greetings are never actions.
+  // (e.g. "How do I open Notepad?" must not trigger open_app.)
+  for (const pattern of CHAT_PATTERNS) {
+    if (pattern.test(text)) {
+      return { type: 'chat', originalText: text };
+    }
+  }
+
+  // Check action patterns
   for (const { pattern, action, ...rest } of ACTION_PATTERNS) {
     const match = text.match(pattern);
     if (match) {

@@ -50,7 +50,7 @@ export function Alerts() {
   if (loading)
     return (
       <div className="dm-page-loading kda-page" role="status" aria-live="polite">
-        <Loader2 size={18} className="sg-spin" /> Loading alerts…
+        <Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading alerts…
       </div>
     );
 

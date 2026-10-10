@@ -21,21 +21,41 @@ const MEMORY_DIR = path.join(os.homedir(), '.infinity-ai', 'chat-memory');
 // Max messages kept per conversation (older ones summarized, not deleted silently)
 const MAX_MESSAGES = 200;
 
-function ensureDir() {
+/**
+ * Sanitize a path segment (userId or chatId) to prevent path traversal.
+ * Returns '' when nothing safe remains.
+ */
+function safeSegment(value) {
+  return String(value || '')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 64);
+}
+
+function ensureDir(dir) {
   try {
-    fs.mkdirSync(MEMORY_DIR, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true });
   } catch {
     /* ignore */
   }
 }
 
-function memoryPath(chatId) {
-  // Sanitize chatId to prevent path traversal
-  const safe = String(chatId || '')
-    .replace(/[^a-zA-Z0-9_-]/g, '')
-    .slice(0, 64);
-  if (!safe) throw new Error('Invalid chatId');
-  return path.join(MEMORY_DIR, `${safe}.json`);
+/**
+ * Per-user memory path: memory/<userId>/<chatId>.json.
+ * Namespacing by userId guarantees one user can never read, list, or delete
+ * another user's chats, even when chatIds collide or are guessed.
+ */
+function memoryPath(userId, chatId) {
+  const safeUser = safeSegment(userId);
+  const safeChat = safeSegment(chatId);
+  if (!safeUser) throw new Error('Invalid userId');
+  if (!safeChat) throw new Error('Invalid chatId');
+  return path.join(MEMORY_DIR, safeUser, `${safeChat}.json`);
+}
+
+function userDir(userId) {
+  const safeUser = safeSegment(userId);
+  if (!safeUser) throw new Error('Invalid userId');
+  return path.join(MEMORY_DIR, safeUser);
 }
 
 function blankMemory(chatId) {
@@ -48,11 +68,11 @@ function blankMemory(chatId) {
   };
 }
 
-/** Load a conversation's memory. Returns blank memory if none exists. */
-export function loadMemory(chatId) {
-  ensureDir();
+/** Load a user's conversation memory. Returns blank memory if none exists. */
+export function loadMemory(userId, chatId) {
+  ensureDir(userDir(userId));
   try {
-    const raw = fs.readFileSync(memoryPath(chatId), 'utf8');
+    const raw = fs.readFileSync(memoryPath(userId, chatId), 'utf8');
     const mem = JSON.parse(raw);
     if (!Array.isArray(mem.messages)) mem.messages = [];
     if (!mem.context || typeof mem.context !== 'object') mem.context = {};
@@ -62,59 +82,59 @@ export function loadMemory(chatId) {
   }
 }
 
-/** Save a conversation's memory. */
-export function saveMemory(chatId, memory) {
-  ensureDir();
+/** Save a user's conversation memory. */
+export function saveMemory(userId, chatId, memory) {
+  ensureDir(userDir(userId));
   memory.updatedAt = new Date().toISOString();
   // Trim old messages (keep the most recent)
   if (memory.messages.length > MAX_MESSAGES) {
     memory.messages = memory.messages.slice(-MAX_MESSAGES);
   }
-  fs.writeFileSync(memoryPath(chatId), JSON.stringify(memory, null, 2), 'utf8');
+  fs.writeFileSync(memoryPath(userId, chatId), JSON.stringify(memory, null, 2), 'utf8');
   return memory;
 }
 
-/** Append a message to a conversation's memory. */
-export function appendMessage(chatId, role, content, extra = {}) {
-  const mem = loadMemory(chatId);
+/** Append a message to a user's conversation memory. */
+export function appendMessage(userId, chatId, role, content, extra = {}) {
+  const mem = loadMemory(userId, chatId);
   mem.messages.push({
     role,
     content: String(content || ''),
     timestamp: new Date().toISOString(),
     ...extra,
   });
-  return saveMemory(chatId, mem);
+  return saveMemory(userId, chatId, mem);
 }
 
-/** Update context (hunt info, findings, etc.) for a conversation. */
-export function updateContext(chatId, contextPatch) {
-  const mem = loadMemory(chatId);
+/** Update context (hunt info, findings, etc.) for a user's conversation. */
+export function updateContext(userId, chatId, contextPatch) {
+  const mem = loadMemory(userId, chatId);
   mem.context = { ...mem.context, ...contextPatch };
-  return saveMemory(chatId, mem);
+  return saveMemory(userId, chatId, mem);
 }
 
 /** Get recent messages for prompt building (last N). */
-export function getRecentMessages(chatId, limit = 20) {
-  const mem = loadMemory(chatId);
+export function getRecentMessages(userId, chatId, limit = 20) {
+  const mem = loadMemory(userId, chatId);
   return mem.messages.slice(-limit);
 }
 
-/** Delete a conversation's memory. */
-export function clearMemory(chatId) {
+/** Delete a user's conversation memory. */
+export function clearMemory(userId, chatId) {
   try {
-    fs.unlinkSync(memoryPath(chatId));
+    fs.unlinkSync(memoryPath(userId, chatId));
     return true;
   } catch {
     return false;
   }
 }
 
-/** List all conversation IDs with memory. */
-export function listChats() {
-  ensureDir();
+/** List the calling user's conversation IDs with memory (never another user's). */
+export function listChats(userId) {
+  ensureDir(userDir(userId));
   try {
     return fs
-      .readdirSync(MEMORY_DIR)
+      .readdirSync(userDir(userId))
       .filter(f => f.endsWith('.json'))
       .map(f => f.slice(0, -5));
   } catch {

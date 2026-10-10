@@ -11,7 +11,7 @@
  *   loading
  *   explainer  — boolean; when true every card shows its plain explanation
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   ChevronDown,

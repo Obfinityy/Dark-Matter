@@ -67,6 +67,12 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Default request timeout in milliseconds. API calls that take longer are
+ * aborted so the UI never hangs forever on a dead backend.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
+
 async function request(path, options = {}) {
   const jwt = getStoredJwt();
   const headers = {
@@ -76,6 +82,18 @@ async function request(path, options = {}) {
     ...(options.headers || {}),
   };
 
+  // Abort the request if it takes longer than the timeout. A caller-provided
+  // signal (options.signal) is respected and linked to the timeout.
+  const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const callerSignal = options.signal;
+  const onCallerAbort = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener('abort', onCallerAbort, { once: true });
+  }
+
   let response;
   const primaryBase = apiBase();
   try {
@@ -83,8 +101,17 @@ async function request(path, options = {}) {
       ...options,
       headers,
       credentials: 'include',
+      signal: controller.signal,
     });
-  } catch {
+  } catch (err) {
+    if (err?.name === 'AbortError' && !callerSignal?.aborted) {
+      // Our timeout fired — the backend is too slow or unreachable.
+      throw new ApiError(
+        'The request timed out. The backend may be overloaded — try again.',
+        0,
+        'REQUEST_TIMEOUT'
+      );
+    }
     // Network-level failure — no silent fallbacks. The backend is wherever
     // VITE_BACKEND_URL points (or localhost:4000 by default); if it is down,
     // the caller sees BACKEND_UNAVAILABLE and the UI says so honestly.
@@ -93,6 +120,9 @@ async function request(path, options = {}) {
       0,
       'BACKEND_UNAVAILABLE'
     );
+  } finally {
+    clearTimeout(timer);
+    if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
   }
 
   const text = await response.text();
@@ -215,17 +245,30 @@ export function parseActionIntent(message) {
   });
 }
 
-/** Stream a direct chat reply via SSE. Handlers: onToken, onDone, onError. */
+/** Stream a direct chat reply via SSE. Handlers: onToken, onDone, onError.
+ * Returns a cancel function — call it to abort the stream (user-initiated).
+ * The JWT is sent as an Authorization header so the stream is authenticated. */
 export async function streamDirectChat(message, conversationId, truncateIndex, handlers = {}) {
   const { onState, onToken, onDone, onError } = handlers;
+  const controller = new AbortController();
+  const cancel = () => {
+    try {
+      controller.abort();
+    } catch {
+      /* already settled */
+    }
+  };
   try {
+    const jwt = getStoredJwt();
     const res = await fetch(`${apiBase()}/infinite/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
+        ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
       },
       credentials: 'include',
+      signal: controller.signal,
       body: JSON.stringify({ message, conversationId, truncateIndex, stream: true }),
     });
 
@@ -275,9 +318,13 @@ export async function streamDirectChat(message, conversationId, truncateIndex, h
         }
       }
     }
+    return { cancel };
   } catch (err) {
+    // User-initiated cancellation is not an error — just stop quietly.
+    if (err?.name === 'AbortError') return { cancel, cancelled: true };
     if (onError) onError(err);
     else throw err;
+    return { cancel };
   }
 }
 
@@ -408,11 +455,13 @@ export function readWorkspaceFile(path) {
  * Control mode: NL desktop command → validated GUI plan → executed.
  * @param {boolean} dryRun    validate + return the plan, execute nothing.
  * @param {boolean} simulate  run through the mock adapter (safe anywhere).
+ *   Defaults to false — mock/simulate UI is forbidden by the owner; only
+ *   real brain-driven control is allowed.
  */
 export function controlComputer(
   instruction,
   conversationId,
-  { dryRun = false, simulate = true } = {}
+  { dryRun = false, simulate = false } = {}
 ) {
   return request('/infinite/control', {
     method: 'POST',
@@ -455,7 +504,9 @@ export function getScan(scanId) {
 
 /** Subscribe to live scan events via SSE. Returns an unsubscribe function. */
 export function subscribeToScanEvents(scanId, { onOpen, onEvent, onError } = {}) {
-  const source = new EventSource(`${apiBase()}/scans/${encodeURIComponent(scanId)}/events`, {
+  // EventSource cannot set headers — the JWT rides as ?accessToken= via sseUrl()
+  // (without it the stream 401s under JWT-only auth).
+  const source = new EventSource(sseUrl(`/scans/${encodeURIComponent(scanId)}/events`), {
     withCredentials: true,
   });
   const eventTypes = [
@@ -577,8 +628,10 @@ export function listAllReports() {
 
 /** Subscribe to live assessment events via SSE. */
 export function subscribeToAssessmentEvents(assessmentId, { onOpen, onEvent, onError } = {}) {
+  // EventSource cannot set headers — the JWT rides as ?accessToken= via sseUrl()
+  // (without it the stream 401s under JWT-only auth).
   const source = new EventSource(
-    `${apiBase()}/assessments/${encodeURIComponent(assessmentId)}/events`,
+    sseUrl(`/assessments/${encodeURIComponent(assessmentId)}/events`),
     { withCredentials: true }
   );
 

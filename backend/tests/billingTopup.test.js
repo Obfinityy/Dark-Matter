@@ -71,12 +71,27 @@ function mockRazorpay(overrides = {}) {
   };
 }
 
-function makeController({ razorpay, store } = {}) {
+function makeController({ razorpay, store, processedPayments } = {}) {
   return createBillingController({
     userModel: null,
     creditStore: store || mockStore(),
     razorpay: razorpay || mockRazorpay(),
+    processedPayments: processedPayments || mockProcessedPayments(),
   });
+}
+
+function mockProcessedPayments() {
+  const seen = new Map();
+  return {
+    has: id => seen.has(String(id)),
+    get: id => seen.get(String(id)) || null,
+    add: (id, record = {}) => {
+      const key = String(id);
+      if (seen.has(key)) return false;
+      seen.set(key, { at: new Date().toISOString(), ...record });
+      return true;
+    },
+  };
 }
 
 describe('creditStore', () => {
@@ -220,10 +235,30 @@ describe('POST /billing/topup/verify', () => {
     assert.equal(res.body.creditBalanceInr, 500);
     assert.equal(store.getBalanceInr('u1'), 500);
 
-    // A second top-up accumulates.
+    // A second top-up (different payment) accumulates.
+    const res2 = mockRes();
+    await c.verifyTopup(
+      { body: { ...goodBody(), paymentId: 'pay_test2' }, user: { id: 'u1' } },
+      res2
+    );
+    assert.equal(res2.body.creditBalanceInr, 1000);
+  });
+
+  test('replaying a verified payment does not credit twice', async () => {
+    const store = mockStore();
+    const c = makeController({ store });
+    const res = mockRes();
+    await c.verifyTopup({ body: goodBody(), user: { id: 'u1' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(store.getBalanceInr('u1'), 500);
+
+    // Replay the exact same tuple — must be idempotent, no double credit.
     const res2 = mockRes();
     await c.verifyTopup({ body: goodBody(), user: { id: 'u1' } }, res2);
-    assert.equal(res2.body.creditBalanceInr, 1000);
+    assert.equal(res2.statusCode, 200);
+    assert.equal(res2.body.ok, true);
+    assert.equal(res2.body.duplicate, true);
+    assert.equal(store.getBalanceInr('u1'), 500);
   });
 
   test('accepts authorized (not yet captured) payments', async () => {

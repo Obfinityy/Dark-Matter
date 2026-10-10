@@ -12,6 +12,29 @@
 
 const VM_RUNNER_BASE = process.env.VM_RUNNER_URL || 'http://127.0.0.1:4100';
 
+// Security: the backend proxies computer-control commands to the VM runner.
+// It must ONLY ever talk to loopback — a non-loopback VM_RUNNER_URL would
+// turn a cloud deployment into a remote VM-control relay. Fail fast at
+// startup rather than proxying anywhere unexpected.
+{
+  let hostname;
+  try {
+    hostname = new URL(VM_RUNNER_BASE).hostname.toLowerCase();
+  } catch {
+    throw new Error(
+      `[vm] Invalid VM_RUNNER_URL "${VM_RUNNER_BASE}" — must be a valid URL with a loopback host`
+    );
+  }
+  const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+  if (!LOOPBACK_HOSTS.has(hostname)) {
+    throw new Error(
+      `[vm] Refusing to start: VM_RUNNER_URL host "${hostname}" is not loopback. ` +
+        'The VM runner must run on this machine (127.0.0.1, localhost, or ::1) — ' +
+        'the backend never proxies computer-control commands to a remote host.'
+    );
+  }
+}
+
 async function proxyToRunner(path, { method = 'GET', body = null, token = null, timeoutMs = 30000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

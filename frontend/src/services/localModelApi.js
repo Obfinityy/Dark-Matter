@@ -164,7 +164,7 @@ export function subscribeToLocalDownloadProgress(modelId, callbacks = {}) {
       return null;
     }
   })();
-  const url = `${localMachineBase()}/api/v1/model-runner/models/${modelId}/download/progress${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
+  const url = `${localMachineBase()}/api/v1/model-runner/models/${modelId}/download/progress${jwt ? `?accessToken=${encodeURIComponent(jwt)}` : ''}`;
   const es = new EventSource(url);
   es.onmessage = event => {
     try {
@@ -271,7 +271,7 @@ export function subscribeToLocalEngineStream(callbacks = {}) {
       return null;
     }
   })();
-  const url = `${localMachineBase()}/api/v1/model-runner/engine/stream${jwt ? `?token=${encodeURIComponent(jwt)}` : ''}`;
+  const url = `${localMachineBase()}/api/v1/model-runner/engine/stream${jwt ? `?accessToken=${encodeURIComponent(jwt)}` : ''}`;
   const es = new EventSource(url);
   es.onmessage = event => {
     try {

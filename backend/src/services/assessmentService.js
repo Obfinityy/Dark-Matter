@@ -179,6 +179,28 @@ export class AssessmentService {
     return { status: paused ? 'paused' : 'not_running' };
   }
 
+  /**
+   * Start an assessment from scratch. Unlike resume() (which requires a paused
+   * assessment and continues from its checkpoint), start() initializes a fresh
+   * run — used for assessments created with deferStart, or to restart a
+   * stopped/failed assessment.
+   */
+  async start(userId, assessmentId) {
+    const assessment = await this.assessmentModel.get(userId, assessmentId); // ownership check
+    if (!assessment) return { status: 'not_found' };
+    if (this.agentBrain.isRunning?.(assessmentId)) {
+      return { status: 'already_running', assessmentId };
+    }
+    await this.assessmentModel.setStatus(assessmentId, 'running');
+    await this.eventService.publish(assessmentId, {
+      type: 'ASSESSMENT_STARTED',
+      level: 'INFO',
+      message: 'Assessment started',
+    });
+    const result = await this.agentBrain.start(assessmentId, userId);
+    return { status: result.status || 'started', assessmentId };
+  }
+
   /** Resume an assessment. */
   async resume(userId, assessmentId) {
     await this.assessmentModel.get(userId, assessmentId); // ownership check

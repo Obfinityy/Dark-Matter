@@ -20,30 +20,48 @@
  * workstream 3's integration point. Until then the panel passes explicit
  * nulls so the real loop can fall back to its defaults.
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Server, Play, Square, Pause, CirclePlay, RefreshCw, Send,
   MessageCircleQuestion, Cloud, MonitorSmartphone, Stethoscope
 } from 'lucide-react';
 import { VmScreen } from './VmScreen';
 import { VmTerminal } from './VmTerminal';
-import { createVmControlLoop } from '../../agent/vmControlLoop';
+import { createVmControlLoop, createBrowserDirectBrains } from '../../agent/vmControlLoop';
 import * as runnerApi from '../../services/vmRunnerApi';
 import { vmHealth, vmStatus } from '../../services/vmRunnerApi';
 import { getVmEndpoint, setVmEndpoint, isVmConnectable } from '../../services/vmEndpoint';
+import { getLocalSlotServers } from '../../services/localModelApi';
 import { LOCAL_RUNNER_BASE_URL } from '../../lib/apiBase';
 import './VmControl.css';
 
 const QUICK_QUESTIONS = [
   "What's happening now?",
-  'Which vulnerabilities found so far?'
+  'Which vulnerabilities have been found so far?'
 ];
 
-/** Brain slots for the loop — integration point for workstream 3. */
-function resolveBrains() {
-  // TODO(workstream-3): resolve the configured Hacking/Vision/Grounding brain
-  // slots (browser-direct inference) here and pass them to the loop.
-  return { hacker: null, vision: null, grounding: null };
+/**
+ * Resolve the configured brain slots for the control loop.
+ * Loads the running slot servers from the local backend and builds
+ * browser-direct brain providers via createBrowserDirectBrains().
+ * Returns { hacker, vision, grounding } providers (any slot may be null
+ * if not configured — the loop degrades gracefully and reports it).
+ */
+async function resolveBrains() {
+  try {
+    const servers = await getLocalSlotServers().catch(() => null);
+    if (!servers) return { hacker: null, vision: null, grounding: null };
+    // Each server: { modelId, port, baseUrl } or null. Build localChat specs.
+    const spec = slot =>
+      slot?.baseUrl ? { kind: 'localChat', baseUrl: slot.baseUrl, modelId: slot.modelId } : null;
+    return createBrowserDirectBrains({
+      hacker: spec(servers.hacker || servers.hacking),
+      vision: spec(servers.vision),
+      grounding: spec(servers.grounding),
+    });
+  } catch {
+    return { hacker: null, vision: null, grounding: null };
+  }
 }
 
 function VmFeedRow({ ev }) {
@@ -65,6 +83,10 @@ function formatUptime(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
+function phaseLabel(p) {
+  return p ? p.charAt(0).toUpperCase() + p.slice(1) : p;
 }
 
 export function VmControlPanel() {
@@ -172,7 +194,7 @@ export function VmControlPanel() {
     setVmState(null);
     const loop = createVmControlLoop({
       runnerApi,
-      brains: resolveBrains(),
+      brains: await resolveBrains(),
       onEvent: handleLoopEvent
     });
     loopRef.current = loop;
@@ -361,7 +383,7 @@ export function VmControlPanel() {
           <div className="dm-row-between dm-mt-4">
             <span className="dm-badge">
               {busy ? <RefreshCw size={12} className="dm-spin" /> : running ? <CirclePlay size={12} /> : paused ? <Pause size={12} /> : <Square size={12} />}
-              {' '}{phase}
+              {' '}{phaseLabel(phase)}
               {vmState?.state ? ` · VM ${vmState.state}` : ''}
               {vmState?.uptimeS != null ? ` · up ${formatUptime(vmState.uptimeS)}` : ''}
             </span>

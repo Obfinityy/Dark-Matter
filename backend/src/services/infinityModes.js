@@ -1395,6 +1395,22 @@ export function createInfinityModes({
   logger = console,
 } = {}) {
   const workspace = createWorkspace(workspaceRoot || defaultWorkspaceRoot());
+  const workspaceRootDir = workspaceRoot || defaultWorkspaceRoot();
+  // Per-user workspace cache: agent-workspace/<userId>/. Each user gets an
+  // isolated sandbox so one user can never read or overwrite another user's
+  // build-mode files.
+  const userWorkspaces = new Map();
+  function workspaceFor(userId) {
+    const raw = String(userId || 'anonymous');
+    // Sanitize the directory segment: only safe characters, bounded length.
+    const safe = raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'anonymous';
+    if (!userWorkspaces.has(safe)) {
+      const ws = createWorkspace(path.join(workspaceRootDir, safe));
+      ws.ensureRoot();
+      userWorkspaces.set(safe, ws);
+    }
+    return userWorkspaces.get(safe);
+  }
   // brainModelFor(userId) lets Plan mode think with the user's ACTIVE brain
   // (Models → Run / Kaggle connect); falls back to the fixed brainModel.
   const brainFor = userId =>
@@ -1405,10 +1421,14 @@ export function createInfinityModes({
     typeof groundingBrainFor === 'function' ? groundingBrainFor(userId) : null;
   return {
     workspace,
+    workspaceFor,
     plan: (instruction, opts = {}) =>
       planInstruction(instruction, { brainModel: brainFor(opts?.userId), userId: opts?.userId }),
-    build: (brief, opts = {}) =>
-      buildProject(brief, { ...opts, workspace, brainModel: brainFor(opts?.userId) }),
+    build: (brief, opts = {}) => {
+      // Build-mode projects are namespaced per user.
+      const ws = opts?.userId ? workspaceFor(opts.userId) : workspace;
+      return buildProject(brief, { ...opts, workspace: ws, brainModel: brainFor(opts?.userId) });
+    },
     decompose: decomposeInstruction,
     decomposeDeep: decomposeControlRequest,
     validateSteps: validatePlanSteps,

@@ -6,7 +6,6 @@
  *
  * Props: { entries, loading } — entries from GET /jobs/:id/diary
  */
-import React from 'react';
 import { BookOpen, Loader2 } from 'lucide-react';
 import './HuntDiary.css';
 

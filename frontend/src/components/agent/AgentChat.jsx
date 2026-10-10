@@ -1,8 +1,8 @@
 /**
- * AgentChat — "agent se baat karo": live chat with the hunting agent.
+ * AgentChat — live chat with the hunting agent.
  *
  * A side panel for HuntView. Ask the agent what it's doing in plain
- * language (Hinglish-friendly), get answers with an emoji reaction and
+ * language, get answers with an emoji reaction and
  * follow-up suggestion chips.
  *
  * Backend contract: POST /api/v1/jobs/:id/ask { message } ->
@@ -23,15 +23,15 @@ import { useVoiceConversation } from '../../hooks/useVoiceConversation';
 import './AgentChat.polish.css';
 
 const DEFAULT_SUGGESTIONS = [
-  'Kya kar raha hai?',
-  'Ab tak kya mila?',
-  'Kitna time lagega?',
-  'Kaunsa model use kar raha hai?',
+  'What are you doing?',
+  'What have you found so far?',
+  'How much longer will this take?',
+  'Which model are you using?',
 ];
 
 const WELCOME = {
   role: 'agent',
-  text: 'Namaste! Main tumhara hunting agent hoon. Mujhse kuch bhi poochho — main kya kar raha hoon, ab tak kya mila, ya aage kya plan hai.',
+  text: 'Hello! I am your hunting agent. Ask me anything — what I am doing, what I have found so far, or what the plan is next.',
   reaction: '👋',
   suggestions: DEFAULT_SUGGESTIONS,
 };
@@ -114,16 +114,16 @@ export function AgentChat({
       onEmotion?.('neutral');
       const why =
         err?.code === 'ASK_NOT_SUPPORTED'
-          ? 'Yeh backend version agent-chat support nahi karta.'
+          ? 'This backend version does not support agent chat.'
           : err?.message
-            ? `Wajah: ${err.message}`
-            : 'Network ya server issue lag raha hai.';
+            ? `Reason: ${err.message}`
+            : 'This looks like a network or server issue.';
       setMessages(prev => [
         ...prev,
         {
           role: 'agent',
           error: true,
-          text: `Agent se baat nahi ho paayi. ${why} Thodi der me dobara try karo.`,
+          text: `Could not reach the agent. ${why} Please try again shortly.`,
           at: timeNow(),
         },
       ]);
@@ -191,16 +191,16 @@ export function AgentChat({
           <Bot size={20} aria-hidden="true" />
         </span>
         <div className="dm-chat-head-text">
-          <strong>Agent se baat karo</strong>
+          <strong>Chat with the agent</strong>
           <span className={`dm-chat-status${huntRunning ? ' on' : ''}`}>
             <span className="dm-live-dot" />
             {voiceMode && jobId
-              ? 'Voice chat on — bolo, agent jawab dega'
+              ? 'Voice chat on — speak and the agent will answer'
               : huntRunning
-                ? 'Hunt live — agent sun raha hai'
+                ? 'Hunt live — the agent is listening'
                 : jobId
-                  ? 'Hunt khatam — report ready'
-                  : 'Koi hunt active nahi'}
+                  ? 'Hunt finished — report ready'
+                  : 'No hunt active'}
           </span>
         </div>
         {voiceMode && (
@@ -218,9 +218,9 @@ export function AgentChat({
       {!jobId ? (
         <div className="dm-chat-empty">
           <MessageCircle size={30} aria-hidden="true" />
-          <strong>Abhi koi hunt nahi chal rahi</strong>
+          <strong>No hunt is running right now</strong>
           <p>
-            Home page se ek target par hunt shuru karo — phir yahan agent se live baat kar sakte ho.
+            Start a hunt on a target from the home page — then you can talk to the agent live here.
           </p>
         </div>
       ) : (
@@ -281,7 +281,7 @@ export function AgentChat({
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Agent se poochho… jaise “kya kar raha hai?”"
+              placeholder="Ask the agent… e.g. “what are you doing?”"
               aria-label="Message the hunting agent"
               aria-describedby="dm-chat-hint"
               disabled={waiting}
@@ -307,16 +307,16 @@ export function AgentChat({
               {!voiceConvo.supported
                 ? 'Voice input isn\u2019t supported in this browser \u2014 try Chrome or Edge'
                 : voiceConvo.processing
-                  ? 'Agent jawab de raha hai…'
+                  ? 'The agent is answering…'
                   : voiceConvo.listening
                     ? voiceConvo.interim
-                      ? `Suna: “${voiceConvo.interim}…”`
-                      : 'Sun raha hoon — bolo'
+                      ? `Heard: “${voiceConvo.interim}…”`
+                      : 'Listening — go ahead'
                     : 'Voice chat on'}
             </p>
           )}
           <p className="dm-chat-hint" id="dm-chat-hint">
-            Seedha hunting agent se connected — jawab hunt ke live state se aata hai.
+            Connected directly to the hunting agent — answers come from the hunt's live state.
           </p>
         </>
       )}

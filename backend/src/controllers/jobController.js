@@ -427,10 +427,13 @@ export function createJobController({
         {
           // The diary's contract wants an activityModel; the job's own
           // persisted activity array IS that source — adapted, not duplicated.
+          // Accepts the { jobId, userId } filter for the contract; the closure
+          // already scopes to this job.
           activityModel: { list: async () => job.activity || [] },
           reasoningCycleModel,
           computerActionModel,
           // findingModel.list() is keyed by assessmentId, not jobId.
+          // Accepts the filter for the contract; the closure scopes by this job's assessment.
           findingModel: findingModel
             ? { list: async () => findingModel.list(job.assessmentId) }
             : null,

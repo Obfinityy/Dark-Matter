@@ -216,13 +216,16 @@ export class ContinuousHuntLoop {
    * Start a new loop. Validates the authorized target scope first — an
    * unparseable/empty target refuses to start (authorized-targets-only).
    */
-  static async start({ huntId, target, deps = {}, logger = console } = {}) {
+  static async start({ huntId, target, userId = null, deps = {}, logger = console } = {}) {
     const loop = new ContinuousHuntLoop({ huntId, target, deps, logger });
     loop._scope = createTargetScope(target);
     if (!loop._scope.hosts.length) {
       throw new Error('refusing to start: target does not resolve to an authorized host');
     }
     loop.state = newLoopState(huntId, target);
+    // Ownership: recorded at creation so later requests can prove the caller
+    // owns this hunt. Persisted with the loop state; restored on load().
+    loop.state.userId = userId ? String(userId) : null;
     loop.state.angle = ANGLE_ROTATION[0];
     loop.state.anglesTried = [ANGLE_ROTATION[0]];
     loop.think(

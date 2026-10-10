@@ -98,7 +98,7 @@ export function createCrewController({ crewService, crewWorker }) {
 
       let crew;
       try {
-        crew = await crewService.create({
+        crew = await crewService.create(request.user.id, {
           name: String(name).trim(),
           role: String(role).trim(),
           instructions: instructions == null ? '' : String(instructions),
@@ -113,15 +113,15 @@ export function createCrewController({ crewService, crewWorker }) {
       return response.status(201).json({ crew });
     }),
 
-    /** GET /api/v1/crew — list all coworkers */
-    list: asyncHandler(async (_request, response) => {
-      const crews = await crewService.list();
+    /** GET /api/v1/crew — list the caller's coworkers */
+    list: asyncHandler(async (request, response) => {
+      const crews = await crewService.list(request.user.id);
       response.json({ crews });
     }),
 
     /** GET /api/v1/crew/:id — one coworker */
     get: asyncHandler(async (request, response) => {
-      const crew = await crewService.get(request.params.id);
+      const crew = await crewService.get(request.user.id, request.params.id);
       if (!crew) return notFound(response);
       response.json({ crew });
     }),
@@ -140,7 +140,7 @@ export function createCrewController({ crewService, crewWorker }) {
 
       let crew;
       try {
-        crew = await crewService.update(request.params.id, patch);
+        crew = await crewService.update(request.user.id, request.params.id, patch);
       } catch (error) {
         if (isServiceValidationError(error)) {
           return badRequest(response, error.message, 'INVALID_CREW');
@@ -153,14 +153,14 @@ export function createCrewController({ crewService, crewWorker }) {
 
     /** DELETE /api/v1/crew/:id — remove a coworker */
     remove: asyncHandler(async (request, response) => {
-      const deleted = await crewService.remove(request.params.id);
+      const deleted = await crewService.remove(request.user.id, request.params.id);
       if (!deleted) return notFound(response);
       response.json({ ok: true });
     }),
 
     /** POST /api/v1/crew/:id/chat — send a message; starts a background run */
     chat: asyncHandler(async (request, response) => {
-      const crew = await crewService.get(request.params.id);
+      const crew = await crewService.get(request.user.id, request.params.id);
       if (!crew) return notFound(response);
 
       const message = request.body?.message;
@@ -179,7 +179,7 @@ export function createCrewController({ crewService, crewWorker }) {
 
     /** GET /api/v1/crew/:id/events — SSE stream of the crew's latest run */
     events: asyncHandler(async (request, response) => {
-      const crew = await crewService.get(request.params.id);
+      const crew = await crewService.get(request.user.id, request.params.id);
       if (!crew) return notFound(response);
 
       const run = await latestRunForCrew(request.params.id);
@@ -248,7 +248,7 @@ export function createCrewController({ crewService, crewWorker }) {
 
     /** POST /api/v1/crew/:id/stop — stop the crew's latest run */
     stop: asyncHandler(async (request, response) => {
-      const crew = await crewService.get(request.params.id);
+      const crew = await crewService.get(request.user.id, request.params.id);
       if (!crew) return notFound(response);
 
       const runId = await resolveRunId(request.params.id, request.body?.runId);

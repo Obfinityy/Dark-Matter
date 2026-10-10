@@ -16,7 +16,7 @@
  *   agentRunning  — true while the agent loop is running (locks input)
  *   canConnect    — whether a VNC connection should be attempted
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import RFB from '@novnc/novnc';
 import { Monitor, Maximize2, X, RotateCcw } from 'lucide-react';
@@ -111,7 +111,7 @@ export function VmScreen({ sessionId, agentRunning = false, canConnect = true })
   }, []);
 
   const statusLabel =
-    status === 'connected' ? 'live' :
+    status === 'connected' ? 'Live' :
     status === 'connecting' ? 'connecting…' :
     status === 'error' ? 'error' :
     status === 'disconnected' ? 'disconnected' : 'idle';
@@ -119,13 +119,13 @@ export function VmScreen({ sessionId, agentRunning = false, canConnect = true })
   return (
     <div className="vm-screen" role="region" aria-label="VM screen">
       <div className="vm-screen-head">
-        <span className="vm-screen-title"><Monitor size={14} aria-hidden="true" /> vm screen</span>
+        <span className="vm-screen-title"><Monitor size={14} aria-hidden="true" /> VM screen</span>
         <span className={`vm-screen-status is-${status}`}>
-          {status === 'connected' ? '● live' : statusLabel}
+          {status === 'connected' ? '● Live' : statusLabel}
         </span>
         {desktopName && <span className="dm-hint">{desktopName}</span>}
         <span className="vm-screen-lock" title={locked ? 'Input locked while the agent works' : 'Input unlocked — the agent is not running'}>
-          {locked ? '🔒 view-only' : '🔓 input unlocked'}
+          {locked ? '🔒 View-only' : '🔓 Input unlocked'}
         </span>
         <div className="vm-screen-actions">
           {status === 'connected' && (
@@ -191,8 +191,8 @@ export function VmScreen({ sessionId, agentRunning = false, canConnect = true })
       {fullscreen && createPortal(
         <div className="vm-screen-modal" role="dialog" aria-modal="true" aria-label="VM screen fullscreen">
           <div className="vm-screen-modal-bar">
-            <span className="vm-screen-title"><Monitor size={14} aria-hidden="true" /> vm screen — fullscreen</span>
-            <span className="vm-screen-lock">{locked ? '🔒 view-only while the agent works' : '🔓 input unlocked'}</span>
+            <span className="vm-screen-title"><Monitor size={14} aria-hidden="true" /> VM screen — fullscreen</span>
+            <span className="vm-screen-lock">{locked ? '🔒 View-only while the agent works' : '🔓 Input unlocked'}</span>
             <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={() => setFullscreen(false)} aria-label="Close fullscreen">
               <X size={14} /> Close
             </button>

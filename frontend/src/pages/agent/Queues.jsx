@@ -104,7 +104,7 @@ export function Queues() {
               Target
             </span>{' '}
             <span className="kda-w" style={{ '--kda-d': '90ms' }}>
-              queues
+              Queues
             </span>
           </h1>
           <p className="kda-sub" style={{ '--kda-d': '220ms' }}>

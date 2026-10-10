@@ -9,7 +9,6 @@
  * loading renders a shimmer skeleton matching the card layout (no "unknown
  * target" placeholder lies while the job is still arriving).
  */
-import React from 'react';
 import { Fingerprint, Lock, Server, Globe, Network } from 'lucide-react';
 import './FingerprintCard.polish.css';
 
@@ -40,7 +39,7 @@ export function FingerprintCard({ job = {}, surface = {}, loading = false }) {
       </section>
     );
 
-  const target = job.target || job.targetHostname || 'unknown target';
+  const target = job.target || job.targetHostname || 'Unknown target';
   const technologies = (surface.technologies || []).map(techName).filter(Boolean);
   const openPorts = (surface.openPorts || [])
     .map(p => (typeof p === 'string' || typeof p === 'number' ? p : p?.port))

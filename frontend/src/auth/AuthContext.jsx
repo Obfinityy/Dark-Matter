@@ -34,10 +34,18 @@ export function AuthProvider({ children }) {
       .then(body => {
         if (!cancelled) setUser(body?.user || null);
       })
-      .catch(() => {
-        if (!cancelled) {
+      .catch(err => {
+        if (cancelled) return;
+        // Only drop the JWT on explicit auth rejection (401/403).
+        // Network errors (status 0: timeout, offline, backend down) must NOT
+        // log the user out — the token stays so the app can retry when the
+        // backend is reachable again.
+        const status = err?.status;
+        if (status === 401 || status === 403) {
           setUser(null);
-          storeJwt(null); // stale token — drop it so we don't 401 forever
+          storeJwt(null); // stale/expired token — drop it so we don't 401 forever
+        } else {
+          setUser(null);
         }
       })
       .finally(() => {

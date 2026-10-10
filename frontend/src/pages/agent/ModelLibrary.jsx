@@ -33,6 +33,8 @@ import {
   CheckCircle2,
   MonitorCog,
   MemoryStick,
+  MessageCircle,
+  SlidersHorizontal,
   Cloud,
   Link2,
   Unplug,
@@ -845,6 +847,7 @@ function BrainSlotCard({
                 <input
                   className="sg-input"
                   placeholder="Paste Gradio share link — https://xxxx.gradio.live"
+                  aria-label="Gradio share link for this brain slot"
                   value={kaggleUrl}
                   onChange={e => setKaggleUrl(e.target.value)}
                   disabled={kaggleBusy === slotId}
@@ -854,6 +857,7 @@ function BrainSlotCard({
                 <input
                   className="sg-input"
                   placeholder="Name it (optional) — e.g. Kaggle Qwen2.5-VL"
+                  aria-label="Name for this Kaggle link (optional)"
                   value={kaggleName}
                   onChange={e => setKaggleName(e.target.value)}
                   disabled={kaggleBusy === slotId}
@@ -970,7 +974,7 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
   const PRODUCTS = [
     {
       name: 'Hunt AI',
-      icon: '🎯',
+      icon: Crosshair,
       desc: 'Autonomous bug-bounty hunter — three brains observe, think, and act together.',
       needs: ['hacker', 'vision', 'grounding'],
       notes:
@@ -978,14 +982,14 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
     },
     {
       name: 'Infinity Chat',
-      icon: '💬',
+      icon: MessageCircle,
       desc: 'The Infinity AI assistant (Chat / Plan / Build).',
       needs: ['vision'],
       notes: 'Vision only — it is the thinking model. The hacker brain is not used here.',
     },
     {
       name: 'Control',
-      icon: '🖥️',
+      icon: SlidersHorizontal,
       desc: 'Computer control — Agent S does the actual computer work.',
       needs: ['vision'],
       notes:
@@ -1007,11 +1011,12 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
       </div>
       {PRODUCTS.map(p => {
         const missing = p.needs.filter(s => !slotStatus(s).running);
+        const PIcon = p.icon;
         return (
           <SpotlightCard key={p.name} className="ml-assign-row" glowColor="139, 92, 246">
             <div className="ml-assign-head">
               <span aria-hidden="true" className="ml-assign-icon">
-                {p.icon}
+                <PIcon size={18} />
               </span>
               <div>
                 <strong>{p.name}</strong>
@@ -1091,6 +1096,7 @@ export function ModelLibrary() {
   const [slotSources, setSlotSources] = useState({}); // { vision: { source: 'local'|'kaggle', ... }, ... }
   const [slotServers, setSlotServers] = useState({}); // { vision: {port, baseUrl, ...}|null, ... }
   const [slotBusy, setSlotBusy] = useState(null);
+  const [slotAssignments, setSlotAssignments] = useState({}); // { slot: modelId } — tracks successful slot runs
   // Per-slot Kaggle link inputs
   const [kaggleUrls, setKaggleUrls] = useState({}); // { vision: 'https://...', ... }
   const [kaggleNames, setKaggleNames] = useState({}); // { vision: 'My Kaggle', ... }
@@ -1666,27 +1672,28 @@ export function ModelLibrary() {
     try {
       const model = MODEL_CATALOG.find(m => m.id === modelId);
       if (!model) throw new Error('Model not found.');
-      // Map category to backend slot: 'hacking' -> 'hacker'
+      // Map category to backend slot: 'hacking' -> 'hacker'. The mapped slot
+      // is the canonical key everywhere (backend, slotServers, activeBrains).
       const slot = model.category === 'hacking' ? 'hacker' : model.category;
       // Run on the local backend — it picks a random free localhost port.
       const result = await runModelOnLocal(slot, modelId, opts || {});
       // Update UI: show the running model and its port.
       setSlotServers(prev => ({
         ...prev,
-        [model.category]: {
+        [slot]: {
           modelId,
           port: result.port,
           baseUrl: result.baseUrl || localServiceUrl(result.port),
         },
       }));
       // Also save as active brain (frontend state).
-      setActiveBrains(prev => ({ ...prev, [model.category]: modelId }));
+      setActiveBrains(prev => ({ ...prev, [slot]: modelId }));
       try {
         localStorage.setItem(
           'dm_active_brains',
           JSON.stringify({
             ...activeBrains,
-            [model.category]: modelId,
+            [slot]: modelId,
           })
         );
       } catch {
@@ -1791,7 +1798,7 @@ export function ModelLibrary() {
     onDownload: startDownload,
     onRun: run,
     onStop: stop,
-    onRemove: remove,
+    onRemove: removeLocal,
     onCancelDownload: cancelDownload,
     onPauseDownload: pauseDownload,
     onResumeDownload: resumeDownload,
@@ -2203,12 +2210,14 @@ export function ModelLibrary() {
           <input
             className="sg-input"
             placeholder="Name (e.g. My 14B coder)"
+            aria-label="Model name"
             value={customForm.name}
             onChange={e => setCustomForm({ ...customForm, name: e.target.value })}
           />
           <input
             className="sg-input"
             placeholder="RAM needed (GB, optional)"
+            aria-label="RAM needed in GB (optional)"
             type="number"
             min="1"
             value={customForm.ramGB}
@@ -2219,6 +2228,7 @@ export function ModelLibrary() {
           <input
             className="sg-input"
             placeholder="Hugging Face repo (e.g. bartowski/Qwen3-8B-GGUF)"
+            aria-label="Hugging Face repo"
             value={customForm.repo}
             onChange={e => setCustomForm({ ...customForm, repo: e.target.value })}
           />
@@ -2227,6 +2237,7 @@ export function ModelLibrary() {
           <input
             className="sg-input"
             placeholder="GGUF file name (e.g. Qwen3-8B-Q4_K_M.gguf)"
+            aria-label="GGUF file name"
             value={customForm.file}
             onChange={e => setCustomForm({ ...customForm, file: e.target.value })}
           />

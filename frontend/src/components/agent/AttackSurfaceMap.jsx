@@ -7,7 +7,6 @@
  *
  * Props: { surface, loading } — surface from GET /jobs/:id/attack-surface
  */
-import React from 'react';
 import { Globe, Link2, SlidersHorizontal, Cpu, Plug } from 'lucide-react';
 
 function Panel({ icon: Icon, title, items, renderItem, emptyHint }) {

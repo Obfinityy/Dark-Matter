@@ -6,7 +6,7 @@
  * agent route's page in this so a bug in one page stays in that page, with
  * a Retry button that resets the boundary.
  */
-import React, { Component } from 'react';
+import { Component } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 
 export class PageErrorBoundary extends Component {

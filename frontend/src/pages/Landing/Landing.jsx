@@ -92,7 +92,9 @@ function Hero() {
   const [url, setUrl] = React.useState('');
   const start = e => {
     e.preventDefault();
-    navigate('/agent');
+    const target = url.trim();
+    // Carry the pasted URL to the agent console so the hunt starts with it.
+    navigate('/agent', target ? { state: { targetUrl: target } } : undefined);
   };
   return (
     <header className="ktx-hero">

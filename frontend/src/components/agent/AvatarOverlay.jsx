@@ -16,7 +16,7 @@
  *   voice      — voice name passed to the speech service (e.g. 'aria' | 'kai')
  *   title      — overlay title; always Infinity AI branding (default)
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, X, Send, Loader2 } from 'lucide-react';
 import { Avatar } from '../fx/Avatar';
 import { speak } from '../../services/voice';

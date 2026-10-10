@@ -4,7 +4,7 @@
  * layout (navigation, protected routes, global styles).
  * Part of: Infinity AI / Dark-Matter frontend (app shell).
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { AuthProvider, ProtectedRoute, PublicRoute } from './auth/AuthContext';
@@ -30,6 +30,7 @@ import './styles/animations.css';
 import { AgentConsole } from './pages/agent/AgentConsole';
 import { Landing } from './pages/Landing/Landing';
 import NotFoundPage from './pages/NotFound/NotFound';
+import { PageErrorBoundary } from './components/PageErrorBoundary';
 
 /* Shared layout for the legal pages: a centered reading column with a clear
  * heading hierarchy, generous section rhythm, semantic landmarks, and a
@@ -37,7 +38,7 @@ import NotFoundPage from './pages/NotFound/NotFound';
  * only the design tokens from styles/variables.css. */
 const LegalPage = ({ title, updated, children }) => (
   <main className="legal-page">
-    <div className="legal-page-inner legal-enter">
+    <div className="legal-page-inner">
       <Link to="/" className="legal-back">
         <ArrowLeft size={16} aria-hidden="true" />
         Back to app
@@ -110,42 +111,45 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login initialMode="signin" />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <Login initialMode="signup" />
-              </PublicRoute>
-            }
-          />
-          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms" element={<TermsConditionsPage />} />
-          {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
-          <Route path="/agent/*" element={<AgentConsole />} />
-          {/* Public marketing landing page (issue #45). */}
-          <Route path="/landing" element={<Landing />} />
-          {/* Root: must be logged in — unauthenticated users go to login.
-              (Security: no anonymous access to the app.) */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Navigate to="/agent" replace />
-              </ProtectedRoute>
-            }
-          />
-          {/* Unknown top-level routes get a real 404 page, not a silent redirect. */}
-          <Route path="/*" element={<NotFoundPage />} />
-        </Routes>
+        {/* A crash in any top-level route must not blank the whole app shell. */}
+        <PageErrorBoundary pageName="App">
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <Login initialMode="signin" />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicRoute>
+                  <Login initialMode="signup" />
+                </PublicRoute>
+              }
+            />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsConditionsPage />} />
+            {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
+            <Route path="/agent/*" element={<AgentConsole />} />
+            {/* Public marketing landing page (issue #45). */}
+            <Route path="/landing" element={<Landing />} />
+            {/* Root: must be logged in — unauthenticated users go to login.
+                (Security: no anonymous access to the app.) */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/agent" replace />
+                </ProtectedRoute>
+              }
+            />
+            {/* Unknown top-level routes get a real 404 page, not a silent redirect. */}
+            <Route path="/*" element={<NotFoundPage />} />
+          </Routes>
+        </PageErrorBoundary>
       </AuthProvider>
     </BrowserRouter>
   );

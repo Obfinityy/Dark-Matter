@@ -30,9 +30,9 @@ export function createAssessmentController(assessmentService, eventService) {
       response.json(assessment);
     }),
 
-    /** POST /api/v1/assessments/:id/start — start an assessment */
+    /** POST /api/v1/assessments/:id/start — start an assessment (fresh run) */
     start: asyncHandler(async (request, response) => {
-      const result = await assessmentService.resume(request.user.id, request.params.id);
+      const result = await assessmentService.start(request.user.id, request.params.id);
       response.json(result);
     }),
 

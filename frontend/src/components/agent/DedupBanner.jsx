@@ -12,7 +12,6 @@
  *   onNewHunt — () => void (start a fresh hunt of the same target)
  *   onDismiss — () => void
  */
-import React from 'react';
 import { History, RefreshCw, Eye, X } from 'lucide-react';
 import './DedupBanner.css';
 
@@ -69,7 +68,7 @@ export function DedupBanner({ result, onView, onNewHunt, onDismiss }) {
           .
         </p>
         <p className="dm-dedup-hint">
-          No need to burn another hunt — the cached report is below. Want a fresh look? Start a new
+          No need to run another hunt — the cached report is below. Want a fresh look? Start a new
           hunt.
         </p>
         <div className="dm-dedup-actions">

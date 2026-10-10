@@ -20,11 +20,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Send, Loader2, Bot, User, MessageCircle, ClipboardList,
-  Hammer, SlidersHorizontal, Cpu, CheckCircle2,
-  FileCode2, Eye, MousePointerClick, Clock3,
-  ShieldCheck, Paperclip, FolderOpen, X, Plus,
+  Hammer, SlidersHorizontal, Cpu,
+  FileCode2, Eye, ShieldCheck, Paperclip, FolderOpen, X, Plus,
   ChevronDown, Check, PanelRightOpen, PanelRightClose,
-  Brain, CircleHelp, Ban, TriangleAlert, Volume2, VolumeX
+  Volume2, VolumeX
 } from 'lucide-react';
 import { sendDirectChat, parseActionIntent, getInfiniteHistory } from '../../services/api';
 import { planWithInfinity, buildWithInfinity, uploadBuildFiles, readWorkspaceFile } from '../../services/api';
@@ -531,7 +530,7 @@ function ChatPane({
 
       if (intent?.type === 'action') {
         // Safe action — tell the user we're doing it, then route to Control.
-        const doingMsg = intent.message || 'Kar raha hoon…';
+        const doingMsg = intent.message || 'On it…';
         setMessages(m => [...m, { role: 'assistant', text: doingMsg }]);
         onAvatarState?.('speaking');
         setTimeout(() => onAvatarState?.('idle'), 2500);
@@ -540,7 +539,7 @@ function ChatPane({
         return;
       }
       if (intent?.type === 'action_blocked') {
-        const blockedMsg = intent.message || 'Ye action main nahi kar sakta.';
+        const blockedMsg = intent.message || "I can't do that action.";
         setMessages(m => [...m, { role: 'assistant', text: blockedMsg }]);
         onAvatarState?.('speaking');
         setTimeout(() => onAvatarState?.('idle'), 2500);

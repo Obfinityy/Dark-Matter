@@ -11,7 +11,7 @@
  *   sessionId — active VM session (null → placeholder)
  *   enabled   — connect only when the session is running
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -142,9 +142,12 @@ export function VmTerminal({ sessionId, enabled = true }) {
   return (
     <div className="vm-terminal" role="region" aria-label="VM terminal">
       <div className="vm-terminal-head">
-        <span className="vm-terminal-title"><SquareTerminal size={14} aria-hidden="true" /> vm terminal</span>
+        <span className="vm-terminal-title"><SquareTerminal size={14} aria-hidden="true" /> VM terminal</span>
         <span className={`vm-screen-status is-${status}`}>
-          {status === 'connected' ? '● live' : status}
+          {status === 'connected' ? '● Live'
+            : status === 'connecting' ? 'Connecting…'
+            : status === 'disconnected' ? 'Disconnected'
+            : status === 'error' ? 'Error' : 'Idle'}
         </span>
         {(status === 'disconnected' || status === 'error') && sessionId && (
           <button type="button" className="dm-btn dm-btn-ghost dm-btn-sm" onClick={connect}>

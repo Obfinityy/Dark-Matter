@@ -43,8 +43,10 @@ export function createHuntRecordController({ huntRecordModel }) {
           error: { code: 'HUNT_RECORD_NOT_FOUND', message: 'No hunt record with that id.' },
         });
       }
+      // targetCanonical may be null/undefined for legacy records — fall back
+      // to 'target' BEFORE calling .replace() to avoid a TypeError.
       const filename = `hunt-report-${
-        record.targetCanonical
+        (record.targetCanonical || 'target')
           .replace(/[^a-z0-9]+/gi, '-')
           .replace(/^-+|-+$/g, '')
           .slice(0, 60) || 'target'

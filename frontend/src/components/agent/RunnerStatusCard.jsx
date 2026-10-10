@@ -58,7 +58,7 @@ export function RunnerStatusCard() {
       <div className="runner-card runner-connected">
         <span className="runner-dot ok" aria-hidden="true" />
         <div className="runner-text">
-          <strong>Infinity AI Runner connected ✅</strong>
+          <strong>Infinity AI Runner connected</strong>
           <span>Your PC is ready — hunts and the Kali sandbox run locally{version ? ` (v${version})` : ''}.</span>
         </div>
       </div>
@@ -96,7 +96,7 @@ export function RunnerStatusCard() {
         </ol>
       </div>
       <a className="runner-download-btn" href={RUNNER_DOWNLOAD_URL}>
-        ⬇ Download Infinity AI Runner for Windows
+        Download Infinity AI Runner for Windows
       </a>
     </div>
   );

@@ -105,7 +105,7 @@ export async function getLiveLoop(huntId, { dataDir, logger = console } = {}) {
  * Start a continuous hunt. Validates the target (authorized-targets-only),
  * wires telemetry, registers the loop, and starts the driver.
  */
-export async function startHunt({ target, executor = 'local', deps = {}, logger = console } = {}) {
+export async function startHunt({ target, executor = 'local', userId = null, deps = {}, logger = console } = {}) {
   const cleanTarget = String(target || '').trim();
   if (!cleanTarget) throw new Error('startHunt requires a target');
   const huntId = id('hunt');
@@ -115,6 +115,7 @@ export async function startHunt({ target, executor = 'local', deps = {}, logger 
   const loop = await ContinuousHuntLoop.start({
     huntId,
     target: cleanTarget,
+    userId,
     deps: {
       dataDir: deps.dataDir,
       tallyService,

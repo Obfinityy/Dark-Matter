@@ -309,31 +309,47 @@ export function createMongoBrainLinkStore({ database = null, filePath = DEFAULT_
   }
 
   /**
-   * One-time migration: if Mongo has no document for the user but the file
-   * store does, import the file's slots into Mongo. Best-effort, never throws.
+   * One-time migration: when Mongo recovers, merge the file store's slots
+   * into Mongo with newest-updatedAt winning per slot. The old code skipped
+   * entirely when Mongo had ANY document — so slots written to the file
+   * while Mongo was down were orphaned (split-brain). File entries are
+   * re-encrypted with the current key before storage. Best-effort, never throws.
    */
   async function maybeMigrate(coll, userId) {
     try {
-      const existing = await coll.findOne({ userId });
-      if (existing && existing.slots && Object.keys(existing.slots).length > 0) return;
       const fileLinks = fallback.getLinks(userId);
-      const entries = Object.entries(fileLinks);
-      if (entries.length === 0) return;
-      const changes = buildSlotChanges(
-        key,
-        Object.fromEntries(entries.map(([slot, { url, name }]) => [slot, { url, name }]))
-      );
-      const slots = {};
-      for (const [slot, change] of Object.entries(changes)) {
-        if (change !== null) slots[slot] = change;
+      const fileEntries = Object.entries(fileLinks);
+      if (fileEntries.length === 0) return;
+      const existing = await coll.findOne({ userId });
+      const mongoSlots = existing?.slots || {};
+      // Merge: per slot, the entry with the newest updatedAt wins. A slot
+      // present only in the file is adopted; a slot deleted from the file
+      // (absent) is left alone — deletion sync is handled by setLinks.
+      const merged = { ...mongoSlots };
+      let changed = 0;
+      for (const [slot, fileEntry] of fileEntries) {
+        if (!VALID_BRAIN_SLOTS.includes(slot)) continue;
+        const mongoEntry = mongoSlots[slot];
+        const fileTime = fileEntry?.updatedAt || '';
+        const mongoTime = mongoEntry?.updatedAt || '';
+        if (!mongoEntry || String(fileTime) > String(mongoTime)) {
+          // Re-encrypt the plaintext URL for Mongo storage, preserving the
+          // file's updatedAt so future merges compare correctly.
+          merged[slot] = {
+            urlEnc: encrypt(key, String(fileEntry.url || '').trim()),
+            name: fileEntry.name || null,
+            updatedAt: fileEntry.updatedAt || new Date().toISOString(),
+          };
+          changed += 1;
+        }
       }
-      if (Object.keys(slots).length === 0) return;
+      if (changed === 0) return;
       await coll.updateOne(
         { userId },
-        { $set: { slots, updatedAt: new Date().toISOString() } },
+        { $set: { slots: merged, updatedAt: new Date().toISOString() } },
         { upsert: true }
       );
-      console.warn(`[brain-links] migrated ${Object.keys(slots).length} slot(s) for a user into Mongo`);
+      console.warn(`[brain-links] merged ${changed} file slot(s) into Mongo for a user on recovery`);
     } catch {
       // Best-effort migration — a later read retries it.
     }

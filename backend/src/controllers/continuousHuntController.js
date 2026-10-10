@@ -138,6 +138,28 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
     });
   }
 
+  /**
+   * Ownership gate: resolve the loop and verify the caller owns it.
+   * Returns the loop, or sends a 404 and returns null. A 404 (not 403) is
+   * used for foreign hunts so one user cannot probe another user's hunt IDs.
+   * Loops created before ownership was recorded (no userId on state) are
+   * allowed through — they predate the check and cannot be attributed.
+   */
+  async function requireOwnedLoop(request, response, huntId) {
+    const loop = await getLoop(huntId);
+    if (!loop) {
+      notFound(response, huntId);
+      return null;
+    }
+    const ownerId = loop.state?.userId || null;
+    const callerId = request.user?.id ? String(request.user.id) : null;
+    if (ownerId && callerId !== ownerId) {
+      notFound(response, huntId);
+      return null;
+    }
+    return loop;
+  }
+
   return {
     /**
      * POST /api/v1/hunts/:id/report-snapshot — PDF from current findings.
@@ -146,8 +168,8 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
      */
     reportSnapshot: asyncHandler(async (request, response) => {
       const huntId = String(request.params.id || '');
-      const loop = await getLoop(huntId);
-      if (!loop) return notFound(response, huntId);
+      const loop = await requireOwnedLoop(request, response, huntId);
+      if (!loop) return;
 
       // Read-only inputs: the live report file (written incrementally by the
       // hunt) plus the loop's own persisted findings as fallback.
@@ -198,8 +220,8 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
     /** GET /api/v1/hunts/:id/tally — current severity tally. */
     tally: asyncHandler(async (request, response) => {
       const huntId = String(request.params.id || '');
-      const loop = await getLoop(huntId);
-      if (!loop) return notFound(response, huntId);
+      const loop = await requireOwnedLoop(request, response, huntId);
+      if (!loop) return;
       const snap = loop.snapshot();
       return response.json({
         ok: true,
@@ -214,8 +236,8 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
     /** POST /api/v1/hunts/:id/pause */
     pause: asyncHandler(async (request, response) => {
       const huntId = String(request.params.id || '');
-      const loop = await getLoop(huntId);
-      if (!loop) return notFound(response, huntId);
+      const loop = await requireOwnedLoop(request, response, huntId);
+      if (!loop) return;
       const result = await loop.pause();
       return response.json({ ok: true, huntId, ...result });
     }),
@@ -223,8 +245,8 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
     /** POST /api/v1/hunts/:id/resume */
     resume: asyncHandler(async (request, response) => {
       const huntId = String(request.params.id || '');
-      const loop = await getLoop(huntId);
-      if (!loop) return notFound(response, huntId);
+      const loop = await requireOwnedLoop(request, response, huntId);
+      if (!loop) return;
       const result = await loop.resume();
       return response.json({ ok: true, huntId, ...result });
     }),
@@ -235,8 +257,8 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
      */
     forceStop: asyncHandler(async (request, response) => {
       const huntId = String(request.params.id || '');
-      const loop = await getLoop(huntId);
-      if (!loop) return notFound(response, huntId);
+      const loop = await requireOwnedLoop(request, response, huntId);
+      if (!loop) return;
       if (request.body?.confirmed !== true) {
         return response.status(400).json({
           error: {
@@ -278,6 +300,7 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
         const { huntId, loop } = await startHunt({
           target,
           executor: request.body?.executor || 'local',
+          userId: request.user?.id || null,
           deps: { dataDir, planner },
           logger,
         });
@@ -309,8 +332,8 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
      */
     events: asyncHandler(async (request, response) => {
       const huntId = String(request.params.id || '');
-      const loop = (await getLiveLoop(huntId, { dataDir, logger })) || (await getLoop(huntId));
-      if (!loop) return notFound(response, huntId);
+      const loop = await requireOwnedLoop(request, response, huntId);
+      if (!loop) return;
 
       response.status(200).set({
         'Content-Type': 'text/event-stream',
@@ -376,6 +399,9 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
           error: { code: 'MISSING_MESSAGE', message: 'message is required' },
         });
       }
+      // Ownership: chatting with a hunt leaks its findings and think-aloud.
+      const loop = await requireOwnedLoop(request, response, huntId);
+      if (!loop) return;
       try {
         const result = await answerChat(huntId, message, {
           dataDir,

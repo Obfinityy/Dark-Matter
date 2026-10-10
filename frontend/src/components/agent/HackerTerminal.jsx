@@ -12,7 +12,7 @@
  *   fetchActivity    — (jobId) => Promise<{activity: [...]}>
  *   fetchHistory     — (jobId, {after}) => Promise<{events: [...]}>  (backfill on reconnect)
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { TerminalSquare, ArrowDown } from 'lucide-react';
 import { subscribeToJobEvents, getJobActivity, getJobEventHistory } from '../../services/api';
 import './HackerTerminal.polish.css';
@@ -173,13 +173,13 @@ export function HackerTerminal({
     <div className="dm-terminal-wrap">
       <div className="dm-terminal-head">
         <TerminalSquare size={15} aria-hidden="true" />
-        <span className="dm-terminal-title">live hunt terminal</span>
+        <span className="dm-terminal-title">Live hunt terminal</span>
         <span className={`dm-term-conn ${connected ? 'on' : 'off'}`} aria-live="polite">
-          {connected ? '● live' : '○ reconnecting'}
+          {connected ? '● Live' : '○ Reconnecting'}
         </span>
         {!autoScroll && (
           <button className="dm-term-follow" onClick={() => setAutoScroll(true)}>
-            <ArrowDown size={14} aria-hidden="true" /> follow latest
+            <ArrowDown size={14} aria-hidden="true" /> Follow latest
           </button>
         )}
       </div>
@@ -193,7 +193,7 @@ export function HackerTerminal({
         aria-live="off"
         tabIndex={0}
       >
-        {lines.length === 0 && <div className="dm-term-empty">waiting for the agent to speak…</div>}
+        {lines.length === 0 && <div className="dm-term-empty">Waiting for the agent to speak…</div>}
         {lines.map(line => {
           const when = line.at ? new Date(line.at) : null;
           const valid = when instanceof Date && !Number.isNaN(when.getTime());

@@ -90,20 +90,20 @@ export function createBrainChatService({ modelRunnerService }) {
   /**
    * Chat with a brain. Dynamic — no pre-defined replies.
    */
-  async function chatWithBrain(chatId, brainSlot, userMessage, context = {}) {
+  async function chatWithBrain(userId, chatId, brainSlot, userMessage, context = {}) {
     if (!userMessage?.trim()) {
       throw new Error('Message is required');
     }
 
-    // 1. Load this chat's memory
-    const memory = loadMemory(chatId);
+    // 1. Load this user's chat memory (namespaced per user)
+    const memory = loadMemory(userId, chatId);
 
     // 2. Merge fresh context
     const mergedContext = { ...memory.context, ...context };
 
     // 3. Build messages: system + recent history + new user message
     const systemPrompt = buildSystemPrompt(brainSlot, mergedContext);
-    const history = getRecentMessages(chatId, 20).map(m => ({ role: m.role, content: m.content }));
+    const history = getRecentMessages(userId, chatId, 20).map(m => ({ role: m.role, content: m.content }));
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -112,7 +112,7 @@ export function createBrainChatService({ modelRunnerService }) {
     ];
 
     // 4. Save user message to memory
-    appendMessage(chatId, 'user', userMessage);
+    appendMessage(userId, chatId, 'user', userMessage);
 
     // 5. Get dynamic reply from the brain
     let reply;
@@ -126,7 +126,7 @@ export function createBrainChatService({ modelRunnerService }) {
     }
 
     // 6. Save brain's reply to memory
-    appendMessage(chatId, 'assistant', reply, { brain: brainSlot });
+    appendMessage(userId, chatId, 'assistant', reply, { brain: brainSlot });
 
     return { reply, chatId, brain: brainSlot };
   }

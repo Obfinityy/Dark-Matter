@@ -26,6 +26,7 @@ const CREW_ID_BYTES = 6; // 12 hex chars
 /**
  * @typedef {object} CrewMember
  * @property {string} id            `crew_` + 12 hex chars
+ * @property {string} userId        Owner's user id (multi-user isolation)
  * @property {string} name          Display name (1-60 chars)
  * @property {string} role          Short role description (1-120 chars)
  * @property {string} instructions  System-level instructions (may be empty)
@@ -44,6 +45,20 @@ export class CrewService {
   constructor(opts = {}) {
     this.dataDir = opts.dataDir ? path.resolve(opts.dataDir) : DEFAULT_DATA_DIR;
     this.filePath = path.join(this.dataDir, 'crews.json');
+    // In-process mutex: serializes read-modify-write cycles so concurrent
+    // create/update/delete calls cannot lose updates.
+    this._mutex = Promise.resolve();
+  }
+
+  /**
+   * Run fn exclusively after all previously queued mutations.
+   * @private
+   */
+  _withLock(fn) {
+    const run = this._mutex.then(fn);
+    // Swallow errors in the chain so a failed mutation does not block later ones.
+    this._mutex = run.catch(() => {});
+    return run;
   }
 
   // ---------------------------------------------------------------- internals
@@ -112,124 +127,145 @@ export class CrewService {
 
   // ------------------------------------------------------------------ CRUD
 
-  /** @returns {Promise<CrewMember[]>} All crew members, oldest first. */
-  async list() {
+  /**
+   * @param {string} userId Owner of the crew member.
+   * @returns {Promise<CrewMember[]>} The owner's crew members, oldest first.
+   */
+  async list(userId) {
     const crews = await this._readStore();
-    return Object.values(crews).sort((a, b) =>
-      a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
-    );
+    return Object.values(crews)
+      .filter(crew => crew.userId === userId)
+      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
   }
 
   /**
+   * @param {string} userId Owner of the crew member.
    * @param {string} id
-   * @returns {Promise<CrewMember|null>} The crew member, or null if not found.
+   * @returns {Promise<CrewMember|null>} The crew member, or null if not found or not owned.
    */
-  async get(id) {
+  async get(userId, id) {
     if (!id) return null;
     const crews = await this._readStore();
-    return crews[id] ?? null;
+    const crew = crews[id] ?? null;
+    // Records without a matching userId are invisible (multi-user isolation).
+    if (!crew || crew.userId !== userId) return null;
+    return crew;
   }
 
   /**
+   * @param {string} userId Owner of the crew member.
    * @param {{ name: string, role: string, instructions?: string, toolsAllowed?: string[] }} input
    * @returns {Promise<CrewMember>} The created crew member.
    */
-  async create(input) {
-    const validated = this._validateCreate(input || {});
-    const crews = await this._readStore();
-    const id = this._newId();
-    const now = new Date().toISOString();
-    const crew = {
-      id,
-      name: validated.name,
-      role: validated.role,
-      instructions: validated.instructions,
-      toolsAllowed: validated.toolsAllowed,
-      workspacePath: path.join(this.dataDir, 'workspace', id),
-      status: 'idle',
-      createdAt: now,
-      updatedAt: now,
-    };
-    crews[id] = crew;
-    await this._writeStore(crews);
-    return { ...crew };
+  async create(userId, input) {
+    return this._withLock(async () => {
+      const validated = this._validateCreate(input || {});
+      const crews = await this._readStore();
+      const id = this._newId();
+      const now = new Date().toISOString();
+      const crew = {
+        id,
+        userId,
+        name: validated.name,
+        role: validated.role,
+        instructions: validated.instructions,
+        toolsAllowed: validated.toolsAllowed,
+        workspacePath: path.join(this.dataDir, 'workspace', id),
+        status: 'idle',
+        createdAt: now,
+        updatedAt: now,
+      };
+      crews[id] = crew;
+      await this._writeStore(crews);
+      return { ...crew };
+    });
   }
 
   /**
    * Only name / role / instructions / toolsAllowed may be patched.
+   * @param {string} userId Owner of the crew member.
    * @param {string} id
    * @param {{ name?: string, role?: string, instructions?: string, toolsAllowed?: string[] }} patch
-   * @returns {Promise<CrewMember|null>} Updated member, or null if not found.
+   * @returns {Promise<CrewMember|null>} Updated member, or null if not found or not owned.
    */
-  async update(id, patch) {
-    const crews = await this._readStore();
-    const crew = crews[id];
-    if (!crew) return null;
+  async update(userId, id, patch) {
+    return this._withLock(async () => {
+      const crews = await this._readStore();
+      const crew = crews[id];
+      if (!crew || crew.userId !== userId) return null;
 
-    const next = { ...crew };
-    if (patch.name !== undefined) {
-      if (
-        typeof patch.name !== 'string' ||
-        patch.name.trim().length === 0 ||
-        patch.name.length > 60
-      ) {
-        throw new Error('Crew name must be 1-60 characters.');
+      const next = { ...crew };
+      if (patch.name !== undefined) {
+        if (
+          typeof patch.name !== 'string' ||
+          patch.name.trim().length === 0 ||
+          patch.name.length > 60
+        ) {
+          throw new Error('Crew name must be 1-60 characters.');
+        }
+        next.name = patch.name.trim();
       }
-      next.name = patch.name.trim();
-    }
-    if (patch.role !== undefined) {
-      if (
-        typeof patch.role !== 'string' ||
-        patch.role.trim().length === 0 ||
-        patch.role.length > 120
-      ) {
-        throw new Error('Crew role must be 1-120 characters.');
+      if (patch.role !== undefined) {
+        if (
+          typeof patch.role !== 'string' ||
+          patch.role.trim().length === 0 ||
+          patch.role.length > 120
+        ) {
+          throw new Error('Crew role must be 1-120 characters.');
+        }
+        next.role = patch.role.trim();
       }
-      next.role = patch.role.trim();
-    }
-    if (patch.instructions !== undefined) {
-      if (typeof patch.instructions !== 'string') {
-        throw new Error('Crew instructions must be a string.');
+      if (patch.instructions !== undefined) {
+        if (typeof patch.instructions !== 'string') {
+          throw new Error('Crew instructions must be a string.');
+        }
+        next.instructions = patch.instructions;
       }
-      next.instructions = patch.instructions;
-    }
-    if (patch.toolsAllowed !== undefined) {
-      next.toolsAllowed = this._validateTools(patch.toolsAllowed);
-    }
-    next.updatedAt = new Date().toISOString();
-    crews[id] = next;
-    await this._writeStore(crews);
-    return { ...next };
+      if (patch.toolsAllowed !== undefined) {
+        next.toolsAllowed = this._validateTools(patch.toolsAllowed);
+      }
+      next.updatedAt = new Date().toISOString();
+      crews[id] = next;
+      await this._writeStore(crews);
+      return { ...next };
+    });
   }
 
   /**
+   * @param {string} userId Owner of the crew member.
    * @param {string} id
    * @returns {Promise<boolean>} True if a member was removed.
    */
-  async remove(id) {
-    const crews = await this._readStore();
-    if (!crews[id]) return false;
-    delete crews[id];
-    await this._writeStore(crews);
-    return true;
+  async remove(userId, id) {
+    return this._withLock(async () => {
+      const crews = await this._readStore();
+      const crew = crews[id];
+      if (!crew || crew.userId !== userId) return false;
+      delete crews[id];
+      await this._writeStore(crews);
+      return true;
+    });
   }
 
   /**
+   * @param {string} userId Owner of the crew member.
    * @param {string} id
    * @param {'idle'|'running'|'waiting_brain'} status
-   * @returns {Promise<CrewMember|null>} Updated member, or null if not found.
+   * @returns {Promise<CrewMember|null>} Updated member, or null if not found or not owned.
    */
-  async setStatus(id, status) {
+  async setStatus(userId, id, status) {
     if (!CREW_STATUSES.includes(status)) {
       throw new Error(`Unknown status "${status}". Allowed: ${CREW_STATUSES.join(', ')}.`);
     }
-    const crews = await this._readStore();
-    const crew = crews[id];
-    if (!crew) return null;
-    crew.status = status;
-    crew.updatedAt = new Date().toISOString();
-    await this._writeStore(crews);
-    return { ...crew };
+    return this._withLock(async () => {
+      const crews = await this._readStore();
+      const crew = crews[id];
+      if (!crew || crew.userId !== userId) return null;
+      crew.status = status;
+      crew.updatedAt = new Date().toISOString();
+      await this._writeStore(crews);
+      return { ...crew };
+    });
   }
 }
 

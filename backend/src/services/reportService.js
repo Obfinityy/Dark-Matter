@@ -105,6 +105,7 @@ export class ReportService {
         id: finding.id,
         title: finding.title,
         severity: finding.severity,
+        cvss: finding.cvss ?? null,
         confidence: finding.confidence,
         status: finding.status,
         category: finding.category,
@@ -484,18 +485,28 @@ The local language model assisted with hypothesis generation and triage; all con
     return {
       markdown: this.renderFullReport(findings, base),
       findingCount: findings.length,
-      severityCounts: base.severityCounts,
+      // generate() exposes counts via findingsSummary (not severityCounts).
+      severityCounts: base.findingsSummary
+        ? {
+            critical: base.findingsSummary.critical || 0,
+            high: base.findingsSummary.high || 0,
+            medium: base.findingsSummary.medium || 0,
+            low: base.findingsSummary.low || 0,
+            informational: base.findingsSummary.informational || 0,
+          }
+        : undefined,
     };
   }
 
   /** Render one finding as a standalone bounty-submission report. */
   renderFindingReport(f, base, standalone = false) {
     const lines = [];
+    const target = base.scope?.included?.[0] || 'n/a';
     if (standalone) {
       lines.push(`# ${f.title}`);
       lines.push(``);
       lines.push(
-        `**Target:** ${base.target || 'n/a'} | **Date:** ${new Date().toISOString().slice(0, 10)}`
+        `**Target:** ${target} | **Date:** ${new Date().toISOString().slice(0, 10)}`
       );
       lines.push(``);
     } else {
@@ -555,10 +566,19 @@ The local language model assisted with hypothesis generation and triage; all con
   /** Render the full combined report. */
   renderFullReport(findings, base) {
     const lines = [];
+    // generate() stores the target in scope.included (not base.target).
+    const target = base.scope?.included?.[0] || 'n/a';
+    // Severity counts live in findingsSummary (not base.severityCounts).
+    // Only the severity keys belong in the breakdown table.
+    const SEVERITIES = ['critical', 'high', 'medium', 'low', 'informational'];
+    const summary = base.findingsSummary || {};
+    const severityCounts = Object.fromEntries(
+      SEVERITIES.map(sev => [sev, summary[sev] || 0])
+    );
 
     lines.push(`# Security Assessment Report`);
     lines.push(``);
-    lines.push(`**Target:** ${base.target || 'n/a'}`);
+    lines.push(`**Target:** ${target}`);
     lines.push(`**Assessment ID:** ${base.assessmentId || 'n/a'}`);
     lines.push(`**Generated:** ${new Date().toISOString()}`);
     lines.push(`**Methodology:** Autonomous assessment (Dark-Matter agent)`);
@@ -571,7 +591,7 @@ The local language model assisted with hypothesis generation and triage; all con
     lines.push(``);
     lines.push(`| Severity | Count |`);
     lines.push(`|----------|-------|`);
-    for (const [sev, count] of Object.entries(base.severityCounts || {})) {
+    for (const [sev, count] of Object.entries(severityCounts)) {
       lines.push(`| ${sev} | ${count} |`);
     }
     lines.push(``);
@@ -615,7 +635,7 @@ The local language model assisted with hypothesis generation and triage; all con
     lines.push(`## Methodology Notes`);
     lines.push(``);
     lines.push(`- Assessment performed by an autonomous agent under explicit user authorization.`);
-    lines.push(`- Scope: ${(base.scope?.included || []).join(', ') || base.target || 'n/a'}`);
+    lines.push(`- Scope: ${(base.scope?.included || []).join(', ') || target || 'n/a'}`);
     lines.push(
       `- All findings are backed by stored evidence; unvalidated observations are excluded.`
     );

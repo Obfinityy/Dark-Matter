@@ -34,6 +34,11 @@ function atOf(item) {
  * the diary degrades gracefully when a model is not wired (tests, partial
  * deployments) instead of crashing the endpoint.
  *
+ * Filtering contract: list() is called with { jobId, userId } so sources
+ * return only this job's data. Callers may pass pre-scoped adapters (as
+ * jobController does), but the filter argument makes the intent explicit
+ * and protects future callers from cross-job leakage.
+ *
  * @param {object} sources { activityModel, reasoningCycleModel, computerActionModel, findingModel, evidenceModel }
  */
 export async function buildDiary(sources = {}, userId, jobId) {
@@ -41,10 +46,11 @@ export async function buildDiary(sources = {}, userId, jobId) {
   const push = entry => {
     if (entry && entry.title) entries.push({ detail: null, ...entry });
   };
+  const filter = { jobId, userId };
 
   // 1. Job activity log — the worker's own running commentary.
   try {
-    const activity = await sources.activityModel?.list?.();
+    const activity = await sources.activityModel?.list?.(filter);
     for (const item of activity || []) {
       push({
         at: atOf(item),
@@ -103,7 +109,7 @@ export async function buildDiary(sources = {}, userId, jobId) {
 
   // 4. Findings — confirmed vulnerabilities, critical first in spirit.
   try {
-    const findings = await sources.findingModel?.list?.();
+    const findings = await sources.findingModel?.list?.(filter);
     for (const finding of sortFindingsCriticalFirst(findings || [])) {
       push({
         at: atOf(finding),

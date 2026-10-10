@@ -59,11 +59,13 @@ function kineticLetters(text) {
   ));
 }
 
-export function Login() {
+export function Login({ initialMode } = {}) {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mode, setMode] = useState('login');
+  // Map route-level initialMode ("signin"/"signup") to internal mode ("login"/"register").
+  const resolveMode = m => (m === 'signup' || m === 'register' ? 'register' : 'login');
+  const [mode, setMode] = useState(() => resolveMode(initialMode));
   const [loginId, setLoginId] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');

@@ -39,6 +39,7 @@ import { ScopeEngine } from './agent/scopeEngine.js';
 import { ToolExecutor } from './tools/executor.js';
 import { attachAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { createRateLimiter } from './middleware/rateLimiter.js';
 import { createAgentController } from './controllers/agentController.js';
 import { createAuthController } from './controllers/authController.js';
 import { agentInfo, health, localAiHealth, directChat } from './controllers/healthController.js';
@@ -576,6 +577,9 @@ export async function createApp({ database } = {}) {
 
   app.use(
     '/api/v1',
+    // General API rate limit from config (RATE_LIMIT_MAX, default 120/min/IP).
+    // Auth endpoints carry their own stricter limiter in routes/index.js.
+    createRateLimiter({ max: config.rateLimitMax }),
     createRoutes({
       controllers: {
         health: { health, agentInfo, localAiHealth, directChat },

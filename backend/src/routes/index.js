@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../core/utils.js';
+import { authRateLimiter } from '../middleware/rateLimiter.js';
 
 /**
  * Creates routes.
@@ -17,9 +18,9 @@ export function createRoutes({ controllers }) {
   const router = Router();
   router.get('/health', controllers.health.health);
   router.get('/health/local-ai', controllers.health.localAiHealth);
-  router.post('/auth/register', controllers.auth.register);
-  router.post('/auth/login', controllers.auth.login);
-  router.post('/auth/recover', controllers.auth.recover);
+  router.post('/auth/register', authRateLimiter, controllers.auth.register);
+  router.post('/auth/login', authRateLimiter, controllers.auth.login);
+  router.post('/auth/recover', authRateLimiter, controllers.auth.recover);
 
   // ─── Dark Matter Engine one-click launcher (PUBLIC — the user downloads
   // this before they have any local backend running) ─────────────────────

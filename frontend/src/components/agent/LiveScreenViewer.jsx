@@ -23,7 +23,7 @@
  *   assessmentId — the authorized assessment to watch
  *   subscribe    — (assessmentId, handlers) => unsubscribe (SSE)
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Monitor, Pause, Play, Camera } from 'lucide-react';
 import { takeComputerScreenshot, pauseComputer, resumeComputer } from '../../services/api';
 import { isLocalBackend } from '../../services/backendMode';
@@ -69,32 +69,13 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const timerRef = useRef(null);
+  const failCount = useRef(0);
 
   // Live screen only makes sense when the backend IS the user's machine
   // (VITE_BACKEND_URL unset → localhost:4000). On a remote backend, the
   // server's screen is meaningless to the user (remote viewing comes later —
   // see TODO at top of file).
   const localBackend = isLocalBackend();
-
-  if (!localBackend) {
-    return (
-      <div className="dm-screen-viewer" role="region" aria-label="Live screen viewer">
-        <div className="dm-screen-head">
-          <Monitor size={15} aria-hidden="true" />
-          <h2 className="dm-screen-title">live screen</h2>
-        </div>
-        <div className="dm-screen-empty">
-          🖥️ Live screen needs the <strong>local backend</strong> — remove{' '}
-          <code>VITE_BACKEND_URL</code> from <code>.env</code> and run <code>npm start</code> in{' '}
-          <code>backend/</code> to watch the agent on your own machine.
-          <br />
-          <span className="dm-screen-footnote">(Remote screen viewing comes later.)</span>
-        </div>
-      </div>
-    );
-  }
-
-  const failCount = useRef(0);
 
   const fetchScreenshot = useCallback(async () => {
     if (!assessmentId || paused) return;
@@ -124,14 +105,16 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
 
   // Poll screenshots every 3s while watching (read-only stream).
   useEffect(() => {
+    if (!localBackend) return undefined;
     fetchScreenshot();
     timerRef.current = setInterval(fetchScreenshot, 3000);
     return () => clearInterval(timerRef.current);
-  }, [fetchScreenshot]);
+  }, [fetchScreenshot, localBackend]);
 
   // Listen for computer action events to narrate what the agent is doing.
   useEffect(() => {
-    if (!subscribe || !assessmentId) return;
+    if (!localBackend) return undefined;
+    if (!subscribe || !assessmentId) return undefined;
     const onEvent = event => {
       const t = event.__sseType || event.type || '';
       if (t.startsWith('computer.') || t === 'action' || t === 'observation') {
@@ -149,7 +132,7 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
     };
     const unsub = subscribe(assessmentId, { onEvent });
     return () => unsub?.();
-  }, [subscribe, assessmentId]);
+  }, [subscribe, assessmentId, localBackend]);
 
   const handlePause = async () => {
     try {
@@ -170,13 +153,33 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
     }
   };
 
+  // Remote-backend fallback: a plain conditional render AFTER all hooks —
+  // hooks must never sit below an early return (Rules of Hooks).
+  if (!localBackend) {
+    return (
+      <div className="dm-screen-viewer" role="region" aria-label="Live screen viewer">
+        <div className="dm-screen-head">
+          <Monitor size={15} aria-hidden="true" />
+          <h2 className="dm-screen-title">Live screen</h2>
+        </div>
+        <div className="dm-screen-empty">
+          🖥️ Live screen needs the <strong>local backend</strong> — remove{' '}
+          <code>VITE_BACKEND_URL</code> from <code>.env</code> and run <code>npm start</code> in{' '}
+          <code>backend/</code> to watch the agent on your own machine.
+          <br />
+          <span className="dm-screen-footnote">(Remote screen viewing comes later.)</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dm-screen-viewer" role="region" aria-label="Live screen viewer">
       <div className="dm-screen-head">
         <Monitor size={15} aria-hidden="true" />
-        <h2 className="dm-screen-title">live screen</h2>
+        <h2 className="dm-screen-title">Live screen</h2>
         <span className={`dm-screen-status ${paused ? 'paused' : 'live'}`}>
-          {paused ? '⏸ paused' : '● live'}
+          {paused ? '⏸ Paused' : '● Live'}
         </span>
         <div className="dm-screen-controls">
           {paused ? (
@@ -242,7 +245,7 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
         )}
         {paused && (
           <div className="dm-screen-paused-overlay" role="status">
-            ⏸ computer control paused
+            ⏸ Computer control paused
           </div>
         )}
       </div>
@@ -253,9 +256,9 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
 
       {/* What the agent is doing right now, in plain words. */}
       <div className="dm-screen-actions" role="log" aria-label="What the agent is doing">
-        <div className="dm-screen-actions-title">what the agent is doing</div>
+        <div className="dm-screen-actions-title">What the agent is doing</div>
         {actions.length === 0 ? (
-          <div className="dm-screen-actions-empty">waiting for the agent to act…</div>
+          <div className="dm-screen-actions-empty">Waiting for the agent to act…</div>
         ) : (
           actions
             .slice(-8)

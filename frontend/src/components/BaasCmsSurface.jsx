@@ -106,6 +106,7 @@ export default function BaasCmsSurface() {
         rows={12}
         spellCheck={false}
         placeholder="Paste client JS bundle text here…"
+        aria-label="Client JS bundle text to analyse"
       />
       <p className="w981c-total">{total} config reference{total === 1 ? '' : 's'} detected</p>
       <div className="w981c-grid">

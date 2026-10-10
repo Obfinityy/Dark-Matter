@@ -45,7 +45,8 @@ export function createBrainChatController({ modelRunnerService }) {
       }
 
       try {
-        const result = await brainChat.chatWithBrain(chatId, brain, message, context || {});
+        const userId = request.user?.id || request.user?._id || 'anonymous';
+        const result = await brainChat.chatWithBrain(userId, chatId, brain, message, context || {});
         response.json(result);
       } catch (err) {
         if (err.message?.includes('BRAIN_NOT_RUNNING')) {
@@ -69,26 +70,30 @@ export function createBrainChatController({ modelRunnerService }) {
     }),
 
     /**
-     * GET /api/v1/brain-chat/:chatId/memory — load a chat's memory
+     * GET /api/v1/brain-chat/:chatId/memory — load the caller's chat memory.
+     * Namespaced per user: one user can never read another's chats.
      */
     getMemory: asyncHandler(async (request, response) => {
       const { chatId } = request.params;
-      response.json(loadMemory(chatId));
+      const userId = request.user?.id || request.user?._id || 'anonymous';
+      response.json(loadMemory(userId, chatId));
     }),
 
     /**
-     * DELETE /api/v1/brain-chat/:chatId/memory — clear a chat's memory
+     * DELETE /api/v1/brain-chat/:chatId/memory — clear the caller's chat memory.
      */
     deleteMemory: asyncHandler(async (request, response) => {
       const { chatId } = request.params;
-      response.json({ cleared: clearMemory(chatId) });
+      const userId = request.user?.id || request.user?._id || 'anonymous';
+      response.json({ cleared: clearMemory(userId, chatId) });
     }),
 
     /**
-     * GET /api/v1/brain-chat/list — list all chats with memory
+     * GET /api/v1/brain-chat/list — list the caller's chats with memory.
      */
     list: asyncHandler(async (request, response) => {
-      response.json({ chats: listChats() });
+      const userId = request.user?.id || request.user?._id || 'anonymous';
+      response.json({ chats: listChats(userId) });
     }),
   };
 }

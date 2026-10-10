@@ -136,7 +136,7 @@ export function LinkedHuntPreservation() {
 /** 52587 — Chat transcript archiving */
 export function TranscriptArchiving() {
   const b = AO.archiveChatTranscripts([
-    { role: 'user', text: 'kahan tak pahunche?', at: '2026-06-02' },
+    { role: 'user', text: 'How far along are you?', at: '2026-06-02' },
     { role: 'agent', text: 'Recon complete.', at: '2026-06-02' },
   ]);
   return (

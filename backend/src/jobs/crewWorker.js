@@ -82,7 +82,7 @@ export class CrewWorker {
    * @throws {Error} With message 'Crew not found' when the crew member does not exist.
    */
   async startRun({ crewId, userId, message }) {
-    const crew = await this.crewService.get(crewId);
+    const crew = await this.crewService.get(userId, crewId);
     if (!crew) {
       const err = new Error('Crew not found');
       err.status = 404;
@@ -103,7 +103,7 @@ export class CrewWorker {
     };
     this.runs.set(runId, run);
 
-    await this.crewService.setStatus(crew.id, 'running');
+    await this.crewService.setStatus(userId, crew.id, 'running');
 
     // Fire-and-forget: the loop manages its own lifecycle.
     this._loop(run, crew, String(message ?? '')).catch(err => {
@@ -168,7 +168,7 @@ export class CrewWorker {
       run.status = status;
       if (finalEvent) this._emit(run, finalEvent.type, finalEvent.message, finalEvent.data);
       try {
-        await this.crewService.setStatus(run.crewId, 'idle');
+        await this.crewService.setStatus(run.userId, run.crewId, 'idle');
       } catch (err) {
         this.logger.warn?.(`[crewWorker] could not reset crew status: ${err.message}`);
       }
@@ -189,7 +189,7 @@ export class CrewWorker {
       if (!provider) {
         run.status = 'waiting';
         try {
-          await this.crewService.setStatus(run.crewId, 'waiting_brain');
+          await this.crewService.setStatus(run.userId, run.crewId, 'waiting_brain');
         } catch {
           /* best effort */
         }
@@ -225,7 +225,7 @@ export class CrewWorker {
             );
             run.status = 'waiting';
             try {
-              await this.crewService.setStatus(run.crewId, 'waiting_brain');
+              await this.crewService.setStatus(run.userId, run.crewId, 'waiting_brain');
             } catch {
               /* best effort */
             }
@@ -283,7 +283,7 @@ export class CrewWorker {
         run.status = 'stopped';
         this._emit(run, 'stopped', `${crew.name} was stopped.`);
         try {
-          await this.crewService.setStatus(run.crewId, 'idle');
+          await this.crewService.setStatus(run.userId, run.crewId, 'idle');
         } catch {
           /* best effort */
         }
@@ -293,7 +293,7 @@ export class CrewWorker {
           error: err?.message,
         });
         try {
-          await this.crewService.setStatus(run.crewId, 'idle');
+          await this.crewService.setStatus(run.userId, run.crewId, 'idle');
         } catch {
           /* best effort */
         }
