@@ -25,6 +25,7 @@ import { ReportExport } from '../../components/agent/ReportExport';
 import { CoverageMeter } from '../../components/agent/CoverageMeter';
 import { CvssBadge } from '../../components/agent/CvssBadge';
 import { owaspCoverage } from '../../utils/owaspCoverage';
+import '../../styles/kinetic-data.css';
 import './ReportReader.css';
 
 const SEV_BADGE = {
@@ -191,7 +192,7 @@ function MarkdownBody({ markdown }) {
     );
   }
 
-  return <article className="dm-markdown-body">{blocks}</article>;
+  return <article className="dm-markdown-body kda-prose">{blocks}</article>;
 }
 
 function FindingCard({ recordId, finding }) {
@@ -213,9 +214,9 @@ function FindingCard({ recordId, finding }) {
   };
 
   return (
-    <div className="dm-card dm-finding-card">
+    <div className="dm-card dm-finding-card kda-card">
       <div className="dm-finding-head">
-        <strong className="dm-finding-title">{finding.title || 'Untitled finding'}</strong>
+        <strong className="dm-finding-title kda-card-title">{finding.title || 'Untitled finding'}</strong>
         <CvssBadge finding={finding} />
       </div>
       {finding.cvss?.vector && <code className="dm-finding-vector">{finding.cvss.vector}</code>}
@@ -302,7 +303,7 @@ export function ReportReader() {
 
   if (loading) {
     return (
-      <div className="dm-container">
+      <div className="dm-container kda-page">
         <div className="dm-reader-loading" role="status" aria-live="polite">
           <Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading report…
         </div>
@@ -312,7 +313,7 @@ export function ReportReader() {
 
   if (error || !record) {
     return (
-      <div className="dm-container dm-reader">
+      <div className="dm-container dm-reader kda-page">
         <Link to="/agent/reports" className="dm-btn dm-btn-ghost dm-btn-sm dm-reader-back">
           <ArrowLeft size={14} aria-hidden="true" /> Past reports
         </Link>
@@ -332,9 +333,10 @@ export function ReportReader() {
 
   const findings = Array.isArray(record.findings) ? record.findings : [];
   const coverage = owaspCoverage(findings);
+  const titleWords = String(record.target || 'Report').split(' ');
 
   return (
-    <div className="dm-container dm-reader">
+    <div className="dm-container dm-reader kda-page">
       <Link to="/agent/reports" className="dm-btn dm-btn-ghost dm-btn-sm dm-reader-back">
         <ArrowLeft size={14} aria-hidden="true" /> Past reports
       </Link>
@@ -358,8 +360,17 @@ export function ReportReader() {
         />
       </div>
 
-      <header className="dm-page-head dm-reader-head">
-        <h1 className="dm-reader-title">{record.target}</h1>
+      <header className="dm-page-head dm-reader-head kda-head">
+        <h1 className="dm-reader-title kda-title">
+          {titleWords.map((w, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && ' '}
+              <span className="kda-w" style={{ '--kda-d': `${i * 90}ms` }}>
+                {w}
+              </span>
+            </React.Fragment>
+          ))}
+        </h1>
         <div className="dm-reader-meta">
           <span className="dm-badge">v{record.version || 1}</span>
           {record.completedAt && (
@@ -385,7 +396,7 @@ export function ReportReader() {
       {findings.length > 0 && (
         <section className="dm-section dm-reader-section" aria-labelledby="dm-findings-heading">
           <div className="dm-section-head">
-            <h2 className="dm-section-title" id="dm-findings-heading">
+            <h2 className="dm-section-title kda-sec-title" id="dm-findings-heading">
               Findings ({findings.length})
             </h2>
           </div>
