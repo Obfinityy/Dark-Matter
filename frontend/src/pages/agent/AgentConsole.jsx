@@ -21,6 +21,7 @@ import { PageErrorBoundary } from '../../components/PageErrorBoundary';
 import { Login } from '../Auth/Login';
 import { AgentHome } from './AgentHome';
 import { HuntView } from './HuntView';
+import { ContinuousHuntConsole } from '../../components/hunt/ContinuousHuntConsole';
 import { InfinityAI } from './InfinityAI';
 import { Settings } from './Settings';
 import { Reports } from './Reports';
@@ -110,6 +111,16 @@ export function AgentConsole() {
                 <Page>
                   <PageErrorBoundary pageName="Hunt AI">
                     <HuntView />
+                  </PageErrorBoundary>
+                </Page>
+              }
+            />
+            <Route
+              path="hunt-live/:huntId"
+              element={
+                <Page>
+                  <PageErrorBoundary pageName="Continuous hunt">
+                    <ContinuousHuntConsole />
                   </PageErrorBoundary>
                 </Page>
               }
