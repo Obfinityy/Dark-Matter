@@ -1,6 +1,7 @@
-/* AuthContext.polish.css — infinity polish batch 10.
- * Styles the auth loading gate (ProtectedRoute / PublicRoute): a calm,
- * centered boot state with a token-driven spinner instead of bare text. */
+/* AuthContext.polish.css — infinity polish batch 10 + round-5 refresh.
+ * Styles the auth loading gate (AuthBoot, used by ProtectedRoute /
+ * PublicRoute): a calm, centered brand splash with a token-driven spinner
+ * instead of bare text. */
 
 .dm-boot {
   min-height: 100vh;
@@ -18,17 +19,40 @@
   text-align: center;
 }
 
-.dm-boot::before {
+.dm-boot-logo {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  border-radius: 20px;
+  box-shadow: var(--shadow-glow);
+}
+
+.dm-boot-label {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+/* The spinner sits after the label: emblem → label → spinner, like a
+ * splash screen. It needs an explicit animation — without one the ring
+ * stays frozen. */
+.dm-boot::after {
   content: '';
   width: 44px;
   height: 44px;
   border-radius: 50%;
   border: 3px solid var(--border);
   border-top-color: var(--accent);
+  animation: dm-boot-spin 0.9s linear infinite;
+}
+
+@keyframes dm-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dm-boot::before {
-    animation-duration: 2.4s;
+  .dm-boot::after {
+    animation-duration: 2.4s; /* slow, calm spin instead of a freeze */
   }
 }

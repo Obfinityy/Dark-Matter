@@ -6,7 +6,7 @@
  * `Authorization: Bearer` header by the API client (see services/api.js);
  * the cookie keeps working as a fallback (and authenticates SSE streams).
  */
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import {
   getCurrentUser,
@@ -94,16 +94,28 @@ export function useAuth() {
   return ctx;
 }
 
+/** AuthBoot — shared full-screen loading gate shown while the session is
+ *  being resolved. One component so both route guards paint the same
+ *  branded splash (emblem + spinner + label). */
+function AuthBoot() {
+  return (
+    <div className="dm-boot" role="status" aria-live="polite">
+      <img
+        src="/dark-matter-logo.png"
+        alt=""
+        aria-hidden="true"
+        className="dm-boot-logo"
+      />
+      <span className="dm-boot-label">Loading Dark Matter…</span>
+    </div>
+  );
+}
+
 /** Route guard: signed-in users only. */
 export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading)
-    return (
-      <div className="dm-boot" role="status" aria-live="polite">
-        <span>Loading Dark Matter…</span>
-      </div>
-    );
+  if (loading) return <AuthBoot />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return children;
 }
@@ -112,12 +124,7 @@ export function ProtectedRoute({ children }) {
 export function PublicRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading)
-    return (
-      <div className="dm-boot" role="status" aria-live="polite">
-        <span>Loading Dark Matter…</span>
-      </div>
-    );
+  if (loading) return <AuthBoot />;
   if (user) {
     const from = location.state?.from || '/agent';
     return <Navigate to={from} replace />;
