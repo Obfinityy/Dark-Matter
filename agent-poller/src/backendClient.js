@@ -42,6 +42,15 @@ export function createBackendClient({ backendUrl, token, fetchImpl = fetch }) {
       return out?.jobs || [];
     },
 
+    /**
+     * POST /agent/heartbeat — one-way presence signal so the Hunt console
+     * (GET /api/v1/agent/status) can show whether this agent machine is
+     * connected. The backend never pushes commands in return.
+     */
+    async heartbeat({ pollerId, runner } = {}) {
+      return request('POST', '/agent/heartbeat', { pollerId, runner });
+    },
+
     /** POST /jobs/:id/claim — claim an executor='agent' job. */
     async claimJob(jobId, pollerId) {
       return request('POST', `/jobs/${encodeURIComponent(jobId)}/claim`, { pollerId });

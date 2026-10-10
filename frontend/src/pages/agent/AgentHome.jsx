@@ -123,7 +123,7 @@ export function AgentHome() {
         // Even if the VM isn't ready yet, the console keeps showing the boot
         // indicator and the loop picks up live — never leave the user stuck.
         if (!bootCancelled.current)
-          navigate(`/agent/hunt-live/${huntId}`, { state: { target: clean } });
+          navigate(`/agent/hunt/${huntId}`, { state: { target: clean } });
         return;
       }
       const res = await createJob({
@@ -140,7 +140,7 @@ export function AgentHome() {
       }
       const job = res?.job || res;
       const jobId = job?.id || res?.jobId;
-      if (jobId) navigate(`/agent/hunt/${jobId}`);
+      if (jobId) navigate(`/agent/hunt-job/${jobId}`);
       else setError('The hunt was created but no hunt id came back.');
     } catch (err) {
       setError(err.message || 'Could not start the hunt.');
@@ -507,7 +507,7 @@ export function AgentHome() {
               {jobs.slice(0, 6).map((job, i) => (
                 <Link
                   key={job.id}
-                  to={`/agent/hunt/${job.id}`}
+                  to={`/agent/hunt-job/${job.id}`}
                   className="dm-row khu-row-in"
                   style={{
                     textDecoration: 'none',

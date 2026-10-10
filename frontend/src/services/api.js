@@ -1011,6 +1011,19 @@ export function subscribeToJobEvents(jobId, { onOpen, onEvent, onError, lastEven
 // action — pause/resume freeze and restore the full loop state.
 
 /** Start a continuous hunt. Returns the hunt record (may include VM boot info). */
+/**
+ * Agent presence — is the user's agent machine connected, and which brains
+ * are live? Backed by GET /api/v1/agent/status.
+ * Shape: { connected, lastHeartbeatAt, runner: 'local'|'oracle'|null,
+ *          brains: { vision, hacking, grounding } }.
+ * `brains.grounding` may be the string 'vision-driven' when the grounding
+ * brain is disabled and vision covers grounding — the UI must say so
+ * explicitly instead of leaving a silent dead end.
+ */
+export async function getAgentStatus() {
+  return request('/agent/status');
+}
+
 export function startContinuousHunt({ target, executor } = {}) {
   return request('/hunts', {
     method: 'POST',
@@ -1671,6 +1684,7 @@ export const apiClient = {
   askJob,
   subscribeToJobEvents,
   // Continuous autonomous hunts (issue #298)
+  getAgentStatus,
   startContinuousHunt,
   getHuntState,
   pauseHunt,

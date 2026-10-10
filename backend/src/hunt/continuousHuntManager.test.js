@@ -7,18 +7,46 @@
  */
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { GradioProvider } from '../agent/providers/gradioProvider.js';
 import {
   startHunt,
   getLiveLoop,
   subscribeBus,
   answerChat,
 } from './continuousHuntManager.js';
+import { BRAIN_UNAVAILABLE_REPLY } from '../services/huntChatBrain.js';
 
 const stubDeps = () => ({
   minTickMs: 0,
   planner: null, // no brain in tests — ticks exercise the no-op paths
   toolRunner: null,
   dataDir: `/tmp/chm-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+});
+
+const KAGGLE_SELECTION = {
+  slotSources: {
+    hacker: { source: 'kaggle', kaggleUrl: 'https://abc123.gradio.live', kaggleName: 'Hacker' },
+  },
+  slotAssignments: {},
+};
+
+const brainDepsFor = (selection = KAGGLE_SELECTION) => ({
+  brainProviderModel: { getSelection: async () => selection },
+  modelRunnerService: null,
+});
+
+// Stub the Gradio network layer: no HTTP in tests.
+const origGenerate = GradioProvider.prototype.generate;
+let capturedPrompts = [];
+beforeEach(() => {
+  capturedPrompts = [];
+  GradioProvider.prototype.generate = async function (messages) {
+    capturedPrompts.push(messages);
+    return 'BRAIN SAYS: abhi main target ko samajhne ki koshish kar raha hun.';
+  };
+});
+afterEach(() => {
+  GradioProvider.prototype.generate = origGenerate;
 });
 
 describe('continuousHuntManager', () => {
@@ -68,19 +96,59 @@ describe('continuousHuntManager', () => {
     assert.equal(traces[0].data.text, 'testing the trace bus');
   });
 
-  test('answerChat is grounded in live loop context and does not stop the loop', async () => {
+  test('answerChat is answered by the hacking brain with live loop context; loop keeps running', async () => {
     const { huntId, loop } = await startHunt({ target: 'https://example.com', deps: stubDeps() });
     loops.push(loop);
     const before = loop.snapshot().tick;
-    const result = await answerChat(huntId, 'what are you doing right now?');
+    const result = await answerChat(huntId, 'what are you doing right now?', {
+      userId: 'user_1',
+      brainDeps: brainDepsFor(),
+    });
     assert.ok(result.ok);
-    assert.match(result.answer, /UNDERSTANDING/);
-    assert.match(result.answer, /Findings so far/);
-    assert.match(result.answer, /what are you doing right now/);
+    assert.equal(result.brainUnavailable, false);
+    assert.equal(result.brainSource, 'kaggle');
+    assert.match(result.answer, /BRAIN SAYS/, 'reply carries the brain’s own words');
+    // The live loop context reached the brain inside the prompt.
+    assert.equal(capturedPrompts.length, 1);
+    const prompt = capturedPrompts[0][1].content;
+    assert.ok(prompt.includes('what are you doing right now?'), 'question in prompt');
+    assert.ok(prompt.includes('UNDERSTANDING'), 'live loop state in prompt');
+    assert.ok(prompt.includes('https://example.com'), 'target in prompt');
     assert.equal(result.context.tally.total, 0);
     const after = loop.snapshot();
     assert.notEqual(after.state, 'FORCE_STOPPED', 'chat must never stop the loop');
     assert.ok(after.tick >= before);
+  });
+
+  test('answerChat with unreachable brain → honest message, never a template', async () => {
+    GradioProvider.prototype.generate = async () => {
+      throw new Error('Gradio link expired');
+    };
+    const { huntId, loop } = await startHunt({ target: 'https://example.com', deps: stubDeps() });
+    loops.push(loop);
+    const result = await answerChat(huntId, 'kya mila?', {
+      userId: 'user_1',
+      brainDeps: brainDepsFor(),
+    });
+    assert.ok(result.ok);
+    assert.equal(result.brainUnavailable, true);
+    assert.equal(result.answer, BRAIN_UNAVAILABLE_REPLY);
+    assert.doesNotMatch(result.answer, /Findings so far/);
+    assert.doesNotMatch(result.answer, /Abhi phase/);
+    const after = loop.snapshot();
+    assert.notEqual(after.state, 'FORCE_STOPPED', 'chat must never stop the loop');
+  });
+
+  test('answerChat with no brain configured → honest message', async () => {
+    const { huntId, loop } = await startHunt({ target: 'https://example.com', deps: stubDeps() });
+    loops.push(loop);
+    const result = await answerChat(huntId, 'status?', {
+      userId: 'user_1',
+      brainDeps: brainDepsFor({ slotSources: {}, slotAssignments: {} }),
+    });
+    assert.ok(result.ok);
+    assert.equal(result.brainUnavailable, true);
+    assert.equal(result.answer, BRAIN_UNAVAILABLE_REPLY);
   });
 
   test('answerChat on unknown hunt throws', async () => {

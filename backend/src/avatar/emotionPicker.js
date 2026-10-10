@@ -108,7 +108,7 @@ const INTENT_RULES = {
 /**
  * Pick an emotion from a detected intent when no keyword matched.
  *
- * @param {string|null|undefined} intent - intent key (see askAgentService intents)
+ * @param {string|null|undefined} intent - intent key (e.g. 'brain', 'brain_unavailable')
  * @param {{ hasFindings?: boolean }} [options]
  * @returns {string} one of EMOTIONS
  */
