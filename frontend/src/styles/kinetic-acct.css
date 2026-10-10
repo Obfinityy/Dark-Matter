@@ -1,0 +1,1083 @@
+/**
+ * kinetic-acct.css — Kinetic-type theme for the auth + account-area lane.
+ *
+ * Issue #292 ("Redesign: kinetic-type theme across the frontend"), lane: auth +
+ * account area. Owned pages: Login (serves /login AND /register), Account,
+ * Premium, Settings, NotFound, plus CSS-only accents for the legal pages
+ * (Privacy Policy / Terms & Conditions, whose markup lives in App.jsx and is
+ * therefore styled here without touching it).
+ *
+ * Conventions:
+ *  - EVERY new class is namespaced `kac-`. No bare-element selectors; legal-page
+ *    overrides are scoped to the existing `.legal-page*` classes they target.
+ *  - Original CSS only — no copied keyframes or rules from other sources.
+ *  - Kinetic language for this lane: staggered letter reveals on page titles
+ *    (`.kac-ch`), a gentle weight settle on section headings, calm body text,
+ *    staggered card entrances via `--kac-i` delay steps.
+ *  - All motion is disabled under `@media (prefers-reduced-motion: reduce)`.
+ *  - Tap targets are >= 44px; forms go single-column on narrow screens.
+ *
+ * Tokens come from styles/variables.css (`--sg-*` primitives).
+ */
+
+/* ════════════════════════ 1. Kinetic primitives ════════════════════════ */
+
+@keyframes kac-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Letter reveal: letters climb in one by one, thickening as they land. */
+@keyframes kac-ch {
+  from {
+    opacity: 0;
+    transform: translateY(0.42em) rotate(3deg);
+    font-weight: 560;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+    font-weight: 800;
+  }
+}
+
+/* Gentle weight settle for section headings (calm, not bouncy). */
+@keyframes kac-settle {
+  from {
+    font-weight: 620;
+    letter-spacing: 0.012em;
+  }
+  to {
+    font-weight: 760;
+    letter-spacing: -0.008em;
+  }
+}
+
+/* Staggered entrance wrapper. Set `--kac-i` (0, 1, 2 …) on the element for
+ * the stagger step; each step is 90ms. */
+.kac-in {
+  animation: kac-rise 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: calc(var(--kac-i, 0) * 90ms);
+}
+
+/* Page title with kinetic letter reveal. Markup pattern:
+ *   <h1 className="kac-title" aria-label="Account">
+ *     {kineticWordSpans('Account')}   // .kac-word > .kac-ch spans, aria-hidden
+ *   </h1>
+ * Screen readers hear the aria-label once; sighted users get the stagger. */
+.kac-title {
+  margin: 0 0 10px;
+  font-family: var(--sg-font);
+  font-size: clamp(2rem, 4.6vw, 2.9rem);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--sg-text);
+}
+.kac-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+.kac-ch {
+  display: inline-block;
+  animation: kac-ch 0.62s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: calc(var(--kac-i, 0) * 34ms);
+}
+
+/* Small caps eyebrow above brand / page titles. */
+.kac-eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--sg-accent-2);
+}
+
+/* Calm supporting copy — no motion, comfortable measure. */
+.kac-sub {
+  margin: 0;
+  max-width: 56ch;
+  font-size: clamp(0.95rem, 1.6vw, 1.06rem);
+  line-height: 1.6;
+  color: var(--sg-text-2);
+}
+.kac-body {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--sg-text-2);
+  max-width: 62ch;
+}
+.kac-body:last-child {
+  margin-bottom: 0;
+}
+.kac-muted {
+  color: var(--sg-text-2);
+}
+.kac-strong {
+  color: var(--sg-text);
+}
+
+/* ════════════════════════ 2. Shared controls ════════════════════════ */
+
+.kac-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-family: var(--sg-font);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.kac-btn:focus-visible,
+.kac-tab:focus-visible,
+.kac-chip:focus-visible,
+.kac-input:focus-visible,
+.kac-perm:focus-visible,
+.kac-auth-switch button:focus-visible,
+.kac-auth-foot a:focus-visible {
+  outline: 2px solid var(--sg-accent);
+  outline-offset: 2px;
+}
+.kac-btn:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* The ONE obvious primary action — gold, unmissable. */
+.kac-btn-primary {
+  background: var(--sg-accent-gradient);
+  color: #191306;
+  box-shadow: var(--sg-shadow-glow);
+}
+.kac-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    var(--sg-shadow),
+    0 10px 30px rgba(212, 169, 78, 0.28);
+}
+.kac-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Quiet secondary actions. */
+.kac-btn-secondary {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--sg-border);
+  color: var(--sg-text);
+}
+.kac-btn-secondary:hover:not(:disabled) {
+  border-color: var(--sg-border-strong);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Ghost action (404 secondary). */
+.kac-btn-ghost {
+  background: transparent;
+  border-color: var(--sg-border);
+  color: var(--sg-text);
+}
+.kac-btn-ghost:hover:not(:disabled) {
+  border-color: var(--sg-accent);
+  background: rgba(212, 169, 78, 0.07);
+}
+
+/* Destructive actions stay quiet until hovered. */
+.kac-btn-danger-quiet {
+  background: transparent;
+  border-color: rgba(241, 119, 119, 0.32);
+  color: var(--sg-danger);
+}
+.kac-btn-danger-quiet:hover:not(:disabled) {
+  background: rgba(241, 119, 119, 0.09);
+  border-color: rgba(241, 119, 119, 0.6);
+}
+
+.kac-btn-block {
+  width: 100%;
+}
+.kac-btn-lg {
+  min-height: 54px;
+  font-size: 1rem;
+  border-radius: 14px;
+}
+
+/* ── Forms ── */
+.kac-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.kac-label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--sg-text-2);
+}
+.kac-field {
+  position: relative;
+}
+.kac-field-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--sg-muted);
+  pointer-events: none;
+}
+.kac-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 13px 16px 13px 44px;
+  border-radius: 12px;
+  border: 1px solid var(--sg-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sg-text);
+  font-family: var(--sg-font);
+  font-size: 1rem;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.kac-input::placeholder {
+  color: var(--sg-muted);
+}
+.kac-input:hover {
+  border-color: var(--sg-border-strong);
+}
+.kac-input:focus-visible {
+  border-color: var(--sg-accent);
+  background: rgba(255, 255, 255, 0.06);
+}
+.kac-input[aria-invalid='true'] {
+  border-color: var(--sg-danger);
+}
+.kac-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Two-up grid that collapses to one column on mobile. */
+.kac-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Form error — role="alert" in markup (implicit aria-live). */
+.kac-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(241, 119, 119, 0.09);
+  border: 1px solid rgba(241, 119, 119, 0.36);
+  color: #f3b3b3;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.kac-error svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Cards & page scaffolding (account-area pages) ── */
+.kac-page {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 32px) 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.kac-head {
+  margin-bottom: 2px;
+}
+.kac-card {
+  background: var(--sg-surface);
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius-xl);
+  box-shadow: var(--sg-shadow);
+  padding: clamp(20px, 3vw, 30px);
+}
+.kac-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-size: 1.06rem;
+  color: var(--sg-text);
+  animation: kac-settle 0.8s ease both;
+  animation-delay: calc(var(--kac-i, 0) * 90ms + 140ms);
+}
+.kac-h svg {
+  color: var(--sg-accent-2);
+  flex-shrink: 0;
+}
+
+/* ════════════════════════ 3. Auth (Login — /login + /register) ════════════════════════
+ * Calm centered composition: kinetic brand wordmark on top, one centered card
+ * with the mode tabs + form + ONE primary action, quiet links below. */
+
+.kac-auth {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 3.4vh, 30px);
+  padding: clamp(32px, 6vh, 56px) 20px;
+  overflow-x: hidden;
+  background:
+    radial-gradient(720px 420px at 50% -8%, rgba(212, 169, 78, 0.13), transparent 62%),
+    radial-gradient(560px 380px at 88% 92%, rgba(122, 167, 217, 0.06), transparent 60%),
+    var(--sg-bg);
+  color: var(--sg-text);
+  font-family: var(--sg-font);
+}
+.kac-auth-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 210deg at 50% 30%,
+    transparent 0deg,
+    rgba(212, 169, 78, 0.055) 46deg,
+    transparent 96deg
+  );
+  animation: kac-glow 9s ease-in-out infinite alternate;
+}
+@keyframes kac-glow {
+  from {
+    opacity: 0.55;
+    transform: rotate(-2deg) scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(2deg) scale(1.04);
+  }
+}
+
+.kac-auth-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.kac-auth-wordmark {
+  font-size: clamp(2.7rem, 8vw, 4.3rem);
+  margin: 2px 0 0;
+}
+.kac-auth-tagline {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  color: var(--sg-text-2);
+  max-width: 44ch;
+  line-height: 1.55;
+}
+
+.kac-auth-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 462px;
+}
+
+/* Segmented mode tabs — 48px targets, clear active state. */
+.kac-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 22px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--sg-border);
+}
+.kac-tab {
+  flex: 1;
+  min-height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sg-text-2);
+  font-family: var(--sg-font);
+  font-size: 0.93rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.kac-tab:hover {
+  color: var(--sg-text);
+}
+.kac-tab-on {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--sg-text);
+}
+
+/* Quiet secondary switch link under the form. */
+.kac-auth-switch {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--sg-text-2);
+}
+.kac-auth-switch button {
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--sg-accent-2);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kac-auth-switch button:hover {
+  text-decoration: underline;
+}
+
+/* Proof strip — trust content, kept calm and below the fold line of the card. */
+.kac-auth-proofs {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  max-width: 940px;
+}
+.kac-auth-proof {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: var(--sg-radius-lg);
+  border: 1px solid var(--sg-border-light);
+  background: rgba(255, 255, 255, 0.02);
+}
+.kac-auth-proof-icon {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212, 169, 78, 0.1);
+  border: 1px solid rgba(212, 169, 78, 0.26);
+  color: var(--sg-accent-2);
+}
+.kac-auth-proof-title {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--sg-text);
+}
+.kac-auth-proof-text {
+  margin: 0;
+  font-size: 0.83rem;
+  line-height: 1.55;
+  color: var(--sg-text-2);
+}
+
+.kac-auth-foot {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--sg-muted);
+}
+.kac-auth-foot p {
+  margin: 0;
+}
+.kac-auth-foot a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 8px 6px;
+  border-radius: 4px;
+}
+.kac-auth-foot a:hover {
+  color: var(--sg-text-2);
+}
+
+/* ════════════════════════ 4. Account ════════════════════════ */
+
+.kac-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.kac-avatar {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: rgba(212, 169, 78, 0.13);
+  border: 1px solid rgba(212, 169, 78, 0.38);
+  color: var(--sg-accent-2);
+  user-select: none;
+}
+.kac-profile-id {
+  min-width: 0;
+}
+.kac-profile-name {
+  font-size: 1.16rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: var(--sg-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kac-profile-email {
+  font-size: 0.87rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kac-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--sg-border-light);
+}
+.kac-row-label {
+  font-size: 0.87rem;
+  flex-shrink: 0;
+}
+.kac-row-value {
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--sg-text);
+  word-break: break-all;
+  text-align: right;
+}
+.kac-signout {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 6px;
+}
+
+/* ════════════════════════ 5. Premium (Infinity Credits top-up) ════════════════════════ */
+
+.kac-prem-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.kac-prem-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212, 169, 78, 0.12);
+  border: 1px solid rgba(212, 169, 78, 0.34);
+  color: var(--sg-accent-2);
+}
+.kac-prem-label {
+  margin: 0 0 2px;
+  font-size: 0.85rem;
+}
+.kac-prem-value {
+  margin: 2px 0 0;
+  font-size: clamp(2rem, 6vw, 2.7rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--sg-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.kac-prem-note {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--sg-text-2);
+}
+.kac-prem-note svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--sg-muted);
+}
+
+/* Quick amounts — instantly scannable chips. */
+.kac-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.kac-chip {
+  min-height: 48px;
+  padding: 10px 22px;
+  border-radius: 12px;
+  border: 1px solid var(--sg-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sg-text);
+  font-family: var(--sg-font);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+.kac-chip:hover:not(:disabled) {
+  border-color: var(--sg-border-strong);
+  transform: translateY(-1px);
+}
+.kac-chip-on {
+  background: var(--sg-accent-gradient);
+  border-color: transparent;
+  color: #191306;
+}
+.kac-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Amount row: label + input + the unmissable pay button. */
+.kac-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.kac-amount-label {
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--sg-text-2);
+}
+.kac-amount-input {
+  flex: 1 1 140px;
+  min-width: 120px;
+  min-height: 52px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--sg-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sg-text);
+  font-family: var(--sg-font);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.kac-amount-input:focus-visible {
+  outline: 2px solid var(--sg-accent);
+  outline-offset: 1px;
+  border-color: var(--sg-accent);
+}
+.kac-amount-input[aria-invalid='true'] {
+  border-color: var(--sg-danger);
+}
+
+/* ════════════════════════ 6. Settings ════════════════════════ */
+
+.kac-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--sg-border);
+  background: rgba(212, 169, 78, 0.06);
+}
+.kac-notice-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--sg-accent-2);
+}
+.kac-notice-main {
+  flex: 1;
+  min-width: 0;
+}
+.kac-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  color: var(--sg-text);
+  word-break: break-all;
+}
+.kac-notice-sub {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--sg-text-2);
+}
+.kac-notice-check {
+  flex-shrink: 0;
+  color: var(--sg-go);
+}
+.kac-hint {
+  margin: 14px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--sg-text-2);
+}
+.kac-hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82em;
+}
+.kac-mt {
+  margin-top: 16px;
+}
+.kac-test-result {
+  margin: 14px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+/* Permission mode cards — selectable, calm, clearly labeled. */
+.kac-perm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.kac-perm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid var(--sg-border);
+  background: var(--sg-surface-2);
+  color: var(--sg-text);
+  font-family: var(--sg-font);
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.kac-perm:hover:not(:disabled) {
+  border-color: var(--sg-border-strong);
+}
+.kac-perm[aria-pressed='true'] {
+  background: rgba(212, 169, 78, 0.1);
+  border-color: rgba(212, 169, 78, 0.52);
+}
+.kac-perm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.kac-perm-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.98rem;
+}
+.kac-perm-title svg {
+  color: var(--sg-accent-2);
+  flex-shrink: 0;
+}
+.kac-perm-desc {
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--sg-text-2);
+}
+
+/* ════════════════════════ 7. NotFound ════════════════════════ */
+
+.kac-nf {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 420px at 20% 10%, rgba(212, 169, 78, 0.1), transparent 60%),
+    radial-gradient(800px 400px at 85% 85%, rgba(240, 207, 122, 0.06), transparent 60%),
+    var(--sg-bg);
+  color: var(--sg-text);
+  font-family: var(--sg-font);
+}
+.kac-nf-giant {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(12rem, 38vw, 26rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--sg-border-strong);
+  user-select: none;
+  pointer-events: none;
+  animation: kac-drift 12s ease-in-out infinite alternate;
+}
+@keyframes kac-drift {
+  from {
+    transform: translate(-50%, -50%) translateY(-8px);
+  }
+  to {
+    transform: translate(-50%, -50%) translateY(8px);
+  }
+}
+.kac-nf-radar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(88vw, 560px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--sg-border);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.kac-nf-radar::before {
+  content: '';
+  position: absolute;
+  inset: 18%;
+  border: 1px solid var(--sg-border-light);
+  border-radius: 50%;
+}
+.kac-nf-radar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(212, 169, 78, 0.2),
+    transparent 25%
+  );
+  animation: kac-sweep 9s linear infinite;
+}
+@keyframes kac-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.kac-nf-card {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  text-align: center;
+  padding: clamp(32px, 5vw, 48px) clamp(24px, 5vw, 44px);
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius-xl);
+  background: var(--sg-surface);
+  box-shadow: var(--sg-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.kac-nf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 7px 15px;
+  border-radius: var(--sg-radius-full);
+  border: 1px solid var(--sg-border);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  color: var(--sg-text-2);
+}
+.kac-nf-title {
+  font-size: clamp(1.55rem, 4.4vw, 2rem);
+  margin-bottom: 12px;
+}
+.kac-nf-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 28px;
+}
+
+/* ════════════════════════ 8. Legal pages (CSS-only — markup lives in App.jsx) ════════════════════════
+ * Small kinetic accent: the title settles in weight and the sections arrive in
+ * a staggered cascade. Scoped strictly to the existing .legal-page* classes. */
+
+.legal-title {
+  animation: kac-settle 0.9s ease both;
+}
+.legal-page-inner > .legal-back {
+  /* Back link keeps its App.css styling; add a quiet gold hover. */
+  transition: color 0.15s ease;
+}
+.legal-page-inner > .legal-back:hover {
+  color: var(--sg-accent-2);
+}
+.legal-page-inner article > section {
+  animation: kac-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.legal-page-inner article > section:nth-of-type(1) {
+  animation-delay: 90ms;
+}
+.legal-page-inner article > section:nth-of-type(2) {
+  animation-delay: 180ms;
+}
+.legal-page-inner article > section:nth-of-type(3) {
+  animation-delay: 270ms;
+}
+.legal-page section h2 {
+  color: var(--sg-accent-2);
+  font-size: 1.12rem;
+  letter-spacing: -0.01em;
+}
+
+/* ════════════════════════ 9. Responsive ════════════════════════ */
+
+@media (max-width: 900px) {
+  /* The proof strip is trust content for wide screens; the card stays calm alone. */
+  .kac-auth-proofs {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .kac-auth {
+    padding: 40px 18px;
+  }
+  .kac-page {
+    padding: 24px 18px 56px;
+  }
+  .kac-title {
+    font-size: clamp(1.8rem, 7vw, 2.3rem);
+  }
+}
+
+@media (max-width: 560px) {
+  /* Forms go single-column; tap targets stay >= 44px. */
+  .kac-grid-2,
+  .kac-perm-grid {
+    grid-template-columns: 1fr;
+  }
+  .kac-row {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .kac-row-value {
+    text-align: left;
+  }
+  .kac-profile {
+    gap: 12px;
+  }
+  .kac-avatar {
+    width: 50px;
+    height: 50px;
+    font-size: 1.25rem;
+  }
+  .kac-chip {
+    flex: 1 1 calc(50% - 10px);
+    min-height: 48px;
+  }
+  .kac-amount-input {
+    flex: 1 1 100%;
+    min-height: 52px;
+  }
+  .kac-amount-row .kac-btn {
+    flex: 1 1 100%;
+    min-height: 54px;
+  }
+  .kac-nf-actions .kac-btn {
+    flex: 1 1 100%;
+  }
+  .kac-signout .kac-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  /* 390px: breathing room, no horizontal overflow. */
+  .kac-auth {
+    padding: 28px 14px;
+  }
+  .kac-auth-card {
+    padding: 24px 18px;
+  }
+  .kac-card {
+    padding: 20px 16px;
+  }
+  .kac-nf {
+    padding: 24px 14px;
+  }
+}
+
+/* ════════════════════════ 10. Reduced motion — everything still ════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .kac-in,
+  .kac-ch,
+  .kac-h,
+  .kac-nf-giant,
+  .kac-nf-radar::after,
+  .kac-auth-glow,
+  .legal-title,
+  .legal-page-inner article > section {
+    animation: none !important;
+  }
+  .kac-btn,
+  .kac-tab,
+  .kac-chip,
+  .kac-perm,
+  .kac-input,
+  .kac-amount-input,
+  .kac-auth-switch button,
+  .kac-auth-foot a,
+  .legal-page-inner > .legal-back {
+    transition: none !important;
+  }
+}
