@@ -102,6 +102,12 @@ export function createRoutes({ controllers }) {
   router.get('/users/me/permissions', controllers.permissions.get);
   router.put('/users/me/permissions', controllers.permissions.update);
   router.get('/agent', controllers.health.agentInfo);
+  // ─── Agent-machine presence (Hunt console) ─────────────────────────
+  // The headless agent poller heartbeats here every poll tick; the Hunt
+  // console reads presence + per-account brain slots here so it can show
+  // the one-click start action when no agent machine is connected.
+  router.post('/agent/heartbeat', controllers.agentStatus.heartbeat);
+  router.get('/agent/status', controllers.agentStatus.status);
   router.get('/settings/providers', controllers.settings.listProviders);
   router.put('/settings/providers', controllers.settings.updateProviders);
   router.put('/settings/providers/:providerId', controllers.settings.updateProvider);

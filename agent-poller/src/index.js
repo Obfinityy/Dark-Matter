@@ -60,6 +60,17 @@ async function main() {
   // Main poll loop.
   for (;;) {
     try {
+      // One-way presence signal every tick: the Hunt console reads it via
+      // GET /api/v1/agent/status. Failures here must never break polling.
+      try {
+        await backend.heartbeat({ pollerId: config.pollerId, runner: config.runner });
+      } catch (hbErr) {
+        if (hbErr.status === 401) {
+          log('AUTH FAILED (401) — token expired or revoked. Run `npm run login` again to refresh it.');
+        } else {
+          log(`heartbeat failed (non-fatal): ${hbErr.message}`);
+        }
+      }
       await pollOnce(backend, runner, state, config);
     } catch (err) {
       if (err.status === 401) {

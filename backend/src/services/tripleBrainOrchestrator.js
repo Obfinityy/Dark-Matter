@@ -444,17 +444,31 @@ export class TripleBrainOrchestrator {
 
   /**
    * ACT — the grounding brain turns an element description into coordinates.
+   *
+   * When no grounding brain is configured, the VISION brain's grounding
+   * capability drives the click instead (vision-language models can return
+   * coordinates): the result carries `source: 'vision-driven'` so the
+   * fallback is explicit — never a silent dead-end, never a swallowed error.
    * @param {object} options — { element, imageBase64?, mime? }
-   * @returns {Promise<{ ok, x?, y?, confidence?, reason? }>} coords in 0–1000 space
+   * @returns {Promise<{ ok, x?, y?, confidence?, source?, reason? }>} coords in 0–1000 space
    */
   async act({ element, imageBase64 = null, mime = 'image/png' } = {}) {
-    const { provider, source } = this.resolveSlot('grounding');
+    let { provider, source } = this.resolveSlot('grounding');
     if (!provider) {
-      this._warnMissingOnce('grounding');
-      return {
-        ok: false,
-        reason: 'grounding brain missing — no model running for the grounding slot',
-      };
+      const vision = this.resolveSlot('vision');
+      if (!vision.provider) {
+        this._warnMissingOnce('grounding');
+        return {
+          ok: false,
+          reason:
+            'grounding brain missing — no model running for the grounding slot (and no vision brain to drive it instead)',
+        };
+      }
+      provider = vision.provider;
+      source = 'vision-driven';
+      this.logger.info?.(
+        '[triple-brain] grounding via vision brain — no dedicated grounding model configured'
+      );
     }
     if (!element || !String(element).trim())
       return { ok: false, reason: 'no element description provided' };
@@ -523,12 +537,18 @@ export class TripleBrainOrchestrator {
       grounded = await this.act({ element: targetElement, imageBase64, mime });
     }
 
+    // Grounding driven by the vision brain is NOT missing — report it
+    // honestly so callers never see a phantom gap.
+    const effectiveMissing =
+      grounded?.source === 'vision-driven'
+        ? missing.filter(slot => slot !== 'grounding')
+        : missing;
     return {
       observation: seen,
       thought,
       grounded,
-      missingBrains: missing,
-      brainsUsed: BRAIN_SLOTS.filter(s => !missing.includes(s)),
+      missingBrains: effectiveMissing,
+      brainsUsed: BRAIN_SLOTS.filter(s => !effectiveMissing.includes(s)),
     };
   }
 

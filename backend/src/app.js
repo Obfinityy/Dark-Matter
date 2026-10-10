@@ -50,6 +50,7 @@ import { createInfiniteChatController } from './controllers/infiniteChatControll
 import { createInfinityModes } from './services/infinityModes.js';
 import { createJobController } from './controllers/jobController.js';
 import { createContinuousHuntController } from './controllers/continuousHuntController.js';
+import { createAgentStatusController } from './controllers/agentStatusController.js';
 import { createPermissionsController } from './controllers/permissionsController.js';
 import { createLocalModelController } from './controllers/localModelController.js';
 import { createModelRunnerController } from './controllers/modelRunnerController.js';
@@ -619,7 +620,14 @@ export async function createApp({ database } = {}) {
         huntRecords: createHuntRecordController({ huntRecordModel }),
         // Continuous autonomous hunt loop (issue #298) — pause/resume/
         // force-stop + read-only report snapshots and live tally.
-        continuousHunt: createContinuousHuntController(),
+        // Mid-hunt chat is answered by the hacking brain (brainDeps).
+        continuousHunt: createContinuousHuntController({
+          brainDeps: { brainProviderModel, modelRunnerService, appConfig: config },
+          logger: console,
+        }),
+        // Agent-machine presence + per-account brain-slot sources for the
+        // Hunt console (GET /api/v1/agent/status, POST /agent/heartbeat).
+        agentStatus: createAgentStatusController({ brainProviderModel, modelRunnerService }),
         alerts: createAlertController({ alertService }),
         queues: createQueueController({ targetQueueService, targetQueueModel }),
         schedules: createScheduleController({ huntScheduler, huntScheduleModel }),

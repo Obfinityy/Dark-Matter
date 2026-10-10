@@ -23,6 +23,12 @@ import { createVulnTallyService, tallyFor } from '../services/vulnTallyService.j
 import humanRecon from './humanRecon.js';
 import researchModule from './researchFallback.js';
 import { isVmRunnerUp } from './vmRunnerClient.js';
+import {
+  BrainUnreachableError,
+  BRAIN_UNAVAILABLE_REPLY,
+  buildLoopChatContext,
+  answerWithHackingBrain,
+} from '../services/huntChatBrain.js';
 
 /** Live loops started through this manager, keyed by huntId. */
 const LIVE = new Map();
@@ -197,10 +203,20 @@ export async function startHunt({ target, executor = 'local', deps = {}, logger 
 }
 
 /**
- * Mid-hunt chat, grounded in the LIVE loop context (state, tally, findings,
- * recent think-aloud). The loop keeps running while we answer.
+ * Mid-hunt chat, answered by the HACKING brain with LIVE loop context
+ * (state, tick, current activity, findings tally + top findings, recent
+ * think-aloud). The loop keeps running while we answer — chat is read-only
+ * w.r.t. the loop.
+ *
+ * No canned lines: the brain generates every reply. When the hacking brain
+ * is not configured or unreachable, the answer is the honest
+ * BRAIN_UNAVAILABLE_REPLY — never a template.
  */
-export async function answerChat(huntId, message, { dataDir, logger = console } = {}) {
+export async function answerChat(
+  huntId,
+  message,
+  { dataDir, logger = console, userId = null, brainDeps = {} } = {}
+) {
   const question = String(message || '').trim();
   if (!question) throw new Error('answerChat requires a message');
   const loop = await getLiveLoop(huntId, { dataDir, logger });
@@ -208,35 +224,50 @@ export async function answerChat(huntId, message, { dataDir, logger = console } 
 
   const snap = loop.snapshot();
   const tally = snap.tally || tallyFor(snap.findings || []);
-  const top = (snap.findings || []).slice(-5).reverse();
-  const trace = (snap.trace || []).slice(-4);
+  const context = buildLoopChatContext({ ...snap, tally });
 
-  const lines = [
-    `Right now I'm in **${snap.state}** (tick ${snap.tick}, cycle ${snap.cycle ?? 1}) on ${snap.target}.`,
-    `Findings so far: ${tally.total} total — ${tally.critical} critical, ${tally.high} high, ${tally.medium} medium, ${tally.low} low, ${tally.informational} informational.`,
-  ];
-  if (top.length) {
-    lines.push('Latest findings:');
-    for (const f of top) lines.push(`- [${String(f.severity || 'info').toUpperCase()}] ${f.title}`);
-  } else {
-    lines.push('No confirmed findings yet — still in the recon/understanding phase, which is normal for a human-like hunt.');
+  let answer;
+  let brainSource = null;
+  let brainUnavailable = false;
+  try {
+    const result = await answerWithHackingBrain({
+      userId,
+      question,
+      context,
+      brainProviderModel: brainDeps.brainProviderModel || null,
+      modelRunnerService: brainDeps.modelRunnerService || null,
+      logger,
+    });
+    answer = result.reply;
+    brainSource = result.brainSource;
+  } catch (error) {
+    if (error instanceof BrainUnreachableError) {
+      // Honest, never a template.
+      answer = BRAIN_UNAVAILABLE_REPLY;
+      brainUnavailable = true;
+    } else {
+      throw error;
+    }
   }
-  if (trace.length) {
-    lines.push('What I was just thinking:');
-    for (const t of trace) lines.push(`> ${String(t.text).slice(0, 220)}`);
-  }
-  lines.push('', `Your question was: "${question.slice(0, 300)}"`);
-  lines.push(
-    'I keep hunting while we talk — nothing pauses. Ask me to explain a finding, change angle, or generate a report anytime.'
-  );
 
-  const answer = lines.join('\n');
   emit(huntId, {
     type: 'hunt.chat',
     message: `Chat: ${question.slice(0, 140)}`,
-    data: { question: question.slice(0, 1000), answer: answer.slice(0, 2000) },
+    data: {
+      question: question.slice(0, 1000),
+      answer: answer.slice(0, 2000),
+      brainSource,
+      brainUnavailable,
+    },
   });
-  return { ok: true, huntId: String(huntId), answer, context: { state: snap.state, tick: snap.tick, tally } };
+  return {
+    ok: true,
+    huntId: String(huntId),
+    answer,
+    brainSource,
+    brainUnavailable,
+    context: { state: snap.state, tick: snap.tick, tally },
+  };
 }
 
 export default { startHunt, getLiveLoop, subscribeBus, answerChat };

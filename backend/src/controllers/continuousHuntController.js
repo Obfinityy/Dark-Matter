@@ -41,7 +41,7 @@ export function unregisterLoop(huntId) {
   return LIVE_LOOPS.delete(String(huntId));
 }
 
-export function createContinuousHuntController({ dataDir, logger = console } = {}) {
+export function createContinuousHuntController({ dataDir, logger = console, brainDeps = {} } = {}) {
   async function getLoop(huntId) {
     const id = String(huntId || '');
     let loop = LIVE_LOOPS.get(id);
@@ -283,8 +283,10 @@ export function createContinuousHuntController({ dataDir, logger = console } = {
     }),
 
     /**
-     * POST /api/v1/hunts/:id/chat — mid-hunt chat, grounded in live loop
-     * context. Read-only w.r.t. the loop: the hunt keeps running.
+     * POST /api/v1/hunts/:id/chat — mid-hunt chat, answered by the HACKING
+     * brain with live loop context. Read-only w.r.t. the loop: the hunt
+     * keeps running. When the brain is unreachable the reply is the honest
+     * unavailable message — never a template.
      */
     chat: asyncHandler(async (request, response) => {
       const huntId = String(request.params.id || '');
@@ -295,7 +297,12 @@ export function createContinuousHuntController({ dataDir, logger = console } = {
         });
       }
       try {
-        const result = await answerChat(huntId, message, { dataDir, logger });
+        const result = await answerChat(huntId, message, {
+          dataDir,
+          logger,
+          userId: request.user?.id || null,
+          brainDeps,
+        });
         return response.json(result);
       } catch (error) {
         return response.status(404).json({

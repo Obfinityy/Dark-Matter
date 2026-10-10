@@ -6,8 +6,20 @@
  */
 
 import { AgentJobModel, TERMINAL_JOB_STATES } from '../models/agentJobModel.js';
-import { buildAskReply } from '../services/askAgentService.js';
 import { normalizeTargetUrl } from '../models/targetModel.js';
+import {
+  BrainUnreachableError,
+  BRAIN_UNAVAILABLE_REPLY,
+  buildJobChatContext,
+  answerWithHackingBrain,
+} from '../services/huntChatBrain.js';
+
+/**
+ * Truthful waiting reason used when this backend cannot drive a hunt
+ * itself (cloud/orchestration mode): the hunt honestly waits for the
+ * user's agent machine instead of emitting fake progress.
+ */
+export const WAITING_FOR_AGENT_MACHINE = 'waiting for your agent machine';
 
 /**
  * JobManager — the control plane for autonomous jobs.
@@ -52,6 +64,10 @@ export class JobManager {
       // caps wait in a fair round-robin queue instead of starving anyone.
       maxConcurrent: Number(config.maxConcurrent || process.env.HUNT_MAX_CONCURRENT || 4),
       maxPerUser: Number(config.maxPerUser || process.env.HUNT_MAX_PER_USER || 2),
+      // Cloud/orchestration mode (e.g. Render): this backend NEVER runs hunts
+      // in-process — brains/computer control live on the user's machine.
+      // Hunts park truthfully in `queued` with WAITING_FOR_AGENT_MACHINE.
+      localExecution: config.localExecution !== false,
     };
     /** In-flight dispatch promises, so tests and shutdown can await them. */
     this.dispatches = new Map();
@@ -91,6 +107,11 @@ export class JobManager {
     } catch {
       normalizedTarget = target;
     }
+    // Cloud/orchestration mode: this backend can never run a hunt in-process
+    // (brains/computer control live on the user's machine, never here), so
+    // every hunt is queued for the user's agent machine. The waitingReason
+    // keeps the parked state honest — no fake progress is ever emitted.
+    const effectiveExecutor = this.config.localExecution ? executor : 'agent';
     const job = await this.jobModel.create({
       userId,
       assessmentId,
@@ -99,11 +120,17 @@ export class JobManager {
       scope,
       objective,
       kaggleBrains,
-      // 'backend' = this backend's AgentWorker runs it.
+      // 'backend' = this backend's AgentWorker runs it (local backends only).
       // 'agent'   = an external agent poller (user's machine / Oracle VM)
       //             claims it; the backend only queues + stores results.
-      executor: executor === 'agent' ? 'agent' : 'backend',
+      executor: effectiveExecutor === 'agent' ? 'agent' : 'backend',
     });
+    if (!this.config.localExecution) {
+      await this.jobModel
+        .update(job.id, { waitingReason: WAITING_FOR_AGENT_MACHINE })
+        .catch(() => {});
+      job.waitingReason = WAITING_FOR_AGENT_MACHINE;
+    }
 
     await this.assessmentModel.setStatus(assessmentId, 'planning').catch?.(() => {});
     await this.publish(job.id, {
@@ -147,18 +174,35 @@ export class JobManager {
   async admit(jobId) {
     const job = await this.jobModel.get(jobId);
     if (!job) return { status: 'not_found' };
+    // Cloud/orchestration mode: this backend NEVER runs hunts in-process.
+    // The job parks truthfully in `queued` with a clear waitingReason — no
+    // worker pickup, no brain.decision, no tool.output, no fake progress.
+    // The user's agent machine claims it via POST /jobs/:id/claim.
+    if (!this.config.localExecution) {
+      await this.jobModel.update(job.id, { waitingReason: WAITING_FOR_AGENT_MACHINE }).catch(() => {});
+      await this.publish(job.id, {
+        type: 'job.awaiting_agent',
+        level: 'INFO',
+        message: `Hunt queued (${WAITING_FOR_AGENT_MACHINE}) — it will pick this up automatically`,
+        data: { jobId: job.id, waitingReason: WAITING_FOR_AGENT_MACHINE },
+      });
+      return { status: 'awaiting_agent', waitingReason: WAITING_FOR_AGENT_MACHINE };
+    }
     // Agent-executor jobs are NEVER run by this backend's worker. They wait
     // for an external agent poller (user's machine / Oracle VM) to claim
     // them via POST /jobs/:id/claim. The backend is pure orchestration here:
     // it queues the job and stores results — it never pushes commands.
     if (job.executor === 'agent') {
+      if (!job.waitingReason) {
+        await this.jobModel.update(job.id, { waitingReason: WAITING_FOR_AGENT_MACHINE }).catch(() => {});
+      }
       await this.publish(job.id, {
         type: 'job.awaiting_agent',
         level: 'INFO',
         message: 'Hunt queued for your agent machine — it will pick this up automatically',
-        data: { jobId: job.id },
+        data: { jobId: job.id, waitingReason: WAITING_FOR_AGENT_MACHINE },
       });
-      return { status: 'awaiting_agent' };
+      return { status: 'awaiting_agent', waitingReason: WAITING_FOR_AGENT_MACHINE };
     }
     if (this.canRunNow(job)) {
       return this.startRun(job);
@@ -539,14 +583,16 @@ export class JobManager {
   /**
    * "Agent se baat karo" — the user chats with the hunting agent mid-hunt.
    *
-   * Deterministic by design: the answer is built ONLY from live persisted
-   * state (job doc, findings, reasoning-cycle ledger, activity feed) via
-   * buildAskReply — no LLM call, so it works on a plain local machine with
-   * zero config. Numbers and "what I'm doing" are never invented; missing
-   * data is reported honestly. Per-user isolation via requireJob (404 for
+   * ALWAYS brain-routed: the question goes to the HACKING brain with live
+   * job context (status, step, current activity, findings tally + top
+   * findings, recent think-aloud) via services/huntChatBrain.js. There are
+   * NO template replies anywhere on this path — the old rule-based `ask()`
+   * was removed. When the hacking brain is not configured or unreachable,
+   * the reply is the honest BRAIN_UNAVAILABLE_REPLY (plain Hinglish),
+   * never a fabricated status. Per-user isolation via requireJob (404 for
    * other users' jobs).
    */
-  async ask(userId, jobId, question) {
+  async askBrain(userId, jobId, question) {
     const job = await this.requireJob(userId, jobId);
     const findings = await this.readFindings(job.assessmentId);
     let recentCycles = [];
@@ -558,7 +604,31 @@ export class JobManager {
       recentCycles = []; // ledger unavailable — answer without it, honestly
     }
 
-    const answer = buildAskReply({ job, findings, recentCycles, question });
+    const context = buildJobChatContext({ job, findings, recentCycles });
+    let reply;
+    let brainSource = null;
+    let intent = 'brain';
+    try {
+      const result = await answerWithHackingBrain({
+        userId,
+        question,
+        context,
+        brainProviderModel: this.worker.brainProviderModel,
+        modelRunnerService: this.worker.modelRunnerService,
+        logger: this.logger,
+      });
+      reply = result.reply;
+      brainSource = result.brainSource;
+    } catch (error) {
+      if (error instanceof BrainUnreachableError) {
+        // Honest, never a template: say the brain isn't reachable and how
+        // to fix it. The live context above stays available for the UI.
+        reply = BRAIN_UNAVAILABLE_REPLY;
+        intent = 'brain_unavailable';
+      } else {
+        throw error;
+      }
+    }
 
     // Best-effort: keep the conversation in the agent's memory + terminal feed.
     try {
@@ -567,8 +637,7 @@ export class JobManager {
         assessmentId: job.assessmentId,
         jobId,
         conversationId: job.conversationId,
-        content: `USER: ${String(question).slice(0, 500)}
-AGENT: ${String(answer.reply).slice(0, 1500)}`,
+        content: `USER: ${String(question).slice(0, 500)}\nAGENT: ${String(reply).slice(0, 1500)}`,
       });
     } catch (_) {}
     try {
@@ -576,95 +645,23 @@ AGENT: ${String(answer.reply).slice(0, 1500)}`,
         type: 'agent.chat',
         level: 'INFO',
         message: `User asked the agent: ${String(question).slice(0, 120)}`,
-        data: { question: String(question).slice(0, 300), intent: answer.intent },
+        data: {
+          question: String(question).slice(0, 300),
+          intent,
+          brainSource,
+        },
       });
     } catch (_) {}
-    return answer;
-  }
-
-  /**
-   * Brain-powered ask: when the user's question is NOT a simple status query,
-   * the AI agent itself understands and answers — no hardcoded intent rules.
-   * A request such as "show the bugs with the highest bounty potential" →
-   * the agent reasons over findings and answers intelligently; "make a
-   * separate report for each vulnerability" → the agent generates them.
-   *
-   * Falls back to the rule-based reply if the brain is unavailable.
-   */
-  async askBrain(userId, jobId, question) {
-    const job = await this.requireJob(userId, jobId);
-    const findings = await this.readFindings(job.assessmentId);
-
-    // Simple status questions still use the fast rule-based path.
-    const simplePatterns =
-      /^(kya kar rahe ho|what are you doing|status|progress|kitna hua|kya mila|findings?|report tayyar|ho gaya)/i;
-    if (simplePatterns.test(question.trim())) {
-      return this.ask(userId, jobId, question);
-    }
-
-    // Complex request → let the brain handle it.
-    try {
-      const jobRecord = await this.worker.jobModel.get(jobId).catch(() => null);
-      const brain = this.worker.getBrainForJob
-        ? await this.worker.getBrainForJob(jobRecord)
-        : this.worker.brain;
-      if (!brain || !brain.provider) throw new Error('brain unavailable');
-
-      const findingsText =
-        findings
-          .slice(0, 20)
-          .map(
-            (f, i) =>
-              `${i + 1}. [${f.severity}] ${f.title} — ${String(f.description || '').slice(0, 200)}`
-          )
-          .join('\n') || '(no findings yet)';
-
-      const prompt = `You are the Dark-Matter bug bounty agent. The user asks you directly:
-
-"${question}"
-
-Job context:
-- Target: ${job.target}
-- Status: ${job.status}, Phase: ${job.phase}, Steps: ${job.stepCount}
-- Findings so far:
-${findingsText}
-
-Answer in the user's language (Hindi/Hinglish if they wrote in Hindi, English if English).
-Be concrete and helpful. If they want a filtered view of findings (e.g. "only high severity",
-"which bugs give most bounty"), analyze the findings above and give exactly that.
-If they want reports, describe what you'd generate. Never invent findings that aren't listed.
-Keep it focused — no fluff.`;
-
-      const reply = await brain.provider.generate([{ role: 'user', content: prompt }], {
-        maxTokens: 1200,
-        timeout: 180000,
-      });
-      const cleanReply =
-        String(reply || '').trim() || 'Samajh nahi aaya — thoda aur detail me pucho.';
-
-      // Remember the conversation
-      try {
-        await this.worker.memory.rememberConversation({
-          userId,
-          assessmentId: job.assessmentId,
-          jobId,
-          conversationId: job.conversationId,
-          content: `USER: ${String(question).slice(0, 500)}\nAGENT: ${cleanReply.slice(0, 1500)}`,
-        });
-      } catch (_) {}
-
-      return {
-        intent: 'brain',
-        reply: cleanReply,
-        reaction: '🧠',
-        suggestions: [],
-        jobStatus: job.status,
-        phase: job.phase,
-      };
-    } catch (error) {
-      // Brain unavailable → fall back to rules, honestly
-      return this.ask(userId, jobId, question);
-    }
+    return {
+      intent,
+      reply,
+      reaction: intent === 'brain' ? '🧠' : '⚠️',
+      suggestions: [],
+      jobStatus: job.status,
+      phase: job.phase,
+      brainSource,
+      findingCount: findings.length,
+    };
   }
 
   // ── Crash / restart recovery (requirement #13 phase, #70) ─────────────

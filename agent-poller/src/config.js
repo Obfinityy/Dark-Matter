@@ -11,6 +11,7 @@
  *   "pollerId": "oracle-vm-1",
  *   "pollIntervalMs": 30000,
  *   "vmRunnerUrl": "http://127.0.0.1:4100",
+ *   "runner": "local",            // "local" (user's own machine) or "oracle" (Oracle free-tier VM)
  *   "stateDir": "<default: ~/.infinity-ai/poller-state>"
  * }
  */
@@ -44,6 +45,8 @@ export function loadConfig() {
     token: process.env.POLLER_TOKEN || file.token || '',
     pollerId:
       process.env.POLLER_ID || file.pollerId || `poller-${os.hostname().toLowerCase().replace(/[^a-z0-9-]/g, '')}`,
+    // Which kind of agent machine this is — surfaced in GET /api/v1/agent/status.
+    runner: process.env.POLLER_RUNNER || file.runner || 'local',
     pollIntervalMs: Number(process.env.POLLER_INTERVAL_MS || file.pollIntervalMs || 30_000),
     vmRunnerUrl: (process.env.VM_RUNNER_URL || file.vmRunnerUrl || 'http://127.0.0.1:4100').replace(
       /\/+$/,
