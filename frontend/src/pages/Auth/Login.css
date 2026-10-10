@@ -57,8 +57,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(129, 140, 248, 0.1);
-  border: 1px solid rgba(129, 140, 248, 0.22);
+  background: color-mix(in srgb, var(--sg-indigo) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sg-indigo) 24%, transparent);
   color: var(--sg-cyan);
 }
 .sg-auth-fineprint {
@@ -188,11 +188,55 @@
   display: inline-flex;
 }
 
-/* Scoped reduced-motion: the shared fade-up has no guard, so the auth
-   experience disables its entrance animation when motion is reduced. */
+/* Subtle entrance: the card and brand content rise in, staggered.
+ * Keyframes are defined here; the reduced-motion guard below covers them. */
+.sg-auth-card {
+  animation: sg-auth-rise 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.sg-auth-brand-inner {
+  animation: sg-auth-rise 0.55s 0.08s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes sg-auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scoped reduced-motion: disables the auth entrance animation. */
 @media (prefers-reduced-motion: reduce) {
-  .sg-auth .sg-fade-up {
+  .sg-auth-card,
+  .sg-auth-brand-inner {
     animation: none;
+  }
+}
+
+/* 901–1150px: brand panel is visible but narrower — give the content room. */
+
+@media (max-width: 1150px) {
+  .sg-auth-brand-inner {
+    padding: 56px;
+  }
+  .sg-auth-brand-inner .sg-display {
+    font-size: 2.6rem;
+    margin: 32px 0 20px;
+  }
+  .sg-auth-proofs {
+    gap: 24px;
+    margin-top: 48px;
+  }
+  .sg-auth-fineprint {
+    margin-top: 36px;
+  }
+  .sg-auth-form-wrap {
+    padding: 48px 32px;
+  }
+  .sg-auth-card {
+    padding: 36px 32px;
   }
 }
 

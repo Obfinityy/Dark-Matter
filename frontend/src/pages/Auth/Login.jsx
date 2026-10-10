@@ -4,7 +4,7 @@
  * Split layout: left brand panel (logo, positioning, proof points),
  * right sign-in / create-account card. One field accepts username or email.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import Logo from '../../components/brand/Logo';
@@ -17,6 +17,7 @@ import {
   Crosshair,
   FileCheck2,
   BrainCircuit,
+  Loader2,
 } from 'lucide-react';
 import './Login.css';
 
@@ -263,9 +264,7 @@ export function Login() {
               disabled={busy}
             >
               {busy && (
-                <span className="sg-spin sg-auth-spinner" aria-hidden="true">
-                  ◌
-                </span>
+                <Loader2 size={17} className="sg-spin sg-auth-spinner" aria-hidden="true" />
               )}
               {mode === 'login' ? 'Sign in to Dark Matter' : 'Create my account'}
             </button>
