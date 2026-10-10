@@ -118,10 +118,13 @@ export async function detectWhpx(platform = detectPlatform()) {
           'Windows Hypervisor Platform is being disabled (reboot pending). ' +
           'Re-enable it in "Turn Windows features on or off", reboot, then restart the VM Runner.',
       };
+    // Unrecognized output — surface the raw value so /doctor is self-diagnosing.
+    const raw = stdout.trim().slice(0, 120);
     return {
       enabled: false,
       detail:
-        'Windows Hypervisor Platform is not enabled. Enable it in "Turn Windows features on or off" ' +
+        `Windows Hypervisor Platform state is "${raw || '<empty>'}" (expected "Enabled"). ` +
+        'Enable "Windows Hypervisor Platform" in "Turn Windows features on or off" ' +
         '(may require administrator rights and a reboot), then restart the VM Runner.',
     };
   } catch (err) {
