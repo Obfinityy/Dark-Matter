@@ -153,6 +153,19 @@ export function createRoutes({ controllers }) {
   router.get('/jobs/:id/posture', controllers.jobs.posture);
   router.get('/jobs/:id/diary', controllers.jobs.diary);
 
+  // ─── Continuous autonomous hunt (issue #298) ───────────────────────
+  // The loop itself is started/registered by the hunt worker; these are the
+  // user-facing controls. report-snapshot is read-only and never pauses the
+  // loop. force-stop is terminal and requires explicit { confirmed: true }.
+  router.post('/hunts', controllers.continuousHunt.create);
+  router.post('/hunts/:id/report-snapshot', controllers.continuousHunt.reportSnapshot);
+  router.get('/hunts/:id/tally', controllers.continuousHunt.tally);
+  router.get('/hunts/:id/events', controllers.continuousHunt.events);
+  router.post('/hunts/:id/chat', controllers.continuousHunt.chat);
+  router.post('/hunts/:id/pause', controllers.continuousHunt.pause);
+  router.post('/hunts/:id/resume', controllers.continuousHunt.resume);
+  router.post('/hunts/:id/force-stop', controllers.continuousHunt.forceStop);
+
   // ─── Recursive self-learning — the agent's evolution stats (local-only) ──
   router.get(
     '/agent/evolution',

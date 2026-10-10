@@ -24,6 +24,7 @@ import { ContinuousHuntLoop } from '../hunt/continuousHuntLoop.js';
 import { LiveReport } from '../hunt/liveReport.js';
 import { buildReportPdf } from '../services/pdfReportWriter.js';
 import { tallyFor } from '../services/vulnTallyService.js';
+import { startHunt, getLiveLoop, subscribeBus, answerChat } from '../hunt/continuousHuntManager.js';
 
 /** Live loops, keyed by huntId. Survives across requests in-process. */
 const LIVE_LOOPS = new Map();
@@ -172,6 +173,135 @@ export function createContinuousHuntController({ dataDir, logger = console } = {
       }
       const result = await loop.forceStop({ confirmed: true });
       return response.json({ ok: true, huntId, ...result });
+    }),
+
+    /**
+     * POST /api/v1/hunts — start a continuous hunt.
+     * Body: { target | targetUrl, authorizationConfirmed, executor? }.
+     * The loop starts immediately and never stops on its own.
+     */
+    create: asyncHandler(async (request, response) => {
+      const target = String(request.body?.target || request.body?.targetUrl || '').trim();
+      if (!target) {
+        return response.status(400).json({
+          error: { code: 'MISSING_TARGET', message: 'A target link is required to start a hunt.' },
+        });
+      }
+      if (request.body?.authorizationConfirmed !== true) {
+        return response.status(400).json({
+          error: {
+            code: 'AUTHORIZATION_REQUIRED',
+            message: 'Confirm you are authorized to test this target (authorizationConfirmed: true).',
+          },
+        });
+      }
+      try {
+        const { huntId, loop } = await startHunt({
+          target,
+          executor: request.body?.executor || 'local',
+          deps: { dataDir },
+          logger,
+        });
+        const snap = loop.snapshot();
+        return response.status(201).json({
+          ok: true,
+          huntId,
+          hunt: {
+            id: huntId,
+            target,
+            status: 'running',
+            loopState: snap.state,
+            tick: snap.tick,
+            tally: snap.tally,
+          },
+        });
+      } catch (error) {
+        return response.status(400).json({
+          error: { code: 'HUNT_START_FAILED', message: String(error?.message || error) },
+        });
+      }
+    }),
+
+    /**
+     * GET /api/v1/hunts/:id/events — SSE stream. Replays recent history
+     * (tally, findings, think-aloud) then attaches live. Closing this stream
+     * NEVER stops the hunt.
+     */
+    events: asyncHandler(async (request, response) => {
+      const huntId = String(request.params.id || '');
+      const loop = (await getLiveLoop(huntId, { dataDir, logger })) || (await getLoop(huntId));
+      if (!loop) return notFound(response, huntId);
+
+      response.status(200).set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      response.flushHeaders?.();
+
+      const send = event => {
+        response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      };
+
+      // 1. Replay: current tally + recent findings + recent think-aloud.
+      const snap = loop.snapshot();
+      send({
+        id: `replay-tally-${Date.now()}`,
+        type: 'vuln_tally',
+        message: 'Current tally',
+        data: snap.tally,
+        ts: new Date().toISOString(),
+      });
+      for (const f of (snap.findings || []).slice(-20)) {
+        send({
+          id: `replay-finding-${f.id || Math.random()}`,
+          type: 'finding.created',
+          message: `[${String(f.severity || 'info').toUpperCase()}] ${f.title}`,
+          data: f,
+          ts: f.ts || new Date().toISOString(),
+        });
+      }
+      for (const t of (snap.trace || []).slice(-30)) {
+        send({
+          id: `replay-trace-${t.ts}-${t.tick}`,
+          type: 'think.trace',
+          message: String(t.text).slice(0, 280),
+          data: t,
+          ts: t.ts,
+        });
+      }
+
+      // 2. Attach live.
+      const unsubscribe = subscribeBus(huntId, send);
+      const heartbeat = setInterval(() => response.write(': heartbeat\n\n'), 15_000);
+      request.on('close', () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+        // Closing this stream NEVER stops the hunt. Only force-stop does.
+      });
+    }),
+
+    /**
+     * POST /api/v1/hunts/:id/chat — mid-hunt chat, grounded in live loop
+     * context. Read-only w.r.t. the loop: the hunt keeps running.
+     */
+    chat: asyncHandler(async (request, response) => {
+      const huntId = String(request.params.id || '');
+      const message = String(request.body?.message || '').trim();
+      if (!message) {
+        return response.status(400).json({
+          error: { code: 'MISSING_MESSAGE', message: 'message is required' },
+        });
+      }
+      try {
+        const result = await answerChat(huntId, message, { dataDir, logger });
+        return response.json(result);
+      } catch (error) {
+        return response.status(404).json({
+          error: { code: 'CHAT_FAILED', message: String(error?.message || error) },
+        });
+      }
     }),
   };
 }
