@@ -1,0 +1,124 @@
+/**
+ * kinetic-shell.css — kinetic-type accents for the agent console shell (AgentShell).
+ * Part of #292. All classes `ksh-` namespaced; only additive hooks on existing
+ * sg-* classes. Original CSS. Respects prefers-reduced-motion.
+ */
+
+/* --- Top tabs: kinetic weight/color transition on the two primary destinations --- */
+.ksh-tabs .sg-tab {
+  transition:
+    color 220ms ease,
+    font-weight 220ms ease,
+    background-color 220ms ease,
+    transform 220ms ease;
+}
+.ksh-tabs .sg-tab:hover {
+  transform: translateY(-1px);
+}
+.ksh-tabs .sg-tab.active {
+  font-weight: 800; /* weight-shift on the active destination */
+}
+
+/* --- Sidebar items: slide + weight shift, gold active rail --- */
+.ksh-side .sg-side-item {
+  position: relative;
+  transition:
+    color 200ms ease,
+    font-weight 200ms ease,
+    background-color 200ms ease,
+    padding-left 200ms ease;
+}
+.ksh-side .sg-side-item:hover {
+  padding-left: calc(0.75rem + 3px);
+}
+.ksh-side .sg-side-item.active {
+  font-weight: 700;
+}
+.ksh-side .sg-side-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--dm-gold, #f0cf7a);
+  animation: ksh-rail-in 240ms ease both;
+}
+@keyframes ksh-rail-in {
+  from { transform: scaleY(0.3); opacity: 0; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+/* --- "New Hunt / New Chat" primary button: subtle kinetic glow on hover --- */
+.ksh-side .sg-side-new {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.ksh-side .sg-side-new:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(240, 207, 122, 0.22);
+}
+
+/* --- History rows: staggered rise-in --- */
+.ksh-side .sg-side-list > li {
+  animation: ksh-rise 320ms ease both;
+  animation-delay: calc(var(--ksh-i, 0) * 45ms);
+}
+.ksh-side .sg-side-list > li:nth-child(1) { --ksh-i: 0; }
+.ksh-side .sg-side-list > li:nth-child(2) { --ksh-i: 1; }
+.ksh-side .sg-side-list > li:nth-child(3) { --ksh-i: 2; }
+.ksh-side .sg-side-list > li:nth-child(4) { --ksh-i: 3; }
+.ksh-side .sg-side-list > li:nth-child(5) { --ksh-i: 4; }
+.ksh-side .sg-side-list > li:nth-child(n + 6) { --ksh-i: 5; }
+@keyframes ksh-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Route title in the topbar: gentle settle on navigation --- */
+.ksh-topbar .sg-topbar-title {
+  animation: ksh-title-in 300ms ease both;
+}
+@keyframes ksh-title-in {
+  from { opacity: 0; letter-spacing: 0.06em; }
+  to { opacity: 1; letter-spacing: normal; }
+}
+
+/* --- Status pill: breathing dot while a hunt is live --- */
+.ksh-topbar .sg-pill .dot {
+  animation: ksh-pulse 1.6s ease-in-out infinite;
+}
+@keyframes ksh-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.8); }
+}
+
+/* --- Focus visibility: gold rings on every interactive shell element --- */
+.ksh-shell :is(.sg-tab, .sg-side-item, .sg-side-new, .sg-bell, .sg-hamburger, .sg-sidebar-toggle, .sg-side-signout, .sg-side-refresh):focus-visible {
+  outline: 2px solid var(--dm-gold, #f0cf7a);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* --- Mobile: guarantee 44px tap targets on sidebar items --- */
+@media (max-width: 600px) {
+  .ksh-side .sg-side-item,
+  .ksh-side .sg-side-new {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* --- Reduced motion: still everything --- */
+@media (prefers-reduced-motion: reduce) {
+  .ksh-shell *,
+  .ksh-shell *::before,
+  .ksh-shell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ksh-side .sg-side-item.active::before {
+    animation: none;
+  }
+}

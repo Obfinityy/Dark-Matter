@@ -39,6 +39,7 @@ import { listConversations, CONVERSATIONS_CHANGED_EVENT } from '../../services/c
 import Logo from '../brand/Logo';
 import './AgentShell.css';
 import './AgentShell.elegant.css';
+import '../../styles/kinetic-shell.css';
 
 const TOP_TABS = [
   {
@@ -449,7 +450,7 @@ export function AgentShell({ children }) {
   );
 
   return (
-    <div className={`sg-app sg-shell ${sidebarClosed ? 'sidebar-closed' : ''}`}>
+    <div className={`sg-app sg-shell ksh-shell${sidebarClosed ? ' sidebar-closed' : ''}`}>
       {/* Mobile drawer */}
       <div
         className={`sg-drawer-scrim${drawerOpen ? ' open' : ''}`}
@@ -458,7 +459,7 @@ export function AgentShell({ children }) {
       />
       <aside
         id="sg-sidebar"
-        className={`sg-sidebar${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`}
+        className={`sg-sidebar ksh-side${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`}
         aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt AI menu'}
       >
         {sidebar}
@@ -466,7 +467,7 @@ export function AgentShell({ children }) {
 
       <main className="sg-main">
         {/* Top navbar — ONLY the two primary destinations. */}
-        <header className="sg-topbar">
+        <header className="sg-topbar ksh-topbar">
           <div className="sg-topbar-left">
             <button
               className="sg-hamburger"
@@ -489,7 +490,7 @@ export function AgentShell({ children }) {
             <Link to="/agent" className="sg-topbar-brand" title="Dark Matter home">
               <Logo size={30} />
             </Link>
-            <nav className="sg-tabs" aria-label="Primary">
+            <nav className="sg-tabs ksh-tabs" aria-label="Primary">
               {TOP_TABS.map(({ to, label, icon: Icon, end, hint }) => (
                 <NavLink
                   key={to}
