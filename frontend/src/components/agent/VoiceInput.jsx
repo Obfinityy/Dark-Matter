@@ -21,6 +21,7 @@ import { useEffect } from 'react';
 import { Mic, MicOff, Square } from 'lucide-react';
 import { useSpeechRecognition, detectSpeechLang } from '../../hooks/useSpeechRecognition';
 import './VoiceInput.css';
+import '../../styles/kinetic-chat.css';
 
 export function MicButton({
   onFinal,

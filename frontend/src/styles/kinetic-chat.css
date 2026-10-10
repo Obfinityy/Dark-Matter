@@ -1,0 +1,229 @@
+/* ── kinetic-chat.css ────────────────────────────────────────────────
+ * Kinetic-type theme for the Infinity AI chat experience (issue #292).
+ * ALL classes are namespaced with the `kch-` prefix. Original CSS only.
+ *
+ * Imported by:
+ *   - frontend/src/pages/agent/InfinityAI.jsx
+ *   - frontend/src/components/agent/VoiceInput.jsx
+ *
+ * Branding: Infinity AI / Dark Matter only.
+ * All color / spacing / radius values come from the dm-* design tokens.
+ * Every animation below is stilled under prefers-reduced-motion.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/* ── Chat shell: conversation column (middle) + sticky input dock (bottom) ── */
+.kch-chat {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Centered, readable conversation column. The existing .dm-chat-messages
+   layout classes stay on the same node; this only constrains the measure
+   and keeps bubbles off the viewport edges. */
+.kch-chat-col {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  padding-left: var(--dm-2);
+  padding-right: var(--dm-2);
+}
+
+/* Pinned input dock. position:sticky keeps it glued to the viewport bottom
+   while the conversation scrolls above it — no app-shell changes needed.
+   The gradient melts the message column into the page behind the dock. */
+.kch-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  margin-top: var(--dm-6);
+  padding: var(--dm-5) 0 calc(var(--dm-4) + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--dm-bg) 0%, transparent),
+    var(--dm-bg) 42%
+  );
+}
+
+.kch-dock-inner {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  padding-left: var(--dm-2);
+  padding-right: var(--dm-2);
+}
+
+/* The composer inside the dock gets a touch more presence. */
+.kch-composer {
+  box-shadow: var(--dm-shadow-lg);
+}
+
+/* ── Empty state: staggered kinetic headline ───────────────────────────
+ * Shown while the conversation holds only the welcome message.
+ * Words rise in one by one (stagger via --kch-d), then the welcome copy
+ * fades in beneath. */
+.kch-empty {
+  text-align: center;
+  padding: clamp(48px, 11vh, 110px) var(--dm-4) var(--dm-8);
+}
+
+.kch-empty-headline {
+  margin: 0 0 var(--dm-4);
+  font-size: clamp(30px, 5.2vw, 46px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--dm-text);
+}
+
+.kch-word {
+  display: inline-block;
+  opacity: 0;
+  animation: kch-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--kch-d, 0ms);
+  will-change: transform, opacity;
+}
+
+.kch-word + .kch-word {
+  margin-left: 0.28em;
+}
+
+@keyframes kch-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.55em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kch-empty-sub {
+  max-width: 560px;
+  margin: 0 auto;
+  color: var(--dm-text-2);
+  font-size: var(--dm-text-base);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  opacity: 0;
+  animation: kch-fade 0.9s ease 0.5s forwards;
+}
+
+@keyframes kch-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Screen-reader-only: the headline's words are aria-hidden spans, so the
+   full string lives here for assistive tech. */
+.kch-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Mode label: subtle kinetic weight shift ────────────────────────────
+ * The Chat / Plan / Build / Control label eases heavier on hover and while
+ * its menu is open. (Plus Jakarta Sans renders this as a gentle emphasis.) */
+.kch-mode-label {
+  font-weight: 600;
+  transition:
+    font-weight 0.25s ease,
+    color 0.25s ease;
+}
+
+.dm-mode-dd .dm-btn:hover .kch-mode-label,
+.dm-mode-dd .dm-btn[aria-expanded='true'] .kch-mode-label {
+  font-weight: 750;
+  color: var(--dm-gold-soft);
+}
+
+/* ── Thinking state: slim shimmer ──────────────────────────────────────
+ * A 2px gold shimmer sweeps across the top of the "thinking" bubble,
+ * layered over the existing typing dots (untouched). */
+.kch-shimmer {
+  display: block;
+  height: 2px;
+  width: 100%;
+  border-radius: 2px;
+  margin-bottom: 8px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--dm-gold-soft) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: kch-shimmer 1.5s linear infinite;
+}
+
+@keyframes kch-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Voice polish (VoiceInput.jsx) ──────────────────────────────────────
+ * Visual only — no behavior changes. While the mic is hot inside the chat
+ * composer, a soft gold ring echoes the composer's focus ring. */
+.kch-composer .voice-mic-btn.voice-mic-listening {
+  box-shadow: 0 0 0 3px var(--dm-gold-glow);
+}
+
+/* ── Responsive: 390 / 768 / 1280 ────────────────────────────────────── */
+@media (max-width: 600px) {
+  .kch-chat-col,
+  .kch-dock-inner {
+    padding-left: var(--dm-3);
+    padding-right: var(--dm-3);
+  }
+
+  .kch-dock {
+    padding-bottom: calc(var(--dm-3) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 16px stops iOS auto-zoom; 44px keeps the field a real tap target. */
+  .kch-dock .dm-composer input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* The mode trigger is a dm-btn-sm — guarantee a 44px tap target. */
+  .kch-dock .dm-mode-dd .dm-btn {
+    min-height: 44px;
+  }
+
+  .kch-empty {
+    padding-top: clamp(36px, 8vh, 72px);
+  }
+}
+
+/* ── Reduced motion: still EVERYTHING ────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .kch-word,
+  .kch-empty-sub,
+  .kch-shimmer {
+    animation: none;
+  }
+
+  /* Never leave content invisible when its entrance animation is removed. */
+  .kch-word,
+  .kch-empty-sub {
+    opacity: 1;
+    transform: none;
+  }
+
+  .kch-mode-label {
+    transition: none;
+  }
+}
