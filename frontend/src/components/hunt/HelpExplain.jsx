@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { Info, ChevronDown } from 'lucide-react';
 import './ResilienceStates.css';
 import './HelpExplain.css';
 import './HelpExplain.polish.css';
@@ -115,7 +116,7 @@ export function ConfidenceScorePopover({ score }) {
         aria-expanded={open}
         onClick={() => setOpen(v => !v)}
       >
-        ⓘ
+        <Info size={14} aria-hidden="true" />
       </button>
       {open && (
         <span className="hpx-popover" role="dialog" aria-label="Confidence score explained">
@@ -156,7 +157,8 @@ export function TargetInputFormatHelp() {
         aria-expanded={open}
         onClick={() => setOpen(v => !v)}
       >
-        {open ? '▾ Hide accepted formats' : '▸ What can I hunt?'}
+        <ChevronDown size={14} aria-hidden="true" className="hpx-format-chev" />
+        {open ? 'Hide accepted formats' : 'What can I hunt?'}
       </button>
       {open && (
         <ul className="hpx-format-list">

@@ -14,7 +14,7 @@
  *   clear error bubble — never invented agent text.
  * - Graceful empty state when there is no active hunt (jobId == null).
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Bot, Send, Loader2, MessageCircle, AlertTriangle, Square } from 'lucide-react';
 import { askJob } from '../../services/api';
 import { speak } from '../../services/voice';
@@ -210,7 +210,7 @@ export function AgentChat({
             onClick={() => onToggleVoiceMode?.(false)}
             title="Stop the voice conversation"
           >
-            <Square size={13} /> Stop voice
+            <Square size={13} aria-hidden="true" /> Stop voice
           </button>
         )}
       </header>
@@ -234,7 +234,7 @@ export function AgentChat({
               >
                 <div className="dm-chat-bubble">
                   {msg.error && (
-                    <AlertTriangle size={13} style={{ verticalAlign: -2, marginRight: 6 }} />
+                    <AlertTriangle size={13} aria-hidden="true" className="dm-chat-error-icon" />
                   )}
                   {msg.text}
                   {msg.reaction && (
@@ -286,6 +286,8 @@ export function AgentChat({
               aria-describedby="dm-chat-hint"
               disabled={waiting}
               maxLength={2000}
+              enterKeyHint="send"
+              autoComplete="off"
             />
             <MicButton
               onFinal={t => setInput(prev => (prev ? `${prev} ${t}` : t))}
@@ -298,7 +300,7 @@ export function AgentChat({
               disabled={waiting || !input.trim()}
               aria-label="Send message"
             >
-              {waiting ? <Loader2 size={18} className="dm-spin" /> : <Send size={18} />}
+              {waiting ? <Loader2 size={18} className="sg-spin" /> : <Send size={18} />}
             </button>
           </form>
           {voiceMode && jobId && (

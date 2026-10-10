@@ -157,6 +157,58 @@
   color: var(--text-secondary);
 }
 
+/* Entrance motion: tooltips rise in, popovers drop in, factor bars sweep
+   from the left — nothing pops. All covered by the reduced-motion guard
+   at the bottom of this file. */
+.hpx-tooltip {
+  animation: hpx-tip-in 0.18s ease-out;
+}
+@keyframes hpx-tip-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.hpx-popover {
+  animation: hpx-pop-in 0.18s ease-out;
+}
+@keyframes hpx-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hpx-factor-fill {
+  transform-origin: left;
+  animation: hpx-fill-in 0.5s ease-out;
+}
+@keyframes hpx-fill-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Format-toggle chevron rotates open instead of swapping glyphs. */
+.hpx-format-chev {
+  transition: transform var(--transition-fast);
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+.hpx-format-toggle[aria-expanded='true'] .hpx-format-chev {
+  transform: rotate(180deg);
+}
+
 /* Small screens: popovers align to the right edge so they never clip. */
 @media (max-width: 640px) {
   .hpx-popover {
@@ -177,7 +229,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hpx-info-btn,
-  .hpx-phase {
+  .hpx-phase,
+  .hpx-format-chev {
     transition: none;
+  }
+  .hpx-tooltip,
+  .hpx-popover,
+  .hpx-factor-fill {
+    animation: none;
   }
 }

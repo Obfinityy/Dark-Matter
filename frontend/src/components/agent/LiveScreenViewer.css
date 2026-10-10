@@ -32,6 +32,72 @@
   flex-shrink: 0;
 }
 
+/* Live status dot — the old "● Live" text glyph is replaced by a real
+   pulsing indicator; pause uses the lucide Pause icon in JSX. */
+.dm-screen-viewer .dm-screen-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lsv-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+  animation: lsv-pulse 1.6s ease-in-out infinite;
+}
+@keyframes lsv-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.75);
+  }
+}
+
+/* Empty states: lucide Monitor icon above the text, never touching edges. */
+.lsv-empty-icon {
+  display: block;
+  margin: 0 auto 12px;
+  opacity: 0.65;
+}
+
+/* Action log lines: icon + label sit together; new lines ease in. */
+.lsv-action-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.lsv-action-icon {
+  flex: none;
+  vertical-align: -2px;
+}
+.dm-screen-viewer .dm-screen-action-line {
+  animation: lsv-line-in 0.25s ease-out;
+}
+@keyframes lsv-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Note row icon aligns with the text baseline. */
+.dm-screen-viewer .dm-screen-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 /* 390px: stack the controls full-width so Pause / Resume / Refresh are easy
    to hit with a thumb and the head never overflows horizontally. */
 @media (max-width: 480px) {
@@ -53,5 +119,8 @@
   }
   .dm-screen-viewer .dm-screen-action-line {
     animation: none !important;
+  }
+  .lsv-live-dot {
+    animation: none;
   }
 }

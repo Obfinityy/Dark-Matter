@@ -113,6 +113,14 @@
   opacity: 0.65;
 }
 
+/* Error bubble icon: inline with the first line of text. */
+.dm-chat-error-icon {
+  vertical-align: -2px;
+  margin-right: 6px;
+  color: var(--danger, #f87171);
+  flex: none;
+}
+
 .dm-chat-hint {
   margin: 0;
   padding: 10px 16px 12px;
