@@ -1,0 +1,806 @@
+/* ─────────────────────────────────────────────────────────────
+ * kinetic-core.css — Dark Matter / Infinity AI design system
+ * Shared kinetic-type tokens, keyframes, and utility classes.
+ *
+ * NAMESPACE RULE: every class here starts with `ktx-`. Do not add
+ * unprefixed classes to this file.
+ *
+ * Original animation work (2026). All keyframes below are written
+ * from scratch for this project — not copied from any library.
+ * ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* — motion — */
+  --ktx-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ktx-ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --ktx-dur-fast: 240ms;
+  --ktx-dur: 700ms;
+  --ktx-dur-slow: 1100ms;
+  --ktx-stagger-step: 55ms;
+
+  /* — rhythm — */
+  --ktx-maxw: 1200px;
+  --ktx-maxw-narrow: 1000px;
+  --ktx-section-pad: clamp(4rem, 9vw, 7.5rem);
+  --ktx-edge-pad: clamp(1.25rem, 4vw, 2.5rem);
+  --ktx-gap: clamp(1rem, 2.5vw, 1.75rem);
+
+  /* — type scale — */
+  --ktx-hero-size: clamp(2.75rem, 7vw, 4.5rem);
+  --ktx-h2-size: clamp(1.9rem, 4vw, 2.75rem);
+
+  /* — brand accents (fallbacks so ktx works even without dm- vars) — */
+  --ktx-gold: var(--dm-gold-soft, #f0cf7a);
+  --ktx-gold-deep: #c9982f;
+  --ktx-ink: var(--dm-text, #f5f2ea);
+  --ktx-ink-2: var(--dm-text-2, #b8b3a6);
+  --ktx-muted: var(--dm-muted, #8a8578);
+  --ktx-surface: var(--dm-bg, #0a0a0b);
+  --ktx-surface-2: var(--dm-bg-2, #101012);
+  --ktx-line: var(--dm-border-soft, rgba(240, 207, 122, 0.12));
+
+  /* — focus — */
+  --ktx-focus: 0 0 0 3px var(--ktx-surface), 0 0 0 5px var(--ktx-gold);
+}
+
+/* ═══════════ keyframes (original) ═══════════ */
+
+/* soft rise + fade used by scroll reveals */
+@keyframes ktx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* word-by-word headline reveal inside an overflow mask */
+@keyframes ktx-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(112%) rotate(3deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+/* slow upward drift for the hero badge */
+@keyframes ktx-settle {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* endless horizontal loop; track holds two identical groups,
+   so translating -50% loops seamlessly */
+@keyframes ktx-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* gentle gold shimmer behind the final CTA */
+@keyframes ktx-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ═══════════ scroll-triggered reveal ═══════════ */
+
+.ktx-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--ktx-dur) var(--ktx-ease),
+    transform var(--ktx-dur) var(--ktx-ease);
+  transition-delay: var(--ktx-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.ktx-reveal.ktx-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* stagger children: each child gets --ktx-i set in markup/JS */
+.ktx-stagger > * {
+  --ktx-delay: calc(var(--ktx-i, 0) * var(--ktx-stagger-step));
+}
+
+/* ═══════════ kinetic headline ═══════════ */
+
+/* KineticHeading renders each word inside a mask span; the inner
+   span animates in with a stagger based on its index. */
+.ktx-heading {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
+  text-wrap: balance;
+}
+
+.ktx-heading .ktx-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.08em; /* keeps descenders visible inside the mask */
+  margin-bottom: -0.08em;
+}
+
+.ktx-heading .ktx-word > span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(112%) rotate(3deg);
+  transform-origin: 0 100%;
+}
+
+.ktx-heading.ktx-play .ktx-word > span {
+  animation: ktx-word-in var(--ktx-dur-slow) var(--ktx-ease-snap) both;
+  animation-delay: calc(var(--ktx-delay-base, 0ms) + var(--ktx-i, 0) * 90ms);
+}
+
+.ktx-heading .ktx-word-sep {
+  display: inline-block;
+  width: 0.28em;
+}
+
+.ktx-heading .ktx-accent {
+  color: var(--ktx-gold);
+}
+
+/* ═══════════ section headings with weight-shift hover ═══════════ */
+
+.ktx-h2 {
+  font-size: var(--ktx-h2-size);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 0.5rem;
+  text-wrap: balance;
+  transition:
+    font-weight 320ms var(--ktx-ease),
+    letter-spacing 320ms var(--ktx-ease);
+}
+
+.ktx-h2:hover {
+  font-weight: 900;
+  letter-spacing: -0.015em;
+}
+
+.ktx-section-sub {
+  color: var(--ktx-ink-2);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.ktx-section-head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto clamp(2rem, 5vw, 3.5rem);
+}
+
+/* ═══════════ eyebrow badge ═══════════ */
+
+.ktx-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ktx-gold);
+  border: 1px solid var(--ktx-line);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  background: rgba(240, 207, 122, 0.06);
+  animation: ktx-settle var(--ktx-dur) var(--ktx-ease) both;
+}
+
+/* ═══════════ marquee accent strip ═══════════ */
+
+.ktx-marquee {
+  overflow: hidden;
+  border-top: 1px solid var(--ktx-line);
+  border-bottom: 1px solid var(--ktx-line);
+  background: var(--ktx-surface-2);
+  padding: 1rem 0;
+  user-select: none;
+}
+
+.ktx-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 0;
+  animation: ktx-marquee var(--ktx-marquee-speed, 36s) linear infinite;
+}
+
+.ktx-marquee:hover .ktx-marquee-track {
+  animation-play-state: paused;
+}
+
+.ktx-marquee-group {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ktx-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ktx-muted);
+  white-space: nowrap;
+}
+
+.ktx-marquee-item .ktx-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ktx-gold);
+  flex-shrink: 0;
+}
+
+/* ═══════════ buttons / interactive ═══════════ */
+
+.ktx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  padding: 0.7rem 1.4rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition:
+    transform var(--ktx-dur-fast) var(--ktx-ease),
+    box-shadow var(--ktx-dur-fast) var(--ktx-ease),
+    background var(--ktx-dur-fast) var(--ktx-ease),
+    color var(--ktx-dur-fast) var(--ktx-ease);
+}
+
+.ktx-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.ktx-btn-primary {
+  background: linear-gradient(135deg, #e3ba63 0%, #a77d28 100%);
+  color: #1a1206;
+  box-shadow: 0 4px 22px rgba(212, 169, 78, 0.28);
+}
+
+.ktx-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 34px rgba(212, 169, 78, 0.45);
+}
+
+.ktx-btn-ghost {
+  background: transparent;
+  border-color: var(--ktx-line);
+  color: var(--ktx-ink);
+}
+
+.ktx-btn-ghost:hover {
+  border-color: var(--ktx-gold);
+  color: var(--ktx-gold);
+  transform: translateY(-1px);
+}
+
+.ktx-btn-lg {
+  min-height: 52px;
+  padding: 0.85rem 1.9rem;
+  font-size: 1.05rem;
+}
+
+.ktx-btn-sm {
+  min-height: 44px;
+  padding: 0.55rem 1.05rem;
+  font-size: 0.92rem;
+}
+
+.ktx-btn-block {
+  width: 100%;
+}
+
+/* focus visibility — never remove the ring */
+.ktx-btn:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: none;
+  box-shadow: var(--ktx-focus);
+}
+
+/* ═══════════ layout rhythm ═══════════ */
+
+.ktx-section {
+  padding: var(--ktx-section-pad) var(--ktx-edge-pad);
+}
+
+.ktx-container {
+  max-width: var(--ktx-maxw);
+  margin: 0 auto;
+}
+
+.ktx-container-narrow {
+  max-width: var(--ktx-maxw-narrow);
+  margin: 0 auto;
+}
+
+.ktx-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ktx-gap);
+}
+
+.ktx-card {
+  border: 1px solid var(--ktx-line);
+  border-radius: 18px;
+  background: var(--ktx-surface-2);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  transition:
+    transform var(--ktx-dur-fast) var(--ktx-ease),
+    border-color var(--ktx-dur-fast) var(--ktx-ease),
+    box-shadow var(--ktx-dur-fast) var(--ktx-ease);
+}
+
+.ktx-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(240, 207, 122, 0.35);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+
+.ktx-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.6rem;
+}
+
+.ktx-card-sub {
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--ktx-ink-2);
+  margin: 0;
+}
+
+.ktx-center {
+  text-align: center;
+}
+
+/* CTA glow wash */
+.ktx-cta-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.ktx-cta-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 60% 80% at 50% 50%,
+    rgba(212, 169, 78, 0.12),
+    transparent 70%
+  );
+  animation: ktx-glow-breathe 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* screen-reader-only text (for marquee duplicate content) */
+.ktx-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ═══════════ landing-scoped placement ═══════════ */
+
+.ktx-landing {
+  background: var(--ktx-surface);
+  color: var(--ktx-ink);
+  min-height: 100vh;
+  overflow-x: clip;
+}
+
+/* nav */
+.ktx-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(10, 10, 11, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--ktx-line);
+}
+
+.ktx-nav-inner {
+  max-width: var(--ktx-maxw);
+  margin: 0 auto;
+  padding: 0 var(--ktx-edge-pad);
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ktx-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ktx-ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  min-height: 44px;
+  padding: 0.25rem 0.25rem;
+}
+
+.ktx-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.ktx-nav-links a {
+  color: var(--ktx-ink-2);
+  text-decoration: none;
+  font-size: 0.94rem;
+  font-weight: 500;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  transition: color var(--ktx-dur-fast) var(--ktx-ease);
+}
+
+.ktx-nav-links a:hover {
+  color: var(--ktx-ink);
+}
+
+.ktx-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* hero */
+.ktx-hero {
+  text-align: center;
+  padding: clamp(4.5rem, 10vw, 8rem) var(--ktx-edge-pad) clamp(3.5rem, 8vw, 6rem);
+  position: relative;
+}
+
+.ktx-hero-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.ktx-hero .ktx-eyebrow {
+  margin-bottom: 1.75rem;
+}
+
+.ktx-hero-heading {
+  font-size: var(--ktx-hero-size);
+  margin-bottom: 1.5rem;
+}
+
+.ktx-hero-sub {
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+  color: var(--ktx-ink-2);
+  line-height: 1.65;
+  max-width: 620px;
+  margin: 0 auto 2.25rem;
+  text-wrap: balance;
+  animation: ktx-rise var(--ktx-dur) var(--ktx-ease) both;
+  animation-delay: 650ms;
+}
+
+.ktx-hero-form {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 580px;
+  margin: 0 auto 1rem;
+  animation: ktx-rise var(--ktx-dur) var(--ktx-ease) both;
+  animation-delay: 800ms;
+}
+
+.ktx-hero-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.ktx-hero-input-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ktx-muted);
+  pointer-events: none;
+}
+
+.ktx-hero-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0.85rem 1rem 0.85rem 2.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--ktx-line);
+  background: var(--ktx-surface-2);
+  color: var(--ktx-ink);
+  font-size: 1rem;
+  transition: border-color var(--ktx-dur-fast) var(--ktx-ease);
+}
+
+.ktx-hero-input::placeholder {
+  color: var(--ktx-muted);
+}
+
+.ktx-hero-input:focus {
+  outline: none;
+  border-color: var(--ktx-gold);
+}
+
+.ktx-hero-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+  color: var(--ktx-muted);
+  margin: 0;
+  animation: ktx-rise var(--ktx-dur) var(--ktx-ease) both;
+  animation-delay: 950ms;
+}
+
+/* steps */
+.ktx-step-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.ktx-step-num {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(240, 207, 122, 0.08);
+  border: 1px solid rgba(240, 207, 122, 0.3);
+  color: var(--ktx-gold);
+  font-weight: 800;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ktx-step-icon {
+  color: var(--ktx-muted);
+}
+
+/* brain cards */
+.ktx-brain-icon {
+  color: var(--ktx-gold);
+  margin-bottom: 1.1rem;
+}
+
+/* pricing */
+.ktx-price {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0.35rem 0 1.25rem;
+}
+
+.ktx-price-period {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--ktx-muted);
+  letter-spacing: 0;
+}
+
+.ktx-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.75rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ktx-feature-list li {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  color: var(--ktx-ink-2);
+  align-items: flex-start;
+}
+
+.ktx-feature-check {
+  color: var(--ktx-gold);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ktx-card-featured {
+  border-color: rgba(240, 207, 122, 0.45);
+  background:
+    linear-gradient(180deg, rgba(240, 207, 122, 0.09), transparent 55%),
+    var(--ktx-surface-2);
+}
+
+/* footer */
+.ktx-footer {
+  border-top: 1px solid var(--ktx-line);
+  padding: 2.5rem var(--ktx-edge-pad);
+}
+
+.ktx-footer-inner {
+  max-width: var(--ktx-maxw);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.ktx-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ktx-ink);
+}
+
+.ktx-footer-tag {
+  font-size: 0.86rem;
+  color: var(--ktx-muted);
+}
+
+.ktx-footer-links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.ktx-footer-links a {
+  color: var(--ktx-muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  transition: color var(--ktx-dur-fast) var(--ktx-ease);
+}
+
+.ktx-footer-links a:hover {
+  color: var(--ktx-ink);
+}
+
+.ktx-section-alt {
+  background: var(--ktx-surface-2);
+  border-top: 1px solid var(--ktx-line);
+  border-bottom: 1px solid var(--ktx-line);
+}
+
+/* ═══════════ responsive ═══════════ */
+
+@media (max-width: 900px) {
+  .ktx-grid-3 {
+    grid-template-columns: 1fr;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .ktx-nav-links a {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .ktx-hero-form {
+    flex-direction: column;
+  }
+
+  .ktx-hero-form .ktx-btn {
+    width: 100%;
+  }
+
+  .ktx-footer-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .ktx-nav-actions .ktx-btn-ghost {
+    display: none;
+  }
+}
+
+/* ═══════════ reduced motion ═══════════
+ * All kinetic motion stills when the user asks for it. */
+
+@media (prefers-reduced-motion: reduce) {
+  .ktx-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .ktx-heading .ktx-word > span {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .ktx-eyebrow,
+  .ktx-hero-sub,
+  .ktx-hero-form,
+  .ktx-hero-note {
+    animation: none;
+  }
+
+  .ktx-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: auto;
+  }
+
+  .ktx-cta-glow::before {
+    animation: none;
+    opacity: 0.5;
+  }
+
+  .ktx-card:hover,
+  .ktx-btn-primary:hover,
+  .ktx-btn-ghost:hover {
+    transform: none;
+  }
+
+  .ktx-h2 {
+    transition: none;
+  }
+}
