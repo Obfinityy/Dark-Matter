@@ -44,13 +44,19 @@ export function unregisterLoop(huntId) {
 export function createContinuousHuntController({ dataDir, logger = console, brainDeps = {} } = {}) {
   async function getLoop(huntId) {
     const id = String(huntId || '');
-    let loop = LIVE_LOOPS.get(id);
+    // Serving order matters. (1) Explicitly registered loops first — this is
+    // the real running loop wired by startHunt (and by tests). (2) The
+    // manager's LIVE registry — the single source of truth for running hunts
+    // with their tick driver. (3) Disk restore only when no live loop exists.
+    // Never serve a stale disk copy while a live loop exists: pause/resume/
+    // force-stop/tally must act on the real loop, not a phantom.
+    let loop = LIVE_LOOPS.get(id) || (await getLiveLoop(id, { dataDir, logger }));
     if (!loop) {
       const exists = await ContinuousHuntLoop.exists(id, dataDir);
       if (!exists) return null;
       loop = await ContinuousHuntLoop.load({ huntId: id, deps: { dataDir }, logger });
-      LIVE_LOOPS.set(id, loop);
     }
+    LIVE_LOOPS.set(id, loop);
     return loop;
   }
 

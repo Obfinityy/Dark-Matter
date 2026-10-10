@@ -16,6 +16,7 @@ import {
   unregisterLoop,
 } from '../controllers/continuousHuntController.js';
 import { ContinuousHuntLoop } from './continuousHuntLoop.js';
+import { startHunt, getLiveLoop } from './continuousHuntManager.js';
 
 const quiet = { info() {}, warn() {}, error() {} };
 
@@ -165,10 +166,42 @@ describe('pause / resume / force-stop', () => {
     unregisterLoop(loop.huntId);
   });
 
+  it('pause hits the REAL loop even when the controller registry missed it', async () => {
+    // Regression: the manager once failed to register the loop with the
+    // controller (bad dynamic-import path, swallowed by try/catch), so
+    // pause/resume/force-stop acted on a driverless disk-loaded phantom while
+    // the real hunt kept ticking. The controller must fall back to the
+    // manager's live registry instead of serving a phantom.
+    const started = await startHunt({
+      target: 'example.com',
+      deps: { dataDir, minTickMs: 0 },
+      logger: quiet,
+    });
+    const huntId = started.huntId;
+    unregisterLoop(huntId); // simulate the missed registration: controller map empty
+    const live = await getLiveLoop(huntId, { dataDir, logger: quiet });
+    assert.ok(live, 'manager holds the live loop');
+    assert.notEqual(live.state.state, 'PAUSED');
+
+    const res = mockRes();
+    await controller.pause(mockReq({ params: { id: huntId } }), res, next());
+    assert.equal(res.body.state, 'PAUSED');
+    assert.equal(
+      live.state.state,
+      'PAUSED',
+      'the REAL running loop must pause — not a disk-loaded phantom'
+    );
+
+    const tallyRes = mockRes();
+    await controller.tally(mockReq({ params: { id: huntId } }), tallyRes, next());
+    assert.equal(tallyRes.body.state, 'PAUSED', 'tally must report the live loop state');
+    live.stopDriver();
+    unregisterLoop(huntId);
+  });
+
   it('404s for unknown hunts on all controls', async () => {
     for (const handler of ['pause', 'resume', 'forceStop']) {
-      const res = mockRes();
-      await controller[handler](
+      const res = mockRes();      await controller[handler](
         mockReq({ params: { id: 'nope' }, body: { confirmed: true } }),
         res,
         next()

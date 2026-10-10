@@ -159,7 +159,7 @@ export async function startHunt({ target, executor = 'local', deps = {}, logger 
   LIVE.set(huntId, loop);
   // Also register with the controller's registry so its endpoints see it.
   try {
-    const { registerLoop } = await import('./continuousHuntController.js');
+    const { registerLoop } = await import('../controllers/continuousHuntController.js');
     registerLoop(loop);
   } catch {
     /* controller registry is best-effort; manager registry is authoritative */
