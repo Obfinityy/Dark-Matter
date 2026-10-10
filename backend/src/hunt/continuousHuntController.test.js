@@ -56,8 +56,8 @@ function mockRes() {
   return res;
 }
 
-function mockReq({ params = {}, body = {} } = {}) {
-  return { params, body };
+function mockReq({ params = {}, body = {}, user = null } = {}) {
+  return { params, body, user };
 }
 
 /** asyncHandler forwards errors to next — surface them in tests. */

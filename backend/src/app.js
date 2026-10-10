@@ -568,6 +568,11 @@ export async function createApp({ database } = {}) {
     await database.close();
   };
 
+  // Shared brain-link store: the same instance serves the /brain-links API and
+  // the continuous-hunt controller (which wires the user's hacking brain into
+  // new hunts). Two instances would read/write different backings.
+  const brainLinkStore = createMongoBrainLinkStore({ database });
+
   app.use(
     '/api/v1',
     createRoutes({
@@ -591,7 +596,7 @@ export async function createApp({ database } = {}) {
         voice: createVoiceController({ voiceManager }),
         billing: createBillingController({ userModel }),
         brainLinks: createBrainLinkController({
-          brainLinkStore: createMongoBrainLinkStore({ database }),
+          brainLinkStore,
         }),
         jobs: createJobController({
           jobManager,
@@ -622,7 +627,7 @@ export async function createApp({ database } = {}) {
         // force-stop + read-only report snapshots and live tally.
         // Mid-hunt chat is answered by the hacking brain (brainDeps).
         continuousHunt: createContinuousHuntController({
-          brainDeps: { brainProviderModel, modelRunnerService, appConfig: config },
+          brainDeps: { brainProviderModel, modelRunnerService, appConfig: config, brainLinkStore },
           logger: console,
         }),
         // Agent-machine presence + per-account brain-slot sources for the

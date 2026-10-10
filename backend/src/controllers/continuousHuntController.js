@@ -34,30 +34,35 @@ import { brainLinkStore as defaultBrainLinkStore } from '../services/brainLinkSt
  * Returns null when the hacking brain isn't configured — the loop then runs
  * its deterministic checklist (honest fallback, never a fake brain).
  */
-async function plannerForUser(userId, { dataDir, logger } = {}) {
-  if (!userId) return null;
-  let links = null;
-  try {
-    links = await defaultBrainLinkStore.getLinks(userId);
-  } catch {
-    return null;
-  }
-  const hackerUrl = links?.hacker?.url;
-  if (!hackerUrl) return null;
-  const resolved = resolveHackingBrain({
-    selection: {
-      slotSources: {
-        hacker: {
-          source: 'kaggle',
-          kaggleUrl: hackerUrl,
-          kaggleName: links.hacker.name || 'hacker',
+function makePlannerForUser(brainDeps = {}) {
+  // Use the app-wired store (same instance as the /brain-links API); fall back
+  // to the default singleton in tests / standalone wiring.
+  const store = brainDeps?.brainLinkStore || defaultBrainLinkStore;
+  return async function plannerForUser(userId, { dataDir, logger } = {}) {
+    if (!userId) return null;
+    let links = null;
+    try {
+      links = await store.getLinks(userId);
+    } catch {
+      return null;
+    }
+    const hackerUrl = links?.hacker?.url;
+    if (!hackerUrl) return null;
+    const resolved = resolveHackingBrain({
+      selection: {
+        slotSources: {
+          hacker: {
+            source: 'kaggle',
+            kaggleUrl: hackerUrl,
+            kaggleName: links.hacker.name || 'hacker',
+          },
         },
       },
-    },
-  });
-  if (!resolved?.provider) return null;
-  logger?.info?.('[continuousHunt] wiring hacking brain into hunt planner (kaggle).');
-  return new TripleBrainPlanner({ brain: resolved.provider, dataDir, logger });
+    });
+    if (!resolved?.provider) return null;
+    logger?.info?.('[continuousHunt] wiring hacking brain into hunt planner (kaggle).');
+    return new TripleBrainPlanner({ brain: resolved.provider, dataDir, logger });
+  };
 }
 
 /** Live loops, keyed by huntId. Survives across requests in-process. */
@@ -238,6 +243,7 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
       try {
         // Wire the user's hacking brain into the hunt when configured; otherwise
         // the loop runs its deterministic checklist (honest fallback).
+        const plannerForUser = makePlannerForUser(brainDeps);
         const planner = await plannerForUser(request.user?.id, { dataDir, logger }).catch(() => null);
         const { huntId, loop } = await startHunt({
           target,
