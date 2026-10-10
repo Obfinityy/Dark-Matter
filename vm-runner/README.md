@@ -84,6 +84,11 @@ runner refuses to boot the VM (software emulation would be unusably slow).
      explicitly.
    - If a previous attempt left a 0-byte file behind, delete it before
      copying the fresh one.
+   - **Do not** place the image in the repository's `vm-runner/images/`
+     folder — that directory only holds `kali.json` (the image descriptor).
+     The runner reads the disk from the `%USERPROFILE%\DarkMatter\vm\images\`
+     directory above. A multi-GB disk inside the repo would also needlessly
+     sync it to OneDrive/Git.
 
 ### Step 5 — Start the runner
 
