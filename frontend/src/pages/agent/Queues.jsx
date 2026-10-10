@@ -243,7 +243,7 @@ export function Queues() {
                   <Trash2 size={13} aria-hidden="true" /> Delete
                 </button>
                 {queue.currentJobId && (
-                  <Link to={`/agent/hunt/${queue.currentJobId}`} className="dm-card-link">
+                  <Link to={`/agent/hunt-job/${queue.currentJobId}`} className="dm-card-link">
                     Watch live hunt <ChevronRight size={13} aria-hidden="true" />
                   </Link>
                 )}

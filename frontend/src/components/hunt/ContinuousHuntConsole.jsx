@@ -1,19 +1,26 @@
 /**
- * ContinuousHuntConsole — the live view for a continuous autonomous hunt
- * (issue #298). The user pastes a target and hits Enter; the agent hunts
- * non-stop (understanding → recon → testing → research → deep_testing →
- * replan → …) until the USER force-stops it. Force stop is the only
- * terminal action — pause/resume freeze and restore the full loop state.
+ * ContinuousHuntConsole — the Hunt AI live page for a continuous autonomous
+ * hunt (issue #298). The user pastes a target and hits Enter; the agent hunts
+ * non-stop until the USER force-stops it. Force stop is the only terminal
+ * action — pause/resume freeze and restore the full loop state.
+ *
+ * Clean by design (owner order):
+ *   - hero: ONE live terminal — activity + findings + think-aloud, inline
+ *   - a live timeline rendered from REAL SSE events (hunt.state_changed,
+ *     think.trace, tool output, findings, vuln_tally) — what the hacking
+ *     brain is actually doing right now. Never a predefined phase checklist.
+ *   - a bottom-docked chat input + tap-to-talk voice button
+ *   - secondary tabs: Live screen, Findings
  *
  * Live data arrives over SSE (`/hunts/:id/events`):
  *   - `activity`      → live terminal lines
  *   - `vuln_tally`    → {critical,high,medium,low,informational,total} severity chips
- *   - `think.trace`   → think-aloud trace (humanRecon / researchFallback)
+ *   - `think.trace`   → think-aloud trace
  *   - `hunt.*`        → lifecycle + VM boot state changes
+ *   - `finding.*`     → findings
  *
- * Mid-hunt chat reuses ChatDock's MessageList/MessageComposer (extended,
- * not duplicated) and asks the backend with the hunt id — replies are
- * grounded in the live loop context.
+ * Mid-hunt chat asks the backend with the hunt id — replies are grounded in
+ * the live loop context.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
@@ -28,10 +35,12 @@ import {
   TerminalSquare,
   ArrowDown,
   Brain,
-  Server,
-  Radio,
+  Monitor,
+  Target,
+  Cpu,
 } from 'lucide-react';
 import {
+  getAgentStatus,
   getHuntState,
   subscribeToHuntEvents,
   pauseHunt,
@@ -41,28 +50,14 @@ import {
   askHunt,
 } from '../../services/api';
 import { MessageList, MessageComposer } from './ChatDock';
+import { MicButton } from '../agent/VoiceInput';
+import { HuntLiveScreen } from './HuntLiveScreen';
+import { probeRunner } from '../../services/runnerDownload.js';
 import { usePrefersReducedMotion } from '../kinetic/Kinetic';
 import './ChatDock.css';
 import './ContinuousHuntConsole.css';
+import './HuntLiveScreen.css';
 import '../../styles/kinetic-hunt.css';
-
-const LOOP_STATE_LABELS = {
-  UNDERSTANDING: 'Understanding the target',
-  RECON: 'Recon',
-  TESTING: 'Testing hypotheses',
-  RESEARCH: 'Researching',
-  DEEP_TESTING: 'Deep testing',
-  REPLAN: 'Replanning',
-};
-
-const TRACE_KIND_LABELS = {
-  humanRecon: 'Recon thinking',
-  researchFallback: 'Researching (web fallback)',
-  understanding: 'Understanding',
-  finding: 'Finding',
-  transition: 'State change',
-  start: 'Hunt started',
-};
 
 // Backend severity set (vulnTallyService): critical/high/medium/low/
 // informational — displayed with the familiar short labels.
@@ -82,10 +77,6 @@ function prettyKind(kind) {
     .replace(/^./, c => c.toUpperCase());
 }
 
-function traceLabel(kind) {
-  return TRACE_KIND_LABELS[kind] || prettyKind(kind);
-}
-
 /** Render one SSE activity payload (or a plain string) as a terminal line.
  * Backend shape: { id, scanId, type, level, message, data: { line, ts }, timestamp }. */
 function activityText(ev) {
@@ -94,6 +85,14 @@ function activityText(ev) {
   const msg = d.line || ev?.message || d.message || d.text || d.detail;
   if (msg) return String(msg);
   return JSON.stringify(ev?.data ?? ev).slice(0, 220);
+}
+
+function activityLevel(ev) {
+  const d = ev?.data || {};
+  const lvl = String(d.level || ev?.level || '').toLowerCase();
+  if (/(error|crit|fail)/.test(lvl)) return 'err';
+  if (/(warn|alert)/.test(lvl)) return 'warn';
+  return 'info';
 }
 
 /** Render one think.trace payload as a readable reasoning entry.
@@ -126,6 +125,23 @@ function normalizeTally(source) {
   };
 }
 
+/** Normalize one brain presence value from GET /api/v1/agent/status.
+ * `grounding` may be the string 'vision-driven' when the grounding brain is
+ * disabled and vision covers grounding — surfaced explicitly in the UI. */
+function brainTone(value) {
+  if (value === 'vision-driven') return 'vision-driven';
+  const v = String(value ?? '').toLowerCase();
+  if (value === true || ['connected', 'live', 'ready', 'on', 'enabled', 'ok'].includes(v))
+    return 'on';
+  return 'off';
+}
+
+function brainLabel(name, value) {
+  const tone = brainTone(value);
+  if (tone === 'vision-driven') return `${name}: vision-driven`;
+  return `${name}: ${tone === 'on' ? 'live' : 'off'}`;
+}
+
 /** Hunt status pill — same visual language as the rest of the console lane. */
 function HuntStatusPill({ status }) {
   const s = String(status || 'starting').toLowerCase();
@@ -147,6 +163,12 @@ function HuntStatusPill({ status }) {
   );
 }
 
+let entrySeq = 0;
+function nextEntryId() {
+  entrySeq += 1;
+  return `${Date.now()}-${entrySeq}`;
+}
+
 export function ContinuousHuntConsole() {
   const { huntId } = useParams();
   const location = useLocation();
@@ -156,18 +178,26 @@ export function ContinuousHuntConsole() {
   const reducedMotion = usePrefersReducedMotion();
 
   const [hunt, setHunt] = useState(null);
+  const [rawState, setRawState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
-  const [lines, setLines] = useState([]);
+  // Unified terminal: live activity + think-aloud + findings, inline.
+  const [entries, setEntries] = useState([]);
   const [follow, setFollow] = useState(true);
   const [unseen, setUnseen] = useState(0);
+  // Live timeline — rendered from REAL SSE events only, newest first.
+  const [timeline, setTimeline] = useState([]);
+  const [currentFocus, setCurrentFocus] = useState('');
+  const [findings, setFindings] = useState([]);
   const [tally, setTally] = useState(normalizeTally(null));
-  const [traces, setTraces] = useState([]);
-  const [vmStatus, setVmStatus] = useState('starting'); // starting | booting | ready
+  // Agent presence + brains (Bug 5 / Bug 6).
+  const [agent, setAgent] = useState(null); // null = unknown yet
+  const [agentUnknown, setAgentUnknown] = useState(false);
   const [busy, setBusy] = useState(null); // pause | resume | report
   const [confirmStop, setConfirmStop] = useState(false);
   const [reportDone, setReportDone] = useState('');
+  const [panelTab, setPanelTab] = useState('screen'); // screen | findings
   const [chat, setChat] = useState({ messages: [], thinking: false, error: '' });
 
   const bodyRef = useRef(null);
@@ -175,19 +205,47 @@ export function ContinuousHuntConsole() {
   const stopBtnRef = useRef(null);
   const chatIdRef = useRef(0);
 
+  // ── Agent presence (Bug 5 + Bug 6) ─────────────────────────────
+  const refreshAgent = useCallback(async () => {
+    try {
+      const st = await getAgentStatus();
+      setAgent(st || null);
+      setAgentUnknown(!st);
+    } catch {
+      // Backend may predate the endpoint — fall back to a direct local
+      // Runner probe before admitting we don't know.
+      try {
+        const r = await probeRunner(2500);
+        if (r?.up) {
+          setAgent({ connected: true, runner: 'local', brains: {} });
+          setAgentUnknown(false);
+          return;
+        }
+      } catch {
+        /* ignore — unknown stays unknown */
+      }
+      setAgent(null);
+      setAgentUnknown(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAgent();
+    const timer = setInterval(refreshAgent, 30000);
+    return () => clearInterval(timer);
+  }, [refreshAgent]);
+
   // ── Load initial state (refresh-safe) ────────────────────────────
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setLoadError('');
     getHuntState(huntId)
-      .then(({ hunt: h, tally: t }) => {
+      .then(({ hunt: h, tally: t, raw }) => {
         if (cancelled) return;
         setHunt(h);
+        setRawState(raw || null);
         setTally(normalizeTally(t || h?.tally));
-        // First contact with the loop means the machine is up — flip the
-        // VM indicator off its "starting…" state.
-        setVmStatus('ready');
         setLoading(false);
       })
       .catch(err => {
@@ -201,26 +259,33 @@ export function ContinuousHuntConsole() {
     };
   }, [huntId]);
 
-  // ── Terminal line pump ───────────────────────────────────────────
-  const pushLine = useCallback(text => {
-    setLines(prev => [...prev, { text, at: Date.now() }].slice(-400));
+  // ── Terminal + timeline pumps ──────────────────────────────────
+  const pushEntry = useCallback(entry => {
+    setEntries(prev => [...prev, { ...entry, id: nextEntryId() }].slice(-400));
     if (!followRef.current) setUnseen(n => n + 1);
   }, []);
 
+  const pushTimeline = useCallback(item => {
+    setTimeline(prev =>
+      [{ ...item, id: nextEntryId(), at: item.at || new Date().toISOString() }, ...prev].slice(
+        0,
+        80
+      )
+    );
+  }, []);
+
   // ── Live SSE stream ──────────────────────────────────────────────
-  // The backend publishes vuln_tally/activity to the shared event bus; the
-  // dedicated /hunts/:id/events route lands with the backend worker's next
-  // pass. Until the stream opens, a light /tally poll keeps the console live.
+  // Until the stream opens, a light /tally poll keeps the console live.
   useEffect(() => {
     if (!huntId) return;
     let sseOpen = false;
     const refresh = async () => {
       if (sseOpen) return;
       try {
-        const { hunt: h, tally: t } = await getHuntState(huntId);
+        const { hunt: h, tally: t, raw } = await getHuntState(huntId);
         setHunt(h);
+        setRawState(raw || null);
         setTally(normalizeTally(t || h?.tally));
-        setVmStatus('ready');
       } catch {
         /* keep last-known state */
       }
@@ -230,7 +295,6 @@ export function ContinuousHuntConsole() {
       onOpen: () => {
         sseOpen = true;
         clearInterval(pollTimer);
-        setVmStatus('ready');
       },
       onEvent: event => {
         const type = event.__sseType || event.type || '';
@@ -239,47 +303,90 @@ export function ContinuousHuntConsole() {
         // payload flat — tolerate both shapes.
         const payload = event.data?.data ?? event.data ?? {};
         if (type === 'activity') {
-          pushLine(activityText(event));
-          setVmStatus('ready');
+          pushEntry({ kind: 'activity', level: activityLevel(event), text: activityText(event) });
+          pushTimeline({ label: 'Tool output', detail: activityText(event), tone: 'dim' });
         } else if (type === 'vuln_tally') {
-          setTally(normalizeTally(payload));
+          const nt = normalizeTally(payload);
+          setTally(nt);
+          if (nt.total > 0)
+            pushTimeline({
+              label: 'Tally updated',
+              detail: `${nt.total} findings (${nt.critical} critical, ${nt.high} high)`,
+              tone: 'info',
+            });
         } else if (type === 'think.trace') {
-          setTraces(prev =>
-            [
-              ...prev,
-              {
-                id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                kind: traceKind(event),
-                text: traceText(event),
-                at: traceAt(event),
-              },
-            ].slice(-60)
-          );
-        } else if (type === 'hunt.vm_booting') {
-          setVmStatus('booting');
-        } else if (type === 'hunt.vm_ready' || type === 'hunt.started') {
-          setVmStatus('ready');
+          const kind = traceKind(event);
+          const text = traceText(event);
+          pushEntry({ kind: 'think', label: prettyKind(kind), text });
+          pushTimeline({ label: `Thinking — ${prettyKind(kind)}`, detail: text, tone: 'think' });
         } else if (type === 'hunt.state_changed') {
-          const st = String(payload.state || payload.status || '').toUpperCase();
+          const st = String(payload.state || payload.status || '');
           if (st) {
+            const pretty = prettyKind(st.toLowerCase());
+            setCurrentFocus(pretty);
+            pushTimeline({ label: 'Agent moved to', detail: pretty, tone: 'state' });
             setHunt(prev => ({
               ...(prev || {}),
-              loopState: st,
-              status: st === 'PAUSED' ? 'paused' : st === 'FORCE_STOPPED' ? 'force_stopped' : 'running',
+              loopState: st.toUpperCase(),
+              status:
+                st.toUpperCase() === 'PAUSED'
+                  ? 'paused'
+                  : st.toUpperCase() === 'FORCE_STOPPED'
+                    ? 'force_stopped'
+                    : 'running',
             }));
           }
-        } else if (type === 'hunt.paused' || type === 'hunt.resumed' || type === 'hunt.force_stopped') {
+        } else if (type === 'hunt.vm_booting') {
+          pushTimeline({ label: 'Sandbox VM', detail: 'Booting the Kali sandbox…', tone: 'dim' });
+        } else if (type === 'hunt.vm_ready' || type === 'hunt.started') {
+          pushTimeline({
+            label: type === 'hunt.vm_ready' ? 'Sandbox VM' : 'Hunt',
+            detail: type === 'hunt.vm_ready' ? 'Sandbox is ready.' : 'Hunt started.',
+            tone: 'info',
+          });
+        } else if (
+          type === 'hunt.paused' ||
+          type === 'hunt.resumed' ||
+          type === 'hunt.force_stopped'
+        ) {
+          const label =
+            type === 'hunt.paused' ? 'Paused' : type === 'hunt.resumed' ? 'Resumed' : 'Force stopped';
+          pushTimeline({ label: 'Hunt', detail: label, tone: type === 'hunt.force_stopped' ? 'err' : 'warn' });
           setHunt(prev => ({
             ...(prev || {}),
             status:
               type === 'hunt.paused' ? 'paused' : type === 'hunt.resumed' ? 'running' : 'force_stopped',
             loopState:
-              type === 'hunt.paused' ? 'PAUSED' : type === 'hunt.resumed' ? prev?.loopState || 'UNDERSTANDING' : 'FORCE_STOPPED',
+              type === 'hunt.paused'
+                ? 'PAUSED'
+                : type === 'hunt.resumed'
+                  ? prev?.loopState || 'UNDERSTANDING'
+                  : 'FORCE_STOPPED',
           }));
-        } else if (type === 'finding.created') {
-          // The tally event carries the authoritative counts; this line
-          // keeps the terminal informative even if tally lags a beat.
-          pushLine(`finding recorded${payload.title ? `: ${payload.title}` : ''}`);
+        } else if (type === 'finding.created' || type === 'finding.updated') {
+          const p = typeof payload === 'object' ? payload : {};
+          const title = p.title || p.name || 'Finding recorded';
+          const severity = String(p.severity || '').toLowerCase();
+          pushEntry({ kind: 'finding', severity, text: title });
+          pushTimeline({
+            label: `Finding${severity ? ` — ${severity}` : ''}`,
+            detail: title,
+            tone: severity === 'critical' || severity === 'high' ? 'err' : 'warn',
+          });
+          if (type === 'finding.created') {
+            setFindings(prev =>
+              [
+                {
+                  id: nextEntryId(),
+                  title,
+                  severity: severity || 'unknown',
+                  detail: p.description || p.detail || '',
+                  at: new Date().toISOString(),
+                },
+                ...prev,
+              ].slice(0, 100)
+            );
+          }
         }
       },
       onError: () => {},
@@ -288,7 +395,7 @@ export function ContinuousHuntConsole() {
       clearInterval(pollTimer);
       unsubscribe?.();
     };
-  }, [huntId, pushLine]);
+  }, [huntId, pushEntry, pushTimeline]);
 
   // ── Follow / auto-scroll ─────────────────────────────────────────
   const checkFollow = useCallback(() => {
@@ -305,12 +412,11 @@ export function ContinuousHuntConsole() {
     setUnseen(0);
   }, []);
 
-  // ── Follow / auto-scroll ─────────────────────────────────────────
   useEffect(() => {
     if (!follow) return;
     const el = bodyRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: reducedMotion ? 'auto' : 'smooth' });
-  }, [lines, follow, reducedMotion]);
+  }, [entries, follow, reducedMotion]);
 
   // ── Controls ─────────────────────────────────────────────────────
   const doPause = useCallback(async () => {
@@ -319,13 +425,19 @@ export function ContinuousHuntConsole() {
     try {
       const body = await pauseHunt(huntId);
       const st = String(body?.state || 'PAUSED').toUpperCase();
-      setHunt(prev => ({ ...(prev || {}), loopState: st, status: 'paused', tick: body?.tick ?? prev?.tick }));
+      setHunt(prev => ({
+        ...(prev || {}),
+        loopState: st,
+        status: 'paused',
+        tick: body?.tick ?? prev?.tick,
+      }));
+      pushTimeline({ label: 'Hunt', detail: 'Paused', tone: 'warn' });
     } catch (err) {
       setError(err.message || 'Could not pause the hunt.');
     } finally {
       setBusy(null);
     }
-  }, [huntId]);
+  }, [huntId, pushTimeline]);
 
   const doResume = useCallback(async () => {
     setBusy('resume');
@@ -333,13 +445,19 @@ export function ContinuousHuntConsole() {
     try {
       const body = await resumeHunt(huntId);
       const st = String(body?.state || 'UNDERSTANDING').toUpperCase();
-      setHunt(prev => ({ ...(prev || {}), loopState: st, status: 'running', tick: body?.tick ?? prev?.tick }));
+      setHunt(prev => ({
+        ...(prev || {}),
+        loopState: st,
+        status: 'running',
+        tick: body?.tick ?? prev?.tick,
+      }));
+      pushTimeline({ label: 'Hunt', detail: 'Resumed', tone: 'info' });
     } catch (err) {
       setError(err.message || 'Could not resume the hunt.');
     } finally {
       setBusy(null);
     }
-  }, [huntId]);
+  }, [huntId, pushTimeline]);
 
   const doReport = useCallback(async () => {
     setBusy('report');
@@ -369,13 +487,14 @@ export function ContinuousHuntConsole() {
     try {
       await forceStopHunt(huntId); // sends { confirmed: true } — explicit intent
       setHunt(prev => ({ ...(prev || {}), loopState: 'FORCE_STOPPED', status: 'force_stopped' }));
+      pushTimeline({ label: 'Hunt', detail: 'Force stopped', tone: 'err' });
       setConfirmStop(false);
     } catch (err) {
       setError(err.message || 'Could not force-stop the hunt.');
     } finally {
       setBusy(null);
     }
-  }, [huntId]);
+  }, [huntId, pushTimeline]);
 
   // Move focus into the confirm dialog when it opens (keyboard + SR users).
   useEffect(() => {
@@ -383,19 +502,19 @@ export function ContinuousHuntConsole() {
   }, [confirmStop]);
 
   // ── Mid-hunt chat (grounded in the live loop context) ─────────────
-  const loopState = String(hunt?.loopState || '').toUpperCase();
-  const loopLabel = LOOP_STATE_LABELS[loopState] || (loopState ? prettyKind(loopState.toLowerCase()) : '');
   const sendChat = useCallback(
     async text => {
+      const clean = String(text || '').trim();
+      if (!clean) return;
       const id = ++chatIdRef.current;
       setChat(prev => ({
         ...prev,
         error: '',
         thinking: true,
-        messages: [...prev.messages, { id: `u-${id}`, author: 'user', text }],
+        messages: [...prev.messages, { id: `u-${id}`, author: 'user', text: clean }],
       }));
       try {
-        const body = await askHunt(huntId, text);
+        const body = await askHunt(huntId, clean);
         const reply = body?.reply ?? body?.answer ?? body?.message ?? '(no answer)';
         setChat(prev => ({
           ...prev,
@@ -424,7 +543,7 @@ export function ContinuousHuntConsole() {
     return (
       <div className="chc-console">
         <div className="chc-loading" role="status">
-          <Loader2 size={18} className="sg-spin" aria-hidden="true" /> Loading continuous hunt…
+          <Loader2 size={18} className="sg-spin" aria-hidden="true" /> Loading hunt…
         </div>
       </div>
     );
@@ -446,6 +565,10 @@ export function ContinuousHuntConsole() {
   const canPause = status === 'running';
   const canResume = status === 'paused';
   const ended = status === 'force_stopped';
+  const agentRunning = status === 'running';
+  const target = hunt?.target || rawState?.target || navTarget || huntId;
+  const brains = agent?.brains || {};
+  const agentConnected = Boolean(agent?.connected);
 
   return (
     <div className="chc-console">
@@ -456,51 +579,23 @@ export function ContinuousHuntConsole() {
             <Link to="/agent" className="chc-back" aria-label="Back to home">
               <ChevronLeft size={15} aria-hidden="true" />
             </Link>
-            <h1 className="chc-title">Continuous hunt</h1>
+            <h1 className="chc-title">Hunt AI</h1>
             <HuntStatusPill status={status} />
           </div>
-          <p className="chc-target">{hunt?.target || navTarget || huntId}</p>
-          <div className="chc-meta" aria-label="Hunt machine state">
-            <span className="chc-vm" role="status">
-              <Server size={13} aria-hidden="true" />
-              {vmStatus === 'ready' ? (
-                <>VM: ready</>
-              ) : (
-                <>
-                  VM: starting…
-                  <Loader2 size={13} className="sg-spin" aria-hidden="true" />
-                </>
-              )}
-            </span>
-            {loopLabel && (
-              <span className="chc-loop">
-                <Radio size={13} aria-hidden="true" />
-                Loop: {loopLabel}
-              </span>
-            )}
-          </div>
+          <p className="chc-target">{target}</p>
+          {currentFocus && (
+            <p className="chc-focus">
+              <Brain size={13} aria-hidden="true" /> Current focus: {currentFocus}
+            </p>
+          )}
           <span className="visually-hidden" role="status">
             Hunt status: {status}
-            {loopLabel ? `. Loop: ${loopLabel}` : ''}. VM: {vmStatus === 'ready' ? 'ready' : 'starting'}
+            {currentFocus ? `. Current focus: ${currentFocus}` : ''}. Findings: {tallySummary}
           </span>
         </div>
 
         {/* ── Control bar ──────────────────────────────────────── */}
         <div className="chc-controls" role="toolbar" aria-label="Hunt controls">
-          <button
-            type="button"
-            className="dm-btn dm-btn-secondary chc-btn"
-            disabled={busy !== null || ended}
-            onClick={doReport}
-            aria-label="Generate report snapshot without stopping the hunt"
-          >
-            {busy === 'report' ? (
-              <Loader2 size={15} className="sg-spin" aria-hidden="true" />
-            ) : (
-              <FileText size={15} aria-hidden="true" />
-            )}
-            Generate report
-          </button>
           {canPause && (
             <button
               type="button"
@@ -533,6 +628,21 @@ export function ContinuousHuntConsole() {
               Resume
             </button>
           )}
+          <button
+            type="button"
+            className="dm-btn dm-btn-secondary chc-btn"
+            disabled={busy !== null || ended}
+            onClick={doReport}
+            aria-label="Generate report snapshot without stopping the hunt"
+            title="Download a report snapshot — the hunt keeps running"
+          >
+            {busy === 'report' ? (
+              <Loader2 size={15} className="sg-spin" aria-hidden="true" />
+            ) : (
+              <FileText size={15} aria-hidden="true" />
+            )}
+            Report
+          </button>
           {!ended && (
             <button
               type="button"
@@ -561,6 +671,36 @@ export function ContinuousHuntConsole() {
         </div>
       )}
 
+      {/* ── Agent + brain presence (Bugs 5/6) ──────────────────── */}
+      <section className="chc-agentstrip" aria-label="Agent and brain status">
+        <span
+          className={`chc-agent-chip${agentConnected ? ' chc-agent-on' : ''}${
+            agentUnknown ? ' chc-agent-unknown' : ''
+          }`}
+          role="status"
+        >
+          <Cpu size={13} aria-hidden="true" />
+          {agentConnected
+            ? `Agent connected${agent?.runner ? ` · ${agent.runner}` : ''}`
+            : agentUnknown
+              ? 'Agent status unknown'
+              : 'Agent offline'}
+        </span>
+        {agent && brains && (
+          <>
+            <span className={`chc-brain-chip chc-brain-${brainTone(brains.vision)}`}>
+              {brainLabel('Vision', brains.vision)}
+            </span>
+            <span className={`chc-brain-chip chc-brain-${brainTone(brains.hacking)}`}>
+              {brainLabel('Hacking', brains.hacking)}
+            </span>
+            <span className={`chc-brain-chip chc-brain-${brainTone(brains.grounding)}`}>
+              {brainLabel('Grounding', brains.grounding)}
+            </span>
+          </>
+        )}
+      </section>
+
       {/* ── Severity tally — always visible ────────────────────── */}
       <section className="chc-tally" aria-label="Severity tally">
         {TALLY_ORDER.map(({ key, label }) => (
@@ -575,119 +715,198 @@ export function ContinuousHuntConsole() {
           <span className="chc-chip-name">Total</span>
           <span className="chc-chip-count">{tally.total}</span>
         </span>
-        {/* Screen-reader announcement of tally changes. */}
         <span className="visually-hidden" role="status" aria-live="polite">
           Findings: {tallySummary}
         </span>
       </section>
 
-      {/* ── Main grid ──────────────────────────────────────────── */}
+      {/* ── Main grid: terminal hero + live timeline ───────────── */}
       <div className="chc-grid">
-        <div className="chc-main">
-          {/* ── Live terminal ─────────────────────────────────── */}
-          <section className="chc-panel chc-terminal" aria-label="Live terminal">
-            <div className="chc-panel-head">
-              <TerminalSquare size={14} aria-hidden="true" />
-              <span>Live terminal</span>
-              <span className="chc-spacer" aria-hidden="true" />
-              {!follow && lines.length > 0 && (
-                <button
-                  type="button"
-                  className="chc-jump"
-                  onClick={jumpToLatest}
-                  aria-label={unseen > 0 ? `Jump to latest output, ${unseen} new lines missed` : 'Jump to latest output'}
-                >
-                  <ArrowDown size={13} aria-hidden="true" /> Latest
-                  {unseen > 0 && ` · ${unseen} new`}
-                </button>
-              )}
+        {/* ── Live terminal: activity + think-aloud + findings ─── */}
+        <section className="chc-panel chc-terminal" aria-label="Live terminal">
+          <div className="chc-panel-head">
+            <TerminalSquare size={14} aria-hidden="true" />
+            <span>Live terminal</span>
+            <span className="chc-hint">activity · thinking · findings</span>
+            <span className="chc-spacer" aria-hidden="true" />
+            {!follow && entries.length > 0 && (
               <button
                 type="button"
-                className={`chc-follow${follow ? ' chc-follow-on' : ''}`}
-                onClick={() => (follow ? (followRef.current = false, setFollow(false)) : jumpToLatest())}
-                aria-pressed={follow}
-                aria-label={follow ? 'Stop following new output' : 'Follow new output'}
+                className="chc-jump"
+                onClick={jumpToLatest}
+                aria-label={
+                  unseen > 0
+                    ? `Jump to latest output, ${unseen} new lines missed`
+                    : 'Jump to latest output'
+                }
               >
-                Follow
+                <ArrowDown size={13} aria-hidden="true" /> Latest
+                {unseen > 0 && ` · ${unseen} new`}
               </button>
-            </div>
-            <div
-              className="chc-terminal-body"
-              ref={bodyRef}
-              onScroll={checkFollow}
-              role="log"
-              aria-label="Agent activity log"
-              tabIndex={0}
+            )}
+            <button
+              type="button"
+              className={`chc-follow${follow ? ' chc-follow-on' : ''}`}
+              onClick={() =>
+                follow ? (followRef.current = false, setFollow(false)) : jumpToLatest()
+              }
+              aria-pressed={follow}
+              aria-label={follow ? 'Stop following new output' : 'Follow new output'}
             >
-              {lines.length === 0 && (
-                <div className="chc-terminal-dim">
-                  $ waiting for the agent<span className="chc-cursor" aria-hidden="true" />…
-                </div>
-              )}
-              {lines.map((l, i) => (
-                <div key={`${l.at}-${i}`} className="chc-terminal-line">
-                  {l.text}
-                </div>
-              ))}
-            </div>
-          </section>
+              Follow
+            </button>
+          </div>
+          <div
+            className="chc-terminal-body"
+            ref={bodyRef}
+            onScroll={checkFollow}
+            role="log"
+            aria-label="Agent activity log"
+            tabIndex={0}
+          >
+            {entries.length === 0 && (
+              <div className="chc-terminal-dim">
+                $ waiting for the agent<span className="chc-cursor" aria-hidden="true" />…
+              </div>
+            )}
+            {entries.map(e => (
+              <div
+                key={e.id}
+                className={`chc-terminal-line chc-line-${e.kind}${
+                  e.level === 'err' ? ' chc-line-err' : e.level === 'warn' ? ' chc-line-warn' : ''
+                }`}
+              >
+                {e.kind === 'think' && (
+                  <span className="chc-line-tag">
+                    <Brain size={12} aria-hidden="true" /> {e.label || 'Thinking'}
+                  </span>
+                )}
+                {e.kind === 'finding' && (
+                  <span className={`chc-line-tag chc-sev-${e.severity || 'unknown'}`}>
+                    <Target size={12} aria-hidden="true" /> {e.severity || 'finding'}
+                  </span>
+                )}
+                <span className="chc-line-text">{e.text}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          {/* ── Think-aloud trace ─────────────────────────────── */}
-          <section className="chc-panel chc-trace" aria-label="Agent reasoning">
-            <div className="chc-panel-head">
-              <Brain size={14} aria-hidden="true" />
-              <span>Agent reasoning</span>
-              <span className="chc-hint">think-aloud trace</span>
-            </div>
-            <div className="chc-trace-body" role="log" aria-label="Think-aloud trace">
-              {traces.length === 0 && (
-                <p className="chc-terminal-dim">The hacking brain narrates its thinking here.</p>
-              )}
-              {traces.map(t => (
-                <div key={t.id} className="chc-trace-entry">
-                  <span className="chc-trace-kind">{traceLabel(t.kind)}</span>
-                  <p className="chc-trace-text">{t.text}</p>
-                  <time className="chc-trace-at">
-                    {new Date(t.at).toLocaleTimeString()}
-                  </time>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* ── Mid-hunt chat ────────────────────────────────────── */}
-        <aside className="chc-panel chc-chat" aria-label="Mid-hunt chat">
+        {/* ── Live timeline: real events, newest first (Bug 3) ── */}
+        <section className="chc-panel chc-timeline" aria-label="Live timeline">
           <div className="chc-panel-head">
-            <span className="chc-chat-title">Ask the brain</span>
+            <span className="chc-timeline-title">Live timeline</span>
+            <span className="chc-hint">what the agent is actually doing</span>
           </div>
-          <p className="chc-chat-context">
-            Answers are grounded in the live loop
-            {loopLabel ? (
-              <>
-                {' — '}currently <strong>{loopLabel.toLowerCase()}</strong>
-              </>
-            ) : null}
-            {tally.total > 0 ? `, ${tally.total} findings so far` : ''}.
-          </p>
-          <div className="chc-chat-list">
-            <MessageList messages={chat.messages} compact />
+          <div className="chc-timeline-body" role="log" aria-label="Agent event timeline">
+            {timeline.length === 0 && (
+              <p className="chc-terminal-dim">
+                Events from the hunt stream will appear here as they happen.
+              </p>
+            )}
+            {timeline.map(t => (
+              <div key={t.id} className={`chc-tl-entry chc-tl-${t.tone || 'dim'}`}>
+                <time className="chc-tl-at">
+                  {new Date(t.at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })}
+                </time>
+                <div className="chc-tl-main">
+                  <span className="chc-tl-label">{t.label}</span>
+                  {t.detail && <span className="chc-tl-detail">{t.detail}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* ── Secondary tabs: live screen + findings ─────────────── */}
+      <section className="chc-panel chc-tabs-panel" aria-label="Hunt panels">
+        <div className="chc-panel-head chc-tabs" role="tablist" aria-label="Hunt panels">
+          {[
+            { id: 'screen', label: 'Live screen', icon: Monitor },
+            { id: 'findings', label: `Findings${findings.length ? ` (${findings.length})` : ''}`, icon: Target },
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={panelTab === id}
+              className={`chc-tab${panelTab === id ? ' chc-tab-active' : ''}`}
+              onClick={() => setPanelTab(id)}
+            >
+              <Icon size={14} aria-hidden="true" /> {label}
+            </button>
+          ))}
+        </div>
+        <div className="chc-tabpanel" role="tabpanel">
+          {panelTab === 'screen' && (
+            <HuntLiveScreen
+              hunt={hunt}
+              agent={agent}
+              agentRunning={agentRunning}
+              onRetry={refreshAgent}
+            />
+          )}
+          {panelTab === 'findings' && (
+            <div className="chc-findings">
+              {findings.length === 0 ? (
+                <p className="chc-terminal-dim">
+                  No findings yet — they land here the moment the agent records one.
+                </p>
+              ) : (
+                findings.map(f => (
+                  <article key={f.id} className="chc-finding">
+                    <span className={`chc-line-tag chc-sev-${f.severity}`}>
+                      {f.severity}
+                    </span>
+                    <div className="chc-finding-main">
+                      <h4 className="chc-finding-title">{f.title}</h4>
+                      {f.detail && <p className="chc-finding-detail">{f.detail}</p>}
+                      <time className="chc-finding-at">
+                        {new Date(f.at).toLocaleTimeString()}
+                      </time>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Bottom-docked chat + tap-to-talk ───────────────────── */}
+      <section className="chc-chatdock" aria-label="Chat with the hunting brain">
+        {(chat.messages.length > 0 || chat.thinking || chat.error) && (
+          <div className="chc-chatdock-list" aria-label="Conversation">
+            {chat.messages.length > 0 && <MessageList messages={chat.messages} compact />}
             {chat.thinking && (
-              <div className="chc-chat-thinking" role="status">
-                <Loader2 size={14} className="sg-spin" aria-hidden="true" /> thinking…
-              </div>
-            )}
-            {chat.error && (
-              <div className="dm-notice dm-notice-red chc-notice" role="alert">
-                <span>{chat.error}</span>
-              </div>
-            )}
+            <div className="chc-chat-thinking" role="status">
+              <Loader2 size={14} className="sg-spin" aria-hidden="true" /> thinking…
+            </div>
+          )}
+          {chat.error && (
+            <div className="dm-notice dm-notice-red chc-notice" role="alert">
+              <span>{chat.error}</span>
+            </div>
+          )}
           </div>
-          <div className="chc-chat-composer">
+        )}
+        <div className="chc-chatdock-row">
+          <div className="chc-chatdock-composer">
             <MessageComposer onSend={sendChat} disabled={chat.thinking || ended} />
           </div>
-        </aside>
-      </div>
+          <MicButton
+            onFinal={transcript => {
+              if (transcript && transcript.trim()) sendChat(transcript.trim());
+            }}
+            title="Tap to talk — speak your question"
+          />
+        </div>
+      </section>
 
       {/* ── Force-stop confirmation ──────────────────────────── */}
       {confirmStop && (
