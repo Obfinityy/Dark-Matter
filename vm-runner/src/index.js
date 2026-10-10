@@ -635,8 +635,15 @@ export function startServer(port = PORT, host = BIND_HOST, services) {
   });
 }
 
-const invokedDirectly =
-  process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname;
+const invokedDirectly = (() => {
+  if (!process.argv[1]) return false;
+  // Windows: import.meta.url pathname is /C:/..., path.resolve gives C:\...
+  // Normalize both for comparison.
+  const fromArg = path.resolve(process.argv[1]).toLowerCase();
+  const fromUrl = new URL(import.meta.url).pathname.toLowerCase();
+  const normalizedUrl = fromUrl.replace(/^\//, '').replace(/\//g, path.sep);
+  return fromArg === normalizedUrl || fromArg === fromUrl;
+})();
 if (invokedDirectly) {
   const services = await initServices();
   const server = await startServer(PORT, BIND_HOST, services);
