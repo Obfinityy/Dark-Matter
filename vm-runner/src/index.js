@@ -17,7 +17,7 @@
  */
 import express from 'express';
 import { statfsSync } from 'node:fs';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat, open } from 'node:fs/promises';
 import { WebSocketServer } from 'ws';
 import os from 'node:os';
 import path from 'node:path';
@@ -51,15 +51,41 @@ export function goldenImagePath(vmHome, kali) {
   return path.join(vmHome, 'images', kali?.innerImage || 'kali.qcow2');
 }
 
-/** { present, bytes, path, version } for the extracted golden image. */
+/** { present, bytes, path, readable, version } for the extracted golden image. */
 export async function getKaliImageInfo(vmHome = resolveVmHome()) {
   const kali = await loadKaliDescriptor();
   const imagePath = goldenImagePath(vmHome, kali);
   try {
     const st = await stat(imagePath);
-    return { present: true, bytes: st.size, path: imagePath, version: kali?.version || null };
+    // stat() only proves existence — actually open the file for reading so that
+    // ACL denials and in-progress downloads/extractions (Windows reports these
+    // as "Access is denied" / sharing violations) are caught here, not at VM boot.
+    let readable = true;
+    let readDetail = null;
+    try {
+      const fh = await open(imagePath, 'r');
+      await fh.close();
+    } catch (err) {
+      readable = false;
+      readDetail = err.message;
+    }
+    return {
+      present: true,
+      bytes: st.size,
+      path: imagePath,
+      readable,
+      readDetail,
+      version: kali?.version || null,
+    };
   } catch {
-    return { present: false, bytes: 0, path: imagePath, version: kali?.version || null };
+    return {
+      present: false,
+      bytes: 0,
+      path: imagePath,
+      readable: false,
+      readDetail: null,
+      version: kali?.version || null,
+    };
   }
 }
 
@@ -116,6 +142,18 @@ export async function buildDoctorReport() {
       `Kali golden image missing at ${kaliImage.path}. Download it from the official Kali site, ` +
         'verify the SHA256 (see vm-runner/images/kali.json), extract the .qcow2 there, then retry.',
     );
+  } else if (kaliImage.bytes === 0) {
+    problems.push(
+      `Kali golden image at ${kaliImage.path} is 0 bytes — the download or extraction is incomplete ` +
+        'or failed. Re-extract the .qcow2 from the .7z (or re-download it), then restart the runner.',
+    );
+  } else if (!kaliImage.readable) {
+    problems.push(
+      `Kali golden image exists at ${kaliImage.path} but cannot be opened ` +
+        `(${kaliImage.readDetail || 'access denied'}). It may still be downloading/extracting, ` +
+        'or the file permissions block the runner. Wait for the extraction to finish; if it persists, ' +
+        'right-click the file → Properties → Security → grant your user Read access (or re-extract without administrator rights), then restart the runner.',
+    );
   }
   try {
     assertVmHomeUsable(vmHome);
@@ -130,7 +168,12 @@ export async function buildDoctorReport() {
     accel: accel || null,
     whpxEnabled: whpx.enabled,
     whpxDetail: whpx.detail,
-    kaliImage: { present: kaliImage.present, bytes: kaliImage.bytes, version: kaliImage.version },
+    kaliImage: {
+      present: kaliImage.present,
+      bytes: kaliImage.bytes,
+      readable: kaliImage.readable,
+      version: kaliImage.version,
+    },
     diskFreeBytes: diskFreeBytes(vmHome),
     problems,
   };
