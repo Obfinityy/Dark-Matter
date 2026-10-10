@@ -5,6 +5,7 @@
  * Part of: Infinity AI / Dark-Matter frontend (pages).
  */
 import React from 'react';
+import '../../styles/kinetic-data.css';
 import './AgentCharacter.css';
 
 /**
@@ -16,7 +17,7 @@ export function AgentCharacter({ active = false, listening = false, status = 'Id
   const accessibleStatus = listening ? `${status} — listening` : status;
   return (
     <div
-      className={`dm-char${active ? ' working' : ' idle'}${listening ? ' listening' : ''}`}
+      className={`dm-char kda-char${active ? ' working' : ' idle'}${listening ? ' listening' : ''}`}
       role="status"
       aria-label={`Agent status: ${accessibleStatus}`}
     >
