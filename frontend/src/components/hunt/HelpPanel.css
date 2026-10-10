@@ -27,8 +27,65 @@
 }
 
 /* Slide-over panel entrance. */
+.mc-help-overlay {
+  animation: mc-help-fade-in 0.18s ease;
+}
+.mc-help-panel {
+  animation: mc-help-slide-in 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes mc-help-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes mc-help-slide-in {
+  from {
+    transform: translateX(56px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 
-/* Overlay fade-in. */
+/* Overlay fade-in. (see mc-help-fade-in above) */
+
+/* Article cards: stagger in behind the panel + clearer hover affordance. */
+.mc-help-list .mc-help-item {
+  animation: mc-help-rise 0.32s ease both;
+}
+.mc-help-list .mc-help-item:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.mc-help-list .mc-help-item:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.mc-help-list .mc-help-item:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.mc-help-list .mc-help-item:nth-child(4) {
+  animation-delay: 0.16s;
+}
+.mc-help-list .mc-help-item:nth-child(5) {
+  animation-delay: 0.2s;
+}
+.mc-help-list .mc-help-item:nth-child(n + 6) {
+  animation-delay: 0.22s;
+}
+@keyframes mc-help-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* Article cards: clearer hover affordance + rhythm. */
 .mc-help-item {
@@ -48,11 +105,24 @@
   border-radius: var(--radius-sm);
 }
 
-/* Vote thumbs: visible focus + 44px tap targets on touch devices. */
+/* Vote thumbs: visible focus + 44px tap targets on touch devices.
+ * The filter transition keeps the grayscale → full-colour handoff on the
+ * lucide icons smooth; the colour transition tints the icon on vote. */
 .mc-vote-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition:
     opacity var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    filter var(--transition-fast);
+}
+.mc-vote-yes {
+  color: var(--success);
+}
+.mc-vote-no {
+  color: var(--danger);
 }
 
 .mc-vote-btn:focus-visible {
@@ -81,10 +151,16 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mc-help-panel,
-  .mc-help-overlay {
+  .mc-help-overlay,
+  .mc-help-list .mc-help-item {
     animation: none;
   }
   .mc-help-fab:hover {
     transform: none;
+  }
+  /* HelpPanel.css loads after TooltipHelp.css, so its .mc-vote-btn
+     transition would otherwise beat the shared reduced-motion guard. */
+  .mc-vote-btn {
+    transition: none;
   }
 }

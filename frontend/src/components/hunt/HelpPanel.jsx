@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { helpDocsFor, recordHelpVote, voteRatio } from './microcopyCore.js';
 import './TooltipHelp.css';
 import './HelpPanel.css';
@@ -59,7 +60,7 @@ export function HelpfulVote({ docId }) {
         aria-pressed={voted === 'yes'}
         aria-label="Yes, this helped"
       >
-        👍
+        <ThumbsUp size={14} aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -68,7 +69,7 @@ export function HelpfulVote({ docId }) {
         aria-pressed={voted === 'no'}
         aria-label="No, this did not help"
       >
-        👎
+        <ThumbsDown size={14} aria-hidden="true" />
       </button>
       {ratio !== null && <span className="mc-vote-ratio">{ratio}% found this helpful</span>}
     </div>

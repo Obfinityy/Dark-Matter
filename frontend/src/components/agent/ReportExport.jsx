@@ -10,7 +10,7 @@
  * Props:
  *   jobId, recordId (hunt record when the hunt completed), target (for filenames)
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Download, FileText, Printer, Loader2 } from 'lucide-react';
 import {
   downloadHuntRecordMarkdown,
@@ -67,7 +67,7 @@ export function ReportExport({ jobId, recordId = null, target = '' }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `infinity-ai-${slugify(target)}-report.pdf`;
+      a.download = `darkmatter-${slugify(target)}-report.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -83,10 +83,16 @@ export function ReportExport({ jobId, recordId = null, target = '' }) {
     setBusy('pdf');
     try {
       const md = await getMarkdown();
+      // Escape the target before interpolating it into the print document —
+      // a target containing markup must not break out of <title>.
+      const safeTitle = String(target || 'report')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
       // Print-optimized window: clean typography, no app chrome.
       const win = window.open('', '_blank', 'width=900,height=700');
       if (!win) throw new Error('Popup blocked — allow popups to export PDF.');
-      win.document.write(`<!DOCTYPE html><html><head><title>Dark Matter Report — ${target}</title>
+      win.document.write(`<!DOCTYPE html><html><head><title>Dark Matter Report — ${safeTitle}</title>
 <style>
 body{font-family:Georgia,serif;max-width:760px;margin:40px auto;padding:0 24px;color:#111;line-height:1.6}
 h1{border-bottom:2px solid #111;padding-bottom:8px}h2{margin-top:32px;color:#1a1a1a}
@@ -138,7 +144,7 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8p
         aria-busy={busy === 'md'}
       >
         {busy === 'md' ? (
-          <Loader2 size={15} className="dm-spin" aria-hidden="true" />
+          <Loader2 size={15} className="sg-spin" aria-hidden="true" />
         ) : (
           <FileText size={15} aria-hidden="true" />
         )}
@@ -152,7 +158,7 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8p
         aria-busy={busy === 'pdf-server'}
       >
         {busy === 'pdf-server' ? (
-          <Loader2 size={15} className="dm-spin" aria-hidden="true" />
+          <Loader2 size={15} className="sg-spin" aria-hidden="true" />
         ) : (
           <FileText size={15} aria-hidden="true" />
         )}
@@ -166,7 +172,7 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8p
         aria-busy={busy === 'pdf'}
       >
         {busy === 'pdf' ? (
-          <Loader2 size={15} className="dm-spin" aria-hidden="true" />
+          <Loader2 size={15} className="sg-spin" aria-hidden="true" />
         ) : (
           <Printer size={15} aria-hidden="true" />
         )}
