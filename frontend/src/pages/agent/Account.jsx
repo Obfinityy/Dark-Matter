@@ -1,5 +1,8 @@
 /**
  * Account — who you are, your credits, and the way out.
+ *
+ * Kinetic redesign (issue #292): kinetic page title, staggered card entrances,
+ * calm rows. Logic (auth, balance fetch, permission-mode read) is untouched.
  */
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,7 +10,25 @@ import { Wallet, ShieldCheck, LogOut, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getCreditBalance } from '../../services/api.js';
 import { getPermissionMode, PERMISSION_LABELS } from '../../services/permissions';
-import './Account.css';
+import '../../styles/kinetic-acct.css';
+
+/** Kinetic letter spans for a title string. Parent must carry aria-label. */
+function kineticLetters(text) {
+  let i = 0;
+  return text.split(' ').map((word, wi, words) => (
+    <span key={wi} className="kac-word" aria-hidden="true">
+      {word.split('').map(ch => {
+        const idx = i++;
+        return (
+          <span key={idx} className="kac-ch" style={{ '--kac-i': idx }} aria-hidden="true">
+            {ch}
+          </span>
+        );
+      })}
+      {wi < words.length - 1 ? ' ' : null}
+    </span>
+  ));
+}
 
 export function Account() {
   const { user, logout } = useAuth();
@@ -27,82 +48,71 @@ export function Account() {
   ];
 
   return (
-    <div className="dm-container dm-account">
-      <header className="dm-page-head">
-        <h1 className="dm-page-title">Account</h1>
-        <p className="dm-page-sub">Your identity, your plan, and the way out.</p>
+    <div className="kac-page">
+      <header className="kac-head">
+        <h1 className="kac-title" aria-label="Account">
+          {kineticLetters('Account')}
+        </h1>
+        <p className="kac-sub">Your identity, your plan, and the way out.</p>
       </header>
 
       {/* ── Profile ── */}
-      <section className="dm-card dm-polish-in" aria-label="Profile">
-        <div className="dm-account-profile">
-          <span className="dm-account-avatar" aria-hidden="true">
+      <section className="kac-card kac-in" style={{ '--kac-i': 1 }} aria-label="Profile">
+        <div className="kac-profile">
+          <span className="kac-avatar" aria-hidden="true">
             {initial}
           </span>
-          <div className="dm-account-identity">
-            <div className="dm-account-name">{user?.username || user?.name || 'Agent'}</div>
-            <div className="dm-muted dm-account-email">{user?.email || ''}</div>
+          <div className="kac-profile-id">
+            <div className="kac-profile-name">{user?.username || user?.name || 'Agent'}</div>
+            <div className="kac-muted kac-profile-email">{user?.email || ''}</div>
           </div>
         </div>
         {rows.map(r => (
-          <div key={r.label} className="dm-account-row">
-            <span className="dm-muted dm-account-row-label">{r.label}</span>
-            <span className="dm-account-row-value">{r.value}</span>
+          <div key={r.label} className="kac-row">
+            <span className="kac-muted kac-row-label">{r.label}</span>
+            <span className="kac-row-value">{r.value}</span>
           </div>
         ))}
       </section>
 
       {/* ── Credits ── */}
-      <section
-        className="dm-card dm-polish-in"
-        aria-label="Infinity Credits"
-        style={{ animationDelay: '70ms' }}
-      >
-        <h2 className="dm-card-title">
-          <span className="dm-account-section-head">
-            <Wallet size={18} style={{ color: 'var(--dm-gold-soft)' }} aria-hidden="true" /> Infinity
-            Credits
-          </span>
+      <section className="kac-card kac-in" style={{ '--kac-i': 2 }} aria-label="Infinity Credits">
+        <h2 className="kac-h" style={{ '--kac-i': 2 }}>
+          <Wallet size={18} aria-hidden="true" /> Infinity Credits
         </h2>
-        <p className="dm-card-sub">
+        <p className="kac-body">
           {credits === null ? (
             <>Your balance is unavailable right now.</>
           ) : (
             <>
               You have{' '}
-              <strong className="dm-account-strong">
+              <strong className="kac-strong">
                 ₹{Number(credits).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </strong>{' '}
               in Infinity Credits.
             </>
           )}
         </p>
-        <Link to="/agent/premium" className="dm-btn dm-btn-secondary">
+        <Link to="/agent/premium" className="kac-btn kac-btn-secondary">
           Top up credits <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </section>
 
       {/* ── Agent permissions ── */}
-      <section
-        className="dm-card dm-polish-in"
-        aria-label="Agent permissions"
-        style={{ animationDelay: '140ms' }}
-      >
-        <h2 className="dm-card-title">
-          <span className="dm-account-section-head">
-            <ShieldCheck size={18} aria-hidden="true" /> Agent permissions
-          </span>
+      <section className="kac-card kac-in" style={{ '--kac-i': 3 }} aria-label="Agent permissions">
+        <h2 className="kac-h" style={{ '--kac-i': 3 }}>
+          <ShieldCheck size={18} aria-hidden="true" /> Agent permissions
         </h2>
-        <p className="dm-card-sub">
-          Current mode: <strong className="dm-account-strong">{PERMISSION_LABELS[permissionMode]}</strong>
+        <p className="kac-body">
+          Current mode: <strong className="kac-strong">{PERMISSION_LABELS[permissionMode]}</strong>
         </p>
-        <Link to="/agent/settings" className="dm-btn dm-btn-secondary">
+        <Link to="/agent/settings" className="kac-btn kac-btn-secondary">
           Change in Settings <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </section>
 
-      <div className="dm-mt-6">
-        <button className="dm-btn dm-btn-danger" onClick={logout}>
+      <div className="kac-signout kac-in" style={{ '--kac-i': 4 }}>
+        <button className="kac-btn kac-btn-danger-quiet" onClick={logout}>
           <LogOut size={15} aria-hidden="true" /> Sign out
         </button>
       </div>
