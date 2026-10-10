@@ -377,8 +377,10 @@ export class VmManager {
       record.detail = record.detail || 'QEMU process is not running';
       await this.writeSession(record);
     }
-    if (record.state === 'booting') {
-      // Opportunistic: the guest may have come up since the last check.
+    if (record.state === 'booting' || (record.state === 'error' && alive)) {
+      // Opportunistic: the guest may have come up since the last check
+      // (e.g. guestd was installed manually on first boot after the timeout
+      // expired — the session should recover without a VM restart).
       const ok = await this.guestClientFor(record, 2500)
         .proofHandshake()
         .catch(() => false);
