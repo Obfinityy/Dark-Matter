@@ -1,6 +1,8 @@
 /**
  * Landing — Dark Matter public site.
- * Elegant, professional, quiet confidence. No hype, no neon.
+ * Kinetic-type redesign (#292): staggered headline reveals, scroll
+ * reveals, marquee accent, weight-shift section headings. Visual and
+ * placement only — all links, handlers, and auth logic are unchanged.
  */
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -16,6 +18,8 @@ import {
   Eye,
 } from 'lucide-react';
 import Logo from '../../components/brand/Logo';
+import { KineticHeading, Reveal, Marquee } from '../../components/kinetic/Kinetic';
+import '../../styles/kinetic-core.css';
 import './Landing.elegant.css';
 
 const STEPS = [
@@ -36,38 +40,48 @@ const STEPS = [
   },
 ];
 
+const MARQUEE_ITEMS = [
+  'Autonomous recon',
+  'PoC-validated bugs',
+  'Bounty-ready reports',
+  'Vision · Hacking · Grounding',
+  'Authorized targets only',
+];
+
 function Nav() {
   const navigate = useNavigate();
   return (
-    <nav className="dm-nav">
-      <div className="dm-nav-inner">
+    <nav className="ktx-nav" aria-label="Primary">
+      <div className="ktx-nav-inner">
         <button
           type="button"
-          className="dm-nav-brand"
+          className="ktx-nav-brand"
           onClick={() => navigate('/')}
           aria-label="Dark Matter home"
         >
           <Logo size={28} />
           <span>Dark Matter</span>
         </button>
-        <div className="dm-nav-links">
+        <div className="ktx-nav-links">
           <a href="#how">How it works</a>
           <a href="#brains">The brains</a>
           <a href="#pricing">Pricing</a>
-          <button
-            type="button"
-            className="dm-btn dm-btn-ghost dm-btn-sm"
-            onClick={() => navigate('/login')}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            className="dm-btn dm-btn-primary dm-btn-sm"
-            onClick={() => navigate('/agent')}
-          >
-            Start hunting
-          </button>
+          <div className="ktx-nav-actions">
+            <button
+              type="button"
+              className="ktx-btn ktx-btn-ghost ktx-btn-sm"
+              onClick={() => navigate('/login')}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className="ktx-btn ktx-btn-primary ktx-btn-sm"
+              onClick={() => navigate('/agent')}
+            >
+              Start hunting
+            </button>
+          </div>
         </div>
       </div>
     </nav>
@@ -82,36 +96,37 @@ function Hero() {
     navigate('/agent');
   };
   return (
-    <header className="dm-hero">
-      <div className="dm-hero-inner">
-        <span className="dm-badge dm-badge-gold">Autonomous bug-bounty agent</span>
-        <h1>
-          Paste a link.
-          <br />
-          <span className="dm-hero-accent">AI hunts the bugs.</span>
-        </h1>
-        <p className="dm-hero-sub">
+    <header className="ktx-hero">
+      <div className="ktx-hero-inner">
+        <span className="ktx-eyebrow">Autonomous bug-bounty agent</span>
+        <KineticHeading
+          as="h1"
+          className="ktx-hero-heading"
+          lines={[{ text: 'Paste a link.' }, { text: 'AI hunts the bugs.', accent: true }]}
+        />
+        <p className="ktx-hero-sub">
           Dark Matter reconnoiters your target, finds vulnerabilities, proves each one with a
           working PoC, and writes the report — autonomously.
         </p>
-        <form className="dm-hero-form" onSubmit={start}>
-          <div className="dm-hero-input-wrap">
-            <Link2 size={18} className="dm-hero-input-icon" />
+        <form className="ktx-hero-form" onSubmit={start}>
+          <div className="ktx-hero-input-wrap">
+            <Link2 size={18} className="ktx-hero-input-icon" aria-hidden="true" />
             <input
               type="url"
               value={url}
               onChange={e => setUrl(e.target.value)}
               placeholder="https://your-website.com"
               aria-label="Target website URL"
-              className="dm-input dm-hero-input"
+              className="ktx-hero-input"
             />
           </div>
-          <button type="submit" className="dm-btn dm-btn-primary dm-btn-lg">
-            Hunt now <ArrowRight size={18} />
+          <button type="submit" className="ktx-btn ktx-btn-primary ktx-btn-lg">
+            Hunt now <ArrowRight size={18} aria-hidden="true" />
           </button>
         </form>
-        <p className="dm-hero-note">
-          <Lock size={13} /> Only test targets you own or are authorized to test.
+        <p className="ktx-hero-note">
+          <Lock size={13} aria-hidden="true" /> Only test targets you own or are authorized to
+          test.
         </p>
       </div>
     </header>
@@ -120,22 +135,28 @@ function Hero() {
 
 function HowItWorks() {
   return (
-    <section className="dm-section-block" id="how">
-      <div className="dm-container-narrow">
-        <h2 className="dm-h2">How it works</h2>
-        <p className="dm-section-sub">Three steps. Zero manual probing.</p>
-        <div className="dm-grid-3">
+    <section className="ktx-section" id="how" aria-labelledby="how-h2">
+      <div className="ktx-container-narrow">
+        <Reveal className="ktx-section-head">
+          <h2 className="ktx-h2" id="how-h2">
+            How it works
+          </h2>
+          <p className="ktx-section-sub">Three steps. Zero manual probing.</p>
+        </Reveal>
+        <div className="ktx-grid-3 ktx-stagger">
           {STEPS.map((s, i) => (
-            <div key={s.title} className="dm-card">
-              <div className="dm-step-row">
-                <span className="dm-step-num">{i + 1}</span>
-                <s.icon size={20} className="dm-step-icon" />
-              </div>
-              <h3 className="dm-card-title">{s.title}</h3>
-              <p className="dm-card-sub" style={{ margin: 0 }}>
-                {s.text}
-              </p>
-            </div>
+            <Reveal key={s.title} delay={i * 120}>
+              <article className="ktx-card" style={{ '--ktx-i': i }}>
+                <div className="ktx-step-row">
+                  <span className="ktx-step-num" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <s.icon size={20} className="ktx-step-icon" aria-hidden="true" />
+                </div>
+                <h3 className="ktx-card-title">{s.title}</h3>
+                <p className="ktx-card-sub">{s.text}</p>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -158,24 +179,25 @@ function Brains() {
     },
   ];
   return (
-    <section className="dm-section-block dm-section-alt" id="brains">
-      <div className="dm-container-narrow">
-        <h2 className="dm-h2">Three brains, one hunter</h2>
-        <p className="dm-section-sub">
-          Each brain runs on your own machine. Nothing leaves your computer.
-        </p>
-        <div className="dm-grid-3">
-          {brains.map(b => (
-            <div key={b.name} className="dm-card dm-center">
-              <b.icon
-                size={28}
-                style={{ color: 'var(--dm-gold-soft)', marginBottom: 'var(--dm-3)' }}
-              />
-              <h3 className="dm-card-title">{b.name}</h3>
-              <p className="dm-card-sub" style={{ margin: 0 }}>
-                {b.desc}
-              </p>
-            </div>
+    <section className="ktx-section ktx-section-alt" id="brains" aria-labelledby="brains-h2">
+      <div className="ktx-container-narrow">
+        <Reveal className="ktx-section-head">
+          <h2 className="ktx-h2" id="brains-h2">
+            Three brains, one hunter
+          </h2>
+          <p className="ktx-section-sub">
+            Each brain runs on your own machine. Nothing leaves your computer.
+          </p>
+        </Reveal>
+        <div className="ktx-grid-3 ktx-stagger">
+          {brains.map((b, i) => (
+            <Reveal key={b.name} delay={i * 120}>
+              <article className="ktx-card ktx-center" style={{ '--ktx-i': i }}>
+                <b.icon size={28} className="ktx-brain-icon" aria-hidden="true" />
+                <h3 className="ktx-card-title">{b.name}</h3>
+                <p className="ktx-card-sub">{b.desc}</p>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -186,19 +208,23 @@ function Brains() {
 function CTA() {
   const navigate = useNavigate();
   return (
-    <section className="dm-cta-block">
-      <div className="dm-container-narrow dm-center">
-        <h2 className="dm-h2">Watch it hunt, live.</h2>
-        <p className="dm-section-sub" style={{ marginBottom: 'var(--dm-6)' }}>
-          Open the console and see Hunt AI think, probe, validate, and report — in real time.
-        </p>
-        <button
-          type="button"
-          className="dm-btn dm-btn-primary dm-btn-lg"
-          onClick={() => navigate('/agent')}
-        >
-          Open live hunt <ArrowRight size={18} />
-        </button>
+    <section className="ktx-section ktx-cta-glow" aria-labelledby="cta-h2">
+      <div className="ktx-container-narrow ktx-center">
+        <Reveal>
+          <h2 className="ktx-h2" id="cta-h2">
+            Watch it hunt, live.
+          </h2>
+          <p className="ktx-section-sub" style={{ marginBottom: '2rem' }}>
+            Open the console and see Hunt AI think, probe, validate, and report — in real time.
+          </p>
+          <button
+            type="button"
+            className="ktx-btn ktx-btn-primary ktx-btn-lg"
+            onClick={() => navigate('/agent')}
+          >
+            Open live hunt <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        </Reveal>
       </div>
     </section>
   );
@@ -233,83 +259,45 @@ function Pricing() {
     },
   ];
   return (
-    <section className="dm-section-block" id="pricing">
-      <div className="dm-container-narrow">
-        <h2 className="dm-h2">Pricing</h2>
-        <p className="dm-section-sub">Start free. Scale when the bounties roll in.</p>
-        <div className="dm-grid-3">
-          {tiers.map(t => (
-            <div
-              key={t.name}
-              className="dm-card"
-              style={
-                t.featured
-                  ? { borderColor: 'var(--dm-gold-border)', background: 'var(--dm-gold-glow)' }
-                  : undefined
-              }
-            >
-              {t.featured && (
-                <span className="dm-badge dm-badge-gold" style={{ marginBottom: 'var(--dm-3)' }}>
-                  Most popular
-                </span>
-              )}
-              <h3 className="dm-card-title">{t.name}</h3>
-              <p
-                style={{
-                  fontSize: 'var(--dm-text-3xl)',
-                  fontWeight: 700,
-                  margin: 'var(--dm-2) 0',
-                  letterSpacing: '-0.02em',
-                }}
+    <section className="ktx-section" id="pricing" aria-labelledby="pricing-h2">
+      <div className="ktx-container-narrow">
+        <Reveal className="ktx-section-head">
+          <h2 className="ktx-h2" id="pricing-h2">
+            Pricing
+          </h2>
+          <p className="ktx-section-sub">Start free. Scale when the bounties roll in.</p>
+        </Reveal>
+        <div className="ktx-grid-3 ktx-stagger">
+          {tiers.map((t, i) => (
+            <Reveal key={t.name} delay={i * 120}>
+              <article
+                className={`ktx-card${t.featured ? ' ktx-card-featured' : ''}`}
+                style={{ '--ktx-i': i }}
               >
-                {t.price}
-                {t.period && (
-                  <span
-                    style={{
-                      fontSize: 'var(--dm-text-sm)',
-                      fontWeight: 400,
-                      color: 'var(--dm-muted)',
-                    }}
-                  >
-                    {t.period}
-                  </span>
-                )}
-              </p>
-              <ul
-                style={{
-                  listStyle: 'none',
-                  padding: 0,
-                  margin: '0 0 var(--dm-5)',
-                  display: 'grid',
-                  gap: 'var(--dm-2)',
-                }}
-              >
-                {t.features.map(f => (
-                  <li
-                    key={f}
-                    style={{
-                      display: 'flex',
-                      gap: 'var(--dm-2)',
-                      fontSize: 'var(--dm-text-sm)',
-                      color: 'var(--dm-text-2)',
-                    }}
-                  >
-                    <Check
-                      size={15}
-                      style={{ color: 'var(--dm-gold-soft)', flexShrink: 0, marginTop: '2px' }}
-                    />{' '}
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                className={`dm-btn dm-btn-block ${t.featured ? 'dm-btn-primary' : 'dm-btn-secondary'}`}
-                onClick={() => navigate('/agent')}
-              >
-                {t.cta}
-              </button>
-            </div>
+                {t.featured && <span className="ktx-eyebrow">Most popular</span>}
+                <h3 className="ktx-card-title" style={{ marginTop: t.featured ? '1rem' : 0 }}>
+                  {t.name}
+                </h3>
+                <p className="ktx-price">
+                  {t.price}
+                  {t.period && <span className="ktx-price-period"> {t.period}</span>}
+                </p>
+                <ul className="ktx-feature-list">
+                  {t.features.map(f => (
+                    <li key={f}>
+                      <Check size={15} className="ktx-feature-check" aria-hidden="true" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className={`ktx-btn ktx-btn-block ${t.featured ? 'ktx-btn-primary' : 'ktx-btn-ghost'}`}
+                  onClick={() => navigate('/agent')}
+                >
+                  {t.cta}
+                </button>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -319,19 +307,19 @@ function Pricing() {
 
 function Footer() {
   return (
-    <footer className="dm-footer">
-      <div className="dm-footer-inner">
-        <span className="dm-nav-brand">
+    <footer className="ktx-footer">
+      <div className="ktx-footer-inner">
+        <span className="ktx-footer-brand">
           <Logo size={22} /> Dark Matter
         </span>
-        <span className="dm-muted" style={{ fontSize: 'var(--dm-text-sm)' }}>
+        <span className="ktx-footer-tag">
           Autonomous bug-bounty hunting. Test only authorized targets.
         </span>
-        <span style={{ display: 'flex', gap: 'var(--dm-4)' }}>
-          <Link to="/privacy-policy" className="dm-footer-link">
+        <span className="ktx-footer-links">
+          <Link to="/privacy-policy" className="ktx-footer-link">
             Privacy
           </Link>
-          <Link to="/terms" className="dm-footer-link">
+          <Link to="/terms" className="ktx-footer-link">
             Terms
           </Link>
         </span>
@@ -342,10 +330,11 @@ function Footer() {
 
 export function Landing() {
   return (
-    <div className="dm-landing">
+    <div className="ktx-landing">
       <Nav />
       <main>
         <Hero />
+        <Marquee items={MARQUEE_ITEMS} label={MARQUEE_ITEMS.join('. ') + '.'} />
         <HowItWorks />
         <Brains />
         <CTA />
