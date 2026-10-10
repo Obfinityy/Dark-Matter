@@ -55,3 +55,58 @@
     font-size: 12px;
   }
 }
+
+/* ── Round-2 refresh (10 Oct): loading skeleton ──
+ * Design notes — weak: the card had no loading state, so a still-arriving job
+ * rendered as "unknown target" plus "—" placeholders — the one card meant to
+ * answer "what do we know?" lied while it loaded. change: an optional loading
+ * prop (default false, so existing callers are untouched) renders a shimmer
+ * skeleton mirroring the header, target line, and stat grid; the status text
+ * goes to a visually-hidden string for screen readers. why: honest loading
+ * beats placeholder lies. Shimmer reuses the sg-skel-shimmer keyframes from
+ * polish-pass-coverage-posture-fingerprint.css. */
+.dm-fingerprint-loading {
+  pointer-events: none;
+}
+.dm-fp-skel {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  animation: sg-skel-shimmer 1.8s ease-in-out infinite;
+}
+.dm-fingerprint-loading header {
+  margin-bottom: 16px;
+}
+.dm-fp-skel-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+.dm-fp-skel-title {
+  width: 148px;
+  height: 13px;
+  border-radius: 6px;
+}
+.dm-fp-skel-target {
+  width: 58%;
+  max-width: 320px;
+  height: 15px;
+  margin-bottom: 16px;
+}
+.dm-fingerprint-loading .dm-fingerprint-grid > div {
+  padding: 10px 13px;
+}
+.dm-fingerprint-loading .dm-fingerprint-grid .dm-fp-skel-line {
+  margin-bottom: 8px;
+}
+.dm-fp-skel-short {
+  width: 55%;
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-fp-skel {
+    animation: none;
+  }
+}
