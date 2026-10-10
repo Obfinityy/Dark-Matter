@@ -18,6 +18,7 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import './Queues.css';
+import '../../styles/kinetic-data.css';
 import { listQueues, createQueue, pauseQueue, resumeQueue, deleteQueue } from '../../services/api';
 
 export function Queues() {
@@ -88,24 +89,30 @@ export function Queues() {
 
   if (loading)
     return (
-      <div className="dm-page-loading" role="status">
+      <div className="dm-page-loading kda-page" role="status">
         <Loader2 size={18} aria-hidden="true" className="sg-spin" /> Loading queues…
       </div>
     );
 
   return (
-    <div className="dm-queues">
+    <div className="dm-queues kda-page">
       <header className="dm-queues-head">
-        <div className="dm-page-head">
-          <h1>
-            <Layers size={22} aria-hidden="true" /> Target queues
+        <div className="dm-page-head kda-head">
+          <h1 className="kda-title">
+            <Layers size={22} aria-hidden="true" />{' '}
+            <span className="kda-w" style={{ '--kda-d': '0ms' }}>
+              Target
+            </span>{' '}
+            <span className="kda-w" style={{ '--kda-d': '90ms' }}>
+              queues
+            </span>
           </h1>
-          <p>
+          <p className="kda-sub" style={{ '--kda-d': '220ms' }}>
             Line up targets — the agent works through them in order, sharing the pool fairly with
             your other hunts.
           </p>
         </div>
-        <Link to="/agent/schedules" className="dm-btn-ghost">
+        <Link to="/agent/schedules" className="dm-btn-ghost kda-cta">
           <CalendarClock size={13} aria-hidden="true" /> Scheduled hunts
         </Link>
       </header>
@@ -165,12 +172,12 @@ export function Queues() {
           return (
             <div
               key={queue.id || i}
-              className="dm-card dm-queue-card dm-list-in"
+              className="dm-card dm-queue-card kda-card kda-rise"
               style={{ animationDelay: `${Math.min(i, 10) * 60}ms` }}
             >
               <div className="dm-queue-head">
-                <h3>{queueName}</h3>
-                <span className={`dm-job-status st-${queue.status}`}>{queue.status}</span>
+                <h3 className="kda-card-title">{queueName}</h3>
+                <span className={`dm-job-status kda-status st-${queue.status}`}>{queue.status}</span>
               </div>
               <p className="dm-card-hint">
                 {total} targets · {done} done
