@@ -24,32 +24,54 @@
  *   subscribe    — (assessmentId, handlers) => unsubscribe (SSE)
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Monitor, Pause, Play, Camera } from 'lucide-react';
+import {
+  Monitor,
+  Pause,
+  Play,
+  Camera,
+  MousePointerClick,
+  Move,
+  Keyboard,
+  Mouse,
+  Rocket,
+  Globe,
+  Eye,
+  Hourglass,
+  Settings2,
+  Loader2,
+} from 'lucide-react';
 import { takeComputerScreenshot, pauseComputer, resumeComputer } from '../../services/api';
 import { isLocalBackend } from '../../services/backendMode';
 import './LiveScreenViewer.css';
 
+// Design note — icon-led action labels: the narration log used raw emoji
+// glyphs (📸 🖱️ ⌨️ …) which render inconsistently across platforms and clash
+// with the app's lucide-only icon language (vibe of the rest of the app:
+// every other status indicator is an SVG). Each action type now carries a
+// real lucide Icon rendered beside its label, so the log scans at a glance
+// and stays consistent in any locale/platform.
 const ACTION_LABELS = {
-  screenshot: { label: '📸 Taking screenshot', tone: 'shot' },
-  click: { label: '🖱️ Clicking', tone: 'pointer' },
-  double_click: { label: '🖱️ Double-clicking', tone: 'pointer' },
-  move_mouse: { label: '🖱️ Moving cursor', tone: 'pointer' },
-  type: { label: '⌨️ Typing', tone: 'type' },
-  press_key: { label: '⌨️ Pressing key', tone: 'type' },
-  hotkey: { label: '⌨️ Pressing hotkey', tone: 'type' },
-  scroll: { label: '🖱️ Scrolling', tone: 'pointer' },
-  open_application: { label: '🚀 Opening app', tone: 'nav' },
-  navigate: { label: '🌐 Navigating', tone: 'nav' },
-  get_active_window: { label: '👁️ Checking active window', tone: 'observe' },
-  get_browser_state: { label: '👁️ Checking browser', tone: 'observe' },
-  sleep: { label: '⏳ Waiting', tone: 'wait' },
+  screenshot: { label: 'Taking screenshot', tone: 'shot', Icon: Camera },
+  click: { label: 'Clicking', tone: 'pointer', Icon: MousePointerClick },
+  double_click: { label: 'Double-clicking', tone: 'pointer', Icon: MousePointerClick },
+  move_mouse: { label: 'Moving cursor', tone: 'pointer', Icon: Move },
+  type: { label: 'Typing', tone: 'type', Icon: Keyboard },
+  press_key: { label: 'Pressing key', tone: 'type', Icon: Keyboard },
+  hotkey: { label: 'Pressing hotkey', tone: 'type', Icon: Keyboard },
+  scroll: { label: 'Scrolling', tone: 'pointer', Icon: Mouse },
+  open_application: { label: 'Opening app', tone: 'nav', Icon: Rocket },
+  navigate: { label: 'Navigating', tone: 'nav', Icon: Globe },
+  get_active_window: { label: 'Checking active window', tone: 'observe', Icon: Eye },
+  get_browser_state: { label: 'Checking browser', tone: 'observe', Icon: Eye },
+  sleep: { label: 'Waiting', tone: 'wait', Icon: Hourglass },
 };
 
 function describeAction(event) {
   const action = event.data?.action || event.action;
-  if (!action) return { text: event.message || event.text || '', tone: null };
+  if (!action) return { text: event.message || event.text || '', tone: null, Icon: null };
   const entry = ACTION_LABELS[action.type];
-  const label = entry?.label || `⚙️ ${action.type}`;
+  const Icon = entry?.Icon || Settings2;
+  const label = entry?.label || action.type;
   const detail = action.params?.text
     ? `: "${String(action.params.text).slice(0, 60)}"`
     : action.params?.url
@@ -59,7 +81,7 @@ function describeAction(event) {
         : action.params?.x != null
           ? ` at (${action.params.x}, ${action.params.y})`
           : '';
-  return { text: `${label}${detail}`, tone: entry?.tone || null };
+  return { text: `${label}${detail}`, tone: entry?.tone || null, Icon };
 }
 
 export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = false }) {
@@ -124,6 +146,7 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
           at: event.at || new Date().toISOString(),
           text: described.text,
           tone: described.tone,
+          Icon: described.Icon,
         };
         setActions(prev => [...prev.slice(-49), line]);
       }
@@ -163,9 +186,12 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
           <h2 className="dm-screen-title">Live screen</h2>
         </div>
         <div className="dm-screen-empty">
-          🖥️ Live screen needs the <strong>local backend</strong> — remove{' '}
-          <code>VITE_BACKEND_URL</code> from <code>.env</code> and run <code>npm start</code> in{' '}
-          <code>backend/</code> to watch the agent on your own machine.
+          <Monitor size={20} aria-hidden="true" className="lsv-empty-icon" />
+          <span>
+            Live screen needs the <strong>local backend</strong> — remove{' '}
+            <code>VITE_BACKEND_URL</code> from <code>.env</code> and run <code>npm start</code>{' '}
+            in <code>backend/</code> to watch the agent on your own machine.
+          </span>
           <br />
           <span className="dm-screen-footnote">(Remote screen viewing comes later.)</span>
         </div>
@@ -178,8 +204,16 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
       <div className="dm-screen-head">
         <Monitor size={15} aria-hidden="true" />
         <h2 className="dm-screen-title">Live screen</h2>
-        <span className={`dm-screen-status ${paused ? 'paused' : 'live'}`}>
-          {paused ? '⏸ Paused' : '● Live'}
+        <span className={`dm-screen-status ${paused ? 'paused' : 'live'}`} role="status">
+          {paused ? (
+            <>
+              <Pause size={12} aria-hidden="true" /> Paused
+            </>
+          ) : (
+            <>
+              <span className="lsv-live-dot" aria-hidden="true" /> Live
+            </>
+          )}
         </span>
         <div className="dm-screen-controls">
           {paused ? (
@@ -201,7 +235,12 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
             onClick={fetchScreenshot}
             disabled={loading}
           >
-            <Camera size={13} aria-hidden="true" /> {loading ? '…' : 'Refresh'}
+            {loading ? (
+              <Loader2 size={13} aria-hidden="true" className="sg-spin" />
+            ) : (
+              <Camera size={13} aria-hidden="true" />
+            )}{' '}
+            {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -221,7 +260,8 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
           <div className="dm-screen-empty">
             {error === 'unavailable' ? (
               <>
-                🖥️ Computer control isn't running on this machine.
+                <Monitor size={20} aria-hidden="true" className="lsv-empty-icon" />
+                <span>Computer control isn&rsquo;t running on this machine.</span>
                 <br />
                 <span className="dm-screen-footnote">
                   Start the local backend with computer control enabled, then{' '}
@@ -245,13 +285,14 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
         )}
         {paused && (
           <div className="dm-screen-paused-overlay" role="status">
-            ⏸ Computer control paused
+            <Pause size={15} aria-hidden="true" /> Computer control paused
           </div>
         )}
       </div>
 
       <div className="dm-screen-note">
-        👀 Read-only view — you can watch but not click. The agent works on its own.
+        <Eye size={13} aria-hidden="true" /> Read-only view — you can watch but not click. The
+        agent works on its own.
       </div>
 
       {/* What the agent is doing right now, in plain words. */}
@@ -268,7 +309,10 @@ export function LiveScreenViewer({ assessmentId, subscribe, initialPaused = fals
                 <time className="dm-term-ts" dateTime={a.at}>
                   {new Date(a.at).toLocaleTimeString('en-GB', { hour12: false })}
                 </time>
-                <span>{a.text}</span>
+                <span className="lsv-action-text">
+                  {a.Icon && <a.Icon size={13} aria-hidden="true" className="lsv-action-icon" />}
+                  {a.text}
+                </span>
               </div>
             ))
         )}
