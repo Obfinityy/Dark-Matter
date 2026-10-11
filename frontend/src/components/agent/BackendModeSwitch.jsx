@@ -142,8 +142,8 @@ export default function BackendModeSwitch({ compact = false, showUrlEditor = fal
 
       {mode === 'local' && !status?.ok && !checking && (
         <div style={{ fontSize: 'var(--dm-text-sm)', color: 'var(--dm-text-2)' }}>
-          On your machine, start the backend with <code>npm start</code> in the{' '}
-          <code>backend/</code> folder, then press Test.
+          Start the Dark Matter backend on your own machine first (or paste its
+          tunnel link above), then press Test.
         </div>
       )}
 

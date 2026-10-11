@@ -119,8 +119,8 @@ export async function testBackendConnection(timeoutMs = 10000) {
       ok: false,
       message:
         getBackendMode() === 'local'
-          ? `Your device backend at ${getBackendUrl()} is unreachable. On your machine, run the backend (npm start in backend/) and try again.`
-          : `Backend at ${getBackendUrl()} is unreachable. Check the URL and try again.`,
+          ? `Can't reach your device at ${getBackendUrl()}. Make sure the Dark Matter backend is running on your machine (or double-check the tunnel link), then press Test again.`
+          : `Can't reach the backend at ${getBackendUrl()}. Check the address and try again.`,
     };
   }
 }

@@ -341,7 +341,7 @@ export function AgentHome() {
                 flexWrap: 'wrap',
               }}
             >
-              <BackendModeSwitch compact />
+              <BackendModeSwitch compact showUrlEditor />
             </div>
             <label
               style={{

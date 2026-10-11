@@ -261,7 +261,7 @@ export function Login({ initialMode } = {}) {
         </form>
 
         <div className="kac-auth-backend" style={{ marginTop: '16px' }}>
-          <BackendModeSwitch compact />
+          <BackendModeSwitch compact showUrlEditor />
         </div>
 
         <p className="kac-auth-switch">
