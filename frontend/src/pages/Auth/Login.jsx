@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import Logo from '../../components/brand/Logo';
+import BackendModeSwitch from '../../components/agent/BackendModeSwitch';
 import {
   Mail,
   Lock,
@@ -258,6 +259,10 @@ export function Login({ initialMode } = {}) {
             {mode === 'login' ? 'Sign in to Dark Matter' : 'Create my account'}
           </button>
         </form>
+
+        <div className="kac-auth-backend" style={{ marginTop: '16px' }}>
+          <BackendModeSwitch compact />
+        </div>
 
         <p className="kac-auth-switch">
           {mode === 'login' ? (

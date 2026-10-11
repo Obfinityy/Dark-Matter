@@ -127,11 +127,15 @@ async function request(path, options = {}) {
         'REQUEST_TIMEOUT'
       );
     }
-    // Network-level failure — no silent fallbacks. The backend is wherever
-    // VITE_BACKEND_URL points (or localhost:4000 by default); if it is down,
-    // the caller sees BACKEND_UNAVAILABLE and the UI says so honestly.
+    // Network-level failure — no silent fallbacks. Name the backend that was
+    // actually unreachable so the message stays honest in both modes.
+    const backendLabel =
+      getBackendMode() === 'local' ? 'your device backend' : 'the Infinity AI backend';
     throw new ApiError(
-      'Infinity AI backend is unavailable. Start the backend on port 4000 and try again.',
+      `${backendLabel} is unavailable (${primaryBase}). ` +
+        (getBackendMode() === 'local'
+          ? 'Start the backend on your machine (npm start in backend/) and try again.'
+          : 'Check your connection and try again.'),
       0,
       'BACKEND_UNAVAILABLE'
     );
