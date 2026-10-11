@@ -45,6 +45,11 @@
   --sg-fast: 0.15s ease;
   --sg-normal: 0.22s ease;
   --sg-med: 0.35s ease;
+  /* Severity ramps (findings charts, badges) — polish pass, HuntTimeline2 */
+  --sev-critical: #f87171;
+  --sev-high: #fb923c;
+  --sev-medium: #facc15;
+  --sev-low: #60a5fa;
   --bg-primary: var(--sg-bg);
   --bg-secondary: var(--sg-bg-2);
   --bg-tertiary: var(--sg-bg-3);

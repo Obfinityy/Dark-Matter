@@ -276,6 +276,108 @@
   }
 }
 
+/* ── Round-5 fresh-eyes: several animations were promised but never declared —
+ * scrim/panel entrances, the typing-dot bounce, the hot-mic pulse ring, and
+ * the state-dot motion the reduced-motion guard already listed. All real now. */
+@keyframes avo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes avo-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+    scale: 0.985;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+.avo-scrim {
+  animation: avo-fade-in 0.22s ease-out;
+}
+.avo-panel {
+  animation: avo-panel-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* State dots: per-state tint + calm motion so Idle / Listening / Thinking /
+ * Speaking read at a glance. */
+.avo-idle .avo-dot {
+  background: var(--text-muted);
+}
+.avo-listening .avo-dot {
+  background: var(--success);
+  animation: avo-dot-pulse 1.6s ease-out infinite;
+}
+.avo-thinking .avo-dot {
+  background: var(--warning);
+  animation: avo-dot-blink 1.1s ease-in-out infinite;
+}
+.avo-speaking .avo-dot {
+  background: var(--accent-secondary);
+  animation: avo-dot-pulse 0.9s ease-out infinite;
+}
+@keyframes avo-dot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@keyframes avo-dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Hot-mic: radiating ring so "listening" is unmistakable (was static). */
+.avo-mic.on {
+  position: relative;
+  animation: avo-mic-pulse 1.8s ease-out infinite;
+}
+@keyframes avo-mic-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+/* Typing dots: the stagger delays existed but no bounce was ever declared. */
+.avo-typing span {
+  animation: avo-typing-bounce 1.2s ease-in-out infinite;
+}
+@keyframes avo-typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .avo-scrim,
   .avo-panel {
@@ -285,8 +387,7 @@
   .avo-thinking .avo-dot,
   .avo-speaking .avo-dot,
   .avo-mic.on,
-  .avo-typing span,
-  .avo-spin {
+  .avo-typing span {
     animation: none;
   }
 }

@@ -6,6 +6,15 @@
  * Dark-theme, violet accent.
  */
 import React from 'react';
+import {
+  Check,
+  Circle,
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Plus,
+} from 'lucide-react';
 import './HuntTimeline2.css';
 import './HuntTimeline2.polish.css';
 import { formatElapsed } from './HuntTimeline';
@@ -108,7 +117,7 @@ export function PhaseGateChecklist({ criteria = [], phase = 'Recon', className =
         {items.map((c, i) => (
           <li key={i} className={c.met ? 'ht2-gate-met' : ''}>
             <span className="ht2-gate-tick" aria-hidden="true">
-              {c.met ? '✓' : '○'}
+              {c.met ? <Check size={11} /> : <Circle size={10} />}
             </span>{' '}
             {c.label}
           </li>
@@ -123,7 +132,7 @@ export function ScopeGrowthChip({ addedUrls = 0, className = '' }) {
   if (addedUrls <= 0) return null;
   return (
     <span className={`ht2-scope-chip ${className}`} role="status">
-      <span aria-hidden="true">＋</span> scope grew +{addedUrls} URLs
+      <Plus size={12} aria-hidden="true" /> scope grew +{addedUrls} URLs
     </span>
   );
 }
@@ -196,8 +205,10 @@ export function HuntSpeedComparison({ percentFaster = 0, className = '' }) {
       className={`ht2-speed ${faster ? 'ht2-faster' : 'ht2-slower'} ${className}`}
       role="status"
     >
-      <span aria-hidden="true">{faster ? '▲' : '▼'}</span> {Math.abs(percentFaster)}%{' '}
-      {faster ? 'faster' : 'slower'} than your usual
+      <span aria-hidden="true" className="ht2-speed-icon">
+        {faster ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      </span>{' '}
+      {Math.abs(percentFaster)}% {faster ? 'faster' : 'slower'} than your usual
     </span>
   );
 }
@@ -206,7 +217,7 @@ export function HuntSpeedComparison({ percentFaster = 0, className = '' }) {
 export function StalledPhaseWarning({ phase = '', overrun = 0, className = '' }) {
   return (
     <div className={`ht2-stalled ${className}`} role="alert">
-      <span aria-hidden="true">⚠</span> {phase || 'Testing'} is taking {overrun || '2.3×'} its usual
+      <AlertTriangle size={14} aria-hidden="true" /> {phase || 'Testing'} is taking {overrun || '2.3×'} its usual
       time — still working, no action needed
     </div>
   );
@@ -251,7 +262,9 @@ export function PhaseCompleteCheckBurst({ show = false, className = '' }) {
   if (!show) return null;
   return (
     <span className={`ht2-checkburst ${className}`} role="status" aria-label="Phase complete">
-      <i aria-hidden="true">✓</i>
+      <i aria-hidden="true">
+        <Check size={18} strokeWidth={3} />
+      </i>
     </span>
   );
 }
@@ -260,7 +273,12 @@ export function PhaseCompleteCheckBurst({ show = false, className = '' }) {
 export function ReportExportOverlay({ findings = 0, progress = 0, className = '' }) {
   const pct = Math.max(0, Math.min(100, progress));
   return (
-    <div className={`ht2-export-overlay ${className}`} role="dialog" aria-label="Generating report">
+    <div
+      className={`ht2-export-overlay ${className}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Generating report"
+    >
       <div className="ht2-export-box">
         <span className="ht2-export-title">Compiling {findings} findings…</span>
         <div className="ht2-export-track">
@@ -272,7 +290,12 @@ export function ReportExportOverlay({ findings = 0, progress = 0, className = ''
   );
 }
 
-const SEV_COLORS = { critical: '#f87171', high: '#fb923c', medium: '#facc15', low: '#60a5fa' };
+const SEV_COLORS = {
+  critical: 'var(--sev-critical)',
+  high: 'var(--sev-high)',
+  medium: 'var(--sev-medium)',
+  low: 'var(--sev-low)',
+};
 
 /** 50095 — Per-severity discovery chart: stacked area of findings over time. */
 export function PerSeverityDiscoveryChart({
@@ -315,7 +338,7 @@ export function PerSeverityDiscoveryChart({
     >
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
         {layers.map(l => (
-          <path key={l.k} d={l.path} fill={SEV_COLORS[l.k]} fillOpacity={0.55} />
+          <path key={l.k} d={l.path} style={{ fill: SEV_COLORS[l.k], fillOpacity: 0.55 }} />
         ))}
       </svg>
       <div className="ht2-sevchart-legend">
@@ -416,7 +439,7 @@ export function PhaseRewindButton({ phase = '', onRewind, className = '' }) {
       onClick={onRewind}
       aria-label={`Restart ${phase || 'phase'} from checkpoint`}
     >
-      <span aria-hidden="true">↺</span> Rewind{phase ? ` ${phase}` : ''}
+      <RotateCcw size={13} aria-hidden="true" /> Rewind{phase ? ` ${phase}` : ''}
     </button>
   );
 }
