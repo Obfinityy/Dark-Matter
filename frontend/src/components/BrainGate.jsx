@@ -104,7 +104,7 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
           <div className="brain-gate-head">
             <span className="brain-gate-head-title">
               <AlertTriangle size={22} aria-hidden="true" />
-              <strong>Brains not running</strong>
+              <strong>Connect your AI brains first</strong>
             </span>
             <button
               type="button"
@@ -116,11 +116,13 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
             </button>
           </div>
           <p className="brain-gate-copy">
-            <b>{featureName}</b> needs {missing.map(b => BRAIN_LABELS[b]).join(', ')} ready.
+            <b>{featureName}</b> needs {missing.length > 1 ? 'these AI brains' : 'this AI brain'}{' '}
+            connected before it can start:{' '}
+            {missing.map(b => BRAIN_LABELS[b]).join(' and ')}.
           </p>
           <p className="sg-small brain-gate-hint">
-            Run a local model from Models, or connect a Kaggle link for each missing brain —
-            then return and press Enter again.
+            Open Models and connect each missing brain — run it on your own computer, or paste
+            its free cloud link. Then come back here and start your hunt.
           </p>
           <div className="brain-gate-missing">
             {missing.map(b => (
@@ -133,7 +135,7 @@ export function BrainGate({ required = [], featureName = 'this feature', childre
             ))}
           </div>
           <Link to="/agent/models" className="sg-btn sg-btn-primary brain-gate-cta">
-            Open Models to download &amp; run <ArrowRight size={15} aria-hidden="true" />
+            Open Models and connect <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
       )}

@@ -95,12 +95,14 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    try {
-      await logoutAccount();
-    } finally {
-      setUser(null);
-    }
+  const logout = useCallback(() => {
+    // Instant local sign-out: clear the session first so the UI responds on
+    // the very first click, then tell the server in the background. Waiting
+    // for the network round-trip made sign-out feel dead on slow connections.
+    setUser(null);
+    logoutAccount().catch(() => {
+      /* server-side invalidation is best-effort; local session is already gone */
+    });
   }, []);
 
   const value = { user, loading, authError, login, register, logout, setUser };

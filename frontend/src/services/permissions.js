@@ -2,7 +2,7 @@
  * permissions — agent permission-mode contract (night-rebuild gap I44).
  *
  * Two modes:
- *   'ask'  — "Har action par puchho": the agent asks before each tool/system action.
+ *   'ask'  — "Ask before each action": the agent asks before each tool/system action.
  *   'full' — "Full control": no prompts, the agent acts autonomously.
  *
  * localStorage is the UI source of truth (works offline / against any
@@ -26,16 +26,16 @@ export const PERMISSION_MODES = {
 
 /** Human-readable labels for permission modes. */
 export const PERMISSION_LABELS = {
-  [PERMISSION_MODES.ASK]: 'Har action par puchho',
+  [PERMISSION_MODES.ASK]: 'Ask before each action',
   [PERMISSION_MODES.FULL]: 'Full control — no prompts',
 };
 
 /** Descriptions explaining each permission mode. */
 export const PERMISSION_DESCRIPTIONS = {
   [PERMISSION_MODES.ASK]:
-    'Agent har tool / system action se pehle tumse permission maangega. Safe, thoda slow.',
+    'The agent asks for your permission before every tool or system action. Safer, slightly slower.',
   [PERMISSION_MODES.FULL]:
-    'Agent bina puche kaam karega — full autonomous. Sirf tab chuno jab tumhe poora bharosa ho.',
+    'The agent works without asking — fully autonomous. Choose this only if you fully trust it.',
 };
 
 const STORAGE_KEY = 'dm.permissionMode';

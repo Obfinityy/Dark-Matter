@@ -256,7 +256,13 @@ export function Login({ initialMode } = {}) {
             disabled={busy}
           >
             {busy && <Loader2 size={17} className="sg-spin" aria-hidden="true" />}
-            {mode === 'login' ? 'Sign in to Dark Matter' : 'Create my account'}
+            {busy
+              ? mode === 'login'
+                ? 'Signing you in…'
+                : 'Creating your account…'
+              : mode === 'login'
+                ? 'Sign in to Dark Matter'
+                : 'Create my account'}
           </button>
         </form>
 
