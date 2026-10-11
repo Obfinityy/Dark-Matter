@@ -247,6 +247,83 @@
   background: var(--danger);
 }
 
+/* ── Round-5 fresh-eyes: the reduced-motion guard in HuntTimeline2.css listed
+ * animations for these elements, but no @keyframes ever existed — the active
+ * worker dot, quiet-period dot, critical pulse and phase-complete check were
+ * all static. Real, calm motion below. */
+@keyframes ht2-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@keyframes ht2-check-pop {
+  0% {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.ht2-lane-dot {
+  color: var(--success);
+  animation: ht2-pulse 2.2s ease-out infinite;
+}
+.ht2-quiet-dot {
+  color: var(--accent-secondary);
+  animation: ht2-pulse 2.8s ease-out infinite;
+}
+.ht2-crit-pulse i {
+  color: var(--danger);
+  animation: ht2-pulse 1.8s ease-out infinite;
+}
+.ht2-checkburst i {
+  animation: ht2-check-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+/* Inline lucide glyphs: never squash inside flex rows, sit on the text baseline. */
+.ht2-speed-icon,
+.ht2-gate-tick,
+.ht2-stalled > svg,
+.ht2-rewind > svg,
+.ht2-scope-chip > svg {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.ht2-stalled > svg {
+  color: var(--warning);
+}
+
+/* Long worker/phase names must never push a 390px layout sideways. */
+.ht2-lane-name,
+.ht2-gantt-phase {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ht2-lane-dot,
+  .ht2-quiet-dot,
+  .ht2-crit-pulse i,
+  .ht2-checkburst i {
+    animation: none;
+  }
+}
+
 /* Responsive: collapse label columns, stack nested rows gracefully. */
 @media (max-width: 640px) {
   .ht2-lane-name {
