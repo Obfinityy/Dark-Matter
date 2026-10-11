@@ -373,7 +373,7 @@ export function AvatarOverlay({
             title="Send"
           >
             {avatarState === 'thinking' ? (
-              <Loader2 size={20} className="avo-spin" />
+              <Loader2 size={20} className="sg-spin" />
             ) : (
               <Send size={20} />
             )}
