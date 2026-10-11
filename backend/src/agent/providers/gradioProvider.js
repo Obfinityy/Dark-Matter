@@ -193,6 +193,10 @@ export class GradioProvider {
         try {
           return await this._callPredict(prompt, timeout);
         } catch (predictErr) {
+          // A 4xx means the share link is dead/expired — retrying the same
+          // dead URL is pointless and stalls callers for minutes. Fail fast
+          // so the UI can show the honest "brain unreachable" message.
+          if (/HTTP 4\d\d/.test(predictErr?.message || '')) throw predictErr;
           // Fall back to old API
           if (process.env.DM_DEBUG_GRADIO)
             console.log(
@@ -210,7 +214,10 @@ export class GradioProvider {
         });
         if (!res.ok) {
           const text = await res.text().catch(() => '');
-          throw new Error(`Gradio HTTP ${res.status}: ${text.slice(0, 200)}`);
+          const err = new Error(`Gradio HTTP ${res.status}: ${text.slice(0, 200)}`);
+          // Dead/expired link — do not retry a 4xx.
+          if (res.status >= 400 && res.status < 500) throw err;
+          throw err;
         }
         const data = await res.json();
         const reply = data?.data?.[0];
@@ -219,6 +226,8 @@ export class GradioProvider {
         }
         return reply;
       } catch (err) {
+        // Never retry a dead/expired link — surface it immediately.
+        if (/HTTP 4\d\d/.test(err?.message || '')) throw err;
         lastErr = err;
         if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
       }
