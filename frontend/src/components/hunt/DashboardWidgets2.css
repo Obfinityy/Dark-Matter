@@ -410,6 +410,7 @@ a.dw2-widget-title:focus-visible {
   height: 100%;
   background: var(--accent-gradient);
   border-radius: var(--radius-sm);
+  transition: width 0.4s ease;
 }
 
 /* 50728 */
@@ -491,10 +492,19 @@ a.dw2-widget-title:focus-visible {
   padding: 10px 0;
   white-space: nowrap;
 }
+/* 50747 ticker — marquee was referenced by the hover-pause + reduced-motion
+   guards but no animation was ever declared, so the ticker sat static.
+   The -8px corrects for the track's padding-left so each loop is seamless. */
+@keyframes dw2-ticker-marquee {
+  to {
+    transform: translateX(calc(-50% - 8px));
+  }
+}
 .dw2-ticker-track {
   display: inline-flex;
   gap: 32px;
   padding-left: 16px;
+  animation: dw2-ticker-marquee 36s linear infinite;
 }
 .dw2-ticker:hover .dw2-ticker-track {
   animation-play-state: paused;
@@ -596,6 +606,7 @@ a.dw2-widget-title:focus-visible {
   stroke: var(--success);
   stroke-width: 8;
   stroke-linecap: round;
+  transition: stroke-dasharray 0.6s ease;
 }
 .dw2-coverage-pct {
   position: absolute;
@@ -625,7 +636,9 @@ a.dw2-widget-title:focus-visible {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dw2-meter > span {
+  .dw2-meter > span,
+  .dw2-bar-fill,
+  .dw2-ring-fg {
     transition: none;
   }
 }
