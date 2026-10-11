@@ -115,7 +115,7 @@ export async function getLiveLoop(huntId, { dataDir, logger = console } = {}) {
  * Start a continuous hunt. Validates the target (authorized-targets-only),
  * wires telemetry, registers the loop, and starts the driver.
  */
-export async function startHunt({ target, executor = 'local', userId = null, deps = {}, logger = console } = {}) {
+export async function startHunt({ target, executor = 'local', userId = null, deps = {}, logger = console, userAgent = null } = {}) {
   const cleanTarget = String(target || '').trim();
   if (!cleanTarget) throw new Error('startHunt requires a target');
   const huntId = id('hunt');
@@ -130,7 +130,9 @@ export async function startHunt({ target, executor = 'local', userId = null, dep
       dataDir: deps.dataDir,
       tallyService,
       humanRecon: {
-        understandPage: ({ url }) => humanRecon.understandPage({ url }),
+        // userAgent: bounty programs (e.g. YesWeHack) can REQUIRE the
+        // hunter's username in the UA or the hunt gets blocked.
+        understandPage: ({ url }) => humanRecon.understandPage({ url, userAgent }),
       },
       research: {
         researchTechnique: ({ question, trace }) =>

@@ -20,8 +20,16 @@ const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
-/** Read-only page fetch. Never sends credentials, never posts. */
-export async function fetchPageHtml(url, { fetchFn = globalThis.fetch, timeoutMs = FETCH_TIMEOUT_MS, maxBytes = MAX_HTML_BYTES } = {}) {
+/**
+ * Read-only page fetch. Never sends credentials, never posts.
+ * `userAgent` override exists for bounty programs that REQUIRE the hunter's
+ * username in the UA (e.g. YesWeHack: "append '{{your_username}}' … or you
+ * might be blocked from our assets"). Defaults to the browser-like UA.
+ */
+export async function fetchPageHtml(
+  url,
+  { fetchFn = globalThis.fetch, timeoutMs = FETCH_TIMEOUT_MS, maxBytes = MAX_HTML_BYTES, userAgent = null } = {}
+) {
   const target = String(url || '').trim();
   if (!/^https?:\/\//i.test(target)) throw new Error('humanRecon fetches http(s) URLs only');
   const ctrl = new AbortController();
@@ -30,7 +38,7 @@ export async function fetchPageHtml(url, { fetchFn = globalThis.fetch, timeoutMs
     const res = await fetchFn(target, {
       signal: ctrl.signal,
       redirect: 'follow',
-      headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' },
+      headers: { 'User-Agent': userAgent || UA, Accept: 'text/html,application/xhtml+xml' },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const ct = String(res.headers?.get?.('content-type') || '');
@@ -223,8 +231,8 @@ export function thinkAloudFor(summary) {
  * Understand a target page end-to-end: fetch → summarize → think aloud.
  * Pure convenience wrapper around the pieces above.
  */
-export async function understandPage({ url, fetchFn } = {}) {
-  const html = await fetchPageHtml(url, { fetchFn });
+export async function understandPage({ url, fetchFn, userAgent = null } = {}) {
+  const html = await fetchPageHtml(url, { fetchFn, userAgent });
   const summary = summarizePage({ url, html });
   return { summary, thinkAloud: thinkAloudFor(summary) };
 }

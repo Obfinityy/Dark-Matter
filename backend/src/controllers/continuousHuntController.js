@@ -303,11 +303,19 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
         // the loop runs its deterministic checklist (honest fallback).
         const plannerForUser = makePlannerForUser(brainDeps);
         const planner = await plannerForUser(request.user?.id, { dataDir, logger }).catch(() => null);
+        // Optional hunter User-Agent: some bounty programs (e.g. YesWeHack)
+        // REQUIRE the hunter's username appended to the UA — without it the
+        // program's security blocks the hunt's traffic as unidentified.
+        const userAgent =
+          typeof request.body?.userAgent === 'string' && request.body.userAgent.trim()
+            ? request.body.userAgent.trim().slice(0, 300)
+            : null;
         const { huntId, loop } = await startHunt({
           target,
           executor: request.body?.executor || 'local',
           userId: request.user?.id || null,
           deps: { dataDir, planner },
+          userAgent,
           logger,
         });
         const snap = loop.snapshot();
