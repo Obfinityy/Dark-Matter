@@ -155,9 +155,20 @@
 
 .toast-progress {
   margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* The fill had no height and no track existed in base CSS, so progress
+ * toasts rendered an invisible bar — give it a real track + fill. */
+.toast-progress-fill {
+  height: 6px;
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
 }
 .toast-progress-label {
   color: var(--text-secondary);
+  font-size: 11px;
 }
 .toast-undo-count {
   color: var(--text-muted);
@@ -229,4 +240,47 @@
   .toast-action {
     transition: none;
   }
+}
+
+/* ── Round-5 fresh-eyes: the reduced-motion guard above referenced a card
+ * entrance animation that never existed — toasts just popped in. A calm
+ * slide-fade below; `translate` is used (not `transform`) so it composes
+ * with .toast-bottom-center's translateX(-50%). */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.toast-card {
+  animation: toast-in 0.25s ease-out;
+}
+/* .toast-hovered is applied by ToastCard on hover but had no rule — give it
+ * a purpose: lift the card a touch while the auto-dismiss timer is paused. */
+.toast-hovered {
+  box-shadow: var(--shadow-md), 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+.toast-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+.toast-thumb {
+  max-width: 40px;
+  max-height: 40px;
+  object-fit: cover;
+  flex: none;
+}
+/* Icon-variant thumbnails had no rule; keep the glyph calm and aligned. */
+.toast-thumb-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  font-size: 10px;
+  color: var(--text-muted);
 }
