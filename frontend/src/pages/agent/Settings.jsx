@@ -30,6 +30,8 @@ import {
 import { getProviders } from '../../services/api';
 import BackendModeSwitch from '../../components/agent/BackendModeSwitch';
 import { BACKEND_MODE_CHANGED_EVENT } from '../../services/backendMode';
+import { getVmEndpoint, setVmEndpoint } from '../../services/vmEndpoint';
+import { probeRunner } from '../../services/runnerDownload';
 import '../../styles/kinetic-acct.css';
 
 /** Kinetic letter spans for a title string. Parent must carry aria-label. */
@@ -58,6 +60,11 @@ export function Settings() {
   const [syncingPerms, setSyncingPerms] = useState(false);
 
   const [backendUrl, setBackendUrl] = useState(() => getBackendUrl());
+  const [runnerUrl, setRunnerUrl] = useState(() => getVmEndpoint().customUrl || '');
+  const [runnerDraft, setRunnerDraft] = useState('');
+  const [runnerEditing, setRunnerEditing] = useState(false);
+  const [runnerTesting, setRunnerTesting] = useState(false);
+  const [runnerResult, setRunnerResult] = useState(null);
   const [backendSource, setBackendSource] = useState(() => getBackendUrlSource());
   const [localBackend, setLocalBackend] = useState(() => isLocalBackend());
 
@@ -171,8 +178,81 @@ export function Settings() {
         </div>
       </section>
 
+      {/* ── VM Runner (Kali screen) ── */}
+      <section className="kac-card kac-in" style={{ '--kac-i': 2 }} aria-labelledby="kac-set-runner">
+        <h2 className="kac-h" id="kac-set-runner" style={{ '--kac-i': 2 }}>
+          <Cpu size={18} aria-hidden="true" /> VM Runner
+        </h2>
+        <p className="kac-body">
+          The live Kali Linux screen comes from the VM Runner on your machine (port 4100).
+          If your browser cannot reach it directly, paste its tunnel link here — the same
+          way you did for the backend.
+        </p>
+        {runnerEditing ? (
+          <div className="kac-mt" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <input
+              className="sg-input"
+              value={runnerDraft}
+              onChange={e => setRunnerDraft(e.target.value)}
+              placeholder="https://xxxx-4100.inc1.devtunnels.ms"
+              aria-label="VM Runner URL"
+              style={{ minWidth: '240px', flex: 1 }}
+            />
+            <button
+              className="kac-btn kac-btn-primary"
+              onClick={() => {
+                const next = setVmEndpoint({ customUrl: runnerDraft });
+                setRunnerUrl(next.customUrl || '');
+                setRunnerEditing(false);
+                setRunnerResult(null);
+              }}
+            >
+              Save
+            </button>
+            <button className="kac-btn kac-btn-secondary" onClick={() => setRunnerEditing(false)}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="kac-mt" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <code className="kac-code">{runnerUrl || 'http://127.0.0.1:4100 (default)'}</code>
+            <button
+              className="kac-btn kac-btn-secondary"
+              onClick={() => {
+                setRunnerDraft(runnerUrl);
+                setRunnerEditing(true);
+              }}
+            >
+              Change
+            </button>
+            <button
+              className="kac-btn kac-btn-secondary"
+              disabled={runnerTesting}
+              onClick={async () => {
+                setRunnerTesting(true);
+                setRunnerResult(null);
+                const r = await probeRunner(5000).catch(() => ({ up: false }));
+                setRunnerResult(r?.up ? { ok: true, message: 'Runner reachable — live screen will work.' } : { ok: false, message: 'Runner unreachable — check the URL and that Start-Runner is up.' });
+                setRunnerTesting(false);
+              }}
+            >
+              {runnerTesting ? <Loader2 size={15} aria-hidden="true" className="sg-spin" /> : null}
+              Test runner
+            </button>
+          </div>
+        )}
+        <div aria-live="polite">
+          {runnerResult && (
+            <p className="kac-test-result" style={{ color: runnerResult.ok ? 'var(--dm-green)' : 'var(--dm-red)' }}>
+              {runnerResult.ok ? <Check size={15} aria-hidden="true" /> : <X size={15} aria-hidden="true" />}{' '}
+              {runnerResult.message}
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* ── Brain / Models ── */}
-      <section className="kac-card kac-in" style={{ '--kac-i': 2 }} aria-labelledby="kac-set-brain">
+      <section className="kac-card kac-in" style={{ '--kac-i': 3 }} aria-labelledby="kac-set-brain">
         <h2 className="kac-h" id="kac-set-brain" style={{ '--kac-i': 2 }}>
           <Cpu size={18} aria-hidden="true" /> Brain
         </h2>

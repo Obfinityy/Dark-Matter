@@ -53,6 +53,7 @@ import { MessageList, MessageComposer } from './ChatDock';
 import { MicButton } from '../agent/VoiceInput';
 import { HuntLiveScreen } from './HuntLiveScreen';
 import { probeRunner } from '../../services/runnerDownload.js';
+import { startVm } from '../../services/vmRunnerApi.js';
 import { usePrefersReducedMotion } from '../kinetic/Kinetic';
 import './ChatDock.css';
 import './ContinuousHuntConsole.css';
@@ -199,6 +200,7 @@ export function ContinuousHuntConsole() {
   const [reportDone, setReportDone] = useState('');
   const [panelTab, setPanelTab] = useState('screen'); // screen | findings
   const [chat, setChat] = useState({ messages: [], thinking: false, error: '' });
+  const [vmSessionId, setVmSessionId] = useState(null);
 
   const bodyRef = useRef(null);
   const followRef = useRef(true);
@@ -614,6 +616,26 @@ export function ContinuousHuntConsole() {
   const brains = agent?.brains || {};
   const agentConnected = Boolean(agent?.connected);
 
+  // ── Boot the Kali VM session for the live screen ───────────────────
+  // When the agent is reachable and the hunt runs, start (or reuse) a VM
+  // session keyed by hunt id. The session token stays in frontend memory
+  // (vmRunnerApi); HuntLiveScreen renders the noVNC view from it.
+  useEffect(() => {
+    if (!agentConnected || !agentRunning || vmSessionId || !huntId) return;
+    let cancelled = false;
+    startVm(huntId)
+      .then(() => {
+        if (!cancelled) setVmSessionId(huntId);
+      })
+      .catch(() => {
+        // VM boot failed (runner busy, no image yet…) — the screen card
+        // explains; the hunt itself keeps running.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [agentConnected, agentRunning, vmSessionId, huntId]);
+
   return (
     <div className="chc-console">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -890,6 +912,7 @@ export function ContinuousHuntConsole() {
           {panelTab === 'screen' && (
             <HuntLiveScreen
               hunt={hunt}
+              sessionId={vmSessionId}
               agent={agent}
               agentRunning={agentRunning}
               onRetry={refreshAgent}

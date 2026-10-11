@@ -13,6 +13,7 @@
  */
 
 import { LOCAL_RUNNER_BASE_URL } from '../lib/apiBase.js';
+import { getVmEndpoint } from './vmEndpoint.js';
 
 export const RUNNER_VERSION = '1.0.0';
 
@@ -28,10 +29,19 @@ export const RUNNER_LOCAL_URL = LOCAL_RUNNER_BASE_URL;
  * Never throws — a missing/blocked Runner is an expected state, not an error.
  */
 export async function probeRunner(timeoutMs = 3500) {
+  // Prefer the user's configured runner URL (Settings → VM Runner), so tunnel
+  // setups work: the browser may not reach 127.0.0.1 directly.
+  let base = RUNNER_LOCAL_URL;
+  try {
+    const ep = getVmEndpoint();
+    if (ep && ep.baseUrl) base = ep.baseUrl;
+  } catch {
+    /* fall back to localhost */
+  }
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${RUNNER_LOCAL_URL}/health`, { signal: ctl.signal });
+    const res = await fetch(`${base}/health`, { signal: ctl.signal });
     if (!res.ok) return { up: false };
     const data = await res.json().catch(() => ({}));
     return { up: true, version: data.version || null };

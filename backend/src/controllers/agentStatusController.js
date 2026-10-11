@@ -18,6 +18,27 @@ import { asyncHandler } from '../core/utils.js';
 import { recordHeartbeat, getAgentPresence } from '../services/agentPresence.js';
 import { brainStatusesForUser } from '../services/huntChatBrain.js';
 
+/**
+ * Probe the VM Runner on this machine (server-side). The backend and the
+ * runner share localhost, so this works even when the user's browser cannot
+ * reach 127.0.0.1 directly (tunnel setups, IPv6 quirks, firewalls).
+ * Returns true when the runner answers /health.
+ */
+async function isLocalRunnerUp(timeoutMs = 4000) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch('http://127.0.0.1:4100/health', { signal: ctl.signal });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return Boolean(data && data.ok !== false);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function createAgentStatusController({
   brainProviderModel = null,
   modelRunnerService = null,
@@ -56,10 +77,28 @@ export function createAgentStatusController({
       } catch {
         selection = {};
       }
+      // Heartbeats come from the headless agent poller (Oracle/cloud path).
+      // For the local path the poller may never run — but the VM Runner on
+      // this same machine IS the agent machine. Probe it server-side so the
+      // Hunt console shows the agent as connected whenever the runner is up.
+      let connected = Boolean(presence.connected);
+      let runner = presence.runner || null;
+      let lastHeartbeatAt = presence.lastHeartbeatAt || null;
+      if (!connected) {
+        try {
+          if (await isLocalRunnerUp()) {
+            connected = true;
+            runner = 'local';
+            lastHeartbeatAt = new Date().toISOString();
+          }
+        } catch {
+          /* runner probe failed — stay disconnected */
+        }
+      }
       return response.json({
-        connected: presence.connected,
-        lastHeartbeatAt: presence.lastHeartbeatAt,
-        runner: presence.runner,
+        connected,
+        lastHeartbeatAt,
+        runner,
         brains: brainStatusesForUser({ selection, runner: modelRunnerService || null }),
       });
     }),
