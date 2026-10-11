@@ -502,6 +502,9 @@ export async function createApp({ database } = {}) {
           'https://obfinityy.github.io',
         ];
         if (PRODUCTION_ORIGINS.includes(origin)) return callback(null, true);
+        // Cloudflare Pages preview deployments (*.pages.dev) — used for E2E
+        // testing against this backend. Each preview gets a unique subdomain.
+        if (/^https:\/\/[a-z0-9-]+\.pages\.dev$/i.test(origin)) return callback(null, true);
         return callback(new Error('Origin is not allowed by CORS'));
       },
       credentials: true,

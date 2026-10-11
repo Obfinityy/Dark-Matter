@@ -38,10 +38,58 @@ const LEGACY_ENV_BACKEND_URL = readEnvOrigin(() => import.meta.env.VITE_BACKEND_
 export const DEFAULT_BACKEND_URL = 'http://localhost:4000';
 
 /**
- * The backend origin (no trailing slash, no /api/v1 suffix). Single source
- * of truth for every backend request made by the frontend.
+ * Backend mode storage keys. The user picks where the app runs:
+ * - 'cloud'  — the hosted backend from the build environment (default).
+ * - 'local'  — "My Device": the backend on the user's own machine.
+ * Persisted in localStorage so the choice survives reloads.
  */
-export const API_BASE_URL = ENV_API_BASE_URL || LEGACY_ENV_BACKEND_URL || DEFAULT_BACKEND_URL;
+export const BACKEND_MODE_KEY = 'dm_backend_mode';
+export const LOCAL_BACKEND_URL_KEY = 'dm_local_backend_url';
+
+/** Default URL of the user's own backend in "My Device" mode. */
+export const DEFAULT_LOCAL_BACKEND_URL = 'http://localhost:4000';
+
+/** 'cloud' | 'local'. Safe to call outside the browser (returns 'cloud'). */
+export function getBackendMode() {
+  try {
+    const v = localStorage.getItem(BACKEND_MODE_KEY);
+    return v === 'local' ? 'local' : 'cloud';
+  } catch {
+    return 'cloud';
+  }
+}
+
+/** The user's own backend URL for "My Device" mode (customizable in Settings). */
+export function getLocalBackendUrl() {
+  try {
+    const v = (localStorage.getItem(LOCAL_BACKEND_URL_KEY) || '').trim().replace(/\/+$/, '');
+    return v || DEFAULT_LOCAL_BACKEND_URL;
+  } catch {
+    return DEFAULT_LOCAL_BACKEND_URL;
+  }
+}
+
+/**
+ * The cloud backend origin from the build environment
+ * (VITE_API_BASE_URL, then VITE_BACKEND_URL, then localhost:4000).
+ */
+export const CLOUD_BACKEND_URL = ENV_API_BASE_URL || LEGACY_ENV_BACKEND_URL || DEFAULT_BACKEND_URL;
+
+/**
+ * Resolve the active backend origin for the current mode.
+ * This is the single source of truth every backend request uses.
+ */
+export function resolveApiBaseUrl() {
+  return getBackendMode() === 'local' ? getLocalBackendUrl() : CLOUD_BACKEND_URL;
+}
+
+/**
+ * The backend origin (no trailing slash, no /api/v1 suffix).
+ *
+ * NOTE: prefer resolveApiBaseUrl() for the mode-aware URL — this const is the
+ * build-time cloud URL, kept for backwards compatibility.
+ */
+export const API_BASE_URL = CLOUD_BACKEND_URL;
 
 /** Where API_BASE_URL came from: 'env' when configured, otherwise 'default'. */
 export const API_BASE_URL_SOURCE = ENV_API_BASE_URL || LEGACY_ENV_BACKEND_URL ? 'env' : 'default';

@@ -28,6 +28,8 @@ import {
   PERMISSION_DESCRIPTIONS,
 } from '../../services/permissions';
 import { getProviders } from '../../services/api';
+import BackendModeSwitch from '../../components/agent/BackendModeSwitch';
+import { BACKEND_MODE_CHANGED_EVENT } from '../../services/backendMode';
 import '../../styles/kinetic-acct.css';
 
 /** Kinetic letter spans for a title string. Parent must carry aria-label. */
@@ -55,8 +57,19 @@ export function Settings() {
   const [permissionMode, setPermissionModeState] = useState(getPermissionMode());
   const [syncingPerms, setSyncingPerms] = useState(false);
 
-  const backendUrl = getBackendUrl();
-  const backendSource = getBackendUrlSource(); // 'env' | 'default'
+  const [backendUrl, setBackendUrl] = useState(() => getBackendUrl());
+  const [backendSource, setBackendSource] = useState(() => getBackendUrlSource());
+  const [localBackend, setLocalBackend] = useState(() => isLocalBackend());
+
+  useEffect(() => {
+    const onModeChanged = () => {
+      setBackendUrl(getBackendUrl());
+      setBackendSource(getBackendUrlSource());
+      setLocalBackend(isLocalBackend());
+    };
+    window.addEventListener(BACKEND_MODE_CHANGED_EVENT, onModeChanged);
+    return () => window.removeEventListener(BACKEND_MODE_CHANGED_EVENT, onModeChanged);
+  }, []);
 
   const refreshProviders = () => {
     getProviders()
@@ -109,28 +122,26 @@ export function Settings() {
           <Server size={18} aria-hidden="true" /> Backend
         </h2>
         <p className="kac-body">
-          The app talks to one backend — decided by <code>VITE_BACKEND_URL</code> in the{' '}
-          <code>.env</code> file. Not set? Then it uses your local backend on port 4000.
+          Choose where the app runs. <strong>Cloud</strong> uses the hosted backend (runs 24/7).{' '}
+          <strong>My Device</strong> connects to the backend on your own machine — hunts, history
+          and the Kali VM all stay local. Each backend keeps its own accounts and data.
         </p>
+        <BackendModeSwitch showUrlEditor />
         <div className="kac-notice" role="status" aria-label="Active backend">
           <Server size={16} className="kac-notice-icon" aria-hidden="true" />
           <div className="kac-notice-main">
             <code className="kac-code">{backendUrl}</code>
             <p className="kac-notice-sub">
-              {backendSource === 'env'
-                ? 'from VITE_BACKEND_URL in .env'
-                : 'default — set VITE_BACKEND_URL in .env to point elsewhere'}{' '}
-              · {isLocalBackend() ? 'your machine' : 'remote backend'}
+              {backendSource === 'my-device'
+                ? 'your device — set the URL above if your backend runs elsewhere'
+                : backendSource === 'env'
+                  ? 'from VITE_API_BASE_URL in .env'
+                  : 'default — set VITE_API_BASE_URL in .env to point elsewhere'}{' '}
+              · {localBackend ? 'your machine' : 'remote backend'}
             </p>
           </div>
           <Check size={16} className="kac-notice-check" aria-hidden="true" />
         </div>
-        {!isLocalBackend() && (
-          <p className="kac-hint">
-            To use the local backend, remove <code>VITE_BACKEND_URL</code> from <code>.env</code>
-            and run <code>npm start</code> inside the <code>backend/</code> directory.
-          </p>
-        )}
         <div className="kac-mt">
           <button className="kac-btn kac-btn-secondary" onClick={testNow} disabled={testing}>
             {/* The spinner is the product's one allowed animation — it must spin while testing. */}
