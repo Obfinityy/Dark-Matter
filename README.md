@@ -96,23 +96,57 @@ Dark Matter by **Obfinity** is an autonomous AI security researcher for authoriz
 
 ---
 
-## Quick Start
+## Quick Start (free local setup — no login, no signup)
 
-### Backend
+Dark Matter is a free local-first product. There is no login page, no account,
+no premium tier: the site opens straight into the hunt console and talks to the
+backend running on your own machine. Hunt memory and checkpoints live on your
+disk, never in the cloud.
+
+**1. Pull the repo**
+```bash
+git clone https://github.com/Obfinityy/Dark-Matter.git
+cd Dark-Matter
+```
+
+**2. Start the backend** (one-time: `npm install`; then every use)
 ```bash
 cd backend
 npm install
 npm start          # → http://localhost:4000
 ```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev        # → http://localhost:5173
+For the no-login local experience, set in `backend/.env` (or copy from
+`backend/.env.example`):
 ```
+DM_LOCAL_MODE=true        # single-user local service, no tokens needed
+DM_DATA_DIR=./app-data    # hunt memory/checkpoints on YOUR disk (optional)
+```
+> ⚠️ `DM_LOCAL_MODE=true` is for your own machine only — never enable it on a
+> public server.
 
-Sign up in the UI, open Hunt AI, paste a URL you own.
+**3. Start the Kali VM runner** (the agent's sandbox Linux machine)
+On Windows, double-click **`Start-VM-Runner.bat`** in the repo root (first boot
+downloads the Kali image once, ~3–4 GB). This starts the local runner on
+port 4100 that the Hunt AI uses to actually operate the machine.
+
+**4. Open the app — no local frontend needed**
+Go to **https://hack.thebhavesh.online** in your browser. It opens straight
+into the hunt console and auto-connects to your local backend
+(`http://localhost:4000`); if your backend runs on a tunnel link, paste it in
+the connection editor on the agent home page.
+
+**5. Connect your AI brains** (Models page)
+Each brain slot (Vision, Grounding, Hacking) has three tabs:
+- **Local** — run a model on this machine
+- **Kaggle** — paste your Kaggle/Gradio share link
+- **AWS** — paste your hosted model endpoint URL + optional API key
+  (stored encrypted, sent as a Bearer <redacted>
+
+**6. Hunt**
+Open Hunt, paste a target URL you own or that is in-scope for a bug bounty
+program you are enrolled in, and hit Start. The agent hunts continuously —
+thinking, acting on the Kali machine, saving everything locally — until you
+force-stop it. Message it mid-hunt, and pull a full PDF report any time.
 
 ---
 
