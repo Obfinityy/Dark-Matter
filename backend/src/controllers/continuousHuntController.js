@@ -24,7 +24,13 @@ import { ContinuousHuntLoop } from '../hunt/continuousHuntLoop.js';
 import { LiveReport } from '../hunt/liveReport.js';
 import { buildReportPdf } from '../services/pdfReportWriter.js';
 import { tallyFor } from '../services/vulnTallyService.js';
-import { startHunt, getLiveLoop, subscribeBus, answerChat } from '../hunt/continuousHuntManager.js';
+import {
+  startHunt,
+  getLiveLoop,
+  subscribeBus,
+  answerChat,
+  emitHuntEvent,
+} from '../hunt/continuousHuntManager.js';
 import { TripleBrainPlanner } from '../hunt/planner.js';
 import { resolveHackingBrain } from '../services/huntChatBrain.js';
 import { brainLinkStore as defaultBrainLinkStore } from '../services/brainLinkStore.js';
@@ -402,19 +408,44 @@ export function createContinuousHuntController({ dataDir, logger = console, brai
       // Ownership: chatting with a hunt leaks its findings and think-aloud.
       const loop = await requireOwnedLoop(request, response, huntId);
       if (!loop) return;
-      try {
-        const result = await answerChat(huntId, message, {
-          dataDir,
-          logger,
-          userId: request.user?.id || null,
-          brainDeps,
-        });
-        return response.json(result);
-      } catch (error) {
-        return response.status(404).json({
-          error: { code: 'CHAT_FAILED', message: String(error?.message || error) },
-        });
-      }
+      // ASYNC chat: brain inference on free GPU tiers routinely exceeds the
+      // ~100s hard response timeout of tunnel/proxy frontends (observed: a
+      // trivial brain reply took ~50s; grounded hunt answers take longer).
+      // Answering synchronously here 504s behind such proxies. Instead we
+      // accept the question immediately (202) and deliver the brain's answer
+      // over the hunt's existing SSE stream as a `hunt.chat` event — the
+      // stream is already subscribed by the console and never blocks the loop.
+      const chatId = `chat_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      answerChat(huntId, message, {
+        dataDir,
+        logger,
+        userId: request.user?.id || null,
+        brainDeps,
+        chatId,
+      }).catch(error => {
+        logger?.warn?.(
+          `[continuousHunt] background chat ${chatId} failed for ${huntId}: ${error?.message || error}`
+        );
+        // The user must still see SOMETHING — push the failure to the stream
+        // so the console's "thinking…" state always resolves.
+        try {
+          emitHuntEvent(huntId, {
+            type: 'hunt.chat',
+            level: 'ERROR',
+            message: `Chat failed: ${String(error?.message || error).slice(0, 140)}`,
+            data: {
+              chatId,
+              question: message.slice(0, 1000),
+              answer: '',
+              error: String(error?.message || error).slice(0, 500),
+              brainUnavailable: true,
+            },
+          });
+        } catch {
+          /* stream emit is best-effort */
+        }
+      });
+      return response.status(202).json({ ok: true, accepted: true, huntId, chatId });
     }),
   };
 }

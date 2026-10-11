@@ -1156,8 +1156,12 @@ export function forceStopHunt(huntId) {
 }
 
 /**
- * Mid-hunt chat — the reply is grounded in the live loop context
+ * Mid-hunt chat — the question is grounded in the live loop context
  * (current state, findings so far, last objective). The loop keeps running.
+ * ASYNC: the server returns 202 { accepted, chatId } immediately and the
+ * brain's reply arrives on the hunt's SSE stream as a `hunt.chat` event,
+ * because brain inference outlives proxy response timeouts. Older servers
+ * answer synchronously ({ answer }) — both shapes are handled by callers.
  */
 export function askHunt(huntId, message) {
   return request(`/hunts/${encodeURIComponent(huntId)}/chat`, {

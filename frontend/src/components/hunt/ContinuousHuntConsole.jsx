@@ -204,6 +204,10 @@ export function ContinuousHuntConsole() {
   const followRef = useRef(true);
   const stopBtnRef = useRef(null);
   const chatIdRef = useRef(0);
+  // In-flight mid-hunt questions waiting for their hunt.chat SSE reply:
+  // server chatId -> local message id. Async because brain inference on free
+  // GPU tiers outlives proxy response timeouts (the POST returns 202).
+  const pendingChatsRef = useRef(new Map());
 
   // ── Agent presence (Bug 5 + Bug 6) ─────────────────────────────
   const refreshAgent = useCallback(async () => {
@@ -363,6 +367,31 @@ export function ContinuousHuntConsole() {
                   ? prev?.loopState || 'UNDERSTANDING'
                   : 'FORCE_STOPPED',
           }));
+        } else if (type === 'hunt.chat') {
+          // Async mid-hunt chat reply: the brain answered in the background
+          // and its reply lands here. Matches the question via chatId.
+          const p = typeof payload === 'object' ? payload : {};
+          const serverId = p.chatId ? String(p.chatId) : null;
+          const pending = pendingChatsRef.current;
+          const localId = serverId && pending.has(serverId) ? pending.get(serverId) : null;
+          if (serverId) pending.delete(serverId);
+          const text = String(p.answer || p.error || '').trim();
+          if (localId != null || text) {
+            if (localId == null) pending.clear();
+            setChat(prev => ({
+              ...prev,
+              thinking: pending.size > 0,
+              error: !text && p.brainUnavailable ? 'The brain could not answer.' : '',
+              messages: [
+                ...prev.messages,
+                {
+                  id: `a-${localId ?? Date.now()}`,
+                  author: 'agent',
+                  text: text || '(no answer)',
+                },
+              ],
+            }));
+          }
         } else if (type === 'finding.created' || type === 'finding.updated') {
           const p = typeof payload === 'object' ? payload : {};
           const title = p.title || p.name || 'Finding recorded';
@@ -515,12 +544,27 @@ export function ContinuousHuntConsole() {
       }));
       try {
         const body = await askHunt(huntId, clean);
-        const reply = body?.reply ?? body?.answer ?? body?.message ?? '(no answer)';
-        setChat(prev => ({
-          ...prev,
-          thinking: false,
-          messages: [...prev.messages, { id: `a-${id}`, author: 'agent', text: reply }],
-        }));
+        const direct = body?.reply ?? body?.answer;
+        if (direct) {
+          // Legacy synchronous server: answer came back in the POST body.
+          setChat(prev => ({
+            ...prev,
+            thinking: false,
+            messages: [...prev.messages, { id: `a-${id}`, author: 'agent', text: direct }],
+          }));
+        } else if (body?.accepted) {
+          // Async server (202): the brain's reply arrives on the SSE stream
+          // as a hunt.chat event carrying this chatId. thinking stays true
+          // until then — the hunt itself never pauses for chat.
+          if (body.chatId) pendingChatsRef.current.set(String(body.chatId), id);
+          else pendingChatsRef.current.set(`local-${id}`, id);
+        } else {
+          setChat(prev => ({
+            ...prev,
+            thinking: false,
+            error: 'The brain did not answer.',
+          }));
+        }
       } catch (err) {
         setChat(prev => ({
           ...prev,

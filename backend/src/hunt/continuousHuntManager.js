@@ -36,6 +36,16 @@ const LIVE = new Map();
 /** Per-hunt listener sets for the SSE bus. */
 const LISTENERS = new Map();
 
+/**
+ * Public emit for out-of-band events (e.g. a background mid-hunt chat answer
+ * or its failure) so callers outside this module can push to the hunt's SSE
+ * stream. The stream is the only channel that survives slow brain inference
+ * behind proxies with hard response timeouts.
+ */
+export function emitHuntEvent(huntId, { type, level = 'INFO', message = '', data = null } = {}) {
+  emit(huntId, { type, level, message, data });
+}
+
 function emit(huntId, { type, level = 'INFO', message = '', data = null } = {}) {
   const event = {
     id: id('evt'),
@@ -216,7 +226,7 @@ export async function startHunt({ target, executor = 'local', userId = null, dep
 export async function answerChat(
   huntId,
   message,
-  { dataDir, logger = console, userId = null, brainDeps = {} } = {}
+  { dataDir, logger = console, userId = null, brainDeps = {}, chatId = null } = {}
 ) {
   const question = String(message || '').trim();
   if (!question) throw new Error('answerChat requires a message');
@@ -255,6 +265,7 @@ export async function answerChat(
     type: 'hunt.chat',
     message: `Chat: ${question.slice(0, 140)}`,
     data: {
+      chatId,
       question: question.slice(0, 1000),
       answer: answer.slice(0, 2000),
       brainSource,
@@ -264,6 +275,7 @@ export async function answerChat(
   return {
     ok: true,
     huntId: String(huntId),
+    chatId,
     answer,
     brainSource,
     brainUnavailable,
@@ -271,4 +283,4 @@ export async function answerChat(
   };
 }
 
-export default { startHunt, getLiveLoop, subscribeBus, answerChat };
+export default { startHunt, getLiveLoop, subscribeBus, answerChat, emitHuntEvent };
