@@ -425,7 +425,7 @@ function ModelCard({
  * live progress (0% → 100% border) → Select. Plus a Kaggle link option
  * so the slot can run on a remote GPU instead of a local model.
  *
- * - Vision: Hunt + Infinity Chat + Control
+ * - Vision: Hunt + Control
  * - Grounding: Hunt + Control
  * - Hacker: Hunt only
  */
@@ -2068,12 +2068,12 @@ export function ModelLibrary() {
         <div className="sg-remote-head ml-brain-head">
           <Zap size={18} />
           <div>
-            <strong>Brain Slots — three brains, each with local + Kaggle options</strong>
+            <strong>Brain Slots — three brains, each with local, Kaggle, or AWS options</strong>
             <p>
-              <b>Hunt AI</b> uses all three brains. <b>Infinity Chat</b> uses only Vision.
-              <b> Control</b> uses Vision + Grounding — Grounding is optional: when its
+              <b>Hunt AI</b> uses all three brains. Grounding is optional: when its
               slot is empty, the Vision brain handles click coordinates. Each slot runs
-              on a local model <b> or</b> its own Kaggle link — your choice per slot.
+              on a local model, its own Kaggle link, <b>or</b> your own AWS-hosted
+              endpoint — your choice per slot.
             </p>
           </div>
         </div>

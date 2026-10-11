@@ -96,7 +96,7 @@ export function HuntLiveScreen({ hunt, sessionId: sessionIdProp, agent, agentRun
         this browser. One-time setup, about a minute, no terminal:
       </p>
       <ol className="hls-steps">
-        <li>Download the Infinity AI Runner below and extract the ZIP anywhere</li>
+        <li>Download the Dark Matter Runner below and extract the ZIP anywhere</li>
         <li>
           Double-click <strong>Start-Runner</strong> and keep its window open
         </li>
@@ -104,7 +104,7 @@ export function HuntLiveScreen({ hunt, sessionId: sessionIdProp, agent, agentRun
       </ol>
       <div className="hls-actions">
         <a className="dm-btn dm-btn-primary hls-btn" href={RUNNER_DOWNLOAD_URL}>
-          <Download size={15} aria-hidden="true" /> Download Infinity AI Runner
+          <Download size={15} aria-hidden="true" /> Download Dark Matter Runner
         </a>
         <button
           type="button"

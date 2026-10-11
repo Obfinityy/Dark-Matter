@@ -1,9 +1,9 @@
 /**
- * RunnerStatusCard.jsx — Infinity AI Runner presence card.
+ * RunnerStatusCard.jsx — Dark Matter Runner presence card.
  *
  * Auto-detects the desktop Runner on this PC (http://127.0.0.1:4100/health):
  *   - Runner up   → green "connected" state, nothing for the user to do.
- *   - Runner down → "Download Infinity AI Runner" prompt (starter ZIP:
+ *   - Runner down → "Download Dark Matter Runner" prompt (starter ZIP:
  *                   extract, double-click Start-Runner; no terminal, no setup).
  *
  * No manual URL entry anywhere — detection is automatic.
@@ -48,7 +48,7 @@ export function RunnerStatusCard() {
     return (
       <div className="runner-card runner-checking">
         <span className="runner-pulse" aria-hidden="true" />
-        <span>Looking for Infinity AI Runner on this PC…</span>
+        <span>Looking for Dark Matter Runner on this PC…</span>
       </div>
     );
   }
@@ -58,7 +58,7 @@ export function RunnerStatusCard() {
       <div className="runner-card runner-connected">
         <span className="runner-dot ok" aria-hidden="true" />
         <div className="runner-text">
-          <strong>Infinity AI Runner connected</strong>
+          <strong>Dark Matter Runner connected</strong>
           <span>Your PC is ready — hunts and the Kali sandbox run locally{version ? ` (v${version})` : ''}.</span>
         </div>
       </div>
@@ -86,7 +86,7 @@ export function RunnerStatusCard() {
       <div className="runner-text">
         <strong>Run hunts on your own PC</strong>
         <span>
-          Install the Infinity AI Runner once — it runs the Kali sandbox and the 24/7 hunt
+          Install the Dark Matter Runner once — it runs the Kali sandbox and the hunt
           agent in the background. No terminal, no setup.
         </span>
         <ol className="runner-steps">
@@ -96,7 +96,7 @@ export function RunnerStatusCard() {
         </ol>
       </div>
       <a className="runner-download-btn" href={RUNNER_DOWNLOAD_URL}>
-        Download Infinity AI Runner for Windows
+        Download Dark Matter Runner for Windows
       </a>
     </div>
   );
