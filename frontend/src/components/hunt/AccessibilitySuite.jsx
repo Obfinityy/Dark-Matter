@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { Check, X, Play, Circle } from 'lucide-react';
 import {
   WAVE13_A11Y_IDEAS,
   phaseNarrationText,
@@ -61,7 +62,8 @@ export function ContrastBadge({ fg, bg, kind = 'normal' }) {
       role="img"
       aria-label={`Contrast ${r.ratio?.toFixed(2) ?? 'unknown'}:1, required ${r.required}:1 — ${r.passes ? 'passes' : 'fails'}`}
     >
-      {r.ratio?.toFixed(2) ?? '—'}:1 {r.passes ? '✓' : '✗'}
+      {r.ratio?.toFixed(2) ?? '—'}:1{' '}
+      {r.passes ? <Check size={12} aria-hidden="true" /> : <X size={12} aria-hidden="true" />}
     </span>
   );
 }
@@ -70,8 +72,15 @@ export function ContrastBadge({ fg, bg, kind = 'normal' }) {
 
 export function ListboxFindings({ findings = [], activeId = null, onSelect }) {
   const activate = f => onSelect?.(f);
+  const boxRef = useRef(null);
+  useEffect(() => {
+    boxRef.current
+      ?.querySelector('.a11y-option.active')
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [activeId]);
   return (
     <div
+      ref={boxRef}
       className="a11y-listbox"
       {...listboxAriaProps({
         activeDescendant: activeId && `finding-option-${activeId}`,
@@ -116,8 +125,14 @@ export function OrderedTimelineList({ steps = [] }) {
     <ol className="a11y-timeline">
       {steps.map((s, i) => (
         <li key={s.n ?? i} className={`a11y-step a11y-step-${s.status || 'pending'}`}>
-          <span aria-hidden="true">
-            {s.status === 'done' ? '✓' : s.status === 'running' ? '▶' : '○'}
+          <span aria-hidden="true" className="a11y-step-icon">
+            {s.status === 'done' ? (
+              <Check size={14} />
+            ) : s.status === 'running' ? (
+              <Play size={12} />
+            ) : (
+              <Circle size={10} />
+            )}
           </span>
           <span>{s.label}</span>
           <span className="a11y-sr-only">{timelineStepStatusText(s)}</span>
@@ -213,7 +228,7 @@ export function FocusModal({ open, onClose, label, children }) {
         ref={dialogRef}
       >
         {children}
-        <button type="button" onClick={onClose}>
+        <button type="button" className="a11y-modal-close" onClick={onClose}>
           Close
         </button>
       </div>
@@ -417,7 +432,15 @@ export function VisualOrderList({ items = [] }) {
         role="img"
         aria-label={`Focus order matches visual order: ${matches ? 'yes' : 'no'}`}
       >
-        {matches ? '✓ DOM order = visual order' : '✗ order mismatch'}
+        {matches ? (
+          <>
+            <Check size={12} aria-hidden="true" /> DOM order = visual order
+          </>
+        ) : (
+          <>
+            <X size={12} aria-hidden="true" /> order mismatch
+          </>
+        )}
       </span>
     </div>
   );

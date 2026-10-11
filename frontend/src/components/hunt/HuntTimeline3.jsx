@@ -6,6 +6,17 @@
  * Dark-theme, violet accent.
  */
 import React from 'react';
+import {
+  Flag,
+  Crosshair,
+  ImageDown,
+  Pause,
+  Play,
+  Search,
+  FlaskConical,
+  Link2,
+  FileText,
+} from 'lucide-react';
 import './HuntTimeline3.css';
 
 /** 50101 — Validation-confidence ring on each finding card. */
@@ -23,13 +34,12 @@ export function ValidationConfidenceRing({ confidence = 0, size = 44, className 
       aria-label="Validation confidence"
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1c2333" strokeWidth={5} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={5} className="ht3-ring-track" />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#34d399"
           strokeWidth={5}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -49,7 +59,7 @@ export function HuntHealthIndicator({ errorRate = 0, stalled = false, className 
   const label = level === 'good' ? 'healthy' : level === 'warn' ? 'degraded' : 'needs attention';
   return (
     <span className={`ht3-health ht3-health-${level} ${className}`} role="status">
-      ● {label}
+      <span className="ht3-health-dot" aria-hidden="true" /> {label}
     </span>
   );
 }
@@ -125,7 +135,7 @@ export function SnapshotCheckpointFlags({ checkpoints = [], className = '' }) {
           title={s.label}
           aria-label={s.label}
         >
-          ⚑
+          <Flag size={14} aria-hidden="true" />
         </span>
       ))}
     </div>
@@ -227,13 +237,12 @@ export function FindingsBadgeProgressRing({ count = 0, target = 20, className = 
   return (
     <span className={`ht3-badge ${className}`} role="status" aria-label={`${count} findings`}>
       <svg width={34} height={34} viewBox="0 0 34 34" aria-hidden="true">
-        <circle cx={17} cy={17} r={r} fill="none" stroke="#1c2333" strokeWidth={4} />
+        <circle cx={17} cy={17} r={r} fill="none" strokeWidth={4} className="ht3-ring-track" />
         <circle
           cx={17}
           cy={17}
           r={r}
           fill="none"
-          stroke="#f87171"
           strokeWidth={4}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -247,13 +256,14 @@ export function FindingsBadgeProgressRing({ count = 0, target = 20, className = 
   );
 }
 
-const PHASE_ICONS = { recon: '🔍', testing: '⚗', chaining: '🔗', reporting: '📄' };
+const PHASE_ICONS = { recon: Search, testing: FlaskConical, chaining: Link2, reporting: FileText };
 
 /** 50113 — Morphing phase icons: magnifier → flask → link → document. */
 export function MorphingPhaseIcons({ phase = 'recon', className = '' }) {
+  const Icon = PHASE_ICONS[phase] || PHASE_ICONS.recon;
   return (
     <span key={phase} className={`ht3-morph ${className}`} role="img" aria-label={`${phase} phase`}>
-      {PHASE_ICONS[phase] || PHASE_ICONS.recon}
+      <Icon size={22} aria-hidden="true" />
     </span>
   );
 }
@@ -262,7 +272,7 @@ export function MorphingPhaseIcons({ phase = 'recon', className = '' }) {
 export function DeepDiveIndicator({ endpoint = '', reason = '', className = '' }) {
   return (
     <span className={`ht3-deepdive ${className}`} role="status">
-      <span aria-hidden="true">🎯</span> deep dive: {endpoint || '/api/graphql'} —{' '}
+      <Crosshair size={14} aria-hidden="true" /> deep dive: {endpoint || '/api/graphql'} —{' '}
       {reason || 'complex auth flow'}
     </span>
   );
@@ -362,7 +372,7 @@ export function TimelineInfographicExport({ phases = [], findings = 0, className
   };
   return (
     <button type="button" className={`ht3-export ${className}`} onClick={doExport}>
-      <span aria-hidden="true">🖼</span> Export timeline PNG
+      <ImageDown size={16} aria-hidden="true" /> Export timeline PNG
     </button>
   );
 }
@@ -377,7 +387,7 @@ export function PauseOverlayMarker({ atPercent = 0, className = '' }) {
       aria-label={`Hunt paused at ${atPercent}%`}
       title="Paused here"
     >
-      <i aria-hidden="true">❚❚</i>
+      <Pause size={13} aria-hidden="true" />
     </span>
   );
 }
@@ -414,7 +424,7 @@ export function JourneyRecapReplay({ className = '' }) {
   return (
     <div className={`ht3-replay ${className}`}>
       <button type="button" className="ht3-replay-btn" onClick={replay} disabled={playing}>
-        {playing ? 'Replaying…' : '▶ Replay journey'}
+        {playing ? 'Replaying…' : (<><Play size={14} aria-hidden="true" /> Replay journey</>)}
       </button>
       <div className="ht3-replay-track" aria-hidden="true">
         {REPLAY_PHASES.map(p => (

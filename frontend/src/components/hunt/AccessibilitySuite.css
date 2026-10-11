@@ -49,6 +49,11 @@
 
 /* 50503 — reduced motion: kill shimmer, confetti, auto-scroll + manual class */
 @media (prefers-reduced-motion: reduce) {
+  .a11y-modal-backdrop,
+  .a11y-modal,
+  .a11y-toast {
+    animation: none;
+  }
   .a11y-no-motion,
   .a11y-no-motion * {
     animation: none !important;
@@ -93,6 +98,10 @@
 }
 
 .a11y-contrast {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
   font-family: ui-monospace, monospace;
   font-size: 12px;
   padding: 3px 8px;
@@ -151,6 +160,10 @@
 .a11y-timeline li:last-child {
   border-bottom: none;
 }
+.a11y-step-icon {
+  display: inline-flex;
+  flex: none;
+}
 .a11y-step-done {
   color: var(--success);
 }
@@ -199,6 +212,7 @@
 }
 
 .a11y-modal-backdrop {
+  animation: a11y-fade-in 0.18s ease;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
@@ -209,6 +223,7 @@
   padding: 16px;
 }
 .a11y-modal {
+  animation: a11y-modal-in 0.22s ease;
   background: var(--bg-primary);
   color: var(--text-primary);
   border: 1px solid var(--border);
@@ -223,12 +238,66 @@
   gap: 12px;
 }
 
+@keyframes a11y-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes a11y-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes a11y-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* The modal's Close control was completely unstyled — give it the suite's
+   button treatment and a 44px touch target. */
+.a11y-modal-close {
+  align-self: flex-end;
+  min-height: 44px;
+  padding: 10px 18px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+.a11y-modal-close:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-muted);
+}
+.a11y-modal-close:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
 .a11y-toasts {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 .a11y-toast {
+  animation: a11y-toast-in 0.25s ease;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -283,6 +352,7 @@
   font-weight: 600;
 }
 .a11y-chart-table button {
+  min-height: 44px;
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border);
@@ -306,6 +376,9 @@
   padding: 8px;
 }
 .a11y-node {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border);
