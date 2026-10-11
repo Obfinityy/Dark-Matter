@@ -430,10 +430,18 @@ IMPORTANT:
 demo.launch(share=True, debug=False, show_error=True,
             prevent_thread_lock=False,
             server_name="0.0.0.0", server_port=7860)`},vision:{slot:`vision`,title:`Vision Brain`,modelId:`huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated`,kind:`text + image in → text out`,steps:[`Kaggle.com → Create → New Notebook, accelerator = GPU T4 x2 (free).`,`Paste the cell below into the notebook and press Run.`,`When it prints a https://xxxx.gradio.live link, copy it into the Kaggle Link box here and press Connect.`],cell:`# ============================================================
-# DARK MATTER · VISION BRAIN — KAGGLE + T4 + GRADIO
+# DARK MATTER · VISION BRAIN — KAGGLE + T4 + GRADIO (FIXED)
 # SINGLE CELL / CLEAN SERVER
 # Model: huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated
 # (uncensored Qwen2.5-VL, full transformers support)
+#
+# FIXES vs previous version:
+#  1. qwen-vl-utils pinned to a known-good version (API drift broke
+#     process_vision_info on newer releases).
+#  2. Image is explicitly opened as PIL before process_vision_info —
+#     filepath strings alone fail on some qwen-vl-utils builds.
+#  3. transformers version gate runs BEFORE the model import, with a
+#     clear restart instruction instead of a cryptic ImportError.
 # ============================================================
 
 import sys
@@ -441,7 +449,7 @@ import time
 import subprocess
 
 print("============================================================")
-print("VISION BRAIN KAGGLE SERVER")
+print("VISION BRAIN KAGGLE SERVER (FIXED)")
 print("============================================================")
 
 # ------------------------------------------------------------
@@ -449,46 +457,24 @@ print("============================================================")
 # ------------------------------------------------------------
 print("\\nCleaning old Gradio servers...")
 
-try:
-    subprocess.run(["pkill", "-9", "-f", "gradio"],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-except:
-    pass
-
-try:
-    subprocess.run(["pkill", "-9", "-f", "uvicorn"],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-except:
-    pass
+for pattern in ("gradio", "uvicorn"):
+    try:
+        subprocess.run(["pkill", "-9", "-f", pattern],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
 
 time.sleep(2)
 
 # ------------------------------------------------------------
-# 2. INSTALL ONLY MISSING / TOO-OLD PACKAGES
+# 2. INSTALL / VERIFY PACKAGES
 # ------------------------------------------------------------
 print("Checking required packages (needs internet)...")
 
-# IMPORTANT: Do NOT upgrade torch here.
-# Kaggle already has the CUDA-compatible PyTorch stack.
-
-def _ensure_packages(pkgs):
-    """Install only the packages that are missing. If pip fails it is
-    almost always because the notebook has no internet:
-    Kaggle right sidebar -> Settings -> Internet -> ON, then re-run."""
-    import importlib
-    mod_map = {"qwen-vl-utils": "qwen_vl_utils", "pillow": "PIL"}
-    missing = []
-    for pkg in pkgs:
-        try:
-            importlib.import_module(mod_map.get(pkg, pkg.replace("-", "_")))
-        except ImportError:
-            missing.append(pkg)
-    if not missing:
-        print("All required packages already present - skipping pip.")
-        return
-    print("Installing missing packages:", ", ".join(missing))
+def _pip_install(pkgs):
+    print("pip installing:", ", ".join(pkgs))
     r = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q", "-U"] + missing)
+        [sys.executable, "-m", "pip", "install", "-q"] + pkgs)
     if r.returncode != 0:
         print("\\n" + "=" * 60)
         print("PIP INSTALL FAILED.")
@@ -499,38 +485,58 @@ def _ensure_packages(pkgs):
         raise RuntimeError(
             "pip install failed - turn notebook Internet ON and re-run.")
 
-_ensure_packages(["transformers", "accelerate", "qwen-vl-utils", "gradio"])
+import importlib
 
-# Qwen2.5-VL needs transformers >= 4.49. Kaggle images sometimes ship
-# an older one, which fails with "unrecognized model / processor".
-# Upgrade only when too old.
-try:
-    from packaging.version import Version
-    import transformers
-    if Version(transformers.__version__) < Version("4.49.0"):
-        print(f"transformers {transformers.__version__} is too old "
-              f"for Qwen2.5-VL - upgrading...")
-        r = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q", "-U",
-             "transformers>=4.49.0"])
-        if r.returncode != 0:
-            raise RuntimeError("transformers upgrade failed.")
-        print("transformers upgraded - RESTART this cell run "
-              "(Kaggle: Runtime -> Restart and run all) so the new "
-              "version loads.")
-        raise SystemExit(0)
-    print("transformers", transformers.__version__, "- OK for Qwen2.5-VL.")
-except ImportError:
-    pass  # packaging not present; assume pip gave us a fresh copy
+def _mod(name):
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        return None
 
+# transformers first — Qwen2.5-VL needs >= 4.49 for the model class
+# and the AutoProcessor to exist at all.
+tf = _mod("transformers")
+need_tf = True
+if tf is not None:
+    try:
+        from packaging.version import Version
+        need_tf = Version(tf.__version__) < Version("4.49.0")
+        print("transformers", tf.__version__,
+              "- OK" if not need_tf else "- TOO OLD, upgrading")
+    except Exception:
+        need_tf = False
+if need_tf:
+    _pip_install(["-U", "transformers>=4.49.0"])
+    print("transformers installed/upgraded - RESTARTING cell run so the")
+    print("new version loads (Kaggle: Runtime -> Restart and run all).")
+    raise SystemExit(0)
+
+# qwen-vl-utils pinned: newer releases changed process_vision_info
+# behaviour and break the filepath flow.
+if _mod("qwen_vl_utils") is None:
+    _pip_install(["qwen-vl-utils==0.0.6"])
+else:
+    print("qwen_vl_utils present - OK")
+
+for pkg, mod in (("accelerate", "accelerate"),
+                 ("gradio", "gradio"),
+                 ("pillow", "PIL")):
+    if _mod(mod) is None:
+        _pip_install([pkg])
+    else:
+        print(mod, "present - OK")
 
 # ------------------------------------------------------------
-# 3. IMPORTS
+# 3. IMPORTS (only after the version gates above)
 # ------------------------------------------------------------
 import torch
 import gradio as gr
+from PIL import Image
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
+
+print("\\ntransformers:", __import__("transformers").__version__)
+print("gradio:", gr.__version__)
 
 # ------------------------------------------------------------
 # 4. GPU CHECK
@@ -576,14 +582,35 @@ print("Model device:", next(model.parameters()).device)
 # ------------------------------------------------------------
 # 7. MODEL FUNCTION
 # ------------------------------------------------------------
+def _as_pil(image):
+    """Accept a gradio filepath, URL, numpy array or PIL image and
+    return a PIL image. Explicit conversion avoids the filepath
+    handling drift across qwen-vl-utils releases."""
+    if image is None:
+        return None
+    if isinstance(image, Image.Image):
+        return image.convert("RGB")
+    if isinstance(image, str):
+        # local filepath from gr.Image(type="filepath")
+        return Image.open(image).convert("RGB")
+    try:
+        import numpy as np
+        if isinstance(image, np.ndarray):
+            return Image.fromarray(image).convert("RGB")
+    except Exception:
+        pass
+    # last resort: let PIL try
+    return Image.open(image).convert("RGB")
+
 def ask_vision(question, image):
     try:
-        if not question and image is None:
+        pil_image = _as_pil(image)
+        if not question and pil_image is None:
             return "Please enter a question or upload an image."
 
         content = []
-        if image is not None:
-            content.append({"type": "image", "image": image})
+        if pil_image is not None:
+            content.append({"type": "image", "image": pil_image})
         if question:
             content.append({"type": "text", "text": question})
         messages = [{"role": "user", "content": content}]
@@ -665,7 +692,8 @@ IMPORTANT:
 
 demo.launch(share=True, debug=False, show_error=True,
             prevent_thread_lock=False,
-            server_name="0.0.0.0", server_port=7860)`},grounding:{slot:`grounding`,title:`Grounding Brain`,modelId:`OS-Copilot/OS-Atlas-Base-7B`,kind:`text + image in → coordinates JSON out`,steps:[`Kaggle.com → Create → New Notebook, accelerator = GPU T4 x2 (free).`,`Paste the cell below into the notebook and press Run.`,`When it prints a https://xxxx.gradio.live link, copy it into the Kaggle Link box here and press Connect.`],cell:`# ============================================================
+            server_name="0.0.0.0", server_port=7860)
+`},grounding:{slot:`grounding`,title:`Grounding Brain`,modelId:`OS-Copilot/OS-Atlas-Base-7B`,kind:`text + image in → coordinates JSON out`,steps:[`Kaggle.com → Create → New Notebook, accelerator = GPU T4 x2 (free).`,`Paste the cell below into the notebook and press Run.`,`When it prints a https://xxxx.gradio.live link, copy it into the Kaggle Link box here and press Connect.`],cell:`# ============================================================
 # DARK MATTER · GROUNDING BRAIN — KAGGLE + T4 + GRADIO
 # SINGLE CELL / CLEAN SERVER
 # Screenshot + element name  ->  {"x": 0-1000, "y": 0-1000}
