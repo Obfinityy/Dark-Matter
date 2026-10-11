@@ -102,7 +102,11 @@ export class BrainProviderModel {
     slotSources[slot] = { source: 'local', modelId, updatedAt: now() };
     await this.collection.updateOne(
       { userId },
-      { $set: { slotAssignments, slotSources, updatedAt: now() } },
+      {
+        $set: { slotAssignments, slotSources, updatedAt: now() },
+        // One document per user; the unique index on `id` requires it set on insert.
+        $setOnInsert: { id: userId },
+      },
       { upsert: true }
     );
     return this.getSelection(userId);
@@ -129,7 +133,11 @@ export class BrainProviderModel {
     };
     await this.collection.updateOne(
       { userId },
-      { $set: { slotSources, updatedAt: now() } },
+      {
+        $set: { slotSources, updatedAt: now() },
+        // One document per user; the unique index on `id` requires it set on insert.
+        $setOnInsert: { id: userId },
+      },
       { upsert: true }
     );
     return this.getSelection(userId);
@@ -153,7 +161,11 @@ export class BrainProviderModel {
     };
     await this.collection.updateOne(
       { userId },
-      { $set: { slotSources, updatedAt: now() } },
+      {
+        $set: { slotSources, updatedAt: now() },
+        // One document per user; the unique index on `id` requires it set on insert.
+        $setOnInsert: { id: userId },
+      },
       { upsert: true }
     );
     return this.getSelection(userId);
@@ -192,7 +204,15 @@ export class BrainProviderModel {
       lastGradioUrl,
       updatedAt: now(),
     };
-    await this.collection.updateOne({ userId }, { $set: record }, { upsert: true });
+    await this.collection.updateOne(
+      { userId },
+      {
+        $set: record,
+        // One document per user; the unique index on `id` requires it set on insert.
+        $setOnInsert: { id: userId },
+      },
+      { upsert: true }
+    );
     return this.getSelection(userId);
   }
 }
