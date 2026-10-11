@@ -5,6 +5,7 @@
  * UI used across the hunt experience. Dark-theme, violet accent.
  */
 import React from 'react';
+import { X, Play, Pause, Check } from 'lucide-react';
 import './Loaders.css';
 
 /** 50009 — Determinate model-download bar: percentage + ETA. */
@@ -127,7 +128,7 @@ export function OptimisticQueuedHuntCard({ target = '', onCancel, className = ''
           onClick={onCancel}
           aria-label="Cancel queued hunt"
         >
-          ✕
+          <X size={16} aria-hidden="true" />
         </button>
       )}
     </div>
@@ -173,7 +174,7 @@ export function UrlAnalyzingState({ onCancel, className = '' }) {
           onClick={onCancel}
           aria-label="Cancel analysis"
         >
-          ✕
+          <X size={16} aria-hidden="true" />
         </button>
       )}
     </div>
@@ -347,7 +348,7 @@ export function PauseButtonTransitionSpinner({
         <span className="hl-mini-spinner" aria-hidden="true" />
       ) : (
         <span className="hl-pause-icon" aria-hidden="true">
-          {paused ? '▶' : '❚❚'}
+          {paused ? <Play size={12} /> : <Pause size={12} />}
         </span>
       )}
       {paused ? 'Resume' : 'Pause'}
@@ -437,7 +438,7 @@ export function IntegrationTestSpinner({ state = 'idle', onTest, className = '' 
   const labels = {
     idle: 'Send test payload',
     testing: 'Sending test payload…',
-    success: 'Delivered ✓',
+    success: 'Delivered',
     error: 'Failed — retry',
   };
   return (
@@ -448,6 +449,7 @@ export function IntegrationTestSpinner({ state = 'idle', onTest, className = '' 
       disabled={state === 'testing'}
     >
       {state === 'testing' && <span className="hl-mini-spinner" aria-hidden="true" />}
+      {state === 'success' && <Check size={14} aria-hidden="true" />}
       {labels[state] ?? labels.idle}
     </button>
   );
