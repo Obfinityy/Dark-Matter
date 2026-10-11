@@ -15,6 +15,21 @@
   outline-offset: 2px;
 }
 
+/* Ring strokes come from tokens so light theme tracks/fills stay correct;
+   the fill sweeps instead of jumping when the value changes. */
+.ht3-ring-track {
+  stroke: var(--surface);
+}
+.ht3-valring .ht3-ring-fill {
+  stroke: var(--success);
+}
+.ht3-badge .ht3-ring-fill {
+  stroke: var(--danger);
+}
+.ht3-ring-fill {
+  transition: stroke-dashoffset 0.45s ease;
+}
+
 /* 50101 val ring */
 .ht3-valring {
   position: relative;
@@ -33,6 +48,27 @@
 }
 
 /* 50102 health */
+.ht3-health-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+.ht3-health-bad .ht3-health-dot {
+  animation: ht3-health-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ht3-health-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
 .ht3-health {
   font-size: 12px;
   font-weight: 600;
@@ -170,7 +206,7 @@
   top: 0;
   transform: translateX(-50%);
   color: var(--accent-secondary);
-  font-size: 14px;
+  display: inline-flex;
 }
 
 /* 50107 crawl trace */
@@ -200,6 +236,16 @@
 .ht3-crawl-node.ht3-current {
   border-color: #8b5cf6;
   color: var(--text-primary);
+  animation: ht3-crawl-pulse 1.6s ease-in-out infinite;
+}
+@keyframes ht3-crawl-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+  }
 }
 
 .ht3-crawl-link {
@@ -299,10 +345,22 @@
   color: var(--danger);
 }
 
-/* 50113 morph */
+/* 50113 morph — the icon actually morphs in on phase change (key remount) */
 .ht3-morph {
   display: inline-flex;
   font-size: 22px;
+  color: var(--accent-secondary);
+  animation: ht3-morph-in 0.35s ease;
+}
+@keyframes ht3-morph-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7) rotate(-6deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
 }
 
 /* 50114 deep dive */
@@ -502,6 +560,9 @@
     animation: none;
   }
   .ht3-morph {
+    animation: none;
+  }
+  .ht3-health-bad .ht3-health-dot {
     animation: none;
   }
   .ht3-ring-fill,
