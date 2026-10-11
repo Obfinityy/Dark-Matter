@@ -19,6 +19,7 @@ import {
 import { createJob, listJobs, startContinuousHunt, getHuntState } from '../../services/api';
 import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
+import PausedHuntsBanner from '../../components/agent/PausedHuntsBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { BrainGate } from '../../components/BrainGate';
 import BackendModeSwitch from '../../components/agent/BackendModeSwitch';
@@ -471,6 +472,7 @@ export function AgentHome() {
       </section>
 
       {/* ── Recent hunts + side cards ── */}
+      <PausedHuntsBanner />
       <div className="dm-grid-2" style={{ alignItems: 'start' }}>
         <section className="dm-card">
           <div className="dm-section-head">
