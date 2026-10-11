@@ -1,22 +1,83 @@
 /**
- * Backend connection — ONE rule, no switcher.
+ * Backend connection — cloud or "My Device".
  *
- * The backend origin is resolved once by frontend/src/lib/apiBase.js
- * (VITE_API_BASE_URL, then the legacy VITE_BACKEND_URL, then the local
- * development backend) and shared by every module that talks to the
- * backend. This module keeps the long-standing helper API on top of that
- * single source of truth.
+ * The user picks where the app runs:
+ * - 'cloud' — the hosted backend from the build environment (default).
+ * - 'local' — "My Device": the backend on the user's own machine
+ *   (default http://localhost:4000, customizable in Settings).
  *
- * There is no Localhost/Cloud toggle. The backend URL is decided once, at
- * build time, from the environment — never from Settings UI state.
+ * The active origin is resolved by frontend/src/lib/apiBase.js
+ * (resolveApiBaseUrl()) and shared by every module that talks to the
+ * backend. Auth tokens are scoped per mode, so switching backends never
+ * leaks one backend's session into the other.
  */
-import { API_BASE_URL, API_BASE_URL_SOURCE, DEFAULT_BACKEND_URL } from '../lib/apiBase.js';
+import {
+  API_BASE_URL,
+  API_BASE_URL_SOURCE,
+  DEFAULT_BACKEND_URL,
+  BACKEND_MODE_KEY,
+  LOCAL_BACKEND_URL_KEY,
+  DEFAULT_LOCAL_BACKEND_URL,
+  CLOUD_BACKEND_URL,
+  getBackendMode as readBackendMode,
+  getLocalBackendUrl as readLocalBackendUrl,
+  resolveApiBaseUrl,
+} from '../lib/apiBase.js';
 
-export { DEFAULT_BACKEND_URL };
+export { DEFAULT_BACKEND_URL, DEFAULT_LOCAL_BACKEND_URL, CLOUD_BACKEND_URL };
 
-/** The backend origin (no /api/v1 suffix). */
+/** Event fired on window when the backend mode changes. */
+export const BACKEND_MODE_CHANGED_EVENT = 'dm:backend-mode-changed';
+
+/** 'cloud' | 'local' — where the app currently runs. */
+export function getBackendMode() {
+  return readBackendMode();
+}
+
+/** The user's own backend URL for "My Device" mode. */
+export function getLocalBackendUrl() {
+  return readLocalBackendUrl();
+}
+
+/**
+ * Switch the backend mode. Persists the choice and notifies the app so auth
+ * state and connection indicators can refresh.
+ */
+export function setBackendMode(mode) {
+  const next = mode === 'local' ? 'local' : 'cloud';
+  try {
+    localStorage.setItem(BACKEND_MODE_KEY, next);
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.dispatchEvent(new CustomEvent(BACKEND_MODE_CHANGED_EVENT, { detail: { mode: next } }));
+  } catch {
+    /* ignore */
+  }
+  return next;
+}
+
+/** Customize the "My Device" backend URL (e.g. a tunnel URL). */
+export function setLocalBackendUrl(url) {
+  const clean = String(url || '').trim().replace(/\/+$/, '');
+  try {
+    if (clean) localStorage.setItem(LOCAL_BACKEND_URL_KEY, clean);
+    else localStorage.removeItem(LOCAL_BACKEND_URL_KEY);
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.dispatchEvent(new CustomEvent(BACKEND_MODE_CHANGED_EVENT, { detail: { mode: getBackendMode() } }));
+  } catch {
+    /* ignore */
+  }
+  return getLocalBackendUrl();
+}
+
+/** The backend origin (no /api/v1 suffix) — mode-aware. */
 export function getBackendUrl() {
-  return API_BASE_URL;
+  return resolveApiBaseUrl();
 }
 
 /** Full API base: <origin>/api/v1 */
@@ -26,6 +87,7 @@ export function getApiBase() {
 
 /** True when the backend is the user's own machine. */
 export function isLocalBackend() {
+  if (getBackendMode() === 'local') return true;
   try {
     const h = new URL(getBackendUrl()).hostname.toLowerCase();
     return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
@@ -36,7 +98,7 @@ export function isLocalBackend() {
 
 /** Where the active URL came from: 'env' (environment) or 'default'. */
 export function getBackendUrlSource() {
-  return API_BASE_URL_SOURCE;
+  return getBackendMode() === 'local' ? 'my-device' : API_BASE_URL_SOURCE;
 }
 
 /** Quick connectivity check against the configured backend. */
@@ -55,9 +117,10 @@ export async function testBackendConnection(timeoutMs = 10000) {
     clearTimeout(timer);
     return {
       ok: false,
-      message: isLocalBackend()
-        ? 'Localhost backend is unreachable. Run `npm start` in backend/ and try again.'
-        : `Backend at ${getBackendUrl()} is unreachable. Check the URL and try again.`,
+      message:
+        getBackendMode() === 'local'
+          ? `Your device backend at ${getBackendUrl()} is unreachable. On your machine, run the backend (npm start in backend/) and try again.`
+          : `Backend at ${getBackendUrl()} is unreachable. Check the URL and try again.`,
     };
   }
 }

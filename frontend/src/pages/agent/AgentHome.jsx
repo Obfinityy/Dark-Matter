@@ -21,6 +21,7 @@ import { normalizeTargetUrl } from '../../utils/normalizeTarget';
 import { DedupBanner } from '../../components/agent/DedupBanner';
 import { StatusPill } from '../../components/agent/AgentShell';
 import { BrainGate } from '../../components/BrainGate';
+import BackendModeSwitch from '../../components/agent/BackendModeSwitch';
 import '../../styles/kinetic-hunt.css';
 
 export function AgentHome() {
@@ -329,6 +330,18 @@ export function AgentHome() {
                 {starting ? 'Starting…' : mode === 'continuous' ? 'Start continuous hunt' : 'Start hunt'}
               </button>
             </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 'var(--dm-2)',
+                alignItems: 'center',
+                fontSize: 'var(--dm-text-sm)',
+                color: 'var(--dm-text-2)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <BackendModeSwitch compact />
+            </div>
             <label
               style={{
                 display: 'flex',
@@ -361,7 +374,7 @@ export function AgentHome() {
                 }}
                 aria-label="Where the hunt runs"
               >
-                <option value="backend">My Device</option>
+                <option value="backend">This backend</option>
                 <option value="agent">My agent machine (24/7)</option>
               </select>
             </label>

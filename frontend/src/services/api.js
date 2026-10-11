@@ -37,22 +37,37 @@ export async function tryApi(promise) {
  * JWT storage. The backend accepts BOTH the stateless JWT (Authorization
  * header) and the stateful session cookie — the header is preferred because
  * it also authenticates EventSource streams and cross-tab requests.
+ *
+ * Tokens are scoped per backend mode (cloud vs "My Device"): each backend has
+ * its own user database, so a token issued by one backend is meaningless to
+ * the other. Switching modes never leaks a session across backends.
  */
-const JWT_KEY = 'dm_jwt';
+import { getBackendMode } from '../lib/apiBase.js';
 
+function jwtKey() {
+  return getBackendMode() === 'local' ? 'dm_jwt_local' : 'dm_jwt_cloud';
+}
+
+/** Read the JWT for the active backend mode. */
 export function getStoredJwt() {
   try {
-    return localStorage.getItem(JWT_KEY);
+    return localStorage.getItem(jwtKey()) || localStorage.getItem('dm_jwt');
   } catch {
     return null;
   }
 }
 
-/** Persist the JWT in local storage. */
+/** Persist the JWT for the active backend mode. */
 export function storeJwt(jwt) {
   try {
-    if (jwt) localStorage.setItem(JWT_KEY, jwt);
-    else localStorage.removeItem(JWT_KEY);
+    const key = jwtKey();
+    if (jwt) {
+      localStorage.setItem(key, jwt);
+      // Drop the legacy unscoped key once a scoped token exists.
+      if (localStorage.getItem('dm_jwt')) localStorage.removeItem('dm_jwt');
+    } else {
+      localStorage.removeItem(key);
+    }
   } catch {
     /* storage unavailable — cookie auth still works */
   }
