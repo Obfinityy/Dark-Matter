@@ -3,8 +3,10 @@
 Infinity guest agent (infinity-guestd).
 
 Runs INSIDE the Kali sandbox VM (as root via systemd), listening on the
-guest's 127.0.0.1:1024. The host runner reaches it through QEMU's hostfwd
-(127.0.0.1:<guestPort> -> guest 1024).
+guest's 0.0.0.0:1024. The host runner reaches it through QEMU's hostfwd
+(127.0.0.1:<guestPort> -> guest 1024). Note: QEMU user-mode hostfwd delivers
+host connections to the guest's eth0 address (10.0.2.15), never to the
+guest's 127.0.0.1 — binding 127.0.0.1 here makes the agent unreachable.
 
 Endpoints (all JSON unless noted; all require Authorization: Bearer <token>):
   GET  /health                        -> { ok, version }
@@ -50,7 +52,13 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 VERSION = "0.1.0"
-LISTEN_HOST = "127.0.0.1"
+# Bind ALL guest interfaces: QEMU user-mode hostfwd delivers host connections
+# to the guest's eth0 address (10.0.2.15), NOT to the guest's 127.0.0.1.
+# Binding 127.0.0.1 here makes the host-forwarded agent port unreachable
+# ("Guest agent unreachable after 240s"). Exposure is still loopback-only on
+# the host (hostfwd binds 127.0.0.1:<guestPort>) and every endpoint requires
+# the Bearer session token, so 0.0.0.0 inside the sandbox VM is safe.
+LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 1024
 MAX_BODY_BYTES = 4 * 1024 * 1024
 OUTPUT_CAP_BYTES = 2 * 1024 * 1024  # per stream, sync exec

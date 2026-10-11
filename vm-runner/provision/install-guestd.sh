@@ -95,6 +95,6 @@ else
 fi
 
 echo
-echo "Done. The guest agent listens on 127.0.0.1:1024 inside the VM."
+echo "Done. The guest agent listens on 0.0.0.0:1024 inside the VM (QEMU hostfwd delivers to the guest eth0 address, never 127.0.0.1)."
 echo "It authenticates with the per-session token the runner injects via QEMU fw_cfg."
 echo "Verify from the runner host with: POST /vm/status (state should become 'running')."
