@@ -55,10 +55,23 @@
   border-color: var(--success);
   color: color-mix(in srgb, var(--success) 70%, var(--text-primary));
 }
+/* 50060 pipeline — the active-phase pulse was documented and guarded for
+   prefers-reduced-motion but never implemented, so the current phase
+   looked identical to a completed one. */
+@keyframes ht-phase-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
 .ht-phase.ht-active .ht-phase-dot {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   border-color: var(--accent);
   color: var(--text-primary);
+  animation: ht-phase-pulse 2s ease-in-out infinite;
 }
 
 .ht-phase-text {
@@ -154,7 +167,11 @@
   letter-spacing: 0.06em;
 }
 
-/* 50064 avatar ring */
+/* 50064 avatar ring — the fill transition was guarded but never declared,
+   so percent updates jumped. */
+.ht-ring-fill {
+  transition: stroke-dashoffset 0.5s ease;
+}
 .ht-avatar-ring {
   position: relative;
   display: inline-flex;
@@ -236,18 +253,16 @@
   align-items: center;
   gap: 3px;
 }
-.ht-ms-flag i {
-  font-style: normal;
-  font-size: 13px;
-  line-height: 1;
+.ht-ms-flag svg {
+  display: block;
 }
-.ht-ms-first-finding i {
+.ht-ms-first-finding svg {
   color: var(--accent);
 }
-.ht-ms-first-critical i {
+.ht-ms-first-critical svg {
   color: var(--danger);
 }
-.ht-ms-poc i {
+.ht-ms-poc svg {
   color: var(--success);
 }
 .ht-ms-flag em {
@@ -340,7 +355,16 @@
   flex-shrink: 0;
 }
 
-/* 50069 testing card */
+/* 50069 testing card — the live dot's pulse was guarded but never declared. */
+@keyframes ht-live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 50%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--success) 0%, transparent);
+  }
+}
 .ht-testing-card {
   display: flex;
   align-items: center;
@@ -349,6 +373,17 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 12px 14px;
+  animation: ht-card-in 0.4s ease both;
+}
+@keyframes ht-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .ht-live-dot {
   width: 10px;
@@ -356,6 +391,7 @@
   border-radius: 50%;
   background: var(--success);
   flex-shrink: 0;
+  animation: ht-live-pulse 2s ease-in-out infinite;
 }
 .ht-testing-body {
   display: flex;
@@ -427,12 +463,25 @@
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+/* 50072 — the ticker dot's pulse was guarded but never declared. */
+@keyframes ht-ticker-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.8);
+  }
+}
 .ht-ticker-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
+  animation: ht-ticker-pulse 2s ease-in-out infinite;
 }
 
 /* 50073 expandable */
@@ -490,8 +539,21 @@
 }
 .ht-exp-caret {
   color: var(--text-muted);
-  font-size: 11px;
   flex-shrink: 0;
+  display: inline-flex;
+  transition: transform var(--transition-fast);
+}
+.ht-exp-caret.ht-open {
+  transform: rotate(180deg);
+}
+/* 50062 step-log group caret: points down when expanded, right when collapsed */
+.ht-step-caret {
+  display: inline-flex;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+.ht-step-caret.ht-collapsed {
+  transform: rotate(-90deg);
 }
 .ht-exp-cmd {
   display: block;
@@ -508,7 +570,17 @@
   font-family: ui-monospace, monospace;
 }
 
-/* 50074 transition banner */
+/* 50074 transition banner — entrance was guarded but never declared. */
+@keyframes ht-transition-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .ht-transition {
   display: flex;
   align-items: center;
@@ -520,6 +592,7 @@
   padding: 11px 14px;
   font-size: 13px;
   line-height: 1.5;
+  animation: ht-transition-in 0.35s ease both;
 }
 
 .ht-transition-check {
@@ -528,7 +601,6 @@
   border-radius: 50%;
   background: var(--success);
   color: #06281c; /* fixed contrast ink on the success fill */
-  font-size: 12px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -640,6 +712,13 @@
 .ht-radar::after {
   inset: 20px;
 }
+/* 50077 — the radar sweep and blip pulses were guarded for
+   prefers-reduced-motion but never declared, so recon looked frozen. */
+@keyframes ht-sweep-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .ht-sweep {
   position: absolute;
   inset: 0;
@@ -649,14 +728,27 @@
     color-mix(in srgb, var(--accent) 55%, transparent),
     transparent 70deg
   );
+  animation: ht-sweep-rotate 3s linear infinite;
 }
 
+@keyframes ht-blip-fade {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
 .ht-blip {
   position: absolute;
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
+  animation: ht-blip-fade 2.4s ease-in-out infinite;
 }
 .ht-blip-a {
   top: 30%;
@@ -770,7 +862,9 @@
   .ht-ring-fill,
   .ht-effort-fill,
   .ht-host-fill,
-  .ht-fill {
+  .ht-fill,
+  .ht-exp-caret,
+  .ht-step-caret {
     transition: none;
   }
 }
