@@ -6,6 +6,7 @@
  * Dark-theme, violet accent.
  */
 import React from 'react';
+import { Check, ChevronDown, Flag, Timer, X } from 'lucide-react';
 import './HuntTimeline.css';
 
 /** 50061 — Format seconds as "4m 12s" for per-phase elapsed labels. */
@@ -41,7 +42,7 @@ export function HorizontalPhasePipeline({ phases = [], className = '' }) {
           aria-current={p.state === 'active' ? 'step' : undefined}
         >
           <span className="ht-phase-dot" aria-hidden="true">
-            {p.state === 'done' ? '✓' : i + 1}
+            {p.state === 'done' ? <Check size={14} /> : i + 1}
           </span>
           <span className="ht-phase-text">
             <span className="ht-phase-name">{p.name}</span>
@@ -96,7 +97,13 @@ export function VerticalStepLog({ steps = [], className = '' }) {
               onClick={() => setCollapsed(c => ({ ...c, [phase]: !c[phase] }))}
               aria-expanded={!collapsed[phase]}
             >
-              <span aria-hidden="true">{collapsed[phase] ? '▸' : '▾'}</span> {phase}
+              <span
+                aria-hidden="true"
+                className={`ht-step-caret ${collapsed[phase] ? 'ht-collapsed' : ''}`}
+              >
+                <ChevronDown size={14} />
+              </span>{' '}
+              {phase}
             </button>
             {!collapsed[phase] && (
               <ul>
@@ -247,7 +254,7 @@ export function TimelineMilestoneMarkers({ milestones = [], className = '' }) {
           style={{ left: `${m.at}%` }}
           title={m.label}
         >
-          <i aria-hidden="true">⚑</i>
+          <Flag size={13} aria-hidden="true" />
           <em>{m.label}</em>
         </span>
       ))}
@@ -364,7 +371,7 @@ export function PerHostProgressBars({ hosts = [], className = '' }) {
 export function VelocityBasedEta({ etaText = '', className = '' }) {
   return (
     <span className={`ht-eta ${className}`} role="status">
-      <span aria-hidden="true">⏱</span> {etaText || '~12 min remaining'}
+      <Timer size={13} aria-hidden="true" /> {etaText || '~12 min remaining'}
     </span>
   );
 }
@@ -411,8 +418,11 @@ export function ExpandableStepRows({ steps = [], className = '' }) {
             <span className={`ht-exit ht-exit-${s.exitStatus === 0 ? 'ok' : 'bad'}`}>
               exit {s.exitStatus}
             </span>
-            <span aria-hidden="true" className="ht-exp-caret">
-              {open === i ? '▾' : '▸'}
+            <span
+              aria-hidden="true"
+              className={`ht-exp-caret ${open === i ? 'ht-open' : ''}`}
+            >
+              <ChevronDown size={13} />
             </span>
           </button>
           {open === i && <code className="ht-exp-cmd">{s.command}</code>}
@@ -428,12 +438,12 @@ export function PhaseTransitionBanner({ message = '', onDismiss, className = '' 
   return (
     <div className={`ht-transition ${className}`} role="status">
       <span className="ht-transition-check" aria-hidden="true">
-        ✓
+        <Check size={12} />
       </span>
       <span>{message}</span>
       {onDismiss && (
         <button type="button" className="ht-transition-x" onClick={onDismiss} aria-label="Dismiss">
-          ✕
+          <X size={14} aria-hidden="true" />
         </button>
       )}
     </div>

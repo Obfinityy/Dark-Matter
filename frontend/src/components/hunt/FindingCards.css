@@ -40,23 +40,23 @@
 }
 .fc-sev-critical {
   background:
-    linear-gradient(rgba(248, 113, 113, 0.04), rgba(248, 113, 113, 0.04)), var(--bg-secondary);
+    linear-gradient(color-mix(in srgb, var(--sev-critical) 4%, transparent), color-mix(in srgb, var(--sev-critical) 4%, transparent)), var(--bg-secondary);
 }
 .fc-sev-high {
   background:
-    linear-gradient(rgba(251, 146, 60, 0.04), rgba(251, 146, 60, 0.04)), var(--bg-secondary);
+    linear-gradient(color-mix(in srgb, var(--sev-high) 4%, transparent), color-mix(in srgb, var(--sev-high) 4%, transparent)), var(--bg-secondary);
 }
 .fc-sev-medium {
   background:
-    linear-gradient(rgba(250, 204, 21, 0.04), rgba(250, 204, 21, 0.04)), var(--bg-secondary);
+    linear-gradient(color-mix(in srgb, var(--sev-medium) 4%, transparent), color-mix(in srgb, var(--sev-medium) 4%, transparent)), var(--bg-secondary);
 }
 .fc-sev-low {
   background:
-    linear-gradient(rgba(96, 165, 250, 0.04), rgba(96, 165, 250, 0.04)), var(--bg-secondary);
+    linear-gradient(color-mix(in srgb, var(--sev-low) 4%, transparent), color-mix(in srgb, var(--sev-low) 4%, transparent)), var(--bg-secondary);
 }
 .fc-sev-info {
   background:
-    linear-gradient(rgba(156, 163, 175, 0.04), rgba(156, 163, 175, 0.04)), var(--bg-secondary);
+    linear-gradient(color-mix(in srgb, var(--sev-info) 4%, transparent), color-mix(in srgb, var(--sev-info) 4%, transparent)), var(--bg-secondary);
 }
 .fc-density-compact {
   padding: 10px 12px;
@@ -71,6 +71,19 @@
 }
 
 /* 50155 new-card entrance */
+@keyframes fc-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fc-new-card {
+  animation: fc-card-in 0.45s ease both;
+}
 
 .fc-select {
   position: absolute;
@@ -192,10 +205,11 @@
   border-color: #8b5cf6;
   color: var(--text-primary);
 }
-.fc-chevron span {
-  display: inline-block;
+.fc-chevron svg {
+  display: block;
+  transition: transform var(--transition-fast);
 }
-.fc-chevron.fc-open span {
+.fc-chevron.fc-open svg {
   transform: rotate(180deg);
 }
 
@@ -231,6 +245,7 @@
   height: 100%;
   background: linear-gradient(90deg, #5b8def, #8bb4ff);
   border-radius: var(--radius-sm);
+  transition: width 0.4s ease;
 }
 .fc-confidence-label {
   font-size: 11px;
@@ -318,7 +333,10 @@
   border-color: #8b5cf6;
 }
 
-/* 50129 dial */
+/* 50129 dial — fill sweeps smoothly as the score updates */
+.fc-dial-fill {
+  transition: stroke-dashoffset 0.5s ease;
+}
 .fc-dial {
   position: relative;
   display: inline-flex;
@@ -444,6 +462,9 @@
 
 /* 50139 exploitability */
 .fc-exploit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 700;
   border-radius: 999px;
@@ -611,6 +632,11 @@
 .fc-fanout-caret {
   margin-left: auto;
   color: var(--text-muted);
+  display: inline-flex;
+  transition: transform var(--transition-fast);
+}
+.fc-fanout-caret.fc-open svg {
+  transform: rotate(180deg);
 }
 .fc-fanout-cards {
   display: flex;
@@ -620,11 +646,22 @@
 }
 
 /* 50140 bulk bar */
+@keyframes fc-bulkbar-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
 .fc-bulkbar {
   position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
+  animation: fc-bulkbar-in 0.3s ease both;
   z-index: 90;
   display: flex;
   align-items: center;
@@ -635,7 +672,7 @@
   background: var(--bg-tertiary);
   border: 1px solid #8b5cf6;
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
   box-shadow: var(--shadow-md);
 }
 
@@ -743,14 +780,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fc-new-card {
-    animation: none;
-  }
+  .fc-new-card,
   .fc-bulkbar {
     animation: none;
   }
-  .fc-chevron span,
+  .fc-chevron svg,
+  .fc-fanout-caret,
   .fc-dial-fill,
+  .fc-confidence-fill,
   .fc-hover-actions {
     transition: none;
   }

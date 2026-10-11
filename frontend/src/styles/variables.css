@@ -50,6 +50,7 @@
   --sev-high: #fb923c;
   --sev-medium: #facc15;
   --sev-low: #60a5fa;
+  --sev-info: #9ca3af;
   --bg-primary: var(--sg-bg);
   --bg-secondary: var(--sg-bg-2);
   --bg-tertiary: var(--sg-bg-3);

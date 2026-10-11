@@ -238,7 +238,7 @@ export function WebhookDeliveryWidget({ deliveries, onRetry, deepLink }) {
       <ul className="dw2-list">
         {rows.map(d => (
           <li key={d.id} className="dw2-hook-row">
-            <span className={`dw2-dot dw2-dot-${d.dot}`} aria-label={d.status} />
+            <span className={`dw2-dot dw2-dot-${d.dot}`} role="img" aria-label={d.status} />
             <span className="dw2-hook-event">{d.event}</span>
             <span className="dw2-muted dw2-hook-target">{d.target}</span>
             {d.retryable && onRetry && (
@@ -374,7 +374,11 @@ export function FindingsTickerWidget({ findings }) {
     <div className="dw2-ticker" role="marquee" aria-label="latest findings ticker">
       <div className="dw2-ticker-track">
         {[...items, ...items].map((f, i) => (
-          <span key={`${f.id}-${i}`} className="dw2-ticker-item">
+          <span
+            key={`${f.id}-${i}`}
+            className="dw2-ticker-item"
+            aria-hidden={i >= items.length || undefined}
+          >
             <i
               className="dw2-dot"
               style={{ background: toastSeverityColor(f.severity) }}
