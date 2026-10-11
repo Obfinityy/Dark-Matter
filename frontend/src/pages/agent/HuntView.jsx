@@ -83,7 +83,7 @@ export function HuntView() {
   // Hands-free voice conversation with the hunting agent (header mic toggle).
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceState, setVoiceState] = useState('idle'); // idle | listening | thinking | speaking
-  // Infinity AI avatar in the Hunt view: emotion + activity come from the
+  // Hunt agent avatar in the Hunt view: emotion + activity come from the
   // agent-chat replies; tapping the avatar opens the full-screen voice overlay.
   const [huntEmotion, setHuntEmotion] = useState('neutral');
   const [huntAvatarState, setHuntAvatarState] = useState('idle');
@@ -423,15 +423,15 @@ export function HuntView() {
         </div>
 
         <aside className="sg-hunt-side">
-          {/* Infinity AI avatar — compact inline presence. Tap to open the
+          {/* Hunt agent avatar — compact inline presence. Tap to open the
               full-screen voice conversation overlay. */}
           <div className="sg-hunt-avatar-card">
             <button
               type="button"
               className="sg-hunt-avatar-btn"
               onClick={() => setOverlayOpen(true)}
-              aria-label="Open voice conversation with the Infinity AI avatar"
-              title="Talk to Infinity AI"
+              aria-label="Open voice conversation with the hunt agent"
+              title="Talk to the hunt agent"
             >
               <Avatar gender="female" state={huntAvatarState} emotion={huntEmotion} size={76} />
               <span className="sg-hunt-avatar-cta">

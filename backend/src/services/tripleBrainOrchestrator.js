@@ -218,6 +218,7 @@ export class TripleBrainOrchestrator {
         provider: new GradioProvider({
           baseUrl: slotSource.kaggleUrl,
           model: slotSource.kaggleName || slot,
+          apiKey: slotSource.kaggleApiKey || null,
         }),
         source: 'kaggle',
       };

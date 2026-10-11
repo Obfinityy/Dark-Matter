@@ -39,8 +39,12 @@ export const DEFAULT_BACKEND_URL = 'http://localhost:4000';
 
 /**
  * Backend mode storage keys. The user picks where the app runs:
- * - 'cloud'  — the hosted backend from the build environment (default).
- * - 'local'  — "My Device": the backend on the user's own machine.
+ * - 'local'  — "My Device": the backend on the user's own machine
+ *   (http://localhost:4000 by default, customizable). THIS IS THE DEFAULT:
+ *   Dark Matter is a free, local-first product — opening the app connects
+ *   straight to the backend on your own machine, no login, no cloud.
+ * - 'cloud'  — the hosted backend from the build environment (opt-in via
+ *   the backend switcher).
  * Persisted in localStorage so the choice survives reloads.
  */
 export const BACKEND_MODE_KEY = 'dm_backend_mode';
@@ -49,13 +53,13 @@ export const LOCAL_BACKEND_URL_KEY = 'dm_local_backend_url';
 /** Default URL of the user's own backend in "My Device" mode. */
 export const DEFAULT_LOCAL_BACKEND_URL = 'http://localhost:4000';
 
-/** 'cloud' | 'local'. Safe to call outside the browser (returns 'cloud'). */
+/** 'cloud' | 'local'. Safe to call outside the browser (returns 'local'). */
 export function getBackendMode() {
   try {
     const v = localStorage.getItem(BACKEND_MODE_KEY);
-    return v === 'local' ? 'local' : 'cloud';
+    return v === 'cloud' ? 'cloud' : 'local';
   } catch {
-    return 'cloud';
+    return 'local';
   }
 }
 

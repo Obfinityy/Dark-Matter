@@ -6,6 +6,7 @@
 
 import { now } from '../core/utils.js';
 import { BRAIN_PROVIDERS } from '../agent/providers/brainProviderFactory.js';
+import { encryptBrainSecret, decryptBrainSecret } from '../services/brainLinkStore.js';
 
 /**
  * BrainProviderModel — persists which provider serves each user's autonomous
@@ -69,6 +70,19 @@ export class BrainProviderModel {
   async getSelection(userId) {
     const doc = userId ? await this.collection.findOne({ userId }) : null;
     if (!doc) return { ...DEFAULT_SELECTION };
+    // Decrypt any stored brain API keys (kaggleApiKeyEnc) back into
+    // kaggleApiKey for provider construction. Absent when the user never
+    // set one — providers then send no Authorization header.
+    const slotSources = {};
+    for (const [slot, src] of Object.entries(doc.slotSources || {})) {
+      const copy = { ...src };
+      if (copy.kaggleApiKeyEnc) {
+        const key = decryptBrainSecret(copy.kaggleApiKeyEnc);
+        if (key) copy.kaggleApiKey = key;
+        delete copy.kaggleApiKeyEnc; // ciphertext never leaves this layer
+      }
+      slotSources[slot] = copy;
+    }
     return {
       provider: BRAIN_PROVIDERS.includes(doc.provider) ? doc.provider : 'phone',
       modelId: doc.modelId || null,
@@ -80,9 +94,9 @@ export class BrainProviderModel {
       // Per-slot brain assignments: { vision: modelId, grounding: modelId, hacker: modelId }
       // Each slot is independent — the user picks one model per slot.
       slotAssignments: doc.slotAssignments || {},
-      // Per-slot source: { vision: { source: 'local'|'kaggle', modelId?, kaggleUrl?, kaggleName? }, ... }
+      // Per-slot source: { vision: { source: 'local'|'kaggle', modelId?, kaggleUrl?, kaggleName?, kaggleApiKey? }, ... }
       // A slot runs on Kaggle remote GPU or a local model — user's choice per slot.
-      slotSources: doc.slotSources || {},
+      slotSources,
       updatedAt: doc.updatedAt || null,
     };
   }
@@ -115,20 +129,26 @@ export class BrainProviderModel {
   /**
    * Connect a Kaggle/Colab Gradio link as the source for a brain slot.
    * The slot then runs on the remote GPU instead of a local model.
+   * An optional `apiKey` (e.g. for an AWS-hosted endpoint) is stored
+   * ENCRYPTED (same key as the brain-link store) and decrypted back into
+   * `kaggleApiKey` on getSelection — never in plaintext at rest.
    */
-  async setSlotKaggle(userId, slot, url, name = null) {
+  async setSlotKaggle(userId, slot, url, name = null, apiKey = null) {
     if (!userId) throw new Error('setSlotKaggle requires a userId');
     if (!['vision', 'grounding', 'hacker'].includes(slot)) {
       throw new Error(`Unknown brain slot "${slot}" — must be vision, grounding, or hacker`);
     }
     const validatedUrl = validateEndpointUrl(url);
     if (!validatedUrl) throw new Error('A valid Kaggle/Gradio URL is required');
+    const trimmedKey = typeof apiKey === 'string' && apiKey.trim() ? apiKey.trim().slice(0, 500) : null;
     const doc = await this.collection.findOne({ userId });
     const slotSources = { ...(doc?.slotSources || {}) };
     slotSources[slot] = {
       source: 'kaggle',
       kaggleUrl: validatedUrl,
       kaggleName: name || 'Kaggle GPU',
+      // Encrypted at rest — decrypted back into kaggleApiKey on getSelection.
+      kaggleApiKeyEnc: trimmedKey ? encryptBrainSecret(trimmedKey) : null,
       updatedAt: now(),
     };
     await this.collection.updateOne(

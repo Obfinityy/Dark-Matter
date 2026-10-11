@@ -2,7 +2,7 @@
  * main — the application entry point.
  * Mounts the React tree into the #root node with StrictMode enabled.
  * Fails loudly with a clear message if the mount node is missing.
- * Part of: Infinity AI / Dark-Matter frontend (app shell).
+ * Part of: Dark-Matter frontend (app shell).
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -25,10 +25,10 @@ if (!rootEl) {
     'background:#0a0614;color:#f5f1e8;font:16px/1.6 system-ui,sans-serif;' +
     'padding:24px;text-align:center;z-index:99999;';
   banner.textContent =
-    'Infinity AI could not start: the page is missing its mount point (#root). ' +
+    'Dark Matter could not start: the page is missing its mount point (#root). ' +
     'Please check index.html or contact support.';
   document.body.appendChild(banner);
-  throw new Error('[Infinity AI] Mount node #root not found — check index.html');
+  throw new Error('[Dark Matter] Mount node #root not found — check index.html');
 }
 
 createRoot(rootEl).render(

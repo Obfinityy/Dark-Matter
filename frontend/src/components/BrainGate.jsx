@@ -9,8 +9,6 @@
  * is connected for its slot (Models page).
  *
  * Hunt needs: vision + hacker (grounding is optional — vision doubles as grounder)
- * Infinity AI Chat/Plan/Build needs: vision
- * Infinity AI Control needs: vision (+ grounding optional)
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';

@@ -6,7 +6,7 @@
  * category, with success rates — the agent's accumulated tradecraft, visible.
  */
 import React, { useEffect, useState } from 'react';
-import { Loader2, TrendingUp, Filter, Unplug, ShieldCheck } from 'lucide-react';
+import { Loader2, TrendingUp, Filter, Unplug } from 'lucide-react';
 import './PayloadLibrary.css';
 import '../../styles/kinetic-data.css';
 import { listPayloads, getPayloadLibraryStats, tryApi } from '../../services/api';
@@ -19,7 +19,6 @@ export function PayloadLibrary() {
   const [technique, setTechnique] = useState('');
   const [category, setCategory] = useState('');
   const [backendDown, setBackendDown] = useState(false);
-  const [authExpired, setAuthExpired] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -34,9 +33,7 @@ export function PayloadLibrary() {
       const allNetworkFailed =
         errors.length === 2 &&
         errors.every(e => e.status === 0 || e.code === 'BACKEND_UNAVAILABLE');
-      const anyAuthFailed = errors.some(e => e.status === 401);
       setBackendDown(allNetworkFailed);
-      setAuthExpired(!allNetworkFailed && anyAuthFailed);
       if (p.data?.payloads) setPayloads(p.data.payloads);
       if (s.data?.stats) setStats(s.data.stats);
     } finally {
@@ -104,34 +101,7 @@ export function PayloadLibrary() {
           </p>
         </header>
 
-        {authExpired && (
-          <div className="dm-notice dm-pl-notice dm-pl-notice-alert" role="alert">
-            <span className="dm-notice-icon" aria-hidden="true">
-              <ShieldCheck size={18} />
-            </span>
-            <div>
-              <strong className="dm-text-2 dm-pl-notice-title">Session expired</strong>
-              <p className="dm-pl-notice-text">
-                Your sign-in has expired. Please sign in again to load the payload library.
-              </p>
-              <button
-                className="dm-btn dm-btn-primary dm-btn-sm"
-                onClick={() => {
-                  try {
-                    localStorage.removeItem('dm_jwt');
-                  } catch {
-                    /* ignore */
-                  }
-                  window.location.href = '/login';
-                }}
-              >
-                Sign in again
-              </button>
-            </div>
-          </div>
-        )}
-
-        {backendDown && !authExpired && (
+        {backendDown && (
           <div className="dm-notice dm-pl-notice dm-pl-notice-alert" role="alert">
             <span className="dm-notice-icon" aria-hidden="true">
               <Unplug size={18} />

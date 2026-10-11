@@ -1,14 +1,15 @@
 /**
  * App — the root application shell.
- * Sets up client-side routing, authentication providers, and the main
- * layout (navigation, protected routes, global styles).
- * Part of: Infinity AI / Dark-Matter frontend (app shell).
+ * Sets up client-side routing and the main layout.
+ * Dark Matter is a free, local-first product: NO login/signup — opening the
+ * app goes straight to the agent console. The backend defaults to the user's
+ * own machine (http://localhost:4000).
+ * Part of: Dark-Matter frontend (app shell).
  */
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { AuthProvider, ProtectedRoute, PublicRoute } from './auth/AuthContext';
-import { Login } from './pages/Auth/Login';
+import { AuthProvider } from './auth/AuthContext';
 
 import './App.css';
 import './styles/globals.css';
@@ -114,38 +115,15 @@ export default function App() {
         {/* A crash in any top-level route must not blank the whole app shell. */}
         <PageErrorBoundary pageName="App">
           <Routes>
-            <Route
-              path="/login"
-              element={
-                <PublicRoute>
-                  <Login initialMode="signin" />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                <PublicRoute>
-                  <Login initialMode="signup" />
-                </PublicRoute>
-              }
-            />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsConditionsPage />} />
-            {/* v2: The agent console IS the app. Simple: Hunt + Infinity AI. */}
+            {/* The agent console IS the app: Hunt, Models, Library, Plugins,
+                Reports, Settings. No login — straight in. */}
             <Route path="/agent/*" element={<AgentConsole />} />
             {/* Public marketing landing page (issue #45). */}
             <Route path="/landing" element={<Landing />} />
-            {/* Root: must be logged in — unauthenticated users go to login.
-                (Security: no anonymous access to the app.) */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Navigate to="/agent" replace />
-                </ProtectedRoute>
-              }
-            />
+            {/* Root goes straight to the agent console — no login. */}
+            <Route path="/" element={<Navigate to="/agent" replace />} />
             {/* Unknown top-level routes get a real 404 page, not a silent redirect. */}
             <Route path="/*" element={<NotFoundPage />} />
           </Routes>

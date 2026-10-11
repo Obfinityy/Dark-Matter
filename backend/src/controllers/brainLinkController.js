@@ -28,7 +28,13 @@ export function createBrainLinkController({ brainLinkStore, brainProviderModel =
     for (const [slot, entry] of Object.entries(links || {})) {
       if (!entry?.url) continue;
       try {
-        await brainProviderModel.setSlotKaggle(userId, slot, entry.url, entry.name || null);
+        await brainProviderModel.setSlotKaggle(
+          userId,
+          slot,
+          entry.url,
+          entry.name || null,
+          entry.apiKey || null
+        );
       } catch {
         /* best-effort only */
       }
@@ -38,7 +44,7 @@ export function createBrainLinkController({ brainLinkStore, brainProviderModel =
   return {
     /**
      * GET /brain-links — the caller's saved brain links.
-     * Returns { links: { slot: { url, name, updatedAt } } }.
+     * Returns { links: { slot: { url, name, updatedAt, apiKey? } } }.
      * The URLs belong to the caller; the agent poller uses this same
      * endpoint with the user's token.
      *
@@ -54,9 +60,11 @@ export function createBrainLinkController({ brainLinkStore, brainProviderModel =
     },
 
     /**
-     * POST /brain-links { links: { slot: { url, name? } } }
+     * POST /brain-links { links: { slot: { url, name?, apiKey? } } }
      * Saves (or replaces) brain links. A slot value of null deletes it.
      * Only valid brain slots are accepted; invalid URLs are rejected.
+     * The optional apiKey is an auth bearer for endpoints that require one
+     * (e.g. an AWS-hosted model) — encrypted at rest, never logged.
      */
     async save(req, res) {
       try {

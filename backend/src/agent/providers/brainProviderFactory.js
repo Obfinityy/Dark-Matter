@@ -31,7 +31,7 @@ export const BRAIN_PROVIDERS = ['phone', 'ollama', 'local', 'gradio'];
 export function createBrainProvider(
   provider,
   appConfig = {},
-  { model = null, baseUrl = null, runner = null, slot = null } = {}
+  { model = null, baseUrl = null, runner = null, slot = null, apiKey = null } = {}
 ) {
   if (provider === 'local') {
     return new LocalLlamaProvider({ runner, slot });
@@ -43,7 +43,7 @@ export function createBrainProvider(
     });
   }
   if (provider === 'gradio') {
-    return new GradioProvider({ baseUrl, model });
+    return new GradioProvider({ baseUrl, model, apiKey });
   }
   if (provider === 'phone' || !provider) {
     return new PhoneLocalProvider(appConfig);
@@ -81,6 +81,7 @@ export function createSlotBrainProvider(slot, selection, { appConfig = {}, runne
     return new GradioProvider({
       baseUrl: slotSource.kaggleUrl,
       model: slotSource.kaggleName || slot,
+      apiKey: slotSource.kaggleApiKey || null,
     });
   }
   // Local source → slot-aware local provider (slot's own port).

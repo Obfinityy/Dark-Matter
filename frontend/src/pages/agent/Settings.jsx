@@ -176,7 +176,7 @@ export function Settings() {
         <h2 className="kac-h" id="kac-set-brain" style={{ '--kac-i': 2 }}>
           <Cpu size={18} aria-hidden="true" /> Brain
         </h2>
-        <p className="kac-body">The same brain powers both Hunt AI and Infinity AI.</p>
+        <p className="kac-body">The same brain powers Hunt AI.</p>
         {providers ? (
           <div>
             <p className="kac-body" style={{ marginBottom: 4 }}>

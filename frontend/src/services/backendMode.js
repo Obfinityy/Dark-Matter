@@ -1,15 +1,17 @@
 /**
- * Backend connection — cloud or "My Device".
+ * Backend connection — "My Device" (local) or cloud.
  *
- * The user picks where the app runs:
- * - 'cloud' — the hosted backend from the build environment (default).
- * - 'local' — "My Device": the backend on the user's own machine
- *   (default http://localhost:4000, customizable in Settings).
+ * Dark Matter is a free, local-first product: the DEFAULT is 'local' — the
+ * backend on the user's own machine (http://localhost:4000, customizable in
+ * Settings or the Agent home page, e.g. a dev-tunnel URL). Opening the app
+ * connects straight to it; no login, no cloud account.
+ *
+ * The user can opt into 'cloud' — the hosted backend from the build
+ * environment — via the backend switcher.
  *
  * The active origin is resolved by frontend/src/lib/apiBase.js
  * (resolveApiBaseUrl()) and shared by every module that talks to the
- * backend. Auth tokens are scoped per mode, so switching backends never
- * leaks one backend's session into the other.
+ * backend. With no login, no auth tokens are stored or sent at all.
  */
 import {
   API_BASE_URL,

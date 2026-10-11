@@ -90,6 +90,7 @@ function makePlannerForUser(brainDeps = {}) {
             source: 'kaggle',
             kaggleUrl: hackerUrl,
             kaggleName: links.hacker.name || 'hacker',
+            kaggleApiKey: links.hacker.apiKey || null,
           },
         },
       },

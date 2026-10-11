@@ -92,7 +92,11 @@ export function resolveHackingBrain({ selection = {}, runner = null } = {}) {
   const src = selection?.slotSources?.hacker;
   if (src?.source === 'kaggle' && src?.kaggleUrl) {
     return {
-      provider: new GradioProvider({ baseUrl: src.kaggleUrl, model: src.kaggleName || 'hacker' }),
+      provider: new GradioProvider({
+        baseUrl: src.kaggleUrl,
+        model: src.kaggleName || 'hacker',
+        apiKey: src.kaggleApiKey || null,
+      }),
       source: 'kaggle',
     };
   }
@@ -109,7 +113,10 @@ export function resolveHackingBrain({ selection = {}, runner = null } = {}) {
   }
   // Legacy single-brain selection.
   if (selection?.provider === 'gradio' && selection?.endpointUrl) {
-    return { provider: new GradioProvider({ baseUrl: selection.endpointUrl }), source: 'kaggle' };
+    return {
+      provider: new GradioProvider({ baseUrl: selection.endpointUrl, apiKey: selection.apiKey || null }),
+      source: 'kaggle',
+    };
   }
   if (selection?.provider === 'local' && selection?.modelId && runner) {
     return { provider: new LocalLlamaProvider({ runner, slot: 'hacker' }), source: 'local' };

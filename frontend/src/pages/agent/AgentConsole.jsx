@@ -9,48 +9,27 @@
  *
  *   <Route path="/agent/*" element={<AgentConsole />} />
  *
- * It brings its own auth gate (shows <Login/> when signed out) and the
- * AgentShell chrome (sidebar + top bar), so the host app needs no other
- * wiring. Every page is wrapped in `.dm-page` for consistent padding.
+ * Dark Matter is free and login-free: no auth gate — the console renders
+ * straight away. Kept sections: Hunt, Models, Library (payloads), Plugins,
+ * Reports, Settings. (Infinity AI, Premium, Account, Queues and Schedules
+ * were removed from the product; their component files stay on disk,
+ * unrouted.)
  */
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from '../../auth/AuthContext';
+import { AuthProvider } from '../../auth/AuthContext';
 import { AgentShell } from '../../components/agent/AgentShell';
 import { PageErrorBoundary } from '../../components/PageErrorBoundary';
-import { Login } from '../Auth/Login';
 import { AgentHome } from './AgentHome';
 import { HuntView } from './HuntView';
 import { ContinuousHuntConsole } from '../../components/hunt/ContinuousHuntConsole';
-import { InfinityAI } from './InfinityAI';
 import { Settings } from './Settings';
 import { Reports } from './Reports';
 import { ReportReader } from './ReportReader';
 import { ModelLibrary } from './ModelLibrary';
 import { PayloadLibrary } from './PayloadLibrary';
 import { Plugins } from './Plugins';
-import { Premium } from './Premium';
-import { Account } from './Account';
-import { Queues } from './Queues';
-import { Schedules } from './Schedules';
-import { Loader2 } from 'lucide-react';
 import '../../styles/kinetic-hunt.css';
-
-function Gate({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="dm-auth-page">
-        <div className="dm-page-loading" role="status">
-          <Loader2 size={18} className="sg-spin" aria-hidden="true" />{' '}
-          <span className="khu-gate-text">Signing you in…</span>
-        </div>
-      </div>
-    );
-  }
-  if (!user) return <Login />;
-  return children;
-}
 
 /* Kinetic page transition: every route mounts a fresh .khu-page, so the
  * fade-rise entrance replays on navigation. Visual only — no routing or
@@ -62,18 +41,13 @@ function Page({ children }) {
 /* Route-level document titles — orientation in the tab bar and for
  * screen readers, with no routing or rendering behaviour changes. */
 const ROUTE_TITLES = {
-  '': 'Agent home',
+  '': 'Hunt AI home',
   hunt: 'Hunt AI',
-  infinity: 'Infinity AI',
   settings: 'Settings',
   reports: 'Reports',
   models: 'Models',
   library: 'Payload library',
   plugins: 'Plugins',
-  premium: 'Premium',
-  account: 'Account',
-  queues: 'Queues',
-  schedules: 'Schedules',
 };
 
 function RouteTitle() {
@@ -91,10 +65,9 @@ function RouteTitle() {
 export function AgentConsole() {
   return (
     <AuthProvider>
-      <Gate>
-        <AgentShell>
-          <RouteTitle />
-          <Routes>
+      <AgentShell>
+        <RouteTitle />
+        <Routes>
             <Route
               index
               element={
@@ -140,17 +113,7 @@ export function AgentConsole() {
               }
             />
             <Route
-              path="infinity"
-              element={
-                <Page>
-                  <PageErrorBoundary pageName="Infinity AI">
-                    <InfinityAI />
-                  </PageErrorBoundary>
-                </Page>
-              }
-            />
-            <Route
-              path="settings"
+            path="settings"
               element={
                 <Page>
                   <PageErrorBoundary pageName="Settings">
@@ -209,50 +172,9 @@ export function AgentConsole() {
                 </Page>
               }
             />
-            <Route
-              path="premium"
-              element={
-                <Page>
-                  <PageErrorBoundary pageName="Premium">
-                    <Premium />
-                  </PageErrorBoundary>
-                </Page>
-              }
-            />
-            <Route
-              path="account"
-              element={
-                <Page>
-                  <PageErrorBoundary pageName="Account">
-                    <Account />
-                  </PageErrorBoundary>
-                </Page>
-              }
-            />
-            <Route
-              path="queues"
-              element={
-                <Page>
-                  <PageErrorBoundary pageName="Queues">
-                    <Queues />
-                  </PageErrorBoundary>
-                </Page>
-              }
-            />
-            <Route
-              path="schedules"
-              element={
-                <Page>
-                  <PageErrorBoundary pageName="Schedules">
-                    <Schedules />
-                  </PageErrorBoundary>
-                </Page>
-              }
-            />
             <Route path="*" element={<Navigate to="/agent" replace />} />
           </Routes>
-        </AgentShell>
-      </Gate>
+      </AgentShell>
     </AuthProvider>
   );
 }

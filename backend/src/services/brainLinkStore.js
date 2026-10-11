@@ -8,12 +8,14 @@
  *
  * SECURITY: Gradio share URLs are bearer tokens — whoever holds the URL can
  * use the GPU. URLs are encrypted at rest with AES-256-GCM using the server
- * key from `BRAIN_LINKS_KEY` (32 bytes, hex or base64). The key NEVER leaves
+ * key from `BRAIN_LINKS_KEY` (32 bytes, hex or base64). An optional per-slot
+ * `apiKey` (e.g. for an AWS-hosted brain endpoint) is encrypted the same way
+ * (field `apiKeyEnc`, capped at 500 chars) and is never logged. The key NEVER leaves
  * the backend, URLs are never logged, and only the owning user (or their
  * agent poller presenting their token) can read them.
  *
  * Storage (owner order, 8 Oct 2026): MongoDB collection `brain_links`, one
- * document per user (`{ userId, slots: { [slot]: { urlEnc, name, updatedAt } } }`).
+ * document per user (`{ userId, slots: { [slot]: { urlEnc, apiKeyEnc?, name, updatedAt } } }`).
  * The legacy JSON file (`backend/data/brain-links.json`, gitignored) remains
  * as a runtime fallback: if Mongo is unreachable an operation degrades to the
  * file store with a warning instead of crashing. On first read, when Mongo
@@ -132,9 +134,44 @@ function validUrl(url) {
   return typeof url === 'string' && /^https?:\/\/.+/i.test(url.trim());
 }
 
+/** Max length for a brain API key (AWS-style bearer keys are far shorter). */
+export const MAX_API_KEY_LENGTH = 500;
+
+function validApiKey(value) {
+  if (value == null || value === '') return null;
+  const key = String(value).trim();
+  if (!key) return null;
+  if (key.length > MAX_API_KEY_LENGTH) {
+    throw new Error(`Brain API key exceeds ${MAX_API_KEY_LENGTH} characters`);
+  }
+  return key;
+}
+
+/**
+ * Module-level encryption helpers for brain secrets that live OUTSIDE the
+ * link store (e.g. the API key mirrored into the brain-provider selection
+ * doc). Same key resolution as the stores, so everything stays mutually
+ * readable. The key is cached per process.
+ */
+let moduleKey = null;
+function moduleEncryptionKey() {
+  if (!moduleKey) moduleKey = resolveKey().key;
+  return moduleKey;
+}
+
+/** Encrypt a brain secret (API key) for storage. Returns ciphertext. */
+export function encryptBrainSecret(plaintext) {
+  return encrypt(moduleEncryptionKey(), plaintext);
+}
+
+/** Decrypt a brain secret. Returns plaintext or null on failure. */
+export function decryptBrainSecret(packed) {
+  return decrypt(moduleEncryptionKey(), packed);
+}
+
 /**
  * Validate a save payload and build encrypted slot changes.
- * Returns { [slot]: { urlEnc, name, updatedAt } | null } — null means "delete this slot".
+ * Returns { [slot]: { urlEnc, apiKeyEnc?, name, updatedAt } | null } — null means "delete this slot".
  * Throws on invalid payload / invalid URL (before anything is written).
  */
 function buildSlotChanges(key, links) {
@@ -150,8 +187,10 @@ function buildSlotChanges(key, links) {
     }
     const url = String(entry.url || '').trim();
     if (!validUrl(url)) throw new Error(`Invalid URL for brain slot "${slot}"`);
+    const apiKey = validApiKey(entry.apiKey);
     changes[slot] = {
       urlEnc: encrypt(key, url),
+      ...(apiKey ? { apiKeyEnc: encrypt(key, apiKey) } : {}),
       name: String(entry.name || '').trim().slice(0, 120) || null,
       updatedAt: new Date().toISOString(),
     };
@@ -159,7 +198,7 @@ function buildSlotChanges(key, links) {
   return changes;
 }
 
-/** Decrypt a slots map into { slot: { url, name, updatedAt } }. */
+/** Decrypt a slots map into { slot: { url, name, updatedAt, apiKey? } }. */
 function decryptSlots(key, slots) {
   const out = {};
   for (const slot of VALID_BRAIN_SLOTS) {
@@ -167,7 +206,12 @@ function decryptSlots(key, slots) {
     if (!entry || !entry.urlEnc) continue;
     const url = decrypt(key, entry.urlEnc);
     if (!url) continue; // Undecryptable (key rotated?) — skip silently.
-    out[slot] = { url, name: entry.name || null, updatedAt: entry.updatedAt || null };
+    const slotOut = { url, name: entry.name || null, updatedAt: entry.updatedAt || null };
+    if (entry.apiKeyEnc) {
+      const apiKey = decrypt(key, entry.apiKeyEnc);
+      if (apiKey) slotOut.apiKey = apiKey; // Only present when the user set one.
+    }
+    out[slot] = slotOut;
   }
   return out;
 }
@@ -189,7 +233,7 @@ export function createBrainLinkStore({ filePath = DEFAULT_FILE } = {}) {
     fs.renameSync(tmp, filePath);
   }
 
-  /** Decrypt a user's stored slots into { slot: { url, name, updatedAt } }. */
+  /** Decrypt a user's stored slots into { slot: { url, name, updatedAt, apiKey? } }. */
   function readUser(userId) {
     const id = String(userId || 'anonymous');
     return decryptSlots(key, data[id] || {});
@@ -201,13 +245,13 @@ export function createBrainLinkStore({ filePath = DEFAULT_FILE } = {}) {
     /** Where the key came from: 'env' | 'jwt-secret' | 'ephemeral'. */
     keySource,
 
-    /** All decrypted brain links for a user: { slot: { url, name, updatedAt } }. */
+    /** All decrypted brain links for a user: { slot: { url, name, updatedAt, apiKey? } }. */
     getLinks(userId) {
       return readUser(userId);
     },
 
     /**
-     * Save brain links for a user. `links` is { slot: { url, name? } }.
+     * Save brain links for a user. `links` is { slot: { url, name?, apiKey? } }.
      * Only VALID_BRAIN_SLOTS are accepted; invalid URLs throw.
      * Returns the decrypted saved links.
      */
@@ -333,10 +377,13 @@ export function createMongoBrainLinkStore({ database = null, filePath = DEFAULT_
         const fileTime = fileEntry?.updatedAt || '';
         const mongoTime = mongoEntry?.updatedAt || '';
         if (!mongoEntry || String(fileTime) > String(mongoTime)) {
-          // Re-encrypt the plaintext URL for Mongo storage, preserving the
-          // file's updatedAt so future merges compare correctly.
+          // Re-encrypt the plaintext URL (and API key, when set) for Mongo
+          // storage, preserving the file's updatedAt so future merges
+          // compare correctly.
+          const fileApiKey = fileEntry.apiKey ? String(fileEntry.apiKey).trim() : null;
           merged[slot] = {
             urlEnc: encrypt(key, String(fileEntry.url || '').trim()),
+            ...(fileApiKey ? { apiKeyEnc: encrypt(key, fileApiKey) } : {}),
             name: fileEntry.name || null,
             updatedAt: fileEntry.updatedAt || new Date().toISOString(),
           };
@@ -366,7 +413,7 @@ export function createMongoBrainLinkStore({ database = null, filePath = DEFAULT_
     /** Where the key came from: 'env' | 'jwt-secret' | 'ephemeral'. */
     keySource,
 
-    /** All decrypted brain links for a user: { slot: { url, name, updatedAt } }. */
+    /** All decrypted brain links for a user: { slot: { url, name, updatedAt, apiKey? } }. */
     async getLinks(userId) {
       const id = String(userId || 'anonymous');
       const coll = collection();
@@ -386,7 +433,7 @@ export function createMongoBrainLinkStore({ database = null, filePath = DEFAULT_
     },
 
     /**
-     * Save brain links for a user. `links` is { slot: { url, name? } }.
+     * Save brain links for a user. `links` is { slot: { url, name?, apiKey? } }.
      * Only VALID_BRAIN_SLOTS are accepted; invalid URLs throw.
      * Returns the decrypted saved links.
      */

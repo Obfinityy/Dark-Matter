@@ -12,6 +12,10 @@
  *   { enabled, healthCheck(), generate(messages, options),
  *     generateStructured(messages, schema, options) }
  *
+ * Optional `apiKey` (constructor): sent as `Authorization: Bearer <key>` on
+ * EVERY request — for brain endpoints that require auth (e.g. a model hosted
+ * on AWS). The key is never logged.
+ *
  * The Gradio ChatInterface HTTP API:
  *   POST {base}/gradio_api/api/chat  { data: [message, history] }
  *   → { data: [reply, null], ... }
@@ -96,15 +100,27 @@ function messagesToPrompt(messages = []) {
 
 /** AI model provider: gradio. */
 export class GradioProvider {
-  constructor({ baseUrl, model = 'qwen3-8b', timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  constructor({ baseUrl, model = 'qwen3-8b', timeoutMs = DEFAULT_TIMEOUT_MS, apiKey = null } = {}) {
     this.baseUrl = normalizeBaseUrl(baseUrl);
     this.model = model || 'qwen3-8b';
     this.timeoutMs = timeoutMs;
+    // Optional bearer key for brain endpoints that require auth
+    // (e.g. an AWS-hosted model). Never logged — see authHeaders().
+    this.apiKey = typeof apiKey === 'string' && apiKey.trim() ? apiKey.trim() : null;
     this.enabled = true;
   }
 
   get providerName() {
     return 'GradioProvider';
+  }
+
+  /**
+   * Extra headers for every request to the brain endpoint. The API key is
+   * only ever sent as an Authorization header value — never in URLs,
+   * bodies, or logs.
+   */
+  authHeaders() {
+    return this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
   }
 
   async healthCheck() {
@@ -113,6 +129,7 @@ export class GradioProvider {
       // The /config endpoint is light and always present on Gradio apps.
       const res = await fetch(`${this.baseUrl}/config`, {
         signal: AbortSignal.timeout(15000),
+        headers: { ...this.authHeaders() },
       });
       const latencyMs = Date.now() - start;
       if (!res.ok) {
@@ -187,7 +204,7 @@ export class GradioProvider {
         const url = `${this.baseUrl}/gradio_api/api/chat`;
         const res = await fetch(url, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', connection: 'close' },
+          headers: { 'content-type': 'application/json', connection: 'close', ...this.authHeaders() },
           signal: AbortSignal.timeout(timeout),
           body: JSON.stringify({ data: [prompt, []] }),
         });
@@ -217,7 +234,7 @@ export class GradioProvider {
     const callUrl = `${this.baseUrl}/gradio_api/call/predict`;
     const res = await fetch(callUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', connection: 'close' },
+      headers: { 'content-type': 'application/json', connection: 'close', ...this.authHeaders() },
       signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({ data: [{ text: prompt, files: [] }, null] }),
     });
@@ -233,7 +250,7 @@ export class GradioProvider {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const pollRes = await fetch(resultUrl, {
-        headers: { connection: 'close' },
+        headers: { connection: 'close', ...this.authHeaders() },
         signal: AbortSignal.timeout(30000),
       });
       const text = await pollRes.text();

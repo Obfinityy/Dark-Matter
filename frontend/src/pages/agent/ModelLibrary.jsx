@@ -9,7 +9,7 @@
  *   3. Press Download — the real .gguf streams from Hugging Face with live
  *      0% → 100% byte progress. At 100% the row flips to Run.
  *   4. Press Run — the model starts on localhost and becomes the ACTIVE
- *      brain for Hunt and Infinity AI.
+ *      brain for Hunt AI.
  *   5. Press Stop — the model unloads and RAM/VRAM is freed.
  *
  * Every model in the catalog is UNCENSORED (abliterated / Dolphin).
@@ -33,8 +33,6 @@ import {
   CheckCircle2,
   MonitorCog,
   MemoryStick,
-  MessageCircle,
-  SlidersHorizontal,
   Cloud,
   Link2,
   Unplug,
@@ -348,7 +346,7 @@ function ModelCard({
                   title={
                     !engineReady
                       ? 'Download the engine first'
-                      : `Run ${runQuant} with ${ctxLabel(ctxSize)} — it becomes the brain for Hunt AI and Infinity AI`
+                      : `Run ${runQuant} with ${ctxLabel(ctxSize)} — it becomes the brain for Hunt AI`
                   }
                 >
                   {busyModel === model.id ? (
@@ -460,13 +458,26 @@ function BrainSlotCard({
   setKaggleUrl,
   kaggleName,
   setKaggleName,
+  // AWS-hosted model endpoint per slot (e.g. an OpenAI-compatible chat
+  // completions URL on AWS). Saved via the brain-links API with an optional
+  // API key — the backend change accepts apiKey (done in parallel).
+  awsUrl,
+  setAwsUrl,
+  awsKey,
+  setAwsKey,
+  awsName,
+  setAwsName,
+  awsBusy,
+  awsMsg,
+  onAwsTest,
+  onAwsConnect,
   groundingEnabled,
   onToggleGrounding,
 }) {
   const source = sources[slotId]?.source || 'local';
   const kaggle = sources[slotId]?.source === 'kaggle' ? sources[slotId] : null;
   const server = slotServers?.[slotId] || null; // running server for this slot
-  const [tab, setTab] = useState(source); // 'local' | 'kaggle'
+  const [tab, setTab] = useState(source); // 'local' | 'kaggle' | 'aws'
   const [cellOpen, setCellOpen] = useState(false); // Kaggle one-cell "?" modal
   const [cellCopied, setCellCopied] = useState(false);
 
@@ -557,7 +568,7 @@ function BrainSlotCard({
         )}
       </div>
 
-      {/* Source tabs: Local Model | Kaggle Link */}
+      {/* Source tabs: Local Model | Kaggle Link | AWS */}
       <div className="sg-row ml-slot-tabs" aria-label={`${slot.label} source`}>
         <button
           className={`sg-btn ${tab === 'local' ? 'sg-btn-primary' : 'sg-btn-ghost'}`}
@@ -570,6 +581,13 @@ function BrainSlotCard({
           onClick={() => setTab('kaggle')}
         >
           <Cloud size={15} /> Kaggle Link
+        </button>
+        <button
+          className={`sg-btn ${tab === 'aws' ? 'sg-btn-primary' : 'sg-btn-ghost'}`}
+          onClick={() => setTab('aws')}
+          title="Connect a model hosted on AWS (OpenAI-compatible endpoint)"
+        >
+          <Server size={15} /> AWS
         </button>
         <button
           className="sg-btn sg-btn-ghost sg-btn-sm ml-kaggle-help"
@@ -783,7 +801,7 @@ function BrainSlotCard({
                             className="sg-btn sg-btn-primary sg-btn-sm"
                             onClick={() => onRunSlot(slotId, m.id)}
                             disabled={slotBusy === `${slotId}-run` || !engineReady}
-                            title={`Run ${m.name} on localhost for ${slot.label} (own port) — it becomes the brain for Hunt AI and Infinity AI`}
+                            title={`Run ${m.name} on localhost for ${slot.label} (own port) — it becomes the brain for Hunt AI`}
                           >
                             {slotBusy === `${slotId}-run` ? (
                               <Loader2 size={14} className="sg-spin" />
@@ -926,22 +944,102 @@ function BrainSlotCard({
           )}
         </div>
       )}
+
+      {/* ── AWS: model endpoint hosted on AWS ── */}
+      {tab === 'aws' && (
+        <div className="ml-slot-models">
+          <div className="sg-form-row">
+            <input
+              className="sg-input"
+              placeholder="Endpoint URL — e.g. https://your-api.aws.com/v1/chat/completions"
+              aria-label="AWS model endpoint URL for this brain slot"
+              value={awsUrl}
+              onChange={e => setAwsUrl(e.target.value)}
+              disabled={awsBusy === slotId}
+            />
+          </div>
+          <div className="sg-form-row">
+            <input
+              className="sg-input"
+              type="password"
+              placeholder="API key (optional)"
+              aria-label="API key for the AWS endpoint (optional)"
+              value={awsKey}
+              onChange={e => setAwsKey(e.target.value)}
+              disabled={awsBusy === slotId}
+              autoComplete="off"
+            />
+          </div>
+          <div className="sg-form-row">
+            <input
+              className="sg-input"
+              placeholder="Name it (optional) — e.g. AWS Qwen2.5"
+              aria-label="Name for this AWS endpoint (optional)"
+              value={awsName}
+              onChange={e => setAwsName(e.target.value)}
+              disabled={awsBusy === slotId}
+            />
+          </div>
+          <div className="ml-kaggle-actions">
+            <button
+              className="sg-btn sg-btn-ghost sg-btn-sm"
+              onClick={() => onAwsTest(slotId)}
+              disabled={!awsUrl.trim() || awsBusy === slotId}
+            >
+              {awsBusy === `${slotId}-test` ? (
+                <Loader2 size={14} className="sg-spin" />
+              ) : (
+                <Link2 size={14} />
+              )}
+              Test endpoint
+            </button>
+            <button
+              className="sg-btn sg-btn-primary sg-btn-sm"
+              onClick={() => onAwsConnect(slotId)}
+              disabled={!awsUrl.trim() || awsBusy === slotId}
+            >
+              {awsBusy === slotId ? (
+                <Loader2 size={14} className="sg-spin" />
+              ) : (
+                <Zap size={14} />
+              )}
+              Connect to this slot
+            </button>
+            {accountLinks?.[slotId]?.url && (
+              <span
+                className="sg-tiny"
+                style={{ color: 'var(--dm-success, #34d399)', whiteSpace: 'nowrap' }}
+                title={`Saved${accountLinks[slotId].updatedAt ? ` on ${new Date(accountLinks[slotId].updatedAt).toLocaleString()}` : ''}`}
+              >
+                ✓ Saved
+              </span>
+            )}
+          </div>
+          {awsMsg?.[slotId] && (
+            <div
+              className={`sg-alert ${awsMsg[slotId].ok ? 'sg-alert-success' : 'sg-auth-error'}`}
+            >
+              {awsMsg[slotId].text}
+            </div>
+          )}
+          <p className="sg-tiny ml-kaggle-hint">
+            Point this slot at a model you host on AWS (an OpenAI-compatible chat endpoint works).
+            The endpoint and key are saved to your backend — only this slot uses them.
+          </p>
+        </div>
+      )}
     </SpotlightCard>
   );
 }
 
 /**
- * BrainAssignmentsPanel — the FIXED wiring: which brain slots each product
- * uses, with live status read from the running slot servers.
+ * BrainAssignmentsPanel — the FIXED wiring: which brain slots Hunt AI uses,
+ * with live status read from the running slot servers.
  *
  * - HUNT: Hacker (strategy brain) + Vision (sees the screen, decides where
  *   to click and what to do) + Grounding (turns decisions into click coordinates)
- * - INFINITY CHAT: Vision only
- * - CONTROL: Vision (thinking model) + Agent S (does the computer work) —
- *   the hacker brain is NOT needed for Control.
  *
- * A warning hint appears under any product whose required brain slot is
- * currently not running.
+ * A warning hint appears when a required brain slot is currently not running.
  */
 function BrainAssignmentsPanel({ slotServers, slotSources }) {
   const slotStatus = slotId => {
@@ -979,21 +1077,6 @@ function BrainAssignmentsPanel({ slotServers, slotSources }) {
       needs: ['hacker', 'vision', 'grounding'],
       notes:
         'Hacker strategizes and chains vulnerabilities · Vision sees the screen and decides where to click and what to do · Grounding turns decisions into exact click coordinates.',
-    },
-    {
-      name: 'Infinity Chat',
-      icon: MessageCircle,
-      desc: 'The Infinity AI assistant (Chat / Plan / Build).',
-      needs: ['vision'],
-      notes: 'Vision only — it is the thinking model. The hacker brain is not used here.',
-    },
-    {
-      name: 'Control',
-      icon: SlidersHorizontal,
-      desc: 'Computer control — Agent S does the actual computer work.',
-      needs: ['vision'],
-      notes:
-        'Vision (thinking model) + Agent S (does the computer work). Hacker brain: not needed for Control.',
     },
   ];
 
@@ -1084,7 +1167,6 @@ export function ModelLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [backendDown, setBackendDown] = useState(false); // selected backend unreachable
-  const [authExpired, setAuthExpired] = useState(false); // session expired — needs re-login
   const [download, setDownload] = useState(null); // { modelId, percent, status, receivedBytes, totalBytes, error }
   const [engineDl, setEngineDl] = useState(null); // { progress, status }
   const [busyModel, setBusyModel] = useState(null);
@@ -1102,6 +1184,12 @@ export function ModelLibrary() {
   const [kaggleNames, setKaggleNames] = useState({}); // { vision: 'My Kaggle', ... }
   const [kaggleBusy, setKaggleBusy] = useState(null); // slotId | `${slotId}-test`
   const [kaggleMsg, setKaggleMsg] = useState({}); // { slotId: { ok, text } }
+  // Per-slot AWS endpoint inputs
+  const [awsUrls, setAwsUrls] = useState({}); // { vision: 'https://...', ... }
+  const [awsKeys, setAwsKeys] = useState({}); // { vision: 'sk-...', ... }
+  const [awsNames, setAwsNames] = useState({}); // { vision: 'AWS Qwen', ... }
+  const [awsBusy, setAwsBusy] = useState(null); // slotId | `${slotId}-test`
+  const [awsMsg, setAwsMsg] = useState({}); // { slotId: { ok, text } }
   // Links saved to the user's ACCOUNT (backend, encrypted) — fetched on load
   // so the user can SEE what is saved, not just trust the success message.
   const [accountLinks, setAccountLinks] = useState(null); // { vision: {url, name, updatedAt}, ... } | null
@@ -1163,9 +1251,7 @@ export function ModelLibrary() {
       const allNetworkFailed =
         errors.length === 5 &&
         errors.every(e => e.status === 0 || e.code === 'BACKEND_UNAVAILABLE');
-      const anyAuthFailed = errors.some(e => e.status === 401);
       setBackendDown(allNetworkFailed);
-      setAuthExpired(!allNetworkFailed && anyAuthFailed);
       if (chain.data?.chain) setBrainChain(chain.data);
       if (slots.data?.slots) setBrainSlots(slots.data.slots);
       if (sources.data?.slotSources) setSlotSources(sources.data.slotSources);
@@ -1326,6 +1412,72 @@ export function ModelLibrary() {
     }
   };
 
+  // ── Per-slot AWS: a model endpoint hosted on AWS (OpenAI-compatible) ──
+  // Saved via the brain-links API as { url, name, apiKey } so the backend can
+  // route this slot's inference to the endpoint. The apiKey field is accepted
+  // by the backend change (done in parallel); older backends ignore it.
+
+  const testSlotAws = async slot => {
+    const url = (awsUrls[slot] || '').trim();
+    if (!url) return;
+    setAwsBusy(`${slot}-test`);
+    setAwsMsg(m => ({ ...m, [slot]: null }));
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: awsKeys[slot]?.trim() ? { Authorization: `Bearer ${awsKeys[slot].trim()}` } : {},
+      }).catch(() => null);
+      clearTimeout(timer);
+      if (!res) throw new Error('No response — check the URL and that the endpoint allows browser requests (CORS).');
+      setAwsMsg(m => ({
+        ...m,
+        [slot]: { ok: true, text: `Endpoint reachable (HTTP ${res.status}) straight from your browser.` },
+      }));
+    } catch (err) {
+      setAwsMsg(m => ({
+        ...m,
+        [slot]: { ok: false, text: err.message || 'Could not reach that endpoint.' },
+      }));
+    } finally {
+      setAwsBusy(null);
+    }
+  };
+
+  const connectSlotAwsHandler = async slot => {
+    const url = (awsUrls[slot] || '').trim();
+    if (!url) return;
+    setAwsBusy(slot);
+    setAwsMsg(m => ({ ...m, [slot]: null }));
+    try {
+      const res = await saveAccountBrainLinks({
+        [slot]: {
+          url,
+          name: (awsNames[slot] || '').trim() || `AWS ${slot}`,
+          apiKey: (awsKeys[slot] || '').trim() || null,
+        },
+      });
+      if (res?.links) setAccountLinks(res.links);
+      if (typeof res?.keyStable === 'boolean') setAccountKeyStable(res.keyStable);
+      setAwsMsg(m => ({
+        ...m,
+        [slot]: {
+          ok: true,
+          text: 'Connected — this slot now uses your AWS endpoint (saved to your backend).',
+        },
+      }));
+    } catch (err) {
+      setAwsMsg(m => ({
+        ...m,
+        [slot]: { ok: false, text: err.message || 'Could not save the endpoint.' },
+      }));
+    } finally {
+      setAwsBusy(null);
+    }
+  };
+
   // Run a slot's model on its own localhost port — ALWAYS the device backend
   // (localhost), never the cloud backend. Models live on the user's machine.
   const runSlotHandler = async (slot, modelId) => {
@@ -1482,7 +1634,7 @@ export function ModelLibrary() {
 
   const startEngineDownload = async () => {
     setError('');
-    // The Infinity AI Runner downloads to the USER'S LOCAL MACHINE via the
+    // The Dark Matter Runner downloads to the USER'S LOCAL MACHINE via the
     // local backend. If the backend is not running yet, the Step 0 card offers
     // the one-click launcher instead — this guard is only a fallback.
     if (!localBackendUp) {
@@ -1817,38 +1969,13 @@ export function ModelLibrary() {
         </h2>
         <p className="ml-sub kda-sub" style={{ '--kda-d': '220ms' }}>
           Every model here is <b>uncensored</b>. Pick one, press <b>Download</b>, then <b>Run</b> —
-          it starts on localhost and becomes the active brain for Hunt AI and Infinity AI.
+          it starts on localhost and becomes the active brain for Hunt AI.
         </p>
       </div>
 
       {error && <div className="sg-alert sg-auth-error">{error}</div>}
 
-      {authExpired && !loading && (
-        <div className="sg-alert sg-auth-error ml-alert-spaced" role="alert">
-          <div className="ml-alert-head">
-            <ShieldCheck size={18} />
-            <strong>Session expired</strong>
-          </div>
-          <p className="sg-small ml-alert-body">
-            Your sign-in has expired. Please sign in again to load the model library.
-          </p>
-          <button
-            className="sg-btn sg-btn-primary"
-            onClick={() => {
-              try {
-                localStorage.removeItem('dm_jwt');
-              } catch {
-                /* ignore */
-              }
-              window.location.href = '/login';
-            }}
-          >
-            Sign in again
-          </button>
-        </div>
-      )}
-
-      {backendDown && !loading && !authExpired && (
+      {backendDown && !loading && (
         <div className="sg-alert sg-auth-error ml-alert-spaced" role="alert">
           <div className="ml-alert-head">
             <Unplug size={18} />
@@ -1885,7 +2012,7 @@ export function ModelLibrary() {
             <div>
               <strong>Step 0 — one-time engine setup</strong>
               <p>
-                Dark Matter ships its own tiny inference engine, the Infinity AI Runner. It
+                Dark Matter ships its own tiny inference engine, the Dark Matter Runner. It
                 downloads automatically the first time you press Run on a model — after that, models
                 run directly on your computer, no Ollama needed.
               </p>
@@ -1933,7 +2060,7 @@ export function ModelLibrary() {
         </div>
       )}
 
-      {/* ── Infinity AI Runner: local PC companion ─────────────────── */}
+      {/* ── Dark Matter Runner: local PC companion ─────────────────── */}
       <RunnerStatusCard />
 
       {/* ── Brain Slots: three independent brains ──────────────────── */}
@@ -1978,6 +2105,16 @@ export function ModelLibrary() {
                 onKaggleDisconnect={disconnectSlotKaggleHandler}
                 onKaggleTest={testSlotKaggle}
                 onKaggleSaveToAccount={saveKaggleToAccountHandler}
+                awsUrl={awsUrls[slotId] || ''}
+                setAwsUrl={v => setAwsUrls(prev => ({ ...prev, [slotId]: v }))}
+                awsKey={awsKeys[slotId] || ''}
+                setAwsKey={v => setAwsKeys(prev => ({ ...prev, [slotId]: v }))}
+                awsName={awsNames[slotId] || ''}
+                setAwsName={v => setAwsNames(prev => ({ ...prev, [slotId]: v }))}
+                awsBusy={awsBusy}
+                awsMsg={awsMsg}
+                onAwsTest={testSlotAws}
+                onAwsConnect={connectSlotAwsHandler}
                 accountLinks={accountLinks}
                 kaggleUrl={kaggleUrls[slotId] || ''}
                 setKaggleUrl={v => setKaggleUrls(m => ({ ...m, [slotId]: v }))}
@@ -2009,7 +2146,6 @@ export function ModelLibrary() {
               <strong>{running.name || running.modelId}</strong>
               <span className="sg-small">
                 Running on localhost{running.port ? ` :${running.port}` : ''} — thinking for Hunt AI
-                and Infinity AI
               </span>
             </div>
           </div>

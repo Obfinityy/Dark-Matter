@@ -3,8 +3,9 @@
  * hunt loop (issue #298).
  *
  * Mirrors the persistence convention of hunt/planner.js: each hunt owns a
- * directory under backend/data/hunts/<huntId>/, and the loop's full machine
- * state is kept in loop.json. Pause freezes the tick driver and this file
+ * directory under <dataDir>/<huntId>/ (default backend/data/hunts, or
+ * $DM_DATA_DIR/hunts when set), and the loop's full machine state is kept
+ * in loop.json. Pause freezes the tick driver and this file holds everything
  * holds everything needed to resume later: machine state, findings so far,
  * the current hunt angle, tick count, think-aloud trace, and the severity
  * tally.
@@ -17,7 +18,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const DEFAULT_LOOP_DATA_DIR = path.resolve(here, '..', '..', 'data', 'hunts');
+// Hunt checkpoints live on LOCAL DISK (the user's device), never only in
+// Mongo/memory — pause/resume and crash recovery read this directory.
+// DM_DATA_DIR lets a local install point it anywhere (default ./app-data
+// in local mode); otherwise the backend's own data dir keeps existing
+// hunts exactly where they are.
+const CONFIGURED_DATA_DIR = (process.env.DM_DATA_DIR || '').trim();
+export const DEFAULT_LOOP_DATA_DIR = CONFIGURED_DATA_DIR
+  ? path.resolve(CONFIGURED_DATA_DIR, 'hunts')
+  : path.resolve(here, '..', '..', 'data', 'hunts');
 
 const LOOP_FILE = 'loop.json';
 

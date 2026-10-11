@@ -1,16 +1,12 @@
 /**
- * AgentShell — Infinity AI "Singularity" app chrome.
+ * AgentShell — Dark Matter app chrome (free, local-first product).
  *
- * Top navbar: ONLY the two primary destinations — Hunt and Infinity AI
- * (+ live status pill). Per-mode LEFT SIDEBAR below it:
+ * Top navbar: the single primary destination — Hunt AI (+ live status pill).
+ * LEFT SIDEBAR: Hunt · Models · Library · Plugins · Reports · Settings, in
+ * that order, plus the hunt history.
  *
- *   Hunt mode      → New Hunt · Library · Plugins · hunt history ·
- *                     Premium · Settings · Account
- *   Infinity AI    → New Chat · Library · Plugins · chat history ·
- *                     Premium · Settings · Account
- *
- * Other routes (Reports, Models, …) keep working but are no longer
- * top-level nav — they're reached from inside their pages.
+ * No login, no Infinity AI, no Premium, no Account — those were removed from
+ * the product. Their component files stay on disk, unrouted.
  *
  * On narrow screens (≤760px) the sidebar collapses into a slide-in
  * drawer opened by the hamburger button in the top bar.
@@ -19,23 +15,18 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Crosshair,
-  Sparkles,
   Settings,
   Plus,
   LibraryBig,
   Blocks,
-  Crown,
-  UserRound,
+  Cpu,
+  FileText,
   Menu,
   X,
-  MessageSquare,
   RefreshCw,
   Bell,
-  GitCompareArrows,
 } from 'lucide-react';
-import { useAuth } from '../../auth/AuthContext';
 import { listJobs, listAlerts } from '../../services/api';
-import { listConversations, CONVERSATIONS_CHANGED_EVENT } from '../../services/chatHistory';
 import Logo from '../brand/Logo';
 import './AgentShell.css';
 import './AgentShell.elegant.css';
@@ -49,7 +40,6 @@ const TOP_TABS = [
     end: true,
     hint: 'Autonomous bug-bounty agent',
   },
-  { to: '/agent/infinity', label: 'Infinity AI', icon: Sparkles, hint: 'Autonomous coding agent' },
 ];
 
 export function StatusPill({ status, thinking = false }) {
@@ -134,18 +124,12 @@ const STATUS_DOT = {
 
 const TITLES = {
   '/agent': 'Hunt AI',
-  '/agent/infinity': 'Infinity AI',
   '/agent/settings': 'Settings',
   '/agent/reports': 'Reports',
   '/agent/models': 'Models',
   '/agent/library': 'Library',
   '/agent/plugins': 'Plugins',
-  '/agent/premium': 'Premium',
-  '/agent/account': 'Account',
   '/agent/alerts': 'Alerts',
-  '/agent/compare': 'Compare hunts',
-  '/agent/queues': 'Target queues',
-  '/agent/schedules': 'Scheduled hunts',
 };
 
 function HuntHistory({ onNavigate, refreshKey }) {
@@ -203,47 +187,6 @@ function HuntHistory({ onNavigate, refreshKey }) {
   );
 }
 
-function ChatHistory({ onNavigate, refreshKey }) {
-  const [convs, setConvs] = useState([]);
-  useEffect(() => {
-    const reload = () => setConvs(listConversations());
-    reload();
-    // A new message in InfinityAI records the conversation without a
-    // navigation — refresh the list live via the custom event.
-    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, reload);
-    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, reload);
-  }, [refreshKey]);
-
-  if (convs.length === 0) {
-    return <div className="sg-side-empty">No chats yet — say hello above.</div>;
-  }
-  return (
-    <ul className="sg-side-list">
-      {convs.map(c => (
-        <li key={c.id}>
-          <Link
-            to="/agent/infinity"
-            state={{ conversationId: c.id, mode: c.mode }}
-            className="sg-side-hist"
-            onClick={onNavigate}
-          >
-            <MessageSquare size={14} className="sg-side-hist-icon" />
-            <span className="sg-side-hist-main">
-              <span className="sg-side-hist-target" title={c.title}>
-                {c.title}
-              </span>
-              <span className="sg-side-hist-meta">
-                {c.mode}
-                {c.updatedAt ? ` · ${timeAgo(c.updatedAt)}` : ''}
-              </span>
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function SidebarSection({ label, action, children }) {
   return (
     <div className="sg-side-section">
@@ -281,7 +224,6 @@ function useUnreadAlerts() {
 }
 
 export function AgentShell({ children }) {
-  const { logout } = useAuth();
   const { running } = useLiveStats();
   const unread = useUnreadAlerts();
   const location = useLocation();
@@ -290,8 +232,6 @@ export function AgentShell({ children }) {
   const [sidebarClosed, setSidebarClosed] = useState(false);
   const [histTick, setHistTick] = useState(0);
 
-  const isInfinity =
-    location.pathname === '/agent/infinity' || location.pathname.startsWith('/agent/infinity/');
   const refreshKey = `${location.pathname}${location.key}:${histTick}`;
 
   // Close the drawer on every navigation.
@@ -307,7 +247,7 @@ export function AgentShell({ children }) {
     };
   }, [drawerOpen]);
 
-  // Keyboard shortcuts: Alt+1 Hunt, Alt+2 Infinity AI, Esc closes the drawer.
+  // Keyboard shortcut: Alt+1 jumps to Hunt AI, Esc closes the drawer.
   // Never hijack keys while the user is typing.
   useEffect(() => {
     const onKey = e => {
@@ -320,10 +260,6 @@ export function AgentShell({ children }) {
       if (e.altKey && e.key === '1') {
         e.preventDefault();
         navigate('/agent');
-      }
-      if (e.altKey && e.key === '2') {
-        e.preventDefault();
-        navigate('/agent/infinity');
       }
     };
     window.addEventListener('keydown', onKey);
@@ -343,35 +279,28 @@ export function AgentShell({ children }) {
     return TITLES[location.pathname] || 'Dark Matter';
   }, [location.pathname]);
 
-  const huntLinks = [
+  // Sidebar nav — Hunt, Models, Library, Plugins, Reports, Settings, in
+  // that order. The primary action is starting a new hunt.
+  const navLinks = [
     { to: '/agent', label: 'New Hunt', icon: Plus, end: true, primary: true },
+    { to: '/agent/models', label: 'Models', icon: Cpu },
     { to: '/agent/library', label: 'Library', icon: LibraryBig },
     { to: '/agent/plugins', label: 'Plugins', icon: Blocks },
+    { to: '/agent/reports', label: 'Reports', icon: FileText },
+    { to: '/agent/settings', label: 'Settings', icon: Settings },
   ];
-  const infinityLinks = [
-    {
-      to: '/agent/infinity',
-      label: 'New Chat',
-      icon: Plus,
-      primary: true,
-      state: { fresh: Date.now() },
-    },
-    { to: '/agent/library', label: 'Library', icon: LibraryBig },
-    { to: '/agent/plugins', label: 'Plugins', icon: Blocks },
-  ];
-  const modeLinks = isInfinity ? infinityLinks : huntLinks;
 
   const sidebar = (
     <div className="sg-side-inner">
       <div className="sg-side-head">
-        <span className="sg-side-mode">{isInfinity ? 'Infinity AI' : 'Hunt AI'}</span>
+        <span className="sg-side-mode">Hunt AI</span>
         <button className="sg-side-close" onClick={closeDrawer} aria-label="Close menu">
           <X size={18} />
         </button>
       </div>
 
-      <nav className="sg-side-nav" aria-label={isInfinity ? 'Infinity AI' : 'Hunt AI'}>
-        {modeLinks.map(({ to, label, icon: Icon, end, primary, state }) =>
+      <nav className="sg-side-nav" aria-label="Hunt AI">
+        {navLinks.map(({ to, label, icon: Icon, end, primary, state }) =>
           primary ? (
             <button
               key={label}
@@ -398,7 +327,7 @@ export function AgentShell({ children }) {
       </nav>
 
       <SidebarSection
-        label={isInfinity ? 'Recent chats' : 'Previous hunts'}
+        label="Previous hunts"
         action={
           <button
             className="sg-side-refresh"
@@ -410,46 +339,11 @@ export function AgentShell({ children }) {
           </button>
         }
       >
-        {isInfinity ? (
-          <ChatHistory onNavigate={closeDrawer} refreshKey={refreshKey} />
-        ) : (
-          <HuntHistory onNavigate={closeDrawer} refreshKey={refreshKey} />
-        )}
-        {!isInfinity && (
-          <Link to="/agent/compare" className="sg-side-compare" onClick={closeDrawer}>
-            <GitCompareArrows size={14} /> Compare hunts
-          </Link>
-        )}
+        <HuntHistory onNavigate={closeDrawer} refreshKey={refreshKey} />
       </SidebarSection>
 
-      <div className="sg-side-foot">
-        <NavLink
-          to="/agent/premium"
-          onClick={closeDrawer}
-          className={({ isActive }) => `sg-side-item sg-side-premium${isActive ? ' active' : ''}`}
-        >
-          <Crown size={17} strokeWidth={1.9} /> <span>Premium</span>
-        </NavLink>
-        <NavLink
-          to="/agent/settings"
-          onClick={closeDrawer}
-          className={({ isActive }) => `sg-side-item${isActive ? ' active' : ''}`}
-        >
-          <Settings size={17} strokeWidth={1.9} /> <span>Settings</span>
-        </NavLink>
-        <NavLink
-          to="/agent/account"
-          onClick={closeDrawer}
-          className={({ isActive }) => `sg-side-item${isActive ? ' active' : ''}`}
-        >
-          <UserRound size={17} strokeWidth={1.9} /> <span>Account</span>
-        </NavLink>
-        <button className="sg-side-signout" onClick={logout}>
-          Sign out
-        </button>
-        <div className="sg-side-hint" title="Keyboard shortcuts">
-          Alt+1 Hunt AI · Alt+2 Infinity AI
-        </div>
+      <div className="sg-side-hint" title="Keyboard shortcuts" style={{ padding: '12px 16px' }}>
+        Alt+1 Hunt AI
       </div>
     </div>
   );
@@ -465,13 +359,13 @@ export function AgentShell({ children }) {
       <aside
         id="sg-sidebar"
         className={`sg-sidebar ksh-side${drawerOpen ? ' open' : ''}${sidebarClosed ? ' closed-desktop' : ''}`}
-        aria-label={isInfinity ? 'Infinity AI menu' : 'Hunt AI menu'}
+        aria-label="Hunt AI menu"
       >
         {sidebar}
       </aside>
 
       <main className="sg-main">
-        {/* Top navbar — ONLY the two primary destinations. */}
+        {/* Top navbar — the single primary destination. */}
         <header className="sg-topbar ksh-topbar">
           <div className="sg-topbar-left">
             <button
