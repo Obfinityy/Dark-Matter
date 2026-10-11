@@ -8,15 +8,27 @@
  * Dark-theme, severity color system shared across the suite.
  */
 import React from 'react';
+import {
+  Check,
+  ChevronDown,
+  Circle,
+  Copy,
+  Download,
+  Image as ImageIcon,
+  Link2,
+  MessageSquare,
+  X,
+  Zap,
+} from 'lucide-react';
 import './FindingCards.css';
 
 /** Shared severity color system (matches HuntTimeline3 SeverityColorSystem). */
 export const FC_SEVERITY = {
-  critical: { label: 'Critical', color: '#f87171' },
-  high: { label: 'High', color: '#fb923c' },
-  medium: { label: 'Medium', color: '#facc15' },
-  low: { label: 'Low', color: '#60a5fa' },
-  info: { label: 'Info', color: '#9ca3af' },
+  critical: { label: 'Critical', color: 'var(--sev-critical)' },
+  high: { label: 'High', color: 'var(--sev-high)' },
+  medium: { label: 'Medium', color: 'var(--sev-medium)' },
+  low: { label: 'Low', color: 'var(--sev-low)' },
+  info: { label: 'Info', color: 'var(--sev-info)' },
 };
 export const FC_SEVERITY_KEYS = Object.keys(FC_SEVERITY);
 
@@ -51,7 +63,12 @@ export function InlineSeverityEditor({ severity = 'medium', onChange, className 
   const [open, setOpen] = React.useState(false);
   const s = FC_SEVERITY[severity] || FC_SEVERITY.medium;
   return (
-    <span className={`fc-sev-editor ${className}`}>
+    <span
+      className={`fc-sev-editor ${className}`}
+      onKeyDown={e => {
+        if (e.key === 'Escape') setOpen(false);
+      }}
+    >
       <button
         type="button"
         className={`fc-sev-pill fc-sev-${severity}`}
@@ -124,7 +141,7 @@ export function ExpandCollapseChevron({
       aria-expanded={expanded}
       aria-label={`${expanded ? 'Collapse' : 'Expand'} ${label}`}
     >
-      <span aria-hidden="true">▾</span>
+      <ChevronDown size={16} aria-hidden="true" />
     </button>
   );
 }
@@ -168,7 +185,16 @@ export function ExploitabilityBadge({ steps = null, className = '' }) {
       className={`fc-exploit ${exploitable ? 'fc-exploit-yes' : 'fc-exploit-no'} ${className}`}
       role="status"
     >
-      {exploitable ? `⚡ exploitable in ${steps} step${steps === 1 ? '' : 's'}` : '○ theoretical'}
+      {exploitable ? (
+        <>
+          <Zap size={12} aria-hidden="true" /> exploitable in {steps} step
+          {steps === 1 ? '' : 's'}
+        </>
+      ) : (
+        <>
+          <Circle size={12} aria-hidden="true" /> theoretical
+        </>
+      )}
     </span>
   );
 }
@@ -216,7 +242,7 @@ export function ChainLinkGlyph({ parentId = '', onOpenParent, className = '' }) 
       title={`Chained from ${parentId}`}
       aria-label={`Chained from ${parentId}`}
     >
-      <span aria-hidden="true">⛓</span> {parentId}
+      <Link2 size={13} aria-hidden="true" /> {parentId}
     </button>
   );
 }
@@ -227,7 +253,14 @@ export function RiskScoreDial({ score = 0, size = 52, className = '' }) {
   const r = (size - 10) / 2;
   const c = Math.PI * r;
   const frac = s / 10;
-  const col = s >= 9 ? '#f87171' : s >= 7 ? '#fb923c' : s >= 4 ? '#facc15' : '#60a5fa';
+  const col =
+    s >= 9
+      ? 'var(--sev-critical)'
+      : s >= 7
+        ? 'var(--sev-high)'
+        : s >= 4
+          ? 'var(--sev-medium)'
+          : 'var(--sev-low)';
   return (
     <span
       className={`fc-dial ${className}`}
@@ -253,7 +286,7 @@ export function RiskScoreDial({ score = 0, size = 52, className = '' }) {
         <path
           d={`M 5 ${size * 0.55} A ${r} ${r} 0 0 1 ${size - 5} ${size * 0.55}`}
           fill="none"
-          stroke={col}
+          style={{ stroke: col }}
           strokeWidth={6}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -274,9 +307,7 @@ export function EvidenceThumbnailsInCards({ evidence = [], className = '' }) {
       {evidence.slice(0, 3).map((e, i) => (
         <span key={i} className="fc-ev-thumb" title={e.label || 'evidence'}>
           {e.type === 'image' ? (
-            <span className="fc-ev-img" aria-hidden="true">
-              🖼
-            </span>
+            <ImageIcon size={13} aria-hidden="true" />
           ) : (
             <code>{(e.code || '').slice(0, 42)}…</code>
           )}
@@ -302,7 +333,9 @@ export function TriageStatusRibbon({ status = 'new', onChange, className = '' })
           aria-current={i === idx ? 'step' : undefined}
           title={st}
         >
-          <i aria-hidden="true">{i < idx ? '✓' : i + 1}</i>
+          <i aria-hidden="true">
+            {i < idx ? <Check size={11} /> : i + 1}
+          </i>
           <em>{st}</em>
         </button>
       ))}
@@ -319,7 +352,7 @@ export function CommentCountAffordance({ count = 0, onOpen, className = '' }) {
       onClick={onOpen}
       aria-label={`${count} comments. Open thread`}
     >
-      <span aria-hidden="true">💬</span> {count}
+      <MessageSquare size={13} aria-hidden="true" /> {count}
     </button>
   );
 }
@@ -335,7 +368,7 @@ export function CardFooterQuickActions({
   return (
     <span className={`fc-quick-actions ${className}`}>
       <button type="button" onClick={onCopyPoc} title="Copy PoC markdown">
-        ⧉ Copy PoC
+        <Copy size={13} aria-hidden="true" /> Copy PoC
       </button>
       <button
         type="button"
@@ -343,10 +376,16 @@ export function CardFooterQuickActions({
         aria-pressed={reviewed}
         title="Mark as reviewed"
       >
-        {reviewed ? '✓ Reviewed' : 'Mark reviewed'}
+        {reviewed ? (
+          <>
+            <Check size={13} aria-hidden="true" /> Reviewed
+          </>
+        ) : (
+          'Mark reviewed'
+        )}
       </button>
       <button type="button" onClick={onExport} title="Export single finding">
-        ⤓ Export
+        <Download size={13} aria-hidden="true" /> Export
       </button>
     </span>
   );
@@ -379,7 +418,7 @@ export function BulkSelectBar({
         Dismiss
       </button>
       <button type="button" className="fc-bulkbar-x" onClick={onClear} aria-label="Clear selection">
-        ✕
+        <X size={14} aria-hidden="true" />
       </button>
     </div>
   );
@@ -406,8 +445,11 @@ export function DuplicateFanOutStacking({ groups = [], renderCard, className = '
               <i />
             </span>
             {g.findings.length} similar — {g.label || 'duplicates'}
-            <span aria-hidden="true" className="fc-fanout-caret">
-              {open[gi] ? '▾' : '▸'}
+            <span
+              aria-hidden="true"
+              className={`fc-fanout-caret ${open[gi] ? 'fc-open' : ''}`}
+            >
+              <ChevronDown size={14} />
             </span>
           </button>
           {open[gi] && (
