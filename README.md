@@ -12,13 +12,7 @@ Dark Matter by **Obfinity** is an autonomous AI security researcher for authoriz
 - Validates findings with working proof-of-concepts
 - Generates submission-ready PDF reports — on demand, even mid-hunt
 
-**Infinity AI** — Your AI companion with four modes:
-- **Chat** — Ask anything, debug, brainstorm
-- **Plan** — Get step-by-step build plans
-- **Build** — The agent reads and edits real files
-- **Control** — Command your computer (see the screen, click, type)
-
-**Infinity Voice** — Neural text-to-speech with real lip-sync on the avatar.
+**Free, local-first** — no login, no signup, no premium tier. The app opens straight into the hunt console and talks to the backend on your own machine. Your AI brains (Local, Kaggle, or AWS) plug in from the Models page, and everything the agent learns is saved on your disk.
 
 [![Status](https://img.shields.io/badge/Status-Production-blue)](#)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2018-61dafb)](#)
@@ -34,13 +28,9 @@ Dark Matter by **Obfinity** is an autonomous AI security researcher for authoriz
 - Validates findings with working proof-of-concepts
 - Generates submission-ready PDF reports
 
-**Infinity AI** — Your AI companion with four modes:
-- **Chat** — Ask anything, debug, brainstorm
-- **Plan** — Get step-by-step build plans
-- **Build** — The agent reads and edits real files
-- **Control** — Command your computer (see the screen, click, type)
+**Payload Library** — 1,400+ curated payloads (XSS, SQLi, LFI, SSRF, SSTI, XXE…) the agent draws on during hunts.
 
-**Infinity Voice** — Neural text-to-speech with real lip-sync on the avatar.
+**Plugins** — community templates and extensions for specialised testing.
 
 ---
 
@@ -63,18 +53,16 @@ Dark Matter by **Obfinity** is an autonomous AI security researcher for authoriz
 ## Architecture
 
 ```
-┌──────────┐     ┌──────────┐     ┌──────────────┐
-│ Frontend │────▶│ Backend  │────▶│   MongoDB    │
-│(Cloudflare│     │ (Render) │     │   (Atlas)    │
-│  Pages)  │     │          │     │              │
-└──────────┘     └──────────┘     └──────────────┘
-     │                 │
-     │                 ▼
-     │           ┌──────────────┐
-     │           │ Auth, Hunts, │
-     │           │ Reports,     │
-     │           │ Payments     │
-     │           └──────────────┘
+┌──────────┐     ┌──────────────────┐
+│ Frontend │────▶│ Backend          │
+│(hosted — │     │ (your machine,   │
+│  opens   │     │  localhost:4000) │
+│  straight│     │                  │
+│  into    │     │  Hunts, reports, │
+│  the hunt│     │  brain links,    │
+│  console)│     │  local disk      │
+└──────────┘     │  memory          │
+                 └──────────────────┘
      │
      ▼
 ┌──────────────────────────────────┐
@@ -85,14 +73,13 @@ Dark Matter by **Obfinity** is an autonomous AI security researcher for authoriz
 │   • Grounding brain (clicks)     │
 │   • Kali Linux VM (acts)         │
 │   • Recon tools (nmap, nuclei…)  │
-│   • Infinity Voice (speaks)      │
 │                                  │
 │   Models NEVER leave your        │
 │   computer.                      │
 └──────────────────────────────────┘
 ```
 
-**Key principle:** AI models run exclusively on your machine. The cloud backend handles auth, orchestration, and storage. Computer-control commands never touch the cloud.
+**Key principle:** AI models run exclusively on your machine or your chosen GPU host (Kaggle/AWS). The local backend orchestrates hunts and storage on your disk. Computer-control commands never leave your machine.
 
 ---
 
