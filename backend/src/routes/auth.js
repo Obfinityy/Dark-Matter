@@ -1,16 +1,15 @@
-// Auth routes — real username/password authentication for Dark Matter.
+// Auth routes — INVITE-ONLY for Dark Matter.
 //
-//   POST /api/v1/auth/signup  {name, email, password} -> {ok, token, user}
-//   POST /api/v1/auth/login   {email, password}       -> {ok, token, user}
-//   GET  /api/v1/auth/me                              -> {ok, user} (Bearer)
+//   POST /api/v1/auth/login   {username, password} -> {ok, token, user}
+//   GET  /api/v1/auth/me                          -> {ok, user} (Bearer)
 //
-// Storage: users live in `users.json` under the file-based data dir
-// (see store.js) — keyed by lowercased email. Passwords are hashed with
-// scrypt (random 16-byte salt, 64-byte key); hashes are compared with
-// timingSafeEqual. Tokens are JWT HS256 built with node:crypto only —
-// no new dependencies. Payload: {sub:id, email, iat, exp}, 30-day expiry.
-// Secret comes from JWT_SECRET; when unset a random secret is generated
-// at boot and loudly warned about (dev-only: tokens die on restart).
+// NO public signup. Only the admin creates accounts via /api/v1/admin/users.
+// Users are keyed by lowercased username. Passwords hashed with scrypt.
+// Tokens are JWT HS256 (node:crypto only). Payload: {sub:id, username, role,
+// control, iat, exp}, 30-day expiry.
+//
+// Admin bootstrap: set ADMIN_USERNAME + ADMIN_PASSWORD_HASH + ADMIN_PASSWORD_SALT
+// env vars. On first boot with no users, the admin account is created.
 
 import { Router } from 'express';
 import crypto from 'node:crypto';
@@ -68,18 +67,25 @@ function verifyToken(token) {
   if (!payload || typeof payload !== 'object') return null;
   const now = Math.floor(Date.now() / 1000);
   if (typeof payload.exp !== 'number' || payload.exp <= now) return null;
-  if (!payload.sub || !payload.email) return null;
+  if (!payload.sub || !payload.username) return null;
   return payload;
 }
 
 export function issueToken(user) {
   const now = Math.floor(Date.now() / 1000);
-  return signToken({ sub: user.id, email: user.email, iat: now, exp: now + TOKEN_TTL_SECONDS });
+  return signToken({
+    sub: user.id,
+    username: user.username,
+    role: user.role || 'user',
+    control: user.control || 'minimal',
+    iat: now,
+    exp: now + TOKEN_TTL_SECONDS,
+  });
 }
 
 // ---- Password hashing (scrypt) ----------------------------------------------
 
-function hashPassword(password) {
+export function hashPassword(password) {
   const saltBuf = crypto.randomBytes(16);
   const hash = crypto.scryptSync(password, saltBuf, 64).toString('hex');
   return { salt: saltBuf.toString('hex'), hash };
@@ -95,12 +101,44 @@ function verifyPassword(password, saltHex, hashHex) {
   }
 }
 
+// ---- Admin bootstrap ----------------------------------------------------------
+
+export function ensureAdmin() {
+  const adminUser = (process.env.ADMIN_USERNAME || '').trim().toLowerCase();
+  const adminHash = (process.env.ADMIN_PASSWORD_HASH || '').trim();
+  const adminSalt = (process.env.ADMIN_PASSWORD_SALT || '').trim();
+  if (!adminUser || !adminHash || !adminSalt) {
+    console.warn('[auth] ADMIN_USERNAME / ADMIN_PASSWORD_HASH / ADMIN_PASSWORD_SALT not set — no admin account.');
+    return null;
+  }
+  const users = readUsers();
+  if (users[adminUser]) return users[adminUser]; // already exists
+  const admin = {
+    id: crypto.randomUUID(),
+    username: adminUser,
+    salt: adminSalt,
+    passHash: adminHash,
+    role: 'admin',
+    control: 'maximum',
+    createdAt: new Date().toISOString(),
+    createdBy: 'bootstrap',
+  };
+  users[adminUser] = admin;
+  writeUsers(users);
+  console.log(`[auth] Admin account created: ${adminUser}`);
+  return admin;
+}
+
 // ---- Helpers -----------------------------------------------------------------
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function publicUser(u) {
-  return { id: u.id, name: u.name, email: u.email, createdAt: u.createdAt };
+  return {
+    id: u.id,
+    username: u.username,
+    role: u.role || 'user',
+    control: u.control || 'minimal',
+    createdAt: u.createdAt,
+  };
 }
 
 function authRequired(res) {
@@ -117,53 +155,41 @@ export function requireAuth(req, res, next) {
   if (!m) return authRequired(res);
   const payload = verifyToken(m[1]);
   if (!payload) return authRequired(res);
-  req.user = { id: payload.sub, email: payload.email };
+  req.user = {
+    id: payload.sub,
+    username: payload.username,
+    role: payload.role || 'user',
+    control: payload.control || 'minimal',
+  };
   next();
+}
+
+export function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        ok: false,
+        error: 'admin_required',
+        message: 'Admin access required.',
+      });
+    }
+    next();
+  });
 }
 
 // ---- Routes -------------------------------------------------------------------
 
-router.post('/signup', (req, res) => {
-  const { name, email, password } = req.body || {};
-  const cleanEmail = String(email || '').trim().toLowerCase();
-  const cleanName = String(name || '').trim();
-  if (!EMAIL_RE.test(cleanEmail)) {
-    return res.status(400).json({ ok: false, error: 'invalid_email', message: 'Provide a valid {email}.' });
-  }
-  if (typeof password !== 'string' || password.length < 8) {
-    return res
-      .status(400)
-      .json({ ok: false, error: 'weak_password', message: 'Password must be at least 8 characters.' });
-  }
-  const users = readUsers();
-  if (users[cleanEmail]) {
-    return res
-      .status(409)
-      .json({ ok: false, error: 'email_taken', message: 'An account with this email already exists.' });
-  }
-  const { salt, hash } = hashPassword(password);
-  const user = {
-    id: crypto.randomUUID(),
-    name: cleanName,
-    email: cleanEmail,
-    salt,
-    passHash: hash,
-    createdAt: new Date().toISOString(),
-  };
-  users[cleanEmail] = user;
-  writeUsers(users);
-  const token = issueToken(user);
-  res.json({ ok: true, token, user: publicUser(user) });
-});
-
+// Login only. There is NO public signup — accounts are created by the admin.
 router.post('/login', (req, res) => {
-  const { email, password } = req.body || {};
-  const cleanEmail = String(email || '').trim().toLowerCase();
+  const { username, password } = req.body || {};
+  const cleanUsername = String(username || '').trim().toLowerCase();
+  if (!cleanUsername || typeof password !== 'string') {
+    return res.status(400).json({ ok: false, error: 'missing_credentials', message: 'Provide {username} and {password}.' });
+  }
   const users = readUsers();
-  const user = users[cleanEmail];
-  // Same generic response for unknown email vs wrong password (no enumeration).
-  if (!user || typeof password !== 'string' || !verifyPassword(password, user.salt, user.passHash)) {
-    return res.status(401).json({ ok: false, error: 'bad_credentials', message: 'Invalid email or password.' });
+  const user = users[cleanUsername];
+  if (!user || !verifyPassword(password, user.salt, user.passHash)) {
+    return res.status(401).json({ ok: false, error: 'invalid_login', message: 'Invalid username or password.' });
   }
   const token = issueToken(user);
   res.json({ ok: true, token, user: publicUser(user) });
@@ -172,9 +198,7 @@ router.post('/login', (req, res) => {
 router.get('/me', requireAuth, (req, res) => {
   const users = readUsers();
   const user = Object.values(users).find((u) => u.id === req.user.id);
-  if (!user) {
-    return res.status(401).json({ ok: false, error: 'auth_required', message: 'Account no longer exists.' });
-  }
+  if (!user) return authRequired(res);
   res.json({ ok: true, user: publicUser(user) });
 });
 

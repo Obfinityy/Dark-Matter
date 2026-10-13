@@ -134,14 +134,9 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
             )}
           </>
         ) : (
-          <>
-            <button className="pill-btn pill-btn-solid" onClick={() => onNavigate('login')}>
-              Log in
-            </button>
-            <button className="pill-btn pill-btn-outline" onClick={() => onNavigate('signup')}>
-              Sign up for free
-            </button>
-          </>
+          <button className="pill-btn pill-btn-solid" onClick={() => onNavigate('login')}>
+            Log in
+          </button>
         )}
       </div>
     </header>

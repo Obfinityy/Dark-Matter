@@ -285,6 +285,11 @@ export default function Sidebar({
         <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
           <IconGear /> Settings
         </button>
+        {user && user.role === 'admin' && (
+          <button className={`nav-item${activePage === 'admin' ? ' active' : ''}`} onClick={() => go('admin')}>
+            <IconGear /> Admin
+          </button>
+        )}
       </nav>
 
       <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

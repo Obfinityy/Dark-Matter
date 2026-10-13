@@ -146,3 +146,61 @@ export function dedupeFindings(findings) {
   }
   return [...seen.values()];
 }
+
+// ---- Evidence-first gate (BugTraceAI technique, Apache-2.0) -----------------
+// "AI output is a hypothesis, evidence makes it a finding."
+// No finding ships to the user without attached execution evidence:
+// the exact request, the exact response, and what proves exploitation.
+
+const EVIDENCE_REQUIREMENTS = {
+  critical: ['request', 'response', 'impact_demo'],
+  high: ['request', 'response'],
+  medium: ['request', 'response'],
+  low: ['request'],
+};
+
+/**
+ * Gate a finding: does it carry enough evidence to ship?
+ * @returns {{pass: boolean, missing: string[], gated: object}}
+ */
+export function evidenceGate(finding) {
+  const severity = String(finding.severity || 'medium').toLowerCase();
+  const required = EVIDENCE_REQUIREMENTS[severity] || EVIDENCE_REQUIREMENTS.medium;
+  const evidence = finding.evidence || {};
+  const missing = required.filter((k) => !evidence[k]);
+  const gated = {
+    ...finding,
+    evidenceStatus: missing.length === 0 ? 'evidenced' : 'hypothesis',
+    evidenceMissing: missing,
+  };
+  return { pass: missing.length === 0, missing, gated };
+}
+
+// ---- 4-step verify pipeline (0sec technique) --------------------------------
+// reachability → payload validation → impact assessment → exploit confirmation.
+// ANY step fails = false positive. No exceptions.
+
+export const VERIFY_STEPS = [
+  { id: 'reachability', desc: 'Target endpoint is reachable and responds' },
+  { id: 'payload_validation', desc: 'Payload reaches the sink unmodified (or predictably transformed)' },
+  { id: 'impact_assessment', desc: 'Observed behavior proves security impact (not just reflection)' },
+  { id: 'exploit_confirmation', desc: 'Impact is reproducible and attacker-controlled' },
+];
+
+/**
+ * Run the 4-step verify pipeline over step results.
+ * @param {{reachability: boolean, payload_validation: boolean, impact_assessment: boolean, exploit_confirmation: boolean}} steps
+ * @returns {{verified: boolean, failedAt: string|null, verdict: string}}
+ */
+export function verifyPipeline(steps) {
+  for (const step of VERIFY_STEPS) {
+    if (!steps[step.id]) {
+      return {
+        verified: false,
+        failedAt: step.id,
+        verdict: `false_positive (${step.id}: ${step.desc} — FAILED)`,
+      };
+    }
+  }
+  return { verified: true, failedAt: null, verdict: 'confirmed (all 4 steps passed)' };
+}

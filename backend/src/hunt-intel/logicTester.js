@@ -86,7 +86,7 @@ export function classifyTarget(paths) {
 /**
  * Generate logic-flaw test cases for a target.
  * @param {string[]} paths — observed endpoint paths
- * @returns {{appType, invariants, abuseCases}}
+ * @returns {{appType, invariants, abuseCases, blModules}}
  */
 export function generateLogicTests(paths) {
   const appType = classifyTarget(paths);
@@ -95,6 +95,7 @@ export function generateLogicTests(paths) {
     appType,
     invariants: profile.invariants,
     abuseCases: profile.abuseCases,
+    blModules: blModulesFor(appType),
   };
 }
 
@@ -128,6 +129,152 @@ export const INVARIANT_CHECKS = {
     return null;
   },
 };
+
+// ---------------------------------------------------------------------------
+// BLFinder 21-module business-logic taxonomy (integrated by technique, MIT).
+// Each module: detection strategy + canary verification to kill false positives.
+// ---------------------------------------------------------------------------
+
+export const BL_MODULES = [
+  {
+    id: 'BL-01', title: 'Price manipulation',
+    strategy: 'Tamper price/total with 10 values: 0, 0.01, -1, 0.001, 999999, null, "free", 1e10, NaN, empty. Compare charged amount vs expected.',
+    canary: 'Send a valid price first — if the tampered price is accepted but the valid one is rejected, the endpoint is broken (not vulnerable).',
+    severity: 'high',
+  },
+  {
+    id: 'BL-02', title: 'Blind IDOR via oracle detection',
+    strategy: 'Swap object IDs across 5 oracles: response size delta, timing delta, status code change, error message difference, redirect target.',
+    canary: 'Request your OWN object with a tampered ID format — if oracles fire on your own data, the oracle is unreliable.',
+    severity: 'high',
+  },
+  {
+    id: 'BL-03', title: 'Race conditions',
+    strategy: '15 concurrent requests on: coupon apply, transfer, vote, claim, redeem. Fintech keywords: transfer, withdraw, payout, refund, credit.',
+    canary: 'Single request first — must succeed exactly once. If single request already double-applies, it is a logic bug not a race.',
+    severity: 'critical',
+  },
+  {
+    id: 'BL-04', title: 'Mass assignment',
+    strategy: 'Auto-discover privilege fields (role, admin, isAdmin, plan, quota) from JS/source-maps; inject into profile/update requests.',
+    canary: 'Inject a nonsense field (zz_darkmatter_123) — if it is echoed/stored, the endpoint reflects input (informational only).',
+    severity: 'high',
+  },
+  {
+    id: 'BL-05', title: 'State machine abuse',
+    strategy: 'Skip workflow steps: call step 3 without step 2; replay completed steps; reverse transitions (cancelled -> active).',
+    canary: 'Complete the workflow legitimately once — record the valid transition graph first.',
+    severity: 'medium',
+  },
+  {
+    id: 'BL-06', title: 'JWT alg:none / weak key',
+    strategy: 'Strip signature (alg:none); try empty secret, "secret", "password"; swap RS256->HS256 with public key as HMAC secret.',
+    canary: 'Send a random invalid token — if the server accepts EVERYTHING, auth is disabled (misconfig, not JWT flaw).',
+    severity: 'critical',
+  },
+  {
+    id: 'BL-07', title: 'BFLA (Broken Function Level Authorization)',
+    strategy: 'Replay admin-only endpoints as low-priv user: user list, config, export, delete. Compare status codes admin vs user.',
+    canary: 'Call a public endpoint as both roles — responses must match. If they differ on public endpoints, the comparator is broken.',
+    severity: 'high',
+  },
+  {
+    id: 'BL-08', title: 'SSRF (4-tier)',
+    strategy: 'Tier 1: basic http://169.254.169.254. Tier 2: redirects. Tier 3: DNS rebinding shapes. Tier 4: cloud metadata paths per provider.',
+    canary: 'Request your own collaborator URL first — proves outbound requests work before claiming SSRF.',
+    severity: 'critical',
+  },
+  {
+    id: 'BL-09', title: 'CSRF forged-replay',
+    strategy: 'Replay state-changing requests without CSRF token, with wrong token, with token from another session.',
+    canary: 'Replay a GET (safe method) — must not change state. If it does, the app has bigger problems than CSRF.',
+    severity: 'medium',
+  },
+  {
+    id: 'BL-10', title: 'Source-map reconstruction',
+    strategy: 'Fetch .js.map files; reconstruct original source; mine for secrets, endpoints, privilege fields.',
+    canary: 'None needed — source maps are either exposed or not.',
+    severity: 'medium',
+  },
+  {
+    id: 'BL-11', title: 'OTP rate-limit',
+    strategy: 'Brute-force OTP with 1000 requests; test resend limits; test OTP reuse after success.',
+    canary: 'One valid OTP attempt first — confirms the OTP flow works at all.',
+    severity: 'high',
+  },
+  {
+    id: 'BL-12', title: 'Coupon/reward double-spend',
+    strategy: 'Apply same coupon concurrently; stack multiple coupons; apply expired coupons by date tampering.',
+    canary: 'Apply coupon once legitimately — record the valid discount first.',
+    severity: 'high',
+  },
+  {
+    id: 'BL-13', title: 'Quantity tampering',
+    strategy: 'Negative, zero, fractional, huge quantities; check stock enforcement and total calculation.',
+    canary: 'Add qty=1 first — baseline behavior.',
+    severity: 'medium',
+  },
+  {
+    id: 'BL-14', title: 'Currency manipulation',
+    strategy: 'Switch currency codes (USD->JPY, ->VND); decimal truncation (0.001); null currency.',
+    canary: 'Complete one purchase in default currency first.',
+    severity: 'high',
+  },
+  {
+    id: 'BL-15', title: 'Trial/subscription re-arm',
+    strategy: 'Re-register with +aliases; create new workspace/org; manipulate trial_end dates.',
+    canary: 'None — trial state is server-side.',
+    severity: 'medium',
+  },
+  {
+    id: 'BL-16', title: 'IDOR on file/object access',
+    strategy: 'Enumerate /files/{id}, /invoices/{id}, /reports/{id} across user boundaries.',
+    canary: 'Access your own file with a malformed ID — error shape baseline.',
+    severity: 'high',
+  },
+  {
+    id: 'BL-17', title: 'Password reset poisoning',
+    strategy: 'Host header injection on reset links; token predictability; token reuse; user enumeration via reset.',
+    canary: 'Request reset for your own account — observe the legitimate flow first.',
+    severity: 'high',
+  },
+  {
+    id: 'BL-18', title: '2FA bypass',
+    strategy: 'Skip 2FA step by direct navigation; replay 2FA token; brute-force 6-digit; null/empty token.',
+    canary: 'Complete 2FA legitimately once.',
+    severity: 'critical',
+  },
+  {
+    id: 'BL-19', title: 'API version downgrade',
+    strategy: 'Call /v1/ endpoints when /v2/ is current — old versions often lack new auth checks.',
+    canary: 'Call /v2/ as baseline first.',
+    severity: 'medium',
+  },
+  {
+    id: 'BL-20', title: 'Webhook/event forgery',
+    strategy: 'Forge payment-webhook callbacks (stripe-signature bypass); replay webhooks for double-credit.',
+    canary: 'Observe one legitimate webhook first if possible.',
+    severity: 'critical',
+  },
+  {
+    id: 'BL-21', title: 'Invitation/role escalation',
+    strategy: 'Invite self as admin; tamper role parameter; accept expired invites; invite enumeration.',
+    canary: 'Send a legitimate invite first — observe the flow.',
+    severity: 'high',
+  },
+];
+
+/** Get BL modules relevant to an app type. */
+export function blModulesFor(appType) {
+  const relevance = {
+    ecommerce: ['BL-01', 'BL-12', 'BL-13', 'BL-14', 'BL-03', 'BL-09', 'BL-17'],
+    fintech: ['BL-03', 'BL-06', 'BL-18', 'BL-20', 'BL-11', 'BL-02', 'BL-16'],
+    saas: ['BL-04', 'BL-07', 'BL-15', 'BL-21', 'BL-05', 'BL-19', 'BL-10'],
+    generic: ['BL-02', 'BL-08', 'BL-10', 'BL-16', 'BL-05'],
+  };
+  const ids = relevance[appType] || relevance.generic;
+  return BL_MODULES.filter((m) => ids.includes(m.id));
+}
 
 /** Run all invariant checks over an observation; return violations. */
 export function checkInvariants(observation) {

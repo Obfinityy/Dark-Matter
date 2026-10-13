@@ -13,6 +13,8 @@ import {
 import { recordEngineEvent, getCachedEvents } from './routes/hunts.js';
 import huntsRouter from './routes/hunts.js';
 import authRouter from './routes/auth.js';
+import { ensureAdmin } from './routes/auth.js';
+import adminRouter from './routes/admin.js';
 import chatRouter from './routes/chat.js';
 import pluginsRouter from './routes/plugins.js';
 import modelsRouter from './routes/models.js';
@@ -55,6 +57,8 @@ app.get('/api/v1/health', (req, res) => {
 
 app.use('/api/v1/hunts', huntsRouter);
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/admin', adminRouter);
+ensureAdmin();
 app.use('/api/v1/chat', chatRouter);
 app.use('/api/v1/plugins', pluginsRouter);
 app.use('/api/v1/models', modelsRouter);

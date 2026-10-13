@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import ActivityDrawer from './components/ActivityDrawer';
 import PremiumPage from './pages/PremiumPage';
+import AdminPage from './pages/AdminPage';
 import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
 import ReportsPage from './pages/ReportsPage';
@@ -43,7 +44,7 @@ function routeFromPath() {
   try {
     const p = window.location.pathname.replace(/\/+$/, '') || '/';
     if (p === '/login') return 'login';
-    if (p === '/signup') return 'signup';
+    if (p === '/admin') return 'admin';
   } catch { /* ignore */ }
   return 'chat';
 }
@@ -52,7 +53,7 @@ function AppInner() {
   const { ready } = useAuth();
   const [page, setPage] = useState(routeFromPath);
   const [reportHuntId, setReportHuntId] = useState(null);
-  const [authModal, setAuthModal] = useState(null); // null | 'login' | 'signup'
+  const [authModal, setAuthModal] = useState(null); // null | 'login'
   // Agent activity drawer (top-bar button).
   const [activityOpen, setActivityOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -66,16 +67,16 @@ function AppInner() {
 
   useEffect(() => saveJson(CHATS_KEY, chats), [chats]);
 
-  // Deep components can request the auth modal: openAuthModal('login'|'signup').
+  // Deep components can request the auth modal.
   useEffect(() => {
-    function onOpenAuth(e) {
-      setAuthModal((e && e.detail && e.detail.mode) === 'signup' ? 'signup' : 'login');
+    function onOpenAuth() {
+      setAuthModal('login');
     }
     window.addEventListener('dm:open-auth', onOpenAuth);
     return () => window.removeEventListener('dm:open-auth', onOpenAuth);
   }, []);
 
-  // Back/forward button support for /login and /signup.
+  // Back/forward button support for /login and /admin.
   useEffect(() => {
     function onPop() {
       setPage(routeFromPath());
@@ -185,11 +186,11 @@ function AppInner() {
   function navigate(p) {
     setPage(p);
     try {
-      const path = p === 'login' ? '/login' : p === 'signup' ? '/signup' : '/';
+      const path = p === 'login' ? '/login' : p === 'admin' ? '/admin' : '/';
       window.history.replaceState(null, '', path);
     } catch { /* ignore */ }
     // Opening the auth pages from the app shell should not leave the modal up.
-    if (p === 'login' || p === 'signup') setAuthModal(null);
+    if (p === 'login') setAuthModal(null);
   }
 
   // Sidebar "New hunt" — fresh front page, like the first open.
@@ -213,17 +214,43 @@ function AppInner() {
     );
   }
 
-  if (page === 'login' || page === 'signup') {
+  if (page === 'login') {
     return (
       <div className="app">
-        <AuthPage mode={page} onDone={() => navigate('chat')} />
+        <AuthPage onDone={() => navigate('chat')} />
         <ToastHost />
       </div>
     );
   }
 
-  if (page === 'login' || page === 'signup') {
-    return <AuthPage mode={page} onDone={() => navigate('chat')} />;
+  if (page === 'admin') {
+    return (
+      <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
+        <Sidebar
+          chats={chats}
+          activeChatId={activeChatId}
+          activePage={page}
+          onSelectChat={setActiveChatId}
+          onNewHunt={requestHuntModal}
+          onNavigate={navigate}
+          onRenameChat={renameChat}
+          onDeleteChat={deleteChat}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+        <main className="main">
+          <TopBar
+            onMenu={() => setSidebarOpen((v) => !v)}
+            sidebarOpen={sidebarOpen}
+            showShare={false}
+            onNavigate={navigate}
+            onActivity={() => setActivityOpen(true)}
+          />
+          <AdminPage />
+        </main>
+        <ToastHost />
+      </div>
+    );
   }
 
   return (

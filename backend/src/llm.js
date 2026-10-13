@@ -11,34 +11,22 @@
 // deterministic control must never depend on an LLM's mood.
 
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { decryptSecret } from './crypto.js';
-import { readPluginKeys } from './store.js';
 import { recordCost } from './costTracker.js';
 
-const DEFAULT_MODEL = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
-const DEFAULT_REGION = 'us-east-1';
+const DEFAULT_MODEL = process.env.BEDROCK_MODEL || 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+const DEFAULT_REGION = process.env.AWS_REGION || 'us-east-1';
 
 function getAwsConfig() {
-  try {
-    const stored = readPluginKeys();
-    const rec = stored && stored.aws;
-    if (!rec || !rec.encrypted) return null;
-    const raw = decryptSecret(rec.encrypted);
-    const creds = JSON.parse(raw);
-    const region =
-      (rec.meta && rec.meta.extra && rec.meta.extra.region) || DEFAULT_REGION;
-    if (!creds.accessKeyId || !creds.secretAccessKey) return null;
-    return {
-      region,
-      credentials: {
-        accessKeyId: creds.accessKeyId,
-        secretAccessKey: creds.secretAccessKey,
-      },
-      model: (rec.meta && rec.meta.model) || DEFAULT_MODEL,
-    };
-  } catch {
-    return null;
-  }
+  // AWS is connected BY DEFAULT via environment variables (owner's account).
+  // No per-user plugin setup needed — invite-only, owner controls the keys.
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  if (!accessKeyId || !secretAccessKey) return null;
+  return {
+    region: DEFAULT_REGION,
+    credentials: { accessKeyId, secretAccessKey },
+    model: DEFAULT_MODEL,
+  };
 }
 
 /** True when a real AI backend is available for chat. */

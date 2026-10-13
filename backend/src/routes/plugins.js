@@ -1,15 +1,41 @@
-// Plugin provider API keys.
-//   GET  /api/v1/plugins/providers          -> [{id, name, configured}]  (never returns keys)
-//   PUT  /api/v1/plugins/providers/:id      {apiKey, baseUrl?, model?, extra?} -> stores ENCRYPTED
+// Hacking integration plugins — connect accounts the agent uses during hunts.
+//   GET  /api/v1/plugins/providers          -> [{id, name, description, configured}]
+//   PUT  /api/v1/plugins/providers/:id      {apiKey} -> stores ENCRYPTED
 // Keys are AES-256-GCM encrypted at rest via src/crypto.js, never logged, and
 // never returned to the frontend after save.
+//
+// NOTE: AI models are NOT here — AWS Bedrock is connected BY DEFAULT via
+// environment variables (owner's account, invite-only access).
 
 import { Router } from 'express';
-import { encryptSecret, decryptSecret } from '../crypto.js';
+import { encryptSecret } from '../crypto.js';
 import { readPluginKeys, writePluginKeys } from '../store.js';
 
 export const PROVIDERS = [
-  { id: 'aws', name: 'AWS (Bedrock)', keyHint: 'AKIA… / IAM' },
+  {
+    id: 'github',
+    name: 'GitHub',
+    description: 'Recon: dork repos, find leaked secrets, enumerate attack surface',
+    keyHint: 'ghp_… / Personal access token',
+  },
+  {
+    id: 'shodan',
+    name: 'Shodan',
+    description: 'Recon: discover exposed hosts, ports, banners for the target',
+    keyHint: 'Shodan API key',
+  },
+  {
+    id: 'virustotal',
+    name: 'VirusTotal',
+    description: 'Intel: domain/URL reputation, passive DNS, related samples',
+    keyHint: 'VirusTotal API key',
+  },
+  {
+    id: 'payloads',
+    name: 'Payload Library',
+    description: 'Built-in: 1,400+ payloads (XSS, SQLi, SSRF…) — no key needed',
+    builtIn: true,
+  },
 ];
 
 const router = Router();
@@ -19,7 +45,10 @@ function catalog() {
   return PROVIDERS.map((p) => ({
     id: p.id,
     name: p.name,
-    configured: Boolean(stored[p.id]),
+    description: p.description || null,
+    keyHint: p.keyHint || null,
+    builtIn: Boolean(p.builtIn),
+    configured: Boolean(p.builtIn) || Boolean(stored[p.id]),
   }));
 }
 

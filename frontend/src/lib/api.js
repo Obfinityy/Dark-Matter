@@ -67,14 +67,11 @@ async function request(method, path, body) {
 const get = (path) => request('GET', path);
 const post = (path, body) => request('POST', path, body);
 const put = (path, body) => request('PUT', path, body);
+const del = (path) => request('DELETE', path);
 
-// --- Auth ------------------------------------------------------------------
-export async function signup(name, email, password) {
-  return post('/api/v1/auth/signup', { name, email, password });
-}
-
-export async function login(email, password) {
-  return post('/api/v1/auth/login', { email, password });
+// --- Auth (invite-only, username based) --------------------------------------
+export async function login(username, password) {
+  return post('/api/v1/auth/login', { username, password });
 }
 
 export async function me() {
@@ -152,6 +149,23 @@ export async function listProviders() {
 
 export async function saveProvider(id, payload) {
   return put(`/api/v1/plugins/providers/${encodeURIComponent(id)}`, payload);
+}
+
+// --- Admin portal ------------------------------------------------------------
+export async function listAdminUsers() {
+  return get('/api/v1/admin/users');
+}
+
+export async function createAdminUser({ username, password, control }) {
+  return post('/api/v1/admin/users', { username, password, control });
+}
+
+export async function updateAdminUser(id, { control }) {
+  return put(`/api/v1/admin/users/${encodeURIComponent(id)}`, { control });
+}
+
+export async function deleteAdminUser(id) {
+  return del(`/api/v1/admin/users/${encodeURIComponent(id)}`);
 }
 
 // --- Downloadable models -----------------------------------------------------

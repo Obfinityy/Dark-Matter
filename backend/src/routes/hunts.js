@@ -115,9 +115,18 @@ router.post('/', requireAuth, async (req, res) => {
         'Hunts are permitted only against explicitly authorized targets.',
     });
   }
+  // Control-level enforcement BEFORE creating anything: minimal users get Normal/Medium only.
+  const huntMode = getMode(mode);
+  const control = req.user.control || 'minimal';
+  if (control === 'minimal' && !['normal', 'medium'].includes(huntMode.id)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'control_restricted',
+      message: `Mode "${huntMode.id}" requires maximum control. Your admin set your level to minimal.`,
+    });
+  }
   try {
     const { huntId } = await createEngineHunt(target, scope);
-    const huntMode = getMode(mode);
     writeHuntMeta(huntId, {
       huntId,
       target,

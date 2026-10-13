@@ -6,7 +6,6 @@
 // ============================================================================
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
-  signup as apiSignup,
   login as apiLogin,
   me as apiMe,
   setAuthToken,
@@ -39,17 +38,8 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const signup = useCallback(async (name, email, password) => {
-    const res = await apiSignup(name, email, password);
-    if (res.ok) {
-      setAuthToken(res.data.token);
-      setUser(res.data.user);
-    }
-    return res;
-  }, []);
-
-  const login = useCallback(async (email, password) => {
-    const res = await apiLogin(email, password);
+  const login = useCallback(async (username, password) => {
+    const res = await apiLogin(username, password);
     if (res.ok) {
       setAuthToken(res.data.token);
       setUser(res.data.user);
@@ -63,7 +53,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, ready, signup, login, logout }}>
+    <AuthContext.Provider value={{ user, ready, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
