@@ -1,26 +1,31 @@
 /* ============================================================================
-   Dark Matter frontend — ChatGPT (logged-out, light) visual language.
-   Main #FFFFFF · sidebar #F9F9F9 · hairline #E5E5E5 dividers · flat colors.
-   Black text · body/nav 14-15px · thin-line outline icons · system-ui stack.
+   Dark Matter frontend — MAXIMALIST visual language.
+   Deep black + gold cyber-hunter aesthetic. Rich, bold, dense, glowing.
+   Gold #FFD700 is the brand; neon accents for status; expressive type.
    ========================================================================== */
 
 :root {
-  --dm-bg: #ffffff;
-  --dm-sidebar: #f9f9f9;
-  --dm-surface: #f4f4f4;
-  --dm-surface-hover: #e9e9e9;
-  --dm-text: #0d0d0d;
-  --dm-secondary: #5d5d5d;
-  --dm-faint: #9b9b9b;
-  --dm-border: #e5e5e5;
-  --dm-accent: #dce9ff;
-  --dm-black: #0d0d0d;
-  --dm-green: #1a7f4b;
-  --dm-yellow: #b7791f;
-  --dm-red: #c43d2b;
-  --dm-blue: #2f6fed;
-  --dm-radius: 12px;
-  --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  --dm-bg: #0a0a0f;
+  --dm-bg2: #101018;
+  --dm-sidebar: #0d0d14;
+  --dm-surface: #16161f;
+  --dm-surface-hover: #1e1e2a;
+  --dm-text: #f5f0e1;
+  --dm-secondary: #b8a86a;
+  --dm-faint: #6b6480;
+  --dm-border: #2a2a3a;
+  --dm-accent: #ffd700;
+  --dm-gold: #ffd700;
+  --dm-gold-dim: #b8960c;
+  --dm-black: #0a0a0f;
+  --dm-green: #00ff88;
+  --dm-yellow: #ffd700;
+  --dm-red: #ff3355;
+  --dm-blue: #00ccff;
+  --dm-purple: #aa66ff;
+  --dm-radius: 14px;
+  --dm-shadow: 0 8px 32px rgba(255, 215, 0, 0.12);
+  --dm-glow: 0 0 20px rgba(255, 215, 0, 0.35);
 }
 
 * { box-sizing: border-box; }
@@ -31,7 +36,10 @@ html, body, #root {
 }
 
 body {
-  background: var(--dm-bg);
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(255, 215, 0, 0.07), transparent),
+    radial-gradient(1000px 500px at 90% 110%, rgba(170, 102, 255, 0.06), transparent),
+    var(--dm-bg);
   color: var(--dm-text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
@@ -1393,3 +1401,188 @@ h4.md-heading { font-size: 16px; }
 .tier-features li::before { content: "✓ "; color: #16a34a; font-weight: 700; }
 .tier-card .btn { width: 100%; }
 @media (max-width: 768px) { .tier-grid { grid-template-columns: 1fr; } .mode-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ==========================================================================
+   MAXIMALIST LAYER — bold, rich, glowing overrides
+   ========================================================================== */
+
+/* Sidebar — dark glass with gold */
+.sidebar {
+  background: linear-gradient(180deg, #0d0d14 0%, #0a0a10 100%) !important;
+  border-right: 1px solid rgba(255, 215, 0, 0.15) !important;
+}
+.sidebar .brand, .sidebar .wordmark {
+  color: var(--dm-gold) !important;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 0 0 24px rgba(255, 215, 0, 0.4);
+}
+.nav-item {
+  color: #c9c2a8 !important;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: all .2s;
+}
+.nav-item:hover {
+  background: rgba(255, 215, 0, 0.08) !important;
+  color: var(--dm-gold) !important;
+  border-color: rgba(255, 215, 0, 0.2);
+}
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(255,215,0,.18), rgba(255,215,0,.06)) !important;
+  color: var(--dm-gold) !important;
+  border-color: rgba(255, 215, 0, 0.35);
+  box-shadow: var(--dm-glow);
+}
+
+/* TopBar — bold */
+.topbar {
+  background: rgba(10, 10, 15, 0.85) !important;
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 215, 0, 0.12) !important;
+}
+.brand-picker { color: var(--dm-gold) !important; font-weight: 800; font-size: 17px; }
+.pill-btn-solid {
+  background: linear-gradient(135deg, #ffd700, #ffaa00) !important;
+  color: #000 !important;
+  font-weight: 700;
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.4);
+}
+.pill-btn-outline {
+  border: 1px solid rgba(255, 215, 0, 0.4) !important;
+  color: var(--dm-gold) !important;
+}
+
+/* Empty state — dramatic */
+.empty-wrap h1 {
+  font-size: 42px !important;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffd700 20%, #fff8dc 50%, #ffd700 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -1px;
+}
+
+/* Composer — glowing gold */
+.composer, .empty-composer, .chat-input-wrap {
+  border: 1px solid rgba(255, 215, 0, 0.3) !important;
+  background: rgba(22, 22, 31, 0.9) !important;
+  box-shadow: 0 0 28px rgba(255, 215, 0, 0.12), inset 0 0 24px rgba(255,215,0,.03) !important;
+}
+.composer:focus-within, .empty-composer:focus-within {
+  border-color: var(--dm-gold) !important;
+  box-shadow: 0 0 36px rgba(255, 215, 0, 0.25) !important;
+}
+.composer input, .composer textarea, .empty-composer input {
+  color: var(--dm-text) !important;
+}
+.composer input::placeholder { color: var(--dm-faint) !important; }
+
+/* Hunt cards — dense, rich */
+.hunt-card {
+  background: linear-gradient(135deg, #14141d 0%, #1a1a26 100%) !important;
+  border: 1px solid rgba(255, 215, 0, 0.2) !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5), 0 0 16px rgba(255,215,0,.06) !important;
+}
+.hunt-card .hunt-target { color: var(--dm-gold) !important; font-weight: 700; }
+.hunt-status-running {
+  color: var(--dm-green) !important;
+  animation: pulse-glow 2s infinite;
+}
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 8px rgba(0,255,136,.5); }
+  50% { text-shadow: 0 0 20px rgba(0,255,136,.9); }
+}
+
+/* Buttons — bold */
+.btn-primary {
+  background: linear-gradient(135deg, #ffd700, #ff9500) !important;
+  color: #000 !important;
+  font-weight: 700;
+  border: none !important;
+  box-shadow: 0 4px 18px rgba(255, 215, 0, 0.35);
+}
+.btn-primary:hover { box-shadow: 0 4px 28px rgba(255, 215, 0, 0.55); transform: translateY(-1px); }
+.btn-ghost {
+  border: 1px solid rgba(255,215,0,.3) !important;
+  color: var(--dm-gold) !important;
+}
+
+/* Cards, pages — rich surfaces */
+.page-header h1 {
+  font-size: 34px !important;
+  font-weight: 900;
+  color: var(--dm-gold);
+  text-shadow: 0 0 30px rgba(255,215,0,.25);
+  letter-spacing: -0.5px;
+}
+.provider-card, .tier-card, .report-hunt-item, .model-row {
+  background: linear-gradient(135deg, #14141d, #1a1a26) !important;
+  border: 1px solid rgba(255, 215, 0, 0.18) !important;
+}
+.provider-card:hover, .tier-card:hover { border-color: rgba(255,215,0,.4) !important; box-shadow: var(--dm-glow); }
+.tier-card.highlight {
+  border: 2px solid var(--dm-gold) !important;
+  box-shadow: 0 0 40px rgba(255,215,0,.2) !important;
+}
+
+/* Mode cards */
+.mode-card {
+  background: #16161f !important;
+  border: 1px solid rgba(255,215,0,.2) !important;
+  color: var(--dm-text) !important;
+}
+.mode-card.selected {
+  border-color: var(--dm-gold) !important;
+  background: rgba(255,215,0,.1) !important;
+  box-shadow: var(--dm-glow);
+}
+.mode-name { color: var(--dm-gold) !important; }
+
+/* Inputs */
+.text-input, .auth-input {
+  background: #101018 !important;
+  border: 1px solid rgba(255,215,0,.25) !important;
+  color: var(--dm-text) !important;
+}
+.text-input:focus, .auth-input:focus {
+  border-color: var(--dm-gold) !important;
+  box-shadow: 0 0 16px rgba(255,215,0,.2);
+  outline: none;
+}
+
+/* Auth modal — dramatic */
+.auth-card {
+  background: linear-gradient(160deg, #14141d, #0d0d14) !important;
+  border: 1px solid rgba(255,215,0,.3) !important;
+  box-shadow: 0 0 60px rgba(255,215,0,.15) !important;
+}
+.auth-card h2 { color: var(--dm-gold) !important; }
+.auth-submit {
+  background: linear-gradient(135deg, #ffd700, #ff9500) !important;
+  color: #000 !important;
+  font-weight: 700;
+}
+
+/* Activity drawer */
+.activity-drawer { background: #101018 !important; border-left: 1px solid rgba(255,215,0,.25); }
+.activity-head h2 { color: var(--dm-gold) !important; }
+.activity-row { background: #16161f !important; border: 1px solid rgba(255,215,0,.08); }
+.activity-row.activity-finding { background: rgba(255,215,0,.08) !important; border-color: rgba(255,215,0,.3) !important; }
+.activity-text { color: #d8d2b8 !important; }
+
+/* Scrollbar — gold */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: #0a0a0f; }
+::-webkit-scrollbar-thumb { background: #3a3a4a; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dm-gold-dim); }
+
+/* Chat messages */
+.msg-user { background: rgba(255,215,0,.1) !important; border: 1px solid rgba(255,215,0,.2); }
+.msg-assistant { background: transparent !important; }
+
+/* Status dots glow */
+.dot-green { box-shadow: 0 0 10px var(--dm-green); }
+.dot-red { box-shadow: 0 0 10px var(--dm-red); }
