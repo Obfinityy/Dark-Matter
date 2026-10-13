@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ProfileMenu from './ProfileMenu';
 import { useAuth } from '../lib/auth';
 import { toast } from '../lib/toast';
+import { getTotalCosts } from '../lib/api';
 
 function IconMenu() {
   return (
@@ -35,8 +36,22 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
   const { user } = useAuth();
   const [modelOpen, setModelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [burn, setBurn] = useState(null);
   const modelRef = useRef(null);
   const profileRef = useRef(null);
+
+  useEffect(() => {
+    if (!user) { setBurn(null); return; }
+    let cancelled = false;
+    const fetchBurn = () => {
+      getTotalCosts().then((res) => {
+        if (!cancelled && res.ok && res.data) setBurn(res.data.totalUsd);
+      }).catch(() => {});
+    };
+    fetchBurn();
+    const t = setInterval(fetchBurn, 60000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [user]);
 
   useEffect(() => {
     function onDocClick(e) {
@@ -94,6 +109,11 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
         )}
       </div>
       <div className="topbar-right" ref={profileRef} style={{ position: 'relative' }}>
+        {user && burn !== null && burn > 0 && (
+          <span className="burn-pill" title="Total AWS money burnt (Bedrock + EC2)">
+            🔥 ${burn.toFixed(2)}
+          </span>
+        )}
         {onActivity && (
           <button className="icon-btn" title="Agent activity" aria-label="Agent activity" onClick={onActivity}>
             <IconActivity />

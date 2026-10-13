@@ -63,7 +63,8 @@ router.post('/', async (req, res) => {
       const aiReply = await chatWithAI(
         [{ role: 'user', text: message }],
         'You are Dark Matter, an elite autonomous bug-bounty hunter by Obfinity. ' +
-        'No hunt is attached to this chat yet. Answer helpfully and concisely.'
+        'No hunt is attached to this chat yet. Answer helpfully and concisely.',
+        { huntId: null }
       );
       if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
     }
@@ -122,7 +123,7 @@ router.post('/', async (req, res) => {
       // Prefer the real AI; fall back to the deterministic summary.
       if (aiAvailable()) {
         const system = buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings });
-        const aiReply = await chatWithAI([{ role: 'user', text: message }], system);
+        const aiReply = await chatWithAI([{ role: 'user', text: message }], system, { huntId });
         if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
       }
       return res.json({ ok: true, reply: summaryReply({ ctx, live, liveError, cached, findings }) });
@@ -130,7 +131,7 @@ router.post('/', async (req, res) => {
     // Open questions: REAL AI with full hunt context (no hardcoded answers).
     if (aiAvailable()) {
       const system = buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings });
-      const aiReply = await chatWithAI([{ role: 'user', text: message }], system);
+      const aiReply = await chatWithAI([{ role: 'user', text: message }], system, { huntId });
       if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
     }
     return res.json({

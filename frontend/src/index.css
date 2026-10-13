@@ -1507,3 +1507,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   .dm-wordmark { font-size: 26px; letter-spacing: 5px; }
   .dm-hero { padding-top: 4vh; }
 }
+
+/* Money burnt — cost tracking */
+.burn-pill {
+  font-size: 12px; font-weight: 600; color: #b45309;
+  background: #fef3c7; border: 1px solid #fcd34d;
+  padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+}
+.hunt-cost {
+  font-size: 12px; font-weight: 600; color: #b45309;
+  background: #fef3c7; border: 1px solid #fcd34d;
+  padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+  margin-right: 4px;
+}

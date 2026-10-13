@@ -37,6 +37,7 @@ import {
 } from '../store.js';
 import { requireAuth } from './auth.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
+import { getHuntCost, getUserCosts } from '../costTracker.js';
 
 /** Reject unless the hunt belongs to the authenticated user. */
 function requireHuntOwner(req, res) {
@@ -170,6 +171,11 @@ router.get('/modes', (req, res) => {
   });
 });
 
+// Money burnt — total across all hunts + per-hunt breakdown.
+router.get('/costs', requireAuth, (req, res) => {
+  res.json({ ok: true, data: getUserCosts(req.user.id) });
+});
+
 // Playbook: strategy lessons learned from past hunts, for a target profile.
 // Call BEFORE planning a hunt — the planner replays the winners first.
 router.get('/playbook', requireAuth, (req, res) => {  const profile = {
@@ -268,12 +274,18 @@ router.get('/:id/report', requireAuth, async (req, res) => {
 // Cached event stream (thinking, tool calls, findings, status). Works even
 // when the engine is unreachable — this is the "what is the agent doing"
 // view.
-router.get('/:id/events', requireAuth, (req, res) => {
-  const meta = requireHuntOwner(req, res);
+router.get('/:id/events', requireAuth, (req, res) => {  const meta = requireHuntOwner(req, res);
   if (!meta) return;
   const limit = Math.min(parseInt(req.query.limit || '200', 10) || 200, 1000);
   const events = readHuntEvents(req.params.id);
   res.json({ ok: true, huntId: req.params.id, events: events.slice(-limit) });
+});
+
+// ---- Money burnt on this hunt (Bedrock tokens + EC2).
+router.get('/:id/cost', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  res.json({ ok: true, ...getHuntCost(req.params.id) });
 });
 
 // ---- Infinity analysis: chains, confirmation, exploitability, variant probes.

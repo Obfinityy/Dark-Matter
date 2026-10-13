@@ -105,6 +105,14 @@ export async function getHuntEvents(huntId, limit = 200) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/events?limit=${limit}`);
 }
 
+export async function getHuntCost(huntId) {
+  return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/cost`);
+}
+
+export async function getTotalCosts() {
+  return get('/api/v1/hunts/costs');
+}
+
 export async function startHunt(target, scope, mode) {
   const res = await post('/api/v1/hunts', { target, scope, mode });
   if (!res.ok) return res;

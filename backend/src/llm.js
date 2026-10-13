@@ -13,6 +13,7 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { decryptSecret } from './crypto.js';
 import { readPluginKeys } from './store.js';
+import { recordCost } from './costTracker.js';
 
 const DEFAULT_MODEL = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 const DEFAULT_REGION = 'us-east-1';
@@ -49,9 +50,10 @@ export function aiAvailable() {
  * Chat with the real AI.
  * @param {Array<{role:'user'|'assistant', text:string}>} messages
  * @param {string} system — system prompt (hunt context goes here)
+ * @param {{userId?: string, huntId?: string}} ctx — for cost tracking
  * @returns {Promise<string|null>} reply text, or null if no AI is configured.
  */
-export async function chatWithAI(messages, system) {
+export async function chatWithAI(messages, system, ctx) {
   const cfg = getAwsConfig();
   if (!cfg) return null;
   const client = new BedrockRuntimeClient({
@@ -68,6 +70,20 @@ export async function chatWithAI(messages, system) {
     inferenceConfig: { maxTokens: 1500, temperature: 0.7 },
   });
   const out = await client.send(cmd);
+  // Burn tracking: every token has a price.
+  try {
+    const usage = out.usage || {};
+    if (usage.inputTokens || usage.outputTokens) {
+      recordCost({
+        userId: ctx && ctx.userId,
+        huntId: ctx && ctx.huntId,
+        kind: 'bedrock',
+        model: cfg.model,
+        inputTokens: usage.inputTokens || 0,
+        outputTokens: usage.outputTokens || 0,
+      });
+    }
+  } catch { /* cost tracking must never break chat */ }
   const blocks = (out.output && out.output.message && out.output.message.content) || [];
   return blocks.map((b) => b.text || '').join('').trim() || null;
 }

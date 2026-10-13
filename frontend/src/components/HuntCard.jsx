@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 
@@ -49,6 +49,7 @@ function statusText(status, target) {
 
 export default function HuntCard({ hunt, onStatusChange }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
+  const [cost, setCost] = useState(null);
   const [logs, setLogs] = useState(hunt.logs || []);
   const [findings, setFindings] = useState(hunt.findings || []);
   const [phase, setPhase] = useState(hunt.phase || '');
@@ -61,6 +62,19 @@ export default function HuntCard({ hunt, onStatusChange }) {
     setStatus(next);
     onStatusChange && onStatusChange(hunt.huntId, next);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    getHuntCost(hunt.huntId).then((res) => {
+      if (!cancelled && res.ok) setCost(res);
+    }).catch(() => {});
+    const t = setInterval(() => {
+      getHuntCost(hunt.huntId).then((res) => {
+        if (!cancelled && res.ok) setCost(res);
+      }).catch(() => {});
+    }, 30000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [hunt.huntId]);
 
   useEffect(() => {
     const handlers = {
@@ -205,6 +219,11 @@ export default function HuntCard({ hunt, onStatusChange }) {
       )}
 
       <div className="hunt-controls">
+        {cost && cost.totalUsd > 0 && (
+          <span className="hunt-cost" title="Money burnt on this hunt (AWS)">
+            🔥 ${cost.totalUsd.toFixed(2)}
+          </span>
+        )}
         <button
           className="hunt-pill-btn"
           disabled={busy || status !== 'running'}
