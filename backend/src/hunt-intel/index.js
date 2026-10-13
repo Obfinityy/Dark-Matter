@@ -19,6 +19,7 @@ import { generateLogicTests } from './logicTester.js';
 
 export { getPlaybook, playbookSummary, recordHuntExperience, reflectHunt } from './learning.js';
 export { generateLogicTests, checkInvariants, classifyTarget } from './logicTester.js';
+export { HUNT_MODES, MODE_ORDER, TIERS, getMode, modesForTier, canUseMode } from './modes.js';
 
 export function analyzeFindings(rawFindings, goal = 'rce') {
   const deduped = dedupeFindings(rawFindings || []);

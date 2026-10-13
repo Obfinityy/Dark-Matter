@@ -279,6 +279,9 @@ export default function Sidebar({
         <button className={`nav-item${activePage === 'reports' ? ' active' : ''}`} onClick={() => go('reports')}>
           <IconChart /> Reports
         </button>
+        <button className={`nav-item${activePage === 'premium' ? ' active' : ''}`} onClick={() => go('premium')}>
+          <IconHexagon /> Premium
+        </button>
         <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
           <IconGear /> Settings
         </button>

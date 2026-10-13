@@ -36,7 +36,7 @@ import {
   listHuntMetas,
 } from '../store.js';
 import { requireAuth } from './auth.js';
-import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience } from '../hunt-intel/index.js';
+import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 
 /** Reject unless the hunt belongs to the authenticated user. */
 function requireHuntOwner(req, res) {
@@ -82,7 +82,7 @@ export function isTargetAllowed(target) {
 // target checks below. Everything else (chat, plugins, reports, health,
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
-  const { target, scope, confirmedAuthorized } = req.body || {};
+  const { target, scope, confirmedAuthorized, mode } = req.body || {};
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
       ok: false,
@@ -115,15 +115,17 @@ router.post('/', requireAuth, async (req, res) => {
   }
   try {
     const { huntId } = await createEngineHunt(target, scope);
+    const huntMode = getMode(mode);
     writeHuntMeta(huntId, {
       huntId,
       target,
       scope: scope || null,
+      mode: huntMode.id,
       userId: req.user.id,
       createdAt: new Date().toISOString(),
       authorized: true,
     });
-    appendHuntEvent(huntId, { type: 'status', state: 'created', target });
+    appendHuntEvent(huntId, { type: 'status', state: 'created', target, mode: huntMode.id });
     res.status(201).json({ ok: true, huntId });
   } catch (err) {
     engineErrorResponse(res, err);
@@ -159,10 +161,18 @@ router.get('/', requireAuth, async (req, res) => {
   res.json({ ok: true, hunts });
 });
 
+// Hunt modes + premium tiers (public — the frontend renders the picker).
+router.get('/modes', (req, res) => {
+  res.json({
+    ok: true,
+    modes: MODE_ORDER.map((id) => HUNT_MODES[id]),
+    tiers: TIERS,
+  });
+});
+
 // Playbook: strategy lessons learned from past hunts, for a target profile.
 // Call BEFORE planning a hunt — the planner replays the winners first.
-router.get('/playbook', requireAuth, (req, res) => {
-  const profile = {
+router.get('/playbook', requireAuth, (req, res) => {  const profile = {
     appType: req.query.appType || undefined,
     stack: req.query.stack || undefined,
     hasApi: req.query.hasApi === 'true' ? true : req.query.hasApi === 'false' ? false : undefined,

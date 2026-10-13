@@ -1370,3 +1370,26 @@ h4.md-heading { font-size: 16px; }
 .activity-row.activity-status { background: #eef4ff; }
 .activity-icon { flex-shrink: 0; }
 .activity-text { word-break: break-word; color: #333; }
+
+/* Hunt intensity modes */
+.mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.mode-card { border: 1px solid #e5e5e5; border-radius: 10px; padding: 10px; background: #fff; cursor: pointer; text-align: left; }
+.mode-card:hover { border-color: #000; }
+.mode-card.selected { border-color: #000; background: #f7f7f8; box-shadow: 0 0 0 1px #000; }
+.mode-name { font-weight: 600; font-size: 13px; }
+.mode-tag { font-size: 11px; color: #666; margin-top: 2px; }
+.mode-tier { font-size: 10px; color: #b45309; text-transform: uppercase; margin-top: 4px; font-weight: 600; }
+
+/* Premium tiers */
+.tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.tier-card { border: 1px solid #e5e5e5; border-radius: 14px; padding: 24px; background: #fff; position: relative; }
+.tier-card.highlight { border-color: #000; box-shadow: 0 4px 24px rgba(0,0,0,.1); }
+.tier-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #000; color: #fff; font-size: 11px; padding: 4px 12px; border-radius: 20px; }
+.tier-card h2 { margin: 0 0 8px; font-size: 20px; }
+.tier-price { font-size: 32px; font-weight: 700; margin-bottom: 16px; }
+.tier-period { font-size: 14px; font-weight: 400; color: #666; }
+.tier-features { list-style: none; padding: 0; margin: 0 0 20px; }
+.tier-features li { padding: 6px 0; font-size: 14px; color: #333; }
+.tier-features li::before { content: "✓ "; color: #16a34a; font-weight: 700; }
+.tier-card .btn { width: 100%; }
+@media (max-width: 768px) { .tier-grid { grid-template-columns: 1fr; } .mode-grid { grid-template-columns: repeat(2, 1fr); } }

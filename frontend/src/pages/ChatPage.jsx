@@ -23,7 +23,6 @@ export default function ChatPage({
   onRecordHunt,
   onUpdateHunt,
   onOpenReports,
-  huntSignal,
 }) {
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
@@ -41,12 +40,6 @@ export default function ChatPage({
   const streamTokenRef = useRef(null);
 
   const messages = chat ? chat.messages : [];
-
-  // Sidebar "New hunt" requests the modal (works even right after navigating).
-  useEffect(() => {
-    if (huntSignal > 0 && ensureHuntAuth()) setHuntModalOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [huntSignal]);
 
   useEffect(() => {
     if (threadEndRef.current) {
@@ -139,11 +132,11 @@ export default function ChatPage({
     }
   }
 
-  async function handleStartHunt(target, scope) {
+  async function handleStartHunt(target, scope, mode) {
     if (!ensureHuntAuth()) return;
     const chatId = chat ? chat.id : onNewChat();
     setLaunching(true);
-    const res = await startHunt(target, scope);
+    const res = await startHunt(target, scope, mode);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
       if (res.status === 401 || res.error === 'auth_required') {

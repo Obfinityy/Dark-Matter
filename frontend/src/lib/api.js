@@ -105,8 +105,8 @@ export async function getHuntEvents(huntId, limit = 200) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/events?limit=${limit}`);
 }
 
-export async function startHunt(target, scope) {
-  const res = await post('/api/v1/hunts', { target, scope });
+export async function startHunt(target, scope, mode) {
+  const res = await post('/api/v1/hunts', { target, scope, mode });
   if (!res.ok) return res;
   return { ok: true, data: { huntId: res.data && (res.data.huntId || res.data.id) } };
 }

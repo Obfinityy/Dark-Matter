@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import ActivityDrawer from './components/ActivityDrawer';
+import PremiumPage from './pages/PremiumPage';
 import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
 import ReportsPage from './pages/ReportsPage';
@@ -48,13 +49,10 @@ function routeFromPath() {
 }
 
 function AppInner() {
-  const { ready, user } = useAuth();
+  const { ready } = useAuth();
   const [page, setPage] = useState(routeFromPath);
   const [reportHuntId, setReportHuntId] = useState(null);
   const [authModal, setAuthModal] = useState(null); // null | 'login' | 'signup'
-  const [huntSignal, setHuntSignal] = useState(0);
-  // If "New hunt" was clicked while logged out, open the hunt setup right after login.
-  const [pendingHunt, setPendingHunt] = useState(false);
   // Agent activity drawer (top-bar button).
   const [activityOpen, setActivityOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -187,32 +185,17 @@ function AppInner() {
     if (p === 'login' || p === 'signup') setAuthModal(null);
   }
 
-  // Sidebar "New hunt" — go to chat and ask ChatPage to open the hunt modal.
-  // If logged out, remember the intent: the hunt modal opens right after login.
+  // Sidebar "New hunt" — fresh front page, like the first open.
+  // Creates a new empty chat and shows the clean "Where should we begin?"
+  // view. The hunt setup opens only when the user explicitly starts one
+  // (composer hunt button) — never automatically.
   function requestHuntModal() {
-    if (!user) {
-      setPendingHunt(true);
-      setAuthModal('login');
-      return;
-    }
+    createChat();
     setPage('chat');
     try {
       window.history.replaceState(null, '', '/');
     } catch { /* ignore */ }
-    setHuntSignal((s) => s + 1);
   }
-
-  // Fulfil a pending hunt request once the user is authenticated.
-  useEffect(() => {
-    if (user && pendingHunt) {
-      setPendingHunt(false);
-      setPage('chat');
-      try {
-        window.history.replaceState(null, '', '/');
-      } catch { /* ignore */ }
-      setHuntSignal((s) => s + 1);
-    }
-  }, [user, pendingHunt]);
 
   if (!ready) {
     return (
@@ -267,11 +250,11 @@ function AppInner() {
             onRecordHunt={recordHunt}
             onUpdateHunt={updateHunt}
             onOpenReports={openReports}
-            huntSignal={huntSignal}
           />
         )}
         {page === 'plugins' && <PluginsPage />}
         {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
+        {page === 'premium' && <PremiumPage />}
         {page === 'settings' && <SettingsPage />}
       </main>
       {authModal && (
