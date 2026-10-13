@@ -6,12 +6,19 @@
 //   3. score       — exploitability rubric (LIKELY_EXPLOITABLE / MEDIUM / BENIGN)
 //   4. chain       — exploit-chain graph: turn mediums into criticals
 //   5. variants    — suggest patch-gap variant probes for the next hunt phase
+//   6. learn       — record experience; pull playbook lessons for the target
+//   7. logic       — business-logic test cases for the target's app type
 //
 // Pure logic, no network. Safe to run on every report and on demand.
 
 import { findChains, planToGoal } from './chainEngine.js';
 import { assessConfirmation, scoreExploitability, dedupeFindings } from './differential.js';
 import { suggestVariants } from './variantDb.js';
+import { getPlaybook } from './learning.js';
+import { generateLogicTests } from './logicTester.js';
+
+export { getPlaybook, playbookSummary, recordHuntExperience, reflectHunt } from './learning.js';
+export { generateLogicTests, checkInvariants, classifyTarget } from './logicTester.js';
 
 export function analyzeFindings(rawFindings, goal = 'rce') {
   const deduped = dedupeFindings(rawFindings || []);

@@ -36,7 +36,7 @@ import {
   listHuntMetas,
 } from '../store.js';
 import { requireAuth } from './auth.js';
-import { analyzeFindings, chainsMarkdown } from '../hunt-intel/index.js';
+import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience } from '../hunt-intel/index.js';
 
 /** Reject unless the hunt belongs to the authenticated user. */
 function requireHuntOwner(req, res) {
@@ -159,6 +159,18 @@ router.get('/', requireAuth, async (req, res) => {
   res.json({ ok: true, hunts });
 });
 
+// Playbook: strategy lessons learned from past hunts, for a target profile.
+// Call BEFORE planning a hunt — the planner replays the winners first.
+router.get('/playbook', requireAuth, (req, res) => {
+  const profile = {
+    appType: req.query.appType || undefined,
+    stack: req.query.stack || undefined,
+    hasApi: req.query.hasApi === 'true' ? true : req.query.hasApi === 'false' ? false : undefined,
+    hasAuth: req.query.hasAuth === 'true' ? true : req.query.hasAuth === 'false' ? false : undefined,
+  };
+  res.json({ ok: true, lessons: getPlaybook(profile) });
+});
+
 router.get('/:id', requireAuth, async (req, res) => {
   const meta = requireHuntOwner(req, res);
   if (!meta) return;
@@ -264,6 +276,48 @@ router.get('/:id/analysis', requireAuth, async (req, res) => {
   const events = readHuntEvents(req.params.id);
   const findings = events.filter((e) => e.type === 'finding');
   res.json({ ok: true, huntId: req.params.id, analysis: analyzeFindings(findings, goal) });
+});
+
+// ---- Business-logic tests: original black-box generator --------------------
+// Classifies the target's app type from observed paths and returns
+// invariant rules + abuse-case test sequences for the hunt's next phase.
+router.get('/:id/logic-tests', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const events = readHuntEvents(req.params.id);
+  const paths = [];
+  for (const e of events) {
+    const url = e.url || (e.input && e.input.url) || '';
+    try {
+      const u = new URL(String(url));
+      paths.push(u.pathname);
+    } catch { /* not a URL */ }
+  }
+  if (meta.target) {
+    try { paths.push(new URL(meta.target).pathname); } catch { /* ignore */ }
+  }
+  res.json({ ok: true, huntId: req.params.id, ...generateLogicTests(paths) });
+});
+
+// ---- Learning loop: record + reflect + playbook ----------------------------
+// POST /:id/reflect — distill this hunt's lessons into the playbook.
+// GET /playbook — lessons for a target profile (before planning a hunt).
+router.post('/:id/reflect', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const events = readHuntEvents(req.params.id);
+  const findings = events.filter((e) => e.type === 'finding');
+  const techniques = [...new Set(events.filter((e) => e.type === 'tool_call').map((e) => e.tool || e.name || 'unknown'))]
+    .map((name) => ({ name }));
+  recordHuntExperience({
+    huntId: req.params.id,
+    target: meta.target,
+    profile: { appType: req.body && req.body.appType, stack: req.body && req.body.stack },
+    techniques,
+    findings,
+  });
+  const lessons = reflectHunt(req.params.id);
+  res.json({ ok: true, huntId: req.params.id, lessons: lessons || [] });
 });
 
 // ---- Shared helpers (used by the WS stream bridge too) --------------------
