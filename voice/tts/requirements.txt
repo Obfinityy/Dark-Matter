@@ -1,0 +1,7 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+# Piper engine: EITHER the pip package (needs espeak-ng on the system)
+# OR the standalone piper CLI binary from
+# https://github.com/rhasspy/piper/releases (no Python dep needed).
+# The service auto-detects whichever is present; see voice/README.md.
+piper-tts==1.2.0

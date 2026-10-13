@@ -1,0 +1,49 @@
+# Dark Matter hunt engine image: PentAGI Go backend ONLY (no React frontend,
+# no observability stack). Built from engine/pentagi (vxcontrol/pentagi, MIT,
+# integrated by reference).
+#
+# Build from the repo root:
+#   docker build -f docker/Dockerfile.engine -t darkmatter/engine:latest .
+
+# ---------- stage 1: engine ----------
+FROM golang:1.26-bookworm AS engine-builder
+
+WORKDIR /src/backend
+COPY engine/pentagi/backend/go.mod engine/pentagi/backend/go.sum ./
+RUN go mod download
+COPY engine/pentagi/backend/ ./
+RUN CGO_ENABLED=0 go build -trimpath -o /out/pentagi ./cmd/pentagi
+
+# ---------- stage 2: mint-engine-token bootstrap tool ----------
+FROM golang:1.26-bookworm AS mint-builder
+
+COPY engine/pentagi/backend /src/backend
+COPY docker/tools/mint-engine-token /src/mint
+WORKDIR /src/mint
+# point the replace directive at the in-image copy of the backend module
+RUN go mod edit -replace pentagi=/src/backend && \
+    go mod tidy && \
+    CGO_ENABLED=0 go build -trimpath -o /out/mint-engine-token .
+
+# ---------- stage 3: runtime ----------
+FROM alpine:3.21
+
+RUN addgroup -g 998 docker && \
+    addgroup -S pentagi && \
+    adduser -S pentagi -G pentagi && \
+    addgroup pentagi docker && \
+    apk --no-cache add ca-certificates tzdata && \
+    mkdir -p /opt/pentagi/data /opt/pentagi/bin && \
+    chown -R pentagi:pentagi /opt/pentagi
+
+COPY --from=engine-builder /out/pentagi /opt/pentagi/bin/pentagi
+COPY --from=mint-builder /out/mint-engine-token /opt/pentagi/bin/mint-engine-token
+COPY engine/pentagi/LICENSE /opt/pentagi/LICENSE
+COPY engine/pentagi/NOTICE /opt/pentagi/NOTICE
+RUN chown -R pentagi:pentagi /opt/pentagi
+
+WORKDIR /opt/pentagi
+ENV DATA_DIR=/opt/pentagi/data
+EXPOSE 8080
+USER pentagi
+ENTRYPOINT ["/opt/pentagi/bin/pentagi"]

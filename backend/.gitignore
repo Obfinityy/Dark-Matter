@@ -1,5 +1,5 @@
 node_modules/
 .env
-logs/
-data/crew/
-data/credits.json
+data/
+*.log
+.DS_Store

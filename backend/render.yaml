@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: dark-matter-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22.12.0"
+      - key: ENGINE_URL
+        sync: false
+      - key: ENGINE_TOKEN
+        sync: false
+      - key: VOICE_URL
+        value: http://localhost:8001
+      - key: ALLOWED_TARGETS
+        sync: false
+      - key: PLUGIN_MASTER_KEY
+        sync: false
+      - key: DATA_DIR
+        value: ./data
