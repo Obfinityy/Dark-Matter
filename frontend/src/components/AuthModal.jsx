@@ -5,12 +5,13 @@ import React, { useState } from 'react';
 import { useAuth } from '../lib/auth';
 
 function friendlyError(res) {
-  const code = res && res.data && res.data.error;
+  const code = res && res.error;
   if (code === 'email_taken') return 'An account with this email already exists.';
   if (code === 'invalid_email') return 'Enter a valid email address.';
   if (code === 'weak_password') return 'Password must be at least 8 characters.';
   if (code === 'bad_credentials') return 'Incorrect email or password.';
-  return (res && res.error) || 'Something went wrong. Try again.';
+  if (code === 'auth_required') return 'Please log in first.';
+  return code || 'Something went wrong. Try again.';
 }
 
 export function AuthCard({ initialMode = 'login', onDone }) {

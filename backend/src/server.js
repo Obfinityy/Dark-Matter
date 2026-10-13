@@ -20,6 +20,31 @@ import voiceRouter from './routes/voice.js';
 
 const app = express();
 app.disable('x-powered-by');
+
+// ---- CORS ------------------------------------------------------------------
+// The frontend is hosted on different origins (Vercel, Cloudflare Pages,
+// local dev). Without these headers browsers block every API call.
+// Allowed origins come from CORS_ORIGINS (comma-separated) or the defaults.
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ||
+  'https://hack.thebhavesh.online,https://dark-matter-frontend.vercel.app,http://localhost:5173,http://localhost:3000'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json({ limit: '1mb' }));
 
 // ---- API -------------------------------------------------------------------
