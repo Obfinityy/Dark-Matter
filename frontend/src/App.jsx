@@ -215,6 +215,10 @@ function AppInner() {
     );
   }
 
+  if (page === 'login' || page === 'signup') {
+    return <AuthPage mode={page} onDone={() => navigate('chat')} />;
+  }
+
   return (
     <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
       <Sidebar

@@ -816,12 +816,12 @@ button { font-family: inherit; }
 .composer-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-bottom: 2px; }
 .composer-left { position: relative; display: flex; align-items: center; flex-shrink: 0; margin-bottom: 2px; }
 
-/* Send button: pale periwinkle when empty, solid black when text typed */
+/* Send button: light grey when empty, solid black when text typed (monochrome) */
 .send-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--dm-accent);
+  background: #e8e8e8;
   border: none;
   color: #fff;
   display: inline-flex;
