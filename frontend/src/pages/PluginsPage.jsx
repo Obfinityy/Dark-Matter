@@ -23,61 +23,18 @@ import {
 } from '../lib/api';
 import { toast } from '../lib/toast';
 
-const ORDER_KEY = 'dm.providerOrder';
-
-// Field schemas per provider id.
+// Field schema for the AWS provider (the only provider).
 const FIELD_PRESETS = {
-  groq: [{ key: 'apiKey', label: 'API key', type: 'password' }],
-  gemini: [{ key: 'apiKey', label: 'API key', type: 'password' }],
-  nvidia: [{ key: 'apiKey', label: 'API key', type: 'password' }],
-  openrouter: [{ key: 'apiKey', label: 'API key', type: 'password' }],
-  deepseek: [{ key: 'apiKey', label: 'API key', type: 'password' }],
-  custom: [
-    { key: 'baseUrl', label: 'Base URL (OpenAI-compatible)', type: 'text', placeholder: 'https://api.example.com/v1' },
-    { key: 'apiKey', label: 'API key (optional)', type: 'password' },
-    { key: 'model', label: 'Model name', type: 'text', placeholder: 'my-model' },
-  ],
   aws: [
     { key: 'region', label: 'AWS region', type: 'text', placeholder: 'us-east-1' },
     { key: 'accessKeyId', label: 'Access key ID', type: 'password' },
     { key: 'secretAccessKey', label: 'Secret access key', type: 'password' },
   ],
-  local: [
-    { key: 'baseUrl', label: 'Local endpoint base URL', type: 'text', placeholder: 'http://localhost:11434' },
-  ],
 };
-
-const DEFAULT_ORDER = ['groq', 'gemini', 'nvidia', 'openrouter', 'deepseek', 'custom', 'aws', 'local'];
 
 const KEY_PAGE_HINTS = {
-  groq: 'Create a key at console.groq.com → API Keys.',
-  gemini: 'Create a key at Google AI Studio → Get API key.',
-  nvidia: 'Create a key at build.nvidia.com → API keys.',
-  openrouter: 'Create a key at openrouter.ai → Keys.',
-  deepseek: 'Create a key at platform.deepseek.com → API keys.',
   aws: 'Use an IAM user with Bedrock access. The region and both keys are stored encrypted.',
-  local: 'Point at any OpenAI-compatible local endpoint (e.g. Ollama). No key needed.',
-  custom: 'Any OpenAI-compatible API: base URL, optional key, and model name.',
 };
-
-function loadOrder() {
-  try {
-    const raw = localStorage.getItem(ORDER_KEY);
-    const arr = raw ? JSON.parse(raw) : null;
-    if (Array.isArray(arr) && arr.length > 0) {
-      const known = DEFAULT_ORDER.filter((id) => arr.includes(id));
-      const extra = arr.filter((id) => !DEFAULT_ORDER.includes(id));
-      return [...known.sort((a, b) => arr.indexOf(a) - arr.indexOf(b)), ...extra];
-    }
-  } catch { /* ignore */ }
-  return [...DEFAULT_ORDER];
-}
-
-function saveOrder(order) {
-  try {
-    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
-  } catch { /* ignore */ }
-}
 
 function statusMeta(provider) {
   const s = String(provider.status || (provider.configured ? 'connected' : 'not_configured')).toLowerCase();
@@ -86,23 +43,7 @@ function statusMeta(provider) {
   return { cls: 'dot-gray', label: 'Not configured' };
 }
 
-function ArrowUp() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-      <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ArrowDown() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-      <path d="M12 5v14M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ProviderCard({ provider, rank, isFirst, isLast, onMove, onSaved }) {
+function ProviderCard({ provider, onSaved }) {
   const fields = FIELD_PRESETS[provider.id] || [{ key: 'apiKey', label: 'API key', type: 'password' }];
   const [values, setValues] = useState({});
   const [busy, setBusy] = useState(false);
@@ -184,17 +125,8 @@ function ProviderCard({ provider, rank, isFirst, isLast, onMove, onSaved }) {
         <div className="provider-head-main">
           <div className="provider-name">
             {provider.name || provider.id}
-            <span className="order-badge" title="Priority in the fallback order">#{rank}</span>
           </div>
           <div className="provider-status">{meta.label}</div>
-        </div>
-        <div className="order-arrows" aria-label="Priority order">
-          <button className="order-arrow" disabled={isFirst || busy} onClick={() => onMove(-1)} title="Move up (higher priority)" aria-label="Move up">
-            <ArrowUp />
-          </button>
-          <button className="order-arrow" disabled={isLast || busy} onClick={() => onMove(1)} title="Move down (lower priority)" aria-label="Move down">
-            <ArrowDown />
-          </button>
         </div>
         <button
           className={`toggle-switch${configured ? ' on' : ''}`}
@@ -324,7 +256,6 @@ function ModelRow({ model, onUpdate }) {
 export default function PluginsPage() {
   const [providers, setProviders] = useState([]);
   const [providersError, setProvidersError] = useState('');
-  const [order, setOrder] = useState(loadOrder);
   const [models, setModels] = useState([]);
   const [modelsError, setModelsError] = useState('');
 
@@ -334,13 +265,6 @@ export default function PluginsPage() {
       const list = Array.isArray(res.data) ? res.data : res.data.providers || [];
       setProviders(list);
       setProvidersError('');
-      // Fold any backend-known providers not yet in the saved order.
-      setOrder((prev) => {
-        const ids = list.map((p) => p.id);
-        const next = [...prev.filter((id) => ids.includes(id)), ...ids.filter((id) => !prev.includes(id))];
-        saveOrder(next);
-        return next;
-      });
     } else {
       setProviders([]);
       setProvidersError(res.error || 'Could not load providers.');
@@ -365,46 +289,21 @@ export default function PluginsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function moveProvider(id, dir) {
-    setOrder((prev) => {
-      const idx = prev.indexOf(id);
-      const j = idx + dir;
-      if (idx < 0 || j < 0 || j >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[j]] = [next[j], next[idx]];
-      saveOrder(next);
-      return next;
-    });
-  }
-
-  const byId = new Map(providers.map((p) => [p.id, p]));
-  const ordered = order.map((id) => byId.get(id)).filter(Boolean);
-  const unordered = providers.filter((p) => !order.includes(p.id));
-  const visible = [...ordered, ...unordered];
-
   return (
     <div className="page">
       <div className="page-inner">
         <header className="page-header">
           <h1>Plugins</h1>
-          <p className="page-sub">Connect any AI provider, or download a model to run locally.</p>
+          <p className="page-sub">Connect AWS Bedrock, or download a model to run locally.</p>
         </header>
 
-        <h2 className="section-title">AI providers</h2>
-        <p className="page-sub">
-          Priority order: if a provider fails, the next one is tried automatically.
-          Use the arrows to reorder.
-        </p>
+        <h2 className="section-title">AI provider</h2>
         {providersError && <div className="alert alert-error">{providersError}</div>}
         <div className="provider-grid">
-          {visible.map((p, i) => (
+          {providers.map((p) => (
             <ProviderCard
               key={p.id}
               provider={p}
-              rank={i + 1}
-              isFirst={i === 0}
-              isLast={i === visible.length - 1}
-              onMove={(dir) => moveProvider(p.id, dir)}
               onSaved={loadProviders}
             />
           ))}

@@ -9,14 +9,7 @@ import { encryptSecret, decryptSecret } from '../crypto.js';
 import { readPluginKeys, writePluginKeys } from '../store.js';
 
 export const PROVIDERS = [
-  { id: 'groq', name: 'Groq', keyHint: 'gsk_…' },
-  { id: 'gemini', name: 'Google Gemini', keyHint: 'AIza…' },
-  { id: 'nvidia', name: 'NVIDIA NIM', keyHint: 'nvapi-…' },
-  { id: 'openrouter', name: 'OpenRouter', keyHint: 'sk-or-…' },
-  { id: 'deepseek', name: 'DeepSeek', keyHint: 'sk-…' },
-  { id: 'custom', name: 'Custom (OpenAI-compatible)', keyHint: 'any' },
   { id: 'aws', name: 'AWS (Bedrock)', keyHint: 'AKIA… / IAM' },
-  { id: 'local', name: 'Local (self-hosted endpoint)', keyHint: 'no key' },
 ];
 
 const router = Router();
@@ -45,8 +38,8 @@ router.put('/providers/:id', (req, res) => {
     });
   }
   const { apiKey, baseUrl, model, extra } = req.body || {};
-  // 'local' needs no key; everything else requires one (empty string clears).
-  if (id !== 'local' && apiKey !== '' && (typeof apiKey !== 'string' || !apiKey.trim())) {
+  // AWS requires its credentials (empty string clears).
+  if (apiKey !== '' && (typeof apiKey !== 'string' || !apiKey.trim())) {
     return res.status(400).json({
       ok: false,
       error: 'missing_api_key',
