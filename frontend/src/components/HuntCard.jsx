@@ -15,12 +15,23 @@ const SEVERITY_CLASS = {
 
 function statusClass(status) {
   switch (status) {
-    case 'running': return '';
-    case 'paused': return 'hunt-paused';
-    case 'done': return 'hunt-done';
-    case 'stopped': return 'hunt-stopped';
-    case 'error': return 'hunt-error';
-    default: return 'hunt-paused';
+    case 'running': return 'status-pill status-running';
+    case 'paused': return 'status-pill status-paused';
+    case 'done': return 'status-pill status-completed';
+    case 'stopped': return 'status-pill status-stopped';
+    case 'error': return 'status-pill status-failed';
+    default: return 'status-pill status-paused';
+  }
+}
+
+function statusLabel(status) {
+  switch (status) {
+    case 'running': return 'Running';
+    case 'paused': return 'Paused';
+    case 'done': return 'Completed';
+    case 'stopped': return 'Stopped';
+    case 'error': return 'Failed';
+    default: return 'Paused';
   }
 }
 
@@ -133,9 +144,9 @@ export default function HuntCard({ hunt, onStatusChange }) {
   const totalFindings = findings.length;
 
   return (
-    <div className={`hunt-card ${statusClass(status)}`}>
+    <div className="hunt-card">
       <div className="hunt-statusline">
-        <span className="hunt-pulse-dot" aria-hidden="true" />
+        <span className={statusClass(status)}><span className="dot" aria-hidden="true" />{statusLabel(status)}</span>
         <span className="hunt-status-text">{statusText(status, hunt.target)}</span>
         {phase && <span className="hunt-target-inline">{phase}</span>}
         {logs.length > 0 && (
