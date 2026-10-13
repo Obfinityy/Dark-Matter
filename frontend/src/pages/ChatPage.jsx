@@ -185,9 +185,35 @@ export default function ChatPage({
   return (
     <div className="chat-page">
       {messages.length === 0 ? (
-        <div className="empty-wrap">
-          <h1>Where should we begin?</h1>
+        <div className="empty-wrap dm-hero">
+          <div className="dm-emblem">
+            <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#b8860b" strokeWidth="3" opacity="0.35" />
+              <circle cx="32" cy="32" r="17" fill="none" stroke="#b8860b" strokeWidth="4" />
+              <circle cx="32" cy="32" r="6" fill="#b8860b" />
+            </svg>
+          </div>
+          <div className="dm-wordmark">DARK MATTER</div>
+          <p className="dm-tagline">Elite autonomous bug-bounty hunter</p>
+          <div className="dm-quick-actions">
+            <button className="dm-action-card" onClick={() => { if (ensureHuntAuth()) setHuntModalOpen(true); }}>
+              <span className="dm-action-icon">🎯</span>
+              <span className="dm-action-title">Start a hunt</span>
+              <span className="dm-action-sub">Point the hunter at a target</span>
+            </button>
+            <button className="dm-action-card" onClick={() => onOpenReports && onOpenReports()}>
+              <span className="dm-action-icon">📋</span>
+              <span className="dm-action-title">Reports</span>
+              <span className="dm-action-sub">Findings & hunt history</span>
+            </button>
+            <button className="dm-action-card" onClick={() => document.querySelector('.empty-composer input, .empty-composer textarea')?.focus()}>
+              <span className="dm-action-icon">💬</span>
+              <span className="dm-action-title">Ask the AI</span>
+              <span className="dm-action-sub">Strategy, recon, technique</span>
+            </button>
+          </div>
           <div className="empty-composer">{composer}</div>
+          <p className="dm-disclaimer">Dark Matter hunts only targets you are authorized to test.</p>
         </div>
       ) : (
         <>
