@@ -216,7 +216,7 @@ export default function ChatPage({
               </div>
             </div>
           </div>
-          <div className="composer-wrap">{composer}</div>
+          {composer}
           <p className="dm-disclaimer">Dark Matter hunts only targets you are authorized to test.</p>
         </>
       ) : (
